@@ -184,7 +184,7 @@
 <div id="info-tooltip"></div>
 <div id="tutorial-overlay" class="tutorial-overlay">
     <div class="tutorial-card">
-        <div class="tutorial-kicker">새 콘텐츠 발견</div>
+        <div class="tutorial-kicker">새 콘텐츠 발견!</div>
         <div class="tutorial-title" id="tutorial-title">알림</div>
         <div class="tutorial-body" id="tutorial-body"></div>
         <div class="tutorial-actions">
@@ -278,27 +278,27 @@
         <div class="stat-grid">
             <div class="stat-item tip" style="grid-column: 1 / span 2; margin-bottom: 2px; font-size: 1.1em;" onmouseenter="showStatTooltip(event,'dps')" onmouseleave="hideInfoTooltip()">🗡️ DPS: <strong id="ui-dps" style="color: #ff7979;">10</strong></div>
             <div class="stat-item tip" onmouseenter="showStatTooltip(event,'atk')" onmouseleave="hideInfoTooltip()">⚔️ 공격력: <span id="ui-atk">10</span></div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'aps')" onmouseleave="hideInfoTooltip()">⚡ 공속: <span id="ui-aps">1.00</span></div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'aps')" onmouseleave="hideInfoTooltip()">⚡ 공격 속도: <span id="ui-aps">1.00</span></div>
             <div class="stat-item tip" onmouseenter="showStatTooltip(event,'crit')" onmouseleave="hideInfoTooltip()">🎯 치명타: <span id="ui-crit">5.0</span>%</div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'critDmg')" onmouseleave="hideInfoTooltip()">💥 치피배: <span id="ui-crit-dmg">150</span>%</div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'move')" onmouseleave="hideInfoTooltip()">🏃 이속: <span id="ui-move-spd">100</span>%</div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'critDmg')" onmouseleave="hideInfoTooltip()">💥 치명타 피해 배율: <span id="ui-crit-dmg">150</span>%</div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'move')" onmouseleave="hideInfoTooltip()">🏃 이동 속도: <span id="ui-move-spd">100</span>%</div>
             <div class="stat-item tip" onmouseenter="showStatTooltip(event,'hp')" onmouseleave="hideInfoTooltip()">❤️ 최대 생명력: <span id="ui-maxhp-stat">100</span></div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'dr')" onmouseleave="hideInfoTooltip()">🛡️ 물피감: <span id="ui-dr">0</span>%</div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resF')" onmouseleave="hideInfoTooltip()" style="color: #e74c3c;">🔥 화염저항: <span id="ui-res-fire">0</span>%</div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resC')" onmouseleave="hideInfoTooltip()" style="color: #3498db;">❄️ 냉기저항: <span id="ui-res-cold">0</span>%</div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resL')" onmouseleave="hideInfoTooltip()" style="color: #f1c40f;">⚡ 번개저항: <span id="ui-res-light">0</span>%</div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resChaos')" onmouseleave="hideInfoTooltip()" style="color: #9b59b6;">☠️ 카오스저항: <span id="ui-res-chaos">0</span>%</div>
-            <div class="stat-item tip" id="row-regen" onmouseenter="showStatTooltip(event,'regen')" onmouseleave="hideInfoTooltip()" style="display: none;">💖 초당재생: <span id="ui-regen">0.0</span>%</div>
-            <div class="stat-item tip" id="row-leech" onmouseenter="showStatTooltip(event,'leech')" onmouseleave="hideInfoTooltip()" style="display: none;">🦇 피흡: <span id="ui-leech">0.0</span>%</div>
-            <div class="stat-item tip" id="row-ds" onmouseenter="showStatTooltip(event,'ds')" onmouseleave="hideInfoTooltip()" style="display: none;">🔁 연속타격: <span id="ui-ds">0</span>%</div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'dr')" onmouseleave="hideInfoTooltip()">🛡️ 물리 피해 감소: <span id="ui-dr">0</span>%</div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resF')" onmouseleave="hideInfoTooltip()" style="color: #e74c3c;">🔥 화염 저항: <span id="ui-res-fire">0</span>%</div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resC')" onmouseleave="hideInfoTooltip()" style="color: #3498db;">❄️ 냉기 저항: <span id="ui-res-cold">0</span>%</div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resL')" onmouseleave="hideInfoTooltip()" style="color: #f1c40f;">⚡ 번개 저항: <span id="ui-res-light">0</span>%</div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resChaos')" onmouseleave="hideInfoTooltip()" style="color: #9b59b6;">☠️ 카오스 저항: <span id="ui-res-chaos">0</span>%</div>
+            <div class="stat-item tip" id="row-regen" onmouseenter="showStatTooltip(event,'regen')" onmouseleave="hideInfoTooltip()" style="display: none;">💖 초당 생명력 재생: <span id="ui-regen">0.0</span>%</div>
+            <div class="stat-item tip" id="row-leech" onmouseenter="showStatTooltip(event,'leech')" onmouseleave="hideInfoTooltip()" style="display: none;">🦇 생명력 흡수: <span id="ui-leech">0.0</span>%</div>
+            <div class="stat-item tip" id="row-ds" onmouseenter="showStatTooltip(event,'ds')" onmouseleave="hideInfoTooltip()" style="display: none;">🔁 연속 타격: <span id="ui-ds">0</span>%</div>
             <div class="stat-item tip" id="row-gemlv" onmouseenter="showStatTooltip(event,'gem')" onmouseleave="hideInfoTooltip()" style="display: none;">💎 젬 레벨 보너스: <span id="ui-gemlv">0</span></div>
         </div>
     </div>
 
     <div id="tab-char" class="tab-content">
         <div style="display: flex; flex-direction: column; height: 100%;">
-            <h2><span>🌌 미지의 성좌 <span style="font-size:0.7em; color:#8ca5be;">노드 <span id="ui-passive-total">0</span>개</span></span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold; font-size: 1.3em;">0</span></span></h2>
-            <div style="font-size: 0.85em; color: #a5b1c2; text-align: center; margin-bottom: 10px;">🖱️ 좌클릭 드래그: 이동 | 휠: 줌 | 노드를 찍을수록 주변 가지가 밝혀집니다. 밝혀진 지형은 시즌이 바뀌어도 유지됩니다.</div>
+            <h2><span>🌌 패시브 스킬 트리</span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold; font-size: 1.3em;">0</span></span></h2>
+            <div style="font-size: 0.85em; color: #a5b1c2; text-align: center; margin-bottom: 10px;">🖱️ 좌클릭 드래그: 이동 | 휠: 줌 </div>
             <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: none; border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; cursor: grab;">
                 <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
             </div>
@@ -307,11 +307,11 @@
 
     <div id="tab-traits" class="tab-content">
         <div id="trait-season-section" style="display: none; margin-bottom: 30px;">
-            <h2>🔄 환생 노드 (시즌: <span id="ui-season-text-tab">1</span>) <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span></span></h2>
+            <h2>🔄 시즌 패시브 스킬 트리 (시즌: <span id="ui-season-text-tab">1</span>) <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span></span></h2>
             <div class="trait-tree" id="ui-season-tree"></div>
         </div>
 
-        <h2>👑 직업 및 어센던시 <span class="h2-right">전직 포인트: <span id="ui-ascend-pts" style="color: #f1c40f; font-weight: bold;">0</span> / 6</span></h2>
+        <h2>👑 전직 패시브 스킬 트리 <span class="h2-right">전직 포인트: <span id="ui-ascend-pts" style="color: #f1c40f; font-weight: bold;">0</span> / 6</span></h2>
 
         <div id="ui-class-select" style="display: none;">
             <div style="text-align: center; margin-bottom: 15px; color: #ddd;">1차 전직 시련을 통과했습니다! 운명을 결정할 직업을 선택하세요. <br><span style="color: #e74c3c; font-size: 0.85em;">(한 번 선택하면 이번 시즌에는 변경할 수 없습니다)</span></div>
@@ -421,6 +421,112 @@
 </div>
 
 <script>
+(function () {
+    function supportsModernSyntax() {
+        try {
+            new Function(
+                "const a = 1;" +
+                "let b = 2;" +
+                "var obj = { ...{x: 1}, y: 2 };" +
+                "var txt = `${a + b}`;" +
+                "var fn = (n) => n + 1;" +
+                "return obj.x + fn(a) + b + txt.length;"
+            );
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+    function markUnsupportedBrowser() {
+        var label = document.getElementById('ui-progress-label');
+        var pct = document.getElementById('ui-move-time-text');
+        var bar = document.getElementById('ui-move-bar');
+        var zone = document.getElementById('ui-combat-zone');
+        var caption = document.getElementById('ui-battlefield-caption');
+        var log = document.getElementById('log');
+        if (label) label.innerText = '⚠️ 브라우저 미지원';
+        if (pct) pct.innerText = '스크립트 실행 불가';
+        if (bar) {
+            bar.style.width = '100%';
+            bar.style.backgroundColor = '#c0392b';
+        }
+        if (zone) zone.innerText = '이 미리보기는 최신 JavaScript를 지원하지 않습니다';
+        if (caption) caption.innerText = '외부 Chromium/Edge 계열 브라우저에서 열어 주세요.';
+        if (log) {
+            log.innerHTML = '<div class=\"log-msg attack-monster\">이 인앱 브라우저는 현재 게임 스크립트 문법을 지원하지 않아 전투 루프가 시작되지 않습니다.</div>' +
+                '<div class=\"log-msg loot-magic\">원인: 페이지의 메인 스크립트가 파싱 단계에서 중단되어 진행도, 전투, 저장 로직이 전혀 실행되지 않습니다.</div>' +
+                '<div class=\"log-msg loot-rare\">해결: 최신 Chromium/Edge/Chrome에서 열거나, 코드 전체를 ES5로 트랜스파일해야 합니다.</div>';
+        }
+    }
+    window.__projectIdleModernSupport = supportsModernSyntax();
+    if (window.__projectIdleModernSupport) return;
+    function onReady() {
+        markUnsupportedBrowser();
+    }
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(onReady, 0);
+    } else if (document.addEventListener) {
+        document.addEventListener('DOMContentLoaded', onReady);
+        window.addEventListener('load', onReady);
+    } else if (document.attachEvent) {
+        document.attachEvent('onreadystatechange', function () {
+            if (document.readyState === 'complete') onReady();
+        });
+        window.attachEvent('onload', onReady);
+    }
+})();
+</script>
+<script>
+if (!Array.prototype.includes) {
+    Array.prototype.includes = function(search, start) {
+        let index = start || 0;
+        if (index < 0) index = Math.max(this.length + index, 0);
+        for (let i = index; i < this.length; i++) {
+            if (this[i] === search || (search !== search && this[i] !== this[i])) return true;
+        }
+        return false;
+    };
+}
+if (!String.prototype.startsWith) {
+    String.prototype.startsWith = function(search, pos) {
+        let start = pos || 0;
+        return this.substring(start, start + String(search).length) === String(search);
+    };
+}
+if (!Math.hypot) {
+    Math.hypot = function() {
+        let sum = 0;
+        for (let i = 0; i < arguments.length; i++) sum += arguments[i] * arguments[i];
+        return Math.sqrt(sum);
+    };
+}
+if (!Object.values) {
+    Object.values = function(obj) {
+        return Object.keys(obj).map(function(key) { return obj[key]; });
+    };
+}
+if (!Object.entries) {
+    Object.entries = function(obj) {
+        return Object.keys(obj).map(function(key) { return [key, obj[key]]; });
+    };
+}
+if (!Object.fromEntries) {
+    Object.fromEntries = function(entries) {
+        let obj = {};
+        (entries || []).forEach(function(entry) {
+            if (!entry || entry.length < 2) return;
+            obj[entry[0]] = entry[1];
+        });
+        return obj;
+    };
+}
+if (typeof NodeList !== 'undefined' && !NodeList.prototype.forEach) {
+    NodeList.prototype.forEach = Array.prototype.forEach;
+}
+if (typeof HTMLCollection !== 'undefined' && !HTMLCollection.prototype.forEach) {
+    HTMLCollection.prototype.forEach = Array.prototype.forEach;
+}
+
 const MAP_ZONES = [
     { id: 0, name: "액트 1: 버려진 해안", type: "act", tier: 1, maxKills: 3, ele: "phys" },
     { id: 1, name: "액트 2: 화염의 습지", type: "act", tier: 2, maxKills: 3, ele: "fire" },
@@ -481,20 +587,20 @@ const P_STATS = {
     lightPctDmg: { name: '번개 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     chaosPctDmg: { name: '카오스 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     aoePctDmg: { name: '범위 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
-    aspd: { name: '공속(%)', tiers: [1, 2, 3], s: 1.5, m: 4, k: 8, isPct: true },
-    move: { name: '이동속도(%)', tiers: [1, 2], s: 1.5, m: 4, isPct: true },
-    crit: { name: '치명타(%)', tiers: [2, 3], m: 1.5, k: 4, isPct: true },
-    critDmg: { name: '치피배(%)', tiers: [3], k: 25, isPct: true },
-    leech: { name: '흡혈(%)', tiers: [2, 3], m: 0.4, k: 1.5, isPct: true },
-    gemLevel: { name: '스킬레벨', tiers: [3], k: 1 },
-    dr: { name: '물피감(%)', tiers: [3], k: 4, isPct: true },
-    ds: { name: '연속타격(%)', tiers: [3], k: 8, isPct: true },
-    suppCap: { name: '보조한도', tiers: [3], k: 1 },
-    resF: { name: '화염저항(%)', tiers: [2], m: 5, isPct: true },
-    resC: { name: '냉기저항(%)', tiers: [2], m: 5, isPct: true },
-    resL: { name: '번개저항(%)', tiers: [2], m: 5, isPct: true },
-    resAll: { name: '모든원소저항(%)', tiers: [3], k: 4, isPct: true },
-    resChaos: { name: '카오스저항(%)', tiers: [3], k: 4, isPct: true },
+    aspd: { name: '공격 속도(%)', tiers: [1, 2, 3], s: 1.5, m: 4, k: 8, isPct: true },
+    move: { name: '이동 속도(%)', tiers: [1, 2], s: 1.5, m: 4, isPct: true },
+    crit: { name: '치명타 확률(%)', tiers: [2, 3], m: 1.5, k: 4, isPct: true },
+    critDmg: { name: '치명타 피해 배율(%)', tiers: [3], k: 25, isPct: true },
+    leech: { name: '생명력 흡수(%)', tiers: [2, 3], m: 0.4, k: 1.5, isPct: true },
+    gemLevel: { name: '스킬 젬 레벨', tiers: [3], k: 1 },
+    dr: { name: '물리 피해 감소(%)', tiers: [3], k: 4, isPct: true },
+    ds: { name: '연속 타격(%)', tiers: [3], k: 8, isPct: true },
+    suppCap: { name: '보조 스킬 젬 한도', tiers: [3], k: 1 },
+    resF: { name: '화염 저항(%)', tiers: [2], m: 5, isPct: true },
+    resC: { name: '냉기 저항(%)', tiers: [2], m: 5, isPct: true },
+    resL: { name: '번개 저항(%)', tiers: [2], m: 5, isPct: true },
+    resAll: { name: '모든 원소 저항(%)', tiers: [3], k: 4, isPct: true },
+    resChaos: { name: '카오스 저항(%)', tiers: [3], k: 4, isPct: true },
     expGain: { name: '경험치 획득(%)', tiers: [2, 3], m: 5, k: 12, isPct: true }
 };
 
@@ -560,11 +666,11 @@ const MOD_DB = [
     { id: 'resL', type: 'suffix', statName: '번개 저항(%)', slots: ['반지', '목걸이', '갑옷', '투구', '신발', '장갑', '허리띠'], base: 5, step: 3 },
     { id: 'resAll', type: 'suffix', statName: '모든 원소 저항(%)', slots: ['반지', '목걸이', '갑옷'], base: 3, step: 2 },
     { id: 'regen', type: 'suffix', statName: '초당 재생(%)', slots: ['갑옷', '허리띠', '목걸이'], base: 0.2, step: 0.1 },
-    { id: 'leech', type: 'suffix', statName: '흡혈(%)', slots: ['무기', '장갑', '반지'], base: 0.3, step: 0.2 },
-    { id: 'dr', type: 'suffix', statName: '물피감(%)', slots: ['갑옷', '허리띠', '투구'], base: 2, step: 2 },
-    { id: 'critDmg', type: 'suffix', statName: '치명타 피해(%)', slots: ['무기', '목걸이', '투구'], base: 10, step: 6 },
+    { id: 'leech', type: 'suffix', statName: '생명력 흡수(%)', slots: ['무기', '장갑', '반지'], base: 0.3, step: 0.2 },
+    { id: 'dr', type: 'suffix', statName: '물리 피해 감소(%)', slots: ['갑옷', '허리띠', '투구'], base: 2, step: 2 },
+    { id: 'critDmg', type: 'suffix', statName: '치명타 피해 배율(%)', slots: ['무기', '목걸이', '투구'], base: 10, step: 6 },
     { id: 'ds', type: 'suffix', statName: '연속 타격(%)', slots: ['장갑', '무기'], base: 5, step: 3 },
-    { id: 'suppCap', type: 'special', statName: '보조 한도', slots: ['목걸이'], base: 1, step: 0 }
+    { id: 'suppCap', type: 'special', statName: '보조 스킬 젬 한도', slots: ['목걸이'], base: 1, step: 0 }
 ];
 
 const BASE_ITEM_DB = [
@@ -619,9 +725,9 @@ const ACT_REWARD_DB = {
         title: '액트 1 클리어 보상',
         body: '해안에서 건진 전리품 중 하나를 골라 다음 구간을 준비하세요.',
         choices: [
-            { kind: 'item', slot: '장갑', rarity: 'magic', label: '미확인 장갑', desc: '액트 1 장갑 꾸러미를 받습니다.' },
-            { kind: 'item', slot: '무기', rarity: 'magic', label: '미확인 무기', desc: '액트 1 무기 꾸러미를 받습니다.' },
-            { kind: 'item', slot: '신발', rarity: 'magic', label: '미확인 신발', desc: '액트 1 신발 꾸러미를 받습니다.' }
+            { kind: 'item', slot: '장갑', rarity: 'magic', label: '미확인 장갑', desc: '액트 1 장갑을 받습니다.' },
+            { kind: 'item', slot: '무기', rarity: 'magic', label: '미확인 무기', desc: '액트 1 무기를 받습니다.' },
+            { kind: 'item', slot: '신발', rarity: 'magic', label: '미확인 신발', desc: '액트 1 신발을 받습니다.' }
         ]
     },
     1: {
@@ -635,14 +741,14 @@ const ACT_REWARD_DB = {
     },
     2: {
         title: '액트 3 클리어 보상',
-        body: '성좌를 더 깊게 탐험할 수 있는 추가 포인트입니다.',
+        body: '추가 패시브 포인트입니다.',
         choices: [
             { kind: 'points', value: 2, label: '패시브 포인트 +2', desc: '즉시 패시브 포인트 2점을 획득합니다.' }
         ]
     },
     3: {
         title: '액트 4 클리어 보상',
-        body: '다가올 원소 구간에 대비해 저항 하나를 강화할 수 있습니다.',
+        body: '원소 저항 하나를 강화할 수 있습니다.',
         choices: [
             { kind: 'stat', stat: 'resF', value: 8, label: '화염 저항 +8%', desc: '영구적으로 화염 저항을 올립니다.' },
             { kind: 'stat', stat: 'resC', value: 8, label: '냉기 저항 +8%', desc: '영구적으로 냉기 저항을 올립니다.' },
@@ -651,7 +757,7 @@ const ACT_REWARD_DB = {
     },
     4: {
         title: '액트 5 클리어 보상',
-        body: '생존과 속도 중 하나를 골라 전장을 안정화하세요.',
+        body: '다음 중 하나의 능력치를 얻을 수 있습니다.',
         choices: [
             { kind: 'stat', stat: 'flatHp', value: 36, label: '최대 생명력 +36', desc: '기본 생존력을 크게 높입니다.' },
             { kind: 'stat', stat: 'aspd', value: 6, label: '공격 속도 +6%', desc: '더 빠른 공격 템포를 확보합니다.' },
@@ -660,7 +766,7 @@ const ACT_REWARD_DB = {
     },
     5: {
         title: '액트 6 클리어 보상',
-        body: '전투 스타일을 다듬을 수 있는 보조 젬 하나를 선택하세요.',
+        body: '가져갈 보조 스킬 젬 하나를 선택하세요.',
         choices: [
             { kind: 'support', gem: '가속', fallbackKind: 'currency', currency: 'augment', fallbackValue: 2, label: '보조 젬 - 가속', desc: '공격 속도를 높이는 보조 젬을 얻습니다.' },
             { kind: 'support', gem: '무자비', fallbackKind: 'currency', currency: 'augment', fallbackValue: 2, label: '보조 젬 - 무자비', desc: '치명타 피해를 높이는 보조 젬을 얻습니다.' },
@@ -669,7 +775,7 @@ const ACT_REWARD_DB = {
     },
     6: {
         title: '액트 7 클리어 보상',
-        body: '중후반 구간을 위한 방어 패시브를 하나 고르세요.',
+        body: '다음 중 하나의 능력치를 얻을 수 있습니다.',
         choices: [
             { kind: 'stat', stat: 'resChaos', value: 10, label: '카오스 저항 +10%', desc: '카오스 피해 구간을 더 안정적으로 통과합니다.' },
             { kind: 'stat', stat: 'dr', value: 6, label: '물리 피해 감소 +6%', desc: '기본 물리 방어력을 강화합니다.' },
@@ -678,7 +784,7 @@ const ACT_REWARD_DB = {
     },
     7: {
         title: '액트 8 클리어 보상',
-        body: '원하는 공격 계열을 특화해 후반 딜링 축을 세우세요.',
+        body: '다음 중 하나의 능력치를 얻을 수 있습니다.',
         choices: [
             { kind: 'stat', stat: 'meleePctDmg', value: 18, label: '근접 피해 +18%', desc: '근접 태그 스킬을 강화합니다.' },
             { kind: 'stat', stat: 'projectilePctDmg', value: 18, label: '투사체 피해 +18%', desc: '투사체 태그 스킬을 강화합니다.' },
@@ -687,7 +793,7 @@ const ACT_REWARD_DB = {
     },
     8: {
         title: '액트 9 클리어 보상',
-        body: '치명, 흡혈, 마무리 화력 중 하나를 선택할 수 있습니다.',
+        body: '다음 중 하나의 능력치를 얻을 수 있습니다.',
         choices: [
             { kind: 'stat', stat: 'crit', value: 5, label: '치명타 확률 +5%', desc: '치명타 발생 빈도를 높입니다.' },
             { kind: 'stat', stat: 'critDmg', value: 30, label: '치명타 피해 +30%', desc: '치명타 한 방의 무게를 늘립니다.' },
@@ -696,7 +802,7 @@ const ACT_REWARD_DB = {
     },
     9: {
         title: '액트 10 클리어 보상',
-        body: '마지막 액트의 보상으로 장기 성장에 도움이 되는 선택지를 제공합니다.',
+        body: '액트 완료 보상입니다.',
         choices: [
             { kind: 'points', value: 3, label: '패시브 포인트 +3', desc: '즉시 패시브 포인트 3점을 획득합니다.' },
             { kind: 'stat', stat: 'gemLevel', value: 1, label: '젬 레벨 보너스 +1', desc: '모든 장착 젬의 유효 레벨을 1 올립니다.' },
@@ -704,6 +810,8 @@ const ACT_REWARD_DB = {
         ]
     }
 };
+
+const PASSIVE_LAYOUT_VERSION = 4;
 
 const defaultGame = {
     saveVersion: 11,
@@ -727,6 +835,7 @@ const defaultGame = {
     passives: [],
     discoveredPassives: [],
     passiveLayoutVersion: PASSIVE_LAYOUT_VERSION,
+    passiveStarEvolution: false,
     skills: ['기본 공격'],
     activeSkill: '기본 공격',
     gemData: {},
@@ -834,7 +943,7 @@ function getStatName(statId) {
     const names = {
         flatHp: '최대 생명력',
         pctHp: '생명력 증가(%)',
-        regen: '초당 재생(%)',
+        regen: '초당 생명력 재생(%)',
         flatDmg: '기본 피해',
         pctDmg: '피해 증가(%)',
         meleePctDmg: '근접 피해(%)',
@@ -850,11 +959,11 @@ function getStatName(statId) {
         move: '이동 속도(%)',
         crit: '치명타 확률(%)',
         critDmg: '치명타 피해(%)',
-        leech: '흡혈(%)',
+        leech: '생명력 흡수(%)',
         gemLevel: '모든 스킬 젬 레벨',
         dr: '받는 피해 감소(%)',
         ds: '연속 타격(%)',
-        suppCap: '보조 스킬 한도',
+        suppCap: '보조 스킬 젬 한도',
         resF: '화염 저항(%)',
         resC: '냉기 저항(%)',
         resL: '번개 저항(%)',
@@ -885,6 +994,8 @@ function createEmptyStatBucket() {
     };
 }
 function addStatToBucket(bucket, statId, value) {
+    value = Number(value);
+    if (!statId || !Number.isFinite(value)) return;
     if (statId === 'flatDmg') bucket.flatDmg += value;
     else if (statId === 'pctDmg') bucket.pctDmg += value;
     else if (statId === 'meleePctDmg') bucket.meleePctDmg += value;
@@ -938,10 +1049,12 @@ function makeSourceLine(label, value, suffix, formatter) {
 }
 
 const PASSIVE_TREE = { nodes: {}, edges: [] };
-const PASSIVE_LAYOUT_VERSION = 2;
 const PASSIVE_TARGET_NODES = 920;
-const PASSIVE_DISCOVERY_RADIUS = 340;
-const PASSIVE_PREVIEW_RADIUS = 240;
+const PASSIVE_DISCOVERY_RADIUS = 155;
+const PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH = 1;
+const PASSIVE_DISCOVERY_EDGE_DEPTH = 1;
+const PASSIVE_PREVIEW_RADIUS = 105;
+const PASSIVE_PREVIEW_EDGE_DEPTH = 1;
 var PASSIVE_WORLD_SCALE = 1;
 var PASSIVE_BOUNDS = { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
 let game;
@@ -950,7 +1063,7 @@ let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
 let passiveRevealBursts = [];
 const PASSIVE_THEME_POOLS = {
-    center: ['flatHp', 'pctDmg', 'crit', 'aspd', 'move', 'resAll', 'gemLevel', 'suppCap'],
+    center: ['flatHp', 'flatDmg', 'pctDmg', 'crit', 'aspd', 'move', 'regen', 'pctHp'],
     templar: ['elementalPctDmg', 'firePctDmg', 'lightPctDmg', 'regen', 'resAll', 'pctDmg'],
     witch: ['elementalPctDmg', 'coldPctDmg', 'lightPctDmg', 'aoePctDmg', 'crit', 'gemLevel'],
     shadow: ['chaosPctDmg', 'crit', 'projectilePctDmg', 'move', 'leech', 'coldPctDmg'],
@@ -983,9 +1096,118 @@ const PASSIVE_STYLE = {
     fog: 'rgba(2,3,6,0.18)'
 };
 
+const PASSIVE_CORE_GENERIC_STATS = ['flatHp', 'flatDmg', 'pctDmg', 'aspd', 'move', 'crit', 'regen', 'pctHp'];
+const PASSIVE_STAR_BLESSING = { flatHp: 140, pctDmg: 24, move: 10 };
+const PASSIVE_APEX_CONFIGS = [
+    {
+        title: '별끝의 심장',
+        stat: 'flatHp',
+        val: 60,
+        desc: '가장 바깥 성좌의 생명력을 끌어와 몸체를 두텁게 만듭니다.',
+        outerNodes: [
+            { title: '심핵의 외연', stat: 'pctHp', val: 8, kind: 'evolved', desc: '바깥 별무리가 생명력 비율을 키워 줍니다.' },
+            { title: '불멸의 맥', stat: 'regen', val: 1.2, kind: 'evolved', desc: '성좌가 서서히 몸을 회복시킵니다.' },
+            { title: '초신성의 심장', stat: 'flatHp', val: 120, kind: 'transcendent', desc: '각성 후 가장 단단한 별핵입니다.' }
+        ]
+    },
+    {
+        title: '별끝의 불꽃',
+        stat: 'pctDmg',
+        val: 36,
+        desc: '순수한 전투 의지를 불러내 전반적인 화력을 끌어올립니다.',
+        outerNodes: [
+            { title: '쇄도의 편린', stat: 'pctDmg', val: 20, kind: 'evolved', desc: '공격 전체를 더 날카롭게 밀어 올립니다.' },
+            { title: '격돌의 잔광', stat: 'flatDmg', val: 24, kind: 'evolved', desc: '기초 타격 자체를 무겁게 만듭니다.' },
+            { title: '초신성의 불꽃', stat: 'critDmg', val: 35, kind: 'transcendent', desc: '치명타가 폭발적으로 강해집니다.' }
+        ]
+    },
+    {
+        title: '별끝의 바람',
+        stat: 'aspd',
+        val: 8,
+        desc: '움직임과 공격 템포를 함께 날렵하게 바꿉니다.',
+        outerNodes: [
+            { title: '가속의 갈래', stat: 'aspd', val: 12, kind: 'evolved', desc: '별빛이 손끝의 리듬을 끌어올립니다.' },
+            { title: '유성의 꼬리', stat: 'move', val: 10, kind: 'evolved', desc: '탐험 속도와 전장 이동이 가벼워집니다.' },
+            { title: '초신성의 바람', stat: 'crit', val: 8, kind: 'transcendent', desc: '민첩함이 정밀한 치명타로 이어집니다.' }
+        ]
+    },
+    {
+        title: '별끝의 갑주',
+        stat: 'resAll',
+        val: 10,
+        desc: '원소 폭풍을 견디는 외곽 성벽을 형성합니다.',
+        outerNodes: [
+            { title: '수호의 편광', stat: 'resAll', val: 10, kind: 'evolved', desc: '세 가지 원소 저항을 함께 단단하게 다집니다.' },
+            { title: '철성의 궤도', stat: 'dr', val: 8, kind: 'evolved', desc: '별무리가 받는 충격을 흩어 놓습니다.' },
+            { title: '초신성의 갑주', stat: 'resChaos', val: 10, kind: 'transcendent', desc: '깊은 공허까지 버티는 외피가 형성됩니다.' }
+        ]
+    },
+    {
+        title: '별끝의 통찰',
+        stat: 'crit',
+        val: 6,
+        desc: '성좌의 흐름을 읽어 전투와 젬 운용을 정교하게 다듬습니다.',
+        outerNodes: [
+            { title: '공명의 실마리', stat: 'suppCap', val: 1, kind: 'evolved', desc: '보조 젬 배치 한도를 넓혀 줍니다.' },
+            { title: '천구의 음영', stat: 'gemLevel', val: 1, kind: 'evolved', desc: '장착한 스킬 젬의 힘을 더 끌어냅니다.' },
+            { title: '초신성의 통찰', stat: 'critDmg', val: 28, kind: 'transcendent', desc: '정교함이 강력한 치명 일격으로 완성됩니다.' }
+        ]
+    }
+];
+
+function getPassiveNodeDisplayName(node) {
+    if (!node) return '미확인 성좌';
+    if (node.title) return node.title;
+    return (P_STATS[node.stat] || {}).name || '미확인 성좌';
+}
+
+function getPassiveEffectLabel(node) {
+    if (!node) return '';
+    if (node.effectLabel) return node.effectLabel;
+    let stat = P_STATS[node.stat] || {};
+    let suffix = stat.isPct ? '%' : '';
+    return `${stat.name || node.stat} +${formatValue(node.stat, node.val)}${suffix}`;
+}
+
+function getPassiveKindLabel(node) {
+    if (!node) return '성좌';
+    if (node.kind === 'apex') return '별끝 특수 노드';
+    if (node.kind === 'evolved') return '각성 성좌';
+    if (node.kind === 'transcendent') return '초월 성좌';
+    if (node.kind === 'core') return '핵심 성좌';
+    if (node.kind === 'deadend') return '막다른 길 거점';
+    if (node.kind === 'hub') return '허브 노드';
+    if (node.tier >= 3 || node.kind === 'major') return '중심 노드';
+    if (node.kind === 'path') return '경로 노드';
+    return '보조 노드';
+}
+
+function angleDistance(a, b) {
+    let diff = a - b;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    return Math.abs(diff);
+}
+
+function traceStarShape(ctx, outerRadius, innerRadius, points) {
+    for (let i = 0; i < points * 2; i++) {
+        let angle = -Math.PI / 2 + (i / (points * 2)) * Math.PI * 2;
+        let radius = i % 2 === 0 ? outerRadius : innerRadius;
+        let px = Math.cos(angle) * radius;
+        let py = Math.sin(angle) * radius;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+}
+
 function getPassiveNodeVisualRadius(node) {
     if (!node) return 8;
     if (node.tier === 0) return 24;
+    if (node.kind === 'transcendent') return 20;
+    if (node.kind === 'apex') return 18;
+    if (node.kind === 'evolved') return 13;
     if (node.kind === 'core') return 18;
     if (node.kind === 'deadend') return 16;
     if (node.kind === 'hub') return 20;
@@ -995,6 +1217,34 @@ function getPassiveNodeVisualRadius(node) {
 }
 
 function getPassiveNodePalette(node, active, reachable, visibility) {
+    const special = node && (node.kind === 'apex' || node.kind === 'evolved' || node.kind === 'transcendent');
+    if (special && active) {
+        return {
+            outer: node.kind === 'transcendent' ? '#fff1b2' : '#f4d788',
+            mid: node.kind === 'transcendent' ? '#b17836' : '#8a6130',
+            inner: '#fff8e7',
+            glow: 'rgba(247,223,155,0.45)',
+            text: '#fff0c6'
+        };
+    }
+    if (special && reachable) {
+        return {
+            outer: node.kind === 'transcendent' ? '#d1b778' : '#a88b5f',
+            mid: '#251b14',
+            inner: '#2c3642',
+            glow: 'rgba(173,192,224,0.18)',
+            text: '#e1cfaa'
+        };
+    }
+    if (special && visibility === 'preview') {
+        return {
+            outer: 'rgba(156,140,104,0.58)',
+            mid: 'rgba(20,18,16,0.86)',
+            inner: 'rgba(45,49,55,0.94)',
+            glow: 'rgba(143,158,183,0.14)',
+            text: '#aeb5bf'
+        };
+    }
     if (active) {
         return {
             outer: '#f2dfb0',
@@ -1059,6 +1309,58 @@ function drawPassiveStarfield(ctx, bounds) {
     }
 }
 
+function drawPassiveEvolutionAura(ctx) {
+    if (!game || !game.passiveStarEvolution) return;
+    let tips = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'transcendent');
+    if (tips.length === 0) return;
+
+    ctx.save();
+    ctx.globalAlpha = 0.88;
+    tips.forEach(node => {
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(node.x * 0.42, node.y * 0.42, node.x, node.y);
+        ctx.strokeStyle = 'rgba(120,151,205,0.08)';
+        ctx.lineWidth = 11;
+        ctx.shadowColor = 'rgba(238,222,172,0.15)';
+        ctx.shadowBlur = 18;
+        ctx.stroke();
+    });
+    ctx.shadowBlur = 0;
+
+    let sortedTips = [...tips].sort((a, b) => Math.atan2(a.y, a.x) - Math.atan2(b.y, b.x));
+    let outlineTips = sortedTips;
+    if (sortedTips.length === 5) {
+        outlineTips = [];
+        let cursor = 0;
+        for (let i = 0; i < 5; i++) {
+            outlineTips.push(sortedTips[cursor]);
+            cursor = (cursor + 2) % 5;
+        }
+    }
+    ctx.beginPath();
+    outlineTips.forEach((node, index) => {
+        if (index === 0) ctx.moveTo(node.x, node.y);
+        else ctx.lineTo(node.x, node.y);
+    });
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(248,227,168,0.15)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    sortedTips.forEach(node => {
+        let glow = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, 120);
+        glow.addColorStop(0, 'rgba(247,228,181,0.18)');
+        glow.addColorStop(0.45, 'rgba(104,142,204,0.10)');
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 120, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.restore();
+}
+
 function drawPassiveLink(ctx, a, b, style) {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
@@ -1105,6 +1407,27 @@ function drawNodeOrnament(ctx, node, radius, palette, active) {
             ctx.fillStyle = active ? 'rgba(245,223,173,0.65)' : 'rgba(120,140,156,0.34)';
             ctx.fill();
         }
+    } else if (node.kind === 'apex' || node.kind === 'transcendent') {
+        ctx.rotate(performance.now() * (node.kind === 'transcendent' ? 0.00012 : 0.00008));
+        ctx.beginPath();
+        traceStarShape(ctx, radius + (node.kind === 'transcendent' ? 6 : 4), radius * 0.58, 5);
+        ctx.strokeStyle = active ? '#fff1c7' : 'rgba(186,163,120,0.8)';
+        ctx.lineWidth = node.kind === 'transcendent' ? 1.5 : 1.25;
+        ctx.stroke();
+    } else if (node.kind === 'evolved') {
+        ctx.rotate(Math.PI / 6);
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            let ang = (i / 6) * Math.PI * 2;
+            let px = Math.cos(ang) * (radius + 3);
+            let py = Math.sin(ang) * (radius + 3);
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = active ? '#ffe4ab' : 'rgba(140,151,167,0.65)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
     } else if (node.kind === 'hub') {
         ctx.rotate(Math.PI / 4);
         ctx.strokeStyle = palette.outer;
@@ -1224,6 +1547,18 @@ function generateOrganicTree() {
         PASSIVE_TREE.nodes[node.id] = node;
         return node;
     }
+    function applyNodeSpec(node, spec, fallbackKind) {
+        if (!node || !spec) return node;
+        node.stat = spec.stat || node.stat;
+        node.val = spec.val !== undefined ? spec.val : node.val;
+        node.kind = spec.kind || fallbackKind || node.kind;
+        node.title = spec.title || null;
+        node.desc = spec.desc || null;
+        node.effectLabel = spec.effectLabel || getPassiveEffectLabel(node);
+        if (spec.requiresEvolution) node.requiresEvolution = true;
+        if (spec.starIndex !== undefined) node.starIndex = spec.starIndex;
+        return node;
+    }
     function connect(aId, bId) {
         if (!aId || !bId || aId === bId) return;
         let key = aId < bId ? `${aId}|${bId}` : `${bId}|${aId}`;
@@ -1260,18 +1595,18 @@ function generateOrganicTree() {
             let prev = null;
             for (let depth = 1; depth <= maxDepth; depth++) {
                 let laneAbs = Math.abs(lane);
-                let radius = 88 + depth * 58 + laneAbs * 11;
-                let angleDrift = lane * 0.076 + depth * lane * 0.007 + Math.sin((depth + s) * 0.45) * 0.018;
+                let radius = 164 + depth * 118 + laneAbs * 44;
+                let angleDrift = lane * 0.104 + depth * lane * 0.006 + Math.sin((depth + s) * 0.45) * 0.018;
                 let angle = baseAngle + angleDrift;
                 let x = Math.cos(angle) * radius;
-                let y = Math.sin(angle) * radius * 0.9;
+                let y = Math.sin(angle) * radius * 0.93;
                 let shape = classifyNode(depth, lane);
                 let node = addNode(x, y, shape.tier, theme, { sector: theme, kind: shape.kind, depth: depth, lane: lane });
                 if (!node) break;
                 if (shape.kind === 'deadend') {
                     node.val = Math.max(node.val, Math.round(getTierValue(node.stat, 3) * 1.45));
                 } else if (shape.kind === 'core') {
-                    let uniqueCoreStats = ['suppCap', 'gemLevel', 'resAll', 'aoePctDmg', 'chaosPctDmg', 'expGain']
+                    let uniqueCoreStats = PASSIVE_CORE_GENERIC_STATS
                         .filter(stat => P_STATS[stat] && (P_STATS[stat].tiers || []).includes(shape.tier));
                     if (uniqueCoreStats.length === 0) uniqueCoreStats = ['flatHp'];
                     node.stat = uniqueCoreStats[(s + laneAbs + depth) % uniqueCoreStats.length];
@@ -1279,7 +1614,7 @@ function generateOrganicTree() {
                 }
                 laneNodes[s][lane].push(node);
 
-                if (depth === 1) connect(root.id, node.id);
+                if (depth === 1 && lane === 0) connect(root.id, node.id);
                 else if (prev) connect(prev.id, node.id);
                 prev = node;
             }
@@ -1289,130 +1624,108 @@ function generateOrganicTree() {
             for (let i = 0; i < lanes.length - 1; i++) {
                 let laneA = lanes[i];
                 let laneB = lanes[i + 1];
-                if (depth % 2 !== 0 && Math.abs(laneA) >= 3) continue;
+                let edgeOuter = Math.max(Math.abs(laneA), Math.abs(laneB));
+                let shouldConnect = false;
+                if (depth <= 2 && edgeOuter <= 1) shouldConnect = true;
+                else if (depth % 3 === 0 && edgeOuter <= 2) shouldConnect = true;
+                else if (depth >= maxDepth - 1 && edgeOuter <= 3) shouldConnect = true;
+                else if (depth === maxDepth && edgeOuter === 4) shouldConnect = true;
+                if (!shouldConnect) continue;
                 let a = laneNodes[s][laneA][depth - 1];
                 let b = laneNodes[s][laneB][depth - 1];
                 if (a && b) connect(a.id, b.id);
             }
-        }
-
-        for (let depth = 3; depth <= maxDepth; depth += 3) {
-            lanes.forEach(lane => {
-                let branchTo = lane + (lane <= 0 ? 2 : -2);
-                if (!lanes.includes(branchTo)) return;
-                let a = laneNodes[s][lane][depth - 1];
-                let b = laneNodes[s][branchTo][depth - 2];
-                if (a && b) connect(a.id, b.id);
-            });
-        }
-
-        // 사다리 느낌의 중간 가로 연결(과도한 교차는 제한)
-        for (let depth = 2; depth <= maxDepth; depth += 2) {
-            for (let i = 1; i < lanes.length - 2; i++) {
-                let laneA = lanes[i];
-                let laneB = lanes[i + 1];
-                if (Math.abs(laneA) >= 3 || Math.abs(laneB) >= 3) continue;
-                let a = laneNodes[s][laneA][depth - 1];
-                let b = laneNodes[s][laneB][depth - 1];
-                if (a && b) connect(a.id, b.id);
-            }
-        }
-
-        for (let depth = 3; depth <= maxDepth; depth += 3) {
-            lanes.forEach(lane => {
-                let branchTo = lane + (lane <= 0 ? 2 : -2);
-                if (!lanes.includes(branchTo)) return;
-                let a = laneNodes[s][lane][depth - 1];
-                let b = laneNodes[s][branchTo][depth - 2];
-                if (a && b) connect(a.id, b.id);
-            });
-        }
-
-        // 사다리 느낌의 중간 가로 연결(과도한 교차는 제한)
-        for (let depth = 2; depth <= maxDepth; depth += 2) {
-            for (let i = 1; i < lanes.length - 2; i++) {
-                let laneA = lanes[i];
-                let laneB = lanes[i + 1];
-                if (Math.abs(laneA) >= 3 || Math.abs(laneB) >= 3) continue;
-                let a = laneNodes[s][laneA][depth - 1];
-                let b = laneNodes[s][laneB][depth - 1];
-                if (a && b) connect(a.id, b.id);
-            }
-        }
-
-        for (let depth = 3; depth <= maxDepth; depth += 3) {
-            lanes.forEach(lane => {
-                let branchTo = lane + (lane <= 0 ? 2 : -2);
-                if (!lanes.includes(branchTo)) return;
-                let a = laneNodes[s][lane][depth - 1];
-                let b = laneNodes[s][branchTo][depth - 2];
-                if (a && b) connect(a.id, b.id);
-            });
-        }
-
-        // 사다리 느낌의 중간 가로 연결(과도한 교차는 제한)
-        for (let depth = 2; depth <= maxDepth; depth += 2) {
-            for (let i = 1; i < lanes.length - 2; i++) {
-                let laneA = lanes[i];
-                let laneB = lanes[i + 1];
-                if (Math.abs(laneA) >= 3 || Math.abs(laneB) >= 3) continue;
-                let a = laneNodes[s][laneA][depth - 1];
-                let b = laneNodes[s][laneB][depth - 1];
-                if (a && b) connect(a.id, b.id);
-            }
-        }
-
-        for (let depth = 3; depth <= maxDepth; depth += 3) {
-            lanes.forEach(lane => {
-                let branchTo = lane + (lane <= 0 ? 2 : -2);
-                if (!lanes.includes(branchTo)) return;
-                let a = laneNodes[s][lane][depth - 1];
-                let b = laneNodes[s][branchTo][depth - 2];
-                if (a && b) connect(a.id, b.id);
-            });
-        }
-
-        // 교차로 밀도 증가: 비인접 레인 대각 연결
-        for (let depth = 4; depth <= maxDepth; depth += 2) {
-            lanes.forEach(lane => {
-                let branchTo = lane + (lane < 0 ? 3 : -3);
-                if (!lanes.includes(branchTo)) return;
-                let a = laneNodes[s][lane][depth - 1];
-                let b = laneNodes[s][branchTo][Math.max(0, depth - 3)];
-                if (a && b) connect(a.id, b.id);
-            });
         }
     }
 
     for (let s = 0; s < sectorCount; s++) {
         let next = (s + 1) % sectorCount;
-        for (let depth = 2; depth <= maxDepth; depth += 2) {
+        for (let depth = 5; depth <= maxDepth; depth += 4) {
             let a = laneNodes[s][0][depth - 1];
             let b = laneNodes[next][0][depth - 1];
             if (a && b) connect(a.id, b.id);
         }
-        for (let depth = 5; depth <= maxDepth; depth += 3) {
-            let upper = laneNodes[s][3][depth - 1];
-            let lower = laneNodes[next][-3][depth - 1];
-            if (upper && lower) connect(upper.id, lower.id);
-        }
-        let wingA = laneNodes[s][4][maxDepth - 1];
-        let wingB = laneNodes[next][-4][maxDepth - 1];
-        if (wingA && wingB) connect(wingA.id, wingB.id);
-
-        for (let depth = 4; depth <= maxDepth; depth += 3) {
-            let crossA = laneNodes[s][1][depth - 1];
-            let crossB = laneNodes[next][-1][depth - 1];
-            if (crossA && crossB) connect(crossA.id, crossB.id);
-            let crossC = laneNodes[s][-1][depth - 1];
-            let crossD = laneNodes[next][1][depth - 1];
-            if (crossC && crossD) connect(crossC.id, crossD.id);
-        }
     }
+
+    let baseOuterRadius = Object.values(PASSIVE_TREE.nodes).reduce((max, node) => Math.max(max, Math.hypot(node.x, node.y)), 0);
+    let outerAnchors = Object.values(PASSIVE_TREE.nodes).filter(node => Math.hypot(node.x, node.y) >= baseOuterRadius - 240);
+    PASSIVE_APEX_CONFIGS.forEach((config, index) => {
+        let angle = -Math.PI / 2 + (index / PASSIVE_APEX_CONFIGS.length) * Math.PI * 2;
+        let apexRadius = baseOuterRadius + 210;
+        let apex = addNode(
+            Math.cos(angle) * apexRadius,
+            Math.sin(angle) * apexRadius * 0.92,
+            3,
+            config.stat,
+            { sector: `star_${index}`, kind: 'apex', depth: maxDepth + 1, lane: index }
+        );
+        applyNodeSpec(apex, {
+            title: config.title,
+            stat: config.stat,
+            val: config.val,
+            kind: 'apex',
+            desc: config.desc,
+            starIndex: index
+        }, 'apex');
+        if (!apex) return;
+
+        let anchors = outerAnchors
+            .map(node => ({
+                node: node,
+                dist: Math.hypot(node.x - apex.x, node.y - apex.y),
+                angleDiff: angleDistance(Math.atan2(node.y, node.x), angle)
+            }))
+            .filter(entry => entry.angleDiff <= 0.7)
+            .sort((a, b) => a.dist - b.dist)
+            .slice(0, 2)
+            .map(entry => entry.node);
+        if (anchors.length === 0) {
+            anchors = outerAnchors
+                .map(node => ({ node: node, dist: Math.hypot(node.x - apex.x, node.y - apex.y) }))
+                .sort((a, b) => a.dist - b.dist)
+                .slice(0, 2)
+                .map(entry => entry.node);
+        }
+        anchors.forEach(node => connect(node.id, apex.id));
+
+        let leftSpec = config.outerNodes[0];
+        let rightSpec = config.outerNodes[1];
+        let tipSpec = config.outerNodes[2];
+        let branchRadius = baseOuterRadius + 360;
+        let tipRadius = baseOuterRadius + 500;
+        let leftNode = addNode(
+            Math.cos(angle - 0.16) * branchRadius,
+            Math.sin(angle - 0.16) * branchRadius * 0.91,
+            3,
+            leftSpec.stat,
+            { sector: `star_${index}`, kind: leftSpec.kind, depth: maxDepth + 2, lane: -1 }
+        );
+        let rightNode = addNode(
+            Math.cos(angle + 0.16) * branchRadius,
+            Math.sin(angle + 0.16) * branchRadius * 0.91,
+            3,
+            rightSpec.stat,
+            { sector: `star_${index}`, kind: rightSpec.kind, depth: maxDepth + 2, lane: 1 }
+        );
+        let tipNode = addNode(
+            Math.cos(angle) * tipRadius,
+            Math.sin(angle) * tipRadius * 0.9,
+            3,
+            tipSpec.stat,
+            { sector: `star_${index}`, kind: tipSpec.kind, depth: maxDepth + 3, lane: 0 }
+        );
+        applyNodeSpec(leftNode, { ...leftSpec, requiresEvolution: true, starIndex: index }, leftSpec.kind);
+        applyNodeSpec(rightNode, { ...rightSpec, requiresEvolution: true, starIndex: index }, rightSpec.kind);
+        applyNodeSpec(tipNode, { ...tipSpec, requiresEvolution: true, starIndex: index }, tipSpec.kind);
+        if (leftNode) connect(apex.id, leftNode.id);
+        if (rightNode) connect(apex.id, rightNode.id);
+        if (leftNode && tipNode) connect(leftNode.id, tipNode.id);
+        if (rightNode && tipNode) connect(rightNode.id, tipNode.id);
+    });
 
     // 시각적 겹침 완화
     let packed = Object.values(PASSIVE_TREE.nodes);
-    for (let iter = 0; iter < 8; iter++) {
+    for (let iter = 0; iter < 10; iter++) {
         for (let i = 0; i < packed.length; i++) {
             for (let j = i + 1; j < packed.length; j++) {
                 let a = packed[i];
@@ -1421,7 +1734,9 @@ function generateOrganicTree() {
                 let dx = b.x - a.x;
                 let dy = b.y - a.y;
                 let dist = Math.hypot(dx, dy) || 0.001;
-                let minDist = 28;
+                let minDist = a.sector === b.sector ? 62 : 108;
+                if (a.kind === 'apex' || b.kind === 'apex') minDist += 22;
+                if (a.requiresEvolution || b.requiresEvolution) minDist += 18;
                 if (dist >= minDist) continue;
                 let push = (minDist - dist) * 0.5;
                 let nx = dx / dist;
@@ -1484,15 +1799,92 @@ generateOrganicTree();
 polishPassiveLayout();
 computePassiveDepths();
 
+function isPassiveNodeAvailable(nodeOrId) {
+    let node = typeof nodeOrId === 'string' ? PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
+    return !!node && (!node.requiresEvolution || !!(game && game.passiveStarEvolution));
+}
+
+function getPassiveApexNodeIds() {
+    return Object.values(PASSIVE_TREE.nodes)
+        .filter(node => node.kind === 'apex')
+        .map(node => node.id);
+}
+
+function unlockPassiveStarEvolution(options) {
+    options = options || {};
+    if (!game || game.passiveStarEvolution) return false;
+    let apexIds = getPassiveApexNodeIds();
+    if (apexIds.length === 0) return false;
+    let owned = new Set(game.passives || []);
+    if (!apexIds.every(id => owned.has(id))) return false;
+
+    game.passiveStarEvolution = true;
+    apexIds.forEach(id => revealAroundNode(id, {
+        forcePulse: !options.silent,
+        noBurst: !!options.silent,
+        radius: PASSIVE_DISCOVERY_RADIUS + 240,
+        edgeDepth: 2
+    }));
+    game.noti.char = true;
+
+    if (!options.silent) {
+        addLog('✨ 별끝 성좌 다섯 개가 연결되어 외곽 성좌가 각성했습니다.', 'loot-rare');
+        queueTutorialNotice(
+            'passive_star_evolution',
+            '성좌 진화',
+            '별끝 특수 노드 5개를 모두 이었습니다.\n외곽 성좌가 별 모양으로 확장되며 훨씬 강한 패시브가 드러납니다.\n동시에 별의 공명 효과로 피해, 생명력, 이동 속도가 추가로 상승합니다.',
+            'tab-char'
+        );
+    }
+    return true;
+}
+
 function calculateReachableNodes() {
     reachableNodes.clear();
-    reachableNodes.add('n0');
+    if (isPassiveNodeAvailable('n0')) reachableNodes.add('n0');
     if (!game) return;
-    (game.passives || []).forEach(id => reachableNodes.add(id));
+    (game.passives || []).forEach(id => {
+        if (isPassiveNodeAvailable(id)) reachableNodes.add(id);
+    });
     PASSIVE_TREE.edges.forEach(edge => {
+        if (!isPassiveNodeAvailable(edge.from) || !isPassiveNodeAvailable(edge.to)) return;
         if ((game.passives || []).includes(edge.from)) reachableNodes.add(edge.to);
         if ((game.passives || []).includes(edge.to)) reachableNodes.add(edge.from);
     });
+}
+
+function getPassiveLinkedNodeIds(nodeId, maxDepth) {
+    let rootId = nodeId;
+    if (!isPassiveNodeAvailable(rootId)) return [];
+    let visited = new Set([rootId]);
+    let frontier = [rootId];
+    let depthLimit = Math.max(0, maxDepth || 0);
+    for (let depth = 0; depth < depthLimit; depth++) {
+        let nextFrontier = [];
+        frontier.forEach(current => {
+            PASSIVE_TREE.edges.forEach(edge => {
+                let next = null;
+                if (edge.from === current) next = edge.to;
+                else if (edge.to === current) next = edge.from;
+                if (!isPassiveNodeAvailable(next)) return;
+                if (!next || visited.has(next)) return;
+                visited.add(next);
+                nextFrontier.push(next);
+            });
+        });
+        if (nextFrontier.length === 0) break;
+        frontier = nextFrontier;
+    }
+    visited.delete(rootId);
+    return Array.from(visited);
+}
+
+function isPassiveLocalReveal(origin, node, radius, maxDepthGap) {
+    if (!origin || !node || origin.id === node.id) return false;
+    if (Math.hypot(node.x - origin.x, node.y - origin.y) > radius) return false;
+    if (origin.id === 'n0') return (node.depth || 0) <= 1;
+    if (!origin.sector || !node.sector || origin.sector !== node.sector) return false;
+    return Math.abs((origin.depth || 0) - (node.depth || 0)) <= maxDepthGap;
 }
 
 function refreshPassiveVisibility() {
@@ -1501,17 +1893,23 @@ function refreshPassiveVisibility() {
         previewPassiveNodes = new Set(['n0']);
         return;
     }
-    discoveredPassiveNodes = new Set((game.discoveredPassives || []).filter(id => PASSIVE_TREE.nodes[id]));
+    discoveredPassiveNodes = new Set((game.discoveredPassives || []).filter(id => isPassiveNodeAvailable(id)));
     discoveredPassiveNodes.add('n0');
-    (game.passives || []).forEach(id => discoveredPassiveNodes.add(id));
+    (game.passives || []).forEach(id => {
+        if (isPassiveNodeAvailable(id)) discoveredPassiveNodes.add(id);
+    });
     previewPassiveNodes = new Set(discoveredPassiveNodes);
-    let previewSeeds = ['n0'].concat((game.passives || []).filter(id => PASSIVE_TREE.nodes[id]));
-    let allNodes = Object.values(PASSIVE_TREE.nodes);
+    let previewSeeds = Array.from(new Set((game.passives || []).filter(id => isPassiveNodeAvailable(id))));
+    let allNodes = Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node));
     previewSeeds.forEach(id => {
         let src = PASSIVE_TREE.nodes[id];
         if (!src) return;
+        getPassiveLinkedNodeIds(id, PASSIVE_PREVIEW_EDGE_DEPTH).forEach(linkedId => {
+            if (!discoveredPassiveNodes.has(linkedId)) previewPassiveNodes.add(linkedId);
+        });
         allNodes.forEach(node => {
-            if (Math.hypot(node.x - src.x, node.y - src.y) <= PASSIVE_PREVIEW_RADIUS) previewPassiveNodes.add(node.id);
+            if (discoveredPassiveNodes.has(node.id)) return;
+            if (isPassiveLocalReveal(src, node, PASSIVE_PREVIEW_RADIUS, 1)) previewPassiveNodes.add(node.id);
         });
     });
 }
@@ -1519,18 +1917,23 @@ function refreshPassiveVisibility() {
 function revealAroundNode(nodeId, options) {
     options = options || {};
     let origin = PASSIVE_TREE.nodes[nodeId];
-    if (!origin) return;
-    let radius = options.radius || (nodeId === 'n0' ? 2600 : PASSIVE_DISCOVERY_RADIUS);
+    if (!origin || !isPassiveNodeAvailable(origin)) return;
+    let radius = options.radius || PASSIVE_DISCOVERY_RADIUS;
+    let edgeDepth = options.edgeDepth !== undefined ? options.edgeDepth : (nodeId === 'n0' ? PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH : PASSIVE_DISCOVERY_EDGE_DEPTH);
     let newlyDiscovered = [];
+    let discoverIds = new Set([nodeId]);
+    getPassiveLinkedNodeIds(nodeId, edgeDepth).forEach(id => discoverIds.add(id));
     Object.values(PASSIVE_TREE.nodes).forEach(node => {
-        if (Math.hypot(node.x - origin.x, node.y - origin.y) <= radius) {
-            if (!(game.discoveredPassives || []).includes(node.id)) {
-                game.discoveredPassives.push(node.id);
-                newlyDiscovered.push(node.id);
-            }
+        if (!isPassiveNodeAvailable(node)) return;
+        if (isPassiveLocalReveal(origin, node, radius, nodeId === 'n0' ? 1 : 2)) discoverIds.add(node.id);
+    });
+    discoverIds.forEach(id => {
+        if (!(game.discoveredPassives || []).includes(id)) {
+            game.discoveredPassives.push(id);
+            newlyDiscovered.push(id);
         }
     });
-    if (newlyDiscovered.length > 0 || options.forcePulse) {
+    if (!options.noBurst && (newlyDiscovered.length > 0 || options.forcePulse)) {
         passiveRevealBursts.push({
             originId: nodeId,
             nodeIds: newlyDiscovered,
@@ -1550,6 +1953,7 @@ function cleanupPassiveBursts() {
 }
 
 function getPassiveVisibility(nodeId) {
+    if (!isPassiveNodeAvailable(nodeId)) return 'hidden';
     if (discoveredPassiveNodes.has(nodeId)) return 'discovered';
     if (previewPassiveNodes.has(nodeId)) return 'preview';
     return 'hidden';
@@ -1558,7 +1962,7 @@ function getPassiveVisibility(nodeId) {
 function getNodeRevealAmount(node) {
     let visibility = getPassiveVisibility(node.id);
     if (visibility === 'hidden') return 0;
-    let amount = visibility === 'preview' ? 0.22 : 1;
+    let amount = visibility === 'preview' ? 0.14 : 1;
     let now = performance.now();
     passiveRevealBursts.forEach(burst => {
         if (burst.nodeIds.includes(node.id)) {
@@ -1639,12 +2043,14 @@ let pTimer = 0;
 let progressStallTicks = 0;
 let itemIdCounter = 0;
 let lastTime = Date.now();
+let gameTickHandle = null;
 let hoverNode = null;
 let mouseX = 0;
 let mouseY = 0;
 let camX = 0;
 let camY = 0;
-let camZoom = 0.42;
+let camZoom = 0.3;
+let passiveCameraInitialized = false;
 let isDragging = false;
 let dragStartX = 0;
 let dragStartY = 0;
@@ -1676,6 +2082,20 @@ const battleImageCanvasCache = new WeakMap();
 function clampPassiveCamera() {
     camX = clampNumber(camX, -9800, 9800);
     camY = clampNumber(camY, -7800, 7800);
+}
+
+function fitPassiveCameraToBounds(force) {
+    if (passiveCameraInitialized && !force) return;
+    let container = document.getElementById('tree-container');
+    if (!container || container.offsetParent === null) return;
+    let width = Math.max(1, container.clientWidth);
+    let height = Math.max(1, container.clientHeight);
+    let treeWidth = Math.max(1, PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX + 420);
+    let treeHeight = Math.max(1, PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY + 420);
+    camZoom = clampNumber(Math.min((width * 0.84) / treeWidth, (height * 0.84) / treeHeight), 0.12, 0.52);
+    camX = 0;
+    camY = 0;
+    passiveCameraInitialized = true;
 }
 
 document.addEventListener('mousemove', function(e) {
@@ -2430,8 +2850,34 @@ function drawBattleTile(ctx, image, rect, x, y, size, options) {
 
 function normalizeItem(item) {
     if (!item) return null;
-    item.baseStats = item.baseStats || [];
-    item.stats = item.stats || [];
+    function coerceFiniteNumber(value, fallback) {
+        let num = Number(value);
+        return Number.isFinite(num) ? num : fallback;
+    }
+    function normalizeStatRecord(stat) {
+        if (!stat || !stat.id) return null;
+        let val = coerceFiniteNumber(stat.val, NaN);
+        if (!Number.isFinite(val)) val = coerceFiniteNumber(stat.value, NaN);
+        if (!Number.isFinite(val)) val = coerceFiniteNumber(stat.base, NaN);
+        if (!Number.isFinite(val)) val = coerceFiniteNumber(stat.amount, 0);
+        let min = coerceFiniteNumber(stat.valMin, NaN);
+        if (!Number.isFinite(min)) min = coerceFiniteNumber(stat.min, NaN);
+        if (!Number.isFinite(min)) min = coerceFiniteNumber(stat.base, val);
+        let max = coerceFiniteNumber(stat.valMax, NaN);
+        if (!Number.isFinite(max)) max = coerceFiniteNumber(stat.max, NaN);
+        if (!Number.isFinite(max)) max = coerceFiniteNumber(stat.base, val);
+        if (max < min) max = min;
+        return {
+            ...stat,
+            val: val,
+            valMin: min,
+            valMax: max,
+            tier: Math.max(0, Math.floor(coerceFiniteNumber(stat.tier, 0))),
+            statName: stat.statName || getStatName(stat.id)
+        };
+    }
+    item.baseStats = Array.isArray(item.baseStats) ? item.baseStats.map(normalizeStatRecord).filter(Boolean) : [];
+    item.stats = Array.isArray(item.stats) ? item.stats.map(normalizeStatRecord).filter(Boolean) : [];
     item.rarity = item.rarity || 'magic';
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
     item.name = item.name || item.baseName;
@@ -2772,6 +3218,7 @@ function getPlayerStats() {
     let season = createEmptyStatBucket();
     let ascend = createEmptyStatBucket();
     let reward = createEmptyStatBucket();
+    let starBlessing = createEmptyStatBucket();
 
     Object.values(game.equipment || {}).forEach(item => {
         if (!item) return;
@@ -2799,6 +3246,9 @@ function getPlayerStats() {
     safeRewardBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
+    if (game.passiveStarEvolution) {
+        Object.keys(PASSIVE_STAR_BLESSING).forEach(statId => addStatToBucket(starBlessing, statId, PASSIVE_STAR_BLESSING[statId]));
+    }
 
     let gemSources = getGemBonusSources();
     safeEquippedSupports.forEach(name => {
@@ -2818,9 +3268,10 @@ function getPlayerStats() {
     let ascendTagged = getTaggedDamageBreakdown(ascend, skill);
     let supportTagged = getTaggedDamageBreakdown(support, skill);
     let rewardTagged = getTaggedDamageBreakdown(reward, skill);
+    let starTagged = getTaggedDamageBreakdown(starBlessing, skill);
 
-    let taggedTotal = gearTagged.total + gearExplicitTagged.total + passiveTagged.total + seasonTagged.total + ascendTagged.total + supportTagged.total + rewardTagged.total;
-    let taggedParts = [].concat(gearTagged.parts, gearExplicitTagged.parts, passiveTagged.parts, seasonTagged.parts, ascendTagged.parts, supportTagged.parts, rewardTagged.parts);
+    let taggedTotal = gearTagged.total + gearExplicitTagged.total + passiveTagged.total + seasonTagged.total + ascendTagged.total + supportTagged.total + rewardTagged.total + starTagged.total;
+    let taggedParts = [].concat(gearTagged.parts, gearExplicitTagged.parts, passiveTagged.parts, seasonTagged.parts, ascendTagged.parts, supportTagged.parts, rewardTagged.parts, starTagged.parts);
     let taggedMap = {};
     taggedParts.forEach(part => {
         let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === part.statId);
@@ -2831,13 +3282,13 @@ function getPlayerStats() {
 
     let gearFlatDmg = gearBase.flatDmg + gearExplicit.flatDmg;
     let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
-    let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg;
+    let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg;
     let totalFlatDmg = baseDmg + gearFlatDmg + passiveFlatDmg;
     let finalBaseDmg = Math.floor(totalFlatDmg * (1 + (generalPctDmg + taggedTotal) / 100) * (skill.dmg || skill.baseDmg || 1));
 
     let gearFlatHp = gearBase.flatHp + gearExplicit.flatHp;
     let passiveFlatHp = passive.flatHp + season.flatHp + ascend.flatHp + reward.flatHp;
-    let totalFlatHp = baseHp + gearFlatHp + passiveFlatHp;
+    let totalFlatHp = baseHp + gearFlatHp + passiveFlatHp + starBlessing.flatHp;
     let totalPctHp = gearBase.pctHp + gearExplicit.pctHp + passive.pctHp + season.pctHp + ascend.pctHp + support.pctHp + reward.pctHp;
     let finalMaxHp = Math.floor(totalFlatHp * (1 + totalPctHp / 100));
 
@@ -2850,7 +3301,7 @@ function getPlayerStats() {
     let gearCrit = gearBase.crit + gearExplicit.crit;
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = Math.min(100, 5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0));
-    let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move;
+    let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
     let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg;
     let finalLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech;
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
@@ -2876,7 +3327,8 @@ function getPlayerStats() {
                 `기본 공격력 ${Math.floor(baseDmg)}`,
                 makeSourceLine('장비', gearFlatDmg),
                 makeSourceLine('패시브', passiveFlatDmg),
-                makeSourceLine('피해 증가', generalPctDmg, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('성좌 각성', starBlessing.pctDmg, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('총 피해 증가', generalPctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('태그 보너스', taggedTotal, '%', value => `${Math.floor(value)}%`),
                 taggedSummary.length > 0 ? `적용 태그: ${taggedSummary.join(' / ')}` : null,
                 `스킬 배율 ${formatPercentMultiplier(skill.dmg || 1)}`
@@ -2921,6 +3373,7 @@ function getPlayerStats() {
                 `기본 100%`,
                 makeSourceLine('장비', gearBase.move + gearExplicit.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.move + season.move + ascend.move + reward.move, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('성좌 각성', starBlessing.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조 젬', support.move, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
             final: `${Math.floor(finalMove)}%`
@@ -2931,6 +3384,7 @@ function getPlayerStats() {
                 `기본 생명력 ${Math.floor(baseHp)}`,
                 makeSourceLine('장비', gearFlatHp),
                 makeSourceLine('패시브', passiveFlatHp),
+                makeSourceLine('성좌 각성', starBlessing.flatHp),
                 makeSourceLine('생명력 증가', totalPctHp, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
             final: `${Math.floor(finalMaxHp)}`
@@ -3220,6 +3674,7 @@ function startEncounterRun() {
 function startMoving(isTown) {
     pTimer = 0;
     let ms = getPlayerStats().moveSpeed;
+    if (!Number.isFinite(ms) || ms <= 0) ms = 100;
     let time = Math.max(0.5, 1.2 * (100 / ms));
     game.moveTotalTime = time;
     game.moveTimer = time;
@@ -3275,7 +3730,8 @@ function advanceMapProgress(pStats) {
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let baseGain = zone.type === 'trial' ? 0.26 : (zone.type === 'abyss' ? 0.42 : 0.36);
     let crowdPenalty = enemyCount > 0 ? Math.max(0.4, 1 - enemyCount * 0.13) : 0.94;
-    let gain = baseGain * (pStats.moveSpeed / 100) * crowdPenalty;
+    let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
+    let gain = baseGain * (moveSpeed / 100) * crowdPenalty;
     game.runProgress = Math.min(100, game.runProgress + gain);
     while (game.encounterIndex < game.encounterPlan.length && game.runProgress >= game.encounterPlan[game.encounterIndex].at) {
         spawnEncounterMarker(game.encounterPlan[game.encounterIndex]);
@@ -3718,7 +4174,12 @@ function switchTab(tabId) {
     document.getElementById('btn-' + tabId).classList.add('active');
     ['char', 'items', 'skills', 'map', 'traits'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     updateStaticUI();
-    if (tabId === 'tab-char') setTimeout(resizeCanvas, 40);
+    if (tabId === 'tab-char') {
+        setTimeout(function() {
+            fitPassiveCameraToBounds(false);
+            resizeCanvas();
+        }, 40);
+    }
 }
 
 function switchItemSubtab(subtabId) {
@@ -4905,8 +5366,11 @@ function drawPassiveTree() {
     ctx.arc(0, 0, 560, 0, Math.PI * 2);
     ctx.fill();
 
+    drawPassiveEvolutionAura(ctx);
+
     // 탐험 밝혀짐 후광
     Object.values(PASSIVE_TREE.nodes).forEach(node => {
+        if (!isPassiveNodeAvailable(node)) return;
         const visibility = getPassiveVisibility(node.id);
         if (visibility === 'hidden') return;
 
@@ -4933,19 +5397,6 @@ function drawPassiveTree() {
         ctx.fill();
     });
 
-    // 가장자리 장식 링
-    ctx.save();
-    ctx.strokeStyle = 'rgba(79, 98, 122, 0.22)';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([10, 12]);
-    ctx.strokeRect(
-        PASSIVE_BOUNDS.minX,
-        PASSIVE_BOUNDS.minY,
-        PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX,
-        PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY
-    );
-    ctx.restore();
-
     // 리빌 펄스
     passiveRevealBursts.forEach(burst => {
         const progress = clampNumber((performance.now() - burst.startTime) / burst.duration, 0, 1);
@@ -4967,6 +5418,7 @@ function drawPassiveTree() {
         const a = PASSIVE_TREE.nodes[edge.from];
         const b = PASSIVE_TREE.nodes[edge.to];
         if (!a || !b) return;
+        if (!isPassiveNodeAvailable(a) || !isPassiveNodeAvailable(b)) return;
 
         const visibleA = getPassiveVisibility(a.id);
         const visibleB = getPassiveVisibility(b.id);
@@ -5117,7 +5569,6 @@ function updateStaticUI() {
     ['char', 'items', 'skills', 'map', 'traits'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
 
     document.getElementById('ui-passive-points').innerText = game.passivePoints;
-    document.getElementById('ui-passive-total').innerText = Object.keys(PASSIVE_TREE.nodes).length;
     document.getElementById('ui-season-text-tab').innerText = game.season;
     document.getElementById('ui-season-pts').innerText = game.seasonPoints;
     document.getElementById('ui-ascend-pts').innerText = game.ascendPoints;
@@ -5271,7 +5722,7 @@ if (oldHover !== hoverNode) {
     drawPassiveTree();
     if (hoverNode) {
         let state = getPassiveVisibility(hoverNode.id);
-        let stat = P_STATS[hoverNode.stat];
+        let ownedApexCount = getPassiveApexNodeIds().filter(id => (game.passives || []).includes(id)).length;
         let msg = (game.passives || []).includes(hoverNode.id)
             ? '✔️ 활성화됨'
             : (reachableNodes.has(hoverNode.id)
@@ -5281,19 +5732,19 @@ if (oldHover !== hoverNode) {
         if (state === 'preview' && !discoveredPassiveNodes.has(hoverNode.id)) {
             msg = '🌫️ 안개 속 노드입니다. 활성화하여 주변을 밝힐 수 있습니다.';
         }
-
-        const kindLabel =
-            hoverNode.kind === 'core' ? '핵심 성좌' :
-            hoverNode.kind === 'deadend' ? '막다른 길 거점' :
-            hoverNode.kind === 'hub' ? '허브 노드' :
-            (hoverNode.tier >= 3 || hoverNode.kind === 'major') ? '중심 노드' :
-            hoverNode.kind === 'path' ? '경로 노드' :
-            '보조 노드';
+        if (hoverNode.kind === 'apex' && !(game.passives || []).includes(hoverNode.id)) {
+            msg = `★ 별끝 특수 노드 ${ownedApexCount}/5. 다섯 개를 모두 잇면 외곽 성좌가 별 모양으로 각성합니다.`;
+        } else if ((hoverNode.kind === 'evolved' || hoverNode.kind === 'transcendent') && game.passiveStarEvolution) {
+            msg = (game.passives || []).includes(hoverNode.id)
+                ? '✔️ 각성된 별자리를 이미 받아들였습니다.'
+                : '✨ 성좌 진화 이후 드러난 강력한 외곽 노드입니다.';
+        }
 
         document.getElementById('canvas-tooltip').innerHTML =
-            `<div class="tooltip-title" style="color:${hoverNode.tier >= 3 ? '#e7bf73' : '#b9d0df'}">${stat.name}</div>
-             <div class="tooltip-line">${kindLabel}</div>
-             <div class="tooltip-line">효과: +${hoverNode.val}${stat.isPct ? '%' : ''}</div>
+            `<div class="tooltip-title" style="color:${hoverNode.tier >= 3 || hoverNode.kind === 'apex' || hoverNode.kind === 'transcendent' ? '#e7bf73' : '#b9d0df'}">${getPassiveNodeDisplayName(hoverNode)}</div>
+             <div class="tooltip-line">${getPassiveKindLabel(hoverNode)}</div>
+             <div class="tooltip-line">효과: ${getPassiveEffectLabel(hoverNode)}</div>
+             ${hoverNode.desc ? `<div class="tooltip-line" style="margin-top:4px;">${hoverNode.desc}</div>` : ''}
              <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;
 
         document.getElementById('canvas-tooltip').style.display = 'block';
@@ -5315,8 +5766,9 @@ if (oldHover !== hoverNode) {
                 game.passives.push(hoverNode.id);
                 game.passivePoints--;
                 revealAroundNode(hoverNode.id, { forcePulse: true });
+                unlockPassiveStarEvolution();
                 calculateReachableNodes();
-                addLog(`🌟 ${P_STATS[hoverNode.stat].name.replace('(%)', '')} 활성화!`, "loot-magic");
+                addLog(`🌟 ${getPassiveNodeDisplayName(hoverNode)} 활성화!`, "loot-magic");
                 updateStaticUI();
             }
         }
@@ -5342,6 +5794,7 @@ function resizeCanvas() {
     const container = document.getElementById('tree-container');
     const canvas = document.getElementById('tree-canvas');
     if (container && canvas && canvas.offsetParent !== null) {
+        fitPassiveCameraToBounds(false);
         canvas.width = container.clientWidth;
         canvas.height = container.clientHeight;
         drawPassiveTree();
@@ -5351,6 +5804,13 @@ function resizeCanvas() {
 }
 
 function mergeDefaults(save) {
+    function clampFiniteNumber(value, fallback, min, max) {
+        let num = Number(value);
+        if (!Number.isFinite(num)) num = fallback;
+        if (Number.isFinite(min)) num = Math.max(min, num);
+        if (Number.isFinite(max)) num = Math.min(max, num);
+        return num;
+    }
     function normalizePassiveNodeId(rawId) {
         if (typeof rawId === 'string') {
             if (PASSIVE_TREE.nodes[rawId]) return rawId;
@@ -5365,6 +5825,43 @@ function mergeDefaults(save) {
             return PASSIVE_TREE.nodes[converted] ? converted : null;
         }
         return null;
+    }
+    function normalizeEncounterMarker(marker) {
+        if (!marker || typeof marker !== 'object') return null;
+        let at = clampFiniteNumber(marker.at, NaN, 0, 100);
+        if (!Number.isFinite(at)) return null;
+        return {
+            at: at,
+            count: Math.max(1, Math.floor(clampFiniteNumber(marker.count, 1, 1, 99))),
+            elite: !!marker.elite,
+            boss: !!marker.boss
+        };
+    }
+    function normalizeEnemyRecord(enemy) {
+        if (!enemy || typeof enemy !== 'object') return null;
+        let hp = clampFiniteNumber(enemy.hp, NaN, 0);
+        let maxHp = clampFiniteNumber(enemy.maxHp, hp, 1);
+        if (!Number.isFinite(hp)) hp = maxHp;
+        return {
+            ...enemy,
+            id: Math.max(1, Math.floor(clampFiniteNumber(enemy.id, 1, 1))),
+            hp: Math.min(maxHp, hp),
+            maxHp: maxHp,
+            attackTimer: clampFiniteNumber(enemy.attackTimer, 0, 0),
+            spawnAt: clampFiniteNumber(enemy.spawnAt, 0, 0, 100),
+            groupIndex: Math.max(0, Math.floor(clampFiniteNumber(enemy.groupIndex, 0, 0))),
+            variantSeed: Math.floor(clampFiniteNumber(enemy.variantSeed, 1)),
+            ele: enemy.ele || 'phys',
+            name: enemy.name || '이름 없는 적',
+            atkMul: clampFiniteNumber(enemy.atkMul, 1, 0.1),
+            dr: clampFiniteNumber(enemy.dr, 0, 0),
+            resF: clampFiniteNumber(enemy.resF, 0),
+            resC: clampFiniteNumber(enemy.resC, 0),
+            resL: clampFiniteNumber(enemy.resL, 0),
+            resChaos: clampFiniteNumber(enemy.resChaos, 0),
+            isElite: !!enemy.isElite,
+            isBoss: !!enemy.isBoss
+        };
     }
     let merged = {
         ...defaultGame,
@@ -5399,6 +5896,32 @@ function mergeDefaults(save) {
     merged.claimableActRewards = (merged.claimableActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
+    merged.skills = Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : [];
+    if (!merged.skills.includes('기본 공격')) merged.skills.unshift('기본 공격');
+    merged.supports = Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : [];
+    merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports.filter(name => merged.supports.includes(name)) : [];
+    merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!SEASON_NODES[id]) : [];
+    merged.ascendNodes = Array.isArray(merged.ascendNodes) ? merged.ascendNodes.filter(id => typeof id === 'string') : [];
+    merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
+    merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
+    merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
+    merged.passiveStarEvolution = !!merged.passiveStarEvolution;
+    merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
+    merged.encounterPlan = Array.isArray(merged.encounterPlan) ? merged.encounterPlan.map(normalizeEncounterMarker).filter(Boolean).sort((a, b) => a.at - b.at) : [];
+    merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1)));
+    merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));
+    merged.season = Math.max(1, Math.floor(clampFiniteNumber(merged.season, defaultGame.season, 1)));
+    merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
+    merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0)));
+    merged.playerHp = Math.max(1, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 1)));
+    merged.moveTimer = clampFiniteNumber(merged.moveTimer, defaultGame.moveTimer, 0);
+    merged.moveTotalTime = clampFiniteNumber(merged.moveTotalTime, defaultGame.moveTotalTime, 0);
+    merged.runProgress = clampFiniteNumber(merged.runProgress, defaultGame.runProgress, 0, 100);
+    merged.encounterIndex = Math.max(0, Math.floor(clampFiniteNumber(merged.encounterIndex, defaultGame.encounterIndex, 0)));
+    merged.nextEnemyId = Math.max(1, Math.floor(clampFiniteNumber(merged.nextEnemyId, defaultGame.nextEnemyId, 1)));
+    merged.seasonPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.seasonPoints, defaultGame.seasonPoints, 0)));
+    merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
+    merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
     if (typeof merged.currentZoneId === 'string' && /^\d+$/.test(merged.currentZoneId)) merged.currentZoneId = parseInt(merged.currentZoneId, 10);
     if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
     if (typeof merged.currentZoneId !== 'string') merged.currentZoneId = clampNumber(Number.isFinite(merged.currentZoneId) ? merged.currentZoneId : 0, 0, MAP_ZONES.length - 1);
@@ -5424,6 +5947,28 @@ function loadGame() {
 
 function saveGame() {
     try { localStorage.setItem('poeIdleSaveData_v9', JSON.stringify(game)); } catch (e) {}
+}
+
+function reportFatalError(stage, error) {
+    let message = error && error.message ? error.message : String(error);
+    console.error(stage + ' failed:', error);
+    try {
+        let label = document.getElementById('ui-progress-label');
+        if (label) label.innerText = '⚠️ 오류';
+        let pct = document.getElementById('ui-move-time-text');
+        if (pct) pct.innerText = stage;
+        let caption = document.getElementById('ui-battlefield-caption');
+        if (caption) caption.innerText = `${stage}: ${message}`;
+        let log = document.getElementById('log');
+        if (log) log.innerHTML = `<div class="log-item attack-monster">[${stage}] ${message}</div>`;
+    } catch (uiError) {
+        console.error('fatal error UI update failed:', uiError);
+    }
+}
+
+function recoverRuntimeState() {
+    game = mergeDefaults(game || {});
+    if (game.moveTimer <= 0 && (!Array.isArray(game.encounterPlan) || game.encounterPlan.length === 0)) startEncounterRun();
 }
 
 function runStartupSmokeChecks() {
@@ -5461,6 +6006,9 @@ function resetGame() {
 
 function init() {
     loadGame();
+    recoverRuntimeState();
+    game.passivePoints = Math.max(game.passivePoints || 0, 100);
+    unlockPassiveStarEvolution({ silent: true });
     initBattleAssets();
     refreshPassiveVisibility();
     calculateReachableNodes();
@@ -5470,8 +6018,8 @@ function init() {
     checkUnlocks();
     normalizeSupportLoadout(false);
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
+    runStartupSmokeChecks();
     if (!(game.discoveredPassives || []).includes('n0')) game.discoveredPassives.push('n0');
-    if ((game.discoveredPassives || []).length <= 1) revealAroundNode('n0', { radius: PASSIVE_DISCOVERY_RADIUS * 0.55, forcePulse: false });
     window.addEventListener('resize', resizeCanvas);
     setupCanvasEvents();
     resizeCanvas();
@@ -5488,6 +6036,18 @@ function init() {
     } catch (error) {
         console.error('initial battlefield render failed:', error);
     } finally {
+        if (gameTickHandle) clearInterval(gameTickHandle);
+        gameTickHandle = setInterval(() => {
+            try {
+                if (isTutorialOpen() || isRewardOpen()) return;
+                coreLoop();
+                updateCombatUI(getPlayerStats());
+            } catch (error) {
+                console.error('gameTick error:', error);
+                recoverRuntimeState();
+                try { updateCombatUI(getPlayerStats()); } catch (uiError) { console.error('tick UI recovery failed:', uiError); }
+            }
+        }, 100);
         requestAnimationFrame(gameLoop);
         setInterval(saveGame, 60000);
     }
@@ -5495,36 +6055,40 @@ function init() {
 
 function gameLoop() {
     try {
-        let now = Date.now();
         if (isTutorialOpen() || isRewardOpen()) {
-            lastTime = now;
             if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
             renderBattlefield();
             return;
-        }
-        let elapsed = now - lastTime;
-        if (elapsed >= 100) {
-            let ticks = Math.floor(elapsed / 100);
-            if (ticks > 20) {
-                ticks = 20;
-                lastTime = now - (ticks * 100);
-            } else {
-                lastTime += ticks * 100;
-            }
-            for (let i = 0; i < ticks; i++) coreLoop();
-            updateCombatUI(getPlayerStats());
         }
         if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
         renderBattlefield();
     } catch (error) {
         console.error('gameLoop error:', error);
-        if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
+        recoverRuntimeState();
     } finally {
         requestAnimationFrame(gameLoop);
     }
 }
 
-window.onload = init;
+let gameBooted = false;
+function bootGame() {
+    if (gameBooted) return;
+    gameBooted = true;
+    try {
+        init();
+    } catch (error) {
+        gameBooted = false;
+        reportFatalError('init', error);
+    }
+}
+
+window.addEventListener('error', function(event) {
+    if (!event || !event.error) return;
+    reportFatalError('runtime', event.error);
+});
+window.addEventListener('load', bootGame);
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootGame);
+else setTimeout(bootGame, 0);
 </script>
 </body>
 </html>
