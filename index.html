@@ -940,6 +940,8 @@ const PASSIVE_TARGET_NODES = 1400;
 const PASSIVE_DISCOVERY_RADIUS = 235;
 const PASSIVE_PREVIEW_RADIUS = 160;
 const PASSIVE_WORLD_SCALE = 1;
+const PASSIVE_BOUNDS = { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
+let game;
 let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
@@ -1411,7 +1413,7 @@ function getClassTreeDef(clsKey) {
     };
 }
 
-let game = JSON.parse(JSON.stringify(defaultGame));
+game = JSON.parse(JSON.stringify(defaultGame));
 let pTimer = 0;
 let progressStallTicks = 0;
 let itemIdCounter = 0;
