@@ -1185,18 +1185,12 @@ function generateOrganicTree() {
     Object.keys(PASSIVE_TREE.nodes).forEach(key => delete PASSIVE_TREE.nodes[key]);
     PASSIVE_TREE.edges.length = 0;
 
-    let seed = 1337;
     let nId = 0;
-    function rnd() {
-        const x = Math.sin(seed++) * 10000;
-        return x - Math.floor(x);
-    }
-    function jitter(amount) { return (rnd() - 0.5) * amount; }
-    function lerp(a, b, t) { return a + (b - a) * t; }
-    function pickValidStat(theme, tier) {
+    function pickValidStat(theme, tier, seedIndex) {
         let pool = (PASSIVE_THEME_POOLS[theme] || PASSIVE_THEME_POOLS.center).filter(stat => P_STATS[stat] && P_STATS[stat].tiers && P_STATS[stat].tiers.includes(tier));
         if (pool.length === 0) pool = Object.keys(P_STATS).filter(stat => P_STATS[stat].tiers && P_STATS[stat].tiers.includes(tier));
-        return rndChoice(pool.length > 0 ? pool : ['flatHp']);
+        if (pool.length === 0) return 'flatHp';
+        return pool[Math.abs(seedIndex) % pool.length];
     }
     function getTierValue(statKey, tier) {
         if (tier === 0) return 10;
@@ -1206,7 +1200,7 @@ function generateOrganicTree() {
     }
     function addNode(x, y, tier, themeOrStat, meta) {
         if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) return null;
-        let statKey = P_STATS[themeOrStat] ? themeOrStat : pickValidStat(themeOrStat, tier);
+        let statKey = P_STATS[themeOrStat] ? themeOrStat : pickValidStat(themeOrStat, tier, nId + ((meta && meta.depth) || 0) * 7 + ((meta && meta.lane) || 0) * 13);
         let node = {
             id: 'n' + nId++,
             x: x * PASSIVE_WORLD_SCALE,
@@ -1225,128 +1219,69 @@ function generateOrganicTree() {
         if (!aId || !bId || aId === bId) return;
         PASSIVE_TREE.edges.push({ from: aId, to: bId });
     }
-    function connectWithWaypoints(a, b, segments, theme, bend) {
-        if (!a || !b) return;
-        let prev = a;
-        let dx = b.x - a.x;
-        let dy = b.y - a.y;
-        let len = Math.max(1, Math.hypot(dx, dy));
-        let nx = -dy / len;
-        let ny = dx / len;
-        for (let i = 1; i <= segments; i++) {
-            let t = i / (segments + 1);
-            let curve = Math.sin(Math.PI * t) * bend;
-            let node = addNode(
-                lerp(a.x, b.x, t) + nx * curve + jitter(10),
-                lerp(a.y, b.y, t) + ny * curve + jitter(10),
-                i === segments && segments > 2 ? 2 : 1,
-                theme,
-                { sector: theme, kind: 'path' }
-            );
-            if (!node) break;
-            connect(prev.id, node.id);
-            prev = node;
-        }
-        connect(prev.id, b.id);
-    }
-    function spawnMiniConstellation(hub, theme, radius, angleOffset) {
-        if (!hub) return [];
-        let satellites = [];
-        let ringCount = 5 + Math.floor(rnd() * 4);
-        let start = angleOffset + rnd() * Math.PI;
-        for (let i = 0; i < ringCount; i++) {
-            if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) break;
-            let ang = start + (i / ringCount) * Math.PI * 2 + jitter(0.06);
-            let node = addNode(
-                hub.x + Math.cos(ang) * (radius * (0.84 + rnd() * 0.3)),
-                hub.y + Math.sin(ang) * (radius * (0.84 + rnd() * 0.3)),
-                i % 3 === 0 ? 2 : 1,
-                theme,
-                { sector: theme, kind: 'ring' }
-            );
-            if (!node) break;
-            satellites.push(node);
-            connect(hub.id, node.id);
-            if (satellites.length > 1) connect(satellites[satellites.length - 2].id, satellites[satellites.length - 1].id);
-        }
-        if (satellites.length > 2) connect(satellites[satellites.length - 1].id, satellites[0].id);
-        satellites.forEach((node, idx) => {
-            if (idx % 2 !== 0 || Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) return;
-            let ang = Math.atan2(node.y - hub.y, node.x - hub.x);
-            let branch = addNode(
-                node.x + Math.cos(ang) * (18 + rnd() * 26),
-                node.y + Math.sin(ang) * (18 + rnd() * 26),
-                rnd() < 0.42 ? 2 : 1,
-                theme,
-                { sector: theme, kind: 'branch' }
-            );
-            if (branch) connect(node.id, branch.id);
-        });
-        return satellites;
-    }
 
-    let themes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder'];
-    let root = addNode(0, 0, 0, 'flatHp', { sector: 'center', kind: 'root' });
-    let coreRing = [];
-    for (let i = 0; i < 16; i++) {
-        let ang = -Math.PI / 2 + (i / 16) * Math.PI * 2;
-        let node = addNode(Math.cos(ang) * 112, Math.sin(ang) * 88, i % 3 === 0 ? 2 : 1, 'center', { sector: 'center', kind: 'inner' });
-        if (!node) continue;
-        coreRing.push(node);
-        connect(root.id, node.id);
-        if (coreRing.length > 1) connect(coreRing[coreRing.length - 2].id, coreRing[coreRing.length - 1].id);
-    }
-    if (coreRing.length > 2) connect(coreRing[coreRing.length - 1].id, coreRing[0].id);
+    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder'];
+    const sectorCount = sectorThemes.length;
+    const lanes = [-3, -2, -1, 0, 1, 2, 3];
+    const maxDepth = 14;
 
-    let armTips = [];
-    const armCount = 7;
-    for (let arm = 0; arm < armCount; arm++) {
-        let theme = themes[arm % themes.length];
-        let anchor = coreRing[Math.floor((arm / armCount) * coreRing.length)] || root;
-        let prev = anchor;
-        let baseAngle = -Math.PI / 2 + (arm / armCount) * Math.PI * 2 + jitter(0.07);
-        let armLen = 8 + Math.floor(rnd() * 3);
-        for (let step = 0; step < armLen; step++) {
-            if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) break;
-            let t = (step + 1) / armLen;
-            let spiral = baseAngle + t * (1.4 + rnd() * 0.9) + Math.sin(t * Math.PI * 2) * 0.08;
-            let dist = 190 + step * 96 + rnd() * 28;
-            let hub = addNode(
-                Math.cos(spiral) * dist + jitter(16),
-                Math.sin(spiral) * dist * (0.85 + rnd() * 0.34) + jitter(16),
-                step >= armLen - 2 ? 3 : (step % 2 === 0 ? 2 : 1),
-                theme,
-                { sector: theme, kind: step >= armLen - 2 ? 'keystone' : 'major' }
-            );
-            if (!hub) break;
-            connectWithWaypoints(prev, hub, 1 + (step % 3), theme, 10 + rnd() * 18);
-            spawnMiniConstellation(hub, theme, 26 + step * 3.4 + rnd() * 14, spiral);
-            if (rnd() < 0.28 && coreRing.length > 0) {
-                let bridge = coreRing[Math.floor(rnd() * coreRing.length)];
-                connectWithWaypoints(hub, bridge, 1, theme, 8 + rnd() * 9);
+    let root = addNode(0, 0, 0, 'flatHp', { sector: 'center', kind: 'root', depth: 0, lane: 0 });
+    let laneNodes = {};
+
+    for (let s = 0; s < sectorCount; s++) {
+        let baseAngle = -Math.PI / 2 + (s / sectorCount) * Math.PI * 2;
+        let theme = sectorThemes[s];
+        laneNodes[s] = {};
+
+        lanes.forEach(lane => {
+            laneNodes[s][lane] = [];
+            let prev = null;
+            for (let depth = 1; depth <= maxDepth; depth++) {
+                let radius = 82 + depth * 62 + Math.abs(lane) * 12;
+                let angle = baseAngle + lane * 0.085 + depth * lane * 0.006;
+                let x = Math.cos(angle) * radius;
+                let y = Math.sin(angle) * radius * 0.92;
+                let tier = depth >= maxDepth - 1 && lane === 0 ? 3 : (depth % 4 === 0 ? 2 : 1);
+                let kind = depth >= maxDepth - 1 && lane === 0 ? 'keystone' : (depth % 3 === 0 ? 'major' : 'path');
+                let node = addNode(x, y, tier, theme, { sector: theme, kind: kind, depth: depth, lane: lane });
+                if (!node) break;
+                laneNodes[s][lane].push(node);
+                if (depth === 1) {
+                    connect(root.id, node.id);
+                } else if (prev) {
+                    connect(prev.id, node.id);
+                }
+                prev = node;
             }
-            prev = hub;
+        });
+
+        for (let depth = 1; depth <= maxDepth; depth++) {
+            for (let i = 0; i < lanes.length - 1; i++) {
+                if (depth % 2 !== 0 && Math.abs(lanes[i]) > 1) continue;
+                let a = laneNodes[s][lanes[i]][depth - 1];
+                let b = laneNodes[s][lanes[i + 1]][depth - 1];
+                if (a && b) connect(a.id, b.id);
+            }
         }
-        if (prev && prev !== anchor) armTips.push(prev);
     }
 
-    for (let i = 0; i < armTips.length; i++) {
-        if (armTips.length < 2) break;
-        let a = armTips[i];
-        let b = armTips[(i + 2) % armTips.length];
-        if (a && b && rnd() < 0.68) connectWithWaypoints(a, b, 2, 'center', 12 + rnd() * 10);
-    }
-    for (let i = 0; i < coreRing.length; i += 2) {
-        let a = coreRing[i];
-        let b = coreRing[(i + 6) % coreRing.length];
-        if (a && b && rnd() < 0.7) connect(a.id, b.id);
+    for (let s = 0; s < sectorCount; s++) {
+        let next = (s + 1) % sectorCount;
+        for (let depth = 3; depth <= maxDepth; depth += 2) {
+            let a = laneNodes[s][0][depth - 1];
+            let b = laneNodes[next][0][depth - 1];
+            if (a && b) connect(a.id, b.id);
+        }
+        let wingA = laneNodes[s][3][maxDepth - 2];
+        let wingB = laneNodes[next][-3][maxDepth - 2];
+        if (wingA && wingB) connect(wingA.id, wingB.id);
     }
 
-    let allNodes = Object.values(PASSIVE_TREE.nodes);
-    PASSIVE_BOUNDS.minX = Math.min(...allNodes.map(node => node.x));
-    PASSIVE_BOUNDS.maxX = Math.max(...allNodes.map(node => node.x));
-    PASSIVE_BOUNDS.minY = Math.min(...allNodes.map(node => node.y));
-    PASSIVE_BOUNDS.maxY = Math.max(...allNodes.map(node => node.y));
+    let nodes = Object.values(PASSIVE_TREE.nodes);
+    PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.maxX = Math.max(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.minY = Math.min(...nodes.map(node => node.y));
+    PASSIVE_BOUNDS.maxY = Math.max(...nodes.map(node => node.y));
 }
 
 function computePassiveDepths() {
