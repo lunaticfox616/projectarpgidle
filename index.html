@@ -299,7 +299,7 @@
         <div style="display: flex; flex-direction: column; height: 100%;">
             <h2><span>🌌 미지의 성좌 <span style="font-size:0.7em; color:#8ca5be;">노드 <span id="ui-passive-total">0</span>개</span></span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold; font-size: 1.3em;">0</span></span></h2>
             <div style="font-size: 0.85em; color: #a5b1c2; text-align: center; margin-bottom: 10px;">🖱️ 좌클릭 드래그: 이동 | 휠: 줌 | 노드를 찍을수록 주변 가지가 밝혀집니다. 밝혀진 지형은 시즌이 바뀌어도 유지됩니다.</div>
-            <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: 1px solid #3d3d5c; border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; cursor: grab;">
+            <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: none; border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; cursor: grab;">
                 <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
             </div>
         </div>
@@ -939,6 +939,7 @@ const PASSIVE_TREE = { nodes: {}, edges: [] };
 const PASSIVE_TARGET_NODES = 1400;
 const PASSIVE_DISCOVERY_RADIUS = 235;
 const PASSIVE_PREVIEW_RADIUS = 160;
+const PASSIVE_WORLD_SCALE = 2.15;
 let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
@@ -989,8 +990,8 @@ function generateOrganicTree() {
         let statKey = P_STATS[themeOrStat] ? themeOrStat : pickValidStat(themeOrStat, tier);
         let node = {
             id: 'n' + nId++,
-            x: x,
-            y: y,
+            x: x * PASSIVE_WORLD_SCALE,
+            y: y * PASSIVE_WORLD_SCALE,
             tier: tier,
             stat: statKey,
             val: getTierValue(statKey, tier),
@@ -1357,6 +1358,12 @@ let craftSelectedIsEquip = false;
 let activeTooltipId = null;
 let battleFx = [];
 let battleFxId = 0;
+let battleVisualState = {
+    projectiles: [],
+    damageTexts: [],
+    processedFxIds: new Set(),
+    lastNow: 0
+};
 let tutorialQueue = [];
 let activeTutorial = null;
 let activeRewardZoneId = null;
@@ -1446,6 +1453,72 @@ function trimRectToContent(image, rect, padding) {
 }
 function cleanupBattleFx(now) {
     battleFx = battleFx.filter(fx => now - fx.start <= fx.duration);
+}
+function cleanupBattleVisualState(now) {
+    battleVisualState.projectiles = (battleVisualState.projectiles || []).filter(projectile => now - projectile.start <= projectile.duration + 60);
+    battleVisualState.damageTexts = (battleVisualState.damageTexts || []).filter(text => now - text.start <= text.duration);
+    if ((battleVisualState.processedFxIds && battleVisualState.processedFxIds.size > 1200) || battleFx.length === 0) {
+        battleVisualState.processedFxIds = new Set();
+    }
+}
+function spawnVisualProjectile(config) {
+    battleVisualState.projectiles.push({
+        start: performance.now(),
+        duration: config.duration || 220,
+        fromX: config.fromX || 0,
+        fromY: config.fromY || 0,
+        toX: config.toX || 0,
+        toY: config.toY || 0,
+        color: config.color || '#f8f1c8',
+        radius: config.radius || 3.8,
+        enemyShot: !!config.enemyShot
+    });
+}
+function spawnDamageText(config) {
+    battleVisualState.damageTexts.push({
+        start: performance.now(),
+        duration: config.duration || 650,
+        x: config.x || 0,
+        y: config.y || 0,
+        value: config.value || 0,
+        crit: !!config.crit,
+        enemyHit: !!config.enemyHit
+    });
+}
+function drawVisualProjectile(ctx, projectile, now) {
+    let t = clampNumber((now - projectile.start) / projectile.duration, 0, 1);
+    let arcLift = projectile.enemyShot ? -2.5 : 7;
+    let x = projectile.fromX + (projectile.toX - projectile.fromX) * t;
+    let y = projectile.fromY + (projectile.toY - projectile.fromY) * t - Math.sin(t * Math.PI) * arcLift;
+    ctx.save();
+    ctx.globalAlpha = 0.35 + (1 - t) * 0.65;
+    ctx.fillStyle = projectile.color;
+    ctx.beginPath();
+    ctx.arc(x, y, projectile.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.28 * (1 - t);
+    ctx.beginPath();
+    ctx.arc(x, y, projectile.radius * 2.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+function drawDamageTexts(ctx, now) {
+    (battleVisualState.damageTexts || []).forEach(text => {
+        let t = clampNumber((now - text.start) / text.duration, 0, 1);
+        let rise = 20 + (text.crit ? 7 : 0);
+        let x = text.x + Math.sin((text.start % 1000) * 0.01) * 4;
+        let y = text.y - rise * t;
+        ctx.save();
+        ctx.globalAlpha = 1 - t;
+        ctx.font = text.crit ? 'bold 14px Consolas' : 'bold 12px Consolas';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+        ctx.strokeText(`${Math.max(0, Math.floor(text.value))}`, x, y);
+        ctx.fillStyle = text.enemyHit ? '#ff8e8e' : (text.crit ? '#ffd36f' : '#f3f6ff');
+        ctx.fillText(`${Math.max(0, Math.floor(text.value))}`, x, y);
+        ctx.restore();
+    });
 }
 function isTutorialOpen() {
     return !!activeTutorial;
@@ -1540,7 +1613,6 @@ function grantActRewardEntry(zoneId, choice) {
     if (choice.kind === 'item') {
         let base = chooseItemBase(choice.slot, zoneId + 1);
         let item = createItemFromBase(base, choice.rarity || 'magic', zoneId + 1);
-        item.name = `[미확인] ${item.name}`;
         addItemToInventory(item);
         addLog(`🎁 액트 보상으로 [${item.name}] 획득!`, choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic');
         return;
@@ -2967,6 +3039,7 @@ function finishEncounterRun() {
         game.killsInZone = 0;
         game.currentZoneId = Math.max(game.currentZoneId, game.maxZoneId);
     }
+    checkUnlocks();
     startMoving(false);
     updateStaticUI();
 }
@@ -3007,6 +3080,7 @@ function performPlayerAttack(pStats) {
             projectile: (pStats.sSkill.tags || []).includes('projectile'),
             chain: pStats.sSkill.targetMode === 'chain',
             skillName: game.activeSkill,
+            damage: dmg,
             duration: 320
         });
     });
@@ -3045,7 +3119,7 @@ function performMonsterAttacks(pStats) {
             else if (enemy.ele === 'chaos') pRes = pStats.resChaos;
             dmg = Math.floor(dmg * (1 - (pRes / 100)));
             game.playerHp = Math.floor(game.playerHp - dmg);
-            addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 220 });
+            addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(enemy.ele), damage: dmg, duration: 220 });
             if (game.settings.showCombatLog) addLog(`🩸 피격 (${dmg} 피해)`, "attack-monster");
             if (game.playerHp <= 0) {
                 addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
@@ -4118,31 +4192,94 @@ function renderBattlefield() {
 
     let enemies = (game.enemies || []).filter(enemy => enemy.hp > 0);
     let layout = getBattleLayout(enemies, width, height);
+    let engagementBob = enemies.length > 0 ? 1 : 0.45;
+    let playerPos = {
+        x: width * 0.14 + Math.sin(now / 210) * (3.2 * engagementBob),
+        y: height * 0.72 + Math.sin(now / 170) * (1.3 * engagementBob)
+    };
+    let dynamicLayout = layout.map(entry => {
+        let seed = entry.enemy.variantSeed || entry.enemy.id || 1;
+        let driftX = Math.sin((now / 240) + seed * 0.9) * (entry.enemy.isBoss ? 2.8 : 4.2);
+        let driftY = Math.cos((now / 300) + seed * 1.2) * (entry.enemy.isBoss ? 1.6 : 2.2);
+        let aggro = clampNumber(entry.enemy.attackTimer || 0, 0, 1);
+        let chaseX = (playerPos.x - entry.x) * 0.03 * aggro;
+        let chaseY = (playerPos.y - entry.y) * 0.015 * aggro;
+        return {
+            enemy: entry.enemy,
+            x: entry.x + driftX + chaseX,
+            y: entry.y + driftY + chaseY
+        };
+    });
     let enemyPosMap = {};
-    layout.forEach(entry => { enemyPosMap[entry.enemy.id] = entry; });
+    dynamicLayout.forEach(entry => { enemyPosMap[entry.enemy.id] = entry; });
 
     let swingFx = battleFx.filter(fx => fx.type === 'playerSwing').slice(-1)[0];
     let swingPower = swingFx ? Math.sin(((now - swingFx.start) / swingFx.duration) * Math.PI) : 0;
     let playerFlash = battleFx.some(fx => fx.type === 'playerHit' && now - fx.start <= fx.duration);
     let currentSkill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
     let currentSkillVisual = getBattleSkillVisual(game.activeSkill, currentSkill);
-    let playerPos = { x: width * 0.14, y: height * 0.72 };
     if (swingFx) drawBattleSwingFx(ctx, swingFx, clampNumber((now - swingFx.start) / swingFx.duration, 0, 1), playerPos);
     drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15, playerFlash, swingPower, currentSkillVisual, now);
 
-    layout.forEach(entry => {
+    battleFx.forEach(fx => {
+        if (battleVisualState.processedFxIds.has(fx.id)) return;
+        if (fx.type === 'hit' && enemyPosMap[fx.enemyId]) {
+            spawnVisualProjectile({
+                fromX: playerPos.x + 16,
+                fromY: playerPos.y - 8,
+                toX: enemyPosMap[fx.enemyId].x,
+                toY: enemyPosMap[fx.enemyId].y - 8,
+                color: fx.color || '#f6f1c6',
+                radius: fx.projectile ? 3.6 : 2.8,
+                duration: fx.projectile ? 220 : 150
+            });
+            if (typeof fx.damage === 'number') {
+                spawnDamageText({
+                    x: enemyPosMap[fx.enemyId].x,
+                    y: enemyPosMap[fx.enemyId].y - 30,
+                    value: fx.damage,
+                    crit: !!fx.crit
+                });
+            }
+        } else if (fx.type === 'playerHit') {
+            let enemyPos = enemyPosMap[fx.enemyId];
+            spawnVisualProjectile({
+                fromX: enemyPos ? enemyPos.x - 2 : width * 0.7,
+                fromY: enemyPos ? enemyPos.y - 8 : height * 0.52,
+                toX: playerPos.x + 2,
+                toY: playerPos.y - 6,
+                color: fx.color || '#ff8c8c',
+                radius: 2.9,
+                enemyShot: true,
+                duration: 170
+            });
+            if (typeof fx.damage === 'number') {
+                spawnDamageText({
+                    x: playerPos.x + 14,
+                    y: playerPos.y - 36,
+                    value: fx.damage,
+                    enemyHit: true
+                });
+            }
+        }
+        battleVisualState.processedFxIds.add(fx.id);
+    });
+    cleanupBattleVisualState(now);
+    (battleVisualState.projectiles || []).forEach(projectile => drawVisualProjectile(ctx, projectile, now));
+
+    dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;
         let age = enemy.spawnStamp ? clampNumber((now - enemy.spawnStamp) / 260, 0, 1) : 1;
         let hitFlash = battleFx.some(fx => fx.enemyId === enemy.id && (fx.type === 'hit' || fx.type === 'enemyDeath') && now - fx.start <= fx.duration * 0.45);
         ctx.save();
         ctx.globalAlpha = age;
-        let crowdScale = layout.length >= 9 ? (enemy.isBoss ? 2.15 : (enemy.isElite ? 1.72 : 1.46)) : (layout.length >= 6 ? (enemy.isBoss ? 2.3 : (enemy.isElite ? 1.9 : 1.62)) : (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95)));
+        let crowdScale = dynamicLayout.length >= 9 ? (enemy.isBoss ? 2.15 : (enemy.isElite ? 1.72 : 1.46)) : (dynamicLayout.length >= 6 ? (enemy.isBoss ? 2.3 : (enemy.isElite ? 1.9 : 1.62)) : (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95)));
         drawEnemySprite(ctx, enemy, entry.x, entry.y, crowdScale, hitFlash, now);
         ctx.restore();
     });
 
     let currentTargets = getSkillTargets(getPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
-    layout.forEach(entry => {
+    dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
         let barWidth = enemy.isBoss ? 72 : 46;
@@ -4195,6 +4332,7 @@ function renderBattlefield() {
             ctx.restore();
         }
     });
+    drawDamageTexts(ctx, now);
 
     let caption = '전장을 스캔 중...';
     if (game.moveTimer > 0) caption = game.isTownReturning ? '마을로 귀환 중...' : '다음 구간으로 이동 중...';
@@ -4277,12 +4415,14 @@ function updateCombatUI(pStats) {
         let tags = [];
         if (focusedEnemy.isBoss) tags.push('보스');
         if (focusedEnemy.isElite) tags.push('정예');
+        if (focusedEnemy.ele === 'fire') tags.push('화염');
+        else if (focusedEnemy.ele === 'cold') tags.push('냉기');
+        else if (focusedEnemy.ele === 'light') tags.push('번개');
+        else if (focusedEnemy.ele === 'chaos') tags.push('공허');
         document.getElementById('ui-enemy-list').innerHTML = `
             <div class="enemy-card targeted">
-                <div class="enemy-top">
-                    <div class="enemy-name">${getEnemyShortLabel(focusedEnemy)}</div>
-                    <div class="enemy-tags">${tags.join(' ') || '조준 중'}</div>
-                </div>
+                <div class="enemy-name">${getEnemyShortLabel(focusedEnemy)}</div>
+                <div class="enemy-tags">${tags.join(' · ') || '일반'}</div>
                 <div class="hp-bar-bg">
                     <div class="hp-bar-fill" style="width:${pct}%"></div>
                     <div class="hp-text">${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}</div>
