@@ -4985,6 +4985,21 @@ function resizeCanvas() {
 }
 
 function mergeDefaults(save) {
+    function normalizePassiveNodeId(rawId) {
+        if (typeof rawId === 'string') {
+            if (PASSIVE_TREE.nodes[rawId]) return rawId;
+            if (/^\d+$/.test(rawId)) {
+                let converted = 'n' + rawId;
+                if (PASSIVE_TREE.nodes[converted]) return converted;
+            }
+            return null;
+        }
+        if (typeof rawId === 'number' && Number.isFinite(rawId)) {
+            let converted = 'n' + Math.floor(rawId);
+            return PASSIVE_TREE.nodes[converted] ? converted : null;
+        }
+        return null;
+    }
     let merged = {
         ...defaultGame,
         ...save,
@@ -5005,8 +5020,8 @@ function mergeDefaults(save) {
         merged.passives = [];
         merged.discoveredPassives = ['n0'];
     }
-    merged.passives = (merged.passives || []).filter(id => PASSIVE_TREE.nodes[id]);
-    merged.discoveredPassives = (merged.discoveredPassives || []).filter(id => PASSIVE_TREE.nodes[id]);
+    merged.passives = Array.from(new Set((merged.passives || []).map(normalizePassiveNodeId).filter(Boolean)));
+    merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
     merged.claimableActRewards = (merged.claimableActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
