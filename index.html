@@ -1317,6 +1317,27 @@ function generateOrganicTree() {
                 if (a && b) connect(a.id, b.id);
             }
         }
+
+        for (let depth = 3; depth <= maxDepth; depth += 3) {
+            lanes.forEach(lane => {
+                let branchTo = lane + (lane <= 0 ? 2 : -2);
+                if (!lanes.includes(branchTo)) return;
+                let a = laneNodes[s][lane][depth - 1];
+                let b = laneNodes[s][branchTo][depth - 2];
+                if (a && b) connect(a.id, b.id);
+            });
+        }
+
+        // 교차로 밀도 증가: 비인접 레인 대각 연결
+        for (let depth = 4; depth <= maxDepth; depth += 2) {
+            lanes.forEach(lane => {
+                let branchTo = lane + (lane < 0 ? 3 : -3);
+                if (!lanes.includes(branchTo)) return;
+                let a = laneNodes[s][lane][depth - 1];
+                let b = laneNodes[s][branchTo][Math.max(0, depth - 3)];
+                if (a && b) connect(a.id, b.id);
+            });
+        }
     }
 
     for (let s = 0; s < sectorCount; s++) {
