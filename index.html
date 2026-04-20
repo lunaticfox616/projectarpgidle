@@ -5369,6 +5369,28 @@ function saveGame() {
     try { localStorage.setItem('poeIdleSaveData_v9', JSON.stringify(game)); } catch (e) {}
 }
 
+function runStartupSmokeChecks() {
+    let snapshot = JSON.parse(JSON.stringify(game));
+    let issues = [];
+    try {
+        startEncounterRun();
+        if (!Array.isArray(game.encounterPlan) || game.encounterPlan.length === 0) issues.push('encounterPlan-empty');
+        let before = game.runProgress;
+        let stats = getPlayerStats();
+        for (let i = 0; i < 6; i++) coreLoop();
+        if (game.moveTimer <= 0 && game.runProgress <= before) issues.push('runProgress-stalled');
+        if (!Number.isFinite(stats.maxHp) || stats.maxHp <= 0) issues.push('invalid-player-stats');
+    } catch (error) {
+        issues.push('smoke-exception:' + (error && error.message ? error.message : String(error)));
+    } finally {
+        game = snapshot;
+        calculateReachableNodes();
+        refreshPassiveVisibility();
+        normalizeSupportLoadout(false);
+    }
+    if (issues.length > 0) console.warn('[SmokeCheck] startup issues:', issues.join(', '));
+}
+
 function resetGame() {
     if (confirm("초기화하시겠습니까?")) {
         try {
@@ -5396,6 +5418,7 @@ function init() {
     window.addEventListener('resize', resizeCanvas);
     setupCanvasEvents();
     resizeCanvas();
+    runStartupSmokeChecks();
     updateStaticUI();
     try {
         renderBattlefield();
