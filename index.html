@@ -726,6 +726,7 @@ const defaultGame = {
     nextEnemyId: 1,
     passives: [],
     discoveredPassives: [],
+    passiveLayoutVersion: PASSIVE_LAYOUT_VERSION,
     skills: ['기본 공격'],
     activeSkill: '기본 공격',
     gemData: {},
@@ -937,6 +938,7 @@ function makeSourceLine(label, value, suffix, formatter) {
 }
 
 const PASSIVE_TREE = { nodes: {}, edges: [] };
+const PASSIVE_LAYOUT_VERSION = 2;
 const PASSIVE_TARGET_NODES = 920;
 const PASSIVE_DISCOVERY_RADIUS = 280;
 const PASSIVE_PREVIEW_RADIUS = 240;
@@ -5314,6 +5316,10 @@ function mergeDefaults(save) {
     }
     merged.passives = Array.from(new Set((merged.passives || []).map(normalizePassiveNodeId).filter(Boolean)));
     merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
+    if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
+        merged.discoveredPassives = Array.from(new Set(['n0'].concat(merged.passives || [])));
+        merged.passiveLayoutVersion = PASSIVE_LAYOUT_VERSION;
+    }
     merged.claimableActRewards = (merged.claimableActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
