@@ -938,8 +938,8 @@ function makeSourceLine(label, value, suffix, formatter) {
 
 const PASSIVE_TREE = { nodes: {}, edges: [] };
 const PASSIVE_TARGET_NODES = 920;
-const PASSIVE_DISCOVERY_RADIUS = 235;
-const PASSIVE_PREVIEW_RADIUS = 160;
+const PASSIVE_DISCOVERY_RADIUS = 280;
+const PASSIVE_PREVIEW_RADIUS = 240;
 var PASSIVE_WORLD_SCALE = 1;
 var PASSIVE_BOUNDS = { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
 let game;
@@ -978,7 +978,7 @@ const PASSIVE_STYLE = {
     reachableGlow: 'rgba(120,170,205,0.22)',
     activeGlow: 'rgba(245,223,173,0.34)',
     previewGlow: 'rgba(111,149,173,0.16)',
-    fog: 'rgba(2,3,6,0.88)'
+    fog: 'rgba(2,3,6,0.62)'
 };
 
 function getPassiveNodeVisualRadius(node) {
@@ -1206,6 +1206,7 @@ function generateOrganicTree() {
     function addNode(x, y, tier, themeOrStat, meta) {
         if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) return null;
         let statKey = P_STATS[themeOrStat] ? themeOrStat : pickValidStat(themeOrStat, tier, nId + ((meta && meta.depth) || 0) * 7 + ((meta && meta.lane) || 0) * 13);
+        if (!P_STATS[statKey]) statKey = 'flatHp';
         let node = {
             id: 'n' + nId++,
             x: x * PASSIVE_WORLD_SCALE,
@@ -1264,7 +1265,9 @@ function generateOrganicTree() {
                 if (shape.kind === 'deadend') {
                     node.val = Math.max(node.val, Math.round(getTierValue(node.stat, 3) * 1.45));
                 } else if (shape.kind === 'core') {
-                    let uniqueCoreStats = ['suppCap', 'gemLevel', 'resAll', 'aoePctDmg', 'chaosPctDmg', 'expGain'];
+                    let uniqueCoreStats = ['suppCap', 'gemLevel', 'resAll', 'aoePctDmg', 'chaosPctDmg', 'expGain']
+                        .filter(stat => P_STATS[stat] && (P_STATS[stat].tiers || []).includes(shape.tier));
+                    if (uniqueCoreStats.length === 0) uniqueCoreStats = ['flatHp'];
                     node.stat = uniqueCoreStats[(s + laneAbs + depth) % uniqueCoreStats.length];
                     node.val = getTierValue(node.stat, shape.tier);
                 }
@@ -1531,7 +1534,7 @@ let dragStartY = 0;
 let dragDist = 0;
 let craftSelectedRef = null;
 let craftSelectedIsEquip = false;
-let activeTooltipId = null;
+var activeTooltipId = null;
 let battleFx = [];
 let battleFxId = 0;
 let battleVisualState = {
@@ -3643,11 +3646,13 @@ function positionTooltipElement(el, x, y) {
     el.style.top = top + 'px';
 }
 function setActiveTooltip(id) {
+    if (typeof activeTooltipId === 'undefined') activeTooltipId = null;
     activeTooltipId = id;
     let el = document.getElementById(id);
     if (el && el.style.display !== 'none') positionTooltipElement(el, mouseX, mouseY);
 }
 function clearActiveTooltip(id) {
+    if (typeof activeTooltipId === 'undefined') return;
     if (activeTooltipId === id) activeTooltipId = null;
 }
 
@@ -5336,6 +5341,7 @@ function init() {
     normalizeSupportLoadout(false);
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
     if (!(game.discoveredPassives || []).includes('n0')) game.discoveredPassives.push('n0');
+    if ((game.discoveredPassives || []).length <= 1) revealAroundNode('n0', { radius: PASSIVE_PREVIEW_RADIUS * 1.8, forcePulse: false });
     window.addEventListener('resize', resizeCanvas);
     setupCanvasEvents();
     resizeCanvas();
