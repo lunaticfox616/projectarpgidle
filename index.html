@@ -494,7 +494,8 @@ const P_STATS = {
     resC: { name: '냉기저항(%)', tiers: [2], m: 5, isPct: true },
     resL: { name: '번개저항(%)', tiers: [2], m: 5, isPct: true },
     resAll: { name: '모든원소저항(%)', tiers: [3], k: 4, isPct: true },
-    resChaos: { name: '카오스저항(%)', tiers: [3], k: 4, isPct: true }
+    resChaos: { name: '카오스저항(%)', tiers: [3], k: 4, isPct: true },
+    expGain: { name: '경험치 획득(%)', tiers: [2, 3], m: 5, k: 12, isPct: true }
 };
 
 const SKILL_DB = {
@@ -725,6 +726,7 @@ const defaultGame = {
     nextEnemyId: 1,
     passives: [],
     discoveredPassives: [],
+    passiveLayoutVersion: PASSIVE_LAYOUT_VERSION,
     skills: ['기본 공격'],
     activeSkill: '기본 공격',
     gemData: {},
@@ -936,9 +938,10 @@ function makeSourceLine(label, value, suffix, formatter) {
 }
 
 const PASSIVE_TREE = { nodes: {}, edges: [] };
-const PASSIVE_TARGET_NODES = 1400;
-const PASSIVE_DISCOVERY_RADIUS = 235;
-const PASSIVE_PREVIEW_RADIUS = 160;
+const PASSIVE_LAYOUT_VERSION = 2;
+const PASSIVE_TARGET_NODES = 920;
+const PASSIVE_DISCOVERY_RADIUS = 280;
+const PASSIVE_PREVIEW_RADIUS = 240;
 var PASSIVE_WORLD_SCALE = 1;
 var PASSIVE_BOUNDS = { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
 let game;
@@ -977,12 +980,14 @@ const PASSIVE_STYLE = {
     reachableGlow: 'rgba(120,170,205,0.22)',
     activeGlow: 'rgba(245,223,173,0.34)',
     previewGlow: 'rgba(111,149,173,0.16)',
-    fog: 'rgba(2,3,6,0.88)'
+    fog: 'rgba(2,3,6,0.18)'
 };
 
 function getPassiveNodeVisualRadius(node) {
     if (!node) return 8;
     if (node.tier === 0) return 24;
+    if (node.kind === 'core') return 18;
+    if (node.kind === 'deadend') return 16;
     if (node.kind === 'hub') return 20;
     if (node.tier === 3 || node.kind === 'major') return 15;
     if (node.tier === 2 || node.kind === 'ring' || node.kind === 'inner') return 10;
@@ -1018,11 +1023,11 @@ function getPassiveNodePalette(node, active, reachable, visibility) {
         };
     }
     return {
-        outer: 'rgba(88,96,104,0.62)',
-        mid: 'rgba(12,16,21,0.94)',
-        inner: 'rgba(25,31,38,0.96)',
+        outer: 'rgba(142,160,179,0.92)',
+        mid: 'rgba(49,64,80,0.92)',
+        inner: 'rgba(85,105,126,0.95)',
         glow: 'rgba(0,0,0,0)',
-        text: '#6c7883'
+        text: '#a8bed0'
     };
 }
 
@@ -1193,14 +1198,17 @@ function generateOrganicTree() {
         return pool[Math.abs(seedIndex) % pool.length];
     }
     function getTierValue(statKey, tier) {
+        let statDef = P_STATS[statKey];
+        if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
         if (tier === 0) return 10;
-        if (tier === 1) return P_STATS[statKey].s;
-        if (tier === 2) return P_STATS[statKey].m;
-        return P_STATS[statKey].k;
+        if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
+        if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
+        return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
     }
     function addNode(x, y, tier, themeOrStat, meta) {
         if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) return null;
         let statKey = P_STATS[themeOrStat] ? themeOrStat : pickValidStat(themeOrStat, tier, nId + ((meta && meta.depth) || 0) * 7 + ((meta && meta.lane) || 0) * 13);
+        if (!P_STATS[statKey]) statKey = 'flatHp';
         let node = {
             id: 'n' + nId++,
             x: x * PASSIVE_WORLD_SCALE,
@@ -1217,16 +1225,27 @@ function generateOrganicTree() {
     }
     function connect(aId, bId) {
         if (!aId || !bId || aId === bId) return;
+        if (PASSIVE_TREE.edges.some(edge => (edge.from === aId && edge.to === bId) || (edge.from === bId && edge.to === aId))) return;
         PASSIVE_TREE.edges.push({ from: aId, to: bId });
     }
 
-    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder'];
+    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'witch', 'duelist'];
     const sectorCount = sectorThemes.length;
-    const lanes = [-3, -2, -1, 0, 1, 2, 3];
-    const maxDepth = 14;
+    const lanes = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
+    const maxDepth = 12;
 
     let root = addNode(0, 0, 0, 'flatHp', { sector: 'center', kind: 'root', depth: 0, lane: 0 });
     let laneNodes = {};
+
+    function classifyNode(depth, lane) {
+        let laneAbs = Math.abs(lane);
+        if (depth === 1 && laneAbs <= 1) return { tier: 2, kind: 'core' };
+        if (depth === 6 && lane === 0) return { tier: 2, kind: 'hub' };
+        if (laneAbs === 4 && depth >= maxDepth - 1) return { tier: 3, kind: 'deadend' };
+        if (depth === maxDepth && laneAbs <= 1) return { tier: 3, kind: 'keystone' };
+        if (depth % 4 === 0 || (depth >= maxDepth - 2 && laneAbs <= 2)) return { tier: 2, kind: 'major' };
+        return { tier: 1, kind: 'path' };
+    }
 
     for (let s = 0; s < sectorCount; s++) {
         let baseAngle = -Math.PI / 2 + (s / sectorCount) * Math.PI * 2;
@@ -1237,29 +1256,61 @@ function generateOrganicTree() {
             laneNodes[s][lane] = [];
             let prev = null;
             for (let depth = 1; depth <= maxDepth; depth++) {
-                let radius = 82 + depth * 62 + Math.abs(lane) * 12;
-                let angle = baseAngle + lane * 0.085 + depth * lane * 0.006;
+                let laneAbs = Math.abs(lane);
+                let radius = 88 + depth * 58 + laneAbs * 11;
+                let angleDrift = lane * 0.076 + depth * lane * 0.007 + Math.sin((depth + s) * 0.45) * 0.018;
+                let angle = baseAngle + angleDrift;
                 let x = Math.cos(angle) * radius;
-                let y = Math.sin(angle) * radius * 0.92;
-                let tier = depth >= maxDepth - 1 && lane === 0 ? 3 : (depth % 4 === 0 ? 2 : 1);
-                let kind = depth >= maxDepth - 1 && lane === 0 ? 'keystone' : (depth % 3 === 0 ? 'major' : 'path');
-                let node = addNode(x, y, tier, theme, { sector: theme, kind: kind, depth: depth, lane: lane });
+                let y = Math.sin(angle) * radius * 0.9;
+                let shape = classifyNode(depth, lane);
+                let node = addNode(x, y, shape.tier, theme, { sector: theme, kind: shape.kind, depth: depth, lane: lane });
                 if (!node) break;
-                laneNodes[s][lane].push(node);
-                if (depth === 1) {
-                    connect(root.id, node.id);
-                } else if (prev) {
-                    connect(prev.id, node.id);
+                if (shape.kind === 'deadend') {
+                    node.val = Math.max(node.val, Math.round(getTierValue(node.stat, 3) * 1.45));
+                } else if (shape.kind === 'core') {
+                    let uniqueCoreStats = ['suppCap', 'gemLevel', 'resAll', 'aoePctDmg', 'chaosPctDmg', 'expGain']
+                        .filter(stat => P_STATS[stat] && (P_STATS[stat].tiers || []).includes(shape.tier));
+                    if (uniqueCoreStats.length === 0) uniqueCoreStats = ['flatHp'];
+                    node.stat = uniqueCoreStats[(s + laneAbs + depth) % uniqueCoreStats.length];
+                    node.val = getTierValue(node.stat, shape.tier);
                 }
+                laneNodes[s][lane].push(node);
+
+                if (depth === 1) connect(root.id, node.id);
+                else if (prev) connect(prev.id, node.id);
                 prev = node;
             }
         });
 
         for (let depth = 1; depth <= maxDepth; depth++) {
             for (let i = 0; i < lanes.length - 1; i++) {
-                if (depth % 2 !== 0 && Math.abs(lanes[i]) > 1) continue;
-                let a = laneNodes[s][lanes[i]][depth - 1];
-                let b = laneNodes[s][lanes[i + 1]][depth - 1];
+                let laneA = lanes[i];
+                let laneB = lanes[i + 1];
+                if (depth % 2 !== 0 && Math.abs(laneA) >= 3) continue;
+                let a = laneNodes[s][laneA][depth - 1];
+                let b = laneNodes[s][laneB][depth - 1];
+                if (a && b) connect(a.id, b.id);
+            }
+        }
+
+        for (let depth = 3; depth <= maxDepth; depth += 3) {
+            lanes.forEach(lane => {
+                let branchTo = lane + (lane <= 0 ? 2 : -2);
+                if (!lanes.includes(branchTo)) return;
+                let a = laneNodes[s][lane][depth - 1];
+                let b = laneNodes[s][branchTo][depth - 2];
+                if (a && b) connect(a.id, b.id);
+            });
+        }
+
+        // 사다리 느낌의 중간 가로 연결(과도한 교차는 제한)
+        for (let depth = 2; depth <= maxDepth; depth += 2) {
+            for (let i = 1; i < lanes.length - 2; i++) {
+                let laneA = lanes[i];
+                let laneB = lanes[i + 1];
+                if (Math.abs(laneA) >= 3 || Math.abs(laneB) >= 3) continue;
+                let a = laneNodes[s][laneA][depth - 1];
+                let b = laneNodes[s][laneB][depth - 1];
                 if (a && b) connect(a.id, b.id);
             }
         }
@@ -1267,14 +1318,52 @@ function generateOrganicTree() {
 
     for (let s = 0; s < sectorCount; s++) {
         let next = (s + 1) % sectorCount;
-        for (let depth = 3; depth <= maxDepth; depth += 2) {
+        for (let depth = 2; depth <= maxDepth; depth += 2) {
             let a = laneNodes[s][0][depth - 1];
             let b = laneNodes[next][0][depth - 1];
             if (a && b) connect(a.id, b.id);
         }
-        let wingA = laneNodes[s][3][maxDepth - 2];
-        let wingB = laneNodes[next][-3][maxDepth - 2];
+        for (let depth = 5; depth <= maxDepth; depth += 3) {
+            let upper = laneNodes[s][3][depth - 1];
+            let lower = laneNodes[next][-3][depth - 1];
+            if (upper && lower) connect(upper.id, lower.id);
+        }
+        let wingA = laneNodes[s][4][maxDepth - 1];
+        let wingB = laneNodes[next][-4][maxDepth - 1];
         if (wingA && wingB) connect(wingA.id, wingB.id);
+
+        for (let depth = 4; depth <= maxDepth; depth += 3) {
+            let crossA = laneNodes[s][1][depth - 1];
+            let crossB = laneNodes[next][-1][depth - 1];
+            if (crossA && crossB) connect(crossA.id, crossB.id);
+            let crossC = laneNodes[s][-1][depth - 1];
+            let crossD = laneNodes[next][1][depth - 1];
+            if (crossC && crossD) connect(crossC.id, crossD.id);
+        }
+    }
+
+    // 시각적 겹침 완화
+    let packed = Object.values(PASSIVE_TREE.nodes);
+    for (let iter = 0; iter < 12; iter++) {
+        for (let i = 0; i < packed.length; i++) {
+            for (let j = i + 1; j < packed.length; j++) {
+                let a = packed[i];
+                let b = packed[j];
+                if (a.id === 'n0' || b.id === 'n0') continue;
+                let dx = b.x - a.x;
+                let dy = b.y - a.y;
+                let dist = Math.hypot(dx, dy) || 0.001;
+                let minDist = 28;
+                if (dist >= minDist) continue;
+                let push = (minDist - dist) * 0.5;
+                let nx = dx / dist;
+                let ny = dy / dist;
+                a.x -= nx * push;
+                a.y -= ny * push;
+                b.x += nx * push;
+                b.y += ny * push;
+            }
+        }
     }
 
     let nodes = Object.values(PASSIVE_TREE.nodes);
@@ -1348,10 +1437,11 @@ function refreshPassiveVisibility() {
     discoveredPassiveNodes.add('n0');
     (game.passives || []).forEach(id => discoveredPassiveNodes.add(id));
     previewPassiveNodes = new Set(discoveredPassiveNodes);
-    let discoveredList = Array.from(discoveredPassiveNodes);
+    let previewSeeds = ['n0'].concat((game.passives || []).filter(id => PASSIVE_TREE.nodes[id]));
     let allNodes = Object.values(PASSIVE_TREE.nodes);
-    discoveredList.forEach(id => {
+    previewSeeds.forEach(id => {
         let src = PASSIVE_TREE.nodes[id];
+        if (!src) return;
         allNodes.forEach(node => {
             if (Math.hypot(node.x - src.x, node.y - src.y) <= PASSIVE_PREVIEW_RADIUS) previewPassiveNodes.add(node.id);
         });
@@ -1486,14 +1576,14 @@ let mouseX = 0;
 let mouseY = 0;
 let camX = 0;
 let camY = 0;
-let camZoom = 0.24;
+let camZoom = 0.42;
 let isDragging = false;
 let dragStartX = 0;
 let dragStartY = 0;
 let dragDist = 0;
 let craftSelectedRef = null;
 let craftSelectedIsEquip = false;
-let activeTooltipId = null;
+var activeTooltipId = null;
 let battleFx = [];
 let battleFxId = 0;
 let battleVisualState = {
@@ -2584,7 +2674,7 @@ function getGemBonusSources() {
 function getActiveSkillStats(bonusLevel) {
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
     if (!skill.isGem) return { ...skill, baseLevel: 0, finalLevel: 0, bonusLevel: 0 };
-    let gem = game.gemData[game.activeSkill] || { level: 1, exp: 0 };
+    let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);
     let finalLevel = Math.min(20, gem.level) + bonusLevel;
     let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, bonusLevel: bonusLevel };
     stats.dmg = stats.baseDmg + ((finalLevel - 1) * stats.dmgScale);
@@ -2639,7 +2729,7 @@ function getPlayerStats() {
 
     let gemSources = getGemBonusSources();
     (game.equippedSupports || []).forEach(name => {
-        let gem = game.supportGemData[name] || { level: 1, exp: 0 };
+        let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
         if (!db) return;
         let effectiveLevel = Math.max(1, gem.level + gemSources.total);
@@ -2893,15 +2983,17 @@ function getPlayerStats() {
 function getGemPresentation(name, isSupport) {
     let stats = getPlayerStats();
     if (isSupport) {
-        let gem = game.supportGemData[name] || { level: 1, exp: 0 };
+        let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
+        if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null };
         let totalLevel = Math.max(1, gem.level + stats.gemBonusSources.total);
         let val = db.baseVal + ((totalLevel - 1) * db.scale);
         return { baseLevel: gem.level, totalLevel: totalLevel, value: val, desc: db.desc, statName: db.name, statId: db.stat };
     }
     let db = SKILL_DB[name];
+    if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
     if (!db.isGem) return { baseLevel: 0, totalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
-    let gem = game.gemData[name] || { level: 1, exp: 0 };
+    let gem = normalizeGemRecord((game.gemData || {})[name]);
     let totalLevel = gem.level + stats.gemBonusSources.total;
     let finalLevel = Math.min(20, gem.level) + stats.gemBonusSources.total;
     let skill = { ...db };
@@ -3433,6 +3525,12 @@ function triggerSeasonReset() {
 
 function getExpReq(level) { return Math.floor(50 * Math.pow(level, 1.8)); }
 function getGemReqExp(level) { return Math.floor(100 * Math.pow(1.3, level - 1)); }
+function normalizeGemRecord(raw) {
+    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0 };
+    let level = Number.isFinite(raw.level) ? Math.max(1, Math.floor(raw.level)) : 1;
+    let exp = Number.isFinite(raw.exp) ? Math.max(0, raw.exp) : 0;
+    return { level: level, exp: exp };
+}
 
 function checkUnlocks() {
     let u = game.unlocks;
@@ -3597,11 +3695,13 @@ function positionTooltipElement(el, x, y) {
     el.style.top = top + 'px';
 }
 function setActiveTooltip(id) {
+    if (typeof activeTooltipId === 'undefined') activeTooltipId = null;
     activeTooltipId = id;
     let el = document.getElementById(id);
     if (el && el.style.display !== 'none') positionTooltipElement(el, mouseX, mouseY);
 }
 function clearActiveTooltip(id) {
+    if (typeof activeTooltipId === 'undefined') return;
     if (activeTooltipId === id) activeTooltipId = null;
 }
 
@@ -4797,7 +4897,6 @@ function drawPassiveTree() {
         const visibleA = getPassiveVisibility(a.id);
         const visibleB = getPassiveVisibility(b.id);
         if (visibleA === 'hidden' || visibleB === 'hidden') return;
-
         const alpha = Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
         const activeA = (game.passives || []).includes(a.id);
         const activeB = (game.passives || []).includes(b.id);
@@ -4845,7 +4944,6 @@ function drawPassiveTree() {
     Object.values(PASSIVE_TREE.nodes).forEach(node => {
         const visibility = getPassiveVisibility(node.id);
         if (visibility === 'hidden') return;
-
         const revealAlpha = getNodeRevealAmount(node);
         const active = (game.passives || []).includes(node.id);
         const reachable = reachableNodes.has(node.id);
@@ -4853,6 +4951,19 @@ function drawPassiveTree() {
         const palette = getPassiveNodePalette(node, active, reachable, visibility);
 
         drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, revealAlpha);
+
+        if (!active && reachable) {
+            ctx.save();
+            ctx.globalAlpha = revealAlpha;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius + 5.5, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(155,220,255,0.56)';
+            ctx.lineWidth = 1.25;
+            ctx.setLineDash([4, 6]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
     });
 
     // 허브 이름
@@ -4875,156 +4986,19 @@ function drawPassiveTree() {
         ctx.restore();
     });
 
-    // 미개척 안개
-    const fogRects = [
-        [PASSIVE_BOUNDS.minX - 1200, PASSIVE_BOUNDS.minY - 1200, PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX + 2400, PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY + 2400]
-    ];
-
+    // 미개척 안개는 과도한 블랙아웃을 피하기 위해 최소 수준으로만 적용
+    const fogX = PASSIVE_BOUNDS.minX - 1000;
+    const fogY = PASSIVE_BOUNDS.minY - 1000;
+    const fogW = PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX + 2000;
+    const fogH = PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY + 2000;
     ctx.save();
     ctx.fillStyle = PASSIVE_STYLE.fog;
-    fogRects.forEach(r => ctx.fillRect(r[0], r[1], r[2], r[3]));
-
-    ctx.globalCompositeOperation = 'destination-out';
-
-    Object.values(PASSIVE_TREE.nodes).forEach(node => {
-        const visibility = getPassiveVisibility(node.id);
-        if (visibility === 'hidden') return;
-
-        const discovered = discoveredPassiveNodes.has(node.id) || (game.passives || []).includes(node.id);
-        const preview = visibility === 'preview';
-        if (!discovered && !preview) return;
-
-        const radius = getPassiveNodeVisualRadius(node);
-        const revealRadius = discovered ? (PASSIVE_DISCOVERY_RADIUS * 0.7) : (PASSIVE_PREVIEW_RADIUS * 0.55);
-
-        const cut = ctx.createRadialGradient(node.x, node.y, radius * 0.6, node.x, node.y, revealRadius);
-        cut.addColorStop(0, 'rgba(0,0,0,1)');
-        cut.addColorStop(0.45, discovered ? 'rgba(0,0,0,0.84)' : 'rgba(0,0,0,0.55)');
-        cut.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = cut;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, revealRadius, 0, Math.PI * 2);
-        ctx.fill();
-    });
-
+    ctx.fillRect(fogX, fogY, fogW, fogH);
     ctx.restore();
 
     ctx.restore();
 
 
-    PASSIVE_TREE.edges.forEach(edge => {
-        let a = PASSIVE_TREE.nodes[edge.from];
-        let b = PASSIVE_TREE.nodes[edge.to];
-        let visibleA = getPassiveVisibility(a.id);
-        let visibleB = getPassiveVisibility(b.id);
-        if (visibleA === 'hidden' || visibleB === 'hidden') return;
-        let alpha = Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        let activeA = (game.passives || []).includes(a.id);
-        let activeB = (game.passives || []).includes(b.id);
-        if (activeA && activeB) {
-            ctx.strokeStyle = '#d8b66a';
-            ctx.shadowColor = 'rgba(216,182,106,0.45)';
-            ctx.shadowBlur = 8;
-            ctx.lineWidth = 2.8;
-        } else if (reachableNodes.has(a.id) || reachableNodes.has(b.id)) {
-            ctx.strokeStyle = 'rgba(96, 162, 181, 0.52)';
-            ctx.lineWidth = 1.55;
-        } else if (visibleA === 'preview' || visibleB === 'preview') {
-            ctx.strokeStyle = 'rgba(79, 111, 128, 0.18)';
-            ctx.lineWidth = 1;
-        } else {
-            ctx.strokeStyle = 'rgba(53, 84, 102, 0.22)';
-            ctx.lineWidth = 1.1;
-        }
-        ctx.stroke();
-        ctx.restore();
-    });
-
-    Object.values(PASSIVE_TREE.nodes).forEach(node => {
-        let visibility = getPassiveVisibility(node.id);
-        if (visibility === 'hidden') return;
-        let alpha = getNodeRevealAmount(node);
-        let active = (game.passives || []).includes(node.id);
-        let reachable = reachableNodes.has(node.id);
-        let radius = node.tier === 0 ? 20 : (node.tier === 3 ? 13.5 : (node.tier === 2 ? 9.5 : 6));
-        if (hoverNode && hoverNode.id === node.id) radius += 2;
-        let ringColor = node.kind === 'hub' ? '#8fd2d6' : (node.tier === 3 ? '#cf9860' : '#7496aa');
-        let coreColor = node.kind === 'hub' ? '#2a1b14' : '#17151b';
-
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        if (node.tier >= 3 || node.kind === 'hub') {
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius + 5, 0, Math.PI * 2);
-            ctx.fillStyle = active ? 'rgba(215,181,106,0.12)' : 'rgba(83,125,145,0.08)';
-            ctx.fill();
-        }
-        if (active) {
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#8d6638';
-            ctx.shadowColor = '#d8b66a';
-            ctx.shadowBlur = 14;
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius - 3, 0, Math.PI * 2);
-            ctx.fillStyle = '#d8b66a';
-            ctx.fill();
-            ctx.strokeStyle = '#f8edcf';
-            ctx.lineWidth = 1.8;
-            ctx.stroke();
-        } else if (reachable) {
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = node.id === 'n0' ? '#23170f' : coreColor;
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, Math.max(2, radius - 3.2), 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(31, 43, 53, 0.95)';
-            ctx.fill();
-            ctx.strokeStyle = ringColor;
-            ctx.lineWidth = node.tier >= 3 ? 1.8 : 1.35;
-            ctx.stroke();
-        } else if (visibility === 'preview') {
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(13,17,22,0.58)';
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(92, 116, 129, 0.35)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        } else {
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(14,16,20,0.84)';
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(80, 88, 96, 0.5)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-        ctx.restore();
-    });
-
-    Object.values(PASSIVE_TREE.nodes).forEach(node => {
-        if (node.kind !== 'hub' || getPassiveVisibility(node.id) === 'hidden') return;
-        let alpha = getNodeRevealAmount(node);
-        ctx.save();
-        ctx.globalAlpha = Math.max(0.16, alpha * 0.62);
-        ctx.fillStyle = '#6da37b';
-        ctx.font = 'italic bold 22px Cambria';
-        ctx.textAlign = 'center';
-        ctx.shadowColor = 'rgba(23, 48, 32, 0.42)';
-        ctx.shadowBlur = 10;
-        ctx.fillText(PASSIVE_SECTOR_TITLES[node.sector] || node.sector, node.x, node.y - 36);
-        ctx.restore();
-    });
-
-    ctx.restore();
 }
 
 function renderPaperdoll(targetId, forCrafting) {
@@ -5235,6 +5209,8 @@ if (oldHover !== hoverNode) {
         }
 
         const kindLabel =
+            hoverNode.kind === 'core' ? '핵심 성좌' :
+            hoverNode.kind === 'deadend' ? '막다른 길 거점' :
             hoverNode.kind === 'hub' ? '허브 노드' :
             (hoverNode.tier >= 3 || hoverNode.kind === 'major') ? '중심 노드' :
             hoverNode.kind === 'path' ? '경로 노드' :
@@ -5332,12 +5308,20 @@ function mergeDefaults(save) {
     }
     merged.inventory = (merged.inventory || []).map(normalizeItem);
     Object.keys(merged.equipment).forEach(slot => merged.equipment[slot] = normalizeItem(merged.equipment[slot]));
+    merged.gemData = (merged.gemData && typeof merged.gemData === 'object') ? merged.gemData : {};
+    Object.keys(merged.gemData).forEach(name => merged.gemData[name] = normalizeGemRecord(merged.gemData[name]));
+    merged.supportGemData = (merged.supportGemData && typeof merged.supportGemData === 'object') ? merged.supportGemData : {};
+    Object.keys(merged.supportGemData).forEach(name => merged.supportGemData[name] = normalizeGemRecord(merged.supportGemData[name]));
     if ((save.saveVersion || 0) < 9) {
         merged.passives = [];
         merged.discoveredPassives = ['n0'];
     }
     merged.passives = Array.from(new Set((merged.passives || []).map(normalizePassiveNodeId).filter(Boolean)));
     merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
+    if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
+        merged.discoveredPassives = Array.from(new Set(['n0'].concat(merged.passives || [])));
+        merged.passiveLayoutVersion = PASSIVE_LAYOUT_VERSION;
+    }
     merged.claimableActRewards = (merged.claimableActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
@@ -5384,6 +5368,7 @@ function init() {
     normalizeSupportLoadout(false);
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
     if (!(game.discoveredPassives || []).includes('n0')) game.discoveredPassives.push('n0');
+    if ((game.discoveredPassives || []).length <= 1) revealAroundNode('n0', { radius: PASSIVE_DISCOVERY_RADIUS * 0.55, forcePulse: false });
     window.addEventListener('resize', resizeCanvas);
     setupCanvasEvents();
     resizeCanvas();
