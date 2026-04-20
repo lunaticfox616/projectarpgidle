@@ -1350,6 +1350,28 @@ function generateOrganicTree() {
             });
         }
 
+        // 사다리 느낌의 중간 가로 연결(과도한 교차는 제한)
+        for (let depth = 2; depth <= maxDepth; depth += 2) {
+            for (let i = 1; i < lanes.length - 2; i++) {
+                let laneA = lanes[i];
+                let laneB = lanes[i + 1];
+                if (Math.abs(laneA) >= 3 || Math.abs(laneB) >= 3) continue;
+                let a = laneNodes[s][laneA][depth - 1];
+                let b = laneNodes[s][laneB][depth - 1];
+                if (a && b) connect(a.id, b.id);
+            }
+        }
+
+        for (let depth = 3; depth <= maxDepth; depth += 3) {
+            lanes.forEach(lane => {
+                let branchTo = lane + (lane <= 0 ? 2 : -2);
+                if (!lanes.includes(branchTo)) return;
+                let a = laneNodes[s][lane][depth - 1];
+                let b = laneNodes[s][branchTo][depth - 2];
+                if (a && b) connect(a.id, b.id);
+            });
+        }
+
         // 교차로 밀도 증가: 비인접 레인 대각 연결
         for (let depth = 4; depth <= maxDepth; depth += 2) {
             lanes.forEach(lane => {
@@ -3190,7 +3212,8 @@ function startEncounterRun() {
     pTimer = 0;
     game.runProgress = 0;
     game.encounterIndex = 0;
-    game.encounterPlan = generateEncounterPlan(getZone(game.currentZoneId));
+    let zone = getZone(game.currentZoneId) || getZone(0);
+    game.encounterPlan = generateEncounterPlan(zone);
     game.enemies = [];
 }
 
@@ -5376,6 +5399,13 @@ function mergeDefaults(save) {
     merged.claimableActRewards = (merged.claimableActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
+    if (typeof merged.currentZoneId === 'string' && /^\d+$/.test(merged.currentZoneId)) merged.currentZoneId = parseInt(merged.currentZoneId, 10);
+    if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
+    if (typeof merged.currentZoneId !== 'string') merged.currentZoneId = clampNumber(Number.isFinite(merged.currentZoneId) ? merged.currentZoneId : 0, 0, MAP_ZONES.length - 1);
+    if (typeof merged.maxZoneId !== 'string') merged.maxZoneId = clampNumber(Number.isFinite(merged.maxZoneId) ? merged.maxZoneId : 0, 0, MAP_ZONES.length - 1);
+    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_')) merged.currentZoneId = 0;
+    if (typeof merged.currentZoneId === 'string' && !getZone(merged.currentZoneId)) merged.currentZoneId = 0;
+    if (typeof merged.maxZoneId !== 'string' && merged.currentZoneId > merged.maxZoneId) merged.currentZoneId = merged.maxZoneId;
     if (merged.discoveredPassives.length === 0) merged.discoveredPassives = ['n0'];
     return merged;
 }
