@@ -964,6 +964,223 @@ const PASSIVE_SECTOR_TITLES = {
     marauder: '전사의 틈'
 };
 
+const PASSIVE_STYLE = {
+    bg: '#05070b',
+    bg2: '#0c1017',
+    gold: '#d6b36a',
+    goldBright: '#f5dfad',
+    bronze: '#8a6335',
+    steel: '#7e95a8',
+    steelDim: '#31404d',
+    inactiveFill: '#11161d',
+    hiddenFill: '#0a0d12',
+    reachableGlow: 'rgba(120,170,205,0.22)',
+    activeGlow: 'rgba(245,223,173,0.34)',
+    previewGlow: 'rgba(111,149,173,0.16)',
+    fog: 'rgba(2,3,6,0.88)'
+};
+
+function getPassiveNodeVisualRadius(node) {
+    if (!node) return 8;
+    if (node.tier === 0) return 24;
+    if (node.kind === 'hub') return 20;
+    if (node.tier === 3 || node.kind === 'major') return 15;
+    if (node.tier === 2 || node.kind === 'ring' || node.kind === 'inner') return 10;
+    return 7;
+}
+
+function getPassiveNodePalette(node, active, reachable, visibility) {
+    if (active) {
+        return {
+            outer: '#f2dfb0',
+            mid: '#d4ac63',
+            inner: '#fff3d6',
+            glow: 'rgba(242,223,176,0.35)',
+            text: '#f5dfad'
+        };
+    }
+    if (reachable) {
+        return {
+            outer: node.tier >= 3 || node.kind === 'hub' ? '#b89a67' : '#88a8bd',
+            mid: node.kind === 'hub' ? '#2c2118' : '#172029',
+            inner: '#24303b',
+            glow: 'rgba(123,170,205,0.16)',
+            text: '#d6c29a'
+        };
+    }
+    if (visibility === 'preview') {
+        return {
+            outer: 'rgba(98,123,141,0.56)',
+            mid: 'rgba(16,21,28,0.82)',
+            inner: 'rgba(34,43,53,0.9)',
+            glow: 'rgba(92,124,151,0.1)',
+            text: '#8ba3b5'
+        };
+    }
+    return {
+        outer: 'rgba(88,96,104,0.62)',
+        mid: 'rgba(12,16,21,0.94)',
+        inner: 'rgba(25,31,38,0.96)',
+        glow: 'rgba(0,0,0,0)',
+        text: '#6c7883'
+    };
+}
+
+function drawPassiveStarfield(ctx, bounds) {
+    const w = bounds.maxX - bounds.minX;
+    const h = bounds.maxY - bounds.minY;
+
+    for (let i = 0; i < 180; i++) {
+        const px = bounds.minX + ((i * 137.531) % w);
+        const py = bounds.minY + ((i * 91.173) % h);
+        const s = (i % 7 === 0) ? 2.2 : ((i % 3 === 0) ? 1.4 : 0.8);
+        const a = (i % 5 === 0) ? 0.45 : 0.2;
+        ctx.beginPath();
+        ctx.arc(px, py, s, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(210,225,255,${a})`;
+        ctx.fill();
+    }
+
+    for (let i = 0; i < 28; i++) {
+        const px = bounds.minX + ((i * 301.17) % w);
+        const py = bounds.minY + ((i * 211.71) % h);
+        const g = ctx.createRadialGradient(px, py, 0, px, py, 80 + (i % 4) * 18);
+        g.addColorStop(0, 'rgba(90,120,170,0.09)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(px, py, 100, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function drawPassiveLink(ctx, a, b, style) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const nx = -dy / len;
+    const ny = dx / len;
+    const bend = Math.min(34, len * 0.08);
+    const mx = (a.x + b.x) / 2 + nx * bend;
+    const my = (a.y + b.y) / 2 + ny * bend;
+
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.quadraticCurveTo(mx, my, b.x, b.y);
+    ctx.strokeStyle = style.stroke;
+    ctx.lineWidth = style.width;
+    ctx.shadowColor = style.shadow || 'transparent';
+    ctx.shadowBlur = style.blur || 0;
+    ctx.stroke();
+
+    if (style.innerStroke) {
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.quadraticCurveTo(mx, my, b.x, b.y);
+        ctx.strokeStyle = style.innerStroke;
+        ctx.lineWidth = Math.max(1, style.width * 0.38);
+        ctx.shadowBlur = 0;
+        ctx.stroke();
+    }
+}
+
+function drawNodeOrnament(ctx, node, radius, palette, active) {
+    ctx.save();
+    ctx.translate(node.x, node.y);
+
+    if (node.tier === 0) {
+        ctx.rotate(performance.now() * 0.00008);
+        for (let i = 0; i < 6; i++) {
+            ctx.rotate(Math.PI / 3);
+            ctx.beginPath();
+            ctx.moveTo(radius + 4, 0);
+            ctx.lineTo(radius + 11, -2.5);
+            ctx.lineTo(radius + 11, 2.5);
+            ctx.closePath();
+            ctx.fillStyle = active ? 'rgba(245,223,173,0.65)' : 'rgba(120,140,156,0.34)';
+            ctx.fill();
+        }
+    } else if (node.kind === 'hub') {
+        ctx.rotate(Math.PI / 4);
+        ctx.strokeStyle = palette.outer;
+        ctx.lineWidth = 1.25;
+        ctx.strokeRect(-radius - 5, -radius - 5, (radius + 5) * 2, (radius + 5) * 2);
+        ctx.rotate(-Math.PI / 4);
+    } else if (node.tier >= 3 || node.kind === 'major') {
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+            const ang = -Math.PI / 2 + (i / 8) * Math.PI * 2;
+            const rr = i % 2 === 0 ? radius + 4 : radius + 1.5;
+            const px = Math.cos(ang) * rr;
+            const py = Math.sin(ang) * rr;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = active ? '#f5dfad' : 'rgba(163,133,88,0.72)';
+        ctx.lineWidth = 1.1;
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, revealAlpha) {
+    ctx.save();
+    ctx.globalAlpha = revealAlpha;
+
+    if (palette.glow && palette.glow !== 'rgba(0,0,0,0)') {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, radius + (node.tier >= 3 ? 12 : 8), 0, Math.PI * 2);
+        const glow = ctx.createRadialGradient(node.x, node.y, Math.max(1, radius * 0.35), node.x, node.y, radius + 14);
+        glow.addColorStop(0, palette.glow);
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.fill();
+    }
+
+    const outerR = radius;
+    const midR = Math.max(2, radius - 2.8);
+    const innerR = Math.max(1.5, radius - 5.4);
+
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, outerR, 0, Math.PI * 2);
+    ctx.fillStyle = palette.outer;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, midR, 0, Math.PI * 2);
+    ctx.fillStyle = palette.mid;
+    ctx.fill();
+
+    const core = ctx.createRadialGradient(node.x - radius * 0.28, node.y - radius * 0.35, 1, node.x, node.y, innerR + 1);
+    core.addColorStop(0, active ? '#fff6de' : (reachable ? '#344454' : '#1f2730'));
+    core.addColorStop(1, palette.inner);
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, innerR, 0, Math.PI * 2);
+    ctx.fillStyle = core;
+    ctx.fill();
+
+    if (active || reachable) {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, innerR * 0.42, 0, Math.PI * 2);
+        ctx.fillStyle = active ? '#fff8e7' : 'rgba(166,205,228,0.55)';
+        ctx.fill();
+    }
+
+    drawNodeOrnament(ctx, node, radius, palette, active);
+
+    if (hoverNode && hoverNode.id === node.id) {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, radius + 8, 0, Math.PI * 2);
+        ctx.strokeStyle = active ? 'rgba(255,244,210,0.75)' : 'rgba(141,187,219,0.48)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
 function generateOrganicTree() {
     Object.keys(PASSIVE_TREE.nodes).forEach(key => delete PASSIVE_TREE.nodes[key]);
     PASSIVE_TREE.edges.length = 0;
@@ -4640,31 +4857,220 @@ function updateCombatUI(pStats) {
 
 function drawPassiveTree() {
     cleanupPassiveBursts();
+
     const canvas = document.getElementById('tree-canvas');
     if (!canvas || canvas.offsetParent === null) return;
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 화면 배경
+    const screenBg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    screenBg.addColorStop(0, '#090c12');
+    screenBg.addColorStop(0.45, '#06080d');
+    screenBg.addColorStop(1, '#030407');
+    ctx.fillStyle = screenBg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     ctx.save();
     ctx.translate(canvas.width / 2 + camX, canvas.height / 2 + camY);
     ctx.scale(camZoom, camZoom);
+
+    // 월드 배경 성운/별
+    drawPassiveStarfield(ctx, PASSIVE_BOUNDS);
+
+    // 중심 오라
+    const rootGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 520);
+    rootGlow.addColorStop(0, 'rgba(182,148,83,0.12)');
+    rootGlow.addColorStop(0.35, 'rgba(67,89,126,0.08)');
+    rootGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = rootGlow;
+    ctx.beginPath();
+    ctx.arc(0, 0, 560, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 탐험 밝혀짐 후광
+    Object.values(PASSIVE_TREE.nodes).forEach(node => {
+        const visibility = getPassiveVisibility(node.id);
+        if (visibility === 'hidden') return;
+
+        const discovered = discoveredPassiveNodes.has(node.id) || (game.passives || []).includes(node.id);
+        const preview = visibility === 'preview';
+        const radius = getPassiveNodeVisualRadius(node);
+
+        if (!discovered && !preview) return;
+
+        const haloR = discovered ? (radius * 7.5) : (radius * 4.6);
+        const g = ctx.createRadialGradient(node.x, node.y, radius * 0.4, node.x, node.y, haloR);
+        if (discovered) {
+            g.addColorStop(0, 'rgba(227,194,124,0.16)');
+            g.addColorStop(0.18, 'rgba(114,151,204,0.12)');
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+        } else {
+            g.addColorStop(0, 'rgba(105,133,160,0.08)');
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+        }
+
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, haloR, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // 가장자리 장식 링
     ctx.save();
-    ctx.strokeStyle = 'rgba(76, 94, 115, 0.55)';
-    ctx.setLineDash([14, 8]);
+    ctx.strokeStyle = 'rgba(79, 98, 122, 0.22)';
     ctx.lineWidth = 3;
-    ctx.strokeRect(PASSIVE_BOUNDS.minX, PASSIVE_BOUNDS.minY, PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX, PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY);
+    ctx.setLineDash([10, 12]);
+    ctx.strokeRect(
+        PASSIVE_BOUNDS.minX,
+        PASSIVE_BOUNDS.minY,
+        PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX,
+        PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY
+    );
     ctx.restore();
 
+    // 리빌 펄스
     passiveRevealBursts.forEach(burst => {
-        let progress = clampNumber((performance.now() - burst.startTime) / burst.duration, 0, 1);
-        let radius = burst.radius * progress;
-        let alpha = 1 - progress;
+        const progress = clampNumber((performance.now() - burst.startTime) / burst.duration, 0, 1);
+        const radius = burst.radius * progress;
+        const alpha = 1 - progress;
+
         ctx.beginPath();
         ctx.arc(burst.x, burst.y, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(241,196,15,${alpha * 0.4})`;
-        ctx.lineWidth = 6;
+        ctx.strokeStyle = `rgba(245,223,173,${alpha * 0.42})`;
+        ctx.lineWidth = 8;
+        ctx.shadowColor = `rgba(245,223,173,${alpha * 0.28})`;
+        ctx.shadowBlur = 18;
         ctx.stroke();
+        ctx.shadowBlur = 0;
     });
+
+    // 링크
+    PASSIVE_TREE.edges.forEach(edge => {
+        const a = PASSIVE_TREE.nodes[edge.from];
+        const b = PASSIVE_TREE.nodes[edge.to];
+        if (!a || !b) return;
+
+        const visibleA = getPassiveVisibility(a.id);
+        const visibleB = getPassiveVisibility(b.id);
+        if (visibleA === 'hidden' || visibleB === 'hidden') return;
+
+        const alpha = Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
+        const activeA = (game.passives || []).includes(a.id);
+        const activeB = (game.passives || []).includes(b.id);
+        const activeLink = activeA && activeB;
+        const reachableLink = reachableNodes.has(a.id) || reachableNodes.has(b.id);
+        const previewLink = visibleA === 'preview' || visibleB === 'preview';
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        if (activeLink) {
+            drawPassiveLink(ctx, a, b, {
+                stroke: 'rgba(130,95,44,0.95)',
+                innerStroke: 'rgba(244,223,171,0.88)',
+                width: 5,
+                shadow: 'rgba(244,223,171,0.22)',
+                blur: 12
+            });
+        } else if (reachableLink) {
+            drawPassiveLink(ctx, a, b, {
+                stroke: 'rgba(79,109,130,0.72)',
+                innerStroke: 'rgba(145,186,214,0.28)',
+                width: 2.4,
+                shadow: 'rgba(118,165,194,0.12)',
+                blur: 7
+            });
+        } else if (previewLink) {
+            drawPassiveLink(ctx, a, b, {
+                stroke: 'rgba(67,85,98,0.24)',
+                innerStroke: 'rgba(108,130,145,0.10)',
+                width: 1.5
+            });
+        } else {
+            drawPassiveLink(ctx, a, b, {
+                stroke: 'rgba(43,53,63,0.55)',
+                innerStroke: 'rgba(92,107,120,0.10)',
+                width: 1.6
+            });
+        }
+
+        ctx.restore();
+    });
+
+    // 노드
+    Object.values(PASSIVE_TREE.nodes).forEach(node => {
+        const visibility = getPassiveVisibility(node.id);
+        if (visibility === 'hidden') return;
+
+        const revealAlpha = getNodeRevealAmount(node);
+        const active = (game.passives || []).includes(node.id);
+        const reachable = reachableNodes.has(node.id);
+        const radius = getPassiveNodeVisualRadius(node) + ((hoverNode && hoverNode.id === node.id) ? 1.5 : 0);
+        const palette = getPassiveNodePalette(node, active, reachable, visibility);
+
+        drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, revealAlpha);
+    });
+
+    // 허브 이름
+    Object.values(PASSIVE_TREE.nodes).forEach(node => {
+        if (node.kind !== 'hub' || getPassiveVisibility(node.id) === 'hidden') return;
+        const alpha = getNodeRevealAmount(node);
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0.18, alpha * 0.72);
+        ctx.textAlign = 'center';
+        ctx.font = 'italic bold 24px Cambria, serif';
+        ctx.fillStyle = '#b9c9d9';
+        ctx.shadowColor = 'rgba(0,0,0,0.65)';
+        ctx.shadowBlur = 10;
+        ctx.fillText(PASSIVE_SECTOR_TITLES[node.sector] || node.sector, node.x, node.y - 38);
+
+        ctx.font = '12px Malgun Gothic, sans-serif';
+        ctx.fillStyle = 'rgba(184,160,112,0.82)';
+        ctx.fillText('Constellation Sector', node.x, node.y - 19);
+        ctx.restore();
+    });
+
+    // 미개척 안개
+    const fogRects = [
+        [PASSIVE_BOUNDS.minX - 1200, PASSIVE_BOUNDS.minY - 1200, PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX + 2400, PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY + 2400]
+    ];
+
+    ctx.save();
+    ctx.fillStyle = PASSIVE_STYLE.fog;
+    fogRects.forEach(r => ctx.fillRect(r[0], r[1], r[2], r[3]));
+
+    ctx.globalCompositeOperation = 'destination-out';
+
+    Object.values(PASSIVE_TREE.nodes).forEach(node => {
+        const visibility = getPassiveVisibility(node.id);
+        if (visibility === 'hidden') return;
+
+        const discovered = discoveredPassiveNodes.has(node.id) || (game.passives || []).includes(node.id);
+        const preview = visibility === 'preview';
+        if (!discovered && !preview) return;
+
+        const radius = getPassiveNodeVisualRadius(node);
+        const revealRadius = discovered ? (PASSIVE_DISCOVERY_RADIUS * 0.7) : (PASSIVE_PREVIEW_RADIUS * 0.55);
+
+        const cut = ctx.createRadialGradient(node.x, node.y, radius * 0.6, node.x, node.y, revealRadius);
+        cut.addColorStop(0, 'rgba(0,0,0,1)');
+        cut.addColorStop(0.45, discovered ? 'rgba(0,0,0,0.84)' : 'rgba(0,0,0,0.55)');
+        cut.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = cut;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, revealRadius, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    ctx.restore();
+
+    ctx.restore();
+}
 
     PASSIVE_TREE.edges.forEach(edge => {
         let a = PASSIVE_TREE.nodes[edge.from];
@@ -4970,25 +5376,44 @@ function setupCanvasEvents() {
         hoverNode = null;
         Object.values(PASSIVE_TREE.nodes).forEach(node => {
             if (getPassiveVisibility(node.id) === 'hidden') return;
-            let radius = node.tier === 0 ? 26 : (node.tier === 3 ? 18 : 12);
+            let radius = getPassiveNodeVisualRadius(node) + 8;
             if (Math.hypot(node.x - worldX, node.y - worldY) <= radius) hoverNode = node;
         });
-        if (oldHover !== hoverNode) {
-            drawPassiveTree();
-            if (hoverNode) {
-                let state = getPassiveVisibility(hoverNode.id);
-                let stat = P_STATS[hoverNode.stat];
-                let msg = (game.passives || []).includes(hoverNode.id) ? '✔️ 활성화됨' : (reachableNodes.has(hoverNode.id) ? '🖱️ 좌클릭으로 활성화 가능' : '🔍 아직 경로가 이어지지 않았습니다');
-                if (state === 'preview' && !discoveredPassiveNodes.has(hoverNode.id)) msg = '🌫️ 탐사 미리보기: 찍으면 주변이 밝혀집니다';
-                document.getElementById('canvas-tooltip').innerHTML = `<div class="tooltip-title" style="color:${hoverNode.tier === 3 ? '#e67e22' : '#f1c40f'}">${stat.name}</div><div class="tooltip-line">효과: +${hoverNode.val}${stat.isPct ? '%' : ''}</div><div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;
-                document.getElementById('canvas-tooltip').style.display = 'block';
-                positionTooltipElement(document.getElementById('canvas-tooltip'), e.clientX, e.clientY);
-                setActiveTooltip('canvas-tooltip');
-            } else {
-                document.getElementById('canvas-tooltip').style.display = 'none';
-                clearActiveTooltip('canvas-tooltip');
-            }
+if (oldHover !== hoverNode) {
+    drawPassiveTree();
+    if (hoverNode) {
+        let state = getPassiveVisibility(hoverNode.id);
+        let stat = P_STATS[hoverNode.stat];
+        let msg = (game.passives || []).includes(hoverNode.id)
+            ? '✔️ 활성화됨'
+            : (reachableNodes.has(hoverNode.id)
+                ? '🖱️ 클릭해 활성화하고 주변 노드를 밝혀내기'
+                : '🌒 아직 길이 이어지지 않은 노드');
+
+        if (state === 'preview' && !discoveredPassiveNodes.has(hoverNode.id)) {
+            msg = '🌫️ 안개 속 노드입니다. 활성화하여 주변을 밝힐 수 있습니다.';
         }
+
+        const kindLabel =
+            hoverNode.kind === 'hub' ? '허브 노드' :
+            (hoverNode.tier >= 3 || hoverNode.kind === 'major') ? '중심 노드' :
+            hoverNode.kind === 'path' ? '경로 노드' :
+            '보조 노드';
+
+        document.getElementById('canvas-tooltip').innerHTML =
+            `<div class="tooltip-title" style="color:${hoverNode.tier >= 3 ? '#e7bf73' : '#b9d0df'}">${stat.name}</div>
+             <div class="tooltip-line">${kindLabel}</div>
+             <div class="tooltip-line">효과: +${hoverNode.val}${stat.isPct ? '%' : ''}</div>
+             <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;
+
+        document.getElementById('canvas-tooltip').style.display = 'block';
+        positionTooltipElement(document.getElementById('canvas-tooltip'), e.clientX, e.clientY);
+        setActiveTooltip('canvas-tooltip');
+    } else {
+        document.getElementById('canvas-tooltip').style.display = 'none';
+        clearActiveTooltip('canvas-tooltip');
+    }
+}
         if (hoverNode) positionTooltipElement(document.getElementById('canvas-tooltip'), e.clientX, e.clientY);
     });
     canvas.addEventListener('mouseup', () => {
