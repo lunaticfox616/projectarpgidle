@@ -937,9 +937,9 @@ function makeSourceLine(label, value, suffix, formatter) {
 
 const PASSIVE_TREE = { nodes: {}, edges: [] };
 const PASSIVE_TARGET_NODES = 1400;
-const PASSIVE_DISCOVERY_RADIUS = 2350;
-const PASSIVE_PREVIEW_RADIUS = 1600;
-const PASSIVE_BOUNDS = { minX: -11800, maxX: 11800, minY: -9400, maxY: 9400 };
+const PASSIVE_DISCOVERY_RADIUS = 235;
+const PASSIVE_PREVIEW_RADIUS = 160;
+const PASSIVE_WORLD_SCALE = 1;
 let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
@@ -1413,6 +1413,7 @@ function getClassTreeDef(clsKey) {
 
 let game = JSON.parse(JSON.stringify(defaultGame));
 let pTimer = 0;
+let progressStallTicks = 0;
 let itemIdCounter = 0;
 let lastTime = Date.now();
 let hoverNode = null;
@@ -3286,6 +3287,8 @@ function performMonsterAttacks(pStats) {
 
 function coreLoop() {
     const pStats = getPlayerStats();
+    if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
+    if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
     if (game.playerHp > 0 && game.playerHp < pStats.maxHp) game.playerHp = Math.min(pStats.maxHp, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
 
     if (game.moveTimer > 0) {
@@ -3297,7 +3300,19 @@ function coreLoop() {
         return;
     }
 
+    let progressBefore = game.runProgress;
     advanceMapProgress(pStats);
+    if (game.moveTimer <= 0 && (game.enemies || []).length === 0) {
+        if (game.runProgress <= progressBefore + 0.0001) progressStallTicks++;
+        else progressStallTicks = 0;
+        if (progressStallTicks >= 20) {
+            ensureEncounterRun();
+            game.runProgress = Math.min(100, progressBefore + 0.6);
+            progressStallTicks = 0;
+        }
+    } else {
+        progressStallTicks = 0;
+    }
     if ((game.enemies || []).length > 0) {
         pTimer += 0.1 * pStats.aspd;
         while (pTimer >= 1.0 && game.enemies.length > 0) {
@@ -4454,6 +4469,10 @@ function renderBattlefield() {
 
     battleFx.forEach(fx => {
         let t = clampNumber((now - fx.start) / fx.duration, 0, 1);
+        let ghostEnemy = (fx.enemyId && !enemyPosMap[fx.enemyId]) ? battleVisualState.enemyGhostPos[fx.enemyId] : null;
+        if (ghostEnemy && !enemyPosMap[fx.enemyId]) {
+            enemyPosMap[fx.enemyId] = { enemy: { id: fx.enemyId, hp: 0, maxHp: 1 }, x: ghostEnemy.x, y: ghostEnemy.y };
+        }
         if (fx.type === 'hit') {
             drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap);
         } else if (fx.type === 'playerHit') {
@@ -5108,6 +5127,12 @@ function init() {
 function gameLoop() {
     try {
         let now = Date.now();
+        if (isTutorialOpen() || isRewardOpen()) {
+            lastTime = now;
+            if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
+            renderBattlefield();
+            return;
+        }
         let elapsed = now - lastTime;
         if (elapsed >= 100) {
             let ticks = Math.floor(elapsed / 100);
