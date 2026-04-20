@@ -1534,8 +1534,14 @@ function cleanupBattleFx(now) {
 function cleanupBattleVisualState(now) {
     battleVisualState.projectiles = (battleVisualState.projectiles || []).filter(projectile => now - projectile.start <= projectile.duration + 60);
     battleVisualState.damageTexts = (battleVisualState.damageTexts || []).filter(text => now - text.start <= text.duration);
-    if ((battleVisualState.processedFxIds && battleVisualState.processedFxIds.size > 1200) || battleFx.length === 0) {
+    if (!battleVisualState.processedFxIds) battleVisualState.processedFxIds = new Set();
+    if (battleFx.length === 0) {
         battleVisualState.processedFxIds = new Set();
+        return;
+    }
+    let activeFxIds = new Set((battleFx || []).map(fx => fx.id));
+    if (battleVisualState.processedFxIds.size > activeFxIds.size * 2 + 64) {
+        battleVisualState.processedFxIds = new Set([...battleVisualState.processedFxIds].filter(id => activeFxIds.has(id)));
     }
 }
 function spawnVisualProjectile(config) {
@@ -1598,7 +1604,8 @@ function drawDamageTexts(ctx, now) {
     });
 }
 function isTutorialOpen() {
-    return !!activeTutorial;
+    let overlay = document.getElementById('tutorial-overlay');
+    return !!activeTutorial && !!overlay && overlay.classList.contains('active');
 }
 function queueTutorialNotice(key, title, body, tabId) {
     game.seenTutorials = game.seenTutorials || [];
@@ -1627,7 +1634,8 @@ function dismissTutorial(openTarget) {
     if (tutorialQueue.length > 0) setTimeout(showNextTutorial, 40);
 }
 function isRewardOpen() {
-    return activeRewardZoneId !== null;
+    let overlay = document.getElementById('reward-overlay');
+    return activeRewardZoneId !== null && !!overlay && overlay.classList.contains('active');
 }
 function closeRewardOverlay() {
     document.getElementById('reward-overlay').classList.remove('active');
@@ -4573,7 +4581,10 @@ function updateCombatUI(pStats) {
         let tags = [];
         if (focusedEnemy.isBoss) tags.push('보스');
         if (focusedEnemy.isElite) tags.push('정예');
-        if (focusedEnemy.traitName) tags.push(focusedEnemy.traitName);
+        if (focusedEnemy.ele === 'fire') tags.push('화염');
+        else if (focusedEnemy.ele === 'cold') tags.push('냉기');
+        else if (focusedEnemy.ele === 'light') tags.push('번개');
+        else if (focusedEnemy.ele === 'chaos') tags.push('공허');
         document.getElementById('ui-enemy-list').innerHTML = `
             <div class="enemy-card targeted">
                 <div class="enemy-name">${getEnemyShortLabel(focusedEnemy)}</div>
