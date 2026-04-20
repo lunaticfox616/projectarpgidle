@@ -5096,28 +5096,39 @@ function init() {
     setupCanvasEvents();
     resizeCanvas();
     updateStaticUI();
-    renderBattlefield();
+    try {
+        renderBattlefield();
+    } catch (error) {
+        console.error('initial battlefield render failed:', error);
+    }
     requestAnimationFrame(gameLoop);
     setInterval(saveGame, 60000);
 }
 
 function gameLoop() {
-    let now = Date.now();
-    let elapsed = now - lastTime;
-    if (elapsed >= 100) {
-        let ticks = Math.floor(elapsed / 100);
-        if (ticks > 20) {
-            ticks = 20;
-            lastTime = now - (ticks * 100);
-        } else {
-            lastTime += ticks * 100;
+    try {
+        let now = Date.now();
+        let elapsed = now - lastTime;
+        if (elapsed >= 100) {
+            let ticks = Math.floor(elapsed / 100);
+            if (ticks > 20) {
+                ticks = 20;
+                lastTime = now - (ticks * 100);
+            } else {
+                lastTime += ticks * 100;
+            }
+            for (let i = 0; i < ticks; i++) coreLoop();
+            updateCombatUI(getPlayerStats());
         }
-        for (let i = 0; i < ticks; i++) coreLoop();
-        updateCombatUI(getPlayerStats());
+        if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
+        renderBattlefield();
+    } catch (error) {
+        console.error('gameLoop error:', error);
+        if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
+        lastTime = Date.now();
+    } finally {
+        requestAnimationFrame(gameLoop);
     }
-    if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
-    renderBattlefield();
-    requestAnimationFrame(gameLoop);
 }
 
 window.onload = init;
