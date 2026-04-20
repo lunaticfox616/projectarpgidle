@@ -1434,6 +1434,7 @@ let battleVisualState = {
     projectiles: [],
     damageTexts: [],
     processedFxIds: new Set(),
+    enemyGhostPos: {},
     lastNow: 0
 };
 let tutorialQueue = [];
@@ -1534,6 +1535,9 @@ function cleanupBattleFx(now) {
 function cleanupBattleVisualState(now) {
     battleVisualState.projectiles = (battleVisualState.projectiles || []).filter(projectile => now - projectile.start <= projectile.duration + 60);
     battleVisualState.damageTexts = (battleVisualState.damageTexts || []).filter(text => now - text.start <= text.duration);
+    Object.keys(battleVisualState.enemyGhostPos || {}).forEach(enemyId => {
+        if (now - (battleVisualState.enemyGhostPos[enemyId].stamp || 0) > 1200) delete battleVisualState.enemyGhostPos[enemyId];
+    });
     if (!battleVisualState.processedFxIds) battleVisualState.processedFxIds = new Set();
     if (battleFx.length === 0) {
         battleVisualState.processedFxIds = new Set();
@@ -4351,7 +4355,10 @@ function renderBattlefield() {
         };
     });
     let enemyPosMap = {};
-    dynamicLayout.forEach(entry => { enemyPosMap[entry.enemy.id] = entry; });
+    dynamicLayout.forEach(entry => {
+        enemyPosMap[entry.enemy.id] = entry;
+        battleVisualState.enemyGhostPos[entry.enemy.id] = { x: entry.x, y: entry.y, stamp: now };
+    });
 
     let swingFx = battleFx.filter(fx => fx.type === 'playerSwing').slice(-1)[0];
     let swingPower = swingFx ? Math.sin(((now - swingFx.start) / swingFx.duration) * Math.PI) : 0;
@@ -4363,26 +4370,29 @@ function renderBattlefield() {
 
     battleFx.forEach(fx => {
         if (battleVisualState.processedFxIds.has(fx.id)) return;
-        if (fx.type === 'hit' && enemyPosMap[fx.enemyId]) {
+        let handled = false;
+        if (fx.type === 'hit') {
+            let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
             spawnVisualProjectile({
                 fromX: playerPos.x + 16,
                 fromY: playerPos.y - 8,
-                toX: enemyPosMap[fx.enemyId].x,
-                toY: enemyPosMap[fx.enemyId].y - 8,
+                toX: enemyPos.x,
+                toY: enemyPos.y - 8,
                 color: fx.color || '#f6f1c6',
                 radius: fx.projectile ? 3.6 : 2.8,
                 duration: fx.projectile ? 220 : 150
             });
             if (typeof fx.damage === 'number') {
                 spawnDamageText({
-                    x: enemyPosMap[fx.enemyId].x,
-                    y: enemyPosMap[fx.enemyId].y - 30,
+                    x: enemyPos.x,
+                    y: enemyPos.y - 30,
                     value: fx.damage,
                     crit: !!fx.crit
                 });
             }
+            handled = true;
         } else if (fx.type === 'playerHit') {
-            let enemyPos = enemyPosMap[fx.enemyId];
+            let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId];
             spawnVisualProjectile({
                 fromX: enemyPos ? enemyPos.x - 2 : width * 0.7,
                 fromY: enemyPos ? enemyPos.y - 8 : height * 0.52,
@@ -4401,8 +4411,11 @@ function renderBattlefield() {
                     enemyHit: true
                 });
             }
+            handled = true;
+        } else {
+            handled = true;
         }
-        battleVisualState.processedFxIds.add(fx.id);
+        if (handled) battleVisualState.processedFxIds.add(fx.id);
     });
     cleanupBattleVisualState(now);
     (battleVisualState.projectiles || []).forEach(projectile => drawVisualProjectile(ctx, projectile, now));
