@@ -494,7 +494,8 @@ const P_STATS = {
     resC: { name: '냉기저항(%)', tiers: [2], m: 5, isPct: true },
     resL: { name: '번개저항(%)', tiers: [2], m: 5, isPct: true },
     resAll: { name: '모든원소저항(%)', tiers: [3], k: 4, isPct: true },
-    resChaos: { name: '카오스저항(%)', tiers: [3], k: 4, isPct: true }
+    resChaos: { name: '카오스저항(%)', tiers: [3], k: 4, isPct: true },
+    expGain: { name: '경험치 획득(%)', tiers: [2, 3], m: 5, k: 12, isPct: true }
 };
 
 const SKILL_DB = {
@@ -1195,10 +1196,12 @@ function generateOrganicTree() {
         return pool[Math.abs(seedIndex) % pool.length];
     }
     function getTierValue(statKey, tier) {
+        let statDef = P_STATS[statKey];
+        if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
         if (tier === 0) return 10;
-        if (tier === 1) return P_STATS[statKey].s;
-        if (tier === 2) return P_STATS[statKey].m;
-        return P_STATS[statKey].k;
+        if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
+        if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
+        return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
     }
     function addNode(x, y, tier, themeOrStat, meta) {
         if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) return null;
