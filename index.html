@@ -5125,7 +5125,6 @@ function gameLoop() {
     } catch (error) {
         console.error('gameLoop error:', error);
         if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
-        lastTime = Date.now();
     } finally {
         requestAnimationFrame(gameLoop);
     }
