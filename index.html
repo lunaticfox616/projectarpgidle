@@ -937,9 +937,9 @@ function makeSourceLine(label, value, suffix, formatter) {
 
 const PASSIVE_TREE = { nodes: {}, edges: [] };
 const PASSIVE_TARGET_NODES = 1400;
-const PASSIVE_DISCOVERY_RADIUS = 235;
-const PASSIVE_PREVIEW_RADIUS = 160;
-const PASSIVE_BOUNDS = { minX: -1180, maxX: 1180, minY: -940, maxY: 940 };
+const PASSIVE_DISCOVERY_RADIUS = 2350;
+const PASSIVE_PREVIEW_RADIUS = 1600;
+const PASSIVE_BOUNDS = { minX: -11800, maxX: 11800, minY: -9400, maxY: 9400 };
 let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
@@ -1178,6 +1178,72 @@ function generateOrganicTree() {
     }
 }
 
+function pointToSegmentDistance(px, py, ax, ay, bx, by) {
+    let vx = bx - ax;
+    let vy = by - ay;
+    let wx = px - ax;
+    let wy = py - ay;
+    let c1 = vx * wx + vy * wy;
+    if (c1 <= 0) return Math.hypot(px - ax, py - ay);
+    let c2 = vx * vx + vy * vy;
+    if (c2 <= c1) return Math.hypot(px - bx, py - by);
+    let t = c1 / c2;
+    let qx = ax + vx * t;
+    let qy = ay + vy * t;
+    return Math.hypot(px - qx, py - qy);
+}
+
+function polishPassiveLayout() {
+    let nodes = Object.values(PASSIVE_TREE.nodes);
+    let coreIds = new Set(nodes.filter(node => node.sector === 'center' || node.kind === 'root' || node.kind === 'inner').map(node => node.id));
+
+    nodes.forEach(node => {
+        if (coreIds.has(node.id)) return;
+        node.x *= 10;
+        node.y *= 10;
+    });
+
+    for (let iter = 0; iter < 2; iter++) {
+        nodes.forEach(node => {
+            if (coreIds.has(node.id)) return;
+            let pushX = 0;
+            let pushY = 0;
+            nodes.forEach(other => {
+                if (node.id === other.id) return;
+                let dx = node.x - other.x;
+                let dy = node.y - other.y;
+                let d = Math.hypot(dx, dy);
+                if (d > 0 && d < 220) {
+                    let force = (220 - d) / 220;
+                    pushX += (dx / d) * force * 40;
+                    pushY += (dy / d) * force * 40;
+                }
+            });
+
+            PASSIVE_TREE.edges.forEach(edge => {
+                if (edge.from === node.id || edge.to === node.id) return;
+                let a = PASSIVE_TREE.nodes[edge.from];
+                let b = PASSIVE_TREE.nodes[edge.to];
+                if (!a || !b) return;
+                let dist = pointToSegmentDistance(node.x, node.y, a.x, a.y, b.x, b.y);
+                if (dist < 120) {
+                    let midX = (a.x + b.x) * 0.5;
+                    let midY = (a.y + b.y) * 0.5;
+                    let awayX = node.x - midX;
+                    let awayY = node.y - midY;
+                    let awayLen = Math.max(1, Math.hypot(awayX, awayY));
+                    let scale = (120 - dist) / 120 * 34;
+                    pushX += (awayX / awayLen) * scale;
+                    pushY += (awayY / awayLen) * scale;
+                }
+            });
+
+            node.x = clampNumber(node.x + pushX, PASSIVE_BOUNDS.minX + 120, PASSIVE_BOUNDS.maxX - 120);
+            node.y = clampNumber(node.y + pushY, PASSIVE_BOUNDS.minY + 120, PASSIVE_BOUNDS.maxY - 120);
+        });
+    }
+}
+
 function computePassiveDepths() {
     Object.values(PASSIVE_TREE.nodes).forEach(node => node.depth = Infinity);
     let root = PASSIVE_TREE.nodes['n0'];
@@ -1199,6 +1265,7 @@ function computePassiveDepths() {
     }
 }
 generateOrganicTree();
+polishPassiveLayout();
 computePassiveDepths();
 
 function calculateReachableNodes() {
@@ -1230,7 +1297,7 @@ function revealAroundNode(nodeId, options) {
     options = options || {};
     let origin = PASSIVE_TREE.nodes[nodeId];
     if (!origin) return;
-    let radius = options.radius || (nodeId === 'n0' ? 260 : PASSIVE_DISCOVERY_RADIUS);
+    let radius = options.radius || (nodeId === 'n0' ? 2600 : PASSIVE_DISCOVERY_RADIUS);
     let newlyDiscovered = [];
     Object.values(PASSIVE_TREE.nodes).forEach(node => {
         if (Math.hypot(node.x - origin.x, node.y - origin.y) <= radius) {
@@ -1382,8 +1449,8 @@ let battleAssets = {
 const battleImageCanvasCache = new WeakMap();
 
 function clampPassiveCamera() {
-    camX = clampNumber(camX, -920, 920);
-    camY = clampNumber(camY, -760, 760);
+    camX = clampNumber(camX, -9800, 9800);
+    camY = clampNumber(camY, -7800, 7800);
 }
 
 document.addEventListener('mousemove', function(e) {
