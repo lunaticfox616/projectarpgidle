@@ -940,7 +940,7 @@ function makeSourceLine(label, value, suffix, formatter) {
 const PASSIVE_TREE = { nodes: {}, edges: [] };
 const PASSIVE_LAYOUT_VERSION = 2;
 const PASSIVE_TARGET_NODES = 920;
-const PASSIVE_DISCOVERY_RADIUS = 280;
+const PASSIVE_DISCOVERY_RADIUS = 340;
 const PASSIVE_PREVIEW_RADIUS = 240;
 var PASSIVE_WORLD_SCALE = 1;
 var PASSIVE_BOUNDS = { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
@@ -1189,6 +1189,7 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
 function generateOrganicTree() {
     Object.keys(PASSIVE_TREE.nodes).forEach(key => delete PASSIVE_TREE.nodes[key]);
     PASSIVE_TREE.edges.length = 0;
+    const edgeKeys = new Set();
 
     let nId = 0;
     function pickValidStat(theme, tier, seedIndex) {
@@ -1225,7 +1226,9 @@ function generateOrganicTree() {
     }
     function connect(aId, bId) {
         if (!aId || !bId || aId === bId) return;
-        if (PASSIVE_TREE.edges.some(edge => (edge.from === aId && edge.to === bId) || (edge.from === bId && edge.to === aId))) return;
+        let key = aId < bId ? `${aId}|${bId}` : `${bId}|${aId}`;
+        if (edgeKeys.has(key)) return;
+        edgeKeys.add(key);
         PASSIVE_TREE.edges.push({ from: aId, to: bId });
     }
 
@@ -1365,7 +1368,7 @@ function generateOrganicTree() {
 
     // 시각적 겹침 완화
     let packed = Object.values(PASSIVE_TREE.nodes);
-    for (let iter = 0; iter < 12; iter++) {
+    for (let iter = 0; iter < 8; iter++) {
         for (let i = 0; i < packed.length; i++) {
             for (let j = i + 1; j < packed.length; j++) {
                 let a = packed[i];
