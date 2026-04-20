@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PoE 스타일 방치형 게임 - v8.1 성좌의 전장</title>
+    <title>Projectidle</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; background-color: #08080b; color: #ddd; padding: 15px; font-size: 14px; margin: 0; display: flex; height: 100vh; box-sizing: border-box; overflow: hidden; }
         #left-pane { width: 620px; min-width: 620px; display: flex; flex-direction: column; gap: 15px; margin-right: 15px; height: 100%; overflow: hidden; }
@@ -422,19 +422,19 @@
 
 <script>
 const MAP_ZONES = [
-    { id: 0, name: "액트 1: 버려진 해안", type: "act", tier: 1, maxKills: 10, ele: "phys" },
-    { id: 1, name: "액트 2: 화염의 습지", type: "act", tier: 2, maxKills: 10, ele: "fire" },
-    { id: 2, name: "액트 3: 얼어붙은 유적", type: "act", tier: 2, maxKills: 10, ele: "cold" },
-    { id: 3, name: "액트 4: 뇌우의 투기장", type: "act", tier: 3, maxKills: 10, ele: "light" },
-    { id: 4, name: "액트 5: 물리 이교도 사원", type: "act", tier: 3, maxKills: 10, ele: "phys" },
-    { id: 5, name: "액트 6: 작열하는 도시", type: "act", tier: 4, maxKills: 10, ele: "fire" },
-    { id: 6, name: "액트 7: 서리의 평원", type: "act", tier: 4, maxKills: 10, ele: "cold" },
-    { id: 7, name: "액트 8: 번개의 심장", type: "act", tier: 5, maxKills: 10, ele: "light" },
-    { id: 8, name: "액트 9: 혼돈의 하늘", type: "act", tier: 5, maxKills: 10, ele: "chaos" },
-    { id: 9, name: "액트 10: 공허의 문턱", type: "act", tier: 6, maxKills: 10, ele: "chaos" }
+    { id: 0, name: "액트 1: 버려진 해안", type: "act", tier: 1, maxKills: 3, ele: "phys" },
+    { id: 1, name: "액트 2: 화염의 습지", type: "act", tier: 2, maxKills: 3, ele: "fire" },
+    { id: 2, name: "액트 3: 얼어붙은 유적", type: "act", tier: 2, maxKills: 3, ele: "cold" },
+    { id: 3, name: "액트 4: 뇌우의 투기장", type: "act", tier: 3, maxKills: 3, ele: "light" },
+    { id: 4, name: "액트 5: 물리 이교도 사원", type: "act", tier: 3, maxKills: 3, ele: "phys" },
+    { id: 5, name: "액트 6: 작열하는 도시", type: "act", tier: 4, maxKills: 3, ele: "fire" },
+    { id: 6, name: "액트 7: 서리의 평원", type: "act", tier: 4, maxKills: 3, ele: "cold" },
+    { id: 7, name: "액트 8: 번개의 심장", type: "act", tier: 5, maxKills: 3, ele: "light" },
+    { id: 8, name: "액트 9: 혼돈의 하늘", type: "act", tier: 5, maxKills: 3, ele: "chaos" },
+    { id: 9, name: "액트 10: 공허의 문턱", type: "act", tier: 6, maxKills: 3, ele: "chaos" }
 ];
 const abyssTiers = [7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 15];
-for (let i = 1; i <= 15; i++) MAP_ZONES.push({ id: 9 + i, name: "심연 깊이 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 10, ele: "chaos" });
+for (let i = 1; i <= 15; i++) MAP_ZONES.push({ id: 9 + i, name: "심연 깊이 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 4, ele: "chaos" });
 
 const TRIAL_ZONES = [
     { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 4 },
@@ -503,7 +503,7 @@ const SKILL_DB = {
     '묵직한 강타': { isGem: true, baseDmg: 2.5, baseSpd: 0.5, leech: 0, crit: 5, dmgScale: 0.15, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '단일 적에게 강한 일격을 가합니다.', tags: ['attack', 'melee', 'physical', 'slam'] },
     '흡혈 타격': { isGem: true, baseDmg: 0.95, baseSpd: 1.0, leech: 0.5, crit: 0, dmgScale: 0.04, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '카오스 피해와 흡혈이 붙은 일격입니다.', tags: ['attack', 'melee', 'chaos'] },
     '암살자의 일격': { isGem: true, baseDmg: 1.35, baseSpd: 0.9, leech: 0, crit: 15, dmgScale: 0.05, spdScale: 0.01, ele: 'phys', targetMode: 'single', targets: 1, desc: '치명타 특화 단일 처형기입니다.', tags: ['attack', 'melee', 'physical'] },
-    '회오리바람': { isGem: true, baseDmg: 0.45, baseSpd: 3.1, leech: 0, crit: 0, dmgScale: 0.02, spdScale: 0.14, ele: 'phys', targetMode: 'all', targets: 99, desc: '근처 적 전체를 베어 다대일에 강합니다.', tags: ['attack', 'melee', 'physical', 'aoe'] },
+    '회오리바람': { isGem: true, baseDmg: 0.42, baseSpd: 1.95, leech: 0, crit: 0, dmgScale: 0.018, spdScale: 0.06, ele: 'phys', targetMode: 'all', targets: 99, desc: '근처 적 전체를 베어 다대일에 강합니다.', tags: ['attack', 'melee', 'physical', 'aoe'] },
     '번개 타격': { isGem: true, baseDmg: 1.15, baseSpd: 1.15, leech: 0, crit: 5, dmgScale: 0.06, spdScale: 0.03, ele: 'light', targetMode: 'chain', targets: 3, desc: '첫 대상 이후 주변 적으로 번개가 튑니다.', tags: ['attack', 'melee', 'elemental', 'lightning', 'chain'] },
     '얼음 창': { isGem: true, baseDmg: 1.7, baseSpd: 0.75, leech: 0, crit: 20, dmgScale: 0.1, spdScale: 0, ele: 'cold', targetMode: 'pierce', targets: 2, desc: '적 둘을 꿰뚫는 고위력 빙창입니다.', tags: ['attack', 'projectile', 'elemental', 'cold'] },
     '화염 참격': { isGem: true, baseDmg: 1.2, baseSpd: 1.05, leech: 0, crit: 5, dmgScale: 0.07, spdScale: 0.02, ele: 'fire', targetMode: 'cleave', targets: 2, desc: '화염이 실린 근접 참격입니다.', tags: ['attack', 'melee', 'elemental', 'fire'] },
@@ -1020,8 +1020,8 @@ function generateOrganicTree() {
             let t = i / (segments + 1);
             let curve = Math.sin(Math.PI * t) * bend;
             let node = addNode(
-                lerp(a.x, b.x, t) + nx * curve + jitter(10),
-                lerp(a.y, b.y, t) + ny * curve + jitter(10),
+                    lerp(a.x, b.x, t) + nx * curve + jitter(5),
+                    lerp(a.y, b.y, t) + ny * curve + jitter(5),
                 i === segments && segments > 3 ? 2 : (i % 3 === 0 ? 2 : 1),
                 theme,
                 { sector: theme, kind: 'path' }
@@ -1045,10 +1045,10 @@ function generateOrganicTree() {
         let startAngle = options.startAngle || rnd() * Math.PI * 2;
         let ringNodes = [];
         for (let i = 0; i < ringCount; i++) {
-            let angle = startAngle + (i / ringCount) * Math.PI * 2 + jitter(0.08);
+            let angle = startAngle + (i / ringCount) * Math.PI * 2 + jitter(0.04);
             let node = addNode(
-                centerX + Math.cos(angle) * (rx * (0.88 + rnd() * 0.24)),
-                centerY + Math.sin(angle) * (ry * (0.88 + rnd() * 0.24)),
+                centerX + Math.cos(angle) * (rx * (0.93 + rnd() * 0.16)),
+                centerY + Math.sin(angle) * (ry * (0.93 + rnd() * 0.16)),
                 i % 3 === 0 ? 2 : 1,
                 theme,
                 { sector: theme, kind: 'ring' }
@@ -1068,10 +1068,11 @@ function generateOrganicTree() {
             let prev = node;
             for (let step = 0; step < branchLength; step++) {
                 let dist = Math.max(rx, ry) + 32 + step * 26;
+                let isLeafEnd = step === branchLength - 1;
                 let leaf = addNode(
-                    centerX + Math.cos(angle) * dist + jitter(14),
-                    centerY + Math.sin(angle) * dist + jitter(14),
-                    step === branchLength - 1 ? 2 : 1,
+                    centerX + Math.cos(angle) * dist + jitter(7),
+                    centerY + Math.sin(angle) * dist + jitter(7),
+                    isLeafEnd ? 3 : 1,
                     theme,
                     { sector: theme, kind: 'branch' }
                 );
@@ -1081,10 +1082,6 @@ function generateOrganicTree() {
                 leaves.push(leaf);
             }
         });
-        if (ringNodes.length >= 6) {
-            connect(ringNodes[1].id, ringNodes[4].id);
-            connect(ringNodes[3].id, ringNodes[6 % ringNodes.length].id);
-        }
         return { center: center, ringNodes: ringNodes, leaves: leaves };
     }
 
@@ -1101,12 +1098,12 @@ function generateOrganicTree() {
     if (innerRing.length > 2) connect(innerRing[innerRing.length - 1].id, innerRing[0].id);
 
     const sectors = [
-        { key: 'templar', x: -540, y: -240, angle: -2.48 },
-        { key: 'witch', x: -55, y: -420, angle: -1.74 },
-        { key: 'shadow', x: 505, y: -220, angle: -0.48 },
-        { key: 'ranger', x: 460, y: 255, angle: 0.6 },
-        { key: 'duelist', x: 35, y: 430, angle: 1.46 },
-        { key: 'marauder', x: -520, y: 250, angle: 2.6 }
+        { key: 'templar', x: -700, y: -300, angle: -2.48 },
+        { key: 'witch', x: -90, y: -560, angle: -1.74 },
+        { key: 'shadow', x: 690, y: -290, angle: -0.48 },
+        { key: 'ranger', x: 640, y: 340, angle: 0.6 },
+        { key: 'duelist', x: 70, y: 580, angle: 1.46 },
+        { key: 'marauder', x: -690, y: 350, angle: 2.6 }
     ];
     let sectorAnchors = [];
 
@@ -1121,7 +1118,7 @@ function generateOrganicTree() {
         localAngles.forEach((offset, idx) => {
             if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) return;
             let anchor = idx === 0 ? hub : (clusters.length > 0 ? clusters[clusters.length - 1].center : hub);
-            let distance = 128 + idx * 38 + jitter(16);
+            let distance = 155 + idx * 48 + jitter(10);
             let angle = sector.angle + offset;
             let cluster = createConstellation(
                 anchor,
@@ -1131,7 +1128,7 @@ function generateOrganicTree() {
                 {
                     centerTier: idx < 2 ? 2 : 3,
                     pathSegments: idx === 0 ? 2 : 1 + (idx % 2),
-                    pathBend: 26 + jitter(10),
+                    pathBend: 22 + jitter(6),
                     ringCount: 6 + (idx % 3) + Math.floor(rnd() * 2),
                     rx: 36 + idx * 6 + rnd() * 12,
                     ry: 30 + idx * 5 + rnd() * 10
@@ -1142,10 +1139,6 @@ function generateOrganicTree() {
 
         for (let i = 0; i < clusters.length - 1; i++) {
             connectExistingNodes(clusters[i].ringNodes[Math.floor(clusters[i].ringNodes.length / 2)], clusters[i + 1].ringNodes[Math.floor(clusters[i + 1].ringNodes.length / 3)], 1 + (i % 2), sector.key, 12 + jitter(8));
-        }
-        if (clusters.length >= 3) {
-            connectExistingNodes(clusters[0].center, clusters[2].center, 2, sector.key, -20 + jitter(10));
-            connectExistingNodes(clusters[1].center, clusters[clusters.length - 1].center, 3, sector.key, 18 + jitter(10));
         }
         sectorAnchors.push({ hub: hub, outer: clusters[clusters.length - 1], clusters: clusters, key: sector.key, sectorIndex: sectorIndex, spoke: null });
     });
@@ -1180,12 +1173,76 @@ function generateOrganicTree() {
     for (let i = 0; i < sectorAnchors.length; i++) {
         let current = sectorAnchors[i];
         let next = sectorAnchors[(i + 1) % sectorAnchors.length];
-        let cross = sectorAnchors[(i + 2) % sectorAnchors.length];
-        if (current && current.spoke && next && next.outer) connectExistingNodes(current.spoke.center, next.outer.center, 2, current.key, 18 + jitter(10));
+        if (current && current.spoke && next && next.outer) connectExistingNodes(current.spoke.center, next.outer.center, 2, current.key, 12 + jitter(5));
         if (current && current.outer && next && next.outer && current.outer.leaves.length > 0 && next.outer.leaves.length > 0) {
             connect(current.outer.leaves[current.outer.leaves.length - 1].id, next.outer.leaves[0].id);
         }
-        if (current && current.spoke && cross && cross.spoke) connectExistingNodes(current.spoke.center, cross.spoke.center, 2, current.key, -22 + jitter(14));
+    }
+}
+
+function pointToSegmentDistance(px, py, ax, ay, bx, by) {
+    let vx = bx - ax;
+    let vy = by - ay;
+    let wx = px - ax;
+    let wy = py - ay;
+    let c1 = vx * wx + vy * wy;
+    if (c1 <= 0) return Math.hypot(px - ax, py - ay);
+    let c2 = vx * vx + vy * vy;
+    if (c2 <= c1) return Math.hypot(px - bx, py - by);
+    let t = c1 / c2;
+    let qx = ax + vx * t;
+    let qy = ay + vy * t;
+    return Math.hypot(px - qx, py - qy);
+}
+
+function polishPassiveLayout() {
+    let nodes = Object.values(PASSIVE_TREE.nodes);
+    let coreIds = new Set(nodes.filter(node => node.sector === 'center' || node.kind === 'root' || node.kind === 'inner').map(node => node.id));
+
+    nodes.forEach(node => {
+        if (coreIds.has(node.id)) return;
+        node.x *= 10;
+        node.y *= 10;
+    });
+
+    for (let iter = 0; iter < 2; iter++) {
+        nodes.forEach(node => {
+            if (coreIds.has(node.id)) return;
+            let pushX = 0;
+            let pushY = 0;
+            nodes.forEach(other => {
+                if (node.id === other.id) return;
+                let dx = node.x - other.x;
+                let dy = node.y - other.y;
+                let d = Math.hypot(dx, dy);
+                if (d > 0 && d < 220) {
+                    let force = (220 - d) / 220;
+                    pushX += (dx / d) * force * 40;
+                    pushY += (dy / d) * force * 40;
+                }
+            });
+
+            PASSIVE_TREE.edges.forEach(edge => {
+                if (edge.from === node.id || edge.to === node.id) return;
+                let a = PASSIVE_TREE.nodes[edge.from];
+                let b = PASSIVE_TREE.nodes[edge.to];
+                if (!a || !b) return;
+                let dist = pointToSegmentDistance(node.x, node.y, a.x, a.y, b.x, b.y);
+                if (dist < 120) {
+                    let midX = (a.x + b.x) * 0.5;
+                    let midY = (a.y + b.y) * 0.5;
+                    let awayX = node.x - midX;
+                    let awayY = node.y - midY;
+                    let awayLen = Math.max(1, Math.hypot(awayX, awayY));
+                    let scale = (120 - dist) / 120 * 34;
+                    pushX += (awayX / awayLen) * scale;
+                    pushY += (awayY / awayLen) * scale;
+                }
+            });
+
+            node.x = clampNumber(node.x + pushX, PASSIVE_BOUNDS.minX + 120, PASSIVE_BOUNDS.maxX - 120);
+            node.y = clampNumber(node.y + pushY, PASSIVE_BOUNDS.minY + 120, PASSIVE_BOUNDS.maxY - 120);
+        });
     }
 }
 
@@ -1210,6 +1267,7 @@ function computePassiveDepths() {
     }
 }
 generateOrganicTree();
+polishPassiveLayout();
 computePassiveDepths();
 
 function calculateReachableNodes() {
@@ -1247,7 +1305,7 @@ function revealAroundNode(nodeId, options) {
     options = options || {};
     let origin = PASSIVE_TREE.nodes[nodeId];
     if (!origin) return;
-    let radius = options.radius || (nodeId === 'n0' ? 260 : PASSIVE_DISCOVERY_RADIUS);
+    let radius = options.radius || (nodeId === 'n0' ? 2600 : PASSIVE_DISCOVERY_RADIUS);
     let newlyDiscovered = [];
     Object.values(PASSIVE_TREE.nodes).forEach(node => {
         if (Math.hypot(node.x - origin.x, node.y - origin.y) <= radius) {
@@ -1333,17 +1391,31 @@ function getClassTreeDef(clsKey) {
     let final1 = scaleClassStat(t.m1, getMajorStatBase(t.m1), 2.2);
     let final2 = scaleClassStat(t.m2, getMajorStatBase(t.m2), 2.2);
     let finalDef = scaleClassStat(t.d, getMajorStatBase(t.d), 2.2);
+    let ultByClass = {
+        templar: { stat: 'resAll', val: 18 },
+        witch: { stat: 'aoePctDmg', val: 38 },
+        shadow: { stat: 'chaosPctDmg', val: 52 },
+        ranger: { stat: 'projectilePctDmg', val: 58 },
+        duelist: { stat: 'ds', val: 24 },
+        marauder: { stat: 'dr', val: 22 },
+        elementalist: { stat: 'elementalPctDmg', val: 56 },
+        assassin: { stat: 'critDmg', val: 90 },
+        berserker: { stat: 'physPctDmg', val: 60 },
+        guardian: { stat: 'flatHp', val: 180 },
+        necromancer: { stat: 'gemLevel', val: 2 }
+    };
+    let ult = ultByClass[clsKey] || { stat: 'pctDmg', val: 100 };
     return {
         n1: { stat: t.m1, val: entry1, req: null },
         n2: { stat: t.m2, val: entry2, req: 'n1' },
         n3: { stat: t.d, val: entryDef, req: 'n1' },
         n4: { stat: t.m1, val: major1, req: 'n2' },
-        n5: { stat: t.m2, val: major2, req: 'n2' },
-        n6: { stat: t.d, val: majorDef, req: 'n3' },
+        n5: { stat: clsKey === 'ranger' ? 'aspd' : t.m2, val: clsKey === 'ranger' ? scaleClassStat('aspd', getMajorStatBase('aspd'), 1.55) : major2, req: 'n2' },
+        n6: { stat: clsKey === 'guardian' ? 'resAll' : t.d, val: clsKey === 'guardian' ? scaleClassStat('resAll', getMajorStatBase('resAll'), 1.65) : majorDef, req: 'n3' },
         n7: { stat: t.m1, val: final1, req: 'n4' },
         n8: { stat: t.m2, val: final2, req: 'n5' },
         n9: { stat: t.d, val: finalDef, req: 'n6' },
-        n10: { stat: 'pctDmg', val: 100, req: 'n7' }
+        n10: { stat: ult.stat, val: ult.val, req: 'n7' }
     };
 }
 
@@ -1385,6 +1457,11 @@ let battleAssets = {
     atlas: null
 };
 const battleImageCanvasCache = new WeakMap();
+
+function clampPassiveCamera() {
+    camX = clampNumber(camX, -9800, 9800);
+    camY = clampNumber(camY, -7800, 7800);
+}
 
 document.addEventListener('mousemove', function(e) {
     mouseX = e.clientX;
@@ -2277,18 +2354,18 @@ function awardCurrency(currencyKey, amount) {
 function getCurrencyDrops(enemy) {
     let drops = [];
     if (enemy.isBoss) {
-        if (Math.random() < 0.58) drops.push([Math.random() < 0.52 ? 'transmute' : 'augment', 1]);
-        if (Math.random() < 0.68) drops.push(['alchemy', 1]);
-        if (Math.random() < 0.48) drops.push(['chaos', 1]);
-        if (Math.random() < 0.14) drops.push(['divine', 1]);
+        if (Math.random() < 0.36) drops.push([Math.random() < 0.55 ? 'transmute' : 'augment', 1]);
+        if (Math.random() < 0.38) drops.push(['alchemy', 1]);
+        if (Math.random() < 0.22) drops.push(['chaos', 1]);
+        if (Math.random() < 0.07) drops.push(['divine', 1]);
         if (Math.random() < 0.07) drops.push(['exalted', 1]);
     } else if (enemy.isElite) {
-        if (Math.random() < 0.42) {
+        if (Math.random() < 0.24) {
             let roll = Math.random();
             drops.push([roll < 0.44 ? 'transmute' : (roll < 0.82 ? 'augment' : 'alchemy'), 1]);
         }
-        if (Math.random() < 0.08) drops.push(['chaos', 1]);
-    } else if (Math.random() < 0.055) {
+        if (Math.random() < 0.04) drops.push(['chaos', 1]);
+    } else if (Math.random() < 0.03) {
         drops.push([[ 'transmute', 'transmute', 'augment', 'scour' ][Math.floor(Math.random() * 4)], 1]);
     }
     return drops;
@@ -2560,10 +2637,11 @@ function getPlayerStats() {
     let finalDs = gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds;
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen;
 
-    let finalResF = Math.min(75, gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + reward.resF);
-    let finalResC = Math.min(75, gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC);
-    let finalResL = Math.min(75, gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL);
-    let finalResChaos = Math.min(75, gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos);
+    let resistPenalty = (game.maxZoneId >= 4 ? 30 : 0) + (game.maxZoneId >= 9 ? 30 : 0);
+    let finalResF = Math.min(75, gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + reward.resF - resistPenalty);
+    let finalResC = Math.min(75, gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC - resistPenalty);
+    let finalResL = Math.min(75, gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL - resistPenalty);
+    let finalResChaos = Math.min(75, gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos - resistPenalty);
     let suppCap = 1 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap;
 
     let critChance = finalCrit / 100;
@@ -2678,7 +2756,8 @@ function getPlayerStats() {
             title: '화염 저항',
             lines: [
                 makeSourceLine('장비', gearBase.resF + gearExplicit.resF, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.resF + season.resF + ascend.resF + reward.resF, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('패시브', passive.resF + season.resF + ascend.resF + reward.resF, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('캠페인 패널티', -resistPenalty, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
             final: `${Math.floor(finalResF)}%`
         },
@@ -2686,7 +2765,8 @@ function getPlayerStats() {
             title: '냉기 저항',
             lines: [
                 makeSourceLine('장비', gearBase.resC + gearExplicit.resC, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.resC + season.resC + ascend.resC + reward.resC, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('패시브', passive.resC + season.resC + ascend.resC + reward.resC, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('캠페인 패널티', -resistPenalty, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
             final: `${Math.floor(finalResC)}%`
         },
@@ -2694,7 +2774,8 @@ function getPlayerStats() {
             title: '번개 저항',
             lines: [
                 makeSourceLine('장비', gearBase.resL + gearExplicit.resL, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.resL + season.resL + ascend.resL + reward.resL, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('패시브', passive.resL + season.resL + ascend.resL + reward.resL, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('캠페인 패널티', -resistPenalty, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
             final: `${Math.floor(finalResL)}%`
         },
@@ -2702,7 +2783,8 @@ function getPlayerStats() {
             title: '카오스 저항',
             lines: [
                 makeSourceLine('장비', gearBase.resChaos + gearExplicit.resChaos, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('패시브', passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('캠페인 패널티', -resistPenalty, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
             final: `${Math.floor(finalResChaos)}%`
         },
@@ -2746,6 +2828,7 @@ function getPlayerStats() {
         resC: finalResC,
         resL: finalResL,
         resChaos: finalResChaos,
+        resistPenalty: resistPenalty,
         breakdowns: breakdowns
     };
 }
@@ -2781,14 +2864,46 @@ function getSkillTargets(pStats) {
     return [{ enemy: alive[0], mult: 1 }];
 }
 
-function getEnemyElementResistance(skillEle, zoneTier) {
-    if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') return Math.min(50, zoneTier * 5);
-    if (skillEle === 'chaos') return Math.min(30, zoneTier * 3);
-    return 0;
+const ACT_BOSS_NAMES = {
+    0: '조난자 포식자', 1: '잿빛 늪군주', 2: '빙결 감시자', 3: '폭뢰 집행관', 4: '이교의 사제장',
+    5: '용광로 군주', 6: '한빙 마녀', 7: '천둥 심판관', 8: '허무의 예언자', 9: '문턱의 파수꾼'
+};
+const ENEMY_TRAIT_POOL = [
+    { id: 'rapid', name: '광폭 연타', atkMul: 1.35 },
+    { id: 'fortified', name: '강철 피부', hpMul: 1.35, dr: 8 },
+    { id: 'fireWard', name: '화염 장막', resF: 28 },
+    { id: 'coldWard', name: '서리 장막', resC: 28 },
+    { id: 'lightWard', name: '뇌전 장막', resL: 28 },
+    { id: 'chaosWard', name: '심연 장막', resChaos: 22 },
+    { id: 'physWard', name: '중갑 전개', dr: 14 }
+];
+
+function rollEnemyTrait(zone, isElite, isBoss, seed) {
+    if (!isElite && !isBoss) return null;
+    let list = ENEMY_TRAIT_POOL.slice();
+    if (zone.ele === 'fire') list.unshift({ id: 'fireWard+', name: '화염 과충전', resF: 36 });
+    if (zone.ele === 'cold') list.unshift({ id: 'coldWard+', name: '빙결 과충전', resC: 36 });
+    if (zone.ele === 'light') list.unshift({ id: 'lightWard+', name: '뇌전 과충전', resL: 36 });
+    if (zone.ele === 'chaos') list.unshift({ id: 'chaosWard+', name: '공허 장막', resChaos: 32 });
+    let idx = Math.abs(seed || 0) % list.length;
+    return { ...list[idx] };
+}
+
+function getEnemyElementResistance(skillEle, zoneTier, enemy) {
+    let baseRes = 0;
+    if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') baseRes = Math.min(32, zoneTier * 3);
+    else if (skillEle === 'chaos') baseRes = Math.min(22, zoneTier * 2.2);
+    if (!enemy) return baseRes;
+    if (skillEle === 'fire') return baseRes + (enemy.resF || 0);
+    if (skillEle === 'cold') return baseRes + (enemy.resC || 0);
+    if (skillEle === 'light') return baseRes + (enemy.resL || 0);
+    if (skillEle === 'chaos') return baseRes + (enemy.resChaos || 0);
+    if (skillEle === 'phys') return baseRes + (enemy.dr || 0);
+    return baseRes;
 }
 
 function createEnemy(zone, marker, groupIndex) {
-    let hp = Math.floor(((42 + zone.tier * 22) * 1.15) * (1 + ((game.season - 1) * 0.45)));
+    let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * (1 + ((game.season - 1) * 0.45)));
     let isBoss = !!marker.boss;
     let isElite = !!marker.elite && !isBoss;
     if (isElite) hp = Math.floor(hp * 1.4);
@@ -2796,7 +2911,13 @@ function createEnemy(zone, marker, groupIndex) {
     let eleIcon = zone.ele === 'fire' ? '🔥' : (zone.ele === 'cold' ? '❄️' : (zone.ele === 'light' ? '⚡' : (zone.ele === 'chaos' ? '☠️' : '🩸')));
     let name = `${eleIcon} ${zone.name.split(':')[0]} 추종자`;
     if (isElite) name = `정예 ${name}`;
-    if (isBoss) name = zone.type === 'trial' ? `💀 ${zone.name} 수호자` : `👿 ${zone.name.split(':')[0]} 보스`;
+    if (isBoss) {
+        let bossName = zone.type === 'trial' ? `${zone.name} 수호자` : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`);
+        name = `👿 ${bossName}`;
+    }
+    let variantSeed = ((zone.id + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
+    let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
+    if (trait && trait.hpMul) hp = Math.floor(hp * trait.hpMul);
     return {
         id: game.nextEnemyId++,
         hp: hp,
@@ -2807,8 +2928,15 @@ function createEnemy(zone, marker, groupIndex) {
         attackTimer: ((zone.id + 1) * 13 + (marker.at || 0) * 3 + groupIndex * 7) % 10 / 20,
         spawnAt: marker.at,
         groupIndex: groupIndex,
-        variantSeed: ((zone.id + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997,
-        ele: zone.ele
+        variantSeed: variantSeed,
+        ele: zone.ele,
+        dr: Math.max(0, Math.floor(zone.tier * 0.8) + (trait && trait.dr ? trait.dr : 0)),
+        resF: trait && trait.resF ? trait.resF : 0,
+        resC: trait && trait.resC ? trait.resC : 0,
+        resL: trait && trait.resL ? trait.resL : 0,
+        resChaos: trait && trait.resChaos ? trait.resChaos : 0,
+        atkMul: trait && trait.atkMul ? trait.atkMul : 1,
+        traitName: trait ? trait.name : null
     };
 }
 
@@ -2904,14 +3032,14 @@ function spawnEncounterMarker(marker) {
         let bossEnemy = createEnemy(zone, { ...marker, count: 1 }, count);
         bossEnemy.spawnStamp = performance.now();
         game.enemies.push(bossEnemy);
-        addLog(`👑 ${zone.name}의 보스 무리가 모습을 드러냈습니다!`, "loot-unique");
+        addLog(`👑 '${bossEnemy.name.replace(/^👿\s*/, '')}' 등장.`, "loot-unique");
     } else {
         for (let i = 0; i < count; i++) {
             let enemy = createEnemy(zone, marker, i);
             enemy.spawnStamp = performance.now();
             game.enemies.push(enemy);
         }
-        addLog(`⚠️ 적 증원 도착 (${count}기)`, marker.elite ? "loot-rare" : "attack-monster");
+        addLog(`⚠️ 적 ${count}마리 참전`, marker.elite ? "loot-rare" : "attack-monster");
     }
     addBattleFx('spawnWave', { count: count, boss: !!marker.boss, duration: 420 });
 }
@@ -3005,6 +3133,8 @@ function rollLootForEnemy(enemy) {
 
     getCurrencyDrops(enemy).forEach(drop => {
         awardCurrency(drop[0], drop[1]);
+        addBattleFx('lootPickup', { enemyId: enemy.id, color: (drop[0] === 'divine' || drop[0] === 'exalted') ? '#ffd166' : '#9ad1ff', duration: 760 });
+        if (drop[0] === 'divine' || drop[0] === 'exalted') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ffcf6b', duration: 980 });
         if (game.settings.showLootLog) addLog(`🪙 ${ORB_DB[drop[0]].name} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
     });
 
@@ -3012,6 +3142,8 @@ function rollLootForEnemy(enemy) {
     if (Math.random() < itemChance) {
         let item = generateEquipmentDrop(enemy);
         if (addItemToInventory(item) && game.settings.showLootLog) {
+            addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#9ed6ff', duration: 780 });
+            if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ff9f43', duration: 1200 });
             addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!`);
         }
     }
@@ -3088,9 +3220,9 @@ function performPlayerAttack(pStats) {
     let totalDamage = 0;
     targets.forEach(hit => {
         if (!hit.enemy || hit.enemy.hp <= 0) return;
-        let enemyRes = getEnemyElementResistance(pStats.sSkill.ele || 'phys', zoneTier);
+        let enemyRes = getEnemyElementResistance(pStats.sSkill.ele || 'phys', zoneTier, hit.enemy);
         let dmg = Math.floor(baseDamage * hit.mult);
-        dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
+        dmg = Math.floor(dmg * (1 - (Math.min(80, enemyRes) / 100)));
         hit.enemy.hp = Math.max(0, hit.enemy.hp - dmg);
         totalDamage += dmg;
         hits.push(dmg);
@@ -3124,13 +3256,13 @@ function performMonsterAttacks(pStats) {
     let crowdPenalty = Math.max(0.34, 1 - Math.max(0, aliveCount - 1) * 0.055);
     for (let enemy of (game.enemies || [])) {
         if (enemy.hp <= 0) continue;
-        let atkRate = (0.28 + game.season * 0.02 + zone.tier * 0.015) * (enemy.isElite || enemy.isBoss ? 1.16 : 1);
+        let atkRate = (0.28 + game.season * 0.02 + zone.tier * 0.015) * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1);
         enemy.attackTimer += 0.1 * atkRate;
         while (enemy.attackTimer >= 1) {
             enemy.attackTimer -= 1;
             let dmg = Math.floor((2 + zone.tier * 3.5) * (1 + ((game.season - 1) * 0.42)));
-            if (enemy.isElite) dmg = Math.floor(dmg * 1.18);
-            if (enemy.isBoss) dmg = Math.floor(dmg * (1.05 + zone.tier * 0.15));
+            if (enemy.isElite) dmg = Math.floor(dmg * 1.2);
+            if (enemy.isBoss) dmg = Math.floor(dmg * (1.08 + zone.tier * 0.15));
             if (!enemy.isBoss) dmg = Math.floor(dmg * crowdPenalty);
             let pRes = 0;
             if (enemy.ele === 'phys') pRes = pStats.dr;
@@ -3262,12 +3394,12 @@ function checkUnlocks() {
         game.noti.skills = true;
         queueTutorialNotice('unlock_skills', '스킬 젬 개방', '새로운 젬을 얻었습니다.\n공격 스킬을 교체하거나 보조 젬을 연결해 전투 스타일을 바꿔보세요.', 'tab-skills');
     }
-    if (game.maxZoneId > 0 && !u.map) {
+    if (game.maxZoneId >= 1 && !u.map) {
         u.map = true;
         game.noti.map = true;
         queueTutorialNotice('unlock_map', '지도 개방', '새 사냥터가 열렸습니다.\n원하는 지역으로 이동해 드랍과 속성을 조절할 수 있습니다.', 'tab-map');
     }
-    if ((game.maxZoneId >= 4 || game.season > 1) && !u.traits) {
+    if ((game.completedTrials || []).length > 0 && !u.traits) {
         u.traits = true;
         game.noti.traits = true;
         queueTutorialNotice('unlock_traits', '전직/환생 개방', '전직 시련과 환생 성장 탭이 열렸습니다.\n장기 성장 루트를 여기서 관리할 수 있습니다.', 'tab-traits');
@@ -4366,6 +4498,33 @@ function renderBattlefield() {
             let enemy = enemyPosMap[fx.enemyId];
             if (!enemy) return;
             drawBattleImpactBurst(ctx, enemy.x, enemy.y - 6, fx.color || '#ffb0b0', '#ffffff', t);
+        } else if (fx.type === 'lootPickup') {
+            let enemy = enemyPosMap[fx.enemyId];
+            let startX = enemy ? enemy.x : width * 0.72;
+            let startY = enemy ? enemy.y - 10 : height * 0.62;
+            let endX = width - 26;
+            let endY = 18;
+            let x = startX + (endX - startX) * t;
+            let y = startY + (endY - startY) * t - Math.sin(t * Math.PI) * 18;
+            ctx.save();
+            ctx.globalAlpha = 1 - t * 0.2;
+            ctx.fillStyle = fx.color || '#9ed6ff';
+            ctx.beginPath();
+            ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        } else if (fx.type === 'lootCelebration') {
+            let enemy = enemyPosMap[fx.enemyId];
+            let cx = enemy ? enemy.x : width * 0.72;
+            let cy = enemy ? enemy.y - 10 : height * 0.62;
+            ctx.save();
+            ctx.globalAlpha = 0.45 * (1 - t);
+            ctx.strokeStyle = fx.color || '#ffcf6b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 16 + t * 28, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
         } else if (fx.type === 'spawnWave') {
             ctx.save();
             ctx.globalAlpha = 0.2 * (1 - t);
@@ -4416,10 +4575,9 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-player-level').innerText = 'Lv.' + game.level;
 
     let zone = getZone(game.currentZoneId);
-    let regularMarkers = (game.encounterPlan || []).filter(marker => !marker.boss);
-    let totalSegments = Math.max(1, regularMarkers.length);
-    let currentSegment = Math.min(totalSegments, Math.max(1, game.encounterIndex + (game.enemies.length === 0 ? 1 : 0)));
-    document.getElementById('ui-combat-zone').innerText = zone.type === 'trial' ? zone.name : `${zone.name} - (${currentSegment}/${totalSegments})`;
+    let totalClears = Math.max(1, zone.maxKills || 1);
+    let clearProgress = Math.min(totalClears, Math.max(1, (game.killsInZone || 0) + (game.runProgress > 0 || game.enemies.length > 0 ? 1 : 0)));
+    document.getElementById('ui-combat-zone').innerText = zone.type === 'trial' ? zone.name : `${zone.name} - (${clearProgress}/${totalClears})`;
 
     if (game.moveTimer > 0) {
         let readyPct = Math.min(100, (1 - game.moveTimer / game.moveTotalTime) * 100);
@@ -4490,6 +4648,12 @@ function drawPassiveTree() {
     ctx.save();
     ctx.translate(canvas.width / 2 + camX, canvas.height / 2 + camY);
     ctx.scale(camZoom, camZoom);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(76, 94, 115, 0.55)';
+    ctx.setLineDash([14, 8]);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(PASSIVE_BOUNDS.minX, PASSIVE_BOUNDS.minY, PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX, PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY);
+    ctx.restore();
 
     passiveRevealBursts.forEach(burst => {
         let progress = clampNumber((performance.now() - burst.startTime) / burst.duration, 0, 1);
@@ -4793,6 +4957,7 @@ function setupCanvasEvents() {
         if (isDragging) {
             camX = e.clientX - dragStartX;
             camY = e.clientY - dragStartY;
+            clampPassiveCamera();
             dragDist += Math.abs(e.movementX) + Math.abs(e.movementY);
             drawPassiveTree();
             document.getElementById('canvas-tooltip').style.display = 'none';
@@ -4853,6 +5018,7 @@ function setupCanvasEvents() {
         e.preventDefault();
         camZoom *= (e.deltaY > 0 ? 0.9 : 1.1);
         camZoom = clampNumber(camZoom, 0.12, 2.5);
+        clampPassiveCamera();
         drawPassiveTree();
     });
 }
