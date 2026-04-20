@@ -978,7 +978,7 @@ const PASSIVE_STYLE = {
     reachableGlow: 'rgba(120,170,205,0.22)',
     activeGlow: 'rgba(245,223,173,0.34)',
     previewGlow: 'rgba(111,149,173,0.16)',
-    fog: 'rgba(2,3,6,0.62)'
+    fog: 'rgba(2,3,6,0.18)'
 };
 
 function getPassiveNodeVisualRadius(node) {
@@ -1021,11 +1021,11 @@ function getPassiveNodePalette(node, active, reachable, visibility) {
         };
     }
     return {
-        outer: 'rgba(88,96,104,0.62)',
-        mid: 'rgba(12,16,21,0.94)',
-        inner: 'rgba(25,31,38,0.96)',
+        outer: 'rgba(142,160,179,0.92)',
+        mid: 'rgba(49,64,80,0.92)',
+        inner: 'rgba(85,105,126,0.95)',
         glow: 'rgba(0,0,0,0)',
-        text: '#6c7883'
+        text: '#a8bed0'
     };
 }
 
@@ -1527,7 +1527,7 @@ let mouseX = 0;
 let mouseY = 0;
 let camX = 0;
 let camY = 0;
-let camZoom = 0.24;
+let camZoom = 0.42;
 let isDragging = false;
 let dragStartX = 0;
 let dragStartY = 0;
@@ -4847,9 +4847,9 @@ function drawPassiveTree() {
 
         const visibleA = getPassiveVisibility(a.id);
         const visibleB = getPassiveVisibility(b.id);
-        if (visibleA === 'hidden' || visibleB === 'hidden') return;
-
-        const alpha = Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
+        const alpha = (visibleA === 'hidden' || visibleB === 'hidden')
+            ? 0.58
+            : Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
         const activeA = (game.passives || []).includes(a.id);
         const activeB = (game.passives || []).includes(b.id);
         const activeLink = activeA && activeB;
@@ -4895,9 +4895,8 @@ function drawPassiveTree() {
     // 노드
     Object.values(PASSIVE_TREE.nodes).forEach(node => {
         const visibility = getPassiveVisibility(node.id);
-        if (visibility === 'hidden') return;
 
-        const revealAlpha = getNodeRevealAmount(node);
+        const revealAlpha = visibility === 'hidden' ? 0.82 : getNodeRevealAmount(node);
         const active = (game.passives || []).includes(node.id);
         const reachable = reachableNodes.has(node.id);
         const radius = getPassiveNodeVisualRadius(node) + ((hoverNode && hoverNode.id === node.id) ? 1.5 : 0);
@@ -4939,38 +4938,14 @@ function drawPassiveTree() {
         ctx.restore();
     });
 
-    // 미개척 안개
-    const fogRects = [
-        [PASSIVE_BOUNDS.minX - 1200, PASSIVE_BOUNDS.minY - 1200, PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX + 2400, PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY + 2400]
-    ];
-
+    // 미개척 안개는 과도한 블랙아웃을 피하기 위해 최소 수준으로만 적용
+    const fogX = PASSIVE_BOUNDS.minX - 1000;
+    const fogY = PASSIVE_BOUNDS.minY - 1000;
+    const fogW = PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX + 2000;
+    const fogH = PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY + 2000;
     ctx.save();
     ctx.fillStyle = PASSIVE_STYLE.fog;
-    fogRects.forEach(r => ctx.fillRect(r[0], r[1], r[2], r[3]));
-
-    ctx.globalCompositeOperation = 'destination-out';
-
-    Object.values(PASSIVE_TREE.nodes).forEach(node => {
-        const visibility = getPassiveVisibility(node.id);
-        if (visibility === 'hidden') return;
-
-        const discovered = discoveredPassiveNodes.has(node.id) || (game.passives || []).includes(node.id);
-        const preview = visibility === 'preview';
-        if (!discovered && !preview) return;
-
-        const radius = getPassiveNodeVisualRadius(node);
-        const revealRadius = discovered ? (PASSIVE_DISCOVERY_RADIUS * 0.7) : (PASSIVE_PREVIEW_RADIUS * 0.55);
-
-        const cut = ctx.createRadialGradient(node.x, node.y, radius * 0.6, node.x, node.y, revealRadius);
-        cut.addColorStop(0, 'rgba(0,0,0,1)');
-        cut.addColorStop(0.45, discovered ? 'rgba(0,0,0,0.84)' : 'rgba(0,0,0,0.55)');
-        cut.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = cut;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, revealRadius, 0, Math.PI * 2);
-        ctx.fill();
-    });
-
+    ctx.fillRect(fogX, fogY, fogW, fogH);
     ctx.restore();
 
     ctx.restore();
