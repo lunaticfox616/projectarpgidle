@@ -4564,7 +4564,7 @@ function updateCombatUI(pStats) {
     if (pStats.gemLv > 0) document.getElementById('ui-gemlv').innerText = `+${pStats.gemLv}`;
 
     let enemies = game.enemies || [];
-    let targetIds = getSkillTargets(pStats).map(hit => hit.enemy.id);
+    let targetIds = getSkillTargets(pStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     let focusedEnemy = enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
     if (!focusedEnemy) {
         document.getElementById('ui-enemy-list').innerHTML = `<div class="enemy-empty">현재 조준 중인 적이 없습니다.</div>`;
