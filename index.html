@@ -1223,6 +1223,7 @@ function generateOrganicTree() {
     }
     function connect(aId, bId) {
         if (!aId || !bId || aId === bId) return;
+        if (PASSIVE_TREE.edges.some(edge => (edge.from === aId && edge.to === bId) || (edge.from === bId && edge.to === aId))) return;
         PASSIVE_TREE.edges.push({ from: aId, to: bId });
     }
 
@@ -1299,6 +1300,17 @@ function generateOrganicTree() {
                 if (a && b) connect(a.id, b.id);
             });
         }
+
+        // 교차로 밀도 증가: 비인접 레인 대각 연결
+        for (let depth = 4; depth <= maxDepth; depth += 2) {
+            lanes.forEach(lane => {
+                let branchTo = lane + (lane < 0 ? 3 : -3);
+                if (!lanes.includes(branchTo)) return;
+                let a = laneNodes[s][lane][depth - 1];
+                let b = laneNodes[s][branchTo][Math.max(0, depth - 3)];
+                if (a && b) connect(a.id, b.id);
+            });
+        }
     }
 
     for (let s = 0; s < sectorCount; s++) {
@@ -1316,6 +1328,39 @@ function generateOrganicTree() {
         let wingA = laneNodes[s][4][maxDepth - 1];
         let wingB = laneNodes[next][-4][maxDepth - 1];
         if (wingA && wingB) connect(wingA.id, wingB.id);
+
+        for (let depth = 4; depth <= maxDepth; depth += 2) {
+            let crossA = laneNodes[s][2][depth - 1];
+            let crossB = laneNodes[next][-1][depth - 1];
+            if (crossA && crossB) connect(crossA.id, crossB.id);
+            let crossC = laneNodes[s][-2][depth - 1];
+            let crossD = laneNodes[next][1][depth - 1];
+            if (crossC && crossD) connect(crossC.id, crossD.id);
+        }
+    }
+
+    // 시각적 겹침 완화
+    let packed = Object.values(PASSIVE_TREE.nodes);
+    for (let iter = 0; iter < 8; iter++) {
+        for (let i = 0; i < packed.length; i++) {
+            for (let j = i + 1; j < packed.length; j++) {
+                let a = packed[i];
+                let b = packed[j];
+                if (a.id === 'n0' || b.id === 'n0') continue;
+                let dx = b.x - a.x;
+                let dy = b.y - a.y;
+                let dist = Math.hypot(dx, dy) || 0.001;
+                let minDist = 22;
+                if (dist >= minDist) continue;
+                let push = (minDist - dist) * 0.5;
+                let nx = dx / dist;
+                let ny = dy / dist;
+                a.x -= nx * push;
+                a.y -= ny * push;
+                b.x += nx * push;
+                b.y += ny * push;
+            }
+        }
     }
 
     let nodes = Object.values(PASSIVE_TREE.nodes);
@@ -4847,9 +4892,8 @@ function drawPassiveTree() {
 
         const visibleA = getPassiveVisibility(a.id);
         const visibleB = getPassiveVisibility(b.id);
-        const alpha = (visibleA === 'hidden' || visibleB === 'hidden')
-            ? 0.58
-            : Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
+        if (visibleA === 'hidden' || visibleB === 'hidden') return;
+        const alpha = Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
         const activeA = (game.passives || []).includes(a.id);
         const activeB = (game.passives || []).includes(b.id);
         const activeLink = activeA && activeB;
@@ -4895,8 +4939,8 @@ function drawPassiveTree() {
     // 노드
     Object.values(PASSIVE_TREE.nodes).forEach(node => {
         const visibility = getPassiveVisibility(node.id);
-
-        const revealAlpha = visibility === 'hidden' ? 0.82 : getNodeRevealAmount(node);
+        if (visibility === 'hidden') return;
+        const revealAlpha = getNodeRevealAmount(node);
         const active = (game.passives || []).includes(node.id);
         const reachable = reachableNodes.has(node.id);
         const radius = getPassiveNodeVisualRadius(node) + ((hoverNode && hoverNode.id === node.id) ? 1.5 : 0);
@@ -5316,7 +5360,7 @@ function init() {
     normalizeSupportLoadout(false);
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
     if (!(game.discoveredPassives || []).includes('n0')) game.discoveredPassives.push('n0');
-    if ((game.discoveredPassives || []).length <= 1) revealAroundNode('n0', { radius: PASSIVE_PREVIEW_RADIUS * 1.8, forcePulse: false });
+    if ((game.discoveredPassives || []).length <= 1) revealAroundNode('n0', { radius: PASSIVE_PREVIEW_RADIUS * 1.15, forcePulse: false });
     window.addEventListener('resize', resizeCanvas);
     setupCanvasEvents();
     resizeCanvas();
