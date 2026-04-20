@@ -2712,6 +2712,11 @@ function getActiveSkillStats(bonusLevel) {
 }
 
 function getPlayerStats() {
+    const safePassives = Array.isArray(game.passives) ? game.passives : [];
+    const safeSeasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
+    const safeAscendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
+    const safeRewardBonuses = Array.isArray(game.actRewardBonuses) ? game.actRewardBonuses : [];
+    const safeEquippedSupports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
     let baseDmg = 8 + (game.level * 1.5);
     let baseHp = 90 + (game.level * 8);
     let baseMove = 100;
@@ -2730,29 +2735,29 @@ function getPlayerStats() {
         applyStatsToBucket(gearExplicit, item.stats || []);
     });
 
-    (game.passives || []).forEach(id => {
+    safePassives.forEach(id => {
         let node = PASSIVE_TREE.nodes[id];
         if (node) addStatToBucket(passive, node.stat, node.val);
     });
 
-    (game.seasonNodes || []).forEach(id => {
+    safeSeasonNodes.forEach(id => {
         let node = SEASON_NODES[id];
         if (node) addStatToBucket(season, node.stat, node.val);
     });
 
     if (game.ascendClass) {
         let tree = getClassTreeDef(game.ascendClass);
-        (game.ascendNodes || []).forEach(id => {
+        safeAscendNodes.forEach(id => {
             let node = tree[id];
             if (node) addStatToBucket(ascend, node.stat, node.val);
         });
     }
-    (game.actRewardBonuses || []).forEach(entry => {
+    safeRewardBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
 
     let gemSources = getGemBonusSources();
-    (game.equippedSupports || []).forEach(name => {
+    safeEquippedSupports.forEach(name => {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
         if (!db) return;
@@ -5418,7 +5423,7 @@ function init() {
     window.addEventListener('resize', resizeCanvas);
     setupCanvasEvents();
     resizeCanvas();
-    runStartupSmokeChecks();
+    window.runStartupSmokeChecks = runStartupSmokeChecks;
     updateStaticUI();
     try {
         renderBattlefield();
