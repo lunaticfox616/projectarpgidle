@@ -1303,6 +1303,28 @@ function generateOrganicTree() {
             });
         }
 
+        // 사다리 느낌의 중간 가로 연결(과도한 교차는 제한)
+        for (let depth = 2; depth <= maxDepth; depth += 2) {
+            for (let i = 1; i < lanes.length - 2; i++) {
+                let laneA = lanes[i];
+                let laneB = lanes[i + 1];
+                if (Math.abs(laneA) >= 3 || Math.abs(laneB) >= 3) continue;
+                let a = laneNodes[s][laneA][depth - 1];
+                let b = laneNodes[s][laneB][depth - 1];
+                if (a && b) connect(a.id, b.id);
+            }
+        }
+
+        for (let depth = 3; depth <= maxDepth; depth += 3) {
+            lanes.forEach(lane => {
+                let branchTo = lane + (lane <= 0 ? 2 : -2);
+                if (!lanes.includes(branchTo)) return;
+                let a = laneNodes[s][lane][depth - 1];
+                let b = laneNodes[s][branchTo][depth - 2];
+                if (a && b) connect(a.id, b.id);
+            });
+        }
+
         // 교차로 밀도 증가: 비인접 레인 대각 연결
         for (let depth = 4; depth <= maxDepth; depth += 2) {
             lanes.forEach(lane => {
@@ -1331,11 +1353,11 @@ function generateOrganicTree() {
         let wingB = laneNodes[next][-4][maxDepth - 1];
         if (wingA && wingB) connect(wingA.id, wingB.id);
 
-        for (let depth = 4; depth <= maxDepth; depth += 2) {
-            let crossA = laneNodes[s][2][depth - 1];
+        for (let depth = 4; depth <= maxDepth; depth += 3) {
+            let crossA = laneNodes[s][1][depth - 1];
             let crossB = laneNodes[next][-1][depth - 1];
             if (crossA && crossB) connect(crossA.id, crossB.id);
-            let crossC = laneNodes[s][-2][depth - 1];
+            let crossC = laneNodes[s][-1][depth - 1];
             let crossD = laneNodes[next][1][depth - 1];
             if (crossC && crossD) connect(crossC.id, crossD.id);
         }
@@ -1343,7 +1365,7 @@ function generateOrganicTree() {
 
     // 시각적 겹침 완화
     let packed = Object.values(PASSIVE_TREE.nodes);
-    for (let iter = 0; iter < 8; iter++) {
+    for (let iter = 0; iter < 12; iter++) {
         for (let i = 0; i < packed.length; i++) {
             for (let j = i + 1; j < packed.length; j++) {
                 let a = packed[i];
@@ -1352,7 +1374,7 @@ function generateOrganicTree() {
                 let dx = b.x - a.x;
                 let dy = b.y - a.y;
                 let dist = Math.hypot(dx, dy) || 0.001;
-                let minDist = 22;
+                let minDist = 28;
                 if (dist >= minDist) continue;
                 let push = (minDist - dist) * 0.5;
                 let nx = dx / dist;
@@ -1436,10 +1458,11 @@ function refreshPassiveVisibility() {
     discoveredPassiveNodes.add('n0');
     (game.passives || []).forEach(id => discoveredPassiveNodes.add(id));
     previewPassiveNodes = new Set(discoveredPassiveNodes);
-    let discoveredList = Array.from(discoveredPassiveNodes);
+    let previewSeeds = ['n0'].concat((game.passives || []).filter(id => PASSIVE_TREE.nodes[id]));
     let allNodes = Object.values(PASSIVE_TREE.nodes);
-    discoveredList.forEach(id => {
+    previewSeeds.forEach(id => {
         let src = PASSIVE_TREE.nodes[id];
+        if (!src) return;
         allNodes.forEach(node => {
             if (Math.hypot(node.x - src.x, node.y - src.y) <= PASSIVE_PREVIEW_RADIUS) previewPassiveNodes.add(node.id);
         });
@@ -5366,7 +5389,7 @@ function init() {
     normalizeSupportLoadout(false);
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
     if (!(game.discoveredPassives || []).includes('n0')) game.discoveredPassives.push('n0');
-    if ((game.discoveredPassives || []).length <= 1) revealAroundNode('n0', { radius: PASSIVE_PREVIEW_RADIUS * 1.15, forcePulse: false });
+    if ((game.discoveredPassives || []).length <= 1) revealAroundNode('n0', { radius: PASSIVE_DISCOVERY_RADIUS * 0.55, forcePulse: false });
     window.addEventListener('resize', resizeCanvas);
     setupCanvasEvents();
     resizeCanvas();
