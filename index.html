@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PoE 스타일 방치형 게임 - v8.1 성좌의 전장</title>
+    <title>Projectidle</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; background-color: #08080b; color: #ddd; padding: 15px; font-size: 14px; margin: 0; display: flex; height: 100vh; box-sizing: border-box; overflow: hidden; }
         #left-pane { width: 620px; min-width: 620px; display: flex; flex-direction: column; gap: 15px; margin-right: 15px; height: 100%; overflow: hidden; }
@@ -299,7 +299,7 @@
         <div style="display: flex; flex-direction: column; height: 100%;">
             <h2><span>🌌 미지의 성좌 <span style="font-size:0.7em; color:#8ca5be;">노드 <span id="ui-passive-total">0</span>개</span></span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold; font-size: 1.3em;">0</span></span></h2>
             <div style="font-size: 0.85em; color: #a5b1c2; text-align: center; margin-bottom: 10px;">🖱️ 좌클릭 드래그: 이동 | 휠: 줌 | 노드를 찍을수록 주변 가지가 밝혀집니다. 밝혀진 지형은 시즌이 바뀌어도 유지됩니다.</div>
-            <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: 1px solid #3d3d5c; border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; cursor: grab;">
+            <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: none; border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; cursor: grab;">
                 <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
             </div>
         </div>
@@ -990,8 +990,8 @@ function generateOrganicTree() {
         let statKey = P_STATS[themeOrStat] ? themeOrStat : pickValidStat(themeOrStat, tier);
         let node = {
             id: 'n' + nId++,
-            x: x,
-            y: y,
+            x: x * PASSIVE_WORLD_SCALE,
+            y: y * PASSIVE_WORLD_SCALE,
             tier: tier,
             stat: statKey,
             val: getTierValue(statKey, tier),
@@ -1690,7 +1690,6 @@ function grantActRewardEntry(zoneId, choice) {
     if (choice.kind === 'item') {
         let base = chooseItemBase(choice.slot, zoneId + 1);
         let item = createItemFromBase(base, choice.rarity || 'magic', zoneId + 1);
-        item.name = `[미확인] ${item.name}`;
         addItemToInventory(item);
         addLog(`🎁 액트 보상으로 [${item.name}] 획득!`, choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic');
         return;
@@ -3172,6 +3171,7 @@ function finishEncounterRun() {
         game.killsInZone = 0;
         game.currentZoneId = Math.max(game.currentZoneId, game.maxZoneId);
     }
+    checkUnlocks();
     startMoving(false);
     updateStaticUI();
 }
@@ -4576,10 +4576,8 @@ function updateCombatUI(pStats) {
         if (focusedEnemy.traitName) tags.push(focusedEnemy.traitName);
         document.getElementById('ui-enemy-list').innerHTML = `
             <div class="enemy-card targeted">
-                <div class="enemy-top">
-                    <div class="enemy-name">${getEnemyShortLabel(focusedEnemy)}</div>
-                    <div class="enemy-tags">${tags.join(' ') || '조준 중'}</div>
-                </div>
+                <div class="enemy-name">${getEnemyShortLabel(focusedEnemy)}</div>
+                <div class="enemy-tags">${tags.join(' · ') || '일반'}</div>
                 <div class="hp-bar-bg">
                     <div class="hp-bar-fill" style="width:${pct}%"></div>
                     <div class="hp-text">${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}</div>
