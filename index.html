@@ -297,8 +297,8 @@
 
     <div id="tab-char" class="tab-content">
         <div style="display: flex; flex-direction: column; height: 100%;">
-            <h2><span>🌌 별자리 <span style="font-size:0.7em; color:#8ca5be;"></span></span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold; font-size: 1.3em;">0</span></span></h2>
-            <div style="font-size: 0.85em; color: #a5b1c2; text-align: center; margin-bottom: 10px;">🖱️ 좌클릭 드래그: 이동 | 휠: 줌 </div>
+            <h2><span>🌌 미지의 성좌 <span style="font-size:0.7em; color:#8ca5be;">노드 <span id="ui-passive-total">0</span>개</span></span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold; font-size: 1.3em;">0</span></span></h2>
+            <div style="font-size: 0.85em; color: #a5b1c2; text-align: center; margin-bottom: 10px;">🖱️ 좌클릭 드래그: 이동 | 휠: 줌 | 노드를 찍을수록 주변 가지가 밝혀집니다. 밝혀진 지형은 시즌이 바뀌어도 유지됩니다.</div>
             <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: none; border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; cursor: grab;">
                 <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
             </div>
@@ -1368,6 +1368,25 @@ function computePassiveDepths() {
             }
         });
     }
+}
+function polishPassiveLayout() {
+    let nodes = Object.values(PASSIVE_TREE.nodes || {});
+    if (nodes.length === 0) return;
+    let minX = Math.min(...nodes.map(node => node.x));
+    let maxX = Math.max(...nodes.map(node => node.x));
+    let minY = Math.min(...nodes.map(node => node.y));
+    let maxY = Math.max(...nodes.map(node => node.y));
+    PASSIVE_BOUNDS.minX = minX;
+    PASSIVE_BOUNDS.maxX = maxX;
+    PASSIVE_BOUNDS.minY = minY;
+    PASSIVE_BOUNDS.maxY = maxY;
+
+    let centerX = (minX + maxX) * 0.5;
+    let centerY = (minY + maxY) * 0.5;
+    nodes.forEach(node => {
+        node.x -= centerX;
+        node.y -= centerY;
+    });
 }
 generateOrganicTree();
 polishPassiveLayout();
