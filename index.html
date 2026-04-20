@@ -965,18 +965,12 @@ function generateOrganicTree() {
     Object.keys(PASSIVE_TREE.nodes).forEach(key => delete PASSIVE_TREE.nodes[key]);
     PASSIVE_TREE.edges.length = 0;
 
-    let seed = 1337;
     let nId = 0;
-    function rnd() {
-        const x = Math.sin(seed++) * 10000;
-        return x - Math.floor(x);
-    }
-    function jitter(amount) { return (rnd() - 0.5) * amount; }
-    function lerp(a, b, t) { return a + (b - a) * t; }
-    function pickValidStat(theme, tier) {
+    function pickValidStat(theme, tier, seedIndex) {
         let pool = (PASSIVE_THEME_POOLS[theme] || PASSIVE_THEME_POOLS.center).filter(stat => P_STATS[stat] && P_STATS[stat].tiers && P_STATS[stat].tiers.includes(tier));
         if (pool.length === 0) pool = Object.keys(P_STATS).filter(stat => P_STATS[stat].tiers && P_STATS[stat].tiers.includes(tier));
-        return rndChoice(pool.length > 0 ? pool : ['flatHp']);
+        if (pool.length === 0) return 'flatHp';
+        return pool[Math.abs(seedIndex) % pool.length];
     }
     function getTierValue(statKey, tier) {
         if (tier === 0) return 10;
@@ -986,11 +980,11 @@ function generateOrganicTree() {
     }
     function addNode(x, y, tier, themeOrStat, meta) {
         if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) return null;
-        let statKey = P_STATS[themeOrStat] ? themeOrStat : pickValidStat(themeOrStat, tier);
+        let statKey = P_STATS[themeOrStat] ? themeOrStat : pickValidStat(themeOrStat, tier, nId + ((meta && meta.depth) || 0) * 7 + ((meta && meta.lane) || 0) * 13);
         let node = {
             id: 'n' + nId++,
-            x: x,
-            y: y,
+            x: x * PASSIVE_WORLD_SCALE,
+            y: y * PASSIVE_WORLD_SCALE,
             tier: tier,
             stat: statKey,
             val: getTierValue(statKey, tier),
@@ -1005,185 +999,69 @@ function generateOrganicTree() {
         if (!aId || !bId || aId === bId) return;
         PASSIVE_TREE.edges.push({ from: aId, to: bId });
     }
-    function connectExistingNodes(a, b, segments, theme, bend) {
-        if (!a || !b) return;
-        let prev = a;
-        let dx = b.x - a.x;
-        let dy = b.y - a.y;
-        let len = Math.max(1, Math.hypot(dx, dy));
-        let nx = -dy / len;
-        let ny = dx / len;
-        for (let i = 1; i <= segments; i++) {
-            let t = i / (segments + 1);
-            let curve = Math.sin(Math.PI * t) * bend;
-            let node = addNode(
-                lerp(a.x, b.x, t) + nx * curve + jitter(10),
-                lerp(a.y, b.y, t) + ny * curve + jitter(10),
-                i === segments && segments > 3 ? 2 : (i % 3 === 0 ? 2 : 1),
-                theme,
-                { sector: theme, kind: 'path' }
-            );
-            if (!node) break;
-            connect(prev.id, node.id);
-            prev = node;
-        }
-        connect(prev.id, b.id);
-    }
-    function createConstellation(anchor, centerX, centerY, theme, options) {
-        if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) return null;
-        options = options || {};
-        let center = addNode(centerX, centerY, options.centerTier || 3, theme, { sector: theme, kind: 'major' });
-        if (!center) return null;
-        if (anchor) connectExistingNodes(anchor, center, options.pathSegments || 2, theme, options.pathBend || 24);
 
-        let ringCount = options.ringCount || 8;
-        let rx = options.rx || 54;
-        let ry = options.ry || 42;
-        let startAngle = options.startAngle || rnd() * Math.PI * 2;
-        let ringNodes = [];
-        for (let i = 0; i < ringCount; i++) {
-            let angle = startAngle + (i / ringCount) * Math.PI * 2 + jitter(0.08);
-            let node = addNode(
-                centerX + Math.cos(angle) * (rx * (0.88 + rnd() * 0.24)),
-                centerY + Math.sin(angle) * (ry * (0.88 + rnd() * 0.24)),
-                i % 3 === 0 ? 2 : 1,
-                theme,
-                { sector: theme, kind: 'ring' }
-            );
-            if (!node) break;
-            ringNodes.push(node);
-            connect(center.id, node.id);
-            if (ringNodes.length > 1) connect(ringNodes[ringNodes.length - 2].id, node.id);
-        }
-        if (ringNodes.length > 2) connect(ringNodes[ringNodes.length - 1].id, ringNodes[0].id);
+    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder'];
+    const sectorCount = sectorThemes.length;
+    const lanes = [-3, -2, -1, 0, 1, 2, 3];
+    const maxDepth = 14;
 
-        let leaves = [];
-        ringNodes.forEach((node, idx) => {
-            if (idx % 2 !== 0) return;
-            let angle = Math.atan2(node.y - centerY, node.x - centerX);
-            let branchLength = 1 + (rnd() < 0.45 ? 1 : 0);
-            let prev = node;
-            for (let step = 0; step < branchLength; step++) {
-                let dist = Math.max(rx, ry) + 32 + step * 26;
-                let leaf = addNode(
-                    centerX + Math.cos(angle) * dist + jitter(14),
-                    centerY + Math.sin(angle) * dist + jitter(14),
-                    step === branchLength - 1 ? 2 : 1,
-                    theme,
-                    { sector: theme, kind: 'branch' }
-                );
-                if (!leaf) break;
-                connect(prev.id, leaf.id);
-                prev = leaf;
-                leaves.push(leaf);
-            }
-        });
-        if (ringNodes.length >= 6) {
-            connect(ringNodes[1].id, ringNodes[4].id);
-            connect(ringNodes[3].id, ringNodes[6 % ringNodes.length].id);
-        }
-        return { center: center, ringNodes: ringNodes, leaves: leaves };
-    }
+    let root = addNode(0, 0, 0, 'flatHp', { sector: 'center', kind: 'root', depth: 0, lane: 0 });
+    let laneNodes = {};
 
-    let root = addNode(0, 0, 0, 'flatHp', { sector: 'center', kind: 'root' });
-    let innerRing = [];
-    for (let i = 0; i < 12; i++) {
-        let angle = -Math.PI / 2 + (i / 12) * Math.PI * 2;
-        let node = addNode(Math.cos(angle) * 88, Math.sin(angle) * 70, i % 3 === 0 ? 2 : 1, 'center', { sector: 'center', kind: 'inner' });
-        if (!node) continue;
-        innerRing.push(node);
-        connect(root.id, node.id);
-        if (innerRing.length > 1) connect(innerRing[innerRing.length - 2].id, node.id);
-    }
-    if (innerRing.length > 2) connect(innerRing[innerRing.length - 1].id, innerRing[0].id);
+    for (let s = 0; s < sectorCount; s++) {
+        let baseAngle = -Math.PI / 2 + (s / sectorCount) * Math.PI * 2;
+        let theme = sectorThemes[s];
+        laneNodes[s] = {};
 
-    const sectors = [
-        { key: 'templar', x: -540, y: -240, angle: -2.48 },
-        { key: 'witch', x: -55, y: -420, angle: -1.74 },
-        { key: 'shadow', x: 505, y: -220, angle: -0.48 },
-        { key: 'ranger', x: 460, y: 255, angle: 0.6 },
-        { key: 'duelist', x: 35, y: 430, angle: 1.46 },
-        { key: 'marauder', x: -520, y: 250, angle: 2.6 }
-    ];
-    let sectorAnchors = [];
-
-    sectors.forEach((sector, sectorIndex) => {
-        let ringAnchor = innerRing[Math.round(((sector.angle + Math.PI) / (Math.PI * 2)) * (innerRing.length - 1)) % innerRing.length];
-        let hub = addNode(sector.x, sector.y, 3, sector.key, { sector: sector.key, kind: 'hub' });
-        if (!hub) return;
-        connectExistingNodes(ringAnchor, hub, 4, sector.key, 48 + jitter(12));
-
-        let clusters = [];
-        let localAngles = [-1.05, -0.55, -0.1, 0.35, 0.82, 1.24];
-        localAngles.forEach((offset, idx) => {
-            if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) return;
-            let anchor = idx === 0 ? hub : (clusters.length > 0 ? clusters[clusters.length - 1].center : hub);
-            let distance = 128 + idx * 38 + jitter(16);
-            let angle = sector.angle + offset;
-            let cluster = createConstellation(
-                anchor,
-                sector.x + Math.cos(angle) * distance,
-                sector.y + Math.sin(angle) * distance * (0.88 + rnd() * 0.22),
-                sector.key,
-                {
-                    centerTier: idx < 2 ? 2 : 3,
-                    pathSegments: idx === 0 ? 2 : 1 + (idx % 2),
-                    pathBend: 26 + jitter(10),
-                    ringCount: 6 + (idx % 3) + Math.floor(rnd() * 2),
-                    rx: 36 + idx * 6 + rnd() * 12,
-                    ry: 30 + idx * 5 + rnd() * 10
+        lanes.forEach(lane => {
+            laneNodes[s][lane] = [];
+            let prev = null;
+            for (let depth = 1; depth <= maxDepth; depth++) {
+                let radius = 82 + depth * 62 + Math.abs(lane) * 12;
+                let angle = baseAngle + lane * 0.085 + depth * lane * 0.006;
+                let x = Math.cos(angle) * radius;
+                let y = Math.sin(angle) * radius * 0.92;
+                let tier = depth >= maxDepth - 1 && lane === 0 ? 3 : (depth % 4 === 0 ? 2 : 1);
+                let kind = depth >= maxDepth - 1 && lane === 0 ? 'keystone' : (depth % 3 === 0 ? 'major' : 'path');
+                let node = addNode(x, y, tier, theme, { sector: theme, kind: kind, depth: depth, lane: lane });
+                if (!node) break;
+                laneNodes[s][lane].push(node);
+                if (depth === 1) {
+                    connect(root.id, node.id);
+                } else if (prev) {
+                    connect(prev.id, node.id);
                 }
-            );
-            if (cluster) clusters.push(cluster);
+                prev = node;
+            }
         });
 
-        for (let i = 0; i < clusters.length - 1; i++) {
-            connectExistingNodes(clusters[i].ringNodes[Math.floor(clusters[i].ringNodes.length / 2)], clusters[i + 1].ringNodes[Math.floor(clusters[i + 1].ringNodes.length / 3)], 1 + (i % 2), sector.key, 12 + jitter(8));
-        }
-        if (clusters.length >= 3) {
-            connectExistingNodes(clusters[0].center, clusters[2].center, 2, sector.key, -20 + jitter(10));
-            connectExistingNodes(clusters[1].center, clusters[clusters.length - 1].center, 3, sector.key, 18 + jitter(10));
-        }
-        sectorAnchors.push({ hub: hub, outer: clusters[clusters.length - 1], clusters: clusters, key: sector.key, sectorIndex: sectorIndex, spoke: null });
-    });
-
-    for (let i = 0; i < sectorAnchors.length; i++) {
-        let current = sectorAnchors[i];
-        let next = sectorAnchors[(i + 1) % sectorAnchors.length];
-        if (!current || !next || !current.outer || !next.outer) continue;
-        connectExistingNodes(current.outer.center, next.outer.center, 4, 'center', 24 + jitter(16));
-    }
-
-    sectorAnchors.forEach((sector, idx) => {
-        if (!sector || !sector.outer) return;
-        let spokeAngle = sectors[idx].angle + 1.55 + jitter(0.18);
-        let distance = 410 + jitter(28);
-        sector.spoke = createConstellation(
-            sector.outer.center,
-            sectors[idx].x + Math.cos(spokeAngle) * distance,
-            sectors[idx].y + Math.sin(spokeAngle) * distance * 0.9,
-            sector.key,
-            {
-                centerTier: 3,
-                pathSegments: 2,
-                pathBend: 18 + jitter(12),
-                ringCount: 7 + Math.floor(rnd() * 3),
-                rx: 42 + rnd() * 18,
-                ry: 36 + rnd() * 16
+        for (let depth = 1; depth <= maxDepth; depth++) {
+            for (let i = 0; i < lanes.length - 1; i++) {
+                if (depth % 2 !== 0 && Math.abs(lanes[i]) > 1) continue;
+                let a = laneNodes[s][lanes[i]][depth - 1];
+                let b = laneNodes[s][lanes[i + 1]][depth - 1];
+                if (a && b) connect(a.id, b.id);
             }
-        );
-    });
-
-    for (let i = 0; i < sectorAnchors.length; i++) {
-        let current = sectorAnchors[i];
-        let next = sectorAnchors[(i + 1) % sectorAnchors.length];
-        let cross = sectorAnchors[(i + 2) % sectorAnchors.length];
-        if (current && current.spoke && next && next.outer) connectExistingNodes(current.spoke.center, next.outer.center, 2, current.key, 18 + jitter(10));
-        if (current && current.outer && next && next.outer && current.outer.leaves.length > 0 && next.outer.leaves.length > 0) {
-            connect(current.outer.leaves[current.outer.leaves.length - 1].id, next.outer.leaves[0].id);
         }
-        if (current && current.spoke && cross && cross.spoke) connectExistingNodes(current.spoke.center, cross.spoke.center, 2, current.key, -22 + jitter(14));
     }
+
+    for (let s = 0; s < sectorCount; s++) {
+        let next = (s + 1) % sectorCount;
+        for (let depth = 3; depth <= maxDepth; depth += 2) {
+            let a = laneNodes[s][0][depth - 1];
+            let b = laneNodes[next][0][depth - 1];
+            if (a && b) connect(a.id, b.id);
+        }
+        let wingA = laneNodes[s][3][maxDepth - 2];
+        let wingB = laneNodes[next][-3][maxDepth - 2];
+        if (wingA && wingB) connect(wingA.id, wingB.id);
+    }
+
+    let nodes = Object.values(PASSIVE_TREE.nodes);
+    PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.maxX = Math.max(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.minY = Math.min(...nodes.map(node => node.y));
+    PASSIVE_BOUNDS.maxY = Math.max(...nodes.map(node => node.y));
 }
 
 function computePassiveDepths() {
