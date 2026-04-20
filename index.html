@@ -939,8 +939,8 @@ const PASSIVE_TREE = { nodes: {}, edges: [] };
 const PASSIVE_TARGET_NODES = 1400;
 const PASSIVE_DISCOVERY_RADIUS = 235;
 const PASSIVE_PREVIEW_RADIUS = 160;
-const PASSIVE_WORLD_SCALE = 1;
-const PASSIVE_BOUNDS = { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
+var PASSIVE_WORLD_SCALE = 1;
+var PASSIVE_BOUNDS = { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
 let game;
 let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
@@ -1273,6 +1273,7 @@ computePassiveDepths();
 function calculateReachableNodes() {
     reachableNodes.clear();
     reachableNodes.add('n0');
+    if (!game) return;
     (game.passives || []).forEach(id => reachableNodes.add(id));
     PASSIVE_TREE.edges.forEach(edge => {
         if ((game.passives || []).includes(edge.from)) reachableNodes.add(edge.to);
@@ -1281,6 +1282,11 @@ function calculateReachableNodes() {
 }
 
 function refreshPassiveVisibility() {
+    if (!game) {
+        discoveredPassiveNodes = new Set(['n0']);
+        previewPassiveNodes = new Set(['n0']);
+        return;
+    }
     discoveredPassiveNodes = new Set((game.discoveredPassives || []).filter(id => PASSIVE_TREE.nodes[id]));
     discoveredPassiveNodes.add('n0');
     (game.passives || []).forEach(id => discoveredPassiveNodes.add(id));
@@ -3309,7 +3315,7 @@ function coreLoop() {
         else progressStallTicks = 0;
         if (progressStallTicks >= 20) {
             ensureEncounterRun();
-            game.runProgress = Math.min(100, progressBefore + 0.6);
+            game.runProgress = Math.min(99.9, progressBefore + 0.4);
             progressStallTicks = 0;
         }
     } else {
