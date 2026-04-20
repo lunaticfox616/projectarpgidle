@@ -4599,6 +4599,12 @@ function drawPassiveTree() {
     ctx.save();
     ctx.translate(canvas.width / 2 + camX, canvas.height / 2 + camY);
     ctx.scale(camZoom, camZoom);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(76, 94, 115, 0.55)';
+    ctx.setLineDash([14, 8]);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(PASSIVE_BOUNDS.minX, PASSIVE_BOUNDS.minY, PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX, PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY);
+    ctx.restore();
 
     passiveRevealBursts.forEach(burst => {
         let progress = clampNumber((performance.now() - burst.startTime) / burst.duration, 0, 1);
