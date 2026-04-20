@@ -1328,6 +1328,28 @@ function generateOrganicTree() {
             });
         }
 
+        // 사다리 느낌의 중간 가로 연결(과도한 교차는 제한)
+        for (let depth = 2; depth <= maxDepth; depth += 2) {
+            for (let i = 1; i < lanes.length - 2; i++) {
+                let laneA = lanes[i];
+                let laneB = lanes[i + 1];
+                if (Math.abs(laneA) >= 3 || Math.abs(laneB) >= 3) continue;
+                let a = laneNodes[s][laneA][depth - 1];
+                let b = laneNodes[s][laneB][depth - 1];
+                if (a && b) connect(a.id, b.id);
+            }
+        }
+
+        for (let depth = 3; depth <= maxDepth; depth += 3) {
+            lanes.forEach(lane => {
+                let branchTo = lane + (lane <= 0 ? 2 : -2);
+                if (!lanes.includes(branchTo)) return;
+                let a = laneNodes[s][lane][depth - 1];
+                let b = laneNodes[s][branchTo][depth - 2];
+                if (a && b) connect(a.id, b.id);
+            });
+        }
+
         // 교차로 밀도 증가: 비인접 레인 대각 연결
         for (let depth = 4; depth <= maxDepth; depth += 2) {
             lanes.forEach(lane => {
@@ -5424,14 +5446,21 @@ function init() {
     setupCanvasEvents();
     resizeCanvas();
     window.runStartupSmokeChecks = runStartupSmokeChecks;
-    updateStaticUI();
+    try {
+        updateStaticUI();
+    } catch (error) {
+        console.error('initial updateStaticUI failed:', error);
+        game = mergeDefaults(game || {});
+        try { updateStaticUI(); } catch (retryError) { console.error('retry updateStaticUI failed:', retryError); }
+    }
     try {
         renderBattlefield();
     } catch (error) {
         console.error('initial battlefield render failed:', error);
+    } finally {
+        requestAnimationFrame(gameLoop);
+        setInterval(saveGame, 60000);
     }
-    requestAnimationFrame(gameLoop);
-    setInterval(saveGame, 60000);
 }
 
 function gameLoop() {
