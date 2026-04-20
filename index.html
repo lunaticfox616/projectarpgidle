@@ -1828,11 +1828,11 @@ function unlockPassiveStarEvolution(options) {
     game.noti.char = true;
 
     if (!options.silent) {
-        addLog('✨ 별끝 성좌 다섯 개가 연결되어 외곽 성좌가 각성했습니다.', 'loot-rare');
+        addLog('✨ 별의 공명이 일어납니다.', 'loot-rare');
         queueTutorialNotice(
             'passive_star_evolution',
             '성좌 진화',
-            '별끝 특수 노드 5개를 모두 이었습니다.\n외곽 성좌가 별 모양으로 확장되며 훨씬 강한 패시브가 드러납니다.\n동시에 별의 공명 효과로 피해, 생명력, 이동 속도가 추가로 상승합니다.',
+            '별끝 특수 노드 5개를 모두 활성화 했습니다.\n외곽 노드가 확장되며 훨씬 강한 패시브가 드러납니다.\n동시에 별의 공명 효과로 피해, 생명력, 이동 속도가 추가로 상승합니다.',
             'tab-char'
         );
     }
@@ -6007,7 +6007,6 @@ function resetGame() {
 function init() {
     loadGame();
     recoverRuntimeState();
-    game.passivePoints = Math.max(game.passivePoints || 0, 100);
     unlockPassiveStarEvolution({ silent: true });
     initBattleAssets();
     refreshPassiveVisibility();
