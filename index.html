@@ -5103,11 +5103,6 @@ function init() {
 
 function gameLoop() {
     let now = Date.now();
-    if (isTutorialOpen() || isRewardOpen()) {
-        lastTime = now;
-        requestAnimationFrame(gameLoop);
-        return;
-    }
     let elapsed = now - lastTime;
     if (elapsed >= 100) {
         let ticks = Math.floor(elapsed / 100);
