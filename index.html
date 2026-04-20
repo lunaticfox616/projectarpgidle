@@ -2622,7 +2622,7 @@ function getGemBonusSources() {
 function getActiveSkillStats(bonusLevel) {
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
     if (!skill.isGem) return { ...skill, baseLevel: 0, finalLevel: 0, bonusLevel: 0 };
-    let gem = game.gemData[game.activeSkill] || { level: 1, exp: 0 };
+    let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);
     let finalLevel = Math.min(20, gem.level) + bonusLevel;
     let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, bonusLevel: bonusLevel };
     stats.dmg = stats.baseDmg + ((finalLevel - 1) * stats.dmgScale);
@@ -2677,7 +2677,7 @@ function getPlayerStats() {
 
     let gemSources = getGemBonusSources();
     (game.equippedSupports || []).forEach(name => {
-        let gem = game.supportGemData[name] || { level: 1, exp: 0 };
+        let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
         if (!db) return;
         let effectiveLevel = Math.max(1, gem.level + gemSources.total);
@@ -2931,15 +2931,17 @@ function getPlayerStats() {
 function getGemPresentation(name, isSupport) {
     let stats = getPlayerStats();
     if (isSupport) {
-        let gem = game.supportGemData[name] || { level: 1, exp: 0 };
+        let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
+        if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null };
         let totalLevel = Math.max(1, gem.level + stats.gemBonusSources.total);
         let val = db.baseVal + ((totalLevel - 1) * db.scale);
         return { baseLevel: gem.level, totalLevel: totalLevel, value: val, desc: db.desc, statName: db.name, statId: db.stat };
     }
     let db = SKILL_DB[name];
+    if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
     if (!db.isGem) return { baseLevel: 0, totalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
-    let gem = game.gemData[name] || { level: 1, exp: 0 };
+    let gem = normalizeGemRecord((game.gemData || {})[name]);
     let totalLevel = gem.level + stats.gemBonusSources.total;
     let finalLevel = Math.min(20, gem.level) + stats.gemBonusSources.total;
     let skill = { ...db };
@@ -3471,6 +3473,12 @@ function triggerSeasonReset() {
 
 function getExpReq(level) { return Math.floor(50 * Math.pow(level, 1.8)); }
 function getGemReqExp(level) { return Math.floor(100 * Math.pow(1.3, level - 1)); }
+function normalizeGemRecord(raw) {
+    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0 };
+    let level = Number.isFinite(raw.level) ? Math.max(1, Math.floor(raw.level)) : 1;
+    let exp = Number.isFinite(raw.exp) ? Math.max(0, raw.exp) : 0;
+    return { level: level, exp: exp };
+}
 
 function checkUnlocks() {
     let u = game.unlocks;
@@ -5272,6 +5280,10 @@ function mergeDefaults(save) {
     }
     merged.inventory = (merged.inventory || []).map(normalizeItem);
     Object.keys(merged.equipment).forEach(slot => merged.equipment[slot] = normalizeItem(merged.equipment[slot]));
+    merged.gemData = (merged.gemData && typeof merged.gemData === 'object') ? merged.gemData : {};
+    Object.keys(merged.gemData).forEach(name => merged.gemData[name] = normalizeGemRecord(merged.gemData[name]));
+    merged.supportGemData = (merged.supportGemData && typeof merged.supportGemData === 'object') ? merged.supportGemData : {};
+    Object.keys(merged.supportGemData).forEach(name => merged.supportGemData[name] = normalizeGemRecord(merged.supportGemData[name]));
     if ((save.saveVersion || 0) < 9) {
         merged.passives = [];
         merged.discoveredPassives = ['n0'];
