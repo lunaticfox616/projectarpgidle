@@ -2185,6 +2185,8 @@ let battleAssets = {
     loading: false,
     ready: false,
     failed: false,
+    failedKeys: [],
+    loadTicket: 0,
     images: {},
     backdrops: [],
     atlas: null
@@ -2549,14 +2551,38 @@ function getElementColor(ele) {
 function initBattleAssets() {
     if (battleAssets.loading || battleAssets.ready || battleAssets.failed) return;
     battleAssets.loading = true;
+    battleAssets.failedKeys = [];
+    battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
+    const loadTicket = battleAssets.loadTicket;
     const manifest = {
-        hero: 'assets/battle-hero-v1-clean.png',
+        hero: 'assets/battle-hero-v1.png',
         enemies: 'assets/battle-enemies-v1.png',
         effects: 'assets/battle-effects-v1.png',
         tiles: 'assets/battle-tiles-v1.png',
         backdrop: 'assets/battlefield-pixel-concept-v1.png'
     };
     let pending = Object.keys(manifest).length;
+    let settled = false;
+    function finishLoad() {
+        if (settled || pending > 0 || battleAssets.loadTicket !== loadTicket) return;
+        settled = true;
+        if (battleAssets.failedKeys.length === 0) {
+            finalizeBattleAssets();
+            return;
+        }
+        battleAssets.failed = true;
+        battleAssets.loading = false;
+        console.warn('battle asset load completed with missing files:', battleAssets.failedKeys.join(', '));
+    }
+
+    setTimeout(() => {
+        if (battleAssets.loadTicket !== loadTicket || settled || !battleAssets.loading) return;
+        battleAssets.failed = true;
+        if (!battleAssets.failedKeys.includes('timeout')) battleAssets.failedKeys.push('timeout');
+        pending = 0;
+        finishLoad();
+    }, 8000);
+
     Object.entries(manifest).forEach(([key, src]) => {
         let img = new Image();
         img.onload = function() {
@@ -2570,12 +2596,14 @@ function initBattleAssets() {
                 battleAssets.images[key] = img;
             }
             pending--;
-            if (pending === 0) finalizeBattleAssets();
+            finishLoad();
         };
         img.onerror = function() {
             battleAssets.failed = true;
-            battleAssets.loading = false;
-            console.warn('battle asset load failed:', src);
+            battleAssets.failedKeys.push(key);
+            pending--;
+            console.warn('battle asset load failed:', key, src);
+            finishLoad();
         };
         img.src = src;
     });
@@ -5341,16 +5369,16 @@ function renderBattlefield() {
     let currentZone = getZone(game.currentZoneId);
     let zoneTheme = getBattleZoneTheme(currentZone);
     drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone);
-    if (!battleAssets.ready) {
+    if (!battleAssets.ready && battleAssets.loading) {
         ctx.save();
         ctx.fillStyle = 'rgba(6,10,16,0.55)';
         ctx.fillRect(0, 0, width, height);
         ctx.fillStyle = 'rgba(201, 223, 244, 0.82)';
         ctx.font = 'bold 14px Malgun Gothic';
         ctx.textAlign = 'center';
-        ctx.fillText(battleAssets.failed ? '전장 에셋을 불러오지 못했습니다.' : '전장 에셋 로딩 중...', width / 2, height / 2);
+        ctx.fillText('전장 에셋 로딩 중...', width / 2, height / 2);
         ctx.restore();
-        document.getElementById('ui-battlefield-caption').innerText = battleAssets.failed ? '전장 렌더링 대기 중...' : '전장 에셋 로딩 중...';
+        document.getElementById('ui-battlefield-caption').innerText = '전장 에셋 로딩 중...';
         return;
     }
 
@@ -5569,6 +5597,7 @@ function renderBattlefield() {
     drawDamageTexts(ctx, now);
 
     let caption = '전장을 스캔 중...';
+    if (battleAssets.failed && !battleAssets.ready) caption = '전장 에셋 일부 로드 실패 (기본 렌더링으로 전투 진행)';
     if (game.moveTimer > 0) caption = game.isTownReturning ? '마을로 귀환 중...' : '다음 구간으로 이동 중...';
     else if (isCrowdProgressPaused()) caption = `적이 ${ENEMY_CROWD_PAUSE_LIMIT}기 이상 몰려 전진이 막혔습니다.`;
     else if (enemies.length > 0) caption = `${enemies.length}기와 교전 중`;
