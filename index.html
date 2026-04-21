@@ -411,12 +411,12 @@
             </h2>
             <div class="bulk-salvage-bar">
                 <div class="bulk-salvage-filters">
-                    <label><input type="checkbox" id="chk-salvage-normal" checked> 일반</label>
-                    <label><input type="checkbox" id="chk-salvage-magic" checked> 매직</label>
-                    <label><input type="checkbox" id="chk-salvage-rare"> 레어</label>
-                    <label><input type="checkbox" id="chk-salvage-unique"> 고유</label>
+                    <label><input type="checkbox" id="chk-salvage-normal" checked onchange="updateSalvageSettingsFromUI()"> 일반</label>
+                    <label><input type="checkbox" id="chk-salvage-magic" checked onchange="updateSalvageSettingsFromUI()"> 매직</label>
+                    <label><input type="checkbox" id="chk-salvage-rare" onchange="updateSalvageSettingsFromUI()"> 레어</label>
+                    <label><input type="checkbox" id="chk-salvage-unique" onchange="updateSalvageSettingsFromUI()"> 고유</label>
                 </div>
-                <button class="bulk-salvage-action" onclick="bulkSalvageSelected()">해체</button>
+                <div style="display:flex; gap:8px;"><button class="bulk-salvage-action" onclick="bulkSalvageSelected()">해체</button><button id="btn-auto-salvage" class="bulk-salvage-action" onclick="toggleAutoSalvage()">자동해체 OFF</button></div>
             </div>
             <div class="inventory-grid" id="ui-inventory-list"></div>
         </div>
@@ -769,14 +769,22 @@ const BASE_ITEM_DB = [
 ];
 
 const UNIQUE_DB = [
-    { name: "별의 파괴자", slots: ["무기"], stats: [{ id: "flatDmg", base: 40 }, { id: "meleePctDmg", base: 70 }, { id: "physPctDmg", base: 85 }, { id: "critDmg", base: 50 }] },
-    { name: "카옴의 심장", slots: ["갑옷"], stats: [{ id: "flatHp", base: 300 }, { id: "pctHp", base: 40 }, { id: "regen", base: 2.0 }] },
-    { name: "광전사의 손길", slots: ["장갑"], stats: [{ id: "aspd", base: 25 }, { id: "ds", base: 15 }, { id: "leech", base: 2.0 }] },
-    { name: "바람의 춤", slots: ["신발"], stats: [{ id: "move", base: 40 }, { id: "projectilePctDmg", base: 40 }, { id: "crit", base: 5 }] },
-    { name: "현자의 시선", slots: ["목걸이"], stats: [{ id: "gemLevel", base: 2 }, { id: "suppCap", base: 1 }, { id: "elementalPctDmg", base: 35 }, { id: "resAll", base: 15 }] },
-    { name: "도둑의 반지", slots: ["반지"], stats: [{ id: "leech", base: 4.0 }, { id: "chaosPctDmg", base: 35 }, { id: "crit", base: 10 }, { id: "resAll", base: 10 }] },
-    { name: "불멸의 띠", slots: ["허리띠"], stats: [{ id: "dr", base: 10 }, { id: "pctHp", base: 30 }, { id: "flatHp", base: 100 }] },
-    { name: "폭군의 왕관", slots: ["투구"], stats: [{ id: "aoePctDmg", base: 40 }, { id: "critDmg", base: 80 }, { id: "flatHp", base: 80 }] }
+    { name: "핏빛 톱날", slots: ["무기"], reqTier: 1, stats: [{ id: "flatDmg", min: 10, max: 14 }, { id: "leech", min: 0.6, max: 1.0 }] },
+    { name: "순풍의 장화", slots: ["신발"], reqTier: 1, stats: [{ id: "move", min: 14, max: 18 }, { id: "projectilePctDmg", min: 8, max: 12 }] },
+    { name: "도둑의 반지", slots: ["반지"], reqTier: 2, stats: [{ id: "leech", min: 1.2, max: 1.8 }, { id: "chaosPctDmg", min: 12, max: 18 }, { id: "resAll", min: 4, max: 7 }] },
+    { name: "군단 지휘관의 투구", slots: ["투구"], reqTier: 3, stats: [{ id: "flatHp", min: 38, max: 50 }, { id: "aoePctDmg", min: 10, max: 16 }, { id: "dr", min: 3, max: 5 }] },
+    { name: "사냥개의 발톱", slots: ["장갑"], reqTier: 4, stats: [{ id: "aspd", min: 10, max: 15 }, { id: "ds", min: 6, max: 10 }] },
+    { name: "현자의 시선", slots: ["목걸이"], reqTier: 5, stats: [{ id: "gemLevel", min: 1, max: 1 }, { id: "suppCap", min: 1, max: 1 }, { id: "elementalPctDmg", min: 12, max: 18 }] },
+    { name: "분광 고리", slots: ["반지"], reqTier: 6, stats: [{ id: "resAll", min: 10, max: 14 }, { id: "crit", min: 4, max: 6 }, { id: "elementalPctDmg", min: 10, max: 16 }] },
+    { name: "카옴의 심장", slots: ["갑옷"], reqTier: 7, stats: [{ id: "flatHp", min: 120, max: 160 }, { id: "pctHp", min: 12, max: 18 }, { id: "regen", min: 0.8, max: 1.2 }] },
+    { name: "불멸의 띠", slots: ["허리띠"], reqTier: 8, stats: [{ id: "dr", min: 6, max: 9 }, { id: "flatHp", min: 70, max: 95 }, { id: "resChaos", min: 8, max: 12 }] },
+    { name: "광전사의 손길", slots: ["장갑"], reqTier: 9, stats: [{ id: "aspd", min: 14, max: 20 }, { id: "ds", min: 10, max: 14 }, { id: "meleePctDmg", min: 18, max: 26 }] },
+    { name: "별의 파괴자", slots: ["무기"], reqTier: 10, stats: [{ id: "flatDmg", min: 28, max: 38 }, { id: "physPctDmg", min: 34, max: 46 }, { id: "critDmg", min: 24, max: 34 }] },
+    { name: "폭군의 왕관", slots: ["투구"], reqTier: 11, stats: [{ id: "aoePctDmg", min: 24, max: 34 }, { id: "critDmg", min: 30, max: 45 }, { id: "flatHp", min: 60, max: 82 }] },
+    { name: "심연의 굴레", slots: ["목걸이"], reqTier: 12, stats: [{ id: "chaosPctDmg", min: 24, max: 34 }, { id: "resChaos", min: 12, max: 18 }, { id: "leech", min: 1.0, max: 1.4 }] },
+    { name: "무명의 맹세", slots: ["갑옷"], reqTier: 13, stats: [{ id: "flatHp", min: 150, max: 200 }, { id: "resAll", min: 12, max: 16 }, { id: "dr", min: 8, max: 12 }] },
+    { name: "균열추", slots: ["무기"], reqTier: 14, stats: [{ id: "flatDmg", min: 34, max: 44 }, { id: "aoePctDmg", min: 24, max: 32 }, { id: "crit", min: 6, max: 10 }] },
+    { name: "여명의 결속", slots: ["허리띠"], reqTier: 15, stats: [{ id: "pctHp", min: 16, max: 24 }, { id: "regen", min: 1.0, max: 1.6 }, { id: "resAll", min: 8, max: 12 }] }
 ];
 
 const ORB_DB = {
@@ -889,7 +897,7 @@ const defaultGame = {
     currentZoneId: 0,
     maxZoneId: 0,
     killsInZone: 0,
-    settings: { showCombatLog: true, showExpLog: true, showLootLog: true },
+    settings: { showCombatLog: true, showExpLog: true, showLootLog: true, autoSalvageEnabled: false, autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false } },
     passivePoints: 0,
     playerHp: 100,
     moveTimer: 0,
@@ -2559,7 +2567,7 @@ function initBattleAssets() {
         enemies: 'assets/battle-enemies-v1.png',
         effects: 'assets/battle-effects-v1.png',
         tiles: 'assets/battle-tiles-v1.png',
-        backdrop: 'assets/battlefield-pixel-concept-v1.png'
+        backdrop: 'assets/battlefield-act1.png'
     };
     let pending = Object.keys(manifest).length;
     let settled = false;
@@ -3127,30 +3135,49 @@ function createItemFromBase(base, rarity, zoneTier) {
     return item;
 }
 
+function rollUniqueStatValue(stat) {
+    let min = stat.min !== undefined ? stat.min : stat.base;
+    let max = stat.max !== undefined ? stat.max : stat.base;
+    if (max < min) max = min;
+    let val;
+    if (['leech', 'regen'].includes(stat.id)) {
+        let minStep = Math.round(min * 10);
+        let maxStep = Math.round(max * 10);
+        let roll = minStep + Math.floor(Math.random() * (maxStep - minStep + 1));
+        val = Math.round(roll) / 10;
+        min = minStep / 10;
+        max = maxStep / 10;
+    } else {
+        min = Math.floor(min);
+        max = Math.floor(max);
+        val = min + Math.floor(Math.random() * (max - min + 1));
+    }
+    return { min: min, max: max, val: val };
+}
+
 function generateUniqueItem(zoneTier, preferredSlot) {
     let slot = preferredSlot || rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
-    let options = UNIQUE_DB.filter(unique => unique.slots.includes(slot));
+    let options = UNIQUE_DB.filter(unique => unique.slots.includes(slot) && zoneTier >= (unique.reqTier || 1));
+    if (options.length === 0) options = UNIQUE_DB.filter(unique => zoneTier >= (unique.reqTier || 1));
     if (options.length === 0) options = UNIQUE_DB;
     let unique = rndChoice(options);
-    let base = chooseItemBase(unique.slots[0], zoneTier);
+    let uniqueTier = unique.reqTier || zoneTier;
+    let base = chooseItemBase(unique.slots[0], uniqueTier);
     itemIdCounter++;
     let item = {
         id: itemIdCounter,
         slot: unique.slots[0],
         baseId: base.id,
         baseName: base.name,
-        name: "전설의 " + unique.name,
+        name: unique.name,
         rarity: 'unique',
-        itemTier: zoneTier,
-        baseStats: rollBaseStats(base, zoneTier),
+        itemTier: uniqueTier,
+        baseStats: rollBaseStats(base, uniqueTier),
         stats: []
     };
     unique.stats.forEach(stat => {
-        let mult = 1 + zoneTier * 0.28;
-        let val = stat.base * mult;
-        if (['leech', 'regen'].includes(stat.id)) val = Math.round(val * 10) / 10;
-        else val = Math.floor(val);
-        item.stats.push({ id: stat.id, val: val, valMin: stat.base, valMax: Math.max(stat.base, val), tier: 1, statName: getStatName(stat.id) });
+        let rolled = rollUniqueStatValue(stat);
+        item.stats.push({ id: stat.id, val: rolled.val, valMin: rolled.min, valMax: rolled.max, tier: 0, statName: getStatName(stat.id) });
     });
     return item;
 }
@@ -3162,14 +3189,14 @@ function generateEquipmentDrop(enemy) {
     let rarity = 'normal';
     let roll = Math.random();
     if (enemy.isBoss) {
-        if (roll < 0.08) return generateUniqueItem(zoneTier, slot);
-        rarity = roll < 0.42 ? 'rare' : (roll < 0.88 ? 'magic' : 'normal');
+        if (roll < 0.055) return generateUniqueItem(zoneTier, slot);
+        rarity = roll < 0.36 ? 'rare' : (roll < 0.80 ? 'magic' : 'normal');
     } else if (enemy.isElite) {
-        if (roll < 0.03) return generateUniqueItem(zoneTier, slot);
-        rarity = roll < 0.30 ? 'rare' : (roll < 0.72 ? 'magic' : 'normal');
+        if (roll < 0.02) return generateUniqueItem(zoneTier, slot);
+        rarity = roll < 0.24 ? 'rare' : (roll < 0.62 ? 'magic' : 'normal');
     } else {
-        if (roll < 0.01) return generateUniqueItem(zoneTier, slot);
-        rarity = roll < 0.12 ? 'rare' : (roll < 0.38 ? 'magic' : 'normal');
+        if (roll < 0.006) return generateUniqueItem(zoneTier, slot);
+        rarity = roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
     }
     return createItemFromBase(base, rarity, zoneTier);
 }
@@ -3181,18 +3208,18 @@ function awardCurrency(currencyKey, amount) {
 function getCurrencyDrops(enemy) {
     let drops = [];
     if (enemy.isBoss) {
-        if (Math.random() < 0.36) drops.push([Math.random() < 0.55 ? 'transmute' : 'augment', 1]);
-        if (Math.random() < 0.38) drops.push(['alchemy', 1]);
-        if (Math.random() < 0.22) drops.push(['chaos', 1]);
-        if (Math.random() < 0.07) drops.push(['divine', 1]);
-        if (Math.random() < 0.07) drops.push(['exalted', 1]);
+        if (Math.random() < 0.30) drops.push([Math.random() < 0.55 ? 'transmute' : 'augment', 1]);
+        if (Math.random() < 0.31) drops.push(['alchemy', 1]);
+        if (Math.random() < 0.17) drops.push(['chaos', 1]);
+        if (Math.random() < 0.05) drops.push(['divine', 1]);
+        if (Math.random() < 0.05) drops.push(['exalted', 1]);
     } else if (enemy.isElite) {
-        if (Math.random() < 0.24) {
+        if (Math.random() < 0.18) {
             let roll = Math.random();
             drops.push([roll < 0.44 ? 'transmute' : (roll < 0.82 ? 'augment' : 'alchemy'), 1]);
         }
-        if (Math.random() < 0.04) drops.push(['chaos', 1]);
-    } else if (Math.random() < 0.03) {
+        if (Math.random() < 0.03) drops.push(['chaos', 1]);
+    } else if (Math.random() < 0.02) {
         drops.push([[ 'transmute', 'transmute', 'augment', 'scour' ][Math.floor(Math.random() * 4)], 1]);
     }
     return drops;
@@ -3202,6 +3229,11 @@ function addItemToInventory(item) {
     normalizeItem(item);
     if ((game.inventory || []).length >= 30) {
         salvageItemObject(item, true);
+        return false;
+    }
+    if (game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities && game.settings.autoSalvageRarities[item.rarity]) {
+        salvageItemObject(item, true);
+        if (game.settings.showLootLog) addLog(`🧪 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-normal');
         return false;
     }
     game.inventory.push(item);
@@ -3229,6 +3261,35 @@ function salvageItem(idx) {
     salvageItemObject(item, false);
     game.inventory.splice(idx, 1);
     updateStaticUI();
+}
+
+function updateSalvageSettingsFromUI() {
+    game.settings.autoSalvageRarities = game.settings.autoSalvageRarities || { normal: true, magic: true, rare: false, unique: false };
+    ['normal', 'magic', 'rare', 'unique'].forEach(rarity => {
+        let el = document.getElementById(`chk-salvage-${rarity}`);
+        if (el) game.settings.autoSalvageRarities[rarity] = !!el.checked;
+    });
+}
+
+function syncSalvageControlsFromSettings() {
+    game.settings.autoSalvageRarities = game.settings.autoSalvageRarities || { normal: true, magic: true, rare: false, unique: false };
+    ['normal', 'magic', 'rare', 'unique'].forEach(rarity => {
+        let el = document.getElementById(`chk-salvage-${rarity}`);
+        if (el) el.checked = !!game.settings.autoSalvageRarities[rarity];
+    });
+    let btn = document.getElementById('btn-auto-salvage');
+    if (btn) {
+        let enabled = !!game.settings.autoSalvageEnabled;
+        btn.innerText = `자동해체 ${enabled ? 'ON' : 'OFF'}`;
+        btn.style.borderColor = enabled ? '#2ecc71' : '#7d8d9e';
+        btn.style.background = enabled ? 'linear-gradient(180deg, #2f8f5f 0%, #236847 100%)' : 'linear-gradient(180deg, #596b7d 0%, #44515f 100%)';
+    }
+}
+
+function toggleAutoSalvage() {
+    game.settings.autoSalvageEnabled = !game.settings.autoSalvageEnabled;
+    syncSalvageControlsFromSettings();
+    addLog(`⚙️ 자동해체 ${game.settings.autoSalvageEnabled ? '활성화' : '비활성화'}`, 'loot-normal');
 }
 
 function bulkSalvage(maxRarity) {
@@ -4051,7 +4112,7 @@ function rollLootForEnemy(enemy) {
         if (game.settings.showLootLog) addLog(`🪙 ${ORB_DB[drop[0]].name} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
     });
 
-    let itemChance = enemy.isBoss ? 0.52 : (enemy.isElite ? 0.18 : 0.05);
+    let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
     if (Math.random() < itemChance) {
         let item = generateEquipmentDrop(enemy);
         if (addItemToInventory(item) && game.settings.showLootLog) {
@@ -4092,10 +4153,13 @@ function finishEncounterRun() {
             triggerSeasonReset();
             return;
         }
-        if (zone.type === 'abyss' && !game.unlockedTrials.includes('trial_3') && Math.random() < 0.15) {
-            game.unlockedTrials.push('trial_3');
-            game.noti.map = true;
-            addLog("✨ [여신의 헌사] 획득! 3차 전직 시련 개방!", "loot-unique");
+        if (zone.type === 'abyss' && !game.unlockedTrials.includes('trial_3')) {
+            let shouldUnlockTrial3 = zone.name === '심연 깊이 5' || Math.random() < 0.15;
+            if (shouldUnlockTrial3) {
+                game.unlockedTrials.push('trial_3');
+                game.noti.map = true;
+                addLog(zone.name === '심연 깊이 5' ? "✨ [여신의 헌사] 심연 깊이 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [여신의 헌사] 획득! 3차 전직 시련 개방!", "loot-unique");
+            }
         }
         if (game.maxZoneId <= game.currentZoneId) {
             game.maxZoneId++;
@@ -4365,15 +4429,29 @@ function selectForCrafting(ref, isEquip) {
     updateStaticUI();
 }
 
-function pickEquipSlot(item) {
-    if (item.slot === '반지') return !game.equipment['반지1'] ? '반지1' : (!game.equipment['반지2'] ? '반지2' : '반지1');
-    return item.slot;
+function getEquipCandidateSlots(item) {
+    if (!item) return [];
+    if (item.slot === '반지') return ['반지1', '반지2'];
+    return [item.slot];
 }
 
-function equipItem(idx) {
+function pickEquipSlot(item, preferredSlot) {
+    let candidates = getEquipCandidateSlots(item);
+    if (candidates.length === 0) return null;
+    if (preferredSlot && candidates.includes(preferredSlot)) return preferredSlot;
+    if (item.slot !== '반지') return candidates[0];
+    if (!game.equipment['반지1']) return '반지1';
+    if (!game.equipment['반지2']) return '반지2';
+    let choice = prompt('교체할 반지 슬롯을 선택하세요.\n1 = 왼쪽 반지, 2 = 오른쪽 반지', '1');
+    if (choice === null) return null;
+    return choice.trim() === '2' ? '반지2' : '반지1';
+}
+
+function equipItem(idx, preferredSlot) {
     let item = game.inventory[idx];
     if (!item) return;
-    let targetSlot = pickEquipSlot(item);
+    let targetSlot = pickEquipSlot(item, preferredSlot);
+    if (!targetSlot) return;
     let old = game.equipment[targetSlot];
     let movedId = item.id;
     game.equipment[targetSlot] = item;
@@ -4590,7 +4668,8 @@ function showItemTooltip(event, idx, isEquip) {
     if ((item.stats || []).length > 0) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션</div>`;
         item.stats.forEach(stat => {
-            let rangeText = stat.valMin !== undefined && stat.valMax !== undefined ? ` <span style="color:#888;">[T${stat.tier}] (${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})</span>` : ` <span style="color:#888;">[T${stat.tier}]</span>`;
+            let tierText = item.rarity === 'unique' ? '' : (stat.tier !== undefined ? ` [T${stat.tier}]` : '');
+            let rangeText = stat.valMin !== undefined && stat.valMax !== undefined ? ` <span style="color:#888;">${tierText} (${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})</span>` : (tierText ? ` <span style="color:#888;">${tierText}</span>` : '');
             html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${rangeText}</div>`;
         });
     } else {
@@ -4598,24 +4677,31 @@ function showItemTooltip(event, idx, isEquip) {
     }
 
     if (!isEquip) {
-        let targetSlot = pickEquipSlot(item);
-        let before = getPlayerStats();
-        let backup = game.equipment[targetSlot];
-        game.equipment[targetSlot] = item;
-        let after = getPlayerStats();
-        game.equipment[targetSlot] = backup;
-        let changedLines = Object.keys(COMPARE_STAT_META).map(key => {
-            let diff = (after[key] || 0) - (before[key] || 0);
-            if (Math.abs(diff) < 0.001) return null;
-            let meta = COMPARE_STAT_META[key];
-            let color = diff > 0 ? '#2ecc71' : '#e74c3c';
-            let sign = diff > 0 ? '▲' : '▼';
-            return `<div class="tooltip-line"><span style="color:${color}">${sign}</span> ${meta.label}: <span style="color:${color}">${meta.format(Math.abs(diff))}</span></div>`;
-        }).filter(Boolean);
-        if (changedLines.length > 0) {
-            html += `<div class="tooltip-line" style="margin-top:8px; border-top:1px dashed #555; padding-top:8px; color:#aaa;">착용 시 변화</div>`;
-            html += changedLines.join('');
-        }
+        let compareSlots = getEquipCandidateSlots(item).filter(slotKey => !!game.equipment[slotKey]);
+        if (compareSlots.length === 0 && item.slot !== '반지') compareSlots = getEquipCandidateSlots(item);
+        compareSlots.forEach((targetSlot, idx) => {
+            let before = getPlayerStats();
+            let backup = game.equipment[targetSlot];
+            game.equipment[targetSlot] = item;
+            let after = getPlayerStats();
+            game.equipment[targetSlot] = backup;
+            let changedLines = Object.keys(COMPARE_STAT_META).map(key => {
+                let diff = (after[key] || 0) - (before[key] || 0);
+                if (Math.abs(diff) < 0.001) return null;
+                let meta = COMPARE_STAT_META[key];
+                let color = diff > 0 ? '#2ecc71' : '#e74c3c';
+                let sign = diff > 0 ? '▲' : '▼';
+                return `<div class="tooltip-line"><span style="color:${color}">${sign}</span> ${meta.label}: <span style="color:${color}">${meta.format(Math.abs(diff))}</span></div>`;
+            }).filter(Boolean);
+            if (changedLines.length > 0) {
+                let label = targetSlot === '반지1' ? '왼쪽 반지' : (targetSlot === '반지2' ? '오른쪽 반지' : targetSlot);
+                html += `<div class="tooltip-line" style="margin-top:8px; border-top:1px dashed #555; padding-top:8px; color:#aaa;">${label} 기준 착용 시 변화</div>`;
+                html += changedLines.join('');
+            } else if (item.slot === '반지') {
+                let label = targetSlot === '반지1' ? '왼쪽 반지' : '오른쪽 반지';
+                html += `<div class="tooltip-line" style="margin-top:${idx === 0 ? 8 : 4}px; color:#7f8c8d;">${label} 교체 시 변화 없음</div>`;
+            }
+        });
     }
 
     tt.innerHTML = html;
@@ -5918,7 +6004,7 @@ function renderInventoryCard(item, idx, mode) {
     (item.stats || []).slice(0, 3).forEach(stat => lines.push(`<span>${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
     if ((item.stats || []).length === 0) lines.push(`<span style="color:#7f8c8d">추가 옵션 없음</span>`);
     let actions = '';
-    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItem(${idx})">장착</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItem(${idx})">해체</button></div>`;
+    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItem(${idx})">${item.slot === '반지' ? '장착(선택)' : '장착'}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItem(${idx})">해체</button></div>`;
     else actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button></div>`;
     return `<div class="item-card ${selected ? 'selected' : ''}" onclick="selectForCrafting(${item.id}, false)" onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${item.slot}] ${item.name}</div><div class="item-base-line">${item.baseName}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
 }
@@ -5950,6 +6036,7 @@ function updateStaticUI() {
     document.getElementById('ui-season-pts').innerText = game.seasonPoints;
     document.getElementById('ui-ascend-pts').innerText = game.ascendPoints;
 
+    syncSalvageControlsFromSettings();
     renderPaperdoll('ui-equip-list', false);
     renderPaperdoll('ui-craft-equip-list', true);
     document.getElementById('ui-inv-count').innerText = game.inventory.length;
@@ -5961,7 +6048,10 @@ function updateStaticUI() {
     if (selectedItem) {
         let lines = [];
         (selectedItem.baseStats || []).forEach(stat => lines.push(`<div class="tooltip-line" style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</div>`));
-        (selectedItem.stats || []).forEach(stat => lines.push(`<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)} <span style="color:#888">[T${stat.tier}]</span></div>`));
+        (selectedItem.stats || []).forEach(stat => {
+            let tierText = selectedItem.rarity === 'unique' ? '' : (stat.tier !== undefined ? ` <span style="color:#888">[T${stat.tier}]</span>` : '');
+            lines.push(`<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${tierText}</div>`);
+        });
         if ((selectedItem.stats || []).length === 0) lines.push(`<div class="tooltip-line" style="color:#7f8c8d">추가 옵션 없음</div>`);
         forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}</div><div class="item-base-line">${selectedItem.baseName}</div>${lines.join('')}`;
     }
@@ -6286,6 +6376,8 @@ function mergeDefaults(save) {
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
     merged.passiveStarEvolution = !!merged.passiveStarEvolution;
+    merged.settings.autoSalvageEnabled = !!merged.settings.autoSalvageEnabled;
+    merged.settings.autoSalvageRarities = { ...(defaultGame.settings.autoSalvageRarities || {}), ...(merged.settings.autoSalvageRarities || {}) };
     merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
     merged.encounterPlan = Array.isArray(merged.encounterPlan) ? merged.encounterPlan.map(normalizeEncounterMarker).filter(Boolean).sort((a, b) => a.at - b.at) : [];
     merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1)));
@@ -6394,6 +6486,7 @@ function init() {
     document.getElementById('chk-log-combat').checked = game.settings.showCombatLog !== false;
     document.getElementById('chk-log-exp').checked = game.settings.showExpLog !== false;
     document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
+    syncSalvageControlsFromSettings();
     checkUnlocks();
     normalizeSupportLoadout(false);
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
