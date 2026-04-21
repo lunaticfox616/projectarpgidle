@@ -2540,7 +2540,8 @@ function initBattleAssets() {
         hero: 'assets/battle-hero-v1-clean.png',
         enemies: 'assets/battle-enemies-v1.png',
         effects: 'assets/battle-effects-v1.png',
-        tiles: 'assets/battle-tiles-v1.png'
+        tiles: 'assets/battle-tiles-v1.png',
+        backdrop: 'assets/battlefield-pixel-concept-v1.png'
     };
     let pending = Object.keys(manifest).length;
     Object.entries(manifest).forEach(([key, src]) => {
@@ -4805,6 +4806,42 @@ function getBattleGroundFrames(zone) {
 }
 
 function drawBattleBackdrop(ctx, width, height, theme, now) {
+    let backdropImage = battleAssets.images.backdrop;
+    if (backdropImage) {
+        let srcW = backdropImage.width || width;
+        let srcH = backdropImage.height || height;
+        let scale = Math.max(width / srcW, height / srcH);
+        let drawW = Math.ceil(srcW * scale);
+        let drawH = Math.ceil(srcH * scale);
+        let dx = Math.floor((width - drawW) / 2);
+        let dy = Math.floor((height - drawH) / 2);
+        ctx.drawImage(backdropImage, dx, dy, drawW, drawH);
+
+        let zoneTint = ctx.createLinearGradient(0, 0, 0, height);
+        zoneTint.addColorStop(0, theme.skyTop + '55');
+        zoneTint.addColorStop(0.55, 'rgba(0,0,0,0)');
+        zoneTint.addColorStop(1, theme.skyBottom + '6e');
+        ctx.fillStyle = zoneTint;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = '#ffffff';
+        let drift = (now / 70) % (width + 80);
+        ctx.fillRect(-width + drift, height * 0.28, width * 0.45, 4);
+        ctx.fillRect(drift - 30, height * 0.44, width * 0.35, 3);
+        ctx.restore();
+
+        ctx.save();
+        let vignette = ctx.createRadialGradient(width * 0.5, height * 0.55, width * 0.12, width * 0.5, height * 0.55, width * 0.78);
+        vignette.addColorStop(0, 'rgba(0,0,0,0)');
+        vignette.addColorStop(1, 'rgba(0,0,0,0.26)');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+        return;
+    }
+
     let sky = ctx.createLinearGradient(0, 0, 0, height);
     sky.addColorStop(0, theme.skyTop);
     sky.addColorStop(1, theme.skyBottom);
