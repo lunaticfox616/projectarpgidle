@@ -2186,8 +2186,21 @@ let battleAssets = {
     ready: false,
     failed: false,
     images: {},
+    backdrops: [],
     atlas: null
 };
+const BATTLE_BACKDROP_VARIANTS = [
+    { tone: 'rgba(30, 77, 122, 0.16)', glow: 'rgba(169, 226, 255, 0.10)' },
+    { tone: 'rgba(86, 44, 24, 0.17)', glow: 'rgba(255, 198, 132, 0.10)' },
+    { tone: 'rgba(34, 86, 66, 0.14)', glow: 'rgba(173, 255, 203, 0.10)' },
+    { tone: 'rgba(64, 36, 94, 0.16)', glow: 'rgba(222, 184, 255, 0.10)' },
+    { tone: 'rgba(66, 66, 35, 0.14)', glow: 'rgba(255, 237, 171, 0.10)' },
+    { tone: 'rgba(35, 56, 92, 0.16)', glow: 'rgba(170, 210, 255, 0.10)' },
+    { tone: 'rgba(78, 39, 39, 0.17)', glow: 'rgba(255, 184, 184, 0.10)' },
+    { tone: 'rgba(32, 75, 72, 0.15)', glow: 'rgba(159, 255, 236, 0.10)' },
+    { tone: 'rgba(79, 52, 27, 0.16)', glow: 'rgba(255, 212, 158, 0.10)' },
+    { tone: 'rgba(45, 45, 80, 0.16)', glow: 'rgba(197, 189, 255, 0.10)' }
+];
 const battleImageCanvasCache = new WeakMap();
 const TAB_UNLOCK_GATES = {
     'tab-char': 'char',
@@ -2540,14 +2553,19 @@ function initBattleAssets() {
         hero: 'assets/battle-hero-v1-clean.png',
         enemies: 'assets/battle-enemies-v1.png',
         effects: 'assets/battle-effects-v1.png',
-        tiles: 'assets/battle-tiles-v1.png'
+        tiles: 'assets/battle-tiles-v1.png',
+        backdrop: 'assets/battlefield-pixel-concept-v1.png'
     };
     let pending = Object.keys(manifest).length;
     Object.entries(manifest).forEach(([key, src]) => {
         let img = new Image();
         img.onload = function() {
             try {
-                battleAssets.images[key] = key === 'tiles' ? img : sanitizeBattleSheet(img);
+                if (key === 'backdrop') {
+                    battleAssets.backdrops = [img];
+                } else {
+                    battleAssets.images[key] = key === 'tiles' ? img : sanitizeBattleSheet(img);
+                }
             } catch (error) {
                 battleAssets.images[key] = img;
             }
@@ -4804,7 +4822,61 @@ function getBattleGroundFrames(zone) {
     return { floor: frames.grass, path: frames.stone, pathAlt: frames.moss, prop: frames.grassDeep };
 }
 
-function drawBattleBackdrop(ctx, width, height, theme, now) {
+function getBattleBackdropForZone(zone) {
+    let list = (battleAssets.backdrops || []);
+    if (!list[0]) return null;
+    let zoneSeed = Number.isFinite(zone && zone.id) ? zone.id : 0;
+    if (!zoneSeed && zone && zone.name) zoneSeed = zone.name.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+    let variant = BATTLE_BACKDROP_VARIANTS[Math.abs(zoneSeed) % BATTLE_BACKDROP_VARIANTS.length] || BATTLE_BACKDROP_VARIANTS[0];
+    return { image: list[0], variant: variant };
+}
+
+function drawBattleBackdrop(ctx, width, height, theme, now, zone) {
+    let backdropEntry = getBattleBackdropForZone(zone);
+    if (backdropEntry && backdropEntry.image) {
+        let backdropImage = backdropEntry.image;
+        let variant = backdropEntry.variant || BATTLE_BACKDROP_VARIANTS[0];
+        let srcW = backdropImage.width || width;
+        let srcH = backdropImage.height || height;
+        let scale = Math.max(width / srcW, height / srcH);
+        let drawW = Math.ceil(srcW * scale);
+        let drawH = Math.ceil(srcH * scale);
+        let dx = Math.floor((width - drawW) / 2);
+        let dy = Math.floor((height - drawH) / 2);
+        ctx.drawImage(backdropImage, dx, dy, drawW, drawH);
+        ctx.fillStyle = variant.tone;
+        ctx.fillRect(0, 0, width, height);
+        let glow = ctx.createRadialGradient(width * 0.52, height * 0.2, width * 0.08, width * 0.52, height * 0.2, width * 0.7);
+        glow.addColorStop(0, variant.glow);
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+
+        let zoneTint = ctx.createLinearGradient(0, 0, 0, height);
+        zoneTint.addColorStop(0, theme.skyTop + '55');
+        zoneTint.addColorStop(0.55, 'rgba(0,0,0,0)');
+        zoneTint.addColorStop(1, theme.skyBottom + '6e');
+        ctx.fillStyle = zoneTint;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = '#ffffff';
+        let drift = (now / 70) % (width + 80);
+        ctx.fillRect(-width + drift, height * 0.28, width * 0.45, 4);
+        ctx.fillRect(drift - 30, height * 0.44, width * 0.35, 3);
+        ctx.restore();
+
+        ctx.save();
+        let vignette = ctx.createRadialGradient(width * 0.5, height * 0.55, width * 0.12, width * 0.5, height * 0.55, width * 0.78);
+        vignette.addColorStop(0, 'rgba(0,0,0,0)');
+        vignette.addColorStop(1, 'rgba(0,0,0,0.26)');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+        return;
+    }
+
     let sky = ctx.createLinearGradient(0, 0, 0, height);
     sky.addColorStop(0, theme.skyTop);
     sky.addColorStop(1, theme.skyBottom);
@@ -5266,8 +5338,9 @@ function renderBattlefield() {
     ctx.clearRect(0, 0, width, height);
     ctx.imageSmoothingEnabled = false;
 
-    let zoneTheme = getBattleZoneTheme(getZone(game.currentZoneId));
-    drawBattleBackdrop(ctx, width, height, zoneTheme, now);
+    let currentZone = getZone(game.currentZoneId);
+    let zoneTheme = getBattleZoneTheme(currentZone);
+    drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone);
     if (!battleAssets.ready) {
         ctx.save();
         ctx.fillStyle = 'rgba(6,10,16,0.55)';
