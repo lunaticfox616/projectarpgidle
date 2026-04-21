@@ -2186,6 +2186,7 @@ let battleAssets = {
     ready: false,
     failed: false,
     failedKeys: [],
+    loadTicket: 0,
     images: {},
     backdrops: [],
     atlas: null
@@ -2551,6 +2552,8 @@ function initBattleAssets() {
     if (battleAssets.loading || battleAssets.ready || battleAssets.failed) return;
     battleAssets.loading = true;
     battleAssets.failedKeys = [];
+    battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
+    const loadTicket = battleAssets.loadTicket;
     const manifest = {
         hero: 'assets/battle-hero-v1.png',
         enemies: 'assets/battle-enemies-v1.png',
@@ -2559,6 +2562,27 @@ function initBattleAssets() {
         backdrop: 'assets/battlefield-pixel-concept-v1.png'
     };
     let pending = Object.keys(manifest).length;
+    let settled = false;
+    function finishLoad() {
+        if (settled || pending > 0 || battleAssets.loadTicket !== loadTicket) return;
+        settled = true;
+        if (battleAssets.failedKeys.length === 0) {
+            finalizeBattleAssets();
+            return;
+        }
+        battleAssets.failed = true;
+        battleAssets.loading = false;
+        console.warn('battle asset load completed with missing files:', battleAssets.failedKeys.join(', '));
+    }
+
+    setTimeout(() => {
+        if (battleAssets.loadTicket !== loadTicket || settled || !battleAssets.loading) return;
+        battleAssets.failed = true;
+        if (!battleAssets.failedKeys.includes('timeout')) battleAssets.failedKeys.push('timeout');
+        pending = 0;
+        finishLoad();
+    }, 8000);
+
     Object.entries(manifest).forEach(([key, src]) => {
         let img = new Image();
         img.onload = function() {
@@ -2572,17 +2596,14 @@ function initBattleAssets() {
                 battleAssets.images[key] = img;
             }
             pending--;
-            if (pending === 0) finalizeBattleAssets();
+            finishLoad();
         };
         img.onerror = function() {
             battleAssets.failed = true;
             battleAssets.failedKeys.push(key);
             pending--;
             console.warn('battle asset load failed:', key, src);
-            if (pending === 0) {
-                battleAssets.loading = false;
-                console.warn('battle asset load completed with missing files:', battleAssets.failedKeys.join(', '));
-            }
+            finishLoad();
         };
         img.src = src;
     });
