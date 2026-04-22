@@ -3096,36 +3096,6 @@ function buildBattleAssetAtlas() {
         { x: 800, y: 628, width: 188, height: 189 },
         { x: 1024, y: 630, width: 175, height: 187 }
     ];
-    const heroComponents = sortSheetComponents(detectSpriteComponents(battleAssets.images.hero, 100));
-    const heroRows = [];
-    heroComponents.forEach(component => {
-        let centerY = component.y + component.height * 0.5;
-        let target = heroRows.find(row => Math.abs(centerY - row.centerY) <= Math.max(18, row.avgHeight * 0.46));
-        if (!target) {
-            target = { centerY: centerY, avgHeight: component.height, entries: [] };
-            heroRows.push(target);
-        }
-        target.entries.push(component);
-        target.centerY = (target.centerY * (target.entries.length - 1) + centerY) / target.entries.length;
-        target.avgHeight = (target.avgHeight * (target.entries.length - 1) + component.height) / target.entries.length;
-    });
-    heroRows.sort((a, b) => a.centerY - b.centerY);
-    heroRows.forEach(row => row.entries.sort((a, b) => a.x - b.x));
-
-    function normalizeHeroFrame(component) {
-        return trimRectToContent(battleAssets.images.hero, padSpriteRect(component, battleAssets.images.hero, 2), 1);
-    }
-    function mapHeroRow(rowIndex) {
-        if (!heroRows[rowIndex]) return [];
-        return heroRows[rowIndex].entries.map(normalizeHeroFrame);
-    }
-    function getHeroFrameFromRow(rowIndex, frameIndex) {
-        let row = mapHeroRow(rowIndex);
-        if (row.length === 0) return null;
-        let idx = clampNumber(frameIndex, 0, row.length - 1);
-        return row[idx];
-    }
-
     let heroFramesLegacy = heroParts.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
     let heroFrameSet = {
         frontIdle: heroFramesLegacy[0],
@@ -3140,27 +3110,96 @@ function buildBattleAssetAtlas() {
         castCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
         frostCombo: [heroFramesLegacy[3], heroFramesLegacy[2]]
     };
-    let hasRichHeroSheet = heroRows.length >= 4 && heroComponents.length >= 20;
-    if (hasRichHeroSheet) {
-        let walkRow = mapHeroRow(0);
-        let swordRow = mapHeroRow(1);
-        let chaosRow = mapHeroRow(2);
-        let lightningRow = mapHeroRow(3);
-        let castRow = mapHeroRow(4);
-        let frostRow = mapHeroRow(5);
-        heroFrameSet = {
-            frontIdle: getHeroFrameFromRow(1, 1) || getHeroFrameFromRow(0, 0) || heroFramesLegacy[0],
-            frontGuard: getHeroFrameFromRow(1, 2) || getHeroFrameFromRow(0, 1) || heroFramesLegacy[1],
-            sideIdle: getHeroFrameFromRow(0, 0) || getHeroFrameFromRow(1, 0) || heroFramesLegacy[2],
-            attack: getHeroFrameFromRow(1, 5) || getHeroFrameFromRow(1, 4) || heroFramesLegacy[3],
-            sideWalk: getHeroFrameFromRow(0, 1) || getHeroFrameFromRow(0, 0) || heroFramesLegacy[4],
-            walk: walkRow.length > 0 ? walkRow.slice(0, Math.min(4, walkRow.length)) : [heroFramesLegacy[4], heroFramesLegacy[2]],
-            swordCombo: swordRow.length > 0 ? swordRow : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
-            chaosCombo: chaosRow.length > 0 ? chaosRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
-            lightningCombo: lightningRow.length > 0 ? lightningRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
-            castCombo: castRow.length > 0 ? castRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
-            frostCombo: frostRow.length > 0 ? frostRow : [heroFramesLegacy[3], heroFramesLegacy[2]]
+    function normalizeHeroFrame(component) {
+        return trimRectToContent(battleAssets.images.hero, padSpriteRect(component, battleAssets.images.hero, 2), 1);
+    }
+    function tryBuildHeroFrameSetFromGrid(image) {
+        if (!image || !image.width || !image.height) return null;
+        if (image.width % 8 !== 0 || image.height % 6 !== 0) return null;
+        let cellW = Math.floor(image.width / 8);
+        let cellH = Math.floor(image.height / 6);
+        if (cellW < 70 || cellH < 70) return null;
+        function rowFrames(row, start, endInclusive) {
+            let list = [];
+            for (let col = start; col <= endInclusive; col++) {
+                let rect = trimRectToContent(image, { x: col * cellW, y: row * cellH, width: cellW, height: cellH }, 2);
+                if (rect && rect.width > 12 && rect.height > 12) list.push(rect);
+            }
+            return list;
+        }
+        let walk = rowFrames(0, 0, 5);
+        let sword = rowFrames(1, 0, 7);
+        let chaos = rowFrames(2, 0, 7);
+        let lightning = rowFrames(3, 0, 7);
+        let cast = rowFrames(4, 0, 7);
+        let frost = rowFrames(5, 0, 7);
+        let pooled = [walk, sword, chaos, lightning, cast, frost].flat();
+        if (pooled.length < 12) return null;
+        return {
+            frontIdle: sword[1] || walk[0] || heroFramesLegacy[0],
+            frontGuard: sword[2] || walk[1] || heroFramesLegacy[1],
+            sideIdle: walk[0] || sword[0] || heroFramesLegacy[2],
+            attack: sword[5] || sword[4] || heroFramesLegacy[3],
+            sideWalk: walk[1] || walk[0] || heroFramesLegacy[4],
+            walk: walk.length > 0 ? walk : [heroFramesLegacy[4], heroFramesLegacy[2]],
+            swordCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
+            chaosCombo: chaos.length > 0 ? chaos : [heroFramesLegacy[3], heroFramesLegacy[2]],
+            lightningCombo: lightning.length > 0 ? lightning : [heroFramesLegacy[3], heroFramesLegacy[2]],
+            castCombo: cast.length > 0 ? cast : [heroFramesLegacy[3], heroFramesLegacy[2]],
+            frostCombo: frost.length > 0 ? frost : [heroFramesLegacy[3], heroFramesLegacy[2]]
         };
+    }
+    let gridHeroFrameSet = tryBuildHeroFrameSetFromGrid(battleAssets.images.hero);
+    if (gridHeroFrameSet) {
+        heroFrameSet = gridHeroFrameSet;
+    } else {
+        const heroComponents = sortSheetComponents(detectSpriteComponents(battleAssets.images.hero, 100));
+        const heroRows = [];
+        heroComponents.forEach(component => {
+            let centerY = component.y + component.height * 0.5;
+            let target = heroRows.find(row => Math.abs(centerY - row.centerY) <= Math.max(18, row.avgHeight * 0.46));
+            if (!target) {
+                target = { centerY: centerY, avgHeight: component.height, entries: [] };
+                heroRows.push(target);
+            }
+            target.entries.push(component);
+            target.centerY = (target.centerY * (target.entries.length - 1) + centerY) / target.entries.length;
+            target.avgHeight = (target.avgHeight * (target.entries.length - 1) + component.height) / target.entries.length;
+        });
+        heroRows.sort((a, b) => a.centerY - b.centerY);
+        heroRows.forEach(row => row.entries.sort((a, b) => a.x - b.x));
+        function mapHeroRow(rowIndex) {
+            if (!heroRows[rowIndex]) return [];
+            return heroRows[rowIndex].entries.map(normalizeHeroFrame);
+        }
+        function getHeroFrameFromRow(rowIndex, frameIndex) {
+            let row = mapHeroRow(rowIndex);
+            if (row.length === 0) return null;
+            let idx = clampNumber(frameIndex, 0, row.length - 1);
+            return row[idx];
+        }
+        let hasRichHeroSheet = heroRows.length >= 4 && heroComponents.length >= 20;
+        if (hasRichHeroSheet) {
+            let walkRow = mapHeroRow(0);
+            let swordRow = mapHeroRow(1);
+            let chaosRow = mapHeroRow(2);
+            let lightningRow = mapHeroRow(3);
+            let castRow = mapHeroRow(4);
+            let frostRow = mapHeroRow(5);
+            heroFrameSet = {
+                frontIdle: getHeroFrameFromRow(1, 1) || getHeroFrameFromRow(0, 0) || heroFramesLegacy[0],
+                frontGuard: getHeroFrameFromRow(1, 2) || getHeroFrameFromRow(0, 1) || heroFramesLegacy[1],
+                sideIdle: getHeroFrameFromRow(0, 0) || getHeroFrameFromRow(1, 0) || heroFramesLegacy[2],
+                attack: getHeroFrameFromRow(1, 5) || getHeroFrameFromRow(1, 4) || heroFramesLegacy[3],
+                sideWalk: getHeroFrameFromRow(0, 1) || getHeroFrameFromRow(0, 0) || heroFramesLegacy[4],
+                walk: walkRow.length > 0 ? walkRow.slice(0, Math.min(4, walkRow.length)) : [heroFramesLegacy[4], heroFramesLegacy[2]],
+                swordCombo: swordRow.length > 0 ? swordRow : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
+                chaosCombo: chaosRow.length > 0 ? chaosRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
+                lightningCombo: lightningRow.length > 0 ? lightningRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
+                castCombo: castRow.length > 0 ? castRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
+                frostCombo: frostRow.length > 0 ? frostRow : [heroFramesLegacy[3], heroFramesLegacy[2]]
+            };
+        }
     }
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(battleAssets.images.enemies, part, key === 'boss' ? 5 : 3)]));
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
