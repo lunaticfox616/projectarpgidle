@@ -211,6 +211,18 @@
         </div>
     </div>
 </div>
+<div id="ring-slot-overlay" class="tutorial-overlay">
+    <div class="tutorial-card" style="max-width:420px;">
+        <div class="tutorial-kicker">반지 장착</div>
+        <div class="tutorial-title">교체할 슬롯 선택</div>
+        <div class="tutorial-body">두 반지 슬롯이 모두 사용 중입니다. 교체할 반지 슬롯을 선택하세요.</div>
+        <div class="tutorial-actions" style="justify-content:center;">
+            <button onclick="selectRingSlotFromOverlay('반지1')">왼쪽 슬롯</button>
+            <button onclick="selectRingSlotFromOverlay('반지2')">오른쪽 슬롯</button>
+            <button class="tutorial-secondary" onclick="closeRingSlotOverlay()">취소</button>
+        </div>
+    </div>
+</div>
 
 <div id="left-pane">
     <div class="panel player-panel" style="position: relative;">
@@ -459,8 +471,10 @@
                         <div class="craft-actions">
                             <button id="btn-orb-transmute" onclick="useCurrency('transmute')">진화의 오브 사용</button>
                             <button id="btn-orb-augment" onclick="useCurrency('augment')">확장의 오브 사용</button>
+                            <button id="btn-orb-alteration" onclick="useCurrency('alteration')">변화의 오브 사용</button>
                             <button id="btn-orb-alchemy" onclick="useCurrency('alchemy')">연금술의 오브 사용</button>
                             <button id="btn-orb-exalted" onclick="useCurrency('exalted')">엑잘티드 오브 사용</button>
+                            <button id="btn-orb-regal" onclick="useCurrency('regal')">제왕의 오브 사용</button>
                             <button id="btn-orb-chaos" onclick="useCurrency('chaos')">카오스 오브 사용</button>
                             <button id="btn-orb-divine" onclick="useCurrency('divine')">신성한 오브 사용</button>
                             <button id="btn-orb-scour" onclick="useCurrency('scour')">정화의 오브 사용</button>
@@ -544,7 +558,9 @@
     <div id="tab-settings" class="tab-content active">
         <h2>⚙️ 설정</h2>
         <div style="display: flex; flex-direction: column; gap: 10px; max-width: 300px;">
+            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-combat-scene" onchange="updateSettings()" checked> 전투 화면 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-combat" onchange="updateSettings()" checked> 전투 로그 표시</label>
+            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-spawn" onchange="updateSettings()" checked> 적/보스 등장 로그 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-exp" onchange="updateSettings()" checked> 경험치 로그 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-loot" onchange="updateSettings()" checked> 전리품 로그 표시</label>
             <hr style="border-color: #3d3d5c; width: 100%;">
@@ -936,14 +952,26 @@ const UNIQUE_DB = [
     { name: "서리 여제의 인장", slots: ["반지"], reqTier: 12, stats: [{ id: "coldPctDmg", min: 20, max: 30 }, { id: "resC", min: 18, max: 26 }] },
     { name: "폭풍 군단장의 창끝", slots: ["무기"], reqTier: 13, stats: [{ id: "lightPctDmg", min: 24, max: 34 }, { id: "crit", min: 8, max: 12 }] },
     { name: "창공의 사슬", slots: ["허리띠"], reqTier: 14, stats: [{ id: "move", min: 14, max: 20 }, { id: "elementalPctDmg", min: 20, max: 30 }] },
-    { name: "타락한 심장석", slots: ["갑옷"], reqTier: 15, stats: [{ id: "pctHp", min: 18, max: 26 }, { id: "chaosPctDmg", min: 22, max: 32 }] }
+    { name: "타락한 심장석", slots: ["갑옷"], reqTier: 15, stats: [{ id: "pctHp", min: 18, max: 26 }, { id: "chaosPctDmg", min: 22, max: 32 }] },
+    { name: "초월자 파쇄검", slots: ["무기"], reqTier: 1, ultraRare: true, stats: [{ id: "flatDmg", min: 65, max: 85 }, { id: "critDmg", min: 110, max: 150 }, { id: "aspd", min: 22, max: 30 }] },
+    { name: "새벽의 약속", slots: ["투구"], reqTier: 6, ultraRare: true, stats: [{ id: "flatHp", min: 180, max: 240 }, { id: "resAll", min: 24, max: 34 }, { id: "regen", min: 2.0, max: 3.0 }] },
+    { name: "심연 군주갑", slots: ["갑옷"], reqTier: 6, ultraRare: true, stats: [{ id: "flatHp", min: 260, max: 340 }, { id: "dr", min: 12, max: 18 }, { id: "resChaos", min: 20, max: 28 }] },
+    { name: "폭풍 추적자", slots: ["신발"], reqTier: 6, ultraRare: true, stats: [{ id: "move", min: 35, max: 45 }, { id: "aspd", min: 18, max: 24 }, { id: "resL", min: 28, max: 38 }] },
+    { name: "종말의 논리", slots: ["목걸이"], reqTier: 10, ultraRare: true, stats: [{ id: "gemLevel", min: 3, max: 3 }, { id: "suppCap", min: 2, max: 2 }, { id: "elementalPctDmg", min: 45, max: 60 }] },
+    { name: "공허 제국의 인장", slots: ["반지"], reqTier: 10, ultraRare: true, stats: [{ id: "resAll", min: 30, max: 40 }, { id: "crit", min: 16, max: 22 }, { id: "chaosPctDmg", min: 40, max: 55 }] },
+    { name: "황제의 심연띠", slots: ["허리띠"], reqTier: 10, ultraRare: true, stats: [{ id: "flatHp", min: 220, max: 300 }, { id: "pctHp", min: 24, max: 34 }, { id: "dr", min: 10, max: 16 }] },
+    { name: "천공 붕괴자", slots: ["무기"], reqTier: 10, ultraRare: true, stats: [{ id: "flatDmg", min: 110, max: 145 }, { id: "lightPctDmg", min: 48, max: 66 }, { id: "critDmg", min: 120, max: 160 }] },
+    { name: "영겁의 손아귀", slots: ["장갑"], reqTier: 10, ultraRare: true, stats: [{ id: "aspd", min: 24, max: 32 }, { id: "ds", min: 24, max: 34 }, { id: "meleePctDmg", min: 44, max: 60 }] },
+    { name: "황혼의 왕관", slots: ["투구"], reqTier: 10, ultraRare: true, stats: [{ id: "crit", min: 20, max: 28 }, { id: "critDmg", min: 90, max: 125 }, { id: "resAll", min: 20, max: 28 }] }
 ];
 
 const ORB_DB = {
     transmute: { name: '진화의 오브', desc: '노멀 아이템을 매직으로 바꿉니다.' },
     augment: { name: '확장의 오브', desc: '매직 아이템의 빈 옵션 칸을 하나 채웁니다.' },
+    alteration: { name: '변화의 오브', desc: '매직 아이템의 옵션을 다시 굴립니다.' },
     alchemy: { name: '연금술의 오브', desc: '노멀 아이템을 희귀 아이템으로 바꿉니다.' },
     exalted: { name: '엑잘티드 오브', desc: '희귀 아이템에 새 옵션을 하나 추가합니다.' },
+    regal: { name: '제왕의 오브', desc: '매직 아이템에 옵션을 1줄 추가하고 희귀 아이템으로 만듭니다.' },
     chaos: { name: '카오스 오브', desc: '희귀 아이템의 옵션을 모두 다시 굴립니다.' },
     divine: { name: '신성한 오브', desc: '아이템 옵션 수치를 다시 굴립니다.' },
     scour: { name: '정화의 오브', desc: '유니크를 제외한 아이템을 노멀 상태로 되돌립니다.' },
@@ -1063,7 +1091,7 @@ const defaultGame = {
     currentZoneId: 0,
     maxZoneId: 0,
     killsInZone: 0,
-    settings: { showCombatLog: true, showExpLog: true, showLootLog: true, autoSalvageEnabled: false, autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false } },
+    settings: { showCombatScene: true, showCombatLog: true, showSpawnLog: true, showExpLog: true, showLootLog: true, autoSalvageEnabled: false, autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false } },
     passivePoints: 0,
     playerHp: 100,
     moveTimer: 0,
@@ -1087,7 +1115,7 @@ const defaultGame = {
     itemSubtab: 'item-tab-equip',
     equipment: { '무기': null, '투구': null, '갑옷': null, '장갑': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '허리띠': null },
     inventory: [],
-    currencies: { transmute: 0, augment: 0, alchemy: 0, exalted: 0, chaos: 0, divine: 0, scour: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, bossCore: 0, fossil: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, talismanCore: 0 },
+    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, bossCore: 0, fossil: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, talismanCore: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendNodes: [],
@@ -1105,6 +1133,7 @@ const defaultGame = {
     claimableActRewards: [],
     claimedActRewards: [],
     actRewardBonuses: [],
+    seasonChaseUniqueDropped: false,
     unlocks: { char: false, season: false, items: false, map: false, skills: false, traits: false },
     noti: { char: false, season: false, items: false, skills: false, map: false, traits: false }
 };
@@ -2323,7 +2352,7 @@ function getClassTreeDef(clsKey) {
         n7: { stat: t.m1, val: final1, req: 'n4' },
         n8: { stat: t.m2, val: final2, req: 'n5' },
         n9: { stat: t.d, val: finalDef, req: 'n6' },
-        n10: { stat: ult.stat, val: ult.val, req: 'n7' }
+        n10: { stat: ult.stat, val: ult.val, req: ['n7', 'n8', 'n9'] }
     };
 }
 
@@ -2362,6 +2391,7 @@ let tutorialQueue = [];
 let activeTutorial = null;
 let activeRewardZoneId = null;
 let jewelFusionSelection = [];
+let pendingRingEquipIndex = null;
 let battleAssets = {
     loading: false,
     ready: false,
@@ -2607,6 +2637,26 @@ function closeRewardOverlay() {
     activeRewardZoneId = null;
     lastTime = Date.now();
 }
+
+function openRingSlotOverlay(invIdx) {
+    pendingRingEquipIndex = invIdx;
+    let overlay = document.getElementById('ring-slot-overlay');
+    if (overlay) overlay.classList.add('active');
+}
+
+function closeRingSlotOverlay() {
+    pendingRingEquipIndex = null;
+    let overlay = document.getElementById('ring-slot-overlay');
+    if (overlay) overlay.classList.remove('active');
+}
+
+function selectRingSlotFromOverlay(slot) {
+    let idx = pendingRingEquipIndex;
+    closeRingSlotOverlay();
+    if (!Number.isInteger(idx)) return;
+    equipItem(idx, slot);
+}
+
 function getActRewardConfig(zoneId) {
     return ACT_REWARD_DB[zoneId] || null;
 }
@@ -3397,10 +3447,18 @@ function normalizeItem(item) {
     item.baseStats = Array.isArray(item.baseStats) ? item.baseStats.map(normalizeStatRecord).filter(Boolean) : [];
     item.stats = Array.isArray(item.stats) ? item.stats.map(normalizeStatRecord).filter(Boolean) : [];
     item.rarity = item.rarity || 'magic';
+    item.hiddenTier = Math.max(1, Math.floor(coerceFiniteNumber(item.hiddenTier, coerceFiniteNumber(item.itemTier, 1), 1)));
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
     item.name = item.name || item.baseName;
     if (!item.id) item.id = ++itemIdCounter;
     return item;
+}
+
+function getItemCraftTier(item) {
+    if (!item) return 1;
+    if (Number.isFinite(item.hiddenTier)) return Math.max(1, Math.floor(item.hiddenTier));
+    if (Number.isFinite(item.itemTier)) return Math.max(1, Math.floor(item.itemTier));
+    return 1;
 }
 
 function chooseItemBase(slot, zoneTier) {
@@ -3472,6 +3530,7 @@ function createItemFromBase(base, rarity, zoneTier) {
         name: base.name,
         rarity: rarity,
         itemTier: zoneTier,
+        hiddenTier: zoneTier,
         baseStats: rollBaseStats(base, zoneTier),
         stats: []
     };
@@ -3501,9 +3560,13 @@ function rollUniqueStatValue(stat) {
 
 function generateUniqueItem(zoneTier, preferredSlot) {
     let slot = preferredSlot || rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
-    let options = UNIQUE_DB.filter(unique => unique.slots.includes(slot) && zoneTier >= (unique.reqTier || 1));
-    if (options.length === 0) options = UNIQUE_DB.filter(unique => zoneTier >= (unique.reqTier || 1));
-    if (options.length === 0) options = UNIQUE_DB;
+    let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare);
+    let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare && zoneTier >= (unique.reqTier || 1));
+    let canRollChase = !game.seasonChaseUniqueDropped && chaseOptions.length > 0 && Math.random() < 0.0008;
+    let poolSource = canRollChase ? chaseOptions : normalOptions;
+    let options = poolSource.filter(unique => unique.slots.includes(slot) && zoneTier >= (unique.reqTier || 1));
+    if (options.length === 0) options = poolSource.filter(unique => zoneTier >= (unique.reqTier || 1));
+    if (options.length === 0) options = poolSource.length > 0 ? poolSource : UNIQUE_DB;
     let unique = rndChoice(options);
     let uniqueTier = unique.reqTier || zoneTier;
     let base = chooseItemBase(unique.slots[0], uniqueTier);
@@ -3516,13 +3579,22 @@ function generateUniqueItem(zoneTier, preferredSlot) {
         name: unique.name,
         rarity: 'unique',
         itemTier: uniqueTier,
+        hiddenTier: uniqueTier,
         baseStats: rollBaseStats(base, uniqueTier),
         stats: []
     };
     unique.stats.forEach(stat => {
         let rolled = rollUniqueStatValue(stat);
-        item.stats.push({ id: stat.id, val: rolled.val, valMin: rolled.min, valMax: rolled.max, tier: 0, statName: getStatName(stat.id) });
+        let boost = unique.ultraRare ? 1 : 1.1;
+        let val = ['leech', 'regen'].includes(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
+        let min = ['leech', 'regen'].includes(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
+        let max = ['leech', 'regen'].includes(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
+        item.stats.push({ id: stat.id, val: val, valMin: min, valMax: max, tier: 0, statName: getStatName(stat.id) });
     });
+    if (unique.ultraRare) {
+        game.seasonChaseUniqueDropped = true;
+        addLog(`🌠 체이싱 유니크 발견! [${unique.name}]`, 'loot-unique');
+    }
     return item;
 }
 
@@ -3554,18 +3626,21 @@ function getCurrencyDrops(enemy) {
     let drops = [];
     if (enemy.isBoss) {
         if (Math.random() < 0.30) drops.push([Math.random() < 0.55 ? 'transmute' : 'augment', 1]);
+        if (Math.random() < 0.17) drops.push(['alteration', 1]);
         if (Math.random() < 0.31) drops.push(['alchemy', 1]);
+        if (Math.random() < 0.08) drops.push(['regal', 1]);
         if (Math.random() < 0.17) drops.push(['chaos', 1]);
         if (Math.random() < 0.05) drops.push(['divine', 1]);
         if (Math.random() < 0.05) drops.push(['exalted', 1]);
     } else if (enemy.isElite) {
         if (Math.random() < 0.18) {
             let roll = Math.random();
-            drops.push([roll < 0.44 ? 'transmute' : (roll < 0.82 ? 'augment' : 'alchemy'), 1]);
+            drops.push([roll < 0.34 ? 'transmute' : (roll < 0.66 ? 'augment' : (roll < 0.9 ? 'alteration' : 'alchemy')), 1]);
         }
+        if (Math.random() < 0.015) drops.push(['regal', 1]);
         if (Math.random() < 0.03) drops.push(['chaos', 1]);
     } else if (Math.random() < 0.02) {
-        drops.push([[ 'transmute', 'transmute', 'augment', 'scour' ][Math.floor(Math.random() * 4)], 1]);
+        drops.push([[ 'transmute', 'transmute', 'augment', 'alteration', 'scour' ][Math.floor(Math.random() * 5)], 1]);
     }
     if ((game.season || 1) >= 2 && (zone.type === 'abyss' || zone.type === 'act')) {
         if (enemy.isBoss && Math.random() < 0.22) {
@@ -3835,8 +3910,10 @@ function useCurrency(currencyKey) {
     let ok = false;
     if (currencyKey === 'transmute') ok = item.rarity === 'normal';
     else if (currencyKey === 'augment') ok = item.rarity === 'magic' && item.stats.length < 2;
+    else if (currencyKey === 'alteration') ok = item.rarity === 'magic';
     else if (currencyKey === 'alchemy') ok = item.rarity === 'normal';
     else if (currencyKey === 'exalted') ok = item.rarity === 'rare' && item.stats.length < 6;
+    else if (currencyKey === 'regal') ok = item.rarity === 'magic' && item.stats.length < 2;
     else if (currencyKey === 'chaos') ok = item.rarity === 'rare';
     else if (currencyKey === 'divine') ok = item.rarity !== 'normal';
     else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
@@ -3846,20 +3923,27 @@ function useCurrency(currencyKey) {
     game.currencies[currencyKey]--;
     if (currencyKey === 'transmute') {
         item.rarity = 'magic';
-        rerollExplicitMods(item, 'magic', item.itemTier || getZone(game.currentZoneId).tier);
+        rerollExplicitMods(item, 'magic', getItemCraftTier(item));
     } else if (currencyKey === 'augment') {
         let mods = getAvailableMods(item).sort(() => Math.random() - 0.5);
-        if (mods.length > 0) item.stats.push(rollAffixValue(mods[0], item.itemTier || getZone(game.currentZoneId).tier));
+        if (mods.length > 0) item.stats.push(rollAffixValue(mods[0], getItemCraftTier(item)));
         updateItemName(item);
+    } else if (currencyKey === 'alteration') {
+        rerollExplicitMods(item, 'magic', getItemCraftTier(item));
     } else if (currencyKey === 'alchemy') {
         item.rarity = 'rare';
-        rerollExplicitMods(item, 'rare', item.itemTier || getZone(game.currentZoneId).tier);
+        rerollExplicitMods(item, 'rare', getItemCraftTier(item));
     } else if (currencyKey === 'exalted') {
         let mods = getAvailableMods(item).sort(() => Math.random() - 0.5);
-        if (mods.length > 0) item.stats.push(rollAffixValue(mods[0], item.itemTier || getZone(game.currentZoneId).tier));
+        if (mods.length > 0) item.stats.push(rollAffixValue(mods[0], getItemCraftTier(item)));
+        updateItemName(item);
+    } else if (currencyKey === 'regal') {
+        let mods = getAvailableMods(item).sort(() => Math.random() - 0.5);
+        if (mods.length > 0) item.stats.push(rollAffixValue(mods[0], getItemCraftTier(item)));
+        item.rarity = 'rare';
         updateItemName(item);
     } else if (currencyKey === 'chaos') {
-        rerollExplicitMods(item, 'rare', item.itemTier || getZone(game.currentZoneId).tier);
+        rerollExplicitMods(item, 'rare', getItemCraftTier(item));
     } else if (currencyKey === 'divine') {
         item.stats.forEach(stat => {
             let val = stat.valMin + Math.random() * (stat.valMax - stat.valMin);
@@ -3874,7 +3958,7 @@ function useCurrency(currencyKey) {
         item.corrupted = true;
         if (Math.random() < 0.35) {
             let mods = getAvailableMods(item).sort(() => Math.random() - 0.5);
-            if (mods.length > 0) item.stats.push(rollAffixValue(mods[0], item.itemTier || getZone(game.currentZoneId).tier));
+            if (mods.length > 0) item.stats.push(rollAffixValue(mods[0], getItemCraftTier(item)));
             addLog("🩸 타락 성공! 추가 옵션이 부여되었습니다.", "loot-unique");
         } else {
             addLog("🩸 타락 진행: 추가 옵션은 생기지 않았습니다.", "attack-monster");
@@ -3952,7 +4036,7 @@ function applyFossilChaosCraft(fossilKey) {
     let guaranteedPool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && fossil.guaranteedStats.includes(mod.id));
     if (guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
 
-    let maxTier = item.itemTier || getZone(game.currentZoneId).tier;
+    let maxTier = getItemCraftTier(item);
     let guaranteed = rndChoice(guaranteedPool);
     let newStats = [rollAffixValue(guaranteed, maxTier)];
 
@@ -4632,7 +4716,7 @@ function spawnEncounterMarker(marker) {
         bossEnemy.spawnStamp = performance.now();
         game.enemies.push(bossEnemy);
         addBattleFx('enemySpawn', { enemyId: bossEnemy.id, color: getElementColor(bossEnemy.ele), duration: 460, boss: true });
-        addLog(`👑 '${bossEnemy.name.replace(/^👿\s*/, '')}' 등장.`, "loot-unique");
+        if (game.settings.showSpawnLog !== false) addLog(`👑 '${bossEnemy.name.replace(/^👿\s*/, '')}' 등장.`, "loot-unique");
     } else {
         for (let i = 0; i < count; i++) {
             let enemy = createEnemy(zone, marker, i);
@@ -4642,7 +4726,7 @@ function spawnEncounterMarker(marker) {
             game.enemies.push(enemy);
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 320, boss: false });
         }
-        addLog(`⚠️ 적 ${count}마리 참전`, marker.elite ? "loot-rare" : "attack-monster");
+        if (game.settings.showSpawnLog !== false) addLog(`⚠️ 적 ${count}마리 참전`, marker.elite ? "loot-rare" : "attack-monster");
     }
     addBattleFx('spawnWave', { count: count, boss: !!marker.boss, duration: 420 });
 }
@@ -5053,6 +5137,7 @@ function triggerSeasonReset() {
     game.claimableActRewards = [];
     game.claimedActRewards = [];
     game.actRewardBonuses = [];
+    game.seasonChaseUniqueDropped = false;
     game.unlocks = { ...defaultGame.unlocks };
     game.noti = { ...defaultGame.noti };
     game.itemSubtab = 'item-tab-equip';
@@ -5135,14 +5220,16 @@ function pickEquipSlot(item, preferredSlot) {
     if (item.slot !== '반지') return candidates[0];
     if (!game.equipment['반지1']) return '반지1';
     if (!game.equipment['반지2']) return '반지2';
-    let choice = prompt('교체할 반지 슬롯을 선택하세요.\n1 = 왼쪽 반지, 2 = 오른쪽 반지', '1');
-    if (choice === null) return null;
-    return choice.trim() === '2' ? '반지2' : '반지1';
+    return null;
 }
 
 function equipItem(idx, preferredSlot) {
     let item = game.inventory[idx];
     if (!item) return;
+    if (item.slot === '반지' && !preferredSlot && game.equipment['반지1'] && game.equipment['반지2']) {
+        openRingSlotOverlay(idx);
+        return;
+    }
     let targetSlot = pickEquipSlot(item, preferredSlot);
     if (!targetSlot) return;
     let old = game.equipment[targetSlot];
@@ -5210,7 +5297,8 @@ function buyAscend(id) {
     if (!game.ascendClass) return;
     let tree = getClassTreeDef(game.ascendClass);
     let node = tree[id];
-    if (!node || game.ascendPoints <= 0 || game.ascendNodes.includes(id) || (node.req && !game.ascendNodes.includes(node.req))) return;
+    let reqMet = !node || !node.req ? true : (Array.isArray(node.req) ? node.req.some(req => game.ascendNodes.includes(req)) : game.ascendNodes.includes(node.req));
+    if (!node || game.ascendPoints <= 0 || game.ascendNodes.includes(id) || !reqMet) return;
     game.ascendNodes.push(id);
     game.ascendPoints--;
     normalizeSupportLoadout(true);
@@ -5274,9 +5362,12 @@ function addLog(msg, cls) {
 }
 
 function updateSettings() {
+    game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
     game.settings.showCombatLog = document.getElementById('chk-log-combat').checked;
+    game.settings.showSpawnLog = document.getElementById('chk-log-spawn').checked;
     game.settings.showExpLog = document.getElementById('chk-log-exp').checked;
     game.settings.showLootLog = document.getElementById('chk-log-loot').checked;
+    updateStaticUI();
 }
 
 function positionTooltipElement(el, x, y) {
@@ -6753,6 +6844,11 @@ function updateStaticUI() {
     normalizeSupportLoadout(true);
     let pStats = getPlayerStats();
     updateCombatUI(pStats);
+    let showCombatScene = game.settings.showCombatScene !== false;
+    let moveArea = document.getElementById('move-area');
+    let enemyArea = document.getElementById('enemy-area');
+    if (moveArea) moveArea.style.display = showCombatScene ? 'block' : 'none';
+    if (enemyArea) enemyArea.style.display = showCombatScene ? 'block' : 'none';
     drawPassiveTree();
 
     ['char', 'season', 'items', 'skills', 'map', 'traits'].forEach(key => document.getElementById('noti-' + key).style.display = game.noti[key] ? 'block' : 'none');
@@ -6933,7 +7029,7 @@ function updateStaticUI() {
         let renderAscend = id => {
             let node = tree[id];
             let active = game.ascendNodes.includes(id);
-            let reqMet = !node.req || game.ascendNodes.includes(node.req);
+            let reqMet = !node.req || (Array.isArray(node.req) ? node.req.some(req => game.ascendNodes.includes(req)) : game.ascendNodes.includes(node.req));
             let statInfo = P_STATS[node.stat];
             let desc = node.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name} +${node.val}${statInfo.isPct ? '%' : ''}`;
             return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buyAscend('${id}')"`}><div class="trait-title">${id === 'n10' ? '👑 궁극기' : statInfo.name}</div><div class="trait-desc">${desc}</div></div>`;
@@ -7208,6 +7304,7 @@ function mergeDefaults(save) {
     merged.claimableActRewards = (merged.claimableActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
+    merged.seasonChaseUniqueDropped = !!merged.seasonChaseUniqueDropped;
     merged.skills = Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : [];
     if (!merged.skills.includes('기본 공격')) merged.skills.unshift('기본 공격');
     merged.supports = Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : [];
@@ -7348,7 +7445,9 @@ function init() {
     initBattleAssets();
     refreshPassiveVisibility();
     calculateReachableNodes();
+    document.getElementById('chk-combat-scene').checked = game.settings.showCombatScene !== false;
     document.getElementById('chk-log-combat').checked = game.settings.showCombatLog !== false;
+    document.getElementById('chk-log-spawn').checked = game.settings.showSpawnLog !== false;
     document.getElementById('chk-log-exp').checked = game.settings.showExpLog !== false;
     document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
     syncSalvageControlsFromSettings();
