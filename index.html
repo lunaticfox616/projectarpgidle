@@ -3105,6 +3105,7 @@ function buildBattleAssetAtlas() {
         sideWalk: heroFramesLegacy[4],
         walk: [heroFramesLegacy[4], heroFramesLegacy[2]],
         swordCombo: [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
+        whirlCombo: [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
         chaosCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
         lightningCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
         castCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
@@ -3119,9 +3120,9 @@ function buildBattleAssetAtlas() {
         let cellW = Math.floor(image.width / 8);
         let cellH = Math.floor(image.height / 6);
         if (cellW < 70 || cellH < 70) return null;
-        function rowFrames(row, start, endInclusive) {
+        function rowFrames(row, cols) {
             let list = [];
-            for (let col = start; col <= endInclusive; col++) {
+            cols.forEach(col => {
                 let insetX = Math.max(1, Math.floor(cellW * 0.02));
                 let insetY = Math.max(1, Math.floor(cellH * 0.02));
                 let rect = {
@@ -3131,18 +3132,19 @@ function buildBattleAssetAtlas() {
                     height: cellH - insetY * 2
                 };
                 if (rect.width > 16 && rect.height > 16) list.push(rect);
-            }
+            });
             return list;
         }
-        let walk = rowFrames(0, 0, 5);
-        let sword = rowFrames(1, 0, 7);
-        let chaos = rowFrames(2, 0, 7);
-        let lightning = rowFrames(3, 0, 7);
-        let cast = rowFrames(4, 0, 7);
-        let frost = rowFrames(5, 0, 7);
+        let walk = rowFrames(0, [0, 1, 2]);
+        let sword = rowFrames(1, [0, 1, 2, 3, 4, 5, 6]);
+        let chaos = rowFrames(2, [0, 1, 2, 3, 4]);
+        let lightning = rowFrames(3, [0, 1, 2, 3, 4, 5]);
+        let cast = rowFrames(4, [0, 1, 2, 4, 5]);
+        let frost = rowFrames(5, [0, 1, 4, 5]);
         let pooled = [walk, sword, chaos, lightning, cast, frost].flat();
         if (pooled.length < 12) return null;
         let walkLoop = walk.length >= 3 ? [walk[0], walk[1], walk[2], walk[1]] : walk;
+        let whirl = sword.length >= 4 ? [sword[0], sword[1], sword[2], sword[3]] : sword;
         return {
             frontIdle: sword[1] || walk[0] || heroFramesLegacy[0],
             frontGuard: sword[2] || walk[1] || heroFramesLegacy[1],
@@ -3151,6 +3153,7 @@ function buildBattleAssetAtlas() {
             sideWalk: walk[1] || walk[0] || heroFramesLegacy[4],
             walk: walkLoop.length > 0 ? walkLoop : [heroFramesLegacy[4], heroFramesLegacy[2]],
             swordCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
+            whirlCombo: whirl.length > 0 ? whirl : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
             chaosCombo: chaos.length > 0 ? chaos : [heroFramesLegacy[3], heroFramesLegacy[2]],
             lightningCombo: lightning.length > 0 ? lightning : [heroFramesLegacy[3], heroFramesLegacy[2]],
             castCombo: cast.length > 0 ? cast : [heroFramesLegacy[3], heroFramesLegacy[2]],
@@ -3202,6 +3205,7 @@ function buildBattleAssetAtlas() {
                 sideWalk: getHeroFrameFromRow(0, 1) || getHeroFrameFromRow(0, 0) || heroFramesLegacy[4],
                 walk: walkRow.length > 0 ? walkRow.slice(0, Math.min(4, walkRow.length)) : [heroFramesLegacy[4], heroFramesLegacy[2]],
                 swordCombo: swordRow.length > 0 ? swordRow : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
+                whirlCombo: swordRow.length > 0 ? swordRow.slice(0, Math.min(4, swordRow.length)) : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
                 chaosCombo: chaosRow.length > 0 ? chaosRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
                 lightningCombo: lightningRow.length > 0 ? lightningRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
                 castCombo: castRow.length > 0 ? castRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
@@ -5508,7 +5512,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now)
             if (['번개 타격', '번개 창', '연쇄 폭풍'].includes(skillName)) return frames.lightningCombo;
             if (['얼음 창', '서리 폭발'].includes(skillName)) return frames.frostCombo;
             if (['화염 참격', '용암 강타', '관통 사격'].includes(skillName)) return frames.castCombo;
-            if (skillName === '회오리바람') return (frames.swordCombo || []).concat(frames.chaosCombo || []);
+            if (skillName === '회오리바람') return frames.whirlCombo || frames.swordCombo;
             return frames.swordCombo;
         }
         function pickAttackFrame(list) {
