@@ -102,6 +102,17 @@
         .skill-gem.active { background-color: #b33939; border: 1px solid #ff5252; box-shadow: 0 0 8px rgba(255,82,82,0.5); }
         .support-gem { background-color: #218c74; border: 1px solid #33d9b2; }
         .support-gem.active { background-color: #0fb9b1; border-color: #2bcbba; box-shadow: 0 0 8px rgba(43,203,186,0.5); }
+        .gem-enhance-target { color:#c8dcf1; margin-bottom:10px; line-height:1.45; }
+        .gem-enhance-status { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+        .gem-status-chip { font-size:0.74em; padding:4px 8px; border-radius:999px; border:1px solid #35506a; background:#162232; color:#a6c6e3; }
+        .gem-status-chip.done { background:#1e3c2d; border-color:#3f8f6a; color:#b5f4d5; font-weight:bold; }
+        .gem-enhance-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+        .gem-upgrade-btn { text-align:left; background:#2c3e50; border:1px solid #496584; border-radius:8px; padding:8px; }
+        .gem-upgrade-btn.done { background:#1f3b2e; border-color:#4a8f70; color:#c8f3dd; }
+        .gem-upgrade-btn small { color:#b7cbe1; }
+        .gem-engrave-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .gem-engrave-option { text-align:left; border:1px solid #3d5a77; border-radius:8px; padding:8px; background:#2c3e50; }
+        .gem-engrave-option.applied { border-color:#f1c40f; background:linear-gradient(180deg, #3d3618 0%, #2a2413 100%); box-shadow:0 0 0 1px rgba(241,196,15,0.35), 0 0 10px rgba(241,196,15,0.15); }
         .gem-level-badge { position: absolute; top: 5px; right: 5px; background: #000; padding: 2px 5px; border-radius: 3px; font-size: 0.7em; font-weight: bold; border: 1px solid #555; color: #fff; }
         .gem-level-badge.effective { color: #2ecc71; border-color: #2ecc71; }
 
@@ -551,9 +562,9 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;" id="ui-support-list"></div>
         <h2 id="ui-gem-enhance-header" style="margin-top:20px; display:none;">☁️ 스킬 젬 강화 탭</h2>
         <div id="ui-gem-enhance-panel" style="display:none; background:#11151c; border:1px solid #32506d; border-radius:10px; padding:12px;">
-            <div id="ui-gem-enhance-target" style="color:#c8dcf1; margin-bottom:8px;"></div>
-            <div id="ui-gem-upgrade-actions" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;"></div>
-            <div id="ui-gem-enhance-options" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"></div>
+            <div id="ui-gem-enhance-target" class="gem-enhance-target"></div>
+            <div id="ui-gem-upgrade-actions" class="gem-enhance-actions"></div>
+            <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
         </div>
     </div>
 
@@ -787,10 +798,9 @@ const GEM_SKY_ENHANCEMENTS = {
     sky_swiftness: { id: 'sky_swiftness', name: '질풍 각인', desc: '스킬 공격속도 +8%', stat: 'aspd', val: 8 },
     sky_precision: { id: 'sky_precision', name: '창공의 눈', desc: '스킬 치명타 확률 +6%', stat: 'crit', val: 6 },
     sky_blood: { id: 'sky_blood', name: '비상의 맥박', desc: '스킬 흡수 +1.5%', stat: 'leech', val: 1.5 },
-    sky_tempest: { id: 'sky_tempest', name: '폭풍 폭주', desc: '스킬 피해 +12%', stat: 'pctDmg', val: 12 },
-    sky_keen: { id: 'sky_keen', name: '예리한 시야', desc: '스킬 치명타 확률 +10%', stat: 'crit', val: 10 },
-    sky_blitz: { id: 'sky_blitz', name: '천공 가속', desc: '스킬 공격속도 +12%', stat: 'aspd', val: 12 },
-    sky_vamp: { id: 'sky_vamp', name: '공중 흡혈', desc: '스킬 흡수 +2.5%', stat: 'leech', val: 2.5 },
+    sky_tempest: { id: 'sky_tempest', name: '폭풍 분기', desc: '스킬 타겟 수 +1', stat: 'targets', val: 1 },
+    sky_keen: { id: 'sky_keen', name: '예리한 파열', desc: '치명타 피해 배율 +25%', stat: 'critDmg', val: 25 },
+    sky_blitz: { id: 'sky_blitz', name: '천공 붕괴', desc: '지속 피해 계열 스킬 피해 +18%', stat: 'dotMulti', val: 18 },
     sky_harmony: { id: 'sky_harmony', name: '창공의 조율', desc: '스킬 피해 +6%, 공격속도 +6%', stat: 'hybrid', val: 6 }
 };
 
@@ -844,9 +854,18 @@ const SKILL_DB = {
     '관통 사격': { isGem: true, baseDmg: 1.25, baseSpd: 1.08, leech: 0, crit: 7, dmgScale: 0.07, spdScale: 0.03, ele: 'phys', targetMode: 'pierce', targets: 4, desc: '적 무리를 꿰뚫는 장거리 일제 사격입니다.', tags: ['attack', 'projectile', 'physical'] },
     '연쇄 폭풍': { isGem: true, baseDmg: 1.3, baseSpd: 1.0, leech: 0, crit: 9, dmgScale: 0.08, spdScale: 0.02, ele: 'light', targetMode: 'chain', targets: 4, desc: '번개가 여러 적 사이를 튀며 확산됩니다.', tags: ['attack', 'elemental', 'lightning', 'chain'] },
     '공허 베기': { isGem: true, baseDmg: 1.5, baseSpd: 0.92, leech: 0.4, crit: 6, dmgScale: 0.08, spdScale: 0.01, ele: 'chaos', targetMode: 'cleave', targets: 3, desc: '공허의 칼날로 전방 적을 갈라냅니다.', tags: ['attack', 'melee', 'chaos', 'aoe'] },
-    '혈기 폭쇄': { isGem: true, baseDmg: 1.1, baseSpd: 0.95, leech: 0.2, crit: 4, dmgScale: 0.06, spdScale: 0.02, ele: 'phys', targetMode: 'single', targets: 1, hpDmgScale: 0.0035, desc: '최대 생명력이 높을수록 추가 피해를 주는 일격입니다.', tags: ['attack', 'melee', 'physical', 'blood'] },
-    '불멸의 진동': { isGem: true, baseDmg: 1.0, baseSpd: 0.9, leech: 0, crit: 3, dmgScale: 0.05, spdScale: 0.02, hpDmgScale: 0.0025, regenDmgScale: 4.2, desc: '생명력과 재생력을 피해로 전환하는 충격파입니다.', ele: 'phys', targetMode: 'cleave', targets: 4, tags: ['attack', 'aoe', 'physical'] },
-    '화염 부패': { isGem: true, baseDmg: 0.42, baseSpd: 0.78, leech: 0, crit: 0, dmgScale: 0.03, spdScale: 0.01, ele: 'fire', targetMode: 'all', targets: 99, hpDmgScale: 0.0018, fireResDmgScale: 0.006, dotMultiplier: 1.45, desc: '체력과 화염 저항을 기반으로 화염 지속 피해를 퍼뜨립니다.', tags: ['spell', 'dot', 'aoe', 'fire'] }
+    '혈기 폭쇄': { isGem: true, baseDmg: 1.1, baseSpd: 0.95, leech: 0.2, crit: 4, dmgScale: 0.06, spdScale: 0.02, ele: 'phys', targetMode: 'single', targets: 1, hpDmgScale: 0.000175, desc: '최대 생명력이 높을수록 추가 피해를 주는 일격입니다.', tags: ['attack', 'melee', 'physical', 'blood'] },
+    '불멸의 진동': { isGem: true, baseDmg: 1.0, baseSpd: 0.9, leech: 0, crit: 3, dmgScale: 0.05, spdScale: 0.02, hpDmgScale: 0.000125, regenDmgScale: 4.2, desc: '생명력과 재생력을 피해로 전환하는 충격파입니다.', ele: 'phys', targetMode: 'cleave', targets: 4, tags: ['attack', 'aoe', 'physical'] },
+    '화염 부패': { isGem: true, baseDmg: 0.42, baseSpd: 0.78, leech: 0, crit: 0, dmgScale: 0.03, spdScale: 0.01, ele: 'fire', targetMode: 'all', targets: 99, hpDmgScale: 0.00009, fireResDmgScale: 0.006, dotMultiplier: 1.45, spellFlatBase: 28, spellFlatScale: 6.0, desc: '체력과 화염 저항을 기반으로 화염 지속 피해를 퍼뜨립니다.', tags: ['spell', 'dot', 'aoe', 'fire'] },
+    '빙결 침식': { isGem: true, baseDmg: 0.36, baseSpd: 0.84, leech: 0, crit: 0, dmgScale: 0.025, spdScale: 0.01, ele: 'cold', targetMode: 'all', targets: 99, dotMultiplier: 1.35, spellFlatBase: 24, spellFlatScale: 5.2, desc: '냉기 지속 피해를 광역으로 퍼뜨리는 주문입니다.', tags: ['spell', 'dot', 'aoe', 'cold'] },
+    '서리 파동': { isGem: true, baseDmg: 1.08, baseSpd: 0.95, leech: 0, crit: 8, dmgScale: 0.05, spdScale: 0.02, ele: 'cold', targetMode: 'cleave', targets: 3, spellFlatBase: 20, spellFlatScale: 4.5, desc: '전방으로 퍼지는 냉기 파동 주문입니다.', tags: ['spell', 'cold', 'aoe'] },
+    '뇌운 낙뢰': { isGem: true, baseDmg: 1.0, baseSpd: 1.02, leech: 0, crit: 10, dmgScale: 0.05, spdScale: 0.02, ele: 'light', targetMode: 'chain', targets: 4, spellFlatBase: 22, spellFlatScale: 4.8, desc: '번개를 연쇄시키는 주문입니다.', tags: ['spell', 'lightning', 'chain'] },
+    '심연 전염': { isGem: true, baseDmg: 0.32, baseSpd: 0.88, leech: 0, crit: 0, dmgScale: 0.02, spdScale: 0.01, ele: 'chaos', targetMode: 'all', targets: 99, dotMultiplier: 1.5, spellFlatBase: 23, spellFlatScale: 5.4, desc: '카오스 지속 피해를 전염시키는 주문입니다.', tags: ['spell', 'dot', 'chaos', 'aoe'] },
+    '독니 사출': { isGem: true, baseDmg: 1.18, baseSpd: 1.18, leech: 0, crit: 7, dmgScale: 0.06, spdScale: 0.03, ele: 'chaos', targetMode: 'pierce', targets: 3, desc: '독니 투사체를 발사하는 공격 스킬입니다.', tags: ['attack', 'projectile', 'chaos'] },
+    '연발 사격': { isGem: true, baseDmg: 0.9, baseSpd: 1.34, leech: 0, crit: 5, dmgScale: 0.05, spdScale: 0.04, ele: 'phys', targetMode: 'chain', targets: 3, desc: '연속으로 투사체를 발사하는 공격 스킬입니다.', tags: ['attack', 'projectile', 'physical'] },
+    '폭열 창탄': { isGem: true, baseDmg: 1.26, baseSpd: 1.02, leech: 0, crit: 8, dmgScale: 0.06, spdScale: 0.03, ele: 'fire', targetMode: 'pierce', targets: 4, desc: '화염 투사체가 적을 관통하는 공격 스킬입니다.', tags: ['attack', 'projectile', 'fire', 'elemental'] },
+    '암흑 파열': { isGem: true, baseDmg: 1.04, baseSpd: 0.98, leech: 0, crit: 9, dmgScale: 0.05, spdScale: 0.02, ele: 'chaos', targetMode: 'single', targets: 1, spellFlatBase: 26, spellFlatScale: 5.0, desc: '단일 적을 찢는 카오스 주문입니다.', tags: ['spell', 'chaos'] },
+    '중력 붕괴': { isGem: true, baseDmg: 1.1, baseSpd: 0.9, leech: 0, crit: 6, dmgScale: 0.05, spdScale: 0.02, ele: 'phys', targetMode: 'cleave', targets: 3, spellFlatBase: 27, spellFlatScale: 5.3, desc: '물리 충격을 일으키는 주문입니다.', tags: ['spell', 'physical', 'aoe'] }
 };
 
 const SUPPORT_GEM_DB = {
@@ -4169,6 +4188,9 @@ function getActiveSkillStats(bonusLevel) {
         if (enh.stat === 'aspd') stats.spd *= (1 + enh.val / 100);
         if (enh.stat === 'crit') stats.crit += enh.val;
         if (enh.stat === 'leech') stats.leech += enh.val;
+        if (enh.stat === 'targets') stats.targets = Math.min(99, Math.max(1, (stats.targets || 1) + enh.val));
+        if (enh.stat === 'critDmg') stats.critDmgBonus = (stats.critDmgBonus || 0) + enh.val;
+        if (enh.stat === 'dotMulti' && Array.isArray(stats.tags) && stats.tags.includes('dot')) stats.dmg *= (1 + enh.val / 100);
         if (enh.stat === 'hybrid') {
             stats.dmg *= (1 + enh.val / 100);
             stats.spd *= (1 + enh.val / 100);
@@ -4262,7 +4284,15 @@ function getPlayerStats() {
     let gearFlatDmg = gearBase.flatDmg + gearExplicit.flatDmg;
     let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
     let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg;
-    let totalFlatDmg = baseDmg + gearFlatDmg + passiveFlatDmg;
+    let isSpellSkill = Array.isArray(skill.tags) && skill.tags.includes('spell');
+    let spellFlatDmg = 0;
+    if (isSpellSkill) {
+        let skillLevel = Number.isFinite(skill.finalLevel) ? skill.finalLevel : 1;
+        let spellBase = Number.isFinite(skill.spellFlatBase) ? skill.spellFlatBase : 0;
+        let spellScale = Number.isFinite(skill.spellFlatScale) ? skill.spellFlatScale : 0;
+        spellFlatDmg = Math.max(1, spellBase + Math.max(0, skillLevel - 1) * spellScale);
+    }
+    let totalFlatDmg = isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg);
     let finalBaseDmg = Math.floor(totalFlatDmg * (1 + (generalPctDmg + taggedTotal) / 100) * (skill.dmg || skill.baseDmg || 1));
 
     let gearFlatHp = gearBase.flatHp + gearExplicit.flatHp;
@@ -4281,7 +4311,7 @@ function getPlayerStats() {
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = Math.min(100, 5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0));
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
-    let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg;
+    let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0);
     let finalLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech;
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
     let finalDs = gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds;
@@ -4308,9 +4338,9 @@ function getPlayerStats() {
         atk: {
             title: '공격력',
             lines: [
-                `기본 공격력 ${Math.floor(baseDmg)}`,
-                makeSourceLine('장비', gearFlatDmg),
-                makeSourceLine('패시브', passiveFlatDmg),
+                isSpellSkill ? `주문 내장 피해 ${Math.floor(spellFlatDmg)}` : `기본 공격력 ${Math.floor(baseDmg)}`,
+                isSpellSkill ? null : makeSourceLine('장비', gearFlatDmg),
+                isSpellSkill ? null : makeSourceLine('패시브', passiveFlatDmg),
                 makeSourceLine('성좌 각성', starBlessing.pctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('총 피해 증가', generalPctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('태그 보너스', taggedTotal, '%', value => `${Math.floor(value)}%`),
@@ -5501,6 +5531,10 @@ function showGemTooltip(event, type, name) {
         html += `<div class="tooltip-line">${info.desc}</div>`;
         html += `<div class="tooltip-line" style="margin-top:6px;">피해 배율 ${formatPercentMultiplier(skill.dmg || skill.baseDmg || 1)}</div>`;
         html += `<div class="tooltip-line">공속 배율 ${formatPercentMultiplier(skill.spd || skill.baseSpd || 1)}</div>`;
+        if ((info.tags || []).includes('spell')) {
+            let spellFlat = (skill.spellFlatBase || 0) + Math.max(0, (info.finalLevel || 1) - 1) * (skill.spellFlatScale || 0);
+            html += `<div class="tooltip-line">주문 내장 피해 ${Math.floor(spellFlat)}</div>`;
+        }
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '전체' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${skill.crit}%</div>`;
@@ -7145,18 +7179,21 @@ function updateStaticUI() {
             let skyNeed = activeGem ? ((activeGem.skyCoreLevel || 0) + 1) : 1;
             let engraveCap = activeGem ? (activeGem.skyEnhanceCap || 1) : 1;
             let capNeed = activeGem ? (engraveCap + 1) : 2;
+            let coreDone = !!(activeGem && activeGem.bossCoreLevel >= 5 && activeGem.skyCoreLevel >= 5);
+            let slotDone = !!(activeGem && engraveCap >= 5);
+            let engraveFilled = !!(activeGem && activeEnh.length >= engraveCap);
             document.getElementById('ui-gem-enhance-target').innerHTML = isGem
-                ? `대상 젬: <strong>${active}</strong> (보유 창공의 힘: ${game.currencies.skyEssence || 0})<br><span style="color:#8aa4bf;">핵 강화: 군주의핵 ${activeGem.bossCoreLevel || 0}/5 · 창공의힘 ${activeGem.skyCoreLevel || 0}/5 · 각인 슬롯 ${engraveCap}/5</span><br><span style="color:#8aa4bf;">적용 옵션: ${activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '없음'}</span>`
+                ? `대상 젬: <strong>${active}</strong> (보유 창공의 힘: ${game.currencies.skyEssence || 0})<br><span style="color:#8aa4bf;">핵 강화: 군주의핵 ${activeGem.bossCoreLevel || 0}/5 · 창공의힘 ${activeGem.skyCoreLevel || 0}/5 · 각인 슬롯 ${engraveCap}/5</span><div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '각인 슬롯 완료' : '각인 슬롯 확장 가능'}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '각인 장착 완료' : `각인 여유 ${Math.max(0, engraveCap - activeEnh.length)}칸`}</span></div><span style="color:#8aa4bf;">적용 옵션: ${activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '없음'}</span>`
                 : '공격 젬을 선택하면 창공의 힘으로 특수 옵션을 부여할 수 있습니다.';
             let upgradeBtns = [];
-            upgradeBtns.push(`<button onclick="upgradeActiveGem('bossCore', 1)" ${!isGem || (activeGem && activeGem.bossCoreLevel >= 5) ? 'disabled' : ''} style="text-align:left;"><strong>군주의 핵 강화</strong><br><small>보유: ${game.currencies.bossCore || 0} / 필요: ${bossNeed}${activeGem && activeGem.bossCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
-            upgradeBtns.push(`<button onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem || (activeGem && activeGem.skyCoreLevel >= 5) ? 'disabled' : ''} style="text-align:left;"><strong>창공의 힘 강화</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${skyNeed}${activeGem && activeGem.skyCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
-            upgradeBtns.push(`<button onclick="upgradeSkyEngraveCap()" ${!isGem || (activeGem && engraveCap >= 5) ? 'disabled' : ''} style="text-align:left; background:#3b4f66;"><strong>창공 각인 슬롯 확장</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${capNeed}${activeGem && engraveCap >= 5 ? ' (최대)' : ''}</small></button>`);
+            upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.bossCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('bossCore', 1)" ${!isGem || (activeGem && activeGem.bossCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.bossCoreLevel >= 5 ? '✅ 군주의 핵 강화 완료' : '군주의 핵 강화'}</strong><br><small>보유: ${game.currencies.bossCore || 0} / 필요: ${bossNeed}${activeGem && activeGem.bossCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
+            upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.skyCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem || (activeGem && activeGem.skyCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.skyCoreLevel >= 5 ? '✅ 창공의 힘 강화 완료' : '창공의 힘 강화'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${skyNeed}${activeGem && activeGem.skyCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
+            upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && engraveCap >= 5 ? 'done' : ''}" onclick="upgradeSkyEngraveCap()" ${!isGem || (activeGem && engraveCap >= 5) ? 'disabled' : ''}><strong>${activeGem && engraveCap >= 5 ? '✅ 각인 슬롯 확장 완료' : '창공 각인 슬롯 확장'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${capNeed}${activeGem && engraveCap >= 5 ? ' (최대)' : ''}</small></button>`);
             document.getElementById('ui-gem-upgrade-actions').innerHTML = upgradeBtns.join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 젬 강화 재료가 없습니다.</div>`;
             if ((game.season || 1) >= 4) {
                 document.getElementById('ui-gem-enhance-options').innerHTML = Object.values(GEM_SKY_ENHANCEMENTS).map(enh => {
                     let applied = activeEnh.includes(enh.id);
-                    return `<button onclick="${applied ? `removeSkyGemEnhancementFromActive('${enh.id}')` : `applySkyGemEnhancementToActive('${enh.id}')`}" ${!isGem ? 'disabled' : ''} style="text-align:left; background:${applied ? '#213a4a' : '#2c3e50'};"><strong>${enh.name}${applied ? ' (적용됨)' : ''}</strong><br><small>${enh.desc}${applied ? ' · 클릭 시 해제' : ''}</small></button>`;
+                    return `<button class="gem-engrave-option ${applied ? 'applied' : ''}" onclick="${applied ? `removeSkyGemEnhancementFromActive('${enh.id}')` : `applySkyGemEnhancementToActive('${enh.id}')`}" ${!isGem ? 'disabled' : ''}><strong>${applied ? '✅ ' : ''}${enh.name}${applied ? ' (적용중)' : ''}</strong><br><small>${enh.desc}${applied ? ' · 클릭 시 해제' : ''}</small></button>`;
                 }).join('');
             } else {
                 document.getElementById('ui-gem-enhance-options').innerHTML = `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 시즌 4부터 해금됩니다.</div>`;
@@ -7402,7 +7439,7 @@ function mergeDefaults(save) {
     merged.skyGemEnhancements = (merged.skyGemEnhancements && typeof merged.skyGemEnhancements === 'object') ? merged.skyGemEnhancements : {};
     Object.keys(merged.skyGemEnhancements).forEach(skill => {
         let arr = Array.isArray(merged.skyGemEnhancements[skill]) ? merged.skyGemEnhancements[skill] : [];
-        merged.skyGemEnhancements[skill] = Array.from(new Set(arr.filter(id => !!GEM_SKY_ENHANCEMENTS[id]))).slice(0, 2);
+        merged.skyGemEnhancements[skill] = Array.from(new Set(arr.filter(id => !!GEM_SKY_ENHANCEMENTS[id]))).slice(0, 5);
     });
     merged.ascendNodes = Array.isArray(merged.ascendNodes) ? merged.ascendNodes.filter(id => typeof id === 'string') : [];
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
