@@ -3106,6 +3106,56 @@ function buildBattleAssetAtlas() {
         castCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
         frostCombo: [heroFramesLegacy[3], heroFramesLegacy[2]]
     };
+    function normalizeHeroFrame(component) {
+        return trimRectToContent(battleAssets.images.hero, padSpriteRect(component, battleAssets.images.hero, 2), 1);
+    }
+    function tryBuildHeroFrameSetFromComponents(image) {
+        let components = sortSheetComponents(detectSpriteComponents(image, 40)).filter(entry => {
+            if (!entry) return false;
+            let aspect = entry.width / Math.max(1, entry.height);
+            if (entry.width < 18 || entry.height < 18) return false;
+            if (entry.width > 200 || entry.height > 220) return false;
+            if (aspect < 0.28 || aspect > 1.7) return false;
+            let density = entry.area / Math.max(1, entry.width * entry.height);
+            return density >= 0.09;
+        });
+        if (components.length < 8) return null;
+        let rows = [];
+        components.forEach(component => {
+            let centerY = component.y + component.height * 0.5;
+            let row = rows.find(r => Math.abs(centerY - r.centerY) <= Math.max(14, r.avgHeight * 0.45));
+            if (!row) {
+                row = { centerY: centerY, avgHeight: component.height, entries: [] };
+                rows.push(row);
+            }
+            row.entries.push(component);
+            row.centerY = (row.centerY * (row.entries.length - 1) + centerY) / row.entries.length;
+            row.avgHeight = (row.avgHeight * (row.entries.length - 1) + component.height) / row.entries.length;
+        });
+        rows.sort((a, b) => a.centerY - b.centerY);
+        rows.forEach(row => row.entries.sort((a, b) => a.x - b.x));
+        if (rows.length < 2) return null;
+        let walk = (rows[0].entries || []).slice(0, 3).map(normalizeHeroFrame);
+        let sword = (rows[1].entries || []).slice(0, 3).map(normalizeHeroFrame);
+        if (walk.length < 2 || sword.length < 2) return null;
+        let safeIdle = walk[0] || sword[0] || heroFramesLegacy[2];
+        let safeWalk = walk[1] || walk[0] || sword[0] || heroFramesLegacy[4];
+        let safeAttack = sword[2] || sword[1] || sword[0] || heroFramesLegacy[3];
+        return {
+            frontIdle: sword[1] || safeIdle,
+            frontGuard: sword[2] || safeWalk,
+            sideIdle: safeIdle,
+            attack: safeAttack,
+            sideWalk: safeWalk,
+            walk: walk.length >= 3 ? [walk[0], walk[1], walk[2], walk[1]] : [safeWalk, safeIdle],
+            swordCombo: sword.length >= 3 ? sword : [safeAttack, safeIdle, safeAttack],
+            whirlCombo: sword.length >= 3 ? sword : [safeAttack, safeIdle, safeAttack],
+            chaosCombo: [safeAttack, safeIdle],
+            lightningCombo: [safeAttack, safeIdle],
+            castCombo: [safeAttack, safeIdle],
+            frostCombo: [safeAttack, safeIdle]
+        };
+    }
     function tryBuildHeroFrameSetFromGrid(image) {
         if (!image || !image.width || !image.height) return null;
         if (image.width % 8 !== 0 || image.height % 6 !== 0) return null;
@@ -3155,9 +3205,12 @@ function buildBattleAssetAtlas() {
             frostCombo: sword.length > 0 ? sword : [safeAttack, safeIdle]
         };
     }
-    let gridHeroFrameSet = tryBuildHeroFrameSetFromGrid(battleAssets.images.hero);
-    if (gridHeroFrameSet) {
-        heroFrameSet = gridHeroFrameSet;
+    let componentHeroFrameSet = tryBuildHeroFrameSetFromComponents(battleAssets.images.hero);
+    if (componentHeroFrameSet) {
+        heroFrameSet = componentHeroFrameSet;
+    } else {
+        let gridHeroFrameSet = tryBuildHeroFrameSetFromGrid(battleAssets.images.hero);
+        if (gridHeroFrameSet) heroFrameSet = gridHeroFrameSet;
     }
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(battleAssets.images.enemies, part, key === 'boss' ? 5 : 3)]));
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
