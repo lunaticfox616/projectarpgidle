@@ -3122,8 +3122,15 @@ function buildBattleAssetAtlas() {
         function rowFrames(row, start, endInclusive) {
             let list = [];
             for (let col = start; col <= endInclusive; col++) {
-                let rect = trimRectToContent(image, { x: col * cellW, y: row * cellH, width: cellW, height: cellH }, 2);
-                if (rect && rect.width > 12 && rect.height > 12) list.push(rect);
+                let insetX = Math.max(1, Math.floor(cellW * 0.02));
+                let insetY = Math.max(1, Math.floor(cellH * 0.02));
+                let rect = {
+                    x: col * cellW + insetX,
+                    y: row * cellH + insetY,
+                    width: cellW - insetX * 2,
+                    height: cellH - insetY * 2
+                };
+                if (rect.width > 16 && rect.height > 16) list.push(rect);
             }
             return list;
         }
@@ -3135,13 +3142,14 @@ function buildBattleAssetAtlas() {
         let frost = rowFrames(5, 0, 7);
         let pooled = [walk, sword, chaos, lightning, cast, frost].flat();
         if (pooled.length < 12) return null;
+        let walkLoop = walk.length >= 3 ? [walk[0], walk[1], walk[2], walk[1]] : walk;
         return {
             frontIdle: sword[1] || walk[0] || heroFramesLegacy[0],
             frontGuard: sword[2] || walk[1] || heroFramesLegacy[1],
             sideIdle: walk[0] || sword[0] || heroFramesLegacy[2],
             attack: sword[5] || sword[4] || heroFramesLegacy[3],
             sideWalk: walk[1] || walk[0] || heroFramesLegacy[4],
-            walk: walk.length > 0 ? walk : [heroFramesLegacy[4], heroFramesLegacy[2]],
+            walk: walkLoop.length > 0 ? walkLoop : [heroFramesLegacy[4], heroFramesLegacy[2]],
             swordCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
             chaosCombo: chaos.length > 0 ? chaos : [heroFramesLegacy[3], heroFramesLegacy[2]],
             lightningCombo: lightning.length > 0 ? lightning : [heroFramesLegacy[3], heroFramesLegacy[2]],
@@ -5494,19 +5502,26 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now)
             let phase = ((now / (speed || 110)) + (phaseOffset || 0)) % sequence.length;
             return sequence[Math.floor(phase)];
         }
-        function pickAttackCycle() {
-            let effect = (skillVisual && skillVisual.effect) || 'slash';
-            if (['voidSlash', 'shadowSlash', 'drain', 'poisonDart'].includes(effect)) return frames.chaosCombo;
-            if (['chain', 'storm', 'lightSpear'].includes(effect)) return frames.lightningCombo;
-            if (['iceLance', 'nova'].includes(effect)) return frames.frostCombo;
-            if (['projectile', 'arrow', 'flameSlash', 'magma'].includes(effect)) return frames.castCombo;
-            if (effect === 'whirl') return (frames.swordCombo || []).concat(frames.chaosCombo || []);
+        function pickSkillAttackCycle() {
+            let skillName = game.activeSkill || '기본 공격';
+            if (['흡혈 타격', '암살자의 일격', '공허 베기', '독창 투척'].includes(skillName)) return frames.chaosCombo;
+            if (['번개 타격', '번개 창', '연쇄 폭풍'].includes(skillName)) return frames.lightningCombo;
+            if (['얼음 창', '서리 폭발'].includes(skillName)) return frames.frostCombo;
+            if (['화염 참격', '용암 강타', '관통 사격'].includes(skillName)) return frames.castCombo;
+            if (skillName === '회오리바람') return (frames.swordCombo || []).concat(frames.chaosCombo || []);
             return frames.swordCombo;
+        }
+        function pickAttackFrame(list) {
+            let sequence = (list || []).filter(Boolean);
+            if (sequence.length === 0) return frames.attack || frames.sideIdle || frames.sideWalk;
+            let phase = clampNumber(Math.abs(swingPower), 0, 0.999);
+            let idx = Math.floor(phase * sequence.length);
+            return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         let frame = isAdvancing
             ? pickCycle(walkCycle, 95, 0)
             : pickCycle([frames.sideIdle || frames.frontIdle || frames.sideWalk], 400, 0);
-        if (isAttacking) frame = pickCycle(pickAttackCycle(), 75, 0);
+        if (isAttacking) frame = pickAttackFrame(pickSkillAttackCycle());
         let stepOffset = isAdvancing ? Math.sin(now / 110) * 1.8 : 0;
         drawPixelShadow(ctx, x, y + 15, 10, 4, 0.16);
         drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7, 54, {});
