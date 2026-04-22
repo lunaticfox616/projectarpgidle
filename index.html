@@ -227,6 +227,11 @@
             <button onclick="switchTab('tab-character')" style="background:#35506a;">캐릭터 상세</button>
             <button id="btn-summary-tab-char" onclick="switchTab('tab-char')" style="background:#5a3d21;" disabled>스킬트리 (Lv.2)</button>
         </div>
+        <div style="margin-top:8px; display:flex; gap:8px;">
+            <button onclick="openHeroSheetPicker()" style="flex:1; background:#2f4f6a;">플레이어 시트 업로드</button>
+            <button onclick="resetHeroSheetToDefault()" style="background:#4c3a3a;">기본 복원</button>
+            <input id="hero-sheet-input" type="file" accept="image/png,image/webp,image/jpeg" style="display:none;" onchange="onHeroSheetSelected(event)">
+        </div>
     </div>
 
     <div class="panel combat-panel" style="position: relative;">
@@ -2652,14 +2657,86 @@ function getElementColor(ele) {
     return '#f2d29a';
 }
 
+const CUSTOM_HERO_SHEET_STORAGE_KEY = 'projectidle_custom_hero_sheet';
+
+function getCustomHeroSheetDataUrl() {
+    try {
+        let saved = localStorage.getItem(CUSTOM_HERO_SHEET_STORAGE_KEY);
+        if (!saved || typeof saved !== 'string') return null;
+        return saved.startsWith('data:image/') ? saved : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function saveCustomHeroSheetDataUrl(dataUrl) {
+    try {
+        if (!dataUrl) localStorage.removeItem(CUSTOM_HERO_SHEET_STORAGE_KEY);
+        else localStorage.setItem(CUSTOM_HERO_SHEET_STORAGE_KEY, dataUrl);
+    } catch (error) {
+        addLog('⚠️ 브라우저 저장공간 문제로 커스텀 시트를 저장하지 못했습니다.', 'attack-monster');
+    }
+}
+
+function reloadBattleAssets() {
+    battleAssets.loading = false;
+    battleAssets.ready = false;
+    battleAssets.failed = false;
+    battleAssets.failedKeys = [];
+    battleAssets.images = {};
+    battleAssets.backdrops = [];
+    battleAssets.atlas = null;
+    initBattleAssets();
+}
+
+function openHeroSheetPicker() {
+    let input = document.getElementById('hero-sheet-input');
+    if (!input) return;
+    input.value = '';
+    input.click();
+}
+
+function onHeroSheetSelected(event) {
+    let file = event && event.target && event.target.files ? event.target.files[0] : null;
+    if (!file) return;
+    if (!/^image\//.test(file.type || '')) {
+        addLog('⚠️ 이미지 파일만 업로드할 수 있습니다.', 'attack-monster');
+        return;
+    }
+    let reader = new FileReader();
+    reader.onload = function(loadEvent) {
+        let dataUrl = String(loadEvent.target && loadEvent.target.result || '');
+        if (!dataUrl.startsWith('data:image/')) {
+            addLog('⚠️ 이미지 데이터 인식에 실패했습니다.', 'attack-monster');
+            return;
+        }
+        saveCustomHeroSheetDataUrl(dataUrl);
+        addLog('🎨 플레이어 커스텀 시트를 적용했습니다.', 'loot-magic');
+        reloadBattleAssets();
+    };
+    reader.onerror = function() {
+        addLog('⚠️ 파일 읽기에 실패했습니다.', 'attack-monster');
+    };
+    reader.readAsDataURL(file);
+}
+
+function resetHeroSheetToDefault() {
+    saveCustomHeroSheetDataUrl(null);
+    addLog('🎨 플레이어 시트를 기본 이미지로 복원했습니다.', 'loot-normal');
+    reloadBattleAssets();
+}
+
 function initBattleAssets() {
     if (battleAssets.loading || battleAssets.ready || battleAssets.failed) return;
     battleAssets.loading = true;
     battleAssets.failedKeys = [];
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
     const loadTicket = battleAssets.loadTicket;
+    const customHeroDataUrl = getCustomHeroSheetDataUrl();
+    const defaultHeroSrc = 'assets/battle-hero-v2.png';
+    const legacyHeroSrc = 'assets/battle-hero-v1.png';
     const manifest = {
-        hero: 'assets/battle-hero-v1.png',
+        hero: customHeroDataUrl || defaultHeroSrc,
         enemies: 'assets/battle-enemies-v1.png',
         effects: 'assets/battle-effects-v1.png',
         tiles: 'assets/battle-tiles-v1.png',
@@ -2703,6 +2780,14 @@ function initBattleAssets() {
             finishLoad();
         };
         img.onerror = function() {
+            if (key === 'hero' && customHeroDataUrl && src !== defaultHeroSrc) {
+                img.src = defaultHeroSrc;
+                return;
+            }
+            if (key === 'hero' && src === defaultHeroSrc) {
+                img.src = legacyHeroSrc;
+                return;
+            }
             battleAssets.failed = true;
             battleAssets.failedKeys.push(key);
             pending--;
