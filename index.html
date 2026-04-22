@@ -2732,11 +2732,10 @@ function initBattleAssets() {
     battleAssets.failedKeys = [];
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
     const loadTicket = battleAssets.loadTicket;
-    const customHeroDataUrl = getCustomHeroSheetDataUrl();
     const defaultHeroSrc = 'assets/battle-hero-v2.png';
     const legacyHeroSrc = 'assets/battle-hero-v1.png';
     const manifest = {
-        hero: customHeroDataUrl || defaultHeroSrc,
+        hero: defaultHeroSrc,
         enemies: 'assets/battle-enemies-v1.png',
         effects: 'assets/battle-effects-v1.png',
         tiles: 'assets/battle-tiles-v1.png',
@@ -2771,7 +2770,7 @@ function initBattleAssets() {
                 if (key === 'backdrop') {
                     battleAssets.backdrops = [img];
                 } else {
-                    battleAssets.images[key] = key === 'tiles' ? img : sanitizeBattleSheet(img);
+                    battleAssets.images[key] = (key === 'tiles' || key === 'hero') ? img : sanitizeBattleSheet(img);
                 }
             } catch (error) {
                 battleAssets.images[key] = img;
@@ -2780,10 +2779,6 @@ function initBattleAssets() {
             finishLoad();
         };
         img.onerror = function() {
-            if (key === 'hero' && customHeroDataUrl && src !== defaultHeroSrc) {
-                img.src = defaultHeroSrc;
-                return;
-            }
             if (key === 'hero' && src === defaultHeroSrc) {
                 img.src = legacyHeroSrc;
                 return;
@@ -3136,11 +3131,11 @@ function buildBattleAssetAtlas() {
             return list;
         }
         let walk = rowFrames(0, [0, 1, 2]);
-        let sword = rowFrames(1, [0, 1, 2, 3, 4, 5, 6]);
-        let chaos = rowFrames(2, [0, 1, 2, 3, 4]);
-        let lightning = rowFrames(3, [0, 1, 2, 3, 4, 5]);
-        let cast = rowFrames(4, [0, 1, 2, 4, 5]);
-        let frost = rowFrames(5, [0, 1, 4, 5]);
+        let sword = rowFrames(1, [0, 1, 2]);
+        let chaos = rowFrames(2, [0, 1, 2, 3]);
+        let lightning = rowFrames(3, [0, 1, 2, 3, 4]);
+        let cast = rowFrames(4, [0, 1, 2]);
+        let frost = rowFrames(5, [0, 1, 2]);
         let pooled = [walk, sword, chaos, lightning, cast, frost].flat();
         if (pooled.length < 12) return null;
         let walkLoop = walk.length >= 3 ? [walk[0], walk[1], walk[2], walk[1]] : walk;
@@ -3154,10 +3149,10 @@ function buildBattleAssetAtlas() {
             walk: walkLoop.length > 0 ? walkLoop : [heroFramesLegacy[4], heroFramesLegacy[2]],
             swordCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
             whirlCombo: whirl.length > 0 ? whirl : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
-            chaosCombo: chaos.length > 0 ? chaos : [heroFramesLegacy[3], heroFramesLegacy[2]],
-            lightningCombo: lightning.length > 0 ? lightning : [heroFramesLegacy[3], heroFramesLegacy[2]],
-            castCombo: cast.length > 0 ? cast : [heroFramesLegacy[3], heroFramesLegacy[2]],
-            frostCombo: frost.length > 0 ? frost : [heroFramesLegacy[3], heroFramesLegacy[2]]
+            chaosCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2]],
+            lightningCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2]],
+            castCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2]],
+            frostCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2]]
         };
     }
     let gridHeroFrameSet = tryBuildHeroFrameSetFromGrid(battleAssets.images.hero);
@@ -5508,10 +5503,6 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now)
         }
         function pickSkillAttackCycle() {
             let skillName = game.activeSkill || '기본 공격';
-            if (['흡혈 타격', '암살자의 일격', '공허 베기', '독창 투척'].includes(skillName)) return frames.chaosCombo;
-            if (['번개 타격', '번개 창', '연쇄 폭풍'].includes(skillName)) return frames.lightningCombo;
-            if (['얼음 창', '서리 폭발'].includes(skillName)) return frames.frostCombo;
-            if (['화염 참격', '용암 강타', '관통 사격'].includes(skillName)) return frames.castCombo;
             if (skillName === '회오리바람') return frames.whirlCombo || frames.swordCombo;
             return frames.swordCombo;
         }
