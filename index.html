@@ -3137,19 +3137,22 @@ function buildBattleAssetAtlas() {
         if (pooled.length < 12) return null;
         let walkLoop = walk.length >= 3 ? [walk[0], walk[1], walk[2], walk[1]] : walk;
         let whirl = sword.length >= 4 ? [sword[0], sword[1], sword[2], sword[3]] : sword;
+        let safeIdle = walk[0] || sword[0] || heroFramesLegacy[2];
+        let safeWalk = walk[1] || walk[0] || sword[0] || heroFramesLegacy[4];
+        let safeAttack = sword[2] || sword[1] || sword[0] || heroFramesLegacy[3];
         return {
-            frontIdle: sword[1] || walk[0] || heroFramesLegacy[0],
-            frontGuard: sword[2] || walk[1] || heroFramesLegacy[1],
-            sideIdle: walk[0] || sword[0] || heroFramesLegacy[2],
-            attack: sword[5] || sword[4] || heroFramesLegacy[3],
-            sideWalk: walk[1] || walk[0] || heroFramesLegacy[4],
-            walk: walkLoop.length > 0 ? walkLoop : [heroFramesLegacy[4], heroFramesLegacy[2]],
-            swordCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
-            whirlCombo: whirl.length > 0 ? whirl : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
-            chaosCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2]],
-            lightningCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2]],
-            castCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2]],
-            frostCombo: sword.length > 0 ? sword : [heroFramesLegacy[3], heroFramesLegacy[2]]
+            frontIdle: sword[1] || safeIdle,
+            frontGuard: sword[2] || safeWalk,
+            sideIdle: safeIdle,
+            attack: safeAttack,
+            sideWalk: safeWalk,
+            walk: walkLoop.length > 0 ? walkLoop : [safeWalk, safeIdle],
+            swordCombo: sword.length > 0 ? sword : [safeAttack, safeIdle, safeAttack],
+            whirlCombo: whirl.length > 0 ? whirl : [safeAttack, safeIdle, safeAttack],
+            chaosCombo: sword.length > 0 ? sword : [safeAttack, safeIdle],
+            lightningCombo: sword.length > 0 ? sword : [safeAttack, safeIdle],
+            castCombo: sword.length > 0 ? sword : [safeAttack, safeIdle],
+            frostCombo: sword.length > 0 ? sword : [safeAttack, safeIdle]
         };
     }
     let gridHeroFrameSet = tryBuildHeroFrameSetFromGrid(battleAssets.images.hero);
