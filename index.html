@@ -277,6 +277,7 @@
     <div class="tab-header">
         <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: block;">캐릭터</div>
         <div class="tab-btn" id="btn-tab-char" onclick="switchTab('tab-char')">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">시즌 <span id="noti-season" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-traits" onclick="switchTab('tab-traits')">직업전직 <span id="noti-traits" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-items" onclick="switchTab('tab-items')">장비/제작 <span id="noti-items" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-map" onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
@@ -381,16 +382,6 @@
     </div>
 
     <div id="tab-traits" class="tab-content">
-        <div id="season-content-section" style="display: none; margin-bottom: 20px;">
-            <h2>📦 시즌 콘텐츠 로드맵</h2>
-            <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
-        </div>
-
-        <div id="trait-season-section" style="display: none; margin-bottom: 30px;">
-            <h2>🔄 시즌 패시브 스킬 트리 (시즌: <span id="ui-season-text-tab">1</span>) <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span></span></h2>
-            <div class="trait-tree" id="ui-season-tree"></div>
-        </div>
-
         <h2>👑 전직 패시브 스킬 트리 <span class="h2-right">전직 포인트: <span id="ui-ascend-pts" style="color: #f1c40f; font-weight: bold;">0</span> / 6</span></h2>
 
         <div id="ui-class-select" style="display: none;">
@@ -405,6 +396,18 @@
 
         <div id="ui-class-locked" style="text-align: center; margin-top: 30px; color: #777;">
             🔒 전직 시련을 통과하여 포인트를 얻어야 직업을 선택할 수 있습니다.
+        </div>
+    </div>
+
+    <div id="tab-season" class="tab-content">
+        <div id="season-content-section" style="display: none; margin-bottom: 20px;">
+            <h2>📦 시즌 콘텐츠 로드맵</h2>
+            <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
+        </div>
+
+        <div id="trait-season-section" style="display: none; margin-bottom: 30px;">
+            <h2>🔄 시즌 패시브 스킬 트리 (시즌: <span id="ui-season-text-tab">1</span>) <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span></span></h2>
+            <div class="trait-tree" id="ui-season-tree"></div>
         </div>
     </div>
 
@@ -1108,8 +1111,8 @@ const defaultGame = {
     claimableActRewards: [],
     claimedActRewards: [],
     actRewardBonuses: [],
-    unlocks: { char: false, items: false, map: false, skills: false, traits: false },
-    noti: { char: false, items: false, skills: false, map: false, traits: false }
+    unlocks: { char: false, season: false, items: false, map: false, skills: false, traits: false },
+    noti: { char: false, season: false, items: false, skills: false, map: false, traits: false }
 };
 
 function clampNumber(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -2389,6 +2392,7 @@ const BATTLE_BACKDROP_VARIANTS = [
 const battleImageCanvasCache = new WeakMap();
 const TAB_UNLOCK_GATES = {
     'tab-char': 'char',
+    'tab-season': 'season',
     'tab-items': 'items',
     'tab-skills': 'skills',
     'tab-map': 'map',
@@ -5058,10 +5062,15 @@ function checkUnlocks() {
         game.noti.map = true;
         queueTutorialNotice('unlock_map', '지도 개방', '새 사냥터가 열렸습니다.\n원하는 지역으로 이동해 드랍과 속성을 조절할 수 있습니다.', 'tab-map');
     }
+    if (game.season > 1 && !u.season) {
+        u.season = true;
+        game.noti.season = true;
+        queueTutorialNotice('unlock_season_tab', '시즌 탭 개방', `시즌 ${game.season}에 도달했습니다!\n시즌 콘텐츠 로드맵과 시즌 패시브를 시즌 탭에서 확인할 수 있습니다.`, 'tab-season');
+    }
     if (((game.completedTrials || []).length > 0 || game.seasonPoints > 0 || game.season > 1) && !u.traits) {
         u.traits = true;
         game.noti.traits = true;
-        queueTutorialNotice('unlock_traits', '전직/환생 개방', '전직 시련과 환생 성장 탭이 열렸습니다.\n장기 성장 루트를 여기서 관리할 수 있습니다.', 'tab-traits');
+        queueTutorialNotice('unlock_traits', '전직 탭 개방', '전직 시련을 통과해 직업전직 탭이 열렸습니다.\n클래스를 선택하고 전직 노드를 활성화하세요.', 'tab-traits');
     }
 }
 
@@ -5168,6 +5177,7 @@ function buyAscend(id) {
 
 function getLockedTabMessage(tabId) {
     if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
+    if (tabId === 'tab-season') return '시즌 1을 클리어하면 시즌 탭이 열립니다.';
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비/제작 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';
     if (tabId === 'tab-map') return '새 사냥터를 발견하면 지도 탭이 열립니다.';
@@ -5184,7 +5194,7 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     document.getElementById('btn-' + tabId).classList.add('active');
-    ['char', 'items', 'skills', 'map', 'traits'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    ['char', 'season', 'items', 'skills', 'map', 'traits'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     updateStaticUI();
     if (tabId === 'tab-char') {
         setTimeout(function() {
@@ -6703,8 +6713,8 @@ function updateStaticUI() {
     updateCombatUI(pStats);
     drawPassiveTree();
 
-    ['char', 'items', 'skills', 'map', 'traits'].forEach(key => document.getElementById('noti-' + key).style.display = game.noti[key] ? 'block' : 'none');
-    ['char', 'items', 'skills', 'map', 'traits'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
+    ['char', 'season', 'items', 'skills', 'map', 'traits'].forEach(key => document.getElementById('noti-' + key).style.display = game.noti[key] ? 'block' : 'none');
+    ['char', 'season', 'items', 'skills', 'map', 'traits'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
     let summarySkillTreeBtn = document.getElementById('btn-summary-tab-char');
     if (summarySkillTreeBtn) {
         summarySkillTreeBtn.disabled = !game.unlocks.char;
@@ -6845,10 +6855,11 @@ function updateStaticUI() {
 
     let seasonVisible = game.season > 1 || game.seasonPoints > 0;
     document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
-    document.getElementById('season-content-section').style.display = game.season >= 1 ? 'block' : 'none';
-    document.getElementById('ui-season-content-roadmap').innerHTML = Object.keys(SEASON_CONTENT_ROADMAP).map(key => {
-        let seasonNum = parseInt(key, 10);
+    document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
+    let seasonRoadmapKeys = (game.unlockedSeasonContents || []).map(id => parseInt(String(id).replace('season_', ''), 10)).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
+    document.getElementById('ui-season-content-roadmap').innerHTML = seasonRoadmapKeys.map(seasonNum => {
         let def = SEASON_CONTENT_ROADMAP[seasonNum];
+        if (!def) return '';
         let unlocked = seasonNum <= game.season;
         let current = seasonNum === game.season;
         let stateColor = current ? '#f1c40f' : (unlocked ? '#2ecc71' : '#7f8c8d');
@@ -6859,7 +6870,7 @@ function updateStaticUI() {
             </div>
             <div style="color:#a8bdd3; font-size:0.82em; line-height:1.5;">${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
         </div>`;
-    }).join('');
+    }).join('') || `<div style="color:#7f8c8d;">시즌 1을 클리어하면 시즌 로드맵이 열립니다.</div>`;
     let renderSeasonNode = id => {
         let node = SEASON_NODES[id];
         let active = game.seasonNodes.includes(id);
