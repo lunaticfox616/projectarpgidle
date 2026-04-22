@@ -3114,6 +3114,40 @@ function buildBattleAssetAtlas() {
             height: Math.max(10, Math.round(part.height * scaleY))
         }));
     }
+    function buildHeroFrameSetFromDetectedRows(image) {
+        let detected = detectSpriteComponents(image, 650)
+            .filter(rect => rect.width >= 36 && rect.height >= 48)
+            .sort((a, b) => (a.y - b.y) || (a.x - b.x));
+        if (detected.length < 4) return null;
+        let rows = [];
+        let rowThreshold = Math.max(14, Math.round((image.height || 900) * 0.07));
+        detected.forEach(rect => {
+            let row = rows.find(entry => Math.abs(entry.anchorY - rect.y) <= rowThreshold);
+            if (!row) {
+                row = { anchorY: rect.y, items: [] };
+                rows.push(row);
+            }
+            row.items.push(rect);
+            row.anchorY = Math.round((row.anchorY * (row.items.length - 1) + rect.y) / row.items.length);
+        });
+        rows.sort((a, b) => a.anchorY - b.anchorY);
+        rows.forEach(row => row.items.sort((a, b) => a.x - b.x));
+        let walkRow = rows[0] ? rows[0].items : [];
+        let combatRow = rows[1] ? rows[1].items : walkRow;
+        if (walkRow.length === 0 || combatRow.length === 0) return null;
+        function trim(rect) {
+            return trimRectToContent(image, padSpriteRect(rect, image, 4), 2);
+        }
+        let walkA = trim(walkRow[0]);
+        let walkB = trim(walkRow[1] || walkRow[0]);
+        let frontIdle = trim(combatRow[0] || walkRow[0]);
+        let frontGuard = trim(combatRow[1] || combatRow[0] || walkRow[0]);
+        let sideIdle = trim(combatRow[2] || combatRow[1] || combatRow[0] || walkRow[0]);
+        let attack = trim(combatRow[3] || combatRow[2] || combatRow[1] || combatRow[0]);
+        let extraA = trim(combatRow[4] || combatRow[3] || combatRow[2] || combatRow[1] || combatRow[0]);
+        let extraB = trim(combatRow[5] || extraA || combatRow[3] || combatRow[2] || combatRow[1] || combatRow[0]);
+        return buildHeroFrameSet([frontIdle, frontGuard, sideIdle, attack, walkA, extraA, extraB, attack, walkB]);
+    }
     function buildHeroFrameSet(frames) {
         let base = (frames || []).filter(Boolean);
         let frontIdle = base[0];
@@ -3146,32 +3180,18 @@ function buildBattleAssetAtlas() {
         };
     }
     let heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
-    // 하드 매핑 우선: v2(1264x842) → v1(1536x1024)
+    // v2 하드 매핑 + 어떤 해상도든 커스텀/비표준 시트는 스케일/감지 fallback을 탄다.
     if (battleAssets.images.hero && isNearSize(battleAssets.images.hero, 1264, 842, 0.05)) {
         heroFrameSet = buildHeroFrameSet(heroFramesV2);
-    } else if (battleAssets.images.hero && isNearSize(battleAssets.images.hero, 1536, 1024, 0.03)) {
-        heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
-    } else if (battleAssets.images.hero && (battleAssets.images.hero.width < 1450 || battleAssets.images.hero.height < 980)) {
+        let detectedV2 = buildHeroFrameSetFromDetectedRows(battleAssets.images.hero);
+        if (detectedV2) heroFrameSet = detectedV2;
+    } else if (battleAssets.images.hero) {
         let scaledParts = buildScaledHeroParts(battleAssets.images.hero);
         let scaledFrames = scaledParts.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
         let scaledUsableCount = scaledFrames.filter(hasUsableFrame).length;
-        if (scaledUsableCount >= 5) {
-            heroFrameSet = buildHeroFrameSet(scaledFrames);
-        } else {
-            let detected = detectSpriteComponents(battleAssets.images.hero, 850)
-                .filter(rect => rect.width >= 44 && rect.height >= 54)
-                .sort((a, b) => b.area - a.area)
-                .slice(0, 8)
-                .sort((a, b) => a.x - b.x);
-            if (detected.length >= 5) {
-                let detectedFrames = detected.slice(0, 8).map(rect => trimRectToContent(
-                    battleAssets.images.hero,
-                    padSpriteRect(rect, battleAssets.images.hero, 4),
-                    2
-                ));
-                heroFrameSet = buildHeroFrameSet(detectedFrames);
-            }
-        }
+        if (scaledUsableCount >= 5) heroFrameSet = buildHeroFrameSet(scaledFrames);
+        let detectedCustom = buildHeroFrameSetFromDetectedRows(battleAssets.images.hero);
+        if (detectedCustom) heroFrameSet = detectedCustom;
     }
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(battleAssets.images.enemies, part, key === 'boss' ? 5 : 3)]));
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
