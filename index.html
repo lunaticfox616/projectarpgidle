@@ -3106,9 +3106,6 @@ function buildBattleAssetAtlas() {
         castCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
         frostCombo: [heroFramesLegacy[3], heroFramesLegacy[2]]
     };
-    function normalizeHeroFrame(component) {
-        return trimRectToContent(battleAssets.images.hero, padSpriteRect(component, battleAssets.images.hero, 2), 1);
-    }
     function tryBuildHeroFrameSetFromGrid(image) {
         if (!image || !image.width || !image.height) return null;
         if (image.width % 8 !== 0 || image.height % 6 !== 0) return null;
@@ -3158,55 +3155,6 @@ function buildBattleAssetAtlas() {
     let gridHeroFrameSet = tryBuildHeroFrameSetFromGrid(battleAssets.images.hero);
     if (gridHeroFrameSet) {
         heroFrameSet = gridHeroFrameSet;
-    } else {
-        const heroComponents = sortSheetComponents(detectSpriteComponents(battleAssets.images.hero, 100));
-        const heroRows = [];
-        heroComponents.forEach(component => {
-            let centerY = component.y + component.height * 0.5;
-            let target = heroRows.find(row => Math.abs(centerY - row.centerY) <= Math.max(18, row.avgHeight * 0.46));
-            if (!target) {
-                target = { centerY: centerY, avgHeight: component.height, entries: [] };
-                heroRows.push(target);
-            }
-            target.entries.push(component);
-            target.centerY = (target.centerY * (target.entries.length - 1) + centerY) / target.entries.length;
-            target.avgHeight = (target.avgHeight * (target.entries.length - 1) + component.height) / target.entries.length;
-        });
-        heroRows.sort((a, b) => a.centerY - b.centerY);
-        heroRows.forEach(row => row.entries.sort((a, b) => a.x - b.x));
-        function mapHeroRow(rowIndex) {
-            if (!heroRows[rowIndex]) return [];
-            return heroRows[rowIndex].entries.map(normalizeHeroFrame);
-        }
-        function getHeroFrameFromRow(rowIndex, frameIndex) {
-            let row = mapHeroRow(rowIndex);
-            if (row.length === 0) return null;
-            let idx = clampNumber(frameIndex, 0, row.length - 1);
-            return row[idx];
-        }
-        let hasRichHeroSheet = heroRows.length >= 4 && heroComponents.length >= 20;
-        if (hasRichHeroSheet) {
-            let walkRow = mapHeroRow(0);
-            let swordRow = mapHeroRow(1);
-            let chaosRow = mapHeroRow(2);
-            let lightningRow = mapHeroRow(3);
-            let castRow = mapHeroRow(4);
-            let frostRow = mapHeroRow(5);
-            heroFrameSet = {
-                frontIdle: getHeroFrameFromRow(1, 1) || getHeroFrameFromRow(0, 0) || heroFramesLegacy[0],
-                frontGuard: getHeroFrameFromRow(1, 2) || getHeroFrameFromRow(0, 1) || heroFramesLegacy[1],
-                sideIdle: getHeroFrameFromRow(0, 0) || getHeroFrameFromRow(1, 0) || heroFramesLegacy[2],
-                attack: getHeroFrameFromRow(1, 5) || getHeroFrameFromRow(1, 4) || heroFramesLegacy[3],
-                sideWalk: getHeroFrameFromRow(0, 1) || getHeroFrameFromRow(0, 0) || heroFramesLegacy[4],
-                walk: walkRow.length > 0 ? walkRow.slice(0, Math.min(4, walkRow.length)) : [heroFramesLegacy[4], heroFramesLegacy[2]],
-                swordCombo: swordRow.length > 0 ? swordRow : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
-                whirlCombo: swordRow.length > 0 ? swordRow.slice(0, Math.min(4, swordRow.length)) : [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
-                chaosCombo: chaosRow.length > 0 ? chaosRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
-                lightningCombo: lightningRow.length > 0 ? lightningRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
-                castCombo: castRow.length > 0 ? castRow : [heroFramesLegacy[3], heroFramesLegacy[2]],
-                frostCombo: frostRow.length > 0 ? frostRow : [heroFramesLegacy[3], heroFramesLegacy[2]]
-            };
-        }
     }
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(battleAssets.images.enemies, part, key === 'boss' ? 5 : 3)]));
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
