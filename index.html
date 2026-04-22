@@ -2732,8 +2732,9 @@ function initBattleAssets() {
     battleAssets.failedKeys = [];
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
     const loadTicket = battleAssets.loadTicket;
-    const defaultHeroSrc = 'assets/battle-hero-v1.png';
-    const legacyHeroSrc = 'assets/battle-hero-v2.png';
+    const customHeroSrc = getCustomHeroSheetDataUrl();
+    const defaultHeroSrc = customHeroSrc || 'assets/battle-hero-v2.png';
+    const legacyHeroSrc = 'assets/battle-hero-v1.png';
     const manifest = {
         hero: defaultHeroSrc,
         enemies: 'assets/battle-enemies-v1.png',
@@ -2770,7 +2771,7 @@ function initBattleAssets() {
                 if (key === 'backdrop') {
                     battleAssets.backdrops = [img];
                 } else {
-                    battleAssets.images[key] = (key === 'tiles' || key === 'hero') ? img : sanitizeBattleSheet(img);
+                    battleAssets.images[key] = key === 'tiles' ? img : sanitizeBattleSheet(img);
                 }
             } catch (error) {
                 battleAssets.images[key] = img;
@@ -2779,7 +2780,7 @@ function initBattleAssets() {
             finishLoad();
         };
         img.onerror = function() {
-            if (key === 'hero' && src === defaultHeroSrc) {
+            if (key === 'hero' && src === defaultHeroSrc && !customHeroSrc) {
                 img.src = legacyHeroSrc;
                 return;
             }
@@ -3092,22 +3093,55 @@ function buildBattleAssetAtlas() {
         { x: 1024, y: 630, width: 175, height: 187 }
     ];
     let heroFramesLegacy = heroParts.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
-    let heroFrameSet = {
-        frontIdle: heroFramesLegacy[0],
-        frontGuard: heroFramesLegacy[1],
-        sideIdle: heroFramesLegacy[2],
-        attack: heroFramesLegacy[3],
-        sideWalk: heroFramesLegacy[4],
-        walk: [heroFramesLegacy[4], heroFramesLegacy[2]],
-        swordCombo: [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
-        whirlCombo: [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
-        chaosCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
-        lightningCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
-        castCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
-        frostCombo: [heroFramesLegacy[3], heroFramesLegacy[2]]
-    };
-    // Hero frame parsing is intentionally fixed to legacy known-good slices to avoid
-    // popping square artifacts from malformed/custom sheet layouts.
+    function buildHeroFrameSet(frames) {
+        let base = (frames || []).filter(Boolean);
+        let frontIdle = base[0];
+        let frontGuard = base[1] || frontIdle;
+        let sideIdle = base[2] || frontIdle || frontGuard;
+        let attack = base[3] || sideIdle || frontIdle;
+        let sideWalk = base[4] || sideIdle || attack;
+        let rangedAttack = base[5] || attack;
+        let castAttack = base[6] || rangedAttack || attack;
+        let heavyAttack = base[7] || attack;
+        return {
+            frontIdle: frontIdle,
+            frontGuard: frontGuard,
+            sideIdle: sideIdle,
+            attack: attack,
+            sideWalk: sideWalk,
+            rangedAttack: rangedAttack,
+            castAttack: castAttack,
+            heavyAttack: heavyAttack,
+            idle: [frontIdle, frontGuard, sideIdle],
+            walk: [sideWalk, sideIdle, sideWalk, frontGuard],
+            swordCombo: [attack, sideIdle, attack],
+            whirlCombo: [attack, sideWalk, attack, sideIdle],
+            chaosCombo: [castAttack, sideIdle, attack],
+            lightningCombo: [rangedAttack, sideIdle, rangedAttack],
+            castCombo: [castAttack, frontGuard, castAttack],
+            frostCombo: [castAttack, sideIdle, frontGuard],
+            quakeCombo: [heavyAttack, attack, frontGuard],
+            projectileCombo: [rangedAttack, sideIdle, rangedAttack]
+        };
+    }
+    let heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
+    // v1(1536x1024)은 수동 좌표 슬라이스를 사용하고,
+    // v2/커스텀 시트처럼 레이아웃이 다른 경우에는 스프라이트 컴포넌트를 자동 감지한다.
+    if (battleAssets.images.hero && (battleAssets.images.hero.width < 1450 || battleAssets.images.hero.height < 980)) {
+        let detected = detectSpriteComponents(battleAssets.images.hero, 850)
+            .filter(rect => rect.width >= 44 && rect.height >= 54)
+            .sort((a, b) => b.area - a.area)
+            .slice(0, 8)
+            .sort((a, b) => a.x - b.x);
+        if (detected.length >= 5) {
+            let detectedFrames = detected.slice(0, 8).map(rect => trimRectToContent(
+                battleAssets.images.hero,
+                padSpriteRect(rect, battleAssets.images.hero, 4),
+                2
+            ));
+            heroFrameSet = buildHeroFrameSet(detectedFrames);
+        }
+    }
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(battleAssets.images.enemies, part, key === 'boss' ? 5 : 3)]));
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
     return {
@@ -5394,7 +5428,8 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now)
         let activeEnemies = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
         let isAdvancing = activeEnemies === 0 && game.moveTimer <= 0 && game.runProgress < 100;
         let isAttacking = !isAdvancing && Math.abs(swingPower) > 0.18;
-        let walkCycle = Array.isArray(frames.walk) && frames.walk.length > 0 ? frames.walk : [frames.sideWalk, frames.sideIdle].filter(Boolean);
+        let idleCycle = Array.isArray(frames.idle) && frames.idle.length > 0 ? frames.idle : [frames.sideIdle, frames.frontIdle, frames.frontGuard].filter(Boolean);
+        let walkCycle = Array.isArray(frames.walk) && frames.walk.length > 0 ? frames.walk : [frames.sideWalk, frames.sideIdle, frames.frontGuard].filter(Boolean);
         function pickCycle(list, speed, phaseOffset) {
             let sequence = (list || []).filter(Boolean);
             if (sequence.length === 0) return frames.attack || frames.sideIdle || frames.sideWalk;
@@ -5402,8 +5437,15 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now)
             return sequence[Math.floor(phase)];
         }
         function pickSkillAttackCycle() {
-            let skillName = game.activeSkill || '기본 공격';
-            if (skillName === '회오리바람') return frames.whirlCombo || frames.swordCombo;
+            let visual = skillVisual || getBattleSkillVisual(game.activeSkill || '기본 공격', SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격']);
+            let effect = visual && visual.effect ? visual.effect : 'slash';
+            if (effect === 'whirl') return frames.whirlCombo || frames.swordCombo;
+            if (effect === 'iceLance' || effect === 'nova') return frames.frostCombo || frames.castCombo || frames.swordCombo;
+            if (effect === 'chain' || effect === 'storm' || effect === 'lightSpear') return frames.lightningCombo || frames.projectileCombo || frames.castCombo;
+            if (effect === 'poisonDart' || effect === 'arrow' || effect === 'projectile') return frames.projectileCombo || frames.lightningCombo || frames.swordCombo;
+            if (effect === 'slam' || effect === 'quake' || effect === 'magma') return frames.quakeCombo || frames.swordCombo;
+            if (effect === 'voidSlash' || effect === 'shadowSlash' || effect === 'drain') return frames.chaosCombo || frames.swordCombo;
+            if (effect === 'flameSlash' || effect === 'flurry') return frames.swordCombo || frames.whirlCombo;
             return frames.swordCombo;
         }
         function pickAttackFrame(list) {
@@ -5415,11 +5457,13 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now)
         }
         let frame = isAdvancing
             ? pickCycle(walkCycle, 95, 0)
-            : pickCycle([frames.sideIdle || frames.frontIdle || frames.sideWalk], 400, 0);
+            : pickCycle(idleCycle, 380, 0);
         if (isAttacking) frame = pickAttackFrame(pickSkillAttackCycle());
         let stepOffset = isAdvancing ? Math.sin(now / 110) * 1.8 : 0;
         drawPixelShadow(ctx, x, y + 15, 10, 4, 0.16);
-        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7, 54, {});
+        let normalizedHeroSize = 50;
+        if (frame && frame.height) normalizedHeroSize = clampNumber(50 * (190 / frame.height), 42, 58);
+        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7, normalizedHeroSize, {});
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.18;
