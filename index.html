@@ -165,6 +165,8 @@
         .bulk-salvage-filters { display: flex; flex-wrap: wrap; gap: 12px; color: #c9d7e5; }
         .bulk-salvage-filters label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.86em; }
         .bulk-salvage-action { background: linear-gradient(180deg, #596b7d 0%, #44515f 100%); border-color: #7d8d9e; }
+        .jewel-salvage-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:8px 0; padding:8px 10px; background:#0f1620; border:1px solid #29415a; border-radius:8px; }
+        .jewel-salvage-filters { display:flex; gap:10px; flex-wrap:wrap; font-size:0.82em; color:#b9cde2; }
 
         @media (max-width: 1480px) {
             #left-pane { width: 540px; min-width: 540px; }
@@ -275,6 +277,7 @@
     <div class="tab-header">
         <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: block;">캐릭터</div>
         <div class="tab-btn" id="btn-tab-char" onclick="switchTab('tab-char')">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">시즌 <span id="noti-season" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-traits" onclick="switchTab('tab-traits')">직업전직 <span id="noti-traits" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-items" onclick="switchTab('tab-items')">장비/제작 <span id="noti-items" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-map" onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
@@ -379,16 +382,6 @@
     </div>
 
     <div id="tab-traits" class="tab-content">
-        <div id="season-content-section" style="display: none; margin-bottom: 20px;">
-            <h2>📦 시즌 콘텐츠 로드맵</h2>
-            <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
-        </div>
-
-        <div id="trait-season-section" style="display: none; margin-bottom: 30px;">
-            <h2>🔄 시즌 패시브 스킬 트리 (시즌: <span id="ui-season-text-tab">1</span>) <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span></span></h2>
-            <div class="trait-tree" id="ui-season-tree"></div>
-        </div>
-
         <h2>👑 전직 패시브 스킬 트리 <span class="h2-right">전직 포인트: <span id="ui-ascend-pts" style="color: #f1c40f; font-weight: bold;">0</span> / 6</span></h2>
 
         <div id="ui-class-select" style="display: none;">
@@ -406,10 +399,23 @@
         </div>
     </div>
 
+    <div id="tab-season" class="tab-content">
+        <div id="season-content-section" style="display: none; margin-bottom: 20px;">
+            <h2>📦 시즌 콘텐츠 로드맵</h2>
+            <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
+        </div>
+
+        <div id="trait-season-section" style="display: none; margin-bottom: 30px;">
+            <h2>🔄 시즌 패시브 스킬 트리 (시즌: <span id="ui-season-text-tab">1</span>) <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span></span></h2>
+            <div class="trait-tree" id="ui-season-tree"></div>
+        </div>
+    </div>
+
     <div id="tab-items" class="tab-content">
         <div class="subtab-row">
             <button class="subtab-btn active" id="btn-item-tab-equip" onclick="switchItemSubtab('item-tab-equip')">장비 창</button>
             <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')">제작실</button>
+            <button class="subtab-btn" id="btn-item-tab-fossil" onclick="switchItemSubtab('item-tab-fossil')">화석 제작대</button>
         </div>
 
         <div id="item-tab-equip" class="subtab-content active">
@@ -431,10 +437,19 @@
             <div class="inventory-grid" id="ui-inventory-list"></div>
 
             <h2 style="margin-top: 20px; color: #8fd3ff; display: none;" id="ui-jewel-header">💠 주얼 장착</h2>
-            <div id="ui-jewel-panel" style="display: none; background:#11151c; border:1px solid #2b3a4d; border-radius:10px; padding:10px;">
+        <div id="ui-jewel-panel" style="display: none; background:#11151c; border:1px solid #2b3a4d; border-radius:10px; padding:10px;">
+                <div id="ui-jewel-cap" style="color:#9ac5ec; font-size:0.84em; margin-bottom:6px;"></div>
+                <div class="jewel-salvage-bar">
+                    <div class="jewel-salvage-filters">
+                        <label><input type="checkbox" id="chk-jewel-salvage-normal" checked> 일반</label>
+                        <label><input type="checkbox" id="chk-jewel-salvage-magic" checked> 매직</label>
+                        <label><input type="checkbox" id="chk-jewel-salvage-rare" checked> 레어</label>
+                    </div>
+                    <button class="bulk-salvage-action" onclick="bulkSalvageJewels()">선택 등급 해체</button>
+                </div>
                 <div id="ui-jewel-slots" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;"></div>
                 <div id="ui-jewel-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"></div>
-            </div>
+        </div>
         </div>
 
         <div id="item-tab-craft" class="subtab-content">
@@ -456,7 +471,7 @@
                             <button id="btn-orb-tainted" onclick="useCurrency('tainted')">타락의 오브 사용</button>
                             <button id="btn-boss-gem-up" onclick="upgradeActiveGem('bossCore', 1)">군주의 핵으로 젬 강화</button>
                             <button id="btn-sky-gem-up" onclick="upgradeActiveGem('skyEssence', 1)">창공의 힘으로 젬 강화</button>
-                            <button id="btn-fossil-craft" onclick="applyFossilCraft()">미궁 화석으로 원하는 옵션 부여</button>
+                            <button id="btn-fossil-craft" onclick="applyFossilCraft()">기본 화석 정제</button>
                         </div>
                     </div>
 
@@ -475,6 +490,32 @@
                 <div>
                     <h3>인벤토리</h3>
                     <div class="inventory-grid" id="ui-craft-inventory-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="item-tab-fossil" class="subtab-content">
+            <div class="forge-panel" style="border-color:#3f5d83;">
+                <h3>🪨 화석 제작대</h3>
+                <div class="craft-layout">
+                    <div>
+                        <div class="craft-selected" id="fossil-item-display">아이템을 클릭하여 선택</div>
+                        <div class="craft-actions" id="ui-fossil-actions"></div>
+                    </div>
+                    <div>
+                        <div id="ui-fossil-info" style="background:#101923; border:1px solid #29415a; border-radius:8px; padding:10px; color:#b9cde2; font-size:0.83em;"></div>
+                    </div>
+                </div>
+            </div>
+            <h2>🛠️ 화석 제작 대상 선택</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <h3>장착 장비</h3>
+                    <div class="paperdoll" id="ui-fossil-equip-list"></div>
+                </div>
+                <div>
+                    <h3>인벤토리</h3>
+                    <div class="inventory-grid" id="ui-fossil-inventory-list"></div>
                 </div>
             </div>
         </div>
@@ -499,6 +540,11 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;" id="ui-skills-list"></div>
         <h2><span>🟢 보조 스킬</span> <span class="h2-right">장착 가능: <span id="ui-supp-count">0</span> / <span id="ui-supp-max">1</span></span></h2>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;" id="ui-support-list"></div>
+        <h2 id="ui-gem-enhance-header" style="margin-top:20px; display:none;">☁️ 스킬 젬 강화 탭</h2>
+        <div id="ui-gem-enhance-panel" style="display:none; background:#11151c; border:1px solid #32506d; border-radius:10px; padding:12px;">
+            <div id="ui-gem-enhance-target" style="color:#c8dcf1; margin-bottom:8px;"></div>
+            <div id="ui-gem-enhance-options" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"></div>
+        </div>
     </div>
 
     <div id="tab-settings" class="tab-content active">
@@ -719,7 +765,16 @@ const SEASON_NODES = {
     s_dmg: { name: '전사의 혼', desc: '피해 +30%', stat: 'pctDmg', val: 30, req: 's_root' },
     s_hp: { name: '거인의 혼', desc: '생명력 +30%', stat: 'pctHp', val: 30, req: 's_root' },
     s_crit: { name: '정밀 타격', desc: '치명타 +10%', stat: 'crit', val: 10, req: 's_dmg' },
-    s_leech: { name: '흡혈귀의 피', desc: '피흡 +3%', stat: 'leech', val: 3, req: 's_hp' }
+    s_leech: { name: '질주의 피', desc: '이동 속도 +8%', stat: 'move', val: 8, req: 's_hp' }
+};
+
+const JEWEL_INVENTORY_LIMIT = 40;
+const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare'];
+const GEM_SKY_ENHANCEMENTS = {
+    sky_fury: { id: 'sky_fury', name: '폭풍 충전', desc: '스킬 피해 +8%', stat: 'pctDmg', val: 8 },
+    sky_swiftness: { id: 'sky_swiftness', name: '질풍 각인', desc: '스킬 공격속도 +8%', stat: 'aspd', val: 8 },
+    sky_precision: { id: 'sky_precision', name: '창공의 눈', desc: '스킬 치명타 확률 +6%', stat: 'crit', val: 6 },
+    sky_blood: { id: 'sky_blood', name: '비상의 맥박', desc: '스킬 흡수 +1.5%', stat: 'leech', val: 1.5 }
 };
 
 const P_STATS = {
@@ -823,6 +878,22 @@ const MOD_DB = [
     { id: 'suppCap', type: 'special', statName: '보조 스킬 젬 한도', slots: ['목걸이'], base: 1, step: 0 }
 ];
 
+const FOSSIL_DB = [
+    { key: 'fossilJagged', name: '톱니 화석', desc: '카오스 재련 + 물리/근접 계열 옵션 1개 확정', guaranteedStats: ['physPctDmg', 'meleePctDmg', 'flatDmg'] },
+    { key: 'fossilBound', name: '속박 화석', desc: '카오스 재련 + 생명/방어 계열 옵션 1개 확정', guaranteedStats: ['flatHp', 'pctHp', 'dr'] },
+    { key: 'fossilGale', name: '돌풍 화석', desc: '카오스 재련 + 속도/치명 계열 옵션 1개 확정', guaranteedStats: ['aspd', 'crit', 'move'] },
+    { key: 'fossilPrismatic', name: '프리즘 화석', desc: '카오스 재련 + 저항/원소 계열 옵션 1개 확정', guaranteedStats: ['resAll', 'resF', 'resC', 'resL', 'elementalPctDmg'] },
+    { key: 'fossilAbyssal', name: '심연 화석', desc: '카오스 재련 + 화석 전용 특수 옵션 등장 확률 대폭 증가', guaranteedStats: ['chaosPctDmg', 'leech', 'regen'], bonusExclusiveChance: 0.42 }
+];
+
+const FOSSIL_EXCLUSIVE_MODS = [
+    { id: 'fossilVoidHeart', type: 'special', statName: '심연 맥동 (카오스 피해%)', slots: ['무기', '목걸이', '반지'], base: 10, step: 5, fossilExclusive: true },
+    { id: 'fossilWarMarch', type: 'special', statName: '군단 진군 (이동 속도%)', slots: ['신발', '허리띠'], base: 8, step: 3, fossilExclusive: true },
+    { id: 'fossilSoulWard', type: 'special', statName: '영혼 수호 (모든 원소 저항%)', slots: ['갑옷', '투구', '허리띠'], base: 8, step: 3, fossilExclusive: true },
+    { id: 'fossilGemPulse', type: 'special', statName: '룬 맥동 (스킬 젬 레벨)', slots: ['목걸이'], base: 1, step: 0, fossilExclusive: true },
+    { id: 'fossilSupportLink', type: 'special', statName: '결속 잔향 (보조 젬 한도)', slots: ['목걸이'], base: 1, step: 0, fossilExclusive: true }
+];
+
 const BASE_ITEM_DB = [
     { id: 'rusted_blade', slot: '무기', name: '녹슨 검', reqTier: 1, baseStats: [{ id: 'flatDmg', base: 4 }] },
     { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 도끼', reqTier: 3, baseStats: [{ id: 'flatDmg', base: 8 }, { id: 'crit', base: 3 }] },
@@ -886,10 +957,15 @@ const ORB_DB = {
     bossKeyFrost: { name: '열쇠: 서리 여제', desc: '시즌2 보스 [글라시아] 도전권입니다.' },
     bossKeyStorm: { name: '열쇠: 폭풍 군단장', desc: '시즌2 보스 [볼타] 도전권입니다.' },
     bossCore: { name: '군주의 핵', desc: '시즌2 보스를 처치하면 얻는 젬 강화 재료입니다.' },
-    fossil: { name: '미궁 화석', desc: '시즌3 미궁 전용 재료. 제작대에서 원하는 옵션을 부여합니다.' },
-    skyEssence: { name: '창공의 힘', desc: '시즌4 창공 몬스터에게서 얻는 젬 강화 재료입니다.' },
+    fossil: { name: '미궁 화석', desc: '기본 화석 조각입니다. 미궁에서 다양한 타입의 화석으로 정제됩니다.' },
+    fossilJagged: { name: '톱니 화석', desc: '물리/근접 계열 옵션 하나를 확정한 카오스 재련을 합니다.' },
+    fossilBound: { name: '속박 화석', desc: '생명/방어 계열 옵션 하나를 확정한 카오스 재련을 합니다.' },
+    fossilGale: { name: '돌풍 화석', desc: '속도/치명 계열 옵션 하나를 확정한 카오스 재련을 합니다.' },
+    fossilPrismatic: { name: '프리즘 화석', desc: '저항/원소 계열 옵션 하나를 확정한 카오스 재련을 합니다.' },
+    fossilAbyssal: { name: '심연 화석', desc: '화석 전용 특수 옵션이 높은 확률로 등장하는 카오스 재련을 합니다.' },
+    skyEssence: { name: '창공의 힘', desc: '시즌4 창공 몬스터에게서 얻는 젬 강화 재료입니다. 스킬 탭의 젬 강화에서 특수 옵션을 부여합니다.' },
     tainted: { name: '타락의 오브', desc: '아이템을 타락시켜 추가 옵션을 시도합니다. 타락 후 제작 불가.' },
-    jewelCore: { name: '주얼 핵', desc: '시즌5 주얼 시스템에 사용되는 재료입니다.' },
+    jewelCore: { name: '주얼 핵', desc: '주얼 해체/드랍 분리용 재료. 주얼 해체 시 추가로 획득합니다.' },
     talismanCore: { name: '부적 핵', desc: '시즌6 부적 시스템 관련 재료입니다.' }
 };
 const ACT_REWARD_DB = {
@@ -1017,7 +1093,7 @@ const defaultGame = {
     itemSubtab: 'item-tab-equip',
     equipment: { '무기': null, '투구': null, '갑옷': null, '장갑': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '허리띠': null },
     inventory: [],
-    currencies: { transmute: 0, augment: 0, alchemy: 0, exalted: 0, chaos: 0, divine: 0, scour: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, bossCore: 0, fossil: 0, skyEssence: 0, tainted: 0, jewelCore: 0, talismanCore: 0 },
+    currencies: { transmute: 0, augment: 0, alchemy: 0, exalted: 0, chaos: 0, divine: 0, scour: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, bossCore: 0, fossil: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, talismanCore: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendNodes: [],
@@ -1028,14 +1104,15 @@ const defaultGame = {
     labyrinthFloor: 1,
     jewelInventory: [],
     jewelSlots: [null, null],
+    skyGemEnhancements: {},
     unlockedSeasonContents: ['season_1'],
     seenSeasonContentNotices: ['season_1'],
     seenTutorials: [],
     claimableActRewards: [],
     claimedActRewards: [],
     actRewardBonuses: [],
-    unlocks: { char: false, items: false, map: false, skills: false, traits: false },
-    noti: { char: false, items: false, skills: false, map: false, traits: false }
+    unlocks: { char: false, season: false, items: false, map: false, skills: false, traits: false },
+    noti: { char: false, season: false, items: false, skills: false, map: false, traits: false }
 };
 
 function clampNumber(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -2315,6 +2392,7 @@ const BATTLE_BACKDROP_VARIANTS = [
 const battleImageCanvasCache = new WeakMap();
 const TAB_UNLOCK_GATES = {
     'tab-char': 'char',
+    'tab-season': 'season',
     'tab-items': 'items',
     'tab-skills': 'skills',
     'tab-map': 'map',
@@ -3537,7 +3615,67 @@ function generateJewelDrop(zoneTier) {
     ];
     let pick = rndChoice(pool);
     let val = pick.min + Math.floor(Math.random() * (pick.max - pick.min + 1));
-    return { id: Date.now() + Math.floor(Math.random() * 100000), name: pick.name, tier: zoneTier, stat: { id: pick.id, val: val } };
+    let tierBoost = Math.max(0, zoneTier - 8);
+    if (tierBoost >= 6) val += Math.floor(Math.random() * 3) + 1;
+    let rarityRoll = Math.random();
+    let rarity = 'normal';
+    if (rarityRoll > 0.9) rarity = 'rare';
+    else if (rarityRoll > 0.55) rarity = 'magic';
+    if (rarity === 'magic') val = Math.floor(val * 1.22);
+    if (rarity === 'rare') val = Math.floor(val * 1.45);
+    return { id: Date.now() + Math.floor(Math.random() * 100000), name: pick.name, tier: zoneTier, rarity: rarity, stat: { id: pick.id, val: val } };
+}
+
+function getJewelRarityLabel(rarity) {
+    if (rarity === 'rare') return '레어';
+    if (rarity === 'magic') return '매직';
+    return '일반';
+}
+
+function getJewelRarityClass(rarity) {
+    if (rarity === 'rare') return 'rare';
+    if (rarity === 'magic') return 'magic';
+    return 'normal';
+}
+
+function salvageJewelObject(jewel, silent) {
+    if (!jewel || !jewel.stat) return;
+    let rarity = jewel.rarity || 'normal';
+    let coreGain = rarity === 'rare' ? 3 : (rarity === 'magic' ? 2 : 1);
+    awardCurrency('jewelCore', coreGain);
+    if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (+주얼 핵 ${coreGain})`, 'loot-normal');
+}
+
+function salvageJewel(idx) {
+    let jewel = (game.jewelInventory || [])[idx];
+    if (!jewel) return;
+    salvageJewelObject(jewel, false);
+    game.jewelInventory.splice(idx, 1);
+    updateStaticUI();
+}
+
+function bulkSalvageJewels() {
+    game.jewelInventory = game.jewelInventory || [];
+    let selectedRarities = JEWEL_RARITY_ORDER.filter(rarity => {
+        let el = document.getElementById(`chk-jewel-salvage-${rarity}`);
+        return el && el.checked;
+    });
+    if (selectedRarities.length === 0) return addLog('주얼 해체 등급을 선택하세요.', 'attack-monster');
+    let kept = [];
+    let removed = 0;
+    game.jewelInventory.forEach(jewel => {
+        let rarity = jewel.rarity || 'normal';
+        if (selectedRarities.includes(rarity)) {
+            salvageJewelObject(jewel, true);
+            removed++;
+        } else {
+            kept.push(jewel);
+        }
+    });
+    if (removed === 0) return addLog('선택한 등급의 주얼이 없습니다.', 'attack-monster');
+    game.jewelInventory = kept;
+    addLog(`💠 주얼 ${removed}개를 해체해 주얼 핵을 회수했습니다.`, 'loot-normal');
+    updateStaticUI();
 }
 
 function equipJewel(idx, slotIndex) {
@@ -3556,6 +3694,7 @@ function unequipJewel(slotIndex) {
     let jewel = game.jewelSlots[slotIndex];
     if (!jewel) return;
     game.jewelInventory = game.jewelInventory || [];
+    if (game.jewelInventory.length >= JEWEL_INVENTORY_LIMIT) return addLog(`주얼 인벤토리가 가득 찼습니다. (최대 ${JEWEL_INVENTORY_LIMIT})`, 'attack-monster');
     game.jewelInventory.push(jewel);
     game.jewelSlots[slotIndex] = null;
     updateStaticUI();
@@ -3711,25 +3850,87 @@ function upgradeActiveGem(materialKey, amount) {
     if (!gem || !SKILL_DB[active] || !SKILL_DB[active].isGem) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
     game.currencies[materialKey] -= amount;
     gem.level = Math.min(30, gem.level + 1);
-    addLog(`💎 [${active}] 젬이 강화되어 Lv.${gem.level}이 되었습니다.`, 'loot-unique');
+    if (materialKey === 'bossCore') addLog(`💎 [${active}] 젬이 강화되어 Lv.${gem.level}이 되었습니다.`, 'loot-unique');
+    else addLog(`☁️ [${active}] 젬이 강화되어 Lv.${gem.level}이 되었습니다. 특수 옵션은 스킬 탭에서 부여할 수 있습니다.`, 'loot-unique');
+    updateStaticUI();
+}
+
+function getSkyEnhancementForSkill(skillName) {
+    let pool = (game.skyGemEnhancements && game.skyGemEnhancements[skillName]) || [];
+    return Array.isArray(pool) ? pool : [];
+}
+
+function applySkyGemEnhancementToActive(enhanceId) {
+    if ((game.season || 1) < 4) return addLog('창공의 힘은 시즌4부터 사용할 수 있습니다.', 'attack-monster');
+    if ((game.currencies.skyEssence || 0) <= 0) return addLog('창공의 힘이 부족합니다.', 'attack-monster');
+    let active = game.activeSkill;
+    let gem = game.gemData[active];
+    if (!gem || !SKILL_DB[active] || !SKILL_DB[active].isGem) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
+    let enhance = GEM_SKY_ENHANCEMENTS[enhanceId];
+    if (!enhance) return;
+    game.skyGemEnhancements = game.skyGemEnhancements || {};
+    game.skyGemEnhancements[active] = Array.isArray(game.skyGemEnhancements[active]) ? game.skyGemEnhancements[active] : [];
+    if (game.skyGemEnhancements[active].includes(enhanceId)) return addLog('이미 해당 젬에 적용된 특수 옵션입니다.', 'attack-monster');
+    if (game.skyGemEnhancements[active].length >= 2) return addLog('젬 특수 옵션은 최대 2개까지 부여할 수 있습니다.', 'attack-monster');
+    game.currencies.skyEssence--;
+    game.skyGemEnhancements[active].push(enhanceId);
+    addLog(`☁️ [${active}] 젬에 '${enhance.name}' 옵션을 부여했습니다.`, 'loot-unique');
     updateStaticUI();
 }
 
 function applyFossilCraft() {
     if ((game.season || 1) < 3) return addLog('미궁 제작은 시즌3부터 사용할 수 있습니다.', 'attack-monster');
+    if ((game.currencies.fossil || 0) <= 0) return addLog('미궁 화석이 부족합니다.', 'attack-monster');
+    game.currencies.fossil--;
+    let randomFossil = rndChoice(FOSSIL_DB);
+    game.currencies[randomFossil.key] = (game.currencies[randomFossil.key] || 0) + 1;
+    addLog(`🪨 기본 화석을 정제해 [${randomFossil.name}] 1개를 획득했습니다.`, 'loot-magic');
+    updateStaticUI();
+}
+
+function getFossilExclusivePool(item) {
+    let existing = new Set((item.stats || []).map(stat => stat.id));
+    return FOSSIL_EXCLUSIVE_MODS
+        .filter(mod => mod.slots.includes(item.slot))
+        .filter(mod => !existing.has(mod.id))
+        .map(mod => ({
+            ...mod,
+            id: mod.id === 'fossilVoidHeart' ? 'chaosPctDmg' : (mod.id === 'fossilWarMarch' ? 'move' : (mod.id === 'fossilSoulWard' ? 'resAll' : (mod.id === 'fossilGemPulse' ? 'gemLevel' : 'suppCap')))
+        }));
+}
+
+function applyFossilChaosCraft(fossilKey) {
+    if ((game.season || 1) < 3) return addLog('미궁 제작은 시즌3부터 사용할 수 있습니다.', 'attack-monster');
+    let fossil = FOSSIL_DB.find(entry => entry.key === fossilKey);
+    if (!fossil) return;
+    if ((game.currencies[fossilKey] || 0) <= 0) return addLog(`${fossil.name}이 부족합니다.`, 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (item.corrupted) return addLog('타락한 아이템은 제작할 수 없습니다.', 'attack-monster');
-    if ((game.currencies.fossil || 0) <= 0) return addLog('미궁 화석이 부족합니다.', 'attack-monster');
-    let mods = getAvailableMods(item);
-    if (mods.length === 0) return addLog('해당 아이템은 더 이상 옵션을 추가할 수 없습니다.', 'attack-monster');
-    let mod = mods[0];
-    item.stats.push(rollAffixValue(mod, item.itemTier || getZone(game.currentZoneId).tier));
-    game.currencies.fossil--;
-    if (item.rarity === 'normal') item.rarity = 'magic';
-    if (item.rarity === 'magic' && item.stats.length >= 3) item.rarity = 'rare';
+    let guaranteedPool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && fossil.guaranteedStats.includes(mod.id));
+    if (guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
+
+    let maxTier = item.itemTier || getZone(game.currentZoneId).tier;
+    let guaranteed = rndChoice(guaranteedPool);
+    let newStats = [rollAffixValue(guaranteed, maxTier)];
+
+    let count = 4 + Math.floor(Math.random() * 2);
+    let includeExclusive = Math.random() < (fossil.bonusExclusiveChance || 0.16);
+    if (includeExclusive) {
+        let exclusivePool = getFossilExclusivePool({ ...item, stats: newStats });
+        if (exclusivePool.length > 0) newStats.push(rollAffixValue(rndChoice(exclusivePool), maxTier));
+    }
+    while (newStats.length < Math.min(6, count)) {
+        let blocked = new Set(newStats.map(stat => stat.id));
+        let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blocked.has(mod.id));
+        if (pool.length === 0) break;
+        newStats.push(rollAffixValue(rndChoice(pool), maxTier));
+    }
+    item.stats = newStats;
+    item.rarity = 'rare';
+    game.currencies[fossilKey]--;
     updateItemName(item);
-    addLog(`🪨 미궁 화석으로 [${mod.statName}] 옵션을 부여했습니다.`, 'loot-magic');
+    addLog(`🪨 ${fossil.name} 재련 성공! 확정 옵션: [${guaranteed.statName}]`, 'loot-magic');
     updateStaticUI();
 }
 
@@ -3785,6 +3986,14 @@ function getActiveSkillStats(bonusLevel) {
         if (game.activeSkill === '흡혈 타격') stats.leech *= 2;
         if (game.activeSkill === '암살자의 일격') stats.crit += 15;
     }
+    getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
+        let enh = GEM_SKY_ENHANCEMENTS[id];
+        if (!enh) return;
+        if (enh.stat === 'pctDmg') stats.dmg *= (1 + enh.val / 100);
+        if (enh.stat === 'aspd') stats.spd *= (1 + enh.val / 100);
+        if (enh.stat === 'crit') stats.crit += enh.val;
+        if (enh.stat === 'leech') stats.leech += enh.val;
+    });
     return stats;
 }
 
@@ -4193,7 +4402,8 @@ function createEnemy(zone, marker, groupIndex) {
         let bossName = zone.type === 'trial' ? `${zone.name} 수호자` : (zone.type === 'seasonBoss' ? zone.name : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`));
         name = `👿 ${bossName}`;
     }
-    let variantSeed = ((zone.id + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
+    let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
+    let variantSeed = ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
     if (trait && trait.hpMul) hp = Math.floor(hp * trait.hpMul);
     let isSky = (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
@@ -4205,7 +4415,7 @@ function createEnemy(zone, marker, groupIndex) {
         name: name,
         isElite: isElite,
         isBoss: isBoss,
-        attackTimer: ((zone.id + 1) * 13 + (marker.at || 0) * 3 + groupIndex * 7) % 10 / 20,
+        attackTimer: (((zoneSeed + 1) * 13 + (marker.at || 0) * 3 + groupIndex * 7) % 10) / 20,
         spawnAt: marker.at,
         groupIndex: groupIndex,
         variantSeed: variantSeed,
@@ -4504,8 +4714,13 @@ function rollLootForEnemy(enemy) {
     if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.12) {
         let jewel = generateJewelDrop((getZone(game.currentZoneId) || { tier: 1 }).tier || 1);
         game.jewelInventory = game.jewelInventory || [];
-        game.jewelInventory.push(jewel);
-        if (game.settings.showLootLog) addLog(`💠 주얼 [${jewel.name}] 획득! (${getStatName(jewel.stat.id)} +${jewel.stat.val})`, 'loot-rare');
+        if (game.jewelInventory.length >= JEWEL_INVENTORY_LIMIT) {
+            salvageJewelObject(jewel, true);
+            if (game.settings.showLootLog) addLog(`💠 주얼 인벤토리 초과로 [${jewel.name}] 자동 해체`, 'attack-monster');
+        } else {
+            game.jewelInventory.push(jewel);
+            if (game.settings.showLootLog) addLog(`💠 ${getJewelRarityLabel(jewel.rarity)} 주얼 [${jewel.name}] 획득! (${getStatName(jewel.stat.id)} +${jewel.stat.val})`, 'loot-rare');
+        }
     }
 }
 
@@ -4522,9 +4737,15 @@ function finishEncounterRun() {
     game.killsInZone++;
 
     if (zone.type === 'trial') {
-        if (!game.completedTrials.includes(zone.id)) game.completedTrials.push(zone.id);
+        let isFirstClear = !game.completedTrials.includes(zone.id);
+        if (isFirstClear) game.completedTrials.push(zone.id);
         game.ascendPoints += 2;
+        if (!game.unlocks.traits) game.unlocks.traits = true;
         game.noti.traits = true;
+        if (zone.id === 'trial_1' && isFirstClear) {
+            queueTutorialNotice('unlock_first_ascend', '1차 전직 해금', '1차 전직 시련을 통과했습니다!\n직업전직 탭에서 클래스를 선택하고 전직 노드를 활성화하세요.', 'tab-traits');
+        }
+        checkUnlocks();
         addLog(`👑 [${zone.name}] 통과! 전직 포인트 2점 획득!`, "loot-unique");
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
@@ -4549,8 +4770,14 @@ function finishEncounterRun() {
     if (zone.type === 'labyrinth') {
         game.labyrinthFloor = (game.labyrinthFloor || 1) + 1;
         awardCurrency('fossil', 1);
+        let rolledFossil = rndChoice(FOSSIL_DB);
+        awardCurrency(rolledFossil.key, 1);
+        if (Math.random() < 0.06) {
+            awardCurrency('fossilAbyssal', 1);
+            addLog('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
+        }
         if ((game.season || 1) >= 6 && Math.random() < 0.25) awardCurrency('talismanCore', 1);
-        addLog(`🏛️ 미궁 ${game.labyrinthFloor}층으로 진입합니다. [미궁 화석 +1]`, 'season-up');
+        addLog(`🏛️ 미궁 ${game.labyrinthFloor}층으로 진입합니다. [기본 화석 +1 / ${rolledFossil.name} +1]`, 'season-up');
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
@@ -4835,10 +5062,15 @@ function checkUnlocks() {
         game.noti.map = true;
         queueTutorialNotice('unlock_map', '지도 개방', '새 사냥터가 열렸습니다.\n원하는 지역으로 이동해 드랍과 속성을 조절할 수 있습니다.', 'tab-map');
     }
+    if (game.season > 1 && !u.season) {
+        u.season = true;
+        game.noti.season = true;
+        queueTutorialNotice('unlock_season_tab', '시즌 탭 개방', `시즌 ${game.season}에 도달했습니다!\n시즌 콘텐츠 로드맵과 시즌 패시브를 시즌 탭에서 확인할 수 있습니다.`, 'tab-season');
+    }
     if (((game.completedTrials || []).length > 0 || game.seasonPoints > 0 || game.season > 1) && !u.traits) {
         u.traits = true;
         game.noti.traits = true;
-        queueTutorialNotice('unlock_traits', '전직/환생 개방', '전직 시련과 환생 성장 탭이 열렸습니다.\n장기 성장 루트를 여기서 관리할 수 있습니다.', 'tab-traits');
+        queueTutorialNotice('unlock_traits', '전직 탭 개방', '전직 시련을 통과해 직업전직 탭이 열렸습니다.\n클래스를 선택하고 전직 노드를 활성화하세요.', 'tab-traits');
     }
 }
 
@@ -4945,6 +5177,7 @@ function buyAscend(id) {
 
 function getLockedTabMessage(tabId) {
     if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
+    if (tabId === 'tab-season') return '시즌 1을 클리어하면 시즌 탭이 열립니다.';
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비/제작 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';
     if (tabId === 'tab-map') return '새 사냥터를 발견하면 지도 탭이 열립니다.';
@@ -4961,7 +5194,7 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     document.getElementById('btn-' + tabId).classList.add('active');
-    ['char', 'items', 'skills', 'map', 'traits'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    ['char', 'season', 'items', 'skills', 'map', 'traits'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     updateStaticUI();
     if (tabId === 'tab-char') {
         setTimeout(function() {
@@ -6466,6 +6699,7 @@ function renderInventoryCard(item, idx, mode) {
     if ((item.stats || []).length === 0) lines.push(`<span style="color:#7f8c8d">추가 옵션 없음</span>`);
     let actions = '';
     if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItem(${idx})">${item.slot === '반지' ? '장착(선택)' : '장착'}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItem(${idx})">해체</button></div>`;
+    else if (mode === 'fossil') actions = `<div class="item-actions"><button style="flex:1; background:#35506a;" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button></div>`;
     else actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button></div>`;
     return `<div class="item-card ${selected ? 'selected' : ''}" onclick="selectForCrafting(${item.id}, false)" onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${item.slot}] ${item.name}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${item.baseName}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
 }
@@ -6479,8 +6713,8 @@ function updateStaticUI() {
     updateCombatUI(pStats);
     drawPassiveTree();
 
-    ['char', 'items', 'skills', 'map', 'traits'].forEach(key => document.getElementById('noti-' + key).style.display = game.noti[key] ? 'block' : 'none');
-    ['char', 'items', 'skills', 'map', 'traits'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
+    ['char', 'season', 'items', 'skills', 'map', 'traits'].forEach(key => document.getElementById('noti-' + key).style.display = game.noti[key] ? 'block' : 'none');
+    ['char', 'season', 'items', 'skills', 'map', 'traits'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
     let summarySkillTreeBtn = document.getElementById('btn-summary-tab-char');
     if (summarySkillTreeBtn) {
         summarySkillTreeBtn.disabled = !game.unlocks.char;
@@ -6501,21 +6735,24 @@ function updateStaticUI() {
     syncSalvageControlsFromSettings();
     renderPaperdoll('ui-equip-list', false);
     renderPaperdoll('ui-craft-equip-list', true);
+    renderPaperdoll('ui-fossil-equip-list', true);
     document.getElementById('ui-inv-count').innerText = game.inventory.length;
     document.getElementById('ui-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'equip')).join('');
     document.getElementById('ui-craft-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'craft')).join('');
+    document.getElementById('ui-fossil-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'fossil')).join('');
     let jewelUnlocked = (game.season || 1) >= 5;
     document.getElementById('ui-jewel-header').style.display = jewelUnlocked ? 'block' : 'none';
     document.getElementById('ui-jewel-panel').style.display = jewelUnlocked ? 'block' : 'none';
     if (jewelUnlocked) {
         game.jewelSlots = Array.isArray(game.jewelSlots) ? game.jewelSlots : [null, null];
         game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
+        document.getElementById('ui-jewel-cap').innerHTML = `주얼 인벤토리: <strong>${game.jewelInventory.length}</strong> / ${JEWEL_INVENTORY_LIMIT}`;
         document.getElementById('ui-jewel-slots').innerHTML = [0, 1].map(slotIdx => {
             let jewel = game.jewelSlots[slotIdx];
             if (!jewel) return `<div class="slot-box" style="min-height:58px; cursor:default;">주얼 슬롯 ${slotIdx + 1}<br><span style="color:#7f8c8d;">비어있음</span></div>`;
-            return `<div class="slot-box" style="min-height:58px;">주얼 슬롯 ${slotIdx + 1}<br><span style="color:#8fd3ff;">${jewel.name}</span> (${getStatName(jewel.stat.id)} +${jewel.stat.val})<br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
+            return `<div class="slot-box" style="min-height:58px;">주얼 슬롯 ${slotIdx + 1}<br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${getStatName(jewel.stat.id)} +${jewel.stat.val})<br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
         }).join('');
-        document.getElementById('ui-jewel-inventory').innerHTML = game.jewelInventory.map((jewel, idx) => `<div class="item-card" style="min-height:72px;"><div class="item-title rare">[주얼] ${jewel.name}</div><div class="item-stats">${getStatName(jewel.stat.id)} +${jewel.stat.val}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button></div></div>`).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
+        document.getElementById('ui-jewel-inventory').innerHTML = game.jewelInventory.map((jewel, idx) => `<div class="item-card" style="min-height:72px;"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}</div><div class="item-stats">${getStatName(jewel.stat.id)} +${jewel.stat.val}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="salvageJewel(${idx})">해체</button></div></div>`).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
     }
 
     let selectedItem = getSelectedCraftItem();
@@ -6531,8 +6768,12 @@ function updateStaticUI() {
         forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}</div><div class="item-base-line">${selectedItem.baseName}</div>${lines.join('')}`;
     }
     document.getElementById('forge-item-display').innerHTML = forgeHtml;
+    document.getElementById('fossil-item-display').innerHTML = forgeHtml;
+    document.getElementById('ui-fossil-actions').innerHTML = FOSSIL_DB.map(fossil => `<button onclick="applyFossilChaosCraft('${fossil.key}')" ${!selectedItem || (game.currencies[fossil.key] || 0) <= 0 ? 'disabled' : ''}>${fossil.name} 사용 (${game.currencies[fossil.key] || 0})</button>`).join('');
+    document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('')}<div style="margin-top:8px; color:#8fb6d9;">미궁 완료 시 기본 화석 + 타입 화석이 드랍되며, 심연 화석은 희귀하게 추가 드랍됩니다.</div>`;
 
-    document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).map(key => `
+    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm']);
+    document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => !hiddenCurrencyKeys.has(key)).map(key => `
         <div class="currency-card">
             <div class="currency-name">${ORB_DB[key].name}</div>
             <div class="currency-desc">${ORB_DB[key].desc}</div>
@@ -6557,10 +6798,12 @@ function updateStaticUI() {
     let fossilCraftBtn = document.getElementById('btn-fossil-craft');
     if (fossilCraftBtn) {
         fossilCraftBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
-        fossilCraftBtn.disabled = !selectedItem || (game.currencies.fossil || 0) <= 0;
+        fossilCraftBtn.disabled = (game.currencies.fossil || 0) <= 0;
     }
     let taintedBtn = document.getElementById('btn-orb-tainted');
     if (taintedBtn) taintedBtn.style.display = (game.season || 1) >= 5 ? 'block' : 'none';
+    let fossilTabBtn = document.getElementById('btn-item-tab-fossil');
+    if (fossilTabBtn) fossilTabBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
 
     let seasonMapCap = getCurrentSeasonFinalZoneId();
     document.getElementById('ui-map-list').innerHTML = MAP_ZONES.filter((zone, idx) => idx <= Math.min(game.maxZoneId, seasonMapCap)).map((zone, idx) => {
@@ -6612,10 +6855,11 @@ function updateStaticUI() {
 
     let seasonVisible = game.season > 1 || game.seasonPoints > 0;
     document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
-    document.getElementById('season-content-section').style.display = game.season >= 1 ? 'block' : 'none';
-    document.getElementById('ui-season-content-roadmap').innerHTML = Object.keys(SEASON_CONTENT_ROADMAP).map(key => {
-        let seasonNum = parseInt(key, 10);
+    document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
+    let seasonRoadmapKeys = (game.unlockedSeasonContents || []).map(id => parseInt(String(id).replace('season_', ''), 10)).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
+    document.getElementById('ui-season-content-roadmap').innerHTML = seasonRoadmapKeys.map(seasonNum => {
         let def = SEASON_CONTENT_ROADMAP[seasonNum];
+        if (!def) return '';
         let unlocked = seasonNum <= game.season;
         let current = seasonNum === game.season;
         let stateColor = current ? '#f1c40f' : (unlocked ? '#2ecc71' : '#7f8c8d');
@@ -6626,7 +6870,7 @@ function updateStaticUI() {
             </div>
             <div style="color:#a8bdd3; font-size:0.82em; line-height:1.5;">${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
         </div>`;
-    }).join('');
+    }).join('') || `<div style="color:#7f8c8d;">시즌 1을 클리어하면 시즌 로드맵이 열립니다.</div>`;
     let renderSeasonNode = id => {
         let node = SEASON_NODES[id];
         let active = game.seasonNodes.includes(id);
@@ -6676,6 +6920,25 @@ function updateStaticUI() {
         let gemInfo = getGemPresentation(name, true);
         return `<div class="skill-gem support-gem ${active}" onclick="toggleSupport('${name}')" onmouseenter="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()"><strong>${name}</strong><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>`;
     }).join('');
+    let gemEnhanceOpen = (game.season || 1) >= 4;
+    let gemEnhanceHeader = document.getElementById('ui-gem-enhance-header');
+    let gemEnhancePanel = document.getElementById('ui-gem-enhance-panel');
+    if (gemEnhanceHeader && gemEnhancePanel) {
+        gemEnhanceHeader.style.display = gemEnhanceOpen ? 'block' : 'none';
+        gemEnhancePanel.style.display = gemEnhanceOpen ? 'block' : 'none';
+        if (gemEnhanceOpen) {
+            let active = game.activeSkill;
+            let isGem = !!(SKILL_DB[active] && SKILL_DB[active].isGem);
+            let activeEnh = getSkyEnhancementForSkill(active);
+            document.getElementById('ui-gem-enhance-target').innerHTML = isGem
+                ? `대상 젬: <strong>${active}</strong> (보유 창공의 힘: ${game.currencies.skyEssence || 0})<br><span style="color:#8aa4bf;">적용 옵션: ${activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '없음'}</span>`
+                : '공격 젬을 선택하면 창공의 힘으로 특수 옵션을 부여할 수 있습니다.';
+            document.getElementById('ui-gem-enhance-options').innerHTML = Object.values(GEM_SKY_ENHANCEMENTS).map(enh => {
+                let applied = activeEnh.includes(enh.id);
+                return `<button onclick="applySkyGemEnhancementToActive('${enh.id}')" ${!isGem || applied ? 'disabled' : ''} style="text-align:left; background:${applied ? '#213a4a' : '#2c3e50'};"><strong>${enh.name}</strong><br><small>${enh.desc}</small></button>`;
+            }).join('');
+        }
+    }
 
     switchItemSubtab(game.itemSubtab || 'item-tab-equip');
 }
@@ -6901,8 +7164,14 @@ function mergeDefaults(save) {
     merged.seenSeasonContentNotices = Array.isArray(merged.seenSeasonContentNotices) ? merged.seenSeasonContentNotices.filter(id => typeof id === 'string') : ['season_1'];
     merged.labyrinthFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.labyrinthFloor, 1, 1)));
     merged.jewelInventory = Array.isArray(merged.jewelInventory) ? merged.jewelInventory.filter(j => j && j.stat && j.stat.id) : [];
-    merged.jewelSlots = Array.isArray(merged.jewelSlots) ? merged.jewelSlots.slice(0, 2) : [null, null];
+    merged.jewelInventory = merged.jewelInventory.map(j => ({ ...j, rarity: ['normal', 'magic', 'rare'].includes(j.rarity) ? j.rarity : 'normal' })).slice(0, JEWEL_INVENTORY_LIMIT);
+    merged.jewelSlots = Array.isArray(merged.jewelSlots) ? merged.jewelSlots.slice(0, 2).map(j => (j && j.stat && j.stat.id ? { ...j, rarity: ['normal', 'magic', 'rare'].includes(j.rarity) ? j.rarity : 'normal' } : null)) : [null, null];
     while (merged.jewelSlots.length < 2) merged.jewelSlots.push(null);
+    merged.skyGemEnhancements = (merged.skyGemEnhancements && typeof merged.skyGemEnhancements === 'object') ? merged.skyGemEnhancements : {};
+    Object.keys(merged.skyGemEnhancements).forEach(skill => {
+        let arr = Array.isArray(merged.skyGemEnhancements[skill]) ? merged.skyGemEnhancements[skill] : [];
+        merged.skyGemEnhancements[skill] = Array.from(new Set(arr.filter(id => !!GEM_SKY_ENHANCEMENTS[id]))).slice(0, 2);
+    });
     merged.ascendNodes = Array.isArray(merged.ascendNodes) ? merged.ascendNodes.filter(id => typeof id === 'string') : [];
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
