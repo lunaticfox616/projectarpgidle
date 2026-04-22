@@ -2658,8 +2658,10 @@ function initBattleAssets() {
     battleAssets.failedKeys = [];
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
     const loadTicket = battleAssets.loadTicket;
+    const defaultHeroSrc = 'assets/battle-hero-v2.png';
+    const legacyHeroSrc = 'assets/battle-hero-v1.png';
     const manifest = {
-        hero: 'assets/battle-hero-v1.png',
+        hero: defaultHeroSrc,
         enemies: 'assets/battle-enemies-v1.png',
         effects: 'assets/battle-effects-v1.png',
         tiles: 'assets/battle-tiles-v1.png',
@@ -2694,7 +2696,7 @@ function initBattleAssets() {
                 if (key === 'backdrop') {
                     battleAssets.backdrops = [img];
                 } else {
-                    battleAssets.images[key] = key === 'tiles' ? img : sanitizeBattleSheet(img);
+                    battleAssets.images[key] = (key === 'tiles' || key === 'hero') ? img : sanitizeBattleSheet(img);
                 }
             } catch (error) {
                 battleAssets.images[key] = img;
@@ -2703,6 +2705,10 @@ function initBattleAssets() {
             finishLoad();
         };
         img.onerror = function() {
+            if (key === 'hero' && src === defaultHeroSrc) {
+                img.src = legacyHeroSrc;
+                return;
+            }
             battleAssets.failed = true;
             battleAssets.failedKeys.push(key);
             pending--;
@@ -3011,19 +3017,80 @@ function buildBattleAssetAtlas() {
         { x: 800, y: 628, width: 188, height: 189 },
         { x: 1024, y: 630, width: 175, height: 187 }
     ];
-    const heroFrames = heroParts.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
+    let heroFramesLegacy = heroParts.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
+    let heroFrameSet = {
+        frontIdle: heroFramesLegacy[0],
+        frontGuard: heroFramesLegacy[1],
+        sideIdle: heroFramesLegacy[2],
+        attack: heroFramesLegacy[3],
+        sideWalk: heroFramesLegacy[4],
+        walk: [heroFramesLegacy[4], heroFramesLegacy[2]],
+        swordCombo: [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
+        whirlCombo: [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
+        chaosCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
+        lightningCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
+        castCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
+        frostCombo: [heroFramesLegacy[3], heroFramesLegacy[2]]
+    };
+    function tryBuildHeroFrameSetFromGrid(image) {
+        if (!image || !image.width || !image.height) return null;
+        if (image.width % 8 !== 0 || image.height % 6 !== 0) return null;
+        let cellW = Math.floor(image.width / 8);
+        let cellH = Math.floor(image.height / 6);
+        if (cellW < 70 || cellH < 70) return null;
+        function rowFrames(row, cols) {
+            let list = [];
+            cols.forEach(col => {
+                let insetX = Math.max(1, Math.floor(cellW * 0.02));
+                let insetY = Math.max(1, Math.floor(cellH * 0.02));
+                let rect = {
+                    x: col * cellW + insetX,
+                    y: row * cellH + insetY,
+                    width: cellW - insetX * 2,
+                    height: cellH - insetY * 2
+                };
+                if (rect.width > 16 && rect.height > 16) list.push(rect);
+            });
+            return list;
+        }
+        let walk = rowFrames(0, [0, 1, 2]);
+        let sword = rowFrames(1, [0, 1, 2]);
+        let chaos = rowFrames(2, [0, 1, 2, 3]);
+        let lightning = rowFrames(3, [0, 1, 2, 3, 4]);
+        let cast = rowFrames(4, [0, 1, 2]);
+        let frost = rowFrames(5, [0, 1, 2]);
+        let pooled = [walk, sword, chaos, lightning, cast, frost].flat();
+        if (pooled.length < 12) return null;
+        let walkLoop = walk.length >= 3 ? [walk[0], walk[1], walk[2], walk[1]] : walk;
+        let whirl = sword.length >= 4 ? [sword[0], sword[1], sword[2], sword[3]] : sword;
+        let safeIdle = walk[0] || sword[0] || heroFramesLegacy[2];
+        let safeWalk = walk[1] || walk[0] || sword[0] || heroFramesLegacy[4];
+        let safeAttack = sword[2] || sword[1] || sword[0] || heroFramesLegacy[3];
+        return {
+            frontIdle: sword[1] || safeIdle,
+            frontGuard: sword[2] || safeWalk,
+            sideIdle: safeIdle,
+            attack: safeAttack,
+            sideWalk: safeWalk,
+            walk: walkLoop.length > 0 ? walkLoop : [safeWalk, safeIdle],
+            swordCombo: sword.length > 0 ? sword : [safeAttack, safeIdle, safeAttack],
+            whirlCombo: whirl.length > 0 ? whirl : [safeAttack, safeIdle, safeAttack],
+            chaosCombo: sword.length > 0 ? sword : [safeAttack, safeIdle],
+            lightningCombo: sword.length > 0 ? sword : [safeAttack, safeIdle],
+            castCombo: sword.length > 0 ? sword : [safeAttack, safeIdle],
+            frostCombo: sword.length > 0 ? sword : [safeAttack, safeIdle]
+        };
+    }
+    let gridHeroFrameSet = tryBuildHeroFrameSetFromGrid(battleAssets.images.hero);
+    if (gridHeroFrameSet) {
+        heroFrameSet = gridHeroFrameSet;
+    }
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(battleAssets.images.enemies, part, key === 'boss' ? 5 : 3)]));
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
     return {
         hero: {
             image: battleAssets.images.hero,
-            frames: {
-                frontIdle: heroFrames[0],
-                frontGuard: heroFrames[1],
-                sideIdle: heroFrames[2],
-                attack: heroFrames[3],
-                sideWalk: heroFrames[4]
-            }
+            frames: heroFrameSet
         },
         enemies: {
             image: battleAssets.images.enemies,
@@ -5303,8 +5370,30 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now)
         let frames = battleAssets.atlas.hero.frames;
         let activeEnemies = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
         let isAdvancing = activeEnemies === 0 && game.moveTimer <= 0 && game.runProgress < 100;
-        let frame = isAdvancing ? (frames.sideWalk || frames.sideIdle || frames.attack) : (frames.sideIdle || frames.sideWalk || frames.attack);
-        if (!isAdvancing && Math.abs(swingPower) > 0.18) frame = frames.attack || frames.sideIdle || frames.sideWalk;
+        let isAttacking = !isAdvancing && Math.abs(swingPower) > 0.18;
+        let walkCycle = Array.isArray(frames.walk) && frames.walk.length > 0 ? frames.walk : [frames.sideWalk, frames.sideIdle].filter(Boolean);
+        function pickCycle(list, speed, phaseOffset) {
+            let sequence = (list || []).filter(Boolean);
+            if (sequence.length === 0) return frames.attack || frames.sideIdle || frames.sideWalk;
+            let phase = ((now / (speed || 110)) + (phaseOffset || 0)) % sequence.length;
+            return sequence[Math.floor(phase)];
+        }
+        function pickSkillAttackCycle() {
+            let skillName = game.activeSkill || '기본 공격';
+            if (skillName === '회오리바람') return frames.whirlCombo || frames.swordCombo;
+            return frames.swordCombo;
+        }
+        function pickAttackFrame(list) {
+            let sequence = (list || []).filter(Boolean);
+            if (sequence.length === 0) return frames.attack || frames.sideIdle || frames.sideWalk;
+            let phase = clampNumber(Math.abs(swingPower), 0, 0.999);
+            let idx = Math.floor(phase * sequence.length);
+            return sequence[clampNumber(idx, 0, sequence.length - 1)];
+        }
+        let frame = isAdvancing
+            ? pickCycle(walkCycle, 95, 0)
+            : pickCycle([frames.sideIdle || frames.frontIdle || frames.sideWalk], 400, 0);
+        if (isAttacking) frame = pickAttackFrame(pickSkillAttackCycle());
         let stepOffset = isAdvancing ? Math.sin(now / 110) * 1.8 : 0;
         drawPixelShadow(ctx, x, y + 15, 10, 4, 0.16);
         drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7, 54, {});
