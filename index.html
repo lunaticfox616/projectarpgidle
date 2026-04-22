@@ -3094,19 +3094,34 @@ function buildBattleAssetAtlas() {
     ];
     let heroFramesLegacy = heroParts.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
     function buildHeroFrameSet(frames) {
+        let base = (frames || []).filter(Boolean);
+        let frontIdle = base[0];
+        let frontGuard = base[1] || frontIdle;
+        let sideIdle = base[2] || frontIdle || frontGuard;
+        let attack = base[3] || sideIdle || frontIdle;
+        let sideWalk = base[4] || sideIdle || attack;
+        let rangedAttack = base[5] || attack;
+        let castAttack = base[6] || rangedAttack || attack;
+        let heavyAttack = base[7] || attack;
         return {
-            frontIdle: frames[0],
-            frontGuard: frames[1],
-            sideIdle: frames[2],
-            attack: frames[3],
-            sideWalk: frames[4],
-            walk: [frames[4], frames[2]],
-            swordCombo: [frames[3], frames[2], frames[3]],
-            whirlCombo: [frames[3], frames[2], frames[3]],
-            chaosCombo: [frames[3], frames[2]],
-            lightningCombo: [frames[3], frames[2]],
-            castCombo: [frames[3], frames[2]],
-            frostCombo: [frames[3], frames[2]]
+            frontIdle: frontIdle,
+            frontGuard: frontGuard,
+            sideIdle: sideIdle,
+            attack: attack,
+            sideWalk: sideWalk,
+            rangedAttack: rangedAttack,
+            castAttack: castAttack,
+            heavyAttack: heavyAttack,
+            idle: [frontIdle, frontGuard, sideIdle],
+            walk: [sideWalk, sideIdle, sideWalk, frontGuard],
+            swordCombo: [attack, sideIdle, attack],
+            whirlCombo: [attack, sideWalk, attack, sideIdle],
+            chaosCombo: [castAttack, sideIdle, attack],
+            lightningCombo: [rangedAttack, sideIdle, rangedAttack],
+            castCombo: [castAttack, frontGuard, castAttack],
+            frostCombo: [castAttack, sideIdle, frontGuard],
+            quakeCombo: [heavyAttack, attack, frontGuard],
+            projectileCombo: [rangedAttack, sideIdle, rangedAttack]
         };
     }
     let heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
@@ -3119,7 +3134,7 @@ function buildBattleAssetAtlas() {
             .slice(0, 8)
             .sort((a, b) => a.x - b.x);
         if (detected.length >= 5) {
-            let detectedFrames = detected.slice(0, 5).map(rect => trimRectToContent(
+            let detectedFrames = detected.slice(0, 8).map(rect => trimRectToContent(
                 battleAssets.images.hero,
                 padSpriteRect(rect, battleAssets.images.hero, 4),
                 2
@@ -5413,7 +5428,8 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now)
         let activeEnemies = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
         let isAdvancing = activeEnemies === 0 && game.moveTimer <= 0 && game.runProgress < 100;
         let isAttacking = !isAdvancing && Math.abs(swingPower) > 0.18;
-        let walkCycle = Array.isArray(frames.walk) && frames.walk.length > 0 ? frames.walk : [frames.sideWalk, frames.sideIdle].filter(Boolean);
+        let idleCycle = Array.isArray(frames.idle) && frames.idle.length > 0 ? frames.idle : [frames.sideIdle, frames.frontIdle, frames.frontGuard].filter(Boolean);
+        let walkCycle = Array.isArray(frames.walk) && frames.walk.length > 0 ? frames.walk : [frames.sideWalk, frames.sideIdle, frames.frontGuard].filter(Boolean);
         function pickCycle(list, speed, phaseOffset) {
             let sequence = (list || []).filter(Boolean);
             if (sequence.length === 0) return frames.attack || frames.sideIdle || frames.sideWalk;
@@ -5421,8 +5437,15 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now)
             return sequence[Math.floor(phase)];
         }
         function pickSkillAttackCycle() {
-            let skillName = game.activeSkill || '기본 공격';
-            if (skillName === '회오리바람') return frames.whirlCombo || frames.swordCombo;
+            let visual = skillVisual || getBattleSkillVisual(game.activeSkill || '기본 공격', SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격']);
+            let effect = visual && visual.effect ? visual.effect : 'slash';
+            if (effect === 'whirl') return frames.whirlCombo || frames.swordCombo;
+            if (effect === 'iceLance' || effect === 'nova') return frames.frostCombo || frames.castCombo || frames.swordCombo;
+            if (effect === 'chain' || effect === 'storm' || effect === 'lightSpear') return frames.lightningCombo || frames.projectileCombo || frames.castCombo;
+            if (effect === 'poisonDart' || effect === 'arrow' || effect === 'projectile') return frames.projectileCombo || frames.lightningCombo || frames.swordCombo;
+            if (effect === 'slam' || effect === 'quake' || effect === 'magma') return frames.quakeCombo || frames.swordCombo;
+            if (effect === 'voidSlash' || effect === 'shadowSlash' || effect === 'drain') return frames.chaosCombo || frames.swordCombo;
+            if (effect === 'flameSlash' || effect === 'flurry') return frames.swordCombo || frames.whirlCombo;
             return frames.swordCombo;
         }
         function pickAttackFrame(list) {
@@ -5434,7 +5457,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now)
         }
         let frame = isAdvancing
             ? pickCycle(walkCycle, 95, 0)
-            : pickCycle([frames.sideIdle || frames.frontIdle || frames.sideWalk], 400, 0);
+            : pickCycle(idleCycle, 380, 0);
         if (isAttacking) frame = pickAttackFrame(pickSkillAttackCycle());
         let stepOffset = isAdvancing ? Math.sin(now / 110) * 1.8 : 0;
         drawPixelShadow(ctx, x, y + 15, 10, 4, 0.16);
