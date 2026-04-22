@@ -2771,7 +2771,7 @@ function initBattleAssets() {
                 if (key === 'backdrop') {
                     battleAssets.backdrops = [img];
                 } else {
-                    battleAssets.images[key] = (key === 'tiles' || key === 'hero') ? img : sanitizeBattleSheet(img);
+                    battleAssets.images[key] = key === 'tiles' ? img : sanitizeBattleSheet(img);
                 }
             } catch (error) {
                 battleAssets.images[key] = img;
@@ -5438,7 +5438,9 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now)
         if (isAttacking) frame = pickAttackFrame(pickSkillAttackCycle());
         let stepOffset = isAdvancing ? Math.sin(now / 110) * 1.8 : 0;
         drawPixelShadow(ctx, x, y + 15, 10, 4, 0.16);
-        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7, 54, {});
+        let normalizedHeroSize = 50;
+        if (frame && frame.height) normalizedHeroSize = clampNumber(50 * (190 / frame.height), 42, 58);
+        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7, normalizedHeroSize, {});
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.18;
