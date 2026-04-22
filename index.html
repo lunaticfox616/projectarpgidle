@@ -2732,8 +2732,8 @@ function initBattleAssets() {
     battleAssets.failedKeys = [];
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
     const loadTicket = battleAssets.loadTicket;
-    const defaultHeroSrc = 'assets/battle-hero-v2.png';
-    const legacyHeroSrc = 'assets/battle-hero-v1.png';
+    const defaultHeroSrc = 'assets/battle-hero-v1.png';
+    const legacyHeroSrc = 'assets/battle-hero-v2.png';
     const manifest = {
         hero: defaultHeroSrc,
         enemies: 'assets/battle-enemies-v1.png',
@@ -3106,112 +3106,8 @@ function buildBattleAssetAtlas() {
         castCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
         frostCombo: [heroFramesLegacy[3], heroFramesLegacy[2]]
     };
-    function normalizeHeroFrame(component) {
-        return trimRectToContent(battleAssets.images.hero, padSpriteRect(component, battleAssets.images.hero, 2), 1);
-    }
-    function tryBuildHeroFrameSetFromComponents(image) {
-        let components = sortSheetComponents(detectSpriteComponents(image, 40)).filter(entry => {
-            if (!entry) return false;
-            let aspect = entry.width / Math.max(1, entry.height);
-            if (entry.width < 18 || entry.height < 18) return false;
-            if (entry.width > 200 || entry.height > 220) return false;
-            if (aspect < 0.28 || aspect > 1.7) return false;
-            let density = entry.area / Math.max(1, entry.width * entry.height);
-            return density >= 0.09;
-        });
-        if (components.length < 8) return null;
-        let rows = [];
-        components.forEach(component => {
-            let centerY = component.y + component.height * 0.5;
-            let row = rows.find(r => Math.abs(centerY - r.centerY) <= Math.max(14, r.avgHeight * 0.45));
-            if (!row) {
-                row = { centerY: centerY, avgHeight: component.height, entries: [] };
-                rows.push(row);
-            }
-            row.entries.push(component);
-            row.centerY = (row.centerY * (row.entries.length - 1) + centerY) / row.entries.length;
-            row.avgHeight = (row.avgHeight * (row.entries.length - 1) + component.height) / row.entries.length;
-        });
-        rows.sort((a, b) => a.centerY - b.centerY);
-        rows.forEach(row => row.entries.sort((a, b) => a.x - b.x));
-        if (rows.length < 2) return null;
-        let walk = (rows[0].entries || []).slice(0, 3).map(normalizeHeroFrame);
-        let sword = (rows[1].entries || []).slice(0, 3).map(normalizeHeroFrame);
-        if (walk.length < 2 || sword.length < 2) return null;
-        let safeIdle = walk[0] || sword[0] || heroFramesLegacy[2];
-        let safeWalk = walk[1] || walk[0] || sword[0] || heroFramesLegacy[4];
-        let safeAttack = sword[2] || sword[1] || sword[0] || heroFramesLegacy[3];
-        return {
-            frontIdle: sword[1] || safeIdle,
-            frontGuard: sword[2] || safeWalk,
-            sideIdle: safeIdle,
-            attack: safeAttack,
-            sideWalk: safeWalk,
-            walk: walk.length >= 3 ? [walk[0], walk[1], walk[2], walk[1]] : [safeWalk, safeIdle],
-            swordCombo: sword.length >= 3 ? sword : [safeAttack, safeIdle, safeAttack],
-            whirlCombo: sword.length >= 3 ? sword : [safeAttack, safeIdle, safeAttack],
-            chaosCombo: [safeAttack, safeIdle],
-            lightningCombo: [safeAttack, safeIdle],
-            castCombo: [safeAttack, safeIdle],
-            frostCombo: [safeAttack, safeIdle]
-        };
-    }
-    function tryBuildHeroFrameSetFromGrid(image) {
-        if (!image || !image.width || !image.height) return null;
-        if (image.width % 8 !== 0 || image.height % 6 !== 0) return null;
-        let cellW = Math.floor(image.width / 8);
-        let cellH = Math.floor(image.height / 6);
-        if (cellW < 70 || cellH < 70) return null;
-        function rowFrames(row, cols) {
-            let list = [];
-            cols.forEach(col => {
-                let insetX = Math.max(1, Math.floor(cellW * 0.02));
-                let insetY = Math.max(1, Math.floor(cellH * 0.02));
-                let rect = {
-                    x: col * cellW + insetX,
-                    y: row * cellH + insetY,
-                    width: cellW - insetX * 2,
-                    height: cellH - insetY * 2
-                };
-                if (rect.width > 16 && rect.height > 16) list.push(rect);
-            });
-            return list;
-        }
-        let walk = rowFrames(0, [0, 1, 2]);
-        let sword = rowFrames(1, [0, 1, 2]);
-        let chaos = rowFrames(2, [0, 1, 2, 3]);
-        let lightning = rowFrames(3, [0, 1, 2, 3, 4]);
-        let cast = rowFrames(4, [0, 1, 2]);
-        let frost = rowFrames(5, [0, 1, 2]);
-        let pooled = [walk, sword, chaos, lightning, cast, frost].flat();
-        if (pooled.length < 12) return null;
-        let walkLoop = walk.length >= 3 ? [walk[0], walk[1], walk[2], walk[1]] : walk;
-        let whirl = sword.length >= 4 ? [sword[0], sword[1], sword[2], sword[3]] : sword;
-        let safeIdle = walk[0] || sword[0] || heroFramesLegacy[2];
-        let safeWalk = walk[1] || walk[0] || sword[0] || heroFramesLegacy[4];
-        let safeAttack = sword[2] || sword[1] || sword[0] || heroFramesLegacy[3];
-        return {
-            frontIdle: sword[1] || safeIdle,
-            frontGuard: sword[2] || safeWalk,
-            sideIdle: safeIdle,
-            attack: safeAttack,
-            sideWalk: safeWalk,
-            walk: walkLoop.length > 0 ? walkLoop : [safeWalk, safeIdle],
-            swordCombo: sword.length > 0 ? sword : [safeAttack, safeIdle, safeAttack],
-            whirlCombo: whirl.length > 0 ? whirl : [safeAttack, safeIdle, safeAttack],
-            chaosCombo: sword.length > 0 ? sword : [safeAttack, safeIdle],
-            lightningCombo: sword.length > 0 ? sword : [safeAttack, safeIdle],
-            castCombo: sword.length > 0 ? sword : [safeAttack, safeIdle],
-            frostCombo: sword.length > 0 ? sword : [safeAttack, safeIdle]
-        };
-    }
-    let componentHeroFrameSet = tryBuildHeroFrameSetFromComponents(battleAssets.images.hero);
-    if (componentHeroFrameSet) {
-        heroFrameSet = componentHeroFrameSet;
-    } else {
-        let gridHeroFrameSet = tryBuildHeroFrameSetFromGrid(battleAssets.images.hero);
-        if (gridHeroFrameSet) heroFrameSet = gridHeroFrameSet;
-    }
+    // Hero frame parsing is intentionally fixed to legacy known-good slices to avoid
+    // popping square artifacts from malformed/custom sheet layouts.
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(battleAssets.images.enemies, part, key === 'boss' ? 5 : 3)]));
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
     return {
