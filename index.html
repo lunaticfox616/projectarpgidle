@@ -2732,7 +2732,8 @@ function initBattleAssets() {
     battleAssets.failedKeys = [];
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
     const loadTicket = battleAssets.loadTicket;
-    const defaultHeroSrc = 'assets/battle-hero-v2.png';
+    const customHeroSrc = getCustomHeroSheetDataUrl();
+    const defaultHeroSrc = customHeroSrc || 'assets/battle-hero-v2.png';
     const legacyHeroSrc = 'assets/battle-hero-v1.png';
     const manifest = {
         hero: defaultHeroSrc,
@@ -2779,7 +2780,7 @@ function initBattleAssets() {
             finishLoad();
         };
         img.onerror = function() {
-            if (key === 'hero' && src === defaultHeroSrc) {
+            if (key === 'hero' && src === defaultHeroSrc && !customHeroSrc) {
                 img.src = legacyHeroSrc;
                 return;
             }
@@ -3092,22 +3093,40 @@ function buildBattleAssetAtlas() {
         { x: 1024, y: 630, width: 175, height: 187 }
     ];
     let heroFramesLegacy = heroParts.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
-    let heroFrameSet = {
-        frontIdle: heroFramesLegacy[0],
-        frontGuard: heroFramesLegacy[1],
-        sideIdle: heroFramesLegacy[2],
-        attack: heroFramesLegacy[3],
-        sideWalk: heroFramesLegacy[4],
-        walk: [heroFramesLegacy[4], heroFramesLegacy[2]],
-        swordCombo: [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
-        whirlCombo: [heroFramesLegacy[3], heroFramesLegacy[2], heroFramesLegacy[3]],
-        chaosCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
-        lightningCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
-        castCombo: [heroFramesLegacy[3], heroFramesLegacy[2]],
-        frostCombo: [heroFramesLegacy[3], heroFramesLegacy[2]]
-    };
-    // Hero frame parsing is intentionally fixed to legacy known-good slices to avoid
-    // popping square artifacts from malformed/custom sheet layouts.
+    function buildHeroFrameSet(frames) {
+        return {
+            frontIdle: frames[0],
+            frontGuard: frames[1],
+            sideIdle: frames[2],
+            attack: frames[3],
+            sideWalk: frames[4],
+            walk: [frames[4], frames[2]],
+            swordCombo: [frames[3], frames[2], frames[3]],
+            whirlCombo: [frames[3], frames[2], frames[3]],
+            chaosCombo: [frames[3], frames[2]],
+            lightningCombo: [frames[3], frames[2]],
+            castCombo: [frames[3], frames[2]],
+            frostCombo: [frames[3], frames[2]]
+        };
+    }
+    let heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
+    // v1(1536x1024)은 수동 좌표 슬라이스를 사용하고,
+    // v2/커스텀 시트처럼 레이아웃이 다른 경우에는 스프라이트 컴포넌트를 자동 감지한다.
+    if (battleAssets.images.hero && (battleAssets.images.hero.width < 1450 || battleAssets.images.hero.height < 980)) {
+        let detected = detectSpriteComponents(battleAssets.images.hero, 850)
+            .filter(rect => rect.width >= 44 && rect.height >= 54)
+            .sort((a, b) => b.area - a.area)
+            .slice(0, 8)
+            .sort((a, b) => a.x - b.x);
+        if (detected.length >= 5) {
+            let detectedFrames = detected.slice(0, 5).map(rect => trimRectToContent(
+                battleAssets.images.hero,
+                padSpriteRect(rect, battleAssets.images.hero, 4),
+                2
+            ));
+            heroFrameSet = buildHeroFrameSet(detectedFrames);
+        }
+    }
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(battleAssets.images.enemies, part, key === 'boss' ? 5 : 3)]));
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
     return {
