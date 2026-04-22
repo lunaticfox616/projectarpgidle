@@ -786,7 +786,12 @@ const GEM_SKY_ENHANCEMENTS = {
     sky_fury: { id: 'sky_fury', name: '폭풍 충전', desc: '스킬 피해 +8%', stat: 'pctDmg', val: 8 },
     sky_swiftness: { id: 'sky_swiftness', name: '질풍 각인', desc: '스킬 공격속도 +8%', stat: 'aspd', val: 8 },
     sky_precision: { id: 'sky_precision', name: '창공의 눈', desc: '스킬 치명타 확률 +6%', stat: 'crit', val: 6 },
-    sky_blood: { id: 'sky_blood', name: '비상의 맥박', desc: '스킬 흡수 +1.5%', stat: 'leech', val: 1.5 }
+    sky_blood: { id: 'sky_blood', name: '비상의 맥박', desc: '스킬 흡수 +1.5%', stat: 'leech', val: 1.5 },
+    sky_tempest: { id: 'sky_tempest', name: '폭풍 폭주', desc: '스킬 피해 +12%', stat: 'pctDmg', val: 12 },
+    sky_keen: { id: 'sky_keen', name: '예리한 시야', desc: '스킬 치명타 확률 +10%', stat: 'crit', val: 10 },
+    sky_blitz: { id: 'sky_blitz', name: '천공 가속', desc: '스킬 공격속도 +12%', stat: 'aspd', val: 12 },
+    sky_vamp: { id: 'sky_vamp', name: '공중 흡혈', desc: '스킬 흡수 +2.5%', stat: 'leech', val: 2.5 },
+    sky_harmony: { id: 'sky_harmony', name: '창공의 조율', desc: '스킬 피해 +6%, 공격속도 +6%', stat: 'hybrid', val: 6 }
 };
 
 const P_STATS = {
@@ -838,7 +843,10 @@ const SKILL_DB = {
     '용암 강타': { isGem: true, baseDmg: 1.55, baseSpd: 0.82, leech: 0, crit: 4, dmgScale: 0.08, spdScale: 0.02, ele: 'fire', targetMode: 'cleave', targets: 3, desc: '전방을 휩쓰는 용암 파동을 동반한 강타입니다.', tags: ['attack', 'melee', 'elemental', 'fire', 'aoe', 'slam'] },
     '관통 사격': { isGem: true, baseDmg: 1.25, baseSpd: 1.08, leech: 0, crit: 7, dmgScale: 0.07, spdScale: 0.03, ele: 'phys', targetMode: 'pierce', targets: 4, desc: '적 무리를 꿰뚫는 장거리 일제 사격입니다.', tags: ['attack', 'projectile', 'physical'] },
     '연쇄 폭풍': { isGem: true, baseDmg: 1.3, baseSpd: 1.0, leech: 0, crit: 9, dmgScale: 0.08, spdScale: 0.02, ele: 'light', targetMode: 'chain', targets: 4, desc: '번개가 여러 적 사이를 튀며 확산됩니다.', tags: ['attack', 'elemental', 'lightning', 'chain'] },
-    '공허 베기': { isGem: true, baseDmg: 1.5, baseSpd: 0.92, leech: 0.4, crit: 6, dmgScale: 0.08, spdScale: 0.01, ele: 'chaos', targetMode: 'cleave', targets: 3, desc: '공허의 칼날로 전방 적을 갈라냅니다.', tags: ['attack', 'melee', 'chaos', 'aoe'] }
+    '공허 베기': { isGem: true, baseDmg: 1.5, baseSpd: 0.92, leech: 0.4, crit: 6, dmgScale: 0.08, spdScale: 0.01, ele: 'chaos', targetMode: 'cleave', targets: 3, desc: '공허의 칼날로 전방 적을 갈라냅니다.', tags: ['attack', 'melee', 'chaos', 'aoe'] },
+    '혈기 폭쇄': { isGem: true, baseDmg: 1.1, baseSpd: 0.95, leech: 0.2, crit: 4, dmgScale: 0.06, spdScale: 0.02, ele: 'phys', targetMode: 'single', targets: 1, hpDmgScale: 0.0035, desc: '최대 생명력이 높을수록 추가 피해를 주는 일격입니다.', tags: ['attack', 'melee', 'physical', 'blood'] },
+    '불멸의 진동': { isGem: true, baseDmg: 1.0, baseSpd: 0.9, leech: 0, crit: 3, dmgScale: 0.05, spdScale: 0.02, hpDmgScale: 0.0025, regenDmgScale: 4.2, desc: '생명력과 재생력을 피해로 전환하는 충격파입니다.', ele: 'phys', targetMode: 'cleave', targets: 4, tags: ['attack', 'aoe', 'physical'] },
+    '화염 부패': { isGem: true, baseDmg: 0.42, baseSpd: 0.78, leech: 0, crit: 0, dmgScale: 0.03, spdScale: 0.01, ele: 'fire', targetMode: 'all', targets: 99, hpDmgScale: 0.0018, fireResDmgScale: 0.006, dotMultiplier: 1.45, desc: '체력과 화염 저항을 기반으로 화염 지속 피해를 퍼뜨립니다.', tags: ['spell', 'dot', 'aoe', 'fire'] }
 };
 
 const SUPPORT_GEM_DB = {
@@ -857,7 +865,11 @@ const SUPPORT_GEM_DB = {
     '생명력 흡수': { baseVal: 0.5, scale: 0.2, stat: 'leech', name: '생명력 흡수', isPct: true, desc: '공격 시 흡혈을 부여합니다.' },
     '연속타격': { baseVal: 5, scale: 1.0, stat: 'ds', name: '연속 타격 확률', isPct: true, desc: '한 번 더 타격할 확률을 부여합니다.' },
     '방어 상승': { baseVal: 2, scale: 0.5, stat: 'dr', name: '받는 피해 감소', isPct: true, desc: '물리 피해 감소를 올립니다.' },
-    '활력': { baseVal: 0.2, scale: 0.1, stat: 'regen', name: '초당 생명력 재생', isPct: true, desc: '초당 생명력 재생을 제공합니다.' }
+    '활력': { baseVal: 0.2, scale: 0.1, stat: 'regen', name: '초당 생명력 재생', isPct: true, desc: '초당 생명력 재생을 제공합니다.' },
+    '화염 장막': { baseVal: 4, scale: 1.2, stat: 'resF', name: '화염 저항', isPct: true, desc: '화염 저항을 강화합니다.' },
+    '냉기 장막': { baseVal: 4, scale: 1.2, stat: 'resC', name: '냉기 저항', isPct: true, desc: '냉기 저항을 강화합니다.' },
+    '번개 장막': { baseVal: 4, scale: 1.2, stat: 'resL', name: '번개 저항', isPct: true, desc: '번개 저항을 강화합니다.' },
+    '공허 장막': { baseVal: 3, scale: 1.0, stat: 'resChaos', name: '카오스 저항', isPct: true, desc: '카오스 저항을 강화합니다.' }
 };
 
 const MOD_DB = [
@@ -3972,14 +3984,36 @@ function useCurrency(currencyKey) {
 
 function upgradeActiveGem(materialKey, amount) {
     if ((game.season || 1) < 2) return addLog('아직 시즌 전용 젬 강화가 잠겨 있습니다.', 'attack-monster');
-    if ((game.currencies[materialKey] || 0) < amount) return addLog('강화 재료가 부족합니다.', 'attack-monster');
     let active = game.activeSkill;
+    game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
     if (!gem || !SKILL_DB[active] || !SKILL_DB[active].isGem) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
-    game.currencies[materialKey] -= amount;
-    gem.level = Math.min(30, gem.level + 1);
-    if (materialKey === 'bossCore') addLog(`💎 [${active}] 젬이 강화되어 Lv.${gem.level}이 되었습니다.`, 'loot-unique');
-    else addLog(`☁️ [${active}] 젬이 강화되어 Lv.${gem.level}이 되었습니다. 특수 옵션은 스킬 탭에서 부여할 수 있습니다.`, 'loot-unique');
+    let isBossCore = materialKey === 'bossCore';
+    let levelKey = isBossCore ? 'bossCoreLevel' : 'skyCoreLevel';
+    let currentLevel = Number.isFinite(gem[levelKey]) ? gem[levelKey] : 0;
+    if (currentLevel >= 5) return addLog(isBossCore ? '군주의 핵 강화는 최대 5레벨입니다.' : '창공의 힘 강화는 최대 5레벨입니다.', 'attack-monster');
+    let need = currentLevel + 1;
+    if ((game.currencies[materialKey] || 0) < need) return addLog(`강화 재료가 부족합니다. (필요: ${need})`, 'attack-monster');
+    game.currencies[materialKey] -= need;
+    gem[levelKey] = currentLevel + 1;
+    let totalLevel = gem.level + (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0);
+    if (isBossCore) addLog(`💎 [${active}] 군주의 핵 강화 ${gem.bossCoreLevel}/5 (소모 ${need}). 총 레벨 ${totalLevel}`, 'loot-unique');
+    else addLog(`☁️ [${active}] 창공의 힘 강화 ${gem.skyCoreLevel}/5 (소모 ${need}). 총 레벨 ${totalLevel}`, 'loot-unique');
+    updateStaticUI();
+}
+
+function upgradeSkyEngraveCap() {
+    if ((game.season || 1) < 4) return addLog('창공 각인 확장은 시즌4부터 가능합니다.', 'attack-monster');
+    let active = game.activeSkill;
+    game.gemData[active] = normalizeGemRecord(game.gemData[active]);
+    let gem = game.gemData[active];
+    if (!gem || !SKILL_DB[active] || !SKILL_DB[active].isGem) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
+    if ((gem.skyEnhanceCap || 1) >= 5) return addLog('창공 각인 슬롯은 최대 5개입니다.', 'attack-monster');
+    let need = gem.skyEnhanceCap + 1;
+    if ((game.currencies.skyEssence || 0) < need) return addLog(`창공의 힘이 부족합니다. (필요: ${need})`, 'attack-monster');
+    game.currencies.skyEssence -= need;
+    gem.skyEnhanceCap = Math.min(5, gem.skyEnhanceCap + 1);
+    addLog(`☁️ [${active}] 창공 각인 슬롯이 ${gem.skyEnhanceCap}개로 확장되었습니다. (소모 ${need})`, 'loot-unique');
     updateStaticUI();
 }
 
@@ -3999,10 +4033,22 @@ function applySkyGemEnhancementToActive(enhanceId) {
     game.skyGemEnhancements = game.skyGemEnhancements || {};
     game.skyGemEnhancements[active] = Array.isArray(game.skyGemEnhancements[active]) ? game.skyGemEnhancements[active] : [];
     if (game.skyGemEnhancements[active].includes(enhanceId)) return addLog('이미 해당 젬에 적용된 특수 옵션입니다.', 'attack-monster');
-    if (game.skyGemEnhancements[active].length >= 2) return addLog('젬 특수 옵션은 최대 2개까지 부여할 수 있습니다.', 'attack-monster');
+    game.gemData[active] = normalizeGemRecord(game.gemData[active]);
+    let cap = game.gemData[active].skyEnhanceCap || 1;
+    if (game.skyGemEnhancements[active].length >= cap) return addLog(`젬 특수 옵션은 현재 최대 ${cap}개까지 부여할 수 있습니다.`, 'attack-monster');
     game.currencies.skyEssence--;
     game.skyGemEnhancements[active].push(enhanceId);
     addLog(`☁️ [${active}] 젬에 '${enhance.name}' 옵션을 부여했습니다.`, 'loot-unique');
+    updateStaticUI();
+}
+
+function removeSkyGemEnhancementFromActive(enhanceId) {
+    let active = game.activeSkill;
+    let pool = Array.isArray(game.skyGemEnhancements && game.skyGemEnhancements[active]) ? game.skyGemEnhancements[active] : [];
+    if (!pool.includes(enhanceId)) return;
+    game.skyGemEnhancements[active] = pool.filter(id => id !== enhanceId);
+    let enh = GEM_SKY_ENHANCEMENTS[enhanceId];
+    addLog(`☁️ [${active}] ${enh ? enh.name : '각인'} 옵션을 해제했습니다.`, 'attack-monster');
     updateStaticUI();
 }
 
@@ -4105,8 +4151,10 @@ function getActiveSkillStats(bonusLevel) {
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
     if (!skill.isGem) return { ...skill, baseLevel: 0, finalLevel: 0, bonusLevel: 0 };
     let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);
-    let finalLevel = Math.min(20, gem.level) + bonusLevel;
-    let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, bonusLevel: bonusLevel };
+    let materialBonus = (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0);
+    let finalLevel = Math.min(20, gem.level) + bonusLevel + materialBonus;
+    let totalLevel = gem.level + bonusLevel + materialBonus;
+    let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus };
     stats.dmg = stats.baseDmg + ((finalLevel - 1) * stats.dmgScale);
     stats.spd = stats.baseSpd + ((finalLevel - 1) * stats.spdScale);
     if (gem.level >= 20) {
@@ -4121,6 +4169,10 @@ function getActiveSkillStats(bonusLevel) {
         if (enh.stat === 'aspd') stats.spd *= (1 + enh.val / 100);
         if (enh.stat === 'crit') stats.crit += enh.val;
         if (enh.stat === 'leech') stats.leech += enh.val;
+        if (enh.stat === 'hybrid') {
+            stats.dmg *= (1 + enh.val / 100);
+            stats.spd *= (1 + enh.val / 100);
+        }
     });
     return stats;
 }
@@ -4240,6 +4292,11 @@ function getPlayerStats() {
     let finalResC = Math.min(75, gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC - resistPenalty);
     let finalResL = Math.min(75, gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL - resistPenalty);
     let finalResChaos = Math.min(75, gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos - resistPenalty);
+    let hpScaledBonus = 1 + Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
+    let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
+    let fireResScaledBonus = 1 + Math.max(0, finalResF * (skill.fireResDmgScale || 0));
+    let dotMultiplier = skill.dotMultiplier || 1;
+    finalBaseDmg = Math.floor(finalBaseDmg * hpScaledBonus * regenScaledBonus * fireResScaledBonus * dotMultiplier);
     let suppCap = 1 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap;
 
     let critChance = finalCrit / 100;
@@ -4448,12 +4505,13 @@ function getGemPresentation(name, isSupport) {
     if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
     if (!db.isGem) return { baseLevel: 0, totalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
     let gem = normalizeGemRecord((game.gemData || {})[name]);
-    let totalLevel = gem.level + stats.gemBonusSources.total;
-    let finalLevel = Math.min(20, gem.level) + stats.gemBonusSources.total;
+    let materialBonus = (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0);
+    let totalLevel = gem.level + stats.gemBonusSources.total + materialBonus;
+    let finalLevel = Math.min(20, gem.level) + stats.gemBonusSources.total + materialBonus;
     let skill = { ...db };
     skill.dmg = skill.baseDmg + ((finalLevel - 1) * skill.dmgScale);
     skill.spd = skill.baseSpd + ((finalLevel - 1) * skill.spdScale);
-    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, desc: db.desc, skill: skill, tags: getSkillTagList(skill) };
+    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, desc: db.desc, skill: skill, tags: getSkillTagList(skill) };
 }
 
 function getSkillTargets(pStats) {
@@ -5163,10 +5221,13 @@ function triggerSeasonReset() {
 function getExpReq(level) { return Math.floor(50 * Math.pow(level, 1.8)); }
 function getGemReqExp(level) { return Math.floor(100 * Math.pow(1.3, level - 1)); }
 function normalizeGemRecord(raw) {
-    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0 };
+    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0, bossCoreLevel: 0, skyCoreLevel: 0, skyEnhanceCap: 1 };
     let level = Number.isFinite(raw.level) ? Math.max(1, Math.floor(raw.level)) : 1;
     let exp = Number.isFinite(raw.exp) ? Math.max(0, raw.exp) : 0;
-    return { level: level, exp: exp };
+    let bossCoreLevel = Number.isFinite(raw.bossCoreLevel) ? Math.min(5, Math.max(0, Math.floor(raw.bossCoreLevel))) : 0;
+    let skyCoreLevel = Number.isFinite(raw.skyCoreLevel) ? Math.min(5, Math.max(0, Math.floor(raw.skyCoreLevel))) : 0;
+    let skyEnhanceCap = Number.isFinite(raw.skyEnhanceCap) ? Math.min(5, Math.max(1, Math.floor(raw.skyEnhanceCap))) : 1;
+    return { level: level, exp: exp, bossCoreLevel: bossCoreLevel, skyCoreLevel: skyCoreLevel, skyEnhanceCap: skyEnhanceCap };
 }
 
 function checkUnlocks() {
@@ -5447,7 +5508,11 @@ function showGemTooltip(event, type, name) {
     }
     if (type === 'support' || SKILL_DB[name].isGem) {
         html += `<div class="tooltip-line" style="margin-top:8px; color:#2ecc71;">총 레벨 ${type === 'support' ? info.totalLevel : info.finalLevel}</div>`;
-        html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${stats.gemBonusSources.passive} + 장비 ${stats.gemBonusSources.gear})</div>`;
+        if (type === 'support') {
+            html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${stats.gemBonusSources.passive} + 장비 ${stats.gemBonusSources.gear} + 보상 ${stats.gemBonusSources.reward})</div>`;
+        } else {
+            html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${stats.gemBonusSources.passive} + 장비 ${stats.gemBonusSources.gear} + 보상 ${stats.gemBonusSources.reward} + 군주의핵 ${info.bossCoreLevel || 0} + 창공의힘 ${info.skyCoreLevel || 0})</div>`;
+        }
     }
     showInfoTooltipHtml(event.clientX, event.clientY, html, type === 'support' ? '#2bcbba' : '#ff5252');
 }
@@ -7075,17 +7140,23 @@ function updateStaticUI() {
             let active = game.activeSkill;
             let isGem = !!(SKILL_DB[active] && SKILL_DB[active].isGem);
             let activeEnh = getSkyEnhancementForSkill(active);
+            let activeGem = isGem ? normalizeGemRecord((game.gemData || {})[active]) : null;
+            let bossNeed = activeGem ? ((activeGem.bossCoreLevel || 0) + 1) : 1;
+            let skyNeed = activeGem ? ((activeGem.skyCoreLevel || 0) + 1) : 1;
+            let engraveCap = activeGem ? (activeGem.skyEnhanceCap || 1) : 1;
+            let capNeed = activeGem ? (engraveCap + 1) : 2;
             document.getElementById('ui-gem-enhance-target').innerHTML = isGem
-                ? `대상 젬: <strong>${active}</strong> (보유 창공의 힘: ${game.currencies.skyEssence || 0})<br><span style="color:#8aa4bf;">적용 옵션: ${activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '없음'}</span>`
+                ? `대상 젬: <strong>${active}</strong> (보유 창공의 힘: ${game.currencies.skyEssence || 0})<br><span style="color:#8aa4bf;">핵 강화: 군주의핵 ${activeGem.bossCoreLevel || 0}/5 · 창공의힘 ${activeGem.skyCoreLevel || 0}/5 · 각인 슬롯 ${engraveCap}/5</span><br><span style="color:#8aa4bf;">적용 옵션: ${activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '없음'}</span>`
                 : '공격 젬을 선택하면 창공의 힘으로 특수 옵션을 부여할 수 있습니다.';
             let upgradeBtns = [];
-            if ((game.currencies.bossCore || 0) > 0) upgradeBtns.push(`<button onclick="upgradeActiveGem('bossCore', 1)" ${!isGem ? 'disabled' : ''} style="text-align:left;"><strong>군주의 핵 강화</strong><br><small>보유: ${game.currencies.bossCore || 0}</small></button>`);
-            if ((game.currencies.skyEssence || 0) > 0) upgradeBtns.push(`<button onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem ? 'disabled' : ''} style="text-align:left;"><strong>창공의 힘 강화</strong><br><small>보유: ${game.currencies.skyEssence || 0}</small></button>`);
+            upgradeBtns.push(`<button onclick="upgradeActiveGem('bossCore', 1)" ${!isGem || (activeGem && activeGem.bossCoreLevel >= 5) ? 'disabled' : ''} style="text-align:left;"><strong>군주의 핵 강화</strong><br><small>보유: ${game.currencies.bossCore || 0} / 필요: ${bossNeed}${activeGem && activeGem.bossCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
+            upgradeBtns.push(`<button onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem || (activeGem && activeGem.skyCoreLevel >= 5) ? 'disabled' : ''} style="text-align:left;"><strong>창공의 힘 강화</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${skyNeed}${activeGem && activeGem.skyCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
+            upgradeBtns.push(`<button onclick="upgradeSkyEngraveCap()" ${!isGem || (activeGem && engraveCap >= 5) ? 'disabled' : ''} style="text-align:left; background:#3b4f66;"><strong>창공 각인 슬롯 확장</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${capNeed}${activeGem && engraveCap >= 5 ? ' (최대)' : ''}</small></button>`);
             document.getElementById('ui-gem-upgrade-actions').innerHTML = upgradeBtns.join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 젬 강화 재료가 없습니다.</div>`;
             if ((game.season || 1) >= 4) {
                 document.getElementById('ui-gem-enhance-options').innerHTML = Object.values(GEM_SKY_ENHANCEMENTS).map(enh => {
                     let applied = activeEnh.includes(enh.id);
-                    return `<button onclick="applySkyGemEnhancementToActive('${enh.id}')" ${!isGem || applied ? 'disabled' : ''} style="text-align:left; background:${applied ? '#213a4a' : '#2c3e50'};"><strong>${enh.name}</strong><br><small>${enh.desc}</small></button>`;
+                    return `<button onclick="${applied ? `removeSkyGemEnhancementFromActive('${enh.id}')` : `applySkyGemEnhancementToActive('${enh.id}')`}" ${!isGem ? 'disabled' : ''} style="text-align:left; background:${applied ? '#213a4a' : '#2c3e50'};"><strong>${enh.name}${applied ? ' (적용됨)' : ''}</strong><br><small>${enh.desc}${applied ? ' · 클릭 시 해제' : ''}</small></button>`;
                 }).join('');
             } else {
                 document.getElementById('ui-gem-enhance-options').innerHTML = `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 시즌 4부터 해금됩니다.</div>`;
