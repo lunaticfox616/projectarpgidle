@@ -210,6 +210,8 @@
         .currency-name { color: #f1c40f; font-weight: bold; margin-bottom: 4px; }
         .currency-desc { color: #95a5a6; font-size: 0.78em; min-height: 34px; }
         .currency-count { color: #3498db; margin-top: 6px; }
+        .divine-drop-banner { position: fixed; top: 82px; left: 50%; transform: translateX(-50%) scale(0.92); z-index: 14000; padding: 12px 18px; border-radius: 12px; border: 1px solid #f7d66a; background: linear-gradient(180deg, rgba(120,91,22,0.96) 0%, rgba(63,45,10,0.96) 100%); color: #fff7d1; font-weight: bold; font-size: 1.05em; letter-spacing: 0.02em; box-shadow: 0 0 0 1px rgba(255,228,130,0.35), 0 0 26px rgba(247,214,106,0.62); opacity: 0; pointer-events: none; transition: opacity 180ms ease, transform 180ms ease; }
+        .divine-drop-banner.show { opacity: 1; transform: translateX(-50%) scale(1); }
         .craft-layout { display: grid; grid-template-columns: 290px 1fr; gap: 15px; align-items: start; }
         .craft-selected { background: #0d0d12; border: 1px solid #333; border-radius: 6px; padding: 12px; min-height: 140px; }
         .craft-actions { display: grid; gap: 8px; margin-top: 12px; }
@@ -554,6 +556,7 @@
         </div>
     </div>
 </div>
+<div id="divine-drop-banner" class="divine-drop-banner">✨ 신성한 오브 획득! ✨</div>
 
 <div id="left-pane">
     <div class="panel player-panel" style="position: relative;">
@@ -783,7 +786,7 @@
                     <label><input type="checkbox" id="chk-salvage-rare" onchange="updateSalvageSettingsFromUI()"> 레어</label>
                     <label><input type="checkbox" id="chk-salvage-unique" onchange="updateSalvageSettingsFromUI()"> 고유</label>
                 </div>
-                <div style="display:flex; gap:8px;"><button class="bulk-salvage-action" onclick="bulkSalvageSelected()">해체</button><button id="btn-auto-salvage" class="bulk-salvage-action" onclick="toggleAutoSalvage()">자동해체 OFF</button></div>
+                <div style="display:flex; gap:8px;"><button class="bulk-salvage-action" style="background:#5d6d7e; border-color:#465664;" onclick="bulkSalvageAllInventory()">전체해체</button><button class="bulk-salvage-action" onclick="bulkSalvageSelected()">해체</button><button id="btn-auto-salvage" class="bulk-salvage-action" onclick="toggleAutoSalvage()">자동해체 OFF</button></div>
             </div>
             <div class="inventory-grid" id="ui-inventory-list"></div>
 
@@ -876,7 +879,7 @@
                 <h3>🏦 거래소</h3>
                 <div id="ui-market-locked" style="color:#8fb6d9; font-size:0.9em;">액트 5 클리어 시 거래소가 해금됩니다.</div>
                 <div id="ui-market-panel" style="display:none;">
-                    <div id="ui-market-exchange-list" style="display:grid; gap:8px;"></div>
+                    <div id="ui-market-exchange-list" style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px;"></div>
                     <div style="margin-top:12px; background:#111923; border:1px solid #30485f; border-radius:8px; padding:10px;">
                         <div style="color:#f1c67d; margin-bottom:8px;">신성한 오브 특수 서비스</div>
                         <div id="ui-market-service-passive" style="margin-bottom:8px;"></div>
@@ -964,7 +967,7 @@
             <div style="background:#1a1a24; padding:10px; border:1px solid #3d3d5c; border-radius:6px;">
                 <label style="display:block; margin-bottom:8px;"><input type="checkbox" id="chk-item-filter-enabled" onchange="updateSettings()"> 아이템 필터 사용</label>
                 <div style="display:grid; gap:6px; font-size:0.86em;">
-                    <div>등급 필터:
+                    <div>습득할 아이템 등급:
                         <label><input type="checkbox" id="chk-item-filter-normal" onchange="updateSettings()"> 일반</label>
                         <label><input type="checkbox" id="chk-item-filter-magic" onchange="updateSettings()"> 매직</label>
                         <label><input type="checkbox" id="chk-item-filter-rare" onchange="updateSettings()"> 레어</label>
@@ -3119,6 +3122,7 @@ let trialHazardTimer = 0;
 let tutorialQueue = [];
 let activeTutorial = null;
 let activeRewardZoneId = null;
+let divineBannerTimer = null;
 let jewelFusionSelection = [];
 let pendingRingEquipItemId = null;
 let deathOverlayActive = false;
@@ -3334,11 +3338,11 @@ function isTutorialOpen() {
     let overlay = document.getElementById('tutorial-overlay');
     return !!activeTutorial && !!overlay && overlay.classList.contains('active');
 }
-function queueTutorialNotice(key, title, body, tabId) {
+function queueTutorialNotice(key, title, body, tabId, itemSubtabId) {
     game.seenTutorials = game.seenTutorials || [];
     if (game.seenTutorials.includes(key)) return;
     game.seenTutorials.push(key);
-    tutorialQueue.push({ key, title, body, tabId: tabId || null });
+    tutorialQueue.push({ key, title, body, tabId: tabId || null, itemSubtabId: itemSubtabId || null });
     showNextTutorial();
 }
 function showNextTutorial() {
@@ -3346,7 +3350,8 @@ function showNextTutorial() {
     activeTutorial = tutorialQueue.shift();
     document.getElementById('tutorial-title').innerText = activeTutorial.title;
     document.getElementById('tutorial-body').innerText = activeTutorial.body;
-    document.getElementById('tutorial-open-btn').innerText = activeTutorial.tabId ? '열어보기' : '확인';
+    let hasShortcut = !!activeTutorial.tabId || !!activeTutorial.itemSubtabId;
+    document.getElementById('tutorial-open-btn').innerText = hasShortcut ? '열어보기' : '확인';
     document.getElementById('tutorial-open-btn').style.display = 'inline-block';
     document.getElementById('tutorial-overlay').classList.add('active');
     lastTime = Date.now();
@@ -3354,11 +3359,24 @@ function showNextTutorial() {
 function dismissTutorial(openTarget) {
     if (!activeTutorial) return;
     let tabId = openTarget ? activeTutorial.tabId : null;
+    let itemSubtabId = openTarget ? activeTutorial.itemSubtabId : null;
     document.getElementById('tutorial-overlay').classList.remove('active');
     activeTutorial = null;
     lastTime = Date.now();
     if (tabId) switchTab(tabId);
+    if (itemSubtabId && tabId === 'tab-items') switchItemSubtab(itemSubtabId);
     if (tutorialQueue.length > 0) setTimeout(showNextTutorial, 40);
+}
+function showDivineDropBanner(amount) {
+    let el = document.getElementById('divine-drop-banner');
+    if (!el) return;
+    el.innerText = `✨ 신성한 오브 획득! +${amount} ✨`;
+    el.classList.add('show');
+    if (divineBannerTimer) clearTimeout(divineBannerTimer);
+    divineBannerTimer = setTimeout(() => {
+        el.classList.remove('show');
+        divineBannerTimer = null;
+    }, 1700);
 }
 function isRewardOpen() {
     let overlay = document.getElementById('reward-overlay');
@@ -3544,9 +3562,14 @@ function getActRewardPreview(choice) {
 function grantActRewardEntry(zoneId, choice) {
     if (choice.kind === 'item') {
         let base = chooseItemBase(choice.slot, zoneId + 1);
+        if (!base) {
+            addLog(`⚠️ 액트 보상 아이템 생성 실패 (${choice.slot})`, 'attack-monster');
+            return;
+        }
         let item = createItemFromBase(base, choice.rarity || 'magic', zoneId + 1);
-        addItemToInventory(item);
-        addLog(`🎁 액트 보상으로 [${item.name}] 획득!`, choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic');
+        let added = addItemToInventory(item, { ignoreFilter: true });
+        if (added) addLog(`🎁 액트 보상으로 [${item.name}] 획득!`, choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic');
+        else addLog(`⚠️ 인벤토리 공간 부족으로 액트 보상 아이템이 자동 해체되었습니다.`, 'attack-monster');
         return;
     }
     if (choice.kind === 'skill') {
@@ -4820,6 +4843,7 @@ function normalizeItem(item) {
     item.hiddenTier = Math.max(1, Math.floor(coerceFiniteNumber(item.hiddenTier, coerceFiniteNumber(item.itemTier, 1), 1)));
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
     item.name = item.name || item.baseName;
+    item.locked = !!item.locked;
     if (!item.id) item.id = ++itemIdCounter;
     return item;
 }
@@ -5008,6 +5032,10 @@ function generateEquipmentDrop(enemy) {
 
 function awardCurrency(currencyKey, amount) {
     game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + amount;
+    if (currencyKey === 'divine' && amount > 0) {
+        showDivineDropBanner(amount);
+        addLog(`✨✨ <strong>신성한 오브 +${amount}</strong> 획득!`, 'loot-unique');
+    }
     if (!game.gemEnhanceUnlocked && (currencyKey === 'bossCore' || currencyKey === 'skyEssence')) {
         game.gemEnhanceUnlocked = true;
         game.noti.skills = true;
@@ -5032,7 +5060,7 @@ function getCurrencyDrops(enemy) {
         if (bonusRoll(0.31)) drops.push(['alchemy', 1]);
         if (bonusRoll(0.08)) drops.push(['regal', 1]);
         if (bonusRoll(0.17)) drops.push(['chaos', 1]);
-        if (bonusRoll(0.05)) drops.push(['divine', 1]);
+        if (bonusRoll(0.025)) drops.push(['divine', 1]);
         if (bonusRoll(0.05)) drops.push(['exalted', 1]);
     } else if (enemy.isElite) {
         if (bonusRoll(0.18)) {
@@ -5063,9 +5091,10 @@ function getCurrencyDrops(enemy) {
     return drops;
 }
 
-function addItemToInventory(item) {
+function addItemToInventory(item, options) {
     normalizeItem(item);
-    if (!passesItemPickupFilter(item)) {
+    let ignoreFilter = !!(options && options.ignoreFilter);
+    if (!ignoreFilter && !passesItemPickupFilter(item)) {
         if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;
     }
@@ -5262,6 +5291,7 @@ function salvageItemObject(item, silent) {
 function salvageItem(idx) {
     let item = game.inventory[idx];
     if (!item) return;
+    if (item.locked) return addLog(`🔒 잠금된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
     if (!craftSelectedIsEquip && craftSelectedRef === item.id) craftSelectedRef = null;
     salvageItemObject(item, false);
     game.inventory.splice(idx, 1);
@@ -5301,7 +5331,8 @@ function bulkSalvage(maxRarity) {
     let targetRank = maxRarity === 'normal' ? 0 : 1;
     let kept = [];
     game.inventory.forEach(item => {
-        if (getRarityRank(item.rarity) <= targetRank) salvageItemObject(item, true);
+        if (item.locked) kept.push(item);
+        else if (getRarityRank(item.rarity) <= targetRank) salvageItemObject(item, true);
         else kept.push(item);
     });
     game.inventory = kept;
@@ -5316,18 +5347,43 @@ function bulkSalvageSelected() {
     if (selectedRarities.length === 0) return addLog('해체할 등급을 먼저 선택하세요.', 'attack-monster');
     let kept = [];
     let removed = 0;
+    let lockedSkipped = 0;
     game.inventory.forEach(item => {
         if (selectedRarities.includes(item.rarity)) {
-            salvageItemObject(item, true);
-            removed++;
+            if (item.locked) {
+                kept.push(item);
+                lockedSkipped++;
+            } else {
+                salvageItemObject(item, true);
+                removed++;
+            }
         } else {
             kept.push(item);
         }
     });
-    if (removed === 0) return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
+    if (removed === 0) {
+        if (lockedSkipped > 0) return addLog(`🔒 선택 등급 아이템이 모두 잠금 상태입니다. (잠금 ${lockedSkipped}개)`, 'attack-monster');
+        return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
+    }
     game.inventory = kept;
     if (!craftSelectedIsEquip && craftSelectedRef !== null && !game.inventory.some(item => item.id === craftSelectedRef)) craftSelectedRef = null;
-    addLog(`🧪 선택한 등급 장비 ${removed}개 해체`, 'loot-normal');
+    addLog(`🧪 선택한 등급 장비 ${removed}개 해체${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    updateStaticUI();
+}
+function bulkSalvageAllInventory() {
+    if (!Array.isArray(game.inventory) || game.inventory.length <= 0) return addLog('해체할 장비가 없습니다.', 'attack-monster');
+    let lockedCount = game.inventory.filter(item => item && item.locked).length;
+    let salvageCount = game.inventory.length - lockedCount;
+    if (salvageCount <= 0) return addLog('🔒 잠금되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
+    if (!confirm(`인벤토리 장비 ${salvageCount}개를 모두 해체할까요?${lockedCount > 0 ? ` (잠금 ${lockedCount}개는 보호됨)` : ''}`)) return;
+    let kept = [];
+    game.inventory.forEach(item => {
+        if (item && item.locked) kept.push(item);
+        else salvageItemObject(item, true);
+    });
+    game.inventory = kept;
+    if (!craftSelectedIsEquip) craftSelectedRef = null;
+    addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개)${lockedCount > 0 ? ` · 잠금 ${lockedCount}개 보호` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 
@@ -5349,6 +5405,7 @@ function useCurrency(currencyKey) {
     else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
     else if (currencyKey === 'tainted') ok = !item.corrupted;
     if (!ok) return addLog("지금 선택한 아이템에는 사용할 수 없습니다.", "attack-monster");
+    if (currencyKey === 'divine' && !confirm('정말 신성한 오브를 사용하시겠습니까?')) return;
 
     game.currencies[currencyKey]--;
     if (currencyKey === 'transmute') {
@@ -5421,7 +5478,7 @@ function exchangeAtMarket(exchangeId, exchangeAll) {
         if (!confirm(question)) return;
     }
     game.currencies[recipe.from] = Math.max(0, (game.currencies[recipe.from] || 0) - spend);
-    game.currencies[recipe.to] = (game.currencies[recipe.to] || 0) + gain;
+    awardCurrency(recipe.to, gain);
     addLog(`🏦 거래소 교환: ${ORB_DB[recipe.from].name} ${spend}개 → ${ORB_DB[recipe.to].name} ${gain}개`, 'loot-magic');
     checkUnlocks();
     updateStaticUI();
@@ -6969,7 +7026,7 @@ function checkUnlocks() {
     }
     if (game.maxZoneId >= 4 && !(game.seenTutorials || []).includes('unlock_market')) {
         game.noti.items = true;
-        queueTutorialNotice('unlock_market', '거래소 개방', '액트 5를 클리어해 거래소가 열렸습니다.\n장비/제작 탭의 거래소에서 재화 교환과 특수 서비스를 이용할 수 있습니다.', 'tab-items');
+        queueTutorialNotice('unlock_market', '거래소 개방', '액트 5를 클리어해 거래소가 열렸습니다.\n장비/제작 탭의 거래소에서 재화 교환과 특수 서비스를 이용할 수 있습니다.', 'tab-items', 'item-tab-market');
     }
     if (game.season > 1 && !u.season) {
         u.season = true;
@@ -7067,6 +7124,17 @@ function salvageItemById(itemId) {
     let idx = findInventoryIndexById(itemId);
     if (idx < 0) return false;
     salvageItem(idx);
+    return true;
+}
+
+function toggleItemLockById(itemId) {
+    let idx = findInventoryIndexById(itemId);
+    if (idx < 0) return false;
+    let item = game.inventory[idx];
+    if (!item) return false;
+    item.locked = !item.locked;
+    addLog(`${item.locked ? '🔒 잠금' : '🔓 잠금 해제'}: [${item.name}]`, 'loot-normal');
+    updateStaticUI();
     return true;
 }
 
@@ -9254,16 +9322,18 @@ function renderPaperdoll(targetId, forCrafting) {
 
 function renderInventoryCard(item, idx, mode) {
     let selected = !craftSelectedIsEquip && craftSelectedRef === item.id;
+    let lockIcon = item.locked ? ' 🔒' : '';
+    let lockBtnLabel = item.locked ? '잠금해제' : '잠금';
     let lines = [];
     (item.baseStats || []).forEach(stat => lines.push(`<span style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
     (item.stats || []).slice(0, 3).forEach(stat => lines.push(`<span>${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
     if ((item.stats || []).length === 0) lines.push(`<span style="color:#7f8c8d">추가 옵션 없음</span>`);
     let actions = '';
-    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">${item.slot === '반지' ? '장착(선택)' : '장착'}</button><button style="background:#5d6d7e; border-color:#465664;" onclick="event.stopPropagation(); bulkSalvageSelected()">전체해체</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button>${item.rarity === 'unique' ? `<button style="background:#6b4d2f; border-color:#9a6f43;" onclick="event.stopPropagation(); storeUniqueToCodexByItemId(${item.id})">도감</button>` : ''}</div>`;
-    else if (mode === 'fossil') actions = `<div class="item-actions"><button style="flex:1; background:#35506a;" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button></div>`;
-    else actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button style="background:#35506a;" onclick="event.stopPropagation(); equipItemById(${item.id})">${item.slot === '반지' ? '장착(선택)' : '장착'}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
+    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">${item.slot === '반지' ? '장착(선택)' : '장착'}</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button>${item.rarity === 'unique' ? `<button style="background:#6b4d2f; border-color:#9a6f43;" onclick="event.stopPropagation(); storeUniqueToCodexByItemId(${item.id})">도감</button>` : ''}</div>`;
+    else if (mode === 'fossil') actions = `<div class="item-actions"><button style="flex:1; background:#35506a;" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
+    else actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button style="background:#35506a;" onclick="event.stopPropagation(); equipItemById(${item.id})">${item.slot === '반지' ? '장착(선택)' : '장착'}</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
     let doubleClick = mode === 'equip' ? ` ondblclick="event.stopPropagation(); handleInventoryCardDoubleClick(${item.id}, 'equip')"` : '';
-    return `<div class="item-card ${selected ? 'selected' : ''}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${item.slot}] ${item.name}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${item.baseName}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
+    return `<div class="item-card ${selected ? 'selected' : ''}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${item.slot}] ${item.name}${lockIcon}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${item.baseName}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
 }
 
 function triggerMapUnlockReveal(zoneId) {
