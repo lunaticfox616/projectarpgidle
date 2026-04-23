@@ -5301,6 +5301,12 @@ function getPlayerStats() {
     let fireResScaledBonus = 1 + Math.max(0, finalResF * (skill.fireResDmgScale || 0));
     let dotMultiplier = skill.dotMultiplier || 1;
     finalBaseDmg = Math.floor(finalBaseDmg * hpScaledBonus * regenScaledBonus * fireResScaledBonus * dotMultiplier);
+    let damageScales = {
+        hp: hpScaledBonus,
+        regen: regenScaledBonus,
+        fireRes: fireResScaledBonus,
+        dot: dotMultiplier
+    };
     let suppCap = 1 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap;
 
     let critChance = finalCrit / 100;
@@ -5319,7 +5325,11 @@ function getPlayerStats() {
                 makeSourceLine('총 피해 증가', generalPctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('태그 보너스', taggedTotal, '%', value => `${Math.floor(value)}%`),
                 taggedSummary.length > 0 ? `적용 태그: ${taggedSummary.join(' / ')}` : null,
-                `스킬 배율 ${formatPercentMultiplier(skill.dmg || 1)}`
+                `스킬 배율 ${formatPercentMultiplier(skill.dmg || 1)}`,
+                (skill.hpDmgScale || 0) > 0 ? `생명력 계수 배율 ${hpScaledBonus.toFixed(2)}x (최대 생명력 ${Math.floor(finalMaxHp)})` : null,
+                (skill.regenDmgScale || 0) > 0 ? `재생 계수 배율 ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
+                (skill.fireResDmgScale || 0) > 0 ? `화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (화염 저항 ${Math.floor(finalResF)}%)` : null,
+                (skill.dotMultiplier || 1) !== 1 ? `지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null
             ].filter(Boolean),
             final: `${Math.floor(finalBaseDmg)}`
         },
@@ -5515,6 +5525,7 @@ function getPlayerStats() {
         resL: finalResL,
         resChaos: finalResChaos,
         resistPenalty: resistPenalty,
+        damageScales: damageScales,
         breakdowns: breakdowns
     };
 }
@@ -6091,6 +6102,13 @@ function performPlayerAttack(pStats) {
     if (game.settings.showCombatLog) {
         let line = hits.length > 1 ? `⚔️ ${hits.join(' / ')} 피해 (${hits.length}타겟)` : `⚔️ ${hits[0] || 0} 피해`;
         if (isCrit) line = `💥 ${line}`;
+        let scales = pStats.damageScales || {};
+        let scaleLabels = [];
+        if ((scales.hp || 1) > 1.0001) scaleLabels.push(`생명력x${(scales.hp || 1).toFixed(2)}`);
+        if ((scales.regen || 1) > 1.0001) scaleLabels.push(`재생x${(scales.regen || 1).toFixed(2)}`);
+        if ((scales.fireRes || 1) > 1.0001) scaleLabels.push(`화저x${(scales.fireRes || 1).toFixed(2)}`);
+        if ((scales.dot || 1) > 1.0001) scaleLabels.push(`도트x${(scales.dot || 1).toFixed(2)}`);
+        if (scaleLabels.length > 0) line += ` [계수 ${scaleLabels.join(' / ')}]`;
         addLog(line, isCrit ? 'attack-crit' : 'attack-player');
     }
 
@@ -6608,6 +6626,10 @@ function showGemTooltip(event, type, name) {
             let spellFlat = (skill.spellFlatBase || 0) + Math.max(0, (info.finalLevel || 1) - 1) * (skill.spellFlatScale || 0);
             html += `<div class="tooltip-line">주문 내장 피해 ${Math.floor(spellFlat)}</div>`;
         }
+        if ((skill.hpDmgScale || 0) > 0) html += `<div class="tooltip-line">생명력 계수: 최대 생명력 1당 ${(skill.hpDmgScale * 100).toFixed(4)}% 추가 배율</div>`;
+        if ((skill.regenDmgScale || 0) > 0) html += `<div class="tooltip-line">재생 계수: 재생 1%당 ${skill.regenDmgScale.toFixed(2)}% 추가 배율</div>`;
+        if ((skill.fireResDmgScale || 0) > 0) html += `<div class="tooltip-line">화염 저항 계수: 화염 저항 1%당 ${(skill.fireResDmgScale * 100).toFixed(2)}% 추가 배율</div>`;
+        if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '전체' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${skill.crit}%</div>`;
