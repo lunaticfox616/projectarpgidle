@@ -166,29 +166,7 @@
         .class-card:hover { background: #2a1035; border-color: #9b59b6; transform: scale(1.05); }
 
         .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
-        .map-overview-card { margin-bottom: 14px; border: 1px solid #2d4054; border-radius: 10px; overflow: hidden; background: #111922; position: relative; }
-        .map-overview-image { display: block; width: 100%; height: auto; }
-        .map-hotspots { position: absolute; inset: 0; pointer-events: none; }
-        .map-hotspot {
-            position: absolute;
-            transform: translate(-50%, -50%);
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            border: 1px solid #4a6a88;
-            background: rgba(16, 25, 35, 0.82);
-            color: #dcecff;
-            font-size: 0.7em;
-            font-weight: bold;
-            pointer-events: auto;
-            cursor: pointer;
-            padding: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .map-hotspot.current { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241,196,15,0.45); color: #ffe8a6; }
-        .map-hotspot.locked { opacity: 0.45; cursor: default; border-style: dashed; }
+        #tab-map img { display: none !important; }
         .map-item { padding: 12px; border: 1px solid #3d3d5c; border-radius: 4px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: 0.2s; cursor: pointer; background-color: #1a1a24; }
         .map-item:hover { filter: brightness(1.2); }
         .map-item.current { background: #2980b9; border-color: #3498db; color: #fff; box-shadow: 0 0 10px rgba(41,128,185,0.5); }
@@ -916,25 +894,6 @@
                 <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
             </div>
         </div>
-        <div id="skill-tab-enhance" class="subtab-content">
-            <h2 id="ui-gem-enhance-header" style="margin-top:0; display:none;">☁️ 스킬 젬 강화</h2>
-            <div id="ui-gem-enhance-panel" style="display:none; background:#11151c; border:1px solid #32506d; border-radius:10px; padding:12px;">
-                <div id="ui-gem-enhance-target" class="gem-enhance-target"></div>
-                <div id="ui-gem-upgrade-actions" class="gem-enhance-actions"></div>
-                <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="tab-talisman" class="tab-content">
-        <h2>🧿 부적 공방</h2>
-        <div id="ui-talisman-currency" style="margin-bottom:10px; color:#b9d7ff;"></div>
-        <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
-        <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
-        <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
-        <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (<span id="ui-talisman-board-size">3</span>x<span id="ui-talisman-board-size2">3</span>)</h3>
-        <div style="margin-bottom:8px;"><button onclick="expandTalismanBoard()">칸 해금</button></div>
-        <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px;"></div>
     </div>
 
     <div id="tab-talisman" class="tab-content">
@@ -8922,6 +8881,10 @@ function updateStaticUI() {
     if (taintedBtn) taintedBtn.style.display = ((game.season || 1) >= 5 && (game.currencies.tainted || 0) > 0) ? 'block' : 'none';
     let fossilTabBtn = document.getElementById('btn-item-tab-fossil');
     if (fossilTabBtn) fossilTabBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
+
+    let legacyMapOverview = document.querySelector('#tab-map .map-overview-card');
+    if (legacyMapOverview) legacyMapOverview.remove();
+    document.querySelectorAll('#tab-map img').forEach(node => node.remove());
 
     let seasonMapCap = getCurrentSeasonFinalZoneId();
     let mapListHtml = MAP_ZONES.filter((zone, idx) => idx <= Math.min(game.maxZoneId, seasonMapCap)).map((zone, idx) => {
