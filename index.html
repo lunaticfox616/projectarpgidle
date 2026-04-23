@@ -7,6 +7,14 @@
     <style>
         html { height: 100%; }
         body { font-family: 'Malgun Gothic', sans-serif; background-color: #08080b; color: #ddd; padding: 15px; padding-top: max(15px, env(safe-area-inset-top)); padding-right: max(15px, env(safe-area-inset-right)); padding-bottom: max(15px, env(safe-area-inset-bottom)); padding-left: max(15px, env(safe-area-inset-left)); font-size: 14px; margin: 0; display: flex; gap: 15px; min-height: 100vh; min-height: 100dvh; width: 100%; box-sizing: border-box; overflow-x: hidden; overflow-y: auto; -webkit-text-size-adjust: 100%; }
+        body.light-mode { background-color: #eef2f8; color: #1f2a3a; }
+        body.light-mode #right-pane { background-color: #f8fbff; border-color: #cfd9e6; }
+        body.light-mode .panel { background-color: #ffffff; border-color: #d5deea; color: #1f2a3a; }
+        body.light-mode .tab-header { background-color: #edf3fa; border-bottom-color: #cfd8e6; }
+        body.light-mode .tab-btn { color: #4b5f78; border-right-color: #d3deec; }
+        body.light-mode .tab-btn.active { background: #ffffff; color: #1e5aa5; border-bottom-color: #1e5aa5; }
+        body.light-mode .tab-content { color: #243247; }
+        body.light-mode #sel-theme-mode { background: #ffffff; color: #1f2a3a; border-color: #b8c9df; }
         #left-pane { width: 620px; min-width: 620px; display: flex; flex-direction: column; gap: 15px; margin-right: 0; min-height: 0; height: 100%; overflow: hidden; }
         #right-pane { flex: 1; display: flex; flex-direction: column; background-color: #121216; border: 1px solid #2a2a35; border-radius: 8px; min-width: 0; min-height: 0; height: 100%; overflow: hidden; position: relative; }
         .panel { background-color: #16161d; border: 1px solid #2a2a35; padding: 15px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
@@ -884,6 +892,13 @@
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-exp" onchange="updateSettings()" checked> 경험치 로그 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-loot" onchange="updateSettings()" checked> 전리품 로그 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-death-notice" onchange="updateSettings()" checked> 사망 시 알림 표시</label>
+            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <span>테마 모드</span>
+                <select id="sel-theme-mode" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
+                    <option value="dark">다크모드</option>
+                    <option value="light">라이트모드</option>
+                </select>
+            </label>
             <hr style="border-color: #3d3d5c; width: 100%;">
             <button id="btn-open-death-log" onclick="openLastDeathLog()" style="background-color: #4a6078;">☠️ 최근 데스로그 보기</button>
             <button onclick="saveGame()" style="background-color: #27ae60;">💾 수동 저장</button>
@@ -1564,7 +1579,7 @@ const defaultGame = {
     currentZoneId: 0,
     maxZoneId: 0,
     killsInZone: 0,
-    settings: { showCombatScene: true, showCombatLog: true, showSpawnLog: true, showExpLog: true, showLootLog: true, showDeathNotice: true, autoSalvageEnabled: false, autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false } },
+    settings: { showCombatScene: true, showCombatLog: true, showSpawnLog: true, showExpLog: true, showLootLog: true, showDeathNotice: true, themeMode: 'dark', autoSalvageEnabled: false, autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false } },
     passivePoints: 0,
     playerHp: 100,
     moveTimer: 0,
@@ -4998,7 +5013,7 @@ function useCurrency(currencyKey) {
     else if (currencyKey === 'alteration') ok = item.rarity === 'magic';
     else if (currencyKey === 'alchemy') ok = item.rarity === 'normal';
     else if (currencyKey === 'exalted') ok = item.rarity === 'rare' && item.stats.length < 6;
-    else if (currencyKey === 'regal') ok = item.rarity === 'magic' && item.stats.length < 2;
+    else if (currencyKey === 'regal') ok = item.rarity === 'magic' && item.stats.length < 6;
     else if (currencyKey === 'chaos') ok = item.rarity === 'rare';
     else if (currencyKey === 'divine') ok = item.rarity !== 'normal';
     else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
@@ -6856,6 +6871,11 @@ function addLog(msg, cls) {
     if (log.childElementCount > 60) log.removeChild(log.firstChild);
 }
 
+function applyThemeMode(mode) {
+    let finalMode = mode === 'light' ? 'light' : 'dark';
+    document.body.classList.toggle('light-mode', finalMode === 'light');
+}
+
 function updateSettings() {
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
     game.settings.showCombatLog = document.getElementById('chk-log-combat').checked;
@@ -6863,6 +6883,9 @@ function updateSettings() {
     game.settings.showExpLog = document.getElementById('chk-log-exp').checked;
     game.settings.showLootLog = document.getElementById('chk-log-loot').checked;
     game.settings.showDeathNotice = document.getElementById('chk-death-notice').checked;
+    let themeSelect = document.getElementById('sel-theme-mode');
+    game.settings.themeMode = themeSelect ? themeSelect.value : (game.settings.themeMode || 'dark');
+    applyThemeMode(game.settings.themeMode);
     toggleDeathNoticeSetting(game.settings.showDeathNotice);
     updateStaticUI();
 }
@@ -9297,6 +9320,7 @@ function mergeDefaults(save) {
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
     merged.passiveStarEvolution = !!merged.passiveStarEvolution;
     merged.settings.showDeathNotice = merged.settings.showDeathNotice !== false;
+    merged.settings.themeMode = merged.settings.themeMode === 'light' ? 'light' : 'dark';
     merged.settings.autoSalvageEnabled = !!merged.settings.autoSalvageEnabled;
     merged.settings.autoSalvageRarities = { ...(defaultGame.settings.autoSalvageRarities || {}), ...(merged.settings.autoSalvageRarities || {}) };
     merged.recentDamageEvents = Array.isArray(merged.recentDamageEvents) ? merged.recentDamageEvents.map(normalizeRecentDamageEvent).filter(Boolean) : [];
@@ -10207,6 +10231,8 @@ function init() {
     document.getElementById('chk-log-exp').checked = game.settings.showExpLog !== false;
     document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
+    document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
+    applyThemeMode(game.settings.themeMode);
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     syncSalvageControlsFromSettings();
     checkUnlocks();
