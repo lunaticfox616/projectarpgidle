@@ -166,18 +166,8 @@
         .class-card:hover { background: #2a1035; border-color: #9b59b6; transform: scale(1.05); }
 
         .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
-        .map-tab-panel { position: relative; border-radius: 12px; padding: 10px; overflow: hidden; }
-        .map-tab-panel::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background:
-                linear-gradient(180deg, rgba(8,14,24,0.86) 0%, rgba(8,14,24,0.78) 55%, rgba(8,14,24,0.9) 100%),
-                url('assets/battlefield-map.png') center/cover no-repeat;
-            opacity: 0.8;
-            pointer-events: none;
-        }
-        .map-tab-panel > * { position: relative; z-index: 1; }
+        .map-overview-card { margin-bottom: 14px; border: 1px solid #2d4054; border-radius: 10px; overflow: hidden; background: #111922; }
+        .map-overview-image { display: block; width: 100%; max-height: 240px; object-fit: cover; object-position: center; }
         .map-item { padding: 12px; border: 1px solid #3d3d5c; border-radius: 4px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: 0.2s; cursor: pointer; background-color: #1a1a24; }
         .map-item:hover { filter: brightness(1.2); }
         .map-item.current { background: #2980b9; border-color: #3498db; color: #fff; box-shadow: 0 0 10px rgba(41,128,185,0.5); }
@@ -867,6 +857,9 @@
 
     <div id="tab-map" class="tab-content map-tab-panel">
         <h2>🗺️ 사냥터 선택</h2>
+        <div class="map-overview-card">
+            <img class="map-overview-image" src="assets/map.png" alt="월드 지도">
+        </div>
         <div class="map-grid" id="ui-map-list"></div>
 
         <h2 style="margin-top: 20px; color: #ffb347; display: none;" id="ui-season-boss-header">🗝️ 시즌 보스 도전</h2>
@@ -901,6 +894,17 @@
                 <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
             </div>
         </div>
+    </div>
+
+    <div id="tab-talisman" class="tab-content">
+        <h2>🧿 부적 공방</h2>
+        <div id="ui-talisman-currency" style="margin-bottom:10px; color:#b9d7ff;"></div>
+        <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
+        <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
+        <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
+        <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (<span id="ui-talisman-board-size">3</span>x<span id="ui-talisman-board-size2">3</span>)</h3>
+        <div style="margin-bottom:8px;"><button onclick="expandTalismanBoard()">칸 해금</button></div>
+        <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px;"></div>
     </div>
 
     <div id="tab-talisman" class="tab-content">
@@ -4376,9 +4380,9 @@ function buildBattleAssetAtlas() {
                 B_WALK_06: { x: 576, y: 118, width: 74, height: 94 },
                 B_WALK_07: { x: 680, y: 118, width: 76, height: 94 },
                 B_WALK_08: { x: 776, y: 118, width: 78, height: 94 },
-                B_SWORD_01: { x: 368, y: 302, width: 88, height: 100 },
-                B_SWORD_02: { x: 522, y: 302, width: 90, height: 100 },
-                B_SWORD_03: { x: 706, y: 302, width: 94, height: 100 },
+                B_SWORD_01: { x: 144, y: 298, width: 196, height: 108, basisHeight: 84, offsetX: -20, offsetY: 3 },
+                B_SWORD_02: { x: 462, y: 296, width: 210, height: 112, basisHeight: 84, offsetX: -26, offsetY: 3 },
+                B_SWORD_03: { x: 814, y: 296, width: 218, height: 112, basisHeight: 84, offsetX: -30, offsetY: 3 },
                 B_CAST_01: { x: 32, y: 510, width: 72, height: 92 },
                 B_CAST_02: { x: 122, y: 510, width: 78, height: 92 },
                 B_CAST_03: { x: 216, y: 510, width: 74, height: 92 },
@@ -4438,6 +4442,9 @@ function buildBattleAssetAtlas() {
                 width: Math.max(12, Math.round(rect.width * scaleX)),
                 height: Math.max(12, Math.round(rect.height * scaleY))
             };
+            if (Number.isFinite(rect.basisHeight)) scaled.bodyFrames[id].basisHeight = Math.max(12, Math.round(rect.basisHeight * scaleY));
+            if (Number.isFinite(rect.offsetX)) scaled.bodyFrames[id].offsetX = rect.offsetX * scaleX;
+            if (Number.isFinite(rect.offsetY)) scaled.bodyFrames[id].offsetY = rect.offsetY * scaleY;
         });
         return scaled;
     }
@@ -4446,7 +4453,12 @@ function buildBattleAssetAtlas() {
         Object.entries(defs.bodyFrames || {}).forEach(([id, rect]) => {
             let prepared = padSpriteRect(rect, image, 4);
             let trimmed = trimRectToContent(image, prepared, 2);
-            if (hasUsableFrame(trimmed)) bodyFrames[id] = trimmed;
+            if (hasUsableFrame(trimmed)) {
+                if (Number.isFinite(rect.basisHeight)) trimmed.basisHeight = rect.basisHeight;
+                if (Number.isFinite(rect.offsetX)) trimmed.offsetX = rect.offsetX;
+                if (Number.isFinite(rect.offsetY)) trimmed.offsetY = rect.offsetY;
+                bodyFrames[id] = trimmed;
+            }
         });
         function resolveClip(name) {
             return (defs.characterAnimations && defs.characterAnimations[name] ? defs.characterAnimations[name] : [])
@@ -7665,8 +7677,8 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         let idleFrame = pickCycle(idleCycle, 920, 0);
-        let walkFrame = pickCycle(walkCycle, lerpNumber(980, 760, advanceBlend), 0);
-        let movingFrame = pickCycle(runCycle, lerpNumber(980, 760, advanceBlend), 0) || walkFrame;
+        let walkFrame = pickCycle(walkCycle, lerpNumber(1220, 980, advanceBlend), 0);
+        let movingFrame = pickCycle(runCycle, lerpNumber(1220, 980, advanceBlend), 0) || walkFrame;
         let frame = downPhase !== null || downBlend > 0.24
             ? pickProgressFrame(downCycle, downPhase !== null ? downPhase : clampNumber(downBlend * 0.999, 0, 0.999))
             : (advanceBlend > 0.08 ? movingFrame : idleFrame);
@@ -8170,7 +8182,7 @@ function renderBattlefield() {
     let advanceTarget = 0;
     if (desiredAdvancing) {
         let changedAt = Number.isFinite(battleVisualState.advanceChangedAt) ? battleVisualState.advanceChangedAt : now;
-        advanceTarget = clampNumber((now - changedAt - 220) / 520, 0, 1);
+        advanceTarget = clampNumber((now - changedAt - 260) / 700, 0, 1);
     }
     battleVisualState.playerAdvanceBlend = approachNumber(battleVisualState.playerAdvanceBlend || 0, advanceTarget, desiredAdvancing ? 2.2 : 2.8, deltaSec);
     battleVisualState.playerAttackBlend = approachNumber(battleVisualState.playerAttackBlend || 0, swingFx ? 1 : 0, swingFx ? 9 : 6, deltaSec);
