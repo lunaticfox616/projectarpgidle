@@ -719,6 +719,7 @@
                 <span class="stat-unit"></span>
             </div>
         </div>
+        <div id="ui-unique-special-summary" style="margin-top:10px; color:#9fc0de; font-size:0.83em;"></div>
     </div>
 
     <div id="tab-char" class="tab-content">
@@ -765,6 +766,7 @@
             <button class="subtab-btn active" id="btn-item-tab-equip" onclick="switchItemSubtab('item-tab-equip')">장비 창</button>
             <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')">제작실</button>
             <button class="subtab-btn" id="btn-item-tab-fossil" onclick="switchItemSubtab('item-tab-fossil')">화석 제작대</button>
+            <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;">거래소</button>
         </div>
 
         <div id="item-tab-equip" class="subtab-content active">
@@ -772,7 +774,7 @@
             <div class="paperdoll" id="ui-equip-list"></div>
 
             <h2 style="margin-top: 20px;">
-                <span>🎒 인벤토리 (<span id="ui-inv-count">0</span> / 30)</span>
+                <span>🎒 인벤토리 (<span id="ui-inv-count">0</span> / <span id="ui-inv-limit">30</span>)</span>
             </h2>
             <div class="bulk-salvage-bar">
                 <div class="bulk-salvage-filters">
@@ -868,6 +870,22 @@
                 </div>
             </div>
         </div>
+
+        <div id="item-tab-market" class="subtab-content">
+            <div class="forge-panel" style="border-color:#4b5f86;">
+                <h3>🏦 거래소</h3>
+                <div id="ui-market-locked" style="color:#8fb6d9; font-size:0.9em;">액트 5 클리어 시 거래소가 해금됩니다.</div>
+                <div id="ui-market-panel" style="display:none;">
+                    <div id="ui-market-exchange-list" style="display:grid; gap:8px;"></div>
+                    <div style="margin-top:12px; background:#111923; border:1px solid #30485f; border-radius:8px; padding:10px;">
+                        <div style="color:#f1c67d; margin-bottom:8px;">신성한 오브 특수 서비스</div>
+                        <div id="ui-market-service-passive" style="margin-bottom:8px;"></div>
+                        <div id="ui-market-service-annul" style="margin-bottom:8px;"></div>
+                        <div id="ui-market-service-inv" style="margin-bottom:4px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="tab-map" class="tab-content map-tab-panel">
@@ -943,6 +961,21 @@
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-loot" onchange="updateSettings()" checked> 전리품 로그 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-crowd" onchange="updateSettings()" checked> 몬스터 과밀 정지/해제 로그 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-death-notice" onchange="updateSettings()" checked> 사망 시 알림 표시</label>
+            <div style="background:#1a1a24; padding:10px; border:1px solid #3d3d5c; border-radius:6px;">
+                <label style="display:block; margin-bottom:8px;"><input type="checkbox" id="chk-item-filter-enabled" onchange="updateSettings()"> 아이템 필터 사용</label>
+                <div style="display:grid; gap:6px; font-size:0.86em;">
+                    <div>등급 필터:
+                        <label><input type="checkbox" id="chk-item-filter-normal" onchange="updateSettings()"> 일반</label>
+                        <label><input type="checkbox" id="chk-item-filter-magic" onchange="updateSettings()"> 매직</label>
+                        <label><input type="checkbox" id="chk-item-filter-rare" onchange="updateSettings()"> 레어</label>
+                        <label><input type="checkbox" id="chk-item-filter-unique" onchange="updateSettings()"> 고유</label>
+                    </div>
+                    <label>옵션 티어 기준: <input id="inp-item-filter-tier-threshold" type="number" min="1" max="20" value="10" onchange="updateSettings()" style="width:62px;"></label>
+                    <label>기준 이상 옵션 개수 최소: <input id="inp-item-filter-tier-count" type="number" min="0" max="6" value="0" onchange="updateSettings()" style="width:62px;"></label>
+                    <label>숨겨진 티어 최소: <input id="inp-item-filter-hidden-tier" type="number" min="1" max="20" value="1" onchange="updateSettings()" style="width:62px;"></label>
+                    <label><input type="checkbox" id="chk-item-filter-unique-new-codex" onchange="updateSettings()"> 도감에 없는 고유만 습득</label>
+                </div>
+            </div>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
                 <span>테마 모드</span>
                 <select id="sel-theme-mode" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
@@ -1508,6 +1541,19 @@ const ORB_DB = {
     sealShard: { name: '봉인편린', desc: '시즌6 부적 시스템 핵심 재료입니다. 봉인을 해제해 부적 후보를 확인합니다.' },
     strongSealShard: { name: '강력한 기운의 봉인편린', desc: '희귀한 고급 봉인편린입니다. 더 강한 부적 옵션을 노릴 수 있습니다.' }
 };
+const MARKET_EXCHANGES = [
+    { id: 'm1', from: 'transmute', to: 'augment', need: 8, gain: 1 },
+    { id: 'm2', from: 'augment', to: 'alteration', need: 8, gain: 1 },
+    { id: 'm3', from: 'alteration', to: 'alchemy', need: 8, gain: 1 },
+    { id: 'm4', from: 'alchemy', to: 'chaos', need: 20, gain: 1 },
+    { id: 'm5', from: 'chaos', to: 'exalted', need: 15, gain: 1 },
+    { id: 'm6', from: 'chaos', to: 'divine', need: 100, gain: 1 },
+    { id: 'm7', from: 'chaos', to: 'regal', need: 3, gain: 1 },
+    { id: 'm8', from: 'regal', to: 'chaos', need: 8, gain: 1 },
+    { id: 'm9', from: 'chaos', to: 'scour', need: 4, gain: 1 },
+    { id: 'm10', from: 'exalted', to: 'divine', need: 5, gain: 1 },
+    { id: 'm11', from: 'divine', to: 'chaos', need: 1, gain: 30 }
+];
 const ACT_REWARD_DB = {
     0: {
         title: '액트 1 클리어 보상',
@@ -1652,7 +1698,24 @@ const defaultGame = {
     currentZoneId: 0,
     maxZoneId: 0,
     killsInZone: 0,
-    settings: { showCombatScene: true, showCombatLog: true, showSpawnLog: true, showExpLog: true, showLootLog: true, showCrowdPauseLog: true, showDeathNotice: true, themeMode: 'dark', autoSalvageEnabled: false, autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false } },
+    settings: {
+        showCombatScene: true,
+        showCombatLog: true,
+        showSpawnLog: true,
+        showExpLog: true,
+        showLootLog: true,
+        showCrowdPauseLog: true,
+        showDeathNotice: true,
+        themeMode: 'dark',
+        autoSalvageEnabled: false,
+        autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false },
+        itemFilterEnabled: false,
+        itemFilterRarities: { normal: true, magic: true, rare: true, unique: true },
+        itemFilterTierThreshold: 10,
+        itemFilterMinTierCount: 0,
+        itemFilterMinHiddenTier: 1,
+        itemFilterOnlyNewCodexUnique: false
+    },
     passivePoints: 0,
     playerHp: 100,
     moveTimer: 0,
@@ -1687,6 +1750,7 @@ const defaultGame = {
     talismanUnseal: null,
     equipment: { '무기': null, '투구': null, '갑옷': null, '장갑': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '허리띠': null },
     inventory: [],
+    inventoryExpandLevel: 0,
     currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, bossCore: 0, fossil: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, sealShard: 0, strongSealShard: 0 },
     ascendClass: null,
     ascendPoints: 0,
@@ -1711,6 +1775,7 @@ const defaultGame = {
     seasonChaseUniqueDropped: false,
     gemEnhanceUnlocked: false,
     uniqueCodex: {},
+    codexCollapsedSlots: {},
     uniqueCodexCompletedRewardClaimed: false,
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0 },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talisman: false },
@@ -1718,6 +1783,7 @@ const defaultGame = {
 };
 
 function clampNumber(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function getInventoryLimit() { return 30 + (Math.max(0, Math.floor(game.inventoryExpandLevel || 0)) * 5); }
 function lerpNumber(start, end, t) { return start + (end - start) * t; }
 function approachNumber(current, target, rate, dt) {
     if (!Number.isFinite(current)) return target;
@@ -4980,10 +5046,10 @@ function getCurrencyDrops(enemy) {
     }
     let mappingOpened = (game.maxZoneId || 0) >= 10;
     if ((game.season || 1) >= 2 && mappingOpened && zone.type !== 'trial' && zone.type !== 'seasonBoss') {
-        if (enemy.isBoss && Math.random() < 0.22) {
+        if (enemy.isBoss && Math.random() < 0.044) {
             let key = ['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm'][Math.floor(Math.random() * 3)];
             drops.push([key, 1]);
-        } else if (enemy.isElite && Math.random() < 0.05) {
+        } else if (enemy.isElite && Math.random() < 0.01) {
             let key = ['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm'][Math.floor(Math.random() * 3)];
             drops.push([key, 1]);
         }
@@ -4999,7 +5065,11 @@ function getCurrencyDrops(enemy) {
 
 function addItemToInventory(item) {
     normalizeItem(item);
-    if ((game.inventory || []).length >= 30) {
+    if (!passesItemPickupFilter(item)) {
+        if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
+        return false;
+    }
+    if ((game.inventory || []).length >= getInventoryLimit()) {
         salvageItemObject(item, true);
         return false;
     }
@@ -5011,6 +5081,26 @@ function addItemToInventory(item) {
     game.inventory.push(item);
     game.noti.items = true;
     checkUnlocks();
+    return true;
+}
+
+function passesItemPickupFilter(item) {
+    let settings = game.settings || {};
+    if (!settings.itemFilterEnabled) return true;
+    let rarities = { normal: true, magic: true, rare: true, unique: true, ...(settings.itemFilterRarities || {}) };
+    if (!rarities[item.rarity]) return false;
+    let minHiddenTier = Math.max(1, Math.floor(settings.itemFilterMinHiddenTier || 1));
+    if ((item.hiddenTier || item.itemTier || 1) < minHiddenTier) return false;
+    let tierThreshold = Math.max(1, Math.floor(settings.itemFilterTierThreshold || 10));
+    let minTierCount = Math.max(0, Math.floor(settings.itemFilterMinTierCount || 0));
+    if (minTierCount > 0) {
+        let count = (item.stats || []).filter(stat => Number.isFinite(stat.tier) && stat.tier >= tierThreshold).length;
+        if (count < minTierCount) return false;
+    }
+    if (item.rarity === 'unique' && settings.itemFilterOnlyNewCodexUnique) {
+        let key = getUniqueCodexKeyByItem(item);
+        if (key && game.uniqueCodex && game.uniqueCodex[key]) return false;
+    }
     return true;
 }
 
@@ -5306,6 +5396,130 @@ function useCurrency(currencyKey) {
     }
     addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
+}
+
+function isMarketUnlocked() {
+    return (game.maxZoneId || 0) >= 4;
+}
+
+function getMarketInventoryExpandCost() {
+    return 2 + Math.max(0, Math.floor(game.inventoryExpandLevel || 0));
+}
+
+function exchangeAtMarket(exchangeId, exchangeAll) {
+    if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
+    let recipe = MARKET_EXCHANGES.find(row => row.id === exchangeId);
+    if (!recipe) return;
+    let have = game.currencies[recipe.from] || 0;
+    let maxTimes = Math.floor(have / recipe.need);
+    if (maxTimes <= 0) return addLog(`${ORB_DB[recipe.from].name}이 부족합니다.`, 'attack-monster');
+    let times = exchangeAll ? maxTimes : 1;
+    let spend = times * recipe.need;
+    let gain = times * recipe.gain;
+    if (exchangeAll) {
+        let question = `정말 ${ORB_DB[recipe.from].name} ${spend}개를 ${ORB_DB[recipe.to].name} ${gain}개로 모두 교환하시겠습니까?`;
+        if (!confirm(question)) return;
+    }
+    game.currencies[recipe.from] = Math.max(0, (game.currencies[recipe.from] || 0) - spend);
+    game.currencies[recipe.to] = (game.currencies[recipe.to] || 0) + gain;
+    addLog(`🏦 거래소 교환: ${ORB_DB[recipe.from].name} ${spend}개 → ${ORB_DB[recipe.to].name} ${gain}개`, 'loot-magic');
+    checkUnlocks();
+    updateStaticUI();
+}
+
+function marketResetPassiveTreeByDivine() {
+    if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
+    if ((game.currencies.divine || 0) < 1) return addLog('신성한 오브가 부족합니다.', 'attack-monster');
+    let spentNodes = Array.isArray(game.passives) ? game.passives.length : 0;
+    if (spentNodes <= 0) return addLog('초기화할 패시브 노드가 없습니다.', 'attack-monster');
+    if (!confirm(`신성한 오브 1개를 사용해 패시브 트리를 전체 초기화하고 포인트 ${spentNodes}점을 반환할까요?`)) return;
+    game.currencies.divine -= 1;
+    game.passives = [];
+    game.passivePoints += spentNodes;
+    calculateReachableNodes();
+    refreshPassiveVisibility();
+    addLog(`🧠 패시브 트리 초기화 완료! 포인트 ${spentNodes}점 반환`, 'season-up');
+    updateStaticUI();
+}
+
+function marketAnnulSelectedStat(statIdx) {
+    if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
+    if (item.rarity === 'normal' || !Array.isArray(item.stats) || item.stats.length <= 0) return addLog('소멸시킬 옵션이 없습니다.', 'attack-monster');
+    if ((game.currencies.divine || 0) < 2) return addLog('신성한 오브가 부족합니다. (필요: 2)', 'attack-monster');
+    let idx = Math.floor(Number(statIdx));
+    if (!Number.isInteger(idx) || idx < 0 || idx >= item.stats.length) return addLog('소멸할 옵션을 선택하세요.', 'attack-monster');
+    let target = item.stats[idx];
+    if (!confirm(`신성한 오브 2개로 [${item.name}]의 옵션 "${target.statName}" 1줄을 소멸시킬까요?`)) return;
+    game.currencies.divine -= 2;
+    item.stats.splice(idx, 1);
+    updateItemName(item);
+    addLog(`💥 옵션 소멸 완료: [${item.name}] - ${target.statName}`, 'loot-unique');
+    updateStaticUI();
+}
+
+function marketExpandInventoryByDivine() {
+    if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
+    let cost = getMarketInventoryExpandCost();
+    if ((game.currencies.divine || 0) < cost) return addLog(`신성한 오브가 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if (!confirm(`신성한 오브 ${cost}개로 인벤토리를 영구히 5칸 확장할까요?`)) return;
+    game.currencies.divine -= cost;
+    game.inventoryExpandLevel = Math.max(0, Math.floor(game.inventoryExpandLevel || 0)) + 1;
+    addLog(`🎒 인벤토리 영구 확장 완료! 현재 최대 칸: ${getInventoryLimit()}`, 'loot-unique');
+    updateStaticUI();
+}
+
+function renderMarketUI() {
+    let lockedEl = document.getElementById('ui-market-locked');
+    let panelEl = document.getElementById('ui-market-panel');
+    if (!lockedEl || !panelEl) return;
+    let unlocked = isMarketUnlocked();
+    lockedEl.style.display = unlocked ? 'none' : 'block';
+    panelEl.style.display = unlocked ? 'block' : 'none';
+    if (!unlocked) return;
+
+    let listEl = document.getElementById('ui-market-exchange-list');
+    if (listEl) {
+        listEl.innerHTML = MARKET_EXCHANGES.map(recipe => {
+            let have = game.currencies[recipe.from] || 0;
+            let maxTimes = Math.floor(have / recipe.need);
+            let spendAll = maxTimes * recipe.need;
+            let gainAll = maxTimes * recipe.gain;
+            return `<div style="background:#101722; border:1px solid #2b3f59; border-radius:8px; padding:8px;">
+                <div style="margin-bottom:6px; color:#d5e7fa;">${ORB_DB[recipe.from].name} ${recipe.need}개 → ${ORB_DB[recipe.to].name} ${recipe.gain}개</div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button onclick="exchangeAtMarket('${recipe.id}', false)" ${maxTimes < 1 ? 'disabled' : ''}>1회 교환</button>
+                    <button onclick="exchangeAtMarket('${recipe.id}', true)" style="background:#5d6d7e; border-color:#465664;" ${maxTimes < 1 ? 'disabled' : ''}>모두 교환 (${spendAll}→${gainAll})</button>
+                    <span style="align-self:center; color:#89a8c7; font-size:0.82em;">보유: ${have}</span>
+                </div>
+            </div>`;
+        }).join('');
+    }
+    let passiveEl = document.getElementById('ui-market-service-passive');
+    if (passiveEl) {
+        let hasSpent = Array.isArray(game.passives) && game.passives.length > 0;
+        passiveEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">신성한 오브 1개 → 패시브 트리 전체 초기화 + 포인트 반환</div>
+        <button onclick="marketResetPassiveTreeByDivine()" ${hasSpent ? '' : 'disabled'}>패시브 트리 전체 초기화</button>`;
+    }
+    let annulEl = document.getElementById('ui-market-service-annul');
+    if (annulEl) {
+        let item = getSelectedCraftItem();
+        let stats = (item && Array.isArray(item.stats)) ? item.stats : [];
+        let options = stats.map((stat, idx) => `<option value="${idx}">${idx + 1}. ${stat.statName} +${formatValue(stat.id, stat.val)}</option>`).join('');
+        annulEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">신성한 오브 2개 → 선택 장비의 원하는 옵션 1줄 소멸</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <select id="sel-market-annul-stat" ${stats.length <= 0 ? 'disabled' : ''} style="min-width:260px; background:#0e141d; color:#dbe9ff; border:1px solid #35506b; border-radius:6px; padding:5px 8px;">${options || '<option>옵션 없음</option>'}</select>
+            <button onclick="marketAnnulSelectedStat(Number(document.getElementById('sel-market-annul-stat').value))" ${stats.length <= 0 ? 'disabled' : ''}>옵션 1줄 소멸</button>
+        </div>
+        <div style="margin-top:4px; color:#89a8c7; font-size:0.82em;">대상: ${item ? `[${item.name}]` : '제작 대상 장비를 먼저 선택하세요.'}</div>`;
+    }
+    let invEl = document.getElementById('ui-market-service-inv');
+    if (invEl) {
+        let cost = getMarketInventoryExpandCost();
+        invEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">신성한 오브 ${cost}개 → 인벤토리 영구 5칸 확장 (현재: ${getInventoryLimit()}칸)</div>
+        <button onclick="marketExpandInventoryByDivine()">인벤토리 확장</button>`;
+    }
 }
 
 function upgradeActiveGem(materialKey, amount) {
@@ -6753,6 +6967,10 @@ function checkUnlocks() {
         game.noti.map = true;
         queueTutorialNotice('unlock_map', '지도 개방', '새 사냥터가 열렸습니다.\n원하는 지역으로 이동해 드랍과 속성을 조절할 수 있습니다.', 'tab-map');
     }
+    if (game.maxZoneId >= 4 && !(game.seenTutorials || []).includes('unlock_market')) {
+        game.noti.items = true;
+        queueTutorialNotice('unlock_market', '거래소 개방', '액트 5를 클리어해 거래소가 열렸습니다.\n장비/제작 탭의 거래소에서 재화 교환과 특수 서비스를 이용할 수 있습니다.', 'tab-items');
+    }
     if (game.season > 1 && !u.season) {
         u.season = true;
         game.noti.season = true;
@@ -6834,7 +7052,7 @@ function equipItemById(itemId, preferredSlot) {
 
 function unequipItem(slot) {
     let item = game.equipment[slot];
-    if (!item || game.inventory.length >= 30) return;
+    if (!item || game.inventory.length >= getInventoryLimit()) return;
     game.inventory.push(item);
     game.equipment[slot] = null;
     if (craftSelectedIsEquip && craftSelectedRef === slot) {
@@ -6947,6 +7165,10 @@ function switchTab(tabId) {
 }
 
 function switchItemSubtab(subtabId) {
+    if (subtabId === 'item-tab-market' && !isMarketUnlocked()) {
+        addLog('액트 5를 먼저 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
+        subtabId = 'item-tab-equip';
+    }
     game.itemSubtab = subtabId;
     document.querySelectorAll('#tab-items .subtab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#tab-items .subtab-btn').forEach(el => el.classList.remove('active'));
@@ -7149,9 +7371,17 @@ function storeUniqueToCodexByItemId(itemId) {
     let key = getUniqueCodexKeyByItem(item);
     if (!key) return addLog('고유 아이템만 도감에 등록할 수 있습니다.', 'attack-monster');
     game.uniqueCodex = game.uniqueCodex || {};
+    let existing = game.uniqueCodex[key];
     game.uniqueCodex[key] = JSON.parse(JSON.stringify(item));
-    game.inventory.splice(idx, 1);
-    addLog(`📚 도감 등록: [${item.name}]`, 'season-up');
+    if (existing && existing.baseName) {
+        let swapped = normalizeItem(JSON.parse(JSON.stringify(existing)));
+        swapped.id = ++itemIdCounter;
+        game.inventory[idx] = swapped;
+        addLog(`🔁 도감 교체: [${item.name}] 등록, [${swapped.name}] 인벤토리로 반환`, 'season-up');
+    } else {
+        game.inventory.splice(idx, 1);
+        addLog(`📚 도감 등록: [${item.name}]`, 'season-up');
+    }
     tryGrantCodexCompletionReward();
     updateStaticUI();
 }
@@ -7161,12 +7391,38 @@ function withdrawUniqueFromCodex(key) {
     let stored = game.uniqueCodex[key];
     if (!stored) return addLog('해당 도감 아이템은 비어 있습니다.', 'attack-monster');
     if (stored.revealed && !stored.baseName) return addLog('이번 시즌에는 도감 정보만 남아 있어 꺼낼 수 없습니다.', 'attack-monster');
-    if ((game.inventory || []).length >= 30) return addLog('인벤토리가 가득 차서 꺼낼 수 없습니다.', 'attack-monster');
+    if ((game.inventory || []).length >= getInventoryLimit()) return addLog('인벤토리가 가득 차서 꺼낼 수 없습니다.', 'attack-monster');
     let clone = normalizeItem(JSON.parse(JSON.stringify(stored)));
     clone.id = ++itemIdCounter;
     game.inventory.push(clone);
+    let parts = String(key).split('|');
+    game.uniqueCodex[key] = { revealed: true, slot: parts[0] || clone.slot || '', name: parts[1] || clone.name || '' };
     addLog(`📦 도감에서 [${clone.name}] 꺼냈습니다.`, 'loot-rare');
     updateStaticUI();
+}
+
+function toggleCodexSlotCollapse(slot) {
+    game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
+    game.codexCollapsedSlots[slot] = !game.codexCollapsedSlots[slot];
+    updateStaticUI();
+}
+
+function renderCodexStatsHtml(entry, stored) {
+    let statList = [];
+    if (stored && stored.baseName) {
+        (stored.baseStats || []).forEach(stat => {
+            statList.push(`<span style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`);
+        });
+        (stored.stats || []).forEach(stat => {
+            let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})` : '';
+            statList.push(`<span>${stat.statName} +${formatValue(stat.id, stat.val)}${range}</span>`);
+        });
+    } else if (stored) {
+        (entry.stats || []).forEach(stat => {
+            statList.push(`<span>${getStatName(stat.id)} ${formatValue(stat.id, stat.min)}~${formatValue(stat.id, stat.max)}</span>`);
+        });
+    }
+    return statList.join('<br>');
 }
 
 function renderUniqueCodexUI() {
@@ -7174,6 +7430,7 @@ function renderUniqueCodexUI() {
     let listEl = document.getElementById('ui-codex-list');
     if (!summary || !listEl) return;
     game.uniqueCodex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
+    game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
     let progress = getUniqueCodexProgress();
     let bonus = progress.stored * 0.2;
     let rewardState = progress.stored >= progress.total ? '완성' : '미완성';
@@ -7183,11 +7440,15 @@ function renderUniqueCodexUI() {
     bySlot.forEach(slot => {
         let entries = UNIQUE_DB.filter(entry => (entry.slots || [])[0] === slot);
         if (entries.length === 0) return;
-        lines.push(`<div style="grid-column:1/-1; color:#9bc2df; font-weight:bold; margin-top:4px;">${slot}</div>`);
+        let collapsed = !!game.codexCollapsedSlots[slot];
+        lines.push(`<div style="grid-column:1/-1; margin-top:4px; display:flex; justify-content:space-between; align-items:center; gap:8px; background:#121822; border:1px solid #2f4f66; border-radius:8px; padding:8px 10px;"><strong style="color:#9bc2df;">${slot}</strong><button onclick="toggleCodexSlotCollapse('${slot}')" style="font-size:0.78em; padding:4px 8px;">${collapsed ? '펼치기' : '접기'}</button></div>`);
+        if (collapsed) return;
         entries.forEach(entry => {
             let key = `${slot}|${entry.name}`;
             let stored = game.uniqueCodex[key];
-            lines.push(`<div class="item-card"><div><div class="item-title unique">[${slot}] ${stored ? entry.name : '???'}</div><div class="item-stats">${stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (시즌 리셋됨)') : '미등록'}</div></div><div class="item-actions">${stored ? (stored.baseName ? `<button onclick="withdrawUniqueFromCodex('${key}')">꺼내기</button>` : `<button disabled>초기화됨</button>`) : `<button disabled>비어있음</button>`}</div></div>`);
+            let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (시즌 리셋됨)') : '미등록';
+            let statHtml = stored ? renderCodexStatsHtml(entry, stored) : '';
+            lines.push(`<div class="item-card"><div><div class="item-title unique">[${slot}] ${stored ? entry.name : '???'}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '옵션 정보 없음'}</div></div><div class="item-actions">${stored ? (stored.baseName ? `<button onclick="withdrawUniqueFromCodex('${key}')">꺼내기</button>` : `<button disabled>초기화됨</button>`) : `<button disabled>비어있음</button>`}</div></div>`);
         });
     });
     listEl.innerHTML = lines.join('');
@@ -7216,7 +7477,7 @@ function grantCodexLegacyStarterUniques() {
             stats: []
         };
         pick.stats.forEach(stat => item.stats.push({ id: stat.id, statName: getStatName(stat.id), val: stat.min, valMin: stat.min, valMax: stat.max, tier: 1 }));
-        if ((game.inventory || []).length < 30) {
+        if ((game.inventory || []).length < getInventoryLimit()) {
             game.inventory.push(normalizeItem(item));
             granted.push(`[${slot}] ${pick.name}`);
         }
@@ -7256,6 +7517,16 @@ function updateSettings() {
     game.settings.showLootLog = document.getElementById('chk-log-loot').checked;
     game.settings.showCrowdPauseLog = document.getElementById('chk-log-crowd').checked;
     game.settings.showDeathNotice = document.getElementById('chk-death-notice').checked;
+    game.settings.itemFilterEnabled = document.getElementById('chk-item-filter-enabled').checked;
+    game.settings.itemFilterRarities = game.settings.itemFilterRarities || { normal: true, magic: true, rare: true, unique: true };
+    game.settings.itemFilterRarities.normal = document.getElementById('chk-item-filter-normal').checked;
+    game.settings.itemFilterRarities.magic = document.getElementById('chk-item-filter-magic').checked;
+    game.settings.itemFilterRarities.rare = document.getElementById('chk-item-filter-rare').checked;
+    game.settings.itemFilterRarities.unique = document.getElementById('chk-item-filter-unique').checked;
+    game.settings.itemFilterTierThreshold = Math.max(1, Math.floor(Number(document.getElementById('inp-item-filter-tier-threshold').value) || 1));
+    game.settings.itemFilterMinTierCount = Math.max(0, Math.floor(Number(document.getElementById('inp-item-filter-tier-count').value) || 0));
+    game.settings.itemFilterMinHiddenTier = Math.max(1, Math.floor(Number(document.getElementById('inp-item-filter-hidden-tier').value) || 1));
+    game.settings.itemFilterOnlyNewCodexUnique = document.getElementById('chk-item-filter-unique-new-codex').checked;
     let themeSelect = document.getElementById('sel-theme-mode');
     game.settings.themeMode = themeSelect ? themeSelect.value : (game.settings.themeMode || 'dark');
     applyThemeMode(game.settings.themeMode);
@@ -8988,7 +9259,7 @@ function renderInventoryCard(item, idx, mode) {
     (item.stats || []).slice(0, 3).forEach(stat => lines.push(`<span>${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
     if ((item.stats || []).length === 0) lines.push(`<span style="color:#7f8c8d">추가 옵션 없음</span>`);
     let actions = '';
-    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">${item.slot === '반지' ? '장착(선택)' : '장착'}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button>${item.rarity === 'unique' ? `<button style="background:#6b4d2f; border-color:#9a6f43;" onclick="event.stopPropagation(); storeUniqueToCodexByItemId(${item.id})">도감</button>` : ''}</div>`;
+    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">${item.slot === '반지' ? '장착(선택)' : '장착'}</button><button style="background:#5d6d7e; border-color:#465664;" onclick="event.stopPropagation(); bulkSalvageSelected()">전체해체</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button>${item.rarity === 'unique' ? `<button style="background:#6b4d2f; border-color:#9a6f43;" onclick="event.stopPropagation(); storeUniqueToCodexByItemId(${item.id})">도감</button>` : ''}</div>`;
     else if (mode === 'fossil') actions = `<div class="item-actions"><button style="flex:1; background:#35506a;" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button></div>`;
     else actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button style="background:#35506a;" onclick="event.stopPropagation(); equipItemById(${item.id})">${item.slot === '반지' ? '장착(선택)' : '장착'}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
     let doubleClick = mode === 'equip' ? ` ondblclick="event.stopPropagation(); handleInventoryCardDoubleClick(${item.id}, 'equip')"` : '';
@@ -9048,6 +9319,7 @@ function updateStaticUI() {
     renderPaperdoll('ui-craft-equip-list', true);
     renderPaperdoll('ui-fossil-equip-list', true);
     document.getElementById('ui-inv-count').innerText = game.inventory.length;
+    document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
     document.getElementById('ui-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'equip')).join('');
     document.getElementById('ui-craft-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'craft')).join('');
     document.getElementById('ui-fossil-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'fossil')).join('');
@@ -9117,6 +9389,10 @@ function updateStaticUI() {
     if (taintedBtn) taintedBtn.style.display = ((game.season || 1) >= 5 && (game.currencies.tainted || 0) > 0) ? 'block' : 'none';
     let fossilTabBtn = document.getElementById('btn-item-tab-fossil');
     if (fossilTabBtn) fossilTabBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
+    let marketTabBtn = document.getElementById('btn-item-tab-market');
+    if (marketTabBtn) marketTabBtn.style.display = isMarketUnlocked() ? 'block' : 'none';
+    if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
+    renderMarketUI();
 
     let legacyMapOverview = document.querySelector('#tab-map .map-overview-card');
     if (legacyMapOverview) legacyMapOverview.remove();
@@ -9799,6 +10075,7 @@ function mergeDefaults(save) {
     merged.ascendNodes = Array.isArray(merged.ascendNodes) ? merged.ascendNodes.filter(id => typeof id === 'string') : [];
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
+    merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
     merged.skillSubtab = (merged.skillSubtab === 'skill-tab-enhance') ? 'skill-tab-enhance' : 'skill-tab-equip';
     merged.gemFoldInactive = !!merged.gemFoldInactive;
     merged.autoRepeatSeasonBoss = !!merged.autoRepeatSeasonBoss;
@@ -9817,6 +10094,7 @@ function mergeDefaults(save) {
     if (merged.talismanUnlocked) merged.unlocks.talisman = true;
     merged.gemEnhanceUnlocked = !!merged.gemEnhanceUnlocked;
     merged.uniqueCodex = (merged.uniqueCodex && typeof merged.uniqueCodex === 'object') ? merged.uniqueCodex : {};
+    merged.codexCollapsedSlots = (merged.codexCollapsedSlots && typeof merged.codexCollapsedSlots === 'object') ? merged.codexCollapsedSlots : {};
     merged.uniqueCodexCompletedRewardClaimed = !!merged.uniqueCodexCompletedRewardClaimed;
     if (!merged.gemEnhanceUnlocked && (((merged.currencies || {}).bossCore || 0) > 0 || ((merged.currencies || {}).skyEssence || 0) > 0)) merged.gemEnhanceUnlocked = true;
     merged.inTicketBossFight = !!merged.inTicketBossFight;
@@ -9835,6 +10113,7 @@ function mergeDefaults(save) {
     merged.season = Math.max(1, Math.floor(clampFiniteNumber(merged.season, defaultGame.season, 1)));
     merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
     merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0)));
+    merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
     merged.playerHp = Math.max(1, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 1)));
     merged.moveTimer = clampFiniteNumber(merged.moveTimer, defaultGame.moveTimer, 0);
     merged.moveTotalTime = clampFiniteNumber(merged.moveTotalTime, defaultGame.moveTotalTime, 0);
@@ -10735,6 +11014,16 @@ function init() {
     document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
     document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
+    game.settings.itemFilterRarities = { normal: true, magic: true, rare: true, unique: true, ...(game.settings.itemFilterRarities || {}) };
+    document.getElementById('chk-item-filter-enabled').checked = !!game.settings.itemFilterEnabled;
+    document.getElementById('chk-item-filter-normal').checked = game.settings.itemFilterRarities.normal !== false;
+    document.getElementById('chk-item-filter-magic').checked = game.settings.itemFilterRarities.magic !== false;
+    document.getElementById('chk-item-filter-rare').checked = game.settings.itemFilterRarities.rare !== false;
+    document.getElementById('chk-item-filter-unique').checked = game.settings.itemFilterRarities.unique !== false;
+    document.getElementById('inp-item-filter-tier-threshold').value = Math.max(1, Math.floor(game.settings.itemFilterTierThreshold || 10));
+    document.getElementById('inp-item-filter-tier-count').value = Math.max(0, Math.floor(game.settings.itemFilterMinTierCount || 0));
+    document.getElementById('inp-item-filter-hidden-tier').value = Math.max(1, Math.floor(game.settings.itemFilterMinHiddenTier || 1));
+    document.getElementById('chk-item-filter-unique-new-codex').checked = !!game.settings.itemFilterOnlyNewCodexUnique;
     document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
     applyThemeMode(game.settings.themeMode);
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
