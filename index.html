@@ -620,7 +620,7 @@
         <div class="tab-btn" id="btn-tab-items" onclick="switchTab('tab-items')">장비/제작 <span id="noti-items" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-map" onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-skills" onclick="switchTab('tab-skills')">스킬 젬 <span id="noti-skills" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-codex" onclick="switchTab('tab-codex')">도감</div>
+        <div class="tab-btn" id="btn-tab-codex" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-talisman" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
         <div class="tab-btn active" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: block;">설정</div>
     </div>
@@ -941,6 +941,7 @@
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-spawn" onchange="updateSettings()" checked> 적/보스 등장 로그 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-exp" onchange="updateSettings()" checked> 경험치 로그 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-loot" onchange="updateSettings()" checked> 전리품 로그 표시</label>
+            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-crowd" onchange="updateSettings()" checked> 몬스터 과밀 정지/해제 로그 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-death-notice" onchange="updateSettings()" checked> 사망 시 알림 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
                 <span>테마 모드</span>
@@ -1332,6 +1333,13 @@ const SKILL_DB = {
     '중력 붕괴': { isGem: true, baseDmg: 1.1, baseSpd: 0.9, leech: 0, crit: 6, dmgScale: 0.05, spdScale: 0.02, ele: 'phys', targetMode: 'cleave', targets: 3, spellFlatBase: 27, spellFlatScale: 5.3, desc: '물리 충격을 일으키는 주문입니다.', tags: ['spell', 'physical', 'aoe'] }
 };
 
+Object.keys(SKILL_DB).forEach(name => {
+    let skill = SKILL_DB[name];
+    if (!skill || !skill.isGem) return;
+    if (Number.isFinite(skill.baseDmg)) skill.baseDmg = Number((skill.baseDmg * 2).toFixed(3));
+    if (Number.isFinite(skill.dmgScale) && skill.dmgScale > 0) skill.dmgScale = Number((skill.dmgScale * 2.6).toFixed(4));
+});
+
 const SUPPORT_GEM_DB = {
     '가속': { baseVal: 1, scale: 0.5, stat: 'aspd', name: '공격 속도', isPct: true, desc: '공격 속도를 올립니다.' },
     '가벼운 발걸음': { baseVal: 1, scale: 1.0, stat: 'move', name: '이동 속도', isPct: true, desc: '맵 진행 속도를 높입니다.' },
@@ -1644,7 +1652,7 @@ const defaultGame = {
     currentZoneId: 0,
     maxZoneId: 0,
     killsInZone: 0,
-    settings: { showCombatScene: true, showCombatLog: true, showSpawnLog: true, showExpLog: true, showLootLog: true, showDeathNotice: true, themeMode: 'dark', autoSalvageEnabled: false, autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false } },
+    settings: { showCombatScene: true, showCombatLog: true, showSpawnLog: true, showExpLog: true, showLootLog: true, showCrowdPauseLog: true, showDeathNotice: true, themeMode: 'dark', autoSalvageEnabled: false, autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false } },
     passivePoints: 0,
     playerHp: 100,
     moveTimer: 0,
@@ -1705,8 +1713,8 @@ const defaultGame = {
     uniqueCodex: {},
     uniqueCodexCompletedRewardClaimed: false,
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0 },
-    unlocks: { char: false, season: false, items: false, map: false, skills: false, traits: false, talisman: false },
-    noti: { char: false, season: false, items: false, skills: false, map: false, traits: false, talisman: false }
+    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talisman: false },
+    noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false }
 };
 
 function clampNumber(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -2965,7 +2973,7 @@ function getClassTreeDef(clsKey) {
         n2: { stat: t.m2, val: entry2, req: 'n1' },
         n3: { stat: t.d, val: entryDef, req: 'n1' },
         n4: { stat: t.m1, val: major1, req: 'n2' },
-        n5: { stat: clsKey === 'ranger' ? 'aspd' : t.m2, val: clsKey === 'ranger' ? scaleClassStat('aspd', getMajorStatBase('aspd'), 1.55) : major2, req: 'n2' },
+        n5: { stat: clsKey === 'ranger' ? 'aspd' : t.m2, val: clsKey === 'ranger' ? scaleClassStat('aspd', getMajorStatBase('aspd'), 1.55) : major2, req: ['n2', 'n3'] },
         n6: { stat: clsKey === 'guardian' ? 'resAll' : t.d, val: clsKey === 'guardian' ? scaleClassStat('resAll', getMajorStatBase('resAll'), 1.65) : majorDef, req: 'n3' },
         n7: { stat: t.m1, val: final1, req: 'n4' },
         n8: { stat: t.m2, val: final2, req: 'n5' },
@@ -2973,7 +2981,7 @@ function getClassTreeDef(clsKey) {
         n10: { stat: ult.stat, val: ult.val, req: ['n7', 'n8', 'n9'] }
     };
     if (clsKey === 'warrior') {
-        tree.n5 = { stat: 'physIgnore', val: scaleClassStat('physIgnore', getMajorStatBase('physIgnore'), 1.2), req: 'n2' };
+        tree.n5 = { stat: 'physIgnore', val: scaleClassStat('physIgnore', getMajorStatBase('physIgnore'), 1.2), req: ['n2', 'n3'] };
         tree.n10 = { stat: 'physIgnore', val: 18, req: ['n7', 'n8', 'n9'] };
     } else if (clsKey === 'assassin') {
         tree.n6 = { stat: 'physIgnore', val: scaleClassStat('physIgnore', getMajorStatBase('physIgnore'), 1.15), req: 'n3' };
@@ -3076,6 +3084,7 @@ const TAB_UNLOCK_GATES = {
     'tab-season': 'season',
     'tab-items': 'items',
     'tab-skills': 'skills',
+    'tab-codex': 'codex',
     'tab-talisman': 'talisman',
     'tab-map': 'map',
     'tab-traits': 'traits'
@@ -6111,8 +6120,10 @@ function syncCrowdPauseState() {
     let paused = isCrowdProgressPaused();
     if (paused === crowdPauseActive) return paused;
     crowdPauseActive = paused;
-    if (paused) addLog(`⛔ 적이 ${ENEMY_CROWD_PAUSE_LIMIT}기 이상 몰려 맵 진행이 멈췄습니다. 적 수를 줄이면 다시 전진합니다.`, 'attack-monster');
-    else addLog('🧭 적 숫자가 줄어 맵 진행을 재개합니다.', 'loot-normal');
+    if (game.settings.showCrowdPauseLog !== false) {
+        if (paused) addLog(`⛔ 적이 ${ENEMY_CROWD_PAUSE_LIMIT}기 이상 몰려 맵 진행이 멈췄습니다. 적 수를 줄이면 다시 전진합니다.`, 'attack-monster');
+        else addLog('🧭 적 숫자가 줄어 맵 진행을 재개합니다.', 'loot-normal');
+    }
     return paused;
 }
 
@@ -6612,8 +6623,12 @@ function coreLoop() {
         while (pTimer >= 1.0 && game.enemies.length > 0) {
             pTimer -= 1.0;
             performPlayerAttack(pStats);
-            if (Math.random() < pStats.ds / 100 && game.enemies.length > 0) {
-                if (game.settings.showCombatLog) addLog("⚔️ [연속 타격] 추가 공격!", "loot-rare");
+            let dsChance = Math.max(0, pStats.ds || 0);
+            let guaranteedExtra = Math.floor(dsChance / 100);
+            let extraRemainder = dsChance - (guaranteedExtra * 100);
+            let extraHits = guaranteedExtra + ((Math.random() * 100 < extraRemainder) ? 1 : 0);
+            for (let chain = 0; chain < extraHits && game.enemies.length > 0; chain++) {
+                if (game.settings.showCombatLog) addLog(`⚔️ [연속 타격] ${chain + 2}연속 공격!`, "loot-rare");
                 performPlayerAttack(pStats);
             }
         }
@@ -6724,6 +6739,14 @@ function checkUnlocks() {
         u.skills = true;
         game.noti.skills = true;
         queueTutorialNotice('unlock_skills', '스킬 젬 개방', '새로운 젬을 얻었습니다.\n공격 스킬을 교체하거나 보조 젬을 연결해 전투 스타일을 바꿔보세요.', 'tab-skills');
+    }
+    let hasUniqueForCodex = (game.inventory || []).some(item => item && item.rarity === 'unique')
+        || Object.values(game.equipment || {}).some(item => item && item.rarity === 'unique')
+        || Object.keys(game.uniqueCodex || {}).length > 0;
+    if (hasUniqueForCodex && !u.codex) {
+        u.codex = true;
+        game.noti.codex = true;
+        queueTutorialNotice('unlock_codex', '도감 탭 개방', '첫 고유 아이템을 획득해 도감이 열렸습니다.\n고유 아이템을 등록/보관하고 도감 보너스를 받을 수 있습니다.', 'tab-codex');
     }
     if (game.maxZoneId >= 1 && !u.map) {
         u.map = true;
@@ -6889,6 +6912,7 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-season') return '시즌 1을 클리어하면 시즌 탭이 열립니다.';
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비/제작 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';
+    if (tabId === 'tab-codex') return '첫 고유 아이템을 획득하면 도감 탭이 열립니다.';
     if (tabId === 'tab-talisman') return '봉인편린을 획득하면 부적 탭이 열립니다.';
     if (tabId === 'tab-map') return '새 사냥터를 발견하면 지도 탭이 열립니다.';
     if (tabId === 'tab-traits') return '전직 시련을 통과하면 직업전직 탭이 열립니다.';
@@ -6912,7 +6936,7 @@ function switchTab(tabId) {
             activeBtn.scrollIntoView();
         }
     }
-    ['char', 'season', 'items', 'skills', 'talisman', 'map', 'traits'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     updateStaticUI();
     if (tabId === 'tab-char') {
         setTimeout(function() {
@@ -7230,6 +7254,7 @@ function updateSettings() {
     game.settings.showSpawnLog = document.getElementById('chk-log-spawn').checked;
     game.settings.showExpLog = document.getElementById('chk-log-exp').checked;
     game.settings.showLootLog = document.getElementById('chk-log-loot').checked;
+    game.settings.showCrowdPauseLog = document.getElementById('chk-log-crowd').checked;
     game.settings.showDeathNotice = document.getElementById('chk-death-notice').checked;
     let themeSelect = document.getElementById('sel-theme-mode');
     game.settings.themeMode = themeSelect ? themeSelect.value : (game.settings.themeMode || 'dark');
@@ -8999,8 +9024,8 @@ function updateStaticUI() {
     if (!showCombatScene && caption) caption.innerText = '전투가 진행중입니다.';
     drawPassiveTree();
 
-    ['char', 'season', 'items', 'skills', 'talisman', 'map', 'traits'].forEach(key => document.getElementById('noti-' + key).style.display = game.noti[key] ? 'block' : 'none');
-    ['char', 'season', 'items', 'skills', 'talisman', 'map', 'traits'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => document.getElementById('noti-' + key).style.display = game.noti[key] ? 'block' : 'none');
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
     let summarySkillTreeBtn = document.getElementById('btn-summary-tab-char');
     if (summarySkillTreeBtn) {
         summarySkillTreeBtn.disabled = !game.unlocks.char;
@@ -9184,7 +9209,8 @@ function updateStaticUI() {
         let effectText = `${statInfo.name || node.stat} +${formatValue(node.stat, node.val)}${suffix}`;
         return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buySeason('${id}')"`}><div class="trait-title">${node.name}</div><div class="trait-desc">${node.desc}<br><span style="color:#9bb9d4;">${effectText}</span></div></div>`;
     };
-    document.getElementById('ui-season-tree').innerHTML = SEASON_NODE_ROWS.map(row => `<div class="trait-row">${row.map(renderSeasonNode).join('')}</div>`).join('');
+    let visibleSeasonRows = SEASON_NODE_ROWS.filter((row, idx) => idx < 4 || (game.season || 1) >= 5);
+    document.getElementById('ui-season-tree').innerHTML = visibleSeasonRows.map(row => `<div class="trait-row">${row.map(renderSeasonNode).join('')}</div>`).join('');
 
     if (game.ascendClass) {
         document.getElementById('ui-class-select').style.display = 'none';
@@ -9338,6 +9364,8 @@ function setupCanvasEvents() {
     let touchStartZoom = camZoom;
     let lastTouchX = 0;
     let lastTouchY = 0;
+    let pendingTouchPassiveId = null;
+    let pendingTouchPassiveAt = 0;
 
     function hideCanvasTooltip() {
         if (!canvasTooltip) return;
@@ -9409,14 +9437,27 @@ function setupCanvasEvents() {
         camY = clientY - dragStartY;
         clampPassiveCamera();
         dragDist += Math.abs(deltaX) + Math.abs(deltaY);
+        if (dragDist >= 10) pendingTouchPassiveId = null;
         drawPassiveTree();
         hideCanvasTooltip();
     }
 
-    function activateHoveredPassive() {
+    function activateHoveredPassive(opts) {
+        let options = opts || {};
         if (dragDist >= 10 || !hoverNode) return;
         if (game.passivePoints <= 0) return addLog("패시브 포인트가 부족합니다.", "attack-monster");
+        if (options.fromTouch && !(game.passives || []).includes(hoverNode.id) && reachableNodes.has(hoverNode.id)) {
+            let now = Date.now();
+            if (pendingTouchPassiveId !== hoverNode.id || (now - pendingTouchPassiveAt) > 1200) {
+                pendingTouchPassiveId = hoverNode.id;
+                pendingTouchPassiveAt = now;
+                renderPassiveTooltip(hoverNode, options.clientX || 0, options.clientY || 0);
+                addLog("👆 패시브 노드 정보 확인됨. 같은 노드를 한 번 더 탭하면 활성화됩니다.", "loot-magic");
+                return;
+            }
+        }
         if (!(game.passives || []).includes(hoverNode.id) && reachableNodes.has(hoverNode.id)) {
+            pendingTouchPassiveId = null;
             game.passives.push(hoverNode.id);
             game.passivePoints--;
             revealAroundNode(hoverNode.id, { forcePulse: true });
@@ -9449,14 +9490,24 @@ function setupCanvasEvents() {
     canvas.addEventListener('mouseleave', () => {
         isDragging = false;
         hoverNode = null;
+        pendingTouchPassiveId = null;
         canvas.style.cursor = 'grab';
         drawPassiveTree();
         hideCanvasTooltip();
     });
     canvas.addEventListener('wheel', e => {
         e.preventDefault();
-        camZoom *= (e.deltaY > 0 ? 0.9 : 1.1);
+        let rect = canvas.getBoundingClientRect();
+        let centerX = rect.width / 2;
+        let centerY = rect.height / 2;
+        let localX = e.clientX - rect.left;
+        let localY = e.clientY - rect.top;
+        let worldX = (localX - centerX - camX) / camZoom;
+        let worldY = (localY - centerY - camY) / camZoom;
+        camZoom *= (e.deltaY > 0 ? 0.8 : 1.2);
         camZoom = clampNumber(camZoom, 0.12, 2.5);
+        camX = localX - centerX - worldX * camZoom;
+        camY = localY - centerY - worldY * camZoom;
         clampPassiveCamera();
         drawPassiveTree();
     });
@@ -9469,6 +9520,7 @@ function setupCanvasEvents() {
             pinchStartDistance = Math.hypot(dx, dy);
             touchStartZoom = camZoom;
             isDragging = false;
+            pendingTouchPassiveId = null;
             hideCanvasTooltip();
             return;
         }
@@ -9495,6 +9547,7 @@ function setupCanvasEvents() {
             }
             camZoom = clampNumber(touchStartZoom * (distance / pinchStartDistance), 0.12, 2.5);
             clampPassiveCamera();
+            pendingTouchPassiveId = null;
             drawPassiveTree();
             hideCanvasTooltip();
             return;
@@ -9531,7 +9584,7 @@ function setupCanvasEvents() {
         if (e.changedTouches && e.changedTouches.length) {
             let touch = e.changedTouches[0];
             hoverNode = getPassiveNodeAtClientPosition(touch.clientX, touch.clientY);
-            activateHoveredPassive();
+            activateHoveredPassive({ fromTouch: true, clientX: touch.clientX, clientY: touch.clientY });
         }
         hideCanvasTooltip();
     }, { passive: false });
@@ -9539,6 +9592,7 @@ function setupCanvasEvents() {
         isDragging = false;
         pinchStartDistance = 0;
         hoverNode = null;
+        pendingTouchPassiveId = null;
         canvas.style.cursor = 'grab';
         drawPassiveTree();
         hideCanvasTooltip();
@@ -10679,6 +10733,7 @@ function init() {
     document.getElementById('chk-log-spawn').checked = game.settings.showSpawnLog !== false;
     document.getElementById('chk-log-exp').checked = game.settings.showExpLog !== false;
     document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
+    document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
     document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
     applyThemeMode(game.settings.themeMode);
