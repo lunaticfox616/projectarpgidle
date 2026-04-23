@@ -7677,7 +7677,11 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             ? pickProgressFrame(downCycle, downPhase !== null ? downPhase : clampNumber(downBlend * 0.999, 0, 0.999))
             : (advanceBlend > 0.08 ? movingFrame : idleFrame);
         if (downPhase === null && hurtBlend > 0.8 && !isAttacking && hurtCycle.length > 0) frame = hurtCycle[0];
-        if (downPhase === null && isAttacking) frame = pickAttackFrame(pickSkillAttackCycle());
+        if (downPhase === null && isAttacking) {
+            let activeVisual = skillVisual || getBattleSkillVisual(game.activeSkill || '기본 공격', SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격']);
+            let preservePoseOnSlash = ['slash', 'flurry', 'flameSlash', 'voidSlash', 'shadowSlash', 'drain'].includes(activeVisual.effect);
+            if (!preservePoseOnSlash) frame = pickAttackFrame(pickSkillAttackCycle());
+        }
         let stepOffset = (downPhase === null && advanceBlend > 0.08)
             ? Math.sin(now / 520) * lerpNumber(0.08, 0.24, advanceBlend)
             : 0;
@@ -7958,6 +7962,7 @@ function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
 
 function drawBattleSwingFx(ctx, fx, t, playerPos) {
     let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
+    let isSlashSwing = ['slash', 'flurry', 'flameSlash', 'voidSlash', 'shadowSlash', 'drain'].includes(skillVisual.effect);
     let spriteFrame = getBattleEffectFrame(skillVisual.effect, 'swing');
     if (battleAssets.ready && spriteFrame) {
         let rotation = skillVisual.effect === 'chain' || skillVisual.effect === 'storm' ? -0.4 : (skillVisual.effect === 'arrow' || skillVisual.effect === 'projectile' ? -0.2 : 0);
@@ -7969,7 +7974,20 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
         let effectWidth = Math.max(1, (spriteFrame.width / Math.max(1, spriteFrame.height)) * desiredHeight);
         let canvasWidth = Math.max(1, ctx.canvas.clientWidth || ctx.canvas.width || 1);
         let safeX = clampNumber(playerPos.x + offsetX, (effectWidth * 0.5) + 28, canvasWidth - (effectWidth * 0.5) - 12);
-        drawBattleSprite(ctx, battleAssets.atlas.effects.image, spriteFrame, safeX, playerPos.y + offsetY, desiredHeight, { rotation: rotation, alpha: 0.82 - t * 0.42, smoothing: 'high' });
+        if (isSlashSwing) {
+            ctx.save();
+            let drawX = safeX - (effectWidth * 0.5);
+            let drawY = (playerPos.y + offsetY) - (desiredHeight * 0.5);
+            let clipTopCut = desiredHeight * 0.26;
+            let clipRightCut = effectWidth * 0.28;
+            ctx.beginPath();
+            ctx.rect(drawX, drawY + clipTopCut, Math.max(1, effectWidth - clipRightCut), Math.max(1, desiredHeight - clipTopCut));
+            ctx.clip();
+            drawBattleSprite(ctx, battleAssets.atlas.effects.image, spriteFrame, safeX, playerPos.y + offsetY, desiredHeight, { rotation: rotation, alpha: 0.82 - t * 0.42, smoothing: 'high' });
+            ctx.restore();
+        } else {
+            drawBattleSprite(ctx, battleAssets.atlas.effects.image, spriteFrame, safeX, playerPos.y + offsetY, desiredHeight, { rotation: rotation, alpha: 0.82 - t * 0.42, smoothing: 'high' });
+        }
         if (skillVisual.effect !== 'whirl' && skillVisual.effect !== 'nova') return;
     }
     ctx.save();
