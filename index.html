@@ -916,6 +916,25 @@
                 <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
             </div>
         </div>
+        <div id="skill-tab-enhance" class="subtab-content">
+            <h2 id="ui-gem-enhance-header" style="margin-top:0; display:none;">☁️ 스킬 젬 강화</h2>
+            <div id="ui-gem-enhance-panel" style="display:none; background:#11151c; border:1px solid #32506d; border-radius:10px; padding:12px;">
+                <div id="ui-gem-enhance-target" class="gem-enhance-target"></div>
+                <div id="ui-gem-upgrade-actions" class="gem-enhance-actions"></div>
+                <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-talisman" class="tab-content">
+        <h2>🧿 부적 공방</h2>
+        <div id="ui-talisman-currency" style="margin-bottom:10px; color:#b9d7ff;"></div>
+        <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
+        <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
+        <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
+        <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (<span id="ui-talisman-board-size">3</span>x<span id="ui-talisman-board-size2">3</span>)</h3>
+        <div style="margin-bottom:8px;"><button onclick="expandTalismanBoard()">칸 해금</button></div>
+        <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px;"></div>
     </div>
 
     <div id="tab-talisman" class="tab-content">
@@ -8905,18 +8924,6 @@ function updateStaticUI() {
     if (fossilTabBtn) fossilTabBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
 
     let seasonMapCap = getCurrentSeasonFinalZoneId();
-    let mapHotspots = WORLD_MAP_HOTSPOTS.map(spot => {
-        let zone = MAP_ZONES[spot.zoneId];
-        if (!zone) return '';
-        let unlocked = spot.zoneId <= Math.min(game.maxZoneId, seasonMapCap);
-        let currentCls = game.currentZoneId === spot.zoneId ? 'current' : '';
-        let lockedCls = unlocked ? '' : 'locked';
-        let actLabel = `A${spot.zoneId + 1}`;
-        return `<button class="map-hotspot ${currentCls} ${lockedCls}" style="left:${spot.x}%; top:${spot.y}%;" ${unlocked ? `onclick="changeZone(${spot.zoneId})"` : 'disabled'} title="${zone.name}">${actLabel}</button>`;
-    }).join('');
-    let hotspotRoot = document.getElementById('ui-map-hotspots');
-    if (hotspotRoot && hotspotRoot.innerHTML !== mapHotspots) hotspotRoot.innerHTML = mapHotspots;
-
     let mapListHtml = MAP_ZONES.filter((zone, idx) => idx <= Math.min(game.maxZoneId, seasonMapCap)).map((zone, idx) => {
         let current = idx === game.currentZoneId ? 'current' : '';
         let unlockReveal = idx === pendingMapRevealZoneId ? 'map-unlock-reveal' : '';
