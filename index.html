@@ -5296,13 +5296,16 @@ function getPlayerStats() {
     let finalResC = Math.min(75, gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC - resistPenalty);
     let finalResL = Math.min(75, gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL - resistPenalty);
     let finalResChaos = Math.min(75, gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos - resistPenalty);
-    let hpScaledBonus = 1 + Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
+    let hpScaleRatio = Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
+    let hpFlatBonus = Math.floor(finalBaseDmg * hpScaleRatio);
+    finalBaseDmg = Math.floor(finalBaseDmg + hpFlatBonus);
     let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
     let fireResScaledBonus = 1 + Math.max(0, finalResF * (skill.fireResDmgScale || 0));
     let dotMultiplier = skill.dotMultiplier || 1;
-    finalBaseDmg = Math.floor(finalBaseDmg * hpScaledBonus * regenScaledBonus * fireResScaledBonus * dotMultiplier);
+    finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus * dotMultiplier);
     let damageScales = {
-        hp: hpScaledBonus,
+        hpFlatBonus: hpFlatBonus,
+        hpScaleRatio: hpScaleRatio,
         regen: regenScaledBonus,
         fireRes: fireResScaledBonus,
         dot: dotMultiplier
@@ -5326,7 +5329,7 @@ function getPlayerStats() {
                 makeSourceLine('태그 보너스', taggedTotal, '%', value => `${Math.floor(value)}%`),
                 taggedSummary.length > 0 ? `적용 태그: ${taggedSummary.join(' / ')}` : null,
                 `스킬 배율 ${formatPercentMultiplier(skill.dmg || 1)}`,
-                (skill.hpDmgScale || 0) > 0 ? `생명력 계수 배율 ${hpScaledBonus.toFixed(2)}x (최대 생명력 ${Math.floor(finalMaxHp)})` : null,
+                (skill.hpDmgScale || 0) > 0 ? `생명력 비례 추가 공격력 +${Math.floor(hpFlatBonus)} (최대 생명력 ${Math.floor(finalMaxHp)})` : null,
                 (skill.regenDmgScale || 0) > 0 ? `재생 계수 배율 ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
                 (skill.fireResDmgScale || 0) > 0 ? `화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (화염 저항 ${Math.floor(finalResF)}%)` : null,
                 (skill.dotMultiplier || 1) !== 1 ? `지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null
@@ -5557,16 +5560,18 @@ function getSkillTargets(pStats) {
     let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
     if (alive.length === 0) return [];
     let skill = pStats.sSkill;
+    let targetCount = Math.max(1, skill.targets || 1);
     if (skill.targetMode === 'all') return alive.map(enemy => ({ enemy: enemy, mult: 1 }));
     if (skill.targetMode === 'whirl') {
-        return alive.slice(0, Math.max(1, skill.targets || 1)).map((enemy, idx) => ({
+        return alive.slice(0, targetCount).map((enemy, idx) => ({
             enemy: enemy,
             mult: idx === 0 ? 1 : (idx < 3 ? 0.82 : (idx < 5 ? 0.68 : 0.56))
         }));
     }
-    if (skill.targetMode === 'cleave') return alive.slice(0, skill.targets).map((enemy, idx) => ({ enemy: enemy, mult: idx === 0 ? 1 : 0.72 }));
-    if (skill.targetMode === 'chain') return alive.slice(0, skill.targets).map((enemy, idx) => ({ enemy: enemy, mult: Math.max(0.45, 1 - idx * 0.2) }));
-    if (skill.targetMode === 'pierce') return alive.slice(0, skill.targets).map((enemy, idx) => ({ enemy: enemy, mult: idx === 0 ? 1 : 0.65 }));
+    if (skill.targetMode === 'cleave') return alive.slice(0, targetCount).map((enemy, idx) => ({ enemy: enemy, mult: idx === 0 ? 1 : 0.72 }));
+    if (skill.targetMode === 'chain') return alive.slice(0, targetCount).map((enemy, idx) => ({ enemy: enemy, mult: Math.max(0.45, 1 - idx * 0.2) }));
+    if (skill.targetMode === 'pierce') return alive.slice(0, targetCount).map((enemy, idx) => ({ enemy: enemy, mult: idx === 0 ? 1 : 0.65 }));
+    if (targetCount > 1) return alive.slice(0, targetCount).map((enemy, idx) => ({ enemy: enemy, mult: idx === 0 ? 1 : 0.7 }));
     return [{ enemy: alive[0], mult: 1 }];
 }
 
@@ -6104,7 +6109,7 @@ function performPlayerAttack(pStats) {
         if (isCrit) line = `💥 ${line}`;
         let scales = pStats.damageScales || {};
         let scaleLabels = [];
-        if ((scales.hp || 1) > 1.0001) scaleLabels.push(`생명력x${(scales.hp || 1).toFixed(2)}`);
+        if ((scales.hpFlatBonus || 0) > 0) scaleLabels.push(`생명력추가+${Math.floor(scales.hpFlatBonus || 0)}`);
         if ((scales.regen || 1) > 1.0001) scaleLabels.push(`재생x${(scales.regen || 1).toFixed(2)}`);
         if ((scales.fireRes || 1) > 1.0001) scaleLabels.push(`화저x${(scales.fireRes || 1).toFixed(2)}`);
         if ((scales.dot || 1) > 1.0001) scaleLabels.push(`도트x${(scales.dot || 1).toFixed(2)}`);
@@ -6626,11 +6631,12 @@ function showGemTooltip(event, type, name) {
             let spellFlat = (skill.spellFlatBase || 0) + Math.max(0, (info.finalLevel || 1) - 1) * (skill.spellFlatScale || 0);
             html += `<div class="tooltip-line">주문 내장 피해 ${Math.floor(spellFlat)}</div>`;
         }
-        if ((skill.hpDmgScale || 0) > 0) html += `<div class="tooltip-line">생명력 계수: 최대 생명력 1당 ${(skill.hpDmgScale * 100).toFixed(4)}% 추가 배율</div>`;
+        if ((skill.hpDmgScale || 0) > 0) html += `<div class="tooltip-line">생명력 계수: 최대 생명력 비례 추가 공격력으로 전환</div>`;
         if ((skill.regenDmgScale || 0) > 0) html += `<div class="tooltip-line">재생 계수: 재생 1%당 ${skill.regenDmgScale.toFixed(2)}% 추가 배율</div>`;
         if ((skill.fireResDmgScale || 0) > 0) html += `<div class="tooltip-line">화염 저항 계수: 화염 저항 1%당 ${(skill.fireResDmgScale * 100).toFixed(2)}% 추가 배율</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '전체' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
+        html += `<div class="tooltip-line">최대 타겟 수: ${Math.max(1, skill.targets || 1)}</div>`;
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${skill.crit}%</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
