@@ -169,6 +169,12 @@
         .map-item { padding: 12px; border: 1px solid #3d3d5c; border-radius: 4px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: 0.2s; cursor: pointer; background-color: #1a1a24; }
         .map-item:hover { filter: brightness(1.2); }
         .map-item.current { background: #2980b9; border-color: #3498db; color: #fff; box-shadow: 0 0 10px rgba(41,128,185,0.5); }
+        .map-item.map-unlock-reveal { animation: mapUnlockReveal 0.8s ease-out 1; border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241,196,15,0.45), 0 0 16px rgba(241,196,15,0.35); }
+        @keyframes mapUnlockReveal {
+            0% { opacity: 0; transform: scale(0.95); filter: brightness(1.5); }
+            45% { opacity: 1; transform: scale(1.03); filter: brightness(1.25); }
+            100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+        }
         .map-item.trial { border-color: #f1c40f; color: #f39c12; background: #2c2c1a; }
         .map-item-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
         .map-item-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
@@ -1583,6 +1589,9 @@ let startupOverlayActive = true;
 let gameplayStarted = false;
 let loadingOverlayTimer = null;
 let loadingOverlayProgress = 0;
+let pendingMapRevealZoneId = null;
+let pendingMapRevealToken = 0;
+let lastRenderedMapListHtml = '';
 
 const defaultGame = {
     saveVersion: 12,
@@ -4329,12 +4338,135 @@ function buildBattleAssetAtlas() {
             ]
         };
     }
+    function getBattleHero1SafeClipDefs() {
+        return {
+            bodyFrames: {
+                B_IDLE_01: { x: 30, y: 16, width: 74, height: 90 },
+                B_IDLE_02: { x: 140, y: 16, width: 76, height: 90 },
+                B_IDLE_03: { x: 348, y: 16, width: 78, height: 90 },
+                B_IDLE_04: { x: 452, y: 16, width: 70, height: 90 },
+                B_WALK_01: { x: 26, y: 118, width: 76, height: 94 },
+                B_WALK_02: { x: 130, y: 118, width: 90, height: 94 },
+                B_WALK_03: { x: 248, y: 118, width: 78, height: 94 },
+                B_WALK_04: { x: 356, y: 118, width: 74, height: 94 },
+                B_WALK_05: { x: 458, y: 118, width: 82, height: 94 },
+                B_WALK_06: { x: 576, y: 118, width: 74, height: 94 },
+                B_WALK_07: { x: 680, y: 118, width: 76, height: 94 },
+                B_WALK_08: { x: 776, y: 118, width: 78, height: 94 },
+                B_SWORD_01: { x: 368, y: 302, width: 88, height: 100 },
+                B_SWORD_02: { x: 522, y: 302, width: 90, height: 100 },
+                B_SWORD_03: { x: 706, y: 302, width: 94, height: 100 },
+                B_CAST_01: { x: 32, y: 510, width: 72, height: 92 },
+                B_CAST_02: { x: 122, y: 510, width: 78, height: 92 },
+                B_CAST_03: { x: 216, y: 510, width: 74, height: 92 },
+                B_CAST_04: { x: 310, y: 510, width: 86, height: 92 },
+                B_CAST_05: { x: 412, y: 510, width: 88, height: 92 },
+                B_CAST_06: { x: 526, y: 510, width: 96, height: 92 },
+                B_HURT_01: { x: 28, y: 870, width: 76, height: 94 },
+                B_HURT_02: { x: 152, y: 870, width: 80, height: 94 },
+                B_HURT_03: { x: 276, y: 870, width: 78, height: 94 },
+                B_HURT_04: { x: 378, y: 870, width: 88, height: 94 },
+                B_HURT_05: { x: 494, y: 870, width: 70, height: 94 },
+                B_HURT_06: { x: 618, y: 870, width: 82, height: 94 },
+                B_DOWN_01: { x: 42, y: 968, width: 78, height: 96 },
+                B_DOWN_02: { x: 184, y: 968, width: 88, height: 96 },
+                B_DOWN_03: { x: 330, y: 968, width: 90, height: 96 },
+                B_DOWN_04: { x: 458, y: 968, width: 94, height: 96 },
+                B_BOW_01: { x: 38, y: 975, width: 74, height: 79 },
+                B_BOW_02: { x: 158, y: 975, width: 84, height: 79 },
+                B_BOW_03: { x: 274, y: 976, width: 81, height: 78 },
+                B_BOW_04: { x: 387, y: 978, width: 90, height: 76 },
+                B_BOW_05: { x: 508, y: 977, width: 84, height: 76 },
+                B_BOW_06: { x: 616, y: 980, width: 89, height: 75 },
+                B_BOW_07: { x: 728, y: 982, width: 95, height: 73 },
+                B_BOW_08: { x: 843, y: 982, width: 95, height: 74 },
+                B_BOW_09: { x: 962, y: 982, width: 81, height: 74 }
+            },
+            characterAnimations: {
+                idle: ['B_IDLE_01', 'B_IDLE_02', 'B_IDLE_03', 'B_IDLE_04'],
+                walk_or_run: ['B_WALK_01', 'B_WALK_02', 'B_WALK_03', 'B_WALK_04', 'B_WALK_05', 'B_WALK_06', 'B_WALK_07', 'B_WALK_08'],
+                sword_attack_body: ['B_SWORD_01', 'B_SWORD_02', 'B_SWORD_03'],
+                cast_body: ['B_CAST_01', 'B_CAST_02', 'B_CAST_03', 'B_CAST_04', 'B_CAST_05', 'B_CAST_06'],
+                hurt: ['B_HURT_01', 'B_HURT_02', 'B_HURT_03', 'B_HURT_04', 'B_HURT_05', 'B_HURT_06'],
+                down_or_knockdown: ['B_DOWN_01', 'B_DOWN_02', 'B_DOWN_03', 'B_DOWN_04'],
+                bow_attack_body: ['B_BOW_01', 'B_BOW_02', 'B_BOW_03', 'B_BOW_04', 'B_BOW_05', 'B_BOW_06', 'B_BOW_07', 'B_BOW_08', 'B_BOW_09']
+            },
+            clipLoop: {
+                idle: true,
+                walk_or_run: true,
+                sword_attack_body: false,
+                cast_body: false,
+                hurt: false,
+                down_or_knockdown: false,
+                bow_attack_body: false
+            }
+        };
+    }
+    function scaleSafeHeroClipDefs(defs, scaleX, scaleY) {
+        let scaled = {
+            bodyFrames: {},
+            characterAnimations: { ...(defs.characterAnimations || {}) },
+            clipLoop: { ...(defs.clipLoop || {}) }
+        };
+        Object.entries(defs.bodyFrames || {}).forEach(([id, rect]) => {
+            scaled.bodyFrames[id] = {
+                x: Math.max(0, Math.round(rect.x * scaleX)),
+                y: Math.max(0, Math.round(rect.y * scaleY)),
+                width: Math.max(12, Math.round(rect.width * scaleX)),
+                height: Math.max(12, Math.round(rect.height * scaleY))
+            };
+        });
+        return scaled;
+    }
+    function buildSafeHeroFrameSetFromClipDefs(image, defs) {
+        let bodyFrames = {};
+        Object.entries(defs.bodyFrames || {}).forEach(([id, rect]) => {
+            let prepared = padSpriteRect(rect, image, 4);
+            let trimmed = trimRectToContent(image, prepared, 2);
+            if (hasUsableFrame(trimmed)) bodyFrames[id] = trimmed;
+        });
+        function resolveClip(name) {
+            return (defs.characterAnimations && defs.characterAnimations[name] ? defs.characterAnimations[name] : [])
+                .map(id => bodyFrames[id])
+                .filter(Boolean);
+        }
+        let characterAnimations = {
+            idle: resolveClip('idle'),
+            walk_or_run: resolveClip('walk_or_run'),
+            sword_attack_body: resolveClip('sword_attack_body'),
+            cast_body: resolveClip('cast_body'),
+            hurt: resolveClip('hurt'),
+            down_or_knockdown: resolveClip('down_or_knockdown'),
+            bow_attack_body: resolveClip('bow_attack_body')
+        };
+        return {
+            characterAnimations: characterAnimations,
+            clipLoop: { ...(defs.clipLoop || {}) },
+            idle: characterAnimations.idle,
+            walk: characterAnimations.walk_or_run,
+            run: characterAnimations.walk_or_run,
+            swordCombo: characterAnimations.sword_attack_body,
+            castCombo: characterAnimations.cast_body,
+            projectileCombo: characterAnimations.cast_body,
+            bowCombo: characterAnimations.bow_attack_body,
+            hurt: characterAnimations.hurt,
+            down: characterAnimations.down_or_knockdown,
+            attack: characterAnimations.sword_attack_body[0] || characterAnimations.idle[0] || null,
+            sideIdle: characterAnimations.idle[0] || null,
+            sideWalk: characterAnimations.walk_or_run[0] || characterAnimations.idle[0] || null,
+            frontIdle: characterAnimations.idle[0] || null,
+            frontGuard: characterAnimations.idle[1] || characterAnimations.idle[0] || null
+        };
+    }
+    function buildSafeHeroFrameSetBattleHero1(image) {
+        return buildSafeHeroFrameSetFromClipDefs(image, getBattleHero1SafeClipDefs());
+    }
     function buildHeroFrameSetBattleHero1(image) {
-        return buildHeroFrameSetFromDefs(image, getBattleHero1FrameDefs());
+        return buildSafeHeroFrameSetBattleHero1(image);
     }
     function buildHeroFrameSetBattleHeroV1(image) {
-        let defs = scaleHeroFrameDefs(getBattleHero1FrameDefs(), image.width / 1448, image.height / 1086);
-        return buildHeroFrameSetFromDefs(image, defs);
+        let defs = scaleSafeHeroClipDefs(getBattleHero1SafeClipDefs(), image.width / 1448, image.height / 1086);
+        return buildSafeHeroFrameSetFromClipDefs(image, defs);
     }
     let heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
     // v2 하드 매핑 + 어떤 해상도든 커스텀/비표준 시트는 스케일/감지 fallback을 탄다.
@@ -4436,6 +4568,15 @@ function buildBattleAssetAtlas() {
                 eruption: effectParts[13],
                 drain: effectParts[14],
                 crimsonSlash: effectParts[15]
+            },
+            animations: {
+                sword_slash_vfx: [effectParts[0], effectParts[1]].filter(Boolean),
+                dark_magic_projectile_vfx: [effectParts[10]].filter(Boolean),
+                lightning_vfx: [effectParts[4], effectParts[7]].filter(Boolean),
+                fireball_vfx: [effectParts[2], effectParts[9]].filter(Boolean),
+                ice_projectile_vfx: [effectParts[3], effectParts[6]].filter(Boolean),
+                arrow_projectile_vfx: [],
+                impact_vfx: [effectParts[8], effectParts[12], effectParts[13], effectParts[15]].filter(Boolean)
             }
         },
         tiles: {
@@ -6193,6 +6334,7 @@ function finishEncounterRun() {
         if (game.maxZoneId <= game.currentZoneId) {
             game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
             game.noti.map = true;
+            triggerMapUnlockReveal(game.maxZoneId);
             addLog(`🗺️ 신규 사냥터 [${MAP_ZONES[game.maxZoneId].name}] 개방!`, "season-up");
         }
         game.killsInZone = 0;
@@ -7267,21 +7409,28 @@ function getBattleSkillVisual(skillName, skillData) {
 
 function getBattleEffectFrame(effectName, phase) {
     if (!battleAssets.ready || !battleAssets.atlas || !battleAssets.atlas.effects) return null;
-    let frames = battleAssets.atlas.effects.frames;
-    if (effectName === 'flurry') return frames.flurry;
-    if (effectName === 'flameSlash') return phase === 'hit' ? frames.fireball : frames.flurry;
-    if (effectName === 'iceLance') return frames.iceLance;
-    if (effectName === 'chain' || effectName === 'storm') return phase === 'hit' ? frames.lightningBurst : frames.chain;
-    if (effectName === 'poisonDart') return frames.poison;
+    let effectAtlas = battleAssets.atlas.effects;
+    let frames = effectAtlas.frames;
+    let animations = effectAtlas.animations || {};
+    function pickEffectClipFrame(name) {
+        let clip = (animations[name] || []).filter(Boolean);
+        if (clip.length === 0) return null;
+        return phase === 'hit' ? clip[clip.length - 1] : clip[0];
+    }
+    if (effectName === 'flurry') return pickEffectClipFrame('sword_slash_vfx') || frames.flurry;
+    if (effectName === 'flameSlash') return pickEffectClipFrame('fireball_vfx') || (phase === 'hit' ? frames.fireball : frames.flurry);
+    if (effectName === 'iceLance') return pickEffectClipFrame('ice_projectile_vfx') || frames.iceLance;
+    if (effectName === 'chain' || effectName === 'storm') return pickEffectClipFrame('lightning_vfx') || (phase === 'hit' ? frames.lightningBurst : frames.chain);
+    if (effectName === 'poisonDart') return pickEffectClipFrame('dark_magic_projectile_vfx') || frames.poison;
     if (effectName === 'nova') return null;
-    if (effectName === 'lightSpear') return phase === 'hit' ? frames.lightningBurst : frames.chain;
-    if (effectName === 'quake' || effectName === 'slam') return frames.quake;
-    if (effectName === 'magma') return phase === 'hit' ? frames.eruption : frames.magma;
+    if (effectName === 'lightSpear') return pickEffectClipFrame('lightning_vfx') || (phase === 'hit' ? frames.lightningBurst : frames.chain);
+    if (effectName === 'quake' || effectName === 'slam') return pickEffectClipFrame('impact_vfx') || frames.quake;
+    if (effectName === 'magma') return pickEffectClipFrame('fireball_vfx') || (phase === 'hit' ? frames.eruption : frames.magma);
     if (effectName === 'arrow' || effectName === 'projectile') return null;
-    if (effectName === 'voidSlash' || effectName === 'shadowSlash') return phase === 'hit' ? frames.voidOrb : frames.voidSlash;
-    if (effectName === 'drain') return phase === 'hit' ? frames.drain : frames.crimsonSlash;
-    if (effectName === 'whirl') return frames.whirl;
-    return frames.slash;
+    if (effectName === 'voidSlash' || effectName === 'shadowSlash') return pickEffectClipFrame('dark_magic_projectile_vfx') || (phase === 'hit' ? frames.voidOrb : frames.voidSlash);
+    if (effectName === 'drain') return pickEffectClipFrame('impact_vfx') || (phase === 'hit' ? frames.drain : frames.crimsonSlash);
+    if (effectName === 'whirl') return pickEffectClipFrame('sword_slash_vfx') || frames.whirl;
+    return pickEffectClipFrame('sword_slash_vfx') || frames.slash;
 }
 
 function getBattleGroundFrames(zone) {
@@ -7429,6 +7578,8 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
     if (battleAssets.ready && battleAssets.atlas && battleAssets.atlas.hero) {
         motionState = motionState || {};
         let frames = battleAssets.atlas.hero.frames;
+        let bodyClips = frames.characterAnimations || {};
+        let clipLoop = frames.clipLoop || {};
         let activeEnemies = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
         let isAdvancing = activeEnemies === 0 && game.moveTimer <= 0 && game.runProgress < 100;
         let advanceBlend = clampNumber(Number.isFinite(motionState.advanceBlend) ? motionState.advanceBlend : (isAdvancing ? 1 : 0), 0, 1);
@@ -7438,11 +7589,11 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let downPhase = downFx ? clampNumber((now - downFx.start) / downFx.duration, 0, 0.999) : null;
         let downBlend = clampNumber(Number.isFinite(motionState.downBlend) ? motionState.downBlend : (downPhase !== null ? 1 : 0), 0, 1);
         let isAttacking = !isAdvancing && (attackBlend > 0.12 || Math.abs(swingPower) > 0.14);
-        let idleCycle = Array.isArray(frames.idle) && frames.idle.length > 0 ? frames.idle : [frames.sideIdle, frames.frontIdle, frames.frontGuard].filter(Boolean);
-        let walkCycle = Array.isArray(frames.walk) && frames.walk.length > 0 ? frames.walk : [frames.sideWalk, frames.sideIdle, frames.frontGuard].filter(Boolean);
+        let idleCycle = Array.isArray(bodyClips.idle) && bodyClips.idle.length > 0 ? bodyClips.idle : (Array.isArray(frames.idle) && frames.idle.length > 0 ? frames.idle : [frames.sideIdle, frames.frontIdle, frames.frontGuard].filter(Boolean));
+        let walkCycle = Array.isArray(bodyClips.walk_or_run) && bodyClips.walk_or_run.length > 0 ? bodyClips.walk_or_run : (Array.isArray(frames.walk) && frames.walk.length > 0 ? frames.walk : [frames.sideWalk, frames.sideIdle, frames.frontGuard].filter(Boolean));
         let runCycle = walkCycle;
-        let hurtCycle = Array.isArray(frames.hurt) && frames.hurt.length > 0 ? frames.hurt : [frames.frontGuard, frames.sideIdle].filter(Boolean);
-        let downCycle = Array.isArray(frames.down) && frames.down.length > 0 ? frames.down : hurtCycle;
+        let hurtCycle = Array.isArray(bodyClips.hurt) && bodyClips.hurt.length > 0 ? bodyClips.hurt : (Array.isArray(frames.hurt) && frames.hurt.length > 0 ? frames.hurt : [frames.frontGuard, frames.sideIdle].filter(Boolean));
+        let downCycle = Array.isArray(bodyClips.down_or_knockdown) && bodyClips.down_or_knockdown.length > 0 ? bodyClips.down_or_knockdown : (Array.isArray(frames.down) && frames.down.length > 0 ? frames.down : hurtCycle);
         function pickCycle(list, speed, phaseOffset) {
             let sequence = (list || []).filter(Boolean);
             if (sequence.length === 0) return frames.attack || frames.sideIdle || frames.sideWalk;
@@ -7456,6 +7607,17 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         function pickSkillAttackCycle() {
+            if (Array.isArray(bodyClips.sword_attack_body) && bodyClips.sword_attack_body.length > 0) {
+                let visual = skillVisual || getBattleSkillVisual(game.activeSkill || '기본 공격', SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격']);
+                let effect = visual && visual.effect ? visual.effect : 'slash';
+                if (effect === 'arrow' || effect === 'projectile' || effect === 'poisonDart' || effect === 'lightSpear') {
+                    return bodyClips.bow_attack_body && bodyClips.bow_attack_body.length > 0 ? bodyClips.bow_attack_body : bodyClips.cast_body || bodyClips.sword_attack_body;
+                }
+                if (effect === 'chain' || effect === 'storm' || effect === 'nova' || effect === 'iceLance') {
+                    return bodyClips.cast_body && bodyClips.cast_body.length > 0 ? bodyClips.cast_body : bodyClips.sword_attack_body;
+                }
+                return bodyClips.sword_attack_body;
+            }
             let visual = skillVisual || getBattleSkillVisual(game.activeSkill || '기본 공격', SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격']);
             let effect = visual && visual.effect ? visual.effect : 'slash';
             if (effect === 'whirl') return frames.whirlCombo || frames.swordCombo;
@@ -7476,6 +7638,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             if (sequence.length === 0) return frames.attack || frames.sideIdle || frames.sideWalk;
             let phase = clampNumber(Math.abs(swingPower), 0, 0.999);
             let idx = Math.floor(phase * sequence.length);
+            if (clipLoop.sword_attack_body === true) idx = Math.floor(((now / 120) % sequence.length));
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         let idleFrame = pickCycle(idleCycle, 920, 0);
@@ -8572,6 +8735,18 @@ function renderInventoryCard(item, idx, mode) {
     return `<div class="item-card ${selected ? 'selected' : ''}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${item.slot}] ${item.name}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${item.baseName}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
 }
 
+function triggerMapUnlockReveal(zoneId) {
+    if (!Number.isFinite(zoneId) || zoneId < 0) return;
+    pendingMapRevealZoneId = zoneId;
+    pendingMapRevealToken += 1;
+    let token = pendingMapRevealToken;
+    setTimeout(() => {
+        if (pendingMapRevealToken !== token) return;
+        pendingMapRevealZoneId = null;
+        updateStaticUI();
+    }, 1200);
+}
+
 function updateStaticUI() {
     applySeasonContentProgression({ silent: false });
     calculateReachableNodes();
@@ -8683,8 +8858,9 @@ function updateStaticUI() {
     if (fossilTabBtn) fossilTabBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
 
     let seasonMapCap = getCurrentSeasonFinalZoneId();
-    document.getElementById('ui-map-list').innerHTML = MAP_ZONES.filter((zone, idx) => idx <= Math.min(game.maxZoneId, seasonMapCap)).map((zone, idx) => {
+    let mapListHtml = MAP_ZONES.filter((zone, idx) => idx <= Math.min(game.maxZoneId, seasonMapCap)).map((zone, idx) => {
         let current = idx === game.currentZoneId ? 'current' : '';
+        let unlockReveal = idx === pendingMapRevealZoneId ? 'map-unlock-reveal' : '';
         let icon = zone.ele === 'fire' ? '🔥' : (zone.ele === 'cold' ? '❄️' : (zone.ele === 'light' ? '⚡' : (zone.ele === 'chaos' ? '☠️' : '🩸')));
         let rewardReady = (game.claimableActRewards || []).includes(idx);
         let rewardClaimed = (game.claimedActRewards || []).includes(idx);
@@ -8695,12 +8871,16 @@ function updateStaticUI() {
         else if (isActRewardZone && rewardClaimed) actionHtml = `<button class="map-reward-btn claimed" disabled>보상 완료</button>`;
         else if (cleared) actionHtml = `<span class="map-zone-status">정복 완료</span>`;
         return `
-            <div class="map-item ${current}" onclick="changeZone(${idx})">
+            <div class="map-item ${current} ${unlockReveal}" onclick="changeZone(${idx})">
                 <div class="map-item-main"><span>${icon}</span><span>${zone.name}</span></div>
                 <div class="map-item-actions">${actionHtml}</div>
             </div>
         `;
     }).join('');
+    if (lastRenderedMapListHtml !== mapListHtml) {
+        document.getElementById('ui-map-list').innerHTML = mapListHtml;
+        lastRenderedMapListHtml = mapListHtml;
+    }
 
     let seasonBosses = SEASON_BOSS_ZONES.filter(zone => (game.season || 1) >= (zone.reqSeason || 2));
     document.getElementById('ui-season-boss-header').style.display = seasonBosses.length > 0 ? 'block' : 'none';
