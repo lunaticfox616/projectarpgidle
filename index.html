@@ -7622,7 +7622,10 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         function pickCycle(list, speed, phaseOffset) {
             let sequence = (list || []).filter(Boolean);
             if (sequence.length === 0) return frames.attack || frames.sideIdle || frames.sideWalk;
-            let phase = ((now / (speed || 110)) + (phaseOffset || 0)) % sequence.length;
+            let baseSpeed = speed || 110;
+            let sequenceSpeedScale = sequence.length <= 3 ? 1.32 : (sequence.length <= 5 ? 1.14 : 1);
+            let adjustedSpeed = baseSpeed * sequenceSpeedScale;
+            let phase = ((now / adjustedSpeed) + (phaseOffset || 0)) % sequence.length;
             return sequence[Math.floor(phase)];
         }
         function pickProgressFrame(list, phase) {
@@ -7667,8 +7670,9 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         let idleFrame = pickCycle(idleCycle, 920, 0);
-        let walkFrame = pickCycle(walkCycle, lerpNumber(1220, 980, advanceBlend), 0);
-        let movingFrame = pickCycle(runCycle, lerpNumber(1220, 980, advanceBlend), 0) || walkFrame;
+        let moveCycleSpeed = lerpNumber(1420, 1140, advanceBlend);
+        let walkFrame = pickCycle(walkCycle, moveCycleSpeed, 0);
+        let movingFrame = pickCycle(runCycle, moveCycleSpeed, 0) || walkFrame;
         let frame = downPhase !== null || downBlend > 0.24
             ? pickProgressFrame(downCycle, downPhase !== null ? downPhase : clampNumber(downBlend * 0.999, 0, 0.999))
             : (advanceBlend > 0.08 ? movingFrame : idleFrame);
