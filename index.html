@@ -167,22 +167,25 @@
 
         .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
         .map-overview-card { margin-bottom: 14px; border: 1px solid #2d4054; border-radius: 10px; overflow: hidden; background: #111922; position: relative; }
-        .map-overview-image { display: block; width: 100%; max-height: 240px; object-fit: cover; object-position: center; }
+        .map-overview-image { display: block; width: 100%; height: auto; }
         .map-hotspots { position: absolute; inset: 0; pointer-events: none; }
         .map-hotspot {
             position: absolute;
             transform: translate(-50%, -50%);
-            min-width: 34px;
-            height: 24px;
-            border-radius: 999px;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
             border: 1px solid #4a6a88;
             background: rgba(16, 25, 35, 0.82);
             color: #dcecff;
-            font-size: 0.72em;
+            font-size: 0.7em;
             font-weight: bold;
             pointer-events: auto;
             cursor: pointer;
-            padding: 0 8px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         .map-hotspot.current { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241,196,15,0.45); color: #ffe8a6; }
         .map-hotspot.locked { opacity: 0.45; cursor: default; border-style: dashed; }
@@ -913,39 +916,6 @@
                 <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
             </div>
         </div>
-    </div>
-
-    <div id="tab-talisman" class="tab-content">
-        <h2>🧿 부적 공방</h2>
-        <div id="ui-talisman-currency" style="margin-bottom:10px; color:#b9d7ff;"></div>
-        <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
-        <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
-        <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
-        <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (<span id="ui-talisman-board-size">3</span>x<span id="ui-talisman-board-size2">3</span>)</h3>
-        <div style="margin-bottom:8px;"><button onclick="expandTalismanBoard()">칸 해금</button></div>
-        <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px;"></div>
-    </div>
-
-    <div id="tab-talisman" class="tab-content">
-        <h2>🧿 부적 공방</h2>
-        <div id="ui-talisman-currency" style="margin-bottom:10px; color:#b9d7ff;"></div>
-        <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
-        <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
-        <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
-        <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (<span id="ui-talisman-board-size">3</span>x<span id="ui-talisman-board-size2">3</span>)</h3>
-        <div style="margin-bottom:8px;"><button onclick="expandTalismanBoard()">칸 해금</button></div>
-        <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px;"></div>
-    </div>
-
-    <div id="tab-talisman" class="tab-content">
-        <h2>🧿 부적 공방</h2>
-        <div id="ui-talisman-currency" style="margin-bottom:10px; color:#b9d7ff;"></div>
-        <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
-        <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
-        <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
-        <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (<span id="ui-talisman-board-size">3</span>x<span id="ui-talisman-board-size2">3</span>)</h3>
-        <div style="margin-bottom:8px;"><button onclick="expandTalismanBoard()">칸 해금</button></div>
-        <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px;"></div>
     </div>
 
     <div id="tab-talisman" class="tab-content">
@@ -4647,7 +4617,7 @@ function buildBattleAssetAtlas() {
                 crimsonSlash: effectParts[15]
             },
             animations: {
-                sword_slash_vfx: [padSpriteRect(effectParts[0], battleAssets.images.effects, 10), padSpriteRect(effectParts[1], battleAssets.images.effects, 8)].filter(Boolean),
+                sword_slash_vfx: [],
                 dark_magic_projectile_vfx: [effectParts[10]].filter(Boolean),
                 lightning_vfx: [effectParts[4], effectParts[7]].filter(Boolean),
                 fireball_vfx: [padSpriteRect(effectParts[2], battleAssets.images.effects, 6), effectParts[13]].filter(Boolean),
@@ -7494,7 +7464,7 @@ function getBattleEffectFrame(effectName, phase) {
         if (clip.length === 0) return null;
         return phase === 'hit' ? clip[clip.length - 1] : clip[0];
     }
-    if (effectName === 'flurry') return pickEffectClipFrame('sword_slash_vfx') || frames.flurry;
+    if (effectName === 'flurry') return pickEffectClipFrame('sword_slash_vfx') || null;
     if (effectName === 'flameSlash') return pickEffectClipFrame('fireball_vfx') || (phase === 'hit' ? frames.fireball : frames.flurry);
     if (effectName === 'iceLance') return pickEffectClipFrame('ice_projectile_vfx') || frames.iceLance;
     if (effectName === 'chain' || effectName === 'storm') return pickEffectClipFrame('lightning_vfx') || (phase === 'hit' ? frames.lightningBurst : frames.chain);
@@ -7506,8 +7476,8 @@ function getBattleEffectFrame(effectName, phase) {
     if (effectName === 'arrow' || effectName === 'projectile') return null;
     if (effectName === 'voidSlash' || effectName === 'shadowSlash') return pickEffectClipFrame('dark_magic_projectile_vfx') || (phase === 'hit' ? frames.voidOrb : frames.voidSlash);
     if (effectName === 'drain') return pickEffectClipFrame('impact_vfx') || (phase === 'hit' ? frames.drain : frames.crimsonSlash);
-    if (effectName === 'whirl') return pickEffectClipFrame('sword_slash_vfx') || frames.whirl;
-    return pickEffectClipFrame('sword_slash_vfx') || frames.slash;
+    if (effectName === 'whirl') return pickEffectClipFrame('sword_slash_vfx') || null;
+    return pickEffectClipFrame('sword_slash_vfx') || null;
 }
 
 function getBattleGroundFrames(zone) {
