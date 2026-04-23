@@ -166,8 +166,26 @@
         .class-card:hover { background: #2a1035; border-color: #9b59b6; transform: scale(1.05); }
 
         .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
-        .map-overview-card { margin-bottom: 14px; border: 1px solid #2d4054; border-radius: 10px; overflow: hidden; background: #111922; }
+        .map-overview-card { margin-bottom: 14px; border: 1px solid #2d4054; border-radius: 10px; overflow: hidden; background: #111922; position: relative; }
         .map-overview-image { display: block; width: 100%; max-height: 240px; object-fit: cover; object-position: center; }
+        .map-hotspots { position: absolute; inset: 0; pointer-events: none; }
+        .map-hotspot {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            min-width: 34px;
+            height: 24px;
+            border-radius: 999px;
+            border: 1px solid #4a6a88;
+            background: rgba(16, 25, 35, 0.82);
+            color: #dcecff;
+            font-size: 0.72em;
+            font-weight: bold;
+            pointer-events: auto;
+            cursor: pointer;
+            padding: 0 8px;
+        }
+        .map-hotspot.current { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241,196,15,0.45); color: #ffe8a6; }
+        .map-hotspot.locked { opacity: 0.45; cursor: default; border-style: dashed; }
         .map-item { padding: 12px; border: 1px solid #3d3d5c; border-radius: 4px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: 0.2s; cursor: pointer; background-color: #1a1a24; }
         .map-item:hover { filter: brightness(1.2); }
         .map-item.current { background: #2980b9; border-color: #3498db; color: #fff; box-shadow: 0 0 10px rgba(41,128,185,0.5); }
@@ -859,6 +877,7 @@
         <h2>🗺️ 사냥터 선택</h2>
         <div class="map-overview-card">
             <img class="map-overview-image" src="assets/map.png" alt="월드 지도">
+            <div class="map-hotspots" id="ui-map-hotspots"></div>
         </div>
         <div class="map-grid" id="ui-map-list"></div>
 
@@ -894,6 +913,17 @@
                 <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
             </div>
         </div>
+    </div>
+
+    <div id="tab-talisman" class="tab-content">
+        <h2>🧿 부적 공방</h2>
+        <div id="ui-talisman-currency" style="margin-bottom:10px; color:#b9d7ff;"></div>
+        <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
+        <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
+        <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
+        <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (<span id="ui-talisman-board-size">3</span>x<span id="ui-talisman-board-size2">3</span>)</h3>
+        <div style="margin-bottom:8px;"><button onclick="expandTalismanBoard()">칸 해금</button></div>
+        <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px;"></div>
     </div>
 
     <div id="tab-talisman" class="tab-content">
@@ -1099,6 +1129,18 @@ const MAP_ZONES = [
     { id: 7, name: "액트 8: 번개의 심장", type: "act", tier: 5, maxKills: 3, ele: "light" },
     { id: 8, name: "액트 9: 혼돈의 하늘", type: "act", tier: 5, maxKills: 3, ele: "chaos" },
     { id: 9, name: "액트 10: 공허의 문턱", type: "act", tier: 6, maxKills: 3, ele: "chaos" }
+];
+const WORLD_MAP_HOTSPOTS = [
+    { zoneId: 0, x: 18, y: 70 },
+    { zoneId: 1, x: 30, y: 61 },
+    { zoneId: 2, x: 39, y: 50 },
+    { zoneId: 3, x: 48, y: 44 },
+    { zoneId: 4, x: 59, y: 42 },
+    { zoneId: 5, x: 68, y: 48 },
+    { zoneId: 6, x: 74, y: 56 },
+    { zoneId: 7, x: 80, y: 47 },
+    { zoneId: 8, x: 87, y: 39 },
+    { zoneId: 9, x: 91, y: 30 }
 ];
 const abyssTiers = [7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 15, 15, 16, 17, 18, 19];
 for (let i = 1; i <= 20; i++) MAP_ZONES.push({ id: 9 + i, name: "심연 깊이 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 4, ele: "chaos" });
@@ -4380,9 +4422,9 @@ function buildBattleAssetAtlas() {
                 B_WALK_06: { x: 576, y: 118, width: 74, height: 94 },
                 B_WALK_07: { x: 680, y: 118, width: 76, height: 94 },
                 B_WALK_08: { x: 776, y: 118, width: 78, height: 94 },
-                B_SWORD_01: { x: 144, y: 298, width: 196, height: 108, basisHeight: 84, offsetX: -20, offsetY: 3 },
-                B_SWORD_02: { x: 462, y: 296, width: 210, height: 112, basisHeight: 84, offsetX: -26, offsetY: 3 },
-                B_SWORD_03: { x: 814, y: 296, width: 218, height: 112, basisHeight: 84, offsetX: -30, offsetY: 3 },
+                B_SWORD_01: { x: 368, y: 302, width: 88, height: 100 },
+                B_SWORD_02: { x: 522, y: 302, width: 90, height: 100 },
+                B_SWORD_03: { x: 706, y: 302, width: 94, height: 100 },
                 B_CAST_01: { x: 32, y: 510, width: 72, height: 92 },
                 B_CAST_02: { x: 122, y: 510, width: 78, height: 92 },
                 B_CAST_03: { x: 216, y: 510, width: 74, height: 92 },
@@ -8893,6 +8935,18 @@ function updateStaticUI() {
     if (fossilTabBtn) fossilTabBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
 
     let seasonMapCap = getCurrentSeasonFinalZoneId();
+    let mapHotspots = WORLD_MAP_HOTSPOTS.map(spot => {
+        let zone = MAP_ZONES[spot.zoneId];
+        if (!zone) return '';
+        let unlocked = spot.zoneId <= Math.min(game.maxZoneId, seasonMapCap);
+        let currentCls = game.currentZoneId === spot.zoneId ? 'current' : '';
+        let lockedCls = unlocked ? '' : 'locked';
+        let actLabel = `A${spot.zoneId + 1}`;
+        return `<button class="map-hotspot ${currentCls} ${lockedCls}" style="left:${spot.x}%; top:${spot.y}%;" ${unlocked ? `onclick="changeZone(${spot.zoneId})"` : 'disabled'} title="${zone.name}">${actLabel}</button>`;
+    }).join('');
+    let hotspotRoot = document.getElementById('ui-map-hotspots');
+    if (hotspotRoot && hotspotRoot.innerHTML !== mapHotspots) hotspotRoot.innerHTML = mapHotspots;
+
     let mapListHtml = MAP_ZONES.filter((zone, idx) => idx <= Math.min(game.maxZoneId, seasonMapCap)).map((zone, idx) => {
         let current = idx === game.currentZoneId ? 'current' : '';
         let unlockReveal = idx === pendingMapRevealZoneId ? 'map-unlock-reveal' : '';
