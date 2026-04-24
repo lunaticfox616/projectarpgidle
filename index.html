@@ -571,6 +571,7 @@
             <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
             <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span></div>
         </div>
+        <div id="ui-player-ailments" style="font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:2px;"></div>
         <div class="summary-actions">
             <button onclick="switchTab('tab-character')" style="background:#35506a;">캐릭터 상세</button>
             <button id="btn-summary-tab-char" onclick="switchTab('tab-char')" style="background:#5a3d21;" disabled>스킬트리 (Lv.2)</button>
@@ -758,6 +759,11 @@
             <h2>🔄 시즌 패시브 스킬 트리 <span style="margin-left:10px; color:#ffd36b; font-size:0.88em;">(시즌: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span></span></h2>
             <div class="trait-tree" id="ui-season-tree"></div>
         </div>
+        <div id="abyss-passive-section" style="display:none; margin-bottom:20px; background:#101722; border:1px solid #2b3f59; border-radius:8px; padding:10px;">
+            <h2>🌌 심연 패시브</h2>
+            <div id="ui-abyss-passive-summary" style="color:#a9c6e4; font-size:0.84em; margin-bottom:8px;"></div>
+            <div id="ui-abyss-passive-grid" style="display:grid; gap:6px;"></div>
+        </div>
         <div id="season-content-section" style="display: none; margin-bottom: 20px;">
             <h2>📦 시즌 콘텐츠 로드맵</h2>
             <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
@@ -796,11 +802,14 @@
                 <div id="ui-jewel-core-craft" style="background:#0f1620; border:1px solid #35536b; border-radius:8px; padding:8px; margin-bottom:8px;"></div>
                 <div class="jewel-salvage-bar">
                     <div class="jewel-salvage-filters">
-                        <label><input type="checkbox" id="chk-jewel-salvage-normal" checked> 일반</label>
-                        <label><input type="checkbox" id="chk-jewel-salvage-magic" checked> 매직</label>
-                        <label><input type="checkbox" id="chk-jewel-salvage-rare" checked> 레어</label>
+                        <label><input type="checkbox" id="chk-jewel-salvage-normal" checked onchange="updateJewelSalvageSettingsFromUI()"> 일반</label>
+                        <label><input type="checkbox" id="chk-jewel-salvage-magic" checked onchange="updateJewelSalvageSettingsFromUI()"> 매직</label>
+                        <label><input type="checkbox" id="chk-jewel-salvage-rare" checked onchange="updateJewelSalvageSettingsFromUI()"> 레어</label>
                     </div>
-                    <button class="bulk-salvage-action" onclick="bulkSalvageJewels()">선택 등급 해체</button>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="bulk-salvage-action" onclick="bulkSalvageJewels()">선택 등급 해체</button>
+                        <button id="btn-jewel-auto-salvage" class="bulk-salvage-action" onclick="toggleJewelAutoSalvage()">주얼 자동해체 OFF</button>
+                    </div>
                 </div>
                 <div id="ui-jewel-slots" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;"></div>
                 <div id="ui-jewel-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"></div>
@@ -885,6 +894,7 @@
                         <div id="ui-market-service-passive" style="margin-bottom:8px;"></div>
                         <div id="ui-market-service-annul" style="margin-bottom:8px;"></div>
                         <div id="ui-market-service-inv" style="margin-bottom:4px;"></div>
+                        <div id="ui-market-service-jewel-inv" style="margin-bottom:4px;"></div>
                     </div>
                 </div>
             </div>
@@ -979,6 +989,21 @@
                     <label><input type="checkbox" id="chk-item-filter-unique-new-codex" onchange="updateSettings()"> 도감에 없는 고유만 습득</label>
                 </div>
             </div>
+            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <span>맵 완료 시 설정</span>
+                <select id="sel-map-complete-action" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
+                    <option value="nextZone">다음 지역으로 이동(기본값)</option>
+                    <option value="repeatZone">같은지역 반복 전투</option>
+                    <option value="stop">전투 중단</option>
+                </select>
+            </label>
+            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <span>귀환 시 설정</span>
+                <select id="sel-town-return-action" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
+                    <option value="retry">바로 재전투 시도(기본값)</option>
+                    <option value="stop">전투 중단</option>
+                </select>
+            </label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
                 <span>테마 모드</span>
                 <select id="sel-theme-mode" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
@@ -1165,7 +1190,7 @@ const TRIAL_ZONES = [
 
 function getZone(id) {
     if (typeof id === 'string' && id.startsWith('trial_')) return TRIAL_ZONES.find(t => t.id === id);
-    if (typeof id === 'string' && id.startsWith('s2_boss_')) return SEASON_BOSS_ZONES.find(t => t.id === id);
+    if (typeof id === 'string' && id.includes('_boss_')) return SEASON_BOSS_ZONES.find(t => t.id === id);
     if (id === LABYRINTH_ZONE_ID) {
         let floor = Math.max(1, game.labyrinthFloor || 1);
         return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: Math.min(20, 7 + Math.floor(floor / 3)), maxKills: 1, ele: 'chaos', floor: floor };
@@ -1188,7 +1213,8 @@ const SEASON_CONTENT_ROADMAP = {
 const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
     { id: 's2_boss_frost', name: '서리 여제 글라시아', type: 'seasonBoss', tier: 12, key: 'bossKeyFrost', reqSeason: 2, ele: 'cold', reward: 'bossCore' },
-    { id: 's2_boss_storm', name: '폭풍 군단장 볼타', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' }
+    { id: 's2_boss_storm', name: '폭풍 군단장 볼타', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' },
+    { id: 's6_beast_cerberus', name: '야수왕 케르베로스', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore' }
 ];
 const LABYRINTH_ZONE_ID = 'labyrinth_endless';
 
@@ -1202,6 +1228,68 @@ function getSeasonFinalZoneId(seasonValue) {
 
 function getCurrentSeasonFinalZoneId() {
     return getSeasonFinalZoneId(game.season || 1);
+}
+
+const ABYSS_PASSIVE_NODES = [
+    { key: 'power', name: '강력함', max: 20, desc: '몬스터 피해 +2%, 재화 드랍률 +1%/pt' },
+    { key: 'tenacity', name: '끈질김', max: 20, desc: '몬스터 생명력 +2%, 경험치/장비 드랍률 +1%/pt' },
+    { key: 'horde', name: '대규모', max: 20, desc: '무리규모 +5%, 몬스터 경험치 -1%/pt' },
+    { key: 'frailty', name: '허약함', max: 20, desc: '플레이어 피격 +1%, 드랍률 +1%/pt' },
+    { key: 'weakness', name: '나약함', max: 20, desc: '몬스터 받는 피해 1% 감소, 경험치 +2%/pt' },
+    { key: 'resistance', name: '저항', max: 20, desc: '몬스터 모든 저항/물피감 +1%, 드랍률 +1%/pt' },
+    { key: 'elite', name: '정예', max: 10, desc: '희귀 몬스터 등장 확률 +5%/pt' },
+    { key: 'coreRaid', name: '핵심: 수뇌부 공략', max: 1, desc: '보스 생명력/피해 10% 감소' },
+    { key: 'arrogance', name: '핵심: 오만', max: 1, desc: '보스 생명력/피해 20% 증가, 보스 특수재화 확률 +5%' },
+    { key: 'magnifier', name: '핵심: 확대경', max: 1, desc: '맵 길이 2배(진행속도 절반), 무리규모 +50%' }
+];
+
+function getAbyssPassiveState() {
+    if (!game.abyssPassives || typeof game.abyssPassives !== 'object') {
+        game.abyssPassives = { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 };
+    }
+    return game.abyssPassives;
+}
+
+function getAbyssPassiveSpent() {
+    let state = getAbyssPassiveState();
+    return ABYSS_PASSIVE_NODES.reduce((sum, node) => sum + Math.max(0, Math.floor(state[node.key] || 0)), 0);
+}
+
+function getAbyssPassiveFreePoints() {
+    return Math.max(0, Math.floor(game.abyssPassivePoints || 0) - getAbyssPassiveSpent());
+}
+
+function tryAllocateAbyssPassive(nodeKey) {
+    if ((game.season || 1) < 1) return;
+    let node = ABYSS_PASSIVE_NODES.find(row => row.key === nodeKey);
+    if (!node) return;
+    let state = getAbyssPassiveState();
+    if ((state[node.key] || 0) >= node.max) return addLog('해당 심연 노드는 이미 최대 단계입니다.', 'attack-monster');
+    if (getAbyssPassiveFreePoints() <= 0) return addLog('심연 패시브 포인트가 부족합니다.', 'attack-monster');
+    state[node.key] = (state[node.key] || 0) + 1;
+    addLog(`🌌 심연 패시브 [${node.name}] ${state[node.key]}/${node.max}`, 'season-up');
+    updateStaticUI();
+}
+
+function getAbyssMonsterScales(zone) {
+    let state = getAbyssPassiveState();
+    let active = zone && zone.type === 'abyss';
+    if (!active) return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
+    return {
+        dmgMul: 1 + (state.power || 0) * 0.02,
+        hpMul: 1 + (state.tenacity || 0) * 0.02,
+        hordeMul: (1 + (state.horde || 0) * 0.05) * (1 + (state.magnifier || 0) * 0.5),
+        dropMul: 1 + ((state.power || 0) + (state.frailty || 0) + (state.resistance || 0)) * 0.01,
+        expMul: 1 + ((state.tenacity || 0) * 0.01) - ((state.horde || 0) * 0.01) + ((state.weakness || 0) * 0.02),
+        playerTakenMul: 1 + (state.frailty || 0) * 0.01,
+        playerDamageMul: Math.max(0.2, 1 - (state.weakness || 0) * 0.01),
+        resistBonus: (state.resistance || 0),
+        eliteBonus: (state.elite || 0) * 0.05,
+        bossMul: (1 - (state.coreRaid || 0) * 0.10) * (1 + (state.arrogance || 0) * 0.20),
+        bossExtraCurrencyChance: (state.arrogance || 0) * 0.05,
+        mapProgressMul: Math.max(0.35, 1 - (state.magnifier || 0) * 0.5),
+        mapLengthMul: 1 + (state.magnifier || 0)
+    };
 }
 
 function applySeasonContentProgression(options) {
@@ -1230,7 +1318,7 @@ const CLASS_TEMPLATES = {
     assassin: { name: '어쌔신', desc: '치명타 확률과 막대한 치명타 피해', m1: 'crit', m2: 'critDmg', d: 'chaosPctDmg' },
     ranger: { name: '레인저', desc: '신속한 이동과 투사체 장악', m1: 'projectilePctDmg', m2: 'move', d: 'crit' },
     elementalist: { name: '엘리멘탈리스트', desc: '원소 피해와 원소 저항 특화', m1: 'elementalPctDmg', m2: 'resAll', d: 'regen' },
-    warlock: { name: '워록', desc: '혼돈 피해와 생명력 흡수', m1: 'chaosPctDmg', m2: 'leech', d: 'pctHp' },
+    warlock: { name: '워록', desc: '혼돈 피해와 생명력 흡수', m1: 'chaosPctDmg', m2: 'dotPctDmg', d: 'pctHp' },
     guardian: { name: '가디언', desc: '압도적인 최대 생명력과 방어', m1: 'flatHp', m2: 'pctHp', d: 'regen' },
     inquisitor: { name: '인퀴지터', desc: '원소 치명타 및 보조 스킬 전문', m1: 'elementalPctDmg', m2: 'critDmg', d: 'suppCap' }
 };
@@ -1240,6 +1328,7 @@ const SEASON_NODES = {
     s_dmg: { name: '전사의 혼', desc: '피해 +30%', stat: 'pctDmg', val: 30, req: 's_root' },
     s_hp: { name: '거인의 혼', desc: '생명력 +30%', stat: 'pctHp', val: 30, req: 's_root' },
     s_crit: { name: '정밀 타격', desc: '치명타 +10%', stat: 'crit', val: 10, req: 's_dmg' },
+    s_dot: { name: '부패 확장', desc: '지속 피해 배율 +12%', stat: 'dotPctDmg', val: 12, req: 's_dmg' },
     s_leech: { name: '질주의 피', desc: '이동 속도 +8%', stat: 'move', val: 8, req: 's_hp' },
     s_guard: { name: '철벽 맥', desc: '물리 피해 감소 +8%', stat: 'dr', val: 8, req: 's_hp' },
     s_speed: { name: '가속 박동', desc: '공격 속도 +8%', stat: 'aspd', val: 8, req: 's_dmg' },
@@ -1260,7 +1349,7 @@ const SEASON_NODES = {
 const SEASON_NODE_ROWS = [
     ['s_root'],
     ['s_dmg', 's_hp'],
-    ['s_crit', 's_speed'],
+    ['s_crit', 's_dot', 's_speed'],
     ['s_guard', 's_leech'],
     ['s_rend', 's_breach', 's_momentum', 's_focus'],
     ['s_vital', 's_blood', 's_skirmish', 's_fury'],
@@ -1300,7 +1389,8 @@ const TALISMAN_OPTION_POOL = [
     { stat: 'resPen', label: '저항 관통(%)', min: 1, max: 5, step: 0.5 },
     { stat: 'dr', label: '물리 피해 감소(%)', min: 2, max: 7, step: 0.5 },
     { stat: 'pctHp', label: '생명력 증가(%)', min: 4, max: 12, step: 1 },
-    { stat: 'move', label: '이동 속도(%)', min: 2, max: 8, step: 1 }
+    { stat: 'move', label: '이동 속도(%)', min: 2, max: 8, step: 1 },
+    { stat: 'dotPctDmg', label: '지속 피해 배율(%)', min: 4, max: 14, step: 1 }
 ];
 
 const P_STATS = {
@@ -1318,6 +1408,7 @@ const P_STATS = {
     lightPctDmg: { name: '번개 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     chaosPctDmg: { name: '카오스 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     aoePctDmg: { name: '범위 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    dotPctDmg: { name: '지속 피해 배율(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     aspd: { name: '공격 속도(%)', tiers: [1, 2, 3], s: 1.5, m: 4, k: 8, isPct: true },
     move: { name: '이동 속도(%)', tiers: [1, 2], s: 1.5, m: 4, isPct: true },
     crit: { name: '치명타 확률(%)', tiers: [2, 3], m: 1.5, k: 4, isPct: true },
@@ -1372,8 +1463,8 @@ const SKILL_DB = {
 Object.keys(SKILL_DB).forEach(name => {
     let skill = SKILL_DB[name];
     if (!skill || !skill.isGem) return;
-    if (Number.isFinite(skill.baseDmg)) skill.baseDmg = Number((skill.baseDmg * 2).toFixed(3));
-    if (Number.isFinite(skill.dmgScale) && skill.dmgScale > 0) skill.dmgScale = Number((skill.dmgScale * 2.6).toFixed(4));
+    if (Number.isFinite(skill.baseDmg)) skill.baseDmg = Number((skill.baseDmg * 1.62).toFixed(3));
+    if (Number.isFinite(skill.dmgScale) && skill.dmgScale > 0) skill.dmgScale = Number((skill.dmgScale * 1.9).toFixed(4));
 });
 
 const SUPPORT_GEM_DB = {
@@ -1388,6 +1479,7 @@ const SUPPORT_GEM_DB = {
     '번개 전도': { baseVal: 5, scale: 2.0, stat: 'lightPctDmg', name: '번개 피해', isPct: true, desc: '번개 스킬의 피해를 높입니다.' },
     '혼돈 전환': { baseVal: 5, scale: 2.0, stat: 'chaosPctDmg', name: '카오스 피해', isPct: true, desc: '카오스 스킬의 피해를 높입니다.' },
     '범위 확장': { baseVal: 5, scale: 2.0, stat: 'aoePctDmg', name: '범위 피해', isPct: true, desc: '범위 태그 스킬의 피해를 높입니다.' },
+    '지속 확산': { baseVal: 6, scale: 2.2, stat: 'dotPctDmg', name: '지속 피해 배율', isPct: true, desc: 'dot 태그 스킬의 지속 피해 배율을 올립니다.' },
     '무자비': { baseVal: 10, scale: 3.0, stat: 'critDmg', name: '치명타 피해', isPct: true, desc: '치명타 배율을 높입니다.' },
     '생명력 흡수': { baseVal: 0.5, scale: 0.2, stat: 'leech', name: '생명력 흡수', isPct: true, desc: '공격 시 흡혈을 부여합니다.' },
     '연속타격': { baseVal: 5, scale: 1.0, stat: 'ds', name: '연속 타격 확률', isPct: true, desc: '한 번 더 타격할 확률을 부여합니다.' },
@@ -1398,7 +1490,12 @@ const SUPPORT_GEM_DB = {
     '화염 장막': { baseVal: 4, scale: 1.2, stat: 'resF', name: '화염 저항', isPct: true, desc: '화염 저항을 강화합니다.' },
     '냉기 장막': { baseVal: 4, scale: 1.2, stat: 'resC', name: '냉기 저항', isPct: true, desc: '냉기 저항을 강화합니다.' },
     '번개 장막': { baseVal: 4, scale: 1.2, stat: 'resL', name: '번개 저항', isPct: true, desc: '번개 저항을 강화합니다.' },
-    '공허 장막': { baseVal: 3, scale: 1.0, stat: 'resChaos', name: '카오스 저항', isPct: true, desc: '카오스 저항을 강화합니다.' }
+    '공허 장막': { baseVal: 3, scale: 1.0, stat: 'resChaos', name: '카오스 저항', isPct: true, desc: '카오스 저항을 강화합니다.' },
+    '물리 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '물리 플랫 피해', isPct: false, desc: '물리 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
+    '화염 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '화염 플랫 피해', isPct: false, desc: '화염 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
+    '냉기 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '냉기 플랫 피해', isPct: false, desc: '냉기 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
+    '번개 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '번개 플랫 피해', isPct: false, desc: '번개 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
+    '카오스 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '카오스 플랫 피해', isPct: false, desc: '카오스 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 }
 };
 
 const MOD_DB = [
@@ -1413,6 +1510,7 @@ const MOD_DB = [
     { id: 'lightPctDmg', type: 'prefix', statName: '번개 피해(%)', slots: ['무기', '반지', '목걸이'], base: 4, step: 3 },
     { id: 'chaosPctDmg', type: 'prefix', statName: '카오스 피해(%)', slots: ['무기', '반지', '목걸이', '장갑'], base: 4, step: 3 },
     { id: 'aoePctDmg', type: 'prefix', statName: '범위 피해(%)', slots: ['무기', '투구', '목걸이', '갑옷'], base: 4, step: 3 },
+    { id: 'dotPctDmg', type: 'prefix', statName: '지속 피해 배율(%)', slots: ['무기', '반지', '목걸이'], base: 4, step: 3 },
     { id: 'flatHp', type: 'prefix', statName: '최대 생명력', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'], base: 15, step: 10 },
     { id: 'pctHp', type: 'suffix', statName: '생명력 증가(%)', slots: ['갑옷', '허리띠'], base: 4, step: 3 },
     { id: 'aspd', type: 'suffix', statName: '공격 속도(%)', slots: ['무기', '반지', '목걸이', '허리띠', '장갑'], base: 2, step: 2 },
@@ -1531,6 +1629,7 @@ const ORB_DB = {
     bossKeyFlame: { name: '열쇠: 화염 군주', desc: '시즌2 보스 [이그니스] 도전권입니다.' },
     bossKeyFrost: { name: '열쇠: 서리 여제', desc: '시즌2 보스 [글라시아] 도전권입니다.' },
     bossKeyStorm: { name: '열쇠: 폭풍 군단장', desc: '시즌2 보스 [볼타] 도전권입니다.' },
+    beastKeyCerberus: { name: '열쇠: 케르베로스', desc: '시즌6 야수 보스 [케르베로스] 도전권입니다.' },
     bossCore: { name: '군주의 핵', desc: '시즌2 보스를 처치하면 얻는 젬 강화 재료입니다.' },
     fossil: { name: '미궁 화석', desc: '기본 화석 조각입니다. 미궁에서 다양한 타입의 화석으로 정제됩니다.' },
     fossilJagged: { name: '톱니 화석', desc: '물리/근접 계열 옵션 하나를 확정한 카오스 재련을 합니다.' },
@@ -1541,6 +1640,7 @@ const ORB_DB = {
     skyEssence: { name: '창공의 힘', desc: '시즌4 창공 몬스터에게서 얻는 젬 강화 재료입니다. 스킬 탭의 젬 강화에서 특수 옵션을 부여합니다.' },
     tainted: { name: '타락의 오브', desc: '아이템을 타락시켜 추가 옵션을 시도합니다. 타락 후 제작 불가.' },
     jewelCore: { name: '주얼 핵', desc: '주얼 해체/드랍 분리용 재료. 주얼 해체 시 추가로 획득합니다.' },
+    jewelShard: { name: '주얼 파편', desc: '주얼 해체 재화. 슬롯 증폭 및 증폭합성에 사용됩니다.' },
     sealShard: { name: '봉인편린', desc: '시즌6 부적 시스템 핵심 재료입니다. 봉인을 해제해 부적 후보를 확인합니다.' },
     strongSealShard: { name: '강력한 기운의 봉인편린', desc: '희귀한 고급 봉인편린입니다. 더 강한 부적 옵션을 노릴 수 있습니다.' }
 };
@@ -1717,7 +1817,11 @@ const defaultGame = {
         itemFilterTierThreshold: 10,
         itemFilterMinTierCount: 0,
         itemFilterMinHiddenTier: 1,
-        itemFilterOnlyNewCodexUnique: false
+        itemFilterOnlyNewCodexUnique: false,
+        jewelAutoSalvageEnabled: false,
+        jewelAutoSalvageRarities: { normal: false, magic: false, rare: false },
+        mapCompleteAction: 'nextZone',
+        townReturnAction: 'retry'
     },
     passivePoints: 0,
     playerHp: 100,
@@ -1729,6 +1833,7 @@ const defaultGame = {
     encounterIndex: 0,
     encounterPlan: [],
     enemies: [],
+    playerAilments: [],
     nextEnemyId: 1,
     passives: [],
     discoveredPassives: [],
@@ -1754,7 +1859,11 @@ const defaultGame = {
     equipment: { '무기': null, '투구': null, '갑옷': null, '장갑': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '허리띠': null },
     inventory: [],
     inventoryExpandLevel: 0,
-    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, bossCore: 0, fossil: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, sealShard: 0, strongSealShard: 0 },
+    jewelInventoryExpandLevel: 0,
+    abyssPassivePoints: 0,
+    abyssClearedDepths: [],
+    abyssPassives: { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 },
+    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendRank: 0,
@@ -1766,6 +1875,7 @@ const defaultGame = {
     labyrinthFloor: 1,
     jewelInventory: [],
     jewelSlots: [null, null],
+    jewelSlotAmplify: [0, 0],
     skyGemEnhancements: {},
     recentDamageEvents: [],
     lastDeathLog: null,
@@ -1787,6 +1897,8 @@ const defaultGame = {
 
 function clampNumber(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function getInventoryLimit() { return 30 + (Math.max(0, Math.floor(game.inventoryExpandLevel || 0)) * 5); }
+function getJewelInventoryLimit() { return JEWEL_INVENTORY_LIMIT + (Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)) * 5); }
+function getJewelMarketExpandCost() { return 1 + Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)); }
 function lerpNumber(start, end, t) { return start + (end - start) * t; }
 function approachNumber(current, target, rate, dt) {
     if (!Number.isFinite(current)) return target;
@@ -1825,6 +1937,7 @@ const SKILL_TAG_LABELS = {
     lightning: '번개',
     chaos: '카오스',
     aoe: '범위',
+    dot: '지속',
     slam: '강타',
     chain: '연쇄'
 };
@@ -1889,6 +2002,7 @@ function getStatName(statId) {
         lightPctDmg: '번개 피해(%)',
         chaosPctDmg: '카오스 피해(%)',
         aoePctDmg: '범위 피해(%)',
+        dotPctDmg: '지속 피해 배율(%)',
         aspd: '공격 속도(%)',
         move: '이동 속도(%)',
         crit: '치명타 확률(%)',
@@ -1904,7 +2018,10 @@ function getStatName(statId) {
         resC: '냉기 저항(%)',
         resL: '번개 저항(%)',
         resAll: '모든 원소 저항(%)',
-        resChaos: '카오스 저항(%)'
+        resChaos: '카오스 저항(%)',
+        targetAny: '스킬 타겟 수',
+        targetProjectile: '투사체 스킬 타겟 수',
+        targetSlam: '강타 스킬 타겟 수'
     };
     return names[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId;
 }
@@ -1926,7 +2043,8 @@ function createEmptyStatBucket() {
     return {
         flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, suppCap: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, resChaos: 0, leech: 0, critDmg: 0, regen: 0, ds: 0, expGain: 0,
-        meleePctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0
+        meleePctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0,
+        targetAny: 0, targetProjectile: 0, targetSlam: 0
     };
 }
 function addStatToBucket(bucket, statId, value) {
@@ -1943,6 +2061,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'lightPctDmg') bucket.lightPctDmg += value;
     else if (statId === 'chaosPctDmg') bucket.chaosPctDmg += value;
     else if (statId === 'aoePctDmg') bucket.aoePctDmg += value;
+    else if (statId === 'dotPctDmg') bucket.dotPctDmg += value;
     else if (statId === 'flatHp') bucket.flatHp += value;
     else if (statId === 'pctHp') bucket.pctHp += value;
     else if (statId === 'aspd') bucket.aspd += value;
@@ -1963,6 +2082,9 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'resChaos') bucket.resChaos += value;
     else if (statId === 'ds') bucket.ds += value;
     else if (statId === 'expGain') bucket.expGain += value;
+    else if (statId === 'targetAny') bucket.targetAny += value;
+    else if (statId === 'targetProjectile') bucket.targetProjectile += value;
+    else if (statId === 'targetSlam') bucket.targetSlam += value;
 }
 function applyStatsToBucket(bucket, stats) {
     (stats || []).forEach(stat => addStatToBucket(bucket, stat.id, stat.val));
@@ -2003,8 +2125,8 @@ let passiveRevealBursts = [];
 const PASSIVE_THEME_POOLS = {
     center: ['flatHp', 'flatDmg', 'pctDmg', 'crit', 'aspd', 'move', 'regen', 'pctHp'],
     templar: ['elementalPctDmg', 'firePctDmg', 'lightPctDmg', 'regen', 'resAll', 'pctDmg'],
-    witch: ['elementalPctDmg', 'coldPctDmg', 'lightPctDmg', 'aoePctDmg', 'crit', 'gemLevel'],
-    shadow: ['chaosPctDmg', 'crit', 'projectilePctDmg', 'move', 'leech', 'coldPctDmg'],
+    witch: ['elementalPctDmg', 'coldPctDmg', 'lightPctDmg', 'aoePctDmg', 'dotPctDmg', 'crit', 'gemLevel'],
+    shadow: ['chaosPctDmg', 'dotPctDmg', 'crit', 'projectilePctDmg', 'move', 'leech', 'coldPctDmg'],
     ranger: ['projectilePctDmg', 'move', 'crit', 'aspd', 'coldPctDmg', 'lightPctDmg'],
     duelist: ['meleePctDmg', 'physPctDmg', 'aspd', 'ds', 'crit', 'move'],
     marauder: ['flatHp', 'pctHp', 'dr', 'regen', 'meleePctDmg', 'physPctDmg']
@@ -3070,7 +3192,7 @@ function getClassTreeDef(clsKey) {
             assassin: [{ stat: 'critDmg', val: 80 }, { stat: 'crit', val: 18 }],
             ranger: [{ stat: 'projectilePctDmg', val: 50 }, { stat: 'move', val: 20 }],
             elementalist: [{ stat: 'elementalPctDmg', val: 52 }, { stat: 'resPen', val: 16 }],
-            warlock: [{ stat: 'chaosPctDmg', val: 54 }, { stat: 'leech', val: 3.5 }],
+            warlock: [{ stat: 'chaosPctDmg', val: 42 }, { stat: 'dotPctDmg', val: 28 }],
             guardian: [{ stat: 'flatHp', val: 260 }, { stat: 'pctHp', val: 30 }],
             inquisitor: [{ stat: 'suppCap', val: 1 }, { stat: 'gemLevel', val: 2 }]
         };
@@ -4948,7 +5070,24 @@ function createItemFromBase(base, rarity, zoneTier) {
         stats: []
     };
     if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, zoneTier);
+    applyHiddenTierTargetBonus(item);
     return item;
+}
+
+function applyHiddenTierTargetBonus(item) {
+    if (!item || (item.hiddenTier || item.itemTier || 1) < 10) return;
+    item.stats = Array.isArray(item.stats) ? item.stats : [];
+    let addLine = (id, val) => {
+        if (item.stats.some(stat => stat.id === id)) return;
+        item.stats.push({ id: id, statName: getStatName(id), val: val, valMin: val, valMax: val, tier: 10 });
+    };
+    if (item.slot === '장갑' && Math.random() < 0.32) addLine('targetAny', 1);
+    if (item.slot === '무기' && Math.random() < 0.36) {
+        let tierHigh = (item.hiddenTier || item.itemTier || 1) >= 14;
+        let val = tierHigh ? (Math.random() < 0.45 ? 2 : 1) : 1;
+        if (Math.random() < 0.5) addLine('targetProjectile', val);
+        else addLine('targetSlam', val);
+    }
 }
 
 function rollUniqueStatValue(stat) {
@@ -5008,6 +5147,7 @@ function generateUniqueItem(zoneTier, preferredSlot) {
         game.seasonChaseUniqueDropped = true;
         addLog(`🌠 체이싱 유니크 발견! [${unique.name}]`, 'loot-unique');
     }
+    applyHiddenTierTargetBonus(item);
     return item;
 }
 
@@ -5052,7 +5192,8 @@ function awardCurrency(currencyKey, amount) {
 function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let dropBonus = getCodexBonusPct() / 100;
-    let bonusRoll = chance => Math.random() < Math.min(0.95, chance * (1 + dropBonus));
+    let abyssScale = getAbyssMonsterScales(zone);
+    let bonusRoll = chance => Math.random() < Math.min(0.95, chance * (1 + dropBonus) * (abyssScale.dropMul || 1));
     let drops = [];
     if (enemy.isBoss) {
         if (bonusRoll(0.30)) drops.push([Math.random() < 0.55 ? 'transmute' : 'augment', 1]);
@@ -5088,6 +5229,8 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 5 && enemy.isElite && Math.random() < 0.008) drops.push(['jewelCore', 1]);
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.08) drops.push(['sealShard', 1]);
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.012) drops.push(['strongSealShard', 1]);
+    if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.006) drops.push(['beastKeyCerberus', 1]);
+    if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelCore', 1]);
     return drops;
 }
 
@@ -5141,7 +5284,8 @@ function generateJewelDrop(zoneTier) {
         { id: 'aspd', name: '질주 보석', min: 3, max: 7 },
         { id: 'resAll', name: '수호 보석', min: 4, max: 9 },
         { id: 'physIgnore', name: '절개 파편', min: 2, max: 6 },
-        { id: 'resPen', name: '관통 수정', min: 2, max: 6 }
+        { id: 'resPen', name: '관통 수정', min: 2, max: 6 },
+        { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 }
     ];
     let pick = rndChoice(pool);
     let val = pick.min + Math.floor(Math.random() * (pick.max - pick.min + 1));
@@ -5179,8 +5323,10 @@ function salvageJewelObject(jewel, silent) {
     if (!jewel || getJewelStats(jewel).length === 0) return;
     let rarity = jewel.rarity || 'normal';
     let coreGain = rarity === 'rare' ? 3 : (rarity === 'magic' ? 2 : 1);
+    let shardGain = rarity === 'rare' ? 6 : (rarity === 'magic' ? 3 : 1);
     awardCurrency('jewelCore', coreGain);
-    if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (+주얼 핵 ${coreGain})`, 'loot-normal');
+    awardCurrency('jewelShard', shardGain);
+    if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (+주얼 핵 ${coreGain}, +주얼 파편 ${shardGain})`, 'loot-normal');
 }
 
 function toggleJewelFusionSelection(idx) {
@@ -5204,6 +5350,9 @@ function craftJewelFusion() {
     let aStats = getJewelStats(a);
     let bStats = getJewelStats(b);
     if (aStats.length !== 1 || bStats.length !== 1) return addLog('1줄 옵션 주얼 2개만 융합할 수 있습니다.', 'attack-monster');
+    let amplifiedEl = document.getElementById('chk-jewel-amplified-fusion');
+    let useAmplified = !!(amplifiedEl && amplifiedEl.checked);
+    if (useAmplified && (game.currencies.jewelShard || 0) < 8) return addLog('증폭합성에 필요한 주얼 파편이 부족합니다. (필요: 8)', 'attack-monster');
     game.currencies.jewelCore--;
     game.jewelInventory.splice(sorted[1], 1);
     game.jewelInventory.splice(sorted[0], 1);
@@ -5214,9 +5363,36 @@ function craftJewelFusion() {
         rarity: 'rare',
         stats: [aStats[0], bStats[0]]
     };
+    if (useAmplified) {
+        game.currencies.jewelShard -= 8;
+        let penaltyPool = [{ id: 'dr', val: -2 }, { id: 'resAll', val: -3 }, { id: 'move', val: -4 }];
+        let bonusPool = [{ id: 'targetAny', val: 1 }, { id: 'targetProjectile', val: 1 }, { id: 'targetSlam', val: 1 }, { id: 'crit', val: 4 }, { id: 'resPen', val: 3 }];
+        let penalty = rndChoice(penaltyPool);
+        let bonus = rndChoice(bonusPool);
+        fused.stats.push({ id: penalty.id, val: penalty.val });
+        fused.stats.push({ id: bonus.id, val: bonus.val });
+        fused.name = `증폭 ${fused.name}`;
+    }
     game.jewelInventory.push(fused);
     jewelFusionSelection = [];
     addLog(`💠 주얼 융합 성공! [${fused.name}]`, 'loot-unique');
+    updateStaticUI();
+}
+
+function tryAmplifyJewelSlot(slotIndex) {
+    game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0];
+    let level = Math.max(0, Math.floor(game.jewelSlotAmplify[slotIndex] || 0));
+    if (level >= 10) return addLog(`주얼 슬롯 ${slotIndex + 1}은 이미 최대 증폭(10강)입니다.`, 'attack-monster');
+    let cost = 4 + (level * 3);
+    if ((game.currencies.jewelShard || 0) < cost) return addLog(`주얼 파편이 부족합니다. (필요: ${cost})`, 'attack-monster');
+    game.currencies.jewelShard -= cost;
+    let failChance = Math.min(0.55, 0.12 + level * 0.045);
+    if (Math.random() < failChance) {
+        addLog(`💥 주얼 슬롯 ${slotIndex + 1} 증폭 실패! (소모: ${cost})`, 'attack-monster');
+    } else {
+        game.jewelSlotAmplify[slotIndex] = level + 1;
+        addLog(`✨ 주얼 슬롯 ${slotIndex + 1} 증폭 성공! ${game.jewelSlotAmplify[slotIndex]}/10`, 'loot-rare');
+    }
     updateStaticUI();
 }
 
@@ -5270,7 +5446,7 @@ function unequipJewel(slotIndex) {
     let jewel = game.jewelSlots[slotIndex];
     if (!jewel) return;
     game.jewelInventory = game.jewelInventory || [];
-    if (game.jewelInventory.length >= JEWEL_INVENTORY_LIMIT) return addLog(`주얼 인벤토리가 가득 찼습니다. (최대 ${JEWEL_INVENTORY_LIMIT})`, 'attack-monster');
+    if (game.jewelInventory.length >= getJewelInventoryLimit()) return addLog(`주얼 인벤토리가 가득 찼습니다. (최대 ${getJewelInventoryLimit()})`, 'attack-monster');
     game.jewelInventory.push(jewel);
     game.jewelSlots[slotIndex] = null;
     updateStaticUI();
@@ -5325,6 +5501,31 @@ function toggleAutoSalvage() {
     game.settings.autoSalvageEnabled = !game.settings.autoSalvageEnabled;
     syncSalvageControlsFromSettings();
     addLog(`⚙️ 자동해체 ${game.settings.autoSalvageEnabled ? '활성화' : '비활성화'}`, 'loot-normal');
+}
+
+function syncJewelSalvageControlsFromSettings() {
+    game.settings.jewelAutoSalvageRarities = { normal: false, magic: false, rare: false, ...(game.settings.jewelAutoSalvageRarities || {}) };
+    ['normal', 'magic', 'rare'].forEach(rarity => {
+        let el = document.getElementById(`chk-jewel-salvage-${rarity}`);
+        if (el) el.checked = !!game.settings.jewelAutoSalvageRarities[rarity];
+    });
+    let btn = document.getElementById('btn-jewel-auto-salvage');
+    if (btn) btn.innerText = `주얼 자동해체 ${game.settings.jewelAutoSalvageEnabled ? 'ON' : 'OFF'}`;
+}
+
+function updateJewelSalvageSettingsFromUI() {
+    game.settings.jewelAutoSalvageRarities = game.settings.jewelAutoSalvageRarities || { normal: false, magic: false, rare: false };
+    ['normal', 'magic', 'rare'].forEach(rarity => {
+        let el = document.getElementById(`chk-jewel-salvage-${rarity}`);
+        if (el) game.settings.jewelAutoSalvageRarities[rarity] = !!el.checked;
+    });
+}
+
+function toggleJewelAutoSalvage() {
+    game.settings.jewelAutoSalvageEnabled = !game.settings.jewelAutoSalvageEnabled;
+    updateJewelSalvageSettingsFromUI();
+    syncJewelSalvageControlsFromSettings();
+    addLog(`💠 주얼 자동해체 ${game.settings.jewelAutoSalvageEnabled ? '활성화' : '비활성화'}`, 'loot-normal');
 }
 
 function bulkSalvage(maxRarity) {
@@ -5527,6 +5728,18 @@ function marketExpandInventoryByDivine() {
     updateStaticUI();
 }
 
+function marketExpandJewelInventoryByDivine() {
+    if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
+    if ((game.season || 1) < 5) return addLog('주얼 해금 후 이용할 수 있습니다.', 'attack-monster');
+    let cost = getJewelMarketExpandCost();
+    if ((game.currencies.divine || 0) < cost) return addLog(`신성한 오브가 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if (!confirm(`신성한 오브 ${cost}개로 주얼 인벤토리를 영구히 5칸 확장할까요? (시즌 종료 후에도 초기화되지 않음)`)) return;
+    game.currencies.divine -= cost;
+    game.jewelInventoryExpandLevel = Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)) + 1;
+    addLog(`💠 주얼 인벤토리 영구 확장 완료! 현재 최대 칸: ${getJewelInventoryLimit()}`, 'loot-unique');
+    updateStaticUI();
+}
+
 function renderMarketUI() {
     let lockedEl = document.getElementById('ui-market-locked');
     let panelEl = document.getElementById('ui-market-panel');
@@ -5576,6 +5789,16 @@ function renderMarketUI() {
         let cost = getMarketInventoryExpandCost();
         invEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">신성한 오브 ${cost}개 → 인벤토리 영구 5칸 확장 (현재: ${getInventoryLimit()}칸)</div>
         <button onclick="marketExpandInventoryByDivine()">인벤토리 확장</button>`;
+    }
+    let jewelInvEl = document.getElementById('ui-market-service-jewel-inv');
+    if (jewelInvEl) {
+        if ((game.season || 1) < 5) {
+            jewelInvEl.innerHTML = `<div style="color:#89a8c7; font-size:0.82em;">주얼 해금 후 신성한 오브로 주얼 인벤토리 확장이 열립니다.</div>`;
+        } else {
+            let cost = getJewelMarketExpandCost();
+            jewelInvEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">신성한 오브 ${cost}개 → 주얼 인벤토리 영구 5칸 확장 (현재: ${getJewelInventoryLimit()}칸)</div>
+            <button onclick="marketExpandJewelInventoryByDivine()">주얼 인벤토리 확장</button>`;
+        }
     }
 }
 
@@ -5806,8 +6029,11 @@ function getPlayerStats() {
         applyStatsToBucket(gearBase, item.baseStats || []);
         applyStatsToBucket(gearExplicit, item.stats || []);
     });
-    (game.jewelSlots || []).forEach(jewel => {
-        getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val));
+    game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0];
+    (game.jewelSlots || []).forEach((jewel, idx) => {
+        let amp = Math.max(0, Math.floor((game.jewelSlotAmplify[idx] || 0)));
+        let ampMul = 1 + (amp * 0.03);
+        getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, Math.round(stat.val * ampMul)));
     });
 
     safePassives.forEach(id => {
@@ -5848,6 +6074,10 @@ function getPlayerStats() {
     });
 
     let skill = getActiveSkillStats(gemSources.total);
+    let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
+    if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
+    if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += (gearBase.targetSlam + gearExplicit.targetSlam + passive.targetSlam + season.targetSlam + ascend.targetSlam + reward.targetSlam);
+    if (targetBonus > 0) skill.targets = Math.min(99, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
     let gearTagged = getTaggedDamageBreakdown(gearBase, skill);
     let gearExplicitTagged = getTaggedDamageBreakdown(gearExplicit, skill);
     let passiveTagged = getTaggedDamageBreakdown(passive, skill);
@@ -5870,13 +6100,16 @@ function getPlayerStats() {
     let gearFlatDmg = gearBase.flatDmg + gearExplicit.flatDmg;
     let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
     let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg;
+    let dotPctDmg = gearBase.dotPctDmg + gearExplicit.dotPctDmg + passive.dotPctDmg + season.dotPctDmg + ascend.dotPctDmg + support.dotPctDmg + reward.dotPctDmg;
     let isSpellSkill = Array.isArray(skill.tags) && skill.tags.includes('spell');
+    let isDotSkill = Array.isArray(skill.tags) && skill.tags.includes('dot');
     let spellFlatDmg = 0;
     if (isSpellSkill) {
         let skillLevel = Number.isFinite(skill.finalLevel) ? skill.finalLevel : 1;
         let spellBase = Number.isFinite(skill.spellFlatBase) ? skill.spellFlatBase : 0;
         let spellScale = Number.isFinite(skill.spellFlatScale) ? skill.spellFlatScale : 0;
-        spellFlatDmg = Math.max(1, spellBase + Math.max(0, skillLevel - 1) * spellScale);
+        let logBoost = Math.log2(Math.max(1, skillLevel));
+        spellFlatDmg = Math.max(1, (spellBase * 3) + Math.max(0, skillLevel - 1) * spellScale + (spellBase * 0.8 * logBoost * logBoost));
     }
     let totalFlatDmg = isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg);
     let codexBonusRatio = 1 + (getCodexBonusPct() / 100);
@@ -5891,7 +6124,8 @@ function getPlayerStats() {
     let gearAspd = gearBase.aspd + gearExplicit.aspd;
     let passiveAspd = passive.aspd + season.aspd + ascend.aspd + reward.aspd;
     let totalAspdPct = gearAspd + passiveAspd + support.aspd;
-    let finalAspd = 1.0 * (1 + totalAspdPct / 100) * (skill.spd || skill.baseSpd || 1);
+    let rawAspd = 1.0 * (1 + totalAspdPct / 100) * (skill.spd || skill.baseSpd || 1);
+    let finalAspd = rawAspd <= 5 ? rawAspd : (5 + Math.pow(Math.max(0, rawAspd - 5), 0.72));
     finalAspd = Math.min(12, finalAspd);
 
     let gearCrit = gearBase.crit + gearExplicit.crit;
@@ -5917,13 +6151,15 @@ function getPlayerStats() {
     let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
     let fireResScaledBonus = 1 + Math.max(0, finalResF * (skill.fireResDmgScale || 0));
     let dotMultiplier = skill.dotMultiplier || 1;
-    finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus * dotMultiplier);
+    let dotStatMultiplier = isDotSkill ? (1 + Math.max(0, dotPctDmg) / 100) : 1;
+    finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus * dotMultiplier * dotStatMultiplier);
     let damageScales = {
         hpFlatBonus: hpFlatBonus,
         hpScaleRatio: hpScaleRatio,
         regen: regenScaledBonus,
         fireRes: fireResScaledBonus,
-        dot: dotMultiplier
+        dot: dotMultiplier,
+        dotStat: dotStatMultiplier
     };
     let suppCap = 1 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap;
 
@@ -5947,7 +6183,8 @@ function getPlayerStats() {
                 (skill.hpDmgScale || 0) > 0 ? `생명력 비례 추가 공격력 +${Math.floor(hpFlatBonus)} (최대 생명력 ${Math.floor(finalMaxHp)})` : null,
                 (skill.regenDmgScale || 0) > 0 ? `재생 계수 배율 ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
                 (skill.fireResDmgScale || 0) > 0 ? `화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (화염 저항 ${Math.floor(finalResF)}%)` : null,
-                (skill.dotMultiplier || 1) !== 1 ? `지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null
+                (skill.dotMultiplier || 1) !== 1 ? `스킬 지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null,
+                isDotSkill && dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null
             ].filter(Boolean),
             final: `${Math.floor(finalBaseDmg)}`
         },
@@ -5958,7 +6195,8 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearAspd, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passiveAspd, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조 젬', support.aspd, '%', value => `${Math.floor(value)}%`),
-                `스킬 속도 배율 ${formatPercentMultiplier(skill.spd || 1)}`
+                `스킬 속도 배율 ${formatPercentMultiplier(skill.spd || 1)}`,
+                rawAspd > 5 ? `소프트캡 적용중 (원시 ${rawAspd.toFixed(2)} → 최종 ${finalAspd.toFixed(2)})` : null
             ].filter(Boolean),
             final: `${finalAspd.toFixed(2)}`
         },
@@ -6250,11 +6488,18 @@ function createEnemy(zone, marker, groupIndex) {
     let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
+    let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
     let isElite = !!marker.elite && !isBoss;
+    let abyssDepth = zone.type === 'abyss' ? Math.max(1, (zone.id || 10) - 9) : 0;
+    if (zone.type === 'abyss' && !isElite && !isBoss) {
+        let hpRamp = Math.min(0.20, Math.max(0, abyssDepth - 1) * 0.015);
+        hp = Math.floor(hp * (1 + hpRamp));
+    }
     if (isElite) hp = Math.floor(hp * 1.4);
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
+    hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     let eleIcon = zone.ele === 'fire' ? '🔥' : (zone.ele === 'cold' ? '❄️' : (zone.ele === 'light' ? '⚡' : (zone.ele === 'chaos' ? '☠️' : '🩸')));
     let name = `${eleIcon} ${zone.name.split(':')[0]} 추종자`;
     if (isElite) name = `정예 ${name}`;
@@ -6281,11 +6526,22 @@ function createEnemy(zone, marker, groupIndex) {
         variantSeed: variantSeed,
         ele: zone.ele,
         dr: Math.max(0, Math.floor(zone.tier * 0.8) + (trait && trait.dr ? trait.dr : 0)),
-        resF: trait && trait.resF ? trait.resF : 0,
-        resC: trait && trait.resC ? trait.resC : 0,
-        resL: trait && trait.resL ? trait.resL : 0,
-        resChaos: trait && trait.resChaos ? trait.resChaos : 0,
+        resF: (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0),
+        resC: (trait && trait.resC ? trait.resC : 0) + (abyssScale.resistBonus || 0),
+        resL: (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0),
+        resChaos: (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0),
         atkMul: trait && trait.atkMul ? trait.atkMul : 1,
+        attackSpeedVar: 0.85 + (((variantSeed % 11) / 10) * 0.5),
+        critChance: (game.season || 1) >= 2 ? (isBoss ? 16 : isElite ? 10 : 4) : 0,
+        regenRate: (game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0,
+        penetration: (game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0,
+        hybridElement: (game.season || 1) >= 3 ? rndChoice(['fire', 'cold', 'light', 'chaos']) : null,
+        ailmentChance: (game.season || 1) >= 4 ? (isBoss ? 0.14 : (isElite ? 0.08 : 0.03)) : 0,
+        firstHitGuard: (game.season || 1) >= 5 ? (isBoss ? 0.55 : (isElite ? 0.35 : 0.18)) : 0,
+        hitRateGuard: (game.season || 1) >= 5 ? (isBoss ? 0.12 : (isElite ? 0.06 : 0.025)) : 0,
+        recentHitsTaken: 0,
+        recentHitsTimer: 0,
+        patternMode: (game.season || 1) >= 6 && isBoss ? rndChoice(['burst', 'ramp', 'slam']) : null,
         traitName: trait ? trait.name : null,
         isSky: isSky
     };
@@ -6296,18 +6552,21 @@ function getZoneEncounterProfile(zone) {
     if (zone.type === 'seasonBoss') return { markerCount: 1, minPack: 1, maxPack: 1, eliteChance: 1, bossAdds: 0, label: '보스' };
     if (zone.type === 'labyrinth') {
         let floor = Math.max(1, zone.floor || 1);
-        let minPack = 2 + Math.floor(floor / 8);
-        let maxPack = Math.min(10, minPack + 2);
-        return { markerCount: 6 + Math.floor(floor / 4), minPack: minPack, maxPack: maxPack, eliteChance: Math.min(0.5, 0.16 + floor * 0.01), bossAdds: floor % 5 === 0 ? 2 : 1, label: `미궁 ${floor}층` };
+        let minPack = 2 + Math.floor(floor / 10);
+        let maxPack = Math.min(9, minPack + 2);
+        return { markerCount: 5 + Math.floor(floor / 5), minPack: minPack, maxPack: maxPack, eliteChance: Math.min(0.46, 0.14 + floor * 0.009), bossAdds: floor % 5 === 0 ? 2 : 1, label: `미궁 ${floor}층` };
     }
     if (zone.type === 'abyss') {
-        let minPack = 2 + Math.floor(zone.tier / 5);
-        let maxPack = Math.min(12, 4 + Math.floor(zone.tier * 0.58));
+        let abyssScale = getAbyssMonsterScales(zone);
+        let minPack = 2 + Math.floor(zone.tier / 7);
+        let maxPack = Math.min(10, 4 + Math.floor(zone.tier * 0.42));
+        minPack = Math.max(1, Math.floor(minPack * (abyssScale.hordeMul || 1)));
+        maxPack = Math.max(minPack, Math.floor(maxPack * (abyssScale.hordeMul || 1)));
         return {
-            markerCount: 9 + Math.floor(zone.tier * 0.65),
+            markerCount: Math.max(6, Math.floor((8 + Math.floor(zone.tier * 0.48)) * (abyssScale.mapLengthMul || 1))),
             minPack: minPack,
             maxPack: maxPack,
-            eliteChance: Math.min(0.42, 0.14 + zone.tier * 0.014),
+            eliteChance: Math.min(0.8, 0.13 + zone.tier * 0.012 + (abyssScale.eliteBonus || 0)),
             bossAdds: 2 + Math.floor(zone.tier / 4),
             label: `${minPack}-${maxPack}기`
         };
@@ -6326,6 +6585,13 @@ function getZoneEncounterProfile(zone) {
 
 function generateEncounterPlan(zone) {
     if (zone.type === 'trial') return [{ at: 18, count: 1, elite: true }, { at: 54, count: 2, elite: true }, { at: 100, count: 2, boss: true }];
+    if (zone.id === 's6_beast_cerberus') {
+        return [
+            { at: 33, count: 3, boss: true, phase: 1 },
+            { at: 66, count: 2, boss: true, phase: 2 },
+            { at: 100, count: 1, boss: true, phase: 3 }
+        ];
+    }
     if (zone.type === 'seasonBoss') return [{ at: 100, count: 1, boss: true }];
     let profile = getZoneEncounterProfile(zone);
     let rng = zone.type === 'act' ? createSeededRng(`act:${zone.id}`) : Math.random;
@@ -6424,6 +6690,7 @@ function startMoving(isTown) {
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.runProgress = 0;
+    game.playerAilments = [];
 }
 
 function returnToTown() {
@@ -6442,10 +6709,19 @@ function ensureEncounterRun() {
 function spawnEncounterMarker(marker) {
     let zone = getZone(game.currentZoneId);
     let count = marker.count || 1;
+    let isCerberus = zone && zone.id === 's6_beast_cerberus';
     let usedSlots = new Set((game.enemies || []).map(enemy => enemy.battleSlot).filter(slot => Number.isFinite(slot)));
     if (marker.boss) {
         for (let i = 0; i < Math.max(0, count - 1); i++) {
             let enemy = createEnemy(zone, { ...marker, boss: false, elite: true }, i);
+            if (isCerberus) {
+                enemy.name = `👿 케르베로스 머리 ${Math.max(1, (count - i))}`;
+                if (marker.phase === 1) enemy.ele = ['cold', 'fire', 'light'][i % 3];
+                else enemy.ele = 'phys';
+                enemy.atkMul *= 1.55;
+                enemy.penetration += 12;
+                enemy.critChance += marker.phase >= 2 ? 10 : 0;
+            }
             enemy.battleSlot = reserveBattleSlot(usedSlots);
             usedSlots.add(enemy.battleSlot);
             enemy.spawnStamp = performance.now();
@@ -6453,12 +6729,25 @@ function spawnEncounterMarker(marker) {
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 360, boss: false });
         }
         let bossEnemy = createEnemy(zone, { ...marker, count: 1 }, count);
+        if (isCerberus) {
+            bossEnemy.name = marker.phase === 3 ? '👿 케르베로스 본체' : `👿 케르베로스 머리`;
+            bossEnemy.ele = marker.phase === 1 ? 'fire' : 'phys';
+            bossEnemy.atkMul *= marker.phase === 3 ? 2.1 : 1.7;
+            bossEnemy.penetration += 18;
+            bossEnemy.critChance += marker.phase >= 2 ? 14 : 0;
+            bossEnemy.hybridElement = marker.phase === 3 ? 'chaos' : bossEnemy.hybridElement;
+        }
         bossEnemy.battleSlot = reserveBattleSlot(usedSlots);
         usedSlots.add(bossEnemy.battleSlot);
         bossEnemy.spawnStamp = performance.now();
         game.enemies.push(bossEnemy);
         addBattleFx('enemySpawn', { enemyId: bossEnemy.id, color: getElementColor(bossEnemy.ele), duration: 460, boss: true });
-        if (game.settings.showSpawnLog !== false) addLog(`👑 '${bossEnemy.name.replace(/^👿\s*/, '')}' 등장.`, "loot-unique");
+        if (game.settings.showSpawnLog !== false) {
+            addLog(`👑 '${bossEnemy.name.replace(/^👿\s*/, '')}' 등장.`, "loot-unique");
+            if (isCerberus && marker.phase === 1) addLog('🐺 케르베로스 1페이즈: 냉기/화염/번개 머리 3개', 'attack-monster');
+            if (isCerberus && marker.phase === 2) addLog('🐺 케르베로스 2페이즈: 물리 머리 2개 (치명/연속공격 강화)', 'attack-monster');
+            if (isCerberus && marker.phase === 3) addLog('🐺 케르베로스 3페이즈: 본체 (브레스/헬파이어/몸통박치기)', 'attack-monster');
+        }
     } else {
         for (let i = 0; i < count; i++) {
             let enemy = createEnemy(zone, marker, i);
@@ -6479,11 +6768,12 @@ function advanceMapProgress(pStats) {
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
     let zone = getZone(game.currentZoneId);
+    let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let baseGain = zone.type === 'trial' ? 0.26 : (zone.type === 'abyss' ? 0.42 : 0.36);
     let crowdPenalty = enemyCount > 0 ? Math.max(0.4, 1 - enemyCount * 0.13) : 0.94;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
-    let gain = baseGain * (moveSpeed / 100) * crowdPenalty;
+    let gain = baseGain * (moveSpeed / 100) * crowdPenalty * (abyssScale.mapProgressMul || 1);
     game.runProgress = Math.min(100, game.runProgress + gain);
     while (game.encounterIndex < game.encounterPlan.length && game.runProgress >= game.encounterPlan[game.encounterIndex].at) {
         spawnEncounterMarker(game.encounterPlan[game.encounterIndex]);
@@ -6493,10 +6783,11 @@ function advanceMapProgress(pStats) {
 
 function grantExpAndGem(enemy, pStats) {
     let zone = getZone(game.currentZoneId);
+    let abyssScale = getAbyssMonsterScales(zone);
     let exp = Math.floor((14 + zone.tier * 10) * (1 + game.season * 0.35));
     if (enemy.isElite) exp = Math.floor(exp * 1.8);
     if (enemy.isBoss) exp = Math.floor(exp * Math.max(3, zone.tier * 1.5));
-    exp = Math.floor(exp * (1 + (pStats.expGain / 100)));
+    exp = Math.floor(exp * (1 + (pStats.expGain / 100)) * (abyssScale.expMul || 1));
     game.exp += exp;
     if (game.settings.showExpLog) addLog(`✨ 경험치 +${exp}`, "exp-txt");
 
@@ -6572,6 +6863,7 @@ function rollLootForEnemy(enemy) {
 
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
     itemChance *= (1 + (getCodexBonusPct() / 100));
+    itemChance *= Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
     if (Math.random() < itemChance) {
         let item = generateEquipmentDrop(enemy);
         if (addItemToInventory(item) && game.settings.showLootLog) {
@@ -6580,12 +6872,15 @@ function rollLootForEnemy(enemy) {
             addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!`);
         }
     }
-    if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.12) {
+    if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.056) {
         let jewel = generateJewelDrop((getZone(game.currentZoneId) || { tier: 1 }).tier || 1);
         game.jewelInventory = game.jewelInventory || [];
-        if (game.jewelInventory.length >= JEWEL_INVENTORY_LIMIT) {
+        if (game.jewelInventory.length >= getJewelInventoryLimit()) {
             salvageJewelObject(jewel, true);
             if (game.settings.showLootLog) addLog(`💠 주얼 인벤토리 초과로 [${jewel.name}] 자동 해체`, 'attack-monster');
+        } else if (game.settings.jewelAutoSalvageEnabled && game.settings.jewelAutoSalvageRarities && game.settings.jewelAutoSalvageRarities[jewel.rarity || 'normal']) {
+            salvageJewelObject(jewel, true);
+            if (game.settings.showLootLog) addLog(`💠 주얼 자동해체: [${jewel.name}]`, 'loot-normal');
         } else {
             game.jewelInventory.push(jewel);
             let lineText = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} +${stat.val}`).join(' / ');
@@ -6598,6 +6893,24 @@ function handleEnemyDeath(enemy, pStats) {
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
     grantExpAndGem(enemy, pStats);
     rollLootForEnemy(enemy);
+    let equippedHeralds = (game.equippedSupports || []).map(name => {
+        let db = SUPPORT_GEM_DB[name];
+        if (!db || !Number.isFinite(db.heraldExplodeBase)) return null;
+        let gem = normalizeGemRecord((game.supportGemData || {})[name]);
+        let lvl = Math.max(1, gem.level + (pStats.gemLv || 0));
+        return db.heraldExplodeBase + ((lvl - 1) * (db.heraldExplodeScale || 0));
+    }).filter(Boolean);
+    if (equippedHeralds.length > 0) {
+        let explodeChance = clampNumber(equippedHeralds.reduce((a, b) => a + b, 0), 0, 0.85);
+        if (Math.random() < explodeChance) {
+            let splash = Math.floor((enemy.maxHp || enemy.hp || 0) * 0.10);
+            (game.enemies || []).forEach(target => {
+                if (!target || target.id === enemy.id || target.hp <= 0) return;
+                target.hp = Math.max(0, target.hp - splash);
+            });
+            if (game.settings.showCombatLog) addLog(`💥 전령 시체폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
+        }
+    }
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
     pendingHeavyUiRefresh = true;
 }
@@ -6679,6 +6992,16 @@ function finishEncounterRun() {
     }
 
     if (game.killsInZone >= zone.maxKills) {
+        if (zone.type === 'abyss') {
+            let depth = Math.max(1, (zone.id || 10) - 9);
+            let capDepth = (game.season || 1) <= 1 ? 14 : 19;
+            game.abyssClearedDepths = Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths : [];
+            if (depth <= capDepth && !game.abyssClearedDepths.includes(depth)) {
+                game.abyssClearedDepths.push(depth);
+                game.abyssPassivePoints = Math.max(0, Math.floor(game.abyssPassivePoints || 0)) + 5;
+                addLog(`🌌 심연 깊이 ${depth} 최초 클리어 보상: 심연 패시브 포인트 +5`, 'season-up');
+            }
+        }
         if (zone.type === 'act') markActRewardReady(zone.id);
         if (zone.id === getCurrentSeasonFinalZoneId()) {
             triggerSeasonReset();
@@ -6699,10 +7022,24 @@ function finishEncounterRun() {
             addLog(`🗺️ 신규 사냥터 [${MAP_ZONES[game.maxZoneId].name}] 개방!`, "season-up");
         }
         game.killsInZone = 0;
-        game.currentZoneId = Math.max(game.currentZoneId, game.maxZoneId);
+        let mapAction = game.settings.mapCompleteAction || 'nextZone';
+        if (mapAction === 'repeatZone') game.currentZoneId = zone.id;
+        else if (mapAction === 'stop') {
+            game.enemies = [];
+            game.encounterPlan = [];
+            game.encounterIndex = 0;
+            game.runProgress = 0;
+            updateStaticUI();
+            return;
+        } else game.currentZoneId = Math.max(game.currentZoneId, game.maxZoneId);
     }
     checkUnlocks();
-    startMoving(false);
+    if ((game.settings.townReturnAction || 'retry') === 'stop') {
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.encounterIndex = 0;
+        game.runProgress = 0;
+    } else startMoving(false);
     updateStaticUI();
 }
 
@@ -6731,8 +7068,22 @@ function performPlayerAttack(pStats) {
         if (!hit.enemy || hit.enemy.hp <= 0) return;
         let enemyRes = getEffectiveEnemyMitigation(pStats.sSkill.ele || 'phys', zoneTier, hit.enemy, pStats);
         let dmg = Math.floor(baseDamage * hit.mult);
+        if (Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot')) {
+            hit.enemy.dotStacks = Math.min(10, Math.max(0, hit.enemy.dotStacks || 0) + 1);
+            let stackMultiplier = 1 + ((hit.enemy.dotStacks - 1) * 0.09);
+            dmg = Math.floor(dmg * stackMultiplier);
+        }
+        if ((hit.enemy.firstHitGuard || 0) > 0 && !hit.enemy.firstHitConsumed) {
+            dmg = Math.floor(dmg * (1 - hit.enemy.firstHitGuard));
+            hit.enemy.firstHitConsumed = true;
+        }
+        let hitGuard = (hit.enemy.hitRateGuard || 0) * Math.min(6, hit.enemy.recentHitsTaken || 0);
+        if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
         dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
+        dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
         hit.enemy.hp = Math.max(0, hit.enemy.hp - dmg);
+        hit.enemy.recentHitsTaken = (hit.enemy.recentHitsTaken || 0) + 1;
+        hit.enemy.recentHitsTimer = 1.8;
         totalDamage += dmg;
         hits.push(dmg);
         addBattleFx('hit', {
@@ -6749,7 +7100,12 @@ function performPlayerAttack(pStats) {
     if (pStats.leech > 0 && totalDamage > 0) game.playerHp = Math.min(pStats.maxHp, game.playerHp + (totalDamage * (pStats.leech / 100)));
 
     if (game.settings.showCombatLog) {
-        let line = hits.length > 1 ? `⚔️ ${hits.join(' / ')} 피해 (${hits.length}타겟)` : `⚔️ ${hits[0] || 0} 피해`;
+        let dotInfo = '';
+        if (Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot')) {
+            let maxDotStack = targets.reduce((max, hit) => Math.max(max, (hit.enemy && hit.enemy.dotStacks) || 0), 0);
+            if (maxDotStack > 0) dotInfo = ` · 도트중첩 ${maxDotStack}/10`;
+        }
+        let line = (hits.length > 1 ? `⚔️ ${hits.join(' / ')} 피해 (${hits.length}타겟)` : `⚔️ ${hits[0] || 0} 피해`) + dotInfo;
         if (isCrit) line = `💥 ${line}`;
         let scales = pStats.damageScales || {};
         let scaleLabels = [];
@@ -6757,6 +7113,7 @@ function performPlayerAttack(pStats) {
         if ((scales.regen || 1) > 1.0001) scaleLabels.push(`재생x${(scales.regen || 1).toFixed(2)}`);
         if ((scales.fireRes || 1) > 1.0001) scaleLabels.push(`화저x${(scales.fireRes || 1).toFixed(2)}`);
         if ((scales.dot || 1) > 1.0001) scaleLabels.push(`도트x${(scales.dot || 1).toFixed(2)}`);
+        if ((scales.dotStat || 1) > 1.0001) scaleLabels.push(`도트스탯x${(scales.dotStat || 1).toFixed(2)}`);
         if (scaleLabels.length > 0) line += ` [계수 ${scaleLabels.join(' / ')}]`;
         addLog(line, isCrit ? 'attack-crit' : 'attack-player');
     }
@@ -6803,16 +7160,47 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     updateStaticUI();
 }
 
+function applyPlayerAilment(type, duration) {
+    if (!type || duration <= 0) return;
+    game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];
+    let existing = game.playerAilments.find(row => row.type === type);
+    if (existing) existing.time = Math.max(existing.time || 0, duration);
+    else game.playerAilments.push({ type: type, time: duration });
+}
+
+function tickAilments(pStats, dt) {
+    game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];
+    let next = [];
+    game.playerAilments.forEach(ail => {
+        ail.time = Math.max(0, (ail.time || 0) - dt);
+        if (ail.type === 'ignite') {
+            let burn = Math.max(1, Math.floor(pStats.maxHp * 0.0028));
+            game.playerHp -= burn;
+            recordIncomingDamage('fire', burn, '점화');
+        } else if (ail.type === 'poison') {
+            let poison = Math.max(1, Math.floor(pStats.maxHp * 0.0022));
+            game.playerHp -= poison;
+            recordIncomingDamage('chaos', poison, '중독');
+        }
+        if (ail.time > 0) next.push(ail);
+    });
+    game.playerAilments = next;
+}
+
 function performMonsterAttacks(pStats) {
     let zone = getZone(game.currentZoneId);
+    let abyssScale = getAbyssMonsterScales(zone);
     let aliveCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let crowdPenalty = Math.max(0.34, 1 - Math.max(0, aliveCount - 1) * 0.055);
     for (let enemy of (game.enemies || [])) {
         if (enemy.hp <= 0) continue;
+        if ((enemy.regenRate || 0) > 0) enemy.hp = Math.min(enemy.maxHp || enemy.hp, enemy.hp + Math.max(1, Math.floor((enemy.maxHp || 1) * enemy.regenRate)));
+        enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
+        if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);
         let seasonDepth = Math.max(0, (game.season || 1) - 1);
         let tierPressure = clampNumber(((zone.tier || 1) - 1) / 10, 0, 1);
         let seasonAtkScale = 1 + seasonDepth * (0.012 + (tierPressure * 0.018));
-        let atkRate = (0.26 + zone.tier * 0.013) * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1);
+        let atkRate = (0.26 + zone.tier * 0.013) * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1);
         enemy.attackTimer += 0.1 * atkRate;
         while (enemy.attackTimer >= 1) {
             enemy.attackTimer -= 1;
@@ -6822,13 +7210,28 @@ function performMonsterAttacks(pStats) {
             if (enemy.isElite) dmg = Math.floor(dmg * 1.2);
             if (enemy.isBoss) dmg = Math.floor(dmg * (1.08 + zone.tier * 0.15));
             if (!enemy.isBoss) dmg = Math.floor(dmg * crowdPenalty);
+            dmg = Math.floor(dmg * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (enemy.isBoss ? (abyssScale.bossMul || 1) : 1));
             let pRes = 0;
             if (enemy.ele === 'phys') pRes = pStats.dr;
             else if (enemy.ele === 'fire') pRes = pStats.resF;
             else if (enemy.ele === 'cold') pRes = pStats.resC;
             else if (enemy.ele === 'light') pRes = pStats.resL;
             else if (enemy.ele === 'chaos') pRes = pStats.resChaos;
+            pRes = Math.max(-60, pRes - (enemy.penetration || 0));
             dmg = Math.floor(dmg * (1 - (pRes / 100)));
+            if ((enemy.critChance || 0) > 0 && Math.random() < (enemy.critChance / 100)) dmg = Math.floor(dmg * 1.55);
+            if (enemy.hybridElement && Math.random() < 0.35) {
+                let hybridRes = enemy.hybridElement === 'fire' ? pStats.resF : enemy.hybridElement === 'cold' ? pStats.resC : enemy.hybridElement === 'light' ? pStats.resL : pStats.resChaos;
+                hybridRes = Math.max(-60, hybridRes - ((enemy.penetration || 0) * 0.7));
+                let hybrid = Math.floor(dmg * 0.32 * (1 - (hybridRes / 100)));
+                dmg += Math.max(0, hybrid);
+            }
+            dmg = Math.max(1, dmg);
+            if ((enemy.ailmentChance || 0) > 0 && Math.random() < enemy.ailmentChance) {
+                let ail = enemy.ele === 'fire' ? 'ignite' : enemy.ele === 'cold' ? 'chill' : enemy.ele === 'light' ? 'shock' : 'poison';
+                applyPlayerAilment(ail, enemy.isBoss ? 5 : 3);
+                if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각' : ail === 'shock' ? '감전' : '중독'} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster');
+            }
             game.playerHp = Math.floor(game.playerHp - dmg);
             recordIncomingDamage(enemy.ele, dmg, enemy.name);
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(enemy.ele), damage: dmg, duration: 220 });
@@ -6861,6 +7264,11 @@ function applyTrialTrapTick(pStats) {
 
 function coreLoop() {
     const pStats = getPlayerStats();
+    tickAilments(pStats, 0.1);
+    let ailmentMap = {};
+    (game.playerAilments || []).forEach(ail => { ailmentMap[ail.type] = Math.max(ailmentMap[ail.type] || 0, ail.time || 0); });
+    if (ailmentMap.chill) pStats.aspd *= 0.82;
+    if (ailmentMap.shock) pStats.dr = Math.max(-40, pStats.dr - 12);
     if (isDeathOverlayOpen()) return;
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
@@ -6906,6 +7314,10 @@ function coreLoop() {
         performMonsterAttacks(pStats);
     }
     if (game.playerHp > 0) applyTrialTrapTick(pStats);
+    if (game.playerHp <= 0) {
+        handlePlayerDefeat(getZone(game.currentZoneId), pStats, "☠️ 상태이상으로 쓰러졌습니다.", { fatalElement: 'other', sourceName: '상태이상' });
+        return;
+    }
     syncCrowdPauseState();
 
     if (game.runProgress >= 100 && game.encounterIndex >= game.encounterPlan.length && game.enemies.length === 0) finishEncounterRun();
@@ -6946,6 +7358,10 @@ function triggerSeasonReset() {
     game.labyrinthFloor = 1;
     game.jewelInventory = [];
     game.jewelSlots = [null, null];
+    game.jewelSlotAmplify = [0, 0];
+    game.abyssPassivePoints = 0;
+    game.abyssPassives = { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 };
+    game.abyssClearedDepths = [];
     game.claimableActRewards = [];
     game.claimedActRewards = [];
     game.actRewardBonuses = [];
@@ -7141,7 +7557,7 @@ function toggleItemLockById(itemId) {
 function changeZone(id) {
     game.inTicketBossFight = false;
     if (typeof id === 'number' && id > game.maxZoneId) return;
-    if (typeof id === 'string' && id.startsWith('s2_boss_')) {
+    if (typeof id === 'string' && id.includes('_boss_')) {
         let zone = getZone(id);
         if (!zone || (game.season || 1) < (zone.reqSeason || 2)) return addLog('아직 시즌 보스가 잠겨 있습니다.', 'attack-monster');
         if ((game.currencies[zone.key] || 0) <= 0) return addLog(`입장 열쇠(${ORB_DB[zone.key].name})가 필요합니다.`, 'attack-monster');
@@ -7595,6 +8011,8 @@ function updateSettings() {
     game.settings.itemFilterMinTierCount = Math.max(0, Math.floor(Number(document.getElementById('inp-item-filter-tier-count').value) || 0));
     game.settings.itemFilterMinHiddenTier = Math.max(1, Math.floor(Number(document.getElementById('inp-item-filter-hidden-tier').value) || 1));
     game.settings.itemFilterOnlyNewCodexUnique = document.getElementById('chk-item-filter-unique-new-codex').checked;
+    game.settings.mapCompleteAction = (document.getElementById('sel-map-complete-action') || {}).value || 'nextZone';
+    game.settings.townReturnAction = (document.getElementById('sel-town-return-action') || {}).value || 'retry';
     let themeSelect = document.getElementById('sel-theme-mode');
     game.settings.themeMode = themeSelect ? themeSelect.value : (game.settings.themeMode || 'dark');
     applyThemeMode(game.settings.themeMode);
@@ -7671,7 +8089,9 @@ function showGemTooltip(event, type, name) {
         html += `<div class="tooltip-line" style="margin-top:6px;">피해 배율 ${formatPercentMultiplier(skill.dmg || skill.baseDmg || 1)}</div>`;
         html += `<div class="tooltip-line">공속 배율 ${formatPercentMultiplier(skill.spd || skill.baseSpd || 1)}</div>`;
         if ((info.tags || []).includes('spell')) {
-            let spellFlat = (skill.spellFlatBase || 0) + Math.max(0, (info.finalLevel || 1) - 1) * (skill.spellFlatScale || 0);
+            let spellLv = Math.max(1, info.finalLevel || 1);
+            let spellLog = Math.log2(spellLv);
+            let spellFlat = ((skill.spellFlatBase || 0) * 3) + Math.max(0, spellLv - 1) * (skill.spellFlatScale || 0) + ((skill.spellFlatBase || 0) * 0.8 * spellLog * spellLog);
             html += `<div class="tooltip-line">주문 내장 피해 ${Math.floor(spellFlat)}</div>`;
         }
         if ((skill.hpDmgScale || 0) > 0) html += `<div class="tooltip-line">생명력 계수: 최대 생명력 비례 추가 공격력으로 전환</div>`;
@@ -9044,6 +9464,12 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-maxexp').innerText = getExpReq(game.level);
     document.getElementById('ui-exp-bar').style.width = ((game.exp / getExpReq(game.level)) * 100) + '%';
     document.getElementById('ui-player-level').innerText = 'Lv.' + game.level;
+    let ailmentEl = document.getElementById('ui-player-ailments');
+    if (ailmentEl) {
+        let labels = { ignite: '점화', chill: '냉각', shock: '감전', poison: '중독' };
+        let text = (game.playerAilments || []).map(ail => `${labels[ail.type] || ail.type} ${Math.max(0, (ail.time || 0)).toFixed(1)}s`).join(' · ');
+        ailmentEl.innerText = text ? `상태이상: ${text}` : '';
+    }
 
     let zone = getZone(game.currentZoneId);
     let totalClears = Math.max(1, zone.maxKills || 1);
@@ -9400,13 +9826,21 @@ function updateStaticUI() {
         game.jewelSlots = Array.isArray(game.jewelSlots) ? game.jewelSlots : [null, null];
         game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
         jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
-        document.getElementById('ui-jewel-cap').innerHTML = `주얼 인벤토리: <strong>${game.jewelInventory.length}</strong> / ${JEWEL_INVENTORY_LIMIT}`;
-        document.getElementById('ui-jewel-core-craft').innerHTML = `<div style="color:#f1c67d; margin-bottom:4px;">주얼 융합 (주얼 핵: ${game.currencies.jewelCore || 0})</div><div style="font-size:0.8em; color:#8fb6d9; margin-bottom:6px;">1줄 옵션 주얼 2개 + 주얼 핵 1개 → 2줄 주얼 1개</div><button onclick="craftJewelFusion()" ${(game.currencies.jewelCore || 0) <= 0 ? 'disabled' : ''}>선택한 주얼 융합</button>`;
+        document.getElementById('ui-jewel-cap').innerHTML = `주얼 인벤토리: <strong>${game.jewelInventory.length}</strong> / ${getJewelInventoryLimit()}`;
+        syncJewelSalvageControlsFromSettings();
+        game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0];
+        document.getElementById('ui-jewel-core-craft').innerHTML = `<div style="color:#f1c67d; margin-bottom:4px;">주얼 제작 재화 (주얼 핵: ${game.currencies.jewelCore || 0} / 주얼 파편: ${game.currencies.jewelShard || 0})</div>
+        <div style="font-size:0.8em; color:#8fb6d9; margin-bottom:6px;">일반 융합: 1줄 주얼 2개 + 주얼 핵 1개 → 2줄 주얼</div>
+        <label style="display:block; font-size:0.78em; color:#e2c9a4; margin-bottom:4px;"><input type="checkbox" id="chk-jewel-amplified-fusion"> 증폭합성 사용 (주얼 파편 8 소모, 랜덤 패널티 + 랜덤 추가옵션)</label>
+        <button onclick="craftJewelFusion()" ${(game.currencies.jewelCore || 0) <= 0 ? 'disabled' : ''}>선택한 주얼 융합</button>
+        <div style="margin-top:8px; font-size:0.8em; color:#8fb6d9;">슬롯 증폭: 슬롯 효과 소폭 상승 (최대 10강, 실패 가능)</div>
+        <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="tryAmplifyJewelSlot(0)">슬롯1 증폭 (${game.jewelSlotAmplify[0] || 0}/10)</button><button onclick="tryAmplifyJewelSlot(1)">슬롯2 증폭 (${game.jewelSlotAmplify[1] || 0}/10)</button></div>`;
         document.getElementById('ui-jewel-slots').innerHTML = [0, 1].map(slotIdx => {
             let jewel = game.jewelSlots[slotIdx];
-            if (!jewel) return `<div class="slot-box" style="min-height:58px; cursor:default;">주얼 슬롯 ${slotIdx + 1}<br><span style="color:#7f8c8d;">비어있음</span></div>`;
+            let ampLv = (game.jewelSlotAmplify && game.jewelSlotAmplify[slotIdx]) || 0;
+            if (!jewel) return `<div class="slot-box" style="min-height:58px; cursor:default;">주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span style="color:#7f8c8d;">비어있음</span></div>`;
             let desc = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} +${stat.val}`).join(' / ');
-            return `<div class="slot-box" style="min-height:58px;">주얼 슬롯 ${slotIdx + 1}<br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${desc})<br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
+            return `<div class="slot-box" style="min-height:58px;">주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${desc})<br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
         }).join('');
         document.getElementById('ui-jewel-inventory').innerHTML = game.jewelInventory.map((jewel, idx) => {
             let selected = (jewelFusionSelection || []).includes(idx) ? 'selected' : '';
@@ -9437,11 +9871,10 @@ function updateStaticUI() {
     document.getElementById('ui-fossil-actions').innerHTML = fossilButtons.join('') || `<div style="color:#7f8c8d;">보유한 화석이 없습니다.</div>`;
     document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:#7f8c8d;">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:#8fb6d9;">미궁 완료 시 기본 화석 + 타입 화석이 드랍되며, 심연 화석은 희귀하게 추가 드랍됩니다.</div>`;
 
-    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'bossCore', 'skyEssence', 'fossil', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'sealShard', 'strongSealShard']);
+    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'sealShard', 'strongSealShard', 'jewelCore', 'jewelShard']);
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
         if (hiddenCurrencyKeys.has(key)) return false;
         if (key === 'tainted') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
-        if (key === 'jewelCore') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
         return true;
     }).map(key => `
         <div class="currency-card">
@@ -9531,6 +9964,27 @@ function updateStaticUI() {
     let seasonVisible = game.season > 1 || game.seasonPoints > 0;
     document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
     document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
+    let abyssSection = document.getElementById('abyss-passive-section');
+    if (abyssSection) {
+        abyssSection.style.display = (game.maxZoneId || 0) >= 10 ? 'block' : 'none';
+        let abyssState = getAbyssPassiveState();
+        let total = Math.max(0, Math.floor(game.abyssPassivePoints || 0));
+        let spent = getAbyssPassiveSpent();
+        let free = getAbyssPassiveFreePoints();
+        let cleared = (game.abyssClearedDepths || []).length;
+        document.getElementById('ui-abyss-passive-summary').innerHTML = `획득 포인트 <strong>${total}</strong> / 사용 <strong>${spent}</strong> / 남은 <strong>${free}</strong> · 최초 클리어 깊이 ${cleared}개`;
+        document.getElementById('ui-abyss-passive-grid').innerHTML = ABYSS_PASSIVE_NODES.map(node => {
+            let rank = Math.max(0, Math.floor(abyssState[node.key] || 0));
+            let disabled = free <= 0 || rank >= node.max;
+            return `<div style="background:#141e2b; border:1px solid #2e4361; border-radius:8px; padding:8px;">
+                <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;">
+                    <strong style="color:#d5e7fa;">${node.name}</strong><span style="color:#f8d37c;">${rank}/${node.max}</span>
+                </div>
+                <div style="font-size:0.8em; color:#9ec0df; margin-bottom:6px;">${node.desc}</div>
+                <button onclick="tryAllocateAbyssPassive('${node.key}')" ${disabled ? 'disabled' : ''}>+1 투자</button>
+            </div>`;
+        }).join('');
+    }
     let seasonRoadmapKeys = (game.unlockedSeasonContents || []).map(id => parseInt(String(id).replace('season_', ''), 10)).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
     document.getElementById('ui-season-content-roadmap').innerHTML = seasonRoadmapKeys.map(seasonNum => {
         let def = SEASON_CONTENT_ROADMAP[seasonNum];
@@ -9932,7 +10386,6 @@ function setupCanvasEvents() {
             hoverNode = getPassiveNodeAtClientPosition(touch.clientX, touch.clientY);
             activateHoveredPassive({ fromTouch: true, clientX: touch.clientX, clientY: touch.clientY });
         }
-        hideCanvasTooltip();
     }, { passive: false });
     canvas.addEventListener('touchcancel', () => {
         isDragging = false;
@@ -10134,9 +10587,12 @@ function mergeDefaults(save) {
         return { ...jewel, rarity: ['normal', 'magic', 'rare'].includes(jewel.rarity) ? jewel.rarity : 'normal', stats: stats.slice(0, 2) };
     }
     merged.jewelInventory = Array.isArray(merged.jewelInventory) ? merged.jewelInventory.map(normalizeJewelRecord).filter(Boolean) : [];
-    merged.jewelInventory = merged.jewelInventory.slice(0, JEWEL_INVENTORY_LIMIT);
+    let jewelInventoryCap = JEWEL_INVENTORY_LIMIT + (Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0))) * 5);
+    merged.jewelInventory = merged.jewelInventory.slice(0, jewelInventoryCap);
     merged.jewelSlots = Array.isArray(merged.jewelSlots) ? merged.jewelSlots.slice(0, 2).map(normalizeJewelRecord) : [null, null];
     while (merged.jewelSlots.length < 2) merged.jewelSlots.push(null);
+    merged.jewelSlotAmplify = Array.isArray(merged.jewelSlotAmplify) ? merged.jewelSlotAmplify.slice(0, 2).map(v => Math.max(0, Math.min(10, Math.floor(v || 0)))) : [0, 0];
+    while (merged.jewelSlotAmplify.length < 2) merged.jewelSlotAmplify.push(0);
     merged.skyGemEnhancements = (merged.skyGemEnhancements && typeof merged.skyGemEnhancements === 'object') ? merged.skyGemEnhancements : {};
     Object.keys(merged.skyGemEnhancements).forEach(skill => {
         let arr = Array.isArray(merged.skyGemEnhancements[skill]) ? merged.skyGemEnhancements[skill] : [];
@@ -10174,6 +10630,14 @@ function mergeDefaults(save) {
     merged.settings.themeMode = merged.settings.themeMode === 'light' ? 'light' : 'dark';
     merged.settings.autoSalvageEnabled = !!merged.settings.autoSalvageEnabled;
     merged.settings.autoSalvageRarities = { ...(defaultGame.settings.autoSalvageRarities || {}), ...(merged.settings.autoSalvageRarities || {}) };
+    merged.settings.jewelAutoSalvageEnabled = !!merged.settings.jewelAutoSalvageEnabled;
+    merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
+    merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
+    merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
+    merged.abyssPassivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.abyssPassivePoints, defaultGame.abyssPassivePoints, 0)));
+    merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
+    merged.abyssPassives = { ...(defaultGame.abyssPassives || {}), ...(merged.abyssPassives || {}) };
+    merged.playerAilments = Array.isArray(merged.playerAilments) ? merged.playerAilments.map(row => ({ type: row.type, time: Math.max(0, clampFiniteNumber(row.time, 0, 0, 30)) })).filter(row => row.type) : [];
     merged.recentDamageEvents = Array.isArray(merged.recentDamageEvents) ? merged.recentDamageEvents.map(normalizeRecentDamageEvent).filter(Boolean) : [];
     merged.lastDeathLog = normalizeDeathLog(merged.lastDeathLog);
     merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
@@ -10184,6 +10648,7 @@ function mergeDefaults(save) {
     merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
     merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0)));
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
+    merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.playerHp = Math.max(1, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 1)));
     merged.moveTimer = clampFiniteNumber(merged.moveTimer, defaultGame.moveTimer, 0);
     merged.moveTotalTime = clampFiniteNumber(merged.moveTotalTime, defaultGame.moveTotalTime, 0);
@@ -10198,7 +10663,7 @@ function mergeDefaults(save) {
     if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
     if (typeof merged.currentZoneId !== 'string') merged.currentZoneId = clampNumber(Number.isFinite(merged.currentZoneId) ? merged.currentZoneId : 0, 0, MAP_ZONES.length - 1);
     if (typeof merged.maxZoneId !== 'string') merged.maxZoneId = clampNumber(Number.isFinite(merged.maxZoneId) ? merged.maxZoneId : 0, 0, MAP_ZONES.length - 1);
-    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.startsWith('s2_boss_') && merged.currentZoneId !== LABYRINTH_ZONE_ID) merged.currentZoneId = 0;
+    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== LABYRINTH_ZONE_ID) merged.currentZoneId = 0;
     if (typeof merged.currentZoneId === 'string' && !getZone(merged.currentZoneId)) merged.currentZoneId = 0;
     if (typeof merged.maxZoneId !== 'string' && merged.currentZoneId > merged.maxZoneId) merged.currentZoneId = merged.maxZoneId;
     if (merged.discoveredPassives.length === 0) merged.discoveredPassives = ['n0'];
@@ -11094,10 +11559,13 @@ function init() {
     document.getElementById('inp-item-filter-tier-count').value = Math.max(0, Math.floor(game.settings.itemFilterMinTierCount || 0));
     document.getElementById('inp-item-filter-hidden-tier').value = Math.max(1, Math.floor(game.settings.itemFilterMinHiddenTier || 1));
     document.getElementById('chk-item-filter-unique-new-codex').checked = !!game.settings.itemFilterOnlyNewCodexUnique;
+    document.getElementById('sel-map-complete-action').value = game.settings.mapCompleteAction || 'nextZone';
+    document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
     document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
     applyThemeMode(game.settings.themeMode);
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     syncSalvageControlsFromSettings();
+    syncJewelSalvageControlsFromSettings();
     checkUnlocks();
     normalizeSupportLoadout(false);
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
@@ -11119,6 +11587,17 @@ function init() {
     }
     initializeCloudSave();
     window.runStartupSmokeChecks = runStartupSmokeChecks;
+    if (!window.__globalTouchTooltipCleanup) {
+        window.__globalTouchTooltipCleanup = true;
+        document.addEventListener('touchstart', function(e) {
+            let target = e.target;
+            let keep = target && target.closest && (target.closest('.item-card') || target.closest('.skill-gem') || target.closest('#tree-canvas'));
+            if (!keep) {
+                hideInfoTooltip();
+                hideItemTooltip();
+            }
+        }, { passive: true });
+    }
     try {
         updateStaticUI();
     } catch (error) {
