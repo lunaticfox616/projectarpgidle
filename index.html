@@ -3306,11 +3306,37 @@ const HERO_MOTIONS = {
     cast: [22, 23, 24, 25],
     bow: [26, 27, 28, 29]
 };
-const HERO_HAND_ANCHORS = {
-    slash: [{ x: 82, y: 145 }, { x: 100, y: 132 }, { x: 118, y: 125 }, { x: 130, y: 138 }],
-    throw: [{ x: 92, y: 140 }, { x: 112, y: 130 }, { x: 135, y: 125 }, { x: 150, y: 130 }],
-    cast: [{ x: 95, y: 140 }, { x: 118, y: 132 }, { x: 138, y: 125 }, { x: 150, y: 122 }],
-    bow: [{ x: 88, y: 138 }, { x: 105, y: 132 }, { x: 122, y: 130 }, { x: 138, y: 130 }]
+const HERO_FRAME_META = {
+    0: { motion: 'walk', local: 0, pivot: { x: 150, y: 260 }, hand: { x: 120, y: 155 }, drawOffset: { x: 0, y: 0 } },
+    1: { motion: 'walk', local: 1, pivot: { x: 150, y: 260 }, hand: { x: 122, y: 154 }, drawOffset: { x: 0, y: 0 } },
+    2: { motion: 'walk', local: 2, pivot: { x: 150, y: 260 }, hand: { x: 124, y: 153 }, drawOffset: { x: 0, y: 0 } },
+    3: { motion: 'walk', local: 3, pivot: { x: 150, y: 260 }, hand: { x: 126, y: 154 }, drawOffset: { x: 0, y: 0 } },
+    4: { motion: 'run', local: 0, pivot: { x: 150, y: 260 }, hand: { x: 122, y: 154 }, drawOffset: { x: 0, y: 0 } },
+    5: { motion: 'run', local: 1, pivot: { x: 150, y: 260 }, hand: { x: 125, y: 152 }, drawOffset: { x: 0, y: 0 } },
+    6: { motion: 'run', local: 2, pivot: { x: 150, y: 260 }, hand: { x: 127, y: 151 }, drawOffset: { x: 0, y: 0 } },
+    7: { motion: 'run', local: 3, pivot: { x: 150, y: 260 }, hand: { x: 129, y: 152 }, drawOffset: { x: 0, y: 0 } },
+    8: { motion: 'hit', local: 0, pivot: { x: 150, y: 260 }, hand: { x: 121, y: 156 }, drawOffset: { x: 0, y: 0 } },
+    9: { motion: 'hit', local: 1, pivot: { x: 150, y: 260 }, hand: { x: 119, y: 158 }, drawOffset: { x: 0, y: 0 } },
+    10: { motion: 'idle', local: 0, pivot: { x: 150, y: 260 }, hand: { x: 120, y: 155 }, drawOffset: { x: 0, y: 0 } },
+    11: { motion: 'idle', local: 1, pivot: { x: 150, y: 260 }, hand: { x: 121, y: 154 }, drawOffset: { x: 0, y: 0 } },
+    12: { motion: 'idle', local: 2, pivot: { x: 150, y: 260 }, hand: { x: 122, y: 155 }, drawOffset: { x: 0, y: 0 } },
+    13: { motion: 'idle', local: 3, pivot: { x: 150, y: 260 }, hand: { x: 121, y: 156 }, drawOffset: { x: 0, y: 0 } },
+    14: { motion: 'slash', local: 0, pivot: { x: 150, y: 260 }, hand: { x: 125, y: 145 }, drawOffset: { x: 0, y: 0 } },
+    15: { motion: 'slash', local: 1, pivot: { x: 150, y: 260 }, hand: { x: 142, y: 138 }, drawOffset: { x: 0, y: 0 } },
+    16: { motion: 'slash', local: 2, pivot: { x: 150, y: 260 }, hand: { x: 160, y: 135 }, drawOffset: { x: 0, y: 0 } },
+    17: { motion: 'slash', local: 3, pivot: { x: 150, y: 260 }, hand: { x: 148, y: 145 }, drawOffset: { x: 0, y: 0 } },
+    18: { motion: 'throw', local: 0, pivot: { x: 150, y: 260 }, hand: { x: 92, y: 140 }, drawOffset: { x: 0, y: 0 } },
+    19: { motion: 'throw', local: 1, pivot: { x: 150, y: 260 }, hand: { x: 112, y: 130 }, drawOffset: { x: 0, y: 0 } },
+    20: { motion: 'throw', local: 2, pivot: { x: 150, y: 260 }, hand: { x: 135, y: 125 }, drawOffset: { x: 0, y: 0 } },
+    21: { motion: 'throw', local: 3, pivot: { x: 150, y: 260 }, hand: { x: 150, y: 130 }, drawOffset: { x: 0, y: 0 } },
+    22: { motion: 'cast', local: 0, pivot: { x: 150, y: 260 }, hand: { x: 95, y: 140 }, drawOffset: { x: 0, y: 0 } },
+    23: { motion: 'cast', local: 1, pivot: { x: 150, y: 260 }, hand: { x: 118, y: 132 }, drawOffset: { x: 0, y: 0 } },
+    24: { motion: 'cast', local: 2, pivot: { x: 150, y: 260 }, hand: { x: 138, y: 125 }, drawOffset: { x: 0, y: 0 } },
+    25: { motion: 'cast', local: 3, pivot: { x: 150, y: 260 }, hand: { x: 150, y: 122 }, drawOffset: { x: 0, y: 0 } },
+    26: { motion: 'bow', local: 0, pivot: { x: 150, y: 260 }, hand: { x: 88, y: 138 }, drawOffset: { x: 0, y: 0 } },
+    27: { motion: 'bow', local: 1, pivot: { x: 150, y: 260 }, hand: { x: 105, y: 132 }, drawOffset: { x: 0, y: 0 } },
+    28: { motion: 'bow', local: 2, pivot: { x: 150, y: 260 }, hand: { x: 122, y: 130 }, drawOffset: { x: 0, y: 0 } },
+    29: { motion: 'bow', local: 3, pivot: { x: 150, y: 260 }, hand: { x: 138, y: 130 }, drawOffset: { x: 0, y: 0 } }
 };
 const SKILL_CONFIG = {
     1: { id: 'basic_slash', motion: 'slash', weapon: 'sword', projectile: null, effectIndex: 1 },
@@ -3338,15 +3364,15 @@ const PROJECTILE_CONFIG = {
     magic_projectile_blue: { atlasIndex: 8, speed: 520, scale: 0.45 },
     magic_projectile_dark: { atlasIndex: 11, speed: 520, scale: 0.45 }
 };
-const WEAPON_FRAME_OFFSETS = {
-    1: [{ x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }],
-    2: [{ x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }],
-    3: [{ x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }],
-    4: [{ x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }],
-    5: [{ x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }],
-    6: [{ x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }],
-    7: [{ x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }],
-    8: [{ x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: 0, y: 0, rotation: 0, scale: 1 }]
+const SKILL_WEAPON_OFFSETS = {
+    basic_slash: [{ x: 0, y: 0, rotation: -0.7, scale: 1 }, { x: 4, y: -4, rotation: -0.4, scale: 1 }, { x: 10, y: -2, rotation: 0.2, scale: 1 }, { x: 4, y: 2, rotation: 0.6, scale: 1 }],
+    heavy_smash: [{ x: 0, y: 0, rotation: -0.8, scale: 1 }, { x: 4, y: -5, rotation: -0.45, scale: 1 }, { x: 10, y: -2, rotation: 0.12, scale: 1 }, { x: 6, y: 3, rotation: 0.52, scale: 1 }],
+    dagger_throw: [{ x: 0, y: 0, rotation: -0.6, scale: 1 }, { x: 2, y: -3, rotation: -0.25, scale: 1 }, { x: 6, y: -2, rotation: 0.12, scale: 1 }, { x: 2, y: 1, rotation: 0.4, scale: 1 }],
+    bow_shot: [{ x: 0, y: 0, rotation: -0.1, scale: 1 }, { x: 2, y: -2, rotation: -0.05, scale: 1 }, { x: 4, y: -1, rotation: 0.04, scale: 1 }, { x: 2, y: 1, rotation: 0.08, scale: 1 }],
+    spear_thrust: [{ x: 0, y: 0, rotation: -0.6, scale: 1 }, { x: 5, y: -3, rotation: -0.35, scale: 1 }, { x: 12, y: -2, rotation: 0.2, scale: 1 }, { x: 6, y: 1, rotation: 0.55, scale: 1 }],
+    staff_cast: [{ x: 0, y: 0, rotation: -0.4, scale: 1 }, { x: 3, y: -4, rotation: -0.25, scale: 1 }, { x: 6, y: -3, rotation: 0.05, scale: 1 }, { x: 3, y: 1, rotation: 0.18, scale: 1 }],
+    scythe_swing: [{ x: 0, y: 0, rotation: -0.8, scale: 1 }, { x: 6, y: -4, rotation: -0.45, scale: 1 }, { x: 14, y: -2, rotation: 0.18, scale: 1 }, { x: 8, y: 2, rotation: 0.62, scale: 1 }],
+    magic_cast: [{ x: 0, y: 0, rotation: 0, scale: 1 }, { x: 2, y: -2, rotation: 0.02, scale: 1 }, { x: 4, y: -2, rotation: 0.04, scale: 1 }, { x: 2, y: 1, rotation: 0, scale: 1 }]
 };
 let crowdPauseActive = false;
 let trialHazardTimer = 0;
@@ -3620,12 +3646,22 @@ function getEffectAtlasRect(effectIndex, image) {
     let frame = getSpriteFrameRectByIndex(image, effectIndex, { cols: 6, rows: 5 });
     return frame;
 }
-function getHeroDrawMetrics(heroX, heroY, frameRect) {
-    let drawH = HERO_SPRITE_CONFIG.drawHeight;
-    let drawW = (frameRect.sw / Math.max(1, frameRect.sh)) * drawH;
-    let dx = Math.round(heroX - drawW * HERO_SPRITE_CONFIG.anchorX);
-    let dy = Math.round(heroY - drawH * HERO_SPRITE_CONFIG.anchorY);
-    return { drawW, drawH, dx, dy, scaleX: drawW / frameRect.sw, scaleY: drawH / frameRect.sh };
+function getHeroFrameMeta(frameIndex) {
+    return HERO_FRAME_META[frameIndex] || {
+        motion: 'idle',
+        local: 0,
+        pivot: { x: 150, y: 260 },
+        hand: { x: 120, y: 155 },
+        drawOffset: { x: 0, y: 0 }
+    };
+}
+function getHeroDrawMetrics(heroWorldX, heroWorldY, frameRect, frameMeta) {
+    let scale = HERO_SPRITE_CONFIG.drawHeight / frameRect.sh;
+    let drawW = frameRect.sw * scale;
+    let drawH = frameRect.sh * scale;
+    let dx = heroWorldX - (frameMeta.pivot.x * scale) + (frameMeta.drawOffset.x * scale);
+    let dy = heroWorldY - (frameMeta.pivot.y * scale) + (frameMeta.drawOffset.y * scale);
+    return { drawW, drawH, dx, dy, scaleX: scale, scaleY: scale };
 }
 function getSkillPlaybackState(now) {
     let playback = battleVisualState.skillPlayback;
@@ -3701,17 +3737,16 @@ function drawWeapon(ctx, heroX, heroY, motion, frameLocalIndex, weaponName, laye
     let frameIndex = motionFrames[localIndex];
     let heroFrame = getSpriteFrameRectByIndex(battleAssets.images.hero, frameIndex, HERO_SPRITE_CONFIG);
     if (!heroFrame) return;
-    let heroMetrics = getHeroDrawMetrics(heroX, heroY, heroFrame);
-    let handList = HERO_HAND_ANCHORS[motion] || HERO_HAND_ANCHORS.slash;
-    let hand = handList[localIndex] || handList[0];
-    if (!hand) return;
-    let tweak = ((WEAPON_FRAME_OFFSETS[skillId] || [])[localIndex]) || { x: 0, y: 0, rotation: 0, scale: 1 };
-    let handWorldX = heroMetrics.dx + hand.x * heroMetrics.scaleX + (tweak.x || 0);
-    let handWorldY = heroMetrics.dy + hand.y * heroMetrics.scaleY + (tweak.y || 0);
+    let frameMeta = getHeroFrameMeta(frameIndex);
+    let heroMetrics = getHeroDrawMetrics(heroX, heroY, heroFrame, frameMeta);
+    let handWorldX = heroMetrics.dx + frameMeta.hand.x * heroMetrics.scaleX;
+    let handWorldY = heroMetrics.dy + frameMeta.hand.y * heroMetrics.scaleY;
+    let skillIdText = SKILL_CONFIG[skillId] ? SKILL_CONFIG[skillId].id : '';
+    let tweak = ((SKILL_WEAPON_OFFSETS[skillIdText] || [])[localIndex]) || { x: 0, y: 0, rotation: 0, scale: 1 };
     let atlas = getWeaponAtlasRect(weaponCfg.atlasIndex);
     let finalScale = weaponCfg.scale * (tweak.scale || 1);
     ctx.save();
-    ctx.translate(handWorldX, handWorldY);
+    ctx.translate(handWorldX + (tweak.x || 0), handWorldY + (tweak.y || 0));
     ctx.rotate((weaponCfg.rotation || 0) + (tweak.rotation || 0));
     ctx.drawImage(
         battleAssets.images.weapons,
@@ -8978,18 +9013,46 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         }
         let heroFrame = getSpriteFrameRectByIndex(battleAssets.images.hero, frameIndex, HERO_SPRITE_CONFIG);
         if (heroFrame) {
-            let metrics = getHeroDrawMetrics(x, y, heroFrame);
+            let frameMeta = getHeroFrameMeta(frameIndex);
+            let metrics = getHeroDrawMetrics(x, y, heroFrame, frameMeta);
             drawPixelShadow(ctx, x, y + 15, 11, 4, 0.18);
+            ctx.save();
+            let glow = ctx.createRadialGradient(x, y - (metrics.drawH * 0.46), metrics.drawW * 0.1, x, y - (metrics.drawH * 0.46), metrics.drawH * 0.85);
+            glow.addColorStop(0, 'rgba(205,236,255,0.22)');
+            glow.addColorStop(1, 'rgba(205,236,255,0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.ellipse(x, y - (metrics.drawH * 0.46), metrics.drawW * 0.75, metrics.drawH * 0.86, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            ctx.save();
+            ctx.filter = 'brightness(1.15) contrast(1.08) saturate(1.05)';
             ctx.drawImage(
                 battleAssets.images.hero,
                 heroFrame.sx, heroFrame.sy, heroFrame.sw, heroFrame.sh,
                 metrics.dx, metrics.dy, metrics.drawW, metrics.drawH
             );
+            ctx.restore();
+            ctx.save();
+            ctx.globalAlpha = 0.2;
+            ctx.globalCompositeOperation = 'screen';
+            ctx.drawImage(
+                battleAssets.images.hero,
+                heroFrame.sx, heroFrame.sy, heroFrame.sw, heroFrame.sh,
+                metrics.dx - 1, metrics.dy - 1, metrics.drawW, metrics.drawH
+            );
+            ctx.restore();
             if (DEBUG_BATTLE_ANCHORS) {
                 ctx.save();
                 ctx.strokeStyle = '#22c55e';
                 ctx.lineWidth = 1;
                 ctx.strokeRect(metrics.dx, metrics.dy, metrics.drawW, metrics.drawH);
+                let handX = metrics.dx + frameMeta.hand.x * metrics.scaleX;
+                let handY = metrics.dy + frameMeta.hand.y * metrics.scaleY;
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(handX, handY, 2.5, 0, Math.PI * 2);
+                ctx.fill();
                 ctx.restore();
             }
             return;
