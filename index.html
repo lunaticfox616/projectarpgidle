@@ -3732,10 +3732,21 @@ function playSkillFromActiveGem(skillName) {
     state.overrideEffectIndex = mapEffectIndexByGemTags(skillName, base.effectIndex);
     return true;
 }
-function updateSkillPlayback(now, playerPos, width) {
+function updateSkillPlayback(now, playerPos, width, enemyPosMap) {
     let state = getSkillPlaybackState(now);
     if (!state) return;
     let skillCfg = state.skillCfg;
+    let targetEnemy = null;
+    let targetIds = getSkillTargets(getPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
+    if (targetIds.length > 0 && enemyPosMap) {
+        targetEnemy = enemyPosMap[targetIds[0]] || null;
+    }
+    if (!targetEnemy && enemyPosMap) {
+        let firstKey = Object.keys(enemyPosMap)[0];
+        if (firstKey !== undefined) targetEnemy = enemyPosMap[firstKey];
+    }
+    let targetX = targetEnemy ? targetEnemy.x : Math.max(playerPos.x + 50, width - 22);
+    let targetY = targetEnemy ? (targetEnemy.y - 12) : (playerPos.y - 18);
     let hitFrame = Math.max(1, Math.floor((HERO_MOTIONS[skillCfg.motion] || []).length * 0.5));
     if (!state.projectileSpawned && skillCfg.projectile && state.frameLocalIndex >= hitFrame) {
         let pCfg = PROJECTILE_CONFIG[skillCfg.projectile];
@@ -3748,7 +3759,8 @@ function updateSkillPlayback(now, playerPos, width) {
                 speed: pCfg.speed,
                 x: playerPos.x + 20,
                 y: playerPos.y - 18,
-                targetX: Math.max(playerPos.x + 50, width - 22)
+                targetX: targetX,
+                targetY: targetY
             });
         }
         battleVisualState.skillPlayback.projectileSpawned = true;
@@ -3760,8 +3772,8 @@ function updateSkillPlayback(now, playerPos, width) {
             effectIndex: chosenEffectIndex,
             startAt: now,
             duration: 320,
-            x: playerPos.x + 64,
-            y: playerPos.y - 18
+            x: targetX,
+            y: targetY
         });
         battleVisualState.skillPlayback.effectSpawned = true;
     }
@@ -3829,6 +3841,7 @@ function drawProjectile(ctx, now) {
         if (!pCfg) return;
         let atlas = getWeaponAtlasRect(pCfg.atlasIndex);
         projectile.x += pCfg.speed / 60;
+        projectile.y += ((projectile.targetY || projectile.y) - projectile.y) * 0.18;
         if (projectile.x >= projectile.targetX) projectile.startAt = now - projectile.lifetime;
         let alpha = 1 - clampNumber((now - projectile.startAt) / projectile.lifetime, 0, 1);
         let scale = pCfg.scale;
@@ -9751,7 +9764,7 @@ function renderBattlefield() {
         battleVisualState.lastAutoSwingId = swingFx.id;
         battleVisualState.lastAutoSkillAt = now + 420;
     }
-    updateSkillPlayback(now, playerPos, width);
+    updateSkillPlayback(now, playerPos, width, enemyPosMap);
     drawSkillWeaponLayer(ctx, playerPos, now, 'back');
     drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15, playerFlash, swingPower, currentSkillVisual, now, {
         advanceBlend: advanceBlend,
