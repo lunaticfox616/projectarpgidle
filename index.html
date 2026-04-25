@@ -3349,14 +3349,14 @@ const SKILL_CONFIG = {
     8: { id: 'magic_cast', motion: 'cast', weapon: 'magic_orb', projectile: 'magic_projectile_dark', effectIndex: 28 }
 };
 const WEAPON_CONFIG = {
-    sword: { atlasIndex: 0, grip: { x: 145, y: 390 }, scale: 0.3, rotation: -0.65, layer: 'front' },
-    greatsword: { atlasIndex: 1, grip: { x: 140, y: 390 }, scale: 0.35, rotation: -0.65, layer: 'front' },
-    dagger: { atlasIndex: 2, grip: { x: 155, y: 375 }, scale: 0.25, rotation: -0.65, layer: 'front' },
-    bow: { atlasIndex: 4, grip: { x: 260, y: 280 }, scale: 0.31, rotation: 0, layer: 'front' },
-    spear: { atlasIndex: 6, grip: { x: 170, y: 390 }, scale: 0.4, rotation: -0.55, layer: 'front' },
-    staff: { atlasIndex: 7, grip: { x: 185, y: 390 }, scale: 0.38, rotation: -0.35, layer: 'front' },
-    scythe: { atlasIndex: 9, grip: { x: 150, y: 430 }, scale: 0.39, rotation: -0.55, layer: 'front' },
-    magic_orb: { atlasIndex: 10, grip: { x: 255, y: 255 }, scale: 0.24, rotation: 0, layer: 'front' }
+    sword: { atlasIndex: 0, grip: { x: 145, y: 390 }, scale: 0.18, rotation: -0.65, layer: 'front' },
+    greatsword: { atlasIndex: 1, grip: { x: 140, y: 390 }, scale: 0.22, rotation: -0.65, layer: 'front' },
+    dagger: { atlasIndex: 2, grip: { x: 155, y: 375 }, scale: 0.16, rotation: -0.65, layer: 'front' },
+    bow: { atlasIndex: 4, grip: { x: 260, y: 280 }, scale: 0.2, rotation: 0, layer: 'front' },
+    spear: { atlasIndex: 6, grip: { x: 170, y: 390 }, scale: 0.24, rotation: -0.55, layer: 'front' },
+    staff: { atlasIndex: 7, grip: { x: 185, y: 390 }, scale: 0.22, rotation: -0.35, layer: 'front' },
+    scythe: { atlasIndex: 9, grip: { x: 150, y: 430 }, scale: 0.24, rotation: -0.55, layer: 'front' },
+    magic_orb: { atlasIndex: 10, grip: { x: 255, y: 255 }, scale: 0.14, rotation: 0, layer: 'front' }
 };
 const PROJECTILE_CONFIG = {
     dagger_projectile: { atlasIndex: 3, speed: 650, scale: 0.35 },
@@ -3365,13 +3365,13 @@ const PROJECTILE_CONFIG = {
     magic_projectile_dark: { atlasIndex: 11, speed: 520, scale: 0.45 }
 };
 const SKILL_WEAPON_OFFSETS = {
-    basic_slash: [{ x: 0, y: 0, rotation: -0.7, scale: 1 }, { x: 4, y: -4, rotation: -0.4, scale: 1 }, { x: 10, y: -2, rotation: 0.2, scale: 1 }, { x: 4, y: 2, rotation: 0.6, scale: 1 }],
-    heavy_smash: [{ x: 0, y: 0, rotation: -0.8, scale: 1 }, { x: 4, y: -5, rotation: -0.45, scale: 1 }, { x: 10, y: -2, rotation: 0.12, scale: 1 }, { x: 6, y: 3, rotation: 0.52, scale: 1 }],
-    dagger_throw: [{ x: 0, y: 0, rotation: -0.6, scale: 1 }, { x: 2, y: -3, rotation: -0.25, scale: 1 }, { x: 6, y: -2, rotation: 0.12, scale: 1 }, { x: 2, y: 1, rotation: 0.4, scale: 1 }],
+    basic_slash: [{ x: 0, y: 0, rotation: -0.35, scale: 1 }, { x: 2, y: -2, rotation: -0.2, scale: 1 }, { x: 4, y: -1, rotation: 0.1, scale: 1 }, { x: 2, y: 1, rotation: 0.28, scale: 1 }],
+    heavy_smash: [{ x: 0, y: 0, rotation: -0.4, scale: 1 }, { x: 2, y: -2, rotation: -0.24, scale: 1 }, { x: 5, y: -1, rotation: 0.08, scale: 1 }, { x: 3, y: 1, rotation: 0.3, scale: 1 }],
+    dagger_throw: [{ x: 0, y: 0, rotation: -0.35, scale: 1 }, { x: 1, y: -1, rotation: -0.16, scale: 1 }, { x: 3, y: -1, rotation: 0.08, scale: 1 }, { x: 1, y: 1, rotation: 0.2, scale: 1 }],
     bow_shot: [{ x: 0, y: 0, rotation: -0.1, scale: 1 }, { x: 2, y: -2, rotation: -0.05, scale: 1 }, { x: 4, y: -1, rotation: 0.04, scale: 1 }, { x: 2, y: 1, rotation: 0.08, scale: 1 }],
-    spear_thrust: [{ x: 0, y: 0, rotation: -0.6, scale: 1 }, { x: 5, y: -3, rotation: -0.35, scale: 1 }, { x: 12, y: -2, rotation: 0.2, scale: 1 }, { x: 6, y: 1, rotation: 0.55, scale: 1 }],
+    spear_thrust: [{ x: 0, y: 0, rotation: -0.35, scale: 1 }, { x: 3, y: -2, rotation: -0.2, scale: 1 }, { x: 7, y: -1, rotation: 0.12, scale: 1 }, { x: 4, y: 1, rotation: 0.3, scale: 1 }],
     staff_cast: [{ x: 0, y: 0, rotation: -0.4, scale: 1 }, { x: 3, y: -4, rotation: -0.25, scale: 1 }, { x: 6, y: -3, rotation: 0.05, scale: 1 }, { x: 3, y: 1, rotation: 0.18, scale: 1 }],
-    scythe_swing: [{ x: 0, y: 0, rotation: -0.8, scale: 1 }, { x: 6, y: -4, rotation: -0.45, scale: 1 }, { x: 14, y: -2, rotation: 0.18, scale: 1 }, { x: 8, y: 2, rotation: 0.62, scale: 1 }],
+    scythe_swing: [{ x: 0, y: 0, rotation: -0.42, scale: 1 }, { x: 4, y: -2, rotation: -0.24, scale: 1 }, { x: 8, y: -1, rotation: 0.12, scale: 1 }, { x: 5, y: 1, rotation: 0.34, scale: 1 }],
     magic_cast: [{ x: 0, y: 0, rotation: 0, scale: 1 }, { x: 2, y: -2, rotation: 0.02, scale: 1 }, { x: 4, y: -2, rotation: 0.04, scale: 1 }, { x: 2, y: 1, rotation: 0, scale: 1 }]
 };
 let crowdPauseActive = false;
@@ -3716,10 +3716,11 @@ function mapSkillSlotByGemTags(skillName) {
 function mapEffectIndexByGemTags(skillName, fallbackIndex) {
     let tags = ((SKILL_DB[skillName] && SKILL_DB[skillName].tags) || []).map(tag => String(tag).toLowerCase());
     if (tags.includes('chaos')) return 28;
+    if (tags.includes('cold')) return 3;
+    if (tags.includes('fire') || tags.includes('light') || tags.includes('elemental')) return 26;
     if (tags.includes('projectile')) return 0;
     if (tags.includes('slam')) return 2;
     if (tags.includes('aoe')) return 16;
-    if (tags.includes('elemental') || tags.includes('light') || tags.includes('cold') || tags.includes('fire')) return 26;
     return Number.isFinite(fallbackIndex) ? fallbackIndex : 1;
 }
 function playSkillFromActiveGem(skillName) {
@@ -3792,8 +3793,8 @@ function drawWeapon(ctx, heroX, heroY, motion, frameLocalIndex, weaponName, laye
     let prev = battleVisualState.weaponSmoothPos[smoothKey];
     let targetX = handWorldX + (tweak.x || 0);
     let targetY = handWorldY + (tweak.y || 0);
-    let smoothX = prev ? (prev.x + (targetX - prev.x) * 0.4) : targetX;
-    let smoothY = prev ? (prev.y + (targetY - prev.y) * 0.4) : targetY;
+    let smoothX = prev ? (prev.x + (targetX - prev.x) * 0.82) : targetX;
+    let smoothY = prev ? (prev.y + (targetY - prev.y) * 0.82) : targetY;
     battleVisualState.weaponSmoothPos[smoothKey] = { x: smoothX, y: smoothY };
     ctx.save();
     ctx.translate(smoothX, smoothY);
@@ -9716,8 +9717,8 @@ function renderBattlefield() {
     let downBlend = battleVisualState.playerDownBlend || 0;
     let attackInset = 84;
     let targetPlayerPos = {
-        x: Math.max(width * 0.2, attackInset) + advanceBlend * 1.2,
-        y: height * 0.72 + downBlend * 1.2
+        x: Math.max(width * 0.2, attackInset),
+        y: height * 0.72 + downBlend * 0.6
     };
     if (!battleVisualState.playerPos) {
         battleVisualState.playerPos = { x: targetPlayerPos.x, y: targetPlayerPos.y };
