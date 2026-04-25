@@ -3283,6 +3283,7 @@ let battleVisualState = {
     skillProjectiles: [],
     skillEffects: [],
     skillPlayback: null,
+    lastAutoSwingId: 0,
     processedFxIds: new Set(),
     enemyGhostPos: {},
     playerPos: null,
@@ -3311,10 +3312,20 @@ const SPRITE_CONFIG = {
         throw: [18, 21],
         cast: [22, 25],
         bow: [26, 29]
+    },
+    motionFps: {
+        walk: 7,
+        run: 9,
+        hit: 10,
+        idle: 5,
+        slash: 10,
+        throw: 10,
+        cast: 9,
+        bow: 9
     }
 };
 const WEAPON_CONFIG = {
-    grid: { cols: 8, rows: 4 },
+    grid: { cols: 8, rows: 6 },
     atlas: {
         sword: { cellX: 0, cellY: 0, anchorX: 0.18, anchorY: 0.88, scale: 0.95, rotation: 0 },
         greatsword: { cellX: 1, cellY: 0, anchorX: 0.16, anchorY: 0.92, scale: 1.12, rotation: 0.08 },
@@ -3612,15 +3623,68 @@ function drawDamageTexts(ctx, now) {
 }
 function resolveAtlasMapByGrid(image, map, grid) {
     if (!image || !map || !grid || !grid.cols || !grid.rows) return {};
+    let occupancy = getGridOccupancy(image, grid);
     let cellW = image.width / grid.cols;
     let cellH = image.height / grid.rows;
+    let occupiedCells = occupancy.occupiedCells || [];
+    let fallbackCursor = 0;
     return Object.fromEntries(Object.entries(map).map(([name, item]) => {
-        let sx = Math.round((item.cellX || 0) * cellW);
-        let sy = Math.round((item.cellY || 0) * cellH);
+        let cellX = Number.isFinite(item.cellX) ? item.cellX : 0;
+        let cellY = Number.isFinite(item.cellY) ? item.cellY : 0;
+        let hasConfiguredContent = occupancy.flags[cellY] && occupancy.flags[cellY][cellX];
+        if (!hasConfiguredContent && occupiedCells.length > 0) {
+            let fallback = occupiedCells[Math.min(fallbackCursor, occupiedCells.length - 1)];
+            fallbackCursor++;
+            cellX = fallback.x;
+            cellY = fallback.y;
+        }
+        let sx = Math.round(cellX * cellW);
+        let sy = Math.round(cellY * cellH);
         let sw = Math.max(1, Math.round(item.sw || cellW));
         let sh = Math.max(1, Math.round(item.sh || cellH));
         return [name, { ...item, sx, sy, sw, sh }];
     }));
+}
+function getGridOccupancy(image, grid) {
+    battleVisualState.gridOccupancyCache = battleVisualState.gridOccupancyCache || new WeakMap();
+    let key = `${grid.cols}x${grid.rows}`;
+    let cachedByImage = battleVisualState.gridOccupancyCache.get(image) || {};
+    if (cachedByImage[key]) return cachedByImage[key];
+    let ctx = getBattleImageContext(image);
+    if (!ctx) return { flags: [], occupiedCells: [] };
+    let cellW = Math.floor(image.width / grid.cols);
+    let cellH = Math.floor(image.height / grid.rows);
+    let flags = [];
+    let occupiedCells = [];
+    for (let row = 0; row < grid.rows; row++) {
+        flags[row] = [];
+        for (let col = 0; col < grid.cols; col++) {
+            let sx = col * cellW;
+            let sy = row * cellH;
+            let frame = ctx.getImageData(sx, sy, cellW, cellH).data;
+            let opaque = 0;
+            for (let i = 3; i < frame.length; i += 4) {
+                if (frame[i] > 12) opaque++;
+            }
+            let filled = opaque > (cellW * cellH * 0.01);
+            flags[row][col] = filled;
+            if (filled) occupiedCells.push({ x: col, y: row });
+        }
+    }
+    let result = { flags, occupiedCells };
+    cachedByImage[key] = result;
+    battleVisualState.gridOccupancyCache.set(image, cachedByImage);
+    return result;
+}
+function getAutoPlaybackSkillId(skillVisual) {
+    let effect = skillVisual && skillVisual.effect ? skillVisual.effect : 'slash';
+    if (effect === 'arrow' || effect === 'projectile') return 'bow_shot';
+    if (effect === 'poisonDart') return 'dagger_throw';
+    if (effect === 'lightSpear') return 'spear_thrust';
+    if (effect === 'slam' || effect === 'quake' || effect === 'magma') return 'heavy_smash';
+    if (effect === 'chain' || effect === 'storm' || effect === 'iceLance' || effect === 'nova') return 'staff_cast';
+    if (effect === 'voidSlash' || effect === 'shadowSlash' || effect === 'drain') return 'scythe_swing';
+    return 'basic_slash';
 }
 function getSpriteFrameRectByIndex(image, frameIndex, config) {
     if (!image || !config) return null;
@@ -3658,6 +3722,7 @@ function playSkill(skillId) {
     if (!SKILL_CONFIG[skillId]) return false;
     let now = performance.now();
     let skillCfg = SKILL_CONFIG[skillId];
+    battleVisualState.skillEffects = (battleVisualState.skillEffects || []).filter(effect => now - effect.startAt <= effect.duration * 0.4);
     battleVisualState.skillPlayback = {
         skillId: skillId,
         startAt: now,
@@ -4123,6 +4188,9 @@ function reloadBattleAssets() {
     battleAssets.images = {};
     battleAssets.backdrops = {};
     battleAssets.atlas = null;
+    battleVisualState.weaponAtlasResolved = null;
+    battleVisualState.effectAtlasResolved = null;
+    battleVisualState.gridOccupancyCache = new WeakMap();
     initBattleAssets();
 }
 
@@ -8954,8 +9022,37 @@ function drawBattleBackdrop(ctx, width, height, theme, now, zone) {
 
 function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now, motionState) {
     let activeSkillPlayback = getSkillPlaybackState(now);
-    if (activeSkillPlayback && battleAssets.images.hero) {
-        let heroFrame = getSpriteFrameRectByIndex(battleAssets.images.hero, activeSkillPlayback.frameIndex, SPRITE_CONFIG.hero);
+    if (battleAssets.images.hero) {
+        motionState = motionState || {};
+        let motionName = 'idle';
+        let frameIndex = SPRITE_CONFIG.motions.idle[0];
+        if (activeSkillPlayback) {
+            motionName = activeSkillPlayback.skillCfg.motion;
+            frameIndex = activeSkillPlayback.frameIndex;
+        } else {
+            let advanceBlend = clampNumber(Number.isFinite(motionState.advanceBlend) ? motionState.advanceBlend : 0, 0, 1);
+            let attackBlend = clampNumber(Number.isFinite(motionState.attackBlend) ? motionState.attackBlend : 0, 0, 1);
+            let hurtBlend = clampNumber(Number.isFinite(motionState.hurtBlend) ? motionState.hurtBlend : (flash ? 1 : 0), 0, 1);
+            if (hurtBlend > 0.55) {
+                motionName = 'hit';
+            } else if (attackBlend > 0.2 || Math.abs(swingPower) > 0.16) {
+                let effect = skillVisual && skillVisual.effect ? skillVisual.effect : 'slash';
+                if (effect === 'arrow' || effect === 'projectile') motionName = 'bow';
+                else if (effect === 'poisonDart' || effect === 'lightSpear') motionName = 'throw';
+                else if (effect === 'chain' || effect === 'storm' || effect === 'iceLance' || effect === 'nova') motionName = 'cast';
+                else motionName = 'slash';
+            } else if (advanceBlend > 0.08) {
+                motionName = advanceBlend > 0.6 ? 'run' : 'walk';
+            } else {
+                motionName = 'idle';
+            }
+            let range = SPRITE_CONFIG.motions[motionName] || SPRITE_CONFIG.motions.idle;
+            let frameCount = Math.max(1, range[1] - range[0] + 1);
+            let fps = SPRITE_CONFIG.motionFps[motionName] || 8;
+            let localFrame = Math.floor((now / 1000) * fps) % frameCount;
+            frameIndex = range[0] + localFrame;
+        }
+        let heroFrame = getSpriteFrameRectByIndex(battleAssets.images.hero, frameIndex, SPRITE_CONFIG.hero);
         if (heroFrame) {
             let drawH = SPRITE_CONFIG.hero.drawHeight;
             let drawW = (heroFrame.sw / Math.max(1, heroFrame.sh)) * drawH;
@@ -9614,6 +9711,10 @@ function renderBattlefield() {
         battleVisualState.enemyGhostPos[entry.enemy.id] = { x: entry.x, y: entry.y, stamp: now };
     });
 
+    if (swingFx && swingFx.id !== battleVisualState.lastAutoSwingId) {
+        playSkill(getAutoPlaybackSkillId(currentSkillVisual));
+        battleVisualState.lastAutoSwingId = swingFx.id;
+    }
     updateSkillPlayback(now, playerPos, width);
     if (swingFx) drawBattleSwingFx(ctx, swingFx, clampNumber((now - swingFx.start) / swingFx.duration, 0, 1), playerPos);
     drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15, playerFlash, swingPower, currentSkillVisual, now, {
