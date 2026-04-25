@@ -29,6 +29,7 @@
         body.light-mode .enemy-tags.muted { color: #5f748d; }
         body.light-mode .enemy-empty { background: #f4f8fc; border-color: #c9d6e4; color: #61748b; }
         #left-pane { width: 620px; min-width: 620px; display: flex; flex-direction: column; gap: 15px; margin-right: 0; min-height: 0; height: 100%; overflow: hidden; }
+        #battle-column { display: flex; flex-direction: column; gap: 15px; flex: 1; min-height: 0; }
         #right-pane { flex: 1; display: flex; flex-direction: column; background-color: #121216; border: 1px solid #2a2a35; border-radius: 8px; min-width: 0; min-height: 0; height: 100%; overflow: hidden; position: relative; }
         .panel { background-color: #16161d; border: 1px solid #2a2a35; padding: 15px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .player-panel { flex-shrink: 0; }
@@ -375,6 +376,20 @@
             body { flex-direction: column; overflow-y: auto; overflow-x: hidden; align-items: stretch; }
             #left-pane, #right-pane { width: 100%; min-width: 0; height: auto; }
             #left-pane, #right-pane, .tab-content { overflow: visible; }
+            body.mobile-battle-tab #left-pane { display: none; }
+            body.mobile-battle-tab #tab-battle { padding: 10px; overflow: hidden; }
+            body.mobile-battle-tab #tab-battle.active { display: flex; flex-direction: column; }
+            body.mobile-battle-tab #tab-battle #battle-column { gap: 10px; min-height: 0; height: 100%; }
+            body.mobile-battle-tab #tab-battle .player-panel { padding: 12px; }
+            body.mobile-battle-tab #tab-battle .combat-panel { flex: 1; min-height: 0; padding: 12px; }
+            body.mobile-battle-tab #tab-battle .combat-dashboard { grid-template-columns: 1fr; gap: 8px; flex: 1; min-height: 0; }
+            body.mobile-battle-tab #tab-battle .combat-stage { min-height: 0; }
+            body.mobile-battle-tab #tab-battle #move-area { margin-bottom: 8px !important; }
+            body.mobile-battle-tab #tab-battle .battlefield-wrap { margin-top: 8px; height: min(25vh, 170px); }
+            body.mobile-battle-tab #tab-battle .enemy-list { max-height: 76px; }
+            body.mobile-battle-tab #tab-battle .combat-feed { height: clamp(150px, 25vh, 220px); max-height: 220px; }
+            body.mobile-battle-tab #tab-battle #log { min-height: 0; }
+            body.mobile-battle-tab #tab-battle .combat-panel > h2 { margin-bottom: 8px; }
             .combat-dashboard { grid-template-columns: 1fr; }
             .combat-feed { min-height: 0; height: clamp(220px, 34vh, 320px); max-height: 320px; overflow: hidden; }
             #log { min-height: 0; height: 100%; max-height: 100%; }
@@ -559,6 +574,7 @@
 <div id="divine-drop-banner" class="divine-drop-banner">✨ 신성한 오브 획득! ✨</div>
 
 <div id="left-pane">
+    <div id="battle-column">
     <div class="panel player-panel" style="position: relative;">
         <h2 style="display:none;">플레이어</h2>
         <div style="font-size: 0.9em; font-weight: bold; color: #d980fa; margin-top: 0;"><span id="ui-player-level">Lv.1</span> 경험치</div>
@@ -613,10 +629,12 @@
             </div>
         </div>
     </div>
+    </div>
 </div>
 
 <div id="right-pane">
     <div class="tab-header">
+        <div class="tab-btn" id="btn-tab-battle" onclick="switchTab('tab-battle')">전투</div>
         <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: block;">캐릭터</div>
         <div class="tab-btn" id="btn-tab-char" onclick="switchTab('tab-char')">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">시즌 <span id="noti-season" class="noti-dot"></span></div>
@@ -628,6 +646,8 @@
         <div class="tab-btn" id="btn-tab-talisman" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
         <div class="tab-btn active" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: block;">설정</div>
     </div>
+
+    <div id="tab-battle" class="tab-content"></div>
 
     <div id="tab-character" class="tab-content">
         <h2>🧬 캐릭터 정보</h2>
@@ -3281,8 +3301,30 @@ const TAB_UNLOCK_GATES = {
     'tab-map': 'map',
     'tab-traits': 'traits'
 };
+const MOBILE_BATTLE_BREAKPOINT = 1080;
+let battleTabDocked = false;
 const ENEMY_CROWD_PAUSE_LIMIT = 20;
 const BATTLE_SLOT_ORDER = [7, 6, 8, 2, 1, 3, 12, 11, 13, 17, 16, 18, 0, 4, 5, 9, 10, 14, 15, 19];
+
+function syncBattleTabLayout(forceTabSwitch) {
+    let tabBattle = document.getElementById('tab-battle');
+    let leftPane = document.getElementById('left-pane');
+    let battleColumn = document.getElementById('battle-column');
+    let battleBtn = document.getElementById('btn-tab-battle');
+    if (!tabBattle || !leftPane || !battleColumn || !battleBtn) return;
+    let isMobileBattle = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches;
+    document.body.classList.toggle('mobile-battle-tab', isMobileBattle);
+    battleBtn.style.display = isMobileBattle ? 'block' : 'none';
+    if (isMobileBattle) {
+        if (!battleTabDocked || battleColumn.parentElement !== tabBattle) tabBattle.appendChild(battleColumn);
+        battleTabDocked = true;
+        if (forceTabSwitch && !document.getElementById('tab-battle').classList.contains('active')) switchTab('tab-battle');
+    } else {
+        if (battleTabDocked || battleColumn.parentElement !== leftPane) leftPane.appendChild(battleColumn);
+        battleTabDocked = false;
+        if (document.getElementById('tab-battle').classList.contains('active')) switchTab('tab-character');
+    }
+}
 
 function clampPassiveCamera() {
     camX = clampNumber(camX, -9800, 9800);
@@ -9793,6 +9835,8 @@ function updateStaticUI() {
 
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => document.getElementById('noti-' + key).style.display = game.noti[key] ? 'block' : 'none');
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
+    let battleBtn = document.getElementById('btn-tab-battle');
+    if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'block' : 'none';
     let summarySkillTreeBtn = document.getElementById('btn-summary-tab-char');
     if (summarySkillTreeBtn) {
         summarySkillTreeBtn.disabled = !game.unlocks.char;
@@ -11571,12 +11615,22 @@ function init() {
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
     runStartupSmokeChecks();
     if (!(game.discoveredPassives || []).includes('n0')) game.discoveredPassives.push('n0');
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', function() {
+        syncBattleTabLayout(false);
+        resizeCanvas();
+    });
     if (!window.__mobileViewportResizeBound) {
         window.__mobileViewportResizeBound = true;
-        window.addEventListener('orientationchange', resizeCanvas);
-        if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', function() {
+            syncBattleTabLayout(false);
+            resizeCanvas();
+        });
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', function() {
+            syncBattleTabLayout(false);
+            resizeCanvas();
+        });
     }
+    syncBattleTabLayout(true);
     setupCanvasEvents();
     resizeCanvas();
     if (!window.__cloudVisibilitySaveBound) {
