@@ -4213,6 +4213,9 @@ function reloadBattleAssets() {
     battleAssets.images = {};
     battleAssets.backdrops = {};
     battleAssets.atlas = null;
+    battleVisualState.weaponAtlasResolved = null;
+    battleVisualState.effectAtlasResolved = null;
+    battleVisualState.gridOccupancyCache = new WeakMap();
     initBattleAssets();
 }
 
