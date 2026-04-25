@@ -597,7 +597,7 @@
     <div class="panel combat-panel" style="position: relative;">
         <h2 style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #3d3d5c; padding-bottom: 5px;">
             <span>⚔️ 전투</span>
-            <span style="font-size: 0.75em; font-weight: normal; color: #a5b1c2; flex: 1; text-align: center;" id="ui-combat-zone">액트 1: 버려진 해안</span>
+            <span style="font-size: 0.75em; font-weight: normal; color: #a5b1c2; flex: 1; text-align: center;" id="ui-combat-zone">⚔️ 전투 액트 1: 뿌리끝 성소</span>
             <button onclick="returnToTown()" style="background-color: #2980b9; font-size: 0.7em; padding: 4px 8px;">귀환</button>
         </h2>
 
@@ -637,11 +637,12 @@
         <div class="tab-btn" id="btn-tab-battle" onclick="switchTab('tab-battle')">전투</div>
         <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: block;">캐릭터</div>
         <div class="tab-btn" id="btn-tab-char" onclick="switchTab('tab-char')">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">시즌 <span id="noti-season" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">루프 <span id="noti-season" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-traits" onclick="switchTab('tab-traits')">직업전직 <span id="noti-traits" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-items" onclick="switchTab('tab-items')">장비/제작 <span id="noti-items" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-map" onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-skills" onclick="switchTab('tab-skills')">스킬 젬 <span id="noti-skills" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-journal" onclick="switchTab('tab-journal')" style="display: block;">저널</div>
         <div class="tab-btn" id="btn-tab-codex" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-talisman" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
         <div class="tab-btn active" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: block;">설정</div>
@@ -781,11 +782,11 @@
 
     <div id="tab-season" class="tab-content">
         <div id="trait-season-section" style="display: none; margin-bottom: 30px;">
-            <h2>🔄 시즌 패시브 스킬 트리 <span style="margin-left:10px; color:#ffd36b; font-size:0.88em;">(시즌: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span></span></h2>
+            <h2>🔄 디버깅 포인트 트리 <span style="margin-left:10px; color:#ffd36b; font-size:0.88em;">(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span></span></h2>
             <div class="trait-tree" id="ui-season-tree"></div>
         </div>
         <div id="season-content-section" style="display: none; margin-bottom: 20px;">
-            <h2>📦 시즌 콘텐츠 로드맵</h2>
+            <h2>📦 루프 이정표</h2>
             <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
         </div>
     </div>
@@ -924,7 +925,7 @@
     <div id="tab-map" class="tab-content map-tab-panel">
         <div class="subtab-row">
             <button class="subtab-btn active" id="btn-map-tab-zones" onclick="switchMapSubtab('map-tab-zones')">사냥터</button>
-            <button class="subtab-btn" id="btn-map-tab-abyss" onclick="switchMapSubtab('map-tab-abyss')">심연 패시브</button>
+            <button class="subtab-btn" id="btn-map-tab-abyss" onclick="switchMapSubtab('map-tab-abyss')">혼돈 패시브</button>
         </div>
 
         <div id="map-tab-zones" class="subtab-content active">
@@ -935,7 +936,7 @@
             </div>
             <div class="map-grid" id="ui-map-list"></div>
 
-            <h2 style="margin-top: 20px; color: #ffb347; display: none;" id="ui-season-boss-header">🗝️ 시즌 보스 도전</h2>
+            <h2 style="margin-top: 20px; color: #ffb347; display: none;" id="ui-season-boss-header">🗝️ 뿌리 보스 도전</h2>
             <div id="ui-season-boss-repeat-wrap" style="display:none; margin-top:8px; margin-bottom:6px;">
                 <button id="btn-season-boss-repeat" onclick="toggleSeasonBossRepeat()" style="background:#5b4a2f; border-color:#7f6240;">반복 도전 OFF</button>
             </div>
@@ -949,7 +950,7 @@
         </div>
 
         <div id="map-tab-abyss" class="subtab-content">
-            <h2>🌌 심연 패시브</h2>
+            <h2>🌌 혼돈 패시브</h2>
             <div id="ui-abyss-passive-summary" style="color:#a9c6e4; font-size:0.86em; margin-bottom:10px;"></div>
             <div id="ui-abyss-passive-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;"></div>
         </div>
@@ -995,6 +996,11 @@
         <h2>📚 고유 아이템 도감</h2>
         <div id="ui-codex-summary" style="margin-bottom:10px; color:#c3d9ef;"></div>
         <div id="ui-codex-list" class="inventory-grid"></div>
+    </div>
+    <div id="tab-journal" class="tab-content">
+        <h2>📓 저널</h2>
+        <div style="color:#8fa7be; margin-bottom:10px;">액트를 클리어할 때마다 대화 기록이 해금됩니다.</div>
+        <div id="ui-journal-list" style="display:grid; gap:8px;"></div>
     </div>
 
     <div id="tab-settings" class="tab-content active">
@@ -1042,6 +1048,15 @@
                 <select id="sel-theme-mode" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
                     <option value="dark">다크모드</option>
                     <option value="light">라이트모드</option>
+                </select>
+            </label>
+            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <span>캐릭터 외형</span>
+                <select id="sel-hero-appearance" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
+                    <option value="v1">v1</option>
+                    <option value="v2">v2</option>
+                    <option value="v3">v3</option>
+                    <option value="v4">v4</option>
                 </select>
             </label>
             <hr style="border-color: #3d3d5c; width: 100%;">
@@ -1187,18 +1202,52 @@ if (typeof HTMLCollection !== 'undefined' && !HTMLCollection.prototype.forEach) 
     HTMLCollection.prototype.forEach = Array.prototype.forEach;
 }
 
-const MAP_ZONES = [
-    { id: 0, name: "액트 1: 버려진 해안", type: "act", tier: 1, maxKills: 3, ele: "phys" },
-    { id: 1, name: "액트 2: 화염의 습지", type: "act", tier: 2, maxKills: 3, ele: "fire" },
-    { id: 2, name: "액트 3: 얼어붙은 유적", type: "act", tier: 2, maxKills: 3, ele: "cold" },
-    { id: 3, name: "액트 4: 뇌우의 투기장", type: "act", tier: 3, maxKills: 3, ele: "light" },
-    { id: 4, name: "액트 5: 물리 이교도 사원", type: "act", tier: 3, maxKills: 3, ele: "phys" },
-    { id: 5, name: "액트 6: 작열하는 도시", type: "act", tier: 4, maxKills: 3, ele: "fire" },
-    { id: 6, name: "액트 7: 서리의 평원", type: "act", tier: 4, maxKills: 3, ele: "cold" },
-    { id: 7, name: "액트 8: 번개의 심장", type: "act", tier: 5, maxKills: 3, ele: "light" },
-    { id: 8, name: "액트 9: 혼돈의 하늘", type: "act", tier: 5, maxKills: 3, ele: "chaos" },
-    { id: 9, name: "액트 10: 공허의 문턱", type: "act", tier: 6, maxKills: 3, ele: "chaos" }
+const WOODSMAN_BREAK_LOOP_REQUIRED = 5;
+const STORY_ACTS = [
+    { id: 'root_tip_sanctuary', order: 1, displayAct: '1', title: '뿌리끝 성소', subtitle: '썩은 잔뿌리를 베며 중간계로 돌아갈 길을 연다.', description: '뿌리없는 자는 뿌리끝의 드루이드에게 거두어져 뿌리길을 되살릴 사냥을 시작한다.', areaTheme: '축축한 뿌리, 곰팡이, 죽은 수액, 지하 성소', bossId: 'rotten_mane_rootlet', bossName: '썩은갈기의 잔뿌리', clearText: '썩은 잔뿌리가 잘려나가자, 오래 막혀 있던 뿌리길이 다시 열린다.', unlockText: '뿌리길의 봉인이 열리며 가지치기의 중정이 드러난다.', specialType: 'normal', tier: 1, maxKills: 1, ele: 'phys' },
+    { id: 'pruning_courtyard_fall', order: 2, displayAct: '2', title: '가지치기의 중정', subtitle: '불멸의 정원사 앞에서 패배가 담금질로 기록된다.', description: '중간계로 돌아온 뿌리없는 자는 정원사의 불멸성 앞에 패배하고 다시 추방된다.', areaTheme: '정돈된 중정, 냉혹한 가위, 추방의 의식', bossId: 'gardener_immortal', bossName: '정원사', clearText: '정원사의 가위는 뿌리없는 자를 다시 뿌리끝으로 떨어뜨렸다. 그러나 절단의 개념은 조금 더 차가워졌다.', unlockText: '이 패배는 담금질로 기록된다. 허공뿌리로 향하는 길이 열린다.', specialType: 'forced_defeat', tier: 2, maxKills: 1, ele: 'fire' },
+    { id: 'suspended_aerial_roots', order: 3, displayAct: '3', title: '허공뿌리 현수림', subtitle: '굶주림의 지배자를 벨수록 정원사의 불멸성에 균열이 간다.', description: '공기뿌리 세계에서 기근의 맹수를 처치해 정원사의 권능을 약화시킨다.', areaTheme: '허공에 매달린 뿌리, 굶주림, 바람, 추락감', bossId: 'famine_beast', bossName: '기근의 맹수', clearText: '허공뿌리의 굶주림이 끊어지자, 정원사의 불멸성에 첫 균열이 생겼다.', unlockText: '갈림뿌리 미궁으로 이어지는 분기점이 열린다.', specialType: 'normal', tier: 2, maxKills: 1, ele: 'cold' },
+    { id: 'forked_root_maze', order: 4, displayAct: '4-1', title: '갈림뿌리 미궁', subtitle: '끝없이 갈라지는 곁뿌리 미궁을 돌파한다.', description: '갈림길마다 분기하는 뿌리 속에서 측근의 기사를 추적해 처치한다.', areaTheme: '분기하는 길, 미궁, 가지처럼 갈라지는 뿌리', bossId: 'retainer_knight', bossName: '측근의 기사', clearText: '갈림뿌리의 길목이 무너지며 측근의 기사는 침묵했다.', unlockText: '축적근 저장굴의 봉인이 풀린다.', specialType: 'normal', tier: 3, maxKills: 1, ele: 'light' },
+    { id: 'storage_root_vault', order: 5, displayAct: '4-2', title: '축적근 저장굴', subtitle: '부패한 저장고의 의사가 드루이드의 정체를 폭로한다.', description: '독을 품은 괴근의 의사를 처치하고 드루이드의 진실에 다가간다.', areaTheme: '썩은 저장고, 독, 부패한 약재, 고름 같은 수액', bossId: 'venomous_root_physician', bossName: '독을 품은 괴근의 의사', clearText: '괴근의 의사는 죽어가며 속삭였다. ‘네가 믿은 드루이드는 뿌리끝이 아니다. 그는 지주근의 그림자다.’', unlockText: '지주근의 침묵 성소가 열린다.', specialType: 'normal', tier: 3, maxKills: 1, ele: 'phys' },
+    { id: 'taproot_silent_sanctum', order: 6, displayAct: '5', title: '지주근의 침묵 성소', subtitle: '드루이드의 배신과 뿌리없는 자의 기원을 확인한다.', description: '지주근의 드루이드를 쓰러뜨리며 뿌리없는 자가 절단의 개념임을 드러낸다.', areaTheme: '침묵, 거대한 받침뿌리, 배신, 성소의 붕괴', bossId: 'taproot_druid', bossName: '지주근의 드루이드', clearText: '드루이드는 죽기 직전 깨달았다. 뿌리없는 자는 생명이 아니라, 아직 벼려지지 않은 절단이었다.', unlockText: '불멸이 벗겨진 정원사에게 다시 도전할 수 있다.', specialType: 'normal', tier: 4, maxKills: 1, ele: 'fire' },
+    { id: 'pruning_courtyard_revenge', order: 7, displayAct: '6', title: '가지치기의 중정', subtitle: '이번에는 정원사의 불멸성이 사라졌다.', description: '같은 이름의 정원사지만 이번에는 처치 가능한 결전이다.', areaTheme: '무너진 중정, 깨진 가위, 복수의 결투', bossId: 'gardener_mortal', bossName: '정원사', clearText: '이번에는 가위가 부러졌다. 정원사의 질서는 뿌리없는 칼날 앞에서 무너졌다.', unlockText: '말라가는 큰 줄기의 경고가 시작된다.', specialType: 'normal', tier: 4, maxKills: 1, ele: 'cold' },
+    { id: 'withering_great_trunk', order: 8, displayAct: '7', title: '말라가는 큰 줄기', subtitle: '뿌리가 꺾이자 줄기가 먼저 비명을 올린다.', description: '줄기의 전령을 쓰러뜨리고 수관 이변의 근본 원인을 추적한다.', areaTheme: '말라가는 수액, 갈라진 줄기, 위쪽에서 내려오는 경고', bossId: 'trunk_herald', bossName: '줄기의 전령', clearText: '전령은 무너지는 줄기 위에서 말했다. ‘뿌리를 벤 것은 너지만, 나무를 버린 것은 수관이다.’', unlockText: '끝없는 장막의 줄기로 향하는 문이 열린다.', specialType: 'normal', tier: 5, maxKills: 1, ele: 'light' },
+    { id: 'endless_veil_trunk', order: 9, displayAct: '8', title: '끝없는 장막의 줄기', subtitle: '반복되는 장막 속에서 루프의 기시감이 짙어진다.', description: '끝없는 줄기의 순례자를 처치하며 반복의 흔적을 맞닥뜨린다.', areaTheme: '반복되는 장막, 죽은 수액, 데자뷰, 루프 암시', bossId: 'endless_pilgrim', bossName: '끝없는 줄기의 순례자', clearText: '순례자는 뿌리없는 자를 처음 본 듯, 또 오래 기다린 듯 바라보았다.', unlockText: '비탄의 교차가 모습을 드러낸다.', specialType: 'normal', tier: 5, maxKills: 1, ele: 'chaos' },
+    { id: 'crossroad_of_lament', order: 10, displayAct: '9', title: '비탄의 교차', subtitle: '삽목들의 생존 본능이 수관을 비극으로 가른다.', description: '울부짖는 교차의 성가대를 처치하며 수관 진입부를 돌파한다.', areaTheme: '가지들의 충돌, 생존 본능, 비극적 합창, 수관 입구', bossId: 'wailing_chorus', bossName: '울부짖는 교차의 성가대', clearText: '성가대의 울음은 배신의 노래가 아니었다. 그것은 살아남으려는 가지들의 기도였다.', unlockText: '합일의 차륜으로 올라갈 길이 열린다.', specialType: 'normal', tier: 6, maxKills: 1, ele: 'chaos' },
+    { id: 'wheel_of_unity', order: 11, displayAct: '10', title: '합일의 차륜', subtitle: '아홉 삽목의 의지가 하나의 왕관으로 응집한다.', description: '합일의 왕관을 쓰러뜨리지만 세계수는 이미 말라가고 있다.', areaTheme: '최상층 수관, 아홉 삽목의 합체, 새 세계 직전', bossId: 'crown_of_unity', bossName: '합일의 왕관', clearText: '왕관은 부서졌다. 그러나 말라버린 세계수는 더 이상 스스로를 지탱하지 못했다.', unlockText: '혼돈 층계로 내려갈 길이 열린다.', specialType: 'normal', tier: 7, maxKills: 1, ele: 'chaos' }
 ];
+
+function formatStoryActLabel(storyAct) {
+    if (!storyAct) return '액트 ?';
+    return storyAct.displayAct === '엔드게임' ? '엔드게임' : `액트 ${storyAct.displayAct}`;
+}
+function getStoryActByZoneId(zoneId) {
+    if (!Number.isFinite(zoneId)) return null;
+    return STORY_ACTS[zoneId] || null;
+}
+function getStoryActByOrder(order) {
+    return STORY_ACTS.find(act => act.order === order) || null;
+}
+function getActZoneDisplayName(zoneId) {
+    let act = getStoryActByZoneId(zoneId);
+    if (!act) return `액트 ${zoneId + 1}`;
+    return `${formatStoryActLabel(act)}: ${act.title}`;
+}
+
+const ACT_ZONE_COUNT = STORY_ACTS.length;
+const LAST_STORY_ZONE_ID = ACT_ZONE_COUNT - 1;
+const ABYSS_START_ZONE_ID = ACT_ZONE_COUNT;
+
+const MAP_ZONES = STORY_ACTS.map((act, idx) => ({
+    id: idx,
+    name: getActZoneDisplayName(idx),
+    type: 'act',
+    tier: act.tier,
+    maxKills: act.maxKills,
+    ele: act.ele,
+    storyActId: act.id,
+    storyOrder: act.order
+}));
 const WORLD_MAP_HOTSPOTS = [
     { zoneId: 0, x: 18, y: 70 },
     { zoneId: 1, x: 30, y: 61 },
@@ -1209,10 +1258,11 @@ const WORLD_MAP_HOTSPOTS = [
     { zoneId: 6, x: 74, y: 56 },
     { zoneId: 7, x: 80, y: 47 },
     { zoneId: 8, x: 87, y: 39 },
-    { zoneId: 9, x: 91, y: 30 }
+    { zoneId: 9, x: 91, y: 30 },
+    { zoneId: 10, x: 94, y: 22 }
 ];
-const abyssTiers = [7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 15, 15, 16, 17, 18, 19];
-for (let i = 1; i <= 20; i++) MAP_ZONES.push({ id: 9 + i, name: "심연 깊이 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 4, ele: "chaos" });
+const abyssTiers = [8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 16];
+for (let i = 1; i <= 15; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1), name: "혼돈 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 1, ele: "chaos" });
 
 const TRIAL_ZONES = [
     { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 4 },
@@ -1232,16 +1282,16 @@ function getZone(id) {
 }
 
 const SEASON_CONTENT_ROADMAP = {
-    1: { title: '오픈 베타', features: ['기본 액트/심연(깊이 15)과 전직/환생 시스템'] },
-    2: { title: '정식', features: ['심연 깊이 20까지 확장', '보스 열쇠 드랍과 시즌 보스 3종', '보스 재료 기반 젬 강화'] },
-    3: { title: '고대 미궁', features: ['액트 5 이후 무한 미궁 개방', '미궁 전용 화석/재화 등장', '옵션 지정형 제작대 확장'] },
-    4: { title: '창공의 도시', features: ['맵핑에서 창공 몬스터 출현', '창공 전용 고유 아이템 드랍', '창공의 힘 기반 젬 강화'] },
-    5: { title: '타락', features: ['시즌 노드 대량 확장', '타락의 오브 및 타락 옵션', '주얼 슬롯/주얼 인벤토리 시스템'] },
-    6: { title: '밀림의 심장', features: ['테트리스형 부적 보드(4x4)', '부적 전용 인벤토리/드랍', '야수 보스 라인업 추가'] },
-    7: { title: '심해의 왕좌', features: ['해저 균열 맵군', '심해 유물 강화 루프', '균열 군주 레이드'] },
-    8: { title: '시간의 파편', features: ['시간 왜곡 던전', '이중 드랍 룰과 시간 파편 제작', '스킬 각성 단계 추가'] },
-    9: { title: '별의 전쟁', features: ['성좌 침공 이벤트', '세력전 보상 트랙', '전설 보조젬 확장'] },
-    10: { title: '종말의 문', features: ['엔드게임 연합 보스', '시즌 통합 제작 체계', '장기 계정 진척도 메타 시스템'] }
+    1: { title: '프롤로그의 추방', features: ['정원사에게 추방당한 뿌리없는 자', '뿌리끝 성소의 첫 생존 루프'] },
+    2: { title: '가지치기의 패배', features: ['정원사의 불멸성과 첫 좌절', '패배가 담금질임을 각인'] },
+    3: { title: '허공뿌리 균열', features: ['기근의 지배자를 처치해 호혜 약화', '정원사 불멸성에 첫 균열'] },
+    4: { title: '갈림과 축적', features: ['액트 4-1/4-2 이중 진행', '측근과 괴근 의사를 베어 진실 접근'] },
+    5: { title: '지주근의 배신', features: ['드루이드의 본심과 세계 붕괴 의도', '뿌리없는 자의 기원 폭로'] },
+    6: { title: '복수의 중정', features: ['불멸이 사라진 정원사 처치', '추방의 복수 완성'] },
+    7: { title: '말라가는 줄기', features: ['줄기 전령의 경고', '삽목 존재들의 독립 시작'] },
+    8: { title: '끝없는 장막', features: ['반복되는 혼돈 장막 진입', '루프 기시감 본격화'] },
+    9: { title: '비탄의 교차', features: ['삽목의 생존과 나무의 소모 충돌', '배신이 아닌 생존의 합창'] },
+    10: { title: '합일의 차륜', features: ['아홉 삽목의 합일 왕관 격파', '이후 혼돈 5에서 나무꾼 시뮬레이터 조우'] }
 };
 const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
@@ -1250,13 +1300,24 @@ const SEASON_BOSS_ZONES = [
     { id: 's6_beast_cerberus', name: '야수왕 케르베로스', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore' }
 ];
 const LABYRINTH_ZONE_ID = 'labyrinth_endless';
+const JOURNAL_DB = {
+    prologue: { title: '프롤로그 - 정원사의 판단', lines: ['“이 나무에 뿌리내리지 못한 것은 열매가 될 수 없다.”', '“너는 가지가 아니다. 잎도, 씨앗도, 벌레도 아니다.”', '“그렇다면 남은 이름은 하나뿐이다. 밑거름.”'] },
+    act_1: { title: '액트 1 - 뿌리의 드루이드', lines: ['“뿌리가 없다는 건 저주가 아니다.”', '“어쩌면 이 세계에서 가장 자유로운 형벌이지.”', '“중간계로 돌아가고 싶다면, 썩은 잔뿌리들을 베어라.”', '“길은 언제나 상처를 따라 열린다.”'] },
+    act_2: { title: '액트 2 - 정원사의 불멸', lines: ['“나는 내가 살아 있는 것이 아니다.”', '“가지들이 나를 살린다.”', '“나를 베고 싶다면, 먼저 이 나무가 나를 잊게 만들어라.”'] },
+    act_3: { title: '액트 3~4 - 드루이드의 경고', lines: ['“널 추방한 자가 정원사라면, 그는 나뭇가지들의 호혜를 받고 있다.”', '“기근, 측근, 괴근. 그들의 뿌리를 끊으면 정원사에게 닿는 호혜도 함께 마를 것이다.”'] },
+    act_4: { title: '액트 4-2 - 괴근의 의사', lines: ['“네가 돌아갈 곳은 없다.”', '“그는 너를 길렀다고? 아니다. 그는 너를 벼렸다.”'] },
+    act_5: { title: '액트 5 - 지주근의 진실', lines: ['“나는 이 나무를 버틴 자다.”', '“너는… 베는 자의 조각이다.”', '“나무꾼의 손에서 빠진, 첫 번째 날붙이였구나.”'] },
+    act_6: { title: '액트 6 - 정원사의 붕괴', lines: ['“왜 가지들이 대답하지 않지?”', '“왜 내 상처가 닫히지 않는 거지?”', '“너는 대체 무엇이냐.”'] },
+    act_7: { title: '액트 7~10 - 삽목들의 논리', lines: ['“우리는 썩어가는 나무에 남지 않겠다.”', '“떨어져 나가는 것은 배신이 아니다. 번식이다.”', '“이것이 배신이라면, 생존 또한 죄인가?”'] },
+    woodsman: { title: '나무꾼', lines: ['“종착점에 도착했구나, 나의 피조물아.”', '“선택해라. 도구로 남을 것인지, 날이 될 것인지.”'] }
+};
 
 function getSeasonAbyssDepthCap(seasonValue) {
-    return seasonValue >= 2 ? 20 : 15;
+    return 15;
 }
 
 function getSeasonFinalZoneId(seasonValue) {
-    return 9 + getSeasonAbyssDepthCap(seasonValue);
+    return LAST_STORY_ZONE_ID + getSeasonAbyssDepthCap(seasonValue);
 }
 
 function getCurrentSeasonFinalZoneId() {
@@ -1298,9 +1359,9 @@ function tryAllocateAbyssPassive(nodeKey) {
     if (!node) return;
     let state = getAbyssPassiveState();
     if ((state[node.key] || 0) >= node.max) return addLog('해당 심연 노드는 이미 최대 단계입니다.', 'attack-monster');
-    if (getAbyssPassiveFreePoints() <= 0) return addLog('심연 패시브 포인트가 부족합니다.', 'attack-monster');
+    if (getAbyssPassiveFreePoints() <= 0) return addLog('혼돈 패시브 포인트가 부족합니다.', 'attack-monster');
     state[node.key] = (state[node.key] || 0) + 1;
-    addLog(`🌌 심연 패시브 [${node.name}] ${state[node.key]}/${node.max}`, 'season-up');
+    addLog(`🌌 혼돈 패시브 [${node.name}] ${state[node.key]}/${node.max}`, 'season-up');
     updateStaticUI();
 }
 
@@ -1335,7 +1396,7 @@ function applySeasonContentProgression(options) {
         if (!game.unlockedSeasonContents.includes(key)) game.unlockedSeasonContents.push(key);
         if (!opts.silent && !game.seenSeasonContentNotices.includes(key) && SEASON_CONTENT_ROADMAP[s]) {
             let def = SEASON_CONTENT_ROADMAP[s];
-            addLog(`🧩 시즌 ${s} [${def.title}] 콘텐츠 개방`, 'season-up');
+            addLog(`🧩 루프 ${s} [${def.title}] 이정표 개방`, 'season-up');
             (def.features || []).slice(0, 2).forEach(line => addLog(`   - ${line}`, 'loot-magic'));
             game.seenSeasonContentNotices.push(key);
         }
@@ -1836,10 +1897,13 @@ let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 
 const defaultGame = {
-    saveVersion: 12,
+    saveVersion: 14,
     level: 1,
     exp: 0,
     season: 1,
+    loopCount: 0,
+    woodsmanDefeatAttempts: 0,
+    woodsmanSimulatorSeenLoop: false,
     currentZoneId: 0,
     maxZoneId: 0,
     killsInZone: 0,
@@ -1863,7 +1927,8 @@ const defaultGame = {
         jewelAutoSalvageEnabled: false,
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false },
         mapCompleteAction: 'nextZone',
-        townReturnAction: 'retry'
+        townReturnAction: 'retry',
+        heroAppearance: 'v1'
     },
     passivePoints: 0,
     playerHp: 100,
@@ -1925,6 +1990,7 @@ const defaultGame = {
     unlockedSeasonContents: ['season_1'],
     seenSeasonContentNotices: ['season_1'],
     seenTutorials: [],
+    journalEntries: ['prologue'],
     claimableActRewards: [],
     claimedActRewards: [],
     actRewardBonuses: [],
@@ -3349,14 +3415,14 @@ const SKILL_CONFIG = {
     8: { id: 'magic_cast', motion: 'cast', weapon: 'magic_orb', projectile: 'magic_projectile_dark', effectIndex: 28 }
 };
 const WEAPON_CONFIG = {
-    sword: { atlasIndex: 0, grip: { x: 145, y: 390 }, scale: 0.18, rotation: -0.65, layer: 'front' },
-    greatsword: { atlasIndex: 1, grip: { x: 140, y: 390 }, scale: 0.22, rotation: -0.65, layer: 'front' },
-    dagger: { atlasIndex: 2, grip: { x: 155, y: 375 }, scale: 0.16, rotation: -0.65, layer: 'front' },
-    bow: { atlasIndex: 4, grip: { x: 260, y: 280 }, scale: 0.2, rotation: 0, layer: 'front' },
-    spear: { atlasIndex: 6, grip: { x: 170, y: 390 }, scale: 0.24, rotation: -0.55, layer: 'front' },
-    staff: { atlasIndex: 7, grip: { x: 185, y: 390 }, scale: 0.22, rotation: -0.35, layer: 'front' },
-    scythe: { atlasIndex: 9, grip: { x: 150, y: 430 }, scale: 0.24, rotation: -0.55, layer: 'front' },
-    magic_orb: { atlasIndex: 10, grip: { x: 255, y: 255 }, scale: 0.14, rotation: 0, layer: 'front' }
+    sword: { atlasIndex: 0, grip: { x: 105, y: 250 }, scale: 0.18, rotation: -0.65, layer: 'front' },
+    greatsword: { atlasIndex: 1, grip: { x: 100, y: 265 }, scale: 0.22, rotation: -0.65, layer: 'front' },
+    dagger: { atlasIndex: 2, grip: { x: 130, y: 265 }, scale: 0.16, rotation: -0.65, layer: 'front' },
+    bow: { atlasIndex: 4, grip: { x: 205, y: 200 }, scale: 0.2, rotation: 0, layer: 'front' },
+    spear: { atlasIndex: 6, grip: { x: 75, y: 270 }, scale: 0.24, rotation: -0.55, layer: 'front' },
+    staff: { atlasIndex: 7, grip: { x: 72, y: 265 }, scale: 0.22, rotation: -0.35, layer: 'front' },
+    scythe: { atlasIndex: 9, grip: { x: 95, y: 185 }, scale: 0.24, rotation: -0.55, layer: 'front' },
+    magic_orb: { atlasIndex: 10, grip: { x: 165, y: 195 }, scale: 0.14, rotation: 0, layer: 'front' }
 };
 const PROJECTILE_CONFIG = {
     dagger_projectile: { atlasIndex: 3, speed: 650, scale: 0.35 },
@@ -3365,14 +3431,14 @@ const PROJECTILE_CONFIG = {
     magic_projectile_dark: { atlasIndex: 11, speed: 520, scale: 0.45 }
 };
 const SKILL_WEAPON_OFFSETS = {
-    basic_slash: [{ x: 0, y: 0, rotation: -0.35, scale: 1 }, { x: 2, y: -2, rotation: -0.2, scale: 1 }, { x: 4, y: -1, rotation: 0.1, scale: 1 }, { x: 2, y: 1, rotation: 0.28, scale: 1 }],
-    heavy_smash: [{ x: 0, y: 0, rotation: -0.4, scale: 1 }, { x: 2, y: -2, rotation: -0.24, scale: 1 }, { x: 5, y: -1, rotation: 0.08, scale: 1 }, { x: 3, y: 1, rotation: 0.3, scale: 1 }],
-    dagger_throw: [{ x: 0, y: 0, rotation: -0.35, scale: 1 }, { x: 1, y: -1, rotation: -0.16, scale: 1 }, { x: 3, y: -1, rotation: 0.08, scale: 1 }, { x: 1, y: 1, rotation: 0.2, scale: 1 }],
-    bow_shot: [{ x: 0, y: 0, rotation: -0.1, scale: 1 }, { x: 2, y: -2, rotation: -0.05, scale: 1 }, { x: 4, y: -1, rotation: 0.04, scale: 1 }, { x: 2, y: 1, rotation: 0.08, scale: 1 }],
-    spear_thrust: [{ x: 0, y: 0, rotation: -0.35, scale: 1 }, { x: 3, y: -2, rotation: -0.2, scale: 1 }, { x: 7, y: -1, rotation: 0.12, scale: 1 }, { x: 4, y: 1, rotation: 0.3, scale: 1 }],
-    staff_cast: [{ x: 0, y: 0, rotation: -0.4, scale: 1 }, { x: 3, y: -4, rotation: -0.25, scale: 1 }, { x: 6, y: -3, rotation: 0.05, scale: 1 }, { x: 3, y: 1, rotation: 0.18, scale: 1 }],
-    scythe_swing: [{ x: 0, y: 0, rotation: -0.42, scale: 1 }, { x: 4, y: -2, rotation: -0.24, scale: 1 }, { x: 8, y: -1, rotation: 0.12, scale: 1 }, { x: 5, y: 1, rotation: 0.34, scale: 1 }],
-    magic_cast: [{ x: 0, y: 0, rotation: 0, scale: 1 }, { x: 2, y: -2, rotation: 0.02, scale: 1 }, { x: 4, y: -2, rotation: 0.04, scale: 1 }, { x: 2, y: 1, rotation: 0, scale: 1 }]
+    basic_slash: [{ x: -8, y: 6, rotation: -1.1, scale: 1 }, { x: 2, y: -4, rotation: -0.4, scale: 1.1 }, { x: 18, y: -8, rotation: 0.7, scale: 1.1 }, { x: 8, y: 4, rotation: 1.3, scale: 1 }],
+    heavy_smash: [{ x: -10, y: 8, rotation: -1.3, scale: 1 }, { x: 0, y: -6, rotation: -0.5, scale: 1.1 }, { x: 22, y: -10, rotation: 0.8, scale: 1.15 }, { x: 10, y: 6, rotation: 1.5, scale: 1 }],
+    dagger_throw: [{ x: -6, y: 4, rotation: -0.9, scale: 1 }, { x: 2, y: -2, rotation: -0.3, scale: 1.05 }, { x: 14, y: -6, rotation: 0.5, scale: 1.05 }, { x: 6, y: 2, rotation: 0.9, scale: 1 }],
+    bow_shot: [{ x: -4, y: 2, rotation: -0.15, scale: 1 }, { x: 0, y: -2, rotation: -0.05, scale: 1 }, { x: 6, y: -2, rotation: 0.08, scale: 1 }, { x: 2, y: 1, rotation: 0.12, scale: 1 }],
+    spear_thrust: [{ x: -12, y: 4, rotation: -0.5, scale: 1 }, { x: 4, y: -2, rotation: -0.15, scale: 1.1 }, { x: 28, y: -4, rotation: 0.1, scale: 1.1 }, { x: 10, y: 2, rotation: 0.3, scale: 1 }],
+    staff_cast: [{ x: -6, y: 6, rotation: -0.9, scale: 1 }, { x: 4, y: -6, rotation: -0.3, scale: 1.1 }, { x: 16, y: -8, rotation: 0.4, scale: 1.1 }, { x: 6, y: 2, rotation: 0.7, scale: 1 }],
+    scythe_swing: [{ x: -14, y: 8, rotation: -1.4, scale: 1 }, { x: 2, y: -6, rotation: -0.6, scale: 1.15 }, { x: 24, y: -10, rotation: 0.9, scale: 1.15 }, { x: 12, y: 4, rotation: 1.6, scale: 1 }],
+    magic_cast: [{ x: -4, y: 4, rotation: -0.2, scale: 1 }, { x: 2, y: -4, rotation: 0.0, scale: 1.05 }, { x: 8, y: -4, rotation: 0.15, scale: 1.1 }, { x: 4, y: 2, rotation: 0.1, scale: 1 }]
 };
 let crowdPauseActive = false;
 let trialHazardTimer = 0;
@@ -3641,7 +3707,7 @@ function getWeaponAtlasRect(atlasIndex) {
     const cellH = Math.floor(battleAssets.images.weapons.height / 3);
     let col = atlasIndex % 4;
     let row = Math.floor(atlasIndex / 4);
-    return { sx: col * cellW, sy: row * cellH, sw: cellW, sh: cellH };
+    return { sx: col * cellW, sy: row * cellH, sw: cellW, sh: cellH, cellW, cellH };
 }
 function getEffectAtlasRect(effectIndex, image) {
     if (!image) return null;
@@ -3661,8 +3727,8 @@ function getHeroDrawMetrics(heroWorldX, heroWorldY, frameRect, frameMeta) {
     let scale = HERO_SPRITE_CONFIG.drawHeight / frameRect.sh;
     let drawW = frameRect.sw * scale;
     let drawH = frameRect.sh * scale;
-    let pivotX = (frameMeta.pivot.x / 300) * frameRect.sw;
-    let pivotY = (frameMeta.pivot.y / 300) * frameRect.sh;
+    let pivotX = (frameMeta.pivot.x / 229) * frameRect.sw;
+    let pivotY = (frameMeta.pivot.y / 229) * frameRect.sh;
     let offsetX = (frameMeta.drawOffset.x / 300) * frameRect.sw;
     let offsetY = (frameMeta.drawOffset.y / 300) * frameRect.sh;
     let dx = heroWorldX - (pivotX * scale) + (offsetX * scale);
@@ -3771,7 +3837,7 @@ function updateSkillPlayback(now, playerPos, width, enemyPosMap) {
             skillId: state.skillId,
             effectIndex: chosenEffectIndex,
             startAt: now,
-            duration: 320,
+            duration: 520,
             x: targetX,
             y: targetY
         });
@@ -3779,59 +3845,7 @@ function updateSkillPlayback(now, playerPos, width, enemyPosMap) {
     }
 }
 function drawWeapon(ctx, heroX, heroY, motion, frameLocalIndex, weaponName, layerFilter, skillId) {
-    let weaponCfg = WEAPON_CONFIG[weaponName];
-    if (!weaponCfg || !battleAssets.images.weapons) return;
-    if (layerFilter && weaponCfg.layer !== layerFilter) return;
-    let motionFrames = HERO_MOTIONS[motion] || HERO_MOTIONS.idle;
-    let localIndex = clampNumber(frameLocalIndex, 0, Math.max(0, motionFrames.length - 1));
-    let frameIndex = motionFrames[localIndex];
-    let heroFrame = getSpriteFrameRectByIndex(battleAssets.images.hero, frameIndex, HERO_SPRITE_CONFIG);
-    if (!heroFrame) return;
-    let frameMeta = getHeroFrameMeta(frameIndex);
-    let heroMetrics = getHeroDrawMetrics(heroX, heroY, heroFrame, frameMeta);
-    let handX = (frameMeta.hand.x / 300) * heroFrame.sw;
-    let handY = (frameMeta.hand.y / 300) * heroFrame.sh;
-    let handWorldX = heroMetrics.dx + handX * heroMetrics.scaleX;
-    let handWorldY = heroMetrics.dy + handY * heroMetrics.scaleY;
-    let skillIdText = SKILL_CONFIG[skillId] ? SKILL_CONFIG[skillId].id : '';
-    let tweak = ((SKILL_WEAPON_OFFSETS[skillIdText] || [])[localIndex]) || { x: 0, y: 0, rotation: 0, scale: 1 };
-    let atlas = getWeaponAtlasRect(weaponCfg.atlasIndex);
-    if (!atlas) return;
-    let finalScale = weaponCfg.scale * (tweak.scale || 1);
-    let gripX = (weaponCfg.grip.x / 512) * atlas.sw;
-    let gripY = (weaponCfg.grip.y / 512) * atlas.sh;
-    battleVisualState.weaponSmoothPos = battleVisualState.weaponSmoothPos || {};
-    let smoothKey = `${skillId}:${weaponName}:${layerFilter || 'front'}`;
-    let prev = battleVisualState.weaponSmoothPos[smoothKey];
-    let targetX = handWorldX + (tweak.x || 0);
-    let targetY = handWorldY + (tweak.y || 0);
-    let smoothX = prev ? (prev.x + (targetX - prev.x) * 0.82) : targetX;
-    let smoothY = prev ? (prev.y + (targetY - prev.y) * 0.82) : targetY;
-    battleVisualState.weaponSmoothPos[smoothKey] = { x: smoothX, y: smoothY };
-    ctx.save();
-    ctx.translate(smoothX, smoothY);
-    ctx.rotate((weaponCfg.rotation || 0) + (tweak.rotation || 0));
-    ctx.drawImage(
-        battleAssets.images.weapons,
-        atlas.sx, atlas.sy, atlas.sw, atlas.sh,
-        -gripX * finalScale,
-        -gripY * finalScale,
-        atlas.sw * finalScale,
-        atlas.sh * finalScale
-    );
-    if (DEBUG_BATTLE_ANCHORS) {
-        ctx.fillStyle = '#3b82f6';
-        ctx.beginPath();
-        ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    ctx.restore();
-    if (DEBUG_BATTLE_ANCHORS) {
-        ctx.fillStyle = '#ef4444';
-        ctx.beginPath();
-        ctx.arc(handWorldX, handWorldY, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-    }
+    return;
 }
 function drawProjectile(ctx, now) {
     if (!battleAssets.images.weapons) return;
@@ -3859,8 +3873,9 @@ function drawEffect(ctx, now) {
         if (!rect) return;
         let t = clampNumber((now - effect.startAt) / effect.duration, 0, 1);
         ctx.save();
-        ctx.globalAlpha = 0.95 - t * 0.5;
-        ctx.drawImage(battleAssets.images.effectsV2, rect.sx, rect.sy, rect.sw, rect.sh, effect.x - 36, effect.y - 36, 72, 72);
+        ctx.globalAlpha = 0.42 - t * 0.18;
+        let sz = Math.min(rect.sw, rect.sh) * 0.48;
+        ctx.drawImage(battleAssets.images.effectsV2, rect.sx, rect.sy, rect.sw, rect.sh, effect.x - sz / 2, effect.y - sz / 2, sz, sz);
         ctx.restore();
     });
 }
@@ -4061,6 +4076,13 @@ function getActRewardChoices(zoneId) {
         return enriched;
     });
 }
+function unlockJournalEntry(entryId) {
+    if (!entryId || !JOURNAL_DB[entryId]) return;
+    game.journalEntries = Array.isArray(game.journalEntries) ? game.journalEntries : ['prologue'];
+    if (game.journalEntries.includes(entryId)) return;
+    game.journalEntries.push(entryId);
+    addLog(`📓 저널 해금: ${JOURNAL_DB[entryId].title}`, 'loot-rare');
+}
 function markActRewardReady(zoneId) {
     if (zoneId < 0 || zoneId > 9) return;
     game.claimableActRewards = game.claimableActRewards || [];
@@ -4068,15 +4090,18 @@ function markActRewardReady(zoneId) {
     if (game.claimedActRewards.includes(zoneId) || game.claimableActRewards.includes(zoneId)) return;
     game.claimableActRewards.push(zoneId);
     game.noti.map = true;
+    let storyAct = getStoryActByZoneId(zoneId);
     addLog(`🎁 [${MAP_ZONES[zoneId].name}] 클리어 보상을 받을 수 있습니다.`, 'loot-rare');
+    if (storyAct && storyAct.unlockText) addLog(`📖 ${storyAct.unlockText}`, 'season-up');
 }
 function openActReward(zoneId) {
     if (!(game.claimableActRewards || []).includes(zoneId)) return;
     let config = getActRewardConfig(zoneId);
     if (!config) return;
     activeRewardZoneId = zoneId;
-    document.getElementById('reward-title').innerText = config.title;
-    document.getElementById('reward-body').innerText = config.body;
+    let storyAct = getStoryActByZoneId(zoneId);
+    document.getElementById('reward-title').innerText = storyAct ? `${formatStoryActLabel(storyAct)} 클리어 보상 - ${storyAct.title}` : config.title;
+    document.getElementById('reward-body').innerText = storyAct ? `${storyAct.subtitle}\n${config.body}` : config.body;
     document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId).map((choice, index) => `
         <button class="reward-choice" onclick="claimActRewardChoice(${zoneId}, ${index})">
             <strong>${choice.label}</strong>
@@ -4263,7 +4288,14 @@ function initBattleAssets() {
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
     const loadTicket = battleAssets.loadTicket;
     const customHeroSrc = getCustomHeroSheetDataUrl();
-    const defaultHeroSrc = customHeroSrc || 'assets/battle-hero-v1.png';
+    const heroAppearanceMap = {
+        v1: 'assets/battle-hero-v1.png',
+        v2: 'assets/battle-hero-v2.png',
+        v3: 'assets/battle-hero-v3.png',
+        v4: 'assets/battle-hero-v4.png'
+    };
+    const selectedHeroAppearance = (game && game.settings && heroAppearanceMap[game.settings.heroAppearance]) ? game.settings.heroAppearance : 'v1';
+    const defaultHeroSrc = customHeroSrc || heroAppearanceMap[selectedHeroAppearance];
     const manifest = {
         hero: defaultHeroSrc,
         enemies: 'assets/battle-enemies-v1.png',
@@ -5645,7 +5677,7 @@ function getCurrencyDrops(enemy) {
     } else if (bonusRoll(0.02)) {
         drops.push([[ 'transmute', 'transmute', 'augment', 'alteration', 'scour' ][Math.floor(Math.random() * 5)], 1]);
     }
-    let mappingOpened = (game.maxZoneId || 0) >= 10;
+    let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     if ((game.season || 1) >= 2 && mappingOpened && zone.type !== 'trial' && zone.type !== 'seasonBoss') {
         if (enemy.isBoss && Math.random() < 0.044) {
             let key = ['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm'][Math.floor(Math.random() * 3)];
@@ -6092,7 +6124,7 @@ function useCurrency(currencyKey) {
 }
 
 function isMarketUnlocked() {
-    return (game.maxZoneId || 0) >= 4;
+    return (game.maxZoneId || 0) >= 5;
 }
 
 function getMarketInventoryExpandCost() {
@@ -6576,7 +6608,7 @@ function getPlayerStats() {
     let finalRegenSuppress = gearBase.regenSuppress + gearExplicit.regenSuppress + passive.regenSuppress + season.regenSuppress + ascend.regenSuppress + support.regenSuppress + reward.regenSuppress;
     let finalResPen = gearBase.resPen + gearExplicit.resPen + passive.resPen + season.resPen + ascend.resPen + support.resPen + reward.resPen + (skill.resPenBonus || 0);
 
-    let resistPenalty = (game.maxZoneId >= 4 ? 30 : 0) + (game.maxZoneId >= 9 ? 30 : 0);
+    let resistPenalty = (game.maxZoneId >= 5 ? 30 : 0) + (game.maxZoneId >= 10 ? 30 : 0);
     let finalResF = Math.min(75, gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + reward.resF - resistPenalty);
     let finalResC = Math.min(75, gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC - resistPenalty);
     let finalResL = Math.min(75, gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL - resistPenalty);
@@ -6875,10 +6907,7 @@ function getSkillTargets(pStats) {
     return [{ enemy: alive[0], mult: 1 }];
 }
 
-const ACT_BOSS_NAMES = {
-    0: '조난자 포식자', 1: '잿빛 늪군주', 2: '빙결 감시자', 3: '폭뢰 집행관', 4: '이교의 사제장',
-    5: '용광로 군주', 6: '한빙 마녀', 7: '천둥 심판관', 8: '허무의 예언자', 9: '문턱의 파수꾼'
-};
+const ACT_BOSS_NAMES = Object.fromEntries(STORY_ACTS.map((act, idx) => [idx, act.bossName]));
 const ENEMY_TRAIT_POOL = [
     { id: 'rapid', name: '광폭 연타', atkMul: 1.35 },
     { id: 'fortified', name: '강철 피부', hpMul: 1.35, dr: 8 },
@@ -6938,7 +6967,7 @@ function createEnemy(zone, marker, groupIndex) {
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
     let isElite = !!marker.elite && !isBoss;
-    let abyssDepth = zone.type === 'abyss' ? Math.max(1, (zone.id || 10) - 9) : 0;
+    let abyssDepth = zone.type === 'abyss' ? Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1)) : 0;
     if (zone.type === 'abyss' && !isElite && !isBoss) {
         let hpRamp = Math.min(0.20, Math.max(0, abyssDepth - 1) * 0.015);
         hp = Math.floor(hp * (1 + hpRamp));
@@ -7177,6 +7206,13 @@ function spawnEncounterMarker(marker) {
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 360, boss: false });
         }
         let bossEnemy = createEnemy(zone, { ...marker, count: 1 }, count);
+        let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+        if (storyAct && storyAct.specialType === 'forced_defeat') {
+            let now = performance.now();
+            bossEnemy.forcedDefeatBoss = true;
+            bossEnemy.nextForcedRegenAt = now + 5000;
+            bossEnemy.forcedDoomAt = now + 10000;
+        }
         if (isCerberus) {
             bossEnemy.name = marker.phase === 3 ? '👿 케르베로스 본체' : `👿 케르베로스 머리`;
             bossEnemy.ele = marker.phase === 1 ? 'fire' : 'phys';
@@ -7221,7 +7257,7 @@ function advanceMapProgress(pStats) {
     let baseGain = zone.type === 'trial' ? 0.26 : (zone.type === 'abyss' ? 0.42 : 0.36);
     let crowdPenalty = enemyCount > 0 ? Math.max(0.4, 1 - enemyCount * 0.13) : 0.94;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
-    let gain = baseGain * (moveSpeed / 100) * crowdPenalty * (abyssScale.mapProgressMul || 1);
+    let gain = baseGain * 0.5 * (moveSpeed / 100) * crowdPenalty * (abyssScale.mapProgressMul || 1);
     game.runProgress = Math.min(100, game.runProgress + gain);
     while (game.encounterIndex < game.encounterPlan.length && game.runProgress >= game.encounterPlan[game.encounterIndex].at) {
         spawnEncounterMarker(game.encounterPlan[game.encounterIndex]);
@@ -7363,6 +7399,30 @@ function handleEnemyDeath(enemy, pStats) {
     pendingHeavyUiRefresh = true;
 }
 
+function canBreakWoodsmanLoop() {
+    return Math.max(0, Math.floor(game.woodsmanDefeatAttempts || 0)) >= WOODSMAN_BREAK_LOOP_REQUIRED;
+}
+
+function handleStoryActSpecialDefeat(zone, pStats) {
+    let storyAct = getStoryActByZoneId(zone && zone.id);
+    if (!storyAct) return false;
+    if (storyAct.specialType === 'loop_gate') {
+        if (canBreakWoodsmanLoop()) return false;
+        game.woodsmanDefeatAttempts = Math.max(0, Math.floor(game.woodsmanDefeatAttempts || 0)) + 1;
+        game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
+        addLog(`🪓 ${storyAct.clearText}`, 'death');
+        addLog(`❄️ 나무꾼의 창조 권능이 당신을 새 나무로 되돌렸습니다. (루프 ${game.loopCount}/${WOODSMAN_BREAK_LOOP_REQUIRED})`, 'attack-monster');
+        game.currentZoneId = 0;
+        game.maxZoneId = 0;
+        game.killsInZone = 0;
+        game.playerHp = pStats.maxHp;
+        startMoving(false);
+        updateStaticUI();
+        return true;
+    }
+    return false;
+}
+
 function finishEncounterRun() {
     let zone = getZone(game.currentZoneId);
     game.killsInZone++;
@@ -7441,32 +7501,57 @@ function finishEncounterRun() {
 
     if (game.killsInZone >= zone.maxKills) {
         if (zone.type === 'abyss') {
-            let depth = Math.max(1, (zone.id || 10) - 9);
-            let capDepth = (game.season || 1) <= 1 ? 14 : 19;
+            let depth = Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1));
+            if (depth === 5 && !game.woodsmanSimulatorSeenLoop) {
+                game.woodsmanSimulatorSeenLoop = true;
+                unlockJournalEntry('woodsman');
+                queueTutorialNotice('woodsman_simulator_loop', '나무꾼의 시뮬레이터', '“다음은 더 나은 세계를 바라지.”\n정체를 드러낸 존재는 진짜 나무꾼이 아닌 시뮬레이터였다.\n당신은 강제로 루프한다.', 'tab-season');
+                triggerSeasonReset();
+                return;
+            }
+            let capDepth = 15;
             game.abyssClearedDepths = Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths : [];
             if (depth <= capDepth && !game.abyssClearedDepths.includes(depth)) {
                 game.abyssClearedDepths.push(depth);
                 game.abyssPassivePoints = Math.max(0, Math.floor(game.abyssPassivePoints || 0)) + 5;
-                addLog(`🌌 심연 깊이 ${depth} 최초 클리어 보상: 심연 패시브 포인트 +5`, 'season-up');
+                addLog(`🌌 혼돈 ${depth} 최초 클리어 보상: 혼돈 패시브 포인트 +5`, 'season-up');
             }
         }
-        if (zone.type === 'act') markActRewardReady(zone.id);
+        if (zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
+        if (zone.type === 'act') {
+            let storyAct = getStoryActByZoneId(zone.id);
+            if (storyAct && storyAct.clearText) addLog(`📜 ${storyAct.clearText}`, 'season-up');
+            if (zone.id === 0) unlockJournalEntry('act_1');
+            if (zone.id === 1) unlockJournalEntry('act_2');
+            if (zone.id === 2 || zone.id === 3) unlockJournalEntry('act_3');
+            if (zone.id === 4) unlockJournalEntry('act_4');
+            if (zone.id === 5) unlockJournalEntry('act_5');
+            if (zone.id === 6) unlockJournalEntry('act_6');
+            if (zone.id >= 7) unlockJournalEntry('act_7');
+            if (storyAct && storyAct.specialType === 'loop_gate') {
+                addLog('🗡️ 창조 권능 절단이 완성되었다. 나무꾼을 베어낸 루프가 새 시즌의 문을 연다.', 'loot-unique');
+                triggerSeasonReset();
+                return;
+            }
+        }
         if (zone.id === getCurrentSeasonFinalZoneId()) {
             triggerSeasonReset();
             return;
         }
         if (zone.type === 'abyss' && !game.unlockedTrials.includes('trial_3')) {
-            let shouldUnlockTrial3 = zone.name === '심연 깊이 5' || Math.random() < 0.15;
+            let shouldUnlockTrial3 = zone.name === '혼돈 5' || Math.random() < 0.15;
             if (shouldUnlockTrial3) {
                 game.unlockedTrials.push('trial_3');
                 game.noti.map = true;
-                addLog(zone.name === '심연 깊이 5' ? "✨ [여신의 헌사] 심연 깊이 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [여신의 헌사] 획득! 3차 전직 시련 개방!", "loot-unique");
+                addLog(zone.name === '혼돈 5' ? "✨ [여신의 헌사] 혼돈 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [여신의 헌사] 획득! 3차 전직 시련 개방!", "loot-unique");
             }
         }
         if (game.maxZoneId <= game.currentZoneId) {
             game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
             game.noti.map = true;
             triggerMapUnlockReveal(game.maxZoneId);
+            let clearedStoryAct = getStoryActByZoneId(zone.id);
+            if (clearedStoryAct && clearedStoryAct.unlockText) addLog(`🧭 ${clearedStoryAct.unlockText}`, 'season-up');
             addLog(`🗺️ 신규 사냥터 [${MAP_ZONES[game.maxZoneId].name}] 개방!`, "season-up");
         }
         game.killsInZone = 0;
@@ -7529,7 +7614,13 @@ function performPlayerAttack(pStats) {
         if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
         dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
         dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
-        hit.enemy.hp = Math.max(0, hit.enemy.hp - dmg);
+        let zone = getZone(game.currentZoneId);
+        let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+        let hpAfterDamage = Math.max(0, hit.enemy.hp - dmg);
+        if (hit.enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) {
+            hpAfterDamage = Math.max(1, hpAfterDamage);
+        }
+        hit.enemy.hp = hpAfterDamage;
         if ((pStats.regenSuppress || 0) > 0) hit.enemy.regenSuppressPct = Math.min(95, (hit.enemy.regenSuppressPct || 0) + pStats.regenSuppress);
         hit.enemy.recentHitsTaken = (hit.enemy.recentHitsTaken || 0) + 1;
         hit.enemy.recentHitsTimer = 1.8;
@@ -7575,8 +7666,24 @@ function performPlayerAttack(pStats) {
 
 function handlePlayerDefeat(zone, pStats, message, options) {
     let opts = options || {};
+    let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
     let expLost = 0;
+    if (storyAct && storyAct.specialType === 'forced_defeat') {
+        addLog(`🩸 ${storyAct.clearText}`, 'death');
+        addLog('🧊 이 패배는 담금질로 기록된다.', 'season-up');
+        unlockJournalEntry('act_2');
+        if (game.maxZoneId <= zone.id) {
+            game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
+            triggerMapUnlockReveal(game.maxZoneId);
+        }
+        game.currentZoneId = game.maxZoneId;
+        game.killsInZone = 0;
+        game.playerHp = pStats.maxHp;
+        startMoving(false);
+        updateStaticUI();
+        return;
+    }
     if (zone.type === 'seasonBoss' && game.inTicketBossFight) {
         addLog(message || "☠️ 시즌 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death");
         game.currentZoneId = 0;
@@ -7644,6 +7751,21 @@ function performMonsterAttacks(pStats) {
     let crowdPenalty = Math.max(0.34, 1 - Math.max(0, aliveCount - 1) * 0.055);
     for (let enemy of (game.enemies || [])) {
         if (enemy.hp <= 0) continue;
+        if (enemy.forcedDefeatBoss) {
+            let now = performance.now();
+            if (now >= (enemy.nextForcedRegenAt || 0)) {
+                enemy.hp = enemy.maxHp;
+                enemy.nextForcedRegenAt = now + 5000;
+                if (game.settings.showCombatLog) addLog('✂️ 정원사의 불멸성이 상처를 되감아 풀피로 회복했다.', 'attack-monster');
+            }
+            if (now >= (enemy.forcedDoomAt || 0)) {
+                enemy.forcedDoomAt = now + 10000;
+                game.playerHp = 0;
+                recordIncomingDamage('chaos', pStats.maxHp, '정원사의 가지치기');
+                handlePlayerDefeat(zone, pStats, '☠️ 정원사의 가지치기가 당신의 생명력을 절단했습니다.', { fatalElement: 'chaos', sourceName: '정원사' });
+                return;
+            }
+        }
         if ((enemy.regenRate || 0) > 0) {
             let suppress = Math.max(0, Math.min(95, enemy.regenSuppressPct || 0));
             let effectiveRegenRate = Math.max(0, enemy.regenRate * (1 - suppress / 100));
@@ -7767,6 +7889,12 @@ function coreLoop() {
         }
         performMonsterAttacks(pStats);
     }
+    let currentZone = getZone(game.currentZoneId);
+    if (currentZone && currentZone.type === 'act' && game.runProgress >= 100) {
+        let currentStoryAct = getStoryActByZoneId(currentZone.id);
+        let hasBossAlive = (game.enemies || []).some(enemy => enemy.isBoss && enemy.hp > 0);
+        if (hasBossAlive && currentStoryAct && currentStoryAct.specialType === 'loop_gate' && handleStoryActSpecialDefeat(currentZone, pStats)) return;
+    }
     if (game.playerHp > 0) applyTrialTrapTick(pStats);
     if (game.playerHp <= 0) {
         handlePlayerDefeat(getZone(game.currentZoneId), pStats, "☠️ 상태이상으로 쓰러졌습니다.", { fatalElement: 'other', sourceName: '상태이상' });
@@ -7786,10 +7914,12 @@ function triggerSeasonReset() {
         codexReveal[key] = { revealed: true, slot: parts[0] || '', name: parts[1] || '' };
     });
     game.season++;
+    game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
     game.level = 1;
     game.exp = 0;
     game.killsInZone = 0;
+    game.woodsmanSimulatorSeenLoop = false;
     game.currentZoneId = 0;
     game.maxZoneId = 0;
     game.passivePoints = 0;
@@ -7895,14 +8025,14 @@ function checkUnlocks() {
         game.noti.map = true;
         queueTutorialNotice('unlock_map', '지도 개방', '새 사냥터가 열렸습니다.\n원하는 지역으로 이동해 드랍과 속성을 조절할 수 있습니다.', 'tab-map');
     }
-    if (game.maxZoneId >= 4 && !(game.seenTutorials || []).includes('unlock_market')) {
+    if (game.maxZoneId >= 5 && !(game.seenTutorials || []).includes('unlock_market')) {
         game.noti.items = true;
         queueTutorialNotice('unlock_market', '거래소 개방', '액트 5를 클리어해 거래소가 열렸습니다.\n장비/제작 탭의 거래소에서 재화 교환과 특수 서비스를 이용할 수 있습니다.', 'tab-items', 'item-tab-market');
     }
     if (game.season > 1 && !u.season) {
         u.season = true;
         game.noti.season = true;
-        queueTutorialNotice('unlock_season_tab', '시즌 탭 개방', `시즌 ${game.season}에 도달했습니다!\n시즌 콘텐츠 로드맵과 시즌 패시브를 시즌 탭에서 확인할 수 있습니다.`, 'tab-season');
+        queueTutorialNotice('unlock_season_tab', '루프 탭 개방', `루프 ${game.season}에 도달했습니다!\n루프 이정표와 디버깅 포인트 트리를 루프 탭에서 확인할 수 있습니다.`, 'tab-season');
     }
     if (((game.completedTrials || []).length > 0 || game.ascendPoints > 0 || !!game.ascendClass) && !u.traits) {
         u.traits = true;
@@ -8021,7 +8151,7 @@ function changeZone(id) {
     }
     if (id === LABYRINTH_ZONE_ID) {
         if ((game.season || 1) < 3) return addLog('고대 미궁은 시즌3부터 개방됩니다.', 'attack-monster');
-        if ((game.maxZoneId || 0) < 4) return addLog('액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.', 'attack-monster');
+        if ((game.maxZoneId || 0) < 5) return addLog('액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.', 'attack-monster');
     }
     game.currentZoneId = id;
     game.killsInZone = 0;
@@ -8066,7 +8196,7 @@ function buyAscend(id) {
 
 function getLockedTabMessage(tabId) {
     if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
-    if (tabId === 'tab-season') return '시즌 1을 클리어하면 시즌 탭이 열립니다.';
+    if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비/제작 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';
     if (tabId === 'tab-codex') return '첫 고유 아이템을 획득하면 도감 탭이 열립니다.';
@@ -8459,6 +8589,7 @@ function applyThemeMode(mode) {
 }
 
 function updateSettings() {
+    let prevHeroAppearance = game.settings.heroAppearance || 'v1';
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
     game.settings.showCombatLog = document.getElementById('chk-log-combat').checked;
     game.settings.showSpawnLog = document.getElementById('chk-log-spawn').checked;
@@ -8480,8 +8611,11 @@ function updateSettings() {
     game.settings.townReturnAction = (document.getElementById('sel-town-return-action') || {}).value || 'retry';
     let themeSelect = document.getElementById('sel-theme-mode');
     game.settings.themeMode = themeSelect ? themeSelect.value : (game.settings.themeMode || 'dark');
+    let heroAppearanceSelect = document.getElementById('sel-hero-appearance');
+    game.settings.heroAppearance = heroAppearanceSelect ? heroAppearanceSelect.value : (game.settings.heroAppearance || 'v1');
     applyThemeMode(game.settings.themeMode);
     toggleDeathNoticeSetting(game.settings.showDeathNotice);
+    if ((game.settings.heroAppearance || 'v1') !== prevHeroAppearance) reloadBattleAssets();
     updateStaticUI();
 }
 
@@ -9997,9 +10131,14 @@ function updateCombatUI(pStats) {
     }
 
     let zone = getZone(game.currentZoneId);
-    let totalClears = Math.max(1, zone.maxKills || 1);
-    let clearProgress = Math.min(totalClears, Math.max(1, (game.killsInZone || 0) + (game.runProgress > 0 || game.enemies.length > 0 ? 1 : 0)));
-    document.getElementById('ui-combat-zone').innerText = zone.type === 'trial' ? zone.name : `${zone.name} - (${clearProgress}/${totalClears})`;
+    let combatTitle = zone.name;
+    if (zone.type === 'act') {
+        let storyAct = getStoryActByZoneId(zone.id);
+        if (storyAct) combatTitle = `⚔️ 전투 ${formatStoryActLabel(storyAct)}: ${storyAct.title}`;
+    } else if (zone.type !== 'trial') {
+        combatTitle = `⚔️ 전투 ${zone.name}`;
+    }
+    document.getElementById('ui-combat-zone').innerText = zone.type === 'trial' ? zone.name : combatTitle;
 
     if (game.moveTimer > 0) {
         let readyPct = Math.min(100, (1 - game.moveTimer / game.moveTotalTime) * 100);
@@ -10440,12 +10579,17 @@ function updateStaticUI() {
         let isActRewardZone = zone.type === 'act' && idx <= 9;
         let cleared = idx < game.maxZoneId || rewardReady || rewardClaimed;
         let actionHtml = '';
+        let mapZoneText = zone.name;
+        if (zone.type === 'act') {
+            let storyAct = getStoryActByZoneId(idx);
+            if (storyAct) mapZoneText = `${zone.name}<br><span class="map-zone-status">보스: ${storyAct.bossName}</span>`;
+        }
         if (isActRewardZone && rewardReady) actionHtml = `<button class="map-reward-btn" onclick="event.stopPropagation(); openActReward(${idx})">보상 받기</button>`;
         else if (isActRewardZone && rewardClaimed) actionHtml = `<button class="map-reward-btn claimed" disabled>보상 완료</button>`;
         else if (cleared) actionHtml = `<span class="map-zone-status">정복 완료</span>`;
         return `
             <div class="map-item ${current} ${unlockReveal}" onclick="changeZone(${idx})">
-                <div class="map-item-main"><span>${icon}</span><span>${zone.name}</span></div>
+                <div class="map-item-main"><span>${icon}</span><span>${mapZoneText}</span></div>
                 <div class="map-item-actions">${actionHtml}</div>
             </div>
         `;
@@ -10493,7 +10637,7 @@ function updateStaticUI() {
     let seasonVisible = game.season > 1 || game.seasonPoints > 0;
     document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
     document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
-    let mapAbyssUnlocked = (game.maxZoneId || 0) >= 10;
+    let mapAbyssUnlocked = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     let mapAbyssBtn = document.getElementById('btn-map-tab-abyss');
     if (mapAbyssBtn) mapAbyssBtn.style.display = mapAbyssUnlocked ? 'block' : 'none';
     if (!mapAbyssUnlocked && game.mapSubtab === 'map-tab-abyss') game.mapSubtab = 'map-tab-zones';
@@ -10503,7 +10647,7 @@ function updateStaticUI() {
         let spent = getAbyssPassiveSpent();
         let free = getAbyssPassiveFreePoints();
         let cleared = (game.abyssClearedDepths || []).length;
-        document.getElementById('ui-abyss-passive-summary').innerHTML = `획득 포인트 <strong>${total}</strong> / 사용 <strong>${spent}</strong> / 남은 <strong>${free}</strong> · 최초 클리어 깊이 ${cleared}개`;
+        document.getElementById('ui-abyss-passive-summary').innerHTML = `획득 포인트 <strong>${total}</strong> / 사용 <strong>${spent}</strong> / 남은 <strong>${free}</strong> · 최초 클리어 혼돈 층 ${cleared}개`;
         document.getElementById('ui-abyss-passive-grid').innerHTML = ABYSS_PASSIVE_NODES.map(node => {
             let rank = Math.max(0, Math.floor(abyssState[node.key] || 0));
             let disabled = free <= 0 || rank >= node.max;
@@ -10516,7 +10660,7 @@ function updateStaticUI() {
             </div>`;
         }).join('');
     } else {
-        document.getElementById('ui-abyss-passive-summary').innerHTML = `<span style="color:#7f8c8d;">심연(지도 10번 이후)부터 개방됩니다.</span>`;
+        document.getElementById('ui-abyss-passive-summary').innerHTML = `<span style="color:#7f8c8d;">혼돈(지도 ${ABYSS_START_ZONE_ID}번 이후)부터 개방됩니다.</span>`;
         document.getElementById('ui-abyss-passive-grid').innerHTML = '';
     }
     let seasonRoadmapKeys = (game.unlockedSeasonContents || []).map(id => parseInt(String(id).replace('season_', ''), 10)).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
@@ -10529,11 +10673,11 @@ function updateStaticUI() {
         let stateText = current ? '진행 중' : (unlocked ? '해금됨' : '잠김');
         return `<div style="background:#121822; border:1px solid ${stateColor}; border-radius:8px; padding:10px 12px;">
             <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;">
-                <strong style="color:${stateColor};">시즌 ${seasonNum} - ${def.title}</strong><span style="color:${stateColor}; font-size:0.8em;">${stateText}</span>
+                <strong style="color:${stateColor};">루프 ${seasonNum} - ${def.title}</strong><span style="color:${stateColor}; font-size:0.8em;">${stateText}</span>
             </div>
             <div style="color:#a8bdd3; font-size:0.82em; line-height:1.5;">${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
         </div>`;
-    }).join('') || `<div style="color:#7f8c8d;">시즌 1을 클리어하면 시즌 로드맵이 열립니다.</div>`;
+    }).join('') || `<div style="color:#7f8c8d;">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
     let renderSeasonNode = id => {
         let node = SEASON_NODES[id];
         let active = game.seasonNodes.includes(id);
@@ -10685,6 +10829,11 @@ function updateStaticUI() {
         let label = !unlocked ? '🔒' : (id ? '●' : '');
         return `<button onclick="onTalismanBoardCellClick(${x},${y})" style="width:42px; height:42px; border:1px solid #3b4f63; background:${cellColor}; color:#d5e8ff; border-radius:6px; font-weight:bold;" ${!unlocked ? 'disabled' : ''}>${label}</button>`;
     }).join('');
+    let journalList = document.getElementById('ui-journal-list');
+    if (journalList) {
+        let entries = (game.journalEntries || []).filter(id => JOURNAL_DB[id]).map(id => JOURNAL_DB[id]);
+        journalList.innerHTML = entries.map(entry => `<div style="background:#1a1a24; border:1px solid #3d3d5c; border-radius:8px; padding:10px;"><div style="font-weight:bold; color:#ffd36b; margin-bottom:6px;">${entry.title}</div><div style="color:#c5d6e8; font-size:0.86em; line-height:1.6;">${entry.lines.map(line => `• ${line}`).join('<br>')}</div></div>`).join('') || `<div style="color:#7f8c8d;">아직 해금된 기록이 없습니다.</div>`;
+    }
 
     switchItemSubtab(game.itemSubtab || 'item-tab-equip');
     switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
@@ -11096,6 +11245,13 @@ function mergeDefaults(save) {
         merged.passives = [];
         merged.discoveredPassives = ['n0'];
     }
+    if ((save.saveVersion || 0) < 13) {
+        if (typeof merged.currentZoneId === 'number' && merged.currentZoneId >= 10) merged.currentZoneId += (ABYSS_START_ZONE_ID - 10);
+        if (typeof merged.maxZoneId === 'number' && merged.maxZoneId >= 10) merged.maxZoneId += (ABYSS_START_ZONE_ID - 10);
+    } else if ((save.saveVersion || 0) < 14) {
+        if (typeof merged.currentZoneId === 'number' && merged.currentZoneId >= 11) merged.currentZoneId -= 1;
+        if (typeof merged.maxZoneId === 'number' && merged.maxZoneId >= 11) merged.maxZoneId -= 1;
+    }
     merged.passives = Array.from(new Set((merged.passives || []).map(normalizePassiveNodeId).filter(Boolean)));
     merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
     if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
@@ -11161,6 +11317,8 @@ function mergeDefaults(save) {
     if (!merged.gemEnhanceUnlocked && (((merged.currencies || {}).bossCore || 0) > 0 || ((merged.currencies || {}).skyEssence || 0) > 0)) merged.gemEnhanceUnlocked = true;
     merged.inTicketBossFight = !!merged.inTicketBossFight;
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
+    merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
+    if (!merged.journalEntries.includes('prologue')) merged.journalEntries.unshift('prologue');
     merged.passiveStarEvolution = !!merged.passiveStarEvolution;
     merged.settings.showDeathNotice = merged.settings.showDeathNotice !== false;
     merged.settings.themeMode = merged.settings.themeMode === 'light' ? 'light' : 'dark';
@@ -11170,6 +11328,7 @@ function mergeDefaults(save) {
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
     merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
+    merged.settings.heroAppearance = ['v1', 'v2', 'v3', 'v4'].includes(merged.settings.heroAppearance) ? merged.settings.heroAppearance : 'v1';
     merged.abyssPassivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.abyssPassivePoints, defaultGame.abyssPassivePoints, 0)));
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
     merged.abyssPassives = { ...(defaultGame.abyssPassives || {}), ...(merged.abyssPassives || {}) };
@@ -11181,6 +11340,9 @@ function mergeDefaults(save) {
     merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1, 100)));
     merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));
     merged.season = Math.max(1, Math.floor(clampFiniteNumber(merged.season, defaultGame.season, 1)));
+    merged.loopCount = Math.max(0, Math.floor(clampFiniteNumber(merged.loopCount, defaultGame.loopCount, 0)));
+    merged.woodsmanDefeatAttempts = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanDefeatAttempts, defaultGame.woodsmanDefeatAttempts, 0)));
+    merged.woodsmanSimulatorSeenLoop = !!merged.woodsmanSimulatorSeenLoop;
     merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
     merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0)));
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
@@ -12098,6 +12260,7 @@ function init() {
     document.getElementById('sel-map-complete-action').value = game.settings.mapCompleteAction || 'nextZone';
     document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
     document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
+    document.getElementById('sel-hero-appearance').value = ['v1', 'v2', 'v3', 'v4'].includes(game.settings.heroAppearance) ? game.settings.heroAppearance : 'v1';
     applyThemeMode(game.settings.themeMode);
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     syncSalvageControlsFromSettings();
