@@ -3349,14 +3349,14 @@ const SKILL_CONFIG = {
     8: { id: 'magic_cast', motion: 'cast', weapon: 'magic_orb', projectile: 'magic_projectile_dark', effectIndex: 28 }
 };
 const WEAPON_CONFIG = {
-    sword: { atlasIndex: 0, grip: { x: 145, y: 390 }, scale: 0.42, rotation: -0.65, layer: 'front' },
-    greatsword: { atlasIndex: 1, grip: { x: 140, y: 390 }, scale: 0.5, rotation: -0.65, layer: 'front' },
-    dagger: { atlasIndex: 2, grip: { x: 155, y: 375 }, scale: 0.35, rotation: -0.65, layer: 'front' },
-    bow: { atlasIndex: 4, grip: { x: 260, y: 280 }, scale: 0.45, rotation: 0, layer: 'front' },
-    spear: { atlasIndex: 6, grip: { x: 170, y: 390 }, scale: 0.58, rotation: -0.55, layer: 'front' },
-    staff: { atlasIndex: 7, grip: { x: 185, y: 390 }, scale: 0.55, rotation: -0.35, layer: 'front' },
-    scythe: { atlasIndex: 9, grip: { x: 150, y: 430 }, scale: 0.55, rotation: -0.55, layer: 'front' },
-    magic_orb: { atlasIndex: 10, grip: { x: 255, y: 255 }, scale: 0.32, rotation: 0, layer: 'front' }
+    sword: { atlasIndex: 0, grip: { x: 145, y: 390 }, scale: 0.3, rotation: -0.65, layer: 'front' },
+    greatsword: { atlasIndex: 1, grip: { x: 140, y: 390 }, scale: 0.35, rotation: -0.65, layer: 'front' },
+    dagger: { atlasIndex: 2, grip: { x: 155, y: 375 }, scale: 0.25, rotation: -0.65, layer: 'front' },
+    bow: { atlasIndex: 4, grip: { x: 260, y: 280 }, scale: 0.31, rotation: 0, layer: 'front' },
+    spear: { atlasIndex: 6, grip: { x: 170, y: 390 }, scale: 0.4, rotation: -0.55, layer: 'front' },
+    staff: { atlasIndex: 7, grip: { x: 185, y: 390 }, scale: 0.38, rotation: -0.35, layer: 'front' },
+    scythe: { atlasIndex: 9, grip: { x: 150, y: 430 }, scale: 0.39, rotation: -0.55, layer: 'front' },
+    magic_orb: { atlasIndex: 10, grip: { x: 255, y: 255 }, scale: 0.24, rotation: 0, layer: 'front' }
 };
 const PROJECTILE_CONFIG = {
     dagger_projectile: { atlasIndex: 3, speed: 650, scale: 0.35 },
@@ -3758,7 +3758,7 @@ function updateSkillPlayback(now, playerPos, width) {
             skillId: state.skillId,
             effectIndex: chosenEffectIndex,
             startAt: now,
-            duration: 180,
+            duration: 320,
             x: playerPos.x + 64,
             y: playerPos.y - 18
         });
@@ -3787,8 +3787,16 @@ function drawWeapon(ctx, heroX, heroY, motion, frameLocalIndex, weaponName, laye
     let finalScale = weaponCfg.scale * (tweak.scale || 1);
     let gripX = (weaponCfg.grip.x / 512) * atlas.sw;
     let gripY = (weaponCfg.grip.y / 512) * atlas.sh;
+    battleVisualState.weaponSmoothPos = battleVisualState.weaponSmoothPos || {};
+    let smoothKey = `${skillId}:${weaponName}:${layerFilter || 'front'}`;
+    let prev = battleVisualState.weaponSmoothPos[smoothKey];
+    let targetX = handWorldX + (tweak.x || 0);
+    let targetY = handWorldY + (tweak.y || 0);
+    let smoothX = prev ? (prev.x + (targetX - prev.x) * 0.4) : targetX;
+    let smoothY = prev ? (prev.y + (targetY - prev.y) * 0.4) : targetY;
+    battleVisualState.weaponSmoothPos[smoothKey] = { x: smoothX, y: smoothY };
     ctx.save();
-    ctx.translate(handWorldX + (tweak.x || 0), handWorldY + (tweak.y || 0));
+    ctx.translate(smoothX, smoothY);
     ctx.rotate((weaponCfg.rotation || 0) + (tweak.rotation || 0));
     ctx.drawImage(
         battleAssets.images.weapons,
@@ -3837,8 +3845,8 @@ function drawEffect(ctx, now) {
         if (!rect) return;
         let t = clampNumber((now - effect.startAt) / effect.duration, 0, 1);
         ctx.save();
-        ctx.globalAlpha = 0.85 - t * 0.6;
-        ctx.drawImage(battleAssets.images.effectsV2, rect.sx, rect.sy, rect.sw, rect.sh, effect.x - 30, effect.y - 30, 60, 60);
+        ctx.globalAlpha = 0.95 - t * 0.5;
+        ctx.drawImage(battleAssets.images.effectsV2, rect.sx, rect.sy, rect.sw, rect.sh, effect.x - 36, effect.y - 36, 72, 72);
         ctx.restore();
     });
 }
@@ -9751,8 +9759,6 @@ function renderBattlefield() {
         downBlend: downBlend
     });
     drawSkillWeaponLayer(ctx, playerPos, now, 'front');
-    drawSkillProjectileLayer(ctx, now);
-    drawSkillEffectLayer(ctx, now);
 
     battleFx.forEach(fx => {
         if (battleVisualState.processedFxIds.has(fx.id)) return;
@@ -9818,6 +9824,9 @@ function renderBattlefield() {
         ctx.strokeRect(barX - 0.5, barY - 0.5, barWidth + 1, 7);
         ctx.restore();
     });
+
+    drawSkillProjectileLayer(ctx, now);
+    drawSkillEffectLayer(ctx, now);
 
     battleFx.forEach(fx => {
         let t = clampNumber((now - fx.start) / fx.duration, 0, 1);
