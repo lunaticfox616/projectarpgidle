@@ -9475,13 +9475,16 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         function pickAttackFrame(list) {
             let sequence = (list || []).filter(Boolean);
             if (sequence.length === 0) return frames.attack || frames.sideIdle || frames.sideWalk;
-            let phase = clampNumber(Math.abs(swingPower), 0, 0.999);
+            let attackProgress = Number.isFinite(motionState.attackProgress) ? motionState.attackProgress : Math.abs(swingPower);
+            let phase = clampNumber(attackProgress * 1.5, 0, 0.72);
             let idx = Math.floor(phase * sequence.length);
             if (clipLoop.sword_attack_body === true) idx = Math.floor(((now / 120) % sequence.length));
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         let idleFrame = pickCycle(idleCycle, 920, 0);
-        let moveCycleSpeed = 1140;
+        let moveStat = Math.max(70, Number(getPlayerStats().move) || 100);
+        let moveRatio = clampNumber(moveStat / 100, 0.85, 2.25);
+        let moveCycleSpeed = clampNumber(1040 / moveRatio, 620, 980);
         let walkFrame = pickCycle(walkCycle, moveCycleSpeed, 0);
         let movingFrame = pickCycle(runCycle, moveCycleSpeed, 0) || walkFrame;
         let frame = downPhase !== null || downBlend > 0.24
@@ -10061,6 +10064,7 @@ function renderBattlefield() {
     drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15, playerFlash, swingPower, currentSkillVisual, now, {
         advanceBlend: advanceBlend,
         attackBlend: attackBlend,
+        attackProgress: swingFx ? clampNumber((now - swingFx.start) / Math.max(1, swingFx.duration), 0, 0.999) : 0,
         hurtBlend: hurtBlend,
         downBlend: downBlend
     });
