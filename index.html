@@ -1266,8 +1266,8 @@ const WORLD_MAP_HOTSPOTS = [
     { zoneId: 9, x: 91, y: 30 },
     { zoneId: 10, x: 94, y: 22 }
 ];
-const abyssTiers = [8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 16];
-for (let i = 1; i <= 15; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1), name: "혼돈 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 1, ele: "chaos" });
+const abyssTiers = [8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 19, 20];
+for (let i = 1; i <= 20; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1), name: "혼돈 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 1, ele: "chaos" });
 
 const TRIAL_ZONES = [
     { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 3 },
@@ -1296,7 +1296,17 @@ const SEASON_CONTENT_ROADMAP = {
     7: { title: '루프 7', features: ['해금: 시즌 보스 추격 보상'] },
     8: { title: '루프 8', features: ['해금: 혼돈 드랍 강화 구간'] },
     9: { title: '루프 9', features: ['해금: 후반 성장 가속 구간'] },
-    10: { title: '루프 10', features: ['해금: 최종 루프 사이클'] }
+    10: { title: '루프 10', features: ['해금: 최종 루프 사이클'] },
+    11: { title: '루프 11', features: ['해금: 혼돈 심화 단계'] },
+    12: { title: '루프 12', features: ['해금: 혼돈 심화 단계'] },
+    13: { title: '루프 13', features: ['해금: 혼돈 심화 단계'] },
+    14: { title: '루프 14', features: ['해금: 혼돈 심화 단계'] },
+    15: { title: '루프 15', features: ['해금: 혼돈 심화 단계'] },
+    16: { title: '루프 16', features: ['해금: 혼돈 심화 단계'] },
+    17: { title: '루프 17', features: ['해금: 혼돈 심화 단계'] },
+    18: { title: '루프 18', features: ['해금: 혼돈 심화 단계'] },
+    19: { title: '루프 19', features: ['해금: 혼돈 심화 단계'] },
+    20: { title: '루프 20', features: ['해금: 혼돈 20 종착 루프'] }
 };
 const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
@@ -1322,7 +1332,12 @@ const JOURNAL_DB = {
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman'];
 
 function getSeasonAbyssDepthCap(seasonValue) {
-    return 15;
+    let season = Math.max(1, Math.floor(seasonValue || 1));
+    return Math.min(20, 10 + (season - 1));
+}
+
+function getLoopAbyssRequirementText(seasonValue) {
+    return `루프 조건: 혼돈 ${getSeasonAbyssDepthCap(seasonValue)} 클리어`;
 }
 
 function getSeasonFinalZoneId(seasonValue) {
@@ -1399,7 +1414,7 @@ function applySeasonContentProgression(options) {
     let opts = options || {};
     game.unlockedSeasonContents = Array.isArray(game.unlockedSeasonContents) ? game.unlockedSeasonContents : [];
     game.seenSeasonContentNotices = Array.isArray(game.seenSeasonContentNotices) ? game.seenSeasonContentNotices : [];
-    let maxSeason = Math.max(1, Math.min(10, game.season || 1));
+    let maxSeason = Math.max(1, Math.min(20, game.season || 1));
     for (let s = 1; s <= maxSeason; s++) {
         let key = `season_${s}`;
         if (!game.unlockedSeasonContents.includes(key)) game.unlockedSeasonContents.push(key);
@@ -7675,11 +7690,9 @@ function finishEncounterRun() {
             if (depth === 5 && !game.woodsmanSimulatorSeenLoop) {
                 game.woodsmanSimulatorSeenLoop = true;
                 unlockJournalEntry('woodsman');
-                queueTutorialNotice('woodsman_simulator_loop', '나무꾼의 시뮬레이터', '“다음은 더 나은 세계를 바라지.”\n정체를 드러낸 존재는 진짜 나무꾼이 아닌 시뮬레이터였다.\n당신은 강제로 루프한다.', 'tab-season');
-                triggerSeasonReset();
-                return;
+                queueTutorialNotice('woodsman_simulator_loop', '나무꾼의 시뮬레이터', '“다음은 더 나은 세계를 바라지.”\n정체를 드러낸 존재는 진짜 나무꾼이 아닌 시뮬레이터였다.\n더 깊은 혼돈을 돌파해야 루프가 열린다.', 'tab-season');
             }
-            let capDepth = 15;
+            let capDepth = 20;
             game.abyssClearedDepths = Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths : [];
             if (depth <= capDepth && !game.abyssClearedDepths.includes(depth)) {
                 game.abyssClearedDepths.push(depth);
@@ -8183,7 +8196,7 @@ function triggerSeasonReset() {
     refreshPassiveVisibility();
     game.playerHp = getPlayerStats().maxHp;
     ensureActJournalCompletionForLoop({ silent: false });
-    addLog("🌟 심연을 정복했습니다! [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
+    addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
     checkUnlocks();
     startMoving(true);
     switchTab('tab-character');
@@ -10694,11 +10707,12 @@ function updateStaticUI() {
         let current = seasonNum === game.season;
         let stateColor = current ? '#f1c40f' : (unlocked ? '#2ecc71' : '#7f8c8d');
         let stateText = current ? '진행 중' : (unlocked ? '해금됨' : '잠김');
+        let reqText = getLoopAbyssRequirementText(seasonNum);
         return `<div style="background:#121822; border:1px solid ${stateColor}; border-radius:8px; padding:10px 12px;">
             <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;">
                 <strong style="color:${stateColor};">루프 ${seasonNum} - ${def.title}</strong><span style="color:${stateColor}; font-size:0.8em;">${stateText}</span>
             </div>
-            <div style="color:#a8bdd3; font-size:0.82em; line-height:1.5;">${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
+            <div style="color:#a8bdd3; font-size:0.82em; line-height:1.5;">• ${reqText}<br>${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
         </div>`;
     }).join('') || `<div style="color:#7f8c8d;">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
     let renderSeasonNode = id => {
