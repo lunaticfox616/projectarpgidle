@@ -1055,15 +1055,6 @@
                     <option value="light">라이트모드</option>
                 </select>
             </label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                <span>캐릭터 외형</span>
-                <select id="sel-hero-appearance" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
-                    <option value="v1">v1</option>
-                    <option value="v2">v2</option>
-                    <option value="v3">v3</option>
-                    <option value="v4">v4</option>
-                </select>
-            </label>
             <hr style="border-color: #3d3d5c; width: 100%;">
             <button id="btn-open-death-log" onclick="openLastDeathLog()" style="background-color: #4a6078;">☠️ 최근 데스로그 보기</button>
             <button onclick="saveGame()" style="background-color: #27ae60;">💾 수동 저장</button>
@@ -1935,8 +1926,7 @@ const defaultGame = {
         jewelAutoSalvageEnabled: false,
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false },
         mapCompleteAction: 'nextZone',
-        townReturnAction: 'retry',
-        heroAppearance: 'v1'
+        townReturnAction: 'retry'
     },
     passivePoints: 0,
     playerHp: 100,
@@ -3370,7 +3360,9 @@ let battleVisualState = {
     playerAttackBlend: 0,
     playerHurtBlend: 0,
     playerDownBlend: 0,
-    lastNow: 0
+    lastNow: 0,
+    advanceDesired: false,
+    advanceChangedAt: 0
 };
 const DEBUG_BATTLE_ANCHORS = false;
 const HERO_SPRITE_CONFIG = { cols: 6, rows: 5, drawHeight: 58, anchorX: 0.5, anchorY: 0.92 };
@@ -3860,36 +3852,10 @@ function drawWeapon(ctx, heroX, heroY, motion, frameLocalIndex, weaponName, laye
     return;
 }
 function drawProjectile(ctx, now) {
-    if (!battleAssets.images.weapons) return;
-    battleVisualState.skillProjectiles = (battleVisualState.skillProjectiles || []).filter(p => now - p.startAt <= p.lifetime);
-    battleVisualState.skillProjectiles.forEach(projectile => {
-        let pCfg = PROJECTILE_CONFIG[projectile.projectileName];
-        if (!pCfg) return;
-        let atlas = getWeaponAtlasRect(pCfg.atlasIndex);
-        projectile.x += pCfg.speed / 60;
-        projectile.y += ((projectile.targetY || projectile.y) - projectile.y) * 0.18;
-        if (projectile.x >= projectile.targetX) projectile.startAt = now - projectile.lifetime;
-        let alpha = 1 - clampNumber((now - projectile.startAt) / projectile.lifetime, 0, 1);
-        let scale = pCfg.scale;
-        ctx.save();
-        ctx.globalAlpha = Math.max(0.25, alpha);
-        ctx.drawImage(battleAssets.images.weapons, atlas.sx, atlas.sy, atlas.sw, atlas.sh, projectile.x - (atlas.sw * scale) / 2, projectile.y - (atlas.sh * scale) / 2, atlas.sw * scale, atlas.sh * scale);
-        ctx.restore();
-    });
+    battleVisualState.skillProjectiles = [];
 }
 function drawEffect(ctx, now) {
-    if (!battleAssets.images.effectsV2) return;
-    battleVisualState.skillEffects = (battleVisualState.skillEffects || []).filter(effect => now - effect.startAt <= effect.duration);
-    battleVisualState.skillEffects.forEach(effect => {
-        let rect = getEffectAtlasRect(effect.effectIndex, battleAssets.images.effectsV2);
-        if (!rect) return;
-        let t = clampNumber((now - effect.startAt) / effect.duration, 0, 1);
-        ctx.save();
-        ctx.globalAlpha = 0.42 - t * 0.18;
-        let sz = Math.min(rect.sw, rect.sh) * 0.48;
-        ctx.drawImage(battleAssets.images.effectsV2, rect.sx, rect.sy, rect.sw, rect.sh, effect.x - sz / 2, effect.y - sz / 2, sz, sz);
-        ctx.restore();
-    });
+    battleVisualState.skillEffects = [];
 }
 function drawSkillWeaponLayer(ctx, playerPos, now, layer) {
     let state = getSkillPlaybackState(now);
@@ -4312,16 +4278,14 @@ function initBattleAssets() {
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
     const loadTicket = battleAssets.loadTicket;
     const customHeroSrc = getCustomHeroSheetDataUrl();
-    const heroAppearanceMap = {
-        v1: 'assets/battle-hero-v1.png',
-        v2: 'assets/battle-hero-v2.png',
-        v3: 'assets/battle-hero-v3.png',
-        v4: 'assets/battle-hero-v4.png'
-    };
-    const selectedHeroAppearance = (game && game.settings && heroAppearanceMap[game.settings.heroAppearance]) ? game.settings.heroAppearance : 'v1';
-    const defaultHeroSrc = customHeroSrc || heroAppearanceMap[selectedHeroAppearance];
+    const defaultHeroSrc = customHeroSrc || 'assets/battle-hero-v1.png';
     const manifest = {
-        hero: defaultHeroSrc,
+        heroIdle: 'assets/hero1/ElfIdle001Sheet-export.png',
+        heroWalk: 'assets/hero1/ElfWalk001-Sheet-export.png',
+        heroAttack: 'assets/hero1/ElfBasicAtk001BGR-Sheet-export.png',
+        heroHurt: 'assets/hero1/ElfHurt001-Sheet-export.png',
+        heroDeath: 'assets/hero1/ElfDeath001-Sheet-export.png',
+        heroLegacy: defaultHeroSrc,
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
         enemies3: 'assets/battle-enemies-v3.png',
@@ -4365,7 +4329,7 @@ function initBattleAssets() {
                 if (key.startsWith('backdrop')) {
                     battleAssets.backdrops[key] = img;
                 } else {
-                    let keepOriginalSheet = key === 'tiles' || (key === 'hero' && heroSheetHasTransparency(img));
+                    let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || (key === 'heroLegacy' && heroSheetHasTransparency(img));
                     battleAssets.images[key] = keepOriginalSheet ? img : sanitizeBattleSheet(img);
                 }
             } catch (error) {
@@ -4710,8 +4674,9 @@ function buildBattleAssetAtlas() {
         { x: 800, y: 628, width: 188, height: 189 },
         { x: 1024, y: 630, width: 175, height: 187 }
     ];
-    let heroFramesLegacy = heroParts.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
-    let heroFramesV2 = heroPartsV2.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
+    const legacyHeroImage = battleAssets.images.heroLegacy;
+    let heroFramesLegacy = legacyHeroImage ? heroParts.map(part => trimRectToContent(legacyHeroImage, part, 3)) : [];
+    let heroFramesV2 = legacyHeroImage ? heroPartsV2.map(part => trimRectToContent(legacyHeroImage, part, 3)) : [];
     function hasUsableFrame(frame) {
         return !!(frame && Number.isFinite(frame.width) && Number.isFinite(frame.height) && frame.width >= 18 && frame.height >= 24);
     }
@@ -4729,6 +4694,69 @@ function buildBattleAssetAtlas() {
             width: Math.max(10, Math.round(part.width * scaleX)),
             height: Math.max(10, Math.round(part.height * scaleY))
         }));
+    }
+    function withImageRef(image, frame) {
+        if (!image || !frame) return null;
+        return { ...frame, image: image };
+    }
+    function buildStripFramesFromImage(image, minArea) {
+        if (!image) return [];
+        let detected = sortSheetComponents(detectSpriteComponents(image, minArea || 220))
+            .map(rect => trimRectToContent(image, padSpriteRect(rect, image, 2), 2))
+            .filter(rect => rect && rect.width >= 22 && rect.height >= 38)
+            .map(rect => withImageRef(image, rect))
+            .filter(Boolean);
+        if (detected.length > 0) return detected;
+        let fallbackCols = Math.max(1, Math.round((image.width || 1) / 80));
+        let frameWidth = Math.max(1, Math.floor((image.width || 1) / fallbackCols));
+        let fallback = [];
+        for (let i = 0; i < fallbackCols; i++) {
+            fallback.push(withImageRef(image, trimRectToContent(image, { x: i * frameWidth, y: 0, width: frameWidth, height: image.height }, 1)));
+        }
+        return fallback.filter(Boolean);
+    }
+    function buildHeroFrameSetFromHero1Folder() {
+        let idleFrames = buildStripFramesFromImage(battleAssets.images.heroIdle, 210);
+        let walkFrames = buildStripFramesFromImage(battleAssets.images.heroWalk, 210);
+        let attackFrames = buildStripFramesFromImage(battleAssets.images.heroAttack, 220);
+        let hurtFrames = buildStripFramesFromImage(battleAssets.images.heroHurt, 200);
+        let downFrames = buildStripFramesFromImage(battleAssets.images.heroDeath, 200);
+        if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
+        let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
+        return {
+            characterAnimations: {
+                idle: idleFrames,
+                walk_or_run: walkFrames,
+                sword_attack_body: attackFrames,
+                cast_body: attackFrames,
+                hurt: hurtFrames.length > 0 ? hurtFrames : [hold].filter(Boolean),
+                down_or_knockdown: downFrames.length > 0 ? downFrames : (hurtFrames.length > 0 ? hurtFrames : [hold].filter(Boolean)),
+                bow_attack_body: attackFrames
+            },
+            clipLoop: {
+                idle: true,
+                walk_or_run: true,
+                sword_attack_body: false,
+                cast_body: false,
+                hurt: false,
+                down_or_knockdown: false,
+                bow_attack_body: false
+            },
+            idle: idleFrames,
+            walk: walkFrames,
+            run: walkFrames,
+            swordCombo: attackFrames,
+            castCombo: attackFrames,
+            projectileCombo: attackFrames,
+            bowCombo: attackFrames,
+            hurt: hurtFrames,
+            down: downFrames,
+            attack: attackFrames[0] || hold || null,
+            sideIdle: hold || null,
+            sideWalk: walkFrames[0] || hold || null,
+            frontIdle: hold || null,
+            frontGuard: idleFrames[1] || hold || null
+        };
     }
     function buildHeroFrameSetFromDetectedRows(image) {
         let detected = detectSpriteComponents(image, 650)
@@ -5220,21 +5248,31 @@ function buildBattleAssetAtlas() {
         let defs = scaleSafeHeroClipDefs(getBattleHero1SafeClipDefs(), image.width / 1448, image.height / 1086);
         return buildSafeHeroFrameSetFromClipDefs(image, defs);
     }
-    let heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
+    let heroFrameSet = buildHeroFrameSetFromHero1Folder();
+    if (!heroFrameSet && heroFramesLegacy.length > 0) heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
     // v2 하드 매핑 + 어떤 해상도든 커스텀/비표준 시트는 스케일/감지 fallback을 탄다.
-    if (battleAssets.images.hero && isNearSize(battleAssets.images.hero, 1448, 1086, 0.05)) {
-        heroFrameSet = buildHeroFrameSetBattleHero1(battleAssets.images.hero);
-    } else if (battleAssets.images.hero && isNearSize(battleAssets.images.hero, 1264, 842, 0.05)) {
+    if (!heroFrameSet && legacyHeroImage && isNearSize(legacyHeroImage, 1448, 1086, 0.05)) {
+        heroFrameSet = buildHeroFrameSetBattleHero1(legacyHeroImage);
+    } else if (!heroFrameSet && legacyHeroImage && isNearSize(legacyHeroImage, 1264, 842, 0.05)) {
         heroFrameSet = buildHeroFrameSet(heroFramesV2);
-        let detectedV2 = buildHeroFrameSetFromDetectedRows(battleAssets.images.hero);
+        let detectedV2 = buildHeroFrameSetFromDetectedRows(legacyHeroImage);
         if (detectedV2) heroFrameSet = detectedV2;
-    } else if (battleAssets.images.hero) {
-        let scaledParts = buildScaledHeroParts(battleAssets.images.hero);
-        let scaledFrames = scaledParts.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
+    } else if (!heroFrameSet && legacyHeroImage) {
+        let scaledParts = buildScaledHeroParts(legacyHeroImage);
+        let scaledFrames = scaledParts.map(part => trimRectToContent(legacyHeroImage, part, 3));
         let scaledUsableCount = scaledFrames.filter(hasUsableFrame).length;
         if (scaledUsableCount >= 5) heroFrameSet = buildHeroFrameSet(scaledFrames);
-        let detectedCustom = buildHeroFrameSetFromDetectedRows(battleAssets.images.hero);
+        let detectedCustom = buildHeroFrameSetFromDetectedRows(legacyHeroImage);
         if (detectedCustom) heroFrameSet = detectedCustom;
+    }
+    if (!heroFrameSet) {
+        heroFrameSet = {
+            characterAnimations: { idle: [], walk_or_run: [], sword_attack_body: [], cast_body: [], hurt: [], down_or_knockdown: [], bow_attack_body: [] },
+            clipLoop: {},
+            idle: [],
+            walk: [],
+            run: []
+        };
     }
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(battleAssets.images.enemies, part, key === 'boss' ? 5 : 3)]));
     function buildDetectedEnemyPools(image) {
@@ -5285,7 +5323,7 @@ function buildBattleAssetAtlas() {
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
     return {
         hero: {
-            image: battleAssets.images.hero,
+            image: legacyHeroImage || battleAssets.images.heroIdle || battleAssets.images.heroWalk || battleAssets.images.heroAttack || battleAssets.images.heroHurt || battleAssets.images.heroDeath,
             frames: heroFrameSet
         },
         enemies: {
@@ -5356,8 +5394,10 @@ function buildBattleAssetAtlas() {
 }
 
 function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
-    if (!image || !rect) return;
+    if (!rect) return;
     options = options || {};
+    let sourceImage = rect.image || image;
+    if (!sourceImage) return;
     let basisHeight = options.basisHeight || rect.basisHeight || rect.height;
     let scale = desiredHeight / basisHeight;
     let cropLeft = Math.max(0, Math.round(options.cropLeft === undefined ? (rect.cropLeft || 0) : options.cropLeft));
@@ -5384,9 +5424,25 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     if (options.rotation) {
         ctx.translate(Math.round(x + (options.offsetX || 0)), Math.round(y - drawHeight / 2 + (options.offsetY || 0)));
         ctx.rotate(options.rotation);
-        ctx.drawImage(image, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
+        if (options.outlineColor) {
+            let thickness = Math.max(1, Math.round(options.outlineThickness || 1));
+            ctx.globalAlpha = (options.alpha === undefined ? 1 : options.alpha) * (options.outlineAlpha || 0.78);
+            ctx.filter = `drop-shadow(0 ${thickness}px 0 ${options.outlineColor}) drop-shadow(0 ${-thickness}px 0 ${options.outlineColor}) drop-shadow(${thickness}px 0 0 ${options.outlineColor}) drop-shadow(${-thickness}px 0 0 ${options.outlineColor})`;
+            ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
+            ctx.filter = 'none';
+            ctx.globalAlpha = options.alpha === undefined ? 1 : options.alpha;
+        }
+        ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
     } else {
-        ctx.drawImage(image, srcX, srcY, srcW, srcH, dx, dy, drawWidth, drawHeight);
+        if (options.outlineColor) {
+            let thickness = Math.max(1, Math.round(options.outlineThickness || 1));
+            ctx.globalAlpha = (options.alpha === undefined ? 1 : options.alpha) * (options.outlineAlpha || 0.78);
+            ctx.filter = `drop-shadow(0 ${thickness}px 0 ${options.outlineColor}) drop-shadow(0 ${-thickness}px 0 ${options.outlineColor}) drop-shadow(${thickness}px 0 0 ${options.outlineColor}) drop-shadow(${-thickness}px 0 0 ${options.outlineColor})`;
+            ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, dx, dy, drawWidth, drawHeight);
+            ctx.filter = 'none';
+            ctx.globalAlpha = options.alpha === undefined ? 1 : options.alpha;
+        }
+        ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, dx, dy, drawWidth, drawHeight);
     }
     ctx.restore();
 }
@@ -7125,6 +7181,11 @@ function resetBattleRuntimeVisuals() {
     battleVisualState = {
         projectiles: [],
         damageTexts: [],
+        skillProjectiles: [],
+        skillEffects: [],
+        skillPlayback: null,
+        lastAutoSwingId: 0,
+        lastAutoSkillAt: 0,
         processedFxIds: new Set(),
         enemyGhostPos: {},
         playerPos: null,
@@ -7132,7 +7193,9 @@ function resetBattleRuntimeVisuals() {
         playerAttackBlend: 0,
         playerHurtBlend: 0,
         playerDownBlend: 0,
-        lastNow: 0
+        lastNow: 0,
+        advanceDesired: false,
+        advanceChangedAt: 0
     };
     crowdPauseActive = false;
     trialHazardTimer = 0;
@@ -7628,7 +7691,7 @@ function performPlayerAttack(pStats) {
         crit: isCrit,
         projectile: (pStats.sSkill.tags || []).includes('projectile'),
         skillName: game.activeSkill,
-        duration: 240
+        duration: 600
     });
 
     let zoneTier = getZone(game.currentZoneId).tier;
@@ -8657,7 +8720,6 @@ function applyThemeMode(mode) {
 }
 
 function updateSettings() {
-    let prevHeroAppearance = game.settings.heroAppearance || 'v1';
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
     game.settings.showCombatLog = document.getElementById('chk-log-combat').checked;
     game.settings.showSpawnLog = document.getElementById('chk-log-spawn').checked;
@@ -8679,11 +8741,8 @@ function updateSettings() {
     game.settings.townReturnAction = (document.getElementById('sel-town-return-action') || {}).value || 'retry';
     let themeSelect = document.getElementById('sel-theme-mode');
     game.settings.themeMode = themeSelect ? themeSelect.value : (game.settings.themeMode || 'dark');
-    let heroAppearanceSelect = document.getElementById('sel-hero-appearance');
-    game.settings.heroAppearance = heroAppearanceSelect ? heroAppearanceSelect.value : (game.settings.heroAppearance || 'v1');
     applyThemeMode(game.settings.themeMode);
     toggleDeathNoticeSetting(game.settings.showDeathNotice);
-    if ((game.settings.heroAppearance || 'v1') !== prevHeroAppearance) reloadBattleAssets();
     updateStaticUI();
 }
 
@@ -8953,131 +9012,45 @@ function getBattleZoneTheme(zone) {
 
 function getBattleSkillVisual(skillName, skillData) {
     skillData = skillData || SKILL_DB[skillName] || SKILL_DB['기본 공격'];
-    let tags = skillData.tags || [];
-    let visual = {
-        pose: tags.includes('projectile') ? 'bow' : 'sword',
-        effect: tags.includes('projectile') ? 'projectile' : 'slash',
-        primary: getElementColor(skillData.ele || 'phys'),
-        secondary: '#ffffff',
-        aura: null
-    };
-    switch (skillName) {
-        case '기본 공격':
-            visual.pose = 'dagger';
-            visual.effect = 'shadowSlash';
-            visual.secondary = '#f4e3ff';
-            break;
-        case '연속 베기':
-            visual.pose = 'dagger';
-            visual.effect = 'shadowSlash';
-            visual.secondary = '#f3e2ff';
-            break;
-        case '묵직한 강타':
-            visual.pose = 'sword';
-            visual.effect = 'slam';
-            visual.secondary = '#ffd89a';
-            break;
-        case '흡혈 타격':
-            visual.pose = 'dagger';
-            visual.effect = 'drain';
-            visual.secondary = '#ff9aa4';
-            visual.aura = 'rgba(255,92,120,0.18)';
-            break;
-        case '암살자의 일격':
-            visual.pose = 'dagger';
-            visual.effect = 'shadowSlash';
-            visual.secondary = '#f8d6ff';
-            break;
-        case '회오리바람':
-            visual.pose = 'dual';
-            visual.effect = 'whirl';
-            visual.secondary = '#dcecff';
-            break;
-        case '번개 타격':
-            visual.pose = 'sword';
-            visual.effect = 'chain';
-            visual.secondary = '#fff5b4';
-            visual.aura = 'rgba(255,230,100,0.15)';
-            break;
-        case '얼음 창':
-            visual.pose = 'staff';
-            visual.effect = 'iceLance';
-            visual.secondary = '#ebffff';
-            break;
-        case '화염 참격':
-            visual.pose = 'sword';
-            visual.effect = 'flameSlash';
-            visual.secondary = '#ffe2aa';
-            visual.aura = 'rgba(255,123,74,0.12)';
-            break;
-        case '독창 투척':
-            visual.pose = 'throw';
-            visual.effect = 'poisonDart';
-            visual.secondary = '#d9ff7c';
-            break;
-        case '서리 폭발':
-            visual.pose = 'staff';
-            visual.effect = 'nova';
-            visual.secondary = '#f1ffff';
-            visual.aura = 'rgba(127,224,255,0.12)';
-            break;
-        case '번개 창':
-            visual.pose = 'spear';
-            visual.effect = 'lightSpear';
-            visual.secondary = '#fff5b8';
-            break;
-        case '지진 파쇄':
-            visual.pose = 'hammer';
-            visual.effect = 'quake';
-            visual.secondary = '#d8c29a';
-            break;
-        case '용암 강타':
-            visual.pose = 'hammer';
-            visual.effect = 'magma';
-            visual.secondary = '#ffd59f';
-            break;
-        case '관통 사격':
-            visual.pose = 'bow';
-            visual.effect = 'arrow';
-            visual.secondary = '#e7e6ff';
-            break;
-        case '연발 사격':
-            visual.pose = 'bow';
-            visual.effect = 'arrow';
-            visual.secondary = '#eef1ff';
-            break;
-        case '독니 사출':
-            visual.pose = 'throw';
-            visual.effect = 'poisonDart';
-            visual.secondary = '#d7ff91';
-            break;
-        case '연쇄 폭풍':
-            visual.pose = 'staff';
-            visual.effect = 'storm';
-            visual.secondary = '#fff7c8';
-            visual.aura = 'rgba(255,225,100,0.18)';
-            break;
-        case '공허 베기':
-            visual.pose = 'sword';
-            visual.effect = 'voidSlash';
-            visual.secondary = '#ffd1ff';
-            visual.aura = 'rgba(185,125,255,0.14)';
-            break;
-        default:
-            if (tags.includes('slam')) {
-                visual.pose = 'hammer';
-                visual.effect = 'slam';
-            } else if (tags.includes('projectile')) {
-                visual.pose = 'bow';
-                visual.effect = 'projectile';
-            } else if (tags.includes('chain')) {
-                visual.effect = 'chain';
-            } else if (tags.includes('aoe')) {
-                visual.effect = 'nova';
-            }
-            break;
+    let tags = (skillData.tags || []).map(tag => String(tag).toLowerCase());
+    let group = 'physical';
+    let primary = '#d7dde6';
+    let secondary = '#ffffff';
+    let aura = null;
+    if (tags.includes('chaos')) {
+        group = 'chaos';
+        primary = '#ba83ff';
+        secondary = '#f2ddff';
+        aura = 'rgba(176,118,255,0.16)';
+    } else if (tags.includes('cold')) {
+        group = 'cold';
+        primary = '#8de7ff';
+        secondary = '#eefbff';
+        aura = 'rgba(133,235,255,0.14)';
+    } else if (tags.includes('lightning')) {
+        group = 'lightning';
+        primary = '#ffd84f';
+        secondary = '#fff7cc';
+        aura = 'rgba(255,216,79,0.14)';
+    } else if (tags.includes('fire')) {
+        group = 'fire';
+        primary = '#ff8a4a';
+        secondary = '#ffe3b0';
+        aura = 'rgba(255,126,74,0.14)';
+    } else if (tags.includes('physical') && tags.includes('slam')) {
+        group = 'physical_slam';
+        primary = '#c7a27b';
+        secondary = '#f3e1cf';
     }
-    return visual;
+    return {
+        pose: tags.includes('projectile') ? 'bow' : 'sword',
+        group: group,
+        effect: group,
+        primary: primary,
+        secondary: secondary,
+        aura: aura,
+        isSlam: group === 'physical_slam'
+    };
 }
 
 function getBattleEffectFrame(effectName, phase) {
@@ -9274,7 +9247,9 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
                 motionName = 'idle';
             }
             let frames = HERO_MOTIONS[motionName] || HERO_MOTIONS.idle;
-            let localFrame = Math.floor((now / 220)) % frames.length;
+            const _motionMs = { walk: 285, run: 190, slash: 160, throw: 170, cast: 180, bow: 175, hit: 200, idle: 320 };
+            const _frameMs = _motionMs[motionName] || 220;
+            let localFrame = Math.floor((now / _frameMs)) % frames.length;
             frameIndex = frames[localFrame];
         }
         let heroFrame = getSpriteFrameRectByIndex(battleAssets.images.hero, frameIndex, HERO_SPRITE_CONFIG);
@@ -9360,41 +9335,23 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         }
         function pickSkillAttackCycle() {
             if (Array.isArray(bodyClips.sword_attack_body) && bodyClips.sword_attack_body.length > 0) {
-                let visual = skillVisual || getBattleSkillVisual(game.activeSkill || '기본 공격', SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격']);
-                let effect = visual && visual.effect ? visual.effect : 'slash';
-                if (effect === 'arrow' || effect === 'projectile' || effect === 'poisonDart' || effect === 'lightSpear') {
-                    return bodyClips.bow_attack_body && bodyClips.bow_attack_body.length > 0 ? bodyClips.bow_attack_body : bodyClips.cast_body || bodyClips.sword_attack_body;
-                }
-                if (effect === 'chain' || effect === 'storm' || effect === 'nova' || effect === 'iceLance') {
-                    return bodyClips.cast_body && bodyClips.cast_body.length > 0 ? bodyClips.cast_body : bodyClips.sword_attack_body;
-                }
                 return bodyClips.sword_attack_body;
             }
-            let visual = skillVisual || getBattleSkillVisual(game.activeSkill || '기본 공격', SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격']);
-            let effect = visual && visual.effect ? visual.effect : 'slash';
-            if (effect === 'whirl') return frames.whirlCombo || frames.swordCombo;
-            if (effect === 'iceLance' || effect === 'nova') return frames.castCombo || frames.frostCombo || frames.swordCombo;
-            if (effect === 'chain' || effect === 'storm' || effect === 'lightSpear') return frames.lightningCombo || frames.projectileCombo || frames.castCombo;
-            if (effect === 'poisonDart') return frames.projectileCombo || frames.castCombo || frames.lightningCombo;
-            if (effect === 'arrow' || effect === 'projectile') return frames.bowCombo || frames.projectileCombo || frames.castCombo;
-            if (effect === 'slam') return frames.greatswordCombo || frames.quakeCombo || frames.swordCombo;
-            if (effect === 'quake' || effect === 'magma') return frames.quakeCombo || frames.swordCombo;
-            if (effect === 'shadowSlash' || effect === 'drain') return frames.assassinCombo || frames.swordCombo || frames.chaosCombo;
-            if (effect === 'voidSlash') return frames.swordCombo || frames.chaosCombo;
-            if (effect === 'flameSlash') return frames.flameCombo || frames.swordCombo || frames.whirlCombo;
-            if (effect === 'flurry') return frames.swordCombo || frames.whirlCombo;
-            return frames.swordCombo;
+            return frames.swordCombo || frames.castCombo || frames.bowCombo || frames.projectileCombo || frames.whirlCombo;
         }
         function pickAttackFrame(list) {
             let sequence = (list || []).filter(Boolean);
             if (sequence.length === 0) return frames.attack || frames.sideIdle || frames.sideWalk;
-            let phase = clampNumber(Math.abs(swingPower), 0, 0.999);
+            let attackProgress = Number.isFinite(motionState.attackProgress) ? motionState.attackProgress : Math.abs(swingPower);
+            let phase = clampNumber(attackProgress * 1.5, 0, 0.72);
             let idx = Math.floor(phase * sequence.length);
             if (clipLoop.sword_attack_body === true) idx = Math.floor(((now / 120) % sequence.length));
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         let idleFrame = pickCycle(idleCycle, 920, 0);
-        let moveCycleSpeed = lerpNumber(1420, 1140, advanceBlend);
+        let moveStat = Math.max(70, Number(getPlayerStats().move) || 100);
+        let moveRatio = clampNumber(moveStat / 100, 0.85, 2.25);
+        let moveCycleSpeed = clampNumber(1040 / moveRatio, 620, 980);
         let walkFrame = pickCycle(walkCycle, moveCycleSpeed, 0);
         let movingFrame = pickCycle(runCycle, moveCycleSpeed, 0) || walkFrame;
         let frame = downPhase !== null || downBlend > 0.24
@@ -9402,19 +9359,21 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             : (advanceBlend > 0.08 ? movingFrame : idleFrame);
         if (downPhase === null && hurtBlend > 0.8 && !isAttacking && hurtCycle.length > 0) frame = hurtCycle[0];
         if (downPhase === null && isAttacking) {
-            let activeVisual = skillVisual || getBattleSkillVisual(game.activeSkill || '기본 공격', SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격']);
-            let preservePoseOnSlash = ['slash', 'flurry', 'flameSlash', 'voidSlash', 'shadowSlash', 'drain'].includes(activeVisual.effect);
-            if (!preservePoseOnSlash) frame = pickAttackFrame(pickSkillAttackCycle());
+            frame = pickAttackFrame(pickSkillAttackCycle());
         }
+        const _walkBobPeriod = 1140 / Math.max(1, (walkCycle.length || 4)) / 2;
         let stepOffset = (downPhase === null && advanceBlend > 0.08)
-            ? Math.sin(now / 520) * lerpNumber(0.08, 0.24, advanceBlend)
+            ? Math.sin(now / _walkBobPeriod) * lerpNumber(0.08, 0.24, advanceBlend)
             : 0;
         drawPixelShadow(ctx, x, y + 15, 10, 4, 0.16);
         let normalizedHeroSize = 55.2 - downBlend * 6.5;
         normalizedHeroSize = clampNumber(normalizedHeroSize, 50, 55.2);
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
-            smoothing: 'high'
+            smoothing: 'high',
+            outlineColor: '#ffffff',
+            outlineAlpha: 0.86,
+            outlineThickness: 1
         };
         drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7 - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
         if (flash && downPhase === null) {
@@ -9686,82 +9645,38 @@ function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
 
 function drawBattleSwingFx(ctx, fx, t, playerPos) {
     let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
-    let isSlashSwing = ['slash', 'flurry', 'flameSlash', 'voidSlash', 'shadowSlash', 'drain'].includes(skillVisual.effect);
-    let spriteFrame = getBattleEffectFrame(skillVisual.effect, 'swing');
-    if (battleAssets.ready && spriteFrame) {
-        let rotation = skillVisual.effect === 'chain' || skillVisual.effect === 'storm' ? -0.4 : (skillVisual.effect === 'arrow' || skillVisual.effect === 'projectile' ? -0.2 : 0);
-        let offsetX = skillVisual.effect === 'whirl' ? 0 : 18;
-        if (skillVisual.effect === 'shadowSlash') offsetX = 26;
-        else if (skillVisual.effect === 'drain') offsetX = 22;
-        let offsetY = skillVisual.effect === 'whirl' ? 4 : -5;
-        let desiredHeight = skillVisual.effect === 'whirl' ? 42 : ((skillVisual.effect === 'flameSlash' || skillVisual.effect === 'voidSlash' || skillVisual.effect === 'shadowSlash' || skillVisual.effect === 'drain') ? 38 : 36);
-        let effectWidth = Math.max(1, (spriteFrame.width / Math.max(1, spriteFrame.height)) * desiredHeight);
-        let canvasWidth = Math.max(1, ctx.canvas.clientWidth || ctx.canvas.width || 1);
-        let safeX = clampNumber(playerPos.x + offsetX, (effectWidth * 0.5) + 28, canvasWidth - (effectWidth * 0.5) - 12);
-        if (isSlashSwing) {
-            ctx.save();
-            let drawX = safeX - (effectWidth * 0.5);
-            let drawY = (playerPos.y + offsetY) - (desiredHeight * 0.5);
-            let clipTopCut = desiredHeight * 0.26;
-            let clipRightCut = effectWidth * 0.28;
-            ctx.beginPath();
-            ctx.rect(drawX, drawY + clipTopCut, Math.max(1, effectWidth - clipRightCut), Math.max(1, desiredHeight - clipTopCut));
-            ctx.clip();
-            drawBattleSprite(ctx, battleAssets.atlas.effects.image, spriteFrame, safeX, playerPos.y + offsetY, desiredHeight, { rotation: rotation, alpha: 0.82 - t * 0.42, smoothing: 'high' });
-            ctx.restore();
-        } else {
-            drawBattleSprite(ctx, battleAssets.atlas.effects.image, spriteFrame, safeX, playerPos.y + offsetY, desiredHeight, { rotation: rotation, alpha: 0.82 - t * 0.42, smoothing: 'high' });
-        }
-        if (skillVisual.effect !== 'whirl' && skillVisual.effect !== 'nova') return;
-    }
     ctx.save();
-    ctx.globalAlpha = 1 - t * 0.75;
-    if (skillVisual.effect === 'whirl') {
+    ctx.globalAlpha = 1 - t * 0.72;
+    let reach = 16 + t * 18;
+    if (skillVisual.group === 'physical_slam') {
         ctx.strokeStyle = skillVisual.primary;
         ctx.lineWidth = 5;
         ctx.beginPath();
-        ctx.arc(playerPos.x + 6, playerPos.y + 2, 20 + t * 8, t * Math.PI * 2, t * Math.PI * 2 + Math.PI * 1.45);
+        ctx.arc(playerPos.x + 8, playerPos.y + 8, 10 + t * 18, Math.PI * 0.08, Math.PI * 1.65);
+        ctx.stroke();
+    } else {
+        ctx.strokeStyle = skillVisual.primary;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(playerPos.x + 3, playerPos.y - 4);
+        ctx.quadraticCurveTo(playerPos.x + 10 + t * 10, playerPos.y - 26, playerPos.x + reach, playerPos.y - 10);
         ctx.stroke();
         ctx.strokeStyle = skillVisual.secondary;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(playerPos.x - 2, playerPos.y - 4, 12 + t * 4, Math.PI + t * Math.PI * 2, Math.PI + t * Math.PI * 2 + Math.PI * 0.9);
+        ctx.moveTo(playerPos.x + 6, playerPos.y - 1);
+        ctx.lineTo(playerPos.x + reach - 2, playerPos.y - 6);
         ctx.stroke();
-    } else if (skillVisual.effect === 'slam' || skillVisual.effect === 'quake' || skillVisual.effect === 'magma') {
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(playerPos.x + 12, playerPos.y + 6, 10 + t * 16, Math.PI * 0.1, Math.PI * 1.55);
-        ctx.stroke();
-    } else if (skillVisual.effect === 'nova') {
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(playerPos.x + 2, playerPos.y + 3, 12 + t * 22, 0, Math.PI * 2);
-        ctx.stroke();
-    } else if (skillVisual.effect === 'chain' || skillVisual.effect === 'storm') {
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 3;
-        drawBattleZigZag(ctx, playerPos.x + 6, playerPos.y - 4, playerPos.x + 24, playerPos.y - 18, 4, 5);
-        ctx.stroke();
-    } else if (skillVisual.effect === 'iceLance' || skillVisual.effect === 'lightSpear' || skillVisual.effect === 'poisonDart' || skillVisual.effect === 'arrow' || skillVisual.effect === 'projectile') {
-        ctx.strokeStyle = skillVisual.secondary;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(playerPos.x + 8, playerPos.y - 4);
-        ctx.lineTo(playerPos.x + 24 + t * 16, playerPos.y - 10);
-        ctx.stroke();
-    } else {
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.arc(playerPos.x + 10, playerPos.y - 2, 14 + t * 10, -0.95, 0.55);
-        ctx.stroke();
-        if (skillVisual.effect === 'flurry' || skillVisual.effect === 'flameSlash' || skillVisual.effect === 'voidSlash' || skillVisual.effect === 'shadowSlash' || skillVisual.effect === 'drain') {
-            ctx.strokeStyle = skillVisual.secondary;
-            ctx.lineWidth = 2;
+    }
+    if (fx.crit) {
+        ctx.globalAlpha = (1 - t) * 0.52;
+        ctx.strokeStyle = '#fff6c8';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+            let angle = -0.8 + i * 0.5 + t * 0.25;
             ctx.beginPath();
-            ctx.arc(playerPos.x + 12, playerPos.y + 2, 10 + t * 8, -0.8, 0.7);
+            ctx.moveTo(playerPos.x + 10, playerPos.y - 6);
+            ctx.lineTo(playerPos.x + 10 + Math.cos(angle) * (18 + t * 10), playerPos.y - 6 + Math.sin(angle) * (18 + t * 10));
             ctx.stroke();
         }
     }
@@ -9776,89 +9691,42 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     let ty = enemyEntry.y - 6;
     let sx = playerPos.x + 10;
     let sy = playerPos.y - 2;
-    let spriteFrame = getBattleEffectFrame(skillVisual.effect, 'hit');
-    if (battleAssets.ready && spriteFrame) {
-        let midX = skillVisual.effect === 'chain' || skillVisual.effect === 'storm' ? (sx + tx) * 0.5 : tx;
-        let midY = skillVisual.effect === 'chain' || skillVisual.effect === 'storm' ? (sy + ty) * 0.5 : ty;
-        let rotation = Math.atan2(ty - sy, tx - sx);
-        drawBattleSprite(ctx, battleAssets.atlas.effects.image, spriteFrame, midX, midY + 4, skillVisual.effect === 'quake' || skillVisual.effect === 'slam' || skillVisual.effect === 'magma' ? 40 : 30, { rotation: (skillVisual.effect === 'chain' || skillVisual.effect === 'storm') ? rotation : 0, alpha: 0.86 - t * 0.48, smoothing: 'high' });
-        if (skillVisual.effect !== 'chain' && skillVisual.effect !== 'storm') {
-            drawBattleImpactBurst(ctx, tx, ty, skillVisual.primary, skillVisual.secondary, t);
-            return;
-        }
-    }
     ctx.save();
-    if (skillVisual.effect === 'chain' || skillVisual.effect === 'storm') {
-        ctx.globalAlpha = 1 - t * 0.7;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 3.5;
-        drawBattleZigZag(ctx, sx, sy, tx, ty, 6, 7);
-        ctx.stroke();
-        drawBattleImpactBurst(ctx, tx, ty, skillVisual.primary, skillVisual.secondary, t);
-    } else if (skillVisual.effect === 'iceLance' || skillVisual.effect === 'lightSpear' || skillVisual.effect === 'arrow' || skillVisual.effect === 'projectile' || skillVisual.effect === 'poisonDart') {
-        ctx.globalAlpha = 1 - t * 0.6;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = skillVisual.effect === 'arrow' ? 2.5 : 4;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx - 8 * (1 - t), ty);
-        ctx.stroke();
-        ctx.fillStyle = skillVisual.secondary;
-        ctx.fillRect(tx - 4, ty - 2, 5, 4);
-        drawBattleImpactBurst(ctx, tx, ty, skillVisual.primary, skillVisual.secondary, t);
-    } else if (skillVisual.effect === 'nova') {
+    let punchScale = fx.crit ? 1.4 : 1;
+    if (skillVisual.group === 'physical_slam') {
         ctx.globalAlpha = 1 - t * 0.55;
         ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 4.5;
         ctx.beginPath();
-        ctx.arc(playerPos.x + 2, playerPos.y + 3, 22 + t * 34, 0, Math.PI * 2);
+        ctx.arc(tx, ty + 6, 12 + t * 26 * punchScale, 0, Math.PI * 2);
         ctx.stroke();
-        drawBattleImpactBurst(ctx, tx, ty, skillVisual.primary, skillVisual.secondary, t);
-    } else if (skillVisual.effect === 'whirl') {
-        ctx.globalAlpha = 1 - t * 0.7;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(255,245,230,0.72)';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(playerPos.x + 6, playerPos.y + 3, 18 + ((fx.enemyId % 3) * 3), t * Math.PI * 2, t * Math.PI * 2 + Math.PI * 0.95);
+        ctx.moveTo(tx - 16, ty + 10);
+        ctx.lineTo(tx + 16, ty + 10);
         ctx.stroke();
-        drawBattleImpactBurst(ctx, tx, ty, skillVisual.primary, skillVisual.secondary, t);
-    } else if (skillVisual.effect === 'slam' || skillVisual.effect === 'quake' || skillVisual.effect === 'magma') {
-        ctx.globalAlpha = 1 - t * 0.65;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy + 8);
-        ctx.lineTo(tx, ty + 8);
-        ctx.stroke();
-        for (let i = 0; i < 3; i++) {
-            let crackX = sx + ((tx - sx) * (i + 1) / 4);
-            ctx.beginPath();
-            ctx.moveTo(crackX, sy + 10);
-            ctx.lineTo(crackX + 4, sy + 16 + (i % 2 ? 5 : -2));
-            ctx.stroke();
-        }
-        if (skillVisual.effect === 'magma') {
-            ctx.fillStyle = 'rgba(255,126,74,0.45)';
-            ctx.fillRect(tx - 10, ty + 4, 20, 5);
-        }
-        drawBattleImpactBurst(ctx, tx, ty, skillVisual.primary, skillVisual.secondary, t);
     } else {
-        ctx.globalAlpha = 1 - t * 0.6;
+        ctx.globalAlpha = 1 - t * 0.62;
         ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = skillVisual.effect === 'flurry' ? 3 : 5;
+        ctx.lineWidth = 3.2;
         ctx.beginPath();
         ctx.moveTo(sx, sy);
-        ctx.quadraticCurveTo((sx + tx) * 0.5, Math.min(sy, ty) - 26, tx, ty);
+        ctx.lineTo(tx, ty);
         ctx.stroke();
-        if (skillVisual.effect === 'drain') {
-            ctx.strokeStyle = '#ff7991';
-            ctx.lineWidth = 2;
+    }
+    drawBattleImpactBurst(ctx, tx, ty, skillVisual.primary, skillVisual.secondary, t);
+    if (fx.crit) {
+        ctx.globalAlpha = (1 - t) * 0.75;
+        ctx.strokeStyle = '#fff4a8';
+        ctx.lineWidth = 2.2;
+        for (let i = 0; i < 4; i++) {
+            let angle = (Math.PI * 2 * i) / 4 + t * 0.35;
             ctx.beginPath();
             ctx.moveTo(tx, ty);
-            ctx.lineTo(sx + 2, sy + 10);
+            ctx.lineTo(tx + Math.cos(angle) * (10 + t * 20), ty + Math.sin(angle) * (10 + t * 20));
             ctx.stroke();
         }
-        drawBattleImpactBurst(ctx, tx, ty, skillVisual.primary, skillVisual.secondary, t);
     }
     ctx.restore();
 }
@@ -9921,7 +9789,7 @@ function renderBattlefield() {
         advanceTarget = clampNumber((now - changedAt - 260) / 700, 0, 1);
     }
     battleVisualState.playerAdvanceBlend = approachNumber(battleVisualState.playerAdvanceBlend || 0, advanceTarget, desiredAdvancing ? 2.2 : 2.8, deltaSec);
-    battleVisualState.playerAttackBlend = approachNumber(battleVisualState.playerAttackBlend || 0, swingFx ? 1 : 0, swingFx ? 9 : 6, deltaSec);
+    battleVisualState.playerAttackBlend = approachNumber(battleVisualState.playerAttackBlend || 0, swingFx ? 1 : 0, swingFx ? 4 : 3, deltaSec);
     battleVisualState.playerHurtBlend = approachNumber(battleVisualState.playerHurtBlend || 0, playerFlash ? 1 : 0, playerFlash ? 6.5 : 4.2, deltaSec);
     battleVisualState.playerDownBlend = approachNumber(battleVisualState.playerDownBlend || 0, playerDownActive ? 1 : 0, playerDownActive ? 7.5 : 4.8, deltaSec);
     let layout = getBattleLayout(enemies, width, height);
@@ -9964,13 +9832,15 @@ function renderBattlefield() {
     if (swingFx && swingFx.id !== battleVisualState.lastAutoSwingId && now >= (battleVisualState.lastAutoSkillAt || 0)) {
         playSkillFromActiveGem(game.activeSkill || '기본 공격');
         battleVisualState.lastAutoSwingId = swingFx.id;
-        battleVisualState.lastAutoSkillAt = now + 420;
+        const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, getPlayerStats().aspd)) * 100));
+        battleVisualState.lastAutoSkillAt = now + _atkInterval;
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
     drawSkillWeaponLayer(ctx, playerPos, now, 'back');
     drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15, playerFlash, swingPower, currentSkillVisual, now, {
         advanceBlend: advanceBlend,
         attackBlend: attackBlend,
+        attackProgress: swingFx ? clampNumber((now - swingFx.start) / Math.max(1, swingFx.duration), 0, 0.999) : 0,
         hurtBlend: hurtBlend,
         downBlend: downBlend
     });
@@ -10041,17 +9911,16 @@ function renderBattlefield() {
         ctx.restore();
     });
 
-    drawSkillProjectileLayer(ctx, now);
-    drawSkillEffectLayer(ctx, now);
-
     battleFx.forEach(fx => {
         let t = clampNumber((now - fx.start) / fx.duration, 0, 1);
         let ghostEnemy = (fx.enemyId && !enemyPosMap[fx.enemyId]) ? battleVisualState.enemyGhostPos[fx.enemyId] : null;
         if (ghostEnemy && !enemyPosMap[fx.enemyId]) {
             enemyPosMap[fx.enemyId] = { enemy: { id: fx.enemyId, hp: 0, maxHp: 1 }, x: ghostEnemy.x, y: ghostEnemy.y };
         }
-        if (fx.type === 'hit') {
-            // handled by skill effect layer
+        if (fx.type === 'playerSwing') {
+            drawBattleSwingFx(ctx, fx, t, playerPos);
+        } else if (fx.type === 'hit') {
+            drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap);
         } else if (fx.type === 'playerHit') {
             return;
         } else if (fx.type === 'enemySpawn') {
@@ -11424,7 +11293,6 @@ function mergeDefaults(save) {
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
     merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
-    merged.settings.heroAppearance = ['v1', 'v2', 'v3', 'v4'].includes(merged.settings.heroAppearance) ? merged.settings.heroAppearance : 'v1';
     merged.abyssPassivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.abyssPassivePoints, defaultGame.abyssPassivePoints, 0)));
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
     merged.abyssPassives = { ...(defaultGame.abyssPassives || {}), ...(merged.abyssPassives || {}) };
@@ -12356,7 +12224,6 @@ function init() {
     document.getElementById('sel-map-complete-action').value = game.settings.mapCompleteAction || 'nextZone';
     document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
     document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
-    document.getElementById('sel-hero-appearance').value = ['v1', 'v2', 'v3', 'v4'].includes(game.settings.heroAppearance) ? game.settings.heroAppearance : 'v1';
     applyThemeMode(game.settings.themeMode);
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     syncSalvageControlsFromSettings();
