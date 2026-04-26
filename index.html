@@ -4321,7 +4321,12 @@ function initBattleAssets() {
     const selectedHeroAppearance = (game && game.settings && heroAppearanceMap[game.settings.heroAppearance]) ? game.settings.heroAppearance : 'v1';
     const defaultHeroSrc = customHeroSrc || heroAppearanceMap[selectedHeroAppearance];
     const manifest = {
-        hero: defaultHeroSrc,
+        heroIdle: 'assets/hero1/ElfIdle001Sheet-export.png',
+        heroWalk: 'assets/hero1/ElfWalk001-Sheet-export.png',
+        heroAttack: 'assets/hero1/ElfBasicAtk001BGR-Sheet-export.png',
+        heroHurt: 'assets/hero1/ElfHurt001-Sheet-export.png',
+        heroDeath: 'assets/hero1/ElfDeath001-Sheet-export.png',
+        heroLegacy: defaultHeroSrc,
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
         enemies3: 'assets/battle-enemies-v3.png',
@@ -4365,7 +4370,7 @@ function initBattleAssets() {
                 if (key.startsWith('backdrop')) {
                     battleAssets.backdrops[key] = img;
                 } else {
-                    let keepOriginalSheet = key === 'tiles' || (key === 'hero' && heroSheetHasTransparency(img));
+                    let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || (key === 'heroLegacy' && heroSheetHasTransparency(img));
                     battleAssets.images[key] = keepOriginalSheet ? img : sanitizeBattleSheet(img);
                 }
             } catch (error) {
@@ -4710,8 +4715,9 @@ function buildBattleAssetAtlas() {
         { x: 800, y: 628, width: 188, height: 189 },
         { x: 1024, y: 630, width: 175, height: 187 }
     ];
-    let heroFramesLegacy = heroParts.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
-    let heroFramesV2 = heroPartsV2.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
+    const legacyHeroImage = battleAssets.images.heroLegacy;
+    let heroFramesLegacy = legacyHeroImage ? heroParts.map(part => trimRectToContent(legacyHeroImage, part, 3)) : [];
+    let heroFramesV2 = legacyHeroImage ? heroPartsV2.map(part => trimRectToContent(legacyHeroImage, part, 3)) : [];
     function hasUsableFrame(frame) {
         return !!(frame && Number.isFinite(frame.width) && Number.isFinite(frame.height) && frame.width >= 18 && frame.height >= 24);
     }
@@ -4729,6 +4735,69 @@ function buildBattleAssetAtlas() {
             width: Math.max(10, Math.round(part.width * scaleX)),
             height: Math.max(10, Math.round(part.height * scaleY))
         }));
+    }
+    function withImageRef(image, frame) {
+        if (!image || !frame) return null;
+        return { ...frame, image: image };
+    }
+    function buildStripFramesFromImage(image, minArea) {
+        if (!image) return [];
+        let detected = sortSheetComponents(detectSpriteComponents(image, minArea || 220))
+            .map(rect => trimRectToContent(image, padSpriteRect(rect, image, 2), 2))
+            .filter(rect => rect && rect.width >= 22 && rect.height >= 38)
+            .map(rect => withImageRef(image, rect))
+            .filter(Boolean);
+        if (detected.length > 0) return detected;
+        let fallbackCols = Math.max(1, Math.round((image.width || 1) / 80));
+        let frameWidth = Math.max(1, Math.floor((image.width || 1) / fallbackCols));
+        let fallback = [];
+        for (let i = 0; i < fallbackCols; i++) {
+            fallback.push(withImageRef(image, trimRectToContent(image, { x: i * frameWidth, y: 0, width: frameWidth, height: image.height }, 1)));
+        }
+        return fallback.filter(Boolean);
+    }
+    function buildHeroFrameSetFromHero1Folder() {
+        let idleFrames = buildStripFramesFromImage(battleAssets.images.heroIdle, 210);
+        let walkFrames = buildStripFramesFromImage(battleAssets.images.heroWalk, 210);
+        let attackFrames = buildStripFramesFromImage(battleAssets.images.heroAttack, 220);
+        let hurtFrames = buildStripFramesFromImage(battleAssets.images.heroHurt, 200);
+        let downFrames = buildStripFramesFromImage(battleAssets.images.heroDeath, 200);
+        if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
+        let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
+        return {
+            characterAnimations: {
+                idle: idleFrames,
+                walk_or_run: walkFrames,
+                sword_attack_body: attackFrames,
+                cast_body: attackFrames,
+                hurt: hurtFrames.length > 0 ? hurtFrames : [hold].filter(Boolean),
+                down_or_knockdown: downFrames.length > 0 ? downFrames : (hurtFrames.length > 0 ? hurtFrames : [hold].filter(Boolean)),
+                bow_attack_body: attackFrames
+            },
+            clipLoop: {
+                idle: true,
+                walk_or_run: true,
+                sword_attack_body: false,
+                cast_body: false,
+                hurt: false,
+                down_or_knockdown: false,
+                bow_attack_body: false
+            },
+            idle: idleFrames,
+            walk: walkFrames,
+            run: walkFrames,
+            swordCombo: attackFrames,
+            castCombo: attackFrames,
+            projectileCombo: attackFrames,
+            bowCombo: attackFrames,
+            hurt: hurtFrames,
+            down: downFrames,
+            attack: attackFrames[0] || hold || null,
+            sideIdle: hold || null,
+            sideWalk: walkFrames[0] || hold || null,
+            frontIdle: hold || null,
+            frontGuard: idleFrames[1] || hold || null
+        };
     }
     function buildHeroFrameSetFromDetectedRows(image) {
         let detected = detectSpriteComponents(image, 650)
@@ -5220,21 +5289,31 @@ function buildBattleAssetAtlas() {
         let defs = scaleSafeHeroClipDefs(getBattleHero1SafeClipDefs(), image.width / 1448, image.height / 1086);
         return buildSafeHeroFrameSetFromClipDefs(image, defs);
     }
-    let heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
+    let heroFrameSet = buildHeroFrameSetFromHero1Folder();
+    if (!heroFrameSet && heroFramesLegacy.length > 0) heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
     // v2 하드 매핑 + 어떤 해상도든 커스텀/비표준 시트는 스케일/감지 fallback을 탄다.
-    if (battleAssets.images.hero && isNearSize(battleAssets.images.hero, 1448, 1086, 0.05)) {
-        heroFrameSet = buildHeroFrameSetBattleHero1(battleAssets.images.hero);
-    } else if (battleAssets.images.hero && isNearSize(battleAssets.images.hero, 1264, 842, 0.05)) {
+    if (!heroFrameSet && legacyHeroImage && isNearSize(legacyHeroImage, 1448, 1086, 0.05)) {
+        heroFrameSet = buildHeroFrameSetBattleHero1(legacyHeroImage);
+    } else if (!heroFrameSet && legacyHeroImage && isNearSize(legacyHeroImage, 1264, 842, 0.05)) {
         heroFrameSet = buildHeroFrameSet(heroFramesV2);
-        let detectedV2 = buildHeroFrameSetFromDetectedRows(battleAssets.images.hero);
+        let detectedV2 = buildHeroFrameSetFromDetectedRows(legacyHeroImage);
         if (detectedV2) heroFrameSet = detectedV2;
-    } else if (battleAssets.images.hero) {
-        let scaledParts = buildScaledHeroParts(battleAssets.images.hero);
-        let scaledFrames = scaledParts.map(part => trimRectToContent(battleAssets.images.hero, part, 3));
+    } else if (!heroFrameSet && legacyHeroImage) {
+        let scaledParts = buildScaledHeroParts(legacyHeroImage);
+        let scaledFrames = scaledParts.map(part => trimRectToContent(legacyHeroImage, part, 3));
         let scaledUsableCount = scaledFrames.filter(hasUsableFrame).length;
         if (scaledUsableCount >= 5) heroFrameSet = buildHeroFrameSet(scaledFrames);
-        let detectedCustom = buildHeroFrameSetFromDetectedRows(battleAssets.images.hero);
+        let detectedCustom = buildHeroFrameSetFromDetectedRows(legacyHeroImage);
         if (detectedCustom) heroFrameSet = detectedCustom;
+    }
+    if (!heroFrameSet) {
+        heroFrameSet = {
+            characterAnimations: { idle: [], walk_or_run: [], sword_attack_body: [], cast_body: [], hurt: [], down_or_knockdown: [], bow_attack_body: [] },
+            clipLoop: {},
+            idle: [],
+            walk: [],
+            run: []
+        };
     }
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(battleAssets.images.enemies, part, key === 'boss' ? 5 : 3)]));
     function buildDetectedEnemyPools(image) {
@@ -5285,7 +5364,7 @@ function buildBattleAssetAtlas() {
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
     return {
         hero: {
-            image: battleAssets.images.hero,
+            image: legacyHeroImage || battleAssets.images.heroIdle || battleAssets.images.heroWalk || battleAssets.images.heroAttack || battleAssets.images.heroHurt || battleAssets.images.heroDeath,
             frames: heroFrameSet
         },
         enemies: {
@@ -5356,8 +5435,10 @@ function buildBattleAssetAtlas() {
 }
 
 function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
-    if (!image || !rect) return;
+    if (!rect) return;
     options = options || {};
+    let sourceImage = rect.image || image;
+    if (!sourceImage) return;
     let basisHeight = options.basisHeight || rect.basisHeight || rect.height;
     let scale = desiredHeight / basisHeight;
     let cropLeft = Math.max(0, Math.round(options.cropLeft === undefined ? (rect.cropLeft || 0) : options.cropLeft));
@@ -5384,9 +5465,25 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     if (options.rotation) {
         ctx.translate(Math.round(x + (options.offsetX || 0)), Math.round(y - drawHeight / 2 + (options.offsetY || 0)));
         ctx.rotate(options.rotation);
-        ctx.drawImage(image, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
+        if (options.outlineColor) {
+            let thickness = Math.max(1, Math.round(options.outlineThickness || 1));
+            ctx.globalAlpha = (options.alpha === undefined ? 1 : options.alpha) * (options.outlineAlpha || 0.78);
+            ctx.filter = `drop-shadow(0 ${thickness}px 0 ${options.outlineColor}) drop-shadow(0 ${-thickness}px 0 ${options.outlineColor}) drop-shadow(${thickness}px 0 0 ${options.outlineColor}) drop-shadow(${-thickness}px 0 0 ${options.outlineColor})`;
+            ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
+            ctx.filter = 'none';
+            ctx.globalAlpha = options.alpha === undefined ? 1 : options.alpha;
+        }
+        ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
     } else {
-        ctx.drawImage(image, srcX, srcY, srcW, srcH, dx, dy, drawWidth, drawHeight);
+        if (options.outlineColor) {
+            let thickness = Math.max(1, Math.round(options.outlineThickness || 1));
+            ctx.globalAlpha = (options.alpha === undefined ? 1 : options.alpha) * (options.outlineAlpha || 0.78);
+            ctx.filter = `drop-shadow(0 ${thickness}px 0 ${options.outlineColor}) drop-shadow(0 ${-thickness}px 0 ${options.outlineColor}) drop-shadow(${thickness}px 0 0 ${options.outlineColor}) drop-shadow(${-thickness}px 0 0 ${options.outlineColor})`;
+            ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, dx, dy, drawWidth, drawHeight);
+            ctx.filter = 'none';
+            ctx.globalAlpha = options.alpha === undefined ? 1 : options.alpha;
+        }
+        ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, dx, dy, drawWidth, drawHeight);
     }
     ctx.restore();
 }
@@ -9360,30 +9457,9 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         }
         function pickSkillAttackCycle() {
             if (Array.isArray(bodyClips.sword_attack_body) && bodyClips.sword_attack_body.length > 0) {
-                let visual = skillVisual || getBattleSkillVisual(game.activeSkill || '기본 공격', SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격']);
-                let effect = visual && visual.effect ? visual.effect : 'slash';
-                if (effect === 'arrow' || effect === 'projectile' || effect === 'poisonDart' || effect === 'lightSpear') {
-                    return bodyClips.bow_attack_body && bodyClips.bow_attack_body.length > 0 ? bodyClips.bow_attack_body : bodyClips.cast_body || bodyClips.sword_attack_body;
-                }
-                if (effect === 'chain' || effect === 'storm' || effect === 'nova' || effect === 'iceLance') {
-                    return bodyClips.cast_body && bodyClips.cast_body.length > 0 ? bodyClips.cast_body : bodyClips.sword_attack_body;
-                }
                 return bodyClips.sword_attack_body;
             }
-            let visual = skillVisual || getBattleSkillVisual(game.activeSkill || '기본 공격', SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격']);
-            let effect = visual && visual.effect ? visual.effect : 'slash';
-            if (effect === 'whirl') return frames.whirlCombo || frames.swordCombo;
-            if (effect === 'iceLance' || effect === 'nova') return frames.castCombo || frames.frostCombo || frames.swordCombo;
-            if (effect === 'chain' || effect === 'storm' || effect === 'lightSpear') return frames.lightningCombo || frames.projectileCombo || frames.castCombo;
-            if (effect === 'poisonDart') return frames.projectileCombo || frames.castCombo || frames.lightningCombo;
-            if (effect === 'arrow' || effect === 'projectile') return frames.bowCombo || frames.projectileCombo || frames.castCombo;
-            if (effect === 'slam') return frames.greatswordCombo || frames.quakeCombo || frames.swordCombo;
-            if (effect === 'quake' || effect === 'magma') return frames.quakeCombo || frames.swordCombo;
-            if (effect === 'shadowSlash' || effect === 'drain') return frames.assassinCombo || frames.swordCombo || frames.chaosCombo;
-            if (effect === 'voidSlash') return frames.swordCombo || frames.chaosCombo;
-            if (effect === 'flameSlash') return frames.flameCombo || frames.swordCombo || frames.whirlCombo;
-            if (effect === 'flurry') return frames.swordCombo || frames.whirlCombo;
-            return frames.swordCombo;
+            return frames.swordCombo || frames.castCombo || frames.bowCombo || frames.projectileCombo || frames.whirlCombo;
         }
         function pickAttackFrame(list) {
             let sequence = (list || []).filter(Boolean);
@@ -9402,9 +9478,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             : (advanceBlend > 0.08 ? movingFrame : idleFrame);
         if (downPhase === null && hurtBlend > 0.8 && !isAttacking && hurtCycle.length > 0) frame = hurtCycle[0];
         if (downPhase === null && isAttacking) {
-            let activeVisual = skillVisual || getBattleSkillVisual(game.activeSkill || '기본 공격', SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격']);
-            let preservePoseOnSlash = ['slash', 'flurry', 'flameSlash', 'voidSlash', 'shadowSlash', 'drain'].includes(activeVisual.effect);
-            if (!preservePoseOnSlash) frame = pickAttackFrame(pickSkillAttackCycle());
+            frame = pickAttackFrame(pickSkillAttackCycle());
         }
         let stepOffset = (downPhase === null && advanceBlend > 0.08)
             ? Math.sin(now / 520) * lerpNumber(0.08, 0.24, advanceBlend)
@@ -9414,7 +9488,10 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         normalizedHeroSize = clampNumber(normalizedHeroSize, 50, 55.2);
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
-            smoothing: 'high'
+            smoothing: 'high',
+            outlineColor: '#ffffff',
+            outlineAlpha: 0.86,
+            outlineThickness: 1
         };
         drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7 - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
         if (flash && downPhase === null) {
