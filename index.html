@@ -747,6 +747,26 @@
                 <span class="stat-value" id="ui-ds">0</span>
                 <span class="stat-unit">%</span>
             </div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'dmgRoll')" onmouseleave="hideInfoTooltip()">
+                <span class="stat-label">🎲 피해 보정(최소)</span>
+                <span class="stat-value" id="ui-min-dmg-roll">80</span>
+                <span class="stat-unit">%</span>
+            </div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'dmgRoll')" onmouseleave="hideInfoTooltip()">
+                <span class="stat-label">🎲 피해 보정(최대)</span>
+                <span class="stat-value" id="ui-max-dmg-roll">100</span>
+                <span class="stat-unit">%</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">☠️ 이번 루프 사망</span>
+                <span class="stat-value" id="ui-loop-deaths">0</span>
+                <span class="stat-unit">회</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">🧟 이번 루프 처치</span>
+                <span class="stat-value" id="ui-loop-kills">0</span>
+                <span class="stat-unit">마리</span>
+            </div>
             <div class="stat-item tip" id="row-gemlv" onmouseenter="showStatTooltip(event,'gem')" onmouseleave="hideInfoTooltip()" style="display: none;">
                 <span class="stat-label">💎 젬 레벨 보너스</span>
                 <span class="stat-value" id="ui-gemlv">0</span>
@@ -1201,7 +1221,7 @@ if (typeof HTMLCollection !== 'undefined' && !HTMLCollection.prototype.forEach) 
 const WOODSMAN_BREAK_LOOP_REQUIRED = 5;
 const STORY_ACTS = [
     { id: 'root_tip_sanctuary', order: 1, displayAct: '1', title: '뿌리끝 성소', subtitle: '썩은 잔뿌리를 베며 중간계로 돌아갈 길을 연다.', description: '뿌리없는 자는 뿌리끝의 드루이드에게 거두어져 뿌리길을 되살릴 사냥을 시작한다.', areaTheme: '축축한 뿌리, 곰팡이, 죽은 수액, 지하 성소', bossId: 'rotten_mane_rootlet', bossName: '썩은갈기의 잔뿌리', clearText: '썩은 잔뿌리가 잘려나가자, 오래 막혀 있던 뿌리길이 다시 열린다.', unlockText: '뿌리길의 봉인이 열리며 가지치기의 중정이 드러난다.', specialType: 'normal', tier: 1, maxKills: 1, ele: 'phys' },
-    { id: 'pruning_courtyard_fall', order: 2, displayAct: '2', title: '가지치기의 중정', subtitle: '불멸의 정원사 앞에서 패배가 담금질로 기록된다.', description: '중간계로 돌아온 뿌리없는 자는 정원사의 불멸성 앞에 패배하고 다시 추방된다.', areaTheme: '정돈된 중정, 냉혹한 가위, 추방의 의식', bossId: 'gardener_immortal', bossName: '정원사', clearText: '정원사의 가위는 뿌리없는 자를 다시 뿌리끝으로 떨어뜨렸다. 그러나 절단의 개념은 조금 더 차가워졌다.', unlockText: '이 패배는 담금질로 기록된다. 허공뿌리로 향하는 길이 열린다.', specialType: 'forced_defeat', tier: 2, maxKills: 1, ele: 'fire' },
+    { id: 'pruning_courtyard_fall', order: 2, displayAct: '2', title: '가지치기의 중정', subtitle: '불멸의 정원사 앞에서 패배가 담금질로 기록된다.', description: '중간계로 돌아온 뿌리없는 자는 정원사의 불멸성 앞에 패배하고 다시 추방된다.', areaTheme: '정돈된 중정, 냉혹한 가위, 추방의 의식', bossId: 'gardener_immortal', bossName: '정원사', clearText: '정원사의 가위는 뿌리없는 자를 다시 뿌리끝으로 떨어뜨렸다. 그러나 절단의 개념은 조금 더 차가워졌다.', unlockText: '이 패배는 담금질로 기록된다. 허공뿌리로 향하는 길이 열린다.', specialType: 'normal', tier: 2, maxKills: 1, ele: 'fire' },
     { id: 'suspended_aerial_roots', order: 3, displayAct: '3', title: '허공뿌리 현수림', subtitle: '굶주림의 지배자를 벨수록 정원사의 불멸성에 균열이 간다.', description: '공기뿌리 세계에서 기근의 맹수를 처치해 정원사의 권능을 약화시킨다.', areaTheme: '허공에 매달린 뿌리, 굶주림, 바람, 추락감', bossId: 'famine_beast', bossName: '기근의 맹수', clearText: '허공뿌리의 굶주림이 끊어지자, 정원사의 불멸성에 첫 균열이 생겼다.', unlockText: '갈림뿌리 미궁으로 이어지는 분기점이 열린다.', specialType: 'normal', tier: 2, maxKills: 1, ele: 'cold' },
     { id: 'forked_root_maze', order: 4, displayAct: '4', title: '갈림뿌리 미궁', subtitle: '끝없이 갈라지는 곁뿌리 미궁을 돌파한다.', description: '갈림길마다 분기하는 뿌리 속에서 측근의 기사를 추적해 처치한다.', areaTheme: '분기하는 길, 미궁, 가지처럼 갈라지는 뿌리', bossId: 'retainer_knight', bossName: '측근의 기사', clearText: '갈림뿌리의 길목이 무너지며 측근의 기사는 침묵했다.', unlockText: '지주근의 침묵 성소가 열린다.', specialType: 'normal', tier: 3, maxKills: 2, ele: 'light' },
     { id: 'taproot_silent_sanctum', order: 5, displayAct: '5', title: '지주근의 침묵 성소', subtitle: '드루이드의 배신과 뿌리없는 자의 기원을 확인한다.', description: '지주근의 드루이드를 쓰러뜨리며 뿌리없는 자가 절단의 개념임을 드러낸다.', areaTheme: '침묵, 거대한 받침뿌리, 배신, 성소의 붕괴', bossId: 'taproot_druid', bossName: '지주근의 드루이드', clearText: '드루이드는 죽기 직전 깨달았다. 뿌리없는 자는 생명이 아니라, 아직 벼려지지 않은 절단이었다.', unlockText: '불멸이 벗겨진 정원사에게 다시 도전할 수 있다.', specialType: 'normal', tier: 4, maxKills: 1, ele: 'fire' },
@@ -1256,8 +1276,8 @@ const WORLD_MAP_HOTSPOTS = [
     { zoneId: 9, x: 91, y: 30 },
     { zoneId: 10, x: 94, y: 22 }
 ];
-const abyssTiers = [8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 16];
-for (let i = 1; i <= 15; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1), name: "혼돈 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 1, ele: "chaos" });
+const abyssTiers = [8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 19, 20];
+for (let i = 1; i <= 20; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1), name: "혼돈 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 1, ele: "chaos" });
 
 const TRIAL_ZONES = [
     { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 3 },
@@ -1286,7 +1306,17 @@ const SEASON_CONTENT_ROADMAP = {
     7: { title: '루프 7', features: ['해금: 시즌 보스 추격 보상'] },
     8: { title: '루프 8', features: ['해금: 혼돈 드랍 강화 구간'] },
     9: { title: '루프 9', features: ['해금: 후반 성장 가속 구간'] },
-    10: { title: '루프 10', features: ['해금: 최종 루프 사이클'] }
+    10: { title: '루프 10', features: ['해금: 최종 루프 사이클'] },
+    11: { title: '루프 11', features: ['해금: 혼돈 심화 단계'] },
+    12: { title: '루프 12', features: ['해금: 혼돈 심화 단계'] },
+    13: { title: '루프 13', features: ['해금: 혼돈 심화 단계'] },
+    14: { title: '루프 14', features: ['해금: 혼돈 심화 단계'] },
+    15: { title: '루프 15', features: ['해금: 혼돈 심화 단계'] },
+    16: { title: '루프 16', features: ['해금: 혼돈 심화 단계'] },
+    17: { title: '루프 17', features: ['해금: 혼돈 심화 단계'] },
+    18: { title: '루프 18', features: ['해금: 혼돈 심화 단계'] },
+    19: { title: '루프 19', features: ['해금: 혼돈 심화 단계'] },
+    20: { title: '루프 20', features: ['해금: 혼돈 20 종착 루프'] }
 };
 const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
@@ -1307,12 +1337,18 @@ const JOURNAL_DB = {
     act_8: { title: '액트 8 - 끝없는 장막', lines: ['“처음 본 길인데도, 발자국은 이미 나 있다.”'], bonus: { stat: 'resAll', value: 1, label: '모든 저항 +1%' } },
     act_9: { title: '액트 9 - 비탄의 교차', lines: ['“살아남으려는 가지의 울음은 죄가 아니다.”'], bonus: { stat: 'crit', value: 1, label: '치명타 확률 +1%' } },
     act_10: { title: '액트 10 - 합일의 차륜', lines: ['“왕관은 부서져도, 선택은 남는다.”'], bonus: { stat: 'flatHp', value: 12, label: '최대 생명력 +12' } },
-    woodsman: { title: '나무꾼', lines: ['“종착점에 도착했구나, 나의 피조물아.”', '“선택해라. 도구로 남을 것인지, 날이 될 것인지.”'] }
+    woodsman: { title: '나무꾼', lines: ['“종착점에 도착했구나, 나의 피조물아.”', '“선택해라. 도구로 남을 것인지, 날이 될 것인지.”'] },
+    immortal: { title: '히든저널 - 불사자', lines: ['“한 번도 무너지지 않고, 끝까지 걸어온 칼날.”', '“죽음을 허락하지 않은 루프의 기록.”'], bonus: { stat: 'flatHp', value: 20, label: '최대 생명력 +20' }, hidden: true, hint: '한 루프에서 죽지 않고 액트 10 클리어' }
 };
-const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman'];
+const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'immortal'];
 
 function getSeasonAbyssDepthCap(seasonValue) {
-    return 15;
+    let season = Math.max(1, Math.floor(seasonValue || 1));
+    return Math.min(20, 10 + (season - 1));
+}
+
+function getLoopAbyssRequirementText(seasonValue) {
+    return `루프 조건: 혼돈 ${getSeasonAbyssDepthCap(seasonValue)} 클리어`;
 }
 
 function getSeasonFinalZoneId(seasonValue) {
@@ -1389,7 +1425,7 @@ function applySeasonContentProgression(options) {
     let opts = options || {};
     game.unlockedSeasonContents = Array.isArray(game.unlockedSeasonContents) ? game.unlockedSeasonContents : [];
     game.seenSeasonContentNotices = Array.isArray(game.seenSeasonContentNotices) ? game.seenSeasonContentNotices : [];
-    let maxSeason = Math.max(1, Math.min(10, game.season || 1));
+    let maxSeason = Math.max(1, Math.min(20, game.season || 1));
     for (let s = 1; s <= maxSeason; s++) {
         let key = `season_${s}`;
         if (!game.unlockedSeasonContents.includes(key)) game.unlockedSeasonContents.push(key);
@@ -1437,7 +1473,9 @@ const SEASON_NODES = {
     s_prism: { name: '분광 붕괴', desc: '원소 피해 +24%', stat: 'elementalPctDmg', val: 24, req: 's_breach' },
     s_ruin: { name: '공허 침식', desc: '카오스 피해 +24%', stat: 'chaosPctDmg', val: 24, req: 's_breach' },
     s_king: { name: '군주의 압제', desc: '물리 피해 감소 무시 +10%', stat: 'physIgnore', val: 10, req: ['s_fury', 's_bruise'] },
-    s_cataclysm: { name: '대균열의 끝', desc: '저항 관통 +10%', stat: 'resPen', val: 10, req: ['s_prism', 's_ruin'] }
+    s_cataclysm: { name: '대균열의 끝', desc: '저항 관통 +10%', stat: 'resPen', val: 10, req: ['s_prism', 's_ruin'] },
+    s_floor: { name: '확정 타격', desc: '최소 피해 보정 +8%', stat: 'minDmgRoll', val: 8, req: 's_focus' },
+    s_ceil: { name: '극한 상한', desc: '최대 피해 보정 +8%', stat: 'maxDmgRoll', val: 8, req: 's_cataclysm' }
 };
 const SEASON_NODE_ROWS = [
     ['s_root'],
@@ -1447,7 +1485,8 @@ const SEASON_NODE_ROWS = [
     ['s_rend', 's_breach', 's_momentum', 's_focus'],
     ['s_vital', 's_blood', 's_skirmish', 's_fury'],
     ['s_bruise', 's_prism', 's_ruin'],
-    ['s_king', 's_cataclysm']
+    ['s_king', 's_cataclysm'],
+    ['s_floor', 's_ceil']
 ];
 
 const JEWEL_INVENTORY_LIMIT = 40;
@@ -1484,7 +1523,9 @@ const TALISMAN_OPTION_POOL = [
     { stat: 'pctHp', label: '생명력 증가(%)', min: 4, max: 12, step: 1 },
     { stat: 'move', label: '이동 속도(%)', min: 2, max: 8, step: 1 },
     { stat: 'dotPctDmg', label: '지속 피해 배율(%)', min: 4, max: 14, step: 1 },
-    { stat: 'regenSuppress', label: '재생 억제(%)', min: 0.1, max: 0.1, step: 0.1 }
+    { stat: 'regenSuppress', label: '재생 억제(%)', min: 0.1, max: 0.1, step: 0.1 },
+    { stat: 'minDmgRoll', label: '최소 피해 보정(%)', min: 1, max: 3, step: 1 },
+    { stat: 'maxDmgRoll', label: '최대 피해 보정(%)', min: 1, max: 3, step: 1 }
 ];
 
 const P_STATS = {
@@ -1520,7 +1561,9 @@ const P_STATS = {
     resL: { name: '번개 저항(%)', tiers: [2], m: 5, isPct: true },
     resAll: { name: '모든 원소 저항(%)', tiers: [3], k: 4, isPct: true },
     resChaos: { name: '카오스 저항(%)', tiers: [3], k: 4, isPct: true },
-    expGain: { name: '경험치 획득(%)', tiers: [2, 3], m: 5, k: 12, isPct: true }
+    expGain: { name: '경험치 획득(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
+    minDmgRoll: { name: '최소 피해 보정(%)', tiers: [1, 2, 3], s: 1, m: 2, k: 4, isPct: true },
+    maxDmgRoll: { name: '최대 피해 보정(%)', tiers: [1, 2, 3], s: 1, m: 2, k: 4, isPct: true }
 };
 
 const SKILL_DB = {
@@ -1583,6 +1626,8 @@ const SUPPORT_GEM_DB = {
     '저항 침식': { baseVal: 3, scale: 0.8, stat: 'resPen', name: '저항 관통', isPct: true, desc: '원소/카오스 공격이 적의 저항을 꿰뚫습니다.' },
     '활력': { baseVal: 0.2, scale: 0.1, stat: 'regen', name: '초당 생명력 재생', isPct: true, desc: '초당 생명력 재생을 제공합니다.' },
     '재생 억제': { baseVal: 0.1, scale: 0.03, stat: 'regenSuppress', name: '재생 억제', isPct: true, desc: '공격 시 적의 생명력 재생을 해당 수치(%)만큼 감소시킵니다.' },
+    '정밀 하한': { baseVal: 2, scale: 0.8, stat: 'minDmgRoll', name: '최소 피해 보정', isPct: true, desc: '무기 피해 하한을 올려 딜 편차를 줄입니다.' },
+    '과충전 상한': { baseVal: 2, scale: 0.8, stat: 'maxDmgRoll', name: '최대 피해 보정', isPct: true, desc: '무기 피해 상한을 올려 고점 피해를 확장합니다.' },
     '화염 장막': { baseVal: 4, scale: 1.2, stat: 'resF', name: '화염 저항', isPct: true, desc: '화염 저항을 강화합니다.' },
     '냉기 장막': { baseVal: 4, scale: 1.2, stat: 'resC', name: '냉기 저항', isPct: true, desc: '냉기 저항을 강화합니다.' },
     '번개 장막': { baseVal: 4, scale: 1.2, stat: 'resL', name: '번개 저항', isPct: true, desc: '번개 저항을 강화합니다.' },
@@ -1630,6 +1675,8 @@ const MOD_DB = [
     { id: 'dr', type: 'suffix', statName: '물리 피해 감소(%)', slots: ['갑옷', '허리띠', '투구'], base: 2, step: 2 },
     { id: 'critDmg', type: 'suffix', statName: '치명타 피해 배율(%)', slots: ['무기', '목걸이', '투구'], base: 10, step: 6 },
     { id: 'ds', type: 'suffix', statName: '연속 타격(%)', slots: ['장갑', '무기'], base: 5, step: 3 },
+    { id: 'minDmgRollWeapon', statId: 'minDmgRoll', type: 'suffix', statName: '최소 피해 보정(%)', slots: ['무기'], base: 4, step: 2 },
+    { id: 'maxDmgRollWeapon', statId: 'maxDmgRoll', type: 'suffix', statName: '최대 피해 보정(%)', slots: ['무기'], base: 4, step: 2 },
     { id: 'suppCap', type: 'special', statName: '보조 스킬 젬 한도', slots: ['목걸이'], base: 1, step: 0 }
 ];
 
@@ -1648,7 +1695,9 @@ const FOSSIL_EXCLUSIVE_MODS = [
     { id: 'fossilGemPulse', statId: 'gemLevel', type: 'special', statName: '룬 맥동 (스킬 젬 레벨)', slots: ['목걸이'], base: 1, step: 0, fossilExclusive: true },
     { id: 'fossilSupportLink', statId: 'suppCap', type: 'special', statName: '결속 잔향 (보조 젬 한도)', slots: ['목걸이'], base: 1, step: 0, fossilExclusive: true },
     { id: 'fossilArmorRift', statId: 'physIgnore', type: 'special', statName: '전쟁 균열 (물피감 무시%)', slots: ['무기', '장갑', '목걸이'], base: 4, step: 1.6, fossilExclusive: true },
-    { id: 'fossilPrismNeedle', statId: 'resPen', type: 'special', statName: '프리즘 송곳 (저항 관통%)', slots: ['무기', '목걸이', '반지'], base: 4, step: 1.4, fossilExclusive: true }
+    { id: 'fossilPrismNeedle', statId: 'resPen', type: 'special', statName: '프리즘 송곳 (저항 관통%)', slots: ['무기', '목걸이', '반지'], base: 4, step: 1.4, fossilExclusive: true },
+    { id: 'fossilBoundFloor', statId: 'minDmgRoll', type: 'special', statName: '결속 하한 (최소 피해 보정%)', slots: ['무기', '장갑'], base: 3, step: 1.2, fossilExclusive: true },
+    { id: 'fossilSkyCeil', statId: 'maxDmgRoll', type: 'special', statName: '천공 상한 (최대 피해 보정%)', slots: ['무기', '장갑'], base: 3, step: 1.2, fossilExclusive: true }
 ];
 
 const BASE_ITEM_DB = [
@@ -1679,11 +1728,11 @@ const BASE_ITEM_DB = [
 ];
 
 const UNIQUE_DB = [
-    { name: "핏빛 톱날", slots: ["무기"], reqTier: 1, stats: [{ id: "flatDmg", min: 10, max: 14 }, { id: "leech", min: 0.6, max: 1.0 }] },
+    { name: "핏빛 톱날", slots: ["무기"], reqTier: 1, stats: [{ id: "flatDmg", min: 12, max: 18 }, { id: "leech", min: 0.8, max: 1.2 }, { id: "minDmgRoll", min: 4, max: 7 }] },
     { name: "순풍의 장화", slots: ["신발"], reqTier: 1, stats: [{ id: "move", min: 14, max: 18 }, { id: "projectilePctDmg", min: 8, max: 12 }] },
     { name: "도둑의 반지", slots: ["반지"], reqTier: 2, stats: [{ id: "leech", min: 1.4, max: 2.0 }, { id: "chaosPctDmg", min: 14, max: 22 }, { id: "resAll", min: 5, max: 9 }, { id: "move", min: 4, max: 7 }] },
     { name: "군단 지휘관의 투구", slots: ["투구"], reqTier: 3, stats: [{ id: "flatHp", min: 38, max: 50 }, { id: "aoePctDmg", min: 10, max: 16 }, { id: "dr", min: 3, max: 5 }] },
-    { name: "사냥개의 발톱", slots: ["장갑"], reqTier: 4, stats: [{ id: "aspd", min: 10, max: 15 }, { id: "ds", min: 6, max: 10 }] },
+    { name: "사냥개의 발톱", slots: ["장갑"], reqTier: 4, stats: [{ id: "aspd", min: 12, max: 18 }, { id: "ds", min: 8, max: 12 }, { id: "minDmgRoll", min: 3, max: 6 }] },
     { name: "현자의 시선", slots: ["목걸이"], reqTier: 5, stats: [{ id: "gemLevel", min: 1, max: 1 }, { id: "suppCap", min: 1, max: 1 }, { id: "elementalPctDmg", min: 12, max: 18 }] },
     { name: "분광 고리", slots: ["반지"], reqTier: 6, stats: [{ id: "resAll", min: 10, max: 14 }, { id: "crit", min: 4, max: 6 }, { id: "elementalPctDmg", min: 10, max: 16 }] },
     { name: "카옴의 심장", slots: ["갑옷"], reqTier: 7, stats: [{ id: "flatHp", min: 150, max: 205 }, { id: "pctHp", min: 14, max: 22 }, { id: "regen", min: 1.0, max: 1.5 }, { id: "dr", min: 4, max: 6 }] },
@@ -1691,8 +1740,8 @@ const UNIQUE_DB = [
     { name: "불멸의 띠", slots: ["허리띠"], reqTier: 8, stats: [{ id: "dr", min: 6, max: 9 }, { id: "flatHp", min: 70, max: 95 }, { id: "resChaos", min: 8, max: 12 }] },
     { name: "분광 천칭", slots: ["목걸이"], reqTier: 8, stats: [{ id: "resPen", min: 8, max: 12 }, { id: "elementalPctDmg", min: 18, max: 26 }, { id: "resAll", min: 8, max: 12 }] },
     { name: "광전사의 손길", slots: ["장갑"], reqTier: 9, stats: [{ id: "aspd", min: 14, max: 20 }, { id: "ds", min: 10, max: 14 }, { id: "meleePctDmg", min: 18, max: 26 }] },
-    { name: "별의 파괴자", slots: ["무기"], reqTier: 10, stats: [{ id: "flatDmg", min: 34, max: 48 }, { id: "physPctDmg", min: 40, max: 56 }, { id: "critDmg", min: 28, max: 40 }, { id: "physIgnore", min: 6, max: 10 }] },
-    { name: "균열 사냥꾼", slots: ["장갑"], reqTier: 11, stats: [{ id: "physIgnore", min: 6, max: 10 }, { id: "aspd", min: 10, max: 16 }, { id: "meleePctDmg", min: 16, max: 24 }] },
+    { name: "별의 파괴자", slots: ["무기"], reqTier: 10, stats: [{ id: "flatDmg", min: 40, max: 56 }, { id: "physPctDmg", min: 46, max: 62 }, { id: "critDmg", min: 36, max: 48 }, { id: "physIgnore", min: 8, max: 12 }, { id: "maxDmgRoll", min: 6, max: 10 }] },
+    { name: "균열 사냥꾼", slots: ["장갑"], reqTier: 11, stats: [{ id: "physIgnore", min: 8, max: 12 }, { id: "aspd", min: 12, max: 18 }, { id: "meleePctDmg", min: 20, max: 30 }, { id: "maxDmgRoll", min: 4, max: 8 }] },
     { name: "폭군의 왕관", slots: ["투구"], reqTier: 11, stats: [{ id: "aoePctDmg", min: 24, max: 34 }, { id: "critDmg", min: 30, max: 45 }, { id: "flatHp", min: 60, max: 82 }] },
     { name: "심연의 굴레", slots: ["목걸이"], reqTier: 12, stats: [{ id: "chaosPctDmg", min: 24, max: 34 }, { id: "resChaos", min: 12, max: 18 }, { id: "leech", min: 1.0, max: 1.4 }] },
     { name: "공허의 첨탑", slots: ["반지"], reqTier: 12, stats: [{ id: "resPen", min: 7, max: 11 }, { id: "chaosPctDmg", min: 18, max: 28 }, { id: "crit", min: 4, max: 7 }] },
@@ -1715,8 +1764,52 @@ const UNIQUE_DB = [
     { name: "만상 관통석", slots: ["목걸이"], reqTier: 10, ultraRare: true, stats: [{ id: "resPen", min: 18, max: 26 }, { id: "elementalPctDmg", min: 40, max: 58 }, { id: "gemLevel", min: 2, max: 2 }] },
     { name: "천공 붕괴자", slots: ["무기"], reqTier: 10, ultraRare: true, stats: [{ id: "flatDmg", min: 110, max: 145 }, { id: "lightPctDmg", min: 48, max: 66 }, { id: "critDmg", min: 120, max: 160 }] },
     { name: "영겁의 손아귀", slots: ["장갑"], reqTier: 10, ultraRare: true, stats: [{ id: "aspd", min: 24, max: 32 }, { id: "ds", min: 24, max: 34 }, { id: "meleePctDmg", min: 44, max: 60 }] },
-    { name: "황혼의 왕관", slots: ["투구"], reqTier: 10, ultraRare: true, stats: [{ id: "crit", min: 20, max: 28 }, { id: "critDmg", min: 90, max: 125 }, { id: "resAll", min: 20, max: 28 }] }
+    { name: "황혼의 왕관", slots: ["투구"], reqTier: 10, ultraRare: true, stats: [{ id: "crit", min: 20, max: 28 }, { id: "critDmg", min: 90, max: 125 }, { id: "resAll", min: 20, max: 28 }] },
+    { name: "기수의 나침반", slots: ["목걸이"], reqTier: 9, stats: [{ id: "move", min: 12, max: 18 }, { id: "minDmgRoll", min: 5, max: 9 }, { id: "aspd", min: 8, max: 12 }] },
+    { name: "쐐기 파편", slots: ["무기"], reqTier: 9, stats: [{ id: "maxDmgRoll", min: 8, max: 14 }, { id: "flatDmg", min: 28, max: 40 }] },
+    { name: "절대 하한", slots: ["장갑"], reqTier: 10, stats: [{ id: "minDmgRoll", min: 10, max: 16 }, { id: "aspd", min: 10, max: 14 }, { id: "flatHp", min: 55, max: 80 }] },
+    { name: "천정 파쇄", slots: ["무기"], reqTier: 11, stats: [{ id: "maxDmgRoll", min: 12, max: 18 }, { id: "critDmg", min: 30, max: 44 }, { id: "physPctDmg", min: 24, max: 34 }] },
+    { name: "가호의 갑피", slots: ["갑옷"], reqTier: 11, stats: [{ id: "flatHp", min: 160, max: 220 }, { id: "pctHp", min: 18, max: 26 }, { id: "dr", min: 8, max: 12 }] },
+    { name: "굶주린 톱니", slots: ["반지"], reqTier: 12, stats: [{ id: "leech", min: 1.2, max: 1.8 }, { id: "minDmgRoll", min: 4, max: 7 }, { id: "chaosPctDmg", min: 20, max: 30 }] },
+    { name: "거인의 지지대", slots: ["허리띠"], reqTier: 12, stats: [{ id: "flatHp", min: 100, max: 145 }, { id: "pctHp", min: 14, max: 22 }, { id: "maxDmgRoll", min: 3, max: 6 }] },
+    { name: "지평선 분할자", slots: ["무기"], reqTier: 13, stats: [{ id: "flatDmg", min: 44, max: 60 }, { id: "minDmgRoll", min: 8, max: 12 }, { id: "maxDmgRoll", min: 8, max: 12 }] },
+    { name: "용맥 수호", slots: ["장갑"], reqTier: 13, stats: [{ id: "flatHp", min: 70, max: 100 }, { id: "regen", min: 0.9, max: 1.4 }, { id: "minDmgRoll", min: 5, max: 9 }] },
+    { name: "운명의 쌍현", slots: ["목걸이"], reqTier: 14, stats: [{ id: "minDmgRoll", min: 7, max: 11 }, { id: "maxDmgRoll", min: 7, max: 11 }, { id: "crit", min: 8, max: 12 }] },
+    { name: "영원의 레버", slots: ["무기"], reqTier: 15, ultraRare: true, stats: [{ id: "flatDmg", min: 95, max: 130 }, { id: "minDmgRoll", min: 14, max: 20 }, { id: "maxDmgRoll", min: 14, max: 20 }, { id: "critDmg", min: 90, max: 130 }] }
 ];
+
+function buildUniqueExtraStat(slot, usedIds) {
+    let slotKey = Array.isArray(slot) ? slot[0] : slot;
+    let pool = {
+        무기: ['flatDmg', 'physPctDmg', 'critDmg', 'aspd', 'minDmgRoll', 'maxDmgRoll'],
+        장갑: ['aspd', 'meleePctDmg', 'flatHp', 'crit', 'minDmgRoll', 'maxDmgRoll'],
+        갑옷: ['flatHp', 'pctHp', 'dr', 'regen', 'resAll'],
+        투구: ['flatHp', 'crit', 'critDmg', 'resAll'],
+        목걸이: ['resPen', 'critDmg', 'gemLevel', 'suppCap', 'minDmgRoll', 'maxDmgRoll'],
+        반지: ['crit', 'resPen', 'elementalPctDmg', 'chaosPctDmg', 'leech'],
+        허리띠: ['flatHp', 'pctHp', 'dr', 'regen', 'resAll'],
+        신발: ['move', 'aspd', 'resAll', 'flatHp']
+    }[slotKey] || ['pctDmg', 'flatHp'];
+    let id = pool.find(v => !usedIds.has(v)) || pool[0];
+    let pctLike = ['pct', 'crit', 'dmg', 'res', 'move', 'aspd', 'leech', 'regen', 'dr', 'pen'].some(k => id.includes(k));
+    return { id: id, min: pctLike ? 6 : 24, max: pctLike ? 14 : 60 };
+}
+
+UNIQUE_DB.forEach(unique => {
+    if (!unique || !Array.isArray(unique.stats)) return;
+    unique.stats.forEach(stat => {
+        if (!Number.isFinite(stat.min) || !Number.isFinite(stat.max)) return;
+        stat.min = Number((stat.min * 1.8).toFixed(1));
+        stat.max = Number((stat.max * 2.4).toFixed(1));
+        if (stat.max < stat.min) stat.max = stat.min;
+    });
+    if (unique.stats.length <= 2) {
+        let used = new Set(unique.stats.map(s => s.id));
+        unique.stats.push(buildUniqueExtraStat(unique.slots, used));
+        used = new Set(unique.stats.map(s => s.id));
+        unique.stats.push(buildUniqueExtraStat(unique.slots, used));
+    }
+});
 
 const ORB_DB = {
     transmute: { name: '진화의 오브', desc: '노멀 아이템을 매직으로 바꿉니다.' },
@@ -1906,6 +1999,8 @@ const defaultGame = {
     currentZoneId: 0,
     maxZoneId: 0,
     killsInZone: 0,
+    loopDeaths: 0,
+    loopKills: 0,
     settings: {
         showCombatScene: true,
         showCombatLog: true,
@@ -2082,7 +2177,9 @@ const COMPARE_STAT_META = {
     leech: { label: '흡혈', format: value => `${formatValue('leech', value)}%` },
     ds: { label: '연속 타격', format: value => `${Math.floor(value)}%` },
     gemLv: { label: '젬 레벨', format: value => `${Math.floor(value)}` },
-    suppCap: { label: '보조 한도', format: value => `${Math.floor(value)}` }
+    suppCap: { label: '보조 한도', format: value => `${Math.floor(value)}` },
+    minDmgRoll: { label: '최소피해 보정', format: value => `${Math.floor(value)}%` },
+    maxDmgRoll: { label: '최대피해 보정', format: value => `${Math.floor(value)}%` }
 };
 function formatValue(statId, value) {
     if (['leech', 'regen', 'regenSuppress'].includes(statId)) return Number(value).toFixed(1);
@@ -2124,6 +2221,8 @@ function getStatName(statId) {
         physIgnore: '물리 피해 감소 무시(%)',
         ds: '연속 타격(%)',
         suppCap: '보조 스킬 젬 한도',
+        minDmgRoll: '최소 피해 보정(%)',
+        maxDmgRoll: '최대 피해 보정(%)',
         resPen: '저항 관통(%)',
         resF: '화염 저항(%)',
         resC: '냉기 저항(%)',
@@ -2339,7 +2438,9 @@ const PASSIVE_SPECIAL_NODE_CONFIGS = [
     { sector: 'witch', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '부패 인장', desc: '저주받은 흔적이 적의 재생 능력을 잠급니다.' },
     { sector: 'shadow', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '암영 구속', desc: '은밀한 일격이 상처 재생을 가로막습니다.' },
     { sector: 'duelist', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '결투의 속박', desc: '연속 베기로 적의 회복 루프를 끊어냅니다.' },
-    { sector: 'marauder', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '절맥 강타', desc: '강한 충격이 적의 회복 혈류를 억제합니다.' }
+    { sector: 'marauder', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '절맥 강타', desc: '강한 충격이 적의 회복 혈류를 억제합니다.' },
+    { sector: 'duelist', kinds: ['major', 'keystone'], stat: 'minDmgRoll', val: 4, title: '하한 제압', desc: '연속 교전에서도 피해 하한을 안정적으로 유지합니다.' },
+    { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'maxDmgRoll', val: 4, title: '상한 폭발', desc: '강타의 최고 피해를 끌어올립니다.' }
 ];
 
 function getPassiveNodeDisplayName(node) {
@@ -3273,7 +3374,7 @@ function getClassTreeDef(clsKey) {
         elementalist: { stat: 'elementalPctDmg', val: 56 },
         assassin: { stat: 'critDmg', val: 90 },
         berserker: { stat: 'physPctDmg', val: 60 },
-        guardian: { stat: 'flatHp', val: 180 },
+        guardian: { stat: 'flatHp', val: 260 },
         necromancer: { stat: 'gemLevel', val: 2 }
     };
     let ult = ultByClass[clsKey] || { stat: 'pctDmg', val: 100 };
@@ -3299,6 +3400,11 @@ function getClassTreeDef(clsKey) {
         tree.n10 = { stat: 'resPen', val: 16, req: ['n7', 'n8', 'n9'] };
     } else if (clsKey === 'warlock') {
         tree.n8 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.15), req: 'n5' };
+    } else if (clsKey === 'guardian') {
+        tree.n5 = { stat: 'dr', val: scaleClassStat('dr', getMajorStatBase('dr'), 1.55), req: ['n2', 'n3'] };
+        tree.n6 = { stat: 'minDmgRoll', val: scaleClassStat('minDmgRoll', getMajorStatBase('minDmgRoll'), 1.2), req: 'n3' };
+        tree.n8 = { stat: 'maxDmgRoll', val: scaleClassStat('maxDmgRoll', getMajorStatBase('maxDmgRoll'), 1.35), req: 'n5' };
+        tree.n10 = { stat: 'pctHp', val: 38, req: ['n7', 'n8', 'n9'] };
     } else if (clsKey === 'inquisitor') {
         tree.n9 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.3), req: 'n6' };
         tree.n10 = { stat: 'resPen', val: 18, req: ['n7', 'n8', 'n9'] };
@@ -3311,7 +3417,7 @@ function getClassTreeDef(clsKey) {
             ranger: [{ stat: 'projectilePctDmg', val: 50 }, { stat: 'move', val: 20 }],
             elementalist: [{ stat: 'elementalPctDmg', val: 52 }, { stat: 'resPen', val: 16 }],
             warlock: [{ stat: 'chaosPctDmg', val: 42 }, { stat: 'dotPctDmg', val: 28 }],
-            guardian: [{ stat: 'flatHp', val: 260 }, { stat: 'pctHp', val: 30 }],
+            guardian: [{ stat: 'flatHp', val: 320 }, { stat: 'dr', val: 18 }],
             inquisitor: [{ stat: 'suppCap', val: 1 }, { stat: 'gemLevel', val: 2 }]
         };
         let cores = coreByClass[clsKey] || [{ stat: 'pctDmg', val: 55 }, { stat: 'critDmg', val: 45 }];
@@ -4073,6 +4179,19 @@ function unlockJournalEntry(entryId) {
     }
     grantJournalBonus(entryId);
 }
+function ensureActJournalCompletionForLoop(options) {
+    let silent = !options || options.silent !== false;
+    let loopStage = Math.max(Math.floor(game.season || 1), Math.floor(game.loopCount || 0));
+    if (loopStage < 2) return;
+    game.journalEntries = Array.isArray(game.journalEntries) ? game.journalEntries : ['prologue'];
+    let before = game.journalEntries.length;
+    Object.keys(JOURNAL_DB).forEach(id => {
+        if (!/^act_/.test(id)) return;
+        if (!game.journalEntries.includes(id)) game.journalEntries.push(id);
+        grantJournalBonus(id);
+    });
+    if (!silent && game.journalEntries.length > before) addLog('📓 루프 2 이상 보정: 액트 저널이 모두 복구되었습니다.', 'season-up');
+}
 function markActRewardReady(zoneId) {
     if (zoneId < 0 || zoneId > 9) return;
     game.claimableActRewards = game.claimableActRewards || [];
@@ -4080,9 +4199,7 @@ function markActRewardReady(zoneId) {
     if (game.claimedActRewards.includes(zoneId) || game.claimableActRewards.includes(zoneId)) return;
     game.claimableActRewards.push(zoneId);
     game.noti.map = true;
-    let storyAct = getStoryActByZoneId(zoneId);
     addLog(`🎁 [${MAP_ZONES[zoneId].name}] 클리어 보상을 받을 수 있습니다.`, 'loot-rare');
-    if (storyAct && storyAct.unlockText) addLog(`📖 ${storyAct.unlockText}`, 'season-up');
 }
 function openActReward(zoneId) {
     if (!(game.claimableActRewards || []).includes(zoneId)) return;
@@ -5737,7 +5854,7 @@ function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let dropBonus = getCodexBonusPct() / 100;
     let abyssScale = getAbyssMonsterScales(zone);
-    let bonusRoll = chance => Math.random() < Math.min(0.95, chance * (1 + dropBonus) * (abyssScale.dropMul || 1));
+    let bonusRoll = chance => Math.random() < Math.min(0.95, chance * (1 + dropBonus) * (abyssScale.dropMul || 1) * (enemy && enemy.dropMul ? enemy.dropMul : 1));
     let drops = [];
     if (enemy.isBoss) {
         if (bonusRoll(0.30)) drops.push([Math.random() < 0.55 ? 'transmute' : 'augment', 1]);
@@ -5830,7 +5947,9 @@ function generateJewelDrop(zoneTier) {
         { id: 'physIgnore', name: '절개 파편', min: 2, max: 6 },
         { id: 'resPen', name: '관통 수정', min: 2, max: 6 },
         { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 },
-        { id: 'regenSuppress', name: '봉쇄 파편', min: 0.1, max: 0.2, step: 0.1 }
+        { id: 'regenSuppress', name: '봉쇄 파편', min: 0.1, max: 0.2, step: 0.1 },
+        { id: 'minDmgRoll', name: '하한 수정', min: 1, max: 3 },
+        { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 }
     ];
     let pick = rndChoice(pool);
     let val = Number.isFinite(pick.step) && pick.step < 1
@@ -6694,6 +6813,8 @@ function getPlayerStats() {
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen;
     let finalRegenSuppress = gearBase.regenSuppress + gearExplicit.regenSuppress + passive.regenSuppress + season.regenSuppress + ascend.regenSuppress + support.regenSuppress + reward.regenSuppress;
     let finalResPen = gearBase.resPen + gearExplicit.resPen + passive.resPen + season.resPen + ascend.resPen + support.resPen + reward.resPen + (skill.resPenBonus || 0);
+    let finalMinDmgRoll = Math.max(5, 80 + gearBase.minDmgRoll + gearExplicit.minDmgRoll + passive.minDmgRoll + season.minDmgRoll + ascend.minDmgRoll + support.minDmgRoll + reward.minDmgRoll);
+    let finalMaxDmgRoll = Math.max(finalMinDmgRoll, 100 + gearBase.maxDmgRoll + gearExplicit.maxDmgRoll + passive.maxDmgRoll + season.maxDmgRoll + ascend.maxDmgRoll + support.maxDmgRoll + reward.maxDmgRoll);
 
     let resistPenalty = (game.maxZoneId >= 5 ? 30 : 0) + (game.maxZoneId >= 10 ? 30 : 0);
     let finalResF = Math.min(75, gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + reward.resF - resistPenalty);
@@ -6739,7 +6860,8 @@ function getPlayerStats() {
                 (skill.regenDmgScale || 0) > 0 ? `재생 계수 배율 ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
                 (skill.fireResDmgScale || 0) > 0 ? `화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (화염 저항 ${Math.floor(finalResF)}%)` : null,
                 (skill.dotMultiplier || 1) !== 1 ? `스킬 지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null,
-                isDotSkill && dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null
+                isDotSkill && dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null,
+                `피해 범위 ${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
             ].filter(Boolean),
             final: `${Math.floor(finalBaseDmg)}`
         },
@@ -6903,6 +7025,14 @@ function getPlayerStats() {
             ].filter(Boolean),
             final: `${Math.floor(finalResChaos)}%`
         },
+        dmgRoll: {
+            title: '피해 보정 범위',
+            lines: [
+                makeSourceLine('최소', finalMinDmgRoll, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('최대', finalMaxDmgRoll, '%', value => `${Math.floor(value)}%`)
+            ],
+            final: `${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
+        },
         dps: {
             title: 'DPS',
             lines: [
@@ -6936,6 +7066,8 @@ function getPlayerStats() {
         dr: finalDr,
         physIgnore: finalPhysIgnore,
         ds: finalDs,
+        minDmgRoll: finalMinDmgRoll,
+        maxDmgRoll: finalMaxDmgRoll,
         gemLv: gemSources.total,
         gemBonusSources: gemSources,
         suppCap: suppCap,
@@ -6998,6 +7130,15 @@ const ACT_BOSS_NAMES = Object.fromEntries(STORY_ACTS.map((act, idx) => [idx, act
 const ENEMY_TRAIT_POOL = [
     { id: 'rapid', name: '광폭 연타', atkMul: 1.35 },
     { id: 'fortified', name: '강철 피부', hpMul: 1.35, dr: 8 },
+    { id: 'bulwark', name: '수문장 비늘', firstHitGuard: 0.75 },
+    { id: 'duelist', name: '반격 태세', hitRateGuard: 0.12 },
+    { id: 'leechResist', name: '흡혈저항', leechEffMul: 0.45, expMul: 1.06, dropMul: 1.04 },
+    { id: 'bloodless', name: '무혈', leechEffMul: 0, expMul: 1.10, dropMul: 1.08 },
+    { id: 'swiftHands', name: '고속 공세', attackSpeedVarMul: 1.18, expMul: 1.05, dropMul: 1.03 },
+    { id: 'strong', name: '강함', atkMul: 1.2, expMul: 1.07, dropMul: 1.05 },
+    { id: 'veryStrong', name: '매우 강함', atkMul: 1.5, hpMul: 1.12, expMul: 1.12, dropMul: 1.08 },
+    { id: 'deadly', name: '치명적', critChanceBonus: 18, expMul: 1.08, dropMul: 1.06 },
+    { id: 'tenacious', name: '끈질김', hpMul: 1.45, expMul: 1.08, dropMul: 1.06 },
     { id: 'fireWard', name: '화염 장막', resF: 28 },
     { id: 'coldWard', name: '서리 장막', resC: 28 },
     { id: 'lightWard', name: '뇌전 장막', resL: 28 },
@@ -7094,19 +7235,22 @@ function createEnemy(zone, marker, groupIndex) {
         resL: (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0),
         resChaos: (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0),
         atkMul: trait && trait.atkMul ? trait.atkMul : 1,
-        attackSpeedVar: 0.85 + (((variantSeed % 11) / 10) * 0.5),
-        critChance: (game.season || 1) >= 2 ? (isBoss ? 16 : isElite ? 10 : 4) : 0,
-        regenRate: (game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0,
+        attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1),
+        critChance: ((game.season || 1) >= 2 ? (isBoss ? 16 : isElite ? 10 : 4) : 0) + (trait && trait.critChanceBonus ? trait.critChanceBonus : 0),
+        regenRate: ((game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0) * 0.6,
         regenSuppressPct: 0,
         penetration: (game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0,
         hybridElement: (game.season || 1) >= 3 ? rndChoice(['fire', 'cold', 'light', 'chaos']) : null,
         ailmentChance: (game.season || 1) >= 4 ? (isBoss ? 0.14 : (isElite ? 0.08 : 0.03)) : 0,
-        firstHitGuard: (game.season || 1) >= 5 ? (isBoss ? 0.55 : (isElite ? 0.35 : 0.18)) : 0,
-        hitRateGuard: (game.season || 1) >= 5 ? (isBoss ? 0.12 : (isElite ? 0.06 : 0.025)) : 0,
+        firstHitGuard: (game.season || 1) >= 5 ? (isBoss ? 0.75 : ((trait && trait.firstHitGuard) || 0)) : 0,
+        hitRateGuard: (game.season || 1) >= 5 ? ((trait && trait.hitRateGuard) || (isBoss ? 0.06 : 0)) : 0,
         recentHitsTaken: 0,
         recentHitsTimer: 0,
         patternMode: (game.season || 1) >= 6 && isBoss ? rndChoice(['burst', 'ramp', 'slam']) : null,
         traitName: trait ? trait.name : null,
+        leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
+        expMul: trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1,
+        dropMul: trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1,
         isSky: isSky
     };
 }
@@ -7366,6 +7510,7 @@ function grantExpAndGem(enemy, pStats) {
     let exp = Math.floor((14 + zone.tier * 10) * (1 + game.season * 0.35));
     if (enemy.isElite) exp = Math.floor(exp * 1.8);
     if (enemy.isBoss) exp = Math.floor(exp * Math.max(3, zone.tier * 1.5));
+    exp = Math.floor(exp * (enemy.expMul || 1));
     exp = Math.floor(exp * (1 + (pStats.expGain / 100)) * (abyssScale.expMul || 1));
     game.exp += exp;
     if (game.settings.showExpLog) addLog(`✨ 경험치 +${exp}`, "exp-txt");
@@ -7469,6 +7614,7 @@ function rollLootForEnemy(enemy) {
 }
 
 function handleEnemyDeath(enemy, pStats) {
+    game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
     grantExpAndGem(enemy, pStats);
     rollLootForEnemy(enemy);
@@ -7506,7 +7652,7 @@ function handleStoryActSpecialDefeat(zone, pStats) {
         game.woodsmanDefeatAttempts = Math.max(0, Math.floor(game.woodsmanDefeatAttempts || 0)) + 1;
         game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
         addLog(`🪓 ${storyAct.clearText}`, 'death');
-        addLog(`❄️ 나무꾼의 창조 권능이 당신을 새 나무로 되돌렸습니다. (루프 ${game.loopCount}/${WOODSMAN_BREAK_LOOP_REQUIRED})`, 'attack-monster');
+        addLog(`❄️ 나무꾼의 창조 권능이 세계를 되감았습니다. (루프 ${game.loopCount}/${WOODSMAN_BREAK_LOOP_REQUIRED})`, 'attack-monster');
         game.currentZoneId = 0;
         game.maxZoneId = 0;
         game.killsInZone = 0;
@@ -7600,11 +7746,9 @@ function finishEncounterRun() {
             if (depth === 5 && !game.woodsmanSimulatorSeenLoop) {
                 game.woodsmanSimulatorSeenLoop = true;
                 unlockJournalEntry('woodsman');
-                queueTutorialNotice('woodsman_simulator_loop', '나무꾼의 시뮬레이터', '“다음은 더 나은 세계를 바라지.”\n정체를 드러낸 존재는 진짜 나무꾼이 아닌 시뮬레이터였다.\n당신은 강제로 루프한다.', 'tab-season');
-                triggerSeasonReset();
-                return;
+                queueTutorialNotice('woodsman_simulator_loop', '나무꾼의 시뮬레이터', '“다음은 더 나은 세계를 바라지.”\n정체를 드러낸 존재는 진짜 나무꾼이 아닌 시뮬레이터였다.\n더 깊은 혼돈을 돌파해야 루프가 열린다.', 'tab-season');
             }
-            let capDepth = 15;
+            let capDepth = 20;
             game.abyssClearedDepths = Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths : [];
             if (depth <= capDepth && !game.abyssClearedDepths.includes(depth)) {
                 game.abyssClearedDepths.push(depth);
@@ -7616,6 +7760,7 @@ function finishEncounterRun() {
         if (zone.type === 'act') {
             let storyAct = getStoryActByZoneId(zone.id);
             if (storyAct && storyAct.clearText) addLog(`📜 ${storyAct.clearText}`, 'season-up');
+            if (zone.id === 1) addLog('📖 정원사의 불멸 앞에서 패배를 기록했지만, 전진을 위한 보상은 확보했다.', 'season-up');
             if (zone.id === 0) unlockJournalEntry('act_1');
             if (zone.id === 1) unlockJournalEntry('act_2');
             if (zone.id === 2) unlockJournalEntry('act_3');
@@ -7626,6 +7771,7 @@ function finishEncounterRun() {
             if (zone.id === 7) unlockJournalEntry('act_8');
             if (zone.id === 8) unlockJournalEntry('act_9');
             if (zone.id === 9) unlockJournalEntry('act_10');
+            if (zone.id === 9 && Math.max(0, Math.floor(game.loopDeaths || 0)) <= 0) unlockJournalEntry('immortal');
             if (storyAct && storyAct.specialType === 'loop_gate') {
                 addLog('🗡️ 창조 권능 절단이 완성되었다. 나무꾼을 베어낸 루프가 새 시즌의 문을 연다.', 'loot-unique');
                 triggerSeasonReset();
@@ -7697,10 +7843,15 @@ function performPlayerAttack(pStats) {
     let zoneTier = getZone(game.currentZoneId).tier;
     let hits = [];
     let totalDamage = 0;
+    let totalLeechableDamage = 0;
     targets.forEach(hit => {
         if (!hit.enemy || hit.enemy.hp <= 0) return;
         let enemyRes = getEffectiveEnemyMitigation(pStats.sSkill.ele || 'phys', zoneTier, hit.enemy, pStats);
         let dmg = Math.floor(baseDamage * hit.mult);
+        let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
+        let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
+        let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
+        dmg = Math.floor(dmg * (rollPct / 100));
         if (Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot')) {
             hit.enemy.dotStacks = Math.min(10, Math.max(0, hit.enemy.dotStacks || 0) + 1);
             let stackMultiplier = 1 + ((hit.enemy.dotStacks - 1) * 0.09);
@@ -7710,7 +7861,8 @@ function performPlayerAttack(pStats) {
             dmg = Math.floor(dmg * (1 - hit.enemy.firstHitGuard));
             hit.enemy.firstHitConsumed = true;
         }
-        let hitGuard = (hit.enemy.hitRateGuard || 0) * Math.min(6, hit.enemy.recentHitsTaken || 0);
+        let burstHits = Math.max(0, (hit.enemy.recentHitsTaken || 0) - 2);
+        let hitGuard = (hit.enemy.hitRateGuard || 0) * Math.min(5, burstHits);
         if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
         dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
         dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
@@ -7725,6 +7877,7 @@ function performPlayerAttack(pStats) {
         hit.enemy.recentHitsTaken = (hit.enemy.recentHitsTaken || 0) + 1;
         hit.enemy.recentHitsTimer = 1.8;
         totalDamage += dmg;
+        totalLeechableDamage += dmg * (hit.enemy && hit.enemy.leechEffMul !== undefined ? hit.enemy.leechEffMul : 1);
         hits.push(dmg);
         addBattleFx('hit', {
             enemyId: hit.enemy.id,
@@ -7737,7 +7890,7 @@ function performPlayerAttack(pStats) {
             duration: 320
         });
     });
-    if (pStats.leech > 0 && totalDamage > 0) game.playerHp = Math.min(pStats.maxHp, game.playerHp + (totalDamage * (pStats.leech / 100)));
+    if (pStats.leech > 0 && totalLeechableDamage > 0) game.playerHp = Math.min(pStats.maxHp, game.playerHp + (totalLeechableDamage * (pStats.leech / 100)));
 
     if (game.settings.showCombatLog) {
         let dotInfo = '';
@@ -7773,6 +7926,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         addLog(`🩸 ${storyAct.clearText}`, 'death');
         addLog('🧊 이 패배는 담금질로 기록된다.', 'season-up');
         unlockJournalEntry('act_2');
+        if (zone && zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
         if (game.maxZoneId <= zone.id) {
             game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
             triggerMapUnlockReveal(game.maxZoneId);
@@ -7784,6 +7938,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         updateStaticUI();
         return;
     }
+    game.loopDeaths = Math.max(0, Math.floor(game.loopDeaths || 0)) + 1;
     if (zone.type === 'seasonBoss' && game.inTicketBossFight) {
         addLog(message || "☠️ 시즌 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death");
         game.currentZoneId = 0;
@@ -8042,12 +8197,14 @@ function triggerSeasonReset() {
     game.level = 1;
     game.exp = 0;
     game.killsInZone = 0;
+    game.loopDeaths = 0;
+    game.loopKills = 0;
     game.woodsmanSimulatorSeenLoop = false;
     game.currentZoneId = 0;
     game.maxZoneId = 0;
     game.combatHalted = false;
     game.passivePoints = 0;
-    game.passives = [];
+    game.passives = ['n0'];
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
     game.gemData = {};
@@ -8089,6 +8246,10 @@ function triggerSeasonReset() {
     game.talismanPlacements = {};
     game.talismanSelectedId = null;
     game.talismanUnseal = null;
+    if (game.settings) {
+        game.settings.autoSalvageEnabled = false;
+        game.settings.itemFilterEnabled = false;
+    }
     grantCodexLegacyStarterUniques();
     game.enemies = [];
     game.encounterPlan = [];
@@ -8101,7 +8262,8 @@ function triggerSeasonReset() {
     calculateReachableNodes();
     refreshPassiveVisibility();
     game.playerHp = getPlayerStats().maxHp;
-    addLog("🌟 심연을 정복했습니다! [환생 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
+    ensureActJournalCompletionForLoop({ silent: false });
+    addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
     checkUnlocks();
     startMoving(true);
     switchTab('tab-character');
@@ -10038,6 +10200,10 @@ function getEnemyTraitSummary(enemy) {
     else if (enemy.isElite) tags.push('정예');
     tags.push(getElementLabel(enemy.ele));
     if (enemy.traitName) tags.push(enemy.traitName);
+    if ((enemy.firstHitGuard || 0) > 0 && !enemy.firstHitConsumed) tags.push(`첫타보호 ${Math.floor((enemy.firstHitGuard || 0) * 100)}%`);
+    if ((enemy.hitRateGuard || 0) > 0) tags.push(`연타경감 ${Math.floor((enemy.hitRateGuard || 0) * 100)}%`);
+    if ((enemy.leechEffMul || 1) <= 0) tags.push('흡혈불가');
+    else if ((enemy.leechEffMul || 1) < 1) tags.push(`흡혈저항 ${Math.floor((enemy.leechEffMul || 1) * 100)}%`);
     return Array.from(new Set(tags.filter(Boolean)));
 }
 function getEnemyShortLabel(enemy) {
@@ -10105,6 +10271,8 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-res-cold').innerText = Math.floor(pStats.resC);
     document.getElementById('ui-res-light').innerText = Math.floor(pStats.resL);
     document.getElementById('ui-res-chaos').innerText = Math.floor(pStats.resChaos);
+    document.getElementById('ui-min-dmg-roll').innerText = Math.floor(pStats.minDmgRoll || 80);
+    document.getElementById('ui-max-dmg-roll').innerText = Math.floor(pStats.maxDmgRoll || 100);
 
     document.getElementById('row-phys-ignore').style.display = (pStats.physIgnore || 0) > 0 ? 'grid' : 'none';
     document.getElementById('row-res-pen').style.display = (pStats.resPen || 0) > 0 ? 'grid' : 'none';
@@ -10608,11 +10776,12 @@ function updateStaticUI() {
         let current = seasonNum === game.season;
         let stateColor = current ? '#f1c40f' : (unlocked ? '#2ecc71' : '#7f8c8d');
         let stateText = current ? '진행 중' : (unlocked ? '해금됨' : '잠김');
+        let reqText = getLoopAbyssRequirementText(seasonNum);
         return `<div style="background:#121822; border:1px solid ${stateColor}; border-radius:8px; padding:10px 12px;">
             <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;">
                 <strong style="color:${stateColor};">루프 ${seasonNum} - ${def.title}</strong><span style="color:${stateColor}; font-size:0.8em;">${stateText}</span>
             </div>
-            <div style="color:#a8bdd3; font-size:0.82em; line-height:1.5;">${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
+            <div style="color:#a8bdd3; font-size:0.82em; line-height:1.5;">• ${reqText}<br>${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
         </div>`;
     }).join('') || `<div style="color:#7f8c8d;">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
     let renderSeasonNode = id => {
@@ -11274,6 +11443,11 @@ function mergeDefaults(save) {
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     if (!merged.journalEntries.includes('prologue')) merged.journalEntries.unshift('prologue');
+    if (Math.max(Math.floor(merged.season || 1), Math.floor(merged.loopCount || 0)) >= 2) {
+        Object.keys(JOURNAL_DB).forEach(id => {
+            if (/^act_/.test(id) && !merged.journalEntries.includes(id)) merged.journalEntries.push(id);
+        });
+    }
     merged.journalBonuses = Array.isArray(merged.journalBonuses) ? merged.journalBonuses.filter(entry => entry && typeof entry.stat === 'string' && Number.isFinite(entry.value)) : [];
     merged.journalBonusClaims = (merged.journalBonusClaims && typeof merged.journalBonusClaims === 'object') ? merged.journalBonusClaims : {};
     merged.journalEntries.forEach(id => {
