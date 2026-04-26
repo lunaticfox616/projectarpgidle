@@ -3370,7 +3370,9 @@ let battleVisualState = {
     playerAttackBlend: 0,
     playerHurtBlend: 0,
     playerDownBlend: 0,
-    lastNow: 0
+    lastNow: 0,
+    advanceDesired: false,
+    advanceChangedAt: 0
 };
 const DEBUG_BATTLE_ANCHORS = false;
 const HERO_SPRITE_CONFIG = { cols: 6, rows: 5, drawHeight: 58, anchorX: 0.5, anchorY: 0.92 };
@@ -7222,6 +7224,11 @@ function resetBattleRuntimeVisuals() {
     battleVisualState = {
         projectiles: [],
         damageTexts: [],
+        skillProjectiles: [],
+        skillEffects: [],
+        skillPlayback: null,
+        lastAutoSwingId: 0,
+        lastAutoSkillAt: 0,
         processedFxIds: new Set(),
         enemyGhostPos: {},
         playerPos: null,
@@ -7229,7 +7236,9 @@ function resetBattleRuntimeVisuals() {
         playerAttackBlend: 0,
         playerHurtBlend: 0,
         playerDownBlend: 0,
-        lastNow: 0
+        lastNow: 0,
+        advanceDesired: false,
+        advanceChangedAt: 0
     };
     crowdPauseActive = false;
     trialHazardTimer = 0;
@@ -7725,7 +7734,7 @@ function performPlayerAttack(pStats) {
         crit: isCrit,
         projectile: (pStats.sSkill.tags || []).includes('projectile'),
         skillName: game.activeSkill,
-        duration: 240
+        duration: 600
     });
 
     let zoneTier = getZone(game.currentZoneId).tier;
@@ -9371,7 +9380,9 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
                 motionName = 'idle';
             }
             let frames = HERO_MOTIONS[motionName] || HERO_MOTIONS.idle;
-            let localFrame = Math.floor((now / 220)) % frames.length;
+            const _motionMs = { walk: 285, run: 190, slash: 160, throw: 170, cast: 180, bow: 175, hit: 200, idle: 320 };
+            const _frameMs = _motionMs[motionName] || 220;
+            let localFrame = Math.floor((now / _frameMs)) % frames.length;
             frameIndex = frames[localFrame];
         }
         let heroFrame = getSpriteFrameRectByIndex(battleAssets.images.hero, frameIndex, HERO_SPRITE_CONFIG);
@@ -9470,7 +9481,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         let idleFrame = pickCycle(idleCycle, 920, 0);
-        let moveCycleSpeed = lerpNumber(1420, 1140, advanceBlend);
+        let moveCycleSpeed = 1140;
         let walkFrame = pickCycle(walkCycle, moveCycleSpeed, 0);
         let movingFrame = pickCycle(runCycle, moveCycleSpeed, 0) || walkFrame;
         let frame = downPhase !== null || downBlend > 0.24
@@ -9480,8 +9491,9 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         if (downPhase === null && isAttacking) {
             frame = pickAttackFrame(pickSkillAttackCycle());
         }
+        const _walkBobPeriod = 1140 / Math.max(1, (walkCycle.length || 4)) / 2;
         let stepOffset = (downPhase === null && advanceBlend > 0.08)
-            ? Math.sin(now / 520) * lerpNumber(0.08, 0.24, advanceBlend)
+            ? Math.sin(now / _walkBobPeriod) * lerpNumber(0.08, 0.24, advanceBlend)
             : 0;
         drawPixelShadow(ctx, x, y + 15, 10, 4, 0.16);
         let normalizedHeroSize = 55.2 - downBlend * 6.5;
@@ -9998,7 +10010,7 @@ function renderBattlefield() {
         advanceTarget = clampNumber((now - changedAt - 260) / 700, 0, 1);
     }
     battleVisualState.playerAdvanceBlend = approachNumber(battleVisualState.playerAdvanceBlend || 0, advanceTarget, desiredAdvancing ? 2.2 : 2.8, deltaSec);
-    battleVisualState.playerAttackBlend = approachNumber(battleVisualState.playerAttackBlend || 0, swingFx ? 1 : 0, swingFx ? 9 : 6, deltaSec);
+    battleVisualState.playerAttackBlend = approachNumber(battleVisualState.playerAttackBlend || 0, swingFx ? 1 : 0, swingFx ? 4 : 3, deltaSec);
     battleVisualState.playerHurtBlend = approachNumber(battleVisualState.playerHurtBlend || 0, playerFlash ? 1 : 0, playerFlash ? 6.5 : 4.2, deltaSec);
     battleVisualState.playerDownBlend = approachNumber(battleVisualState.playerDownBlend || 0, playerDownActive ? 1 : 0, playerDownActive ? 7.5 : 4.8, deltaSec);
     let layout = getBattleLayout(enemies, width, height);
@@ -10041,7 +10053,8 @@ function renderBattlefield() {
     if (swingFx && swingFx.id !== battleVisualState.lastAutoSwingId && now >= (battleVisualState.lastAutoSkillAt || 0)) {
         playSkillFromActiveGem(game.activeSkill || '기본 공격');
         battleVisualState.lastAutoSwingId = swingFx.id;
-        battleVisualState.lastAutoSkillAt = now + 420;
+        const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, getPlayerStats().aspd)) * 100));
+        battleVisualState.lastAutoSkillAt = now + _atkInterval;
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
     drawSkillWeaponLayer(ctx, playerPos, now, 'back');
