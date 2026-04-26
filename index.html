@@ -7853,6 +7853,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         addLog(`🩸 ${storyAct.clearText}`, 'death');
         addLog('🧊 이 패배는 담금질로 기록된다.', 'season-up');
         unlockJournalEntry('act_2');
+        if (zone && zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
         if (game.maxZoneId <= zone.id) {
             game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
             triggerMapUnlockReveal(game.maxZoneId);
