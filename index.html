@@ -1306,15 +1306,19 @@ const SEASON_BOSS_ZONES = [
 const LABYRINTH_ZONE_ID = 'labyrinth_endless';
 const JOURNAL_DB = {
     prologue: { title: '프롤로그 - 정원사의 판단', lines: ['“이 나무에 뿌리내리지 못한 것은 열매가 될 수 없다.”', '“너는 가지가 아니다. 잎도, 씨앗도, 벌레도 아니다.”', '“그렇다면 남은 이름은 하나뿐이다. 밑거름.”'] },
-    act_1: { title: '액트 1 - 뿌리의 드루이드', lines: ['“뿌리가 없다는 건 저주가 아니다.”', '“어쩌면 이 세계에서 가장 자유로운 형벌이지.”', '“중간계로 돌아가고 싶다면, 썩은 잔뿌리들을 베어라.”', '“길은 언제나 상처를 따라 열린다.”'] },
-    act_2: { title: '액트 2 - 정원사의 불멸', lines: ['“나는 내가 살아 있는 것이 아니다.”', '“가지들이 나를 살린다.”', '“나를 베고 싶다면, 먼저 이 나무가 나를 잊게 만들어라.”'] },
-    act_3: { title: '액트 3~4 - 드루이드의 경고', lines: ['“널 추방한 자가 정원사라면, 그는 나뭇가지들의 호혜를 받고 있다.”', '“기근, 측근, 괴근. 그들의 뿌리를 끊으면 정원사에게 닿는 호혜도 함께 마를 것이다.”'] },
-    act_4: { title: '액트 4 - 갈림뿌리 미궁', lines: ['“네가 돌아갈 곳은 없다.”', '“그는 너를 길렀다고? 아니다. 그는 너를 벼렸다.”'] },
-    act_5: { title: '액트 5 - 지주근의 진실', lines: ['“나는 이 나무를 버틴 자다.”', '“너는… 베는 자의 조각이다.”', '“나무꾼의 손에서 빠진, 첫 번째 날붙이였구나.”'] },
-    act_6: { title: '액트 6 - 정원사의 붕괴', lines: ['“왜 가지들이 대답하지 않지?”', '“왜 내 상처가 닫히지 않는 거지?”', '“너는 대체 무엇이냐.”'] },
-    act_7: { title: '액트 7~10 - 삽목들의 논리', lines: ['“우리는 썩어가는 나무에 남지 않겠다.”', '“떨어져 나가는 것은 배신이 아니다. 번식이다.”', '“이것이 배신이라면, 생존 또한 죄인가?”'] },
+    act_1: { title: '액트 1 - 뿌리의 드루이드', lines: ['“뿌리가 없다는 건 저주가 아니다.”', '“어쩌면 이 세계에서 가장 자유로운 형벌이지.”', '“중간계로 돌아가고 싶다면, 썩은 잔뿌리들을 베어라.”', '“길은 언제나 상처를 따라 열린다.”'], bonus: { stat: 'flatHp', value: 5, label: '최대 생명력 +5' } },
+    act_2: { title: '액트 2 - 정원사의 불멸', lines: ['“나는 내가 살아 있는 것이 아니다.”', '“가지들이 나를 살린다.”', '“나를 베고 싶다면, 먼저 이 나무가 나를 잊게 만들어라.”'], bonus: { stat: 'flatDmg', value: 1, label: '기본 피해 +1' } },
+    act_3: { title: '액트 3 - 드루이드의 경고', lines: ['“널 추방한 자가 정원사라면, 그는 나뭇가지들의 호혜를 받고 있다.”', '“기근의 뿌리를 끊으면 정원사에게 닿는 호혜도 함께 마를 것이다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
+    act_4: { title: '액트 4 (4-1/4-2) - 갈림과 축적', lines: ['“네가 돌아갈 곳은 없다.”', '“그는 너를 길렀다고? 아니다. 그는 너를 벼렸다.”'], bonus: { stat: 'move', value: 2, label: '이동 속도 +2%' } },
+    act_5: { title: '액트 5 - 지주근의 진실', lines: ['“나는 이 나무를 버틴 자다.”', '“너는… 베는 자의 조각이다.”', '“나무꾼의 손에서 빠진, 첫 번째 날붙이였구나.”'], bonus: { stat: 'flatHp', value: 8, label: '최대 생명력 +8' } },
+    act_6: { title: '액트 6 - 정원사의 붕괴', lines: ['“왜 가지들이 대답하지 않지?”', '“왜 내 상처가 닫히지 않는 거지?”', '“너는 대체 무엇이냐.”'], bonus: { stat: 'pctDmg', value: 1, label: '피해 +1%' } },
+    act_7: { title: '액트 7 - 삽목들의 논리', lines: ['“우리는 썩어가는 나무에 남지 않겠다.”', '“떨어져 나가는 것은 배신이 아니다. 번식이다.”'], bonus: { stat: 'dr', value: 1, label: '물리 피해 감소 +1%' } },
+    act_8: { title: '액트 8 - 끝없는 장막', lines: ['“처음 본 길인데도, 발자국은 이미 나 있다.”'], bonus: { stat: 'resAll', value: 1, label: '모든 저항 +1%' } },
+    act_9: { title: '액트 9 - 비탄의 교차', lines: ['“살아남으려는 가지의 울음은 죄가 아니다.”'], bonus: { stat: 'crit', value: 1, label: '치명타 확률 +1%' } },
+    act_10: { title: '액트 10 - 합일의 차륜', lines: ['“왕관은 부서져도, 선택은 남는다.”'], bonus: { stat: 'flatHp', value: 12, label: '최대 생명력 +12' } },
     woodsman: { title: '나무꾼', lines: ['“종착점에 도착했구나, 나의 피조물아.”', '“선택해라. 도구로 남을 것인지, 날이 될 것인지.”'] }
 };
+const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman'];
 
 function getSeasonAbyssDepthCap(seasonValue) {
     return 15;
@@ -1939,6 +1943,7 @@ const defaultGame = {
     moveTimer: 0,
     moveTotalTime: 0,
     isTownReturning: false,
+    combatHalted: false,
     inTicketBossFight: false,
     runProgress: 0,
     encounterIndex: 0,
@@ -1996,6 +2001,8 @@ const defaultGame = {
     seenSeasonContentNotices: ['season_1'],
     seenTutorials: [],
     journalEntries: ['prologue'],
+    journalBonuses: [],
+    journalBonusClaims: {},
     claimableActRewards: [],
     claimedActRewards: [],
     actRewardBonuses: [],
@@ -4081,12 +4088,24 @@ function getActRewardChoices(zoneId) {
         return enriched;
     });
 }
+function grantJournalBonus(entryId) {
+    let entry = JOURNAL_DB[entryId];
+    if (!entry || !entry.bonus) return;
+    game.journalBonusClaims = (game.journalBonusClaims && typeof game.journalBonusClaims === 'object') ? game.journalBonusClaims : {};
+    if (game.journalBonusClaims[entryId]) return;
+    game.journalBonuses = Array.isArray(game.journalBonuses) ? game.journalBonuses : [];
+    game.journalBonuses.push({ entryId: entryId, stat: entry.bonus.stat, value: entry.bonus.value });
+    game.journalBonusClaims[entryId] = true;
+    addLog(`🕮 저널 영구 보너스 획득: ${entry.bonus.label}`, 'season-up');
+}
 function unlockJournalEntry(entryId) {
     if (!entryId || !JOURNAL_DB[entryId]) return;
     game.journalEntries = Array.isArray(game.journalEntries) ? game.journalEntries : ['prologue'];
-    if (game.journalEntries.includes(entryId)) return;
-    game.journalEntries.push(entryId);
-    addLog(`📓 저널 해금: ${JOURNAL_DB[entryId].title}`, 'loot-rare');
+    if (!game.journalEntries.includes(entryId)) {
+        game.journalEntries.push(entryId);
+        addLog(`📓 저널 해금: ${JOURNAL_DB[entryId].title}`, 'loot-rare');
+    }
+    grantJournalBonus(entryId);
 }
 function markActRewardReady(zoneId) {
     if (zoneId < 0 || zoneId > 9) return;
@@ -6439,6 +6458,9 @@ function getGemBonusSources() {
     (game.actRewardBonuses || []).forEach(entry => {
         if (entry.stat === 'gemLevel') reward += entry.value;
     });
+    (game.journalBonuses || []).forEach(entry => {
+        if (entry && entry.stat === 'gemLevel') reward += entry.value;
+    });
     return { gear: gear, passive: passive, reward: reward, total: gear + passive + reward };
 }
 
@@ -6482,6 +6504,7 @@ function getPlayerStats() {
     const safeSeasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
     const safeAscendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
     const safeRewardBonuses = Array.isArray(game.actRewardBonuses) ? game.actRewardBonuses : [];
+    const safeJournalBonuses = Array.isArray(game.journalBonuses) ? game.journalBonuses : [];
     const safeEquippedSupports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
     let baseDmg = 8 + (game.level * 1.5);
     let baseHp = 90 + (game.level * 8);
@@ -6526,6 +6549,9 @@ function getPlayerStats() {
         });
     }
     safeRewardBonuses.forEach(entry => {
+        if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
+    });
+    safeJournalBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
     if (game.passiveStarEvolution) {
@@ -7168,6 +7194,7 @@ function startMoving(isTown) {
     game.moveTotalTime = time;
     game.moveTimer = time;
     game.isTownReturning = !!isTown;
+    game.combatHalted = false;
     game.enemies = [];
     game.encounterPlan = [];
     game.encounterIndex = 0;
@@ -7528,11 +7555,14 @@ function finishEncounterRun() {
             if (storyAct && storyAct.clearText) addLog(`📜 ${storyAct.clearText}`, 'season-up');
             if (zone.id === 0) unlockJournalEntry('act_1');
             if (zone.id === 1) unlockJournalEntry('act_2');
-            if (zone.id === 2 || zone.id === 3) unlockJournalEntry('act_3');
+            if (zone.id === 2) unlockJournalEntry('act_3');
             if (zone.id === 3) unlockJournalEntry('act_4');
             if (zone.id === 4) unlockJournalEntry('act_5');
             if (zone.id === 5) unlockJournalEntry('act_6');
-            if (zone.id >= 6) unlockJournalEntry('act_7');
+            if (zone.id === 6) unlockJournalEntry('act_7');
+            if (zone.id === 7) unlockJournalEntry('act_8');
+            if (zone.id === 8) unlockJournalEntry('act_9');
+            if (zone.id === 9) unlockJournalEntry('act_10');
             if (storyAct && storyAct.specialType === 'loop_gate') {
                 addLog('🗡️ 창조 권능 절단이 완성되었다. 나무꾼을 베어낸 루프가 새 시즌의 문을 연다.', 'loot-unique');
                 triggerSeasonReset();
@@ -7563,6 +7593,7 @@ function finishEncounterRun() {
         let mapAction = game.settings.mapCompleteAction || 'nextZone';
         if (mapAction === 'repeatZone') game.currentZoneId = zone.id;
         else if (mapAction === 'stop') {
+            game.combatHalted = true;
             game.enemies = [];
             game.encounterPlan = [];
             game.encounterIndex = 0;
@@ -7573,6 +7604,7 @@ function finishEncounterRun() {
     }
     checkUnlocks();
     if ((game.settings.townReturnAction || 'retry') === 'stop') {
+        game.combatHalted = true;
         game.enemies = [];
         game.encounterPlan = [];
         game.encounterIndex = 0;
@@ -7851,6 +7883,7 @@ function coreLoop() {
     if (ailmentMap.chill) pStats.aspd *= 0.82;
     if (ailmentMap.shock) pStats.dr = Math.max(-40, pStats.dr - 12);
     if (isDeathOverlayOpen()) return;
+    if (game.combatHalted) return;
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
     if (game.playerHp > 0 && game.playerHp < pStats.maxHp) game.playerHp = Math.min(pStats.maxHp, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
@@ -7858,7 +7891,18 @@ function coreLoop() {
     if (game.moveTimer > 0) {
         game.moveTimer -= 0.1;
         if (game.moveTimer <= 0) {
-            game.isTownReturning = false;
+            if (game.isTownReturning) {
+                game.isTownReturning = false;
+                if ((game.settings.townReturnAction || 'retry') === 'stop') {
+                    game.combatHalted = true;
+                    game.enemies = [];
+                    game.encounterPlan = [];
+                    game.encounterIndex = 0;
+                    game.runProgress = 0;
+                    updateStaticUI();
+                    return;
+                }
+            }
             startEncounterRun();
         }
         return;
@@ -7938,6 +7982,7 @@ function triggerSeasonReset() {
     game.woodsmanSimulatorSeenLoop = false;
     game.currentZoneId = 0;
     game.maxZoneId = 0;
+    game.combatHalted = false;
     game.passivePoints = 0;
     game.passives = [];
     game.skills = ['기본 공격'];
@@ -8201,7 +8246,7 @@ function buyAscend(id) {
     if (!game.ascendClass) return;
     let tree = getClassTreeDef(game.ascendClass);
     let node = tree[id];
-    let reqMet = !node || !node.req ? true : (Array.isArray(node.req) ? node.req.some(req => game.ascendNodes.includes(req)) : game.ascendNodes.includes(node.req));
+    let reqMet = !node || !node.req ? true : (Array.isArray(node.req) ? node.req.every(req => game.ascendNodes.includes(req)) : game.ascendNodes.includes(node.req));
     if (node && node.exclusive && game.ascendNodes.includes(node.exclusive)) return addLog('4차 핵심 노드는 2개 중 1개만 선택할 수 있습니다.', 'attack-monster');
     if (!node || game.ascendPoints <= 0 || game.ascendNodes.includes(id) || !reqMet) return;
     game.ascendNodes.push(id);
@@ -10723,7 +10768,7 @@ function updateStaticUI() {
             let node = tree[id];
             if (!node) return '';
             let active = game.ascendNodes.includes(id);
-            let reqMet = !node.req || (Array.isArray(node.req) ? node.req.some(req => game.ascendNodes.includes(req)) : game.ascendNodes.includes(node.req));
+            let reqMet = !node.req || (Array.isArray(node.req) ? node.req.every(req => game.ascendNodes.includes(req)) : game.ascendNodes.includes(node.req));
             let statInfo = P_STATS[node.stat];
             let desc = node.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name} +${node.val}${statInfo.isPct ? '%' : ''}`;
             let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : statInfo.name);
@@ -10857,8 +10902,14 @@ function updateStaticUI() {
     }).join('');
     let journalList = document.getElementById('ui-journal-list');
     if (journalList) {
-        let entries = (game.journalEntries || []).filter(id => JOURNAL_DB[id]).map(id => JOURNAL_DB[id]);
-        journalList.innerHTML = entries.map(entry => `<div style="background:#1a1a24; border:1px solid #3d3d5c; border-radius:8px; padding:10px;"><div style="font-weight:bold; color:#ffd36b; margin-bottom:6px;">${entry.title}</div><div style="color:#c5d6e8; font-size:0.86em; line-height:1.6;">${entry.lines.map(line => `• ${line}`).join('<br>')}</div></div>`).join('') || `<div style="color:#7f8c8d;">아직 해금된 기록이 없습니다.</div>`;
+        let unlocked = new Set((game.journalEntries || []).filter(id => JOURNAL_DB[id]));
+        let orderedIds = JOURNAL_ENTRY_ORDER.filter(id => unlocked.has(id));
+        let entries = orderedIds.map(id => ({ id: id, def: JOURNAL_DB[id] }));
+        journalList.innerHTML = entries.map(({ id, def }) => `<div style="background:#1a1a24; border:1px solid #3d3d5c; border-radius:8px; padding:10px;">
+            <div style="font-weight:bold; color:#ffd36b; margin-bottom:6px;">${def.title}</div>
+            <div style="color:#c5d6e8; font-size:0.86em; line-height:1.6;">${(def.lines || []).map(line => `• ${line}`).join('<br>')}</div>
+            ${def.bonus ? `<div style="margin-top:8px; color:#9fe2b1; font-size:0.82em;">영구 보너스: ${def.bonus.label}</div>` : ''}
+        </div>`).join('') || `<div style="color:#7f8c8d;">아직 해금된 기록이 없습니다.</div>`;
     }
 
     switchItemSubtab(game.itemSubtab || 'item-tab-equip');
@@ -11350,9 +11401,20 @@ function mergeDefaults(save) {
     merged.uniqueCodexCompletedRewardClaimed = !!merged.uniqueCodexCompletedRewardClaimed;
     if (!merged.gemEnhanceUnlocked && (((merged.currencies || {}).bossCore || 0) > 0 || ((merged.currencies || {}).skyEssence || 0) > 0)) merged.gemEnhanceUnlocked = true;
     merged.inTicketBossFight = !!merged.inTicketBossFight;
+    merged.combatHalted = false;
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     if (!merged.journalEntries.includes('prologue')) merged.journalEntries.unshift('prologue');
+    merged.journalBonuses = Array.isArray(merged.journalBonuses) ? merged.journalBonuses.filter(entry => entry && typeof entry.stat === 'string' && Number.isFinite(entry.value)) : [];
+    merged.journalBonusClaims = (merged.journalBonusClaims && typeof merged.journalBonusClaims === 'object') ? merged.journalBonusClaims : {};
+    merged.journalEntries.forEach(id => {
+        let entry = JOURNAL_DB[id];
+        if (!entry || !entry.bonus) return;
+        if (!merged.journalBonusClaims[id]) {
+            merged.journalBonusClaims[id] = true;
+            merged.journalBonuses.push({ entryId: id, stat: entry.bonus.stat, value: entry.bonus.value });
+        }
+    });
     merged.passiveStarEvolution = !!merged.passiveStarEvolution;
     merged.settings.showDeathNotice = merged.settings.showDeathNotice !== false;
     merged.settings.themeMode = merged.settings.themeMode === 'light' ? 'light' : 'dark';
