@@ -2075,8 +2075,8 @@ const HERO_SELECTION_DEFS = {
         id: 'hero2',
         label: '전사',
         blindLabel: '전사',
-        talentsText: '근접 피해 +20%, 치명타 피해 +35%, 최대 생명력 +10%',
-        stats: [{ stat: 'meleePctDmg', value: 20 }, { stat: 'critDmg', value: 35 }, { stat: 'pctHp', value: 10 }],
+        talentsText: '근접 피해 +20%, 최대 생명력 +10%, 최대 대미지 보정 +10%, 강타 피해 +18%',
+        stats: [{ stat: 'meleePctDmg', value: 20 }, { stat: 'pctHp', value: 10 }, { stat: 'maxDmgRoll', value: 10 }, { stat: 'slamPctDmg', value: 18 }],
         strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
     },
     hero3: {
@@ -2091,8 +2091,8 @@ const HERO_SELECTION_DEFS = {
         id: 'hero4',
         label: '블레이드',
         blindLabel: '블레이드',
-        talentsText: '카오스 피해 +20%, 흡혈 +1.4%, 이동 속도 +12%',
-        stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 1.4 }, { stat: 'move', value: 12 }],
+        talentsText: '카오스 피해 +20%, 흡혈 +1.4%, 이동 속도 +12%, 치명타 피해 +20%',
+        stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 1.4 }, { stat: 'move', value: 12 }, { stat: 'critDmg', value: 20 }],
         strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
     }
 };
@@ -2293,7 +2293,8 @@ const TAGGED_DAMAGE_STAT_BY_TAG = {
     cold: 'coldPctDmg',
     lightning: 'lightPctDmg',
     chaos: 'chaosPctDmg',
-    aoe: 'aoePctDmg'
+    aoe: 'aoePctDmg',
+    slam: 'slamPctDmg'
 };
 const COMPARE_STAT_META = {
     dps: { label: 'DPS', format: value => `${Math.floor(value)}` },
@@ -2339,6 +2340,7 @@ function getStatName(statId) {
         flatDmg: '기본 피해',
         pctDmg: '피해 증가(%)',
         meleePctDmg: '근접 피해(%)',
+        slamPctDmg: '강타 피해(%)',
         projectilePctDmg: '투사체 피해(%)',
         physPctDmg: '물리 피해(%)',
         elementalPctDmg: '원소 피해(%)',
@@ -2392,7 +2394,7 @@ function createEmptyStatBucket() {
         flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, suppCap: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, resChaos: 0, leech: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0,
-        meleePctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0,
+        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0
     };
 }
@@ -2402,6 +2404,7 @@ function addStatToBucket(bucket, statId, value) {
     if (statId === 'flatDmg') bucket.flatDmg += value;
     else if (statId === 'pctDmg') bucket.pctDmg += value;
     else if (statId === 'meleePctDmg') bucket.meleePctDmg += value;
+    else if (statId === 'slamPctDmg') bucket.slamPctDmg += value;
     else if (statId === 'projectilePctDmg') bucket.projectilePctDmg += value;
     else if (statId === 'physPctDmg') bucket.physPctDmg += value;
     else if (statId === 'elementalPctDmg') bucket.elementalPctDmg += value;
