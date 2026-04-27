@@ -10944,6 +10944,7 @@ function updateStaticUI() {
         let node = SEASON_NODES[id];
         let active = game.seasonNodes.includes(id);
         let reqMet = isSeasonNodeRequirementMet(node);
+        let lockedHint = !!node.req && !reqMet ? `<br><span style="color:#d39ca7;">🔒 연결된 이전 노드를 먼저 활성화하세요</span>` : '';
         let statInfo = P_STATS[node.stat] || {};
         let suffix = statInfo.isPct ? '%' : '';
         let effectText = `${statInfo.name || node.stat} +${formatValue(node.stat, node.val)}${suffix}`;
