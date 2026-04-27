@@ -10947,13 +10947,7 @@ function updateStaticUI() {
         let statInfo = P_STATS[node.stat] || {};
         let suffix = statInfo.isPct ? '%' : '';
         let effectText = `${statInfo.name || node.stat} +${formatValue(node.stat, node.val)}${suffix}`;
-        let reqText = '';
-        if (node.req) {
-            let reqList = Array.isArray(node.req) ? node.req : [node.req];
-            let labels = reqList.map(reqId => (SEASON_NODES[reqId] ? SEASON_NODES[reqId].name : reqId));
-            reqText = `<br><span style="color:${reqMet ? '#8fd8a8' : '#d39ca7'};">조건: ${labels.join(' 또는 ')}</span>`;
-        }
-        return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buySeason('${id}')"`}><div class="trait-title">${node.name}</div><div class="trait-desc">${node.desc}<br><span style="color:#9bb9d4;">${effectText}</span>${reqText}</div></div>`;
+        return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buySeason('${id}')"`}><div class="trait-title">${node.name}</div><div class="trait-desc">${node.desc}<br><span style="color:#9bb9d4;">${effectText}</span></div></div>`;
     };
     let visibleSeasonRows = SEASON_NODE_ROWS.filter((row, idx) => idx < 4 || (game.season || 1) >= 5);
     document.getElementById('ui-season-tree').innerHTML = visibleSeasonRows.map(row => `<div class="trait-row">${row.map(renderSeasonNode).join('')}</div>`).join('');
@@ -10972,12 +10966,7 @@ function updateStaticUI() {
             let statInfo = P_STATS[node.stat];
             let desc = node.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name} +${node.val}${statInfo.isPct ? '%' : ''}`;
             let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : statInfo.name);
-            let reqText = '';
-            if (node.req) {
-                let reqList = Array.isArray(node.req) ? node.req : [node.req];
-                reqText = `<br><span style="color:${reqMet ? '#8fd8a8' : '#d39ca7'};">조건: ${reqList.join(' 또는 ')}</span>`;
-            }
-            return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buyAscend('${id}')"`}><div class="trait-title">${title}</div><div class="trait-desc">${desc}${reqText}</div></div>`;
+            return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buyAscend('${id}')"`}><div class="trait-title">${title}</div><div class="trait-desc">${desc}</div></div>`;
         };
         let coreRow = (tree.n11 || tree.n12) ? `<div class="trait-row">${renderAscend('n11')}${renderAscend('n12')}</div>` : '';
         document.getElementById('ui-ascend-tree-container').innerHTML = `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}`;
@@ -11787,7 +11776,8 @@ function updateStartupScreenUI() {
     let signupBtn = document.getElementById('btn-startup-signup');
     let localStamp = game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0;
     let zoneLabel = getCurrentZoneLabel();
-    if (localSummaryEl) localSummaryEl.innerText = `Lv.${game.level || 1} · ${zoneLabel}`;
+    let loopLabel = Math.max(1, Math.floor((game && game.season) || 1));
+    if (localSummaryEl) localSummaryEl.innerText = `Lv.${game.level || 1} · 루프 ${loopLabel} · ${zoneLabel}`;
     if (localTimeEl) localTimeEl.innerText = formatCloudTime(localStamp);
     if (statusEl) statusEl.innerHTML = `<strong>안내</strong><br>${cloudState.lastMessage || '시작 방식을 선택해주세요.'}`;
     if (backBtn) {
@@ -12210,6 +12200,31 @@ async function fetchCloudSaveRecord() {
     return record;
 }
 
+function getLocalSaveStamp() {
+    ensureSaveMeta();
+    return game.saveMeta.lastModifiedAt || 0;
+}
+
+function getRemoteSaveStamp(record) {
+    if (!record) return 0;
+    return record.updated_at ? (new Date(record.updated_at).getTime() || 0) : ((record.save_data && record.save_data.saveMeta && record.save_data.saveMeta.lastModifiedAt) || 0);
+}
+
+async function guardAgainstStaleLocalOverwrite(options = {}) {
+    let record = await fetchCloudSaveRecord();
+    if (!record || !record.save_data) return { record, status: 'no-remote' };
+    let localStamp = getLocalSaveStamp();
+    let remoteStamp = getRemoteSaveStamp(record);
+    cloudState.lastRemoteUpdatedAt = remoteStamp;
+    if (remoteStamp > localStamp + CLOUD_REMOTE_TIME_SKEW_MS) {
+        applyExternalSave(record.save_data, remoteStamp);
+        setCloudMessage(options.automatic ? '클라우드 저장이 더 최신이라 로컬에 먼저 반영했습니다.' : '클라우드 저장이 더 최신이라 덮어쓰기를 막고 자동으로 불러왔습니다.');
+        if (!options.silentLog) addLog('클라우드가 더 최신이라 자동으로 불러왔습니다.', 'loot-magic');
+        return { record, status: 'pulled-remote' };
+    }
+    return { record, status: 'safe-to-push' };
+}
+
 async function pushCloudSave(options = {}) {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
     persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true });
@@ -12250,8 +12265,8 @@ async function reconcileCloudSaveState(options = {}) {
         return 'pushed-local';
     }
     ensureSaveMeta();
-    let localStamp = game.saveMeta.lastModifiedAt || 0;
-    let remoteStamp = record.updated_at ? (new Date(record.updated_at).getTime() || 0) : ((record.save_data.saveMeta && record.save_data.saveMeta.lastModifiedAt) || 0);
+    let localStamp = getLocalSaveStamp();
+    let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
     if (remoteStamp > localStamp + CLOUD_REMOTE_TIME_SKEW_MS) {
         applyExternalSave(record.save_data, remoteStamp);
@@ -12292,6 +12307,8 @@ async function syncCloudSave(options = {}) {
     setCloudMessage(options.automatic ? '자동 클라우드 업로드 중...' : '클라우드 업로드 중...');
     updateCloudSaveUI();
     try {
+        let guardResult = await guardAgainstStaleLocalOverwrite({ automatic: !!options.automatic, silentLog: !!options.automatic });
+        if (guardResult.status === 'pulled-remote') return;
         await pushCloudSave({ touchModifiedAt: options.automatic !== true });
         setCloudMessage(options.automatic ? '클라우드 자동 저장을 완료했습니다.' : '클라우드 업로드를 완료했습니다.');
         if (!options.automatic) addLog('클라우드 세이브를 업로드했습니다.', 'loot-magic');
