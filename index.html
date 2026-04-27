@@ -19,6 +19,12 @@
         body.light-mode .map-item { background-color: #ffffff; border-color: #c7d6e8; color: #243247; }
         body.light-mode .skill-gem { background-color: #ffffff; border-color: #c7d6e8; color: #243247; }
         body.light-mode .settings-stack label { background: #ffffff !important; border-color: #c7d6e8 !important; color: #243247; }
+        body.light-mode #tab-settings .settings-stack > div { background: #ffffff !important; border-color: #c7d6e8 !important; color: #243247; }
+        body.light-mode #tab-settings input[type="number"],
+        body.light-mode #tab-settings select { background: #ffffff !important; color: #1f2a3a !important; border-color: #b8c9df !important; }
+        body.light-mode #tab-settings hr { border-color: #c7d6e8 !important; }
+        body.light-mode #tab-settings .settings-stack > div label,
+        body.light-mode #tab-settings .settings-stack > div > div { color: #243247 !important; }
         body.light-mode .combat-feed { background: linear-gradient(180deg, #f7fbff 0%, #eef5fc 100%); border-color: #c7d9eb; }
         body.light-mode .combat-feed-title { color: #2f5f91; }
         body.light-mode .combat-feed-sub { color: #59728f; }
@@ -57,12 +63,15 @@
         body.light-mode .item-card:hover { background: #f4f8fd; }
         body.light-mode .item-base-line { color: #6c829a; }
         body.light-mode .item-stats { color: #3f5670; }
-        #left-pane { width: 620px; min-width: 620px; display: flex; flex-direction: column; gap: 15px; margin-right: 0; min-height: 0; height: 100%; overflow: hidden; }
-        #left-pane.collapsed { width: 64px; min-width: 64px; overflow: visible; }
+        #left-pane { width: 620px; min-width: 620px; display: flex; flex-direction: column; gap: 15px; margin-right: 0; min-height: 0; height: 100%; overflow: hidden; transition: width 160ms ease, min-width 160ms ease, margin 160ms ease; }
+        body.left-pane-collapsed { gap: 4px; }
+        #left-pane.collapsed { width: 0; min-width: 0; margin: 0; overflow: hidden; }
         #left-pane.collapsed #battle-column { display: none; }
         #battle-column { display: flex; flex-direction: column; gap: 15px; flex: 1; min-height: 0; }
-        #left-pane-toggle { width: 34px; min-width: 34px; align-self: stretch; border-radius: 8px; background: #16263a; border: 1px solid #304b66; color: #d8ebff; font-size: 1.1em; padding: 0; }
-        body.light-mode #left-pane-toggle { background: #edf4fc; border-color: #bcd1e8; color: #2a5178; }
+        #left-pane-toggle { position: absolute; top: 8px; right: 8px; width: 28px; min-width: 28px; min-height: 28px; border-radius: 999px; background: #16263a; border: 1px solid #304b66; color: #d8ebff; font-size: 0.9em; padding: 0; z-index: 3; }
+        #left-pane-expand-fab { display: none; position: absolute; top: 10px; left: 10px; width: 28px; min-width: 28px; min-height: 28px; border-radius: 999px; background: #16263a; border: 1px solid #304b66; color: #d8ebff; font-size: 0.9em; padding: 0; z-index: 30; }
+        body.left-pane-collapsed #left-pane-expand-fab { display: inline-flex; align-items: center; justify-content: center; }
+        body.light-mode #left-pane-toggle, body.light-mode #left-pane-expand-fab { background: #edf4fc; border-color: #bcd1e8; color: #2a5178; }
         #right-pane { flex: 1; display: flex; flex-direction: column; background-color: #121216; border: 1px solid #2a2a35; border-radius: 8px; min-width: 0; min-height: 0; height: 100%; overflow: hidden; position: relative; }
         .panel { background-color: #16161d; border: 1px solid #2a2a35; padding: 15px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .player-panel { flex-shrink: 0; }
@@ -259,7 +268,7 @@
         .combat-feed-sub { color: #6f8296; font-size: 0.74em; font-weight: normal; text-transform: none; }
         .combat-log-toggle { font-size: 0.72em; padding: 3px 8px; min-height: 26px; }
         .combat-feed.collapsed #log { display: none; }
-        .combat-feed.collapsed { justify-content: center; min-height: 56px; height: auto; }
+        .combat-feed.collapsed { justify-content: flex-start; min-height: 64px; max-height: 64px; height: 64px; padding-top: 8px; padding-bottom: 8px; }
         .combat-feed.collapsed .combat-feed-title { margin-bottom: 0; }
         .enemy-list { display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 6px; flex-shrink: 0; min-height: 0; max-height: 82px; overflow: hidden; align-content: start; }
         .enemy-card { background: linear-gradient(180deg, #151621 0%, #0d0f17 100%); border: 1px solid #2b3240; border-radius: 10px; padding: 8px 10px 9px; min-height: 58px; display: flex; flex-direction: column; gap: 5px; }
@@ -417,7 +426,7 @@
             #left-pane, #right-pane { width: 100%; min-width: 0; height: auto; }
             #left-pane, #right-pane, .tab-content { overflow: visible; }
             body.mobile-battle-tab #left-pane { display: none; }
-            #left-pane-toggle { display: none; }
+            #left-pane-toggle, #left-pane-expand-fab { display: none !important; }
             body.mobile-battle-tab #tab-battle { padding: 10px; overflow: hidden; }
             body.mobile-battle-tab #tab-battle.active { display: flex; flex-direction: column; }
             body.mobile-battle-tab #tab-battle #battle-column { gap: 10px; min-height: 0; height: 100%; }
@@ -620,6 +629,7 @@
 <div id="left-pane">
     <div id="battle-column">
     <div class="panel player-panel" style="position: relative;">
+        <button id="left-pane-toggle" onclick="toggleLeftPaneCollapse()" title="전투 패널 접기" aria-label="전투 패널 접기">◀</button>
         <h2 style="display:none;">플레이어</h2>
         <div style="font-size: 0.9em; font-weight: bold; color: #d980fa; margin-top: 0;"><span id="ui-player-level">Lv.1</span> 경험치</div>
         <div class="hp-bar-bg" style="height: 12px; margin-top: 2px;">
@@ -679,6 +689,7 @@
 <button id="left-pane-toggle" onclick="toggleLeftPaneCollapse()" title="전투 패널 접기/펼치기" aria-label="전투 패널 접기/펼치기">◀</button>
 
 <div id="right-pane">
+    <button id="left-pane-expand-fab" onclick="toggleLeftPaneCollapse()" title="전투 패널 펼치기" aria-label="전투 패널 펼치기">▶</button>
     <div class="tab-header">
         <div class="tab-btn" id="btn-tab-battle" onclick="switchTab('tab-battle')">전투</div>
         <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: block;">캐릭터</div>
@@ -4125,12 +4136,19 @@ function toggleDeathNoticeSetting(checked) {
 function applyPanelLayoutSettings() {
     let leftPane = document.getElementById('left-pane');
     let leftToggleBtn = document.getElementById('left-pane-toggle');
+    let leftExpandFab = document.getElementById('left-pane-expand-fab');
     let combatFeed = document.querySelector('.combat-feed');
     let combatLogToggleBtn = document.getElementById('btn-combat-log-toggle');
     let isLeftCollapsed = !!(game && game.settings && game.settings.leftPaneCollapsed);
     let isLogCollapsed = !!(game && game.settings && game.settings.combatLogCollapsed);
     if (leftPane) leftPane.classList.toggle('collapsed', isLeftCollapsed);
-    if (leftToggleBtn) leftToggleBtn.innerText = isLeftCollapsed ? '▶' : '◀';
+    document.body.classList.toggle('left-pane-collapsed', isLeftCollapsed);
+    if (leftToggleBtn) {
+        leftToggleBtn.innerText = isLeftCollapsed ? '▶' : '◀';
+        leftToggleBtn.title = isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기';
+        leftToggleBtn.setAttribute('aria-label', isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기');
+    }
+    if (leftExpandFab) leftExpandFab.innerText = '▶';
     if (combatFeed) combatFeed.classList.toggle('collapsed', isLogCollapsed);
     if (combatLogToggleBtn) combatLogToggleBtn.innerText = isLogCollapsed ? '펼치기' : '접기';
 }
