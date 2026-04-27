@@ -594,6 +594,14 @@
         </div>
     </div>
 </div>
+<div id="loop-hero-select-overlay" class="tutorial-overlay">
+    <div class="tutorial-card" style="max-width:460px;">
+        <div class="tutorial-kicker" id="loop-hero-select-kicker">Loop Selection</div>
+        <div class="tutorial-title" id="loop-hero-select-title">다음 루프 캐릭터 선택</div>
+        <div class="tutorial-body" id="loop-hero-select-body">이번 루프에서 사용할 캐릭터를 선택하세요.</div>
+        <div id="loop-hero-select-grid" class="reward-grid"></div>
+    </div>
+</div>
 <div id="death-overlay" class="tutorial-overlay">
     <div class="tutorial-card deathlog-card">
         <div class="tutorial-kicker">Death Log</div>
@@ -1131,6 +1139,13 @@
                     <option value="light">라이트모드</option>
                 </select>
             </label>
+            <div style="background:#1a1a24; padding:10px; border:1px solid #3d3d5c; border-radius:6px; display:grid; gap:8px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                    <span>현재 캐릭터 외형</span>
+                    <select id="sel-active-hero" onchange="onHeroSelectionChanged()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px; min-width:140px;"></select>
+                </div>
+                <div id="ui-hero-talent-summary" style="font-size:0.82em; color:#9ec3e8;">캐릭터 재능 정보 로딩 중...</div>
+            </div>
             <hr style="border-color: #3d3d5c; width: 100%;">
             <button id="btn-open-death-log" onclick="openLastDeathLog()" style="background-color: #4a6078;">☠️ 최근 데스로그 보기</button>
             <button onclick="saveGame()" style="background-color: #27ae60;">💾 수동 저장</button>
@@ -2047,6 +2062,41 @@ const DEATH_REASON_TEXT = {
     phys: '극심한 충격 끝에 목숨을 잃었습니다.',
     other: '예기치 못한 피해가 한꺼번에 몰아쳤습니다.'
 };
+const HERO_SELECTION_DEFS = {
+    hero1: {
+        id: 'hero1',
+        label: '궁수',
+        blindLabel: '궁수',
+        talentsText: '투사체 피해 +18%, 공격 속도 +12%, 최소 대미지 보정 +10%',
+        stats: [{ stat: 'projectilePctDmg', value: 18 }, { stat: 'aspd', value: 12 }, { stat: 'minDmgRoll', value: 10 }],
+        strips: { idle: 'hero1Idle', walk: 'hero1Walk', attack: 'hero1Attack', hurt: 'hero1Hurt', death: 'hero1Death' }
+    },
+    hero2: {
+        id: 'hero2',
+        label: '전사',
+        blindLabel: '전사',
+        talentsText: '근접 피해 +20%, 최대 생명력 +10%, 최대 대미지 보정 +10%, 강타 피해 +18%',
+        stats: [{ stat: 'meleePctDmg', value: 20 }, { stat: 'pctHp', value: 10 }, { stat: 'maxDmgRoll', value: 10 }, { stat: 'slamPctDmg', value: 18 }],
+        strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
+    },
+    hero3: {
+        id: 'hero3',
+        label: '드루이드',
+        blindLabel: '드루이드',
+        talentsText: '원소 피해 +22%, 생명력 재생 +1.2%, 모든 저항 +5%',
+        stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'regen', value: 1.2 }, { stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }, { stat: 'resChaos', value: 5 }],
+        strips: { idle: 'hero3Idle', walk: 'hero3Walk', attack: 'hero3Attack', hurt: 'hero3Hurt', death: 'hero3Death' }
+    },
+    hero4: {
+        id: 'hero4',
+        label: '블레이드',
+        blindLabel: '블레이드',
+        talentsText: '카오스 피해 +20%, 흡혈 +1.4%, 이동 속도 +12%, 치명타 피해 +20%, 치명타 확률 +2.5%',
+        stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 1.4 }, { stat: 'move', value: 12 }, { stat: 'critDmg', value: 20 }, { stat: 'crit', value: 2.5 }],
+        strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
+    }
+};
+const HERO_SELECTION_ORDER = Object.keys(HERO_SELECTION_DEFS);
 
 let cloudState = {
     initialized: false,
@@ -2065,6 +2115,7 @@ let loadingOverlayProgress = 0;
 let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
+let loopHeroSelectionCallback = null;
 
 const defaultGame = {
     saveVersion: 15,
@@ -2103,6 +2154,10 @@ const defaultGame = {
         mapCompleteAction: 'nextZone',
         townReturnAction: 'retry'
     },
+    selectedHeroId: 'hero1',
+    discoveredHeroIds: ['hero1'],
+    heroSelectionInitialized: false,
+    heroFreeSwitchUnlocked: false,
     passivePoints: 0,
     playerHp: 100,
     moveTimer: 0,
@@ -2238,7 +2293,8 @@ const TAGGED_DAMAGE_STAT_BY_TAG = {
     cold: 'coldPctDmg',
     lightning: 'lightPctDmg',
     chaos: 'chaosPctDmg',
-    aoe: 'aoePctDmg'
+    aoe: 'aoePctDmg',
+    slam: 'slamPctDmg'
 };
 const COMPARE_STAT_META = {
     dps: { label: 'DPS', format: value => `${Math.floor(value)}` },
@@ -2284,6 +2340,7 @@ function getStatName(statId) {
         flatDmg: '기본 피해',
         pctDmg: '피해 증가(%)',
         meleePctDmg: '근접 피해(%)',
+        slamPctDmg: '강타 피해(%)',
         projectilePctDmg: '투사체 피해(%)',
         physPctDmg: '물리 피해(%)',
         elementalPctDmg: '원소 피해(%)',
@@ -2337,7 +2394,7 @@ function createEmptyStatBucket() {
         flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, suppCap: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, resChaos: 0, leech: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0,
-        meleePctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0,
+        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0
     };
 }
@@ -2347,6 +2404,7 @@ function addStatToBucket(bucket, statId, value) {
     if (statId === 'flatDmg') bucket.flatDmg += value;
     else if (statId === 'pctDmg') bucket.pctDmg += value;
     else if (statId === 'meleePctDmg') bucket.meleePctDmg += value;
+    else if (statId === 'slamPctDmg') bucket.slamPctDmg += value;
     else if (statId === 'projectilePctDmg') bucket.projectilePctDmg += value;
     else if (statId === 'physPctDmg') bucket.physPctDmg += value;
     else if (statId === 'elementalPctDmg') bucket.elementalPctDmg += value;
@@ -4117,6 +4175,45 @@ function closeRewardOverlay() {
     lastTime = Date.now();
 }
 
+function isLoopHeroSelectOpen() {
+    let overlay = document.getElementById('loop-hero-select-overlay');
+    return !!overlay && overlay.classList.contains('active');
+}
+
+function openLoopHeroSelection(onSelect, options = {}) {
+    let overlay = document.getElementById('loop-hero-select-overlay');
+    let grid = document.getElementById('loop-hero-select-grid');
+    let kickerEl = document.getElementById('loop-hero-select-kicker');
+    let titleEl = document.getElementById('loop-hero-select-title');
+    let bodyEl = document.getElementById('loop-hero-select-body');
+    if (!overlay || !grid) {
+        let fallbackHero = game.selectedHeroId || 'hero1';
+        applyHeroSelection(fallbackHero, { silent: true, skipSave: true });
+        if (typeof onSelect === 'function') onSelect(fallbackHero);
+        return;
+    }
+    loopHeroSelectionCallback = typeof onSelect === 'function' ? onSelect : null;
+    if (kickerEl) kickerEl.innerText = options.kicker || 'Loop Selection';
+    if (titleEl) titleEl.innerText = options.title || '다음 루프 캐릭터 선택';
+    if (bodyEl) bodyEl.innerText = options.body || '이번 루프에서 사용할 캐릭터를 선택하세요.';
+    grid.innerHTML = HERO_SELECTION_ORDER.map(id => {
+        let def = HERO_SELECTION_DEFS[id];
+        return `<button class="reward-choice" onclick="chooseLoopHero('${id}')"><strong>${def.label}</strong>${def.talentsText}</button>`;
+    }).join('');
+    overlay.classList.add('active');
+}
+
+function chooseLoopHero(heroId) {
+    if (!HERO_SELECTION_DEFS[heroId]) return;
+    applyHeroSelection(heroId, { silent: true, skipSave: true });
+    let overlay = document.getElementById('loop-hero-select-overlay');
+    if (overlay) overlay.classList.remove('active');
+    let callback = loopHeroSelectionCallback;
+    loopHeroSelectionCallback = null;
+    if (typeof callback === 'function') callback(heroId);
+    lastTime = Date.now();
+}
+
 function openRingSlotOverlay(invIdx) {
     let item = game.inventory[invIdx];
     pendingRingEquipItemId = item && item.id ? item.id : null;
@@ -4547,11 +4644,26 @@ function initBattleAssets() {
     const customHeroSrc = getCustomHeroSheetDataUrl();
     const defaultHeroSrc = customHeroSrc || 'assets/battle-hero-v1.png';
     const manifest = {
-        heroIdle: 'assets/hero1/ElfIdle001Sheet-export.png',
-        heroWalk: 'assets/hero1/ElfWalk001-Sheet-export.png',
-        heroAttack: 'assets/hero1/ElfBasicAtk001BGR-Sheet-export.png',
-        heroHurt: 'assets/hero1/ElfHurt001-Sheet-export.png',
-        heroDeath: 'assets/hero1/ElfDeath001-Sheet-export.png',
+        hero1Idle: 'assets/hero1/ElfIdle001Sheet-export.png',
+        hero1Walk: 'assets/hero1/ElfWalk001-Sheet-export.png',
+        hero1Attack: 'assets/hero1/ElfBasicAtk001BGR-Sheet-export.png',
+        hero1Hurt: 'assets/hero1/ElfHurt001-Sheet-export.png',
+        hero1Death: 'assets/hero1/ElfDeath001-Sheet-export.png',
+        hero2Idle: 'assets/hero2/DemonKinIdle001-Sheet.png',
+        hero2Walk: 'assets/hero2/DemonKinWalk001-Sheet.png',
+        hero2Attack: 'assets/hero2/DemonKinBasicAtk001-Sheet.png',
+        hero2Hurt: 'assets/hero2/DemonKinHurt001-Sheet.png',
+        hero2Death: 'assets/hero2/DemonKinDeath001-Sheet.png',
+        hero3Idle: 'assets/hero3/DruidIdle001-Sheet.png',
+        hero3Walk: 'assets/hero3/DruidWalk001-Sheet.png',
+        hero3Attack: 'assets/hero3/DruidBasicAtk1-Sheet.png',
+        hero3Hurt: 'assets/hero3/DruidHurt001-Sheet.png',
+        hero3Death: 'assets/hero3/DruidDeath001-Sheet.png',
+        hero4Idle: 'assets/hero4/SeveredFangIdle001-Sheet.png',
+        hero4Walk: 'assets/hero4/SeveredFangWalk001-Sheet.png',
+        hero4Attack: 'assets/hero4/SeveredFangBasicAtk001-Sheet.png',
+        hero4Hurt: 'assets/hero4/SeveredFangHurt001-Sheet.png',
+        hero4Death: 'assets/hero4/SeveredFangDeath001-Sheet.png',
         heroLegacy: defaultHeroSrc,
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
@@ -4567,7 +4679,7 @@ function initBattleAssets() {
         backdropAct5: 'assets/battlefield-act5.png',
         backdropAct9_10: 'assets/battlefield-act9-10.png'
     };
-    const optionalManifestKeys = new Set(['heroIdle', 'heroWalk', 'heroAttack', 'heroHurt', 'heroDeath', 'heroLegacy', 'weapons']);
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero')).concat(['weapons']));
     let pending = Object.keys(manifest).length;
     let settled = false;
     function finishLoad() {
@@ -4985,12 +5097,13 @@ function buildBattleAssetAtlas() {
         }
         return fallback.filter(Boolean);
     }
-    function buildHeroFrameSetFromHero1Folder() {
-        let idleFrames = buildStripFramesFromImage(battleAssets.images.heroIdle, 210);
-        let walkFrames = buildStripFramesFromImage(battleAssets.images.heroWalk, 210);
-        let attackFrames = buildStripFramesFromImage(battleAssets.images.heroAttack, 220);
-        let hurtFrames = buildStripFramesFromImage(battleAssets.images.heroHurt, 200);
-        let downFrames = buildStripFramesFromImage(battleAssets.images.heroDeath, 200);
+    function buildHeroFrameSetFromStripKeys(stripKeys) {
+        if (!stripKeys) return null;
+        let idleFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210);
+        let walkFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210);
+        let attackFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220);
+        let hurtFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200);
+        let downFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200);
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
         let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
         return {
@@ -5518,7 +5631,9 @@ function buildBattleAssetAtlas() {
         let defs = scaleSafeHeroClipDefs(getBattleHero1SafeClipDefs(), image.width / 1448, image.height / 1086);
         return buildSafeHeroFrameSetFromClipDefs(image, defs);
     }
-    let heroFrameSet = buildHeroFrameSetFromHero1Folder();
+    let selectedHeroDef = getHeroSelectionDef(game.selectedHeroId);
+    let heroFrameSet = buildHeroFrameSetFromStripKeys(selectedHeroDef.strips);
+    if (!heroFrameSet && selectedHeroDef.id !== 'hero1') heroFrameSet = buildHeroFrameSetFromStripKeys(HERO_SELECTION_DEFS.hero1.strips);
     if (!heroFrameSet && heroFramesLegacy.length > 0) heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
     // v2 하드 매핑 + 어떤 해상도든 커스텀/비표준 시트는 스케일/감지 fallback을 탄다.
     if (!heroFrameSet && legacyHeroImage && isNearSize(legacyHeroImage, 1448, 1086, 0.05)) {
@@ -5593,7 +5708,7 @@ function buildBattleAssetAtlas() {
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
     return {
         hero: {
-            image: legacyHeroImage || battleAssets.images.heroIdle || battleAssets.images.heroWalk || battleAssets.images.heroAttack || battleAssets.images.heroHurt || battleAssets.images.heroDeath,
+            image: legacyHeroImage || battleAssets.images[(selectedHeroDef.strips || {}).idle] || battleAssets.images.hero1Idle || battleAssets.images.hero1Walk || battleAssets.images.hero1Attack || battleAssets.images.hero1Hurt || battleAssets.images.hero1Death,
             frames: heroFrameSet
         },
         enemies: {
@@ -6910,6 +7025,10 @@ function getPlayerStats() {
     });
     safeJournalBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
+    });
+    let heroDef = getHeroSelectionDef(game.selectedHeroId);
+    (heroDef.stats || []).forEach(row => {
+        if (row && row.stat) addStatToBucket(reward, row.stat, row.value);
     });
     if (game.passiveStarEvolution) {
         Object.keys(PASSIVE_STAR_BLESSING).forEach(statId => addStatToBucket(starBlessing, statId, PASSIVE_STAR_BLESSING[statId]));
@@ -8450,6 +8569,7 @@ function triggerSeasonReset() {
         codexReveal[key] = { revealed: true, slot: parts[0] || '', name: parts[1] || '' };
     });
     playLoopRewriteEffect();
+    let previousHeroId = game.selectedHeroId || 'hero1';
     game.season++;
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
@@ -8527,8 +8647,11 @@ function triggerSeasonReset() {
     addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
     checkUnlocks();
     queueImportantSave(150);
-    startMoving(true);
-    switchTab('tab-character');
+    openLoopHeroSelection((heroId) => {
+        if (heroId !== previousHeroId) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(heroId).label} 캐릭터를 선택했습니다.`, 'season-up');
+        startMoving(true);
+        switchTab('tab-character');
+    });
 }
 
 function getExpReq(level) { return Math.floor(50 * Math.pow(level, 1.8)); }
@@ -9248,6 +9371,83 @@ function addLog(msg, cls) {
 function applyThemeMode(mode) {
     let finalMode = mode === 'light' ? 'light' : 'dark';
     document.body.classList.toggle('light-mode', finalMode === 'light');
+}
+
+function getHeroSelectionDef(heroId) {
+    return HERO_SELECTION_DEFS[heroId] || HERO_SELECTION_DEFS.hero1;
+}
+
+function syncHeroSelectionState(source) {
+    if (!Array.isArray(game.discoveredHeroIds)) game.discoveredHeroIds = [];
+    game.discoveredHeroIds = game.discoveredHeroIds.filter(id => HERO_SELECTION_DEFS[id]);
+    if (!HERO_SELECTION_DEFS[game.selectedHeroId]) game.selectedHeroId = 'hero1';
+    if (!game.discoveredHeroIds.includes(game.selectedHeroId)) game.discoveredHeroIds.push(game.selectedHeroId);
+    let unlockedBefore = !!game.heroFreeSwitchUnlocked;
+    if (game.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length) game.heroFreeSwitchUnlocked = true;
+    if (!unlockedBefore && game.heroFreeSwitchUnlocked) addLog('🧬 모든 캐릭터 재능을 확인했습니다. 설정에서 언제든 외형 변경이 가능합니다.', 'season-up');
+    if (source === 'init') return;
+    let summaryEl = document.getElementById('ui-hero-talent-summary');
+    if (summaryEl) {
+        let def = getHeroSelectionDef(game.selectedHeroId);
+        let discovered = Math.min(HERO_SELECTION_ORDER.length, game.discoveredHeroIds.length);
+        let unlockText = game.heroFreeSwitchUnlocked ? '자유 변경 해금됨' : `해금 진행 ${discovered}/${HERO_SELECTION_ORDER.length}`;
+        summaryEl.innerText = `${def.label} · 재능: ${def.talentsText} · ${unlockText}`;
+    }
+}
+
+function renderHeroSelectionControls() {
+    let selectEl = document.getElementById('sel-active-hero');
+    if (!selectEl) return;
+    selectEl.innerHTML = HERO_SELECTION_ORDER.map(id => {
+        let def = HERO_SELECTION_DEFS[id];
+        return `<option value="${id}">${def.label}</option>`;
+    }).join('');
+    selectEl.value = game.selectedHeroId || 'hero1';
+    if (!game.heroFreeSwitchUnlocked) {
+        selectEl.disabled = true;
+        selectEl.title = '모든 캐릭터를 한 번씩 선택하면 자유 변경이 해금됩니다.';
+    } else {
+        selectEl.disabled = false;
+        selectEl.title = '';
+    }
+    syncHeroSelectionState();
+}
+
+function applyHeroSelection(heroId, options = {}) {
+    if (!HERO_SELECTION_DEFS[heroId]) return false;
+    let prev = game.selectedHeroId;
+    game.selectedHeroId = heroId;
+    syncHeroSelectionState();
+    if (prev !== heroId && battleAssets && battleAssets.ready) battleAssets.atlas = buildBattleAssetAtlas();
+    renderHeroSelectionControls();
+    if (!options.silent && prev !== heroId) addLog(`🧬 캐릭터 변경: ${getHeroSelectionDef(heroId).label}`, 'season-up');
+    if (!options.skipSave) queueImportantSave(200);
+    return true;
+}
+
+function onHeroSelectionChanged() {
+    let selectEl = document.getElementById('sel-active-hero');
+    if (!selectEl) return;
+    if (!game.heroFreeSwitchUnlocked) {
+        addLog('🔒 아직 자유 변경이 잠겨 있습니다. 루프를 돌며 모든 캐릭터를 확인하세요.', 'attack-monster');
+        selectEl.value = game.selectedHeroId || 'hero1';
+        return;
+    }
+    applyHeroSelection(selectEl.value);
+    updateStaticUI();
+}
+
+function ensureInitialHeroSelection() {
+    if (game.heroSelectionInitialized) return;
+    openLoopHeroSelection((pickedId) => {
+        game.heroSelectionInitialized = true;
+        addLog(`🧬 첫 루프 캐릭터가 정해졌습니다: ${HERO_SELECTION_DEFS[pickedId].blindLabel}`, 'season-up');
+        queueImportantSave(120);
+    }, {
+        kicker: 'Character Selection',
+        title: '시작 캐릭터 선택',
+        body: '첫 루프에서 사용할 캐릭터를 선택하세요.'
+    });
 }
 
 function updateSettings() {
@@ -10661,6 +10861,8 @@ function updateCombatUI(pStats) {
     if (specialSummaryEl) {
         let notes = [];
         if ((pStats.glovePairAspdBonus || 0) > 0) notes.push(`🧤 동형 장갑 세트 보너스 활성화: 기본 공속 +${(pStats.glovePairAspdBonus || 0).toFixed(2)}`);
+        let heroDef = getHeroSelectionDef(game.selectedHeroId);
+        if (heroDef) notes.push(`🧬 ${heroDef.label} 재능: ${heroDef.talentsText}`);
         specialSummaryEl.innerText = notes.join(' · ');
     }
 
@@ -11886,6 +12088,11 @@ function mergeDefaults(save) {
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
     merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
+    merged.selectedHeroId = HERO_SELECTION_DEFS[merged.selectedHeroId] ? merged.selectedHeroId : 'hero1';
+    merged.discoveredHeroIds = Array.isArray(merged.discoveredHeroIds) ? merged.discoveredHeroIds.filter(id => HERO_SELECTION_DEFS[id]) : ['hero1'];
+    if (!merged.discoveredHeroIds.includes(merged.selectedHeroId)) merged.discoveredHeroIds.push(merged.selectedHeroId);
+    merged.heroSelectionInitialized = !!merged.heroSelectionInitialized;
+    merged.heroFreeSwitchUnlocked = !!merged.heroFreeSwitchUnlocked || merged.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length;
     merged.abyssPassivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.abyssPassivePoints, defaultGame.abyssPassivePoints, 0)));
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
     merged.abyssPassives = { ...(defaultGame.abyssPassives || {}), ...(merged.abyssPassives || {}) };
@@ -12856,6 +13063,8 @@ function init() {
     document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
     document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
     applyThemeMode(game.settings.themeMode);
+    ensureInitialHeroSelection();
+    renderHeroSelectionControls();
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     syncSalvageControlsFromSettings();
     syncJewelSalvageControlsFromSettings();
@@ -12916,7 +13125,7 @@ function init() {
         if (gameTickHandle) clearInterval(gameTickHandle);
         gameTickHandle = setInterval(() => {
             try {
-                if (isStartupOverlayOpen() || isLoadingOverlayOpen() || isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen()) return;
+                if (isStartupOverlayOpen() || isLoadingOverlayOpen() || isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) return;
                 coreLoop();
                 if (pendingHeavyUiRefresh) {
                     pendingHeavyUiRefresh = false;
@@ -12938,7 +13147,7 @@ function init() {
 function gameLoop() {
     try {
         if (document.hidden) return;
-        if (isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen()) {
+        if (isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
             renderBattlefield();
             return;
