@@ -594,6 +594,14 @@
         </div>
     </div>
 </div>
+<div id="loop-hero-select-overlay" class="tutorial-overlay">
+    <div class="tutorial-card" style="max-width:460px;">
+        <div class="tutorial-kicker">Loop Selection</div>
+        <div class="tutorial-title">다음 루프 캐릭터 선택</div>
+        <div class="tutorial-body">이번 루프에서 사용할 캐릭터를 선택하세요.</div>
+        <div id="loop-hero-select-grid" class="reward-grid"></div>
+    </div>
+</div>
 <div id="death-overlay" class="tutorial-overlay">
     <div class="tutorial-card deathlog-card">
         <div class="tutorial-kicker">Death Log</div>
@@ -1136,17 +1144,6 @@
                     <span>현재 캐릭터 외형</span>
                     <select id="sel-active-hero" onchange="onHeroSelectionChanged()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px; min-width:140px;"></select>
                 </div>
-                <label style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                    <span>루프 시작 시 캐릭터</span>
-                    <select id="sel-loop-hero-target" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
-                        <option value="keep">현재 캐릭터 유지</option>
-                        <option value="hero1">궁수</option>
-                        <option value="hero2">전사</option>
-                        <option value="hero3">드루이드</option>
-                        <option value="hero4">블레이드</option>
-                        <option value="random">랜덤</option>
-                    </select>
-                </label>
                 <div id="ui-hero-talent-summary" style="font-size:0.82em; color:#9ec3e8;">캐릭터 재능 정보 로딩 중...</div>
             </div>
             <hr style="border-color: #3d3d5c; width: 100%;">
@@ -2070,32 +2067,32 @@ const HERO_SELECTION_DEFS = {
         id: 'hero1',
         label: '궁수',
         blindLabel: '궁수',
-        talentsText: '투사체 피해 +18%, 공격 속도 +12%',
-        stats: [{ stat: 'projectilePctDmg', value: 18 }, { stat: 'aspd', value: 12 }],
+        talentsText: '최소 대미지 보정 +10%',
+        stats: [{ stat: 'minDmgRoll', value: 10 }],
         strips: { idle: 'hero1Idle', walk: 'hero1Walk', attack: 'hero1Attack', hurt: 'hero1Hurt', death: 'hero1Death' }
     },
     hero2: {
         id: 'hero2',
         label: '전사',
         blindLabel: '전사',
-        talentsText: '근접 피해 +20%, 치명타 피해 +35%',
-        stats: [{ stat: 'meleePctDmg', value: 20 }, { stat: 'critDmg', value: 35 }],
+        talentsText: '최대 생명력 +10%',
+        stats: [{ stat: 'pctHp', value: 10 }],
         strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
     },
     hero3: {
         id: 'hero3',
         label: '드루이드',
         blindLabel: '드루이드',
-        talentsText: '원소 피해 +22%, 생명력 재생 +1.2%',
-        stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'regen', value: 1.2 }],
+        talentsText: '모든 저항 +5%',
+        stats: [{ stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }, { stat: 'resChaos', value: 5 }],
         strips: { idle: 'hero3Idle', walk: 'hero3Walk', attack: 'hero3Attack', hurt: 'hero3Hurt', death: 'hero3Death' }
     },
     hero4: {
         id: 'hero4',
         label: '블레이드',
         blindLabel: '블레이드',
-        talentsText: '카오스 피해 +20%, 흡혈 +1.4%',
-        stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 1.4 }],
+        talentsText: '이동 속도 +12%',
+        stats: [{ stat: 'move', value: 12 }],
         strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
     }
 };
@@ -2118,6 +2115,7 @@ let loadingOverlayProgress = 0;
 let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
+let loopHeroSelectionCallback = null;
 
 const defaultGame = {
     saveVersion: 15,
@@ -2154,8 +2152,7 @@ const defaultGame = {
         jewelAutoSalvageEnabled: false,
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false },
         mapCompleteAction: 'nextZone',
-        townReturnAction: 'retry',
-        loopHeroTarget: 'keep'
+        townReturnAction: 'retry'
     },
     selectedHeroId: 'hero1',
     discoveredHeroIds: ['hero1'],
@@ -4172,6 +4169,39 @@ function isRewardOpen() {
 function closeRewardOverlay() {
     document.getElementById('reward-overlay').classList.remove('active');
     activeRewardZoneId = null;
+    lastTime = Date.now();
+}
+
+function isLoopHeroSelectOpen() {
+    let overlay = document.getElementById('loop-hero-select-overlay');
+    return !!overlay && overlay.classList.contains('active');
+}
+
+function openLoopHeroSelection(onSelect) {
+    let overlay = document.getElementById('loop-hero-select-overlay');
+    let grid = document.getElementById('loop-hero-select-grid');
+    if (!overlay || !grid) {
+        let fallbackHero = game.selectedHeroId || 'hero1';
+        applyHeroSelection(fallbackHero, { silent: true, skipSave: true });
+        if (typeof onSelect === 'function') onSelect(fallbackHero);
+        return;
+    }
+    loopHeroSelectionCallback = typeof onSelect === 'function' ? onSelect : null;
+    grid.innerHTML = HERO_SELECTION_ORDER.map(id => {
+        let def = HERO_SELECTION_DEFS[id];
+        return `<button class="reward-choice" onclick="chooseLoopHero('${id}')"><strong>${def.label}</strong>${def.talentsText}</button>`;
+    }).join('');
+    overlay.classList.add('active');
+}
+
+function chooseLoopHero(heroId) {
+    if (!HERO_SELECTION_DEFS[heroId]) return;
+    applyHeroSelection(heroId, { silent: true, skipSave: true });
+    let overlay = document.getElementById('loop-hero-select-overlay');
+    if (overlay) overlay.classList.remove('active');
+    let callback = loopHeroSelectionCallback;
+    loopHeroSelectionCallback = null;
+    if (typeof callback === 'function') callback(heroId);
     lastTime = Date.now();
 }
 
@@ -8584,15 +8614,6 @@ function triggerSeasonReset() {
     game.talismanBoardUnlock = 3;
     game.talismanInventory = [];
     game.talismanBoard = [];
-    let loopHeroTarget = game.settings && game.settings.loopHeroTarget ? game.settings.loopHeroTarget : 'keep';
-    let nextHeroId = previousHeroId;
-    if (HERO_SELECTION_DEFS[loopHeroTarget]) nextHeroId = loopHeroTarget;
-    else if (loopHeroTarget === 'random') {
-        let pool = HERO_SELECTION_ORDER.filter(id => id !== previousHeroId);
-        nextHeroId = pool.length > 0 ? rndChoice(pool) : previousHeroId;
-    }
-    applyHeroSelection(nextHeroId, { silent: true, skipSave: true });
-    if (nextHeroId !== previousHeroId) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(nextHeroId).label} 캐릭터를 선택했습니다.`, 'season-up');
     game.talismanPlacements = {};
     game.talismanSelectedId = null;
     game.talismanUnseal = null;
@@ -8617,8 +8638,11 @@ function triggerSeasonReset() {
     addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
     checkUnlocks();
     queueImportantSave(150);
-    startMoving(true);
-    switchTab('tab-character');
+    openLoopHeroSelection((heroId) => {
+        if (heroId !== previousHeroId) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(heroId).label} 캐릭터를 선택했습니다.`, 'season-up');
+        startMoving(true);
+        switchTab('tab-character');
+    });
 }
 
 function getExpReq(level) { return Math.floor(50 * Math.pow(level, 1.8)); }
@@ -9436,7 +9460,6 @@ function updateSettings() {
     game.settings.itemFilterOnlyNewCodexUnique = document.getElementById('chk-item-filter-unique-new-codex').checked;
     game.settings.mapCompleteAction = (document.getElementById('sel-map-complete-action') || {}).value || 'nextZone';
     game.settings.townReturnAction = (document.getElementById('sel-town-return-action') || {}).value || 'retry';
-    game.settings.loopHeroTarget = (document.getElementById('sel-loop-hero-target') || {}).value || 'keep';
     let themeSelect = document.getElementById('sel-theme-mode');
     game.settings.themeMode = themeSelect ? themeSelect.value : (game.settings.themeMode || 'dark');
     applyThemeMode(game.settings.themeMode);
@@ -12055,7 +12078,6 @@ function mergeDefaults(save) {
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
     merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
-    merged.settings.loopHeroTarget = ['keep', 'hero1', 'hero2', 'hero3', 'hero4', 'random'].includes(merged.settings.loopHeroTarget) ? merged.settings.loopHeroTarget : 'keep';
     merged.selectedHeroId = HERO_SELECTION_DEFS[merged.selectedHeroId] ? merged.selectedHeroId : 'hero1';
     merged.discoveredHeroIds = Array.isArray(merged.discoveredHeroIds) ? merged.discoveredHeroIds.filter(id => HERO_SELECTION_DEFS[id]) : ['hero1'];
     if (!merged.discoveredHeroIds.includes(merged.selectedHeroId)) merged.discoveredHeroIds.push(merged.selectedHeroId);
@@ -13030,7 +13052,6 @@ function init() {
     document.getElementById('sel-map-complete-action').value = game.settings.mapCompleteAction || 'nextZone';
     document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
     document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
-    document.getElementById('sel-loop-hero-target').value = game.settings.loopHeroTarget || 'keep';
     applyThemeMode(game.settings.themeMode);
     ensureInitialHeroSelection();
     renderHeroSelectionControls();
@@ -13094,7 +13115,7 @@ function init() {
         if (gameTickHandle) clearInterval(gameTickHandle);
         gameTickHandle = setInterval(() => {
             try {
-                if (isStartupOverlayOpen() || isLoadingOverlayOpen() || isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen()) return;
+                if (isStartupOverlayOpen() || isLoadingOverlayOpen() || isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) return;
                 coreLoop();
                 if (pendingHeavyUiRefresh) {
                     pendingHeavyUiRefresh = false;
@@ -13116,7 +13137,7 @@ function init() {
 function gameLoop() {
     try {
         if (document.hidden) return;
-        if (isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen()) {
+        if (isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
             renderBattlefield();
             return;
