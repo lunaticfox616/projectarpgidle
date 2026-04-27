@@ -9001,6 +9001,28 @@ function getCurrentZoneLabel() {
     return zone && zone.name ? zone.name : '액트 1: 버려진 해안';
 }
 
+function getLoopLabel(saveData) {
+    let loopValue = saveData && Number.isFinite(saveData.season) ? Math.max(1, Math.floor(saveData.season)) : 1;
+    return `루프 ${loopValue}`;
+}
+
+function getSaveProgressSnapshot(saveData) {
+    let source = saveData || {};
+    let zoneValue = source.maxZoneId;
+    if (!Number.isFinite(zoneValue) || typeof zoneValue === 'string') zoneValue = 0;
+    return {
+        season: Number.isFinite(source.season) ? Math.max(1, Math.floor(source.season)) : 1,
+        maxZoneId: Math.max(0, Math.floor(zoneValue || 0)),
+        level: Number.isFinite(source.level) ? Math.max(1, Math.floor(source.level)) : 1
+    };
+}
+
+function isProgressSnapshotAhead(left, right) {
+    if ((left.season || 1) !== (right.season || 1)) return (left.season || 1) > (right.season || 1);
+    if ((left.maxZoneId || 0) !== (right.maxZoneId || 0)) return (left.maxZoneId || 0) > (right.maxZoneId || 0);
+    return (left.level || 1) > (right.level || 1);
+}
+
 function updateStartupScreenUI() {
     let overlay = document.getElementById('startup-overlay');
     if (!overlay) return;
@@ -9018,7 +9040,7 @@ function updateStartupScreenUI() {
     let signupBtn = document.getElementById('btn-startup-signup');
     let localStamp = game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0;
     let zoneLabel = getCurrentZoneLabel();
-    if (localSummaryEl) localSummaryEl.innerText = `Lv.${game.level || 1} · ${zoneLabel}`;
+    if (localSummaryEl) localSummaryEl.innerText = `Lv.${game.level || 1} · ${getLoopLabel(game)} · ${zoneLabel}`;
     if (localTimeEl) localTimeEl.innerText = formatCloudTime(localStamp);
     if (statusEl) statusEl.innerHTML = `<strong>안내</strong><br>${cloudState.lastMessage || '시작 방식을 선택해주세요.'}`;
     if (backBtn) {
@@ -9474,7 +9496,14 @@ async function reconcileCloudSaveState(options = {}) {
     let localStamp = game.saveMeta.lastModifiedAt || 0;
     let remoteStamp = record.updated_at ? (new Date(record.updated_at).getTime() || 0) : ((record.save_data.saveMeta && record.save_data.saveMeta.lastModifiedAt) || 0);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
+    let localProgress = getSaveProgressSnapshot(game);
+    let remoteProgress = getSaveProgressSnapshot(record.save_data);
     if (remoteStamp > localStamp + CLOUD_REMOTE_TIME_SKEW_MS) {
+        if (isProgressSnapshotAhead(localProgress, remoteProgress)) {
+            await pushCloudSave({ touchModifiedAt: false });
+            setCloudMessage(`로컬 진행(${getLoopLabel(game)})이 더 앞서 있어 클라우드 덮어쓰기를 막고 로컬 저장을 유지했습니다.`);
+            return 'blocked-remote-overwrite';
+        }
         applyExternalSave(record.save_data, remoteStamp);
         setCloudMessage('클라우드 저장이 더 최신이라 자동으로 불러왔습니다.');
         if (!options.silent) addLog('더 최신인 클라우드 세이브를 적용했습니다.', 'loot-magic');
