@@ -3592,8 +3592,8 @@ let camX = 0;
 let camY = 0;
 let camZoom = 0.3;
 let passiveCameraInitialized = false;
-let passiveCanvasMetrics = { width: 0, height: 0, dpr: 1 };
-let passiveRenderCache = {
+var passiveCanvasMetrics = { width: 0, height: 0, dpr: 1 };
+var passiveRenderCache = {
     structureDirty: true,
     stateDirty: true,
     nodes: [],
@@ -10911,6 +10911,7 @@ function updateCombatUI(pStats) {
 
 // passive render cache dirty helper: 구조 변경/노드 상태 변경 시 호출
 function markPassiveRenderCacheDirty(type) {
+    if (!passiveRenderCache) return;
     if (type === 'structure') passiveRenderCache.structureDirty = true;
     passiveRenderCache.stateDirty = true;
 }
