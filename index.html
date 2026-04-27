@@ -28,8 +28,41 @@
         body.light-mode .enemy-name { color: #8c4f16; }
         body.light-mode .enemy-tags.muted { color: #5f748d; }
         body.light-mode .enemy-empty { background: #f4f8fc; border-color: #c9d6e4; color: #61748b; }
+        body.light-mode .stat-grid { background: #f7fbff; border-color: #cfdae8; }
+        body.light-mode .stat-item { border-bottom-color: #d5e1ef; }
+        body.light-mode .stat-label { color: #35516e; }
+        body.light-mode .stat-value { color: #173a63; }
+        body.light-mode .stat-unit { color: #6f89a4; }
+        body.light-mode .trait-tree { background: #f6faff; border-color: #c8d7e8; }
+        body.light-mode .trait-card { background: #ffffff; border-color: #b8cbe0; color: #28435f; box-shadow: 0 3px 8px rgba(84, 113, 146, 0.12); }
+        body.light-mode .trait-desc { color: #5c7690; }
+        body.light-mode .class-card { background: #ffffff; border-color: #a988d8; color: #233951; }
+        body.light-mode .class-card:hover { background: #f7efff; border-color: #916bc8; }
+        body.light-mode .slot-box { background: #ffffff; border-color: #c7d6e8; color: #263b54; }
+        body.light-mode .slot-box:hover { background: #f3f8ff; border-color: #99afc6; }
+        body.light-mode .forge-panel { background: #f8fbff; border-color: #cfdae8; }
+        body.light-mode .craft-selected { background: #ffffff; border-color: #c7d5e7; color: #24384f; }
+        body.light-mode .jewel-salvage-bar { background: #f6fbff; border-color: #c5d8eb; }
+        body.light-mode .jewel-salvage-filters { color: #355374; }
+        body.light-mode #ui-jewel-panel { background: #f7fbff !important; border-color: #c5d8eb !important; }
+        body.light-mode #ui-jewel-core-craft { background: #ffffff !important; border-color: #c5d8eb !important; }
+        body.light-mode #tab-journal > div,
+        body.light-mode #ui-journal-list > div { background: #ffffff !important; border-color: #c8d6e8 !important; color: #23384d !important; }
+        body.light-mode #ui-codex-summary,
+        body.light-mode #ui-talisman-currency,
+        body.light-mode #ui-abyss-passive-summary { color: #3f6284 !important; }
+        body.light-mode #ui-talisman-unseal { background: #ffffff !important; border-color: #c5d8eb !important; color: #23384d; }
+        body.light-mode #ui-talisman-board > div { border-color: #a7bdd4 !important; }
+        body.light-mode .item-card { background: #ffffff; border-color: #c7d5e6; }
+        body.light-mode .item-card:hover { background: #f4f8fd; }
+        body.light-mode .item-base-line { color: #6c829a; }
+        body.light-mode .item-stats { color: #3f5670; }
         #left-pane { width: 620px; min-width: 620px; display: flex; flex-direction: column; gap: 15px; margin-right: 0; min-height: 0; height: 100%; overflow: hidden; }
+        #left-pane.collapsed { width: 64px; min-width: 64px; overflow: visible; }
+        #left-pane.collapsed #battle-column { display: none; }
         #battle-column { display: flex; flex-direction: column; gap: 15px; flex: 1; min-height: 0; }
+        #left-pane-toggle { width: 34px; min-width: 34px; align-self: stretch; border-radius: 8px; background: #16263a; border: 1px solid #304b66; color: #d8ebff; font-size: 1.1em; padding: 0; }
+        body.light-mode #left-pane-toggle { background: #edf4fc; border-color: #bcd1e8; color: #2a5178; }
         #right-pane { flex: 1; display: flex; flex-direction: column; background-color: #121216; border: 1px solid #2a2a35; border-radius: 8px; min-width: 0; min-height: 0; height: 100%; overflow: hidden; position: relative; }
         .panel { background-color: #16161d; border: 1px solid #2a2a35; padding: 15px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .player-panel { flex-shrink: 0; }
@@ -224,6 +257,10 @@
         .combat-feed { display: flex; flex-direction: column; min-height: 0; height: 100%; padding: 10px; background: linear-gradient(180deg, #121822 0%, #0d1219 100%); border: 1px solid #26384a; border-radius: 12px; box-shadow: inset 0 0 18px rgba(0,0,0,0.25); }
         .combat-feed-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: #7fc9ff; font-weight: bold; font-size: 0.84em; letter-spacing: 0.05em; text-transform: uppercase; }
         .combat-feed-sub { color: #6f8296; font-size: 0.74em; font-weight: normal; text-transform: none; }
+        .combat-log-toggle { font-size: 0.72em; padding: 3px 8px; min-height: 26px; }
+        .combat-feed.collapsed #log { display: none; }
+        .combat-feed.collapsed { justify-content: center; min-height: 56px; height: auto; }
+        .combat-feed.collapsed .combat-feed-title { margin-bottom: 0; }
         .enemy-list { display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 6px; flex-shrink: 0; min-height: 0; max-height: 82px; overflow: hidden; align-content: start; }
         .enemy-card { background: linear-gradient(180deg, #151621 0%, #0d0f17 100%); border: 1px solid #2b3240; border-radius: 10px; padding: 8px 10px 9px; min-height: 58px; display: flex; flex-direction: column; gap: 5px; }
         .enemy-top { display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 1px; }
@@ -380,6 +417,7 @@
             #left-pane, #right-pane { width: 100%; min-width: 0; height: auto; }
             #left-pane, #right-pane, .tab-content { overflow: visible; }
             body.mobile-battle-tab #left-pane { display: none; }
+            #left-pane-toggle { display: none; }
             body.mobile-battle-tab #tab-battle { padding: 10px; overflow: hidden; }
             body.mobile-battle-tab #tab-battle.active { display: flex; flex-direction: column; }
             body.mobile-battle-tab #tab-battle #battle-column { gap: 10px; min-height: 0; height: 100%; }
@@ -436,6 +474,8 @@
             .tab-btn { min-width: 96px; font-size: 0.86em; }
             .subtab-row { overflow-x: auto; padding-bottom: 4px; }
             .subtab-btn { flex: 0 0 auto; min-width: 132px; }
+            .trait-tree .trait-row { width: 100%; justify-content: flex-start; gap: 8px; padding: 8px; border: 1px dashed #34495e; border-radius: 10px; background: rgba(10, 16, 24, 0.45); }
+            .trait-tree .trait-card { flex: 1 1 calc(50% - 8px); min-width: 132px; }
             .tutorial-card, .deathlog-card, .loading-card { border-radius: 16px; }
         }
 
@@ -628,6 +668,7 @@
                 <div class="combat-feed-title">
                     <span>전투 로그</span>
                     <span class="combat-feed-sub">실시간 전황</span>
+                    <button id="btn-combat-log-toggle" class="combat-log-toggle" onclick="toggleCombatLogCollapse()">접기</button>
                 </div>
                 <div id="log"></div>
             </div>
@@ -635,6 +676,7 @@
     </div>
     </div>
 </div>
+<button id="left-pane-toggle" onclick="toggleLeftPaneCollapse()" title="전투 패널 접기/펼치기" aria-label="전투 패널 접기/펼치기">◀</button>
 
 <div id="right-pane">
     <div class="tab-header">
@@ -955,7 +997,7 @@
         <div id="map-tab-zones" class="subtab-content active">
             <h2>🗺️ 사냥터 선택</h2>
             <div class="map-overview-card">
-                <img class="map-overview-image" src="assets/map.png" alt="월드 지도">
+                <img class="map-overview-image" src="assets/battlefield-map.png" alt="월드 지도">
                 <div class="map-hotspots" id="ui-map-hotspots"></div>
             </div>
             <div class="map-grid" id="ui-map-list"></div>
@@ -1513,6 +1555,15 @@ const TALISMAN_SHAPES = {
     J: [[0, 0], [0, 1], [1, 1], [2, 1]],
     L: [[2, 0], [0, 1], [1, 1], [2, 1]]
 };
+const TALISMAN_SHAPE_STYLE = {
+    I: { color: '#7dd3fc', glow: 'rgba(125,211,252,0.28)', symbol: '▤' },
+    O: { color: '#f9a8d4', glow: 'rgba(249,168,212,0.26)', symbol: '◼' },
+    T: { color: '#c4b5fd', glow: 'rgba(196,181,253,0.26)', symbol: '✚' },
+    S: { color: '#86efac', glow: 'rgba(134,239,172,0.24)', symbol: '⟍' },
+    Z: { color: '#fca5a5', glow: 'rgba(252,165,165,0.24)', symbol: '⟋' },
+    J: { color: '#93c5fd', glow: 'rgba(147,197,253,0.24)', symbol: '⌟' },
+    L: { color: '#fdba74', glow: 'rgba(253,186,116,0.24)', symbol: '⌞' }
+};
 const TALISMAN_OPTION_POOL = [
     { stat: 'pctDmg', label: '피해 증가(%)', min: 6, max: 14, step: 1 },
     { stat: 'flatHp', label: '최대 생명력', min: 28, max: 75, step: 1 },
@@ -2010,6 +2061,8 @@ const defaultGame = {
         showCrowdPauseLog: true,
         showDeathNotice: true,
         themeMode: 'dark',
+        leftPaneCollapsed: false,
+        combatLogCollapsed: false,
         autoSalvageEnabled: false,
         autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false },
         itemFilterEnabled: false,
@@ -3433,6 +3486,7 @@ let progressStallTicks = 0;
 let itemIdCounter = 0;
 let lastTime = Date.now();
 let gameTickHandle = null;
+let autoSaveHandle = null;
 let hoverNode = null;
 let mouseX = 0;
 let mouseY = 0;
@@ -4068,6 +4122,29 @@ function toggleDeathNoticeSetting(checked) {
     if (inlineCheckbox) inlineCheckbox.checked = !!checked;
 }
 
+function applyPanelLayoutSettings() {
+    let leftPane = document.getElementById('left-pane');
+    let leftToggleBtn = document.getElementById('left-pane-toggle');
+    let combatFeed = document.querySelector('.combat-feed');
+    let combatLogToggleBtn = document.getElementById('btn-combat-log-toggle');
+    let isLeftCollapsed = !!(game && game.settings && game.settings.leftPaneCollapsed);
+    let isLogCollapsed = !!(game && game.settings && game.settings.combatLogCollapsed);
+    if (leftPane) leftPane.classList.toggle('collapsed', isLeftCollapsed);
+    if (leftToggleBtn) leftToggleBtn.innerText = isLeftCollapsed ? '▶' : '◀';
+    if (combatFeed) combatFeed.classList.toggle('collapsed', isLogCollapsed);
+    if (combatLogToggleBtn) combatLogToggleBtn.innerText = isLogCollapsed ? '펼치기' : '접기';
+}
+
+function toggleLeftPaneCollapse() {
+    game.settings.leftPaneCollapsed = !game.settings.leftPaneCollapsed;
+    applyPanelLayoutSettings();
+}
+
+function toggleCombatLogCollapse() {
+    game.settings.combatLogCollapsed = !game.settings.combatLogCollapsed;
+    applyPanelLayoutSettings();
+}
+
 function closeDeathOverlay() {
     let overlay = document.getElementById('death-overlay');
     if (overlay) overlay.classList.remove('active');
@@ -4295,6 +4372,7 @@ function claimActRewardChoice(zoneId, choiceIndex) {
     checkUnlocks();
     normalizeSupportLoadout(true);
     updateStaticUI();
+    queueImportantSave(180);
 }
 function getElementColor(ele) {
     let key = normalizeDamageElementKey(ele);
@@ -4417,6 +4495,7 @@ function initBattleAssets() {
         backdropAct5: 'assets/battlefield-act5.png',
         backdropAct9_10: 'assets/battlefield-act9-10.png'
     };
+    const optionalManifestKeys = new Set(['heroIdle', 'heroWalk', 'heroAttack', 'heroHurt', 'heroDeath', 'heroLegacy', 'weapons']);
     let pending = Object.keys(manifest).length;
     let settled = false;
     function finishLoad() {
@@ -4456,8 +4535,10 @@ function initBattleAssets() {
             finishLoad();
         };
         img.onerror = function() {
-            battleAssets.failed = true;
-            battleAssets.failedKeys.push(key);
+            if (!optionalManifestKeys.has(key)) {
+                battleAssets.failed = true;
+                battleAssets.failedKeys.push(key);
+            }
             pending--;
             console.warn('battle asset load failed:', key, src);
             finishLoad();
@@ -7539,9 +7620,11 @@ function grantExpAndGem(enemy, pStats) {
 
     let req = getExpReq(game.level);
     let guard = 0;
+    let leveledUp = false;
     while (game.level < 100 && game.exp >= req && guard < 50) {
         game.exp -= req;
         game.level++;
+        leveledUp = true;
         game.passivePoints++;
         game.noti.char = true;
         game.playerHp = getPlayerStats().maxHp;
@@ -7551,6 +7634,7 @@ function grantExpAndGem(enemy, pStats) {
         checkUnlocks();
     }
     if (game.level >= 100) game.exp = 0;
+    if (leveledUp) queueImportantSave(250);
 }
 
 function rollLootForEnemy(enemy) {
@@ -7693,6 +7777,7 @@ function finishEncounterRun() {
         game.inTicketBossFight = false;
         startMoving(false);
         updateStaticUI();
+        queueImportantSave(200);
         return;
     }
     if (zone.type === 'seasonBoss') {
@@ -7720,6 +7805,7 @@ function finishEncounterRun() {
             startMoving(false);
         }
         updateStaticUI();
+        queueImportantSave(200);
         return;
     }
     if (zone.type === 'labyrinth') {
@@ -7737,6 +7823,7 @@ function finishEncounterRun() {
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
+        queueImportantSave(200);
         return;
     }
 
@@ -7808,6 +7895,7 @@ function finishEncounterRun() {
             game.encounterIndex = 0;
             game.runProgress = 0;
             updateStaticUI();
+            queueImportantSave(180);
             return;
         } else game.currentZoneId = Math.max(game.currentZoneId, game.maxZoneId);
     }
@@ -7820,6 +7908,7 @@ function finishEncounterRun() {
         game.runProgress = 0;
     } else startMoving(false);
     updateStaticUI();
+    queueImportantSave(220);
 }
 
 function performPlayerAttack(pStats) {
@@ -7936,6 +8025,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.playerHp = pStats.maxHp;
         startMoving(false);
         updateStaticUI();
+        queueImportantSave(160);
         return;
     }
     game.loopDeaths = Math.max(0, Math.floor(game.loopDeaths || 0)) + 1;
@@ -7970,6 +8060,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     game.playerHp = pStats.maxHp;
     startMoving(false);
     updateStaticUI();
+    queueImportantSave(160);
 }
 
 function applyPlayerAilment(type, duration) {
@@ -8265,6 +8356,7 @@ function triggerSeasonReset() {
     ensureActJournalCompletionForLoop({ silent: false });
     addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
     checkUnlocks();
+    queueImportantSave(150);
     startMoving(true);
     switchTab('tab-character');
 }
@@ -8448,8 +8540,14 @@ function changeZone(id) {
 
 function isSeasonNodeRequirementMet(node) {
     if (!node || !node.req) return true;
-    if (Array.isArray(node.req)) return node.req.every(req => game.seasonNodes.includes(req));
+    if (Array.isArray(node.req)) return node.req.some(req => game.seasonNodes.includes(req));
     return game.seasonNodes.includes(node.req);
+}
+
+function isAscendNodeRequirementMet(node) {
+    if (!node || !node.req) return true;
+    if (Array.isArray(node.req)) return node.req.some(req => game.ascendNodes.includes(req));
+    return game.ascendNodes.includes(node.req);
 }
 
 function buySeason(id) {
@@ -8471,7 +8569,7 @@ function buyAscend(id) {
     if (!game.ascendClass) return;
     let tree = getClassTreeDef(game.ascendClass);
     let node = tree[id];
-    let reqMet = !node || !node.req ? true : (Array.isArray(node.req) ? node.req.every(req => game.ascendNodes.includes(req)) : game.ascendNodes.includes(node.req));
+    let reqMet = isAscendNodeRequirementMet(node);
     if (node && node.exclusive && game.ascendNodes.includes(node.exclusive)) return addLog('4차 핵심 노드는 2개 중 1개만 선택할 수 있습니다.', 'attack-monster');
     if (!node || game.ascendPoints <= 0 || game.ascendNodes.includes(id) || !reqMet) return;
     game.ascendNodes.push(id);
@@ -8557,6 +8655,35 @@ function toggleSeasonBossRepeat() {
     updateStaticUI();
 }
 
+function getTalismanShapeStyle(shape) {
+    return TALISMAN_SHAPE_STYLE[shape] || { color: '#9fb3c7', glow: 'rgba(159,179,199,0.22)', symbol: '◆' };
+}
+
+function renderTalismanMiniShape(shape, options = {}) {
+    let cells = TALISMAN_SHAPES[shape] || [];
+    let style = getTalismanShapeStyle(shape);
+    let cellSize = Math.max(4, Math.floor(options.cellSize || 6));
+    let gap = Math.max(1, Math.floor(options.gap || 1));
+    let width = (3 * cellSize) + (2 * gap);
+    let height = (2 * cellSize) + gap;
+    let filled = new Set(cells.map(cell => `${cell[0]},${cell[1]}`));
+    let html = '';
+    for (let y = 0; y < 2; y++) {
+        for (let x = 0; x < 3; x++) {
+            let isFilled = filled.has(`${x},${y}`);
+            html += `<span style="width:${cellSize}px; height:${cellSize}px; border-radius:2px; border:1px solid ${isFilled ? style.color : 'rgba(120,140,160,0.35)'}; background:${isFilled ? style.color : 'transparent'}; display:block;"></span>`;
+        }
+    }
+    return `<span style="display:grid; grid-template-columns:repeat(3, ${cellSize}px); grid-auto-rows:${cellSize}px; gap:${gap}px; width:${width}px; height:${height}px; padding:2px; border:1px solid rgba(120,145,175,0.4); border-radius:4px; background:rgba(8,14,22,0.45); box-shadow:0 0 0 1px ${style.glow};">${html}</span>`;
+}
+
+function renderSealShardBadge(source) {
+    let isStrong = source === 'strongSealShard';
+    let color = isStrong ? '#f3c266' : '#9ed2ff';
+    let label = isStrong ? '강력 편린' : '편린';
+    return `<span style="display:inline-flex; align-items:center; gap:4px; font-size:0.72em; color:${color}; border:1px solid ${color}66; border-radius:999px; padding:2px 7px; background:${isStrong ? 'rgba(94,64,17,0.45)' : 'rgba(21,54,83,0.38)'};">${isStrong ? '✦' : '◆'} ${label}</span>`;
+}
+
 function rollTalismanRevealCount() {
     let r = Math.random();
     if (r < 0.002) return 6;
@@ -8587,7 +8714,7 @@ function rollTalismanCandidate(isStrong) {
 
 function startTalismanUnseal(currencyKey) {
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog('봉인편린이 부족합니다.', 'attack-monster');
-    if (game.talismanUnseal) return addLog('이미 봉인 해제 중입니다. 먼저 선택/해체를 완료하세요.', 'attack-monster');
+    if (game.talismanUnseal) return addLog('이미 봉인 해제 중입니다. 먼저 선택/파괴를 완료하세요.', 'attack-monster');
     game.currencies[currencyKey]--;
     let total = rollTalismanRevealCount();
     game.talismanUnseal = {
@@ -8620,8 +8747,18 @@ function acceptCurrentTalisman() {
 
 function discardCurrentTalisman() {
     if (!game.talismanUnseal) return;
-    addLog('🗑️ 봉인 후보를 해체했습니다.', 'attack-monster');
+    addLog('🗑️ 봉인 후보를 파괴했습니다.', 'attack-monster');
     game.talismanUnseal = null;
+    updateStaticUI();
+}
+
+function destroyTalismanFromInventory(talismanId) {
+    let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
+    let target = inv.find(t => t && t.id === talismanId);
+    if (!target) return;
+    game.talismanInventory = inv.filter(t => t.id !== talismanId);
+    if (game.talismanSelectedId === talismanId) game.talismanSelectedId = null;
+    addLog(`🗑️ 부적 파괴: [${target.shape}] ${target.statName} +${target.value}`, 'attack-monster');
     updateStaticUI();
 }
 
@@ -10559,6 +10696,7 @@ function updateStaticUI() {
     let battlefieldWrap = document.getElementById('battlefield-wrap');
     if (canvas) canvas.style.display = showCombatScene ? 'block' : 'none';
     if (battlefieldWrap) battlefieldWrap.classList.toggle('compressed', !showCombatScene);
+    applyPanelLayoutSettings();
     if (!showCombatScene && caption) caption.innerText = '전투가 진행중입니다.';
     drawPassiveTree();
 
@@ -10791,7 +10929,13 @@ function updateStaticUI() {
         let statInfo = P_STATS[node.stat] || {};
         let suffix = statInfo.isPct ? '%' : '';
         let effectText = `${statInfo.name || node.stat} +${formatValue(node.stat, node.val)}${suffix}`;
-        return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buySeason('${id}')"`}><div class="trait-title">${node.name}</div><div class="trait-desc">${node.desc}<br><span style="color:#9bb9d4;">${effectText}</span></div></div>`;
+        let reqText = '';
+        if (node.req) {
+            let reqList = Array.isArray(node.req) ? node.req : [node.req];
+            let labels = reqList.map(reqId => (SEASON_NODES[reqId] ? SEASON_NODES[reqId].name : reqId));
+            reqText = `<br><span style="color:${reqMet ? '#8fd8a8' : '#d39ca7'};">조건: ${labels.join(' 또는 ')}</span>`;
+        }
+        return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buySeason('${id}')"`}><div class="trait-title">${node.name}</div><div class="trait-desc">${node.desc}<br><span style="color:#9bb9d4;">${effectText}</span>${reqText}</div></div>`;
     };
     let visibleSeasonRows = SEASON_NODE_ROWS.filter((row, idx) => idx < 4 || (game.season || 1) >= 5);
     document.getElementById('ui-season-tree').innerHTML = visibleSeasonRows.map(row => `<div class="trait-row">${row.map(renderSeasonNode).join('')}</div>`).join('');
@@ -10806,11 +10950,16 @@ function updateStaticUI() {
             let node = tree[id];
             if (!node) return '';
             let active = game.ascendNodes.includes(id);
-            let reqMet = !node.req || (Array.isArray(node.req) ? node.req.every(req => game.ascendNodes.includes(req)) : game.ascendNodes.includes(node.req));
+            let reqMet = isAscendNodeRequirementMet(node);
             let statInfo = P_STATS[node.stat];
             let desc = node.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name} +${node.val}${statInfo.isPct ? '%' : ''}`;
             let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : statInfo.name);
-            return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buyAscend('${id}')"`}><div class="trait-title">${title}</div><div class="trait-desc">${desc}</div></div>`;
+            let reqText = '';
+            if (node.req) {
+                let reqList = Array.isArray(node.req) ? node.req : [node.req];
+                reqText = `<br><span style="color:${reqMet ? '#8fd8a8' : '#d39ca7'};">조건: ${reqList.join(' 또는 ')}</span>`;
+            }
+            return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buyAscend('${id}')"`}><div class="trait-title">${title}</div><div class="trait-desc">${desc}${reqText}</div></div>`;
         };
         let coreRow = (tree.n11 || tree.n12) ? `<div class="trait-row">${renderAscend('n11')}${renderAscend('n12')}</div>` : '';
         document.getElementById('ui-ascend-tree-container').innerHTML = `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}`;
@@ -10907,7 +11056,7 @@ function updateStaticUI() {
     let boardSize = Math.max(3, Math.min(5, game.talismanBoardUnlock || 3));
     document.getElementById('ui-talisman-board-size').innerText = boardSize;
     document.getElementById('ui-talisman-board-size2').innerText = boardSize;
-    document.getElementById('ui-talisman-currency').innerHTML = `봉인편린: <strong>${game.currencies.sealShard || 0}</strong> / 강력한 기운의 봉인편린: <strong>${game.currencies.strongSealShard || 0}</strong>`;
+    document.getElementById('ui-talisman-currency').innerHTML = `${renderSealShardBadge('sealShard')} <strong>${game.currencies.sealShard || 0}</strong> &nbsp; ${renderSealShardBadge('strongSealShard')} <strong>${game.currencies.strongSealShard || 0}</strong>`;
     let unseal = game.talismanUnseal;
     if (!unseal) {
         document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:8px; color:#9fc4ea;">봉인편린을 해제해 부적 후보를 확인하세요.</div>
@@ -10916,27 +11065,34 @@ function updateStaticUI() {
                 <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
             </div>`;
     } else {
-        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:6px;">후보: <strong>[${unseal.current.shape}] ${unseal.current.statName} +${unseal.current.value}</strong> <span style="color:#9cb5d0;">(${unseal.current.rarity})</span></div>
+        let shapeStyle = getTalismanShapeStyle(unseal.current.shape);
+        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">${renderTalismanMiniShape(unseal.current.shape, { cellSize: 8, gap: 1 })}<span>후보: <strong style="color:${shapeStyle.color};">[${unseal.current.shape}] ${unseal.current.statName} +${unseal.current.value}</strong> <span style="color:#9cb5d0;">(${unseal.current.rarity})</span></span>${renderSealShardBadge(unseal.source)}</div>
             <div style="margin-bottom:8px; color:#8fa7c3;">남은 형태 확인 기회: ${unseal.rollsLeft}/${unseal.totalRolls}</div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button onclick="acceptCurrentTalisman()">선택</button>
                 <button onclick="previewNextTalismanShape()" ${unseal.rollsLeft <= 1 ? 'disabled' : ''}>다음 형태 보기</button>
-                <button onclick="discardCurrentTalisman()" style="background:#6e3f3f; border-color:#8f5959;">해체</button>
+                <button onclick="discardCurrentTalisman()" style="background:#6e3f3f; border-color:#8f5959;">파괴</button>
             </div>`;
     }
     let selectedTalismanId = game.talismanSelectedId;
     document.getElementById('ui-talisman-inventory').innerHTML = game.talismanInventory.map(t => {
         let selected = selectedTalismanId === t.id;
-        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:62px;" onclick="selectTalismanInventoryItem(${t.id})"><div class="item-title ${selected ? 'rare' : 'magic'}">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity}</div></div>`;
+        let shapeStyle = getTalismanShapeStyle(t.shape);
+        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShape(t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: 25 }, (_, i) => {
         let x = i % 5;
         let y = Math.floor(i / 5);
         let unlocked = isTalismanCellUnlocked(x, y);
         let id = game.talismanBoard[i];
-        let cellColor = !unlocked ? '#1a1a1f' : (id ? '#355d46' : '#1d2531');
-        let label = !unlocked ? '🔒' : (id ? '●' : '');
-        return `<button onclick="onTalismanBoardCellClick(${x},${y})" style="width:42px; height:42px; border:1px solid #3b4f63; background:${cellColor}; color:#d5e8ff; border-radius:6px; font-weight:bold;" ${!unlocked ? 'disabled' : ''}>${label}</button>`;
+        let placed = id ? (game.talismanPlacements && game.talismanPlacements[id] ? game.talismanPlacements[id].talisman : null) : null;
+        let shape = placed ? placed.shape : null;
+        let shapeStyle = shape ? getTalismanShapeStyle(shape) : null;
+        let cellColor = !unlocked ? '#1a1a1f' : (id ? (shapeStyle ? shapeStyle.glow : '#355d46') : '#1d2531');
+        let label = !unlocked ? '🔒' : (id ? (shapeStyle ? shapeStyle.symbol : '●') : '');
+        let border = !unlocked ? '#3b4f63' : (id && shapeStyle ? shapeStyle.color : '#3b4f63');
+        let textColor = !unlocked ? '#8b95a1' : (id && shapeStyle ? shapeStyle.color : '#d5e8ff');
+        return `<button onclick="onTalismanBoardCellClick(${x},${y})" style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:6px; font-weight:bold;" ${!unlocked ? 'disabled' : ''}>${label}</button>`;
     }).join('');
     let journalList = document.getElementById('ui-journal-list');
     if (journalList) {
@@ -11461,6 +11617,8 @@ function mergeDefaults(save) {
     merged.passiveStarEvolution = !!merged.passiveStarEvolution;
     merged.settings.showDeathNotice = merged.settings.showDeathNotice !== false;
     merged.settings.themeMode = merged.settings.themeMode === 'light' ? 'light' : 'dark';
+    merged.settings.leftPaneCollapsed = !!merged.settings.leftPaneCollapsed;
+    merged.settings.combatLogCollapsed = !!merged.settings.combatLogCollapsed;
     merged.settings.autoSalvageEnabled = !!merged.settings.autoSalvageEnabled;
     merged.settings.autoSalvageRarities = { ...(defaultGame.settings.autoSalvageRarities || {}), ...(merged.settings.autoSalvageRarities || {}) };
     merged.settings.jewelAutoSalvageEnabled = !!merged.settings.jewelAutoSalvageEnabled;
@@ -11708,6 +11866,16 @@ function saveGame(options = {}) {
     persistLocalSave({ touchModifiedAt: options.touchModifiedAt !== false });
     if (!options.skipCloudSync) scheduleCloudAutoSync();
     updateCloudSaveUI();
+}
+
+let importantSaveTimer = null;
+function queueImportantSave(delayMs) {
+    let delay = Math.max(0, Number.isFinite(delayMs) ? delayMs : 350);
+    if (importantSaveTimer) clearTimeout(importantSaveTimer);
+    importantSaveTimer = setTimeout(() => {
+        importantSaveTimer = null;
+        saveGame({ skipCloudSync: true });
+    }, delay);
 }
 
 function formatCloudTime(value) {
@@ -12473,12 +12641,14 @@ function init() {
             }
         }, 100);
         requestAnimationFrame(gameLoop);
-        setInterval(saveGame, 60000);
+        if (autoSaveHandle) clearInterval(autoSaveHandle);
+        autoSaveHandle = setInterval(() => saveGame({ skipCloudSync: true }), 15000);
     }
 }
 
 function gameLoop() {
     try {
+        if (document.hidden) return;
         if (isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen()) {
             if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
             renderBattlefield();
