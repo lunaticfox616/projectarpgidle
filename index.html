@@ -2067,32 +2067,32 @@ const HERO_SELECTION_DEFS = {
         id: 'hero1',
         label: '궁수',
         blindLabel: '궁수',
-        talentsText: '최소 대미지 보정 +10%',
-        stats: [{ stat: 'minDmgRoll', value: 10 }],
+        talentsText: '투사체 피해 +18%, 공격 속도 +12%, 최소 대미지 보정 +10%',
+        stats: [{ stat: 'projectilePctDmg', value: 18 }, { stat: 'aspd', value: 12 }, { stat: 'minDmgRoll', value: 10 }],
         strips: { idle: 'hero1Idle', walk: 'hero1Walk', attack: 'hero1Attack', hurt: 'hero1Hurt', death: 'hero1Death' }
     },
     hero2: {
         id: 'hero2',
         label: '전사',
         blindLabel: '전사',
-        talentsText: '최대 생명력 +10%',
-        stats: [{ stat: 'pctHp', value: 10 }],
+        talentsText: '근접 피해 +20%, 치명타 피해 +35%, 최대 생명력 +10%',
+        stats: [{ stat: 'meleePctDmg', value: 20 }, { stat: 'critDmg', value: 35 }, { stat: 'pctHp', value: 10 }],
         strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
     },
     hero3: {
         id: 'hero3',
         label: '드루이드',
         blindLabel: '드루이드',
-        talentsText: '모든 저항 +5%',
-        stats: [{ stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }, { stat: 'resChaos', value: 5 }],
+        talentsText: '원소 피해 +22%, 생명력 재생 +1.2%, 모든 저항 +5%',
+        stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'regen', value: 1.2 }, { stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }, { stat: 'resChaos', value: 5 }],
         strips: { idle: 'hero3Idle', walk: 'hero3Walk', attack: 'hero3Attack', hurt: 'hero3Hurt', death: 'hero3Death' }
     },
     hero4: {
         id: 'hero4',
         label: '블레이드',
         blindLabel: '블레이드',
-        talentsText: '이동 속도 +12%',
-        stats: [{ stat: 'move', value: 12 }],
+        talentsText: '카오스 피해 +20%, 흡혈 +1.4%, 이동 속도 +12%',
+        stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 1.4 }, { stat: 'move', value: 12 }],
         strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
     }
 };
