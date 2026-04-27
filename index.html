@@ -955,7 +955,7 @@
         <div id="map-tab-zones" class="subtab-content active">
             <h2>🗺️ 사냥터 선택</h2>
             <div class="map-overview-card">
-                <img class="map-overview-image" src="assets/map.png" alt="월드 지도">
+                <img class="map-overview-image" src="assets/battlefield-map.png" alt="월드 지도">
                 <div class="map-hotspots" id="ui-map-hotspots"></div>
             </div>
             <div class="map-grid" id="ui-map-list"></div>
@@ -4417,6 +4417,7 @@ function initBattleAssets() {
         backdropAct5: 'assets/battlefield-act5.png',
         backdropAct9_10: 'assets/battlefield-act9-10.png'
     };
+    const optionalManifestKeys = new Set(['heroIdle', 'heroWalk', 'heroAttack', 'heroHurt', 'heroDeath', 'heroLegacy', 'weapons']);
     let pending = Object.keys(manifest).length;
     let settled = false;
     function finishLoad() {
@@ -4456,8 +4457,10 @@ function initBattleAssets() {
             finishLoad();
         };
         img.onerror = function() {
-            battleAssets.failed = true;
-            battleAssets.failedKeys.push(key);
+            if (!optionalManifestKeys.has(key)) {
+                battleAssets.failed = true;
+                battleAssets.failedKeys.push(key);
+            }
             pending--;
             console.warn('battle asset load failed:', key, src);
             finishLoad();
