@@ -12362,10 +12362,13 @@ function setupCanvasEvents() {
         const worldX = (clientX - rect.left - viewW / 2 - camX) / camZoom;
         const worldY = (clientY - rect.top - viewH / 2 - camY) / camZoom;
         let found = null;
+        let foundDistance = Infinity;
         let cellSize = passiveRenderCache.cellSize;
         let cx = Math.floor(worldX / cellSize);
         let cy = Math.floor(worldY / cellSize);
         let candidates = [];
+        let starState = ensureStarWedgeState();
+        let selectingStarWedge = Number.isFinite(starState.selectedWedgeId);
         for (let ox = -1; ox <= 1; ox++) {
             for (let oy = -1; oy <= 1; oy++) {
                 let bucket = passiveRenderCache.hoverGrid.get(`${cx + ox},${cy + oy}`);
@@ -12373,9 +12376,19 @@ function setupCanvasEvents() {
             }
         }
         (candidates.length > 0 ? candidates : passiveRenderCache.nodes).forEach(node => {
-            if (found || getPassiveVisibility(node.id) === 'hidden') return;
+            if (getPassiveVisibility(node.id) === 'hidden') return;
             let radius = getPassiveNodeVisualRadius(node) + 8;
-            if (Math.hypot(node.x - worldX, node.y - worldY) <= radius) found = node;
+            let distance = Math.hypot(node.x - worldX, node.y - worldY);
+            if (distance > radius) return;
+            if (!found || distance < foundDistance) {
+                found = node;
+                foundDistance = distance;
+                return;
+            }
+            if (selectingStarWedge && node.socketType === 'star_wedge' && found && found.socketType !== 'star_wedge' && distance <= (foundDistance + 3)) {
+                found = node;
+                foundDistance = distance;
+            }
         });
         return found;
     }
