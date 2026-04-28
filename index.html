@@ -2548,6 +2548,7 @@ const PASSIVE_DISCOVERY_EDGE_DEPTH = 1;
 const PASSIVE_PREVIEW_RADIUS = 105;
 const PASSIVE_PREVIEW_EDGE_DEPTH = 1;
 var PASSIVE_WORLD_SCALE = 1;
+const MAX_PLAYER_LEVEL = 200;
 var PASSIVE_BOUNDS = { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
 let game;
 let reachableNodes = new Set();
@@ -8416,7 +8417,7 @@ function grantExpAndGem(enemy, pStats) {
     let req = getExpReq(game.level);
     let guard = 0;
     let leveledUp = false;
-    while (game.level < 100 && game.exp >= req && guard < 50) {
+    while (game.level < MAX_PLAYER_LEVEL && game.exp >= req && guard < 50) {
         game.exp -= req;
         game.level++;
         leveledUp = true;
@@ -8428,7 +8429,7 @@ function grantExpAndGem(enemy, pStats) {
         guard++;
         checkUnlocks();
     }
-    if (game.level >= 100) game.exp = 0;
+    if (game.level >= MAX_PLAYER_LEVEL) game.exp = 0;
     if (leveledUp) queueImportantSave(250);
 }
 
@@ -9225,7 +9226,17 @@ function triggerSeasonReset() {
     });
 }
 
-function getExpReq(level) { return Math.floor(50 * Math.pow(level, 1.8)); }
+function getExpReq(level) {
+    let lv = Math.max(1, Math.floor(level || 1));
+    if (lv <= 20) return Math.floor(24 + Math.pow(lv, 1.34) * 14);
+    let base20 = Math.floor(24 + Math.pow(20, 1.34) * 14);
+    if (lv <= 50) return Math.floor(base20 + 90 * Math.pow(lv - 20, 1.42));
+    let base50 = Math.floor(base20 + 90 * Math.pow(30, 1.42));
+    if (lv <= 100) return Math.floor(base50 + 252 * Math.pow(lv - 50, 1.55));
+    let base100 = Math.floor(base50 + 252 * Math.pow(50, 1.55));
+    let delta = lv - 100;
+    return base100 + Math.floor(4200 * Math.pow(delta, 1.85) + 900 * delta * delta);
+}
 function getGemReqExp(level) { return Math.floor(100 * Math.pow(1.3, level - 1)); }
 function normalizeGemRecord(raw) {
     if (!raw || typeof raw !== 'object') return { level: 1, exp: 0, bossCoreLevel: 0, skyCoreLevel: 0, skyEnhanceCap: 1 };
@@ -12948,7 +12959,7 @@ function mergeDefaults(save) {
     merged.lastDeathLog = normalizeDeathLog(merged.lastDeathLog);
     merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
     merged.encounterPlan = Array.isArray(merged.encounterPlan) ? merged.encounterPlan.map(normalizeEncounterMarker).filter(Boolean).sort((a, b) => a.at - b.at) : [];
-    merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1, 100)));
+    merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1, MAX_PLAYER_LEVEL)));
     merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));
     merged.season = Math.max(1, Math.floor(clampFiniteNumber(merged.season, defaultGame.season, 1)));
     merged.loopCount = Math.max(0, Math.floor(clampFiniteNumber(merged.loopCount, defaultGame.loopCount, 0)));
