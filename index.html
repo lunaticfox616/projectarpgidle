@@ -2547,7 +2547,7 @@ const PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH = 1;
 const PASSIVE_DISCOVERY_EDGE_DEPTH = 1;
 const PASSIVE_PREVIEW_RADIUS = 105;
 const PASSIVE_PREVIEW_EDGE_DEPTH = 1;
-var PASSIVE_WORLD_SCALE = 1;
+var PASSIVE_WORLD_SCALE = 1.14;
 const MAX_PLAYER_LEVEL = 200;
 var PASSIVE_BOUNDS = { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity };
 let game;
@@ -3506,28 +3506,8 @@ function assignStarWedgeSockets() {
     let hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'hub');
     hubs.forEach(node => {
         node.socketType = null;
-        if (node.title === '별쐐기 슬롯') node.title = '';
     });
-    hubs.sort((a, b) => {
-        let depthDelta = (a.depth || 0) - (b.depth || 0);
-        if (depthDelta !== 0) return depthDelta;
-        return Math.atan2(a.y, a.x) - Math.atan2(b.y, b.x);
-    });
-    let selected = [];
     hubs.forEach(node => {
-        let outer = (node.depth || 0) >= 9;
-        let minDist = outer ? 240 : 175;
-        let tooClose = selected.some(other => Math.hypot(node.x - other.x, node.y - other.y) < minDist);
-        if (tooClose && outer) {
-            node.kind = 'path';
-            node.tier = 1;
-            node.title = '';
-            node.desc = '';
-            return;
-        }
-        selected.push(node);
-    });
-    selected.forEach(node => {
         if (unlocked) {
             node.socketType = 'star_wedge';
             node.title = '별쐐기 슬롯';
@@ -11729,6 +11709,15 @@ function drawPassiveTree() {
         ctx.shadowBlur = 0;
     });
 
+    let hoveredLinkedIds = new Set();
+    if (hoverNode && hoverNode.id) {
+        hoveredLinkedIds.add(hoverNode.id);
+        visibleEdges.forEach(edge => {
+            if (edge.from === hoverNode.id) hoveredLinkedIds.add(edge.to);
+            else if (edge.to === hoverNode.id) hoveredLinkedIds.add(edge.from);
+        });
+    }
+
     // 링크
     visibleEdges.forEach(edge => {
         const a = edge.a;
@@ -11744,11 +11733,20 @@ function drawPassiveTree() {
         const activeLink = activeA && activeB;
         const reachableLink = reachableNodes.has(a.id) || reachableNodes.has(b.id);
         const previewLink = visibleA === 'preview' || visibleB === 'preview';
+        const hoveredLink = hoverNode && (a.id === hoverNode.id || b.id === hoverNode.id);
 
         ctx.save();
         ctx.globalAlpha = alpha;
 
-        if (activeLink) {
+        if (hoveredLink) {
+            drawPassiveLink(ctx, a, b, {
+                stroke: 'rgba(141,188,230,0.95)',
+                innerStroke: 'rgba(222,244,255,0.9)',
+                width: 4.8,
+                shadow: lightweightMode ? 'transparent' : 'rgba(151,206,255,0.38)',
+                blur: lightweightMode ? 0 : 15
+            });
+        } else if (activeLink) {
             drawPassiveLink(ctx, a, b, {
                 stroke: 'rgba(130,95,44,0.95)',
                 innerStroke: 'rgba(244,223,171,0.88)',
@@ -11803,6 +11801,17 @@ function drawPassiveTree() {
             ctx.setLineDash([4, 6]);
             ctx.stroke();
             ctx.setLineDash([]);
+            ctx.restore();
+        }
+
+        if (hoverNode && hoveredLinkedIds.has(node.id) && hoverNode.id !== node.id) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0.35, revealAlpha * 0.9);
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius + 7.5, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(151,205,255,0.78)';
+            ctx.lineWidth = 1.4;
+            ctx.stroke();
             ctx.restore();
         }
     });
@@ -12353,10 +12362,13 @@ function setupCanvasEvents() {
         const worldX = (clientX - rect.left - viewW / 2 - camX) / camZoom;
         const worldY = (clientY - rect.top - viewH / 2 - camY) / camZoom;
         let found = null;
+        let foundDistance = Infinity;
         let cellSize = passiveRenderCache.cellSize;
         let cx = Math.floor(worldX / cellSize);
         let cy = Math.floor(worldY / cellSize);
         let candidates = [];
+        let starState = ensureStarWedgeState();
+        let selectingStarWedge = Number.isFinite(starState.selectedWedgeId);
         for (let ox = -1; ox <= 1; ox++) {
             for (let oy = -1; oy <= 1; oy++) {
                 let bucket = passiveRenderCache.hoverGrid.get(`${cx + ox},${cy + oy}`);
@@ -12364,9 +12376,19 @@ function setupCanvasEvents() {
             }
         }
         (candidates.length > 0 ? candidates : passiveRenderCache.nodes).forEach(node => {
-            if (found || getPassiveVisibility(node.id) === 'hidden') return;
+            if (getPassiveVisibility(node.id) === 'hidden') return;
             let radius = getPassiveNodeVisualRadius(node) + 8;
-            if (Math.hypot(node.x - worldX, node.y - worldY) <= radius) found = node;
+            let distance = Math.hypot(node.x - worldX, node.y - worldY);
+            if (distance > radius) return;
+            if (!found || distance < foundDistance) {
+                found = node;
+                foundDistance = distance;
+                return;
+            }
+            if (selectingStarWedge && node.socketType === 'star_wedge' && found && found.socketType !== 'star_wedge' && distance <= (foundDistance + 3)) {
+                found = node;
+                foundDistance = distance;
+            }
         });
         return found;
     }
@@ -12443,6 +12465,9 @@ function setupCanvasEvents() {
 
     function activateHoveredPassive(opts) {
         let options = opts || {};
+        if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) {
+            hoverNode = getPassiveNodeAtClientPosition(options.clientX, options.clientY);
+        }
         if (dragDist >= 10 || !hoverNode) return;
         let starState = ensureStarWedgeState();
         if (Number.isFinite(starState.selectedWedgeId)) {
@@ -12483,6 +12508,7 @@ function setupCanvasEvents() {
         dragDist = 0;
         dragStartX = e.clientX - camX;
         dragStartY = e.clientY - camY;
+        hoverNode = getPassiveNodeAtClientPosition(e.clientX, e.clientY);
         canvas.style.cursor = 'grabbing';
     });
     canvas.addEventListener('mousemove', e => {
@@ -12492,10 +12518,10 @@ function setupCanvasEvents() {
         }
         updateHoverNode(e.clientX, e.clientY);
     });
-    canvas.addEventListener('mouseup', () => {
+    canvas.addEventListener('mouseup', e => {
         isDragging = false;
         canvas.style.cursor = 'grab';
-        activateHoveredPassive();
+        activateHoveredPassive({ clientX: e.clientX, clientY: e.clientY });
     });
     canvas.addEventListener('mouseleave', () => {
         isDragging = false;
