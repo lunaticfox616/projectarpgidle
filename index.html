@@ -10691,7 +10691,8 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let idleFrame = pickCycle(idleCycle, 920, 0);
         let moveStat = Math.max(70, Number(getPlayerStats().move) || 100);
         let moveRatio = clampNumber(moveStat / 100, 0.85, 2.25);
-        let moveCycleSpeed = clampNumber(1040 / moveRatio, 620, 980);
+        const WALK_ANIM_SPEED_MULT = 2;
+        let moveCycleSpeed = clampNumber((1040 / moveRatio) / WALK_ANIM_SPEED_MULT, 310, 490);
         let walkFrame = pickCycle(walkCycle, moveCycleSpeed, 0);
         let movingFrame = pickCycle(runCycle, moveCycleSpeed, 0) || walkFrame;
         let frame = downPhase !== null || downBlend > 0.24
@@ -10701,7 +10702,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         if (downPhase === null && isAttacking) {
             frame = pickAttackFrame(pickSkillAttackCycle());
         }
-        const _walkBobPeriod = 1140 / Math.max(1, (walkCycle.length || 4)) / 2;
+        const _walkBobPeriod = Math.max(80, moveCycleSpeed / Math.max(1, (walkCycle.length || 4)) / 2);
         let stepOffset = (downPhase === null && advanceBlend > 0.08)
             ? Math.sin(now / _walkBobPeriod) * lerpNumber(0.08, 0.24, advanceBlend)
             : 0;
