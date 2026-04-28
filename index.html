@@ -3670,6 +3670,20 @@ function rerollStarWedge(wedgeId, keepIndex) {
     updateStaticUI();
 }
 
+function destroyStarWedge(wedgeId) {
+    let st = ensureStarWedgeState();
+    let target = getStarWedgeById(wedgeId);
+    if (!target) return addLog('파괴할 별쐐기를 찾을 수 없습니다.', 'attack-monster');
+    if (!confirm(`별쐐기 #${wedgeId % 10000} 를 파괴할까요?`)) return;
+    st.wedges = (st.wedges || []).filter(w => w.id !== wedgeId);
+    st.sockets = (st.sockets || []).filter(entry => entry.wedgeId !== wedgeId);
+    if (st.selectedWedgeId === wedgeId) st.selectedWedgeId = null;
+    game.currencies.starWedge = Math.max(0, (game.currencies.starWedge || 0) - 1);
+    recalculateStarWedgeMutations();
+    addLog('💥 별쐐기를 파괴했습니다.', 'attack-monster');
+    updateStaticUI();
+}
+
 function socketStarWedgeOnNode(nodeId, wedgeId) {
     let st = ensureStarWedgeState();
     let node = PASSIVE_TREE.nodes[nodeId];
@@ -5489,13 +5503,21 @@ function buildBattleAssetAtlas() {
         }
         return fallback.filter(Boolean);
     }
+    function normalizeFrameSetBasisHeight(frames) {
+        let list = (frames || []).filter(Boolean);
+        if (list.length <= 0) return [];
+        let heights = list.map(frame => Math.max(1, Math.round(frame.height || 1))).sort((a, b) => a - b);
+        let mid = Math.floor(heights.length / 2);
+        let basisHeight = heights[mid] || heights[0] || 1;
+        return list.map(frame => ({ ...frame, basisHeight: basisHeight }));
+    }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
-        let idleFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210);
-        let walkFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210);
-        let attackFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220);
-        let hurtFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200);
-        let downFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200);
+        let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210));
+        let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210));
+        let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220));
+        let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200));
+        let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200));
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
         let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
         return {
@@ -9530,6 +9552,7 @@ function renderStarWedgePanel() {
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id})">리롤</button>
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'single')">1줄 고정</button>
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'double')">2줄 고정 (파편x10)</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em; background:#63383f; border-color:#8f5963;" onclick="destroyStarWedge(${wedge.id})">파괴하기</button>
             </div>
         </div>`;
     }).join('');
