@@ -3445,6 +3445,7 @@ function ensureStarWedgeState() {
     game.starWedge.skyRiftReady = !!game.starWedge.skyRiftReady;
     game.starWedge.firstClearDone = !!game.starWedge.firstClearDone;
     game.starWedge.activeMeteorTier = Number.isFinite(game.starWedge.activeMeteorTier) ? Math.max(1, Math.floor(game.starWedge.activeMeteorTier)) : null;
+    if (!Number.isFinite(game.starWedge.selectedWedgeId) || !(game.starWedge.wedges || []).some(w => w.id === game.starWedge.selectedWedgeId)) game.starWedge.selectedWedgeId = null;
     return game.starWedge;
 }
 
@@ -3461,11 +3462,41 @@ function getStarWedgeSocketNodeIds() {
 }
 
 function assignStarWedgeSockets() {
-    let sockets = Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'hub');
-    sockets.forEach(node => {
-        node.socketType = 'star_wedge';
-        node.title = node.title || '별쐐기 슬롯';
-        node.desc = '별쐐기 장착 전용 슬롯입니다. 장착 시 주변 노드(1~3경로)와 슬롯 자신을 변성시킬 수 있습니다.';
+    let st = (game && game.starWedge) || {};
+    let unlocked = !!st.unlocked;
+    let hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'hub');
+    hubs.forEach(node => {
+        node.socketType = null;
+        if (node.title === '별쐐기 슬롯') node.title = '';
+    });
+    hubs.sort((a, b) => {
+        let depthDelta = (a.depth || 0) - (b.depth || 0);
+        if (depthDelta !== 0) return depthDelta;
+        return Math.atan2(a.y, a.x) - Math.atan2(b.y, b.x);
+    });
+    let selected = [];
+    hubs.forEach(node => {
+        let outer = (node.depth || 0) >= 9;
+        let minDist = outer ? 240 : 175;
+        let tooClose = selected.some(other => Math.hypot(node.x - other.x, node.y - other.y) < minDist);
+        if (tooClose && outer) {
+            node.kind = 'path';
+            node.tier = 1;
+            node.title = '';
+            node.desc = '';
+            return;
+        }
+        selected.push(node);
+    });
+    selected.forEach(node => {
+        if (unlocked) {
+            node.socketType = 'star_wedge';
+            node.title = '별쐐기 슬롯';
+            node.desc = '별쐐기 장착 전용 슬롯입니다. 장착 시 주변 노드(1~3경로)와 슬롯 자신을 변성시킬 수 있습니다.';
+        } else {
+            node.socketType = null;
+            node.desc = node.desc || '';
+        }
     });
 }
 
@@ -3548,6 +3579,9 @@ function tryUnlockMeteorContentByProgress() {
     let st = ensureStarWedgeState();
     if (st.unlocked || !getStarWedgeUnlockReady()) return false;
     st.unlocked = true;
+    assignStarWedgeSockets();
+    recalculateStarWedgeMutations();
+    markPassiveRenderCacheDirty('structure');
     addLog('☄️ 말라가는 줄기 위로 검은 별이 떨어지기 시작했다.', 'loot-unique');
     queueTutorialNotice('meteor_unlocked', '운석 낙하 지점', '루프 7 이후 액트 7을 넘긴 사냥에서 하늘의 균열이 열립니다.\n게이지를 100%까지 채우면 운석 낙하 지점에 1회 입장할 수 있습니다.', 'tab-map');
     return true;
@@ -3618,11 +3652,18 @@ function craftCompleteStarWedge() {
 function rerollStarWedge(wedgeId, keepIndex) {
     let wedge = getStarWedgeById(wedgeId);
     if (!wedge) return;
-    if ((game.currencies.meteorShard || 0) < 23) return addLog('운석 파편이 부족합니다. (필요: 23)', 'attack-monster');
-    if (Number.isFinite(keepIndex) && (game.currencies.incompleteStarWedge || 0) <= 0) return addLog('옵션 고정 리롤에는 불완전한 별쐐기가 필요합니다.', 'attack-monster');
-    game.currencies.meteorShard -= 23;
-    if (Number.isFinite(keepIndex)) game.currencies.incompleteStarWedge--;
-    wedge.lines = wedge.lines.map((line, idx) => (Number.isFinite(keepIndex) && idx === keepIndex) ? line : createRandomStarWedgeLine());
+    let keepIndexes = [];
+    let meteorCost = 23;
+    if (keepIndex === 'single' || keepIndex === 1) keepIndexes = [0];
+    if (keepIndex === 'double' || keepIndex === 2) {
+        keepIndexes = [0, 1];
+        meteorCost = 230;
+    }
+    if ((game.currencies.meteorShard || 0) < meteorCost) return addLog(`운석 파편이 부족합니다. (필요: ${meteorCost})`, 'attack-monster');
+    if (keepIndexes.length > 0 && (game.currencies.incompleteStarWedge || 0) <= 0) return addLog('옵션 고정 리롤에는 불완전한 별쐐기가 필요합니다.', 'attack-monster');
+    game.currencies.meteorShard -= meteorCost;
+    if (keepIndexes.length > 0) game.currencies.incompleteStarWedge--;
+    wedge.lines = wedge.lines.map((line, idx) => keepIndexes.includes(idx) ? line : createRandomStarWedgeLine());
     addLog('☄️ 나무의 결이 끊어지고, 새로운 효과가 혼돈 속에서 벼려졌다.', 'loot-unique');
     if (!((game.journalEntries || []).includes('star_wedge'))) unlockJournalEntry('star_wedge');
     recalculateStarWedgeMutations();
@@ -3650,6 +3691,15 @@ function unsocketStarWedge(nodeId) {
     if (st.sockets.length === before) return;
     recalculateStarWedgeMutations();
     addLog('☄️ 별쐐기를 슬롯에서 분리했습니다.', 'attack-monster');
+    updateStaticUI();
+}
+
+function beginStarWedgeSocketSelection(wedgeId) {
+    let st = ensureStarWedgeState();
+    let wedge = getStarWedgeById(wedgeId);
+    if (!wedge) return addLog('선택한 별쐐기를 찾을 수 없습니다.', 'attack-monster');
+    st.selectedWedgeId = wedgeId;
+    addLog('☄️ 패시브 트리에서 장착할 별쐐기 슬롯을 클릭하세요.', 'season-up');
     updateStaticUI();
 }
 
@@ -9061,6 +9111,7 @@ function triggerSeasonReset() {
     game.actRewardBonuses = [];
     game.seasonChaseUniqueDropped = false;
     game.uniqueCodex = codexReveal;
+    game.starWedge = JSON.parse(JSON.stringify(defaultGame.starWedge));
     game.unlocks = { ...defaultGame.unlocks };
     game.noti = { ...defaultGame.noti };
     game.itemSubtab = 'item-tab-equip';
@@ -9089,6 +9140,8 @@ function triggerSeasonReset() {
     craftSelectedRef = null;
     craftSelectedIsEquip = false;
     applySeasonContentProgression({ silent: false });
+    assignStarWedgeSockets();
+    recalculateStarWedgeMutations();
     calculateReachableNodes();
     refreshPassiveVisibility();
     game.playerHp = getPlayerStats().maxHp;
@@ -9462,12 +9515,16 @@ function renderStarWedgePanel() {
             return `<div style="color:${line.boosted ? '#ffd36f' : '#d4deea'};">${lineTitle}. ${getStatName(line.stat)} +${formatValue(line.stat, line.val)}${P_STATS[line.stat] && P_STATS[line.stat].isPct ? '%' : ''}${line.boosted ? ' <strong>★</strong>' : ''}</div>`;
         }).join('');
         let socketedEntry = (st.sockets || []).find(v => v.wedgeId === wedge.id) || null;
-        let socketBtn = getStarWedgeSocketNodeIds().map(id => `<button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="socketStarWedgeOnNode('${id}', ${wedge.id})">${getPassiveNodeDisplayName(PASSIVE_TREE.nodes[id])}</button>`).join('');
-        let rerollKeepBtns = wedge.lines.map((line, idx) => `<button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, ${idx})">${idx === 3 ? '핵심 고정' : `${idx + 1}줄 고정`}</button>`).join('');
+        let selecting = st.selectedWedgeId === wedge.id;
         return `<div style="border:1px solid #3e3352; border-radius:8px; padding:8px; background:#121224;">
             <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;"><strong style="color:#efd8ff;">별쐐기 #${wedge.id % 10000}</strong>${socketedEntry ? `<button style="min-height:24px; padding:3px 8px; font-size:0.72em; background:#5c3448; border-color:#81506b;" onclick="unsocketStarWedge('${socketedEntry.nodeId}')">장착 해제</button>` : ''}</div>
             ${lines}
-            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">${socketBtn}<button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id})">리롤</button>${rerollKeepBtns}</div>
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em; ${selecting ? 'background:#2f6a42; border-color:#3f9b5c;' : ''}" onclick="beginStarWedgeSocketSelection(${wedge.id})">${selecting ? '슬롯 선택 중...' : '장착할 슬롯 선택'}</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id})">리롤</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'single')">1줄 고정</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'double')">2줄 고정 (파편x10)</button>
+            </div>
         </div>`;
     }).join('');
     panel.innerHTML = `
@@ -9476,7 +9533,7 @@ function renderStarWedgePanel() {
             <div style="color:#8ea5c1;">장착 슬롯: ${socketNodeText}</div>
         </div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"><button onclick="craftIncompleteStarWedge()">파편 49 → 불완전한 별쐐기</button><button onclick="craftCompleteStarWedge()">불완전 1 + 파편 77 → 별쐐기</button></div>
-        <div style="color:#93a4bb; font-size:0.8em; margin-bottom:8px;">1/2/3경로 노드를 1~3번째 줄로 변성하고, 4번째 [핵심노드] 줄은 슬롯 자신(허브 노드)에 적용됩니다.</div>
+        <div style="color:#93a4bb; font-size:0.8em; margin-bottom:8px;">1/2/3경로 노드를 1~3번째 줄로 변성하고, 4번째 [핵심노드] 줄은 슬롯 자신(허브 노드)에 적용됩니다. 장착은 [장착할 슬롯 선택] 후 패시브 트리에서 슬롯을 클릭하세요.</div>
         <div style="display:grid; gap:8px;">${wedgeCards || '<div style="color:#7f89a0;">별쐐기가 없습니다. 운석 낙하 지점을 공략하거나 제작하세요.</div>'}</div>
     `;
 }
@@ -12308,6 +12365,17 @@ function setupCanvasEvents() {
     function activateHoveredPassive(opts) {
         let options = opts || {};
         if (dragDist >= 10 || !hoverNode) return;
+        let starState = ensureStarWedgeState();
+        if (Number.isFinite(starState.selectedWedgeId)) {
+            if (hoverNode.socketType === 'star_wedge') {
+                socketStarWedgeOnNode(hoverNode.id, starState.selectedWedgeId);
+                starState.selectedWedgeId = null;
+                updateStaticUI();
+            } else {
+                addLog('별쐐기 슬롯(허브 노드)을 클릭해 장착하세요.', 'attack-monster');
+            }
+            return;
+        }
         if (game.passivePoints <= 0) return addLog("패시브 포인트가 부족합니다.", "attack-monster");
         if (options.fromTouch && !(game.passives || []).includes(hoverNode.id) && reachableNodes.has(hoverNode.id)) {
             let now = Date.now();
