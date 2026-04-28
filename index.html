@@ -2148,6 +2148,7 @@ let cloudState = {
     busy: false,
     session: null,
     user: null,
+    isLoaded: false,
     lastMessage: '설정 전',
     lastRemoteUpdatedAt: 0,
     lastSyncAttemptAt: 0
@@ -12938,6 +12939,7 @@ function applyCloudSession(session) {
     if (!session || !session.access_token) {
         cloudState.session = null;
         cloudState.user = null;
+        cloudState.isLoaded = false;
         clearCloudSessionStorage();
         updateCloudSaveUI();
         return;
@@ -12950,6 +12952,7 @@ function applyCloudSession(session) {
         user: session.user || cloudState.user || null
     };
     cloudState.user = cloudState.session.user;
+    cloudState.isLoaded = false;
     persistCloudSession(cloudState.session);
     updateCloudSaveUI();
 }
@@ -13206,13 +13209,35 @@ async function restoreCloudSession() {
 
 async function fetchCloudSaveRecord() {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
-    let rows = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${cloudState.user.id}&select=user_id,save_data,updated_at`, {
-        headers: { Accept: 'application/json' }
-    });
-    let record = Array.isArray(rows) ? rows[0] : null;
-    if (record && record.updated_at) cloudState.lastRemoteUpdatedAt = new Date(record.updated_at).getTime() || 0;
-    updateCloudSaveUI();
-    return record;
+    try {
+        let userId = encodeURIComponent(cloudState.user.id);
+        let rows = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${userId}&select=user_id,save_data,updated_at&order=updated_at.desc.nullslast&limit=1`, {
+            headers: { Accept: 'application/json' }
+        });
+        let record = Array.isArray(rows) ? rows[0] : null;
+        if (!record) {
+            let fallbackRows = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${userId}&select=user_id,save_data,updated_at`, {
+                headers: { Accept: 'application/json' }
+            });
+            if (Array.isArray(fallbackRows) && fallbackRows.length > 0) {
+                record = fallbackRows
+                    .filter(Boolean)
+                    .sort((a, b) => {
+                        let at = a && a.updated_at ? (new Date(a.updated_at).getTime() || 0) : 0;
+                        let bt = b && b.updated_at ? (new Date(b.updated_at).getTime() || 0) : 0;
+                        return bt - at;
+                    })[0] || null;
+            }
+        }
+        cloudState.isLoaded = true;
+        if (record && record.updated_at) cloudState.lastRemoteUpdatedAt = new Date(record.updated_at).getTime() || 0;
+        updateCloudSaveUI();
+        return record;
+    } catch (error) {
+        cloudState.isLoaded = false;
+        updateCloudSaveUI();
+        throw error;
+    }
 }
 
 function getLocalSaveStamp() {
@@ -13242,6 +13267,7 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
 
 async function pushCloudSave(options = {}) {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
+    if (!cloudState.isLoaded) throw new Error('원격 저장 로드 전에는 업로드할 수 없습니다.');
     persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true });
     let payload = JSON.parse(JSON.stringify(game));
     let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
@@ -13275,9 +13301,13 @@ async function pullCloudSave(options = {}) {
 async function reconcileCloudSaveState(options = {}) {
     let record = await fetchCloudSaveRecord();
     if (!record || !record.save_data) {
-        await pushCloudSave({ touchModifiedAt: false });
-        setCloudMessage('클라우드에 저장이 없어 현재 로컬 세이브를 업로드했습니다.');
-        return 'pushed-local';
+        if (options.createRemoteFromLocal) {
+            await pushCloudSave({ touchModifiedAt: false });
+            setCloudMessage('클라우드에 저장이 없어 현재 로컬 세이브를 업로드했습니다.');
+            return 'pushed-local';
+        }
+        setCloudMessage('클라우드 저장을 찾지 못했습니다. 데이터를 확인한 뒤 수동 업로드를 진행해주세요.');
+        return 'no-remote';
     }
     ensureSaveMeta();
     let localStamp = getLocalSaveStamp();
@@ -13407,7 +13437,7 @@ async function cloudSignUp(options = {}) {
                 caption: 'Binding Save Data',
                 progress: 54
             });
-            await reconcileCloudSaveState();
+            await reconcileCloudSaveState({ createRemoteFromLocal: true });
             addLog('클라우드 계정을 만들고 저장을 연결했습니다.', 'loot-magic');
             if (options.enterGame) await enterGameWorld();
         } else {
@@ -13453,7 +13483,7 @@ async function cloudLogin(options = {}) {
             caption: 'Syncing Save Data',
             progress: 58
         });
-        await reconcileCloudSaveState();
+        await reconcileCloudSaveState({ createRemoteFromLocal: false });
         addLog('클라우드 세이브 계정에 로그인했습니다.', 'loot-magic');
         if (options.enterGame) await enterGameWorld();
     } catch (error) {
