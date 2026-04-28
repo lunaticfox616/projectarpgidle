@@ -2220,6 +2220,7 @@ const defaultGame = {
     discoveredHeroIds: ['hero1'],
     heroSelectionInitialized: false,
     heroFreeSwitchUnlocked: false,
+    pendingLoopHeroSelection: false,
     passivePoints: 0,
     playerHp: 100,
     moveTimer: 0,
@@ -4529,9 +4530,11 @@ function openLoopHeroSelection(onSelect, options = {}) {
     if (kickerEl) kickerEl.innerText = options.kicker || 'Loop Selection';
     if (titleEl) titleEl.innerText = options.title || '다음 루프 캐릭터 선택';
     if (bodyEl) bodyEl.innerText = options.body || '이번 루프에서 사용할 캐릭터를 선택하세요.';
+    let experiencedSet = new Set(Array.isArray(game.discoveredHeroIds) ? game.discoveredHeroIds : []);
     grid.innerHTML = HERO_SELECTION_ORDER.map(id => {
         let def = HERO_SELECTION_DEFS[id];
-        return `<button class="reward-choice" onclick="chooseLoopHero('${id}')"><strong>${def.label}</strong>${def.talentsText}</button>`;
+        let experienced = experiencedSet.has(id);
+        return `<button class="reward-choice" onclick="chooseLoopHero('${id}')"><strong>${def.label}${experienced ? ' <span style="color:#9fd8ff; font-size:0.8em;">(경험함)</span>' : ''}</strong>${def.talentsText}</button>`;
     }).join('');
     overlay.classList.add('active');
 }
@@ -8893,7 +8896,26 @@ function applyTrialTrapTick(pStats) {
     }
 }
 
+function ensurePendingLoopHeroSelectionPrompt() {
+    if (!game || !game.pendingLoopHeroSelection) return false;
+    if (isLoopHeroSelectOpen() || isStartupOverlayOpen() || isLoadingOverlayOpen() || isDeathOverlayOpen()) return false;
+    let previousHeroId = game.selectedHeroId || 'hero1';
+    openLoopHeroSelection((heroId) => {
+        if (heroId !== previousHeroId) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(heroId).label} 캐릭터를 선택했습니다.`, 'season-up');
+        game.pendingLoopHeroSelection = false;
+        saveGame({ skipCloudSync: true });
+        startMoving(true);
+        switchTab('tab-character');
+    }, {
+        kicker: 'Loop Resume',
+        title: '중단된 루프의 재능 선택',
+        body: '저장된 루프 진행을 이어가기 전에 이번 루프 재능을 선택하세요.'
+    });
+    return true;
+}
+
 function coreLoop() {
+    if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
     tickAilments(pStats, 0.1);
     let ailmentMap = {};
@@ -9073,9 +9095,12 @@ function triggerSeasonReset() {
     ensureActJournalCompletionForLoop({ silent: false });
     addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
     checkUnlocks();
-    queueImportantSave(150);
+    game.pendingLoopHeroSelection = true;
+    saveGame({ skipCloudSync: true });
     openLoopHeroSelection((heroId) => {
         if (heroId !== previousHeroId) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(heroId).label} 캐릭터를 선택했습니다.`, 'season-up');
+        game.pendingLoopHeroSelection = false;
+        saveGame({ skipCloudSync: true });
         startMoving(true);
         switchTab('tab-character');
     });
@@ -12778,6 +12803,7 @@ function mergeDefaults(save) {
     if (!merged.discoveredHeroIds.includes(merged.selectedHeroId)) merged.discoveredHeroIds.push(merged.selectedHeroId);
     merged.heroSelectionInitialized = !!merged.heroSelectionInitialized;
     merged.heroFreeSwitchUnlocked = !!merged.heroFreeSwitchUnlocked || merged.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length;
+    merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
     merged.abyssPassivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.abyssPassivePoints, defaultGame.abyssPassivePoints, 0)));
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
     merged.abyssPassives = { ...(defaultGame.abyssPassives || {}), ...(merged.abyssPassives || {}) };
