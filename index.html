@@ -3131,6 +3131,141 @@ function generateOrganicTree() {
         edgeKeys.add(key);
         PASSIVE_TREE.edges.push({ from: aId, to: bId });
     }
+    function disconnect(aId, bId) {
+        if (!aId || !bId || aId === bId) return;
+        let key = aId < bId ? `${aId}|${bId}` : `${bId}|${aId}`;
+        if (!edgeKeys.has(key)) return;
+        edgeKeys.delete(key);
+        PASSIVE_TREE.edges = PASSIVE_TREE.edges.filter(edge => {
+            return !((edge.from === aId && edge.to === bId) || (edge.from === bId && edge.to === aId));
+        });
+    }
+    function buildAdjacencyMap() {
+        let adj = new Map();
+        Object.keys(PASSIVE_TREE.nodes).forEach(id => adj.set(id, new Set()));
+        PASSIVE_TREE.edges.forEach(edge => {
+            if (!adj.has(edge.from)) adj.set(edge.from, new Set());
+            if (!adj.has(edge.to)) adj.set(edge.to, new Set());
+            adj.get(edge.from).add(edge.to);
+            adj.get(edge.to).add(edge.from);
+        });
+        return adj;
+    }
+    function ensureHubNeighborConnections(minNeighbors) {
+        let hubs = Object.values(PASSIVE_TREE.nodes).filter(node => node && node.kind === 'hub');
+        hubs.forEach(hub => {
+            let adj = buildAdjacencyMap();
+            let linked = adj.get(hub.id) || new Set();
+            let need = Math.max(0, (minNeighbors || 0) - linked.size);
+            if (need <= 0) return;
+            let candidates = Object.values(PASSIVE_TREE.nodes)
+                .filter(node => node && node.id !== hub.id)
+                .filter(node => node.kind !== 'apex')
+                .filter(node => !linked.has(node.id))
+                .sort((a, b) => {
+                    let aSector = a.sector === hub.sector ? 0 : 1;
+                    let bSector = b.sector === hub.sector ? 0 : 1;
+                    if (aSector !== bSector) return aSector - bSector;
+                    let da = Math.hypot(a.x - hub.x, a.y - hub.y);
+                    let db = Math.hypot(b.x - hub.x, b.y - hub.y);
+                    return da - db;
+                });
+            candidates.slice(0, need).forEach(node => connect(hub.id, node.id));
+        });
+    }
+    function findShortestPathBetweenNodes(startId, endId, adjacency) {
+        if (!startId || !endId || startId === endId) return [startId];
+        let adj = adjacency || buildAdjacencyMap();
+        let queue = [startId];
+        let visited = new Set([startId]);
+        let parent = new Map();
+        while (queue.length > 0) {
+            let current = queue.shift();
+            if (current === endId) break;
+            (adj.get(current) || []).forEach(next => {
+                if (visited.has(next)) return;
+                visited.add(next);
+                parent.set(next, current);
+                queue.push(next);
+            });
+        }
+        if (!visited.has(endId)) return null;
+        let path = [endId];
+        let cursor = endId;
+        while (cursor !== startId) {
+            cursor = parent.get(cursor);
+            if (!cursor) return null;
+            path.push(cursor);
+        }
+        path.reverse();
+        return path;
+    }
+    function countPathKindNodesInPath(path) {
+        if (!Array.isArray(path) || path.length <= 2) return 0;
+        return path.slice(1, -1).reduce((count, id) => {
+            let node = PASSIVE_TREE.nodes[id];
+            return count + (node && node.kind === 'path' ? 1 : 0);
+        }, 0);
+    }
+    function insertPathNodesOnEdge(aId, bId, count, sectorHint) {
+        let a = PASSIVE_TREE.nodes[aId];
+        let b = PASSIVE_TREE.nodes[bId];
+        if (!a || !b || !Number.isFinite(count) || count <= 0) return;
+        disconnect(aId, bId);
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        let dist = Math.hypot(dx, dy) || 1;
+        let nx = -dy / dist;
+        let ny = dx / dist;
+        let prevId = aId;
+        for (let i = 1; i <= count; i++) {
+            let t = i / (count + 1);
+            let wobble = Math.sin(t * Math.PI) * (16 + count * 2);
+            let x = a.x + dx * t + nx * wobble;
+            let y = a.y + dy * t + ny * wobble;
+            let node = addNode(
+                x / PASSIVE_WORLD_SCALE,
+                y / PASSIVE_WORLD_SCALE,
+                1,
+                sectorHint || a.sector || b.sector || 'center',
+                { sector: sectorHint || a.sector || b.sector || 'center', kind: 'path', depth: Math.round(((a.depth || 0) + (b.depth || 0)) * 0.5) + i, lane: 0 }
+            );
+            if (!node) break;
+            node.kind = 'path';
+            connect(prevId, node.id);
+            prevId = node.id;
+        }
+        connect(prevId, bId);
+    }
+    function ensureMinimumPathNodesBetweenHubs(minPathNodes) {
+        let required = Math.max(0, Math.floor(minPathNodes || 0));
+        if (required <= 0) return;
+        for (let guard = 0; guard < 40; guard++) {
+            let hubs = Object.values(PASSIVE_TREE.nodes).filter(node => node && node.kind === 'hub');
+            if (hubs.length <= 1) return;
+            let adj = buildAdjacencyMap();
+            let changed = false;
+            for (let i = 0; i < hubs.length; i++) {
+                for (let j = i + 1; j < hubs.length; j++) {
+                    let a = hubs[i];
+                    let b = hubs[j];
+                    let path = findShortestPathBetweenNodes(a.id, b.id, adj);
+                    if (!path || path.length < 2) continue;
+                    let pathCount = countPathKindNodesInPath(path);
+                    if (pathCount >= required) continue;
+                    let need = required - pathCount;
+                    let edgeIndex = Math.max(0, Math.floor((path.length - 2) * 0.5));
+                    let fromId = path[edgeIndex];
+                    let toId = path[edgeIndex + 1];
+                    insertPathNodesOnEdge(fromId, toId, need, a.sector || b.sector);
+                    changed = true;
+                    break;
+                }
+                if (changed) break;
+            }
+            if (!changed) return;
+        }
+    }
 
     const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'witch', 'duelist'];
     const sectorCount = sectorThemes.length;
@@ -3288,6 +3423,10 @@ function generateOrganicTree() {
         if (leftNode && tipNode) connect(leftNode.id, tipNode.id);
         if (rightNode && tipNode) connect(rightNode.id, tipNode.id);
     });
+
+    ensureHubNeighborConnections(4);
+    ensureMinimumPathNodesBetweenHubs(6);
+    ensureHubNeighborConnections(4);
 
     // 시각적 겹침 완화
     let packed = Object.values(PASSIVE_TREE.nodes);
