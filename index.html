@@ -3131,11 +3131,46 @@ function generateOrganicTree() {
         edgeKeys.add(key);
         PASSIVE_TREE.edges.push({ from: aId, to: bId });
     }
+    function buildAdjacencyMap() {
+        let adj = new Map();
+        Object.keys(PASSIVE_TREE.nodes).forEach(id => adj.set(id, new Set()));
+        PASSIVE_TREE.edges.forEach(edge => {
+            if (!adj.has(edge.from)) adj.set(edge.from, new Set());
+            if (!adj.has(edge.to)) adj.set(edge.to, new Set());
+            adj.get(edge.from).add(edge.to);
+            adj.get(edge.to).add(edge.from);
+        });
+        return adj;
+    }
+    function ensureOuterHubNeighborConnections(minNeighbors) {
+        let hubs = Object.values(PASSIVE_TREE.nodes).filter(node => node && node.kind === 'hub' && (node.depth || 0) >= 10);
+        if (hubs.length <= 0) return;
+        hubs.forEach(hub => {
+            let adj = buildAdjacencyMap();
+            let linked = adj.get(hub.id) || new Set();
+            let need = Math.max(0, (minNeighbors || 0) - linked.size);
+            if (need <= 0) return;
+            let candidates = Object.values(PASSIVE_TREE.nodes)
+                .filter(node => node && node.id !== hub.id)
+                .filter(node => node.kind !== 'apex')
+                .filter(node => !linked.has(node.id))
+                .sort((a, b) => {
+                    let aSector = a.sector === hub.sector ? 0 : 1;
+                    let bSector = b.sector === hub.sector ? 0 : 1;
+                    if (aSector !== bSector) return aSector - bSector;
+                    let da = Math.hypot(a.x - hub.x, a.y - hub.y);
+                    let db = Math.hypot(b.x - hub.x, b.y - hub.y);
+                    return da - db;
+                });
+            candidates.slice(0, need).forEach(node => connect(hub.id, node.id));
+        });
+    }
+
 
     const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'witch', 'duelist'];
     const sectorCount = sectorThemes.length;
     const lanes = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
-    const maxDepth = 12;
+    const maxDepth = 13;
 
     let root = addNode(0, 0, 0, 'flatHp', { sector: 'center', kind: 'root', depth: 0, lane: 0 });
     let laneNodes = {};
@@ -3144,7 +3179,8 @@ function generateOrganicTree() {
         let laneAbs = Math.abs(lane);
         if (depth === 1 && laneAbs <= 1) return { tier: 2, kind: 'core' };
         if (depth === 6 && lane === 0) return { tier: 2, kind: 'hub' };
-        if ((depth === 10 || depth === 11) && laneAbs === 3) return { tier: 2, kind: 'hub' };
+        if (depth === maxDepth && laneAbs === 3) return { tier: 2, kind: 'hub' };
+        if (laneAbs === 3 && depth > 6 && depth < maxDepth) return { tier: 1, kind: 'path' };
         if (laneAbs === 4 && depth >= maxDepth - 1) return { tier: 3, kind: 'deadend' };
         if (depth === maxDepth && laneAbs <= 1) return { tier: 3, kind: 'keystone' };
         if (depth % 4 === 0 || (depth >= maxDepth - 2 && laneAbs <= 2)) return { tier: 2, kind: 'major' };
@@ -3288,6 +3324,8 @@ function generateOrganicTree() {
         if (leftNode && tipNode) connect(leftNode.id, tipNode.id);
         if (rightNode && tipNode) connect(rightNode.id, tipNode.id);
     });
+
+    ensureOuterHubNeighborConnections(4);
 
     // 시각적 겹침 완화
     let packed = Object.values(PASSIVE_TREE.nodes);
@@ -3667,6 +3705,20 @@ function rerollStarWedge(wedgeId, keepIndex) {
     addLog('☄️ 나무의 결이 끊어지고, 새로운 효과가 혼돈 속에서 벼려졌다.', 'loot-unique');
     if (!((game.journalEntries || []).includes('star_wedge'))) unlockJournalEntry('star_wedge');
     recalculateStarWedgeMutations();
+    updateStaticUI();
+}
+
+function destroyStarWedge(wedgeId) {
+    let st = ensureStarWedgeState();
+    let target = getStarWedgeById(wedgeId);
+    if (!target) return addLog('파괴할 별쐐기를 찾을 수 없습니다.', 'attack-monster');
+    if (!confirm(`별쐐기 #${wedgeId % 10000} 를 파괴할까요?`)) return;
+    st.wedges = (st.wedges || []).filter(w => w.id !== wedgeId);
+    st.sockets = (st.sockets || []).filter(entry => entry.wedgeId !== wedgeId);
+    if (st.selectedWedgeId === wedgeId) st.selectedWedgeId = null;
+    game.currencies.starWedge = Math.max(0, (game.currencies.starWedge || 0) - 1);
+    recalculateStarWedgeMutations();
+    addLog('💥 별쐐기를 파괴했습니다.', 'attack-monster');
     updateStaticUI();
 }
 
@@ -5489,13 +5541,21 @@ function buildBattleAssetAtlas() {
         }
         return fallback.filter(Boolean);
     }
+    function normalizeFrameSetBasisHeight(frames) {
+        let list = (frames || []).filter(Boolean);
+        if (list.length <= 0) return [];
+        let heights = list.map(frame => Math.max(1, Math.round(frame.height || 1))).sort((a, b) => a - b);
+        let mid = Math.floor(heights.length / 2);
+        let basisHeight = heights[mid] || heights[0] || 1;
+        return list.map(frame => ({ ...frame, basisHeight: basisHeight }));
+    }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
-        let idleFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210);
-        let walkFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210);
-        let attackFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220);
-        let hurtFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200);
-        let downFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200);
+        let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210));
+        let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210));
+        let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220));
+        let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200));
+        let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200));
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
         let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
         return {
@@ -9530,6 +9590,7 @@ function renderStarWedgePanel() {
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id})">리롤</button>
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'single')">1줄 고정</button>
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'double')">2줄 고정 (파편x10)</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em; background:#63383f; border-color:#8f5963;" onclick="destroyStarWedge(${wedge.id})">파괴하기</button>
             </div>
         </div>`;
     }).join('');
@@ -10668,7 +10729,8 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let idleFrame = pickCycle(idleCycle, 920, 0);
         let moveStat = Math.max(70, Number(getPlayerStats().move) || 100);
         let moveRatio = clampNumber(moveStat / 100, 0.85, 2.25);
-        let moveCycleSpeed = clampNumber(1040 / moveRatio, 620, 980);
+        const WALK_ANIM_SPEED_MULT = 2;
+        let moveCycleSpeed = clampNumber((1040 / moveRatio) / WALK_ANIM_SPEED_MULT, 310, 490);
         let walkFrame = pickCycle(walkCycle, moveCycleSpeed, 0);
         let movingFrame = pickCycle(runCycle, moveCycleSpeed, 0) || walkFrame;
         let frame = downPhase !== null || downBlend > 0.24
@@ -10678,7 +10740,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         if (downPhase === null && isAttacking) {
             frame = pickAttackFrame(pickSkillAttackCycle());
         }
-        const _walkBobPeriod = 1140 / Math.max(1, (walkCycle.length || 4)) / 2;
+        const _walkBobPeriod = Math.max(80, moveCycleSpeed / Math.max(1, (walkCycle.length || 4)) / 2);
         let stepOffset = (downPhase === null && advanceBlend > 0.08)
             ? Math.sin(now / _walkBobPeriod) * lerpNumber(0.08, 0.24, advanceBlend)
             : 0;
