@@ -3698,6 +3698,12 @@ function beginStarWedgeSocketSelection(wedgeId) {
     let st = ensureStarWedgeState();
     let wedge = getStarWedgeById(wedgeId);
     if (!wedge) return addLog('선택한 별쐐기를 찾을 수 없습니다.', 'attack-monster');
+    if (st.selectedWedgeId === wedgeId) {
+        st.selectedWedgeId = null;
+        addLog('별쐐기 슬롯 선택을 취소했습니다.', 'attack-monster');
+        updateStaticUI();
+        return;
+    }
     st.selectedWedgeId = wedgeId;
     addLog('☄️ 패시브 트리에서 장착할 별쐐기 슬롯을 클릭하세요.', 'season-up');
     updateStaticUI();
@@ -9520,7 +9526,7 @@ function renderStarWedgePanel() {
             <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;"><strong style="color:#efd8ff;">별쐐기 #${wedge.id % 10000}</strong>${socketedEntry ? `<button style="min-height:24px; padding:3px 8px; font-size:0.72em; background:#5c3448; border-color:#81506b;" onclick="unsocketStarWedge('${socketedEntry.nodeId}')">장착 해제</button>` : ''}</div>
             ${lines}
             <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">
-                <button style="min-height:26px; padding:3px 8px; font-size:0.76em; ${selecting ? 'background:#2f6a42; border-color:#3f9b5c;' : ''}" onclick="beginStarWedgeSocketSelection(${wedge.id})">${selecting ? '슬롯 선택 중...' : '장착할 슬롯 선택'}</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em; ${selecting ? 'background:#2f6a42; border-color:#3f9b5c;' : ''}" onclick="beginStarWedgeSocketSelection(${wedge.id})">${selecting ? '슬롯 선택 취소' : '장착할 슬롯 선택'}</button>
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id})">리롤</button>
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'single')">1줄 고정</button>
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'double')">2줄 고정 (파편x10)</button>
