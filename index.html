@@ -360,9 +360,24 @@
             radial-gradient(circle at 50% 28%, rgba(90, 176, 255, 0.16), transparent 26%),
             rgba(4, 7, 11, 0.92); align-items: center; justify-content: center; }
         .loading-overlay.active { display: flex; }
-        .loop-rewrite-overlay { position: fixed; inset: 0; z-index: 16000; pointer-events: none; display: none; align-items: center; justify-content: center; background: radial-gradient(circle at center, rgba(95, 143, 255, 0.18) 0%, rgba(7,12,24,0.94) 62%, rgba(0,0,0,0.98) 100%); color: #dff1ff; font-size: 1.1em; letter-spacing: 0.08em; text-shadow: 0 0 16px rgba(126,180,255,0.85); }
-        .loop-rewrite-overlay.active { display: flex; animation: loopRewritePulse 1.8s ease-out 1; }
-        @keyframes loopRewritePulse { 0% { opacity: 0; } 20% { opacity: 1; } 70% { opacity: 0.95; } 100% { opacity: 0; } }
+        .loop-rewrite-overlay { position: fixed; inset: 0; z-index: 20000; pointer-events: none; display: none; align-items: center; justify-content: center; overflow: hidden;
+            background: radial-gradient(circle at center, rgba(42,78,145,0.42) 0%, rgba(8,14,27,0.97) 60%, rgba(0,0,0,0.995) 100%); }
+        .loop-rewrite-overlay::before { content:''; position:absolute; inset:-30%;
+            background: conic-gradient(from 90deg, rgba(132,173,255,0.12), rgba(38,71,132,0.04), rgba(132,173,255,0.12));
+            animation: loopRewindSpin 1.75s linear 1 reverse; }
+        .loop-rewrite-overlay::after { content:''; position:absolute; inset:0;
+            background: repeating-linear-gradient(180deg, rgba(210,230,255,0.05) 0px, rgba(210,230,255,0.05) 1px, rgba(0,0,0,0) 3px, rgba(0,0,0,0) 7px);
+            mix-blend-mode: screen; animation: loopRewindScan 0.6s linear 3 reverse; }
+        .loop-rewrite-overlay .rewrite-card { position: relative; z-index: 1; padding: 20px 26px; border-radius: 12px; border: 1px solid rgba(167,201,255,0.8);
+            background: rgba(6,12,24,0.82); box-shadow: 0 0 0 1px rgba(209,227,255,0.2), 0 0 24px rgba(80,140,255,0.4), inset 0 0 24px rgba(182,214,255,0.08);
+            color: #eaf4ff; text-align: center; min-width: 280px; backdrop-filter: blur(2px); }
+        .loop-rewrite-overlay .rewrite-title { font-size: 1.15em; letter-spacing: 0.11em; text-shadow: 0 0 16px rgba(174,207,255,0.9); margin-bottom: 8px; }
+        .loop-rewrite-overlay .rewrite-sub { font-size: 0.84em; color: #b9d2f5; letter-spacing: 0.03em; }
+        .loop-rewrite-overlay.active { display: flex; animation: loopRewritePulse 1.9s ease-out 1; }
+        body.loop-rewrite-active { filter: saturate(0.6) contrast(1.18) brightness(0.85); }
+        @keyframes loopRewritePulse { 0% { opacity: 0; } 12% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; } }
+        @keyframes loopRewindSpin { 0% { transform: scale(1.08) rotate(0deg); opacity: 0.25; } 100% { transform: scale(1) rotate(-360deg); opacity: 0.95; } }
+        @keyframes loopRewindScan { 0% { transform: translateY(0); opacity: 0.14; } 100% { transform: translateY(-18px); opacity: 0.45; } }
         .loading-card { width: min(430px, calc(100vw - 28px)); padding: 28px 24px 24px; border-radius: 24px; background: linear-gradient(180deg, rgba(18, 23, 33, 0.98) 0%, rgba(10, 14, 21, 0.98) 100%); border: 1px solid #274059; box-shadow: 0 24px 90px rgba(0,0,0,0.48); text-align: center; }
         .loading-sigil { position: relative; width: 132px; height: 132px; margin: 0 auto 20px; }
         .loading-ring, .loading-ring::before, .loading-ring::after { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(120, 181, 238, 0.3); content: ''; }
@@ -571,7 +586,7 @@
         <div class="loading-caption" id="loading-caption">Syncing Timeline</div>
     </div>
 </div>
-<div id="loop-rewrite-overlay" class="loop-rewrite-overlay">세계가 다시 쓰여집니다…</div>
+<div id="loop-rewrite-overlay" class="loop-rewrite-overlay"></div>
 <div id="tutorial-overlay" class="tutorial-overlay">
     <div class="tutorial-card">
         <div class="tutorial-kicker">새 콘텐츠 발견!</div>
@@ -1374,7 +1389,7 @@ const TRIAL_ZONES = [
     { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1 }
 ];
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
-const MAX_STAR_WEDGES = 1;
+const MAX_STAR_WEDGES = 999;
 const STAR_WEDGE_RADIUS = 3;
 const MAX_MUTATIONS_PER_WEDGE = 3;
 const STAR_WEDGE_UNLOCK_LOOP = 7;
@@ -1393,6 +1408,7 @@ const STAR_WEDGE_OPTION_POOL = [
     { stat: 'regen', min: 0.2, max: 1.2, step: 0.1 },
     { stat: 'chaosPctDmg', min: 6, max: 18 }
 ];
+const STAR_WEDGE_CORE_OPTION_POOL = STAR_WEDGE_OPTION_POOL.slice();
 
 function getStarWedgeUnlockReady() {
     return (game.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (game.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT;
@@ -1487,14 +1503,14 @@ function getCurrentSeasonFinalZoneId() {
 const ABYSS_PASSIVE_NODES = [
     { key: 'power', name: '강력함', max: 20, desc: '몬스터 피해 +2%, 재화 드랍률 +1%/pt' },
     { key: 'tenacity', name: '끈질김', max: 20, desc: '몬스터 생명력 +2%, 경험치/장비 드랍률 +1%/pt' },
-    { key: 'horde', name: '대규모', max: 20, desc: '무리규모 +5%, 몬스터 경험치 -1%/pt' },
+    { key: 'horde', name: '대규모', max: 20, desc: '무리규모 +3%, 몬스터 경험치 -2%/pt, 드랍률 -1%/pt' },
     { key: 'frailty', name: '허약함', max: 20, desc: '플레이어 피격 +1%, 드랍률 +1%/pt' },
     { key: 'weakness', name: '나약함', max: 20, desc: '몬스터 받는 피해 1% 감소, 경험치 +2%/pt' },
     { key: 'resistance', name: '저항', max: 20, desc: '몬스터 모든 저항/물피감 +1%, 드랍률 +1%/pt' },
-    { key: 'elite', name: '정예', max: 10, desc: '희귀 몬스터 등장 확률 +5%/pt' },
-    { key: 'coreRaid', name: '핵심: 수뇌부 공략', max: 1, desc: '보스 생명력/피해 10% 감소' },
-    { key: 'arrogance', name: '핵심: 오만', max: 1, desc: '보스 생명력/피해 20% 증가, 보스 특수재화 확률 +5%' },
-    { key: 'magnifier', name: '핵심: 확대경', max: 1, desc: '맵 길이 2배(진행속도 절반), 무리규모 +50%' }
+    { key: 'elite', name: '정예', max: 20, desc: '희귀 몬스터 등장 확률 +2%/pt' },
+    { key: 'coreRaid', name: '핵심: 수뇌부 공략', max: 1, cost: 5, desc: '보스 생명력/피해 10% 감소' },
+    { key: 'arrogance', name: '핵심: 오만', max: 1, cost: 5, desc: '보스 생명력/피해 20% 증가, 보스 특수재화 확률 +5%' },
+    { key: 'magnifier', name: '핵심: 확대경', max: 1, cost: 5, desc: '맵 길이 2배(진행속도 절반), 무리규모 +50%' }
 ];
 
 function getAbyssPassiveState() {
@@ -1506,7 +1522,7 @@ function getAbyssPassiveState() {
 
 function getAbyssPassiveSpent() {
     let state = getAbyssPassiveState();
-    return ABYSS_PASSIVE_NODES.reduce((sum, node) => sum + Math.max(0, Math.floor(state[node.key] || 0)), 0);
+    return ABYSS_PASSIVE_NODES.reduce((sum, node) => sum + (Math.max(0, Math.floor(state[node.key] || 0)) * Math.max(1, Math.floor(node.cost || 1))), 0);
 }
 
 function getAbyssPassiveFreePoints() {
@@ -1519,9 +1535,10 @@ function tryAllocateAbyssPassive(nodeKey) {
     if (!node) return;
     let state = getAbyssPassiveState();
     if ((state[node.key] || 0) >= node.max) return addLog('해당 심연 노드는 이미 최대 단계입니다.', 'attack-monster');
-    if (getAbyssPassiveFreePoints() <= 0) return addLog('혼돈 패시브 포인트가 부족합니다.', 'attack-monster');
+    let pointCost = Math.max(1, Math.floor(node.cost || 1));
+    if (getAbyssPassiveFreePoints() < pointCost) return addLog(`혼돈 패시브 포인트가 부족합니다. (필요: ${pointCost})`, 'attack-monster');
     state[node.key] = (state[node.key] || 0) + 1;
-    addLog(`🌌 혼돈 패시브 [${node.name}] ${state[node.key]}/${node.max}`, 'season-up');
+    addLog(`🌌 혼돈 패시브 [${node.name}] ${state[node.key]}/${node.max} (소모 ${pointCost})`, 'season-up');
     updateStaticUI();
 }
 
@@ -1532,13 +1549,13 @@ function getAbyssMonsterScales(zone) {
     return {
         dmgMul: 1 + (state.power || 0) * 0.02,
         hpMul: 1 + (state.tenacity || 0) * 0.02,
-        hordeMul: (1 + (state.horde || 0) * 0.05) * (1 + (state.magnifier || 0) * 0.5),
-        dropMul: 1 + ((state.power || 0) + (state.frailty || 0) + (state.resistance || 0)) * 0.01,
-        expMul: 1 + ((state.tenacity || 0) * 0.01) - ((state.horde || 0) * 0.01) + ((state.weakness || 0) * 0.02),
+        hordeMul: (1 + (state.horde || 0) * 0.03) * (1 + (state.magnifier || 0) * 0.5),
+        dropMul: Math.max(0.2, 1 + ((state.power || 0) + (state.frailty || 0) + (state.resistance || 0) - (state.horde || 0)) * 0.01),
+        expMul: Math.max(0.2, 1 + ((state.tenacity || 0) * 0.01) - ((state.horde || 0) * 0.02) + ((state.weakness || 0) * 0.02)),
         playerTakenMul: 1 + (state.frailty || 0) * 0.01,
         playerDamageMul: Math.max(0.2, 1 - (state.weakness || 0) * 0.01),
         resistBonus: (state.resistance || 0),
-        eliteBonus: (state.elite || 0) * 0.05,
+        eliteBonus: (state.elite || 0) * 0.02,
         bossMul: (1 - (state.coreRaid || 0) * 0.10) * (1 + (state.arrogance || 0) * 0.20),
         bossExtraCurrencyChance: (state.arrogance || 0) * 0.05,
         mapProgressMul: Math.max(0.35, 1 - (state.magnifier || 0) * 0.5),
@@ -2203,6 +2220,7 @@ const defaultGame = {
     discoveredHeroIds: ['hero1'],
     heroSelectionInitialized: false,
     heroFreeSwitchUnlocked: false,
+    pendingLoopHeroSelection: false,
     passivePoints: 0,
     playerHp: 100,
     moveTimer: 0,
@@ -3126,6 +3144,7 @@ function generateOrganicTree() {
         let laneAbs = Math.abs(lane);
         if (depth === 1 && laneAbs <= 1) return { tier: 2, kind: 'core' };
         if (depth === 6 && lane === 0) return { tier: 2, kind: 'hub' };
+        if ((depth === 10 || depth === 11) && laneAbs === 3) return { tier: 2, kind: 'hub' };
         if (laneAbs === 4 && depth >= maxDepth - 1) return { tier: 3, kind: 'deadend' };
         if (depth === maxDepth && laneAbs <= 1) return { tier: 3, kind: 'keystone' };
         if (depth % 4 === 0 || (depth >= maxDepth - 2 && laneAbs <= 2)) return { tier: 2, kind: 'major' };
@@ -3426,6 +3445,7 @@ function ensureStarWedgeState() {
     game.starWedge.skyRiftReady = !!game.starWedge.skyRiftReady;
     game.starWedge.firstClearDone = !!game.starWedge.firstClearDone;
     game.starWedge.activeMeteorTier = Number.isFinite(game.starWedge.activeMeteorTier) ? Math.max(1, Math.floor(game.starWedge.activeMeteorTier)) : null;
+    if (!Number.isFinite(game.starWedge.selectedWedgeId) || !(game.starWedge.wedges || []).some(w => w.id === game.starWedge.selectedWedgeId)) game.starWedge.selectedWedgeId = null;
     return game.starWedge;
 }
 
@@ -3442,12 +3462,42 @@ function getStarWedgeSocketNodeIds() {
 }
 
 function assignStarWedgeSockets() {
-    let sockets = Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'hub').sort((a, b) => (b.tier || 0) - (a.tier || 0));
-    for (let i = 0; i < Math.min(MAX_STAR_WEDGES, sockets.length); i++) {
-        sockets[i].socketType = 'star_wedge';
-        sockets[i].title = sockets[i].title || '별쐐기 슬롯';
-        sockets[i].desc = '별쐐기 장착 전용 슬롯입니다. 장착 시 주변 노드(1~3경로)를 변성시킬 수 있습니다.';
-    }
+    let st = (game && game.starWedge) || {};
+    let unlocked = !!st.unlocked;
+    let hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'hub');
+    hubs.forEach(node => {
+        node.socketType = null;
+        if (node.title === '별쐐기 슬롯') node.title = '';
+    });
+    hubs.sort((a, b) => {
+        let depthDelta = (a.depth || 0) - (b.depth || 0);
+        if (depthDelta !== 0) return depthDelta;
+        return Math.atan2(a.y, a.x) - Math.atan2(b.y, b.x);
+    });
+    let selected = [];
+    hubs.forEach(node => {
+        let outer = (node.depth || 0) >= 9;
+        let minDist = outer ? 240 : 175;
+        let tooClose = selected.some(other => Math.hypot(node.x - other.x, node.y - other.y) < minDist);
+        if (tooClose && outer) {
+            node.kind = 'path';
+            node.tier = 1;
+            node.title = '';
+            node.desc = '';
+            return;
+        }
+        selected.push(node);
+    });
+    selected.forEach(node => {
+        if (unlocked) {
+            node.socketType = 'star_wedge';
+            node.title = '별쐐기 슬롯';
+            node.desc = '별쐐기 장착 전용 슬롯입니다. 장착 시 주변 노드(1~3경로)와 슬롯 자신을 변성시킬 수 있습니다.';
+        } else {
+            node.socketType = null;
+            node.desc = node.desc || '';
+        }
+    });
 }
 
 function createRandomStarWedgeLine() {
@@ -3467,7 +3517,8 @@ function createRandomStarWedgeLine() {
 }
 
 function createStarWedgeItem() {
-    return { id: Date.now() + Math.floor(Math.random() * 100000), lines: [createRandomStarWedgeLine(), createRandomStarWedgeLine(), createRandomStarWedgeLine()] };
+    let coreLine = createRandomStarWedgeLine();
+    return { id: Date.now() + Math.floor(Math.random() * 100000), lines: [createRandomStarWedgeLine(), createRandomStarWedgeLine(), createRandomStarWedgeLine(), coreLine] };
 }
 
 function getStarWedgeById(wedgeId) {
@@ -3478,7 +3529,7 @@ function getStarWedgeById(wedgeId) {
 function recalculateStarWedgeMutations() {
     let st = ensureStarWedgeState();
     st.nodeMutations = {};
-    (st.sockets || []).slice(0, MAX_STAR_WEDGES).forEach(socket => {
+    (st.sockets || []).forEach(socket => {
         let wedge = getStarWedgeById(socket.wedgeId);
         let center = PASSIVE_TREE.nodes[socket.nodeId];
         if (!wedge || !center) return;
@@ -3509,6 +3560,18 @@ function recalculateStarWedgeMutations() {
                 };
             });
         }
+        let coreLine = Array.isArray(wedge.lines) ? wedge.lines[3] : null;
+        if (coreLine && coreLine.stat) {
+            st.nodeMutations[center.id] = {
+                wedgeId: wedge.id,
+                socketNodeId: center.id,
+                lineIndex: 3,
+                originalStat: center.stat,
+                originalVal: center.val,
+                currentStat: coreLine.stat,
+                currentVal: coreLine.val
+            };
+        }
     });
 }
 
@@ -3516,6 +3579,9 @@ function tryUnlockMeteorContentByProgress() {
     let st = ensureStarWedgeState();
     if (st.unlocked || !getStarWedgeUnlockReady()) return false;
     st.unlocked = true;
+    assignStarWedgeSockets();
+    recalculateStarWedgeMutations();
+    markPassiveRenderCacheDirty('structure');
     addLog('☄️ 말라가는 줄기 위로 검은 별이 떨어지기 시작했다.', 'loot-unique');
     queueTutorialNotice('meteor_unlocked', '운석 낙하 지점', '루프 7 이후 액트 7을 넘긴 사냥에서 하늘의 균열이 열립니다.\n게이지를 100%까지 채우면 운석 낙하 지점에 1회 입장할 수 있습니다.', 'tab-map');
     return true;
@@ -3586,11 +3652,18 @@ function craftCompleteStarWedge() {
 function rerollStarWedge(wedgeId, keepIndex) {
     let wedge = getStarWedgeById(wedgeId);
     if (!wedge) return;
-    if ((game.currencies.meteorShard || 0) < 23) return addLog('운석 파편이 부족합니다. (필요: 23)', 'attack-monster');
-    if (Number.isFinite(keepIndex) && (game.currencies.incompleteStarWedge || 0) <= 0) return addLog('옵션 고정 리롤에는 불완전한 별쐐기가 필요합니다.', 'attack-monster');
-    game.currencies.meteorShard -= 23;
-    if (Number.isFinite(keepIndex)) game.currencies.incompleteStarWedge--;
-    wedge.lines = wedge.lines.map((line, idx) => (Number.isFinite(keepIndex) && idx === keepIndex) ? line : createRandomStarWedgeLine());
+    let keepIndexes = [];
+    let meteorCost = 23;
+    if (keepIndex === 'single' || keepIndex === 1) keepIndexes = [0];
+    if (keepIndex === 'double' || keepIndex === 2) {
+        keepIndexes = [0, 1];
+        meteorCost = 230;
+    }
+    if ((game.currencies.meteorShard || 0) < meteorCost) return addLog(`운석 파편이 부족합니다. (필요: ${meteorCost})`, 'attack-monster');
+    if (keepIndexes.length > 0 && (game.currencies.incompleteStarWedge || 0) <= 0) return addLog('옵션 고정 리롤에는 불완전한 별쐐기가 필요합니다.', 'attack-monster');
+    game.currencies.meteorShard -= meteorCost;
+    if (keepIndexes.length > 0) game.currencies.incompleteStarWedge--;
+    wedge.lines = wedge.lines.map((line, idx) => keepIndexes.includes(idx) ? line : createRandomStarWedgeLine());
     addLog('☄️ 나무의 결이 끊어지고, 새로운 효과가 혼돈 속에서 벼려졌다.', 'loot-unique');
     if (!((game.journalEntries || []).includes('star_wedge'))) unlockJournalEntry('star_wedge');
     recalculateStarWedgeMutations();
@@ -3601,7 +3674,6 @@ function socketStarWedgeOnNode(nodeId, wedgeId) {
     let st = ensureStarWedgeState();
     let node = PASSIVE_TREE.nodes[nodeId];
     if (!node || node.socketType !== 'star_wedge') return addLog('별쐐기 슬롯에만 장착할 수 있습니다.', 'attack-monster');
-    if ((st.sockets || []).length >= MAX_STAR_WEDGES && !(st.sockets || []).find(v => v.nodeId === nodeId)) return addLog(`별쐐기 슬롯은 최대 ${MAX_STAR_WEDGES}개입니다.`, 'attack-monster');
     let wedge = getStarWedgeById(wedgeId);
     if (!wedge) return addLog('장착할 별쐐기를 찾을 수 없습니다.', 'attack-monster');
     st.sockets = (st.sockets || []).filter(v => v.nodeId !== nodeId && v.wedgeId !== wedgeId);
@@ -3609,6 +3681,31 @@ function socketStarWedgeOnNode(nodeId, wedgeId) {
     recalculateStarWedgeMutations();
     addLog('☄️ 나무의 결이 끊어지고, 새로운 효과가 혼돈 속에서 벼려졌다.', 'loot-unique');
     if (!((game.journalEntries || []).includes('star_wedge'))) unlockJournalEntry('star_wedge');
+    updateStaticUI();
+}
+
+function unsocketStarWedge(nodeId) {
+    let st = ensureStarWedgeState();
+    let before = (st.sockets || []).length;
+    st.sockets = (st.sockets || []).filter(v => v.nodeId !== nodeId);
+    if (st.sockets.length === before) return;
+    recalculateStarWedgeMutations();
+    addLog('☄️ 별쐐기를 슬롯에서 분리했습니다.', 'attack-monster');
+    updateStaticUI();
+}
+
+function beginStarWedgeSocketSelection(wedgeId) {
+    let st = ensureStarWedgeState();
+    let wedge = getStarWedgeById(wedgeId);
+    if (!wedge) return addLog('선택한 별쐐기를 찾을 수 없습니다.', 'attack-monster');
+    if (st.selectedWedgeId === wedgeId) {
+        st.selectedWedgeId = null;
+        addLog('별쐐기 슬롯 선택을 취소했습니다.', 'attack-monster');
+        updateStaticUI();
+        return;
+    }
+    st.selectedWedgeId = wedgeId;
+    addLog('☄️ 패시브 트리에서 장착할 별쐐기 슬롯을 클릭하세요.', 'season-up');
     updateStaticUI();
 }
 
@@ -4489,9 +4586,11 @@ function openLoopHeroSelection(onSelect, options = {}) {
     if (kickerEl) kickerEl.innerText = options.kicker || 'Loop Selection';
     if (titleEl) titleEl.innerText = options.title || '다음 루프 캐릭터 선택';
     if (bodyEl) bodyEl.innerText = options.body || '이번 루프에서 사용할 캐릭터를 선택하세요.';
+    let experiencedSet = new Set(Array.isArray(game.discoveredHeroIds) ? game.discoveredHeroIds : []);
     grid.innerHTML = HERO_SELECTION_ORDER.map(id => {
         let def = HERO_SELECTION_DEFS[id];
-        return `<button class="reward-choice" onclick="chooseLoopHero('${id}')"><strong>${def.label}</strong>${def.talentsText}</button>`;
+        let experienced = experiencedSet.has(id);
+        return `<button class="reward-choice" onclick="chooseLoopHero('${id}')"><strong>${def.label}${experienced ? ' <span style="color:#9fd8ff; font-size:0.8em;">(경험함)</span>' : ''}</strong>${def.talentsText}</button>`;
     }).join('');
     overlay.classList.add('active');
 }
@@ -6243,6 +6342,42 @@ function rollAffixValue(mod, maxTier) {
     return { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
 }
 
+function pickTierInRangeWeighted(minTier, maxTier) {
+    minTier = Math.max(1, Math.floor(minTier || 1));
+    maxTier = Math.max(minTier, Math.floor(maxTier || minTier));
+    let pool = [];
+    for (let tier = minTier; tier <= maxTier; tier++) {
+        let dist = tier - minTier;
+        let weight = 1 / (1 + dist * 0.85);
+        pool.push({ tier: tier, weight: weight });
+    }
+    let total = pool.reduce((sum, row) => sum + row.weight, 0);
+    let roll = Math.random() * total;
+    for (let i = 0; i < pool.length; i++) {
+        if (roll < pool[i].weight) return pool[i].tier;
+        roll -= pool[i].weight;
+    }
+    return pool[pool.length - 1].tier;
+}
+
+function rollAffixValueInTierRange(mod, minTier, maxTier) {
+    let statId = mod.statId || mod.id;
+    let tier = pickTierInRangeWeighted(minTier, maxTier);
+    let min = mod.base + (tier * mod.step);
+    let max = min + mod.step * 1.6;
+    let val = min + Math.random() * (max - min);
+    if (['leech', 'regen', 'regenSuppress'].includes(statId)) {
+        val = Math.round(val * 10) / 10;
+        min = Math.round(min * 10) / 10;
+        max = Math.round(max * 10) / 10;
+    } else {
+        val = Math.floor(val);
+        min = Math.floor(min);
+        max = Math.floor(max);
+    }
+    return { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
+}
+
 function getAvailableMods(item) {
     let existing = new Set((item.stats || []).map(stat => stat.id));
     return MOD_DB.filter(mod => {
@@ -7160,8 +7295,11 @@ function applyFossilChaosCraft(fossilKey) {
     if (guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
 
     let maxTier = getItemCraftTier(item);
+    let hiddenTier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || maxTier));
+    let guaranteedMinTier = Math.max(1, hiddenTier - 3);
+    let guaranteedMaxTier = Math.max(1, hiddenTier);
     let guaranteed = pickWeightedMod(guaranteedPool);
-    let newStats = [rollAffixValue(guaranteed, maxTier)];
+    let newStats = [rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier)];
 
     let count = 4 + Math.floor(Math.random() * 2);
     let includeExclusive = Math.random() < (fossil.bonusExclusiveChance || 0.16);
@@ -7179,7 +7317,7 @@ function applyFossilChaosCraft(fossilKey) {
     item.rarity = 'rare';
     game.currencies[fossilKey]--;
     updateItemName(item);
-    addLog(`🪨 ${fossil.name} 재련 성공! 확정 옵션: [${guaranteed.statName}]`, 'loot-magic');
+    addLog(`🪨 ${fossil.name} 재련 성공! 확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})`, 'loot-magic');
     updateStaticUI();
 }
 
@@ -7430,7 +7568,8 @@ function getPlayerStats() {
     let fireResScaledBonus = 1 + Math.max(0, finalResF * (skill.fireResDmgScale || 0));
     let dotMultiplier = skill.dotMultiplier || 1;
     let dotStatMultiplier = isDotSkill ? (1 + Math.max(0, dotPctDmg) / 100) : 1;
-    finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus * dotMultiplier * dotStatMultiplier);
+    let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
+    finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus);
     let damageScales = {
         hpFlatBonus: hpFlatBonus,
         hpScaleRatio: hpScaleRatio,
@@ -7683,6 +7822,7 @@ function getPlayerStats() {
         resL: finalResL,
         resChaos: finalResChaos,
         resistPenalty: resistPenalty,
+        dotDamageScale: totalDotDamageMultiplier,
         damageScales: damageScales,
         breakdowns: breakdowns
     };
@@ -7990,7 +8130,8 @@ function applyEnemyDotFromHit(enemy, hitDamage, pStats) {
     let prev = (enemy.dotState && typeof enemy.dotState === 'object') ? enemy.dotState : null;
     let nextStacks = Math.min(DOT_STACK_MAX, Math.max(0, (prev && prev.stacks) || 0) + 1);
     let stackMultiplier = getDotStackMultiplier(nextStacks);
-    let baseTick = Math.max(1, Math.floor(Math.max(1, hitDamage) * DOT_TICK_FROM_HIT_RATIO));
+    let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
+    let baseTick = Math.max(1, Math.floor(Math.max(1, hitDamage) * DOT_TICK_FROM_HIT_RATIO * dotDamageScale));
     let nextRawTickDamage = Math.max(1, Math.floor(baseTick * stackMultiplier));
     enemy.dotState = {
         stacks: nextStacks,
@@ -8026,7 +8167,6 @@ function tickEnemyDotEffects(pStats, dt) {
             }
             enemy.hp = hpAfterDot;
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dotDmg, duration: 240 });
-            if (game.settings.showCombatLog) addLog(`☣️ [${getDamageElementLabel(dotEle)}] 지속 피해 ${dotDmg} (${dotState.stacks || 1}중첩)`, 'attack-player');
             if (enemy.hp <= 0) {
                 handleEnemyDeath(enemy, pStats);
                 break;
@@ -8178,11 +8318,16 @@ function advanceMapProgress(pStats) {
 function grantExpAndGem(enemy, pStats) {
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
+    let abyssDepth = zone.type === 'abyss' ? Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1)) : 0;
     let exp = Math.floor((14 + zone.tier * 10) * (1 + game.season * 0.35));
     if (enemy.isElite) exp = Math.floor(exp * 1.8);
     if (enemy.isBoss) exp = Math.floor(exp * Math.max(3, zone.tier * 1.5));
     exp = Math.floor(exp * (enemy.expMul || 1));
     exp = Math.floor(exp * (1 + (pStats.expGain / 100)) * (abyssScale.expMul || 1));
+    if (abyssDepth > 1) {
+        let depthExpDampen = Math.max(0.68, 1 - (abyssDepth - 1) * 0.012);
+        exp = Math.floor(exp * depthExpDampen);
+    }
     game.exp += exp;
     if (game.settings.showExpLog) addLog(`✨ 경험치 +${exp}`, "exp-txt");
 
@@ -8228,6 +8373,7 @@ function grantExpAndGem(enemy, pStats) {
 }
 
 function rollLootForEnemy(enemy) {
+    let zone = getZone(game.currentZoneId) || getZone(0);
     if (Math.random() < (enemy.isBoss ? 0.15 : enemy.isElite ? 0.03 : 0.005)) {
         if (Math.random() < 0.5) {
             let available = Object.keys(SKILL_DB).filter(name => !(game.skills || []).includes(name) && SKILL_DB[name].isGem);
@@ -8262,6 +8408,11 @@ function rollLootForEnemy(enemy) {
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
     itemChance *= (1 + (getCodexBonusPct() / 100));
     itemChance *= Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
+    if (zone.type === 'abyss') {
+        let abyssDepth = Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1));
+        let depthDropDampen = Math.max(0.62, 1 - (abyssDepth - 1) * 0.015);
+        itemChance *= depthDropDampen;
+    }
     if (Math.random() < itemChance) {
         let item = generateEquipmentDrop(enemy);
         if (addItemToInventory(item) && game.settings.showLootLog) {
@@ -8415,16 +8566,21 @@ function finishEncounterRun() {
     }
     if (zone.type === 'labyrinth') {
         game.labyrinthFloor = (game.labyrinthFloor || 1) + 1;
-        awardCurrency('fossil', 1);
+        let gotBaseFossil = Math.random() < 0.5;
+        if (gotBaseFossil) awardCurrency('fossil', 1);
         let rolledFossil = rndChoice(FOSSIL_DB);
-        awardCurrency(rolledFossil.key, 1);
-        if (Math.random() < 0.06) {
+        let gotTypedFossil = Math.random() < 0.5;
+        if (gotTypedFossil) awardCurrency(rolledFossil.key, 1);
+        if (Math.random() < 0.03) {
             awardCurrency('fossilAbyssal', 1);
             addLog('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
         }
         if ((game.season || 1) >= 6 && Math.random() < 0.1) awardCurrency('sealShard', 1);
         if ((game.season || 1) >= 6 && Math.random() < 0.015) awardCurrency('strongSealShard', 1);
-        addLog(`🏛️ 미궁 ${game.labyrinthFloor}층으로 진입합니다. [기본 화석 +1 / ${rolledFossil.name} +1]`, 'season-up');
+        let fossilSummary = [];
+        if (gotBaseFossil) fossilSummary.push('기본 화석 +1');
+        if (gotTypedFossil) fossilSummary.push(`${rolledFossil.name} +1`);
+        addLog(`🏛️ 미궁 ${game.labyrinthFloor}층으로 진입합니다. [${fossilSummary.join(' / ') || '화석 없음'}]`, 'season-up');
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
@@ -8591,7 +8747,17 @@ function performPlayerAttack(pStats) {
             if (maxDotStack > 0) dotInfo = ` · 도트중첩 ${maxDotStack}/${DOT_STACK_MAX} (${getDotStackMultiplier(maxDotStack).toFixed(2)}x)`;
         }
         let hitPrefix = isDotSkill ? '⚔️ 직격' : '⚔️';
-        let line = (hits.length > 1 ? `${hitPrefix} ${hits.join(' / ')} 피해 (${hits.length}타겟)` : `${hitPrefix} ${hits[0] || 0} 피해`) + dotInfo;
+        let line = '';
+        if (hits.length >= 5) {
+            let maxHit = Math.max(...hits);
+            let minHit = Math.min(...hits);
+            line = `${hitPrefix} ${maxHit} / ... / ${minHit} 피해 (${hits.length}타겟)`;
+        } else if (hits.length > 1) {
+            line = `${hitPrefix} ${hits.join(' / ')} 피해 (${hits.length}타겟)`;
+        } else {
+            line = `${hitPrefix} ${hits[0] || 0} 피해`;
+        }
+        line += dotInfo;
         if (isCrit) line = `💥 ${line}`;
         let scales = pStats.damageScales || {};
         let hiddenScaleTags = Array.isArray(pStats.sSkill.hideCombatScales) ? pStats.sSkill.hideCombatScales : [];
@@ -8599,8 +8765,6 @@ function performPlayerAttack(pStats) {
         if ((scales.hpFlatBonus || 0) > 0) scaleLabels.push(`생명력추가+${Math.floor(scales.hpFlatBonus || 0)}`);
         if (!hiddenScaleTags.includes('regen') && (scales.regen || 1) > 1.0001) scaleLabels.push(`재생x${(scales.regen || 1).toFixed(2)}`);
         if (!hiddenScaleTags.includes('fireRes') && (scales.fireRes || 1) > 1.0001) scaleLabels.push(`화저x${(scales.fireRes || 1).toFixed(2)}`);
-        if ((scales.dot || 1) > 1.0001) scaleLabels.push(`도트x${(scales.dot || 1).toFixed(2)}`);
-        if ((scales.dotStat || 1) > 1.0001) scaleLabels.push(`도트스탯x${(scales.dotStat || 1).toFixed(2)}`);
         if (scaleLabels.length > 0) line += ` [계수 ${scaleLabels.join(' / ')}]`;
         addLog(line, isCrit ? 'attack-crit' : 'attack-player');
     }
@@ -8788,7 +8952,26 @@ function applyTrialTrapTick(pStats) {
     }
 }
 
+function ensurePendingLoopHeroSelectionPrompt() {
+    if (!game || !game.pendingLoopHeroSelection) return false;
+    if (isLoopHeroSelectOpen() || isStartupOverlayOpen() || isLoadingOverlayOpen() || isDeathOverlayOpen()) return false;
+    let previousHeroId = game.selectedHeroId || 'hero1';
+    openLoopHeroSelection((heroId) => {
+        if (heroId !== previousHeroId) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(heroId).label} 캐릭터를 선택했습니다.`, 'season-up');
+        game.pendingLoopHeroSelection = false;
+        saveGame({ skipCloudSync: true });
+        startMoving(true);
+        switchTab('tab-character');
+    }, {
+        kicker: 'Loop Resume',
+        title: '중단된 루프의 재능 선택',
+        body: '저장된 루프 진행을 이어가기 전에 이번 루프 재능을 선택하세요.'
+    });
+    return true;
+}
+
 function coreLoop() {
+    if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
     tickAilments(pStats, 0.1);
     let ailmentMap = {};
@@ -8871,11 +9054,15 @@ function coreLoop() {
 function playLoopRewriteEffect() {
     let overlay = document.getElementById('loop-rewrite-overlay');
     if (!overlay) return;
-    overlay.textContent = '세계가 다시 쓰여집니다…';
+    overlay.innerHTML = `<div class="rewrite-card"><div class="rewrite-title">세계가 되감기는 중…</div><div class="rewrite-sub">흔적을 거슬러, 이전 루프로 복귀합니다.</div></div>`;
+    document.body.classList.add('loop-rewrite-active');
     overlay.classList.remove('active');
     void overlay.offsetWidth;
     overlay.classList.add('active');
-    setTimeout(() => overlay.classList.remove('active'), 1900);
+    setTimeout(() => {
+        overlay.classList.remove('active');
+        document.body.classList.remove('loop-rewrite-active');
+    }, 1950);
 }
 
 function triggerSeasonReset() {
@@ -8930,6 +9117,7 @@ function triggerSeasonReset() {
     game.actRewardBonuses = [];
     game.seasonChaseUniqueDropped = false;
     game.uniqueCodex = codexReveal;
+    game.starWedge = JSON.parse(JSON.stringify(defaultGame.starWedge));
     game.unlocks = { ...defaultGame.unlocks };
     game.noti = { ...defaultGame.noti };
     game.itemSubtab = 'item-tab-equip';
@@ -8958,15 +9146,20 @@ function triggerSeasonReset() {
     craftSelectedRef = null;
     craftSelectedIsEquip = false;
     applySeasonContentProgression({ silent: false });
+    assignStarWedgeSockets();
+    recalculateStarWedgeMutations();
     calculateReachableNodes();
     refreshPassiveVisibility();
     game.playerHp = getPlayerStats().maxHp;
     ensureActJournalCompletionForLoop({ silent: false });
     addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
     checkUnlocks();
-    queueImportantSave(150);
+    game.pendingLoopHeroSelection = true;
+    saveGame({ skipCloudSync: true });
     openLoopHeroSelection((heroId) => {
         if (heroId !== previousHeroId) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(heroId).label} 캐릭터를 선택했습니다.`, 'season-up');
+        game.pendingLoopHeroSelection = false;
+        saveGame({ skipCloudSync: true });
         startMoving(true);
         switchTab('tab-character');
     });
@@ -9323,12 +9516,21 @@ function renderStarWedgePanel() {
         return node ? getPassiveNodeDisplayName(node) : entry.nodeId;
     }).join(', ') || '미장착';
     let wedgeCards = (st.wedges || []).slice(0, 12).map(wedge => {
-        let lines = wedge.lines.map((line, idx) => `<div style="color:${line.boosted ? '#ffd36f' : '#d4deea'};">${idx + 1}. ${getStatName(line.stat)} +${formatValue(line.stat, line.val)}${P_STATS[line.stat] && P_STATS[line.stat].isPct ? '%' : ''}${line.boosted ? ' <strong>★</strong>' : ''}</div>`).join('');
-        let socketBtn = getStarWedgeSocketNodeIds().map(id => `<button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="socketStarWedgeOnNode('${id}', ${wedge.id})">${getPassiveNodeDisplayName(PASSIVE_TREE.nodes[id])}</button>`).join('');
+        let lines = wedge.lines.map((line, idx) => {
+            let lineTitle = idx === 3 ? '핵심노드' : `${idx + 1}경로`;
+            return `<div style="color:${line.boosted ? '#ffd36f' : '#d4deea'};">${lineTitle}. ${getStatName(line.stat)} +${formatValue(line.stat, line.val)}${P_STATS[line.stat] && P_STATS[line.stat].isPct ? '%' : ''}${line.boosted ? ' <strong>★</strong>' : ''}</div>`;
+        }).join('');
+        let socketedEntry = (st.sockets || []).find(v => v.wedgeId === wedge.id) || null;
+        let selecting = st.selectedWedgeId === wedge.id;
         return `<div style="border:1px solid #3e3352; border-radius:8px; padding:8px; background:#121224;">
-            <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;"><strong style="color:#efd8ff;">별쐐기 #${wedge.id % 10000}</strong></div>
+            <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;"><strong style="color:#efd8ff;">별쐐기 #${wedge.id % 10000}</strong>${socketedEntry ? `<button style="min-height:24px; padding:3px 8px; font-size:0.72em; background:#5c3448; border-color:#81506b;" onclick="unsocketStarWedge('${socketedEntry.nodeId}')">장착 해제</button>` : ''}</div>
             ${lines}
-            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">${socketBtn}<button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id})">리롤</button><button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 0)">1줄 고정</button></div>
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em; ${selecting ? 'background:#2f6a42; border-color:#3f9b5c;' : ''}" onclick="beginStarWedgeSocketSelection(${wedge.id})">${selecting ? '슬롯 선택 취소' : '장착할 슬롯 선택'}</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id})">리롤</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'single')">1줄 고정</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'double')">2줄 고정 (파편x10)</button>
+            </div>
         </div>`;
     }).join('');
     panel.innerHTML = `
@@ -9337,7 +9539,7 @@ function renderStarWedgePanel() {
             <div style="color:#8ea5c1;">장착 슬롯: ${socketNodeText}</div>
         </div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"><button onclick="craftIncompleteStarWedge()">파편 49 → 불완전한 별쐐기</button><button onclick="craftCompleteStarWedge()">불완전 1 + 파편 77 → 별쐐기</button></div>
-        <div style="color:#93a4bb; font-size:0.8em; margin-bottom:8px;">1/2/3경로 노드를 각각 1/2/3번째 줄 효과로 변성합니다.</div>
+        <div style="color:#93a4bb; font-size:0.8em; margin-bottom:8px;">1/2/3경로 노드를 1~3번째 줄로 변성하고, 4번째 [핵심노드] 줄은 슬롯 자신(허브 노드)에 적용됩니다. 장착은 [장착할 슬롯 선택] 후 패시브 트리에서 슬롯을 클릭하세요.</div>
         <div style="display:grid; gap:8px;">${wedgeCards || '<div style="color:#7f89a0;">별쐐기가 없습니다. 운석 낙하 지점을 공략하거나 제작하세요.</div>'}</div>
     `;
 }
@@ -9462,14 +9664,7 @@ function getTalismanExpandCost(extraUnlockedCount) {
 }
 
 function expandTalismanBoard() {
-    let unlockedSet = getTalismanUnlockedCellsSet();
-    let extraUnlocked = Math.max(0, unlockedSet.size - 9);
-    if (extraUnlocked >= 16) return addLog('이미 부적 보드가 최대(25칸)입니다.', 'attack-monster');
-    let cost = getTalismanExpandCost(extraUnlocked);
-    if ((game.currencies.sealShard || 0) < cost) return addLog(`봉인편린이 부족합니다. (필요: ${cost})`, 'attack-monster');
-    game.talismanUnlockPickMode = !game.talismanUnlockPickMode;
-    if (game.talismanUnlockPickMode) addLog(`🧩 잠긴 칸을 클릭해 해금하세요. (비용: 봉인편린 ${cost})`, 'season-up');
-    else addLog('🧩 칸 해금 선택을 취소했습니다.', 'attack-monster');
+    addLog('🧩 잠긴 칸을 클릭하면 즉시 해금됩니다. 칸 위에 마우스를 올리면 비용을 볼 수 있습니다.', 'season-up');
     updateStaticUI();
 }
 
@@ -9549,7 +9744,7 @@ function selectTalismanInventoryItem(talismanId) {
 
 function onTalismanBoardCellClick(x, y) {
     if (!isTalismanCellUnlocked(x, y)) {
-        if (game.talismanUnlockPickMode && unlockTalismanCell(x, y)) updateStaticUI();
+        if (unlockTalismanCell(x, y)) updateStaticUI();
         return;
     }
     let idx = y * 5 + x;
@@ -10440,10 +10635,22 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         function pickSkillAttackCycle() {
+            let activeSkillName = game && typeof game.activeSkill === 'string' ? game.activeSkill : '';
+            let activeSkillData = (SKILL_DB && activeSkillName && SKILL_DB[activeSkillName]) ? SKILL_DB[activeSkillName] : null;
+            let activeTags = activeSkillData && Array.isArray(activeSkillData.tags)
+                ? activeSkillData.tags.map(tag => String(tag).toLowerCase())
+                : [];
+            let isSlamGem = activeTags.includes('slam');
+            if (isSlamGem && Array.isArray(frames.greatswordCombo) && frames.greatswordCombo.length > 0) {
+                return frames.greatswordCombo;
+            }
+            if (!isSlamGem && Array.isArray(frames.quakeCombo) && frames.quakeCombo.length > 0) {
+                return frames.quakeCombo;
+            }
             if (Array.isArray(bodyClips.sword_attack_body) && bodyClips.sword_attack_body.length > 0) {
                 return bodyClips.sword_attack_body;
             }
-            return frames.swordCombo || frames.castCombo || frames.bowCombo || frames.projectileCombo || frames.whirlCombo;
+            return frames.swordCombo || frames.greatswordCombo || frames.quakeCombo || frames.castCombo || frames.bowCombo || frames.projectileCombo || frames.whirlCombo;
         }
         function pickAttackFrame(list) {
             let sequence = (list || []).filter(Boolean);
@@ -11828,13 +12035,14 @@ function updateStaticUI() {
         document.getElementById('ui-abyss-passive-summary').innerHTML = `획득 포인트 <strong>${total}</strong> / 사용 <strong>${spent}</strong> / 남은 <strong>${free}</strong> · 밝혀낸 혼돈 ${cleared}개`;
         document.getElementById('ui-abyss-passive-grid').innerHTML = ABYSS_PASSIVE_NODES.map(node => {
             let rank = Math.max(0, Math.floor(abyssState[node.key] || 0));
-            let disabled = free <= 0 || rank >= node.max;
+            let pointCost = Math.max(1, Math.floor(node.cost || 1));
+            let disabled = free < pointCost || rank >= node.max;
             return `<div style="background:#141e2b; border:1px solid #2e4361; border-radius:10px; padding:10px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
                     <strong style="color:#d5e7fa;">${node.name}</strong><span style="color:#f8d37c; font-weight:700;">${rank}/${node.max}</span>
                 </div>
                 <div style="font-size:0.82em; color:#9ec0df; min-height:34px; margin-bottom:8px;">${node.desc}</div>
-                <button style="width:100%;" onclick="tryAllocateAbyssPassive('${node.key}')" ${disabled ? 'disabled' : ''}>+1 투자</button>
+                <button style="width:100%;" onclick="tryAllocateAbyssPassive('${node.key}')" ${disabled ? 'disabled' : ''}>+1 투자 (비용 ${pointCost})</button>
             </div>`;
         }).join('');
     } else {
@@ -11990,7 +12198,7 @@ function updateStaticUI() {
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button onclick="startTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>봉인편린 해제</button>
                 <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
-                <button onclick="expandTalismanBoard()" ${(talismanUnlockCost <= 0 || (game.currencies.sealShard || 0) < talismanUnlockCost) ? 'disabled' : ''}>칸 해금 준비 (${talismanUnlockCost > 0 ? talismanUnlockCost : '완료'})</button>
+                <button onclick="expandTalismanBoard()" ${talismanUnlockCost <= 0 ? 'disabled' : ''}>칸 해금 안내 (${talismanUnlockCost > 0 ? talismanUnlockCost : '완료'})</button>
             </div>`;
     } else {
         let shapeStyle = getTalismanShapeStyle(unseal.current.shape);
@@ -12020,7 +12228,11 @@ function updateStaticUI() {
         let label = !unlocked ? '🔒' : (id ? (shapeStyle ? shapeStyle.symbol : '●') : '');
         let border = !unlocked ? '#3b4f63' : (id && shapeStyle ? shapeStyle.color : '#3b4f63');
         let textColor = !unlocked ? '#8b95a1' : (id && shapeStyle ? shapeStyle.color : '#d5e8ff');
-        return `<button onclick="onTalismanBoardCellClick(${x},${y})" style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:6px; font-weight:bold;" ${!unlocked ? 'disabled' : ''}>${label}</button>`;
+        let unlockedSet = getTalismanUnlockedCellsSet();
+        let extraUnlocked = Math.max(0, unlockedSet.size - 9);
+        let unlockCost = getTalismanExpandCost(extraUnlocked);
+        let lockTitle = unlocked ? '' : ` title="해금 비용: 봉인편린 ${unlockCost}"`;
+        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:6px; font-weight:bold;">${label}</button>`;
     }).join('');
     let journalList = document.getElementById('ui-journal-list');
     if (journalList) {
@@ -12159,6 +12371,17 @@ function setupCanvasEvents() {
     function activateHoveredPassive(opts) {
         let options = opts || {};
         if (dragDist >= 10 || !hoverNode) return;
+        let starState = ensureStarWedgeState();
+        if (Number.isFinite(starState.selectedWedgeId)) {
+            if (hoverNode.socketType === 'star_wedge') {
+                socketStarWedgeOnNode(hoverNode.id, starState.selectedWedgeId);
+                starState.selectedWedgeId = null;
+                updateStaticUI();
+            } else {
+                addLog('별쐐기 슬롯(허브 노드)을 클릭해 장착하세요.', 'attack-monster');
+            }
+            return;
+        }
         if (game.passivePoints <= 0) return addLog("패시브 포인트가 부족합니다.", "attack-monster");
         if (options.fromTouch && !(game.passives || []).includes(hoverNode.id) && reachableNodes.has(hoverNode.id)) {
             let now = Date.now();
@@ -12654,6 +12877,7 @@ function mergeDefaults(save) {
     if (!merged.discoveredHeroIds.includes(merged.selectedHeroId)) merged.discoveredHeroIds.push(merged.selectedHeroId);
     merged.heroSelectionInitialized = !!merged.heroSelectionInitialized;
     merged.heroFreeSwitchUnlocked = !!merged.heroFreeSwitchUnlocked || merged.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length;
+    merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
     merged.abyssPassivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.abyssPassivePoints, defaultGame.abyssPassivePoints, 0)));
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
     merged.abyssPassives = { ...(defaultGame.abyssPassives || {}), ...(merged.abyssPassives || {}) };
