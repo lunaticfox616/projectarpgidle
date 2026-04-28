@@ -5390,7 +5390,7 @@ function buildBattleAssetAtlas() {
         }
         return fallback.filter(Boolean);
     }
-    function buildHeroFrameSetFromStripKeys(stripKeys) {
+    function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
         let idleFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210);
         let walkFrames = buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210);
@@ -5412,7 +5412,7 @@ function buildBattleAssetAtlas() {
             clipLoop: {
                 idle: true,
                 walk_or_run: true,
-                sword_attack_body: false,
+                sword_attack_body: heroId === 'hero2' || heroId === 'hero3' || heroId === 'hero4',
                 cast_body: false,
                 hurt: false,
                 down_or_knockdown: false,
@@ -5925,8 +5925,8 @@ function buildBattleAssetAtlas() {
         return buildSafeHeroFrameSetFromClipDefs(image, defs);
     }
     let selectedHeroDef = getHeroSelectionDef(game.selectedHeroId);
-    let heroFrameSet = buildHeroFrameSetFromStripKeys(selectedHeroDef.strips);
-    if (!heroFrameSet && selectedHeroDef.id !== 'hero1') heroFrameSet = buildHeroFrameSetFromStripKeys(HERO_SELECTION_DEFS.hero1.strips);
+    let heroFrameSet = buildHeroFrameSetFromStripKeys(selectedHeroDef.strips, selectedHeroDef.id);
+    if (!heroFrameSet && selectedHeroDef.id !== 'hero1') heroFrameSet = buildHeroFrameSetFromStripKeys(HERO_SELECTION_DEFS.hero1.strips, 'hero1');
     if (!heroFrameSet && heroFramesLegacy.length > 0) heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
     // v2 하드 매핑 + 어떤 해상도든 커스텀/비표준 시트는 스케일/감지 fallback을 탄다.
     if (!heroFrameSet && legacyHeroImage && isNearSize(legacyHeroImage, 1448, 1086, 0.05)) {
@@ -10349,7 +10349,12 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             }
             let frames = HERO_MOTIONS[motionName] || HERO_MOTIONS.idle;
             const _motionMs = { walk: 285, run: 190, slash: 160, throw: 170, cast: 180, bow: 175, hit: 200, idle: 320 };
-            const _frameMs = _motionMs[motionName] || 220;
+            let _frameMs = _motionMs[motionName] || 220;
+            if (motionName === 'walk' || motionName === 'run') {
+                let moveSpeed = Number(getPlayerStats().moveSpeed) || 100;
+                let moveRatio = clampNumber(moveSpeed / 100, 0.6, 3.2);
+                _frameMs = clampNumber(_frameMs / moveRatio, 62, 460);
+            }
             let localFrame = Math.floor((now / _frameMs)) % frames.length;
             frameIndex = frames[localFrame];
         }
@@ -10444,9 +10449,13 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             let sequence = (list || []).filter(Boolean);
             if (sequence.length === 0) return frames.attack || frames.sideIdle || frames.sideWalk;
             let attackProgress = Number.isFinite(motionState.attackProgress) ? motionState.attackProgress : Math.abs(swingPower);
-            let phase = clampNumber(attackProgress * 1.5, 0, 0.72);
+            let phase = clampNumber(attackProgress, 0, 0.999);
             let idx = Math.floor(phase * sequence.length);
-            if (clipLoop.sword_attack_body === true) idx = Math.floor(((now / 120) % sequence.length));
+            if (clipLoop.sword_attack_body === true) {
+                let aspd = Math.max(0.1, Number(getPlayerStats().aspd) || 1);
+                let loopFrameMs = clampNumber(120 / aspd, 38, 170);
+                idx = Math.floor((now / loopFrameMs) % sequence.length);
+            }
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         let idleFrame = pickCycle(idleCycle, 920, 0);
