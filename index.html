@@ -6930,7 +6930,11 @@ function craftVoidJewel() {
     if (game.jewelInventory.length < 2) return addLog('공허 주얼 제작에는 주얼 2개가 필요합니다.', 'attack-monster');
     let a = game.jewelInventory.shift();
     let b = game.jewelInventory.shift();
-    let stats = [...getJewelStats(a), ...getJewelStats(b)].slice(0, 2).map(stat => ({ id: stat.id, val: Math.max(1, Math.floor(stat.val * 0.85)) }));
+    let stats = [...getJewelStats(a), ...getJewelStats(b)].slice(0, 2).map(stat => {
+        let scaled = stat.val * 0.85;
+        let val = Number.isInteger(stat.val) ? Math.max(1, Math.floor(scaled)) : Math.max(0.1, Math.round(scaled * 10) / 10);
+        return { id: stat.id, val: val };
+    });
     let jewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '공허 주얼', rarity: 'magic', isVoid: true, stats: stats, maxLines: 2 };
     game.currencies.voidChisel--;
     game.jewelInventory.push(jewel);
@@ -8907,6 +8911,7 @@ function finishEncounterRun() {
         }
         game.killsInZone = 0;
         let mapAction = game.settings.mapCompleteAction || 'nextZone';
+        if (game.beehive && game.beehive.inRun) mapAction = 'repeatZone';
         if (mapAction === 'repeatZone') game.currentZoneId = zone.id;
         else if (mapAction === 'stop') {
             game.combatHalted = true;
