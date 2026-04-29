@@ -284,4 +284,4 @@ function renderMarketUI() {
 }
 
 
-Object.assign(window, { marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, applyFossilCraft, applyFossilChaosCraft });
+Object.assign(window, { marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI });

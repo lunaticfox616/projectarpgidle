@@ -787,11 +787,23 @@ function applyPassiveSpecializations() {
         node.effectLabel = `${getStatName(config.stat)} +${formatValue(config.stat, config.val)}${P_STATS[config.stat] && P_STATS[config.stat].isPct ? '%' : ''}`;
     });
 }
-generateOrganicTree();
-applyPassiveSpecializations();
-assignStarWedgeSockets();
-polishPassiveLayout();
-computePassiveDepths();
+function bootstrapPassiveTreeOnceReady() {
+    if (typeof markPassiveRenderCacheDirty !== 'function') return false;
+    generateOrganicTree();
+    applyPassiveSpecializations();
+    assignStarWedgeSockets();
+    polishPassiveLayout();
+    computePassiveDepths();
+    return true;
+}
+
+if (!bootstrapPassiveTreeOnceReady()) {
+    let passiveBootstrapRetry = 0;
+    let passiveBootstrapTimer = setInterval(function () {
+        passiveBootstrapRetry++;
+        if (bootstrapPassiveTreeOnceReady() || passiveBootstrapRetry > 50) clearInterval(passiveBootstrapTimer);
+    }, 20);
+}
 
 function isPassiveNodeAvailable(nodeOrId) {
     let node = typeof nodeOrId === 'string' ? PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
