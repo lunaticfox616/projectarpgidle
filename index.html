@@ -6931,7 +6931,7 @@ function craftVoidJewel() {
     let a = game.jewelInventory.shift();
     let b = game.jewelInventory.shift();
     let stats = [...getJewelStats(a), ...getJewelStats(b)].slice(0, 2).map(stat => ({ id: stat.id, val: Math.max(1, Math.floor(stat.val * 0.85)) }));
-    let jewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '공허 주얼', rarity: 'magic', isVoid: true, stats: stats, maxLines: 4 };
+    let jewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '공허 주얼', rarity: 'magic', isVoid: true, stats: stats, maxLines: 2 };
     game.currencies.voidChisel--;
     game.jewelInventory.push(jewel);
     addLog('🕳️ 공허 주얼 제작 완료 (2줄)', 'loot-rare');
@@ -6947,12 +6947,12 @@ function fuseVoidJewel(idxA, idxB) {
     let seen = new Set();
     let merged = [];
     stats.forEach(stat => {
-        if (merged.length >= 4) return;
+        if (merged.length >= 2) return;
         if (seen.has(stat.id)) return;
         seen.add(stat.id);
         merged.push({ id: stat.id, val: stat.val });
     });
-    let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, stats: merged, maxLines: 4 };
+    let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, stats: merged, maxLines: 2 };
     let hi = Math.max(idxA, idxB), lo = Math.min(idxA, idxB);
     game.jewelInventory.splice(hi, 1);
     game.jewelInventory.splice(lo, 1);
@@ -9784,7 +9784,7 @@ function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=documen
 function startBeehiveRun(){ let b=game.beehive; if((game.currencies.hiveKey||0)<=0||b.inRun) return; game.currencies.hiveKey--; b.inRun=true; b.branchStep=0; addLog('🐝 벌집 원정 시작! 완료/포기 전까지 다른 맵으로 이동할 수 없습니다.', 'season-up'); updateStaticUI(); }
 function advanceBeehivePath(){ let b=game.beehive; if(!b.inRun) return; b.branchStep++; b.pendingChoice = { nowText:'꽃가루 +10~18', laterText:'벌꿀 6% / 독벌침 22%', eventType: rndChoice(['curse','preview','empower','penalty','none']) }; if(b.branchStep>=10){ b.inRun=false; b.cleared=true; b.unlockedPermanent=true; unlockJournalEntry('beehive_queen'); if(Math.random()<0.06){ let item=generateUniqueItem(Math.max(12,(getZone(game.currentZoneId)||{tier:12}).tier), '무기'); addItemToInventory(item); addLog('👑 여왕벌 전리품: 전용급 고유 장비를 발견했습니다!', 'loot-unique'); } if(Math.random()<0.08) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(Math.random()<0.2) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되었습니다.', 'level-up'); b.pendingChoice=null; } updateStaticUI(); }
 function resolveBeehiveChoice(mode){ let b=game.beehive; if(!b||!b.pendingChoice) return; if(mode==='now'){ game.currencies.pollen=(game.currencies.pollen||0)+Math.floor(10+Math.random()*9); addLog('갈래길 즉시 보상 획득', 'loot-normal'); } else { if(Math.random()<0.06) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(Math.random()<0.22) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; addLog('갈래길 클리어 후 보상 확보', 'loot-magic'); } let ev=b.pendingChoice.eventType; if(ev==='curse'){ game.playerHp=Math.max(1,Math.floor(game.playerHp*0.9)); addLog('☠️ 저주: 현재 생명력 10% 감소', 'attack-monster'); } else if(ev==='preview'){ addLog(`🔍 미리보기: 다음 갈래는 ${rndChoice(['축복','함정','강화'])} 기운이 감돕니다.`, 'loot-magic'); } else if(ev==='empower'){ b.enemyEmpower=Math.max(0,Math.floor((b.enemyEmpower||0)+1)); addLog(`🛡️ 적 강화: 벌집 적 체력 증폭 +${b.enemyEmpower}`, 'attack-monster'); } else if(ev==='penalty'){ game.currencies.pollen=Math.max(0,(game.currencies.pollen||0)-5); addLog('⚠️ 패널티: 꽃가루 5 소모', 'attack-monster'); } b.pendingChoice=null; updateStaticUI(); }
-function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; b.inRun=false; b.branchStep=0; addLog('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); updateStaticUI(); }
+function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; b.inRun=false; b.branchStep=0; b.pendingChoice=null; b.enemyEmpower=0; addLog('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); updateStaticUI(); }
 function craftBeehiveCurrency(type){ let cost= type==='key'?200:type==='stinger'?600:2000; if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; updateStaticUI(); }
 function triggerVoidBreach(){ let v=game.voidRift; v.active=true; addLog('🕳️ 공허의 구멍이 열렸습니다! 몬스터가 쏟아집니다.', 'attack-monster'); updateStaticUI(); }
 function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if(Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
@@ -12213,7 +12213,7 @@ function updateStaticUI() {
         <button onclick="craftJewelFusion()" ${(game.currencies.jewelShard || 0) < 6 ? 'disabled' : ''}>선택한 주얼 융합</button>
         <div style="margin-top:8px; font-size:0.8em; color:#8fb6d9;">슬롯 증폭: 슬롯 효과 소폭 상승 (최대 10강, 실패 가능)</div>
         <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="tryAmplifyJewelSlot(0)">슬롯1 증폭 (${game.jewelSlotAmplify[0] || 0}/10 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[0] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[0] || 0) * 100)}%)</button><button onclick="tryAmplifyJewelSlot(1)">슬롯2 증폭 (${game.jewelSlotAmplify[1] || 0}/10 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[1] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[1] || 0) * 100)}%)</button></div>
-        <div style="margin-top:8px; color:#b4c9e2; font-size:0.8em;">공허 주얼: 2줄 생성 후 융합으로 최대 4줄</div>
+        <div style="margin-top:8px; color:#b4c9e2; font-size:0.8em;">공허 주얼: 저장 호환을 위해 현재 최대 2줄까지 지원</div>
         <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="craftVoidJewel()" ${(game.currencies.voidChisel || 0) <= 0 || (game.jewelInventory||[]).length < 2 ? 'disabled' : ''}>공허 주얼 제작 (끌 1 + 주얼2)</button><button onclick="fuseSelectedVoidJewels()">선택 공허융합</button></div>`;
         document.getElementById('ui-jewel-slots').innerHTML = [0, 1].map(slotIdx => {
             let jewel = game.jewelSlots[slotIdx];
