@@ -1192,7 +1192,7 @@
                 <button id="btn-cloud-pull" onclick="cloudPullNow()">클라우드 불러오기</button>
             </div>
             <div class="cloud-actions secondary">
-                <button id="btn-cloud-push" onclick="cloudPushNow()">지금 업로드</button>
+                <button id="btn-cloud-push" onclick="cloudForcePullNow()">서버에서 강제 불러오기</button>
                 <button id="btn-cloud-return-startup" onclick="openStartupGate({ accountOnly: true })">계정 전환</button>
             </div>
             <div class="cloud-meta">
@@ -14142,6 +14142,24 @@ async function cloudPushNow() {
         await syncCloudSave({ automatic: false });
     } catch (error) {
         setCloudMessage('업로드 실패: ' + (error.message || error));
+    }
+}
+
+async function cloudForcePullNow() {
+    if (!cloudState.user) return setCloudMessage('먼저 로그인해주세요.');
+    if (!confirm('⚠️ 서버 저장을 현재 기기 세이브에 강제로 덮어씁니다. 계속할까요?')) return;
+    cloudState.busy = true;
+    setCloudMessage('서버 저장을 강제로 불러오는 중입니다...');
+    updateCloudSaveUI();
+    try {
+        await pullCloudSave({ silent: false });
+        setCloudMessage('서버 저장을 현재 기기에 강제로 적용했습니다.');
+        addLog('☁️ 서버 저장 강제 불러오기를 완료했습니다.', 'loot-magic');
+    } catch (error) {
+        setCloudMessage('서버 강제 불러오기 실패: ' + (error.message || error));
+    } finally {
+        cloudState.busy = false;
+        updateCloudSaveUI();
     }
 }
 
