@@ -162,6 +162,8 @@
             }
             .tab-btn { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; min-width: 96px; padding: 8px 6px; white-space: nowrap; text-align:center; font-size:0.86em; }
             .combat-top-status { margin: 4px 0 8px; }
+            body.mobile-battle-tab #tab-battle .combat-top-status #ui-player-ailments-mobile { display:block !important; }
+            body.mobile-battle-tab #tab-battle .player-panel #ui-player-ailments { display:none !important; }
             #tab-char > div { height: auto !important; min-height: 0; }
             #tree-container { min-height: clamp(360px, 62vh, 520px) !important; }
             .craft-layout { grid-template-columns: 1fr; }

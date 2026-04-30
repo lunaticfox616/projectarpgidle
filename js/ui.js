@@ -1803,7 +1803,10 @@ function updateCombatUI(pStats) {
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', shock: '감전', poison: '중독' };
         let text = (game.playerAilments || []).map(ail => `${labels[ail.type] || ail.type} ${Math.max(0, (ail.time || 0)).toFixed(1)}s`).join(' · ');
-        ailmentEl.innerText = text ? `상태이상: ${text}` : '';
+        let ailmentText = text ? `상태이상: ${text}` : '';
+        ailmentEl.innerText = ailmentText;
+        let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
+        if (mobileAilmentEl) mobileAilmentEl.innerText = ailmentText;
     }
 
     let zone = getZone(game.currentZoneId);
