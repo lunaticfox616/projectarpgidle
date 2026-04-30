@@ -124,7 +124,7 @@
             body.mobile-battle-tab #tab-battle .combat-stage { min-height: 0; overflow: hidden; }
             body.mobile-battle-tab #tab-battle #move-area { margin-bottom: 4px !important; }
             body.mobile-battle-tab #tab-battle .battlefield-wrap { margin-top: 4px; height: min(22dvh, 150px); }
-            body.mobile-battle-tab #tab-battle .enemy-list { height: 64px; max-height: 64px; min-height: 64px; overflow-y: auto; }
+            body.mobile-battle-tab #tab-battle .enemy-list { max-height: none; min-height: 0; overflow: visible; }
             body.mobile-battle-tab #tab-battle .combat-feed { height: clamp(120px, 22dvh, 170px); max-height: 170px; }
             body.mobile-battle-tab #tab-battle #log { min-height: 0; }
             body.mobile-battle-tab #tab-battle .combat-panel > h2 { margin-bottom: 4px; font-size: 1rem; }
@@ -138,7 +138,9 @@
             .combat-panel > h2 > button { order: 2; margin-left: auto; }
             #ui-combat-zone { order: 3; flex: 1 0 100% !important; text-align: left !important; }
             .tab-header { position: sticky; top: 0; z-index: 25; background: rgba(18,18,22,0.98); backdrop-filter: blur(10px); display:flex; width:100%; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling: touch; }
+            .tab-header-bottom { position: sticky; bottom: 0; top: auto; z-index: 24; border-top: 1px solid #2d3a4a; margin-top: 4px; }
             .tab-btn { flex: 0 0 auto; min-width: 96px; padding: 8px 6px; white-space: nowrap; text-align:center; font-size:0.86em; }
+            .combat-top-status { margin: 4px 0 8px; }
             #tab-char > div { height: auto !important; min-height: 0; }
             #tree-container { min-height: clamp(360px, 62vh, 520px) !important; }
             .craft-layout { grid-template-columns: 1fr; }
