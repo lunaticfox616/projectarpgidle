@@ -353,7 +353,7 @@ function unlockTalismanCell(x, y) {
     let idx = talismanCellIndex(x, y);
     let unlockedSet = getTalismanUnlockedCellsSet();
     if (unlockedSet.has(idx)) return false;
-    let extraUnlocked = Math.max(0, unlockedSet.size - 9);
+    let extraUnlocked = Math.max(0, unlockedSet.size - 16);
     let cost = getTalismanExpandCost(extraUnlocked);
     if ((game.currencies.sealShard || 0) < cost) {
         addLog(`봉인편린이 부족합니다. (필요: ${cost})`, 'attack-monster');
@@ -2402,7 +2402,7 @@ function updateStaticUI() {
         let border = !unlocked ? '#3b4f63' : (id && shapeStyle ? shapeStyle.color : '#3b4f63');
         let textColor = !unlocked ? '#8b95a1' : (id && shapeStyle ? shapeStyle.color : '#d5e8ff');
         let unlockedSet = getTalismanUnlockedCellsSet();
-        let extraUnlocked = Math.max(0, unlockedSet.size - 9);
+        let extraUnlocked = Math.max(0, unlockedSet.size - 16);
         let unlockCost = getTalismanExpandCost(extraUnlocked);
         let lockTitle = unlocked ? '' : ` title="해금 비용: 봉인편린 ${unlockCost}"`;
         return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:6px; font-weight:bold;">${label}</button>`;
@@ -3059,8 +3059,9 @@ function mergeDefaults(save) {
     if (merged.talismanUnlockedCells.length === 0 && merged.talismanBoardUnlock > 3) {
         for (let y = 0; y < merged.talismanBoardUnlock; y++) {
             for (let x = 0; x < merged.talismanBoardUnlock; x++) {
-                if (x < 3 && y < 3) continue;
-                merged.talismanUnlockedCells.push(y * 5 + x);
+                if (x < 4 && y < 4) continue;
+                if (!isTalismanBoardCellValid(x, y)) continue;
+                merged.talismanUnlockedCells.push(talismanCellIndex(x, y));
             }
         }
     }
