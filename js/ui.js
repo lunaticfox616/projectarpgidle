@@ -23,20 +23,25 @@ function clickActiveShrine(){
 function renderTabOrderSettings() {
     let tabOrderEl = document.getElementById('ui-tab-order-settings');
     if (!tabOrderEl) return;
-    let topHeader = document.querySelector('.tab-header');
-    let tabs = topHeader ? Array.from(topHeader.querySelectorAll('.tab-btn')) : [];
+    if (!(document.getElementById('tab-settings') || {}).classList.contains('active')) return;
+    let tabs = Array.from(document.querySelectorAll('.tab-header .tab-btn'));
     tabOrderEl.innerHTML = tabs.map(el => {
-        let place = (((game.settings || {}).tabPlacement || {})[el.id] || 'top');
-        return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/, '')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
+        let place = (game.settings.tabPlacement[el.id] === 'bottom') ? 'bottom' : 'top';
+        return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
     }).join('');
 }
-function applyTabHeaderOrder(){
+function applyTabHeaderOrder(shouldRenderSettings){
     let headers = Array.from(document.querySelectorAll('.tab-header'));
     let topHeader = headers[0];
     if(!topHeader) return;
     let bottomHeader = document.getElementById('tab-header-bottom');
     game.settings=game.settings||{};
     game.settings.tabPlacement = game.settings.tabPlacement || {};
+    if (!game.settings.tabPlacementInitialized && window.matchMedia('(max-width: 1080px)').matches) {
+        game.settings.tabPlacementInitialized = true;
+        let autoIds = Array.from(topHeader.querySelectorAll('.tab-btn')).map(el => el.id);
+        autoIds.forEach((id, idx) => { game.settings.tabPlacement[id] = idx === 0 ? 'top' : 'bottom'; });
+    }
     let allTabButtons = headers.flatMap(header => Array.from(header.querySelectorAll('.tab-btn')));
     let ids=allTabButtons.map(el=>el.id);
     let order=Array.isArray(game.settings.tabOrder)?game.settings.tabOrder:ids;
@@ -48,20 +53,13 @@ function applyTabHeaderOrder(){
     });
     ids.forEach(id=>{ if(!order.includes(id) && map[id]) topHeader.appendChild(map[id]); });
     if (bottomHeader) bottomHeader.style.display = bottomHeader.children.length ? 'flex' : 'none';
-    let tabOrderEl = document.getElementById('ui-tab-order-settings');
-    if (tabOrderEl) {
-        let tabs = Array.from(document.querySelectorAll('.tab-header .tab-btn'));
-        tabOrderEl.innerHTML = tabs.map(el => {
-            let place = (game.settings.tabPlacement[el.id] === 'bottom') ? 'bottom' : 'top';
-            return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
-        }).join('');
-    }
+    if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
 }
 function setTabPlacement(tabId, placement){
     game.settings = game.settings || {};
     game.settings.tabPlacement = game.settings.tabPlacement || {};
     game.settings.tabPlacement[tabId] = placement === 'bottom' ? 'bottom' : 'top';
-    applyTabHeaderOrder();
+    applyTabHeaderOrder(true);
 }
 function moveTabButton(tabId, dir){
     game.settings=game.settings||{};
@@ -73,7 +71,7 @@ function moveTabButton(tabId, dir){
     let idx=order.indexOf(tabId); if(idx<0) return;
     let ni=Math.max(0, Math.min(order.length-1, idx+dir)); if(ni===idx) return;
     let t=order[idx]; order[idx]=order[ni]; order[ni]=t; game.settings.tabOrder=order;
-    applyTabHeaderOrder();
+    applyTabHeaderOrder(true);
 }
 
 function isNotiEnabled(key){ game.settings=game.settings||{}; game.settings.notiFilters=game.settings.notiFilters||{}; return game.settings.notiFilters[key] !== false; }
@@ -111,6 +109,8 @@ function switchTab(tabId) {
             syncBattleTabLayout(false);
             scheduleStableResize();
         }, 40);
+    } else if (tabId === 'tab-settings') {
+        renderTabOrderSettings();
     }
 }
 
@@ -1814,7 +1814,10 @@ function updateCombatUI(pStats) {
     } else if (zone.type !== 'trial') {
         combatTitle = `⚔️ 전투 ${zone.name}`;
     }
-    document.getElementById('ui-combat-zone').innerText = zone.type === 'trial' ? zone.name : combatTitle;
+    let zoneText = zone.type === 'trial' ? zone.name : combatTitle;
+    document.getElementById('ui-combat-zone').innerText = zoneText;
+    let inlineZoneEl = document.getElementById('ui-combat-zone-inline');
+    if (inlineZoneEl) inlineZoneEl.innerText = zoneText;
 
     if (game.moveTimer > 0) {
         let readyPct = Math.min(100, (1 - game.moveTimer / game.moveTotalTime) * 100);
