@@ -301,6 +301,22 @@ function discardCurrentTalisman() {
     updateStaticUI();
 }
 
+function rotateTalismanCells90(cells){
+    if (!Array.isArray(cells)) return [];
+    let rotated = cells.map(cell => ({ x: -(cell.y || 0), y: (cell.x || 0) }));
+    let minX = Math.min(...rotated.map(c => c.x));
+    let minY = Math.min(...rotated.map(c => c.y));
+    return rotated.map(c => ({ x: c.x - minX, y: c.y - minY }));
+}
+function rotateTalismanInInventory(talismanId){
+    let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
+    let target = inv.find(t => t && t.id === talismanId);
+    if (!target || !Array.isArray(target.cells)) return;
+    target.cells = rotateTalismanCells90(target.cells);
+    addLog(`🔄 부적 회전: [${target.shape}]`, 'loot-normal');
+    updateStaticUI();
+}
+
 function destroyTalismanFromInventory(talismanId) {
     let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
     let target = inv.find(t => t && t.id === talismanId);
@@ -2368,7 +2384,7 @@ function updateStaticUI() {
     document.getElementById('ui-talisman-inventory').innerHTML = game.talismanInventory.map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
-        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShape(t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div>`;
+        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShape(t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
@@ -3035,7 +3051,7 @@ function mergeDefaults(save) {
         merged.currencies.jewelCore = 0;
     }
     merged.talismanUnlocked = !!merged.talismanUnlocked || ((merged.currencies.sealShard || 0) > 0) || ((merged.currencies.strongSealShard || 0) > 0);
-    merged.talismanUnlockedCells = Array.isArray(merged.talismanUnlockedCells) ? merged.talismanUnlockedCells.map(v => Math.floor(v)).filter(v => v >= 0 && v < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) : [];
+    merged.talismanUnlockedCells = Array.isArray(merged.talismanUnlockedCells) ? merged.talismanUnlockedCells.map(v => Math.floor(v)).filter(v => v >= 0 && v < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)).filter(v => isTalismanBoardCellValid(v % TALISMAN_BOARD_W, Math.floor(v / TALISMAN_BOARD_W))) : [];
     merged.talismanBoardUnlock = Math.max(3, Math.min(5, Math.floor(clampFiniteNumber(merged.talismanBoardUnlock, 3, 3, 5))));
     if (merged.talismanUnlockedCells.length === 0 && merged.talismanBoardUnlock > 3) {
         for (let y = 0; y < merged.talismanBoardUnlock; y++) {

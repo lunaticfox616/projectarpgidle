@@ -190,7 +190,9 @@ function getStatName(statId) {
         energyShield: '에너지 보호막',
         armorPct: '방어도 증가(%)',
         evasionPct: '회피 증가(%)',
-        energyShieldPct: '에너지 보호막 증가(%)'
+        energyShieldPct: '에너지 보호막 증가(%)',
+        energyShieldRegen: '에너지 보호막 재생률(%)',
+        energyShieldRechargeFaster: '보호막 재생 준비시간 감소(초)'
     };
     return names[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId;
 }
@@ -215,7 +217,7 @@ function createEmptyStatBucket() {
         minDmgRoll: 0, maxDmgRoll: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0,
-        armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0
+        armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0
     };
 }
 function addStatToBucket(bucket, statId, value) {
@@ -266,6 +268,8 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'armorPct') bucket.armorPct += value;
     else if (statId === 'evasionPct') bucket.evasionPct += value;
     else if (statId === 'energyShieldPct') bucket.energyShieldPct += value;
+    else if (statId === 'energyShieldRegen') bucket.energyShieldRegen += value;
+    else if (statId === 'energyShieldRechargeFaster') bucket.energyShieldRechargeFaster += value;
 }
 function applyStatsToBucket(bucket, stats) {
     (stats || []).forEach(stat => addStatToBucket(bucket, stat.id, stat.val));

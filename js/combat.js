@@ -13,6 +13,16 @@ function coreLoop() {
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
     if (game.playerHp > 0 && game.playerHp < pStats.maxHp) game.playerHp = Math.min(pStats.maxHp, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
+    if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
+    game.playerEnergyShield = Math.max(0, Math.min(game.playerEnergyShield, Math.floor(pStats.energyShield || 0)));
+    if (!Number.isFinite(game.playerEsLastHitAt)) game.playerEsLastHitAt = 0;
+    if ((pStats.energyShield || 0) > 0 && game.playerEnergyShield < (pStats.energyShield || 0)) {
+        let sinceHit = (Date.now() - (game.playerEsLastHitAt || 0)) / 1000;
+        if (sinceHit >= (pStats.energyShieldRechargeDelay || 3)) {
+            let regenPerSec = (pStats.energyShield || 0) * ((pStats.energyShieldRegenRate || 12.5) / 100);
+            game.playerEnergyShield = Math.min((pStats.energyShield || 0), game.playerEnergyShield + regenPerSec * 0.1);
+        }
+    }
 
     if (game.moveTimer > 0) {
         game.moveTimer -= 0.1;
@@ -250,6 +260,8 @@ function getPlayerStats() {
     let finalArmor = Math.max(0, Math.floor(gearArmor * (1 + totalArmorPct / 100)));
     let finalEvasion = Math.max(0, Math.floor(gearEvasion * (1 + totalEvasionPct / 100)));
     let finalEnergyShield = Math.max(0, Math.floor(gearEnergyShield * (1 + totalEnergyShieldPct / 100)));
+    let finalEnergyShieldRegenRate = Math.max(0, 12.5 + gearBase.energyShieldRegen + gearExplicit.energyShieldRegen + passive.energyShieldRegen + season.energyShieldRegen + ascend.energyShieldRegen + reward.energyShieldRegen);
+    let finalEnergyShieldRechargeDelay = Math.max(0.4, 3 - (gearBase.energyShieldRechargeFaster + gearExplicit.energyShieldRechargeFaster + passive.energyShieldRechargeFaster + season.energyShieldRechargeFaster + ascend.energyShieldRechargeFaster + reward.energyShieldRechargeFaster));
     let referenceIncomingPhysical = Math.max(1, Math.floor((2 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 3.1)));
     let armorReduction = Math.min(90, (finalArmor / (finalArmor + referenceIncomingPhysical * 10)) * 100);
     let enemyAccuracy = Math.max(60, Math.floor(90 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 24));
@@ -539,6 +551,8 @@ function getPlayerStats() {
         energyShield: finalEnergyShield,
         armorReduction: armorReduction,
         evadeChance: evadeChance,
+        energyShieldRegenRate: finalEnergyShieldRegenRate,
+        energyShieldRechargeDelay: finalEnergyShieldRechargeDelay,
         breakdowns: breakdowns
     };
 }
@@ -1585,6 +1599,7 @@ function tickAilments(pStats, dt) {
 function performMonsterAttacks(pStats) {
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
+    if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     game.playerEnergyShield = Math.max(0, Math.min(Math.floor(Number(game.playerEnergyShield) || 0), Math.floor(pStats.energyShield || 0)));
     let aliveCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let crowdPenalty = Math.max(0.34, 1 - Math.max(0, aliveCount - 1) * 0.055);
@@ -1647,15 +1662,16 @@ function performMonsterAttacks(pStats) {
                 dmg += Math.max(0, hybrid);
             }
             dmg = Math.max(1, dmg);
+            if (enemy.ele === 'phys' && Math.random() * 100 < Math.max(0, pStats.evadeChance || 0)) {
+                if (game.settings.showCombatLog) addLog(`🌀 회피 성공`, "loot-magic");
+                continue;
+            }
             if ((enemy.ailmentChance || 0) > 0 && Math.random() < enemy.ailmentChance) {
                 let ail = enemy.ele === 'fire' ? 'ignite' : enemy.ele === 'cold' ? 'chill' : enemy.ele === 'light' ? 'shock' : 'poison';
                 applyPlayerAilment(ail, enemy.isBoss ? 5 : 3);
                 if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각' : ail === 'shock' ? '감전' : '중독'} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster');
             }
-            if (enemy.ele === 'phys' && Math.random() * 100 < Math.max(0, pStats.evadeChance || 0)) {
-                if (game.settings.showCombatLog) addLog(`🌀 회피 성공`, "loot-magic");
-                continue;
-            }
+
             let remaining = dmg;
             game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
             if (remaining > 0 && game.playerEnergyShield > 0) {
@@ -1664,6 +1680,7 @@ function performMonsterAttacks(pStats) {
                 remaining -= absorbed;
             }
             game.playerHp = Math.floor(game.playerHp - remaining);
+            game.playerEsLastHitAt = Date.now();
             recordIncomingDamage(enemy.ele, dmg, enemy.name);
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(enemy.ele), damage: dmg, duration: 220 });
             if (game.settings.showCombatLog) addLog(`🩸 [${getDamageElementLabel(enemy.ele)}] 피격 (${dmg} 피해)`, "attack-monster");
