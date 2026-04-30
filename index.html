@@ -221,8 +221,22 @@
         <div class="tab-btn" id="btn-tab-talisman" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
         <div class="tab-btn active" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: block;">설정</div>
     </div>
+    <div class="tab-header tab-header-bottom" id="tab-header-bottom"></div>
 
-    <div id="tab-battle" class="tab-content"></div>
+    <div id="tab-battle" class="tab-content">
+        <div id="mobile-battle-status" class="mobile-battle-status">
+            <div class="mobile-battle-status-row"><span id="ui-player-level-mobile">Lv.1</span> 경험치</div>
+            <div class="hp-bar-bg" style="height: 10px; margin-top: 2px;">
+                <div id="ui-exp-bar-mobile" class="hp-bar-fill exp" style="width: 0%;"></div>
+                <div class="hp-text" style="line-height: 10px; font-size: 9px;"><span id="ui-exp-mobile">0</span> / <span id="ui-maxexp-mobile">100</span></div>
+            </div>
+            <div class="mobile-battle-status-row" style="margin-top:6px;">생명력</div>
+            <div class="hp-bar-bg">
+                <div id="ui-hp-bar-mobile" class="hp-bar-fill player" style="width: 100%;"></div>
+                <div class="hp-text"><span id="ui-hp-mobile">100</span> / <span id="ui-maxhp-mobile">100</span></div>
+            </div>
+        </div>
+    </div>
 
     <div id="tab-character" class="tab-content">
         <h2>🧬 캐릭터 정보</h2>
@@ -668,7 +682,8 @@
                 <div id="ui-hero-talent-summary" style="font-size:0.82em; color:#9ec3e8;">캐릭터 재능 정보 로딩 중...</div>
             </div>
             <div style="background:#1a1a24; padding:10px; border:1px solid #3d3d5c; border-radius:6px; display:grid; gap:6px;">
-                <div style="color:#d5e7fa; font-weight:700;">탭 순서 조정</div>
+                <div style="color:#d5e7fa; font-weight:700;">탭 순서/위치 조정</div>
+                <div style="font-size:0.8em;color:#9fb4cc;">▲▼ 순서 변경, 상단/하단 위치 즉시 반영</div>
                 <div id="ui-tab-order-settings" style="display:grid; gap:4px;"></div>
             </div>
             <hr style="border-color: #3d3d5c; width: 100%;">
