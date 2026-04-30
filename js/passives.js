@@ -720,7 +720,7 @@ function generateOrganicTree() {
     PASSIVE_BOUNDS.minY = Math.min(...nodes.map(node => node.y));
     PASSIVE_BOUNDS.maxY = Math.max(...nodes.map(node => node.y));
     // tree 구조가 바뀌면 렌더 캐시를 다시 생성해야 함
-    markPassiveRenderCacheDirty('structure');
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
 }
 
 function computePassiveDepths() {
@@ -788,7 +788,6 @@ function applyPassiveSpecializations() {
     });
 }
 function bootstrapPassiveTreeOnceReady() {
-    if (typeof markPassiveRenderCacheDirty !== 'function') return false;
     generateOrganicTree();
     applyPassiveSpecializations();
     assignStarWedgeSockets();
@@ -797,13 +796,7 @@ function bootstrapPassiveTreeOnceReady() {
     return true;
 }
 
-if (!bootstrapPassiveTreeOnceReady()) {
-    let passiveBootstrapRetry = 0;
-    let passiveBootstrapTimer = setInterval(function () {
-        passiveBootstrapRetry++;
-        if (bootstrapPassiveTreeOnceReady() || passiveBootstrapRetry > 50) clearInterval(passiveBootstrapTimer);
-    }, 20);
-}
+bootstrapPassiveTreeOnceReady();
 
 function isPassiveNodeAvailable(nodeOrId) {
     let node = typeof nodeOrId === 'string' ? PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
@@ -972,7 +965,7 @@ function tryUnlockMeteorContentByProgress() {
     st.unlocked = true;
     assignStarWedgeSockets();
     recalculateStarWedgeMutations();
-    markPassiveRenderCacheDirty('structure');
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
     addLog('☄️ 말라가는 줄기 위로 검은 별이 떨어지기 시작했다.', 'loot-unique');
     queueTutorialNotice('meteor_unlocked', '운석 낙하 지점', '루프 7 이후 액트 7을 넘긴 사냥에서 하늘의 균열이 열립니다.\n게이지를 100%까지 채우면 운석 낙하 지점에 1회 입장할 수 있습니다.', 'tab-map');
     return true;
@@ -1127,7 +1120,7 @@ function calculateReachableNodes() {
         if ((game.passives || []).includes(edge.to)) reachableNodes.add(edge.from);
     });
     // reachable 집합이 바뀌면 링크/후광 상태 캐시 갱신
-    markPassiveRenderCacheDirty('state');
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
 }
 
 function getPassiveLinkedNodeIds(nodeId, maxDepth) {
@@ -1190,7 +1183,7 @@ function refreshPassiveVisibility() {
         });
     });
     // visibility 집합 변경 시 상태 캐시 갱신
-    markPassiveRenderCacheDirty('state');
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
 }
 
 function revealAroundNode(nodeId, options) {
@@ -1224,7 +1217,7 @@ function revealAroundNode(nodeId, options) {
         });
     }
     refreshPassiveVisibility();
-    markPassiveRenderCacheDirty('state');
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
 }
 
 function cleanupPassiveBursts() {
