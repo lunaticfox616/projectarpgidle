@@ -1,0 +1,10 @@
+/* Mobile-only layer (phase 2). */
+@media (max-width: 1080px) {
+  body { padding: 10px; }
+  #left-pane, #right-pane { min-width: 0; }
+}
+
+@media (max-width: 640px) {
+  .tab-btn { font-size: 0.9em; }
+  button { min-height: 36px; }
+}
