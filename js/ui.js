@@ -1,4 +1,49 @@
 // Phase-2 extracted UI/tab/render helper block.
+function tickShrineState(){
+    game.shrineState = game.shrineState || { active: null, nextRollAt: 0 };
+    let now = Date.now();
+    if (game.shrineBuff && now > (game.shrineBuff.expiresAt || 0)) game.shrineBuff = null;
+    if (game.shrineState.active && now > (game.shrineState.active.expiresAt || 0)) game.shrineState.active = null;
+    if (!game.shrineState.active && now >= (game.shrineState.nextRollAt || 0) && Math.random() < 0.01) {
+        game.shrineState.active = { name: rndChoice(['힘의 성소','수호의 성소','질주의 성소']), expiresAt: now + 30000 };
+        game.shrineState.nextRollAt = now + 240000;
+    }
+}
+function clickActiveShrine(){
+    let active = game.shrineState && game.shrineState.active; if (!active) return;
+    let stat = active.name.includes('힘') ? 'pctDmg' : active.name.includes('수호') ? 'dr' : 'aspd';
+    let value = active.name.includes('수호') ? 10 : 16;
+    game.shrineBuff = { name: active.name, stat: stat, value: value, expiresAt: Date.now() + 45000 };
+    game.shrineState.active = null;
+    addLog(`🛕 ${active.name} 축복 활성화!`, 'loot-rare');
+    applyTabHeaderOrder();
+    updateStaticUI();
+}
+
+function applyTabHeaderOrder(){
+    let header=document.querySelector('.tab-header'); if(!header) return;
+    game.settings=game.settings||{};
+    let ids=Array.from(header.querySelectorAll('.tab-btn')).map(el=>el.id);
+    let order=Array.isArray(game.settings.tabOrder)?game.settings.tabOrder:ids;
+    let map={}; Array.from(header.querySelectorAll('.tab-btn')).forEach(el=>map[el.id]=el);
+    order.forEach(id=>{ if(map[id]) header.appendChild(map[id]); });
+    ids.forEach(id=>{ if(!order.includes(id) && map[id]) header.appendChild(map[id]); });
+}
+function moveTabButton(tabId, dir){
+    game.settings=game.settings||{};
+    let header=document.querySelector('.tab-header'); if(!header) return;
+    let ids=Array.from(header.querySelectorAll('.tab-btn')).map(el=>el.id);
+    let order=Array.isArray(game.settings.tabOrder)?game.settings.tabOrder.slice():ids.slice();
+    if(order.length!==ids.length) order=ids.slice();
+    let idx=order.indexOf(tabId); if(idx<0) return;
+    let ni=Math.max(0, Math.min(order.length-1, idx+dir)); if(ni===idx) return;
+    let t=order[idx]; order[idx]=order[ni]; order[ni]=t; game.settings.tabOrder=order;
+    applyTabHeaderOrder();
+}
+
+function isNotiEnabled(key){ game.settings=game.settings||{}; game.settings.notiFilters=game.settings.notiFilters||{}; return game.settings.notiFilters[key] !== false; }
+function toggleNotiFilter(key){ game.settings=game.settings||{}; game.settings.notiFilters=game.settings.notiFilters||{}; game.settings.notiFilters[key]=!(game.settings.notiFilters[key] !== false); updateStaticUI(); }
+
 function switchTab(tabId) {
     let gateKey = TAB_UNLOCK_GATES[tabId];
     if (gateKey && !game.unlocks[gateKey]) {
@@ -164,6 +209,23 @@ function renderTalismanMiniShape(shape, options = {}) {
     return `<span style="display:grid; grid-template-columns:repeat(3, ${cellSize}px); grid-auto-rows:${cellSize}px; gap:${gap}px; width:${width}px; height:${height}px; padding:2px; border:1px solid rgba(120,145,175,0.4); border-radius:4px; background:rgba(8,14,22,0.45); box-shadow:0 0 0 1px ${style.glow};">${html}</span>`;
 }
 
+
+const TALISMAN_BOARD_W = 8;
+const TALISMAN_BOARD_H = 8;
+const TALISMAN_BOARD_MASK = new Set([
+'2,0','3,0','4,0','5,0',
+'1,1','2,1','5,1','6,1',
+'0,2','1,2','2,2','3,2','4,2','5,2','6,2','7,2',
+'0,3','2,3','3,3','4,3','5,3','7,3',
+'0,4','2,4','3,4','4,4','5,4','7,4',
+'0,5','1,5','2,5','3,5','4,5','5,5','6,5','7,5',
+'1,6','2,6','5,6','6,6',
+'2,7','3,7','4,7','5,7'
+]);
+function talismanCellKey(x,y){ return `${x},${y}`; }
+function talismanCellIndex(x,y){ return y * TALISMAN_BOARD_W + x; }
+function isTalismanBoardCellValid(x,y){ return TALISMAN_BOARD_MASK.has(talismanCellKey(x,y)); }
+
 function renderSealShardBadge(source) {
     let isStrong = source === 'strongSealShard';
     let color = isStrong ? '#f3c266' : '#9ed2ff';
@@ -239,6 +301,22 @@ function discardCurrentTalisman() {
     updateStaticUI();
 }
 
+function rotateTalismanCells90(cells){
+    if (!Array.isArray(cells)) return [];
+    let rotated = cells.map(cell => ({ x: -(cell.y || 0), y: (cell.x || 0) }));
+    let minX = Math.min(...rotated.map(c => c.x));
+    let minY = Math.min(...rotated.map(c => c.y));
+    return rotated.map(c => ({ x: c.x - minX, y: c.y - minY }));
+}
+function rotateTalismanInInventory(talismanId){
+    let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
+    let target = inv.find(t => t && t.id === talismanId);
+    if (!target || !Array.isArray(target.cells)) return;
+    target.cells = rotateTalismanCells90(target.cells);
+    addLog(`🔄 부적 회전: [${target.shape}]`, 'loot-normal');
+    updateStaticUI();
+}
+
 function destroyTalismanFromInventory(talismanId) {
     let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
     let target = inv.find(t => t && t.id === talismanId);
@@ -251,8 +329,8 @@ function destroyTalismanFromInventory(talismanId) {
 
 function getTalismanUnlockedCellsSet() {
     let cells = Array.isArray(game.talismanUnlockedCells) ? game.talismanUnlockedCells : [];
-    let set = new Set(cells.map(v => Math.floor(v)).filter(v => v >= 0 && v < 25));
-    for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) set.add(y * 5 + x);
+    let set = new Set(cells.map(v => Math.floor(v)).filter(v => v >= 0 && v < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)));
+    for (let y = 2; y <= 5; y++) for (let x = 2; x <= 5; x++) if (isTalismanBoardCellValid(x,y)) set.add(talismanCellIndex(x,y));
     return set;
 }
 
@@ -267,8 +345,9 @@ function expandTalismanBoard() {
 }
 
 function unlockTalismanCell(x, y) {
-    if (x < 0 || y < 0 || x >= 5 || y >= 5) return false;
-    let idx = y * 5 + x;
+    if (x < 0 || y < 0 || x >= TALISMAN_BOARD_W || y >= TALISMAN_BOARD_H) return false;
+    if (!isTalismanBoardCellValid(x, y)) return false;
+    let idx = talismanCellIndex(x, y);
     let unlockedSet = getTalismanUnlockedCellsSet();
     if (unlockedSet.has(idx)) return false;
     let extraUnlocked = Math.max(0, unlockedSet.size - 9);
@@ -280,14 +359,14 @@ function unlockTalismanCell(x, y) {
     game.currencies.sealShard -= cost;
     game.talismanUnlockedCells = Array.isArray(game.talismanUnlockedCells) ? game.talismanUnlockedCells : [];
     game.talismanUnlockedCells.push(idx);
-    game.talismanUnlockedCells = Array.from(new Set(game.talismanUnlockedCells.map(v => Math.floor(v)).filter(v => v >= 0 && v < 25)));
+    game.talismanUnlockedCells = Array.from(new Set(game.talismanUnlockedCells.map(v => Math.floor(v)).filter(v => v >= 0 && v < (TALISMAN_BOARD_W * TALISMAN_BOARD_H))));
     game.talismanUnlockPickMode = false;
     addLog(`🧩 부적 보드 칸 해금! (${x + 1},${y + 1})`, 'season-up');
     return true;
 }
 
 function isTalismanCellUnlocked(x, y) {
-    let idx = y * 5 + x;
+    let idx = talismanCellIndex(x, y);
     return getTalismanUnlockedCellsSet().has(idx);
 }
 
@@ -297,8 +376,8 @@ function canPlaceTalismanAt(talisman, baseX, baseY) {
     for (let cell of talisman.cells) {
         let x = baseX + cell.x;
         let y = baseY + cell.y;
-        if (x < 0 || y < 0 || x >= 5 || y >= 5 || !isTalismanCellUnlocked(x, y)) return false;
-        if (board[y * 5 + x]) return false;
+        if (x < 0 || y < 0 || x >= TALISMAN_BOARD_W || y >= TALISMAN_BOARD_H || !isTalismanCellUnlocked(x, y)) return false;
+        if (board[talismanCellIndex(x, y)]) return false;
     }
     return true;
 }
@@ -309,9 +388,9 @@ function placeSelectedTalismanAt(x, y) {
     let talisman = inv.find(t => t.id === selectedId);
     if (!talisman) return;
     if (!canPlaceTalismanAt(talisman, x, y)) return addLog('해당 위치에는 부적을 배치할 수 없습니다.', 'attack-monster');
-    game.talismanBoard = Array.isArray(game.talismanBoard) ? game.talismanBoard : Array(25).fill(null);
+    game.talismanBoard = Array.isArray(game.talismanBoard) ? game.talismanBoard : Array(TALISMAN_BOARD_W * TALISMAN_BOARD_H).fill(null);
     talisman.cells.forEach(cell => {
-        let idx = (y + cell.y) * 5 + (x + cell.x);
+        let idx = talismanCellIndex(x + cell.x, y + cell.y);
         game.talismanBoard[idx] = talisman.id;
     });
     game.talismanPlacements = game.talismanPlacements || {};
@@ -345,7 +424,7 @@ function onTalismanBoardCellClick(x, y) {
         if (unlockTalismanCell(x, y)) updateStaticUI();
         return;
     }
-    let idx = y * 5 + x;
+    let idx = talismanCellIndex(x, y);
     let board = game.talismanBoard || [];
     let occupant = board[idx];
     if (occupant) return removePlacedTalisman(occupant);
@@ -1548,6 +1627,13 @@ function drawBattleZigZag(ctx, x1, y1, x2, y2, amplitude, segments) {
     ctx.lineTo(x2, y2);
 }
 
+const GEM_IMPACT_THEME = {
+    phys: { primary: '#f5d7a1', secondary: '#ffffff' }, fire: { primary: '#ff7a42', secondary: '#ffd36b' }, cold: { primary: '#8fd6ff', secondary: '#dff7ff' },
+    light: { primary: '#f7e36a', secondary: '#fff8bf' }, chaos: { primary: '#b56bff', secondary: '#e9d2ff' }
+};
+window.BATTLE_EFFECT_OVERRIDES = window.BATTLE_EFFECT_OVERRIDES || {};
+function getImpactThemeByElement(ele){ return (window.BATTLE_EFFECT_OVERRIDES[ele] || GEM_IMPACT_THEME[ele] || GEM_IMPACT_THEME.phys); }
+
 function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
     ctx.save();
     ctx.globalAlpha = 1 - t;
@@ -1639,7 +1725,8 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
         ctx.lineTo(tx, ty);
         ctx.stroke();
     }
-    drawBattleImpactBurst(ctx, tx, ty, skillVisual.primary, skillVisual.secondary, t);
+    let impactTheme = getImpactThemeByElement((fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys'));
+    drawBattleImpactBurst(ctx, tx, ty, impactTheme.primary || skillVisual.primary, impactTheme.secondary || skillVisual.secondary, t);
     if (fx.crit) {
         ctx.globalAlpha = (1 - t) * 0.75;
         ctx.strokeStyle = '#fff4a8';
@@ -1854,6 +1941,8 @@ function updateStaticUI() {
     tryUnlockMeteorContentByProgress();
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });
+    tickShrineState();
+    applyTabHeaderOrder();
     calculateReachableNodes();
     refreshPassiveVisibility();
     normalizeSupportLoadout(true);
@@ -1867,11 +1956,17 @@ function updateStaticUI() {
     if (battlefieldWrap) battlefieldWrap.classList.toggle('compressed', !showCombatScene);
     applyPanelLayoutSettings();
     if (!showCombatScene && caption) caption.innerText = '전투가 진행중입니다.';
+    let shrineBox = document.getElementById('ui-shrine-box');
+    if (shrineBox) {
+        let active = game.shrineState && game.shrineState.active;
+        let buff = game.shrineBuff;
+        shrineBox.innerHTML = active ? `<button onclick="clickActiveShrine()">${active.name} 클릭</button>` : (buff ? `<div style="color:#ffd36b;">${buff.name} 지속중</div>` : '<div style="color:#7f8c8d;">성소 대기중</div>');
+    }
     if (document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active')) resizePassiveTreeCanvas(false);
     drawPassiveTree();
     renderStarWedgePanel();
 
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => document.getElementById('noti-' + key).style.display = game.noti[key] ? 'block' : 'none');
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
     let jewelTabBtn = document.getElementById('btn-tab-jewel');
     if (jewelTabBtn) jewelTabBtn.style.display = game.unlocks.items ? 'block' : 'none';
@@ -2257,15 +2352,15 @@ function updateStaticUI() {
         }
     }
 
-    game.talismanBoard = Array.isArray(game.talismanBoard) ? game.talismanBoard.slice(0, 25) : [];
-    while (game.talismanBoard.length < 25) game.talismanBoard.push(null);
+    game.talismanBoard = Array.isArray(game.talismanBoard) ? game.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
+    while (game.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) game.talismanBoard.push(null);
     game.talismanInventory = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
     game.talismanPlacements = (game.talismanPlacements && typeof game.talismanPlacements === 'object') ? game.talismanPlacements : {};
     let talismanUnlockedSet = getTalismanUnlockedCellsSet();
     let extraUnlocked = Math.max(0, talismanUnlockedSet.size - 9);
     let talismanUnlockCost = getTalismanExpandCost(extraUnlocked);
     document.getElementById('ui-talisman-board-size').innerText = talismanUnlockedSet.size;
-    document.getElementById('ui-talisman-board-size2').innerText = 25;
+    document.getElementById('ui-talisman-board-size2').innerText = TALISMAN_BOARD_MASK.size;
     document.getElementById('ui-talisman-currency').innerHTML = `${renderSealShardBadge('sealShard')} <strong>${game.currencies.sealShard || 0}</strong> &nbsp; ${renderSealShardBadge('strongSealShard')} <strong>${game.currencies.strongSealShard || 0}</strong>`;
     let unseal = game.talismanUnseal;
     if (!unseal) {
@@ -2289,17 +2384,17 @@ function updateStaticUI() {
     document.getElementById('ui-talisman-inventory').innerHTML = game.talismanInventory.map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
-        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShape(t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div>`;
+        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShape(t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
-    document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: 25 }, (_, i) => {
-        let x = i % 5;
-        let y = Math.floor(i / 5);
+    document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
+        let x = i % TALISMAN_BOARD_W;
+        let y = Math.floor(i / TALISMAN_BOARD_W);
         let unlocked = isTalismanCellUnlocked(x, y);
         let id = game.talismanBoard[i];
         let placed = id ? (game.talismanPlacements && game.talismanPlacements[id] ? game.talismanPlacements[id].talisman : null) : null;
         let shape = placed ? placed.shape : null;
         let shapeStyle = shape ? getTalismanShapeStyle(shape) : null;
-        let cellColor = !unlocked ? '#1a1a1f' : (id ? (shapeStyle ? shapeStyle.glow : '#355d46') : '#1d2531');
+        let valid = isTalismanBoardCellValid(x,y); let cellColor = !valid ? '#0f1116' : (!unlocked ? '#1a1a1f' : (id ? (shapeStyle ? shapeStyle.glow : '#355d46') : '#1d2531'));
         let label = !unlocked ? '🔒' : (id ? (shapeStyle ? shapeStyle.symbol : '●') : '');
         let border = !unlocked ? '#3b4f63' : (id && shapeStyle ? shapeStyle.color : '#3b4f63');
         let textColor = !unlocked ? '#8b95a1' : (id && shapeStyle ? shapeStyle.color : '#d5e8ff');
@@ -2500,7 +2595,9 @@ function setupCanvasEvents() {
             game.passivePoints--;
             revealAroundNode(hoverNode.id, { forcePulse: true });
             unlockPassiveStarEvolution();
-            calculateReachableNodes();
+            tickShrineState();
+    applyTabHeaderOrder();
+    calculateReachableNodes();
             addLog(`🌟 ${getPassiveNodeDisplayName(hoverNode)} 활성화!`, "loot-magic");
             updateStaticUI();
         }
@@ -2954,7 +3051,7 @@ function mergeDefaults(save) {
         merged.currencies.jewelCore = 0;
     }
     merged.talismanUnlocked = !!merged.talismanUnlocked || ((merged.currencies.sealShard || 0) > 0) || ((merged.currencies.strongSealShard || 0) > 0);
-    merged.talismanUnlockedCells = Array.isArray(merged.talismanUnlockedCells) ? merged.talismanUnlockedCells.map(v => Math.floor(v)).filter(v => v >= 0 && v < 25) : [];
+    merged.talismanUnlockedCells = Array.isArray(merged.talismanUnlockedCells) ? merged.talismanUnlockedCells.map(v => Math.floor(v)).filter(v => v >= 0 && v < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)).filter(v => isTalismanBoardCellValid(v % TALISMAN_BOARD_W, Math.floor(v / TALISMAN_BOARD_W))) : [];
     merged.talismanBoardUnlock = Math.max(3, Math.min(5, Math.floor(clampFiniteNumber(merged.talismanBoardUnlock, 3, 3, 5))));
     if (merged.talismanUnlockedCells.length === 0 && merged.talismanBoardUnlock > 3) {
         for (let y = 0; y < merged.talismanBoardUnlock; y++) {
@@ -2966,8 +3063,8 @@ function mergeDefaults(save) {
     }
     merged.talismanUnlockPickMode = !!merged.talismanUnlockPickMode;
     merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.stat && t.shape) : [];
-    merged.talismanBoard = Array.isArray(merged.talismanBoard) ? merged.talismanBoard.slice(0, 25) : [];
-    while (merged.talismanBoard.length < 25) merged.talismanBoard.push(null);
+    merged.talismanBoard = Array.isArray(merged.talismanBoard) ? merged.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
+    while (merged.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) merged.talismanBoard.push(null);
     merged.talismanPlacements = (merged.talismanPlacements && typeof merged.talismanPlacements === 'object') ? merged.talismanPlacements : {};
     merged.talismanSelectedId = Number.isFinite(merged.talismanSelectedId) ? merged.talismanSelectedId : null;
     merged.talismanUnseal = (merged.talismanUnseal && merged.talismanUnseal.current) ? merged.talismanUnseal : null;
@@ -3032,7 +3129,10 @@ function mergeDefaults(save) {
     merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0)));
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
+    merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
+    merged.settings.notiFilters = { ...(defaultGame.settings.notiFilters || {}), ...(merged.settings.notiFilters || {}) };
     merged.playerHp = Math.max(1, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 1)));
+    merged.playerEnergyShield = Math.max(0, Math.floor(clampFiniteNumber(merged.playerEnergyShield, defaultGame.playerEnergyShield, 0))); 
     merged.moveTimer = clampFiniteNumber(merged.moveTimer, defaultGame.moveTimer, 0);
     merged.moveTotalTime = clampFiniteNumber(merged.moveTotalTime, defaultGame.moveTotalTime, 0);
     merged.runProgress = clampFiniteNumber(merged.runProgress, defaultGame.runProgress, 0, 100);
@@ -3474,6 +3574,8 @@ function applyExternalSave(snapshot, sourceStamp) {
     persistLocalSave({ touchModifiedAt: false });
     recoverRuntimeState();
     refreshPassiveVisibility();
+    tickShrineState();
+    applyTabHeaderOrder();
     calculateReachableNodes();
     normalizeSupportLoadout(false);
     try {
@@ -3907,7 +4009,9 @@ function runStartupSmokeChecks() {
         issues.push('smoke-exception:' + (error && error.message ? error.message : String(error)));
     } finally {
         game = snapshot;
-        calculateReachableNodes();
+        tickShrineState();
+    applyTabHeaderOrder();
+    calculateReachableNodes();
         refreshPassiveVisibility();
         normalizeSupportLoadout(false);
     }
@@ -3953,11 +4057,21 @@ function init() {
     unlockPassiveStarEvolution({ silent: true });
     initBattleAssets();
     refreshPassiveVisibility();
+    tickShrineState();
+    applyTabHeaderOrder();
     calculateReachableNodes();
     document.getElementById('chk-combat-scene').checked = game.settings.showCombatScene !== false;
     document.getElementById('chk-log-combat').checked = game.settings.showCombatLog !== false;
     document.getElementById('chk-log-spawn').checked = game.settings.showSpawnLog !== false;
     document.getElementById('chk-log-exp').checked = game.settings.showExpLog !== false;
+
+    let tabOrderEl = document.getElementById('ui-tab-order-settings');
+    if (tabOrderEl) {
+        let header = document.querySelector('.tab-header');
+        let tabs = header ? Array.from(header.querySelectorAll('.tab-btn')) : [];
+        tabOrderEl.innerHTML = tabs.map(el => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button></span></div>`).join('');
+    }
+
     document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
     document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
