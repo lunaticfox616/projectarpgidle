@@ -181,6 +181,7 @@
                     <div id="battlefield-wrap" class="battlefield-wrap">
                         <canvas id="battlefield-canvas"></canvas>
                         <div class="battlefield-caption" id="ui-battlefield-caption">전장을 스캔 중...</div>
+                        <div id="ui-shrine-box" style="position:absolute; top:8px; right:10px; z-index:4; pointer-events:auto;"></div>
                     </div>
                 </div>
 
@@ -486,6 +487,7 @@
                 <div id="ui-market-locked" style="color:#8fb6d9; font-size:0.9em;">액트 5 클리어 시 거래소가 해금됩니다.</div>
                 <div id="ui-market-panel" style="display:none;">
                     <div id="ui-market-exchange-list" style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px;"></div>
+                    <div id="ui-market-black" style="margin-top:10px; background:#101722; border:1px solid #2b3f59; border-radius:8px; padding:8px;"></div>
                     <div style="margin-top:12px; background:#111923; border:1px solid #30485f; border-radius:8px; padding:10px;">
                         <div style="color:#f1c67d; margin-bottom:8px;">신성한 오브 특수 서비스</div>
                         <div id="ui-market-service-passive" style="margin-bottom:8px;"></div>
@@ -596,8 +598,8 @@
         <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
         <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
         <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
-        <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (해금 <span id="ui-talisman-board-size">9</span>/<span id="ui-talisman-board-size2">25</span>칸)</h3>
-        <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(5, 42px); gap:4px;"></div>
+        <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (해금 <span id="ui-talisman-board-size">16</span>/<span id="ui-talisman-board-size2">44</span>칸)</h3>
+        <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(8, 42px); gap:4px;"></div>
     </div>
 
     <div id="tab-codex" class="tab-content">
@@ -664,6 +666,10 @@
                     <select id="sel-active-hero" onchange="onHeroSelectionChanged()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px; min-width:140px;"></select>
                 </div>
                 <div id="ui-hero-talent-summary" style="font-size:0.82em; color:#9ec3e8;">캐릭터 재능 정보 로딩 중...</div>
+            </div>
+            <div style="background:#1a1a24; padding:10px; border:1px solid #3d3d5c; border-radius:6px; display:grid; gap:6px;">
+                <div style="color:#d5e7fa; font-weight:700;">탭 순서 조정</div>
+                <div id="ui-tab-order-settings" style="display:grid; gap:4px;"></div>
             </div>
             <hr style="border-color: #3d3d5c; width: 100%;">
             <button id="btn-open-death-log" onclick="openLastDeathLog()" style="background-color: #4a6078;">☠️ 최근 데스로그 보기</button>
