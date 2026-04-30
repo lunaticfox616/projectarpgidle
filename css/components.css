@@ -115,19 +115,19 @@
             #left-pane, #right-pane, .tab-content { overflow: visible; }
             body.mobile-battle-tab #left-pane { display: none; }
             #left-pane-toggle, #left-pane-expand-fab { display: none !important; }
-            body.mobile-battle-tab #tab-battle { padding: 10px; overflow: hidden; }
+            body.mobile-battle-tab #tab-battle { padding: 6px; overflow: hidden; height: calc(100dvh - 64px); max-height: calc(100dvh - 64px); }
             body.mobile-battle-tab #tab-battle.active { display: flex; flex-direction: column; }
-            body.mobile-battle-tab #tab-battle #battle-column { gap: 10px; min-height: 0; height: 100%; }
-            body.mobile-battle-tab #tab-battle .player-panel { padding: 12px; }
-            body.mobile-battle-tab #tab-battle .combat-panel { flex: 1; min-height: 0; padding: 12px; }
+            body.mobile-battle-tab #tab-battle #battle-column { gap: 6px; min-height: 0; height: 100%; max-height: 100%; }
+            body.mobile-battle-tab #tab-battle .player-panel { padding: 8px; }
+            body.mobile-battle-tab #tab-battle .combat-panel { flex: 1; min-height: 0; padding: 8px; display: flex; flex-direction: column; }
             body.mobile-battle-tab #tab-battle .combat-dashboard { grid-template-columns: 1fr; gap: 8px; flex: 1; min-height: 0; }
             body.mobile-battle-tab #tab-battle .combat-stage { min-height: 0; }
-            body.mobile-battle-tab #tab-battle #move-area { margin-bottom: 8px !important; }
-            body.mobile-battle-tab #tab-battle .battlefield-wrap { margin-top: 8px; height: min(25vh, 170px); }
-            body.mobile-battle-tab #tab-battle .enemy-list { max-height: 76px; }
-            body.mobile-battle-tab #tab-battle .combat-feed { height: clamp(150px, 25vh, 220px); max-height: 220px; }
+            body.mobile-battle-tab #tab-battle #move-area { margin-bottom: 4px !important; }
+            body.mobile-battle-tab #tab-battle .battlefield-wrap { margin-top: 4px; height: min(22dvh, 150px); }
+            body.mobile-battle-tab #tab-battle .enemy-list { max-height: 64px; }
+            body.mobile-battle-tab #tab-battle .combat-feed { height: clamp(120px, 22dvh, 170px); max-height: 170px; }
             body.mobile-battle-tab #tab-battle #log { min-height: 0; }
-            body.mobile-battle-tab #tab-battle .combat-panel > h2 { margin-bottom: 8px; }
+            body.mobile-battle-tab #tab-battle .combat-panel > h2 { margin-bottom: 4px; font-size: 1rem; }
             .combat-dashboard { grid-template-columns: 1fr; }
             .combat-feed { min-height: 0; height: clamp(220px, 34vh, 320px); max-height: 320px; overflow: hidden; }
             #log { min-height: 0; height: 100%; max-height: 100%; }
