@@ -3671,7 +3671,8 @@ function normalizeItem(item) {
             valMin: min,
             valMax: max,
             tier: Math.max(0, Math.floor(coerceFiniteNumber(stat.tier, 0))),
-            statName: stat.statName || getStatName(stat.id)
+            statName: stat.statName || getStatName(stat.id),
+            originalVal: Number.isFinite(Number(stat.originalVal)) ? Number(stat.originalVal) : null
         };
     }
     item.baseStats = Array.isArray(item.baseStats) ? item.baseStats.map(normalizeStatRecord).filter(Boolean) : [];
@@ -3720,7 +3721,7 @@ function chooseItemBase(slot, zoneTier) {
 }
 
 function rollBaseStats(base, zoneTier) {
-    let mult = 1 + Math.max(0, zoneTier - base.reqTier) * 0.18;
+    let mult = 1 + Math.max(0, zoneTier) * 0.18;
     return base.baseStats.map(stat => {
         let val = stat.base * mult;
         if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) val = Math.round(val * 10) / 10;
