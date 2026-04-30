@@ -221,6 +221,70 @@ function marketExpandJewelInventoryByDivine() {
     updateStaticUI();
 }
 
+
+function buildBlackMarketOffer(index) {
+    let tier = (getZone(game.currentZoneId) || { tier: 1 }).tier || 1;
+    let roll = Math.random();
+    if (roll < 0.45) {
+        let recipe = rndChoice(MARKET_EXCHANGES);
+        return { type:'exchange', name:`암거래 교환 #${index+1}`, from:recipe.from, to:recipe.to, need:Math.max(1, Math.floor(recipe.need*0.8)), gain:recipe.gain };
+    }
+    if (roll < 0.75) {
+        let base = chooseItemBase(rndChoice(['무기','투구','갑옷','장갑','신발']), tier);
+        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, reqTier:tier, priceKey:'chaos', price:2+Math.floor(tier/3) };
+    }
+    if (roll < 0.9) {
+        let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !(game.skills||[]).includes(k));
+        if (missing.length>0) return { type:'skillGem', name:rndChoice(missing), priceKey:'chaos', price:5 };
+    }
+    let uniq = rndChoice(UNIQUE_DB.filter(u => (u.reqTier||1) <= tier+2));
+    return { type:'unique', name:uniq.name, slot:uniq.slots[0], reqTier:uniq.reqTier||tier, priceKey:'divine', price:1 };
+}
+
+function refreshBlackMarket(force) {
+    if (!isMarketUnlocked()) return;
+    game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [] };
+    let now = Date.now();
+    if (!force && now < (game.blackMarket.nextRefreshAt || 0)) return;
+    let count = 6 + Math.max(0, Math.floor(game.blackMarket.extraSlots || 0));
+    game.blackMarket.offers = Array.from({ length: count }, (_, i) => buildBlackMarketOffer(i));
+    game.blackMarket.nextRefreshAt = now + (10 * 60 * 1000);
+}
+
+function expandBlackMarketSlotsByDivine(){
+    if ((game.currencies.divine||0) < 1) return addLog('신성한 오브가 부족합니다.', 'attack-monster');
+    game.currencies.divine--;
+    game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [] };
+    game.blackMarket.extraSlots = Math.max(0, Math.floor(game.blackMarket.extraSlots||0)) + 1;
+    refreshBlackMarket(true);
+    addLog('🕶️ 암거래상 품목 슬롯이 늘어났습니다.', 'loot-unique');
+    updateStaticUI();
+}
+
+function buyBlackMarketOffer(idx){
+    refreshBlackMarket(false);
+    let offer = (game.blackMarket && game.blackMarket.offers || [])[idx]; if(!offer) return;
+    if (offer.type==='exchange') {
+        if ((game.currencies[offer.from]||0) < offer.need) return addLog('재화가 부족합니다.', 'attack-monster');
+        game.currencies[offer.from]-=offer.need; awardCurrency(offer.to, offer.gain);
+    } else if (offer.type==='skillGem') {
+        if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
+        if ((game.skills||[]).includes(offer.name)) return addLog('이미 보유한 젬입니다.', 'attack-monster');
+        game.currencies[offer.priceKey]-=offer.price; game.skills.push(offer.name); game.gemData[offer.name]={level:1,exp:0};
+    } else if (offer.type==='baseItem') {
+        if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
+        game.currencies[offer.priceKey]-=offer.price;
+        let base = chooseItemBase(offer.slot, offer.reqTier); let item = generateEquipmentDrop({ isBoss:false, isElite:false, ele:'phys' }, offer.slot); if(item) addItemToInventory(item);
+    } else if (offer.type==='unique') {
+        if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
+        game.currencies[offer.priceKey]-=offer.price;
+        let item = generateUniqueItem(offer.reqTier, offer.slot); if(item) addItemToInventory(item);
+    }
+    game.blackMarket.offers[idx]=null;
+    addLog('🕶️ 암거래 구매 완료', 'loot-magic');
+    updateStaticUI();
+}
+
 function renderMarketUI() {
     let lockedEl = document.getElementById('ui-market-locked');
     let panelEl = document.getElementById('ui-market-panel');
@@ -229,6 +293,7 @@ function renderMarketUI() {
     lockedEl.style.display = unlocked ? 'none' : 'block';
     panelEl.style.display = unlocked ? 'block' : 'none';
     if (!unlocked) return;
+    refreshBlackMarket(false);
 
     let listEl = document.getElementById('ui-market-exchange-list');
     if (listEl) {
@@ -281,7 +346,20 @@ function renderMarketUI() {
             <button onclick="marketExpandJewelInventoryByDivine()">주얼 인벤토리 확장</button>`;
         }
     }
+    let bmEl = document.getElementById('ui-market-black');
+    if (bmEl) {
+        let remain = Math.max(0, Math.floor(((game.blackMarket && game.blackMarket.nextRefreshAt || 0) - Date.now()) / 1000));
+        let mm = String(Math.floor(remain / 60)).padStart(2,'0');
+        let ss = String(remain % 60).padStart(2,'0');
+        let offers = (game.blackMarket && game.blackMarket.offers || []).map((offer, idx) => {
+            if (!offer) return `<div style="opacity:.5;">품절</div>`;
+            let desc = offer.type==='exchange' ? `${ORB_DB[offer.from].name} ${offer.need} → ${ORB_DB[offer.to].name} ${offer.gain}` : (offer.type==='skillGem' ? `미보유 젬 [${offer.name}]` : offer.name);
+            let price = offer.type==='exchange' ? '' : ` (${ORB_DB[offer.priceKey].name} ${offer.price})`;
+            return `<div style="display:flex; justify-content:space-between; gap:6px;"><span>${desc}${price}</span><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
+        }).join('');
+        bmEl.innerHTML = `<div style="margin-bottom:6px; color:#d5e7fa;">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; gap:5px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()">신성한 오브 1개로 품목 +1</button>`;
+    }
 }
 
 
-safeExposeGlobals({ marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI });
+safeExposeGlobals({ marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, expandBlackMarketSlotsByDivine });
