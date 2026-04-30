@@ -1790,6 +1790,15 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-maxexp').innerText = getExpReq(game.level);
     document.getElementById('ui-exp-bar').style.width = ((game.exp / getExpReq(game.level)) * 100) + '%';
     document.getElementById('ui-player-level').innerText = 'Lv.' + game.level;
+    [['ui-hp', 'ui-hp-mobile'], ['ui-maxhp', 'ui-maxhp-mobile'], ['ui-exp', 'ui-exp-mobile'], ['ui-maxexp', 'ui-maxexp-mobile'], ['ui-player-level', 'ui-player-level-mobile']].forEach(([src, dst]) => {
+        let sourceEl = document.getElementById(src);
+        let targetEl = document.getElementById(dst);
+        if (sourceEl && targetEl) targetEl.innerText = sourceEl.innerText;
+    });
+    let hpBarMobile = document.getElementById('ui-hp-bar-mobile');
+    if (hpBarMobile) hpBarMobile.style.width = document.getElementById('ui-hp-bar').style.width;
+    let expBarMobile = document.getElementById('ui-exp-bar-mobile');
+    if (expBarMobile) expBarMobile.style.width = document.getElementById('ui-exp-bar').style.width;
     let ailmentEl = document.getElementById('ui-player-ailments');
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', shock: '감전', poison: '중독' };
