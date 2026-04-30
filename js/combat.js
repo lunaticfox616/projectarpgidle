@@ -1585,6 +1585,7 @@ function tickAilments(pStats, dt) {
 function performMonsterAttacks(pStats) {
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
+    game.playerEnergyShield = Math.max(0, Math.min(Math.floor(Number(game.playerEnergyShield) || 0), Math.floor(pStats.energyShield || 0)));
     let aliveCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let crowdPenalty = Math.max(0.34, 1 - Math.max(0, aliveCount - 1) * 0.055);
     for (let enemy of (game.enemies || [])) {
@@ -1625,16 +1626,16 @@ function performMonsterAttacks(pStats) {
             if (enemy.isBoss) dmg = Math.floor(dmg * (1.08 + zone.tier * 0.15));
             if (!enemy.isBoss) dmg = Math.floor(dmg * crowdPenalty);
             dmg = Math.floor(dmg * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (enemy.isBoss ? (abyssScale.bossMul || 1) : 1));
-            let physicalPortion = dmg;
-            let elementalPortion = dmg;
+            let physicalPortion = Math.floor(dmg * 0.5);
+            let elementalPortion = Math.max(0, dmg - physicalPortion);
             let pRes = 0;
-            if (enemy.ele === 'phys') pRes = pStats.dr + (pStats.armor / (pStats.armor + Math.max(1, physicalPortion) * 10)) * 100;
+            if (enemy.ele === 'phys') { physicalPortion = dmg; elementalPortion = 0; pRes = pStats.dr + (pStats.armor / (pStats.armor + Math.max(1, physicalPortion) * 10)) * 100; }
             else if (enemy.ele === 'fire') pRes = pStats.resF;
             else if (enemy.ele === 'cold') pRes = pStats.resC;
             else if (enemy.ele === 'light') pRes = pStats.resL;
             else if (enemy.ele === 'chaos') pRes = pStats.resChaos;
             pRes = Math.max(-60, pRes - (enemy.penetration || 0));
-elementalPortion = Math.floor(elementalPortion * (1 - (pRes / 100)));
+            elementalPortion = Math.floor(elementalPortion * (1 - (pRes / 100)));
             let physRes = Math.max(-60, (pStats.dr + (pStats.armor / (pStats.armor + Math.max(1, physicalPortion) * 10)) * 100) - (enemy.penetration || 0));
             physicalPortion = Math.floor(physicalPortion * (1 - (physRes / 100)));
             dmg = Math.max(1, elementalPortion + physicalPortion);

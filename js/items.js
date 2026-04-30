@@ -274,7 +274,20 @@ function buyBlackMarketOffer(idx){
     } else if (offer.type==='baseItem') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
         game.currencies[offer.priceKey]-=offer.price;
-        let base = chooseItemBase(offer.slot, offer.reqTier); let item = generateEquipmentDrop({ isBoss:false, isElite:false, ele:'phys' }, offer.slot); if(item) addItemToInventory(item);
+        let base = BASE_ITEM_DB.find(row => row && row.name === offer.name.replace(' 베이스','') && row.slot === offer.slot) || chooseItemBase(offer.slot, offer.reqTier);
+        let item = normalizeItem({
+            id: ++itemIdCounter,
+            slot: base.slot,
+            baseId: base.id,
+            baseName: base.name,
+            name: base.name,
+            rarity: 'normal',
+            itemTier: offer.reqTier || base.reqTier || 1,
+            hiddenTier: offer.reqTier || base.reqTier || 1,
+            baseStats: rollBaseStats(base, offer.reqTier || base.reqTier || 1),
+            stats: []
+        });
+        if (item) addItemToInventory(item);
     } else if (offer.type==='unique') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
         game.currencies[offer.priceKey]-=offer.price;
