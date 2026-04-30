@@ -28,6 +28,9 @@ function applyTabHeaderOrder(){
     let map={}; Array.from(header.querySelectorAll('.tab-btn')).forEach(el=>map[el.id]=el);
     order.forEach(id=>{ if(map[id]) header.appendChild(map[id]); });
     ids.forEach(id=>{ if(!order.includes(id) && map[id]) header.appendChild(map[id]); });
+    let btns = Array.from(header.querySelectorAll('.tab-btn'));
+    let split = Math.ceil(btns.length / 2);
+    btns.forEach((el, idx) => { el.classList.toggle('tab-row-top', idx < split); el.classList.toggle('tab-row-bottom', idx >= split); });
 }
 function moveTabButton(tabId, dir){
     game.settings=game.settings||{};

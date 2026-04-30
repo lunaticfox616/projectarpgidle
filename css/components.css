@@ -110,7 +110,7 @@
         }
 
         @media (max-width: 1080px) {
-            body { flex-direction: column; overflow-y: auto; overflow-x: hidden; align-items: stretch; }
+            body { flex-direction: column; overflow-y: auto; overflow-x: hidden; align-items: stretch; touch-action: pan-y; }
             #left-pane, #right-pane { width: 100%; min-width: 0; height: auto; }
             #left-pane, #right-pane, .tab-content { overflow: visible; }
             body.mobile-battle-tab #left-pane { display: none; }
@@ -137,8 +137,8 @@
             .combat-panel > h2 > span:first-child { order: 1; }
             .combat-panel > h2 > button { order: 2; margin-left: auto; }
             #ui-combat-zone { order: 3; flex: 1 0 100% !important; text-align: left !important; }
-            .tab-header { position: sticky; top: 0; z-index: 25; background: rgba(18,18,22,0.98); backdrop-filter: blur(10px); }
-            .tab-btn { flex: 1 0 50%; min-width: 0; padding: 10px 8px; white-space: nowrap; text-align:center; }
+            .tab-header { position: sticky; top: 0; z-index: 25; background: rgba(18,18,22,0.98); backdrop-filter: blur(10px); display:grid; grid-template-columns: 1fr 1fr; width:100%; overflow:hidden; }
+            .tab-btn { flex: 1 0 50%; min-width: 0; padding: 8px 6px; white-space: nowrap; text-align:center; font-size:0.86em; }
             #tab-char > div { height: auto !important; min-height: 0; }
             #tree-container { min-height: clamp(360px, 62vh, 520px) !important; }
             .craft-layout { grid-template-columns: 1fr; }
