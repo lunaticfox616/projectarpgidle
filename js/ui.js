@@ -20,6 +20,16 @@ function clickActiveShrine(){
     updateStaticUI();
 }
 
+function renderTabOrderSettings() {
+    let tabOrderEl = document.getElementById('ui-tab-order-settings');
+    if (!tabOrderEl) return;
+    let topHeader = document.querySelector('.tab-header');
+    let tabs = topHeader ? Array.from(topHeader.querySelectorAll('.tab-btn')) : [];
+    tabOrderEl.innerHTML = tabs.map(el => {
+        let place = (((game.settings || {}).tabPlacement || {})[el.id] || 'top');
+        return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/, '')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
+    }).join('');
+}
 function applyTabHeaderOrder(){
     let headers = Array.from(document.querySelectorAll('.tab-header'));
     let topHeader = headers[0];
@@ -1780,6 +1790,15 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-maxexp').innerText = getExpReq(game.level);
     document.getElementById('ui-exp-bar').style.width = ((game.exp / getExpReq(game.level)) * 100) + '%';
     document.getElementById('ui-player-level').innerText = 'Lv.' + game.level;
+    [['ui-hp', 'ui-hp-mobile'], ['ui-maxhp', 'ui-maxhp-mobile'], ['ui-exp', 'ui-exp-mobile'], ['ui-maxexp', 'ui-maxexp-mobile'], ['ui-player-level', 'ui-player-level-mobile']].forEach(([src, dst]) => {
+        let sourceEl = document.getElementById(src);
+        let targetEl = document.getElementById(dst);
+        if (sourceEl && targetEl) targetEl.innerText = sourceEl.innerText;
+    });
+    let hpBarMobile = document.getElementById('ui-hp-bar-mobile');
+    if (hpBarMobile) hpBarMobile.style.width = document.getElementById('ui-hp-bar').style.width;
+    let expBarMobile = document.getElementById('ui-exp-bar-mobile');
+    if (expBarMobile) expBarMobile.style.width = document.getElementById('ui-exp-bar').style.width;
     let ailmentEl = document.getElementById('ui-player-ailments');
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', shock: '감전', poison: '중독' };
