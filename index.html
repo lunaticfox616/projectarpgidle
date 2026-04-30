@@ -146,16 +146,6 @@
     <div class="panel player-panel" style="position: relative;">
         <button id="left-pane-toggle" onclick="toggleLeftPaneCollapse()" title="전투 패널 접기" aria-label="전투 패널 접기">◀</button>
         <h2 style="display:none;">플레이어</h2>
-        <div style="font-size: 0.9em; font-weight: bold; color: #d980fa; margin-top: 0;"><span id="ui-player-level">Lv.1</span> 경험치</div>
-        <div class="hp-bar-bg" style="height: 12px; margin-top: 2px;">
-            <div id="ui-exp-bar" class="hp-bar-fill exp" style="width: 0%;"></div>
-            <div class="hp-text" style="line-height: 12px; font-size: 10px;"><span id="ui-exp">0</span> / <span id="ui-maxexp">100</span></div>
-        </div>
-        <div style="font-size: 0.9em; font-weight: bold; color: #20bf6b; margin-top: 10px;">생명력</div>
-        <div class="hp-bar-bg">
-            <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
-            <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span></div>
-        </div>
         <div id="ui-player-ailments" style="font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:2px;"></div>
         <div class="summary-actions">
             <button onclick="switchTab('tab-character')" style="background:#35506a;">캐릭터 상세</button>
@@ -169,6 +159,18 @@
             <span style="font-size: 0.75em; font-weight: normal; color: #a5b1c2; flex: 1; text-align: center;" id="ui-combat-zone">⚔️ 전투 액트 1: 뿌리끝 성소</span>
             <button onclick="returnToTown()" style="background-color: #2980b9; font-size: 0.7em; padding: 4px 8px;">귀환</button>
         </h2>
+        <div class="combat-top-status">
+            <div style="font-size: 0.9em; font-weight: bold; color: #d980fa; margin-top: 0;"><span id="ui-player-level">Lv.1</span> 경험치</div>
+            <div class="hp-bar-bg" style="height: 12px; margin-top: 2px;">
+                <div id="ui-exp-bar" class="hp-bar-fill exp" style="width: 0%;"></div>
+                <div class="hp-text" style="line-height: 12px; font-size: 10px;"><span id="ui-exp">0</span> / <span id="ui-maxexp">100</span></div>
+            </div>
+            <div style="font-size: 0.9em; font-weight: bold; color: #20bf6b; margin-top: 8px;">생명력</div>
+            <div class="hp-bar-bg">
+                <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
+                <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span></div>
+            </div>
+        </div>
 
         <div class="combat-dashboard">
             <div class="combat-stage">
@@ -221,7 +223,7 @@
         <div class="tab-btn" id="btn-tab-talisman" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
         <div class="tab-btn active" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: block;">설정</div>
     </div>
-
+    <div class="tab-header tab-header-bottom" id="tab-header-bottom"></div>
     <div id="tab-battle" class="tab-content"></div>
 
     <div id="tab-character" class="tab-content">
@@ -668,7 +670,7 @@
                 <div id="ui-hero-talent-summary" style="font-size:0.82em; color:#9ec3e8;">캐릭터 재능 정보 로딩 중...</div>
             </div>
             <div style="background:#1a1a24; padding:10px; border:1px solid #3d3d5c; border-radius:6px; display:grid; gap:6px;">
-                <div style="color:#d5e7fa; font-weight:700;">탭 순서 조정</div>
+                <div style="color:#d5e7fa; font-weight:700;">탭 순서/위치 조정</div>
                 <div id="ui-tab-order-settings" style="display:grid; gap:4px;"></div>
             </div>
             <hr style="border-color: #3d3d5c; width: 100%;">

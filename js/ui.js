@@ -21,21 +21,43 @@ function clickActiveShrine(){
 }
 
 function applyTabHeaderOrder(){
-    let header=document.querySelector('.tab-header'); if(!header) return;
+    let headers = Array.from(document.querySelectorAll('.tab-header'));
+    let topHeader = headers[0];
+    if(!topHeader) return;
+    let bottomHeader = document.getElementById('tab-header-bottom');
     game.settings=game.settings||{};
-    let ids=Array.from(header.querySelectorAll('.tab-btn')).map(el=>el.id);
+    game.settings.tabPlacement = game.settings.tabPlacement || {};
+    let allTabButtons = headers.flatMap(header => Array.from(header.querySelectorAll('.tab-btn')));
+    let ids=allTabButtons.map(el=>el.id);
     let order=Array.isArray(game.settings.tabOrder)?game.settings.tabOrder:ids;
-    let map={}; Array.from(header.querySelectorAll('.tab-btn')).forEach(el=>map[el.id]=el);
-    order.forEach(id=>{ if(map[id]) header.appendChild(map[id]); });
-    ids.forEach(id=>{ if(!order.includes(id) && map[id]) header.appendChild(map[id]); });
-    let btns = Array.from(header.querySelectorAll('.tab-btn'));
-    let split = Math.ceil(btns.length / 2);
-    btns.forEach((el, idx) => { el.classList.toggle('tab-row-top', idx < split); el.classList.toggle('tab-row-bottom', idx >= split); });
+    let map={}; allTabButtons.forEach(el=>map[el.id]=el);
+    order.forEach(id=>{
+        if(!map[id]) return;
+        let target = (game.settings.tabPlacement[id] === 'bottom' && bottomHeader) ? bottomHeader : topHeader;
+        target.appendChild(map[id]);
+    });
+    ids.forEach(id=>{ if(!order.includes(id) && map[id]) topHeader.appendChild(map[id]); });
+    if (bottomHeader) bottomHeader.style.display = bottomHeader.children.length ? 'flex' : 'none';
+    let tabOrderEl = document.getElementById('ui-tab-order-settings');
+    if (tabOrderEl) {
+        let tabs = Array.from(document.querySelectorAll('.tab-header .tab-btn'));
+        tabOrderEl.innerHTML = tabs.map(el => {
+            let place = (game.settings.tabPlacement[el.id] === 'bottom') ? 'bottom' : 'top';
+            return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
+        }).join('');
+    }
+}
+function setTabPlacement(tabId, placement){
+    game.settings = game.settings || {};
+    game.settings.tabPlacement = game.settings.tabPlacement || {};
+    game.settings.tabPlacement[tabId] = placement === 'bottom' ? 'bottom' : 'top';
+    applyTabHeaderOrder();
 }
 function moveTabButton(tabId, dir){
     game.settings=game.settings||{};
-    let header=document.querySelector('.tab-header'); if(!header) return;
-    let ids=Array.from(header.querySelectorAll('.tab-btn')).map(el=>el.id);
+    let headers = Array.from(document.querySelectorAll('.tab-header'));
+    if (!headers.length) return;
+    let ids=headers.flatMap(header => Array.from(header.querySelectorAll('.tab-btn')).map(el=>el.id));
     let order=Array.isArray(game.settings.tabOrder)?game.settings.tabOrder.slice():ids.slice();
     if(order.length!==ids.length) order=ids.slice();
     let idx=order.indexOf(tabId); if(idx<0) return;
@@ -4069,12 +4091,7 @@ function init() {
     document.getElementById('chk-log-spawn').checked = game.settings.showSpawnLog !== false;
     document.getElementById('chk-log-exp').checked = game.settings.showExpLog !== false;
 
-    let tabOrderEl = document.getElementById('ui-tab-order-settings');
-    if (tabOrderEl) {
-        let header = document.querySelector('.tab-header');
-        let tabs = header ? Array.from(header.querySelectorAll('.tab-btn')) : [];
-        tabOrderEl.innerHTML = tabs.map(el => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button></span></div>`).join('');
-    }
+    applyTabHeaderOrder();
 
     document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
     document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
