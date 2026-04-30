@@ -16,7 +16,29 @@ function clickActiveShrine(){
     game.shrineBuff = { name: active.name, stat: stat, value: value, expiresAt: Date.now() + 45000 };
     game.shrineState.active = null;
     addLog(`🛕 ${active.name} 축복 활성화!`, 'loot-rare');
+    applyTabHeaderOrder();
     updateStaticUI();
+}
+
+function applyTabHeaderOrder(){
+    let header=document.querySelector('.tab-header'); if(!header) return;
+    game.settings=game.settings||{};
+    let ids=Array.from(header.querySelectorAll('.tab-btn')).map(el=>el.id);
+    let order=Array.isArray(game.settings.tabOrder)?game.settings.tabOrder:ids;
+    let map={}; Array.from(header.querySelectorAll('.tab-btn')).forEach(el=>map[el.id]=el);
+    order.forEach(id=>{ if(map[id]) header.appendChild(map[id]); });
+    ids.forEach(id=>{ if(!order.includes(id) && map[id]) header.appendChild(map[id]); });
+}
+function moveTabButton(tabId, dir){
+    game.settings=game.settings||{};
+    let header=document.querySelector('.tab-header'); if(!header) return;
+    let ids=Array.from(header.querySelectorAll('.tab-btn')).map(el=>el.id);
+    let order=Array.isArray(game.settings.tabOrder)?game.settings.tabOrder.slice():ids.slice();
+    if(order.length!==ids.length) order=ids.slice();
+    let idx=order.indexOf(tabId); if(idx<0) return;
+    let ni=Math.max(0, Math.min(order.length-1, idx+dir)); if(ni===idx) return;
+    let t=order[idx]; order[idx]=order[ni]; order[ni]=t; game.settings.tabOrder=order;
+    applyTabHeaderOrder();
 }
 
 function isNotiEnabled(key){ game.settings=game.settings||{}; game.settings.notiFilters=game.settings.notiFilters||{}; return game.settings.notiFilters[key] !== false; }
@@ -1904,6 +1926,7 @@ function updateStaticUI() {
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });
     tickShrineState();
+    applyTabHeaderOrder();
     calculateReachableNodes();
     refreshPassiveVisibility();
     normalizeSupportLoadout(true);
@@ -2557,6 +2580,7 @@ function setupCanvasEvents() {
             revealAroundNode(hoverNode.id, { forcePulse: true });
             unlockPassiveStarEvolution();
             tickShrineState();
+    applyTabHeaderOrder();
     calculateReachableNodes();
             addLog(`🌟 ${getPassiveNodeDisplayName(hoverNode)} 활성화!`, "loot-magic");
             updateStaticUI();
@@ -3535,6 +3559,7 @@ function applyExternalSave(snapshot, sourceStamp) {
     recoverRuntimeState();
     refreshPassiveVisibility();
     tickShrineState();
+    applyTabHeaderOrder();
     calculateReachableNodes();
     normalizeSupportLoadout(false);
     try {
@@ -3969,6 +3994,7 @@ function runStartupSmokeChecks() {
     } finally {
         game = snapshot;
         tickShrineState();
+    applyTabHeaderOrder();
     calculateReachableNodes();
         refreshPassiveVisibility();
         normalizeSupportLoadout(false);
@@ -4016,11 +4042,20 @@ function init() {
     initBattleAssets();
     refreshPassiveVisibility();
     tickShrineState();
+    applyTabHeaderOrder();
     calculateReachableNodes();
     document.getElementById('chk-combat-scene').checked = game.settings.showCombatScene !== false;
     document.getElementById('chk-log-combat').checked = game.settings.showCombatLog !== false;
     document.getElementById('chk-log-spawn').checked = game.settings.showSpawnLog !== false;
     document.getElementById('chk-log-exp').checked = game.settings.showExpLog !== false;
+
+    let tabOrderEl = document.getElementById('ui-tab-order-settings');
+    if (tabOrderEl) {
+        let header = document.querySelector('.tab-header');
+        let tabs = header ? Array.from(header.querySelectorAll('.tab-btn')) : [];
+        tabOrderEl.innerHTML = tabs.map(el => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button></span></div>`).join('');
+    }
+
     document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
     document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
