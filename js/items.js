@@ -163,7 +163,7 @@ function changeZone(id) {
 }
 
 
-Object.assign(window, { selectForCrafting, equipItem, equipItemById, unequipItem, salvageItemById, toggleItemLockById });
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, unequipItem, salvageItemById, toggleItemLockById });
 
 // Phase-3 extracted market/crafting service handlers.
 function marketResetPassiveTreeByDivine() {
@@ -284,4 +284,4 @@ function renderMarketUI() {
 }
 
 
-Object.assign(window, { marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI });
+safeExposeGlobals({ marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI });

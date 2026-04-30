@@ -219,4 +219,4 @@ function getActiveSkillStats(bonusLevel) {
 }
 
 
-Object.assign(window, { upgradeActiveGem, upgradeSkyEngraveCap, applySkyGemEnhancementToActive, removeSkyGemEnhancementFromActive, normalizeSupportLoadout, getSkillTargets });
+safeExposeGlobals({ upgradeActiveGem, upgradeSkyEngraveCap, applySkyGemEnhancementToActive, removeSkyGemEnhancementFromActive, normalizeSupportLoadout });

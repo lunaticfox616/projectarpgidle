@@ -26,6 +26,11 @@ function switchTab(tabId) {
             drawPassiveTree();
             resizeCanvas();
         }, 40);
+    } else if (tabId === 'tab-battle') {
+        setTimeout(function () {
+            syncBattleTabLayout(false);
+            scheduleStableResize();
+        }, 40);
     }
 }
 
@@ -1651,7 +1656,7 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
 }
 
 
-Object.assign(window, { switchTab });
+safeExposeGlobals({ switchTab });
 
 function updateCombatUI(pStats) {
     game.playerHp = Math.min(game.playerHp, pStats.maxHp);
@@ -1841,7 +1846,7 @@ function isEdgeInViewport(edge, viewport, margin) {
 }
 
 
-Object.assign(window, { updateCombatUI });
+safeExposeGlobals({ updateCombatUI });
 
 // Phase-2 appended static UI renderer block.
 function updateStaticUI() {
@@ -2331,6 +2336,8 @@ function setupCanvasEvents() {
     const canvasTooltip = document.getElementById('canvas-tooltip');
     let pinchStartDistance = 0;
     let touchStartZoom = camZoom;
+    let pinchAnchorWorldX = 0;
+    let pinchAnchorWorldY = 0;
     let lastTouchX = 0;
     let lastTouchY = 0;
     let pendingTouchPassiveId = null;
@@ -2468,8 +2475,16 @@ function setupCanvasEvents() {
             }
             return;
         }
-        if (game.passivePoints <= 0) return addLog("패시브 포인트가 부족합니다.", "attack-monster");
-        if (options.fromTouch && !(game.passives || []).includes(hoverNode.id) && reachableNodes.has(hoverNode.id)) {
+        let canActivate = !(game.passives || []).includes(hoverNode.id) && reachableNodes.has(hoverNode.id);
+        if (!canActivate) {
+            if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
+            return addLog("연결된 노드가 아니라 활성화할 수 없습니다.", "attack-monster");
+        }
+        if (game.passivePoints <= 0) {
+            if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
+            return addLog("패시브 포인트가 부족합니다.", "attack-monster");
+        }
+        if (options.fromTouch && canActivate) {
             let now = Date.now();
             if (pendingTouchPassiveId !== hoverNode.id || (now - pendingTouchPassiveAt) > 1200) {
                 pendingTouchPassiveId = hoverNode.id;
@@ -2479,7 +2494,7 @@ function setupCanvasEvents() {
                 return;
             }
         }
-        if (!(game.passives || []).includes(hoverNode.id) && reachableNodes.has(hoverNode.id)) {
+        if (canActivate) {
             pendingTouchPassiveId = null;
             game.passives.push(hoverNode.id);
             game.passivePoints--;
@@ -2539,10 +2554,17 @@ function setupCanvasEvents() {
         if (!e.touches.length) return;
         e.preventDefault();
         if (e.touches.length >= 2) {
+            const rect = canvas.getBoundingClientRect();
             let dx = e.touches[0].clientX - e.touches[1].clientX;
             let dy = e.touches[0].clientY - e.touches[1].clientY;
             pinchStartDistance = Math.hypot(dx, dy);
             touchStartZoom = camZoom;
+            let midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            let midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            let centerX = rect.width / 2;
+            let centerY = rect.height / 2;
+            pinchAnchorWorldX = (midX - rect.left - centerX - camX) / camZoom;
+            pinchAnchorWorldY = (midY - rect.top - centerY - camY) / camZoom;
             isDragging = false;
             pendingTouchPassiveId = null;
             hideCanvasTooltip();
@@ -2562,6 +2584,7 @@ function setupCanvasEvents() {
         if (!e.touches.length) return;
         e.preventDefault();
         if (e.touches.length >= 2) {
+            const rect = canvas.getBoundingClientRect();
             let dx = e.touches[0].clientX - e.touches[1].clientX;
             let dy = e.touches[0].clientY - e.touches[1].clientY;
             let distance = Math.hypot(dx, dy);
@@ -2570,6 +2593,12 @@ function setupCanvasEvents() {
                 touchStartZoom = camZoom;
             }
             camZoom = clampNumber(touchStartZoom * (distance / pinchStartDistance), 0.12, 2.5);
+            let midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            let midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            let centerX = rect.width / 2;
+            let centerY = rect.height / 2;
+            camX = (midX - rect.left - centerX) - (pinchAnchorWorldX * camZoom);
+            camY = (midY - rect.top - centerY) - (pinchAnchorWorldY * camZoom);
             clampPassiveCamera();
             pendingTouchPassiveId = null;
             drawPassiveTree();
@@ -4047,7 +4076,7 @@ function gameLoop() {
 }
 
 
-Object.assign(window, { updateStaticUI });
+safeExposeGlobals({ updateStaticUI });
 
 // Phase-4 extracted unlock/class/tab helper block.
 function checkUnlocks() {
@@ -4161,4 +4190,4 @@ function getLockedTabMessage(tabId) {
 }
 
 
-Object.assign(window, { checkUnlocks, buySeason, selectClass, buyAscend, getLockedTabMessage });
+safeExposeGlobals({ checkUnlocks, buySeason, selectClass, buyAscend, getLockedTabMessage });

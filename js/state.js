@@ -467,7 +467,7 @@ let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 
-Object.assign(window, { formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth });
 
 // Phase-4 extracted default state schema.
 const defaultGame = {
@@ -616,7 +616,7 @@ const defaultGame = {
 };
 
 
-Object.assign(window, { defaultGame });
+safeExposeGlobals({ defaultGame });
 
 // Phase-4 extracted progression math helpers.
 function getExpReq(level) {
@@ -642,4 +642,4 @@ function normalizeGemRecord(raw) {
 }
 
 
-Object.assign(window, { getExpReq, getGemReqExp, normalizeGemRecord });
+safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord });

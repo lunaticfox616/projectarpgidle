@@ -1,3 +1,9 @@
+function safeExposeData(map) {
+  Object.keys(map || {}).forEach(function (key) {
+    if (typeof window[key] === "undefined") window[key] = map[key];
+  });
+}
+
 // Phase-1 extracted runtime constants (kept global for backward compatibility).
 const PASSIVE_LAYOUT_VERSION = 4;
 const LOCAL_SAVE_KEY = 'poeIdleSaveData_v9';
@@ -22,7 +28,7 @@ const DEATH_REASON_TEXT = {
     other: '예기치 못한 피해가 한꺼번에 몰아쳤습니다.'
 };
 
-Object.assign(window, {
+safeExposeData({
   PASSIVE_LAYOUT_VERSION, LOCAL_SAVE_KEY, LEGACY_SAVE_KEYS, CLOUD_SESSION_STORAGE_KEY,
   CLOUD_SYNC_MIN_INTERVAL_MS, CLOUD_REMOTE_TIME_SKEW_MS, DAMAGE_ELEMENT_LABELS, DEATH_REASON_TEXT
 });

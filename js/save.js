@@ -81,4 +81,4 @@ function setCloudMessage(message) {
 }
 
 
-Object.assign(window, { readLocalSaveString, ensureSaveMeta, createSaveSnapshot, persistLocalSave, loadGame, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });
+safeExposeGlobals({ readLocalSaveString, ensureSaveMeta, createSaveSnapshot, persistLocalSave, loadGame, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });

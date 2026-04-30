@@ -1,3 +1,9 @@
+function safeExposeData(map) {
+  Object.keys(map || {}).forEach(function (key) {
+    if (typeof window[key] === "undefined") window[key] = map[key];
+  });
+}
+
 // Phase-1 extracted data (global compatibility).
 const ACT_REWARD_DB = {
     0: {
@@ -95,4 +101,4 @@ const ACT_REWARD_DB = {
 };
 
 
-Object.assign(window, { ACT_REWARD_DB });
+safeExposeData({ ACT_REWARD_DB });

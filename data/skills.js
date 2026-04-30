@@ -1,3 +1,9 @@
+function safeExposeData(map) {
+  Object.keys(map || {}).forEach(function (key) {
+    if (typeof window[key] === "undefined") window[key] = map[key];
+  });
+}
+
 // Phase-1 extracted data (global compatibility).
 const SKILL_DB = {
     '기본 공격': { isGem: false, baseDmg: 1.0, baseSpd: 1.0, leech: 0, crit: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '가장 가까운 적 하나를 가격합니다.', tags: ['attack', 'melee', 'physical'] },
@@ -32,4 +38,4 @@ const SKILL_DB = {
 };
 
 
-Object.assign(window, { SKILL_DB });
+safeExposeData({ SKILL_DB });

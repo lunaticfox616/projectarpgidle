@@ -1,3 +1,9 @@
+function safeExposeData(map) {
+  Object.keys(map || {}).forEach(function (key) {
+    if (typeof window[key] === "undefined") window[key] = map[key];
+  });
+}
+
 // Phase-1 extracted map/season/journal data.
 const STORY_ACTS = [
     { id: 'root_tip_sanctuary', order: 1, displayAct: '1', title: '뿌리끝 성소', subtitle: '썩은 잔뿌리를 베며 중간계로 돌아갈 길을 연다.', description: '뿌리없는 자는 뿌리끝의 드루이드에게 거두어져 뿌리길을 되살릴 사냥을 시작한다.', areaTheme: '축축한 뿌리, 곰팡이, 죽은 수액, 지하 성소', bossId: 'rotten_mane_rootlet', bossName: '썩은갈기의 잔뿌리', clearText: '썩은 잔뿌리가 잘려나가자, 오래 막혀 있던 뿌리길이 다시 열린다.', unlockText: '뿌리길의 봉인이 열리며 가지치기의 중정이 드러난다.', specialType: 'normal', tier: 1, maxKills: 1, ele: 'phys' },
@@ -127,4 +133,4 @@ const ABYSS_PASSIVE_NODES = [
     { key: 'magnifier', name: '핵심: 확대경', max: 1, cost: 5, desc: '맵 길이 2배(진행속도 절반), 무리규모 +50%' }
 ];
 
-Object.assign(window, { STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, STAR_WEDGE_RADIUS, MAX_MUTATIONS_PER_WEDGE, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES });
+safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, STAR_WEDGE_RADIUS, MAX_MUTATIONS_PER_WEDGE, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES });

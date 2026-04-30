@@ -1,3 +1,9 @@
+function safeExposeData(map) {
+  Object.keys(map || {}).forEach(function (key) {
+    if (typeof window[key] === "undefined") window[key] = map[key];
+  });
+}
+
 // Phase-1 extracted data block.
 const ACT_BOSS_NAMES = Object.fromEntries(STORY_ACTS.map((act, idx) => [idx, act.bossName]));
 
@@ -20,4 +26,4 @@ const ENEMY_TRAIT_POOL = [
     { id: 'physWard', name: '중갑 전개', dr: 14 }
 ];
 
-Object.assign(window, { ACT_BOSS_NAMES, ENEMY_TRAIT_POOL });
+safeExposeData({ ACT_BOSS_NAMES, ENEMY_TRAIT_POOL });

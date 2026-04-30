@@ -291,4 +291,11 @@ let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
 
-Object.assign(window, { clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, makeSourceLine });
+safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, makeSourceLine });
+
+function safeExposeGlobals(map) {
+    Object.keys(map || {}).forEach(function (key) {
+        if (typeof window[key] === "undefined") window[key] = map[key];
+    });
+}
+window.safeExposeGlobals = window.safeExposeGlobals || safeExposeGlobals;

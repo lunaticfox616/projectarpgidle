@@ -1,3 +1,9 @@
+function safeExposeData(map) {
+  Object.keys(map || {}).forEach(function (key) {
+    if (typeof window[key] === "undefined") window[key] = map[key];
+  });
+}
+
 // Phase-1 extracted data (global compatibility).
 const UNIQUE_DB = [
     { name: "핏빛 톱날", slots: ["무기"], reqTier: 1, stats: [{ id: "flatDmg", min: 12, max: 18 }, { id: "leech", min: 0.8, max: 1.2 }, { id: "minDmgRoll", min: 4, max: 7 }] },
@@ -133,4 +139,4 @@ const MARKET_EXCHANGES = [
     { id: 'm11', from: 'divine', to: 'chaos', need: 1, gain: 30 }
 ];
 
-Object.assign(window, { UNIQUE_DB, ORB_DB, MARKET_EXCHANGES });
+safeExposeData({ UNIQUE_DB, ORB_DB, MARKET_EXCHANGES });
