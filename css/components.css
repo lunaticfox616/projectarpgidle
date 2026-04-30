@@ -112,22 +112,27 @@
         @media (max-width: 1080px) {
             body { flex-direction: column; overflow-y: auto; overflow-x: hidden; align-items: stretch; touch-action: pan-y; }
             #left-pane, #right-pane { width: 100%; min-width: 0; height: auto; }
+            #right-pane { position: relative; padding-bottom: calc(58px + env(safe-area-inset-bottom)); }
             #left-pane, #right-pane, .tab-content { overflow: visible; }
             body.mobile-battle-tab #left-pane { display: none; }
             #left-pane-toggle, #left-pane-expand-fab { display: none !important; }
-            body.mobile-battle-tab #tab-battle { padding: 6px; overflow: hidden; height: calc(100dvh - 64px); max-height: calc(100dvh - 64px); }
+            body.mobile-battle-tab #tab-battle { padding: 6px; overflow: hidden; height: calc(100svh - 64px); max-height: calc(100svh - 64px); }
             body.mobile-battle-tab #tab-battle.active { display: flex; flex-direction: column; }
             body.mobile-battle-tab #tab-battle #battle-column { gap: 6px; min-height: 0; height: 100%; max-height: 100%; }
-            body.mobile-battle-tab #tab-battle .player-panel { padding: 8px; }
+            body.mobile-battle-tab #tab-battle .player-panel { padding: 4px 6px; margin-bottom: 4px; border: 0; background: rgba(14,20,29,0.45); }
             body.mobile-battle-tab #tab-battle .combat-panel { flex: 1; min-height: 0; padding: 8px; display: flex; flex-direction: column; }
             body.mobile-battle-tab #tab-battle .combat-dashboard { grid-template-columns: 1fr; gap: 8px; flex: 1; min-height: 0; }
-            body.mobile-battle-tab #tab-battle .combat-stage { min-height: 0; }
+            body.mobile-battle-tab #tab-battle .combat-stage { min-height: 0; overflow: hidden; }
             body.mobile-battle-tab #tab-battle #move-area { margin-bottom: 4px !important; }
             body.mobile-battle-tab #tab-battle .battlefield-wrap { margin-top: 4px; height: min(22dvh, 150px); }
-            body.mobile-battle-tab #tab-battle .enemy-list { max-height: 64px; }
+            body.mobile-battle-tab #tab-battle .enemy-list { max-height: none; min-height: 0; overflow: visible; }
             body.mobile-battle-tab #tab-battle .combat-feed { height: clamp(120px, 22dvh, 170px); max-height: 170px; }
             body.mobile-battle-tab #tab-battle #log { min-height: 0; }
             body.mobile-battle-tab #tab-battle .combat-panel > h2 { margin-bottom: 4px; font-size: 1rem; }
+            body.mobile-battle-tab #tab-battle .combat-panel > h2 { padding-bottom: 2px; margin-bottom: 2px; border-bottom-width: 1px; }
+            body.mobile-battle-tab #tab-battle .combat-panel > h2 #ui-combat-zone { display:none; }
+            .combat-zone-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin: 0 0 6px; }
+            .combat-zone-row-title { font-size: 0.75em; color: #a5b1c2; }
             body.mobile-battle-tab .summary-actions { display:none !important; }
             body.mobile-battle-tab #tab-battle .combat-panel > h2 > span:first-child { display:none; }
             .combat-dashboard { grid-template-columns: 1fr; }
@@ -137,8 +142,21 @@
             .combat-panel > h2 > span:first-child { order: 1; }
             .combat-panel > h2 > button { order: 2; margin-left: auto; }
             #ui-combat-zone { order: 3; flex: 1 0 100% !important; text-align: left !important; }
-            .tab-header { position: sticky; top: 0; z-index: 25; background: rgba(18,18,22,0.98); backdrop-filter: blur(10px); display:grid; grid-template-columns: 1fr 1fr; width:100%; overflow:hidden; }
-            .tab-btn { flex: 1 0 50%; min-width: 0; padding: 8px 6px; white-space: nowrap; text-align:center; font-size:0.86em; }
+            .tab-header { position: sticky; top: 0; z-index: 25; background: rgba(18,18,22,0.98); backdrop-filter: blur(10px); display:flex; width:100%; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling: touch; }
+            .tab-header-bottom {
+                position: fixed;
+                left: 10px;
+                right: 10px;
+                bottom: env(safe-area-inset-bottom);
+                z-index: 40;
+                border: 1px solid #2d3a4a;
+                border-radius: 10px 10px 0 0;
+                background: rgba(18,18,22,0.98);
+                box-shadow: 0 -6px 20px rgba(0,0,0,0.35);
+                margin-top: 0;
+            }
+            .tab-btn { flex: 0 0 auto; min-width: 96px; padding: 8px 6px; white-space: nowrap; text-align:center; font-size:0.86em; }
+            .combat-top-status { margin: 4px 0 8px; }
             #tab-char > div { height: auto !important; min-height: 0; }
             #tree-container { min-height: clamp(360px, 62vh, 520px) !important; }
             .craft-layout { grid-template-columns: 1fr; }
