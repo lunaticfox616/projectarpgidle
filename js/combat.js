@@ -654,6 +654,8 @@ function createEnemy(zone, marker, groupIndex) {
     let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
+    let loopHpScale = 1 + Math.max(0, (game.loopCount || 0) * 0.12);
+    hp = Math.floor(hp * loopHpScale);
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
     let isElite = !!marker.elite && !isBoss;
@@ -662,7 +664,7 @@ function createEnemy(zone, marker, groupIndex) {
         let hpRamp = Math.min(0.20, Math.max(0, abyssDepth - 1) * 0.015);
         hp = Math.floor(hp * (1 + hpRamp));
     }
-    if (isElite) hp = Math.floor(hp * 1.4);
+    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, (game.loopCount || 0) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
