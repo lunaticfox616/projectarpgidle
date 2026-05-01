@@ -131,8 +131,9 @@
             body.mobile-battle-tab #tab-battle .combat-panel > h2 { margin-bottom: 4px; font-size: 1rem; }
             body.mobile-battle-tab #tab-battle .combat-panel > h2 { padding-bottom: 2px; margin-bottom: 2px; border-bottom-width: 1px; }
             body.mobile-battle-tab #tab-battle .combat-panel > h2 #ui-combat-zone { display:none; }
-            .combat-zone-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin: 0 0 6px; }
-            .combat-zone-row-title { font-size: 0.75em; color: #a5b1c2; }
+            .combat-zone-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin: 0 0 6px; flex-wrap: nowrap; }
+            .combat-zone-row-title { font-size: 0.75em; color: #a5b1c2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .combat-zone-row button { flex-shrink: 0; }
             body.mobile-battle-tab .summary-actions { display:none !important; }
             body.mobile-battle-tab #tab-battle .combat-panel > h2 > span:first-child { display:none; }
             .combat-dashboard { grid-template-columns: 1fr; }
@@ -142,6 +143,8 @@
             .combat-panel > h2 > span:first-child { order: 1; }
             .combat-panel > h2 > button { order: 2; margin-left: auto; }
             #ui-combat-zone { order: 3; flex: 1 0 100% !important; text-align: left !important; }
+            #ui-market-panel { background: linear-gradient(180deg, #0d1420 0%, #0a111a 100%); border: 1px solid #2d425b; border-radius: 10px; padding: 10px; }
+            #ui-market-exchange-list > div, #ui-market-black > div { box-shadow: 0 3px 10px rgba(0,0,0,0.25); }
             .tab-header { position: sticky; top: 0; z-index: 25; background: rgba(18,18,22,0.98); backdrop-filter: blur(10px); display:flex; flex: 0 0 auto; width:100%; max-height: 52px; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling: touch; }
             .tab-header-bottom {
                 display: none;
