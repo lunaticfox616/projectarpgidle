@@ -130,7 +130,7 @@ const ABYSS_PASSIVE_NODES = [
     { key: 'elite', name: '정예', max: 20, desc: '희귀 몬스터 등장 확률 +2%/pt' },
     { key: 'coreRaid', name: '핵심: 수뇌부 공략', max: 1, cost: 5, desc: '보스 생명력/피해 10% 감소' },
     { key: 'arrogance', name: '핵심: 오만', max: 1, cost: 5, desc: '보스 생명력/피해 20% 증가, 보스 특수재화 확률 +5%' },
-    { key: 'magnifier', name: '핵심: 확대경', max: 1, cost: 5, desc: '맵 길이 2배(진행속도 절반), 무리규모 +50%' }
+    { key: 'magnifier', name: '핵심: 확대경', max: 1, cost: 5, desc: '맵 길이 2배(진행속도 절반), 무리규모 +20%' }
 ];
 
 safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, STAR_WEDGE_RADIUS, MAX_MUTATIONS_PER_WEDGE, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES });

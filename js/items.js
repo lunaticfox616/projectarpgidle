@@ -236,7 +236,11 @@ function upgradeSelectedItemBase() {
     let titleEl = document.getElementById('base-upgrade-title');
     let bodyEl = document.getElementById('base-upgrade-body');
     if (titleEl) titleEl.innerText = `${currentBase.name} → ${nextBase.name}`;
-    if (bodyEl) bodyEl.innerText = `비용: 카오스 오브 ${costChaos}${costDivine > 0 ? ` + 신성한 오브 ${costDivine}` : ''}`;
+    if (bodyEl) {
+        let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.base)}`).join(' / ');
+        let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.base)}`).join(' / ');
+        bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:#9bb2c9;">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 카오스 오브 ${costChaos}${costDivine > 0 ? ` + 신성한 오브 ${costDivine}` : ''}`;
+    }
     let overlay = document.getElementById('base-upgrade-overlay');
     if (overlay) overlay.classList.add('active');
 }
