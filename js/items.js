@@ -221,13 +221,67 @@ function marketExpandJewelInventoryByDivine() {
     updateStaticUI();
 }
 
+function upgradeSelectedItemBase() {
+    let item = getSelectedCraftItem();
+    if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
+    let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || BASE_ITEM_DB.find(base => base && base.name === item.baseName && base.slot === item.slot);
+    if (!currentBase) return addLog('현재 베이스 정보를 찾을 수 없습니다.', 'attack-monster');
+    let candidates = BASE_ITEM_DB.filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier).sort((a,b)=>a.reqTier-b.reqTier);
+    let nextBase = candidates[0];
+    if (!nextBase) return addLog('해당 계열의 다음 베이스가 없습니다.', 'attack-monster');
+    let isTopBase = candidates.length === 1;
+    let costChaos = Math.max(5, 3 + Math.floor((nextBase.reqTier - currentBase.reqTier) * 2.5));
+    let costDivine = isTopBase ? 1 : 0;
+    game.pendingBaseUpgrade = { itemId: item.id, nextBaseId: nextBase.id, costChaos: costChaos, costDivine: costDivine };
+    let titleEl = document.getElementById('base-upgrade-title');
+    let bodyEl = document.getElementById('base-upgrade-body');
+    if (titleEl) titleEl.innerText = `${currentBase.name} → ${nextBase.name}`;
+    if (bodyEl) {
+        let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.base)}`).join(' / ');
+        let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.base)}`).join(' / ');
+        bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:#9bb2c9;">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 카오스 오브 ${costChaos}${costDivine > 0 ? ` + 신성한 오브 ${costDivine}` : ''}`;
+    }
+    let overlay = document.getElementById('base-upgrade-overlay');
+    if (overlay) overlay.classList.add('active');
+}
+
+function closeBaseUpgradeOverlay() {
+    game.pendingBaseUpgrade = null;
+    let overlay = document.getElementById('base-upgrade-overlay');
+    if (overlay) overlay.classList.remove('active');
+}
+
+function confirmSelectedItemBaseUpgrade() {
+    let pending = game.pendingBaseUpgrade;
+    if (!pending) return;
+    let item = (game.inventory || []).find(v => v && v.id === pending.itemId);
+    if (!item) { closeBaseUpgradeOverlay(); return addLog('대상 장비를 찾을 수 없습니다.', 'attack-monster'); }
+    if ((game.currencies.chaos || 0) < (pending.costChaos || 0)) return addLog(`카오스 오브가 부족합니다. (필요: ${pending.costChaos})`, 'attack-monster');
+    if ((game.currencies.divine || 0) < (pending.costDivine || 0)) return addLog(`신성한 오브가 부족합니다. (필요: ${pending.costDivine})`, 'attack-monster');
+    game.currencies.chaos -= (pending.costChaos || 0);
+    game.currencies.divine = Math.max(0, (game.currencies.divine || 0) - (pending.costDivine || 0));
+    let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || null;
+    let nextBase = BASE_ITEM_DB.find(base => base && base.id === pending.nextBaseId);
+    if (!nextBase) return closeBaseUpgradeOverlay();
+    item.baseId = nextBase.id;
+    item.baseName = nextBase.name;
+    item.name = nextBase.name;
+    item.itemTier = Math.max(item.itemTier || 1, nextBase.reqTier || 1);
+    item.baseStats = rollBaseStats(nextBase, nextBase.reqTier || 1);
+    addLog(`🛠️ 베이스 업그레이드: ${(currentBase && currentBase.name) || '기존'} → ${nextBase.name} (카오스 ${pending.costChaos}${pending.costDivine ? ` + 신성 ${pending.costDivine}` : ''})`, 'loot-magic');
+    closeBaseUpgradeOverlay();
+    updateStaticUI();
+}
+
 
 function buildBlackMarketOffer(index) {
     let tier = (getZone(game.currentZoneId) || { tier: 1 }).tier || 1;
     let roll = Math.random();
     if (roll < 0.45) {
         let recipe = rndChoice(MARKET_EXCHANGES);
-        return { type:'exchange', name:`암거래 교환 #${index+1}`, from:recipe.from, to:recipe.to, need:Math.max(1, Math.floor(recipe.need*0.8)), gain:recipe.gain };
+        let gain = recipe.gain;
+        if (recipe.id === 'm11' && recipe.from === 'divine' && recipe.to === 'chaos') gain = 70;
+        return { type:'exchange', name:`암거래 교환 #${index+1}`, from:recipe.from, to:recipe.to, need:Math.max(1, Math.floor(recipe.need*0.8)), gain:gain };
     }
     if (roll < 0.75) {
         let base = chooseItemBase(rndChoice(['무기','투구','갑옷','장갑','신발']), tier);
@@ -291,7 +345,7 @@ function buyBlackMarketOffer(idx){
     } else if (offer.type==='unique') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
         game.currencies[offer.priceKey]-=offer.price;
-        let item = generateUniqueItem(offer.reqTier, offer.slot); if(item) addItemToInventory(item);
+        let item = generateUniqueItem(offer.reqTier, offer.slot, offer.name); if(item) addItemToInventory(item);
     }
     game.blackMarket.offers[idx]=null;
     addLog('🕶️ 암거래 구매 완료', 'loot-magic');
@@ -355,9 +409,20 @@ function renderMarketUI() {
             jewelInvEl.innerHTML = `<div style="color:#89a8c7; font-size:0.82em;">주얼 해금 후 신성한 오브로 주얼 인벤토리 확장이 열립니다.</div>`;
         } else {
             let cost = getJewelMarketExpandCost();
-            jewelInvEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">신성한 오브 ${cost}개 → 주얼 인벤토리 영구 5칸 확장 (현재: ${getJewelInventoryLimit()}칸)</div>
+        jewelInvEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">신성한 오브 ${cost}개 → 주얼 인벤토리 영구 5칸 확장 (현재: ${getJewelInventoryLimit()}칸)</div>
             <button onclick="marketExpandJewelInventoryByDivine()">주얼 인벤토리 확장</button>`;
-        }
+    }
+    let pollenEl = document.getElementById('ui-market-service-pollen');
+    if (pollenEl) {
+        let open = (game.season || 1) >= 8;
+        pollenEl.style.display = open ? 'block' : 'none';
+        if (open) pollenEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">꽃가루 교환소</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button onclick="craftBeehiveCurrency('key')" ${(game.currencies.pollen||0)<200?'disabled':''}>꽃가루 200 → 열쇠</button>
+            <button onclick="craftBeehiveCurrency('stinger')" ${(game.currencies.pollen||0)<600?'disabled':''}>꽃가루 600 → 독벌침</button>
+            <button onclick="craftBeehiveCurrency('honey')" ${(game.currencies.pollen||0)<2000?'disabled':''}>꽃가루 2000 → 벌꿀</button>
+        </div>`;
+    }
     }
     let bmEl = document.getElementById('ui-market-black');
     if (bmEl) {
@@ -375,4 +440,4 @@ function renderMarketUI() {
 }
 
 
-safeExposeGlobals({ marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, expandBlackMarketSlotsByDivine });
+safeExposeGlobals({ marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
