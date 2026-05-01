@@ -3188,7 +3188,7 @@ function mergeDefaults(save) {
     merged.uniqueCodexCompletedRewardClaimed = !!merged.uniqueCodexCompletedRewardClaimed;
     if (!merged.gemEnhanceUnlocked && (((merged.currencies || {}).bossCore || 0) > 0 || ((merged.currencies || {}).skyEssence || 0) > 0)) merged.gemEnhanceUnlocked = true;
     merged.inTicketBossFight = !!merged.inTicketBossFight;
-    merged.combatHalted = false;
+    merged.combatHalted = !!(merged.beehive && merged.beehive.inRun);
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     if (!merged.journalEntries.includes('prologue')) merged.journalEntries.unshift('prologue');

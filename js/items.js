@@ -238,13 +238,13 @@ function upgradeSelectedItemBase() {
     if (titleEl) titleEl.innerText = `${currentBase.name} → ${nextBase.name}`;
     if (bodyEl) bodyEl.innerText = `비용: 카오스 오브 ${costChaos}${costDivine > 0 ? ` + 신성한 오브 ${costDivine}` : ''}`;
     let overlay = document.getElementById('base-upgrade-overlay');
-    if (overlay) overlay.classList.add('show');
+    if (overlay) overlay.classList.add('active');
 }
 
 function closeBaseUpgradeOverlay() {
     game.pendingBaseUpgrade = null;
     let overlay = document.getElementById('base-upgrade-overlay');
-    if (overlay) overlay.classList.remove('show');
+    if (overlay) overlay.classList.remove('active');
 }
 
 function confirmSelectedItemBaseUpgrade() {
