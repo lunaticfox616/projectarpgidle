@@ -914,6 +914,7 @@ function assignStarWedgeSockets() {
         }
     });
     st.sockets = (st.sockets || []).filter(entry => selectedHubIds.includes(entry.nodeId));
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
 }
 
 function createRandomStarWedgeLine() {
