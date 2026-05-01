@@ -20,6 +20,7 @@
         .divine-drop-banner.show { opacity: 1; transform: translateX(-50%) scale(1); }
         .craft-layout { display: grid; grid-template-columns: 290px 1fr; gap: 15px; align-items: start; }
         .craft-selected { background: #0d0d12; border: 1px solid #333; border-radius: 6px; padding: 12px; min-height: 140px; }
+        #ui-currency-grid { min-height: 280px; align-content: start; }
         .craft-actions { display: grid; gap: 8px; margin-top: 12px; }
         .inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
         .settings-stack { display: flex; flex-direction: column; gap: 10px; max-width: 300px; }
