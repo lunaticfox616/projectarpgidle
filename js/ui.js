@@ -2388,8 +2388,10 @@ function updateStaticUI() {
         document.getElementById('ui-skills-list').innerHTML += sealedSkills.map(name => `<div class="skill-gem" style="opacity:0.78;"><strong>🔒 ${escapeHTML(name)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSkillGem('${name}')">해제 (공명 -1)</button></div>`).join('');
     }
 
-    document.getElementById('ui-supp-count').innerText = game.equippedSupports.length;
-    document.getElementById('ui-supp-max').innerText = pStats.suppCap;
+    let suppCountEl = document.getElementById('ui-supp-count');
+    let suppMaxEl = document.getElementById('ui-supp-max');
+    if (suppCountEl) suppCountEl.innerText = game.equippedSupports.length;
+    if (suppMaxEl) suppMaxEl.innerText = pStats.suppCap;
     document.getElementById('ui-support-list').innerHTML = game.supports.filter(name => {
         if (!foldSupportInactive) return true;
         return game.equippedSupports.includes(name);
@@ -2404,7 +2406,7 @@ function updateStaticUI() {
         document.getElementById('ui-support-list').innerHTML += sealedSupports.map(name => `<div class="skill-gem support-gem" style="opacity:0.78;"><strong>🔒 ${escapeHTML(name)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSupportGem('${name}')">해제 (공명 -1)</button></div>`).join('');
     }
     let suppHeader = document.querySelector('#tab-skills #skill-tab-equip h2');
-    if (suppHeader) suppHeader.innerHTML = `🟢 보조젬 장착 (<span id="ui-supp-count">${game.equippedSupports.length}</span>/<span id="ui-supp-max">${pStats.suppCap}</span>) · 공명력 <span style="color:#9bd0ff;">${resonancePower}</span>`;
+    if (suppHeader) suppHeader.title = `공명력 ${resonancePower}`;
 
     renderUniqueCodexUI();
     let gemEnhanceOpen = !!game.gemEnhanceUnlocked;

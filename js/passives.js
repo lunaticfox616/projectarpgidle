@@ -869,7 +869,7 @@ function assignStarWedgeSockets() {
     let st = (game && game.starWedge) || {};
     let unlocked = !!st.unlocked;
     let hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'hub');
-    let minHubDistance = 5;
+    let minHubDistance = 2;
     let edgeMap = {};
     (PASSIVE_TREE.edges || []).forEach(edge => {
         edgeMap[edge.from] = edgeMap[edge.from] || [];
