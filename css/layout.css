@@ -22,6 +22,7 @@
         .combat-zone-row { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
         .combat-zone-row-title { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .combat-zone-row button { margin-left:auto; flex-shrink:0; }
+        #battle-column .player-panel { display:none; }
 
         .item-card { background-color: #1a1a24; border: 1px solid #3d3d5c; padding: 10px; border-radius: 4px; position: relative; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; min-height: 132px; }
         .item-card:hover { border-color: #7f8c8d; background-color: #222230; }

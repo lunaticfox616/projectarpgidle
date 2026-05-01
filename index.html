@@ -167,7 +167,7 @@
             <div style="font-size: 0.9em; font-weight: bold; color: #20bf6b; margin-top: 8px;">생명력</div>
             <div class="hp-bar-bg">
                 <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
-                <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span></div>
+                <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span><span id="ui-es-inline"></span></div>
             </div>
             <div id="ui-player-ailments-mobile" style="display:none; font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
         </div>
@@ -733,6 +733,18 @@
             <button onclick="selectGloveSlotFromOverlay('장갑2')">왼쪽 슬롯</button>
             <button onclick="selectGloveSlotFromOverlay('장갑1')">오른쪽 슬롯</button>
             <button class="tutorial-secondary" onclick="closeGloveSlotOverlay()">취소</button>
+        </div>
+    </div>
+</div>
+
+<div id="base-upgrade-overlay" class="tutorial-overlay">
+    <div class="tutorial-card" style="max-width:420px;">
+        <div class="tutorial-kicker">베이스 업그레이드</div>
+        <div class="tutorial-title" id="base-upgrade-title">다음 베이스</div>
+        <div class="tutorial-body" id="base-upgrade-body">정보를 불러오는 중...</div>
+        <div class="tutorial-actions">
+            <button onclick="confirmSelectedItemBaseUpgrade()">업그레이드</button>
+            <button class="tutorial-secondary" onclick="closeBaseUpgradeOverlay()">취소</button>
         </div>
     </div>
 </div>

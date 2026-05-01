@@ -229,15 +229,43 @@ function upgradeSelectedItemBase() {
     let candidates = BASE_ITEM_DB.filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier).sort((a,b)=>a.reqTier-b.reqTier);
     let nextBase = candidates[0];
     if (!nextBase) return addLog('해당 계열의 다음 베이스가 없습니다.', 'attack-monster');
-    let cost = Math.max(5, 3 + Math.floor((nextBase.reqTier - currentBase.reqTier) * 1.5));
-    if ((game.currencies.chaos || 0) < cost) return addLog(`카오스 오브가 부족합니다. (필요: ${cost})`, 'attack-monster');
-    game.currencies.chaos -= cost;
+    let isTopBase = candidates.length === 1;
+    let costChaos = Math.max(5, 3 + Math.floor((nextBase.reqTier - currentBase.reqTier) * 2.5));
+    let costDivine = isTopBase ? 1 : 0;
+    game.pendingBaseUpgrade = { itemId: item.id, nextBaseId: nextBase.id, costChaos: costChaos, costDivine: costDivine };
+    let titleEl = document.getElementById('base-upgrade-title');
+    let bodyEl = document.getElementById('base-upgrade-body');
+    if (titleEl) titleEl.innerText = `${currentBase.name} → ${nextBase.name}`;
+    if (bodyEl) bodyEl.innerText = `비용: 카오스 오브 ${costChaos}${costDivine > 0 ? ` + 신성한 오브 ${costDivine}` : ''}`;
+    let overlay = document.getElementById('base-upgrade-overlay');
+    if (overlay) overlay.classList.add('show');
+}
+
+function closeBaseUpgradeOverlay() {
+    game.pendingBaseUpgrade = null;
+    let overlay = document.getElementById('base-upgrade-overlay');
+    if (overlay) overlay.classList.remove('show');
+}
+
+function confirmSelectedItemBaseUpgrade() {
+    let pending = game.pendingBaseUpgrade;
+    if (!pending) return;
+    let item = (game.inventory || []).find(v => v && v.id === pending.itemId);
+    if (!item) { closeBaseUpgradeOverlay(); return addLog('대상 장비를 찾을 수 없습니다.', 'attack-monster'); }
+    if ((game.currencies.chaos || 0) < (pending.costChaos || 0)) return addLog(`카오스 오브가 부족합니다. (필요: ${pending.costChaos})`, 'attack-monster');
+    if ((game.currencies.divine || 0) < (pending.costDivine || 0)) return addLog(`신성한 오브가 부족합니다. (필요: ${pending.costDivine})`, 'attack-monster');
+    game.currencies.chaos -= (pending.costChaos || 0);
+    game.currencies.divine = Math.max(0, (game.currencies.divine || 0) - (pending.costDivine || 0));
+    let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || null;
+    let nextBase = BASE_ITEM_DB.find(base => base && base.id === pending.nextBaseId);
+    if (!nextBase) return closeBaseUpgradeOverlay();
     item.baseId = nextBase.id;
     item.baseName = nextBase.name;
     item.name = nextBase.name;
     item.itemTier = Math.max(item.itemTier || 1, nextBase.reqTier || 1);
     item.baseStats = rollBaseStats(nextBase, nextBase.reqTier || 1);
-    addLog(`🛠️ 베이스 업그레이드: ${currentBase.name} → ${nextBase.name} (카오스 ${cost})`, 'loot-magic');
+    addLog(`🛠️ 베이스 업그레이드: ${(currentBase && currentBase.name) || '기존'} → ${nextBase.name} (카오스 ${pending.costChaos}${pending.costDivine ? ` + 신성 ${pending.costDivine}` : ''})`, 'loot-magic');
+    closeBaseUpgradeOverlay();
     updateStaticUI();
 }
 
@@ -408,4 +436,4 @@ function renderMarketUI() {
 }
 
 
-safeExposeGlobals({ marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase });
+safeExposeGlobals({ marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
