@@ -75,6 +75,18 @@ function coreLoop() {
         }
         performMonsterAttacks(pStats);
     }
+    let zoneNow = getZone(game.currentZoneId);
+    if ((game.season || 1) >= 9 && zoneNow && zoneNow.type === 'abyss') {
+        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
+        if (v.active && Math.random() < 0.20 && game.runProgress < 99.5 && game.killsInZone < (zoneNow.maxKills || 1)) {
+            let alive = (game.enemies || []).filter(e => e.hp > 0).length;
+            if (alive < 12) {
+                let spawn = 2 + Math.floor(Math.random() * 3);
+                for (let i = 0; i < spawn; i++) game.enemies.push(createEnemy(zoneNow, { elite: Math.random() < 0.2, boss: false }));
+                if (game.settings.showSpawnLog !== false) addLog(`🕳️ 균열 증식: 추가 몬스터 ${spawn}마리!`, 'attack-monster');
+            }
+        }
+    }
     let currentZone = getZone(game.currentZoneId);
     if (currentZone && currentZone.type === 'act' && game.runProgress >= 100) {
         let currentStoryAct = getStoryActByZoneId(currentZone.id);
@@ -183,8 +195,10 @@ function getPlayerStats() {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
         if (!db) return;
+        let activeTier = Math.max(1, Math.min(3, Math.floor(gem.activeTier || gem.unlockedTier || 1)));
+        let tierMul = activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2;
         let effectiveLevel = Math.max(1, gem.level + gemSources.total);
-        let val = db.baseVal + ((effectiveLevel - 1) * db.scale);
+        let val = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
         addStatToBucket(support, db.stat, val);
     });
 
@@ -242,13 +256,13 @@ function getPlayerStats() {
     let gearAspd = gearBase.aspd + gearExplicit.aspd;
     let passiveAspd = passive.aspd + season.aspd + ascend.aspd + reward.aspd;
     let totalAspdPct = gearAspd + passiveAspd + support.aspd;
-    let rawAspd = (1.0 + glovePairAspdBonus) * (1 + totalAspdPct / 100) * (skill.spd || skill.baseSpd || 1);
+    let rawAspd = (1.0 + glovePairAspdBonus) * (1 + totalAspdPct / 100) * (skill.spd || skill.baseSpd || 1) * 0.88;
     let finalAspd = rawAspd <= 5 ? rawAspd : (5 + Math.pow(Math.max(0, rawAspd - 5), 0.72));
     finalAspd = Math.min(12, finalAspd);
 
     let gearCrit = gearBase.crit + gearExplicit.crit;
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
-    let finalCrit = Math.min(100, 5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0));
+    let finalCrit = Math.min(100, (5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82);
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
     
     let gearArmor = gearBase.armor + gearExplicit.armor;
@@ -268,10 +282,10 @@ function getPlayerStats() {
     let evadeChance = Math.min(90, (finalEvasion / (finalEvasion + enemyAccuracy)) * 100);
 
     let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0);
-    let finalLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech;
+    let finalLeech = ((skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech) * 0.45;
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
-    let finalDs = gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds;
+    let finalDs = (gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) * 0.75;
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen;
     let finalRegenSuppress = gearBase.regenSuppress + gearExplicit.regenSuppress + passive.regenSuppress + season.regenSuppress + ascend.regenSuppress + support.regenSuppress + reward.regenSuppress;
     let finalResPen = gearBase.resPen + gearExplicit.resPen + passive.resPen + season.resPen + ascend.resPen + support.resPen + reward.resPen + (skill.resPenBonus || 0);
@@ -565,7 +579,9 @@ function getGemPresentation(name, isSupport) {
         if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null };
         let totalLevel = Math.max(1, gem.level + stats.gemBonusSources.total);
         let val = db.baseVal + ((totalLevel - 1) * db.scale);
-        return { baseLevel: gem.level, totalLevel: totalLevel, value: val, desc: db.desc, statName: db.name, statId: db.stat };
+        let activeTier = Math.max(1, Math.min(3, Math.floor(gem.activeTier || gem.unlockedTier || 1)));
+        let tierMul = activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2;
+        return { baseLevel: gem.level, totalLevel: totalLevel, value: val * tierMul, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier };
     }
     let db = SKILL_DB[name];
     if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
@@ -585,7 +601,7 @@ function getSkillTargets(pStats) {
     if (alive.length === 0) return [];
     let skill = pStats.sSkill;
     let targetCount = Math.max(1, skill.targets || 1);
-    if (skill.targetMode === 'all') return alive.map(enemy => ({ enemy: enemy, mult: 1 }));
+    if (skill.targetMode === 'all') return alive.slice(0, Math.min(8, Math.max(6, skill.targets || 6))).map(enemy => ({ enemy: enemy, mult: 1 }));
     if (skill.targetMode === 'whirl') {
         return alive.slice(0, targetCount).map((enemy, idx) => ({
             enemy: enemy,
@@ -654,6 +670,8 @@ function createEnemy(zone, marker, groupIndex) {
     let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
+    let loopHpScale = 1 + Math.max(0, (game.loopCount || 0) * 0.12);
+    hp = Math.floor(hp * loopHpScale);
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
     let isElite = !!marker.elite && !isBoss;
@@ -662,7 +680,7 @@ function createEnemy(zone, marker, groupIndex) {
         let hpRamp = Math.min(0.20, Math.max(0, abyssDepth - 1) * 0.015);
         hp = Math.floor(hp * (1 + hpRamp));
     }
-    if (isElite) hp = Math.floor(hp * 1.4);
+    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, (game.loopCount || 0) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
@@ -940,7 +958,9 @@ function startMoving(isTown) {
 
 function returnToTown() {
     if (game.isTownReturning && game.moveTimer > 0) return;
-    game.playerHp = getPlayerStats().maxHp;
+    let pStats = getPlayerStats();
+    game.playerHp = pStats.maxHp;
+    game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     pTimer = 0;
     addLog("⛺ 마을 귀환", "season-up");
     startMoving(true);
@@ -1104,14 +1124,28 @@ function rollLootForEnemy(enemy) {
                 if (game.settings.showLootLog) addLog(`✨ 공격 젬 <span class='loot-magic'>[${skill}]</span> 획득!`);
             }
         } else {
-            let available = Object.keys(SUPPORT_GEM_DB).filter(name => !(game.supports || []).includes(name));
+            let available = Object.keys(SUPPORT_GEM_DB);
             if (available.length > 0) {
                 let gem = rndChoice(available);
-                game.supports.push(gem);
-                game.supportGemData[gem] = { level: 1, exp: 0 };
+                game.supportGemData = game.supportGemData || {};
+                if (!(game.supports || []).includes(gem)) {
+                    game.supports.push(gem);
+                    game.supportGemData[gem] = { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 };
+                } else {
+                    let record = normalizeGemRecord(game.supportGemData[gem] || { level:1, exp:0 });
+                    let before = Math.max(1, Math.floor(record.unlockedTier || 1));
+                    if (before < 3) {
+                        record.unlockedTier = before + 1;
+                        if ((record.activeTier || 1) < record.unlockedTier) record.activeTier = record.unlockedTier;
+                        game.supportGemData[gem] = record;
+                    } else {
+                        return;
+                    }
+                }
                 game.noti.skills = true;
                 checkUnlocks();
-                if (game.settings.showLootLog) addLog(`🟢 보조젬 <span class='loot-rare'>[${gem}]</span> 획득!`);
+                let tier = ((game.supportGemData[gem] || {}).unlockedTier || 1);
+                if (game.settings.showLootLog) addLog(`🟢 보조젬 <span class='loot-rare'>[${gem}]</span> 획득! (해금: ${tier >= 3 ? '상급' : tier === 2 ? '중급' : '하급'})`);
             }
         }
     }
@@ -1176,10 +1210,20 @@ function handleEnemyDeath(enemy, pStats) {
     rollLootForEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
-        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false });
+        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         if (!v.active && Math.random() < (enemy.isElite ? 0.015 : 0.004)) {
             v.active = true;
+            v.activeKills = 0;
+            v.requiredKills = 15 + Math.floor(Math.random() * 9);
             addLog('🕳️ 공허의 구멍이 랜덤으로 열렸습니다!', 'attack-monster');
+        } else if (v.active) {
+            v.activeKills = Math.max(0, Math.floor(v.activeKills || 0)) + 1;
+            if (v.activeKills >= Math.max(1, Math.floor(v.requiredKills || 18))) {
+                v.active = false;
+                v.breachClears = (v.breachClears || 0) + 1;
+                if (Math.random() < 0.20) v.grandBreachUnlock = true;
+                addLog('🕳️ 균열이 안정화되어 자동으로 닫혔습니다.', 'loot-magic');
+            }
         }
     }
     let equippedHeralds = (game.equippedSupports || []).map(name => {
@@ -1303,6 +1347,7 @@ function finishEncounterRun() {
     }
     if (zone.type === 'labyrinth') {
         game.labyrinthFloor = (game.labyrinthFloor || 1) + 1;
+        game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, game.labyrinthFloor || 1);
         let gotBaseFossil = Math.random() < 0.5;
         if (gotBaseFossil) awardCurrency('fossil', 1);
         let rolledFossil = rndChoice(FOSSIL_DB);
@@ -1752,6 +1797,7 @@ function triggerSeasonReset() {
     });
     playLoopRewriteEffect();
     let previousHeroId = game.selectedHeroId || 'hero1';
+    let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     game.season++;
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
@@ -1786,6 +1832,7 @@ function triggerSeasonReset() {
     game.equipment = { ...defaultGame.equipment };
     game.currencies = { ...defaultGame.currencies };
     game.labyrinthFloor = 1;
+    game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax / 2));
     game.jewelInventory = [];
     game.jewelSlots = [null, null];
     game.jewelSlotAmplify = [0, 0];

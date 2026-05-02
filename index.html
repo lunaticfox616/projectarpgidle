@@ -147,10 +147,6 @@
         <button id="left-pane-toggle" onclick="toggleLeftPaneCollapse()" title="전투 패널 접기" aria-label="전투 패널 접기">◀</button>
         <h2 style="display:none;">플레이어</h2>
         <div id="ui-player-ailments" style="font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:2px;"></div>
-        <div class="summary-actions">
-            <button onclick="switchTab('tab-character')" style="background:#35506a;">캐릭터 상세</button>
-            <button id="btn-summary-tab-char" onclick="switchTab('tab-char')" style="background:#5a3d21;" disabled>스킬트리 (Lv.2)</button>
-        </div>
     </div>
 
     <div class="panel combat-panel" style="position: relative;">
@@ -171,7 +167,7 @@
             <div style="font-size: 0.9em; font-weight: bold; color: #20bf6b; margin-top: 8px;">생명력</div>
             <div class="hp-bar-bg">
                 <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
-                <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span></div>
+                <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span><span id="ui-es-inline"></span></div>
             </div>
             <div id="ui-player-ailments-mobile" style="display:none; font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
         </div>
@@ -272,6 +268,21 @@
                 <span class="stat-label">🛡️ 물리 피해 감소</span>
                 <span class="stat-value" id="ui-dr">0</span>
                 <span class="stat-unit">%</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">🧱 방어도</span>
+                <span class="stat-value" id="ui-armor">0</span>
+                <span class="stat-unit"></span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">💨 회피</span>
+                <span class="stat-value" id="ui-evasion">0</span>
+                <span class="stat-unit"></span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">🔷 에너지 보호막</span>
+                <span class="stat-value" id="ui-es">0</span>
+                <span class="stat-unit"></span>
             </div>
             <div class="stat-item tip" id="row-phys-ignore" onmouseenter="showStatTooltip(event,'physIgnore')" onmouseleave="hideInfoTooltip()" style="display: none;">
                 <span class="stat-label">🪓 물피감 무시</span>
@@ -500,6 +511,7 @@
                         <div id="ui-market-service-annul" style="margin-bottom:8px;"></div>
                         <div id="ui-market-service-inv" style="margin-bottom:4px;"></div>
                         <div id="ui-market-service-jewel-inv" style="margin-bottom:4px;"></div>
+                        <div id="ui-market-service-pollen" style="margin-bottom:4px;"></div>
                     </div>
                 </div>
             </div>
@@ -585,7 +597,7 @@
             </div>
             <h2>⚔️ 공격 스킬</h2>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;" id="ui-skills-list"></div>
-            <h2><span>🟢 보조 스킬</span> <span class="h2-right">장착 가능: <span id="ui-supp-count">0</span> / <span id="ui-supp-max">1</span></span></h2>
+            <h2><span>🟢 보조 스킬</span> <span class="h2-right">장착 가능: <span id="ui-supp-count">0</span> / <span id="ui-supp-max">1</span> · 공명력 <span id="ui-resonance">0</span></span></h2>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;" id="ui-support-list"></div>
         </div>
         <div id="skill-tab-enhance" class="subtab-content">
@@ -718,9 +730,21 @@
         <div class="tutorial-title">교체할 장갑 슬롯 선택</div>
         <div class="tutorial-body">두 장갑 슬롯이 모두 사용 중입니다. 교체할 장갑 슬롯을 선택하세요.</div>
         <div class="tutorial-actions">
-            <button onclick="selectGloveSlotFromOverlay('장갑1')">오른쪽 슬롯</button>
             <button onclick="selectGloveSlotFromOverlay('장갑2')">왼쪽 슬롯</button>
+            <button onclick="selectGloveSlotFromOverlay('장갑1')">오른쪽 슬롯</button>
             <button class="tutorial-secondary" onclick="closeGloveSlotOverlay()">취소</button>
+        </div>
+    </div>
+</div>
+
+<div id="base-upgrade-overlay" class="tutorial-overlay">
+    <div class="tutorial-card" style="max-width:420px;">
+        <div class="tutorial-kicker">베이스 업그레이드</div>
+        <div class="tutorial-title" id="base-upgrade-title">다음 베이스</div>
+        <div class="tutorial-body" id="base-upgrade-body">정보를 불러오는 중...</div>
+        <div class="tutorial-actions">
+            <button onclick="confirmSelectedItemBaseUpgrade()">업그레이드</button>
+            <button class="tutorial-secondary" onclick="closeBaseUpgradeOverlay()">취소</button>
         </div>
     </div>
 </div>
