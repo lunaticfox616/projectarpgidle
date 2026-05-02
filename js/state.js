@@ -146,7 +146,7 @@ function getAbyssMonsterScales(zone) {
     return {
         dmgMul: 1 + (state.power || 0) * 0.02,
         hpMul: (1 + (state.tenacity || 0) * 0.02) * endlessMul,
-        hordeMul: (1 + (state.horde || 0) * 0.03) * (1 + (state.magnifier || 0) * 0.5),
+        hordeMul: (1 + (state.horde || 0) * 0.03) * (1 + (state.magnifier || 0) * 0.2),
         dropMul: Math.max(0.2, 1 + ((state.power || 0) + (state.frailty || 0) + (state.resistance || 0) - (state.horde || 0)) * 0.01),
         expMul: Math.max(0.2, 1 + ((state.tenacity || 0) * 0.01) - ((state.horde || 0) * 0.02) + ((state.weakness || 0) * 0.02)),
         playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + endlessOver * 0.025),
@@ -219,6 +219,23 @@ function enterUnlockedEndlessDepth(depth) {
     game.killsInZone = 0;
     addLog(`🧭 기록된 혼돈 심화 ${depth}층으로 이동`, 'season-up');
     startMoving(true);
+    updateStaticUI();
+}
+
+function getLoopDeepStatCost(statKey) {
+    game.loopDeepStats = game.loopDeepStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
+    let lv = Math.max(0, Math.floor(game.loopDeepStats[statKey] || 0));
+    return 1 + Math.floor(lv / 2);
+}
+
+function allocateLoopDeepStat(statKey) {
+    if ((game.season || 1) < 10) return;
+    let cost = getLoopDeepStatCost(statKey);
+    if ((game.loopDeepPoints || 0) < cost) return addLog(`심화 루프 포인트가 부족합니다. (필요: ${cost})`, 'attack-monster');
+    game.loopDeepStats = game.loopDeepStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
+    game.loopDeepStats[statKey] = Math.max(0, Math.floor(game.loopDeepStats[statKey] || 0)) + 1;
+    game.loopDeepPoints -= cost;
+    addLog(`🧬 심화 루프 강화: ${getStatName(statKey)} Lv.${game.loopDeepStats[statKey]} (비용 ${cost})`, 'season-up');
     updateStaticUI();
 }
 
@@ -381,6 +398,7 @@ const MOD_DB = [
     { id: 'resC', type: 'suffix', statName: '냉기 저항(%)', slots: ['반지', '목걸이', '갑옷', '투구', '신발', '장갑', '허리띠'], base: 5, step: 3 },
     { id: 'resL', type: 'suffix', statName: '번개 저항(%)', slots: ['반지', '목걸이', '갑옷', '투구', '신발', '장갑', '허리띠'], base: 5, step: 3 },
     { id: 'resAll', type: 'suffix', statName: '모든 원소 저항(%)', slots: ['반지', '목걸이', '갑옷'], base: 3, step: 2 },
+    { id: 'resChaos', type: 'suffix', statName: '카오스 저항(%)', slots: ['반지'], base: 2, step: 1.4 },
     { id: 'resPen', type: 'suffix', statName: '저항 관통(%)', slots: ['무기', '반지', '목걸이'], base: 0, step: 0.8 },
     { id: 'regen', type: 'suffix', statName: '초당 재생(%)', slots: ['갑옷', '허리띠', '목걸이'], base: 0.2, step: 0.1 },
     { id: 'regenSuppress', type: 'suffix', statName: '재생 억제(%)', slots: ['허리띠'], base: 0.3, step: 0.06 },
@@ -440,9 +458,13 @@ const BASE_ITEM_DB = [
     { id: 'copper_ring', slot: '반지', name: '구리 반지', reqTier: 1, baseStats: [{ id: 'flatDmg', base: 1 }] },
     { id: 'opal_ring', slot: '반지', name: '오팔 반지', reqTier: 5, baseStats: [{ id: 'pctDmg', base: 6 }] },
     { id: 'sapphire_band', slot: '반지', name: '푸른 띠 반지', reqTier: 9, baseStats: [{ id: 'resAll', base: 6 }, { id: 'crit', base: 3 }] },
+    { id: 'void_loop_ring', slot: '반지', name: '공허 고리', reqTier: 12, baseStats: [{ id: 'resChaos', base: 4 }, { id: 'chaosPctDmg', base: 7 }] },
+    { id: 'eclipse_ring', slot: '반지', name: '식월 반지', reqTier: 15, baseStats: [{ id: 'resAll', base: 8 }, { id: 'resChaos', base: 5 }, { id: 'crit', base: 5 }] },
     { id: 'rope_belt', slot: '허리띠', name: '로프 허리띠', reqTier: 1, baseStats: [{ id: 'flatHp', base: 16 }] },
     { id: 'war_belt', slot: '허리띠', name: '전사의 허리띠', reqTier: 5, baseStats: [{ id: 'flatHp', base: 32 }, { id: 'dr', base: 2 }] },
-    { id: 'stygian_vise', slot: '허리띠', name: '심연의 혁대', reqTier: 9, baseStats: [{ id: 'flatHp', base: 55 }, { id: 'resChaos', base: 8 }] }
+    { id: 'stygian_vise', slot: '허리띠', name: '심연의 혁대', reqTier: 9, baseStats: [{ id: 'flatHp', base: 55 }, { id: 'resChaos', base: 8 }] },
+    { id: 'blood_girdle', slot: '허리띠', name: '혈석 허리띠', reqTier: 12, baseStats: [{ id: 'flatHp', base: 72 }, { id: 'dr', base: 3 }, { id: 'resChaos', base: 10 }] },
+    { id: 'nightmare_bind', slot: '허리띠', name: '악몽 결속대', reqTier: 15, baseStats: [{ id: 'flatHp', base: 92 }, { id: 'resAll', base: 7 }, { id: 'resChaos', base: 12 }] }
 ];
 
 
@@ -467,7 +489,7 @@ let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
 
 // Phase-4 extracted default state schema.
 const defaultGame = {
@@ -488,6 +510,8 @@ const defaultGame = {
     settings: {
         showCombatScene: true,
         showCombatLog: true,
+        combatLogAggregate: true,
+        combatLogRateLimit: true,
         showSpawnLog: true,
         showExpLog: true,
         showLootLog: true,
@@ -572,13 +596,14 @@ const defaultGame = {
     completedTrials: [],
     unlockedTrials: [],
     seasonPoints: 0,
+    loopDeepPoints: 0,
     seasonNodes: [],
     labyrinthFloor: 1,
     jewelInventory: [],
     jewelSlots: [null, null],
     jewelSlotAmplify: [0, 0],
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
-    voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false },
+    voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 },
     shrineState: { active: null, nextRollAt: 0 },
     shrineBuff: null,
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [] },
@@ -586,6 +611,10 @@ const defaultGame = {
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,
     abyssUnlockedDepths: [20],
+    loopDeepStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 },
+    loopProgressBase: { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] },
+    loopProgressCurrent: { specialBosses: [] },
+    pendingLoopDecision: false,
 
     skyGemEnhancements: {},
     recentDamageEvents: [],
@@ -629,7 +658,8 @@ safeExposeGlobals({ defaultGame });
 // Phase-4 extracted progression math helpers.
 function getExpReq(level) {
     let lv = Math.max(1, Math.floor(level || 1));
-    if (lv <= 20) return Math.floor(24 + Math.pow(lv, 1.34) * 14);
+    if (lv <= 10) return Math.floor((24 + Math.pow(lv, 1.34) * 14) * 4);
+    if (lv <= 20) return Math.floor((24 + Math.pow(lv, 1.34) * 14) * 2);
     let base20 = Math.floor(24 + Math.pow(20, 1.34) * 14);
     if (lv <= 50) return Math.floor(base20 + 90 * Math.pow(lv - 20, 1.42));
     let base50 = Math.floor(base20 + 90 * Math.pow(30, 1.42));
@@ -640,13 +670,15 @@ function getExpReq(level) {
 }
 function getGemReqExp(level) { return Math.floor(100 * Math.pow(1.3, level - 1)); }
 function normalizeGemRecord(raw) {
-    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0, bossCoreLevel: 0, skyCoreLevel: 0, skyEnhanceCap: 1 };
+    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0, bossCoreLevel: 0, skyCoreLevel: 0, skyEnhanceCap: 1, unlockedTier: 1, activeTier: 1 };
     let level = Number.isFinite(raw.level) ? Math.max(1, Math.floor(raw.level)) : 1;
     let exp = Number.isFinite(raw.exp) ? Math.max(0, raw.exp) : 0;
     let bossCoreLevel = Number.isFinite(raw.bossCoreLevel) ? Math.min(5, Math.max(0, Math.floor(raw.bossCoreLevel))) : 0;
     let skyCoreLevel = Number.isFinite(raw.skyCoreLevel) ? Math.min(5, Math.max(0, Math.floor(raw.skyCoreLevel))) : 0;
     let skyEnhanceCap = Number.isFinite(raw.skyEnhanceCap) ? Math.min(5, Math.max(1, Math.floor(raw.skyEnhanceCap))) : 1;
-    return { level: level, exp: exp, bossCoreLevel: bossCoreLevel, skyCoreLevel: skyCoreLevel, skyEnhanceCap: skyEnhanceCap };
+    let unlockedTier = Number.isFinite(raw.unlockedTier) ? Math.max(1, Math.min(3, Math.floor(raw.unlockedTier))) : 1;
+    let activeTier = Number.isFinite(raw.activeTier) ? Math.max(1, Math.min(unlockedTier, Math.floor(raw.activeTier))) : 1;
+    return { level: level, exp: exp, bossCoreLevel: bossCoreLevel, skyCoreLevel: skyCoreLevel, skyEnhanceCap: skyEnhanceCap, unlockedTier: unlockedTier, activeTier: activeTier };
 }
 
 

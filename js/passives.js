@@ -542,7 +542,7 @@ function generateOrganicTree() {
         if (depth === 6 && lane === 0) return { tier: 2, kind: 'hub' };
         if (depth === maxDepth && laneAbs === 3) return { tier: 2, kind: 'hub' };
         if (laneAbs === 3 && depth > 6 && depth < maxDepth) return { tier: 1, kind: 'path' };
-        if (laneAbs === 4 && depth >= maxDepth - 1) return { tier: 3, kind: 'deadend' };
+        if (laneAbs === 4 && depth >= maxDepth - 1) return { tier: depth === maxDepth ? 2 : 1, kind: depth === maxDepth ? 'major' : 'path' };
         if (depth === maxDepth && laneAbs <= 1) return { tier: 3, kind: 'keystone' };
         if (depth % 4 === 0 || (depth >= maxDepth - 2 && laneAbs <= 2)) return { tier: 2, kind: 'major' };
         return { tier: 1, kind: 'path' };
@@ -869,11 +869,42 @@ function assignStarWedgeSockets() {
     let st = (game && game.starWedge) || {};
     let unlocked = !!st.unlocked;
     let hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'hub');
+    let minHubDistance = 2;
+    let edgeMap = {};
+    (PASSIVE_TREE.edges || []).forEach(edge => {
+        edgeMap[edge.from] = edgeMap[edge.from] || [];
+        edgeMap[edge.to] = edgeMap[edge.to] || [];
+        edgeMap[edge.from].push(edge.to);
+        edgeMap[edge.to].push(edge.from);
+    });
+    function getHubDistance(a, b) {
+        if (a === b) return 0;
+        let q = [{ id: a, d: 0 }];
+        let seen = new Set([a]);
+        while (q.length) {
+            let cur = q.shift();
+            let nexts = edgeMap[cur.id] || [];
+            for (let i = 0; i < nexts.length; i++) {
+                let nid = nexts[i];
+                if (seen.has(nid)) continue;
+                let nd = cur.d + 1;
+                if (nid === b) return nd;
+                if (nd <= minHubDistance) q.push({ id: nid, d: nd });
+                seen.add(nid);
+            }
+        }
+        return Number.POSITIVE_INFINITY;
+    }
+    let selectedHubIds = [];
+    hubs.sort((a, b) => String(a.id).localeCompare(String(b.id))).forEach(node => {
+        let tooClose = selectedHubIds.some(otherId => getHubDistance(node.id, otherId) < minHubDistance);
+        if (!tooClose) selectedHubIds.push(node.id);
+    });
     hubs.forEach(node => {
         node.socketType = null;
     });
     hubs.forEach(node => {
-        if (unlocked) {
+        if (unlocked && selectedHubIds.includes(node.id)) {
             node.socketType = 'star_wedge';
             node.title = '별쐐기 슬롯';
             node.desc = '별쐐기 장착 전용 슬롯입니다. 장착 시 주변 노드(1~3경로)와 슬롯 자신을 변성시킬 수 있습니다.';
@@ -882,6 +913,8 @@ function assignStarWedgeSockets() {
             node.desc = node.desc || '';
         }
     });
+    st.sockets = (st.sockets || []).filter(entry => selectedHubIds.includes(entry.nodeId));
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
 }
 
 function createRandomStarWedgeLine() {
@@ -913,6 +946,7 @@ function getStarWedgeById(wedgeId) {
 function recalculateStarWedgeMutations() {
     let st = ensureStarWedgeState();
     st.nodeMutations = {};
+    let conflictNodes = new Set();
     (st.sockets || []).forEach(socket => {
         let wedge = getStarWedgeById(socket.wedgeId);
         let center = PASSIVE_TREE.nodes[socket.nodeId];
@@ -933,6 +967,12 @@ function recalculateStarWedgeMutations() {
                 let line = wedge.lines[nextDist - 1];
                 let node = PASSIVE_TREE.nodes[next];
                 if (!line || !isStarWedgeNodeMutable(node)) return;
+                if (conflictNodes.has(next)) return;
+                if (st.nodeMutations[next]) {
+                    delete st.nodeMutations[next];
+                    conflictNodes.add(next);
+                    return;
+                }
                 st.nodeMutations[next] = {
                     wedgeId: wedge.id,
                     socketNodeId: center.id,
@@ -946,6 +986,12 @@ function recalculateStarWedgeMutations() {
         }
         let coreLine = Array.isArray(wedge.lines) ? wedge.lines[3] : null;
         if (coreLine && coreLine.stat) {
+            if (conflictNodes.has(center.id)) return;
+            if (st.nodeMutations[center.id]) {
+                delete st.nodeMutations[center.id];
+                conflictNodes.add(center.id);
+                return;
+            }
             st.nodeMutations[center.id] = {
                 wedgeId: wedge.id,
                 socketNodeId: center.id,
@@ -3721,12 +3767,11 @@ function chooseItemBase(slot, zoneTier) {
 }
 
 function rollBaseStats(base, zoneTier) {
-    let mult = 1 + Math.max(0, zoneTier) * 0.18;
     return base.baseStats.map(stat => {
-        let val = stat.base * mult;
+        let val = stat.base;
         if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) val = Math.round(val * 10) / 10;
         else val = Math.floor(val);
-        return { id: stat.id, val: val, valMin: stat.base, valMax: Math.max(stat.base, val), tier: 0, statName: getStatName(stat.id) };
+        return { id: stat.id, val: val, valMin: stat.base, valMax: stat.base, tier: 0, statName: getStatName(stat.id) };
     });
 }
 
@@ -3950,8 +3995,9 @@ function rollUniqueStatValue(stat) {
     return { min: min, max: max, val: val };
 }
 
-function generateUniqueItem(zoneTier, preferredSlot) {
-    let slot = preferredSlot || rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
+function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
+    let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
+    let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare);
     let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare && zoneTier >= (unique.reqTier || 1));
     let canRollChase = !game.seasonChaseUniqueDropped && chaseOptions.length > 0 && Math.random() < 0.0008;
@@ -3959,7 +4005,7 @@ function generateUniqueItem(zoneTier, preferredSlot) {
     let options = poolSource.filter(unique => unique.slots.includes(slot) && zoneTier >= (unique.reqTier || 1));
     if (options.length === 0) options = poolSource.filter(unique => zoneTier >= (unique.reqTier || 1));
     if (options.length === 0) options = poolSource.length > 0 ? poolSource : UNIQUE_DB;
-    let unique = rndChoice(options);
+    let unique = forcedUnique || rndChoice(options);
     let uniqueTier = unique.reqTier || zoneTier;
     let base = chooseItemBase(unique.slots[0], uniqueTier);
     itemIdCounter++;
@@ -4374,7 +4420,7 @@ function salvageItemObject(item, silent) {
     else if (item.rarity === 'magic') awardCurrency('augment', 1);
     else if (item.rarity === 'rare') awardCurrency('chaos', 1);
     else if (item.rarity === 'unique') {
-        awardCurrency('divine', 1);
+        if (Math.random() < 0.12) awardCurrency('divine', 1);
         if (Math.random() < 0.55) awardCurrency('exalted', 1);
     }
     if (!silent) addLog(`🧪 [${item.name}] 해체`, "loot-normal");
