@@ -583,7 +583,7 @@ const defaultGame = {
     jewelSlots: [null, null],
     jewelSlotAmplify: [0, 0],
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
-    voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false },
+    voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 },
     shrineState: { active: null, nextRollAt: 0 },
     shrineBuff: null,
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [] },
@@ -634,7 +634,8 @@ safeExposeGlobals({ defaultGame });
 // Phase-4 extracted progression math helpers.
 function getExpReq(level) {
     let lv = Math.max(1, Math.floor(level || 1));
-    if (lv <= 20) return Math.floor(24 + Math.pow(lv, 1.34) * 14);
+    if (lv <= 10) return Math.floor((24 + Math.pow(lv, 1.34) * 14) * 4);
+    if (lv <= 20) return Math.floor((24 + Math.pow(lv, 1.34) * 14) * 2);
     let base20 = Math.floor(24 + Math.pow(20, 1.34) * 14);
     if (lv <= 50) return Math.floor(base20 + 90 * Math.pow(lv - 20, 1.42));
     let base50 = Math.floor(base20 + 90 * Math.pow(30, 1.42));

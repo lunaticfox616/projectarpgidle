@@ -1,4 +1,5 @@
 // Phase-2 extracted UI/tab/render helper block.
+let lastHeavyUiRefreshAt = 0;
 function tickShrineState(){
     game.shrineState = game.shrineState || { active: null, nextRollAt: 0 };
     let now = Date.now();
@@ -165,9 +166,9 @@ function renderLoop8BeehivePanel() {
     <div style="color:#b8c7d8; font-size:0.82em; margin-bottom:8px;">세 갈래길 10회 후 여왕벌 보스. 벌집 진행 중 일반 전투/맵 이동은 정지됩니다.</div>
     <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="startBeehiveRun()" ${(game.currencies.hiveKey||0)<=0 || b.inRun ? 'disabled':''}>벌집 입장</button><button onclick="advanceBeehivePath()" ${b.inRun && !b.pendingChoice && !b.awaitingClear ? '':'disabled'}>${(b.branchStep||0)>=9?'여왕벌 전투':'다음 갈래 전투'} (${b.branchStep||0}/10)</button><button onclick="forfeitBeehiveRun()" ${b.inRun ? '':'disabled'}>던전 포기</button></div>${choiceHtml}`;
 }
-function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false}); p.innerHTML=`<div style="color:#c7d2ff;">공허 균열은 맵핑 중 랜덤으로 생성됩니다. · 활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong></div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="clearVoidBreach()" ${v.active?'':'disabled'}>쏟아지는 몬스터 정리</button><button onclick="enterGrandBreach()" ${v.grandBreachUnlock?'':'disabled'}>큰 구멍 진입</button></div>`; }
+function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false,activeKills:0,requiredKills:0}); let progress=v.active?`${Math.max(0,Math.floor(v.activeKills||0))}/${Math.max(1,Math.floor(v.requiredKills||0))}`:'-'; p.innerHTML=`<div style="color:#c7d2ff;">공허 균열은 맵핑 중 랜덤으로 생성됩니다. · 활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong></div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="enterGrandBreach()" ${v.grandBreachUnlock?'':'disabled'}>큰 구멍 진입</button></div>`; }
 function spawnBeehiveWave(isBoss){ let zone=getZone(game.currentZoneId)||getZone(0); let count=isBoss?1:(2+Math.floor(Math.random()*2)); game.enemies=[]; for(let i=0;i<count;i++){ let marker={elite:!isBoss&&Math.random()<0.35,boss:isBoss}; game.enemies.push(createEnemy(zone, marker)); } if(isBoss) addLog('👑 여왕벌 출현! 처치 후 보상 선택 가능', 'loot-unique'); else addLog('🐝 갈래길 전투 시작!', 'attack-monster'); }
-function startBeehiveRun(){ let b=game.beehive; if((game.currencies.hiveKey||0)<=0||b.inRun) return; game.currencies.hiveKey--; b.inRun=true; b.branchStep=0; b.pendingChoice=null; b.awaitingClear=false; b.enemyEmpower=0; game.enemies=[]; game.moveTimer=0; game.combatHalted=false; addLog('🐝 벌집 원정 시작! 각 갈래마다 전투를 치러야 합니다.', 'season-up'); updateStaticUI(); }
+function startBeehiveRun(){ let b=game.beehive; if((game.currencies.hiveKey||0)<=0||b.inRun) return; game.currencies.hiveKey--; b.inRun=true; b.branchStep=0; b.pendingChoice=null; b.awaitingClear=false; b.enemyEmpower=0; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🐝 벌집 원정 시작! 진행 중이던 던전 흐름은 초기화됩니다.', 'season-up'); updateStaticUI(); }
 function buildBeehiveChoiceOption(type){ if(type==='pollen'){ let amount=10+Math.floor(Math.random()*9); return { text:`꽃가루 +${amount}`, effect:'pollen', amount: amount }; } if(type==='honey') return { text:'벌꿀 획득 확률 상승', effect:'honey' }; return { text:'독벌침 획득 확률 상승', effect:'stinger' }; }
 function advanceBeehivePath(){ let b=game.beehive; if(!b.inRun||b.awaitingClear||b.pendingChoice) return; b.branchStep++; b.awaitingClear=true; spawnBeehiveWave((b.branchStep||0)>=10); updateStaticUI(); }
 function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice) return; if(key==='legacy_now'||key==='legacy_later'){ if(key==='legacy_now') game.currencies.pollen=(game.currencies.pollen||0)+Math.floor(10+Math.random()*9); else { if(Math.random()<0.06) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(Math.random()<0.22) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } } else { let pick=b.pendingChoice[key]; if(!pick) return; if(pick.effect==='pollen') game.currencies.pollen=(game.currencies.pollen||0)+(Number.isFinite(pick.amount)?pick.amount:0); if(pick.effect==='honey' && Math.random()<0.35) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(pick.effect==='stinger' && Math.random()<0.55) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } let ev=b.pendingChoice.eventType; if(ev==='curse'){ game.playerHp=Math.max(1,Math.floor(game.playerHp*0.9)); } else if(ev==='empower'){ b.enemyEmpower=Math.max(0,Math.floor((b.enemyEmpower||0)+1)); } else if(ev==='penalty'){ game.currencies.pollen=Math.max(0,(game.currencies.pollen||0)-5); } b.pendingChoice=null; if((b.branchStep||0)>=10){ b.inRun=false; b.cleared=true; b.unlockedPermanent=true; unlockJournalEntry('beehive_queen'); if(Math.random()<0.08){ let item=generateUniqueItem(Math.max(12,(getZone(game.currentZoneId)||{tier:12}).tier), '무기'); addItemToInventory(item); } addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되었습니다.', 'level-up'); } updateStaticUI(); }
@@ -642,6 +643,13 @@ function getSupportResonanceCost(name) {
     if (['aspd', 'crit', 'dotPctDmg', 'elementalPctDmg', 'meleePctDmg', 'projectilePctDmg'].includes(stat)) return 2;
     return 1;
 }
+function getSupportTierResonanceCost(name) {
+    let base = getSupportResonanceCost(name);
+    let tier = getSupportActiveTier(name);
+    if (tier <= 1) return base;
+    if (tier === 2) return Math.max(base + 1, Math.floor(base * 1.8));
+    return Math.max(base + 3, Math.floor(base * 2.8));
+}
 function getSupportActiveTier(name) {
     let rec = normalizeGemRecord(((game.supportGemData || {})[name]) || { level: 1, exp: 0 });
     let unlocked = Math.max(1, Math.min(3, Math.floor(rec.unlockedTier || 1)));
@@ -666,10 +674,10 @@ function toggleSupport(name) {
     let idx = game.equippedSupports.indexOf(name);
     if (idx > -1) game.equippedSupports.splice(idx, 1);
     else if (game.equippedSupports.length < getPlayerStats().suppCap) {
-        let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportResonanceCost(n), 0);
+        let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
         let remain = Math.max(0, Math.floor(game.resonancePower || 0) - used);
         let activeTier = getSupportActiveTier(name);
-        let cost = getSupportResonanceCost(name) + Math.max(0, activeTier - 1);
+        let cost = getSupportTierResonanceCost(name);
         if (remain < cost) return addLog(`공명력 부족 (${remain}/${cost})`, 'attack-monster');
         game.equippedSupports.push(name);
     }
@@ -853,7 +861,8 @@ function showGemTooltip(event, type, name) {
     let html = `<div class="tooltip-title">${name}</div>`;
     if (type === 'support') {
         html += `<div class="tooltip-line">${info.desc}</div>`;
-        html += `<div class="tooltip-line" style="margin-top:6px;">효과: ${info.statName} +${formatValue(SUPPORT_GEM_DB[name].stat, info.value)}${SUPPORT_GEM_DB[name].isPct ? '%' : ''}</div>`;
+        let tierText = info.activeTier === 3 ? '상급' : info.activeTier === 2 ? '중급' : '하급';
+        html += `<div class="tooltip-line" style="margin-top:6px;">효과(${tierText}): ${info.statName} +${formatValue(SUPPORT_GEM_DB[name].stat, info.value)}${SUPPORT_GEM_DB[name].isPct ? '%' : ''}</div>`;
         if (Number.isFinite(SUPPORT_GEM_DB[name].heraldExplodeBase)) {
             let chancePct = Math.min(85, ((SUPPORT_GEM_DB[name].heraldExplodeBase + ((info.totalLevel - 1) * (SUPPORT_GEM_DB[name].heraldExplodeScale || 0))) * 100));
             html += `<div class="tooltip-line">시체폭발: 처치 시 ${chancePct.toFixed(1)}% 확률 발동</div>`;
@@ -882,7 +891,7 @@ function showGemTooltip(event, type, name) {
         if ((skill.fireResDmgScale || 0) > 0) html += `<div class="tooltip-line">화염 저항 계수: 화염 저항 1%당 ${(skill.fireResDmgScale * 100).toFixed(2)}% 추가 배율</div>`;
         if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
-        html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '전체' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
+        html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
         html += `<div class="tooltip-line">최대 타겟 수: ${Math.max(1, skill.targets || 1)}</div>`;
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${skill.crit}%</div>`;
@@ -2288,7 +2297,7 @@ function updateStaticUI() {
     if (labyrinthOpen) {
         let maxFloor = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
         let floorButtons = Array.from({ length: maxFloor }, (_, i) => i + 1).slice(-8).map(f => `<button onclick="enterLabyrinthFloor(${f})">${f}층</button>`).join('');
-        document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}" onclick="changeZone('${LABYRINTH_ZONE_ID}')">
+        document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}">
             <div class="map-item-main"><span>🏛️</span><span>고대 미궁 ${game.labyrinthFloor || 1}층</span></div>
             <div class="map-item-actions"><span class="map-zone-status">미궁 화석: ${game.currencies.fossil || 0}</span></div>
         </div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${floorButtons}</div>`;
@@ -2442,7 +2451,7 @@ function updateStaticUI() {
         let sealBtn = name === game.activeSkill ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
         return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong>${badge}${sealBtn}</div>`;
     }).join('');
-    if (sealedSkills.length > 0) {
+    if (sealedSkills.length > 0 && !foldAttackInactive) {
         document.getElementById('ui-skills-list').innerHTML += sealedSkills.map(name => `<div class="skill-gem" style="opacity:0.78;"><strong>🔒 ${escapeHTML(name)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSkillGem('${name}')">해제 (공명 -1)</button></div>`).join('');
     }
 
@@ -2452,7 +2461,7 @@ function updateStaticUI() {
     if (suppCountEl) suppCountEl.innerText = game.equippedSupports.length;
     if (suppMaxEl) suppMaxEl.innerText = pStats.suppCap;
     if (suppResonanceEl) {
-        let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportResonanceCost(n) + Math.max(0, getSupportActiveTier(n) - 1), 0);
+        let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
         suppResonanceEl.innerText = `${Math.max(0, Math.floor(game.resonancePower || 0) - used)}`;
     }
     document.getElementById('ui-support-list').innerHTML = game.supports.filter(name => {
@@ -2464,12 +2473,12 @@ function updateStaticUI() {
         let unlockedTier = Math.max(1, Math.min(3, Math.floor((((game.supportGemData || {})[name]) || {}).unlockedTier || 1)));
         let activeTier = getSupportActiveTier(name);
         let tierLabel = activeTier === 3 ? '상급' : activeTier === 2 ? '중급' : '하급';
-        let cost = getSupportResonanceCost(name) + Math.max(0, activeTier - 1);
+        let cost = getSupportTierResonanceCost(name);
         let sealBtn = active ? '' : `<button style="margin-left:4px; font-size:0.66em; padding:1px 4px;" onclick="event.stopPropagation(); sealSupportGem('${name}')">🔒</button>`;
         let tierBtns = [1,2,3].map(t => `<button style="font-size:0.62em; padding:1px 3px; ${t<=unlockedTier?'':'opacity:.4;'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${t})" ${t<=unlockedTier?'':'disabled'}>${t===1?'하':t===2?'중':'상'}</button>`).join('');
         return `<div class="skill-gem support-gem ${active}" onclick="toggleSupport('${name}')" onmouseenter="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">${tierLabel} · Lv.${gemInfo.totalLevel} · 공명 ${cost}</span><span style="display:inline-flex; gap:2px; margin-left:4px;">${tierBtns}</span>${sealBtn}</div>`;
     }).join('');
-    if (sealedSupports.length > 0) {
+    if (sealedSupports.length > 0 && !foldSupportInactive) {
         document.getElementById('ui-support-list').innerHTML += sealedSupports.map(name => `<div class="skill-gem support-gem" style="opacity:0.78;"><strong>🔒 ${escapeHTML(name)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSupportGem('${name}')">해제 (공명 -1)</button></div>`).join('');
     }
     let suppHeader = document.querySelector('#tab-skills #skill-tab-equip h2');
@@ -4323,8 +4332,12 @@ function init() {
                 coreLoop();
                 ensureLoopChallengeState();
                 if (pendingHeavyUiRefresh) {
-                    pendingHeavyUiRefresh = false;
-                    updateStaticUI();
+                    let now = Date.now();
+                    if (now - lastHeavyUiRefreshAt >= 220) {
+                        pendingHeavyUiRefresh = false;
+                        lastHeavyUiRefreshAt = now;
+                        updateStaticUI();
+                    }
                 }
                 updateCombatUI(getPlayerStats());
             } catch (error) {

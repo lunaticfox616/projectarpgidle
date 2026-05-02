@@ -77,8 +77,8 @@ function coreLoop() {
     }
     let zoneNow = getZone(game.currentZoneId);
     if ((game.season || 1) >= 9 && zoneNow && zoneNow.type === 'abyss') {
-        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false });
-        if (v.active && Math.random() < 0.20) {
+        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
+        if (v.active && Math.random() < 0.20 && game.runProgress < 99.5 && game.killsInZone < (zoneNow.maxKills || 1)) {
             let alive = (game.enemies || []).filter(e => e.hp > 0).length;
             if (alive < 12) {
                 let spawn = 2 + Math.floor(Math.random() * 3);
@@ -579,7 +579,9 @@ function getGemPresentation(name, isSupport) {
         if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null };
         let totalLevel = Math.max(1, gem.level + stats.gemBonusSources.total);
         let val = db.baseVal + ((totalLevel - 1) * db.scale);
-        return { baseLevel: gem.level, totalLevel: totalLevel, value: val, desc: db.desc, statName: db.name, statId: db.stat };
+        let activeTier = Math.max(1, Math.min(3, Math.floor(gem.activeTier || gem.unlockedTier || 1)));
+        let tierMul = activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2;
+        return { baseLevel: gem.level, totalLevel: totalLevel, value: val * tierMul, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier };
     }
     let db = SKILL_DB[name];
     if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
@@ -1208,10 +1210,20 @@ function handleEnemyDeath(enemy, pStats) {
     rollLootForEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
-        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false });
+        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         if (!v.active && Math.random() < (enemy.isElite ? 0.015 : 0.004)) {
             v.active = true;
+            v.activeKills = 0;
+            v.requiredKills = 15 + Math.floor(Math.random() * 9);
             addLog('🕳️ 공허의 구멍이 랜덤으로 열렸습니다!', 'attack-monster');
+        } else if (v.active) {
+            v.activeKills = Math.max(0, Math.floor(v.activeKills || 0)) + 1;
+            if (v.activeKills >= Math.max(1, Math.floor(v.requiredKills || 18))) {
+                v.active = false;
+                v.breachClears = (v.breachClears || 0) + 1;
+                if (Math.random() < 0.20) v.grandBreachUnlock = true;
+                addLog('🕳️ 균열이 안정화되어 자동으로 닫혔습니다.', 'loot-magic');
+            }
         }
     }
     let equippedHeralds = (game.equippedSupports || []).map(name => {
