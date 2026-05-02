@@ -1165,10 +1165,12 @@ function rollLootForEnemy(enemy) {
             let available = Object.keys(SUPPORT_GEM_DB);
             if (available.length > 0) {
                 let gem = rndChoice(available);
+                let didImprove = false;
                 game.supportGemData = game.supportGemData || {};
                 if (!(game.supports || []).includes(gem)) {
                     game.supports.push(gem);
                     game.supportGemData[gem] = { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 };
+                    didImprove = true;
                 } else {
                     let record = normalizeGemRecord(game.supportGemData[gem] || { level:1, exp:0 });
                     let before = Math.max(1, Math.floor(record.unlockedTier || 1));
@@ -1176,14 +1178,15 @@ function rollLootForEnemy(enemy) {
                         record.unlockedTier = before + 1;
                         if ((record.activeTier || 1) < record.unlockedTier) record.activeTier = record.unlockedTier;
                         game.supportGemData[gem] = record;
-                    } else {
-                        return;
+                        didImprove = true;
                     }
                 }
-                game.noti.skills = true;
-                checkUnlocks();
-                let tier = ((game.supportGemData[gem] || {}).unlockedTier || 1);
-                if (game.settings.showLootLog) addLog(`🟢 보조젬 <span class='loot-rare'>[${gem}]</span> 획득! (해금: ${tier >= 3 ? '상급' : tier === 2 ? '중급' : '하급'})`);
+                if (didImprove) {
+                    game.noti.skills = true;
+                    checkUnlocks();
+                    let tier = ((game.supportGemData[gem] || {}).unlockedTier || 1);
+                    if (game.settings.showLootLog) addLog(`🟢 보조젬 <span class='loot-rare'>[${gem}]</span> 획득! (해금: ${tier >= 3 ? '상급' : tier === 2 ? '중급' : '하급'})`);
+                }
             }
         }
     }
