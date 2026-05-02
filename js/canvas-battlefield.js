@@ -175,7 +175,7 @@ function renderBattlefield() {
     if (playerEsPct > 0) {
         ctx.fillStyle = 'rgba(75,123,236,0.85)';
         let esW = Math.max(1, Math.round(pBarWidth * playerEsPct));
-        ctx.fillRect(pBarX + (pBarWidth - esW), pBarY, esW, 8);
+        ctx.fillRect(pBarX, pBarY, esW, 8);
     }
     ctx.strokeStyle = 'rgba(200, 232, 255, 0.55)';
     ctx.lineWidth = 1;
