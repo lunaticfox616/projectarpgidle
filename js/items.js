@@ -254,7 +254,10 @@ function closeBaseUpgradeOverlay() {
 function confirmSelectedItemBaseUpgrade() {
     let pending = game.pendingBaseUpgrade;
     if (!pending) return;
-    let item = (game.inventory || []).find(v => v && v.id === pending.itemId);
+    let selected = getSelectedCraftItem();
+    let item = (selected && selected.id === pending.itemId) ? selected : null;
+    if (!item) item = (game.inventory || []).find(v => v && v.id === pending.itemId);
+    if (!item) item = Object.values(game.equipment || {}).find(v => v && v.id === pending.itemId);
     if (!item) { closeBaseUpgradeOverlay(); return addLog('대상 장비를 찾을 수 없습니다.', 'attack-monster'); }
     if ((game.currencies.chaos || 0) < (pending.costChaos || 0)) return addLog(`카오스 오브가 부족합니다. (필요: ${pending.costChaos})`, 'attack-monster');
     if ((game.currencies.divine || 0) < (pending.costDivine || 0)) return addLog(`신성한 오브가 부족합니다. (필요: ${pending.costDivine})`, 'attack-monster');

@@ -662,11 +662,24 @@ function getSupportActiveTier(name) {
 }
 function setSupportActiveTier(name, tier) {
     if (!SUPPORT_GEM_DB[name]) return;
+    normalizeSupportLoadout(false);
     let rec = normalizeGemRecord(((game.supportGemData || {})[name]) || { level: 1, exp: 0 });
     rec.unlockedTier = Math.max(1, Math.min(3, Math.floor(rec.unlockedTier || 1)));
-    rec.activeTier = Math.max(1, Math.min(rec.unlockedTier, Math.floor(tier || 1)));
+    let nextTier = Math.max(1, Math.min(rec.unlockedTier, Math.floor(tier || 1)));
+    let prevTier = Math.max(1, Math.min(rec.unlockedTier, Math.floor(rec.activeTier || 1)));
+    if ((game.equippedSupports || []).includes(name) && nextTier !== prevTier) {
+        rec.activeTier = nextTier;
+        game.supportGemData[name] = rec;
+        let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
+        let budget = Math.max(0, Math.floor(game.resonancePower || 0));
+        if (used > budget) {
+            rec.activeTier = prevTier;
+            game.supportGemData[name] = rec;
+            return addLog(`공명력 부족 (${budget}/${used})`, 'attack-monster');
+        }
+    }
+    rec.activeTier = nextTier;
     game.supportGemData[name] = rec;
-    normalizeSupportLoadout(false);
     updateStaticUI();
 }
 function toggleSupport(name) {
