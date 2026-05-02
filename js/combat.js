@@ -69,7 +69,7 @@ function coreLoop() {
             let extraRemainder = dsChance - (guaranteedExtra * 100);
             let extraHits = guaranteedExtra + ((Math.random() * 100 < extraRemainder) ? 1 : 0);
             for (let chain = 0; chain < extraHits && game.enemies.length > 0; chain++) {
-                if (game.settings.showCombatLog) addLog(`⚔️ [연속 타격] ${chain + 2}연속 공격!`, "loot-rare");
+                if (game.settings.showCombatLog) addLog(`⚔️ [연속 타격] ${chain + 2}연속 공격!`, "loot-rare", { rateKey: 'combat:double-strike', minIntervalMs: 220, aggregateKey: 'combat:double-strike', aggregateWindowMs: 500 });
                 performPlayerAttack(pStats);
             }
         }
@@ -172,10 +172,17 @@ function getPlayerStats() {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
     let loop10Bonus = game.loop10BonusStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 };
+    let loopDeep = game.loopDeepStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
     addStatToBucket(reward, 'flatHp', (loop10Bonus.flatHp || 0) * 12);
     addStatToBucket(reward, 'flatDmg', (loop10Bonus.flatDmg || 0) * 3);
     addStatToBucket(reward, 'aspd', (loop10Bonus.aspd || 0) * 1.5);
     addStatToBucket(reward, 'move', (loop10Bonus.move || 0) * 1.0);
+    addStatToBucket(reward, 'flatHp', (loopDeep.flatHp || 0) * 10);
+    addStatToBucket(reward, 'flatDmg', (loopDeep.flatDmg || 0) * 2);
+    addStatToBucket(reward, 'aspd', (loopDeep.aspd || 0) * 1.2);
+    addStatToBucket(reward, 'move', (loopDeep.move || 0) * 0.8);
+    addStatToBucket(reward, 'dr', (loopDeep.dr || 0) * 0.5);
+    addStatToBucket(reward, 'crit', (loopDeep.crit || 0) * 0.6);
     safeJournalBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
@@ -444,6 +451,37 @@ function getPlayerStats() {
                 makeSourceLine('보조 젬', support.dr, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
             final: `${Math.floor(finalDr)}%`
+        },
+        armor: {
+            title: '방어도',
+            lines: [
+                makeSourceLine('장비', gearBase.armor + gearExplicit.armor),
+                makeSourceLine('패시브', passive.armor + season.armor + ascend.armor + reward.armor),
+                makeSourceLine('방어도 증가', totalArmorPct, '%', value => `${Math.floor(value)}%`),
+                `예상 물리 피해 감소율(기준 타격 ${Math.floor(referenceIncomingPhysical)}): ${armorReduction.toFixed(1)}%`
+            ].filter(Boolean),
+            final: `${Math.floor(finalArmor)}`
+        },
+        evasion: {
+            title: '회피',
+            lines: [
+                makeSourceLine('장비', gearBase.evasion + gearExplicit.evasion),
+                makeSourceLine('패시브', passive.evasion + season.evasion + ascend.evasion + reward.evasion),
+                makeSourceLine('회피 증가', totalEvasionPct, '%', value => `${Math.floor(value)}%`),
+                `예상 회피 확률(동일 레벨 적 기준): ${evadeChance.toFixed(1)}%`
+            ].filter(Boolean),
+            final: `${Math.floor(finalEvasion)}`
+        },
+        energyShield: {
+            title: '에너지 보호막',
+            lines: [
+                makeSourceLine('장비', gearBase.energyShield + gearExplicit.energyShield),
+                makeSourceLine('패시브', passive.energyShield + season.energyShield + ascend.energyShield + reward.energyShield),
+                makeSourceLine('보호막 증가', totalEnergyShieldPct, '%', value => `${Math.floor(value)}%`),
+                `재충전 대기시간: ${finalEnergyShieldRechargeDelay.toFixed(2)}초`,
+                `에너지 보호막 재생량: 초당 ${Math.floor(finalEnergyShield * (finalEnergyShieldRegenRate / 100))} (${finalEnergyShieldRegenRate.toFixed(1)}%)`
+            ].filter(Boolean),
+            final: `${Math.floor(finalEnergyShield)}`
         },
         physIgnore: {
             title: '물리 피해 감소 무시',
@@ -1127,10 +1165,12 @@ function rollLootForEnemy(enemy) {
             let available = Object.keys(SUPPORT_GEM_DB);
             if (available.length > 0) {
                 let gem = rndChoice(available);
+                let didImprove = false;
                 game.supportGemData = game.supportGemData || {};
                 if (!(game.supports || []).includes(gem)) {
                     game.supports.push(gem);
                     game.supportGemData[gem] = { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 };
+                    didImprove = true;
                 } else {
                     let record = normalizeGemRecord(game.supportGemData[gem] || { level:1, exp:0 });
                     let before = Math.max(1, Math.floor(record.unlockedTier || 1));
@@ -1138,14 +1178,15 @@ function rollLootForEnemy(enemy) {
                         record.unlockedTier = before + 1;
                         if ((record.activeTier || 1) < record.unlockedTier) record.activeTier = record.unlockedTier;
                         game.supportGemData[gem] = record;
-                    } else {
-                        return;
+                        didImprove = true;
                     }
                 }
-                game.noti.skills = true;
-                checkUnlocks();
-                let tier = ((game.supportGemData[gem] || {}).unlockedTier || 1);
-                if (game.settings.showLootLog) addLog(`🟢 보조젬 <span class='loot-rare'>[${gem}]</span> 획득! (해금: ${tier >= 3 ? '상급' : tier === 2 ? '중급' : '하급'})`);
+                if (didImprove) {
+                    game.noti.skills = true;
+                    checkUnlocks();
+                    let tier = ((game.supportGemData[gem] || {}).unlockedTier || 1);
+                    if (game.settings.showLootLog) addLog(`🟢 보조젬 <span class='loot-rare'>[${gem}]</span> 획득! (해금: ${tier >= 3 ? '상급' : tier === 2 ? '중급' : '하급'})`);
+                }
             }
         }
     }
@@ -1209,6 +1250,7 @@ function handleEnemyDeath(enemy, pStats) {
     grantExpAndGem(enemy, pStats);
     rollLootForEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
+    if (enemy.isBoss && zone && zone.type === 'act') markLoopSpecialBossKill(`act_boss_${zone.id}`);
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         if (!v.active && Math.random() < (enemy.isElite ? 0.015 : 0.004)) {
@@ -1409,6 +1451,16 @@ function finishEncounterRun() {
             }
         }
         if (zone.id === getCurrentSeasonFinalZoneId()) {
+            if ((game.season || 1) >= 10 && zone.type === 'abyss' && zone.name === '혼돈 20') {
+                game.pendingLoopDecision = true;
+                game.combatHalted = true;
+                game.enemies = [];
+                game.encounterPlan = [];
+                game.encounterIndex = 0;
+                game.runProgress = 0;
+                updateStaticUI();
+                return;
+            }
             triggerSeasonReset();
             return;
         }
@@ -1549,7 +1601,7 @@ function performPlayerAttack(pStats) {
         if (!hiddenScaleTags.includes('regen') && (scales.regen || 1) > 1.0001) scaleLabels.push(`재생x${(scales.regen || 1).toFixed(2)}`);
         if (!hiddenScaleTags.includes('fireRes') && (scales.fireRes || 1) > 1.0001) scaleLabels.push(`화저x${(scales.fireRes || 1).toFixed(2)}`);
         if (scaleLabels.length > 0) line += ` [계수 ${scaleLabels.join(' / ')}]`;
-        addLog(line, isCrit ? 'attack-crit' : 'attack-player');
+        addLog(line, isCrit ? 'attack-crit' : 'attack-player', { rateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', minIntervalMs: isCrit ? 120 : 180, aggregateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', aggregateWindowMs: 500 });
     }
 
     targets.forEach(hit => {
@@ -1787,6 +1839,30 @@ function playLoopRewriteEffect() {
     }, 1950);
 }
 
+function markLoopSpecialBossKill(bossKey) {
+    game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
+    game.loopProgressCurrent.specialBosses = Array.isArray(game.loopProgressCurrent.specialBosses) ? game.loopProgressCurrent.specialBosses : [];
+    if (!game.loopProgressCurrent.specialBosses.includes(bossKey)) game.loopProgressCurrent.specialBosses.push(bossKey);
+}
+
+function awardLoopProgressPoints() {
+    game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
+    game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
+    let baseDepth = Math.max(20, Math.floor(game.loopProgressBase.abyssEndlessDepth || 20));
+    let nowDepth = Math.max(20, Math.floor(game.abyssEndlessDepth || 20));
+    let depthGain = Math.max(0, nowDepth - baseDepth);
+    let baseLab = Math.max(1, Math.floor(game.loopProgressBase.labyrinthUnlockedMaxFloor || 1));
+    let nowLab = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+    let labGain = Math.max(0, nowLab - baseLab);
+    let baseBosses = new Set(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []);
+    let newBosses = (Array.isArray(game.loopProgressCurrent.specialBosses) ? game.loopProgressCurrent.specialBosses : []).filter(id => !baseBosses.has(id));
+    let bonus = (depthGain * 2) + Math.floor(labGain / 5) + (newBosses.length * 3);
+    if (bonus > 0) game.loopDeepPoints = Math.max(0, Math.floor(game.loopDeepPoints || 0)) + bonus;
+    game.loopProgressBase = { abyssEndlessDepth: nowDepth, labyrinthUnlockedMaxFloor: nowLab, specialBosses: Array.from(new Set([...(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []), ...newBosses])) };
+    game.loopProgressCurrent = { specialBosses: [] };
+    return { bonus, depthGain, labGain, bossGain: newBosses.length };
+}
+
 function triggerSeasonReset() {
     if (isRewardOpen()) closeRewardOverlay();
     let codexReveal = {};
@@ -1798,9 +1874,11 @@ function triggerSeasonReset() {
     playLoopRewriteEffect();
     let previousHeroId = game.selectedHeroId || 'hero1';
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+    let loopReward = awardLoopProgressPoints();
     game.season++;
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
+    if (loopReward.bonus > 0) addLog(`🧬 심화 루프 보상: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain})`, 'season-up');
     game.level = 1;
     game.exp = 0;
     game.killsInZone = 0;
@@ -1892,5 +1970,19 @@ function triggerSeasonReset() {
     });
 }
 
+function chooseLoopAdvance(shouldLoop) {
+    if (!game.pendingLoopDecision) return;
+    game.pendingLoopDecision = false;
+    if (shouldLoop) {
+        triggerSeasonReset();
+        return;
+    }
+    game.currentZoneId = Math.max(0, Math.floor(getCurrentSeasonFinalZoneId() || game.currentZoneId || 0));
+    game.killsInZone = 0;
+    game.combatHalted = true;
+    addLog('⏸️ 루프를 보류했습니다. 루프 탭에서 심화 진행/포인트 분배 후 원할 때 다음 루프로 이동하세요.', 'season-up');
+    updateStaticUI();
+}
 
-safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset });
+
+safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill });

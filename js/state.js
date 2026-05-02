@@ -222,6 +222,23 @@ function enterUnlockedEndlessDepth(depth) {
     updateStaticUI();
 }
 
+function getLoopDeepStatCost(statKey) {
+    game.loopDeepStats = game.loopDeepStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
+    let lv = Math.max(0, Math.floor(game.loopDeepStats[statKey] || 0));
+    return 1 + Math.floor(lv / 2);
+}
+
+function allocateLoopDeepStat(statKey) {
+    if ((game.season || 1) < 10) return;
+    let cost = getLoopDeepStatCost(statKey);
+    if ((game.loopDeepPoints || 0) < cost) return addLog(`심화 루프 포인트가 부족합니다. (필요: ${cost})`, 'attack-monster');
+    game.loopDeepStats = game.loopDeepStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
+    game.loopDeepStats[statKey] = Math.max(0, Math.floor(game.loopDeepStats[statKey] || 0)) + 1;
+    game.loopDeepPoints -= cost;
+    addLog(`🧬 심화 루프 강화: ${getStatName(statKey)} Lv.${game.loopDeepStats[statKey]} (비용 ${cost})`, 'season-up');
+    updateStaticUI();
+}
+
 const CLASS_TEMPLATES = {
     warrior: { name: '워리어', desc: '강력한 물리 공격과 높은 생존력', m1: 'physPctDmg', m2: 'flatHp', d: 'dr' },
     gladiator: { name: '글래디에이터', desc: '빠른 공격속도와 연속 타격', m1: 'meleePctDmg', m2: 'ds', d: 'aspd' },
@@ -472,7 +489,7 @@ let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
 
 // Phase-4 extracted default state schema.
 const defaultGame = {
@@ -493,6 +510,8 @@ const defaultGame = {
     settings: {
         showCombatScene: true,
         showCombatLog: true,
+        combatLogAggregate: true,
+        combatLogRateLimit: true,
         showSpawnLog: true,
         showExpLog: true,
         showLootLog: true,
@@ -577,6 +596,7 @@ const defaultGame = {
     completedTrials: [],
     unlockedTrials: [],
     seasonPoints: 0,
+    loopDeepPoints: 0,
     seasonNodes: [],
     labyrinthFloor: 1,
     jewelInventory: [],
@@ -591,6 +611,10 @@ const defaultGame = {
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,
     abyssUnlockedDepths: [20],
+    loopDeepStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 },
+    loopProgressBase: { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] },
+    loopProgressCurrent: { specialBosses: [] },
+    pendingLoopDecision: false,
 
     skyGemEnhancements: {},
     recentDamageEvents: [],

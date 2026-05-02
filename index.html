@@ -169,6 +169,7 @@
                 <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
                 <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span><span id="ui-es-inline"></span></div>
             </div>
+            <div id="ui-player-ailments-under" style="font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
             <div id="ui-player-ailments-mobile" style="display:none; font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
         </div>
 
@@ -188,6 +189,13 @@
                 </div>
 
                 <div id="enemy-area" style="margin-top: 6px; margin-bottom: 0; flex-shrink: 0;">
+                    <div style="margin-bottom:6px;">
+                        <div style="font-size:0.78em; color:#8fd8a8; margin-bottom:2px;">내 캐릭터 생명력</div>
+                        <div class="hp-bar-bg" style="height:12px;">
+                            <div id="ui-player-hp-combat" class="hp-bar-fill player" style="width:100%;"></div>
+                            <div id="ui-player-es-combat" class="hp-bar-fill" style="position:absolute; right:0; top:0; height:100%; background:#4b7bec; opacity:.8; width:0%;"></div>
+                        </div>
+                    </div>
                     <div id="ui-enemy-list" class="enemy-list"></div>
                 </div>
             </div>
@@ -269,17 +277,17 @@
                 <span class="stat-value" id="ui-dr">0</span>
                 <span class="stat-unit">%</span>
             </div>
-            <div class="stat-item">
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'armor')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">🧱 방어도</span>
                 <span class="stat-value" id="ui-armor">0</span>
                 <span class="stat-unit"></span>
             </div>
-            <div class="stat-item">
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'evasion')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">💨 회피</span>
                 <span class="stat-value" id="ui-evasion">0</span>
                 <span class="stat-unit"></span>
             </div>
-            <div class="stat-item">
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'energyShield')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">🔷 에너지 보호막</span>
                 <span class="stat-value" id="ui-es">0</span>
                 <span class="stat-unit"></span>
@@ -636,6 +644,8 @@
         <div class="settings-stack">
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-combat-scene" onchange="updateSettings()" checked> 전투 화면 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-combat" onchange="updateSettings()" checked> 전투 로그 표시</label>
+            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-aggregate" onchange="updateSettings()" checked> 전투 로그 0.5초 집계</label>
+            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-rate-limit" onchange="updateSettings()" checked> 일반/연속타격 로그 속도 제한</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-spawn" onchange="updateSettings()" checked> 적/보스 등장 로그 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-exp" onchange="updateSettings()" checked> 경험치 로그 표시</label>
             <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-loot" onchange="updateSettings()" checked> 전리품 로그 표시</label>

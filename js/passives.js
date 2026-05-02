@@ -542,7 +542,7 @@ function generateOrganicTree() {
         if (depth === 6 && lane === 0) return { tier: 2, kind: 'hub' };
         if (depth === maxDepth && laneAbs === 3) return { tier: 2, kind: 'hub' };
         if (laneAbs === 3 && depth > 6 && depth < maxDepth) return { tier: 1, kind: 'path' };
-        if (laneAbs === 4 && depth >= maxDepth - 1) return { tier: 3, kind: 'deadend' };
+        if (laneAbs === 4 && depth >= maxDepth - 1) return { tier: depth === maxDepth ? 2 : 1, kind: depth === maxDepth ? 'major' : 'path' };
         if (depth === maxDepth && laneAbs <= 1) return { tier: 3, kind: 'keystone' };
         if (depth % 4 === 0 || (depth >= maxDepth - 2 && laneAbs <= 2)) return { tier: 2, kind: 'major' };
         return { tier: 1, kind: 'path' };
@@ -4420,7 +4420,7 @@ function salvageItemObject(item, silent) {
     else if (item.rarity === 'magic') awardCurrency('augment', 1);
     else if (item.rarity === 'rare') awardCurrency('chaos', 1);
     else if (item.rarity === 'unique') {
-        awardCurrency('divine', 1);
+        if (Math.random() < 0.12) awardCurrency('divine', 1);
         if (Math.random() < 0.55) awardCurrency('exalted', 1);
     }
     if (!silent) addLog(`🧪 [${item.name}] 해체`, "loot-normal");

@@ -171,12 +171,12 @@ function spawnBeehiveWave(isBoss){ let zone=getZone(game.currentZoneId)||getZone
 function startBeehiveRun(){ let b=game.beehive; if((game.currencies.hiveKey||0)<=0||b.inRun) return; game.currencies.hiveKey--; b.inRun=true; b.branchStep=0; b.pendingChoice=null; b.awaitingClear=false; b.enemyEmpower=0; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🐝 벌집 원정 시작! 진행 중이던 던전 흐름은 초기화됩니다.', 'season-up'); updateStaticUI(); }
 function buildBeehiveChoiceOption(type){ if(type==='pollen'){ let amount=10+Math.floor(Math.random()*9); return { text:`꽃가루 +${amount}`, effect:'pollen', amount: amount }; } if(type==='honey') return { text:'벌꿀 획득 확률 상승', effect:'honey' }; return { text:'독벌침 획득 확률 상승', effect:'stinger' }; }
 function advanceBeehivePath(){ let b=game.beehive; if(!b.inRun||b.awaitingClear||b.pendingChoice) return; b.branchStep++; b.awaitingClear=true; spawnBeehiveWave((b.branchStep||0)>=10); updateStaticUI(); }
-function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice) return; if(key==='legacy_now'||key==='legacy_later'){ if(key==='legacy_now') game.currencies.pollen=(game.currencies.pollen||0)+Math.floor(10+Math.random()*9); else { if(Math.random()<0.06) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(Math.random()<0.22) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } } else { let pick=b.pendingChoice[key]; if(!pick) return; if(pick.effect==='pollen') game.currencies.pollen=(game.currencies.pollen||0)+(Number.isFinite(pick.amount)?pick.amount:0); if(pick.effect==='honey' && Math.random()<0.35) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(pick.effect==='stinger' && Math.random()<0.55) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } let ev=b.pendingChoice.eventType; if(ev==='curse'){ game.playerHp=Math.max(1,Math.floor(game.playerHp*0.9)); } else if(ev==='empower'){ b.enemyEmpower=Math.max(0,Math.floor((b.enemyEmpower||0)+1)); } else if(ev==='penalty'){ game.currencies.pollen=Math.max(0,(game.currencies.pollen||0)-5); } b.pendingChoice=null; if((b.branchStep||0)>=10){ b.inRun=false; b.cleared=true; b.unlockedPermanent=true; unlockJournalEntry('beehive_queen'); if(Math.random()<0.08){ let item=generateUniqueItem(Math.max(12,(getZone(game.currentZoneId)||{tier:12}).tier), '무기'); addItemToInventory(item); } addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되었습니다.', 'level-up'); } updateStaticUI(); }
+function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice) return; if(key==='legacy_now'||key==='legacy_later'){ if(key==='legacy_now') game.currencies.pollen=(game.currencies.pollen||0)+Math.floor(10+Math.random()*9); else { if(Math.random()<0.06) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(Math.random()<0.22) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } } else { let pick=b.pendingChoice[key]; if(!pick) return; if(pick.effect==='pollen') game.currencies.pollen=(game.currencies.pollen||0)+(Number.isFinite(pick.amount)?pick.amount:0); if(pick.effect==='honey' && Math.random()<0.35) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(pick.effect==='stinger' && Math.random()<0.55) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } let ev=b.pendingChoice.eventType; if(ev==='curse'){ game.playerHp=Math.max(1,Math.floor(game.playerHp*0.9)); } else if(ev==='empower'){ b.enemyEmpower=Math.max(0,Math.floor((b.enemyEmpower||0)+1)); } else if(ev==='penalty'){ game.currencies.pollen=Math.max(0,(game.currencies.pollen||0)-5); } b.pendingChoice=null; if((b.branchStep||0)>=10){ b.inRun=false; b.cleared=true; b.unlockedPermanent=true; markLoopSpecialBossKill('beehive_queen'); unlockJournalEntry('beehive_queen'); if(Math.random()<0.08){ let item=generateUniqueItem(Math.max(12,(getZone(game.currentZoneId)||{tier:12}).tier), '무기'); addItemToInventory(item); } addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되었습니다.', 'level-up'); } updateStaticUI(); }
 function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; b.inRun=false; b.branchStep=0; b.pendingChoice=null; b.enemyEmpower=0; game.combatHalted=false; addLog('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); updateStaticUI(); }
 function craftBeehiveCurrency(type){ let cost= type==='key'?200:type==='stinger'?600:2000; if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; updateStaticUI(); }
 function triggerVoidBreach(){ let v=game.voidRift; v.active=true; addLog('🕳️ 공허의 구멍이 열렸습니다! 몬스터가 쏟아집니다.', 'attack-monster'); updateStaticUI(); }
 function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if(Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
-function enterGrandBreach(){ let v=game.voidRift; if(!v.grandBreachUnlock) return; v.grandBreachUnlock=false; unlockJournalEntry('void_grand_breach'); if(Math.random()<0.04){ let item=generateUniqueItem(Math.max(14,(getZone(game.currentZoneId)||{tier:14}).tier)); addItemToInventory(item); addLog('🌌 큰 구멍 보스 전리품: 희귀 고유 장비 획득!', 'loot-unique'); } else addLog('🌌 큰 구멍 던전에 진입! 보스 보상이 떨어졌지만 고유는 아니었습니다.', 'season-up'); }
+function enterGrandBreach(){ let v=game.voidRift; if(!v.grandBreachUnlock) return; v.grandBreachUnlock=false; markLoopSpecialBossKill('void_grand_breach'); unlockJournalEntry('void_grand_breach'); if(Math.random()<0.04){ let item=generateUniqueItem(Math.max(14,(getZone(game.currentZoneId)||{tier:14}).tier)); addItemToInventory(item); addLog('🌌 큰 구멍 보스 전리품: 희귀 고유 장비 획득!', 'loot-unique'); } else addLog('🌌 큰 구멍 던전에 진입! 보스 보상이 떨어졌지만 고유는 아니었습니다.', 'season-up'); }
 function switchMapSubtab(subtabId) {
     game.mapSubtab = subtabId;
     document.querySelectorAll('#tab-map .subtab-content').forEach(el => el.classList.remove('active'));
@@ -684,14 +684,65 @@ function toggleSupport(name) {
     updateStaticUI();
 }
 
-function addLog(msg, cls) {
+let logQueue = [];
+let logFlushRaf = 0;
+let combatLogRateState = {};
+let combatLogAggregateState = {};
+function flushLogQueue() {
+    logFlushRaf = 0;
     const log = document.getElementById('log');
-    const div = document.createElement('div');
-    div.className = 'log-msg ' + (cls || '');
-    div.innerHTML = msg;
-    log.appendChild(div);
+    if (!log || logQueue.length === 0) return;
+    let frag = document.createDocumentFragment();
+    logQueue.forEach(entry => {
+        const div = document.createElement('div');
+        div.className = 'log-msg ' + (entry.cls || '');
+        div.innerHTML = entry.msg;
+        frag.appendChild(div);
+    });
+    logQueue = [];
+    log.appendChild(frag);
+    while (log.childElementCount > 60) log.removeChild(log.firstChild);
     log.scrollTop = log.scrollHeight;
-    if (log.childElementCount > 60) log.removeChild(log.firstChild);
+}
+function addLog(msg, cls, opts = {}) {
+    let now = performance.now();
+    let settings = game.settings || {};
+    if (opts.rateKey && settings.combatLogRateLimit !== false) {
+        let nextAt = combatLogRateState[opts.rateKey] || 0;
+        let interval = Math.max(60, Number(opts.minIntervalMs || 180));
+        if (now < nextAt) return;
+        combatLogRateState[opts.rateKey] = now + interval;
+    }
+    if (opts.aggregateKey && settings.combatLogAggregate !== false) {
+        let key = `${opts.aggregateKey}:${cls || ''}`;
+        let state = combatLogAggregateState[key];
+        let winMs = Math.max(120, Number(opts.aggregateWindowMs || 500));
+        if (state && (now - state.lastAt) <= winMs) {
+            state.count++;
+            state.lastAt = now;
+            state.msg = msg;
+            return;
+        }
+        if (state && state.count > 0) {
+            let merged = state.count > 1 ? `${state.msg} <span style="color:#9fb6cc;">x${state.count}</span>` : state.msg;
+            logQueue.push({ msg: merged, cls: state.cls });
+        }
+        combatLogAggregateState[key] = { msg: msg, cls: cls, count: 1, lastAt: now };
+        setTimeout(() => {
+            let s = combatLogAggregateState[key];
+            if (!s) return;
+            if ((performance.now() - s.lastAt) >= winMs) {
+                let merged = s.count > 1 ? `${s.msg} <span style="color:#9fb6cc;">x${s.count}</span>` : s.msg;
+                logQueue.push({ msg: merged, cls: s.cls });
+                delete combatLogAggregateState[key];
+                if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
+            }
+        }, winMs + 10);
+        if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
+        return;
+    }
+    logQueue.push({ msg, cls });
+    if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
 }
 
 function applyThemeMode(mode) {
@@ -779,6 +830,8 @@ function ensureInitialHeroSelection() {
 function updateSettings() {
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
     game.settings.showCombatLog = document.getElementById('chk-log-combat').checked;
+    game.settings.combatLogAggregate = document.getElementById('chk-log-aggregate').checked;
+    game.settings.combatLogRateLimit = document.getElementById('chk-log-rate-limit').checked;
     game.settings.showSpawnLog = document.getElementById('chk-log-spawn').checked;
     game.settings.showExpLog = document.getElementById('chk-log-exp').checked;
     game.settings.showLootLog = document.getElementById('chk-log-loot').checked;
@@ -1887,8 +1940,18 @@ function updateCombatUI(pStats) {
         let text = (game.playerAilments || []).map(ail => `${labels[ail.type] || ail.type} ${Math.max(0, (ail.time || 0)).toFixed(1)}s`).join(' · ');
         let ailmentText = text ? `상태이상: ${text}` : '';
         ailmentEl.innerText = ailmentText;
+        let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
+        if (ailmentUnderEl) ailmentUnderEl.innerText = ailmentText;
         let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
         if (mobileAilmentEl) mobileAilmentEl.innerText = ailmentText;
+    }
+    let hpCombatBar = document.getElementById('ui-player-hp-combat');
+    if (hpCombatBar) hpCombatBar.style.width = `${Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100))}%`;
+    let esCombatBar = document.getElementById('ui-player-es-combat');
+    if (esCombatBar) {
+        let pct = (pStats.energyShield || 0) > 0 ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
+        esCombatBar.style.width = `${pct}%`;
+        esCombatBar.style.display = (pStats.energyShield || 0) > 0 ? 'block' : 'none';
     }
 
     let zone = getZone(game.currentZoneId);
@@ -2359,12 +2422,24 @@ function updateStaticUI() {
                 game.loop10BonusStats = game.loop10BonusStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 };
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
                 let depthButtons = game.abyssUnlockedDepths.slice().sort((a,b)=>b-a).slice(0, 12).map(depth => `<button onclick="enterUnlockedEndlessDepth(${depth})">심화 ${depth}층</button>`).join('');
-                loop10Panel.innerHTML = `<div style="color:#d5c5ff; margin-bottom:6px;">루프10 강화 스탯 (투자할수록 비용 증가) · 포인트: <strong>${game.seasonPoints || 0}</strong></div>
+                game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
+                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
+                let pendingHtml = game.pendingLoopDecision ? `<div style="margin-top:8px; padding:8px; border:1px solid #8b6f2a; border-radius:8px; background:#2a2414;">
+                    <div style="color:#ffe29a; margin-bottom:6px;">혼돈20 클리어 완료: 다음 루프로 넘어갈지 선택하세요.</div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="chooseLoopAdvance(true)">루프 진행</button><button onclick="chooseLoopAdvance(false)">이번 루프 유지</button></div>
+                </div>` : '';
+                let expectedDepthGain = Math.max(0, Math.floor((game.abyssEndlessDepth || 20) - (game.loopProgressBase.abyssEndlessDepth || 20)));
+                let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
+                let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;
+                loop10Panel.innerHTML = `<div style="color:#d5c5ff; margin-bottom:6px;">루프10 강화 스탯 (투자할수록 비용 증가) · 시즌 포인트: <strong>${game.seasonPoints || 0}</strong></div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
                     ${['flatHp','flatDmg','aspd','move'].map(key => `<button onclick="allocateLoop10BonusStat('${key}')">${getStatName(key)} Lv.${game.loop10BonusStats[key] || 0} (+ 비용 ${getLoop10StatCost(key)})</button>`).join('')}
                 </div>
                 <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;"><button onclick="game.loop10ChaosStayEnabled=!game.loop10ChaosStayEnabled; updateStaticUI();">혼돈 잔류 모드: ${game.loop10ChaosStayEnabled ? 'ON' : 'OFF'}</button><button onclick="enterNextEndlessChaosDepth()" ${game.loop10ChaosStayEnabled ? '' : 'disabled'}>심화 +1층 (${Math.floor(game.abyssEndlessDepth || 20)})</button></div>
-                <div style="margin-top:8px; color:#9fb3d9;">기록된 층수로 재진입</div><div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-top:6px;">${depthButtons || '<span style="color:#7f8c8d;">기록 없음</span>'}</div>`;
+                <div style="margin-top:8px; color:#9fb3d9;">기록된 층수로 재진입</div><div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-top:6px;">${depthButtons || '<span style="color:#7f8c8d;">기록 없음</span>'}</div>
+                <div style="margin-top:10px; color:#e0d4ff;">심화 루프 포인트: <strong>${game.loopDeepPoints || 0}</strong> · 예상 획득(다음 루프): 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>
+                ${pendingHtml}`;
             }
         }
     } else {
@@ -2573,17 +2648,17 @@ function updateStaticUI() {
         let shapeStyle = shape ? getTalismanShapeStyle(shape) : null;
         let valid = isTalismanBoardCellValid(x,y);
         let coreOpen = isTalismanCellInitiallyUnlocked(x, y);
-        if (!valid) return `<div style="width:42px; height:42px; border:1px solid #bfc3c8; background:#f2f2f2; border-radius:6px;"></div>`;
-        let cellColor = coreOpen ? '#f2e900' : (!unlocked ? '#f39c12' : '#f2e900');
+        if (!valid) return `<div style="width:42px; height:42px; border:0; background:transparent; border-radius:8px; opacity:0; pointer-events:none;"></div>`;
+        let cellColor = coreOpen ? 'radial-gradient(circle at 30% 25%, #ffe88b 0%, #b9952d 52%, #5a4518 100%)' : (!unlocked ? 'radial-gradient(circle at 30% 25%, #ffcc7b 0%, #cc7b2f 58%, #5a2f11 100%)' : 'radial-gradient(circle at 30% 25%, #f7e47a 0%, #b48f2b 58%, #4d3b14 100%)');
         if (id) cellColor = (shapeStyle ? shapeStyle.glow : '#355d46');
         let label = !unlocked ? '' : (id ? (shapeStyle ? shapeStyle.symbol : '●') : '');
-        let border = !unlocked ? '#8a5a20' : (id && shapeStyle ? shapeStyle.color : '#8a7a10');
-        let textColor = !unlocked ? '#5f3b12' : (id && shapeStyle ? shapeStyle.color : '#403600');
+        let border = !unlocked ? '#9d6020' : (id && shapeStyle ? shapeStyle.color : '#a88a2a');
+        let textColor = !unlocked ? '#ffd9a2' : (id && shapeStyle ? shapeStyle.color : '#fff0b3');
         let unlockedSet = getTalismanUnlockedCellsSet();
         let extraUnlocked = Math.max(0, unlockedSet.size - 16);
         let unlockCost = getTalismanExpandCost(extraUnlocked);
         let lockTitle = unlocked ? '' : ` title="해금 비용: 봉인편린 ${unlockCost}"`;
-        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:6px; font-weight:bold;">${label}</button>`;
+        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow: inset 0 0 10px rgba(255,255,255,0.1), 0 3px 8px rgba(0,0,0,0.32);">${label}</button>`;
     }).join('');
     let journalList = document.getElementById('ui-journal-list');
     if (journalList) {
@@ -3321,6 +3396,13 @@ function mergeDefaults(save) {
     merged.encounterIndex = Math.max(0, Math.floor(clampFiniteNumber(merged.encounterIndex, defaultGame.encounterIndex, 0)));
     merged.nextEnemyId = Math.max(1, Math.floor(clampFiniteNumber(merged.nextEnemyId, defaultGame.nextEnemyId, 1)));
     merged.seasonPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.seasonPoints, defaultGame.seasonPoints, 0)));
+    merged.loopDeepPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.loopDeepPoints, defaultGame.loopDeepPoints, 0)));
+    merged.loopDeepStats = { ...(defaultGame.loopDeepStats || {}), ...(merged.loopDeepStats || {}) };
+    merged.loopProgressBase = { ...(defaultGame.loopProgressBase || {}), ...(merged.loopProgressBase || {}) };
+    merged.loopProgressCurrent = { ...(defaultGame.loopProgressCurrent || {}), ...(merged.loopProgressCurrent || {}) };
+    merged.loopProgressBase.specialBosses = Array.isArray(merged.loopProgressBase.specialBosses) ? merged.loopProgressBase.specialBosses : [];
+    merged.loopProgressCurrent.specialBosses = Array.isArray(merged.loopProgressCurrent.specialBosses) ? merged.loopProgressCurrent.specialBosses : [];
+    merged.pendingLoopDecision = !!merged.pendingLoopDecision;
     merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
     merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
     merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
@@ -4244,6 +4326,8 @@ function init() {
     calculateReachableNodes();
     document.getElementById('chk-combat-scene').checked = game.settings.showCombatScene !== false;
     document.getElementById('chk-log-combat').checked = game.settings.showCombatLog !== false;
+    document.getElementById('chk-log-aggregate').checked = game.settings.combatLogAggregate !== false;
+    document.getElementById('chk-log-rate-limit').checked = game.settings.combatLogRateLimit !== false;
     document.getElementById('chk-log-spawn').checked = game.settings.showSpawnLog !== false;
     document.getElementById('chk-log-exp').checked = game.settings.showExpLog !== false;
 

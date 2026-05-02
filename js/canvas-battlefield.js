@@ -158,6 +158,30 @@ function renderBattlefield() {
         ctx.restore();
     });
 
+    let pStatsNow = getPlayerStats();
+    let playerHpPct = clampNumber((game.playerHp || 0) / Math.max(1, pStatsNow.maxHp || 1), 0, 1);
+    let playerEsPct = (pStatsNow.energyShield || 0) > 0 ? clampNumber((game.playerEnergyShield || 0) / Math.max(1, pStatsNow.energyShield), 0, 1) : 0;
+    let pBarWidth = 64;
+    let pBarX = Math.round(playerPos.x - pBarWidth / 2);
+    let pBarY = Math.round(playerPos.y - 58);
+    ctx.save();
+    ctx.globalAlpha = 0.97;
+    ctx.fillStyle = 'rgba(7, 10, 16, 0.9)';
+    ctx.fillRect(pBarX - 2, pBarY - 2, pBarWidth + 4, 12);
+    ctx.fillStyle = 'rgba(36, 48, 62, 0.95)';
+    ctx.fillRect(pBarX, pBarY, pBarWidth, 8);
+    ctx.fillStyle = '#20bf6b';
+    ctx.fillRect(pBarX, pBarY, Math.max(2, Math.round(pBarWidth * playerHpPct)), 8);
+    if (playerEsPct > 0) {
+        ctx.fillStyle = 'rgba(75,123,236,0.85)';
+        let esW = Math.max(1, Math.round(pBarWidth * playerEsPct));
+        ctx.fillRect(pBarX + (pBarWidth - esW), pBarY, esW, 8);
+    }
+    ctx.strokeStyle = 'rgba(200, 232, 255, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(pBarX - 0.5, pBarY - 0.5, pBarWidth + 1, 9);
+    ctx.restore();
+
     let currentTargets = getSkillTargets(getPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;
