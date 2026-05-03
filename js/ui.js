@@ -242,21 +242,58 @@ function getTalismanShapeStyle(shape) {
 }
 
 function renderTalismanMiniShape(shape, options = {}) {
-    let cells = TALISMAN_SHAPES[shape] || [];
+    return renderTalismanMiniShapeFromCells((TALISMAN_SHAPES[shape] || []).map(cell => ({ x: cell[0], y: cell[1] })), shape, options);
+}
+
+function renderTalismanMiniShapeFromCells(cellsInput, shape, options = {}) {
+    let cells = Array.isArray(cellsInput) ? cellsInput.map(cell => ({ x: cell.x || 0, y: cell.y || 0 })) : [];
     let style = getTalismanShapeStyle(shape);
     let cellSize = Math.max(4, Math.floor(options.cellSize || 6));
     let gap = Math.max(1, Math.floor(options.gap || 1));
-    let width = (3 * cellSize) + (2 * gap);
-    let height = (2 * cellSize) + gap;
-    let filled = new Set(cells.map(cell => `${cell[0]},${cell[1]}`));
+    let minX = cells.length > 0 ? Math.min(...cells.map(cell => cell.x)) : 0;
+    let minY = cells.length > 0 ? Math.min(...cells.map(cell => cell.y)) : 0;
+    let maxX = cells.length > 0 ? Math.max(...cells.map(cell => cell.x)) : 2;
+    let maxY = cells.length > 0 ? Math.max(...cells.map(cell => cell.y)) : 1;
+    let cols = Math.max(1, (maxX - minX + 1));
+    let rows = Math.max(1, (maxY - minY + 1));
+    let width = (cols * cellSize) + ((cols - 1) * gap);
+    let height = (rows * cellSize) + ((rows - 1) * gap);
+    let filled = new Set(cells.map(cell => `${cell.x - minX},${cell.y - minY}`));
     let html = '';
-    for (let y = 0; y < 2; y++) {
-        for (let x = 0; x < 3; x++) {
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
             let isFilled = filled.has(`${x},${y}`);
-            html += `<span style="width:${cellSize}px; height:${cellSize}px; border-radius:2px; border:1px solid ${isFilled ? style.color : 'rgba(120,140,160,0.35)'}; background:${isFilled ? style.color : 'transparent'}; display:block;"></span>`;
+            let fillStyle = isFilled
+                ? `background:linear-gradient(145deg, rgba(255,255,255,0.28) 0%, ${style.color} 42%, rgba(8,12,18,0.2) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.32), 0 1px 2px rgba(0,0,0,0.45), 0 0 4px ${style.glow};`
+                : 'background:transparent; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);';
+            html += `<span style="width:${cellSize}px; height:${cellSize}px; border-radius:2px; border:1px solid ${isFilled ? style.color : 'rgba(120,140,160,0.35)'}; ${fillStyle} display:block;"></span>`;
         }
     }
-    return `<span style="display:grid; grid-template-columns:repeat(3, ${cellSize}px); grid-auto-rows:${cellSize}px; gap:${gap}px; width:${width}px; height:${height}px; padding:2px; border:1px solid rgba(120,145,175,0.4); border-radius:4px; background:rgba(8,14,22,0.45); box-shadow:0 0 0 1px ${style.glow};">${html}</span>`;
+    return `<span style="display:grid; grid-template-columns:repeat(${cols}, ${cellSize}px); grid-auto-rows:${cellSize}px; gap:${gap}px; width:${width}px; height:${height}px; padding:2px; border:1px solid rgba(120,145,175,0.4); border-radius:4px; background:rgba(8,14,22,0.45); box-shadow:0 0 0 1px ${style.glow};">${html}</span>`;
+}
+
+function getTalismanAnchorCell(talisman) {
+    if (!talisman || !Array.isArray(talisman.cells) || talisman.cells.length <= 0) return { x: 0, y: 0 };
+    let cells = talisman.cells.map(cell => ({ x: cell.x || 0, y: cell.y || 0 }));
+    let filled = new Set(cells.map(cell => `${cell.x},${cell.y}`));
+    let centerX = cells.reduce((sum, cell) => sum + cell.x, 0) / cells.length;
+    let centerY = cells.reduce((sum, cell) => sum + cell.y, 0) / cells.length;
+    let ranked = cells.map(cell => {
+        let neighbors = 0;
+        if (filled.has(`${cell.x - 1},${cell.y}`)) neighbors++;
+        if (filled.has(`${cell.x + 1},${cell.y}`)) neighbors++;
+        if (filled.has(`${cell.x},${cell.y - 1}`)) neighbors++;
+        if (filled.has(`${cell.x},${cell.y + 1}`)) neighbors++;
+        let dist = Math.hypot(cell.x - centerX, cell.y - centerY);
+        return { cell, neighbors, dist };
+    });
+    ranked.sort((a, b) => {
+        if (b.neighbors !== a.neighbors) return b.neighbors - a.neighbors;
+        if (a.dist !== b.dist) return a.dist - b.dist;
+        if (a.cell.y !== b.cell.y) return a.cell.y - b.cell.y;
+        return a.cell.x - b.cell.x;
+    });
+    return ranked[0].cell;
 }
 
 
@@ -438,14 +475,17 @@ function placeSelectedTalismanAt(x, y) {
     let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
     let talisman = inv.find(t => t.id === selectedId);
     if (!talisman) return;
-    if (!canPlaceTalismanAt(talisman, x, y)) return addLog('해당 위치에는 부적을 배치할 수 없습니다.', 'attack-monster');
+    let anchor = getTalismanAnchorCell(talisman);
+    let baseX = x - anchor.x;
+    let baseY = y - anchor.y;
+    if (!canPlaceTalismanAt(talisman, baseX, baseY)) return addLog('해당 위치에는 부적을 배치할 수 없습니다.', 'attack-monster');
     game.talismanBoard = Array.isArray(game.talismanBoard) ? game.talismanBoard : Array(TALISMAN_BOARD_W * TALISMAN_BOARD_H).fill(null);
     talisman.cells.forEach(cell => {
-        let idx = talismanCellIndex(x + cell.x, y + cell.y);
+        let idx = talismanCellIndex(baseX + cell.x, baseY + cell.y);
         game.talismanBoard[idx] = talisman.id;
     });
     game.talismanPlacements = game.talismanPlacements || {};
-    game.talismanPlacements[talisman.id] = { x: x, y: y, talisman: talisman };
+    game.talismanPlacements[talisman.id] = { x: baseX, y: baseY, talisman: talisman };
     game.talismanInventory = inv.filter(t => t.id !== talisman.id);
     game.talismanSelectedId = null;
     updateStaticUI();
@@ -2636,7 +2676,7 @@ function updateStaticUI() {
     document.getElementById('ui-talisman-inventory').innerHTML = game.talismanInventory.map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
-        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShape(t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
+        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
@@ -2649,16 +2689,19 @@ function updateStaticUI() {
         let valid = isTalismanBoardCellValid(x,y);
         let coreOpen = isTalismanCellInitiallyUnlocked(x, y);
         if (!valid) return `<div style="width:42px; height:42px; border:0; background:transparent; border-radius:8px; opacity:0; pointer-events:none;"></div>`;
-        let cellColor = coreOpen ? 'radial-gradient(circle at 30% 25%, #ffe88b 0%, #b9952d 52%, #5a4518 100%)' : (!unlocked ? 'radial-gradient(circle at 30% 25%, #ffcc7b 0%, #cc7b2f 58%, #5a2f11 100%)' : 'radial-gradient(circle at 30% 25%, #f7e47a 0%, #b48f2b 58%, #4d3b14 100%)');
-        if (id) cellColor = (shapeStyle ? shapeStyle.glow : '#355d46');
-        let label = !unlocked ? '' : (id ? (shapeStyle ? shapeStyle.symbol : '●') : '');
-        let border = !unlocked ? '#9d6020' : (id && shapeStyle ? shapeStyle.color : '#a88a2a');
-        let textColor = !unlocked ? '#ffd9a2' : (id && shapeStyle ? shapeStyle.color : '#fff0b3');
+        let cellColor = coreOpen ? 'radial-gradient(circle at 30% 25%, #595f69 0%, #3a3f48 52%, #1f2329 100%)' : (!unlocked ? 'radial-gradient(circle at 30% 25%, #4f5661 0%, #333941 58%, #1a1f26 100%)' : 'radial-gradient(circle at 30% 25%, #666c76 0%, #434a54 58%, #252b32 100%)');
+        if (id) cellColor = (shapeStyle ? `linear-gradient(145deg, rgba(255,255,255,0.3) 0%, ${shapeStyle.color} 42%, rgba(10,12,17,0.22) 100%)` : '#355d46');
+        let label = !unlocked ? '' : (id ? '' : '');
+        let border = !unlocked ? '#5a616b' : (id && shapeStyle ? shapeStyle.color : '#767d88');
+        let textColor = !unlocked ? '#b7bdc8' : (id && shapeStyle ? shapeStyle.color : '#d7dbe2');
         let unlockedSet = getTalismanUnlockedCellsSet();
         let extraUnlocked = Math.max(0, unlockedSet.size - 16);
         let unlockCost = getTalismanExpandCost(extraUnlocked);
         let lockTitle = unlocked ? '' : ` title="해금 비용: 봉인편린 ${unlockCost}"`;
-        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow: inset 0 0 10px rgba(255,255,255,0.1), 0 3px 8px rgba(0,0,0,0.32);">${label}</button>`;
+        let surfaceShadow = id
+            ? `inset 0 1px 0 rgba(255,255,255,0.34), 0 2px 6px rgba(0,0,0,0.35), 0 0 8px ${shapeStyle ? shapeStyle.glow : 'rgba(120,180,240,0.25)'}`
+            : 'inset 0 2px 4px rgba(0,0,0,0.55), inset 0 -1px 2px rgba(255,255,255,0.08), 0 1px 2px rgba(0,0,0,0.25)';
+        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     let journalList = document.getElementById('ui-journal-list');
     if (journalList) {
