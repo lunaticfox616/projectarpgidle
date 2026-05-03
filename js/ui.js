@@ -965,6 +965,8 @@ function showGemTooltip(event, type, name) {
             let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === info.statId);
             html += `<div class="tooltip-line">적용 태그: ${translateSkillTag(tag)}</div>`;
         }
+        let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
+        if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
     } else {
         let skill = info.skill || SKILL_DB[name];
         html += `<div class="tooltip-line">${info.desc}</div>`;
@@ -2459,27 +2461,20 @@ function updateStaticUI() {
             let loop10Open = (game.season || 1) >= 10;
             loop10Panel.style.display = loop10Open ? 'block' : 'none';
             if (loop10Open) {
-                game.loop10BonusStats = game.loop10BonusStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 };
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
                 let depthButtons = game.abyssUnlockedDepths.slice().sort((a,b)=>b-a).slice(0, 12).map(depth => `<button onclick="enterUnlockedEndlessDepth(${depth})">심화 ${depth}층</button>`).join('');
                 game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
-                let pendingHtml = game.pendingLoopDecision ? `<div style="margin-top:8px; padding:8px; border:1px solid #8b6f2a; border-radius:8px; background:#2a2414;">
-                    <div style="color:#ffe29a; margin-bottom:6px;">혼돈20 클리어 완료: 다음 루프로 넘어갈지 선택하세요.</div>
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="chooseLoopAdvance(true)">루프 진행</button><button onclick="chooseLoopAdvance(false)">이번 루프 유지</button></div>
-                </div>` : '';
                 let expectedDepthGain = Math.max(0, Math.floor((game.abyssEndlessDepth || 20) - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
                 let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;
-                loop10Panel.innerHTML = `<div style="color:#d5c5ff; margin-bottom:6px;">루프10 강화 스탯 (투자할수록 비용 증가) · 시즌 포인트: <strong>${game.seasonPoints || 0}</strong></div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-                    ${['flatHp','flatDmg','aspd','move'].map(key => `<button onclick="allocateLoop10BonusStat('${key}')">${getStatName(key)} Lv.${game.loop10BonusStats[key] || 0} (+ 비용 ${getLoop10StatCost(key)})</button>`).join('')}
+                loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">혼돈20 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
+                <div style="background:linear-gradient(160deg, rgba(84,59,136,0.22), rgba(26,31,56,0.35)); border:1px solid #5f4a93; border-radius:10px; padding:10px; margin-bottom:8px;">
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="game.loop10ChaosStayEnabled=!game.loop10ChaosStayEnabled; updateStaticUI();">혼돈 잔류 모드: ${game.loop10ChaosStayEnabled ? 'ON' : 'OFF'}</button><button onclick="enterNextEndlessChaosDepth()" ${game.loop10ChaosStayEnabled ? '' : 'disabled'}>다음 심화층 진입 (${Math.floor(game.abyssEndlessDepth || 20) + 1})</button></div>
+                    <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-top:6px;">${depthButtons || '<span style="color:#7f8c8d;">기록 없음</span>'}</div>
                 </div>
-                <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;"><button onclick="game.loop10ChaosStayEnabled=!game.loop10ChaosStayEnabled; updateStaticUI();">혼돈 잔류 모드: ${game.loop10ChaosStayEnabled ? 'ON' : 'OFF'}</button><button onclick="enterNextEndlessChaosDepth()" ${game.loop10ChaosStayEnabled ? '' : 'disabled'}>심화 +1층 (${Math.floor(game.abyssEndlessDepth || 20)})</button></div>
-                <div style="margin-top:8px; color:#9fb3d9;">기록된 층수로 재진입</div><div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-top:6px;">${depthButtons || '<span style="color:#7f8c8d;">기록 없음</span>'}</div>
-                <div style="margin-top:10px; color:#e0d4ff;">심화 루프 포인트: <strong>${game.loopDeepPoints || 0}</strong> · 예상 획득(다음 루프): 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>
-                ${pendingHtml}`;
+                <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>`;
             }
         }
     } else {

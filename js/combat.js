@@ -1449,10 +1449,12 @@ function finishEncounterRun() {
             }
         }
         if (zone.id === getCurrentSeasonFinalZoneId()) {
-            if ((game.season || 1) >= 10 && zone.type === 'abyss' && zone.name === '혼돈 20') {
+            if ((game.season || 1) >= 10 && zone.type === 'abyss') {
+                let depth = Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1));
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-                if (!game.abyssUnlockedDepths.includes(21)) game.abyssUnlockedDepths.push(21);
-                game.abyssEndlessDepth = Math.max(21, Math.floor(game.abyssEndlessDepth || 20));
+                let nextDepth = Math.max(21, Math.floor(game.abyssEndlessDepth || depth) + 1);
+                if (!game.abyssUnlockedDepths.includes(nextDepth)) game.abyssUnlockedDepths.push(nextDepth);
+                game.abyssEndlessDepth = Math.max(nextDepth, Math.floor(game.abyssEndlessDepth || 20));
                 game.pendingLoopDecision = true;
                 game.combatHalted = true;
                 game.enemies = [];
