@@ -78,7 +78,16 @@ function getZone(id) {
         let floor = Math.max(1, game.labyrinthFloor || 1);
         return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: Math.min(20, 7 + Math.floor(floor / 3)), maxKills: 1, ele: 'chaos', floor: floor };
     }
-    return MAP_ZONES[id];
+    let zone = MAP_ZONES[id];
+    if (!zone) return zone;
+    if (zone.type === 'abyss') {
+        let abyssDepth = Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1));
+        if (abyssDepth >= 20 && Math.floor(game.abyssEndlessDepth || 20) > 20) {
+            let endlessDepth = Math.floor(game.abyssEndlessDepth || 20);
+            return { ...zone, name: `혼돈 ${endlessDepth}` };
+        }
+    }
+    return zone;
 }
 
 
@@ -142,7 +151,7 @@ function getAbyssMonsterScales(zone) {
     let depth = zone && zone.type === 'abyss' ? Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1)) : 1;
     let endlessDepth = Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
     let endlessOver = Math.max(0, endlessDepth - 20);
-    let endlessMul = endlessOver > 0 ? Math.pow(1.06, endlessOver) : 1;
+    let endlessMul = endlessOver > 0 ? Math.pow(1.18, endlessOver) : 1;
     return {
         dmgMul: 1 + (state.power || 0) * 0.02,
         hpMul: (1 + (state.tenacity || 0) * 0.02) * endlessMul,
