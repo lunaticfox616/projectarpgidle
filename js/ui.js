@@ -242,21 +242,58 @@ function getTalismanShapeStyle(shape) {
 }
 
 function renderTalismanMiniShape(shape, options = {}) {
-    let cells = TALISMAN_SHAPES[shape] || [];
+    return renderTalismanMiniShapeFromCells((TALISMAN_SHAPES[shape] || []).map(cell => ({ x: cell[0], y: cell[1] })), shape, options);
+}
+
+function renderTalismanMiniShapeFromCells(cellsInput, shape, options = {}) {
+    let cells = Array.isArray(cellsInput) ? cellsInput.map(cell => ({ x: cell.x || 0, y: cell.y || 0 })) : [];
     let style = getTalismanShapeStyle(shape);
     let cellSize = Math.max(4, Math.floor(options.cellSize || 6));
     let gap = Math.max(1, Math.floor(options.gap || 1));
-    let width = (3 * cellSize) + (2 * gap);
-    let height = (2 * cellSize) + gap;
-    let filled = new Set(cells.map(cell => `${cell[0]},${cell[1]}`));
+    let minX = cells.length > 0 ? Math.min(...cells.map(cell => cell.x)) : 0;
+    let minY = cells.length > 0 ? Math.min(...cells.map(cell => cell.y)) : 0;
+    let maxX = cells.length > 0 ? Math.max(...cells.map(cell => cell.x)) : 2;
+    let maxY = cells.length > 0 ? Math.max(...cells.map(cell => cell.y)) : 1;
+    let cols = Math.max(1, (maxX - minX + 1));
+    let rows = Math.max(1, (maxY - minY + 1));
+    let width = (cols * cellSize) + ((cols - 1) * gap);
+    let height = (rows * cellSize) + ((rows - 1) * gap);
+    let filled = new Set(cells.map(cell => `${cell.x - minX},${cell.y - minY}`));
     let html = '';
-    for (let y = 0; y < 2; y++) {
-        for (let x = 0; x < 3; x++) {
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
             let isFilled = filled.has(`${x},${y}`);
-            html += `<span style="width:${cellSize}px; height:${cellSize}px; border-radius:2px; border:1px solid ${isFilled ? style.color : 'rgba(120,140,160,0.35)'}; background:${isFilled ? style.color : 'transparent'}; display:block;"></span>`;
+            let fillStyle = isFilled
+                ? `background:linear-gradient(145deg, rgba(255,255,255,0.28) 0%, ${style.color} 42%, rgba(8,12,18,0.2) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.32), 0 1px 2px rgba(0,0,0,0.45), 0 0 4px ${style.glow};`
+                : 'background:transparent; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);';
+            html += `<span style="width:${cellSize}px; height:${cellSize}px; border-radius:2px; border:1px solid ${isFilled ? style.color : 'rgba(120,140,160,0.35)'}; ${fillStyle} display:block;"></span>`;
         }
     }
-    return `<span style="display:grid; grid-template-columns:repeat(3, ${cellSize}px); grid-auto-rows:${cellSize}px; gap:${gap}px; width:${width}px; height:${height}px; padding:2px; border:1px solid rgba(120,145,175,0.4); border-radius:4px; background:rgba(8,14,22,0.45); box-shadow:0 0 0 1px ${style.glow};">${html}</span>`;
+    return `<span style="display:grid; grid-template-columns:repeat(${cols}, ${cellSize}px); grid-auto-rows:${cellSize}px; gap:${gap}px; width:${width}px; height:${height}px; padding:2px; border:1px solid rgba(120,145,175,0.4); border-radius:4px; background:rgba(8,14,22,0.45); box-shadow:0 0 0 1px ${style.glow};">${html}</span>`;
+}
+
+function getTalismanAnchorCell(talisman) {
+    if (!talisman || !Array.isArray(talisman.cells) || talisman.cells.length <= 0) return { x: 0, y: 0 };
+    let cells = talisman.cells.map(cell => ({ x: cell.x || 0, y: cell.y || 0 }));
+    let filled = new Set(cells.map(cell => `${cell.x},${cell.y}`));
+    let centerX = cells.reduce((sum, cell) => sum + cell.x, 0) / cells.length;
+    let centerY = cells.reduce((sum, cell) => sum + cell.y, 0) / cells.length;
+    let ranked = cells.map(cell => {
+        let neighbors = 0;
+        if (filled.has(`${cell.x - 1},${cell.y}`)) neighbors++;
+        if (filled.has(`${cell.x + 1},${cell.y}`)) neighbors++;
+        if (filled.has(`${cell.x},${cell.y - 1}`)) neighbors++;
+        if (filled.has(`${cell.x},${cell.y + 1}`)) neighbors++;
+        let dist = Math.hypot(cell.x - centerX, cell.y - centerY);
+        return { cell, neighbors, dist };
+    });
+    ranked.sort((a, b) => {
+        if (b.neighbors !== a.neighbors) return b.neighbors - a.neighbors;
+        if (a.dist !== b.dist) return a.dist - b.dist;
+        if (a.cell.y !== b.cell.y) return a.cell.y - b.cell.y;
+        return a.cell.x - b.cell.x;
+    });
+    return ranked[0].cell;
 }
 
 
@@ -438,14 +475,17 @@ function placeSelectedTalismanAt(x, y) {
     let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
     let talisman = inv.find(t => t.id === selectedId);
     if (!talisman) return;
-    if (!canPlaceTalismanAt(talisman, x, y)) return addLog('해당 위치에는 부적을 배치할 수 없습니다.', 'attack-monster');
+    let anchor = getTalismanAnchorCell(talisman);
+    let baseX = x - anchor.x;
+    let baseY = y - anchor.y;
+    if (!canPlaceTalismanAt(talisman, baseX, baseY)) return addLog('해당 위치에는 부적을 배치할 수 없습니다.', 'attack-monster');
     game.talismanBoard = Array.isArray(game.talismanBoard) ? game.talismanBoard : Array(TALISMAN_BOARD_W * TALISMAN_BOARD_H).fill(null);
     talisman.cells.forEach(cell => {
-        let idx = talismanCellIndex(x + cell.x, y + cell.y);
+        let idx = talismanCellIndex(baseX + cell.x, baseY + cell.y);
         game.talismanBoard[idx] = talisman.id;
     });
     game.talismanPlacements = game.talismanPlacements || {};
-    game.talismanPlacements[talisman.id] = { x: x, y: y, talisman: talisman };
+    game.talismanPlacements[talisman.id] = { x: baseX, y: baseY, talisman: talisman };
     game.talismanInventory = inv.filter(t => t.id !== talisman.id);
     game.talismanSelectedId = null;
     updateStaticUI();
@@ -925,6 +965,8 @@ function showGemTooltip(event, type, name) {
             let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === info.statId);
             html += `<div class="tooltip-line">적용 태그: ${translateSkillTag(tag)}</div>`;
         }
+        let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
+        if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
     } else {
         let skill = info.skill || SKILL_DB[name];
         html += `<div class="tooltip-line">${info.desc}</div>`;
@@ -2419,27 +2461,20 @@ function updateStaticUI() {
             let loop10Open = (game.season || 1) >= 10;
             loop10Panel.style.display = loop10Open ? 'block' : 'none';
             if (loop10Open) {
-                game.loop10BonusStats = game.loop10BonusStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 };
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
                 let depthButtons = game.abyssUnlockedDepths.slice().sort((a,b)=>b-a).slice(0, 12).map(depth => `<button onclick="enterUnlockedEndlessDepth(${depth})">심화 ${depth}층</button>`).join('');
                 game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
-                let pendingHtml = game.pendingLoopDecision ? `<div style="margin-top:8px; padding:8px; border:1px solid #8b6f2a; border-radius:8px; background:#2a2414;">
-                    <div style="color:#ffe29a; margin-bottom:6px;">혼돈20 클리어 완료: 다음 루프로 넘어갈지 선택하세요.</div>
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="chooseLoopAdvance(true)">루프 진행</button><button onclick="chooseLoopAdvance(false)">이번 루프 유지</button></div>
-                </div>` : '';
                 let expectedDepthGain = Math.max(0, Math.floor((game.abyssEndlessDepth || 20) - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
                 let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;
-                loop10Panel.innerHTML = `<div style="color:#d5c5ff; margin-bottom:6px;">루프10 강화 스탯 (투자할수록 비용 증가) · 시즌 포인트: <strong>${game.seasonPoints || 0}</strong></div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-                    ${['flatHp','flatDmg','aspd','move'].map(key => `<button onclick="allocateLoop10BonusStat('${key}')">${getStatName(key)} Lv.${game.loop10BonusStats[key] || 0} (+ 비용 ${getLoop10StatCost(key)})</button>`).join('')}
+                loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">혼돈20 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
+                <div style="background:linear-gradient(160deg, rgba(84,59,136,0.22), rgba(26,31,56,0.35)); border:1px solid #5f4a93; border-radius:10px; padding:10px; margin-bottom:8px;">
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="game.loop10ChaosStayEnabled=!game.loop10ChaosStayEnabled; updateStaticUI();">혼돈 잔류 모드: ${game.loop10ChaosStayEnabled ? 'ON' : 'OFF'}</button><button onclick="enterNextEndlessChaosDepth()" ${game.loop10ChaosStayEnabled ? '' : 'disabled'}>다음 심화층 진입 (${Math.floor(game.abyssEndlessDepth || 20) + 1})</button></div>
+                    <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-top:6px;">${depthButtons || '<span style="color:#7f8c8d;">기록 없음</span>'}</div>
                 </div>
-                <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;"><button onclick="game.loop10ChaosStayEnabled=!game.loop10ChaosStayEnabled; updateStaticUI();">혼돈 잔류 모드: ${game.loop10ChaosStayEnabled ? 'ON' : 'OFF'}</button><button onclick="enterNextEndlessChaosDepth()" ${game.loop10ChaosStayEnabled ? '' : 'disabled'}>심화 +1층 (${Math.floor(game.abyssEndlessDepth || 20)})</button></div>
-                <div style="margin-top:8px; color:#9fb3d9;">기록된 층수로 재진입</div><div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-top:6px;">${depthButtons || '<span style="color:#7f8c8d;">기록 없음</span>'}</div>
-                <div style="margin-top:10px; color:#e0d4ff;">심화 루프 포인트: <strong>${game.loopDeepPoints || 0}</strong> · 예상 획득(다음 루프): 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>
-                ${pendingHtml}`;
+                <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>`;
             }
         }
     } else {
@@ -2636,7 +2671,7 @@ function updateStaticUI() {
     document.getElementById('ui-talisman-inventory').innerHTML = game.talismanInventory.map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
-        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShape(t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
+        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
@@ -2649,16 +2684,19 @@ function updateStaticUI() {
         let valid = isTalismanBoardCellValid(x,y);
         let coreOpen = isTalismanCellInitiallyUnlocked(x, y);
         if (!valid) return `<div style="width:42px; height:42px; border:0; background:transparent; border-radius:8px; opacity:0; pointer-events:none;"></div>`;
-        let cellColor = coreOpen ? 'radial-gradient(circle at 30% 25%, #ffe88b 0%, #b9952d 52%, #5a4518 100%)' : (!unlocked ? 'radial-gradient(circle at 30% 25%, #ffcc7b 0%, #cc7b2f 58%, #5a2f11 100%)' : 'radial-gradient(circle at 30% 25%, #f7e47a 0%, #b48f2b 58%, #4d3b14 100%)');
-        if (id) cellColor = (shapeStyle ? shapeStyle.glow : '#355d46');
-        let label = !unlocked ? '' : (id ? (shapeStyle ? shapeStyle.symbol : '●') : '');
-        let border = !unlocked ? '#9d6020' : (id && shapeStyle ? shapeStyle.color : '#a88a2a');
-        let textColor = !unlocked ? '#ffd9a2' : (id && shapeStyle ? shapeStyle.color : '#fff0b3');
+        let cellColor = coreOpen ? 'radial-gradient(circle at 30% 25%, #595f69 0%, #3a3f48 52%, #1f2329 100%)' : (!unlocked ? 'radial-gradient(circle at 30% 25%, #4f5661 0%, #333941 58%, #1a1f26 100%)' : 'radial-gradient(circle at 30% 25%, #666c76 0%, #434a54 58%, #252b32 100%)');
+        if (id) cellColor = (shapeStyle ? `linear-gradient(145deg, rgba(255,255,255,0.3) 0%, ${shapeStyle.color} 42%, rgba(10,12,17,0.22) 100%)` : '#355d46');
+        let label = !unlocked ? '' : (id ? '' : '');
+        let border = !unlocked ? '#5a616b' : (id && shapeStyle ? shapeStyle.color : '#767d88');
+        let textColor = !unlocked ? '#b7bdc8' : (id && shapeStyle ? shapeStyle.color : '#d7dbe2');
         let unlockedSet = getTalismanUnlockedCellsSet();
         let extraUnlocked = Math.max(0, unlockedSet.size - 16);
         let unlockCost = getTalismanExpandCost(extraUnlocked);
         let lockTitle = unlocked ? '' : ` title="해금 비용: 봉인편린 ${unlockCost}"`;
-        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow: inset 0 0 10px rgba(255,255,255,0.1), 0 3px 8px rgba(0,0,0,0.32);">${label}</button>`;
+        let surfaceShadow = id
+            ? `inset 0 1px 0 rgba(255,255,255,0.34), 0 2px 6px rgba(0,0,0,0.35), 0 0 8px ${shapeStyle ? shapeStyle.glow : 'rgba(120,180,240,0.25)'}`
+            : 'inset 0 2px 4px rgba(0,0,0,0.55), inset 0 -1px 2px rgba(255,255,255,0.08), 0 1px 2px rgba(0,0,0,0.25)';
+        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     let journalList = document.getElementById('ui-journal-list');
     if (journalList) {

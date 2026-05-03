@@ -1424,8 +1424,6 @@ function finishEncounterRun() {
             game.abyssClearedDepths = Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths : [];
             if (depth <= capDepth && !game.abyssClearedDepths.includes(depth)) {
                 game.abyssClearedDepths.push(depth);
-                game.abyssPassivePoints = Math.max(0, Math.floor(game.abyssPassivePoints || 0)) + 5;
-                addLog(`🌌 혼돈 ${depth} 최초 클리어 보상: 혼돈 패시브 포인트 +5`, 'season-up');
             }
         }
         if (zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
@@ -1451,7 +1449,12 @@ function finishEncounterRun() {
             }
         }
         if (zone.id === getCurrentSeasonFinalZoneId()) {
-            if ((game.season || 1) >= 10 && zone.type === 'abyss' && zone.name === '혼돈 20') {
+            if ((game.season || 1) >= 10 && zone.type === 'abyss') {
+                let depth = Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1));
+                game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
+                let nextDepth = Math.max(21, Math.floor(game.abyssEndlessDepth || depth) + 1);
+                if (!game.abyssUnlockedDepths.includes(nextDepth)) game.abyssUnlockedDepths.push(nextDepth);
+                game.abyssEndlessDepth = Math.max(nextDepth, Math.floor(game.abyssEndlessDepth || 20));
                 game.pendingLoopDecision = true;
                 game.combatHalted = true;
                 game.enemies = [];
@@ -1875,10 +1878,12 @@ function triggerSeasonReset() {
     let previousHeroId = game.selectedHeroId || 'hero1';
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let loopReward = awardLoopProgressPoints();
+    let abyssLoopPointGain = Math.max(0, (Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths.length : 0) * 5);
     game.season++;
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
     if (loopReward.bonus > 0) addLog(`🧬 심화 루프 보상: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain})`, 'season-up');
+    if (abyssLoopPointGain > 0) addLog(`🌌 루프 정산: 혼돈 최초 클리어 보상 +${abyssLoopPointGain}pt`, 'season-up');
     game.level = 1;
     game.exp = 0;
     game.killsInZone = 0;
@@ -1914,7 +1919,7 @@ function triggerSeasonReset() {
     game.jewelInventory = [];
     game.jewelSlots = [null, null];
     game.jewelSlotAmplify = [0, 0];
-    game.abyssPassivePoints = 0;
+    game.abyssPassivePoints = abyssLoopPointGain;
     game.abyssPassives = { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 };
     game.abyssClearedDepths = [];
     game.claimableActRewards = [];
@@ -1972,11 +1977,12 @@ function triggerSeasonReset() {
 
 function chooseLoopAdvance(shouldLoop) {
     if (!game.pendingLoopDecision) return;
-    game.pendingLoopDecision = false;
     if (shouldLoop) {
+        game.pendingLoopDecision = false;
         triggerSeasonReset();
         return;
     }
+    game.pendingLoopDecision = true;
     game.currentZoneId = Math.max(0, Math.floor(getCurrentSeasonFinalZoneId() || game.currentZoneId || 0));
     game.killsInZone = 0;
     game.combatHalted = true;

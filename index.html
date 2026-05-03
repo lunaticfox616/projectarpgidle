@@ -109,6 +109,18 @@
         <div id="loop-hero-select-grid" class="reward-grid"></div>
     </div>
 </div>
+
+<div id="loop-decision-overlay" class="tutorial-overlay">
+    <div class="tutorial-card" style="max-width:520px; background:linear-gradient(170deg,#1a1430 0%, #111525 100%); border:1px solid #7f66d8;">
+        <div class="tutorial-kicker">Loop Choice</div>
+        <div class="tutorial-title">혼돈 20 클리어</div>
+        <div class="tutorial-body">다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.</div>
+        <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px;">
+            <button onclick="chooseLoopAdvance(true)">루프 진행</button>
+            <button onclick="chooseLoopAdvance(false)" style="background:#415f83; border-color:#5f84ad;">이번 루프 유지</button>
+        </div>
+    </div>
+</div>
 <div id="death-overlay" class="tutorial-overlay">
     <div class="tutorial-card deathlog-card">
         <div class="tutorial-kicker">Death Log</div>
@@ -398,6 +410,7 @@
             <h2>🔄 디버깅 포인트 트리 <span style="margin-left:10px; color:#ffd36b; font-size:0.88em;">(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span></span></h2>
             <div class="trait-tree" id="ui-season-tree"></div>
         </div>
+        <div id="ui-loop10-panel" style="display:none; margin-bottom:20px; background:#151226; border:1px solid #4d3c7a; border-radius:12px; padding:12px;"></div>
         <div id="season-content-section" style="display: none; margin-bottom: 20px;">
             <h2>📦 루프 이정표</h2>
             <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
@@ -581,7 +594,6 @@
             <h2>🌌 혼돈 패시브</h2>
             <div id="ui-abyss-passive-summary" style="color:#a9c6e4; font-size:0.86em; margin-bottom:10px;"></div>
             <div id="ui-abyss-passive-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;"></div>
-            <div id="ui-loop10-panel" style="display:none; margin-top:12px; background:#151226; border:1px solid #4d3c7a; border-radius:10px; padding:10px;"></div>
         </div>
     </div>
 
