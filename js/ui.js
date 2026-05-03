@@ -965,8 +965,6 @@ function showGemTooltip(event, type, name) {
             let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === info.statId);
             html += `<div class="tooltip-line">적용 태그: ${translateSkillTag(tag)}</div>`;
         }
-        let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
-        if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
     } else {
         let skill = info.skill || SKILL_DB[name];
         html += `<div class="tooltip-line">${info.desc}</div>`;
@@ -2197,6 +2195,8 @@ function updateStaticUI() {
     if (battlefieldWrap) battlefieldWrap.classList.toggle('compressed', !showCombatScene);
     applyPanelLayoutSettings();
     if (!showCombatScene && caption) caption.innerText = '전투가 진행중입니다.';
+    let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
+    if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
     let shrineBox = document.getElementById('ui-shrine-box');
     if (shrineBox) {
         let active = game.shrineState && game.shrineState.active;

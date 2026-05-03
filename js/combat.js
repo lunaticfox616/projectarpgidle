@@ -1982,7 +1982,7 @@ function chooseLoopAdvance(shouldLoop) {
         triggerSeasonReset();
         return;
     }
-    game.pendingLoopDecision = true;
+    game.pendingLoopDecision = false;
     game.currentZoneId = Math.max(0, Math.floor(getCurrentSeasonFinalZoneId() || game.currentZoneId || 0));
     game.killsInZone = 0;
     game.combatHalted = true;
