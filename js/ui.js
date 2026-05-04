@@ -2339,6 +2339,36 @@ function getCraftActionValidators(item) {
 }
 
 
+
+function getCraftOrbUseState(key, item) {
+    if (!item) return { enabled: false, reason: '아이템 미선택' };
+    if ((game.currencies[key] || 0) <= 0) return { enabled: false, reason: '재화 부족' };
+    if (item.corrupted && key !== 'tainted') return { enabled: false, reason: '타락 아이템은 일반 제작 불가' };
+    let ok = false;
+    if (key === 'transmute') ok = item.rarity === 'normal';
+    else if (key === 'augment') ok = item.rarity === 'magic' && item.stats.length < 2;
+    else if (key === 'alteration') ok = item.rarity === 'magic';
+    else if (key === 'alchemy') ok = item.rarity === 'normal';
+    else if (key === 'exalted') ok = item.rarity === 'rare' && item.stats.length < 6;
+    else if (key === 'regal') ok = item.rarity === 'magic' && item.stats.length < 6;
+    else if (key === 'chaos') ok = item.rarity === 'rare';
+    else if (key === 'divine') ok = item.rarity !== 'normal';
+    else if (key === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
+    else if (key === 'tainted') ok = !item.corrupted;
+    return { enabled: ok, reason: ok ? '사용 가능' : '현재 아이템 조건 불일치' };
+}
+
+function renderCraftSelectedSummary(item) {
+    let host = document.getElementById('ui-craft-selected-summary');
+    if (!host) return;
+    if (!item) {
+        host.innerHTML = '아이템을 선택하세요.';
+        return;
+    }
+    let statCount = (item.stats || []).length;
+    host.innerHTML = `<div><strong>[${item.slot.replace(/[12]/,'')}] ${item.name}</strong> · ${item.rarity.toUpperCase()} · 옵션 ${statCount}개</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
+}
+
 function renderCraftOrbActions(selectedItem) {
     let defs = [
         ['transmute'],['augment'],['alteration'],['alchemy'],['exalted'],['regal'],['chaos'],['divine'],['scour'],['tainted']
@@ -2350,9 +2380,11 @@ function renderCraftOrbActions(selectedItem) {
         if (!orb) return '';
         let hiddenTainted = key === 'tainted' && !((game.season || 1) >= 5 && (game.currencies.tainted || 0) > 0);
         if (hiddenTainted) return '';
-        let disabled = !selectedItem || (game.currencies[key] || 0) <= 0;
+        let st = getCraftOrbUseState(key, selectedItem);
+        let disabled = !st.enabled;
         let cls = `craft-orb-card${disabled ? ' disabled' : ''}`;
-        return `<button id="btn-orb-${key}" class="${cls}" onclick="useCurrency('${key}')" ${disabled ? 'disabled' : ''} title="${orb.desc}"><span class="craft-orb-name">${orb.name}</span><span class="craft-orb-count">x ${game.currencies[key] || 0}</span></button>`;
+        let tip = `${orb.desc}\n${st.reason}`;
+        return `<button id="btn-orb-${key}" class="${cls}" onclick="useCurrency('${key}')" ${disabled ? 'disabled' : ''} title="${tip}"><span class="craft-orb-name">${orb.name}</span><span class="craft-orb-count">x ${game.currencies[key] || 0}</span></button>`;
     }).join('');
 }
 
@@ -2367,6 +2399,7 @@ function buildCraftActionButtons(item) {
 }
 
     let selectedItem = getSelectedCraftItem();
+    renderCraftSelectedSummary(selectedItem);
     let forgeHtml = '아이템을 클릭하여 선택';
     if (selectedItem) {
         let lines = [];
@@ -2390,7 +2423,7 @@ function buildCraftActionButtons(item) {
                 voidSocketHtml = `<div style="color:#9fd6ff;">빈 공허 소켓</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
             }
         }
-        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}</div><div class="item-base-line">${selectedItem.baseName}</div>${lines.join('')}<div style="display:flex; gap:6px; margin-top:8px;">${buildCraftActionButtons(selectedItem)}</div><div style="margin-top:8px; display:grid; gap:6px;">${voidSocketHtml}</div>`;
+        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}</div><div class="item-base-line">${selectedItem.baseName}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">특수 조작</div><div style="display:flex; gap:6px; margin-top:8px;">${buildCraftActionButtons(selectedItem)}</div><div style="margin-top:8px; display:grid; gap:6px;">${voidSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = forgeHtml;
     document.getElementById('fossil-item-display').innerHTML = forgeHtml;
@@ -2410,10 +2443,6 @@ function buildCraftActionButtons(item) {
     }).map(key => `<div class="currency-card" title="${ORB_DB[key].desc}"><div class="currency-name">${ORB_DB[key].name}</div><div class="currency-count">x <strong>${game.currencies[key] || 0}</strong></div></div>`).join('');
 
     renderCraftOrbActions(selectedItem);
-    Object.keys(ORB_DB).forEach(key => {
-        let btn = document.getElementById('btn-orb-' + key);
-        if (btn) btn.disabled = !selectedItem || (game.currencies[key] || 0) <= 0;
-    });
     let fossilTabBtn = document.getElementById('btn-item-tab-fossil');
     if (fossilTabBtn) fossilTabBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
     let marketTabBtn = document.getElementById('btn-item-tab-market');
