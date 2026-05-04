@@ -131,10 +131,32 @@ function getPlayerStats() {
     let reward = createEmptyStatBucket();
     let starBlessing = createEmptyStatBucket();
 
+    let localDefenseTotals = { armor: 0, evasion: 0, energyShield: 0 };
     Object.values(game.equipment || {}).forEach(item => {
         if (!item) return;
         applyStatsToBucket(gearBase, item.baseStats || []);
         applyStatsToBucket(gearExplicit, item.stats || []);
+        let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
+        let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;
+        let itemPctArmor = 0, itemPctEvasion = 0, itemPctEs = 0;
+        (item.baseStats || []).forEach(stat => {
+            if (!stat) return;
+            if (stat.id === 'armor') itemBaseArmor += Number(stat.val || 0);
+            if (stat.id === 'evasion') itemBaseEvasion += Number(stat.val || 0);
+            if (stat.id === 'energyShield') itemBaseEs += Number(stat.val || 0);
+        });
+        (item.stats || []).forEach(stat => {
+            if (!stat) return;
+            if (stat.id === 'armor') itemFlatArmor += Number(stat.val || 0);
+            if (stat.id === 'evasion') itemFlatEvasion += Number(stat.val || 0);
+            if (stat.id === 'energyShield') itemFlatEs += Number(stat.val || 0);
+            if (stat.id === 'armorPct') itemPctArmor += Number(stat.val || 0);
+            if (stat.id === 'evasionPct') itemPctEvasion += Number(stat.val || 0);
+            if (stat.id === 'energyShieldPct') itemPctEs += Number(stat.val || 0);
+        });
+        localDefenseTotals.armor += (itemBaseArmor + itemFlatArmor) * (1 + itemPctArmor / 100);
+        localDefenseTotals.evasion += (itemBaseEvasion + itemFlatEvasion) * (1 + itemPctEvasion / 100);
+        localDefenseTotals.energyShield += (itemBaseEs + itemFlatEs) * (1 + itemPctEs / 100);
         if (item.voidSocket && item.voidSocket.open && item.voidSocket.jewel) {
             getJewelStats(item.voidSocket.jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val));
         }
@@ -272,12 +294,12 @@ function getPlayerStats() {
     let finalCrit = Math.min(100, (5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82);
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
     
-    let gearArmor = gearBase.armor + gearExplicit.armor;
-    let gearEvasion = gearBase.evasion + gearExplicit.evasion;
-    let gearEnergyShield = gearBase.energyShield + gearExplicit.energyShield;
-    let totalArmorPct = gearBase.armorPct + gearExplicit.armorPct + passive.armorPct + season.armorPct + ascend.armorPct + reward.armorPct;
-    let totalEvasionPct = gearBase.evasionPct + gearExplicit.evasionPct + passive.evasionPct + season.evasionPct + ascend.evasionPct + reward.evasionPct;
-    let totalEnergyShieldPct = gearBase.energyShieldPct + gearExplicit.energyShieldPct + passive.energyShieldPct + season.energyShieldPct + ascend.energyShieldPct + reward.energyShieldPct;
+    let gearArmor = localDefenseTotals.armor;
+    let gearEvasion = localDefenseTotals.evasion;
+    let gearEnergyShield = localDefenseTotals.energyShield;
+    let totalArmorPct = passive.armorPct + season.armorPct + ascend.armorPct + reward.armorPct;
+    let totalEvasionPct = passive.evasionPct + season.evasionPct + ascend.evasionPct + reward.evasionPct;
+    let totalEnergyShieldPct = passive.energyShieldPct + season.energyShieldPct + ascend.energyShieldPct + reward.energyShieldPct;
     let finalArmor = Math.max(0, Math.floor(gearArmor * (1 + totalArmorPct / 100)));
     let finalEvasion = Math.max(0, Math.floor(gearEvasion * (1 + totalEvasionPct / 100)));
     let finalEnergyShield = Math.max(0, Math.floor(gearEnergyShield * (1 + totalEnergyShieldPct / 100)));
@@ -1235,7 +1257,10 @@ function rollLootForEnemy(enemy) {
         if (Math.random() < 0.10) awardCurrency('pollen', enemy.isElite ? 5 : 2);
         if (enemy.isElite && Math.random() < 0.03) awardCurrency('venomStinger', 1);
         if (enemy.isElite && Math.random() < 0.004) awardCurrency('enchantedHoney', 1);
-        if (game.settings.showLootLog && Math.random() < 0.10) addLog('🐝 벌형 몬스터 잔재에서 재료를 수집했습니다.', 'loot-normal');
+        if (game.settings.showLootLog && Math.random() < 0.10) {
+            let beeDrops = ['마력 깃든 벌꿀', '독벌침'];
+            addLog(`🐝 전리품 획득: ${rndChoice(beeDrops)} x1`, 'loot-normal');
+        }
     }
     if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.05 : enemy.isElite ? 0.015 : 0.002)) {
         awardCurrency('hiveKey', 1);
