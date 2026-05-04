@@ -2408,15 +2408,51 @@ function renderCraftOrbActions(selectedItem) {
 }
 
 function openSporeModeOverlay(currencyKey) {
-    let modes = ['none', 'fire', 'cold', 'light'];
-    let labels = { none: '미사용', fire: '화염', cold: '냉기', light: '번개' };
-    let cur = (game.sporeCraftModes || {})[currencyKey] || 'none';
-    let pick = prompt(`홀씨 모드 선택\n현재: ${labels[cur]}\n입력: none/fire/cold/light`, cur);
-    if (pick === null) return;
-    if (!modes.includes(pick)) return addLog('유효한 홀씨 모드를 입력하세요. (none/fire/cold/light)', 'attack-monster');
+    let allowed = ['transmute','augment','alteration','regal','chaos','exalted'];
+    if (!allowed.includes(currencyKey)) return;
+    let modeOptions = [
+        { id: 'none', label: '미사용' },
+        { id: 'fire', label: '화염' },
+        { id: 'cold', label: '냉기' },
+        { id: 'light', label: '번개' },
+        { id: 'chaos', label: '카오스' },
+        { id: 'damage', label: '피해' }
+    ];
     game.sporeCraftModes = game.sporeCraftModes || {};
-    game.sporeCraftModes[currencyKey] = pick;
-    updateStaticUI();
+    let cur = game.sporeCraftModes[currencyKey] || 'none';
+    let old = document.getElementById('spore-mode-overlay');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+
+    let overlay = document.createElement('div');
+    overlay.id = 'spore-mode-overlay';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(5,8,14,0.74); display:flex; align-items:center; justify-content:center; z-index:9999;';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    let panel = document.createElement('div');
+    panel.style.cssText = 'width:min(560px, 92vw); border:1px solid #405a8f; border-radius:12px; background:linear-gradient(160deg, #182544, #0f1629); padding:14px; box-shadow:0 12px 28px rgba(0,0,0,0.45);';
+    panel.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><div style="font-size:17px; font-weight:700; color:#e5efff;">홀씨 모드 선택</div><button id="spore-overlay-close" style="background:#22365e; color:#d6e4ff; border:1px solid #4669a9; border-radius:8px; padding:4px 9px; cursor:pointer;">닫기</button></div><div style="color:#9fb4d1; font-size:13px; margin-bottom:10px;">오브 사용 시 적용할 홀씨 태그를 고르세요.</div>';
+
+    let buttons = document.createElement('div');
+    buttons.style.cssText = 'display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px;';
+    modeOptions.forEach(opt => {
+        let btn = document.createElement('button');
+        let selected = cur === opt.id;
+        btn.type = 'button';
+        btn.textContent = opt.label + (selected ? ' ✓' : '');
+        btn.style.cssText = `padding:10px 8px; border-radius:9px; border:1px solid ${selected ? '#89a7ff' : '#3f547f'}; background:${selected ? '#304f91' : '#1d2e4f'}; color:${selected ? '#ffffff' : '#d6e3ff'}; cursor:pointer; font-weight:700;`;
+        btn.onclick = () => {
+            game.sporeCraftModes[currencyKey] = opt.id;
+            updateStaticUI();
+            overlay.remove();
+        };
+        buttons.appendChild(btn);
+    });
+
+    panel.appendChild(buttons);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    let closeBtn = panel.querySelector('#spore-overlay-close');
+    if (closeBtn) closeBtn.onclick = () => overlay.remove();
 }
 window.openSporeModeOverlay = openSporeModeOverlay;
 
@@ -2428,25 +2464,6 @@ function showCurrencyCardTooltip(event, key, reason) {
 }
 window.showCurrencyCardTooltip = showCurrencyCardTooltip;
 window.showOrbTooltip = showCurrencyCardTooltip;
-
-function openSporeModeOverlay(currencyKey) {
-    let modes = ['none', 'fire', 'cold', 'light'];
-    let labels = { none: '미사용', fire: '화염', cold: '냉기', light: '번개' };
-    let cur = (game.sporeCraftModes || {})[currencyKey] || 'none';
-    let pick = prompt(`홀씨 모드 선택\n현재: ${labels[cur]}\n입력: none/fire/cold/light`, cur);
-    if (pick === null) return;
-    if (!modes.includes(pick)) return addLog('유효한 홀씨 모드를 입력하세요. (none/fire/cold/light)', 'attack-monster');
-    game.sporeCraftModes = game.sporeCraftModes || {};
-    game.sporeCraftModes[currencyKey] = pick;
-    updateStaticUI();
-}
-
-function showOrbTooltip(event, key, reason) {
-    let orb = ORB_DB[key];
-    if (!orb) return;
-    let html = `<div class="tooltip-title">${orb.name}</div><div class="tooltip-line">${orb.desc || ''}</div><div class="tooltip-line" style="margin-top:6px; color:#9fb4d1;">상태: ${reason || '-'}</div>`;
-    showInfoTooltipHtml(event.clientX, event.clientY, html, '#f1c40f');
-}
 
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);

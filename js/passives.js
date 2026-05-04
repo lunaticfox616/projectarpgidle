@@ -4670,9 +4670,11 @@ function useCurrency(currencyKey) {
         item.stats[idx] = rollSporeGuaranteedValue(modToApply);
     }
     let guaranteedMod = getSporeGuaranteedMod();
-    let needsPrecheck = ['augment', 'exalted', 'regal'].includes(currencyKey);
+    let sporeAffixCurrencies = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos'];
+    let usesSporeAffix = sporeAffixCurrencies.includes(currencyKey);
+    let needsPrecheck = usesSporeAffix && ['augment', 'exalted', 'regal'].includes(currencyKey);
     if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
-    if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
+    if (sporeMode !== 'none' && usesSporeAffix && !consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
     game.currencies[currencyKey]--;
     if (currencyKey === 'transmute') {
         item.rarity = 'magic';
@@ -4722,7 +4724,7 @@ function useCurrency(currencyKey) {
             addLog("🩸 타락 진행: 추가 옵션은 생기지 않았습니다.", "attack-monster");
         }
     }
-    let guaranteedTagNote = (sporeMode !== 'none' && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
+    let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
     addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }
