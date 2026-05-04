@@ -2551,7 +2551,7 @@ function initBattleAssets() {
         let img = new Image();
         img.onload = function() {
             try {
-                if (key.startsWith('backdrop')) {
+                if (key.startsWith('backdrop') || key.startsWith('bgAct')) {
                     battleAssets.backdrops[key] = img;
                 } else {
                     let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || (key === 'heroLegacy' && heroSheetHasTransparency(img));

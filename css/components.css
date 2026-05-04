@@ -231,3 +231,6 @@
 
 .craft-selected-summary { position: sticky; top: 0; z-index: 4; margin: 0 0 6px; padding: 6px 8px; border: 1px solid #34506b; border-radius: 8px; background: #111a24; font-size: 0.82em; }
 .craft-section-title { margin-top: 10px; color: #8fb6d9; font-size: 0.78em; letter-spacing: .03em; text-transform: uppercase; }
+
+.craft-orb-header { margin: 6px 0 4px; font-size: 0.76em; color:#9cc4e6; letter-spacing:.04em; text-transform: uppercase; }
+.craft-actions .craft-orb-card { border:1px solid #35506a; border-radius:8px; background:#152233; }
