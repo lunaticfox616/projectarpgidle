@@ -1259,28 +1259,25 @@ function getBattleGroundFrames(zone) {
 }
 
 function getBattleBackdropKeyForZone(zone) {
-    if (!zone) return 'backdropAct1';
+    if (!zone) return 'bgAct1';
     if (zone.type === 'act') {
-        if (zone.id === 0) return 'backdropAct1';
-        if (zone.id === 4) return 'backdropAct5';
-        if (zone.id === 1 || zone.id === 5) return 'backdropAct2_6';
-        if (zone.id === 2 || zone.id === 6) return 'backdropAct3_7';
-        if (zone.id === 3 || zone.id === 7) return 'backdropAct4_8';
-        if (zone.id === 8 || zone.id === 9) return 'backdropAct9_10';
+        let actNo = Math.max(1, Math.min(10, (Number(zone.id) || 0) + 1));
+        return `bgAct${actNo}`;
     }
-    if (zone.type === 'labyrinth') return 'backdropAct5';
-    if (zone.type === 'abyss' || zone.type === 'seasonBoss') return 'backdropAct9_10';
-    if (zone.ele === 'fire') return 'backdropAct2_6';
-    if (zone.ele === 'cold') return 'backdropAct3_7';
-    if (zone.ele === 'light') return 'backdropAct4_8';
-    if (zone.ele === 'chaos') return 'backdropAct9_10';
-    return 'backdropAct1';
+    if (zone.type === 'labyrinth') return 'bgAct5';
+    if (zone.type === 'abyss' || zone.type === 'seasonBoss') return 'bgAct10';
+    if (zone.ele === 'fire') return 'bgAct2';
+    if (zone.ele === 'cold') return 'bgAct3';
+    if (zone.ele === 'light') return 'bgAct4';
+    if (zone.ele === 'chaos') return 'bgAct9';
+    return 'bgAct1';
 }
 
 function getBattleBackdropForZone(zone) {
     let list = (battleAssets.backdrops || {});
     let key = getBattleBackdropKeyForZone(zone);
-    let image = list[key] || list.backdropAct1 || Object.values(list)[0];
+    let fallbackLegacy = { bgAct1:'backdropAct1', bgAct2:'backdropAct2_6', bgAct3:'backdropAct3_7', bgAct4:'backdropAct4_8', bgAct5:'backdropAct5', bgAct6:'backdropAct2_6', bgAct7:'backdropAct3_7', bgAct8:'backdropAct4_8', bgAct9:'backdropAct9_10', bgAct10:'backdropAct9_10' };
+    let image = list[key] || list[fallbackLegacy[key]] || list.backdropAct1 || Object.values(list)[0];
     if (!image) return null;
     let zoneSeed = Number.isFinite(zone && zone.id) ? zone.id : 0;
     if (!zoneSeed && zone && zone.name) zoneSeed = zone.name.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);

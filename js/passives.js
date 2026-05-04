@@ -2511,9 +2511,20 @@ function initBattleAssets() {
         backdropAct3_7: 'assets/battlefield-act3-7.png',
         backdropAct4_8: 'assets/battlefield-act4-8.png',
         backdropAct5: 'assets/battlefield-act5.png',
-        backdropAct9_10: 'assets/battlefield-act9-10.png'
+        backdropAct9_10: 'assets/battlefield-act9-10.png',
+
+        bgAct1: 'assets/background/act1.png',
+        bgAct2: 'assets/background/act2.png',
+        bgAct3: 'assets/background/act3.png',
+        bgAct4: 'assets/background/act4.png',
+        bgAct5: 'assets/background/act5.png',
+        bgAct6: 'assets/background/act6.png',
+        bgAct7: 'assets/background/act7.png',
+        bgAct8: 'assets/background/act8.png',
+        bgAct9: 'assets/background/act9.png',
+        bgAct10: 'assets/background/act10.png',
     };
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero')).concat(['weapons']));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['weapons']));
     let pending = Object.keys(manifest).length;
     let settled = false;
     function finishLoad() {
