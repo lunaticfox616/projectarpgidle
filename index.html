@@ -447,25 +447,16 @@
         </div>
 
         <div id="item-tab-craft" class="subtab-content">
-            <div class="forge-panel">
+            <div class="forge-panel craft-workbench-card">
                 <h3>⚒️ 제작실</h3>
                 <div class="craft-layout">
                     <div>
                         <div class="craft-selected" id="forge-item-display">
                             아이템을 클릭하여 선택
                         </div>
-                        <div class="craft-actions">
-                            <button id="btn-orb-transmute" onclick="useCurrency('transmute')">진화의 오브 사용</button>
-                            <button id="btn-orb-augment" onclick="useCurrency('augment')">확장의 오브 사용</button>
-                            <button id="btn-orb-alteration" onclick="useCurrency('alteration')">변화의 오브 사용</button>
-                            <button id="btn-orb-alchemy" onclick="useCurrency('alchemy')">연금술의 오브 사용</button>
-                            <button id="btn-orb-exalted" onclick="useCurrency('exalted')">엑잘티드 오브 사용</button>
-                            <button id="btn-orb-regal" onclick="useCurrency('regal')">제왕의 오브 사용</button>
-                            <button id="btn-orb-chaos" onclick="useCurrency('chaos')">카오스 오브 사용</button>
-                            <button id="btn-orb-divine" onclick="useCurrency('divine')">신성한 오브 사용</button>
-                            <button id="btn-orb-scour" onclick="useCurrency('scour')">정화의 오브 사용</button>
-                            <button id="btn-orb-tainted" onclick="useCurrency('tainted')">타락의 오브 사용</button>
-                        </div>
+<div id="ui-craft-selected-summary" class="craft-selected-summary">아이템을 선택하세요.</div>
+                        <div class="craft-orb-header">제작 오브</div>
+                        <div class="craft-actions" id="ui-craft-orb-actions"></div>
                     </div>
 
                     <div>
@@ -488,7 +479,7 @@
         </div>
 
         <div id="item-tab-fossil" class="subtab-content">
-            <div class="forge-panel" style="border-color:#3f5d83;">
+            <div class="forge-panel craft-workbench-card" style="border-color:#3f5d83;">
                 <h3>🪨 화석 제작대</h3>
                 <div class="craft-layout">
                     <div>
