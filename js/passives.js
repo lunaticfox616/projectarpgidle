@@ -2745,7 +2745,7 @@ function heroSheetHasTransparency(image) {
 function finalizeBattleAssets() {
     try {
         battleAssets.atlas = buildBattleAssetAtlas();
-        if (battleAssets.atlas && battleAssets.atlas.hero && battleAssets.atlas.hero.image) battleAssets.images.hero = battleAssets.atlas.hero.image;
+        // Preserve legacy hero-sheet detection path: do not alias atlas hero strips into images.hero.
         battleAssets.ready = true;
         battleAssets.loading = false;
         renderBattlefield();
