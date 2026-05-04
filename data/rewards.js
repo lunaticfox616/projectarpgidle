@@ -84,7 +84,7 @@ const ACT_REWARD_DB = {
         choices: [
             { kind: 'stat', stat: 'crit', value: 5, label: '치명타 확률 +5%', desc: '치명타 발생 빈도를 높입니다.' },
             { kind: 'stat', stat: 'critDmg', value: 30, label: '치명타 피해 +30%', desc: '치명타 한 방의 무게를 늘립니다.' },
-            { kind: 'stat', stat: 'leech', value: 1.5, label: '흡혈 +1.5%', desc: '공격 시 회복량을 강화합니다.' },
+            { kind: 'stat', stat: 'leech', value: 0.8, label: '흡혈 +0.8%', desc: '공격 시 회복량을 강화합니다.' },
             { kind: 'stat', stat: 'physIgnore', value: 6, label: '물피감 무시 +6%', desc: '중갑 적을 상대로 물리 빌드의 화력을 안정적으로 확보합니다.' },
             { kind: 'stat', stat: 'resPen', value: 6, label: '저항 관통 +6%', desc: '원소/카오스 빌드가 저항을 뚫고 더 깊은 피해를 넣게 합니다.' }
         ]
