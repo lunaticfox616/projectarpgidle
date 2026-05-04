@@ -4659,34 +4659,36 @@ function useCurrency(currencyKey) {
         let maxTier = Math.max(minTier, Math.min(10, tier));
         return rollAffixValueInTierRange(mod, minTier, maxTier);
     }
-    function applyGuaranteedToNonLocked() {
-        if (!guaranteedMod || !Array.isArray(item.stats) || item.stats.length <= 0) return;
+    function applyGuaranteedToNonLocked(modOverride) {
+        let modToApply = modOverride || guaranteedMod || getSporeGuaranteedMod();
+        if (!modToApply || !Array.isArray(item.stats) || item.stats.length <= 0) return;
         let idx = item.stats.findIndex(stat => stat && !stat.lockedByHoney);
         if (idx < 0) {
-            item.stats.push(rollSporeGuaranteedValue(guaranteedMod));
+            item.stats.push(rollSporeGuaranteedValue(modToApply));
             return;
         }
-        item.stats[idx] = rollSporeGuaranteedValue(guaranteedMod);
+        item.stats[idx] = rollSporeGuaranteedValue(modToApply);
     }
     let guaranteedMod = getSporeGuaranteedMod();
-    if (sporeMode !== 'none' && !guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+    let needsPrecheck = ['augment', 'exalted', 'regal'].includes(currencyKey);
+    if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
     if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
     game.currencies[currencyKey]--;
     if (currencyKey === 'transmute') {
         item.rarity = 'magic';
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
-        applyGuaranteedToNonLocked();
+        applyGuaranteedToNonLocked(getSporeGuaranteedMod());
     } else if (currencyKey === 'augment') {
         let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
         if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
         updateItemName(item);
     } else if (currencyKey === 'alteration') {
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
-        applyGuaranteedToNonLocked();
+        applyGuaranteedToNonLocked(getSporeGuaranteedMod());
     } else if (currencyKey === 'alchemy') {
         item.rarity = 'rare';
         rerollExplicitMods(item, 'rare', getItemCraftTier(item));
-        applyGuaranteedToNonLocked();
+        applyGuaranteedToNonLocked(getSporeGuaranteedMod());
     } else if (currencyKey === 'exalted') {
         let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
         if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
@@ -4698,7 +4700,7 @@ function useCurrency(currencyKey) {
         updateItemName(item);
     } else if (currencyKey === 'chaos') {
         rerollExplicitMods(item, 'rare', getItemCraftTier(item));
-        applyGuaranteedToNonLocked();
+        applyGuaranteedToNonLocked(getSporeGuaranteedMod());
     } else if (currencyKey === 'divine') {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney) return;

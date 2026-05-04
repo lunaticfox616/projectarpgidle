@@ -1967,7 +1967,7 @@ function triggerSeasonReset() {
     game.equipment = { ...defaultGame.equipment };
     game.currencies = { ...defaultGame.currencies };
     game.labyrinthFloor = 1;
-    game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax / 2));
+    game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax || 1));
     game.jewelInventory = [];
     game.jewelSlots = [null, null];
     game.jewelSlotAmplify = [0, 0];
