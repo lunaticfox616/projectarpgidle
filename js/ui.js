@@ -2414,7 +2414,13 @@ function renderCraftOrbActions(selectedItem) {
         let disabled = !st.enabled;
         let cls = `craft-orb-card${disabled ? ' disabled' : ''}`;
         let tip = `${orb.desc}\n${st.reason}`;
-        return `<button id="btn-orb-${key}" class="${cls}" onclick="useCurrency('${key}')" ${disabled ? 'disabled' : ''} title="${tip}"><span class="craft-orb-name">${orb.name}</span><span class="craft-orb-count">x ${game.currencies[key] || 0}</span></button>`;
+        let sporeModes = game.sporeCraftModes || {};
+        let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
+        let mode = sporeModes[key] || 'none';
+        let hasSpore = ['transmute','augment','alteration','regal','chaos','exalted'].includes(key);
+        let modeCost = mode === 'none' ? '소모 없음' : ((mode === 'chaos' || mode === 'damage') ? '소모: 3속성 각 5' : '소모: 해당 홀씨 5');
+        let sporeBtn = hasSpore ? `<button class="craft-orb-spore" onclick="cycleSporeCraftMode('${key}')" ${disabled ? 'disabled' : ''} title="${modeCost}">[홀씨] ${modeLabelMap[mode] || '미사용'}</button>` : '';
+        return `<div class="craft-orb-wrap"><button id="btn-orb-${key}" class="${cls}" onclick="useCurrency('${key}')" ${disabled ? 'disabled' : ''} title="${tip}"><span class="craft-orb-name">${orb.name}</span><span class="craft-orb-count">x ${game.currencies[key] || 0}</span></button>${sporeBtn}</div>`;
     }).join('');
 }
 
