@@ -528,7 +528,9 @@ function generateOrganicTree() {
     }
 
 
-    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'witch', 'duelist'];
+    // 시계방향 구간 배치:
+    // 10시~2시: 에너지 보호막, 2시~6시: 회피, 6시~10시: 방어도
+    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'marauder', 'templar'];
     const sectorCount = sectorThemes.length;
     const lanes = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
     const maxDepth = 13;

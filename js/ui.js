@@ -1038,7 +1038,12 @@ function showItemTooltip(event, idx, isEquip) {
             let label = getStatName(id);
             let finalVal = defenseView[id];
             let baseVal = defenseView.base[id];
-            if (finalVal > 0 || baseVal > 0) html += `<div class="tooltip-line">${label}: <span style="color:#4da3ff;">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span></div>`;
+            if (finalVal <= 0 && baseVal <= 0) return;
+            if (Math.floor(finalVal) === Math.floor(baseVal)) {
+                html += `<div class="tooltip-line">${label}: <span style="color:#ffffff;">${Math.floor(baseVal)}</span></div>`;
+            } else {
+                html += `<div class="tooltip-line">${label}: <span style="color:#4da3ff;">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span></div>`;
+            }
         });
     }
     if ((item.stats || []).length > 0) {
@@ -2598,12 +2603,15 @@ function buildCraftActionButtons(item) {
                 let expectedDepthGain = Math.max(0, Math.floor((game.abyssEndlessDepth || 20) - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
                 let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;
+                let deepStats = game.loopDeepStats || {};
+                let deepTotalLine = `총합 보너스: 생명력 +${Math.floor((deepStats.flatHp||0)*10)}, 피해 +${Math.floor((deepStats.flatDmg||0)*2)}, 공속 +${((deepStats.aspd||0)*1.2).toFixed(1)}%, 이속 +${((deepStats.move||0)*0.8).toFixed(1)}%, 물피감 +${((deepStats.dr||0)*0.5).toFixed(1)}%, 치명 +${((deepStats.crit||0)*0.6).toFixed(1)}%`;
                 loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">혼돈20 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
                 <div style="background:linear-gradient(160deg, rgba(84,59,136,0.22), rgba(26,31,56,0.35)); border:1px solid #5f4a93; border-radius:10px; padding:10px; margin-bottom:8px;">
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="game.loop10ChaosStayEnabled=!game.loop10ChaosStayEnabled; updateStaticUI();">혼돈 잔류 모드: ${game.loop10ChaosStayEnabled ? 'ON' : 'OFF'}</button><button onclick="enterNextEndlessChaosDepth()" ${game.loop10ChaosStayEnabled ? '' : 'disabled'}>다음 심화층 진입 (${Math.floor(game.abyssEndlessDepth || 20) + 1})</button></div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="triggerSeasonReset()">지금 즉시 루프</button></div>
                     <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-top:6px;">${depthButtons || '<span style="color:#7f8c8d;">기록 없음</span>'}</div>
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종</div>
+                <div style="margin-top:4px; color:#9ec4f0;">${deepTotalLine}</div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>`;
             }
         }

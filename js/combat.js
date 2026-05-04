@@ -1275,7 +1275,7 @@ function handleEnemyDeath(enemy, pStats) {
     grantExpAndGem(enemy, pStats);
     rollLootForEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
-    if (enemy.isBoss && zone && zone.type === 'act') markLoopSpecialBossKill(`act_boss_${zone.id}`);
+    // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         if (!v.active && Math.random() < (enemy.isElite ? 0.015 : 0.004)) {
