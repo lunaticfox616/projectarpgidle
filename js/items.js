@@ -248,7 +248,15 @@ function upgradeSelectedItemBase() {
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || BASE_ITEM_DB.find(base => base && base.name === item.baseName && base.slot === item.slot);
     if (!currentBase) return addLog('현재 베이스 정보를 찾을 수 없습니다.', 'attack-monster');
-    let candidates = BASE_ITEM_DB.filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier).sort((a,b)=>a.reqTier-b.reqTier);
+    function getDefenseProfile(base) {
+        let ids = new Set((base.baseStats || []).map(stat => stat.id));
+        return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
+    }
+    let currentProfile = getDefenseProfile(currentBase);
+    let candidates = BASE_ITEM_DB
+        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier)
+        .filter(base => ['투구','갑옷','장갑','신발'].includes(base.slot) ? getDefenseProfile(base) === currentProfile : true)
+        .sort((a,b)=>a.reqTier-b.reqTier);
     let nextBase = candidates[0];
     if (!nextBase) return addLog('해당 계열의 다음 베이스가 없습니다.', 'attack-monster');
     let isTopBase = candidates.length === 1;
@@ -277,6 +285,10 @@ function confirmSelectedItemBaseUpgrade() {
     let pending = game.pendingBaseUpgrade;
     if (!pending) return;
     let item = (game.inventory || []).find(v => v && v.id === pending.itemId);
+    if (!item) {
+        let equipMatch = Object.entries(game.equipment || {}).find(([, equipped]) => equipped && equipped.id === pending.itemId);
+        if (equipMatch) item = equipMatch[1];
+    }
     if (!item) { closeBaseUpgradeOverlay(); return addLog('대상 장비를 찾을 수 없습니다.', 'attack-monster'); }
     if ((game.currencies.chaos || 0) < (pending.costChaos || 0)) return addLog(`카오스 오브가 부족합니다. (필요: ${pending.costChaos})`, 'attack-monster');
     if ((game.currencies.divine || 0) < (pending.costDivine || 0)) return addLog(`신성한 오브가 부족합니다. (필요: ${pending.costDivine})`, 'attack-monster');
