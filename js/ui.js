@@ -1009,9 +1009,42 @@ function showItemTooltip(event, idx, isEquip) {
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${item.slot.replace(/[12]/, '')}] ${item.name}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>`;
     html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}</div>`;
     html += `<div class="tooltip-line" style="color:#a8c0da;">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
+    function getItemDefenseView(target) {
+        let base = { armor: 0, evasion: 0, energyShield: 0 };
+        let flat = { armor: 0, evasion: 0, energyShield: 0 };
+        let pct = { armor: 0, evasion: 0, energyShield: 0 };
+        (target.baseStats || []).forEach(stat => { if (base[stat.id] !== undefined) base[stat.id] += Number(stat.val || 0); });
+        (target.stats || []).forEach(stat => {
+            if (flat[stat.id] !== undefined) flat[stat.id] += Number(stat.val || 0);
+            if (stat.id === 'armorPct') pct.armor += Number(stat.val || 0);
+            if (stat.id === 'evasionPct') pct.evasion += Number(stat.val || 0);
+            if (stat.id === 'energyShieldPct') pct.energyShield += Number(stat.val || 0);
+        });
+        return {
+            armor: Math.floor((base.armor + flat.armor) * (1 + pct.armor / 100)),
+            evasion: Math.floor((base.evasion + flat.evasion) * (1 + pct.evasion / 100)),
+            energyShield: Math.floor((base.energyShield + flat.energyShield) * (1 + pct.energyShield / 100)),
+            base: base
+        };
+    }
+    let defenseView = getItemDefenseView(item);
     if ((item.baseStats || []).length > 0) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#f1c40f;">베이스 옵션</div>`;
-        item.baseStats.forEach(stat => html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${stat.statName.includes('%') ? '%' : ''}</div>`);
+        item.baseStats.forEach(stat => {
+            if (stat.id === 'armor' || stat.id === 'evasion' || stat.id === 'energyShield') return;
+            html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${stat.statName.includes('%') ? '%' : ''}</div>`;
+        });
+        ['armor','evasion','energyShield'].forEach(id => {
+            let label = getStatName(id);
+            let finalVal = defenseView[id];
+            let baseVal = defenseView.base[id];
+            if (finalVal <= 0 && baseVal <= 0) return;
+            if (Math.floor(finalVal) === Math.floor(baseVal)) {
+                html += `<div class="tooltip-line">${label}: <span style="color:#ffffff;">${Math.floor(baseVal)}</span></div>`;
+            } else {
+                html += `<div class="tooltip-line">${label}: <span style="color:#4da3ff;">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span></div>`;
+            }
+        });
     }
     if ((item.stats || []).length > 0) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션</div>`;
@@ -2570,12 +2603,15 @@ function buildCraftActionButtons(item) {
                 let expectedDepthGain = Math.max(0, Math.floor((game.abyssEndlessDepth || 20) - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
                 let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;
+                let deepStats = game.loopDeepStats || {};
+                let deepTotalLine = `총합 보너스: 생명력 +${Math.floor((deepStats.flatHp||0)*10)}, 피해 +${Math.floor((deepStats.flatDmg||0)*2)}, 공속 +${((deepStats.aspd||0)*1.2).toFixed(1)}%, 이속 +${((deepStats.move||0)*0.8).toFixed(1)}%, 물피감 +${((deepStats.dr||0)*0.5).toFixed(1)}%, 치명 +${((deepStats.crit||0)*0.6).toFixed(1)}%`;
                 loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">혼돈20 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
                 <div style="background:linear-gradient(160deg, rgba(84,59,136,0.22), rgba(26,31,56,0.35)); border:1px solid #5f4a93; border-radius:10px; padding:10px; margin-bottom:8px;">
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="game.loop10ChaosStayEnabled=!game.loop10ChaosStayEnabled; updateStaticUI();">혼돈 잔류 모드: ${game.loop10ChaosStayEnabled ? 'ON' : 'OFF'}</button><button onclick="enterNextEndlessChaosDepth()" ${game.loop10ChaosStayEnabled ? '' : 'disabled'}>다음 심화층 진입 (${Math.floor(game.abyssEndlessDepth || 20) + 1})</button></div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="triggerSeasonReset()">지금 즉시 루프</button></div>
                     <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-top:6px;">${depthButtons || '<span style="color:#7f8c8d;">기록 없음</span>'}</div>
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종</div>
+                <div style="margin-top:4px; color:#9ec4f0;">${deepTotalLine}</div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>`;
             }
         }

@@ -213,6 +213,8 @@ function enterNextEndlessChaosDepth() {
     if (!game.abyssUnlockedDepths.includes(game.abyssEndlessDepth)) game.abyssUnlockedDepths.push(game.abyssEndlessDepth);
     game.currentZoneId = ABYSS_START_ZONE_ID + 19;
     game.killsInZone = 0;
+    game.combatHalted = false;
+    game.runProgress = 0;
     addLog(`♾️ 혼돈 심화 ${game.abyssEndlessDepth}층 진입`, 'season-up');
     startMoving(true);
     updateStaticUI();
@@ -226,6 +228,8 @@ function enterUnlockedEndlessDepth(depth) {
     game.abyssEndlessDepth = depth;
     game.currentZoneId = ABYSS_START_ZONE_ID + 19;
     game.killsInZone = 0;
+    game.combatHalted = false;
+    game.runProgress = 0;
     addLog(`🧭 기록된 혼돈 심화 ${depth}층으로 이동`, 'season-up');
     startMoving(true);
     updateStaticUI();
@@ -325,9 +329,15 @@ const P_STATS = {
     move: { name: '이동 속도(%)', tiers: [1, 2], s: 1.5, m: 4, isPct: true },
     crit: { name: '치명타 확률(%)', tiers: [2, 3], m: 1.5, k: 4, isPct: true },
     critDmg: { name: '치명타 피해 배율(%)', tiers: [3], k: 25, isPct: true },
-    leech: { name: '생명력 흡수(%)', tiers: [2, 3], m: 0.4, k: 1.5, isPct: true },
+    leech: { name: '생명력 흡수(%)', tiers: [2, 3], m: 0.3, k: 1.0, isPct: true },
     gemLevel: { name: '스킬 젬 레벨', tiers: [3], k: 1 },
     dr: { name: '물리 피해 감소(%)', tiers: [3], k: 4, isPct: true },
+    armor: { name: '방어도', tiers: [1, 2, 3], s: 12, m: 28, k: 56 },
+    evasion: { name: '회피', tiers: [1, 2, 3], s: 12, m: 28, k: 56 },
+    energyShield: { name: '에너지 보호막', tiers: [1, 2, 3], s: 10, m: 24, k: 48 },
+    armorPct: { name: '방어도(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
+    evasionPct: { name: '회피(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
+    energyShieldPct: { name: '에너지 보호막(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
     physIgnore: { name: '물리 피해 감소 무시(%)', tiers: [2, 3], m: 3, k: 6, isPct: true },
     ds: { name: '연속 타격(%)', tiers: [3], k: 8, isPct: true },
     suppCap: { name: '보조 스킬 젬 한도', tiers: [3], k: 1 },
@@ -363,7 +373,7 @@ const SUPPORT_GEM_DB = {
     '범위 확장': { baseVal: 5, scale: 2.0, stat: 'aoePctDmg', name: '범위 피해', isPct: true, desc: '범위 태그 스킬의 피해를 높입니다.' },
     '지속 확산': { baseVal: 6, scale: 2.2, stat: 'dotPctDmg', name: '지속 피해 배율', isPct: true, desc: 'dot 태그 스킬의 지속 피해 배율을 올립니다.' },
     '무자비': { baseVal: 10, scale: 3.0, stat: 'critDmg', name: '치명타 피해', isPct: true, desc: '치명타 배율을 높입니다.' },
-    '생명력 흡수': { baseVal: 0.5, scale: 0.2, stat: 'leech', name: '생명력 흡수', isPct: true, desc: '공격 시 흡혈을 부여합니다.' },
+    '생명력 흡수': { baseVal: 0.5, scale: 0.1, stat: 'leech', name: '생명력 흡수', isPct: true, desc: '공격 시 흡혈을 부여합니다.' },
     '연속타격': { baseVal: 5, scale: 1.0, stat: 'ds', name: '연속 타격 확률', isPct: true, desc: '한 번 더 타격할 확률을 부여합니다.' },
     '방어 상승': { baseVal: 2, scale: 0.5, stat: 'dr', name: '받는 피해 감소', isPct: true, desc: '물리 피해 감소를 올립니다.' },
     '갑주 파쇄': { baseVal: 3, scale: 0.8, stat: 'physIgnore', name: '물피감 무시', isPct: true, desc: '물리 공격이 적의 물리 피해 감소를 더 깊게 파고듭니다.' },
@@ -397,6 +407,12 @@ const MOD_DB = [
     { id: 'aoePctDmg', type: 'prefix', statName: '범위 피해(%)', slots: ['무기', '투구', '목걸이', '갑옷'], base: 4, step: 3 },
     { id: 'dotPctDmg', type: 'prefix', statName: '지속 피해 배율(%)', slots: ['무기', '반지', '목걸이'], base: 4, step: 3 },
     { id: 'flatHp', type: 'prefix', statName: '최대 생명력', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'], base: 15, step: 10 },
+    { id: 'armor', type: 'prefix', statName: '방어도', slots: ['투구', '갑옷', '장갑', '신발'], base: 12, step: 10 },
+    { id: 'evasion', type: 'prefix', statName: '회피', slots: ['투구', '갑옷', '장갑', '신발'], base: 12, step: 10 },
+    { id: 'energyShield', type: 'prefix', statName: '에너지 보호막', slots: ['투구', '갑옷', '장갑', '신발'], base: 9, step: 8 },
+    { id: 'armorPct', type: 'suffix', statName: '방어도 증가(%)', slots: ['투구', '갑옷', '장갑', '신발'], base: 6, step: 4 },
+    { id: 'evasionPct', type: 'suffix', statName: '회피 증가(%)', slots: ['투구', '갑옷', '장갑', '신발'], base: 6, step: 4 },
+    { id: 'energyShieldPct', type: 'suffix', statName: '에너지 보호막 증가(%)', slots: ['투구', '갑옷', '장갑', '신발'], base: 6, step: 4 },
     { id: 'pctHp', type: 'suffix', statName: '생명력 증가(%)', slots: ['갑옷', '허리띠'], base: 4, step: 3 },
     { id: 'aspd', type: 'suffix', statName: '공격 속도(%)', slots: ['무기', '반지', '목걸이', '허리띠', '장갑'], base: 2, step: 2 },
     { id: 'crit', type: 'suffix', statName: '치명타 확률(%)', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'], base: 1, step: 1 },
@@ -416,7 +432,7 @@ const MOD_DB = [
     { id: 'targetAny', type: 'special', statName: '스킬 타겟 수', slots: ['장갑'], base: 1, step: 0, weight: 0.45 },
     { id: 'targetProjectile', type: 'special', statName: '투사체 스킬 타겟 수', slots: ['무기'], base: 1, step: 0, weight: 0.45 },
     { id: 'targetSlam', type: 'special', statName: '강타 스킬 타겟 수', slots: ['무기'], base: 1, step: 0, weight: 0.45 },
-    { id: 'leech', type: 'suffix', statName: '생명력 흡수(%)', slots: ['무기', '장갑', '반지'], base: 0.3, step: 0.2 },
+    { id: 'leech', type: 'suffix', statName: '생명력 흡수(%)', slots: ['무기', '장갑', '반지'], base: 0.08, step: 0.08 },
     { id: 'dr', type: 'suffix', statName: '물리 피해 감소(%)', slots: ['갑옷', '허리띠', '투구'], base: 2, step: 2 },
     { id: 'critDmg', type: 'suffix', statName: '치명타 피해 배율(%)', slots: ['무기', '목걸이', '투구'], base: 10, step: 6 },
     { id: 'ds', type: 'suffix', statName: '연속 타격(%)', slots: ['장갑', '무기'], base: 5, step: 3 },

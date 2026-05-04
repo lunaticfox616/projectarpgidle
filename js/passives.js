@@ -528,7 +528,9 @@ function generateOrganicTree() {
     }
 
 
-    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'witch', 'duelist'];
+    // 시계방향 구간 배치:
+    // 10시~2시: 에너지 보호막, 2시~6시: 회피, 6시~10시: 방어도
+    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'marauder', 'templar'];
     const sectorCount = sectorThemes.length;
     const lanes = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
     const maxDepth = 13;
@@ -2469,6 +2471,17 @@ function resetHeroSheetToDefault() {
     reloadBattleAssets();
 }
 
+
+function fileExists(path) {
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('HEAD', path, false);
+        xhr.send();
+        return xhr.status >= 200 && xhr.status < 400;
+    } catch (error) {
+        return false;
+    }
+}
 function initBattleAssets() {
     if (battleAssets.loading || battleAssets.ready || battleAssets.failed) return;
     battleAssets.loading = true;
@@ -2525,6 +2538,11 @@ function initBattleAssets() {
         bgAct10: 'assets/background/act10.png',
     };
     const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['weapons']));
+    Object.entries(manifest).forEach(([key, src]) => {
+        if (typeof src === 'string' && !src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('https')) {
+            if (!fileExists(src)) optionalManifestKeys.add(key);
+        }
+    });
     let pending = Object.keys(manifest).length;
     let settled = false;
     function finishLoad() {
@@ -3779,6 +3797,7 @@ function chooseItemBase(slot, zoneTier) {
 function rollBaseStats(base, zoneTier) {
     return base.baseStats.map(stat => {
         let val = stat.base;
+        if (stat.id === 'energyShield') val *= 1.5;
         if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) val = Math.round(val * 10) / 10;
         else val = Math.floor(val);
         return { id: stat.id, val: val, valMin: stat.base, valMax: stat.base, tier: 0, statName: getStatName(stat.id) };
@@ -3842,8 +3861,19 @@ function rollAffixValueInTierRange(mod, minTier, maxTier) {
 
 function getAvailableMods(item) {
     let existing = new Set((item.stats || []).map(stat => stat.id));
+    let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
+    let baseDefenseTypes = new Set((item.baseStats || [])
+        .map(stat => stat && stat.id)
+        .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
     return MOD_DB.filter(mod => {
         let statId = mod.statId || mod.id;
+        if (defenseSlots.has(item.slot) && ['armor','evasion','energyShield','armorPct','evasionPct','energyShieldPct'].includes(statId)) {
+            if (baseDefenseTypes.size > 0) {
+                if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
+                if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
+                if (statId.startsWith('energyShield') && !baseDefenseTypes.has('energyShield')) return false;
+            }
+        }
         return mod.slots.includes(item.slot) && !existing.has(statId);
     });
 }
