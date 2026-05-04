@@ -237,7 +237,7 @@ function renderPaperdoll(targetId, forCrafting) {
     ['무기', '투구', '목걸이', '장갑2', '갑옷', '장갑1', '반지1', '허리띠', '반지2', '신발'].forEach(slot => {
         let item = game.equipment[slot];
         let displaySlot = slot.replace(/[12]/, '');
-        let selected = craftSelectedIsEquip && craftSelectedRef === slot;
+        let selected = isCraftSelectionEquip() && getCraftSelectionRef() === slot;
         if (item) {
             let statsHtml = (item.baseStats || []).concat(item.stats || []).slice(0, 2).map(stat => `${stat.statName} +${formatValue(stat.id, stat.val)}`).join('<br>');
             let click = forCrafting ? `selectForCrafting('${slot}', true)` : '';
@@ -252,7 +252,7 @@ function renderPaperdoll(targetId, forCrafting) {
 }
 
 function renderInventoryCard(item, idx, mode) {
-    let selected = !craftSelectedIsEquip && craftSelectedRef === item.id;
+    let selected = !isCraftSelectionEquip() && getCraftSelectionRef() === item.id;
     let lockIcon = item.locked ? ' 🔒' : '';
     let lockBtnLabel = item.locked ? '잠금해제' : '잠금';
     let lines = [];

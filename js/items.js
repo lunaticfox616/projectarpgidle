@@ -8,9 +8,31 @@ window.GameModules.items = {
 };
 
 // Phase-3 extracted equipment/inventory handlers.
+
+let craftingSelectionState = { ref: null, isEquip: false };
+
+function getCraftSelectionRef() { return craftingSelectionState.ref; }
+function isCraftSelectionEquip() { return !!craftingSelectionState.isEquip; }
+function clearCraftSelection() { craftingSelectionState.ref = null; craftingSelectionState.isEquip = false; }
+
+function getSelectedCraftItem() {
+    if (craftingSelectionState.ref === null) return null;
+    if (craftingSelectionState.isEquip) return game.equipment[craftingSelectionState.ref] || null;
+    return (game.inventory || []).find(item => item.id === craftingSelectionState.ref) || null;
+}
+
+function ensureCraftSelectionValid() {
+    if (craftingSelectionState.ref === null) return;
+    if (craftingSelectionState.isEquip) {
+        if (!game.equipment[craftingSelectionState.ref]) clearCraftSelection();
+        return;
+    }
+    if (!game.inventory.some(item => item.id === craftingSelectionState.ref)) clearCraftSelection();
+}
+
 function selectForCrafting(ref, isEquip) {
-    craftSelectedRef = ref;
-    craftSelectedIsEquip = isEquip;
+    craftingSelectionState.ref = ref;
+    craftingSelectionState.isEquip = isEquip;
     updateStaticUI();
 }
 
@@ -78,9 +100,9 @@ function equipItem(idx, preferredSlot) {
     game.equipment[targetSlot] = item;
     if (old) game.inventory[idx] = old;
     else game.inventory.splice(idx, 1);
-    if (!craftSelectedIsEquip && craftSelectedRef === movedId) {
-        craftSelectedRef = targetSlot;
-        craftSelectedIsEquip = true;
+    if (!isCraftSelectionEquip() && getCraftSelectionRef() === movedId) {
+        craftingSelectionState.ref = targetSlot;
+        craftingSelectionState.isEquip = true;
     }
     hideItemTooltip();
     normalizeSupportLoadout(true);
@@ -99,9 +121,9 @@ function unequipItem(slot) {
     if (!item || game.inventory.length >= getInventoryLimit()) return;
     game.inventory.push(item);
     game.equipment[slot] = null;
-    if (craftSelectedIsEquip && craftSelectedRef === slot) {
-        craftSelectedRef = item.id;
-        craftSelectedIsEquip = false;
+    if (isCraftSelectionEquip() && getCraftSelectionRef() === slot) {
+        craftingSelectionState.ref = item.id;
+        craftingSelectionState.isEquip = false;
     }
     normalizeSupportLoadout(true);
     updateStaticUI();
@@ -163,7 +185,7 @@ function changeZone(id) {
 }
 
 
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, unequipItem, salvageItemById, toggleItemLockById });
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid });
 
 // Phase-3 extracted market/crafting service handlers.
 function marketResetPassiveTreeByDivine() {

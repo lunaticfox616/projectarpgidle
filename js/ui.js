@@ -2283,6 +2283,45 @@ function updateStaticUI() {
         }).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
     }
 
+
+function getCraftActionValidators(item) {
+    let hasHoneyLocked = (item.stats || []).some(v => v.lockedByHoney);
+    return {
+        honey: !!item && (game.currencies.enchantedHoney || 0) > 0 && !hasHoneyLocked,
+        stinger: !!item && (game.currencies.venomStinger || 0) > 0 && item.slot === '무기',
+        baseUpgrade: !!item,
+        voidSocket: !!item && (item.slot === '반지' || item.slot === '목걸이')
+    };
+}
+
+
+function renderCraftOrbActions(selectedItem) {
+    let defs = [
+        ['transmute'],['augment'],['alteration'],['alchemy'],['exalted'],['regal'],['chaos'],['divine'],['scour'],['tainted']
+    ];
+    let host = document.getElementById('ui-craft-orb-actions');
+    if (!host) return;
+    host.innerHTML = defs.map(([key]) => {
+        let orb = ORB_DB[key];
+        if (!orb) return '';
+        let hiddenTainted = key === 'tainted' && !((game.season || 1) >= 5 && (game.currencies.tainted || 0) > 0);
+        if (hiddenTainted) return '';
+        let disabled = !selectedItem || (game.currencies[key] || 0) <= 0;
+        let cls = `craft-orb-card${disabled ? ' disabled' : ''}`;
+        return `<button id="btn-orb-${key}" class="${cls}" onclick="useCurrency('${key}')" ${disabled ? 'disabled' : ''} title="${orb.desc}"><span class="craft-orb-name">${orb.name}</span><span class="craft-orb-count">x ${game.currencies[key] || 0}</span></button>`;
+    }).join('');
+}
+
+function buildCraftActionButtons(item) {
+    let v = getCraftActionValidators(item);
+    let defs = [
+        { key:'honey', label:'🍯 벌꿀 고정', onclick:'applyEnchantedHoneyToSelectedItem()' },
+        { key:'stinger', label:'🦂 독벌침 부여', onclick:'applyVenomStingerToSelectedItem()' },
+        { key:'baseUpgrade', label:'⬆️ 베이스 업그레이드', onclick:'upgradeSelectedItemBase()' }
+    ];
+    return defs.map(d => `<button onclick="${d.onclick}" ${v[d.key] ? '' : 'disabled'}>${d.label}</button>`).join('');
+}
+
     let selectedItem = getSelectedCraftItem();
     let forgeHtml = '아이템을 클릭하여 선택';
     if (selectedItem) {
@@ -2307,7 +2346,7 @@ function updateStaticUI() {
                 voidSocketHtml = `<div style="color:#9fd6ff;">빈 공허 소켓</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
             }
         }
-        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}</div><div class="item-base-line">${selectedItem.baseName}</div>${lines.join('')}<div style="display:flex; gap:6px; margin-top:8px;"><button onclick="applyEnchantedHoneyToSelectedItem()" ${((game.currencies.enchantedHoney||0)<=0 || (selectedItem.stats||[]).some(v=>v.lockedByHoney))?'disabled':''}>🍯 벌꿀 고정</button><button onclick="applyVenomStingerToSelectedItem()" ${((game.currencies.venomStinger||0)<=0 || selectedItem.slot!=='무기')?'disabled':''}>🦂 독벌침 부여</button><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${voidSocketHtml}</div>`;
+        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}</div><div class="item-base-line">${selectedItem.baseName}</div>${lines.join('')}<div style="display:flex; gap:6px; margin-top:8px;">${buildCraftActionButtons(selectedItem)}</div><div style="margin-top:8px; display:grid; gap:6px;">${voidSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = forgeHtml;
     document.getElementById('fossil-item-display').innerHTML = forgeHtml;
@@ -2319,25 +2358,18 @@ function updateStaticUI() {
     document.getElementById('ui-fossil-actions').innerHTML = fossilButtons.join('') || `<div style="color:#7f8c8d;">보유한 화석이 없습니다.</div>`;
     document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:#7f8c8d;">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:#8fb6d9;">미궁 완료 시 기본 화석 + 타입 화석이 드랍되며, 심연 화석은 희귀하게 추가 드랍됩니다.</div>`;
 
-    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'sealShard', 'strongSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'meteorShard', 'starWedgeIncomplete', 'starWedge']);
+    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'sealShard', 'strongSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen']);
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
         if (hiddenCurrencyKeys.has(key)) return false;
         if (key === 'tainted') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
         return true;
-    }).map(key => `
-        <div class="currency-card">
-            <div class="currency-name">${ORB_DB[key].name}</div>
-            <div class="currency-desc">${ORB_DB[key].desc}</div>
-            <div class="currency-count">보유: <strong>${game.currencies[key] || 0}</strong></div>
-        </div>
-    `).join('');
+    }).map(key => `<div class="currency-card" title="${ORB_DB[key].desc}"><div class="currency-name">${ORB_DB[key].name}</div><div class="currency-count">x <strong>${game.currencies[key] || 0}</strong></div></div>`).join('');
 
+    renderCraftOrbActions(selectedItem);
     Object.keys(ORB_DB).forEach(key => {
         let btn = document.getElementById('btn-orb-' + key);
         if (btn) btn.disabled = !selectedItem || (game.currencies[key] || 0) <= 0;
     });
-    let taintedBtn = document.getElementById('btn-orb-tainted');
-    if (taintedBtn) taintedBtn.style.display = ((game.season || 1) >= 5 && (game.currencies.tainted || 0) > 0) ? 'block' : 'none';
     let fossilTabBtn = document.getElementById('btn-item-tab-fossil');
     if (fossilTabBtn) fossilTabBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
     let marketTabBtn = document.getElementById('btn-item-tab-market');
