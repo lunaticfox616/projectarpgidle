@@ -2402,27 +2402,9 @@ function renderCraftSelectedSummary(item) {
 }
 
 function renderCraftOrbActions(selectedItem) {
-    let defs = [
-        ['transmute'],['augment'],['alteration'],['alchemy'],['exalted'],['regal'],['chaos'],['divine'],['scour'],['tainted']
-    ];
     let host = document.getElementById('ui-craft-orb-actions');
     if (!host) return;
-    host.innerHTML = defs.map(([key]) => {
-        let orb = ORB_DB[key];
-        if (!orb) return '';
-        let hiddenTainted = key === 'tainted' && !((game.season || 1) >= 5 && (game.currencies.tainted || 0) > 0);
-        if (hiddenTainted) return '';
-        let st = getCraftOrbUseState(key, selectedItem);
-        let disabled = !st.enabled;
-        let cls = `craft-orb-card${disabled ? ' disabled' : ''}`;
-        let sporeModes = game.sporeCraftModes || {};
-        let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
-        let mode = sporeModes[key] || 'none';
-        let hasSpore = ['transmute','augment','alteration','regal','chaos','exalted'].includes(key);
-        let modeCost = mode === 'none' ? '소모 없음' : ((mode === 'chaos' || mode === 'damage') ? '소모: 3속성 각 5' : '소모: 해당 홀씨 5');
-        let sporeBtn = hasSpore ? `<button class="craft-orb-spore" onclick="openSporeModeOverlay('${key}')" ${disabled ? 'disabled' : ''}>홀씨</button>` : '';
-        return `<div class="craft-orb-card ${disabled ? 'disabled' : ''}" onmouseenter="showOrbTooltip(event,'${key}','${st.reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div class="craft-orb-name">${orb.name}</div><div class="craft-orb-count">x ${game.currencies[key] || 0}</div><div class="craft-orb-mini">${modeCost}</div><div style="display:flex; gap:6px; margin-top:6px;">${sporeBtn}<button onclick="useCurrency('${key}')" ${disabled ? 'disabled' : ''}>사용</button></div></div>`;
-    }).join('');
+    host.innerHTML = '';
 }
 
 function openSporeModeOverlay(currencyKey) {
@@ -2437,7 +2419,7 @@ function openSporeModeOverlay(currencyKey) {
     updateStaticUI();
 }
 
-function showOrbTooltip(event, key, reason) {
+function showCurrencyCardTooltip(event, key, reason) {
     let orb = ORB_DB[key];
     if (!orb) return;
     let html = `<div class="tooltip-title">${orb.name}</div><div class="tooltip-line">${orb.desc || ''}</div><div class="tooltip-line" style="margin-top:6px; color:#9fb4d1;">상태: ${reason || '-'}</div>`;
@@ -2502,7 +2484,13 @@ function buildCraftActionButtons(item) {
         let useBtn = '';
         if (key === 'enchantedHoney') useBtn = `<button style="margin-top:6px;" onclick="applyEnchantedHoneyToSelectedItem()">사용</button>`;
         if (key === 'venomStinger') useBtn = `<button style="margin-top:6px;" onclick="applyVenomStingerToSelectedItem()">사용</button>`;
-        return `<div class="currency-card" title="${ORB_DB[key].desc}"><div class="currency-name">${ORB_DB[key].name}</div><div class="currency-count">x <strong>${game.currencies[key] || 0}</strong></div>${useBtn}</div>`;
+        let sporeModes = game.sporeCraftModes || {};
+        let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
+        let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','scour','tainted'].includes(key);
+        let mode = sporeModes[key] || 'none';
+        let reason = getCraftOrbUseState(key, getSelectedCraftItem()).reason;
+        if (isCraftOrb) useBtn += `<div style="display:flex; gap:6px; margin-top:6px;"><button onclick="openSporeModeOverlay('${key}')">홀씨:${modeLabelMap[mode] || '미사용'}</button><button onclick="useCurrency('${key}')">사용</button></div>`;
+        return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div class="currency-name">${ORB_DB[key].name}</div><div class="currency-count">x <strong>${game.currencies[key] || 0}</strong></div>${useBtn}</div>`;
     }).join('');
     let sporeHost = document.getElementById('ui-spore-summary');
     if (!sporeHost) {
