@@ -220,3 +220,17 @@
 
         .trait-tree, .class-card, .map-item, .item-card, .skill-gem, .slot-box { user-select: none; }
     
+
+
+.craft-actions { display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap:6px; }
+.craft-orb-card { padding:6px 4px; min-height:44px; font-size:0.74em; display:flex; flex-direction:column; gap:3px; align-items:flex-start; }
+.craft-orb-card .craft-orb-name { font-weight:700; line-height:1.15; }
+.craft-orb-card .craft-orb-count { color:#d1e6ff; font-size:0.95em; }
+.craft-orb-card.disabled { opacity:0.45; cursor:not-allowed; }
+
+
+.craft-selected-summary { position: sticky; top: 0; z-index: 4; margin: 0 0 6px; padding: 6px 8px; border: 1px solid #34506b; border-radius: 8px; background: #111a24; font-size: 0.82em; }
+.craft-section-title { margin-top: 10px; color: #8fb6d9; font-size: 0.78em; letter-spacing: .03em; text-transform: uppercase; }
+
+.craft-orb-header { margin: 6px 0 4px; font-size: 0.76em; color:#9cc4e6; letter-spacing:.04em; text-transform: uppercase; }
+.craft-actions .craft-orb-card { border:1px solid #35506a; border-radius:8px; background:#152233; }

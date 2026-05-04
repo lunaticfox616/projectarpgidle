@@ -1422,8 +1422,6 @@ let isDragging = false;
 let dragStartX = 0;
 let dragStartY = 0;
 let dragDist = 0;
-let craftSelectedRef = null;
-let craftSelectedIsEquip = false;
 var activeTooltipId = null;
 let activeItemTooltipToken = null;
 let pendingHeavyUiRefresh = false;
@@ -2513,9 +2511,20 @@ function initBattleAssets() {
         backdropAct3_7: 'assets/battlefield-act3-7.png',
         backdropAct4_8: 'assets/battlefield-act4-8.png',
         backdropAct5: 'assets/battlefield-act5.png',
-        backdropAct9_10: 'assets/battlefield-act9-10.png'
+        backdropAct9_10: 'assets/battlefield-act9-10.png',
+
+        bgAct1: 'assets/background/act1.png',
+        bgAct2: 'assets/background/act2.png',
+        bgAct3: 'assets/background/act3.png',
+        bgAct4: 'assets/background/act4.png',
+        bgAct5: 'assets/background/act5.png',
+        bgAct6: 'assets/background/act6.png',
+        bgAct7: 'assets/background/act7.png',
+        bgAct8: 'assets/background/act8.png',
+        bgAct9: 'assets/background/act9.png',
+        bgAct10: 'assets/background/act10.png',
     };
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero')).concat(['weapons']));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['weapons']));
     let pending = Object.keys(manifest).length;
     let settled = false;
     function finishLoad() {
@@ -2542,7 +2551,7 @@ function initBattleAssets() {
         let img = new Image();
         img.onload = function() {
             try {
-                if (key.startsWith('backdrop')) {
+                if (key.startsWith('backdrop') || key.startsWith('bgAct')) {
                     battleAssets.backdrops[key] = img;
                 } else {
                     let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || (key === 'heroLegacy' && heroSheetHasTransparency(img));
@@ -2736,6 +2745,7 @@ function heroSheetHasTransparency(image) {
 function finalizeBattleAssets() {
     try {
         battleAssets.atlas = buildBattleAssetAtlas();
+        if (battleAssets.atlas && battleAssets.atlas.hero && battleAssets.atlas.hero.image) battleAssets.images.hero = battleAssets.atlas.hero.image;
         battleAssets.ready = true;
         battleAssets.loading = false;
         renderBattlefield();
@@ -4430,7 +4440,7 @@ function salvageItem(idx) {
     let item = game.inventory[idx];
     if (!item) return;
     if (item.locked) return addLog(`🔒 잠금된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
-    if (!craftSelectedIsEquip && craftSelectedRef === item.id) craftSelectedRef = null;
+    if (!isCraftSelectionEquip() && getCraftSelectionRef() === item.id) clearCraftSelection();
     salvageItemObject(item, false);
     game.inventory.splice(idx, 1);
     updateStaticUI();
@@ -4499,7 +4509,7 @@ function bulkSalvage(maxRarity) {
         else kept.push(item);
     });
     game.inventory = kept;
-    if (!craftSelectedIsEquip && craftSelectedRef !== null && !game.inventory.some(item => item.id === craftSelectedRef)) craftSelectedRef = null;
+    ensureCraftSelectionValid();
     updateStaticUI();
 }
 function bulkSalvageSelected() {
@@ -4529,7 +4539,7 @@ function bulkSalvageSelected() {
         return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
     }
     game.inventory = kept;
-    if (!craftSelectedIsEquip && craftSelectedRef !== null && !game.inventory.some(item => item.id === craftSelectedRef)) craftSelectedRef = null;
+    ensureCraftSelectionValid();
     addLog(`🧪 선택한 등급 장비 ${removed}개 해체${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
@@ -4545,7 +4555,7 @@ function bulkSalvageAllInventory() {
         else salvageItemObject(item, true);
     });
     game.inventory = kept;
-    if (!craftSelectedIsEquip) craftSelectedRef = null;
+    if (!isCraftSelectionEquip()) clearCraftSelection();
     addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개)${lockedCount > 0 ? ` · 잠금 ${lockedCount}개 보호` : ''}`, 'loot-normal');
     updateStaticUI();
 }
