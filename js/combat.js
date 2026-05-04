@@ -1953,8 +1953,7 @@ function triggerSeasonReset() {
     game.encounterIndex = 0;
     game.runProgress = 0;
     progressStallTicks = 0;
-    craftSelectedRef = null;
-    craftSelectedIsEquip = false;
+    clearCraftSelection();
     applySeasonContentProgression({ silent: false });
     assignStarWedgeSockets();
     recalculateStarWedgeMutations();

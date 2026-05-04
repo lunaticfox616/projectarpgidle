@@ -2283,6 +2283,38 @@ function updateStaticUI() {
         }).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
     }
 
+
+function getCraftActionValidators(item) {
+    let hasHoneyLocked = (item.stats || []).some(v => v.lockedByHoney);
+    return {
+        honey: !!item && (game.currencies.enchantedHoney || 0) > 0 && !hasHoneyLocked,
+        stinger: !!item && (game.currencies.venomStinger || 0) > 0 && item.slot === '무기',
+        baseUpgrade: !!item,
+        voidSocket: !!item && (item.slot === '반지' || item.slot === '목걸이')
+    };
+}
+
+
+function renderCraftOrbActions() {
+    let defs = [
+        ['transmute','진화의 오브 사용'],['augment','확장의 오브 사용'],['alteration','변화의 오브 사용'],['alchemy','연금술의 오브 사용'],
+        ['exalted','엑잘티드 오브 사용'],['regal','제왕의 오브 사용'],['chaos','카오스 오브 사용'],['divine','신성한 오브 사용'],['scour','정화의 오브 사용'],['tainted','타락의 오브 사용']
+    ];
+    let host = document.getElementById('ui-craft-orb-actions');
+    if (!host) return;
+    host.innerHTML = defs.map(([key,label]) => `<button id="btn-orb-${key}" onclick="useCurrency('${key}')">${label}</button>`).join('');
+}
+
+function buildCraftActionButtons(item) {
+    let v = getCraftActionValidators(item);
+    let defs = [
+        { key:'honey', label:'🍯 벌꿀 고정', onclick:'applyEnchantedHoneyToSelectedItem()' },
+        { key:'stinger', label:'🦂 독벌침 부여', onclick:'applyVenomStingerToSelectedItem()' },
+        { key:'baseUpgrade', label:'⬆️ 베이스 업그레이드', onclick:'upgradeSelectedItemBase()' }
+    ];
+    return defs.map(d => `<button onclick="${d.onclick}" ${v[d.key] ? '' : 'disabled'}>${d.label}</button>`).join('');
+}
+
     let selectedItem = getSelectedCraftItem();
     let forgeHtml = '아이템을 클릭하여 선택';
     if (selectedItem) {
@@ -2307,7 +2339,7 @@ function updateStaticUI() {
                 voidSocketHtml = `<div style="color:#9fd6ff;">빈 공허 소켓</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
             }
         }
-        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}</div><div class="item-base-line">${selectedItem.baseName}</div>${lines.join('')}<div style="display:flex; gap:6px; margin-top:8px;"><button onclick="applyEnchantedHoneyToSelectedItem()" ${((game.currencies.enchantedHoney||0)<=0 || (selectedItem.stats||[]).some(v=>v.lockedByHoney))?'disabled':''}>🍯 벌꿀 고정</button><button onclick="applyVenomStingerToSelectedItem()" ${((game.currencies.venomStinger||0)<=0 || selectedItem.slot!=='무기')?'disabled':''}>🦂 독벌침 부여</button><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${voidSocketHtml}</div>`;
+        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}</div><div class="item-base-line">${selectedItem.baseName}</div>${lines.join('')}<div style="display:flex; gap:6px; margin-top:8px;">${buildCraftActionButtons(selectedItem)}</div><div style="margin-top:8px; display:grid; gap:6px;">${voidSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = forgeHtml;
     document.getElementById('fossil-item-display').innerHTML = forgeHtml;
@@ -2332,6 +2364,7 @@ function updateStaticUI() {
         </div>
     `).join('');
 
+    renderCraftOrbActions();
     Object.keys(ORB_DB).forEach(key => {
         let btn = document.getElementById('btn-orb-' + key);
         if (btn) btn.disabled = !selectedItem || (game.currencies[key] || 0) <= 0;
