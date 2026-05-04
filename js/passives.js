@@ -2745,6 +2745,7 @@ function heroSheetHasTransparency(image) {
 function finalizeBattleAssets() {
     try {
         battleAssets.atlas = buildBattleAssetAtlas();
+        if (battleAssets.atlas && battleAssets.atlas.hero && battleAssets.atlas.hero.image) battleAssets.images.hero = battleAssets.atlas.hero.image;
         battleAssets.ready = true;
         battleAssets.loading = false;
         renderBattlefield();
