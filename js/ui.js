@@ -2429,6 +2429,25 @@ function showCurrencyCardTooltip(event, key, reason) {
 window.showCurrencyCardTooltip = showCurrencyCardTooltip;
 window.showOrbTooltip = showCurrencyCardTooltip;
 
+function openSporeModeOverlay(currencyKey) {
+    let modes = ['none', 'fire', 'cold', 'light'];
+    let labels = { none: '미사용', fire: '화염', cold: '냉기', light: '번개' };
+    let cur = (game.sporeCraftModes || {})[currencyKey] || 'none';
+    let pick = prompt(`홀씨 모드 선택\n현재: ${labels[cur]}\n입력: none/fire/cold/light`, cur);
+    if (pick === null) return;
+    if (!modes.includes(pick)) return addLog('유효한 홀씨 모드를 입력하세요. (none/fire/cold/light)', 'attack-monster');
+    game.sporeCraftModes = game.sporeCraftModes || {};
+    game.sporeCraftModes[currencyKey] = pick;
+    updateStaticUI();
+}
+
+function showOrbTooltip(event, key, reason) {
+    let orb = ORB_DB[key];
+    if (!orb) return;
+    let html = `<div class="tooltip-title">${orb.name}</div><div class="tooltip-line">${orb.desc || ''}</div><div class="tooltip-line" style="margin-top:6px; color:#9fb4d1;">상태: ${reason || '-'}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#f1c40f');
+}
+
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
     let defs = [
