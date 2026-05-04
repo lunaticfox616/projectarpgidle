@@ -145,12 +145,6 @@ function getItemTotalStats(item) {
     return bucket;
 }
 
-function getSelectedCraftItem() {
-    if (craftSelectedRef === null) return null;
-    if (craftSelectedIsEquip) return game.equipment[craftSelectedRef] || null;
-    return (game.inventory || []).find(item => item.id === craftSelectedRef) || null;
-}
-
 function normalizeSupportLoadout(logChange) {
     let cap = getPlayerStats().suppCap;
     if ((game.equippedSupports || []).length <= cap) return false;
