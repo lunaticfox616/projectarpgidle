@@ -2469,6 +2469,17 @@ function resetHeroSheetToDefault() {
     reloadBattleAssets();
 }
 
+
+function fileExists(path) {
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('HEAD', path, false);
+        xhr.send();
+        return xhr.status >= 200 && xhr.status < 400;
+    } catch (error) {
+        return false;
+    }
+}
 function initBattleAssets() {
     if (battleAssets.loading || battleAssets.ready || battleAssets.failed) return;
     battleAssets.loading = true;
@@ -2525,6 +2536,11 @@ function initBattleAssets() {
         bgAct10: 'assets/background/act10.png',
     };
     const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['weapons']));
+    Object.entries(manifest).forEach(([key, src]) => {
+        if (typeof src === 'string' && !src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('https')) {
+            if (!fileExists(src)) optionalManifestKeys.add(key);
+        }
+    });
     let pending = Object.keys(manifest).length;
     let settled = false;
     function finishLoad() {
