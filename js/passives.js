@@ -1422,8 +1422,6 @@ let isDragging = false;
 let dragStartX = 0;
 let dragStartY = 0;
 let dragDist = 0;
-let craftSelectedRef = null;
-let craftSelectedIsEquip = false;
 var activeTooltipId = null;
 let activeItemTooltipToken = null;
 let pendingHeavyUiRefresh = false;
@@ -4430,7 +4428,7 @@ function salvageItem(idx) {
     let item = game.inventory[idx];
     if (!item) return;
     if (item.locked) return addLog(`🔒 잠금된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
-    if (!craftSelectedIsEquip && craftSelectedRef === item.id) craftSelectedRef = null;
+    if (!isCraftSelectionEquip() && getCraftSelectionRef() === item.id) clearCraftSelection();
     salvageItemObject(item, false);
     game.inventory.splice(idx, 1);
     updateStaticUI();
@@ -4499,7 +4497,7 @@ function bulkSalvage(maxRarity) {
         else kept.push(item);
     });
     game.inventory = kept;
-    if (!craftSelectedIsEquip && craftSelectedRef !== null && !game.inventory.some(item => item.id === craftSelectedRef)) craftSelectedRef = null;
+    ensureCraftSelectionValid();
     updateStaticUI();
 }
 function bulkSalvageSelected() {
@@ -4529,7 +4527,7 @@ function bulkSalvageSelected() {
         return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
     }
     game.inventory = kept;
-    if (!craftSelectedIsEquip && craftSelectedRef !== null && !game.inventory.some(item => item.id === craftSelectedRef)) craftSelectedRef = null;
+    ensureCraftSelectionValid();
     addLog(`🧪 선택한 등급 장비 ${removed}개 해체${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
@@ -4545,7 +4543,7 @@ function bulkSalvageAllInventory() {
         else salvageItemObject(item, true);
     });
     game.inventory = kept;
-    if (!craftSelectedIsEquip) craftSelectedRef = null;
+    if (!isCraftSelectionEquip()) clearCraftSelection();
     addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개)${lockedCount > 0 ? ` · 잠금 ${lockedCount}개 보호` : ''}`, 'loot-normal');
     updateStaticUI();
 }
