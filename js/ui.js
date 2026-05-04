@@ -1009,9 +1009,37 @@ function showItemTooltip(event, idx, isEquip) {
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${item.slot.replace(/[12]/, '')}] ${item.name}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>`;
     html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}</div>`;
     html += `<div class="tooltip-line" style="color:#a8c0da;">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
+    function getItemDefenseView(target) {
+        let base = { armor: 0, evasion: 0, energyShield: 0 };
+        let flat = { armor: 0, evasion: 0, energyShield: 0 };
+        let pct = { armor: 0, evasion: 0, energyShield: 0 };
+        (target.baseStats || []).forEach(stat => { if (base[stat.id] !== undefined) base[stat.id] += Number(stat.val || 0); });
+        (target.stats || []).forEach(stat => {
+            if (flat[stat.id] !== undefined) flat[stat.id] += Number(stat.val || 0);
+            if (stat.id === 'armorPct') pct.armor += Number(stat.val || 0);
+            if (stat.id === 'evasionPct') pct.evasion += Number(stat.val || 0);
+            if (stat.id === 'energyShieldPct') pct.energyShield += Number(stat.val || 0);
+        });
+        return {
+            armor: Math.floor((base.armor + flat.armor) * (1 + pct.armor / 100)),
+            evasion: Math.floor((base.evasion + flat.evasion) * (1 + pct.evasion / 100)),
+            energyShield: Math.floor((base.energyShield + flat.energyShield) * (1 + pct.energyShield / 100)),
+            base: base
+        };
+    }
+    let defenseView = getItemDefenseView(item);
     if ((item.baseStats || []).length > 0) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#f1c40f;">베이스 옵션</div>`;
-        item.baseStats.forEach(stat => html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${stat.statName.includes('%') ? '%' : ''}</div>`);
+        item.baseStats.forEach(stat => {
+            if (stat.id === 'armor' || stat.id === 'evasion' || stat.id === 'energyShield') return;
+            html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${stat.statName.includes('%') ? '%' : ''}</div>`;
+        });
+        ['armor','evasion','energyShield'].forEach(id => {
+            let label = getStatName(id);
+            let finalVal = defenseView[id];
+            let baseVal = defenseView.base[id];
+            if (finalVal > 0 || baseVal > 0) html += `<div class="tooltip-line">${label}: <span style="color:#4da3ff;">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span></div>`;
+        });
     }
     if ((item.stats || []).length > 0) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션</div>`;
