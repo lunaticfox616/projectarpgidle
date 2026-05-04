@@ -528,7 +528,9 @@ function generateOrganicTree() {
     }
 
 
-    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'witch', 'duelist'];
+    // 시계방향 구간 배치:
+    // 10시~2시: 에너지 보호막, 2시~6시: 회피, 6시~10시: 방어도
+    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'marauder', 'templar'];
     const sectorCount = sectorThemes.length;
     const lanes = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
     const maxDepth = 13;
@@ -2469,6 +2471,17 @@ function resetHeroSheetToDefault() {
     reloadBattleAssets();
 }
 
+
+function fileExists(path) {
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('HEAD', path, false);
+        xhr.send();
+        return xhr.status >= 200 && xhr.status < 400;
+    } catch (error) {
+        return false;
+    }
+}
 function initBattleAssets() {
     if (battleAssets.loading || battleAssets.ready || battleAssets.failed) return;
     battleAssets.loading = true;
@@ -2525,6 +2538,11 @@ function initBattleAssets() {
         bgAct10: 'assets/background/act10.png',
     };
     const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['weapons']));
+    Object.entries(manifest).forEach(([key, src]) => {
+        if (typeof src === 'string' && !src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('https')) {
+            if (!fileExists(src)) optionalManifestKeys.add(key);
+        }
+    });
     let pending = Object.keys(manifest).length;
     let settled = false;
     function finishLoad() {
@@ -3779,6 +3797,7 @@ function chooseItemBase(slot, zoneTier) {
 function rollBaseStats(base, zoneTier) {
     return base.baseStats.map(stat => {
         let val = stat.base;
+        if (stat.id === 'energyShield') val *= 1.5;
         if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) val = Math.round(val * 10) / 10;
         else val = Math.floor(val);
         return { id: stat.id, val: val, valMin: stat.base, valMax: stat.base, tier: 0, statName: getStatName(stat.id) };
@@ -3842,8 +3861,19 @@ function rollAffixValueInTierRange(mod, minTier, maxTier) {
 
 function getAvailableMods(item) {
     let existing = new Set((item.stats || []).map(stat => stat.id));
+    let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
+    let baseDefenseTypes = new Set((item.baseStats || [])
+        .map(stat => stat && stat.id)
+        .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
     return MOD_DB.filter(mod => {
         let statId = mod.statId || mod.id;
+        if (defenseSlots.has(item.slot) && ['armor','evasion','energyShield','armorPct','evasionPct','energyShieldPct'].includes(statId)) {
+            if (baseDefenseTypes.size > 0) {
+                if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
+                if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
+                if (statId.startsWith('energyShield') && !baseDefenseTypes.has('energyShield')) return false;
+            }
+        }
         return mod.slots.includes(item.slot) && !existing.has(statId);
     });
 }
@@ -4560,6 +4590,17 @@ function bulkSalvageAllInventory() {
     updateStaticUI();
 }
 
+function cycleSporeCraftMode(currencyKey) {
+    let allowed = ['transmute','augment','alteration','regal','chaos','exalted'];
+    if (!allowed.includes(currencyKey)) return;
+    game.sporeCraftModes = game.sporeCraftModes || {};
+    let modes = ['none', 'fire', 'cold', 'light', 'chaos', 'damage'];
+    let cur = game.sporeCraftModes[currencyKey] || 'none';
+    let next = modes[(modes.indexOf(cur) + 1) % modes.length];
+    game.sporeCraftModes[currencyKey] = next;
+    updateStaticUI();
+}
+
 function useCurrency(currencyKey) {
     let item = getSelectedCraftItem();
     if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
@@ -4580,30 +4621,78 @@ function useCurrency(currencyKey) {
     if (!ok) return addLog("지금 선택한 아이템에는 사용할 수 없습니다.", "attack-monster");
     if (currencyKey === 'divine' && !confirm('정말 신성한 오브를 사용하시겠습니까?')) return;
 
+    game.sporeCraftModes = game.sporeCraftModes || {};
+    let sporeMode = game.sporeCraftModes[currencyKey] || 'none';
+    function consumeSpore(mode) {
+        if (mode === 'none') return true;
+        if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < 5) return false; game.currencies.sporeFire -= 5; return true; }
+        if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < 5) return false; game.currencies.sporeCold -= 5; return true; }
+        if (mode === 'light') { if ((game.currencies.sporeLight || 0) < 5) return false; game.currencies.sporeLight -= 5; return true; }
+        if (mode === 'chaos' || mode === 'damage') {
+            if ((game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return false;
+            game.currencies.sporeFire -= 5; game.currencies.sporeCold -= 5; game.currencies.sporeLight -= 5; return true;
+        }
+        return true;
+    }
+    function getSporeGuaranteedMod() {
+        if (sporeMode === 'none') return null;
+        let poolMap = {
+            fire: ['firePctDmg','resF','aspd','crit','critDmg','resPen','ds','targetAny','targetProjectile'],
+            cold: ['coldPctDmg','resC','crit','critDmg','aspd','ds','targetAny','targetProjectile'],
+            light: ['lightPctDmg','resL','aspd','ds','crit','critDmg','targetAny','targetProjectile'],
+            chaos: ['chaosPctDmg','resChaos','dotPctDmg','resPen','leech','regenSuppress','targetAny','targetProjectile'],
+            damage: ['firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg','pctDmg','dotPctDmg','critDmg','dr']
+        };
+        let ids = new Set(poolMap[sporeMode] || []);
+        let avail = getAvailableMods(item).filter(mod => ids.has(mod.statId || mod.id));
+        avail = avail.filter(mod => {
+            let id = mod.statId || mod.id;
+            if ((id === 'targetAny' || id === 'targetProjectile') && !(item.slot === '장갑' || item.slot === '무기')) return false;
+            return true;
+        });
+        return pickWeightedMod(avail);
+    }
+    function rollSporeGuaranteedValue(mod) {
+        if (!mod) return null;
+        let tier = Math.max(1, getItemCraftTier(item));
+        let minTier = Math.max(1, Math.floor(tier * 0.45));
+        let maxTier = Math.max(minTier, Math.min(10, tier));
+        return rollAffixValueInTierRange(mod, minTier, maxTier);
+    }
+    let guaranteedMod = getSporeGuaranteedMod();
+    if (sporeMode !== 'none' && !guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+    if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
     game.currencies[currencyKey]--;
     if (currencyKey === 'transmute') {
         item.rarity = 'magic';
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
+        if (guaranteedMod && item.stats.length > 0) item.stats[0] = rollSporeGuaranteedValue(guaranteedMod);
     } else if (currencyKey === 'augment') {
         let mod = pickWeightedMod(getAvailableMods(item));
-        if (mod) item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
+        if (!mod && guaranteedMod) mod = guaranteedMod;
+        if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
         updateItemName(item);
     } else if (currencyKey === 'alteration') {
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
+        if (guaranteedMod && item.stats.length > 0) item.stats[0] = rollSporeGuaranteedValue(guaranteedMod);
     } else if (currencyKey === 'alchemy') {
         item.rarity = 'rare';
         rerollExplicitMods(item, 'rare', getItemCraftTier(item));
+        if (guaranteedMod && item.stats.length > 0) item.stats[0] = rollSporeGuaranteedValue(guaranteedMod);
     } else if (currencyKey === 'exalted') {
         let mod = pickWeightedMod(getAvailableMods(item));
-        if (mod) item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
+        if (!mod && guaranteedMod) mod = guaranteedMod;
+        if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
         updateItemName(item);
     } else if (currencyKey === 'regal') {
         let mod = pickWeightedMod(getAvailableMods(item));
-        if (mod) item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
+        if (!mod && guaranteedMod) mod = guaranteedMod;
+        if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
         item.rarity = 'rare';
         updateItemName(item);
     } else if (currencyKey === 'chaos') {
         rerollExplicitMods(item, 'rare', getItemCraftTier(item));
+        if (guaranteedMod && item.stats.length > 0) item.stats[0] = rollSporeGuaranteedValue(guaranteedMod);
     } else if (currencyKey === 'divine') {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney) return;
@@ -4625,7 +4714,8 @@ function useCurrency(currencyKey) {
             addLog("🩸 타락 진행: 추가 옵션은 생기지 않았습니다.", "attack-monster");
         }
     }
-    addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
+    let guaranteedTagNote = (sporeMode !== 'none' && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
+    addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }
 
