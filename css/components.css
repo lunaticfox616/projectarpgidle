@@ -227,3 +227,7 @@
 .craft-orb-card .craft-orb-name { font-weight:700; line-height:1.15; }
 .craft-orb-card .craft-orb-count { color:#d1e6ff; font-size:0.95em; }
 .craft-orb-card.disabled { opacity:0.45; cursor:not-allowed; }
+
+
+.craft-selected-summary { position: sticky; top: 0; z-index: 4; margin: 0 0 6px; padding: 6px 8px; border: 1px solid #34506b; border-radius: 8px; background: #111a24; font-size: 0.82em; }
+.craft-section-title { margin-top: 10px; color: #8fb6d9; font-size: 0.78em; letter-spacing: .03em; text-transform: uppercase; }
