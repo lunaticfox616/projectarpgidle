@@ -1103,6 +1103,10 @@ function advanceMapProgress(pStats) {
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
     let zone = getZone(game.currentZoneId);
+    if (zone && zone.id === 'grand_breach_run') {
+        tickGrandBreachRun(zone);
+        return;
+    }
     let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let baseGain = zone.type === 'trial' ? 0.26 : (zone.type === 'abyss' ? 0.42 : 0.36);
@@ -1113,6 +1117,38 @@ function advanceMapProgress(pStats) {
     while (game.encounterIndex < game.encounterPlan.length && game.runProgress >= game.encounterPlan[game.encounterIndex].at) {
         spawnEncounterMarker(game.encounterPlan[game.encounterIndex]);
         game.encounterIndex++;
+    }
+}
+
+function tickGrandBreachRun(zone) {
+    let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
+    let g = v.grandRun;
+    if (!g || !g.inRun) return;
+    let now = Date.now();
+    g.lastTickAt = Number.isFinite(g.lastTickAt) ? g.lastTickAt : now;
+    let dt = Math.max(0, (now - g.lastTickAt) / 1000);
+    g.lastTickAt = now;
+    if (g.phase === 'survival') {
+        g.timeLeft = Math.max(0, (g.timeLeft || 0) - dt);
+        let alive = (game.enemies || []).filter(e => e.hp > 0).length;
+        if (alive < 4 && now >= (g.nextRefillAt || 0)) {
+            g.nextRefillAt = now + 1400;
+            let add = 2 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < add; i++) game.enemies.push(createEnemy(zone, { elite: Math.random() < 0.25, boss: false }, i));
+        }
+        if (g.timeLeft <= 0 && alive <= 0) {
+            g.phase = 'boss';
+            let boss = createEnemy(zone, { boss: true, count: 1 }, 0);
+            let soul = Math.max(0, Math.floor(g.kills || 0));
+            let scale = 1 + soul * 0.02;
+            boss.name = '👿 균열 군주';
+            boss.maxHp = Math.floor(boss.maxHp * (2.2 + scale));
+            boss.hp = boss.maxHp;
+            boss.atkMul *= (1.4 + soul * 0.005);
+            boss.traitName = `균열 몬스터 ${soul}마리의 영혼 흡수`;
+            game.enemies = [boss];
+            addLog(`🕳️ 생존 종료! 처치 수 ${soul} 기반으로 강화된 보스가 출현합니다.`, 'loot-unique');
+        }
     }
 }
 
@@ -1293,7 +1329,16 @@ function rollLootForEnemy(enemy) {
 }
 
 function handleEnemyDeath(enemy, pStats) {
+    if (!enemy || !Number.isFinite(enemy.id)) return;
+    let liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
+    // 이미 처리되어 enemies 배열에서 제거된 적(중복 재귀 호출)은 무시한다.
+    if (!liveRef || liveRef.hp > 0) return;
+    enemy = liveRef;
     let zone = getZone(game.currentZoneId);
+    let grand = (game.voidRift || {}).grandRun;
+    if (zone && zone.id === 'grand_breach_run' && grand && grand.inRun && grand.phase === 'survival' && !enemy.isBoss) {
+        grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
+    }
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
     grantExpAndGem(enemy, pStats);
@@ -1336,6 +1381,21 @@ function handleEnemyDeath(enemy, pStats) {
         }
     }
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
+    if (zone && zone.id === 'grand_breach_run' && enemy.isBoss && grand && grand.inRun) {
+        grand.inRun = false;
+        grand.phase = 'done';
+        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : game.maxZoneId;
+        markLoopSpecialBossKill('void_grand_breach');
+        unlockJournalEntry('void_grand_breach');
+        addLog('🌌 대균열 보스를 격파했습니다!', 'level-up');
+    }
+    // 시체폭발/연쇄 피해 등으로 동시에 0 이하가 된 적은
+    // 일반 타격 루프를 통하지 않으면 사망 처리(handleEnemyDeath)가 누락될 수 있다.
+    // 누락 시 enemies 배열에 hp<=0 엔트리가 남아 100% 진행 후에도 클리어가 멈춘다.
+    let chainedDefeats = (game.enemies || []).filter(entry => entry && entry.hp <= 0);
+    if (chainedDefeats.length > 0) {
+        chainedDefeats.forEach(defeated => handleEnemyDeath(defeated, pStats));
+    }
     pendingHeavyUiRefresh = true;
 }
 
@@ -1526,8 +1586,15 @@ function finishEncounterRun() {
                 addLog(zone.name === '혼돈 5' ? "✨ [여신의 헌사] 혼돈 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [여신의 헌사] 획득! 3차 전직 시련 개방!", "loot-unique");
             }
         }
-        if (game.maxZoneId <= game.currentZoneId) {
-            game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
+        // 다음 지역 해금은 "지금 막 클리어한 존"을 기준으로 보정한다.
+        // 특히 혼돈 구간은 반복/자동화 상태와 무관하게 N 클리어 시 N+1이 열려야 하므로
+        // targetUnlockZone을 직접 계산해 누락을 방지한다.
+        let targetUnlockZone = Math.min(getCurrentSeasonFinalZoneId(), zone.id + 1);
+        // 이미 열려 있는 이전 구역 반복 클리어로 프론티어를 우회 해금하지 않도록
+        // "현재 프론티어(=maxZoneId) 이상 구역을 클리어했을 때만" 다음 구역을 연다.
+        let clearedAtFrontier = zone.id >= game.maxZoneId;
+        if (clearedAtFrontier && game.maxZoneId < targetUnlockZone) {
+            game.maxZoneId = targetUnlockZone;
             game.noti.map = true;
             triggerMapUnlockReveal(game.maxZoneId);
             let clearedStoryAct = getStoryActByZoneId(zone.id);
@@ -1548,6 +1615,11 @@ function finishEncounterRun() {
             queueImportantSave(180);
             return;
         } else game.currentZoneId = Math.max(game.currentZoneId, game.maxZoneId);
+        let star = game.starWedge || {};
+        if (game.settings && game.settings.autoEnterMeteor && star.unlocked && star.skyRiftReady && zone.type !== 'meteor') {
+            game.currentZoneId = METEOR_FALL_ZONE_ID;
+            addLog('☄️ 자동입장: 하늘 균열 100% 충전으로 운석 낙하 지점에 진입합니다.', 'season-up');
+        }
     }
     checkUnlocks();
     if ((game.settings.townReturnAction || 'retry') === 'stop') {
@@ -1973,6 +2045,15 @@ function triggerSeasonReset() {
     game.jewelInventory = [];
     game.jewelSlots = [null, null];
     game.jewelSlotAmplify = [0, 0];
+    game.talismanUnlocked = false;
+    game.talismanBoardUnlock = Math.max(3, Math.floor(defaultGame.talismanBoardUnlock || 3));
+    game.talismanUnlockedCells = [];
+    game.talismanInventory = [];
+    game.talismanBoard = [];
+    game.talismanPlacements = {};
+    game.talismanSelectedId = null;
+    game.talismanUnseal = null;
+    game.talismanUnlockPickMode = false;
     game.abyssPassivePoints = abyssLoopPointGain;
     game.abyssPassives = { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 };
     game.abyssClearedDepths = [];

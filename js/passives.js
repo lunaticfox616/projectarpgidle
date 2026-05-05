@@ -1341,7 +1341,7 @@ function getClassTreeDef(clsKey) {
         elementalist: { stat: 'elementalPctDmg', val: 56 },
         assassin: { stat: 'critDmg', val: 90 },
         berserker: { stat: 'physPctDmg', val: 60 },
-        guardian: { stat: 'flatHp', val: 260 },
+        guardian: { stat: 'armorPct', val: 28 },
         necromancer: { stat: 'gemLevel', val: 2 }
     };
     let ult = ultByClass[clsKey] || { stat: 'pctDmg', val: 100 };
@@ -1358,8 +1358,9 @@ function getClassTreeDef(clsKey) {
         n10: { stat: ult.stat, val: ult.val, req: ['n7', 'n8', 'n9'] }
     };
     if (clsKey === 'warrior') {
-        tree.n5 = { stat: 'physIgnore', val: scaleClassStat('physIgnore', getMajorStatBase('physIgnore'), 1.2), req: ['n2', 'n3'] };
-        tree.n10 = { stat: 'physIgnore', val: 18, req: ['n7', 'n8', 'n9'] };
+        tree.n5 = { stat: 'critDmg', val: scaleClassStat('critDmg', getMajorStatBase('critDmg'), 1.15), req: ['n2', 'n3'] };
+        tree.n8 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.2), req: 'n5' };
+        tree.n10 = { stat: 'physIgnore', val: 16, req: ['n7', 'n8', 'n9'] };
     } else if (clsKey === 'assassin') {
         tree.n6 = { stat: 'physIgnore', val: scaleClassStat('physIgnore', getMajorStatBase('physIgnore'), 1.15), req: 'n3' };
     } else if (clsKey === 'elementalist') {
@@ -1368,23 +1369,23 @@ function getClassTreeDef(clsKey) {
     } else if (clsKey === 'warlock') {
         tree.n8 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.15), req: 'n5' };
     } else if (clsKey === 'guardian') {
-        tree.n5 = { stat: 'dr', val: scaleClassStat('dr', getMajorStatBase('dr'), 1.55), req: ['n2', 'n3'] };
-        tree.n6 = { stat: 'minDmgRoll', val: scaleClassStat('minDmgRoll', getMajorStatBase('minDmgRoll'), 1.2), req: 'n3' };
-        tree.n8 = { stat: 'maxDmgRoll', val: scaleClassStat('maxDmgRoll', getMajorStatBase('maxDmgRoll'), 1.35), req: 'n5' };
-        tree.n10 = { stat: 'pctHp', val: 38, req: ['n7', 'n8', 'n9'] };
+        tree.n5 = { stat: 'armorPct', val: scaleClassStat('armorPct', getMajorStatBase('armorPct'), 1.6), req: ['n2', 'n3'] };
+        tree.n6 = { stat: 'resAll', val: scaleClassStat('resAll', getMajorStatBase('resAll'), 1.5), req: 'n3' };
+        tree.n8 = { stat: 'regen', val: scaleClassStat('regen', getMajorStatBase('regen'), 1.8), req: 'n5' };
+        tree.n10 = { stat: 'dr', val: 14, req: ['n7', 'n8', 'n9'] };
     } else if (clsKey === 'inquisitor') {
         tree.n9 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.3), req: 'n6' };
         tree.n10 = { stat: 'resPen', val: 18, req: ['n7', 'n8', 'n9'] };
     }
     if ((game.completedTrials || []).includes('trial_4')) {
         const coreByClass = {
-            warrior: [{ stat: 'physPctDmg', val: 45 }, { stat: 'dr', val: 14 }],
+            warrior: [{ stat: 'resPen', val: 14 }, { stat: 'critDmg', val: 62 }],
             gladiator: [{ stat: 'aspd', val: 22 }, { stat: 'ds', val: 26 }],
             assassin: [{ stat: 'critDmg', val: 80 }, { stat: 'crit', val: 18 }],
             ranger: [{ stat: 'projectilePctDmg', val: 50 }, { stat: 'move', val: 20 }],
             elementalist: [{ stat: 'elementalPctDmg', val: 52 }, { stat: 'resPen', val: 16 }],
             warlock: [{ stat: 'chaosPctDmg', val: 42 }, { stat: 'dotPctDmg', val: 28 }],
-            guardian: [{ stat: 'flatHp', val: 320 }, { stat: 'dr', val: 18 }],
+            guardian: [{ stat: 'armorPct', val: 24 }, { stat: 'regen', val: 2.4 }],
             inquisitor: [{ stat: 'suppCap', val: 1 }, { stat: 'gemLevel', val: 2 }]
         };
         let cores = coreByClass[clsKey] || [{ stat: 'pctDmg', val: 55 }, { stat: 'critDmg', val: 45 }];
