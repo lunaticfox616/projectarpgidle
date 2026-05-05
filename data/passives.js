@@ -9,7 +9,7 @@ const GEM_SKY_ENHANCEMENTS = {
     sky_fury: { id: 'sky_fury', name: '폭풍 충전', desc: '스킬 피해 +8%', stat: 'pctDmg', val: 8 },
     sky_swiftness: { id: 'sky_swiftness', name: '질풍 각인', desc: '스킬 공격속도 +8%', stat: 'aspd', val: 8 },
     sky_precision: { id: 'sky_precision', name: '창공의 눈', desc: '스킬 치명타 확률 +6%', stat: 'crit', val: 6 },
-    sky_blood: { id: 'sky_blood', name: '비상의 맥박', desc: '스킬 흡수 +1.5%', stat: 'leech', val: 1.5 },
+    sky_blood: { id: 'sky_blood', name: '비상의 맥박', desc: '스킬 흡수 +0.6%', stat: 'leech', val: 0.6 },
     sky_tempest: { id: 'sky_tempest', name: '폭풍 분기', desc: '스킬 타겟 수 +1', stat: 'targets', val: 1 },
     sky_keen: { id: 'sky_keen', name: '예리한 파열', desc: '치명타 피해 배율 +25%', stat: 'critDmg', val: 25 },
     sky_blitz: { id: 'sky_blitz', name: '천공 붕괴', desc: '지속 피해 계열 스킬 피해 +18%', stat: 'dotMulti', val: 18 },
@@ -82,8 +82,8 @@ const HERO_SELECTION_DEFS = {
         id: 'hero4',
         label: '블레이드',
         blindLabel: '블레이드',
-        talentsText: '카오스 피해 +20%, 흡혈 +0.5%, 이동 속도 +12%, 치명타 피해 +20%, 치명타 확률 +2.5%',
-        stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 0.5 }, { stat: 'move', value: 12 }, { stat: 'critDmg', value: 20 }, { stat: 'crit', value: 2.5 }],
+        talentsText: '카오스 피해 +20%, 흡혈 +0.2%, 이동 속도 +12%, 치명타 피해 +20%, 치명타 확률 +2.5%',
+        stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 0.2 }, { stat: 'move', value: 12 }, { stat: 'critDmg', value: 20 }, { stat: 'crit', value: 2.5 }],
         strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
     }
 };
@@ -104,12 +104,12 @@ const PASSIVE_PREVIEW_EDGE_DEPTH = 1;
 
 const PASSIVE_THEME_POOLS = {
     center: ['flatHp', 'flatDmg', 'pctDmg', 'crit', 'aspd', 'move', 'regen', 'pctHp'],
-    templar: ['elementalPctDmg', 'firePctDmg', 'lightPctDmg', 'regen', 'resAll', 'pctDmg'],
-    witch: ['elementalPctDmg', 'coldPctDmg', 'lightPctDmg', 'aoePctDmg', 'dotPctDmg', 'crit', 'gemLevel'],
-    shadow: ['chaosPctDmg', 'dotPctDmg', 'crit', 'projectilePctDmg', 'move', 'leech', 'coldPctDmg'],
-    ranger: ['projectilePctDmg', 'move', 'crit', 'aspd', 'coldPctDmg', 'lightPctDmg'],
-    duelist: ['meleePctDmg', 'physPctDmg', 'aspd', 'ds', 'crit', 'move'],
-    marauder: ['flatHp', 'pctHp', 'dr', 'regen', 'meleePctDmg', 'physPctDmg']
+    templar: ['energyShield', 'energyShieldPct', 'pctHp', 'regen', 'resAll', 'aoePctDmg'],
+    witch: ['energyShield', 'energyShieldPct', 'pctHp', 'crit', 'dotPctDmg', 'gemLevel'],
+    shadow: ['evasion', 'evasionPct', 'pctHp', 'move', 'crit', 'projectilePctDmg'],
+    ranger: ['evasion', 'evasionPct', 'pctHp', 'aspd', 'projectilePctDmg', 'coldPctDmg'],
+    duelist: ['armor', 'armorPct', 'pctHp', 'aspd', 'meleePctDmg', 'physPctDmg'],
+    marauder: ['armor', 'armorPct', 'pctHp', 'dr', 'regen', 'physPctDmg']
 };
 
 const PASSIVE_SECTOR_TITLES = {
