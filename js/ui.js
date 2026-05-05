@@ -2557,6 +2557,8 @@ function buildCraftActionButtons(item) {
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
     renderMarketUI();
 
+    let mapTabActive = (document.getElementById('tab-map') || {}).classList.contains('active');
+    if (mapTabActive) {
     let legacyMapOverview = document.querySelector('#tab-map .map-overview-card');
     if (legacyMapOverview) legacyMapOverview.remove();
     document.querySelectorAll('#tab-map img').forEach(node => node.remove());
@@ -2640,6 +2642,7 @@ function buildCraftActionButtons(item) {
         if (isCompleted) cls = '';
         return `<div class="map-item ${cls}" ${isCompleted ? '' : `onclick="changeZone('${trial.id}')"`}><span>${trial.name} ${isCompleted ? '(완료)' : ''}</span><span style="font-size:0.8em; font-weight:normal;">${isCompleted ? '✔️' : '도전하기'}</span></div>`;
     }).join('');
+    }
 
     let seasonVisible = game.season > 1 || game.seasonPoints > 0;
     document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
