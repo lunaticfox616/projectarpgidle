@@ -1293,6 +1293,11 @@ function rollLootForEnemy(enemy) {
 }
 
 function handleEnemyDeath(enemy, pStats) {
+    if (!enemy || !Number.isFinite(enemy.id)) return;
+    let liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
+    // 이미 처리되어 enemies 배열에서 제거된 적(중복 재귀 호출)은 무시한다.
+    if (!liveRef || liveRef.hp > 0) return;
+    enemy = liveRef;
     let zone = getZone(game.currentZoneId);
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
