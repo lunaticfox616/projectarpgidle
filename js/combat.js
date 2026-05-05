@@ -1336,6 +1336,13 @@ function handleEnemyDeath(enemy, pStats) {
         }
     }
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
+    // 시체폭발/연쇄 피해 등으로 동시에 0 이하가 된 적은
+    // 일반 타격 루프를 통하지 않으면 사망 처리(handleEnemyDeath)가 누락될 수 있다.
+    // 누락 시 enemies 배열에 hp<=0 엔트리가 남아 100% 진행 후에도 클리어가 멈춘다.
+    let chainedDefeats = (game.enemies || []).filter(entry => entry && entry.hp <= 0);
+    if (chainedDefeats.length > 0) {
+        chainedDefeats.forEach(defeated => handleEnemyDeath(defeated, pStats));
+    }
     pendingHeavyUiRefresh = true;
 }
 
@@ -1529,10 +1536,11 @@ function finishEncounterRun() {
         // 다음 지역 해금은 "지금 막 클리어한 존"을 기준으로 보정한다.
         // 특히 혼돈 구간은 반복/자동화 상태와 무관하게 N 클리어 시 N+1이 열려야 하므로
         // targetUnlockZone을 직접 계산해 누락을 방지한다.
-        let targetUnlockZone = zone.type === 'abyss'
-            ? Math.min(getCurrentSeasonFinalZoneId(), zone.id + 1)
-            : Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
-        if (game.maxZoneId < targetUnlockZone) {
+        let targetUnlockZone = Math.min(getCurrentSeasonFinalZoneId(), zone.id + 1);
+        // 이미 열려 있는 이전 구역 반복 클리어로 프론티어를 우회 해금하지 않도록
+        // "현재 프론티어(=maxZoneId) 이상 구역을 클리어했을 때만" 다음 구역을 연다.
+        let clearedAtFrontier = zone.id >= game.maxZoneId;
+        if (clearedAtFrontier && game.maxZoneId < targetUnlockZone) {
             game.maxZoneId = targetUnlockZone;
             game.noti.map = true;
             triggerMapUnlockReveal(game.maxZoneId);
