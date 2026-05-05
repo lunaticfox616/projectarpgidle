@@ -60,6 +60,15 @@ function getStarWedgeUnlockReady() {
 }
 
 function getZone(id) {
+    if (id === 'beehive_run') {
+        let step = Math.max(1, Math.floor((game && game.beehive && game.beehive.branchStep) || 1));
+        return { id: 'beehive_run', name: `벌집 심층 ${step}갈래`, type: 'beehive', tier: Math.min(24, 10 + step), maxKills: 1, ele: 'chaos' };
+    }
+    if (id === 'grand_breach_run') {
+        let kills = Math.max(0, Math.floor((((game || {}).voidRift || {}).grandRun || {}).kills || 0));
+        let bonusTier = Math.min(6, Math.floor(kills / 25));
+        return { id: 'grand_breach_run', name: '대균열', type: 'grandBreach', tier: 14 + bonusTier, maxKills: 9999, ele: 'chaos' };
+    }
     if (typeof id === 'string' && id.startsWith('trial_')) return TRIAL_ZONES.find(t => t.id === id);
     if (typeof id === 'string' && id.includes('_boss_')) return SEASON_BOSS_ZONES.find(t => t.id === id);
     if (id === METEOR_FALL_ZONE_ID) {
@@ -253,13 +262,13 @@ function allocateLoopDeepStat(statKey) {
 }
 
 const CLASS_TEMPLATES = {
-    warrior: { name: '워리어', desc: '강력한 물리 공격과 높은 생존력', m1: 'physPctDmg', m2: 'flatHp', d: 'dr' },
+    warrior: { name: '워리어', desc: '강력한 물리 압박과 방어 관통', m1: 'physPctDmg', m2: 'physIgnore', d: 'dr' },
     gladiator: { name: '글래디에이터', desc: '빠른 공격속도와 연속 타격', m1: 'meleePctDmg', m2: 'ds', d: 'aspd' },
     assassin: { name: '어쌔신', desc: '치명타 확률과 막대한 치명타 피해', m1: 'crit', m2: 'critDmg', d: 'chaosPctDmg' },
     ranger: { name: '레인저', desc: '신속한 이동과 투사체 장악', m1: 'projectilePctDmg', m2: 'move', d: 'crit' },
     elementalist: { name: '엘리멘탈리스트', desc: '원소 피해와 원소 저항 특화', m1: 'elementalPctDmg', m2: 'resAll', d: 'regen' },
     warlock: { name: '워록', desc: '혼돈 피해와 생명력 흡수', m1: 'chaosPctDmg', m2: 'dotPctDmg', d: 'pctHp' },
-    guardian: { name: '가디언', desc: '압도적인 최대 생명력과 방어', m1: 'flatHp', m2: 'pctHp', d: 'regen' },
+    guardian: { name: '가디언', desc: '방어도와 생명력으로 버티는 성벽', m1: 'armor', m2: 'flatHp', d: 'dr' },
     inquisitor: { name: '인퀴지터', desc: '원소 치명타 및 보조 스킬 전문', m1: 'elementalPctDmg', m2: 'critDmg', d: 'suppCap' }
 };
 
@@ -565,6 +574,7 @@ const defaultGame = {
         itemFilterMinTierCount: 0,
         itemFilterMinHiddenTier: 1,
         itemFilterOnlyNewCodexUnique: false,
+        autoEnterMeteor: false,
         jewelAutoSalvageEnabled: false,
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false },
         mapCompleteAction: 'nextZone',

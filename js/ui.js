@@ -150,7 +150,7 @@ function renderLoop8BeehivePanel() {
     let choiceHtml = '';
     if (b.inRun && b.awaitingClear && (game.enemies || []).filter(e => e.hp > 0).length === 0) {
         b.awaitingClear = false;
-        let pool=['pollen','honey','stinger']; pool.sort(()=>Math.random()-0.5);
+        let pool=['pollen','honey','stinger','chaos','fossil','jewel','spore','rare']; pool.sort(()=>Math.random()-0.5);
         b.pendingChoice={ a:buildBeehiveChoiceOption(pool[0]), b:buildBeehiveChoiceOption(pool[1]), c:buildBeehiveChoiceOption(pool[2]), eventType:rndChoice(['curse','preview','empower','penalty','none']) };
     }
     if (b.inRun && b.pendingChoice) {
@@ -166,17 +166,72 @@ function renderLoop8BeehivePanel() {
     <div style="color:#b8c7d8; font-size:0.82em; margin-bottom:8px;">세 갈래길 10회 후 여왕벌 보스. 벌집 진행 중 일반 전투/맵 이동은 정지됩니다.</div>
     <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="startBeehiveRun()" ${(game.currencies.hiveKey||0)<=0 || b.inRun ? 'disabled':''}>벌집 입장</button><button onclick="advanceBeehivePath()" ${b.inRun && !b.pendingChoice && !b.awaitingClear ? '':'disabled'}>${(b.branchStep||0)>=9?'여왕벌 전투':'다음 갈래 전투'} (${b.branchStep||0}/10)</button><button onclick="forfeitBeehiveRun()" ${b.inRun ? '':'disabled'}>던전 포기</button></div>${choiceHtml}`;
 }
-function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false,activeKills:0,requiredKills:0}); let progress=v.active?`${Math.max(0,Math.floor(v.activeKills||0))}/${Math.max(1,Math.floor(v.requiredKills||0))}`:'-'; p.innerHTML=`<div style="color:#c7d2ff;">공허 균열은 맵핑 중 랜덤으로 생성됩니다. · 활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong></div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="enterGrandBreach()" ${v.grandBreachUnlock?'':'disabled'}>큰 구멍 진입</button></div>`; }
-function spawnBeehiveWave(isBoss){ let zone=getZone(game.currentZoneId)||getZone(0); let count=isBoss?1:(2+Math.floor(Math.random()*2)); game.enemies=[]; for(let i=0;i<count;i++){ let marker={elite:!isBoss&&Math.random()<0.35,boss:isBoss}; game.enemies.push(createEnemy(zone, marker)); } if(isBoss) addLog('👑 여왕벌 출현! 처치 후 보상 선택 가능', 'loot-unique'); else addLog('🐝 갈래길 전투 시작!', 'attack-monster'); }
-function startBeehiveRun(){ let b=game.beehive; if((game.currencies.hiveKey||0)<=0||b.inRun) return; game.currencies.hiveKey--; b.inRun=true; b.branchStep=0; b.pendingChoice=null; b.awaitingClear=false; b.enemyEmpower=0; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🐝 벌집 원정 시작! 진행 중이던 던전 흐름은 초기화됩니다.', 'season-up'); updateStaticUI(); }
-function buildBeehiveChoiceOption(type){ if(type==='pollen'){ let amount=10+Math.floor(Math.random()*9); return { text:`꽃가루 +${amount}`, effect:'pollen', amount: amount }; } if(type==='honey') return { text:'벌꿀 획득 확률 상승', effect:'honey' }; return { text:'독벌침 획득 확률 상승', effect:'stinger' }; }
+function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false,activeKills:0,requiredKills:0}); let g=v.grandRun||{}; let progress=v.active?`${Math.max(0,Math.floor(v.activeKills||0))}/${Math.max(1,Math.floor(v.requiredKills||0))}`:'-'; let grandText=g.inRun?` · 대균열: <strong>${g.phase==='survival'?'생존전':'보스전'}</strong> · 남은시간: <strong>${Math.max(0,Math.ceil(g.timeLeft||0))}초</strong> · 처치: <strong>${Math.floor(g.kills||0)}</strong>`:''; p.innerHTML=`<div style="color:#c7d2ff;">공허 균열은 맵핑 중 랜덤으로 생성됩니다. · 활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="enterGrandBreach()" ${(v.grandBreachUnlock&&!g.inRun)?'':'disabled'}>큰 구멍 진입</button></div>`; }
+function spawnBeehiveWave(isBoss){
+    let b = game.beehive || {};
+    let zone = getZone('beehive_run') || getZone(0);
+    let count = isBoss ? 1 : (2 + Math.floor(Math.random() * 2));
+    game.enemies = [];
+    for (let i = 0; i < count; i++) {
+        let marker = { elite: !isBoss && Math.random() < 0.45, boss: isBoss };
+        let enemy = createEnemy(zone, marker, i);
+        let depthScale = 1 + Math.max(0, Math.floor(b.branchStep || 1)) * 0.16 + Math.max(0, Math.floor(b.enemyEmpower || 0)) * 0.22;
+        enemy.maxHp = Math.floor(enemy.maxHp * depthScale);
+        enemy.hp = enemy.maxHp;
+        enemy.atkMul *= (1 + Math.max(0, Math.floor(b.enemyEmpower || 0)) * 0.12);
+        if (isBoss) {
+            enemy.name = '👑 벌집 여왕';
+            enemy.maxHp = Math.floor(enemy.maxHp * 2.4);
+            enemy.hp = enemy.maxHp;
+            enemy.atkMul *= 1.75;
+            enemy.critChance = (enemy.critChance || 0) + 14;
+            enemy.penetration = (enemy.penetration || 0) + 18;
+            enemy.traitName = `분노한 군체 (강화 ${Math.floor(b.enemyEmpower || 0)})`;
+        }
+        game.enemies.push(enemy);
+    }
+    if (isBoss) addLog('👑 여왕벌 출현! 매우 강력합니다.', 'loot-unique');
+    else addLog(`🐝 갈래길 전투 시작! (누적 패널티 ${Math.floor(b.enemyEmpower || 0)})`, 'attack-monster');
+}
+function startBeehiveRun(){ let b=game.beehive; if((game.currencies.hiveKey||0)<=0||b.inRun) return; game.currencies.hiveKey--; b.inRun=true; b.branchStep=0; b.pendingChoice=null; b.awaitingClear=false; b.enemyEmpower=0; b.inMapZoneId='beehive_run'; b.returnZoneId=game.currentZoneId; game.currentZoneId='beehive_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🐝 벌집 원정 시작! 별개의 벌집 지도에 진입합니다.', 'season-up'); updateStaticUI(); }
+function buildBeehiveChoiceOption(type){
+    let penaltyPool = [
+        { key: 'empower', text: '적 피해 +8%', apply: b => { b.enemyEmpower = Math.max(0, Math.floor((b.enemyEmpower||0)+1)); } },
+        { key: 'bleed', text: '플레이어 체력 -10%', apply: () => { game.playerHp = Math.max(1, Math.floor((game.playerHp || 1) * 0.9)); } },
+        { key: 'tax', text: '꽃가루 -8', apply: () => { game.currencies.pollen = Math.max(0, (game.currencies.pollen || 0) - 8); } },
+        { key: 'slow', text: '이동속도 약화(이번 전투)', apply: b => { b.enemyEmpower = Math.max(0, Math.floor((b.enemyEmpower||0)+1)); } },
+        { key: 'fragile', text: '다음 전투 적 생명력 강화', apply: b => { b.enemyEmpower = Math.max(0, Math.floor((b.enemyEmpower||0)+2)); } },
+        { key: 'leech_cut', text: '흡혈 효율 저하(체감 난이도↑)', apply: () => { game.playerHp = Math.max(1, Math.floor((game.playerHp || 1) * 0.94)); } },
+        { key: 'pollen_drain', text: '꽃가루 -15', apply: () => { game.currencies.pollen = Math.max(0, (game.currencies.pollen || 0) - 15); } },
+        { key: 'chip', text: '플레이어 체력 -6%', apply: () => { game.playerHp = Math.max(1, Math.floor((game.playerHp || 1) * 0.94)); } },
+        { key: 'sting_loss', text: '벌침 1개 손실 가능', apply: () => { if (Math.random() < 0.45) game.currencies.venomStinger = Math.max(0, (game.currencies.venomStinger || 0) - 1); } },
+        { key: 'honey_loss', text: '벌꿀 1개 손실 가능', apply: () => { if (Math.random() < 0.35) game.currencies.enchantedHoney = Math.max(0, (game.currencies.enchantedHoney || 0) - 1); } },
+        { key: 'curse', text: '공허 저주(적 강화 +1)', apply: b => { b.enemyEmpower = Math.max(0, Math.floor((b.enemyEmpower||0)+1)); } },
+        { key: 'severe', text: '가혹한 패널티(적 강화 +2)', apply: b => { b.enemyEmpower = Math.max(0, Math.floor((b.enemyEmpower||0)+2)); } }
+    ];
+    let penalty = penaltyPool[Math.floor(Math.random() * penaltyPool.length)];
+    if(type==='pollen'){ let amount=10+Math.floor(Math.random()*9); return { text:`꽃가루 +${amount} / 패널티: ${penalty.text}`, effect:'pollen', amount: amount, penalty: penalty }; }
+    if(type==='honey') return { text:`벌꿀 획득 확률 상승 / 패널티: ${penalty.text}`, effect:'honey', penalty: penalty };
+    if(type==='chaos'){ let amount=1+Math.floor(Math.random()*2); return { text:`카오스 오브 +${amount} / 패널티: ${penalty.text}`, effect:'chaos', amount: amount, penalty: penalty }; }
+    if(type==='fossil'){ let amount=1+Math.floor(Math.random()*2); return { text:`화석 +${amount} / 패널티: ${penalty.text}`, effect:'fossil', amount: amount, penalty: penalty }; }
+    if(type==='jewel'){ let amount=2+Math.floor(Math.random()*3); return { text:`주얼 파편 +${amount} / 패널티: ${penalty.text}`, effect:'jewelShard', amount: amount, penalty: penalty }; }
+    if(type==='spore'){ let amount=3+Math.floor(Math.random()*4); let sporeType = rndChoice(['sporeFire', 'sporeCold', 'sporeLight']); return { text:`홀씨 +${amount} (${ORB_DB[sporeType].name}) / 패널티: ${penalty.text}`, effect:sporeType, amount: amount, penalty: penalty }; }
+    if(type==='rare'){
+        let roll = Math.random();
+        if (roll < 0.05) return { text:`⭐ 희귀 보상: 별쐐기 파편 +1 / 패널티: ${penalty.text}`, effect:'incompleteStarWedge', amount:1, penalty: penalty };
+        if (roll < 0.16) return { text:`⭐ 희귀 보상: 운석 파편 +2 / 패널티: ${penalty.text}`, effect:'meteorShard', amount:2, penalty: penalty };
+        return { text:`⭐ 희귀 보상: 신성한 오브 +1 / 패널티: ${penalty.text}`, effect:'divine', amount:1, penalty: penalty };
+    }
+    return { text:`독벌침 획득 확률 상승 / 패널티: ${penalty.text}`, effect:'stinger', penalty: penalty };
+}
 function advanceBeehivePath(){ let b=game.beehive; if(!b.inRun||b.awaitingClear||b.pendingChoice) return; b.branchStep++; b.awaitingClear=true; spawnBeehiveWave((b.branchStep||0)>=10); updateStaticUI(); }
-function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice) return; if(key==='legacy_now'||key==='legacy_later'){ if(key==='legacy_now') game.currencies.pollen=(game.currencies.pollen||0)+Math.floor(10+Math.random()*9); else { if(Math.random()<0.06) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(Math.random()<0.22) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } } else { let pick=b.pendingChoice[key]; if(!pick) return; if(pick.effect==='pollen') game.currencies.pollen=(game.currencies.pollen||0)+(Number.isFinite(pick.amount)?pick.amount:0); if(pick.effect==='honey' && Math.random()<0.35) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(pick.effect==='stinger' && Math.random()<0.55) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } let ev=b.pendingChoice.eventType; if(ev==='curse'){ game.playerHp=Math.max(1,Math.floor(game.playerHp*0.9)); } else if(ev==='empower'){ b.enemyEmpower=Math.max(0,Math.floor((b.enemyEmpower||0)+1)); } else if(ev==='penalty'){ game.currencies.pollen=Math.max(0,(game.currencies.pollen||0)-5); } b.pendingChoice=null; if((b.branchStep||0)>=10){ b.inRun=false; b.cleared=true; b.unlockedPermanent=true; markLoopSpecialBossKill('beehive_queen'); unlockJournalEntry('beehive_queen'); if(Math.random()<0.08){ let item=generateUniqueItem(Math.max(12,(getZone(game.currentZoneId)||{tier:12}).tier), '무기'); addItemToInventory(item); } addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되었습니다.', 'level-up'); } updateStaticUI(); }
-function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; b.inRun=false; b.branchStep=0; b.pendingChoice=null; b.enemyEmpower=0; game.combatHalted=false; addLog('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); updateStaticUI(); }
+function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice) return; if(key==='legacy_now'||key==='legacy_later'){ if(key==='legacy_now') game.currencies.pollen=(game.currencies.pollen||0)+Math.floor(10+Math.random()*9); else { if(Math.random()<0.04) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(Math.random()<0.16) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } } else { let pick=b.pendingChoice[key]; if(!pick) return; if(pick.effect==='pollen') game.currencies.pollen=(game.currencies.pollen||0)+(Number.isFinite(pick.amount)?pick.amount:0); if(pick.effect==='honey' && Math.random()<0.18) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(pick.effect==='stinger' && Math.random()<0.28) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if (pick.effect && pick.amount && ['chaos','fossil','jewelShard','sporeFire','sporeCold','sporeLight','incompleteStarWedge','meteorShard','divine'].includes(pick.effect)) game.currencies[pick.effect]=(game.currencies[pick.effect]||0)+Math.max(1,Math.floor(pick.amount||1)); if (pick.penalty && typeof pick.penalty.apply === 'function') pick.penalty.apply(b); } let ev=b.pendingChoice.eventType; if(ev==='empower'){ b.enemyEmpower=Math.max(0,Math.floor((b.enemyEmpower||0)+1)); } b.pendingChoice=null; if((b.branchStep||0)>=10){ b.inRun=false; b.cleared=true; b.unlockedPermanent=true; game.currentZoneId = b.returnZoneId !== undefined ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; markLoopSpecialBossKill('beehive_queen'); unlockJournalEntry('beehive_queen'); if(Math.random()<0.08){ let item=generateUniqueItem(Math.max(12,(getZone(game.currentZoneId)||{tier:12}).tier), '무기'); addItemToInventory(item); } addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되었습니다.', 'level-up'); } updateStaticUI(); }
+function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; b.inRun=false; b.branchStep=0; b.pendingChoice=null; b.enemyEmpower=0; game.currentZoneId = b.returnZoneId !== undefined ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.combatHalted=false; addLog('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); updateStaticUI(); }
 function craftBeehiveCurrency(type){ let cost= type==='key'?200:type==='stinger'?600:2000; if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; updateStaticUI(); }
 function triggerVoidBreach(){ let v=game.voidRift; v.active=true; addLog('🕳️ 공허의 구멍이 열렸습니다! 몬스터가 쏟아집니다.', 'attack-monster'); updateStaticUI(); }
 function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if(Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
-function enterGrandBreach(){ let v=game.voidRift; if(!v.grandBreachUnlock) return; v.grandBreachUnlock=false; markLoopSpecialBossKill('void_grand_breach'); unlockJournalEntry('void_grand_breach'); if(Math.random()<0.04){ let item=generateUniqueItem(Math.max(14,(getZone(game.currentZoneId)||{tier:14}).tier)); addItemToInventory(item); addLog('🌌 큰 구멍 보스 전리품: 희귀 고유 장비 획득!', 'loot-unique'); } else addLog('🌌 큰 구멍 던전에 진입! 보스 보상이 떨어졌지만 고유는 아니었습니다.', 'season-up'); }
+function enterGrandBreach(){ let v=game.voidRift; if(!v.grandBreachUnlock) return; if(v.grandRun&&v.grandRun.inRun) return; v.grandBreachUnlock=false; v.grandRun={ inRun:true, phase:'survival', timeLeft:35, kills:0, nextRefillAt:0, lastTickAt:Date.now(), returnZoneId:game.currentZoneId }; game.currentZoneId='grand_breach_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up'); updateStaticUI(); }
+function toggleMeteorAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterMeteor = !game.settings.autoEnterMeteor; addLog(`☄️ 운석 낙하 자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}`, 'season-up'); updateStaticUI(); }
 function switchMapSubtab(subtabId) {
     game.mapSubtab = subtabId;
     document.querySelectorAll('#tab-map .subtab-content').forEach(el => el.classList.remove('active'));
@@ -1215,26 +1270,27 @@ function getBattleZoneTheme(zone) {
 function getBattleSkillVisual(skillName, skillData) {
     skillData = skillData || SKILL_DB[skillName] || SKILL_DB['기본 공격'];
     let tags = (skillData.tags || []).map(tag => String(tag).toLowerCase());
+    let ele = String(skillData.ele || '').toLowerCase();
     let group = 'physical';
     let primary = '#d7dde6';
     let secondary = '#ffffff';
     let aura = null;
-    if (tags.includes('chaos')) {
+    if (tags.includes('chaos') || ele === 'chaos') {
         group = 'chaos';
         primary = '#ba83ff';
         secondary = '#f2ddff';
         aura = 'rgba(176,118,255,0.16)';
-    } else if (tags.includes('cold')) {
+    } else if (tags.includes('cold') || ele === 'cold') {
         group = 'cold';
         primary = '#8de7ff';
         secondary = '#eefbff';
         aura = 'rgba(133,235,255,0.14)';
-    } else if (tags.includes('lightning')) {
+    } else if (tags.includes('lightning') || tags.includes('light') || ele === 'light' || ele === 'lightning') {
         group = 'lightning';
         primary = '#ffd84f';
         secondary = '#fff7cc';
         aura = 'rgba(255,216,79,0.14)';
-    } else if (tags.includes('fire')) {
+    } else if (tags.includes('fire') || ele === 'fire') {
         group = 'fire';
         primary = '#ff8a4a';
         secondary = '#ffe3b0';
@@ -1878,9 +1934,15 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
     let reach = 16 + t * 18;
     if (skillVisual.group === 'physical_slam') {
         ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 6;
         ctx.beginPath();
         ctx.arc(playerPos.x + 8, playerPos.y + 8, 10 + t * 18, Math.PI * 0.08, Math.PI * 1.65);
+        ctx.stroke();
+        ctx.globalAlpha = (1 - t) * 0.42;
+        ctx.strokeStyle = 'rgba(255,239,214,0.75)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(playerPos.x + 8, playerPos.y + 8, 8 + t * 15, Math.PI * 0.18, Math.PI * 1.58);
         ctx.stroke();
     } else {
         ctx.strokeStyle = skillVisual.primary;
@@ -1922,18 +1984,23 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     ctx.save();
     let punchScale = fx.crit ? 1.4 : 1;
     if (skillVisual.group === 'physical_slam') {
-        ctx.globalAlpha = 1 - t * 0.55;
+        ctx.globalAlpha = 1 - t * 0.62;
         ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 4.5;
+        ctx.lineWidth = 5.2;
         ctx.beginPath();
-        ctx.arc(tx, ty + 6, 12 + t * 26 * punchScale, 0, Math.PI * 2);
+        ctx.arc(tx, ty + 6, 10 + t * 22 * punchScale, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.strokeStyle = 'rgba(255,245,230,0.72)';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(255,245,230,0.58)';
+        ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.moveTo(tx - 16, ty + 10);
-        ctx.lineTo(tx + 16, ty + 10);
+        ctx.moveTo(tx - 12, ty + 10);
+        ctx.lineTo(tx + 12, ty + 10);
         ctx.stroke();
+        ctx.globalAlpha = (1 - t) * 0.28;
+        ctx.fillStyle = 'rgba(210,180,140,0.35)';
+        ctx.beginPath();
+        ctx.ellipse(tx, ty + 12, 12 + t * 9, 4 + t * 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
     } else {
         ctx.globalAlpha = 1 - t * 0.62;
         ctx.strokeStyle = skillVisual.primary;
@@ -2557,6 +2624,9 @@ function buildCraftActionButtons(item) {
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
     renderMarketUI();
 
+    // 벌집 진행 상태 갱신은 UI 표시와 무관하게 항상 돌아야 한다.
+    // (awaitingClear -> pendingChoice 전환이 여기서 처리됨)
+    renderLoop8BeehivePanel();
     let mapTabActive = (document.getElementById('tab-map') || {}).classList.contains('active');
     if (mapTabActive) {
     let legacyMapOverview = document.querySelector('#tab-map .map-overview-card');
@@ -2628,12 +2698,11 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-meteor-list').innerHTML = meteorUnlocked ? `<div class="map-item ${game.currentZoneId === METEOR_FALL_ZONE_ID ? 'current' : ''}" ${meteorReady ? `onclick="changeZone('${METEOR_FALL_ZONE_ID}')"` : ''}>
         <div class="map-item-main"><span>☄️</span><span>운석 낙하 지점<br><span class="map-zone-status">하늘의 균열 ${meteorGauge}% ${meteorReady ? '· 입장 가능' : '· 충전 중'}</span></span></div>
         <div class="map-item-actions"><span class="map-zone-status">난이도: 혼돈 ${Math.max(1, Math.floor((game.starWedge && game.starWedge.skyRiftMinTier) || 1))}</span></div>
-    </div>` : '';
+    </div><div style="display:flex; gap:6px; margin-top:6px;"><button onclick="toggleMeteorAutoEnter()">운석 자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}</button></div>` : '';
 
     let availTrials = TRIAL_ZONES.filter(trial => (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id));
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
 
-    renderLoop8BeehivePanel();
     renderLoop9VoidRiftPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
         let isCurrent = game.currentZoneId === trial.id;
@@ -4180,6 +4249,19 @@ function getRemoteSaveStamp(record) {
     return record.updated_at ? (new Date(record.updated_at).getTime() || 0) : ((record.save_data && record.save_data.saveMeta && record.save_data.saveMeta.lastModifiedAt) || 0);
 }
 
+function isLikelyBootstrapLocalSave(snapshot) {
+    let s = snapshot || game || {};
+    let hasProgress = false;
+    if ((s.level || 1) > 1) hasProgress = true;
+    if ((s.season || 1) > 1) hasProgress = true;
+    if ((s.maxZoneId || 0) > 0) hasProgress = true;
+    if (Array.isArray(s.inventory) && s.inventory.length > 0) hasProgress = true;
+    if (Array.isArray(s.passives) && s.passives.length > 1) hasProgress = true;
+    if (Array.isArray(s.skills) && s.skills.length > 1) hasProgress = true;
+    if (s.currencies && Object.keys(s.currencies).some(key => (s.currencies[key] || 0) > 0)) hasProgress = true;
+    return !hasProgress;
+}
+
 async function guardAgainstStaleLocalOverwrite(options = {}) {
     let record = await fetchCloudSaveRecord();
     if (!record || !record.save_data) return { record, status: 'no-remote' };
@@ -4243,6 +4325,12 @@ async function reconcileCloudSaveState(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
+    if (isLikelyBootstrapLocalSave(game) && remoteStamp > 0) {
+        applyExternalSave(record.save_data, remoteStamp);
+        setCloudMessage('새 기기 기본 로컬 저장으로 판단되어 클라우드 세이브를 우선 적용했습니다.');
+        if (!options.silent) addLog('클라우드 세이브를 우선 적용했습니다.', 'loot-magic');
+        return 'pulled-remote-bootstrap';
+    }
     if (remoteStamp > localStamp + CLOUD_REMOTE_TIME_SKEW_MS) {
         applyExternalSave(record.save_data, remoteStamp);
         setCloudMessage('클라우드 저장이 더 최신이라 자동으로 불러왔습니다.');
