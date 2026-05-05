@@ -4670,27 +4670,51 @@ function useCurrency(currencyKey) {
         item.stats[idx] = rollSporeGuaranteedValue(modToApply);
     }
     let guaranteedMod = getSporeGuaranteedMod();
+    let consumedSpore = false;
     let sporeAffixCurrencies = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos'];
+    let rerollSporeCurrencies = ['transmute', 'alteration', 'alchemy', 'chaos'];
     let usesSporeAffix = sporeAffixCurrencies.includes(currencyKey);
-    let needsPrecheck = usesSporeAffix;
+    let isRerollSporeCurrency = rerollSporeCurrencies.includes(currencyKey);
+    let needsPrecheck = usesSporeAffix && !isRerollSporeCurrency;
     if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
-    if (sporeMode !== 'none' && usesSporeAffix && !consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
+    if (sporeMode !== 'none' && usesSporeAffix && !isRerollSporeCurrency) {
+        if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
+        consumedSpore = true;
+    }
     game.currencies[currencyKey]--;
     if (currencyKey === 'transmute') {
         item.rarity = 'magic';
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
-        applyGuaranteedToNonLocked(getSporeGuaranteedMod());
+        if (sporeMode !== 'none' && usesSporeAffix) {
+            guaranteedMod = getSporeGuaranteedMod();
+            if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+            if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
+            consumedSpore = true;
+            applyGuaranteedToNonLocked(guaranteedMod);
+        }
     } else if (currencyKey === 'augment') {
         let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
         if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
         updateItemName(item);
     } else if (currencyKey === 'alteration') {
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
-        applyGuaranteedToNonLocked(getSporeGuaranteedMod());
+        if (sporeMode !== 'none' && usesSporeAffix) {
+            guaranteedMod = getSporeGuaranteedMod();
+            if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+            if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
+            consumedSpore = true;
+            applyGuaranteedToNonLocked(guaranteedMod);
+        }
     } else if (currencyKey === 'alchemy') {
         item.rarity = 'rare';
         rerollExplicitMods(item, 'rare', getItemCraftTier(item));
-        applyGuaranteedToNonLocked(getSporeGuaranteedMod());
+        if (sporeMode !== 'none' && usesSporeAffix) {
+            guaranteedMod = getSporeGuaranteedMod();
+            if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+            if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
+            consumedSpore = true;
+            applyGuaranteedToNonLocked(guaranteedMod);
+        }
     } else if (currencyKey === 'exalted') {
         let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
         if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
@@ -4702,7 +4726,13 @@ function useCurrency(currencyKey) {
         updateItemName(item);
     } else if (currencyKey === 'chaos') {
         rerollExplicitMods(item, 'rare', getItemCraftTier(item));
-        applyGuaranteedToNonLocked(getSporeGuaranteedMod());
+        if (sporeMode !== 'none' && usesSporeAffix) {
+            guaranteedMod = getSporeGuaranteedMod();
+            if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+            if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
+            consumedSpore = true;
+            applyGuaranteedToNonLocked(guaranteedMod);
+        }
     } else if (currencyKey === 'divine') {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney) return;
@@ -4719,12 +4749,12 @@ function useCurrency(currencyKey) {
         if (Math.random() < 0.35) {
             let mod = pickWeightedMod(getAvailableMods(item));
             if (mod) item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
-            addLog("🩸 타락 성공! 추가 옵션이 부여되었습니다.", "loot-unique");
+            addLog("🩸 타락 : 추가 옵션이 부여되었습니다.", "loot-unique");
         } else {
-            addLog("🩸 타락 진행: 추가 옵션은 생기지 않았습니다.", "attack-monster");
+            addLog("🩸 타락 : 아이템에 변화가 생기지 않았습니다.", "attack-monster");
         }
     }
-    let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
+    let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
     addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }

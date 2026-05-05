@@ -2526,7 +2526,7 @@ function buildCraftActionButtons(item) {
         let sporeModes = game.sporeCraftModes || {};
         let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
         let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','scour','tainted'].includes(key);
-        let canUseSporeMode = ['transmute','augment','alteration','exalted','regal','chaos'].includes(key);
+        let canUseSporeMode = ['transmute','augment','alteration','alchemy','exalted','regal','chaos'].includes(key);
         let mode = sporeModes[key] || 'none';
         let reason = getCraftOrbUseState(key, getSelectedCraftItem()).reason;
         if (isCraftOrb) {
