@@ -2531,9 +2531,9 @@ function buildCraftActionButtons(item) {
         let reason = getCraftOrbUseState(key, getSelectedCraftItem()).reason;
         if (isCraftOrb) {
             let rightButtons = '';
-            if (canUseSporeMode) rightButtons += `<button onclick="openSporeModeOverlay('${key}')">홀씨:${modeLabelMap[mode] || '미사용'}</button>`;
-            rightButtons += `<button onclick="useCurrency('${key}')">사용</button>`;
-            useBtn += `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><div style="display:flex; flex-wrap:nowrap; align-items:center; gap:6px;">${rightButtons}</div></div>`;
+            if (canUseSporeMode) rightButtons += `<button style="padding:6px 10px; font-size:0.9em; line-height:1; white-space:nowrap;" onclick="openSporeModeOverlay('${key}')">홀씨:${modeLabelMap[mode] || '미사용'}</button>`;
+            rightButtons += `<button style="padding:6px 10px; font-size:0.9em; line-height:1; white-space:nowrap;" onclick="useCurrency('${key}')">사용</button>`;
+            useBtn += `<div style="display:flex; justify-content:flex-end; margin-top:4px;"><div style="display:flex; flex-wrap:nowrap; align-items:center; gap:4px;">${rightButtons}</div></div>`;
         }
         return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div class="currency-name">${ORB_DB[key].name}</div><div class="currency-count">x <strong>${game.currencies[key] || 0}</strong></div>${useBtn}</div>`;
     }).join('');
