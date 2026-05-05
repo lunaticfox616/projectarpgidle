@@ -1526,7 +1526,11 @@ function finishEncounterRun() {
                 addLog(zone.name === '혼돈 5' ? "✨ [여신의 헌사] 혼돈 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [여신의 헌사] 획득! 3차 전직 시련 개방!", "loot-unique");
             }
         }
-        if (game.maxZoneId <= game.currentZoneId) {
+        // 해금 판단은 현재 선택된 지도(currentZoneId)가 아니라
+        // 실제로 방금 클리어한 존(zone.id)을 기준으로 해야 한다.
+        // 자동 이동/반복/중단 설정이나 UI 선택 상태로 currentZoneId가 변한 경우에도
+        // 다음 존 해금이 누락되지 않도록 보정한다.
+        if (game.maxZoneId <= zone.id) {
             game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
             game.noti.map = true;
             triggerMapUnlockReveal(game.maxZoneId);
