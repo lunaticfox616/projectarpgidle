@@ -4672,7 +4672,7 @@ function useCurrency(currencyKey) {
     let guaranteedMod = getSporeGuaranteedMod();
     let sporeAffixCurrencies = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos'];
     let usesSporeAffix = sporeAffixCurrencies.includes(currencyKey);
-    let needsPrecheck = usesSporeAffix && ['augment', 'exalted', 'regal'].includes(currencyKey);
+    let needsPrecheck = usesSporeAffix;
     if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
     if (sporeMode !== 'none' && usesSporeAffix && !consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster');
     game.currencies[currencyKey]--;
