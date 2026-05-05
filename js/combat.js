@@ -1616,7 +1616,9 @@ function finishEncounterRun() {
             return;
         } else game.currentZoneId = Math.max(game.currentZoneId, game.maxZoneId);
         let star = game.starWedge || {};
-        if (game.settings && game.settings.autoEnterMeteor && star.unlocked && star.skyRiftReady && zone.type !== 'meteor') {
+        let beehiveRunning = !!(game.beehive && game.beehive.inRun);
+        let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
+        if (game.settings && game.settings.autoEnterMeteor && !beehiveRunning && !grandRunning && star.unlocked && star.skyRiftReady && zone.type !== 'meteor') {
             game.currentZoneId = METEOR_FALL_ZONE_ID;
             addLog('☄️ 자동입장: 하늘 균열 100% 충전으로 운석 낙하 지점에 진입합니다.', 'season-up');
         }
