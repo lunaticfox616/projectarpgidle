@@ -2521,14 +2521,20 @@ function buildCraftActionButtons(item) {
         return true;
     }).map(key => {
         let useBtn = '';
-        if (key === 'enchantedHoney') useBtn = `<button style="margin-top:6px;" onclick="applyEnchantedHoneyToSelectedItem()">사용</button>`;
-        if (key === 'venomStinger') useBtn = `<button style="margin-top:6px;" onclick="applyVenomStingerToSelectedItem()">사용</button>`;
+        if (key === 'enchantedHoney') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyEnchantedHoneyToSelectedItem()">사용</button></div>`;
+        if (key === 'venomStinger') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVenomStingerToSelectedItem()">사용</button></div>`;
         let sporeModes = game.sporeCraftModes || {};
         let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
         let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','scour','tainted'].includes(key);
+        let canUseSporeMode = ['transmute','augment','alteration','exalted','regal','chaos'].includes(key);
         let mode = sporeModes[key] || 'none';
         let reason = getCraftOrbUseState(key, getSelectedCraftItem()).reason;
-        if (isCraftOrb) useBtn += `<div style="display:flex; flex-wrap:nowrap; align-items:center; gap:6px; margin-top:6px;"><button onclick="openSporeModeOverlay('${key}')">홀씨:${modeLabelMap[mode] || '미사용'}</button><button onclick="useCurrency('${key}')">사용</button></div>`;
+        if (isCraftOrb) {
+            let rightButtons = '';
+            if (canUseSporeMode) rightButtons += `<button onclick="openSporeModeOverlay('${key}')">홀씨:${modeLabelMap[mode] || '미사용'}</button>`;
+            rightButtons += `<button onclick="useCurrency('${key}')">사용</button>`;
+            useBtn += `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><div style="display:flex; flex-wrap:nowrap; align-items:center; gap:6px;">${rightButtons}</div></div>`;
+        }
         return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div class="currency-name">${ORB_DB[key].name}</div><div class="currency-count">x <strong>${game.currencies[key] || 0}</strong></div>${useBtn}</div>`;
     }).join('');
     let sporeHost = document.getElementById('ui-spore-summary');
@@ -2668,8 +2674,8 @@ function buildCraftActionButtons(item) {
             if (loop10Open) {
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
                 game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
-                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
-                let chaos20Cleared = Math.floor(game.abyssEndlessDepth || 20) > 20;
+                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
+                let chaos20Cleared = !!game.loopProgressCurrent.chaos20Cleared;
                 let expectedDepthGain = Math.max(0, Math.floor((game.abyssEndlessDepth || 20) - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
                 let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;

@@ -1504,6 +1504,8 @@ function finishEncounterRun() {
                 let nextDepth = Math.max(21, Math.floor(game.abyssEndlessDepth || depth) + 1);
                 if (!game.abyssUnlockedDepths.includes(nextDepth)) game.abyssUnlockedDepths.push(nextDepth);
                 game.abyssEndlessDepth = Math.max(nextDepth, Math.floor(game.abyssEndlessDepth || 20));
+                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
+                game.loopProgressCurrent.chaos20Cleared = true;
                 game.pendingLoopDecision = true;
                 game.combatHalted = true;
                 game.enemies = [];
@@ -1911,7 +1913,7 @@ function awardLoopProgressPoints() {
     let bonus = (depthGain * 2) + Math.floor(labGain / 5) + (newBosses.length * 3);
     if (bonus > 0) game.loopDeepPoints = Math.max(0, Math.floor(game.loopDeepPoints || 0)) + bonus;
     game.loopProgressBase = { abyssEndlessDepth: nowDepth, labyrinthUnlockedMaxFloor: nowLab, specialBosses: Array.from(new Set([...(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []), ...newBosses])) };
-    game.loopProgressCurrent = { specialBosses: [] };
+    game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false };
     return { bonus, depthGain, labGain, bossGain: newBosses.length };
 }
 
