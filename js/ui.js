@@ -187,6 +187,8 @@ function switchMapSubtab(subtabId) {
     if (btn) btn.classList.add('active');
 }
 function enterLabyrinthFloor(floor){ game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
+function enterDeepChaosPrompt(){ let max=Math.max(20,Math.floor(game.abyssEndlessDepth||20)); let v=prompt(`진입할 심화 혼돈 층수를 입력하세요. (21 ~ ${max})`, String(max)); if(v===null)return; let depth=Math.floor(Number(v)||0); if(depth<21||depth>max) return addLog(`21~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); enterUnlockedEndlessDepth(depth); }
+function enterLabyrinthPrompt(){ let max=Math.max(1,Math.floor(game.labyrinthUnlockedMaxFloor||game.labyrinthFloor||1)); let v=prompt(`진입할 고대 미궁 층수를 입력하세요. (1 ~ ${max})`, String(max)); if(v===null)return; let floor=Math.floor(Number(v)||0); if(floor<1||floor>max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); enterLabyrinthFloor(floor); }
 
 function toggleSeasonBossRepeat() {
     game.autoRepeatSeasonBoss = !game.autoRepeatSeasonBoss;
@@ -1009,9 +1011,42 @@ function showItemTooltip(event, idx, isEquip) {
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${item.slot.replace(/[12]/, '')}] ${item.name}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>`;
     html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}</div>`;
     html += `<div class="tooltip-line" style="color:#a8c0da;">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
+    function getItemDefenseView(target) {
+        let base = { armor: 0, evasion: 0, energyShield: 0 };
+        let flat = { armor: 0, evasion: 0, energyShield: 0 };
+        let pct = { armor: 0, evasion: 0, energyShield: 0 };
+        (target.baseStats || []).forEach(stat => { if (base[stat.id] !== undefined) base[stat.id] += Number(stat.val || 0); });
+        (target.stats || []).forEach(stat => {
+            if (flat[stat.id] !== undefined) flat[stat.id] += Number(stat.val || 0);
+            if (stat.id === 'armorPct') pct.armor += Number(stat.val || 0);
+            if (stat.id === 'evasionPct') pct.evasion += Number(stat.val || 0);
+            if (stat.id === 'energyShieldPct') pct.energyShield += Number(stat.val || 0);
+        });
+        return {
+            armor: Math.floor((base.armor + flat.armor) * (1 + pct.armor / 100)),
+            evasion: Math.floor((base.evasion + flat.evasion) * (1 + pct.evasion / 100)),
+            energyShield: Math.floor((base.energyShield + flat.energyShield) * (1 + pct.energyShield / 100)),
+            base: base
+        };
+    }
+    let defenseView = getItemDefenseView(item);
     if ((item.baseStats || []).length > 0) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#f1c40f;">베이스 옵션</div>`;
-        item.baseStats.forEach(stat => html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${stat.statName.includes('%') ? '%' : ''}</div>`);
+        item.baseStats.forEach(stat => {
+            if (stat.id === 'armor' || stat.id === 'evasion' || stat.id === 'energyShield') return;
+            html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${stat.statName.includes('%') ? '%' : ''}</div>`;
+        });
+        ['armor','evasion','energyShield'].forEach(id => {
+            let label = getStatName(id);
+            let finalVal = defenseView[id];
+            let baseVal = defenseView.base[id];
+            if (finalVal <= 0 && baseVal <= 0) return;
+            if (Math.floor(finalVal) === Math.floor(baseVal)) {
+                html += `<div class="tooltip-line">${label}: <span style="color:#ffffff;">${Math.floor(baseVal)}</span></div>`;
+            } else {
+                html += `<div class="tooltip-line">${label}: <span style="color:#4da3ff;">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span></div>`;
+            }
+        });
     }
     if ((item.stats || []).length > 0) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션</div>`;
@@ -2367,23 +2402,68 @@ function renderCraftSelectedSummary(item) {
 }
 
 function renderCraftOrbActions(selectedItem) {
-    let defs = [
-        ['transmute'],['augment'],['alteration'],['alchemy'],['exalted'],['regal'],['chaos'],['divine'],['scour'],['tainted']
-    ];
     let host = document.getElementById('ui-craft-orb-actions');
     if (!host) return;
-    host.innerHTML = defs.map(([key]) => {
-        let orb = ORB_DB[key];
-        if (!orb) return '';
-        let hiddenTainted = key === 'tainted' && !((game.season || 1) >= 5 && (game.currencies.tainted || 0) > 0);
-        if (hiddenTainted) return '';
-        let st = getCraftOrbUseState(key, selectedItem);
-        let disabled = !st.enabled;
-        let cls = `craft-orb-card${disabled ? ' disabled' : ''}`;
-        let tip = `${orb.desc}\n${st.reason}`;
-        return `<button id="btn-orb-${key}" class="${cls}" onclick="useCurrency('${key}')" ${disabled ? 'disabled' : ''} title="${tip}"><span class="craft-orb-name">${orb.name}</span><span class="craft-orb-count">x ${game.currencies[key] || 0}</span></button>`;
-    }).join('');
+    host.innerHTML = '';
 }
+
+function openSporeModeOverlay(currencyKey) {
+    let allowed = ['transmute','augment','alteration','regal','chaos','exalted'];
+    if (!allowed.includes(currencyKey)) return;
+    let modeOptions = [
+        { id: 'none', label: '미사용' },
+        { id: 'fire', label: '화염' },
+        { id: 'cold', label: '냉기' },
+        { id: 'light', label: '번개' },
+        { id: 'chaos', label: '카오스' },
+        { id: 'damage', label: '피해' }
+    ];
+    game.sporeCraftModes = game.sporeCraftModes || {};
+    let cur = game.sporeCraftModes[currencyKey] || 'none';
+    let old = document.getElementById('spore-mode-overlay');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+
+    let overlay = document.createElement('div');
+    overlay.id = 'spore-mode-overlay';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(5,8,14,0.74); display:flex; align-items:center; justify-content:center; z-index:9999;';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    let panel = document.createElement('div');
+    panel.style.cssText = 'width:min(560px, 92vw); border:1px solid #405a8f; border-radius:12px; background:linear-gradient(160deg, #182544, #0f1629); padding:14px; box-shadow:0 12px 28px rgba(0,0,0,0.45);';
+    panel.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><div style="font-size:17px; font-weight:700; color:#e5efff;">홀씨 모드 선택</div><button id="spore-overlay-close" style="background:#22365e; color:#d6e4ff; border:1px solid #4669a9; border-radius:8px; padding:4px 9px; cursor:pointer;">닫기</button></div><div style="color:#9fb4d1; font-size:13px; margin-bottom:10px;">오브 사용 시 적용할 홀씨 태그를 고르세요.</div>';
+
+    let buttons = document.createElement('div');
+    buttons.style.cssText = 'display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px;';
+    modeOptions.forEach(opt => {
+        let btn = document.createElement('button');
+        let selected = cur === opt.id;
+        btn.type = 'button';
+        btn.textContent = opt.label + (selected ? ' ✓' : '');
+        btn.style.cssText = `padding:10px 8px; border-radius:9px; border:1px solid ${selected ? '#89a7ff' : '#3f547f'}; background:${selected ? '#304f91' : '#1d2e4f'}; color:${selected ? '#ffffff' : '#d6e3ff'}; cursor:pointer; font-weight:700;`;
+        btn.onclick = () => {
+            game.sporeCraftModes[currencyKey] = opt.id;
+            updateStaticUI();
+            overlay.remove();
+        };
+        buttons.appendChild(btn);
+    });
+
+    panel.appendChild(buttons);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    let closeBtn = panel.querySelector('#spore-overlay-close');
+    if (closeBtn) closeBtn.onclick = () => overlay.remove();
+}
+window.openSporeModeOverlay = openSporeModeOverlay;
+
+function showCurrencyCardTooltip(event, key, reason) {
+    let orb = ORB_DB[key];
+    if (!orb) return;
+    let html = `<div class="tooltip-title">${orb.name}</div><div class="tooltip-line">${orb.desc || ''}</div><div class="tooltip-line" style="margin-top:6px; color:#9fb4d1;">상태: ${reason || '-'}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#f1c40f');
+}
+window.showCurrencyCardTooltip = showCurrencyCardTooltip;
+window.showOrbTooltip = showCurrencyCardTooltip;
 
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
@@ -2420,7 +2500,7 @@ function buildCraftActionButtons(item) {
                 voidSocketHtml = `<div style="color:#9fd6ff;">빈 공허 소켓</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
             }
         }
-        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}</div><div class="item-base-line">${selectedItem.baseName}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">특수 조작</div><div style="display:flex; gap:6px; margin-top:8px;">${buildCraftActionButtons(selectedItem)}</div><div style="margin-top:8px; display:grid; gap:6px;">${voidSocketHtml}</div>`;
+        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}</div><div class="item-base-line">${selectedItem.baseName}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${voidSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = forgeHtml;
     document.getElementById('fossil-item-display').innerHTML = forgeHtml;
@@ -2436,8 +2516,38 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
         if (hiddenCurrencyKeys.has(key)) return false;
         if (key === 'tainted') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
+        if (key === 'enchantedHoney' || key === 'venomStinger' || key === 'voidChisel') return (game.currencies[key] || 0) > 0;
+        if (key === 'sporeFire' || key === 'sporeCold' || key === 'sporeLight') return false;
         return true;
-    }).map(key => `<div class="currency-card" title="${ORB_DB[key].desc}"><div class="currency-name">${ORB_DB[key].name}</div><div class="currency-count">x <strong>${game.currencies[key] || 0}</strong></div></div>`).join('');
+    }).map(key => {
+        let useBtn = '';
+        if (key === 'enchantedHoney') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyEnchantedHoneyToSelectedItem()">사용</button></div>`;
+        if (key === 'venomStinger') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVenomStingerToSelectedItem()">사용</button></div>`;
+        let sporeModes = game.sporeCraftModes || {};
+        let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
+        let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','scour','tainted'].includes(key);
+        let canUseSporeMode = ['transmute','augment','alteration','exalted','regal','chaos'].includes(key);
+        let mode = sporeModes[key] || 'none';
+        let reason = getCraftOrbUseState(key, getSelectedCraftItem()).reason;
+        if (isCraftOrb) {
+            let rightButtons = '';
+            if (canUseSporeMode) rightButtons += `<button style="padding:6px 10px; font-size:0.9em; line-height:1; white-space:nowrap;" onclick="openSporeModeOverlay('${key}')">홀씨:${modeLabelMap[mode] || '미사용'}</button>`;
+            rightButtons += `<button style="padding:6px 10px; font-size:0.9em; line-height:1; white-space:nowrap;" onclick="useCurrency('${key}')">사용</button>`;
+            useBtn += `<div style="display:flex; justify-content:flex-end; margin-top:4px;"><div style="display:flex; flex-wrap:nowrap; align-items:center; gap:4px;">${rightButtons}</div></div>`;
+        }
+        return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div class="currency-name">${ORB_DB[key].name}</div><div class="currency-count">x <strong>${game.currencies[key] || 0}</strong></div>${useBtn}</div>`;
+    }).join('');
+    let sporeHost = document.getElementById('ui-spore-summary');
+    if (sporeHost) {
+        sporeHost.innerHTML = `<div style="border:1px solid #3d4f71; border-radius:10px; padding:8px; margin-bottom:8px; background:linear-gradient(160deg, rgba(39,51,86,0.25), rgba(16,22,38,0.5));">
+            <div style="font-weight:700; color:#d7e6ff; margin-bottom:6px; font-size:0.92em;">🌱 홀씨 보유량</div>
+            <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px;">
+                <div style="padding:5px; border:1px solid #6b3a3a; border-radius:8px; color:#ff9f9f; font-size:0.86em;">화염 홀씨<br><strong>x ${game.currencies.sporeFire || 0}</strong></div>
+                <div style="padding:5px; border:1px solid #3a5a7a; border-radius:8px; color:#9fd6ff; font-size:0.86em;">냉기 홀씨<br><strong>x ${game.currencies.sporeCold || 0}</strong></div>
+                <div style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; color:#ffe08a; font-size:0.86em;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
+            </div>
+        </div>`;
+    }
 
     renderCraftOrbActions(selectedItem);
     let fossilTabBtn = document.getElementById('btn-item-tab-fossil');
@@ -2503,11 +2613,10 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
     if (labyrinthOpen) {
         let maxFloor = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
-        let floorButtons = Array.from({ length: maxFloor }, (_, i) => i + 1).slice(-8).map(f => `<button onclick="enterLabyrinthFloor(${f})">${f}층</button>`).join('');
         document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}">
             <div class="map-item-main"><span>🏛️</span><span>고대 미궁 ${game.labyrinthFloor || 1}층</span></div>
             <div class="map-item-actions"><span class="map-zone-status">미궁 화석: ${game.currencies.fossil || 0}</span></div>
-        </div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${floorButtons}</div>`;
+        </div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterLabyrinthPrompt()">고대 미궁 층수 선택 입장</button><span class="map-zone-status">해금 최고층: ${maxFloor}층</span></div>`;
     } else document.getElementById('ui-labyrinth-list').innerHTML = '';
 
     let meteorUnlocked = !!(game.starWedge && game.starWedge.unlocked);
@@ -2564,18 +2673,21 @@ function buildCraftActionButtons(item) {
             loop10Panel.style.display = loop10Open ? 'block' : 'none';
             if (loop10Open) {
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-                let depthButtons = game.abyssUnlockedDepths.slice().sort((a,b)=>b-a).slice(0, 12).map(depth => `<button onclick="enterUnlockedEndlessDepth(${depth})">심화 ${depth}층</button>`).join('');
                 game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
-                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
+                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
+                let chaos20Cleared = !!game.loopProgressCurrent.chaos20Cleared;
                 let expectedDepthGain = Math.max(0, Math.floor((game.abyssEndlessDepth || 20) - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
                 let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;
+                let deepStats = game.loopDeepStats || {};
+                let deepTotalLine = `총합 보너스: 생명력 +${Math.floor((deepStats.flatHp||0)*10)}, 피해 +${Math.floor((deepStats.flatDmg||0)*2)}, 공속 +${((deepStats.aspd||0)*1.2).toFixed(1)}%, 이속 +${((deepStats.move||0)*0.8).toFixed(1)}%, 물피감 +${((deepStats.dr||0)*0.5).toFixed(1)}%, 치명 +${((deepStats.crit||0)*0.6).toFixed(1)}%`;
                 loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">혼돈20 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
                 <div style="background:linear-gradient(160deg, rgba(84,59,136,0.22), rgba(26,31,56,0.35)); border:1px solid #5f4a93; border-radius:10px; padding:10px; margin-bottom:8px;">
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="game.loop10ChaosStayEnabled=!game.loop10ChaosStayEnabled; updateStaticUI();">혼돈 잔류 모드: ${game.loop10ChaosStayEnabled ? 'ON' : 'OFF'}</button><button onclick="enterNextEndlessChaosDepth()" ${game.loop10ChaosStayEnabled ? '' : 'disabled'}>다음 심화층 진입 (${Math.floor(game.abyssEndlessDepth || 20) + 1})</button></div>
-                    <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-top:6px;">${depthButtons || '<span style="color:#7f8c8d;">기록 없음</span>'}</div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="triggerSeasonReset()" ${chaos20Cleared ? '' : 'disabled'}>지금 즉시 루프</button></div>
+                    <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()" ${chaos20Cleared ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:#9fb4d1;">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${chaos20Cleared ? '' : ' (혼돈 20 클리어 필요)'}</span></div>
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종</div>
+                <div style="margin-top:4px; color:#9ec4f0;">${deepTotalLine}</div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>`;
             }
         }
