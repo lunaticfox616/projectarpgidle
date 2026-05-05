@@ -4749,9 +4749,9 @@ function useCurrency(currencyKey) {
         if (Math.random() < 0.35) {
             let mod = pickWeightedMod(getAvailableMods(item));
             if (mod) item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
-            addLog("🩸 타락 성공! 추가 옵션이 부여되었습니다.", "loot-unique");
+            addLog("🩸 타락 : 추가 옵션이 부여되었습니다.", "loot-unique");
         } else {
-            addLog("🩸 타락 진행: 추가 옵션은 생기지 않았습니다.", "attack-monster");
+            addLog("🩸 타락 : 아이템에 변화가 생기지 않았습니다.", "attack-monster");
         }
     }
     let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
