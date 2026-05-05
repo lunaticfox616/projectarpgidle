@@ -1526,8 +1526,14 @@ function finishEncounterRun() {
                 addLog(zone.name === '혼돈 5' ? "✨ [여신의 헌사] 혼돈 5 보스 확정 드랍! 3차 전직 시련 개방!" : "✨ [여신의 헌사] 획득! 3차 전직 시련 개방!", "loot-unique");
             }
         }
-        if (game.maxZoneId <= game.currentZoneId) {
-            game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
+        // 다음 지역 해금은 "지금 막 클리어한 존"을 기준으로 보정한다.
+        // 특히 혼돈 구간은 반복/자동화 상태와 무관하게 N 클리어 시 N+1이 열려야 하므로
+        // targetUnlockZone을 직접 계산해 누락을 방지한다.
+        let targetUnlockZone = zone.type === 'abyss'
+            ? Math.min(getCurrentSeasonFinalZoneId(), zone.id + 1)
+            : Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
+        if (game.maxZoneId < targetUnlockZone) {
+            game.maxZoneId = targetUnlockZone;
             game.noti.map = true;
             triggerMapUnlockReveal(game.maxZoneId);
             let clearedStoryAct = getStoryActByZoneId(zone.id);
