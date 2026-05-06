@@ -1359,7 +1359,7 @@ function getClassTreeDef(clsKey) {
     };
     if (clsKey === 'warrior') {
         tree.n5 = { stat: 'critDmg', val: scaleClassStat('critDmg', getMajorStatBase('critDmg'), 1.15), req: ['n2', 'n3'] };
-        tree.n8 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.2), req: 'n5' };
+        tree.n8 = { stat: 'physIgnore', val: scaleClassStat('physIgnore', getMajorStatBase('physIgnore'), 1.25), req: 'n5' };
         tree.n10 = { stat: 'physIgnore', val: 16, req: ['n7', 'n8', 'n9'] };
     } else if (clsKey === 'assassin') {
         tree.n6 = { stat: 'physIgnore', val: scaleClassStat('physIgnore', getMajorStatBase('physIgnore'), 1.15), req: 'n3' };
@@ -1379,7 +1379,7 @@ function getClassTreeDef(clsKey) {
     }
     if ((game.completedTrials || []).includes('trial_4')) {
         const coreByClass = {
-            warrior: [{ stat: 'resPen', val: 14 }, { stat: 'critDmg', val: 62 }],
+            warrior: [{ stat: 'physPctDmg', val: 52 }, { stat: 'critDmg', val: 62 }],
             gladiator: [{ stat: 'aspd', val: 22 }, { stat: 'ds', val: 26 }],
             assassin: [{ stat: 'critDmg', val: 80 }, { stat: 'crit', val: 18 }],
             ranger: [{ stat: 'projectilePctDmg', val: 50 }, { stat: 'move', val: 20 }],
