@@ -1,5 +1,34 @@
 // TODO: phased extraction target. Kept for load-order compatibility in phase 1.
 
+const LEECH_SOFTCAP_START = 1.2;
+const LEECH_SOFTCAP_MID = 2.5;
+const LEECH_SOFTCAP_MID_EFF = 0.6;
+const LEECH_SOFTCAP_HIGH_EFF = 0.3;
+
+function applyLeechSoftcap(rawLeech) {
+    let raw = Math.max(0, Number(rawLeech) || 0);
+    if (raw <= LEECH_SOFTCAP_START) return raw;
+    let midSpan = Math.max(0, Math.min(raw, LEECH_SOFTCAP_MID) - LEECH_SOFTCAP_START);
+    let highSpan = Math.max(0, raw - LEECH_SOFTCAP_MID);
+    return LEECH_SOFTCAP_START + midSpan * LEECH_SOFTCAP_MID_EFF + highSpan * LEECH_SOFTCAP_HIGH_EFF;
+}
+
+function hasKeystone(id) {
+    return Array.isArray(game.ascendKeystones) && game.ascendKeystones.includes(id);
+}
+
+function getPlayerHpCap(pStats) {
+    if (!pStats) return 0;
+    let maxHp = Math.max(0, pStats.maxHp || 0);
+    return (game.ascendClass === 'warrior' && hasKeystone('w8')) ? (maxHp * 0.5) : maxHp;
+}
+
+function isDualWielding() {
+    let mainWeapon = game.equipment && game.equipment['무기'];
+    let neckWeapon = game.equipment && game.equipment['목걸이'];
+    return !!(mainWeapon && neckWeapon && neckWeapon.slot === '무기');
+}
+
 function coreLoop() {
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
@@ -12,7 +41,10 @@ function coreLoop() {
     if (game.combatHalted) return;
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
-    if (game.playerHp > 0 && game.playerHp < pStats.maxHp) game.playerHp = Math.min(pStats.maxHp, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
+    if (game.playerHp > 0 && game.playerHp < pStats.maxHp) {
+        let hpCap = getPlayerHpCap(pStats);
+        game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
+    }
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     game.playerEnergyShield = Math.max(0, Math.min(game.playerEnergyShield, Math.floor(pStats.energyShield || 0)));
     if (!Number.isFinite(game.playerEsLastHitAt)) game.playerEsLastHitAt = 0;
@@ -60,6 +92,7 @@ function coreLoop() {
     }
     if ((game.enemies || []).length > 0) {
         tickEnemyDotEffects(pStats, 0.1);
+        tickEnemyAilments(pStats, 0.1);
         pTimer += 0.1 * pStats.aspd;
         while (pTimer >= 1.0 && game.enemies.length > 0) {
             pTimer -= 1.0;
@@ -220,6 +253,11 @@ function getPlayerStats() {
     });
 
     let gemSources = getGemBonusSources();
+    let hasIq6Keystone = (game.ascendClass === 'inquisitor') && hasKeystone('iq6');
+    if (hasIq6Keystone) {
+        gemSources.reward += 1;
+        gemSources.total += 1;
+    }
     safeEquippedSupports.forEach(name => {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
@@ -314,7 +352,8 @@ function getPlayerStats() {
     let evadeChance = Math.min(90, (finalEvasion / (finalEvasion + enemyAccuracy)) * 100);
 
     let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0);
-    let finalLeech = ((skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech) * 0.45;
+    let rawLeech = ((skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech) * 0.45;
+    let finalLeech = applyLeechSoftcap(rawLeech);
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
     let finalDs = (gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) * 0.75;
@@ -352,6 +391,193 @@ function getPlayerStats() {
     let critMulti = finalCritDmg / 100;
     let avgHit = finalBaseDmg * (1 - critChance) + finalBaseDmg * critChance * critMulti;
     let finalDps = avgHit * finalAspd;
+
+    // Keystone phase-1 runtime effects (safe static subset)
+    if (game.ascendClass === 'warrior') {
+        // 1) Base multipliers / penalties
+        if (hasKeystone('w1')) {
+            finalDps *= 1.12;
+            finalMove *= 0.88;
+        }
+        if (hasKeystone('w2')) finalAspd = Math.min(12, finalAspd * 1.08);
+        if (hasKeystone('w3')) finalDps *= isDualWielding() ? 1.08 : 1;
+        if (hasKeystone('w4')) finalPhysIgnore += 15;
+        if (hasKeystone('w5')) finalDps *= 1.15;
+        if (hasKeystone('w6') && isDualWielding()) finalDps *= 1.15;
+        if (hasKeystone('w7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
+            finalDps *= 1.15;
+            finalDr = Math.min(75, finalDr + 15);
+        }
+        // 2) Keystone cap/transform phase
+        if (hasKeystone('w8')) {
+            finalMaxHp = Math.floor(finalMaxHp * 0.8);
+            finalArmor = Math.floor(finalArmor * 0.5);
+            finalCrit = Math.min(200, finalCrit + 15);
+            finalCritDmg += 15;
+            finalAspd = Math.min(12, finalAspd * 1.15);
+            finalMove *= 1.15;
+            finalDps *= 1.15;
+        }
+    } else if (game.ascendClass === 'gladiator') {
+        if (hasKeystone('g1')) finalDps *= 1.12;
+        if (hasKeystone('g2')) {
+            finalAspd = Math.min(12, finalAspd * 1.1);
+            finalEvasion = Math.floor(finalEvasion * 1.1);
+        }
+        if (hasKeystone('g3')) finalCrit = Math.min(100, finalCrit + 8);
+        if (hasKeystone('g4')) {
+            finalDps *= 1.15;
+            finalDr = Math.min(75, finalDr + 15);
+        }
+        if (hasKeystone('g5')) finalDps *= 1.1;
+        if (hasKeystone('g6')) finalDps *= 1.12;
+        if (hasKeystone('g7')) {
+            finalDs += Math.floor(Math.max(0, finalEvasion) / 50);
+            finalCrit += Math.floor(Math.max(0, finalArmor) / 400);
+        }
+        if (hasKeystone('g8')) {
+            finalDs += 100;
+            finalDps *= 1.18;
+            finalRegen *= 0.5;
+        }
+    } else if (game.ascendClass === 'assassin') {
+        if (hasKeystone('a1')) {
+            finalCrit = Math.max(0, finalCrit - 15);
+            finalCritDmg += 60;
+        }
+        if (hasKeystone('a2')) {
+            finalMove *= 1.2;
+            finalMaxHp = Math.floor(finalMaxHp * 0.9);
+            finalEvasion += Math.max(0, Math.floor(finalMove));
+        }
+        if (hasKeystone('a3')) finalDps *= 1.1;
+        if (hasKeystone('a4')) {
+            finalPhysIgnore += 20;
+            finalResPen += 20;
+            finalDps *= 0.92;
+        }
+        if (hasKeystone('a5')) finalCrit = Math.min(100, finalCrit + 25);
+        if (hasKeystone('a8')) {
+            finalCrit = Math.max(0, finalCrit - 20);
+            finalCritDmg += 120;
+            avgHit *= 0.8;
+            finalDps = avgHit * finalAspd;
+        }
+        if (hasKeystone('a6')) {
+            if ((game.playerHp / Math.max(1, finalMaxHp)) >= 0.66) finalDps *= 1.2;
+            else finalDps *= 0.84;
+        }
+        if (hasKeystone('a7') && finalCrit > 100) finalCritDmg += (finalCrit - 100);
+    } else if (game.ascendClass === 'ranger') {
+        if (hasKeystone('r1')) {
+            finalMove *= 1.15;
+            finalArmor = 0;
+            finalEnergyShield = 0;
+        }
+        if (hasKeystone('r2')) {
+            finalAspd = Math.min(12, finalAspd * 1.1);
+            finalDps *= 0.9;
+        }
+        if (hasKeystone('r3')) {
+            finalMinDmgRoll = Math.max(5, finalMinDmgRoll - 10);
+        }
+        if (hasKeystone('r4')) finalAspd = Math.min(12, finalAspd * (1 + Math.max(0, finalMove) * 0.001));
+        if (hasKeystone('r5')) finalDps *= 1.1;
+        if (hasKeystone('r6')) finalDps *= 0.95;
+        if (hasKeystone('r8')) {
+            let aspdBonus = Math.max(0, finalAspd - 1) * 0.2;
+            let moveBonus = Math.max(0, finalMove) * 0.002;
+            finalAspd = Math.min(12, finalAspd * (1 + moveBonus));
+            finalMove *= (1 + aspdBonus);
+            finalMaxHp = Math.floor(finalMaxHp * 0.85);
+        }
+        if (hasKeystone('r7')) finalCrit = Math.min(100, finalCrit + 15);
+    } else if (game.ascendClass === 'elementalist') {
+        if (hasKeystone('e1')) finalDps *= 1.15;
+        if (hasKeystone('e2')) {
+            finalResF = Math.min(78, finalResF + 15);
+            finalResC = Math.min(78, finalResC + 15);
+            finalResL = Math.min(78, finalResL + 15);
+            finalResChaos -= 10;
+        }
+        if (hasKeystone('e3')) {
+            finalMaxHp = Math.floor(finalMaxHp * 0.85);
+            finalEnergyShieldRegenRate += 10;
+            finalEnergyShieldRechargeDelay = Math.max(0.4, finalEnergyShieldRechargeDelay - 0.8);
+        }
+        if (hasKeystone('e4')) finalDps *= 1.12;
+        if (hasKeystone('e5')) {
+            let maxElemRes = Math.max(finalResF, finalResC, finalResL);
+            finalResChaos += Math.floor(maxElemRes * 0.5);
+            finalDps *= (1 + Math.max(0, finalResChaos) / 100);
+        }
+        if (hasKeystone('e6')) {
+            finalResPen += 20;
+            finalCritDmg -= 25;
+        }
+        if (hasKeystone('e8')) {
+            finalDps *= 1.25;
+            finalResPen += 5;
+        }
+        if (hasKeystone('e7')) finalDps *= 1.05;
+    } else if (game.ascendClass === 'warlock') {
+        if (hasKeystone('wlk1')) finalDps *= 1.12;
+        if (hasKeystone('wlk2')) finalDps *= 1.2;
+        if (hasKeystone('wlk3')) finalRegen = 0;
+        if (hasKeystone('wlk6')) {
+            finalResPen += 43;
+            finalCrit = 0;
+        }
+        if (hasKeystone('wlk4')) finalDps *= 1.1;
+        if (hasKeystone('wlk8')) {
+            finalDps *= 1.25;
+            finalLeech *= 0.5;
+        }
+        if (hasKeystone('wlk5')) finalDps *= 1.15;
+        if (hasKeystone('wlk7')) {
+            if ((game.playerEnergyShield || 0) <= (finalEnergyShield * 0.5)) finalDps *= 1.2;
+            finalDr = Math.max(-40, finalDr - 12);
+        }
+    } else if (game.ascendClass === 'guardian') {
+        if (hasKeystone('gd1')) {
+            finalArmor = Math.floor(finalArmor * 1.2);
+            finalMaxHp = Math.floor(finalMaxHp * 1.1);
+            finalMove *= 0.85;
+        }
+        if (hasKeystone('gd2')) finalMaxHp = Math.floor(finalMaxHp * 1.15);
+        if (hasKeystone('gd3')) finalRegen += 1.8;
+        if (hasKeystone('gd4')) {
+            let converted = Math.floor((finalEvasion + finalEnergyShield) * 0.5);
+            finalArmor += converted;
+            finalEvasion = 0;
+            finalEnergyShield = 0;
+        }
+        if (hasKeystone('gd5')) {
+            finalDps *= 0.85;
+            finalDr = Math.min(75, finalDr + 15);
+        }
+        if (hasKeystone('gd6')) finalArmor = Math.floor(finalArmor * 1.15);
+        if (hasKeystone('gd8')) finalDr = Math.min(75, finalDr + 15);
+        if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.3) {
+            finalDr = Math.min(75, finalDr + 15);
+            finalDps *= 1.15;
+        }
+    } else if (game.ascendClass === 'inquisitor') {
+        if (hasKeystone('iq1')) finalDps *= 1.15;
+        if (hasKeystone('iq2')) {
+            finalCrit = Math.max(0, finalCrit - 8);
+            finalCritDmg += 45;
+        }
+        if (hasKeystone('iq3')) suppCap += 1;
+        if (hasKeystone('iq5')) finalResPen += 15;
+        if (hasKeystone('iq6')) {
+            suppCap += 1;
+            finalMaxHp = Math.floor(finalMaxHp * 0.67);
+        }
+        if (hasKeystone('iq7')) finalDps *= 1.12;
+        if (hasKeystone('iq8')) finalDps *= (1 + Math.max(0, finalResPen) / 100);
+        if (hasKeystone('iq4')) finalResPen = 0;
+    }
 
     let breakdowns = {
         atk: {
@@ -455,7 +681,9 @@ function getPlayerStats() {
                 makeSourceLine('스킬', skill.leech || 0, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
-                makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`)
+                makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`),
+                `소프트캡: ${formatValue('leech', LEECH_SOFTCAP_START)}% 이후 60% 효율 · ${formatValue('leech', LEECH_SOFTCAP_MID)}% 이후 30% 효율`,
+                `적용 전 ${formatValue('leech', rawLeech)}% → 적용 후 ${formatValue('leech', finalLeech)}%`
             ].filter(Boolean),
             final: `${formatValue('leech', finalLeech)}%`
         },
@@ -943,6 +1171,84 @@ function applyEnemyDotFromHit(enemy, hitDamage, pStats) {
     enemy.dotStacks = nextStacks;
 }
 
+function getAilmentTypeFromElement(ele) {
+    if (ele === 'fire') return 'ignite';
+    if (ele === 'cold') return 'chill';
+    if (ele === 'light') return 'shock';
+    if (ele === 'chaos') return 'poison';
+    return 'bleed';
+}
+
+function getPlayerAilmentChance(pStats, type) {
+    let base = 0;
+    if (type === 'ignite') base = pStats.igniteChance || 0;
+    else if (type === 'chill') base = pStats.chillChance || 0;
+    else if (type === 'freeze') base = pStats.freezeChance || 0;
+    else if (type === 'shock') base = pStats.shockChance || 0;
+    else if (type === 'poison') base = pStats.poisonChance || 0;
+    else if (type === 'bleed') base = pStats.bleedChance || 0;
+    return Math.max(0, Math.min(1, base / 100));
+}
+
+function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
+    if (!enemy || enemy.hp <= 0) return;
+    let ele = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
+    let type = getAilmentTypeFromElement(ele);
+    let tryProc = isCrit ? 1 : getPlayerAilmentChance(pStats, type);
+    if (Math.random() >= tryProc) return;
+    let resKey = 'ailRes' + type.charAt(0).toUpperCase() + type.slice(1);
+    let resistChance = Math.max(0, Math.min(0.95, (enemy[resKey] || 0) / 100));
+    if (Math.random() < resistChance) return;
+    let hitRatio = Math.max(0.001, Math.min(0.35, hitDamage / Math.max(1, enemy.maxHp || 1)));
+    let power = Math.max(0.05, Math.min(1.5, (Math.sqrt(Math.max(1, hitDamage)) * 0.01) + (hitRatio * 1.8)));
+    enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
+    let row = enemy.ailments.find(a => a.type === type);
+    let dur = type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10);
+    if (row) {
+        row.time = Math.max(row.time || 0, dur);
+        row.power = Math.max(row.power || 0, power);
+    } else enemy.ailments.push({ type: type, time: dur, power: power });
+    if (type === 'chill' && hitRatio >= 0.1) {
+        let fr = enemy.ailments.find(a => a.type === 'freeze');
+        let freezeDur = 0.6 + hitRatio * 3.4;
+        if (fr) fr.time = Math.max(fr.time || 0, freezeDur);
+        else enemy.ailments.push({ type: 'freeze', time: freezeDur, power: Math.max(0.2, power * 0.85) });
+    }
+}
+
+function tickEnemyAilments(pStats, dt) {
+    let zone = getZone(game.currentZoneId);
+    let zoneTier = (zone && zone.tier) || 1;
+    let abyssPlayerMul = (getAbyssMonsterScales(zone).playerDamageMul || 1);
+    let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+    (game.enemies || []).forEach(enemy => {
+        if (!enemy || enemy.hp <= 0) return;
+        enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
+        if (enemy.ailments.length <= 0) return;
+        let next = [];
+        enemy.ailments.forEach(ail => {
+            ail.time = Math.max(0, (ail.time || 0) - dt);
+            let power = Math.max(0, ail.power || 0);
+            let type = ail.type;
+            if (ail.time > 0 && (type === 'ignite' || type === 'poison' || type === 'bleed')) {
+                let ele = type === 'ignite' ? 'fire' : (type === 'poison' ? 'chaos' : 'phys');
+                let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, enemy, pStats);
+                let dps = Math.max(1, Math.floor((enemy.maxHp || 1) * (0.0035 + power * 0.0025)));
+                let dotDmg = Math.max(1, Math.floor(dps * dt * (1 - enemyRes / 100) * abyssPlayerMul));
+                let hpAfterDot = Math.max(0, enemy.hp - dotDmg);
+                if (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) {
+                    hpAfterDot = Math.max(1, hpAfterDot);
+                }
+                enemy.hp = hpAfterDot;
+                addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dotDmg, duration: 200, element: ele });
+            }
+            if (ail.time > 0) next.push(ail);
+        });
+        enemy.ailments = next;
+        if (enemy.hp <= 0) handleEnemyDeath(enemy, pStats);
+    });
+}
+
 function tickEnemyDotEffects(pStats, dt) {
     let zone = getZone(game.currentZoneId);
     let zoneTier = (zone && zone.tier) || 1;
@@ -1022,7 +1328,7 @@ function startMoving(isTown) {
 function returnToTown() {
     if (game.isTownReturning && game.moveTimer > 0) return;
     let pStats = getPlayerStats();
-    game.playerHp = pStats.maxHp;
+    game.playerHp = getPlayerHpCap(pStats);
     game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     pTimer = 0;
     addLog("⛺ 마을 귀환", "season-up");
@@ -1199,7 +1505,7 @@ function grantExpAndGem(enemy, pStats) {
         leveledUp = true;
         game.passivePoints++;
         game.noti.char = true;
-        game.playerHp = getPlayerStats().maxHp;
+        game.playerHp = getPlayerHpCap(getPlayerStats());
         addLog(`🎉 레벨업! (Lv.${game.level})`, "level-up");
         req = getExpReq(game.level);
         guard++;
@@ -1415,7 +1721,7 @@ function handleStoryActSpecialDefeat(zone, pStats) {
         game.currentZoneId = 0;
         game.maxZoneId = 0;
         game.killsInZone = 0;
-        game.playerHp = pStats.maxHp;
+        game.playerHp = getPlayerHpCap(pStats);
         startMoving(false);
         updateStaticUI();
         return true;
@@ -1443,6 +1749,10 @@ function finishEncounterRun() {
     if (zone.type === 'trial') {
         let isFirstClear = !game.completedTrials.includes(zone.id);
         if (isFirstClear) game.completedTrials.push(zone.id);
+        if (isFirstClear) {
+            game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
+            addLog(`💠 키스톤 포인트 +1 (현재 ${game.ascendKeystonePoints})`, 'loot-unique');
+        }
         if (zone.id === 'trial_4') {
             game.ascendPoints += isFirstClear ? 1 : 0;
             if (isFirstClear) {
@@ -1700,8 +2010,12 @@ function performPlayerAttack(pStats) {
             duration: 320
         });
         if (isDotSkill) applyEnemyDotFromHit(hit.enemy, damageBeforeMitigation, pStats);
+        applyEnemyAilmentFromHit(hit.enemy, pStats, dmg, isCrit);
     });
-    if (pStats.leech > 0 && totalLeechableDamage > 0) game.playerHp = Math.min(pStats.maxHp, game.playerHp + (totalLeechableDamage * (pStats.leech / 100)));
+    if (pStats.leech > 0 && totalLeechableDamage > 0) {
+        let hpCap = getPlayerHpCap(pStats);
+        game.playerHp = Math.min(hpCap, game.playerHp + (totalLeechableDamage * (pStats.leech / 100)));
+    }
 
     if (game.settings.showCombatLog) {
         let dotInfo = '';
@@ -1753,7 +2067,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         }
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
-        game.playerHp = pStats.maxHp;
+        game.playerHp = getPlayerHpCap(pStats);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(160);
@@ -1788,18 +2102,32 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         sourceName: opts.sourceName || ''
     };
     if (game.settings.showDeathNotice !== false) openDeathOverlay(game.lastDeathLog);
-    game.playerHp = pStats.maxHp;
+    game.playerHp = getPlayerHpCap(pStats);
     startMoving(false);
     updateStaticUI();
     queueImportantSave(160);
 }
 
-function applyPlayerAilment(type, duration) {
+function getPlayerAilmentResistChance(type, pStats) {
+    if (!pStats) return 0;
+    let res = 0;
+    if (type === 'ignite') res = pStats.resF || 0;
+    else if (type === 'chill' || type === 'freeze') res = pStats.resC || 0;
+    else if (type === 'shock') res = pStats.resL || 0;
+    else if (type === 'poison') res = pStats.resChaos || 0;
+    else if (type === 'bleed') res = pStats.dr || 0;
+    return Math.max(0, Math.min(0.75, res / 100));
+}
+
+function applyPlayerAilment(type, duration, power, pStats) {
     if (!type || duration <= 0) return;
+    if (Math.random() < getPlayerAilmentResistChance(type, pStats)) return;
     game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];
     let existing = game.playerAilments.find(row => row.type === type);
-    if (existing) existing.time = Math.max(existing.time || 0, duration);
-    else game.playerAilments.push({ type: type, time: duration });
+    if (existing) {
+        existing.time = Math.max(existing.time || 0, duration);
+        existing.power = Math.max(existing.power || 0, power || 0.1);
+    } else game.playerAilments.push({ type: type, time: duration, power: Math.max(0.1, power || 0.1) });
 }
 
 function tickAilments(pStats, dt) {
@@ -1807,14 +2135,28 @@ function tickAilments(pStats, dt) {
     let next = [];
     game.playerAilments.forEach(ail => {
         ail.time = Math.max(0, (ail.time || 0) - dt);
+        let power = Math.max(0.1, ail.power || 0.1);
         if (ail.type === 'ignite') {
-            let burn = Math.max(1, Math.floor(pStats.maxHp * 0.0028));
+            let burn = Math.max(1, Math.floor(pStats.maxHp * (0.0018 + power * 0.0022)));
+            burn = Math.max(1, Math.floor(burn * (1 - Math.max(0, Math.min(0.75, (pStats.resF || 0) / 100)))));
             game.playerHp -= burn;
             recordIncomingDamage('fire', burn, '점화');
         } else if (ail.type === 'poison') {
-            let poison = Math.max(1, Math.floor(pStats.maxHp * 0.0022));
+            let poison = Math.max(1, Math.floor(pStats.maxHp * (0.0015 + power * 0.002)));
+            poison = Math.max(1, Math.floor(poison * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100)))));
             game.playerHp -= poison;
             recordIncomingDamage('chaos', poison, '중독');
+        } else if (ail.type === 'bleed') {
+            let bleed = Math.max(1, Math.floor(pStats.maxHp * (0.0016 + power * 0.0018)));
+            bleed = Math.max(1, Math.floor(bleed * (1 - Math.max(0, Math.min(0.75, (pStats.dr || 0) / 100)))));
+            game.playerHp -= bleed;
+            recordIncomingDamage('phys', bleed, '출혈');
+        } else if (ail.type === 'chill') {
+            // chill handled via aspd modifier in core loop
+        } else if (ail.type === 'shock') {
+            // shock handled via dr modifier in core loop
+        } else if (ail.type === 'freeze') {
+            // freeze duration only
         }
         if (ail.time > 0) next.push(ail);
     });
@@ -1830,6 +2172,9 @@ function performMonsterAttacks(pStats) {
     let crowdPenalty = Math.max(0.34, 1 - Math.max(0, aliveCount - 1) * 0.055);
     for (let enemy of (game.enemies || [])) {
         if (enemy.hp <= 0) continue;
+        let ailMap = {};
+        (enemy.ailments || []).forEach(ail => { if ((ail.time || 0) > 0) ailMap[ail.type] = Math.max(ailMap[ail.type] || 0, ail.power || 0); });
+        if (ailMap.freeze) continue;
         if (enemy.forcedDefeatBoss) {
             let now = performance.now();
             if (now >= (enemy.nextForcedRegenAt || 0)) {
@@ -1855,12 +2200,14 @@ function performMonsterAttacks(pStats) {
         let seasonDepth = Math.max(0, (game.season || 1) - 1);
         let tierPressure = clampNumber(((zone.tier || 1) - 1) / 10, 0, 1);
         let seasonAtkScale = 1 + seasonDepth * (0.012 + (tierPressure * 0.018));
-        let atkRate = (0.26 + zone.tier * 0.013) * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1);
+        let chillSlow = ailMap.chill ? Math.min(0.45, 0.12 + ailMap.chill * 0.14) : 0;
+        let atkRate = (0.26 + zone.tier * 0.013) * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * (1 - chillSlow);
         enemy.attackTimer += 0.1 * atkRate;
         while (enemy.attackTimer >= 1) {
             enemy.attackTimer -= 1;
             let seasonDmgScale = 1 + seasonDepth * (0.04 + (tierPressure * 0.06));
-            let dmg = Math.floor((2 + zone.tier * 3.1) * seasonDmgScale);
+            let shockAmp = ailMap.shock ? Math.min(0.35, 0.08 + ailMap.shock * 0.12) : 0;
+            let dmg = Math.floor((2 + zone.tier * 3.1) * seasonDmgScale * (1 - shockAmp));
             if (zone.type === 'act' && zone.id <= 1 && (game.season || 1) >= 3) dmg = Math.floor(dmg * 0.58);
             if (enemy.isElite) dmg = Math.floor(dmg * 1.2);
             if (enemy.isBoss) dmg = Math.floor(dmg * (1.08 + zone.tier * 0.15));
@@ -1893,7 +2240,9 @@ function performMonsterAttacks(pStats) {
             }
             if ((enemy.ailmentChance || 0) > 0 && Math.random() < enemy.ailmentChance) {
                 let ail = enemy.ele === 'fire' ? 'ignite' : enemy.ele === 'cold' ? 'chill' : enemy.ele === 'light' ? 'shock' : 'poison';
-                applyPlayerAilment(ail, enemy.isBoss ? 5 : 3);
+                let hitRatio = Math.max(0.001, Math.min(0.35, dmg / Math.max(1, pStats.maxHp || 1)));
+                let ailPower = Math.max(0.1, Math.min(1.5, (Math.sqrt(Math.max(1, dmg)) * 0.01) + (hitRatio * 1.8)));
+                applyPlayerAilment(ail, enemy.isBoss ? 5 : 3, ailPower, pStats);
                 if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각' : ail === 'shock' ? '감전' : '중독'} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster');
             }
 
@@ -2096,7 +2445,7 @@ function triggerSeasonReset() {
     recalculateStarWedgeMutations();
     calculateReachableNodes();
     refreshPassiveVisibility();
-    game.playerHp = getPlayerStats().maxHp;
+    game.playerHp = getPlayerHpCap(getPlayerStats());
     ensureActJournalCompletionForLoop({ silent: false });
     addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
     checkUnlocks();

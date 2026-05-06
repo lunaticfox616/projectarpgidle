@@ -2042,6 +2042,19 @@ function updateCombatUI(pStats) {
     setTextById('ui-maxhp', pStats.maxHp);
     setTextById('ui-maxhp-stat', pStats.maxHp);
     document.getElementById('ui-hp-bar').style.width = Math.max(0, (game.playerHp / pStats.maxHp) * 100) + '%';
+    let hpAilBar = document.getElementById('ui-hp-ailment-bar');
+    if (!hpAilBar) {
+        let hpWrap = document.querySelector('#ui-hp-bar').parentElement;
+        hpAilBar = document.createElement('div');
+        hpAilBar.id = 'ui-hp-ailment-bar';
+        hpAilBar.className = 'hp-bar-fill';
+        hpAilBar.style.background = 'linear-gradient(90deg,#ff8a65,#ff5252)';
+        hpAilBar.style.opacity = '0.5';
+        hpAilBar.style.position = 'absolute';
+        hpAilBar.style.left = '0';
+        hpAilBar.style.top = '0';
+        hpWrap.insertBefore(hpAilBar, document.getElementById('ui-hp-bar'));
+    }
     let esPct = (pStats.energyShield || 0) > 0 ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
     let esInlineEl = document.getElementById('ui-es-inline');
     if (esInlineEl) esInlineEl.innerText = (pStats.energyShield || 0) > 0 ? ` · ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : '';
@@ -2075,14 +2088,25 @@ function updateCombatUI(pStats) {
     if (expBarMobile) expBarMobile.style.width = document.getElementById('ui-exp-bar').style.width;
     let ailmentEl = document.getElementById('ui-player-ailments');
     if (ailmentEl) {
-        let labels = { ignite: '점화', chill: '냉각', shock: '감전', poison: '중독' };
-        let text = (game.playerAilments || []).map(ail => `${labels[ail.type] || ail.type} ${Math.max(0, (ail.time || 0)).toFixed(1)}s`).join(' · ');
+        let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
+        let text = (game.playerAilments || []).map(ail => `${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s`).join(' · ');
         let ailmentText = text ? `상태이상: ${text}` : '';
         ailmentEl.innerText = ailmentText;
         let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
-        if (ailmentUnderEl) ailmentUnderEl.innerText = ailmentText;
+        if (ailmentUnderEl) ailmentUnderEl.innerText = '';
         let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
         if (mobileAilmentEl) mobileAilmentEl.innerText = ailmentText;
+        let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
+            if (!ail || (ail.time || 0) <= 0) return sum;
+            let power = Math.max(0.1, ail.power || 0.1);
+            if (ail.type === 'ignite') return sum + Math.floor(pStats.maxHp * (0.0018 + power * 0.0022) * ail.time);
+            if (ail.type === 'poison') return sum + Math.floor(pStats.maxHp * (0.0015 + power * 0.002) * ail.time);
+            if (ail.type === 'bleed') return sum + Math.floor(pStats.maxHp * (0.0016 + power * 0.0018) * ail.time);
+            return sum;
+        }, 0);
+        let playerHpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
+        let pendingPlayerPct = Math.max(0, Math.min(playerHpPct, (projectedPlayerAilDmg / Math.max(1, pStats.maxHp)) * 100));
+        hpAilBar.style.width = `${pendingPlayerPct}%`;
     }
     let hpCombatBar = document.getElementById('ui-player-hp-combat');
     if (hpCombatBar) hpCombatBar.style.width = `${Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100))}%`;
@@ -2160,11 +2184,16 @@ function updateCombatUI(pStats) {
         if ((pStats.glovePairAspdBonus || 0) > 0) notes.push(`🧤 동형 장갑 세트 보너스 활성화: 기본 공속 +${(pStats.glovePairAspdBonus || 0).toFixed(2)}`);
         let heroDef = getHeroSelectionDef(game.selectedHeroId);
         if (heroDef) notes.push(`🧬 ${heroDef.label} 재능: ${heroDef.talentsText}`);
+        if (game.ascendClass && Array.isArray(game.ascendKeystones) && game.ascendKeystones.length > 0) {
+            let defs = getClassKeystoneDefs(game.ascendClass);
+            let pickedNames = game.ascendKeystones.map(id => ((defs.find(node => node.id === id) || {}).name || id));
+            notes.push(`★ 키스톤: ${pickedNames.join(' / ')}`);
+        }
         if ((pStats.minDmgRoll || 80) >= (pStats.maxDmgRoll || 100)) notes.push(`⚖️ 최소 피해 보정(${Math.floor(pStats.minDmgRoll || 80)}%)이 최대 보정 이상이라 최대 피해 보정이 동일 값으로 조정됩니다.`);
         specialSummaryEl.innerText = notes.join(' · ');
     }
 
-    let enemies = game.enemies || [];
+    let enemies = (game.enemies || []).filter(enemy => enemy && (enemy.hp || 0) > 0);
     let targetIds = getSkillTargets(pStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     let focusedEnemy = enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
     if (!focusedEnemy) {
@@ -2172,13 +2201,26 @@ function updateCombatUI(pStats) {
     } else {
         let pct = Math.max(0, focusedEnemy.hp / focusedEnemy.maxHp * 100);
         let tags = getEnemyTraitSummary(focusedEnemy);
+        let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈' };
+        let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
+        let ailmentText = activeAilments.map(ail => `${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s`).join(' · ');
+        let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
+            if (!ail || (ail.time || 0) <= 0) return sum;
+            if (!['ignite', 'poison', 'bleed'].includes(ail.type)) return sum;
+            let power = Math.max(0, ail.power || 0);
+            let dps = Math.max(1, Math.floor((focusedEnemy.maxHp || 1) * (0.0035 + power * 0.0025)));
+            return sum + Math.floor(dps * Math.max(0, ail.time || 0));
+        }, 0);
+        let pendingPct = Math.max(0, Math.min(pct, (projectedAilmentDamage / Math.max(1, focusedEnemy.maxHp || 1)) * 100));
         document.getElementById('ui-enemy-list').innerHTML = `
             <div class="enemy-card targeted">
                 <div class="enemy-name">${getEnemyDisplayName(focusedEnemy)}</div>
                 <div class="hp-bar-bg">
+                    <div class="hp-bar-fill" style="width:${pendingPct}%; background:linear-gradient(90deg,#ff8a65,#ff5252); opacity:0.55;"></div>
                     <div class="hp-bar-fill" style="width:${pct}%"></div>
                     <div class="hp-text">${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}</div>
                 </div>
+                <div class="enemy-tags muted">${ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음'}</div>
                 <div class="enemy-tags muted">특성: ${tags.join(' · ') || '일반'}</div>
             </div>
         `;
@@ -2814,6 +2856,15 @@ function buildCraftActionButtons(item) {
         };
         let coreRow = (tree.n11 || tree.n12) ? `<div class="trait-row">${renderAscend('n11')}${renderAscend('n12')}</div>` : '';
         document.getElementById('ui-ascend-tree-container').innerHTML = `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}`;
+        let kDefs = getClassKeystoneDefs(game.ascendClass);
+        if (kDefs.length > 0) {
+            game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
+            let kRows = [];
+            for (let i = 0; i < kDefs.length; i += 2) kRows.push(kDefs.slice(i, i + 2));
+            let kPts = Math.max(0, Math.floor(game.ascendKeystonePoints || 0));
+            let kHtml = `<div style="margin-top:12px; color:#f0d7a6; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span>키스톤 선택 (${game.ascendKeystones.length}/${CLASS_KEYSTONE_PICK_LIMIT}) · 보유 포인트 ${kPts}</span><button onclick="resetAscendKeystones()" style="padding:3px 8px; font-size:0.75em;">키스톤 초기화</button></div><div style="font-size:0.78em; color:#a7bdd9; margin-top:4px;">해제 비용: 정제의 오브 1개 · 전체 초기화 비용: 선택 개수만큼</div>` + kRows.map(row => `<div class="trait-row">${row.map(k => { let active = game.ascendKeystones.includes(k.id); let reqMet = isAscendKeystoneRequirementMet(k); return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="refundAscendKeystone('${k.id}')"` : (!reqMet || game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT || kPts <= 0 ? '' : `onclick="buyAscendKeystone('${k.id}')"`)}><div class="trait-title">★ ${k.name}${active ? ' ✓' : ''}</div><div class="trait-desc">${k.desc}${active ? '<br><span style="color:#9bc7ff;">(클릭 시 해제)</span>' : ''}</div></div>`; }).join('')}</div>`).join('');
+            document.getElementById('ui-ascend-tree-container').innerHTML += kHtml;
+        }
     } else if (game.ascendPoints > 0) {
         document.getElementById('ui-class-select').style.display = 'block';
         document.getElementById('ui-class-locked').style.display = 'none';
@@ -3597,6 +3648,11 @@ function mergeDefaults(save) {
         merged.skyGemEnhancements[skill] = Array.from(new Set(arr.filter(id => !!GEM_SKY_ENHANCEMENTS[id]))).slice(0, 5);
     });
     merged.ascendNodes = Array.isArray(merged.ascendNodes) ? merged.ascendNodes.filter(id => typeof id === 'string') : [];
+    merged.ascendKeystonePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendKeystonePoints, 0, 0)));
+    let classKeystoneSet = new Set(getClassKeystoneDefs(merged.ascendClass).map(node => node.id));
+    merged.ascendKeystones = Array.isArray(merged.ascendKeystones)
+        ? Array.from(new Set(merged.ascendKeystones.filter(id => typeof id === 'string' && classKeystoneSet.has(id)))).slice(0, CLASS_KEYSTONE_PICK_LIMIT)
+        : [];
     merged.starWedge = (merged.starWedge && typeof merged.starWedge === 'object') ? merged.starWedge : {};
     merged.starWedge.unlocked = !!merged.starWedge.unlocked;
     merged.starWedge.unlockNoticeSeen = !!merged.starWedge.unlockNoticeSeen;
@@ -4878,9 +4934,71 @@ function buySeason(id) {
     updateStaticUI();
 }
 
+
+function getClassKeystoneDefs(clsKey) {
+    let defs = (CLASS_KEYSTONE_DEFS && CLASS_KEYSTONE_DEFS[clsKey]) || [];
+    return Array.isArray(defs) ? defs : [];
+}
+
+function isAscendKeystoneRequirementMet(node) {
+    if (!node) return false;
+    game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
+    if (node.req) return game.ascendKeystones.includes(node.req);
+    if (Array.isArray(node.reqAny) && node.reqAny.length > 0) return node.reqAny.some(id => game.ascendKeystones.includes(id));
+    return true;
+}
+
+function buyAscendKeystone(id) {
+    if (!game.ascendClass) return;
+    let defs = getClassKeystoneDefs(game.ascendClass);
+    let node = defs.find(row => row.id === id);
+    if (!node) return;
+    game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
+    if (game.ascendKeystones.includes(id)) return;
+    game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0));
+    if (game.ascendKeystonePoints <= 0) return addLog('키스톤 포인트가 부족합니다.', 'attack-monster');
+    if (game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT) return addLog(`키스톤은 최대 ${CLASS_KEYSTONE_PICK_LIMIT}개 선택할 수 있습니다.`, 'attack-monster');
+    if (!isAscendKeystoneRequirementMet(node)) return addLog('선행 키스톤 조건이 필요합니다.', 'attack-monster');
+    game.ascendKeystones.push(id);
+    game.ascendKeystonePoints -= 1;
+    updateStaticUI();
+}
+
+function refundAscendKeystone(id) {
+    game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
+    if (!game.ascendKeystones.includes(id)) return;
+    let blockers = getClassKeystoneDefs(game.ascendClass).filter(node => {
+        if (!game.ascendKeystones.includes(node.id) || node.id === id) return false;
+        if (node.req && node.req === id) return true;
+        if (Array.isArray(node.reqAny) && node.reqAny.includes(id)) {
+            let hasAlt = node.reqAny.some(reqId => reqId !== id && game.ascendKeystones.includes(reqId));
+            return !hasAlt;
+        }
+        return false;
+    });
+    if (blockers.length > 0) return addLog(`선행 키스톤입니다: ${blockers.map(v => v.name).join(', ')}`, 'attack-monster');
+    if ((game.currencies.divine || 0) < 1) return addLog('키스톤 환불에는 정제의 오브 1개가 필요합니다.', 'attack-monster');
+    game.currencies.divine = Math.max(0, Math.floor(game.currencies.divine || 0) - 1);
+    game.ascendKeystones = game.ascendKeystones.filter(key => key !== id);
+    game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
+    updateStaticUI();
+}
+
+function resetAscendKeystones() {
+    game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
+    if (game.ascendKeystones.length <= 0) return;
+    let cost = game.ascendKeystones.length;
+    if ((game.currencies.divine || 0) < cost) return addLog(`키스톤 전체 초기화에는 정제의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
+    game.currencies.divine = Math.max(0, Math.floor(game.currencies.divine || 0) - cost);
+    game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + game.ascendKeystones.length;
+    game.ascendKeystones = [];
+    updateStaticUI();
+}
+
 function selectClass(key) {
     if (confirm(`[${CLASS_TEMPLATES[key].name}] 직업을 선택하시겠습니까? 이번 시즌에는 변경할 수 없습니다.`)) {
         game.ascendClass = key;
+        game.ascendKeystones = [];
         updateStaticUI();
     }
 }
@@ -4912,4 +5030,4 @@ function getLockedTabMessage(tabId) {
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, selectClass, buyAscend, getLockedTabMessage });
+safeExposeGlobals({ checkUnlocks, buySeason, selectClass, buyAscend, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, getLockedTabMessage });
