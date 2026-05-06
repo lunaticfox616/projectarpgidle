@@ -272,6 +272,27 @@ const CLASS_TEMPLATES = {
     inquisitor: { name: '인퀴지터', desc: '원소 치명타 및 보조 스킬 전문', m1: 'elementalPctDmg', m2: 'critDmg', d: 'suppCap' }
 };
 
+const CLASS_KEYSTONE_PICK_LIMIT = 4;
+const CLASS_KEYSTONE_DEFS = {
+    warrior: [
+        { id: 'w1', name: '강철 태세', desc: '물리 피해 12% 증폭, 이동속도 12% 감폭', req: null },
+        { id: 'w2', name: '전장의 리듬', desc: '치명타 발생 시 2초간 공격속도 +8% (최대 5중첩)', req: null },
+        { id: 'w3', name: '쌍수 훈련', desc: '목걸이 슬롯에 무기 장착 가능, 목걸이 장착 불가', req: null },
+        { id: 'w4', name: '갑주 분쇄', desc: '물리 피해 감소 무시가 마이너스까지 적용될 수 있음. 보스 상대로 물리 피해 감소가 절반만 적용', req: 'w1' },
+        { id: 'w5', name: '격노 순환', desc: '피격 시 5초간 물리 피해 +15% (최대 5중첩)', req: 'w2' },
+        { id: 'w6', name: '거인의 힘', desc: '쌍수 상태에서, 최종 피해 15% 증폭', req: 'w3' },
+        { id: 'w7', name: '불굴의 진군', desc: '생명력 50% 이하 시 받는 피해 15% 감폭, 주는 피해 15% 증폭', reqAny: ['w2', 'w4'] },
+        { id: 'w8', name: '파괴 본능', desc: '생명력이 50% 이상으로 회복/흡수되지 않음, 최대 생명력 -20%, 방어도 50% 감폭, 치명타 확률/치명타 피해 배율/연속타격/공격 속도/이동 속도/피해 +15%', req: 'w7' }
+    ],
+    gladiator: [],
+    assassin: [],
+    ranger: [],
+    elementalist: [],
+    warlock: [],
+    guardian: [],
+    inquisitor: []
+};
+
 const SEASON_NODES = {
     s_root: { name: '시작의 축복', desc: '경험치 +20%', stat: 'expGain', val: 20, req: null },
     s_dmg: { name: '전사의 혼', desc: '피해 +30%', stat: 'pctDmg', val: 30, req: 's_root' },
@@ -640,6 +661,7 @@ const defaultGame = {
     ascendPoints: 0,
     ascendRank: 0,
     ascendNodes: [],
+    ascendKeystones: [],
     completedTrials: [],
     unlockedTrials: [],
     seasonPoints: 0,
