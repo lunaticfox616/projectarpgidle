@@ -68,26 +68,26 @@ const STAR_WEDGE_OPTION_POOL = [
 const STAR_WEDGE_CORE_OPTION_POOL = STAR_WEDGE_OPTION_POOL.slice();
 
 const SEASON_CONTENT_ROADMAP = {
-    1: { title: '루프 1', features: ['해금: 기본 전투/장비/지도 탭'] },
-    2: { title: '루프 2', features: ['해금: 시즌 패시브 트리'] },
-    3: { title: '루프 3', features: ['해금: 유니크 도감'] },
-    4: { title: '루프 4', features: ['해금: 전직 심화 노드'] },
-    5: { title: '루프 5', features: ['해금: 혼돈 패시브 + 미궁 심화'] },
-    6: { title: '루프 6', features: ['해금: 탈리스만 시스템'] },
-    7: { title: '루프 7', features: ['해금: 운석 낙하 지점 / 별쐐기 시스템'] },
-    8: { title: '루프 8', features: ['해금: 혼돈 드랍 강화 구간'] },
-    9: { title: '루프 9', features: ['해금: 후반 성장 가속 구간'] },
-    10: { title: '루프 10', features: ['해금: 최종 루프 사이클'] },
-    11: { title: '루프 11', features: ['해금: 혼돈 심화 단계'] },
-    12: { title: '루프 12', features: ['해금: 혼돈 심화 단계'] },
-    13: { title: '루프 13', features: ['해금: 혼돈 심화 단계'] },
-    14: { title: '루프 14', features: ['해금: 혼돈 심화 단계'] },
-    15: { title: '루프 15', features: ['해금: 혼돈 심화 단계'] },
-    16: { title: '루프 16', features: ['해금: 혼돈 심화 단계'] },
-    17: { title: '루프 17', features: ['해금: 혼돈 심화 단계'] },
-    18: { title: '루프 18', features: ['해금: 혼돈 심화 단계'] },
-    19: { title: '루프 19', features: ['해금: 혼돈 심화 단계'] },
-    20: { title: '루프 20', features: ['해금: 혼돈 20 종착 루프'] }
+    1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도'] },
+    2: { title: '루프 2', features: ['해금: 홀씨 제작'] },
+    3: { title: '루프 3', features: ['해금: 고대 미궁(화석)'] },
+    4: { title: '루프 4', features: ['해금: 창공 강화'] },
+    5: { title: '루프 5', features: ['해금: 루프 패시브 확장 + 주얼'] },
+    6: { title: '루프 6', features: ['해금: 부적 시스템'] },
+    7: { title: '루프 7', features: ['해금: 별쐐기 / 운석 낙하 지점'] },
+    8: { title: '루프 8', features: ['해금: 벌집'] },
+    9: { title: '루프 9', features: ['해금: 균열'] },
+    10: { title: '루프 10', features: ['해금: 심화 혼돈'] },
+    11: { title: '루프 11', features: ['심화: 혼돈 단계 상승'] },
+    12: { title: '루프 12', features: ['심화: 혼돈 단계 상승'] },
+    13: { title: '루프 13', features: ['심화: 혼돈 단계 상승'] },
+    14: { title: '루프 14', features: ['심화: 혼돈 단계 상승'] },
+    15: { title: '루프 15', features: ['심화: 혼돈 단계 상승'] },
+    16: { title: '루프 16', features: ['심화: 혼돈 단계 상승'] },
+    17: { title: '루프 17', features: ['심화: 혼돈 단계 상승'] },
+    18: { title: '루프 18', features: ['심화: 혼돈 단계 상승'] },
+    19: { title: '루프 19', features: ['심화: 혼돈 단계 상승'] },
+    20: { title: '루프 20', features: ['종착: 혼돈 20 루프'] }
 };
 
 const SEASON_BOSS_ZONES = [
