@@ -345,7 +345,7 @@ function getPlayerStats() {
     let finalEvasion = Math.max(0, Math.floor(gearEvasion * (1 + totalEvasionPct / 100)));
     let finalEnergyShield = Math.max(0, Math.floor(gearEnergyShield * (1 + totalEnergyShieldPct / 100)));
     let finalEnergyShieldRegenRate = Math.max(0, 12.5 + gearBase.energyShieldRegen + gearExplicit.energyShieldRegen + passive.energyShieldRegen + season.energyShieldRegen + ascend.energyShieldRegen + reward.energyShieldRegen);
-    let finalEnergyShieldRechargeDelay = Math.max(0.4, 3 - (gearBase.energyShieldRechargeFaster + gearExplicit.energyShieldRechargeFaster + passive.energyShieldRechargeFaster + season.energyShieldRechargeFaster + ascend.energyShieldRechargeFaster + reward.energyShieldRechargeFaster));
+    let finalEnergyShieldRechargeDelay = Math.max(0.25, 1 - (gearBase.energyShieldRechargeFaster + gearExplicit.energyShieldRechargeFaster + passive.energyShieldRechargeFaster + season.energyShieldRechargeFaster + ascend.energyShieldRechargeFaster + reward.energyShieldRechargeFaster));
     let referenceIncomingPhysical = Math.max(1, Math.floor((2 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 3.1)));
     let armorReduction = Math.min(90, (finalArmor / (finalArmor + referenceIncomingPhysical * 10)) * 100);
     let enemyAccuracy = Math.max(60, Math.floor(90 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 24));
@@ -1233,7 +1233,7 @@ function tickEnemyAilments(pStats, dt) {
             if (ail.time > 0 && (type === 'ignite' || type === 'poison' || type === 'bleed')) {
                 let ele = type === 'ignite' ? 'fire' : (type === 'poison' ? 'chaos' : 'phys');
                 let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, enemy, pStats);
-                let dps = Math.max(1, Math.floor((enemy.maxHp || 1) * (0.0035 + power * 0.0025)));
+                let dps = Math.max(1, Math.floor((enemy.maxHp || 1) * (0.0042 + power * 0.0032)));
                 let dotDmg = Math.max(1, Math.floor(dps * dt * (1 - enemyRes / 100) * abyssPlayerMul));
                 let hpAfterDot = Math.max(0, enemy.hp - dotDmg);
                 if (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) {
@@ -2137,17 +2137,17 @@ function tickAilments(pStats, dt) {
         ail.time = Math.max(0, (ail.time || 0) - dt);
         let power = Math.max(0.1, ail.power || 0.1);
         if (ail.type === 'ignite') {
-            let burn = Math.max(1, Math.floor(pStats.maxHp * (0.0018 + power * 0.0022)));
+            let burn = Math.max(1, Math.floor(pStats.maxHp * (0.0021 + power * 0.0026)));
             burn = Math.max(1, Math.floor(burn * (1 - Math.max(0, Math.min(0.75, (pStats.resF || 0) / 100)))));
             game.playerHp -= burn;
             recordIncomingDamage('fire', burn, '점화');
         } else if (ail.type === 'poison') {
-            let poison = Math.max(1, Math.floor(pStats.maxHp * (0.0015 + power * 0.002)));
+            let poison = Math.max(1, Math.floor(pStats.maxHp * (0.0018 + power * 0.0023)));
             poison = Math.max(1, Math.floor(poison * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100)))));
             game.playerHp -= poison;
             recordIncomingDamage('chaos', poison, '중독');
         } else if (ail.type === 'bleed') {
-            let bleed = Math.max(1, Math.floor(pStats.maxHp * (0.0016 + power * 0.0018)));
+            let bleed = Math.max(1, Math.floor(pStats.maxHp * (0.0019 + power * 0.0021)));
             bleed = Math.max(1, Math.floor(bleed * (1 - Math.max(0, Math.min(0.75, (pStats.dr || 0) / 100)))));
             game.playerHp -= bleed;
             recordIncomingDamage('phys', bleed, '출혈');

@@ -1803,7 +1803,7 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
         let drawSize = enemy.isBoss ? 70 : (enemy.isElite ? 50 : 38);
         drawSize *= scale / (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95));
         drawPixelShadow(ctx, x, y + (enemy.isBoss ? 16 : 13), enemy.isBoss ? 15 : 9, enemy.isBoss ? 5 : 4, 0.17);
-        drawBattleSprite(ctx, frameImage, frame, x, y + 5, drawSize, { smoothing: 'high' });
+        drawBattleSprite(ctx, frameImage, frame, x, y + 5, drawSize, { smoothing: 'low' });
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.16;
@@ -1973,6 +1973,57 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
     ctx.restore();
 }
 
+
+function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
+    const e = element || 'phys';
+    const boost = crit ? 1.2 : 1;
+    if (e === 'fire') {
+        ctx.globalAlpha = (1 - t) * 0.62;
+        ctx.fillStyle = 'rgba(255,120,64,0.65)';
+        for (let i = 0; i < 3; i++) {
+            let spread = (i - 1) * 5;
+            ctx.beginPath();
+            ctx.ellipse(tx + spread, ty + 2 - t * 9, (3 + t * 5) * boost, (6 + t * 10) * boost, spread * 0.03, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (e === 'cold') {
+        ctx.globalAlpha = (1 - t) * 0.7;
+        ctx.strokeStyle = 'rgba(187,236,255,0.95)';
+        ctx.lineWidth = 1.6;
+        for (let i = 0; i < 3; i++) {
+            let a = (Math.PI * 2 * i) / 3 + t * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(tx + Math.cos(a) * (8 + t * 14), ty + Math.sin(a) * (8 + t * 14));
+            ctx.stroke();
+        }
+    } else if (e === 'light') {
+        ctx.globalAlpha = (1 - t) * 0.82;
+        ctx.strokeStyle = 'rgba(255,244,150,0.95)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(tx - 6, ty - 7);
+        ctx.lineTo(tx + 1, ty - 1);
+        ctx.lineTo(tx - 2, ty + 5);
+        ctx.lineTo(tx + 7, ty + 1);
+        ctx.stroke();
+    } else if (e === 'chaos') {
+        ctx.globalAlpha = (1 - t) * 0.58;
+        ctx.strokeStyle = 'rgba(220,128,255,0.86)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 7 + t * 11, t * 4.4, t * 4.4 + Math.PI * 1.2);
+        ctx.stroke();
+    } else {
+        ctx.globalAlpha = (1 - t) * 0.44;
+        ctx.strokeStyle = 'rgba(255,235,205,0.72)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(tx, ty + 2, 6 + t * 8, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+}
+
 function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     let enemyEntry = enemyPosMap[fx.enemyId];
     if (!enemyEntry) return;
@@ -2010,8 +2061,10 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
         ctx.lineTo(tx, ty);
         ctx.stroke();
     }
-    let impactTheme = getImpactThemeByElement((fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys'));
+    let impactElement = (fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
+    let impactTheme = getImpactThemeByElement(impactElement);
     drawBattleImpactBurst(ctx, tx, ty, impactTheme.primary || skillVisual.primary, impactTheme.secondary || skillVisual.secondary, t);
+    drawElementalHitAccent(ctx, impactElement, tx, ty, t, fx.crit);
     if (fx.crit) {
         ctx.globalAlpha = (1 - t) * 0.75;
         ctx.strokeStyle = '#fff4a8';
@@ -2089,13 +2142,14 @@ function updateCombatUI(pStats) {
     let ailmentEl = document.getElementById('ui-player-ailments');
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
-        let text = (game.playerAilments || []).map(ail => `${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s`).join(' · ');
+        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
+        let text = (game.playerAilments || []).map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
         let ailmentText = text ? `상태이상: ${text}` : '';
-        ailmentEl.innerText = ailmentText;
+        ailmentEl.innerHTML = ailmentText;
         let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
         if (ailmentUnderEl) ailmentUnderEl.innerText = '';
         let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
-        if (mobileAilmentEl) mobileAilmentEl.innerText = ailmentText;
+        if (mobileAilmentEl) mobileAilmentEl.innerHTML = ailmentText;
         let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             let power = Math.max(0.1, ail.power || 0.1);
@@ -2203,7 +2257,8 @@ function updateCombatUI(pStats) {
         let tags = getEnemyTraitSummary(focusedEnemy);
         let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈' };
         let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
-        let ailmentText = activeAilments.map(ail => `${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s`).join(' · ');
+        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
+        let ailmentText = activeAilments.map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;\">${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
         let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             if (!['ignite', 'poison', 'bleed'].includes(ail.type)) return sum;
@@ -2212,12 +2267,13 @@ function updateCombatUI(pStats) {
             return sum + Math.floor(dps * Math.max(0, ail.time || 0));
         }, 0);
         let pendingPct = Math.max(0, Math.min(pct, (projectedAilmentDamage / Math.max(1, focusedEnemy.maxHp || 1)) * 100));
+        let pendingStartPct = Math.max(0, pct - pendingPct);
         document.getElementById('ui-enemy-list').innerHTML = `
             <div class="enemy-card targeted">
                 <div class="enemy-name">${getEnemyDisplayName(focusedEnemy)}</div>
                 <div class="hp-bar-bg">
-                    <div class="hp-bar-fill" style="width:${pendingPct}%; background:linear-gradient(90deg,#ff8a65,#ff5252); opacity:0.55;"></div>
-                    <div class="hp-bar-fill" style="width:${pct}%"></div>
+                    <div class="hp-bar-fill enemy" style="width:${pct}%;"></div>
+                    <div class="hp-bar-fill enemy-pending" style="left:${pendingStartPct}%; width:${pendingPct}%;"></div>
                     <div class="hp-text">${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}</div>
                 </div>
                 <div class="enemy-tags muted">${ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음'}</div>
