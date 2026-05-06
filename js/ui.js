@@ -2042,6 +2042,19 @@ function updateCombatUI(pStats) {
     setTextById('ui-maxhp', pStats.maxHp);
     setTextById('ui-maxhp-stat', pStats.maxHp);
     document.getElementById('ui-hp-bar').style.width = Math.max(0, (game.playerHp / pStats.maxHp) * 100) + '%';
+    let hpAilBar = document.getElementById('ui-hp-ailment-bar');
+    if (!hpAilBar) {
+        let hpWrap = document.querySelector('#ui-hp-bar').parentElement;
+        hpAilBar = document.createElement('div');
+        hpAilBar.id = 'ui-hp-ailment-bar';
+        hpAilBar.className = 'hp-bar-fill';
+        hpAilBar.style.background = 'linear-gradient(90deg,#ff8a65,#ff5252)';
+        hpAilBar.style.opacity = '0.5';
+        hpAilBar.style.position = 'absolute';
+        hpAilBar.style.left = '0';
+        hpAilBar.style.top = '0';
+        hpWrap.insertBefore(hpAilBar, document.getElementById('ui-hp-bar'));
+    }
     let esPct = (pStats.energyShield || 0) > 0 ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
     let esInlineEl = document.getElementById('ui-es-inline');
     if (esInlineEl) esInlineEl.innerText = (pStats.energyShield || 0) > 0 ? ` · ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : '';
@@ -2075,14 +2088,25 @@ function updateCombatUI(pStats) {
     if (expBarMobile) expBarMobile.style.width = document.getElementById('ui-exp-bar').style.width;
     let ailmentEl = document.getElementById('ui-player-ailments');
     if (ailmentEl) {
-        let labels = { ignite: '점화', chill: '냉각', shock: '감전', poison: '중독' };
-        let text = (game.playerAilments || []).map(ail => `${labels[ail.type] || ail.type} ${Math.max(0, (ail.time || 0)).toFixed(1)}s`).join(' · ');
+        let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
+        let text = (game.playerAilments || []).map(ail => `${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s`).join(' · ');
         let ailmentText = text ? `상태이상: ${text}` : '';
         ailmentEl.innerText = ailmentText;
         let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
-        if (ailmentUnderEl) ailmentUnderEl.innerText = ailmentText;
+        if (ailmentUnderEl) ailmentUnderEl.innerText = '';
         let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
         if (mobileAilmentEl) mobileAilmentEl.innerText = ailmentText;
+        let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
+            if (!ail || (ail.time || 0) <= 0) return sum;
+            let power = Math.max(0.1, ail.power || 0.1);
+            if (ail.type === 'ignite') return sum + Math.floor(pStats.maxHp * (0.0018 + power * 0.0022) * ail.time);
+            if (ail.type === 'poison') return sum + Math.floor(pStats.maxHp * (0.0015 + power * 0.002) * ail.time);
+            if (ail.type === 'bleed') return sum + Math.floor(pStats.maxHp * (0.0016 + power * 0.0018) * ail.time);
+            return sum;
+        }, 0);
+        let playerHpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
+        let pendingPlayerPct = Math.max(0, Math.min(playerHpPct, (projectedPlayerAilDmg / Math.max(1, pStats.maxHp)) * 100));
+        hpAilBar.style.width = `${pendingPlayerPct}%`;
     }
     let hpCombatBar = document.getElementById('ui-player-hp-combat');
     if (hpCombatBar) hpCombatBar.style.width = `${Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100))}%`;
@@ -2172,13 +2196,26 @@ function updateCombatUI(pStats) {
     } else {
         let pct = Math.max(0, focusedEnemy.hp / focusedEnemy.maxHp * 100);
         let tags = getEnemyTraitSummary(focusedEnemy);
+        let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈' };
+        let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
+        let ailmentText = activeAilments.map(ail => `${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s`).join(' · ');
+        let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
+            if (!ail || (ail.time || 0) <= 0) return sum;
+            if (!['ignite', 'poison', 'bleed'].includes(ail.type)) return sum;
+            let power = Math.max(0, ail.power || 0);
+            let dps = Math.max(1, Math.floor((focusedEnemy.maxHp || 1) * (0.0035 + power * 0.0025)));
+            return sum + Math.floor(dps * Math.max(0, ail.time || 0));
+        }, 0);
+        let pendingPct = Math.max(0, Math.min(pct, (projectedAilmentDamage / Math.max(1, focusedEnemy.maxHp || 1)) * 100));
         document.getElementById('ui-enemy-list').innerHTML = `
             <div class="enemy-card targeted">
                 <div class="enemy-name">${getEnemyDisplayName(focusedEnemy)}</div>
                 <div class="hp-bar-bg">
+                    <div class="hp-bar-fill" style="width:${pendingPct}%; background:linear-gradient(90deg,#ff8a65,#ff5252); opacity:0.55;"></div>
                     <div class="hp-bar-fill" style="width:${pct}%"></div>
                     <div class="hp-text">${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}</div>
                 </div>
+                <div class="enemy-tags muted">${ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음'}</div>
                 <div class="enemy-tags muted">특성: ${tags.join(' · ') || '일반'}</div>
             </div>
         `;
