@@ -1803,7 +1803,7 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
         let drawSize = enemy.isBoss ? 70 : (enemy.isElite ? 50 : 38);
         drawSize *= scale / (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95));
         drawPixelShadow(ctx, x, y + (enemy.isBoss ? 16 : 13), enemy.isBoss ? 15 : 9, enemy.isBoss ? 5 : 4, 0.17);
-        drawBattleSprite(ctx, frameImage, frame, x, y + 5, drawSize, { smoothing: 'high' });
+        drawBattleSprite(ctx, frameImage, frame, x, y + 5, drawSize, { smoothing: 'low' });
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.16;
@@ -2212,12 +2212,13 @@ function updateCombatUI(pStats) {
             return sum + Math.floor(dps * Math.max(0, ail.time || 0));
         }, 0);
         let pendingPct = Math.max(0, Math.min(pct, (projectedAilmentDamage / Math.max(1, focusedEnemy.maxHp || 1)) * 100));
+        let pendingStartPct = Math.max(0, pct - pendingPct);
         document.getElementById('ui-enemy-list').innerHTML = `
             <div class="enemy-card targeted">
                 <div class="enemy-name">${getEnemyDisplayName(focusedEnemy)}</div>
                 <div class="hp-bar-bg">
-                    <div class="hp-bar-fill" style="width:${pendingPct}%; background:linear-gradient(90deg,#ff8a65,#ff5252); opacity:0.55;"></div>
-                    <div class="hp-bar-fill" style="width:${pct}%"></div>
+                    <div class="hp-bar-fill enemy" style="width:${pct}%;"></div>
+                    <div class="hp-bar-fill enemy-pending" style="left:${pendingStartPct}%; width:${pendingPct}%;"></div>
                     <div class="hp-text">${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}</div>
                 </div>
                 <div class="enemy-tags muted">${ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음'}</div>
