@@ -1,5 +1,18 @@
 // TODO: phased extraction target. Kept for load-order compatibility in phase 1.
 
+const LEECH_SOFTCAP_START = 1.2;
+const LEECH_SOFTCAP_MID = 2.5;
+const LEECH_SOFTCAP_MID_EFF = 0.6;
+const LEECH_SOFTCAP_HIGH_EFF = 0.3;
+
+function applyLeechSoftcap(rawLeech) {
+    let raw = Math.max(0, Number(rawLeech) || 0);
+    if (raw <= LEECH_SOFTCAP_START) return raw;
+    let midSpan = Math.max(0, Math.min(raw, LEECH_SOFTCAP_MID) - LEECH_SOFTCAP_START);
+    let highSpan = Math.max(0, raw - LEECH_SOFTCAP_MID);
+    return LEECH_SOFTCAP_START + midSpan * LEECH_SOFTCAP_MID_EFF + highSpan * LEECH_SOFTCAP_HIGH_EFF;
+}
+
 function coreLoop() {
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
@@ -314,7 +327,8 @@ function getPlayerStats() {
     let evadeChance = Math.min(90, (finalEvasion / (finalEvasion + enemyAccuracy)) * 100);
 
     let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0);
-    let finalLeech = ((skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech) * 0.45;
+    let rawLeech = ((skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech) * 0.45;
+    let finalLeech = applyLeechSoftcap(rawLeech);
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
     let finalDs = (gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) * 0.75;
@@ -455,7 +469,9 @@ function getPlayerStats() {
                 makeSourceLine('스킬', skill.leech || 0, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
-                makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`)
+                makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`),
+                `소프트캡: ${formatValue('leech', LEECH_SOFTCAP_START)}% 이후 60% 효율 · ${formatValue('leech', LEECH_SOFTCAP_MID)}% 이후 30% 효율`,
+                `적용 전 ${formatValue('leech', rawLeech)}% → 적용 후 ${formatValue('leech', finalLeech)}%`
             ].filter(Boolean),
             final: `${formatValue('leech', finalLeech)}%`
         },
