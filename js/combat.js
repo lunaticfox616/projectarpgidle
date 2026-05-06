@@ -241,6 +241,11 @@ function getPlayerStats() {
     });
 
     let gemSources = getGemBonusSources();
+    let hasIq6Keystone = (game.ascendClass === 'inquisitor') && hasKeystone('iq6');
+    if (hasIq6Keystone) {
+        gemSources.reward += 1;
+        gemSources.total += 1;
+    }
     safeEquippedSupports.forEach(name => {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
@@ -512,6 +517,7 @@ function getPlayerStats() {
             finalResPen += 43;
             finalCrit = 0;
         }
+        if (hasKeystone('wlk4')) finalDps *= 1.1;
         if (hasKeystone('wlk8')) {
             finalDps *= 1.25;
             finalLeech *= 0.5;
@@ -539,6 +545,7 @@ function getPlayerStats() {
             finalDps *= 0.85;
             finalDr = Math.min(75, finalDr + 15);
         }
+        if (hasKeystone('gd6')) finalArmor = Math.floor(finalArmor * 1.15);
         if (hasKeystone('gd8')) finalDr = Math.min(75, finalDr + 15);
         if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.3) {
             finalDr = Math.min(75, finalDr + 15);
@@ -553,8 +560,7 @@ function getPlayerStats() {
         if (hasKeystone('iq3')) suppCap += 1;
         if (hasKeystone('iq5')) finalResPen += 15;
         if (hasKeystone('iq6')) {
-            addStatToBucket(reward, 'gemLevel', 1);
-            addStatToBucket(reward, 'suppCap', 1);
+            suppCap += 1;
             finalMaxHp = Math.floor(finalMaxHp * 0.67);
         }
         if (hasKeystone('iq7')) finalDps *= 1.12;
@@ -1203,6 +1209,7 @@ function tickEnemyAilments(pStats, dt) {
     let zone = getZone(game.currentZoneId);
     let zoneTier = (zone && zone.tier) || 1;
     let abyssPlayerMul = (getAbyssMonsterScales(zone).playerDamageMul || 1);
+    let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
         enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
@@ -1217,7 +1224,11 @@ function tickEnemyAilments(pStats, dt) {
                 let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, enemy, pStats);
                 let dps = Math.max(1, Math.floor((enemy.maxHp || 1) * (0.0035 + power * 0.0025)));
                 let dotDmg = Math.max(1, Math.floor(dps * dt * (1 - enemyRes / 100) * abyssPlayerMul));
-                enemy.hp = Math.max(0, enemy.hp - dotDmg);
+                let hpAfterDot = Math.max(0, enemy.hp - dotDmg);
+                if (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) {
+                    hpAfterDot = Math.max(1, hpAfterDot);
+                }
+                enemy.hp = hpAfterDot;
                 addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dotDmg, duration: 200, element: ele });
             }
             if (ail.time > 0) next.push(ail);
@@ -2455,5 +2466,3 @@ function chooseLoopAdvance(shouldLoop) {
 
 
 safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill });
-        if (hasKeystone('wlk4')) finalDps *= 1.1;
-        if (hasKeystone('gd6')) finalArmor = Math.floor(finalArmor * 1.15);
