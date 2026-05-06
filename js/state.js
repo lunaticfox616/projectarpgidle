@@ -272,6 +272,90 @@ const CLASS_TEMPLATES = {
     inquisitor: { name: '인퀴지터', desc: '원소 치명타 및 보조 스킬 전문', m1: 'elementalPctDmg', m2: 'critDmg', d: 'suppCap' }
 };
 
+const CLASS_KEYSTONE_PICK_LIMIT = 4;
+const CLASS_KEYSTONE_DEFS = {
+    warrior: [
+        { id: 'w1', name: '강철 태세', desc: '물리 피해 12% 증폭, 이동속도 12% 감폭', req: null },
+        { id: 'w2', name: '전장의 리듬', desc: '치명타 발생 시 2초간 공격속도 +8% (최대 5중첩)', req: null },
+        { id: 'w3', name: '쌍수 훈련', desc: '목걸이 슬롯에 무기 장착 가능, 목걸이 장착 불가', req: null },
+        { id: 'w4', name: '갑주 분쇄', desc: '물리 피해 감소 무시가 마이너스까지 적용될 수 있음. 보스 상대로 물리 피해 감소가 절반만 적용', req: 'w1' },
+        { id: 'w5', name: '격노 순환', desc: '피격 시 5초간 물리 피해 +15% (최대 5중첩)', req: 'w2' },
+        { id: 'w6', name: '거인의 힘', desc: '쌍수 상태에서, 최종 피해 15% 증폭', req: 'w3' },
+        { id: 'w7', name: '불굴의 진군', desc: '생명력 50% 이하 시 받는 피해 15% 감폭, 주는 피해 15% 증폭', reqAny: ['w2', 'w4'] },
+        { id: 'w8', name: '파괴 본능', desc: '생명력이 50% 이상으로 회복/흡수되지 않음, 최대 생명력 -20%, 방어도 50% 감폭, 치명타 확률/치명타 피해 배율/연속타격/공격 속도/이동 속도/피해 +15%', req: 'w7' }
+    ],
+    gladiator: [
+        { id: 'g1', name: '결투 태세', desc: '물리 피해 12% 증폭, 물리가 아닌 피해 20% 감폭', req: null },
+        { id: 'g2', name: '연참 호흡', desc: '연속 타격 발생 시 3초간 공격 속도 +3%, 회피 +3% (최대 12중첩)', req: null },
+        { id: 'g3', name: '노련함', desc: '치명타가 아닌 타격 시 다음 타격 치명타 확률 +5%p, 치명타 발동 시 초기화', req: null },
+        { id: 'g4', name: '난투 본능', desc: '적이 3기 이상 주변에 있으면 받는 피해 15% 감폭, 주는 피해 15% 증폭', req: 'g1' },
+        { id: 'g5', name: '속공 전개', desc: '이동 후 첫 타격 피해 30% 증폭 및 첫 받는 피해 30% 감폭', req: 'g2' },
+        { id: 'g6', name: '마무리 타격', desc: '공격 후 적 생명력 20% 미만 즉시 처치(보스 10%)', req: 'g3' },
+        { id: 'g7', name: '투기 순환', desc: '회피 비례 연속 타격 증가, 방어도 비례 치명타 확률 증가', reqAny: ['g4', 'g5'] },
+        { id: 'g8', name: '검투의 화신', desc: '연속 타격 +100%, 보스 대상 주고/받는 피해 18% 증폭, 재생 50% 감폭, ES 재생 없음', req: 'g7' }
+    ],
+    assassin: [
+        { id: 'a1', name: '냉혹한 집중', desc: '치명타 피해 배율 +60%, 치명타 확률 -15%p', req: null },
+        { id: 'a2', name: '그림자 질주', desc: '이동 속도 +20%, 최대 생명력 -10%, 이동속도 1%당 회피 +1', req: null },
+        { id: 'a3', name: '독점 약점', desc: '치명타 발생 시 3초간 대상 받는 피해 +10% (개별 대상, 최대 5중첩)', req: null },
+        { id: 'a4', name: '암전 절개', desc: '물리 피해 감소 무시 +20%, 저항 관통 +20%, 피해 8% 감폭', req: 'a1' },
+        { id: 'a5', name: '사형 선고', desc: '적 생명력 30% 이하 대상 치명타 확률 +100%p', req: 'a3' },
+        { id: 'a6', name: '유리 심장', desc: '현재 생명력 66% 이상일 때 피해 20% 증폭, 이하 16% 감폭', req: 'a2' },
+        { id: 'a7', name: '살의 폭주', desc: '치명타 100% 초과 가능, 초과 치명타 확률 당 치명타 피해 배율 +1%', reqAny: ['a4', 'a5'] },
+        { id: 'a8', name: '종말의 송곳니', desc: '치명타 확률 -20%p, 치명타 피해 배율 +120%, 비치명타 피해 20% 감폭', req: 'a7' }
+    ],
+    ranger: [
+        { id: 'r1', name: '사냥꾼 보법', desc: '이동 속도 15% 증폭, 방어도/에너지 보호막 0', req: null },
+        { id: 'r2', name: '가속 시위', desc: '공격 속도 10% 증폭, 투사체 스킬 피해 10% 감폭', req: null },
+        { id: 'r3', name: '탄도 감각', desc: '투사체 스킬 타겟 수 +2, 투사체 스킬 최소 피해 보정 -10%', req: null },
+        { id: 'r4', name: '질풍 동조', desc: '이동 속도 10%당 공격 속도 +1%', req: 'r1' },
+        { id: 'r5', name: '급소 표식', desc: '같은 적 3회 연속 적중마다 적 최대 체력의 1% 추가 물리 피해', req: 'r2' },
+        { id: 'r6', name: '궤적 관통', desc: '관통 스킬 타겟 수 +1, 관통 스킬 피해 10% 감폭, 타겟마다 3% 증폭', req: 'r3' },
+        { id: 'r7', name: '추적 본능', desc: '피격되지 않은 시간 1초마다 치명타 확률 +5%p (피격 시 초기화)', reqAny: ['r4', 'r5'] },
+        { id: 'r8', name: '폭풍 사냥', desc: '공격 속도와 이동 속도 상호 20% 효율 보정, 최대 생명력 -15%', req: 'r7' }
+    ],
+    elementalist: [
+        { id: 'e1', name: '원소 공명', desc: '원소 피해 15% 증폭, 물리 피해 없음', req: null },
+        { id: 'e2', name: '분광 외피', desc: '모든 원소 저항 +15%, 원소 저항 최대치 +3%, 카오스 저항 -10%', req: null },
+        { id: 'e3', name: '마력 순환', desc: '에너지 보호막 재생이 끊기지 않음, 최대 생명력 -15%', req: null },
+        { id: 'e4', name: '융해 결합', desc: '모든 스킬이 화염/냉기/번개 33% 영향 스킬로 변화', req: 'e1' },
+        { id: 'e5', name: '공허 결합', desc: '카오스 저항이 가장 높은 원소 저항의 50%만큼 상승, 카오스 저항만큼 원소 피해 증가', req: 'e2' },
+        { id: 'e6', name: '원소 침식', desc: '저항 관통 +20%, 치명타 피해 배율 -25%', req: 'e3' },
+        { id: 'e7', name: '삼원 폭주', desc: '화/냉/번 동시 사용 시 최종 피해 5% 증폭, 상태이상 강도는 최종 피해 비례', reqAny: ['e4', 'e5'] },
+        { id: 'e8', name: '원소 과부하', desc: '치명타 발생 시 3초간 원소 피해 +25%, 저항 관통 +5% (최대 3중첩), 받는 피해 10% 증폭', req: 'e7' }
+    ],
+    warlock: [
+        { id: 'wlk1', name: '심연 각인', desc: '모든 피해가 카오스 피해가 됨', req: null },
+        { id: 'wlk2', name: '부패 증식', desc: '지속 피해 배율 +20%, 즉발 피해 10% 감폭', req: null },
+        { id: 'wlk3', name: '금단 대가', desc: '에너지 보호막 재생 불가, 흡수가 에너지 보호막에 대신 적용', req: null },
+        { id: 'wlk4', name: '암흑 치환', desc: '모든 원소 스킬 피해의 50%를 카오스 피해로 전환', req: 'wlk1' },
+        { id: 'wlk5', name: '전염 가속', desc: 'DOT 틱 속도 +33%, 지속시간 -50%', req: 'wlk2' },
+        { id: 'wlk6', name: '공허 관통', desc: '저항 관통 +43%, 치명타 불가, 중독 확률 +25%', req: 'wlk3' },
+        { id: 'wlk7', name: '피의 계약', desc: '에너지 보호막 50% 이하에서 피해 20% 증폭, 받는 피해 12% 증폭', reqAny: ['wlk4', 'wlk6'] },
+        { id: 'wlk8', name: '심연 군주', desc: '카오스 피해 25% 증폭, 생명력 회복 효과 50% 감폭, 중독 확률 +25%', req: 'wlk7' }
+    ],
+    guardian: [
+        { id: 'gd1', name: '요새의 맹세', desc: '방어도 20% 증폭, 생명력 10% 증폭, 이동 속도 15% 감폭', req: null },
+        { id: 'gd2', name: '생명 성채', desc: '최대 생명력 +15%, 공격 속도 8% 감폭', req: null },
+        { id: 'gd3', name: '수호 재생', desc: '초당 재생 +1.8%, 치명타 피해 배율 -25%', req: null },
+        { id: 'gd4', name: '철벽 전환', desc: '회피/에너지 보호막 0, 그 합의 50%를 방어도로 전환', req: 'gd1' },
+        { id: 'gd5', name: '불침 보루', desc: '받는 최종 피해 감폭 +15%, 주는 피해 15% 감폭', req: 'gd2' },
+        { id: 'gd6', name: '인내 장전', desc: '피격 시 4초간 방어도 +25% (최대 4중첩), 4중첩 소모 반사 피해', req: 'gd3' },
+        { id: 'gd7', name: '최후 저지선', desc: '생명력 30% 이하 시 받는 피해 15% 감폭/주는 피해 15% 증폭, 상태이상 제거(쿨 6초)', reqAny: ['gd4', 'gd5'] },
+        { id: 'gd8', name: '절대 수호', desc: '받는 최종 피해 감폭 +15%, 모든 상태 이상 저항 확률 +50%', req: 'gd7' }
+    ],
+    inquisitor: [
+        { id: 'iq1', name: '교리 집행', desc: '원소 피해 15% 증폭, 카오스/물리 피해 15% 감폭', req: null },
+        { id: 'iq2', name: '심판 렌즈', desc: '치명타 피해 배율 +45%, 치명타 확률 -8%p', req: null },
+        { id: 'iq3', name: '성서 확장', desc: '보조 젬 한도 +1, 봉인된 젬 4개당 공명력 1 증가, 공격 속도 6% 감폭', req: null },
+        { id: 'iq4', name: '순백 판결', desc: '적 원소 저항을 0으로 간주 (해당 저항에는 원소 관통 미적용)', req: 'iq1' },
+        { id: 'iq5', name: '계시 관통', desc: '저항 관통 +15%, 물리 피해 없음', req: 'iq2' },
+        { id: 'iq6', name: '신성한 희생', desc: '모든 원소/보조 젬 레벨 +1, 공명력 25당 보조 젬 한도 +1, 최대 생명력 -33%', req: 'iq3' },
+        { id: 'iq7', name: '이단 심문', desc: '치명타 시 3초간 대상 받는 원소 피해 +12%', reqAny: ['iq4', 'iq5'] },
+        { id: 'iq8', name: '절대 교리', desc: '원소 피해 15% 증폭, 저항 관통이 원소 피해 증가로 전환', req: 'iq7' }
+    ]
+};
+
 const SEASON_NODES = {
     s_root: { name: '시작의 축복', desc: '경험치 +20%', stat: 'expGain', val: 20, req: null },
     s_dmg: { name: '전사의 혼', desc: '피해 +30%', stat: 'pctDmg', val: 30, req: 's_root' },
@@ -638,8 +722,10 @@ const defaultGame = {
     currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, meteorShard: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0 },
     ascendClass: null,
     ascendPoints: 0,
+    ascendKeystonePoints: 0,
     ascendRank: 0,
     ascendNodes: [],
+    ascendKeystones: [],
     completedTrials: [],
     unlockedTrials: [],
     seasonPoints: 0,
