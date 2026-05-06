@@ -17,6 +17,18 @@ function hasKeystone(id) {
     return Array.isArray(game.ascendKeystones) && game.ascendKeystones.includes(id);
 }
 
+function getPlayerHpCap(pStats) {
+    if (!pStats) return 0;
+    let maxHp = Math.max(0, pStats.maxHp || 0);
+    return (game.ascendClass === 'warrior' && hasKeystone('w8')) ? (maxHp * 0.5) : maxHp;
+}
+
+function isDualWielding() {
+    let mainWeapon = game.equipment && game.equipment['무기'];
+    let neckWeapon = game.equipment && game.equipment['목걸이'];
+    return !!(mainWeapon && neckWeapon && neckWeapon.slot === '무기');
+}
+
 function coreLoop() {
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
@@ -30,7 +42,7 @@ function coreLoop() {
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
     if (game.playerHp > 0 && game.playerHp < pStats.maxHp) {
-        let hpCap = (game.ascendClass === 'warrior' && hasKeystone('w8')) ? (pStats.maxHp * 0.5) : pStats.maxHp;
+        let hpCap = getPlayerHpCap(pStats);
         game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
     }
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
@@ -405,7 +417,6 @@ function getPlayerStats() {
             finalAspd = Math.min(12, finalAspd * 1.15);
             finalMove *= 1.15;
             finalDps *= 1.15;
-            finalLeech = Math.min(finalLeech, 0); // hp lock handled on heal path
         }
     } else if (game.ascendClass === 'gladiator') {
         if (hasKeystone('g1')) finalDps *= 1.12;
@@ -1317,7 +1328,7 @@ function startMoving(isTown) {
 function returnToTown() {
     if (game.isTownReturning && game.moveTimer > 0) return;
     let pStats = getPlayerStats();
-    game.playerHp = pStats.maxHp;
+    game.playerHp = getPlayerHpCap(pStats);
     game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     pTimer = 0;
     addLog("⛺ 마을 귀환", "season-up");
@@ -1494,7 +1505,7 @@ function grantExpAndGem(enemy, pStats) {
         leveledUp = true;
         game.passivePoints++;
         game.noti.char = true;
-        game.playerHp = getPlayerStats().maxHp;
+        game.playerHp = getPlayerHpCap(getPlayerStats());
         addLog(`🎉 레벨업! (Lv.${game.level})`, "level-up");
         req = getExpReq(game.level);
         guard++;
@@ -1710,7 +1721,7 @@ function handleStoryActSpecialDefeat(zone, pStats) {
         game.currentZoneId = 0;
         game.maxZoneId = 0;
         game.killsInZone = 0;
-        game.playerHp = pStats.maxHp;
+        game.playerHp = getPlayerHpCap(pStats);
         startMoving(false);
         updateStaticUI();
         return true;
@@ -2002,7 +2013,7 @@ function performPlayerAttack(pStats) {
         applyEnemyAilmentFromHit(hit.enemy, pStats, dmg, isCrit);
     });
     if (pStats.leech > 0 && totalLeechableDamage > 0) {
-        let hpCap = (game.ascendClass === 'warrior' && hasKeystone('w8')) ? (pStats.maxHp * 0.5) : pStats.maxHp;
+        let hpCap = getPlayerHpCap(pStats);
         game.playerHp = Math.min(hpCap, game.playerHp + (totalLeechableDamage * (pStats.leech / 100)));
     }
 
@@ -2056,7 +2067,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         }
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
-        game.playerHp = pStats.maxHp;
+        game.playerHp = getPlayerHpCap(pStats);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(160);
@@ -2091,7 +2102,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         sourceName: opts.sourceName || ''
     };
     if (game.settings.showDeathNotice !== false) openDeathOverlay(game.lastDeathLog);
-    game.playerHp = pStats.maxHp;
+    game.playerHp = getPlayerHpCap(pStats);
     startMoving(false);
     updateStaticUI();
     queueImportantSave(160);
@@ -2434,7 +2445,7 @@ function triggerSeasonReset() {
     recalculateStarWedgeMutations();
     calculateReachableNodes();
     refreshPassiveVisibility();
-    game.playerHp = getPlayerStats().maxHp;
+    game.playerHp = getPlayerHpCap(getPlayerStats());
     ensureActJournalCompletionForLoop({ silent: false });
     addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
     checkUnlocks();
