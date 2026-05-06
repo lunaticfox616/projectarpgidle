@@ -1973,6 +1973,57 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
     ctx.restore();
 }
 
+
+function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
+    const e = element || 'phys';
+    const boost = crit ? 1.2 : 1;
+    if (e === 'fire') {
+        ctx.globalAlpha = (1 - t) * 0.62;
+        ctx.fillStyle = 'rgba(255,120,64,0.65)';
+        for (let i = 0; i < 3; i++) {
+            let spread = (i - 1) * 5;
+            ctx.beginPath();
+            ctx.ellipse(tx + spread, ty + 2 - t * 9, (3 + t * 5) * boost, (6 + t * 10) * boost, spread * 0.03, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (e === 'cold') {
+        ctx.globalAlpha = (1 - t) * 0.7;
+        ctx.strokeStyle = 'rgba(187,236,255,0.95)';
+        ctx.lineWidth = 1.6;
+        for (let i = 0; i < 3; i++) {
+            let a = (Math.PI * 2 * i) / 3 + t * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(tx + Math.cos(a) * (8 + t * 14), ty + Math.sin(a) * (8 + t * 14));
+            ctx.stroke();
+        }
+    } else if (e === 'light') {
+        ctx.globalAlpha = (1 - t) * 0.82;
+        ctx.strokeStyle = 'rgba(255,244,150,0.95)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(tx - 6, ty - 7);
+        ctx.lineTo(tx + 1, ty - 1);
+        ctx.lineTo(tx - 2, ty + 5);
+        ctx.lineTo(tx + 7, ty + 1);
+        ctx.stroke();
+    } else if (e === 'chaos') {
+        ctx.globalAlpha = (1 - t) * 0.58;
+        ctx.strokeStyle = 'rgba(220,128,255,0.86)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 7 + t * 11, t * 4.4, t * 4.4 + Math.PI * 1.2);
+        ctx.stroke();
+    } else {
+        ctx.globalAlpha = (1 - t) * 0.44;
+        ctx.strokeStyle = 'rgba(255,235,205,0.72)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(tx, ty + 2, 6 + t * 8, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+}
+
 function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     let enemyEntry = enemyPosMap[fx.enemyId];
     if (!enemyEntry) return;
@@ -2010,8 +2061,10 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
         ctx.lineTo(tx, ty);
         ctx.stroke();
     }
-    let impactTheme = getImpactThemeByElement((fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys'));
+    let impactElement = (fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
+    let impactTheme = getImpactThemeByElement(impactElement);
     drawBattleImpactBurst(ctx, tx, ty, impactTheme.primary || skillVisual.primary, impactTheme.secondary || skillVisual.secondary, t);
+    drawElementalHitAccent(ctx, impactElement, tx, ty, t, fx.crit);
     if (fx.crit) {
         ctx.globalAlpha = (1 - t) * 0.75;
         ctx.strokeStyle = '#fff4a8';
