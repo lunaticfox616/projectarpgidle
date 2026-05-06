@@ -2566,6 +2566,22 @@ function initBattleAssets() {
         finishLoad();
     }, 8000);
 
+    function queueBattleSheetSanitization(key, image) {
+        const applySanitizedSheet = () => {
+            if (battleAssets.loadTicket !== loadTicket) return;
+            try {
+                battleAssets.images[key] = sanitizeBattleSheet(image);
+            } catch (error) {
+                battleAssets.images[key] = image;
+            }
+        };
+        if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(applySanitizedSheet, { timeout: 500 });
+            return;
+        }
+        setTimeout(applySanitizedSheet, 80);
+    }
+
     Object.entries(manifest).forEach(([key, src]) => {
         let img = new Image();
         img.onload = function() {
@@ -2574,7 +2590,8 @@ function initBattleAssets() {
                     battleAssets.backdrops[key] = img;
                 } else {
                     let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || (key === 'heroLegacy' && heroSheetHasTransparency(img));
-                    battleAssets.images[key] = keepOriginalSheet ? img : sanitizeBattleSheet(img);
+                    battleAssets.images[key] = img;
+                    if (!keepOriginalSheet) queueBattleSheetSanitization(key, img);
                 }
             } catch (error) {
                 battleAssets.images[key] = img;
