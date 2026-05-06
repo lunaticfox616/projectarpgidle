@@ -2193,7 +2193,7 @@ function updateCombatUI(pStats) {
         specialSummaryEl.innerText = notes.join(' · ');
     }
 
-    let enemies = game.enemies || [];
+    let enemies = (game.enemies || []).filter(enemy => enemy && (enemy.hp || 0) > 0);
     let targetIds = getSkillTargets(pStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     let focusedEnemy = enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
     if (!focusedEnemy) {
