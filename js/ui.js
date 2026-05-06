@@ -2142,13 +2142,14 @@ function updateCombatUI(pStats) {
     let ailmentEl = document.getElementById('ui-player-ailments');
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
-        let text = (game.playerAilments || []).map(ail => `${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s`).join(' · ');
+        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
+        let text = (game.playerAilments || []).map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
         let ailmentText = text ? `상태이상: ${text}` : '';
-        ailmentEl.innerText = ailmentText;
+        ailmentEl.innerHTML = ailmentText;
         let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
         if (ailmentUnderEl) ailmentUnderEl.innerText = '';
         let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
-        if (mobileAilmentEl) mobileAilmentEl.innerText = ailmentText;
+        if (mobileAilmentEl) mobileAilmentEl.innerHTML = ailmentText;
         let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             let power = Math.max(0.1, ail.power || 0.1);
@@ -2256,7 +2257,8 @@ function updateCombatUI(pStats) {
         let tags = getEnemyTraitSummary(focusedEnemy);
         let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈' };
         let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
-        let ailmentText = activeAilments.map(ail => `${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s`).join(' · ');
+        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
+        let ailmentText = activeAilments.map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;\">${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
         let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             if (!['ignite', 'poison', 'bleed'].includes(ail.type)) return sum;
