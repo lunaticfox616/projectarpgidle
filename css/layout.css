@@ -16,6 +16,9 @@
         .hp-bar-fill.player { background-color: #20bf6b; }
         .hp-bar-fill.move { background-color: #2d98da; }
         .hp-bar-fill.exp { background-color: #a55eea; }
+        .hp-bar-fill.enemy { background: linear-gradient(90deg, #ff6b6b 0%, #eb3b5a 55%, #c92c48 100%); }
+        .hp-bar-bg .hp-bar-fill.enemy { position: relative; z-index: 1; }
+        .hp-bar-fill.enemy-pending { position: absolute; top: 0; height: 100%; z-index: 2; background: linear-gradient(90deg, rgba(255,180,110,0.85), rgba(255,112,67,0.78)); pointer-events: none; }
         .hp-text { position: absolute; width: 100%; text-align: center; top: 0; left: 0; font-size: 10px; font-weight: bold; color: white; line-height: 16px; text-shadow: 1px 1px 2px black; pointer-events: none; }
         .summary-actions { display: flex; gap: 8px; margin-top: 12px; }
         .summary-actions button { flex: 1; }
