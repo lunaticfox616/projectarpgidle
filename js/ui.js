@@ -5256,7 +5256,8 @@ function canRefundPassiveNode(nodeId) {
     let q = ['n0'];
     while (q.length > 0) {
         let cur = q.shift();
-        PASSIVE_EDGES.forEach(edge => {
+        let passiveEdges = (PASSIVE_TREE && Array.isArray(PASSIVE_TREE.edges)) ? PASSIVE_TREE.edges : [];
+        passiveEdges.forEach(edge => {
             let next = null;
             if (edge.from === cur && owned.has(edge.to)) next = edge.to;
             else if (edge.to === cur && owned.has(edge.from)) next = edge.from;
