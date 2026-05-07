@@ -5,6 +5,24 @@ let mobilePipCanvas = null;
 let mobilePipCtx = null;
 let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 94, lastTapAt: 0 };
 let mobilePipRefreshHandle = null;
+let battleAssetDeferredInitHandle = null;
+
+function startBattleAssetLoadNow() {
+    if (battleAssetDeferredInitHandle) {
+        clearTimeout(battleAssetDeferredInitHandle);
+        battleAssetDeferredInitHandle = null;
+    }
+    initBattleAssets();
+}
+
+function scheduleDeferredBattleAssetLoad() {
+    if (battleAssets.ready || battleAssets.loading || battleAssets.failed) return;
+    if (battleAssetDeferredInitHandle) return;
+    battleAssetDeferredInitHandle = setTimeout(() => {
+        battleAssetDeferredInitHandle = null;
+        startBattleAssetLoadNow();
+    }, 1800);
+}
 
 function ensureMobileBattlePip() {
     let host = document.getElementById('mobile-battle-pip');
@@ -213,6 +231,7 @@ function switchTab(tabId) {
             resizeCanvas();
         }, 40);
     } else if (tabId === 'tab-battle') {
+        startBattleAssetLoadNow();
         setTimeout(function () {
             syncBattleTabLayout(false);
             scheduleStableResize();
@@ -5029,7 +5048,7 @@ function init() {
     applySeasonContentProgression({ silent: true });
     recoverRuntimeState();
     unlockPassiveStarEvolution({ silent: true });
-    initBattleAssets();
+    scheduleDeferredBattleAssetLoad();
     refreshPassiveVisibility();
     tickShrineState();
     applyTabHeaderOrder();
