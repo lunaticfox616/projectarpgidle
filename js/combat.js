@@ -1977,7 +1977,8 @@ function performPlayerAttack(pStats) {
     let totalLeechableDamage = 0;
     let repeats = Math.max(1, Math.min(6, Math.floor(pStats.sSkill.multiHit || 1)));
     for (let hitIdx = 0; hitIdx < repeats; hitIdx++) {
-        targets.forEach(hit => {
+        let hitEntries = pStats.sSkill.randomTargetEachHit ? [{ mult: 1 }] : targets;
+        hitEntries.forEach(hit => {
             let targetEnemy = hit.enemy;
             if (pStats.sSkill.randomTargetEachHit) {
                 let alive = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
@@ -1987,7 +1988,7 @@ function performPlayerAttack(pStats) {
             if (!targetEnemy || targetEnemy.hp <= 0) return;
             let hitElement = swingElement;
             let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats);
-            let dmg = Math.floor(baseDamage * hit.mult);
+            let dmg = Math.floor(baseDamage * (hit.mult || 1));
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
             let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
