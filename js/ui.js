@@ -3,6 +3,7 @@ let lastHeavyUiRefreshAt = 0;
 
 let mobilePipCanvas = null;
 let mobilePipCtx = null;
+let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 94, lastTapAt: 0 };
 
 function ensureMobileBattlePip() {
     let host = document.getElementById('mobile-battle-pip');
@@ -10,7 +11,43 @@ function ensureMobileBattlePip() {
         host = document.createElement('div');
         host.id = 'mobile-battle-pip';
         host.style.cssText = 'position:fixed; right:10px; bottom:94px; width:148px; height:84px; border:1px solid #4c6b93; border-radius:10px; overflow:hidden; background:#0a1320; z-index:9997; display:none; box-shadow:0 8px 20px rgba(0,0,0,.35);';
-        host.onclick = () => switchTab('tab-battle');
+        host.style.touchAction = 'none';
+        host.addEventListener('pointerdown', (e) => {
+            mobilePipDrag.active = true;
+            mobilePipDrag.moved = false;
+            mobilePipDrag.startX = e.clientX;
+            mobilePipDrag.startY = e.clientY;
+            mobilePipDrag.baseRight = parseFloat(host.dataset.right || '10') || 10;
+            mobilePipDrag.baseBottom = parseFloat(host.dataset.bottom || '94') || 94;
+            host.setPointerCapture && host.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        });
+        host.addEventListener('pointermove', (e) => {
+            if (!mobilePipDrag.active) return;
+            let dx = e.clientX - mobilePipDrag.startX;
+            let dy = e.clientY - mobilePipDrag.startY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) mobilePipDrag.moved = true;
+            let right = Math.max(6, mobilePipDrag.baseRight - dx);
+            let bottom = Math.max(72, mobilePipDrag.baseBottom - dy);
+            host.dataset.right = String(right);
+            host.dataset.bottom = String(bottom);
+            host.style.right = right + 'px';
+            host.style.bottom = bottom + 'px';
+            e.preventDefault();
+        });
+        host.addEventListener('pointerup', (e) => {
+            let wasMoved = mobilePipDrag.moved;
+            mobilePipDrag.active = false;
+            host.releasePointerCapture && host.releasePointerCapture(e.pointerId);
+            if (wasMoved) return;
+            let now = Date.now();
+            if (now - mobilePipDrag.lastTapAt < 320) {
+                mobilePipDrag.lastTapAt = 0;
+                switchTab('tab-battle');
+            } else {
+                mobilePipDrag.lastTapAt = now;
+            }
+        });
         let c = document.createElement('canvas');
         c.width = 296; c.height = 168;
         c.style.cssText = 'width:100%; height:100%; display:block;';
@@ -30,7 +67,9 @@ function updateMobileBattlePipVisibility() {
     let isMobile = (window.matchMedia && window.matchMedia('(max-width: 1080px)').matches) || ('ontouchstart' in window);
     let activeBattle = (document.getElementById('tab-battle') || {}).classList.contains('active');
     let blocked = isStartupOverlayOpen() || isLoadingOverlayOpen();
-    host.style.display = (isMobile && !activeBattle && !blocked) ? 'block' : 'none';
+    host.style.display = (isMobile && !activeBattle && !blocked && game.settings && game.settings.showMobileBattlePip !== false) ? 'block' : 'none';
+    host.style.right = (host.dataset.right || '10') + 'px';
+    host.style.bottom = (host.dataset.bottom || '94') + 'px';
 }
 
 function renderMobileBattlePipFrame() {
@@ -1058,6 +1097,7 @@ function updateSettings() {
     game.settings.showLootLog = document.getElementById('chk-log-loot').checked;
     game.settings.showCrowdPauseLog = document.getElementById('chk-log-crowd').checked;
     game.settings.showDeathNotice = document.getElementById('chk-death-notice').checked;
+    game.settings.showMobileBattlePip = document.getElementById('chk-mobile-battle-pip').checked;
     game.settings.itemFilterEnabled = document.getElementById('chk-item-filter-enabled').checked;
     game.settings.itemFilterRarities = game.settings.itemFilterRarities || { normal: true, magic: true, rare: true, unique: true };
     game.settings.itemFilterRarities.normal = document.getElementById('chk-item-filter-normal').checked;
@@ -4290,7 +4330,9 @@ async function enterGameWorld() {
         console.error('updateStaticUI on enterGameWorld failed:', error);
     }
     try {
+        updateMobileBattlePipVisibility();
         renderBattlefield();
+        updateMobileBattlePipVisibility();
         renderMobileBattlePipFrame();
     } catch (error) {
         console.error('renderBattlefield on enterGameWorld failed:', error);
@@ -4444,7 +4486,9 @@ function applyExternalSave(snapshot, sourceStamp) {
         console.error('updateStaticUI after cloud load failed:', error);
     }
     try {
+        updateMobileBattlePipVisibility();
         renderBattlefield();
+        updateMobileBattlePipVisibility();
         renderMobileBattlePipFrame();
     } catch (error) {
         console.error('renderBattlefield after cloud load failed:', error);
@@ -4957,6 +5001,7 @@ function init() {
     document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
     document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
+    document.getElementById('chk-mobile-battle-pip').checked = game.settings.showMobileBattlePip !== false;
     game.settings.itemFilterRarities = { normal: true, magic: true, rare: true, unique: true, ...(game.settings.itemFilterRarities || {}) };
     document.getElementById('chk-item-filter-enabled').checked = !!game.settings.itemFilterEnabled;
     document.getElementById('chk-item-filter-normal').checked = game.settings.itemFilterRarities.normal !== false;
@@ -5027,7 +5072,9 @@ function init() {
         try { updateStaticUI(); } catch (retryError) { console.error('retry updateStaticUI failed:', retryError); }
     }
     try {
+        updateMobileBattlePipVisibility();
         renderBattlefield();
+        updateMobileBattlePipVisibility();
         renderMobileBattlePipFrame();
     } catch (error) {
         console.error('initial battlefield render failed:', error);
@@ -5069,6 +5116,7 @@ function gameLoop() {
         }
         if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
         renderBattlefield();
+        updateMobileBattlePipVisibility();
         renderMobileBattlePipFrame();
     } catch (error) {
         console.error('gameLoop error:', error);
