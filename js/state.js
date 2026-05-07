@@ -149,7 +149,7 @@ function tryAllocateAbyssPassive(nodeKey) {
     let pointCost = Math.max(1, Math.floor(node.cost || 1));
     if (getAbyssPassiveFreePoints() < pointCost) return addLog(`혼돈 패시브 포인트가 부족합니다. (필요: ${pointCost})`, 'attack-monster');
     state[node.key] = (state[node.key] || 0) + 1;
-    addLog(`🌌 혼돈 패시브 [${node.name}] ${state[node.key]}/${node.max} (소모 ${pointCost})`, 'season-up');
+    addLog(`🌌 혼돈 패시브 [${node.name}] ${state[node.key]}/${node.max} (소모 ${pointCost})`, 'season-up', { noToast: true });
     updateStaticUI();
 }
 
