@@ -1274,7 +1274,7 @@ function tickEnemyAilments(pStats, dt) {
                     hpAfterDot = Math.max(1, hpAfterDot);
                 }
                 enemy.hp = hpAfterDot;
-                addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dotDmg, duration: 200, element: ele });
+                addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dotDmg, duration: 200, element: ele, noLine: true });
             }
             if (ail.time > 0) next.push(ail);
         });
@@ -1305,7 +1305,7 @@ function tickEnemyDotEffects(pStats, dt) {
                 hpAfterDot = Math.max(1, hpAfterDot);
             }
             enemy.hp = hpAfterDot;
-            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dotDmg, duration: 240, element: dotEle });
+            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dotDmg, duration: 240, element: dotEle, noLine: true });
             if (enemy.hp <= 0) {
                 handleEnemyDeath(enemy, pStats);
                 break;
@@ -2091,7 +2091,13 @@ function performPlayerAttack(pStats) {
             if (maxDotStack > 0) dotInfo = ` · 도트중첩 ${maxDotStack}/${DOT_STACK_MAX} (${getDotStackMultiplier(maxDotStack).toFixed(2)}x)`;
         }
         let hitPrefix = isDotSkill ? '⚔️ 직격' : '⚔️';
-        let line = `${hitPrefix} 총 ${hitSummary.totalHits}히트 / 총 ${Math.floor(hitSummary.totalDamage)} 피해 / 대상 ${hitSummary.uniqueTargets.size}`;
+        let totalDamageText = `${Math.floor(hitSummary.totalDamage)} 피해`;
+        let showHitCount = hitSummary.totalHits >= 2;
+        let showTargetCount = hitSummary.uniqueTargets.size >= 2;
+        let lineCore = [totalDamageText];
+        if (showHitCount) lineCore.push(`${hitSummary.totalHits}히트`);
+        if (showTargetCount) lineCore.push(`대상 ${hitSummary.uniqueTargets.size}`);
+        let line = `${hitPrefix} ${lineCore.join(' / ')}`;
         line += dotInfo;
         if (isCrit) line = `💥 ${line}`;
         let scales = pStats.damageScales || {};

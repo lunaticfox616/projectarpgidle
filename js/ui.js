@@ -901,7 +901,11 @@ function shouldShowMobileToast(msg, cls, opts = {}) {
     let importantFailure = /(부족|실패|불가|필요|없습니다|찾을 수 없습니다|잠겨|환불|반환)/.test(text || '');
     if (importantFailure) return true;
     let level = cls || '';
-    if (level === 'attack-monster') return true;
+    if (level === 'attack-monster') {
+        let noisyCombat = /(피격|상태이상|점화|중독|출혈|감전|냉각|도트|지속\s*피해)/.test(text || '');
+        if (noisyCombat) return false;
+        return true;
+    }
     if (level === 'season-up' || level === 'loot-unique') return true;
     return false;
 }
@@ -2237,7 +2241,7 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
         ctx.beginPath();
         ctx.ellipse(tx, ty + 12, 12 + t * 9, 4 + t * 2.5, 0, 0, Math.PI * 2);
         ctx.fill();
-    } else {
+    } else if (!fx.noLine) {
         ctx.globalAlpha = 1 - t * 0.62;
         ctx.strokeStyle = skillVisual.primary;
         ctx.lineWidth = 3.2;
