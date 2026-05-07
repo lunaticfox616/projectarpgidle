@@ -5,6 +5,24 @@ let mobilePipCanvas = null;
 let mobilePipCtx = null;
 let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 94, lastTapAt: 0 };
 let mobilePipRefreshHandle = null;
+let battleAssetDeferredInitHandle = null;
+
+function startBattleAssetLoadNow() {
+    if (battleAssetDeferredInitHandle) {
+        clearTimeout(battleAssetDeferredInitHandle);
+        battleAssetDeferredInitHandle = null;
+    }
+    initBattleAssets();
+}
+
+function scheduleDeferredBattleAssetLoad() {
+    if (battleAssets.ready || battleAssets.loading || battleAssets.failed) return;
+    if (battleAssetDeferredInitHandle) return;
+    battleAssetDeferredInitHandle = setTimeout(() => {
+        battleAssetDeferredInitHandle = null;
+        startBattleAssetLoadNow();
+    }, 1800);
+}
 
 function ensureMobileBattlePip() {
     let host = document.getElementById('mobile-battle-pip');
@@ -97,6 +115,7 @@ function startMobilePipRefreshLoop() {
     if (mobilePipRefreshHandle) clearInterval(mobilePipRefreshHandle);
     mobilePipRefreshHandle = setInterval(() => {
         try {
+            if (document.hidden) return;
             updateMobileBattlePipVisibility();
             renderMobileBattlePipFrame();
         } catch (e) {}
@@ -213,6 +232,7 @@ function switchTab(tabId) {
             resizeCanvas();
         }, 40);
     } else if (tabId === 'tab-battle') {
+        startBattleAssetLoadNow();
         setTimeout(function () {
             syncBattleTabLayout(false);
             scheduleStableResize();
@@ -5029,7 +5049,7 @@ function init() {
     applySeasonContentProgression({ silent: true });
     recoverRuntimeState();
     unlockPassiveStarEvolution({ silent: true });
-    initBattleAssets();
+    scheduleDeferredBattleAssetLoad();
     refreshPassiveVisibility();
     tickShrineState();
     applyTabHeaderOrder();
@@ -5306,9 +5326,14 @@ function refundAscendNode(id) {
     let blockers = Object.keys(tree).filter(key => {
         if (key === id || !game.ascendNodes.includes(key)) return false;
         let req = tree[key].req;
-        if (!req) return false;
-        if (Array.isArray(req)) return req.includes(id) && req.filter(v => v !== id).every(v => !game.ascendNodes.includes(v));
-        return req === id;
+        let reqAny = Array.isArray(tree[key].reqAny) ? tree[key].reqAny : [];
+        let blockedByReq = false;
+        if (req) {
+            if (Array.isArray(req)) blockedByReq = req.includes(id) && req.filter(v => v !== id).every(v => !game.ascendNodes.includes(v));
+            else blockedByReq = req === id;
+        }
+        let blockedByReqAny = reqAny.includes(id) && reqAny.filter(v => v !== id).every(v => !game.ascendNodes.includes(v));
+        return blockedByReq || blockedByReqAny;
     });
     if (blockers.length > 0) return addLog('선행 조건으로 연결된 전직 패시브가 있어 반환할 수 없습니다.', 'attack-monster');
     if ((game.currencies.scour || 0) < 1) return addLog('전직 패시브 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
