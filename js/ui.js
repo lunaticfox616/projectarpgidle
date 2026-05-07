@@ -3334,6 +3334,8 @@ function setupCanvasEvents() {
     let lastTouchY = 0;
     let pendingTouchPassiveId = null;
     let pendingTouchPassiveAt = 0;
+    let pendingTouchPassiveRefundId = null;
+    let pendingTouchPassiveRefundAt = 0;
 
     function hideCanvasTooltip() {
         if (!canvasTooltip) return;
@@ -3447,7 +3449,10 @@ function setupCanvasEvents() {
         camY = clientY - dragStartY;
         clampPassiveCamera();
         dragDist += Math.abs(deltaX) + Math.abs(deltaY);
-        if (dragDist >= 10) pendingTouchPassiveId = null;
+        if (dragDist >= 10) {
+            pendingTouchPassiveId = null;
+            pendingTouchPassiveRefundId = null;
+        }
         drawPassiveTree();
         hideCanvasTooltip();
     }
@@ -3472,6 +3477,21 @@ function setupCanvasEvents() {
         let canActivate = !(game.passives || []).includes(hoverNode.id) && reachableNodes.has(hoverNode.id);
         if (!canActivate) {
             if ((game.passives || []).includes(hoverNode.id)) {
+                if (options.fromTouch) {
+                    let now = Date.now();
+                    if (pendingTouchPassiveRefundId !== hoverNode.id || (now - pendingTouchPassiveRefundAt) > 1200) {
+                        pendingTouchPassiveRefundId = hoverNode.id;
+                        pendingTouchPassiveRefundAt = now;
+                        renderPassiveTooltip(hoverNode, options.clientX || 0, options.clientY || 0);
+                        addLog('👆 반환 확인: 같은 노드를 한 번 더 탭하면 환불 창이 열립니다.', 'loot-magic');
+                        return;
+                    }
+                }
+                let label = getPassiveNodeDisplayName(hoverNode);
+                if (!confirm(`[${label}] 노드를 반환할까요?
+정화의 오브 1개가 소모됩니다.`)) return;
+                pendingTouchPassiveId = null;
+                pendingTouchPassiveRefundId = null;
                 return refundPassiveNode(hoverNode.id);
             }
             if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
