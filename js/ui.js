@@ -3,6 +3,7 @@ let lastHeavyUiRefreshAt = 0;
 
 let mobilePipCanvas = null;
 let mobilePipCtx = null;
+let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 94, lastTapAt: 0 };
 
 function ensureMobileBattlePip() {
     let host = document.getElementById('mobile-battle-pip');
@@ -10,7 +11,43 @@ function ensureMobileBattlePip() {
         host = document.createElement('div');
         host.id = 'mobile-battle-pip';
         host.style.cssText = 'position:fixed; right:10px; bottom:94px; width:148px; height:84px; border:1px solid #4c6b93; border-radius:10px; overflow:hidden; background:#0a1320; z-index:9997; display:none; box-shadow:0 8px 20px rgba(0,0,0,.35);';
-        host.onclick = () => switchTab('tab-battle');
+        host.style.touchAction = 'none';
+        host.addEventListener('pointerdown', (e) => {
+            mobilePipDrag.active = true;
+            mobilePipDrag.moved = false;
+            mobilePipDrag.startX = e.clientX;
+            mobilePipDrag.startY = e.clientY;
+            mobilePipDrag.baseRight = parseFloat(host.dataset.right || '10') || 10;
+            mobilePipDrag.baseBottom = parseFloat(host.dataset.bottom || '94') || 94;
+            host.setPointerCapture && host.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        });
+        host.addEventListener('pointermove', (e) => {
+            if (!mobilePipDrag.active) return;
+            let dx = e.clientX - mobilePipDrag.startX;
+            let dy = e.clientY - mobilePipDrag.startY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) mobilePipDrag.moved = true;
+            let right = Math.max(6, mobilePipDrag.baseRight - dx);
+            let bottom = Math.max(72, mobilePipDrag.baseBottom - dy);
+            host.dataset.right = String(right);
+            host.dataset.bottom = String(bottom);
+            host.style.right = right + 'px';
+            host.style.bottom = bottom + 'px';
+            e.preventDefault();
+        });
+        host.addEventListener('pointerup', (e) => {
+            let wasMoved = mobilePipDrag.moved;
+            mobilePipDrag.active = false;
+            host.releasePointerCapture && host.releasePointerCapture(e.pointerId);
+            if (wasMoved) return;
+            let now = Date.now();
+            if (now - mobilePipDrag.lastTapAt < 320) {
+                mobilePipDrag.lastTapAt = 0;
+                switchTab('tab-battle');
+            } else {
+                mobilePipDrag.lastTapAt = now;
+            }
+        });
         let c = document.createElement('canvas');
         c.width = 296; c.height = 168;
         c.style.cssText = 'width:100%; height:100%; display:block;';
@@ -31,6 +68,8 @@ function updateMobileBattlePipVisibility() {
     let activeBattle = (document.getElementById('tab-battle') || {}).classList.contains('active');
     let blocked = isStartupOverlayOpen() || isLoadingOverlayOpen();
     host.style.display = (isMobile && !activeBattle && !blocked && game.settings && game.settings.showMobileBattlePip !== false) ? 'block' : 'none';
+    host.style.right = (host.dataset.right || '10') + 'px';
+    host.style.bottom = (host.dataset.bottom || '94') + 'px';
 }
 
 function renderMobileBattlePipFrame() {
