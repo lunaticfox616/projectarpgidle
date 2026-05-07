@@ -3710,7 +3710,11 @@ function mergeDefaults(save) {
         ? Array.from(new Set(merged.ascendKeystones.filter(id => typeof id === 'string' && classKeystoneSet.has(id)))).slice(0, CLASS_KEYSTONE_PICK_LIMIT)
         : [];
     if (merged.ascendClass) {
-        let legacyKeystoneTotal = Math.min(CLASS_KEYSTONE_PICK_LIMIT, Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, 0, 0, 4))));
+        let legacyTrialCount = Array.isArray(merged.completedTrials)
+            ? merged.completedTrials.filter(id => ['trial_1', 'trial_2', 'trial_3', 'trial_4'].includes(id)).length
+            : 0;
+        let legacyAscendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, 0, 0, 4)));
+        let legacyKeystoneTotal = Math.min(CLASS_KEYSTONE_PICK_LIMIT, Math.max(legacyAscendRank, legacyTrialCount));
         let minExpectedPoints = Math.max(0, legacyKeystoneTotal - merged.ascendKeystones.length);
         merged.ascendKeystonePoints = Math.max(merged.ascendKeystonePoints, minExpectedPoints);
     }
