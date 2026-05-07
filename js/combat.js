@@ -2382,7 +2382,9 @@ function awardLoopProgressPoints() {
     game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
     game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
     let baseDepth = Math.max(20, Math.floor(game.loopProgressBase.abyssEndlessDepth || 20));
-    let nowDepth = Math.max(20, Math.floor(game.abyssEndlessDepth || 20));
+    let unlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : [];
+    let highestUnlocked = unlockedDepths.length > 0 ? Math.max(...unlockedDepths) : Math.max(20, Math.floor(game.abyssEndlessDepth || 20));
+    let nowDepth = Math.max(20, highestUnlocked >= 21 ? (highestUnlocked - 1) : highestUnlocked);
     let depthGain = Math.max(0, nowDepth - baseDepth);
     let baseLab = Math.max(1, Math.floor(game.loopProgressBase.labyrinthUnlockedMaxFloor || 1));
     let nowLab = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
@@ -2407,7 +2409,9 @@ function triggerSeasonReset() {
     playLoopRewriteEffect();
     let previousHeroId = game.selectedHeroId || 'hero1';
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+    let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
+    let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let abyssLoopPointGain = Math.max(0, (Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths.length : 0) * 5);
     game.season++;
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
@@ -2415,7 +2419,7 @@ function triggerSeasonReset() {
     if (game.loopCount === 2 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_spore_crafting', '홀씨 제작 해금', '루프 2 달성! 이제 액트/혼돈 몬스터가 화염/냉기/번개 홀씨를 떨어뜨립니다.\n제작 탭에서 오브 사용 시 홀씨 태그를 지정할 수 있습니다.', 'tab-items');
     }
-    if (loopReward.bonus > 0) addLog(`🧬 심화 루프 보상: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain})`, 'season-up');
+    addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
     if (abyssLoopPointGain > 0) addLog(`🌌 루프 정산: 혼돈 최초 클리어 보상 +${abyssLoopPointGain}pt`, 'season-up');
     game.level = 1;
     game.exp = 0;
@@ -2489,6 +2493,7 @@ function triggerSeasonReset() {
         game.settings.autoSalvageEnabled = false;
         game.settings.itemFilterEnabled = false;
     }
+    game.loopDeepPoints = Math.max(loopDeepBeforeReset, loopDeepExpectedAfterSettle);
     grantCodexLegacyStarterUniques();
     game.enemies = [];
     game.encounterPlan = [];

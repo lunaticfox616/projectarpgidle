@@ -2934,7 +2934,7 @@ function buildCraftActionButtons(item) {
                 game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
                 let chaos20Cleared = !!game.loopProgressCurrent.chaos20Cleared;
-                let expectedDepthGain = Math.max(0, Math.floor((game.abyssEndlessDepth || 20) - (game.loopProgressBase.abyssEndlessDepth || 20)));
+                let unlockedDepthsForReward = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let highestUnlockedForReward = unlockedDepthsForReward.length > 0 ? Math.max(...unlockedDepthsForReward) : Math.floor(game.abyssEndlessDepth || 20); let clearedDepthForReward = Math.max(20, highestUnlockedForReward >= 21 ? (highestUnlockedForReward - 1) : highestUnlockedForReward); let expectedDepthGain = Math.max(0, Math.floor(clearedDepthForReward - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
                 let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;
                 let deepStats = game.loopDeepStats || {};
@@ -2952,6 +2952,16 @@ function buildCraftActionButtons(item) {
     } else {
         document.getElementById('ui-abyss-passive-summary').innerHTML = `<span style="color:#7f8c8d;">혼돈(지도 ${ABYSS_START_ZONE_ID}번 이후)부터 개방됩니다.</span>`;
         document.getElementById('ui-abyss-passive-grid').innerHTML = '';
+        let loop10Panel = document.getElementById('ui-loop10-panel');
+        if (loop10Panel) {
+            let loop10Open = (game.season || 1) >= 10;
+            loop10Panel.style.display = loop10Open ? 'block' : 'none';
+            if (loop10Open) {
+                let deepStats = game.loopDeepStats || {};
+                let deepTotalLine = `총합 보너스: 생명력 +${Math.floor((deepStats.flatHp||0)*10)}, 피해 +${Math.floor((deepStats.flatDmg||0)*2)}, 공속 +${((deepStats.aspd||0)*1.2).toFixed(1)}%, 이속 +${((deepStats.move||0)*0.8).toFixed(1)}%, 물피감 +${((deepStats.dr||0)*0.5).toFixed(1)}%, 치명 +${((deepStats.crit||0)*0.6).toFixed(1)}%`;
+                loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">혼돈 20 클리어 후 해금됩니다.</div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div><div style="margin-top:4px; color:#9ec4f0;">${deepTotalLine}</div><div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>`;
+            }
+        }
     }
     let seasonRoadmapKeys = (game.unlockedSeasonContents || []).map(id => parseInt(String(id).replace('season_', ''), 10)).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
     document.getElementById('ui-season-content-roadmap').innerHTML = seasonRoadmapKeys.map(seasonNum => {
