@@ -79,6 +79,9 @@ function isNotiEnabled(key){ game.settings=game.settings||{}; game.settings.noti
 function toggleNotiFilter(key){ game.settings=game.settings||{}; game.settings.notiFilters=game.settings.notiFilters||{}; game.settings.notiFilters[key]=!(game.settings.notiFilters[key] !== false); updateStaticUI(); }
 
 function switchTab(tabId) {
+    hideInfoTooltip();
+    hideItemTooltip();
+    if (typeof window.hidePassiveNodeTooltip === 'function') window.hidePassiveNodeTooltip();
     let gateKey = TAB_UNLOCK_GATES[tabId];
     if (gateKey && !game.unlocks[gateKey]) {
         addLog(getLockedTabMessage(tabId), 'attack-monster');
@@ -3229,6 +3232,8 @@ function setupCanvasEvents() {
         clearActiveTooltip('canvas-tooltip');
     }
 
+    window.hidePassiveNodeTooltip = hideCanvasTooltip;
+
     function getPassiveNodeAtClientPosition(clientX, clientY) {
         ensurePassiveRenderCache();
         const rect = canvas.getBoundingClientRect();
@@ -4876,11 +4881,16 @@ async function resetGame() {
 }
 
 function init() {
-    gameplayStarted = false;
-    setStartupOverlayActive(true);
-    setLoadingOverlayState(false);
-    loadGame();
-    updateCloudSaveUI();
+    if (!window.__startupFirstPaintDone) {
+        window.__startupFirstPaintDone = true;
+        gameplayStarted = false;
+        setStartupOverlayActive(true);
+        setLoadingOverlayState(false);
+        loadGame();
+        updateCloudSaveUI();
+        setTimeout(init, 0);
+        return;
+    }
     applySeasonContentProgression({ silent: true });
     recoverRuntimeState();
     unlockPassiveStarEvolution({ silent: true });
