@@ -855,7 +855,7 @@ function getPlayerStats() {
         }
     };
 
-    return {
+    let enemy = {
         baseDmg: finalBaseDmg,
         maxHp: finalMaxHp,
         aspd: finalAspd || 1.0,
@@ -894,6 +894,8 @@ function getPlayerStats() {
         energyShieldRechargeDelay: finalEnergyShieldRechargeDelay,
         breakdowns: breakdowns
     };
+    applyGrandBreachMobTuning(zone, enemy);
+    return enemy;
 }
 
 function getGemPresentation(name, isSupport) {
@@ -1483,10 +1485,10 @@ function tickGrandBreachRun(zone) {
     if (g.phase === 'survival') {
         g.timeLeft = Math.max(0, (g.timeLeft || 0) - dt);
         let alive = (game.enemies || []).filter(e => e.hp > 0).length;
-        if (alive < 4 && now >= (g.nextRefillAt || 0)) {
-            g.nextRefillAt = now + 1400;
-            let add = 2 + Math.floor(Math.random() * 2);
-            for (let i = 0; i < add; i++) game.enemies.push(createEnemy(zone, { elite: Math.random() < 0.25, boss: false }, i));
+        if (alive < 7 && now >= (g.nextRefillAt || 0)) {
+            g.nextRefillAt = now + 700;
+            let add = 4 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < add; i++) game.enemies.push(createEnemy(zone, { elite: Math.random() < 0.55, boss: false }, i));
         }
         if (g.timeLeft <= 0 && alive <= 0) {
             g.phase = 'boss';
@@ -1561,6 +1563,13 @@ function grantExpAndGem(enemy, pStats) {
     if (leveledUp) queueImportantSave(250);
 }
 
+function applyGrandBreachMobTuning(zone, enemy) {
+    if (!zone || zone.id !== 'grand_breach_run' || !enemy || enemy.isBoss) return;
+    enemy.maxHp = Math.max(1, Math.floor((enemy.maxHp || 1) * 5));
+    enemy.hp = enemy.maxHp;
+    enemy.atkMul = (enemy.atkMul || 1) * 1.25;
+}
+
 function rollLootForEnemy(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     if (Math.random() < (enemy.isBoss ? 0.15 : enemy.isElite ? 0.03 : 0.005)) {
@@ -1589,7 +1598,15 @@ function rollLootForEnemy(enemy) {
                     let before = Math.max(1, Math.floor(record.unlockedTier || 1));
                     if (before < 3) {
                         record.unlockedTier = before + 1;
-                        if ((record.activeTier || 1) < record.unlockedTier) record.activeTier = record.unlockedTier;
+                        if ((record.activeTier || 1) < record.unlockedTier) {
+                            let prevTier = Math.max(1, Math.floor(record.activeTier || 1));
+                            let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
+                            let remain = Math.max(0, Math.floor(game.resonancePower || 0) - used);
+                            let nextCost = Math.max(1, Math.floor(getSupportResonanceCost(gem) * (record.unlockedTier === 2 ? 2.4 : 3.8)));
+                            if (!(game.equippedSupports || []).includes(gem) || remain >= (nextCost - getSupportResonanceCost(gem) * (prevTier <= 1 ? 1 : (prevTier === 2 ? 2.4 : 3.8)))) {
+                                record.activeTier = record.unlockedTier;
+                            }
+                        }
                         game.supportGemData[gem] = record;
                         didImprove = true;
                     }
@@ -1649,17 +1666,17 @@ function rollLootForEnemy(enemy) {
         if (Math.random() < 0.10) {
             let pollenAmount = enemy.isElite ? 5 : 2;
             awardCurrency('pollen', pollenAmount);
-            beeLootLogs.push(`꽃가루 x${pollenAmount}`);
+            beeLootLogs.push(`꽃가루 +${pollenAmount}`);
         }
         if (enemy.isElite && Math.random() < 0.03) {
             awardCurrency('venomStinger', 1);
-            beeLootLogs.push('독벌침 x1');
+            beeLootLogs.push('독벌침 +1');
         }
         if (enemy.isElite && Math.random() < 0.004) {
             awardCurrency('enchantedHoney', 1);
-            beeLootLogs.push('마력 깃든 벌꿀 x1');
+            beeLootLogs.push('마력 깃든 벌꿀 +1');
         }
-        if (game.settings.showLootLog && beeLootLogs.length > 0) addLog(`🐝 전리품 획득: ${beeLootLogs.join(', ')}`, 'loot-normal');
+        if (game.settings.showLootLog && beeLootLogs.length > 0) beeLootLogs.forEach(msg => addLog(`🐝 ${msg}`, 'loot-normal'));
     }
     if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.05 : enemy.isElite ? 0.015 : 0.002)) {
         awardCurrency('hiveKey', 1);
@@ -2152,7 +2169,14 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         return;
     }
     game.loopDeaths = Math.max(0, Math.floor(game.loopDeaths || 0)) + 1;
-    if (zone.type === 'seasonBoss' && game.inTicketBossFight) {
+    if (zone && zone.id === 'grand_breach_run') {
+        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
+        let grand = v.grandRun || {};
+        addLog(message || "☠️ 대균열에서 패배했습니다. 균열이 닫히며 추방됩니다.", "death", { noToast: !!opts.noToast });
+        v.grandRun = { ...grand, inRun: false, phase: 'failed' };
+        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : game.maxZoneId;
+        game.killsInZone = 0;
+    } else if (zone.type === 'seasonBoss' && game.inTicketBossFight) {
         addLog(message || "☠️ 시즌 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death", { noToast: !!opts.noToast });
         game.currentZoneId = 0;
         game.killsInZone = 0;
@@ -2495,7 +2519,7 @@ function triggerSeasonReset() {
     game.talismanSelectedId = null;
     game.talismanUnseal = null;
     game.talismanUnlockPickMode = false;
-    game.abyssPassivePoints = abyssLoopPointGain;
+    game.abyssPassivePoints = 0;
     game.abyssPassives = { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 };
     game.abyssClearedDepths = [];
     game.claimableActRewards = [];

@@ -871,8 +871,8 @@ function getSupportTierResonanceCost(name) {
     let base = getSupportResonanceCost(name);
     let tier = getSupportActiveTier(name);
     if (tier <= 1) return base;
-    if (tier === 2) return Math.max(base + 1, Math.floor(base * 1.8));
-    return Math.max(base + 3, Math.floor(base * 2.8));
+    if (tier === 2) return Math.max(base + 2, Math.floor(base * 2.4));
+    return Math.max(base + 5, Math.floor(base * 3.8));
 }
 function getSupportActiveTier(name) {
     let rec = normalizeGemRecord(((game.supportGemData || {})[name]) || { level: 1, exp: 0 });
@@ -2354,11 +2354,12 @@ function updateCombatUI(pStats) {
         let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
         let text = (game.playerAilments || []).map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
         let ailmentText = text ? `상태이상: ${text}` : '';
-        ailmentEl.innerHTML = ailmentText;
+        let isMobile = (window.matchMedia && window.matchMedia('(max-width: 1080px)').matches) || ('ontouchstart' in window);
+        ailmentEl.innerHTML = isMobile ? '' : ailmentText;
         let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
         if (ailmentUnderEl) ailmentUnderEl.innerText = '';
         let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
-        if (mobileAilmentEl) mobileAilmentEl.innerHTML = ailmentText;
+        if (mobileAilmentEl) mobileAilmentEl.innerHTML = isMobile ? ailmentText : '';
         let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             let power = Math.max(0.1, ail.power || 0.1);
@@ -2976,8 +2977,9 @@ function buildCraftActionButtons(item) {
     let seasonBossRepeatBtn = document.getElementById('btn-season-boss-repeat');
     if (seasonBossRepeatWrap) seasonBossRepeatWrap.style.display = seasonBosses.length > 0 ? 'block' : 'none';
     if (seasonBossRepeatBtn) {
-        seasonBossRepeatBtn.innerText = `반복 도전 ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`;
+        seasonBossRepeatBtn.innerText = `뿌리 보스 도전 ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`;
         seasonBossRepeatBtn.style.background = game.autoRepeatSeasonBoss ? '#2f6a42' : '#5b4a2f';
+        seasonBossRepeatBtn.style.minWidth = '160px';
     }
     document.getElementById('ui-season-boss-list').innerHTML = seasonBosses.map(zone => {
         let keys = game.currencies[zone.key] || 0;
@@ -3015,8 +3017,8 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-meteor-header').style.display = meteorUnlocked ? 'block' : 'none';
     document.getElementById('ui-meteor-list').innerHTML = meteorUnlocked ? `<div class="map-item ${game.currentZoneId === METEOR_FALL_ZONE_ID ? 'current' : ''}" ${meteorReady ? `onclick="changeZone('${METEOR_FALL_ZONE_ID}')"` : ''}>
         <div class="map-item-main"><span>☄️</span><span>운석 낙하 지점<br><span class="map-zone-status">하늘의 균열 ${meteorGauge}% ${meteorReady ? '· 입장 가능' : '· 충전 중'}</span></span></div>
-        <div class="map-item-actions"><span class="map-zone-status">난이도: 혼돈 ${Math.max(1, Math.floor((game.starWedge && game.starWedge.skyRiftMinTier) || 1))}</span></div>
-    </div><div style="display:flex; gap:6px; margin-top:6px;"><button onclick="toggleMeteorAutoEnter()">운석 자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}</button></div>` : '';
+        <div class="map-item-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="map-zone-status">난이도: 혼돈 ${Math.max(1, Math.floor((game.starWedge && game.starWedge.skyRiftMinTier) || 1))}</span><button style="padding:4px 8px; min-height:30px;" onclick="event.stopPropagation(); toggleMeteorAutoEnter()">자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}</button></div>
+    </div>` : '';
 
     let availTrials = TRIAL_ZONES.filter(trial => (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id));
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
@@ -3181,9 +3183,12 @@ function buildCraftActionButtons(item) {
         let badge = '';
         let gemInfo = getGemPresentation(name, false);
         if (SKILL_DB[name].isGem) badge = `<span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
-        let sealBtn = name === game.activeSkill ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
+        let sealBtn = name === game.activeSkill ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">🔒 봉인</button>`;
         return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong>${badge}${sealBtn}</div>`;
     }).join('');
+    if (!foldAttackInactive) {
+        document.getElementById('ui-skills-list').innerHTML += `<div style="margin-top:6px;"><button style="width:100%; font-size:0.75em; padding:4px 8px;" onclick="sealAllInactiveSkillGems()">미사용 젬 일괄 봉인</button></div>`;
+    }
     if (sealedSkills.length > 0 && !foldAttackInactive) {
         document.getElementById('ui-skills-list').innerHTML += sealedSkills.map(name => `<div class="skill-gem" style="opacity:0.78;"><strong>🔒 ${escapeHTML(name)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSkillGem('${name}')">해제 (공명 -1)</button></div>`).join('');
     }
@@ -3207,10 +3212,13 @@ function buildCraftActionButtons(item) {
         let activeTier = getSupportActiveTier(name);
         let tierLabel = activeTier === 3 ? '상급' : activeTier === 2 ? '중급' : '하급';
         let cost = getSupportTierResonanceCost(name);
-        let sealBtn = active ? '' : `<button style="margin-left:4px; font-size:0.66em; padding:1px 4px;" onclick="event.stopPropagation(); sealSupportGem('${name}')">🔒</button>`;
+        let sealBtn = active ? '' : `<button style="margin-left:4px; font-size:0.66em; padding:1px 4px;" onclick="event.stopPropagation(); sealSupportGem('${name}')">🔒 봉인</button>`;
         let tierBtns = [1,2,3].map(t => `<button style="font-size:0.62em; padding:1px 3px; ${t<=unlockedTier?'':'opacity:.4;'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${t})" ${t<=unlockedTier?'':'disabled'}>${t===1?'하':t===2?'중':'상'}</button>`).join('');
         return `<div class="skill-gem support-gem ${active}" onclick="toggleSupport('${name}')" onmouseenter="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">${tierLabel} · Lv.${gemInfo.totalLevel} · 공명 ${cost}</span><span style="display:inline-flex; gap:2px; margin-left:4px;">${tierBtns}</span>${sealBtn}</div>`;
     }).join('');
+    if (!foldSupportInactive) {
+        document.getElementById('ui-support-list').innerHTML += `<div style="margin-top:6px;"><button style="width:100%; font-size:0.75em; padding:4px 8px;" onclick="sealAllInactiveSupportGems()">미사용 젬 일괄 봉인</button></div>`;
+    }
     if (sealedSupports.length > 0 && !foldSupportInactive) {
         document.getElementById('ui-support-list').innerHTML += sealedSupports.map(name => `<div class="skill-gem support-gem" style="opacity:0.78;"><strong>🔒 ${escapeHTML(name)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSupportGem('${name}')">해제 (공명 -1)</button></div>`).join('');
     }
