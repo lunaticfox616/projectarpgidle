@@ -105,7 +105,6 @@ function renderMobileBattlePipFrame() {
     let src = document.getElementById('battlefield-canvas');
     if (!src) return;
     if (src.width < 32 || src.height < 32) { src.width = 960; src.height = 540; }
-    try { renderBattlefield(true); } catch (e) {}
     mobilePipCtx.clearRect(0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
     mobilePipCtx.drawImage(src, 0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
 }
