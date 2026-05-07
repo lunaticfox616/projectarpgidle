@@ -2544,8 +2544,25 @@ function initBattleAssets() {
             if (!fileExists(src)) optionalManifestKeys.add(key);
         }
     });
-    let pending = Object.keys(manifest).length;
+    const manifestEntries = Object.entries(manifest);
+    let pending = manifestEntries.length;
+    const totalAssets = pending;
     let settled = false;
+    function updateBattleAssetLoadProgress(currentKey) {
+        if (typeof document === 'undefined') return;
+        let overlay = document.getElementById('loading-overlay');
+        if (!overlay || !overlay.classList.contains('active')) return;
+        let loaded = Math.max(0, totalAssets - pending);
+        let ratio = totalAssets > 0 ? (loaded / totalAssets) : 1;
+        let progress = Math.floor(58 + ratio * 34);
+        if (typeof advanceLoadingOverlay === 'function') {
+            advanceLoadingOverlay({
+                progress: progress,
+                detail: `전투 에셋 로딩 중... (${loaded}/${totalAssets})`,
+                caption: currentKey ? `Asset: ${currentKey}` : 'Asset: preparing'
+            });
+        }
+    }
     function finishLoad() {
         if (settled || pending > 0 || battleAssets.loadTicket !== loadTicket) return;
         settled = true;
@@ -2582,7 +2599,9 @@ function initBattleAssets() {
         setTimeout(applySanitizedSheet, 80);
     }
 
-    Object.entries(manifest).forEach(([key, src]) => {
+    function loadManifestEntryAt(index) {
+        if (index >= manifestEntries.length || battleAssets.loadTicket !== loadTicket || settled) return;
+        let [key, src] = manifestEntries[index];
         let img = new Image();
         img.onload = function() {
             try {
@@ -2597,7 +2616,9 @@ function initBattleAssets() {
                 battleAssets.images[key] = img;
             }
             pending--;
+            updateBattleAssetLoadProgress(key);
             finishLoad();
+            loadManifestEntryAt(index + 1);
         };
         img.onerror = function() {
             if (!optionalManifestKeys.has(key)) {
@@ -2606,10 +2627,14 @@ function initBattleAssets() {
             }
             pending--;
             console.warn('battle asset load failed:', key, src);
+            updateBattleAssetLoadProgress(key);
             finishLoad();
+            loadManifestEntryAt(index + 1);
         };
         img.src = src;
-    });
+    }
+    updateBattleAssetLoadProgress();
+    loadManifestEntryAt(0);
 }
 
 function sanitizeBattleSheet(image) {
