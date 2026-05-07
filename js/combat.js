@@ -125,12 +125,14 @@ function coreLoop() {
                     v.spawnTick = 0;
                     let idx = v.spawnedCount;
                     let marker = { at: Math.max(5, Math.min(95, 10 + idx * 8)), elite: Math.random() < 0.18, boss: false };
-                    game.enemies.push(createEnemy(zoneNow, marker, idx + 1));
+                    let riftEnemy = createEnemy(zoneNow, marker, idx + 1);
+                    riftEnemy.fromVoidRift = true;
+                    game.enemies.push(riftEnemy);
                     v.spawnedCount++;
                     if (game.settings.showSpawnLog !== false) addLog(`🕳️ 균열 출현 ${v.spawnedCount}/${v.totalToSpawn}`, 'attack-monster', { noToast: true });
                 }
             }
-            if (v.spawnedCount >= v.totalToSpawn && (game.enemies || []).filter(e => e.hp > 0).length === 0) {
+            if (v.spawnedCount >= v.totalToSpawn && (v.defeatedCount || 0) >= v.totalToSpawn && (game.enemies || []).filter(e => e.hp > 0 && e.fromVoidRift).length === 0) {
                 v.active = false;
                 v.pendingWave = false;
                 v.breachClears = (v.breachClears || 0) + 1;
@@ -1357,7 +1359,17 @@ function startMoving(isTown) {
     game.encounterIndex = 0;
     game.runProgress = 0;
     game.playerAilments = [];
+    let v = game.voidRift;
+    if (v && v.active) {
+        v.active = false;
+        v.pendingWave = false;
+        v.totalToSpawn = 0;
+        v.spawnedCount = 0;
+        v.defeatedCount = 0;
+        v.spawnTick = 0;
+    }
 }
+
 
 function returnToTown() {
     if (game.isTownReturning && game.moveTimer > 0) return;
@@ -1687,6 +1699,7 @@ function handleEnemyDeath(enemy, pStats) {
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
+        if (v.active && enemy.fromVoidRift) v.defeatedCount = Math.max(0, Math.floor(v.defeatedCount || 0)) + 1;
         if (!v.active && Math.random() < (enemy.isElite ? 0.008 : 0.0018)) {
             v.active = true;
             v.activeKills = 0;
@@ -1694,6 +1707,7 @@ function handleEnemyDeath(enemy, pStats) {
             v.pendingWave = true;
             v.totalToSpawn = 6 + Math.floor(Math.random() * 4);
             v.spawnedCount = 0;
+            v.defeatedCount = 0;
             v.spawnTick = 0;
             addLog('🕳️ 공허의 구멍이 랜덤으로 열렸습니다!', 'attack-monster', { noToast: true });
         }
