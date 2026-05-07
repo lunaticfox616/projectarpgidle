@@ -922,6 +922,7 @@ function rollEnemyTrait(zone, isElite, isBoss, seed) {
     if (zone.ele === 'cold') list.unshift({ id: 'coldWard+', name: '빙결 과충전', resC: 36 });
     if (zone.ele === 'light') list.unshift({ id: 'lightWard+', name: '뇌전 과충전', resL: 36 });
     if (zone.ele === 'chaos') list.unshift({ id: 'chaosWard+', name: '공허 장막', resChaos: 32 });
+    if ((game.season || 1) >= 10 && zone && zone.type === 'abyss' && zone.ele === 'chaos') list.unshift({ id: 'veryFast_loop10', name: '매우 빠름', attackSpeedVarMul: 1.34, expMul: 1.10, dropMul: 1.08 });
     let idx = Math.abs(seed || 0) % list.length;
     return { ...list[idx] };
 }
@@ -2223,7 +2224,7 @@ function performMonsterAttacks(pStats) {
         let tierPressure = clampNumber(((zone.tier || 1) - 1) / 10, 0, 1);
         let seasonAtkScale = 1 + seasonDepth * (0.012 + (tierPressure * 0.018));
         let chillSlow = ailMap.chill ? Math.min(0.45, 0.12 + ailMap.chill * 0.14) : 0;
-        let atkRate = (0.26 + zone.tier * 0.013) * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * (1 - chillSlow);
+        let atkRate = (0.26 + zone.tier * 0.013) * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
         enemy.attackTimer += 0.1 * atkRate;
         while (enemy.attackTimer >= 1) {
             enemy.attackTimer -= 1;
@@ -2490,11 +2491,8 @@ function chooseLoopAdvance(shouldLoop) {
         return;
     }
     game.pendingLoopDecision = false;
-    game.currentZoneId = Math.max(0, Math.floor(getCurrentSeasonFinalZoneId() || game.currentZoneId || 0));
-    game.killsInZone = 0;
-    game.combatHalted = true;
-    addLog('⏸️ 루프를 보류했습니다. 루프 탭에서 심화 진행/포인트 분배 후 원할 때 다음 루프로 이동하세요.', 'season-up');
-    updateStaticUI();
+    addLog('♾️ 루프를 보류하고 혼돈 심화 등반을 이어갑니다. (혼돈 21부터 시작)', 'season-up');
+    enterNextEndlessChaosDepth();
 }
 
 
