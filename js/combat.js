@@ -2153,17 +2153,17 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     }
     game.loopDeaths = Math.max(0, Math.floor(game.loopDeaths || 0)) + 1;
     if (zone.type === 'seasonBoss' && game.inTicketBossFight) {
-        addLog(message || "☠️ 시즌 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death");
+        addLog(message || "☠️ 시즌 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death", { noToast: !!opts.noToast });
         game.currentZoneId = 0;
         game.killsInZone = 0;
         game.inTicketBossFight = false;
     } else if (zone.type === 'trial') {
-        addLog(message || "☠️ 시련 실패! 마을로 귀환합니다.", "death");
+        addLog(message || "☠️ 시련 실패! 마을로 귀환합니다.", "death", { noToast: !!opts.noToast });
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
     } else {
         expLost = Math.floor(getExpReq(game.level) * 0.1);
-        addLog(message || "☠️ 사망! 경험치 페널티 적용", "death");
+        addLog(message || "☠️ 사망! 경험치 페널티 적용", "death", { noToast: !!opts.noToast });
         game.exp = Math.max(0, game.exp - expLost);
     }
     let damageSummary = buildDeathDamageSummary(3000);
@@ -2353,12 +2353,20 @@ function applyTrialTrapTick(pStats) {
     trialHazardTimer = Math.max(2.2, 4.2 - zone.tier * 0.12) + Math.random() * 1.4;
     let trapDamage = Math.floor((pStats.maxHp * (0.035 + zone.tier * 0.005)) + 10 + zone.tier * 3);
     trapDamage = Math.max(10, Math.floor(trapDamage * (1 - (pStats.dr * 0.45 / 100))));
-    game.playerHp = Math.floor(game.playerHp - trapDamage);
-    recordIncomingDamage('other', trapDamage, '시련 함정');
+    let remaining = trapDamage;
+    game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
+    if (remaining > 0 && game.playerEnergyShield > 0) {
+        let absorbed = Math.min(game.playerEnergyShield, remaining);
+        game.playerEnergyShield -= absorbed;
+        remaining -= absorbed;
+    }
+    game.playerHp = Math.floor(game.playerHp - remaining);
+    game.playerEsLastHitAt = Date.now();
+    recordIncomingDamage('phys', trapDamage, '시련 함정');
     addBattleFx('trialTrap', { color: '#ffd36b', duration: 460 });
-    addLog(`⚠️ 시련 함정 발동 [${getDamageElementLabel('other')}] (${trapDamage} 피해)`, 'attack-monster');
+    addLog(`⚠️ 시련 함정 발동 [${getDamageElementLabel('phys')}] (${trapDamage} 피해)`, 'attack-monster', { noToast: true });
     if (game.playerHp <= 0) {
-        handlePlayerDefeat(zone, pStats, "☠️ 시련 함정에 쓰러졌습니다. 마을로 귀환합니다.", { fatalElement: 'other', sourceName: '시련 함정' });
+        handlePlayerDefeat(zone, pStats, "☠️ 시련 함정에 쓰러졌습니다. 마을로 귀환합니다.", { fatalElement: 'phys', sourceName: '시련 함정', noToast: true });
     }
 }
 
