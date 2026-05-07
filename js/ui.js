@@ -2789,6 +2789,17 @@ function buildCraftActionButtons(item) {
         </div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterLabyrinthPrompt()">고대 미궁 층수 선택 입장</button><span class="map-zone-status">해금 최고층: ${maxFloor}층</span></div>`;
     } else document.getElementById('ui-labyrinth-list').innerHTML = '';
 
+    let deepChaosOpen = (game.season || 1) >= 10 && !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
+    document.getElementById('ui-deep-chaos-header').style.display = deepChaosOpen ? 'block' : 'none';
+    if (deepChaosOpen) {
+        let unlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21).sort((a, b) => a - b) : [];
+        let highestDepth = Math.max(21, unlockedDepths.length > 0 ? unlockedDepths[unlockedDepths.length - 1] : Math.floor(game.abyssEndlessDepth || 21));
+        document.getElementById('ui-deep-chaos-list').innerHTML = `<div class="map-item ${game.currentZoneId === (ABYSS_START_ZONE_ID + 19) ? 'current' : ''}">
+            <div class="map-item-main"><span>♾️</span><span>혼돈 심화층<br><span class="map-zone-status">현재 심화층: ${Math.floor(game.abyssEndlessDepth || 21)}층 · 최고 기록: ${highestDepth}층</span></span></div>
+            <div class="map-item-actions"><span class="map-zone-status">입장 가능: 21 ~ ${highestDepth}</span></div>
+        </div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()">심화 혼돈 층수 선택 입장</button></div>`;
+    } else document.getElementById('ui-deep-chaos-list').innerHTML = '';
+
     let meteorUnlocked = !!(game.starWedge && game.starWedge.unlocked);
     let meteorReady = !!(game.starWedge && game.starWedge.skyRiftReady);
     let meteorGauge = Math.floor((game.starWedge && game.starWedge.skyRiftGauge) || 0);
@@ -2889,7 +2900,7 @@ function buildCraftActionButtons(item) {
         let statInfo = P_STATS[node.stat] || {};
         let suffix = statInfo.isPct ? '%' : '';
         let effectText = `${statInfo.name || node.stat} +${formatValue(node.stat, node.val)}${suffix}`;
-        return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buySeason('${id}')"`}><div class="trait-title">${node.name}</div><div class="trait-desc">${node.desc}<br><span style="color:#9bb9d4;">${effectText}</span></div></div>`;
+        return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="refundSeasonNode('${id}')"` : (!reqMet ? '' : `onclick="buySeason('${id}')"`)}><div class="trait-title">${node.name}</div><div class="trait-desc">${node.desc}<br><span style="color:#9bb9d4;">${effectText}</span></div></div>`;
     };
     let visibleSeasonRows = SEASON_NODE_ROWS.filter((row, idx) => idx < 4 || (game.season || 1) >= 5);
     document.getElementById('ui-season-tree').innerHTML = visibleSeasonRows.map(row => `<div class="trait-row">${row.map(renderSeasonNode).join('')}</div>`).join('');
@@ -2908,7 +2919,7 @@ function buildCraftActionButtons(item) {
             let statInfo = P_STATS[node.stat];
             let desc = node.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name} +${node.val}${statInfo.isPct ? '%' : ''}`;
             let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : statInfo.name);
-            return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active || !reqMet ? '' : `onclick="buyAscend('${id}')"`}><div class="trait-title">${title}</div><div class="trait-desc">${desc}</div></div>`;
+            return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="refundAscendNode('${id}')"` : (!reqMet ? '' : `onclick="buyAscend('${id}')"`)}><div class="trait-title">${title}</div><div class="trait-desc">${desc}</div></div>`;
         };
         let coreRow = (tree.n11 || tree.n12) ? `<div class="trait-row">${renderAscend('n11')}${renderAscend('n12')}</div>` : '';
         document.getElementById('ui-ascend-tree-container').innerHTML = `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}`;
@@ -2918,7 +2929,7 @@ function buildCraftActionButtons(item) {
             let kRows = [];
             for (let i = 0; i < kDefs.length; i += 2) kRows.push(kDefs.slice(i, i + 2));
             let kPts = Math.max(0, Math.floor(game.ascendKeystonePoints || 0));
-            let kHtml = `<div style="margin-top:12px; color:#f0d7a6; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span>키스톤 선택 (${game.ascendKeystones.length}/${CLASS_KEYSTONE_PICK_LIMIT}) · 보유 포인트 ${kPts}</span><button onclick="resetAscendKeystones()" style="padding:3px 8px; font-size:0.75em;">키스톤 초기화</button></div><div style="font-size:0.78em; color:#a7bdd9; margin-top:4px;">해제 비용: 정제의 오브 1개 · 전체 초기화 비용: 선택 개수만큼</div>` + kRows.map(row => `<div class="trait-row">${row.map(k => { let active = game.ascendKeystones.includes(k.id); let reqMet = isAscendKeystoneRequirementMet(k); return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="refundAscendKeystone('${k.id}')"` : (!reqMet || game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT || kPts <= 0 ? '' : `onclick="buyAscendKeystone('${k.id}')"`)}><div class="trait-title">★ ${k.name}${active ? ' ✓' : ''}</div><div class="trait-desc">${k.desc}${active ? '<br><span style="color:#9bc7ff;">(클릭 시 해제)</span>' : ''}</div></div>`; }).join('')}</div>`).join('');
+            let kHtml = `<div style="margin-top:12px; color:#f0d7a6; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span>키스톤 선택 (${game.ascendKeystones.length}/${CLASS_KEYSTONE_PICK_LIMIT}) · 보유 포인트 ${kPts}</span><button onclick="resetAscendKeystones()" style="padding:3px 8px; font-size:0.75em;">키스톤 초기화</button></div><div style="font-size:0.78em; color:#a7bdd9; margin-top:4px;">해제 비용: 정화의 오브 1개 · 전체 초기화 비용: 선택 개수만큼</div>` + kRows.map(row => `<div class="trait-row">${row.map(k => { let active = game.ascendKeystones.includes(k.id); let reqMet = isAscendKeystoneRequirementMet(k); return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="refundAscendKeystone('${k.id}')"` : (!reqMet || game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT || kPts <= 0 ? '' : `onclick="buyAscendKeystone('${k.id}')"`)}><div class="trait-title">★ ${k.name}${active ? ' ✓' : ''}</div><div class="trait-desc">${k.desc}${active ? '<br><span style="color:#9bc7ff;">(클릭 시 해제)</span>' : ''}</div></div>`; }).join('')}</div>`).join('');
             document.getElementById('ui-ascend-tree-container').innerHTML += kHtml;
         }
     } else if (game.ascendPoints > 0) {
@@ -3259,6 +3270,9 @@ function setupCanvasEvents() {
         }
         let canActivate = !(game.passives || []).includes(hoverNode.id) && reachableNodes.has(hoverNode.id);
         if (!canActivate) {
+            if ((game.passives || []).includes(hoverNode.id)) {
+                return refundPassiveNode(hoverNode.id);
+            }
             if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
             return addLog("연결된 노드가 아니라 활성화할 수 없습니다.", "attack-monster");
         }
@@ -4991,6 +5005,77 @@ function isAscendNodeRequirementMet(node) {
     return game.ascendNodes.includes(node.req);
 }
 
+
+function canRefundPassiveNode(nodeId) {
+    if (nodeId === 'n0') return false;
+    let owned = new Set((game.passives || []).filter(id => id !== nodeId));
+    if (!owned.has('n0')) owned.add('n0');
+    let seen = new Set(['n0']);
+    let q = ['n0'];
+    while (q.length > 0) {
+        let cur = q.shift();
+        PASSIVE_EDGES.forEach(edge => {
+            let next = null;
+            if (edge.from === cur && owned.has(edge.to)) next = edge.to;
+            else if (edge.to === cur && owned.has(edge.from)) next = edge.from;
+            if (next && !seen.has(next)) { seen.add(next); q.push(next); }
+        });
+    }
+    return Array.from(owned).every(id => seen.has(id));
+}
+
+function refundPassiveNode(id) {
+    game.passives = Array.isArray(game.passives) ? game.passives : ['n0'];
+    if (!game.passives.includes(id) || id === 'n0') return;
+    if ((game.currencies.scour || 0) < 1) return addLog('패시브 노드 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
+    if (!canRefundPassiveNode(id)) return addLog('연결 유지에 필요한 노드는 반환할 수 없습니다.', 'attack-monster');
+    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
+    game.passives = game.passives.filter(nodeId => nodeId !== id);
+    game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + 1;
+    calculateReachableNodes();
+    addLog(`♻️ 패시브 노드 반환: ${id} (정화의 오브 1개 소모)`, 'season-up');
+    updateStaticUI();
+}
+
+function refundSeasonNode(id) {
+    game.seasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
+    if (!game.seasonNodes.includes(id)) return;
+    let blockers = Object.keys(SEASON_NODES).filter(key => {
+        if (key === id || !game.seasonNodes.includes(key)) return false;
+        let req = SEASON_NODES[key].req;
+        if (!req) return false;
+        if (Array.isArray(req)) return req.includes(id) && req.filter(v => v !== id).every(v => !game.seasonNodes.includes(v));
+        return req === id;
+    });
+    if (blockers.length > 0) return addLog('선행 조건으로 연결된 루프 패시브가 있어 반환할 수 없습니다.', 'attack-monster');
+    if ((game.currencies.scour || 0) < 1) return addLog('루프 패시브 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
+    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
+    game.seasonNodes = game.seasonNodes.filter(nodeId => nodeId !== id);
+    game.seasonPoints = Math.max(0, Math.floor(game.seasonPoints || 0)) + 1;
+    updateStaticUI();
+}
+
+function refundAscendNode(id) {
+    if (!game.ascendClass) return;
+    game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
+    if (!game.ascendNodes.includes(id)) return;
+    let tree = getClassTreeDef(game.ascendClass);
+    let blockers = Object.keys(tree).filter(key => {
+        if (key === id || !game.ascendNodes.includes(key)) return false;
+        let req = tree[key].req;
+        if (!req) return false;
+        if (Array.isArray(req)) return req.includes(id) && req.filter(v => v !== id).every(v => !game.ascendNodes.includes(v));
+        return req === id;
+    });
+    if (blockers.length > 0) return addLog('선행 조건으로 연결된 전직 패시브가 있어 반환할 수 없습니다.', 'attack-monster');
+    if ((game.currencies.scour || 0) < 1) return addLog('전직 패시브 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
+    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
+    game.ascendNodes = game.ascendNodes.filter(nodeId => nodeId !== id);
+    game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + 1;
+    normalizeSupportLoadout(true);
+    updateStaticUI();
+}
+
 function buySeason(id) {
     let node = SEASON_NODES[id];
     if (!node || game.seasonPoints <= 0 || game.seasonNodes.includes(id) || !isSeasonNodeRequirementMet(node)) return;
@@ -5042,8 +5127,8 @@ function refundAscendKeystone(id) {
         return false;
     });
     if (blockers.length > 0) return addLog(`선행 키스톤입니다: ${blockers.map(v => v.name).join(', ')}`, 'attack-monster');
-    if ((game.currencies.divine || 0) < 1) return addLog('키스톤 환불에는 정제의 오브 1개가 필요합니다.', 'attack-monster');
-    game.currencies.divine = Math.max(0, Math.floor(game.currencies.divine || 0) - 1);
+    if ((game.currencies.scour || 0) < 1) return addLog('키스톤 환불에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
+    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
     game.ascendKeystones = game.ascendKeystones.filter(key => key !== id);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
     updateStaticUI();
@@ -5053,8 +5138,8 @@ function resetAscendKeystones() {
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
     if (game.ascendKeystones.length <= 0) return;
     let cost = game.ascendKeystones.length;
-    if ((game.currencies.divine || 0) < cost) return addLog(`키스톤 전체 초기화에는 정제의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
-    game.currencies.divine = Math.max(0, Math.floor(game.currencies.divine || 0) - cost);
+    if ((game.currencies.scour || 0) < cost) return addLog(`키스톤 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
+    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + game.ascendKeystones.length;
     game.ascendKeystones = [];
     updateStaticUI();
@@ -5095,4 +5180,4 @@ function getLockedTabMessage(tabId) {
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, selectClass, buyAscend, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, getLockedTabMessage });
+safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, getLockedTabMessage });

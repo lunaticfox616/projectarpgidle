@@ -4759,8 +4759,8 @@ function useCurrency(currencyKey) {
             else stat.val = Math.floor(val);
         });
     } else if (currencyKey === 'scour') {
-        item.rarity = 'normal';
         item.stats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
+        item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
     } else if (currencyKey === 'tainted') {
         item.corrupted = true;
