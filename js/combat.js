@@ -1976,6 +1976,9 @@ function performPlayerAttack(pStats) {
     let totalDamage = 0;
     let totalLeechableDamage = 0;
     let repeats = Math.max(1, Math.min(6, Math.floor(pStats.sSkill.multiHit || 1)));
+    let perEnemyHitCount = new Map();
+    let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
+    let randomTargetCapFallbackUsed = false;
     for (let hitIdx = 0; hitIdx < repeats; hitIdx++) {
         let hitEntries = pStats.sSkill.randomTargetEachHit ? [{ mult: 1 }] : targets;
         hitEntries.forEach(hit => {
@@ -1983,9 +1986,16 @@ function performPlayerAttack(pStats) {
             if (pStats.sSkill.randomTargetEachHit) {
                 let alive = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
                 if (alive.length <= 0) return;
-                targetEnemy = alive[Math.floor(Math.random() * alive.length)];
+                let eligible = alive.filter(enemy => (perEnemyHitCount.get(enemy.id) || 0) < 2);
+                if (eligible.length > 0) targetEnemy = eligible[Math.floor(Math.random() * eligible.length)];
+                else if (!randomTargetCapFallbackUsed) {
+                    randomTargetCapFallbackUsed = true;
+                    targetEnemy = alive[Math.floor(Math.random() * alive.length)];
+                } else return;
             }
             if (!targetEnemy || targetEnemy.hp <= 0) return;
+            let nextHitCount = (perEnemyHitCount.get(targetEnemy.id) || 0) + 1;
+            perEnemyHitCount.set(targetEnemy.id, nextHitCount);
             let hitElement = swingElement;
             let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats);
             let dmg = Math.floor(baseDamage * (hit.mult || 1));
@@ -2016,6 +2026,9 @@ function performPlayerAttack(pStats) {
             totalDamage += dmg;
             totalLeechableDamage += dmg * (targetEnemy && targetEnemy.leechEffMul !== undefined ? targetEnemy.leechEffMul : 1);
             hits.push(dmg);
+            hitSummary.totalHits += 1;
+            hitSummary.totalDamage += dmg;
+            hitSummary.uniqueTargets.add(targetEnemy.id);
             addBattleFx('hit', {
                 enemyId: targetEnemy.id,
                 color: getElementColor(hitElement),
@@ -2042,16 +2055,7 @@ function performPlayerAttack(pStats) {
             if (maxDotStack > 0) dotInfo = ` · 도트중첩 ${maxDotStack}/${DOT_STACK_MAX} (${getDotStackMultiplier(maxDotStack).toFixed(2)}x)`;
         }
         let hitPrefix = isDotSkill ? '⚔️ 직격' : '⚔️';
-        let line = '';
-        if (hits.length >= 5) {
-            let maxHit = Math.max(...hits);
-            let minHit = Math.min(...hits);
-            line = `${hitPrefix} ${maxHit} / ... / ${minHit} 피해 (${hits.length}타겟)`;
-        } else if (hits.length > 1) {
-            line = `${hitPrefix} ${hits.join(' / ')} 피해 (${hits.length}타겟)`;
-        } else {
-            line = `${hitPrefix} ${hits[0] || 0} 피해`;
-        }
+        let line = `${hitPrefix} 총 ${hitSummary.totalHits}히트 / 총 ${Math.floor(hitSummary.totalDamage)} 피해 / 대상 ${hitSummary.uniqueTargets.size}`;
         line += dotInfo;
         if (isCrit) line = `💥 ${line}`;
         let scales = pStats.damageScales || {};
