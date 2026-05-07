@@ -2153,17 +2153,17 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     }
     game.loopDeaths = Math.max(0, Math.floor(game.loopDeaths || 0)) + 1;
     if (zone.type === 'seasonBoss' && game.inTicketBossFight) {
-        addLog(message || "☠️ 시즌 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death");
+        addLog(message || "☠️ 시즌 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death", { noToast: !!opts.noToast });
         game.currentZoneId = 0;
         game.killsInZone = 0;
         game.inTicketBossFight = false;
     } else if (zone.type === 'trial') {
-        addLog(message || "☠️ 시련 실패! 마을로 귀환합니다.", "death");
+        addLog(message || "☠️ 시련 실패! 마을로 귀환합니다.", "death", { noToast: !!opts.noToast });
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
     } else {
         expLost = Math.floor(getExpReq(game.level) * 0.1);
-        addLog(message || "☠️ 사망! 경험치 페널티 적용", "death");
+        addLog(message || "☠️ 사망! 경험치 페널티 적용", "death", { noToast: !!opts.noToast });
         game.exp = Math.max(0, game.exp - expLost);
     }
     let damageSummary = buildDeathDamageSummary(3000);
@@ -2366,7 +2366,7 @@ function applyTrialTrapTick(pStats) {
     addBattleFx('trialTrap', { color: '#ffd36b', duration: 460 });
     addLog(`⚠️ 시련 함정 발동 [${getDamageElementLabel('phys')}] (${trapDamage} 피해)`, 'attack-monster', { noToast: true });
     if (game.playerHp <= 0) {
-        handlePlayerDefeat(zone, pStats, "☠️ 시련 함정에 쓰러졌습니다. 마을로 귀환합니다.", { fatalElement: 'phys', sourceName: '시련 함정' });
+        handlePlayerDefeat(zone, pStats, "☠️ 시련 함정에 쓰러졌습니다. 마을로 귀환합니다.", { fatalElement: 'phys', sourceName: '시련 함정', noToast: true });
     }
 }
 
