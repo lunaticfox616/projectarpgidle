@@ -1,11 +1,13 @@
 // Phase-2 extracted battlefield canvas renderer block.
-function renderBattlefield() {
+function renderBattlefield(forceWhenHidden) {
     const canvas = document.getElementById('battlefield-canvas');
-    if (!canvas || canvas.offsetParent === null) return;
+    if (!canvas || (!forceWhenHidden && canvas.offsetParent === null)) return;
     if (!battleAssets.ready && !battleAssets.loading && !battleAssets.failed) initBattleAssets();
     const expectedScale = clampNumber(window.devicePixelRatio || 1, 1, 2);
-    const expectedWidth = Math.max(1, Math.round((canvas.clientWidth || 1) * expectedScale));
-    const expectedHeight = Math.max(1, Math.round((canvas.clientHeight || 1) * expectedScale));
+    const baseWidth = canvas.clientWidth || Math.round((canvas.width || 960) / expectedScale) || 960;
+    const baseHeight = canvas.clientHeight || Math.round((canvas.height || 540) / expectedScale) || 540;
+    const expectedWidth = Math.max(1, Math.round(baseWidth * expectedScale));
+    const expectedHeight = Math.max(1, Math.round(baseHeight * expectedScale));
     if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) resizeBattlefieldCanvas();
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
