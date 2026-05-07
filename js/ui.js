@@ -4291,7 +4291,9 @@ async function enterGameWorld() {
         console.error('updateStaticUI on enterGameWorld failed:', error);
     }
     try {
+        updateMobileBattlePipVisibility();
         renderBattlefield();
+        updateMobileBattlePipVisibility();
         renderMobileBattlePipFrame();
     } catch (error) {
         console.error('renderBattlefield on enterGameWorld failed:', error);
@@ -4445,7 +4447,9 @@ function applyExternalSave(snapshot, sourceStamp) {
         console.error('updateStaticUI after cloud load failed:', error);
     }
     try {
+        updateMobileBattlePipVisibility();
         renderBattlefield();
+        updateMobileBattlePipVisibility();
         renderMobileBattlePipFrame();
     } catch (error) {
         console.error('renderBattlefield after cloud load failed:', error);
@@ -5029,7 +5033,9 @@ function init() {
         try { updateStaticUI(); } catch (retryError) { console.error('retry updateStaticUI failed:', retryError); }
     }
     try {
+        updateMobileBattlePipVisibility();
         renderBattlefield();
+        updateMobileBattlePipVisibility();
         renderMobileBattlePipFrame();
     } catch (error) {
         console.error('initial battlefield render failed:', error);
@@ -5071,6 +5077,7 @@ function gameLoop() {
         }
         if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
         renderBattlefield();
+        updateMobileBattlePipVisibility();
         renderMobileBattlePipFrame();
     } catch (error) {
         console.error('gameLoop error:', error);
