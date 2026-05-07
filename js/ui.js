@@ -8,6 +8,7 @@ let mobilePipRefreshHandle = null;
 let battleAssetDeferredInitHandle = null;
 
 function startBattleAssetLoadNow() {
+    window.__battleAssetAutoloadEnabled = true;
     if (battleAssetDeferredInitHandle) {
         clearTimeout(battleAssetDeferredInitHandle);
         battleAssetDeferredInitHandle = null;
@@ -5048,6 +5049,7 @@ function init() {
     applySeasonContentProgression({ silent: true });
     recoverRuntimeState();
     unlockPassiveStarEvolution({ silent: true });
+    window.__battleAssetAutoloadEnabled = false;
     scheduleDeferredBattleAssetLoad();
     refreshPassiveVisibility();
     tickShrineState();
