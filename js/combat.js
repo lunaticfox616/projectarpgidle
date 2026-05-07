@@ -2063,8 +2063,8 @@ function performPlayerAttack(pStats) {
         addLog(line, isCrit ? 'attack-crit' : 'attack-player', { rateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', minIntervalMs: isCrit ? 120 : 180, aggregateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', aggregateWindowMs: 500 });
     }
 
-    targets.forEach(hit => {
-        if (hit.enemy && hit.enemy.hp <= 0) handleEnemyDeath(hit.enemy, pStats);
+    (game.enemies || []).slice().forEach(enemy => {
+        if (enemy && enemy.hp <= 0) handleEnemyDeath(enemy, pStats);
     });
 }
 
