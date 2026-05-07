@@ -3593,8 +3593,11 @@ function buildBattleAssetAtlas() {
             { image: battleAssets.images.enemies, frame: enemyFrames.boss },
         ].filter(entry => hasUsableFrame(entry.frame))
     };
-    enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies2));
-    enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies3));
+    // 배경 불투명 스프라이트가 섞이는 현상을 방지하기 위해
+    // 자동 감지 풀(2/3번 시트)은 기본값에서 제외한다.
+    // 필요 시 추후 개별 투명화 보정 후 재활성화 가능.
+    // enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies2));
+    // enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies3));
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
     return {
         hero: {
@@ -4759,8 +4762,8 @@ function useCurrency(currencyKey) {
             else stat.val = Math.floor(val);
         });
     } else if (currencyKey === 'scour') {
-        item.rarity = 'normal';
         item.stats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
+        item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
     } else if (currencyKey === 'tainted') {
         item.corrupted = true;
