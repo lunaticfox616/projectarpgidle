@@ -70,6 +70,13 @@ function updateMobileBattlePipVisibility() {
     host.style.display = (isMobile && !activeBattle && !blocked && game.settings && game.settings.showMobileBattlePip !== false) ? 'block' : 'none';
     host.style.right = (host.dataset.right || '10') + 'px';
     host.style.bottom = (host.dataset.bottom || '94') + 'px';
+    if (host.style.display !== 'none') {
+        let src = document.getElementById('battlefield-canvas');
+        if (src && (src.width < 32 || src.height < 32)) {
+            src.width = 960;
+            src.height = 540;
+        }
+    }
 }
 
 function renderMobileBattlePipFrame() {
@@ -77,7 +84,9 @@ function renderMobileBattlePipFrame() {
     let host = document.getElementById('mobile-battle-pip');
     if (!host || host.style.display === 'none') return;
     let src = document.getElementById('battlefield-canvas');
-    if (!src || !src.width || !src.height) return;
+    if (!src) return;
+    if (src.width < 32 || src.height < 32) { src.width = 960; src.height = 540; }
+    try { renderBattlefield(); } catch (e) {}
     mobilePipCtx.clearRect(0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
     mobilePipCtx.drawImage(src, 0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
 }
@@ -5112,6 +5121,8 @@ function gameLoop() {
         if (isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
             renderBattlefield();
+            updateMobileBattlePipVisibility();
+            renderMobileBattlePipFrame();
             return;
         }
         if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
