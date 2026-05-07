@@ -116,20 +116,36 @@ function applyFossilChaosCraft(fossilKey) {
     let guaranteedMinTier = Math.max(1, hiddenTier - 3);
     let guaranteedMaxTier = Math.max(1, hiddenTier);
     let guaranteed = pickWeightedMod(guaranteedPool);
-    let newStats = [rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier)];
+
+    let lockedStats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
+    let newStats = lockedStats.slice();
+    let blockedIds = new Set(newStats.map(stat => stat.id));
+    let guaranteedRoll = rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier);
+    if (!blockedIds.has(guaranteedRoll.id)) {
+        newStats.push(guaranteedRoll);
+        blockedIds.add(guaranteedRoll.id);
+    }
 
     let count = 4 + Math.floor(Math.random() * 2);
     let includeExclusive = Math.random() < (fossil.bonusExclusiveChance || 0.16);
     if (includeExclusive) {
         let exclusivePool = getFossilExclusivePool({ ...item, stats: newStats });
-        if (exclusivePool.length > 0) newStats.push(rollAffixValue(pickWeightedMod(exclusivePool), maxTier));
+        if (exclusivePool.length > 0) {
+            let exRoll = rollAffixValue(pickWeightedMod(exclusivePool), maxTier);
+            if (!blockedIds.has(exRoll.id)) {
+                newStats.push(exRoll);
+                blockedIds.add(exRoll.id);
+            }
+        }
     }
-    while (newStats.length < Math.min(6, count)) {
-        let blocked = new Set(newStats.map(stat => stat.id));
-        let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blocked.has(mod.statId || mod.id));
+    while (newStats.length < Math.min(6, Math.max(count, lockedStats.length + 1))) {
+        let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id));
         if (pool.length === 0) break;
-        newStats.push(rollAffixValue(pickWeightedMod(pool), maxTier));
+        let roll = rollAffixValue(pickWeightedMod(pool), maxTier);
+        newStats.push(roll);
+        blockedIds.add(roll.id);
     }
+
     item.stats = newStats;
     item.rarity = 'rare';
     game.currencies[fossilKey]--;
@@ -137,6 +153,7 @@ function applyFossilChaosCraft(fossilKey) {
     addLog(`🪨 ${fossil.name} 재련 성공! 확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})`, 'loot-magic');
     updateStaticUI();
 }
+
 
 function getItemTotalStats(item) {
     let bucket = createEmptyStatBucket();
