@@ -1220,6 +1220,7 @@ function tickEnemyAilments(pStats, dt) {
     let zone = getZone(game.currentZoneId);
     let zoneTier = (zone && zone.tier) || 1;
     let abyssPlayerMul = (getAbyssMonsterScales(zone).playerDamageMul || 1);
+    let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
@@ -1233,7 +1234,7 @@ function tickEnemyAilments(pStats, dt) {
             if (ail.time > 0 && (type === 'ignite' || type === 'poison' || type === 'bleed')) {
                 let ele = type === 'ignite' ? 'fire' : (type === 'poison' ? 'chaos' : 'phys');
                 let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, enemy, pStats);
-                let dps = Math.max(1, Math.floor((enemy.maxHp || 1) * (0.0042 + power * 0.0032)));
+                let dps = Math.max(1, Math.floor((enemy.maxHp || 1) * (0.0042 + power * 0.0032) * dotDamageScale));
                 let dotDmg = Math.max(1, Math.floor(dps * dt * (1 - enemyRes / 100) * abyssPlayerMul));
                 let hpAfterDot = Math.max(0, enemy.hp - dotDmg);
                 if (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) {
@@ -1956,8 +1957,14 @@ function performPlayerAttack(pStats) {
         baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
         if (game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) baseDamage *= 2;
     }
+    let getHitElement = () => {
+        let pool = Array.isArray(pStats.sSkill.randomElementPool) ? pStats.sSkill.randomElementPool.filter(Boolean) : null;
+        if (pool && pool.length > 0) return pool[Math.floor(Math.random() * pool.length)];
+        return pStats.sSkill.ele || 'phys';
+    };
+    let swingElement = getHitElement();
     addBattleFx('playerSwing', {
-        color: getElementColor(pStats.sSkill.ele || 'phys'),
+        color: getElementColor(swingElement),
         crit: isCrit,
         projectile: (pStats.sSkill.tags || []).includes('projectile'),
         skillName: game.activeSkill,
@@ -1968,50 +1975,60 @@ function performPlayerAttack(pStats) {
     let hits = [];
     let totalDamage = 0;
     let totalLeechableDamage = 0;
-    targets.forEach(hit => {
-        if (!hit.enemy || hit.enemy.hp <= 0) return;
-        let enemyRes = getEffectiveEnemyMitigation(pStats.sSkill.ele || 'phys', zoneTier, hit.enemy, pStats);
-        let dmg = Math.floor(baseDamage * hit.mult);
-        let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
-        let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
-        let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
-        dmg = Math.floor(dmg * (rollPct / 100));
-        if ((hit.enemy.firstHitGuard || 0) > 0 && !hit.enemy.firstHitConsumed) {
-            dmg = Math.floor(dmg * (1 - hit.enemy.firstHitGuard));
-            hit.enemy.firstHitConsumed = true;
-        }
-        let burstHits = Math.max(0, (hit.enemy.recentHitsTaken || 0) - 2);
-        let hitGuard = (hit.enemy.hitRateGuard || 0) * Math.min(5, burstHits);
-        if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
-        let damageBeforeMitigation = dmg;
-        dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
-        dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
-        let zone = getZone(game.currentZoneId);
-        let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
-        let hpAfterDamage = Math.max(0, hit.enemy.hp - dmg);
-        if (hit.enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) {
-            hpAfterDamage = Math.max(1, hpAfterDamage);
-        }
-        hit.enemy.hp = hpAfterDamage;
-        if ((pStats.regenSuppress || 0) > 0) hit.enemy.regenSuppressPct = Math.min(95, (hit.enemy.regenSuppressPct || 0) + pStats.regenSuppress);
-        hit.enemy.recentHitsTaken = (hit.enemy.recentHitsTaken || 0) + 1;
-        hit.enemy.recentHitsTimer = 1.8;
-        totalDamage += dmg;
-        totalLeechableDamage += dmg * (hit.enemy && hit.enemy.leechEffMul !== undefined ? hit.enemy.leechEffMul : 1);
-        hits.push(dmg);
-        addBattleFx('hit', {
-            enemyId: hit.enemy.id,
-            color: getElementColor(pStats.sSkill.ele || 'phys'),
-            crit: isCrit,
-            projectile: (pStats.sSkill.tags || []).includes('projectile'),
-            chain: pStats.sSkill.targetMode === 'chain',
-            skillName: game.activeSkill,
-            damage: dmg,
-            duration: 320
+    let repeats = Math.max(1, Math.min(6, Math.floor(pStats.sSkill.multiHit || 1)));
+    for (let hitIdx = 0; hitIdx < repeats; hitIdx++) {
+        targets.forEach(hit => {
+            let targetEnemy = hit.enemy;
+            if (pStats.sSkill.randomTargetEachHit) {
+                let alive = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
+                if (alive.length <= 0) return;
+                targetEnemy = alive[Math.floor(Math.random() * alive.length)];
+            }
+            if (!targetEnemy || targetEnemy.hp <= 0) return;
+            let hitElement = getHitElement();
+            let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats);
+            let dmg = Math.floor(baseDamage * hit.mult);
+            let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
+            let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
+            let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
+            dmg = Math.floor(dmg * (rollPct / 100));
+            if ((targetEnemy.firstHitGuard || 0) > 0 && !targetEnemy.firstHitConsumed) {
+                dmg = Math.floor(dmg * (1 - targetEnemy.firstHitGuard));
+                targetEnemy.firstHitConsumed = true;
+            }
+            let burstHits = Math.max(0, (targetEnemy.recentHitsTaken || 0) - 2);
+            let hitGuard = (targetEnemy.hitRateGuard || 0) * Math.min(5, burstHits);
+            if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
+            let damageBeforeMitigation = dmg;
+            dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
+            dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
+            let zone = getZone(game.currentZoneId);
+            let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+            let hpAfterDamage = Math.max(0, targetEnemy.hp - dmg);
+            if (targetEnemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) {
+                hpAfterDamage = Math.max(1, hpAfterDamage);
+            }
+            targetEnemy.hp = hpAfterDamage;
+            if ((pStats.regenSuppress || 0) > 0) targetEnemy.regenSuppressPct = Math.min(95, (targetEnemy.regenSuppressPct || 0) + pStats.regenSuppress);
+            targetEnemy.recentHitsTaken = (targetEnemy.recentHitsTaken || 0) + 1;
+            targetEnemy.recentHitsTimer = 1.8;
+            totalDamage += dmg;
+            totalLeechableDamage += dmg * (targetEnemy && targetEnemy.leechEffMul !== undefined ? targetEnemy.leechEffMul : 1);
+            hits.push(dmg);
+            addBattleFx('hit', {
+                enemyId: targetEnemy.id,
+                color: getElementColor(hitElement),
+                crit: isCrit,
+                projectile: (pStats.sSkill.tags || []).includes('projectile'),
+                chain: pStats.sSkill.targetMode === 'chain',
+                skillName: game.activeSkill,
+                damage: dmg,
+                duration: 320
+            });
+            if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
+            applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, isCrit);
         });
-        if (isDotSkill) applyEnemyDotFromHit(hit.enemy, damageBeforeMitigation, pStats);
-        applyEnemyAilmentFromHit(hit.enemy, pStats, dmg, isCrit);
-    });
+    }
     if (pStats.leech > 0 && totalLeechableDamage > 0) {
         let hpCap = getPlayerHpCap(pStats);
         game.playerHp = Math.min(hpCap, game.playerHp + (totalLeechableDamage * (pStats.leech / 100)));
