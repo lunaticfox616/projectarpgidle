@@ -5306,9 +5306,14 @@ function refundAscendNode(id) {
     let blockers = Object.keys(tree).filter(key => {
         if (key === id || !game.ascendNodes.includes(key)) return false;
         let req = tree[key].req;
-        if (!req) return false;
-        if (Array.isArray(req)) return req.includes(id) && req.filter(v => v !== id).every(v => !game.ascendNodes.includes(v));
-        return req === id;
+        let reqAny = Array.isArray(tree[key].reqAny) ? tree[key].reqAny : [];
+        let blockedByReq = false;
+        if (req) {
+            if (Array.isArray(req)) blockedByReq = req.includes(id) && req.filter(v => v !== id).every(v => !game.ascendNodes.includes(v));
+            else blockedByReq = req === id;
+        }
+        let blockedByReqAny = reqAny.includes(id) && reqAny.filter(v => v !== id).every(v => !game.ascendNodes.includes(v));
+        return blockedByReq || blockedByReqAny;
     });
     if (blockers.length > 0) return addLog('선행 조건으로 연결된 전직 패시브가 있어 반환할 수 없습니다.', 'attack-monster');
     if ((game.currencies.scour || 0) < 1) return addLog('전직 패시브 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
