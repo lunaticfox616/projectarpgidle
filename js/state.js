@@ -647,6 +647,7 @@ const defaultGame = {
         showLootLog: true,
         showCrowdPauseLog: true,
         showDeathNotice: true,
+        showMobileBattlePip: true,
         themeMode: 'dark',
         leftPaneCollapsed: false,
         combatLogCollapsed: false,

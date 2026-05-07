@@ -78,7 +78,10 @@ function coreLoop() {
 
     syncCrowdPauseState();
     let progressBefore = game.runProgress;
-    advanceMapProgress(pStats);
+    let zoneNow = getZone(game.currentZoneId);
+    let vRift = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0, pendingWave: false, totalToSpawn: 0, spawnedCount: 0, spawnTick: 0 });
+    let holdMapProgress = !!(zoneNow && zoneNow.type === "abyss" && vRift.active);
+    if (!holdMapProgress) advanceMapProgress(pStats);
     if (game.moveTimer <= 0 && (game.enemies || []).length === 0) {
         if (game.runProgress <= progressBefore + 0.0001) progressStallTicks++;
         else progressStallTicks = 0;
@@ -108,15 +111,44 @@ function coreLoop() {
         }
         performMonsterAttacks(pStats);
     }
-    let zoneNow = getZone(game.currentZoneId);
+    zoneNow = getZone(game.currentZoneId);
     if ((game.season || 1) >= 9 && zoneNow && zoneNow.type === 'abyss') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
-        if (v.active && Math.random() < 0.20 && game.runProgress < 99.5 && game.killsInZone < (zoneNow.maxKills || 1)) {
-            let alive = (game.enemies || []).filter(e => e.hp > 0).length;
-            if (alive < 12) {
-                let spawn = 2 + Math.floor(Math.random() * 3);
-                for (let i = 0; i < spawn; i++) game.enemies.push(createEnemy(zoneNow, { elite: Math.random() < 0.2, boss: false }));
-                if (game.settings.showSpawnLog !== false) addLog(`🕳️ 균열 증식: 추가 몬스터 ${spawn}마리!`, 'attack-monster');
+        if (v.active) {
+            v.pendingWave = v.pendingWave !== false;
+            v.totalToSpawn = Math.max(3, Math.floor(v.totalToSpawn || (6 + Math.floor(Math.random() * 4))));
+            v.spawnedCount = Math.max(0, Math.floor(v.spawnedCount || 0));
+            v.spawnTick = Math.max(0, Math.floor(v.spawnTick || 0));
+            if (v.pendingWave && v.spawnedCount < v.totalToSpawn) {
+                v.spawnTick++;
+                if (v.spawnTick >= 4) {
+                    v.spawnTick = 0;
+                    let idx = v.spawnedCount;
+                    let marker = { at: Math.max(5, Math.min(95, 10 + idx * 8)), elite: Math.random() < 0.18, boss: false };
+                    game.enemies.push(createEnemy(zoneNow, marker, idx + 1));
+                    v.spawnedCount++;
+                    if (game.settings.showSpawnLog !== false) addLog(`🕳️ 균열 출현 ${v.spawnedCount}/${v.totalToSpawn}`, 'attack-monster', { noToast: true });
+                }
+            }
+            if (v.spawnedCount >= v.totalToSpawn && (game.enemies || []).filter(e => e.hp > 0).length === 0) {
+                v.active = false;
+                v.pendingWave = false;
+                v.breachClears = (v.breachClears || 0) + 1;
+                let reward = 1 + (Math.random() < 0.2 ? 1 : 0);
+                awardCurrency('voidChisel', reward);
+                let unlockedGrand = false;
+                if (Math.random() < 0.08) {
+                    v.grandBreachUnlock = true;
+                    unlockedGrand = true;
+                }
+                addLog(`🕳️ 공허의 구멍 정리 완료! 공허의 끌 +${reward}`, 'loot-magic', { noToast: true });
+                if (unlockedGrand) {
+                    addLog('🚨 큰 구멍이 열렸습니다! [큰 구멍 진입] 버튼을 확인하세요.', 'loot-unique');
+                    if (!v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
+                        v.grandNoticeShown = true;
+                        queueTutorialNotice('void_grand_breach_ready_once', '큰 구멍 개방', '큰 구멍이 열렸습니다! 지도 탭에서 [큰 구멍 진입] 버튼으로 도전할 수 있습니다.', 'tab-map');
+                    }
+                }
             }
         }
     }
@@ -922,6 +954,7 @@ function rollEnemyTrait(zone, isElite, isBoss, seed) {
     if (zone.ele === 'cold') list.unshift({ id: 'coldWard+', name: '빙결 과충전', resC: 36 });
     if (zone.ele === 'light') list.unshift({ id: 'lightWard+', name: '뇌전 과충전', resL: 36 });
     if (zone.ele === 'chaos') list.unshift({ id: 'chaosWard+', name: '공허 장막', resChaos: 32 });
+    if ((game.season || 1) >= 10 && zone && zone.type === 'abyss' && zone.ele === 'chaos') list.unshift({ id: 'veryFast_loop10', name: '매우 빠름', attackSpeedVarMul: 1.34, expMul: 1.10, dropMul: 1.08 });
     let idx = Math.abs(seed || 0) % list.length;
     return { ...list[idx] };
 }
@@ -1654,19 +1687,15 @@ function handleEnemyDeath(enemy, pStats) {
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
-        if (!v.active && Math.random() < (enemy.isElite ? 0.015 : 0.004)) {
+        if (!v.active && Math.random() < (enemy.isElite ? 0.008 : 0.0018)) {
             v.active = true;
             v.activeKills = 0;
-            v.requiredKills = 15 + Math.floor(Math.random() * 9);
-            addLog('🕳️ 공허의 구멍이 랜덤으로 열렸습니다!', 'attack-monster');
-        } else if (v.active) {
-            v.activeKills = Math.max(0, Math.floor(v.activeKills || 0)) + 1;
-            if (v.activeKills >= Math.max(1, Math.floor(v.requiredKills || 18))) {
-                v.active = false;
-                v.breachClears = (v.breachClears || 0) + 1;
-                if (Math.random() < 0.20) v.grandBreachUnlock = true;
-                addLog('🕳️ 균열이 안정화되어 자동으로 닫혔습니다.', 'loot-magic');
-            }
+            v.requiredKills = 0;
+            v.pendingWave = true;
+            v.totalToSpawn = 6 + Math.floor(Math.random() * 4);
+            v.spawnedCount = 0;
+            v.spawnTick = 0;
+            addLog('🕳️ 공허의 구멍이 랜덤으로 열렸습니다!', 'attack-monster', { noToast: true });
         }
     }
     let equippedHeralds = (game.equippedSupports || []).map(name => {
@@ -1872,11 +1901,16 @@ function finishEncounterRun() {
             if ((game.season || 1) >= 10 && zone.type === 'abyss') {
                 let depth = Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1));
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-                let nextDepth = Math.max(21, Math.floor(game.abyssEndlessDepth || depth) + 1);
+                let nowEndless = Math.max(20, Math.floor(game.abyssEndlessDepth || depth));
+                let nextDepth = Math.max(21, nowEndless + 1);
                 if (!game.abyssUnlockedDepths.includes(nextDepth)) game.abyssUnlockedDepths.push(nextDepth);
-                game.abyssEndlessDepth = Math.max(nextDepth, Math.floor(game.abyssEndlessDepth || 20));
+                game.abyssEndlessDepth = Math.max(nextDepth, nowEndless);
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
                 game.loopProgressCurrent.chaos20Cleared = true;
+                if (nowEndless > 20) {
+                    enterNextEndlessChaosDepth();
+                    return;
+                }
                 game.pendingLoopDecision = true;
                 game.combatHalted = true;
                 game.enemies = [];
@@ -2223,7 +2257,7 @@ function performMonsterAttacks(pStats) {
         let tierPressure = clampNumber(((zone.tier || 1) - 1) / 10, 0, 1);
         let seasonAtkScale = 1 + seasonDepth * (0.012 + (tierPressure * 0.018));
         let chillSlow = ailMap.chill ? Math.min(0.45, 0.12 + ailMap.chill * 0.14) : 0;
-        let atkRate = (0.26 + zone.tier * 0.013) * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * (1 - chillSlow);
+        let atkRate = (0.26 + zone.tier * 0.013) * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
         enemy.attackTimer += 0.1 * atkRate;
         while (enemy.attackTimer >= 1) {
             enemy.attackTimer -= 1;
@@ -2348,7 +2382,9 @@ function awardLoopProgressPoints() {
     game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
     game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
     let baseDepth = Math.max(20, Math.floor(game.loopProgressBase.abyssEndlessDepth || 20));
-    let nowDepth = Math.max(20, Math.floor(game.abyssEndlessDepth || 20));
+    let unlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : [];
+    let highestUnlocked = unlockedDepths.length > 0 ? Math.max(...unlockedDepths) : Math.max(20, Math.floor(game.abyssEndlessDepth || 20));
+    let nowDepth = Math.max(20, highestUnlocked >= 21 ? (highestUnlocked - 1) : highestUnlocked);
     let depthGain = Math.max(0, nowDepth - baseDepth);
     let baseLab = Math.max(1, Math.floor(game.loopProgressBase.labyrinthUnlockedMaxFloor || 1));
     let nowLab = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
@@ -2373,7 +2409,9 @@ function triggerSeasonReset() {
     playLoopRewriteEffect();
     let previousHeroId = game.selectedHeroId || 'hero1';
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+    let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
+    let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let abyssLoopPointGain = Math.max(0, (Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths.length : 0) * 5);
     game.season++;
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
@@ -2381,7 +2419,7 @@ function triggerSeasonReset() {
     if (game.loopCount === 2 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_spore_crafting', '홀씨 제작 해금', '루프 2 달성! 이제 액트/혼돈 몬스터가 화염/냉기/번개 홀씨를 떨어뜨립니다.\n제작 탭에서 오브 사용 시 홀씨 태그를 지정할 수 있습니다.', 'tab-items');
     }
-    if (loopReward.bonus > 0) addLog(`🧬 심화 루프 보상: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain})`, 'season-up');
+    addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
     if (abyssLoopPointGain > 0) addLog(`🌌 루프 정산: 혼돈 최초 클리어 보상 +${abyssLoopPointGain}pt`, 'season-up');
     game.level = 1;
     game.exp = 0;
@@ -2455,6 +2493,7 @@ function triggerSeasonReset() {
         game.settings.autoSalvageEnabled = false;
         game.settings.itemFilterEnabled = false;
     }
+    game.loopDeepPoints = Math.max(loopDeepBeforeReset, loopDeepExpectedAfterSettle);
     grantCodexLegacyStarterUniques();
     game.enemies = [];
     game.encounterPlan = [];
@@ -2490,11 +2529,8 @@ function chooseLoopAdvance(shouldLoop) {
         return;
     }
     game.pendingLoopDecision = false;
-    game.currentZoneId = Math.max(0, Math.floor(getCurrentSeasonFinalZoneId() || game.currentZoneId || 0));
-    game.killsInZone = 0;
-    game.combatHalted = true;
-    addLog('⏸️ 루프를 보류했습니다. 루프 탭에서 심화 진행/포인트 분배 후 원할 때 다음 루프로 이동하세요.', 'season-up');
-    updateStaticUI();
+    addLog('♾️ 루프를 보류하고 혼돈 심화 등반을 이어갑니다. (혼돈 21부터 시작)', 'season-up');
+    enterNextEndlessChaosDepth();
 }
 
 
