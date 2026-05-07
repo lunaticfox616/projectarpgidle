@@ -1985,7 +1985,7 @@ function performPlayerAttack(pStats) {
                 targetEnemy = alive[Math.floor(Math.random() * alive.length)];
             }
             if (!targetEnemy || targetEnemy.hp <= 0) return;
-            let hitElement = getHitElement();
+            let hitElement = swingElement;
             let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats);
             let dmg = Math.floor(baseDamage * hit.mult);
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
