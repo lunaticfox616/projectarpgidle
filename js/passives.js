@@ -3522,6 +3522,26 @@ function buildBattleAssetAtlas() {
         return buildSafeHeroFrameSetFromClipDefs(image, defs);
     }
     let selectedHeroDef = getHeroSelectionDef(game.selectedHeroId);
+
+    function buildEnemyTransparentImage(image) {
+        if (!image) return image;
+        let c = document.createElement('canvas');
+        c.width = image.width;
+        c.height = image.height;
+        let cx = c.getContext('2d', { willReadFrequently: true });
+        cx.drawImage(image, 0, 0);
+        let id = cx.getImageData(0, 0, c.width, c.height);
+        let d = id.data;
+        let keyR = d[0], keyG = d[1], keyB = d[2];
+        for (let i = 0; i < d.length; i += 4) {
+            let dr = Math.abs(d[i] - keyR);
+            let dg = Math.abs(d[i + 1] - keyG);
+            let db = Math.abs(d[i + 2] - keyB);
+            if (dr + dg + db < 42) d[i + 3] = 0;
+        }
+        cx.putImageData(id, 0, 0);
+        return c;
+    }
     let heroFrameSet = buildHeroFrameSetFromStripKeys(selectedHeroDef.strips, selectedHeroDef.id);
     if (!heroFrameSet && selectedHeroDef.id !== 'hero1') heroFrameSet = buildHeroFrameSetFromStripKeys(HERO_SELECTION_DEFS.hero1.strips, 'hero1');
     if (!heroFrameSet && heroFramesLegacy.length > 0) heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
@@ -3549,7 +3569,8 @@ function buildBattleAssetAtlas() {
             run: []
         };
     }
-    const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(battleAssets.images.enemies, part, key === 'boss' ? 5 : 3)]));
+    const enemySpriteImage = buildEnemyTransparentImage(battleAssets.images.enemies);
+    const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(enemySpriteImage, part, key === 'boss' ? 5 : 3)]));
     function buildDetectedEnemyPools(image) {
         let pools = { normal: [], elite: [], boss: [] };
         if (!image) return pools;
@@ -3577,24 +3598,27 @@ function buildBattleAssetAtlas() {
     }
     let enemyVariantPools = {
         normal: [
-            { image: battleAssets.images.enemies, frame: enemyFrames.slime },
-            { image: battleAssets.images.enemies, frame: enemyFrames.bandit },
-            { image: battleAssets.images.enemies, frame: enemyFrames.shadow },
-            { image: battleAssets.images.enemies, frame: enemyFrames.wraith }
+            { image: enemySpriteImage, frame: enemyFrames.slime },
+            { image: enemySpriteImage, frame: enemyFrames.bandit },
+            { image: enemySpriteImage, frame: enemyFrames.shadow },
+            { image: enemySpriteImage, frame: enemyFrames.wraith }
         ].filter(entry => hasUsableFrame(entry.frame)),
         elite: [
-            { image: battleAssets.images.enemies, frame: enemyFrames.knight },
-            { image: battleAssets.images.enemies, frame: enemyFrames.skeleton },
-            { image: battleAssets.images.enemies, frame: enemyFrames.shadow },
-            { image: battleAssets.images.enemies, frame: enemyFrames.wraith },
+            { image: enemySpriteImage, frame: enemyFrames.knight },
+            { image: enemySpriteImage, frame: enemyFrames.skeleton },
+            { image: enemySpriteImage, frame: enemyFrames.shadow },
+            { image: enemySpriteImage, frame: enemyFrames.wraith },
             { image: battleAssets.images.enemies, frame: enemyFrames.bandit }
         ].filter(entry => hasUsableFrame(entry.frame)),
         boss: [
-            { image: battleAssets.images.enemies, frame: enemyFrames.boss },
+            { image: enemySpriteImage, frame: enemyFrames.boss },
         ].filter(entry => hasUsableFrame(entry.frame))
     };
-    enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies2));
-    enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies3));
+    // 배경 불투명 스프라이트가 섞이는 현상을 방지하기 위해
+    // 자동 감지 풀(2/3번 시트)은 기본값에서 제외한다.
+    // 필요 시 추후 개별 투명화 보정 후 재활성화 가능.
+    // enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies2));
+    // enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies3));
     const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
     return {
         hero: {
@@ -3602,7 +3626,7 @@ function buildBattleAssetAtlas() {
             frames: heroFrameSet
         },
         enemies: {
-            image: battleAssets.images.enemies,
+            image: enemySpriteImage,
             variants: enemyVariantPools,
             frames: {
                 slime: enemyFrames.slime,
@@ -4759,8 +4783,8 @@ function useCurrency(currencyKey) {
             else stat.val = Math.floor(val);
         });
     } else if (currencyKey === 'scour') {
-        item.rarity = 'normal';
         item.stats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
+        item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
     } else if (currencyKey === 'tainted') {
         item.corrupted = true;
