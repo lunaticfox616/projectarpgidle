@@ -1904,7 +1904,9 @@ function finishEncounterRun() {
                 let nowEndless = Math.max(20, Math.floor(game.abyssEndlessDepth || depth));
                 let nextDepth = Math.max(21, nowEndless + 1);
                 if (!game.abyssUnlockedDepths.includes(nextDepth)) game.abyssUnlockedDepths.push(nextDepth);
-                game.abyssEndlessDepth = Math.max(nextDepth, nowEndless);
+                // Keep current endless depth here; enterNextEndlessChaosDepth() advances by +1 when continuing.
+                // Setting this to nextDepth would double-advance and skip a floor (e.g. 20 -> 22).
+                game.abyssEndlessDepth = Math.max(nowEndless, 20);
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
                 game.loopProgressCurrent.chaos20Cleared = true;
                 if (nowEndless > 20) {

@@ -4,6 +4,7 @@ let lastHeavyUiRefreshAt = 0;
 let mobilePipCanvas = null;
 let mobilePipCtx = null;
 let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 94, lastTapAt: 0 };
+let mobilePipRefreshHandle = null;
 
 function ensureMobileBattlePip() {
     let host = document.getElementById('mobile-battle-pip');
@@ -89,6 +90,17 @@ function renderMobileBattlePipFrame() {
     try { renderBattlefield(true); } catch (e) {}
     mobilePipCtx.clearRect(0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
     mobilePipCtx.drawImage(src, 0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
+}
+
+
+function startMobilePipRefreshLoop() {
+    if (mobilePipRefreshHandle) clearInterval(mobilePipRefreshHandle);
+    mobilePipRefreshHandle = setInterval(() => {
+        try {
+            updateMobileBattlePipVisibility();
+            renderMobileBattlePipFrame();
+        } catch (e) {}
+    }, 120);
 }
 
 function tickShrineState(){
@@ -5052,6 +5064,7 @@ function init() {
     }
     syncBattleTabLayout(true);
     updateMobileBattlePipVisibility();
+    startMobilePipRefreshLoop();
     setupCanvasEvents();
     resizeCanvas();
     if (!window.__cloudVisibilitySaveBound) {
