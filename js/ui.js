@@ -781,6 +781,82 @@ function toggleSupport(name) {
     updateStaticUI();
 }
 
+
+let mobileToastQueue = [];
+let mobileToastActive = false;
+
+function shouldShowMobileToast(msg, cls, opts = {}) {
+    if (opts && opts.noToast) return false;
+    let isMobile = (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) || ('ontouchstart' in window);
+    let logHidden = game && game.settings && game.settings.showCombatLog === false;
+    if (!isMobile && !logHidden) return false;
+    let text = stripHtmlMessage(msg);
+    let importantFailure = /(부족|실패|불가|필요|없습니다|찾을 수 없습니다|잠겨|환불|반환)/.test(text || '');
+    if (importantFailure) return true;
+    let level = cls || '';
+    if (level === 'attack-monster') return true;
+    if (level === 'season-up' || level === 'loot-unique') return true;
+    return false;
+}
+
+function getMobileToastRoot() {
+    let root = document.getElementById('mobile-toast-root');
+    if (root) return root;
+    root = document.createElement('div');
+    root.id = 'mobile-toast-root';
+    root.style.position = 'fixed';
+    root.style.left = '50%';
+    root.style.bottom = '84px';
+    root.style.transform = 'translateX(-50%)';
+    root.style.zIndex = '9999';
+    root.style.pointerEvents = 'none';
+    root.style.display = 'flex';
+    root.style.flexDirection = 'column';
+    root.style.gap = '8px';
+    root.style.width = 'min(92vw, 560px)';
+    document.body.appendChild(root);
+    return root;
+}
+
+function stripHtmlMessage(raw) {
+    let div = document.createElement('div');
+    div.innerHTML = String(raw || '');
+    return (div.textContent || div.innerText || '').trim();
+}
+
+function enqueueMobileToast(msg, cls) {
+    mobileToastQueue.push({ msg: stripHtmlMessage(msg), cls: cls || '' });
+    if (!mobileToastActive) showNextMobileToast();
+}
+
+function showNextMobileToast() {
+    if (mobileToastQueue.length <= 0) { mobileToastActive = false; return; }
+    mobileToastActive = true;
+    let entry = mobileToastQueue.shift();
+    let root = getMobileToastRoot();
+    let toast = document.createElement('div');
+    toast.textContent = entry.msg;
+    toast.style.background = entry.cls === 'attack-monster' ? 'rgba(120,35,35,0.94)' : 'rgba(22,30,45,0.94)';
+    toast.style.border = entry.cls === 'attack-monster' ? '1px solid #b76464' : '1px solid #4f6f96';
+    toast.style.color = '#eef5ff';
+    toast.style.padding = '10px 12px';
+    toast.style.borderRadius = '10px';
+    toast.style.fontSize = '13px';
+    toast.style.lineHeight = '1.35';
+    toast.style.boxShadow = '0 6px 20px rgba(0,0,0,0.35)';
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity .2s ease';
+    root.appendChild(toast);
+    requestAnimationFrame(() => { toast.style.opacity = '1'; });
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+            showNextMobileToast();
+        }, 220);
+    }, 1700);
+}
+
 let logQueue = [];
 let logFlushRaf = 0;
 let combatLogRateState = {};
@@ -839,6 +915,7 @@ function addLog(msg, cls, opts = {}) {
         return;
     }
     logQueue.push({ msg, cls });
+    if (shouldShowMobileToast(msg, cls, opts)) enqueueMobileToast(msg, cls);
     if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
 }
 
