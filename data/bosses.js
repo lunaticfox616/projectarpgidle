@@ -15,6 +15,7 @@ const ENEMY_TRAIT_POOL = [
     { id: 'leechResist', name: '흡혈저항', leechEffMul: 0.45, expMul: 1.06, dropMul: 1.04 },
     { id: 'bloodless', name: '무혈', leechEffMul: 0, expMul: 1.10, dropMul: 1.08 },
     { id: 'swiftHands', name: '고속 공세', attackSpeedVarMul: 1.18, expMul: 1.05, dropMul: 1.03 },
+    { id: 'veryFast', name: '매우 빠름', attackSpeedVarMul: 1.26, expMul: 1.08, dropMul: 1.06 },
     { id: 'strong', name: '강함', atkMul: 1.2, expMul: 1.07, dropMul: 1.05 },
     { id: 'veryStrong', name: '매우 강함', atkMul: 1.5, hpMul: 1.12, expMul: 1.12, dropMul: 1.08 },
     { id: 'deadly', name: '치명적', critChanceBonus: 18, expMul: 1.08, dropMul: 1.06 },
