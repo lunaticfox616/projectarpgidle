@@ -1,5 +1,48 @@
 // Phase-2 extracted UI/tab/render helper block.
 let lastHeavyUiRefreshAt = 0;
+
+let mobilePipCanvas = null;
+let mobilePipCtx = null;
+
+function ensureMobileBattlePip() {
+    let host = document.getElementById('mobile-battle-pip');
+    if (!host) {
+        host = document.createElement('div');
+        host.id = 'mobile-battle-pip';
+        host.style.cssText = 'position:fixed; right:10px; bottom:94px; width:148px; height:84px; border:1px solid #4c6b93; border-radius:10px; overflow:hidden; background:#0a1320; z-index:9997; display:none; box-shadow:0 8px 20px rgba(0,0,0,.35);';
+        host.onclick = () => switchTab('tab-battle');
+        let c = document.createElement('canvas');
+        c.width = 296; c.height = 168;
+        c.style.cssText = 'width:100%; height:100%; display:block;';
+        host.appendChild(c);
+        document.body.appendChild(host);
+    }
+    if (!mobilePipCanvas) {
+        mobilePipCanvas = host.querySelector('canvas');
+        mobilePipCtx = mobilePipCanvas ? mobilePipCanvas.getContext('2d') : null;
+    }
+    return host;
+}
+
+function updateMobileBattlePipVisibility() {
+    let host = ensureMobileBattlePip();
+    if (!host) return;
+    let isMobile = (window.matchMedia && window.matchMedia('(max-width: 1080px)').matches) || ('ontouchstart' in window);
+    let activeBattle = (document.getElementById('tab-battle') || {}).classList.contains('active');
+    let blocked = isStartupOverlayOpen() || isLoadingOverlayOpen();
+    host.style.display = (isMobile && !activeBattle && !blocked) ? 'block' : 'none';
+}
+
+function renderMobileBattlePipFrame() {
+    if (!mobilePipCtx || !mobilePipCanvas) return;
+    let host = document.getElementById('mobile-battle-pip');
+    if (!host || host.style.display === 'none') return;
+    let src = document.getElementById('battlefield-canvas');
+    if (!src || !src.width || !src.height) return;
+    mobilePipCtx.clearRect(0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
+    mobilePipCtx.drawImage(src, 0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
+}
+
 function tickShrineState(){
     game.shrineState = game.shrineState || { active: null, nextRollAt: 0 };
     let now = Date.now();
@@ -100,6 +143,7 @@ function switchTab(tabId) {
     }
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
+    updateMobileBattlePipVisibility();
     updateStaticUI();
     if (tabId === 'tab-char') {
         setTimeout(function() {
@@ -4247,6 +4291,7 @@ async function enterGameWorld() {
     }
     try {
         renderBattlefield();
+        renderMobileBattlePipFrame();
     } catch (error) {
         console.error('renderBattlefield on enterGameWorld failed:', error);
     } finally {
@@ -4400,6 +4445,7 @@ function applyExternalSave(snapshot, sourceStamp) {
     }
     try {
         renderBattlefield();
+        renderMobileBattlePipFrame();
     } catch (error) {
         console.error('renderBattlefield after cloud load failed:', error);
     }
@@ -4951,6 +4997,7 @@ function init() {
         });
     }
     syncBattleTabLayout(true);
+    updateMobileBattlePipVisibility();
     setupCanvasEvents();
     resizeCanvas();
     if (!window.__cloudVisibilitySaveBound) {
@@ -4981,6 +5028,7 @@ function init() {
     }
     try {
         renderBattlefield();
+        renderMobileBattlePipFrame();
     } catch (error) {
         console.error('initial battlefield render failed:', error);
     } finally {
@@ -5021,6 +5069,7 @@ function gameLoop() {
         }
         if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
         renderBattlefield();
+        renderMobileBattlePipFrame();
     } catch (error) {
         console.error('gameLoop error:', error);
         recoverRuntimeState();
