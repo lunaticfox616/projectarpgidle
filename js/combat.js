@@ -1210,7 +1210,7 @@ function createEnemy(zone, marker, groupIndex) {
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
     let isElite = !!marker.elite && !isBoss;
-    let abyssDepth = zone.type === 'abyss' ? Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1)) : 0;
+    let abyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
     if (zone.type === 'abyss' && !isElite && !isBoss) {
         let hpRamp = Math.min(0.20, Math.max(0, abyssDepth - 1) * 0.015);
         hp = Math.floor(hp * (1 + hpRamp));
@@ -1735,7 +1735,7 @@ function tickGrandBreachRun(zone) {
 function grantExpAndGem(enemy, pStats) {
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
-    let abyssDepth = zone.type === 'abyss' ? Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1)) : 0;
+    let abyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
     let exp = Math.floor((14 + zone.tier * 10) * (1 + game.season * 0.35));
     if (enemy.isElite) exp = Math.floor(exp * 1.8);
     if (enemy.isBoss) exp = Math.floor(exp * Math.max(3, zone.tier * 1.5));
@@ -1858,7 +1858,7 @@ function rollLootForEnemy(enemy) {
     itemChance *= (1 + (getCodexBonusPct() / 100));
     itemChance *= Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
     if (zone.type === 'abyss') {
-        let abyssDepth = Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1));
+        let abyssDepth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
         let depthDropDampen = Math.max(0.62, 1 - (abyssDepth - 1) * 0.015);
         itemChance *= depthDropDampen;
     }
@@ -2142,7 +2142,7 @@ function finishEncounterRun() {
 
     if (game.killsInZone >= zone.maxKills) {
         if (zone.type === 'abyss') {
-            let depth = Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1));
+            let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
             if (depth === 5 && !game.woodsmanSimulatorSeenLoop) {
                 game.woodsmanSimulatorSeenLoop = true;
                 unlockJournalEntry('woodsman');
@@ -2176,9 +2176,11 @@ function finishEncounterRun() {
                 return;
             }
         }
-        if (zone.id === getCurrentSeasonFinalZoneId()) {
+        let clearedAbyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
+        let clearedSeasonFinalZone = zone.id === getCurrentSeasonFinalZoneId() || (zone.type === 'abyss' && clearedAbyssDepth >= getSeasonAbyssDepthCap(game.season || 1));
+        if (clearedSeasonFinalZone) {
             if ((game.season || 1) >= 10 && zone.type === 'abyss') {
-                let depth = Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1));
+                let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
                 let nowEndless = Math.max(20, Math.floor(game.abyssEndlessDepth || depth));
                 let nextDepth = Math.max(21, nowEndless + 1);
