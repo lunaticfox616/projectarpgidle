@@ -254,6 +254,108 @@ function switchItemSubtab(subtabId) {
     document.getElementById('btn-' + subtabId).classList.add('active');
 }
 
+
+
+function getDefaultSkillAutoRule() {
+    return {
+        id: `rule_${Date.now()}_${Math.floor(Math.random()*10000)}`,
+        enabled: true,
+        priority: ((game.skillAutoRules || []).length + 1),
+        hpThreshold: 40,
+        gemType: '수호 젬',
+        skillName: ''
+    };
+}
+
+function addSkillAutoRule() {
+    game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
+    let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 3개 제시</button></div>`;
+    let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
+    let ownedHtml = owned.length > 0 ? `<div style="margin-top:8px; color:#98b7d3; font-size:0.82em;">보유 컨디션 젬: ${owned.map(escapeHTML).join(', ')}</div>` : '';
+
+    game.skillAutoRules.push(getDefaultSkillAutoRule());
+    renderSkillAutoRulePanel();
+}
+
+function sortSkillAutoRules() {
+    game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
+    let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 3개 제시</button></div>`;
+    let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
+    let ownedHtml = owned.length > 0 ? `<div style="margin-top:8px; color:#98b7d3; font-size:0.82em;">보유 컨디션 젬: ${owned.map(escapeHTML).join(', ')}</div>` : '';
+
+    game.skillAutoRules.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    game.skillAutoRules.forEach((rule, idx) => rule.priority = idx + 1);
+    renderSkillAutoRulePanel();
+}
+
+function getAllConditionGemEntries() {
+    let db = window.CONDITION_GEM_DB || {};
+    return [].concat(db.curse || [], db.warcry || [], db.guard || [], db.utility || []);
+}
+
+function rollConditionGemChoices() {
+    if (!game.conditionGemUnlocked) return addLog('컨디션 젬이 아직 잠겨 있습니다. 루프2 뿌리 보스를 먼저 쓰러뜨리세요.', 'attack-monster');
+    if ((game.currencies.bossCore || 0) <= 0) return addLog('군주의 핵이 부족합니다.', 'attack-monster');
+    let pool = getAllConditionGemEntries().filter(entry => !game.conditionGemPool.includes(entry.name));
+    if (pool.length === 0) return addLog('해금 가능한 컨디션 젬이 더 이상 없습니다.', 'attack-monster');
+    game.currencies.bossCore--;
+    let choices = [];
+    while (choices.length < Math.min(3, pool.length)) {
+        let pick = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+        choices.push(pick);
+    }
+    game.pendingConditionGemChoices = choices;
+    renderSkillAutoRulePanel();
+}
+
+function pickConditionGem(name) {
+    game.conditionGemPool = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
+    if (!game.conditionGemPool.includes(name)) game.conditionGemPool.push(name);
+    game.pendingConditionGemChoices = null;
+    addLog(`✨ 컨디션 젬 [${name}] 해금!`, 'loot-unique');
+    renderSkillAutoRulePanel();
+}
+
+function renderSkillAutoRulePanel() {
+    let panel = document.getElementById('ui-skill-rules-panel');
+    if (!panel) return;
+    let unlocked = !!game.conditionGemUnlocked;
+    let owned = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
+    let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
+    if (!unlocked) {
+        panel.innerHTML = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프2 뿌리 보스를 처음 처치하면 컨디션 젬이 해금됩니다.</div>`;
+        return;
+    }
+    game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
+    let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 3개 제시</button></div>`;
+    let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
+    let ownedHtml = owned.length > 0 ? `<div style="margin-top:8px; color:#98b7d3; font-size:0.82em;">보유 컨디션 젬: ${owned.map(escapeHTML).join(', ')}</div>` : '';
+
+    if (game.skillAutoRules.length === 0) {
+        panel.innerHTML = summary + choiceHtml + ownedHtml + `<div style="color:#7f8c8d; border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
+        return;
+    }
+    panel.innerHTML = summary + choiceHtml + ownedHtml + game.skillAutoRules.map((rule, idx) => `
+        <div style="background:#111722; border:1px solid #304a67; border-radius:10px; padding:10px; display:grid; gap:6px;">
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <label><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="game.skillAutoRules[${idx}].enabled=this.checked;"> 사용</label>
+                <label>우선순위 <input type="number" min="1" value="${rule.priority || (idx+1)}" style="width:60px;" onchange="game.skillAutoRules[${idx}].priority=Math.max(1,Math.floor(this.value||1));"></label>
+                <button onclick="game.skillAutoRules.splice(${idx},1); renderSkillAutoRulePanel();">삭제</button>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; color:#c7d7ea;">
+                <span>IF</span>
+                <span>HP ≤</span>
+                <input type="number" min="1" max="100" value="${rule.hpThreshold || 40}" style="width:64px;" onchange="game.skillAutoRules[${idx}].hpThreshold=Math.min(100,Math.max(1,Math.floor(this.value||40)));">
+                <span>%</span>
+                <span>THEN</span>
+                <select onchange="game.skillAutoRules[${idx}].gemType=this.value;">
+                    ${['함성 젬','저주 젬','수호 젬','기타 젬'].map(type => `<option value="${type}" ${rule.gemType===type?'selected':''}>${type}</option>`).join('')}
+                </select>
+                <input type="text" value="${escapeHTML(rule.skillName || '')}" placeholder="사용할 젬 이름" onchange="game.skillAutoRules[${idx}].skillName=this.value.trim();" style="min-width:180px;">
+            </div>
+        </div>`).join('');
+}
+
 function switchSkillSubtab(subtabId) {
     game.skillSubtab = subtabId;
     document.querySelectorAll('#tab-skills .subtab-content').forEach(el => el.classList.remove('active'));
@@ -381,6 +483,13 @@ function toggleSeasonBossRepeat() {
 function renderStarWedgePanel() {
     let panel = document.getElementById('ui-star-wedge-panel');
     if (!panel) return;
+    let unlocked = !!game.conditionGemUnlocked;
+    let owned = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
+    let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
+    if (!unlocked) {
+        panel.innerHTML = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프2 뿌리 보스를 처음 처치하면 컨디션 젬이 해금됩니다.</div>`;
+        return;
+    }
     let st = ensureStarWedgeState();
     tryUnlockMeteorContentByProgress();
     if (!st.unlocked) {
@@ -3346,6 +3455,7 @@ function buildCraftActionButtons(item) {
     }
 
     switchItemSubtab(game.itemSubtab || 'item-tab-equip');
+    renderSkillAutoRulePanel();
     switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
     switchMapSubtab(game.mapSubtab || 'map-tab-zones');
 }
@@ -3997,7 +4107,12 @@ function mergeDefaults(save) {
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
     merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
-    merged.skillSubtab = (merged.skillSubtab === 'skill-tab-enhance') ? 'skill-tab-enhance' : 'skill-tab-equip';
+    merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
+    merged.skillAutoRules = Array.isArray(merged.skillAutoRules) ? merged.skillAutoRules : [];
+    merged.conditionGemUnlocked = !!merged.conditionGemUnlocked;
+    merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
+    merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
+    merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
     merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
     merged.gemFoldInactiveSupport = !!merged.gemFoldInactiveSupport;

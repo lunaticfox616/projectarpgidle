@@ -46,3 +46,44 @@ const SKILL_DB = {
 
 
 safeExposeData({ SKILL_DB });
+
+
+const CONDITION_GEM_DB = {
+  curse: [
+    { name:'재의 표식', type:'curse', castTime:1.1, duration:6, tags:['fire','curse'], desc:'화염 취약 저주.' },
+    { name:'빙결의 낙인', type:'curse', castTime:1.1, duration:6, tags:['cold','curse'], desc:'냉기 취약 저주.' },
+    { name:'감전 문양', type:'curse', castTime:1.1, duration:6, tags:['lightning','curse'], desc:'번개 취약 저주.' },
+    { name:'부패 각인', type:'curse', castTime:1.1, duration:6, tags:['chaos','curse'], desc:'카오스 취약 저주.' },
+    { name:'균열 저주', type:'curse', castTime:1.2, duration:7, tags:['physical','curse'], desc:'방어 약화 저주.' },
+    { name:'취약의 낙인', type:'curse', castTime:1.1, duration:7, tags:['physical','curse'], desc:'받는 피해 증가.' },
+    { name:'파멸 징표', type:'curse', castTime:1.3, duration:5, tags:['chaos','curse'], desc:'후반 폭증 저주.' },
+    { name:'쇠약의 기도', type:'curse', castTime:1.0, duration:8, tags:['cold','curse'], desc:'적 공세 둔화.' },
+    { name:'타오른 죄책', type:'curse', castTime:1.0, duration:7, tags:['fire','curse'], desc:'점화 증폭.' },
+    { name:'천둥 포박', type:'curse', castTime:1.2, duration:6, tags:['lightning','curse'], desc:'감전 확률 증가.' },
+    { name:'절단의 맹세', type:'curse', castTime:1.2, duration:6, tags:['physical','curse'], desc:'물리 취약.' },
+    { name:'심연 고리', type:'curse', castTime:1.2, duration:7, tags:['chaos','curse'], desc:'저항 침식.' }
+  ],
+  warcry: [
+    { name:'전장의 함성', type:'warcry', castTime:1.8, duration:5, tags:['physical','warcry'], desc:'치명 버프.' },
+    { name:'피의 함성', type:'warcry', castTime:2.0, duration:6, tags:['chaos','warcry'], desc:'흡혈 버프.' },
+    { name:'추적자의 함성', type:'warcry', castTime:1.7, duration:4, tags:['lightning','warcry'], desc:'추적 강화.' },
+    { name:'용광의 외침', type:'warcry', castTime:1.9, duration:5, tags:['fire','warcry'], desc:'화염 강화.' },
+    { name:'빙하의 포효', type:'warcry', castTime:1.9, duration:5, tags:['cold','warcry'], desc:'냉기 강화.' },
+    { name:'폭풍의 고함', type:'warcry', castTime:1.8, duration:5, tags:['lightning','warcry'], desc:'번개 강화.' },
+    { name:'공허의 외침', type:'warcry', castTime:2.1, duration:5, tags:['chaos','warcry'], desc:'카오스 강화.' },
+    { name:'결전 신호', type:'warcry', castTime:2.2, duration:4, tags:['physical','warcry'], desc:'보스전 버프.' }
+  ],
+  guard: [
+    { name:'현무 장막', type:'guard', castTime:0.6, duration:2.2, tags:['physical','guard'], desc:'피해 흡수 보호막.' },
+    { name:'응보 방패', type:'guard', castTime:0.7, duration:3, tags:['fire','guard'], desc:'피해 반사.' },
+    { name:'철의 맹세', type:'guard', castTime:0.6, duration:4, tags:['physical','guard'], desc:'피해 감소.' },
+    { name:'서리 장벽', type:'guard', castTime:0.6, duration:2.5, tags:['cold','guard'], desc:'냉기 보호막.' },
+    { name:'폭풍 장벽', type:'guard', castTime:0.6, duration:2.5, tags:['lightning','guard'], desc:'번개 보호막.' },
+    { name:'심연 껍질', type:'guard', castTime:0.7, duration:2.8, tags:['chaos','guard'], desc:'카오스 보호막.' }
+  ],
+  utility: [
+    { name:'귀환 젬', type:'utility', castTime:1.6, duration:0, tags:['utility'], desc:'귀환 버튼과 동일하게 거점으로 돌아갑니다.' }
+  ]
+};
+
+safeExposeData({ CONDITION_GEM_DB });
