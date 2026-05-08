@@ -468,6 +468,53 @@ function enterLabyrinthFloor(floor){ game.labyrinthFloor=Math.max(1,Math.floor(f
 function enterDeepChaosPrompt(){ let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let max=Math.max(20, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth||20)); let v=prompt(`진입할 심화 혼돈 층수를 입력하세요. (21 ~ ${max})`, String(max)); if(v===null)return; let depth=Math.floor(Number(v)||0); if(depth<21||depth>max) return addLog(`21~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); if (unlocked.length > 0 && !unlocked.includes(depth)) return addLog(`해금된 심화 혼돈 층수만 입장 가능합니다.`, 'attack-monster'); enterUnlockedEndlessDepth(depth); }
 function enterLabyrinthPrompt(){ let max=Math.max(1,Math.floor(game.labyrinthUnlockedMaxFloor||game.labyrinthFloor||1)); let v=prompt(`진입할 고대 미궁 층수를 입력하세요. (1 ~ ${max})`, String(max)); if(v===null)return; let floor=Math.floor(Number(v)||0); if(floor<1||floor>max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); enterLabyrinthFloor(floor); }
 
+
+function getChallengeContractState() {
+    game.challengeContract = game.challengeContract || { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false };
+    return game.challengeContract;
+}
+
+function getChallengeContractScore() {
+    let c = getChallengeContractState();
+    return (c.enemyPower ? 1 : 0) + (c.fragileArmor ? 1 : 0) + (c.shortHunt ? 1 : 0) + (c.greedPact ? 1 : 0);
+}
+
+function isChallengeContractOverlappedWithAbyss() {
+    let zone = getZone(game.currentZoneId);
+    return !!(zone && zone.type === 'abyss');
+}
+
+function toggleChallengeContract(key) {
+    let c = getChallengeContractState();
+    if (!(key in c)) return;
+    if (isChallengeContractOverlappedWithAbyss()) {
+        addLog('📜 도전 계약은 혼돈 패시브 구간(혼돈 층)에서는 비활성화됩니다.', 'attack-monster');
+        return;
+    }
+    c[key] = !c[key];
+    c.enabled = getChallengeContractScore() > 0;
+    addLog(`📜 도전 계약 변경: 활성 계약 ${getChallengeContractScore()}개`, 'season-up', { noToast: true });
+    updateStaticUI();
+}
+
+function renderChallengeContractPanel() {
+    let panel = document.getElementById('ui-challenge-contract-panel');
+    if (!panel) return;
+    let c = getChallengeContractState();
+    let score = getChallengeContractScore();
+    let bonus = score * 8;
+    let lockedByAbyss = isChallengeContractOverlappedWithAbyss();
+    panel.innerHTML = `
+        <div style="color:#c9d6ea; font-size:0.85em; margin-bottom:8px;">[제안 미리보기] 기존 사냥터에 디버프를 걸어 보상을 높이는 설계입니다. 현재 보상 배율 <strong style="color:#ffd88a;">+${bonus}%</strong> (활성 계약 ${score}개)</div>
+        ${lockedByAbyss ? '<div style="color:#ffb4b4; font-size:0.8em; margin-bottom:8px;">혼돈 패시브(혼돈 층)와 중첩 밸런스 충돌을 막기 위해 이 구간에서는 계약 토글이 잠깁니다.</div>' : ''}
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button onclick="toggleChallengeContract('enemyPower')" ${lockedByAbyss ? 'disabled' : ''} style="min-height:30px; ${c.enemyPower ? 'background:#6a3f35; border-color:#9d6354;' : ''}">적 공격력 +25%</button>
+            <button onclick="toggleChallengeContract('fragileArmor')" ${lockedByAbyss ? 'disabled' : ''} style="min-height:30px; ${c.fragileArmor ? 'background:#6a3f35; border-color:#9d6354;' : ''}">내 물피감 -12%</button>
+            <button onclick="toggleChallengeContract('shortHunt')" ${lockedByAbyss ? 'disabled' : ''} style="min-height:30px; ${c.shortHunt ? 'background:#6a3f35; border-color:#9d6354;' : ''}">맵 길이 -30%</button>
+            <button onclick="toggleChallengeContract('greedPact')" ${lockedByAbyss ? 'disabled' : ''} style="min-height:30px; ${c.greedPact ? 'background:#6a3f35; border-color:#9d6354;' : ''}">회복량 -35%</button>
+        </div>
+    `;
+}
 function toggleSeasonBossRepeat() {
     game.autoRepeatSeasonBoss = !game.autoRepeatSeasonBoss;
     addLog(`🗝️ 시즌 보스 반복 도전: ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`, 'season-up');
@@ -3135,6 +3182,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
 
     renderLoop9VoidRiftPanel();
+    renderChallengeContractPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
         let isCurrent = game.currentZoneId === trial.id;
         let isCompleted = game.completedTrials.includes(trial.id);

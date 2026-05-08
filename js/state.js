@@ -751,6 +751,7 @@ const defaultGame = {
     sporeCraftModes: {},
     shrineState: { active: null, nextRollAt: 0 },
     shrineBuff: null,
+    challengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [] },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
