@@ -4293,13 +4293,16 @@ function mergeDefaults(save) {
     }
     if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID) merged.currentZoneId = 0;
     if (typeof merged.currentZoneId === 'string' && !getZone(merged.currentZoneId)) merged.currentZoneId = 0;
-    if (typeof merged.maxZoneId !== 'string' && typeof merged.currentZoneId !== 'string' && merged.currentZoneId > merged.maxZoneId && getAbyssDepthFromZoneId(merged.currentZoneId) <= 20) merged.currentZoneId = merged.maxZoneId;
+    let currentAbyssDepth = typeof merged.currentZoneId !== 'string' ? getAbyssDepthFromZoneId(merged.currentZoneId) : 0;
+    let legacyDeepChaosSlot = (merged.season || 1) >= 10 && currentAbyssDepth === 20 && Math.floor(merged.abyssEndlessDepth || 0) > 20;
+    if (typeof merged.maxZoneId !== 'string' && typeof merged.currentZoneId !== 'string' && merged.currentZoneId > merged.maxZoneId && currentAbyssDepth <= 20 && !legacyDeepChaosSlot) merged.currentZoneId = merged.maxZoneId;
     if (merged.discoveredPassives.length === 0) merged.discoveredPassives = ['n0'];
     let seasonCap = getSeasonFinalZoneId(merged.season || 1);
     if (typeof merged.maxZoneId !== 'string') merged.maxZoneId = clampNumber(merged.maxZoneId, 0, seasonCap);
     if (typeof merged.currentZoneId !== 'string') {
         let normalizedDepth = getAbyssDepthFromZoneId(merged.currentZoneId);
-        if (normalizedDepth <= 20 || (merged.season || 1) < 10) merged.currentZoneId = clampNumber(merged.currentZoneId, 0, seasonCap);
+        let keepLegacyDeepChaosSlot = (merged.season || 1) >= 10 && normalizedDepth === 20 && Math.floor(merged.abyssEndlessDepth || 0) > 20;
+        if ((normalizedDepth <= 20 && !keepLegacyDeepChaosSlot) || (merged.season || 1) < 10) merged.currentZoneId = clampNumber(merged.currentZoneId, 0, seasonCap);
     }
     if ((merged.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (merged.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT) {
         merged.starWedge.unlocked = true;
