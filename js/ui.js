@@ -3163,7 +3163,7 @@ function buildCraftActionButtons(item) {
     if (deepChaosOpen) {
         let unlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21).sort((a, b) => a - b) : [];
         let highestDepth = Math.max(21, unlockedDepths.length > 0 ? unlockedDepths[unlockedDepths.length - 1] : Math.floor(game.abyssEndlessDepth || 21));
-        document.getElementById('ui-deep-chaos-list').innerHTML = `<div class="map-item ${game.currentZoneId === (ABYSS_START_ZONE_ID + 19) ? 'current' : ''}">
+        document.getElementById('ui-deep-chaos-list').innerHTML = `<div class="map-item ${getAbyssDepthFromZoneId(game.currentZoneId) >= 21 ? 'current' : ''}">
             <div class="map-item-main"><span>♾️</span><span>혼돈 심화층<br><span class="map-zone-status">현재 심화층: ${Math.floor(game.abyssEndlessDepth || 21)}층 · 최고 기록: ${highestDepth}층</span></span></div>
             <div class="map-item-actions"><span class="map-zone-status">입장 가능: 21 ~ ${highestDepth}</span></div>
         </div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()">심화 혼돈 층수 선택 입장</button></div>`;
@@ -4284,15 +4284,26 @@ function mergeDefaults(save) {
     merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
     if (typeof merged.currentZoneId === 'string' && /^\d+$/.test(merged.currentZoneId)) merged.currentZoneId = parseInt(merged.currentZoneId, 10);
     if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
-    if (typeof merged.currentZoneId !== 'string') merged.currentZoneId = clampNumber(Number.isFinite(merged.currentZoneId) ? merged.currentZoneId : 0, 0, MAP_ZONES.length - 1);
     if (typeof merged.maxZoneId !== 'string') merged.maxZoneId = clampNumber(Number.isFinite(merged.maxZoneId) ? merged.maxZoneId : 0, 0, MAP_ZONES.length - 1);
+    if (typeof merged.currentZoneId !== 'string') {
+        let numericZoneId = Number.isFinite(merged.currentZoneId) ? merged.currentZoneId : 0;
+        let savedDepth = Math.max(Math.floor(merged.abyssEndlessDepth || 20), getAbyssDepthFromZoneId(numericZoneId), ...((Array.isArray(merged.abyssUnlockedDepths) ? merged.abyssUnlockedDepths : [20]).map(v => Math.floor(v || 0))));
+        let maxDeepZoneId = getAbyssZoneIdForDepth(Math.max(20, savedDepth));
+        merged.currentZoneId = clampNumber(numericZoneId, 0, Math.max(MAP_ZONES.length - 1, maxDeepZoneId));
+    }
     if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID) merged.currentZoneId = 0;
     if (typeof merged.currentZoneId === 'string' && !getZone(merged.currentZoneId)) merged.currentZoneId = 0;
-    if (typeof merged.maxZoneId !== 'string' && merged.currentZoneId > merged.maxZoneId) merged.currentZoneId = merged.maxZoneId;
+    let currentAbyssDepth = typeof merged.currentZoneId !== 'string' ? getAbyssDepthFromZoneId(merged.currentZoneId) : 0;
+    let legacyDeepChaosSlot = (merged.season || 1) >= 10 && currentAbyssDepth === 20 && Math.floor(merged.abyssEndlessDepth || 0) > 20;
+    if (typeof merged.maxZoneId !== 'string' && typeof merged.currentZoneId !== 'string' && merged.currentZoneId > merged.maxZoneId && currentAbyssDepth <= 20 && !legacyDeepChaosSlot) merged.currentZoneId = merged.maxZoneId;
     if (merged.discoveredPassives.length === 0) merged.discoveredPassives = ['n0'];
     let seasonCap = getSeasonFinalZoneId(merged.season || 1);
     if (typeof merged.maxZoneId !== 'string') merged.maxZoneId = clampNumber(merged.maxZoneId, 0, seasonCap);
-    if (typeof merged.currentZoneId !== 'string') merged.currentZoneId = clampNumber(merged.currentZoneId, 0, seasonCap);
+    if (typeof merged.currentZoneId !== 'string') {
+        let normalizedDepth = getAbyssDepthFromZoneId(merged.currentZoneId);
+        let keepLegacyDeepChaosSlot = (merged.season || 1) >= 10 && normalizedDepth === 20 && Math.floor(merged.abyssEndlessDepth || 0) > 20;
+        if ((normalizedDepth <= 20 && !keepLegacyDeepChaosSlot) || (merged.season || 1) < 10) merged.currentZoneId = clampNumber(merged.currentZoneId, 0, seasonCap);
+    }
     if ((merged.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (merged.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT) {
         merged.starWedge.unlocked = true;
     }
