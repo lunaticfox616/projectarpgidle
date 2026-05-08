@@ -1081,7 +1081,7 @@ function craftCompleteStarWedge() { if (game.woodsmanBuildLock) return addLog('�
     updateStaticUI();
 }
 
-function rerollStarWedge(wedgeId, keepIndex) {
+function rerollStarWedge(wedgeId, keepIndex) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let wedge = getStarWedgeById(wedgeId);
     if (!wedge) return;
     let keepIndexes = [];

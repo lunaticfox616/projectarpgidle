@@ -100,10 +100,10 @@ function getAllConditionGemEntriesForCombat() {
 }
 
 function runConditionGemAutoRules(pStats) {
-    if (!game.conditionGemUnlocked) return;
-    if (!Array.isArray(game.skillAutoRules) || game.skillAutoRules.length === 0) return;
     let now = Date.now();
     cleanupConditionGemStates(now);
+    if (!game.conditionGemUnlocked) return;
+    if (!Array.isArray(game.skillAutoRules) || game.skillAutoRules.length === 0) return;
     game.conditionGemCooldowns = game.conditionGemCooldowns || {};
     game.enemyConditionDebuffs = game.enemyConditionDebuffs || {};
     game.playerConditionBuffs = Array.isArray(game.playerConditionBuffs) ? game.playerConditionBuffs : [];
@@ -218,6 +218,7 @@ function clearWoodsmanBuildLock() {
 }
 
 function coreLoop() {
+    if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
     runConditionGemAutoRules(pStats);
