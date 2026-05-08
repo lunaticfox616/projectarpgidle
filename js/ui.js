@@ -5149,6 +5149,7 @@ async function cloudPullNow() {
 
 function reportFatalError(stage, error) {
     let message = error && error.message ? error.message : String(error);
+    let stack = error && error.stack ? String(error.stack).split('\n').slice(0, 4).join('\n') : '';
     console.error(stage + ' failed:', error);
     try {
         let label = document.getElementById('ui-progress-label');
@@ -5158,7 +5159,10 @@ function reportFatalError(stage, error) {
         let caption = document.getElementById('ui-battlefield-caption');
         if (caption) caption.innerText = `${stage}: ${message}`;
         let log = document.getElementById('log');
-        if (log) log.innerHTML = `<div class="log-item attack-monster">[${stage}] ${message}</div>`;
+        if (log) {
+            let detail = stack ? `<pre style="white-space:pre-wrap;margin:6px 0 0;color:#ff9f9f;font-size:0.78em;">${escapeHTML(stack)}</pre>` : '';
+            log.innerHTML = `<div class="log-item attack-monster">[${stage}] ${escapeHTML(message)}${detail}</div>`;
+        }
     } catch (uiError) {
         console.error('fatal error UI update failed:', uiError);
     }
