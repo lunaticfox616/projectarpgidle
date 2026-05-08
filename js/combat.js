@@ -29,14 +29,220 @@ function isDualWielding() {
     return !!(mainWeapon && neckWeapon && neckWeapon.slot === '무기');
 }
 
+
+
+function cleanupConditionGemStates(now) {
+    game.playerConditionBuffs = (game.playerConditionBuffs || []).filter(buff => buff && (buff.expiresAt || 0) > now);
+    let map = game.enemyConditionDebuffs || {};
+    Object.keys(map).forEach(id => {
+        map[id] = (map[id] || []).filter(deb => deb && (deb.expiresAt || 0) > now);
+        if (map[id].length === 0) delete map[id];
+    });
+    game.enemyConditionDebuffs = map;
+}
+
+function getConditionGemStatDelta(name, type) {
+    const PRESETS = {
+        // Curses
+        '재의 표식': { enemyTakenMul: 1.16, enemyResShred: 10, dotBonus: 0.08 },
+        '빙결의 낙인': { enemyTakenMul: 1.1, enemyResShred: 8, enemyAspdSlow: 0.12 },
+        '감전 문양': { enemyTakenMul: 1.14, enemyResShred: 9, critBonus: 4 },
+        '부패 각인': { enemyTakenMul: 1.12, enemyResShred: 12, leechBonus: 0.25 },
+        '균열 저주': { enemyTakenMul: 1.1, enemyResShred: 14 },
+        '취약의 낙인': { enemyTakenMul: 1.18, enemyResShred: 6 },
+        '파멸 징표': { enemyTakenMul: 1.22, enemyResShred: 5 },
+        '쇠약의 기도': { enemyTakenMul: 1.08, enemyResShred: 5, enemyAspdSlow: 0.18 },
+        '타오른 죄책': { enemyTakenMul: 1.15, enemyResShred: 11, dotBonus: 0.1 },
+        '천둥 포박': { enemyTakenMul: 1.13, enemyResShred: 10, critBonus: 6 },
+        '절단의 맹세': { enemyTakenMul: 1.16, enemyResShred: 7, physBonus: 0.08 },
+        '심연 고리': { enemyTakenMul: 1.12, enemyResShred: 13, chaosBonus: 0.1 },
+        // Warcries
+        '전장의 함성': { pctDmg: 16, aspd: 12 },
+        '피의 함성': { pctDmg: 22, leech: 0.9, hpSacrificePct: 6 },
+        '추적자의 함성': { aspd: 14, targetAny: 1 },
+        '용광의 외침': { pctDmg: 15, fireBonus: 0.12 },
+        '빙하의 포효': { pctDmg: 13, coldBonus: 0.12, dr: 4 },
+        '폭풍의 고함': { aspd: 16, crit: 5 },
+        '공허의 외침': { pctDmg: 17, chaosBonus: 0.15, resPen: 4 },
+        '결전 신호': { pctDmg: 24, dr: -4, critDmg: 30 },
+        // Guards
+        '현무 장막': { dr: 18, regen: 1.2 },
+        '응보 방패': { dr: 12, thorns: 0.18 },
+        '철의 맹세': { dr: 22, aspd: -8 },
+        '서리 장벽': { dr: 14, coldGuard: 0.2 },
+        '폭풍 장벽': { dr: 13, move: 10 },
+        '심연 껍질': { dr: 16, chaosGuard: 0.2, regen: 0.6 },
+        // Utility
+        '귀환 젬': { }
+    };
+    if (PRESETS[name]) return PRESETS[name];
+    if (type === 'warcry') return { pctDmg: 10, aspd: 8 };
+    if (type === 'guard') return { dr: 10, regen: 0.6 };
+    if (type === 'curse') return { enemyTakenMul: 1.1, enemyResShred: 6 };
+    return {};
+}
+
+function getEnemyConditionDebuffFactor(enemy) {
+    let list = (game.enemyConditionDebuffs && enemy) ? (game.enemyConditionDebuffs[enemy.id] || []) : [];
+    let mul = 1;
+    let shred = 0;
+    list.forEach(deb => {
+        let d = getConditionGemStatDelta(deb.name, 'curse');
+        mul *= (d.enemyTakenMul || 1);
+        shred += (d.enemyResShred || 0);
+    });
+    return { mul: Math.min(1.35, mul), resShred: Math.min(20, shred) };
+}
+
+function getAllConditionGemEntriesForCombat() {
+    let db = window.CONDITION_GEM_DB || {};
+    return [].concat(db.curse || [], db.warcry || [], db.guard || [], db.utility || []);
+}
+
+function runConditionGemAutoRules(pStats) {
+    if (!game.conditionGemUnlocked) return;
+    if (!Array.isArray(game.skillAutoRules) || game.skillAutoRules.length === 0) return;
+    let now = Date.now();
+    cleanupConditionGemStates(now);
+    game.conditionGemCooldowns = game.conditionGemCooldowns || {};
+    game.enemyConditionDebuffs = game.enemyConditionDebuffs || {};
+    game.playerConditionBuffs = Array.isArray(game.playerConditionBuffs) ? game.playerConditionBuffs : [];
+    let rules = game.skillAutoRules.filter(r => r && r.enabled).sort((a,b)=>(a.priority||0)-(b.priority||0));
+    for (let rule of rules) {
+        let hpPct = (pStats.maxHp || 1) > 0 ? (game.playerHp / pStats.maxHp * 100) : 100;
+        if (hpPct > (rule.hpThreshold || 40)) continue;
+        let gemName = (rule.skillName || '').trim();
+        if (!gemName || !(game.conditionGemPool || []).includes(gemName)) continue;
+        let entry = getAllConditionGemEntriesForCombat().find(e => e.name === gemName);
+        if (!entry) continue;
+        let until = game.conditionGemCooldowns[gemName] || 0;
+        if (now < until) continue;
+        game.conditionGemCooldowns[gemName] = now + Math.max(2000, Math.floor((entry.castTime || 1) * 1000 + 2500));
+        if (entry.type === 'curse') {
+            let target = (game.enemies || []).find(e => e && e.hp > 0);
+            if (!target) continue;
+            let limit = Math.max(1, Math.floor((pStats.curseCap || 1)));
+            let list = game.enemyConditionDebuffs[target.id] || [];
+            let existingIdx = list.findIndex(row => row && row.name === gemName);
+            let nextExpire = now + Math.floor((entry.duration || 6) * 1000);
+            if (existingIdx >= 0) {
+                list[existingIdx].expiresAt = nextExpire;
+            } else {
+                list.push({ name: gemName, expiresAt: nextExpire });
+            }
+            // 저주 최대치는 "서로 다른 저주 종류" 기준으로 제한
+            let seen = new Set();
+            list = list.filter(row => {
+                if (!row || !row.name) return false;
+                if (seen.has(row.name)) return false;
+                seen.add(row.name);
+                return true;
+            });
+            while (list.length > limit) list.shift();
+            game.enemyConditionDebuffs[target.id] = list;
+        } else {
+            game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: now + Math.floor((entry.duration || 4) * 1000) });
+            let castDelta = getConditionGemStatDelta(gemName, entry.type);
+            if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
+        }
+        if (gemName === '귀환 젬') returnToTown();
+        addLog(`🧠 컨디션 젬 발동: [${gemName}]`, 'loot-magic', { noToast: true });
+        break;
+    }
+}
+
+
+function snapshotWoodsmanBuildState() {
+    return JSON.parse(JSON.stringify({
+        passives: game.passives || [],
+        ascendNodes: game.ascendNodes || [],
+        ascendKeystones: game.ascendKeystones || [],
+        passivePoints: game.passivePoints || 0,
+        seasonPoints: game.seasonPoints || 0,
+        ascendPoints: game.ascendPoints || 0,
+        ascendKeystonePoints: game.ascendKeystonePoints || 0,
+        scour: game.scour || 0,
+        equipment: game.equipment || {},
+        inventory: game.inventory || [],
+        skills: game.skills || [],
+        activeSkill: game.activeSkill || '기본 공격',
+        supports: game.supports || [],
+        equippedSupports: game.equippedSupports || [],
+        supportGemData: game.supportGemData || {},
+        gemData: game.gemData || {},
+        jewelInventory: game.jewelInventory || [],
+        jewelSlots: game.jewelSlots || [null, null],
+        jewelSlotAmplify: game.jewelSlotAmplify || [0,0],
+        talismanInventory: game.talismanInventory || [],
+        talismanBoard: game.talismanBoard || [],
+        talismanPlacements: game.talismanPlacements || {},
+        starWedge: game.starWedge || {}
+    }));
+}
+
+function enforceWoodsmanBuildLock() {
+    if (!game.woodsmanBuildLock || !game.woodsmanBuildSnapshot) return;
+    let snap = game.woodsmanBuildSnapshot;
+    game.passives = JSON.parse(JSON.stringify(snap.passives));
+    game.ascendNodes = JSON.parse(JSON.stringify(snap.ascendNodes));
+    game.ascendKeystones = JSON.parse(JSON.stringify(snap.ascendKeystones));
+    game.passivePoints = Math.floor(snap.passivePoints || 0);
+    game.seasonPoints = Math.floor(snap.seasonPoints || 0);
+    game.ascendPoints = Math.floor(snap.ascendPoints || 0);
+    game.ascendKeystonePoints = Math.floor(snap.ascendKeystonePoints || 0);
+    game.scour = Math.floor(snap.scour || 0);
+    game.equipment = JSON.parse(JSON.stringify(snap.equipment));
+    game.inventory = JSON.parse(JSON.stringify(snap.inventory));
+    game.skills = JSON.parse(JSON.stringify(snap.skills));
+    game.activeSkill = snap.activeSkill;
+    game.supports = JSON.parse(JSON.stringify(snap.supports));
+    game.equippedSupports = JSON.parse(JSON.stringify(snap.equippedSupports));
+    game.supportGemData = JSON.parse(JSON.stringify(snap.supportGemData));
+    game.gemData = JSON.parse(JSON.stringify(snap.gemData));
+    game.jewelInventory = JSON.parse(JSON.stringify(snap.jewelInventory));
+    game.jewelSlots = JSON.parse(JSON.stringify(snap.jewelSlots));
+    game.jewelSlotAmplify = JSON.parse(JSON.stringify(snap.jewelSlotAmplify));
+    game.talismanInventory = JSON.parse(JSON.stringify(snap.talismanInventory));
+    game.talismanBoard = JSON.parse(JSON.stringify(snap.talismanBoard));
+    game.talismanPlacements = JSON.parse(JSON.stringify(snap.talismanPlacements));
+    game.starWedge = JSON.parse(JSON.stringify(snap.starWedge));
+}
+
+function clearWoodsmanBuildLock() {
+    if (game.woodsmanBuildLock && game.woodsmanBuildSnapshot) {
+        // 마지막으로 스냅샷 기준으로 복원
+        enforceWoodsmanBuildLock();
+    }
+    game.woodsmanBuildLock = false;
+    game.woodsmanBuildSnapshot = null;
+}
+
 function coreLoop() {
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
+    runConditionGemAutoRules(pStats);
     tickAilments(pStats, 0.1);
     let ailmentMap = {};
     (game.playerAilments || []).forEach(ail => { ailmentMap[ail.type] = Math.max(ailmentMap[ail.type] || 0, ail.time || 0); });
     if (ailmentMap.chill) pStats.aspd *= 0.82;
     if (ailmentMap.shock) pStats.dr = Math.max(-40, pStats.dr - 12);
+    (game.playerConditionBuffs || []).forEach(buff => {
+        let delta = getConditionGemStatDelta(buff.name, buff.type);
+        if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
+        if (delta.aspd) pStats.aspd *= (1 + delta.aspd / 100);
+        if (delta.dr) pStats.dr = Math.min(90, (pStats.dr || 0) + delta.dr);
+        if (delta.regen) pStats.regen += delta.regen;
+        if (delta.crit) pStats.crit += delta.crit;
+        if (delta.critDmg) pStats.critDmg += delta.critDmg;
+        if (delta.resPen) pStats.resPen += delta.resPen;
+        if (delta.targetAny) pStats.sSkill.targets = Math.min(8, (pStats.sSkill.targets || 1) + delta.targetAny);
+        if (delta.leech) pStats.leech += delta.leech;
+        if (delta.move) pStats.move += delta.move;
+        if (delta.fireBonus && (pStats.sSkill.ele === 'fire')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.fireBonus));
+        if (delta.coldBonus && (pStats.sSkill.ele === 'cold')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.coldBonus));
+        if (delta.chaosBonus && (pStats.sSkill.ele === 'chaos')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.chaosBonus));
+        if (delta.physBonus && (pStats.sSkill.ele === 'phys')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.physBonus));
+    });
     if (isDeathOverlayOpen()) return;
     if (game.combatHalted) return;
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
@@ -1021,6 +1227,11 @@ function createEnemy(zone, marker, groupIndex) {
     let eleIcon = enemyEle === 'fire' ? '🔥' : (enemyEle === 'cold' ? '❄️' : (enemyEle === 'light' ? '⚡' : (enemyEle === 'chaos' ? '☠️' : '🩸')));
     let name = `${eleIcon} ${zone.name.split(':')[0]} 추종자`;
     if (isElite) name = `정예 ${name}`;
+    if (zone.type === 'outsideChaos') {
+        isBoss = true;
+        name = '🪓 나무꾼';
+        hp = Math.floor(hp * 1200);
+    }
     if (isBoss) {
         let bossName = zone.type === 'trial' ? `${zone.name} 수호자` : (zone.type === 'seasonBoss' ? zone.name : (zone.type === 'meteor' ? '검은 별의 심장' : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`)));
         name = `👿 ${bossName}`;
@@ -1061,6 +1272,8 @@ function createEnemy(zone, marker, groupIndex) {
         recentHitsTaken: 0,
         recentHitsTimer: 0,
         patternMode: (game.season || 1) >= 6 && isBoss ? rndChoice(['burst', 'ramp', 'slam']) : null,
+        disableExecute: zone.type === 'outsideChaos',
+        disableHpScaleDamage: zone.type === 'outsideChaos',
         traitName: trait ? trait.name : null,
         leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
         expMul: trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1,
@@ -1457,7 +1670,18 @@ function advanceMapProgress(pStats) {
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
     let zone = getZone(game.currentZoneId);
-    if (zone && zone.id === 'grand_breach_run') {
+    if (zone && zone.id === OUTSIDE_CHAOS_ZONE_ID) {
+        let woodsman = (game.enemies || []).find(e => e && e.isBoss);
+        if (woodsman && woodsman.maxHp > 0) {
+            let dealtRatio = Math.max(0, Math.min(0.999, 1 - (woodsman.hp / woodsman.maxHp)));
+            let score = Math.floor(dealtRatio * 1000000);
+            addWoodsmanPendingScore(score);
+            addLog(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
+        }
+        clearWoodsmanBuildLock();
+        game.currentZoneId = game.maxZoneId;
+        game.killsInZone = 0;
+    } else if (zone && zone.id === 'grand_breach_run') {
         tickGrandBreachRun(zone);
         return;
     }
@@ -1479,6 +1703,7 @@ function tickGrandBreachRun(zone) {
     let g = v.grandRun;
     if (!g || !g.inRun) return;
     let now = Date.now();
+    cleanupConditionGemStates(now);
     g.lastTickAt = Number.isFinite(g.lastTickAt) ? g.lastTickAt : now;
     let dt = Math.max(0, (now - g.lastTickAt) / 1000);
     g.lastTickAt = now;
@@ -1799,6 +2024,7 @@ function finishEncounterRun() {
         let st = ensureStarWedgeState();
         st.entriesCleared = (st.entriesCleared || 0) + 1;
         st.activeMeteorTier = null;
+        clearWoodsmanBuildLock();
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
         startMoving(false);
@@ -1807,6 +2033,20 @@ function finishEncounterRun() {
         return;
     }
 
+    if (zone.type === 'outsideChaos') {
+        if (enemy.isBoss) {
+            addWoodsmanPendingScore(1000000);
+            markLoopSpecialBossKill('woodsman_true');
+            addLog('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
+        }
+        clearWoodsmanBuildLock();
+        game.currentZoneId = game.maxZoneId;
+        game.killsInZone = 0;
+        startMoving(false);
+        updateStaticUI();
+        queueImportantSave(220);
+        return;
+    }
     if (zone.type === 'trial') {
         let isFirstClear = !game.completedTrials.includes(zone.id);
         if (isFirstClear) game.completedTrials.push(zone.id);
@@ -1840,13 +2080,20 @@ function finishEncounterRun() {
         return;
     }
     if (zone.type === 'seasonBoss') {
-        awardCurrency(zone.reward || 'bossCore', 1);
+        let firstRootBossClear = !(game.clearedRootBosses || []).includes(zone.id);
+        game.clearedRootBosses = Array.isArray(game.clearedRootBosses) ? game.clearedRootBosses : [];
+        if (firstRootBossClear) game.clearedRootBosses.push(zone.id);
+        if (!game.conditionGemUnlocked && firstRootBossClear && (game.season || 1) >= 2) {
+            game.conditionGemUnlocked = true;
+            addLog('🧠 컨디션 젬 시스템이 해금되었습니다!', 'loot-unique');
+        }
+        if (Math.random() < 0.5) awardCurrency(zone.reward || 'bossCore', 1);
         if (Math.random() < 0.4) {
             let bossUnique = generateUniqueItem(zone.tier || 12);
             addItemToInventory(bossUnique);
             addLog(`👑 시즌 보스 전리품 [${bossUnique.name}] 획득!`, 'loot-unique');
         }
-        addLog(`🗝️ [${zone.name}] 토벌 완료! 군주의 핵 +1`, 'loot-unique');
+        addLog(`🗝️ [${zone.name}] 토벌 완료! 군주의 핵 드랍 판정(50%)`, 'loot-unique');
         let shouldRepeat = !!game.autoRepeatSeasonBoss;
         let keyLeft = game.currencies[zone.key] || 0;
         if (shouldRepeat && keyLeft > 0) {
@@ -2064,7 +2311,8 @@ function performPlayerAttack(pStats) {
             let nextHitCount = (perEnemyHitCount.get(targetEnemy.id) || 0) + 1;
             perEnemyHitCount.set(targetEnemy.id, nextHitCount);
             let hitElement = swingElement;
-            let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats);
+            let curseFx = getEnemyConditionDebuffFactor(targetEnemy);
+            let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
             let dmg = Math.floor(baseDamage * (hit.mult || 1));
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
@@ -2079,6 +2327,7 @@ function performPlayerAttack(pStats) {
             if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
             let damageBeforeMitigation = dmg;
             dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
+            dmg = Math.floor(dmg * (curseFx.mul || 1));
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             let zone = getZone(game.currentZoneId);
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
@@ -2169,7 +2418,18 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         return;
     }
     game.loopDeaths = Math.max(0, Math.floor(game.loopDeaths || 0)) + 1;
-    if (zone && zone.id === 'grand_breach_run') {
+    if (zone && zone.id === OUTSIDE_CHAOS_ZONE_ID) {
+        let woodsman = (game.enemies || []).find(e => e && e.isBoss);
+        if (woodsman && woodsman.maxHp > 0) {
+            let dealtRatio = Math.max(0, Math.min(0.999, 1 - (woodsman.hp / woodsman.maxHp)));
+            let score = Math.floor(dealtRatio * 1000000);
+            addWoodsmanPendingScore(score);
+            addLog(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
+        }
+        clearWoodsmanBuildLock();
+        game.currentZoneId = game.maxZoneId;
+        game.killsInZone = 0;
+    } else if (zone && zone.id === 'grand_breach_run') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         let grand = v.grandRun || {};
         addLog(message || "☠️ 대균열에서 패배했습니다. 균열이 닫히며 추방됩니다.", "death", { noToast: !!opts.noToast });
@@ -2302,10 +2562,23 @@ function performMonsterAttacks(pStats) {
         let seasonDepth = Math.max(0, (game.season || 1) - 1);
         let tierPressure = clampNumber(((zone.tier || 1) - 1) / 10, 0, 1);
         let seasonAtkScale = 1 + seasonDepth * (0.012 + (tierPressure * 0.018));
+        let curseDebuffs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[enemy.id]) ? game.enemyConditionDebuffs[enemy.id] : [];
+        let curseSlow = 0;
+        curseDebuffs.forEach(deb => { curseSlow += (getConditionGemStatDelta(deb.name, 'curse').enemyAspdSlow || 0); });
         let chillSlow = ailMap.chill ? Math.min(0.45, 0.12 + ailMap.chill * 0.14) : 0;
+        chillSlow = Math.min(0.65, chillSlow + curseSlow);
         let atkRate = (0.26 + zone.tier * 0.013) * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
         enemy.attackTimer += 0.1 * atkRate;
         while (enemy.attackTimer >= 1) {
+            if (zone.type === 'outsideChaos') {
+                enemy.nextCurseAt = Number.isFinite(enemy.nextCurseAt) ? enemy.nextCurseAt : 0;
+                if (Date.now() >= enemy.nextCurseAt) {
+                    enemy.nextCurseAt = Date.now() + 6500;
+                    let curseType = rndChoice(['ignite','chill','shock','poison','bleed']);
+                    applyPlayerAilment(curseType, 4, 0.18, pStats);
+                    addLog(`☠️ 나무꾼의 저주: ${curseType === 'ignite' ? '점화' : curseType === 'chill' ? '냉각' : curseType === 'shock' ? '감전' : curseType === 'poison' ? '중독' : '출혈'}`, 'attack-monster', { noToast: true });
+                }
+            }
             enemy.attackTimer -= 1;
             let seasonDmgScale = 1 + seasonDepth * (0.04 + (tierPressure * 0.06));
             let shockAmp = ailMap.shock ? Math.min(0.35, 0.08 + ailMap.shock * 0.12) : 0;
@@ -2318,6 +2591,16 @@ function performMonsterAttacks(pStats) {
             let physicalPortion = Math.floor(dmg * 0.5);
             let elementalPortion = Math.max(0, dmg - physicalPortion);
             let pRes = 0;
+            if (zone.type === 'outsideChaos' && enemy.maxHp > 0) {
+                let hpRatio = enemy.hp / enemy.maxHp;
+                let phase = Math.max(0, Math.floor((1 - hpRatio) / 0.05));
+                let cycle = ['phys','fire','cold','light','chaos'];
+                enemy.ele = cycle[phase % cycle.length];
+                enemy.atkMul = 1 + Math.pow(1 - hpRatio, 1.4) * 3.2;
+                enemy.attackSpeedVar = 1 + Math.pow(1 - hpRatio, 1.2) * 1.8;
+                enemy.penetration = 8 + Math.floor((1 - hpRatio) * 28);
+                enemy.dr = 10 + Math.floor((1 - hpRatio) * 40);
+            }
             if (enemy.ele === 'phys') { physicalPortion = dmg; elementalPortion = 0; pRes = pStats.dr + (pStats.armor / (pStats.armor + Math.max(1, physicalPortion) * 10)) * 100; }
             else if (enemy.ele === 'fire') pRes = pStats.resF;
             else if (enemy.ele === 'cold') pRes = pStats.resC;
@@ -2432,6 +2715,35 @@ function markLoopSpecialBossKill(bossKey) {
     if (!game.loopProgressCurrent.specialBosses.includes(bossKey)) game.loopProgressCurrent.specialBosses.push(bossKey);
 }
 
+
+function addWoodsmanPendingScore(scoreGain) {
+    let score = Math.max(0, Math.floor(scoreGain || 0));
+    if (score <= 0) return;
+    // 나무꾼 점수는 누적합이 아니라 '최고 기록' 기반으로 관리
+    game.woodsmanPendingScore = Math.max(Math.floor(game.woodsmanPendingScore || 0), score);
+    game.woodsmanLifetimeScore = Math.max(Math.floor(game.woodsmanLifetimeScore || 0), score);
+}
+
+
+function enterOutsideChaos() {
+    if ((game.season || 1) < 10) return addLog('혼돈 밖은 루프 10 이후 개방됩니다.', 'attack-monster');
+    game.woodsmanBuildSnapshot = snapshotWoodsmanBuildState();
+    game.woodsmanBuildLock = true;
+    game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
+    game.killsInZone = 0;
+    game.runProgress = 100;
+    game.moveTimer = 0;
+    game.encounterPlan = [{ at: 100, count: 1, boss: true }];
+    game.encounterIndex = 0;
+    game.enemies = [];
+    addLog('☠️ 금단의 경계 너머, 나무꾼이 모습을 드러냅니다.', 'loot-unique');
+    game.inEncounter = true;
+    game.moveTimer = 0;
+    game.runProgress = 100;
+    spawnEnemies();
+    updateStaticUI();
+}
+
 function awardLoopProgressPoints() {
     game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
     game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
@@ -2446,10 +2758,17 @@ function awardLoopProgressPoints() {
     let baseBosses = new Set(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []);
     let newBosses = (Array.isArray(game.loopProgressCurrent.specialBosses) ? game.loopProgressCurrent.specialBosses : []).filter(id => !baseBosses.has(id));
     let bonus = (depthGain * 2) + Math.floor(labGain / 5) + (newBosses.length * 3);
+    let woodsmanScore = Math.max(0, Math.floor(game.woodsmanPendingScore || 0));
+    let woodsmanSettled = Math.max(0, Math.floor(game.woodsmanSettledScore || 0));
+    let woodsmanDelta = Math.max(0, woodsmanScore - woodsmanSettled);
+    let woodsmanGain = Math.floor(Math.sqrt(woodsmanDelta) / 25);
+    bonus += woodsmanGain;
     if (bonus > 0) game.loopDeepPoints = Math.max(0, Math.floor(game.loopDeepPoints || 0)) + bonus;
     game.loopProgressBase = { abyssEndlessDepth: nowDepth, labyrinthUnlockedMaxFloor: nowLab, specialBosses: Array.from(new Set([...(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []), ...newBosses])) };
     game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false };
-    return { bonus, depthGain, labGain, bossGain: newBosses.length };
+    game.woodsmanSettledScore = Math.max(woodsmanSettled, woodsmanScore);
+    game.woodsmanPendingScore = game.woodsmanSettledScore;
+    return { bonus, depthGain, labGain, bossGain: newBosses.length, woodsmanGain: woodsmanGain, woodsmanScore: woodsmanScore, woodsmanDelta: woodsmanDelta };
 }
 
 function triggerSeasonReset() {
@@ -2473,7 +2792,7 @@ function triggerSeasonReset() {
     if (game.loopCount === 2 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_spore_crafting', '홀씨 제작 해금', '루프 2 달성! 이제 액트/혼돈 몬스터가 화염/냉기/번개 홀씨를 떨어뜨립니다.\n제작 탭에서 오브 사용 시 홀씨 태그를 지정할 수 있습니다.', 'tab-items');
     }
-    addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
+    addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
     if (abyssLoopPointGain > 0) addLog(`🌌 루프 정산: 혼돈 최초 클리어 보상 +${abyssLoopPointGain}pt`, 'season-up');
     game.level = 1;
     game.exp = 0;
@@ -2588,4 +2907,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill });
+safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos });
