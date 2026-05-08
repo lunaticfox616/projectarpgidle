@@ -172,10 +172,10 @@ function changeZone(id) {
         if ((game.maxZoneId || 0) < 5) return addLog('액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.', 'attack-monster');
     }
     if (typeof id === 'number' && id >= ABYSS_START_ZONE_ID) {
-        let depth = Math.max(1, id - (ABYSS_START_ZONE_ID - 1));
-        game.abyssEndlessDepth = Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
+        let depth = Math.max(1, Math.floor(getAbyssDepthFromZoneId(id) || 1));
+        game.abyssEndlessDepth = depth;
         game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-        if (game.abyssEndlessDepth >= 20 && !game.abyssUnlockedDepths.includes(game.abyssEndlessDepth)) game.abyssUnlockedDepths.push(game.abyssEndlessDepth);
+        if (depth >= 20 && !game.abyssUnlockedDepths.includes(depth)) game.abyssUnlockedDepths.push(depth);
     }
     game.currentZoneId = id;
     game.killsInZone = 0;

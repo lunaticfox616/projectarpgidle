@@ -43,7 +43,21 @@ const MAP_ZONES = STORY_ACTS.map((act, idx) => ({
 }));
 
 const abyssTiers = [8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 19, 20];
-for (let i = 1; i <= 20; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1), name: "혼돈 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 1, ele: "chaos" });
+for (let i = 1; i <= 20; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1), name: "혼돈 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 1, ele: "chaos", depth: i });
+
+function getAbyssDepthFromZoneId(id) {
+    if (!Number.isFinite(id) || id < ABYSS_START_ZONE_ID) return 0;
+    return Math.max(1, Math.floor(id - ABYSS_START_ZONE_ID + 1));
+}
+
+function getAbyssZoneIdForDepth(depth) {
+    return ABYSS_START_ZONE_ID + Math.max(1, Math.floor(depth || 1)) - 1;
+}
+
+function getAbyssZoneTier(depth) {
+    let safeDepth = Math.max(1, Math.floor(depth || 1));
+    return abyssTiers[Math.min(20, safeDepth) - 1] || abyssTiers[abyssTiers.length - 1] || 20;
+}
 
 
 
@@ -89,16 +103,25 @@ function getZone(id) {
         let floor = Math.max(1, game.labyrinthFloor || 1);
         return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: Math.min(20, 7 + Math.floor(floor / 3)), maxKills: 1, ele: 'chaos', floor: floor };
     }
-    let zone = MAP_ZONES[id];
-    if (!zone) return zone;
-    if (zone.type === 'abyss') {
-        let abyssDepth = Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1));
-        if (abyssDepth >= 20 && Math.floor(game.abyssEndlessDepth || 20) > 20) {
-            let endlessDepth = Math.floor(game.abyssEndlessDepth || 20);
-            return { ...zone, name: `혼돈 ${endlessDepth}` };
-        }
+    if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) {
+        let depth = getAbyssDepthFromZoneId(id);
+        let legacyEndlessDepth = Math.floor((game && game.abyssEndlessDepth) || depth);
+        let displayDepth = (depth === 20 && legacyEndlessDepth > 20) ? legacyEndlessDepth : depth;
+        let baseZone = MAP_ZONES[Math.min(id, getAbyssZoneIdForDepth(20))];
+        return {
+            ...(baseZone || {}),
+            id: id,
+            name: `혼돈 ${displayDepth}`,
+            type: 'abyss',
+            tier: getAbyssZoneTier(displayDepth),
+            maxKills: 1,
+            ele: 'chaos',
+            depth: displayDepth,
+            baseDepth: Math.min(20, depth),
+            isEndlessDepth: displayDepth > 20
+        };
     }
-    return zone;
+    return MAP_ZONES[id];
 }
 
 
@@ -159,7 +182,7 @@ function getAbyssMonsterScales(zone) {
     let state = getAbyssPassiveState();
     let active = zone && zone.type === 'abyss';
     if (!active) return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
-    let depth = zone && zone.type === 'abyss' ? Math.max(1, (zone.id || ABYSS_START_ZONE_ID) - (ABYSS_START_ZONE_ID - 1)) : 1;
+    let depth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 1;
     let endlessDepth = Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
     let endlessOver = Math.max(0, endlessDepth - 20);
     let endlessMul = endlessOver > 0 ? Math.pow(1.18, endlessOver) : 1;
@@ -197,7 +220,11 @@ function applySeasonContentProgression(options) {
     }
     let finalZone = getCurrentSeasonFinalZoneId();
     game.maxZoneId = clampNumber(Number.isFinite(game.maxZoneId) ? game.maxZoneId : 0, 0, finalZone);
-    if (typeof game.currentZoneId !== 'string') game.currentZoneId = clampNumber(Number.isFinite(game.currentZoneId) ? game.currentZoneId : 0, 0, finalZone);
+    if (typeof game.currentZoneId !== 'string') {
+        let currentZone = Number.isFinite(game.currentZoneId) ? game.currentZoneId : 0;
+        let deepChaosZone = (game.season || 1) >= 10 && getAbyssDepthFromZoneId(currentZone) > 20;
+        game.currentZoneId = deepChaosZone ? currentZone : clampNumber(currentZone, 0, finalZone);
+    }
 }
 
 function getLoop10StatCost(statKey) {
@@ -222,7 +249,7 @@ function enterNextEndlessChaosDepth() {
     game.abyssEndlessDepth = Math.max(20, Math.floor(game.abyssEndlessDepth || 20) + 1);
     game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
     if (!game.abyssUnlockedDepths.includes(game.abyssEndlessDepth)) game.abyssUnlockedDepths.push(game.abyssEndlessDepth);
-    game.currentZoneId = ABYSS_START_ZONE_ID + 19;
+    game.currentZoneId = getAbyssZoneIdForDepth(game.abyssEndlessDepth);
     game.killsInZone = 0;
     game.combatHalted = false;
     game.runProgress = 0;
@@ -237,7 +264,7 @@ function enterUnlockedEndlessDepth(depth) {
     depth = Math.max(20, Math.floor(depth || 20));
     if (!game.abyssUnlockedDepths.includes(depth)) return addLog('아직 도달하지 않은 심화 층수입니다.', 'attack-monster');
     game.abyssEndlessDepth = depth;
-    game.currentZoneId = ABYSS_START_ZONE_ID + 19;
+    game.currentZoneId = getAbyssZoneIdForDepth(depth);
     game.killsInZone = 0;
     game.combatHalted = false;
     game.runProgress = 0;
@@ -621,7 +648,7 @@ let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
 
 // Phase-4 extracted default state schema.
 const defaultGame = {
