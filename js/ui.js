@@ -99,6 +99,11 @@ function updateMobileBattlePipVisibility() {
     }
 }
 
+function isMobileBattlePipVisible() {
+    let host = document.getElementById('mobile-battle-pip');
+    return !!(host && host.style.display !== 'none');
+}
+
 function renderMobileBattlePipFrame() {
     if (!mobilePipCtx || !mobilePipCanvas) return;
     let host = document.getElementById('mobile-battle-pip');
@@ -117,6 +122,7 @@ function startMobilePipRefreshLoop() {
         try {
             if (document.hidden) return;
             updateMobileBattlePipVisibility();
+            if (isMobileBattlePipVisible()) renderBattlefield(true);
             renderMobileBattlePipFrame();
         } catch (e) {}
     }, 120);
@@ -5369,14 +5375,14 @@ function gameLoop() {
         if (document.hidden) return;
         if (isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
-            renderBattlefield();
             updateMobileBattlePipVisibility();
+            renderBattlefield(isMobileBattlePipVisible());
             renderMobileBattlePipFrame();
             return;
         }
         if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
-        renderBattlefield();
         updateMobileBattlePipVisibility();
+        renderBattlefield(isMobileBattlePipVisible());
         renderMobileBattlePipFrame();
     } catch (error) {
         console.error('gameLoop error:', error);
