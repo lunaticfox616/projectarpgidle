@@ -100,10 +100,10 @@ function getAllConditionGemEntriesForCombat() {
 }
 
 function runConditionGemAutoRules(pStats) {
-    if (!game.conditionGemUnlocked) return;
-    if (!Array.isArray(game.skillAutoRules) || game.skillAutoRules.length === 0) return;
     let now = Date.now();
     cleanupConditionGemStates(now);
+    if (!game.conditionGemUnlocked) return;
+    if (!Array.isArray(game.skillAutoRules) || game.skillAutoRules.length === 0) return;
     game.conditionGemCooldowns = game.conditionGemCooldowns || {};
     game.enemyConditionDebuffs = game.enemyConditionDebuffs || {};
     game.playerConditionBuffs = Array.isArray(game.playerConditionBuffs) ? game.playerConditionBuffs : [];
@@ -142,6 +142,8 @@ function runConditionGemAutoRules(pStats) {
             game.enemyConditionDebuffs[target.id] = list;
         } else {
             game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: now + Math.floor((entry.duration || 4) * 1000) });
+            let castDelta = getConditionGemStatDelta(gemName, entry.type);
+            if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
         }
         if (gemName === '귀환 젬') returnToTown();
         addLog(`🧠 컨디션 젬 발동: [${gemName}]`, 'loot-magic', { noToast: true });
@@ -155,6 +157,11 @@ function snapshotWoodsmanBuildState() {
         passives: game.passives || [],
         ascendNodes: game.ascendNodes || [],
         ascendKeystones: game.ascendKeystones || [],
+        passivePoints: game.passivePoints || 0,
+        seasonPoints: game.seasonPoints || 0,
+        ascendPoints: game.ascendPoints || 0,
+        ascendKeystonePoints: game.ascendKeystonePoints || 0,
+        scour: game.scour || 0,
         equipment: game.equipment || {},
         inventory: game.inventory || [],
         skills: game.skills || [],
@@ -179,6 +186,11 @@ function enforceWoodsmanBuildLock() {
     game.passives = JSON.parse(JSON.stringify(snap.passives));
     game.ascendNodes = JSON.parse(JSON.stringify(snap.ascendNodes));
     game.ascendKeystones = JSON.parse(JSON.stringify(snap.ascendKeystones));
+    game.passivePoints = Math.floor(snap.passivePoints || 0);
+    game.seasonPoints = Math.floor(snap.seasonPoints || 0);
+    game.ascendPoints = Math.floor(snap.ascendPoints || 0);
+    game.ascendKeystonePoints = Math.floor(snap.ascendKeystonePoints || 0);
+    game.scour = Math.floor(snap.scour || 0);
     game.equipment = JSON.parse(JSON.stringify(snap.equipment));
     game.inventory = JSON.parse(JSON.stringify(snap.inventory));
     game.skills = JSON.parse(JSON.stringify(snap.skills));
@@ -206,6 +218,7 @@ function clearWoodsmanBuildLock() {
 }
 
 function coreLoop() {
+    if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
     runConditionGemAutoRules(pStats);
@@ -224,7 +237,6 @@ function coreLoop() {
         if (delta.critDmg) pStats.critDmg += delta.critDmg;
         if (delta.resPen) pStats.resPen += delta.resPen;
         if (delta.targetAny) pStats.sSkill.targets = Math.min(8, (pStats.sSkill.targets || 1) + delta.targetAny);
-        if (delta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - delta.hpSacrificePct / 100));
         if (delta.leech) pStats.leech += delta.leech;
         if (delta.move) pStats.move += delta.move;
         if (delta.fireBonus && (pStats.sSkill.ele === 'fire')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.fireBonus));
@@ -2415,6 +2427,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
             addWoodsmanPendingScore(score);
             addLog(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
         }
+        clearWoodsmanBuildLock();
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
     } else if (zone && zone.id === 'grand_breach_run') {
@@ -2725,7 +2738,11 @@ function enterOutsideChaos() {
     game.encounterIndex = 0;
     game.enemies = [];
     addLog('☠️ 금단의 경계 너머, 나무꾼이 모습을 드러냅니다.', 'loot-unique');
-    startEncounterRun();
+    game.inEncounter = true;
+    game.moveTimer = 0;
+    game.runProgress = 100;
+    spawnEnemies();
+    updateStaticUI();
 }
 
 function awardLoopProgressPoints() {

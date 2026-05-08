@@ -269,9 +269,6 @@ function getDefaultSkillAutoRule() {
 
 function addSkillAutoRule() {
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
-    let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 3개 제시</button></div>`;
-    let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
-    let ownedHtml = owned.length > 0 ? `<div style="margin-top:8px; color:#98b7d3; font-size:0.82em;">보유 컨디션 젬: ${owned.map(escapeHTML).join(', ')}</div>` : '';
 
     game.skillAutoRules.push(getDefaultSkillAutoRule());
     renderSkillAutoRulePanel();
@@ -279,9 +276,6 @@ function addSkillAutoRule() {
 
 function sortSkillAutoRules() {
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
-    let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 3개 제시</button></div>`;
-    let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
-    let ownedHtml = owned.length > 0 ? `<div style="margin-top:8px; color:#98b7d3; font-size:0.82em;">보유 컨디션 젬: ${owned.map(escapeHTML).join(', ')}</div>` : '';
 
     game.skillAutoRules.sort((a, b) => (a.priority || 0) - (b.priority || 0));
     game.skillAutoRules.forEach((rule, idx) => rule.priority = idx + 1);
