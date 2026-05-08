@@ -1101,7 +1101,6 @@ function getPlayerStats() {
         energyShieldRechargeDelay: finalEnergyShieldRechargeDelay,
         breakdowns: breakdowns
     };
-    applyGrandBreachMobTuning(zone, enemy);
     return enemy;
 }
 
@@ -1243,7 +1242,7 @@ function createEnemy(zone, marker, groupIndex) {
     if (trait && trait.hpMul) hp = Math.floor(hp * trait.hpMul);
     let isSky = (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
     if (isSky) name = `☁️ ${name}`;
-    return {
+    let enemy = {
         id: game.nextEnemyId++,
         hp: hp,
         maxHp: hp,
@@ -1281,6 +1280,8 @@ function createEnemy(zone, marker, groupIndex) {
         dropMul: trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1,
         isSky: isSky
     };
+    applyGrandBreachMobTuning(zone, enemy);
+    return enemy;
 }
 
 function getZoneEncounterProfile(zone) {
