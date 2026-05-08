@@ -595,6 +595,7 @@
         <div class="subtab-row">
             <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip')">스킬 젬 장착</button>
             <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')">스킬 젬 강화</button>
+            <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')">컨디션 젬</button>
         </div>
         <div id="skill-tab-equip" class="subtab-content active">
             <div style="display:flex; gap:8px; margin-bottom:10px;">
@@ -615,6 +616,16 @@
                 <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
             </div>
         </div>
+        <div id="skill-tab-condition" class="subtab-content">
+            <h2 style="margin-top:0;">🧠 컨디션 젬 (젬 사용 조건)</h2>
+            <div style="color:#9db7d6; font-size:0.86em; margin-bottom:10px;">전투 중 위에서부터 순서대로 조건을 검사해, 처음 일치하는 규칙의 젬을 사용합니다.</div>
+            <div id="ui-skill-rules-panel" style="display:grid; gap:8px;"></div>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+                <button onclick="addSkillAutoRule()">+ 규칙 추가</button>
+                <button onclick="sortSkillAutoRules()">우선순위 정렬</button>
+            </div>
+        </div>
+
     </div>
 
     <div id="tab-talisman" class="tab-content">
