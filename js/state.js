@@ -29,6 +29,7 @@ function getActZoneDisplayName(zoneId) {
 const ACT_ZONE_COUNT = STORY_ACTS.length;
 const LAST_STORY_ZONE_ID = ACT_ZONE_COUNT - 1;
 const ABYSS_START_ZONE_ID = ACT_ZONE_COUNT;
+const OUTSIDE_CHAOS_ZONE_ID = 'outside_chaos_woodsman';
 
 const MAP_ZONES = STORY_ACTS.map((act, idx) => ({
     id: idx,
@@ -69,6 +70,7 @@ function getZone(id) {
         let bonusTier = Math.min(6, Math.floor(kills / 25));
         return { id: 'grand_breach_run', name: '대균열', type: 'grandBreach', tier: 14 + bonusTier, maxKills: 9999, ele: 'chaos' };
     }
+    if (id === OUTSIDE_CHAOS_ZONE_ID) return { id: OUTSIDE_CHAOS_ZONE_ID, name: '혼돈 밖', type: 'outsideChaos', tier: 25, maxKills: 1, ele: 'chaos' };
     if (typeof id === 'string' && id.startsWith('trial_')) return TRIAL_ZONES.find(t => t.id === id);
     if (typeof id === 'string' && id.includes('_boss_')) return SEASON_BOSS_ZONES.find(t => t.id === id);
     if (id === METEOR_FALL_ZONE_ID) {
@@ -700,6 +702,11 @@ const defaultGame = {
     supportGemData: {},
     itemSubtab: 'item-tab-equip',
     skillSubtab: 'skill-tab-equip',
+    skillAutoRules: [],
+    conditionGemUnlocked: false,
+    conditionGemPool: [],
+    pendingConditionGemChoices: null,
+    clearedRootBosses: [],
     mapSubtab: 'map-tab-zones',
     gemFoldInactiveAttack: false,
     gemFoldInactiveSupport: false,
@@ -731,6 +738,9 @@ const defaultGame = {
     unlockedTrials: [],
     seasonPoints: 0,
     loopDeepPoints: 0,
+    woodsmanPendingScore: 0,
+    woodsmanLifetimeScore: 0,
+    woodsmanSettledScore: 0,
     seasonNodes: [],
     labyrinthFloor: 1,
     jewelInventory: [],
