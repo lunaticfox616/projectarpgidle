@@ -477,6 +477,13 @@ function toggleSeasonBossRepeat() {
 function renderStarWedgePanel() {
     let panel = document.getElementById('ui-star-wedge-panel');
     if (!panel) return;
+    let unlocked = !!game.conditionGemUnlocked;
+    let owned = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
+    let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
+    if (!unlocked) {
+        panel.innerHTML = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프2 뿌리 보스를 처음 처치하면 컨디션 젬이 해금됩니다.</div>`;
+        return;
+    }
     let st = ensureStarWedgeState();
     tryUnlockMeteorContentByProgress();
     if (!st.unlocked) {
