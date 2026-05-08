@@ -234,3 +234,25 @@
 
 .craft-orb-header { margin: 6px 0 4px; font-size: 0.76em; color:#9cc4e6; letter-spacing:.04em; text-transform: uppercase; }
 .craft-actions .craft-orb-card { border:1px solid #35506a; border-radius:8px; background:#152233; }
+
+
+.ominous-entry-btn {
+  background: linear-gradient(180deg, #5c0b13 0%, #22030a 100%);
+  border: 1px solid #b74356;
+  color: #ffd8d8;
+  box-shadow: 0 0 0 1px rgba(183,67,86,0.25) inset, 0 0 18px rgba(183,67,86,0.35);
+  text-shadow: 0 0 8px rgba(255,110,110,0.35);
+  animation: ominousPulse 1.6s ease-in-out infinite;
+}
+.ominous-entry-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgba(255,120,140,0.35) inset, 0 0 24px rgba(255,90,120,0.45);
+}
+.ominous-entry-btn:disabled {
+  opacity: 0.45;
+  filter: grayscale(0.25);
+}
+@keyframes ominousPulse {
+  0%,100% { box-shadow: 0 0 0 1px rgba(183,67,86,0.25) inset, 0 0 16px rgba(183,67,86,0.32); }
+  50% { box-shadow: 0 0 0 1px rgba(255,110,130,0.35) inset, 0 0 28px rgba(255,70,100,0.5); }
+}

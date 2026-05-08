@@ -1060,7 +1060,7 @@ function grantMeteorEncounterRewards() {
     }
 }
 
-function craftIncompleteStarWedge() {
+function craftIncompleteStarWedge() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     if ((game.currencies.meteorShard || 0) < 49) return addLog('운석 파편이 부족합니다. (필요: 49)', 'attack-monster');
     game.currencies.meteorShard -= 49;
     awardCurrency('incompleteStarWedge', 1);
@@ -1068,7 +1068,7 @@ function craftIncompleteStarWedge() {
     updateStaticUI();
 }
 
-function craftCompleteStarWedge() {
+function craftCompleteStarWedge() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let st = ensureStarWedgeState();
     if ((game.currencies.incompleteStarWedge || 0) < 1) return addLog('불완전한 별쐐기가 필요합니다.', 'attack-monster');
     if ((game.currencies.meteorShard || 0) < 77) return addLog('운석 파편이 부족합니다. (필요: 77)', 'attack-monster');
@@ -1102,7 +1102,7 @@ function rerollStarWedge(wedgeId, keepIndex) {
     updateStaticUI();
 }
 
-function destroyStarWedge(wedgeId) {
+function destroyStarWedge(wedgeId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let st = ensureStarWedgeState();
     let target = getStarWedgeById(wedgeId);
     if (!target) return addLog('파괴할 별쐐기를 찾을 수 없습니다.', 'attack-monster');
@@ -1116,7 +1116,7 @@ function destroyStarWedge(wedgeId) {
     updateStaticUI();
 }
 
-function socketStarWedgeOnNode(nodeId, wedgeId) {
+function socketStarWedgeOnNode(nodeId, wedgeId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let st = ensureStarWedgeState();
     let node = PASSIVE_TREE.nodes[nodeId];
     if (!node || node.socketType !== 'star_wedge') return addLog('별쐐기 슬롯에만 장착할 수 있습니다.', 'attack-monster');
@@ -1130,7 +1130,7 @@ function socketStarWedgeOnNode(nodeId, wedgeId) {
     updateStaticUI();
 }
 
-function unsocketStarWedge(nodeId) {
+function unsocketStarWedge(nodeId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let st = ensureStarWedgeState();
     let before = (st.sockets || []).length;
     st.sockets = (st.sockets || []).filter(v => v.nodeId !== nodeId);
@@ -2366,7 +2366,7 @@ function grantActRewardEntry(zoneId, choice) {
         addLog(`🎁 ${getStatName(choice.stat)} +${choice.value}${P_STATS[choice.stat] && P_STATS[choice.stat].isPct ? '%' : ''}`, 'loot-rare');
     }
 }
-function claimActRewardChoice(zoneId, choiceIndex) {
+function claimActRewardChoice(zoneId, choiceIndex) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     if (!(game.claimableActRewards || []).includes(zoneId)) return;
     let choices = getActRewardChoices(zoneId);
     let choice = choices[choiceIndex];
@@ -3965,7 +3965,7 @@ function rerollExplicitMods(item, rarity, zoneTier) {
     updateItemName(item);
 }
 
-function applyEnchantedHoneyToSelectedItem() {
+function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if ((game.currencies.enchantedHoney || 0) <= 0) return addLog('마력 깃든 벌꿀이 부족합니다.', 'attack-monster');
@@ -3979,7 +3979,7 @@ function applyEnchantedHoneyToSelectedItem() {
     updateStaticUI();
 }
 
-function applyVenomStingerToSelectedItem() {
+function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if ((game.currencies.venomStinger || 0) <= 0) return addLog('독벌침이 부족합니다.', 'attack-monster');
@@ -3998,7 +3998,7 @@ function applyVenomStingerToSelectedItem() {
     updateStaticUI();
 }
 
-function applyVoidChiselToSelectedItem() {
+function applyVoidChiselToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     let isAccessory = item.slot === '반지' || item.slot === '목걸이';
@@ -4012,7 +4012,7 @@ function applyVoidChiselToSelectedItem() {
     updateStaticUI();
 }
 
-function insertJewelIntoVoidSocket(invIdx) {
+function insertJewelIntoVoidSocket(invIdx) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item || !item.voidSocket || !item.voidSocket.open) return;
     if (item.voidSocket.jewel) return addLog('이미 주얼이 장착되어 있습니다.', 'attack-monster');
@@ -4025,7 +4025,7 @@ function insertJewelIntoVoidSocket(invIdx) {
     updateStaticUI();
 }
 
-function removeJewelFromVoidSocket() {
+function removeJewelFromVoidSocket() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item || !item.voidSocket || !item.voidSocket.jewel) return;
     if ((game.currencies.voidChisel || 0) <= 0) return addLog('소켓에서 제거하려면 공허의 끌 1개가 필요합니다.', 'attack-monster');
@@ -4335,7 +4335,7 @@ function toggleJewelFusionSelection(idx) {
     updateStaticUI();
 }
 
-function craftJewelFusion() {
+function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     game.jewelInventory = game.jewelInventory || [];
     jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
     if (jewelFusionSelection.length !== 2) return addLog('융합할 주얼 2개를 선택하세요.', 'attack-monster');
@@ -4376,7 +4376,7 @@ function craftJewelFusion() {
     updateStaticUI();
 }
 
-function craftVoidJewel() {
+function craftVoidJewel() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     game.jewelInventory = game.jewelInventory || [];
     if ((game.currencies.voidChisel || 0) <= 0) return addLog('공허의 끌이 부족합니다.', 'attack-monster');
     if (game.jewelInventory.length < 2) return addLog('공허 주얼 제작에는 주얼 2개가 필요합니다.', 'attack-monster');
@@ -4475,7 +4475,7 @@ function salvageJewel(idx) {
     updateStaticUI();
 }
 
-function bulkSalvageJewels() {
+function bulkSalvageJewels() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     game.jewelInventory = game.jewelInventory || [];
     let selectedRarities = JEWEL_RARITY_ORDER.filter(rarity => {
         let el = document.getElementById(`chk-jewel-salvage-${rarity}`);
@@ -4500,7 +4500,7 @@ function bulkSalvageJewels() {
     updateStaticUI();
 }
 
-function equipJewel(idx, slotIndex) {
+function equipJewel(idx, slotIndex) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let jewel = (game.jewelInventory || [])[idx];
     if (!jewel) return;
     if (!Array.isArray(game.jewelSlots)) game.jewelSlots = [null, null];
@@ -4511,7 +4511,7 @@ function equipJewel(idx, slotIndex) {
     updateStaticUI();
 }
 
-function unequipJewel(slotIndex) {
+function unequipJewel(slotIndex) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     if (!Array.isArray(game.jewelSlots)) game.jewelSlots = [null, null];
     let jewel = game.jewelSlots[slotIndex];
     if (!jewel) return;
