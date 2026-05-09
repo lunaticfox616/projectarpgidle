@@ -3166,7 +3166,11 @@ function buildCraftActionButtons(item) {
         let rewardReady = (game.claimableActRewards || []).includes(idx);
         let rewardClaimed = (game.claimedActRewards || []).includes(idx);
         let isActRewardZone = zone.type === 'act' && idx <= 9;
-        let chaos20Conquered = (idx === 20) && !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
+        let chaos20Conquered = (idx === 20) && (
+            !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared) ||
+            (Array.isArray(game.abyssClearedDepths) && game.abyssClearedDepths.includes(20)) ||
+            Math.floor(game.abyssEndlessDepth || 0) >= 21
+        );
         let cleared = idx < game.maxZoneId || rewardReady || rewardClaimed || chaos20Conquered;
         let actionHtml = '';
         let mapZoneText = zone.name;
