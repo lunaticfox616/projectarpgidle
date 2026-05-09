@@ -268,7 +268,7 @@ function getDefaultSkillAutoRule() {
         enabled: true,
         priority: ((game.skillAutoRules || []).length + 1),
         hpThreshold: 40,
-        gemType: '수호 젬',
+        triggerType: 'hp_below',
         skillName: ''
     };
 }
@@ -306,12 +306,67 @@ function rollConditionGemChoices() {
     }
     game.pendingConditionGemChoices = choices;
     renderSkillAutoRulePanel();
+    openConditionGemChoiceOverlay();
 }
+
+function getConditionGemDetail(entry) {
+    if (!entry) return '';
+    let d = getConditionGemStatDelta(entry.name, entry.type);
+    let out = [];
+    if (d.enemyTakenMul) out.push(`받는피해 +${Math.round((d.enemyTakenMul - 1) * 100)}%`);
+    if (d.enemyResShred) out.push(`저항관통 +${d.enemyResShred}`);
+    if (d.pctDmg) out.push(`피해 +${d.pctDmg}%`);
+    if (d.aspd) out.push(`공속 +${d.aspd}%`);
+    if (d.dr) out.push(`물피감 ${d.dr > 0 ? '+' : ''}${d.dr}%`);
+    if (d.regen) out.push(`재생 +${d.regen}%/s`);
+    if (d.leech) out.push(`흡수 +${d.leech}%`);
+    return out.join(' · ') || '특수 효과';
+}
+function getConditionGemTooltip(entry) {
+    if (!entry) return '';
+    let cast = Number(entry.castTime || 1).toFixed(1);
+    let duration = Number(entry.duration || 4).toFixed(1);
+    let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
+    return `${entry.name}\n유형: ${entry.type}\n시전 시간: ${cast}초\n지속 시간: ${duration}초\n쿨타임: ${cooldown}초\n효과: ${getConditionGemDetail(entry)}`;
+}
+
+
+function getConditionGemTooltipHtml(entry) {
+    if (!entry) return '';
+    let cast = Number(entry.castTime || 1).toFixed(1);
+    let duration = Number(entry.duration || 4).toFixed(1);
+    let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
+    let html = `<div class="tooltip-title">${entry.name}</div>`;
+    html += `<div class="tooltip-line">${entry.desc || '컨디션 젬 효과'}</div>`;
+    html += `<div class="tooltip-line" style="margin-top:6px;">시전 시간 ${cast}초 · 지속 ${duration}초 · 쿨타임 ${cooldown}초</div>`;
+    html += `<div class="tooltip-line">효과: ${getConditionGemDetail(entry)}</div>`;
+    if ((entry.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${entry.tags.join(' / ')}</div>`;
+    return html;
+}
+function showConditionGemTooltip(event, name) {
+    let entry = getAllConditionGemEntries().find(e => e.name === name);
+    if (!entry) return;
+    showInfoTooltipHtml(event.clientX, event.clientY, getConditionGemTooltipHtml(entry), '#ff5252');
+}
+
+function openConditionGemChoiceOverlay() {
+    let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
+    if (pending.length <= 0 || document.getElementById('condition-gem-overlay')) return;
+    let html = `<div id="condition-gem-overlay" style="position:fixed;inset:0;background:rgba(9,12,20,.72);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;">
+        <div style="width:min(980px,95vw);background:#0f1520;border:1px solid #3e5472;border-radius:12px;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>군주의 핵 컨디션 젬 가공</strong><button onclick="closeConditionGemChoiceOverlay()">닫기</button></div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">${pending.map(e => `<button onclick="pickConditionGem('${e.name}')" style="text-align:left;padding:10px;"><div><strong>${e.name}</strong></div><div style="color:#9ac3e8;font-size:.82em;">${e.type} · ${(e.tags||[]).join('/')}</div><div style="color:#f2d79c;font-size:.8em;margin-top:4px;">${getConditionGemDetail(e)}</div></button>`).join('')}</div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+function closeConditionGemChoiceOverlay() { let el = document.getElementById('condition-gem-overlay'); if (el) el.remove(); }
 
 function pickConditionGem(name) {
     game.conditionGemPool = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
     if (!game.conditionGemPool.includes(name)) game.conditionGemPool.push(name);
     game.pendingConditionGemChoices = null;
+    closeConditionGemChoiceOverlay();
     addLog(`✨ 컨디션 젬 [${name}] 해금!`, 'loot-unique');
     renderSkillAutoRulePanel();
 }
@@ -327,9 +382,10 @@ function renderSkillAutoRulePanel() {
         return;
     }
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
-    let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 3개 제시</button></div>`;
+    let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 컨디션 젬 가공</button></div>`;
     let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
-    let ownedHtml = owned.length > 0 ? `<div style="margin-top:8px; color:#98b7d3; font-size:0.82em;">보유 컨디션 젬: ${owned.map(escapeHTML).join(', ')}</div>` : '';
+    let ownedEntries = getAllConditionGemEntries().filter(entry => owned.includes(entry.name));
+    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => `<div style="border:1px solid #314761;border-radius:8px;padding:7px;" onmousemove="showConditionGemTooltip(event,'${entry.name}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong></div>`).join('')}</div>` : '';
 
     if (game.skillAutoRules.length === 0) {
         panel.innerHTML = summary + choiceHtml + ownedHtml + `<div style="color:#7f8c8d; border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
@@ -344,14 +400,23 @@ function renderSkillAutoRulePanel() {
             </div>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; color:#c7d7ea;">
                 <span>IF</span>
-                <span>HP ≤</span>
+                <select onchange="game.skillAutoRules[${idx}].triggerType=this.value;">
+                    <option value="hp_below" ${(rule.triggerType||'hp_below')==='hp_below'?'selected':''}>HP ≤</option>
+                    <option value="hp_above" ${(rule.triggerType||'hp_below')==='hp_above'?'selected':''}>HP ≥</option>
+                    <option value="enemy_many" ${(rule.triggerType||'hp_below')==='enemy_many'?'selected':''}>적 수 ≥</option>
+                    <option value="enemy_few" ${(rule.triggerType||'hp_below')==='enemy_few'?'selected':''}>적 수 ≤</option>
+                    <option value="es_below" ${(rule.triggerType||'hp_below')==='es_below'?'selected':''}>ES ≤</option>
+                    <option value="es_above" ${(rule.triggerType||'hp_below')==='es_above'?'selected':''}>ES ≥</option>
+                    <option value="boss_present" ${(rule.triggerType||'hp_below')==='boss_present'?'selected':''}>보스 등장 시</option>
+                    <option value="boss_absent" ${(rule.triggerType||'hp_below')==='boss_absent'?'selected':''}>보스 없음</option>
+                </select>
                 <input type="number" min="1" max="100" value="${rule.hpThreshold || 40}" style="width:64px;" onchange="game.skillAutoRules[${idx}].hpThreshold=Math.min(100,Math.max(1,Math.floor(this.value||40)));">
                 <span>%</span>
                 <span>THEN</span>
-                <select onchange="game.skillAutoRules[${idx}].gemType=this.value;">
-                    ${['함성 젬','저주 젬','수호 젬','기타 젬'].map(type => `<option value="${type}" ${rule.gemType===type?'selected':''}>${type}</option>`).join('')}
+                <select onchange="game.skillAutoRules[${idx}].skillName=this.value;" style="min-width:180px;">
+                    <option value="">사용할 젬 선택</option>
+                    ${ownedEntries.map(entry => `<option value="${entry.name}" title="${escapeHTML(getConditionGemTooltip(entry))}" ${rule.skillName===entry.name?'selected':''}>${entry.name} (${entry.type})</option>`).join('')}
                 </select>
-                <input type="text" value="${escapeHTML(rule.skillName || '')}" placeholder="사용할 젬 이름" onchange="game.skillAutoRules[${idx}].skillName=this.value.trim();" style="min-width:180px;">
             </div>
         </div>`).join('');
 }
@@ -395,7 +460,7 @@ function renderLoop8BeehivePanel() {
     <div style="color:#b8c7d8; font-size:0.82em; margin-bottom:8px;">세 갈래길 10회 후 여왕벌 보스. 벌집 진행 중 일반 전투/맵 이동은 정지됩니다.</div>
     <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="startBeehiveRun()" ${(game.currencies.hiveKey||0)<=0 || b.inRun ? 'disabled':''}>벌집 입장</button><button onclick="advanceBeehivePath()" ${b.inRun && !b.pendingChoice && !b.awaitingClear ? '':'disabled'}>${(b.branchStep||0)>=9?'여왕벌 전투':'다음 갈래 전투'} (${b.branchStep||0}/10)</button><button onclick="forfeitBeehiveRun()" ${b.inRun ? '':'disabled'}>던전 포기</button></div>${choiceHtml}`;
 }
-function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false,activeKills:0,requiredKills:0}); let g=v.grandRun||{}; let progress=v.active?`${Math.max(0,Math.floor(v.activeKills||0))}/${Math.max(1,Math.floor(v.requiredKills||0))}`:'-'; let grandText=g.inRun?` · 대균열: <strong>${g.phase==='survival'?'생존전':'보스전'}</strong> · 남은시간: <strong>${Math.max(0,Math.ceil(g.timeLeft||0))}초</strong> · 처치: <strong>${Math.floor(g.kills||0)}</strong>`:''; let canEnter=(v.grandBreachUnlock&&!g.inRun); p.innerHTML=`<div style="color:#c7d2ff;">공허 균열은 맵핑 중 랜덤으로 생성됩니다. · 활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong>${grandText}</div><div style="margin-top:8px; color:#ffb8b8; font-size:0.82em;">⚠️ 경고: 진입 후 생존 확률이 극히 낮습니다. 준비가 충분하지 않다면 도전하지 마세요.</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter?'':'disabled'} title="돌아오기 어려운 전투가 시작됩니다">☠️ 금단의 균열 진입</button></div>`; }
+function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false,activeKills:0,requiredKills:0}); let g=v.grandRun||{}; let progress=v.active?`${Math.max(0,Math.floor(v.activeKills||0))}/${Math.max(1,Math.floor(v.requiredKills||0))}`:'-'; let grandText=g.inRun?` · 대균열: <strong>${g.phase==='survival'?'생존전':'보스전'}</strong> · 남은시간: <strong>${Math.max(0,Math.ceil(g.timeLeft||0))}초</strong> · 처치: <strong>${Math.floor(g.kills||0)}</strong>`:''; let canEnter=(v.grandBreachUnlock&&!g.inRun); p.innerHTML=`<div style="color:#c7d2ff;">활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter?'':'disabled'}>대균열 진입</button></div>`; }
 function spawnBeehiveWave(isBoss){
     let b = game.beehive || {};
     let zone = getZone('beehive_run') || getZone(0);
@@ -458,7 +523,7 @@ function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice)
 function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; b.inRun=false; b.branchStep=0; b.pendingChoice=null; b.enemyEmpower=0; game.currentZoneId = b.returnZoneId !== undefined ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.combatHalted=false; addLog('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); updateStaticUI(); }
 function craftBeehiveCurrency(type){ let cost= type==='key'?200:type==='stinger'?600:2000; if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; updateStaticUI(); }
 function triggerVoidBreach(){ let v=game.voidRift; v.active=true; addLog('🕳️ 공허의 구멍이 열렸습니다! 몬스터가 쏟아집니다.', 'attack-monster'); updateStaticUI(); }
-function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if(Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
+function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if((v.breachClears||0) >= 1 || Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
 function enterGrandBreach(){ let v=game.voidRift; if(!v.grandBreachUnlock) return; if(v.grandRun&&v.grandRun.inRun) return; v.grandBreachUnlock=false; v.grandRun={ inRun:true, phase:'survival', timeLeft:35, kills:0, nextRefillAt:0, lastTickAt:Date.now(), returnZoneId:game.currentZoneId }; game.currentZoneId='grand_breach_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up'); updateStaticUI(); }
 function toggleMeteorAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterMeteor = !game.settings.autoEnterMeteor; addLog(`☄️ 운석 낙하 자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}`, 'season-up'); updateStaticUI(); }
 function switchMapSubtab(subtabId) {
@@ -471,6 +536,15 @@ function switchMapSubtab(subtabId) {
     if (btn) btn.classList.add('active');
 }
 function enterLabyrinthFloor(floor){ game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
+
+function enterTrialWithTicket(trialId) {
+    if (!['trial_3','trial_4'].includes(trialId)) return changeZone(trialId);
+    if ((game.currencies.trialKey3 || 0) <= 0) return addLog('3차 전직 입장권이 부족합니다.', 'attack-monster');
+    game.currencies.trialKey3 -= 1;
+    addLog(`🗝️ 3차 전직 입장권 1개 소모 (남은 ${game.currencies.trialKey3 || 0})`, 'season-up');
+    changeZone(trialId);
+}
+
 function enterDeepChaosPrompt(){ let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let max=Math.max(20, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth||20)); let v=prompt(`진입할 심화 혼돈 층수를 입력하세요. (21 ~ ${max})`, String(max)); if(v===null)return; let depth=Math.floor(Number(v)||0); if(depth<21||depth>max) return addLog(`21~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); if (unlocked.length > 0 && !unlocked.includes(depth)) return addLog(`해금된 심화 혼돈 층수만 입장 가능합니다.`, 'attack-monster'); enterUnlockedEndlessDepth(depth); }
 function enterLabyrinthPrompt(){ let max=Math.max(1,Math.floor(game.labyrinthUnlockedMaxFloor||game.labyrinthFloor||1)); let v=prompt(`진입할 고대 미궁 층수를 입력하세요. (1 ~ ${max})`, String(max)); if(v===null)return; let floor=Math.floor(Number(v)||0); if(floor<1||floor>max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); enterLabyrinthFloor(floor); }
 
@@ -963,14 +1037,15 @@ function renderUniqueCodexUI() {
     let progress = getUniqueCodexProgress();
     let bonus = progress.stored * 0.2;
     let rewardState = progress.stored >= progress.total ? '완성' : '미완성';
-    summary.innerHTML = `등록 수: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% · 완성 상태: <strong>${rewardState}</strong>`;
+    summary.innerHTML = `등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% · 완성 상태: <strong>${rewardState}</strong>`;
     let bySlot = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
     let lines = [];
     bySlot.forEach(slot => {
         let entries = UNIQUE_DB.filter(entry => (entry.slots || [])[0] === slot);
         if (entries.length === 0) return;
+        let slotStored = entries.filter(entry => !!game.uniqueCodex[`${slot}|${entry.name}`]).length;
         let collapsed = !!game.codexCollapsedSlots[slot];
-        lines.push(`<div style="grid-column:1/-1; margin-top:4px; display:flex; justify-content:space-between; align-items:center; gap:8px; background:#121822; border:1px solid #2f4f66; border-radius:8px; padding:8px 10px;"><strong style="color:#9bc2df;">${slot}</strong><button onclick="toggleCodexSlotCollapse('${slot}')" style="font-size:0.78em; padding:4px 8px;">${collapsed ? '펼치기' : '접기'}</button></div>`);
+        lines.push(`<div style="grid-column:1/-1; margin-top:4px; display:flex; justify-content:space-between; align-items:center; gap:8px; background:#121822; border:1px solid #2f4f66; border-radius:8px; padding:8px 10px;"><strong style="color:#9bc2df;">${slot} <span style="color:#ffd38b; font-size:0.86em;">${slotStored}/${entries.length}</span></strong><button onclick="toggleCodexSlotCollapse('${slot}')" style="font-size:0.78em; padding:4px 8px;">${collapsed ? '펼치기' : '접기'}</button></div>`);
         if (collapsed) return;
         entries.forEach(entry => {
             let key = `${slot}|${entry.name}`;
@@ -1363,6 +1438,20 @@ function hideInfoTooltip() {
     clearActiveTooltip('info-tooltip');
     document.getElementById('info-tooltip').style.display = 'none';
 }
+let activeTalismanHoverId = null;
+function showTalismanBoardTooltip(event, talismanId) {
+    let placed = talismanId ? ((game.talismanPlacements || {})[talismanId] || {}).talisman : null;
+    if (!placed) return;
+    activeTalismanHoverId = talismanId;
+    let html = `<div class="item-title magic">[${placed.shape}] ${placed.statName}</div><div style="color:#9ec1e1;">값: +${placed.value}</div><div style="color:#b8cadf;">옵션 범위: 고정</div><div style="color:#b8cadf;">희귀도: ${placed.rarity || 'normal'}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
+    updateStaticUI();
+}
+function hideTalismanBoardTooltip() {
+    activeTalismanHoverId = null;
+    hideInfoTooltip();
+    updateStaticUI();
+}
 
 function renderBreakdownHtml(data) {
     let html = `<div class="tooltip-title">${data.title}</div>`;
@@ -1376,6 +1465,25 @@ function showStatTooltip(event, key) {
     let data = stats.breakdowns[key];
     if (!data) return;
     showInfoTooltipHtml(event.clientX, event.clientY, renderBreakdownHtml(data), '#f39c12');
+}
+
+
+function showPlayerAilmentTooltip(event, type, timeLeft, power) {
+    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
+    let p = Math.max(0.1, Number(power || 0.1));
+    let detail = '';
+    if (type === 'ignite') detail = `초당 강한 화염 피해. 위력 ${p.toFixed(2)}`;
+    else if (type === 'poison') detail = `초당 혼돈 피해. 위력 ${p.toFixed(2)}`;
+    else if (type === 'bleed') detail = `초당 출혈 피해. 위력 ${p.toFixed(2)}`;
+    else if (type === 'chill') detail = '공격 속도 크게 감소';
+    else if (type === 'shock') detail = '받는 피해 급증(방어 관통)';
+    else if (type === 'freeze') detail = '행동 불가';
+    let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">${detail}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#ff7f7f');
+}
+function showPlayerBuffTooltip(event, name, type, remainSec) {
+    let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${type || '버프'}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
 }
 
 function showGemTooltip(event, type, name) {
@@ -1415,7 +1523,9 @@ function showGemTooltip(event, type, name) {
         if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
-        html += `<div class="tooltip-line">최대 타겟 수: ${Math.max(1, skill.targets || 1)}</div>`;
+        let maxTargetsView = Math.max(1, skill.targets || 1);
+        if (skill.targetMode === 'all' && maxTargetsView >= 99) maxTargetsView = Math.max(1, (game.enemies || []).filter(e => e && e.hp > 0).length);
+        html += `<div class="tooltip-line">최대 타겟 수: ${maxTargetsView}${skill.targetMode === 'all' ? ' (현재 전장 기준)' : ''}</div>`;
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${skill.crit}%</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
@@ -2516,14 +2626,20 @@ function updateCombatUI(pStats) {
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
         let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
-        let text = (game.playerAilments || []).map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
-        let ailmentText = text ? `상태이상: ${text}` : '';
-        let isMobile = (window.matchMedia && window.matchMedia('(max-width: 1080px)').matches) || ('ontouchstart' in window);
-        ailmentEl.innerHTML = isMobile ? '' : ailmentText;
+        let text = (game.playerAilments || []).map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmousemove=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
+        let buffText = (game.playerConditionBuffs || []).filter(buff => (buff.expiresAt || 0) > Date.now()).map(buff => `<span style=\"color:#9be7ff;font-weight:700;cursor:help;\" onmousemove=\"showPlayerBuffTooltip(event,'${buff.name}','${buff.type || ''}',${Math.ceil(Math.max(0,((buff.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">${buff.name} ${Math.ceil(Math.max(0, ((buff.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
+        let ailmentText = [text, buffText].filter(Boolean).join(' · ');
+        // 데스크톱에서 터치 디바이스 플래그가 잡히더라도 상태 표시를 숨기지 않도록
+        // 화면 너비 기준으로만 모바일 UI 분기를 판단한다.
+        let isMobile = !!(window.matchMedia && window.matchMedia('(max-width: 1080px)').matches);
+        let fallbackText = '<span style="color:#8da1b8;">효과 없음</span>';
+        let desktopText = ailmentText || fallbackText;
+        // 데스크톱에서는 생명력 바 "아래"에 효과를 고정 노출한다.
+        ailmentEl.innerHTML = '';
         let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
-        if (ailmentUnderEl) ailmentUnderEl.innerText = '';
+        if (ailmentUnderEl) ailmentUnderEl.innerHTML = isMobile ? '' : desktopText;
         let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
-        if (mobileAilmentEl) mobileAilmentEl.innerHTML = isMobile ? ailmentText : '';
+        if (mobileAilmentEl) mobileAilmentEl.innerHTML = isMobile ? desktopText : '';
         let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             let power = Math.max(0.1, ail.power || 0.1);
@@ -2882,19 +2998,26 @@ function performUpdateStaticUI() {
         <button onclick="craftJewelFusion()" ${(game.currencies.jewelShard || 0) < 6 ? 'disabled' : ''}>선택한 주얼 융합</button>
         <div style="margin-top:8px; font-size:0.8em; color:#8fb6d9;">슬롯 증폭: 슬롯 효과 소폭 상승 (최대 10강, 실패 가능)</div>
         <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="tryAmplifyJewelSlot(0)">슬롯1 증폭 (${game.jewelSlotAmplify[0] || 0}/10 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[0] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[0] || 0) * 100)}%)</button><button onclick="tryAmplifyJewelSlot(1)">슬롯2 증폭 (${game.jewelSlotAmplify[1] || 0}/10 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[1] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[1] || 0) * 100)}%)</button></div>
-        <div style="margin-top:8px; color:#b4c9e2; font-size:0.8em;">공허 주얼: 저장 호환을 위해 현재 최대 2줄까지 지원</div>
+        <div style="margin-top:8px; color:#b4c9e2; font-size:0.8em;">공허 주얼: 최대 4줄까지 지원</div>
         <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="craftVoidJewel()" ${(game.currencies.voidChisel || 0) <= 0 || (game.jewelInventory||[]).length < 2 ? 'disabled' : ''}>공허 주얼 제작 (끌 1 + 주얼2)</button><button onclick="fuseSelectedVoidJewels()">선택 공허융합</button></div>`;
         document.getElementById('ui-jewel-slots').innerHTML = [0, 1].map(slotIdx => {
             let jewel = game.jewelSlots[slotIdx];
             let ampLv = (game.jewelSlotAmplify && game.jewelSlotAmplify[slotIdx]) || 0;
-            if (!jewel) return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:58px; cursor:default;">주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span style="color:#7f8c8d;">비어있음</span></div>`;
-            let desc = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} +${stat.val}`).join(' / ');
-            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:58px;">주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${desc})<br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
+            let ampBonus = ampLv * 2;
+            if (!jewel) return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; cursor:default; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span style="color:#7f8c8d;">비어있음</span><br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span></div>`;
+            let desc = getJewelStats(jewel).map(stat => {
+                let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${stat.valMin}~${stat.valMax})` : '';
+                return `${getStatName(stat.id)} +${stat.val}${range}`;
+            }).join(' / ');
+            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" title="${escapeHTML(desc)}">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${desc})<br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
         }).join('');
         document.getElementById('ui-jewel-inventory').innerHTML = game.jewelInventory.map((jewel, idx) => {
             let selected = (jewelFusionSelection || []).includes(idx) ? 'selected' : '';
-            let desc = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} +${stat.val}`).join(' / ');
-            return `<div class="item-card ${selected}" style="min-height:72px;"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}</div><div class="item-stats">${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button><button onclick="salvageJewel(${idx})">해체</button></div></div>`;
+            let desc = getJewelStats(jewel).map(stat => {
+                let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${stat.valMin}~${stat.valMax})` : '';
+                return `${getStatName(stat.id)} +${stat.val}${range}`;
+            }).join(' / ');
+            return `<div class="item-card ${selected}" style="min-height:72px;" title="${escapeHTML(desc)}"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}</div><div class="item-stats">${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button><button onclick="salvageJewel(${idx})">해체</button></div></div>`;
         }).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
     }
 
@@ -3113,7 +3236,12 @@ function buildCraftActionButtons(item) {
         let rewardReady = (game.claimableActRewards || []).includes(idx);
         let rewardClaimed = (game.claimedActRewards || []).includes(idx);
         let isActRewardZone = zone.type === 'act' && idx <= 9;
-        let cleared = idx < game.maxZoneId || rewardReady || rewardClaimed;
+        let chaos20Conquered = (idx === 20) && (
+            !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared) ||
+            (Array.isArray(game.abyssClearedDepths) && game.abyssClearedDepths.includes(20)) ||
+            Math.floor(game.abyssEndlessDepth || 0) >= 21
+        );
+        let cleared = idx < game.maxZoneId || rewardReady || rewardClaimed || chaos20Conquered;
         let actionHtml = '';
         let mapZoneText = zone.name;
         if (zone.type === 'act') {
@@ -3139,11 +3267,12 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-season-boss-header').style.display = seasonBosses.length > 0 ? 'block' : 'none';
     let seasonBossRepeatWrap = document.getElementById('ui-season-boss-repeat-wrap');
     let seasonBossRepeatBtn = document.getElementById('btn-season-boss-repeat');
-    if (seasonBossRepeatWrap) seasonBossRepeatWrap.style.display = seasonBosses.length > 0 ? 'block' : 'none';
+    if (seasonBossRepeatWrap) seasonBossRepeatWrap.style.display = 'none';
     if (seasonBossRepeatBtn) {
-        seasonBossRepeatBtn.innerText = `뿌리 보스 도전 ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`;
+        seasonBossRepeatBtn.style.display = seasonBosses.length > 0 ? 'inline-block' : 'none';
+        seasonBossRepeatBtn.innerText = `반복 도전 ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`;
         seasonBossRepeatBtn.style.background = game.autoRepeatSeasonBoss ? '#2f6a42' : '#5b4a2f';
-        seasonBossRepeatBtn.style.minWidth = '160px';
+        seasonBossRepeatBtn.style.minWidth = '0';
     }
     document.getElementById('ui-season-boss-list').innerHTML = seasonBosses.map(zone => {
         let keys = game.currencies[zone.key] || 0;
@@ -3158,10 +3287,10 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
     if (labyrinthOpen) {
         let maxFloor = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
-        document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}">
+        document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}" onclick="enterLabyrinthPrompt()">
             <div class="map-item-main"><span>🏛️</span><span>고대 미궁 ${game.labyrinthFloor || 1}층</span></div>
             <div class="map-item-actions"><span class="map-zone-status">미궁 화석: ${game.currencies.fossil || 0}</span></div>
-        </div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterLabyrinthPrompt()">고대 미궁 층수 선택 입장</button><span class="map-zone-status">해금 최고층: ${maxFloor}층</span></div>`;
+        </div><div class="map-item-actions"><span class="map-zone-status">해금 최고층: ${maxFloor}층 · 클릭하여 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-labyrinth-list').innerHTML = '';
 
     let deepChaosOpen = (game.season || 1) >= 10 && !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
@@ -3169,19 +3298,26 @@ function buildCraftActionButtons(item) {
     if (deepChaosOpen) {
         let unlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21).sort((a, b) => a - b) : [];
         let highestDepth = Math.max(21, unlockedDepths.length > 0 ? unlockedDepths[unlockedDepths.length - 1] : Math.floor(game.abyssEndlessDepth || 21));
-        document.getElementById('ui-deep-chaos-list').innerHTML = `<div class="map-item ${getAbyssDepthFromZoneId(game.currentZoneId) >= 21 ? 'current' : ''}">
+        document.getElementById('ui-deep-chaos-list').innerHTML = `<div class="map-item ${getAbyssDepthFromZoneId(game.currentZoneId) >= 21 ? 'current' : ''}" onclick="enterDeepChaosPrompt()">
             <div class="map-item-main"><span>♾️</span><span>혼돈 심화층<br><span class="map-zone-status">현재 심화층: ${Math.floor(game.abyssEndlessDepth || 21)}층 · 최고 기록: ${highestDepth}층</span></span></div>
             <div class="map-item-actions"><span class="map-zone-status">입장 가능: 21 ~ ${highestDepth}</span></div>
-        </div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()">심화 혼돈 층수 선택 입장</button></div>`;
+        </div><div class="map-item-actions"><span class="map-zone-status">클릭하여 심화 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-deep-chaos-list').innerHTML = '';
 
     let meteorUnlocked = !!(game.starWedge && game.starWedge.unlocked);
     let meteorReady = !!(game.starWedge && game.starWedge.skyRiftReady);
     let meteorGauge = Math.floor((game.starWedge && game.starWedge.skyRiftGauge) || 0);
     document.getElementById('ui-meteor-header').style.display = meteorUnlocked ? 'block' : 'none';
+    
+    let meteorAutoBtn = document.getElementById('btn-meteor-auto-enter');
+    if (meteorAutoBtn) {
+        meteorAutoBtn.style.display = meteorUnlocked ? 'inline-block' : 'none';
+        meteorAutoBtn.innerText = `자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}`;
+    }
+
     document.getElementById('ui-meteor-list').innerHTML = meteorUnlocked ? `<div class="map-item ${game.currentZoneId === METEOR_FALL_ZONE_ID ? 'current' : ''}" ${meteorReady ? `onclick="changeZone('${METEOR_FALL_ZONE_ID}')"` : ''}>
         <div class="map-item-main"><span>☄️</span><span>운석 낙하 지점<br><span class="map-zone-status">하늘의 균열 ${meteorGauge}% ${meteorReady ? '· 입장 가능' : '· 충전 중'}</span></span></div>
-        <div class="map-item-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="map-zone-status">난이도: 혼돈 ${Math.max(1, Math.floor((game.starWedge && game.starWedge.skyRiftMinTier) || 1))}</span><button style="padding:4px 8px; min-height:30px;" onclick="event.stopPropagation(); toggleMeteorAutoEnter()">자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}</button></div>
+        <div class="map-item-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="map-zone-status">난이도: 혼돈 ${Math.max(1, Math.floor((game.starWedge && game.starWedge.skyRiftMinTier) || 1))}</span></div>
     </div>` : '';
 
     let availTrials = TRIAL_ZONES.filter(trial => (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id));
@@ -3192,9 +3328,11 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
         let isCurrent = game.currentZoneId === trial.id;
         let isCompleted = game.completedTrials.includes(trial.id);
+        let needsTicket = isCompleted && (trial.id === 'trial_3' || trial.id === 'trial_4');
+        let hasTicket = (game.currencies.trialKey3 || 0) > 0;
         let cls = isCurrent ? 'current' : 'trial';
         if (isCompleted) cls = '';
-        return `<div class="map-item ${cls}" ${isCompleted ? '' : `onclick="changeZone('${trial.id}')"`}><span>${trial.name} ${isCompleted ? '(완료)' : ''}</span><span style="font-size:0.8em; font-weight:normal;">${isCompleted ? '✔️' : '도전하기'}</span></div>`;
+        return `<div class="map-item ${cls}" ${(isCompleted && needsTicket && !hasTicket) ? '' : `onclick="${(isCompleted && needsTicket) ? `enterTrialWithTicket('${trial.id}')` : `changeZone('${trial.id}')`}"`}><span>${trial.name} ${isCompleted ? '(완료)' : ''}</span><span style="font-size:0.8em; font-weight:normal;">${isCompleted ? (needsTicket ? `재도전권 ${game.currencies.trialKey3||0}` : '✔️') : '도전하기'}</span></div>`;
     }).join('');
     }
 
@@ -3489,11 +3627,26 @@ function buildCraftActionButtons(item) {
         let extraUnlocked = Math.max(0, unlockedSet.size - 16);
         let unlockCost = getTalismanExpandCost(extraUnlocked);
         let lockTitle = unlocked ? '' : ` title="해금 비용: 봉인편린 ${unlockCost}"`;
+        let isHoverGroup = !!(id && activeTalismanHoverId && id === activeTalismanHoverId);
         let surfaceShadow = id
             ? `inset 0 1px 0 rgba(255,255,255,0.34), 0 2px 6px rgba(0,0,0,0.35), 0 0 8px ${shapeStyle ? shapeStyle.glow : 'rgba(120,180,240,0.25)'}`
             : 'inset 0 2px 4px rgba(0,0,0,0.55), inset 0 -1px 2px rgba(255,255,255,0.08), 0 1px 2px rgba(0,0,0,0.25)';
-        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
+        if (isHoverGroup) surfaceShadow = `0 0 0 2px rgba(255,230,140,.85), 0 0 18px rgba(255,210,110,.55), ${surfaceShadow}`;
+        let placedTitle = (placed && unlocked) ? ` title="[${placed.shape}] ${placed.statName} +${placed.value}"` : '';
+        let hoverHandlers = id ? ` onmouseenter="showTalismanBoardTooltip(event, ${id})" onmouseleave="hideTalismanBoardTooltip()"` : '';
+        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
+    let talismanTotalEl = document.getElementById('ui-talisman-total');
+    if (talismanTotalEl) {
+        let total = {};
+        Object.values(game.talismanPlacements || {}).forEach(row => {
+            let t = row && row.talisman;
+            if (!t || !t.stat) return;
+            total[t.stat] = (total[t.stat] || 0) + (t.value || 0);
+        });
+        let rows = Object.keys(total).map(stat => `${getStatName(stat)} +${formatValue(stat, total[stat])}`);
+        talismanTotalEl.innerHTML = rows.length > 0 ? `장착 부적 총합: <strong>${rows.join(' · ')}</strong>` : '장착 부적 총합: 없음';
+    }
     let journalList = document.getElementById('ui-journal-list');
     if (journalList) {
         let unlocked = new Set((game.journalEntries || []).filter(id => JOURNAL_DB[id]));
@@ -4118,7 +4271,7 @@ function mergeDefaults(save) {
         let stats = Array.isArray(jewel.stats) ? jewel.stats.filter(stat => stat && stat.id) : [];
         if (stats.length === 0 && jewel.stat && jewel.stat.id) stats = [jewel.stat];
         if (stats.length === 0) return null;
-        return { ...jewel, rarity: ['normal', 'magic', 'rare'].includes(jewel.rarity) ? jewel.rarity : 'normal', stats: stats.slice(0, 2) };
+        return { ...jewel, rarity: ['normal', 'magic', 'rare'].includes(jewel.rarity) ? jewel.rarity : 'normal', stats: stats.slice(0, 4) };
     }
     merged.jewelInventory = Array.isArray(merged.jewelInventory) ? merged.jewelInventory.map(normalizeJewelRecord).filter(Boolean) : [];
     let jewelInventoryCap = JEWEL_INVENTORY_LIMIT + (Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0))) * 5);
@@ -4774,6 +4927,9 @@ async function restoreCloudSession() {
             return true;
         } catch (refreshError) {
             console.warn('cloud session refresh failed:', refreshError);
+            setCloudMessage('세션이 만료되었습니다. 다시 로그인해주세요.');
+            applyCloudSession(null);
+            return false;
         }
     }
     let user = await fetchCloudUser();
@@ -4854,7 +5010,13 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
 
 async function pushCloudSave(options = {}) {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
-    if (!cloudState.isLoaded) throw new Error('원격 저장 로드 전에는 업로드할 수 없습니다.');
+    if (!cloudState.isLoaded) {
+        try {
+            await fetchCloudSaveRecord();
+        } catch (loadError) {
+            console.warn('cloud push preflight remote load failed:', loadError);
+        }
+    }
     persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true });
     let payload = JSON.parse(JSON.stringify(game));
     let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
@@ -4984,7 +5146,7 @@ async function initializeCloudSave() {
             if (isStartupOverlayOpen()) setCloudMessage('이전 로그인 세션을 복원했습니다. 클라우드 세이브로 계속할 수 있습니다.');
             else {
                 setCloudMessage('이전 로그인 세션을 복원했습니다.');
-                await reconcileCloudSaveState({ silent: true });
+                await reconcileCloudSaveState({ silent: true, createRemoteFromLocal: true });
             }
         } else {
             setCloudMessage('로그인하면 클라우드 저장을 사용할 수 있습니다.');
@@ -5351,9 +5513,11 @@ function init() {
                 ensureLoopChallengeState();
                 if (pendingHeavyUiRefresh) {
                     let now = Date.now();
-                    if (now - lastHeavyUiRefreshAt >= 220) {
+                    if (now - lastHeavyUiRefreshAt >= 1200) {
                         pendingHeavyUiRefresh = false;
                         lastHeavyUiRefreshAt = now;
+                        // 킬 이후 드랍/인벤/재화/지도 상태가 누락되지 않도록
+                        // 스로틀된 정적 UI 갱신을 복구한다.
                         updateStaticUI();
                     }
                 }
@@ -5490,6 +5654,7 @@ function refundPassiveNode(id) { if (!assertBuildEditable()) return;
     if (!game.passives.includes(id) || id === 'n0') return;
     if ((game.currencies.scour || 0) < 1) return addLog('패시브 노드 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
     if (!canRefundPassiveNode(id)) return addLog('연결 유지에 필요한 노드는 반환할 수 없습니다.', 'attack-monster');
+    if (!confirm('전직 패시브를 반환하시겠습니까? (정화의 오브 1 소모)')) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
     game.passives = game.passives.filter(nodeId => nodeId !== id);
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + 1;
@@ -5594,6 +5759,7 @@ function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
     });
     if (blockers.length > 0) return addLog(`선행 키스톤입니다: ${blockers.map(v => v.name).join(', ')}`, 'attack-monster');
     if ((game.currencies.scour || 0) < 1) return addLog('키스톤 환불에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
+    if (!confirm('키스톤을 반환하시겠습니까? (정화의 오브 1 소모)')) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
     game.ascendKeystones = game.ascendKeystones.filter(key => key !== id);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
@@ -5608,6 +5774,31 @@ function resetAscendKeystones() {
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + game.ascendKeystones.length;
     game.ascendKeystones = [];
+    updateStaticUI();
+}
+
+function resetSeasonNodes() { if (!assertBuildEditable()) return;
+    game.seasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
+    if (game.seasonNodes.length <= 0) return;
+    let cost = game.seasonNodes.length;
+    if ((game.currencies.scour || 0) < cost) return addLog(`디버깅 포인트 트리 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (!confirm(`디버깅 포인트 트리 전체 초기화? (정화의 오브 ${cost} 소모)`)) return;
+    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
+    game.seasonPoints = Math.max(0, Math.floor(game.seasonPoints || 0)) + game.seasonNodes.length;
+    game.seasonNodes = [];
+    updateStaticUI();
+}
+
+function resetAscendNodes() { if (!assertBuildEditable()) return;
+    game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
+    if (game.ascendNodes.length <= 0) return;
+    let cost = game.ascendNodes.length;
+    if ((game.currencies.scour || 0) < cost) return addLog(`전직 패시브 트리 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (!confirm(`전직 패시브 트리 전체 초기화? (정화의 오브 ${cost} 소모)`)) return;
+    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
+    game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + game.ascendNodes.length;
+    game.ascendNodes = [];
+    normalizeSupportLoadout(true);
     updateStaticUI();
 }
 
@@ -5646,4 +5837,4 @@ function getLockedTabMessage(tabId) {
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, getLockedTabMessage });
+safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage });

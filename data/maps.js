@@ -35,8 +35,8 @@ const WORLD_MAP_HOTSPOTS = [
 const TRIAL_ZONES = [
     { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 3 },
     { id: 'trial_2', name: "2차 전직 시련", type: "trial", tier: 6, maxKills: 1, reqZone: 8 },
-    { id: 'trial_3', name: "3차 전직 시련 (여신)", type: "trial", tier: 15, maxKills: 1, reqZone: -1 },
-    { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1 }
+    { id: 'trial_3', name: "3차 전직 시련 (여신)", type: "trial", tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3' },
+    { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3' }
 ];
 
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
