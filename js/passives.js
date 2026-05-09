@@ -4346,7 +4346,27 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
     let b = game.jewelInventory[sorted[1]];
     let aStats = getJewelStats(a);
     let bStats = getJewelStats(b);
-    if (aStats.length !== 1 || bStats.length !== 1) return addLog('1줄 옵션 주얼 2개만 융합할 수 있습니다.', 'attack-monster');
+    if (a.isVoid || b.isVoid) {
+        game.currencies.jewelShard -= fusionCost;
+        let stats = [...aStats, ...bStats];
+        let seen = new Set();
+        let merged = [];
+        stats.forEach(stat => {
+            if (merged.length >= 4) return;
+            if (seen.has(stat.id)) return;
+            seen.add(stat.id);
+            merged.push({ id: stat.id, val: stat.val });
+        });
+        game.jewelInventory.splice(sorted[1], 1);
+        game.jewelInventory.splice(sorted[0], 1);
+        let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, stats: merged, maxLines: 4 };
+        game.jewelInventory.push(newJewel);
+        jewelFusionSelection = [];
+        addLog(`🕳️ 공허 융합 성공! (${merged.length}줄)`, 'loot-unique');
+        updateStaticUI();
+        return;
+    }
+    if (aStats.length !== 1 || bStats.length !== 1) return addLog('일반 융합은 1줄 옵션 주얼 2개만 가능합니다. (공허 주얼 포함 시 공허 융합 규칙)', 'attack-monster');
     let amplifiedEl = document.getElementById('chk-jewel-amplified-fusion');
     let useAmplified = !!(amplifiedEl && amplifiedEl.checked);
     if (useAmplified && (game.currencies.jewelShard || 0) < 8) return addLog('증폭합성에 필요한 주얼 결정이 부족합니다. (필요: 8)', 'attack-monster');
@@ -4382,7 +4402,7 @@ function craftVoidJewel() { if (game.woodsmanBuildLock) return addLog('☠️ �
     if (game.jewelInventory.length < 2) return addLog('공허 주얼 제작에는 주얼 2개가 필요합니다.', 'attack-monster');
     let a = game.jewelInventory.shift();
     let b = game.jewelInventory.shift();
-    let stats = [...getJewelStats(a), ...getJewelStats(b)].slice(0, 2).map(stat => {
+    let stats = [...getJewelStats(a), ...getJewelStats(b)].slice(0, 4).map(stat => {
         let scaled = stat.val * 0.85;
         let val = Number.isInteger(stat.val) ? Math.max(1, Math.floor(scaled)) : Math.max(0.1, Math.round(scaled * 10) / 10);
         return { id: stat.id, val: val };
