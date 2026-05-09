@@ -344,33 +344,6 @@ function openConditionGemChoiceOverlay() {
 }
 function closeConditionGemChoiceOverlay() { let el = document.getElementById('condition-gem-overlay'); if (el) el.remove(); }
 
-function getConditionGemDetail(entry) {
-    if (!entry) return '';
-    let d = getConditionGemStatDelta(entry.name, entry.type);
-    let out = [];
-    if (d.enemyTakenMul) out.push(`받는피해 +${Math.round((d.enemyTakenMul - 1) * 100)}%`);
-    if (d.enemyResShred) out.push(`저항관통 +${d.enemyResShred}`);
-    if (d.pctDmg) out.push(`피해 +${d.pctDmg}%`);
-    if (d.aspd) out.push(`공속 +${d.aspd}%`);
-    if (d.dr) out.push(`물피감 ${d.dr > 0 ? '+' : ''}${d.dr}%`);
-    if (d.regen) out.push(`재생 +${d.regen}%/s`);
-    if (d.leech) out.push(`흡수 +${d.leech}%`);
-    return out.join(' · ') || '특수 효과';
-}
-
-function openConditionGemChoiceOverlay() {
-    let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
-    if (pending.length <= 0 || document.getElementById('condition-gem-overlay')) return;
-    let html = `<div id="condition-gem-overlay" style="position:fixed;inset:0;background:rgba(9,12,20,.72);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;">
-        <div style="width:min(980px,95vw);background:#0f1520;border:1px solid #3e5472;border-radius:12px;padding:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>군주의 핵 컨디션 젬 가공</strong><button onclick="closeConditionGemChoiceOverlay()">닫기</button></div>
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">${pending.map(e => `<button onclick="pickConditionGem('${e.name}')" style="text-align:left;padding:10px;"><div><strong>${e.name}</strong></div><div style="color:#9ac3e8;font-size:.82em;">${e.type} · ${(e.tags||[]).join('/')}</div><div style="color:#f2d79c;font-size:.8em;margin-top:4px;">${getConditionGemDetail(e)}</div></button>`).join('')}</div>
-        </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-function closeConditionGemChoiceOverlay() { let el = document.getElementById('condition-gem-overlay'); if (el) el.remove(); }
-
 function pickConditionGem(name) {
     game.conditionGemPool = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
     if (!game.conditionGemPool.includes(name)) game.conditionGemPool.push(name);
@@ -5454,9 +5427,9 @@ function init() {
                     if (now - lastHeavyUiRefreshAt >= 1200) {
                         pendingHeavyUiRefresh = false;
                         lastHeavyUiRefreshAt = now;
-                        // 적 처치 직후에는 탭/버튼까지 전부 재렌더하지 않고
-                        // 전투 HUD만 갱신해 체감 프레임을 안정화한다.
-                        updateCombatUI(getPlayerStats());
+                        // 킬 이후 드랍/인벤/재화/지도 상태가 누락되지 않도록
+                        // 스로틀된 정적 UI 갱신을 복구한다.
+                        updateStaticUI();
                     }
                 }
                 updateCombatUI(getPlayerStats());
