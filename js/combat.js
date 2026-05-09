@@ -127,7 +127,6 @@ function runConditionGemAutoRules(pStats) {
         if (!entry) continue;
         let until = game.conditionGemCooldowns[gemName] || 0;
         if (now < until) continue;
-        game.conditionGemCooldowns[gemName] = now + Math.max(2000, Math.floor((entry.castTime || 1) * 1000 + 2500));
         let castTargetId = null;
         if (entry.type === 'curse') {
             let target = (game.enemies || []).find(e => e && e.hp > 0);
@@ -157,6 +156,7 @@ function runConditionGemAutoRules(pStats) {
             let castDelta = getConditionGemStatDelta(gemName, entry.type);
             if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
         }
+        game.conditionGemCooldowns[gemName] = now + Math.max(2000, Math.floor((entry.castTime || 1) * 1000 + 2500));
         if (gemName === '귀환 젬') returnToTown();
         let castDelayMs = Math.max(0, Math.floor((entry.castTime || 0) * 1000));
         game.playerCastDelayUntil = Math.max(now, Math.floor(game.playerCastDelayUntil || 0), now + castDelayMs);
