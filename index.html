@@ -388,7 +388,7 @@
     </div>
 
     <div id="tab-traits" class="tab-content">
-        <h2>👑 전직 패시브 스킬 트리 <span class="h2-right">전직 포인트: <span id="ui-ascend-pts" style="color: #f1c40f; font-weight: bold;">0</span> / 6</span></h2>
+        <h2>👑 전직 패시브 스킬 트리 <span class="h2-right">전직 포인트: <span id="ui-ascend-pts" style="color: #f1c40f; font-weight: bold;">0</span> / 6 <button style="margin-left:8px; font-size:0.75em;" onclick="resetAscendNodes()">전직 트리 전체 초기화</button></span></h2>
 
         <div id="ui-class-select" style="display: none;">
             <div style="text-align: center; margin-bottom: 15px; color: #ddd;">1차 전직 시련을 통과했습니다! 운명을 결정할 직업을 선택하세요. <br><span style="color: #e74c3c; font-size: 0.85em;">(한 번 선택하면 이번 시즌에는 변경할 수 없습니다)</span></div>
@@ -407,7 +407,7 @@
 
     <div id="tab-season" class="tab-content">
         <div id="trait-season-section" style="display: none; margin-bottom: 30px;">
-            <h2>🔄 디버깅 포인트 트리 <span style="margin-left:10px; color:#ffd36b; font-size:0.88em;">(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span></span></h2>
+            <h2>🔄 디버깅 포인트 트리 <span style="margin-left:10px; color:#ffd36b; font-size:0.88em;">(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:0.75em;" onclick="resetSeasonNodes()">디버깅 트리 전체 초기화</button></span></h2>
             <div class="trait-tree" id="ui-season-tree"></div>
         </div>
         <div id="ui-loop10-panel" style="display:none; margin-bottom:20px; background:#151226; border:1px solid #4d3c7a; border-radius:12px; padding:12px;"></div>
@@ -558,10 +558,7 @@
             </div>
             <div class="map-grid" id="ui-map-list"></div>
 
-            <h2 style="margin-top: 20px; color: #ffb347; display: none;" id="ui-season-boss-header">🗝️ 뿌리 보스 도전</h2>
-            <div id="ui-season-boss-repeat-wrap" style="display:none; margin-top:8px; margin-bottom:6px;">
-                <button id="btn-season-boss-repeat" onclick="toggleSeasonBossRepeat()" style="background:#5b4a2f; border-color:#7f6240;">반복 도전 OFF</button>
-            </div>
+            <h2 style="margin-top: 20px; color: #ffb347; display: none;" id="ui-season-boss-header">🗝️ 뿌리 보스 도전 <button id="btn-season-boss-repeat" onclick="toggleSeasonBossRepeat()" style="display:none; margin-left:8px; background:#5b4a2f; border-color:#7f6240; font-size:0.7em; padding:2px 6px;">반복 도전 OFF</button></h2>
             <div class="map-grid" id="ui-season-boss-list" style="margin-top: 10px;"></div>
 
             <h2 style="margin-top: 20px; color: #9ad1ff; display: none;" id="ui-labyrinth-header">🏛️ 고대 미궁</h2>
@@ -570,18 +567,15 @@
             <h2 style="margin-top: 20px; color: #d0a8ff; display: none;" id="ui-deep-chaos-header">🌌 혼돈 심화층</h2>
             <div class="map-grid" id="ui-deep-chaos-list" style="margin-top: 10px;"></div>
 
-            <h2 style="margin-top: 20px; color: #c79bff; display: none;" id="ui-meteor-header">☄️ 운석 낙하 지점</h2>
+            <h2 style="margin-top: 20px; color: #c79bff; display: none;" id="ui-meteor-header">☄️ 운석 낙하 지점 <button id="btn-meteor-auto-enter" onclick="toggleMeteorAutoEnter()" style="display:none; margin-left:8px; font-size:0.7em; padding:2px 6px;">자동입장 OFF</button></h2>
             <div class="map-grid" id="ui-meteor-list" style="margin-top: 10px;"></div>
 
 
-            <h2 style="margin-top: 20px; color: #ffde91; display: none;" id="ui-beehive-header">🐝 루프8: 벌집 원정</h2>
+            <h2 style="margin-top: 20px; color: #ffde91; display: none;" id="ui-beehive-header">🐝 벌집 원정</h2>
             <div id="ui-beehive-panel" style="display:none; background:#15140f; border:1px solid #6f5a2b; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
 
-            <h2 style="margin-top: 20px; color: #a9b4ff; display: none;" id="ui-voidrift-header">🕳️ 루프9: 공허 균열</h2>
+            <h2 style="margin-top: 20px; color: #a9b4ff; display: none;" id="ui-voidrift-header">🕳️ 공허 균열</h2>
             <div id="ui-voidrift-panel" style="display:none; background:#111420; border:1px solid #3d4f8a; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
-
-            <h2 style="margin-top: 20px; color: #f5d0a5;" id="ui-challenge-contract-header">📜 도전 계약(제안)</h2>
-            <div id="ui-challenge-contract-panel" style="background:#17131a; border:1px solid #5e4a69; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
 
             <h2 style="margin-top: 30px; color: #f1c40f; display: none;" id="ui-trials-header">👑 전직 시련의 성소</h2>
             <div class="map-grid" id="ui-trial-list" style="margin-top: 10px;"></div>
@@ -638,7 +632,10 @@
         <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
         <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
         <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (해금 <span id="ui-talisman-board-size">16</span>/<span id="ui-talisman-board-size2">44</span>칸)</h3>
-        <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(8, 42px); gap:4px;"></div>
+        <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+            <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(8, 42px); gap:4px;"></div>
+            <div id="ui-talisman-total" style="min-width:240px; color:#d7e6ff; background:#101722; border:1px solid #35506b; border-radius:8px; padding:10px;"></div>
+        </div>
     </div>
 
     <div id="tab-codex" class="tab-content">
