@@ -2049,11 +2049,11 @@ function finishEncounterRun() {
     }
 
     if (zone.type === 'outsideChaos') {
-        if (enemy.isBoss) {
-            addWoodsmanPendingScore(1000000);
-            markLoopSpecialBossKill('woodsman_true');
-            addLog('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
-        }
+        // outsideChaos는 현재 단일 보스(나무꾼) 클리어 전투이므로
+        // 완료 시점이면 보스 처치로 간주한다.
+        addWoodsmanPendingScore(1000000);
+        markLoopSpecialBossKill('woodsman_true');
+        addLog('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
         clearWoodsmanBuildLock();
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
