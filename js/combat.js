@@ -110,7 +110,17 @@ function runConditionGemAutoRules(pStats) {
     let rules = game.skillAutoRules.filter(r => r && r.enabled).sort((a,b)=>(a.priority||0)-(b.priority||0));
     for (let rule of rules) {
         let hpPct = (pStats.maxHp || 1) > 0 ? (game.playerHp / pStats.maxHp * 100) : 100;
-        if (hpPct > (rule.hpThreshold || 40)) continue;
+        let esPct = (pStats.energyShield || 0) > 0 ? ((game.playerEnergyShield || 0) / Math.max(1, pStats.energyShield) * 100) : 0;
+        let trigger = rule.triggerType || 'hp_below';
+        let threshold = rule.hpThreshold || 40;
+        if (trigger === 'hp_below' && hpPct > threshold) continue;
+        if (trigger === 'hp_above' && hpPct < threshold) continue;
+        if (trigger === 'enemy_many' && (game.enemies || []).filter(e => e && e.hp > 0).length < threshold) continue;
+        if (trigger === 'enemy_few' && (game.enemies || []).filter(e => e && e.hp > 0).length > threshold) continue;
+        if (trigger === 'es_below' && esPct > threshold) continue;
+        if (trigger === 'es_above' && esPct < threshold) continue;
+        if (trigger === 'boss_present' && !(game.enemies || []).some(e => e && e.hp > 0 && e.isBoss)) continue;
+        if (trigger === 'boss_absent' && (game.enemies || []).some(e => e && e.hp > 0 && e.isBoss)) continue;
         let gemName = (rule.skillName || '').trim();
         if (!gemName || !(game.conditionGemPool || []).includes(gemName)) continue;
         let entry = getAllConditionGemEntriesForCombat().find(e => e.name === gemName);
@@ -118,9 +128,11 @@ function runConditionGemAutoRules(pStats) {
         let until = game.conditionGemCooldowns[gemName] || 0;
         if (now < until) continue;
         game.conditionGemCooldowns[gemName] = now + Math.max(2000, Math.floor((entry.castTime || 1) * 1000 + 2500));
+        let castTargetId = null;
         if (entry.type === 'curse') {
             let target = (game.enemies || []).find(e => e && e.hp > 0);
             if (!target) continue;
+            castTargetId = target.id;
             let limit = Math.max(1, Math.floor((pStats.curseCap || 1)));
             let list = game.enemyConditionDebuffs[target.id] || [];
             let existingIdx = list.findIndex(row => row && row.name === gemName);
@@ -146,6 +158,7 @@ function runConditionGemAutoRules(pStats) {
             if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
         }
         if (gemName === '귀환 젬') returnToTown();
+        game.lastConditionGemCast = { name: gemName, type: entry.type, targetId: castTargetId, expiresAt: now + 1100 };
         addLog(`🧠 컨디션 젬 발동: [${gemName}]`, 'loot-magic', { noToast: true });
         break;
     }
@@ -352,10 +365,10 @@ function coreLoop() {
                 }
                 addLog(`🕳️ 공허의 구멍 정리 완료! 공허의 끌 +${reward}`, 'loot-magic', { noToast: true });
                 if (unlockedGrand) {
-                    addLog('🚨 큰 구멍이 열렸습니다! [큰 구멍 진입] 버튼을 확인하세요.', 'loot-unique');
+                    addLog('🚨 대균열이 열렸습니다! [대균열 진입] 버튼을 확인하세요.', 'loot-unique');
                     if (!v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
                         v.grandNoticeShown = true;
-                        queueTutorialNotice('void_grand_breach_ready_once', '큰 구멍 개방', '큰 구멍이 열렸습니다! 지도 탭에서 [큰 구멍 진입] 버튼으로 도전할 수 있습니다.', 'tab-map');
+                        queueTutorialNotice('void_grand_breach_ready_once', '대균열 개방', '대균열이 열렸습니다! 지도 탭에서 [대균열 진입] 버튼으로 도전할 수 있습니다.', 'tab-map');
                     }
                 }
             }
@@ -593,7 +606,7 @@ function getPlayerStats() {
     let evadeChance = Math.min(90, (finalEvasion / (finalEvasion + enemyAccuracy)) * 100);
 
     let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0);
-    let rawLeech = ((skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech) * 0.45;
+    let rawLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech;
     let finalLeech = applyLeechSoftcap(rawLeech);
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
@@ -2095,7 +2108,7 @@ function finishEncounterRun() {
             addItemToInventory(bossUnique);
             addLog(`👑 시즌 보스 전리품 [${bossUnique.name}] 획득!`, 'loot-unique');
         }
-        addLog(`🗝️ [${zone.name}] 토벌 완료! 군주의 핵 드랍 판정(50%)`, 'loot-unique');
+        addLog(`🗝️ [${zone.name}] 토벌 완료!`, 'loot-unique');
         let shouldRepeat = !!game.autoRepeatSeasonBoss;
         let keyLeft = game.currencies[zone.key] || 0;
         if (shouldRepeat && keyLeft > 0) {
@@ -2744,7 +2757,7 @@ function enterOutsideChaos() {
     game.inEncounter = true;
     game.moveTimer = 0;
     game.runProgress = 100;
-    spawnEnemies();
+    startEncounterRun();
     updateStaticUI();
 }
 
