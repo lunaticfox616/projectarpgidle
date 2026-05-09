@@ -268,6 +268,7 @@ function getDefaultSkillAutoRule() {
         enabled: true,
         priority: ((game.skillAutoRules || []).length + 1),
         hpThreshold: 40,
+        triggerType: 'hp_below',
         gemType: '수호 젬',
         skillName: ''
     };
@@ -306,12 +307,41 @@ function rollConditionGemChoices() {
     }
     game.pendingConditionGemChoices = choices;
     renderSkillAutoRulePanel();
+    openConditionGemChoiceOverlay();
 }
+
+function getConditionGemDetail(entry) {
+    if (!entry) return '';
+    let d = getConditionGemStatDelta(entry.name, entry.type);
+    let out = [];
+    if (d.enemyTakenMul) out.push(`받는피해 +${Math.round((d.enemyTakenMul - 1) * 100)}%`);
+    if (d.enemyResShred) out.push(`저항관통 +${d.enemyResShred}`);
+    if (d.pctDmg) out.push(`피해 +${d.pctDmg}%`);
+    if (d.aspd) out.push(`공속 +${d.aspd}%`);
+    if (d.dr) out.push(`물피감 ${d.dr > 0 ? '+' : ''}${d.dr}%`);
+    if (d.regen) out.push(`재생 +${d.regen}%/s`);
+    if (d.leech) out.push(`흡수 +${d.leech}%`);
+    return out.join(' · ') || '특수 효과';
+}
+
+function openConditionGemChoiceOverlay() {
+    let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
+    if (pending.length <= 0 || document.getElementById('condition-gem-overlay')) return;
+    let html = `<div id="condition-gem-overlay" style="position:fixed;inset:0;background:rgba(9,12,20,.72);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;">
+        <div style="width:min(980px,95vw);background:#0f1520;border:1px solid #3e5472;border-radius:12px;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>군주의 핵 컨디션 젬 가공</strong><button onclick="closeConditionGemChoiceOverlay()">닫기</button></div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">${pending.map(e => `<button onclick="pickConditionGem('${e.name}')" style="text-align:left;padding:10px;"><div><strong>${e.name}</strong></div><div style="color:#9ac3e8;font-size:.82em;">${e.type} · ${(e.tags||[]).join('/')}</div><div style="color:#f2d79c;font-size:.8em;margin-top:4px;">${getConditionGemDetail(e)}</div></button>`).join('')}</div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+function closeConditionGemChoiceOverlay() { let el = document.getElementById('condition-gem-overlay'); if (el) el.remove(); }
 
 function pickConditionGem(name) {
     game.conditionGemPool = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
     if (!game.conditionGemPool.includes(name)) game.conditionGemPool.push(name);
     game.pendingConditionGemChoices = null;
+    closeConditionGemChoiceOverlay();
     addLog(`✨ 컨디션 젬 [${name}] 해금!`, 'loot-unique');
     renderSkillAutoRulePanel();
 }
@@ -329,7 +359,8 @@ function renderSkillAutoRulePanel() {
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
     let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 3개 제시</button></div>`;
     let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
-    let ownedHtml = owned.length > 0 ? `<div style="margin-top:8px; color:#98b7d3; font-size:0.82em;">보유 컨디션 젬: ${owned.map(escapeHTML).join(', ')}</div>` : '';
+    let ownedEntries = getAllConditionGemEntries().filter(entry => owned.includes(entry.name));
+    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => `<div style="border:1px solid #314761;border-radius:8px;padding:7px;"><strong>${entry.name}</strong><div style="font-size:.78em;color:#9ec1e1;">${entry.type} · ${(entry.tags||[]).join('/')}</div><div style="font-size:.76em;color:#f0d39e;">${getConditionGemDetail(entry)}</div></div>`).join('')}</div>` : '';
 
     if (game.skillAutoRules.length === 0) {
         panel.innerHTML = summary + choiceHtml + ownedHtml + `<div style="color:#7f8c8d; border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
@@ -344,7 +375,16 @@ function renderSkillAutoRulePanel() {
             </div>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; color:#c7d7ea;">
                 <span>IF</span>
-                <span>HP ≤</span>
+                <select onchange="game.skillAutoRules[${idx}].triggerType=this.value;">
+                    <option value="hp_below" ${(rule.triggerType||'hp_below')==='hp_below'?'selected':''}>HP ≤</option>
+                    <option value="hp_above" ${(rule.triggerType||'hp_below')==='hp_above'?'selected':''}>HP ≥</option>
+                    <option value="enemy_many" ${(rule.triggerType||'hp_below')==='enemy_many'?'selected':''}>적 수 ≥</option>
+                    <option value="enemy_few" ${(rule.triggerType||'hp_below')==='enemy_few'?'selected':''}>적 수 ≤</option>
+                    <option value="es_below" ${(rule.triggerType||'hp_below')==='es_below'?'selected':''}>ES ≤</option>
+                    <option value="es_above" ${(rule.triggerType||'hp_below')==='es_above'?'selected':''}>ES ≥</option>
+                    <option value="boss_present" ${(rule.triggerType||'hp_below')==='boss_present'?'selected':''}>보스 등장 시</option>
+                    <option value="boss_absent" ${(rule.triggerType||'hp_below')==='boss_absent'?'selected':''}>보스 없음</option>
+                </select>
                 <input type="number" min="1" max="100" value="${rule.hpThreshold || 40}" style="width:64px;" onchange="game.skillAutoRules[${idx}].hpThreshold=Math.min(100,Math.max(1,Math.floor(this.value||40)));">
                 <span>%</span>
                 <span>THEN</span>
@@ -395,7 +435,7 @@ function renderLoop8BeehivePanel() {
     <div style="color:#b8c7d8; font-size:0.82em; margin-bottom:8px;">세 갈래길 10회 후 여왕벌 보스. 벌집 진행 중 일반 전투/맵 이동은 정지됩니다.</div>
     <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="startBeehiveRun()" ${(game.currencies.hiveKey||0)<=0 || b.inRun ? 'disabled':''}>벌집 입장</button><button onclick="advanceBeehivePath()" ${b.inRun && !b.pendingChoice && !b.awaitingClear ? '':'disabled'}>${(b.branchStep||0)>=9?'여왕벌 전투':'다음 갈래 전투'} (${b.branchStep||0}/10)</button><button onclick="forfeitBeehiveRun()" ${b.inRun ? '':'disabled'}>던전 포기</button></div>${choiceHtml}`;
 }
-function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false,activeKills:0,requiredKills:0}); let g=v.grandRun||{}; let progress=v.active?`${Math.max(0,Math.floor(v.activeKills||0))}/${Math.max(1,Math.floor(v.requiredKills||0))}`:'-'; let grandText=g.inRun?` · 대균열: <strong>${g.phase==='survival'?'생존전':'보스전'}</strong> · 남은시간: <strong>${Math.max(0,Math.ceil(g.timeLeft||0))}초</strong> · 처치: <strong>${Math.floor(g.kills||0)}</strong>`:''; let canEnter=(v.grandBreachUnlock&&!g.inRun); p.innerHTML=`<div style="color:#c7d2ff;">공허 균열은 맵핑 중 랜덤으로 생성됩니다. · 활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter?'':'disabled'}>대균열 진입</button></div>`; }
+function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false,activeKills:0,requiredKills:0}); let g=v.grandRun||{}; let progress=v.active?`${Math.max(0,Math.floor(v.activeKills||0))}/${Math.max(1,Math.floor(v.requiredKills||0))}`:'-'; let grandText=g.inRun?` · 대균열: <strong>${g.phase==='survival'?'생존전':'보스전'}</strong> · 남은시간: <strong>${Math.max(0,Math.ceil(g.timeLeft||0))}초</strong> · 처치: <strong>${Math.floor(g.kills||0)}</strong>`:''; let canEnter=(v.grandBreachUnlock&&!g.inRun); p.innerHTML=`<div style="color:#c7d2ff;">활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter?'':'disabled'}>대균열 진입</button></div>`; }
 function spawnBeehiveWave(isBoss){
     let b = game.beehive || {};
     let zone = getZone('beehive_run') || getZone(0);
@@ -458,7 +498,7 @@ function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice)
 function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; b.inRun=false; b.branchStep=0; b.pendingChoice=null; b.enemyEmpower=0; game.currentZoneId = b.returnZoneId !== undefined ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.combatHalted=false; addLog('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); updateStaticUI(); }
 function craftBeehiveCurrency(type){ let cost= type==='key'?200:type==='stinger'?600:2000; if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; updateStaticUI(); }
 function triggerVoidBreach(){ let v=game.voidRift; v.active=true; addLog('🕳️ 공허의 구멍이 열렸습니다! 몬스터가 쏟아집니다.', 'attack-monster'); updateStaticUI(); }
-function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if(Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
+function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if((v.breachClears||0) >= 1 || Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
 function enterGrandBreach(){ let v=game.voidRift; if(!v.grandBreachUnlock) return; if(v.grandRun&&v.grandRun.inRun) return; v.grandBreachUnlock=false; v.grandRun={ inRun:true, phase:'survival', timeLeft:35, kills:0, nextRefillAt:0, lastTickAt:Date.now(), returnZoneId:game.currentZoneId }; game.currentZoneId='grand_breach_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up'); updateStaticUI(); }
 function toggleMeteorAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterMeteor = !game.settings.autoEnterMeteor; addLog(`☄️ 운석 낙하 자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}`, 'season-up'); updateStaticUI(); }
 function switchMapSubtab(subtabId) {
@@ -2517,7 +2557,8 @@ function updateCombatUI(pStats) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
         let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
         let text = (game.playerAilments || []).map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
-        let ailmentText = text ? `상태이상: ${text}` : '';
+        let buffText = (game.playerConditionBuffs || []).filter(buff => (buff.expiresAt || 0) > Date.now()).map(buff => `<span style=\"color:#9be7ff;font-weight:700;\">${buff.name} ${Math.ceil(Math.max(0, ((buff.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
+        let ailmentText = [text, buffText].filter(Boolean).join(' · ');
         let isMobile = (window.matchMedia && window.matchMedia('(max-width: 1080px)').matches) || ('ontouchstart' in window);
         ailmentEl.innerHTML = isMobile ? '' : ailmentText;
         let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
@@ -3113,7 +3154,8 @@ function buildCraftActionButtons(item) {
         let rewardReady = (game.claimableActRewards || []).includes(idx);
         let rewardClaimed = (game.claimedActRewards || []).includes(idx);
         let isActRewardZone = zone.type === 'act' && idx <= 9;
-        let cleared = idx < game.maxZoneId || rewardReady || rewardClaimed;
+        let chaos20Conquered = (idx === 20) && !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
+        let cleared = idx < game.maxZoneId || rewardReady || rewardClaimed || chaos20Conquered;
         let actionHtml = '';
         let mapZoneText = zone.name;
         if (zone.type === 'act') {
@@ -3144,7 +3186,7 @@ function buildCraftActionButtons(item) {
         seasonBossRepeatBtn.style.display = seasonBosses.length > 0 ? 'inline-block' : 'none';
         seasonBossRepeatBtn.innerText = `반복 도전 ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`;
         seasonBossRepeatBtn.style.background = game.autoRepeatSeasonBoss ? '#2f6a42' : '#5b4a2f';
-        seasonBossRepeatBtn.style.minWidth = '160px';
+        seasonBossRepeatBtn.style.minWidth = '0';
     }
     document.getElementById('ui-season-boss-list').innerHTML = seasonBosses.map(zone => {
         let keys = game.currencies[zone.key] || 0;
@@ -3159,10 +3201,10 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
     if (labyrinthOpen) {
         let maxFloor = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
-        document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}">
+        document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}" onclick="enterLabyrinthPrompt()">
             <div class="map-item-main"><span>🏛️</span><span>고대 미궁 ${game.labyrinthFloor || 1}층</span></div>
             <div class="map-item-actions"><span class="map-zone-status">미궁 화석: ${game.currencies.fossil || 0}</span></div>
-        </div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterLabyrinthPrompt()">고대 미궁 층수 선택 입장</button><span class="map-zone-status">해금 최고층: ${maxFloor}층</span></div>`;
+        </div><div class="map-item-actions"><span class="map-zone-status">해금 최고층: ${maxFloor}층 · 클릭하여 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-labyrinth-list').innerHTML = '';
 
     let deepChaosOpen = (game.season || 1) >= 10 && !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
@@ -3170,10 +3212,10 @@ function buildCraftActionButtons(item) {
     if (deepChaosOpen) {
         let unlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21).sort((a, b) => a - b) : [];
         let highestDepth = Math.max(21, unlockedDepths.length > 0 ? unlockedDepths[unlockedDepths.length - 1] : Math.floor(game.abyssEndlessDepth || 21));
-        document.getElementById('ui-deep-chaos-list').innerHTML = `<div class="map-item ${getAbyssDepthFromZoneId(game.currentZoneId) >= 21 ? 'current' : ''}">
-            <div class="map-item-main"><span>♾️</span><span>혼돈 심화층<br><span class="map-zone-status">현재 심화층: ${Math.floor(game.abyssEndlessDepth || 21)}층 · 최고 기록: ${highestDepth}층</span></span></div>
+        document.getElementById('ui-deep-chaos-list').innerHTML = `<div class="map-item ${getAbyssDepthFromZoneId(game.currentZoneId) >= 21 ? 'current' : ''}" onclick="enterDeepChaosPrompt()">
+            <div class="map-item-main"><span>♾️</span><span>혼돈 심화층 (정복 완료)<br><span class="map-zone-status">현재 심화층: ${Math.floor(game.abyssEndlessDepth || 21)}층 · 최고 기록: ${highestDepth}층</span></span></div>
             <div class="map-item-actions"><span class="map-zone-status">입장 가능: 21 ~ ${highestDepth}</span></div>
-        </div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()">심화 혼돈 층수 선택 입장</button></div>`;
+        </div><div class="map-item-actions"><span class="map-zone-status">클릭하여 심화 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-deep-chaos-list').innerHTML = '';
 
     let meteorUnlocked = !!(game.starWedge && game.starWedge.unlocked);
@@ -5358,10 +5400,12 @@ function init() {
                 ensureLoopChallengeState();
                 if (pendingHeavyUiRefresh) {
                     let now = Date.now();
-                    if (now - lastHeavyUiRefreshAt >= 220) {
+                    if (now - lastHeavyUiRefreshAt >= 1200) {
                         pendingHeavyUiRefresh = false;
                         lastHeavyUiRefreshAt = now;
-                        updateStaticUI();
+                        // 적 처치 직후에는 탭/버튼까지 전부 재렌더하지 않고
+                        // 전투 HUD만 갱신해 체감 프레임을 안정화한다.
+                        updateCombatUI(getPlayerStats());
                     }
                 }
                 updateCombatUI(getPlayerStats());
