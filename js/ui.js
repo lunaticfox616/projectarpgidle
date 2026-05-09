@@ -1414,6 +1414,20 @@ function hideInfoTooltip() {
     clearActiveTooltip('info-tooltip');
     document.getElementById('info-tooltip').style.display = 'none';
 }
+let activeTalismanHoverId = null;
+function showTalismanBoardTooltip(event, talismanId) {
+    let placed = talismanId ? ((game.talismanPlacements || {})[talismanId] || {}).talisman : null;
+    if (!placed) return;
+    activeTalismanHoverId = talismanId;
+    let html = `<div class="item-title magic">[${placed.shape}] ${placed.statName}</div><div style="color:#9ec1e1;">값: +${placed.value}</div><div style="color:#b8cadf;">옵션 범위: 고정</div><div style="color:#b8cadf;">희귀도: ${placed.rarity || 'normal'}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
+    updateStaticUI();
+}
+function hideTalismanBoardTooltip() {
+    activeTalismanHoverId = null;
+    hideInfoTooltip();
+    updateStaticUI();
+}
 
 function renderBreakdownHtml(data) {
     let html = `<div class="tooltip-title">${data.title}</div>`;
@@ -2570,12 +2584,15 @@ function updateCombatUI(pStats) {
         let text = (game.playerAilments || []).map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
         let buffText = (game.playerConditionBuffs || []).filter(buff => (buff.expiresAt || 0) > Date.now()).map(buff => `<span style=\"color:#9be7ff;font-weight:700;\">${buff.name} ${Math.ceil(Math.max(0, ((buff.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
         let ailmentText = [text, buffText].filter(Boolean).join(' · ');
-        let isMobile = (window.matchMedia && window.matchMedia('(max-width: 1080px)').matches) || ('ontouchstart' in window);
-        ailmentEl.innerHTML = isMobile ? '' : ailmentText;
+        // 데스크톱에서 터치 디바이스 플래그가 잡히더라도 상태 표시를 숨기지 않도록
+        // 화면 너비 기준으로만 모바일 UI 분기를 판단한다.
+        let isMobile = !!(window.matchMedia && window.matchMedia('(max-width: 1080px)').matches);
+        let fallbackText = '<span style="color:#8da1b8;">효과 없음</span>';
+        ailmentEl.innerHTML = isMobile ? '' : (ailmentText || fallbackText);
         let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
         if (ailmentUnderEl) ailmentUnderEl.innerText = '';
         let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
-        if (mobileAilmentEl) mobileAilmentEl.innerHTML = isMobile ? ailmentText : '';
+        if (mobileAilmentEl) mobileAilmentEl.innerHTML = isMobile ? (ailmentText || fallbackText) : '';
         let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             let power = Math.max(0.1, ail.power || 0.1);
@@ -2941,13 +2958,19 @@ function performUpdateStaticUI() {
             let ampLv = (game.jewelSlotAmplify && game.jewelSlotAmplify[slotIdx]) || 0;
             let ampBonus = ampLv * 2;
             if (!jewel) return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; cursor:default; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span style="color:#7f8c8d;">비어있음</span><br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span></div>`;
-            let desc = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} +${stat.val}`).join(' / ');
-            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${desc})<br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
+            let desc = getJewelStats(jewel).map(stat => {
+                let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${stat.valMin}~${stat.valMax})` : '';
+                return `${getStatName(stat.id)} +${stat.val}${range}`;
+            }).join(' / ');
+            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" title="${escapeHTML(desc)}">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${desc})<br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
         }).join('');
         document.getElementById('ui-jewel-inventory').innerHTML = game.jewelInventory.map((jewel, idx) => {
             let selected = (jewelFusionSelection || []).includes(idx) ? 'selected' : '';
-            let desc = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} +${stat.val}`).join(' / ');
-            return `<div class="item-card ${selected}" style="min-height:72px;"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}</div><div class="item-stats">${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button><button onclick="salvageJewel(${idx})">해체</button></div></div>`;
+            let desc = getJewelStats(jewel).map(stat => {
+                let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${stat.valMin}~${stat.valMax})` : '';
+                return `${getStatName(stat.id)} +${stat.val}${range}`;
+            }).join(' / ');
+            return `<div class="item-card ${selected}" style="min-height:72px;" title="${escapeHTML(desc)}"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}</div><div class="item-stats">${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button><button onclick="salvageJewel(${idx})">해체</button></div></div>`;
         }).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
     }
 
@@ -3554,11 +3577,14 @@ function buildCraftActionButtons(item) {
         let extraUnlocked = Math.max(0, unlockedSet.size - 16);
         let unlockCost = getTalismanExpandCost(extraUnlocked);
         let lockTitle = unlocked ? '' : ` title="해금 비용: 봉인편린 ${unlockCost}"`;
+        let isHoverGroup = !!(id && activeTalismanHoverId && id === activeTalismanHoverId);
         let surfaceShadow = id
             ? `inset 0 1px 0 rgba(255,255,255,0.34), 0 2px 6px rgba(0,0,0,0.35), 0 0 8px ${shapeStyle ? shapeStyle.glow : 'rgba(120,180,240,0.25)'}`
             : 'inset 0 2px 4px rgba(0,0,0,0.55), inset 0 -1px 2px rgba(255,255,255,0.08), 0 1px 2px rgba(0,0,0,0.25)';
+        if (isHoverGroup) surfaceShadow = `0 0 0 2px rgba(255,230,140,.85), 0 0 18px rgba(255,210,110,.55), ${surfaceShadow}`;
         let placedTitle = (placed && unlocked) ? ` title="[${placed.shape}] ${placed.statName} +${placed.value}"` : '';
-        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
+        let hoverHandlers = id ? ` onmouseenter="showTalismanBoardTooltip(event, ${id})" onmouseleave="hideTalismanBoardTooltip()"` : '';
+        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     let talismanTotalEl = document.getElementById('ui-talisman-total');
     if (talismanTotalEl) {
