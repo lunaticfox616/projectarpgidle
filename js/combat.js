@@ -2106,7 +2106,7 @@ function finishEncounterRun() {
         if (Math.random() < 0.4) {
             let bossUnique = generateUniqueItem(zone.tier || 12);
             addItemToInventory(bossUnique);
-            addLog(`👑 시즌 보스 전리품 [${bossUnique.name}] 획득!`, 'loot-unique');
+            addLog(`👑 [${bossUnique.name}] 획득!`, 'loot-unique');
         }
         addLog(`🗝️ [${zone.name}] 토벌 완료!`, 'loot-unique');
         let shouldRepeat = !!game.autoRepeatSeasonBoss;
@@ -2750,14 +2750,15 @@ function enterOutsideChaos() {
     game.killsInZone = 0;
     game.runProgress = 100;
     game.moveTimer = 0;
-    game.encounterPlan = [{ at: 100, count: 1, boss: true }];
+    game.encounterPlan = [];
     game.encounterIndex = 0;
     game.enemies = [];
     addLog('☠️ 금단의 경계 너머, 나무꾼이 모습을 드러냅니다.', 'loot-unique');
     game.inEncounter = true;
     game.moveTimer = 0;
     game.runProgress = 100;
-    startEncounterRun();
+    // 나무꾼 전투는 즉시 보스 스폰으로 진입
+    spawnEncounterMarker({ at: 100, count: 1, boss: true });
     updateStaticUI();
 }
 

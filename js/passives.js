@@ -4693,12 +4693,12 @@ function useCurrency(currencyKey) {
     let sporeMode = game.sporeCraftModes[currencyKey] || 'none';
     function consumeSpore(mode) {
         if (mode === 'none') return true;
-        if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < 5) return false; game.currencies.sporeFire -= 5; return true; }
-        if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < 5) return false; game.currencies.sporeCold -= 5; return true; }
-        if (mode === 'light') { if ((game.currencies.sporeLight || 0) < 5) return false; game.currencies.sporeLight -= 5; return true; }
+        if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < 10) return false; game.currencies.sporeFire -= 10; return true; }
+        if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < 10) return false; game.currencies.sporeCold -= 10; return true; }
+        if (mode === 'light') { if ((game.currencies.sporeLight || 0) < 10) return false; game.currencies.sporeLight -= 10; return true; }
         if (mode === 'chaos' || mode === 'damage') {
-            if ((game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return false;
-            game.currencies.sporeFire -= 5; game.currencies.sporeCold -= 5; game.currencies.sporeLight -= 5; return true;
+            if ((game.currencies.sporeFire || 0) < 10 || (game.currencies.sporeCold || 0) < 10 || (game.currencies.sporeLight || 0) < 10) return false;
+            game.currencies.sporeFire -= 10; game.currencies.sporeCold -= 10; game.currencies.sporeLight -= 10; return true;
         }
         return true;
     }
@@ -4723,8 +4723,10 @@ function useCurrency(currencyKey) {
     function rollSporeGuaranteedValue(mod) {
         if (!mod) return null;
         let tier = Math.max(1, getItemCraftTier(item));
-        let minTier = Math.max(1, Math.floor(tier * 0.45));
-        let maxTier = Math.max(minTier, Math.min(10, tier));
+        // 일반 드랍 대비 약 +2티어 보정
+        let boostedTier = Math.min(10, tier + 2);
+        let minTier = Math.max(1, boostedTier - 1);
+        let maxTier = Math.max(minTier, boostedTier);
         return rollAffixValueInTierRange(mod, minTier, maxTier);
     }
     function applyGuaranteedToNonLocked(modOverride) {
