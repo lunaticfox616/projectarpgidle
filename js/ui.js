@@ -4877,6 +4877,9 @@ async function restoreCloudSession() {
             return true;
         } catch (refreshError) {
             console.warn('cloud session refresh failed:', refreshError);
+            setCloudMessage('세션이 만료되었습니다. 다시 로그인해주세요.');
+            applyCloudSession(null);
+            return false;
         }
     }
     let user = await fetchCloudUser();
@@ -4957,7 +4960,13 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
 
 async function pushCloudSave(options = {}) {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
-    if (!cloudState.isLoaded) throw new Error('원격 저장 로드 전에는 업로드할 수 없습니다.');
+    if (!cloudState.isLoaded) {
+        try {
+            await fetchCloudSaveRecord();
+        } catch (loadError) {
+            console.warn('cloud push preflight remote load failed:', loadError);
+        }
+    }
     persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true });
     let payload = JSON.parse(JSON.stringify(game));
     let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
@@ -5087,7 +5096,7 @@ async function initializeCloudSave() {
             if (isStartupOverlayOpen()) setCloudMessage('이전 로그인 세션을 복원했습니다. 클라우드 세이브로 계속할 수 있습니다.');
             else {
                 setCloudMessage('이전 로그인 세션을 복원했습니다.');
-                await reconcileCloudSaveState({ silent: true });
+                await reconcileCloudSaveState({ silent: true, createRemoteFromLocal: true });
             }
         } else {
             setCloudMessage('로그인하면 클라우드 저장을 사용할 수 있습니다.');

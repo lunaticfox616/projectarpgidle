@@ -10,7 +10,7 @@ const LOCAL_SAVE_KEY = 'poeIdleSaveData_v9';
 const LEGACY_SAVE_KEYS = ['poeIdleSaveData_v8', 'poeIdleSaveData_v7'];
 const CLOUD_SESSION_STORAGE_KEY = 'poeIdleCloudSession_v1';
 const CLOUD_SYNC_MIN_INTERVAL_MS = 15000;
-const CLOUD_REMOTE_TIME_SKEW_MS = 1000;
+const CLOUD_REMOTE_TIME_SKEW_MS = 5000;
 const DAMAGE_ELEMENT_LABELS = {
     phys: '물리',
     fire: '화염',
