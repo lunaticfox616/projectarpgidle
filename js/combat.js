@@ -158,6 +158,8 @@ function runConditionGemAutoRules(pStats) {
             if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
         }
         if (gemName === '귀환 젬') returnToTown();
+        let castDelayMs = Math.max(0, Math.floor((entry.castTime || 0) * 1000));
+        game.playerCastDelayUntil = Math.max(now, Math.floor(game.playerCastDelayUntil || 0), now + castDelayMs);
         game.lastConditionGemCast = { name: gemName, type: entry.type, targetId: castTargetId, expiresAt: now + 1100 };
         addLog(`🧠 컨디션 젬 발동: [${gemName}]`, 'loot-magic', { noToast: true });
         break;
@@ -316,8 +318,9 @@ function coreLoop() {
     if ((game.enemies || []).length > 0) {
         tickEnemyDotEffects(pStats, 0.1);
         tickEnemyAilments(pStats, 0.1);
-        pTimer += 0.1 * pStats.aspd;
-        while (pTimer >= 1.0 && game.enemies.length > 0) {
+        let castBlocked = Date.now() < Math.floor(game.playerCastDelayUntil || 0);
+        if (!castBlocked) pTimer += 0.1 * pStats.aspd;
+        while (!castBlocked && pTimer >= 1.0 && game.enemies.length > 0) {
             pTimer -= 1.0;
             performPlayerAttack(pStats);
             let dsChance = Math.max(0, pStats.ds || 0);
@@ -1345,6 +1348,7 @@ function generateEncounterPlan(zone) {
         ];
     }
     if (zone.type === 'seasonBoss') return [{ at: 100, count: 1, boss: true }];
+    if (zone.type === 'outsideChaos') return [{ at: 100, count: 1, boss: true }];
     let profile = getZoneEncounterProfile(zone);
     let rng = zone.type === 'act' ? createSeededRng(`act:${zone.id}`) : Math.random;
     let markers = [];
@@ -2155,6 +2159,8 @@ function finishEncounterRun() {
             game.abyssClearedDepths = Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths : [];
             if (depth <= capDepth && !game.abyssClearedDepths.includes(depth)) {
                 game.abyssClearedDepths.push(depth);
+                game.abyssPassivePoints = Math.max(0, Math.floor(game.abyssPassivePoints || 0)) + 5;
+                addLog(`🌌 혼돈 ${depth} 클리어 보상: 혼돈 패시브 포인트 +5`, 'season-up');
             }
         }
         if (zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
@@ -2792,7 +2798,6 @@ function triggerSeasonReset() {
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
-    let abyssLoopPointGain = Math.max(0, (Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths.length : 0) * 5);
     game.season++;
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
@@ -2800,7 +2805,6 @@ function triggerSeasonReset() {
         queueTutorialNotice('unlock_spore_crafting', '홀씨 제작 해금', '루프 2 달성! 이제 액트/혼돈 몬스터가 화염/냉기/번개 홀씨를 떨어뜨립니다.\n제작 탭에서 오브 사용 시 홀씨 태그를 지정할 수 있습니다.', 'tab-items');
     }
     addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
-    if (abyssLoopPointGain > 0) addLog(`🌌 루프 정산: 혼돈 최초 클리어 보상 +${abyssLoopPointGain}pt`, 'season-up');
     game.level = 1;
     game.exp = 0;
     game.killsInZone = 0;
@@ -2819,6 +2823,15 @@ function triggerSeasonReset() {
     game.supports = [];
     game.equippedSupports = [];
     game.supportGemData = {};
+    game.conditionGemUnlocked = false;
+    game.conditionGemPool = [];
+    game.pendingConditionGemChoices = null;
+    game.skillAutoRules = [];
+    game.conditionGemCooldowns = {};
+    game.enemyConditionDebuffs = {};
+    game.playerConditionBuffs = [];
+    game.lastConditionGemCast = null;
+    game.playerCastDelayUntil = 0;
     game.sealedSkills = [];
     game.sealedSupports = [];
     game.resonancePower = 10;

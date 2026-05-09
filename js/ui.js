@@ -269,7 +269,6 @@ function getDefaultSkillAutoRule() {
         priority: ((game.skillAutoRules || []).length + 1),
         hpThreshold: 40,
         triggerType: 'hp_below',
-        gemType: '수호 젬',
         skillName: ''
     };
 }
@@ -331,6 +330,25 @@ function getConditionGemTooltip(entry) {
     return `${entry.name}\n유형: ${entry.type}\n시전 시간: ${cast}초\n지속 시간: ${duration}초\n쿨타임: ${cooldown}초\n효과: ${getConditionGemDetail(entry)}`;
 }
 
+
+function getConditionGemTooltipHtml(entry) {
+    if (!entry) return '';
+    let cast = Number(entry.castTime || 1).toFixed(1);
+    let duration = Number(entry.duration || 4).toFixed(1);
+    let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
+    let html = `<div class="tooltip-title">${entry.name}</div>`;
+    html += `<div class="tooltip-line">${entry.desc || '컨디션 젬 효과'}</div>`;
+    html += `<div class="tooltip-line" style="margin-top:6px;">시전 시간 ${cast}초 · 지속 ${duration}초 · 쿨타임 ${cooldown}초</div>`;
+    html += `<div class="tooltip-line">효과: ${getConditionGemDetail(entry)}</div>`;
+    if ((entry.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${entry.tags.join(' / ')}</div>`;
+    return html;
+}
+function showConditionGemTooltip(event, name) {
+    let entry = getAllConditionGemEntries().find(e => e.name === name);
+    if (!entry) return;
+    showInfoTooltipHtml(event.clientX, event.clientY, getConditionGemTooltipHtml(entry), '#ff5252');
+}
+
 function openConditionGemChoiceOverlay() {
     let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
     if (pending.length <= 0 || document.getElementById('condition-gem-overlay')) return;
@@ -364,10 +382,10 @@ function renderSkillAutoRulePanel() {
         return;
     }
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
-    let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 3개 제시</button></div>`;
+    let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 컨디션 젬 가공</button></div>`;
     let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
     let ownedEntries = getAllConditionGemEntries().filter(entry => owned.includes(entry.name));
-    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => `<div style="border:1px solid #314761;border-radius:8px;padding:7px;" title="${escapeHTML(getConditionGemTooltip(entry))}"><strong>${entry.name}</strong><div style="font-size:.78em;color:#9ec1e1;">${entry.type} · ${(entry.tags||[]).join('/')}</div><div style="font-size:.76em;color:#f0d39e;">${getConditionGemDetail(entry)}</div></div>`).join('')}</div>` : '';
+    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => `<div style="border:1px solid #314761;border-radius:8px;padding:7px;" onmousemove="showConditionGemTooltip(event,'${entry.name}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong></div>`).join('')}</div>` : '';
 
     if (game.skillAutoRules.length === 0) {
         panel.innerHTML = summary + choiceHtml + ownedHtml + `<div style="color:#7f8c8d; border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
@@ -395,9 +413,6 @@ function renderSkillAutoRulePanel() {
                 <input type="number" min="1" max="100" value="${rule.hpThreshold || 40}" style="width:64px;" onchange="game.skillAutoRules[${idx}].hpThreshold=Math.min(100,Math.max(1,Math.floor(this.value||40)));">
                 <span>%</span>
                 <span>THEN</span>
-                <select onchange="game.skillAutoRules[${idx}].gemType=this.value;">
-                    ${['함성 젬','저주 젬','수호 젬','기타 젬'].map(type => `<option value="${type}" ${rule.gemType===type?'selected':''}>${type}</option>`).join('')}
-                </select>
                 <select onchange="game.skillAutoRules[${idx}].skillName=this.value;" style="min-width:180px;">
                     <option value="">사용할 젬 선택</option>
                     ${ownedEntries.map(entry => `<option value="${entry.name}" title="${escapeHTML(getConditionGemTooltip(entry))}" ${rule.skillName===entry.name?'selected':''}>${entry.name} (${entry.type})</option>`).join('')}
@@ -2588,11 +2603,13 @@ function updateCombatUI(pStats) {
         // 화면 너비 기준으로만 모바일 UI 분기를 판단한다.
         let isMobile = !!(window.matchMedia && window.matchMedia('(max-width: 1080px)').matches);
         let fallbackText = '<span style="color:#8da1b8;">효과 없음</span>';
-        ailmentEl.innerHTML = isMobile ? '' : (ailmentText || fallbackText);
+        let desktopText = ailmentText || fallbackText;
+        // 데스크톱에서는 생명력 바 "아래"에 효과를 고정 노출한다.
+        ailmentEl.innerHTML = '';
         let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
-        if (ailmentUnderEl) ailmentUnderEl.innerText = '';
+        if (ailmentUnderEl) ailmentUnderEl.innerHTML = isMobile ? '' : desktopText;
         let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
-        if (mobileAilmentEl) mobileAilmentEl.innerHTML = isMobile ? (ailmentText || fallbackText) : '';
+        if (mobileAilmentEl) mobileAilmentEl.innerHTML = isMobile ? desktopText : '';
         let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             let power = Math.max(0.1, ail.power || 0.1);
