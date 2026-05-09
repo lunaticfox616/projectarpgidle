@@ -1685,18 +1685,7 @@ function advanceMapProgress(pStats) {
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
     let zone = getZone(game.currentZoneId);
-    if (zone && zone.id === OUTSIDE_CHAOS_ZONE_ID) {
-        let woodsman = (game.enemies || []).find(e => e && e.isBoss);
-        if (woodsman && woodsman.maxHp > 0) {
-            let dealtRatio = Math.max(0, Math.min(0.999, 1 - (woodsman.hp / woodsman.maxHp)));
-            let score = Math.floor(dealtRatio * 1000000);
-            addWoodsmanPendingScore(score);
-            addLog(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
-        }
-        clearWoodsmanBuildLock();
-        game.currentZoneId = game.maxZoneId;
-        game.killsInZone = 0;
-    } else if (zone && zone.id === 'grand_breach_run') {
+    if (zone && zone.id === 'grand_breach_run') {
         tickGrandBreachRun(zone);
         return;
     }

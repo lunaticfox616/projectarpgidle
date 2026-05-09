@@ -3166,7 +3166,11 @@ function buildCraftActionButtons(item) {
         let rewardReady = (game.claimableActRewards || []).includes(idx);
         let rewardClaimed = (game.claimedActRewards || []).includes(idx);
         let isActRewardZone = zone.type === 'act' && idx <= 9;
-        let chaos20Conquered = (idx === 20) && !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
+        let chaos20Conquered = (idx === 20) && (
+            !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared) ||
+            (Array.isArray(game.abyssClearedDepths) && game.abyssClearedDepths.includes(20)) ||
+            Math.floor(game.abyssEndlessDepth || 0) >= 21
+        );
         let cleared = idx < game.maxZoneId || rewardReady || rewardClaimed || chaos20Conquered;
         let actionHtml = '';
         let mapZoneText = zone.name;
@@ -3225,7 +3229,7 @@ function buildCraftActionButtons(item) {
         let unlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21).sort((a, b) => a - b) : [];
         let highestDepth = Math.max(21, unlockedDepths.length > 0 ? unlockedDepths[unlockedDepths.length - 1] : Math.floor(game.abyssEndlessDepth || 21));
         document.getElementById('ui-deep-chaos-list').innerHTML = `<div class="map-item ${getAbyssDepthFromZoneId(game.currentZoneId) >= 21 ? 'current' : ''}" onclick="enterDeepChaosPrompt()">
-            <div class="map-item-main"><span>♾️</span><span>혼돈 심화층 (정복 완료)<br><span class="map-zone-status">현재 심화층: ${Math.floor(game.abyssEndlessDepth || 21)}층 · 최고 기록: ${highestDepth}층</span></span></div>
+            <div class="map-item-main"><span>♾️</span><span>혼돈 심화층<br><span class="map-zone-status">현재 심화층: ${Math.floor(game.abyssEndlessDepth || 21)}층 · 최고 기록: ${highestDepth}층</span></span></div>
             <div class="map-item-actions"><span class="map-zone-status">입장 가능: 21 ~ ${highestDepth}</span></div>
         </div><div class="map-item-actions"><span class="map-zone-status">클릭하여 심화 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-deep-chaos-list').innerHTML = '';
