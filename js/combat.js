@@ -2095,7 +2095,7 @@ function finishEncounterRun() {
             addItemToInventory(bossUnique);
             addLog(`👑 시즌 보스 전리품 [${bossUnique.name}] 획득!`, 'loot-unique');
         }
-        addLog(`🗝️ [${zone.name}] 토벌 완료! 군주의 핵 드랍 판정(50%)`, 'loot-unique');
+        addLog(`🗝️ [${zone.name}] 토벌 완료!`, 'loot-unique');
         let shouldRepeat = !!game.autoRepeatSeasonBoss;
         let keyLeft = game.currencies[zone.key] || 0;
         if (shouldRepeat && keyLeft > 0) {
@@ -2744,7 +2744,7 @@ function enterOutsideChaos() {
     game.inEncounter = true;
     game.moveTimer = 0;
     game.runProgress = 100;
-    spawnEnemies();
+    startEncounterRun();
     updateStaticUI();
 }
 
