@@ -4279,7 +4279,7 @@ function generateJewelDrop(zoneTier) {
         { id: 'physIgnore', name: '절개 파편', min: 2, max: 6 },
         { id: 'resPen', name: '관통 수정', min: 2, max: 6 },
         { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 },
-        { id: 'regenSuppress', name: '봉쇄 파편', min: 0.1, max: 0.2, step: 0.1 },
+        { id: 'regenSuppress', name: '봉쇄 파편', min: 0.05, max: 0.12, step: 0.01 },
         { id: 'minDmgRoll', name: '하한 수정', min: 1, max: 3 },
         { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 }
     ];
