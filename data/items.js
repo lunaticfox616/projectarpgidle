@@ -53,6 +53,17 @@ const UNIQUE_DB = [
     { name: "지평선 분할자", slots: ["무기"], reqTier: 13, stats: [{ id: "flatDmg", min: 44, max: 60 }, { id: "minDmgRoll", min: 8, max: 12 }, { id: "maxDmgRoll", min: 8, max: 12 }] },
     { name: "용맥 수호", slots: ["장갑"], reqTier: 13, stats: [{ id: "flatHp", min: 70, max: 100 }, { id: "regen", min: 0.9, max: 1.4 }, { id: "minDmgRoll", min: 5, max: 9 }] },
     { name: "운명의 쌍현", slots: ["목걸이"], reqTier: 14, stats: [{ id: "minDmgRoll", min: 7, max: 11 }, { id: "maxDmgRoll", min: 7, max: 11 }, { id: "crit", min: 8, max: 12 }] },
+
+    { name: "불씨 군주의 보행", slots: ["신발"], reqTier: 11, stats: [{ id: "move", min: 16, max: 22 }, { id: "resF", min: 18, max: 26 }, { id: "regen", min: 1.2, max: 1.8 }, { id: "dr", min: 4, max: 7 }] },
+    { name: "빙결파수 장화", slots: ["신발"], reqTier: 12, stats: [{ id: "move", min: 15, max: 21 }, { id: "resC", min: 20, max: 28 }, { id: "energyShield", min: 80, max: 130 }, { id: "regen", min: 0.8, max: 1.3 }] },
+    { name: "감전추적 경갑", slots: ["신발"], reqTier: 13, stats: [{ id: "move", min: 18, max: 24 }, { id: "resL", min: 20, max: 30 }, { id: "aspd", min: 10, max: 15 }, { id: "crit", min: 6, max: 10 }] },
+    { name: "독기 유영화", slots: ["신발"], reqTier: 14, stats: [{ id: "move", min: 16, max: 22 }, { id: "resChaos", min: 18, max: 28 }, { id: "leech", min: 1.0, max: 1.6 }, { id: "chaosPctDmg", min: 20, max: 30 }] },
+    { name: "출혈 봉쇄 투구", slots: ["투구"], reqTier: 12, stats: [{ id: "flatHp", min: 72, max: 98 }, { id: "dr", min: 7, max: 11 }, { id: "resAll", min: 10, max: 16 }, { id: "regen", min: 1.0, max: 1.5 }] },
+    { name: "저주의 관", slots: ["투구"], reqTier: 13, stats: [{ id: "chaosPctDmg", min: 20, max: 30 }, { id: "resPen", min: 8, max: 14 }, { id: "crit", min: 6, max: 10 }, { id: "resChaos", min: 10, max: 16 }] },
+    { name: "수호 성갑", slots: ["갑옷"], reqTier: 14, stats: [{ id: "flatHp", min: 140, max: 200 }, { id: "dr", min: 10, max: 14 }, { id: "resAll", min: 14, max: 20 }, { id: "regen", min: 1.4, max: 2.2 }] },
+    { name: "함성 공명 허리띠", slots: ["허리띠"], reqTier: 13, stats: [{ id: "flatHp", min: 90, max: 130 }, { id: "move", min: 8, max: 14 }, { id: "aspd", min: 8, max: 12 }, { id: "resAll", min: 8, max: 14 }] },
+    { name: "저항 잠식 반지", slots: ["반지"], reqTier: 12, stats: [{ id: "resPen", min: 10, max: 16 }, { id: "chaosPctDmg", min: 18, max: 28 }, { id: "resAll", min: 8, max: 14 }, { id: "leech", min: 0.8, max: 1.3 }] },
+    { name: "컨디션 교본", slots: ["목걸이"], reqTier: 14, stats: [{ id: "gemLevel", min: 2, max: 2 }, { id: "suppCap", min: 1, max: 1 }, { id: "regen", min: 1.1, max: 1.7 }, { id: "resAll", min: 10, max: 16 }] },
     { name: "영원의 레버", slots: ["무기"], reqTier: 15, ultraRare: true, stats: [{ id: "flatDmg", min: 95, max: 130 }, { id: "minDmgRoll", min: 14, max: 20 }, { id: "maxDmgRoll", min: 14, max: 20 }, { id: "critDmg", min: 90, max: 130 }] }
 ];
 
@@ -103,6 +114,7 @@ const ORB_DB = {
     bossKeyFrost: { name: '열쇠: 서리 여제', desc: '시즌2 보스 [글라시아] 도전권입니다.' },
     bossKeyStorm: { name: '열쇠: 폭풍 군단장', desc: '시즌2 보스 [볼타] 도전권입니다.' },
     beastKeyCerberus: { name: '열쇠: 케르베로스', desc: '시즌6 야수 보스 [케르베로스] 도전권입니다.' },
+    trialKey3: { name: '3차 전직 입장권', desc: '3차/4차 전직 시련 재도전권입니다.' },
     bossCore: { name: '군주의 핵', desc: '시즌2 보스를 처치하면 얻는 젬 강화 재료입니다.' },
     fossil: { name: '미궁 화석', desc: '기본 화석 조각입니다. 미궁에서 다양한 타입의 화석으로 정제됩니다.' },
     fossilJagged: { name: '톱니 화석', desc: '물리/근접 계열 옵션 하나를 확정한 카오스 재련을 합니다.' },

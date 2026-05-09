@@ -536,6 +536,15 @@ function switchMapSubtab(subtabId) {
     if (btn) btn.classList.add('active');
 }
 function enterLabyrinthFloor(floor){ game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
+
+function enterTrialWithTicket(trialId) {
+    if (!['trial_3','trial_4'].includes(trialId)) return changeZone(trialId);
+    if ((game.currencies.trialKey3 || 0) <= 0) return addLog('3차 전직 입장권이 부족합니다.', 'attack-monster');
+    game.currencies.trialKey3 -= 1;
+    addLog(`🗝️ 3차 전직 입장권 1개 소모 (남은 ${game.currencies.trialKey3 || 0})`, 'season-up');
+    changeZone(trialId);
+}
+
 function enterDeepChaosPrompt(){ let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let max=Math.max(20, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth||20)); let v=prompt(`진입할 심화 혼돈 층수를 입력하세요. (21 ~ ${max})`, String(max)); if(v===null)return; let depth=Math.floor(Number(v)||0); if(depth<21||depth>max) return addLog(`21~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); if (unlocked.length > 0 && !unlocked.includes(depth)) return addLog(`해금된 심화 혼돈 층수만 입장 가능합니다.`, 'attack-monster'); enterUnlockedEndlessDepth(depth); }
 function enterLabyrinthPrompt(){ let max=Math.max(1,Math.floor(game.labyrinthUnlockedMaxFloor||game.labyrinthFloor||1)); let v=prompt(`진입할 고대 미궁 층수를 입력하세요. (1 ~ ${max})`, String(max)); if(v===null)return; let floor=Math.floor(Number(v)||0); if(floor<1||floor>max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); enterLabyrinthFloor(floor); }
 
@@ -1458,6 +1467,25 @@ function showStatTooltip(event, key) {
     showInfoTooltipHtml(event.clientX, event.clientY, renderBreakdownHtml(data), '#f39c12');
 }
 
+
+function showPlayerAilmentTooltip(event, type, timeLeft, power) {
+    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
+    let p = Math.max(0.1, Number(power || 0.1));
+    let detail = '';
+    if (type === 'ignite') detail = `초당 강한 화염 피해. 위력 ${p.toFixed(2)}`;
+    else if (type === 'poison') detail = `초당 혼돈 피해. 위력 ${p.toFixed(2)}`;
+    else if (type === 'bleed') detail = `초당 출혈 피해. 위력 ${p.toFixed(2)}`;
+    else if (type === 'chill') detail = '공격 속도 크게 감소';
+    else if (type === 'shock') detail = '받는 피해 급증(방어 관통)';
+    else if (type === 'freeze') detail = '행동 불가';
+    let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">${detail}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#ff7f7f');
+}
+function showPlayerBuffTooltip(event, name, type, remainSec) {
+    let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${type || '버프'}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
+}
+
 function showGemTooltip(event, type, name) {
     let info = getGemPresentation(name, type === 'support');
     let stats = getPlayerStats();
@@ -1495,7 +1523,9 @@ function showGemTooltip(event, type, name) {
         if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
-        html += `<div class="tooltip-line">최대 타겟 수: ${Math.max(1, skill.targets || 1)}</div>`;
+        let maxTargetsView = Math.max(1, skill.targets || 1);
+        if (skill.targetMode === 'all' && maxTargetsView >= 99) maxTargetsView = Math.max(1, (game.enemies || []).filter(e => e && e.hp > 0).length);
+        html += `<div class="tooltip-line">최대 타겟 수: ${maxTargetsView}${skill.targetMode === 'all' ? ' (현재 전장 기준)' : ''}</div>`;
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${skill.crit}%</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
@@ -2596,8 +2626,8 @@ function updateCombatUI(pStats) {
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
         let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
-        let text = (game.playerAilments || []).map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
-        let buffText = (game.playerConditionBuffs || []).filter(buff => (buff.expiresAt || 0) > Date.now()).map(buff => `<span style=\"color:#9be7ff;font-weight:700;\">${buff.name} ${Math.ceil(Math.max(0, ((buff.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
+        let text = (game.playerAilments || []).map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmousemove=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
+        let buffText = (game.playerConditionBuffs || []).filter(buff => (buff.expiresAt || 0) > Date.now()).map(buff => `<span style=\"color:#9be7ff;font-weight:700;cursor:help;\" onmousemove=\"showPlayerBuffTooltip(event,'${buff.name}','${buff.type || ''}',${Math.ceil(Math.max(0,((buff.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">${buff.name} ${Math.ceil(Math.max(0, ((buff.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
         let ailmentText = [text, buffText].filter(Boolean).join(' · ');
         // 데스크톱에서 터치 디바이스 플래그가 잡히더라도 상태 표시를 숨기지 않도록
         // 화면 너비 기준으로만 모바일 UI 분기를 판단한다.
@@ -3297,9 +3327,11 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
         let isCurrent = game.currentZoneId === trial.id;
         let isCompleted = game.completedTrials.includes(trial.id);
+        let needsTicket = isCompleted && (trial.id === 'trial_3' || trial.id === 'trial_4');
+        let hasTicket = (game.currencies.trialKey3 || 0) > 0;
         let cls = isCurrent ? 'current' : 'trial';
         if (isCompleted) cls = '';
-        return `<div class="map-item ${cls}" ${isCompleted ? '' : `onclick="changeZone('${trial.id}')"`}><span>${trial.name} ${isCompleted ? '(완료)' : ''}</span><span style="font-size:0.8em; font-weight:normal;">${isCompleted ? '✔️' : '도전하기'}</span></div>`;
+        return `<div class="map-item ${cls}" ${(isCompleted && needsTicket && !hasTicket) ? '' : `onclick="${(isCompleted && needsTicket) ? `enterTrialWithTicket('${trial.id}')` : `changeZone('${trial.id}')`}"`}><span>${trial.name} ${isCompleted ? '(완료)' : ''}</span><span style="font-size:0.8em; font-weight:normal;">${isCompleted ? (needsTicket ? `재도전권 ${game.currencies.trialKey3||0}` : '✔️') : '도전하기'}</span></div>`;
     }).join('');
     }
 

@@ -57,21 +57,21 @@ function getConditionGemStatDelta(name, type) {
         '절단의 맹세': { enemyTakenMul: 1.16, enemyResShred: 7, physBonus: 0.08 },
         '심연 고리': { enemyTakenMul: 1.12, enemyResShred: 13, chaosBonus: 0.1 },
         // Warcries
-        '전장의 함성': { pctDmg: 16, aspd: 12 },
+        '전장의 함성': { pctDmg: 16, aspd: 12, dr: 6, move: 8 },
         '피의 함성': { pctDmg: 22, leech: 0.9, hpSacrificePct: 6 },
-        '추적자의 함성': { aspd: 14, targetAny: 1 },
-        '용광의 외침': { pctDmg: 15, fireBonus: 0.12 },
-        '빙하의 포효': { pctDmg: 13, coldBonus: 0.12, dr: 4 },
+        '추적자의 함성': { aspd: 14, targetAny: 1, crit: 6, move: 12 },
+        '용광의 외침': { pctDmg: 15, fireBonus: 0.12, leech: 0.4, regen: 0.8 },
+        '빙하의 포효': { pctDmg: 13, coldBonus: 0.12, dr: 8, energyShieldRegen: 2 },
         '폭풍의 고함': { aspd: 16, crit: 5 },
-        '공허의 외침': { pctDmg: 17, chaosBonus: 0.15, resPen: 4 },
+        '공허의 외침': { pctDmg: 17, chaosBonus: 0.15, resPen: 8, leech: 0.7 },
         '결전 신호': { pctDmg: 24, dr: -4, critDmg: 30 },
         // Guards
-        '현무 장막': { dr: 18, regen: 1.2 },
-        '응보 방패': { dr: 12, thorns: 0.18 },
+        '현무 장막': { dr: 24, regen: 1.6, resAll: 8 },
+        '응보 방패': { dr: 16, thorns: 0.26, physIgnore: 8 },
         '철의 맹세': { dr: 22, aspd: -8 },
         '서리 장벽': { dr: 14, coldGuard: 0.2 },
-        '폭풍 장벽': { dr: 13, move: 10 },
-        '심연 껍질': { dr: 16, chaosGuard: 0.2, regen: 0.6 },
+        '폭풍 장벽': { dr: 15, move: 16, aspd: 10 },
+        '심연 껍질': { dr: 20, chaosGuard: 0.28, regen: 1.0, resChaos: 12 },
         // Utility
         '귀환 젬': { }
     };
@@ -94,6 +94,22 @@ function getEnemyConditionDebuffFactor(enemy) {
     return { mul: Math.min(1.35, mul), resShred: Math.min(20, shred) };
 }
 
+
+function getKeystoneEnemyTakenMultiplier(enemy, hitElement) {
+    if (!enemy) return 1;
+    let now = Date.now();
+    let mul = 1;
+    let debuffs = game.enemyKeystoneDebuffs || {};
+    let list = debuffs[enemy.id] || [];
+    list = list.filter(row => row && (row.expiresAt || 0) > now);
+    debuffs[enemy.id] = list;
+    game.enemyKeystoneDebuffs = debuffs;
+    let a3Stacks = list.filter(row => row.type === 'a3').length;
+    if (a3Stacks > 0) mul *= (1 + Math.min(5, a3Stacks) * 0.10);
+    if (['fire','cold','light'].includes(hitElement) && list.some(row => row.type === 'iq7')) mul *= 1.12;
+    return mul;
+}
+
 function getAllConditionGemEntriesForCombat() {
     let db = window.CONDITION_GEM_DB || {};
     return [].concat(db.curse || [], db.warcry || [], db.guard || [], db.utility || []);
@@ -102,6 +118,7 @@ function getAllConditionGemEntriesForCombat() {
 function runConditionGemAutoRules(pStats) {
     let now = Date.now();
     cleanupConditionGemStates(now);
+    if ((game.elementalistOverloadExpiresAt || 0) <= now) game.elementalistOverloadStacks = 0;
     if (!game.conditionGemUnlocked) return;
     if (!Array.isArray(game.skillAutoRules) || game.skillAutoRules.length === 0) return;
     game.conditionGemCooldowns = game.conditionGemCooldowns || {};
@@ -113,14 +130,17 @@ function runConditionGemAutoRules(pStats) {
         let esPct = (pStats.energyShield || 0) > 0 ? ((game.playerEnergyShield || 0) / Math.max(1, pStats.energyShield) * 100) : 0;
         let trigger = rule.triggerType || 'hp_below';
         let threshold = rule.hpThreshold || 40;
+        let liveEnemies = (game.enemies || []).filter(e => e && e.hp > 0);
+        let liveCount = liveEnemies.length;
+        let hasLiveBoss = liveEnemies.some(e => e.isBoss);
         if (trigger === 'hp_below' && hpPct > threshold) continue;
         if (trigger === 'hp_above' && hpPct < threshold) continue;
-        if (trigger === 'enemy_many' && (game.enemies || []).filter(e => e && e.hp > 0).length < threshold) continue;
-        if (trigger === 'enemy_few' && (game.enemies || []).filter(e => e && e.hp > 0).length > threshold) continue;
+        if (trigger === 'enemy_many' && liveCount < threshold) continue;
+        if (trigger === 'enemy_few' && (liveCount <= 0 || liveCount > threshold)) continue;
         if (trigger === 'es_below' && esPct > threshold) continue;
         if (trigger === 'es_above' && esPct < threshold) continue;
-        if (trigger === 'boss_present' && !(game.enemies || []).some(e => e && e.hp > 0 && e.isBoss)) continue;
-        if (trigger === 'boss_absent' && (game.enemies || []).some(e => e && e.hp > 0 && e.isBoss)) continue;
+        if (trigger === 'boss_present' && !hasLiveBoss) continue;
+        if (trigger === 'boss_absent' && (liveCount <= 0 || hasLiveBoss)) continue;
         let gemName = (rule.skillName || '').trim();
         if (!gemName || !(game.conditionGemPool || []).includes(gemName)) continue;
         let entry = getAllConditionGemEntriesForCombat().find(e => e.name === gemName);
@@ -240,8 +260,8 @@ function coreLoop() {
     tickAilments(pStats, 0.1);
     let ailmentMap = {};
     (game.playerAilments || []).forEach(ail => { ailmentMap[ail.type] = Math.max(ailmentMap[ail.type] || 0, ail.time || 0); });
-    if (ailmentMap.chill) pStats.aspd *= 0.82;
-    if (ailmentMap.shock) pStats.dr = Math.max(-40, pStats.dr - 12);
+    if (ailmentMap.chill) pStats.aspd *= 0.68;
+    if (ailmentMap.shock) pStats.dr = Math.max(-40, pStats.dr - 22);
     (game.playerConditionBuffs || []).forEach(buff => {
         let delta = getConditionGemStatDelta(buff.name, buff.type);
         if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
@@ -681,13 +701,15 @@ function getPlayerStats() {
             finalAspd = Math.min(12, finalAspd * 1.1);
             finalEvasion = Math.floor(finalEvasion * 1.1);
         }
-        if (hasKeystone('g3')) finalCrit = Math.min(100, finalCrit + 8);
+        if (hasKeystone('g3')) finalCrit = Math.min(100, finalCrit + Math.max(0, Math.floor(game.gladiatorVeteranCritBonus || 0)));
         if (hasKeystone('g4')) {
-            finalDps *= 1.15;
-            finalDr = Math.min(75, finalDr + 15);
+            let crowdCount = (game.enemies || []).filter(e => e && e.hp > 0).length;
+            if (crowdCount >= 3) {
+                finalDps *= 1.15;
+                finalDr = Math.min(75, finalDr + 15);
+            }
         }
         if (hasKeystone('g5')) finalDps *= 1.1;
-        if (hasKeystone('g6')) finalDps *= 1.12;
         if (hasKeystone('g7')) {
             finalDs += Math.floor(Math.max(0, finalEvasion) / 50);
             finalCrit += Math.floor(Math.max(0, finalArmor) / 400);
@@ -707,13 +729,11 @@ function getPlayerStats() {
             finalMaxHp = Math.floor(finalMaxHp * 0.9);
             finalEvasion += Math.max(0, Math.floor(finalMove));
         }
-        if (hasKeystone('a3')) finalDps *= 1.1;
         if (hasKeystone('a4')) {
             finalPhysIgnore += 20;
             finalResPen += 20;
             finalDps *= 0.92;
         }
-        if (hasKeystone('a5')) finalCrit = Math.min(100, finalCrit + 25);
         if (hasKeystone('a8')) {
             finalCrit = Math.max(0, finalCrit - 20);
             finalCritDmg += 120;
@@ -739,7 +759,6 @@ function getPlayerStats() {
             finalMinDmgRoll = Math.max(5, finalMinDmgRoll - 10);
         }
         if (hasKeystone('r4')) finalAspd = Math.min(12, finalAspd * (1 + Math.max(0, finalMove) * 0.001));
-        if (hasKeystone('r5')) finalDps *= 1.1;
         if (hasKeystone('r6')) finalDps *= 0.95;
         if (hasKeystone('r8')) {
             let aspdBonus = Math.max(0, finalAspd - 1) * 0.2;
@@ -748,7 +767,10 @@ function getPlayerStats() {
             finalMove *= (1 + aspdBonus);
             finalMaxHp = Math.floor(finalMaxHp * 0.85);
         }
-        if (hasKeystone('r7')) finalCrit = Math.min(100, finalCrit + 15);
+        if (hasKeystone('r7')) {
+            let sinceHitSec = Math.max(0, (Date.now() - Math.floor(game.playerLastHitAt || 0)) / 1000);
+            finalCrit = Math.min(100, finalCrit + Math.floor(sinceHitSec) * 5);
+        }
     } else if (game.ascendClass === 'elementalist') {
         if (hasKeystone('e1')) finalDps *= 1.15;
         if (hasKeystone('e2')) {
@@ -773,14 +795,18 @@ function getPlayerStats() {
             finalCritDmg -= 25;
         }
         if (hasKeystone('e8')) {
-            finalDps *= 1.25;
-            finalResPen += 5;
+            let stacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0));
+            finalDps *= (1 + stacks * 0.25);
+            finalResPen += (stacks * 5);
         }
         if (hasKeystone('e7')) finalDps *= 1.05;
     } else if (game.ascendClass === 'warlock') {
         if (hasKeystone('wlk1')) finalDps *= 1.12;
         if (hasKeystone('wlk2')) finalDps *= 1.2;
-        if (hasKeystone('wlk3')) finalRegen = 0;
+        if (hasKeystone('wlk3')) {
+            finalRegen = 0;
+            finalEnergyShieldRegenRate = 0;
+        }
         if (hasKeystone('wlk6')) {
             finalResPen += 43;
             finalCrit = 0;
@@ -831,7 +857,6 @@ function getPlayerStats() {
             suppCap += 1;
             finalMaxHp = Math.floor(finalMaxHp * 0.67);
         }
-        if (hasKeystone('iq7')) finalDps *= 1.12;
         if (hasKeystone('iq8')) finalDps *= (1 + Math.max(0, finalResPen) / 100);
         if (hasKeystone('iq4')) finalResPen = 0;
     }
@@ -1207,6 +1232,7 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
         return cappedReduction;
     }
     if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light' || skillEle === 'chaos') {
+        if ((skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') && game.ascendClass === 'inquisitor' && hasKeystone('iq4')) return 0;
         let effective = rawMitigation - Math.max(0, pStats.resPen || 0);
         if (effective > 0) effective = Math.min(80, effective);
         return effective;
@@ -1234,6 +1260,8 @@ function createEnemy(zone, marker, groupIndex) {
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
+    hp = Math.floor(hp * 0.92);
+    if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
     if (game.beehive && game.beehive.inRun) {
         let empower = Math.max(0, Math.floor(game.beehive.enemyEmpower || 0));
         if (empower > 0) hp = Math.floor(hp * (1 + empower * 0.08));
@@ -1712,6 +1740,7 @@ function tickGrandBreachRun(zone) {
     if (!g || !g.inRun) return;
     let now = Date.now();
     cleanupConditionGemStates(now);
+    if ((game.elementalistOverloadExpiresAt || 0) <= now) game.elementalistOverloadStacks = 0;
     g.lastTickAt = Number.isFinite(g.lastTickAt) ? g.lastTickAt : now;
     let dt = Math.max(0, (now - g.lastTickAt) / 1000);
     g.lastTickAt = now;
@@ -2278,6 +2307,11 @@ function performPlayerAttack(pStats) {
     let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
 
     let isCrit = Math.random() < (pStats.crit / 100);
+    if (game.ascendClass === 'gladiator' && hasKeystone('g3')) {
+        game.gladiatorVeteranCritBonus = Math.max(0, Math.floor(game.gladiatorVeteranCritBonus || 0));
+        if (isCrit) game.gladiatorVeteranCritBonus = 0;
+        else game.gladiatorVeteranCritBonus = Math.min(100, game.gladiatorVeteranCritBonus + 5);
+    }
     let baseDamage = pStats.baseDmg;
     if (isCrit) {
         baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
@@ -2325,6 +2359,9 @@ function performPlayerAttack(pStats) {
             let hitElement = swingElement;
             let curseFx = getEnemyConditionDebuffFactor(targetEnemy);
             let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
+            if (game.ascendClass === 'assassin' && hasKeystone('a5') && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) <= 0.30) {
+                isCrit = true;
+            }
             let dmg = Math.floor(baseDamage * (hit.mult || 1));
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
@@ -2340,6 +2377,7 @@ function performPlayerAttack(pStats) {
             let damageBeforeMitigation = dmg;
             dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
             dmg = Math.floor(dmg * (curseFx.mul || 1));
+            dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement));
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             let zone = getZone(game.currentZoneId);
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
@@ -2348,6 +2386,12 @@ function performPlayerAttack(pStats) {
                 hpAfterDamage = Math.max(1, hpAfterDamage);
             }
             targetEnemy.hp = hpAfterDamage;
+            if (game.ascendClass === 'gladiator' && hasKeystone('g6') && targetEnemy.hp > 0) {
+                let executeThreshold = targetEnemy.isBoss ? 0.10 : 0.20;
+                if ((targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) < executeThreshold) {
+                    targetEnemy.hp = 0;
+                }
+            }
             if ((pStats.regenSuppress || 0) > 0) targetEnemy.regenSuppressPct = Math.min(95, (targetEnemy.regenSuppressPct || 0) + pStats.regenSuppress);
             targetEnemy.recentHitsTaken = (targetEnemy.recentHitsTaken || 0) + 1;
             targetEnemy.recentHitsTimer = 1.8;
@@ -2367,13 +2411,38 @@ function performPlayerAttack(pStats) {
                 damage: dmg,
                 duration: 320
             });
+            if (isCrit && game.ascendClass === 'assassin' && hasKeystone('a3')) {
+                let now = Date.now();
+                game.enemyKeystoneDebuffs = game.enemyKeystoneDebuffs || {};
+                let list = game.enemyKeystoneDebuffs[targetEnemy.id] || [];
+                list = list.filter(row => row && row.type !== 'a3' ? (row.expiresAt || 0) > now : true);
+                list.push({ type: 'a3', expiresAt: now + 3000 });
+                while (list.filter(row => row.type === 'a3').length > 5) { let idx=list.findIndex(row=>row.type==='a3'); if (idx>=0) list.splice(idx,1); else break; }
+                game.enemyKeystoneDebuffs[targetEnemy.id] = list;
+            }
+            if (isCrit && game.ascendClass === 'inquisitor' && hasKeystone('iq7') && ['fire','cold','light'].includes(hitElement)) {
+                let now = Date.now();
+                game.enemyKeystoneDebuffs = game.enemyKeystoneDebuffs || {};
+                let list = (game.enemyKeystoneDebuffs[targetEnemy.id] || []).filter(row => row && row.type !== 'iq7' && (row.expiresAt || 0) > now);
+                list.push({ type: 'iq7', expiresAt: now + 3000 });
+                game.enemyKeystoneDebuffs[targetEnemy.id] = list;
+            }
+            if (isCrit && game.ascendClass === 'elementalist' && hasKeystone('e8')) {
+                game.elementalistOverloadStacks = Math.min(3, Math.max(0, Math.floor(game.elementalistOverloadStacks || 0)) + 1);
+                game.elementalistOverloadExpiresAt = Date.now() + 3000;
+            }
             if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
             applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, isCrit);
         });
     }
     if (pStats.leech > 0 && totalLeechableDamage > 0) {
-        let hpCap = getPlayerHpCap(pStats);
-        game.playerHp = Math.min(hpCap, game.playerHp + (totalLeechableDamage * (pStats.leech / 100)));
+        let leechAmount = (totalLeechableDamage * (pStats.leech / 100));
+        if (game.ascendClass === 'warlock' && hasKeystone('wlk3') && (pStats.energyShield || 0) > 0) {
+            game.playerEnergyShield = Math.min((pStats.energyShield || 0), (game.playerEnergyShield || 0) + leechAmount);
+        } else {
+            let hpCap = getPlayerHpCap(pStats);
+            game.playerHp = Math.min(hpCap, game.playerHp + leechAmount);
+        }
     }
 
     if (game.settings.showCombatLog) {
@@ -2511,17 +2580,17 @@ function tickAilments(pStats, dt) {
         ail.time = Math.max(0, (ail.time || 0) - dt);
         let power = Math.max(0.1, ail.power || 0.1);
         if (ail.type === 'ignite') {
-            let burn = Math.max(1, Math.floor(pStats.maxHp * (0.0021 + power * 0.0026)));
+            let burn = Math.max(1, Math.floor(pStats.maxHp * (0.0035 + power * 0.0040)));
             burn = Math.max(1, Math.floor(burn * (1 - Math.max(0, Math.min(0.75, (pStats.resF || 0) / 100)))));
             game.playerHp -= burn;
             recordIncomingDamage('fire', burn, '점화');
         } else if (ail.type === 'poison') {
-            let poison = Math.max(1, Math.floor(pStats.maxHp * (0.0018 + power * 0.0023)));
+            let poison = Math.max(1, Math.floor(pStats.maxHp * (0.0030 + power * 0.0034)));
             poison = Math.max(1, Math.floor(poison * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100)))));
             game.playerHp -= poison;
             recordIncomingDamage('chaos', poison, '중독');
         } else if (ail.type === 'bleed') {
-            let bleed = Math.max(1, Math.floor(pStats.maxHp * (0.0019 + power * 0.0021)));
+            let bleed = Math.max(1, Math.floor(pStats.maxHp * (0.0032 + power * 0.0032)));
             bleed = Math.max(1, Math.floor(bleed * (1 - Math.max(0, Math.min(0.75, (pStats.dr || 0) / 100)))));
             game.playerHp -= bleed;
             recordIncomingDamage('phys', bleed, '출혈');
@@ -2592,12 +2661,12 @@ function performMonsterAttacks(pStats) {
                 }
             }
             enemy.attackTimer -= 1;
-            let seasonDmgScale = 1 + seasonDepth * (0.04 + (tierPressure * 0.06));
+            let seasonDmgScale = 1 + seasonDepth * (0.05 + (tierPressure * 0.07));
             let shockAmp = ailMap.shock ? Math.min(0.35, 0.08 + ailMap.shock * 0.12) : 0;
-            let dmg = Math.floor((2 + zone.tier * 3.1) * seasonDmgScale * (1 - shockAmp));
+            let dmg = Math.floor((2.4 + zone.tier * 3.35) * seasonDmgScale * (1 - shockAmp));
             if (zone.type === 'act' && zone.id <= 1 && (game.season || 1) >= 3) dmg = Math.floor(dmg * 0.58);
-            if (enemy.isElite) dmg = Math.floor(dmg * 1.2);
-            if (enemy.isBoss) dmg = Math.floor(dmg * (1.08 + zone.tier * 0.15));
+            if (enemy.isElite) dmg = Math.floor(dmg * 1.28);
+            if (enemy.isBoss) dmg = Math.floor(dmg * (1.14 + zone.tier * 0.16));
             if (!enemy.isBoss) dmg = Math.floor(dmg * crowdPenalty);
             dmg = Math.floor(dmg * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (enemy.isBoss ? (abyssScale.bossMul || 1) : 1));
             let physicalPortion = Math.floor(dmg * 0.5);

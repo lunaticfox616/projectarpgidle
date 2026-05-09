@@ -623,7 +623,25 @@ const BASE_ITEM_DB = [
     { id: 'war_belt', slot: '허리띠', name: '전사의 허리띠', reqTier: 5, baseStats: [{ id: 'flatHp', base: 32 }, { id: 'dr', base: 2 }] },
     { id: 'stygian_vise', slot: '허리띠', name: '심연의 혁대', reqTier: 9, baseStats: [{ id: 'flatHp', base: 55 }, { id: 'resChaos', base: 8 }] },
     { id: 'blood_girdle', slot: '허리띠', name: '혈석 허리띠', reqTier: 12, baseStats: [{ id: 'flatHp', base: 72 }, { id: 'dr', base: 3 }, { id: 'resChaos', base: 10 }] },
-    { id: 'nightmare_bind', slot: '허리띠', name: '악몽 결속대', reqTier: 15, baseStats: [{ id: 'flatHp', base: 92 }, { id: 'resAll', base: 7 }, { id: 'resChaos', base: 12 }] }
+    { id: 'nightmare_bind', slot: '허리띠', name: '악몽 결속대', reqTier: 15, baseStats: [{ id: 'flatHp', base: 92 }, { id: 'resAll', base: 7 }, { id: 'resChaos', base: 12 }] },
+    { id: 'root_blade_fang', slot: '무기', name: '뿌리 송곳', reqTier: 6, baseStats: [{ id: 'flatDmg', base: 20 }, { id: 'physIgnore', base: 4 }], dropOnly: { type: 'act' } },
+    { id: 'beehive_stinger_mail', slot: '갑옷', name: '벌침 갑피', reqTier: 12, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'resChaos', base: 10 }], dropOnly: { type: 'beehive' } },
+    { id: 'grand_breach_shard_helm', slot: '투구', name: '대균열 파편투구', reqTier: 16, baseStats: [{ id: 'flatHp', base: 95 }, { id: 'resAll', base: 9 }, { id: 'dr', base: 4 }], dropOnly: { id: 'grand_breach_run' } },
+    { id: 'laby_1_greaves', slot: '신발', name: '미궁 수호 각반', reqTier: 8, baseStats: [{ id: 'move', base: 14 }, { id: 'armor', base: 80 }], dropOnly: { type: 'labyrinth', minFloor: 1 } },
+    { id: 'laby_10_crown', slot: '투구', name: '미궁 심층 관', reqTier: 12, baseStats: [{ id: 'flatHp', base: 76 }, { id: 'resAll', base: 8 }], dropOnly: { type: 'labyrinth', minFloor: 10 } },
+    { id: 'laby_20_robe', slot: '갑옷', name: '미궁 절정 로브', reqTier: 16, baseStats: [{ id: 'energyShield', base: 180 }, { id: 'resChaos', base: 10 }], dropOnly: { type: 'labyrinth', minFloor: 20 } },
+    { id: 'laby_30_ring', slot: '반지', name: '미궁 군주의 반지', reqTier: 20, baseStats: [{ id: 'resAll', base: 10 }, { id: 'crit', base: 8 }], dropOnly: { type: 'labyrinth', minFloor: 30 } },
+    { id: 'trial_emblem_gloves', slot: '장갑', name: '시련 문양 건틀릿', reqTier: 15, baseStats: [{ id: 'aspd', base: 9 }, { id: 'dr', base: 3 }], dropOnly: { type: 'trial' } },
+    { id: 'runic_bastion_helm', slot: '투구', name: '룬 철벽투구', reqTier: 9, baseStats: [{ id: 'flatHp', base: 46 }, { id: 'armor', base: 92 }] },
+    { id: 'thornweave_coat', slot: '갑옷', name: '가시결 외투', reqTier: 9, baseStats: [{ id: 'flatHp', base: 58 }, { id: 'evasion', base: 116 }] },
+    { id: 'stormbind_mitts', slot: '장갑', name: '뇌격 결속 장갑', reqTier: 10, baseStats: [{ id: 'aspd', base: 7 }, { id: 'resL', base: 9 }] },
+    { id: 'sunstride_boots', slot: '신발', name: '태양 질주화', reqTier: 10, baseStats: [{ id: 'move', base: 15 }, { id: 'resF', base: 9 }] },
+    { id: 'moonbound_ring', slot: '반지', name: '월인 반지', reqTier: 10, baseStats: [{ id: 'resC', base: 9 }, { id: 'crit', base: 4 }] },
+    { id: 'graveknot_belt', slot: '허리띠', name: '묘결 속박대', reqTier: 10, baseStats: [{ id: 'flatHp', base: 60 }, { id: 'resChaos', base: 9 }] },
+    { id: 'echo_lance', slot: '무기', name: '메아리 창', reqTier: 11, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'aspd', base: 7 }] },
+    { id: 'ember_circlet', slot: '투구', name: '잿불 서클릿', reqTier: 11, baseStats: [{ id: 'energyShield', base: 126 }, { id: 'resF', base: 10 }] },
+    { id: 'tidal_vest', slot: '갑옷', name: '조류의 흉갑', reqTier: 11, baseStats: [{ id: 'flatHp', base: 66 }, { id: 'resC', base: 10 }] },
+    { id: 'gale_treads', slot: '신발', name: '질풍 발굽', reqTier: 11, baseStats: [{ id: 'move', base: 16 }, { id: 'evasion', base: 94 }] }
 ];
 
 

@@ -3854,7 +3854,15 @@ function getUniqueCodexKeyByItem(item) {
 }
 
 function chooseItemBase(slot, zoneTier) {
-    let candidates = BASE_ITEM_DB.filter(base => base.slot === slot && base.reqTier <= zoneTier);
+    let zone = getZone(game.currentZoneId) || {};
+    let candidates = BASE_ITEM_DB.filter(base => {
+        if (base.slot !== slot || base.reqTier > zoneTier) return false;
+        if (!base.dropOnly) return true;
+        if (base.dropOnly.type && zone.type !== base.dropOnly.type) return false;
+        if (base.dropOnly.id && zone.id !== base.dropOnly.id) return false;
+        if (base.dropOnly.minFloor && Math.floor(zone.floor || 0) < base.dropOnly.minFloor) return false;
+        return true;
+    });
     if (candidates.length === 0) candidates = BASE_ITEM_DB.filter(base => base.slot === slot);
     candidates.sort((a, b) => a.reqTier - b.reqTier);
     let take = candidates.slice(-Math.min(3, candidates.length));
@@ -3863,11 +3871,13 @@ function chooseItemBase(slot, zoneTier) {
 
 function rollBaseStats(base, zoneTier) {
     return base.baseStats.map(stat => {
-        let val = stat.base;
+        let minBase = Number.isFinite(stat.baseMin) ? stat.baseMin : ((stat.base || 0) * 0.82);
+        let maxBase = Number.isFinite(stat.baseMax) ? stat.baseMax : ((stat.base || 0) * 1.18);
+        let val = minBase + Math.random() * Math.max(0, (maxBase - minBase));
         if (stat.id === 'energyShield') val *= 1.5;
         if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) val = Math.round(val * 10) / 10;
         else val = Math.floor(val);
-        return { id: stat.id, val: val, valMin: stat.base, valMax: stat.base, tier: 0, statName: getStatName(stat.id) };
+        return { id: stat.id, val: val, valMin: minBase, valMax: maxBase, tier: 0, statName: getStatName(stat.id) };
     });
 }
 
