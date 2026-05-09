@@ -3277,6 +3277,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
 
     renderLoop9VoidRiftPanel();
+    renderChallengeContractPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
         let isCurrent = game.currentZoneId === trial.id;
         let isCompleted = game.completedTrials.includes(trial.id);
