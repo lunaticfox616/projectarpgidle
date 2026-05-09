@@ -184,6 +184,35 @@ function renderBattlefield(forceWhenHidden) {
     ctx.strokeRect(pBarX - 0.5, pBarY - 0.5, pBarWidth + 1, 9);
     ctx.restore();
 
+    let condCast = game.lastConditionGemCast;
+    if (condCast && (condCast.expiresAt || 0) > Date.now()) {
+        let pulse = 0.6 + Math.sin(now / 80) * 0.4;
+        ctx.save();
+        if (condCast.type === 'warcry') {
+            ctx.strokeStyle = `rgba(255, 208, 96, ${0.45 + pulse * 0.35})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(playerPos.x, playerPos.y - 14, 26 + pulse * 6, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (condCast.type === 'guard') {
+            ctx.fillStyle = `rgba(118, 197, 255, ${0.2 + pulse * 0.2})`;
+            ctx.beginPath();
+            ctx.arc(playerPos.x, playerPos.y - 18, 20 + pulse * 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(167, 224, 255, 0.8)';
+            ctx.stroke();
+        } else if (condCast.type === 'curse') {
+            let targetPos = enemyPosMap[condCast.targetId];
+            if (targetPos) {
+                ctx.strokeStyle = `rgba(181, 117, 255, ${0.5 + pulse * 0.35})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(targetPos.x, targetPos.y - 28, 16 + pulse * 6, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+    }
     let currentTargets = getSkillTargets(getPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;

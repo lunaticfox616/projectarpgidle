@@ -642,7 +642,7 @@ function generateOrganicTree() {
             }))
             .filter(entry => entry.angleDiff <= 0.7)
             .sort((a, b) => a.dist - b.dist)
-            .slice(0, 2)
+            .slice(0, 4)
             .map(entry => entry.node);
         if (anchors.length === 0) {
             anchors = outerAnchors
@@ -4387,10 +4387,10 @@ function craftVoidJewel() { if (game.woodsmanBuildLock) return addLog('☠️ �
         let val = Number.isInteger(stat.val) ? Math.max(1, Math.floor(scaled)) : Math.max(0.1, Math.round(scaled * 10) / 10);
         return { id: stat.id, val: val };
     });
-    let jewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '공허 주얼', rarity: 'magic', isVoid: true, stats: stats, maxLines: 2 };
+    let jewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '공허 주얼', rarity: 'magic', isVoid: true, stats: stats, maxLines: 4 };
     game.currencies.voidChisel--;
     game.jewelInventory.push(jewel);
-    addLog('🕳️ 공허 주얼 제작 완료 (2줄)', 'loot-rare');
+    addLog('🕳️ 공허 주얼 제작 완료 (최대 4줄)', 'loot-rare');
     updateStaticUI();
 }
 
@@ -4403,12 +4403,12 @@ function fuseVoidJewel(idxA, idxB) {
     let seen = new Set();
     let merged = [];
     stats.forEach(stat => {
-        if (merged.length >= 2) return;
+        if (merged.length >= 4) return;
         if (seen.has(stat.id)) return;
         seen.add(stat.id);
         merged.push({ id: stat.id, val: stat.val });
     });
-    let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, stats: merged, maxLines: 2 };
+    let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, stats: merged, maxLines: 4 };
     let hi = Math.max(idxA, idxB), lo = Math.min(idxA, idxB);
     game.jewelInventory.splice(hi, 1);
     game.jewelInventory.splice(lo, 1);
@@ -4693,12 +4693,12 @@ function useCurrency(currencyKey) {
     let sporeMode = game.sporeCraftModes[currencyKey] || 'none';
     function consumeSpore(mode) {
         if (mode === 'none') return true;
-        if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < 5) return false; game.currencies.sporeFire -= 5; return true; }
-        if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < 5) return false; game.currencies.sporeCold -= 5; return true; }
-        if (mode === 'light') { if ((game.currencies.sporeLight || 0) < 5) return false; game.currencies.sporeLight -= 5; return true; }
+        if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < 10) return false; game.currencies.sporeFire -= 10; return true; }
+        if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < 10) return false; game.currencies.sporeCold -= 10; return true; }
+        if (mode === 'light') { if ((game.currencies.sporeLight || 0) < 10) return false; game.currencies.sporeLight -= 10; return true; }
         if (mode === 'chaos' || mode === 'damage') {
-            if ((game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return false;
-            game.currencies.sporeFire -= 5; game.currencies.sporeCold -= 5; game.currencies.sporeLight -= 5; return true;
+            if ((game.currencies.sporeFire || 0) < 10 || (game.currencies.sporeCold || 0) < 10 || (game.currencies.sporeLight || 0) < 10) return false;
+            game.currencies.sporeFire -= 10; game.currencies.sporeCold -= 10; game.currencies.sporeLight -= 10; return true;
         }
         return true;
     }
@@ -4723,8 +4723,10 @@ function useCurrency(currencyKey) {
     function rollSporeGuaranteedValue(mod) {
         if (!mod) return null;
         let tier = Math.max(1, getItemCraftTier(item));
-        let minTier = Math.max(1, Math.floor(tier * 0.45));
-        let maxTier = Math.max(minTier, Math.min(10, tier));
+        // 일반 드랍 대비 약 +2티어 보정
+        let boostedTier = Math.min(10, tier + 2);
+        let minTier = Math.max(1, boostedTier - 1);
+        let maxTier = Math.max(minTier, boostedTier);
         return rollAffixValueInTierRange(mod, minTier, maxTier);
     }
     function applyGuaranteedToNonLocked(modOverride) {
