@@ -1469,6 +1469,7 @@ document.addEventListener('mousemove', function(evt) {
     let tt = document.getElementById('info-tooltip');
     if (!tt || tt.style.display === 'none') return;
     let anchor = evt.target && evt.target.closest ? evt.target.closest('[data-info-tooltip-anchor="1"]') : null;
+    if (!anchor && evt.target && evt.target.closest) anchor = evt.target.closest('.tip, .skill-gem, .support-gem, .item-card, .currency-card');
     let overTooltip = evt.target && evt.target.closest ? evt.target.closest('#info-tooltip') : null;
     if (!anchor && !overTooltip) hideInfoTooltip();
 });
@@ -1477,8 +1478,7 @@ function showTalismanBoardTooltip(event, talismanId) {
     let placed = talismanId ? ((game.talismanPlacements || {})[talismanId] || {}).talisman : null;
     if (!placed) return;
     activeTalismanHoverId = talismanId;
-    let html = `<div class="item-title magic">[${placed.shape}] ${placed.statName}</div><div style="color:#9ec1e1;">값: +${placed.value}</div><div style="color:#b8cadf;">옵션 범위: 고정</div><div style="color:#b8cadf;">희귀도: ${placed.rarity || 'normal'}</div>`;
-    showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
+    hideInfoTooltip();
     updateStaticUI();
 }
 function hideTalismanBoardTooltip() {
@@ -3599,7 +3599,7 @@ function buildCraftActionButtons(item) {
         let gemInfo = getGemPresentation(name, false);
         if (SKILL_DB[name].isGem) badge = `<span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
         let sealBtn = name === game.activeSkill ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">🔒 봉인</button>`;
-        return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong>${badge}${sealBtn}</div>`;
+        return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong>${badge}${sealBtn}</div>`;
     }).join('');
     if (!foldAttackInactive) skillsHtml += `<div style="margin-top:6px;"><button style="width:100%; font-size:0.75em; padding:4px 8px;" onclick="sealAllInactiveSkillGems()">미사용 젬 일괄 봉인</button></div>`;
     if (sealedSkills.length > 0 && !foldAttackInactive) skillsHtml += sealedSkills.map(name => `<div class="skill-gem" style="opacity:0.78;"><strong>🔒 ${escapeHTML(name)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSkillGem('${name}')">해제 (공명 -1)</button></div>`).join('');
@@ -3630,7 +3630,7 @@ function buildCraftActionButtons(item) {
         let cost = getSupportTierResonanceCost(name);
         let sealBtn = active ? '' : `<button style="margin-left:4px; font-size:0.66em; padding:1px 4px;" onclick="event.stopPropagation(); sealSupportGem('${name}')">🔒 봉인</button>`;
         let tierBtns = [1,2,3].map(t => `<button style="font-size:0.62em; padding:1px 3px; ${t<=unlockedTier?'':'opacity:.4;'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${t})" ${t<=unlockedTier?'':'disabled'}>${t===1?'하':t===2?'중':'상'}</button>`).join('');
-        return `<div class="skill-gem support-gem ${active}" onclick="toggleSupport('${name}')" onmouseenter="showGemTooltip(event,'support','${name}')" onmousemove="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">${tierLabel} · Lv.${gemInfo.totalLevel} · 공명 ${cost}</span><span style="display:inline-flex; gap:2px; margin-left:4px;">${tierBtns}</span>${sealBtn}</div>`;
+        return `<div class="skill-gem support-gem ${active}" onclick="toggleSupport('${name}')" onmouseover="showGemTooltip(event,'support','${name}')" onmouseenter="showGemTooltip(event,'support','${name}')" onmousemove="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">${tierLabel} · Lv.${gemInfo.totalLevel} · 공명 ${cost}</span><span style="display:inline-flex; gap:2px; margin-left:4px;">${tierBtns}</span>${sealBtn}</div>`;
     }).join('');
     if (!foldSupportInactive) supportHtml += `<div style="margin-top:6px;"><button style="width:100%; font-size:0.75em; padding:4px 8px;" onclick="sealAllInactiveSupportGems()">미사용 젬 일괄 봉인</button></div>`;
     if (sealedSupports.length > 0 && !foldSupportInactive) supportHtml += sealedSupports.map(name => `<div class="skill-gem support-gem" style="opacity:0.78;"><strong>🔒 ${escapeHTML(name)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSupportGem('${name}')">해제 (공명 -1)</button></div>`).join('');
@@ -3734,9 +3734,9 @@ function buildCraftActionButtons(item) {
         let valid = isTalismanBoardCellValid(x,y);
         let coreOpen = isTalismanCellInitiallyUnlocked(x, y);
         if (!valid) return `<div style="width:42px; height:42px; border:0; background:transparent; border-radius:8px; opacity:0; pointer-events:none;"></div>`;
-        let cellColor = coreOpen ? 'radial-gradient(circle at 30% 25%, #595f69 0%, #3a3f48 52%, #1f2329 100%)' : (!unlocked ? 'radial-gradient(circle at 30% 25%, #4f5661 0%, #333941 58%, #1a1f26 100%)' : 'radial-gradient(circle at 30% 25%, #666c76 0%, #434a54 58%, #252b32 100%)');
+        let cellColor = coreOpen ? 'radial-gradient(circle at 30% 25%, #595f69 0%, #3a3f48 52%, #1f2329 100%)' : (!unlocked ? 'linear-gradient(180deg, #05070c 0%, #0b0e14 100%)' : 'radial-gradient(circle at 30% 25%, #666c76 0%, #434a54 58%, #252b32 100%)');
         if (id) cellColor = (shapeStyle ? `linear-gradient(145deg, rgba(255,255,255,0.3) 0%, ${shapeStyle.color} 42%, rgba(10,12,17,0.22) 100%)` : '#355d46');
-        let label = !unlocked ? '🔒' : (id ? '' : '');
+        let label = '';
         let border = !unlocked ? '#5a616b' : (id && shapeStyle ? shapeStyle.color : '#767d88');
         let textColor = !unlocked ? '#d5dbe6' : (id && shapeStyle ? shapeStyle.color : '#d7dbe2');
         let unlockedSet = getTalismanUnlockedCellsSet();
@@ -3748,7 +3748,7 @@ function buildCraftActionButtons(item) {
             ? `inset 0 1px 0 rgba(255,255,255,0.34), 0 2px 6px rgba(0,0,0,0.35), 0 0 8px ${shapeStyle ? shapeStyle.glow : 'rgba(120,180,240,0.25)'}`
             : 'inset 0 2px 4px rgba(0,0,0,0.55), inset 0 -1px 2px rgba(255,255,255,0.08), 0 1px 2px rgba(0,0,0,0.25)';
         if (isHoverGroup) surfaceShadow = `0 0 0 2px rgba(255,230,140,.85), 0 0 18px rgba(255,210,110,.55), ${surfaceShadow}`;
-        let placedTitle = (placed && unlocked) ? ` title="[${placed.shape}] ${placed.statName} +${placed.value}"` : '';
+        let placedTitle = '';
         let hoverHandlers = id ? ` onmouseenter="showTalismanBoardTooltip(event, ${id})" onmouseleave="hideTalismanBoardTooltip()"` : '';
         return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
@@ -3761,7 +3761,9 @@ function buildCraftActionButtons(item) {
             total[t.stat] = (total[t.stat] || 0) + (t.value || 0);
         });
         let rows = Object.keys(total).map(stat => `${getStatName(stat)} +${formatValue(stat, total[stat])}`);
-        talismanTotalEl.innerHTML = rows.length > 0 ? `부적으로 얻은 능력치 총합: <strong>${rows.join(' · ')}</strong>` : '부적으로 얻은 능력치 총합: 없음';
+        talismanTotalEl.innerHTML = rows.length > 0
+            ? `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="display:grid; gap:3px;">${rows.map(row => `<div>• <strong>${row}</strong></div>`).join('')}</div>`
+            : `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="color:#9fb4cb;">없음</div>`;
     }
     let journalList = document.getElementById('ui-journal-list');
     if (journalList) {
