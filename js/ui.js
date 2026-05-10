@@ -2488,6 +2488,7 @@ function drawGemAttackTrail(ctx, element, sx, sy, tx, ty, t) {
 }
 
 function drawBattleSwingFx(ctx, fx, t, playerPos) {
+    let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
     ctx.save();
     ctx.globalAlpha = 1 - t * 0.72;
     let reach = 16 + t * 18;
