@@ -2415,6 +2415,14 @@ const GEM_IMPACT_THEME = {
 window.BATTLE_EFFECT_OVERRIDES = window.BATTLE_EFFECT_OVERRIDES || {};
 function getImpactThemeByElement(ele){ return (window.BATTLE_EFFECT_OVERRIDES[ele] || GEM_IMPACT_THEME[ele] || GEM_IMPACT_THEME.phys); }
 
+function normalizeBattleElement(ele) {
+    let id = String(ele || 'phys').toLowerCase();
+    if (id === 'physical') return 'phys';
+    if (id === 'lightning' || id === 'thunder') return 'light';
+    if (id === 'ice') return 'cold';
+    return id;
+}
+
 function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
     ctx.save();
     ctx.globalAlpha = 1 - t;
@@ -2432,6 +2440,51 @@ function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
     ctx.arc(x, y, 3 + t * 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+}
+
+function drawGemAttackTrail(ctx, element, sx, sy, tx, ty, t) {
+    const e = normalizeBattleElement(element);
+    if (e === 'fire') {
+        ctx.globalAlpha = (1 - t) * 0.35;
+        ctx.strokeStyle = 'rgba(255,120,60,0.9)';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.quadraticCurveTo((sx + tx) * 0.5, Math.min(sy, ty) - 16, tx, ty);
+        ctx.stroke();
+    } else if (e === 'cold') {
+        ctx.globalAlpha = (1 - t) * 0.3;
+        ctx.strokeStyle = 'rgba(184,238,255,0.9)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 5]);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    } else if (e === 'light') {
+        ctx.globalAlpha = (1 - t) * 0.55;
+        ctx.strokeStyle = 'rgba(255,238,150,0.95)';
+        ctx.lineWidth = 2.4;
+        drawBattleZigZag(ctx, sx, sy, tx, ty, 7, 9);
+        ctx.stroke();
+    } else if (e === 'chaos') {
+        ctx.globalAlpha = (1 - t) * 0.38;
+        ctx.strokeStyle = 'rgba(214,120,255,0.92)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.bezierCurveTo(sx + 18, sy - 18, tx - 24, ty + 14, tx, ty);
+        ctx.stroke();
+    } else {
+        ctx.globalAlpha = (1 - t) * 0.25;
+        ctx.strokeStyle = 'rgba(245,225,190,0.8)';
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+    }
 }
 
 function drawBattleSwingFx(ctx, fx, t, playerPos) {
@@ -2482,7 +2535,7 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
 
 
 function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
-    const e = element || 'phys';
+    const e = normalizeBattleElement(element || 'phys');
     const boost = crit ? 1.2 : 1;
     if (e === 'fire') {
         ctx.globalAlpha = (1 - t) * 0.62;
@@ -2541,6 +2594,7 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     let sy = playerPos.y - 2;
     ctx.save();
     let punchScale = fx.crit ? 1.4 : 1;
+    let impactElement = normalizeBattleElement(fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
     if (skillVisual.group === 'physical_slam') {
         ctx.globalAlpha = 1 - t * 0.62;
         ctx.strokeStyle = skillVisual.primary;
@@ -2560,15 +2614,8 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
         ctx.ellipse(tx, ty + 12, 12 + t * 9, 4 + t * 2.5, 0, 0, Math.PI * 2);
         ctx.fill();
     } else if (!fx.noLine) {
-        ctx.globalAlpha = 1 - t * 0.62;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 3.2;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-        ctx.stroke();
+        drawGemAttackTrail(ctx, impactElement, sx, sy, tx, ty, t);
     }
-    let impactElement = (fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
     let impactTheme = getImpactThemeByElement(impactElement);
     drawBattleImpactBurst(ctx, tx, ty, impactTheme.primary || skillVisual.primary, impactTheme.secondary || skillVisual.secondary, t);
     drawElementalHitAccent(ctx, impactElement, tx, ty, t, fx.crit);
