@@ -124,6 +124,7 @@ function drawPassiveTree() {
         const reachableLink = reachableNodes.has(a.id) || reachableNodes.has(b.id);
         const previewLink = visibleA === 'preview' || visibleB === 'preview';
         const hoveredLink = hoverNode && (a.id === hoverNode.id || b.id === hoverNode.id);
+        const linkedHoverChain = hoverNode && hoveredLinkedIds.has(a.id) && hoveredLinkedIds.has(b.id);
 
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -134,11 +135,11 @@ function drawPassiveTree() {
                 innerStroke: activeLink ? 'rgba(240,220,170,0.32)' : 'rgba(130,150,168,0.12)',
                 width: activeLink ? 3.2 : 1.6
             });
-        } else if (hoveredLink) {
+        } else if (hoveredLink || linkedHoverChain) {
             drawPassiveLink(ctx, a, b, {
-                stroke: 'rgba(141,188,230,0.95)',
-                innerStroke: 'rgba(222,244,255,0.9)',
-                width: 4.8,
+                stroke: hoveredLink ? 'rgba(141,188,230,0.98)' : 'rgba(112,165,214,0.82)',
+                innerStroke: hoveredLink ? 'rgba(222,244,255,0.96)' : 'rgba(198,228,255,0.58)',
+                width: hoveredLink ? 5.2 : 3.8,
                 shadow: lightweightMode ? 'transparent' : 'rgba(151,206,255,0.38)',
                 blur: lightweightMode ? 0 : 15
             });

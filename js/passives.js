@@ -4236,6 +4236,8 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 5 && enemy.isElite && Math.random() < 0.008) drops.push(['jewelShard', 1]);
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.08) drops.push(['sealShard', 1]);
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.012) drops.push(['strongSealShard', 1]);
+    if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.02) drops.push(['blessing', 1]);
+    if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.006) drops.push(['beastKeyCerberus', 1]);
     if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
     if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
@@ -4721,6 +4723,7 @@ function useCurrency(currencyKey) {
     else if (currencyKey === 'divine') ok = item.rarity !== 'normal';
     else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
     else if (currencyKey === 'tainted') ok = !item.corrupted;
+    else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     if (!ok) return addLog("지금 선택한 아이템에는 사용할 수 없습니다.", "attack-monster");
     if (currencyKey === 'divine' && !confirm('정말 신성한 오브를 사용하시겠습니까?')) return;
 
@@ -4858,6 +4861,26 @@ function useCurrency(currencyKey) {
         } else {
             addLog("🩸 타락 : 아이템에 변화가 생기지 않았습니다.", "attack-monster");
         }
+    } else if (currencyKey === 'blessing') {
+        (item.baseStats || []).forEach(stat => {
+            let baseMin = Number.isFinite(Number(stat.baseRollMin)) ? Number(stat.baseRollMin) : Number(stat.valMin);
+            let baseMax = Number.isFinite(Number(stat.baseRollMax)) ? Number(stat.baseRollMax) : Number(stat.valMax);
+            if (!Number.isFinite(baseMin) || !Number.isFinite(baseMax)) {
+                let fallback = Number.isFinite(Number(stat.val)) ? Number(stat.val) : Number(stat.base || 0);
+                baseMin = fallback;
+                baseMax = fallback;
+            }
+            if (baseMax < baseMin) {
+                let tmp = baseMin;
+                baseMin = baseMax;
+                baseMax = tmp;
+            }
+            stat.baseRollMin = baseMin;
+            stat.baseRollMax = baseMax;
+            stat.val = Math.round((baseMin + Math.random() * (baseMax - baseMin)) * 100) / 100;
+            stat.valMin = baseMin;
+            stat.valMax = baseMax;
+        });
     }
     let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
     addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
