@@ -30,21 +30,47 @@
         .social-login-stack { gap: 8px; margin-top: 2px; }
 
         .social-login-image-btn {
-            width: 100%;
+            width: fit-content;
+            max-width: 100%;
             padding: 0;
             border: 0;
             background: transparent;
             cursor: pointer;
             line-height: 0;
+            justify-self: start;
         }
         .social-login-image-btn img {
             display: block;
-            width: 100%;
+            width: auto;
+            max-width: 100%;
             height: auto;
             object-fit: contain;
             border-radius: 12px;
         }
         .social-login-image-btn:disabled { opacity: 0.65; cursor: default; }
+
+
+        #startup-social-actions {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            align-items: center;
+        }
+        #startup-social-actions .social-login-image-btn {
+            width: 100%;
+            justify-self: stretch;
+        }
+        #startup-social-actions .social-login-image-btn img {
+            width: 100%;
+            max-width: none;
+        }
+
+        #cloud-link-actions {
+            gap: 14px;
+            align-items: center;
+        }
+        #cloud-link-actions .social-login-image-btn {
+            justify-self: center;
+        }
 
         .startup-ghost { background: #172330; border-color: #33506a; color: #d4e2ef; }
         .startup-status { min-height: 48px; padding: 12px 14px; border-radius: 12px; background: #0c1219; border: 1px solid #1b2b3b; color: #b7cadb; font-size: 0.84em; line-height: 1.65; }
