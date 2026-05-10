@@ -155,6 +155,9 @@ function getStatName(statId) {
         meleePctDmg: '근접 피해(%)',
         slamPctDmg: '강타 피해(%)',
         projectilePctDmg: '투사체 피해(%)',
+        projectileExtraShots: '투사체 추가 발사',
+        spellFlatDmg: '주문 내장 피해',
+        spellFlatPct: '주문 내장 피해 증가(%)',
         physPctDmg: '물리 피해(%)',
         elementalPctDmg: '원소 피해(%)',
         firePctDmg: '화염 피해(%)',
@@ -215,8 +218,8 @@ function createEmptyStatBucket() {
         flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, suppCap: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, resChaos: 0, leech: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0,
-        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0,
-        targetAny: 0, targetProjectile: 0, targetSlam: 0,
+        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, spellFlatDmg: 0, spellFlatPct: 0,
+        targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0
     };
 }
@@ -236,6 +239,8 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'chaosPctDmg') bucket.chaosPctDmg += value;
     else if (statId === 'aoePctDmg') bucket.aoePctDmg += value;
     else if (statId === 'dotPctDmg') bucket.dotPctDmg += value;
+    else if (statId === 'spellFlatDmg') bucket.spellFlatDmg += value;
+    else if (statId === 'spellFlatPct') bucket.spellFlatPct += value;
     else if (statId === 'flatHp') bucket.flatHp += value;
     else if (statId === 'pctHp') bucket.pctHp += value;
     else if (statId === 'aspd') bucket.aspd += value;
@@ -261,6 +266,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'expGain') bucket.expGain += value;
     else if (statId === 'targetAny') bucket.targetAny += value;
     else if (statId === 'targetProjectile') bucket.targetProjectile += value;
+    else if (statId === 'projectileExtraShots') bucket.projectileExtraShots += value;
     else if (statId === 'targetSlam') bucket.targetSlam += value;
     else if (statId === 'armor') bucket.armor += value;
     else if (statId === 'evasion') bucket.evasion += value;
