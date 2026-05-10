@@ -126,7 +126,9 @@ function renderBattlefield(forceWhenHidden) {
                     x: enemyPos.x,
                     y: enemyPos.y - 30,
                     value: fx.damage,
-                    crit: !!fx.crit
+                    crit: !!fx.crit,
+                    dot: !!fx.dot,
+                    dotType: fx.element || ''
                 });
             }
             handled = true;

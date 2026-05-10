@@ -252,11 +252,37 @@ function upgradeSelectedItemBase() {
         let ids = new Set((base.baseStats || []).map(stat => stat.id));
         return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
     }
+    function getSecondaryStatSignature(base, slot) {
+        let coreStatsBySlot = {
+            무기: new Set(['flatDmg']),
+            투구: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
+            갑옷: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
+            장갑: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'aspd']),
+            신발: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'move']),
+            목걸이: new Set([]),
+            반지: new Set([]),
+            허리띠: new Set(['flatHp'])
+        };
+        let coreSet = coreStatsBySlot[slot] || new Set();
+        return (base.baseStats || [])
+            .map(stat => stat.id)
+            .filter(statId => !coreSet.has(statId))
+            .sort();
+    }
     let currentProfile = getDefenseProfile(currentBase);
+    let currentSecondarySignature = getSecondaryStatSignature(currentBase, currentBase.slot);
     let candidates = BASE_ITEM_DB
-        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier)
+        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly)
         .filter(base => ['투구','갑옷','장갑','신발'].includes(base.slot) ? getDefenseProfile(base) === currentProfile : true)
         .sort((a,b)=>a.reqTier-b.reqTier);
+    if (currentSecondarySignature.length > 0) {
+        let exactSecondaryCandidates = candidates.filter(base => {
+            let signature = getSecondaryStatSignature(base, base.slot);
+            if (signature.length !== currentSecondarySignature.length) return false;
+            return signature.every((id, index) => id === currentSecondarySignature[index]);
+        });
+        if (exactSecondaryCandidates.length > 0) candidates = exactSecondaryCandidates;
+    }
     let nextBase = candidates[0];
     if (!nextBase) return addLog('해당 계열의 다음 베이스가 없습니다.', 'attack-monster');
     let isTopBase = candidates.length === 1;
@@ -267,8 +293,8 @@ function upgradeSelectedItemBase() {
     let bodyEl = document.getElementById('base-upgrade-body');
     if (titleEl) titleEl.innerText = `${currentBase.name} → ${nextBase.name}`;
     if (bodyEl) {
-        let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.base)}`).join(' / ');
-        let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.base)}`).join(' / ');
+        let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
+        let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
         bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:#9bb2c9;">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 카오스 오브 ${costChaos}${costDivine > 0 ? ` + 신성한 오브 ${costDivine}` : ''}`;
     }
     let overlay = document.getElementById('base-upgrade-overlay');

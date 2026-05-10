@@ -1438,6 +1438,13 @@ function hideInfoTooltip() {
     clearActiveTooltip('info-tooltip');
     document.getElementById('info-tooltip').style.display = 'none';
 }
+document.addEventListener('mousemove', function(evt) {
+    let tt = document.getElementById('info-tooltip');
+    if (!tt || tt.style.display === 'none') return;
+    let anchor = evt.target && evt.target.closest ? evt.target.closest('[data-info-tooltip-anchor="1"]') : null;
+    let overTooltip = evt.target && evt.target.closest ? evt.target.closest('#info-tooltip') : null;
+    if (!anchor && !overTooltip) hideInfoTooltip();
+});
 let activeTalismanHoverId = null;
 function showTalismanBoardTooltip(event, talismanId) {
     let placed = talismanId ? ((game.talismanPlacements || {})[talismanId] || {}).talisman : null;
@@ -1471,19 +1478,35 @@ function showStatTooltip(event, key) {
 function showPlayerAilmentTooltip(event, type, timeLeft, power) {
     let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
     let p = Math.max(0.1, Number(power || 0.1));
+    let stats = getPlayerStats();
     let detail = '';
-    if (type === 'ignite') detail = `초당 강한 화염 피해. 위력 ${p.toFixed(2)}`;
-    else if (type === 'poison') detail = `초당 혼돈 피해. 위력 ${p.toFixed(2)}`;
-    else if (type === 'bleed') detail = `초당 출혈 피해. 위력 ${p.toFixed(2)}`;
-    else if (type === 'chill') detail = '공격 속도 크게 감소';
-    else if (type === 'shock') detail = '받는 피해 급증(방어 관통)';
+    if (type === 'ignite') detail = `초당 화염 피해: 약 ${Math.floor((stats.maxHp || 1) * (0.0018 + p * 0.0022))}`;
+    else if (type === 'poison') detail = `초당 카오스 피해: 약 ${Math.floor((stats.maxHp || 1) * (0.0015 + p * 0.0020))}`;
+    else if (type === 'bleed') detail = `초당 출혈 피해: 약 ${Math.floor((stats.maxHp || 1) * (0.0016 + p * 0.0018))}`;
+    else if (type === 'chill') detail = `공격 속도 약 32% 감소`;
+    else if (type === 'shock') detail = `물리 피해 감소 -22% (최저 -40%)`;
     else if (type === 'freeze') detail = '행동 불가';
-    let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">${detail}</div>`;
+    let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ff7f7f');
 }
 function showPlayerBuffTooltip(event, name, type, remainSec) {
-    let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${type || '버프'}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div>`;
+    let delta = getConditionGemStatDelta(name, type || 'buff');
+    let lines = Object.keys(delta || {}).map(key => `${getStatName(key)} ${delta[key] >= 0 ? '+' : ''}${formatValue(key, delta[key])}`);
+    let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${type || '버프'}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">${lines.join(' / ') || '효과 정보 없음'}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
+}
+function showEnemyAilmentTooltip(event, type, timeLeft, power, maxHp) {
+    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
+    let p = Math.max(0, Number(power || 0));
+    let detail = '';
+    if (['ignite', 'poison', 'bleed'].includes(type)) {
+        let dps = Math.max(1, Math.floor((Math.max(1, Number(maxHp || 1))) * (0.0035 + p * 0.0025)));
+        detail = `초당 피해: 약 ${dps}`;
+    } else if (type === 'chill') detail = '이동/공격 속도 감소';
+    else if (type === 'shock') detail = '받는 피해 증가';
+    else if (type === 'freeze') detail = '행동 불가';
+    let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#ffcf88');
 }
 
 function showGemTooltip(event, type, name) {
@@ -1522,6 +1545,7 @@ function showGemTooltip(event, type, name) {
         if ((skill.fireResDmgScale || 0) > 0) html += `<div class="tooltip-line">화염 저항 계수: 화염 저항 1%당 ${(skill.fireResDmgScale * 100).toFixed(2)}% 추가 배율</div>`;
         if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
+        if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
         let maxTargetsView = Math.max(1, skill.targets || 1);
         if (skill.targetMode === 'all' && maxTargetsView >= 99) maxTargetsView = Math.max(1, (game.enemies || []).filter(e => e && e.hp > 0).length);
@@ -2626,9 +2650,10 @@ function updateCombatUI(pStats) {
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
         let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
-        let text = (game.playerAilments || []).map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmousemove=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
-        let buffText = (game.playerConditionBuffs || []).filter(buff => (buff.expiresAt || 0) > Date.now()).map(buff => `<span style=\"color:#9be7ff;font-weight:700;cursor:help;\" onmousemove=\"showPlayerBuffTooltip(event,'${buff.name}','${buff.type || ''}',${Math.ceil(Math.max(0,((buff.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">${buff.name} ${Math.ceil(Math.max(0, ((buff.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
-        let ailmentText = [text, buffText].filter(Boolean).join(' · ');
+        let text = (game.playerAilments || []).map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
+        let activeBuffs = (game.playerConditionBuffs || []).filter(buff => (buff.expiresAt || 0) > Date.now());
+        let guardWarcryText = activeBuffs.filter(buff => ['guard', 'warcry'].includes(buff.type)).map(buff => `<span data-info-tooltip-anchor=\"1\" style=\"color:#9be7ff;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${buff.name}','${buff.type || ''}',${Math.ceil(Math.max(0,((buff.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">${buff.name} ${Math.ceil(Math.max(0, ((buff.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
+        let ailmentText = [text, guardWarcryText ? `효과: ${guardWarcryText}` : ''].filter(Boolean).join(' · ');
         // 데스크톱에서 터치 디바이스 플래그가 잡히더라도 상태 표시를 숨기지 않도록
         // 화면 너비 기준으로만 모바일 UI 분기를 판단한다.
         let isMobile = !!(window.matchMedia && window.matchMedia('(max-width: 1080px)').matches);
@@ -2747,8 +2772,11 @@ function updateCombatUI(pStats) {
         let tags = getEnemyTraitSummary(focusedEnemy);
         let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈' };
         let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
+        let enemyDebuffs = (((game.enemyConditionDebuffs || {})[focusedEnemy.id]) || []).filter(row => row && (row.expiresAt || 0) > Date.now());
         let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
-        let ailmentText = activeAilments.map(ail => `<span style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;\">${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
+        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(focusedEnemy.maxHp || 1)})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
+        let curseText = enemyDebuffs.map(row => `<span data-info-tooltip-anchor=\"1\" style=\"color:#ff9bd1;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${row.name}','curse',${Math.ceil(Math.max(0,((row.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">🕯 저주:${row.name} ${Math.ceil(Math.max(0, ((row.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
+        ailmentText = [ailmentText, curseText].filter(Boolean).join(' · ');
         let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             if (!['ignite', 'poison', 'bleed'].includes(ail.type)) return sum;

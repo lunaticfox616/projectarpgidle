@@ -181,7 +181,7 @@ function runConditionGemAutoRules(pStats) {
         let castDelayMs = Math.max(0, Math.floor((entry.castTime || 0) * 1000));
         game.playerCastDelayUntil = Math.max(now, Math.floor(game.playerCastDelayUntil || 0), now + castDelayMs);
         game.lastConditionGemCast = { name: gemName, type: entry.type, targetId: castTargetId, expiresAt: now + 1100 };
-        addLog(`🧠 컨디션 젬 발동: [${gemName}]`, 'loot-magic', { noToast: true });
+        if (!game.settings || game.settings.showCombatLog !== false) addLog(`🧠 [${gemName}] 발동`, 'attack-monster', { noToast: true });
         break;
     }
 }
@@ -274,6 +274,7 @@ function coreLoop() {
         if (delta.targetAny) pStats.sSkill.targets = Math.min(8, (pStats.sSkill.targets || 1) + delta.targetAny);
         if (delta.leech) pStats.leech += delta.leech;
         if (delta.move) pStats.move += delta.move;
+        if (delta.energyShieldRegen) pStats.energyShieldRegenRate = Math.max(0, (pStats.energyShieldRegenRate || 0) + delta.energyShieldRegen);
         if (delta.fireBonus && (pStats.sSkill.ele === 'fire')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.fireBonus));
         if (delta.coldBonus && (pStats.sSkill.ele === 'cold')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.coldBonus));
         if (delta.chaosBonus && (pStats.sSkill.ele === 'chaos')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.chaosBonus));
@@ -550,9 +551,10 @@ function getPlayerStats() {
     if (game.shrineBuff && game.shrineBuff.stat) addStatToBucket(reward, game.shrineBuff.stat, game.shrineBuff.value || 0);
     let skill = getActiveSkillStats(gemSources.total);
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
-    if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
+    let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots;
+    if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile + totalProjectileExtraShots);
     if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += (gearBase.targetSlam + gearExplicit.targetSlam + passive.targetSlam + season.targetSlam + ascend.targetSlam + reward.targetSlam);
-    if (targetBonus > 0) skill.targets = Math.min(6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
+    if (targetBonus > 0) skill.targets = Math.min(Array.isArray(skill.tags) && skill.tags.includes('projectile') ? 12 : 6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
     else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
     let gearTagged = getTaggedDamageBreakdown(gearBase, skill);
     let gearExplicitTagged = getTaggedDamageBreakdown(gearExplicit, skill);
@@ -585,7 +587,9 @@ function getPlayerStats() {
         let spellBase = Number.isFinite(skill.spellFlatBase) ? skill.spellFlatBase : 0;
         let spellScale = Number.isFinite(skill.spellFlatScale) ? skill.spellFlatScale : 0;
         let logBoost = Math.log2(Math.max(1, skillLevel));
-        spellFlatDmg = Math.max(1, (spellBase * 3) + Math.max(0, skillLevel - 1) * spellScale + (spellBase * 0.8 * logBoost * logBoost));
+        let spellFlatBonus = gearBase.spellFlatDmg + gearExplicit.spellFlatDmg + passive.spellFlatDmg + season.spellFlatDmg + ascend.spellFlatDmg + reward.spellFlatDmg + support.spellFlatDmg;
+        let spellFlatPct = gearBase.spellFlatPct + gearExplicit.spellFlatPct + passive.spellFlatPct + season.spellFlatPct + ascend.spellFlatPct + reward.spellFlatPct + support.spellFlatPct;
+        spellFlatDmg = Math.max(1, ((spellBase * 3) + Math.max(0, skillLevel - 1) * spellScale + (spellBase * 0.8 * logBoost * logBoost) + spellFlatBonus) * (1 + spellFlatPct / 100));
     }
     let totalFlatDmg = isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg);
     let codexBonusRatio = 1 + (getCodexBonusPct() / 100);
@@ -768,6 +772,7 @@ function getPlayerStats() {
             finalMaxHp = Math.floor(finalMaxHp * 0.85);
         }
         if (hasKeystone('r7')) {
+            if (!Number.isFinite(game.playerLastHitAt) || game.playerLastHitAt <= 0) game.playerLastHitAt = Date.now();
             let sinceHitSec = Math.max(0, (Date.now() - Math.floor(game.playerLastHitAt || 0)) / 1000);
             finalCrit = Math.min(100, finalCrit + Math.floor(sinceHitSec) * 5);
         }
@@ -1140,6 +1145,7 @@ function getPlayerStats() {
         evadeChance: evadeChance,
         energyShieldRegenRate: finalEnergyShieldRegenRate,
         energyShieldRechargeDelay: finalEnergyShieldRechargeDelay,
+        projectileExtraShots: Math.max(0, Math.floor(totalProjectileExtraShots)),
         breakdowns: breakdowns
     };
     return enemy;
@@ -1538,7 +1544,7 @@ function tickEnemyAilments(pStats, dt) {
                     hpAfterDot = Math.max(1, hpAfterDot);
                 }
                 enemy.hp = hpAfterDot;
-                addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dotDmg, duration: 200, element: ele, noLine: true });
+                addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dotDmg, duration: 200, element: ele, noLine: true, dot: true });
             }
             if (ail.time > 0) next.push(ail);
         });
@@ -1569,7 +1575,7 @@ function tickEnemyDotEffects(pStats, dt) {
                 hpAfterDot = Math.max(1, hpAfterDot);
             }
             enemy.hp = hpAfterDot;
-            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dotDmg, duration: 240, element: dotEle, noLine: true });
+            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dotDmg, duration: 240, element: dotEle, noLine: true, dot: true });
             if (enemy.hp <= 0) {
                 handleEnemyDeath(enemy, pStats);
                 break;
@@ -2335,7 +2341,10 @@ function performPlayerAttack(pStats) {
     let hits = [];
     let totalDamage = 0;
     let totalLeechableDamage = 0;
-    let repeats = Math.max(1, Math.min(6, Math.floor(pStats.sSkill.multiHit || 1)));
+    let projectileBonusShots = (Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('projectile'))
+        ? Math.max(0, Math.min(5, Math.floor(pStats.projectileExtraShots || 0)))
+        : 0;
+    let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots));
     let perEnemyHitCount = new Map();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
     let randomTargetCapFallbackUsed = false;
@@ -2359,10 +2368,13 @@ function performPlayerAttack(pStats) {
             let hitElement = swingElement;
             let curseFx = getEnemyConditionDebuffFactor(targetEnemy);
             let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
+            let hitCrit = isCrit;
             if (game.ascendClass === 'assassin' && hasKeystone('a5') && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) <= 0.30) {
-                isCrit = true;
+                hitCrit = true;
             }
-            let dmg = Math.floor(baseDamage * (hit.mult || 1));
+            let hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
+            if (hitCrit && game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
+            let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
             let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
@@ -2404,14 +2416,14 @@ function performPlayerAttack(pStats) {
             addBattleFx('hit', {
                 enemyId: targetEnemy.id,
                 color: getElementColor(hitElement),
-                crit: isCrit,
+                crit: hitCrit,
                 projectile: (pStats.sSkill.tags || []).includes('projectile'),
                 chain: pStats.sSkill.targetMode === 'chain',
                 skillName: game.activeSkill,
                 damage: dmg,
                 duration: 320
             });
-            if (isCrit && game.ascendClass === 'assassin' && hasKeystone('a3')) {
+            if (hitCrit && game.ascendClass === 'assassin' && hasKeystone('a3')) {
                 let now = Date.now();
                 game.enemyKeystoneDebuffs = game.enemyKeystoneDebuffs || {};
                 let list = game.enemyKeystoneDebuffs[targetEnemy.id] || [];
@@ -2420,19 +2432,19 @@ function performPlayerAttack(pStats) {
                 while (list.filter(row => row.type === 'a3').length > 5) { let idx=list.findIndex(row=>row.type==='a3'); if (idx>=0) list.splice(idx,1); else break; }
                 game.enemyKeystoneDebuffs[targetEnemy.id] = list;
             }
-            if (isCrit && game.ascendClass === 'inquisitor' && hasKeystone('iq7') && ['fire','cold','light'].includes(hitElement)) {
+            if (hitCrit && game.ascendClass === 'inquisitor' && hasKeystone('iq7') && ['fire','cold','light'].includes(hitElement)) {
                 let now = Date.now();
                 game.enemyKeystoneDebuffs = game.enemyKeystoneDebuffs || {};
                 let list = (game.enemyKeystoneDebuffs[targetEnemy.id] || []).filter(row => row && row.type !== 'iq7' && (row.expiresAt || 0) > now);
                 list.push({ type: 'iq7', expiresAt: now + 3000 });
                 game.enemyKeystoneDebuffs[targetEnemy.id] = list;
             }
-            if (isCrit && game.ascendClass === 'elementalist' && hasKeystone('e8')) {
+            if (hitCrit && game.ascendClass === 'elementalist' && hasKeystone('e8')) {
                 game.elementalistOverloadStacks = Math.min(3, Math.max(0, Math.floor(game.elementalistOverloadStacks || 0)) + 1);
                 game.elementalistOverloadExpiresAt = Date.now() + 3000;
             }
             if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
-            applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, isCrit);
+            applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, hitCrit);
         });
     }
     if (pStats.leech > 0 && totalLeechableDamage > 0) {
@@ -2721,6 +2733,8 @@ function performMonsterAttacks(pStats) {
             }
             game.playerHp = Math.floor(game.playerHp - remaining);
             game.playerEsLastHitAt = Date.now();
+    game.playerLastHitAt = Date.now();
+            game.playerLastHitAt = Date.now();
             recordIncomingDamage(enemy.ele, dmg, enemy.name);
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(enemy.ele), damage: dmg, duration: 220 });
             if (game.settings.showCombatLog) addLog(`🩸 [${getDamageElementLabel(enemy.ele)}] 피격 (${dmg} 피해)`, "attack-monster");
