@@ -26,6 +26,26 @@
         .startup-primary:hover:not(:disabled) { background: linear-gradient(180deg, #3382cc 0%, #25639c 100%); }
         .startup-secondary { background: linear-gradient(180deg, #5d4722 0%, #433114 100%); border-color: #c7943b; color: #ffe3af; }
         .startup-secondary:hover:not(:disabled) { background: linear-gradient(180deg, #755825 0%, #58401a 100%); }
+
+        .social-login-stack { gap: 8px; margin-top: 2px; }
+
+        .social-login-image-btn {
+            width: 100%;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            line-height: 0;
+        }
+        .social-login-image-btn img {
+            display: block;
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            border-radius: 12px;
+        }
+        .social-login-image-btn:disabled { opacity: 0.65; cursor: default; }
+
         .startup-ghost { background: #172330; border-color: #33506a; color: #d4e2ef; }
         .startup-status { min-height: 48px; padding: 12px 14px; border-radius: 12px; background: #0c1219; border: 1px solid #1b2b3b; color: #b7cadb; font-size: 0.84em; line-height: 1.65; }
         .startup-status strong { color: #ffffff; }

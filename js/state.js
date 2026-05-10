@@ -681,6 +681,7 @@ let cloudState = {
     busy: false,
     session: null,
     user: null,
+    linkedProviders: [],
     isLoaded: false,
     lastMessage: '설정 전',
     lastRemoteUpdatedAt: 0,
