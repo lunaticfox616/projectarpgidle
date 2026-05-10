@@ -26,6 +26,41 @@
         .startup-primary:hover:not(:disabled) { background: linear-gradient(180deg, #3382cc 0%, #25639c 100%); }
         .startup-secondary { background: linear-gradient(180deg, #5d4722 0%, #433114 100%); border-color: #c7943b; color: #ffe3af; }
         .startup-secondary:hover:not(:disabled) { background: linear-gradient(180deg, #755825 0%, #58401a 100%); }
+
+        .social-login-stack { gap: 8px; margin-top: 2px; }
+        .social-login-btn {
+            width: 100%;
+            min-height: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+        }
+        .social-login-btn:hover:not(:disabled) { transform: translateY(-1px); }
+        .social-login-btn:disabled { opacity: 0.65; cursor: default; }
+        .google-login-btn { background: #ffffff; color: #3c4043; border-color: #dadce0; }
+        .google-login-btn:hover:not(:disabled) { background: #f8fafd; border-color: #c7cbd1; }
+        .kakao-login-btn { background: #fee500; color: rgba(0, 0, 0, 0.85); border-color: #fee500; }
+        .kakao-login-btn:hover:not(:disabled) { background: #ffeb3b; border-color: #f4d900; }
+        .social-login-icon {
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 22px;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .google-icon { color: #4285f4; background: #fff; border-radius: 50%; font-family: Arial, sans-serif; }
+        .kakao-icon { color: #000; font-size: 0.84rem; }
         .startup-ghost { background: #172330; border-color: #33506a; color: #d4e2ef; }
         .startup-status { min-height: 48px; padding: 12px 14px; border-radius: 12px; background: #0c1219; border: 1px solid #1b2b3b; color: #b7cadb; font-size: 0.84em; line-height: 1.65; }
         .startup-status strong { color: #ffffff; }

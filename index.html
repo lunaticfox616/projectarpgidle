@@ -54,9 +54,15 @@
                 <button id="btn-startup-login" class="startup-primary" onclick="startupLogin()">로그인 후 시작</button>
                 <button id="btn-startup-signup" class="startup-secondary" onclick="startupSignUp()">회원가입 후 시작</button>
             </div>
-            <div class="startup-actions-stack two" id="startup-social-actions">
-                <button id="btn-startup-google" class="startup-secondary" onclick="loginWithGoogle()">Google로 시작</button>
-                <button id="btn-startup-kakao" class="startup-secondary" onclick="loginWithKakao()">카카오로 시작</button>
+            <div class="startup-actions-stack social-login-stack" id="startup-social-actions">
+                <button id="btn-startup-google" class="social-login-btn google-login-btn" onclick="loginWithGoogle()">
+                    <span class="social-login-icon google-icon" aria-hidden="true">G</span>
+                    <span>구글 계정으로 로그인</span>
+                </button>
+                <button id="btn-startup-kakao" class="social-login-btn kakao-login-btn" onclick="loginWithKakao()">
+                    <span class="social-login-icon kakao-icon" aria-hidden="true">💬</span>
+                    <span>카카오 계정으로 로그인</span>
+                </button>
             </div>
             <div class="startup-actions-stack">
                 <button id="btn-startup-continue" class="startup-primary" onclick="continueWithCloudSession()" style="display:none;">클라우드 세이브로 계속</button>
