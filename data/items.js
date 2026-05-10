@@ -124,7 +124,8 @@ const ORB_DB = {
     bossKeyFrost: { name: '열쇠: 서리 여제', desc: '시즌2 보스 [글라시아] 도전권입니다.' },
     bossKeyStorm: { name: '열쇠: 폭풍 군단장', desc: '시즌2 보스 [볼타] 도전권입니다.' },
     beastKeyCerberus: { name: '열쇠: 케르베로스', desc: '시즌6 야수 보스 [케르베로스] 도전권입니다.' },
-    trialKey3: { name: '3차 전직 입장권', desc: '3차/4차 전직 시련 재도전권입니다.' },
+    trialKey3: { name: '시련의 증표', desc: '3차/4차 전직 시련 재도전권입니다.' },
+    blessing: { name: '축복의 오브', desc: '장비의 베이스 옵션 값을 80%~120% 구간에서 다시 굴립니다.' },
     bossCore: { name: '군주의 핵', desc: '시즌2 보스를 처치하면 얻는 젬 강화 재료입니다.' },
     fossil: { name: '미궁 화석', desc: '기본 화석 조각입니다. 미궁에서 다양한 타입의 화석으로 정제됩니다.' },
     fossilJagged: { name: '톱니 화석', desc: '물리/근접 계열 옵션 하나를 확정한 카오스 재련을 합니다.' },
@@ -162,6 +163,8 @@ const MARKET_EXCHANGES = [
     { id: 'm9', from: 'chaos', to: 'scour', need: 4, gain: 1 },
     { id: 'm10', from: 'exalted', to: 'divine', need: 5, gain: 1 },
     { id: 'm11', from: 'divine', to: 'chaos', need: 1, gain: 30 }
+    ,{ id: 'm12', from: 'chaos', to: 'blessing', need: 5, gain: 1 }
+    ,{ id: 'm13', from: 'blessing', to: 'chaos', need: 3, gain: 1 }
 ];
 
 safeExposeData({ UNIQUE_DB, ORB_DB, MARKET_EXCHANGES });

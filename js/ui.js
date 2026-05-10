@@ -402,7 +402,10 @@ function renderSkillAutoRulePanel() {
     let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 컨디션 젬 가공</button></div>`;
     let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
     let ownedEntries = getAllConditionGemEntries().filter(entry => owned.includes(entry.name));
-    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => `<div style="border:1px solid #314761;border-radius:8px;padding:7px;" onmouseenter="showConditionGemTooltip(event,'${entry.name}')" onmousemove="showConditionGemTooltip(event,'${entry.name}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong><small style="margin-left:6px;color:#9ec1e1;">Lv.${Math.max(1,Math.min(5,Math.floor(((game.conditionGemLevels||{})[entry.name]||1))))}</small></div>`).join('')}</div>` : '';
+    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => {
+        let safeName = String(entry.name || '').replace(/'/g, "\\'");
+        return `<div class="condition-gem-card" style="border:1px solid #314761;border-radius:8px;padding:7px; cursor:help;" onmouseover="showConditionGemTooltip(event,'${safeName}')" onmouseenter="showConditionGemTooltip(event,'${safeName}')" onmousemove="showConditionGemTooltip(event,'${safeName}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong><small style="margin-left:6px;color:#9ec1e1;">Lv.${Math.max(1,Math.min(5,Math.floor(((game.conditionGemLevels||{})[entry.name]||1))))}</small></div>`;
+    }).join('')}</div>` : '';
 
     if (game.skillAutoRules.length === 0) {
         panel.innerHTML = summary + choiceHtml + ownedHtml + `<div style="color:#7f8c8d; border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
@@ -556,9 +559,9 @@ function enterLabyrinthFloor(floor){ game.labyrinthFloor=Math.max(1,Math.floor(f
 
 function enterTrialWithTicket(trialId) {
     if (!['trial_3','trial_4'].includes(trialId)) return changeZone(trialId);
-    if ((game.currencies.trialKey3 || 0) <= 0) return addLog('3차 전직 입장권이 부족합니다.', 'attack-monster');
+    if ((game.currencies.trialKey3 || 0) <= 0) return addLog('시련의 증표가 부족합니다.', 'attack-monster');
     game.currencies.trialKey3 -= 1;
-    addLog(`🗝️ 3차 전직 입장권 1개 소모 (남은 ${game.currencies.trialKey3 || 0})`, 'season-up');
+    addLog(`🗝️ 시련의 증표 1개 소모 (남은 ${game.currencies.trialKey3 || 0})`, 'season-up');
     changeZone(trialId);
 }
 
@@ -1469,7 +1472,7 @@ document.addEventListener('mousemove', function(evt) {
     let tt = document.getElementById('info-tooltip');
     if (!tt || tt.style.display === 'none') return;
     let anchor = evt.target && evt.target.closest ? evt.target.closest('[data-info-tooltip-anchor="1"]') : null;
-    if (!anchor && evt.target && evt.target.closest) anchor = evt.target.closest('.tip, .skill-gem, .support-gem, .item-card, .currency-card');
+    if (!anchor && evt.target && evt.target.closest) anchor = evt.target.closest('.tip, .skill-gem, .support-gem, .item-card, .currency-card, .condition-gem-card');
     let overTooltip = evt.target && evt.target.closest ? evt.target.closest('#info-tooltip') : null;
     if (!anchor && !overTooltip) hideInfoTooltip();
 });
@@ -1478,8 +1481,17 @@ function showTalismanBoardTooltip(event, talismanId) {
     let placed = talismanId ? ((game.talismanPlacements || {})[talismanId] || {}).talisman : null;
     if (!placed) return;
     activeTalismanHoverId = talismanId;
-    hideInfoTooltip();
+    let html = `<div class="tooltip-title">[${placed.shape}] ${placed.statName}</div><div class="tooltip-line">획득 수치: +${placed.value}</div><div class="tooltip-line">희귀도: ${placed.rarity || 'normal'}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
     updateStaticUI();
+}
+
+function showTalismanUnlockTooltip(event, x, y) {
+    let unlockedSet = getTalismanUnlockedCellsSet();
+    let extraUnlocked = Math.max(0, unlockedSet.size - 16);
+    let unlockCost = getTalismanExpandCost(extraUnlocked);
+    let html = `<div class="tooltip-title">잠긴 부적 칸</div><div class="tooltip-line">좌표: (${x + 1}, ${y + 1})</div><div class="tooltip-line">해금 비용: ${formatTalismanUnlockCostLabel(unlockCost)}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#7ea6d3');
 }
 function hideTalismanBoardTooltip() {
     activeTalismanHoverId = null;
@@ -1626,7 +1638,10 @@ function showItemTooltip(event, idx, isEquip) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#f1c40f;">베이스 옵션</div>`;
         item.baseStats.forEach(stat => {
             if (stat.id === 'armor' || stat.id === 'evasion' || stat.id === 'energyShield') return;
-            html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${stat.statName.includes('%') ? '%' : ''}</div>`;
+            let cur = Number(stat.val || 0);
+            let min = Number((cur * 0.8).toFixed(2));
+            let max = Number((cur * 1.2).toFixed(2));
+            html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, cur)} <span style="color:#888;">(${formatValue(stat.id, min)}~${formatValue(stat.id, max)})</span></div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
             let label = getStatName(id);
@@ -3287,7 +3302,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-fossil-actions').innerHTML = fossilButtons.join('') || `<div style="color:#7f8c8d;">보유한 화석이 없습니다.</div>`;
     document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:#7f8c8d;">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:#8fb6d9;">미궁 완료 시 기본 화석 + 타입 화석이 드랍되며, 심연 화석은 희귀하게 추가 드랍됩니다.</div>`;
 
-    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'sealShard', 'strongSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen']);
+    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'sealShard', 'strongSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'trialKey3']);
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
         if (hiddenCurrencyKeys.has(key)) return false;
         if (key === 'tainted') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
@@ -3300,7 +3315,7 @@ function buildCraftActionButtons(item) {
         if (key === 'venomStinger') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVenomStingerToSelectedItem()">사용</button></div>`;
         let sporeModes = game.sporeCraftModes || {};
         let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
-        let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','scour','tainted'].includes(key);
+        let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','scour','tainted','blessing'].includes(key);
         let canUseSporeMode = ['transmute','augment','alteration','alchemy','exalted','regal','chaos'].includes(key);
         let mode = sporeModes[key] || 'none';
         let reason = getCraftOrbUseState(key, getSelectedCraftItem()).reason;
@@ -3486,14 +3501,17 @@ function buildCraftActionButtons(item) {
                 let unlockedDepthsForReward = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let highestUnlockedForReward = unlockedDepthsForReward.length > 0 ? Math.max(...unlockedDepthsForReward) : Math.floor(game.abyssEndlessDepth || 20); let clearedDepthForReward = Math.max(20, highestUnlockedForReward >= 21 ? (highestUnlockedForReward - 1) : highestUnlockedForReward); let expectedDepthGain = Math.max(0, Math.floor(clearedDepthForReward - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
                 let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;
+                let woodsmanScore = Math.max(0, Math.floor(game.woodsmanPendingScore || 0));
+                let woodsmanSettled = Math.max(0, Math.floor(game.woodsmanSettledScore || 0));
+                let expectedWoodsmanGain = Math.floor(Math.sqrt(Math.max(0, woodsmanScore - woodsmanSettled)) / 25);
                 let deepStats = game.loopDeepStats || {};
                 let deepTotalLine = `총합 보너스: 생명력 +${Math.floor((deepStats.flatHp||0)*10)}, 피해 +${Math.floor((deepStats.flatDmg||0)*2)}, 공속 +${((deepStats.aspd||0)*1.2).toFixed(1)}%, 이속 +${((deepStats.move||0)*0.8).toFixed(1)}%, 물피감 +${((deepStats.dr||0)*0.5).toFixed(1)}%, 치명 +${((deepStats.crit||0)*0.6).toFixed(1)}%`;
                 loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">혼돈20 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
                 <div style="background:linear-gradient(160deg, rgba(84,59,136,0.22), rgba(26,31,56,0.35)); border:1px solid #5f4a93; border-radius:10px; padding:10px; margin-bottom:8px;">
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="triggerSeasonReset()" ${chaos20Cleared ? '' : 'disabled'}>지금 즉시 루프</button><button class="ominous-entry-btn" onclick="enterOutsideChaos()" ${(game.season||1)>=10?'':'disabled'}>☠️ 혼돈 밖 진입</button></div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="triggerSeasonReset()" ${chaos20Cleared ? '' : 'disabled'}>지금 즉시 루프</button><button class="ominous-entry-btn" onclick="enterOutsideChaos()" ${(game.season||1)>=10 && chaos20Cleared?'':'disabled'}>☠️ 혼돈 밖 진입</button></div>
                     <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()" ${chaos20Cleared ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:#9fb4d1;">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${chaos20Cleared ? '' : ' (혼돈 20 클리어 필요)'}</span></div>
                 </div>
-                <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종</div>
+                <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
                 <div style="margin-top:4px; color:#9ec4f0;">${deepTotalLine}</div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>`;
             }
@@ -3749,7 +3767,9 @@ function buildCraftActionButtons(item) {
             : 'inset 0 2px 4px rgba(0,0,0,0.55), inset 0 -1px 2px rgba(255,255,255,0.08), 0 1px 2px rgba(0,0,0,0.25)';
         if (isHoverGroup) surfaceShadow = `0 0 0 2px rgba(255,230,140,.85), 0 0 18px rgba(255,210,110,.55), ${surfaceShadow}`;
         let placedTitle = '';
-        let hoverHandlers = id ? ` onmouseenter="showTalismanBoardTooltip(event, ${id})" onmouseleave="hideTalismanBoardTooltip()"` : '';
+        let hoverHandlers = id
+            ? ` onmouseenter="showTalismanBoardTooltip(event, ${id})" onmousemove="showTalismanBoardTooltip(event, ${id})" onmouseleave="hideTalismanBoardTooltip()"`
+            : (!unlocked ? ` onmouseenter="showTalismanUnlockTooltip(event, ${x}, ${y})" onmousemove="showTalismanUnlockTooltip(event, ${x}, ${y})" onmouseleave="hideInfoTooltip()"` : '');
         return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     let talismanTotalEl = document.getElementById('ui-talisman-total');
