@@ -4667,6 +4667,7 @@ function updateStartupScreenUI() {
     let statusEl = document.getElementById('startup-status');
     let authFormEl = document.getElementById('startup-auth-form');
     let authActionsEl = document.getElementById('startup-auth-actions');
+    let socialActionsEl = document.getElementById('startup-social-actions');
     let continueBtn = document.getElementById('btn-startup-continue');
     let switchBtn = document.getElementById('btn-startup-switch-account');
     let guestBtn = document.getElementById('btn-startup-guest');
@@ -4689,6 +4690,7 @@ function updateStartupScreenUI() {
     if (!config.enabled) {
         if (authFormEl) authFormEl.classList.remove('hidden');
         if (authActionsEl) authActionsEl.style.display = 'grid';
+        if (socialActionsEl) socialActionsEl.style.display = 'grid';
         if (continueBtn) continueBtn.style.display = 'none';
         if (switchBtn) switchBtn.style.display = 'none';
         if (loginBtn) loginBtn.disabled = true;
@@ -4702,6 +4704,7 @@ function updateStartupScreenUI() {
     if (cloudState.user) {
         if (authFormEl) authFormEl.classList.add('hidden');
         if (authActionsEl) authActionsEl.style.display = 'none';
+        if (socialActionsEl) socialActionsEl.style.display = 'none';
         if (continueBtn) {
             continueBtn.style.display = 'block';
             continueBtn.disabled = cloudState.busy;
@@ -4716,6 +4719,7 @@ function updateStartupScreenUI() {
 
     if (authFormEl) authFormEl.classList.remove('hidden');
     if (authActionsEl) authActionsEl.style.display = 'grid';
+    if (socialActionsEl) socialActionsEl.style.display = 'grid';
     if (continueBtn) continueBtn.style.display = 'none';
     if (switchBtn) switchBtn.style.display = 'none';
     if (loginBtn) loginBtn.disabled = cloudState.busy;
