@@ -2589,25 +2589,42 @@ function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
     const e = normalizeBattleElement(element || 'phys');
     const burst = crit ? 1.2 : 1;
     if (e === 'fire') {
-        ctx.globalAlpha = (1 - t) * 0.72;
-        for (let i = 0; i < 18; i++) {
-            const a = (-Math.PI * 0.9) + (Math.PI * 0.8) * (i / 17);
-            const r = 6 + t * (20 + (i % 3) * 3);
-            ctx.fillStyle = i % 3 === 0 ? '#ffcc66' : (i % 2 ? '#ff7a32' : '#ff3b1f');
+        ctx.globalAlpha = (1 - t) * 0.78;
+        for (let i = 0; i < 24; i++) {
+            const a = (-Math.PI * 0.95) + (Math.PI * 0.9) * (i / 23);
+            const r = 5 + t * (24 + (i % 4) * 2.8);
+            ctx.fillStyle = i % 4 === 0 ? '#ffe39a' : (i % 2 ? '#ff8a3d' : '#ff3d1f');
             ctx.beginPath();
-            ctx.arc(tx + Math.cos(a) * r * 0.75, ty + Math.sin(a) * r, (1.2 + (1 - t) * 1.5) * burst, 0, Math.PI * 2);
+            ctx.ellipse(tx + Math.cos(a) * r * 0.72, ty + Math.sin(a) * r, (1.1 + (1 - t) * 1.8) * burst, (2.1 + (1 - t) * 2.4) * burst, a, 0, Math.PI * 2);
             ctx.fill();
         }
+        ctx.globalAlpha = (1 - t) * 0.35;
+        ctx.fillStyle = 'rgba(255,120,40,0.7)';
+        ctx.beginPath();
+        ctx.arc(tx, ty + 2, 6 + t * 8, 0, Math.PI * 2);
+        ctx.fill();
     } else if (e === 'cold') {
-        ctx.globalAlpha = (1 - t) * 0.8;
-        ctx.strokeStyle = 'rgba(180,236,255,0.95)';
-        ctx.lineWidth = 1.8;
-        for (let i = 0; i < 6; i++) {
-            const a = (Math.PI * 2 * i) / 6 + t * 0.4;
+        ctx.globalAlpha = (1 - t) * 0.88;
+        ctx.strokeStyle = 'rgba(198,244,255,0.98)';
+        ctx.lineWidth = 1.9;
+        for (let i = 0; i < 8; i++) {
+            const a = (Math.PI * 2 * i) / 8 + t * 0.35;
             ctx.beginPath();
             ctx.moveTo(tx, ty);
-            ctx.lineTo(tx + Math.cos(a) * (8 + t * 18), ty + Math.sin(a) * (8 + t * 18));
+            ctx.lineTo(tx + Math.cos(a) * (8 + t * 20), ty + Math.sin(a) * (8 + t * 20));
             ctx.stroke();
+        }
+        ctx.globalAlpha = (1 - t) * 0.55;
+        ctx.fillStyle = 'rgba(220,248,255,0.75)';
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI * 2 * i) / 6;
+            const r = 6 + t * 10;
+            ctx.beginPath();
+            ctx.moveTo(tx + Math.cos(a) * r, ty + Math.sin(a) * r);
+            ctx.lineTo(tx + Math.cos(a + 0.16) * (r + 5), ty + Math.sin(a + 0.16) * (r + 5));
+            ctx.lineTo(tx + Math.cos(a - 0.16) * (r + 5), ty + Math.sin(a - 0.16) * (r + 5));
+            ctx.closePath();
+            ctx.fill();
         }
     } else if (e === 'light') {
         ctx.globalAlpha = (1 - t) * 0.88;
@@ -2644,30 +2661,13 @@ function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
 function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     let enemyEntry = enemyPosMap[fx.enemyId];
     if (!enemyEntry) return;
-    let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
     let tx = enemyEntry.x;
     let ty = enemyEntry.y - 6;
     ctx.save();
-    let punchScale = fx.crit ? 1.4 : 1;
     let impactElement = normalizeBattleElement(fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
-    if (skillVisual.group === 'physical_slam') {
-        ctx.globalAlpha = 1 - t * 0.62;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 5.2;
-        ctx.beginPath();
-        ctx.arc(tx, ty + 6, 10 + t * 22 * punchScale, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.strokeStyle = 'rgba(255,245,230,0.58)';
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        ctx.moveTo(tx - 12, ty + 10);
-        ctx.lineTo(tx + 12, ty + 10);
-        ctx.stroke();
-        ctx.globalAlpha = (1 - t) * 0.28;
-        ctx.fillStyle = 'rgba(210,180,140,0.35)';
-        ctx.beginPath();
-        ctx.ellipse(tx, ty + 12, 12 + t * 9, 4 + t * 2.5, 0, 0, Math.PI * 2);
-        ctx.fill();
+    if (fx.dot) {
+        ctx.restore();
+        return;
     }
     drawGemImpactFx(ctx, impactElement, tx, ty, t, fx.crit);
     if (fx.crit) {
