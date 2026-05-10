@@ -1871,7 +1871,7 @@ function mapSkillSlotByGemTags(skillName) {
     let tags = ((SKILL_DB[skillName] && SKILL_DB[skillName].tags) || []).map(tag => String(tag).toLowerCase());
     if (tags.includes('projectile')) {
         if (tags.includes('chaos')) return 8;
-        if (tags.includes('elemental') || tags.includes('light') || tags.includes('cold') || tags.includes('fire')) return 6;
+        if (tags.includes('elemental') || tags.includes('light') || tags.includes('lightning') || tags.includes('thunder') || tags.includes('cold') || tags.includes('fire')) return 6;
         return 4;
     }
     if (tags.includes('slam')) return 2;
@@ -1883,7 +1883,7 @@ function mapEffectIndexByGemTags(skillName, fallbackIndex) {
     let tags = ((SKILL_DB[skillName] && SKILL_DB[skillName].tags) || []).map(tag => String(tag).toLowerCase());
     if (tags.includes('chaos')) return 28;
     if (tags.includes('cold')) return 3;
-    if (tags.includes('fire') || tags.includes('light') || tags.includes('elemental')) return 26;
+    if (tags.includes('fire') || tags.includes('light') || tags.includes('lightning') || tags.includes('thunder') || tags.includes('elemental')) return 26;
     if (tags.includes('projectile')) return 0;
     if (tags.includes('slam')) return 2;
     if (tags.includes('aoe')) return 16;
@@ -3880,6 +3880,7 @@ function rollBaseStats(base, zoneTier) {
         let val = minBase + Math.random() * Math.max(0, (maxBase - minBase));
         if (stat.id === 'energyShield') val *= 1.5;
         if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) val = Math.round(val * 10) / 10;
+        else if (stat.id === 'projectileExtraShots') val = Math.max(1, Math.round(val));
         else val = Math.floor(val);
         return { id: stat.id, val: val, valMin: minBase, valMax: maxBase, tier: 0, statName: getStatName(stat.id) };
     });

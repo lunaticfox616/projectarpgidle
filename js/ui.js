@@ -2415,6 +2415,14 @@ const GEM_IMPACT_THEME = {
 window.BATTLE_EFFECT_OVERRIDES = window.BATTLE_EFFECT_OVERRIDES || {};
 function getImpactThemeByElement(ele){ return (window.BATTLE_EFFECT_OVERRIDES[ele] || GEM_IMPACT_THEME[ele] || GEM_IMPACT_THEME.phys); }
 
+function normalizeBattleElement(ele) {
+    let id = String(ele || 'phys').toLowerCase();
+    if (id === 'physical') return 'phys';
+    if (id === 'lightning' || id === 'thunder') return 'light';
+    if (id === 'ice') return 'cold';
+    return id;
+}
+
 function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
     ctx.save();
     ctx.globalAlpha = 1 - t;
@@ -2434,8 +2442,52 @@ function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
     ctx.restore();
 }
 
+function drawGemAttackTrail(ctx, element, sx, sy, tx, ty, t) {
+    const e = normalizeBattleElement(element);
+    if (e === 'fire') {
+        ctx.globalAlpha = (1 - t) * 0.35;
+        ctx.strokeStyle = 'rgba(255,120,60,0.9)';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.quadraticCurveTo((sx + tx) * 0.5, Math.min(sy, ty) - 16, tx, ty);
+        ctx.stroke();
+    } else if (e === 'cold') {
+        ctx.globalAlpha = (1 - t) * 0.3;
+        ctx.strokeStyle = 'rgba(184,238,255,0.9)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 5]);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    } else if (e === 'light') {
+        ctx.globalAlpha = (1 - t) * 0.55;
+        ctx.strokeStyle = 'rgba(255,238,150,0.95)';
+        ctx.lineWidth = 2.4;
+        drawBattleZigZag(ctx, sx, sy, tx, ty, 7, 9);
+        ctx.stroke();
+    } else if (e === 'chaos') {
+        ctx.globalAlpha = (1 - t) * 0.38;
+        ctx.strokeStyle = 'rgba(214,120,255,0.92)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.bezierCurveTo(sx + 18, sy - 18, tx - 24, ty + 14, tx, ty);
+        ctx.stroke();
+    } else {
+        ctx.globalAlpha = (1 - t) * 0.25;
+        ctx.strokeStyle = 'rgba(245,225,190,0.8)';
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+    }
+}
+
 function drawBattleSwingFx(ctx, fx, t, playerPos) {
-    let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
     ctx.save();
     ctx.globalAlpha = 1 - t * 0.72;
     let reach = 16 + t * 18;
@@ -2482,7 +2534,7 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
 
 
 function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
-    const e = element || 'phys';
+    const e = normalizeBattleElement(element || 'phys');
     const boost = crit ? 1.2 : 1;
     if (e === 'fire') {
         ctx.globalAlpha = (1 - t) * 0.62;
@@ -2531,47 +2583,92 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
     }
 }
 
+
+function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
+    const e = normalizeBattleElement(element || 'phys');
+    const burst = crit ? 1.2 : 1;
+    if (e === 'fire') {
+        ctx.globalAlpha = (1 - t) * 0.78;
+        for (let i = 0; i < 24; i++) {
+            const a = (-Math.PI * 0.95) + (Math.PI * 0.9) * (i / 23);
+            const r = 5 + t * (24 + (i % 4) * 2.8);
+            ctx.fillStyle = i % 4 === 0 ? '#ffe39a' : (i % 2 ? '#ff8a3d' : '#ff3d1f');
+            ctx.beginPath();
+            ctx.ellipse(tx + Math.cos(a) * r * 0.72, ty + Math.sin(a) * r, (1.1 + (1 - t) * 1.8) * burst, (2.1 + (1 - t) * 2.4) * burst, a, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = (1 - t) * 0.35;
+        ctx.fillStyle = 'rgba(255,120,40,0.7)';
+        ctx.beginPath();
+        ctx.arc(tx, ty + 2, 6 + t * 8, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (e === 'cold') {
+        ctx.globalAlpha = (1 - t) * 0.88;
+        ctx.strokeStyle = 'rgba(198,244,255,0.98)';
+        ctx.lineWidth = 1.9;
+        for (let i = 0; i < 8; i++) {
+            const a = (Math.PI * 2 * i) / 8 + t * 0.35;
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(tx + Math.cos(a) * (8 + t * 20), ty + Math.sin(a) * (8 + t * 20));
+            ctx.stroke();
+        }
+        ctx.globalAlpha = (1 - t) * 0.55;
+        ctx.fillStyle = 'rgba(220,248,255,0.75)';
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI * 2 * i) / 6;
+            const r = 6 + t * 10;
+            ctx.beginPath();
+            ctx.moveTo(tx + Math.cos(a) * r, ty + Math.sin(a) * r);
+            ctx.lineTo(tx + Math.cos(a + 0.16) * (r + 5), ty + Math.sin(a + 0.16) * (r + 5));
+            ctx.lineTo(tx + Math.cos(a - 0.16) * (r + 5), ty + Math.sin(a - 0.16) * (r + 5));
+            ctx.closePath();
+            ctx.fill();
+        }
+    } else if (e === 'light') {
+        ctx.globalAlpha = (1 - t) * 0.88;
+        ctx.strokeStyle = 'rgba(255,243,150,0.95)';
+        ctx.lineWidth = 2.2;
+        for (let i = 0; i < 3; i++) {
+            const ox = (i - 1) * 5;
+            drawBattleZigZag(ctx, tx - 16 + ox, ty - 14, tx + 8 + ox, ty + 6, 4 + i, 6);
+            ctx.stroke();
+        }
+    } else if (e === 'chaos') {
+        ctx.globalAlpha = (1 - t) * 0.7;
+        ctx.strokeStyle = 'rgba(210,120,255,0.9)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 2; i++) {
+            ctx.beginPath();
+            ctx.ellipse(tx, ty, 8 + t * (10 + i * 5), 5 + t * (8 + i * 4), t * 3.2 + i * 0.8, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    } else {
+        ctx.globalAlpha = (1 - t) * 0.68;
+        ctx.strokeStyle = 'rgba(247,224,177,0.9)';
+        ctx.lineWidth = 2.4;
+        for (let i = 0; i < 5; i++) {
+            const a = -Math.PI * 0.8 + i * (Math.PI * 0.4);
+            ctx.beginPath();
+            ctx.moveTo(tx, ty + 4);
+            ctx.lineTo(tx + Math.cos(a) * (8 + t * 12), ty + 4 + Math.sin(a) * (8 + t * 12));
+            ctx.stroke();
+        }
+    }
+}
+
 function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     let enemyEntry = enemyPosMap[fx.enemyId];
     if (!enemyEntry) return;
-    let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
     let tx = enemyEntry.x;
     let ty = enemyEntry.y - 6;
-    let sx = playerPos.x + 10;
-    let sy = playerPos.y - 2;
     ctx.save();
-    let punchScale = fx.crit ? 1.4 : 1;
-    if (skillVisual.group === 'physical_slam') {
-        ctx.globalAlpha = 1 - t * 0.62;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 5.2;
-        ctx.beginPath();
-        ctx.arc(tx, ty + 6, 10 + t * 22 * punchScale, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.strokeStyle = 'rgba(255,245,230,0.58)';
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        ctx.moveTo(tx - 12, ty + 10);
-        ctx.lineTo(tx + 12, ty + 10);
-        ctx.stroke();
-        ctx.globalAlpha = (1 - t) * 0.28;
-        ctx.fillStyle = 'rgba(210,180,140,0.35)';
-        ctx.beginPath();
-        ctx.ellipse(tx, ty + 12, 12 + t * 9, 4 + t * 2.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-    } else if (!fx.noLine) {
-        ctx.globalAlpha = 1 - t * 0.62;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 3.2;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-        ctx.stroke();
+    let impactElement = normalizeBattleElement(fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
+    if (fx.dot) {
+        ctx.restore();
+        return;
     }
-    let impactElement = (fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
-    let impactTheme = getImpactThemeByElement(impactElement);
-    drawBattleImpactBurst(ctx, tx, ty, impactTheme.primary || skillVisual.primary, impactTheme.secondary || skillVisual.secondary, t);
-    drawElementalHitAccent(ctx, impactElement, tx, ty, t, fx.crit);
+    drawGemImpactFx(ctx, impactElement, tx, ty, t, fx.crit);
     if (fx.crit) {
         ctx.globalAlpha = (1 - t) * 0.75;
         ctx.strokeStyle = '#fff4a8';
