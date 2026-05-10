@@ -2475,7 +2475,7 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
         ctx.globalAlpha = (1 - t) * 0.52;
         ctx.strokeStyle = '#fff6c8';
         ctx.lineWidth = 2;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
             let angle = -0.8 + i * 0.5 + t * 0.25;
             ctx.beginPath();
             ctx.moveTo(playerPos.x + 10, playerPos.y - 6);
@@ -2492,7 +2492,7 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
     if (e === 'fire') {
         ctx.globalAlpha = (1 - t) * 0.62;
         ctx.fillStyle = 'rgba(255,120,64,0.65)';
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
             let spread = (i - 1) * 5;
             ctx.beginPath();
             ctx.ellipse(tx + spread, ty + 2 - t * 9, (3 + t * 5) * boost, (6 + t * 10) * boost, spread * 0.03, 0, Math.PI * 2);
@@ -2502,7 +2502,7 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
         ctx.globalAlpha = (1 - t) * 0.7;
         ctx.strokeStyle = 'rgba(187,236,255,0.95)';
         ctx.lineWidth = 1.6;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
             let a = (Math.PI * 2 * i) / 3 + t * 0.2;
             ctx.beginPath();
             ctx.moveTo(tx, ty);
