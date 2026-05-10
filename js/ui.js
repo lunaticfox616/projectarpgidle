@@ -4673,6 +4673,8 @@ function updateStartupScreenUI() {
     let backBtn = document.getElementById('btn-startup-back');
     let loginBtn = document.getElementById('btn-startup-login');
     let signupBtn = document.getElementById('btn-startup-signup');
+    let googleBtn = document.getElementById('btn-startup-google');
+    let kakaoBtn = document.getElementById('btn-startup-kakao');
     let localStamp = game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0;
     let zoneLabel = getCurrentZoneLabel();
     let loopLabel = Math.max(1, Math.floor((game && game.season) || 1));
@@ -4691,6 +4693,8 @@ function updateStartupScreenUI() {
         if (switchBtn) switchBtn.style.display = 'none';
         if (loginBtn) loginBtn.disabled = true;
         if (signupBtn) signupBtn.disabled = true;
+        if (googleBtn) googleBtn.disabled = true;
+        if (kakaoBtn) kakaoBtn.disabled = true;
         if (guestBtn) guestBtn.disabled = false;
         return;
     }
@@ -4716,6 +4720,8 @@ function updateStartupScreenUI() {
     if (switchBtn) switchBtn.style.display = 'none';
     if (loginBtn) loginBtn.disabled = cloudState.busy;
     if (signupBtn) signupBtn.disabled = cloudState.busy;
+    if (googleBtn) googleBtn.disabled = cloudState.busy;
+    if (kakaoBtn) kakaoBtn.disabled = cloudState.busy;
     if (guestBtn) guestBtn.disabled = cloudState.busy;
 }
 
@@ -4727,6 +4733,106 @@ function getCloudConfig() {
     return { enabled, supabaseUrl, supabaseAnonKey };
 }
 
+
+
+const CLOUD_SKIP_OAUTH_RESTORE_KEY = 'projectidle_cloud_skip_oauth_restore';
+
+function markSkipOAuthRestoreOnce() {
+    try { localStorage.setItem(CLOUD_SKIP_OAUTH_RESTORE_KEY, '1'); } catch (e) {}
+}
+
+function consumeSkipOAuthRestoreOnce() {
+    try {
+        let marked = localStorage.getItem(CLOUD_SKIP_OAUTH_RESTORE_KEY) === '1';
+        if (marked) localStorage.removeItem(CLOUD_SKIP_OAUTH_RESTORE_KEY);
+        return marked;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function clearSupabasePersistedSession() {
+    let client = getSupabaseClient();
+    if (!client) return;
+    try {
+        await client.auth.signOut({ scope: 'local' });
+    } catch (error) {
+        console.warn('supabase local signout failed:', error);
+    }
+}
+
+let supabaseClient = null;
+
+function getSupabaseClient() {
+    if (window.supabaseClient) return window.supabaseClient;
+    if (supabaseClient) return supabaseClient;
+    let config = getCloudConfig();
+    if (!config.enabled) return null;
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+        console.warn('supabase-js is not loaded.');
+        return null;
+    }
+    supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+        }
+    });
+    window.supabaseClient = supabaseClient;
+    return supabaseClient;
+}
+
+function getOAuthRedirectUrl() {
+    let origin = window.location.origin || '';
+    let pathname = window.location.pathname || '/';
+    let normalizedPath = pathname.endsWith('/') ? pathname : pathname.replace(/\/[^/]*$/, '/');
+    return `${origin}${normalizedPath}`;
+}
+
+async function loginWithGoogle() {
+    await loginWithOAuthProvider('google');
+}
+
+async function loginWithKakao() {
+    await loginWithOAuthProvider('kakao');
+}
+
+async function loginWithOAuthProvider(provider) {
+    let client = getSupabaseClient();
+    if (!client) return setCloudMessage('OAuth 클라이언트를 초기화하지 못했습니다.');
+    if (cloudState.busy) return;
+    cloudState.busy = true;
+    setCloudMessage(`${provider === 'google' ? 'Google' : '카카오'} 로그인으로 이동 중입니다...`);
+    updateCloudSaveUI();
+    try {
+        let redirectTo = getOAuthRedirectUrl();
+        let { error } = await client.auth.signInWithOAuth({ provider, options: { redirectTo } });
+        if (error) throw error;
+    } catch (error) {
+        cloudState.busy = false;
+        setCloudMessage('OAuth 로그인 시작 실패: ' + (error.message || error));
+        updateCloudSaveUI();
+    }
+}
+
+async function tryRestoreSupabaseOAuthSession() {
+    let client = getSupabaseClient();
+    if (!client) return false;
+    try {
+        let { data, error } = await client.auth.getSession();
+        if (error) throw error;
+        let session = data && data.session;
+        if (!session || !session.access_token) return false;
+        applyCloudSession(session);
+        let userLabel = (session.user && session.user.email) ? session.user.email : (session.user && session.user.id ? session.user.id : '알 수 없음');
+        setCloudMessage('로그인됨: ' + userLabel);
+        return true;
+    } catch (error) {
+        console.warn('supabase oauth session restore failed:', error);
+        return false;
+    }
+}
 
 function escapeHTML(value) {
     return String(value == null ? '' : value)
@@ -4891,6 +4997,8 @@ async function continueWithCloudSession() {
 }
 
 function prepareStartupAccountSwitch() {
+    markSkipOAuthRestoreOnce();
+    clearSupabasePersistedSession();
     applyCloudSession(null);
     cloudState.lastRemoteUpdatedAt = 0;
     setCloudMessage('다른 계정으로 로그인할 수 있습니다.');
@@ -4907,6 +5015,8 @@ function startGuestMode() {
     if (cloudState.busy) return;
     if (cloudState.user && !confirm('현재 복원된 로그인 세션은 사용하지 않고 이 기기 로컬 저장만으로 시작할까요?')) return;
     if (cloudState.user) {
+        markSkipOAuthRestoreOnce();
+        clearSupabasePersistedSession();
         applyCloudSession(null);
         cloudState.lastRemoteUpdatedAt = 0;
     }
@@ -5245,7 +5355,10 @@ async function initializeCloudSave() {
         cloudState.busy = true;
         setCloudMessage('저장된 로그인 세션을 확인하는 중입니다...');
         updateCloudSaveUI();
-        let restored = await restoreCloudSession();
+        let skipOAuthRestore = consumeSkipOAuthRestoreOnce();
+        let restored = false;
+        if (!skipOAuthRestore) restored = await tryRestoreSupabaseOAuthSession();
+        if (!restored) restored = await restoreCloudSession();
         if (restored && cloudState.user) {
             if (isStartupOverlayOpen()) setCloudMessage('이전 로그인 세션을 복원했습니다. 클라우드 세이브로 계속할 수 있습니다.');
             else {
@@ -5360,6 +5473,10 @@ async function cloudLogout() {
     setCloudMessage('로그아웃하는 중입니다...');
     updateCloudSaveUI();
     try {
+        let client = getSupabaseClient();
+        if (client) {
+            try { await client.auth.signOut(); } catch (oauthLogoutError) { console.warn('supabase oauth logout failed:', oauthLogoutError); }
+        }
         if (cloudState.session && cloudState.session.access_token) {
             try {
                 await cloudJsonRequest('/auth/v1/logout', { method: 'POST' });
