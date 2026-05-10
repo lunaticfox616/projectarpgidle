@@ -3877,12 +3877,23 @@ function rollBaseStats(base, zoneTier) {
     return base.baseStats.map(stat => {
         let minBase = Number.isFinite(stat.baseMin) ? stat.baseMin : ((stat.base || 0) * 0.82);
         let maxBase = Number.isFinite(stat.baseMax) ? stat.baseMax : ((stat.base || 0) * 1.18);
-        let val = minBase + Math.random() * Math.max(0, (maxBase - minBase));
-        if (stat.id === 'energyShield') val *= 1.5;
+        let scale = (stat.id === 'energyShield') ? 1.5 : 1;
+        let scaledMin = minBase * scale;
+        let scaledMax = maxBase * scale;
+        let val = scaledMin + Math.random() * Math.max(0, (scaledMax - scaledMin));
         if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) val = Math.round(val * 10) / 10;
         else if (stat.id === 'projectileExtraShots') val = Math.max(1, Math.round(val));
         else val = Math.floor(val);
-        return { id: stat.id, val: val, valMin: minBase, valMax: maxBase, tier: 0, statName: getStatName(stat.id) };
+        return {
+            id: stat.id,
+            val: val,
+            valMin: scaledMin,
+            valMax: scaledMax,
+            baseRollMin: scaledMin,
+            baseRollMax: scaledMax,
+            tier: 0,
+            statName: getStatName(stat.id)
+        };
     });
 }
 
