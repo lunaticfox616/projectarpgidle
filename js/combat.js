@@ -883,6 +883,10 @@ function getPlayerStats() {
         if (hasKeystone('iq4')) finalResPen = 0;
     }
 
+    let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
+    let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
+    let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier;
+
     let breakdowns = {
         atk: {
             title: '공격력',
@@ -1111,9 +1115,11 @@ function getPlayerStats() {
             lines: [
                 `평균 한 방 ${Math.floor(avgHit)}`,
                 `공격 속도 ${finalAspd.toFixed(2)}`,
-                `치명 기대값 반영`
+                `치명 기대값 반영`,
+                `피해 보정 기대값 x${avgRollMultiplier.toFixed(2)} (${Math.floor(finalMinDmgRoll)}~${Math.floor(finalMaxDmgRoll)}%)`,
+                `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`
             ],
-            final: `${Math.floor(finalDps)}`
+            final: `${Math.floor(finalDpsAdjusted)}`
         },
         gem: {
             title: '젬 레벨 보너스',
@@ -1131,7 +1137,7 @@ function getPlayerStats() {
         aspd: finalAspd || 1.0,
         crit: finalCrit,
         moveSpeed: finalMove,
-        dps: finalDps || 0,
+        dps: finalDpsAdjusted || 0,
         critDmg: finalCritDmg,
         regen: finalRegen,
         regenSuppress: finalRegenSuppress,
@@ -2842,6 +2848,7 @@ function addWoodsmanPendingScore(scoreGain) {
 
 function enterOutsideChaos() {
     if ((game.season || 1) < 10) return addLog('혼돈 밖은 루프 10 이후 개방됩니다.', 'attack-monster');
+    if (!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared)) return addLog('혼돈 20을 이번 루프에서 먼저 클리어해야 합니다.', 'attack-monster');
     game.woodsmanBuildSnapshot = snapshotWoodsmanBuildState();
     game.woodsmanBuildLock = true;
     game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
