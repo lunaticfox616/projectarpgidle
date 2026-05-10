@@ -4863,12 +4863,23 @@ function useCurrency(currencyKey) {
         }
     } else if (currencyKey === 'blessing') {
         (item.baseStats || []).forEach(stat => {
-            let center = Number.isFinite(Number(stat.val)) ? Number(stat.val) : Number(stat.base || 0);
-            let min = Number((center * 0.8).toFixed(2));
-            let max = Number((center * 1.2).toFixed(2));
-            stat.val = Math.round((min + Math.random() * (max - min)) * 100) / 100;
-            stat.valMin = min;
-            stat.valMax = max;
+            let baseMin = Number.isFinite(Number(stat.baseRollMin)) ? Number(stat.baseRollMin) : Number(stat.valMin);
+            let baseMax = Number.isFinite(Number(stat.baseRollMax)) ? Number(stat.baseRollMax) : Number(stat.valMax);
+            if (!Number.isFinite(baseMin) || !Number.isFinite(baseMax)) {
+                let fallback = Number.isFinite(Number(stat.val)) ? Number(stat.val) : Number(stat.base || 0);
+                baseMin = fallback;
+                baseMax = fallback;
+            }
+            if (baseMax < baseMin) {
+                let tmp = baseMin;
+                baseMin = baseMax;
+                baseMax = tmp;
+            }
+            stat.baseRollMin = baseMin;
+            stat.baseRollMax = baseMax;
+            stat.val = Math.round((baseMin + Math.random() * (baseMax - baseMin)) * 100) / 100;
+            stat.valMin = baseMin;
+            stat.valMax = baseMax;
         });
     }
     let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';

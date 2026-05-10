@@ -4888,6 +4888,21 @@ async function loginWithOAuthProvider(provider) {
     }
 }
 
+function recoverBusyStateAfterOAuthBack() {
+    if (!cloudState.busy) return;
+    let href = window.location.href || '';
+    let hasOAuthParams = /[?#].*(access_token|code|error|state)=/i.test(href);
+    if (hasOAuthParams) return;
+    cloudState.busy = false;
+    setCloudMessage('인증이 취소되었습니다. 다시 시도해주세요.');
+    updateCloudSaveUI();
+}
+
+window.addEventListener('pageshow', recoverBusyStateAfterOAuthBack);
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) recoverBusyStateAfterOAuthBack();
+});
+
 async function tryRestoreSupabaseOAuthSession() {
     let client = getSupabaseClient();
     if (!client) return false;

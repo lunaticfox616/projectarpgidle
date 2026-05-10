@@ -69,6 +69,8 @@
         }
         #startup-social-actions .social-login-image-btn img[src*="kakao_login"] {
             object-fit: contain;
+            width: 92%;
+            margin: 0 auto;
         }
 
         #cloud-link-actions {
