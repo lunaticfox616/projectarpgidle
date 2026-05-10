@@ -5139,6 +5139,7 @@ async function linkKakaoAccount() {
 
 async function linkSocialIdentityProvider(provider) {
     if (!cloudState.user) return setCloudMessage('먼저 로그인해주세요.');
+    await refreshCloudLinkedIdentities();
     let providerKey = String(provider || '').toLowerCase();
     let linkedProviders = Array.isArray(cloudState.linkedProviders) ? cloudState.linkedProviders : [];
     let alreadyLinked = linkedProviders.some(it => String(it || '').toLowerCase() === providerKey);
@@ -5166,15 +5167,8 @@ async function linkSocialIdentityProvider(provider) {
     updateCloudSaveUI();
     try {
         let options = getSocialOAuthOptions(provider);
-        if (provider === 'kakao') options.skipBrowserRedirect = true;
-        let { data, error } = await client.auth.linkIdentity({ provider, options });
+        let { error } = await client.auth.linkIdentity({ provider, options });
         if (error) throw error;
-        if (provider === 'kakao') {
-            let safeUrl = sanitizeKakaoScopeInUrl(data && data.url);
-            if (!safeUrl) throw new Error('Kakao 연결 URL을 생성하지 못했습니다.');
-            window.location.assign(safeUrl);
-            return;
-        }
     } catch (error) {
         setCloudMessage('소셜 계정 연결 시작 실패: ' + (error.message || error));
         cloudState.busy = false;
