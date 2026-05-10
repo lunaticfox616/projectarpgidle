@@ -289,8 +289,8 @@ function renderBattlefield(forceWhenHidden) {
             let enemy = enemyPosMap[fx.enemyId];
             let startX = enemy ? enemy.x : width * 0.72;
             let startY = enemy ? enemy.y - 10 : height * 0.62;
-            let endX = width - 26;
-            let endY = 18;
+            let endX = playerPos.x;
+            let endY = playerPos.y - 24;
             let x = startX + (endX - startX) * t;
             let y = startY + (endY - startY) * t - Math.sin(t * Math.PI) * 18;
             ctx.save();
