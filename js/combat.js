@@ -41,6 +41,11 @@ function cleanupConditionGemStates(now) {
     game.enemyConditionDebuffs = map;
 }
 
+function getConditionGemLevel(name) {
+    let levels = game.conditionGemLevels || {};
+    return Math.max(1, Math.min(5, Math.floor(levels[name] || 1)));
+}
+
 function getConditionGemStatDelta(name, type) {
     const PRESETS = {
         // Curses
@@ -75,11 +80,17 @@ function getConditionGemStatDelta(name, type) {
         // Utility
         '귀환 젬': { }
     };
-    if (PRESETS[name]) return PRESETS[name];
-    if (type === 'warcry') return { pctDmg: 10, aspd: 8 };
-    if (type === 'guard') return { dr: 10, regen: 0.6 };
-    if (type === 'curse') return { enemyTakenMul: 1.1, enemyResShred: 6 };
-    return {};
+    let base = PRESETS[name] || (type === 'warcry' ? { pctDmg: 10, aspd: 8 } : (type === 'guard' ? { dr: 10, regen: 0.6 } : (type === 'curse' ? { enemyTakenMul: 1.1, enemyResShred: 6 } : {})));
+    let level = getConditionGemLevel(name);
+    let scale = 1 + ((level - 1) * 0.125);
+    let out = {};
+    Object.keys(base).forEach(key => {
+        let val = base[key];
+        if (typeof val !== 'number') { out[key] = val; return; }
+        if (key === 'enemyTakenMul') out[key] = 1 + ((val - 1) * scale);
+        else out[key] = val * scale;
+    });
+    return out;
 }
 
 function getEnemyConditionDebuffFactor(enemy) {
@@ -274,6 +285,12 @@ function coreLoop() {
         if (delta.targetAny) pStats.sSkill.targets = Math.min(8, (pStats.sSkill.targets || 1) + delta.targetAny);
         if (delta.leech) pStats.leech += delta.leech;
         if (delta.move) pStats.move += delta.move;
+        if (delta.resAll) {
+            pStats.resF += delta.resAll;
+            pStats.resC += delta.resAll;
+            pStats.resL += delta.resAll;
+        }
+        if (delta.resChaos) pStats.resChaos += delta.resChaos;
         if (delta.energyShieldRegen) pStats.energyShieldRegenRate = Math.max(0, (pStats.energyShieldRegenRate || 0) + delta.energyShieldRegen);
         if (delta.fireBonus && (pStats.sSkill.ele === 'fire')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.fireBonus));
         if (delta.coldBonus && (pStats.sSkill.ele === 'cold')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.coldBonus));
@@ -2104,7 +2121,7 @@ function finishEncounterRun() {
                 addLog(`👑 [${zone.name}] 통과! 4차 전직 핵심 노드 선택권 +1 획득!`, "loot-unique");
             }
         } else {
-            game.ascendPoints += 2;
+            if (isFirstClear) game.ascendPoints += 2;
             game.ascendRank = Math.max(game.ascendRank || 0, zone.id === 'trial_3' ? 3 : (zone.id === 'trial_2' ? 2 : 1));
         }
         if (!game.unlocks.traits) game.unlocks.traits = true;
@@ -2113,7 +2130,10 @@ function finishEncounterRun() {
             queueTutorialNotice('unlock_first_ascend', '1차 전직 해금', '1차 전직 시련을 통과했습니다!\n직업전직 탭에서 클래스를 선택하고 전직 노드를 활성화하세요.', 'tab-traits');
         }
         checkUnlocks();
-        if (zone.id !== 'trial_4') addLog(`👑 [${zone.name}] 통과! 전직 포인트 2점 획득!`, "loot-unique");
+        if (zone.id !== 'trial_4') {
+            if (isFirstClear) addLog(`👑 [${zone.name}] 통과! 전직 포인트 2점 획득!`, "loot-unique");
+            else addLog(`🔁 [${zone.name}] 재도전 완료 (전직 포인트 보상 없음)`, "attack-monster", { noToast: true });
+        }
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
         game.inTicketBossFight = false;

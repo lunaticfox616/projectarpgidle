@@ -336,7 +336,8 @@ function getConditionGemTooltipHtml(entry) {
     let cast = Number(entry.castTime || 1).toFixed(1);
     let duration = Number(entry.duration || 4).toFixed(1);
     let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
-    let html = `<div class="tooltip-title">${entry.name}</div>`;
+    let lv = Math.max(1, Math.min(5, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))));
+    let html = `<div class="tooltip-title">${entry.name} · Lv.${lv}</div>`;
     html += `<div class="tooltip-line">${entry.desc || '컨디션 젬 효과'}</div>`;
     html += `<div class="tooltip-line" style="margin-top:6px;">시전 시간 ${cast}초 · 지속 ${duration}초 · 쿨타임 ${cooldown}초</div>`;
     html += `<div class="tooltip-line">효과: ${getConditionGemDetail(entry)}</div>`;
@@ -364,10 +365,19 @@ function closeConditionGemChoiceOverlay() { let el = document.getElementById('co
 
 function pickConditionGem(name) {
     game.conditionGemPool = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
-    if (!game.conditionGemPool.includes(name)) game.conditionGemPool.push(name);
+    game.conditionGemLevels = game.conditionGemLevels || {};
+    if (!game.conditionGemPool.includes(name)) {
+        game.conditionGemPool.push(name);
+        game.conditionGemLevels[name] = Math.max(1, Math.floor(game.conditionGemLevels[name] || 1));
+        addLog(`✨ 컨디션 젬 [${name}] 해금!`, 'loot-unique');
+    } else {
+        let prev = Math.max(1, Math.floor(game.conditionGemLevels[name] || 1));
+        let next = Math.min(5, prev + 1);
+        game.conditionGemLevels[name] = next;
+        addLog(next > prev ? `🔺 컨디션 젬 [${name}] 레벨 ${next} 달성!` : `ℹ️ 컨디션 젬 [${name}]은 이미 최대 레벨입니다.`, 'loot-rare');
+    }
     game.pendingConditionGemChoices = null;
     closeConditionGemChoiceOverlay();
-    addLog(`✨ 컨디션 젬 [${name}] 해금!`, 'loot-unique');
     renderSkillAutoRulePanel();
 }
 
@@ -385,7 +395,7 @@ function renderSkillAutoRulePanel() {
     let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 컨디션 젬 가공</button></div>`;
     let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
     let ownedEntries = getAllConditionGemEntries().filter(entry => owned.includes(entry.name));
-    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => `<div style="border:1px solid #314761;border-radius:8px;padding:7px;" onmousemove="showConditionGemTooltip(event,'${entry.name}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong></div>`).join('')}</div>` : '';
+    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => `<div style="border:1px solid #314761;border-radius:8px;padding:7px;" onmouseenter="showConditionGemTooltip(event,'${entry.name}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong><small style="margin-left:6px;color:#9ec1e1;">Lv.${Math.max(1,Math.min(5,Math.floor(((game.conditionGemLevels||{})[entry.name]||1))))}</small></div>`).join('')}</div>` : '';
 
     if (game.skillAutoRules.length === 0) {
         panel.innerHTML = summary + choiceHtml + ownedHtml + `<div style="color:#7f8c8d; border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
@@ -1548,8 +1558,8 @@ function showGemTooltip(event, type, name) {
         if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
         let maxTargetsView = Math.max(1, skill.targets || 1);
-        if (skill.targetMode === 'all' && maxTargetsView >= 99) maxTargetsView = Math.max(1, (game.enemies || []).filter(e => e && e.hp > 0).length);
-        html += `<div class="tooltip-line">최대 타겟 수: ${maxTargetsView}${skill.targetMode === 'all' ? ' (현재 전장 기준)' : ''}</div>`;
+        if (skill.targetMode === 'all') maxTargetsView = Math.min(8, Math.max(6, skill.targets || 6));
+        html += `<div class="tooltip-line">최대 타겟 수: ${maxTargetsView}</div>`;
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${skill.crit}%</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
@@ -2415,12 +2425,20 @@ const GEM_IMPACT_THEME = {
 window.BATTLE_EFFECT_OVERRIDES = window.BATTLE_EFFECT_OVERRIDES || {};
 function getImpactThemeByElement(ele){ return (window.BATTLE_EFFECT_OVERRIDES[ele] || GEM_IMPACT_THEME[ele] || GEM_IMPACT_THEME.phys); }
 
+function normalizeBattleElement(ele) {
+    let id = String(ele || 'phys').toLowerCase();
+    if (id === 'physical') return 'phys';
+    if (id === 'lightning' || id === 'thunder') return 'light';
+    if (id === 'ice') return 'cold';
+    return id;
+}
+
 function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
     ctx.save();
     ctx.globalAlpha = 1 - t;
     ctx.strokeStyle = primary;
     ctx.lineWidth = 3;
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < Math.max(3, Math.floor(6 * lod)); i++) {
         let angle = (Math.PI * 2 * i) / 6;
         ctx.beginPath();
         ctx.moveTo(x, y);
@@ -2432,6 +2450,51 @@ function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
     ctx.arc(x, y, 3 + t * 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+}
+
+function drawGemAttackTrail(ctx, element, sx, sy, tx, ty, t) {
+    const e = normalizeBattleElement(element);
+    if (e === 'fire') {
+        ctx.globalAlpha = (1 - t) * 0.35;
+        ctx.strokeStyle = 'rgba(255,120,60,0.9)';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.quadraticCurveTo((sx + tx) * 0.5, Math.min(sy, ty) - 16, tx, ty);
+        ctx.stroke();
+    } else if (e === 'cold') {
+        ctx.globalAlpha = (1 - t) * 0.3;
+        ctx.strokeStyle = 'rgba(184,238,255,0.9)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 5]);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    } else if (e === 'light') {
+        ctx.globalAlpha = (1 - t) * 0.55;
+        ctx.strokeStyle = 'rgba(255,238,150,0.95)';
+        ctx.lineWidth = 2.4;
+        drawBattleZigZag(ctx, sx, sy, tx, ty, 7, 9);
+        ctx.stroke();
+    } else if (e === 'chaos') {
+        ctx.globalAlpha = (1 - t) * 0.38;
+        ctx.strokeStyle = 'rgba(214,120,255,0.92)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.bezierCurveTo(sx + 18, sy - 18, tx - 24, ty + 14, tx, ty);
+        ctx.stroke();
+    } else {
+        ctx.globalAlpha = (1 - t) * 0.25;
+        ctx.strokeStyle = 'rgba(245,225,190,0.8)';
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+    }
 }
 
 function drawBattleSwingFx(ctx, fx, t, playerPos) {
@@ -2469,7 +2532,7 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
         ctx.globalAlpha = (1 - t) * 0.52;
         ctx.strokeStyle = '#fff6c8';
         ctx.lineWidth = 2;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
             let angle = -0.8 + i * 0.5 + t * 0.25;
             ctx.beginPath();
             ctx.moveTo(playerPos.x + 10, playerPos.y - 6);
@@ -2482,12 +2545,12 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
 
 
 function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
-    const e = element || 'phys';
+    const e = normalizeBattleElement(element || 'phys');
     const boost = crit ? 1.2 : 1;
     if (e === 'fire') {
         ctx.globalAlpha = (1 - t) * 0.62;
         ctx.fillStyle = 'rgba(255,120,64,0.65)';
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
             let spread = (i - 1) * 5;
             ctx.beginPath();
             ctx.ellipse(tx + spread, ty + 2 - t * 9, (3 + t * 5) * boost, (6 + t * 10) * boost, spread * 0.03, 0, Math.PI * 2);
@@ -2497,7 +2560,7 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
         ctx.globalAlpha = (1 - t) * 0.7;
         ctx.strokeStyle = 'rgba(187,236,255,0.95)';
         ctx.lineWidth = 1.6;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
             let a = (Math.PI * 2 * i) / 3 + t * 0.2;
             ctx.beginPath();
             ctx.moveTo(tx, ty);
@@ -2531,47 +2594,94 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
     }
 }
 
+
+function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
+    const e = normalizeBattleElement(element || 'phys');
+    const burst = crit ? 1.2 : 1;
+    const fxLoad = Math.max(0, Math.floor((Array.isArray(battleFx) ? battleFx.length : 0)));
+    const lod = fxLoad >= 40 ? 0.45 : (fxLoad >= 22 ? 0.65 : 1);
+    if (e === 'fire') {
+        ctx.globalAlpha = (1 - t) * 0.78;
+        for (let i = 0; i < Math.max(10, Math.floor(24 * lod)); i++) {
+            const a = (-Math.PI * 0.95) + (Math.PI * 0.9) * (i / 23);
+            const r = 5 + t * (24 + (i % 4) * 2.8);
+            ctx.fillStyle = i % 4 === 0 ? '#ffe39a' : (i % 2 ? '#ff8a3d' : '#ff3d1f');
+            ctx.beginPath();
+            ctx.ellipse(tx + Math.cos(a) * r * 0.72, ty + Math.sin(a) * r, (1.1 + (1 - t) * 1.8) * burst, (2.1 + (1 - t) * 2.4) * burst, a, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = (1 - t) * 0.35;
+        ctx.fillStyle = 'rgba(255,120,40,0.7)';
+        ctx.beginPath();
+        ctx.arc(tx, ty + 2, 6 + t * 8, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (e === 'cold') {
+        ctx.globalAlpha = (1 - t) * 0.88;
+        ctx.strokeStyle = 'rgba(198,244,255,0.98)';
+        ctx.lineWidth = 1.9;
+        for (let i = 0; i < Math.max(4, Math.floor(8 * lod)); i++) {
+            const a = (Math.PI * 2 * i) / 8 + t * 0.35;
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(tx + Math.cos(a) * (8 + t * 20), ty + Math.sin(a) * (8 + t * 20));
+            ctx.stroke();
+        }
+        ctx.globalAlpha = (1 - t) * 0.55;
+        ctx.fillStyle = 'rgba(220,248,255,0.75)';
+        for (let i = 0; i < Math.max(3, Math.floor(6 * lod)); i++) {
+            const a = (Math.PI * 2 * i) / 6;
+            const r = 6 + t * 10;
+            ctx.beginPath();
+            ctx.moveTo(tx + Math.cos(a) * r, ty + Math.sin(a) * r);
+            ctx.lineTo(tx + Math.cos(a + 0.16) * (r + 5), ty + Math.sin(a + 0.16) * (r + 5));
+            ctx.lineTo(tx + Math.cos(a - 0.16) * (r + 5), ty + Math.sin(a - 0.16) * (r + 5));
+            ctx.closePath();
+            ctx.fill();
+        }
+    } else if (e === 'light') {
+        ctx.globalAlpha = (1 - t) * 0.88;
+        ctx.strokeStyle = 'rgba(255,243,150,0.95)';
+        ctx.lineWidth = 2.2;
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
+            const ox = (i - 1) * 5;
+            drawBattleZigZag(ctx, tx - 16 + ox, ty - 14, tx + 8 + ox, ty + 6, 4 + i, 6);
+            ctx.stroke();
+        }
+    } else if (e === 'chaos') {
+        ctx.globalAlpha = (1 - t) * 0.7;
+        ctx.strokeStyle = 'rgba(210,120,255,0.9)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < Math.max(1, Math.floor(2 * lod)); i++) {
+            ctx.beginPath();
+            ctx.ellipse(tx, ty, 8 + t * (10 + i * 5), 5 + t * (8 + i * 4), t * 3.2 + i * 0.8, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    } else {
+        ctx.globalAlpha = (1 - t) * 0.68;
+        ctx.strokeStyle = 'rgba(247,224,177,0.9)';
+        ctx.lineWidth = 2.4;
+        for (let i = 0; i < 5; i++) {
+            const a = -Math.PI * 0.8 + i * (Math.PI * 0.4);
+            ctx.beginPath();
+            ctx.moveTo(tx, ty + 4);
+            ctx.lineTo(tx + Math.cos(a) * (8 + t * 12), ty + 4 + Math.sin(a) * (8 + t * 12));
+            ctx.stroke();
+        }
+    }
+}
+
 function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     let enemyEntry = enemyPosMap[fx.enemyId];
     if (!enemyEntry) return;
-    let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
     let tx = enemyEntry.x;
     let ty = enemyEntry.y - 6;
-    let sx = playerPos.x + 10;
-    let sy = playerPos.y - 2;
     ctx.save();
-    let punchScale = fx.crit ? 1.4 : 1;
-    if (skillVisual.group === 'physical_slam') {
-        ctx.globalAlpha = 1 - t * 0.62;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 5.2;
-        ctx.beginPath();
-        ctx.arc(tx, ty + 6, 10 + t * 22 * punchScale, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.strokeStyle = 'rgba(255,245,230,0.58)';
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        ctx.moveTo(tx - 12, ty + 10);
-        ctx.lineTo(tx + 12, ty + 10);
-        ctx.stroke();
-        ctx.globalAlpha = (1 - t) * 0.28;
-        ctx.fillStyle = 'rgba(210,180,140,0.35)';
-        ctx.beginPath();
-        ctx.ellipse(tx, ty + 12, 12 + t * 9, 4 + t * 2.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-    } else if (!fx.noLine) {
-        ctx.globalAlpha = 1 - t * 0.62;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 3.2;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-        ctx.stroke();
+    let impactElement = normalizeBattleElement(fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
+    if (fx.dot) {
+        ctx.restore();
+        return;
     }
-    let impactElement = (fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
-    let impactTheme = getImpactThemeByElement(impactElement);
-    drawBattleImpactBurst(ctx, tx, ty, impactTheme.primary || skillVisual.primary, impactTheme.secondary || skillVisual.secondary, t);
-    drawElementalHitAccent(ctx, impactElement, tx, ty, t, fx.crit);
+    drawGemImpactFx(ctx, impactElement, tx, ty, t, fx.crit);
     if (fx.crit) {
         ctx.globalAlpha = (1 - t) * 0.75;
         ctx.strokeStyle = '#fff4a8';
@@ -2974,8 +3084,11 @@ function performUpdateStaticUI() {
             shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
         }
     }
-    if (document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active')) resizePassiveTreeCanvas(false);
-    drawPassiveTree();
+    let charTabActive = !!(document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active'));
+    if (charTabActive) {
+        resizePassiveTreeCanvas(false);
+        drawPassiveTree();
+    }
     renderStarWedgePanel();
 
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
