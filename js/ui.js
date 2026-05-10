@@ -3740,6 +3740,7 @@ function buildCraftActionButtons(item) {
         let shapeStyle = getTalismanShapeStyle(t.shape);
         return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
+    activeTalismanHoverId = null;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
         let y = Math.floor(i / TALISMAN_BOARD_W);
@@ -5200,8 +5201,7 @@ async function linkSocialIdentityProvider(provider) {
     updateCloudSaveUI();
     try {
         let options = getSocialOAuthOptions(provider);
-        if (provider === 'kakao') options.skipBrowserRedirect = true;
-        let { data, error } = await client.auth.linkIdentity({ provider, options });
+        let { error } = await client.auth.linkIdentity({ provider, options });
         if (error) throw error;
         if (provider === 'kakao') {
             let safeUrl = sanitizeKakaoScopeInUrl(data && data.url);
