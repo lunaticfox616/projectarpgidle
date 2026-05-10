@@ -5167,8 +5167,7 @@ async function linkSocialIdentityProvider(provider) {
     updateCloudSaveUI();
     try {
         let options = getSocialOAuthOptions(provider);
-        if (provider === 'kakao') options.skipBrowserRedirect = true;
-        let { data, error } = await client.auth.linkIdentity({ provider, options });
+        let { error } = await client.auth.linkIdentity({ provider, options });
         if (error) throw error;
         if (provider === 'kakao') {
             let safeUrl = sanitizeKakaoScopeInUrl(data && data.url);
