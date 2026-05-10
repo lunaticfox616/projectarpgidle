@@ -92,6 +92,12 @@ UNIQUE_DB.forEach(unique => {
     if (!unique || !Array.isArray(unique.stats)) return;
     unique.stats.forEach(stat => {
         if (!Number.isFinite(stat.min) || !Number.isFinite(stat.max)) return;
+        if (['projectileExtraShots', 'gemLevel', 'suppCap'].includes(stat.id)) {
+            stat.min = Math.floor(stat.min);
+            stat.max = Math.floor(stat.max);
+            if (stat.max < stat.min) stat.max = stat.min;
+            return;
+        }
         stat.min = Number((stat.min * 1.8).toFixed(1));
         stat.max = Number((stat.max * 2.4).toFixed(1));
         if (stat.max < stat.min) stat.max = stat.min;
