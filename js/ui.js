@@ -4667,12 +4667,15 @@ function updateStartupScreenUI() {
     let statusEl = document.getElementById('startup-status');
     let authFormEl = document.getElementById('startup-auth-form');
     let authActionsEl = document.getElementById('startup-auth-actions');
+    let socialActionsEl = document.getElementById('startup-social-actions');
     let continueBtn = document.getElementById('btn-startup-continue');
     let switchBtn = document.getElementById('btn-startup-switch-account');
     let guestBtn = document.getElementById('btn-startup-guest');
     let backBtn = document.getElementById('btn-startup-back');
     let loginBtn = document.getElementById('btn-startup-login');
     let signupBtn = document.getElementById('btn-startup-signup');
+    let googleBtn = document.getElementById('btn-startup-google');
+    let kakaoBtn = document.getElementById('btn-startup-kakao');
     let localStamp = game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0;
     let zoneLabel = getCurrentZoneLabel();
     let loopLabel = Math.max(1, Math.floor((game && game.season) || 1));
@@ -4687,10 +4690,13 @@ function updateStartupScreenUI() {
     if (!config.enabled) {
         if (authFormEl) authFormEl.classList.remove('hidden');
         if (authActionsEl) authActionsEl.style.display = 'grid';
+        if (socialActionsEl) socialActionsEl.style.display = 'grid';
         if (continueBtn) continueBtn.style.display = 'none';
         if (switchBtn) switchBtn.style.display = 'none';
         if (loginBtn) loginBtn.disabled = true;
         if (signupBtn) signupBtn.disabled = true;
+        if (googleBtn) googleBtn.disabled = true;
+        if (kakaoBtn) kakaoBtn.disabled = true;
         if (guestBtn) guestBtn.disabled = false;
         return;
     }
@@ -4698,6 +4704,7 @@ function updateStartupScreenUI() {
     if (cloudState.user) {
         if (authFormEl) authFormEl.classList.add('hidden');
         if (authActionsEl) authActionsEl.style.display = 'none';
+        if (socialActionsEl) socialActionsEl.style.display = 'none';
         if (continueBtn) {
             continueBtn.style.display = 'block';
             continueBtn.disabled = cloudState.busy;
@@ -4712,10 +4719,13 @@ function updateStartupScreenUI() {
 
     if (authFormEl) authFormEl.classList.remove('hidden');
     if (authActionsEl) authActionsEl.style.display = 'grid';
+    if (socialActionsEl) socialActionsEl.style.display = 'grid';
     if (continueBtn) continueBtn.style.display = 'none';
     if (switchBtn) switchBtn.style.display = 'none';
     if (loginBtn) loginBtn.disabled = cloudState.busy;
     if (signupBtn) signupBtn.disabled = cloudState.busy;
+    if (googleBtn) googleBtn.disabled = cloudState.busy;
+    if (kakaoBtn) kakaoBtn.disabled = cloudState.busy;
     if (guestBtn) guestBtn.disabled = cloudState.busy;
 }
 
@@ -4727,6 +4737,107 @@ function getCloudConfig() {
     return { enabled, supabaseUrl, supabaseAnonKey };
 }
 
+
+
+const CLOUD_SKIP_OAUTH_RESTORE_KEY = 'projectidle_cloud_skip_oauth_restore';
+
+function markSkipOAuthRestoreOnce() {
+    try { localStorage.setItem(CLOUD_SKIP_OAUTH_RESTORE_KEY, '1'); } catch (e) {}
+}
+
+function consumeSkipOAuthRestoreOnce() {
+    try {
+        let marked = localStorage.getItem(CLOUD_SKIP_OAUTH_RESTORE_KEY) === '1';
+        if (marked) localStorage.removeItem(CLOUD_SKIP_OAUTH_RESTORE_KEY);
+        return marked;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function clearSupabasePersistedSession() {
+    let client = getSupabaseClient();
+    if (!client) return;
+    try {
+        await client.auth.signOut({ scope: 'local' });
+    } catch (error) {
+        console.warn('supabase local signout failed:', error);
+    }
+}
+
+let supabaseClient = null;
+
+function getSupabaseClient() {
+    if (window.supabaseClient) return window.supabaseClient;
+    if (supabaseClient) return supabaseClient;
+    let config = getCloudConfig();
+    if (!config.enabled) return null;
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+        console.warn('supabase-js is not loaded.');
+        return null;
+    }
+    supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+        }
+    });
+    window.supabaseClient = supabaseClient;
+    return supabaseClient;
+}
+
+function getOAuthRedirectUrl() {
+    let origin = window.location.origin || '';
+    let pathname = window.location.pathname || '/';
+    let normalizedPath = pathname.endsWith('/') ? pathname : pathname.replace(/\/[^/]*$/, '/');
+    return `${origin}${normalizedPath}`;
+}
+
+async function loginWithGoogle() {
+    await loginWithOAuthProvider('google');
+}
+
+async function loginWithKakao() {
+    await loginWithOAuthProvider('kakao');
+}
+
+async function loginWithOAuthProvider(provider) {
+    let client = getSupabaseClient();
+    if (!client) return setCloudMessage('OAuth 클라이언트를 초기화하지 못했습니다.');
+    if (cloudState.busy) return;
+    cloudState.busy = true;
+    setCloudMessage(`${provider === 'google' ? 'Google' : '카카오'} 로그인으로 이동 중입니다...`);
+    updateCloudSaveUI();
+    try {
+        let redirectTo = getOAuthRedirectUrl();
+        let { error } = await client.auth.signInWithOAuth({ provider, options: { redirectTo } });
+        if (error) throw error;
+    } catch (error) {
+        cloudState.busy = false;
+        setCloudMessage('OAuth 로그인 시작 실패: ' + (error.message || error));
+        updateCloudSaveUI();
+    }
+}
+
+async function tryRestoreSupabaseOAuthSession() {
+    let client = getSupabaseClient();
+    if (!client) return false;
+    try {
+        let { data, error } = await client.auth.getSession();
+        if (error) throw error;
+        let session = data && data.session;
+        if (!session || !session.access_token) return false;
+        applyCloudSession(session);
+        await refreshCloudLinkedIdentities();
+        let userLabel = (session.user && session.user.email) ? session.user.email : (session.user && session.user.id ? session.user.id : '알 수 없음');
+        setCloudMessage('로그인됨: ' + userLabel);
+        return true;
+    } catch (error) {
+        console.warn('supabase oauth session restore failed:', error);
+        return false;
+    }
+}
 
 function escapeHTML(value) {
     return String(value == null ? '' : value)
@@ -4891,6 +5002,8 @@ async function continueWithCloudSession() {
 }
 
 function prepareStartupAccountSwitch() {
+    markSkipOAuthRestoreOnce();
+    clearSupabasePersistedSession();
     applyCloudSession(null);
     cloudState.lastRemoteUpdatedAt = 0;
     setCloudMessage('다른 계정으로 로그인할 수 있습니다.');
@@ -4907,7 +5020,10 @@ function startGuestMode() {
     if (cloudState.busy) return;
     if (cloudState.user && !confirm('현재 복원된 로그인 세션은 사용하지 않고 이 기기 로컬 저장만으로 시작할까요?')) return;
     if (cloudState.user) {
+        markSkipOAuthRestoreOnce();
+        clearSupabasePersistedSession();
         applyCloudSession(null);
+        cloudState.linkedProviders = [];
         cloudState.lastRemoteUpdatedAt = 0;
     }
     setCloudMessage('게스트 모드로 시작합니다. 이 기기 저장만 사용합니다.');
@@ -4926,6 +5042,63 @@ function startupLogin() {
 
 function startupSignUp() {
     cloudSignUp({ source: 'startup', enterGame: true });
+}
+
+
+async function refreshCloudLinkedIdentities() {
+    let client = getSupabaseClient();
+    if (!client || !cloudState.user) {
+        cloudState.linkedProviders = [];
+        return [];
+    }
+    try {
+        let providers = [];
+        if (client.auth && typeof client.auth.getUserIdentities === 'function') {
+            let { data, error } = await client.auth.getUserIdentities();
+            if (error) throw error;
+            let identities = data && (data.identities || data.user_identities) ? (data.identities || data.user_identities) : [];
+            providers = identities.map(it => it && (it.provider || it.identity_provider)).filter(Boolean);
+        } else {
+            let { data, error } = await client.auth.getUser();
+            if (error) throw error;
+            let identities = data && data.user && Array.isArray(data.user.identities) ? data.user.identities : [];
+            providers = identities.map(it => it && it.provider).filter(Boolean);
+        }
+        cloudState.linkedProviders = Array.from(new Set(providers));
+        return cloudState.linkedProviders;
+    } catch (error) {
+        console.warn('failed to load linked identities:', error);
+        cloudState.linkedProviders = [];
+        return [];
+    }
+}
+
+async function linkGoogleAccount() {
+    return await linkSocialIdentityProvider('google');
+}
+
+async function linkKakaoAccount() {
+    return await linkSocialIdentityProvider('kakao');
+}
+
+async function linkSocialIdentityProvider(provider) {
+    if (!cloudState.user) return setCloudMessage('먼저 로그인해주세요.');
+    let client = getSupabaseClient();
+    if (!client) return setCloudMessage('Supabase OAuth 클라이언트를 초기화하지 못했습니다.');
+    // Supabase Dashboard > Authentication에서 Manual Identity Linking 옵션이 켜져 있어야 동작합니다.
+    if (typeof client.auth.linkIdentity !== 'function') return setCloudMessage('현재 Supabase 클라이언트에서 계정 연결 API를 지원하지 않습니다.');
+    cloudState.busy = true;
+    setCloudMessage(`${provider === 'google' ? 'Google' : '카카오'} 계정 연결을 시작합니다...`);
+    updateCloudSaveUI();
+    try {
+        let redirectTo = getOAuthRedirectUrl();
+        let { error } = await client.auth.linkIdentity({ provider, options: { redirectTo } });
+        if (error) throw error;
+    } catch (error) {
+        setCloudMessage('소셜 계정 연결 시작 실패: ' + (error.message || error));
+        cloudState.busy = false;
+        updateCloudSaveUI();
+    }
 }
 
 function updateCloudSaveUI() {
@@ -4968,13 +5141,18 @@ function updateCloudSaveUI() {
 
     if (openGateBtn) openGateBtn.disabled = cloudState.busy;
     if (switchGateBtn) switchGateBtn.disabled = cloudState.busy || (!cloudState.user && !gameplayStarted);
-    ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull'].forEach(id => {
+    ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull', 'btn-cloud-link-google', 'btn-cloud-link-kakao'].forEach(id => {
         let el = document.getElementById(id);
         if (el) el.disabled = !canSync;
     });
-    if (userEl) userEl.innerText = cloudState.user && cloudState.user.email ? cloudState.user.email : (config.enabled ? '로그인 안 됨' : '설정 필요');
+    if (userEl) userEl.innerText = cloudState.user && cloudState.user.email ? cloudState.user.email : (cloudState.user && cloudState.user.id ? cloudState.user.id : (config.enabled ? '로그인 안 됨' : '설정 필요'));
     if (localEl) localEl.innerText = formatCloudTime(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0);
     if (remoteEl) remoteEl.innerText = formatCloudTime(cloudState.lastRemoteUpdatedAt || (game && game.saveMeta ? game.saveMeta.lastCloudSyncAt : 0));
+    let identitiesEl = document.getElementById('ui-cloud-identities');
+    if (identitiesEl) {
+        let providers = Array.isArray(cloudState.linkedProviders) ? cloudState.linkedProviders : [];
+        identitiesEl.innerText = cloudState.user ? (providers.length ? providers.join(', ') : '연결된 소셜 계정 없음') : '로그인 필요';
+    }
     if (msgEl) msgEl.innerText = cloudState.lastMessage || '대기 중';
     updateStartupScreenUI();
 }
@@ -5245,8 +5423,12 @@ async function initializeCloudSave() {
         cloudState.busy = true;
         setCloudMessage('저장된 로그인 세션을 확인하는 중입니다...');
         updateCloudSaveUI();
-        let restored = await restoreCloudSession();
+        let skipOAuthRestore = consumeSkipOAuthRestoreOnce();
+        let restored = false;
+        if (!skipOAuthRestore) restored = await tryRestoreSupabaseOAuthSession();
+        if (!restored) restored = await restoreCloudSession();
         if (restored && cloudState.user) {
+            await refreshCloudLinkedIdentities();
             if (isStartupOverlayOpen()) setCloudMessage('이전 로그인 세션을 복원했습니다. 클라우드 세이브로 계속할 수 있습니다.');
             else {
                 setCloudMessage('이전 로그인 세션을 복원했습니다.');
@@ -5289,6 +5471,7 @@ async function cloudSignUp(options = {}) {
         });
         if (result && result.session && result.user) {
             applyCloudSession({ ...result.session, user: result.user });
+            await refreshCloudLinkedIdentities();
             clearCloudPasswordInput();
             advanceLoadingOverlay({
                 title: '첫 세이브를 연결하는 중...',
@@ -5335,6 +5518,7 @@ async function cloudLogin(options = {}) {
             body: { email: credentials.email, password: credentials.password }
         });
         applyCloudSession(session);
+        await refreshCloudLinkedIdentities();
         clearCloudPasswordInput();
         advanceLoadingOverlay({
             title: '저장 데이터를 동기화하는 중...',
@@ -5360,6 +5544,10 @@ async function cloudLogout() {
     setCloudMessage('로그아웃하는 중입니다...');
     updateCloudSaveUI();
     try {
+        let client = getSupabaseClient();
+        if (client) {
+            try { await client.auth.signOut(); } catch (oauthLogoutError) { console.warn('supabase oauth logout failed:', oauthLogoutError); }
+        }
         if (cloudState.session && cloudState.session.access_token) {
             try {
                 await cloudJsonRequest('/auth/v1/logout', { method: 'POST' });
@@ -5368,6 +5556,7 @@ async function cloudLogout() {
             }
         }
         applyCloudSession(null);
+        cloudState.linkedProviders = [];
         cloudState.lastRemoteUpdatedAt = 0;
         setCloudMessage('클라우드 계정에서 로그아웃했습니다.');
     } finally {
