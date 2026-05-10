@@ -778,6 +778,7 @@ const defaultGame = {
     skillAutoRules: [],
     conditionGemUnlocked: false,
     conditionGemPool: [],
+    conditionGemLevels: {},
     pendingConditionGemChoices: null,
     clearedRootBosses: [],
     mapSubtab: 'map-tab-zones',

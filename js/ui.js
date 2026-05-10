@@ -296,8 +296,12 @@ function getAllConditionGemEntries() {
 function rollConditionGemChoices() {
     if (!game.conditionGemUnlocked) return addLog('컨디션 젬이 아직 잠겨 있습니다. 루프2 뿌리 보스를 먼저 쓰러뜨리세요.', 'attack-monster');
     if ((game.currencies.bossCore || 0) <= 0) return addLog('군주의 핵이 부족합니다.', 'attack-monster');
-    let pool = getAllConditionGemEntries().filter(entry => !game.conditionGemPool.includes(entry.name));
-    if (pool.length === 0) return addLog('해금 가능한 컨디션 젬이 더 이상 없습니다.', 'attack-monster');
+    let all = getAllConditionGemEntries();
+    let ownedSet = new Set(Array.isArray(game.conditionGemPool) ? game.conditionGemPool : []);
+    let unownedPool = all.filter(entry => !ownedSet.has(entry.name));
+    let upgradablePool = all.filter(entry => ownedSet.has(entry.name) && Math.max(1, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))) < 5);
+    let pool = unownedPool.length > 0 ? unownedPool.slice() : upgradablePool.slice();
+    if (pool.length === 0) return addLog('해금/강화 가능한 컨디션 젬이 더 이상 없습니다.', 'attack-monster');
     game.currencies.bossCore--;
     let choices = [];
     while (choices.length < Math.min(3, pool.length)) {
@@ -336,7 +340,8 @@ function getConditionGemTooltipHtml(entry) {
     let cast = Number(entry.castTime || 1).toFixed(1);
     let duration = Number(entry.duration || 4).toFixed(1);
     let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
-    let html = `<div class="tooltip-title">${entry.name}</div>`;
+    let lv = Math.max(1, Math.min(5, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))));
+    let html = `<div class="tooltip-title">${entry.name} · Lv.${lv}</div>`;
     html += `<div class="tooltip-line">${entry.desc || '컨디션 젬 효과'}</div>`;
     html += `<div class="tooltip-line" style="margin-top:6px;">시전 시간 ${cast}초 · 지속 ${duration}초 · 쿨타임 ${cooldown}초</div>`;
     html += `<div class="tooltip-line">효과: ${getConditionGemDetail(entry)}</div>`;
@@ -364,10 +369,19 @@ function closeConditionGemChoiceOverlay() { let el = document.getElementById('co
 
 function pickConditionGem(name) {
     game.conditionGemPool = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
-    if (!game.conditionGemPool.includes(name)) game.conditionGemPool.push(name);
+    game.conditionGemLevels = game.conditionGemLevels || {};
+    if (!game.conditionGemPool.includes(name)) {
+        game.conditionGemPool.push(name);
+        game.conditionGemLevels[name] = Math.max(1, Math.floor(game.conditionGemLevels[name] || 1));
+        addLog(`✨ 컨디션 젬 [${name}] 해금!`, 'loot-unique');
+    } else {
+        let prev = Math.max(1, Math.floor(game.conditionGemLevels[name] || 1));
+        let next = Math.min(5, prev + 1);
+        game.conditionGemLevels[name] = next;
+        addLog(next > prev ? `🔺 컨디션 젬 [${name}] 레벨 ${next} 달성!` : `ℹ️ 컨디션 젬 [${name}]은 이미 최대 레벨입니다.`, 'loot-rare');
+    }
     game.pendingConditionGemChoices = null;
     closeConditionGemChoiceOverlay();
-    addLog(`✨ 컨디션 젬 [${name}] 해금!`, 'loot-unique');
     renderSkillAutoRulePanel();
 }
 
@@ -385,7 +399,7 @@ function renderSkillAutoRulePanel() {
     let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 컨디션 젬 가공</button></div>`;
     let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
     let ownedEntries = getAllConditionGemEntries().filter(entry => owned.includes(entry.name));
-    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => `<div style="border:1px solid #314761;border-radius:8px;padding:7px;" onmousemove="showConditionGemTooltip(event,'${entry.name}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong></div>`).join('')}</div>` : '';
+    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => `<div style="border:1px solid #314761;border-radius:8px;padding:7px;" onmouseenter="showConditionGemTooltip(event,'${entry.name}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong><small style="margin-left:6px;color:#9ec1e1;">Lv.${Math.max(1,Math.min(5,Math.floor(((game.conditionGemLevels||{})[entry.name]||1))))}</small></div>`).join('')}</div>` : '';
 
     if (game.skillAutoRules.length === 0) {
         panel.innerHTML = summary + choiceHtml + ownedHtml + `<div style="color:#7f8c8d; border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
@@ -1548,8 +1562,8 @@ function showGemTooltip(event, type, name) {
         if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
         let maxTargetsView = Math.max(1, skill.targets || 1);
-        if (skill.targetMode === 'all' && maxTargetsView >= 99) maxTargetsView = Math.max(1, (game.enemies || []).filter(e => e && e.hp > 0).length);
-        html += `<div class="tooltip-line">최대 타겟 수: ${maxTargetsView}${skill.targetMode === 'all' ? ' (현재 전장 기준)' : ''}</div>`;
+        if (skill.targetMode === 'all') maxTargetsView = Math.min(8, Math.max(6, skill.targets || 6));
+        html += `<div class="tooltip-line">최대 타겟 수: ${maxTargetsView}</div>`;
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${skill.crit}%</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
@@ -2424,11 +2438,13 @@ function normalizeBattleElement(ele) {
 }
 
 function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
+    const fxLoad = Math.max(0, Math.floor((Array.isArray(battleFx) ? battleFx.length : 0)));
+    const lod = fxLoad >= 40 ? 0.45 : (fxLoad >= 22 ? 0.65 : 1);
     ctx.save();
     ctx.globalAlpha = 1 - t;
     ctx.strokeStyle = primary;
     ctx.lineWidth = 3;
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < Math.max(3, Math.floor(6 * lod)); i++) {
         let angle = (Math.PI * 2 * i) / 6;
         ctx.beginPath();
         ctx.moveTo(x, y);
@@ -2522,7 +2538,7 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
         ctx.globalAlpha = (1 - t) * 0.52;
         ctx.strokeStyle = '#fff6c8';
         ctx.lineWidth = 2;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
             let angle = -0.8 + i * 0.5 + t * 0.25;
             ctx.beginPath();
             ctx.moveTo(playerPos.x + 10, playerPos.y - 6);
@@ -2540,7 +2556,7 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
     if (e === 'fire') {
         ctx.globalAlpha = (1 - t) * 0.62;
         ctx.fillStyle = 'rgba(255,120,64,0.65)';
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
             let spread = (i - 1) * 5;
             ctx.beginPath();
             ctx.ellipse(tx + spread, ty + 2 - t * 9, (3 + t * 5) * boost, (6 + t * 10) * boost, spread * 0.03, 0, Math.PI * 2);
@@ -2550,7 +2566,7 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
         ctx.globalAlpha = (1 - t) * 0.7;
         ctx.strokeStyle = 'rgba(187,236,255,0.95)';
         ctx.lineWidth = 1.6;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
             let a = (Math.PI * 2 * i) / 3 + t * 0.2;
             ctx.beginPath();
             ctx.moveTo(tx, ty);
@@ -2588,9 +2604,11 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
 function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
     const e = normalizeBattleElement(element || 'phys');
     const burst = crit ? 1.2 : 1;
+    const fxLoad = Math.max(0, Math.floor((Array.isArray(battleFx) ? battleFx.length : 0)));
+    const lod = fxLoad >= 40 ? 0.45 : (fxLoad >= 22 ? 0.65 : 1);
     if (e === 'fire') {
         ctx.globalAlpha = (1 - t) * 0.78;
-        for (let i = 0; i < 24; i++) {
+        for (let i = 0; i < Math.max(10, Math.floor(24 * lod)); i++) {
             const a = (-Math.PI * 0.95) + (Math.PI * 0.9) * (i / 23);
             const r = 5 + t * (24 + (i % 4) * 2.8);
             ctx.fillStyle = i % 4 === 0 ? '#ffe39a' : (i % 2 ? '#ff8a3d' : '#ff3d1f');
@@ -2607,7 +2625,7 @@ function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
         ctx.globalAlpha = (1 - t) * 0.88;
         ctx.strokeStyle = 'rgba(198,244,255,0.98)';
         ctx.lineWidth = 1.9;
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < Math.max(4, Math.floor(8 * lod)); i++) {
             const a = (Math.PI * 2 * i) / 8 + t * 0.35;
             ctx.beginPath();
             ctx.moveTo(tx, ty);
@@ -2616,7 +2634,7 @@ function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
         }
         ctx.globalAlpha = (1 - t) * 0.55;
         ctx.fillStyle = 'rgba(220,248,255,0.75)';
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < Math.max(3, Math.floor(6 * lod)); i++) {
             const a = (Math.PI * 2 * i) / 6;
             const r = 6 + t * 10;
             ctx.beginPath();
@@ -2630,7 +2648,7 @@ function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
         ctx.globalAlpha = (1 - t) * 0.88;
         ctx.strokeStyle = 'rgba(255,243,150,0.95)';
         ctx.lineWidth = 2.2;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
             const ox = (i - 1) * 5;
             drawBattleZigZag(ctx, tx - 16 + ox, ty - 14, tx + 8 + ox, ty + 6, 4 + i, 6);
             ctx.stroke();
@@ -2639,7 +2657,7 @@ function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
         ctx.globalAlpha = (1 - t) * 0.7;
         ctx.strokeStyle = 'rgba(210,120,255,0.9)';
         ctx.lineWidth = 2;
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < Math.max(1, Math.floor(2 * lod)); i++) {
             ctx.beginPath();
             ctx.ellipse(tx, ty, 8 + t * (10 + i * 5), 5 + t * (8 + i * 4), t * 3.2 + i * 0.8, 0, Math.PI * 2);
             ctx.stroke();
@@ -3072,8 +3090,11 @@ function performUpdateStaticUI() {
             shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
         }
     }
-    if (document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active')) resizePassiveTreeCanvas(false);
-    drawPassiveTree();
+    let charTabActive = !!(document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active'));
+    if (charTabActive) {
+        resizePassiveTreeCanvas(false);
+        drawPassiveTree();
+    }
     renderStarWedgePanel();
 
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });

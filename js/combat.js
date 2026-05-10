@@ -41,6 +41,11 @@ function cleanupConditionGemStates(now) {
     game.enemyConditionDebuffs = map;
 }
 
+function getConditionGemLevel(name) {
+    let levels = game.conditionGemLevels || {};
+    return Math.max(1, Math.min(5, Math.floor(levels[name] || 1)));
+}
+
 function getConditionGemStatDelta(name, type) {
     const PRESETS = {
         // Curses
@@ -75,11 +80,17 @@ function getConditionGemStatDelta(name, type) {
         // Utility
         '귀환 젬': { }
     };
-    if (PRESETS[name]) return PRESETS[name];
-    if (type === 'warcry') return { pctDmg: 10, aspd: 8 };
-    if (type === 'guard') return { dr: 10, regen: 0.6 };
-    if (type === 'curse') return { enemyTakenMul: 1.1, enemyResShred: 6 };
-    return {};
+    let base = PRESETS[name] || (type === 'warcry' ? { pctDmg: 10, aspd: 8 } : (type === 'guard' ? { dr: 10, regen: 0.6 } : (type === 'curse' ? { enemyTakenMul: 1.1, enemyResShred: 6 } : {})));
+    let level = getConditionGemLevel(name);
+    let scale = 1 + ((level - 1) * 0.125);
+    let out = {};
+    Object.keys(base).forEach(key => {
+        let val = base[key];
+        if (typeof val !== 'number') { out[key] = val; return; }
+        if (key === 'enemyTakenMul') out[key] = 1 + ((val - 1) * scale);
+        else out[key] = val * scale;
+    });
+    return out;
 }
 
 function getEnemyConditionDebuffFactor(enemy) {
