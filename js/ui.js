@@ -296,8 +296,12 @@ function getAllConditionGemEntries() {
 function rollConditionGemChoices() {
     if (!game.conditionGemUnlocked) return addLog('컨디션 젬이 아직 잠겨 있습니다. 루프2 뿌리 보스를 먼저 쓰러뜨리세요.', 'attack-monster');
     if ((game.currencies.bossCore || 0) <= 0) return addLog('군주의 핵이 부족합니다.', 'attack-monster');
-    let pool = getAllConditionGemEntries().filter(entry => !game.conditionGemPool.includes(entry.name));
-    if (pool.length === 0) return addLog('해금 가능한 컨디션 젬이 더 이상 없습니다.', 'attack-monster');
+    let all = getAllConditionGemEntries();
+    let ownedSet = new Set(Array.isArray(game.conditionGemPool) ? game.conditionGemPool : []);
+    let unownedPool = all.filter(entry => !ownedSet.has(entry.name));
+    let upgradablePool = all.filter(entry => ownedSet.has(entry.name) && Math.max(1, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))) < 5);
+    let pool = unownedPool.length > 0 ? unownedPool.slice() : upgradablePool.slice();
+    if (pool.length === 0) return addLog('해금/강화 가능한 컨디션 젬이 더 이상 없습니다.', 'attack-monster');
     game.currencies.bossCore--;
     let choices = [];
     while (choices.length < Math.min(3, pool.length)) {
@@ -2434,6 +2438,8 @@ function normalizeBattleElement(ele) {
 }
 
 function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
+    const fxLoad = Math.max(0, Math.floor((Array.isArray(battleFx) ? battleFx.length : 0)));
+    const lod = fxLoad >= 40 ? 0.45 : (fxLoad >= 22 ? 0.65 : 1);
     ctx.save();
     ctx.globalAlpha = 1 - t;
     ctx.strokeStyle = primary;
