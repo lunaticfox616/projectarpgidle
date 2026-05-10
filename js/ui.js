@@ -1481,8 +1481,17 @@ function showTalismanBoardTooltip(event, talismanId) {
     let placed = talismanId ? ((game.talismanPlacements || {})[talismanId] || {}).talisman : null;
     if (!placed) return;
     activeTalismanHoverId = talismanId;
-    hideInfoTooltip();
+    let html = `<div class="tooltip-title">[${placed.shape}] ${placed.statName}</div><div class="tooltip-line">획득 수치: +${placed.value}</div><div class="tooltip-line">희귀도: ${placed.rarity || 'normal'}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
     updateStaticUI();
+}
+
+function showTalismanUnlockTooltip(event, x, y) {
+    let unlockedSet = getTalismanUnlockedCellsSet();
+    let extraUnlocked = Math.max(0, unlockedSet.size - 16);
+    let unlockCost = getTalismanExpandCost(extraUnlocked);
+    let html = `<div class="tooltip-title">잠긴 부적 칸</div><div class="tooltip-line">좌표: (${x + 1}, ${y + 1})</div><div class="tooltip-line">해금 비용: ${formatTalismanUnlockCostLabel(unlockCost)}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#7ea6d3');
 }
 function hideTalismanBoardTooltip() {
     activeTalismanHoverId = null;
@@ -3754,7 +3763,9 @@ function buildCraftActionButtons(item) {
             : 'inset 0 2px 4px rgba(0,0,0,0.55), inset 0 -1px 2px rgba(255,255,255,0.08), 0 1px 2px rgba(0,0,0,0.25)';
         if (isHoverGroup) surfaceShadow = `0 0 0 2px rgba(255,230,140,.85), 0 0 18px rgba(255,210,110,.55), ${surfaceShadow}`;
         let placedTitle = '';
-        let hoverHandlers = id ? ` onmouseenter="showTalismanBoardTooltip(event, ${id})" onmouseleave="hideTalismanBoardTooltip()"` : '';
+        let hoverHandlers = id
+            ? ` onmouseenter="showTalismanBoardTooltip(event, ${id})" onmousemove="showTalismanBoardTooltip(event, ${id})" onmouseleave="hideTalismanBoardTooltip()"`
+            : (!unlocked ? ` onmouseenter="showTalismanUnlockTooltip(event, ${x}, ${y})" onmousemove="showTalismanUnlockTooltip(event, ${x}, ${y})" onmouseleave="hideInfoTooltip()"` : '');
         return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     let talismanTotalEl = document.getElementById('ui-talisman-total');
