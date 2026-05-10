@@ -642,7 +642,7 @@ function generateOrganicTree() {
             }))
             .filter(entry => entry.angleDiff <= 0.7)
             .sort((a, b) => a.dist - b.dist)
-            .slice(0, 2)
+            .slice(0, 4)
             .map(entry => entry.node);
         if (anchors.length === 0) {
             anchors = outerAnchors
@@ -1747,7 +1747,9 @@ function spawnDamageText(config) {
         y: config.y || 0,
         value: config.value || 0,
         crit: !!config.crit,
-        enemyHit: !!config.enemyHit
+        enemyHit: !!config.enemyHit,
+        dot: !!config.dot,
+        dotType: config.dotType || ''
     });
 }
 function drawVisualProjectile(ctx, projectile, now) {
@@ -1770,18 +1772,20 @@ function drawVisualProjectile(ctx, projectile, now) {
 function drawDamageTexts(ctx, now) {
     (battleVisualState.damageTexts || []).forEach(text => {
         let t = clampNumber((now - text.start) / text.duration, 0, 1);
-        let rise = 20 + (text.crit ? 7 : 0);
+        let rise = (text.dot ? 14 : 20) + (text.crit ? 7 : 0);
         let x = text.x + Math.sin((text.start % 1000) * 0.01) * 4;
         let y = text.y - rise * t;
         ctx.save();
         ctx.globalAlpha = 1 - t;
-        ctx.font = text.crit ? 'bold 14px Consolas' : 'bold 12px Consolas';
+        ctx.font = text.dot ? 'bold 10px Consolas' : (text.crit ? 'bold 14px Consolas' : 'bold 12px Consolas');
         ctx.textAlign = 'center';
         ctx.lineWidth = 3;
         ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-        ctx.strokeText(`${Math.max(0, Math.floor(text.value))}`, x, y);
-        ctx.fillStyle = text.enemyHit ? '#ff8e8e' : (text.crit ? '#ffd36f' : '#f3f6ff');
-        ctx.fillText(`${Math.max(0, Math.floor(text.value))}`, x, y);
+        let textValue = `${Math.max(0, Math.floor(text.value))}`;
+        ctx.strokeText(textValue, x, y);
+        let dotColor = text.dotType === 'fire' ? '#ff9f43' : (text.dotType === 'chaos' ? '#c56cff' : (text.dotType === 'phys' ? '#ff6b6b' : '#b57cff'));
+        ctx.fillStyle = text.dot ? dotColor : (text.enemyHit ? '#ff8e8e' : (text.crit ? '#ffd36f' : '#f3f6ff'));
+        ctx.fillText(textValue, x, y);
         ctx.restore();
     });
 }
@@ -3854,7 +3858,15 @@ function getUniqueCodexKeyByItem(item) {
 }
 
 function chooseItemBase(slot, zoneTier) {
-    let candidates = BASE_ITEM_DB.filter(base => base.slot === slot && base.reqTier <= zoneTier);
+    let zone = getZone(game.currentZoneId) || {};
+    let candidates = BASE_ITEM_DB.filter(base => {
+        if (base.slot !== slot || base.reqTier > zoneTier) return false;
+        if (!base.dropOnly) return true;
+        if (base.dropOnly.type && zone.type !== base.dropOnly.type) return false;
+        if (base.dropOnly.id && zone.id !== base.dropOnly.id) return false;
+        if (base.dropOnly.minFloor && Math.floor(zone.floor || 0) < base.dropOnly.minFloor) return false;
+        return true;
+    });
     if (candidates.length === 0) candidates = BASE_ITEM_DB.filter(base => base.slot === slot);
     candidates.sort((a, b) => a.reqTier - b.reqTier);
     let take = candidates.slice(-Math.min(3, candidates.length));
@@ -3863,11 +3875,13 @@ function chooseItemBase(slot, zoneTier) {
 
 function rollBaseStats(base, zoneTier) {
     return base.baseStats.map(stat => {
-        let val = stat.base;
+        let minBase = Number.isFinite(stat.baseMin) ? stat.baseMin : ((stat.base || 0) * 0.82);
+        let maxBase = Number.isFinite(stat.baseMax) ? stat.baseMax : ((stat.base || 0) * 1.18);
+        let val = minBase + Math.random() * Math.max(0, (maxBase - minBase));
         if (stat.id === 'energyShield') val *= 1.5;
         if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) val = Math.round(val * 10) / 10;
         else val = Math.floor(val);
-        return { id: stat.id, val: val, valMin: stat.base, valMax: stat.base, tier: 0, statName: getStatName(stat.id) };
+        return { id: stat.id, val: val, valMin: minBase, valMax: maxBase, tier: 0, statName: getStatName(stat.id) };
     });
 }
 
@@ -4279,7 +4293,7 @@ function generateJewelDrop(zoneTier) {
         { id: 'physIgnore', name: '절개 파편', min: 2, max: 6 },
         { id: 'resPen', name: '관통 수정', min: 2, max: 6 },
         { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 },
-        { id: 'regenSuppress', name: '봉쇄 파편', min: 0.1, max: 0.2, step: 0.1 },
+        { id: 'regenSuppress', name: '봉쇄 파편', min: 0.05, max: 0.12, step: 0.01 },
         { id: 'minDmgRoll', name: '하한 수정', min: 1, max: 3 },
         { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 }
     ];
@@ -4346,7 +4360,27 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
     let b = game.jewelInventory[sorted[1]];
     let aStats = getJewelStats(a);
     let bStats = getJewelStats(b);
-    if (aStats.length !== 1 || bStats.length !== 1) return addLog('1줄 옵션 주얼 2개만 융합할 수 있습니다.', 'attack-monster');
+    if (a.isVoid || b.isVoid) {
+        game.currencies.jewelShard -= fusionCost;
+        let stats = [...aStats, ...bStats];
+        let seen = new Set();
+        let merged = [];
+        stats.forEach(stat => {
+            if (merged.length >= 4) return;
+            if (seen.has(stat.id)) return;
+            seen.add(stat.id);
+            merged.push({ id: stat.id, val: stat.val });
+        });
+        game.jewelInventory.splice(sorted[1], 1);
+        game.jewelInventory.splice(sorted[0], 1);
+        let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, stats: merged, maxLines: 4 };
+        game.jewelInventory.push(newJewel);
+        jewelFusionSelection = [];
+        addLog(`🕳️ 공허 융합 성공! (${merged.length}줄)`, 'loot-unique');
+        updateStaticUI();
+        return;
+    }
+    if (aStats.length !== 1 || bStats.length !== 1) return addLog('일반 융합은 1줄 옵션 주얼 2개만 가능합니다. (공허 주얼 포함 시 공허 융합 규칙)', 'attack-monster');
     let amplifiedEl = document.getElementById('chk-jewel-amplified-fusion');
     let useAmplified = !!(amplifiedEl && amplifiedEl.checked);
     if (useAmplified && (game.currencies.jewelShard || 0) < 8) return addLog('증폭합성에 필요한 주얼 결정이 부족합니다. (필요: 8)', 'attack-monster');
@@ -4382,15 +4416,15 @@ function craftVoidJewel() { if (game.woodsmanBuildLock) return addLog('☠️ �
     if (game.jewelInventory.length < 2) return addLog('공허 주얼 제작에는 주얼 2개가 필요합니다.', 'attack-monster');
     let a = game.jewelInventory.shift();
     let b = game.jewelInventory.shift();
-    let stats = [...getJewelStats(a), ...getJewelStats(b)].slice(0, 2).map(stat => {
+    let stats = [...getJewelStats(a), ...getJewelStats(b)].slice(0, 4).map(stat => {
         let scaled = stat.val * 0.85;
         let val = Number.isInteger(stat.val) ? Math.max(1, Math.floor(scaled)) : Math.max(0.1, Math.round(scaled * 10) / 10);
         return { id: stat.id, val: val };
     });
-    let jewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '공허 주얼', rarity: 'magic', isVoid: true, stats: stats, maxLines: 2 };
+    let jewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '공허 주얼', rarity: 'magic', isVoid: true, stats: stats, maxLines: 4 };
     game.currencies.voidChisel--;
     game.jewelInventory.push(jewel);
-    addLog('🕳️ 공허 주얼 제작 완료 (2줄)', 'loot-rare');
+    addLog('🕳️ 공허 주얼 제작 완료 (최대 4줄)', 'loot-rare');
     updateStaticUI();
 }
 
@@ -4403,12 +4437,12 @@ function fuseVoidJewel(idxA, idxB) {
     let seen = new Set();
     let merged = [];
     stats.forEach(stat => {
-        if (merged.length >= 2) return;
+        if (merged.length >= 4) return;
         if (seen.has(stat.id)) return;
         seen.add(stat.id);
         merged.push({ id: stat.id, val: stat.val });
     });
-    let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, stats: merged, maxLines: 2 };
+    let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, stats: merged, maxLines: 4 };
     let hi = Math.max(idxA, idxB), lo = Math.min(idxA, idxB);
     game.jewelInventory.splice(hi, 1);
     game.jewelInventory.splice(lo, 1);
@@ -4693,12 +4727,12 @@ function useCurrency(currencyKey) {
     let sporeMode = game.sporeCraftModes[currencyKey] || 'none';
     function consumeSpore(mode) {
         if (mode === 'none') return true;
-        if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < 5) return false; game.currencies.sporeFire -= 5; return true; }
-        if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < 5) return false; game.currencies.sporeCold -= 5; return true; }
-        if (mode === 'light') { if ((game.currencies.sporeLight || 0) < 5) return false; game.currencies.sporeLight -= 5; return true; }
+        if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < 10) return false; game.currencies.sporeFire -= 10; return true; }
+        if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < 10) return false; game.currencies.sporeCold -= 10; return true; }
+        if (mode === 'light') { if ((game.currencies.sporeLight || 0) < 10) return false; game.currencies.sporeLight -= 10; return true; }
         if (mode === 'chaos' || mode === 'damage') {
-            if ((game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return false;
-            game.currencies.sporeFire -= 5; game.currencies.sporeCold -= 5; game.currencies.sporeLight -= 5; return true;
+            if ((game.currencies.sporeFire || 0) < 10 || (game.currencies.sporeCold || 0) < 10 || (game.currencies.sporeLight || 0) < 10) return false;
+            game.currencies.sporeFire -= 10; game.currencies.sporeCold -= 10; game.currencies.sporeLight -= 10; return true;
         }
         return true;
     }
@@ -4723,8 +4757,10 @@ function useCurrency(currencyKey) {
     function rollSporeGuaranteedValue(mod) {
         if (!mod) return null;
         let tier = Math.max(1, getItemCraftTier(item));
-        let minTier = Math.max(1, Math.floor(tier * 0.45));
-        let maxTier = Math.max(minTier, Math.min(10, tier));
+        // 일반 드랍 대비 약 +2티어 보정
+        let boostedTier = Math.min(10, tier + 2);
+        let minTier = Math.max(1, boostedTier - 1);
+        let maxTier = Math.max(minTier, boostedTier);
         return rollAffixValueInTierRange(mod, minTier, maxTier);
     }
     function applyGuaranteedToNonLocked(modOverride) {

@@ -41,7 +41,7 @@ const SKILL_DB = {
     '삼원 파동': { isGem: true, baseDmg: 1.1, baseSpd: 0.98, leech: 0, crit: 7, dmgScale: 0.055, spdScale: 0.02, ele: 'fire', randomElementPool: ['fire', 'cold', 'light'], targetMode: 'cleave', targets: 3, spellFlatBase: 24, spellFlatScale: 5.0, desc: '시전할 때마다 화염/냉기/번개 중 무작위 속성으로 폭발하는 주문입니다.', tags: ['spell', 'fire', 'cold', 'lightning', 'elemental'] },
     '뇌격 삼연타': { isGem: true, baseDmg: 0.56, baseSpd: 1.06, leech: 0, crit: 6, dmgScale: 0.032, spdScale: 0.03, ele: 'light', multiHit: 3, targetMode: 'single', targets: 1, desc: '한 번의 공격으로 번개 타격 3연격을 가합니다.', tags: ['attack', 'melee', 'lightning'] },
     '유성 낙화': { isGem: true, baseDmg: 2.85, baseSpd: 0.52, leech: 0, crit: 12, dmgScale: 0.12, spdScale: 0.006, ele: 'fire', targetMode: 'all', targets: 6, desc: '느린 준비 후 거대한 화염 유성을 떨어뜨려 강타합니다.', tags: ['attack', 'aoe', 'fire', 'slam'] },
-    '난타 눈보라': { isGem: true, baseDmg: 0.52, baseSpd: 0.88, leech: 0, crit: 5, dmgScale: 0.026, spdScale: 0.016, ele: 'cold', multiHit: 4, randomTargetEachHit: true, targetMode: 'all', targets: 7, desc: '광역에 눈보라를 일으켜 무작위 적을 연속 타격합니다.', tags: ['spell', 'cold', 'aoe'] }
+    '난타 눈보라': { isGem: true, baseDmg: 0.52, baseSpd: 0.88, leech: 0, crit: 5, dmgScale: 0.026, spdScale: 0.016, ele: 'cold', multiHit: 4, randomTargetEachHit: true, targetMode: 'all', targets: 7, spellFlatBase: 22, spellFlatScale: 4.7, desc: '광역에 눈보라를 일으켜 무작위 적을 연속 타격합니다.', tags: ['spell', 'cold', 'aoe'] }
 };
 
 

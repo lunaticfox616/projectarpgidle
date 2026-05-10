@@ -57,21 +57,21 @@ function getConditionGemStatDelta(name, type) {
         '절단의 맹세': { enemyTakenMul: 1.16, enemyResShred: 7, physBonus: 0.08 },
         '심연 고리': { enemyTakenMul: 1.12, enemyResShred: 13, chaosBonus: 0.1 },
         // Warcries
-        '전장의 함성': { pctDmg: 16, aspd: 12 },
+        '전장의 함성': { pctDmg: 16, aspd: 12, dr: 6, move: 8 },
         '피의 함성': { pctDmg: 22, leech: 0.9, hpSacrificePct: 6 },
-        '추적자의 함성': { aspd: 14, targetAny: 1 },
-        '용광의 외침': { pctDmg: 15, fireBonus: 0.12 },
-        '빙하의 포효': { pctDmg: 13, coldBonus: 0.12, dr: 4 },
+        '추적자의 함성': { aspd: 14, targetAny: 1, crit: 6, move: 12 },
+        '용광의 외침': { pctDmg: 15, fireBonus: 0.12, leech: 0.4, regen: 0.8 },
+        '빙하의 포효': { pctDmg: 13, coldBonus: 0.12, dr: 8, energyShieldRegen: 2 },
         '폭풍의 고함': { aspd: 16, crit: 5 },
-        '공허의 외침': { pctDmg: 17, chaosBonus: 0.15, resPen: 4 },
+        '공허의 외침': { pctDmg: 17, chaosBonus: 0.15, resPen: 8, leech: 0.7 },
         '결전 신호': { pctDmg: 24, dr: -4, critDmg: 30 },
         // Guards
-        '현무 장막': { dr: 18, regen: 1.2 },
-        '응보 방패': { dr: 12, thorns: 0.18 },
+        '현무 장막': { dr: 24, regen: 1.6, resAll: 8 },
+        '응보 방패': { dr: 16, thorns: 0.26, physIgnore: 8 },
         '철의 맹세': { dr: 22, aspd: -8 },
         '서리 장벽': { dr: 14, coldGuard: 0.2 },
-        '폭풍 장벽': { dr: 13, move: 10 },
-        '심연 껍질': { dr: 16, chaosGuard: 0.2, regen: 0.6 },
+        '폭풍 장벽': { dr: 15, move: 16, aspd: 10 },
+        '심연 껍질': { dr: 20, chaosGuard: 0.28, regen: 1.0, resChaos: 12 },
         // Utility
         '귀환 젬': { }
     };
@@ -94,6 +94,22 @@ function getEnemyConditionDebuffFactor(enemy) {
     return { mul: Math.min(1.35, mul), resShred: Math.min(20, shred) };
 }
 
+
+function getKeystoneEnemyTakenMultiplier(enemy, hitElement) {
+    if (!enemy) return 1;
+    let now = Date.now();
+    let mul = 1;
+    let debuffs = game.enemyKeystoneDebuffs || {};
+    let list = debuffs[enemy.id] || [];
+    list = list.filter(row => row && (row.expiresAt || 0) > now);
+    debuffs[enemy.id] = list;
+    game.enemyKeystoneDebuffs = debuffs;
+    let a3Stacks = list.filter(row => row.type === 'a3').length;
+    if (a3Stacks > 0) mul *= (1 + Math.min(5, a3Stacks) * 0.10);
+    if (['fire','cold','light'].includes(hitElement) && list.some(row => row.type === 'iq7')) mul *= 1.12;
+    return mul;
+}
+
 function getAllConditionGemEntriesForCombat() {
     let db = window.CONDITION_GEM_DB || {};
     return [].concat(db.curse || [], db.warcry || [], db.guard || [], db.utility || []);
@@ -102,6 +118,7 @@ function getAllConditionGemEntriesForCombat() {
 function runConditionGemAutoRules(pStats) {
     let now = Date.now();
     cleanupConditionGemStates(now);
+    if ((game.elementalistOverloadExpiresAt || 0) <= now) game.elementalistOverloadStacks = 0;
     if (!game.conditionGemUnlocked) return;
     if (!Array.isArray(game.skillAutoRules) || game.skillAutoRules.length === 0) return;
     game.conditionGemCooldowns = game.conditionGemCooldowns || {};
@@ -110,17 +127,31 @@ function runConditionGemAutoRules(pStats) {
     let rules = game.skillAutoRules.filter(r => r && r.enabled).sort((a,b)=>(a.priority||0)-(b.priority||0));
     for (let rule of rules) {
         let hpPct = (pStats.maxHp || 1) > 0 ? (game.playerHp / pStats.maxHp * 100) : 100;
-        if (hpPct > (rule.hpThreshold || 40)) continue;
+        let esPct = (pStats.energyShield || 0) > 0 ? ((game.playerEnergyShield || 0) / Math.max(1, pStats.energyShield) * 100) : 0;
+        let trigger = rule.triggerType || 'hp_below';
+        let threshold = rule.hpThreshold || 40;
+        let liveEnemies = (game.enemies || []).filter(e => e && e.hp > 0);
+        let liveCount = liveEnemies.length;
+        let hasLiveBoss = liveEnemies.some(e => e.isBoss);
+        if (trigger === 'hp_below' && hpPct > threshold) continue;
+        if (trigger === 'hp_above' && hpPct < threshold) continue;
+        if (trigger === 'enemy_many' && liveCount < threshold) continue;
+        if (trigger === 'enemy_few' && (liveCount <= 0 || liveCount > threshold)) continue;
+        if (trigger === 'es_below' && esPct > threshold) continue;
+        if (trigger === 'es_above' && esPct < threshold) continue;
+        if (trigger === 'boss_present' && !hasLiveBoss) continue;
+        if (trigger === 'boss_absent' && (liveCount <= 0 || hasLiveBoss)) continue;
         let gemName = (rule.skillName || '').trim();
         if (!gemName || !(game.conditionGemPool || []).includes(gemName)) continue;
         let entry = getAllConditionGemEntriesForCombat().find(e => e.name === gemName);
         if (!entry) continue;
         let until = game.conditionGemCooldowns[gemName] || 0;
         if (now < until) continue;
-        game.conditionGemCooldowns[gemName] = now + Math.max(2000, Math.floor((entry.castTime || 1) * 1000 + 2500));
+        let castTargetId = null;
         if (entry.type === 'curse') {
             let target = (game.enemies || []).find(e => e && e.hp > 0);
             if (!target) continue;
+            castTargetId = target.id;
             let limit = Math.max(1, Math.floor((pStats.curseCap || 1)));
             let list = game.enemyConditionDebuffs[target.id] || [];
             let existingIdx = list.findIndex(row => row && row.name === gemName);
@@ -145,8 +176,12 @@ function runConditionGemAutoRules(pStats) {
             let castDelta = getConditionGemStatDelta(gemName, entry.type);
             if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
         }
+        game.conditionGemCooldowns[gemName] = now + Math.max(2000, Math.floor((entry.castTime || 1) * 1000 + 2500));
         if (gemName === '귀환 젬') returnToTown();
-        addLog(`🧠 컨디션 젬 발동: [${gemName}]`, 'loot-magic', { noToast: true });
+        let castDelayMs = Math.max(0, Math.floor((entry.castTime || 0) * 1000));
+        game.playerCastDelayUntil = Math.max(now, Math.floor(game.playerCastDelayUntil || 0), now + castDelayMs);
+        game.lastConditionGemCast = { name: gemName, type: entry.type, targetId: castTargetId, expiresAt: now + 1100 };
+        if (!game.settings || game.settings.showCombatLog !== false) addLog(`🧠 [${gemName}] 발동`, 'attack-monster', { noToast: true });
         break;
     }
 }
@@ -225,8 +260,8 @@ function coreLoop() {
     tickAilments(pStats, 0.1);
     let ailmentMap = {};
     (game.playerAilments || []).forEach(ail => { ailmentMap[ail.type] = Math.max(ailmentMap[ail.type] || 0, ail.time || 0); });
-    if (ailmentMap.chill) pStats.aspd *= 0.82;
-    if (ailmentMap.shock) pStats.dr = Math.max(-40, pStats.dr - 12);
+    if (ailmentMap.chill) pStats.aspd *= 0.68;
+    if (ailmentMap.shock) pStats.dr = Math.max(-40, pStats.dr - 22);
     (game.playerConditionBuffs || []).forEach(buff => {
         let delta = getConditionGemStatDelta(buff.name, buff.type);
         if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
@@ -239,6 +274,7 @@ function coreLoop() {
         if (delta.targetAny) pStats.sSkill.targets = Math.min(8, (pStats.sSkill.targets || 1) + delta.targetAny);
         if (delta.leech) pStats.leech += delta.leech;
         if (delta.move) pStats.move += delta.move;
+        if (delta.energyShieldRegen) pStats.energyShieldRegenRate = Math.max(0, (pStats.energyShieldRegenRate || 0) + delta.energyShieldRegen);
         if (delta.fireBonus && (pStats.sSkill.ele === 'fire')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.fireBonus));
         if (delta.coldBonus && (pStats.sSkill.ele === 'cold')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.coldBonus));
         if (delta.chaosBonus && (pStats.sSkill.ele === 'chaos')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.chaosBonus));
@@ -303,8 +339,9 @@ function coreLoop() {
     if ((game.enemies || []).length > 0) {
         tickEnemyDotEffects(pStats, 0.1);
         tickEnemyAilments(pStats, 0.1);
-        pTimer += 0.1 * pStats.aspd;
-        while (pTimer >= 1.0 && game.enemies.length > 0) {
+        let castBlocked = Date.now() < Math.floor(game.playerCastDelayUntil || 0);
+        if (!castBlocked) pTimer += 0.1 * pStats.aspd;
+        while (!castBlocked && pTimer >= 1.0 && game.enemies.length > 0) {
             pTimer -= 1.0;
             performPlayerAttack(pStats);
             let dsChance = Math.max(0, pStats.ds || 0);
@@ -352,10 +389,10 @@ function coreLoop() {
                 }
                 addLog(`🕳️ 공허의 구멍 정리 완료! 공허의 끌 +${reward}`, 'loot-magic', { noToast: true });
                 if (unlockedGrand) {
-                    addLog('🚨 큰 구멍이 열렸습니다! [큰 구멍 진입] 버튼을 확인하세요.', 'loot-unique');
+                    addLog('🚨 대균열이 열렸습니다! [대균열 진입] 버튼을 확인하세요.', 'loot-unique');
                     if (!v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
                         v.grandNoticeShown = true;
-                        queueTutorialNotice('void_grand_breach_ready_once', '큰 구멍 개방', '큰 구멍이 열렸습니다! 지도 탭에서 [큰 구멍 진입] 버튼으로 도전할 수 있습니다.', 'tab-map');
+                        queueTutorialNotice('void_grand_breach_ready_once', '대균열 개방', '대균열이 열렸습니다! 지도 탭에서 [대균열 진입] 버튼으로 도전할 수 있습니다.', 'tab-map');
                     }
                 }
             }
@@ -514,9 +551,10 @@ function getPlayerStats() {
     if (game.shrineBuff && game.shrineBuff.stat) addStatToBucket(reward, game.shrineBuff.stat, game.shrineBuff.value || 0);
     let skill = getActiveSkillStats(gemSources.total);
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
+    let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots;
     if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
     if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += (gearBase.targetSlam + gearExplicit.targetSlam + passive.targetSlam + season.targetSlam + ascend.targetSlam + reward.targetSlam);
-    if (targetBonus > 0) skill.targets = Math.min(6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
+    if (targetBonus > 0) skill.targets = Math.min(Array.isArray(skill.tags) && skill.tags.includes('projectile') ? 12 : 6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
     else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
     let gearTagged = getTaggedDamageBreakdown(gearBase, skill);
     let gearExplicitTagged = getTaggedDamageBreakdown(gearExplicit, skill);
@@ -549,7 +587,9 @@ function getPlayerStats() {
         let spellBase = Number.isFinite(skill.spellFlatBase) ? skill.spellFlatBase : 0;
         let spellScale = Number.isFinite(skill.spellFlatScale) ? skill.spellFlatScale : 0;
         let logBoost = Math.log2(Math.max(1, skillLevel));
-        spellFlatDmg = Math.max(1, (spellBase * 3) + Math.max(0, skillLevel - 1) * spellScale + (spellBase * 0.8 * logBoost * logBoost));
+        let spellFlatBonus = gearBase.spellFlatDmg + gearExplicit.spellFlatDmg + passive.spellFlatDmg + season.spellFlatDmg + ascend.spellFlatDmg + reward.spellFlatDmg + support.spellFlatDmg;
+        let spellFlatPct = gearBase.spellFlatPct + gearExplicit.spellFlatPct + passive.spellFlatPct + season.spellFlatPct + ascend.spellFlatPct + reward.spellFlatPct + support.spellFlatPct;
+        spellFlatDmg = Math.max(1, ((spellBase * 3) + Math.max(0, skillLevel - 1) * spellScale + (spellBase * 0.8 * logBoost * logBoost) + spellFlatBonus) * (1 + spellFlatPct / 100));
     }
     let totalFlatDmg = isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg);
     let codexBonusRatio = 1 + (getCodexBonusPct() / 100);
@@ -593,7 +633,7 @@ function getPlayerStats() {
     let evadeChance = Math.min(90, (finalEvasion / (finalEvasion + enemyAccuracy)) * 100);
 
     let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0);
-    let rawLeech = ((skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech) * 0.45;
+    let rawLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech;
     let finalLeech = applyLeechSoftcap(rawLeech);
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
@@ -665,13 +705,15 @@ function getPlayerStats() {
             finalAspd = Math.min(12, finalAspd * 1.1);
             finalEvasion = Math.floor(finalEvasion * 1.1);
         }
-        if (hasKeystone('g3')) finalCrit = Math.min(100, finalCrit + 8);
+        if (hasKeystone('g3')) finalCrit = Math.min(100, finalCrit + Math.max(0, Math.floor(game.gladiatorVeteranCritBonus || 0)));
         if (hasKeystone('g4')) {
-            finalDps *= 1.15;
-            finalDr = Math.min(75, finalDr + 15);
+            let crowdCount = (game.enemies || []).filter(e => e && e.hp > 0).length;
+            if (crowdCount >= 3) {
+                finalDps *= 1.15;
+                finalDr = Math.min(75, finalDr + 15);
+            }
         }
         if (hasKeystone('g5')) finalDps *= 1.1;
-        if (hasKeystone('g6')) finalDps *= 1.12;
         if (hasKeystone('g7')) {
             finalDs += Math.floor(Math.max(0, finalEvasion) / 50);
             finalCrit += Math.floor(Math.max(0, finalArmor) / 400);
@@ -691,13 +733,11 @@ function getPlayerStats() {
             finalMaxHp = Math.floor(finalMaxHp * 0.9);
             finalEvasion += Math.max(0, Math.floor(finalMove));
         }
-        if (hasKeystone('a3')) finalDps *= 1.1;
         if (hasKeystone('a4')) {
             finalPhysIgnore += 20;
             finalResPen += 20;
             finalDps *= 0.92;
         }
-        if (hasKeystone('a5')) finalCrit = Math.min(100, finalCrit + 25);
         if (hasKeystone('a8')) {
             finalCrit = Math.max(0, finalCrit - 20);
             finalCritDmg += 120;
@@ -723,7 +763,6 @@ function getPlayerStats() {
             finalMinDmgRoll = Math.max(5, finalMinDmgRoll - 10);
         }
         if (hasKeystone('r4')) finalAspd = Math.min(12, finalAspd * (1 + Math.max(0, finalMove) * 0.001));
-        if (hasKeystone('r5')) finalDps *= 1.1;
         if (hasKeystone('r6')) finalDps *= 0.95;
         if (hasKeystone('r8')) {
             let aspdBonus = Math.max(0, finalAspd - 1) * 0.2;
@@ -732,7 +771,11 @@ function getPlayerStats() {
             finalMove *= (1 + aspdBonus);
             finalMaxHp = Math.floor(finalMaxHp * 0.85);
         }
-        if (hasKeystone('r7')) finalCrit = Math.min(100, finalCrit + 15);
+        if (hasKeystone('r7')) {
+            if (!Number.isFinite(game.playerLastHitAt) || game.playerLastHitAt <= 0) game.playerLastHitAt = Date.now();
+            let sinceHitSec = Math.max(0, (Date.now() - Math.floor(game.playerLastHitAt || 0)) / 1000);
+            finalCrit = Math.min(100, finalCrit + Math.floor(sinceHitSec) * 5);
+        }
     } else if (game.ascendClass === 'elementalist') {
         if (hasKeystone('e1')) finalDps *= 1.15;
         if (hasKeystone('e2')) {
@@ -757,14 +800,18 @@ function getPlayerStats() {
             finalCritDmg -= 25;
         }
         if (hasKeystone('e8')) {
-            finalDps *= 1.25;
-            finalResPen += 5;
+            let stacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0));
+            finalDps *= (1 + stacks * 0.25);
+            finalResPen += (stacks * 5);
         }
         if (hasKeystone('e7')) finalDps *= 1.05;
     } else if (game.ascendClass === 'warlock') {
         if (hasKeystone('wlk1')) finalDps *= 1.12;
         if (hasKeystone('wlk2')) finalDps *= 1.2;
-        if (hasKeystone('wlk3')) finalRegen = 0;
+        if (hasKeystone('wlk3')) {
+            finalRegen = 0;
+            finalEnergyShieldRegenRate = 0;
+        }
         if (hasKeystone('wlk6')) {
             finalResPen += 43;
             finalCrit = 0;
@@ -815,7 +862,6 @@ function getPlayerStats() {
             suppCap += 1;
             finalMaxHp = Math.floor(finalMaxHp * 0.67);
         }
-        if (hasKeystone('iq7')) finalDps *= 1.12;
         if (hasKeystone('iq8')) finalDps *= (1 + Math.max(0, finalResPen) / 100);
         if (hasKeystone('iq4')) finalResPen = 0;
     }
@@ -1099,6 +1145,7 @@ function getPlayerStats() {
         evadeChance: evadeChance,
         energyShieldRegenRate: finalEnergyShieldRegenRate,
         energyShieldRechargeDelay: finalEnergyShieldRechargeDelay,
+        projectileExtraShots: Math.max(0, Math.floor(totalProjectileExtraShots)),
         breakdowns: breakdowns
     };
     return enemy;
@@ -1191,6 +1238,7 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
         return cappedReduction;
     }
     if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light' || skillEle === 'chaos') {
+        if ((skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') && game.ascendClass === 'inquisitor' && hasKeystone('iq4')) return 0;
         let effective = rawMitigation - Math.max(0, pStats.resPen || 0);
         if (effective > 0) effective = Math.min(80, effective);
         return effective;
@@ -1218,6 +1266,8 @@ function createEnemy(zone, marker, groupIndex) {
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
+    hp = Math.floor(hp * 0.92);
+    if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
     if (game.beehive && game.beehive.inRun) {
         let empower = Math.max(0, Math.floor(game.beehive.enemyEmpower || 0));
         if (empower > 0) hp = Math.floor(hp * (1 + empower * 0.08));
@@ -1332,6 +1382,7 @@ function generateEncounterPlan(zone) {
         ];
     }
     if (zone.type === 'seasonBoss') return [{ at: 100, count: 1, boss: true }];
+    if (zone.type === 'outsideChaos') return [{ at: 100, count: 1, boss: true }];
     let profile = getZoneEncounterProfile(zone);
     let rng = zone.type === 'act' ? createSeededRng(`act:${zone.id}`) : Math.random;
     let markers = [];
@@ -1493,7 +1544,7 @@ function tickEnemyAilments(pStats, dt) {
                     hpAfterDot = Math.max(1, hpAfterDot);
                 }
                 enemy.hp = hpAfterDot;
-                addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dotDmg, duration: 200, element: ele, noLine: true });
+                addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dotDmg, duration: 200, element: ele, noLine: true, dot: true });
             }
             if (ail.time > 0) next.push(ail);
         });
@@ -1524,7 +1575,7 @@ function tickEnemyDotEffects(pStats, dt) {
                 hpAfterDot = Math.max(1, hpAfterDot);
             }
             enemy.hp = hpAfterDot;
-            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dotDmg, duration: 240, element: dotEle, noLine: true });
+            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dotDmg, duration: 240, element: dotEle, noLine: true, dot: true });
             if (enemy.hp <= 0) {
                 handleEnemyDeath(enemy, pStats);
                 break;
@@ -1672,18 +1723,7 @@ function advanceMapProgress(pStats) {
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
     let zone = getZone(game.currentZoneId);
-    if (zone && zone.id === OUTSIDE_CHAOS_ZONE_ID) {
-        let woodsman = (game.enemies || []).find(e => e && e.isBoss);
-        if (woodsman && woodsman.maxHp > 0) {
-            let dealtRatio = Math.max(0, Math.min(0.999, 1 - (woodsman.hp / woodsman.maxHp)));
-            let score = Math.floor(dealtRatio * 1000000);
-            addWoodsmanPendingScore(score);
-            addLog(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
-        }
-        clearWoodsmanBuildLock();
-        game.currentZoneId = game.maxZoneId;
-        game.killsInZone = 0;
-    } else if (zone && zone.id === 'grand_breach_run') {
+    if (zone && zone.id === 'grand_breach_run') {
         tickGrandBreachRun(zone);
         return;
     }
@@ -1706,6 +1746,7 @@ function tickGrandBreachRun(zone) {
     if (!g || !g.inRun) return;
     let now = Date.now();
     cleanupConditionGemStates(now);
+    if ((game.elementalistOverloadExpiresAt || 0) <= now) game.elementalistOverloadStacks = 0;
     g.lastTickAt = Number.isFinite(g.lastTickAt) ? g.lastTickAt : now;
     let dt = Math.max(0, (now - g.lastTickAt) / 1000);
     g.lastTickAt = now;
@@ -2036,11 +2077,11 @@ function finishEncounterRun() {
     }
 
     if (zone.type === 'outsideChaos') {
-        if (enemy.isBoss) {
-            addWoodsmanPendingScore(1000000);
-            markLoopSpecialBossKill('woodsman_true');
-            addLog('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
-        }
+        // outsideChaos는 현재 단일 보스(나무꾼) 클리어 전투이므로
+        // 완료 시점이면 보스 처치로 간주한다.
+        addWoodsmanPendingScore(1000000);
+        markLoopSpecialBossKill('woodsman_true');
+        addLog('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
         clearWoodsmanBuildLock();
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
@@ -2093,9 +2134,9 @@ function finishEncounterRun() {
         if (Math.random() < 0.4) {
             let bossUnique = generateUniqueItem(zone.tier || 12);
             addItemToInventory(bossUnique);
-            addLog(`👑 시즌 보스 전리품 [${bossUnique.name}] 획득!`, 'loot-unique');
+            addLog(`👑 [${bossUnique.name}] 획득!`, 'loot-unique');
         }
-        addLog(`🗝️ [${zone.name}] 토벌 완료! 군주의 핵 드랍 판정(50%)`, 'loot-unique');
+        addLog(`🗝️ [${zone.name}] 토벌 완료!`, 'loot-unique');
         let shouldRepeat = !!game.autoRepeatSeasonBoss;
         let keyLeft = game.currencies[zone.key] || 0;
         if (shouldRepeat && keyLeft > 0) {
@@ -2153,6 +2194,8 @@ function finishEncounterRun() {
             game.abyssClearedDepths = Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths : [];
             if (depth <= capDepth && !game.abyssClearedDepths.includes(depth)) {
                 game.abyssClearedDepths.push(depth);
+                game.abyssPassivePoints = Math.max(0, Math.floor(game.abyssPassivePoints || 0)) + 5;
+                addLog(`🌌 혼돈 ${depth} 클리어 보상: 혼돈 패시브 포인트 +5`, 'season-up');
             }
         }
         if (zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
@@ -2270,6 +2313,11 @@ function performPlayerAttack(pStats) {
     let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
 
     let isCrit = Math.random() < (pStats.crit / 100);
+    if (game.ascendClass === 'gladiator' && hasKeystone('g3')) {
+        game.gladiatorVeteranCritBonus = Math.max(0, Math.floor(game.gladiatorVeteranCritBonus || 0));
+        if (isCrit) game.gladiatorVeteranCritBonus = 0;
+        else game.gladiatorVeteranCritBonus = Math.min(100, game.gladiatorVeteranCritBonus + 5);
+    }
     let baseDamage = pStats.baseDmg;
     if (isCrit) {
         baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
@@ -2293,7 +2341,10 @@ function performPlayerAttack(pStats) {
     let hits = [];
     let totalDamage = 0;
     let totalLeechableDamage = 0;
-    let repeats = Math.max(1, Math.min(6, Math.floor(pStats.sSkill.multiHit || 1)));
+    let projectileBonusShots = (Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('projectile'))
+        ? Math.max(0, Math.min(5, Math.floor(pStats.projectileExtraShots || 0)))
+        : 0;
+    let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots));
     let perEnemyHitCount = new Map();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
     let randomTargetCapFallbackUsed = false;
@@ -2317,7 +2368,13 @@ function performPlayerAttack(pStats) {
             let hitElement = swingElement;
             let curseFx = getEnemyConditionDebuffFactor(targetEnemy);
             let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
-            let dmg = Math.floor(baseDamage * (hit.mult || 1));
+            let hitCrit = isCrit;
+            if (game.ascendClass === 'assassin' && hasKeystone('a5') && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) <= 0.30) {
+                hitCrit = true;
+            }
+            let hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
+            if (hitCrit && game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
+            let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
             let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
@@ -2332,6 +2389,7 @@ function performPlayerAttack(pStats) {
             let damageBeforeMitigation = dmg;
             dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
             dmg = Math.floor(dmg * (curseFx.mul || 1));
+            dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement));
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             let zone = getZone(game.currentZoneId);
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
@@ -2340,6 +2398,12 @@ function performPlayerAttack(pStats) {
                 hpAfterDamage = Math.max(1, hpAfterDamage);
             }
             targetEnemy.hp = hpAfterDamage;
+            if (game.ascendClass === 'gladiator' && hasKeystone('g6') && targetEnemy.hp > 0) {
+                let executeThreshold = targetEnemy.isBoss ? 0.10 : 0.20;
+                if ((targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) < executeThreshold) {
+                    targetEnemy.hp = 0;
+                }
+            }
             if ((pStats.regenSuppress || 0) > 0) targetEnemy.regenSuppressPct = Math.min(95, (targetEnemy.regenSuppressPct || 0) + pStats.regenSuppress);
             targetEnemy.recentHitsTaken = (targetEnemy.recentHitsTaken || 0) + 1;
             targetEnemy.recentHitsTimer = 1.8;
@@ -2352,20 +2416,45 @@ function performPlayerAttack(pStats) {
             addBattleFx('hit', {
                 enemyId: targetEnemy.id,
                 color: getElementColor(hitElement),
-                crit: isCrit,
+                crit: hitCrit,
                 projectile: (pStats.sSkill.tags || []).includes('projectile'),
                 chain: pStats.sSkill.targetMode === 'chain',
                 skillName: game.activeSkill,
                 damage: dmg,
                 duration: 320
             });
+            if (hitCrit && game.ascendClass === 'assassin' && hasKeystone('a3')) {
+                let now = Date.now();
+                game.enemyKeystoneDebuffs = game.enemyKeystoneDebuffs || {};
+                let list = game.enemyKeystoneDebuffs[targetEnemy.id] || [];
+                list = list.filter(row => row && row.type !== 'a3' ? (row.expiresAt || 0) > now : true);
+                list.push({ type: 'a3', expiresAt: now + 3000 });
+                while (list.filter(row => row.type === 'a3').length > 5) { let idx=list.findIndex(row=>row.type==='a3'); if (idx>=0) list.splice(idx,1); else break; }
+                game.enemyKeystoneDebuffs[targetEnemy.id] = list;
+            }
+            if (hitCrit && game.ascendClass === 'inquisitor' && hasKeystone('iq7') && ['fire','cold','light'].includes(hitElement)) {
+                let now = Date.now();
+                game.enemyKeystoneDebuffs = game.enemyKeystoneDebuffs || {};
+                let list = (game.enemyKeystoneDebuffs[targetEnemy.id] || []).filter(row => row && row.type !== 'iq7' && (row.expiresAt || 0) > now);
+                list.push({ type: 'iq7', expiresAt: now + 3000 });
+                game.enemyKeystoneDebuffs[targetEnemy.id] = list;
+            }
+            if (hitCrit && game.ascendClass === 'elementalist' && hasKeystone('e8')) {
+                game.elementalistOverloadStacks = Math.min(3, Math.max(0, Math.floor(game.elementalistOverloadStacks || 0)) + 1);
+                game.elementalistOverloadExpiresAt = Date.now() + 3000;
+            }
             if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
-            applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, isCrit);
+            applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, hitCrit);
         });
     }
     if (pStats.leech > 0 && totalLeechableDamage > 0) {
-        let hpCap = getPlayerHpCap(pStats);
-        game.playerHp = Math.min(hpCap, game.playerHp + (totalLeechableDamage * (pStats.leech / 100)));
+        let leechAmount = (totalLeechableDamage * (pStats.leech / 100));
+        if (game.ascendClass === 'warlock' && hasKeystone('wlk3') && (pStats.energyShield || 0) > 0) {
+            game.playerEnergyShield = Math.min((pStats.energyShield || 0), (game.playerEnergyShield || 0) + leechAmount);
+        } else {
+            let hpCap = getPlayerHpCap(pStats);
+            game.playerHp = Math.min(hpCap, game.playerHp + leechAmount);
+        }
     }
 
     if (game.settings.showCombatLog) {
@@ -2503,17 +2592,17 @@ function tickAilments(pStats, dt) {
         ail.time = Math.max(0, (ail.time || 0) - dt);
         let power = Math.max(0.1, ail.power || 0.1);
         if (ail.type === 'ignite') {
-            let burn = Math.max(1, Math.floor(pStats.maxHp * (0.0021 + power * 0.0026)));
+            let burn = Math.max(1, Math.floor(pStats.maxHp * (0.0035 + power * 0.0040)));
             burn = Math.max(1, Math.floor(burn * (1 - Math.max(0, Math.min(0.75, (pStats.resF || 0) / 100)))));
             game.playerHp -= burn;
             recordIncomingDamage('fire', burn, '점화');
         } else if (ail.type === 'poison') {
-            let poison = Math.max(1, Math.floor(pStats.maxHp * (0.0018 + power * 0.0023)));
+            let poison = Math.max(1, Math.floor(pStats.maxHp * (0.0030 + power * 0.0034)));
             poison = Math.max(1, Math.floor(poison * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100)))));
             game.playerHp -= poison;
             recordIncomingDamage('chaos', poison, '중독');
         } else if (ail.type === 'bleed') {
-            let bleed = Math.max(1, Math.floor(pStats.maxHp * (0.0019 + power * 0.0021)));
+            let bleed = Math.max(1, Math.floor(pStats.maxHp * (0.0032 + power * 0.0032)));
             bleed = Math.max(1, Math.floor(bleed * (1 - Math.max(0, Math.min(0.75, (pStats.dr || 0) / 100)))));
             game.playerHp -= bleed;
             recordIncomingDamage('phys', bleed, '출혈');
@@ -2584,12 +2673,12 @@ function performMonsterAttacks(pStats) {
                 }
             }
             enemy.attackTimer -= 1;
-            let seasonDmgScale = 1 + seasonDepth * (0.04 + (tierPressure * 0.06));
+            let seasonDmgScale = 1 + seasonDepth * (0.05 + (tierPressure * 0.07));
             let shockAmp = ailMap.shock ? Math.min(0.35, 0.08 + ailMap.shock * 0.12) : 0;
-            let dmg = Math.floor((2 + zone.tier * 3.1) * seasonDmgScale * (1 - shockAmp));
+            let dmg = Math.floor((2.4 + zone.tier * 3.35) * seasonDmgScale * (1 - shockAmp));
             if (zone.type === 'act' && zone.id <= 1 && (game.season || 1) >= 3) dmg = Math.floor(dmg * 0.58);
-            if (enemy.isElite) dmg = Math.floor(dmg * 1.2);
-            if (enemy.isBoss) dmg = Math.floor(dmg * (1.08 + zone.tier * 0.15));
+            if (enemy.isElite) dmg = Math.floor(dmg * 1.28);
+            if (enemy.isBoss) dmg = Math.floor(dmg * (1.14 + zone.tier * 0.16));
             if (!enemy.isBoss) dmg = Math.floor(dmg * crowdPenalty);
             dmg = Math.floor(dmg * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (enemy.isBoss ? (abyssScale.bossMul || 1) : 1));
             let physicalPortion = Math.floor(dmg * 0.5);
@@ -2644,6 +2733,8 @@ function performMonsterAttacks(pStats) {
             }
             game.playerHp = Math.floor(game.playerHp - remaining);
             game.playerEsLastHitAt = Date.now();
+    game.playerLastHitAt = Date.now();
+            game.playerLastHitAt = Date.now();
             recordIncomingDamage(enemy.ele, dmg, enemy.name);
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(enemy.ele), damage: dmg, duration: 220 });
             if (game.settings.showCombatLog) addLog(`🩸 [${getDamageElementLabel(enemy.ele)}] 피격 (${dmg} 피해)`, "attack-monster");
@@ -2737,14 +2828,15 @@ function enterOutsideChaos() {
     game.killsInZone = 0;
     game.runProgress = 100;
     game.moveTimer = 0;
-    game.encounterPlan = [{ at: 100, count: 1, boss: true }];
+    game.encounterPlan = [];
     game.encounterIndex = 0;
     game.enemies = [];
     addLog('☠️ 금단의 경계 너머, 나무꾼이 모습을 드러냅니다.', 'loot-unique');
     game.inEncounter = true;
     game.moveTimer = 0;
     game.runProgress = 100;
-    spawnEnemies();
+    // 나무꾼 전투는 즉시 보스 스폰으로 진입
+    spawnEncounterMarker({ at: 100, count: 1, boss: true });
     updateStaticUI();
 }
 
@@ -2789,7 +2881,6 @@ function triggerSeasonReset() {
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
-    let abyssLoopPointGain = Math.max(0, (Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths.length : 0) * 5);
     game.season++;
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
@@ -2797,7 +2888,6 @@ function triggerSeasonReset() {
         queueTutorialNotice('unlock_spore_crafting', '홀씨 제작 해금', '루프 2 달성! 이제 액트/혼돈 몬스터가 화염/냉기/번개 홀씨를 떨어뜨립니다.\n제작 탭에서 오브 사용 시 홀씨 태그를 지정할 수 있습니다.', 'tab-items');
     }
     addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
-    if (abyssLoopPointGain > 0) addLog(`🌌 루프 정산: 혼돈 최초 클리어 보상 +${abyssLoopPointGain}pt`, 'season-up');
     game.level = 1;
     game.exp = 0;
     game.killsInZone = 0;
@@ -2816,6 +2906,15 @@ function triggerSeasonReset() {
     game.supports = [];
     game.equippedSupports = [];
     game.supportGemData = {};
+    game.conditionGemUnlocked = false;
+    game.conditionGemPool = [];
+    game.pendingConditionGemChoices = null;
+    game.skillAutoRules = [];
+    game.conditionGemCooldowns = {};
+    game.enemyConditionDebuffs = {};
+    game.playerConditionBuffs = [];
+    game.lastConditionGemCast = null;
+    game.playerCastDelayUntil = 0;
     game.sealedSkills = [];
     game.sealedSupports = [];
     game.resonancePower = 10;
