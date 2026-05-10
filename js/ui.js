@@ -1,7 +1,10 @@
 // Phase-2 extracted UI/tab/render helper block.
 let lastHeavyUiRefreshAt = 0;
+let lastPassiveTreeDrawAt = 0;
+let lastPassiveTreeSignature = '';
 
 let mobilePipCanvas = null;
+var lod = 1; // fallback for any legacy FX paths
 let mobilePipCtx = null;
 let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 94, lastTapAt: 0 };
 let mobilePipRefreshHandle = null;
@@ -296,8 +299,12 @@ function getAllConditionGemEntries() {
 function rollConditionGemChoices() {
     if (!game.conditionGemUnlocked) return addLog('컨디션 젬이 아직 잠겨 있습니다. 루프2 뿌리 보스를 먼저 쓰러뜨리세요.', 'attack-monster');
     if ((game.currencies.bossCore || 0) <= 0) return addLog('군주의 핵이 부족합니다.', 'attack-monster');
-    let pool = getAllConditionGemEntries().filter(entry => !game.conditionGemPool.includes(entry.name));
-    if (pool.length === 0) return addLog('해금 가능한 컨디션 젬이 더 이상 없습니다.', 'attack-monster');
+    let all = getAllConditionGemEntries();
+    let ownedSet = new Set(Array.isArray(game.conditionGemPool) ? game.conditionGemPool : []);
+    let unownedPool = all.filter(entry => !ownedSet.has(entry.name));
+    let upgradablePool = all.filter(entry => ownedSet.has(entry.name) && Math.max(1, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))) < 5);
+    let pool = unownedPool.length > 0 ? unownedPool.slice() : upgradablePool.slice();
+    if (pool.length === 0) return addLog('해금/강화 가능한 컨디션 젬이 더 이상 없습니다.', 'attack-monster');
     game.currencies.bossCore--;
     let choices = [];
     while (choices.length < Math.min(3, pool.length)) {
@@ -336,7 +343,8 @@ function getConditionGemTooltipHtml(entry) {
     let cast = Number(entry.castTime || 1).toFixed(1);
     let duration = Number(entry.duration || 4).toFixed(1);
     let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
-    let html = `<div class="tooltip-title">${entry.name}</div>`;
+    let lv = Math.max(1, Math.min(5, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))));
+    let html = `<div class="tooltip-title">${entry.name} · Lv.${lv}</div>`;
     html += `<div class="tooltip-line">${entry.desc || '컨디션 젬 효과'}</div>`;
     html += `<div class="tooltip-line" style="margin-top:6px;">시전 시간 ${cast}초 · 지속 ${duration}초 · 쿨타임 ${cooldown}초</div>`;
     html += `<div class="tooltip-line">효과: ${getConditionGemDetail(entry)}</div>`;
@@ -364,10 +372,19 @@ function closeConditionGemChoiceOverlay() { let el = document.getElementById('co
 
 function pickConditionGem(name) {
     game.conditionGemPool = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
-    if (!game.conditionGemPool.includes(name)) game.conditionGemPool.push(name);
+    game.conditionGemLevels = game.conditionGemLevels || {};
+    if (!game.conditionGemPool.includes(name)) {
+        game.conditionGemPool.push(name);
+        game.conditionGemLevels[name] = Math.max(1, Math.floor(game.conditionGemLevels[name] || 1));
+        addLog(`✨ 컨디션 젬 [${name}] 해금!`, 'loot-unique');
+    } else {
+        let prev = Math.max(1, Math.floor(game.conditionGemLevels[name] || 1));
+        let next = Math.min(5, prev + 1);
+        game.conditionGemLevels[name] = next;
+        addLog(next > prev ? `🔺 컨디션 젬 [${name}] 레벨 ${next} 달성!` : `ℹ️ 컨디션 젬 [${name}]은 이미 최대 레벨입니다.`, 'loot-rare');
+    }
     game.pendingConditionGemChoices = null;
     closeConditionGemChoiceOverlay();
-    addLog(`✨ 컨디션 젬 [${name}] 해금!`, 'loot-unique');
     renderSkillAutoRulePanel();
 }
 
@@ -385,7 +402,7 @@ function renderSkillAutoRulePanel() {
     let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 컨디션 젬 가공</button></div>`;
     let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
     let ownedEntries = getAllConditionGemEntries().filter(entry => owned.includes(entry.name));
-    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => `<div style="border:1px solid #314761;border-radius:8px;padding:7px;" onmousemove="showConditionGemTooltip(event,'${entry.name}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong></div>`).join('')}</div>` : '';
+    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => `<div style="border:1px solid #314761;border-radius:8px;padding:7px;" onmouseenter="showConditionGemTooltip(event,'${entry.name}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong><small style="margin-left:6px;color:#9ec1e1;">Lv.${Math.max(1,Math.min(5,Math.floor(((game.conditionGemLevels||{})[entry.name]||1))))}</small></div>`).join('')}</div>` : '';
 
     if (game.skillAutoRules.length === 0) {
         panel.innerHTML = summary + choiceHtml + ownedHtml + `<div style="color:#7f8c8d; border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
@@ -1468,7 +1485,7 @@ function renderBreakdownHtml(data) {
 }
 
 function showStatTooltip(event, key) {
-    let stats = getPlayerStats();
+    let stats = cachedTooltipStats || getPlayerStats();
     let data = stats.breakdowns[key];
     if (!data) return;
     showInfoTooltipHtml(event.clientX, event.clientY, renderBreakdownHtml(data), '#f39c12');
@@ -1478,7 +1495,7 @@ function showStatTooltip(event, key) {
 function showPlayerAilmentTooltip(event, type, timeLeft, power) {
     let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
     let p = Math.max(0.1, Number(power || 0.1));
-    let stats = getPlayerStats();
+    let stats = cachedTooltipStats || getPlayerStats();
     let detail = '';
     if (type === 'ignite') detail = `초당 화염 피해: 약 ${Math.floor((stats.maxHp || 1) * (0.0018 + p * 0.0022))}`;
     else if (type === 'poison') detail = `초당 카오스 피해: 약 ${Math.floor((stats.maxHp || 1) * (0.0015 + p * 0.0020))}`;
@@ -1548,8 +1565,8 @@ function showGemTooltip(event, type, name) {
         if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
         let maxTargetsView = Math.max(1, skill.targets || 1);
-        if (skill.targetMode === 'all' && maxTargetsView >= 99) maxTargetsView = Math.max(1, (game.enemies || []).filter(e => e && e.hp > 0).length);
-        html += `<div class="tooltip-line">최대 타겟 수: ${maxTargetsView}${skill.targetMode === 'all' ? ' (현재 전장 기준)' : ''}</div>`;
+        if (skill.targetMode === 'all') maxTargetsView = Math.min(8, Math.max(6, skill.targets || 6));
+        html += `<div class="tooltip-line">최대 타겟 수: ${maxTargetsView}</div>`;
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${skill.crit}%</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
@@ -1896,36 +1913,6 @@ function drawBattleBackdrop(ctx, width, height, theme, now, zone) {
         let dx = Math.floor((width - drawW) / 2);
         let dy = Math.floor((height - drawH) / 2);
         ctx.drawImage(backdropImage, dx, dy, drawW, drawH);
-        ctx.fillStyle = variant.tone;
-        ctx.fillRect(0, 0, width, height);
-        let glow = ctx.createRadialGradient(width * 0.52, height * 0.2, width * 0.08, width * 0.52, height * 0.2, width * 0.7);
-        glow.addColorStop(0, variant.glow);
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow;
-        ctx.fillRect(0, 0, width, height);
-
-        let zoneTint = ctx.createLinearGradient(0, 0, 0, height);
-        zoneTint.addColorStop(0, theme.skyTop + '55');
-        zoneTint.addColorStop(0.55, 'rgba(0,0,0,0)');
-        zoneTint.addColorStop(1, theme.skyBottom + '6e');
-        ctx.fillStyle = zoneTint;
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.save();
-        ctx.globalAlpha = 0.06;
-        ctx.fillStyle = '#ffffff';
-        let drift = (now / 70) % (width + 80);
-        ctx.fillRect(-width + drift, height * 0.28, width * 0.45, 4);
-        ctx.fillRect(drift - 30, height * 0.44, width * 0.35, 3);
-        ctx.restore();
-
-        ctx.save();
-        let vignette = ctx.createRadialGradient(width * 0.5, height * 0.55, width * 0.12, width * 0.5, height * 0.55, width * 0.78);
-        vignette.addColorStop(0, 'rgba(0,0,0,0)');
-        vignette.addColorStop(1, 'rgba(0,0,0,0.26)');
-        ctx.fillStyle = vignette;
-        ctx.fillRect(0, 0, width, height);
-        ctx.restore();
         return;
     }
 
@@ -1964,14 +1951,6 @@ function drawBattleBackdrop(ctx, width, height, theme, now, zone) {
     ctx.moveTo(0, pathBottom);
     ctx.lineTo(width, pathBottom);
     ctx.stroke();
-
-    ctx.save();
-    ctx.globalAlpha = 0.06;
-    ctx.fillStyle = '#ffffff';
-    let drift = (now / 70) % (width + 80);
-    ctx.fillRect(-width + drift, height * 0.28, width * 0.45, 4);
-    ctx.fillRect(drift - 30, height * 0.44, width * 0.35, 3);
-    ctx.restore();
 
     ctx.save();
     let vignette = ctx.createRadialGradient(width * 0.5, height * 0.55, width * 0.12, width * 0.5, height * 0.55, width * 0.78);
@@ -2024,15 +2003,6 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             let frameMeta = getHeroFrameMeta(frameIndex);
             let metrics = getHeroDrawMetrics(x, y, heroFrame, frameMeta);
             drawPixelShadow(ctx, x, y + 15, 11, 4, 0.18);
-            ctx.save();
-            let glow = ctx.createRadialGradient(x, y - (metrics.drawH * 0.46), metrics.drawW * 0.1, x, y - (metrics.drawH * 0.46), metrics.drawH * 0.85);
-            glow.addColorStop(0, 'rgba(205,236,255,0.22)');
-            glow.addColorStop(1, 'rgba(205,236,255,0)');
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.ellipse(x, y - (metrics.drawH * 0.46), metrics.drawW * 0.75, metrics.drawH * 0.86, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
             ctx.save();
             ctx.filter = 'brightness(1.15) contrast(1.08) saturate(1.05)';
             ctx.drawImage(
@@ -2189,13 +2159,6 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
     drawPixelShadow(ctx, x, y + 18 * s, 13 * s, 5 * s, 0.22);
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y + bob));
-    if (skillVisual.aura) {
-        ctx.fillStyle = skillVisual.aura;
-        ctx.beginPath();
-        ctx.ellipse(0, 14 * s, 18 * s, 8 * s, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
     ctx.fillStyle = '#2f4571';
     ctx.fillRect(-4 * s, 4 * s, 3 * s, 5 * s);
     ctx.fillRect(1 * s, 4 * s, 3 * s, 5 * s);
@@ -2415,12 +2378,22 @@ const GEM_IMPACT_THEME = {
 window.BATTLE_EFFECT_OVERRIDES = window.BATTLE_EFFECT_OVERRIDES || {};
 function getImpactThemeByElement(ele){ return (window.BATTLE_EFFECT_OVERRIDES[ele] || GEM_IMPACT_THEME[ele] || GEM_IMPACT_THEME.phys); }
 
+function normalizeBattleElement(ele) {
+    let id = String(ele || 'phys').toLowerCase();
+    if (id === 'physical') return 'phys';
+    if (id === 'lightning' || id === 'thunder') return 'light';
+    if (id === 'ice') return 'cold';
+    return id;
+}
+
 function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
+    const fxLoad = Math.max(0, Math.floor((Array.isArray(battleFx) ? battleFx.length : 0)));
+    const lod = fxLoad >= 40 ? 0.45 : (fxLoad >= 22 ? 0.65 : 1);
     ctx.save();
     ctx.globalAlpha = 1 - t;
     ctx.strokeStyle = primary;
     ctx.lineWidth = 3;
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < Math.max(3, Math.floor(6 * lod)); i++) {
         let angle = (Math.PI * 2 * i) / 6;
         ctx.beginPath();
         ctx.moveTo(x, y);
@@ -2434,37 +2407,68 @@ function drawBattleImpactBurst(ctx, x, y, primary, secondary, t) {
     ctx.restore();
 }
 
+function drawGemAttackTrail(ctx, element, sx, sy, tx, ty, t) {
+    const e = normalizeBattleElement(element);
+    if (e === 'fire') {
+        ctx.globalAlpha = (1 - t) * 0.35;
+        ctx.strokeStyle = 'rgba(255,120,60,0.9)';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.quadraticCurveTo((sx + tx) * 0.5, Math.min(sy, ty) - 16, tx, ty);
+        ctx.stroke();
+    } else if (e === 'cold') {
+        ctx.globalAlpha = (1 - t) * 0.3;
+        ctx.strokeStyle = 'rgba(184,238,255,0.9)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 5]);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    } else if (e === 'light') {
+        ctx.globalAlpha = (1 - t) * 0.55;
+        ctx.strokeStyle = 'rgba(255,238,150,0.95)';
+        ctx.lineWidth = 2.4;
+        drawBattleZigZag(ctx, sx, sy, tx, ty, 7, 9);
+        ctx.stroke();
+    } else if (e === 'chaos') {
+        ctx.globalAlpha = (1 - t) * 0.38;
+        ctx.strokeStyle = 'rgba(214,120,255,0.92)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.bezierCurveTo(sx + 18, sy - 18, tx - 24, ty + 14, tx, ty);
+        ctx.stroke();
+    } else {
+        ctx.globalAlpha = (1 - t) * 0.25;
+        ctx.strokeStyle = 'rgba(245,225,190,0.8)';
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+    }
+}
+
 function drawBattleSwingFx(ctx, fx, t, playerPos) {
     let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
     ctx.save();
     ctx.globalAlpha = 1 - t * 0.72;
     let reach = 16 + t * 18;
-    if (skillVisual.group === 'physical_slam') {
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        ctx.arc(playerPos.x + 8, playerPos.y + 8, 10 + t * 18, Math.PI * 0.08, Math.PI * 1.65);
-        ctx.stroke();
-        ctx.globalAlpha = (1 - t) * 0.42;
-        ctx.strokeStyle = 'rgba(255,239,214,0.75)';
-        ctx.lineWidth = 2.4;
-        ctx.beginPath();
-        ctx.arc(playerPos.x + 8, playerPos.y + 8, 8 + t * 15, Math.PI * 0.18, Math.PI * 1.58);
-        ctx.stroke();
-    } else {
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(playerPos.x + 3, playerPos.y - 4);
-        ctx.quadraticCurveTo(playerPos.x + 10 + t * 10, playerPos.y - 26, playerPos.x + reach, playerPos.y - 10);
-        ctx.stroke();
-        ctx.strokeStyle = skillVisual.secondary;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(playerPos.x + 6, playerPos.y - 1);
-        ctx.lineTo(playerPos.x + reach - 2, playerPos.y - 6);
-        ctx.stroke();
-    }
+    ctx.strokeStyle = skillVisual.primary;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(playerPos.x + 3, playerPos.y - 4);
+    ctx.quadraticCurveTo(playerPos.x + 10 + t * 10, playerPos.y - 26, playerPos.x + reach, playerPos.y - 10);
+    ctx.stroke();
+    ctx.strokeStyle = skillVisual.secondary;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(playerPos.x + 6, playerPos.y - 1);
+    ctx.lineTo(playerPos.x + reach - 2, playerPos.y - 6);
+    ctx.stroke();
     if (fx.crit) {
         ctx.globalAlpha = (1 - t) * 0.52;
         ctx.strokeStyle = '#fff6c8';
@@ -2480,9 +2484,8 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
     ctx.restore();
 }
 
-
 function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
-    const e = element || 'phys';
+    const e = normalizeBattleElement(element || 'phys');
     const boost = crit ? 1.2 : 1;
     if (e === 'fire') {
         ctx.globalAlpha = (1 - t) * 0.62;
@@ -2531,47 +2534,94 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
     }
 }
 
+
+function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
+    const e = normalizeBattleElement(element || 'phys');
+    const burst = crit ? 1.2 : 1;
+    const fxLoad = Math.max(0, Math.floor((Array.isArray(battleFx) ? battleFx.length : 0)));
+    const lod = fxLoad >= 40 ? 0.45 : (fxLoad >= 22 ? 0.65 : 1);
+    if (e === 'fire') {
+        ctx.globalAlpha = (1 - t) * 0.78;
+        for (let i = 0; i < Math.max(10, Math.floor(24 * lod)); i++) {
+            const a = (-Math.PI * 0.95) + (Math.PI * 0.9) * (i / 23);
+            const r = 5 + t * (24 + (i % 4) * 2.8);
+            ctx.fillStyle = i % 4 === 0 ? '#ffe39a' : (i % 2 ? '#ff8a3d' : '#ff3d1f');
+            ctx.beginPath();
+            ctx.ellipse(tx + Math.cos(a) * r * 0.72, ty + Math.sin(a) * r, (1.1 + (1 - t) * 1.8) * burst, (2.1 + (1 - t) * 2.4) * burst, a, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = (1 - t) * 0.35;
+        ctx.fillStyle = 'rgba(255,120,40,0.7)';
+        ctx.beginPath();
+        ctx.arc(tx, ty + 2, 6 + t * 8, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (e === 'cold') {
+        ctx.globalAlpha = (1 - t) * 0.88;
+        ctx.strokeStyle = 'rgba(198,244,255,0.98)';
+        ctx.lineWidth = 1.9;
+        for (let i = 0; i < Math.max(4, Math.floor(8 * lod)); i++) {
+            const a = (Math.PI * 2 * i) / 8 + t * 0.35;
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(tx + Math.cos(a) * (8 + t * 20), ty + Math.sin(a) * (8 + t * 20));
+            ctx.stroke();
+        }
+        ctx.globalAlpha = (1 - t) * 0.55;
+        ctx.fillStyle = 'rgba(220,248,255,0.75)';
+        for (let i = 0; i < Math.max(3, Math.floor(6 * lod)); i++) {
+            const a = (Math.PI * 2 * i) / 6;
+            const r = 6 + t * 10;
+            ctx.beginPath();
+            ctx.moveTo(tx + Math.cos(a) * r, ty + Math.sin(a) * r);
+            ctx.lineTo(tx + Math.cos(a + 0.16) * (r + 5), ty + Math.sin(a + 0.16) * (r + 5));
+            ctx.lineTo(tx + Math.cos(a - 0.16) * (r + 5), ty + Math.sin(a - 0.16) * (r + 5));
+            ctx.closePath();
+            ctx.fill();
+        }
+    } else if (e === 'light') {
+        ctx.globalAlpha = (1 - t) * 0.88;
+        ctx.strokeStyle = 'rgba(255,243,150,0.95)';
+        ctx.lineWidth = 2.2;
+        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
+            const ox = (i - 1) * 5;
+            drawBattleZigZag(ctx, tx - 16 + ox, ty - 14, tx + 8 + ox, ty + 6, 4 + i, 6);
+            ctx.stroke();
+        }
+    } else if (e === 'chaos') {
+        ctx.globalAlpha = (1 - t) * 0.7;
+        ctx.strokeStyle = 'rgba(210,120,255,0.9)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < Math.max(1, Math.floor(2 * lod)); i++) {
+            ctx.beginPath();
+            ctx.ellipse(tx, ty, 8 + t * (10 + i * 5), 5 + t * (8 + i * 4), t * 3.2 + i * 0.8, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    } else {
+        ctx.globalAlpha = (1 - t) * 0.68;
+        ctx.strokeStyle = 'rgba(247,224,177,0.9)';
+        ctx.lineWidth = 2.4;
+        for (let i = 0; i < 5; i++) {
+            const a = -Math.PI * 0.8 + i * (Math.PI * 0.4);
+            ctx.beginPath();
+            ctx.moveTo(tx, ty + 4);
+            ctx.lineTo(tx + Math.cos(a) * (8 + t * 12), ty + 4 + Math.sin(a) * (8 + t * 12));
+            ctx.stroke();
+        }
+    }
+}
+
 function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     let enemyEntry = enemyPosMap[fx.enemyId];
     if (!enemyEntry) return;
-    let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
     let tx = enemyEntry.x;
     let ty = enemyEntry.y - 6;
-    let sx = playerPos.x + 10;
-    let sy = playerPos.y - 2;
     ctx.save();
-    let punchScale = fx.crit ? 1.4 : 1;
-    if (skillVisual.group === 'physical_slam') {
-        ctx.globalAlpha = 1 - t * 0.62;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 5.2;
-        ctx.beginPath();
-        ctx.arc(tx, ty + 6, 10 + t * 22 * punchScale, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.strokeStyle = 'rgba(255,245,230,0.58)';
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        ctx.moveTo(tx - 12, ty + 10);
-        ctx.lineTo(tx + 12, ty + 10);
-        ctx.stroke();
-        ctx.globalAlpha = (1 - t) * 0.28;
-        ctx.fillStyle = 'rgba(210,180,140,0.35)';
-        ctx.beginPath();
-        ctx.ellipse(tx, ty + 12, 12 + t * 9, 4 + t * 2.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-    } else if (!fx.noLine) {
-        ctx.globalAlpha = 1 - t * 0.62;
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 3.2;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-        ctx.stroke();
+    let impactElement = normalizeBattleElement(fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
+    if (fx.dot) {
+        ctx.restore();
+        return;
     }
-    let impactElement = (fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
-    let impactTheme = getImpactThemeByElement(impactElement);
-    drawBattleImpactBurst(ctx, tx, ty, impactTheme.primary || skillVisual.primary, impactTheme.secondary || skillVisual.secondary, t);
-    drawElementalHitAccent(ctx, impactElement, tx, ty, t, fx.crit);
+    drawGemImpactFx(ctx, impactElement, tx, ty, t, fx.crit);
     if (fx.crit) {
         ctx.globalAlpha = (1 - t) * 0.75;
         ctx.strokeStyle = '#fff4a8';
@@ -2933,6 +2983,21 @@ function processQueuedUIRefresh() {
     }
 }
 
+function shouldRedrawPassiveTree(now) {
+    let signature = [
+        game.passivePoints || 0,
+        (game.passives || []).length,
+        (game.discoveredPassives || []).length,
+        game.startNode || '',
+        game.ascendClass || '',
+        game.season || 1
+    ].join('|');
+    let changed = signature !== lastPassiveTreeSignature;
+    let due = (now - lastPassiveTreeDrawAt) >= 180;
+    if (changed) lastPassiveTreeSignature = signature;
+    return changed || due;
+}
+
 function performUpdateStaticUI() {
 
     ensureStarWedgeState();
@@ -2945,6 +3010,7 @@ function performUpdateStaticUI() {
     refreshPassiveVisibility();
     normalizeSupportLoadout(true);
     let pStats = getPlayerStats();
+    cachedTooltipStats = pStats;
     updateCombatUI(pStats);
     let showCombatScene = game.settings.showCombatScene !== false;
     let canvas = document.getElementById('battlefield-canvas');
@@ -2974,8 +3040,14 @@ function performUpdateStaticUI() {
             shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
         }
     }
-    if (document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active')) resizePassiveTreeCanvas(false);
-    drawPassiveTree();
+    if (document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active')) {
+        let drawNow = Date.now();
+        if (shouldRedrawPassiveTree(drawNow)) {
+            resizePassiveTreeCanvas(false);
+            drawPassiveTree();
+            lastPassiveTreeDrawAt = drawNow;
+        }
+    }
     renderStarWedgePanel();
 
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
