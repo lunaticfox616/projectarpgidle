@@ -5117,6 +5117,10 @@ async function linkKakaoAccount() {
 
 async function linkSocialIdentityProvider(provider) {
     if (!cloudState.user) return setCloudMessage('먼저 로그인해주세요.');
+    let providerKey = String(provider || '').toLowerCase();
+    let linkedProviders = Array.isArray(cloudState.linkedProviders) ? cloudState.linkedProviders : [];
+    let alreadyLinked = linkedProviders.some(it => String(it || '').toLowerCase() === providerKey);
+    if (alreadyLinked) return setCloudMessage(`${provider === 'google' ? 'Google' : '카카오'} 계정은 이미 연동되어 있습니다.`);
     let client = getSupabaseClient();
     if (!client) return setCloudMessage('Supabase OAuth 클라이언트를 초기화하지 못했습니다.');
     // Supabase Dashboard > Authentication에서 Manual Identity Linking 옵션이 켜져 있어야 동작합니다.
@@ -5182,10 +5186,27 @@ function updateCloudSaveUI() {
 
     if (openGateBtn) openGateBtn.disabled = cloudState.busy;
     if (switchGateBtn) switchGateBtn.disabled = cloudState.busy || (!cloudState.user && !gameplayStarted);
-    ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull', 'btn-cloud-link-google', 'btn-cloud-link-kakao'].forEach(id => {
+    ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull'].forEach(id => {
         let el = document.getElementById(id);
         if (el) el.disabled = !canSync;
     });
+    let linkedProviders = Array.isArray(cloudState.linkedProviders) ? cloudState.linkedProviders.map(it => String(it || '').toLowerCase()) : [];
+    let isGoogleLinked = linkedProviders.includes('google');
+    let isKakaoLinked = linkedProviders.includes('kakao');
+    let linkGoogleBtn = document.getElementById('btn-cloud-link-google');
+    let linkKakaoBtn = document.getElementById('btn-cloud-link-kakao');
+    if (linkGoogleBtn) {
+        linkGoogleBtn.disabled = !canSync || isGoogleLinked;
+        linkGoogleBtn.innerHTML = isGoogleLinked
+            ? '<span>Google 연동됨</span>'
+            : '<img src="assets/google_login.png" alt="Google 계정 연결">';
+    }
+    if (linkKakaoBtn) {
+        linkKakaoBtn.disabled = !canSync || isKakaoLinked;
+        linkKakaoBtn.innerHTML = isKakaoLinked
+            ? '<span>카카오 연동됨</span>'
+            : '<img src="assets/kakao_login.png" alt="카카오 계정 연결">';
+    }
     if (userEl) userEl.innerText = cloudState.user && cloudState.user.email ? cloudState.user.email : (cloudState.user && cloudState.user.id ? cloudState.user.id : (config.enabled ? '로그인 안 됨' : '설정 필요'));
     if (localEl) localEl.innerText = formatCloudTime(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0);
     if (remoteEl) remoteEl.innerText = formatCloudTime(cloudState.lastRemoteUpdatedAt || (game && game.saveMeta ? game.saveMeta.lastCloudSyncAt : 0));
