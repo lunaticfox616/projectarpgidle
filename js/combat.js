@@ -278,7 +278,6 @@ function coreLoop() {
             pStats.resF += delta.resAll;
             pStats.resC += delta.resAll;
             pStats.resL += delta.resAll;
-            pStats.resChaos += delta.resAll;
         }
         if (delta.resChaos) pStats.resChaos += delta.resChaos;
         if (delta.energyShieldRegen) pStats.energyShieldRegenRate = Math.max(0, (pStats.energyShieldRegenRate || 0) + delta.energyShieldRegen);

@@ -2584,14 +2584,69 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
     }
 }
 
+
+function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
+    const e = normalizeBattleElement(element || 'phys');
+    const burst = crit ? 1.2 : 1;
+    if (e === 'fire') {
+        ctx.globalAlpha = (1 - t) * 0.72;
+        for (let i = 0; i < 18; i++) {
+            const a = (-Math.PI * 0.9) + (Math.PI * 0.8) * (i / 17);
+            const r = 6 + t * (20 + (i % 3) * 3);
+            ctx.fillStyle = i % 3 === 0 ? '#ffcc66' : (i % 2 ? '#ff7a32' : '#ff3b1f');
+            ctx.beginPath();
+            ctx.arc(tx + Math.cos(a) * r * 0.75, ty + Math.sin(a) * r, (1.2 + (1 - t) * 1.5) * burst, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (e === 'cold') {
+        ctx.globalAlpha = (1 - t) * 0.8;
+        ctx.strokeStyle = 'rgba(180,236,255,0.95)';
+        ctx.lineWidth = 1.8;
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI * 2 * i) / 6 + t * 0.4;
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(tx + Math.cos(a) * (8 + t * 18), ty + Math.sin(a) * (8 + t * 18));
+            ctx.stroke();
+        }
+    } else if (e === 'light') {
+        ctx.globalAlpha = (1 - t) * 0.88;
+        ctx.strokeStyle = 'rgba(255,243,150,0.95)';
+        ctx.lineWidth = 2.2;
+        for (let i = 0; i < 3; i++) {
+            const ox = (i - 1) * 5;
+            drawBattleZigZag(ctx, tx - 16 + ox, ty - 14, tx + 8 + ox, ty + 6, 4 + i, 6);
+            ctx.stroke();
+        }
+    } else if (e === 'chaos') {
+        ctx.globalAlpha = (1 - t) * 0.7;
+        ctx.strokeStyle = 'rgba(210,120,255,0.9)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 2; i++) {
+            ctx.beginPath();
+            ctx.ellipse(tx, ty, 8 + t * (10 + i * 5), 5 + t * (8 + i * 4), t * 3.2 + i * 0.8, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    } else {
+        ctx.globalAlpha = (1 - t) * 0.68;
+        ctx.strokeStyle = 'rgba(247,224,177,0.9)';
+        ctx.lineWidth = 2.4;
+        for (let i = 0; i < 5; i++) {
+            const a = -Math.PI * 0.8 + i * (Math.PI * 0.4);
+            ctx.beginPath();
+            ctx.moveTo(tx, ty + 4);
+            ctx.lineTo(tx + Math.cos(a) * (8 + t * 12), ty + 4 + Math.sin(a) * (8 + t * 12));
+            ctx.stroke();
+        }
+    }
+}
+
 function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     let enemyEntry = enemyPosMap[fx.enemyId];
     if (!enemyEntry) return;
     let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
     let tx = enemyEntry.x;
     let ty = enemyEntry.y - 6;
-    let sx = playerPos.x + 10;
-    let sy = playerPos.y - 2;
     ctx.save();
     let punchScale = fx.crit ? 1.4 : 1;
     let impactElement = normalizeBattleElement(fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
@@ -2613,12 +2668,8 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
         ctx.beginPath();
         ctx.ellipse(tx, ty + 12, 12 + t * 9, 4 + t * 2.5, 0, 0, Math.PI * 2);
         ctx.fill();
-    } else if (!fx.noLine) {
-        drawGemAttackTrail(ctx, impactElement, sx, sy, tx, ty, t);
     }
-    let impactTheme = getImpactThemeByElement(impactElement);
-    drawBattleImpactBurst(ctx, tx, ty, impactTheme.primary || skillVisual.primary, impactTheme.secondary || skillVisual.secondary, t);
-    drawElementalHitAccent(ctx, impactElement, tx, ty, t, fx.crit);
+    drawGemImpactFx(ctx, impactElement, tx, ty, t, fx.crit);
     if (fx.crit) {
         ctx.globalAlpha = (1 - t) * 0.75;
         ctx.strokeStyle = '#fff4a8';
