@@ -3880,6 +3880,7 @@ function rollBaseStats(base, zoneTier) {
         let val = minBase + Math.random() * Math.max(0, (maxBase - minBase));
         if (stat.id === 'energyShield') val *= 1.5;
         if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) val = Math.round(val * 10) / 10;
+        else if (stat.id === 'projectileExtraShots') val = Math.max(1, Math.round(val));
         else val = Math.floor(val);
         return { id: stat.id, val: val, valMin: minBase, valMax: maxBase, tier: 0, statName: getStatName(stat.id) };
     });
