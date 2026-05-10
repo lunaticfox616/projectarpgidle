@@ -4735,6 +4735,32 @@ function getCloudConfig() {
 
 
 
+const CLOUD_SKIP_OAUTH_RESTORE_KEY = 'projectidle_cloud_skip_oauth_restore';
+
+function markSkipOAuthRestoreOnce() {
+    try { localStorage.setItem(CLOUD_SKIP_OAUTH_RESTORE_KEY, '1'); } catch (e) {}
+}
+
+function consumeSkipOAuthRestoreOnce() {
+    try {
+        let marked = localStorage.getItem(CLOUD_SKIP_OAUTH_RESTORE_KEY) === '1';
+        if (marked) localStorage.removeItem(CLOUD_SKIP_OAUTH_RESTORE_KEY);
+        return marked;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function clearSupabasePersistedSession() {
+    let client = getSupabaseClient();
+    if (!client) return;
+    try {
+        await client.auth.signOut({ scope: 'local' });
+    } catch (error) {
+        console.warn('supabase local signout failed:', error);
+    }
+}
+
 let supabaseClient = null;
 
 function getSupabaseClient() {
@@ -4971,6 +4997,8 @@ async function continueWithCloudSession() {
 }
 
 function prepareStartupAccountSwitch() {
+    markSkipOAuthRestoreOnce();
+    clearSupabasePersistedSession();
     applyCloudSession(null);
     cloudState.lastRemoteUpdatedAt = 0;
     setCloudMessage('다른 계정으로 로그인할 수 있습니다.');
@@ -4987,6 +5015,8 @@ function startGuestMode() {
     if (cloudState.busy) return;
     if (cloudState.user && !confirm('현재 복원된 로그인 세션은 사용하지 않고 이 기기 로컬 저장만으로 시작할까요?')) return;
     if (cloudState.user) {
+        markSkipOAuthRestoreOnce();
+        clearSupabasePersistedSession();
         applyCloudSession(null);
         cloudState.lastRemoteUpdatedAt = 0;
     }
@@ -5325,7 +5355,9 @@ async function initializeCloudSave() {
         cloudState.busy = true;
         setCloudMessage('저장된 로그인 세션을 확인하는 중입니다...');
         updateCloudSaveUI();
-        let restored = await tryRestoreSupabaseOAuthSession();
+        let skipOAuthRestore = consumeSkipOAuthRestoreOnce();
+        let restored = false;
+        if (!skipOAuthRestore) restored = await tryRestoreSupabaseOAuthSession();
         if (!restored) restored = await restoreCloudSession();
         if (restored && cloudState.user) {
             if (isStartupOverlayOpen()) setCloudMessage('이전 로그인 세션을 복원했습니다. 클라우드 세이브로 계속할 수 있습니다.');
