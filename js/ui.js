@@ -1926,14 +1926,6 @@ function drawBattleBackdrop(ctx, width, height, theme, now, zone) {
         ctx.fillRect(0, 0, width, height);
 
         ctx.save();
-        ctx.globalAlpha = 0.06;
-        ctx.fillStyle = '#ffffff';
-        let drift = (now / 70) % (width + 80);
-        ctx.fillRect(-width + drift, height * 0.28, width * 0.45, 4);
-        ctx.fillRect(drift - 30, height * 0.44, width * 0.35, 3);
-        ctx.restore();
-
-        ctx.save();
         let vignette = ctx.createRadialGradient(width * 0.5, height * 0.55, width * 0.12, width * 0.5, height * 0.55, width * 0.78);
         vignette.addColorStop(0, 'rgba(0,0,0,0)');
         vignette.addColorStop(1, 'rgba(0,0,0,0.26)');
@@ -1978,14 +1970,6 @@ function drawBattleBackdrop(ctx, width, height, theme, now, zone) {
     ctx.moveTo(0, pathBottom);
     ctx.lineTo(width, pathBottom);
     ctx.stroke();
-
-    ctx.save();
-    ctx.globalAlpha = 0.06;
-    ctx.fillStyle = '#ffffff';
-    let drift = (now / 70) % (width + 80);
-    ctx.fillRect(-width + drift, height * 0.28, width * 0.45, 4);
-    ctx.fillRect(drift - 30, height * 0.44, width * 0.35, 3);
-    ctx.restore();
 
     ctx.save();
     let vignette = ctx.createRadialGradient(width * 0.5, height * 0.55, width * 0.12, width * 0.5, height * 0.55, width * 0.78);
@@ -2038,15 +2022,6 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             let frameMeta = getHeroFrameMeta(frameIndex);
             let metrics = getHeroDrawMetrics(x, y, heroFrame, frameMeta);
             drawPixelShadow(ctx, x, y + 15, 11, 4, 0.18);
-            ctx.save();
-            let glow = ctx.createRadialGradient(x, y - (metrics.drawH * 0.46), metrics.drawW * 0.1, x, y - (metrics.drawH * 0.46), metrics.drawH * 0.85);
-            glow.addColorStop(0, 'rgba(205,236,255,0.22)');
-            glow.addColorStop(1, 'rgba(205,236,255,0)');
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.ellipse(x, y - (metrics.drawH * 0.46), metrics.drawW * 0.75, metrics.drawH * 0.86, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
             ctx.save();
             ctx.filter = 'brightness(1.15) contrast(1.08) saturate(1.05)';
             ctx.drawImage(
@@ -2203,13 +2178,6 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
     drawPixelShadow(ctx, x, y + 18 * s, 13 * s, 5 * s, 0.22);
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y + bob));
-    if (skillVisual.aura) {
-        ctx.fillStyle = skillVisual.aura;
-        ctx.beginPath();
-        ctx.ellipse(0, 14 * s, 18 * s, 8 * s, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
     ctx.fillStyle = '#2f4571';
     ctx.fillRect(-4 * s, 4 * s, 3 * s, 5 * s);
     ctx.fillRect(1 * s, 4 * s, 3 * s, 5 * s);
@@ -2508,32 +2476,18 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
     ctx.save();
     ctx.globalAlpha = 1 - t * 0.72;
     let reach = 16 + t * 18;
-    if (skillVisual.group === 'physical_slam') {
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        ctx.arc(playerPos.x + 8, playerPos.y + 8, 10 + t * 18, Math.PI * 0.08, Math.PI * 1.65);
-        ctx.stroke();
-        ctx.globalAlpha = (1 - t) * 0.42;
-        ctx.strokeStyle = 'rgba(255,239,214,0.75)';
-        ctx.lineWidth = 2.4;
-        ctx.beginPath();
-        ctx.arc(playerPos.x + 8, playerPos.y + 8, 8 + t * 15, Math.PI * 0.18, Math.PI * 1.58);
-        ctx.stroke();
-    } else {
-        ctx.strokeStyle = skillVisual.primary;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(playerPos.x + 3, playerPos.y - 4);
-        ctx.quadraticCurveTo(playerPos.x + 10 + t * 10, playerPos.y - 26, playerPos.x + reach, playerPos.y - 10);
-        ctx.stroke();
-        ctx.strokeStyle = skillVisual.secondary;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(playerPos.x + 6, playerPos.y - 1);
-        ctx.lineTo(playerPos.x + reach - 2, playerPos.y - 6);
-        ctx.stroke();
-    }
+    ctx.strokeStyle = skillVisual.primary;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(playerPos.x + 3, playerPos.y - 4);
+    ctx.quadraticCurveTo(playerPos.x + 10 + t * 10, playerPos.y - 26, playerPos.x + reach, playerPos.y - 10);
+    ctx.stroke();
+    ctx.strokeStyle = skillVisual.secondary;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(playerPos.x + 6, playerPos.y - 1);
+    ctx.lineTo(playerPos.x + reach - 2, playerPos.y - 6);
+    ctx.stroke();
     if (fx.crit) {
         ctx.globalAlpha = (1 - t) * 0.52;
         ctx.strokeStyle = '#fff6c8';
@@ -2548,7 +2502,6 @@ function drawBattleSwingFx(ctx, fx, t, playerPos) {
     }
     ctx.restore();
 }
-
 
 function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
     const e = normalizeBattleElement(element || 'phys');
