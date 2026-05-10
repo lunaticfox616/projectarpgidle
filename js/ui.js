@@ -1,7 +1,10 @@
 // Phase-2 extracted UI/tab/render helper block.
 let lastHeavyUiRefreshAt = 0;
+let lastPassiveTreeDrawAt = 0;
+let lastPassiveTreeSignature = '';
 
 let mobilePipCanvas = null;
+var lod = 1; // fallback for any legacy FX paths
 let mobilePipCtx = null;
 let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 94, lastTapAt: 0 };
 let mobilePipRefreshHandle = null;
@@ -1482,7 +1485,7 @@ function renderBreakdownHtml(data) {
 }
 
 function showStatTooltip(event, key) {
-    let stats = getPlayerStats();
+    let stats = cachedTooltipStats || getPlayerStats();
     let data = stats.breakdowns[key];
     if (!data) return;
     showInfoTooltipHtml(event.clientX, event.clientY, renderBreakdownHtml(data), '#f39c12');
@@ -1492,7 +1495,7 @@ function showStatTooltip(event, key) {
 function showPlayerAilmentTooltip(event, type, timeLeft, power) {
     let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
     let p = Math.max(0.1, Number(power || 0.1));
-    let stats = getPlayerStats();
+    let stats = cachedTooltipStats || getPlayerStats();
     let detail = '';
     if (type === 'ignite') detail = `초당 화염 피해: 약 ${Math.floor((stats.maxHp || 1) * (0.0018 + p * 0.0022))}`;
     else if (type === 'poison') detail = `초당 카오스 피해: 약 ${Math.floor((stats.maxHp || 1) * (0.0015 + p * 0.0020))}`;
@@ -1910,28 +1913,6 @@ function drawBattleBackdrop(ctx, width, height, theme, now, zone) {
         let dx = Math.floor((width - drawW) / 2);
         let dy = Math.floor((height - drawH) / 2);
         ctx.drawImage(backdropImage, dx, dy, drawW, drawH);
-        ctx.fillStyle = variant.tone;
-        ctx.fillRect(0, 0, width, height);
-        let glow = ctx.createRadialGradient(width * 0.52, height * 0.2, width * 0.08, width * 0.52, height * 0.2, width * 0.7);
-        glow.addColorStop(0, variant.glow);
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow;
-        ctx.fillRect(0, 0, width, height);
-
-        let zoneTint = ctx.createLinearGradient(0, 0, 0, height);
-        zoneTint.addColorStop(0, theme.skyTop + '55');
-        zoneTint.addColorStop(0.55, 'rgba(0,0,0,0)');
-        zoneTint.addColorStop(1, theme.skyBottom + '6e');
-        ctx.fillStyle = zoneTint;
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.save();
-        let vignette = ctx.createRadialGradient(width * 0.5, height * 0.55, width * 0.12, width * 0.5, height * 0.55, width * 0.78);
-        vignette.addColorStop(0, 'rgba(0,0,0,0)');
-        vignette.addColorStop(1, 'rgba(0,0,0,0.26)');
-        ctx.fillStyle = vignette;
-        ctx.fillRect(0, 0, width, height);
-        ctx.restore();
         return;
     }
 
@@ -3002,6 +2983,21 @@ function processQueuedUIRefresh() {
     }
 }
 
+function shouldRedrawPassiveTree(now) {
+    let signature = [
+        game.passivePoints || 0,
+        (game.passives || []).length,
+        (game.discoveredPassives || []).length,
+        game.startNode || '',
+        game.ascendClass || '',
+        game.season || 1
+    ].join('|');
+    let changed = signature !== lastPassiveTreeSignature;
+    let due = (now - lastPassiveTreeDrawAt) >= 180;
+    if (changed) lastPassiveTreeSignature = signature;
+    return changed || due;
+}
+
 function performUpdateStaticUI() {
 
     ensureStarWedgeState();
@@ -3014,6 +3010,7 @@ function performUpdateStaticUI() {
     refreshPassiveVisibility();
     normalizeSupportLoadout(true);
     let pStats = getPlayerStats();
+    cachedTooltipStats = pStats;
     updateCombatUI(pStats);
     let showCombatScene = game.settings.showCombatScene !== false;
     let canvas = document.getElementById('battlefield-canvas');
@@ -3043,10 +3040,13 @@ function performUpdateStaticUI() {
             shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
         }
     }
-    let charTabActive = !!(document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active'));
-    if (charTabActive) {
-        resizePassiveTreeCanvas(false);
-        drawPassiveTree();
+    if (document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active')) {
+        let drawNow = Date.now();
+        if (shouldRedrawPassiveTree(drawNow)) {
+            resizePassiveTreeCanvas(false);
+            drawPassiveTree();
+            lastPassiveTreeDrawAt = drawNow;
+        }
     }
     renderStarWedgePanel();
 
