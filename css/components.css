@@ -61,7 +61,15 @@
         }
         #startup-social-actions .social-login-image-btn img {
             width: 100%;
+            height: 56px;
             max-width: none;
+        }
+        #startup-social-actions .social-login-image-btn img[src*="google_login"] {
+            object-fit: contain;
+        }
+        #startup-social-actions .social-login-image-btn img[src*="kakao_login"] {
+            object-fit: cover;
+            object-position: center;
         }
 
         #cloud-link-actions {
