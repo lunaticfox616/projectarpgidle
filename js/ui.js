@@ -4813,6 +4813,22 @@ function getSocialOAuthOptions(provider) {
     return options;
 }
 
+
+function sanitizeKakaoScopeInUrl(rawUrl) {
+    if (!rawUrl) return rawUrl;
+    try {
+        let url = new URL(rawUrl);
+        let scopeRaw = url.searchParams.get('scope') || '';
+        let scopes = scopeRaw.split(/\s+/).map(v => v.trim()).filter(Boolean);
+        let filtered = scopes.filter(scope => scope !== 'account_email');
+        if (filtered.length === 0) filtered = ['profile_nickname'];
+        url.searchParams.set('scope', filtered.join(' '));
+        return url.toString();
+    } catch (e) {
+        return rawUrl;
+    }
+}
+
 async function loginWithOAuthProvider(provider) {
     let client = getSupabaseClient();
     if (!client) return setCloudMessage('OAuth 클라이언트를 초기화하지 못했습니다.');
@@ -4822,8 +4838,15 @@ async function loginWithOAuthProvider(provider) {
     updateCloudSaveUI();
     try {
         let options = getSocialOAuthOptions(provider);
-        let { error } = await client.auth.signInWithOAuth({ provider, options });
+        if (provider === 'kakao') options.skipBrowserRedirect = true;
+        let { data, error } = await client.auth.signInWithOAuth({ provider, options });
         if (error) throw error;
+        if (provider === 'kakao') {
+            let safeUrl = sanitizeKakaoScopeInUrl(data && data.url);
+            if (!safeUrl) throw new Error('Kakao OAuth URL을 생성하지 못했습니다.');
+            window.location.assign(safeUrl);
+            return;
+        }
     } catch (error) {
         cloudState.busy = false;
         setCloudMessage('OAuth 로그인 시작 실패: ' + (error.message || error));
@@ -5103,8 +5126,15 @@ async function linkSocialIdentityProvider(provider) {
     updateCloudSaveUI();
     try {
         let options = getSocialOAuthOptions(provider);
-        let { error } = await client.auth.linkIdentity({ provider, options });
+        if (provider === 'kakao') options.skipBrowserRedirect = true;
+        let { data, error } = await client.auth.linkIdentity({ provider, options });
         if (error) throw error;
+        if (provider === 'kakao') {
+            let safeUrl = sanitizeKakaoScopeInUrl(data && data.url);
+            if (!safeUrl) throw new Error('Kakao 연결 URL을 생성하지 못했습니다.');
+            window.location.assign(safeUrl);
+            return;
+        }
     } catch (error) {
         setCloudMessage('소셜 계정 연결 시작 실패: ' + (error.message || error));
         cloudState.busy = false;
