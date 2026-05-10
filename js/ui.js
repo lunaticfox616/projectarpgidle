@@ -5169,6 +5169,12 @@ async function linkSocialIdentityProvider(provider) {
         let options = getSocialOAuthOptions(provider);
         let { error } = await client.auth.linkIdentity({ provider, options });
         if (error) throw error;
+        if (provider === 'kakao') {
+            let safeUrl = sanitizeKakaoScopeInUrl(data && data.url);
+            if (!safeUrl) throw new Error('카카오 연동 페이지 URL을 받지 못했습니다.');
+            window.location.assign(safeUrl);
+            return;
+        }
     } catch (error) {
         setCloudMessage('소셜 계정 연결 시작 실패: ' + (error.message || error));
         cloudState.busy = false;
