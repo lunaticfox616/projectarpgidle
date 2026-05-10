@@ -5087,6 +5087,16 @@ async function refreshCloudLinkedIdentities() {
         return [];
     }
     try {
+        if (cloudState.session && cloudState.session.access_token && cloudState.session.refresh_token && client.auth && typeof client.auth.setSession === 'function') {
+            try {
+                await client.auth.setSession({
+                    access_token: cloudState.session.access_token,
+                    refresh_token: cloudState.session.refresh_token
+                });
+            } catch (sessionSyncError) {
+                console.warn('supabase session sync failed before identity lookup:', sessionSyncError);
+            }
+        }
         let sessionResult = await client.auth.getSession();
         if (sessionResult && sessionResult.error) throw sessionResult.error;
         let session = sessionResult && sessionResult.data ? sessionResult.data.session : null;
@@ -5137,6 +5147,16 @@ async function linkSocialIdentityProvider(provider) {
     if (!client) return setCloudMessage('Supabase OAuth 클라이언트를 초기화하지 못했습니다.');
     // Supabase Dashboard > Authentication에서 Manual Identity Linking 옵션이 켜져 있어야 동작합니다.
     if (typeof client.auth.linkIdentity !== 'function') return setCloudMessage('현재 Supabase 클라이언트에서 계정 연결 API를 지원하지 않습니다.');
+    if (cloudState.session && cloudState.session.access_token && cloudState.session.refresh_token && client.auth && typeof client.auth.setSession === 'function') {
+        try {
+            await client.auth.setSession({
+                access_token: cloudState.session.access_token,
+                refresh_token: cloudState.session.refresh_token
+            });
+        } catch (sessionSyncError) {
+            console.warn('supabase session sync failed before linkIdentity:', sessionSyncError);
+        }
+    }
     let sessionResult = await client.auth.getSession();
     if (sessionResult && sessionResult.error) return setCloudMessage('로그인 후 이용 가능합니다');
     let session = sessionResult && sessionResult.data ? sessionResult.data.session : null;
