@@ -12,6 +12,8 @@ function drawPassiveTree() {
     const displayWidth = passiveCanvasMetrics.width || Math.max(1, canvas.clientWidth || 1);
     const displayHeight = passiveCanvasMetrics.height || Math.max(1, canvas.clientHeight || 1);
     const lightweightMode = !!isDragging;
+    const zoomedOutMode = camZoom <= 0.62;
+    const ultraZoomedOutMode = camZoom <= 0.48;
 
     // transform 누적 방지: 매 렌더 시작 시 setTransform으로 초기화
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -37,7 +39,7 @@ function drawPassiveTree() {
     ctx.scale(camZoom, camZoom);
 
     // 월드 배경 성운/별
-    if (!lightweightMode) drawPassiveStarfield(ctx, PASSIVE_BOUNDS);
+    if (!lightweightMode && !zoomedOutMode) drawPassiveStarfield(ctx, PASSIVE_BOUNDS);
 
     // 중심 오라
     const rootGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 520);
@@ -49,10 +51,10 @@ function drawPassiveTree() {
     ctx.arc(0, 0, 560, 0, Math.PI * 2);
     ctx.fill();
 
-    if (!lightweightMode) drawPassiveEvolutionAura(ctx);
+    if (!lightweightMode && !zoomedOutMode) drawPassiveEvolutionAura(ctx);
 
     // 탐험 밝혀짐 후광
-    visibleGlowNodes.forEach(node => {
+    if (!zoomedOutMode) visibleGlowNodes.forEach(node => {
         if (!isPassiveNodeAvailable(node)) return;
         const visibility = getPassiveVisibility(node.id);
         if (visibility === 'hidden') return;
@@ -82,7 +84,7 @@ function drawPassiveTree() {
     });
 
     // 리빌 펄스
-    if (!lightweightMode) passiveRevealBursts.forEach(burst => {
+    if (!lightweightMode && !zoomedOutMode) passiveRevealBursts.forEach(burst => {
         const progress = clampNumber((performance.now() - burst.startTime) / burst.duration, 0, 1);
         const radius = burst.radius * progress;
         const alpha = 1 - progress;
@@ -126,7 +128,13 @@ function drawPassiveTree() {
         ctx.save();
         ctx.globalAlpha = alpha;
 
-        if (hoveredLink) {
+        if (ultraZoomedOutMode) {
+            drawPassiveLink(ctx, a, b, {
+                stroke: activeLink ? 'rgba(160,130,82,0.78)' : 'rgba(80,98,115,0.5)',
+                innerStroke: activeLink ? 'rgba(240,220,170,0.32)' : 'rgba(130,150,168,0.12)',
+                width: activeLink ? 3.2 : 1.6
+            });
+        } else if (hoveredLink) {
             drawPassiveLink(ctx, a, b, {
                 stroke: 'rgba(141,188,230,0.95)',
                 innerStroke: 'rgba(222,244,255,0.9)',
@@ -179,7 +187,7 @@ function drawPassiveTree() {
 
         drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, revealAlpha, lightweightMode);
 
-        if (!active && reachable) {
+        if (!ultraZoomedOutMode && !active && reachable) {
             ctx.save();
             ctx.globalAlpha = revealAlpha;
             ctx.beginPath();
@@ -192,7 +200,7 @@ function drawPassiveTree() {
             ctx.restore();
         }
 
-        if (hoverNode && hoveredLinkedIds.has(node.id) && hoverNode.id !== node.id) {
+        if (!ultraZoomedOutMode && hoverNode && hoveredLinkedIds.has(node.id) && hoverNode.id !== node.id) {
             ctx.save();
             ctx.globalAlpha = Math.max(0.35, revealAlpha * 0.9);
             ctx.beginPath();
