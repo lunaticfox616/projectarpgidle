@@ -5083,9 +5083,19 @@ async function refreshCloudLinkedIdentities() {
     let client = getSupabaseClient();
     if (!client || !cloudState.user) {
         cloudState.linkedProviders = [];
+        cloudState.identityLookupState = cloudState.user ? 'needs_login' : 'idle';
         return [];
     }
     try {
+        let sessionResult = await client.auth.getSession();
+        if (sessionResult && sessionResult.error) throw sessionResult.error;
+        let session = sessionResult && sessionResult.data ? sessionResult.data.session : null;
+        if (!session || !session.access_token) {
+            cloudState.linkedProviders = [];
+            cloudState.identityLookupState = 'needs_login';
+            setCloudMessage('로그인 후 이용 가능합니다');
+            return [];
+        }
         let providers = [];
         if (client.auth && typeof client.auth.getUserIdentities === 'function') {
             let { data, error } = await client.auth.getUserIdentities();
@@ -5099,10 +5109,12 @@ async function refreshCloudLinkedIdentities() {
             providers = identities.map(it => it && it.provider).filter(Boolean);
         }
         cloudState.linkedProviders = Array.from(new Set(providers));
+        cloudState.identityLookupState = 'ready';
         return cloudState.linkedProviders;
     } catch (error) {
         console.warn('failed to load linked identities:', error);
         cloudState.linkedProviders = [];
+        cloudState.identityLookupState = 'needs_login';
         return [];
     }
 }
@@ -5125,6 +5137,10 @@ async function linkSocialIdentityProvider(provider) {
     if (!client) return setCloudMessage('Supabase OAuth 클라이언트를 초기화하지 못했습니다.');
     // Supabase Dashboard > Authentication에서 Manual Identity Linking 옵션이 켜져 있어야 동작합니다.
     if (typeof client.auth.linkIdentity !== 'function') return setCloudMessage('현재 Supabase 클라이언트에서 계정 연결 API를 지원하지 않습니다.');
+    let sessionResult = await client.auth.getSession();
+    if (sessionResult && sessionResult.error) return setCloudMessage('로그인 후 이용 가능합니다');
+    let session = sessionResult && sessionResult.data ? sessionResult.data.session : null;
+    if (!session || !session.access_token) return setCloudMessage('로그인 후 이용 가능합니다');
     cloudState.busy = true;
     setCloudMessage(`${provider === 'google' ? 'Google' : '카카오'} 계정 연결을 시작합니다...`);
     updateCloudSaveUI();
@@ -5213,7 +5229,11 @@ function updateCloudSaveUI() {
     let identitiesEl = document.getElementById('ui-cloud-identities');
     if (identitiesEl) {
         let providers = Array.isArray(cloudState.linkedProviders) ? cloudState.linkedProviders : [];
-        identitiesEl.innerText = cloudState.user ? (providers.length ? providers.join(', ') : '연결된 소셜 계정 없음') : '로그인 필요';
+        if (!cloudState.user || cloudState.identityLookupState === 'needs_login') {
+            identitiesEl.innerText = '로그인 필요';
+        } else {
+            identitiesEl.innerText = providers.length ? providers.join(', ') : '연결된 소셜 계정 없음';
+        }
     }
     if (msgEl) msgEl.innerText = cloudState.lastMessage || '대기 중';
     updateStartupScreenUI();
