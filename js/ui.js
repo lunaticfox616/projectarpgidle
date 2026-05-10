@@ -854,8 +854,17 @@ function getTalismanUnlockedCellsSet() {
 }
 
 function getTalismanExpandCost(extraUnlockedCount) {
-    if (extraUnlockedCount >= 16) return 0;
-    return 1 + Math.floor(extraUnlockedCount / 4);
+    if (extraUnlockedCount >= 28) return { sealShard: 0, strongSealShard: 0 };
+    let sealCost = 1 + Math.floor(extraUnlockedCount / 3);
+    let strongCost = extraUnlockedCount >= 20 ? 1 : 0; // 마지막 8칸부터 강력 봉인편린 추가 소모
+    return { sealShard: sealCost, strongSealShard: strongCost };
+}
+
+function formatTalismanUnlockCostLabel(cost) {
+    if (!cost || cost.sealShard <= 0) return '완료';
+    let parts = [`봉인편린 ${cost.sealShard}`];
+    if ((cost.strongSealShard || 0) > 0) parts.push(`강력 봉인편린 ${cost.strongSealShard}`);
+    return parts.join(' + ');
 }
 
 function expandTalismanBoard() {
@@ -871,11 +880,12 @@ function unlockTalismanCell(x, y) {
     if (unlockedSet.has(idx)) return false;
     let extraUnlocked = Math.max(0, unlockedSet.size - 16);
     let cost = getTalismanExpandCost(extraUnlocked);
-    if ((game.currencies.sealShard || 0) < cost) {
-        addLog(`봉인편린이 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if ((game.currencies.sealShard || 0) < (cost.sealShard || 0) || (game.currencies.strongSealShard || 0) < (cost.strongSealShard || 0)) {
+        addLog(`봉인편린이 부족합니다. (필요: ${formatTalismanUnlockCostLabel(cost)})`, 'attack-monster');
         return false;
     }
-    game.currencies.sealShard -= cost;
+    game.currencies.sealShard -= (cost.sealShard || 0);
+    game.currencies.strongSealShard -= (cost.strongSealShard || 0);
     game.talismanUnlockedCells = Array.isArray(game.talismanUnlockedCells) ? game.talismanUnlockedCells : [];
     game.talismanUnlockedCells.push(idx);
     game.talismanUnlockedCells = Array.from(new Set(game.talismanUnlockedCells.map(v => Math.floor(v)).filter(v => v >= 0 && v < (TALISMAN_BOARD_W * TALISMAN_BOARD_H))));
@@ -1529,6 +1539,7 @@ function showEnemyAilmentTooltip(event, type, timeLeft, power, maxHp) {
 function showGemTooltip(event, type, name) {
     let info = getGemPresentation(name, type === 'support');
     let stats = getPlayerStats();
+    let cacheKey = `${type || 'active'}:${name}:${info && (info.totalLevel || info.finalLevel || info.baseLevel || 1)}`;
     let html = `<div class="tooltip-title">${name}</div>`;
     if (type === 'support') {
         html += `<div class="tooltip-line">${info.desc}</div>`;
@@ -3693,7 +3704,7 @@ function buildCraftActionButtons(item) {
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button onclick="startTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>봉인편린 해제</button>
                 <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
-                <button onclick="expandTalismanBoard()" ${talismanUnlockCost <= 0 ? 'disabled' : ''}>칸 해금 안내 (${talismanUnlockCost > 0 ? talismanUnlockCost : '완료'})</button>
+                <button onclick="expandTalismanBoard()" ${(talismanUnlockCost.sealShard || 0) <= 0 ? 'disabled' : ''}>칸 해금 안내 (${formatTalismanUnlockCostLabel(talismanUnlockCost)})</button>
             </div>`;
     } else {
         let shapeStyle = getTalismanShapeStyle(unseal.current.shape);
@@ -3711,6 +3722,7 @@ function buildCraftActionButtons(item) {
         let shapeStyle = getTalismanShapeStyle(t.shape);
         return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
+    activeTalismanHoverId = null;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
         let y = Math.floor(i / TALISMAN_BOARD_W);
@@ -3724,13 +3736,13 @@ function buildCraftActionButtons(item) {
         if (!valid) return `<div style="width:42px; height:42px; border:0; background:transparent; border-radius:8px; opacity:0; pointer-events:none;"></div>`;
         let cellColor = coreOpen ? 'radial-gradient(circle at 30% 25%, #595f69 0%, #3a3f48 52%, #1f2329 100%)' : (!unlocked ? 'radial-gradient(circle at 30% 25%, #4f5661 0%, #333941 58%, #1a1f26 100%)' : 'radial-gradient(circle at 30% 25%, #666c76 0%, #434a54 58%, #252b32 100%)');
         if (id) cellColor = (shapeStyle ? `linear-gradient(145deg, rgba(255,255,255,0.3) 0%, ${shapeStyle.color} 42%, rgba(10,12,17,0.22) 100%)` : '#355d46');
-        let label = !unlocked ? '' : (id ? '' : '');
+        let label = !unlocked ? '🔒' : (id ? '' : '');
         let border = !unlocked ? '#5a616b' : (id && shapeStyle ? shapeStyle.color : '#767d88');
-        let textColor = !unlocked ? '#b7bdc8' : (id && shapeStyle ? shapeStyle.color : '#d7dbe2');
+        let textColor = !unlocked ? '#d5dbe6' : (id && shapeStyle ? shapeStyle.color : '#d7dbe2');
         let unlockedSet = getTalismanUnlockedCellsSet();
         let extraUnlocked = Math.max(0, unlockedSet.size - 16);
         let unlockCost = getTalismanExpandCost(extraUnlocked);
-        let lockTitle = unlocked ? '' : ` title="해금 비용: 봉인편린 ${unlockCost}"`;
+        let lockTitle = unlocked ? '' : ` title="해금 비용: ${formatTalismanUnlockCostLabel(unlockCost)}"`;
         let isHoverGroup = !!(id && activeTalismanHoverId && id === activeTalismanHoverId);
         let surfaceShadow = id
             ? `inset 0 1px 0 rgba(255,255,255,0.34), 0 2px 6px rgba(0,0,0,0.35), 0 0 8px ${shapeStyle ? shapeStyle.glow : 'rgba(120,180,240,0.25)'}`
@@ -3749,7 +3761,7 @@ function buildCraftActionButtons(item) {
             total[t.stat] = (total[t.stat] || 0) + (t.value || 0);
         });
         let rows = Object.keys(total).map(stat => `${getStatName(stat)} +${formatValue(stat, total[stat])}`);
-        talismanTotalEl.innerHTML = rows.length > 0 ? `장착 부적 총합: <strong>${rows.join(' · ')}</strong>` : '장착 부적 총합: 없음';
+        talismanTotalEl.innerHTML = rows.length > 0 ? `부적으로 얻은 능력치 총합: <strong>${rows.join(' · ')}</strong>` : '부적으로 얻은 능력치 총합: 없음';
     }
     let journalList = document.getElementById('ui-journal-list');
     if (journalList) {
