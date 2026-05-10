@@ -4802,6 +4802,17 @@ async function loginWithKakao() {
     await loginWithOAuthProvider('kakao');
 }
 
+function getSocialOAuthOptions(provider) {
+    let redirectTo = getOAuthRedirectUrl();
+    let options = { redirectTo };
+    if (provider === 'kakao') {
+        // 카카오 로그인에서 account_email scope를 요청하지 않습니다.
+        options.scopes = 'profile_nickname';
+        options.queryParams = { scope: 'profile_nickname' };
+    }
+    return options;
+}
+
 async function loginWithOAuthProvider(provider) {
     let client = getSupabaseClient();
     if (!client) return setCloudMessage('OAuth 클라이언트를 초기화하지 못했습니다.');
@@ -4810,8 +4821,8 @@ async function loginWithOAuthProvider(provider) {
     setCloudMessage(`${provider === 'google' ? 'Google' : '카카오'} 로그인으로 이동 중입니다...`);
     updateCloudSaveUI();
     try {
-        let redirectTo = getOAuthRedirectUrl();
-        let { error } = await client.auth.signInWithOAuth({ provider, options: { redirectTo } });
+        let options = getSocialOAuthOptions(provider);
+        let { error } = await client.auth.signInWithOAuth({ provider, options });
         if (error) throw error;
     } catch (error) {
         cloudState.busy = false;
@@ -5091,8 +5102,8 @@ async function linkSocialIdentityProvider(provider) {
     setCloudMessage(`${provider === 'google' ? 'Google' : '카카오'} 계정 연결을 시작합니다...`);
     updateCloudSaveUI();
     try {
-        let redirectTo = getOAuthRedirectUrl();
-        let { error } = await client.auth.linkIdentity({ provider, options: { redirectTo } });
+        let options = getSocialOAuthOptions(provider);
+        let { error } = await client.auth.linkIdentity({ provider, options });
         if (error) throw error;
     } catch (error) {
         setCloudMessage('소셜 계정 연결 시작 실패: ' + (error.message || error));
