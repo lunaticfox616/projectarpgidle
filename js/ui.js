@@ -4808,6 +4808,7 @@ function getSocialOAuthOptions(provider) {
     if (provider === 'kakao') {
         // 카카오 로그인에서 account_email scope를 요청하지 않습니다.
         options.scopes = 'profile_nickname';
+        options.queryParams = { scope: 'profile_nickname' };
     }
     return options;
 }
