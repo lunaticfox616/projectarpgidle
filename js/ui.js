@@ -4829,6 +4829,7 @@ async function tryRestoreSupabaseOAuthSession() {
         let session = data && data.session;
         if (!session || !session.access_token) return false;
         applyCloudSession(session);
+        await refreshCloudLinkedIdentities();
         let userLabel = (session.user && session.user.email) ? session.user.email : (session.user && session.user.id ? session.user.id : '알 수 없음');
         setCloudMessage('로그인됨: ' + userLabel);
         return true;
@@ -5022,6 +5023,7 @@ function startGuestMode() {
         markSkipOAuthRestoreOnce();
         clearSupabasePersistedSession();
         applyCloudSession(null);
+        cloudState.linkedProviders = [];
         cloudState.lastRemoteUpdatedAt = 0;
     }
     setCloudMessage('게스트 모드로 시작합니다. 이 기기 저장만 사용합니다.');
@@ -5040,6 +5042,63 @@ function startupLogin() {
 
 function startupSignUp() {
     cloudSignUp({ source: 'startup', enterGame: true });
+}
+
+
+async function refreshCloudLinkedIdentities() {
+    let client = getSupabaseClient();
+    if (!client || !cloudState.user) {
+        cloudState.linkedProviders = [];
+        return [];
+    }
+    try {
+        let providers = [];
+        if (client.auth && typeof client.auth.getUserIdentities === 'function') {
+            let { data, error } = await client.auth.getUserIdentities();
+            if (error) throw error;
+            let identities = data && (data.identities || data.user_identities) ? (data.identities || data.user_identities) : [];
+            providers = identities.map(it => it && (it.provider || it.identity_provider)).filter(Boolean);
+        } else {
+            let { data, error } = await client.auth.getUser();
+            if (error) throw error;
+            let identities = data && data.user && Array.isArray(data.user.identities) ? data.user.identities : [];
+            providers = identities.map(it => it && it.provider).filter(Boolean);
+        }
+        cloudState.linkedProviders = Array.from(new Set(providers));
+        return cloudState.linkedProviders;
+    } catch (error) {
+        console.warn('failed to load linked identities:', error);
+        cloudState.linkedProviders = [];
+        return [];
+    }
+}
+
+async function linkGoogleAccount() {
+    return await linkSocialIdentityProvider('google');
+}
+
+async function linkKakaoAccount() {
+    return await linkSocialIdentityProvider('kakao');
+}
+
+async function linkSocialIdentityProvider(provider) {
+    if (!cloudState.user) return setCloudMessage('먼저 로그인해주세요.');
+    let client = getSupabaseClient();
+    if (!client) return setCloudMessage('Supabase OAuth 클라이언트를 초기화하지 못했습니다.');
+    // Supabase Dashboard > Authentication에서 Manual Identity Linking 옵션이 켜져 있어야 동작합니다.
+    if (typeof client.auth.linkIdentity !== 'function') return setCloudMessage('현재 Supabase 클라이언트에서 계정 연결 API를 지원하지 않습니다.');
+    cloudState.busy = true;
+    setCloudMessage(`${provider === 'google' ? 'Google' : '카카오'} 계정 연결을 시작합니다...`);
+    updateCloudSaveUI();
+    try {
+        let redirectTo = getOAuthRedirectUrl();
+        let { error } = await client.auth.linkIdentity({ provider, options: { redirectTo } });
+        if (error) throw error;
+    } catch (error) {
+        setCloudMessage('소셜 계정 연결 시작 실패: ' + (error.message || error));
+        cloudState.busy = false;
+        updateCloudSaveUI();
+    }
 }
 
 function updateCloudSaveUI() {
@@ -5082,13 +5141,18 @@ function updateCloudSaveUI() {
 
     if (openGateBtn) openGateBtn.disabled = cloudState.busy;
     if (switchGateBtn) switchGateBtn.disabled = cloudState.busy || (!cloudState.user && !gameplayStarted);
-    ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull'].forEach(id => {
+    ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull', 'btn-cloud-link-google', 'btn-cloud-link-kakao'].forEach(id => {
         let el = document.getElementById(id);
         if (el) el.disabled = !canSync;
     });
-    if (userEl) userEl.innerText = cloudState.user && cloudState.user.email ? cloudState.user.email : (config.enabled ? '로그인 안 됨' : '설정 필요');
+    if (userEl) userEl.innerText = cloudState.user && cloudState.user.email ? cloudState.user.email : (cloudState.user && cloudState.user.id ? cloudState.user.id : (config.enabled ? '로그인 안 됨' : '설정 필요'));
     if (localEl) localEl.innerText = formatCloudTime(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0);
     if (remoteEl) remoteEl.innerText = formatCloudTime(cloudState.lastRemoteUpdatedAt || (game && game.saveMeta ? game.saveMeta.lastCloudSyncAt : 0));
+    let identitiesEl = document.getElementById('ui-cloud-identities');
+    if (identitiesEl) {
+        let providers = Array.isArray(cloudState.linkedProviders) ? cloudState.linkedProviders : [];
+        identitiesEl.innerText = cloudState.user ? (providers.length ? providers.join(', ') : '연결된 소셜 계정 없음') : '로그인 필요';
+    }
     if (msgEl) msgEl.innerText = cloudState.lastMessage || '대기 중';
     updateStartupScreenUI();
 }
@@ -5364,6 +5428,7 @@ async function initializeCloudSave() {
         if (!skipOAuthRestore) restored = await tryRestoreSupabaseOAuthSession();
         if (!restored) restored = await restoreCloudSession();
         if (restored && cloudState.user) {
+            await refreshCloudLinkedIdentities();
             if (isStartupOverlayOpen()) setCloudMessage('이전 로그인 세션을 복원했습니다. 클라우드 세이브로 계속할 수 있습니다.');
             else {
                 setCloudMessage('이전 로그인 세션을 복원했습니다.');
@@ -5406,6 +5471,7 @@ async function cloudSignUp(options = {}) {
         });
         if (result && result.session && result.user) {
             applyCloudSession({ ...result.session, user: result.user });
+            await refreshCloudLinkedIdentities();
             clearCloudPasswordInput();
             advanceLoadingOverlay({
                 title: '첫 세이브를 연결하는 중...',
@@ -5452,6 +5518,7 @@ async function cloudLogin(options = {}) {
             body: { email: credentials.email, password: credentials.password }
         });
         applyCloudSession(session);
+        await refreshCloudLinkedIdentities();
         clearCloudPasswordInput();
         advanceLoadingOverlay({
             title: '저장 데이터를 동기화하는 중...',
@@ -5489,6 +5556,7 @@ async function cloudLogout() {
             }
         }
         applyCloudSession(null);
+        cloudState.linkedProviders = [];
         cloudState.lastRemoteUpdatedAt = 0;
         setCloudMessage('클라우드 계정에서 로그아웃했습니다.');
     } finally {

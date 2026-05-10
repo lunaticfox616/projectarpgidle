@@ -743,6 +743,13 @@
                 <button id="btn-cloud-push" onclick="cloudForcePullNow()">서버에서 강제 불러오기</button>
                 <button id="btn-cloud-return-startup" onclick="openStartupGate({ accountOnly: true })">계정 전환</button>
             </div>
+            <div class="cloud-actions secondary" id="cloud-link-actions">
+                <button id="btn-cloud-link-google" class="google-login-btn" onclick="linkGoogleAccount()">Google 계정 연결</button>
+                <button id="btn-cloud-link-kakao" class="kakao-login-btn" onclick="linkKakaoAccount()">카카오 계정 연결</button>
+            </div>
+            <div class="cloud-meta" id="cloud-provider-meta">
+                <div>연결된 소셜 계정: <strong id="ui-cloud-identities">확인 전</strong></div>
+            </div>
             <div class="cloud-meta">
                 <div>계정 상태: <strong id="ui-cloud-user">로그인 안 됨</strong></div>
                 <div>로컬 마지막 저장: <strong id="ui-cloud-local-save">없음</strong></div>
