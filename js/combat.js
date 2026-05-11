@@ -43,7 +43,7 @@ function cleanupConditionGemStates(now) {
         if (bonus <= 0) return;
         enemy.hp = Math.max(0, enemy.hp - bonus);
         if (game.settings && game.settings.showCombatLog !== false) addLog(`💀 파멸 징표 폭발: ${formatNumberKR(bonus)} 추가 피해`, 'attack-monster', { noToast: true });
-        if (enemy.hp <= 0) handleEnemyDeath(enemy);
+        if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
         delete pending[enemyId];
         game.enemyCurseExpirePayloads = pending;
     }
@@ -99,6 +99,8 @@ function getConditionGemStatDelta(name, type) {
         // Guards
         '원소 장막': { dr: 22, resAll: 10, maxResAll: 4 },
         '가시 방패': { dr: 20, thorns: 0.26, physIgnore: 10 },
+        '현무 장막': { dr: 22, resAll: 10, maxResAll: 4 },
+        '응보 방패': { dr: 20, thorns: 0.26, physIgnore: 10 },
         '철의 맹세': { dr: 25, aspd: -8, armorMul: 0.20 },
         '서리 장벽': { dr: 14, coldGuard: 0.2, cleanseChill: 1, cleanseFreeze: 1, immuneChill: 1, immuneFreeze: 1 },
         '폭풍 장벽': { dr: 15, move: 16, aspd: 10, cleanseShock: 1, immuneShock: 1 },
@@ -226,6 +228,11 @@ function runConditionGemAutoRules(pStats) {
             });
             while (list.length > limit) list.shift();
             game.enemyConditionDebuffs[target.id] = list;
+            if (gemName === '파멸 징표') {
+                let store = game.enemyCurseExpirePayloads || {};
+                store[target.id] = { doomDamage: 0 };
+                game.enemyCurseExpirePayloads = store;
+            }
         } else {
             game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: now + Math.floor((entry.duration || 4) * 1000) });
             let castDelta = getConditionGemStatDelta(gemName, entry.type);
@@ -521,7 +528,7 @@ function processPendingSlamEchoHits() {
         enemy.hp = Math.max(0, enemy.hp - bonus);
         addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220 });
         if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 지진의 함성: ${formatNumberKR(bonus)} 추가 타격`, 'attack-player', { noToast: true });
-        if (enemy.hp <= 0) handleEnemyDeath(enemy);
+        if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
     });
     game.pendingSlamEchoHits = next;
 }
@@ -2537,7 +2544,12 @@ function performPlayerAttack(pStats) {
             if (hitCrit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
             dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement));
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
-            if (targetEnemy && targetEnemy.id && dmg > 0) {
+            let hasActiveDoomMark = false;
+            if (targetEnemy && targetEnemy.id) {
+                let debs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[targetEnemy.id]) ? game.enemyConditionDebuffs[targetEnemy.id] : [];
+                hasActiveDoomMark = debs.some(deb => deb && deb.name === '파멸 징표' && (deb.expiresAt || 0) > Date.now());
+            }
+            if (targetEnemy && targetEnemy.id && dmg > 0 && hasActiveDoomMark) {
                 let curseStore = game.enemyCurseExpirePayloads || {};
                 let row = curseStore[targetEnemy.id] || { doomDamage: 0 };
                 row.doomDamage = Math.max(0, Math.floor(row.doomDamage || 0) + dmg);
