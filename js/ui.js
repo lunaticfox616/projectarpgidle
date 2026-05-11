@@ -5497,7 +5497,7 @@ async function reconcileCloudSaveState(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
-    if (preferRemoteOnResume && remoteStamp > 0) {
+    if (preferRemoteOnResume) {
         applyExternalSave(record.save_data, remoteStamp);
         setCloudMessage(strictRemoteResume
             ? '이어하기(클라우드 우선) 정책으로 서버 저장을 강제로 적용했습니다.'

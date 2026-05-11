@@ -3875,8 +3875,8 @@ function chooseItemBase(slot, zoneTier) {
 
 function rollBaseStats(base, zoneTier) {
     return base.baseStats.map(stat => {
-        let minBase = Number.isFinite(stat.baseMin) ? stat.baseMin : ((stat.base || 0) * 0.82);
-        let maxBase = Number.isFinite(stat.baseMax) ? stat.baseMax : ((stat.base || 0) * 1.18);
+        let minBase = Number.isFinite(stat.baseMin) ? stat.baseMin : ((stat.base || 0) * 0.8);
+        let maxBase = Number.isFinite(stat.baseMax) ? stat.baseMax : ((stat.base || 0) * 1.2);
         let scale = (stat.id === 'energyShield') ? 1.5 : 1;
         let scaledMin = minBase * scale;
         let scaledMax = maxBase * scale;
@@ -3884,6 +3884,11 @@ function rollBaseStats(base, zoneTier) {
         if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) val = Math.round(val * 10) / 10;
         else if (stat.id === 'projectileExtraShots') val = Math.max(1, Math.round(val));
         else val = Math.floor(val);
+        if (stat.id === 'flatDmg') {
+            scaledMin = Math.max(1, scaledMin);
+            scaledMax = Math.max(scaledMin, scaledMax);
+            val = Math.max(1, val);
+        }
         return {
             id: stat.id,
             val: val,
