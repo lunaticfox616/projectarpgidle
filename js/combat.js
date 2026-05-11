@@ -2152,7 +2152,6 @@ function handleEnemyDeath(enemy, pStats) {
         game.encounterPlan = [];
         game.encounterIndex = 0;
         game.runProgress = 0;
-        v.grandBreachUnlock = true;
         game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : game.maxZoneId;
         markLoopSpecialBossKill('void_grand_breach');
         unlockJournalEntry('void_grand_breach');
@@ -2712,7 +2711,6 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.encounterPlan = [];
         game.encounterIndex = 0;
         game.runProgress = 0;
-        v.grandBreachUnlock = true;
         game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : game.maxZoneId;
         game.killsInZone = 0;
     } else if (zone.type === 'seasonBoss' && game.inTicketBossFight) {
