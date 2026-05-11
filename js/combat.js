@@ -32,10 +32,33 @@ function isDualWielding() {
 
 
 function cleanupConditionGemStates(now) {
+    function triggerCurseExpireEffects(enemyId, deb) {
+        if (!deb || deb.name !== '파멸 징표') return;
+        let pending = game.enemyCurseExpirePayloads || {};
+        let row = pending[enemyId];
+        if (!row || !row.doomDamage) return;
+        let enemy = (game.enemies || []).find(e => e && e.id === enemyId && e.hp > 0);
+        if (!enemy) return;
+        let bonus = Math.max(0, Math.floor(row.doomDamage * 0.16));
+        if (bonus <= 0) return;
+        enemy.hp = Math.max(0, enemy.hp - bonus);
+        if (game.settings && game.settings.showCombatLog !== false) addLog(`💀 파멸 징표 폭발: ${formatNumberKR(bonus)} 추가 피해`, 'attack-monster', { noToast: true });
+        if (enemy.hp <= 0) handleEnemyDeath(enemy);
+        delete pending[enemyId];
+        game.enemyCurseExpirePayloads = pending;
+    }
     game.playerConditionBuffs = (game.playerConditionBuffs || []).filter(buff => buff && (buff.expiresAt || 0) > now);
     let map = game.enemyConditionDebuffs || {};
     Object.keys(map).forEach(id => {
-        map[id] = (map[id] || []).filter(deb => deb && (deb.expiresAt || 0) > now);
+        let next = [];
+        (map[id] || []).forEach(deb => {
+            if (!deb || (deb.expiresAt || 0) <= now) {
+                triggerCurseExpireEffects(Number(id), deb);
+                return;
+            }
+            next.push(deb);
+        });
+        map[id] = next;
         if (map[id].length === 0) delete map[id];
     });
     game.enemyConditionDebuffs = map;
@@ -49,18 +72,20 @@ function getConditionGemLevel(name) {
 function getConditionGemStatDelta(name, type) {
     const PRESETS = {
         // Curses
-        '재의 표식': { enemyTakenMul: 1.16, enemyResShred: 10, dotBonus: 0.08 },
-        '빙결의 낙인': { enemyTakenMul: 1.1, enemyResShred: 8, enemyAspdSlow: 0.12 },
-        '감전 문양': { enemyTakenMul: 1.14, enemyResShred: 9, critBonus: 4 },
-        '부패 각인': { enemyTakenMul: 1.12, enemyResShred: 12, leechBonus: 0.25 },
-        '균열 저주': { enemyTakenMul: 1.1, enemyResShred: 14 },
-        '취약의 낙인': { enemyTakenMul: 1.18, enemyResShred: 6 },
-        '파멸 징표': { enemyTakenMul: 1.22, enemyResShred: 5 },
-        '쇠약의 기도': { enemyTakenMul: 1.08, enemyResShred: 5, enemyAspdSlow: 0.18 },
-        '타오른 죄책': { enemyTakenMul: 1.15, enemyResShred: 11, dotBonus: 0.1 },
-        '천둥 포박': { enemyTakenMul: 1.13, enemyResShred: 10, critBonus: 6 },
-        '절단의 맹세': { enemyTakenMul: 1.16, enemyResShred: 7, physBonus: 0.08 },
-        '심연 고리': { enemyTakenMul: 1.12, enemyResShred: 13, chaosBonus: 0.1 },
+        '재의 표식': { enemyResFShred: 10, igniteChanceAdd: 0.15, igniteTakenMul: 1.10 },
+        '빙결의 낙인': { enemyResCShred: 10, chillChanceAdd: 0.10, freezeChanceAdd: 0.10, chillTakenMul: 1.10, freezeTakenMul: 1.10 },
+        '감전 문양': { enemyResLShred: 10, shockChanceAdd: 0.10, shockTakenMul: 1.10 },
+        '부패 각인': { enemyResChaosShred: 10, poisonChanceAdd: 0.10, poisonTakenMul: 1.10 },
+        '균열 저주': { enemyResShred: 15, enemyResChaosShred: 15 },
+        '취약의 낙인': { enemyTakenMul: 1.15 },
+        '파멸 징표': { doomMark: 1 },
+        '쇠약의 기도': { enemyDmgMul: 0.90, enemyAspdSlow: 0.10 },
+        '타오른 죄책': { enemyResFShred: 8, fireDotTakenMul: 1.06, igniteTakenMul: 1.06 },
+        '천둥 포박': { enemyLightTakenMul: 1.10, enemyCritDmgTakenMul: 1.10 },
+        '절단의 맹세': { enemyPhysDrShred: 10, bleedChanceAdd: 0.10, bleedTakenMul: 1.15 },
+        '심연 고리': { enemyResChaosShred: 10, enemyChaosTakenMul: 1.10 },
+        '상처 악화': { enemyRegenRateMul: 0.60 },
+        '약점 조준': { enemyProjectileTakenMul: 1.10, projectileExtraHits: 2 },
         // Warcries
         '전장의 함성': { pctDmg: 16, aspd: 12, dr: 6, move: 8 },
         '피의 함성': { pctDmg: 22, leech: 0.9, hpSacrificePct: 6 },
@@ -70,13 +95,19 @@ function getConditionGemStatDelta(name, type) {
         '폭풍의 고함': { aspd: 16, crit: 5 },
         '공허의 외침': { pctDmg: 17, chaosBonus: 0.15, resPen: 8, leech: 0.7 },
         '결전 신호': { pctDmg: 24, dr: -4, critDmg: 30 },
+        '지진의 함성': { slamEchoPct: 0.25, slamEchoDelaySec: 1.0 },
         // Guards
-        '현무 장막': { dr: 24, regen: 1.6, resAll: 8 },
-        '응보 방패': { dr: 16, thorns: 0.26, physIgnore: 8 },
-        '철의 맹세': { dr: 22, aspd: -8 },
-        '서리 장벽': { dr: 14, coldGuard: 0.2 },
-        '폭풍 장벽': { dr: 15, move: 16, aspd: 10 },
+        '원소 장막': { dr: 22, resAll: 10, maxResAll: 4 },
+        '가시 방패': { dr: 20, thorns: 0.26, physIgnore: 10 },
+        '철의 맹세': { dr: 25, aspd: -8, armorMul: 0.20 },
+        '서리 장벽': { dr: 14, coldGuard: 0.2, cleanseChill: 1, cleanseFreeze: 1, immuneChill: 1, immuneFreeze: 1 },
+        '폭풍 장벽': { dr: 15, move: 16, aspd: 10, cleanseShock: 1, immuneShock: 1 },
         '심연 껍질': { dr: 20, chaosGuard: 0.28, regen: 1.0, resChaos: 12 },
+        '용암 벽': { dr: 15, fireGuard: 0.2, cleanseIgnite: 1, immuneIgnite: 1 },
+        '이독제독': { dr: 18, poisonToHeal: 1 },
+        '불멸의 힘': { delayedRegenFromTakenDamage: 0.25 },
+        '에너지 과다': { dr: 10, energyShieldRegen: 12.5, energyShieldRechargeDelayDelta: -0.5 },
+        '무혈': { dr: 14, cleanseBleed: 1, immuneBleed: 1, disableEnemyLeech: 1 },
         // Utility
         '귀환 젬': { }
     };
@@ -95,14 +126,27 @@ function getConditionGemStatDelta(name, type) {
 
 function getEnemyConditionDebuffFactor(enemy) {
     let list = (game.enemyConditionDebuffs && enemy) ? (game.enemyConditionDebuffs[enemy.id] || []) : [];
-    let mul = 1;
-    let shred = 0;
+    let fx = { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, projectileTakenMul: 1, lightTakenMul: 1, chaosTakenMul: 1, enemyDmgMul: 1, enemyRegenRateMul: 1, projectileExtraHits: 0, critDmgTakenMul: 1 };
     list.forEach(deb => {
         let d = getConditionGemStatDelta(deb.name, 'curse');
-        mul *= (d.enemyTakenMul || 1);
-        shred += (d.enemyResShred || 0);
+        fx.mul *= (d.enemyTakenMul || 1);
+        fx.resShred += (d.enemyResShred || 0);
+        fx.resFShred += (d.enemyResFShred || 0);
+        fx.resCShred += (d.enemyResCShred || 0);
+        fx.resLShred += (d.enemyResLShred || 0);
+        fx.resChaosShred += (d.enemyResChaosShred || 0);
+        fx.physDrShred += (d.enemyPhysDrShred || 0);
+        fx.projectileTakenMul *= (d.enemyProjectileTakenMul || 1);
+        fx.lightTakenMul *= (d.enemyLightTakenMul || 1);
+        fx.chaosTakenMul *= (d.enemyChaosTakenMul || 1);
+        fx.enemyDmgMul *= (d.enemyDmgMul || 1);
+        fx.enemyRegenRateMul *= (d.enemyRegenRateMul || 1);
+        fx.projectileExtraHits += (d.projectileExtraHits || 0);
+        fx.critDmgTakenMul *= (d.enemyCritDmgTakenMul || 1);
     });
-    return { mul: Math.min(1.35, mul), resShred: Math.min(20, shred) };
+    fx.mul = Math.min(1.35, fx.mul);
+    fx.resShred = Math.min(20, fx.resShred);
+    return fx;
 }
 
 
@@ -268,6 +312,7 @@ function coreLoop() {
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
     runConditionGemAutoRules(pStats);
+    processPendingSlamEchoHits();
     tickAilments(pStats, 0.1);
     let ailmentMap = {};
     (game.playerAilments || []).forEach(ail => { ailmentMap[ail.type] = Math.max(ailmentMap[ail.type] || 0, ail.time || 0); });
@@ -290,12 +335,38 @@ function coreLoop() {
             pStats.resC += delta.resAll;
             pStats.resL += delta.resAll;
         }
+        if (delta.maxResAll) {
+            pStats.resF += delta.maxResAll;
+            pStats.resC += delta.maxResAll;
+            pStats.resL += delta.maxResAll;
+        }
         if (delta.resChaos) pStats.resChaos += delta.resChaos;
         if (delta.energyShieldRegen) pStats.energyShieldRegenRate = Math.max(0, (pStats.energyShieldRegenRate || 0) + delta.energyShieldRegen);
         if (delta.fireBonus && (pStats.sSkill.ele === 'fire')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.fireBonus));
         if (delta.coldBonus && (pStats.sSkill.ele === 'cold')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.coldBonus));
         if (delta.chaosBonus && (pStats.sSkill.ele === 'chaos')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.chaosBonus));
         if (delta.physBonus && (pStats.sSkill.ele === 'phys')) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.physBonus));
+        if (delta.energyShieldRechargeDelayDelta) pStats.energyShieldRechargeDelay = Math.max(0, (pStats.energyShieldRechargeDelay || 3) + delta.energyShieldRechargeDelayDelta);
+        if (delta.poisonToHeal) pStats.poisonToHeal = true;
+        if (delta.disableEnemyLeech) pStats.disableEnemyLeech = true;
+        if (delta.delayedRegenFromTakenDamage) pStats.delayedRegenFromTakenDamage = Math.max(pStats.delayedRegenFromTakenDamage || 0, delta.delayedRegenFromTakenDamage);
+        if (delta.armorMul) pStats.dr += Math.max(0, (pStats.dr || 0) * delta.armorMul);
+        if (delta.immuneIgnite) pStats.immuneIgnite = true;
+        if (delta.immuneChill) pStats.immuneChill = true;
+        if (delta.immuneFreeze) pStats.immuneFreeze = true;
+        if (delta.immuneShock) pStats.immuneShock = true;
+        if (delta.immuneBleed) pStats.immuneBleed = true;
+        if (delta.cleanseIgnite || delta.cleanseChill || delta.cleanseFreeze || delta.cleanseShock || delta.cleanseBleed) {
+            game.playerAilments = (game.playerAilments || []).filter(ail => {
+                if (!ail) return false;
+                if (delta.cleanseIgnite && ail.type === 'ignite') return false;
+                if (delta.cleanseChill && ail.type === 'chill') return false;
+                if (delta.cleanseFreeze && ail.type === 'freeze') return false;
+                if (delta.cleanseShock && ail.type === 'shock') return false;
+                if (delta.cleanseBleed && ail.type === 'bleed') return false;
+                return true;
+            });
+        }
     });
     if (isDeathOverlayOpen()) return;
     if (game.combatHalted) return;
@@ -304,6 +375,12 @@ function coreLoop() {
     if (game.playerHp > 0 && game.playerHp < pStats.maxHp) {
         let hpCap = getPlayerHpCap(pStats);
         game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
+    }
+    if ((game.delayedGuardHealPool || 0) > 0) {
+        let tickHeal = Math.max(0, (game.delayedGuardHealPool / 4) * 0.1);
+        let hpCap = getPlayerHpCap(pStats);
+        game.playerHp = Math.min(hpCap, game.playerHp + tickHeal);
+        game.delayedGuardHealPool = Math.max(0, game.delayedGuardHealPool - tickHeal);
     }
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     game.playerEnergyShield = Math.max(0, Math.min(game.playerEnergyShield, Math.floor(pStats.energyShield || 0)));
@@ -429,6 +506,24 @@ function coreLoop() {
     syncCrowdPauseState();
 
     if (game.runProgress >= 100 && game.encounterIndex >= game.encounterPlan.length && game.enemies.length === 0) finishEncounterRun();
+}
+
+function processPendingSlamEchoHits() {
+    let now = Date.now();
+    let list = Array.isArray(game.pendingSlamEchoHits) ? game.pendingSlamEchoHits : [];
+    let next = [];
+    list.forEach(row => {
+        if (!row || !row.enemyId || !row.at) return;
+        if (row.at > now) { next.push(row); return; }
+        let enemy = (game.enemies || []).find(e => e && e.id === row.enemyId && e.hp > 0);
+        if (!enemy) return;
+        let bonus = Math.max(1, Math.floor(row.damage || 0));
+        enemy.hp = Math.max(0, enemy.hp - bonus);
+        addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220 });
+        if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 지진의 함성: ${formatNumberKR(bonus)} 추가 타격`, 'attack-player', { noToast: true });
+        if (enemy.hp <= 0) handleEnemyDeath(enemy);
+    });
+    game.pendingSlamEchoHits = next;
 }
 
 
@@ -1312,6 +1407,8 @@ function createEnemy(zone, marker, groupIndex) {
     let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
     let variantSeed = ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
+    const woodsmanRegenMul = 0.1;
+    const regenMul = (zone.type === 'outsideChaos' && isBoss) ? woodsmanRegenMul : 1;
     if (trait && trait.hpMul) hp = Math.floor(hp * trait.hpMul);
     let isSky = (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
     if (isSky) name = `☁️ ${name}`;
@@ -1335,7 +1432,7 @@ function createEnemy(zone, marker, groupIndex) {
         atkMul: trait && trait.atkMul ? trait.atkMul : 1,
         attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1),
         critChance: ((game.season || 1) >= 2 ? (isBoss ? 16 : isElite ? 10 : 4) : 0) + (trait && trait.critChanceBonus ? trait.critChanceBonus : 0),
-        regenRate: ((game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0) * 0.12,
+        regenRate: ((game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0) * 0.12 * regenMul,
         regenSuppressPct: 0,
         penetration: (game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0,
         hybridElement: (game.season || 1) >= 3 ? rndChoice(['fire', 'cold', 'light', 'chaos']) : null,
@@ -2364,13 +2461,27 @@ function performPlayerAttack(pStats) {
     });
 
     let zoneTier = getZone(game.currentZoneId).tier;
+    let slamEchoPct = 0;
+    let slamEchoDelayMs = 1000;
+    (game.playerConditionBuffs || []).forEach(buff => {
+        let delta = getConditionGemStatDelta(buff.name, buff.type);
+        if (delta.slamEchoPct) slamEchoPct = Math.max(slamEchoPct, delta.slamEchoPct);
+        if (delta.slamEchoDelaySec) slamEchoDelayMs = Math.max(100, Math.floor(delta.slamEchoDelaySec * 1000));
+    });
     let hits = [];
     let totalDamage = 0;
     let totalLeechableDamage = 0;
-    let projectileBonusShots = (Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('projectile'))
-        ? Math.max(0, Math.min(5, Math.floor(pStats.projectileExtraShots || 0)))
-        : 0;
-    let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots));
+    let isProjectileSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('projectile');
+    let projectileBonusShots = isProjectileSkill ? Math.max(0, Math.min(5, Math.floor(pStats.projectileExtraShots || 0))) : 0;
+    let curseProjectileExtraHits = 0;
+    if (isProjectileSkill) {
+        let aliveEnemies = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
+        for (let enemy of aliveEnemies) {
+            let fx = getEnemyConditionDebuffFactor(enemy);
+            curseProjectileExtraHits = Math.max(curseProjectileExtraHits, Math.max(0, Math.floor(fx.projectileExtraHits || 0)));
+        }
+    }
+    let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits));
     let perEnemyHitCount = new Map();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
     let randomTargetCapFallbackUsed = false;
@@ -2394,6 +2505,11 @@ function performPlayerAttack(pStats) {
             let hitElement = swingElement;
             let curseFx = getEnemyConditionDebuffFactor(targetEnemy);
             let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
+            if (hitElement === 'fire') enemyRes -= (curseFx.resFShred || 0);
+            if (hitElement === 'cold') enemyRes -= (curseFx.resCShred || 0);
+            if (hitElement === 'light') enemyRes -= (curseFx.resLShred || 0);
+            if (hitElement === 'chaos') enemyRes -= (curseFx.resChaosShred || 0);
+            if (hitElement === 'phys') enemyRes -= (curseFx.physDrShred || 0);
             let hitCrit = isCrit;
             if (game.ascendClass === 'assassin' && hasKeystone('a5') && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) <= 0.30) {
                 hitCrit = true;
@@ -2415,8 +2531,19 @@ function performPlayerAttack(pStats) {
             let damageBeforeMitigation = dmg;
             dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
             dmg = Math.floor(dmg * (curseFx.mul || 1));
+            if ((pStats.sSkill.tags || []).includes('projectile')) dmg = Math.floor(dmg * (curseFx.projectileTakenMul || 1));
+            if (hitElement === 'light') dmg = Math.floor(dmg * (curseFx.lightTakenMul || 1));
+            if (hitElement === 'chaos') dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
+            if (hitCrit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
             dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement));
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
+            if (targetEnemy && targetEnemy.id && dmg > 0) {
+                let curseStore = game.enemyCurseExpirePayloads || {};
+                let row = curseStore[targetEnemy.id] || { doomDamage: 0 };
+                row.doomDamage = Math.max(0, Math.floor(row.doomDamage || 0) + dmg);
+                curseStore[targetEnemy.id] = row;
+                game.enemyCurseExpirePayloads = curseStore;
+            }
             let zone = getZone(game.currentZoneId);
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let hpAfterDamage = Math.max(0, targetEnemy.hp - dmg);
@@ -2424,6 +2551,15 @@ function performPlayerAttack(pStats) {
                 hpAfterDamage = Math.max(1, hpAfterDamage);
             }
             targetEnemy.hp = hpAfterDamage;
+            if (slamEchoPct > 0 && (pStats.sSkill.tags || []).includes('slam') && dmg > 0 && targetEnemy.hp > 0) {
+                game.pendingSlamEchoHits = Array.isArray(game.pendingSlamEchoHits) ? game.pendingSlamEchoHits : [];
+                game.pendingSlamEchoHits.push({
+                    at: Date.now() + slamEchoDelayMs,
+                    enemyId: targetEnemy.id,
+                    damage: Math.max(1, Math.floor(dmg * slamEchoPct)),
+                    element: hitElement
+                });
+            }
             if (game.ascendClass === 'gladiator' && hasKeystone('g6') && targetEnemy.hp > 0) {
                 let executeThreshold = targetEnemy.isBoss ? 0.10 : 0.20;
                 if ((targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) < executeThreshold) {
@@ -2602,6 +2738,7 @@ function getPlayerAilmentResistChance(type, pStats) {
 
 function applyPlayerAilment(type, duration, power, pStats) {
     if (!type || duration <= 0) return;
+    if ((type === 'ignite' && pStats.immuneIgnite) || (type === 'chill' && pStats.immuneChill) || (type === 'freeze' && pStats.immuneFreeze) || (type === 'shock' && pStats.immuneShock) || (type === 'bleed' && pStats.immuneBleed)) return;
     if (Math.random() < getPlayerAilmentResistChance(type, pStats)) return;
     game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];
     let existing = game.playerAilments.find(row => row.type === type);
@@ -2625,8 +2762,11 @@ function tickAilments(pStats, dt) {
         } else if (ail.type === 'poison') {
             let poison = Math.max(1, Math.floor(pStats.maxHp * (0.0030 + power * 0.0034)));
             poison = Math.max(1, Math.floor(poison * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100)))));
-            game.playerHp -= poison;
-            recordIncomingDamage('chaos', poison, '중독');
+            if (pStats.poisonToHeal) game.playerHp = Math.min(getPlayerHpCap(pStats), game.playerHp + poison);
+            else {
+                game.playerHp -= poison;
+                recordIncomingDamage('chaos', poison, '중독');
+            }
         } else if (ail.type === 'bleed') {
             let bleed = Math.max(1, Math.floor(pStats.maxHp * (0.0032 + power * 0.0032)));
             bleed = Math.max(1, Math.floor(bleed * (1 - Math.max(0, Math.min(0.75, (pStats.dr || 0) / 100)))));
@@ -2673,7 +2813,8 @@ function performMonsterAttacks(pStats) {
         }
         if ((enemy.regenRate || 0) > 0) {
             let suppress = Math.max(0, Math.min(95, enemy.regenSuppressPct || 0));
-            let effectiveRegenRate = Math.max(0, enemy.regenRate * (1 - suppress / 100));
+            let curseFx = getEnemyConditionDebuffFactor(enemy);
+            let effectiveRegenRate = Math.max(0, enemy.regenRate * (1 - suppress / 100) * (curseFx.enemyRegenRateMul || 1));
             enemy.hp = Math.min(enemy.maxHp || enemy.hp, enemy.hp + Math.max(1, Math.floor((enemy.maxHp || 1) * effectiveRegenRate)));
         }
         enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
@@ -2683,7 +2824,9 @@ function performMonsterAttacks(pStats) {
         let seasonAtkScale = 1 + seasonDepth * (0.012 + (tierPressure * 0.018));
         let curseDebuffs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[enemy.id]) ? game.enemyConditionDebuffs[enemy.id] : [];
         let curseSlow = 0;
+        let enemyDmgMul = 1;
         curseDebuffs.forEach(deb => { curseSlow += (getConditionGemStatDelta(deb.name, 'curse').enemyAspdSlow || 0); });
+        curseDebuffs.forEach(deb => { enemyDmgMul *= (getConditionGemStatDelta(deb.name, 'curse').enemyDmgMul || 1); });
         let chillSlow = ailMap.chill ? Math.min(0.45, 0.12 + ailMap.chill * 0.14) : 0;
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
         let atkRate = (0.26 + zone.tier * 0.013) * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
@@ -2702,6 +2845,7 @@ function performMonsterAttacks(pStats) {
             let seasonDmgScale = 1 + seasonDepth * (0.05 + (tierPressure * 0.07));
             let shockAmp = ailMap.shock ? Math.min(0.35, 0.08 + ailMap.shock * 0.12) : 0;
             let dmg = Math.floor((2.4 + zone.tier * 3.35) * seasonDmgScale * (1 - shockAmp));
+            dmg = Math.floor(dmg * enemyDmgMul);
             if (zone.type === 'act' && zone.id <= 1 && (game.season || 1) >= 3) dmg = Math.floor(dmg * 0.58);
             if (enemy.isElite) dmg = Math.floor(dmg * 1.28);
             if (enemy.isBoss) dmg = Math.floor(dmg * (1.14 + zone.tier * 0.16));
@@ -2758,6 +2902,10 @@ function performMonsterAttacks(pStats) {
                 remaining -= absorbed;
             }
             game.playerHp = Math.floor(game.playerHp - remaining);
+            if ((pStats.delayedRegenFromTakenDamage || 0) > 0 && remaining > 0) {
+                let recover = Math.max(0, remaining * pStats.delayedRegenFromTakenDamage);
+                game.delayedGuardHealPool = Math.max(0, (game.delayedGuardHealPool || 0) + recover);
+            }
             game.playerEsLastHitAt = Date.now();
     game.playerLastHitAt = Date.now();
             game.playerLastHitAt = Date.now();
