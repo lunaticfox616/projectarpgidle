@@ -1636,11 +1636,17 @@ function showItemTooltip(event, idx, isEquip) {
     let defenseView = getItemDefenseView(item);
     if ((item.baseStats || []).length > 0) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#f1c40f;">베이스 옵션</div>`;
+        function getBaseRollRange(stat) {
+            let cur = Number(stat.val || 0);
+            let min = Number.isFinite(Number(stat.valMin)) ? Number(stat.valMin) : Number((cur * 0.8).toFixed(2));
+            let max = Number.isFinite(Number(stat.valMax)) ? Number(stat.valMax) : Number((cur * 1.2).toFixed(2));
+            if (max < min) { let t = min; min = max; max = t; }
+            return { min, max };
+        }
         item.baseStats.forEach(stat => {
             if (stat.id === 'armor' || stat.id === 'evasion' || stat.id === 'energyShield') return;
             let cur = Number(stat.val || 0);
-            let min = Number((cur * 0.8).toFixed(2));
-            let max = Number((cur * 1.2).toFixed(2));
+            let { min, max } = getBaseRollRange(stat);
             html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, cur)} <span style="color:#888;">(${formatValue(stat.id, min)}~${formatValue(stat.id, max)})</span></div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
@@ -1648,10 +1654,16 @@ function showItemTooltip(event, idx, isEquip) {
             let finalVal = defenseView[id];
             let baseVal = defenseView.base[id];
             if (finalVal <= 0 && baseVal <= 0) return;
+            let src = (item.baseStats || []).find(stat => stat && stat.id === id);
+            let rangeText = '';
+            if (src) {
+                let { min, max } = getBaseRollRange(src);
+                rangeText = ` <span style="color:#888;">(${formatValue(id, min)}~${formatValue(id, max)})</span>`;
+            }
             if (Math.floor(finalVal) === Math.floor(baseVal)) {
-                html += `<div class="tooltip-line">${label}: <span style="color:#ffffff;">${Math.floor(baseVal)}</span></div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:#ffffff;">${Math.floor(baseVal)}</span>${rangeText}</div>`;
             } else {
-                html += `<div class="tooltip-line">${label}: <span style="color:#4da3ff;">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span></div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:#4da3ff;">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
             }
         });
     }
@@ -3740,7 +3752,6 @@ function buildCraftActionButtons(item) {
         let shapeStyle = getTalismanShapeStyle(t.shape);
         return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
-    activeTalismanHoverId = null;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
         let y = Math.floor(i / TALISMAN_BOARD_W);

@@ -4893,7 +4893,10 @@ function useCurrency(currencyKey) {
             }
             stat.baseRollMin = baseMin;
             stat.baseRollMax = baseMax;
-            stat.val = Math.round((baseMin + Math.random() * (baseMax - baseMin)) * 100) / 100;
+            let rolled = baseMin + Math.random() * (baseMax - baseMin);
+            if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) stat.val = Math.round(rolled * 10) / 10;
+            else if (stat.id === 'projectileExtraShots') stat.val = Math.max(1, Math.round(rolled));
+            else stat.val = Math.floor(rolled);
             stat.valMin = baseMin;
             stat.valMax = baseMax;
         });
