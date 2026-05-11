@@ -228,6 +228,11 @@ function runConditionGemAutoRules(pStats) {
             });
             while (list.length > limit) list.shift();
             game.enemyConditionDebuffs[target.id] = list;
+            if (gemName === '파멸 징표') {
+                let store = game.enemyCurseExpirePayloads || {};
+                store[target.id] = { doomDamage: 0 };
+                game.enemyCurseExpirePayloads = store;
+            }
         } else {
             game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: now + Math.floor((entry.duration || 4) * 1000) });
             let castDelta = getConditionGemStatDelta(gemName, entry.type);
@@ -2539,7 +2544,12 @@ function performPlayerAttack(pStats) {
             if (hitCrit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
             dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement));
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
-            if (targetEnemy && targetEnemy.id && dmg > 0) {
+            let hasActiveDoomMark = false;
+            if (targetEnemy && targetEnemy.id) {
+                let debs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[targetEnemy.id]) ? game.enemyConditionDebuffs[targetEnemy.id] : [];
+                hasActiveDoomMark = debs.some(deb => deb && deb.name === '파멸 징표' && (deb.expiresAt || 0) > Date.now());
+            }
+            if (targetEnemy && targetEnemy.id && dmg > 0 && hasActiveDoomMark) {
                 let curseStore = game.enemyCurseExpirePayloads || {};
                 let row = curseStore[targetEnemy.id] || { doomDamage: 0 };
                 row.doomDamage = Math.max(0, Math.floor(row.doomDamage || 0) + dmg);
