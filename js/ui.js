@@ -5073,7 +5073,7 @@ async function continueWithCloudSession() {
             caption: 'Comparing Timelines',
             progress: 48
         });
-        await reconcileCloudSaveState();
+        await reconcileCloudSaveState({ preferRemoteOnResume: true });
         await enterGameWorld();
     } catch (error) {
         setCloudMessage('클라우드 세이브 연결 실패: ' + (error.message || error));
@@ -5481,6 +5481,8 @@ async function pullCloudSave(options = {}) {
 }
 
 async function reconcileCloudSaveState(options = {}) {
+    let preferRemoteOnResume = options.preferRemoteOnResume === true;
+    let strictRemoteResume = options.strictRemoteResume === true;
     let record = await fetchCloudSaveRecord();
     if (!record || !record.save_data) {
         if (options.createRemoteFromLocal) {
@@ -5495,6 +5497,14 @@ async function reconcileCloudSaveState(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
+    if (preferRemoteOnResume) {
+        applyExternalSave(record.save_data, remoteStamp);
+        setCloudMessage(strictRemoteResume
+            ? '이어하기(클라우드 우선) 정책으로 서버 저장을 강제로 적용했습니다.'
+            : '이어하기는 클라우드 우선 정책으로 서버 저장을 먼저 적용했습니다.');
+        if (!options.silent) addLog('이어하기(클라우드 우선)로 서버 저장을 적용했습니다.', 'loot-magic');
+        return strictRemoteResume ? 'pulled-remote-resume-strict' : 'pulled-remote-resume-preferred';
+    }
     if (isLikelyBootstrapLocalSave(game) && remoteStamp > 0) {
         applyExternalSave(record.save_data, remoteStamp);
         setCloudMessage('새 기기 기본 로컬 저장으로 판단되어 클라우드 세이브를 우선 적용했습니다.');
