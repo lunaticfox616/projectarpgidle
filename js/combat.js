@@ -1885,7 +1885,7 @@ function tickGrandBreachRun(zone) {
             let add = 4 + Math.floor(Math.random() * 3);
             for (let i = 0; i < add; i++) game.enemies.push(createEnemy(zone, { elite: Math.random() < 0.55, boss: false }, i));
         }
-        if (g.timeLeft <= 0 && alive <= 0) {
+        if (g.timeLeft <= 0) {
             g.phase = 'boss';
             let boss = createEnemy(zone, { boss: true, count: 1 }, 0);
             let soul = Math.max(0, Math.floor(g.kills || 0));
@@ -2058,22 +2058,22 @@ function rollLootForEnemy(enemy) {
     let mappingZone = zone && zone.type === 'abyss';
     if (beeUnlocked && mappingZone && !enemy.isBoss) {
         let beeLootLogs = [];
-        if (Math.random() < 0.10) {
+        if (Math.random() < 0.05) {
             let pollenAmount = enemy.isElite ? 5 : 2;
             awardCurrency('pollen', pollenAmount);
             beeLootLogs.push(`꽃가루 +${pollenAmount}`);
         }
-        if (enemy.isElite && Math.random() < 0.03) {
+        if (enemy.isElite && Math.random() < 0.024) {
             awardCurrency('venomStinger', 1);
             beeLootLogs.push('독벌침 +1');
         }
-        if (enemy.isElite && Math.random() < 0.004) {
+        if (enemy.isElite && Math.random() < 0.0032) {
             awardCurrency('enchantedHoney', 1);
             beeLootLogs.push('마력 깃든 벌꿀 +1');
         }
         if (game.settings.showLootLog && beeLootLogs.length > 0) beeLootLogs.forEach(msg => addLog(`🐝 ${msg}`, 'loot-normal'));
     }
-    if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.05 : enemy.isElite ? 0.015 : 0.002)) {
+    if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.01 : enemy.isElite ? 0.003 : 0.0004)) {
         awardCurrency('hiveKey', 1);
         if (game.settings.showLootLog) addLog('🗝️ 벌집 입장권 열쇠를 발견했습니다.', 'loot-rare');
     }
@@ -2144,8 +2144,14 @@ function handleEnemyDeath(enemy, pStats) {
     }
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
     if (zone && zone.id === 'grand_breach_run' && enemy.isBoss && grand && grand.inRun) {
+        let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         grand.inRun = false;
         grand.phase = 'done';
+        grand.timeLeft = 0;
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.encounterIndex = 0;
+        game.runProgress = 0;
         game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : game.maxZoneId;
         markLoopSpecialBossKill('void_grand_breach');
         unlockJournalEntry('void_grand_breach');
@@ -2700,7 +2706,11 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         let grand = v.grandRun || {};
         addLog(message || "☠️ 대균열에서 패배했습니다. 균열이 닫히며 추방됩니다.", "death", { noToast: !!opts.noToast });
-        v.grandRun = { ...grand, inRun: false, phase: 'failed' };
+        v.grandRun = { ...grand, inRun: false, phase: 'failed', timeLeft: 0 };
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.encounterIndex = 0;
+        game.runProgress = 0;
         game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : game.maxZoneId;
         game.killsInZone = 0;
     } else if (zone.type === 'seasonBoss' && game.inTicketBossFight) {

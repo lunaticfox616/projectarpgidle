@@ -1,4 +1,40 @@
 // Phase-2 extracted passive tree canvas draw block.
+
+function getHoveredPassivePathNodeIds(hoveredNodeId) {
+    if (!hoveredNodeId) return new Set();
+    let edges = passiveRenderCache && Array.isArray(passiveRenderCache.edges) ? passiveRenderCache.edges : [];
+    if (!edges.length) return new Set([hoveredNodeId]);
+    let adj = new Map();
+    edges.forEach(edge => {
+        if (!adj.has(edge.from)) adj.set(edge.from, []);
+        if (!adj.has(edge.to)) adj.set(edge.to, []);
+        adj.get(edge.from).push(edge.to);
+        adj.get(edge.to).push(edge.from);
+    });
+    let owned = new Set((game.passives || []).filter(Boolean));
+    owned.add('n0');
+    let queue = [hoveredNodeId];
+    let prev = new Map([[hoveredNodeId, null]]);
+    let target = owned.has(hoveredNodeId) ? hoveredNodeId : null;
+    while (queue.length && !target) {
+        let cur = queue.shift();
+        let nextList = adj.get(cur) || [];
+        for (let next of nextList) {
+            if (prev.has(next)) continue;
+            prev.set(next, cur);
+            if (owned.has(next)) { target = next; break; }
+            queue.push(next);
+        }
+    }
+    let path = new Set([hoveredNodeId]);
+    if (!target) return path;
+    let cur = target;
+    while (cur !== null && cur !== undefined) {
+        path.add(cur);
+        cur = prev.get(cur);
+    }
+    return path;
+}
 function drawPassiveTree() {
     cleanupPassiveBursts();
     ensurePassiveRenderCache();
@@ -100,6 +136,7 @@ function drawPassiveTree() {
     });
 
     let hoveredLinkedIds = new Set();
+    let hoveredPathNodeIds = getHoveredPassivePathNodeIds(hoverNode && hoverNode.id);
     if (hoverNode && hoverNode.id) {
         hoveredLinkedIds.add(hoverNode.id);
         visibleEdges.forEach(edge => {
@@ -125,6 +162,7 @@ function drawPassiveTree() {
         const previewLink = visibleA === 'preview' || visibleB === 'preview';
         const hoveredLink = hoverNode && (a.id === hoverNode.id || b.id === hoverNode.id);
         const linkedHoverChain = hoverNode && hoveredLinkedIds.has(a.id) && hoveredLinkedIds.has(b.id);
+        const onHoveredPath = hoverNode && hoveredPathNodeIds.has(a.id) && hoveredPathNodeIds.has(b.id);
 
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -135,12 +173,12 @@ function drawPassiveTree() {
                 innerStroke: activeLink ? 'rgba(240,220,170,0.32)' : 'rgba(130,150,168,0.12)',
                 width: activeLink ? 3.2 : 1.6
             });
-        } else if (hoveredLink || linkedHoverChain) {
+        } else if (hoveredLink || linkedHoverChain || onHoveredPath) {
             drawPassiveLink(ctx, a, b, {
-                stroke: hoveredLink ? 'rgba(141,188,230,0.98)' : 'rgba(112,165,214,0.82)',
-                innerStroke: hoveredLink ? 'rgba(222,244,255,0.96)' : 'rgba(198,228,255,0.58)',
-                width: hoveredLink ? 5.2 : 3.8,
-                shadow: lightweightMode ? 'transparent' : 'rgba(151,206,255,0.38)',
+                stroke: hoveredLink ? 'rgba(141,188,230,0.98)' : (onHoveredPath ? 'rgba(255,216,120,0.95)' : 'rgba(112,165,214,0.82)'),
+                innerStroke: hoveredLink ? 'rgba(222,244,255,0.96)' : (onHoveredPath ? 'rgba(255,244,196,0.82)' : 'rgba(198,228,255,0.58)'),
+                width: hoveredLink ? 5.2 : (onHoveredPath ? 4.8 : 3.8),
+                shadow: lightweightMode ? 'transparent' : (onHoveredPath ? 'rgba(255,216,120,0.42)' : 'rgba(151,206,255,0.38)'),
                 blur: lightweightMode ? 0 : 15
             });
         } else if (activeLink) {
@@ -201,7 +239,7 @@ function drawPassiveTree() {
             ctx.restore();
         }
 
-        if (!ultraZoomedOutMode && hoverNode && hoveredLinkedIds.has(node.id) && hoverNode.id !== node.id) {
+        if (!ultraZoomedOutMode && hoverNode && (hoveredLinkedIds.has(node.id) || hoveredPathNodeIds.has(node.id)) && hoverNode.id !== node.id) {
             ctx.save();
             ctx.globalAlpha = Math.max(0.35, revealAlpha * 0.9);
             ctx.beginPath();
