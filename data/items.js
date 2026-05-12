@@ -68,6 +68,12 @@ const UNIQUE_DB = [
     { name: "함성 공명 허리띠", slots: ["허리띠"], reqTier: 13, stats: [{ id: "flatHp", min: 90, max: 130 }, { id: "move", min: 8, max: 14 }, { id: "aspd", min: 8, max: 12 }, { id: "resAll", min: 8, max: 14 }] },
     { name: "저항 잠식 반지", slots: ["반지"], reqTier: 12, stats: [{ id: "resPen", min: 10, max: 16 }, { id: "chaosPctDmg", min: 18, max: 28 }, { id: "resAll", min: 8, max: 14 }, { id: "leech", min: 0.8, max: 1.3 }] },
     { name: "컨디션 교본", slots: ["목걸이"], reqTier: 14, stats: [{ id: "gemLevel", min: 2, max: 2 }, { id: "suppCap", min: 1, max: 1 }, { id: "regen", min: 1.1, max: 1.7 }, { id: "resAll", min: 10, max: 16 }] },
+
+    { name: "벌집 여왕의 명령", slots: ["투구"], reqTier: 12, dropOnly: { type: 'beehive' }, stats: [{ id: "flatHp", min: 68, max: 96 }, { id: "evasion", min: 90, max: 140 }, { id: "venomStingerBonus", min: 8, max: 14 }, { id: "resChaos", min: 12, max: 18 }] },
+    { name: "시련 심판자의 장갑", slots: ["장갑"], reqTier: 15, dropOnly: { type: 'trial' }, stats: [{ id: "aspd", min: 12, max: 18 }, { id: "dr", min: 4, max: 7 }, { id: "armor", min: 70, max: 120 }, { id: "critDmg", min: 20, max: 34 }] },
+    { name: "대균열의 왕관", slots: ["투구"], reqTier: 17, dropOnly: { id: 'grand_breach_run' }, stats: [{ id: "energyShield", min: 110, max: 170 }, { id: "resPen", min: 8, max: 14 }, { id: "resAll", min: 10, max: 16 }, { id: "flatHp", min: 40, max: 70 }] },
+    { name: "미궁 군주의 족쇄", slots: ["신발"], reqTier: 20, dropOnly: { type: 'labyrinth', minFloor: 30 }, stats: [{ id: "move", min: 18, max: 24 }, { id: "armor", min: 110, max: 160 }, { id: "dr", min: 4, max: 8 }, { id: "resAll", min: 10, max: 16 }] },
+    { name: "낙성의 발자취", slots: ["신발"], reqTier: 19, dropOnly: { type: 'meteor' }, stats: [{ id: "move", min: 18, max: 24 }, { id: "evasion", min: 120, max: 180 }, { id: "crit", min: 6, max: 10 }, { id: "lightPctDmg", min: 16, max: 26 }] },
     { name: "영원의 레버", slots: ["무기"], reqTier: 15, ultraRare: true, stats: [{ id: "flatDmg", min: 95, max: 130 }, { id: "minDmgRoll", min: 14, max: 20 }, { id: "maxDmgRoll", min: 14, max: 20 }, { id: "critDmg", min: 90, max: 130 }] }
 ];
 
