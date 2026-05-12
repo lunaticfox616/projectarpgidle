@@ -139,7 +139,7 @@ function drawPassiveTree() {
     let hoveredPathNodeIds = getHoveredPassivePathNodeIds(hoverNode && hoverNode.id);
     if (hoverNode && hoverNode.id) {
         hoveredLinkedIds.add(hoverNode.id);
-        visibleEdges.forEach(edge => {
+        (passiveRenderCache.edges || []).forEach(edge => {
             if (edge.from === hoverNode.id) hoveredLinkedIds.add(edge.to);
             else if (edge.to === hoverNode.id) hoveredLinkedIds.add(edge.from);
         });
@@ -151,18 +151,20 @@ function drawPassiveTree() {
         const b = edge.b;
         if (!isPassiveNodeAvailable(a) || !isPassiveNodeAvailable(b)) return;
 
+        const hoveredLink = hoverNode && (a.id === hoverNode.id || b.id === hoverNode.id);
+        const linkedHoverChain = hoverNode && hoveredLinkedIds.has(a.id) && hoveredLinkedIds.has(b.id);
+        const onHoveredPath = hoverNode && hoveredPathNodeIds.has(a.id) && hoveredPathNodeIds.has(b.id);
+        const hoverRelatedEdge = hoveredLink || linkedHoverChain || onHoveredPath;
+
         const visibleA = getPassiveVisibility(a.id);
         const visibleB = getPassiveVisibility(b.id);
-        if (visibleA === 'hidden' || visibleB === 'hidden') return;
+        if ((visibleA === 'hidden' || visibleB === 'hidden') && !hoverRelatedEdge) return;
         const alpha = Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
         const activeA = (game.passives || []).includes(a.id);
         const activeB = (game.passives || []).includes(b.id);
         const activeLink = activeA && activeB;
         const reachableLink = reachableNodes.has(a.id) || reachableNodes.has(b.id);
         const previewLink = visibleA === 'preview' || visibleB === 'preview';
-        const hoveredLink = hoverNode && (a.id === hoverNode.id || b.id === hoverNode.id);
-        const linkedHoverChain = hoverNode && hoveredLinkedIds.has(a.id) && hoveredLinkedIds.has(b.id);
-        const onHoveredPath = hoverNode && hoveredPathNodeIds.has(a.id) && hoveredPathNodeIds.has(b.id);
 
         ctx.save();
         ctx.globalAlpha = alpha;
