@@ -1026,6 +1026,7 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
     let eligible = (zone.type === 'act' && zone.id >= STAR_WEDGE_UNLOCK_ACT) || zone.type === 'abyss' || zone.type === 'labyrinth';
     if (!eligible) return;
     let gain = enemy && enemy.isBoss ? 3.8 : (enemy && enemy.isElite ? 1.6 : 0.35);
+    if (typeof getExpertNodeEffectValue === 'function') gain *= (1 + (Math.max(0, getExpertNodeEffectValue('meteorGaugeGainPct')) / 100));
     st.skyRiftGauge = clampNumber((st.skyRiftGauge || 0) + gain, 0, 100);
     let tier = Math.max(1, Math.floor(zone.tier || 1));
     st.skyRiftMinTier = Number.isFinite(st.skyRiftMinTier) ? Math.min(st.skyRiftMinTier, tier) : tier;
@@ -4195,10 +4196,20 @@ function generateEquipmentDrop(enemy) {
 }
 
 function awardCurrency(currencyKey, amount) {
-    game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + amount;
-    if (currencyKey === 'divine' && amount > 0) {
-        showDivineDropBanner(amount);
-        addLog(`✨✨ <strong>신성한 오브 +${amount}</strong> 획득!`, 'loot-unique');
+    let gain = Number(amount || 0);
+    if (gain > 0 && typeof getExpertNodeEffectValue === 'function') {
+        let commonPct = Math.max(0, getExpertNodeEffectValue('expertCurrencyGainPct'));
+        if (commonPct > 0) gain *= (1 + (commonPct / 100));
+        if (currencyKey === 'pollen') {
+            let pollenPct = Math.max(0, getExpertNodeEffectValue('pollenGainPct'));
+            if (pollenPct > 0) gain *= (1 + (pollenPct / 100));
+        }
+        gain = Math.max(1, Math.floor(gain));
+    }
+    game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + gain;
+    if (currencyKey === 'divine' && gain > 0) {
+        showDivineDropBanner(gain);
+        addLog(`✨✨ <strong>신성한 오브 +${gain}</strong> 획득!`, 'loot-unique');
     }
     if (!game.gemEnhanceUnlocked && (currencyKey === 'bossCore' || currencyKey === 'skyEssence')) {
         game.gemEnhanceUnlocked = true;
@@ -4748,12 +4759,17 @@ function useCurrency(currencyKey) {
     let sporeMode = game.sporeCraftModes[currencyKey] || 'none';
     function consumeSpore(mode) {
         if (mode === 'none') return true;
-        if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < 10) return false; game.currencies.sporeFire -= 10; return true; }
-        if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < 10) return false; game.currencies.sporeCold -= 10; return true; }
-        if (mode === 'light') { if ((game.currencies.sporeLight || 0) < 10) return false; game.currencies.sporeLight -= 10; return true; }
+        let baseCost = 10;
+        if (typeof getExpertNodeEffectValue === 'function') {
+            let reducePct = Math.max(0, getExpertNodeEffectValue('sporeCostReducePct'));
+            baseCost = Math.max(1, Math.floor(baseCost * (1 - (reducePct / 100))));
+        }
+        if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < baseCost) return false; game.currencies.sporeFire -= baseCost; return true; }
+        if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < baseCost) return false; game.currencies.sporeCold -= baseCost; return true; }
+        if (mode === 'light') { if ((game.currencies.sporeLight || 0) < baseCost) return false; game.currencies.sporeLight -= baseCost; return true; }
         if (mode === 'chaos' || mode === 'damage') {
-            if ((game.currencies.sporeFire || 0) < 10 || (game.currencies.sporeCold || 0) < 10 || (game.currencies.sporeLight || 0) < 10) return false;
-            game.currencies.sporeFire -= 10; game.currencies.sporeCold -= 10; game.currencies.sporeLight -= 10; return true;
+            if ((game.currencies.sporeFire || 0) < baseCost || (game.currencies.sporeCold || 0) < baseCost || (game.currencies.sporeLight || 0) < baseCost) return false;
+            game.currencies.sporeFire -= baseCost; game.currencies.sporeCold -= baseCost; game.currencies.sporeLight -= baseCost; return true;
         }
         return true;
     }
