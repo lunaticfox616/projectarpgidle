@@ -282,18 +282,18 @@ function handleInventoryCardDoubleClick(itemId, mode) {
 }
 
 
-function getDropOnlyItemThemeClass(item) {
-    if (!item) return '';
-    let base = BASE_ITEM_DB.find(row => row && ((item.baseId && row.id === item.baseId) || (row.slot === item.slot && row.name === item.baseName)));
+function getDropOnlyItemSourceMeta(item) {
+    if (!item) return null;
+    let base = BASE_ITEM_DB.find(row => row && ((item.baseId && row.id === item.baseId) || (row.slot === String(item.slot || '').replace(/[12]/, '') && row.name === item.baseName)));
     let type = base && base.dropOnly && base.dropOnly.type;
     let map = {
-        beehive: 'item-name--droponly item-name--droponly-beehive',
-        trial: 'item-name--droponly item-name--droponly-trial',
-        rift: 'item-name--droponly item-name--droponly-rift',
-        meteor: 'item-name--droponly item-name--droponly-meteor',
-        ancient_labyrinth: 'item-name--droponly item-name--droponly-ancient-labyrinth'
+        beehive: { badgeClass: 'item-source-badge item-source-badge--beehive', label: '벌집 한정' },
+        trial: { badgeClass: 'item-source-badge item-source-badge--trial', label: '시련 한정' },
+        rift: { badgeClass: 'item-source-badge item-source-badge--rift', label: '균열 한정' },
+        meteor: { badgeClass: 'item-source-badge item-source-badge--meteor', label: '운석 한정' },
+        ancient_labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', label: '고대 미궁 한정' }
     };
-    return map[type] || '';
+    return map[type] || null;
 }
 
 function renderPaperdoll(targetId, forCrafting) {
@@ -307,9 +307,9 @@ function renderPaperdoll(targetId, forCrafting) {
             let click = forCrafting ? `selectForCrafting('${slot}', true)` : '';
             let doubleClick = `event.stopPropagation(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
             let footer = forCrafting ? `<button style="font-size:0.7em; padding:2px;" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">선택</button>` : `<button style="font-size:0.7em; padding:2px;" onclick="event.stopPropagation(); unequipItem('${slot}')">해제</button>`;
-            let dropOnlyClass = getDropOnlyItemThemeClass(item);
-            let nameHtml = dropOnlyClass ? `<span class="${dropOnlyClass}">${item.name}</span>` : item.name;
-            html += `<div class="slot-box slot-${slot} ${selected ? 'selected' : ''}" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"><div class="item-title ${item.rarity}" style="font-size:0.9em; margin-bottom:2px;">[${displaySlot}] ${nameHtml}</div><div class="item-stats" style="font-size:0.74em; margin-bottom:4px;">${statsHtml}</div>${footer}</div>`;
+            let sourceMeta = getDropOnlyItemSourceMeta(item);
+            let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
+            html += `<div class="slot-box slot-${slot} ${selected ? 'selected' : ''}" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"><div class="item-title ${item.rarity}" style="font-size:0.9em; margin-bottom:2px;">[${displaySlot}] ${item.name}${sourceBadge}</div><div class="item-stats" style="font-size:0.74em; margin-bottom:4px;">${statsHtml}</div>${footer}</div>`;
         } else {
             html += `<div class="slot-box slot-${slot}" style="color:#3d3d5c; text-align:center; font-size:0.8em;">[${displaySlot}]<br>비어있음</div>`;
         }
@@ -336,9 +336,9 @@ function renderInventoryCard(item, idx, mode) {
         let codex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
         if (codex[key]) recordedTag = ' <span style="color:#4cd964; font-weight:700;">[기록됨]</span>';
     }
-    let dropOnlyClass = getDropOnlyItemThemeClass(item);
-    let nameHtml = dropOnlyClass ? `<span class="${dropOnlyClass}">${item.name}</span>` : item.name;
-    return `<div class="item-card ${selected ? 'selected' : ''}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${item.slot}] ${nameHtml}${recordedTag}${lockIcon}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${item.baseName}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
+    let sourceMeta = getDropOnlyItemSourceMeta(item);
+    let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
+    return `<div class="item-card ${selected ? 'selected' : ''}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${item.slot}] ${item.name}${sourceBadge}${recordedTag}${lockIcon}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${item.baseName}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
 }
 
 function triggerMapUnlockReveal(zoneId) {

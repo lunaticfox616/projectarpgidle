@@ -345,9 +345,11 @@
 .market-black-badge.unique{background:#624b1f;color:#ffe7b3}
 
 
-.item-name--droponly{-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 0 2px rgba(0,0,0,.65),0 1px 1px rgba(0,0,0,.5);font-weight:700}
-.item-name--droponly-beehive{background-image:linear-gradient(90deg,#f6b73c,#ffd978,#ff9f1a)}
-.item-name--droponly-trial{background-image:linear-gradient(90deg,#7cff4f,#b6ff7a,#4dff9a)}
-.item-name--droponly-rift{background-image:linear-gradient(90deg,#9b5cff,#c07cff,#6e3cff)}
-.item-name--droponly-meteor{background-image:linear-gradient(90deg,#5bc0ff,#9ce6ff,#3a7bff)}
-.item-name--droponly-ancient-labyrinth{background-image:linear-gradient(90deg,#c9a86a,#f0dfb0,#8c6a3b)}
+
+
+.item-source-badge{display:inline-block;margin-left:6px;padding:0 6px;border-radius:999px;font-size:.68em;font-weight:700;vertical-align:middle;border:1px solid transparent}
+.item-source-badge--beehive{background:#5b3f0f;color:#ffd978;border-color:#ad7f2c}
+.item-source-badge--trial{background:#173f2a;color:#b6ff7a;border-color:#4dff9a}
+.item-source-badge--rift{background:#311f52;color:#c07cff;border-color:#9b5cff}
+.item-source-badge--meteor{background:#163458;color:#9ce6ff;border-color:#5bc0ff}
+.item-source-badge--ancient-labyrinth{background:#4c3a1e;color:#f0dfb0;border-color:#c9a86a}
