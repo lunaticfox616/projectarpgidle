@@ -21,6 +21,7 @@ function upgradeActiveGem(materialKey, amount) {
     game.currencies[materialKey] -= need;
     gem[levelKey] = currentLevel + 1;
     let totalLevel = gem.level + (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0);
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', isBossCore ? 'boss_core_upgrade' : 'sky_core_upgrade');
     if (isBossCore) addLog(`💎 [${active}] 군주의 핵 강화 ${gem.bossCoreLevel}/5 (소모 ${need}). 총 레벨 ${totalLevel}`, 'loot-unique');
     else addLog(`☁️ [${active}] 창공의 힘 강화 ${gem.skyCoreLevel}/5 (소모 ${need}). 총 레벨 ${totalLevel}`, 'loot-unique');
     updateStaticUI();
@@ -37,6 +38,7 @@ function upgradeSkyEngraveCap() {
     if ((game.currencies.skyEssence || 0) < need) return addLog(`창공의 힘이 부족합니다. (필요: ${need})`, 'attack-monster');
     game.currencies.skyEssence -= need;
     gem.skyEnhanceCap = Math.min(5, gem.skyEnhanceCap + 1);
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'engrave_slot_expand');
     addLog(`☁️ [${active}] 창공 각인 슬롯이 ${gem.skyEnhanceCap}개로 확장되었습니다. (소모 ${need})`, 'loot-unique');
     updateStaticUI();
 }
@@ -62,6 +64,7 @@ function applySkyGemEnhancementToActive(enhanceId) {
     if (game.skyGemEnhancements[active].length >= cap) return addLog(`젬 특수 옵션은 현재 최대 ${cap}개까지 부여할 수 있습니다.`, 'attack-monster');
     game.currencies.skyEssence--;
     game.skyGemEnhancements[active].push(enhanceId);
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'engrave_apply');
     addLog(`☁️ [${active}] 젬에 '${enhance.name}' 옵션을 부여했습니다.`, 'loot-unique');
     updateStaticUI();
 }
@@ -82,6 +85,7 @@ function applyFossilCraft() {
     game.currencies.fossil--;
     let randomFossil = rndChoice(FOSSIL_DB);
     game.currencies[randomFossil.key] = (game.currencies[randomFossil.key] || 0) + 1;
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_refine');
     addLog(`🪨 기본 화석을 정제해 [${randomFossil.name}] 1개를 획득했습니다.`, 'loot-magic');
     updateStaticUI();
 }
@@ -148,7 +152,7 @@ function applyFossilChaosCraft(fossilKey) {
 
     item.stats = newStats;
     item.rarity = 'rare';
-    game.currencies[fossilKey]--;
+    game.currencies[fossilKey]--; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_craft');
     updateItemName(item);
     addLog(`🪨 ${fossil.name} 재련 성공! 확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})`, 'loot-magic');
     updateStaticUI();

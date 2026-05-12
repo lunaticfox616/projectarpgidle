@@ -334,6 +334,7 @@ function confirmSelectedItemBaseUpgrade() {
 }
 
 
+
 function buildBlackMarketOffer(index) {
     let tier = (getZone(game.currentZoneId) || { tier: 1 }).tier || 1;
     let roll = Math.random();
@@ -344,15 +345,40 @@ function buildBlackMarketOffer(index) {
         return { type:'exchange', name:`암거래 교환 #${index+1}`, from:recipe.from, to:recipe.to, need:Math.max(1, Math.floor(recipe.need*0.8)), gain:gain };
     }
     if (roll < 0.75) {
-        let base = chooseItemBase(rndChoice(['무기','투구','갑옷','장갑','신발']), tier);
-        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, reqTier:tier, priceKey:'chaos', price:2+Math.floor(tier/3) };
+        let slot = rndChoice(['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠']);
+        let candidates = BASE_ITEM_DB.filter(base => base && base.slot === slot && !base.dropOnly && (base.reqTier || 1) <= (tier + 3));
+        let base = candidates.length ? rndChoice(candidates) : chooseItemBase(slot, tier);
+        let price = Math.max(2, Math.floor((base.reqTier || tier) / 2) + 2);
+        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, reqTier:Math.max(tier, base.reqTier || tier), priceKey:'chaos', price:price };
     }
     if (roll < 0.9) {
         let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !(game.skills||[]).includes(k));
         if (missing.length>0) return { type:'skillGem', name:rndChoice(missing), priceKey:'chaos', price:5 };
     }
-    let uniq = rndChoice(UNIQUE_DB.filter(u => (u.reqTier||1) <= tier+2));
-    return { type:'unique', name:uniq.name, slot:uniq.slots[0], reqTier:uniq.reqTier||tier, priceKey:'divine', price:1 };
+    let uniqPool = UNIQUE_DB.filter(u => u && (u.reqTier||1) <= tier + 4 && !u.dropOnly && !u.contentOnly && !u.bossOnly);
+    let uniq = rndChoice(uniqPool.length ? uniqPool : UNIQUE_DB);
+    let price = uniq.ultraRare ? Math.max(3, Math.floor((uniq.reqTier || tier) / 4)) : Math.max(1, Math.floor((uniq.reqTier || tier) / 8));
+    return { type:'unique', name:uniq.name, slot:uniq.slots[0], reqTier:uniq.reqTier||tier, priceKey:'divine', price:price };
+}
+
+function getBlackMarketOfferTooltipHtml(offer) {
+    if (!offer) return '<div class="tooltip-title">품절</div>';
+    if (offer.type === 'exchange') {
+        return `<div class="tooltip-title">재화 교환</div><div class="tooltip-line">${ORB_DB[offer.from].name} ${offer.need}개를 ${ORB_DB[offer.to].name} ${offer.gain}개로 교환합니다.</div>`;
+    }
+    if (offer.type === 'skillGem') {
+        let skill = SKILL_DB[offer.name] || {};
+        return `<div class="tooltip-title">젬: ${offer.name}</div><div class="tooltip-line">${skill.desc || '미보유 공격 젬을 획득합니다.'}</div>`;
+    }
+    if (offer.type === 'baseItem') {
+        return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name} · 요구 티어 ${offer.reqTier}</div><div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
+    }
+    if (offer.type === 'unique') {
+        let uniq = UNIQUE_DB.find(u => u && u.name === offer.name);
+        let lines = (uniq && Array.isArray(uniq.stats) ? uniq.stats.slice(0, 3).map(stat => `${getStatName(stat.id)} +${stat.min}~${stat.max}`) : []);
+        return `<div class="tooltip-title">고유 장비</div><div class="tooltip-line">${offer.name} (티어 ${offer.reqTier})</div><div class="tooltip-line">${lines.join(' / ') || '고유 옵션 보유'}</div>`;
+    }
+    return '<div class="tooltip-title">암거래 품목</div>';
 }
 
 function refreshBlackMarket(force) {
@@ -429,12 +455,13 @@ function renderMarketUI() {
             let maxTimes = Math.floor(have / recipe.need);
             let spendAll = maxTimes * recipe.need;
             let gainAll = maxTimes * recipe.gain;
-            return `<div style="background:#101722; border:1px solid #2b3f59; border-radius:8px; padding:8px;">
-                <div style="margin-bottom:6px; color:#d5e7fa;">${ORB_DB[recipe.from].name} ${recipe.need}개 → ${ORB_DB[recipe.to].name} ${recipe.gain}개</div>
-                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            let tone = (recipe.to === 'divine' || recipe.from === 'divine') ? 'divine' : (recipe.to === 'chaos' ? 'chaos' : 'basic');
+            return `<div class="market-card market-tone-${tone}">
+                <div class="market-title">${ORB_DB[recipe.from].name} ${recipe.need}개 → ${ORB_DB[recipe.to].name} ${recipe.gain}개</div>
+                <div class="market-row">
                     <button onclick="exchangeAtMarket('${recipe.id}', false)" ${maxTimes < 1 ? 'disabled' : ''}>1회 교환</button>
                     <button onclick="exchangeAtMarket('${recipe.id}', true)" style="background:#5d6d7e; border-color:#465664;" ${maxTimes < 1 ? 'disabled' : ''}>모두 교환 (${spendAll}→${gainAll})</button>
-                    <span style="align-self:center; color:#89a8c7; font-size:0.82em;">보유: ${have}</span>
+                    <span class="market-meta">보유: ${have}</span>
                 </div>
             </div>`;
         }).join('');
@@ -442,7 +469,7 @@ function renderMarketUI() {
     let passiveEl = document.getElementById('ui-market-service-passive');
     if (passiveEl) {
         let hasSpent = Array.isArray(game.passives) && game.passives.length > 0;
-        passiveEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">신성한 오브 1개 → 패시브 트리 전체 초기화 + 포인트 반환</div>
+        passiveEl.innerHTML = `<div class="market-service-title">신성한 오브 1개 → 패시브 트리 전체 초기화 + 포인트 반환</div>
         <button onclick="marketResetPassiveTreeByDivine()" ${hasSpent ? '' : 'disabled'}>패시브 트리 전체 초기화</button>`;
     }
     let annulEl = document.getElementById('ui-market-service-annul');
@@ -450,52 +477,64 @@ function renderMarketUI() {
         let item = getSelectedCraftItem();
         let stats = (item && Array.isArray(item.stats)) ? item.stats : [];
         let options = stats.map((stat, idx) => `<option value="${idx}">${idx + 1}. ${stat.statName} +${formatValue(stat.id, stat.val)}</option>`).join('');
-        annulEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">신성한 오브 2개 → 선택 장비의 원하는 옵션 1줄 소멸</div>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        annulEl.innerHTML = `<div class="market-service-title">신성한 오브 2개 → 선택 장비의 원하는 옵션 1줄 소멸</div>
+        <div class="market-row">
             <select id="sel-market-annul-stat" ${stats.length <= 0 ? 'disabled' : ''} style="min-width:260px; background:#0e141d; color:#dbe9ff; border:1px solid #35506b; border-radius:6px; padding:5px 8px;">${options || '<option>옵션 없음</option>'}</select>
             <button onclick="marketAnnulSelectedStat(Number(document.getElementById('sel-market-annul-stat').value))" ${stats.length <= 0 ? 'disabled' : ''}>옵션 1줄 소멸</button>
         </div>
-        <div style="margin-top:4px; color:#89a8c7; font-size:0.82em;">대상: ${item ? `[${item.name}]` : '제작 대상 장비를 먼저 선택하세요.'}</div>`;
+        <div class="market-meta">대상: ${item ? `[${item.name}]` : '제작 대상 장비를 먼저 선택하세요.'}</div>`;
     }
     let invEl = document.getElementById('ui-market-service-inv');
     if (invEl) {
         let cost = getMarketInventoryExpandCost();
-        invEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">신성한 오브 ${cost}개 → 인벤토리 영구 5칸 확장 (현재: ${getInventoryLimit()}칸)</div>
+        invEl.innerHTML = `<div class="market-service-title">신성한 오브 ${cost}개 → 인벤토리 영구 5칸 확장 (현재: ${getInventoryLimit()}칸)</div>
         <button onclick="marketExpandInventoryByDivine()">인벤토리 확장</button>`;
     }
     let jewelInvEl = document.getElementById('ui-market-service-jewel-inv');
     if (jewelInvEl) {
         if ((game.season || 1) < 5) {
-            jewelInvEl.innerHTML = `<div style="color:#89a8c7; font-size:0.82em;">주얼 해금 후 신성한 오브로 주얼 인벤토리 확장이 열립니다.</div>`;
+            jewelInvEl.innerHTML = `<div class="market-meta">주얼 해금 후 신성한 오브로 주얼 인벤토리 확장이 열립니다.</div>`;
         } else {
             let cost = getJewelMarketExpandCost();
-        jewelInvEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">신성한 오브 ${cost}개 → 주얼 인벤토리 영구 5칸 확장 (현재: ${getJewelInventoryLimit()}칸)</div>
+            jewelInvEl.innerHTML = `<div class="market-service-title">신성한 오브 ${cost}개 → 주얼 인벤토리 영구 5칸 확장 (현재: ${getJewelInventoryLimit()}칸)</div>
             <button onclick="marketExpandJewelInventoryByDivine()">주얼 인벤토리 확장</button>`;
+        }
     }
     let pollenEl = document.getElementById('ui-market-service-pollen');
     if (pollenEl) {
         let open = (game.season || 1) >= 8;
         pollenEl.style.display = open ? 'block' : 'none';
-        if (open) pollenEl.innerHTML = `<div style="margin-bottom:4px; color:#d5e7fa;">꽃가루 교환소</div>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        if (open) pollenEl.innerHTML = `<div class="market-service-title">꽃가루 교환소</div>
+        <div class="market-row">
             <button onclick="craftBeehiveCurrency('key')" ${(game.currencies.pollen||0)<200?'disabled':''}>꽃가루 200 → 열쇠</button>
             <button onclick="craftBeehiveCurrency('stinger')" ${(game.currencies.pollen||0)<600?'disabled':''}>꽃가루 600 → 독벌침</button>
             <button onclick="craftBeehiveCurrency('honey')" ${(game.currencies.pollen||0)<2000?'disabled':''}>꽃가루 2000 → 벌꿀</button>
         </div>`;
     }
-    }
+
     let bmEl = document.getElementById('ui-market-black');
     if (bmEl) {
         let remain = Math.max(0, Math.floor(((game.blackMarket && game.blackMarket.nextRefreshAt || 0) - Date.now()) / 1000));
         let mm = String(Math.floor(remain / 60)).padStart(2,'0');
         let ss = String(remain % 60).padStart(2,'0');
-        let offers = (game.blackMarket && game.blackMarket.offers || []).map((offer, idx) => {
+        let rawOffers = (game.blackMarket && game.blackMarket.offers || []).map((offer, idx) => ({ offer, idx }));
+        let orderMap = { exchange: 0, skillGem: 1, baseItem: 2, unique: 3 };
+        rawOffers.sort((a, b) => {
+            let ao = a.offer ? (orderMap[a.offer.type] ?? 9) : 99;
+            let bo = b.offer ? (orderMap[b.offer.type] ?? 9) : 99;
+            if (ao !== bo) return ao - bo;
+            return a.idx - b.idx;
+        });
+        let offers = rawOffers.map(({ offer, idx }) => {
             if (!offer) return `<div style="opacity:.5;">품절</div>`;
             let desc = offer.type==='exchange' ? `${ORB_DB[offer.from].name} ${offer.need} → ${ORB_DB[offer.to].name} ${offer.gain}` : (offer.type==='skillGem' ? `미보유 젬 [${offer.name}]` : offer.name);
             let price = offer.type==='exchange' ? '' : ` (${ORB_DB[offer.priceKey].name} ${offer.price})`;
-            return `<div style="display:flex; justify-content:space-between; gap:6px;"><span>${desc}${price}</span><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
+            let cls = offer.type === 'exchange' ? 'currency' : offer.type === 'skillGem' ? 'gem' : offer.type === 'baseItem' ? 'gear' : 'unique';
+            let badge = cls === 'currency' ? '재화' : cls === 'gem' ? '젬' : cls === 'gear' ? '장비' : '고유';
+            let tooltip = getBlackMarketOfferTooltipHtml(offer).replace(/"/g, '&quot;');
+            return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span style="cursor:help;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,\"${tooltip}\",'#6f89a6')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,\"${tooltip}\",'#6f89a6')" onmouseleave="hideInfoTooltip()">${desc}${price}</span></div><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
         }).join('');
-        bmEl.innerHTML = `<div style="margin-bottom:6px; color:#d5e7fa;">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; gap:5px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()">신성한 오브 1개로 품목 +1</button>`;
+        bmEl.innerHTML = `<div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()">신성한 오브 1개로 품목 +1</button>`;
     }
 }
 
