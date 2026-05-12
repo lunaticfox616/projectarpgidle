@@ -745,7 +745,23 @@ const EXPERT_TREE_NODES = [
   { id: 'bee_keystone_queen', branch: 'beekeeper', name: '핵심: 왕실 벌집', desc: '여왕벌 이벤트 보상 강화', max: 1, cost: 3, effect: { queenBeeRewardBonusPct: 20 }, requireBranchPoints: 10 }
 ];
 const EXPERT_IDS = ['mycologist','gemEngraver','astronomer','beekeeper'];
-function ensureExpertiseState(){ game.expertise=(game.expertise&&typeof game.expertise==='object')?game.expertise:{}; game.expertise.levels=game.expertise.levels||{}; game.expertise.exp=game.expertise.exp||{}; game.expertise.nodes=game.expertise.nodes||{}; game.expertise.unlockedExperts=Array.isArray(game.expertise.unlockedExperts)?game.expertise.unlockedExperts:[]; EXPERT_IDS.forEach(id=>{ game.expertise.levels[id]=Math.max(1,Math.min(30,Math.floor(game.expertise.levels[id]||1))); game.expertise.exp[id]=Math.max(0,Math.floor(game.expertise.exp[id]||0));}); game.expertise.expertPointBonus=Math.max(0,Math.floor(game.expertise.expertPointBonus||0)); game.expertise.loopExpCaps=game.expertise.loopExpCaps||{}; if (!Number.isFinite(game.expertise.loopExpCaps.season)) game.expertise.loopExpCaps.season = Math.max(1, Math.floor(game.season || 1)); if (game.expertise.loopExpCaps.season !== Math.max(1, Math.floor(game.season || 1))) resetExpertiseLoopCaps(); return game.expertise;}
+function ensureExpertiseState(){
+  game.expertise=(game.expertise&&typeof game.expertise==='object')?game.expertise:{};
+  game.expertise.levels=game.expertise.levels||{};
+  game.expertise.exp=game.expertise.exp||{};
+  game.expertise.nodes=game.expertise.nodes||{};
+  game.expertise.unlockedExperts=Array.isArray(game.expertise.unlockedExperts)?game.expertise.unlockedExperts:[];
+  EXPERT_IDS.forEach(id=>{
+    game.expertise.levels[id]=Math.max(1,Math.min(30,Math.floor(game.expertise.levels[id]||1)));
+    game.expertise.exp[id]=Math.max(0,Math.floor(game.expertise.exp[id]||0));
+  });
+  game.expertise.expertPointBonus=Math.max(0,Math.floor(game.expertise.expertPointBonus||0));
+  game.expertise.loopExpCaps=game.expertise.loopExpCaps||{};
+  const currentSeason = Math.max(1, Math.floor(game.season || 1));
+  if (!Number.isFinite(game.expertise.loopExpCaps.season)) game.expertise.loopExpCaps.season = currentSeason;
+  if (game.expertise.loopExpCaps.season !== currentSeason) setExpertiseLoopCapsForSeason(currentSeason);
+  return game.expertise;
+}
 function getExpertLevel(id){return ensureExpertiseState().levels[id]||1;}
 function getExpertExp(id){return ensureExpertiseState().exp[id]||0;}
 function getExpertExpReq(level){ return Math.floor(35 + level*18 + Math.pow(level,1.45)*8);}
@@ -762,10 +778,13 @@ function getExpertNodeEffectValue(statKey){ let st=ensureExpertiseState(); if(!s
 function canAllocateExpertNode(nodeId){ let st=ensureExpertiseState(); let n=EXPERT_TREE_NODES.find(v=>v.id===nodeId); if(!n)return false; let cur=Math.max(0,Math.floor(st.nodes[nodeId]||0)); if(cur>=n.max) return false; if(getExpertPointFree()<n.cost) return false; if(n.requireBranchPoints && getExpertBranchSpent(n.branch)<n.requireBranchPoints) return false; return true;}
 function allocateExpertNode(nodeId){ if(!canAllocateExpertNode(nodeId)) return false; let st=ensureExpertiseState(); st.nodes[nodeId]=Math.max(0,Math.floor(st.nodes[nodeId]||0))+1; return true;}
 function resetExpertTree(){ ensureExpertiseState().nodes={}; }
-function resetExpertiseLoopCaps(){
-  let st = ensureExpertiseState();
-  st.loopExpCaps = { season: Math.max(1, Math.floor(game.season || 1)), total: {}, bySource: {} };
+function setExpertiseLoopCapsForSeason(season){
+  let st = (game.expertise&&typeof game.expertise==='object') ? game.expertise : (game.expertise = {});
+  st.loopExpCaps = { season: Math.max(1, Math.floor(season || 1)), total: {}, bySource: {} };
   return st.loopExpCaps;
+}
+function resetExpertiseLoopCaps(){
+  return setExpertiseLoopCapsForSeason(Math.max(1, Math.floor(game.season || 1)));
 }
 function hasExpertTreeUnlocked(){ return getExpertPointTotal() > 0; }
 
