@@ -345,20 +345,9 @@
 .market-black-badge.unique{background:#624b1f;color:#ffe7b3}
 
 
-.market-black-badge--droponly{margin-right:4px}
-.market-black-badge--droponly-beehive{background:#5b3f0f;color:#ffd978;border:1px solid #ad7f2c}
-.market-black-badge--droponly-trial{background:#173f2a;color:#b6ff7a;border:1px solid #4dff9a}
-.market-black-badge--droponly-rift{background:#311f52;color:#c07cff;border:1px solid #9b5cff}
-.market-black-badge--droponly-meteor{background:#163458;color:#9ce6ff;border:1px solid #5bc0ff}
-.market-black-badge--droponly-ancient-labyrinth{background:#4c3a1e;color:#f0dfb0;border:1px solid #c9a86a}
 .item-name--droponly{-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 0 2px rgba(0,0,0,.65),0 1px 1px rgba(0,0,0,.5);font-weight:700}
 .item-name--droponly-beehive{background-image:linear-gradient(90deg,#f6b73c,#ffd978,#ff9f1a)}
 .item-name--droponly-trial{background-image:linear-gradient(90deg,#7cff4f,#b6ff7a,#4dff9a)}
 .item-name--droponly-rift{background-image:linear-gradient(90deg,#9b5cff,#c07cff,#6e3cff)}
 .item-name--droponly-meteor{background-image:linear-gradient(90deg,#5bc0ff,#9ce6ff,#3a7bff)}
 .item-name--droponly-ancient-labyrinth{background-image:linear-gradient(90deg,#c9a86a,#f0dfb0,#8c6a3b)}
-.tooltip-line--droponly-beehive{color:#ffd978}
-.tooltip-line--droponly-trial{color:#b6ff7a}
-.tooltip-line--droponly-rift{color:#c07cff}
-.tooltip-line--droponly-meteor{color:#9ce6ff}
-.tooltip-line--droponly-ancient-labyrinth{color:#f0dfb0}
