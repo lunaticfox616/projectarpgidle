@@ -229,7 +229,7 @@ function switchTab(tabId) {
             activeBtn.scrollIntoView();
         }
     }
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
     updateStaticUI();
@@ -539,9 +539,9 @@ function buildBeehiveChoiceOption(type){
     return { text:`독벌침 획득 확률 상승 / 패널티: ${penalty.text}`, effect:'stinger', penalty: penalty };
 }
 function advanceBeehivePath(){ let b=game.beehive; if(!b.inRun||b.awaitingClear||b.pendingChoice) return; b.branchStep++; b.awaitingClear=true; spawnBeehiveWave((b.branchStep||0)>=10); updateStaticUI(); }
-function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice) return; if(key==='legacy_now'||key==='legacy_later'){ if(key==='legacy_now') game.currencies.pollen=(game.currencies.pollen||0)+Math.floor(10+Math.random()*9); else { if(Math.random()<0.04) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(Math.random()<0.16) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } } else { let pick=b.pendingChoice[key]; if(!pick) return; if(pick.effect==='pollen') game.currencies.pollen=(game.currencies.pollen||0)+(Number.isFinite(pick.amount)?pick.amount:0); if(pick.effect==='honey' && Math.random()<0.18) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(pick.effect==='stinger' && Math.random()<0.28) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if (pick.effect && pick.amount && ['chaos','fossil','jewelShard','sporeFire','sporeCold','sporeLight','incompleteStarWedge','meteorShard','divine'].includes(pick.effect)) game.currencies[pick.effect]=(game.currencies[pick.effect]||0)+Math.max(1,Math.floor(pick.amount||1)); if (pick.penalty && typeof pick.penalty.apply === 'function') pick.penalty.apply(b); } let ev=b.pendingChoice.eventType; if(ev==='empower'){ b.enemyEmpower=Math.max(0,Math.floor((b.enemyEmpower||0)+1)); } b.pendingChoice=null; if((b.branchStep||0)>=10){ b.inRun=false; b.cleared=true; b.unlockedPermanent=true; game.currentZoneId = b.returnZoneId !== undefined ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; markLoopSpecialBossKill('beehive_queen'); unlockJournalEntry('beehive_queen'); if(Math.random()<0.08){ let item=generateUniqueItem(Math.max(12,(getZone(game.currentZoneId)||{tier:12}).tier), '무기'); addItemToInventory(item); } addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되었습니다.', 'level-up'); } updateStaticUI(); }
+function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice) return; if(key==='legacy_now'||key==='legacy_later'){ if(key==='legacy_now') game.currencies.pollen=(game.currencies.pollen||0)+Math.floor(10+Math.random()*9); else { if(Math.random()<0.04) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(Math.random()<0.16) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } } else { let pick=b.pendingChoice[key]; if(!pick) return; if(pick.effect==='pollen') game.currencies.pollen=(game.currencies.pollen||0)+(Number.isFinite(pick.amount)?pick.amount:0); if(pick.effect==='honey' && Math.random()<0.18) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(pick.effect==='stinger' && Math.random()<0.28) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if (pick.effect && pick.amount && ['chaos','fossil','jewelShard','sporeFire','sporeCold','sporeLight','incompleteStarWedge','meteorShard','divine'].includes(pick.effect)) game.currencies[pick.effect]=(game.currencies[pick.effect]||0)+Math.max(1,Math.floor(pick.amount||1)); if (pick.penalty && typeof pick.penalty.apply === 'function') pick.penalty.apply(b); } let ev=b.pendingChoice.eventType; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_branch_choice'); if(ev==='empower'){ b.enemyEmpower=Math.max(0,Math.floor((b.enemyEmpower||0)+1)); } b.pendingChoice=null; if((b.branchStep||0)>=10){ b.inRun=false; b.cleared=true; b.unlockedPermanent=true; game.currentZoneId = b.returnZoneId !== undefined ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; markLoopSpecialBossKill('beehive_queen'); unlockJournalEntry('beehive_queen'); if(Math.random()<0.08){ let item=generateUniqueItem(Math.max(12,(getZone(game.currentZoneId)||{tier:12}).tier), '무기'); addItemToInventory(item); } if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_clear'); addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되었습니다.', 'level-up'); } updateStaticUI(); }
 function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; b.inRun=false; b.branchStep=0; b.pendingChoice=null; b.enemyEmpower=0; game.currentZoneId = b.returnZoneId !== undefined ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.combatHalted=false; addLog('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); updateStaticUI(); }
-function craftBeehiveCurrency(type){ let cost= type==='key'?200:type==='stinger'?600:2000; if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; updateStaticUI(); }
+function craftBeehiveCurrency(type){ let cost= type==='key'?200:type==='stinger'?600:2000; if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_currency_craft'); updateStaticUI(); }
 function triggerVoidBreach(){ let v=game.voidRift; v.active=true; addLog('🕳️ 공허의 구멍이 열렸습니다! 몬스터가 쏟아집니다.', 'attack-monster'); updateStaticUI(); }
 function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if((v.breachClears||0) >= 1 || Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
 function enterGrandBreach(){ let v=game.voidRift; if(!v.grandBreachUnlock) return; if(v.grandRun&&v.grandRun.inRun) return; v.grandBreachUnlock=false; v.grandRun={ inRun:true, phase:'survival', timeLeft:35, kills:0, nextRefillAt:0, lastTickAt:Date.now(), returnZoneId:game.currentZoneId }; game.currentZoneId='grand_breach_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up'); updateStaticUI(); }
@@ -3091,7 +3091,7 @@ function performUpdateStaticUI() {
     renderStarWedgePanel();
 
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
     let jewelTabBtn = document.getElementById('btn-tab-jewel');
     if (jewelTabBtn) jewelTabBtn.style.display = game.unlocks.items ? 'block' : 'none';
     let battleBtn = document.getElementById('btn-tab-battle');
@@ -5912,6 +5912,7 @@ function init() {
     syncSalvageControlsFromSettings();
     syncJewelSalvageControlsFromSettings();
     checkUnlocks();
+    renderExpertiseUI();
     normalizeSupportLoadout(false);
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
     runStartupSmokeChecks();
@@ -6025,6 +6026,51 @@ function gameLoop() {
 safeExposeGlobals({ updateStaticUI });
 
 // Phase-4 extracted unlock/class/tab helper block.
+
+function getExpertiseOverviewHtml(total, spent, free) {
+    const branchSummary = `균사 ${getExpertBranchSpent('mycologist')} · 젬 ${getExpertBranchSpent('gemEngraver')} · 천문 ${getExpertBranchSpent('astronomer')} · 양봉 ${getExpertBranchSpent('beekeeper')}`;
+    return `<div class="expertise-panel">전문가 포인트 · 총 <b>${total}</b> / 사용 <b>${spent}</b> / 남은 <b style="color:#ffd36b;">${free}</b> <button style="margin-left:8px;" onclick="resetExpertTree();updateStaticUI();">트리 초기화</button><div class="expertise-summary">분기 투자: ${branchSummary}</div></div>`;
+}
+
+function getExpertiseCardHtml(id) {
+    let d = EXPERT_DEFS[id], lv = getExpertLevel(id), cur = getCurrentExpertUnlock(id), next = getNextExpertUnlock(id), pt = Math.max(0, lv - 15);
+    let unlockLine = lv < 15 && next ? `다음(Lv.${next.level}): ${next.title} - ${next.desc}` : '모든 컨텐츠 해금 완료. Lv.16부터 전문가 포인트 획득';
+    let cap = ((game.expertise || {}).loopExpCaps || {});
+    let used = (((cap.total || {})[id]) || 0);
+    let loopCap = (((EXPERT_EXP_RULES || {})[id] || {}).loopCap) || 250;
+    return `<div class="expertise-card"><h4>${d.icon} ${d.name} <span class="expertise-muted">Lv.${lv}</span> ${lv>=16?`<span style='color:#ffd36b;'>+${pt}pt</span>`:''}</h4><div class="expertise-muted">EXP ${getExpertExp(id)}/${getExpertExpReq(lv)} · 이번 루프 ${used}/${loopCap}</div><div class="expertise-muted">현재: ${cur?cur.title:'-'}</div><div class="expertise-muted">${unlockLine}</div></div>`;
+}
+
+function getExpertiseNodeButtonHtml(node) {
+    let lv = (game.expertise.nodes[node.id] || 0);
+    let can = canAllocateExpertNode(node.id);
+    let reqText = '';
+    if (node.requireBranchPoints) {
+        let spent = getExpertBranchSpent(node.branch);
+        reqText = ` · 분기 ${spent}/${node.requireBranchPoints}`;
+    }
+    return `<button class="expertise-node ${node.branch==='common'?'common':''}" onclick="allocateExpertNode('${node.id}')&&updateStaticUI()" ${can?'':'disabled'}>${node.name} (${lv}/${node.max}) · cost ${node.cost}${reqText}</button>`;
+}
+
+function renderExpertiseUI() {
+    ensureExpertiseState();
+    let ov = document.getElementById('ui-expertise-overview');
+    let subtabs = document.getElementById('ui-expert-subtabs');
+    let detail = document.getElementById('ui-expertise-detail');
+    let tree = document.getElementById('ui-expert-tree');
+    if (!ov || !subtabs || !detail || !tree) return;
+    const total = getExpertPointTotal(), spent = getExpertPointSpent(), free = getExpertPointFree();
+    ov.innerHTML = getExpertiseOverviewHtml(total, spent, free);
+    let unlocked = EXPERT_IDS.filter(id => (game.expertise.unlockedExperts||[]).includes(id));
+    game.expertise.selectedExpertTab = unlocked.includes(game.expertise.selectedExpertTab) ? game.expertise.selectedExpertTab : (unlocked[0] || null);
+    subtabs.innerHTML = unlocked.map(id => `<button class="subtab-btn ${game.expertise.selectedExpertTab===id?'active':''}" onclick="game.expertise.selectedExpertTab='${id}';updateStaticUI();">${EXPERT_DEFS[id].icon} ${EXPERT_DEFS[id].name}</button>`).join('');
+    detail.innerHTML = unlocked.filter(id => !game.expertise.selectedExpertTab || id === game.expertise.selectedExpertTab).map(id => getExpertiseCardHtml(id)).join('') || '<div style="color:#98abc0;">아직 조우한 전문가가 없습니다.</div>';
+    if (!hasExpertTreeUnlocked()) { tree.innerHTML = '<div class="expertise-panel" style="color:#c7b6d9;">전문가 노드 트리는 전문가 중 한 명이 Lv.16에 도달해 첫 전문가 포인트를 획득하면 해금됩니다.</div>'; return; }
+    let groups = { common:[], mycologist:[], gemEngraver:[], astronomer:[], beekeeper:[] };
+    EXPERT_TREE_NODES.forEach(n => groups[n.branch].push(n));
+    tree.innerHTML = `<div class="expertise-tree-grid"><div><div class="expertise-muted">[균사학자]</div>${groups.mycologist.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[천문학자]</div>${groups.astronomer.map(getExpertiseNodeButtonHtml).join('')}<div class="expertise-panel" style="margin:8px 0;">[전문가 공통]${groups.common.map(getExpertiseNodeButtonHtml).join('')}</div><div class="expertise-muted">[양봉업자]</div>${groups.beekeeper.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[젬 각인사]</div>${groups.gemEngraver.map(getExpertiseNodeButtonHtml).join('')}</div></div>`;
+}
+
 function checkUnlocks() {
     let u = game.unlocks;
     if (game.level >= 2 && !u.char) {
@@ -6075,6 +6121,15 @@ function checkUnlocks() {
         game.noti.talisman = true;
         addLog('🧿 봉인편린을 얻어 부적 탭이 개방되었습니다!', 'loot-unique');
     }
+    ensureExpertiseState();
+    const beforeExperts = new Set(game.expertise.unlockedExperts || []);
+    if ((game.season||1) >= 2 && (game.currencies.sporeFire||0) > 0) game.expertise.unlockedExperts.push('mycologist');
+    if (((game.season||1) >= 2 && (game.currencies.bossCore||0) > 0) || ((game.season||1) >= 4 && (game.currencies.skyEssence||0) > 0)) game.expertise.unlockedExperts.push('gemEngraver');
+    if ((game.season||1) >= 7 && ((game.starWedge||{}).unlocked || getStarWedgeUnlockReady())) game.expertise.unlockedExperts.push('astronomer');
+    if ((game.season||1) >= 8 && (((game.beehive||{}).unlockedPermanent) || (game.currencies.hiveKey||0) > 0)) game.expertise.unlockedExperts.push('beekeeper');
+    game.expertise.unlockedExperts = Array.from(new Set(game.expertise.unlockedExperts));
+    if (!game.unlocks.expertise && game.expertise.unlockedExperts.length > 0) { game.unlocks.expertise = true; game.noti.expertise = true; queueTutorialNotice('unlock_expertise','전문가 탭 개방','전문가 조우를 통해 전문가 시스템이 개방되었습니다.','tab-expertise'); }
+    if ((game.expertise.unlockedExperts||[]).some(id => !beforeExperts.has(id))) game.noti.expertise = true;
     if (game.level >= 100 && (game.completedTrials || []).includes('trial_3') && !(game.unlockedTrials || []).includes('trial_4')) {
         game.unlockedTrials.push('trial_4');
         game.noti.map = true;

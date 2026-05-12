@@ -311,3 +311,35 @@
   0%,100% { box-shadow: 0 0 0 1px rgba(183,67,86,0.25) inset, 0 0 16px rgba(183,67,86,0.32); }
   50% { box-shadow: 0 0 0 1px rgba(255,110,130,0.35) inset, 0 0 28px rgba(255,70,100,0.5); }
 }
+
+
+/* Expertise */
+.expertise-panel{background:linear-gradient(180deg,#151a27,#101521);border:1px solid #3a4964;border-radius:12px;padding:12px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.expertise-summary{color:#c8d8ea;font-size:.9em;margin-top:6px}
+.expertise-card{background:linear-gradient(180deg,#101827,#0e1420);border:1px solid #334761;border-radius:10px;padding:10px}
+.expertise-card h4{margin:0 0 6px 0;color:#e8f1ff;font-size:1.02em}
+.expertise-muted{color:#98afc8;font-size:.88em}
+.expertise-tree-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.expertise-node{display:block;width:100%;text-align:left;margin:4px 0;border:1px solid #415a79;border-radius:8px;padding:7px 8px;color:#e3efff;background:#213246}
+.expertise-node.common{background:#3a2f4d;border-color:#65507f}
+.expertise-node:disabled{opacity:.46;filter:grayscale(.25)}
+
+/* Market UI refresh */
+.market-card{background:#101722;border:1px solid #2b3f59;border-radius:10px;padding:10px}
+.market-tone-basic{border-color:#365074}
+.market-tone-chaos{border-color:#5a4b7b;background:linear-gradient(180deg,#161327,#101722)}
+.market-tone-divine{border-color:#8a6b32;background:linear-gradient(180deg,#231c10,#101722)}
+.market-title{margin-bottom:6px;color:#d5e7fa;font-weight:700}
+.market-service-title{margin-bottom:4px;color:#d5e7fa;font-weight:600}
+.market-row{display:flex;gap:6px;flex-wrap:wrap}
+.market-meta{align-self:center;color:#89a8c7;font-size:.82em;margin-top:4px}
+.market-black-offer{display:flex;justify-content:space-between;gap:6px;padding:6px 8px;border:1px solid #2b3f59;border-radius:8px;background:#0f1723}
+.market-black-offer.currency{border-color:#355f8d;background:linear-gradient(180deg,#0f1a29,#0f1723)}
+.market-black-offer.gem{border-color:#4d3f86;background:linear-gradient(180deg,#16142b,#0f1723)}
+.market-black-offer.gear{border-color:#2f6f66;background:linear-gradient(180deg,#122722,#0f1723)}
+.market-black-offer.unique{border-color:#8a6b32;background:linear-gradient(180deg,#2a2110,#0f1723)}
+.market-black-badge{display:inline-block;padding:1px 6px;border-radius:999px;font-size:.72em;font-weight:700;margin-right:6px}
+.market-black-badge.currency{background:#203f61;color:#b9dbff}
+.market-black-badge.gem{background:#372a64;color:#d9c9ff}
+.market-black-badge.gear{background:#1f4e48;color:#c4fff3}
+.market-black-badge.unique{background:#624b1f;color:#ffe7b3}

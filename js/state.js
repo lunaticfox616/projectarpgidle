@@ -698,6 +698,71 @@ let lastRenderedMapListHtml = '';
 safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
 
 // Phase-4 extracted default state schema.
+
+const EXPERT_DEFS = {
+  mycologist:{name:'균사학자',icon:'🍄',desc:'홀씨와 화석을 다루며 장비 옵션을 변형하고 복원한다.',unlocks:[{level:1,title:'균사학 입문',desc:'기본 홀씨 제작 해금'},{level:2,title:'원소 변환',desc:'추가 홀씨 제작 해금 : 장비의 화염/냉기/번개 저항 옵션을 원하는 다른 원소 저항으로 변환'},{level:3,title:'원소 전이',desc:'추가 홀씨 제작 해금 :  장비의 화염/냉기/번개 피해 옵션을 원하는 다른 원소 피해로 전환'},{level:4,title:'원시 화석',desc:'원시 화석 드랍 해금 및 화석 복원 가능'},{level:5,title:'고대 화석 발견',desc:'원시 고대 화석 드랍 해금'},{level:6,title:'화석 전용 옵션',desc:'화석 전용 옵션을 가진 아이템 드랍 해금'},{level:7,title:'부패 홀씨',desc:'특정 원소 태그를 가진 옵션 1개를 무작위 제거 가능'},{level:8,title:'복원 보상 확장',desc:'화석 복원 결과에 카오스오브 이상의 재화 추가'},{level:9,title:'균열 홀씨',desc:'화석 전용 옵션 제작 시도 가능'},{level:10,title:'고급 홀씨 제작',desc:'상위 홀씨 제작식 해금'},{level:11,title:'제거 대상 감지',desc:'부패 홀씨 제작비용 할인'},{level:12,title:'복원 대성공',desc:'화석 복원 시 낮은 확률로 추가 보상 획득'},{level:13,title:'완벽한 화석 조각',desc:'완벽한 화석 조각 해금'},{level:14,title:'완벽한 화석 드랍',desc:'완벽한 화석 완제품 드랍 해금'},{level:15,title:'홀씨 고정법',desc:'벌꿀 고정 제작에 홀씨 사용 가능'}]},
+  gemEngraver:{name:'젬 각인사',icon:'💎',desc:'젬 구매, 각인, 퀄리티, 각성 젬을 다룬다.',unlocks:[{level:1,title:'젬 구매 입문',desc:'재화로 랜덤 젬 구매 해금'},{level:2,title:'젬 구매 확장',desc:'재화로 랜덤 젬 구매 시 선택지 3개로 확장'},{level:3,title:'추가 각인',desc:'각인 종류 3개 추가 해금'},{level:4,title:'증폭 각인',desc:'젬의 기본 효과를 강화하는 증폭 각인 해금'},{level:5,title:'보조 젬 구매',desc:'재화로 랜덤 보조 젬 구매 해금, 선택지 3개 제공'},{level:6,title:'군주의 핵 각인',desc:'군주의 핵 각인 해금'},{level:7,title:'유동성 증가',desc:'군주의 핵 각인 자유 해제 가능'},{level:8,title:'젬 퀄리티',desc:'군주의 핵을 사용한 젬 퀄리티 기능 해금'},{level:9,title:'조율 각인',desc:'젬의 보조 태그를 조율하는 각인 종류 해금'},{level:10,title:'젬 상점 강화',desc:'특정 태그를 포함하는 랜덤 젬 구매 해금'},{level:11,title:'순환 각인',desc:'컨디션 젬의 쿨타임을 줄여 주는 순환 각인 해금'},{level:12,title:'각성 잔향',desc:'각성 젬 관련 재료인 각성 잔향 드랍 해금'},{level:13,title:'각성 젬 드랍',desc:'매우 낮은 확률로 각성 젬 드랍 가능'},{level:14,title:'각성 각인',desc:'특별한 효과의 특수 각인 해금'},{level:15,title:'각성 후보 변환',desc:'일반 젬을 각성 젬 후보로 변환 시도 가능'}]},
+  astronomer:{name:'천문학자',icon:'☄️',desc:'운석 게이지, 이상 현상, 별쐐기, 소행성 지도, 별자리를 관측한다.',unlocks:[{level:1,title:'운석 게이지',desc:'전투/맵핑 중 운석 게이지 축적 시작'},{level:2,title:'별가루',desc:'별가루 드랍 해금'},{level:3,title:'이상 현상 관측',desc:'낮은 확률로 이상 현상 관측 발생'},{level:4,title:'별쐐기 낙하',desc:'별쐐기 낙하 이벤트 해금'},{level:5,title:'별쐐기 리롤',desc:'별쐐기 관련 옵션 리롤 기능 해금'},{level:6,title:'소행성 지도',desc:'매 판 특성이 랜덤인 소행성 지도 해금'},{level:7,title:'소행성 특성',desc:'소행성 지도에 랜덤 특성 부여'},{level:8,title:'별자리 관측',desc:'별자리 관측 기능 해금'},{level:9,title:'영원성',desc:'별자리 관측이 루프 후에도 유지됨'},{level:10,title:'게이지 이월',desc:'운석 게이지 초과분 일부 이월'},{level:11,title:'희귀 이상 현상',desc:'공허 정렬, 이중 유성우 등 희귀 이상 현상 해금'},{level:12,title:'영원 별쐐기',desc:'별쐐기를 루프 후에도 고정하는 특수 재화 해금'},{level:13,title:'소행성 특성 추가',desc:'소행성 지도에 추가 랜덤 특성 등장 가능'},{level:14,title:'전문가 연동',desc:'소행성 지도에서 다른 전문가 재화 보상 등장 가능'},{level:15,title:'고등 별자리 관측',desc:'더 높은 등급의 별자리 효과 관측 가능'}]},
+  beekeeper:{name:'양봉업자',icon:'🐝',desc:'꽃가루, 벌집, 벌꿀, 독벌침, 밀랍, 벌 이벤트를 관리한다.',unlocks:[{level:1,title:'꽃가루 채집',desc:'꽃가루 드랍 해금'},{level:2,title:'마력깃든 벌꿀',desc:'마력깃든 벌꿀 드랍 해금'},{level:3,title:'카오스오브',desc:'벌집 보상풀에 카오스오브 추가'},{level:4,title:'독벌침',desc:'독벌침 드랍 해금'},{level:5,title:'신성한오브',desc:'벌집 보상풀에 매우 낮은 확률로 신성한오브 추가'},{level:6,title:'벌꿀/독벌침 교환',desc:'마력깃든 벌꿀 및 독벌침 <-> 재화 양방 교환 기능 해금'},{level:7,title:'벌집 심층 보상',desc:'벌집 심층 보상풀 확장'},{level:8,title:'밀랍',desc:'밀랍 재화 해금 - 부적 및 주얼에 밀랍 옵션 부여 가능'},{level:9,title:'밀랍 제거',desc:'부여된 옵션 제거 가능'},{level:10,title:'벌 이벤트',desc:'맵핑 중 일정 확률로 꽃가루를 자동 소모하여 벌 소환 이벤트 발생 가능'},{level:11,title:'호박벌 이벤트',desc:'보상이 더 좋은 호박벌 소환 이벤트 해금'},{level:12,title:'독침벌 이벤트',desc:'위험도가 높지만 독벌침 확률이 높은 독침벌 이벤트 해금'},{level:13,title:'금은보화',desc:'벌집 보상풀에 재화가 나올 확률이 조금 상승'},{level:14,title:'여왕벌 이벤트',desc:'낮은 확률로 대형 보상을 주는 여왕벌 이벤트 해금'},{level:15,title:'중첩',desc:'벌집 보상풀에 낮은 확률로 중첩 보상 등장'}]}
+};
+
+
+const EXPERT_EXP_RULES = {
+  mycologist: { loopCap: 250, actions: { spore_craft: { exp: 2, cap: 80 }, fossil_refine: { exp: 3, cap: 80 }, fossil_craft: { exp: 3, cap: 80 }, fossil_restore: { exp: 5, cap: 80 }, labyrinth_new_floor: { exp: 10, cap: 60 } } },
+  gemEngraver: { loopCap: 250, actions: { boss_core_upgrade: { exp: 3, cap: 80 }, sky_core_upgrade: { exp: 3, cap: 80 }, engrave_slot_expand: { exp: 5, cap: 60 }, engrave_apply: { exp: 1, cap: 100 }, support_gem_upgrade: { exp: 1, cap: 100 } } },
+  astronomer: { loopCap: 250, actions: { meteor_clear: { exp: 5, cap: 80 }, starwedge_craft: { exp: 5, cap: 80 }, starwedge_reroll: { exp: 1, cap: 100 }, anomaly_observe: { exp: 5, cap: 80 } } },
+  beekeeper: { loopCap: 250, actions: { bee_branch_choice: { exp: 1, cap: 100 }, bee_clear: { exp: 10, cap: 80 }, bee_currency_craft: { exp: 3, cap: 80 }, bee_resource_use: { exp: 2, cap: 80 } } }
+};
+
+const EXPERT_TREE_NODES = [
+  { id: 'common_reward_gain', branch: 'common', name: '숙련된 손길', desc: '모든 전문가 재화 획득량 증가', max: 5, cost: 1, effect: { expertCurrencyGainPct: 3 } },
+  { id: 'common_cost_reduce', branch: 'common', name: '반복 작업', desc: '모든 전문가 제작/사용 비용 감소', max: 5, cost: 1, effect: { expertCostReducePct: 2 } },
+  { id: 'common_rare_bonus', branch: 'common', name: '예리한 감별', desc: '전문가 희귀 보상 확률 증가', max: 5, cost: 1, effect: { expertRareChancePct: 2 } },
+  { id: 'myco_spore_gain', branch: 'mycologist', name: '균사 증식', desc: '홀씨 획득량 증가', max: 5, cost: 1, effect: { mycoSporeGainPct: 5 } },
+  { id: 'myco_fossil_drop', branch: 'mycologist', name: '화석 감별', desc: '화석 드랍률 증가', max: 5, cost: 1, effect: { fossilDropPct: 4 } },
+  { id: 'myco_restore_reward', branch: 'mycologist', name: '복원술', desc: '화석 복원 보상 증가', max: 5, cost: 1, effect: { fossilRestoreRewardPct: 5 } },
+  { id: 'myco_spore_cost', branch: 'mycologist', name: '전이 배양', desc: '홀씨 사용 비용 감소', max: 3, cost: 1, effect: { sporeCostReducePct: 6 } },
+  { id: 'myco_keystone_restore', branch: 'mycologist', name: '핵심: 복원 전문가', desc: '화석 복원 대성공 확률 증가', max: 1, cost: 3, effect: { fossilRestoreGreatChancePct: 10 }, requireBranchPoints: 10 },
+  { id: 'gem_gain', branch: 'gemEngraver', name: '젬 발견술', desc: '젬 획득량 증가', max: 5, cost: 1, effect: { gemGainPct: 5 } },
+  { id: 'gem_inscription_cost', branch: 'gemEngraver', name: '각인 보존', desc: '각인 비용 감소', max: 5, cost: 1, effect: { inscriptionCostReducePct: 4 } },
+  { id: 'gem_quality_cost', branch: 'gemEngraver', name: '품질 세공', desc: '젬 퀄리티 강화 비용 감소', max: 5, cost: 1, effect: { gemQualityCostReducePct: 4 } },
+  { id: 'gem_awakened_drop', branch: 'gemEngraver', name: '각성 공명', desc: '각성 젬 드랍률 증가', max: 3, cost: 1, effect: { awakenedGemDropPct: 4 } },
+  { id: 'gem_keystone_awakened', branch: 'gemEngraver', name: '핵심: 각성 추적', desc: '각성 젬 장기 미획득 확률 보정 증가', max: 1, cost: 3, effect: { awakenedPityBonusPct: 15 }, requireBranchPoints: 10 },
+  { id: 'astro_meteor_gain', branch: 'astronomer', name: '천체 계산', desc: '운석 게이지 획득량 증가', max: 5, cost: 1, effect: { meteorGaugeGainPct: 5 } },
+  { id: 'astro_anomaly_chance', branch: 'astronomer', name: '관측 숙련', desc: '이상 현상 관측 확률 증가', max: 5, cost: 1, effect: { anomalyChancePct: 3 } },
+  { id: 'astro_starwedge_chance', branch: 'astronomer', name: '별쐐기 탐지', desc: '별쐐기 낙하 확률 증가', max: 5, cost: 1, effect: { starWedgeDropPct: 3 } },
+  { id: 'astro_reroll_cost', branch: 'astronomer', name: '궤도 단축', desc: '별쐐기 리롤 비용 감소', max: 3, cost: 1, effect: { starWedgeRerollCostReducePct: 6 } },
+  { id: 'astro_keystone_constellation', branch: 'astronomer', name: '핵심: 별자리 고정', desc: '별자리 후보 중 1개를 잠금 가능', max: 1, cost: 3, effect: { constellationLock: 1 }, requireBranchPoints: 10 },
+  { id: 'bee_pollen_gain', branch: 'beekeeper', name: '꽃가루 채집', desc: '꽃가루 획득량 증가', max: 5, cost: 1, effect: { pollenGainPct: 5 } },
+  { id: 'bee_hive_reward', branch: 'beekeeper', name: '벌집 확장', desc: '벌집 보상 수량 증가', max: 5, cost: 1, effect: { beehiveRewardPct: 4 } },
+  { id: 'bee_honey_gain', branch: 'beekeeper', name: '꿀 농축', desc: '마력깃든 벌꿀 획득량 증가', max: 5, cost: 1, effect: { honeyGainPct: 5 } },
+  { id: 'bee_wax_cost', branch: 'beekeeper', name: '밀랍 정제', desc: '밀랍 제작 비용 감소', max: 3, cost: 1, effect: { waxCostReducePct: 6 } },
+  { id: 'bee_keystone_queen', branch: 'beekeeper', name: '핵심: 왕실 벌집', desc: '여왕벌 이벤트 보상 강화', max: 1, cost: 3, effect: { queenBeeRewardBonusPct: 20 }, requireBranchPoints: 10 }
+];
+const EXPERT_IDS = ['mycologist','gemEngraver','astronomer','beekeeper'];
+function ensureExpertiseState(){ game.expertise=(game.expertise&&typeof game.expertise==='object')?game.expertise:{}; game.expertise.levels=game.expertise.levels||{}; game.expertise.exp=game.expertise.exp||{}; game.expertise.nodes=game.expertise.nodes||{}; game.expertise.unlockedExperts=Array.isArray(game.expertise.unlockedExperts)?game.expertise.unlockedExperts:[]; EXPERT_IDS.forEach(id=>{ game.expertise.levels[id]=Math.max(1,Math.min(30,Math.floor(game.expertise.levels[id]||1))); game.expertise.exp[id]=Math.max(0,Math.floor(game.expertise.exp[id]||0));}); game.expertise.expertPointBonus=Math.max(0,Math.floor(game.expertise.expertPointBonus||0)); game.expertise.loopExpCaps=game.expertise.loopExpCaps||{}; if (!Number.isFinite(game.expertise.loopExpCaps.season)) game.expertise.loopExpCaps.season = Math.max(1, Math.floor(game.season || 1)); if (game.expertise.loopExpCaps.season !== Math.max(1, Math.floor(game.season || 1))) resetExpertiseLoopCaps(); return game.expertise;}
+function getExpertLevel(id){return ensureExpertiseState().levels[id]||1;}
+function getExpertExp(id){return ensureExpertiseState().exp[id]||0;}
+function getExpertExpReq(level){ return Math.floor(35 + level*18 + Math.pow(level,1.45)*8);}
+function addExpertExp(id,amount,sourceKey){ let st=ensureExpertiseState(); if(!EXPERT_IDS.includes(id)) return false; if(!st.unlockedExperts.includes(id)) st.unlockedExperts.push(id); if(!game.unlocks.expertise) game.unlocks.expertise=true; st.loopExpCaps.total = st.loopExpCaps.total || {}; st.loopExpCaps.bySource = st.loopExpCaps.bySource || {}; st.loopExpCaps.total[id] = st.loopExpCaps.total[id] || 0; st.loopExpCaps.bySource[id] = st.loopExpCaps.bySource[id] || {}; let rule=((EXPERT_EXP_RULES[id]||{}).actions||{})[sourceKey||'']; let totalCap=Math.max(1, Math.floor(((EXPERT_EXP_RULES[id]||{}).loopCap)||250)); let sourceCap=Math.max(1, Math.floor((rule&&rule.cap)||80)); let key=sourceKey||'generic'; let usedSource=st.loopExpCaps.bySource[id][key]||0; let left=Math.max(0, Math.min(totalCap-st.loopExpCaps.total[id], sourceCap-usedSource)); let gain=Math.max(0, Math.min(left, Math.floor(amount||0))); if (gain<=0) return false; let lv=getExpertLevel(id); if(lv>=30) return false; st.exp[id]+=gain; st.loopExpCaps.total[id]+=gain; st.loopExpCaps.bySource[id][key]=usedSource+gain; while(st.exp[id]>=getExpertExpReq(lv) && lv<30){ st.exp[id]-=getExpertExpReq(lv); lv++; st.levels[id]=lv; } return true;}
+function grantExpertExpByAction(id, actionKey){ let action=((((EXPERT_EXP_RULES[id]||{}).actions)||{})[actionKey]); if(!action) return false; return addExpertExp(id, action.exp, actionKey); }
+function getExpertUnlocks(id){ return (EXPERT_DEFS[id]||{}).unlocks||[];}
+function getCurrentExpertUnlock(id){ let lv=getExpertLevel(id); return getExpertUnlocks(id).filter(u=>u.level<=lv).slice(-1)[0]||null;}
+function getNextExpertUnlock(id){ let lv=getExpertLevel(id); return getExpertUnlocks(id).find(u=>u.level>lv)||null;}
+function getExpertPointTotal(){ let st=ensureExpertiseState(); return EXPERT_IDS.reduce((s,id)=>s+Math.max(0,getExpertLevel(id)-15),0)+(st.expertPointBonus||0);}
+function getExpertPointSpent(){ let st=ensureExpertiseState(); return Object.entries(st.nodes).reduce((s,[id,l])=>{ let n=EXPERT_TREE_NODES.find(v=>v.id===id); return s+(n?Math.max(0,Math.floor(l||0))*n.cost:0)},0);}
+function getExpertPointFree(){ return Math.max(0, getExpertPointTotal()-getExpertPointSpent());}
+function getExpertBranchSpent(branch){ let st=ensureExpertiseState(); return Object.entries(st.nodes).reduce((s,[id,l])=>{ let n=EXPERT_TREE_NODES.find(v=>v.id===id); return s+(n&&n.branch===branch?Math.max(0,Math.floor(l||0))*n.cost:0)},0);}
+function canAllocateExpertNode(nodeId){ let st=ensureExpertiseState(); let n=EXPERT_TREE_NODES.find(v=>v.id===nodeId); if(!n)return false; let cur=Math.max(0,Math.floor(st.nodes[nodeId]||0)); if(cur>=n.max) return false; if(getExpertPointFree()<n.cost) return false; if(n.requireBranchPoints && getExpertBranchSpent(n.branch)<n.requireBranchPoints) return false; return true;}
+function allocateExpertNode(nodeId){ if(!canAllocateExpertNode(nodeId)) return false; let st=ensureExpertiseState(); st.nodes[nodeId]=Math.max(0,Math.floor(st.nodes[nodeId]||0))+1; return true;}
+function resetExpertTree(){ ensureExpertiseState().nodes={}; }
+function resetExpertiseLoopCaps(){
+  let st = ensureExpertiseState();
+  st.loopExpCaps = { season: Math.max(1, Math.floor(game.season || 1)), total: {}, bySource: {} };
+  return st.loopExpCaps;
+}
+function hasExpertTreeUnlocked(){ return getExpertPointTotal() > 0; }
+
 const defaultGame = {
     saveVersion: 16,
     loopChallenge: null,
@@ -869,8 +934,9 @@ const defaultGame = {
         selectedWedgeId: null
     },
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0 },
-    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talisman: false },
-    noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false }
+    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talisman: false, expertise: false },
+    noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false },
+    expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], expertPointBonus: 0, loopExpCaps: {} }
 };
 
 
@@ -903,4 +969,4 @@ function normalizeGemRecord(raw) {
 }
 
 
-safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord });
+safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord, EXPERT_DEFS, EXPERT_TREE_NODES, ensureExpertiseState, getExpertLevel, getExpertExp, addExpertExp, getExpertUnlocks, getCurrentExpertUnlock, getNextExpertUnlock, getExpertPointTotal, getExpertPointSpent, getExpertPointFree, getExpertBranchSpent, canAllocateExpertNode, allocateExpertNode, resetExpertTree, hasExpertTreeUnlocked, resetExpertiseLoopCaps, EXPERT_EXP_RULES, grantExpertExpByAction });
