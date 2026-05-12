@@ -6164,8 +6164,7 @@ function checkUnlocks() {
     if (!game.unlocks.expertise && game.expertise.unlockedExperts.length > 0) { game.unlocks.expertise = true; game.noti.expertise = true; queueTutorialNotice('unlock_expertise','전문가 탭 개방','전문가 조우를 통해 전문가 시스템이 개방되었습니다.','tab-expertise'); }
     let newlyUnlockedExperts = (game.expertise.unlockedExperts||[]).filter(id => !beforeExperts.has(id));
     if (newlyUnlockedExperts.length > 0) game.noti.expertise = true;
-    if (!game.unlocks.expertise) return;
-    newlyUnlockedExperts.forEach(id => {
+    if (game.unlocks.expertise) newlyUnlockedExperts.forEach(id => {
         let key = `unlock_expert_${id}`;
         if ((game.seenTutorials||[]).includes(key)) return;
         let def = EXPERT_DEFS[id] || { name: id, desc: '전문가를 조우했습니다.' };
