@@ -1479,15 +1479,21 @@ document.addEventListener('mousemove', function(evt) {
     if (!anchor && !overTooltip) hideInfoTooltip();
 });
 let activeTalismanHoverId = null;
+function setTalismanHoverGroup(talismanId) {
+    if (activeTalismanHoverId === talismanId) return;
+    document.querySelectorAll('.talisman-board-cell.talisman-hover-group').forEach(el => el.classList.remove('talisman-hover-group'));
+    activeTalismanHoverId = talismanId || null;
+    if (!activeTalismanHoverId) return;
+    document.querySelectorAll(`[data-talisman-hover-id="${activeTalismanHoverId}"]`).forEach(el => el.classList.add('talisman-hover-group'));
+}
 function showTalismanBoardTooltip(event, talismanId) {
     let placed = talismanId ? ((game.talismanPlacements || {})[talismanId] || {}).talisman : null;
     if (!placed) return;
-    activeTalismanHoverId = talismanId;
+    setTalismanHoverGroup(talismanId);
     let min = Number.isFinite(placed.valueMin) ? placed.valueMin : placed.value;
     let max = Number.isFinite(placed.valueMax) ? placed.valueMax : placed.value;
-    let html = `<div class="tooltip-title">[${placed.shape}] ${placed.statName}</div><div class="tooltip-line">획득 수치: +${placed.value}</div><div class="tooltip-line">가능 범위: +${min} ~ +${max}</div><div class="tooltip-line">희귀도: ${placed.rarity || 'normal'}</div>`;
+    let html = `<div class="tooltip-title">[${escapeHTML(placed.shape || '?')}] ${escapeHTML(placed.statName || '')}</div><div class="tooltip-line">획득 수치: +${formatValue(placed.stat, placed.value)}</div><div class="tooltip-line">가능 범위: +${formatValue(placed.stat, min)} ~ +${formatValue(placed.stat, max)}</div><div class="tooltip-line">희귀도: ${escapeHTML(placed.rarity || 'normal')}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
-    updateStaticUI();
 }
 
 function showTalismanUnlockTooltip(event, x, y) {
@@ -1497,10 +1503,11 @@ function showTalismanUnlockTooltip(event, x, y) {
     let html = `<div class="tooltip-title">잠긴 부적 칸</div><div class="tooltip-line">좌표: (${x + 1}, ${y + 1})</div><div class="tooltip-line">해금 비용: ${formatTalismanUnlockCostLabel(unlockCost)}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7ea6d3');
 }
-function hideTalismanBoardTooltip() {
-    activeTalismanHoverId = null;
+function hideTalismanBoardTooltip(event, talismanId) {
+    let next = event && event.relatedTarget && event.relatedTarget.closest ? event.relatedTarget.closest(`[data-talisman-hover-id="${talismanId}"]`) : null;
+    if (next) return;
+    setTalismanHoverGroup(null);
     hideInfoTooltip();
-    updateStaticUI();
 }
 
 function renderBreakdownHtml(data) {
@@ -2983,6 +2990,7 @@ function isEdgeInViewport(edge, viewport, margin) {
 
 safeExposeGlobals({ updateCombatUI });
 
+
 // Phase-2 appended static UI renderer block.
 let uiRefreshQueued = false;
 let uiRefreshRunning = false;
@@ -3174,8 +3182,10 @@ function buildJewelRangeTooltipHtml(jewel) {
         let max = (stat.valMax !== undefined && stat.valMax !== null) ? formatValue(stat.id, stat.valMax) : formatValue(stat.id, stat.val);
         return `<div class="tooltip-line">${getStatName(stat.id)}: +${formatValue(stat.id, stat.val)} <span style="color:#9fb4d1;">(범위 ${min}~${max})</span></div>`;
     }).join('');
-    return `<div class="tooltip-title">${jewel.name}</div>${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
+    return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
 }
+
+safeExposeGlobals({ buildJewelRangeTooltipHtml });
 
 function getCraftActionValidators(item) {
     let hasHoneyLocked = (item.stats || []).some(v => v.lockedByHoney);
@@ -3795,9 +3805,9 @@ function buildCraftActionButtons(item) {
         if (isHoverGroup) surfaceShadow = `0 0 0 2px rgba(255,230,140,.85), 0 0 18px rgba(255,210,110,.55), ${surfaceShadow}`;
         let placedTitle = '';
         let hoverHandlers = id
-            ? ` data-talisman-hover-id="${id}" onmouseenter="showTalismanBoardTooltip(event, ${id})" onmousemove="showTalismanBoardTooltip(event, ${id})" onmouseleave="hideTalismanBoardTooltip()"`
-            : (!unlocked ? ` onmouseenter="showTalismanUnlockTooltip(event, ${x}, ${y})" onmousemove="showTalismanUnlockTooltip(event, ${x}, ${y})" onmouseleave="hideInfoTooltip()"` : '');
-        return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
+            ? ` data-info-tooltip-anchor="1" data-talisman-hover-id="${id}" onmouseenter="showTalismanBoardTooltip(event, ${id})" onmousemove="showTalismanBoardTooltip(event, ${id})" onmouseleave="hideTalismanBoardTooltip(event, ${id})"`
+            : (!unlocked ? ` data-info-tooltip-anchor="1" onmouseenter="showTalismanUnlockTooltip(event, ${x}, ${y})" onmousemove="showTalismanUnlockTooltip(event, ${x}, ${y})" onmouseleave="hideInfoTooltip()"` : '');
+        return `<button class="talisman-board-cell" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     let talismanTotalEl = document.getElementById('ui-talisman-total');
     if (talismanTotalEl) {

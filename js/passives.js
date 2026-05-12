@@ -2590,19 +2590,12 @@ function initBattleAssets() {
     }, 8000);
 
     function queueBattleSheetSanitization(key, image) {
-        const applySanitizedSheet = () => {
-            if (battleAssets.loadTicket !== loadTicket) return;
-            try {
-                battleAssets.images[key] = sanitizeBattleSheet(image);
-            } catch (error) {
-                battleAssets.images[key] = image;
-            }
-        };
-        if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-            window.requestIdleCallback(applySanitizedSheet, { timeout: 500 });
-            return;
+        if (battleAssets.loadTicket !== loadTicket) return;
+        try {
+            battleAssets.images[key] = sanitizeBattleSheet(image);
+        } catch (error) {
+            battleAssets.images[key] = image;
         }
-        setTimeout(applySanitizedSheet, 80);
     }
 
     function loadManifestEntryAt(index) {
@@ -3556,22 +3549,11 @@ function buildBattleAssetAtlas() {
 
     function buildEnemyTransparentImage(image) {
         if (!image) return image;
-        let c = document.createElement('canvas');
-        c.width = image.width;
-        c.height = image.height;
-        let cx = c.getContext('2d', { willReadFrequently: true });
-        cx.drawImage(image, 0, 0);
-        let id = cx.getImageData(0, 0, c.width, c.height);
-        let d = id.data;
-        let keyR = d[0], keyG = d[1], keyB = d[2];
-        for (let i = 0; i < d.length; i += 4) {
-            let dr = Math.abs(d[i] - keyR);
-            let dg = Math.abs(d[i + 1] - keyG);
-            let db = Math.abs(d[i + 2] - keyB);
-            if (dr + dg + db < 42) d[i + 3] = 0;
+        try {
+            return sanitizeBattleSheet(image);
+        } catch (error) {
+            return image;
         }
-        cx.putImageData(id, 0, 0);
-        return c;
     }
     let heroFrameSet = buildHeroFrameSetFromStripKeys(selectedHeroDef.strips, selectedHeroDef.id);
     if (!heroFrameSet && selectedHeroDef.id !== 'hero1') heroFrameSet = buildHeroFrameSetFromStripKeys(HERO_SELECTION_DEFS.hero1.strips, 'hero1');
