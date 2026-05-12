@@ -234,6 +234,7 @@
         <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: block;">캐릭터</div>
         <div class="tab-btn" id="btn-tab-char" onclick="switchTab('tab-char')">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">루프 <span id="noti-season" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-expertise" onclick="switchTab('tab-expertise')">전문가 <span id="noti-expertise" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-traits" onclick="switchTab('tab-traits')">직업전직 <span id="noti-traits" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-items" onclick="switchTab('tab-items')">장비/제작 <span id="noti-items" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-jewel" onclick="switchTab('tab-jewel')">주얼</div>
@@ -424,6 +425,16 @@
             <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
         </div>
         <div id="ui-loop10-panel" style="display:none; margin-top:12px; background:#151226; border:1px solid #4d3c7a; border-radius:10px; padding:10px;"></div>
+    </div>
+
+    
+    <div id="tab-expertise" class="tab-content">
+        <h2>🧠 전문가 조우</h2>
+        <div id="ui-expertise-overview" style="margin-bottom:12px;"></div>
+        <div class="subtab-row" id="ui-expert-subtabs"></div>
+        <div id="ui-expertise-detail" style="display:grid; gap:10px;"></div>
+        <h3 style="margin-top:16px;">전문가 노드 트리</h3>
+        <div id="ui-expert-tree" class="trait-tree"></div>
     </div>
 
     <div id="tab-items" class="tab-content">

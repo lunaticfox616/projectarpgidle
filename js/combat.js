@@ -1934,6 +1934,7 @@ function grantExpAndGem(enemy, pStats) {
             if (gem.exp >= getGemReqExp(gem.level)) {
                 gem.level++;
                 gem.exp = 0;
+                if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'support_gem_upgrade');
                 addLog(`🟢 젬 [${name}] 레벨업!`, "loot-rare");
             }
         }
@@ -2294,8 +2295,10 @@ function finishEncounterRun() {
         return;
     }
     if (zone.type === 'labyrinth') {
+        let prevLab = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
         game.labyrinthFloor = (game.labyrinthFloor || 1) + 1;
         game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, game.labyrinthFloor || 1);
+        if ((game.labyrinthUnlockedMaxFloor || 1) > prevLab && typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'labyrinth_new_floor');
         let gotBaseFossil = Math.random() < 0.5;
         if (gotBaseFossil) awardCurrency('fossil', 1);
         let rolledFossil = rndChoice(FOSSIL_DB);
@@ -3079,6 +3082,7 @@ function triggerSeasonReset() {
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     game.season++;
+    if (typeof resetExpertiseLoopCaps === 'function') resetExpertiseLoopCaps();
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
     if (game.loopCount === 2 && typeof queueTutorialNotice === 'function') {

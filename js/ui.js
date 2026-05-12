@@ -229,7 +229,7 @@ function switchTab(tabId) {
             activeBtn.scrollIntoView();
         }
     }
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
     updateStaticUI();
@@ -539,9 +539,9 @@ function buildBeehiveChoiceOption(type){
     return { text:`독벌침 획득 확률 상승 / 패널티: ${penalty.text}`, effect:'stinger', penalty: penalty };
 }
 function advanceBeehivePath(){ let b=game.beehive; if(!b.inRun||b.awaitingClear||b.pendingChoice) return; b.branchStep++; b.awaitingClear=true; spawnBeehiveWave((b.branchStep||0)>=10); updateStaticUI(); }
-function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice) return; if(key==='legacy_now'||key==='legacy_later'){ if(key==='legacy_now') game.currencies.pollen=(game.currencies.pollen||0)+Math.floor(10+Math.random()*9); else { if(Math.random()<0.04) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(Math.random()<0.16) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } } else { let pick=b.pendingChoice[key]; if(!pick) return; if(pick.effect==='pollen') game.currencies.pollen=(game.currencies.pollen||0)+(Number.isFinite(pick.amount)?pick.amount:0); if(pick.effect==='honey' && Math.random()<0.18) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(pick.effect==='stinger' && Math.random()<0.28) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if (pick.effect && pick.amount && ['chaos','fossil','jewelShard','sporeFire','sporeCold','sporeLight','incompleteStarWedge','meteorShard','divine'].includes(pick.effect)) game.currencies[pick.effect]=(game.currencies[pick.effect]||0)+Math.max(1,Math.floor(pick.amount||1)); if (pick.penalty && typeof pick.penalty.apply === 'function') pick.penalty.apply(b); } let ev=b.pendingChoice.eventType; if(ev==='empower'){ b.enemyEmpower=Math.max(0,Math.floor((b.enemyEmpower||0)+1)); } b.pendingChoice=null; if((b.branchStep||0)>=10){ b.inRun=false; b.cleared=true; b.unlockedPermanent=true; game.currentZoneId = b.returnZoneId !== undefined ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; markLoopSpecialBossKill('beehive_queen'); unlockJournalEntry('beehive_queen'); if(Math.random()<0.08){ let item=generateUniqueItem(Math.max(12,(getZone(game.currentZoneId)||{tier:12}).tier), '무기'); addItemToInventory(item); } addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되었습니다.', 'level-up'); } updateStaticUI(); }
+function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice) return; if(key==='legacy_now'||key==='legacy_later'){ if(key==='legacy_now') game.currencies.pollen=(game.currencies.pollen||0)+Math.floor(10+Math.random()*9); else { if(Math.random()<0.04) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(Math.random()<0.16) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; } } else { let pick=b.pendingChoice[key]; if(!pick) return; if(pick.effect==='pollen') game.currencies.pollen=(game.currencies.pollen||0)+(Number.isFinite(pick.amount)?pick.amount:0); if(pick.effect==='honey' && Math.random()<0.18) game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(pick.effect==='stinger' && Math.random()<0.28) game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if (pick.effect && pick.amount && ['chaos','fossil','jewelShard','sporeFire','sporeCold','sporeLight','incompleteStarWedge','meteorShard','divine'].includes(pick.effect)) game.currencies[pick.effect]=(game.currencies[pick.effect]||0)+Math.max(1,Math.floor(pick.amount||1)); if (pick.penalty && typeof pick.penalty.apply === 'function') pick.penalty.apply(b); } let ev=b.pendingChoice.eventType; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_branch_choice'); if(ev==='empower'){ b.enemyEmpower=Math.max(0,Math.floor((b.enemyEmpower||0)+1)); } b.pendingChoice=null; if((b.branchStep||0)>=10){ b.inRun=false; b.cleared=true; b.unlockedPermanent=true; game.currentZoneId = b.returnZoneId !== undefined ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; markLoopSpecialBossKill('beehive_queen'); unlockJournalEntry('beehive_queen'); if(Math.random()<0.08){ let item=generateUniqueItem(Math.max(12,(getZone(game.currentZoneId)||{tier:12}).tier), '무기'); addItemToInventory(item); } if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_clear'); addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되었습니다.', 'level-up'); } updateStaticUI(); }
 function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; b.inRun=false; b.branchStep=0; b.pendingChoice=null; b.enemyEmpower=0; game.currentZoneId = b.returnZoneId !== undefined ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.combatHalted=false; addLog('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); updateStaticUI(); }
-function craftBeehiveCurrency(type){ let cost= type==='key'?200:type==='stinger'?600:2000; if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; updateStaticUI(); }
+function craftBeehiveCurrency(type){ let cost= type==='key'?200:type==='stinger'?600:2000; if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_currency_craft'); updateStaticUI(); }
 function triggerVoidBreach(){ let v=game.voidRift; v.active=true; addLog('🕳️ 공허의 구멍이 열렸습니다! 몬스터가 쏟아집니다.', 'attack-monster'); updateStaticUI(); }
 function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if((v.breachClears||0) >= 1 || Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
 function enterGrandBreach(){ let v=game.voidRift; if(!v.grandBreachUnlock) return; if(v.grandRun&&v.grandRun.inRun) return; v.grandBreachUnlock=false; v.grandRun={ inRun:true, phase:'survival', timeLeft:35, kills:0, nextRefillAt:0, lastTickAt:Date.now(), returnZoneId:game.currentZoneId }; game.currentZoneId='grand_breach_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up'); updateStaticUI(); }
@@ -778,6 +778,8 @@ function rollTalismanCandidate(isStrong) {
         stat: option.stat,
         statName: option.label,
         value: Number(value.toFixed(step < 1 ? 1 : 0)),
+        valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)),
+        valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)),
         rarity: isStrong ? '강력한 기운' : '일반',
         source: isStrong ? 'strongSealShard' : 'sealShard'
     };
@@ -1481,7 +1483,9 @@ function showTalismanBoardTooltip(event, talismanId) {
     let placed = talismanId ? ((game.talismanPlacements || {})[talismanId] || {}).talisman : null;
     if (!placed) return;
     activeTalismanHoverId = talismanId;
-    let html = `<div class="tooltip-title">[${placed.shape}] ${placed.statName}</div><div class="tooltip-line">획득 수치: +${placed.value}</div><div class="tooltip-line">희귀도: ${placed.rarity || 'normal'}</div>`;
+    let min = Number.isFinite(placed.valueMin) ? placed.valueMin : placed.value;
+    let max = Number.isFinite(placed.valueMax) ? placed.valueMax : placed.value;
+    let html = `<div class="tooltip-title">[${placed.shape}] ${placed.statName}</div><div class="tooltip-line">획득 수치: +${placed.value}</div><div class="tooltip-line">가능 범위: +${min} ~ +${max}</div><div class="tooltip-line">희귀도: ${placed.rarity || 'normal'}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
     updateStaticUI();
 }
@@ -3091,7 +3095,7 @@ function performUpdateStaticUI() {
     renderStarWedgePanel();
 
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
     let jewelTabBtn = document.getElementById('btn-tab-jewel');
     if (jewelTabBtn) jewelTabBtn.style.display = game.unlocks.items ? 'block' : 'none';
     let battleBtn = document.getElementById('btn-tab-battle');
@@ -3149,7 +3153,7 @@ function performUpdateStaticUI() {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${stat.valMin}~${stat.valMax})` : '';
                 return `${getStatName(stat.id)} +${stat.val}${range}`;
             }).join(' / ');
-            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" title="${escapeHTML(desc)}">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${desc})<br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
+            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${desc})<br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
         }).join('');
         document.getElementById('ui-jewel-inventory').innerHTML = game.jewelInventory.map((jewel, idx) => {
             let selected = (jewelFusionSelection || []).includes(idx) ? 'selected' : '';
@@ -3157,10 +3161,21 @@ function performUpdateStaticUI() {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${stat.valMin}~${stat.valMax})` : '';
                 return `${getStatName(stat.id)} +${stat.val}${range}`;
             }).join(' / ');
-            return `<div class="item-card ${selected}" style="min-height:72px;" title="${escapeHTML(desc)}"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}</div><div class="item-stats">${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button><button onclick="salvageJewel(${idx})">해체</button></div></div>`;
+            return `<div class="item-card ${selected}" style="min-height:72px;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}</div><div class="item-stats">${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button><button onclick="salvageJewel(${idx})">해체</button></div></div>`;
         }).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
     }
 
+
+
+function buildJewelRangeTooltipHtml(jewel) {
+    if (!jewel) return '<div class="tooltip-title">주얼</div><div class="tooltip-line">정보 없음</div>';
+    let lines = getJewelStats(jewel).map(stat => {
+        let min = (stat.valMin !== undefined && stat.valMin !== null) ? formatValue(stat.id, stat.valMin) : formatValue(stat.id, stat.val);
+        let max = (stat.valMax !== undefined && stat.valMax !== null) ? formatValue(stat.id, stat.valMax) : formatValue(stat.id, stat.val);
+        return `<div class="tooltip-line">${getStatName(stat.id)}: +${formatValue(stat.id, stat.val)} <span style="color:#9fb4d1;">(범위 ${min}~${max})</span></div>`;
+    }).join('');
+    return `<div class="tooltip-title">${jewel.name}</div>${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
+}
 
 function getCraftActionValidators(item) {
     let hasHoneyLocked = (item.stats || []).some(v => v.lockedByHoney);
@@ -3358,6 +3373,7 @@ function buildCraftActionButtons(item) {
     if (marketTabBtn) marketTabBtn.style.display = isMarketUnlocked() ? 'block' : 'none';
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
     renderMarketUI();
+    renderExpertiseUI();
 
     // 벌집 진행 상태 갱신은 UI 표시와 무관하게 항상 돌아야 한다.
     // (awaitingClear -> pendingChoice 전환이 여기서 처리됨)
@@ -3771,7 +3787,7 @@ function buildCraftActionButtons(item) {
         let unlockedSet = getTalismanUnlockedCellsSet();
         let extraUnlocked = Math.max(0, unlockedSet.size - 16);
         let unlockCost = getTalismanExpandCost(extraUnlocked);
-        let lockTitle = unlocked ? '' : ` title="해금 비용: ${formatTalismanUnlockCostLabel(unlockCost)}"`;
+        let lockTitle = ''; // 기본 브라우저 툴팁 비활성화 (커스텀 툴팁 사용)
         let isHoverGroup = !!(id && activeTalismanHoverId && id === activeTalismanHoverId);
         let surfaceShadow = id
             ? `inset 0 1px 0 rgba(255,255,255,0.34), 0 2px 6px rgba(0,0,0,0.35), 0 0 8px ${shapeStyle ? shapeStyle.glow : 'rgba(120,180,240,0.25)'}`
@@ -3779,7 +3795,7 @@ function buildCraftActionButtons(item) {
         if (isHoverGroup) surfaceShadow = `0 0 0 2px rgba(255,230,140,.85), 0 0 18px rgba(255,210,110,.55), ${surfaceShadow}`;
         let placedTitle = '';
         let hoverHandlers = id
-            ? ` onmouseenter="showTalismanBoardTooltip(event, ${id})" onmousemove="showTalismanBoardTooltip(event, ${id})" onmouseleave="hideTalismanBoardTooltip()"`
+            ? ` data-talisman-hover-id="${id}" onmouseenter="showTalismanBoardTooltip(event, ${id})" onmousemove="showTalismanBoardTooltip(event, ${id})" onmouseleave="hideTalismanBoardTooltip()"`
             : (!unlocked ? ` onmouseenter="showTalismanUnlockTooltip(event, ${x}, ${y})" onmousemove="showTalismanUnlockTooltip(event, ${x}, ${y})" onmouseleave="hideInfoTooltip()"` : '');
         return `<button onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
@@ -5912,6 +5928,7 @@ function init() {
     syncSalvageControlsFromSettings();
     syncJewelSalvageControlsFromSettings();
     checkUnlocks();
+    renderExpertiseUI();
     normalizeSupportLoadout(false);
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
     runStartupSmokeChecks();
@@ -6025,6 +6042,68 @@ function gameLoop() {
 safeExposeGlobals({ updateStaticUI });
 
 // Phase-4 extracted unlock/class/tab helper block.
+
+function getExpertiseOverviewHtml(total, spent, free) {
+    const branchSummary = `균사 ${getExpertBranchSpent('mycologist')} · 젬 ${getExpertBranchSpent('gemEngraver')} · 천문 ${getExpertBranchSpent('astronomer')} · 양봉 ${getExpertBranchSpent('beekeeper')}`;
+    return `<div class="expertise-panel">전문가 포인트 · 총 <b>${total}</b> / 사용 <b>${spent}</b> / 남은 <b style="color:#ffd36b;">${free}</b> <button style="margin-left:8px;" onclick="resetExpertTree();updateStaticUI();">트리 초기화</button><div class="expertise-summary">분기 투자: ${branchSummary}</div></div>`;
+}
+
+function getExpertiseCardHtml(id) {
+    let d = EXPERT_DEFS[id], lv = getExpertLevel(id), cur = getCurrentExpertUnlock(id), next = getNextExpertUnlock(id), pt = Math.max(0, lv - 15);
+    let exp = getExpertExp(id), req = getExpertExpReq(lv);
+    let pct = Math.max(0, Math.min(100, req > 0 ? (exp / req) * 100 : 0));
+    let cap = ((game.expertise || {}).loopExpCaps || {});
+    let used = (((cap.total || {})[id]) || 0);
+    let loopCap = (((EXPERT_EXP_RULES || {})[id] || {}).loopCap) || 250;
+    let currentUnlockLine = cur ? `해금(Lv.${cur.level}): ${cur.title} - ${cur.desc}` : '해금 대기: 아직 해금된 컨텐츠가 없습니다.';
+    let nextUnlockLine = next ? `다음(Lv.${next.level}): ${next.title}` : '다음 해금 없음';
+    return `<div class="expertise-card"><h4>${d.icon} ${d.name} <span class="expertise-muted">Lv.${lv}</span> ${lv>=16?`<span style='color:#ffd36b;'>+${pt}pt</span>`:''}</h4><div class="expertise-muted">EXP ${exp}/${req} · 이번 루프 ${used}/${loopCap}</div><div style="margin:6px 0 8px 0; height:8px; border-radius:999px; background:#1c2a3a; border:1px solid #344b66;"><div style="width:${pct.toFixed(1)}%; height:100%; border-radius:999px; background:linear-gradient(90deg,#3f84ff,#72d1ff);"></div></div><div class="expertise-muted">${currentUnlockLine}</div><div class="expertise-muted">${nextUnlockLine}</div></div>`;
+}
+
+function getExpertiseNodeButtonHtml(node) {
+    let lv = (game.expertise.nodes[node.id] || 0);
+    let can = canAllocateExpertNode(node.id);
+    let reqText = '';
+    if (node.requireBranchPoints) {
+        let spent = getExpertBranchSpent(node.branch);
+        reqText = ` · 분기 ${spent}/${node.requireBranchPoints}`;
+    }
+    return `<button class="expertise-node ${node.branch==='common'?'common':''}" onclick="allocateExpertNode('${node.id}')&&updateStaticUI()" ${can?'':'disabled'}>${node.name} (${lv}/${node.max}) · cost ${node.cost}${reqText}</button>`;
+}
+
+function renderExpertiseUI() {
+    ensureExpertiseState();
+    let ov = document.getElementById('ui-expertise-overview');
+    let subtabs = document.getElementById('ui-expert-subtabs');
+    let detail = document.getElementById('ui-expertise-detail');
+    let tree = document.getElementById('ui-expert-tree');
+    if (!ov || !subtabs || !detail || !tree) return;
+    const total = getExpertPointTotal(), spent = getExpertPointSpent(), free = getExpertPointFree();
+    ov.innerHTML = '';
+    let unlocked = EXPERT_IDS.filter(id => (game.expertise.unlockedExperts||[]).includes(id));
+    let treeUnlocked = hasExpertTreeUnlocked();
+    let validTabs = [...unlocked, '__tree'];
+    game.expertise.selectedExpertTab = validTabs.includes(game.expertise.selectedExpertTab) ? game.expertise.selectedExpertTab : (unlocked[0] || '__tree');
+    let expertBtns = unlocked.map(id => `<button class="subtab-btn ${game.expertise.selectedExpertTab===id?'active':''}" onclick="game.expertise.selectedExpertTab='${id}';updateStaticUI();">${EXPERT_DEFS[id].icon} ${EXPERT_DEFS[id].name}</button>`).join('');
+    let treeLabel = treeUnlocked ? '전문가 노드 트리' : '전문가 노드 트리(잠김)';
+    let treeBtn = `<button class="subtab-btn ${game.expertise.selectedExpertTab==='__tree'?'active':''}" onclick="game.expertise.selectedExpertTab='__tree';updateStaticUI();">${treeLabel}</button>`;
+    subtabs.innerHTML = expertBtns + treeBtn;
+    let showingTree = game.expertise.selectedExpertTab === '__tree';
+    if (!showingTree) {
+        ov.innerHTML = '';
+        detail.innerHTML = unlocked.filter(id => !game.expertise.selectedExpertTab || id === game.expertise.selectedExpertTab).map(id => getExpertiseCardHtml(id)).join('') || '<div style="color:#98abc0;">아직 조우한 전문가가 없습니다.</div>';
+        tree.innerHTML = '';
+        return;
+    }
+    ov.innerHTML = '';
+    detail.innerHTML = '';
+    let treeOverview = getExpertiseOverviewHtml(total, spent, free);
+    if (!treeUnlocked) { tree.innerHTML = treeOverview + '<div class="expertise-panel" style="color:#c7b6d9;">전문가 노드 트리는 전문가 중 한 명이 Lv.16에 도달해 첫 전문가 포인트를 획득하면 해금됩니다.</div>'; return; }
+    let groups = { common:[], mycologist:[], gemEngraver:[], astronomer:[], beekeeper:[] };
+    EXPERT_TREE_NODES.forEach(n => groups[n.branch].push(n));
+    tree.innerHTML = treeOverview + `<div class="expertise-tree-grid"><div><div class="expertise-muted">[균사학자]</div>${groups.mycologist.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[천문학자]</div>${groups.astronomer.map(getExpertiseNodeButtonHtml).join('')}<div class="expertise-panel" style="margin:8px 0;">[전문가 공통]${groups.common.map(getExpertiseNodeButtonHtml).join('')}</div><div class="expertise-muted">[양봉업자]</div>${groups.beekeeper.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[젬 각인사]</div>${groups.gemEngraver.map(getExpertiseNodeButtonHtml).join('')}</div></div>`;
+}
+
 function checkUnlocks() {
     let u = game.unlocks;
     if (game.level >= 2 && !u.char) {
@@ -6075,6 +6154,23 @@ function checkUnlocks() {
         game.noti.talisman = true;
         addLog('🧿 봉인편린을 얻어 부적 탭이 개방되었습니다!', 'loot-unique');
     }
+    ensureExpertiseState();
+    const beforeExperts = new Set(game.expertise.unlockedExperts || []);
+    if ((game.season||1) >= 2 && (game.currencies.sporeFire||0) > 0) game.expertise.unlockedExperts.push('mycologist');
+    if (((game.season||1) >= 2 && (game.currencies.bossCore||0) > 0) || ((game.season||1) >= 4 && (game.currencies.skyEssence||0) > 0)) game.expertise.unlockedExperts.push('gemEngraver');
+    if ((game.season||1) >= 7 && ((game.starWedge||{}).unlocked || getStarWedgeUnlockReady())) game.expertise.unlockedExperts.push('astronomer');
+    if ((game.season||1) >= 8 && (((game.beehive||{}).unlockedPermanent) || (game.currencies.hiveKey||0) > 0)) game.expertise.unlockedExperts.push('beekeeper');
+    game.expertise.unlockedExperts = Array.from(new Set(game.expertise.unlockedExperts));
+    if (!game.unlocks.expertise && game.expertise.unlockedExperts.length > 0) { game.unlocks.expertise = true; game.noti.expertise = true; queueTutorialNotice('unlock_expertise','전문가 탭 개방','전문가 조우를 통해 전문가 시스템이 개방되었습니다.','tab-expertise'); }
+    let newlyUnlockedExperts = (game.expertise.unlockedExperts||[]).filter(id => !beforeExperts.has(id));
+    if (newlyUnlockedExperts.length > 0) game.noti.expertise = true;
+    if (!game.unlocks.expertise) return;
+    newlyUnlockedExperts.forEach(id => {
+        let key = `unlock_expert_${id}`;
+        if ((game.seenTutorials||[]).includes(key)) return;
+        let def = EXPERT_DEFS[id] || { name: id, desc: '전문가를 조우했습니다.' };
+        queueTutorialNotice(key, `${def.icon || '🧠'} ${def.name} 조우`, `${def.desc}\n전문가 탭에서 레벨과 해금, 노드 트리를 확인해보세요.`, 'tab-expertise');
+    });
     if (game.level >= 100 && (game.completedTrials || []).includes('trial_3') && !(game.unlockedTrials || []).includes('trial_4')) {
         game.unlockedTrials.push('trial_4');
         game.noti.map = true;
