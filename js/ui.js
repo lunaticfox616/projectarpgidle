@@ -3771,7 +3771,7 @@ function buildCraftActionButtons(item) {
         let unlockedSet = getTalismanUnlockedCellsSet();
         let extraUnlocked = Math.max(0, unlockedSet.size - 16);
         let unlockCost = getTalismanExpandCost(extraUnlocked);
-        let lockTitle = unlocked ? '' : ` title="해금 비용: ${formatTalismanUnlockCostLabel(unlockCost)}"`;
+        let lockTitle = ''; // 기본 브라우저 툴팁 비활성화 (커스텀 툴팁 사용)
         let isHoverGroup = !!(id && activeTalismanHoverId && id === activeTalismanHoverId);
         let surfaceShadow = id
             ? `inset 0 1px 0 rgba(255,255,255,0.34), 0 2px 6px rgba(0,0,0,0.35), 0 0 8px ${shapeStyle ? shapeStyle.glow : 'rgba(120,180,240,0.25)'}`
@@ -6062,10 +6062,16 @@ function renderExpertiseUI() {
     const total = getExpertPointTotal(), spent = getExpertPointSpent(), free = getExpertPointFree();
     ov.innerHTML = getExpertiseOverviewHtml(total, spent, free);
     let unlocked = EXPERT_IDS.filter(id => (game.expertise.unlockedExperts||[]).includes(id));
-    game.expertise.selectedExpertTab = unlocked.includes(game.expertise.selectedExpertTab) ? game.expertise.selectedExpertTab : (unlocked[0] || null);
-    subtabs.innerHTML = unlocked.map(id => `<button class="subtab-btn ${game.expertise.selectedExpertTab===id?'active':''}" onclick="game.expertise.selectedExpertTab='${id}';updateStaticUI();">${EXPERT_DEFS[id].icon} ${EXPERT_DEFS[id].name}</button>`).join('');
-    detail.innerHTML = unlocked.filter(id => !game.expertise.selectedExpertTab || id === game.expertise.selectedExpertTab).map(id => getExpertiseCardHtml(id)).join('') || '<div style="color:#98abc0;">아직 조우한 전문가가 없습니다.</div>';
-    if (!hasExpertTreeUnlocked()) { tree.innerHTML = '<div class="expertise-panel" style="color:#c7b6d9;">전문가 노드 트리는 전문가 중 한 명이 Lv.16에 도달해 첫 전문가 포인트를 획득하면 해금됩니다.</div>'; return; }
+    let treeUnlocked = hasExpertTreeUnlocked();
+    let validTabs = [...unlocked, '__tree'];
+    game.expertise.selectedExpertTab = validTabs.includes(game.expertise.selectedExpertTab) ? game.expertise.selectedExpertTab : (unlocked[0] || '__tree');
+    let expertBtns = unlocked.map(id => `<button class="subtab-btn ${game.expertise.selectedExpertTab===id?'active':''}" onclick="game.expertise.selectedExpertTab='${id}';updateStaticUI();">${EXPERT_DEFS[id].icon} ${EXPERT_DEFS[id].name}</button>`).join('');
+    let treeLabel = treeUnlocked ? '전문가 노드 트리' : '?';
+    let treeTooltip = treeUnlocked ? '' : ` onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,'<div class=\"tooltip-title\">???</div><div class=\"tooltip-line\">전문가 중 한명이 Lv.16을 달성하면 해금됩니다.</div>','#8aa4bf')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,'<div class=\"tooltip-title\">???</div><div class=\"tooltip-line\">전문가 중 한명이 Lv.16을 달성하면 해금됩니다.</div>','#8aa4bf')" onmouseleave="hideInfoTooltip()"`;
+    let treeBtn = `<button class="subtab-btn ${game.expertise.selectedExpertTab==='__tree'?'active':''}" onclick="game.expertise.selectedExpertTab='__tree';updateStaticUI();" ${treeTooltip}>${treeLabel}</button>`;
+    subtabs.innerHTML = expertBtns + treeBtn;
+    detail.innerHTML = game.expertise.selectedExpertTab === '__tree' ? '' : (unlocked.filter(id => !game.expertise.selectedExpertTab || id === game.expertise.selectedExpertTab).map(id => getExpertiseCardHtml(id)).join('') || '<div style="color:#98abc0;">아직 조우한 전문가가 없습니다.</div>');
+    if (!treeUnlocked) { tree.innerHTML = game.expertise.selectedExpertTab === '__tree' ? '<div class="expertise-panel" style="color:#c7b6d9;">전문가 노드 트리는 전문가 중 한 명이 Lv.16에 도달해 첫 전문가 포인트를 획득하면 해금됩니다.</div>' : ''; return; }
     let groups = { common:[], mycologist:[], gemEngraver:[], astronomer:[], beekeeper:[] };
     EXPERT_TREE_NODES.forEach(n => groups[n.branch].push(n));
     tree.innerHTML = `<div class="expertise-tree-grid"><div><div class="expertise-muted">[균사학자]</div>${groups.mycologist.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[천문학자]</div>${groups.astronomer.map(getExpertiseNodeButtonHtml).join('')}<div class="expertise-panel" style="margin:8px 0;">[전문가 공통]${groups.common.map(getExpertiseNodeButtonHtml).join('')}</div><div class="expertise-muted">[양봉업자]</div>${groups.beekeeper.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[젬 각인사]</div>${groups.gemEngraver.map(getExpertiseNodeButtonHtml).join('')}</div></div>`;
@@ -6129,7 +6135,14 @@ function checkUnlocks() {
     if ((game.season||1) >= 8 && (((game.beehive||{}).unlockedPermanent) || (game.currencies.hiveKey||0) > 0)) game.expertise.unlockedExperts.push('beekeeper');
     game.expertise.unlockedExperts = Array.from(new Set(game.expertise.unlockedExperts));
     if (!game.unlocks.expertise && game.expertise.unlockedExperts.length > 0) { game.unlocks.expertise = true; game.noti.expertise = true; queueTutorialNotice('unlock_expertise','전문가 탭 개방','전문가 조우를 통해 전문가 시스템이 개방되었습니다.','tab-expertise'); }
-    if ((game.expertise.unlockedExperts||[]).some(id => !beforeExperts.has(id))) game.noti.expertise = true;
+    let newlyUnlockedExperts = (game.expertise.unlockedExperts||[]).filter(id => !beforeExperts.has(id));
+    if (newlyUnlockedExperts.length > 0) game.noti.expertise = true;
+    newlyUnlockedExperts.forEach(id => {
+        let key = `unlock_expert_${id}`;
+        if ((game.seenTutorials||[]).includes(key)) return;
+        let def = EXPERT_DEFS[id] || { name: id, desc: '전문가를 조우했습니다.' };
+        queueTutorialNotice(key, `${def.icon || '🧠'} ${def.name} 조우`, `${def.desc}\n전문가 탭에서 레벨과 해금, 노드 트리를 확인해보세요.`, 'tab-expertise');
+    });
     if (game.level >= 100 && (game.completedTrials || []).includes('trial_3') && !(game.unlockedTrials || []).includes('trial_4')) {
         game.unlockedTrials.push('trial_4');
         game.noti.map = true;
