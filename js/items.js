@@ -334,6 +334,19 @@ function confirmSelectedItemBaseUpgrade() {
 }
 
 
+
+function getDropOnlyTheme(dropOnly) {
+    let type = dropOnly && dropOnly.type;
+    let map = {
+        beehive: { textClass: 'item-name--droponly item-name--droponly-beehive', badgeClass: 'market-black-badge--droponly-beehive', tipClass: 'tooltip-line--droponly-beehive', label: '벌집 한정' },
+        trial: { textClass: 'item-name--droponly item-name--droponly-trial', badgeClass: 'market-black-badge--droponly-trial', tipClass: 'tooltip-line--droponly-trial', label: '시련 한정' },
+        rift: { textClass: 'item-name--droponly item-name--droponly-rift', badgeClass: 'market-black-badge--droponly-rift', tipClass: 'tooltip-line--droponly-rift', label: '균열 한정' },
+        meteor: { textClass: 'item-name--droponly item-name--droponly-meteor', badgeClass: 'market-black-badge--droponly-meteor', tipClass: 'tooltip-line--droponly-meteor', label: '운석 지점 한정' },
+        ancient_labyrinth: { textClass: 'item-name--droponly item-name--droponly-ancient-labyrinth', badgeClass: 'market-black-badge--droponly-ancient-labyrinth', tipClass: 'tooltip-line--droponly-ancient-labyrinth', label: '고대 미궁 한정' }
+    };
+    return map[type] || null;
+}
+
 function buildBlackMarketOffer(index) {
     let tier = (getZone(game.currentZoneId) || { tier: 1 }).tier || 1;
     let roll = Math.random();
@@ -345,10 +358,10 @@ function buildBlackMarketOffer(index) {
     }
     if (roll < 0.75) {
         let slot = rndChoice(['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠']);
-        let candidates = BASE_ITEM_DB.filter(base => base && base.slot === slot && !base.dropOnly && (base.reqTier || 1) <= (tier + 3));
+        let candidates = BASE_ITEM_DB.filter(base => base && base.slot === slot && (base.reqTier || 1) <= (tier + 3));
         let base = candidates.length ? rndChoice(candidates) : chooseItemBase(slot, tier);
         let price = Math.max(2, Math.floor((base.reqTier || tier) / 2) + 2);
-        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, reqTier:Math.max(tier, base.reqTier || tier), priceKey:'chaos', price:price };
+        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, reqTier:Math.max(tier, base.reqTier || tier), priceKey:'chaos', price:price, dropOnly: base.dropOnly || null };
     }
     if (roll < 0.9) {
         let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !(game.skills||[]).includes(k));
@@ -370,7 +383,9 @@ function getBlackMarketOfferTooltipHtml(offer) {
         return `<div class="tooltip-title">젬: ${offer.name}</div><div class="tooltip-line">${skill.desc || '미보유 공격 젬을 획득합니다.'}</div>`;
     }
     if (offer.type === 'baseItem') {
-        return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name} · 요구 티어 ${offer.reqTier}</div><div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
+        let theme = getDropOnlyTheme(offer.dropOnly);
+        let sourceLine = theme ? `<div class="tooltip-line ${theme.tipClass}">획득처: ${theme.label}</div>` : '';
+        return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name} · 요구 티어 ${offer.reqTier}</div>${sourceLine}<div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
     }
     if (offer.type === 'unique') {
         let uniq = UNIQUE_DB.find(u => u && u.name === offer.name);
@@ -530,8 +545,12 @@ function renderMarketUI() {
             let price = offer.type==='exchange' ? '' : ` (${ORB_DB[offer.priceKey].name} ${offer.price})`;
             let cls = offer.type === 'exchange' ? 'currency' : offer.type === 'skillGem' ? 'gem' : offer.type === 'baseItem' ? 'gear' : 'unique';
             let badge = cls === 'currency' ? '재화' : cls === 'gem' ? '젬' : cls === 'gear' ? '장비' : '고유';
+            let theme = offer.type === 'baseItem' ? getDropOnlyTheme(offer.dropOnly) : null;
+            let sourceBadge = theme ? `<span class="market-black-badge market-black-badge--droponly ${theme.badgeClass}">${theme.label}</span>` : '';
+            let nameClass = theme ? theme.textClass : '';
+            let textHtml = nameClass ? `<span class="${nameClass}">${desc}</span>${price}` : `${desc}${price}`;
             let tooltip = getBlackMarketOfferTooltipHtml(offer).replace(/"/g, '&quot;');
-            return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span style="cursor:help;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,\"${tooltip}\",'#6f89a6')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,\"${tooltip}\",'#6f89a6')" onmouseleave="hideInfoTooltip()">${desc}${price}</span></div><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
+            return `<div class="market-black-offer ${cls}"><div>${sourceBadge}<span class="market-black-badge ${cls}">${badge}</span> <span style="cursor:help;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,\"${tooltip}\",'#6f89a6')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,\"${tooltip}\",'#6f89a6')" onmouseleave="hideInfoTooltip()">${textHtml}</span></div><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
         }).join('');
         bmEl.innerHTML = `<div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()">신성한 오브 1개로 품목 +1</button>`;
     }
