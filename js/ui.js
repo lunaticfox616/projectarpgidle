@@ -778,6 +778,8 @@ function rollTalismanCandidate(isStrong) {
         stat: option.stat,
         statName: option.label,
         value: Number(value.toFixed(step < 1 ? 1 : 0)),
+        valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)),
+        valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)),
         rarity: isStrong ? '강력한 기운' : '일반',
         source: isStrong ? 'strongSealShard' : 'sealShard'
     };
@@ -1481,7 +1483,9 @@ function showTalismanBoardTooltip(event, talismanId) {
     let placed = talismanId ? ((game.talismanPlacements || {})[talismanId] || {}).talisman : null;
     if (!placed) return;
     activeTalismanHoverId = talismanId;
-    let html = `<div class="tooltip-title">[${placed.shape}] ${placed.statName}</div><div class="tooltip-line">획득 수치: +${placed.value}</div><div class="tooltip-line">희귀도: ${placed.rarity || 'normal'}</div>`;
+    let min = Number.isFinite(placed.valueMin) ? placed.valueMin : placed.value;
+    let max = Number.isFinite(placed.valueMax) ? placed.valueMax : placed.value;
+    let html = `<div class="tooltip-title">[${placed.shape}] ${placed.statName}</div><div class="tooltip-line">획득 수치: +${placed.value}</div><div class="tooltip-line">가능 범위: +${min} ~ +${max}</div><div class="tooltip-line">희귀도: ${placed.rarity || 'normal'}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
     updateStaticUI();
 }
@@ -3149,7 +3153,7 @@ function performUpdateStaticUI() {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${stat.valMin}~${stat.valMax})` : '';
                 return `${getStatName(stat.id)} +${stat.val}${range}`;
             }).join(' / ');
-            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" title="${escapeHTML(desc)}">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${desc})<br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
+            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${desc})<br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
         }).join('');
         document.getElementById('ui-jewel-inventory').innerHTML = game.jewelInventory.map((jewel, idx) => {
             let selected = (jewelFusionSelection || []).includes(idx) ? 'selected' : '';
@@ -3157,10 +3161,21 @@ function performUpdateStaticUI() {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${stat.valMin}~${stat.valMax})` : '';
                 return `${getStatName(stat.id)} +${stat.val}${range}`;
             }).join(' / ');
-            return `<div class="item-card ${selected}" style="min-height:72px;" title="${escapeHTML(desc)}"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}</div><div class="item-stats">${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button><button onclick="salvageJewel(${idx})">해체</button></div></div>`;
+            return `<div class="item-card ${selected}" style="min-height:72px;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}</div><div class="item-stats">${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button><button onclick="salvageJewel(${idx})">해체</button></div></div>`;
         }).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
     }
 
+
+
+function buildJewelRangeTooltipHtml(jewel) {
+    if (!jewel) return '<div class="tooltip-title">주얼</div><div class="tooltip-line">정보 없음</div>';
+    let lines = getJewelStats(jewel).map(stat => {
+        let min = (stat.valMin !== undefined && stat.valMin !== null) ? formatValue(stat.id, stat.valMin) : formatValue(stat.id, stat.val);
+        let max = (stat.valMax !== undefined && stat.valMax !== null) ? formatValue(stat.id, stat.valMax) : formatValue(stat.id, stat.val);
+        return `<div class="tooltip-line">${getStatName(stat.id)}: +${formatValue(stat.id, stat.val)} <span style="color:#9fb4d1;">(범위 ${min}~${max})</span></div>`;
+    }).join('');
+    return `<div class="tooltip-title">${jewel.name}</div>${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
+}
 
 function getCraftActionValidators(item) {
     let hasHoneyLocked = (item.stats || []).some(v => v.lockedByHoney);
