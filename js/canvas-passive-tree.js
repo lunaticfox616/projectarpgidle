@@ -48,8 +48,8 @@ function drawPassiveTree() {
     const displayWidth = passiveCanvasMetrics.width || Math.max(1, canvas.clientWidth || 1);
     const displayHeight = passiveCanvasMetrics.height || Math.max(1, canvas.clientHeight || 1);
     const lightweightMode = !!isDragging;
-    const PASSIVE_TREE_SIMPLIFY_ZOOM = 1.24;
-    const PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM = 0.96;
+    const PASSIVE_TREE_SIMPLIFY_ZOOM = 0.31;
+    const PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM = 0.24;
     const zoomedOutMode = camZoom <= PASSIVE_TREE_SIMPLIFY_ZOOM;
     const ultraZoomedOutMode = camZoom <= PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM;
 
