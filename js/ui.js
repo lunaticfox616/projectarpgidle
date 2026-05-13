@@ -2105,6 +2105,28 @@ function drawBattleBackdrop(ctx, width, height, theme, now, zone) {
     ctx.restore();
 }
 
+function getLocalBattleHeroVisualTuning() {
+    const defaultTuning = {
+        baseHeight: 55.2,
+        minHeight: 50,
+        maxHeight: 55.2,
+        downShrink: 6.5,
+        maxScaleBoost: 1,
+        shadowWidth: 10,
+        shadowHeight: 4,
+        shadowAlpha: 0.16,
+        offsetY: 0
+    };
+    if (typeof isLocalRuntimeHost !== 'function' || !isLocalRuntimeHost()) return defaultTuning;
+    const localTuningByHero = {
+        hero1: { baseHeight: 62.5, minHeight: 56, maxHeight: 76.25, downShrink: 7.5, maxScaleBoost: 1.22, shadowWidth: 11, shadowHeight: 4.5, shadowAlpha: 0.17, offsetY: 0 },
+        hero2: { baseHeight: 60.5, minHeight: 54, maxHeight: 73.5, downShrink: 7.2, maxScaleBoost: 1.2, shadowWidth: 11, shadowHeight: 4.5, shadowAlpha: 0.17, offsetY: 1 },
+        hero3: { baseHeight: 60.5, minHeight: 54, maxHeight: 73.5, downShrink: 7.2, maxScaleBoost: 1.2, shadowWidth: 11, shadowHeight: 4.5, shadowAlpha: 0.17, offsetY: 1 },
+        hero4: { baseHeight: 61.5, minHeight: 55, maxHeight: 74.5, downShrink: 7.3, maxScaleBoost: 1.21, shadowWidth: 11.5, shadowHeight: 4.7, shadowAlpha: 0.17, offsetY: 1 }
+    };
+    return { ...defaultTuning, ...(localTuningByHero[game.selectedHeroId] || localTuningByHero.hero1) };
+}
+
 function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now, motionState) {
     let activeSkillPlayback = getSkillPlaybackState(now);
     if (battleAssets.images.hero) {
@@ -2263,10 +2285,11 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let stepOffset = (downPhase === null && advanceBlend > 0.08)
             ? Math.sin(now / _walkBobPeriod) * lerpNumber(0.08, 0.24, advanceBlend)
             : 0;
-        let heroScaleBoost = clampNumber((Number(scale) || 1) / 1.85, 1, 1.22);
-        let normalizedHeroSize = (62.5 * heroScaleBoost) - downBlend * 7.5;
-        normalizedHeroSize = clampNumber(normalizedHeroSize, 56, 76.25);
-        drawPixelShadow(ctx, x, y + 15, 11 * heroScaleBoost, 4.5 * heroScaleBoost, 0.17);
+        let localHeroTuning = getLocalBattleHeroVisualTuning();
+        let heroScaleBoost = clampNumber((Number(scale) || 1) / 1.85, 1, localHeroTuning.maxScaleBoost);
+        let normalizedHeroSize = (localHeroTuning.baseHeight * heroScaleBoost) - downBlend * localHeroTuning.downShrink;
+        normalizedHeroSize = clampNumber(normalizedHeroSize, localHeroTuning.minHeight, localHeroTuning.maxHeight);
+        drawPixelShadow(ctx, x, y + 15, localHeroTuning.shadowWidth * heroScaleBoost, localHeroTuning.shadowHeight * heroScaleBoost, localHeroTuning.shadowAlpha);
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
             smoothing: 'high',
@@ -2274,7 +2297,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             outlineAlpha: 0.86,
             outlineThickness: 1
         };
-        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7 - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
+        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7 + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
         if (flash && downPhase === null) {
             ctx.save();
             ctx.globalAlpha = 0.42;

@@ -466,28 +466,28 @@ function generateOrganicTree() {
     };
     const centralCoreSpecs = {
         templar: [
-            { stat: 'energyShieldPct', title: '성역의 예고', desc: '북서쪽 회랑에는 에너지 보호막과 주문형 생존 노드가 많습니다.' },
-            { stat: 'spellFlatPct', title: '성광의 주문축', desc: '성직자의 회랑은 주문과 보호막 운용으로 이어집니다.' }
+            { stat: 'energyShieldPct', title: '성역의 예고', desc: '보호막과 주문 생존으로 이어집니다.' },
+            { stat: 'spellFlatPct', title: '성광의 주문축', desc: '주문과 보호막 운용으로 뻗습니다.' }
         ],
         witch: [
-            { stat: 'energyShieldPct', title: '비전의 예고', desc: '북쪽 장막에는 에너지 보호막, 카오스, 치명 주문 노드가 밀집합니다.' },
-            { stat: 'chaosPctDmg', title: '공허의 주문축', desc: '마녀의 장막은 카오스와 지속 피해 빌드로 뻗습니다.' }
+            { stat: 'energyShieldPct', title: '비전의 예고', desc: '보호막과 치명 주문으로 이어집니다.' },
+            { stat: 'chaosPctDmg', title: '공허의 주문축', desc: '카오스와 지속 피해로 뻗습니다.' }
         ],
         shadow: [
-            { stat: 'evasionPct', title: '암영의 예고', desc: '북동쪽 굴절에는 회피, 치명타, 흡혈 강화 노드가 많습니다.' },
-            { stat: 'crit', title: '급습의 축', desc: '암영 구간은 회피와 치명타, 빠른 타격으로 이어집니다.' }
+            { stat: 'evasionPct', title: '암영의 예고', desc: '회피와 치명타로 이어집니다.' },
+            { stat: 'crit', title: '급습의 축', desc: '치명타와 빠른 타격으로 뻗습니다.' }
         ],
         ranger: [
-            { stat: 'evasionPct', title: '유격의 예고', desc: '동쪽 길에는 회피와 투사체, 냉기 계열 노드가 많습니다.' },
-            { stat: 'projectilePctDmg', title: '화살비의 축', desc: '유격수 구간은 투사체와 기동 빌드로 뻗습니다.' }
+            { stat: 'evasionPct', title: '유격의 예고', desc: '회피와 투사체로 이어집니다.' },
+            { stat: 'projectilePctDmg', title: '화살비의 축', desc: '투사체와 기동 빌드로 뻗습니다.' }
         ],
         duelist: [
-            { stat: 'armorPct', title: '결투의 예고', desc: '남동쪽 원에는 방어도, 공격 속도, 흡혈 강화 노드가 많습니다.' },
-            { stat: 'meleePctDmg', title: '쌍검의 축', desc: '결투가 구간은 근접과 연속 타격 빌드로 이어집니다.' }
+            { stat: 'armorPct', title: '결투의 예고', desc: '방어도와 연속 전투로 이어집니다.' },
+            { stat: 'meleePctDmg', title: '쌍검의 축', desc: '근접과 연속 타격으로 뻗습니다.' }
         ],
         marauder: [
-            { stat: 'armorPct', title: '강철의 예고', desc: '남서쪽 틈에는 방어도, 생명력, 물리 강타 노드가 많습니다.' },
-            { stat: 'physPctDmg', title: '대지의 축', desc: '전사 구간은 물리 피해와 강타, 강인함으로 뻗습니다.' }
+            { stat: 'armorPct', title: '강철의 예고', desc: '방어도와 생명력으로 이어집니다.' },
+            { stat: 'physPctDmg', title: '대지의 축', desc: '물리 피해와 강타로 뻗습니다.' }
         ]
     };
     const clusterThemeBySector = {
@@ -546,6 +546,10 @@ function generateOrganicTree() {
         let stat = pathCycle[(depth + laneAbs * 2 + sectorIndex) % pathCycle.length];
         return P_STATS[stat] ? stat : 'flatHp';
     }
+    function getCoreDirectionLabel(sectorIndex) {
+        const labels = ['북쪽', '북동쪽', '동쪽', '남동쪽', '남쪽', '남서쪽', '서쪽', '북서쪽'];
+        return labels[((sectorIndex % labels.length) + labels.length) % labels.length] || '중앙';
+    }
     function specializePathNode(node, theme, depth, lane, sectorIndex, shape) {
         if (!node || !shape) return;
         if (shape.kind === 'core') {
@@ -555,7 +559,7 @@ function generateOrganicTree() {
                 node.stat = spec.stat;
                 node.val = getTierValue(node.stat, node.tier);
                 node.title = spec.title;
-                node.desc = spec.desc;
+                node.desc = `${getCoreDirectionLabel(sectorIndex)} 시작축: ${spec.desc}`;
             }
             return;
         }
@@ -2986,7 +2990,10 @@ function initBattleAssets() {
         if (battleAssets.loadTicket !== loadTicket) return;
         try {
             let sanitized = sanitizeBattleSheet(image);
-            if (key === 'enemies' || key === 'enemies2' || key === 'enemies3') sanitized = sanitizeWhiteBackdropSheet(sanitized);
+            if (key === 'enemies' || key === 'enemies2' || key === 'enemies3') {
+                sanitized = sanitizeWhiteBackdropSheet(sanitized);
+                sanitized = sanitizeLocalMonsterBackdropSheet(sanitized);
+            }
             battleAssets.images[key] = sanitized;
         } catch (error) {
             battleAssets.images[key] = image;
@@ -3286,6 +3293,98 @@ function sanitizeWhiteBackdropSheet(image) {
             }
             if (transparentNeighbors >= 3 && avg >= 198) px[idx + 3] = 0;
             else if (transparentNeighbors >= 1 && avg >= 186) px[idx + 3] = Math.min(px[idx + 3], 48);
+        }
+    }
+    ctx.putImageData(frame, 0, 0);
+    return canvas;
+}
+
+function sanitizeLocalMonsterBackdropSheet(image) {
+    if (!image || !isLocalRuntimeHost()) return image;
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(image, 0, 0);
+    let frame;
+    try {
+        frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    } catch (error) {
+        return image;
+    }
+    const px = frame.data;
+    const width = canvas.width;
+    const height = canvas.height;
+    const samples = [];
+    function addSample(x, y) {
+        x = clampNumber(Math.round(x), 0, width - 1);
+        y = clampNumber(Math.round(y), 0, height - 1);
+        let idx = (y * width + x) * 4;
+        if (px[idx + 3] < 24) return;
+        samples.push([px[idx], px[idx + 1], px[idx + 2]]);
+    }
+    let step = Math.max(4, Math.round(Math.min(width, height) / 36));
+    for (let x = 0; x < width; x += step) { addSample(x, 0); addSample(x, height - 1); }
+    for (let y = 0; y < height; y += step) { addSample(0, y); addSample(width - 1, y); }
+    if (samples.length === 0) return image;
+    function bgDistance(r, g, b) {
+        let best = Infinity;
+        samples.forEach(sample => {
+            let dist = Math.abs(r - sample[0]) + Math.abs(g - sample[1]) + Math.abs(b - sample[2]);
+            if (dist < best) best = dist;
+        });
+        return best;
+    }
+    function isLocalBackdropPixel(pos, loose) {
+        let idx = pos * 4;
+        let r = px[idx], g = px[idx + 1], b = px[idx + 2], a = px[idx + 3];
+        if (a < 24) return true;
+        let max = Math.max(r, g, b);
+        let min = Math.min(r, g, b);
+        let avg = (r + g + b) / 3;
+        let saturation = max - min;
+        let dist = bgDistance(r, g, b);
+        if (avg >= 232 && saturation <= 58) return true;
+        if (saturation <= 46 && dist <= (loose ? 88 : 62)) return true;
+        return dist <= (loose ? 54 : 38) && saturation <= 72;
+    }
+    const visited = new Uint8Array(width * height);
+    const queue = [];
+    function pushSeed(x, y) {
+        if (x < 0 || y < 0 || x >= width || y >= height) return;
+        let pos = y * width + x;
+        if (visited[pos] || !isLocalBackdropPixel(pos, true)) return;
+        visited[pos] = 1;
+        queue.push(pos);
+    }
+    for (let x = 0; x < width; x++) { pushSeed(x, 0); pushSeed(x, height - 1); }
+    for (let y = 0; y < height; y++) { pushSeed(0, y); pushSeed(width - 1, y); }
+    while (queue.length > 0) {
+        let pos = queue.pop();
+        px[pos * 4 + 3] = 0;
+        let x = pos % width;
+        let y = Math.floor(pos / width);
+        pushSeed(x - 1, y);
+        pushSeed(x + 1, y);
+        pushSeed(x, y - 1);
+        pushSeed(x, y + 1);
+    }
+    const alphaSnapshot = new Uint8ClampedArray(width * height);
+    for (let i = 0, p = 0; i < px.length; i += 4, p++) alphaSnapshot[p] = px[i + 3];
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            let pos = y * width + x;
+            if (alphaSnapshot[pos] === 0) continue;
+            let transparentNeighbors = 0;
+            for (let oy = -1; oy <= 1; oy++) {
+                for (let ox = -1; ox <= 1; ox++) {
+                    if (ox === 0 && oy === 0) continue;
+                    if (alphaSnapshot[(y + oy) * width + (x + ox)] === 0) transparentNeighbors++;
+                }
+            }
+            if (transparentNeighbors <= 0) continue;
+            let idx = pos * 4;
+            if (isLocalBackdropPixel(pos, false)) px[idx + 3] = transparentNeighbors >= 3 ? 0 : Math.min(px[idx + 3], 40);
         }
     }
     ctx.putImageData(frame, 0, 0);
@@ -4075,9 +4174,9 @@ function buildBattleAssetAtlas() {
     function buildEnemyTransparentImage(image) {
         if (!image) return image;
         try {
-            return sanitizeWhiteBackdropSheet(sanitizeBattleSheet(image));
+            return sanitizeLocalMonsterBackdropSheet(sanitizeWhiteBackdropSheet(sanitizeBattleSheet(image)));
         } catch (error) {
-            return sanitizeWhiteBackdropSheet(image);
+            return sanitizeLocalMonsterBackdropSheet(sanitizeWhiteBackdropSheet(image));
         }
     }
     let heroFrameSetSource = selectedHeroDef.id;
