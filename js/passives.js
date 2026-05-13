@@ -1641,6 +1641,7 @@ let battleAssets = {
     backdrops: {},
     atlas: null
 };
+const ENABLE_BATTLE_SHEET_SANITIZATION = true;
 const BATTLE_BACKDROP_VARIANTS = [
     { tone: 'rgba(30, 77, 122, 0.16)', glow: 'rgba(169, 226, 255, 0.10)' },
     { tone: 'rgba(86, 44, 24, 0.17)', glow: 'rgba(255, 198, 132, 0.10)' },
@@ -2685,6 +2686,7 @@ function initBattleAssets() {
     }, 8000);
 
     function queueBattleSheetSanitization(key, image) {
+        if (!ENABLE_BATTLE_SHEET_SANITIZATION) return;
         if (battleAssets.loadTicket !== loadTicket) return;
         try {
             battleAssets.images[key] = sanitizeBattleSheet(image);
