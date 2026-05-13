@@ -625,6 +625,7 @@ function generateOrganicTree() {
             if (need <= 0) return;
             let candidates = Object.values(PASSIVE_TREE.nodes)
                 .filter(node => node && node.id !== hub.id)
+                .filter(node => !node.clusterId)
                 .filter(node => node.kind !== 'apex')
                 .filter(node => !linked.has(node.id))
                 .sort((a, b) => {
@@ -770,7 +771,9 @@ function generateOrganicTree() {
     }
 
     let baseOuterRadius = Object.values(PASSIVE_TREE.nodes).reduce((max, node) => Math.max(max, Math.hypot(node.x, node.y)), 0);
-    let outerAnchors = Object.values(PASSIVE_TREE.nodes).filter(node => Math.hypot(node.x, node.y) >= baseOuterRadius - 240);
+    let outerAnchors = Object.values(PASSIVE_TREE.nodes)
+        .filter(node => !node.clusterId)
+        .filter(node => Math.hypot(node.x, node.y) >= baseOuterRadius - 240);
     PASSIVE_APEX_CONFIGS.forEach((config, index) => {
         let angle = -Math.PI / 2 + (index / PASSIVE_APEX_CONFIGS.length) * Math.PI * 2;
         let apexRadius = baseOuterRadius + 210;
@@ -927,6 +930,7 @@ function applyPassiveSpecializations() {
     PASSIVE_SPECIAL_NODE_CONFIGS.forEach(config => {
         let candidates = Object.values(PASSIVE_TREE.nodes)
             .filter(node => node && node.sector === config.sector)
+            .filter(node => !node.clusterId)
             .filter(node => (config.kinds || []).includes(node.kind))
             .filter(node => node.id !== 'n0' && !used.has(node.id));
         candidates.sort((a, b) => {
