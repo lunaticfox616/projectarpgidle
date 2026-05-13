@@ -3238,6 +3238,13 @@ function triggerSeasonReset() {
     });
     playLoopRewriteEffect();
     let previousHeroId = game.selectedHeroId || 'hero1';
+    let prevStarWedge = (game.starWedge && typeof game.starWedge === 'object') ? game.starWedge : {};
+    let preservedEternalWedges = Array.isArray(prevStarWedge.wedges)
+        ? prevStarWedge.wedges.filter(w => w && w.eternal).map(w => JSON.parse(JSON.stringify(w)))
+        : [];
+    let preservedConstellationBuff = (prevStarWedge.constellationBuff && prevStarWedge.constellationBuff.permanent)
+        ? JSON.parse(JSON.stringify(prevStarWedge.constellationBuff))
+        : null;
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
@@ -3312,6 +3319,8 @@ function triggerSeasonReset() {
     game.seasonChaseUniqueDropped = false;
     game.uniqueCodex = codexReveal;
     game.starWedge = JSON.parse(JSON.stringify(defaultGame.starWedge));
+    game.starWedge.wedges = preservedEternalWedges;
+    game.starWedge.constellationBuff = preservedConstellationBuff;
     game.unlocks = { ...defaultGame.unlocks };
     game.noti = { ...defaultGame.noti };
     game.itemSubtab = 'item-tab-equip';
