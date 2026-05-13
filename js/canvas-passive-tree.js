@@ -48,8 +48,10 @@ function drawPassiveTree() {
     const displayWidth = passiveCanvasMetrics.width || Math.max(1, canvas.clientWidth || 1);
     const displayHeight = passiveCanvasMetrics.height || Math.max(1, canvas.clientHeight || 1);
     const lightweightMode = !!isDragging;
-    const zoomedOutMode = camZoom <= 0.62;
-    const ultraZoomedOutMode = camZoom <= 0.48;
+    const PASSIVE_TREE_SIMPLIFY_ZOOM = 1.24;
+    const PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM = 0.96;
+    const zoomedOutMode = camZoom <= PASSIVE_TREE_SIMPLIFY_ZOOM;
+    const ultraZoomedOutMode = camZoom <= PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM;
 
     // transform 누적 방지: 매 렌더 시작 시 setTransform으로 초기화
     ctx.setTransform(1, 0, 0, 1, 0, 0);
