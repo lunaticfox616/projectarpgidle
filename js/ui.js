@@ -2263,9 +2263,10 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let stepOffset = (downPhase === null && advanceBlend > 0.08)
             ? Math.sin(now / _walkBobPeriod) * lerpNumber(0.08, 0.24, advanceBlend)
             : 0;
-        drawPixelShadow(ctx, x, y + 15, 10, 4, 0.16);
-        let normalizedHeroSize = 55.2 - downBlend * 6.5;
-        normalizedHeroSize = clampNumber(normalizedHeroSize, 50, 55.2);
+        let heroScaleBoost = clampNumber((Number(scale) || 1) / 1.85, 1, 1.22);
+        let normalizedHeroSize = (62.5 * heroScaleBoost) - downBlend * 7.5;
+        normalizedHeroSize = clampNumber(normalizedHeroSize, 56, 76.25);
+        drawPixelShadow(ctx, x, y + 15, 11 * heroScaleBoost, 4.5 * heroScaleBoost, 0.17);
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
             smoothing: 'high',
