@@ -4442,6 +4442,7 @@ function mergeDefaults(save) {
             hp: Math.min(maxHp, hp),
             maxHp: maxHp,
             attackTimer: clampFiniteNumber(enemy.attackTimer, 0, 0),
+            regenBank: Math.round(clampFiniteNumber(enemy.regenBank, 0, 0) * 10) / 10,
             spawnAt: clampFiniteNumber(enemy.spawnAt, 0, 0, 100),
             spawnStamp: 0,
             groupIndex: Math.max(0, Math.floor(clampFiniteNumber(enemy.groupIndex, 0, 0))),

@@ -3096,11 +3096,24 @@ function performMonsterAttacks(pStats) {
                 return;
             }
         }
-        if ((enemy.regenRate || 0) > 0) {
+        if ((enemy.regenRate || 0) > 0 && enemy.hp < (enemy.maxHp || enemy.hp)) {
             let suppress = Math.max(0, Math.min(95, enemy.regenSuppressPct || 0));
             let curseFx = getEnemyConditionDebuffFactor(enemy);
             let effectiveRegenRate = Math.max(0, enemy.regenRate * (1 - suppress / 100) * (curseFx.enemyRegenRateMul || 1));
-            enemy.hp = Math.min(enemy.maxHp || enemy.hp, enemy.hp + Math.max(1, Math.floor((enemy.maxHp || 1) * effectiveRegenRate)));
+            let maxHp = Math.max(1, enemy.maxHp || enemy.hp || 1);
+            let rawRegen = Math.max(0, maxHp * effectiveRegenRate);
+            let wholeRegen = Math.floor(rawRegen);
+            let fractionalRegen = rawRegen - wholeRegen;
+            enemy.regenBank = Math.max(0, Number(enemy.regenBank) || 0);
+            if (fractionalRegen > 0) {
+                let storedFraction = Math.max(0.1, Math.round(fractionalRegen * 10) / 10);
+                enemy.regenBank = Math.round((enemy.regenBank + storedFraction) * 10) / 10;
+            }
+            if (enemy.regenBank >= 1) {
+                wholeRegen += Math.floor(enemy.regenBank);
+                enemy.regenBank = Math.round((enemy.regenBank - Math.floor(enemy.regenBank)) * 10) / 10;
+            }
+            if (wholeRegen > 0) enemy.hp = Math.min(maxHp, enemy.hp + wholeRegen);
         }
         enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
         if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);
