@@ -9,6 +9,12 @@ let mobilePipCtx = null;
 let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 94, lastTapAt: 0 };
 let mobilePipRefreshHandle = null;
 let battleAssetDeferredInitHandle = null;
+let playerHpDamageGhostPct = null;
+let playerHpDamageGhostLastPct = null;
+let playerHpDamageGhostLastAt = 0;
+let playerHpDamageGhostHoldUntil = 0;
+const PLAYER_HP_DAMAGE_GHOST_HOLD_MS = 260;
+const PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC = 34;
 
 function startBattleAssetLoadNow() {
     window.__battleAssetAutoloadEnabled = true;
@@ -2787,24 +2793,57 @@ function setTextById(id, value) {
     el.innerText = value;
 }
 
+function updatePlayerHpDamageGhost(actualPct) {
+    let now = Date.now();
+    actualPct = Math.max(0, Math.min(100, Number(actualPct) || 0));
+    if (playerHpDamageGhostPct === null || playerHpDamageGhostLastPct === null) {
+        playerHpDamageGhostPct = actualPct;
+        playerHpDamageGhostLastPct = actualPct;
+        playerHpDamageGhostLastAt = now;
+        return actualPct;
+    }
+    let elapsedSec = Math.max(0, Math.min(0.5, (now - (playerHpDamageGhostLastAt || now)) / 1000));
+    if (actualPct < playerHpDamageGhostLastPct - 0.05) {
+        playerHpDamageGhostPct = Math.max(playerHpDamageGhostPct, playerHpDamageGhostLastPct);
+        playerHpDamageGhostHoldUntil = now + PLAYER_HP_DAMAGE_GHOST_HOLD_MS;
+    } else if (actualPct > playerHpDamageGhostPct) {
+        playerHpDamageGhostPct = actualPct;
+    }
+    if (now >= playerHpDamageGhostHoldUntil && playerHpDamageGhostPct > actualPct) {
+        playerHpDamageGhostPct = Math.max(actualPct, playerHpDamageGhostPct - PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC * elapsedSec);
+    }
+    playerHpDamageGhostLastPct = actualPct;
+    playerHpDamageGhostLastAt = now;
+    return playerHpDamageGhostPct;
+}
+
 function updateCombatUI(pStats) {
     game.playerHp = Math.min(game.playerHp, pStats.maxHp);
     setTextById('ui-hp', Math.max(0, Math.floor(game.playerHp)));
     setTextById('ui-maxhp', pStats.maxHp);
     setTextById('ui-maxhp-stat', pStats.maxHp);
-    document.getElementById('ui-hp-bar').style.width = Math.max(0, (game.playerHp / pStats.maxHp) * 100) + '%';
+    let hpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
+    let hpBar = document.getElementById('ui-hp-bar');
+    hpBar.style.width = hpPct + '%';
+    let hpWrap = hpBar.parentElement;
+    let hpGhostBar = document.getElementById('ui-hp-damage-ghost-bar');
+    if (!hpGhostBar && hpWrap) {
+        hpGhostBar = document.createElement('div');
+        hpGhostBar.id = 'ui-hp-damage-ghost-bar';
+        hpGhostBar.className = 'hp-bar-fill player-damage-ghost';
+        hpWrap.insertBefore(hpGhostBar, hpBar);
+    }
+    if (hpGhostBar) {
+        let ghostPct = updatePlayerHpDamageGhost(hpPct);
+        hpGhostBar.style.width = `${ghostPct}%`;
+        hpGhostBar.style.display = ghostPct > hpPct + 0.2 ? 'block' : 'none';
+    }
     let hpAilBar = document.getElementById('ui-hp-ailment-bar');
-    if (!hpAilBar) {
-        let hpWrap = document.querySelector('#ui-hp-bar').parentElement;
+    if (!hpAilBar && hpWrap) {
         hpAilBar = document.createElement('div');
         hpAilBar.id = 'ui-hp-ailment-bar';
-        hpAilBar.className = 'hp-bar-fill';
-        hpAilBar.style.background = 'linear-gradient(90deg,#ff8a65,#ff5252)';
-        hpAilBar.style.opacity = '0.5';
-        hpAilBar.style.position = 'absolute';
-        hpAilBar.style.left = '0';
-        hpAilBar.style.top = '0';
-        hpWrap.insertBefore(hpAilBar, document.getElementById('ui-hp-bar'));
+        hpAilBar.className = 'hp-bar-fill player-ailment-pending';
+        hpWrap.insertBefore(hpAilBar, hpBar);
     }
     let esPct = (pStats.energyShield || 0) > 0 ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
     let esInlineEl = document.getElementById('ui-es-inline');
@@ -2820,8 +2859,10 @@ function updateCombatUI(pStats) {
         esBar.style.position = 'absolute';
         esBar.style.left = '0';
         esBar.style.top = '0';
+        esBar.style.zIndex = '5';
         hpWrap.insertBefore(esBar, document.getElementById('ui-hp-bar'));
     }
+    esBar.style.zIndex = '5';
     esBar.style.width = esPct + '%';
     esBar.style.display = (pStats.energyShield || 0) > 0 ? 'block' : 'none';
     setTextById('ui-exp', game.exp);
@@ -2864,6 +2905,9 @@ function updateCombatUI(pStats) {
         let playerHpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
         let pendingPlayerPct = Math.max(0, Math.min(playerHpPct, (projectedPlayerAilDmg / Math.max(1, pStats.maxHp)) * 100));
         hpAilBar.style.width = `${pendingPlayerPct}%`;
+        hpAilBar.style.left = 'auto';
+        hpAilBar.style.right = `${Math.max(0, 100 - playerHpPct)}%`;
+        hpAilBar.style.display = pendingPlayerPct > 0.05 ? 'block' : 'none';
     }
     let hpCombatBar = document.getElementById('ui-player-hp-combat');
     if (hpCombatBar) hpCombatBar.style.width = `${Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100))}%`;
