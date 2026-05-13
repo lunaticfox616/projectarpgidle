@@ -653,9 +653,9 @@ function generateOrganicTree() {
     const spokesPerSector = 2;
     const webSpokeCount = sectorCount * spokesPerSector;
     const maxDepth = 12;
-    const innerRadius = 210;
+    const innerRadius = 285;
     const ringSpacing = 142;
-    const webYScale = 0.93;
+    const webYScale = 1;
     const angleStep = Math.PI * 2 / webSpokeCount;
 
     let root = addNode(0, 0, 0, 'flatHp', { sector: 'center', kind: 'root', depth: 0, lane: 0 });
@@ -683,6 +683,17 @@ function generateOrganicTree() {
             x: Math.cos(angle) * radius,
             y: Math.sin(angle) * radius * webYScale
         };
+    }
+    function realignWebPathNodes() {
+        for (let spoke = 0; spoke < webSpokeCount; spoke++) {
+            for (let depth = 1; depth <= maxDepth; depth++) {
+                let node = webNodes[spoke] && webNodes[spoke][depth - 1];
+                if (!node) continue;
+                let point = getWebPoint(spoke, depth, 0, 0);
+                node.x = point.x * PASSIVE_WORLD_SCALE;
+                node.y = point.y * PASSIVE_WORLD_SCALE;
+            }
+        }
     }
     function classifyWebNode(depth, spoke) {
         let lane = getWebLane(spoke);
@@ -733,8 +744,10 @@ function generateOrganicTree() {
     function getWebCellClusterPoint(cell, step, chainLength) {
         let t = step / Math.max(1, chainLength + 1);
         let bow = Math.sin(t * Math.PI) * (cell.blueprint.spread || 0.4);
-        let angle = cell.angle + angleStep * (0.22 + t * 0.48 + bow * 0.10);
-        let radius = cell.innerRadius + ringSpacing * (0.18 + t * 0.58);
+        let angleRatio = 0.12 + t * 0.44 + bow * 0.08;
+        let radiusRatio = 0.10 + t * 0.56;
+        let angle = cell.angle + angleStep * Math.max(0.10, Math.min(0.72, angleRatio));
+        let radius = (cell.innerRadius + ringSpacing * Math.max(0.08, Math.min(0.72, radiusRatio))) * PASSIVE_WORLD_SCALE;
         return {
             x: Math.cos(angle) * radius,
             y: Math.sin(angle) * radius * webYScale
@@ -915,6 +928,7 @@ function generateOrganicTree() {
         }
     }
 
+    realignWebPathNodes();
     realignSpecializedClusters(clusterAnchorsById);
 
     let nodes = Object.values(PASSIVE_TREE.nodes);
