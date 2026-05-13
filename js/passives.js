@@ -1542,7 +1542,7 @@ let battleVisualState = {
     advanceChangedAt: 0
 };
 const DEBUG_BATTLE_ANCHORS = false;
-const HERO_SPRITE_CONFIG = { cols: 6, rows: 5, drawHeight: 58, anchorX: 0.5, anchorY: 0.92 };
+const HERO_SPRITE_CONFIG = { cols: 6, rows: 5, drawHeight: 58, anchorX: 0.5, anchorY: 0.92, metaUnit: 300 };
 const HERO_MOTIONS = {
     walk: [0, 1, 2, 3],
     run: [4, 5, 6, 7],
@@ -1918,13 +1918,15 @@ function getHeroFrameMeta(frameIndex) {
     };
 }
 function getHeroDrawMetrics(heroWorldX, heroWorldY, frameRect, frameMeta) {
-    let scale = HERO_SPRITE_CONFIG.drawHeight / frameRect.sh;
+    let basisHeight = Number.isFinite(frameRect && frameRect.basisHeight) ? Math.max(1, frameRect.basisHeight) : Math.max(1, frameRect.sh);
+    let scale = HERO_SPRITE_CONFIG.drawHeight / basisHeight;
     let drawW = frameRect.sw * scale;
     let drawH = frameRect.sh * scale;
-    let pivotX = (frameMeta.pivot.x / 229) * frameRect.sw;
-    let pivotY = (frameMeta.pivot.y / 229) * frameRect.sh;
-    let offsetX = (frameMeta.drawOffset.x / 300) * frameRect.sw;
-    let offsetY = (frameMeta.drawOffset.y / 300) * frameRect.sh;
+    let metaUnit = Math.max(1, Number(HERO_SPRITE_CONFIG.metaUnit) || 300);
+    let pivotX = (frameMeta.pivot.x / metaUnit) * frameRect.sw;
+    let pivotY = (frameMeta.pivot.y / metaUnit) * frameRect.sh;
+    let offsetX = (frameMeta.drawOffset.x / metaUnit) * frameRect.sw;
+    let offsetY = (frameMeta.drawOffset.y / metaUnit) * frameRect.sh;
     let dx = heroWorldX - (pivotX * scale) + (offsetX * scale);
     let dy = heroWorldY - (pivotY * scale) + (offsetY * scale);
     return { drawW, drawH, dx, dy, scaleX: scale, scaleY: scale };
