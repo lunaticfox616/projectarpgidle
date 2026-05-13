@@ -706,17 +706,11 @@ function toggleSeasonBossRepeat() {
 function renderStarWedgePanel() {
     let panel = document.getElementById('ui-star-wedge-panel');
     if (!panel) return;
-    let unlocked = !!game.conditionGemUnlocked;
-    let owned = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
-    let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
-    if (!unlocked) {
-        panel.innerHTML = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프2 뿌리 보스를 처음 처치하면 컨디션 젬이 해금됩니다.</div>`;
-        return;
-    }
     let st = ensureStarWedgeState();
     tryUnlockMeteorContentByProgress();
+    st = ensureStarWedgeState();
     if (!st.unlocked) {
-        panel.innerHTML = `<div style="color:#7f89a0;">루프 ${STAR_WEDGE_UNLOCK_LOOP} + 액트 ${STAR_WEDGE_UNLOCK_ACT} 이후 해금됩니다.</div>`;
+        panel.innerHTML = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프 ${STAR_WEDGE_UNLOCK_LOOP}에서 액트 ${STAR_WEDGE_UNLOCK_ACT} 이후에 도달하면 별쐐기와 운석 낙하 지점이 해금됩니다.</div>`;
         return;
     }
     let astronomerLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
@@ -2263,9 +2257,10 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let stepOffset = (downPhase === null && advanceBlend > 0.08)
             ? Math.sin(now / _walkBobPeriod) * lerpNumber(0.08, 0.24, advanceBlend)
             : 0;
-        drawPixelShadow(ctx, x, y + 15, 10, 4, 0.16);
-        let normalizedHeroSize = 55.2 - downBlend * 6.5;
-        normalizedHeroSize = clampNumber(normalizedHeroSize, 50, 55.2);
+        let heroScaleBoost = clampNumber((Number(scale) || 1) / 1.85, 1, 1.22);
+        let normalizedHeroSize = (62.5 * heroScaleBoost) - downBlend * 7.5;
+        normalizedHeroSize = clampNumber(normalizedHeroSize, 56, 76.25);
+        drawPixelShadow(ctx, x, y + 15, 11 * heroScaleBoost, 4.5 * heroScaleBoost, 0.17);
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
             smoothing: 'high',
@@ -2598,16 +2593,18 @@ function drawGemAttackTrail(ctx, element, sx, sy, tx, ty, t) {
 
 function drawBattleSwingFx(ctx, fx, t, playerPos) {
     let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
+    let swingElement = normalizeBattleElement(fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
+    let swingTheme = getImpactThemeByElement(swingElement);
     ctx.save();
     ctx.globalAlpha = 1 - t * 0.72;
     let reach = 16 + t * 18;
-    ctx.strokeStyle = skillVisual.primary;
+    ctx.strokeStyle = fx.color || swingTheme.primary || skillVisual.primary;
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(playerPos.x + 3, playerPos.y - 4);
     ctx.quadraticCurveTo(playerPos.x + 10 + t * 10, playerPos.y - 26, playerPos.x + reach, playerPos.y - 10);
     ctx.stroke();
-    ctx.strokeStyle = skillVisual.secondary;
+    ctx.strokeStyle = swingTheme.secondary || skillVisual.secondary;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(playerPos.x + 6, playerPos.y - 1);
@@ -3797,9 +3794,7 @@ function buildCraftActionButtons(item) {
         let cost = getSupportTierResonanceCost(name);
         let sealBtn = active ? '' : `<button style="margin-left:4px; font-size:0.66em; padding:1px 4px;" onclick="event.stopPropagation(); sealSupportGem('${name}')">🔒 봉인</button>`;
         let tierBtns = [1,2,3].map(t => `<button style="font-size:0.62em; padding:1px 3px; ${t<=unlockedTier?'':'opacity:.4;'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${t})" ${t<=unlockedTier?'':'disabled'}>${t===1?'하':t===2?'중':'상'}</button>`).join('');
-        let supportProcessLocked = (typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('gemEngraver') || 1)) : 1) < 5;
-        let processBtn = `<button style="margin-left:4px; font-size:0.66em; padding:1px 4px;" onclick="event.stopPropagation(); processSupportGemWithSkyEssence('${name}')" ${supportProcessLocked || (game.currencies.skyEssence || 0) <= 0 ? 'disabled' : ''}>☁️가공${supportProcessLocked ? ' Lv.5' : ''}</button>`;
-        return `<div class="skill-gem support-gem ${active}" onclick="toggleSupport('${name}')" onmouseover="showGemTooltip(event,'support','${name}')" onmouseenter="showGemTooltip(event,'support','${name}')" onmousemove="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">${tierLabel} · Lv.${gemInfo.totalLevel} · 공명 ${cost}</span><span style="display:inline-flex; gap:2px; margin-left:4px;">${tierBtns}</span>${processBtn}${sealBtn}</div>`;
+        return `<div class="skill-gem support-gem ${active}" onclick="toggleSupport('${name}')" onmouseover="showGemTooltip(event,'support','${name}')" onmouseenter="showGemTooltip(event,'support','${name}')" onmousemove="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">${tierLabel} · Lv.${gemInfo.totalLevel} · 공명 ${cost}</span><span style="display:inline-flex; gap:2px; margin-left:4px;">${tierBtns}</span>${sealBtn}</div>`;
     }).join('');
     if (!foldSupportInactive) supportHtml += `<div style="margin-top:6px;"><button style="width:100%; font-size:0.75em; padding:4px 8px;" onclick="sealAllInactiveSupportGems()">미사용 젬 일괄 봉인</button></div>`;
     if (sealedSupports.length > 0 && !foldSupportInactive) supportHtml += sealedSupports.map(name => `<div class="skill-gem support-gem" style="opacity:0.78;"><strong>🔒 ${escapeHTML(name)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSupportGem('${name}')">해제 (공명 -1)</button></div>`).join('');
@@ -4447,6 +4442,7 @@ function mergeDefaults(save) {
             hp: Math.min(maxHp, hp),
             maxHp: maxHp,
             attackTimer: clampFiniteNumber(enemy.attackTimer, 0, 0),
+            regenBank: Math.round(clampFiniteNumber(enemy.regenBank, 0, 0) * 10) / 10,
             spawnAt: clampFiniteNumber(enemy.spawnAt, 0, 0, 100),
             spawnStamp: 0,
             groupIndex: Math.max(0, Math.floor(clampFiniteNumber(enemy.groupIndex, 0, 0))),
@@ -4708,6 +4704,7 @@ function mergeDefaults(save) {
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
     merged.abyssPassives = { ...(defaultGame.abyssPassives || {}), ...(merged.abyssPassives || {}) };
     merged.playerAilments = Array.isArray(merged.playerAilments) ? merged.playerAilments.map(row => ({ type: row.type, time: Math.max(0, clampFiniteNumber(row.time, 0, 0, 30)), power: Math.max(0, clampFiniteNumber(row.power, 0.1, 0, 1.5)), sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0))) })).filter(row => row.type) : [];
+    merged.playerLeechInstances = Array.isArray(merged.playerLeechInstances) ? merged.playerLeechInstances.map(row => ({ remaining: Math.max(0, clampFiniteNumber(row.remaining, 0, 0)), rate: Math.max(0, clampFiniteNumber(row.rate, 0, 0)), target: row.target === 'energyShield' ? 'energyShield' : 'life' })).filter(row => row.remaining > 0 && row.rate > 0).slice(0, 80) : [];
     merged.recentDamageEvents = Array.isArray(merged.recentDamageEvents) ? merged.recentDamageEvents.map(normalizeRecentDamageEvent).filter(Boolean) : [];
     merged.lastDeathLog = normalizeDeathLog(merged.lastDeathLog);
     merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
@@ -6224,6 +6221,7 @@ function renderExpertiseUI() {
     let subtabs = document.getElementById('ui-expert-subtabs');
     let detail = document.getElementById('ui-expertise-detail');
     let tree = document.getElementById('ui-expert-tree');
+    let treeTitle = document.getElementById('ui-expert-tree-title');
     if (!ov || !subtabs || !detail || !tree) return;
     const total = getExpertPointTotal(), spent = getExpertPointSpent(), free = getExpertPointFree();
     ov.innerHTML = '';
@@ -6236,6 +6234,8 @@ function renderExpertiseUI() {
     let treeBtn = `<button class="subtab-btn ${game.expertise.selectedExpertTab==='__tree'?'active':''}" onclick="game.expertise.selectedExpertTab='__tree';updateStaticUI();">${treeLabel}</button>`;
     subtabs.innerHTML = expertBtns + treeBtn;
     let showingTree = game.expertise.selectedExpertTab === '__tree';
+    if (treeTitle) treeTitle.style.display = showingTree ? '' : 'none';
+    tree.style.display = showingTree ? '' : 'none';
     if (!showingTree) {
         ov.innerHTML = '';
         detail.innerHTML = unlocked.filter(id => !game.expertise.selectedExpertTab || id === game.expertise.selectedExpertTab).map(id => getExpertiseCardHtml(id)).join('') || '<div style="color:#98abc0;">아직 조우한 전문가가 없습니다.</div>';
