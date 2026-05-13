@@ -262,6 +262,10 @@ function switchItemSubtab(subtabId) {
         addLog('액트 5를 먼저 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
         subtabId = 'item-tab-equip';
     }
+    if (subtabId === 'item-tab-infuser' && (typeof isChaosInfuserUnlocked !== 'function' || !isChaosInfuserUnlocked())) {
+        addLog('나무꾼을 한 번 이상 마주치면 혼돈 주입기가 해금됩니다.', 'attack-monster');
+        subtabId = 'item-tab-equip';
+    }
     game.itemSubtab = subtabId;
     document.querySelectorAll('#tab-items .subtab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#tab-items .subtab-btn').forEach(el => el.classList.remove('active'));
@@ -3258,7 +3262,7 @@ function performUpdateStaticUI() {
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'block' : 'none');
     let jewelTabBtn = document.getElementById('btn-tab-jewel');
-    if (jewelTabBtn) jewelTabBtn.style.display = game.unlocks.items ? 'block' : 'none';
+    if (jewelTabBtn) jewelTabBtn.style.display = game.unlocks.jewel ? 'block' : 'none';
     let battleBtn = document.getElementById('btn-tab-battle');
     if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'block' : 'none';
     let summarySkillTreeBtn = document.getElementById('btn-summary-tab-char');
@@ -3282,12 +3286,15 @@ function performUpdateStaticUI() {
     renderPaperdoll('ui-equip-list', false);
     renderPaperdoll('ui-craft-equip-list', true);
     renderPaperdoll('ui-fossil-equip-list', true);
+    if (document.getElementById('ui-infuser-equip-list')) renderPaperdoll('ui-infuser-equip-list', true);
     document.getElementById('ui-inv-count').innerText = game.inventory.length;
     document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
     document.getElementById('ui-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'equip')).join('');
     document.getElementById('ui-craft-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'craft')).join('');
     document.getElementById('ui-fossil-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'fossil')).join('');
-    let jewelUnlocked = (game.season || 1) >= 5;
+    let infuserInv = document.getElementById('ui-infuser-inventory-list');
+    if (infuserInv) infuserInv.innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'infuser')).join('');
+    let jewelUnlocked = !!game.unlocks.jewel;
     document.getElementById('ui-jewel-header').style.display = jewelUnlocked ? 'block' : 'none';
     document.getElementById('ui-jewel-panel').style.display = jewelUnlocked ? 'block' : 'none';
     if (jewelUnlocked) {
@@ -3391,6 +3398,35 @@ function renderCraftSelectedSummary(item) {
     }
     let statCount = (item.stats || []).length;
     host.innerHTML = `<div><strong>[${item.slot.replace(/[12]/,'')}] ${item.name}</strong> · ${item.rarity.toUpperCase()} · 옵션 ${statCount}개</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
+}
+
+
+function renderChaosInfuserPanel(selectedItem) {
+    let host = document.getElementById('ui-chaos-infuser-panel');
+    if (!host) return;
+    let unlocked = typeof isChaosInfuserUnlocked === 'function' && isChaosInfuserUnlocked();
+    let infuserBtn = document.getElementById('btn-item-tab-infuser');
+    if (infuserBtn) infuserBtn.style.display = unlocked ? 'block' : 'none';
+    if (!unlocked) {
+        host.innerHTML = '<div style="color:#9fb4d1;">나무꾼을 한 번 이상 마주치면 혼돈 주입기가 영구 해금됩니다.</div>';
+        return;
+    }
+    if (!selectedItem) {
+        host.innerHTML = '<div style="color:#9fb4d1;">장착 장비나 인벤토리 아이템을 선택하세요. 혼돈 주입 옵션은 아이템당 한 줄만 유지되며 언제든 교체할 수 있습니다.</div>';
+        return;
+    }
+    let current = selectedItem.chaosInfusion
+        ? `<div style="color:#d7a8ff; margin-bottom:8px;">현재 주입: <strong>${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)} +${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.val)}</strong> <button onclick="removeChaosInfusionFromSelectedItem()" ${(game.currencies.scour || 0) > 0 ? '' : 'disabled'}>제거(정화 1)</button></div>`
+        : '<div style="color:#7f8c8d; margin-bottom:8px;">현재 주입 옵션 없음</div>';
+    let options = Array.isArray(window.CHAOS_INFUSER_OPTIONS) ? window.CHAOS_INFUSER_OPTIONS : [];
+    let buttons = options.map(opt => {
+        let costs = typeof getChaosInfusionCost === 'function' ? getChaosInfusionCost(opt, selectedItem) : [{ key: opt.currency, amount: opt.cost }];
+        let canPay = costs.every(row => (game.currencies[row.key] || 0) >= row.amount);
+        let costText = typeof formatCurrencyCosts === 'function' ? formatCurrencyCosts(costs) : `${opt.currency} ${opt.cost}`;
+        let same = selectedItem.chaosInfusion && selectedItem.chaosInfusion.id === opt.id;
+        return `<button onclick="applyChaosInfusionToSelectedItem('${opt.id}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${formatValue(opt.id, opt.value)}<br><span style="font-size:0.78em;color:#b7c6df;">${same ? '적용 중' : costText}</span></button>`;
+    }).join('');
+    host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${selectedItem.slot.replace(/[12]/,'')}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:#9fb4d1;">T5급 임시 옵션 한 줄을 확정 부여합니다. 교체/제거 시 정화의 오브가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
 }
 
 function renderCraftOrbActions(selectedItem) {
@@ -3551,12 +3587,17 @@ function buildCraftActionButtons(item) {
         </div>`;
     }
 
+    renderChaosInfuserPanel(selectedItem);
     renderCraftOrbActions(selectedItem);
     let fossilTabBtn = document.getElementById('btn-item-tab-fossil');
     if (fossilTabBtn) fossilTabBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
     let marketTabBtn = document.getElementById('btn-item-tab-market');
     if (marketTabBtn) marketTabBtn.style.display = isMarketUnlocked() ? 'block' : 'none';
+    let infuserTabBtn = document.getElementById('btn-item-tab-infuser');
+    let chaosInfuserOpen = typeof isChaosInfuserUnlocked === 'function' && isChaosInfuserUnlocked();
+    if (infuserTabBtn) infuserTabBtn.style.display = chaosInfuserOpen ? 'block' : 'none';
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
+    if (!chaosInfuserOpen && game.itemSubtab === 'item-tab-infuser') switchItemSubtab('item-tab-equip');
     renderMarketUI();
     renderExpertiseUI();
 
@@ -3710,7 +3751,8 @@ function buildCraftActionButtons(item) {
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
                 game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
-                let chaos20Cleared = !!game.loopProgressCurrent.chaos20Cleared;
+                let loopRequirementMet = !!game.loopProgressCurrent.chaos20Cleared;
+                let loopRequirementText = getLoopAbyssRequirementText(game.season || 1);
                 let unlockedDepthsForReward = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let highestUnlockedForReward = unlockedDepthsForReward.length > 0 ? Math.max(...unlockedDepthsForReward) : Math.floor(game.abyssEndlessDepth || 20); let clearedDepthForReward = Math.max(20, highestUnlockedForReward >= 21 ? (highestUnlockedForReward - 1) : highestUnlockedForReward); let expectedDepthGain = Math.max(0, Math.floor(clearedDepthForReward - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
                 let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;
@@ -3719,10 +3761,10 @@ function buildCraftActionButtons(item) {
                 let expectedWoodsmanGain = Math.floor(Math.sqrt(Math.max(0, woodsmanScore - woodsmanSettled)) / 25);
                 let deepStats = game.loopDeepStats || {};
                 let deepTotalLine = `총합 보너스: 생명력 +${Math.floor((deepStats.flatHp||0)*10)}, 피해 +${Math.floor((deepStats.flatDmg||0)*2)}, 공속 +${((deepStats.aspd||0)*1.2).toFixed(1)}%, 이속 +${((deepStats.move||0)*0.8).toFixed(1)}%, 물피감 +${((deepStats.dr||0)*0.5).toFixed(1)}%, 치명 +${((deepStats.crit||0)*0.6).toFixed(1)}%`;
-                loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">혼돈20 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
+                loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">${loopRequirementText} 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
                 <div style="background:linear-gradient(160deg, rgba(84,59,136,0.22), rgba(26,31,56,0.35)); border:1px solid #5f4a93; border-radius:10px; padding:10px; margin-bottom:8px;">
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="triggerSeasonReset()" ${chaos20Cleared ? '' : 'disabled'}>지금 즉시 루프</button><button class="ominous-entry-btn" onclick="enterOutsideChaos()" ${(game.season||1)>=10 && chaos20Cleared?'':'disabled'}>☠️ 혼돈 밖 진입</button></div>
-                    <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()" ${chaos20Cleared ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:#9fb4d1;">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${chaos20Cleared ? '' : ' (혼돈 20 클리어 필요)'}</span></div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="triggerSeasonReset()" ${loopRequirementMet ? '' : 'disabled'}>지금 즉시 루프</button><button class="ominous-entry-btn" onclick="enterOutsideChaos()" ${(game.season||1)>=10 && loopRequirementMet?'':'disabled'}>☠️ 혼돈 밖 진입</button></div>
+                    <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()" ${loopRequirementMet ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:#9fb4d1;">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${loopRequirementMet ? '' : ` (${loopRequirementText} 필요)`}</span></div>
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
                 <div style="margin-top:4px; color:#9ec4f0;">${deepTotalLine}</div>
@@ -3739,7 +3781,7 @@ function buildCraftActionButtons(item) {
             if (loop10Open) {
                 let deepStats = game.loopDeepStats || {};
                 let deepTotalLine = `총합 보너스: 생명력 +${Math.floor((deepStats.flatHp||0)*10)}, 피해 +${Math.floor((deepStats.flatDmg||0)*2)}, 공속 +${((deepStats.aspd||0)*1.2).toFixed(1)}%, 이속 +${((deepStats.move||0)*0.8).toFixed(1)}%, 물피감 +${((deepStats.dr||0)*0.5).toFixed(1)}%, 치명 +${((deepStats.crit||0)*0.6).toFixed(1)}%`;
-                loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">혼돈 20 클리어 후 해금됩니다.</div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div><div style="margin-top:4px; color:#9ec4f0;">${deepTotalLine}</div><div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>`;
+                loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">루프 조건 달성 후 해금됩니다.</div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div><div style="margin-top:4px; color:#9ec4f0;">${deepTotalLine}</div><div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>`;
             }
         }
     }
@@ -4615,6 +4657,7 @@ function mergeDefaults(save) {
         equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
+    merged.unlocks.jewel = !!merged.unlocks.jewel;
     if (!save.currencies && save.materials) {
         merged.currencies.transmute += Math.floor(save.materials / 2);
         merged.currencies.augment += Math.floor(save.materials / 4);
@@ -4723,7 +4766,7 @@ function mergeDefaults(save) {
     merged.starWedge.nodeMutations = (merged.starWedge.nodeMutations && typeof merged.starWedge.nodeMutations === 'object') ? merged.starWedge.nodeMutations : {};
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
-    merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
+    merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
     merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
     merged.skillAutoRules = Array.isArray(merged.skillAutoRules) ? merged.skillAutoRules : [];
     merged.conditionGemUnlocked = !!merged.conditionGemUnlocked;
@@ -4825,6 +4868,7 @@ function mergeDefaults(save) {
     merged.loopCount = Math.max(0, Math.floor(clampFiniteNumber(merged.loopCount, defaultGame.loopCount, 0)));
     merged.woodsmanDefeatAttempts = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanDefeatAttempts, defaultGame.woodsmanDefeatAttempts, 0)));
     merged.woodsmanSimulatorSeenLoop = !!merged.woodsmanSimulatorSeenLoop;
+    merged.chaosInfuserUnlocked = !!merged.chaosInfuserUnlocked || merged.woodsmanSimulatorSeenLoop || Math.max(0, Math.floor(merged.woodsmanDefeatAttempts || 0)) > 0 || (Array.isArray(merged.journalEntries) && merged.journalEntries.includes('woodsman'));
     merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
     merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0));
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
@@ -6373,6 +6417,11 @@ function checkUnlocks() {
         game.noti.items = true;
         queueTutorialNotice('unlock_items', '장비/제작 개방', '첫 장비 또는 제작 재화를 얻었습니다.\n아이템을 장착하고, 오브를 사용해 장비를 강화할 수 있습니다.', 'tab-items');
     }
+    if (((game.season || 1) >= 5 || (game.jewelInventory || []).length > 0 || (game.currencies.jewelShard || 0) > 0) && !u.jewel) {
+        u.jewel = true;
+        game.noti.jewel = true;
+        queueTutorialNotice('unlock_jewel', '주얼 탭 개방', '주얼과 주얼 결정을 사용할 수 있게 되었습니다.', 'tab-jewel');
+    }
     if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills) {
         u.skills = true;
         game.noti.skills = true;
@@ -6410,6 +6459,11 @@ function checkUnlocks() {
         game.talismanUnlocked = true;
         game.noti.talisman = true;
         addLog('🧿 봉인편린을 얻어 부적 탭이 개방되었습니다!', 'loot-unique');
+    }
+    if (typeof isChaosInfuserUnlocked === 'function' && isChaosInfuserUnlocked() && !game.chaosInfuserUnlocked) {
+        game.chaosInfuserUnlocked = true;
+        game.noti.items = true;
+        addLog('🧪 나무꾼의 흔적을 해석해 혼돈 주입기가 해금되었습니다.', 'loot-unique');
     }
     ensureExpertiseState();
     const beforeExperts = new Set(game.expertise.unlockedExperts || []);

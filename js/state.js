@@ -132,7 +132,7 @@ function getZone(id) {
 
 function getSeasonAbyssDepthCap(seasonValue) {
     let season = Math.max(1, Math.floor(seasonValue || 1));
-    return Math.min(20, 10 + (season - 1));
+    return season <= 9 ? (10 + (season - 1)) : (20 + (season - 10));
 }
 
 function getLoopAbyssRequirementText(seasonValue) {
@@ -185,14 +185,16 @@ function getAbyssMonsterScales(zone) {
     let depth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 1;
     let endlessDepth = Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
     let endlessOver = Math.max(0, endlessDepth - 20);
-    let endlessMul = endlessOver > 0 ? Math.pow(1.18, endlessOver) : 1;
+    let endlessMul = endlessOver > 0 ? Math.pow(1.21, endlessOver) : 1;
+    let postLoopOver = Math.max(0, Math.floor((game.season || 1) - 10));
+    let postLoopDifficultyMul = postLoopOver > 0 ? (1 + postLoopOver * 0.035 + endlessOver * 0.015) : 1;
     return {
-        dmgMul: 1 + (state.power || 0) * 0.02,
-        hpMul: (1 + (state.tenacity || 0) * 0.02) * endlessMul,
+        dmgMul: (1 + (state.power || 0) * 0.02) * postLoopDifficultyMul,
+        hpMul: (1 + (state.tenacity || 0) * 0.02) * endlessMul * (postLoopOver > 0 ? (1 + postLoopOver * 0.025) : 1),
         hordeMul: (1 + (state.horde || 0) * 0.03) * (1 + (state.magnifier || 0) * 0.2),
         dropMul: Math.max(0.2, 1 + ((state.power || 0) + (state.frailty || 0) + (state.resistance || 0) - (state.horde || 0)) * 0.01),
         expMul: Math.max(0.2, 1 + ((state.tenacity || 0) * 0.01) - ((state.horde || 0) * 0.02) + ((state.weakness || 0) * 0.02)),
-        playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + endlessOver * 0.025),
+        playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + endlessOver * 0.03 + postLoopOver * 0.02),
         playerDamageMul: Math.max(0.2, 1 - (state.weakness || 0) * 0.01),
         resistBonus: (state.resistance || 0),
         eliteBonus: (state.elite || 0) * 0.02,
@@ -927,10 +929,11 @@ const defaultGame = {
     inventory: [],
     inventoryExpandLevel: 0,
     jewelInventoryExpandLevel: 0,
+    chaosInfuserUnlocked: false,
     abyssPassivePoints: 0,
     abyssClearedDepths: [],
     abyssPassives: { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 },
-    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, meteorShard: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0 },
+    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, meteorShard: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendKeystonePoints: 0,
@@ -1000,7 +1003,7 @@ const defaultGame = {
         selectedWedgeId: null
     },
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0 },
-    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talisman: false, expertise: false },
+    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talisman: false, expertise: false, jewel: false },
     noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false },
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, expertPointBonus: 0, loopExpCaps: {} }
 };

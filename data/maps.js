@@ -113,7 +113,7 @@ const JOURNAL_DB = {
     act_10: { title: '액트 10 - 합일의 차륜', lines: ['“왕관은 부서져도, 선택은 남는다.”'], bonus: { stat: 'flatHp', value: 12, label: '최대 생명력 +12' } },
     woodsman: { title: '나무꾼', lines: ['“종착점에 도착했구나, 나의 피조물아.”', '“선택해라. 도구로 남을 것인지, 날이 될 것인지.”'] },
     star_wedge: { title: '별쐐기', lines: ['“나무 바깥에서 떨어진 검은 별의 파편.”', '“패시브 트리에 박아 넣으면 주변 노드의 성장 규칙을 비틀 수 있다.”'] },
-    immortal: { title: '히든저널 - 불사자', lines: ['“한 번도 무너지지 않고, 끝까지 걸어온 칼날.”', '“죽음을 허락하지 않은 루프의 기록.”'], bonus: { stat: 'flatHp', value: 20, label: '최대 생명력 +20' }, hidden: true, hint: '한 루프에서 죽지 않고 액트 10 클리어' },
+    immortal: { title: '히든저널 - 불사자', lines: ['“한 번도 무너지지 않고, 끝까지 걸어온 칼날.”', '“죽음을 허락하지 않은 루프의 기록.”'], bonus: { stat: 'flatHp', value: 20, label: '불사자의 증표: 최대 생명력 +20' }, hidden: true, hint: '한 루프에서 죽지 않고 액트 10 클리어' },
     beehive_queen: { title: '루프8 - 벌집 여왕', lines: ['“길은 셋으로 갈라졌지만, 독은 하나로 모였다.”', '“여왕의 날개 아래서 선택은 대가를 부른다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
     void_grand_breach: { title: '루프9 - 큰 구멍', lines: ['“공허는 틈으로 시작해 심장으로 끝난다.”', '“쏟아지는 무리를 지나면, 공백도 얼굴을 드러낸다.”'], bonus: { stat: 'chaosPctDmg', value: 3, label: '카오스 피해 +3%' } }
 };

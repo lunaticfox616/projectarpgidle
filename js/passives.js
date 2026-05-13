@@ -1941,7 +1941,7 @@ const TAB_UNLOCK_GATES = {
     'tab-char': 'char',
     'tab-season': 'season',
     'tab-items': 'items',
-    'tab-jewel': 'items',
+    'tab-jewel': 'jewel',
     'tab-skills': 'skills',
     'tab-codex': 'codex',
     'tab-talisman': 'talisman',
@@ -4484,6 +4484,7 @@ function normalizeItem(item) {
     }
     item.baseStats = Array.isArray(item.baseStats) ? item.baseStats.map(normalizeStatRecord).filter(Boolean) : [];
     item.stats = Array.isArray(item.stats) ? item.stats.map(normalizeStatRecord).filter(Boolean) : [];
+    item.chaosInfusion = item.chaosInfusion ? normalizeStatRecord(item.chaosInfusion) : null;
     item.rarity = item.rarity || 'magic';
     item.hiddenTier = Math.max(1, Math.floor(coerceFiniteNumber(item.hiddenTier, coerceFiniteNumber(item.itemTier, 1), 1)));
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
@@ -4657,6 +4658,74 @@ function rerollExplicitMods(item, rarity, zoneTier) {
     mods.forEach(mod => item.stats.push(rollAffixValue(mod, maxTier)));
     updateItemName(item);
 }
+
+
+const CHAOS_INFUSER_OPTIONS = [
+    { id: 'flatDmg', value: 18, currency: 'chaos', cost: 8, label: '기본 피해' },
+    { id: 'pctDmg', value: 22, currency: 'chaos', cost: 8, label: '피해 증가' },
+    { id: 'flatHp', value: 70, currency: 'alchemy', cost: 10, label: '최대 생명력' },
+    { id: 'pctHp', value: 9, currency: 'regal', cost: 3, label: '생명력 증가' },
+    { id: 'aspd', value: 6, currency: 'alteration', cost: 14, label: '공격 속도' },
+    { id: 'crit', value: 5, currency: 'exalted', cost: 1, label: '치명타 확률' },
+    { id: 'critDmg', value: 28, currency: 'exalted', cost: 1, label: '치명타 피해' },
+    { id: 'resAll', value: 10, currency: 'chaos', cost: 6, label: '모든 저항' },
+    { id: 'move', value: 8, currency: 'divine', cost: 1, label: '이동 속도' },
+    { id: 'armorPct', value: 24, currency: 'augment', cost: 12, label: '방어도 증가' },
+    { id: 'evasionPct', value: 24, currency: 'augment', cost: 12, label: '회피 증가' },
+    { id: 'energyShieldPct', value: 24, currency: 'augment', cost: 12, label: '에너지 보호막 증가' }
+];
+function isChaosInfuserUnlocked() {
+    return !!(game.chaosInfuserUnlocked || game.woodsmanSimulatorSeenLoop || (game.woodsmanDefeatAttempts || 0) > 0 || (game.journalEntries || []).includes('woodsman'));
+}
+function getChaosInfuserOption(optionId) {
+    return CHAOS_INFUSER_OPTIONS.find(opt => opt.id === optionId) || null;
+}
+function getChaosInfusionCost(option, item) {
+    if (!option) return null;
+    let costs = [{ key: option.currency, amount: option.cost }];
+    if (item && item.chaosInfusion) costs.push({ key: 'scour', amount: 1 });
+    return costs;
+}
+function canPayCurrencyCosts(costs) {
+    return (costs || []).every(row => (game.currencies[row.key] || 0) >= row.amount);
+}
+function formatCurrencyCosts(costs) {
+    return (costs || []).map(row => `${(ORB_DB[row.key] || {}).name || row.key} ${row.amount}`).join(' + ');
+}
+function payCurrencyCosts(costs) {
+    if (!canPayCurrencyCosts(costs)) return false;
+    (costs || []).forEach(row => { game.currencies[row.key] = Math.max(0, Math.floor(game.currencies[row.key] || 0) - row.amount); });
+    return true;
+}
+function applyChaosInfusionToSelectedItem(optionId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    if (!isChaosInfuserUnlocked()) return addLog('나무꾼을 한 번 이상 마주친 뒤 혼돈 주입기를 사용할 수 있습니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    if (!item) return addLog('혼돈 주입 대상 아이템을 선택하세요.', 'attack-monster');
+    let option = getChaosInfuserOption(optionId);
+    if (!option || !P_STATS[option.id]) return;
+    let costs = getChaosInfusionCost(option, item);
+    if (!canPayCurrencyCosts(costs)) return addLog(`혼돈 주입 재화가 부족합니다. (필요: ${formatCurrencyCosts(costs)})`, 'attack-monster');
+    if (!payCurrencyCosts(costs)) return;
+    item.chaosInfusion = { id: option.id, val: option.value, valMin: option.value, valMax: option.value, tier: 5, statName: getStatName(option.id), temporary: true, source: 'chaosInfuser' };
+    addLog(`🧪 혼돈 주입: [${item.name}] ${getStatName(option.id)} +${formatValue(option.id, option.value)} 부여`, 'loot-rare');
+    normalizeItem(item);
+    updateStaticUI();
+}
+function removeChaosInfusionFromSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    if (!item || !item.chaosInfusion) return;
+    let costs = [{ key: 'scour', amount: 1 }];
+    if (!canPayCurrencyCosts(costs)) return addLog(`혼돈 주입 제거에는 ${(ORB_DB.scour || {}).name || '정화의 오브'} 1개가 필요합니다.`, 'attack-monster');
+    if (!payCurrencyCosts(costs)) return;
+    item.chaosInfusion = null;
+    addLog(`🧼 혼돈 주입 제거: [${item.name}]`, 'loot-normal');
+    updateStaticUI();
+}
+
+window.CHAOS_INFUSER_OPTIONS = CHAOS_INFUSER_OPTIONS;
+window.isChaosInfuserUnlocked = isChaosInfuserUnlocked;
+window.getChaosInfusionCost = getChaosInfusionCost;
+window.formatCurrencyCosts = formatCurrencyCosts;
 
 function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
