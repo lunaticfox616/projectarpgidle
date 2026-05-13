@@ -1973,8 +1973,19 @@ function mapSkillSlotByGemTags(skillName) {
     if (tags.includes('chain')) return 6;
     return 1;
 }
+function mapEffectIndexByElement(element, fallbackIndex) {
+    let ele = normalizeDamageElementKey(element);
+    if (ele === 'chaos') return 28;
+    if (ele === 'cold') return 3;
+    if (ele === 'fire' || ele === 'light') return 26;
+    return Number.isFinite(fallbackIndex) ? fallbackIndex : 1;
+}
 function mapEffectIndexByGemTags(skillName, fallbackIndex) {
-    let tags = ((SKILL_DB[skillName] && SKILL_DB[skillName].tags) || []).map(tag => String(tag).toLowerCase());
+    let skill = SKILL_DB[skillName] || {};
+    if (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0 && game.lastSkillHitElement) {
+        return mapEffectIndexByElement(game.lastSkillHitElement, fallbackIndex);
+    }
+    let tags = ((skill && skill.tags) || []).map(tag => String(tag).toLowerCase());
     if (tags.includes('chaos')) return 28;
     if (tags.includes('cold')) return 3;
     if (tags.includes('fire') || tags.includes('light') || tags.includes('lightning') || tags.includes('thunder') || tags.includes('elemental')) return 26;
@@ -2903,13 +2914,101 @@ function sanitizeWhiteBackdropSheet(image) {
         return image;
     }
     const px = frame.data;
-    for (let i = 0; i < px.length; i += 4) {
-        let r = px[i], g = px[i + 1], b = px[i + 2], a = px[i + 3];
-        if (a < 20) continue;
+    const width = canvas.width;
+    const height = canvas.height;
+    const visited = new Uint8Array(width * height);
+    const queue = [];
+    const edgeSamples = [];
+    function sampleEdgePixel(x, y) {
+        let idx = (y * width + x) * 4;
+        let a = px[idx + 3];
+        if (a < 20) return;
+        let r = px[idx], g = px[idx + 1], b = px[idx + 2];
         let max = Math.max(r, g, b);
         let min = Math.min(r, g, b);
-        let isLowSaturation = (max - min) <= 28;
-        if (isLowSaturation && r >= 196 && g >= 196 && b >= 196) px[i + 3] = 0;
+        if ((r + g + b) / 3 >= 186 && (max - min) <= 58) edgeSamples.push([r, g, b]);
+    }
+    [[0, 0], [1, 1], [width - 1, 0], [width - 2, 1], [0, height - 1], [1, height - 2], [width - 1, height - 1], [width - 2, height - 2], [Math.floor(width * 0.5), 0], [0, Math.floor(height * 0.5)], [width - 1, Math.floor(height * 0.5)]].forEach(([x, y]) => {
+        sampleEdgePixel(clampNumber(x, 0, width - 1), clampNumber(y, 0, height - 1));
+    });
+    function edgeDistance(r, g, b) {
+        let best = Infinity;
+        edgeSamples.forEach(sample => {
+            let dist = Math.abs(r - sample[0]) + Math.abs(g - sample[1]) + Math.abs(b - sample[2]);
+            if (dist < best) best = dist;
+        });
+        return best;
+    }
+    function isBackdropPixel(pos, loose) {
+        let idx = pos * 4;
+        let r = px[idx], g = px[idx + 1], b = px[idx + 2], a = px[idx + 3];
+        if (a < 20) return true;
+        let max = Math.max(r, g, b);
+        let min = Math.min(r, g, b);
+        let avg = (r + g + b) / 3;
+        let lowSaturation = (max - min) <= (loose ? 64 : 42);
+        if (avg >= 246 && lowSaturation) return true;
+        if (!lowSaturation) return false;
+        let dist = edgeDistance(r, g, b);
+        if (avg >= 222 && dist <= (loose ? 92 : 72)) return true;
+        if (avg >= 196 && dist <= (loose ? 64 : 46)) return true;
+        return false;
+    }
+    function pushSeed(x, y) {
+        if (x < 0 || y < 0 || x >= width || y >= height) return;
+        let pos = y * width + x;
+        if (visited[pos] || !isBackdropPixel(pos, true)) return;
+        visited[pos] = 1;
+        queue.push(pos);
+    }
+    for (let x = 0; x < width; x++) {
+        pushSeed(x, 0);
+        pushSeed(x, height - 1);
+    }
+    for (let y = 0; y < height; y++) {
+        pushSeed(0, y);
+        pushSeed(width - 1, y);
+    }
+    while (queue.length > 0) {
+        let pos = queue.pop();
+        px[pos * 4 + 3] = 0;
+        let x = pos % width;
+        let y = Math.floor(pos / width);
+        [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].forEach(([nx, ny]) => pushSeed(nx, ny));
+    }
+    for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] < 20) {
+            px[i + 3] = 0;
+            continue;
+        }
+        let r = px[i], g = px[i + 1], b = px[i + 2];
+        let max = Math.max(r, g, b);
+        let min = Math.min(r, g, b);
+        let avg = (r + g + b) / 3;
+        if (avg >= 236 && (max - min) <= 38) px[i + 3] = 0;
+    }
+    const alphaSnapshot = new Uint8ClampedArray(width * height);
+    for (let i = 0, p = 0; i < px.length; i += 4, p++) alphaSnapshot[p] = px[i + 3];
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            let pos = y * width + x;
+            let idx = pos * 4;
+            if (alphaSnapshot[pos] === 0) continue;
+            let r = px[idx], g = px[idx + 1], b = px[idx + 2];
+            let max = Math.max(r, g, b);
+            let min = Math.min(r, g, b);
+            let avg = (r + g + b) / 3;
+            if (avg < 176 || (max - min) > 62) continue;
+            let transparentNeighbors = 0;
+            for (let oy = -1; oy <= 1; oy++) {
+                for (let ox = -1; ox <= 1; ox++) {
+                    if (ox === 0 && oy === 0) continue;
+                    if (alphaSnapshot[(y + oy) * width + (x + ox)] === 0) transparentNeighbors++;
+                }
+            }
+            if (transparentNeighbors >= 3 && avg >= 198) px[idx + 3] = 0;
+            else if (transparentNeighbors >= 1 && avg >= 186) px[idx + 3] = Math.min(px[idx + 3], 48);
+        }
     }
     ctx.putImageData(frame, 0, 0);
     return canvas;
@@ -3125,6 +3224,16 @@ function buildBattleAssetAtlas() {
         if (!image || !frame) return null;
         return { ...frame, image: image };
     }
+    function inferStripFallbackColumns(image) {
+        let width = Math.max(1, Math.round(image && image.width || 1));
+        let height = Math.max(1, Math.round(image && image.height || 1));
+        let squareFrameCols = width / height;
+        let roundedSquareFrameCols = Math.round(squareFrameCols);
+        if (roundedSquareFrameCols >= 1 && Math.abs(squareFrameCols - roundedSquareFrameCols) <= 0.02) {
+            return roundedSquareFrameCols;
+        }
+        return Math.max(1, Math.round(width / 80));
+    }
     function buildStripFramesFromImage(image, minArea) {
         if (!image) return [];
         let detected = sortSheetComponents(detectSpriteComponents(image, minArea || 220))
@@ -3133,7 +3242,7 @@ function buildBattleAssetAtlas() {
             .map(rect => withImageRef(image, rect))
             .filter(Boolean);
         if (detected.length > 0) return detected;
-        let fallbackCols = Math.max(1, Math.round((image.width || 1) / 80));
+        let fallbackCols = inferStripFallbackColumns(image);
         let frameWidth = Math.max(1, Math.floor((image.width || 1) / fallbackCols));
         let fallback = [];
         for (let i = 0; i < fallbackCols; i++) {
@@ -4028,7 +4137,7 @@ function rollBaseStats(base, zoneTier) {
         let scaledMin = minBase * scale;
         let scaledMax = maxBase * scale;
         let val = scaledMin + Math.random() * Math.max(0, (scaledMax - scaledMin));
-        if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) val = Math.round(val * 10) / 10;
+        if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) val = Math.round(val * 10) / 10;
         else if (stat.id === 'projectileExtraShots') val = Math.max(1, Math.round(val));
         else val = Math.floor(val);
         if (stat.id === 'flatDmg') {
@@ -4056,7 +4165,7 @@ function rollAffixValue(mod, maxTier) {
     let min = mod.base + (tier * mod.step);
     let max = min + mod.step * 1.6;
     let val = min + Math.random() * (max - min);
-    if (['leech', 'regen', 'regenSuppress'].includes(statId)) {
+    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
         val = Math.round(val * 10) / 10;
         min = Math.round(min * 10) / 10;
         max = Math.round(max * 10) / 10;
@@ -4092,7 +4201,7 @@ function rollAffixValueInTierRange(mod, minTier, maxTier) {
     let min = mod.base + (tier * mod.step);
     let max = min + mod.step * 1.6;
     let val = min + Math.random() * (max - min);
-    if (['leech', 'regen', 'regenSuppress'].includes(statId)) {
+    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
         val = Math.round(val * 10) / 10;
         min = Math.round(min * 10) / 10;
         max = Math.round(max * 10) / 10;
@@ -4265,7 +4374,7 @@ function rollUniqueStatValue(stat) {
     let max = stat.max !== undefined ? stat.max : stat.base;
     if (max < min) max = min;
     let val;
-    if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) {
+    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
         let roll = minStep + Math.floor(Math.random() * (maxStep - minStep + 1));
@@ -4309,9 +4418,9 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     unique.stats.forEach(stat => {
         let rolled = rollUniqueStatValue(stat);
         let boost = unique.ultraRare ? 1 : 1.1;
-        let val = ['leech', 'regen', 'regenSuppress'].includes(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
-        let min = ['leech', 'regen', 'regenSuppress'].includes(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
-        let max = ['leech', 'regen', 'regenSuppress'].includes(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
+        let val = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
+        let min = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
+        let max = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
         item.stats.push({ id: stat.id, val: val, valMin: min, valMax: max, tier: 0, statName: getStatName(stat.id) });
     });
     if (unique.ultraRare) {
@@ -5230,7 +5339,7 @@ function useCurrency(currencyKey) {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney) return;
             let val = stat.valMin + Math.random() * (stat.valMax - stat.valMin);
-            if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) stat.val = Math.round(val * 10) / 10;
+            if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) stat.val = Math.round(val * 10) / 10;
             else stat.val = Math.floor(val);
         });
     } else if (currencyKey === 'scour') {
@@ -5263,7 +5372,7 @@ function useCurrency(currencyKey) {
             stat.baseRollMin = baseMin;
             stat.baseRollMax = baseMax;
             let rolled = baseMin + Math.random() * (baseMax - baseMin);
-            if (['leech', 'regen', 'regenSuppress'].includes(stat.id)) stat.val = Math.round(rolled * 10) / 10;
+            if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) stat.val = Math.round(rolled * 10) / 10;
             else if (stat.id === 'projectileExtraShots') stat.val = Math.max(1, Math.round(rolled));
             else stat.val = Math.floor(rolled);
             stat.valMin = baseMin;

@@ -171,6 +171,20 @@ function renderBattlefield(forceWhenHidden) {
 
     let pStatsNow = getPlayerStats();
     let playerHpPct = clampNumber((game.playerHp || 0) / Math.max(1, pStatsNow.maxHp || 1), 0, 1);
+    if (!Number.isFinite(battleVisualState.playerHpGhostPct)) battleVisualState.playerHpGhostPct = playerHpPct;
+    if (!Number.isFinite(battleVisualState.playerHpLastPct)) battleVisualState.playerHpLastPct = playerHpPct;
+    if (!Number.isFinite(battleVisualState.playerHpGhostHoldUntil)) battleVisualState.playerHpGhostHoldUntil = 0;
+    if (playerHpPct < battleVisualState.playerHpLastPct - 0.001) {
+        battleVisualState.playerHpGhostPct = Math.max(battleVisualState.playerHpGhostPct, battleVisualState.playerHpLastPct);
+        battleVisualState.playerHpGhostHoldUntil = now + 260;
+    } else if (playerHpPct > battleVisualState.playerHpGhostPct) {
+        battleVisualState.playerHpGhostPct = playerHpPct;
+    }
+    if (now >= battleVisualState.playerHpGhostHoldUntil && battleVisualState.playerHpGhostPct > playerHpPct) {
+        battleVisualState.playerHpGhostPct = Math.max(playerHpPct, battleVisualState.playerHpGhostPct - 0.34 * deltaSec);
+    }
+    battleVisualState.playerHpLastPct = playerHpPct;
+    let playerHpGhostPct = clampNumber(battleVisualState.playerHpGhostPct, playerHpPct, 1);
     let playerEsPct = (pStatsNow.energyShield || 0) > 0 ? clampNumber((game.playerEnergyShield || 0) / Math.max(1, pStatsNow.energyShield), 0, 1) : 0;
     let pBarWidth = 64;
     let pBarX = Math.round(playerPos.x - pBarWidth / 2);
@@ -181,6 +195,10 @@ function renderBattlefield(forceWhenHidden) {
     ctx.fillRect(pBarX - 2, pBarY - 2, pBarWidth + 4, 12);
     ctx.fillStyle = 'rgba(36, 48, 62, 0.95)';
     ctx.fillRect(pBarX, pBarY, pBarWidth, 8);
+    if (playerHpGhostPct > playerHpPct + 0.003) {
+        ctx.fillStyle = 'rgba(255, 126, 76, 0.58)';
+        ctx.fillRect(pBarX, pBarY, Math.max(1, Math.round(pBarWidth * playerHpGhostPct)), 8);
+    }
     ctx.fillStyle = '#20bf6b';
     ctx.fillRect(pBarX, pBarY, Math.max(2, Math.round(pBarWidth * playerHpPct)), 8);
     if (playerEsPct > 0) {

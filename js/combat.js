@@ -4,6 +4,9 @@ const LEECH_SOFTCAP_START = 1.2;
 const LEECH_SOFTCAP_MID = 2.5;
 const LEECH_SOFTCAP_MID_EFF = 0.6;
 const LEECH_SOFTCAP_HIGH_EFF = 0.3;
+const LEECH_BASE_INSTANCE_CAP_PCT = 20;
+const LEECH_BASE_TOTAL_CAP_PCT = 40;
+const LEECH_BASE_RATE_CAP_PCT = 4;
 
 function applyLeechSoftcap(rawLeech) {
     let raw = Math.max(0, Number(rawLeech) || 0);
@@ -11,6 +14,80 @@ function applyLeechSoftcap(rawLeech) {
     let midSpan = Math.max(0, Math.min(raw, LEECH_SOFTCAP_MID) - LEECH_SOFTCAP_START);
     let highSpan = Math.max(0, raw - LEECH_SOFTCAP_MID);
     return LEECH_SOFTCAP_START + midSpan * LEECH_SOFTCAP_MID_EFF + highSpan * LEECH_SOFTCAP_HIGH_EFF;
+}
+
+function getLeechCaps(pStats) {
+    let maxHp = Math.max(1, Number(pStats && pStats.maxHp) || 1);
+    let instancePct = Math.max(0, LEECH_BASE_INSTANCE_CAP_PCT + (Number(pStats && pStats.leechInstanceCap) || 0));
+    let totalPct = Math.max(0, LEECH_BASE_TOTAL_CAP_PCT + (Number(pStats && pStats.leechTotalCap) || 0));
+    let ratePct = Math.max(0, LEECH_BASE_RATE_CAP_PCT + (Number(pStats && pStats.leechRateCap) || 0));
+    return {
+        instanceCap: maxHp * instancePct / 100,
+        totalCap: maxHp * totalPct / 100,
+        rateCap: maxHp * ratePct / 100,
+        instancePct: instancePct,
+        totalPct: totalPct,
+        ratePct: ratePct
+    };
+}
+function getActiveLeechInstances() {
+    game.playerLeechInstances = Array.isArray(game.playerLeechInstances) ? game.playerLeechInstances : [];
+    game.playerLeechInstances = game.playerLeechInstances
+        .map(inst => ({
+            remaining: Math.max(0, Number(inst && inst.remaining) || 0),
+            rate: Math.max(0, Number(inst && inst.rate) || 0),
+            target: inst && inst.target === 'energyShield' ? 'energyShield' : 'life'
+        }))
+        .filter(inst => inst.remaining > 0 && inst.rate > 0);
+    return game.playerLeechInstances;
+}
+function getLeechOutstandingTotal() {
+    return getActiveLeechInstances().reduce((sum, inst) => sum + Math.max(0, inst.remaining || 0), 0);
+}
+function addPlayerLeechInstance(rawAmount, pStats, target) {
+    let amount = Math.max(0, Number(rawAmount) || 0);
+    if (amount <= 0) return 0;
+    let caps = getLeechCaps(pStats);
+    if (caps.instanceCap <= 0 || caps.totalCap <= 0 || caps.rateCap <= 0) return 0;
+    let instances = getActiveLeechInstances();
+    let outstanding = instances.reduce((sum, inst) => sum + Math.max(0, inst.remaining || 0), 0);
+    let allowed = Math.max(0, caps.totalCap - outstanding);
+    let stored = Math.min(amount, caps.instanceCap, allowed);
+    if (stored <= 0) return 0;
+    instances.push({
+        remaining: stored,
+        rate: caps.rateCap,
+        target: target === 'energyShield' ? 'energyShield' : 'life'
+    });
+    game.playerLeechInstances = instances;
+    return stored;
+}
+function tickPlayerLeech(pStats, dt) {
+    let instances = getActiveLeechInstances();
+    if (instances.length === 0 || dt <= 0) return 0;
+    let hpCap = getPlayerHpCap(pStats);
+    let esCap = Math.max(0, Number(pStats && pStats.energyShield) || 0);
+    let healed = 0;
+    let next = [];
+    instances.forEach(inst => {
+        let tick = Math.min(inst.remaining, inst.rate * dt);
+        if (tick <= 0) return;
+        if (inst.target === 'energyShield') {
+            if (esCap > 0) {
+                let before = Math.max(0, Number(game.playerEnergyShield) || 0);
+                game.playerEnergyShield = Math.min(esCap, before + tick);
+                healed += Math.max(0, game.playerEnergyShield - before);
+            }
+        } else {
+            let before = Math.max(0, Number(game.playerHp) || 0);
+            game.playerHp = Math.min(hpCap, before + tick);
+            healed += Math.max(0, game.playerHp - before);
+        }
+        inst.remaining = Math.max(0, inst.remaining - tick);
+        if (inst.remaining > 0) next.push(inst);
+    });
+    game.playerLeechInstances = next;
+    return healed;
 }
 
 function hasKeystone(id) {
@@ -266,6 +343,7 @@ function snapshotWoodsmanBuildState() {
         supports: game.supports || [],
         equippedSupports: game.equippedSupports || [],
         supportGemData: game.supportGemData || {},
+        playerLeechInstances: game.playerLeechInstances || [],
         gemData: game.gemData || {},
         jewelInventory: game.jewelInventory || [],
         jewelSlots: game.jewelSlots || [null, null],
@@ -295,6 +373,7 @@ function enforceWoodsmanBuildLock() {
     game.supports = JSON.parse(JSON.stringify(snap.supports));
     game.equippedSupports = JSON.parse(JSON.stringify(snap.equippedSupports));
     game.supportGemData = JSON.parse(JSON.stringify(snap.supportGemData));
+    game.playerLeechInstances = JSON.parse(JSON.stringify(snap.playerLeechInstances || []));
     game.gemData = JSON.parse(JSON.stringify(snap.gemData));
     game.jewelInventory = JSON.parse(JSON.stringify(snap.jewelInventory));
     game.jewelSlots = JSON.parse(JSON.stringify(snap.jewelSlots));
@@ -389,6 +468,7 @@ function coreLoop() {
         game.playerHp = Math.min(hpCap, game.playerHp + tickHeal);
         game.delayedGuardHealPool = Math.max(0, game.delayedGuardHealPool - tickHeal);
     }
+    tickPlayerLeech(pStats, 0.1);
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     game.playerEnergyShield = Math.max(0, Math.min(game.playerEnergyShield, Math.floor(pStats.energyShield || 0)));
     if (!Number.isFinite(game.playerEsLastHitAt)) game.playerEsLastHitAt = 0;
@@ -695,6 +775,20 @@ function getPlayerStats() {
         taggedMap[tag] = (taggedMap[tag] || 0) + part.value;
     });
     let taggedSummary = Object.keys(taggedMap).map(tag => `${translateSkillTag(tag)} ${Math.floor(taggedMap[tag])}%`);
+    function sumStatAcrossBuckets(statId) {
+        return gearBase[statId] + gearExplicit[statId] + passive[statId] + season[statId] + ascend[statId] + support[statId] + reward[statId] + (starBlessing[statId] || 0);
+    }
+    let randomElementDamagePct = Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0 ? {
+        fire: sumStatAcrossBuckets('firePctDmg'),
+        cold: sumStatAcrossBuckets('coldPctDmg'),
+        light: sumStatAcrossBuckets('lightPctDmg')
+    } : null;
+    if (randomElementDamagePct) {
+        let randomElementSummary = Object.entries(randomElementDamagePct)
+            .filter(([, value]) => value)
+            .map(([ele, value]) => `${ele === 'fire' ? '화염' : (ele === 'cold' ? '냉기' : '번개')} ${Math.floor(value)}%`);
+        if (randomElementSummary.length > 0) taggedSummary.push(`무작위 원소별 적용: ${randomElementSummary.join(' / ')}`);
+    }
 
     let gearFlatDmg = gearBase.flatDmg + gearExplicit.flatDmg;
     let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
@@ -756,6 +850,9 @@ function getPlayerStats() {
     let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0);
     let rawLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech;
     let finalLeech = applyLeechSoftcap(rawLeech);
+    let finalLeechRateCap = gearBase.leechRateCap + gearExplicit.leechRateCap + passive.leechRateCap + season.leechRateCap + ascend.leechRateCap + support.leechRateCap + reward.leechRateCap;
+    let finalLeechTotalCap = gearBase.leechTotalCap + gearExplicit.leechTotalCap + passive.leechTotalCap + season.leechTotalCap + ascend.leechTotalCap + support.leechTotalCap + reward.leechTotalCap;
+    let finalLeechInstanceCap = gearBase.leechInstanceCap + gearExplicit.leechInstanceCap + passive.leechInstanceCap + season.leechInstanceCap + ascend.leechInstanceCap + support.leechInstanceCap + reward.leechInstanceCap;
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
     let finalDs = (gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) * 0.75;
@@ -785,7 +882,8 @@ function getPlayerStats() {
         regen: regenScaledBonus,
         fireRes: fireResScaledBonus,
         dot: dotMultiplier,
-        dotStat: dotStatMultiplier
+        dotStat: dotStatMultiplier,
+        randomElementDamagePct: randomElementDamagePct
     };
     let suppCap = 2 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap;
 
@@ -1098,7 +1196,9 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`),
-                `소프트캡: ${formatValue('leech', LEECH_SOFTCAP_START)}% 이후 60% 효율 · ${formatValue('leech', LEECH_SOFTCAP_MID)}% 이후 30% 효율`,
+                `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
+                `기본 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}% · 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}% · 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
+                `추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p · 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p · 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
                 `적용 전 ${formatValue('leech', rawLeech)}% → 적용 후 ${formatValue('leech', finalLeech)}%`
             ].filter(Boolean),
             final: `${formatValue('leech', finalLeech)}%`
@@ -1250,6 +1350,9 @@ function getPlayerStats() {
         regen: finalRegen,
         regenSuppress: finalRegenSuppress,
         leech: finalLeech,
+        leechRateCap: finalLeechRateCap,
+        leechTotalCap: finalLeechTotalCap,
+        leechInstanceCap: finalLeechInstanceCap,
         dr: finalDr,
         physIgnore: finalPhysIgnore,
         ds: finalDs,
@@ -1269,6 +1372,7 @@ function getPlayerStats() {
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
         damageScales: damageScales,
+        randomElementDamagePct: randomElementDamagePct,
         armor: finalArmor,
         evasion: finalEvasion,
         energyShield: finalEnergyShield,
@@ -1810,6 +1914,7 @@ function startMoving(isTown) {
     game.encounterIndex = 0;
     game.runProgress = 0;
     game.playerAilments = [];
+    game.playerLeechInstances = [];
     let v = game.voidRift;
     if (v && v.active) {
         v.active = false;
@@ -1827,6 +1932,7 @@ function returnToTown() {
     let pStats = getPlayerStats();
     game.playerHp = getPlayerHpCap(pStats);
     game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
+    game.playerLeechInstances = [];
     pTimer = 0;
     addLog("⛺ 마을 귀환", "season-up");
     startMoving(true);
@@ -2583,8 +2689,10 @@ function performPlayerAttack(pStats) {
         return pStats.sSkill.ele || 'phys';
     };
     let swingElement = getHitElement();
+    game.lastSkillHitElement = swingElement;
     addBattleFx('playerSwing', {
         color: getElementColor(swingElement),
+        element: swingElement,
         crit: isCrit,
         projectile: (pStats.sSkill.tags || []).includes('projectile'),
         skillName: game.activeSkill,
@@ -2647,6 +2755,8 @@ function performPlayerAttack(pStats) {
             }
             let hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
             if (hitCrit && game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
+            let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
+            if (randomElementPct) hitBaseDamage = Math.floor(hitBaseDamage * (1 + randomElementPct / 100));
             let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
@@ -2719,7 +2829,8 @@ function performPlayerAttack(pStats) {
                 chain: pStats.sSkill.targetMode === 'chain',
                 skillName: game.activeSkill,
                 damage: dmg,
-                duration: 320
+                duration: 320,
+                element: hitElement
             });
             if (hitCrit && game.ascendClass === 'assassin' && hasKeystone('a3')) {
                 let now = Date.now();
@@ -2747,12 +2858,8 @@ function performPlayerAttack(pStats) {
     }
     if (pStats.leech > 0 && totalLeechableDamage > 0) {
         let leechAmount = (totalLeechableDamage * (pStats.leech / 100));
-        if (game.ascendClass === 'warlock' && hasKeystone('wlk3') && (pStats.energyShield || 0) > 0) {
-            game.playerEnergyShield = Math.min((pStats.energyShield || 0), (game.playerEnergyShield || 0) + leechAmount);
-        } else {
-            let hpCap = getPlayerHpCap(pStats);
-            game.playerHp = Math.min(hpCap, game.playerHp + leechAmount);
-        }
+        let leechTarget = (game.ascendClass === 'warlock' && hasKeystone('wlk3') && (pStats.energyShield || 0) > 0) ? 'energyShield' : 'life';
+        addPlayerLeechInstance(leechAmount, pStats, leechTarget);
     }
 
     if (game.settings.showCombatLog) {
@@ -2989,11 +3096,24 @@ function performMonsterAttacks(pStats) {
                 return;
             }
         }
-        if ((enemy.regenRate || 0) > 0) {
+        if ((enemy.regenRate || 0) > 0 && enemy.hp < (enemy.maxHp || enemy.hp)) {
             let suppress = Math.max(0, Math.min(95, enemy.regenSuppressPct || 0));
             let curseFx = getEnemyConditionDebuffFactor(enemy);
             let effectiveRegenRate = Math.max(0, enemy.regenRate * (1 - suppress / 100) * (curseFx.enemyRegenRateMul || 1));
-            enemy.hp = Math.min(enemy.maxHp || enemy.hp, enemy.hp + Math.max(1, Math.floor((enemy.maxHp || 1) * effectiveRegenRate)));
+            let maxHp = Math.max(1, enemy.maxHp || enemy.hp || 1);
+            let rawRegen = Math.max(0, maxHp * effectiveRegenRate);
+            let wholeRegen = Math.floor(rawRegen);
+            let fractionalRegen = rawRegen - wholeRegen;
+            enemy.regenBank = Math.max(0, Number(enemy.regenBank) || 0);
+            if (fractionalRegen > 0) {
+                let storedFraction = Math.max(0.1, Math.round(fractionalRegen * 10) / 10);
+                enemy.regenBank = Math.round((enemy.regenBank + storedFraction) * 10) / 10;
+            }
+            if (enemy.regenBank >= 1) {
+                wholeRegen += Math.floor(enemy.regenBank);
+                enemy.regenBank = Math.round((enemy.regenBank - Math.floor(enemy.regenBank)) * 10) / 10;
+            }
+            if (wholeRegen > 0) enemy.hp = Math.min(maxHp, enemy.hp + wholeRegen);
         }
         enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
         if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);
@@ -3381,4 +3501,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps });
+safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps });

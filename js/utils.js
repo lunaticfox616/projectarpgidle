@@ -126,6 +126,9 @@ const COMPARE_STAT_META = {
     resChaos: { label: '카오스 저항', format: value => `${Math.floor(value)}%` },
     regen: { label: '초당 재생', format: value => `${formatValue('regen', value)}%` },
     leech: { label: '흡혈', format: value => `${formatValue('leech', value)}%` },
+    leechRateCap: { label: '흡혈 회복 속도', format: value => `+${formatValue('leechRateCap', value)}%p` },
+    leechTotalCap: { label: '흡혈 총 회복량', format: value => `+${formatValue('leechTotalCap', value)}%p` },
+    leechInstanceCap: { label: '흡혈 타격당 회복량', format: value => `+${formatValue('leechInstanceCap', value)}%p` },
     ds: { label: '연속 타격', format: value => `${Math.floor(value)}%` },
     gemLv: { label: '젬 레벨', format: value => `${Math.floor(value)}` },
     suppCap: { label: '보조 한도', format: value => `${Math.floor(value)}` },
@@ -133,7 +136,7 @@ const COMPARE_STAT_META = {
     maxDmgRoll: { label: '최대피해 보정', format: value => `${Math.floor(value)}%` }
 };
 function formatValue(statId, value) {
-    if (['leech', 'regen', 'regenSuppress'].includes(statId)) return Number(value).toFixed(1);
+    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) return Number(value).toFixed(1);
     return Math.floor(value);
 }
 function formatPercentMultiplier(value) {
@@ -171,6 +174,9 @@ function getStatName(statId) {
         crit: '치명타 확률(%)',
         critDmg: '치명타 피해(%)',
         leech: '생명력 흡수(%)',
+        leechRateCap: '흡혈 회복 속도 캡(최대 생명력 %/초)',
+        leechTotalCap: '흡혈 총 회복량 캡(최대 생명력 %)',
+        leechInstanceCap: '흡혈 타격당 회복량 캡(최대 생명력 %)',
         gemLevel: '모든 스킬 젬 레벨',
         dr: '받는 피해 감소(%)',
         physIgnore: '물리 피해 감소 무시(%)',
@@ -216,7 +222,7 @@ function getRarityRank(rarity) {
 function createEmptyStatBucket() {
     return {
         flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, suppCap: 0,
-        dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, resChaos: 0, leech: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
+        dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
@@ -251,6 +257,9 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'physIgnore') bucket.physIgnore += value;
     else if (statId === 'resPen') bucket.resPen += value;
     else if (statId === 'leech') bucket.leech += value;
+    else if (statId === 'leechRateCap') bucket.leechRateCap += value;
+    else if (statId === 'leechTotalCap') bucket.leechTotalCap += value;
+    else if (statId === 'leechInstanceCap') bucket.leechInstanceCap += value;
     else if (statId === 'critDmg') bucket.critDmg += value;
     else if (statId === 'regen') bucket.regen += value;
     else if (statId === 'regenSuppress') bucket.regenSuppress += value;
@@ -282,9 +291,12 @@ function applyStatsToBucket(bucket, stats) {
 }
 function getTaggedDamageBreakdown(bucket, skill) {
     let tags = new Set(skill.tags || []);
+    let randomElementPool = Array.isArray(skill.randomElementPool) ? skill.randomElementPool.map(ele => { let key = String(ele || '').toLowerCase(); return key === 'lightning' || key === 'thunder' ? 'light' : key; }).filter(Boolean) : [];
+    let isRandomElementSkill = randomElementPool.length > 0;
     let parts = [];
     let total = 0;
     Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).forEach(tag => {
+        if (isRandomElementSkill && ['fire', 'cold', 'lightning'].includes(tag)) return;
         let statId = TAGGED_DAMAGE_STAT_BY_TAG[tag];
         let value = bucket[statId] || 0;
         if (!value || !tags.has(tag)) return;
