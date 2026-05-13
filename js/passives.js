@@ -2600,7 +2600,8 @@ function initBattleAssets() {
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
     const loadTicket = battleAssets.loadTicket;
     const customHeroSrc = getCustomHeroSheetDataUrl();
-    const defaultHeroSrc = customHeroSrc || 'assets/battle-hero-v1.png';
+    const localRuntime = isLocalRuntimeHost();
+    const defaultHeroSrc = (!localRuntime && customHeroSrc) ? customHeroSrc : null;
     const manifest = {
         hero1Idle: 'assets/hero1/ElfIdle001Sheet-export.png',
         hero1Walk: 'assets/hero1/ElfWalk001-Sheet-export.png',
@@ -2622,7 +2623,7 @@ function initBattleAssets() {
         hero4Attack: 'assets/hero4/SeveredFangBasicAtk001-Sheet.png',
         hero4Hurt: 'assets/hero4/SeveredFangHurt001-Sheet.png',
         hero4Death: 'assets/hero4/SeveredFangDeath001-Sheet.png',
-        heroLegacy: defaultHeroSrc,
+        ...(defaultHeroSrc ? { heroLegacy: defaultHeroSrc } : {}),
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
         enemies3: 'assets/battle-enemies-v3.png',
@@ -2882,6 +2883,29 @@ function sanitizeBattleSheet(image) {
             if (transparentNeighbors >= 2 && avg >= 182) px[idx + 3] = 0;
             else if (transparentNeighbors >= 1 && avg >= 164 && alpha < 220) px[idx + 3] = Math.min(alpha, 32);
         }
+    }
+    ctx.putImageData(frame, 0, 0);
+    return canvas;
+}
+
+function sanitizeWhiteBackdropSheet(image) {
+    if (!image) return image;
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(image, 0, 0);
+    let frame;
+    try {
+        frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    } catch (error) {
+        return image;
+    }
+    const px = frame.data;
+    for (let i = 0; i < px.length; i += 4) {
+        let r = px[i], g = px[i + 1], b = px[i + 2], a = px[i + 3];
+        if (a < 20) continue;
+        if (r >= 232 && g >= 232 && b >= 232) px[i + 3] = 0;
     }
     ctx.putImageData(frame, 0, 0);
     return canvas;
@@ -3660,14 +3684,21 @@ function buildBattleAssetAtlas() {
     function buildEnemyTransparentImage(image) {
         if (!image) return image;
         try {
-            return sanitizeBattleSheet(image);
+            return sanitizeWhiteBackdropSheet(sanitizeBattleSheet(image));
         } catch (error) {
-            return image;
+            return sanitizeWhiteBackdropSheet(image);
         }
     }
+    let heroFrameSetSource = selectedHeroDef.id;
     let heroFrameSet = buildHeroFrameSetFromStripKeys(selectedHeroDef.strips, selectedHeroDef.id);
-    if (!heroFrameSet && selectedHeroDef.id !== 'hero1') heroFrameSet = buildHeroFrameSetFromStripKeys(HERO_SELECTION_DEFS.hero1.strips, 'hero1');
-    if (!heroFrameSet && heroFramesLegacy.length > 0) heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
+    if (!heroFrameSet && selectedHeroDef.id !== 'hero1') {
+        heroFrameSet = buildHeroFrameSetFromStripKeys(HERO_SELECTION_DEFS.hero1.strips, 'hero1');
+        if (heroFrameSet) heroFrameSetSource = 'hero1';
+    }
+    if (!heroFrameSet && heroFramesLegacy.length > 0) {
+        heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
+        heroFrameSetSource = 'legacy';
+    }
     // v2 하드 매핑 + 어떤 해상도든 커스텀/비표준 시트는 스케일/감지 fallback을 탄다.
     if (!heroFrameSet && legacyHeroImage && isNearSize(legacyHeroImage, 1448, 1086, 0.05)) {
         heroFrameSet = buildHeroFrameSetBattleHero1(legacyHeroImage);
@@ -3684,6 +3715,7 @@ function buildBattleAssetAtlas() {
         if (detectedCustom) heroFrameSet = detectedCustom;
     }
     if (!heroFrameSet) {
+        heroFrameSetSource = 'none';
         heroFrameSet = {
             characterAnimations: { idle: [], walk_or_run: [], sword_attack_body: [], cast_body: [], hurt: [], down_or_knockdown: [], bow_attack_body: [] },
             clipLoop: {},
@@ -3691,6 +3723,22 @@ function buildBattleAssetAtlas() {
             walk: [],
             run: []
         };
+    }
+    function resolveHeroImageForFrameSet() {
+        if (heroFrameSetSource === 'legacy') return legacyHeroImage;
+        let sourceDef = HERO_SELECTION_DEFS[heroFrameSetSource] || selectedHeroDef || HERO_SELECTION_DEFS.hero1;
+        let strips = (sourceDef && sourceDef.strips) || {};
+        return battleAssets.images[strips.idle]
+            || battleAssets.images[strips.walk]
+            || battleAssets.images[strips.attack]
+            || battleAssets.images[strips.hurt]
+            || battleAssets.images[strips.death]
+            || battleAssets.images.hero1Idle
+            || battleAssets.images.hero1Walk
+            || battleAssets.images.hero1Attack
+            || battleAssets.images.hero1Hurt
+            || battleAssets.images.hero1Death
+            || legacyHeroImage;
     }
     const enemySpriteImage = buildEnemyTransparentImage(battleAssets.images.enemies);
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(enemySpriteImage, part, key === 'boss' ? 5 : 3)]));
@@ -3746,7 +3794,7 @@ function buildBattleAssetAtlas() {
     const tileFrames = tileImage ? tileParts.map(part => trimRectToContent(tileImage, part, 2)) : [];
     return {
         hero: {
-            image: battleAssets.images[(selectedHeroDef.strips || {}).idle] || battleAssets.images.hero1Idle || battleAssets.images.hero1Walk || battleAssets.images.hero1Attack || battleAssets.images.hero1Hurt || battleAssets.images.hero1Death || legacyHeroImage,
+            image: resolveHeroImageForFrameSet(),
             frames: heroFrameSet
         },
         enemies: {
