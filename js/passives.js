@@ -3369,6 +3369,17 @@ function sanitizeLocalMonsterBackdropSheet(image) {
         pushSeed(x, y - 1);
         pushSeed(x, y + 1);
     }
+    for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] === 0) continue;
+        let r = px[i], g = px[i + 1], b = px[i + 2];
+        let max = Math.max(r, g, b);
+        let min = Math.min(r, g, b);
+        let avg = (r + g + b) / 3;
+        let saturation = max - min;
+        let dist = bgDistance(r, g, b);
+        if (avg >= 224 && saturation <= 76) px[i + 3] = 0;
+        else if (avg >= 204 && saturation <= 54 && dist <= 86) px[i + 3] = Math.min(px[i + 3], 28);
+    }
     const alphaSnapshot = new Uint8ClampedArray(width * height);
     for (let i = 0, p = 0; i < px.length; i += 4, p++) alphaSnapshot[p] = px[i + 3];
     for (let y = 1; y < height - 1; y++) {
@@ -3611,8 +3622,31 @@ function buildBattleAssetAtlas() {
         }
         return Math.max(1, Math.round(width / 80));
     }
-    function buildStripFramesFromImage(image, minArea) {
+    const heroStripFrameCounts = {
+        hero1Idle: 6, hero1Walk: 8, hero1Attack: 7, hero1Hurt: 4, hero1Death: 8,
+        hero2Idle: 6, hero2Walk: 8, hero2Attack: 12, hero2Hurt: 4, hero2Death: 8,
+        hero3Idle: 6, hero3Walk: 8, hero3Attack: 13, hero3Hurt: 4, hero3Death: 8,
+        hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7
+    };
+    function buildFixedStripFramesFromImage(image, frameCount) {
+        if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return [];
+        let frames = [];
+        for (let i = 0; i < frameCount; i++) {
+            let x = Math.round(i * image.width / frameCount);
+            let nextX = i === frameCount - 1 ? image.width : Math.round((i + 1) * image.width / frameCount);
+            let raw = { x: x, y: 0, width: Math.max(1, nextX - x), height: image.height };
+            let trimmed = trimRectToContent(image, raw, 1);
+            if (trimmed && trimmed.width >= 10 && trimmed.height >= 10) frames.push(withImageRef(image, trimmed));
+            else frames.push(withImageRef(image, raw));
+        }
+        return frames.filter(Boolean);
+    }
+    function buildStripFramesFromImage(image, minArea, frameCount) {
         if (!image) return [];
+        if (Number.isFinite(frameCount) && frameCount > 0) {
+            let fixedFrames = buildFixedStripFramesFromImage(image, frameCount);
+            if (fixedFrames.length > 0) return fixedFrames;
+        }
         let detected = sortSheetComponents(detectSpriteComponents(image, minArea || 220))
             .map(rect => trimRectToContent(image, padSpriteRect(rect, image, 2), 2))
             .filter(rect => rect && rect.width >= 22 && rect.height >= 38)
@@ -3620,12 +3654,7 @@ function buildBattleAssetAtlas() {
             .filter(Boolean);
         if (detected.length > 0) return detected;
         let fallbackCols = inferStripFallbackColumns(image);
-        let frameWidth = Math.max(1, Math.floor((image.width || 1) / fallbackCols));
-        let fallback = [];
-        for (let i = 0; i < fallbackCols; i++) {
-            fallback.push(withImageRef(image, trimRectToContent(image, { x: i * frameWidth, y: 0, width: frameWidth, height: image.height }, 1)));
-        }
-        return fallback.filter(Boolean);
+        return buildFixedStripFramesFromImage(image, fallbackCols);
     }
     function normalizeFrameSetBasisHeight(frames) {
         let list = (frames || []).filter(Boolean);
@@ -3637,11 +3666,11 @@ function buildBattleAssetAtlas() {
     }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
-        let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210));
-        let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210));
-        let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220));
-        let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200));
-        let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200));
+        let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210, heroStripFrameCounts[stripKeys.idle]));
+        let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210, heroStripFrameCounts[stripKeys.walk]));
+        let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220, heroStripFrameCounts[stripKeys.attack]));
+        let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200, heroStripFrameCounts[stripKeys.hurt]));
+        let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200, heroStripFrameCounts[stripKeys.death]));
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
         let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
         return {

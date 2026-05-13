@@ -2119,10 +2119,10 @@ function getLocalBattleHeroVisualTuning() {
     };
     if (typeof isLocalRuntimeHost !== 'function' || !isLocalRuntimeHost()) return defaultTuning;
     const localTuningByHero = {
-        hero1: { baseHeight: 62.5, minHeight: 56, maxHeight: 76.25, downShrink: 7.5, maxScaleBoost: 1.22, shadowWidth: 11, shadowHeight: 4.5, shadowAlpha: 0.17, offsetY: 0 },
-        hero2: { baseHeight: 60.5, minHeight: 54, maxHeight: 73.5, downShrink: 7.2, maxScaleBoost: 1.2, shadowWidth: 11, shadowHeight: 4.5, shadowAlpha: 0.17, offsetY: 1 },
-        hero3: { baseHeight: 60.5, minHeight: 54, maxHeight: 73.5, downShrink: 7.2, maxScaleBoost: 1.2, shadowWidth: 11, shadowHeight: 4.5, shadowAlpha: 0.17, offsetY: 1 },
-        hero4: { baseHeight: 61.5, minHeight: 55, maxHeight: 74.5, downShrink: 7.3, maxScaleBoost: 1.21, shadowWidth: 11.5, shadowHeight: 4.7, shadowAlpha: 0.17, offsetY: 1 }
+        hero1: { baseHeight: 68, minHeight: 60, maxHeight: 84, downShrink: 8.2, maxScaleBoost: 1.24, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
+        hero2: { baseHeight: 66, minHeight: 58, maxHeight: 81, downShrink: 8, maxScaleBoost: 1.23, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
+        hero3: { baseHeight: 66, minHeight: 58, maxHeight: 81, downShrink: 8, maxScaleBoost: 1.23, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
+        hero4: { baseHeight: 67, minHeight: 59, maxHeight: 82, downShrink: 8.1, maxScaleBoost: 1.24, shadowWidth: 13, shadowHeight: 5.2, shadowAlpha: 0.18, offsetY: 2 }
     };
     return { ...defaultTuning, ...(localTuningByHero[game.selectedHeroId] || localTuningByHero.hero1) };
 }
@@ -4487,6 +4487,47 @@ function mergeDefaults(save) {
         }
         return null;
     }
+    function normalizeAllocatedPassiveTreeNodes(rawIds, passiveStarEvolution) {
+        let rawList = Array.isArray(rawIds) ? rawIds : [];
+        let seen = new Set();
+        let kept = [];
+        let refunded = 0;
+        rawList.forEach(rawId => {
+            let id = normalizePassiveNodeId(rawId);
+            if (!id) { refunded++; return; }
+            if (seen.has(id)) return;
+            seen.add(id);
+            let node = PASSIVE_TREE.nodes[id];
+            if (!node || (node.requiresEvolution && !passiveStarEvolution)) {
+                if (id !== 'n0') refunded++;
+                return;
+            }
+            kept.push(id);
+        });
+        let owned = new Set(kept);
+        owned.add('n0');
+        let connected = new Set(['n0']);
+        let queue = ['n0'];
+        let passiveEdges = (PASSIVE_TREE && Array.isArray(PASSIVE_TREE.edges)) ? PASSIVE_TREE.edges : [];
+        while (queue.length > 0) {
+            let current = queue.shift();
+            passiveEdges.forEach(edge => {
+                let next = null;
+                if (edge.from === current && owned.has(edge.to)) next = edge.to;
+                else if (edge.to === current && owned.has(edge.from)) next = edge.from;
+                if (next && !connected.has(next)) {
+                    connected.add(next);
+                    queue.push(next);
+                }
+            });
+        }
+        let connectedPassives = [];
+        kept.forEach(id => {
+            if (id === 'n0' || connected.has(id)) connectedPassives.push(id);
+            else refunded++;
+        });
+        return { passives: connectedPassives, refunded: refunded };
+    }
     function normalizeEncounterMarker(marker) {
         if (!marker || typeof marker !== 'object') return null;
         let at = clampFiniteNumber(marker.at, NaN, 0, 100);
@@ -4607,7 +4648,9 @@ function mergeDefaults(save) {
         if (typeof merged.currentZoneId === 'number' && merged.currentZoneId >= 5) merged.currentZoneId -= 1;
         if (typeof merged.maxZoneId === 'number' && merged.maxZoneId >= 5) merged.maxZoneId -= 1;
     }
-    merged.passives = Array.from(new Set((merged.passives || []).map(normalizePassiveNodeId).filter(Boolean)));
+    let passiveAllocationNormalization = normalizeAllocatedPassiveTreeNodes(merged.passives, !!merged.passiveStarEvolution);
+    merged.passives = passiveAllocationNormalization.passives;
+    merged.autoRefundedPassivePoints = Math.max(0, Math.floor(passiveAllocationNormalization.refunded || 0));
     merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
     if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
         merged.discoveredPassives = Array.from(new Set(['n0'].concat(merged.passives || [])));
@@ -4783,7 +4826,7 @@ function mergeDefaults(save) {
     merged.woodsmanDefeatAttempts = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanDefeatAttempts, defaultGame.woodsmanDefeatAttempts, 0)));
     merged.woodsmanSimulatorSeenLoop = !!merged.woodsmanSimulatorSeenLoop;
     merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
-    merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0)));
+    merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0));
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
