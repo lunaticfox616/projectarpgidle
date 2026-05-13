@@ -5,7 +5,7 @@ function safeExposeData(map) {
 }
 
 // Phase-1 extracted runtime constants (kept global for backward compatibility).
-const PASSIVE_LAYOUT_VERSION = 6;
+const PASSIVE_LAYOUT_VERSION = 7;
 const LOCAL_SAVE_KEY = 'poeIdleSaveData_v9';
 const LEGACY_SAVE_KEYS = ['poeIdleSaveData_v8', 'poeIdleSaveData_v7'];
 const CLOUD_SESSION_STORAGE_KEY = 'poeIdleCloudSession_v1';
