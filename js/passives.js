@@ -850,6 +850,9 @@ function ensureStarWedgeState() {
     game.starWedge.entriesCleared = Math.max(0, Math.floor(game.starWedge.entriesCleared || 0));
     game.starWedge.skyRiftReady = !!game.starWedge.skyRiftReady;
     game.starWedge.firstClearDone = !!game.starWedge.firstClearDone;
+    game.starWedge.lastAnomalyAt = Number.isFinite(game.starWedge.lastAnomalyAt) ? Math.max(0, Math.floor(game.starWedge.lastAnomalyAt)) : 0;
+    game.starWedge.skyRiftCarryGauge = Number.isFinite(game.starWedge.skyRiftCarryGauge) ? clampNumber(game.starWedge.skyRiftCarryGauge, 0, 99) : 0;
+    game.starWedge.constellationBuff = (game.starWedge.constellationBuff && typeof game.starWedge.constellationBuff === 'object') ? game.starWedge.constellationBuff : null;
     game.starWedge.activeMeteorTier = Number.isFinite(game.starWedge.activeMeteorTier) ? Math.max(1, Math.floor(game.starWedge.activeMeteorTier)) : null;
     if (!Number.isFinite(game.starWedge.selectedWedgeId) || !(game.starWedge.wedges || []).some(w => w.id === game.starWedge.selectedWedgeId)) game.starWedge.selectedWedgeId = null;
     return game.starWedge;
@@ -1019,19 +1022,71 @@ function tryUnlockMeteorContentByProgress() {
     return true;
 }
 
+
+function getAstronomerLevelForUnlocks() {
+    return typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
+}
+
+function triggerAstronomerAnomaly(zone, enemy) {
+    let st = ensureStarWedgeState();
+    let astroLv = getAstronomerLevelForUnlocks();
+    if (astroLv < 3) return false;
+    let now = Date.now();
+    if (now - (st.lastAnomalyAt || 0) < 12000) return false;
+    let baseChance = enemy && enemy.isBoss ? 0.08 : (enemy && enemy.isElite ? 0.028 : 0.0045);
+    let bonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('anomalyChancePct') || 0) / 100 : 0;
+    if (Math.random() >= baseChance * (1 + bonus)) return false;
+    st.lastAnomalyAt = now;
+    let rare = astroLv >= 11 && Math.random() < 0.22;
+    if (rare) {
+        let shard = 6 + Math.floor(Math.random() * 7);
+        awardCurrency('meteorShard', shard);
+        awardCurrency('starDust', 2);
+        st.skyRiftGauge = clampNumber((st.skyRiftGauge || 0) + 8, 0, 100);
+        addLog(`☄️ 희귀 이상 현상 관측! 운석 파편 +${shard}, 별가루 +2, 균열 게이지 +8%`, 'loot-unique');
+    } else {
+        awardCurrency('starDust', 1);
+        st.skyRiftGauge = clampNumber((st.skyRiftGauge || 0) + 3, 0, 100);
+        addLog('✨ 이상 현상 관측: 별가루 +1, 균열 게이지 +3%', 'loot-magic');
+    }
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'anomaly_observe');
+    return true;
+}
+
+function grantConstellationObservationReward() {
+    let st = ensureStarWedgeState();
+    let astroLv = getAstronomerLevelForUnlocks();
+    if (astroLv < 8) return;
+    let pool = [
+        { stat: 'pctDmg', label: '피해', val: astroLv >= 15 ? 7 : 4 },
+        { stat: 'flatHp', label: '최대 생명력', val: astroLv >= 15 ? 45 : 25 },
+        { stat: 'move', label: '이동 속도', val: astroLv >= 15 ? 5 : 3 },
+        { stat: 'crit', label: '치명타 확률', val: astroLv >= 15 ? 4 : 2 }
+    ];
+    let pick = rndChoice(pool);
+    st.constellationBuff = { stat: pick.stat, label: pick.label, val: pick.val, observedAt: Date.now(), permanent: astroLv >= 9 };
+    addLog(`🌠 별자리 관측: ${pick.label} +${pick.val}${pick.stat === 'flatHp' ? '' : '%'}${astroLv >= 9 ? ' (루프 후 유지)' : ''}`, 'loot-unique');
+}
+
 function gainSkyRiftGaugeFromCombat(zone, enemy) {
     let st = ensureStarWedgeState();
-    if (!st.unlocked || st.skyRiftReady) return;
+    let astroLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
+    if (astroLv < 1 || !st.unlocked || st.skyRiftReady) return;
     if (!zone) return;
     let eligible = (zone.type === 'act' && zone.id >= STAR_WEDGE_UNLOCK_ACT) || zone.type === 'abyss' || zone.type === 'labyrinth';
     if (!eligible) return;
     let gain = enemy && enemy.isBoss ? 3.8 : (enemy && enemy.isElite ? 1.6 : 0.35);
     if (typeof getExpertNodeEffectValue === 'function') gain *= (1 + (Math.max(0, getExpertNodeEffectValue('meteorGaugeGainPct')) / 100));
-    st.skyRiftGauge = clampNumber((st.skyRiftGauge || 0) + gain, 0, 100);
+    if (astroLv >= 2 && Math.random() < (enemy && enemy.isElite ? 0.035 : 0.006)) awardCurrency('starDust', 1);
+    triggerAstronomerAnomaly(zone, enemy);
+    let nextGauge = (st.skyRiftGauge || 0) + gain;
+    st.skyRiftGauge = clampNumber(nextGauge, 0, 100);
     let tier = Math.max(1, Math.floor(zone.tier || 1));
     st.skyRiftMinTier = Number.isFinite(st.skyRiftMinTier) ? Math.min(st.skyRiftMinTier, tier) : tier;
     if (st.skyRiftGauge >= 100 && !st.skyRiftReady) {
+        let overflow = Math.max(0, nextGauge - 100);
         st.skyRiftGauge = 100;
+        st.skyRiftCarryGauge = astroLv >= 10 ? Math.min(99, Math.floor(overflow * 0.25)) : 0;
         st.skyRiftReady = true;
         addLog('☄️ 하늘 균열이 완전히 벌어졌다. 운석 낙하 지점으로 향할 수 있다.', 'loot-rare');
         game.noti.map = true;
@@ -1040,8 +1095,13 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
 
 function grantMeteorEncounterRewards() {
     let st = ensureStarWedgeState();
+    let astroLv = getAstronomerLevelForUnlocks();
     let shard = 17 + Math.floor(Math.random() * 40);
-    awardCurrency('meteorShard', shard); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'meteor_clear');
+    if (astroLv >= 6) shard += 6 + Math.floor(Math.random() * 9);
+    if (astroLv >= 13) shard += 8;
+    awardCurrency('meteorShard', shard);
+    if (astroLv >= 2) awardCurrency('starDust', 2 + Math.floor(Math.random() * (astroLv >= 15 ? 4 : 2)));
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'meteor_clear');
     addLog(`☄️ 운석 파편 +${shard}`, 'loot-rare');
     if (!st.firstClearDone) {
         st.firstClearDone = true;
@@ -1052,18 +1112,28 @@ function grantMeteorEncounterRewards() {
             awardCurrency('incompleteStarWedge', 1);
             addLog('☄️ 불완전한 별쐐기를 주웠습니다.', 'loot-magic');
         }
-        if (Math.random() < 0.027) {
+        let starDropBonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('starWedgeDropPct') || 0) / 100 : 0;
+        if (astroLv >= 4 && Math.random() < 0.027 * (1 + starDropBonus)) {
             let wedge = createStarWedgeItem();
             st.wedges.push(wedge);
             awardCurrency('starWedge', 1);
             addLog('☄️ 완성된 별쐐기가 떨어졌다!', 'loot-unique');
         }
     }
+    if (astroLv >= 14 && Math.random() < 0.35) {
+        let linked = rndChoice(['pollen', 'jewelShard', 'sporeFire', 'sporeCold', 'sporeLight']);
+        awardCurrency(linked, linked === 'pollen' ? 30 : 3);
+        addLog(`☄️ 전문가 연동 보상: ${ORB_DB[linked] ? ORB_DB[linked].name : linked} +${linked === 'pollen' ? 30 : 3}`, 'loot-magic');
+    }
+    grantConstellationObservationReward();
 }
 
 function craftIncompleteStarWedge() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if ((game.currencies.meteorShard || 0) < 49) return addLog('운석 파편이 부족합니다. (필요: 49)', 'attack-monster');
-    game.currencies.meteorShard -= 49; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'starwedge_craft');
+    let starDustDiscount = Math.min(9, Math.floor((game.currencies.starDust || 0) / 5));
+    let needShard = Math.max(40, 49 - starDustDiscount);
+    if ((game.currencies.meteorShard || 0) < needShard) return addLog(`운석 파편이 부족합니다. (필요: ${needShard})`, 'attack-monster');
+    game.currencies.meteorShard -= needShard;
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'starwedge_craft');
     awardCurrency('incompleteStarWedge', 1);
     addLog('🔧 운석 파편을 응축해 불완전한 별쐐기를 만들었습니다.', 'loot-magic');
     updateStaticUI();
@@ -1083,15 +1153,19 @@ function craftCompleteStarWedge() { if (game.woodsmanBuildLock) return addLog('�
 }
 
 function rerollStarWedge(wedgeId, keepIndex) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let astroLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
+    if (astroLv < 5) return addLog('별쐐기 리롤은 천문학자 Lv.5에 해금됩니다.', 'attack-monster');
     let wedge = getStarWedgeById(wedgeId);
     if (!wedge) return;
     let keepIndexes = [];
     let meteorCost = 23;
+    let rerollDiscount = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('starWedgeRerollCostReducePct') || 0) / 100 : 0;
     if (keepIndex === 'single' || keepIndex === 1) keepIndexes = [0];
     if (keepIndex === 'double' || keepIndex === 2) {
         keepIndexes = [0, 1];
         meteorCost = 230;
     }
+    meteorCost = Math.max(1, Math.floor(meteorCost * (1 - rerollDiscount)));
     if ((game.currencies.meteorShard || 0) < meteorCost) return addLog(`운석 파편이 부족합니다. (필요: ${meteorCost})`, 'attack-monster');
     if (keepIndexes.length > 0 && (game.currencies.incompleteStarWedge || 0) <= 0) return addLog('옵션 고정 리롤에는 불완전한 별쐐기가 필요합니다.', 'attack-monster');
     game.currencies.meteorShard -= meteorCost; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'starwedge_reroll');
@@ -1103,10 +1177,27 @@ function rerollStarWedge(wedgeId, keepIndex) { if (game.woodsmanBuildLock) retur
     updateStaticUI();
 }
 
+
+function stabilizeStarWedge(wedgeId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let astroLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
+    if (astroLv < 12) return addLog('영원 별쐐기는 천문학자 Lv.12에 해금됩니다.', 'attack-monster');
+    let st = ensureStarWedgeState();
+    let wedge = getStarWedgeById(wedgeId);
+    if (!wedge) return;
+    if (wedge.eternal) return addLog('이미 영원 고정된 별쐐기입니다.', 'attack-monster');
+    let cost = 25;
+    if ((game.currencies.starDust || 0) < cost) return addLog(`별가루가 부족합니다. (필요: ${cost})`, 'attack-monster');
+    game.currencies.starDust -= cost;
+    wedge.eternal = true;
+    addLog(`🌌 별쐐기 #${wedge.id % 10000} 영원 고정 완료`, 'loot-unique');
+    updateStaticUI();
+}
+
 function destroyStarWedge(wedgeId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let st = ensureStarWedgeState();
     let target = getStarWedgeById(wedgeId);
     if (!target) return addLog('파괴할 별쐐기를 찾을 수 없습니다.', 'attack-monster');
+    if (target.eternal) return addLog('영원 고정된 별쐐기는 파괴할 수 없습니다.', 'attack-monster');
     if (!confirm(`별쐐기 #${wedgeId % 10000} 를 파괴할까요?`)) return;
     st.wedges = (st.wedges || []).filter(w => w.id !== wedgeId);
     st.sockets = (st.sockets || []).filter(entry => entry.wedgeId !== wedgeId);
@@ -2479,7 +2570,12 @@ function resetHeroSheetToDefault() {
 }
 
 
+function isLocalFileProtocol() {
+    return typeof window !== 'undefined' && window.location && window.location.protocol === 'file:';
+}
+
 function fileExists(path) {
+    if (isLocalFileProtocol()) return true;
     try {
         const xhr = new XMLHttpRequest();
         xhr.open('HEAD', path, false);
@@ -2544,7 +2640,7 @@ function initBattleAssets() {
         bgAct9: 'assets/background/act9.png',
         bgAct10: 'assets/background/act10.png',
     };
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['weapons']));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['effectsV2', 'weapons', 'tiles']));
     Object.entries(manifest).forEach(([key, src]) => {
         if (typeof src === 'string' && !src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('https')) {
             if (!fileExists(src)) optionalManifestKeys.add(key);
@@ -2576,9 +2672,8 @@ function initBattleAssets() {
             finalizeBattleAssets();
             return;
         }
-        battleAssets.failed = true;
-        battleAssets.loading = false;
         console.warn('battle asset load completed with missing files:', battleAssets.failedKeys.join(', '));
+        finalizeBattleAssets();
     }
 
     setTimeout(() => {
@@ -2590,19 +2685,12 @@ function initBattleAssets() {
     }, 8000);
 
     function queueBattleSheetSanitization(key, image) {
-        const applySanitizedSheet = () => {
-            if (battleAssets.loadTicket !== loadTicket) return;
-            try {
-                battleAssets.images[key] = sanitizeBattleSheet(image);
-            } catch (error) {
-                battleAssets.images[key] = image;
-            }
-        };
-        if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-            window.requestIdleCallback(applySanitizedSheet, { timeout: 500 });
-            return;
+        if (battleAssets.loadTicket !== loadTicket) return;
+        try {
+            battleAssets.images[key] = sanitizeBattleSheet(image);
+        } catch (error) {
+            battleAssets.images[key] = image;
         }
-        setTimeout(applySanitizedSheet, 80);
     }
 
     function loadManifestEntryAt(index) {
@@ -2847,7 +2935,12 @@ function detectSpriteComponents(image, minArea) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(image, 0, 0);
-    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let data;
+    try {
+        data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    } catch (error) {
+        return [];
+    }
     const visited = new Uint8Array(canvas.width * canvas.height);
     const components = [];
     const backgroundSamples = [];
@@ -3556,22 +3649,11 @@ function buildBattleAssetAtlas() {
 
     function buildEnemyTransparentImage(image) {
         if (!image) return image;
-        let c = document.createElement('canvas');
-        c.width = image.width;
-        c.height = image.height;
-        let cx = c.getContext('2d', { willReadFrequently: true });
-        cx.drawImage(image, 0, 0);
-        let id = cx.getImageData(0, 0, c.width, c.height);
-        let d = id.data;
-        let keyR = d[0], keyG = d[1], keyB = d[2];
-        for (let i = 0; i < d.length; i += 4) {
-            let dr = Math.abs(d[i] - keyR);
-            let dg = Math.abs(d[i + 1] - keyG);
-            let db = Math.abs(d[i + 2] - keyB);
-            if (dr + dg + db < 42) d[i + 3] = 0;
+        try {
+            return sanitizeBattleSheet(image);
+        } catch (error) {
+            return image;
         }
-        cx.putImageData(id, 0, 0);
-        return c;
     }
     let heroFrameSet = buildHeroFrameSetFromStripKeys(selectedHeroDef.strips, selectedHeroDef.id);
     if (!heroFrameSet && selectedHeroDef.id !== 'hero1') heroFrameSet = buildHeroFrameSetFromStripKeys(HERO_SELECTION_DEFS.hero1.strips, 'hero1');
@@ -3650,7 +3732,8 @@ function buildBattleAssetAtlas() {
     // 필요 시 추후 개별 투명화 보정 후 재활성화 가능.
     // enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies2));
     // enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies3));
-    const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
+    const tileImage = battleAssets.images.tiles || null;
+    const tileFrames = tileImage ? tileParts.map(part => trimRectToContent(tileImage, part, 2)) : [];
     return {
         hero: {
             image: legacyHeroImage || battleAssets.images[(selectedHeroDef.strips || {}).idle] || battleAssets.images.hero1Idle || battleAssets.images.hero1Walk || battleAssets.images.hero1Attack || battleAssets.images.hero1Hurt || battleAssets.images.hero1Death,
@@ -3700,24 +3783,24 @@ function buildBattleAssetAtlas() {
             }
         },
         tiles: {
-            image: battleAssets.images.tiles,
+            image: tileImage,
             frames: {
-                grass: tileFrames[0],
-                grassDeep: tileFrames[1],
-                moss: tileFrames[2],
-                stone: tileFrames[3],
-                dirt: tileFrames[4],
-                dirtWarm: tileFrames[5],
-                grassBright: tileFrames[6],
-                swamp: tileFrames[7],
-                ruin: tileFrames[8],
-                frost: tileFrames[9],
-                lava: tileFrames[10],
-                chest: tileFrames[11],
-                roots: tileFrames[12],
-                abyss: tileFrames[13],
-                temple: tileFrames[14],
-                templeAlt: tileFrames[15]
+                grass: tileFrames[0] || null,
+                grassDeep: tileFrames[1] || null,
+                moss: tileFrames[2] || null,
+                stone: tileFrames[3] || null,
+                dirt: tileFrames[4] || null,
+                dirtWarm: tileFrames[5] || null,
+                grassBright: tileFrames[6] || null,
+                swamp: tileFrames[7] || null,
+                ruin: tileFrames[8] || null,
+                frost: tileFrames[9] || null,
+                lava: tileFrames[10] || null,
+                chest: tileFrames[11] || null,
+                roots: tileFrames[12] || null,
+                abyss: tileFrames[13] || null,
+                temple: tileFrames[14] || null,
+                templeAlt: tileFrames[15] || null
             }
         }
     };
@@ -4176,6 +4259,25 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     return item;
 }
 
+function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
+    let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
+    if (mycologistLv < 6 || !item || item.rarity === 'unique') return item;
+    let chance = enemy && enemy.isBoss ? 0.12 : (enemy && enemy.isElite ? 0.06 : 0.018);
+    if (Math.random() >= chance) return item;
+    let pool = typeof getFossilExclusivePool === 'function'
+        ? getFossilExclusivePool(item)
+        : FOSSIL_EXCLUSIVE_MODS.filter(mod => mod.slots.includes(item.slot));
+    if (!pool || pool.length <= 0) return item;
+    item.stats = Array.isArray(item.stats) ? item.stats : [];
+    if (item.stats.length >= 6) item.stats.pop();
+    let roll = rollAffixValue(pickWeightedMod(pool), Math.max(1, Math.floor(zoneTier || item.itemTier || 1)));
+    roll.fossilExclusiveDrop = true;
+    item.stats.push(roll);
+    if (item.rarity === 'normal') item.rarity = 'magic';
+    updateItemName(item);
+    return item;
+}
+
 function generateEquipmentDrop(enemy) {
     let zoneTier = getZone(game.currentZoneId).tier;
     let slot = rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
@@ -4192,7 +4294,8 @@ function generateEquipmentDrop(enemy) {
         if (roll < 0.006) return generateUniqueItem(zoneTier, slot);
         rarity = roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
     }
-    return createItemFromBase(base, rarity, zoneTier);
+    let item = createItemFromBase(base, rarity, zoneTier);
+    return maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier);
 }
 
 function awardCurrency(currencyKey, amount) {
@@ -4203,6 +4306,10 @@ function awardCurrency(currencyKey, amount) {
         if (currencyKey === 'pollen') {
             let pollenPct = Math.max(0, getExpertNodeEffectValue('pollenGainPct'));
             if (pollenPct > 0) gain *= (1 + (pollenPct / 100));
+        }
+        if (currencyKey === 'enchantedHoney') {
+            let honeyPct = Math.max(0, getExpertNodeEffectValue('honeyGainPct'));
+            if (honeyPct > 0) gain *= (1 + (honeyPct / 100));
         }
         gain = Math.max(1, Math.floor(gain));
     }
@@ -4314,39 +4421,122 @@ function passesItemPickupFilter(item) {
     return true;
 }
 
+const JEWEL_OPTION_POOL = [
+    { id: 'pctDmg', name: '피해 증폭', min: 4, max: 10 },
+    { id: 'flatHp', name: '생명력 주입', min: 20, max: 45 },
+    { id: 'crit', name: '치명 보석', min: 2, max: 6 },
+    { id: 'aspd', name: '질주 보석', min: 3, max: 7 },
+    { id: 'resAll', name: '수호 보석', min: 4, max: 9 },
+    { id: 'physIgnore', name: '절개 파편', min: 2, max: 6 },
+    { id: 'resPen', name: '관통 수정', min: 2, max: 6 },
+    { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 },
+    { id: 'regenSuppress', name: '봉쇄 파편', min: 0.05, max: 0.12, step: 0.01 },
+    { id: 'minDmgRoll', name: '하한 수정', min: 1, max: 3 },
+    { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 }
+];
+const JEWEL_HIDDEN_TIER_COUNT = 5;
+const JEWEL_PETITE_OPTION_POOL = [
+    { id: 'pctDmg', name: '작은 피해결', magic: [1, 1], rare: [1, 2] },
+    { id: 'flatHp', name: '작은 생명결', magic: [4, 6], rare: [6, 9] },
+    { id: 'crit', name: '작은 치명결', magic: [1, 1], rare: [1, 2] },
+    { id: 'aspd', name: '작은 가속결', magic: [1, 1], rare: [1, 2] },
+    { id: 'resAll', name: '작은 수호결', magic: [1, 1], rare: [1, 2] },
+    { id: 'resPen', name: '작은 관통결', magic: [1, 1], rare: [1, 2] },
+    { id: 'regen', name: '작은 재생결', magic: [0.1, 0.1], rare: [0.1, 0.2], step: 0.1 }
+];
+
+function getJewelOptionDef(statId) {
+    return JEWEL_OPTION_POOL.find(option => option.id === statId) || null;
+}
+
+function isJewelPetiteStat(stat) {
+    return !!(stat && stat.petite);
+}
+
+function getJewelCoreStats(jewel) {
+    return getJewelStats(jewel).filter(stat => !isJewelPetiteStat(stat));
+}
+
+function formatJewelStatValue(statId, value) {
+    let option = getJewelOptionDef(statId);
+    if (option && Number.isFinite(option.step) && option.step < 1) return Number(value || 0).toFixed(2);
+    if (Math.abs(Number(value) || 0) < 1 && !Number.isInteger(Number(value))) return Number(value || 0).toFixed(2);
+    return formatValue(statId, value);
+}
+
+function getJewelStatHiddenTier(statId, value, valMin, valMax) {
+    let min = Number.isFinite(Number(valMin)) ? Number(valMin) : Number(value);
+    let max = Number.isFinite(Number(valMax)) ? Number(valMax) : Number(value);
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return 1;
+    let ratio = (Number(value) - min) / (max - min);
+    ratio = Math.max(0, Math.min(0.999999, ratio));
+    return Math.max(1, Math.min(JEWEL_HIDDEN_TIER_COUNT, Math.floor(ratio * JEWEL_HIDDEN_TIER_COUNT) + 1));
+}
+
+function normalizeJewelStat(stat) {
+    if (!stat || !stat.id) return null;
+    let option = getJewelOptionDef(stat.id);
+    let val = Number(stat.val);
+    if (!Number.isFinite(val)) val = option ? option.min : 0;
+    let valMin = Number.isFinite(Number(stat.valMin)) ? Number(stat.valMin) : (option ? option.min : val);
+    let valMax = Number.isFinite(Number(stat.valMax)) ? Number(stat.valMax) : (option ? option.max : val);
+    let tier = Number.isFinite(Number(stat.tier)) ? Math.floor(Number(stat.tier)) : getJewelStatHiddenTier(stat.id, val, valMin, valMax);
+    tier = Math.max(1, Math.min(JEWEL_HIDDEN_TIER_COUNT, tier));
+    return { id: stat.id, val: val, valMin: valMin, valMax: valMax, tier: tier, petite: !!stat.petite, waxBonus: !!stat.waxBonus };
+}
+
+function cloneJewelStat(stat) {
+    let normalized = normalizeJewelStat(stat);
+    return normalized ? { ...normalized } : null;
+}
+
+function rollJewelStat(option) {
+    let step = Number.isFinite(option.step) && option.step > 0 ? option.step : 1;
+    let slots = Math.max(0, Math.floor(((option.max - option.min) / step) + 0.000001));
+    let val = option.min + Math.floor(Math.random() * (slots + 1)) * step;
+    val = step < 1 ? Number(val.toFixed(2)) : Math.floor(val);
+    return normalizeJewelStat({ id: option.id, val: val, valMin: option.min, valMax: option.max });
+}
+
+function makeFixedJewelStat(statId, val) {
+    let stat = normalizeJewelStat({ id: statId, val: val, valMin: val, valMax: val, tier: 1 });
+    return stat || { id: statId, val: val, valMin: val, valMax: val, tier: 1 };
+}
+
+function rollJewelPetiteStat(rarity, excludeIds) {
+    if (rarity !== 'magic' && rarity !== 'rare') return null;
+    let excluded = new Set(Array.isArray(excludeIds) ? excludeIds : []);
+    let pool = JEWEL_PETITE_OPTION_POOL.filter(option => !excluded.has(option.id));
+    if (pool.length <= 0) pool = JEWEL_PETITE_OPTION_POOL;
+    let option = rndChoice(pool);
+    let range = rarity === 'rare' ? option.rare : option.magic;
+    let min = range[0];
+    let max = range[1];
+    let step = Number.isFinite(option.step) && option.step > 0 ? option.step : 1;
+    let slots = Math.max(0, Math.floor(((max - min) / step) + 0.000001));
+    let val = min + Math.floor(Math.random() * (slots + 1)) * step;
+    val = step < 1 ? Number(val.toFixed(2)) : Math.floor(val);
+    let stat = normalizeJewelStat({ id: option.id, val: val, valMin: min, valMax: max, tier: 1, petite: true });
+    return stat;
+}
+
 function generateJewelDrop(zoneTier) {
-    let pool = [
-        { id: 'pctDmg', name: '피해 증폭', min: 4, max: 10 },
-        { id: 'flatHp', name: '생명력 주입', min: 20, max: 45 },
-        { id: 'crit', name: '치명 보석', min: 2, max: 6 },
-        { id: 'aspd', name: '질주 보석', min: 3, max: 7 },
-        { id: 'resAll', name: '수호 보석', min: 4, max: 9 },
-        { id: 'physIgnore', name: '절개 파편', min: 2, max: 6 },
-        { id: 'resPen', name: '관통 수정', min: 2, max: 6 },
-        { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 },
-        { id: 'regenSuppress', name: '봉쇄 파편', min: 0.05, max: 0.12, step: 0.01 },
-        { id: 'minDmgRoll', name: '하한 수정', min: 1, max: 3 },
-        { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 }
-    ];
-    let pick = rndChoice(pool);
-    let val = Number.isFinite(pick.step) && pick.step < 1
-        ? (pick.min + (Math.floor(Math.random() * ((pick.max - pick.min) / pick.step + 1)) * pick.step))
-        : (pick.min + Math.floor(Math.random() * (pick.max - pick.min + 1)));
-    let tierBoost = Math.max(0, zoneTier - 8);
-    if (tierBoost >= 6) val += Math.floor(Math.random() * 3) + 1;
+    let pick = rndChoice(JEWEL_OPTION_POOL);
+    let stat = rollJewelStat(pick);
     let rarityRoll = Math.random();
     let rarity = 'normal';
     if (rarityRoll > 0.9) rarity = 'rare';
     else if (rarityRoll > 0.55) rarity = 'magic';
-    if (rarity === 'magic') val = Number.isFinite(pick.step) && pick.step < 1 ? Math.round(val * 1.2 * 10) / 10 : Math.floor(val * 1.22);
-    if (rarity === 'rare') val = Number.isFinite(pick.step) && pick.step < 1 ? Math.round(val * 1.4 * 10) / 10 : Math.floor(val * 1.45);
-    return { id: Date.now() + Math.floor(Math.random() * 100000), name: pick.name, tier: zoneTier, rarity: rarity, stats: [{ id: pick.id, val: val }] };
+    let stats = [stat];
+    let petite = rollJewelPetiteStat(rarity, [stat.id]);
+    if (petite) stats.push(petite);
+    return { id: Date.now() + Math.floor(Math.random() * 100000), name: pick.name, tier: 1, hiddenTier: stat.tier, rarity: rarity, stats: stats };
 }
 
 function getJewelStats(jewel) {
     if (!jewel) return [];
-    if (Array.isArray(jewel.stats) && jewel.stats.length > 0) return jewel.stats.filter(stat => stat && stat.id);
-    if (jewel.stat && jewel.stat.id) return [jewel.stat];
+    if (Array.isArray(jewel.stats) && jewel.stats.length > 0) return jewel.stats.map(cloneJewelStat).filter(Boolean);
+    if (jewel.stat && jewel.stat.id) return [cloneJewelStat(jewel.stat)].filter(Boolean);
     return [];
 }
 
@@ -4389,8 +4579,8 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
     let sorted = jewelFusionSelection.slice().sort((a, b) => a - b);
     let a = game.jewelInventory[sorted[0]];
     let b = game.jewelInventory[sorted[1]];
-    let aStats = getJewelStats(a);
-    let bStats = getJewelStats(b);
+    let aStats = getJewelCoreStats(a);
+    let bStats = getJewelCoreStats(b);
     if (a.isVoid || b.isVoid) {
         game.currencies.jewelShard -= fusionCost;
         let stats = [...aStats, ...bStats];
@@ -4400,11 +4590,12 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
             if (merged.length >= 4) return;
             if (seen.has(stat.id)) return;
             seen.add(stat.id);
-            merged.push({ id: stat.id, val: stat.val });
+            let cloned = cloneJewelStat(stat);
+            if (cloned) merged.push(cloned);
         });
         game.jewelInventory.splice(sorted[1], 1);
         game.jewelInventory.splice(sorted[0], 1);
-        let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, stats: merged, maxLines: 4 };
+        let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, hiddenTier: Math.max(1, ...merged.map(stat => stat.tier || 1)), stats: merged, maxLines: 4 };
         game.jewelInventory.push(newJewel);
         jewelFusionSelection = [];
         addLog(`🕳️ 공허 융합 성공! (${merged.length}줄)`, 'loot-unique');
@@ -4423,7 +4614,7 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
         name: `융합 ${a.name}/${b.name}`,
         tier: Math.max(a.tier || 1, b.tier || 1),
         rarity: 'rare',
-        stats: [aStats[0], bStats[0]]
+        stats: [cloneJewelStat(aStats[0]), cloneJewelStat(bStats[0])].filter(Boolean)
     };
     if (useAmplified) {
         game.currencies.jewelShard -= 8;
@@ -4431,10 +4622,11 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
         let bonusPool = [{ id: 'targetAny', val: 1 }, { id: 'targetProjectile', val: 1 }, { id: 'targetSlam', val: 1 }, { id: 'crit', val: 4 }, { id: 'resPen', val: 3 }];
         let penalty = rndChoice(penaltyPool);
         let bonus = rndChoice(bonusPool);
-        fused.stats.push({ id: penalty.id, val: penalty.val });
-        fused.stats.push({ id: bonus.id, val: bonus.val });
+        fused.stats.push(makeFixedJewelStat(penalty.id, penalty.val));
+        fused.stats.push(makeFixedJewelStat(bonus.id, bonus.val));
         fused.name = `증폭 ${fused.name}`;
     }
+    fused.hiddenTier = Math.max(1, ...fused.stats.map(stat => stat.tier || 1));
     game.jewelInventory.push(fused);
     jewelFusionSelection = [];
     addLog(`💠 주얼 융합 성공! [${fused.name}]`, 'loot-unique');
@@ -4447,12 +4639,8 @@ function craftVoidJewel() { if (game.woodsmanBuildLock) return addLog('☠️ �
     if (game.jewelInventory.length < 2) return addLog('공허 주얼 제작에는 주얼 2개가 필요합니다.', 'attack-monster');
     let a = game.jewelInventory.shift();
     let b = game.jewelInventory.shift();
-    let stats = [...getJewelStats(a), ...getJewelStats(b)].slice(0, 4).map(stat => {
-        let scaled = stat.val * 0.85;
-        let val = Number.isInteger(stat.val) ? Math.max(1, Math.floor(scaled)) : Math.max(0.1, Math.round(scaled * 10) / 10);
-        return { id: stat.id, val: val };
-    });
-    let jewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '공허 주얼', rarity: 'magic', isVoid: true, stats: stats, maxLines: 4 };
+    let stats = [...getJewelCoreStats(a), ...getJewelCoreStats(b)].slice(0, 4).map(cloneJewelStat).filter(Boolean);
+    let jewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '공허 주얼', rarity: 'magic', isVoid: true, hiddenTier: Math.max(1, ...stats.map(stat => stat.tier || 1)), stats: stats, maxLines: 4 };
     game.currencies.voidChisel--;
     game.jewelInventory.push(jewel);
     addLog('🕳️ 공허 주얼 제작 완료 (최대 4줄)', 'loot-rare');
@@ -4464,16 +4652,17 @@ function fuseVoidJewel(idxA, idxB) {
     let a = game.jewelInventory[idxA], b = game.jewelInventory[idxB];
     if (!a || !b || idxA === idxB) return;
     if (!(a.isVoid || b.isVoid)) return addLog('공허 주얼 융합은 최소 1개의 공허 주얼이 필요합니다.', 'attack-monster');
-    let stats = [...getJewelStats(a), ...getJewelStats(b)];
+    let stats = [...getJewelCoreStats(a), ...getJewelCoreStats(b)];
     let seen = new Set();
     let merged = [];
     stats.forEach(stat => {
         if (merged.length >= 4) return;
         if (seen.has(stat.id)) return;
         seen.add(stat.id);
-        merged.push({ id: stat.id, val: stat.val });
+        let cloned = cloneJewelStat(stat);
+        if (cloned) merged.push(cloned);
     });
-    let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, stats: merged, maxLines: 4 };
+    let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, hiddenTier: Math.max(1, ...merged.map(stat => stat.tier || 1)), stats: merged, maxLines: 4 };
     let hi = Math.max(idxA, idxB), lo = Math.min(idxA, idxB);
     game.jewelInventory.splice(hi, 1);
     game.jewelInventory.splice(lo, 1);
@@ -4724,13 +4913,114 @@ function bulkSalvageAllInventory() {
 }
 
 function cycleSporeCraftMode(currencyKey) {
-    let allowed = ['transmute','augment','alteration','regal','chaos','exalted'];
+    let allowed = ['transmute','augment','alteration','alchemy','regal','chaos','exalted'];
     if (!allowed.includes(currencyKey)) return;
     game.sporeCraftModes = game.sporeCraftModes || {};
-    let modes = ['none', 'fire', 'cold', 'light', 'chaos', 'damage'];
+    let modes = getAvailableSporeCraftModes();
     let cur = game.sporeCraftModes[currencyKey] || 'none';
-    let next = modes[(modes.indexOf(cur) + 1) % modes.length];
+    let curIndex = modes.indexOf(cur);
+    let next = modes[((curIndex >= 0 ? curIndex : 0) + 1) % modes.length];
     game.sporeCraftModes[currencyKey] = next;
+    updateStaticUI();
+}
+
+
+function getMycologistLevelForCrafting() {
+    return typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
+}
+
+function getAvailableSporeCraftModes() {
+    let mycoLv = getMycologistLevelForCrafting();
+    let modes = ['none', 'fire', 'cold', 'light'];
+    if (mycoLv >= 10) modes.push('chaos', 'damage');
+    return modes;
+}
+
+function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let mycoLv = getMycologistLevelForCrafting();
+    if (mycoLv < 7) return addLog('부패 홀씨는 균사학자 Lv.7에 해금됩니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
+    if (item.corrupted) return addLog('타락한 아이템에는 사용할 수 없습니다.', 'attack-monster');
+    let cost = 8;
+    if ((game.currencies.sporeFire || 0) < cost || (game.currencies.sporeCold || 0) < cost || (game.currencies.sporeLight || 0) < cost) return addLog(`부패 홀씨에는 각 속성 홀씨 ${cost}개가 필요합니다.`, 'attack-monster');
+    let ids = new Set(['firePctDmg','coldPctDmg','lightPctDmg','elementalPctDmg','resF','resC','resL']);
+    item.stats = Array.isArray(item.stats) ? item.stats : [];
+    let candidates = item.stats.map((stat, idx) => ({ stat, idx })).filter(row => row.stat && !row.stat.lockedByHoney && ids.has(row.stat.id));
+    if (candidates.length <= 0) return addLog('제거할 원소 계열 옵션이 없습니다.', 'attack-monster');
+    game.currencies.sporeFire -= cost;
+    game.currencies.sporeCold -= cost;
+    game.currencies.sporeLight -= cost;
+    let pick = rndChoice(candidates);
+    let removed = item.stats.splice(pick.idx, 1)[0];
+    updateItemName(item);
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
+    addLog(`🍄 부패 홀씨 적용: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-rare');
+    updateStaticUI();
+}
+
+function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let mycoLv = getMycologistLevelForCrafting();
+    if (mycoLv < 9) return addLog('균열 홀씨는 균사학자 Lv.9에 해금됩니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
+    if (item.corrupted) return addLog('타락한 아이템에는 사용할 수 없습니다.', 'attack-monster');
+    if ((game.currencies.fossil || 0) < 1 || (game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return addLog('균열 홀씨에는 미궁 화석 1개와 각 속성 홀씨 5개가 필요합니다.', 'attack-monster');
+    item.stats = Array.isArray(item.stats) ? item.stats : [];
+    if (item.stats.length >= 6) return addLog('옵션이 가득 차 있습니다.', 'attack-monster');
+    let pool = typeof getFossilExclusivePool === 'function' ? getFossilExclusivePool(item) : FOSSIL_EXCLUSIVE_MODS.filter(mod => mod.slots.includes(item.slot));
+    if (!pool || pool.length <= 0) return addLog('이 장비 슬롯에 붙일 수 있는 화석 전용 옵션이 없습니다.', 'attack-monster');
+    game.currencies.fossil--;
+    game.currencies.sporeFire -= 5;
+    game.currencies.sporeCold -= 5;
+    game.currencies.sporeLight -= 5;
+    let roll = rollAffixValue(pickWeightedMod(pool), getItemCraftTier(item));
+    roll.fossilExclusiveSpore = true;
+    item.stats.push(roll);
+    item.rarity = item.rarity === 'normal' ? 'magic' : item.rarity;
+    updateItemName(item);
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
+    addLog(`🍄 균열 홀씨 적용: ${roll.statName || getStatName(roll.id)} +${formatValue(roll.id, roll.val)}`, 'loot-unique');
+    updateStaticUI();
+}
+
+function applyBeeswaxToJewel(idx) {
+    let beeLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
+    if (beeLv < 8) return addLog('주얼 밀랍 처리는 양봉업자 Lv.8에 해금됩니다.', 'attack-monster');
+    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
+    let jewel = game.jewelInventory[idx];
+    if (!jewel) return;
+    if (jewel.waxedByBeeswax) return addLog('이미 밀랍 처리된 주얼입니다.', 'attack-monster');
+    if ((game.currencies.beeswax || 0) < 1) return addLog('밀랍이 부족합니다.', 'attack-monster');
+    let stats = getJewelStats(jewel);
+    if (stats.length <= 0) return;
+    game.currencies.beeswax--;
+    let target = stats.slice().sort((a, b) => (Number(a.tier || 1) - Number(b.tier || 1)))[0];
+    target = cloneJewelStat(target);
+    target.petite = true;
+    target.waxBonus = true;
+    target.val = Number((Number(target.val || 0) * 0.35).toFixed(1));
+    target.valMin = target.val;
+    target.valMax = target.val;
+    let maxStats = Math.max(5, stats.length + 1);
+    jewel.stats = stats.concat([target]).slice(0, maxStats);
+    jewel.waxedByBeeswax = true;
+    jewel.name = `밀랍 ${jewel.name}`;
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_resource_use');
+    addLog(`🐝 주얼 밀랍 처리 완료: ${getStatName(target.id)} +${formatJewelStatValue(target.id, target.val)}`, 'loot-rare');
+    updateStaticUI();
+}
+
+function removeBeeswaxFromJewel(idx) {
+    let beeLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
+    if (beeLv < 9) return addLog('밀랍 제거는 양봉업자 Lv.9에 해금됩니다.', 'attack-monster');
+    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
+    let jewel = game.jewelInventory[idx];
+    if (!jewel || !jewel.waxedByBeeswax) return;
+    jewel.stats = getJewelStats(jewel).filter(stat => !stat.waxBonus);
+    jewel.waxedByBeeswax = false;
+    jewel.name = String(jewel.name || '').replace(/^밀랍\s+/, '');
+    addLog('🐝 주얼 밀랍 처리를 제거했습니다.', 'loot-normal');
     updateStaticUI();
 }
 
