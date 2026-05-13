@@ -455,6 +455,116 @@ function generateOrganicTree() {
         if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
         return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
     }
+    const genericPathStats = ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen'];
+    const regionalPathDefenseStats = {
+        templar: ['energyShield', 'energyShieldPct'],
+        witch: ['energyShield', 'energyShieldPct'],
+        shadow: ['evasion', 'evasionPct'],
+        ranger: ['evasion', 'evasionPct'],
+        duelist: ['armor', 'armorPct'],
+        marauder: ['armor', 'armorPct']
+    };
+    const centralCoreSpecs = {
+        templar: [
+            { stat: 'energyShieldPct', title: '성역의 예고', desc: '북서쪽 회랑에는 에너지 보호막과 주문형 생존 노드가 많습니다.' },
+            { stat: 'spellFlatPct', title: '성광의 주문축', desc: '성직자의 회랑은 주문과 보호막 운용으로 이어집니다.' }
+        ],
+        witch: [
+            { stat: 'energyShieldPct', title: '비전의 예고', desc: '북쪽 장막에는 에너지 보호막, 카오스, 치명 주문 노드가 밀집합니다.' },
+            { stat: 'chaosPctDmg', title: '공허의 주문축', desc: '마녀의 장막은 카오스와 지속 피해 빌드로 뻗습니다.' }
+        ],
+        shadow: [
+            { stat: 'evasionPct', title: '암영의 예고', desc: '북동쪽 굴절에는 회피, 치명타, 흡혈 강화 노드가 많습니다.' },
+            { stat: 'crit', title: '급습의 축', desc: '암영 구간은 회피와 치명타, 빠른 타격으로 이어집니다.' }
+        ],
+        ranger: [
+            { stat: 'evasionPct', title: '유격의 예고', desc: '동쪽 길에는 회피와 투사체, 냉기 계열 노드가 많습니다.' },
+            { stat: 'projectilePctDmg', title: '화살비의 축', desc: '유격수 구간은 투사체와 기동 빌드로 뻗습니다.' }
+        ],
+        duelist: [
+            { stat: 'armorPct', title: '결투의 예고', desc: '남동쪽 원에는 방어도, 공격 속도, 흡혈 강화 노드가 많습니다.' },
+            { stat: 'meleePctDmg', title: '쌍검의 축', desc: '결투가 구간은 근접과 연속 타격 빌드로 이어집니다.' }
+        ],
+        marauder: [
+            { stat: 'armorPct', title: '강철의 예고', desc: '남서쪽 틈에는 방어도, 생명력, 물리 강타 노드가 많습니다.' },
+            { stat: 'physPctDmg', title: '대지의 축', desc: '전사 구간은 물리 피해와 강타, 강인함으로 뻗습니다.' }
+        ]
+    };
+    const clusterThemeBySector = {
+        templar: [
+            { stat: 'energyShieldPct', title: '성역 보호막' },
+            { stat: 'spellFlatPct', title: '성광 주문' },
+            { stat: 'aoePctDmg', title: '신성 범위' },
+            { stat: 'resAll', title: '원소 수호' },
+            { stat: 'firePctDmg', title: '정화의 불꽃' }
+        ],
+        witch: [
+            { stat: 'coldPctDmg', title: '서리 비전' },
+            { stat: 'lightPctDmg', title: '번개 비전' },
+            { stat: 'chaosPctDmg', title: '공허 비전' },
+            { stat: 'dotPctDmg', title: '지속 부패' },
+            { stat: 'gemLevel', title: '젬 각성' }
+        ],
+        shadow: [
+            { stat: 'crit', title: '급소 조준' },
+            { stat: 'critDmg', title: '치명 배율' },
+            { stat: 'leechRateCap', title: '흡혈 가속' },
+            { stat: 'chaosPctDmg', title: '독성 그림자' },
+            { stat: 'evasionPct', title: '그림자 회피' }
+        ],
+        ranger: [
+            { stat: 'projectilePctDmg', title: '투사체 숙련' },
+            { stat: 'projectileExtraShots', title: '추가 발사' },
+            { stat: 'coldPctDmg', title: '냉기 사격' },
+            { stat: 'evasionPct', title: '바람 회피' },
+            { stat: 'resC', title: '냉기 저항' }
+        ],
+        duelist: [
+            { stat: 'meleePctDmg', title: '근접 결투' },
+            { stat: 'ds', title: '연속 타격' },
+            { stat: 'leechInstanceCap', title: '깊은 흡혈' },
+            { stat: 'aspd', title: '쌍검 속도' },
+            { stat: 'physPctDmg', title: '정밀 물리' }
+        ],
+        marauder: [
+            { stat: 'physPctDmg', title: '물리 파쇄' },
+            { stat: 'slamPctDmg', title: '강타 충격' },
+            { stat: 'armorPct', title: '철갑 강화' },
+            { stat: 'pctHp', title: '거인의 생명' },
+            { stat: 'leechTotalCap', title: '피의 저수지' }
+        ]
+    };
+    function getGenericPathStat(theme, depth, lane, sectorIndex) {
+        let pool = genericPathStats.slice();
+        let defenses = regionalPathDefenseStats[theme] || [];
+        if (defenses.length > 0 && depth >= 3 && ((depth + Math.abs(lane) + sectorIndex) % 3 === 0)) pool = pool.concat(defenses);
+        let stat = pool[Math.abs(depth * 5 + lane * 7 + sectorIndex * 11) % pool.length];
+        return P_STATS[stat] ? stat : 'flatHp';
+    }
+    function specializePathNode(node, theme, depth, lane, sectorIndex, shape) {
+        if (!node || !shape) return;
+        if (shape.kind === 'core') {
+            let specs = centralCoreSpecs[theme] || [];
+            let spec = specs[(Math.abs(lane) + sectorIndex) % specs.length];
+            if (spec && P_STATS[spec.stat]) {
+                node.stat = spec.stat;
+                node.val = getTierValue(node.stat, node.tier);
+                node.title = spec.title;
+                node.desc = spec.desc;
+            }
+            return;
+        }
+        if (['path', 'major', 'keystone', 'hub'].includes(shape.kind)) {
+            let stat = getGenericPathStat(theme, depth, lane, sectorIndex);
+            node.stat = stat;
+            node.val = getTierValue(stat, node.tier);
+            if (shape.kind === 'major' || shape.kind === 'keystone') node.val = Math.max(node.val, getTierValue(stat, 2));
+            if (shape.kind === 'hub') {
+                node.title = '별쐐기 허브';
+                node.desc = '별쐐기를 박기 좋은 길목입니다. 주변의 전문 노드 뭉치와 범용 경로를 함께 조율합니다.';
+            }
+        }
+    }
     function addNode(x, y, tier, themeOrStat, meta) {
         if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) return null;
         let statKey = P_STATS[themeOrStat] ? themeOrStat : pickValidStat(themeOrStat, tier, nId + ((meta && meta.depth) || 0) * 7 + ((meta && meta.lane) || 0) * 13);
@@ -467,6 +577,8 @@ function generateOrganicTree() {
             stat: statKey,
             val: getTierValue(statKey, tier),
             depth: Infinity,
+            layoutDepth: meta && Number.isFinite(meta.depth) ? meta.depth : null,
+            lane: meta && Number.isFinite(meta.lane) ? meta.lane : null,
             sector: meta && meta.sector ? meta.sector : null,
             kind: meta && meta.kind ? meta.kind : 'node'
         };
@@ -513,6 +625,7 @@ function generateOrganicTree() {
             if (need <= 0) return;
             let candidates = Object.values(PASSIVE_TREE.nodes)
                 .filter(node => node && node.id !== hub.id)
+                .filter(node => !node.clusterId)
                 .filter(node => node.kind !== 'apex')
                 .filter(node => !linked.has(node.id))
                 .sort((a, b) => {
@@ -530,7 +643,7 @@ function generateOrganicTree() {
 
     // 시계방향 구간 배치:
     // 10시~2시: 에너지 보호막, 2시~6시: 회피, 6시~10시: 방어도
-    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'marauder', 'templar'];
+    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'marauder', 'marauder'];
     const sectorCount = sectorThemes.length;
     const lanes = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
     const maxDepth = 13;
@@ -568,14 +681,9 @@ function generateOrganicTree() {
                 let shape = classifyNode(depth, lane);
                 let node = addNode(x, y, shape.tier, theme, { sector: theme, kind: shape.kind, depth: depth, lane: lane });
                 if (!node) break;
+                specializePathNode(node, theme, depth, lane, s, shape);
                 if (shape.kind === 'deadend') {
                     node.val = Math.max(node.val, Math.round(getTierValue(node.stat, 3) * 1.45));
-                } else if (shape.kind === 'core') {
-                    let uniqueCoreStats = PASSIVE_CORE_GENERIC_STATS
-                        .filter(stat => P_STATS[stat] && (P_STATS[stat].tiers || []).includes(shape.tier));
-                    if (uniqueCoreStats.length === 0) uniqueCoreStats = ['flatHp'];
-                    node.stat = uniqueCoreStats[(s + laneAbs + depth) % uniqueCoreStats.length];
-                    node.val = getTierValue(node.stat, shape.tier);
                 }
                 laneNodes[s][lane].push(node);
 
@@ -603,6 +711,92 @@ function generateOrganicTree() {
         }
     }
 
+    function getClusterSide(anchor, clusterIndex) {
+        if (anchor && Number.isFinite(anchor.lane) && anchor.lane !== 0) return Math.sign(anchor.lane);
+        return clusterIndex % 2 === 0 ? 1 : -1;
+    }
+    function getClusterNodePosition(anchor, clusterIndex, step, chainLength) {
+        let radialLen = Math.hypot(anchor.x, anchor.y) || 1;
+        let radialX = anchor.x / radialLen;
+        let radialY = anchor.y / radialLen;
+        let tangentX = -radialY;
+        let tangentY = radialX;
+        let side = getClusterSide(anchor, clusterIndex);
+        let t = step / Math.max(1, chainLength);
+        let radialOffset = 46 + step * 58 + Math.sin(t * Math.PI) * 18;
+        let tangentOffset = side * (34 + step * 30 + Math.sin(t * Math.PI) * 28);
+        return {
+            x: anchor.x + radialX * radialOffset + tangentX * tangentOffset,
+            y: anchor.y + radialY * radialOffset + tangentY * tangentOffset
+        };
+    }
+    function realignSpecializedClusters(clusterAnchorsById) {
+        let clusterNodes = Object.values(PASSIVE_TREE.nodes)
+            .filter(node => node && node.clusterId && Number.isFinite(node.clusterStep))
+            .sort((a, b) => {
+                let clusterDelta = String(a.clusterId).localeCompare(String(b.clusterId));
+                if (clusterDelta !== 0) return clusterDelta;
+                return (a.clusterStep || 0) - (b.clusterStep || 0);
+            });
+        clusterNodes.forEach(node => {
+            let anchor = clusterAnchorsById[node.clusterAnchorId];
+            if (!anchor) return;
+            let pos = getClusterNodePosition(anchor, node.clusterIndex || 0, node.clusterStep || 1, node.clusterLength || 4);
+            node.x = pos.x;
+            node.y = pos.y;
+        });
+    }
+    function buildSpecializedCluster(anchor, theme, sectorIndex, clusterIndex, clusterAnchorsById) {
+        if (!anchor) return;
+        let themes = clusterThemeBySector[theme] || clusterThemeBySector.templar;
+        let themeSpec = themes[clusterIndex % themes.length];
+        if (!themeSpec || !P_STATS[themeSpec.stat]) return;
+        let chainLength = clusterIndex % 2 === 0 ? 5 : 4;
+        let clusterId = `${theme}_${sectorIndex}_${clusterIndex}`;
+        clusterAnchorsById[clusterId] = anchor;
+        let prev = anchor;
+        for (let i = 1; i <= chainLength; i++) {
+            let isEnd = i === chainLength;
+            let pos = getClusterNodePosition(anchor, clusterIndex, i, chainLength);
+            let tier = isEnd ? 3 : (i >= chainLength - 1 ? 2 : 1);
+            let kind = isEnd ? 'keystone' : (i >= chainLength - 1 ? 'major' : 'node');
+            let node = addNode(pos.x / PASSIVE_WORLD_SCALE, pos.y / PASSIVE_WORLD_SCALE, tier, themeSpec.stat, { sector: theme, kind: kind, depth: (anchor.layoutDepth || 0) + i, lane: anchor.lane });
+            if (!node) return;
+            node.clusterId = clusterId;
+            node.clusterAnchorId = clusterId;
+            node.clusterIndex = clusterIndex;
+            node.clusterStep = i;
+            node.clusterLength = chainLength;
+            node.clusterTheme = themeSpec.title;
+            node.val = getTierValue(themeSpec.stat, tier);
+            if (isEnd) {
+                node.title = `${themeSpec.title} 핵심`;
+                node.desc = `${PASSIVE_SECTOR_TITLES[theme] || '성좌'}에서 갈라진 전문 노드 뭉치의 끝입니다.`;
+            } else if (i === 1) {
+                node.title = `${themeSpec.title} 길목`;
+                node.desc = '범용 경로에서 갈라져 한 가지 빌드 스탯에 집중하는 전문 노드입니다.';
+            }
+            connect(prev.id, node.id);
+            prev = node;
+        }
+    }
+
+    const clusterAnchors = [
+        { depth: 3, lane: -4 },
+        { depth: 5, lane: -2 },
+        { depth: 7, lane: 2 },
+        { depth: 9, lane: 4 },
+        { depth: 11, lane: -3 }
+    ];
+    let clusterAnchorsById = {};
+    for (let s = 0; s < sectorCount; s++) {
+        let theme = sectorThemes[s];
+        clusterAnchors.forEach((spec, index) => {
+            let anchor = laneNodes[s] && laneNodes[s][spec.lane] ? laneNodes[s][spec.lane][spec.depth - 1] : null;
+            buildSpecializedCluster(anchor, theme, s, index, clusterAnchorsById);
+        });
+    }
+
     for (let s = 0; s < sectorCount; s++) {
         let next = (s + 1) % sectorCount;
         for (let depth = 5; depth <= maxDepth; depth += 4) {
@@ -613,7 +807,9 @@ function generateOrganicTree() {
     }
 
     let baseOuterRadius = Object.values(PASSIVE_TREE.nodes).reduce((max, node) => Math.max(max, Math.hypot(node.x, node.y)), 0);
-    let outerAnchors = Object.values(PASSIVE_TREE.nodes).filter(node => Math.hypot(node.x, node.y) >= baseOuterRadius - 240);
+    let outerAnchors = Object.values(PASSIVE_TREE.nodes)
+        .filter(node => !node.clusterId)
+        .filter(node => Math.hypot(node.x, node.y) >= baseOuterRadius - 240);
     PASSIVE_APEX_CONFIGS.forEach((config, index) => {
         let angle = -Math.PI / 2 + (index / PASSIVE_APEX_CONFIGS.length) * Math.PI * 2;
         let apexRadius = baseOuterRadius + 210;
@@ -716,6 +912,8 @@ function generateOrganicTree() {
         }
     }
 
+    realignSpecializedClusters(clusterAnchorsById);
+
     let nodes = Object.values(PASSIVE_TREE.nodes);
     PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
     PASSIVE_BOUNDS.maxX = Math.max(...nodes.map(node => node.x));
@@ -770,6 +968,7 @@ function applyPassiveSpecializations() {
     PASSIVE_SPECIAL_NODE_CONFIGS.forEach(config => {
         let candidates = Object.values(PASSIVE_TREE.nodes)
             .filter(node => node && node.sector === config.sector)
+            .filter(node => !node.clusterId)
             .filter(node => (config.kinds || []).includes(node.kind))
             .filter(node => node.id !== 'n0' && !used.has(node.id));
         candidates.sort((a, b) => {
@@ -874,7 +1073,7 @@ function assignStarWedgeSockets() {
     let st = (game && game.starWedge) || {};
     let unlocked = !!st.unlocked;
     let hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'hub');
-    let minHubDistance = 2;
+    let minHubDistance = 6;
     let edgeMap = {};
     (PASSIVE_TREE.edges || []).forEach(edge => {
         edgeMap[edge.from] = edgeMap[edge.from] || [];
