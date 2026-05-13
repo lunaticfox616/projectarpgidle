@@ -706,17 +706,11 @@ function toggleSeasonBossRepeat() {
 function renderStarWedgePanel() {
     let panel = document.getElementById('ui-star-wedge-panel');
     if (!panel) return;
-    let unlocked = !!game.conditionGemUnlocked;
-    let owned = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
-    let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
-    if (!unlocked) {
-        panel.innerHTML = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프2 뿌리 보스를 처음 처치하면 컨디션 젬이 해금됩니다.</div>`;
-        return;
-    }
     let st = ensureStarWedgeState();
     tryUnlockMeteorContentByProgress();
+    st = ensureStarWedgeState();
     if (!st.unlocked) {
-        panel.innerHTML = `<div style="color:#7f89a0;">루프 ${STAR_WEDGE_UNLOCK_LOOP} + 액트 ${STAR_WEDGE_UNLOCK_ACT} 이후 해금됩니다.</div>`;
+        panel.innerHTML = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프 ${STAR_WEDGE_UNLOCK_LOOP}에서 액트 ${STAR_WEDGE_UNLOCK_ACT} 이후에 도달하면 별쐐기와 운석 낙하 지점이 해금됩니다.</div>`;
         return;
     }
     let astronomerLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
