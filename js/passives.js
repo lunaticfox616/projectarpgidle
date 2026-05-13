@@ -455,6 +455,125 @@ function generateOrganicTree() {
         if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
         return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
     }
+    const genericPathStats = ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen'];
+    const regionalPathDefenseStats = {
+        templar: ['energyShield', 'energyShieldPct'],
+        witch: ['energyShield', 'energyShieldPct'],
+        shadow: ['evasion', 'evasionPct'],
+        ranger: ['evasion', 'evasionPct'],
+        duelist: ['armor', 'armorPct'],
+        marauder: ['armor', 'armorPct']
+    };
+    const centralCoreSpecs = {
+        templar: [
+            { stat: 'energyShieldPct', title: '성역의 예고', desc: '보호막과 주문 생존으로 이어집니다.' },
+            { stat: 'spellFlatPct', title: '성광의 주문축', desc: '주문과 보호막 운용으로 뻗습니다.' }
+        ],
+        witch: [
+            { stat: 'energyShieldPct', title: '비전의 예고', desc: '보호막과 치명 주문으로 이어집니다.' },
+            { stat: 'chaosPctDmg', title: '공허의 주문축', desc: '카오스와 지속 피해로 뻗습니다.' }
+        ],
+        shadow: [
+            { stat: 'evasionPct', title: '암영의 예고', desc: '회피와 치명타로 이어집니다.' },
+            { stat: 'crit', title: '급습의 축', desc: '치명타와 빠른 타격으로 뻗습니다.' }
+        ],
+        ranger: [
+            { stat: 'evasionPct', title: '유격의 예고', desc: '회피와 투사체로 이어집니다.' },
+            { stat: 'projectilePctDmg', title: '화살비의 축', desc: '투사체와 기동 빌드로 뻗습니다.' }
+        ],
+        duelist: [
+            { stat: 'armorPct', title: '결투의 예고', desc: '방어도와 연속 전투로 이어집니다.' },
+            { stat: 'meleePctDmg', title: '쌍검의 축', desc: '근접과 연속 타격으로 뻗습니다.' }
+        ],
+        marauder: [
+            { stat: 'armorPct', title: '강철의 예고', desc: '방어도와 생명력으로 이어집니다.' },
+            { stat: 'physPctDmg', title: '대지의 축', desc: '물리 피해와 강타로 뻗습니다.' }
+        ]
+    };
+    const clusterThemeBySector = {
+        templar: [
+            { stat: 'energyShieldPct', title: '성역 보호막' },
+            { stat: 'spellFlatPct', title: '성광 주문' },
+            { stat: 'aoePctDmg', title: '신성 범위' },
+            { stat: 'resAll', title: '원소 수호' },
+            { stat: 'firePctDmg', title: '정화의 불꽃' }
+        ],
+        witch: [
+            { stat: 'coldPctDmg', title: '서리 비전' },
+            { stat: 'lightPctDmg', title: '번개 비전' },
+            { stat: 'chaosPctDmg', title: '공허 비전' },
+            { stat: 'dotPctDmg', title: '지속 부패' },
+            { stat: 'gemLevel', title: '젬 각성' }
+        ],
+        shadow: [
+            { stat: 'crit', title: '급소 조준' },
+            { stat: 'critDmg', title: '치명 배율' },
+            { stat: 'leechRateCap', title: '흡혈 가속' },
+            { stat: 'chaosPctDmg', title: '독성 그림자' },
+            { stat: 'evasionPct', title: '그림자 회피' }
+        ],
+        ranger: [
+            { stat: 'projectilePctDmg', title: '투사체 숙련' },
+            { stat: 'projectileExtraShots', title: '추가 발사' },
+            { stat: 'coldPctDmg', title: '냉기 사격' },
+            { stat: 'evasionPct', title: '바람 회피' },
+            { stat: 'resC', title: '냉기 저항' }
+        ],
+        duelist: [
+            { stat: 'meleePctDmg', title: '근접 결투' },
+            { stat: 'ds', title: '연속 타격' },
+            { stat: 'leechInstanceCap', title: '깊은 흡혈' },
+            { stat: 'aspd', title: '쌍검 속도' },
+            { stat: 'physPctDmg', title: '정밀 물리' }
+        ],
+        marauder: [
+            { stat: 'physPctDmg', title: '물리 파쇄' },
+            { stat: 'slamPctDmg', title: '강타 충격' },
+            { stat: 'armorPct', title: '철갑 강화' },
+            { stat: 'pctHp', title: '거인의 생명' },
+            { stat: 'leechTotalCap', title: '피의 저수지' }
+        ]
+    };
+    function getGenericPathStat(theme, depth, lane, sectorIndex) {
+        let pathCycle = genericPathStats;
+        let defenseCycle = regionalPathDefenseStats[theme] || [];
+        let laneAbs = Math.abs(lane);
+        let isRegionalDefenseStep = defenseCycle.length > 0 && depth >= 4 && depth % 4 === 0 && laneAbs >= 1;
+        if (isRegionalDefenseStep) {
+            let defenseStat = defenseCycle[(depth / 4 + laneAbs + sectorIndex) % defenseCycle.length];
+            if (P_STATS[defenseStat]) return defenseStat;
+        }
+        let stat = pathCycle[(depth + laneAbs * 2 + sectorIndex) % pathCycle.length];
+        return P_STATS[stat] ? stat : 'flatHp';
+    }
+    function getCoreDirectionLabel(sectorIndex) {
+        const labels = ['북쪽', '북동쪽', '동쪽', '남동쪽', '남쪽', '남서쪽', '서쪽', '북서쪽'];
+        return labels[((sectorIndex % labels.length) + labels.length) % labels.length] || '중앙';
+    }
+    function specializePathNode(node, theme, depth, lane, sectorIndex, shape) {
+        if (!node || !shape) return;
+        if (shape.kind === 'core') {
+            let specs = centralCoreSpecs[theme] || [];
+            let spec = specs[(Math.abs(lane) + sectorIndex) % specs.length];
+            if (spec && P_STATS[spec.stat]) {
+                node.stat = spec.stat;
+                node.val = getTierValue(node.stat, node.tier);
+                node.title = spec.title;
+                node.desc = `${getCoreDirectionLabel(sectorIndex)} 시작축: ${spec.desc}`;
+            }
+            return;
+        }
+        if (['path', 'major', 'keystone', 'hub'].includes(shape.kind)) {
+            let stat = getGenericPathStat(theme, depth, lane, sectorIndex);
+            node.stat = stat;
+            node.val = getTierValue(stat, node.tier);
+            if (shape.kind === 'major' || shape.kind === 'keystone') node.val = Math.max(node.val, getTierValue(stat, 2));
+            if (shape.kind === 'hub') {
+                node.title = '별쐐기 허브';
+                node.desc = '별쐐기를 박기 좋은 길목입니다. 주변의 전문 노드 뭉치와 범용 경로를 함께 조율합니다.';
+            }
+        }
+    }
     function addNode(x, y, tier, themeOrStat, meta) {
         if (Object.keys(PASSIVE_TREE.nodes).length >= PASSIVE_TARGET_NODES) return null;
         let statKey = P_STATS[themeOrStat] ? themeOrStat : pickValidStat(themeOrStat, tier, nId + ((meta && meta.depth) || 0) * 7 + ((meta && meta.lane) || 0) * 13);
@@ -467,6 +586,8 @@ function generateOrganicTree() {
             stat: statKey,
             val: getTierValue(statKey, tier),
             depth: Infinity,
+            layoutDepth: meta && Number.isFinite(meta.depth) ? meta.depth : null,
+            lane: meta && Number.isFinite(meta.lane) ? meta.lane : null,
             sector: meta && meta.sector ? meta.sector : null,
             kind: meta && meta.kind ? meta.kind : 'node'
         };
@@ -513,6 +634,7 @@ function generateOrganicTree() {
             if (need <= 0) return;
             let candidates = Object.values(PASSIVE_TREE.nodes)
                 .filter(node => node && node.id !== hub.id)
+                .filter(node => !node.clusterId)
                 .filter(node => node.kind !== 'apex')
                 .filter(node => !linked.has(node.id))
                 .sort((a, b) => {
@@ -528,92 +650,248 @@ function generateOrganicTree() {
     }
 
 
-    // 시계방향 구간 배치:
-    // 10시~2시: 에너지 보호막, 2시~6시: 회피, 6시~10시: 방어도
-    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'marauder', 'templar'];
+    // 거미줄형 기본 경로: 방사형 살(spoke) + 나이테형 고리(ring)를 먼저 만든다.
+    // 8방향의 큰 정체성은 유지하되 각 방향 사이에 중간 경로 노드를 추가해 최외곽까지 등고선처럼 연결한다.
+    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'marauder', 'marauder'];
     const sectorCount = sectorThemes.length;
-    const lanes = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
-    const maxDepth = 13;
+    const spokesPerSector = 2;
+    const webSpokeCount = sectorCount * spokesPerSector;
+    const maxDepth = 12;
+    const innerRadius = 285;
+    const ringSpacing = 142;
+    const webYScale = 1;
+    const angleStep = Math.PI * 2 / webSpokeCount;
 
     let root = addNode(0, 0, 0, 'flatHp', { sector: 'center', kind: 'root', depth: 0, lane: 0 });
-    let laneNodes = {};
+    let webNodes = {};
 
-    function classifyNode(depth, lane) {
-        let laneAbs = Math.abs(lane);
-        if (depth === 1 && laneAbs <= 1) return { tier: 2, kind: 'core' };
-        if (depth === 6 && lane === 0) return { tier: 2, kind: 'hub' };
-        if (depth === maxDepth && laneAbs === 3) return { tier: 2, kind: 'hub' };
-        if (laneAbs === 3 && depth > 6 && depth < maxDepth) return { tier: 1, kind: 'path' };
-        if (laneAbs === 4 && depth >= maxDepth - 1) return { tier: depth === maxDepth ? 2 : 1, kind: depth === maxDepth ? 'major' : 'path' };
-        if (depth === maxDepth && laneAbs <= 1) return { tier: 3, kind: 'keystone' };
-        if (depth % 4 === 0 || (depth >= maxDepth - 2 && laneAbs <= 2)) return { tier: 2, kind: 'major' };
-        return { tier: 1, kind: 'path' };
+    function getWebSectorIndex(spoke) {
+        return Math.floor(((spoke % webSpokeCount) + webSpokeCount) % webSpokeCount / spokesPerSector) % sectorCount;
     }
-
-    for (let s = 0; s < sectorCount; s++) {
-        let baseAngle = -Math.PI / 2 + (s / sectorCount) * Math.PI * 2;
-        let theme = sectorThemes[s];
-        laneNodes[s] = {};
-
-        lanes.forEach(lane => {
-            laneNodes[s][lane] = [];
-            let prev = null;
+    function getWebTheme(spoke) {
+        return sectorThemes[getWebSectorIndex(spoke)];
+    }
+    function getWebLane(spoke) {
+        return (spoke % spokesPerSector) === 0 ? 0 : 1;
+    }
+    function getWebAngle(spoke) {
+        return -Math.PI / 2 + spoke * angleStep;
+    }
+    function getWebRadius(depth) {
+        return innerRadius + (depth - 1) * ringSpacing;
+    }
+    function getWebPoint(spoke, depth, angleShift, radiusShift) {
+        let angle = getWebAngle(spoke) + (angleShift || 0);
+        let radius = getWebRadius(depth) + (radiusShift || 0);
+        return {
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius * webYScale
+        };
+    }
+    function realignWebPathNodes() {
+        for (let spoke = 0; spoke < webSpokeCount; spoke++) {
             for (let depth = 1; depth <= maxDepth; depth++) {
-                let laneAbs = Math.abs(lane);
-                let radius = 164 + depth * 118 + laneAbs * 44;
-                let angleDrift = lane * 0.104 + depth * lane * 0.006 + Math.sin((depth + s) * 0.45) * 0.018;
-                let angle = baseAngle + angleDrift;
-                let x = Math.cos(angle) * radius;
-                let y = Math.sin(angle) * radius * 0.93;
-                let shape = classifyNode(depth, lane);
-                let node = addNode(x, y, shape.tier, theme, { sector: theme, kind: shape.kind, depth: depth, lane: lane });
-                if (!node) break;
-                if (shape.kind === 'deadend') {
-                    node.val = Math.max(node.val, Math.round(getTierValue(node.stat, 3) * 1.45));
-                } else if (shape.kind === 'core') {
-                    let uniqueCoreStats = PASSIVE_CORE_GENERIC_STATS
-                        .filter(stat => P_STATS[stat] && (P_STATS[stat].tiers || []).includes(shape.tier));
-                    if (uniqueCoreStats.length === 0) uniqueCoreStats = ['flatHp'];
-                    node.stat = uniqueCoreStats[(s + laneAbs + depth) % uniqueCoreStats.length];
-                    node.val = getTierValue(node.stat, shape.tier);
-                }
-                laneNodes[s][lane].push(node);
-
-                if (depth === 1 && lane === 0) connect(root.id, node.id);
-                else if (prev) connect(prev.id, node.id);
-                prev = node;
-            }
-        });
-
-        for (let depth = 1; depth <= maxDepth; depth++) {
-            for (let i = 0; i < lanes.length - 1; i++) {
-                let laneA = lanes[i];
-                let laneB = lanes[i + 1];
-                let edgeOuter = Math.max(Math.abs(laneA), Math.abs(laneB));
-                let shouldConnect = false;
-                if (depth <= 2 && edgeOuter <= 1) shouldConnect = true;
-                else if (depth % 3 === 0 && edgeOuter <= 2) shouldConnect = true;
-                else if (depth >= maxDepth - 1 && edgeOuter <= 3) shouldConnect = true;
-                else if (depth === maxDepth && edgeOuter === 4) shouldConnect = true;
-                if (!shouldConnect) continue;
-                let a = laneNodes[s][laneA][depth - 1];
-                let b = laneNodes[s][laneB][depth - 1];
-                if (a && b) connect(a.id, b.id);
+                let node = webNodes[spoke] && webNodes[spoke][depth - 1];
+                if (!node) continue;
+                let point = getWebPoint(spoke, depth, 0, 0);
+                node.x = point.x * PASSIVE_WORLD_SCALE;
+                node.y = point.y * PASSIVE_WORLD_SCALE;
             }
         }
     }
+    function classifyWebNode(depth, spoke) {
+        let lane = getWebLane(spoke);
+        let isPrimarySpoke = lane === 0;
+        if (depth === 1 && isPrimarySpoke) return { tier: 2, kind: 'core' };
+        if ((depth === 4 && lane === 1) || (depth === 7 && lane === 1) || (depth === 10 && lane === 0)) return { tier: 2, kind: 'hub' };
+        if (depth === maxDepth && isPrimarySpoke) return { tier: 3, kind: 'keystone' };
+        if (depth === maxDepth || depth % 3 === 0) return { tier: 2, kind: 'major' };
+        return { tier: 1, kind: 'path' };
+    }
 
-    for (let s = 0; s < sectorCount; s++) {
-        let next = (s + 1) % sectorCount;
-        for (let depth = 5; depth <= maxDepth; depth += 4) {
-            let a = laneNodes[s][0][depth - 1];
-            let b = laneNodes[next][0][depth - 1];
+    for (let spoke = 0; spoke < webSpokeCount; spoke++) {
+        let theme = getWebTheme(spoke);
+        let lane = getWebLane(spoke);
+        webNodes[spoke] = [];
+        let prev = null;
+        for (let depth = 1; depth <= maxDepth; depth++) {
+            let point = getWebPoint(spoke, depth, 0, 0);
+            let shape = classifyWebNode(depth, spoke);
+            let node = addNode(point.x, point.y, shape.tier, theme, { sector: theme, kind: shape.kind, depth: depth, lane: lane });
+            if (!node) break;
+            node.webSpoke = spoke;
+            node.webRing = depth;
+            specializePathNode(node, theme, depth, lane, getWebSectorIndex(spoke), shape);
+            webNodes[spoke][depth - 1] = node;
+            if (prev) connect(prev.id, node.id);
+            if (depth === 1 && lane === 0 && root) connect(root.id, node.id);
+            prev = node;
+        }
+    }
+
+    for (let depth = 1; depth <= maxDepth; depth++) {
+        for (let spoke = 0; spoke < webSpokeCount; spoke++) {
+            let a = webNodes[spoke] && webNodes[spoke][depth - 1];
+            let b = webNodes[(spoke + 1) % webSpokeCount] && webNodes[(spoke + 1) % webSpokeCount][depth - 1];
             if (a && b) connect(a.id, b.id);
         }
     }
 
-    let baseOuterRadius = Object.values(PASSIVE_TREE.nodes).reduce((max, node) => Math.max(max, Math.hypot(node.x, node.y)), 0);
-    let outerAnchors = Object.values(PASSIVE_TREE.nodes).filter(node => Math.hypot(node.x, node.y) >= baseOuterRadius - 240);
+    const webCellClusterBlueprints = [
+        { role: 'defense', label: '방어', length: 4, spread: 0.34 },
+        { role: 'offense', label: '화력', length: 5, spread: 0.42 },
+        { role: 'utility', label: '운용', length: 4, spread: 0.50 },
+        { role: 'mastery', label: '숙련', length: 5, spread: 0.58 },
+        { role: 'survival', label: '생존', length: 4, spread: 0.38 }
+    ];
+
+    function getWebCellClusterPoint(cell, step, chainLength) {
+        let t = step / Math.max(1, chainLength + 1);
+        let bendDir = cell.bendDir || 1;
+        let bow = Math.sin(t * Math.PI) * (cell.blueprint.spread || 0.4);
+        let curve = Math.sin(t * Math.PI * 1.35) * 0.07 * bendDir;
+        let radiusCurve = Math.sin(t * Math.PI * 2) * 0.05 * bendDir;
+        let angleRatio = 0.12 + t * 0.44 + bow * 0.08 + curve;
+        let radiusRatio = 0.10 + t * 0.56 + radiusCurve;
+        let angle = cell.angle + angleStep * Math.max(0.10, Math.min(0.72, angleRatio));
+        let radius = (cell.innerRadius + ringSpacing * Math.max(0.08, Math.min(0.72, radiusRatio))) * PASSIVE_WORLD_SCALE;
+        return {
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius * webYScale
+        };
+    }
+    function realignSpecializedClusters(clusterCellsById) {
+        let clusterNodes = Object.values(PASSIVE_TREE.nodes)
+            .filter(node => node && node.clusterId && Number.isFinite(node.clusterStep))
+            .sort((a, b) => {
+                let clusterDelta = String(a.clusterId).localeCompare(String(b.clusterId));
+                if (clusterDelta !== 0) return clusterDelta;
+                return (a.clusterStep || 0) - (b.clusterStep || 0);
+            });
+        clusterNodes.forEach(node => {
+            let cell = clusterCellsById[node.clusterAnchorId];
+            if (!cell) return;
+            let pos = getWebCellClusterPoint(cell, node.clusterStep || 1, node.clusterLength || 4);
+            node.x = pos.x;
+            node.y = pos.y;
+        });
+    }
+    const tagGemClusterSpecs = [
+        { stat: 'firePctDmg', endStat: 'fireGemLevel', title: '화염 젬 단련', length: 5 },
+        { stat: 'coldPctDmg', endStat: 'coldGemLevel', title: '냉기 젬 단련', length: 5 },
+        { stat: 'lightPctDmg', endStat: 'lightGemLevel', title: '번개 젬 단련', length: 5 },
+        { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 젬 단련', length: 5 },
+        { stat: 'physPctDmg', endStat: 'physGemLevel', title: '물리 젬 단련', length: 5 },
+        { stat: 'projectilePctDmg', endStat: 'projectileGemLevel', title: '투사체 젬 단련', length: 5 },
+        { stat: 'meleePctDmg', endStat: 'meleeGemLevel', title: '근접 젬 단련', length: 5 },
+        { stat: 'slamPctDmg', endStat: 'slamGemLevel', title: '강타 젬 단련', length: 5 },
+        { stat: 'spellFlatPct', endStat: 'spellGemLevel', title: '주문 젬 단련', length: 5 },
+        { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 젬 단련', length: 5 },
+        { stat: 'aoePctDmg', endStat: 'aoeGemLevel', title: '범위 젬 단련', length: 5 },
+        { stat: 'elementalPctDmg', endStat: 'elementalGemLevel', title: '원소 젬 단련', length: 5 }
+    ];
+    function getTagGemClusterSpec(spoke, depth) {
+        return tagGemClusterSpecs[(spoke * 5 + depth * 3) % tagGemClusterSpecs.length];
+    }
+    let retainedGlobalGemLevelCluster = false;
+    function getCompositeClusterSpec(spoke, depth) {
+        if (spoke === 4) return { stat: 'moveEvasion', title: '질풍 회피', length: 4 };
+        if (spoke === 8) return { stat: 'hpArmor', title: '거석 생명', length: 4 };
+        if (spoke === 12) return { stat: 'slamPctDmg', endStat: 'slamEchoChance', title: '대지 여진', length: 5 };
+        if (spoke === 0) return { stat: 'energyShieldPct', endStat: 'energyShieldRegen', title: '보호막 순환', length: 4 };
+        const rotating = [
+            { stat: 'critDmg', title: '치명 배율', length: 4 },
+            { stat: 'ds', title: '연속 타격', length: 4 },
+            { stat: 'maxDmgRoll', title: '상한 보정', length: 4 },
+            { stat: 'pctDmg', endStat: 'suppCap', title: '보조 젬 연결', length: 4 },
+            { stat: 'chaosResElemPenalty', title: '혼돈 절연', length: 4 },
+            { stat: 'resF', endStat: 'maxResF', title: '화염 최대 저항', length: 4 },
+            { stat: 'resC', endStat: 'maxResC', title: '냉기 최대 저항', length: 4 },
+            { stat: 'resL', endStat: 'maxResL', title: '번개 최대 저항', length: 4 },
+            { stat: 'aspdMove', title: '쌍속 기동', length: 4 }
+        ];
+        return rotating[(spoke * 3 + depth) % rotating.length];
+    }
+    function getClusterStatForStep(spec, isEnd) {
+        return isEnd && spec.endStat ? spec.endStat : spec.stat;
+    }
+    function getFinalClusterSpec(themeSpec, spoke, depth, theme) {
+        if (themeSpec.stat === 'gemLevel') {
+            if (!retainedGlobalGemLevelCluster && depth >= maxDepth - 1) {
+                retainedGlobalGemLevelCluster = true;
+                return { stat: 'spellFlatPct', endStat: 'gemLevel', title: '외곽 젬 각성', length: 5 };
+            }
+            return getTagGemClusterSpec(spoke, depth);
+        }
+        if (depth === 6 && spoke === 1) return tagGemClusterSpecs[11];
+        if (depth >= 6 && ((spoke + depth) % 9 === 0)) return getTagGemClusterSpec(spoke, depth);
+        let composite = getCompositeClusterSpec(spoke, depth);
+        if (composite && P_STATS[composite.stat] && (!composite.endStat || P_STATS[composite.endStat])) return composite;
+        return { stat: themeSpec.stat, title: themeSpec.title, length: null };
+    }
+    function buildWebCellCluster(anchor, spoke, depth, clusterCellsById) {
+        if (!anchor) return;
+        let theme = getWebTheme(spoke);
+        let themes = clusterThemeBySector[theme] || clusterThemeBySector.templar;
+        let blueprint = webCellClusterBlueprints[(depth + spoke) % webCellClusterBlueprints.length];
+        let themeSpec = themes[(depth * 2 + spoke) % themes.length];
+        if (!blueprint || !themeSpec || !P_STATS[themeSpec.stat]) return;
+        themeSpec = getFinalClusterSpec(themeSpec, spoke, depth, theme);
+        if (!themeSpec || !P_STATS[themeSpec.stat] || (themeSpec.endStat && !P_STATS[themeSpec.endStat])) return;
+        let chainLength = themeSpec.length || blueprint.length || 4;
+        let clusterId = `web_${spoke}_${depth}_${blueprint.role}`;
+        let cell = {
+            angle: getWebAngle(spoke),
+            innerRadius: getWebRadius(depth),
+            blueprint: blueprint,
+            bendDir: ((spoke + depth) % 2 === 0) ? 1 : -1
+        };
+        clusterCellsById[clusterId] = cell;
+        let prev = anchor;
+        for (let i = 1; i <= chainLength; i++) {
+            let isEnd = i === chainLength;
+            let pos = getWebCellClusterPoint(cell, i, chainLength);
+            let tier = isEnd ? 3 : (i >= chainLength - 1 ? 2 : 1);
+            let kind = isEnd ? 'keystone' : (i >= chainLength - 1 ? 'major' : 'node');
+            let statForStep = getClusterStatForStep(themeSpec, isEnd);
+            let node = addNode(pos.x / PASSIVE_WORLD_SCALE, pos.y / PASSIVE_WORLD_SCALE, tier, statForStep, { sector: theme, kind: kind, depth: depth + i, lane: getWebLane(spoke) });
+            if (!node) return;
+            node.clusterId = clusterId;
+            node.clusterAnchorId = clusterId;
+            node.clusterRole = blueprint.role;
+            node.clusterRoleLabel = blueprint.label;
+            node.clusterStep = i;
+            node.clusterLength = chainLength;
+            node.clusterTheme = themeSpec.title;
+            node.clusterBaseStat = themeSpec.stat;
+            node.clusterEndStat = themeSpec.endStat || null;
+            node.webCellSpoke = spoke;
+            node.webCellRing = depth;
+            node.val = getTierValue(statForStep, tier);
+            if (isEnd) {
+                node.title = `${themeSpec.title} 핵심`;
+                node.desc = `${PASSIVE_SECTOR_TITLES[theme] || '성좌'}의 ${blueprint.label} 구역을 완성하는 거미줄 칸 내부 전문 노드입니다.`;
+            } else if (i === 1) {
+                node.title = `${themeSpec.title} 길목`;
+                node.desc = `거미줄 경로 한 칸 안에서 ${blueprint.label} 축으로 갈라지는 시작 노드입니다.`;
+            }
+            connect(prev.id, node.id);
+            prev = node;
+        }
+    }
+
+    let clusterAnchorsById = {};
+    for (let depth = 1; depth < maxDepth; depth++) {
+        for (let spoke = 0; spoke < webSpokeCount; spoke++) {
+            let anchor = webNodes[spoke] && webNodes[spoke][depth - 1];
+            buildWebCellCluster(anchor, spoke, depth, clusterAnchorsById);
+        }
+    }
+
+    let baseOuterRadius = Object.values(PASSIVE_TREE.nodes).filter(node => !node.clusterId).reduce((max, node) => Math.max(max, Math.hypot(node.x, node.y)), 0);
+    let outerAnchors = Object.values(PASSIVE_TREE.nodes)
+        .filter(node => !node.clusterId)
+        .filter(node => Math.hypot(node.x, node.y) >= baseOuterRadius - 240);
     PASSIVE_APEX_CONFIGS.forEach((config, index) => {
         let angle = -Math.PI / 2 + (index / PASSIVE_APEX_CONFIGS.length) * Math.PI * 2;
         let apexRadius = baseOuterRadius + 210;
@@ -716,6 +994,9 @@ function generateOrganicTree() {
         }
     }
 
+    realignWebPathNodes();
+    realignSpecializedClusters(clusterAnchorsById);
+
     let nodes = Object.values(PASSIVE_TREE.nodes);
     PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
     PASSIVE_BOUNDS.maxX = Math.max(...nodes.map(node => node.x));
@@ -770,6 +1051,7 @@ function applyPassiveSpecializations() {
     PASSIVE_SPECIAL_NODE_CONFIGS.forEach(config => {
         let candidates = Object.values(PASSIVE_TREE.nodes)
             .filter(node => node && node.sector === config.sector)
+            .filter(node => !node.clusterId)
             .filter(node => (config.kinds || []).includes(node.kind))
             .filter(node => node.id !== 'n0' && !used.has(node.id));
         candidates.sort((a, b) => {
@@ -874,7 +1156,7 @@ function assignStarWedgeSockets() {
     let st = (game && game.starWedge) || {};
     let unlocked = !!st.unlocked;
     let hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'hub');
-    let minHubDistance = 2;
+    let minHubDistance = 6;
     let edgeMap = {};
     (PASSIVE_TREE.edges || []).forEach(edge => {
         edgeMap[edge.from] = edgeMap[edge.from] || [];
@@ -1659,7 +1941,7 @@ const TAB_UNLOCK_GATES = {
     'tab-char': 'char',
     'tab-season': 'season',
     'tab-items': 'items',
-    'tab-jewel': 'items',
+    'tab-jewel': 'jewel',
     'tab-skills': 'skills',
     'tab-codex': 'codex',
     'tab-talisman': 'talisman',
@@ -2708,7 +2990,10 @@ function initBattleAssets() {
         if (battleAssets.loadTicket !== loadTicket) return;
         try {
             let sanitized = sanitizeBattleSheet(image);
-            if (key === 'enemies' || key === 'enemies2' || key === 'enemies3') sanitized = sanitizeWhiteBackdropSheet(sanitized);
+            if (key === 'enemies' || key === 'enemies2' || key === 'enemies3') {
+                sanitized = sanitizeWhiteBackdropSheet(sanitized);
+                sanitized = sanitizeLocalMonsterBackdropSheet(sanitized);
+            }
             battleAssets.images[key] = sanitized;
         } catch (error) {
             battleAssets.images[key] = image;
@@ -3014,6 +3299,109 @@ function sanitizeWhiteBackdropSheet(image) {
     return canvas;
 }
 
+function sanitizeLocalMonsterBackdropSheet(image) {
+    if (!image || !isLocalRuntimeHost()) return image;
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(image, 0, 0);
+    let frame;
+    try {
+        frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    } catch (error) {
+        return image;
+    }
+    const px = frame.data;
+    const width = canvas.width;
+    const height = canvas.height;
+    const samples = [];
+    function addSample(x, y) {
+        x = clampNumber(Math.round(x), 0, width - 1);
+        y = clampNumber(Math.round(y), 0, height - 1);
+        let idx = (y * width + x) * 4;
+        if (px[idx + 3] < 24) return;
+        samples.push([px[idx], px[idx + 1], px[idx + 2]]);
+    }
+    let step = Math.max(4, Math.round(Math.min(width, height) / 36));
+    for (let x = 0; x < width; x += step) { addSample(x, 0); addSample(x, height - 1); }
+    for (let y = 0; y < height; y += step) { addSample(0, y); addSample(width - 1, y); }
+    if (samples.length === 0) return image;
+    function bgDistance(r, g, b) {
+        let best = Infinity;
+        samples.forEach(sample => {
+            let dist = Math.abs(r - sample[0]) + Math.abs(g - sample[1]) + Math.abs(b - sample[2]);
+            if (dist < best) best = dist;
+        });
+        return best;
+    }
+    function isLocalBackdropPixel(pos, loose) {
+        let idx = pos * 4;
+        let r = px[idx], g = px[idx + 1], b = px[idx + 2], a = px[idx + 3];
+        if (a < 24) return true;
+        let max = Math.max(r, g, b);
+        let min = Math.min(r, g, b);
+        let avg = (r + g + b) / 3;
+        let saturation = max - min;
+        let dist = bgDistance(r, g, b);
+        if (avg >= 232 && saturation <= 58) return true;
+        if (saturation <= 46 && dist <= (loose ? 88 : 62)) return true;
+        return dist <= (loose ? 54 : 38) && saturation <= 72;
+    }
+    const visited = new Uint8Array(width * height);
+    const queue = [];
+    function pushSeed(x, y) {
+        if (x < 0 || y < 0 || x >= width || y >= height) return;
+        let pos = y * width + x;
+        if (visited[pos] || !isLocalBackdropPixel(pos, true)) return;
+        visited[pos] = 1;
+        queue.push(pos);
+    }
+    for (let x = 0; x < width; x++) { pushSeed(x, 0); pushSeed(x, height - 1); }
+    for (let y = 0; y < height; y++) { pushSeed(0, y); pushSeed(width - 1, y); }
+    while (queue.length > 0) {
+        let pos = queue.pop();
+        px[pos * 4 + 3] = 0;
+        let x = pos % width;
+        let y = Math.floor(pos / width);
+        pushSeed(x - 1, y);
+        pushSeed(x + 1, y);
+        pushSeed(x, y - 1);
+        pushSeed(x, y + 1);
+    }
+    for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] === 0) continue;
+        let r = px[i], g = px[i + 1], b = px[i + 2];
+        let max = Math.max(r, g, b);
+        let min = Math.min(r, g, b);
+        let avg = (r + g + b) / 3;
+        let saturation = max - min;
+        let dist = bgDistance(r, g, b);
+        if (avg >= 224 && saturation <= 76) px[i + 3] = 0;
+        else if (avg >= 204 && saturation <= 54 && dist <= 86) px[i + 3] = Math.min(px[i + 3], 28);
+    }
+    const alphaSnapshot = new Uint8ClampedArray(width * height);
+    for (let i = 0, p = 0; i < px.length; i += 4, p++) alphaSnapshot[p] = px[i + 3];
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            let pos = y * width + x;
+            if (alphaSnapshot[pos] === 0) continue;
+            let transparentNeighbors = 0;
+            for (let oy = -1; oy <= 1; oy++) {
+                for (let ox = -1; ox <= 1; ox++) {
+                    if (ox === 0 && oy === 0) continue;
+                    if (alphaSnapshot[(y + oy) * width + (x + ox)] === 0) transparentNeighbors++;
+                }
+            }
+            if (transparentNeighbors <= 0) continue;
+            let idx = pos * 4;
+            if (isLocalBackdropPixel(pos, false)) px[idx + 3] = transparentNeighbors >= 3 ? 0 : Math.min(px[idx + 3], 40);
+        }
+    }
+    ctx.putImageData(frame, 0, 0);
+    return canvas;
+}
+
 function heroSheetHasTransparency(image) {
     if (!image || !image.width || !image.height) return false;
     const canvas = document.createElement('canvas');
@@ -3234,8 +3622,31 @@ function buildBattleAssetAtlas() {
         }
         return Math.max(1, Math.round(width / 80));
     }
-    function buildStripFramesFromImage(image, minArea) {
+    const heroStripFrameCounts = {
+        hero1Idle: 6, hero1Walk: 8, hero1Attack: 7, hero1Hurt: 4, hero1Death: 8,
+        hero2Idle: 6, hero2Walk: 8, hero2Attack: 12, hero2Hurt: 4, hero2Death: 8,
+        hero3Idle: 6, hero3Walk: 8, hero3Attack: 13, hero3Hurt: 4, hero3Death: 8,
+        hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7
+    };
+    function buildFixedStripFramesFromImage(image, frameCount) {
+        if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return [];
+        let frames = [];
+        for (let i = 0; i < frameCount; i++) {
+            let x = Math.round(i * image.width / frameCount);
+            let nextX = i === frameCount - 1 ? image.width : Math.round((i + 1) * image.width / frameCount);
+            let raw = { x: x, y: 0, width: Math.max(1, nextX - x), height: image.height };
+            let trimmed = trimRectToContent(image, raw, 1);
+            if (trimmed && trimmed.width >= 10 && trimmed.height >= 10) frames.push(withImageRef(image, trimmed));
+            else frames.push(withImageRef(image, raw));
+        }
+        return frames.filter(Boolean);
+    }
+    function buildStripFramesFromImage(image, minArea, frameCount) {
         if (!image) return [];
+        if (Number.isFinite(frameCount) && frameCount > 0) {
+            let fixedFrames = buildFixedStripFramesFromImage(image, frameCount);
+            if (fixedFrames.length > 0) return fixedFrames;
+        }
         let detected = sortSheetComponents(detectSpriteComponents(image, minArea || 220))
             .map(rect => trimRectToContent(image, padSpriteRect(rect, image, 2), 2))
             .filter(rect => rect && rect.width >= 22 && rect.height >= 38)
@@ -3243,12 +3654,7 @@ function buildBattleAssetAtlas() {
             .filter(Boolean);
         if (detected.length > 0) return detected;
         let fallbackCols = inferStripFallbackColumns(image);
-        let frameWidth = Math.max(1, Math.floor((image.width || 1) / fallbackCols));
-        let fallback = [];
-        for (let i = 0; i < fallbackCols; i++) {
-            fallback.push(withImageRef(image, trimRectToContent(image, { x: i * frameWidth, y: 0, width: frameWidth, height: image.height }, 1)));
-        }
-        return fallback.filter(Boolean);
+        return buildFixedStripFramesFromImage(image, fallbackCols);
     }
     function normalizeFrameSetBasisHeight(frames) {
         let list = (frames || []).filter(Boolean);
@@ -3260,11 +3666,11 @@ function buildBattleAssetAtlas() {
     }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
-        let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210));
-        let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210));
-        let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220));
-        let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200));
-        let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200));
+        let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210, heroStripFrameCounts[stripKeys.idle]));
+        let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210, heroStripFrameCounts[stripKeys.walk]));
+        let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220, heroStripFrameCounts[stripKeys.attack]));
+        let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200, heroStripFrameCounts[stripKeys.hurt]));
+        let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200, heroStripFrameCounts[stripKeys.death]));
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
         let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
         return {
@@ -3797,9 +4203,9 @@ function buildBattleAssetAtlas() {
     function buildEnemyTransparentImage(image) {
         if (!image) return image;
         try {
-            return sanitizeWhiteBackdropSheet(sanitizeBattleSheet(image));
+            return sanitizeLocalMonsterBackdropSheet(sanitizeWhiteBackdropSheet(sanitizeBattleSheet(image)));
         } catch (error) {
-            return sanitizeWhiteBackdropSheet(image);
+            return sanitizeLocalMonsterBackdropSheet(sanitizeWhiteBackdropSheet(image));
         }
     }
     let heroFrameSetSource = selectedHeroDef.id;
@@ -4078,6 +4484,7 @@ function normalizeItem(item) {
     }
     item.baseStats = Array.isArray(item.baseStats) ? item.baseStats.map(normalizeStatRecord).filter(Boolean) : [];
     item.stats = Array.isArray(item.stats) ? item.stats.map(normalizeStatRecord).filter(Boolean) : [];
+    item.chaosInfusion = item.chaosInfusion ? normalizeStatRecord(item.chaosInfusion) : null;
     item.rarity = item.rarity || 'magic';
     item.hiddenTier = Math.max(1, Math.floor(coerceFiniteNumber(item.hiddenTier, coerceFiniteNumber(item.itemTier, 1), 1)));
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
@@ -4251,6 +4658,74 @@ function rerollExplicitMods(item, rarity, zoneTier) {
     mods.forEach(mod => item.stats.push(rollAffixValue(mod, maxTier)));
     updateItemName(item);
 }
+
+
+const CHAOS_INFUSER_OPTIONS = [
+    { id: 'flatDmg', value: 20, currency: 'chaos', cost: 8, label: '기본 피해' },
+    { id: 'pctDmg', value: 28, currency: 'chaos', cost: 8, label: '피해 증가' },
+    { id: 'flatHp', value: 72, currency: 'transmute', cost: 18, label: '최대 생명력' },
+    { id: 'pctHp', value: 20, currency: 'exalted', cost: 1, label: '생명력 증가' },
+    { id: 'aspd', value: 14, currency: 'alteration', cost: 14, label: '공격 속도' },
+    { id: 'crit', value: 7, currency: 'exalted', cost: 1, label: '치명타 확률' },
+    { id: 'critDmg', value: 38, currency: 'divine', cost: 1, label: '치명타 피해' },
+    { id: 'resAll', value: 14, currency: 'chaos', cost: 6, label: '모든 저항' },
+    { id: 'move', value: 15, currency: 'divine', cost: 1, label: '이동 속도' },
+    { id: 'armorPct', value: 30, currency: 'augment', cost: 12, label: '방어도 증가' },
+    { id: 'evasionPct', value: 30, currency: 'augment', cost: 12, label: '회피 증가' },
+    { id: 'energyShieldPct', value: 30, currency: 'augment', cost: 12, label: '에너지 보호막 증가' }
+];
+function isChaosInfuserUnlocked() {
+    return !!(game.chaosInfuserUnlocked || game.woodsmanSimulatorSeenLoop || (game.woodsmanDefeatAttempts || 0) > 0 || (game.journalEntries || []).includes('woodsman'));
+}
+function getChaosInfuserOption(optionId) {
+    return CHAOS_INFUSER_OPTIONS.find(opt => opt.id === optionId) || null;
+}
+function getChaosInfusionCost(option, item) {
+    if (!option) return null;
+    let costs = [{ key: option.currency, amount: option.cost }];
+    if (item && item.chaosInfusion) costs.push({ key: 'scour', amount: 1 });
+    return costs;
+}
+function canPayCurrencyCosts(costs) {
+    return (costs || []).every(row => (game.currencies[row.key] || 0) >= row.amount);
+}
+function formatCurrencyCosts(costs) {
+    return (costs || []).map(row => `${(ORB_DB[row.key] || {}).name || row.key} ${row.amount}`).join(' + ');
+}
+function payCurrencyCosts(costs) {
+    if (!canPayCurrencyCosts(costs)) return false;
+    (costs || []).forEach(row => { game.currencies[row.key] = Math.max(0, Math.floor(game.currencies[row.key] || 0) - row.amount); });
+    return true;
+}
+function applyChaosInfusionToSelectedItem(optionId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    if (!isChaosInfuserUnlocked()) return addLog('나무꾼을 한 번 이상 마주친 뒤 혼돈 주입기를 사용할 수 있습니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    if (!item) return addLog('혼돈 주입 대상 아이템을 선택하세요.', 'attack-monster');
+    let option = getChaosInfuserOption(optionId);
+    if (!option || !P_STATS[option.id]) return;
+    let costs = getChaosInfusionCost(option, item);
+    if (!canPayCurrencyCosts(costs)) return addLog(`혼돈 주입 재화가 부족합니다. (필요: ${formatCurrencyCosts(costs)})`, 'attack-monster');
+    if (!payCurrencyCosts(costs)) return;
+    item.chaosInfusion = { id: option.id, val: option.value, valMin: option.value, valMax: option.value, tier: 5, statName: getStatName(option.id), temporary: true, source: 'chaosInfuser' };
+    addLog(`🧪 혼돈 주입: [${item.name}] ${getStatName(option.id)} +${formatValue(option.id, option.value)} 부여`, 'loot-rare');
+    normalizeItem(item);
+    updateStaticUI();
+}
+function removeChaosInfusionFromSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    if (!item || !item.chaosInfusion) return;
+    let costs = [{ key: 'scour', amount: 1 }];
+    if (!canPayCurrencyCosts(costs)) return addLog(`혼돈 주입 제거에는 ${(ORB_DB.scour || {}).name || '정화의 오브'} 1개가 필요합니다.`, 'attack-monster');
+    if (!payCurrencyCosts(costs)) return;
+    item.chaosInfusion = null;
+    addLog(`🧼 혼돈 주입 제거: [${item.name}]`, 'loot-normal');
+    updateStaticUI();
+}
+
+window.CHAOS_INFUSER_OPTIONS = CHAOS_INFUSER_OPTIONS;
+window.isChaosInfuserUnlocked = isChaosInfuserUnlocked;
+window.getChaosInfusionCost = getChaosInfusionCost;
+window.formatCurrencyCosts = formatCurrencyCosts;
 
 function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
