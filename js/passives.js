@@ -2575,6 +2575,13 @@ function isLocalFileProtocol() {
     return typeof window !== 'undefined' && window.location && window.location.protocol === 'file:';
 }
 
+function isLocalRuntimeHost() {
+    if (typeof window === 'undefined' || !window.location) return false;
+    if (window.location.protocol === 'file:') return true;
+    let host = String(window.location.hostname || '').toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+}
+
 function fileExists(path) {
     if (isLocalFileProtocol()) return true;
     try {
@@ -2699,6 +2706,7 @@ function initBattleAssets() {
         if (index >= manifestEntries.length || battleAssets.loadTicket !== loadTicket || settled) return;
         let [key, src] = manifestEntries[index];
         let img = new Image();
+        if (!isLocalFileProtocol()) img.crossOrigin = 'anonymous';
         img.onload = function() {
             try {
                 if (key.startsWith('backdrop') || key.startsWith('bgAct')) {
