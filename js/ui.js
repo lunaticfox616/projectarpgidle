@@ -6217,6 +6217,7 @@ function renderExpertiseUI() {
     let subtabs = document.getElementById('ui-expert-subtabs');
     let detail = document.getElementById('ui-expertise-detail');
     let tree = document.getElementById('ui-expert-tree');
+    let treeTitle = document.getElementById('ui-expert-tree-title');
     if (!ov || !subtabs || !detail || !tree) return;
     const total = getExpertPointTotal(), spent = getExpertPointSpent(), free = getExpertPointFree();
     ov.innerHTML = '';
@@ -6229,6 +6230,8 @@ function renderExpertiseUI() {
     let treeBtn = `<button class="subtab-btn ${game.expertise.selectedExpertTab==='__tree'?'active':''}" onclick="game.expertise.selectedExpertTab='__tree';updateStaticUI();">${treeLabel}</button>`;
     subtabs.innerHTML = expertBtns + treeBtn;
     let showingTree = game.expertise.selectedExpertTab === '__tree';
+    if (treeTitle) treeTitle.style.display = showingTree ? '' : 'none';
+    tree.style.display = showingTree ? '' : 'none';
     if (!showingTree) {
         ov.innerHTML = '';
         detail.innerHTML = unlocked.filter(id => !game.expertise.selectedExpertTab || id === game.expertise.selectedExpertTab).map(id => getExpertiseCardHtml(id)).join('') || '<div style="color:#98abc0;">아직 조우한 전문가가 없습니다.</div>';
