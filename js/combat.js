@@ -856,6 +856,7 @@ function getPlayerStats() {
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
     let finalDs = (gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) * 0.75;
+    let finalSlamEchoChance = gearBase.slamEchoChance + gearExplicit.slamEchoChance + passive.slamEchoChance + season.slamEchoChance + ascend.slamEchoChance + support.slamEchoChance + reward.slamEchoChance;
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen;
     let finalRegenSuppress = gearBase.regenSuppress + gearExplicit.regenSuppress + passive.regenSuppress + season.regenSuppress + ascend.regenSuppress + support.regenSuppress + reward.regenSuppress;
     let finalResPen = gearBase.resPen + gearExplicit.resPen + passive.resPen + season.resPen + ascend.resPen + support.resPen + reward.resPen + (skill.resPenBonus || 0);
@@ -863,9 +864,12 @@ function getPlayerStats() {
     let finalMaxDmgRoll = Math.max(finalMinDmgRoll, 100 + gearBase.maxDmgRoll + gearExplicit.maxDmgRoll + passive.maxDmgRoll + season.maxDmgRoll + ascend.maxDmgRoll + support.maxDmgRoll + reward.maxDmgRoll);
 
     let resistPenalty = (game.maxZoneId >= 5 ? 30 : 0) + (game.maxZoneId >= 10 ? 30 : 0);
-    let finalResF = Math.min(75, gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + reward.resF - resistPenalty);
-    let finalResC = Math.min(75, gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC - resistPenalty);
-    let finalResL = Math.min(75, gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL - resistPenalty);
+    let finalMaxResF = Math.min(90, 75 + gearBase.maxResF + gearExplicit.maxResF + passive.maxResF + season.maxResF + ascend.maxResF + reward.maxResF);
+    let finalMaxResC = Math.min(90, 75 + gearBase.maxResC + gearExplicit.maxResC + passive.maxResC + season.maxResC + ascend.maxResC + reward.maxResC);
+    let finalMaxResL = Math.min(90, 75 + gearBase.maxResL + gearExplicit.maxResL + passive.maxResL + season.maxResL + ascend.maxResL + reward.maxResL);
+    let finalResF = Math.min(finalMaxResF, gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + reward.resF - resistPenalty);
+    let finalResC = Math.min(finalMaxResC, gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC - resistPenalty);
+    let finalResL = Math.min(finalMaxResL, gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL - resistPenalty);
     let finalResChaos = Math.min(75, gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos - resistPenalty);
     let hpScaleRatio = Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
     let hpFlatBonus = Math.floor(finalBaseDmg * hpScaleRatio);
@@ -1356,6 +1360,7 @@ function getPlayerStats() {
         dr: finalDr,
         physIgnore: finalPhysIgnore,
         ds: finalDs,
+        slamEchoChance: finalSlamEchoChance,
         minDmgRoll: finalMinDmgRoll,
         maxDmgRoll: finalMaxDmgRoll,
         gemLv: gemSources.total,
@@ -1368,6 +1373,9 @@ function getPlayerStats() {
         resF: finalResF,
         resC: finalResC,
         resL: finalResL,
+        maxResF: finalMaxResF,
+        maxResC: finalMaxResC,
+        maxResL: finalMaxResL,
         resChaos: finalResChaos,
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
@@ -2702,9 +2710,12 @@ function performPlayerAttack(pStats) {
     let zoneTier = getZone(game.currentZoneId).tier;
     let slamEchoPct = 0;
     let slamEchoDelayMs = 1000;
+    let slamEchoGuaranteed = false;
+    let passiveSlamEchoChance = Math.max(0, Math.min(100, pStats.slamEchoChance || 0)) / 100;
+    if (passiveSlamEchoChance > 0 && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('slam')) slamEchoPct = Math.max(slamEchoPct, 0.25);
     (game.playerConditionBuffs || []).forEach(buff => {
         let delta = getConditionGemStatDelta(buff.name, buff.type);
-        if (delta.slamEchoPct) slamEchoPct = Math.max(slamEchoPct, delta.slamEchoPct);
+        if (delta.slamEchoPct) { slamEchoPct = Math.max(slamEchoPct, delta.slamEchoPct); slamEchoGuaranteed = true; }
         if (delta.slamEchoDelaySec) slamEchoDelayMs = Math.max(100, Math.floor(delta.slamEchoDelaySec * 1000));
     });
     let hits = [];
@@ -2797,7 +2808,7 @@ function performPlayerAttack(pStats) {
                 hpAfterDamage = Math.max(1, hpAfterDamage);
             }
             targetEnemy.hp = hpAfterDamage;
-            if (slamEchoPct > 0 && (pStats.sSkill.tags || []).includes('slam') && dmg > 0 && targetEnemy.hp > 0) {
+            if (slamEchoPct > 0 && (pStats.sSkill.tags || []).includes('slam') && dmg > 0 && targetEnemy.hp > 0 && (slamEchoGuaranteed || passiveSlamEchoChance <= 0 || Math.random() < passiveSlamEchoChance)) {
                 game.pendingSlamEchoHits = Array.isArray(game.pendingSlamEchoHits) ? game.pendingSlamEchoHits : [];
                 game.pendingSlamEchoHits.push({
                     at: Date.now() + slamEchoDelayMs,

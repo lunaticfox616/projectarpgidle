@@ -431,7 +431,7 @@ const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare'];
 
 
 const P_STATS = {
-    flatHp: { name: '최대 생명력', tiers: [1, 2], s: 5, m: 15 },
+    flatHp: { name: '최대 생명력', tiers: [1, 2], s: 15, m: 45 },
     pctHp: { name: '생명력(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
     regen: { name: '초당 재생(%)', tiers: [1, 2], s: 0.1, m: 0.3, isPct: true },
     regenSuppress: { name: '재생 억제(%)', tiers: [3], k: 0.5, isPct: true },
@@ -460,6 +460,7 @@ const P_STATS = {
     leechTotalCap: { name: '흡혈 총 회복량 캡(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
     leechInstanceCap: { name: '흡혈 타격당 회복량 캡(%)', tiers: [2, 3], m: 1, k: 3, isPct: true },
     gemLevel: { name: '스킬 젬 레벨', tiers: [3], k: 1 },
+    fireGemLevel: { name: '화염 스킬 젬 레벨', tiers: [3], k: 1 },
     dr: { name: '물리 피해 감소(%)', tiers: [3], k: 4, isPct: true },
     armor: { name: '방어도', tiers: [1, 2, 3], s: 12, m: 28, k: 56 },
     evasion: { name: '회피', tiers: [1, 2, 3], s: 12, m: 28, k: 56 },
@@ -467,7 +468,16 @@ const P_STATS = {
     armorPct: { name: '방어도(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
     evasionPct: { name: '회피(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
     energyShieldPct: { name: '에너지 보호막(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
+    energyShieldRegen: { name: '에너지 보호막 회복속도(%)', tiers: [3], k: 8, isPct: true },
+    moveEvasion: { name: '이동 속도 + 회피(%)', tiers: [1, 2, 3], s: 2, m: 5, k: 10, isPct: true },
+    hpArmor: { name: '생명력 + 방어도', tiers: [1, 2, 3], s: 18, m: 48, k: 96 },
+    aspdMove: { name: '공격 속도 + 이동 속도(%)', tiers: [1, 2, 3], s: 2, m: 5, k: 9, isPct: true },
+    chaosResElemPenalty: { name: '카오스 저항 + 원소 저항 감소(%)', tiers: [2, 3], m: 6, k: 12, isPct: true },
+    maxResF: { name: '최대 화염 저항(%)', tiers: [3], k: 1, isPct: true },
+    maxResC: { name: '최대 냉기 저항(%)', tiers: [3], k: 1, isPct: true },
+    maxResL: { name: '최대 번개 저항(%)', tiers: [3], k: 1, isPct: true },
     physIgnore: { name: '물리 피해 감소 무시(%)', tiers: [2, 3], m: 3, k: 6, isPct: true },
+    slamEchoChance: { name: '강타 여진 발생 확률(%)', tiers: [3], k: 8, isPct: true },
     ds: { name: '연속 타격(%)', tiers: [3], k: 8, isPct: true },
     suppCap: { name: '보조 스킬 젬 한도', tiers: [3], k: 1 },
     resPen: { name: '저항 관통(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },

@@ -221,9 +221,9 @@ function getRarityRank(rarity) {
 
 function createEmptyStatBucket() {
     return {
-        flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, suppCap: 0,
-        dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
-        minDmgRoll: 0, maxDmgRoll: 0,
+        flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, fireGemLevel: 0, suppCap: 0,
+        dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResF: 0, maxResC: 0, maxResL: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
+        minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0
@@ -253,6 +253,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'crit') bucket.crit += value;
     else if (statId === 'move') bucket.move += value;
     else if (statId === 'gemLevel') bucket.gemLevel += value;
+    else if (statId === 'fireGemLevel') bucket.fireGemLevel += value;
     else if (statId === 'dr') bucket.dr += value;
     else if (statId === 'physIgnore') bucket.physIgnore += value;
     else if (statId === 'resPen') bucket.resPen += value;
@@ -267,11 +268,19 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'minDmgRoll') bucket.minDmgRoll += value;
     else if (statId === 'maxDmgRoll') bucket.maxDmgRoll += value;
     else if (statId === 'resF') bucket.resF += value;
+    else if (statId === 'maxResF') bucket.maxResF += value;
+    else if (statId === 'maxResC') bucket.maxResC += value;
+    else if (statId === 'maxResL') bucket.maxResL += value;
     else if (statId === 'resC') bucket.resC += value;
     else if (statId === 'resL') bucket.resL += value;
     else if (statId === 'resAll') { bucket.resF += value; bucket.resC += value; bucket.resL += value; }
     else if (statId === 'resChaos') bucket.resChaos += value;
     else if (statId === 'ds') bucket.ds += value;
+    else if (statId === 'slamEchoChance') bucket.slamEchoChance += value;
+    else if (statId === 'moveEvasion') { bucket.move += value; bucket.evasionPct += value; }
+    else if (statId === 'hpArmor') { bucket.flatHp += value; bucket.armor += value * 2; }
+    else if (statId === 'aspdMove') { bucket.aspd += value; bucket.move += value; }
+    else if (statId === 'chaosResElemPenalty') { bucket.resChaos += value; bucket.resF -= Math.floor(value / 2); bucket.resC -= Math.floor(value / 2); bucket.resL -= Math.floor(value / 2); }
     else if (statId === 'expGain') bucket.expGain += value;
     else if (statId === 'targetAny') bucket.targetAny += value;
     else if (statId === 'targetProjectile') bucket.targetProjectile += value;

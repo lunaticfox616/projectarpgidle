@@ -743,9 +743,12 @@ function generateOrganicTree() {
 
     function getWebCellClusterPoint(cell, step, chainLength) {
         let t = step / Math.max(1, chainLength + 1);
+        let bendDir = cell.bendDir || 1;
         let bow = Math.sin(t * Math.PI) * (cell.blueprint.spread || 0.4);
-        let angleRatio = 0.12 + t * 0.44 + bow * 0.08;
-        let radiusRatio = 0.10 + t * 0.56;
+        let curve = Math.sin(t * Math.PI * 1.35) * 0.07 * bendDir;
+        let radiusCurve = Math.sin(t * Math.PI * 2) * 0.05 * bendDir;
+        let angleRatio = 0.12 + t * 0.44 + bow * 0.08 + curve;
+        let radiusRatio = 0.10 + t * 0.56 + radiusCurve;
         let angle = cell.angle + angleStep * Math.max(0.10, Math.min(0.72, angleRatio));
         let radius = (cell.innerRadius + ringSpacing * Math.max(0.08, Math.min(0.72, radiusRatio))) * PASSIVE_WORLD_SCALE;
         return {
@@ -769,6 +772,40 @@ function generateOrganicTree() {
             node.y = pos.y;
         });
     }
+    let retainedGlobalGemLevelCluster = false;
+    function getCompositeClusterSpec(spoke, depth) {
+        if (spoke === 4) return { stat: 'moveEvasion', title: '질풍 회피', length: 4 };
+        if (spoke === 8) return { stat: 'hpArmor', title: '거석 생명', length: 4 };
+        if (spoke === 12) return { stat: 'slamPctDmg', endStat: 'slamEchoChance', title: '대지 여진', length: 5 };
+        if (spoke === 0) return { stat: 'energyShieldPct', endStat: 'energyShieldRegen', title: '보호막 순환', length: 4 };
+        const rotating = [
+            { stat: 'critDmg', title: '치명 배율', length: 4 },
+            { stat: 'ds', title: '연속 타격', length: 4 },
+            { stat: 'maxDmgRoll', title: '상한 보정', length: 4 },
+            { stat: 'pctDmg', endStat: 'suppCap', title: '보조 젬 연결', length: 4 },
+            { stat: 'chaosResElemPenalty', title: '혼돈 절연', length: 4 },
+            { stat: 'resF', endStat: 'maxResF', title: '화염 최대 저항', length: 4 },
+            { stat: 'resC', endStat: 'maxResC', title: '냉기 최대 저항', length: 4 },
+            { stat: 'resL', endStat: 'maxResL', title: '번개 최대 저항', length: 4 },
+            { stat: 'aspdMove', title: '쌍속 기동', length: 4 }
+        ];
+        return rotating[(spoke * 3 + depth) % rotating.length];
+    }
+    function getClusterStatForStep(spec, isEnd) {
+        return isEnd && spec.endStat ? spec.endStat : spec.stat;
+    }
+    function getFinalClusterSpec(themeSpec, spoke, depth, theme) {
+        if (themeSpec.stat === 'gemLevel') {
+            if (!retainedGlobalGemLevelCluster && depth >= maxDepth - 1) {
+                retainedGlobalGemLevelCluster = true;
+                return { stat: 'spellFlatPct', endStat: 'gemLevel', title: '외곽 젬 각성', length: 5 };
+            }
+            return { stat: 'firePctDmg', endStat: 'fireGemLevel', title: '화염 젬 단련', length: 5 };
+        }
+        let composite = getCompositeClusterSpec(spoke, depth);
+        if (composite && P_STATS[composite.stat] && (!composite.endStat || P_STATS[composite.endStat])) return composite;
+        return { stat: themeSpec.stat, title: themeSpec.title, length: null };
+    }
     function buildWebCellCluster(anchor, spoke, depth, clusterCellsById) {
         if (!anchor) return;
         let theme = getWebTheme(spoke);
@@ -776,12 +813,15 @@ function generateOrganicTree() {
         let blueprint = webCellClusterBlueprints[(depth + spoke) % webCellClusterBlueprints.length];
         let themeSpec = themes[(depth * 2 + spoke) % themes.length];
         if (!blueprint || !themeSpec || !P_STATS[themeSpec.stat]) return;
-        let chainLength = blueprint.length || 4;
+        themeSpec = getFinalClusterSpec(themeSpec, spoke, depth, theme);
+        if (!themeSpec || !P_STATS[themeSpec.stat] || (themeSpec.endStat && !P_STATS[themeSpec.endStat])) return;
+        let chainLength = themeSpec.length || blueprint.length || 4;
         let clusterId = `web_${spoke}_${depth}_${blueprint.role}`;
         let cell = {
             angle: getWebAngle(spoke),
             innerRadius: getWebRadius(depth),
-            blueprint: blueprint
+            blueprint: blueprint,
+            bendDir: ((spoke + depth) % 2 === 0) ? 1 : -1
         };
         clusterCellsById[clusterId] = cell;
         let prev = anchor;
@@ -790,7 +830,8 @@ function generateOrganicTree() {
             let pos = getWebCellClusterPoint(cell, i, chainLength);
             let tier = isEnd ? 3 : (i >= chainLength - 1 ? 2 : 1);
             let kind = isEnd ? 'keystone' : (i >= chainLength - 1 ? 'major' : 'node');
-            let node = addNode(pos.x / PASSIVE_WORLD_SCALE, pos.y / PASSIVE_WORLD_SCALE, tier, themeSpec.stat, { sector: theme, kind: kind, depth: depth + i, lane: getWebLane(spoke) });
+            let statForStep = getClusterStatForStep(themeSpec, isEnd);
+            let node = addNode(pos.x / PASSIVE_WORLD_SCALE, pos.y / PASSIVE_WORLD_SCALE, tier, statForStep, { sector: theme, kind: kind, depth: depth + i, lane: getWebLane(spoke) });
             if (!node) return;
             node.clusterId = clusterId;
             node.clusterAnchorId = clusterId;
@@ -799,9 +840,11 @@ function generateOrganicTree() {
             node.clusterStep = i;
             node.clusterLength = chainLength;
             node.clusterTheme = themeSpec.title;
+            node.clusterBaseStat = themeSpec.stat;
+            node.clusterEndStat = themeSpec.endStat || null;
             node.webCellSpoke = spoke;
             node.webCellRing = depth;
-            node.val = getTierValue(themeSpec.stat, tier);
+            node.val = getTierValue(statForStep, tier);
             if (isEnd) {
                 node.title = `${themeSpec.title} 핵심`;
                 node.desc = `${PASSIVE_SECTOR_TITLES[theme] || '성좌'}의 ${blueprint.label} 구역을 완성하는 거미줄 칸 내부 전문 노드입니다.`;

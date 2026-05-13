@@ -304,6 +304,9 @@ function getGemBonusSources() {
     let gear = 0;
     let passive = 0;
     let reward = 0;
+    let activeSkillDef = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
+    let activeTags = Array.isArray(activeSkillDef.tags) ? activeSkillDef.tags : [];
+    let isFireSkill = activeTags.includes('fire');
     Object.values(game.equipment || {}).forEach(item => {
         if (!item) return;
         [...(item.baseStats || []), ...(item.stats || [])].forEach(stat => { if (stat.id === 'gemLevel') gear += stat.val; });
@@ -314,6 +317,7 @@ function getGemBonusSources() {
         let statId = mut && mut.currentStat ? mut.currentStat : (node && node.stat);
         let statVal = mut && Number.isFinite(mut.currentVal) ? mut.currentVal : (node && node.val);
         if (node && statId === 'gemLevel') passive += statVal;
+        if (node && statId === 'fireGemLevel' && isFireSkill) passive += statVal;
     });
     (game.actRewardBonuses || []).forEach(entry => {
         if (entry.stat === 'gemLevel') reward += entry.value;
