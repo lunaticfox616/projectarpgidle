@@ -305,7 +305,9 @@ function renderPaperdoll(targetId, forCrafting) {
         let displaySlot = slot.replace(/[12]/, '');
         let selected = isCraftSelectionEquip() && getCraftSelectionRef() === slot;
         if (item) {
-            let statsHtml = (item.baseStats || []).concat(item.stats || []).slice(0, 2).map(stat => `${stat.statName} +${formatValue(stat.id, stat.val)}`).join('<br>');
+            let displayStats = (item.baseStats || []).concat(item.stats || []);
+            if (item.chaosInfusion) displayStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
+            let statsHtml = displayStats.slice(0, 2).map(stat => `${stat.statName} +${formatValue(stat.id, stat.val)}`).join('<br>');
             let click = forCrafting ? `selectForCrafting('${slot}', true)` : '';
             let doubleClick = `event.stopPropagation(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
             let footer = forCrafting ? `<button style="font-size:0.7em; padding:2px;" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">선택</button>` : `<button style="font-size:0.7em; padding:2px;" onclick="event.stopPropagation(); unequipItem('${slot}')">해제</button>`;
@@ -327,6 +329,7 @@ function renderInventoryCard(item, idx, mode) {
     let lines = [];
     (item.baseStats || []).forEach(stat => lines.push(`<span style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
     (item.stats || []).slice(0, 3).forEach(stat => lines.push(`<span>${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
+    if (item.chaosInfusion) lines.push(`<span style="color:#d7a8ff">[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}</span>`);
     if ((item.stats || []).length === 0) lines.push(`<span style="color:#7f8c8d">추가 옵션 없음</span>`);
     let actions = '';
     if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">${isDualSlotItem(item.slot) ? '장착(선택)' : '장착'}</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button>${item.rarity === 'unique' ? `<button style="background:#6b4d2f; border-color:#9a6f43;" onclick="event.stopPropagation(); storeUniqueToCodexByItemId(${item.id})">도감</button>` : ''}</div>`;

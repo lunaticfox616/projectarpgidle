@@ -304,6 +304,22 @@ function getGemBonusSources() {
     let gear = 0;
     let passive = 0;
     let reward = 0;
+    let activeSkillDef = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
+    let activeTags = Array.isArray(activeSkillDef.tags) ? activeSkillDef.tags : [];
+    const tagGemLevelRules = [
+        { stat: 'elementalGemLevel', tag: 'elemental' },
+        { stat: 'fireGemLevel', tag: 'fire' },
+        { stat: 'coldGemLevel', tag: 'cold' },
+        { stat: 'lightGemLevel', tag: 'lightning' },
+        { stat: 'chaosGemLevel', tag: 'chaos' },
+        { stat: 'physGemLevel', tag: 'physical' },
+        { stat: 'projectileGemLevel', tag: 'projectile' },
+        { stat: 'meleeGemLevel', tag: 'melee' },
+        { stat: 'slamGemLevel', tag: 'slam' },
+        { stat: 'spellGemLevel', tag: 'spell' },
+        { stat: 'dotGemLevel', tag: 'dot' },
+        { stat: 'aoeGemLevel', tag: 'aoe' }
+    ];
     Object.values(game.equipment || {}).forEach(item => {
         if (!item) return;
         [...(item.baseStats || []), ...(item.stats || [])].forEach(stat => { if (stat.id === 'gemLevel') gear += stat.val; });
@@ -314,6 +330,9 @@ function getGemBonusSources() {
         let statId = mut && mut.currentStat ? mut.currentStat : (node && node.stat);
         let statVal = mut && Number.isFinite(mut.currentVal) ? mut.currentVal : (node && node.val);
         if (node && statId === 'gemLevel') passive += statVal;
+        tagGemLevelRules.forEach(rule => {
+            if (node && statId === rule.stat && activeTags.includes(rule.tag)) passive += statVal;
+        });
     });
     (game.actRewardBonuses || []).forEach(entry => {
         if (entry.stat === 'gemLevel') reward += entry.value;

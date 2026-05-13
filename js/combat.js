@@ -624,7 +624,7 @@ function getPlayerStats() {
     const safeRewardBonuses = Array.isArray(game.actRewardBonuses) ? game.actRewardBonuses : [];
     const safeJournalBonuses = Array.isArray(game.journalBonuses) ? game.journalBonuses : [];
     const safeEquippedSupports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
-    let baseDmg = 8 + (game.level * 1.5);
+    let baseDmg = 16 + (game.level * 1.5);
     let baseHp = 90 + (game.level * 8);
     let baseMove = 100;
     let glovePairAspdBonus = 0;
@@ -645,7 +645,7 @@ function getPlayerStats() {
     Object.values(game.equipment || {}).forEach(item => {
         if (!item) return;
         applyStatsToBucket(gearBase, item.baseStats || []);
-        applyStatsToBucket(gearExplicit, item.stats || []);
+        applyStatsToBucket(gearExplicit, (item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : []));
         let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
         let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;
         let itemPctArmor = 0, itemPctEvasion = 0, itemPctEs = 0;
@@ -655,7 +655,7 @@ function getPlayerStats() {
             if (stat.id === 'evasion') itemBaseEvasion += Number(stat.val || 0);
             if (stat.id === 'energyShield') itemBaseEs += Number(stat.val || 0);
         });
-        (item.stats || []).forEach(stat => {
+        (item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : []).forEach(stat => {
             if (!stat) return;
             if (stat.id === 'armor') itemFlatArmor += Number(stat.val || 0);
             if (stat.id === 'evasion') itemFlatEvasion += Number(stat.val || 0);
@@ -856,6 +856,7 @@ function getPlayerStats() {
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
     let finalDs = (gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) * 0.75;
+    let finalSlamEchoChance = gearBase.slamEchoChance + gearExplicit.slamEchoChance + passive.slamEchoChance + season.slamEchoChance + ascend.slamEchoChance + support.slamEchoChance + reward.slamEchoChance;
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen;
     let finalRegenSuppress = gearBase.regenSuppress + gearExplicit.regenSuppress + passive.regenSuppress + season.regenSuppress + ascend.regenSuppress + support.regenSuppress + reward.regenSuppress;
     let finalResPen = gearBase.resPen + gearExplicit.resPen + passive.resPen + season.resPen + ascend.resPen + support.resPen + reward.resPen + (skill.resPenBonus || 0);
@@ -863,9 +864,12 @@ function getPlayerStats() {
     let finalMaxDmgRoll = Math.max(finalMinDmgRoll, 100 + gearBase.maxDmgRoll + gearExplicit.maxDmgRoll + passive.maxDmgRoll + season.maxDmgRoll + ascend.maxDmgRoll + support.maxDmgRoll + reward.maxDmgRoll);
 
     let resistPenalty = (game.maxZoneId >= 5 ? 30 : 0) + (game.maxZoneId >= 10 ? 30 : 0);
-    let finalResF = Math.min(75, gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + reward.resF - resistPenalty);
-    let finalResC = Math.min(75, gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC - resistPenalty);
-    let finalResL = Math.min(75, gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL - resistPenalty);
+    let finalMaxResF = Math.min(90, 75 + gearBase.maxResF + gearExplicit.maxResF + passive.maxResF + season.maxResF + ascend.maxResF + reward.maxResF);
+    let finalMaxResC = Math.min(90, 75 + gearBase.maxResC + gearExplicit.maxResC + passive.maxResC + season.maxResC + ascend.maxResC + reward.maxResC);
+    let finalMaxResL = Math.min(90, 75 + gearBase.maxResL + gearExplicit.maxResL + passive.maxResL + season.maxResL + ascend.maxResL + reward.maxResL);
+    let finalResF = Math.min(finalMaxResF, gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + reward.resF - resistPenalty);
+    let finalResC = Math.min(finalMaxResC, gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC - resistPenalty);
+    let finalResL = Math.min(finalMaxResL, gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL - resistPenalty);
     let finalResChaos = Math.min(75, gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos - resistPenalty);
     let hpScaleRatio = Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
     let hpFlatBonus = Math.floor(finalBaseDmg * hpScaleRatio);
@@ -1356,6 +1360,7 @@ function getPlayerStats() {
         dr: finalDr,
         physIgnore: finalPhysIgnore,
         ds: finalDs,
+        slamEchoChance: finalSlamEchoChance,
         minDmgRoll: finalMinDmgRoll,
         maxDmgRoll: finalMaxDmgRoll,
         gemLv: gemSources.total,
@@ -1368,6 +1373,9 @@ function getPlayerStats() {
         resF: finalResF,
         resC: finalResC,
         resL: finalResL,
+        maxResF: finalMaxResF,
+        maxResC: finalMaxResC,
+        maxResL: finalMaxResL,
         resChaos: finalResChaos,
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
@@ -2231,8 +2239,9 @@ function rollLootForEnemy(enemy) {
     itemChance *= Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
     if (zone.type === 'abyss') {
         let abyssDepth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
-        let depthDropDampen = Math.max(0.62, 1 - (abyssDepth - 1) * 0.015);
-        itemChance *= depthDropDampen;
+        let depthDropDampen = Math.max(0.34, 1 - (abyssDepth - 1) * 0.032);
+        let endlessDropDampen = abyssDepth > 20 ? Math.pow(0.88, abyssDepth - 20) : 1;
+        itemChance *= depthDropDampen * endlessDropDampen;
     }
     if (Math.random() < itemChance) {
         let item = generateEquipmentDrop(enemy);
@@ -2547,6 +2556,7 @@ function finishEncounterRun() {
             let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
             if (depth === 5 && !game.woodsmanSimulatorSeenLoop) {
                 game.woodsmanSimulatorSeenLoop = true;
+                game.chaosInfuserUnlocked = true;
                 unlockJournalEntry('woodsman');
                 queueTutorialNotice('woodsman_simulator_loop', '나무꾼의 시뮬레이터', '“다음은 더 나은 세계를 바라지.”\n정체를 드러낸 존재는 진짜 나무꾼이 아닌 시뮬레이터였다.\n더 깊은 혼돈을 돌파해야 루프가 열린다.', 'tab-season');
             }
@@ -2586,18 +2596,18 @@ function finishEncounterRun() {
             if ((game.season || 1) >= 10 && zone.type === 'abyss') {
                 let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-                let nowEndless = Math.max(20, Math.floor(game.abyssEndlessDepth || depth));
+                let nowEndless = Math.max(20, depth, Math.floor(game.abyssEndlessDepth || depth));
                 let nextDepth = Math.max(21, nowEndless + 1);
                 if (!game.abyssUnlockedDepths.includes(nextDepth)) game.abyssUnlockedDepths.push(nextDepth);
                 // Keep current endless depth here; enterNextEndlessChaosDepth() advances by +1 when continuing.
                 // Setting this to nextDepth would double-advance and skip a floor (e.g. 20 -> 22).
                 game.abyssEndlessDepth = Math.max(nowEndless, 20);
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
-                game.loopProgressCurrent.chaos20Cleared = true;
-                if (nowEndless > 20) {
+                if (game.loopProgressCurrent.chaos20Cleared) {
                     enterNextEndlessChaosDepth();
                     return;
                 }
+                game.loopProgressCurrent.chaos20Cleared = true;
                 game.pendingLoopDecision = true;
                 game.combatHalted = true;
                 game.enemies = [];
@@ -2631,7 +2641,8 @@ function finishEncounterRun() {
             triggerMapUnlockReveal(game.maxZoneId);
             let clearedStoryAct = getStoryActByZoneId(zone.id);
             if (clearedStoryAct && clearedStoryAct.unlockText) addLog(`🧭 ${clearedStoryAct.unlockText}`, 'season-up');
-            addLog(`🗺️ 신규 사냥터 [${MAP_ZONES[game.maxZoneId].name}] 개방!`, "season-up");
+            let unlockedZone = getZone(game.maxZoneId);
+            addLog(`🗺️ 신규 사냥터 [${unlockedZone ? unlockedZone.name : ('구역 ' + game.maxZoneId)}] 개방!`, "season-up");
         }
         game.killsInZone = 0;
         let mapAction = game.settings.mapCompleteAction || 'nextZone';
@@ -2702,9 +2713,12 @@ function performPlayerAttack(pStats) {
     let zoneTier = getZone(game.currentZoneId).tier;
     let slamEchoPct = 0;
     let slamEchoDelayMs = 1000;
+    let slamEchoGuaranteed = false;
+    let passiveSlamEchoChance = Math.max(0, Math.min(100, pStats.slamEchoChance || 0)) / 100;
+    if (passiveSlamEchoChance > 0 && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('slam')) slamEchoPct = Math.max(slamEchoPct, 0.25);
     (game.playerConditionBuffs || []).forEach(buff => {
         let delta = getConditionGemStatDelta(buff.name, buff.type);
-        if (delta.slamEchoPct) slamEchoPct = Math.max(slamEchoPct, delta.slamEchoPct);
+        if (delta.slamEchoPct) { slamEchoPct = Math.max(slamEchoPct, delta.slamEchoPct); slamEchoGuaranteed = true; }
         if (delta.slamEchoDelaySec) slamEchoDelayMs = Math.max(100, Math.floor(delta.slamEchoDelaySec * 1000));
     });
     let hits = [];
@@ -2797,7 +2811,7 @@ function performPlayerAttack(pStats) {
                 hpAfterDamage = Math.max(1, hpAfterDamage);
             }
             targetEnemy.hp = hpAfterDamage;
-            if (slamEchoPct > 0 && (pStats.sSkill.tags || []).includes('slam') && dmg > 0 && targetEnemy.hp > 0) {
+            if (slamEchoPct > 0 && (pStats.sSkill.tags || []).includes('slam') && dmg > 0 && targetEnemy.hp > 0 && (slamEchoGuaranteed || passiveSlamEchoChance <= 0 || Math.random() < passiveSlamEchoChance)) {
                 game.pendingSlamEchoHits = Array.isArray(game.pendingSlamEchoHits) ? game.pendingSlamEchoHits : [];
                 game.pendingSlamEchoHits.push({
                     at: Date.now() + slamEchoDelayMs,
@@ -3297,7 +3311,7 @@ function addWoodsmanPendingScore(scoreGain) {
 
 function enterOutsideChaos() {
     if ((game.season || 1) < 10) return addLog('혼돈 밖은 루프 10 이후 개방됩니다.', 'attack-monster');
-    if (!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared)) return addLog('혼돈 20을 이번 루프에서 먼저 클리어해야 합니다.', 'attack-monster');
+    if (!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared)) return addLog(`${getLoopAbyssRequirementText(game.season || 1)} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
     game.woodsmanBuildSnapshot = snapshotWoodsmanBuildState();
     game.woodsmanBuildLock = true;
     game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
@@ -3496,7 +3510,7 @@ function chooseLoopAdvance(shouldLoop) {
         return;
     }
     game.pendingLoopDecision = false;
-    addLog('♾️ 루프를 보류하고 혼돈 심화 등반을 이어갑니다. (혼돈 21부터 시작)', 'season-up');
+    addLog(`♾️ 루프를 보류하고 혼돈 심화 등반을 이어갑니다. (혼돈 ${Math.max(21, Math.floor((game.abyssEndlessDepth || 20) + 1))}부터 시작)`, 'season-up');
     enterNextEndlessChaosDepth();
 }
 
