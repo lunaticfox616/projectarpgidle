@@ -132,7 +132,7 @@ function getZone(id) {
 
 function getSeasonAbyssDepthCap(seasonValue) {
     let season = Math.max(1, Math.floor(seasonValue || 1));
-    return Math.min(20, 10 + (season - 1));
+    return season <= 9 ? (10 + (season - 1)) : (20 + (season - 10));
 }
 
 function getLoopAbyssRequirementText(seasonValue) {
@@ -185,14 +185,16 @@ function getAbyssMonsterScales(zone) {
     let depth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 1;
     let endlessDepth = Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
     let endlessOver = Math.max(0, endlessDepth - 20);
-    let endlessMul = endlessOver > 0 ? Math.pow(1.18, endlessOver) : 1;
+    let endlessMul = endlessOver > 0 ? Math.pow(1.21, endlessOver) : 1;
+    let postLoopOver = Math.max(0, Math.floor((game.season || 1) - 10));
+    let postLoopDifficultyMul = postLoopOver > 0 ? (1 + postLoopOver * 0.035 + endlessOver * 0.015) : 1;
     return {
-        dmgMul: 1 + (state.power || 0) * 0.02,
-        hpMul: (1 + (state.tenacity || 0) * 0.02) * endlessMul,
+        dmgMul: (1 + (state.power || 0) * 0.02) * postLoopDifficultyMul,
+        hpMul: (1 + (state.tenacity || 0) * 0.02) * endlessMul * (postLoopOver > 0 ? (1 + postLoopOver * 0.025) : 1),
         hordeMul: (1 + (state.horde || 0) * 0.03) * (1 + (state.magnifier || 0) * 0.2),
         dropMul: Math.max(0.2, 1 + ((state.power || 0) + (state.frailty || 0) + (state.resistance || 0) - (state.horde || 0)) * 0.01),
         expMul: Math.max(0.2, 1 + ((state.tenacity || 0) * 0.01) - ((state.horde || 0) * 0.02) + ((state.weakness || 0) * 0.02)),
-        playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + endlessOver * 0.025),
+        playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + endlessOver * 0.03 + postLoopOver * 0.02),
         playerDamageMul: Math.max(0.2, 1 - (state.weakness || 0) * 0.01),
         resistBonus: (state.resistance || 0),
         eliteBonus: (state.elite || 0) * 0.02,
@@ -431,13 +433,14 @@ const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare'];
 
 
 const P_STATS = {
-    flatHp: { name: '최대 생명력', tiers: [1, 2], s: 5, m: 15 },
+    flatHp: { name: '최대 생명력', tiers: [1, 2], s: 15, m: 45 },
     pctHp: { name: '생명력(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
     regen: { name: '초당 재생(%)', tiers: [1, 2], s: 0.1, m: 0.3, isPct: true },
     regenSuppress: { name: '재생 억제(%)', tiers: [3], k: 0.5, isPct: true },
     flatDmg: { name: '기본 피해', tiers: [1, 2], s: 2, m: 8 },
     pctDmg: { name: '피해(%)', tiers: [2, 3], m: 5, k: 15, isPct: true },
     meleePctDmg: { name: '근접 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    slamPctDmg: { name: '강타 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     projectilePctDmg: { name: '투사체 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     physPctDmg: { name: '물리 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     elementalPctDmg: { name: '원소 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
@@ -459,6 +462,18 @@ const P_STATS = {
     leechTotalCap: { name: '흡혈 총 회복량 캡(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
     leechInstanceCap: { name: '흡혈 타격당 회복량 캡(%)', tiers: [2, 3], m: 1, k: 3, isPct: true },
     gemLevel: { name: '스킬 젬 레벨', tiers: [3], k: 1 },
+    elementalGemLevel: { name: '원소 스킬 젬 레벨', tiers: [3], k: 1 },
+    fireGemLevel: { name: '화염 스킬 젬 레벨', tiers: [3], k: 1 },
+    coldGemLevel: { name: '냉기 스킬 젬 레벨', tiers: [3], k: 1 },
+    lightGemLevel: { name: '번개 스킬 젬 레벨', tiers: [3], k: 1 },
+    chaosGemLevel: { name: '카오스 스킬 젬 레벨', tiers: [3], k: 1 },
+    physGemLevel: { name: '물리 스킬 젬 레벨', tiers: [3], k: 1 },
+    projectileGemLevel: { name: '투사체 스킬 젬 레벨', tiers: [3], k: 1 },
+    meleeGemLevel: { name: '근접 스킬 젬 레벨', tiers: [3], k: 1 },
+    slamGemLevel: { name: '강타 스킬 젬 레벨', tiers: [3], k: 1 },
+    spellGemLevel: { name: '주문 스킬 젬 레벨', tiers: [3], k: 1 },
+    dotGemLevel: { name: '지속 피해 스킬 젬 레벨', tiers: [3], k: 1 },
+    aoeGemLevel: { name: '범위 스킬 젬 레벨', tiers: [3], k: 1 },
     dr: { name: '물리 피해 감소(%)', tiers: [3], k: 4, isPct: true },
     armor: { name: '방어도', tiers: [1, 2, 3], s: 12, m: 28, k: 56 },
     evasion: { name: '회피', tiers: [1, 2, 3], s: 12, m: 28, k: 56 },
@@ -466,7 +481,16 @@ const P_STATS = {
     armorPct: { name: '방어도(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
     evasionPct: { name: '회피(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
     energyShieldPct: { name: '에너지 보호막(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
+    energyShieldRegen: { name: '에너지 보호막 회복속도(%)', tiers: [3], k: 8, isPct: true },
+    moveEvasion: { name: '이동 속도 + 회피(%)', tiers: [1, 2, 3], s: 2, m: 5, k: 10, isPct: true },
+    hpArmor: { name: '생명력 + 방어도', tiers: [1, 2, 3], s: 18, m: 48, k: 96 },
+    aspdMove: { name: '공격 속도 + 이동 속도(%)', tiers: [1, 2, 3], s: 2, m: 5, k: 9, isPct: true },
+    chaosResElemPenalty: { name: '카오스 저항 + 원소 저항 감소(%)', tiers: [2, 3], m: 6, k: 12, isPct: true },
+    maxResF: { name: '최대 화염 저항(%)', tiers: [3], k: 1, isPct: true },
+    maxResC: { name: '최대 냉기 저항(%)', tiers: [3], k: 1, isPct: true },
+    maxResL: { name: '최대 번개 저항(%)', tiers: [3], k: 1, isPct: true },
     physIgnore: { name: '물리 피해 감소 무시(%)', tiers: [2, 3], m: 3, k: 6, isPct: true },
+    slamEchoChance: { name: '강타 여진 발생 확률(%)', tiers: [3], k: 8, isPct: true },
     ds: { name: '연속 타격(%)', tiers: [3], k: 8, isPct: true },
     suppCap: { name: '보조 스킬 젬 한도', tiers: [3], k: 1 },
     resPen: { name: '저항 관통(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
@@ -905,10 +929,11 @@ const defaultGame = {
     inventory: [],
     inventoryExpandLevel: 0,
     jewelInventoryExpandLevel: 0,
+    chaosInfuserUnlocked: false,
     abyssPassivePoints: 0,
     abyssClearedDepths: [],
     abyssPassives: { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 },
-    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, meteorShard: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0 },
+    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, meteorShard: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendKeystonePoints: 0,
@@ -978,7 +1003,7 @@ const defaultGame = {
         selectedWedgeId: null
     },
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0 },
-    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talisman: false, expertise: false },
+    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talisman: false, expertise: false, jewel: false },
     noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false },
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, expertPointBonus: 0, loopExpCaps: {} }
 };

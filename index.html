@@ -121,7 +121,7 @@
 <div id="loop-decision-overlay" class="tutorial-overlay">
     <div class="tutorial-card" style="max-width:520px; background:linear-gradient(170deg,#1a1430 0%, #111525 100%); border:1px solid #7f66d8;">
         <div class="tutorial-kicker">Loop Choice</div>
-        <div class="tutorial-title">혼돈 20 클리어</div>
+        <div class="tutorial-title">루프 조건 달성</div>
         <div class="tutorial-body">다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.</div>
         <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px;">
             <button onclick="chooseLoopAdvance(true)">루프 진행</button>
@@ -443,6 +443,7 @@
             <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')">제작실</button>
             <button class="subtab-btn" id="btn-item-tab-fossil" onclick="switchItemSubtab('item-tab-fossil')">화석 제작대</button>
             <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;">거래소</button>
+            <button class="subtab-btn" id="btn-item-tab-infuser" onclick="switchItemSubtab('item-tab-infuser')" style="display:none;">혼돈 주입기</button>
         </div>
 
         <div id="item-tab-equip" class="subtab-content active">
@@ -518,6 +519,24 @@
                 <div>
                     <h3>인벤토리</h3>
                     <div class="inventory-grid" id="ui-fossil-inventory-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="item-tab-infuser" class="subtab-content">
+            <div class="forge-panel craft-workbench-card" style="border-color:#6e4aa8;">
+                <h3>🧪 혼돈 주입기</h3>
+                <div id="ui-chaos-infuser-panel" style="background:#10131f; border:1px solid #3f315f; border-radius:10px; padding:10px; color:#cfc8eb; font-size:0.9em;">나무꾼을 한 번 이상 마주치면 해금됩니다.</div>
+            </div>
+            <h2>🧪 주입 대상 선택</h2>
+            <div class="responsive-split-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <h3>장착 장비</h3>
+                    <div class="paperdoll" id="ui-infuser-equip-list"></div>
+                </div>
+                <div>
+                    <h3>인벤토리</h3>
+                    <div class="inventory-grid" id="ui-infuser-inventory-list"></div>
                 </div>
             </div>
         </div>
