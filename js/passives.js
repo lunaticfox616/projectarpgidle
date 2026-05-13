@@ -2600,8 +2600,7 @@ function initBattleAssets() {
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
     const loadTicket = battleAssets.loadTicket;
     const customHeroSrc = getCustomHeroSheetDataUrl();
-    const localRuntime = isLocalRuntimeHost();
-    const defaultHeroSrc = (!localRuntime && customHeroSrc) ? customHeroSrc : null;
+    const defaultHeroSrc = customHeroSrc || null;
     const manifest = {
         hero1Idle: 'assets/hero1/ElfIdle001Sheet-export.png',
         hero1Walk: 'assets/hero1/ElfWalk001-Sheet-export.png',
@@ -2697,7 +2696,9 @@ function initBattleAssets() {
         if (!ENABLE_BATTLE_SHEET_SANITIZATION) return;
         if (battleAssets.loadTicket !== loadTicket) return;
         try {
-            battleAssets.images[key] = sanitizeBattleSheet(image);
+            let sanitized = sanitizeBattleSheet(image);
+            if (key === 'enemies' || key === 'enemies2' || key === 'enemies3') sanitized = sanitizeWhiteBackdropSheet(sanitized);
+            battleAssets.images[key] = sanitized;
         } catch (error) {
             battleAssets.images[key] = image;
         }
@@ -2905,7 +2906,10 @@ function sanitizeWhiteBackdropSheet(image) {
     for (let i = 0; i < px.length; i += 4) {
         let r = px[i], g = px[i + 1], b = px[i + 2], a = px[i + 3];
         if (a < 20) continue;
-        if (r >= 232 && g >= 232 && b >= 232) px[i + 3] = 0;
+        let max = Math.max(r, g, b);
+        let min = Math.min(r, g, b);
+        let isLowSaturation = (max - min) <= 28;
+        if (isLowSaturation && r >= 196 && g >= 196 && b >= 196) px[i + 3] = 0;
     }
     ctx.putImageData(frame, 0, 0);
     return canvas;
