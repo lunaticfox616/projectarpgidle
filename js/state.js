@@ -438,6 +438,7 @@ const P_STATS = {
     flatDmg: { name: '기본 피해', tiers: [1, 2], s: 2, m: 8 },
     pctDmg: { name: '피해(%)', tiers: [2, 3], m: 5, k: 15, isPct: true },
     meleePctDmg: { name: '근접 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    slamPctDmg: { name: '강타 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     projectilePctDmg: { name: '투사체 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     physPctDmg: { name: '물리 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     elementalPctDmg: { name: '원소 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
