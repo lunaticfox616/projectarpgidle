@@ -3611,14 +3611,17 @@ function buildCraftActionButtons(item) {
     document.querySelectorAll('#tab-map img').forEach(node => node.remove());
 
     let seasonMapCap = getCurrentSeasonFinalZoneId();
-    let mapListHtml = MAP_ZONES.filter((zone, idx) => idx <= Math.min(game.maxZoneId, seasonMapCap)).map((zone, idx) => {
+    let highestMapZone = Math.min(Math.max(0, Math.floor(game.maxZoneId || 0)), seasonMapCap);
+    let mapZones = Array.from({ length: highestMapZone + 1 }, (_, idx) => getZone(idx)).filter(Boolean);
+    let mapListHtml = mapZones.map(zone => {
+        let idx = Number(zone.id);
         let current = idx === game.currentZoneId ? 'current' : '';
         let unlockReveal = idx === pendingMapRevealZoneId ? 'map-unlock-reveal' : '';
         let icon = zone.ele === 'fire' ? '🔥' : (zone.ele === 'cold' ? '❄️' : (zone.ele === 'light' ? '⚡' : (zone.ele === 'chaos' ? '☠️' : '🩸')));
         let rewardReady = (game.claimableActRewards || []).includes(idx);
         let rewardClaimed = (game.claimedActRewards || []).includes(idx);
         let isActRewardZone = zone.type === 'act' && idx <= 9;
-        let chaos20Conquered = (idx === 20) && (
+        let chaos20Conquered = (getAbyssDepthFromZoneId(idx) === 20) && (
             !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared) ||
             (Array.isArray(game.abyssClearedDepths) && game.abyssClearedDepths.includes(20)) ||
             Math.floor(game.abyssEndlessDepth || 0) >= 21
@@ -4898,7 +4901,10 @@ function mergeDefaults(save) {
     merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
     if (typeof merged.currentZoneId === 'string' && /^\d+$/.test(merged.currentZoneId)) merged.currentZoneId = parseInt(merged.currentZoneId, 10);
     if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
-    if (typeof merged.maxZoneId !== 'string') merged.maxZoneId = clampNumber(Number.isFinite(merged.maxZoneId) ? merged.maxZoneId : 0, 0, MAP_ZONES.length - 1);
+    if (typeof merged.maxZoneId !== 'string') {
+        let mergedSeasonCap = getSeasonFinalZoneId(merged.season || 1);
+        merged.maxZoneId = clampNumber(Number.isFinite(merged.maxZoneId) ? merged.maxZoneId : 0, 0, Math.max(MAP_ZONES.length - 1, mergedSeasonCap));
+    }
     if (typeof merged.currentZoneId !== 'string') {
         let numericZoneId = Number.isFinite(merged.currentZoneId) ? merged.currentZoneId : 0;
         let savedDepth = Math.max(Math.floor(merged.abyssEndlessDepth || 20), getAbyssDepthFromZoneId(numericZoneId), ...((Array.isArray(merged.abyssUnlockedDepths) ? merged.abyssUnlockedDepths : [20]).map(v => Math.floor(v || 0))));

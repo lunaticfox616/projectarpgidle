@@ -2641,7 +2641,8 @@ function finishEncounterRun() {
             triggerMapUnlockReveal(game.maxZoneId);
             let clearedStoryAct = getStoryActByZoneId(zone.id);
             if (clearedStoryAct && clearedStoryAct.unlockText) addLog(`🧭 ${clearedStoryAct.unlockText}`, 'season-up');
-            addLog(`🗺️ 신규 사냥터 [${MAP_ZONES[game.maxZoneId].name}] 개방!`, "season-up");
+            let unlockedZone = getZone(game.maxZoneId);
+            addLog(`🗺️ 신규 사냥터 [${unlockedZone ? unlockedZone.name : ('구역 ' + game.maxZoneId)}] 개방!`, "season-up");
         }
         game.killsInZone = 0;
         let mapAction = game.settings.mapCompleteAction || 'nextZone';
