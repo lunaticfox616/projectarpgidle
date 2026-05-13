@@ -84,7 +84,14 @@ function renderBattlefield(forceWhenHidden) {
         y: battleVisualState.playerPos.y
     };
     let dynamicLayout = layout.map(entry => {
-        let seed = entry.enemy.variantSeed || entry.enemy.id || 1;
+        let rawSeed = entry.enemy.variantSeed;
+        if (!Number.isFinite(rawSeed)) rawSeed = entry.enemy.id;
+        let seed = Number(rawSeed);
+        if (!Number.isFinite(seed)) {
+            let textSeed = String(rawSeed || 'enemy');
+            seed = 0;
+            for (let i = 0; i < textSeed.length; i++) seed = (seed * 31 + textSeed.charCodeAt(i)) % 100000;
+        }
         let driftX = Math.sin((now / 240) + seed * 0.9) * (entry.enemy.isBoss ? 1.8 : 2.4);
         let driftY = Math.cos((now / 300) + seed * 1.2) * (entry.enemy.isBoss ? 1.1 : 1.4);
         return {
