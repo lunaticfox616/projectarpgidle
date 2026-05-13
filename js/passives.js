@@ -538,7 +538,7 @@ function generateOrganicTree() {
         let pathCycle = genericPathStats;
         let defenseCycle = regionalPathDefenseStats[theme] || [];
         let laneAbs = Math.abs(lane);
-        let isRegionalDefenseStep = defenseCycle.length > 0 && depth >= 4 && depth % 4 === 0 && laneAbs >= 2;
+        let isRegionalDefenseStep = defenseCycle.length > 0 && depth >= 4 && depth % 4 === 0 && laneAbs >= 1;
         if (isRegionalDefenseStep) {
             let defenseStat = defenseCycle[(depth / 4 + laneAbs + sectorIndex) % defenseCycle.length];
             if (P_STATS[defenseStat]) return defenseStat;
@@ -646,97 +646,101 @@ function generateOrganicTree() {
     }
 
 
-    // 시계방향 구간 배치:
-    // 10시~2시: 에너지 보호막, 2시~6시: 회피, 6시~10시: 방어도
+    // 거미줄형 기본 경로: 방사형 살(spoke) + 나이테형 고리(ring)를 먼저 만든다.
+    // 8방향의 큰 정체성은 유지하되 각 방향 사이에 중간 경로 노드를 추가해 최외곽까지 등고선처럼 연결한다.
     const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'marauder', 'marauder'];
     const sectorCount = sectorThemes.length;
-    const lanes = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
-    const maxDepth = 13;
+    const spokesPerSector = 2;
+    const webSpokeCount = sectorCount * spokesPerSector;
+    const maxDepth = 12;
+    const innerRadius = 210;
+    const ringSpacing = 142;
+    const webYScale = 0.93;
+    const angleStep = Math.PI * 2 / webSpokeCount;
 
     let root = addNode(0, 0, 0, 'flatHp', { sector: 'center', kind: 'root', depth: 0, lane: 0 });
-    let laneNodes = {};
+    let webNodes = {};
 
-    function classifyNode(depth, lane) {
-        let laneAbs = Math.abs(lane);
-        if (depth === 1 && laneAbs <= 1) return { tier: 2, kind: 'core' };
-        if (depth === 6 && lane === 0) return { tier: 2, kind: 'hub' };
-        if (depth === maxDepth && laneAbs === 3) return { tier: 2, kind: 'hub' };
-        if (laneAbs === 3 && depth > 6 && depth < maxDepth) return { tier: 1, kind: 'path' };
-        if (laneAbs === 4 && depth >= maxDepth - 1) return { tier: depth === maxDepth ? 2 : 1, kind: depth === maxDepth ? 'major' : 'path' };
-        if (depth === maxDepth && laneAbs <= 1) return { tier: 3, kind: 'keystone' };
-        if (depth % 4 === 0 || (depth >= maxDepth - 2 && laneAbs <= 2)) return { tier: 2, kind: 'major' };
+    function getWebSectorIndex(spoke) {
+        return Math.floor(((spoke % webSpokeCount) + webSpokeCount) % webSpokeCount / spokesPerSector) % sectorCount;
+    }
+    function getWebTheme(spoke) {
+        return sectorThemes[getWebSectorIndex(spoke)];
+    }
+    function getWebLane(spoke) {
+        return (spoke % spokesPerSector) === 0 ? 0 : 1;
+    }
+    function getWebAngle(spoke) {
+        return -Math.PI / 2 + spoke * angleStep;
+    }
+    function getWebRadius(depth) {
+        return innerRadius + (depth - 1) * ringSpacing;
+    }
+    function getWebPoint(spoke, depth, angleShift, radiusShift) {
+        let angle = getWebAngle(spoke) + (angleShift || 0);
+        let radius = getWebRadius(depth) + (radiusShift || 0);
+        return {
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius * webYScale
+        };
+    }
+    function classifyWebNode(depth, spoke) {
+        let lane = getWebLane(spoke);
+        let isPrimarySpoke = lane === 0;
+        if (depth === 1 && isPrimarySpoke) return { tier: 2, kind: 'core' };
+        if ((depth === 4 && lane === 1) || (depth === 7 && lane === 1) || (depth === 10 && lane === 0)) return { tier: 2, kind: 'hub' };
+        if (depth === maxDepth && isPrimarySpoke) return { tier: 3, kind: 'keystone' };
+        if (depth === maxDepth || depth % 3 === 0) return { tier: 2, kind: 'major' };
         return { tier: 1, kind: 'path' };
     }
 
-    for (let s = 0; s < sectorCount; s++) {
-        let baseAngle = -Math.PI / 2 + (s / sectorCount) * Math.PI * 2;
-        let theme = sectorThemes[s];
-        laneNodes[s] = {};
-
-        lanes.forEach(lane => {
-            laneNodes[s][lane] = [];
-            let prev = null;
-            for (let depth = 1; depth <= maxDepth; depth++) {
-                let laneAbs = Math.abs(lane);
-                let radius = 164 + depth * 118 + laneAbs * 44;
-                let angleDrift = lane * 0.104 + depth * lane * 0.006 + Math.sin((depth + s) * 0.45) * 0.018;
-                let angle = baseAngle + angleDrift;
-                let x = Math.cos(angle) * radius;
-                let y = Math.sin(angle) * radius * 0.93;
-                let shape = classifyNode(depth, lane);
-                let node = addNode(x, y, shape.tier, theme, { sector: theme, kind: shape.kind, depth: depth, lane: lane });
-                if (!node) break;
-                specializePathNode(node, theme, depth, lane, s, shape);
-                if (shape.kind === 'deadend') {
-                    node.val = Math.max(node.val, Math.round(getTierValue(node.stat, 3) * 1.45));
-                }
-                laneNodes[s][lane].push(node);
-
-                if (depth === 1 && lane === 0) connect(root.id, node.id);
-                else if (prev) connect(prev.id, node.id);
-                prev = node;
-            }
-        });
-
+    for (let spoke = 0; spoke < webSpokeCount; spoke++) {
+        let theme = getWebTheme(spoke);
+        let lane = getWebLane(spoke);
+        webNodes[spoke] = [];
+        let prev = null;
         for (let depth = 1; depth <= maxDepth; depth++) {
-            for (let i = 0; i < lanes.length - 1; i++) {
-                let laneA = lanes[i];
-                let laneB = lanes[i + 1];
-                let edgeOuter = Math.max(Math.abs(laneA), Math.abs(laneB));
-                let shouldConnect = false;
-                if (depth <= 2 && edgeOuter <= 1) shouldConnect = true;
-                else if (depth % 3 === 0 && edgeOuter <= 2) shouldConnect = true;
-                else if (depth >= maxDepth - 1 && edgeOuter <= 3) shouldConnect = true;
-                else if (depth === maxDepth && edgeOuter === 4) shouldConnect = true;
-                if (!shouldConnect) continue;
-                let a = laneNodes[s][laneA][depth - 1];
-                let b = laneNodes[s][laneB][depth - 1];
-                if (a && b) connect(a.id, b.id);
-            }
+            let point = getWebPoint(spoke, depth, 0, 0);
+            let shape = classifyWebNode(depth, spoke);
+            let node = addNode(point.x, point.y, shape.tier, theme, { sector: theme, kind: shape.kind, depth: depth, lane: lane });
+            if (!node) break;
+            node.webSpoke = spoke;
+            node.webRing = depth;
+            specializePathNode(node, theme, depth, lane, getWebSectorIndex(spoke), shape);
+            webNodes[spoke][depth - 1] = node;
+            if (prev) connect(prev.id, node.id);
+            if (depth === 1 && lane === 0 && root) connect(root.id, node.id);
+            prev = node;
         }
     }
 
-    function getClusterSide(anchor, clusterIndex) {
-        if (anchor && Number.isFinite(anchor.lane) && anchor.lane !== 0) return Math.sign(anchor.lane);
-        return clusterIndex % 2 === 0 ? 1 : -1;
+    for (let depth = 1; depth <= maxDepth; depth++) {
+        for (let spoke = 0; spoke < webSpokeCount; spoke++) {
+            let a = webNodes[spoke] && webNodes[spoke][depth - 1];
+            let b = webNodes[(spoke + 1) % webSpokeCount] && webNodes[(spoke + 1) % webSpokeCount][depth - 1];
+            if (a && b) connect(a.id, b.id);
+        }
     }
-    function getClusterNodePosition(anchor, clusterIndex, step, chainLength, blueprint) {
-        let radialLen = Math.hypot(anchor.x, anchor.y) || 1;
-        let radialX = anchor.x / radialLen;
-        let radialY = anchor.y / radialLen;
-        let tangentX = -radialY;
-        let tangentY = radialX;
-        let side = getClusterSide(anchor, clusterIndex);
-        let t = step / Math.max(1, chainLength);
-        let spread = blueprint && Number.isFinite(blueprint.spread) ? blueprint.spread : 1;
-        let radialOffset = 46 + step * 58 + Math.sin(t * Math.PI) * 18;
-        let tangentOffset = side * (34 + step * 30 + Math.sin(t * Math.PI) * 28) * spread;
+
+    const webCellClusterBlueprints = [
+        { role: 'defense', label: '방어', length: 4, spread: 0.34 },
+        { role: 'offense', label: '화력', length: 5, spread: 0.42 },
+        { role: 'utility', label: '운용', length: 4, spread: 0.50 },
+        { role: 'mastery', label: '숙련', length: 5, spread: 0.58 },
+        { role: 'survival', label: '생존', length: 4, spread: 0.38 }
+    ];
+
+    function getWebCellClusterPoint(cell, step, chainLength) {
+        let t = step / Math.max(1, chainLength + 1);
+        let bow = Math.sin(t * Math.PI) * (cell.blueprint.spread || 0.4);
+        let angle = cell.angle + angleStep * (0.22 + t * 0.48 + bow * 0.10);
+        let radius = cell.innerRadius + ringSpacing * (0.18 + t * 0.58);
         return {
-            x: anchor.x + radialX * radialOffset + tangentX * tangentOffset,
-            y: anchor.y + radialY * radialOffset + tangentY * tangentOffset
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius * webYScale
         };
     }
-    function realignSpecializedClusters(clusterAnchorsById) {
+    function realignSpecializedClusters(clusterCellsById) {
         let clusterNodes = Object.values(PASSIVE_TREE.nodes)
             .filter(node => node && node.clusterId && Number.isFinite(node.clusterStep))
             .sort((a, b) => {
@@ -745,52 +749,52 @@ function generateOrganicTree() {
                 return (a.clusterStep || 0) - (b.clusterStep || 0);
             });
         clusterNodes.forEach(node => {
-            let anchor = clusterAnchorsById[node.clusterAnchorId];
-            if (!anchor) return;
-            let pos = getClusterNodePosition(anchor, node.clusterIndex || 0, node.clusterStep || 1, node.clusterLength || 4, { spread: node.clusterSpread });
+            let cell = clusterCellsById[node.clusterAnchorId];
+            if (!cell) return;
+            let pos = getWebCellClusterPoint(cell, node.clusterStep || 1, node.clusterLength || 4);
             node.x = pos.x;
             node.y = pos.y;
         });
     }
-    const passiveClusterBlueprints = [
-        { role: 'defense', label: '방어', depth: 3, lane: -4, length: 4, spread: 0.88 },
-        { role: 'offense', label: '화력', depth: 5, lane: -2, length: 5, spread: 0.96 },
-        { role: 'utility', label: '운용', depth: 7, lane: 2, length: 4, spread: 1.04 },
-        { role: 'mastery', label: '숙련', depth: 9, lane: 4, length: 5, spread: 1.12 },
-        { role: 'survival', label: '생존', depth: 11, lane: -3, length: 4, spread: 0.92 }
-    ];
-    function buildSpecializedCluster(anchor, theme, sectorIndex, clusterIndex, blueprint, clusterAnchorsById) {
+    function buildWebCellCluster(anchor, spoke, depth, clusterCellsById) {
         if (!anchor) return;
+        let theme = getWebTheme(spoke);
         let themes = clusterThemeBySector[theme] || clusterThemeBySector.templar;
-        let themeSpec = themes[clusterIndex % themes.length];
-        if (!themeSpec || !P_STATS[themeSpec.stat]) return;
-        let chainLength = blueprint && Number.isFinite(blueprint.length) ? blueprint.length : (clusterIndex % 2 === 0 ? 5 : 4);
-        let clusterId = `${theme}_${sectorIndex}_${blueprint ? blueprint.role : clusterIndex}`;
-        clusterAnchorsById[clusterId] = anchor;
+        let blueprint = webCellClusterBlueprints[(depth + spoke) % webCellClusterBlueprints.length];
+        let themeSpec = themes[(depth * 2 + spoke) % themes.length];
+        if (!blueprint || !themeSpec || !P_STATS[themeSpec.stat]) return;
+        let chainLength = blueprint.length || 4;
+        let clusterId = `web_${spoke}_${depth}_${blueprint.role}`;
+        let cell = {
+            angle: getWebAngle(spoke),
+            innerRadius: getWebRadius(depth),
+            blueprint: blueprint
+        };
+        clusterCellsById[clusterId] = cell;
         let prev = anchor;
         for (let i = 1; i <= chainLength; i++) {
             let isEnd = i === chainLength;
-            let pos = getClusterNodePosition(anchor, clusterIndex, i, chainLength, blueprint);
+            let pos = getWebCellClusterPoint(cell, i, chainLength);
             let tier = isEnd ? 3 : (i >= chainLength - 1 ? 2 : 1);
             let kind = isEnd ? 'keystone' : (i >= chainLength - 1 ? 'major' : 'node');
-            let node = addNode(pos.x / PASSIVE_WORLD_SCALE, pos.y / PASSIVE_WORLD_SCALE, tier, themeSpec.stat, { sector: theme, kind: kind, depth: (anchor.layoutDepth || 0) + i, lane: anchor.lane });
+            let node = addNode(pos.x / PASSIVE_WORLD_SCALE, pos.y / PASSIVE_WORLD_SCALE, tier, themeSpec.stat, { sector: theme, kind: kind, depth: depth + i, lane: getWebLane(spoke) });
             if (!node) return;
             node.clusterId = clusterId;
             node.clusterAnchorId = clusterId;
-            node.clusterIndex = clusterIndex;
+            node.clusterRole = blueprint.role;
+            node.clusterRoleLabel = blueprint.label;
             node.clusterStep = i;
             node.clusterLength = chainLength;
-            node.clusterRole = blueprint ? blueprint.role : null;
-            node.clusterRoleLabel = blueprint ? blueprint.label : null;
-            node.clusterSpread = blueprint && Number.isFinite(blueprint.spread) ? blueprint.spread : 1;
             node.clusterTheme = themeSpec.title;
+            node.webCellSpoke = spoke;
+            node.webCellRing = depth;
             node.val = getTierValue(themeSpec.stat, tier);
             if (isEnd) {
                 node.title = `${themeSpec.title} 핵심`;
-                node.desc = `${PASSIVE_SECTOR_TITLES[theme] || '성좌'}의 ${node.clusterRoleLabel || '전문'} 축을 완성하는 전문 노드 뭉치의 끝입니다.`;
+                node.desc = `${PASSIVE_SECTOR_TITLES[theme] || '성좌'}의 ${blueprint.label} 구역을 완성하는 거미줄 칸 내부 전문 노드입니다.`;
             } else if (i === 1) {
                 node.title = `${themeSpec.title} 길목`;
-                node.desc = `범용 경로에서 갈라지는 ${node.clusterRoleLabel || '전문'} 축의 시작 노드입니다.`;
+                node.desc = `거미줄 경로 한 칸 안에서 ${blueprint.label} 축으로 갈라지는 시작 노드입니다.`;
             }
             connect(prev.id, node.id);
             prev = node;
@@ -798,24 +802,14 @@ function generateOrganicTree() {
     }
 
     let clusterAnchorsById = {};
-    for (let s = 0; s < sectorCount; s++) {
-        let theme = sectorThemes[s];
-        passiveClusterBlueprints.forEach((spec, index) => {
-            let anchor = laneNodes[s] && laneNodes[s][spec.lane] ? laneNodes[s][spec.lane][spec.depth - 1] : null;
-            buildSpecializedCluster(anchor, theme, s, index, spec, clusterAnchorsById);
-        });
-    }
-
-    for (let s = 0; s < sectorCount; s++) {
-        let next = (s + 1) % sectorCount;
-        for (let depth = 5; depth <= maxDepth; depth += 4) {
-            let a = laneNodes[s][0][depth - 1];
-            let b = laneNodes[next][0][depth - 1];
-            if (a && b) connect(a.id, b.id);
+    for (let depth = 1; depth < maxDepth; depth++) {
+        for (let spoke = 0; spoke < webSpokeCount; spoke++) {
+            let anchor = webNodes[spoke] && webNodes[spoke][depth - 1];
+            buildWebCellCluster(anchor, spoke, depth, clusterAnchorsById);
         }
     }
 
-    let baseOuterRadius = Object.values(PASSIVE_TREE.nodes).reduce((max, node) => Math.max(max, Math.hypot(node.x, node.y)), 0);
+    let baseOuterRadius = Object.values(PASSIVE_TREE.nodes).filter(node => !node.clusterId).reduce((max, node) => Math.max(max, Math.hypot(node.x, node.y)), 0);
     let outerAnchors = Object.values(PASSIVE_TREE.nodes)
         .filter(node => !node.clusterId)
         .filter(node => Math.hypot(node.x, node.y) >= baseOuterRadius - 240);
