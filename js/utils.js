@@ -291,9 +291,12 @@ function applyStatsToBucket(bucket, stats) {
 }
 function getTaggedDamageBreakdown(bucket, skill) {
     let tags = new Set(skill.tags || []);
+    let randomElementPool = Array.isArray(skill.randomElementPool) ? skill.randomElementPool.map(ele => { let key = String(ele || '').toLowerCase(); return key === 'lightning' || key === 'thunder' ? 'light' : key; }).filter(Boolean) : [];
+    let isRandomElementSkill = randomElementPool.length > 0;
     let parts = [];
     let total = 0;
     Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).forEach(tag => {
+        if (isRandomElementSkill && ['fire', 'cold', 'lightning'].includes(tag)) return;
         let statId = TAGGED_DAMAGE_STAT_BY_TAG[tag];
         let value = bucket[statId] || 0;
         if (!value || !tags.has(tag)) return;

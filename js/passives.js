@@ -1973,8 +1973,19 @@ function mapSkillSlotByGemTags(skillName) {
     if (tags.includes('chain')) return 6;
     return 1;
 }
+function mapEffectIndexByElement(element, fallbackIndex) {
+    let ele = normalizeDamageElementKey(element);
+    if (ele === 'chaos') return 28;
+    if (ele === 'cold') return 3;
+    if (ele === 'fire' || ele === 'light') return 26;
+    return Number.isFinite(fallbackIndex) ? fallbackIndex : 1;
+}
 function mapEffectIndexByGemTags(skillName, fallbackIndex) {
-    let tags = ((SKILL_DB[skillName] && SKILL_DB[skillName].tags) || []).map(tag => String(tag).toLowerCase());
+    let skill = SKILL_DB[skillName] || {};
+    if (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0 && game.lastSkillHitElement) {
+        return mapEffectIndexByElement(game.lastSkillHitElement, fallbackIndex);
+    }
+    let tags = ((skill && skill.tags) || []).map(tag => String(tag).toLowerCase());
     if (tags.includes('chaos')) return 28;
     if (tags.includes('cold')) return 3;
     if (tags.includes('fire') || tags.includes('light') || tags.includes('lightning') || tags.includes('thunder') || tags.includes('elemental')) return 26;

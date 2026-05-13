@@ -775,6 +775,20 @@ function getPlayerStats() {
         taggedMap[tag] = (taggedMap[tag] || 0) + part.value;
     });
     let taggedSummary = Object.keys(taggedMap).map(tag => `${translateSkillTag(tag)} ${Math.floor(taggedMap[tag])}%`);
+    function sumStatAcrossBuckets(statId) {
+        return gearBase[statId] + gearExplicit[statId] + passive[statId] + season[statId] + ascend[statId] + support[statId] + reward[statId] + (starBlessing[statId] || 0);
+    }
+    let randomElementDamagePct = Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0 ? {
+        fire: sumStatAcrossBuckets('firePctDmg'),
+        cold: sumStatAcrossBuckets('coldPctDmg'),
+        light: sumStatAcrossBuckets('lightPctDmg')
+    } : null;
+    if (randomElementDamagePct) {
+        let randomElementSummary = Object.entries(randomElementDamagePct)
+            .filter(([, value]) => value)
+            .map(([ele, value]) => `${ele === 'fire' ? '화염' : (ele === 'cold' ? '냉기' : '번개')} ${Math.floor(value)}%`);
+        if (randomElementSummary.length > 0) taggedSummary.push(`무작위 원소별 적용: ${randomElementSummary.join(' / ')}`);
+    }
 
     let gearFlatDmg = gearBase.flatDmg + gearExplicit.flatDmg;
     let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
@@ -868,7 +882,8 @@ function getPlayerStats() {
         regen: regenScaledBonus,
         fireRes: fireResScaledBonus,
         dot: dotMultiplier,
-        dotStat: dotStatMultiplier
+        dotStat: dotStatMultiplier,
+        randomElementDamagePct: randomElementDamagePct
     };
     let suppCap = 2 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap;
 
@@ -1357,6 +1372,7 @@ function getPlayerStats() {
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
         damageScales: damageScales,
+        randomElementDamagePct: randomElementDamagePct,
         armor: finalArmor,
         evasion: finalEvasion,
         energyShield: finalEnergyShield,
@@ -2673,8 +2689,10 @@ function performPlayerAttack(pStats) {
         return pStats.sSkill.ele || 'phys';
     };
     let swingElement = getHitElement();
+    game.lastSkillHitElement = swingElement;
     addBattleFx('playerSwing', {
         color: getElementColor(swingElement),
+        element: swingElement,
         crit: isCrit,
         projectile: (pStats.sSkill.tags || []).includes('projectile'),
         skillName: game.activeSkill,
@@ -2737,6 +2755,8 @@ function performPlayerAttack(pStats) {
             }
             let hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
             if (hitCrit && game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
+            let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
+            if (randomElementPct) hitBaseDamage = Math.floor(hitBaseDamage * (1 + randomElementPct / 100));
             let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
@@ -2809,7 +2829,8 @@ function performPlayerAttack(pStats) {
                 chain: pStats.sSkill.targetMode === 'chain',
                 skillName: game.activeSkill,
                 damage: dmg,
-                duration: 320
+                duration: 320,
+                element: hitElement
             });
             if (hitCrit && game.ascendClass === 'assassin' && hasKeystone('a3')) {
                 let now = Date.now();
