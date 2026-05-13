@@ -2575,6 +2575,13 @@ function isLocalFileProtocol() {
     return typeof window !== 'undefined' && window.location && window.location.protocol === 'file:';
 }
 
+function isLocalRuntimeHost() {
+    if (typeof window === 'undefined' || !window.location) return false;
+    if (window.location.protocol === 'file:') return true;
+    let host = String(window.location.hostname || '').toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+}
+
 function fileExists(path) {
     if (isLocalFileProtocol()) return true;
     try {
