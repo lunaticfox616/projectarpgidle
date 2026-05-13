@@ -15,7 +15,9 @@ const GEM_SKY_ENHANCEMENTS = {
     sky_blitz: { id: 'sky_blitz', name: '천공 붕괴', desc: '지속 피해 계열 스킬 피해 +18%', stat: 'dotMulti', val: 18 },
     sky_harmony: { id: 'sky_harmony', name: '창공의 조율', desc: '스킬 피해 +6%, 공격속도 +6%', stat: 'hybrid', val: 6 },
     sky_sunder: { id: 'sky_sunder', name: '갑주 분쇄', desc: '스킬의 물리 피해 감소 무시 +6%', stat: 'physIgnore', val: 6 },
-    sky_pierce: { id: 'sky_pierce', name: '균열 투과', desc: '스킬의 저항 관통 +6%', stat: 'resPen', val: 6 }
+    sky_pierce: { id: 'sky_pierce', name: '균열 투과', desc: '스킬의 저항 관통 +6%', stat: 'resPen', val: 6 },
+    sky_awakened_force: { id: 'sky_awakened_force', name: '각성 각인', desc: '각성 후보 젬에 부여 가능한 스킬 피해 +14%', stat: 'pctDmg', val: 14 },
+    sky_awakened_surge: { id: 'sky_awakened_surge', name: '잔향 쇄도', desc: '각성 후보 젬에 부여 가능한 공격속도 +10%, 치명타 +4%', stat: 'awakenedHybrid', val: 10, critVal: 4 }
 };
 
 const TALISMAN_SHAPES = {

@@ -157,7 +157,8 @@ function changeZone(id) {
         if (!st.skyRiftReady) return addLog('하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.', 'attack-monster');
         st.activeMeteorTier = Math.max(1, Math.floor(st.skyRiftMinTier || 1));
         st.skyRiftReady = false;
-        st.skyRiftGauge = 0;
+        st.skyRiftGauge = Math.max(0, Math.floor(st.skyRiftCarryGauge || 0));
+        st.skyRiftCarryGauge = 0;
         st.skyRiftMinTier = null;
     }
     if (typeof id === 'string' && id.includes('_boss_')) {
@@ -381,6 +382,17 @@ function getBlackMarketOfferTooltipHtml(offer) {
     return '<div class="tooltip-title">암거래 품목</div>';
 }
 
+function showBlackMarketOfferTooltip(event, encodedHtml) {
+    if (!event || typeof showInfoTooltipHtml !== 'function') return;
+    let html = '';
+    try {
+        html = decodeURIComponent(encodedHtml || '');
+    } catch (error) {
+        html = '<div class="tooltip-title">암거래 품목</div>';
+    }
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#6f89a6');
+}
+
 function refreshBlackMarket(force) {
     if (!isMarketUnlocked()) return;
     game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [] };
@@ -504,12 +516,17 @@ function renderMarketUI() {
     if (pollenEl) {
         let open = (game.season || 1) >= 8;
         pollenEl.style.display = open ? 'block' : 'none';
-        if (open) pollenEl.innerHTML = `<div class="market-service-title">꽃가루 교환소</div>
+        if (open) {
+            let beeLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
+            let exchangeOpen = beeLv >= 6;
+            pollenEl.innerHTML = `<div class="market-service-title">꽃가루 교환소 <span class="market-meta">양봉업자 Lv.${beeLv}${exchangeOpen ? '' : ' · 벌꿀/독벌침 교환 Lv.6 필요'}</span></div>
         <div class="market-row">
             <button onclick="craftBeehiveCurrency('key')" ${(game.currencies.pollen||0)<200?'disabled':''}>꽃가루 200 → 열쇠</button>
-            <button onclick="craftBeehiveCurrency('stinger')" ${(game.currencies.pollen||0)<600?'disabled':''}>꽃가루 600 → 독벌침</button>
-            <button onclick="craftBeehiveCurrency('honey')" ${(game.currencies.pollen||0)<2000?'disabled':''}>꽃가루 2000 → 벌꿀</button>
+            <button onclick="craftBeehiveCurrency('stinger')" ${!exchangeOpen || (game.currencies.pollen||0)<600?'disabled':''}>꽃가루 600 → 독벌침</button>
+            <button onclick="craftBeehiveCurrency('honey')" ${!exchangeOpen || (game.currencies.pollen||0)<2000?'disabled':''}>꽃가루 2000 → 벌꿀</button>
+            <button onclick="craftBeehiveCurrency('wax')" ${beeLv < 8 || (game.currencies.pollen||0)<350?'disabled':''}>꽃가루 350 → 밀랍</button>
         </div>`;
+        }
     }
 
     let bmEl = document.getElementById('ui-market-black');
@@ -531,12 +548,13 @@ function renderMarketUI() {
             let price = offer.type==='exchange' ? '' : ` (${ORB_DB[offer.priceKey].name} ${offer.price})`;
             let cls = offer.type === 'exchange' ? 'currency' : offer.type === 'skillGem' ? 'gem' : offer.type === 'baseItem' ? 'gear' : 'unique';
             let badge = cls === 'currency' ? '재화' : cls === 'gem' ? '젬' : cls === 'gear' ? '장비' : '고유';
-            let tooltip = getBlackMarketOfferTooltipHtml(offer).replace(/"/g, '&quot;');
-            return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span style="cursor:help;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,\"${tooltip}\",'#6f89a6')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,\"${tooltip}\",'#6f89a6')" onmouseleave="hideInfoTooltip()">${desc}${price}</span></div><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
+            let tooltip = encodeURIComponent(getBlackMarketOfferTooltipHtml(offer));
+            let safeDesc = typeof escapeHTML === 'function' ? escapeHTML(`${desc}${price}`) : `${desc}${price}`;
+            return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span class="market-black-label" data-info-tooltip-anchor="1" data-market-tooltip="${tooltip}" onmouseenter="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmousemove="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmouseleave="hideInfoTooltip()">${safeDesc}</span></div><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
         }).join('');
         bmEl.innerHTML = `<div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()">신성한 오브 1개로 품목 +1</button>`;
     }
 }
 
 
-safeExposeGlobals({ marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });

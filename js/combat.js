@@ -668,6 +668,8 @@ function getPlayerStats() {
 
     if (game.shrineBuff && Date.now() > (game.shrineBuff.expiresAt || 0)) game.shrineBuff = null;
     if (game.shrineBuff && game.shrineBuff.stat) addStatToBucket(reward, game.shrineBuff.stat, game.shrineBuff.value || 0);
+    let constellation = game.starWedge && game.starWedge.constellationBuff;
+    if (constellation && constellation.stat) addStatToBucket(reward, constellation.stat, constellation.val || 0);
     let skill = getActiveSkillStats(gemSources.total);
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
     let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots;
@@ -796,16 +798,16 @@ function getPlayerStats() {
     if (game.ascendClass === 'warrior') {
         // 1) Base multipliers / penalties
         if (hasKeystone('w1')) {
-            finalDps *= 1.12;
+            finalBaseDmg = Math.floor(finalBaseDmg * 1.12);
             finalMove *= 0.88;
         }
         if (hasKeystone('w2')) finalAspd = Math.min(12, finalAspd * 1.08);
-        if (hasKeystone('w3')) finalDps *= isDualWielding() ? 1.08 : 1;
+        if (hasKeystone('w3')) finalBaseDmg = Math.floor(finalBaseDmg * (isDualWielding() ? 1.08 : 1));
         if (hasKeystone('w4')) finalPhysIgnore += 15;
-        if (hasKeystone('w5')) finalDps *= 1.15;
-        if (hasKeystone('w6') && isDualWielding()) finalDps *= 1.15;
+        if (hasKeystone('w5')) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+        if (hasKeystone('w6') && isDualWielding()) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
         if (hasKeystone('w7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
-            finalDps *= 1.15;
+            finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
             finalDr = Math.min(75, finalDr + 15);
         }
         // 2) Keystone cap/transform phase
@@ -816,10 +818,10 @@ function getPlayerStats() {
             finalCritDmg += 15;
             finalAspd = Math.min(12, finalAspd * 1.15);
             finalMove *= 1.15;
-            finalDps *= 1.15;
+            finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
         }
     } else if (game.ascendClass === 'gladiator') {
-        if (hasKeystone('g1')) finalDps *= 1.12;
+        if (hasKeystone('g1')) finalBaseDmg = Math.floor(finalBaseDmg * 1.12);
         if (hasKeystone('g2')) {
             finalAspd = Math.min(12, finalAspd * 1.1);
             finalEvasion = Math.floor(finalEvasion * 1.1);
@@ -828,18 +830,18 @@ function getPlayerStats() {
         if (hasKeystone('g4')) {
             let crowdCount = (game.enemies || []).filter(e => e && e.hp > 0).length;
             if (crowdCount >= 3) {
-                finalDps *= 1.15;
+                finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
                 finalDr = Math.min(75, finalDr + 15);
             }
         }
-        if (hasKeystone('g5')) finalDps *= 1.1;
+        if (hasKeystone('g5')) finalBaseDmg = Math.floor(finalBaseDmg * 1.1);
         if (hasKeystone('g7')) {
             finalDs += Math.floor(Math.max(0, finalEvasion) / 50);
             finalCrit += Math.floor(Math.max(0, finalArmor) / 400);
         }
         if (hasKeystone('g8')) {
             finalDs += 100;
-            finalDps *= 1.18;
+            finalBaseDmg = Math.floor(finalBaseDmg * 1.18);
             finalRegen *= 0.5;
         }
     } else if (game.ascendClass === 'assassin') {
@@ -855,17 +857,16 @@ function getPlayerStats() {
         if (hasKeystone('a4')) {
             finalPhysIgnore += 20;
             finalResPen += 20;
-            finalDps *= 0.92;
+            finalBaseDmg = Math.floor(finalBaseDmg * 0.92);
         }
         if (hasKeystone('a8')) {
             finalCrit = Math.max(0, finalCrit - 20);
             finalCritDmg += 120;
-            avgHit *= 0.8;
-            finalDps = avgHit * finalAspd;
+            finalBaseDmg = Math.floor(finalBaseDmg * 0.8);
         }
         if (hasKeystone('a6')) {
-            if ((game.playerHp / Math.max(1, finalMaxHp)) >= 0.66) finalDps *= 1.2;
-            else finalDps *= 0.84;
+            if ((game.playerHp / Math.max(1, finalMaxHp)) >= 0.66) finalBaseDmg = Math.floor(finalBaseDmg * 1.2);
+            else finalBaseDmg = Math.floor(finalBaseDmg * 0.84);
         }
         if (hasKeystone('a7') && finalCrit > 100) finalCritDmg += (finalCrit - 100);
     } else if (game.ascendClass === 'ranger') {
@@ -876,13 +877,13 @@ function getPlayerStats() {
         }
         if (hasKeystone('r2')) {
             finalAspd = Math.min(12, finalAspd * 1.1);
-            finalDps *= 0.9;
+            finalBaseDmg = Math.floor(finalBaseDmg * 0.9);
         }
         if (hasKeystone('r3')) {
             finalMinDmgRoll = Math.max(5, finalMinDmgRoll - 10);
         }
         if (hasKeystone('r4')) finalAspd = Math.min(12, finalAspd * (1 + Math.max(0, finalMove) * 0.001));
-        if (hasKeystone('r6')) finalDps *= 0.95;
+        if (hasKeystone('r6')) finalBaseDmg = Math.floor(finalBaseDmg * 0.95);
         if (hasKeystone('r8')) {
             let aspdBonus = Math.max(0, finalAspd - 1) * 0.2;
             let moveBonus = Math.max(0, finalMove) * 0.002;
@@ -896,7 +897,7 @@ function getPlayerStats() {
             finalCrit = Math.min(100, finalCrit + Math.floor(sinceHitSec) * 5);
         }
     } else if (game.ascendClass === 'elementalist') {
-        if (hasKeystone('e1')) finalDps *= 1.15;
+        if (hasKeystone('e1')) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
         if (hasKeystone('e2')) {
             finalResF = Math.min(78, finalResF + 15);
             finalResC = Math.min(78, finalResC + 15);
@@ -908,11 +909,11 @@ function getPlayerStats() {
             finalEnergyShieldRegenRate += 10;
             finalEnergyShieldRechargeDelay = Math.max(0.4, finalEnergyShieldRechargeDelay - 0.8);
         }
-        if (hasKeystone('e4')) finalDps *= 1.12;
+        if (hasKeystone('e4')) finalBaseDmg = Math.floor(finalBaseDmg * 1.12);
         if (hasKeystone('e5')) {
             let maxElemRes = Math.max(finalResF, finalResC, finalResL);
             finalResChaos += Math.floor(maxElemRes * 0.5);
-            finalDps *= (1 + Math.max(0, finalResChaos) / 100);
+            finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalResChaos) / 100));
         }
         if (hasKeystone('e6')) {
             finalResPen += 20;
@@ -920,13 +921,13 @@ function getPlayerStats() {
         }
         if (hasKeystone('e8')) {
             let stacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0));
-            finalDps *= (1 + stacks * 0.25);
+            finalBaseDmg = Math.floor(finalBaseDmg * (1 + stacks * 0.25));
             finalResPen += (stacks * 5);
         }
-        if (hasKeystone('e7')) finalDps *= 1.05;
+        if (hasKeystone('e7')) finalBaseDmg = Math.floor(finalBaseDmg * 1.05);
     } else if (game.ascendClass === 'warlock') {
-        if (hasKeystone('wlk1')) finalDps *= 1.12;
-        if (hasKeystone('wlk2')) finalDps *= 1.2;
+        if (hasKeystone('wlk1')) finalBaseDmg = Math.floor(finalBaseDmg * 1.12);
+        if (hasKeystone('wlk2')) finalBaseDmg = Math.floor(finalBaseDmg * 1.2);
         if (hasKeystone('wlk3')) {
             finalRegen = 0;
             finalEnergyShieldRegenRate = 0;
@@ -935,14 +936,14 @@ function getPlayerStats() {
             finalResPen += 43;
             finalCrit = 0;
         }
-        if (hasKeystone('wlk4')) finalDps *= 1.1;
+        if (hasKeystone('wlk4')) finalBaseDmg = Math.floor(finalBaseDmg * 1.1);
         if (hasKeystone('wlk8')) {
-            finalDps *= 1.25;
+            finalBaseDmg = Math.floor(finalBaseDmg * 1.25);
             finalLeech *= 0.5;
         }
-        if (hasKeystone('wlk5')) finalDps *= 1.15;
+        if (hasKeystone('wlk5')) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
         if (hasKeystone('wlk7')) {
-            if ((game.playerEnergyShield || 0) <= (finalEnergyShield * 0.5)) finalDps *= 1.2;
+            if ((game.playerEnergyShield || 0) <= (finalEnergyShield * 0.5)) finalBaseDmg = Math.floor(finalBaseDmg * 1.2);
             finalDr = Math.max(-40, finalDr - 12);
         }
     } else if (game.ascendClass === 'guardian') {
@@ -960,17 +961,17 @@ function getPlayerStats() {
             finalEnergyShield = 0;
         }
         if (hasKeystone('gd5')) {
-            finalDps *= 0.85;
+            finalBaseDmg = Math.floor(finalBaseDmg * 0.85);
             finalDr = Math.min(75, finalDr + 15);
         }
         if (hasKeystone('gd6')) finalArmor = Math.floor(finalArmor * 1.15);
         if (hasKeystone('gd8')) finalDr = Math.min(75, finalDr + 15);
         if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.3) {
             finalDr = Math.min(75, finalDr + 15);
-            finalDps *= 1.15;
+            finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
         }
     } else if (game.ascendClass === 'inquisitor') {
-        if (hasKeystone('iq1')) finalDps *= 1.15;
+        if (hasKeystone('iq1')) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
         if (hasKeystone('iq2')) {
             finalCrit = Math.max(0, finalCrit - 8);
             finalCritDmg += 45;
@@ -981,9 +982,14 @@ function getPlayerStats() {
             suppCap += 1;
             finalMaxHp = Math.floor(finalMaxHp * 0.67);
         }
-        if (hasKeystone('iq8')) finalDps *= (1 + Math.max(0, finalResPen) / 100);
+        if (hasKeystone('iq8')) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalResPen) / 100));
         if (hasKeystone('iq4')) finalResPen = 0;
     }
+
+    critChance = Math.max(0, Math.min(1, finalCrit / 100));
+    critMulti = finalCritDmg / 100;
+    avgHit = finalBaseDmg * (1 - critChance) + finalBaseDmg * critChance * critMulti;
+    finalDps = avgHit * finalAspd;
 
     let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
@@ -1292,13 +1298,16 @@ function getGemPresentation(name, isSupport) {
     if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
     if (!db.isGem) return { baseLevel: 0, totalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
     let gem = normalizeGemRecord((game.gemData || {})[name]);
-    let materialBonus = (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0);
+    let materialBonus = (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0);
     let totalLevel = gem.level + stats.gemBonusSources.total + materialBonus;
     let finalLevel = Math.min(20, gem.level) + stats.gemBonusSources.total + materialBonus;
     let skill = { ...db };
     skill.dmg = skill.baseDmg + ((finalLevel - 1) * skill.dmgScale);
     skill.spd = skill.baseSpd + ((finalLevel - 1) * skill.spdScale);
-    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, desc: db.desc, skill: skill, tags: getSkillTagList(skill) };
+    let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
+    skill.dmg *= qualityMul;
+    skill.spd *= qualityMul;
+    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill) };
 }
 
 function getSkillTargets(pStats) {
@@ -1620,6 +1629,32 @@ function getPlayerAilmentChance(pStats, type) {
     return Math.max(0, Math.min(1, base / 100));
 }
 
+function isDamageAilmentType(type) {
+    return type === 'ignite' || type === 'poison' || type === 'bleed';
+}
+
+function getStoredAilmentHitDamage(ail) {
+    if (!ail) return 0;
+    return Math.max(0, Number(ail.sourceHitDamage || ail.hitDamage || 0) || 0);
+}
+
+function getDamageAilmentBaseDpsFromHit(hitDamage, power, scale) {
+    let source = Math.max(0, Number(hitDamage) || 0);
+    if (source <= 0) return 0;
+    let p = Math.max(0, Number(power) || 0);
+    let mul = Math.max(0.01, Number(scale) || 1);
+    return Math.max(1, Math.floor(source * (0.10 + p * 0.08) * mul));
+}
+
+function getEnemyDamageAilmentDps(ail, pStats) {
+    let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
+    return getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale);
+}
+
+function getPlayerDamageAilmentDps(ail) {
+    return getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, 1);
+}
+
 function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
     if (!enemy || enemy.hp <= 0) return;
     let ele = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
@@ -1629,15 +1664,23 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
     let resKey = 'ailRes' + type.charAt(0).toUpperCase() + type.slice(1);
     let resistChance = Math.max(0, Math.min(0.95, (enemy[resKey] || 0) / 100));
     if (Math.random() < resistChance) return;
-    let hitRatio = Math.max(0.001, Math.min(0.35, hitDamage / Math.max(1, enemy.maxHp || 1)));
-    let power = Math.max(0.05, Math.min(1.5, (Math.sqrt(Math.max(1, hitDamage)) * 0.01) + (hitRatio * 1.8)));
+    let sourceHitDamage = Math.max(0, Math.floor(Number(hitDamage) || 0));
+    let hitRatio = Math.max(0.001, Math.min(0.35, sourceHitDamage / Math.max(1, enemy.maxHp || 1)));
+    let hitPower = Math.sqrt(Math.max(1, sourceHitDamage)) * 0.01;
+    let damageAilment = isDamageAilmentType(type);
+    let power = damageAilment
+        ? Math.max(0.05, Math.min(1.5, hitPower))
+        : Math.max(0.05, Math.min(1.5, hitPower + (hitRatio * 1.8)));
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
     let row = enemy.ailments.find(a => a.type === type);
-    let dur = type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10);
+    let dur = damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10));
+    let payload = { type: type, time: dur, power: power };
+    if (damageAilment) payload.sourceHitDamage = sourceHitDamage;
     if (row) {
         row.time = Math.max(row.time || 0, dur);
         row.power = Math.max(row.power || 0, power);
-    } else enemy.ailments.push({ type: type, time: dur, power: power });
+        if (damageAilment) row.sourceHitDamage = Math.max(getStoredAilmentHitDamage(row), sourceHitDamage);
+    } else enemy.ailments.push(payload);
     if (type === 'chill' && hitRatio >= 0.1) {
         let fr = enemy.ailments.find(a => a.type === 'freeze');
         let freezeDur = 0.6 + hitRatio * 3.4;
@@ -1650,7 +1693,6 @@ function tickEnemyAilments(pStats, dt) {
     let zone = getZone(game.currentZoneId);
     let zoneTier = (zone && zone.tier) || 1;
     let abyssPlayerMul = (getAbyssMonsterScales(zone).playerDamageMul || 1);
-    let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
@@ -1664,8 +1706,8 @@ function tickEnemyAilments(pStats, dt) {
             if (ail.time > 0 && (type === 'ignite' || type === 'poison' || type === 'bleed')) {
                 let ele = type === 'ignite' ? 'fire' : (type === 'poison' ? 'chaos' : 'phys');
                 let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, enemy, pStats);
-                let dps = Math.max(1, Math.floor((enemy.maxHp || 1) * (0.0042 + power * 0.0032) * dotDamageScale));
-                let dotDmg = Math.max(1, Math.floor(dps * dt * (1 - enemyRes / 100) * abyssPlayerMul));
+                let dps = getEnemyDamageAilmentDps(ail, pStats);
+                let dotDmg = dps > 0 ? Math.max(1, Math.floor(dps * dt * (1 - enemyRes / 100) * abyssPlayerMul)) : 0;
                 let hpAfterDot = Math.max(0, enemy.hp - dotDmg);
                 if (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) {
                     hpAfterDot = Math.max(1, hpAfterDot);
@@ -1846,6 +1888,7 @@ function spawnEncounterMarker(marker) {
 
 function advanceMapProgress(pStats) {
     if (game.moveTimer > 0) return;
+    if (game.beehive && game.beehive.inRun) return;
     ensureEncounterRun();
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
@@ -1966,18 +2009,57 @@ function applyGrandBreachMobTuning(zone, enemy) {
     enemy.atkMul = (enemy.atkMul || 1) * 1.25;
 }
 
+
+function maybeTriggerBeeMappingEvent(beeLv, enemy) {
+    if (beeLv < 10 || !enemy || enemy.isBoss) return;
+    if ((game.currencies.pollen || 0) < 10) return;
+    let chance = enemy.isElite ? 0.012 : 0.0025;
+    if (Math.random() >= chance) return;
+    game.currencies.pollen = Math.max(0, (game.currencies.pollen || 0) - 10);
+    let roll = Math.random();
+    if (beeLv >= 14 && roll < 0.08) {
+        let bonusPct = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('queenBeeRewardBonusPct') || 0) / 100 : 0;
+        let pollen = Math.max(1, Math.floor(75 * (1 + bonusPct)));
+        awardCurrency('pollen', pollen);
+        awardCurrency('enchantedHoney', 1);
+        awardCurrency('beeswax', 2);
+        addLog(`👑 여왕벌 이벤트! 꽃가루 +${pollen}, 벌꿀 +1, 밀랍 +2`, 'loot-unique');
+    } else if (beeLv >= 12 && roll < 0.28) {
+        awardCurrency('venomStinger', 1);
+        if (Math.random() < 0.35) awardCurrency('beeswax', 1);
+        addLog('🐝 독침벌 무리 이벤트! 독벌침 +1', 'loot-rare');
+    } else if (beeLv >= 11 && roll < 0.55) {
+        awardCurrency('pollen', 45);
+        awardCurrency('beeswax', 1);
+        addLog('🐝 호박벌 이벤트! 꽃가루 +45, 밀랍 +1', 'loot-rare');
+    } else {
+        awardCurrency('pollen', 24);
+        addLog('🐝 벌 이벤트! 꽃가루 +24', 'loot-magic');
+    }
+}
+
 function rollLootForEnemy(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
+    let gemExpertLvForLoot = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('gemEngraver') || 1)) : 1;
+    if (gemExpertLvForLoot >= 12 && (enemy.isBoss || enemy.isElite)) {
+        let echoChance = enemy.isBoss ? 0.045 : 0.004;
+        let bonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('awakenedGemDropPct') || 0) / 100 : 0;
+        if (Math.random() < echoChance * (1 + bonus)) {
+            awardCurrency('awakenedEcho', 1);
+            if (game.settings.showLootLog) addLog('🌌 각성 잔향 +1', 'loot-unique');
+        }
+    }
     if (Math.random() < (enemy.isBoss ? 0.15 : enemy.isElite ? 0.03 : 0.005)) {
         if (Math.random() < 0.5) {
             let available = Object.keys(SKILL_DB).filter(name => !(game.skills || []).includes(name) && SKILL_DB[name].isGem);
             if (available.length > 0) {
                 let skill = rndChoice(available);
                 game.skills.push(skill);
-                game.gemData[skill] = { level: 1, exp: 0 };
+                let awakenedDrop = gemExpertLvForLoot >= 13 && Math.random() < 0.035;
+                game.gemData[skill] = { level: 1, exp: 0, awakened: awakenedDrop };
                 game.noti.skills = true;
                 checkUnlocks();
-                if (game.settings.showLootLog) addLog(`✨ 공격 젬 <span class='loot-magic'>[${skill}]</span> 획득!`);
+                if (game.settings.showLootLog) addLog(`✨ 공격 젬 <span class='loot-magic'>[${skill}]</span> 획득!${awakenedDrop ? ' (각성 후보)' : ''}`);
             }
         } else {
             let available = Object.keys(SUPPORT_GEM_DB);
@@ -2051,27 +2133,33 @@ function rollLootForEnemy(enemy) {
             if (game.settings.showLootLog) addLog(`💠 주얼 자동해체: [${jewel.name}]`, 'loot-normal');
         } else {
             game.jewelInventory.push(jewel);
-            let lineText = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} +${stat.val}`).join(' / ');
+            let lineText = getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
             if (game.settings.showLootLog) addLog(`💠 ${getJewelRarityLabel(jewel.rarity)} 주얼 [${jewel.name}] 획득! (${lineText})`, 'loot-rare');
         }
     }
     let beeUnlocked = !!(game.beehive && game.beehive.unlockedPermanent);
     let mappingZone = zone && zone.type === 'abyss';
     if (beeUnlocked && mappingZone && !enemy.isBoss) {
+        let beeLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
         let beeLootLogs = [];
-        if (Math.random() < 0.05) {
+        if (beeLv >= 1 && Math.random() < 0.05) {
             let pollenAmount = enemy.isElite ? 5 : 2;
             awardCurrency('pollen', pollenAmount);
             beeLootLogs.push(`꽃가루 +${pollenAmount}`);
         }
-        if (enemy.isElite && Math.random() < 0.024) {
+        if (beeLv >= 4 && enemy.isElite && Math.random() < 0.024) {
             awardCurrency('venomStinger', 1);
             beeLootLogs.push('독벌침 +1');
         }
-        if (enemy.isElite && Math.random() < 0.0032) {
+        if (beeLv >= 2 && enemy.isElite && Math.random() < 0.0032) {
             awardCurrency('enchantedHoney', 1);
             beeLootLogs.push('마력 깃든 벌꿀 +1');
         }
+        if (beeLv >= 8 && enemy.isElite && Math.random() < 0.016) {
+            awardCurrency('beeswax', 1);
+            beeLootLogs.push('밀랍 +1');
+        }
+        maybeTriggerBeeMappingEvent(beeLv, enemy);
         if (game.settings.showLootLog && beeLootLogs.length > 0) beeLootLogs.forEach(msg => addLog(`🐝 ${msg}`, 'loot-normal'));
     }
     if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.01 : enemy.isElite ? 0.003 : 0.0004)) {
@@ -2144,6 +2232,9 @@ function handleEnemyDeath(enemy, pStats) {
         }
     }
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
+    if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun && (game.enemies || []).filter(entry => entry && entry.hp > 0).length === 0) {
+        if (typeof onBeehiveWaveCleared === 'function') onBeehiveWaveCleared();
+    }
     if (zone && zone.id === 'grand_breach_run' && enemy.isBoss && grand && grand.inRun) {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         grand.inRun = false;
@@ -2301,9 +2392,17 @@ function finishEncounterRun() {
         if ((game.labyrinthUnlockedMaxFloor || 1) > prevLab && typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'labyrinth_new_floor');
         let gotBaseFossil = Math.random() < 0.5;
         if (gotBaseFossil) awardCurrency('fossil', 1);
-        let rolledFossil = rndChoice(FOSSIL_DB);
+        let fossilDropPool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly);
+        let rolledFossil = rndChoice(fossilDropPool);
         let gotTypedFossil = Math.random() < 0.5;
         if (gotTypedFossil) awardCurrency(rolledFossil.key, 1);
+        let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
+        let primalChance = Math.min(0.45, 0.10 + Math.floor(game.labyrinthFloor || 1) * 0.003);
+        let ancientChance = Math.min(0.14, 0.025 + Math.floor(game.labyrinthFloor || 1) * 0.001);
+        let gotPrimalFossil = mycologistLv >= 4 && Math.random() < primalChance;
+        let gotAncientPrimalFossil = mycologistLv >= 5 && Math.random() < ancientChance;
+        if (gotPrimalFossil) awardCurrency('fossilPrimal', 1);
+        if (gotAncientPrimalFossil) awardCurrency('fossilAncientPrimal', 1);
         if (Math.random() < 0.03) {
             awardCurrency('fossilAbyssal', 1);
             addLog('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
@@ -2313,6 +2412,8 @@ function finishEncounterRun() {
         let fossilSummary = [];
         if (gotBaseFossil) fossilSummary.push('기본 화석 +1');
         if (gotTypedFossil) fossilSummary.push(`${rolledFossil.name} +1`);
+        if (gotPrimalFossil) fossilSummary.push('원시 화석 +1');
+        if (gotAncientPrimalFossil) fossilSummary.push('원시 고대 화석 +1');
         addLog(`🏛️ 미궁 ${game.labyrinthFloor}층으로 진입합니다. [${fossilSummary.join(' / ') || '화석 없음'}]`, 'season-up');
         game.killsInZone = 0;
         startMoving(false);
@@ -2705,6 +2806,21 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         clearWoodsmanBuildLock();
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
+    } else if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) {
+        addLog(message || "☠️ 벌집 전투에서 패배했습니다. 원정이 즉시 종료됩니다.", "death", { noToast: !!opts.noToast });
+        if (typeof exitBeehiveRun === 'function') exitBeehiveRun('', 'death');
+        else {
+            game.beehive.inRun = false;
+            game.beehive.awaitingClear = false;
+            game.beehive.pendingChoice = null;
+            game.currentZoneId = game.beehive.returnZoneId !== undefined && game.beehive.returnZoneId !== null ? game.beehive.returnZoneId : game.maxZoneId;
+            game.beehive.returnZoneId = null;
+            game.enemies = [];
+            game.encounterPlan = [];
+            game.encounterIndex = 0;
+            game.runProgress = 0;
+            game.killsInZone = 0;
+        }
     } else if (zone && zone.id === 'grand_breach_run') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         let grand = v.grandRun || {};
@@ -2716,6 +2832,16 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.runProgress = 0;
         game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : game.maxZoneId;
         game.killsInZone = 0;
+    } else if (zone && zone.type === 'meteor') {
+        addLog(message || "☠️ 운석 낙하 지점에서 패배했습니다. 운석 지점이 닫힙니다.", "death", { noToast: !!opts.noToast });
+        let st = ensureStarWedgeState();
+        st.activeMeteorTier = null;
+        game.currentZoneId = game.maxZoneId;
+        game.killsInZone = 0;
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.encounterIndex = 0;
+        game.runProgress = 0;
     } else if (zone.type === 'seasonBoss' && game.inTicketBossFight) {
         addLog(message || "☠️ 시즌 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death", { noToast: !!opts.noToast });
         game.currentZoneId = 0;
@@ -2761,16 +2887,23 @@ function getPlayerAilmentResistChance(type, pStats) {
     return Math.max(0, Math.min(0.75, res / 100));
 }
 
-function applyPlayerAilment(type, duration, power, pStats) {
+function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage) {
     if (!type || duration <= 0) return;
     if ((type === 'ignite' && pStats.immuneIgnite) || (type === 'chill' && pStats.immuneChill) || (type === 'freeze' && pStats.immuneFreeze) || (type === 'shock' && pStats.immuneShock) || (type === 'bleed' && pStats.immuneBleed)) return;
     if (Math.random() < getPlayerAilmentResistChance(type, pStats)) return;
     game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];
+    let damageAilment = isDamageAilmentType(type);
+    let hitSource = Math.max(0, Math.floor(Number(sourceHitDamage) || 0));
     let existing = game.playerAilments.find(row => row.type === type);
     if (existing) {
         existing.time = Math.max(existing.time || 0, duration);
         existing.power = Math.max(existing.power || 0, power || 0.1);
-    } else game.playerAilments.push({ type: type, time: duration, power: Math.max(0.1, power || 0.1) });
+        if (damageAilment) existing.sourceHitDamage = Math.max(getStoredAilmentHitDamage(existing), hitSource);
+    } else {
+        let row = { type: type, time: duration, power: Math.max(0.1, power || 0.1) };
+        if (damageAilment) row.sourceHitDamage = hitSource;
+        game.playerAilments.push(row);
+    }
 }
 
 function tickAilments(pStats, dt) {
@@ -2780,23 +2913,29 @@ function tickAilments(pStats, dt) {
         ail.time = Math.max(0, (ail.time || 0) - dt);
         let power = Math.max(0.1, ail.power || 0.1);
         if (ail.type === 'ignite') {
-            let burn = Math.max(1, Math.floor(pStats.maxHp * (0.0035 + power * 0.0040)));
-            burn = Math.max(1, Math.floor(burn * (1 - Math.max(0, Math.min(0.75, (pStats.resF || 0) / 100)))));
-            game.playerHp -= burn;
-            recordIncomingDamage('fire', burn, '점화');
+            let burn = getPlayerDamageAilmentDps(ail);
+            if (burn > 0) {
+                burn = Math.max(1, Math.floor(burn * dt * (1 - Math.max(0, Math.min(0.75, (pStats.resF || 0) / 100)))));
+                game.playerHp -= burn;
+                recordIncomingDamage('fire', burn, '점화');
+            }
         } else if (ail.type === 'poison') {
-            let poison = Math.max(1, Math.floor(pStats.maxHp * (0.0030 + power * 0.0034)));
-            poison = Math.max(1, Math.floor(poison * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100)))));
-            if (pStats.poisonToHeal) game.playerHp = Math.min(getPlayerHpCap(pStats), game.playerHp + poison);
-            else {
-                game.playerHp -= poison;
-                recordIncomingDamage('chaos', poison, '중독');
+            let poison = getPlayerDamageAilmentDps(ail);
+            if (poison > 0) {
+                poison = Math.max(1, Math.floor(poison * dt * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100)))));
+                if (pStats.poisonToHeal) game.playerHp = Math.min(getPlayerHpCap(pStats), game.playerHp + poison);
+                else {
+                    game.playerHp -= poison;
+                    recordIncomingDamage('chaos', poison, '중독');
+                }
             }
         } else if (ail.type === 'bleed') {
-            let bleed = Math.max(1, Math.floor(pStats.maxHp * (0.0032 + power * 0.0032)));
-            bleed = Math.max(1, Math.floor(bleed * (1 - Math.max(0, Math.min(0.75, (pStats.dr || 0) / 100)))));
-            game.playerHp -= bleed;
-            recordIncomingDamage('phys', bleed, '출혈');
+            let bleed = getPlayerDamageAilmentDps(ail);
+            if (bleed > 0) {
+                bleed = Math.max(1, Math.floor(bleed * dt * (1 - Math.max(0, Math.min(0.75, (pStats.dr || 0) / 100)))));
+                game.playerHp -= bleed;
+                recordIncomingDamage('phys', bleed, '출혈');
+            }
         } else if (ail.type === 'chill') {
             // chill handled via aspd modifier in core loop
         } else if (ail.type === 'shock') {
@@ -2914,8 +3053,11 @@ function performMonsterAttacks(pStats) {
             if ((enemy.ailmentChance || 0) > 0 && Math.random() < enemy.ailmentChance) {
                 let ail = enemy.ele === 'fire' ? 'ignite' : enemy.ele === 'cold' ? 'chill' : enemy.ele === 'light' ? 'shock' : 'poison';
                 let hitRatio = Math.max(0.001, Math.min(0.35, dmg / Math.max(1, pStats.maxHp || 1)));
-                let ailPower = Math.max(0.1, Math.min(1.5, (Math.sqrt(Math.max(1, dmg)) * 0.01) + (hitRatio * 1.8)));
-                applyPlayerAilment(ail, enemy.isBoss ? 5 : 3, ailPower, pStats);
+                let damageAilment = isDamageAilmentType(ail);
+                let ailPower = damageAilment
+                    ? Math.max(0.1, Math.min(1.5, Math.sqrt(Math.max(1, dmg)) * 0.01))
+                    : Math.max(0.1, Math.min(1.5, (Math.sqrt(Math.max(1, dmg)) * 0.01) + (hitRatio * 1.8)));
+                applyPlayerAilment(ail, enemy.isBoss ? 5 : 3, ailPower, pStats, dmg);
                 if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각' : ail === 'shock' ? '감전' : '중독'} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster');
             }
 
@@ -3069,6 +3211,11 @@ function awardLoopProgressPoints() {
 
 function triggerSeasonReset() {
     if (isRewardOpen()) closeRewardOverlay();
+    if (game.woodsmanBuildLock) {
+        clearWoodsmanBuildLock();
+        addLog('☠️ 혼돈 밖 전투를 중단하고 루프를 진행합니다. 세팅 잠금이 해제되었습니다.', 'season-up');
+    }
+    game.pendingLoopDecision = false;
     let codexReveal = {};
     Object.keys(game.uniqueCodex || {}).forEach(key => {
         if (!key || !game.uniqueCodex[key]) return;
@@ -3211,4 +3358,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos });
+safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps });
