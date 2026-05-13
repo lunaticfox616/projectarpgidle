@@ -1641,6 +1641,7 @@ let battleAssets = {
     backdrops: {},
     atlas: null
 };
+const ENABLE_BATTLE_SHEET_SANITIZATION = true;
 const BATTLE_BACKDROP_VARIANTS = [
     { tone: 'rgba(30, 77, 122, 0.16)', glow: 'rgba(169, 226, 255, 0.10)' },
     { tone: 'rgba(86, 44, 24, 0.17)', glow: 'rgba(255, 198, 132, 0.10)' },
@@ -2574,6 +2575,13 @@ function isLocalFileProtocol() {
     return typeof window !== 'undefined' && window.location && window.location.protocol === 'file:';
 }
 
+function isLocalRuntimeHost() {
+    if (typeof window === 'undefined' || !window.location) return false;
+    if (window.location.protocol === 'file:') return true;
+    let host = String(window.location.hostname || '').toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+}
+
 function fileExists(path) {
     if (isLocalFileProtocol()) return true;
     try {
@@ -2685,6 +2693,7 @@ function initBattleAssets() {
     }, 8000);
 
     function queueBattleSheetSanitization(key, image) {
+        if (!ENABLE_BATTLE_SHEET_SANITIZATION) return;
         if (battleAssets.loadTicket !== loadTicket) return;
         try {
             battleAssets.images[key] = sanitizeBattleSheet(image);
@@ -2697,6 +2706,7 @@ function initBattleAssets() {
         if (index >= manifestEntries.length || battleAssets.loadTicket !== loadTicket || settled) return;
         let [key, src] = manifestEntries[index];
         let img = new Image();
+        if (!isLocalFileProtocol()) img.crossOrigin = 'anonymous';
         img.onload = function() {
             try {
                 if (key.startsWith('backdrop') || key.startsWith('bgAct')) {
@@ -3721,7 +3731,7 @@ function buildBattleAssetAtlas() {
             { image: enemySpriteImage, frame: enemyFrames.skeleton },
             { image: enemySpriteImage, frame: enemyFrames.shadow },
             { image: enemySpriteImage, frame: enemyFrames.wraith },
-            { image: battleAssets.images.enemies, frame: enemyFrames.bandit }
+            { image: enemySpriteImage, frame: enemyFrames.bandit }
         ].filter(entry => hasUsableFrame(entry.frame)),
         boss: [
             { image: enemySpriteImage, frame: enemyFrames.boss },
@@ -3736,7 +3746,7 @@ function buildBattleAssetAtlas() {
     const tileFrames = tileImage ? tileParts.map(part => trimRectToContent(tileImage, part, 2)) : [];
     return {
         hero: {
-            image: legacyHeroImage || battleAssets.images[(selectedHeroDef.strips || {}).idle] || battleAssets.images.hero1Idle || battleAssets.images.hero1Walk || battleAssets.images.hero1Attack || battleAssets.images.hero1Hurt || battleAssets.images.hero1Death,
+            image: battleAssets.images[(selectedHeroDef.strips || {}).idle] || battleAssets.images.hero1Idle || battleAssets.images.hero1Walk || battleAssets.images.hero1Attack || battleAssets.images.hero1Hurt || battleAssets.images.hero1Death || legacyHeroImage,
             frames: heroFrameSet
         },
         enemies: {
