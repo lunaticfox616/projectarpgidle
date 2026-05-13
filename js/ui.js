@@ -1621,8 +1621,10 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
     let source = Math.max(0, Number(sourceHitDamage || 0));
     let detail = '';
     if (isDamageAilmentType(type)) {
-        let dps = getDamageAilmentBaseDpsFromHit(source, p, 1);
-        detail = `초당 피해: 약 ${dps} <span style="color:#9fb4d1;">(받은 피해 ${Math.floor(source)} 기준)</span>`;
+        let tooltipStats = cachedTooltipStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : null);
+        let dps = getPlayerDamageAilmentDps({ type: type, power: p, sourceHitDamage: source }, tooltipStats);
+        let basis = source > 0 ? `받은 피해 ${Math.floor(source)} 기준` : '최대 생명력 기반';
+        detail = `초당 피해: 약 ${dps} <span style="color:#9fb4d1;">(${basis})</span>`;
     } else if (type === 'chill') detail = `공격 속도 약 32% 감소`;
     else if (type === 'shock') detail = `물리 피해 감소 -22% (최저 -40%)`;
     else if (type === 'freeze') detail = '행동 불가';
@@ -2860,7 +2862,7 @@ function updateCombatUI(pStats) {
         let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             if (!isDamageAilmentType(ail.type)) return sum;
-            return sum + Math.floor(getPlayerDamageAilmentDps(ail) * Math.max(0, ail.time || 0));
+            return sum + Math.floor(getPlayerDamageAilmentDps(ail, pStats) * Math.max(0, ail.time || 0));
         }, 0);
         let playerHpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
         let pendingPlayerPct = Math.max(0, Math.min(playerHpPct, (projectedPlayerAilDmg / Math.max(1, pStats.maxHp)) * 100));

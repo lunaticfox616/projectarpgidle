@@ -1651,8 +1651,22 @@ function getEnemyDamageAilmentDps(ail, pStats) {
     return getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale);
 }
 
-function getPlayerDamageAilmentDps(ail) {
-    return getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, 1);
+function getPlayerDamageAilmentFallbackDps(type, power, pStats) {
+    let stats = pStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : null);
+    let maxHp = Math.max(1, Math.floor((stats && stats.maxHp) || 0));
+    if (maxHp <= 1) return 0;
+    let p = Math.max(0.1, Number(power || 0.1));
+    let perTick = 0;
+    if (type === 'ignite') perTick = Math.max(1, Math.floor(maxHp * (0.0035 + p * 0.0040)));
+    else if (type === 'poison') perTick = Math.max(1, Math.floor(maxHp * (0.0030 + p * 0.0034)));
+    else if (type === 'bleed') perTick = Math.max(1, Math.floor(maxHp * (0.0032 + p * 0.0032)));
+    return perTick > 0 ? perTick * 10 : 0;
+}
+
+function getPlayerDamageAilmentDps(ail, pStats) {
+    let source = getStoredAilmentHitDamage(ail);
+    if (source > 0) return getDamageAilmentBaseDpsFromHit(source, ail ? ail.power : 0, 1);
+    return getPlayerDamageAilmentFallbackDps(ail ? ail.type : null, ail ? ail.power : 0, pStats);
 }
 
 function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
@@ -2913,14 +2927,14 @@ function tickAilments(pStats, dt) {
         ail.time = Math.max(0, (ail.time || 0) - dt);
         let power = Math.max(0.1, ail.power || 0.1);
         if (ail.type === 'ignite') {
-            let burn = getPlayerDamageAilmentDps(ail);
+            let burn = getPlayerDamageAilmentDps(ail, pStats);
             if (burn > 0) {
                 burn = Math.max(1, Math.floor(burn * dt * (1 - Math.max(0, Math.min(0.75, (pStats.resF || 0) / 100)))));
                 game.playerHp -= burn;
                 recordIncomingDamage('fire', burn, '점화');
             }
         } else if (ail.type === 'poison') {
-            let poison = getPlayerDamageAilmentDps(ail);
+            let poison = getPlayerDamageAilmentDps(ail, pStats);
             if (poison > 0) {
                 poison = Math.max(1, Math.floor(poison * dt * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100)))));
                 if (pStats.poisonToHeal) game.playerHp = Math.min(getPlayerHpCap(pStats), game.playerHp + poison);
@@ -2930,7 +2944,7 @@ function tickAilments(pStats, dt) {
                 }
             }
         } else if (ail.type === 'bleed') {
-            let bleed = getPlayerDamageAilmentDps(ail);
+            let bleed = getPlayerDamageAilmentDps(ail, pStats);
             if (bleed > 0) {
                 bleed = Math.max(1, Math.floor(bleed * dt * (1 - Math.max(0, Math.min(0.75, (pStats.dr || 0) / 100)))));
                 game.playerHp -= bleed;
@@ -3358,4 +3372,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps });
+safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps });
