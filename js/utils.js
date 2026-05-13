@@ -221,7 +221,7 @@ function getRarityRank(rarity) {
 
 function createEmptyStatBucket() {
     return {
-        flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, fireGemLevel: 0, suppCap: 0,
+        flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResF: 0, maxResC: 0, maxResL: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, spellFlatDmg: 0, spellFlatPct: 0,
@@ -253,7 +253,18 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'crit') bucket.crit += value;
     else if (statId === 'move') bucket.move += value;
     else if (statId === 'gemLevel') bucket.gemLevel += value;
+    else if (statId === 'elementalGemLevel') bucket.elementalGemLevel += value;
     else if (statId === 'fireGemLevel') bucket.fireGemLevel += value;
+    else if (statId === 'coldGemLevel') bucket.coldGemLevel += value;
+    else if (statId === 'lightGemLevel') bucket.lightGemLevel += value;
+    else if (statId === 'chaosGemLevel') bucket.chaosGemLevel += value;
+    else if (statId === 'physGemLevel') bucket.physGemLevel += value;
+    else if (statId === 'projectileGemLevel') bucket.projectileGemLevel += value;
+    else if (statId === 'meleeGemLevel') bucket.meleeGemLevel += value;
+    else if (statId === 'slamGemLevel') bucket.slamGemLevel += value;
+    else if (statId === 'spellGemLevel') bucket.spellGemLevel += value;
+    else if (statId === 'dotGemLevel') bucket.dotGemLevel += value;
+    else if (statId === 'aoeGemLevel') bucket.aoeGemLevel += value;
     else if (statId === 'dr') bucket.dr += value;
     else if (statId === 'physIgnore') bucket.physIgnore += value;
     else if (statId === 'resPen') bucket.resPen += value;

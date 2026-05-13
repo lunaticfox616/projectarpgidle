@@ -772,6 +772,23 @@ function generateOrganicTree() {
             node.y = pos.y;
         });
     }
+    const tagGemClusterSpecs = [
+        { stat: 'firePctDmg', endStat: 'fireGemLevel', title: '화염 젬 단련', length: 5 },
+        { stat: 'coldPctDmg', endStat: 'coldGemLevel', title: '냉기 젬 단련', length: 5 },
+        { stat: 'lightPctDmg', endStat: 'lightGemLevel', title: '번개 젬 단련', length: 5 },
+        { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 젬 단련', length: 5 },
+        { stat: 'physPctDmg', endStat: 'physGemLevel', title: '물리 젬 단련', length: 5 },
+        { stat: 'projectilePctDmg', endStat: 'projectileGemLevel', title: '투사체 젬 단련', length: 5 },
+        { stat: 'meleePctDmg', endStat: 'meleeGemLevel', title: '근접 젬 단련', length: 5 },
+        { stat: 'slamPctDmg', endStat: 'slamGemLevel', title: '강타 젬 단련', length: 5 },
+        { stat: 'spellFlatPct', endStat: 'spellGemLevel', title: '주문 젬 단련', length: 5 },
+        { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 젬 단련', length: 5 },
+        { stat: 'aoePctDmg', endStat: 'aoeGemLevel', title: '범위 젬 단련', length: 5 },
+        { stat: 'elementalPctDmg', endStat: 'elementalGemLevel', title: '원소 젬 단련', length: 5 }
+    ];
+    function getTagGemClusterSpec(spoke, depth) {
+        return tagGemClusterSpecs[(spoke * 5 + depth * 3) % tagGemClusterSpecs.length];
+    }
     let retainedGlobalGemLevelCluster = false;
     function getCompositeClusterSpec(spoke, depth) {
         if (spoke === 4) return { stat: 'moveEvasion', title: '질풍 회피', length: 4 };
@@ -800,8 +817,10 @@ function generateOrganicTree() {
                 retainedGlobalGemLevelCluster = true;
                 return { stat: 'spellFlatPct', endStat: 'gemLevel', title: '외곽 젬 각성', length: 5 };
             }
-            return { stat: 'firePctDmg', endStat: 'fireGemLevel', title: '화염 젬 단련', length: 5 };
+            return getTagGemClusterSpec(spoke, depth);
         }
+        if (depth === 6 && spoke === 1) return tagGemClusterSpecs[11];
+        if (depth >= 6 && ((spoke + depth) % 9 === 0)) return getTagGemClusterSpec(spoke, depth);
         let composite = getCompositeClusterSpec(spoke, depth);
         if (composite && P_STATS[composite.stat] && (!composite.endStat || P_STATS[composite.endStat])) return composite;
         return { stat: themeSpec.stat, title: themeSpec.title, length: null };
