@@ -108,10 +108,10 @@ const PASSIVE_THEME_POOLS = {
     center: ['flatHp', 'flatDmg', 'pctDmg', 'crit', 'aspd', 'move', 'regen', 'pctHp'],
     templar: ['energyShield', 'energyShieldPct', 'pctHp', 'regen', 'resAll', 'aoePctDmg'],
     witch: ['energyShield', 'energyShieldPct', 'pctHp', 'crit', 'dotPctDmg', 'gemLevel'],
-    shadow: ['evasion', 'evasionPct', 'pctHp', 'move', 'crit', 'projectilePctDmg'],
+    shadow: ['evasion', 'evasionPct', 'pctHp', 'move', 'crit', 'projectilePctDmg', 'leechRateCap'],
     ranger: ['evasion', 'evasionPct', 'pctHp', 'aspd', 'projectilePctDmg', 'coldPctDmg'],
-    duelist: ['armor', 'armorPct', 'pctHp', 'aspd', 'meleePctDmg', 'physPctDmg'],
-    marauder: ['armor', 'armorPct', 'pctHp', 'dr', 'regen', 'physPctDmg']
+    duelist: ['armor', 'armorPct', 'pctHp', 'aspd', 'meleePctDmg', 'physPctDmg', 'leechInstanceCap'],
+    marauder: ['armor', 'armorPct', 'pctHp', 'dr', 'regen', 'physPctDmg', 'leechTotalCap']
 };
 
 const PASSIVE_SECTOR_TITLES = {
@@ -139,7 +139,7 @@ const PASSIVE_STYLE = {
     fog: 'rgba(2,3,6,0.18)'
 };
 
-const PASSIVE_CORE_GENERIC_STATS = ['flatHp', 'flatDmg', 'pctDmg', 'aspd', 'move', 'crit', 'regen', 'pctHp'];
+const PASSIVE_CORE_GENERIC_STATS = ['flatHp', 'flatDmg', 'pctDmg', 'aspd', 'move', 'crit', 'regen', 'pctHp', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'];
 
 const PASSIVE_STAR_BLESSING = { flatHp: 140, pctDmg: 24, move: 10 };
 
@@ -212,6 +212,9 @@ const PASSIVE_SPECIAL_NODE_CONFIGS = [
     { sector: 'witch', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '부패 인장', desc: '저주받은 흔적이 적의 재생 능력을 잠급니다.' },
     { sector: 'shadow', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '암영 구속', desc: '은밀한 일격이 상처 재생을 가로막습니다.' },
     { sector: 'duelist', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '결투의 속박', desc: '연속 베기로 적의 회복 루프를 끊어냅니다.' },
+    { sector: 'shadow', kinds: ['major', 'keystone'], stat: 'leechRateCap', val: 1.0, title: '혈류 가속', desc: '흡혈 인스턴스의 초당 회복 속도 한계를 높입니다.' },
+    { sector: 'duelist', kinds: ['major', 'keystone'], stat: 'leechInstanceCap', val: 3, title: '깊은 상처', desc: '한 번의 타격으로 저장할 수 있는 흡혈량 한계를 높입니다.' },
+    { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'leechTotalCap', val: 5, title: '피의 저수지', desc: '동시에 유지할 수 있는 흡혈 총 저장량 한계를 높입니다.' },
     { sector: 'marauder', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '절맥 강타', desc: '강한 충격이 적의 회복 혈류를 억제합니다.' },
     { sector: 'duelist', kinds: ['major', 'keystone'], stat: 'minDmgRoll', val: 4, title: '하한 제압', desc: '연속 교전에서도 피해 하한을 안정적으로 유지합니다.' },
     { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'maxDmgRoll', val: 4, title: '상한 폭발', desc: '강타의 최고 피해를 끌어올립니다.' }
