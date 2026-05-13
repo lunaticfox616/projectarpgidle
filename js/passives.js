@@ -2570,7 +2570,12 @@ function resetHeroSheetToDefault() {
 }
 
 
+function isLocalFileProtocol() {
+    return typeof window !== 'undefined' && window.location && window.location.protocol === 'file:';
+}
+
 function fileExists(path) {
+    if (isLocalFileProtocol()) return true;
     try {
         const xhr = new XMLHttpRequest();
         xhr.open('HEAD', path, false);
@@ -2635,7 +2640,7 @@ function initBattleAssets() {
         bgAct9: 'assets/background/act9.png',
         bgAct10: 'assets/background/act10.png',
     };
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['weapons']));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['effectsV2', 'weapons', 'tiles']));
     Object.entries(manifest).forEach(([key, src]) => {
         if (typeof src === 'string' && !src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('https')) {
             if (!fileExists(src)) optionalManifestKeys.add(key);
@@ -2667,9 +2672,8 @@ function initBattleAssets() {
             finalizeBattleAssets();
             return;
         }
-        battleAssets.failed = true;
-        battleAssets.loading = false;
         console.warn('battle asset load completed with missing files:', battleAssets.failedKeys.join(', '));
+        finalizeBattleAssets();
     }
 
     setTimeout(() => {
@@ -2931,7 +2935,12 @@ function detectSpriteComponents(image, minArea) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(image, 0, 0);
-    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let data;
+    try {
+        data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    } catch (error) {
+        return [];
+    }
     const visited = new Uint8Array(canvas.width * canvas.height);
     const components = [];
     const backgroundSamples = [];
@@ -3723,7 +3732,8 @@ function buildBattleAssetAtlas() {
     // 필요 시 추후 개별 투명화 보정 후 재활성화 가능.
     // enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies2));
     // enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies3));
-    const tileFrames = tileParts.map(part => trimRectToContent(battleAssets.images.tiles, part, 2));
+    const tileImage = battleAssets.images.tiles || null;
+    const tileFrames = tileImage ? tileParts.map(part => trimRectToContent(tileImage, part, 2)) : [];
     return {
         hero: {
             image: legacyHeroImage || battleAssets.images[(selectedHeroDef.strips || {}).idle] || battleAssets.images.hero1Idle || battleAssets.images.hero1Walk || battleAssets.images.hero1Attack || battleAssets.images.hero1Hurt || battleAssets.images.hero1Death,
@@ -3773,24 +3783,24 @@ function buildBattleAssetAtlas() {
             }
         },
         tiles: {
-            image: battleAssets.images.tiles,
+            image: tileImage,
             frames: {
-                grass: tileFrames[0],
-                grassDeep: tileFrames[1],
-                moss: tileFrames[2],
-                stone: tileFrames[3],
-                dirt: tileFrames[4],
-                dirtWarm: tileFrames[5],
-                grassBright: tileFrames[6],
-                swamp: tileFrames[7],
-                ruin: tileFrames[8],
-                frost: tileFrames[9],
-                lava: tileFrames[10],
-                chest: tileFrames[11],
-                roots: tileFrames[12],
-                abyss: tileFrames[13],
-                temple: tileFrames[14],
-                templeAlt: tileFrames[15]
+                grass: tileFrames[0] || null,
+                grassDeep: tileFrames[1] || null,
+                moss: tileFrames[2] || null,
+                stone: tileFrames[3] || null,
+                dirt: tileFrames[4] || null,
+                dirtWarm: tileFrames[5] || null,
+                grassBright: tileFrames[6] || null,
+                swamp: tileFrames[7] || null,
+                ruin: tileFrames[8] || null,
+                frost: tileFrames[9] || null,
+                lava: tileFrames[10] || null,
+                chest: tileFrames[11] || null,
+                roots: tileFrames[12] || null,
+                abyss: tileFrames[13] || null,
+                temple: tileFrames[14] || null,
+                templeAlt: tileFrames[15] || null
             }
         }
     };
