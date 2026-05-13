@@ -105,13 +105,13 @@ const PASSIVE_PREVIEW_RADIUS = 105;
 const PASSIVE_PREVIEW_EDGE_DEPTH = 1;
 
 const PASSIVE_THEME_POOLS = {
-    center: ['flatHp', 'flatDmg', 'pctDmg', 'crit', 'aspd', 'move', 'regen', 'pctHp'],
-    templar: ['energyShield', 'energyShieldPct', 'pctHp', 'regen', 'resAll', 'aoePctDmg'],
-    witch: ['energyShield', 'energyShieldPct', 'pctHp', 'crit', 'dotPctDmg', 'gemLevel'],
-    shadow: ['evasion', 'evasionPct', 'pctHp', 'move', 'crit', 'projectilePctDmg', 'leechRateCap'],
-    ranger: ['evasion', 'evasionPct', 'pctHp', 'aspd', 'projectilePctDmg', 'coldPctDmg'],
-    duelist: ['armor', 'armorPct', 'pctHp', 'aspd', 'meleePctDmg', 'physPctDmg', 'leechInstanceCap'],
-    marauder: ['armor', 'armorPct', 'pctHp', 'dr', 'regen', 'physPctDmg', 'leechTotalCap']
+    center: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'pctHp'],
+    templar: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'energyShield', 'energyShieldPct', 'spellFlatPct', 'aoePctDmg', 'resAll'],
+    witch: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'energyShield', 'energyShieldPct', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'dotPctDmg', 'gemLevel'],
+    shadow: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'evasion', 'evasionPct', 'critDmg', 'chaosPctDmg', 'leechRateCap'],
+    ranger: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'evasion', 'evasionPct', 'projectilePctDmg', 'projectileExtraShots', 'coldPctDmg'],
+    duelist: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'armor', 'armorPct', 'meleePctDmg', 'physPctDmg', 'ds', 'leechInstanceCap'],
+    marauder: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'armor', 'armorPct', 'physPctDmg', 'slamPctDmg', 'pctHp', 'leechTotalCap']
 };
 
 const PASSIVE_SECTOR_TITLES = {
@@ -139,7 +139,7 @@ const PASSIVE_STYLE = {
     fog: 'rgba(2,3,6,0.18)'
 };
 
-const PASSIVE_CORE_GENERIC_STATS = ['flatHp', 'flatDmg', 'pctDmg', 'aspd', 'move', 'crit', 'regen', 'pctHp', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'];
+const PASSIVE_CORE_GENERIC_STATS = ['flatHp', 'flatDmg', 'pctDmg', 'aspd', 'move', 'crit', 'regen', 'pctHp', 'energyShieldPct', 'evasionPct', 'armorPct', 'projectilePctDmg', 'meleePctDmg', 'physPctDmg'];
 
 const PASSIVE_STAR_BLESSING = { flatHp: 140, pctDmg: 24, move: 10 };
 
