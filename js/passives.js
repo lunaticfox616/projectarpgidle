@@ -3125,6 +3125,16 @@ function buildBattleAssetAtlas() {
         if (!image || !frame) return null;
         return { ...frame, image: image };
     }
+    function inferStripFallbackColumns(image) {
+        let width = Math.max(1, Math.round(image && image.width || 1));
+        let height = Math.max(1, Math.round(image && image.height || 1));
+        let squareFrameCols = width / height;
+        let roundedSquareFrameCols = Math.round(squareFrameCols);
+        if (roundedSquareFrameCols >= 1 && Math.abs(squareFrameCols - roundedSquareFrameCols) <= 0.02) {
+            return roundedSquareFrameCols;
+        }
+        return Math.max(1, Math.round(width / 80));
+    }
     function buildStripFramesFromImage(image, minArea) {
         if (!image) return [];
         let detected = sortSheetComponents(detectSpriteComponents(image, minArea || 220))
@@ -3133,7 +3143,7 @@ function buildBattleAssetAtlas() {
             .map(rect => withImageRef(image, rect))
             .filter(Boolean);
         if (detected.length > 0) return detected;
-        let fallbackCols = Math.max(1, Math.round((image.width || 1) / 80));
+        let fallbackCols = inferStripFallbackColumns(image);
         let frameWidth = Math.max(1, Math.floor((image.width || 1) / fallbackCols));
         let fallback = [];
         for (let i = 0; i < fallbackCols; i++) {
