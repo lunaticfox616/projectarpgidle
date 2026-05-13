@@ -3731,7 +3731,7 @@ function buildBattleAssetAtlas() {
             { image: enemySpriteImage, frame: enemyFrames.skeleton },
             { image: enemySpriteImage, frame: enemyFrames.shadow },
             { image: enemySpriteImage, frame: enemyFrames.wraith },
-            { image: battleAssets.images.enemies, frame: enemyFrames.bandit }
+            { image: enemySpriteImage, frame: enemyFrames.bandit }
         ].filter(entry => hasUsableFrame(entry.frame)),
         boss: [
             { image: enemySpriteImage, frame: enemyFrames.boss },
@@ -3746,7 +3746,7 @@ function buildBattleAssetAtlas() {
     const tileFrames = tileImage ? tileParts.map(part => trimRectToContent(tileImage, part, 2)) : [];
     return {
         hero: {
-            image: legacyHeroImage || battleAssets.images[(selectedHeroDef.strips || {}).idle] || battleAssets.images.hero1Idle || battleAssets.images.hero1Walk || battleAssets.images.hero1Attack || battleAssets.images.hero1Hurt || battleAssets.images.hero1Death,
+            image: battleAssets.images[(selectedHeroDef.strips || {}).idle] || battleAssets.images.hero1Idle || battleAssets.images.hero1Walk || battleAssets.images.hero1Attack || battleAssets.images.hero1Hurt || battleAssets.images.hero1Death || legacyHeroImage,
             frames: heroFrameSet
         },
         enemies: {
