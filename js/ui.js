@@ -16,6 +16,7 @@ let playerHpDamageGhostHoldUntil = 0;
 let enemyHpDamageGhostStates = new Map();
 const PLAYER_HP_DAMAGE_GHOST_HOLD_MS = 260;
 const PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC = 34;
+const ENEMY_HP_DAMAGE_GHOST_SNAP_MS = 680;
 
 function startBattleAssetLoadNow() {
     window.__battleAssetAutoloadEnabled = true;
@@ -2901,10 +2902,28 @@ function updatePlayerHpDamageGhost(actualPct) {
     return playerHpDamageGhostPct;
 }
 
+function primeEnemyHpDamageGhost(enemyId, actualPct) {
+    if (enemyId === null || enemyId === undefined) return;
+    let key = String(enemyId);
+    if (enemyHpDamageGhostStates.has(key)) return;
+    enemyHpDamageGhostStates.set(key, updateHpDamageGhostState(null, actualPct === undefined ? 100 : actualPct, Date.now()));
+}
+
 function updateEnemyHpDamageGhost(enemyId, actualPct) {
     if (enemyId === null || enemyId === undefined) return Math.max(0, Math.min(100, Number(actualPct) || 0));
     let key = String(enemyId);
-    let state = updateHpDamageGhostState(enemyHpDamageGhostStates.get(key) || null, actualPct, Date.now());
+    let now = Date.now();
+    let state = updateHpDamageGhostState(enemyHpDamageGhostStates.get(key) || null, actualPct, now);
+    if (state.ghostPct > actualPct + 0.05) {
+        if (!Number.isFinite(state.snapAt) || state.snapAt <= 0) state.snapAt = now + ENEMY_HP_DAMAGE_GHOST_SNAP_MS;
+        if (now >= state.snapAt) {
+            state.ghostPct = Math.max(0, Math.min(100, Number(actualPct) || 0));
+            state.holdUntil = 0;
+            state.snapAt = 0;
+        }
+    } else {
+        state.snapAt = 0;
+    }
     enemyHpDamageGhostStates.set(key, state);
     return state.ghostPct;
 }
