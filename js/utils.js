@@ -291,7 +291,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'moveEvasion') { bucket.move += value; bucket.evasionPct += value; }
     else if (statId === 'hpArmor') { bucket.flatHp += value; bucket.armor += value * 2; }
     else if (statId === 'aspdMove') { bucket.aspd += value; bucket.move += value; }
-    else if (statId === 'chaosResElemPenalty') { bucket.resChaos += value; bucket.resF -= Math.floor(value / 2); bucket.resC -= Math.floor(value / 2); bucket.resL -= Math.floor(value / 2); }
+    else if (statId === 'chaosResElemPenalty') { bucket.resChaos += value; bucket.resF -= value; bucket.resC -= value; bucket.resL -= value; }
     else if (statId === 'expGain') bucket.expGain += value;
     else if (statId === 'targetAny') bucket.targetAny += value;
     else if (statId === 'targetProjectile') bucket.targetProjectile += value;

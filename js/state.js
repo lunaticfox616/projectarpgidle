@@ -486,7 +486,7 @@ const P_STATS = {
     moveEvasion: { name: '이동 속도 + 회피(%)', tiers: [1, 2, 3], s: 2, m: 5, k: 10, isPct: true },
     hpArmor: { name: '생명력 + 방어도', tiers: [1, 2, 3], s: 18, m: 48, k: 96 },
     aspdMove: { name: '공격 속도 + 이동 속도(%)', tiers: [1, 2, 3], s: 2, m: 5, k: 9, isPct: true },
-    chaosResElemPenalty: { name: '카오스 저항 + 원소 저항 감소(%)', tiers: [2, 3], m: 6, k: 12, isPct: true },
+    chaosResElemPenalty: { name: '카오스 저항 + 모든 원소 저항 감소(%)', tiers: [2, 3], m: 6, k: 12, isPct: true },
     maxResF: { name: '최대 화염 저항(%)', tiers: [3], k: 1, isPct: true },
     maxResC: { name: '최대 냉기 저항(%)', tiers: [3], k: 1, isPct: true },
     maxResL: { name: '최대 번개 저항(%)', tiers: [3], k: 1, isPct: true },

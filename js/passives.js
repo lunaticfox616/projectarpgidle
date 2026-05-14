@@ -38,6 +38,10 @@ function getPassiveEffectLabel(node) {
         return `${statMut.name || mutation.currentStat} +${formatValue(mutation.currentStat, mutation.currentVal)}${statMut.isPct ? '%' : ''} <span style="color:#b8a7c7;">(변성)</span>`;
     }
     if (node.effectLabel) return node.effectLabel;
+    if (node.stat === 'chaosResElemPenalty') {
+        let value = formatValue(node.stat, node.val);
+        return `카오스 저항 +${value}% 및 모든 원소 저항 -${value}%`;
+    }
     let stat = P_STATS[node.stat] || {};
     let suffix = stat.isPct ? '%' : '';
     return `${stat.name || node.stat} +${formatValue(node.stat, node.val)}${suffix}`;
@@ -858,17 +862,22 @@ function generateOrganicTree() {
         return tagGemClusterSpecs[(spoke * 5 + depth * 3) % tagGemClusterSpecs.length];
     }
     let retainedGlobalGemLevelCluster = false;
+    function isTopChaosPenaltyCluster(spoke, depth) {
+        let topArc = angleDistance(getWebAngle(spoke), -Math.PI / 2) <= Math.PI / 3;
+        return topArc && ((spoke === 15 && depth === 5) || (spoke === 1 && depth === 9));
+    }
     function getCompositeClusterSpec(spoke, depth) {
         if (spoke === 4) return { stat: 'moveEvasion', title: '질풍 회피', length: 4 };
         if (spoke === 8) return { stat: 'hpArmor', title: '거석 생명', length: 4 };
         if (spoke === 12) return { stat: 'slamPctDmg', endStat: 'slamEchoChance', title: '대지 여진', length: 5 };
         if (spoke === 0) return { stat: 'energyShieldPct', endStat: 'energyShieldRegen', title: '보호막 순환', length: 4 };
+        if (isTopChaosPenaltyCluster(spoke, depth)) return { stat: 'chaosResElemPenalty', title: '혼돈 절연', length: 4 };
         const rotating = [
             { stat: 'critDmg', title: '치명 배율', length: 4 },
             { stat: 'ds', title: '연속 타격', length: 4 },
             { stat: 'maxDmgRoll', title: '상한 보정', length: 4 },
             { stat: 'pctDmg', endStat: 'suppCap', title: '보조 젬 연결', length: 4 },
-            { stat: 'chaosResElemPenalty', title: '혼돈 절연', length: 4 },
+            { stat: 'minDmgRoll', title: '하한 안정', length: 4 },
             { stat: 'resF', endStat: 'maxResF', title: '화염 최대 저항', length: 4 },
             { stat: 'resC', endStat: 'maxResC', title: '냉기 최대 저항', length: 4 },
             { stat: 'resL', endStat: 'maxResL', title: '번개 최대 저항', length: 4 },
@@ -895,6 +904,7 @@ function generateOrganicTree() {
     }
     function buildWebCellCluster(anchor, spoke, depth, clusterCellsById) {
         if (!anchor) return;
+        if (depth <= 4 && ((spoke + depth) % 2 === 0)) return;
         let theme = getWebTheme(spoke);
         let themes = clusterThemeBySector[theme] || clusterThemeBySector.templar;
         let blueprint = webCellClusterBlueprints[(depth + spoke) % webCellClusterBlueprints.length];
@@ -1665,7 +1675,7 @@ function refreshPassiveVisibility() {
     });
     let allNodes = Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node));
     if ((game.passives || []).includes('n0')) {
-        allNodes.forEach(node => discoveredPassiveNodes.add(node.id));
+        getPassiveLinkedNodeIds('n0', PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH).forEach(id => discoveredPassiveNodes.add(id));
     }
     previewPassiveNodes = new Set(discoveredPassiveNodes);
     let previewSeeds = Array.from(new Set((game.passives || []).filter(id => isPassiveNodeAvailable(id))));
@@ -1693,8 +1703,10 @@ function revealAroundNode(nodeId, options) {
     let newlyDiscovered = [];
     let discoverIds = new Set([nodeId]);
     if (nodeId === 'n0') {
+        getPassiveLinkedNodeIds(nodeId, edgeDepth).forEach(id => discoverIds.add(id));
         Object.values(PASSIVE_TREE.nodes).forEach(node => {
-            if (isPassiveNodeAvailable(node)) discoverIds.add(node.id);
+            if (!isPassiveNodeAvailable(node)) return;
+            if (node.kind === 'core' && node.layoutDepth === 1) discoverIds.add(node.id);
         });
     } else {
         getPassiveLinkedNodeIds(nodeId, edgeDepth).forEach(id => discoverIds.add(id));
