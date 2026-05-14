@@ -1469,7 +1469,7 @@ function rollEnemyTrait(zone, isElite, isBoss, seed) {
 }
 
 
-function applyDamageToEnemyResource(enemy, damage) {
+function applyDamageToEnemyResource(enemy, damage, options) {
     let remaining = Math.max(0, Math.floor(Number(damage) || 0));
     if (!enemy || remaining <= 0) return 0;
     let dealt = 0;
@@ -1481,7 +1481,8 @@ function applyDamageToEnemyResource(enemy, damage) {
     }
     if (remaining > 0) {
         let beforeHp = Math.max(0, Math.floor(enemy.hp || 0));
-        enemy.hp = Math.max(0, beforeHp - remaining);
+        let minimumHp = Math.max(0, Math.floor((options && Number.isFinite(options.minimumHp)) ? options.minimumHp : 0));
+        enemy.hp = Math.max(minimumHp, beforeHp - remaining);
         dealt += Math.max(0, beforeHp - enemy.hp);
     }
     return dealt;
@@ -1931,12 +1932,9 @@ function tickEnemyAilments(pStats, dt) {
                 let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, enemy, pStats);
                 let dps = getEnemyDamageAilmentDps(ail, pStats);
                 let dotDmg = dps > 0 ? Math.max(1, Math.floor(dps * dt * (1 - enemyRes / 100) * abyssPlayerMul)) : 0;
-                let hpAfterDot = Math.max(0, enemy.hp - dotDmg);
-                if (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) {
-                    hpAfterDot = Math.max(1, hpAfterDot);
-                }
-                enemy.hp = hpAfterDot;
-                addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dotDmg, duration: 200, element: ele, noLine: true, dot: true });
+                let minimumHp = (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) ? 1 : 0;
+                let dealt = applyDamageToEnemyResource(enemy, dotDmg, { minimumHp: minimumHp });
+                addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dealt, duration: 200, element: ele, noLine: true, dot: true });
             }
             if (ail.time > 0) next.push(ail);
         });
@@ -1962,12 +1960,9 @@ function tickEnemyDotEffects(pStats, dt) {
             let enemyRes = getEffectiveEnemyMitigation(dotEle, zoneTier, enemy, pStats);
             let dotDmg = Math.max(1, Math.floor((dotState.rawTickDamage || 1) * (1 - (enemyRes / 100))));
             dotDmg = Math.max(1, Math.floor(dotDmg * abyssPlayerMul));
-            let hpAfterDot = Math.max(0, enemy.hp - dotDmg);
-            if (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) {
-                hpAfterDot = Math.max(1, hpAfterDot);
-            }
-            enemy.hp = hpAfterDot;
-            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dotDmg, duration: 240, element: dotEle, noLine: true, dot: true });
+            let minimumHp = (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) ? 1 : 0;
+            let dealt = applyDamageToEnemyResource(enemy, dotDmg, { minimumHp: minimumHp });
+            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dealt, duration: 240, element: dotEle, noLine: true, dot: true });
             if (enemy.hp <= 0) {
                 handleEnemyDeath(enemy, pStats);
                 break;

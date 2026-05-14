@@ -2867,15 +2867,20 @@ function setTextById(id, value) {
     el.innerText = value;
 }
 
-function updateHpDamageGhostState(state, actualPct, now) {
+function updateHpDamageGhostState(state, actualPct, now, options) {
     actualPct = Math.max(0, Math.min(100, Number(actualPct) || 0));
     if (!state || state.ghostPct === null || state.lastPct === null) {
-        return { ghostPct: actualPct, lastPct: actualPct, lastAt: now, holdUntil: 0 };
+        let initialPct = Math.max(actualPct, Math.min(100, Number((options && options.initialGhostPct) || actualPct) || actualPct));
+        return { ghostPct: initialPct, lastPct: initialPct, lastAt: now, holdUntil: initialPct > actualPct + 0.05 ? now + PLAYER_HP_DAMAGE_GHOST_HOLD_MS : 0 };
     }
     let elapsedSec = Math.max(0, Math.min(0.5, (now - (state.lastAt || now)) / 1000));
+    let continuousDecay = !!(options && options.continuousDecay);
     if (actualPct < state.lastPct - 0.05) {
+        let isAlreadyTrailing = state.ghostPct > actualPct + 0.05;
         state.ghostPct = Math.max(state.ghostPct, state.lastPct);
-        state.holdUntil = now + PLAYER_HP_DAMAGE_GHOST_HOLD_MS;
+        if (!continuousDecay || !isAlreadyTrailing) {
+            state.holdUntil = now + PLAYER_HP_DAMAGE_GHOST_HOLD_MS;
+        }
     } else if (actualPct > state.ghostPct) {
         state.ghostPct = actualPct;
     }
@@ -2904,7 +2909,7 @@ function updatePlayerHpDamageGhost(actualPct) {
 function updateEnemyHpDamageGhost(enemyId, actualPct) {
     if (enemyId === null || enemyId === undefined) return Math.max(0, Math.min(100, Number(actualPct) || 0));
     let key = String(enemyId);
-    let state = updateHpDamageGhostState(enemyHpDamageGhostStates.get(key) || null, actualPct, Date.now());
+    let state = updateHpDamageGhostState(enemyHpDamageGhostStates.get(key) || null, actualPct, Date.now(), { initialGhostPct: 100, continuousDecay: true });
     enemyHpDamageGhostStates.set(key, state);
     return state.ghostPct;
 }
