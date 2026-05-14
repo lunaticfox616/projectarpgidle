@@ -16,6 +16,8 @@ let playerHpDamageGhostHoldUntil = 0;
 let enemyHpDamageGhostStates = new Map();
 const PLAYER_HP_DAMAGE_GHOST_HOLD_MS = 260;
 const PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC = 34;
+const ENEMY_HP_DAMAGE_GHOST_DECAY_ACCEL_PCT_PER_SEC = 105;
+const ENEMY_HP_DAMAGE_GHOST_MAX_DECAY_PCT_PER_SEC = 220;
 
 function startBattleAssetLoadNow() {
     window.__battleAssetAutoloadEnabled = true;
@@ -2867,20 +2869,39 @@ function setTextById(id, value) {
     el.innerText = value;
 }
 
-function updateHpDamageGhostState(state, actualPct, now) {
+function updateHpDamageGhostState(state, actualPct, now, options) {
     actualPct = Math.max(0, Math.min(100, Number(actualPct) || 0));
     if (!state || state.ghostPct === null || state.lastPct === null) {
-        return { ghostPct: actualPct, lastPct: actualPct, lastAt: now, holdUntil: 0 };
+        let initialPct = Math.max(actualPct, Math.min(100, Number((options && options.initialGhostPct) || actualPct) || actualPct));
+        return { ghostPct: initialPct, lastPct: initialPct, lastAt: now, holdUntil: initialPct > actualPct + 0.05 ? now + PLAYER_HP_DAMAGE_GHOST_HOLD_MS : 0, decayVelocityPctPerSec: 0 };
     }
     let elapsedSec = Math.max(0, Math.min(0.5, (now - (state.lastAt || now)) / 1000));
+    let continuousDecay = !!(options && options.continuousDecay);
+    let acceleratedDecay = !!(options && options.acceleratedDecay);
     if (actualPct < state.lastPct - 0.05) {
+        let isAlreadyTrailing = state.ghostPct > actualPct + 0.05;
         state.ghostPct = Math.max(state.ghostPct, state.lastPct);
-        state.holdUntil = now + PLAYER_HP_DAMAGE_GHOST_HOLD_MS;
+        if (!continuousDecay || !isAlreadyTrailing) {
+            state.holdUntil = now + PLAYER_HP_DAMAGE_GHOST_HOLD_MS;
+            state.decayVelocityPctPerSec = 0;
+        }
     } else if (actualPct > state.ghostPct) {
         state.ghostPct = actualPct;
+        state.decayVelocityPctPerSec = 0;
     }
     if (now >= state.holdUntil && state.ghostPct > actualPct) {
-        state.ghostPct = Math.max(actualPct, state.ghostPct - PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC * elapsedSec);
+        let decayRate = PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC;
+        if (acceleratedDecay) {
+            let trailingDistance = Math.max(0, state.ghostPct - actualPct);
+            state.decayVelocityPctPerSec = Math.min(
+                ENEMY_HP_DAMAGE_GHOST_MAX_DECAY_PCT_PER_SEC,
+                Math.max(decayRate, (state.decayVelocityPctPerSec || 0) + ENEMY_HP_DAMAGE_GHOST_DECAY_ACCEL_PCT_PER_SEC * elapsedSec)
+            );
+            decayRate = Math.min(ENEMY_HP_DAMAGE_GHOST_MAX_DECAY_PCT_PER_SEC, state.decayVelocityPctPerSec + trailingDistance * 1.15);
+        }
+        state.ghostPct = Math.max(actualPct, state.ghostPct - decayRate * elapsedSec);
+    } else if (state.ghostPct <= actualPct + 0.05) {
+        state.decayVelocityPctPerSec = 0;
     }
     state.lastPct = actualPct;
     state.lastAt = now;
@@ -2904,7 +2925,7 @@ function updatePlayerHpDamageGhost(actualPct) {
 function updateEnemyHpDamageGhost(enemyId, actualPct) {
     if (enemyId === null || enemyId === undefined) return Math.max(0, Math.min(100, Number(actualPct) || 0));
     let key = String(enemyId);
-    let state = updateHpDamageGhostState(enemyHpDamageGhostStates.get(key) || null, actualPct, Date.now());
+    let state = updateHpDamageGhostState(enemyHpDamageGhostStates.get(key) || null, actualPct, Date.now(), { initialGhostPct: 100, continuousDecay: true, acceleratedDecay: true });
     enemyHpDamageGhostStates.set(key, state);
     return state.ghostPct;
 }

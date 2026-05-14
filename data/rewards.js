@@ -20,6 +20,7 @@ const ACT_REWARD_DB = {
         body: '떨어진 곳에서 당신이 찾아낸 젬은, 아직 이름을 부르지 못한 힘을 품고 있었다. 하나를 골라 다음 액트의 전투 방식을 정하세요.',
         choices: [
             { kind: 'skill', skill: '연속 베기', fallbackKind: 'points', fallbackValue: 1, label: '근접 - 연속 베기', desc: '전방을 빠르게 가르는 근접 기술입니다.' },
+            { kind: 'skill', skill: '흡혈 타격', fallbackKind: 'points', fallbackValue: 1, label: '근접 - 흡혈 타격', desc: '카오스 피해와 흡혈이 붙은 근접 일격입니다.' },
             { kind: 'skill', skill: '관통 사격', fallbackKind: 'points', fallbackValue: 1, label: '투사체 - 관통 사격', desc: '멀리서 적 무리를 꿰뚫는 사격입니다.' },
             { kind: 'skill', skill: '얼음 창', fallbackKind: 'points', fallbackValue: 1, label: '마법 - 얼음 창', desc: '고위력 냉기 투사체를 발사합니다.' }
         ]
