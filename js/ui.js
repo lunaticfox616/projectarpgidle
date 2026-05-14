@@ -13,6 +13,7 @@ let playerHpDamageGhostPct = null;
 let playerHpDamageGhostLastPct = null;
 let playerHpDamageGhostLastAt = 0;
 let playerHpDamageGhostHoldUntil = 0;
+let enemyHpDamageGhostStates = new Map();
 const PLAYER_HP_DAMAGE_GHOST_HOLD_MS = 260;
 const PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC = 34;
 
@@ -219,6 +220,7 @@ function switchTab(tabId) {
     hideInfoTooltip();
     hideItemTooltip();
     if (typeof window.hidePassiveNodeTooltip === 'function') window.hidePassiveNodeTooltip();
+    syncDerivedTabUnlock(tabId);
     let gateKey = TAB_UNLOCK_GATES[tabId];
     if (gateKey && !game.unlocks[gateKey]) {
         addLog(getLockedTabMessage(tabId), 'attack-monster');
@@ -2820,28 +2822,54 @@ function setTextById(id, value) {
     el.innerText = value;
 }
 
-function updatePlayerHpDamageGhost(actualPct) {
-    let now = Date.now();
+function updateHpDamageGhostState(state, actualPct, now) {
     actualPct = Math.max(0, Math.min(100, Number(actualPct) || 0));
-    if (playerHpDamageGhostPct === null || playerHpDamageGhostLastPct === null) {
-        playerHpDamageGhostPct = actualPct;
-        playerHpDamageGhostLastPct = actualPct;
-        playerHpDamageGhostLastAt = now;
-        return actualPct;
+    if (!state || state.ghostPct === null || state.lastPct === null) {
+        return { ghostPct: actualPct, lastPct: actualPct, lastAt: now, holdUntil: 0 };
     }
-    let elapsedSec = Math.max(0, Math.min(0.5, (now - (playerHpDamageGhostLastAt || now)) / 1000));
-    if (actualPct < playerHpDamageGhostLastPct - 0.05) {
-        playerHpDamageGhostPct = Math.max(playerHpDamageGhostPct, playerHpDamageGhostLastPct);
-        playerHpDamageGhostHoldUntil = now + PLAYER_HP_DAMAGE_GHOST_HOLD_MS;
-    } else if (actualPct > playerHpDamageGhostPct) {
-        playerHpDamageGhostPct = actualPct;
+    let elapsedSec = Math.max(0, Math.min(0.5, (now - (state.lastAt || now)) / 1000));
+    if (actualPct < state.lastPct - 0.05) {
+        state.ghostPct = Math.max(state.ghostPct, state.lastPct);
+        state.holdUntil = now + PLAYER_HP_DAMAGE_GHOST_HOLD_MS;
+    } else if (actualPct > state.ghostPct) {
+        state.ghostPct = actualPct;
     }
-    if (now >= playerHpDamageGhostHoldUntil && playerHpDamageGhostPct > actualPct) {
-        playerHpDamageGhostPct = Math.max(actualPct, playerHpDamageGhostPct - PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC * elapsedSec);
+    if (now >= state.holdUntil && state.ghostPct > actualPct) {
+        state.ghostPct = Math.max(actualPct, state.ghostPct - PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC * elapsedSec);
     }
-    playerHpDamageGhostLastPct = actualPct;
-    playerHpDamageGhostLastAt = now;
+    state.lastPct = actualPct;
+    state.lastAt = now;
+    return state;
+}
+
+function updatePlayerHpDamageGhost(actualPct) {
+    let state = updateHpDamageGhostState({
+        ghostPct: playerHpDamageGhostPct,
+        lastPct: playerHpDamageGhostLastPct,
+        lastAt: playerHpDamageGhostLastAt,
+        holdUntil: playerHpDamageGhostHoldUntil
+    }, actualPct, Date.now());
+    playerHpDamageGhostPct = state.ghostPct;
+    playerHpDamageGhostLastPct = state.lastPct;
+    playerHpDamageGhostLastAt = state.lastAt;
+    playerHpDamageGhostHoldUntil = state.holdUntil;
     return playerHpDamageGhostPct;
+}
+
+function updateEnemyHpDamageGhost(enemyId, actualPct) {
+    if (enemyId === null || enemyId === undefined) return Math.max(0, Math.min(100, Number(actualPct) || 0));
+    let key = String(enemyId);
+    let state = updateHpDamageGhostState(enemyHpDamageGhostStates.get(key) || null, actualPct, Date.now());
+    enemyHpDamageGhostStates.set(key, state);
+    return state.ghostPct;
+}
+
+function pruneEnemyHpDamageGhostStates(activeEnemyIds) {
+    if (!enemyHpDamageGhostStates || enemyHpDamageGhostStates.size <= 0) return;
+    let activeSet = new Set((activeEnemyIds || []).map(id => String(id)));
+    Array.from(enemyHpDamageGhostStates.keys()).forEach(key => {
+        if (!activeSet.has(key)) enemyHpDamageGhostStates.delete(key);
+    });
 }
 
 function updateCombatUI(pStats) {
@@ -3022,6 +3050,7 @@ function updateCombatUI(pStats) {
     }
 
     let enemies = (game.enemies || []).filter(enemy => enemy && (enemy.hp || 0) > 0);
+    pruneEnemyHpDamageGhostStates(enemies.map(enemy => enemy.id));
     let targetIds = getSkillTargets(pStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     let focusedEnemy = enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
     if (!focusedEnemy) {
@@ -3044,10 +3073,13 @@ function updateCombatUI(pStats) {
         }, 0);
         let pendingPct = Math.max(0, Math.min(pct, (projectedAilmentDamage / Math.max(1, focusedEnemy.maxHp || 1)) * 100));
         let pendingStartPct = Math.max(0, pct - pendingPct);
+        let ghostPct = updateEnemyHpDamageGhost(focusedEnemy.id, pct);
+        let ghostDisplay = ghostPct > pct + 0.2 ? 'block' : 'none';
         document.getElementById('ui-enemy-list').innerHTML = `
             <div class="enemy-card targeted">
                 <div class="enemy-name">${getEnemyDisplayName(focusedEnemy)}</div>
                 <div class="hp-bar-bg">
+                    <div class="hp-bar-fill enemy-damage-ghost" style="width:${ghostPct}%; display:${ghostDisplay};"></div>
                     <div class="hp-bar-fill enemy" style="width:${pct}%;"></div>
                     <div class="hp-bar-fill enemy-pending" style="left:${pendingStartPct}%; width:${pendingPct}%;"></div>
                     <div class="hp-text">${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}</div>
@@ -3271,6 +3303,7 @@ function performUpdateStaticUI() {
         summarySkillTreeBtn.innerText = game.unlocks.char ? '스킬트리' : '스킬트리 (Lv.2)';
     }
     let activeContent = document.querySelector('.tab-content.active');
+    if (activeContent) syncDerivedTabUnlock(activeContent.id);
     let activeGate = activeContent ? TAB_UNLOCK_GATES[activeContent.id] : null;
     if (activeGate && !game.unlocks[activeGate]) {
         switchTab('tab-character');
@@ -6411,6 +6444,19 @@ function renderExpertiseUI() {
     tree.innerHTML = treeOverview + `<div class="expertise-tree-grid"><div><div class="expertise-muted">[균사학자]</div>${groups.mycologist.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[천문학자]</div>${groups.astronomer.map(getExpertiseNodeButtonHtml).join('')}<div class="expertise-panel" style="margin:8px 0;">[전문가 공통]${groups.common.map(getExpertiseNodeButtonHtml).join('')}</div><div class="expertise-muted">[양봉업자]</div>${groups.beekeeper.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[젬 각인사]</div>${groups.gemEngraver.map(getExpertiseNodeButtonHtml).join('')}</div></div>`;
 }
 
+function isJewelTabUnlockReady() {
+    return (game.season || 1) >= 5
+        || (Array.isArray(game.jewelInventory) && game.jewelInventory.length > 0)
+        || ((game.currencies || {}).jewelShard || 0) > 0;
+}
+
+function syncDerivedTabUnlock(tabId) {
+    if (tabId === 'tab-jewel' && game.unlocks && !game.unlocks.jewel && isJewelTabUnlockReady()) {
+        game.unlocks.jewel = true;
+        game.noti.jewel = true;
+    }
+}
+
 function checkUnlocks() {
     let u = game.unlocks;
     if (game.level >= 2 && !u.char) {
@@ -6423,7 +6469,7 @@ function checkUnlocks() {
         game.noti.items = true;
         queueTutorialNotice('unlock_items', '장비/제작 개방', '첫 장비 또는 제작 재화를 얻었습니다.\n아이템을 장착하고, 오브를 사용해 장비를 강화할 수 있습니다.', 'tab-items');
     }
-    if (((game.season || 1) >= 5 || (game.jewelInventory || []).length > 0 || (game.currencies.jewelShard || 0) > 0) && !u.jewel) {
+    if (isJewelTabUnlockReady() && !u.jewel) {
         u.jewel = true;
         game.noti.jewel = true;
         queueTutorialNotice('unlock_jewel', '주얼 탭 개방', '주얼과 주얼 결정을 사용할 수 있게 되었습니다.', 'tab-jewel');
