@@ -219,6 +219,7 @@ function switchTab(tabId) {
     hideInfoTooltip();
     hideItemTooltip();
     if (typeof window.hidePassiveNodeTooltip === 'function') window.hidePassiveNodeTooltip();
+    syncDerivedTabUnlock(tabId);
     let gateKey = TAB_UNLOCK_GATES[tabId];
     if (gateKey && !game.unlocks[gateKey]) {
         addLog(getLockedTabMessage(tabId), 'attack-monster');
@@ -3271,6 +3272,7 @@ function performUpdateStaticUI() {
         summarySkillTreeBtn.innerText = game.unlocks.char ? '스킬트리' : '스킬트리 (Lv.2)';
     }
     let activeContent = document.querySelector('.tab-content.active');
+    if (activeContent) syncDerivedTabUnlock(activeContent.id);
     let activeGate = activeContent ? TAB_UNLOCK_GATES[activeContent.id] : null;
     if (activeGate && !game.unlocks[activeGate]) {
         switchTab('tab-character');
@@ -6411,6 +6413,19 @@ function renderExpertiseUI() {
     tree.innerHTML = treeOverview + `<div class="expertise-tree-grid"><div><div class="expertise-muted">[균사학자]</div>${groups.mycologist.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[천문학자]</div>${groups.astronomer.map(getExpertiseNodeButtonHtml).join('')}<div class="expertise-panel" style="margin:8px 0;">[전문가 공통]${groups.common.map(getExpertiseNodeButtonHtml).join('')}</div><div class="expertise-muted">[양봉업자]</div>${groups.beekeeper.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[젬 각인사]</div>${groups.gemEngraver.map(getExpertiseNodeButtonHtml).join('')}</div></div>`;
 }
 
+function isJewelTabUnlockReady() {
+    return (game.season || 1) >= 5
+        || (Array.isArray(game.jewelInventory) && game.jewelInventory.length > 0)
+        || ((game.currencies || {}).jewelShard || 0) > 0;
+}
+
+function syncDerivedTabUnlock(tabId) {
+    if (tabId === 'tab-jewel' && game.unlocks && !game.unlocks.jewel && isJewelTabUnlockReady()) {
+        game.unlocks.jewel = true;
+        game.noti.jewel = true;
+    }
+}
+
 function checkUnlocks() {
     let u = game.unlocks;
     if (game.level >= 2 && !u.char) {
@@ -6423,7 +6438,7 @@ function checkUnlocks() {
         game.noti.items = true;
         queueTutorialNotice('unlock_items', '장비/제작 개방', '첫 장비 또는 제작 재화를 얻었습니다.\n아이템을 장착하고, 오브를 사용해 장비를 강화할 수 있습니다.', 'tab-items');
     }
-    if (((game.season || 1) >= 5 || (game.jewelInventory || []).length > 0 || (game.currencies.jewelShard || 0) > 0) && !u.jewel) {
+    if (isJewelTabUnlockReady() && !u.jewel) {
         u.jewel = true;
         game.noti.jewel = true;
         queueTutorialNotice('unlock_jewel', '주얼 탭 개방', '주얼과 주얼 결정을 사용할 수 있게 되었습니다.', 'tab-jewel');

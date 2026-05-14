@@ -466,28 +466,28 @@ function generateOrganicTree() {
     };
     const centralCoreSpecs = {
         templar: [
-            { stat: 'energyShieldPct', title: '성역의 예고', desc: '보호막과 주문 생존으로 이어집니다.' },
-            { stat: 'spellFlatPct', title: '성광의 주문축', desc: '주문과 보호막 운용으로 뻗습니다.' }
+            { stat: 'energyShieldPct', title: '성역 보호막 관문', desc: '초반 보호막 축을 세우고 주문·저항 성좌로 길을 엽니다.' },
+            { stat: 'spellFlatPct', title: '성광 주문 관문', desc: '주문 피해를 먼저 확보하며 보호막 운용 성좌로 이어집니다.' }
         ],
         witch: [
-            { stat: 'energyShieldPct', title: '비전의 예고', desc: '보호막과 치명 주문으로 이어집니다.' },
-            { stat: 'chaosPctDmg', title: '공허의 주문축', desc: '카오스와 지속 피해로 뻗습니다.' }
+            { stat: 'energyShieldPct', title: '비전 보호막 관문', desc: '보호막 기반 생존을 마련하고 냉기·번개·카오스 성좌로 확장합니다.' },
+            { stat: 'chaosPctDmg', title: '공허 부패 관문', desc: '카오스와 지속 피해 빌드의 첫 갈래를 여는 핵심 성좌입니다.' }
         ],
         shadow: [
-            { stat: 'evasionPct', title: '암영의 예고', desc: '회피와 치명타로 이어집니다.' },
-            { stat: 'crit', title: '급습의 축', desc: '치명타와 빠른 타격으로 뻗습니다.' }
+            { stat: 'evasionPct', title: '그림자 회피 관문', desc: '회피 생존을 확보하고 치명타·흡혈 성좌로 진입합니다.' },
+            { stat: 'crit', title: '급소 절개 관문', desc: '초반 치명타 확률을 열어 빠른 타격과 카오스 성좌로 뻗습니다.' }
         ],
         ranger: [
-            { stat: 'evasionPct', title: '유격의 예고', desc: '회피와 투사체로 이어집니다.' },
-            { stat: 'projectilePctDmg', title: '화살비의 축', desc: '투사체와 기동 빌드로 뻗습니다.' }
+            { stat: 'evasionPct', title: '바람 회피 관문', desc: '회피와 이동 기반을 다지고 투사체·냉기 성좌로 이어집니다.' },
+            { stat: 'projectilePctDmg', title: '탄도 개시 관문', desc: '투사체 피해를 먼저 열어 추가 발사와 기동 성좌로 확장합니다.' }
         ],
         duelist: [
-            { stat: 'armorPct', title: '결투의 예고', desc: '방어도와 연속 전투로 이어집니다.' },
-            { stat: 'meleePctDmg', title: '쌍검의 축', desc: '근접과 연속 타격으로 뻗습니다.' }
+            { stat: 'armorPct', title: '결투 방어 관문', desc: '방어도 기반을 세우고 근접·흡혈 성좌로 길을 냅니다.' },
+            { stat: 'meleePctDmg', title: '연격 개시 관문', desc: '근접 피해와 연속 타격 빌드의 초반 축을 만듭니다.' }
         ],
         marauder: [
-            { stat: 'armorPct', title: '강철의 예고', desc: '방어도와 생명력으로 이어집니다.' },
-            { stat: 'physPctDmg', title: '대지의 축', desc: '물리 피해와 강타로 뻗습니다.' }
+            { stat: 'armorPct', title: '철갑 생존 관문', desc: '방어도와 생명력 성좌로 이어지는 전사형 시작축입니다.' },
+            { stat: 'physPctDmg', title: '대지 강타 관문', desc: '물리 피해와 강타 성좌를 향해 뻗는 공격형 시작축입니다.' }
         ]
     };
     const clusterThemeBySector = {
@@ -613,6 +613,52 @@ function generateOrganicTree() {
         edgeKeys.add(key);
         PASSIVE_TREE.edges.push({ from: aId, to: bId });
     }
+    function getNodeClearanceDistance(a, b, extraPadding) {
+        return getPassiveNodeVisualRadius(a) + getPassiveNodeVisualRadius(b) + (extraPadding || 24);
+    }
+    function getNodeDistance(a, b) {
+        if (!a || !b) return Number.POSITIVE_INFINITY;
+        return Math.hypot((b.x || 0) - (a.x || 0), (b.y || 0) - (a.y || 0));
+    }
+    function addOuterPathRelay(a, b, t, depth, spoke, relayIndex, relayCount) {
+        let ax = a.x || 0, ay = a.y || 0, bx = b.x || 0, by = b.y || 0;
+        let x = ax + (bx - ax) * t;
+        let y = ay + (by - ay) * t;
+        let radialLen = Math.hypot(x, y) || 1;
+        let ripple = ((spoke + relayIndex + depth) % 2 === 0 ? 1 : -1) * (18 + depth * 1.5);
+        x += (x / radialLen) * ripple;
+        y += (y / radialLen) * ripple;
+        const specialOuterStats = ['move', 'resAll', 'crit', 'regen', 'maxDmgRoll', 'minDmgRoll', 'resPen', 'physIgnore'];
+        let special = depth >= maxDepth - 1 && relayCount >= 2 && relayIndex === Math.ceil(relayCount / 2);
+        let stat = special ? specialOuterStats[(spoke + depth) % specialOuterStats.length] : getGenericPathStat(a.sector || b.sector || 'center', depth, relayIndex, spoke);
+        let node = addNode(x / PASSIVE_WORLD_SCALE, y / PASSIVE_WORLD_SCALE, special ? 2 : 1, stat, { sector: a.sector || b.sector, kind: special ? 'major' : 'path', depth: depth, lane: relayIndex });
+        if (!node) return null;
+        node.webBridge = true;
+        node.webRing = depth;
+        node.title = special ? '외곽 별길 규칙' : '외곽 별길';
+        node.desc = special
+            ? '먼 외곽 성좌 사이를 잇는 보강 규칙 노드입니다. 긴 이동 경로에 작은 보상을 배치합니다.'
+            : '멀리 떨어진 외곽 성좌 사이를 촘촘하게 이어 주는 경로 노드입니다.';
+        return node;
+    }
+    function connectWithOuterRelays(a, b, depth, spoke) {
+        if (!a || !b) return;
+        let dist = getNodeDistance(a, b);
+        let maxSegment = Math.max(190, getNodeClearanceDistance(a, b, 110));
+        let relayCount = Math.max(0, Math.min(3, Math.ceil(dist / maxSegment) - 1));
+        if (relayCount <= 0) {
+            connect(a.id, b.id);
+            return;
+        }
+        let prev = a;
+        for (let i = 1; i <= relayCount; i++) {
+            let relay = addOuterPathRelay(a, b, i / (relayCount + 1), depth, spoke, i, relayCount);
+            if (!relay) break;
+            connect(prev.id, relay.id);
+            prev = relay;
+        }
+        connect(prev.id, b.id);
+    }
     function buildAdjacencyMap() {
         let adj = new Map();
         Object.keys(PASSIVE_TREE.nodes).forEach(id => adj.set(id, new Set()));
@@ -733,7 +779,25 @@ function generateOrganicTree() {
         for (let spoke = 0; spoke < webSpokeCount; spoke++) {
             let a = webNodes[spoke] && webNodes[spoke][depth - 1];
             let b = webNodes[(spoke + 1) % webSpokeCount] && webNodes[(spoke + 1) % webSpokeCount][depth - 1];
-            if (a && b) connect(a.id, b.id);
+            let intentionalGap = depth >= 4 && depth <= 9 && ((spoke + depth) % 7 === 3);
+            if (!a || !b || intentionalGap) continue;
+            if (depth >= 9) connectWithOuterRelays(a, b, depth, spoke);
+            else connect(a.id, b.id);
+        }
+    }
+
+    for (let depth = 2; depth < maxDepth; depth++) {
+        for (let spoke = 0; spoke < webSpokeCount; spoke++) {
+            let a = webNodes[spoke] && webNodes[spoke][depth - 1];
+            if (!a) continue;
+            if (depth % 4 === 0 && spoke % 3 === 1) {
+                let diagonal = webNodes[(spoke + 1) % webSpokeCount] && webNodes[(spoke + 1) % webSpokeCount][depth];
+                if (diagonal) connect(a.id, diagonal.id);
+            }
+            if (depth % 5 === 2 && spoke % 4 === 0) {
+                let backDiagonal = webNodes[(spoke + webSpokeCount - 1) % webSpokeCount] && webNodes[(spoke + webSpokeCount - 1) % webSpokeCount][depth];
+                if (backDiagonal) connect(a.id, backDiagonal.id);
+            }
         }
     }
 
@@ -876,6 +940,12 @@ function generateOrganicTree() {
                 node.desc = `거미줄 경로 한 칸 안에서 ${blueprint.label} 축으로 갈라지는 시작 노드입니다.`;
             }
             connect(prev.id, node.id);
+            if (i === 1 && ((spoke + depth) % 4 === 0)) {
+                let sideAnchor = webNodes[(spoke + 1) % webSpokeCount] && webNodes[(spoke + 1) % webSpokeCount][depth - 1];
+                let radialAnchor = webNodes[spoke] && webNodes[spoke][depth];
+                if (sideAnchor) connect(sideAnchor.id, node.id);
+                if (radialAnchor && ((spoke + depth) % 8 === 0)) connect(radialAnchor.id, node.id);
+            }
             prev = node;
         }
     }
@@ -920,7 +990,7 @@ function generateOrganicTree() {
             }))
             .filter(entry => entry.angleDiff <= 0.7)
             .sort((a, b) => a.dist - b.dist)
-            .slice(0, 4)
+            .slice(0, 2)
             .map(entry => entry.node);
         if (anchors.length === 0) {
             anchors = outerAnchors
@@ -960,17 +1030,22 @@ function generateOrganicTree() {
         applyNodeSpec(leftNode, { ...leftSpec, requiresEvolution: true, starIndex: index }, leftSpec.kind);
         applyNodeSpec(rightNode, { ...rightSpec, requiresEvolution: true, starIndex: index }, rightSpec.kind);
         applyNodeSpec(tipNode, { ...tipSpec, requiresEvolution: true, starIndex: index }, tipSpec.kind);
-        if (leftNode) connect(apex.id, leftNode.id);
-        if (rightNode) connect(apex.id, rightNode.id);
+        let leftAnchor = anchors[0] || apex;
+        let rightAnchor = anchors[1] || anchors[0] || apex;
+        if (leftNode) connect(leftAnchor.id, leftNode.id);
+        if (rightNode) connect(rightAnchor.id, rightNode.id);
         if (leftNode && tipNode) connect(leftNode.id, tipNode.id);
         if (rightNode && tipNode) connect(rightNode.id, tipNode.id);
     });
 
     ensureOuterHubNeighborConnections(4);
 
-    // 시각적 겹침 완화
+    realignWebPathNodes();
+    realignSpecializedClusters(clusterAnchorsById);
+
+    // 시각적 겹침 완화: 노드 반지름보다 짧은 경로가 생기지 않도록 반지름 기반 최소 간격을 적용한다.
     let packed = Object.values(PASSIVE_TREE.nodes);
-    for (let iter = 0; iter < 10; iter++) {
+    for (let iter = 0; iter < 16; iter++) {
         for (let i = 0; i < packed.length; i++) {
             for (let j = i + 1; j < packed.length; j++) {
                 let a = packed[i];
@@ -979,9 +1054,10 @@ function generateOrganicTree() {
                 let dx = b.x - a.x;
                 let dy = b.y - a.y;
                 let dist = Math.hypot(dx, dy) || 0.001;
-                let minDist = a.sector === b.sector ? 62 : 108;
+                let minDist = getNodeClearanceDistance(a, b, a.sector === b.sector ? 36 : 58);
                 if (a.kind === 'apex' || b.kind === 'apex') minDist += 22;
                 if (a.requiresEvolution || b.requiresEvolution) minDist += 18;
+                if (a.clusterId && b.clusterId && a.clusterId !== b.clusterId) minDist += 18;
                 if (dist >= minDist) continue;
                 let push = (minDist - dist) * 0.5;
                 let nx = dx / dist;
@@ -993,9 +1069,6 @@ function generateOrganicTree() {
             }
         }
     }
-
-    realignWebPathNodes();
-    realignSpecializedClusters(clusterAnchorsById);
 
     let nodes = Object.values(PASSIVE_TREE.nodes);
     PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
@@ -1590,9 +1663,12 @@ function refreshPassiveVisibility() {
     (game.passives || []).forEach(id => {
         if (isPassiveNodeAvailable(id)) discoveredPassiveNodes.add(id);
     });
+    let allNodes = Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node));
+    if ((game.passives || []).includes('n0')) {
+        allNodes.forEach(node => discoveredPassiveNodes.add(node.id));
+    }
     previewPassiveNodes = new Set(discoveredPassiveNodes);
     let previewSeeds = Array.from(new Set((game.passives || []).filter(id => isPassiveNodeAvailable(id))));
-    let allNodes = Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node));
     previewSeeds.forEach(id => {
         let src = PASSIVE_TREE.nodes[id];
         if (!src) return;
@@ -1616,11 +1692,17 @@ function revealAroundNode(nodeId, options) {
     let edgeDepth = options.edgeDepth !== undefined ? options.edgeDepth : (nodeId === 'n0' ? PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH : PASSIVE_DISCOVERY_EDGE_DEPTH);
     let newlyDiscovered = [];
     let discoverIds = new Set([nodeId]);
-    getPassiveLinkedNodeIds(nodeId, edgeDepth).forEach(id => discoverIds.add(id));
-    Object.values(PASSIVE_TREE.nodes).forEach(node => {
-        if (!isPassiveNodeAvailable(node)) return;
-        if (isPassiveLocalReveal(origin, node, radius, nodeId === 'n0' ? 1 : 2)) discoverIds.add(node.id);
-    });
+    if (nodeId === 'n0') {
+        Object.values(PASSIVE_TREE.nodes).forEach(node => {
+            if (isPassiveNodeAvailable(node)) discoverIds.add(node.id);
+        });
+    } else {
+        getPassiveLinkedNodeIds(nodeId, edgeDepth).forEach(id => discoverIds.add(id));
+        Object.values(PASSIVE_TREE.nodes).forEach(node => {
+            if (!isPassiveNodeAvailable(node)) return;
+            if (isPassiveLocalReveal(origin, node, radius, 2)) discoverIds.add(node.id);
+        });
+    }
     discoverIds.forEach(id => {
         if (!(game.discoveredPassives || []).includes(id)) {
             game.discoveredPassives.push(id);
