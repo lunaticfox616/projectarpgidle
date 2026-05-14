@@ -2906,6 +2906,13 @@ function updatePlayerHpDamageGhost(actualPct) {
     return playerHpDamageGhostPct;
 }
 
+function primeEnemyHpDamageGhost(enemyId, actualPct) {
+    if (enemyId === null || enemyId === undefined) return;
+    let key = String(enemyId);
+    if (enemyHpDamageGhostStates.has(key)) return;
+    enemyHpDamageGhostStates.set(key, updateHpDamageGhostState(null, actualPct === undefined ? 100 : actualPct, Date.now()));
+}
+
 function updateEnemyHpDamageGhost(enemyId, actualPct) {
     if (enemyId === null || enemyId === undefined) return Math.max(0, Math.min(100, Number(actualPct) || 0));
     let key = String(enemyId);
