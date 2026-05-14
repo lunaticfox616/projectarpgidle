@@ -794,6 +794,7 @@ function getPlayerStats() {
     let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
     let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg;
     let dotPctDmg = gearBase.dotPctDmg + gearExplicit.dotPctDmg + passive.dotPctDmg + season.dotPctDmg + ascend.dotPctDmg + support.dotPctDmg + reward.dotPctDmg;
+    let finalPoisonChance = gearBase.poisonChance + gearExplicit.poisonChance + passive.poisonChance + season.poisonChance + ascend.poisonChance + support.poisonChance + reward.poisonChance;
     let isSpellSkill = Array.isArray(skill.tags) && skill.tags.includes('spell');
     let isDotSkill = Array.isArray(skill.tags) && skill.tags.includes('dot');
     let spellFlatDmg = 0;
@@ -1379,6 +1380,7 @@ function getPlayerStats() {
         resChaos: finalResChaos,
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
+        poisonChance: finalPoisonChance,
         damageScales: damageScales,
         randomElementDamagePct: randomElementDamagePct,
         armor: finalArmor,

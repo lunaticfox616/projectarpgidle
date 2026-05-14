@@ -470,28 +470,28 @@ function generateOrganicTree() {
     };
     const centralCoreSpecs = {
         templar: [
-            { stat: 'energyShieldPct', title: '성역 보호막 관문', desc: '이 방향의 노드뭉치는 에너지 보호막, 주문 피해, 범위 피해, 원소 수호와 화염 피해를 중심으로 전개됩니다.' },
-            { stat: 'spellFlatPct', title: '성광 주문 관문', desc: '이 방향의 노드뭉치는 주문 피해와 보호막을 기반으로 범위, 원소 저항, 화염 피해 보강을 함께 제공합니다.' }
+            { stat: 'energyShieldPct', title: '성역 보호막 관문', desc: '핵심 성좌입니다.' },
+            { stat: 'spellFlatPct', title: '성광 주문 관문', desc: '핵심 성좌입니다.' }
         ],
         witch: [
-            { stat: 'energyShieldPct', title: '비전 보호막 관문', desc: '이 방향의 노드뭉치는 냉기, 번개, 카오스, 지속 피해와 젬 성장으로 이어지는 비전 계열입니다.' },
-            { stat: 'chaosPctDmg', title: '공허 부패 관문', desc: '이 방향의 노드뭉치는 카오스 피해와 지속 피해를 중심으로 냉기·번개 보조 및 젬 성장을 섞습니다.' }
+            { stat: 'energyShieldPct', title: '비전 보호막 관문', desc: '핵심 성좌입니다.' },
+            { stat: 'chaosPctDmg', title: '공허 부패 관문', desc: '핵심 성좌입니다.' }
         ],
         shadow: [
-            { stat: 'evasionPct', title: '그림자 회피 관문', desc: '이 방향의 노드뭉치는 회피, 치명타, 치명타 배율, 흡혈 속도와 카오스 피해를 다룹니다.' },
-            { stat: 'crit', title: '급소 절개 관문', desc: '이 방향의 노드뭉치는 치명타 계열을 중심으로 회피와 흡혈 속도, 카오스 피해를 함께 확장합니다.' }
+            { stat: 'evasionPct', title: '그림자 회피 관문', desc: '핵심 성좌입니다.' },
+            { stat: 'crit', title: '급소 절개 관문', desc: '핵심 성좌입니다.' }
         ],
         ranger: [
-            { stat: 'evasionPct', title: '바람 회피 관문', desc: '이 방향의 노드뭉치는 회피, 투사체 피해, 추가 발사, 냉기 피해와 냉기 저항을 제공합니다.' },
-            { stat: 'projectilePctDmg', title: '탄도 개시 관문', desc: '이 방향의 노드뭉치는 투사체 피해와 추가 발사를 중심으로 회피, 냉기 피해, 냉기 저항을 보강합니다.' }
+            { stat: 'evasionPct', title: '바람 회피 관문', desc: '핵심 성좌입니다.' },
+            { stat: 'projectilePctDmg', title: '탄도 개시 관문', desc: '핵심 성좌입니다.' }
         ],
         duelist: [
-            { stat: 'armorPct', title: '결투 방어 관문', desc: '이 방향의 노드뭉치는 근접 피해, 연속 타격, 공격 속도, 물리 피해와 타격당 흡혈량을 다룹니다.' },
-            { stat: 'meleePctDmg', title: '연격 개시 관문', desc: '이 방향의 노드뭉치는 근접 연격을 중심으로 물리 피해, 공격 속도, 타격당 흡혈량을 확장합니다.' }
+            { stat: 'armorPct', title: '결투 방어 관문', desc: '핵심 성좌입니다.' },
+            { stat: 'meleePctDmg', title: '연격 개시 관문', desc: '핵심 성좌입니다.' }
         ],
         marauder: [
-            { stat: 'armorPct', title: '철갑 생존 관문', desc: '이 방향의 노드뭉치는 물리 피해, 강타, 방어도, 생명력과 총 흡혈량을 중심으로 전개됩니다.' },
-            { stat: 'physPctDmg', title: '대지 강타 관문', desc: '이 방향의 노드뭉치는 물리 피해와 강타를 중심으로 방어도, 생명력, 총 흡혈량을 함께 제공합니다.' }
+            { stat: 'armorPct', title: '철갑 생존 관문', desc: '핵심 성좌입니다.' },
+            { stat: 'physPctDmg', title: '대지 강타 관문', desc: '핵심 성좌입니다.' }
         ]
     };
     const clusterThemeBySector = {
@@ -866,7 +866,28 @@ function generateOrganicTree() {
         let topArc = angleDistance(getWebAngle(spoke), -Math.PI / 2) <= Math.PI / 3;
         return topArc && ((spoke === 15 && depth === 5) || (spoke === 1 && depth === 9));
     }
+    function isOneOClockCluster(spoke) {
+        return spoke === 1 || spoke === 2;
+    }
+    function getOneOClockClusterSpec(spoke, depth) {
+        const specs = [
+            { stat: 'chaosPctDmg', title: '심연 독기', length: 4 },
+            { stat: 'dotPctDmg', title: '부패 지속', length: 4 },
+            { stat: 'poisonChance', title: '중독 지원', length: 4 },
+            { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 젬 독성', length: 5 },
+            { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 젬 부식', length: 5 }
+        ];
+        return specs[(spoke + depth) % specs.length];
+    }
+    function getScatteredMaxResClusterSpec(spoke, depth) {
+        if (spoke === 5 && depth % 4 === 1) return { stat: 'resF', endStat: 'maxResF', title: '화염 최대 저항', length: 4 };
+        if (spoke === 9 && depth % 4 === 2) return { stat: 'resC', endStat: 'maxResC', title: '냉기 최대 저항', length: 4 };
+        if (spoke === 13 && depth % 4 === 3) return { stat: 'resL', endStat: 'maxResL', title: '번개 최대 저항', length: 4 };
+        return null;
+    }
     function getCompositeClusterSpec(spoke, depth) {
+        let scatteredMaxRes = getScatteredMaxResClusterSpec(spoke, depth);
+        if (scatteredMaxRes) return scatteredMaxRes;
         if (spoke === 4) return { stat: 'moveEvasion', title: '질풍 회피', length: 4 };
         if (spoke === 8) return { stat: 'hpArmor', title: '거석 생명', length: 4 };
         if (spoke === 12) return { stat: 'slamPctDmg', endStat: 'slamEchoChance', title: '대지 여진', length: 5 };
@@ -878,9 +899,9 @@ function generateOrganicTree() {
             { stat: 'maxDmgRoll', title: '상한 보정', length: 4 },
             { stat: 'pctDmg', endStat: 'suppCap', title: '보조 젬 연결', length: 4 },
             { stat: 'minDmgRoll', title: '하한 안정', length: 4 },
-            { stat: 'resF', endStat: 'maxResF', title: '화염 최대 저항', length: 4 },
-            { stat: 'resC', endStat: 'maxResC', title: '냉기 최대 저항', length: 4 },
-            { stat: 'resL', endStat: 'maxResL', title: '번개 최대 저항', length: 4 },
+            { stat: 'resAll', title: '원소 수호', length: 4 },
+            { stat: 'resChaos', title: '카오스 저항', length: 4 },
+            { stat: 'regenSuppress', title: '재생 봉쇄', length: 4 },
             { stat: 'aspdMove', title: '쌍속 기동', length: 4 }
         ];
         return rotating[(spoke * 3 + depth) % rotating.length];
@@ -889,6 +910,7 @@ function generateOrganicTree() {
         return isEnd && spec.endStat ? spec.endStat : spec.stat;
     }
     function getFinalClusterSpec(themeSpec, spoke, depth, theme) {
+        if (isOneOClockCluster(spoke)) return getOneOClockClusterSpec(spoke, depth);
         if (themeSpec.stat === 'gemLevel') {
             if (!retainedGlobalGemLevelCluster && depth >= maxDepth - 1) {
                 retainedGlobalGemLevelCluster = true;

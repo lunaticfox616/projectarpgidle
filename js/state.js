@@ -451,6 +451,7 @@ const P_STATS = {
     chaosPctDmg: { name: '카오스 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     aoePctDmg: { name: '범위 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     dotPctDmg: { name: '지속 피해 배율(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    poisonChance: { name: '중독 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     spellFlatDmg: { name: '주문 내장 피해', tiers: [1, 2, 3], s: 5, m: 12, k: 22 },
     spellFlatPct: { name: '주문 내장 피해 증가(%)', tiers: [2, 3], m: 6, k: 14, isPct: true },
     projectileExtraShots: { name: '투사체 추가 발사', tiers: [2, 3], m: 1, k: 3 },
