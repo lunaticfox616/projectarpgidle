@@ -180,7 +180,7 @@ function applyFossilCraft() {
 }
 
 function getFossilExclusivePool(item) {
-    let existing = new Set((item.stats || []).map(stat => stat.id));
+    let existing = typeof getItemOccupiedExplicitModIds === 'function' ? getItemOccupiedExplicitModIds(item) : new Set((item.stats || []).map(stat => stat.id));
     return FOSSIL_EXCLUSIVE_MODS
         .filter(mod => mod.slots.includes(item.slot))
         .filter(mod => {
@@ -201,7 +201,8 @@ function applyFossilChaosCraft(fossilKey) {
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (item.corrupted) return addLog('타락한 아이템은 제작할 수 없습니다.', 'attack-monster');
-    let guaranteedPool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && fossil.guaranteedStats.includes(mod.id));
+    let immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
+    let guaranteedPool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && fossil.guaranteedStats.includes(mod.id) && !immutableIds.has(mod.statId || mod.id));
     if (guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
 
     let maxTier = getItemCraftTier(item);
@@ -212,7 +213,7 @@ function applyFossilChaosCraft(fossilKey) {
 
     let lockedStats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
     let newStats = lockedStats.slice();
-    let blockedIds = new Set(newStats.map(stat => stat.id));
+    let blockedIds = new Set([...immutableIds, ...newStats.map(stat => stat.id)]);
     let guaranteedRoll = rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier);
     if (!blockedIds.has(guaranteedRoll.id)) {
         newStats.push(guaranteedRoll);
@@ -289,6 +290,7 @@ function getItemTotalStats(item) {
     let bucket = createEmptyStatBucket();
     applyStatsToBucket(bucket, item.baseStats || []);
     applyStatsToBucket(bucket, item.stats || []);
+    if (typeof getImmutableItemSpecialStats === 'function') applyStatsToBucket(bucket, getImmutableItemSpecialStats(item));
     return bucket;
 }
 
@@ -322,7 +324,7 @@ function getGemBonusSources() {
     ];
     Object.values(game.equipment || {}).forEach(item => {
         if (!item) return;
-        [...(item.baseStats || []), ...(item.stats || [])].forEach(stat => { if (stat.id === 'gemLevel') gear += stat.val; });
+        [...(item.baseStats || []), ...(item.stats || []), ...(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [])].forEach(stat => { if (stat.id === 'gemLevel') gear += stat.val; });
     });
     (game.passives || []).forEach(id => {
         let node = PASSIVE_TREE.nodes[id];

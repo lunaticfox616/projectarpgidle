@@ -4602,6 +4602,16 @@ function normalizeItem(item) {
     item.baseStats = Array.isArray(item.baseStats) ? item.baseStats.map(normalizeStatRecord).filter(Boolean) : [];
     item.stats = Array.isArray(item.stats) ? item.stats.map(normalizeStatRecord).filter(Boolean) : [];
     item.chaosInfusion = item.chaosInfusion ? normalizeStatRecord(item.chaosInfusion) : null;
+    if (item.encroached && typeof item.encroached === 'object') {
+        let pendingOptions = Array.isArray(item.encroached.pendingOptions) ? item.encroached.pendingOptions.map(normalizeStatRecord).filter(Boolean).slice(0, 3) : [];
+        let chosen = item.encroached.chosen ? normalizeStatRecord({ ...item.encroached.chosen, encroachedFinal: true }) : null;
+        item.encroached = {
+            liberated: !!item.encroached.liberated && !!chosen,
+            sourceFloor: Math.max(1, Math.floor(coerceFiniteNumber(item.encroached.sourceFloor, 1))),
+            pendingOptions: chosen ? [] : pendingOptions,
+            chosen: chosen
+        };
+    } else item.encroached = null;
     item.rarity = item.rarity || 'magic';
     item.hiddenTier = Math.max(1, Math.floor(coerceFiniteNumber(item.hiddenTier, coerceFiniteNumber(item.itemTier, 1), 1)));
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
@@ -4737,8 +4747,72 @@ function rollAffixValueInTierRange(mod, minTier, maxTier) {
     return { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
 }
 
+
+function getImmutableItemSpecialStats(item) {
+    if (!item || !item.encroached || !item.encroached.liberated || !item.encroached.chosen) return [];
+    let stat = item.encroached.chosen;
+    return [{ ...stat, statName: `[잠식] ${stat.statName || getStatName(stat.id)}`, encroachedFinal: true }];
+}
+function getItemOccupiedExplicitModIds(item) {
+    let ids = new Set((item && Array.isArray(item.stats) ? item.stats : []).map(stat => stat && stat.id).filter(Boolean));
+    getImmutableItemSpecialStats(item).forEach(stat => {
+        if (stat && stat.id) ids.add(stat.id);
+    });
+    return ids;
+}
+function applyEncroachmentToItem(item, sourceFloor) {
+    if (!item || item.rarity === 'unique' || item.encroached) return item;
+    item.encroached = {
+        liberated: false,
+        sourceFloor: Math.max(1, Math.floor(sourceFloor || 1)),
+        pendingOptions: [],
+        chosen: null
+    };
+    return item;
+}
+function getEncroachmentDropChance(enemy) {
+    if (!enemy) return 0;
+    if (enemy.isBoss) return 0.10;
+    if (enemy.isElite) return 0.04;
+    return 0.012;
+}
+function maybeApplyChaosRealmEncroachment(item, enemy, zone) {
+    if (!item || !zone || zone.type !== 'chaosRealm' || item.rarity === 'unique') return item;
+    if (Math.random() >= getEncroachmentDropChance(enemy)) return item;
+    applyEncroachmentToItem(item, Math.max(1, Math.floor(zone.floor || 1)));
+    return item;
+}
+function rollEncroachmentLiberationOptions(item) {
+    if (!item || !item.encroached || item.encroached.liberated) return [];
+    item.encroached.pendingOptions = Array.isArray(item.encroached.pendingOptions) ? item.encroached.pendingOptions.filter(Boolean).slice(0, 3) : [];
+    if (item.encroached.pendingOptions.length > 0) return item.encroached.pendingOptions;
+    let existing = getItemOccupiedExplicitModIds(item);
+    let pool = getAvailableMods(item).filter(mod => !existing.has(mod.statId || mod.id));
+    let picks = pickRandomMods(pool, 3);
+    item.encroached.pendingOptions = picks.map(mod => ({ ...rollAffixValueInTierRange(mod, 10, 10), encroachedCandidate: true }));
+    return item.encroached.pendingOptions;
+}
+function liberateSelectedEncroachedItem() {
+    let item = getSelectedCraftItem();
+    if (!item || !item.encroached) return addLog('잠식된 아이템을 선택하세요.', 'attack-monster');
+    if (item.encroached.liberated) return addLog('이미 잠식 해방이 완료된 아이템입니다.', 'attack-monster');
+    let options = rollEncroachmentLiberationOptions(item);
+    if (!options || options.length <= 0) return addLog('해방 가능한 최고 티어 옵션 후보가 없습니다.', 'attack-monster');
+    let text = options.map((stat, idx) => `${idx + 1}. ${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)} [T${stat.tier || 10}]`).join('\n');
+    let answer = prompt(`잠식 해방: 최고 티어 옵션 3개 중 1개를 선택하세요.\n${text}`, '1');
+    if (answer === null) { updateStaticUI(); return; }
+    let pickIdx = Math.floor(Number(answer) || 0) - 1;
+    if (pickIdx < 0 || pickIdx >= options.length) return addLog(`1~${options.length} 사이의 번호를 입력하세요.`, 'attack-monster');
+    let chosen = { ...options[pickIdx], encroachedFinal: true, encroachedCandidate: false };
+    item.encroached.liberated = true;
+    item.encroached.chosen = chosen;
+    item.encroached.pendingOptions = [];
+    addLog(`🕳️ 잠식 해방 완료: ${chosen.statName || getStatName(chosen.id)} +${formatValue(chosen.id, chosen.val)} 확정`, 'loot-unique');
+    updateStaticUI();
+}
+
 function getAvailableMods(item) {
-    let existing = new Set((item.stats || []).map(stat => stat.id));
+    let existing = getItemOccupiedExplicitModIds(item);
     let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
     let baseDefenseTypes = new Set((item.baseStats || [])
         .map(stat => stat && stat.id)
@@ -4864,7 +4938,8 @@ function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return 
     if ((game.currencies.venomStinger || 0) <= 0) return addLog('독벌침이 부족합니다.', 'attack-monster');
     if (item.slot !== '무기') return addLog('독벌침은 무기에만 사용할 수 있습니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    let attackMods = MOD_DB.filter(mod => mod.slots.includes('무기') && ['flatDmg', 'aspd', 'crit', 'critDmg', 'resPen', 'physPctDmg', 'elementalPctDmg', 'chaosPctDmg', 'leech', 'minDmgRoll', 'maxDmgRoll'].includes(mod.statId || mod.id));
+    let occupiedIds = getItemOccupiedExplicitModIds(item);
+    let attackMods = MOD_DB.filter(mod => mod.slots.includes('무기') && ['flatDmg', 'aspd', 'crit', 'critDmg', 'resPen', 'physPctDmg', 'elementalPctDmg', 'chaosPctDmg', 'leech', 'minDmgRoll', 'maxDmgRoll'].includes(mod.statId || mod.id) && !occupiedIds.has(mod.statId || mod.id));
     if (attackMods.length <= 0) return;
     let mod = pickWeightedMod(attackMods);
     let rolled = rollAffixValue(mod, getItemCraftTier(item));
@@ -5058,7 +5133,8 @@ function generateEquipmentDrop(enemy) {
         rarity = roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
     }
     let item = createItemFromBase(base, rarity, zoneTier);
-    return maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier);
+    item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier);
+    return maybeApplyChaosRealmEncroachment(item, enemy, getZone(game.currentZoneId));
 }
 
 function awardCurrency(currencyKey, amount) {

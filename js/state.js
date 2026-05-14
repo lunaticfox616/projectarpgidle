@@ -30,6 +30,7 @@ const ACT_ZONE_COUNT = STORY_ACTS.length;
 const LAST_STORY_ZONE_ID = ACT_ZONE_COUNT - 1;
 const ABYSS_START_ZONE_ID = ACT_ZONE_COUNT;
 const OUTSIDE_CHAOS_ZONE_ID = 'outside_chaos_woodsman';
+const CHAOS_REALM_ZONE_ID = 'chaos_realm';
 
 const MAP_ZONES = STORY_ACTS.map((act, idx) => ({
     id: idx,
@@ -44,6 +45,81 @@ const MAP_ZONES = STORY_ACTS.map((act, idx) => ({
 
 const abyssTiers = [8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 19, 20];
 for (let i = 1; i <= 20; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1), name: "혼돈 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 1, ele: "chaos", depth: i });
+
+
+const CHAOS_REALM_DEFAULT_BONUSES = { pctDmg: 0, move: 0, pctHp: 0, resChaos: 0, resPen: 0, crit: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, critDmg: 0, aspd: 0 };
+const CHAOS_REALM_AFFIX_POOL = [
+    { id: 'elemental_wall', name: '원소 장벽', desc: '화염/냉기/번개 저항 대폭 증가' },
+    { id: 'iron_bark', name: '철갑 껍질', desc: '방어도와 물리 피해 감소 증가' },
+    { id: 'mirage_step', name: '환영 보법', desc: '회피 대폭 증가' },
+    { id: 'soul_shell', name: '혼백 보호막', desc: '생명력 100%만큼 에너지 보호막 보유' },
+    { id: 'projectile_dampening', name: '투사체 굴절', desc: '투사체 피해 반감' },
+    { id: 'spell_dampening', name: '주문 왜곡', desc: '주문 피해 반감' },
+    { id: 'blood_drinker', name: '흡혈', desc: '적 공격 시 생명력 흡수' },
+    { id: 'bloodless', name: '무혈', desc: '플레이어 흡혈 효율 대폭 감소' },
+    { id: 'curse_blade', name: '저주를 검', desc: '저주를 공격력/관통으로 전환' },
+    { id: 'curse_immune', name: '저주 면역', desc: '저주 적용 불가' },
+    { id: 'phys_dampening', name: '물리 반감', desc: '물리 최종 피해 반감' },
+    { id: 'deadly_crit', name: '치명적 본능', desc: '치명타 확률/피해 증가' },
+    { id: 'multi_strike', name: '연속타격', desc: '추가 타격 확률' },
+    { id: 'deep_penetration', name: '심층 관통', desc: '저항 관통 증가' }
+];
+function createDefaultChaosRealmState() {
+    return {
+        unlocked: false,
+        highestFloor: 0,
+        currentFloor: 1,
+        clearedFloors: [],
+        woodsmanBestDamagePct: 0,
+        permanentBonuses: { ...CHAOS_REALM_DEFAULT_BONUSES }
+    };
+}
+function ensureChaosRealmState() {
+    let st = (game && game.chaosRealm && typeof game.chaosRealm === 'object') ? game.chaosRealm : (game.chaosRealm = createDefaultChaosRealmState());
+    st.unlocked = !!st.unlocked;
+    st.highestFloor = Math.max(0, Math.floor(st.highestFloor || 0));
+    st.currentFloor = Math.max(1, Math.floor(st.currentFloor || 1));
+    st.clearedFloors = Array.isArray(st.clearedFloors) ? Array.from(new Set(st.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
+    st.woodsmanBestDamagePct = Math.max(0, Math.min(100, Number(st.woodsmanBestDamagePct) || 0));
+    st.permanentBonuses = { ...CHAOS_REALM_DEFAULT_BONUSES, ...(st.permanentBonuses || {}) };
+    Object.keys(CHAOS_REALM_DEFAULT_BONUSES).forEach(key => { st.permanentBonuses[key] = Math.max(0, Number(st.permanentBonuses[key]) || 0); });
+    if (st.unlocked && st.highestFloor < 1) st.highestFloor = 1;
+    return st;
+}
+function getChaosRealmTier(floor) {
+    let safeFloor = Math.max(1, Math.floor(floor || 1));
+    return 30 + Math.floor((safeFloor - 1) * 0.85) + Math.floor(Math.max(0, safeFloor - 10) * 0.18);
+}
+function getChaosRealmAffixCount(floor) {
+    let safeFloor = Math.max(1, Math.floor(floor || 1));
+    if (safeFloor >= 35) return 5 + Math.floor((safeFloor - 35) / 20);
+    if (safeFloor >= 20) return 4;
+    if (safeFloor >= 10) return 3;
+    if (safeFloor >= 5) return 2;
+    return 1;
+}
+function getChaosRealmAffixScale(floor) {
+    return 1 + Math.floor(Math.max(1, Math.floor(floor || 1)) / 10) * 0.25;
+}
+function getChaosRealmAffixes(floor) {
+    let safeFloor = Math.max(1, Math.floor(floor || 1));
+    let count = Math.min(CHAOS_REALM_AFFIX_POOL.length, getChaosRealmAffixCount(safeFloor));
+    let start = Math.abs(hashSeed('chaosRealm:' + safeFloor)) % CHAOS_REALM_AFFIX_POOL.length;
+    let out = [];
+    for (let i = 0; i < CHAOS_REALM_AFFIX_POOL.length && out.length < count; i++) {
+        let affix = CHAOS_REALM_AFFIX_POOL[(start + (i * 5)) % CHAOS_REALM_AFFIX_POOL.length];
+        if (!out.some(row => row.id === affix.id)) out.push({ ...affix, scale: getChaosRealmAffixScale(safeFloor) });
+    }
+    return out;
+}
+
+function hasCurrentLoopChaos20Clear() {
+    return !!(game && game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared)
+        || (Array.isArray(game && game.abyssClearedDepths) && game.abyssClearedDepths.map(v => Math.floor(v || 0)).includes(20));
+}
+function canEnterChaosRealm() {
+    return !!ensureChaosRealmState().unlocked && hasCurrentLoopChaos20Clear();
+}
 
 function getAbyssDepthFromZoneId(id) {
     if (!Number.isFinite(id) || id < ABYSS_START_ZONE_ID) return 0;
@@ -85,6 +161,11 @@ function getZone(id) {
         return { id: 'grand_breach_run', name: '대균열', type: 'grandBreach', tier: 14 + bonusTier, maxKills: 9999, ele: 'chaos' };
     }
     if (id === OUTSIDE_CHAOS_ZONE_ID) return { id: OUTSIDE_CHAOS_ZONE_ID, name: '혼돈 밖', type: 'outsideChaos', tier: 25, maxKills: 1, ele: 'chaos' };
+    if (id === CHAOS_REALM_ZONE_ID) {
+        let realm = ensureChaosRealmState();
+        let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
+        return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor) };
+    }
     if (typeof id === 'string' && id.startsWith('trial_')) return TRIAL_ZONES.find(t => t.id === id);
     if (typeof id === 'string' && id.includes('_boss_')) return SEASON_BOSS_ZONES.find(t => t.id === id);
     if (id === METEOR_FALL_ZONE_ID) {
@@ -186,7 +267,12 @@ function getAbyssMonsterScales(zone) {
     let depth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 1;
     let endlessDepth = Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
     let endlessOver = Math.max(0, endlessDepth - 20);
-    let endlessMul = endlessOver > 0 ? Math.pow(1.24, endlessOver) : 1;
+    let endlessMul = 1;
+    if (endlessOver > 0) {
+        let steepBand = Math.min(10, endlessOver);
+        let smoothBand = Math.max(0, endlessOver - 10);
+        endlessMul = Math.pow(1.18, steepBand) * Math.pow(1.06, smoothBand);
+    }
     let postLoopOver = Math.max(0, Math.floor((game.season || 1) - 10));
     let postLoopDifficultyMul = postLoopOver > 0 ? (1 + postLoopOver * 0.05 + endlessOver * 0.022) : 1;
     return {
@@ -195,7 +281,7 @@ function getAbyssMonsterScales(zone) {
         hordeMul: (1 + (state.horde || 0) * 0.03) * (1 + (state.magnifier || 0) * 0.2),
         dropMul: Math.max(0.2, 1 + ((state.power || 0) + (state.frailty || 0) + (state.resistance || 0) - (state.horde || 0)) * 0.01),
         expMul: Math.max(0.2, 1 + ((state.tenacity || 0) * 0.01) - ((state.horde || 0) * 0.02) + ((state.weakness || 0) * 0.02)),
-        playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + endlessOver * 0.04 + postLoopOver * 0.03),
+        playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + Math.min(10, endlessOver) * 0.035 + Math.max(0, endlessOver - 10) * 0.012 + postLoopOver * 0.03),
         playerDamageMul: Math.max(0.2, 1 - (state.weakness || 0) * 0.01),
         resistBonus: (state.resistance || 0),
         eliteBonus: (state.elite || 0) * 0.02,
@@ -968,6 +1054,7 @@ const defaultGame = {
     loopDeepStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 },
     loopProgressBase: { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] },
     loopProgressCurrent: { specialBosses: [], chaos20Cleared: false },
+    chaosRealm: createDefaultChaosRealmState(),
     pendingLoopDecision: false,
 
     skyGemEnhancements: {},

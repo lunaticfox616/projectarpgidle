@@ -307,6 +307,8 @@ function renderPaperdoll(targetId, forCrafting) {
         if (item) {
             let displayStats = (item.baseStats || []).concat(item.stats || []);
             if (item.chaosInfusion) displayStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
+            if (typeof getImmutableItemSpecialStats === 'function') displayStats = displayStats.concat(getImmutableItemSpecialStats(item));
+            else if (item.encroached && !item.encroached.liberated) displayStats.push({ id: 'encroached', val: 0, statName: '[잠식] 해방 전' });
             let statsHtml = displayStats.slice(0, 2).map(stat => `${stat.statName} +${formatValue(stat.id, stat.val)}`).join('<br>');
             let click = forCrafting ? `selectForCrafting('${slot}', true)` : '';
             let doubleClick = `event.stopPropagation(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
@@ -314,7 +316,7 @@ function renderPaperdoll(targetId, forCrafting) {
             let sourceMeta = getDropOnlyItemSourceMeta(item);
             let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
             let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
-            html += `<div class="slot-box slot-${slot} ${selected ? 'selected' : ''} ${sourceTone}" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"><div class="item-title ${item.rarity}" style="font-size:0.9em; margin-bottom:2px;">[${displaySlot}] ${item.name}${sourceBadge}</div><div class="item-stats" style="font-size:0.74em; margin-bottom:4px;">${statsHtml}</div>${footer}</div>`;
+            html += `<div class="slot-box slot-${slot} ${selected ? 'selected' : ''} ${sourceTone}" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"><div class="item-title ${item.rarity}" style="font-size:0.9em; margin-bottom:2px;">[${displaySlot}] ${item.name}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${sourceBadge}</div><div class="item-stats" style="font-size:0.74em; margin-bottom:4px;">${statsHtml}</div>${footer}</div>`;
         } else {
             html += `<div class="slot-box slot-${slot}" style="color:#3d3d5c; text-align:center; font-size:0.8em;">[${displaySlot}]<br>비어있음</div>`;
         }
@@ -330,7 +332,9 @@ function renderInventoryCard(item, idx, mode) {
     (item.baseStats || []).forEach(stat => lines.push(`<span style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
     (item.stats || []).slice(0, 3).forEach(stat => lines.push(`<span>${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
     if (item.chaosInfusion) lines.push(`<span style="color:#d7a8ff">[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}</span>`);
-    if ((item.stats || []).length === 0) lines.push(`<span style="color:#7f8c8d">추가 옵션 없음</span>`);
+    if (typeof getImmutableItemSpecialStats === 'function') getImmutableItemSpecialStats(item).slice(0, 1).forEach(stat => lines.push(`<span style="color:#d7b8ff">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
+    if (item.encroached && !item.encroached.liberated) lines.push(`<span style="color:#8d7bb3">[잠식] 해방 전</span>`);
+    if ((item.stats || []).length === 0 && !item.encroached) lines.push(`<span style="color:#7f8c8d">추가 옵션 없음</span>`);
     let actions = '';
     if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">${isDualSlotItem(item.slot) ? '장착(선택)' : '장착'}</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button>${item.rarity === 'unique' ? `<button style="background:#6b4d2f; border-color:#9a6f43;" onclick="event.stopPropagation(); storeUniqueToCodexByItemId(${item.id})">도감</button>` : ''}</div>`;
     else if (mode === 'fossil') actions = `<div class="item-actions"><button style="flex:1; background:#35506a;" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
@@ -345,7 +349,7 @@ function renderInventoryCard(item, idx, mode) {
     let sourceMeta = getDropOnlyItemSourceMeta(item);
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
     let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
-    return `<div class="item-card ${selected ? 'selected' : ''} ${sourceTone}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${item.slot}] ${item.name}${sourceBadge}${recordedTag}${lockIcon}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${item.baseName}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
+    return `<div class="item-card ${selected ? 'selected' : ''} ${sourceTone}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${item.slot}] ${item.name}${sourceBadge}${recordedTag}${lockIcon}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${item.baseName}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
 }
 
 function triggerMapUnlockReveal(zoneId) {
