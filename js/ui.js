@@ -16,6 +16,7 @@ let playerHpDamageGhostHoldUntil = 0;
 let enemyHpDamageGhostStates = new Map();
 const PLAYER_HP_DAMAGE_GHOST_HOLD_MS = 260;
 const PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC = 34;
+const ENEMY_HP_DAMAGE_GHOST_SNAP_MS = 680;
 
 function startBattleAssetLoadNow() {
     window.__battleAssetAutoloadEnabled = true;
@@ -2916,7 +2917,18 @@ function primeEnemyHpDamageGhost(enemyId, actualPct) {
 function updateEnemyHpDamageGhost(enemyId, actualPct) {
     if (enemyId === null || enemyId === undefined) return Math.max(0, Math.min(100, Number(actualPct) || 0));
     let key = String(enemyId);
-    let state = updateHpDamageGhostState(enemyHpDamageGhostStates.get(key) || null, actualPct, Date.now(), { initialGhostPct: 100, continuousDecay: true });
+    let now = Date.now();
+    let state = updateHpDamageGhostState(enemyHpDamageGhostStates.get(key) || null, actualPct, now);
+    if (state.ghostPct > actualPct + 0.05) {
+        if (!Number.isFinite(state.snapAt) || state.snapAt <= 0) state.snapAt = now + ENEMY_HP_DAMAGE_GHOST_SNAP_MS;
+        if (now >= state.snapAt) {
+            state.ghostPct = Math.max(0, Math.min(100, Number(actualPct) || 0));
+            state.holdUntil = 0;
+            state.snapAt = 0;
+        }
+    } else {
+        state.snapAt = 0;
+    }
     enemyHpDamageGhostStates.set(key, state);
     return state.ghostPct;
 }
@@ -3110,8 +3122,12 @@ function updateCombatUI(pStats) {
     pruneEnemyHpDamageGhostStates(enemies.map(enemy => enemy.id));
     let targetIds = getSkillTargets(pStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     let focusedEnemy = enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
+    let enemyListEl = document.getElementById('ui-enemy-list');
     if (!focusedEnemy) {
-        document.getElementById('ui-enemy-list').innerHTML = `<div class="enemy-empty">현재 조준 중인 적이 없습니다.</div>`;
+        if (enemyListEl.dataset.enemyId !== '') {
+            enemyListEl.dataset.enemyId = '';
+            enemyListEl.innerHTML = `<div class="enemy-empty">현재 조준 중인 적이 없습니다.</div>`;
+        }
     } else {
         let pct = Math.max(0, focusedEnemy.hp / focusedEnemy.maxHp * 100);
         let tags = getEnemyTraitSummary(focusedEnemy);
@@ -3133,19 +3149,37 @@ function updateCombatUI(pStats) {
         let pendingStartPct = Math.max(0, pct - pendingPct);
         let ghostPct = updateEnemyHpDamageGhost(focusedEnemy.id, pct);
         let ghostDisplay = ghostPct > pct + 0.2 ? 'block' : 'none';
-        document.getElementById('ui-enemy-list').innerHTML = `
-            <div class="enemy-card targeted">
-                <div class="enemy-name">${getEnemyDisplayName(focusedEnemy)}</div>
-                <div class="hp-bar-bg">
-                    <div class="hp-bar-fill enemy-damage-ghost" style="width:${ghostPct}%; display:${ghostDisplay};"></div>
-                    <div class="hp-bar-fill enemy" style="width:${pct}%;"></div>
-                    <div class="hp-bar-fill enemy-pending" style="left:${pendingStartPct}%; width:${pendingPct}%;"></div>
-                    <div class="hp-text">${focusedEnemy.energyShield > 0 ? `ES ${Math.floor(focusedEnemy.energyShield)} · ` : ''}${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}</div>
+        let focusedKey = String(focusedEnemy.id);
+        if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
+            enemyListEl.dataset.enemyId = focusedKey;
+            enemyListEl.innerHTML = `
+                <div class="enemy-card targeted">
+                    <div class="enemy-name"></div>
+                    <div class="hp-bar-bg">
+                        <div class="hp-bar-fill enemy-damage-ghost"></div>
+                        <div class="hp-bar-fill enemy"></div>
+                        <div class="hp-bar-fill enemy-pending"></div>
+                        <div class="hp-text"></div>
+                    </div>
+                    <div class="enemy-tags muted enemy-ailments"></div>
+                    <div class="enemy-tags muted enemy-traits"></div>
                 </div>
-                <div class="enemy-tags muted">${ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음'}</div>
-                <div class="enemy-tags muted">특성: ${tags.join(' · ') || '일반'}</div>
-            </div>
-        `;
+            `;
+        }
+        let nameEl = enemyListEl.querySelector('.enemy-name');
+        let ghostEl = enemyListEl.querySelector('.enemy-damage-ghost');
+        let hpEl = enemyListEl.querySelector('.hp-bar-fill.enemy');
+        let pendingEl = enemyListEl.querySelector('.enemy-pending');
+        let hpTextEl = enemyListEl.querySelector('.hp-text');
+        let ailmentEl = enemyListEl.querySelector('.enemy-ailments');
+        let traitEl = enemyListEl.querySelector('.enemy-traits');
+        if (nameEl) nameEl.innerText = getEnemyDisplayName(focusedEnemy);
+        if (ghostEl) { ghostEl.style.width = `${ghostPct}%`; ghostEl.style.display = ghostDisplay; }
+        if (hpEl) hpEl.style.width = `${pct}%`;
+        if (pendingEl) { pendingEl.style.left = `${pendingStartPct}%`; pendingEl.style.width = `${pendingPct}%`; }
+        if (hpTextEl) hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${Math.floor(focusedEnemy.energyShield)} · ` : ''}${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}`;
+        if (ailmentEl) ailmentEl.innerHTML = ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음';
+        if (traitEl) traitEl.innerText = `특성: ${tags.join(' · ') || '일반'}`;
     }
 }
 
