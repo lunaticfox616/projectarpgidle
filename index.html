@@ -586,6 +586,7 @@
         <div class="subtab-row">
             <button class="subtab-btn active" id="btn-map-tab-zones" onclick="switchMapSubtab('map-tab-zones')">사냥터</button>
             <button class="subtab-btn" id="btn-map-tab-abyss" onclick="switchMapSubtab('map-tab-abyss')">혼돈 패시브</button>
+            <button class="subtab-btn" id="btn-map-tab-chaos-realm" onclick="switchMapSubtab('map-tab-chaos-realm')">🌌 혼돈계</button>
         </div>
 
         <div id="map-tab-zones" class="subtab-content active">
@@ -617,6 +618,12 @@
 
             <h2 style="margin-top: 30px; color: #f1c40f; display: none;" id="ui-trials-header">👑 전직 시련의 성소</h2>
             <div class="map-grid" id="ui-trial-list" style="margin-top: 10px;"></div>
+        </div>
+
+        <div id="map-tab-chaos-realm" class="subtab-content">
+            <h2>🌌 혼돈계</h2>
+            <div id="ui-chaos-realm-panel" style="background:#10131f; border:1px solid #4b376d; border-radius:12px; padding:12px; margin-bottom:10px; color:#d7d0f4;"></div>
+            <div class="map-grid" id="ui-chaos-realm-list"></div>
         </div>
 
         <div id="map-tab-abyss" class="subtab-content">

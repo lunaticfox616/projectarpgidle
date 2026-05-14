@@ -168,6 +168,13 @@ function changeZone(id) {
         game.currencies[zone.key]--;
         game.inTicketBossFight = true;
     }
+    if (id === CHAOS_REALM_ZONE_ID) {
+        let realm = ensureChaosRealmState();
+        if (!realm.unlocked) return addLog('혼돈계는 나무꾼에게 10% 이상 피해를 준 전투 종료 시 해금됩니다.', 'attack-monster');
+        if (!canEnterChaosRealm()) return addLog('혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.', 'attack-monster');
+        let maxFloor = Math.max(1, Math.floor(realm.highestFloor || 1));
+        realm.currentFloor = Math.max(1, Math.min(maxFloor, Math.floor(realm.currentFloor || 1)));
+    }
     if (id === LABYRINTH_ZONE_ID) {
         if ((game.season || 1) < 3) return addLog('고대 미궁은 시즌3부터 개방됩니다.', 'attack-monster');
         if ((game.maxZoneId || 0) < 5) return addLog('액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.', 'attack-monster');

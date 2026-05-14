@@ -283,7 +283,7 @@ function runConditionGemAutoRules(pStats) {
         if (now < until) continue;
         let castTargetId = null;
         if (entry.type === 'curse') {
-            let target = (game.enemies || []).find(e => e && e.hp > 0);
+            let target = (game.enemies || []).find(e => e && e.hp > 0 && !e.curseImmune);
             if (!target) continue;
             castTargetId = target.id;
             let limit = Math.max(1, Math.floor((pStats.curseCap || 1)));
@@ -645,7 +645,9 @@ function getPlayerStats() {
     Object.values(game.equipment || {}).forEach(item => {
         if (!item) return;
         applyStatsToBucket(gearBase, item.baseStats || []);
-        applyStatsToBucket(gearExplicit, (item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : []));
+        let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
+        let explicitItemStats = (item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats);
+        applyStatsToBucket(gearExplicit, explicitItemStats);
         let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
         let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;
         let itemPctArmor = 0, itemPctEvasion = 0, itemPctEs = 0;
@@ -655,7 +657,7 @@ function getPlayerStats() {
             if (stat.id === 'evasion') itemBaseEvasion += Number(stat.val || 0);
             if (stat.id === 'energyShield') itemBaseEs += Number(stat.val || 0);
         });
-        (item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : []).forEach(stat => {
+        explicitItemStats.forEach(stat => {
             if (!stat) return;
             if (stat.id === 'armor') itemFlatArmor += Number(stat.val || 0);
             if (stat.id === 'evasion') itemFlatEvasion += Number(stat.val || 0);
@@ -715,6 +717,8 @@ function getPlayerStats() {
     addStatToBucket(reward, 'move', (loopDeep.move || 0) * 0.8);
     addStatToBucket(reward, 'dr', (loopDeep.dr || 0) * 0.5);
     addStatToBucket(reward, 'crit', (loopDeep.crit || 0) * 0.6);
+    let chaosRealmBonus = (ensureChaosRealmState().permanentBonuses || {});
+    Object.keys(chaosRealmBonus).forEach(statKey => addStatToBucket(reward, statKey, chaosRealmBonus[statKey] || 0));
     safeJournalBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
@@ -1464,6 +1468,91 @@ function rollEnemyTrait(zone, isElite, isBoss, seed) {
     return { ...list[idx] };
 }
 
+
+function applyDamageToEnemyResource(enemy, damage) {
+    let remaining = Math.max(0, Math.floor(Number(damage) || 0));
+    if (!enemy || remaining <= 0) return 0;
+    let dealt = 0;
+    if ((enemy.energyShield || 0) > 0) {
+        let absorbed = Math.min(Math.max(0, Math.floor(enemy.energyShield || 0)), remaining);
+        enemy.energyShield = Math.max(0, Math.floor(enemy.energyShield || 0) - absorbed);
+        remaining -= absorbed;
+        dealt += absorbed;
+    }
+    if (remaining > 0) {
+        let beforeHp = Math.max(0, Math.floor(enemy.hp || 0));
+        enemy.hp = Math.max(0, beforeHp - remaining);
+        dealt += Math.max(0, beforeHp - enemy.hp);
+    }
+    return dealt;
+}
+function getEnemyLifeDamagePct(enemy) {
+    if (!enemy || !(enemy.maxHp > 0)) return 0;
+    return Math.max(0, Math.min(100, (1 - (Math.max(0, enemy.hp || 0) / Math.max(1, enemy.maxHp || 1))) * 100));
+}
+function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
+    if (!enemy || !enemy.isBoss) return;
+    let zone = getZone(game.currentZoneId);
+    if (!zone || zone.id !== OUTSIDE_CHAOS_ZONE_ID) return;
+    let st = ensureChaosRealmState();
+    let pct = getEnemyLifeDamagePct(enemy);
+    st.woodsmanBestDamagePct = Math.max(st.woodsmanBestDamagePct || 0, pct);
+    if (options && options.finalize && !st.unlocked && st.woodsmanBestDamagePct >= 10) {
+        st.unlocked = true;
+        st.highestFloor = Math.max(1, Math.floor(st.highestFloor || 0));
+        game.noti.map = true;
+        addLog('🌌 나무꾼의 경계가 갈라지며 혼돈계가 해금되었습니다.', 'loot-unique');
+        if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_chaos_realm', '혼돈계 해금', '혼돈 밖 나무꾼에게 최대 생명력 10% 이상의 피해를 준 전투가 종료되었습니다.\n지도 탭의 혼돈계에서 루프 밖 영구 등반을 시작하세요.', 'tab-map');
+    }
+    if (options && options.log) {
+        addLog(`🪓 나무꾼 피해율 기록: ${st.woodsmanBestDamagePct.toFixed(1)}% / 해금 조건 10%`, st.woodsmanBestDamagePct >= 10 ? 'season-up' : 'attack-monster');
+    }
+}
+function applyChaosRealmAffixesToEnemy(enemy, zone) {
+    if (!enemy || !zone || zone.type !== 'chaosRealm') return enemy;
+    let floor = Math.max(1, Math.floor(zone.floor || 1));
+    let scale = getChaosRealmAffixScale(floor);
+    let affixes = getChaosRealmAffixes(floor);
+    enemy.chaosRealmFloor = floor;
+    enemy.chaosRealmAffixes = affixes;
+    enemy.traitName = affixes.map(a => a.name).join(' · ');
+    affixes.forEach(affix => {
+        let s = affix.scale || scale;
+        if (affix.id === 'elemental_wall') { enemy.resF += Math.floor(58 * s); enemy.resC += Math.floor(58 * s); enemy.resL += Math.floor(58 * s); }
+        if (affix.id === 'iron_bark') { enemy.dr += Math.floor(34 * s); enemy.armorGuard = Math.max(enemy.armorGuard || 0, 0.16 + 0.05 * s); }
+        if (affix.id === 'mirage_step') enemy.evasionChance = Math.max(enemy.evasionChance || 0, Math.min(55, 22 + floor * 0.9));
+        if (affix.id === 'soul_shell') { enemy.maxEnergyShield = Math.max(enemy.maxEnergyShield || 0, enemy.maxHp); enemy.energyShield = enemy.maxEnergyShield; }
+        if (affix.id === 'projectile_dampening') enemy.projectileDamageTakenMul = Math.min(enemy.projectileDamageTakenMul || 1, 0.5);
+        if (affix.id === 'spell_dampening') enemy.spellDamageTakenMul = Math.min(enemy.spellDamageTakenMul || 1, 0.5);
+        if (affix.id === 'blood_drinker') enemy.leechPct = Math.max(enemy.leechPct || 0, 2.5 + floor * 0.08);
+        if (affix.id === 'bloodless') enemy.leechEffMul = Math.min(enemy.leechEffMul || 1, Math.max(0.08, 0.28 - floor * 0.002));
+        if (affix.id === 'curse_blade') { enemy.curseBlade = true; enemy.atkMul = (enemy.atkMul || 1) * (1.18 + floor * 0.006); enemy.penetration += Math.floor(8 * s); }
+        if (affix.id === 'curse_immune') enemy.curseImmune = true;
+        if (affix.id === 'phys_dampening') enemy.physicalDamageTakenMul = Math.min(enemy.physicalDamageTakenMul || 1, 0.5);
+        if (affix.id === 'deadly_crit') { enemy.critChance += Math.floor(18 * s); enemy.critDamageMul = Math.max(enemy.critDamageMul || 1.55, 1.95 + floor * 0.01); }
+        if (affix.id === 'multi_strike') enemy.doubleStrikeChance = Math.max(enemy.doubleStrikeChance || 0, Math.min(45, 18 + floor * 0.6));
+        if (affix.id === 'deep_penetration') enemy.penetration += Math.floor(18 * s);
+    });
+    return enemy;
+}
+function getChaosRealmBonusSummary() {
+    let b = (ensureChaosRealmState().permanentBonuses || {});
+    return [`피해 +${(b.pctDmg||0).toFixed(1)}%`, `이속 +${(b.move||0).toFixed(1)}%`, `생명력 +${(b.pctHp||0).toFixed(1)}%`, `카오스저항 +${Math.floor(b.resChaos||0)}%`, `치명 +${Math.floor(b.crit||0)}%`, `관통 +${Math.floor(b.resPen||0)}%`, `방어/회피/보호막 +${Math.floor(b.armorPct||0)}%`, `치피 +${Math.floor(b.critDmg||0)}%`, `공속 +${Math.floor(b.aspd||0)}%`].join(' · ');
+}
+function grantChaosRealmFloorBonus(floor) {
+    let st = ensureChaosRealmState();
+    let b = st.permanentBonuses;
+    b.pctDmg += 0.5;
+    b.move += 0.5;
+    if (floor % 3 === 0) b.pctHp += 1;
+    if (floor % 5 === 0) b.resChaos += 1;
+    if (floor % 10 === 0) b.crit += 1;
+    if (floor % 15 === 0) { b.armorPct += 10; b.evasionPct += 10; b.energyShieldPct += 10; }
+    if (floor % 25 === 0) { b.critDmg += 5; b.aspd += 5; }
+    addLog(`🌌 혼돈계 ${floor}층 최초 돌파 보너스: ${getChaosRealmBonusSummary()}`, 'loot-unique');
+    if (floor === 10) addLog('🗺️ 혼돈계 10층 달성! 모든 액트 구간 지도 길이가 50%로 축소됩니다.', 'season-up');
+}
+
 function getEnemyElementResistance(skillEle, zoneTier, enemy) {
     let baseRes = 0;
     if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') baseRes = Math.min(32, zoneTier * 3);
@@ -1580,11 +1669,13 @@ function createEnemy(zone, marker, groupIndex) {
         dropMul: trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1,
         isSky: isSky
     };
+    applyChaosRealmAffixesToEnemy(enemy, zone);
     applyGrandBreachMobTuning(zone, enemy);
     return enemy;
 }
 
 function getZoneEncounterProfile(zone) {
+    if (zone.type === 'chaosRealm') return { markerCount: 4 + Math.floor((zone.floor || 1) / 8), minPack: 2, maxPack: Math.min(8, 3 + Math.floor((zone.floor || 1) / 6)), eliteChance: 0.35, bossAdds: 2 + Math.floor((zone.floor || 1) / 12), label: `혼돈계 ${zone.floor || 1}층` };
     if (zone.type === 'meteor') return { markerCount: 2, minPack: 2, maxPack: 3, eliteChance: 1, bossAdds: 2, label: '운석' };
     if (zone.type === 'trial') return { markerCount: 3, minPack: 1, maxPack: 2, eliteChance: 1, bossAdds: 2, label: '시련' };
     if (zone.type === 'seasonBoss') return { markerCount: 1, minPack: 1, maxPack: 1, eliteChance: 1, bossAdds: 0, label: '보스' };
@@ -1633,6 +1724,10 @@ function generateEncounterPlan(zone) {
     }
     if (zone.type === 'seasonBoss') return [{ at: 100, count: 1, boss: true }];
     if (zone.type === 'outsideChaos') return [{ at: 100, count: 1, boss: true }];
+    if (zone.type === 'chaosRealm') {
+        let profile = getZoneEncounterProfile(zone);
+        return [{ at: 28, count: profile.minPack + 1, elite: true }, { at: 62, count: profile.maxPack, elite: true }, { at: 100, count: 1 + profile.bossAdds, boss: true }];
+    }
     let profile = getZoneEncounterProfile(zone);
     let rng = zone.type === 'act' ? createSeededRng(`act:${zone.id}`) : Math.random;
     let markers = [];
@@ -2032,7 +2127,8 @@ function advanceMapProgress(pStats) {
     let baseGain = zone.type === 'trial' ? 0.26 : (zone.type === 'abyss' ? 0.42 : 0.36);
     let crowdPenalty = enemyCount > 0 ? Math.max(0.4, 1 - enemyCount * 0.13) : 0.94;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
-    let gain = baseGain * 0.5 * (moveSpeed / 100) * crowdPenalty * (abyssScale.mapProgressMul || 1);
+    let chaosRealmActRush = zone && zone.type === 'act' && ensureChaosRealmState().highestFloor >= 10 ? 2 : 1;
+    let gain = baseGain * 0.5 * (moveSpeed / 100) * crowdPenalty * (abyssScale.mapProgressMul || 1) * chaosRealmActRush;
     game.runProgress = Math.min(100, game.runProgress + gain);
     while (game.encounterIndex < game.encounterPlan.length && game.runProgress >= game.encounterPlan[game.encounterIndex].at) {
         spawnEncounterMarker(game.encounterPlan[game.encounterIndex]);
@@ -2250,7 +2346,7 @@ function rollLootForEnemy(enemy) {
         if (addItemToInventory(item) && game.settings.showLootLog) {
             addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#9ed6ff', duration: 780 });
             if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ff9f43', duration: 1200 });
-            addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!`);
+            addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''} 획득!`);
         }
     }
     if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.056) {
@@ -2436,10 +2532,34 @@ function finishEncounterRun() {
         // outsideChaos는 현재 단일 보스(나무꾼) 클리어 전투이므로
         // 완료 시점이면 보스 처치로 간주한다.
         addWoodsmanPendingScore(1000000);
+        let realm = ensureChaosRealmState();
+        realm.woodsmanBestDamagePct = 100;
+        maybeUnlockChaosRealmFromWoodsman({ isBoss: true, hp: 0, maxHp: 1 }, { finalize: true });
         markLoopSpecialBossKill('woodsman_true');
         addLog('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
         clearWoodsmanBuildLock();
         game.currentZoneId = game.maxZoneId;
+        game.killsInZone = 0;
+        startMoving(false);
+        updateStaticUI();
+        queueImportantSave(220);
+        return;
+    }
+
+    if (zone.type === 'chaosRealm') {
+        let st = ensureChaosRealmState();
+        let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
+        st.clearedFloors = Array.isArray(st.clearedFloors) ? st.clearedFloors : [];
+        let firstClear = !st.clearedFloors.includes(floor);
+        if (firstClear) {
+            st.clearedFloors.push(floor);
+            st.clearedFloors.sort((a, b) => a - b);
+            grantChaosRealmFloorBonus(floor);
+        }
+        st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
+        st.currentFloor = Math.min(st.highestFloor, floor + 1);
+        addLog(`🌌 혼돈계 ${floor}층 돌파! ${st.currentFloor}층까지 입장 가능합니다.`, 'season-up');
+        game.currentZoneId = CHAOS_REALM_ZONE_ID;
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
@@ -2786,9 +2906,16 @@ function performPlayerAttack(pStats) {
             let hitGuard = (targetEnemy.hitRateGuard || 0) * Math.min(5, burstHits);
             if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
             let damageBeforeMitigation = dmg;
+            if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
+                if (game.settings.showCombatLog) addLog(`🌀 ${targetEnemy.name} 회피`, 'attack-monster', { noToast: true });
+                return;
+            }
             dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
             dmg = Math.floor(dmg * (curseFx.mul || 1));
-            if ((pStats.sSkill.tags || []).includes('projectile')) dmg = Math.floor(dmg * (curseFx.projectileTakenMul || 1));
+            if ((pStats.sSkill.tags || []).includes('projectile')) dmg = Math.floor(dmg * (curseFx.projectileTakenMul || 1) * (targetEnemy.projectileDamageTakenMul || 1));
+            if ((pStats.sSkill.tags || []).includes('spell')) dmg = Math.floor(dmg * (targetEnemy.spellDamageTakenMul || 1));
+            if (hitElement === 'phys') dmg = Math.floor(dmg * (targetEnemy.physicalDamageTakenMul || 1));
+            if ((targetEnemy.armorGuard || 0) > 0 && hitElement === 'phys') dmg = Math.floor(dmg * Math.max(0.2, 1 - targetEnemy.armorGuard));
             if (hitElement === 'light') dmg = Math.floor(dmg * (curseFx.lightTakenMul || 1));
             if (hitElement === 'chaos') dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
             if (hitCrit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
@@ -2808,11 +2935,12 @@ function performPlayerAttack(pStats) {
             }
             let zone = getZone(game.currentZoneId);
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
-            let hpAfterDamage = Math.max(0, targetEnemy.hp - dmg);
-            if (targetEnemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) {
-                hpAfterDamage = Math.max(1, hpAfterDamage);
+            let beforeHpForForced = targetEnemy.hp;
+            let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
+            if (targetEnemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop())) && targetEnemy.hp <= 0) {
+                targetEnemy.hp = Math.max(1, Math.min(beforeHpForForced, targetEnemy.maxHp || 1));
             }
-            targetEnemy.hp = hpAfterDamage;
+            maybeUnlockChaosRealmFromWoodsman(targetEnemy);
             if (slamEchoPct > 0 && (pStats.sSkill.tags || []).includes('slam') && dmg > 0 && targetEnemy.hp > 0 && (slamEchoGuaranteed || passiveSlamEchoChance <= 0 || Math.random() < passiveSlamEchoChance)) {
                 game.pendingSlamEchoHits = Array.isArray(game.pendingSlamEchoHits) ? game.pendingSlamEchoHits : [];
                 game.pendingSlamEchoHits.push({
@@ -2831,11 +2959,11 @@ function performPlayerAttack(pStats) {
             if ((pStats.regenSuppress || 0) > 0) targetEnemy.regenSuppressPct = Math.min(95, (targetEnemy.regenSuppressPct || 0) + pStats.regenSuppress);
             targetEnemy.recentHitsTaken = (targetEnemy.recentHitsTaken || 0) + 1;
             targetEnemy.recentHitsTimer = 1.8;
-            totalDamage += dmg;
-            totalLeechableDamage += dmg * (targetEnemy && targetEnemy.leechEffMul !== undefined ? targetEnemy.leechEffMul : 1);
-            hits.push(dmg);
+            totalDamage += dealtToEnemy;
+            totalLeechableDamage += dealtToEnemy * (targetEnemy && targetEnemy.leechEffMul !== undefined ? targetEnemy.leechEffMul : 1);
+            hits.push(dealtToEnemy);
             hitSummary.totalHits += 1;
-            hitSummary.totalDamage += dmg;
+            hitSummary.totalDamage += dealtToEnemy;
             hitSummary.uniqueTargets.add(targetEnemy.id);
             addBattleFx('hit', {
                 enemyId: targetEnemy.id,
@@ -2844,7 +2972,7 @@ function performPlayerAttack(pStats) {
                 projectile: (pStats.sSkill.tags || []).includes('projectile'),
                 chain: pStats.sSkill.targetMode === 'chain',
                 skillName: game.activeSkill,
-                damage: dmg,
+                damage: dealtToEnemy,
                 duration: 320,
                 element: hitElement
             });
@@ -2938,6 +3066,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
             let dealtRatio = Math.max(0, Math.min(0.999, 1 - (woodsman.hp / woodsman.maxHp)));
             let score = Math.floor(dealtRatio * 1000000);
             addWoodsmanPendingScore(score);
+            maybeUnlockChaosRealmFromWoodsman(woodsman, { log: true, finalize: true });
             addLog(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
         }
         clearWoodsmanBuildLock();
@@ -3188,7 +3317,7 @@ function performMonsterAttacks(pStats) {
             let physRes = Math.max(-60, (pStats.dr + (pStats.armor / (pStats.armor + Math.max(1, physicalPortion) * 10)) * 100) - (enemy.penetration || 0));
             physicalPortion = Math.floor(physicalPortion * (1 - (physRes / 100)));
             dmg = Math.max(1, elementalPortion + physicalPortion);
-            if ((enemy.critChance || 0) > 0 && Math.random() < (enemy.critChance / 100)) dmg = Math.floor(dmg * 1.55);
+            if ((enemy.critChance || 0) > 0 && Math.random() < (enemy.critChance / 100)) dmg = Math.floor(dmg * (enemy.critDamageMul || 1.55));
             if (enemy.hybridElement && Math.random() < 0.35) {
                 let hybridRes = enemy.hybridElement === 'fire' ? pStats.resF : enemy.hybridElement === 'cold' ? pStats.resC : enemy.hybridElement === 'light' ? pStats.resL : pStats.resChaos;
                 hybridRes = Math.max(-60, hybridRes - ((enemy.penetration || 0) * 0.7));
@@ -3219,6 +3348,12 @@ function performMonsterAttacks(pStats) {
                 remaining -= absorbed;
             }
             game.playerHp = Math.floor(game.playerHp - remaining);
+            if ((enemy.leechPct || 0) > 0 && remaining > 0) {
+                let leeched = Math.max(1, Math.floor(remaining * (enemy.leechPct || 0) / 100));
+                if ((enemy.energyShield || 0) < (enemy.maxEnergyShield || 0)) enemy.energyShield = Math.min(enemy.maxEnergyShield || 0, (enemy.energyShield || 0) + leeched);
+                else enemy.hp = Math.min(enemy.maxHp || enemy.hp || 1, (enemy.hp || 0) + leeched);
+            }
+            if ((enemy.doubleStrikeChance || 0) > 0 && Math.random() * 100 < enemy.doubleStrikeChance) enemy.attackTimer += 1;
             if ((pStats.delayedRegenFromTakenDamage || 0) > 0 && remaining > 0) {
                 let recover = Math.max(0, remaining * pStats.delayedRegenFromTakenDamage);
                 game.delayedGuardHealPool = Math.max(0, (game.delayedGuardHealPool || 0) + recover);
@@ -3382,6 +3517,7 @@ function triggerSeasonReset() {
         ? JSON.parse(JSON.stringify(prevStarWedge.constellationBuff))
         : null;
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+    let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -3462,6 +3598,7 @@ function triggerSeasonReset() {
     game.itemSubtab = 'item-tab-equip';
     game.skillSubtab = 'skill-tab-equip';
     game.mapSubtab = 'map-tab-zones';
+    game.chaosRealm = preservedChaosRealm;
     game.gemEnhanceUnlocked = false;
     game.inTicketBossFight = false;
     game.talismanUnlocked = false;
@@ -3517,4 +3654,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps });
+safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps });
