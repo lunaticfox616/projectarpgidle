@@ -470,28 +470,28 @@ function generateOrganicTree() {
     };
     const centralCoreSpecs = {
         templar: [
-            { stat: 'energyShieldPct', title: '성역 보호막 관문', desc: '초반 보호막 축을 세우고 주문·저항 성좌로 길을 엽니다.' },
-            { stat: 'spellFlatPct', title: '성광 주문 관문', desc: '주문 피해를 먼저 확보하며 보호막 운용 성좌로 이어집니다.' }
+            { stat: 'energyShieldPct', title: '성역 보호막 관문', desc: '이 방향의 노드뭉치는 에너지 보호막, 주문 피해, 범위 피해, 원소 수호와 화염 피해를 중심으로 전개됩니다.' },
+            { stat: 'spellFlatPct', title: '성광 주문 관문', desc: '이 방향의 노드뭉치는 주문 피해와 보호막을 기반으로 범위, 원소 저항, 화염 피해 보강을 함께 제공합니다.' }
         ],
         witch: [
-            { stat: 'energyShieldPct', title: '비전 보호막 관문', desc: '보호막 기반 생존을 마련하고 냉기·번개·카오스 성좌로 확장합니다.' },
-            { stat: 'chaosPctDmg', title: '공허 부패 관문', desc: '카오스와 지속 피해 빌드의 첫 갈래를 여는 핵심 성좌입니다.' }
+            { stat: 'energyShieldPct', title: '비전 보호막 관문', desc: '이 방향의 노드뭉치는 냉기, 번개, 카오스, 지속 피해와 젬 성장으로 이어지는 비전 계열입니다.' },
+            { stat: 'chaosPctDmg', title: '공허 부패 관문', desc: '이 방향의 노드뭉치는 카오스 피해와 지속 피해를 중심으로 냉기·번개 보조 및 젬 성장을 섞습니다.' }
         ],
         shadow: [
-            { stat: 'evasionPct', title: '그림자 회피 관문', desc: '회피 생존을 확보하고 치명타·흡혈 성좌로 진입합니다.' },
-            { stat: 'crit', title: '급소 절개 관문', desc: '초반 치명타 확률을 열어 빠른 타격과 카오스 성좌로 뻗습니다.' }
+            { stat: 'evasionPct', title: '그림자 회피 관문', desc: '이 방향의 노드뭉치는 회피, 치명타, 치명타 배율, 흡혈 속도와 카오스 피해를 다룹니다.' },
+            { stat: 'crit', title: '급소 절개 관문', desc: '이 방향의 노드뭉치는 치명타 계열을 중심으로 회피와 흡혈 속도, 카오스 피해를 함께 확장합니다.' }
         ],
         ranger: [
-            { stat: 'evasionPct', title: '바람 회피 관문', desc: '회피와 이동 기반을 다지고 투사체·냉기 성좌로 이어집니다.' },
-            { stat: 'projectilePctDmg', title: '탄도 개시 관문', desc: '투사체 피해를 먼저 열어 추가 발사와 기동 성좌로 확장합니다.' }
+            { stat: 'evasionPct', title: '바람 회피 관문', desc: '이 방향의 노드뭉치는 회피, 투사체 피해, 추가 발사, 냉기 피해와 냉기 저항을 제공합니다.' },
+            { stat: 'projectilePctDmg', title: '탄도 개시 관문', desc: '이 방향의 노드뭉치는 투사체 피해와 추가 발사를 중심으로 회피, 냉기 피해, 냉기 저항을 보강합니다.' }
         ],
         duelist: [
-            { stat: 'armorPct', title: '결투 방어 관문', desc: '방어도 기반을 세우고 근접·흡혈 성좌로 길을 냅니다.' },
-            { stat: 'meleePctDmg', title: '연격 개시 관문', desc: '근접 피해와 연속 타격 빌드의 초반 축을 만듭니다.' }
+            { stat: 'armorPct', title: '결투 방어 관문', desc: '이 방향의 노드뭉치는 근접 피해, 연속 타격, 공격 속도, 물리 피해와 타격당 흡혈량을 다룹니다.' },
+            { stat: 'meleePctDmg', title: '연격 개시 관문', desc: '이 방향의 노드뭉치는 근접 연격을 중심으로 물리 피해, 공격 속도, 타격당 흡혈량을 확장합니다.' }
         ],
         marauder: [
-            { stat: 'armorPct', title: '철갑 생존 관문', desc: '방어도와 생명력 성좌로 이어지는 전사형 시작축입니다.' },
-            { stat: 'physPctDmg', title: '대지 강타 관문', desc: '물리 피해와 강타 성좌를 향해 뻗는 공격형 시작축입니다.' }
+            { stat: 'armorPct', title: '철갑 생존 관문', desc: '이 방향의 노드뭉치는 물리 피해, 강타, 방어도, 생명력과 총 흡혈량을 중심으로 전개됩니다.' },
+            { stat: 'physPctDmg', title: '대지 강타 관문', desc: '이 방향의 노드뭉치는 물리 피해와 강타를 중심으로 방어도, 생명력, 총 흡혈량을 함께 제공합니다.' }
         ]
     };
     const clusterThemeBySector = {
@@ -898,13 +898,14 @@ function generateOrganicTree() {
         }
         if (depth === 6 && spoke === 1) return tagGemClusterSpecs[11];
         if (depth >= 6 && ((spoke + depth) % 9 === 0)) return getTagGemClusterSpec(spoke, depth);
+        if (depth <= 4) return { stat: themeSpec.stat, title: themeSpec.title, length: null };
         let composite = getCompositeClusterSpec(spoke, depth);
         if (composite && P_STATS[composite.stat] && (!composite.endStat || P_STATS[composite.endStat])) return composite;
         return { stat: themeSpec.stat, title: themeSpec.title, length: null };
     }
     function buildWebCellCluster(anchor, spoke, depth, clusterCellsById) {
         if (!anchor) return;
-        if (depth <= 4 && ((spoke + depth) % 2 === 0)) return;
+        if (depth <= 2 && ((spoke + depth) % 2 === 0)) return;
         let theme = getWebTheme(spoke);
         let themes = clusterThemeBySector[theme] || clusterThemeBySector.templar;
         let blueprint = webCellClusterBlueprints[(depth + spoke) % webCellClusterBlueprints.length];
