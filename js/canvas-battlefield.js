@@ -253,6 +253,11 @@ function renderBattlefield(forceWhenHidden) {
         ctx.fillRect(barX - 2, barY - 2, barWidth + 4, 10);
         ctx.fillStyle = 'rgba(42, 48, 58, 0.95)';
         ctx.fillRect(barX, barY, barWidth, 6);
+        let ghostPct = typeof updateEnemyHpDamageGhost === 'function' ? updateEnemyHpDamageGhost(enemy.id, pct * 100) / 100 : pct;
+        if (ghostPct > pct + 0.002) {
+            ctx.fillStyle = 'rgba(255, 138, 80, 0.58)';
+            ctx.fillRect(barX, barY, Math.max(2, Math.round(barWidth * ghostPct)), 6);
+        }
         ctx.fillStyle = currentTargets.includes(enemy.id) ? '#f1c40f' : '#e94f64';
         ctx.fillRect(barX, barY, Math.max(2, Math.round(barWidth * pct)), 6);
         ctx.strokeStyle = currentTargets.includes(enemy.id) ? 'rgba(255, 224, 130, 0.95)' : 'rgba(255,255,255,0.14)';
