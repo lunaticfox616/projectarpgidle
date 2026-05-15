@@ -43,7 +43,7 @@ const TALISMAN_SHAPE_STYLE = {
 const TALISMAN_OPTION_POOL = [
     { stat: 'pctDmg', label: '피해 증가(%)', min: 6, max: 14, step: 1 },
     { stat: 'flatHp', label: '최대 생명력', min: 28, max: 75, step: 1 },
-    { stat: 'crit', label: '치명타 확률(%)', min: 2, max: 8, step: 0.5 },
+    { stat: 'crit', label: '치명타 확률(%)', min: 1, max: 4, step: 0.5 },
     { stat: 'aspd', label: '공격 속도(%)', min: 2, max: 8, step: 0.5 },
     { stat: 'resPen', label: '저항 관통(%)', min: 1, max: 5, step: 0.5 },
     { stat: 'dr', label: '물리 피해 감소(%)', min: 2, max: 7, step: 0.5 },
