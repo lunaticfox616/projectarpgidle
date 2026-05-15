@@ -48,6 +48,8 @@ for (let i = 1; i <= 20; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1)
 
 
 const CHAOS_REALM_DEFAULT_BONUSES = { pctDmg: 0, move: 0, pctHp: 0, resChaos: 0, resPen: 0, crit: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, critDmg: 0, aspd: 0 };
+const ABYSS_ENDLESS_STEEP_FLOOR_HP_MUL = 1.198;
+const ABYSS_ENDLESS_STEEP_PLAYER_TAKEN_PER_FLOOR = 0.0385;
 const CHAOS_REALM_AFFIX_POOL = [
     { id: 'elemental_wall', name: '원소 장벽', desc: '화염/냉기/번개 저항 대폭 증가' },
     { id: 'iron_bark', name: '철갑 껍질', desc: '방어도와 물리 피해 감소 증가' },
@@ -271,7 +273,7 @@ function getAbyssMonsterScales(zone) {
     if (endlessOver > 0) {
         let steepBand = Math.min(10, endlessOver);
         let smoothBand = Math.max(0, endlessOver - 10);
-        endlessMul = Math.pow(1.18, steepBand) * Math.pow(1.06, smoothBand);
+        endlessMul = Math.pow(ABYSS_ENDLESS_STEEP_FLOOR_HP_MUL, steepBand) * Math.pow(1.06, smoothBand);
     }
     let postLoopOver = Math.max(0, Math.floor((game.season || 1) - 10));
     let postLoopDifficultyMul = postLoopOver > 0 ? (1 + postLoopOver * 0.05 + endlessOver * 0.022) : 1;
@@ -281,7 +283,7 @@ function getAbyssMonsterScales(zone) {
         hordeMul: (1 + (state.horde || 0) * 0.03) * (1 + (state.magnifier || 0) * 0.2),
         dropMul: Math.max(0.2, 1 + ((state.power || 0) + (state.frailty || 0) + (state.resistance || 0) - (state.horde || 0)) * 0.01),
         expMul: Math.max(0.2, 1 + ((state.tenacity || 0) * 0.01) - ((state.horde || 0) * 0.02) + ((state.weakness || 0) * 0.02)),
-        playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + Math.min(10, endlessOver) * 0.035 + Math.max(0, endlessOver - 10) * 0.012 + postLoopOver * 0.03),
+        playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + Math.min(10, endlessOver) * ABYSS_ENDLESS_STEEP_PLAYER_TAKEN_PER_FLOOR + Math.max(0, endlessOver - 10) * 0.012 + postLoopOver * 0.03),
         playerDamageMul: Math.max(0.2, 1 - (state.weakness || 0) * 0.01),
         resistBonus: (state.resistance || 0),
         eliteBonus: (state.elite || 0) * 0.02,
@@ -444,9 +446,9 @@ const CLASS_KEYSTONE_DEFS = {
     ],
     warlock: [
         { id: 'wlk1', name: '심연 각인', desc: '모든 피해가 카오스 피해가 됨', req: null },
-        { id: 'wlk2', name: '부패 증식', desc: '지속 피해 배율 +20%, 즉발 피해 10% 감폭', req: null },
+        { id: 'wlk2', name: '부패 증식', desc: '지속 피해 배율 10% 증폭, 즉발 피해 10% 감폭', req: null },
         { id: 'wlk3', name: '금단 대가', desc: '에너지 보호막 재생 불가, 흡수가 에너지 보호막에 대신 적용', req: null },
-        { id: 'wlk4', name: '암흑 치환', desc: '모든 원소 스킬 피해의 50%를 카오스 피해로 전환', req: 'wlk1' },
+        { id: 'wlk4', name: '암흑 치환', desc: '각 원소 저항 최대치 초과분의 25%만큼 카오스 저항 증가', req: 'wlk1' },
         { id: 'wlk5', name: '전염 가속', desc: 'DOT 틱 속도 +33%, 지속시간 -50%', req: 'wlk2' },
         { id: 'wlk6', name: '공허 관통', desc: '저항 관통 +43%, 치명타 불가, 중독 확률 +25%', req: 'wlk3' },
         { id: 'wlk7', name: '피의 계약', desc: '에너지 보호막 50% 이하에서 피해 20% 증폭, 받는 피해 12% 증폭', reqAny: ['wlk4', 'wlk6'] },
@@ -537,7 +539,11 @@ const P_STATS = {
     chaosPctDmg: { name: '카오스 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     aoePctDmg: { name: '범위 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     dotPctDmg: { name: '지속 피해 배율(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    igniteChance: { name: '점화 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
+    chillChance: { name: '냉각 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
+    freezeChance: { name: '동결 확률(%)', tiers: [2, 3], m: 5, k: 10, isPct: true },
     poisonChance: { name: '중독 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
+    bleedChance: { name: '출혈 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     spellFlatDmg: { name: '주문 내장 피해', tiers: [1, 2, 3], s: 5, m: 12, k: 22 },
     spellFlatPct: { name: '주문 내장 피해 증가(%)', tiers: [2, 3], m: 6, k: 14, isPct: true },
     projectileExtraShots: { name: '투사체 추가 발사', tiers: [2, 3], m: 1, k: 3 },
@@ -809,7 +815,11 @@ let cloudState = {
     isLoaded: false,
     lastMessage: '설정 전',
     lastRemoteUpdatedAt: 0,
-    lastSyncAttemptAt: 0
+    lastSyncAttemptAt: 0,
+    tokenRefreshPromise: null,
+    tokenExpiryWarned: false,
+    pendingForcedSyncOptions: null,
+    pendingForcedSyncRetryTimer: null
 };
 let startupOverlayActive = true;
 let gameplayStarted = false;
@@ -925,6 +935,10 @@ const defaultGame = {
     loopCount: 0,
     woodsmanDefeatAttempts: 0,
     woodsmanSimulatorSeenLoop: false,
+    woodsmanCurseActive: false,
+    woodsmanCurseDamageTakenStacks: 0,
+    woodsmanCurseLastTickAt: 0,
+    woodsmanCurseNextLogStack: 0,
     currentZoneId: 0,
     maxZoneId: 0,
     killsInZone: 0,
