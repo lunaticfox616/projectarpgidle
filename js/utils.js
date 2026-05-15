@@ -169,7 +169,11 @@ function getStatName(statId) {
         chaosPctDmg: '카오스 피해(%)',
         aoePctDmg: '범위 피해(%)',
         dotPctDmg: '지속 피해 배율(%)',
+        igniteChance: '점화 확률(%)',
+        chillChance: '냉각 확률(%)',
+        freezeChance: '동결 확률(%)',
         poisonChance: '중독 확률(%)',
+        bleedChance: '출혈 확률(%)',
         aspd: '공격 속도(%)',
         move: '이동 속도(%)',
         crit: '치명타 확률(%)',
@@ -225,7 +229,7 @@ function createEmptyStatBucket() {
         flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResF: 0, maxResC: 0, maxResL: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0,
-        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, poisonChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
+        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0
     };
@@ -246,7 +250,11 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'chaosPctDmg') bucket.chaosPctDmg += value;
     else if (statId === 'aoePctDmg') bucket.aoePctDmg += value;
     else if (statId === 'dotPctDmg') bucket.dotPctDmg += value;
+    else if (statId === 'igniteChance') bucket.igniteChance += value;
+    else if (statId === 'chillChance') bucket.chillChance += value;
+    else if (statId === 'freezeChance') bucket.freezeChance += value;
     else if (statId === 'poisonChance') bucket.poisonChance += value;
+    else if (statId === 'bleedChance') bucket.bleedChance += value;
     else if (statId === 'spellFlatDmg') bucket.spellFlatDmg += value;
     else if (statId === 'spellFlatPct') bucket.spellFlatPct += value;
     else if (statId === 'flatHp') bucket.flatHp += value;
@@ -327,6 +335,31 @@ function getTaggedDamageBreakdown(bucket, skill) {
     });
     return { total: total, parts: parts };
 }
+
+function getOwnedSkillGemNames(state) {
+    let source = state || (typeof game !== 'undefined' ? game : {});
+    return Array.from(new Set([].concat(
+        Array.isArray(source.skills) ? source.skills : [],
+        Array.isArray(source.sealedSkills) ? source.sealedSkills : []
+    ).filter(name => !!name)));
+}
+function getOwnedSupportGemNames(state) {
+    let source = state || (typeof game !== 'undefined' ? game : {});
+    return Array.from(new Set([].concat(
+        Array.isArray(source.supports) ? source.supports : [],
+        Array.isArray(source.sealedSupports) ? source.sealedSupports : []
+    ).filter(name => !!name)));
+}
+function hasSkillGemOwned(name, state) {
+    return !!name && getOwnedSkillGemNames(state).includes(name);
+}
+function hasSupportGemOwned(name, state) {
+    return !!name && getOwnedSupportGemNames(state).includes(name);
+}
+function dedupeList(values) {
+    return Array.from(new Set(Array.isArray(values) ? values.filter(Boolean) : []));
+}
+
 function makeSourceLine(label, value, suffix, formatter) {
     if (!value) return null;
     let rendered = formatter ? formatter(value) : `${Math.floor(value)}${suffix || ''}`;
@@ -348,7 +381,7 @@ let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
 
-safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, makeSourceLine });
+safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine });
 
 function safeExposeGlobals(map) {
     Object.keys(map || {}).forEach(function (key) {
