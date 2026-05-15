@@ -811,7 +811,11 @@ let cloudState = {
     isLoaded: false,
     lastMessage: '설정 전',
     lastRemoteUpdatedAt: 0,
-    lastSyncAttemptAt: 0
+    lastSyncAttemptAt: 0,
+    tokenRefreshPromise: null,
+    tokenExpiryWarned: false,
+    pendingForcedSyncOptions: null,
+    pendingForcedSyncRetryTimer: null
 };
 let startupOverlayActive = true;
 let gameplayStarted = false;

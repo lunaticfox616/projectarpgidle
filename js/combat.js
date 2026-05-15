@@ -3448,6 +3448,7 @@ function ensurePendingLoopHeroSelectionPrompt() {
         if (heroId !== previousHeroId) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(heroId).label} 캐릭터를 선택했습니다.`, 'season-up');
         game.pendingLoopHeroSelection = false;
         saveGame({ skipCloudSync: true });
+        if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 캐릭터 선택 완료');
         startMoving(true);
         switchTab('tab-character');
     }, {
@@ -3675,10 +3676,12 @@ function triggerSeasonReset() {
     checkUnlocks();
     game.pendingLoopHeroSelection = true;
     saveGame({ skipCloudSync: true });
+    if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 진행');
     openLoopHeroSelection((heroId) => {
         if (heroId !== previousHeroId) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(heroId).label} 캐릭터를 선택했습니다.`, 'season-up');
         game.pendingLoopHeroSelection = false;
         saveGame({ skipCloudSync: true });
+        if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 캐릭터 선택 완료');
         startMoving(true);
         switchTab('tab-character');
     });

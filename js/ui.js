@@ -5252,7 +5252,8 @@ function getCloudConfig() {
     return { enabled, supabaseUrl, supabaseAnonKey };
 }
 
-
+const CLOUD_TOKEN_REFRESH_LEEWAY_MS = 5 * 60 * 1000;
+const CLOUD_TOKEN_EXPIRY_WARNING_MS = 10 * 60 * 1000;
 
 const CLOUD_SKIP_OAUTH_RESTORE_KEY = 'projectidle_cloud_skip_oauth_restore';
 
@@ -5442,22 +5443,81 @@ function applyCloudSession(session) {
         updateCloudSaveUI();
         return;
     }
+    let expiresAt = Number(session.expires_at) || 0;
+    if (!expiresAt && Number(session.expires_in) > 0) expiresAt = Math.floor(Date.now() / 1000) + Math.floor(Number(session.expires_in));
     cloudState.session = {
         access_token: session.access_token,
         refresh_token: session.refresh_token || (cloudState.session && cloudState.session.refresh_token) || '',
-        expires_at: session.expires_at || 0,
+        expires_at: expiresAt,
         token_type: session.token_type || 'bearer',
         user: session.user || cloudState.user || null
     };
     cloudState.user = cloudState.session.user;
     cloudState.isLoaded = false;
+    cloudState.tokenExpiryWarned = false;
     persistCloudSession(cloudState.session);
     updateCloudSaveUI();
+}
+
+function getCloudSessionExpiresAtMs() {
+    let expiresAt = cloudState.session ? Number(cloudState.session.expires_at || 0) : 0;
+    return expiresAt > 0 ? expiresAt * 1000 : 0;
+}
+
+function notifyCloudSessionExpired(message) {
+    let text = message || '클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.';
+    setCloudMessage(text);
+    if (!cloudState.tokenExpiryWarned && typeof addLog === 'function') addLog(`⚠️ ${text}`, 'loot-rare');
+    cloudState.tokenExpiryWarned = true;
+}
+
+async function refreshCloudSession(reason) {
+    if (!cloudState.session || !cloudState.session.refresh_token) {
+        notifyCloudSessionExpired('클라우드 로그인 갱신 정보가 없습니다. 다시 로그인해주세요.');
+        return false;
+    }
+    if (cloudState.tokenRefreshPromise) return await cloudState.tokenRefreshPromise;
+    cloudState.tokenRefreshPromise = (async () => {
+        try {
+            setCloudMessage(reason ? `클라우드 로그인 갱신 중... (${reason})` : '클라우드 로그인 갱신 중...');
+            let refreshed = await cloudJsonRequest('/auth/v1/token?grant_type=refresh_token', {
+                method: 'POST',
+                useAuth: false,
+                body: { refresh_token: cloudState.session.refresh_token }
+            });
+            applyCloudSession(refreshed);
+            setCloudMessage('클라우드 로그인 세션을 자동 갱신했습니다.');
+            return true;
+        } catch (error) {
+            console.warn('cloud token refresh failed:', error);
+            applyCloudSession(null);
+            notifyCloudSessionExpired('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+            return false;
+        } finally {
+            cloudState.tokenRefreshPromise = null;
+            updateCloudSaveUI();
+        }
+    })();
+    return await cloudState.tokenRefreshPromise;
+}
+
+async function ensureCloudSessionFresh(reason) {
+    if (!cloudState.session || !cloudState.session.access_token) return false;
+    let expiresAtMs = getCloudSessionExpiresAtMs();
+    if (!expiresAtMs) return true;
+    let remaining = expiresAtMs - Date.now();
+    if (remaining <= CLOUD_TOKEN_REFRESH_LEEWAY_MS) return await refreshCloudSession(reason || '만료 예정');
+    if (remaining <= CLOUD_TOKEN_EXPIRY_WARNING_MS && !cloudState.tokenExpiryWarned) notifyCloudSessionExpired('클라우드 로그인 세션이 곧 만료됩니다. 만료 전 자동 갱신 예정입니다.');
+    return true;
 }
 
 async function cloudJsonRequest(path, options = {}) {
     let config = getCloudConfig();
     if (!config.enabled) throw new Error('cloud-save-config.js 설정이 비어 있습니다.');
+    if (options.useAuth !== false) {
+        let fresh = await ensureCloudSessionFresh('요청 전 확인');
+        if (!fresh) throw new Error('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+    }
     let headers = { apikey: config.supabaseAnonKey, ...(options.headers || {}) };
     if (options.useAuth !== false && cloudState.session && cloudState.session.access_token) headers.Authorization = `Bearer ${cloudState.session.access_token}`;
     let body = options.body;
@@ -5831,20 +5891,9 @@ async function restoreCloudSession() {
     cloudState.session = stored;
     cloudState.user = stored.user || null;
     if (stored.refresh_token) {
-        try {
-            let refreshed = await cloudJsonRequest('/auth/v1/token?grant_type=refresh_token', {
-                method: 'POST',
-                useAuth: false,
-                body: { refresh_token: stored.refresh_token }
-            });
-            applyCloudSession(refreshed);
-            return true;
-        } catch (refreshError) {
-            console.warn('cloud session refresh failed:', refreshError);
-            setCloudMessage('세션이 만료되었습니다. 다시 로그인해주세요.');
-            applyCloudSession(null);
-            return false;
-        }
+        let refreshed = await refreshCloudSession('저장된 세션 복원');
+        if (refreshed) return true;
+        return false;
     }
     let user = await fetchCloudUser();
     applyCloudSession({ ...stored, user });
@@ -6024,13 +6073,43 @@ function scheduleCloudAutoSync() {
     }, 1200);
 }
 
+
+function schedulePendingForcedCloudSyncDrain() {
+    if (cloudState.pendingForcedSyncRetryTimer) return;
+    cloudState.pendingForcedSyncRetryTimer = setTimeout(() => {
+        cloudState.pendingForcedSyncRetryTimer = null;
+        let pendingForced = cloudState.pendingForcedSyncOptions;
+        if (!pendingForced || !cloudState.configured || !cloudState.user) return;
+        if (cloudState.busy) {
+            schedulePendingForcedCloudSyncDrain();
+            return;
+        }
+        cloudState.pendingForcedSyncOptions = null;
+        syncCloudSave(pendingForced).catch(error => {
+            console.warn(`queued cloud save failed (${pendingForced.reason || 'important'}):`, error);
+            setCloudMessage('대기 중이던 클라우드 저장 실패: ' + (error.message || error));
+        });
+    }, 500);
+}
+
 async function syncCloudSave(options = {}) {
-    if (!cloudState.configured || !cloudState.user || cloudState.busy) return;
+    if (!cloudState.configured || !cloudState.user) return;
+    if (cloudState.busy) {
+        if (options.force === true) {
+            cloudState.pendingForcedSyncOptions = { ...options, force: true, reason: options.reason || 'important' };
+            setCloudMessage(`클라우드 업로드 대기 중... (${cloudState.pendingForcedSyncOptions.reason})`);
+            updateCloudSaveUI();
+            schedulePendingForcedCloudSyncDrain();
+        }
+        return;
+    }
     cloudState.busy = true;
     cloudState.lastSyncAttemptAt = Date.now();
-    setCloudMessage(options.automatic ? '자동 클라우드 업로드 중...' : '클라우드 업로드 중...');
+    setCloudMessage(options.reason ? `클라우드 업로드 중... (${options.reason})` : (options.automatic ? '자동 클라우드 업로드 중...' : '클라우드 업로드 중...'));
     updateCloudSaveUI();
     try {
+        let fresh = await ensureCloudSessionFresh(options.reason || '클라우드 저장');
+        if (!fresh) return;
         let guardResult = await guardAgainstStaleLocalOverwrite({ automatic: !!options.automatic, silentLog: !!options.automatic });
         if (guardResult.status === 'pulled-remote') return;
         await pushCloudSave({ touchModifiedAt: options.automatic !== true });
@@ -6039,6 +6118,7 @@ async function syncCloudSave(options = {}) {
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
+        if (cloudState.pendingForcedSyncOptions) schedulePendingForcedCloudSyncDrain();
     }
 }
 
@@ -6204,6 +6284,51 @@ async function cloudLogout() {
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
+    }
+}
+
+
+function requestImmediateCloudSave(reason) {
+    if (!cloudState.configured || !cloudState.user) return false;
+    saveGame({ skipCloudSync: true });
+    syncCloudSave({ automatic: true, force: true, reason: reason || 'important' }).catch(error => {
+        console.warn(`immediate cloud save failed (${reason || 'important'}):`, error);
+        setCloudMessage('즉시 클라우드 저장 실패: ' + (error.message || error));
+    });
+    return true;
+}
+
+
+function pushCloudSaveOnPageExit(reason) {
+    let config = getCloudConfig();
+    if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
+    try {
+        persistLocalSave({ touchModifiedAt: true });
+        let payload = JSON.parse(JSON.stringify(game));
+        let body = JSON.stringify({ user_id: cloudState.user.id, save_data: payload });
+        let headers = {
+            apikey: config.supabaseAnonKey,
+            Authorization: `Bearer ${cloudState.session.access_token}`,
+            'Content-Type': 'application/json',
+            Prefer: 'resolution=merge-duplicates,return=minimal'
+        };
+        fetch(config.supabaseUrl + '/rest/v1/cloud_saves', {
+            method: 'POST',
+            headers,
+            body,
+            keepalive: true
+        }).then(() => {
+            ensureSaveMeta();
+            game.saveMeta.lastCloudSyncAt = Date.now();
+            cloudState.lastRemoteUpdatedAt = game.saveMeta.lastCloudSyncAt;
+            persistLocalSave({ touchModifiedAt: false });
+        }).catch(error => console.warn(`cloud save on ${reason || 'page exit'} failed:`, error));
+        cloudState.lastSyncAttemptAt = Date.now();
+        setCloudMessage('페이지 종료 전 클라우드 저장을 시도했습니다.');
+        return true;
+    } catch (error) {
+        console.warn(`cloud save on ${reason || 'page exit'} setup failed:`, error);
+        return false;
     }
 }
 
@@ -6410,10 +6535,27 @@ function init() {
     if (!window.__cloudVisibilitySaveBound) {
         window.__cloudVisibilitySaveBound = true;
         document.addEventListener('visibilitychange', function() {
-            if (document.hidden) saveGame();
+            if (document.hidden) {
+                saveGame({ skipCloudSync: true });
+                pushCloudSaveOnPageExit('visibilitychange');
+            }
+        });
+        window.addEventListener('pagehide', function() {
+            saveGame({ skipCloudSync: true });
+            pushCloudSaveOnPageExit('pagehide');
+        });
+        window.addEventListener('beforeunload', function() {
+            saveGame({ skipCloudSync: true });
+            pushCloudSaveOnPageExit('beforeunload');
         });
     }
     initializeCloudSave();
+    if (!window.__cloudTokenRefreshBound) {
+        window.__cloudTokenRefreshBound = true;
+        setInterval(() => {
+            if (cloudState.user && cloudState.session) ensureCloudSessionFresh('주기 확인').catch(error => console.warn('periodic cloud token refresh failed:', error));
+        }, 60000);
+    }
     window.runStartupSmokeChecks = runStartupSmokeChecks;
     if (!window.__globalTouchTooltipCleanup) {
         window.__globalTouchTooltipCleanup = true;
