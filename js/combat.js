@@ -385,6 +385,7 @@ function enforceWoodsmanBuildLock() {
 }
 
 function clearWoodsmanBuildLock() {
+    resetWoodsmanCurse();
     if (game.woodsmanBuildLock && game.woodsmanBuildSnapshot) {
         // 마지막으로 스냅샷 기준으로 복원
         enforceWoodsmanBuildLock();
@@ -395,6 +396,7 @@ function clearWoodsmanBuildLock() {
 
 function coreLoop() {
     if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
+    tickWoodsmanCurse();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
     runConditionGemAutoRules(pStats);
@@ -1598,7 +1600,8 @@ function createEnemy(zone, marker, groupIndex) {
     let abyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
     if (zone.type === 'abyss' && !isElite && !isBoss) {
         let hpRamp = Math.min(0.20, Math.max(0, abyssDepth - 1) * 0.015);
-        hp = Math.floor(hp * (1 + hpRamp));
+        let deepNormalHpMul = abyssDepth >= 21 && abyssDepth <= 30 ? 1.2 : 1;
+        hp = Math.floor(hp * (1 + hpRamp) * deepNormalHpMul);
     }
     if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, (game.loopCount || 0) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
@@ -1617,11 +1620,11 @@ function createEnemy(zone, marker, groupIndex) {
     if (isElite) name = `정예 ${name}`;
     if (zone.type === 'outsideChaos') {
         isBoss = true;
-        name = '🪓 나무꾼';
-        hp = Math.floor(hp * 1200);
+        name = '🪓 혼돈 밖의 나무꾼';
+        hp = Math.floor(hp * 120);
     }
     if (isBoss) {
-        let bossName = zone.type === 'trial' ? `${zone.name} 수호자` : (zone.type === 'seasonBoss' ? zone.name : (zone.type === 'meteor' ? '검은 별의 심장' : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`)));
+        let bossName = zone.type === 'outsideChaos' ? '혼돈 밖의 나무꾼' : (zone.type === 'trial' ? `${zone.name} 수호자` : (zone.type === 'seasonBoss' ? zone.name : (zone.type === 'meteor' ? '검은 별의 심장' : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`))));
         name = `👿 ${bossName}`;
     }
     let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
@@ -1650,7 +1653,8 @@ function createEnemy(zone, marker, groupIndex) {
         resL: (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0),
         resChaos: (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0),
         atkMul: trait && trait.atkMul ? trait.atkMul : 1,
-        attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1),
+        damageMul: zone.type === 'outsideChaos' ? 2 : 1,
+        attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1) * (zone.type === 'outsideChaos' ? 1.5 : 1),
         critChance: ((game.season || 1) >= 2 ? (isBoss ? 16 : isElite ? 10 : 4) : 0) + (trait && trait.critChanceBonus ? trait.critChanceBonus : 0),
         regenRate: ((game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0) * 0.12 * regenMul,
         regenSuppressPct: 0,
@@ -1987,6 +1991,43 @@ function syncCrowdPauseState() {
     return paused;
 }
 
+function resetWoodsmanCurse() {
+    game.woodsmanCurseActive = false;
+    game.woodsmanCurseDamageTakenStacks = 0;
+    game.woodsmanCurseLastTickAt = 0;
+    game.woodsmanCurseNextLogStack = 0;
+}
+
+function startWoodsmanCurse() {
+    game.woodsmanCurseActive = true;
+    game.woodsmanCurseDamageTakenStacks = 0;
+    game.woodsmanCurseLastTickAt = Date.now();
+    game.woodsmanCurseNextLogStack = 100;
+    addLog('🪓 나무꾼의 저주: 전투가 끝날 때까지 매초 받는 피해가 0.01%씩 증가합니다.', 'attack-monster');
+}
+
+function tickWoodsmanCurse() {
+    let zone = getZone(game.currentZoneId);
+    if (!zone || zone.type !== 'outsideChaos' || !game.woodsmanCurseActive) return;
+    let now = Date.now();
+    game.woodsmanCurseLastTickAt = Number.isFinite(game.woodsmanCurseLastTickAt) && game.woodsmanCurseLastTickAt > 0 ? game.woodsmanCurseLastTickAt : now;
+    let elapsed = now - game.woodsmanCurseLastTickAt;
+    if (elapsed < 1000) return;
+    let ticks = Math.floor(elapsed / 1000);
+    game.woodsmanCurseLastTickAt += ticks * 1000;
+    game.woodsmanCurseDamageTakenStacks = Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) + ticks;
+    if ((game.settings && game.settings.showCombatLog !== false) && game.woodsmanCurseDamageTakenStacks >= Math.max(100, Math.floor(game.woodsmanCurseNextLogStack || 100))) {
+        addLog(`🪓 나무꾼의 저주 중첩: 받는 피해 +${(game.woodsmanCurseDamageTakenStacks * 0.01).toFixed(2)}%`, 'attack-monster', { noToast: true });
+        game.woodsmanCurseNextLogStack = Math.floor(game.woodsmanCurseDamageTakenStacks / 100 + 1) * 100;
+    }
+}
+
+function getWoodsmanCurseDamageTakenMul() {
+    let zone = getZone(game.currentZoneId);
+    if (!zone || zone.type !== 'outsideChaos' || !game.woodsmanCurseActive) return 1;
+    return 1 + Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.0001;
+}
+
 function startEncounterRun() {
     pTimer = 0;
     progressStallTicks = 0;
@@ -1997,6 +2038,8 @@ function startEncounterRun() {
     primeTrialHazardTimer(zone);
     game.encounterPlan = generateEncounterPlan(zone);
     game.enemies = [];
+    if (zone && zone.type === 'outsideChaos') startWoodsmanCurse();
+    else resetWoodsmanCurse();
 }
 
 function startMoving(isTown) {
@@ -2016,6 +2059,7 @@ function startMoving(isTown) {
     game.runProgress = 0;
     game.playerAilments = [];
     game.playerLeechInstances = [];
+    resetWoodsmanCurse();
     let v = game.voidRift;
     if (v && v.active) {
         v.active = false;
@@ -3177,14 +3221,14 @@ function tickAilments(pStats, dt) {
         if (ail.type === 'ignite') {
             let burn = getPlayerDamageAilmentDps(ail, pStats);
             if (burn > 0) {
-                burn = Math.max(1, Math.floor(burn * dt * (1 - Math.max(0, Math.min(0.75, (pStats.resF || 0) / 100)))));
+                burn = Math.max(1, Math.floor(burn * dt * (1 - Math.max(0, Math.min(0.75, (pStats.resF || 0) / 100))) * getWoodsmanCurseDamageTakenMul()));
                 game.playerHp -= burn;
                 recordIncomingDamage('fire', burn, '점화');
             }
         } else if (ail.type === 'poison') {
             let poison = getPlayerDamageAilmentDps(ail, pStats);
             if (poison > 0) {
-                poison = Math.max(1, Math.floor(poison * dt * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100)))));
+                poison = Math.max(1, Math.floor(poison * dt * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100))) * getWoodsmanCurseDamageTakenMul()));
                 if (pStats.poisonToHeal) game.playerHp = Math.min(getPlayerHpCap(pStats), game.playerHp + poison);
                 else {
                     game.playerHp -= poison;
@@ -3194,7 +3238,7 @@ function tickAilments(pStats, dt) {
         } else if (ail.type === 'bleed') {
             let bleed = getPlayerDamageAilmentDps(ail, pStats);
             if (bleed > 0) {
-                bleed = Math.max(1, Math.floor(bleed * dt * (1 - Math.max(0, Math.min(0.75, (pStats.dr || 0) / 100)))));
+                bleed = Math.max(1, Math.floor(bleed * dt * (1 - Math.max(0, Math.min(0.75, (pStats.dr || 0) / 100))) * getWoodsmanCurseDamageTakenMul()));
                 game.playerHp -= bleed;
                 recordIncomingDamage('phys', bleed, '출혈');
             }
@@ -3260,6 +3304,8 @@ function performMonsterAttacks(pStats) {
         if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);
         let seasonDepth = Math.max(0, (game.season || 1) - 1);
         let tierPressure = clampNumber(((zone.tier || 1) - 1) / 10, 0, 1);
+        const monsterBaseAttackSpeedMul = 1.10;
+        const monsterBaseDamageMul = 1.15;
         let seasonAtkScale = 1 + seasonDepth * (0.012 + (tierPressure * 0.018));
         let curseDebuffs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[enemy.id]) ? game.enemyConditionDebuffs[enemy.id] : [];
         let curseSlow = 0;
@@ -3268,7 +3314,7 @@ function performMonsterAttacks(pStats) {
         curseDebuffs.forEach(deb => { enemyDmgMul *= (getConditionGemStatDelta(deb.name, 'curse').enemyDmgMul || 1); });
         let chillSlow = ailMap.chill ? Math.min(0.45, 0.12 + ailMap.chill * 0.14) : 0;
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
-        let atkRate = (0.26 + zone.tier * 0.013) * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
+        let atkRate = (0.26 + zone.tier * 0.013) * monsterBaseAttackSpeedMul * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
         enemy.attackTimer += 0.1 * atkRate;
         while (enemy.attackTimer >= 1) {
             if (zone.type === 'outsideChaos') {
@@ -3277,14 +3323,14 @@ function performMonsterAttacks(pStats) {
                     enemy.nextCurseAt = Date.now() + 6500;
                     let curseType = rndChoice(['ignite','chill','shock','poison','bleed']);
                     applyPlayerAilment(curseType, 4, 0.18, pStats);
-                    addLog(`☠️ 나무꾼의 저주: ${curseType === 'ignite' ? '점화' : curseType === 'chill' ? '냉각' : curseType === 'shock' ? '감전' : curseType === 'poison' ? '중독' : '출혈'}`, 'attack-monster', { noToast: true });
+                    addLog(`☠️ 알 수 없는 권능: ${curseType === 'ignite' ? '점화' : curseType === 'chill' ? '냉각' : curseType === 'shock' ? '감전' : curseType === 'poison' ? '중독' : '출혈'}`, 'attack-monster', { noToast: true });
                 }
             }
             enemy.attackTimer -= 1;
             let seasonDmgScale = 1 + seasonDepth * (0.05 + (tierPressure * 0.07));
             let shockAmp = ailMap.shock ? Math.min(0.35, 0.08 + ailMap.shock * 0.12) : 0;
-            let dmg = Math.floor((2.4 + zone.tier * 3.35) * seasonDmgScale * (1 - shockAmp));
-            dmg = Math.floor(dmg * enemyDmgMul);
+            let dmg = Math.floor((2.4 + zone.tier * 3.35) * monsterBaseDamageMul * seasonDmgScale * (1 - shockAmp));
+            dmg = Math.floor(dmg * enemyDmgMul * (enemy.damageMul || 1));
             if (zone.type === 'act' && zone.id <= 1 && (game.season || 1) >= 3) dmg = Math.floor(dmg * 0.58);
             if (enemy.isElite) dmg = Math.floor(dmg * 1.28);
             if (enemy.isBoss) dmg = Math.floor(dmg * (1.14 + zone.tier * 0.16));
@@ -3299,7 +3345,7 @@ function performMonsterAttacks(pStats) {
                 let cycle = ['phys','fire','cold','light','chaos'];
                 enemy.ele = cycle[phase % cycle.length];
                 enemy.atkMul = 1 + Math.pow(1 - hpRatio, 1.4) * 3.2;
-                enemy.attackSpeedVar = 1 + Math.pow(1 - hpRatio, 1.2) * 1.8;
+                enemy.attackSpeedVar = (1 + Math.pow(1 - hpRatio, 1.2) * 1.8) * 1.5;
                 enemy.penetration = 8 + Math.floor((1 - hpRatio) * 28);
                 enemy.dr = 10 + Math.floor((1 - hpRatio) * 40);
             }
@@ -3320,7 +3366,7 @@ function performMonsterAttacks(pStats) {
                 let hybrid = Math.floor(dmg * 0.32 * (1 - (hybridRes / 100)));
                 dmg += Math.max(0, hybrid);
             }
-            dmg = Math.max(1, dmg);
+            dmg = Math.max(1, Math.floor(dmg * getWoodsmanCurseDamageTakenMul()));
             if (enemy.ele === 'phys' && Math.random() * 100 < Math.max(0, pStats.evadeChance || 0)) {
                 if (game.settings.showCombatLog) addLog(`🌀 회피 성공`, "loot-magic");
                 continue;
@@ -3454,6 +3500,7 @@ function enterOutsideChaos() {
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.enemies = [];
+    startWoodsmanCurse();
     addLog('☠️ 금단의 경계 너머, 나무꾼이 모습을 드러냅니다.', 'loot-unique');
     game.inEncounter = true;
     game.moveTimer = 0;
