@@ -906,7 +906,7 @@ function getPlayerStats() {
     let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
     let fireResScaledBonus = 1 + Math.max(0, finalResF * (skill.fireResDmgScale || 0));
     let dotMultiplier = skill.dotMultiplier || 1;
-    let dotStatMultiplier = isDotSkill ? (1 + Math.max(0, dotPctDmg) / 100) : 1;
+    let dotStatMultiplier = 1 + Math.max(0, dotPctDmg) / 100;
     let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
     finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus);
     let damageScales = {
@@ -1157,7 +1157,7 @@ function getPlayerStats() {
                 (skill.regenDmgScale || 0) > 0 ? `재생 계수 배율 ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
                 (skill.fireResDmgScale || 0) > 0 ? `화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (화염 저항 ${Math.floor(finalResF)}%)` : null,
                 (skill.dotMultiplier || 1) !== 1 ? `스킬 지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null,
-                isDotSkill && dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null,
+                dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null,
                 skill.convertedToChaos ? '워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용' : null,
                 `피해 범위 ${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
             ].filter(Boolean),
