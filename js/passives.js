@@ -4883,16 +4883,33 @@ function updateItemName(item) {
     else if (item.rarity === 'rare') item.name = `희귀한 ${item.baseName}`;
 }
 
-function rerollExplicitMods(item, rarity, zoneTier) {
+function rerollChaosInfusionForItem(item, previousInfusion) {
+    if (!item || !previousInfusion) return null;
+    let pool = getChaosInfuserOptionsForItem(item);
+    if (pool.length === 0) {
+        item.chaosInfusion = null;
+        return null;
+    }
+    let option = rndChoice(pool);
+    item.chaosInfusion = rollChaosInfusionOption(option);
+    return item.chaosInfusion;
+}
+
+function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let maxTier = Math.max(1, zoneTier);
+    let rerollChaosInfusion = !!(options && options.rerollChaosInfusion);
+    let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
+    if (rerollChaosInfusion) item.chaosInfusion = null;
+    let reservedInfusionCount = previousInfusion ? 1 : 0;
     let locked = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
     item.stats = locked.slice();
     let count = 0;
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
     if (rarity === 'rare') count = 4 + Math.floor(Math.random() * 2);
-    count = Math.max(0, count - getItemExplicitOptionCount(item));
+    count = Math.max(0, count - getItemExplicitOptionCount(item) - reservedInfusionCount);
     let mods = pickRandomMods(getAvailableMods(item), count);
     mods.forEach(mod => item.stats.push(rollAffixValue(mod, maxTier)));
+    if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
     updateItemName(item);
 }
 
@@ -6072,7 +6089,7 @@ function useCurrency(currencyKey) {
         }
     } else if (currencyKey === 'alchemy') {
         item.rarity = 'rare';
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item));
+        rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
             guaranteedMod = getSporeGuaranteedMod();
             if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
@@ -6090,7 +6107,7 @@ function useCurrency(currencyKey) {
         item.rarity = 'rare';
         updateItemName(item);
     } else if (currencyKey === 'chaos') {
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item));
+        rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
             guaranteedMod = getSporeGuaranteedMod();
             if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');

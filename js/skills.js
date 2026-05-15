@@ -206,6 +206,9 @@ function applyFossilChaosCraft(fossilKey) {
     if (guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
 
     let maxTier = getItemCraftTier(item);
+    let previousChaosInfusion = item.chaosInfusion || null;
+    if (previousChaosInfusion) item.chaosInfusion = null;
+    let reservedInfusionCount = previousChaosInfusion ? 1 : 0;
     let hiddenTier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || maxTier));
     let guaranteedMinTier = Math.max(1, hiddenTier - 3);
     let guaranteedMaxTier = Math.max(1, hiddenTier);
@@ -214,15 +217,14 @@ function applyFossilChaosCraft(fossilKey) {
     let lockedStats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
     let newStats = lockedStats.slice();
     let blockedIds = new Set([...immutableIds, ...newStats.map(stat => stat.id)]);
-    if (item.chaosInfusion && item.chaosInfusion.id) blockedIds.add(item.chaosInfusion.id);
     let guaranteedRoll = rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier);
-    if (!blockedIds.has(guaranteedRoll.id) && (newStats.length + (item.chaosInfusion ? 1 : 0)) < 6) {
+    if (!blockedIds.has(guaranteedRoll.id) && (newStats.length + reservedInfusionCount) < 6) {
         newStats.push(guaranteedRoll);
         blockedIds.add(guaranteedRoll.id);
     }
 
     let count = 4 + Math.floor(Math.random() * 2);
-    while ((newStats.length + (item.chaosInfusion ? 1 : 0)) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
+    while ((newStats.length + reservedInfusionCount) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
         let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id));
         if (pool.length === 0) break;
         let roll = rollAffixValue(pickWeightedMod(pool), maxTier);
@@ -232,6 +234,7 @@ function applyFossilChaosCraft(fossilKey) {
 
     item.stats = newStats;
     item.rarity = 'rare';
+    if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
     game.currencies[fossilKey]--; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_craft');
     updateItemName(item);
     addLog(`🪨 ${fossil.name} 재련 성공! 확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})`, 'loot-magic');
