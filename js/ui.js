@@ -5963,6 +5963,7 @@ async function fetchCloudSaveRecord() {
             }
         }
         cloudState.isLoaded = true;
+        cloudState.lastRemoteCheckedAt = Date.now();
         if (record && record.updated_at) cloudState.lastRemoteUpdatedAt = new Date(record.updated_at).getTime() || 0;
         updateCloudSaveUI();
         return record;
@@ -6033,6 +6034,7 @@ async function pushCloudSave(options = {}) {
     ensureSaveMeta();
     game.saveMeta.lastCloudSyncAt = syncedAt;
     cloudState.lastRemoteUpdatedAt = syncedAt;
+    cloudState.lastRemoteCheckedAt = Date.now();
     persistLocalSave({ touchModifiedAt: false });
     updateCloudSaveUI();
     return row;
@@ -6347,17 +6349,24 @@ function requestImmediateCloudSave(reason) {
 }
 
 
+function canPushCloudSaveOnPageExit() {
+    ensureSaveMeta();
+    let localStamp = game.saveMeta.lastModifiedAt || 0;
+    let knownRemoteStamp = Math.max(cloudState.lastRemoteUpdatedAt || 0, game.saveMeta.lastCloudSyncAt || 0);
+    let remoteCheckedAt = cloudState.lastRemoteCheckedAt || 0;
+    if (!cloudState.isLoaded || remoteCheckedAt <= 0) return false;
+    if (Date.now() - remoteCheckedAt > CLOUD_SYNC_MIN_INTERVAL_MS) return false;
+    return localStamp > knownRemoteStamp + CLOUD_STALE_OVERWRITE_GUARD_MS;
+}
+
 function pushCloudSaveOnPageExit(reason) {
     let config = getCloudConfig();
     if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
+    if (!canPushCloudSaveOnPageExit()) return false;
     try {
-        persistLocalSave({ touchModifiedAt: true });
-        ensureSaveMeta();
-        let optimisticSyncAt = Date.now();
-        game.saveMeta.lastCloudSyncAt = optimisticSyncAt;
-        cloudState.lastRemoteUpdatedAt = optimisticSyncAt;
         persistLocalSave({ touchModifiedAt: false });
-        let payload = JSON.parse(JSON.stringify(game));
+        ensureSaveMeta();
+        let payload = createSaveSnapshot(game);
         let body = JSON.stringify({ user_id: cloudState.user.id, save_data: payload });
         let headers = {
             apikey: config.supabaseAnonKey,
@@ -6371,7 +6380,7 @@ function pushCloudSaveOnPageExit(reason) {
             body,
             keepalive: true
         }).catch(error => console.warn(`cloud save on ${reason || 'page exit'} failed:`, error));
-        cloudState.lastSyncAttemptAt = optimisticSyncAt;
+        cloudState.lastSyncAttemptAt = Date.now();
         setCloudMessage('페이지 종료 전 클라우드 저장을 시도했습니다.');
         return true;
     } catch (error) {
