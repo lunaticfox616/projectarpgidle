@@ -619,6 +619,19 @@ function processPendingSlamEchoHits() {
 safeExposeGlobals({ coreLoop });
 
 // Phase-3 extracted core combat runtime block.
+
+function convertSkillDamageToChaos(skill) {
+    let next = { ...(skill || {}) };
+    let tags = Array.isArray(next.tags) ? next.tags.slice() : [];
+    let convertedTags = tags.filter(tag => !['physical', 'elemental', 'fire', 'cold', 'lightning'].includes(tag));
+    if (!convertedTags.includes('chaos')) convertedTags.push('chaos');
+    next.tags = convertedTags;
+    next.ele = 'chaos';
+    if (Array.isArray(next.randomElementPool)) next.randomElementPool = null;
+    next.convertedToChaos = true;
+    return next;
+}
+
 function getPlayerStats() {
     const safePassives = Array.isArray(game.passives) ? game.passives : [];
     const safeSeasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
@@ -757,6 +770,7 @@ function getPlayerStats() {
     let constellation = game.starWedge && game.starWedge.constellationBuff;
     if (constellation && constellation.stat) addStatToBucket(reward, constellation.stat, constellation.val || 0);
     let skill = getActiveSkillStats(gemSources.total);
+    if (game.ascendClass === 'warlock' && hasKeystone('wlk1')) skill = convertSkillDamageToChaos(skill);
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
     let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots;
     if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
@@ -892,7 +906,7 @@ function getPlayerStats() {
     let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
     let fireResScaledBonus = 1 + Math.max(0, finalResF * (skill.fireResDmgScale || 0));
     let dotMultiplier = skill.dotMultiplier || 1;
-    let dotStatMultiplier = isDotSkill ? (1 + Math.max(0, dotPctDmg) / 100) : 1;
+    let dotStatMultiplier = 1 + Math.max(0, dotPctDmg) / 100;
     let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
     finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus);
     let damageScales = {
@@ -1112,7 +1126,7 @@ function getPlayerStats() {
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier;
 
-    function makeAilmentChanceBreakdown(title, statId, finalValue, critValue) {
+    function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note) {
         return {
             title: title,
             lines: [
@@ -1120,8 +1134,8 @@ function getPlayerStats() {
                 makeSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0), '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('보조 젬', support[statId] || 0, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('성좌 각성', starBlessing[statId] || 0, '%', value => `${value.toFixed(1)}%`),
-                `치명타 시 해당 상태 이상 확률: ${Math.floor(critValue)}%`,
-                '비치명타는 위 확률을 사용하며, 치명타는 기본적으로 해당 피해 속성의 상태 이상을 보장합니다.'
+                note || `치명타 시 해당 상태 이상 확률: ${Math.floor(critValue)}%`,
+                note ? null : '비치명타는 위 확률을 사용하며, 치명타는 기본적으로 해당 피해 속성의 상태 이상을 보장합니다.'
             ].filter(Boolean),
             final: `${Math.max(0, finalValue).toFixed(1)}%`
         };
@@ -1143,7 +1157,8 @@ function getPlayerStats() {
                 (skill.regenDmgScale || 0) > 0 ? `재생 계수 배율 ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
                 (skill.fireResDmgScale || 0) > 0 ? `화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (화염 저항 ${Math.floor(finalResF)}%)` : null,
                 (skill.dotMultiplier || 1) !== 1 ? `스킬 지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null,
-                isDotSkill && dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null,
+                dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null,
+                skill.convertedToChaos ? '워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용' : null,
                 `피해 범위 ${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
             ].filter(Boolean),
             final: `${Math.floor(finalBaseDmg)}`
@@ -1354,7 +1369,7 @@ function getPlayerStats() {
         },
         igniteChance: makeAilmentChanceBreakdown('점화 확률', 'igniteChance', finalIgniteChance, ailmentCritChance.ignite),
         chillChance: makeAilmentChanceBreakdown('냉각 확률', 'chillChance', finalChillChance, ailmentCritChance.chill),
-        freezeChance: makeAilmentChanceBreakdown('동결 확률', 'freezeChance', finalFreezeChance, ailmentCritChance.freeze),
+        freezeChance: makeAilmentChanceBreakdown('동결 확률', 'freezeChance', finalFreezeChance, ailmentCritChance.freeze, '냉기 피해 치명타는 동결 시도를 보장합니다. 그 외에는 해당 확률로 동결을 시도하며, 시도 성공 후 적의 최대 생명력 대비 타격 피해로 동결 적용 판정을 합니다.'),
         poisonChance: makeAilmentChanceBreakdown('중독 확률', 'poisonChance', finalPoisonChance, ailmentCritChance.poison),
         bleedChance: makeAilmentChanceBreakdown('출혈 확률', 'bleedChance', finalBleedChance, ailmentCritChance.bleed),
         dps: {
@@ -1877,6 +1892,11 @@ function getPlayerAilmentChance(pStats, type) {
     return Math.max(0, Math.min(1, base / 100));
 }
 
+function getFreezeApplyChanceFromHitRatio(hitRatio) {
+    let ratio = Math.max(0, Number(hitRatio) || 0);
+    return Math.max(0.05, Math.min(1, ratio * 3));
+}
+
 function isDamageAilmentType(type) {
     return type === 'ignite' || type === 'poison' || type === 'bleed';
 }
@@ -1931,6 +1951,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
         let resKey = 'ailRes' + type.charAt(0).toUpperCase() + type.slice(1);
         let resistChance = Math.max(0, Math.min(0.95, (enemy[resKey] || 0) / 100));
         if (Math.random() < resistChance) return false;
+        if (type === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(hitRatio)) return false;
         let damageAilment = isDamageAilmentType(type);
         let power = damageAilment
             ? Math.max(0.05, Math.min(1.5, hitPower))
