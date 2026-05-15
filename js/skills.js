@@ -214,14 +214,15 @@ function applyFossilChaosCraft(fossilKey) {
     let lockedStats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
     let newStats = lockedStats.slice();
     let blockedIds = new Set([...immutableIds, ...newStats.map(stat => stat.id)]);
+    if (item.chaosInfusion && item.chaosInfusion.id) blockedIds.add(item.chaosInfusion.id);
     let guaranteedRoll = rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier);
-    if (!blockedIds.has(guaranteedRoll.id)) {
+    if (!blockedIds.has(guaranteedRoll.id) && (newStats.length + (item.chaosInfusion ? 1 : 0)) < 6) {
         newStats.push(guaranteedRoll);
         blockedIds.add(guaranteedRoll.id);
     }
 
     let count = 4 + Math.floor(Math.random() * 2);
-    while (newStats.length < Math.min(6, Math.max(count, lockedStats.length + 1))) {
+    while ((newStats.length + (item.chaosInfusion ? 1 : 0)) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
         let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id));
         if (pool.length === 0) break;
         let roll = rollAffixValue(pickWeightedMod(pool), maxTier);

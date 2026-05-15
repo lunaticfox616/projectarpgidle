@@ -1783,7 +1783,9 @@ function showItemTooltip(event, idx, isEquip) {
         let flat = { armor: 0, evasion: 0, energyShield: 0 };
         let pct = { armor: 0, evasion: 0, energyShield: 0 };
         (target.baseStats || []).forEach(stat => { if (base[stat.id] !== undefined) base[stat.id] += Number(stat.val || 0); });
-        (target.stats || []).forEach(stat => {
+        let explicitForDefense = (target.stats || []).slice();
+        if (target.chaosInfusion) explicitForDefense.push(target.chaosInfusion);
+        explicitForDefense.forEach(stat => {
             if (flat[stat.id] !== undefined) flat[stat.id] += Number(stat.val || 0);
             if (stat.id === 'armorPct') pct.armor += Number(stat.val || 0);
             if (stat.id === 'evasionPct') pct.evasion += Number(stat.val || 0);
@@ -1830,9 +1832,11 @@ function showItemTooltip(event, idx, isEquip) {
             }
         });
     }
-    if ((item.stats || []).length > 0) {
-        html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션</div>`;
-        item.stats.forEach(stat => {
+    let explicitStats = (item.stats || []).slice();
+    if (item.chaosInfusion) explicitStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
+    if (explicitStats.length > 0) {
+        html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션 (${explicitStats.length}/6)</div>`;
+        explicitStats.forEach(stat => {
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
             let rangeText = stat.valMin !== undefined && stat.valMax !== undefined ? ` <span style="color:#888;">(${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})</span>${tierText}` : tierText;
             html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${rangeText}</div>`;
@@ -3530,11 +3534,11 @@ function getCraftOrbUseState(key, item) {
     if (item.corrupted && key !== 'tainted') return { enabled: false, reason: '타락 아이템은 일반 제작 불가' };
     let ok = false;
     if (key === 'transmute') ok = item.rarity === 'normal';
-    else if (key === 'augment') ok = item.rarity === 'magic' && item.stats.length < 2;
+    else if (key === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
     else if (key === 'alteration') ok = item.rarity === 'magic';
     else if (key === 'alchemy') ok = item.rarity === 'normal';
-    else if (key === 'exalted') ok = item.rarity === 'rare' && item.stats.length < 6;
-    else if (key === 'regal') ok = item.rarity === 'magic' && item.stats.length < 6;
+    else if (key === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
+    else if (key === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
     else if (key === 'chaos') ok = item.rarity === 'rare';
     else if (key === 'divine') ok = item.rarity !== 'normal';
     else if (key === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
@@ -3549,8 +3553,8 @@ function renderCraftSelectedSummary(item) {
         host.innerHTML = '아이템을 선택하세요.';
         return;
     }
-    let statCount = (item.stats || []).length;
-    host.innerHTML = `<div><strong>[${item.slot.replace(/[12]/,'')}] ${item.name}</strong> · ${item.rarity.toUpperCase()} · 옵션 ${statCount}개</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
+    let statCount = getItemExplicitOptionCount(item);
+    host.innerHTML = `<div><strong>[${item.slot.replace(/[12]/,'')}] ${item.name}</strong> · ${item.rarity.toUpperCase()} · 추가 옵션 ${statCount}/6</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
 }
 
 
@@ -3569,17 +3573,22 @@ function renderChaosInfuserPanel(selectedItem) {
         return;
     }
     let current = selectedItem.chaosInfusion
-        ? `<div style="color:#d7a8ff; margin-bottom:8px;">현재 주입: <strong>${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)} +${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.val)}</strong> <button onclick="removeChaosInfusionFromSelectedItem()" ${(game.currencies.scour || 0) > 0 ? '' : 'disabled'}>제거(정화 1)</button></div>`
+        ? `<div style="color:#d7a8ff; margin-bottom:8px;">현재 주입: <strong>${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)} +${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.val)}</strong> <span style="color:#9fb4d1;">(${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.valMin)}~${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.valMax)})</span> <button onclick="removeChaosInfusionFromSelectedItem()" ${(game.currencies.scour || 0) > 0 ? '' : 'disabled'}>제거(정화 1)</button></div>`
         : '<div style="color:#7f8c8d; margin-bottom:8px;">현재 주입 옵션 없음</div>';
-    let options = Array.isArray(window.CHAOS_INFUSER_OPTIONS) ? window.CHAOS_INFUSER_OPTIONS : [];
-    let buttons = options.map(opt => {
+    let eligibility = typeof isChaosInfusionEligibleItem === 'function' ? isChaosInfusionEligibleItem(selectedItem) : { ok: true, reason: '' };
+    let explicitCount = typeof getItemExplicitOptionCount === 'function' ? getItemExplicitOptionCount(selectedItem) : ((selectedItem.stats || []).length + (selectedItem.chaosInfusion ? 1 : 0));
+    let options = typeof getChaosInfuserOptionsForItem === 'function' ? getChaosInfuserOptionsForItem(selectedItem) : (Array.isArray(window.CHAOS_INFUSER_OPTIONS) ? window.CHAOS_INFUSER_OPTIONS : []);
+    let buttons = eligibility.ok ? options.map(opt => {
         let costs = typeof getChaosInfusionCost === 'function' ? getChaosInfusionCost(opt, selectedItem) : [{ key: opt.currency, amount: opt.cost }];
         let canPay = costs.every(row => (game.currencies[row.key] || 0) >= row.amount);
         let costText = typeof formatCurrencyCosts === 'function' ? formatCurrencyCosts(costs) : `${opt.currency} ${opt.cost}`;
-        let same = selectedItem.chaosInfusion && selectedItem.chaosInfusion.id === opt.id;
-        return `<button onclick="applyChaosInfusionToSelectedItem('${opt.id}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${formatValue(opt.id, opt.value)}<br><span style="font-size:0.78em;color:#b7c6df;">${same ? '적용 중' : costText}</span></button>`;
-    }).join('');
-    host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${selectedItem.slot.replace(/[12]/,'')}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:#9fb4d1;">T5급 임시 옵션 한 줄을 확정 부여합니다. 교체/제거 시 정화의 오브가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
+        let key = opt.optionId || opt.id;
+        let same = selectedItem.chaosInfusion && (selectedItem.chaosInfusion.sourceOptionId === key || selectedItem.chaosInfusion.id === opt.id);
+        let rangeText = `${formatValue(opt.id, opt.min)}~${formatValue(opt.id, opt.max)}`;
+        return `<button onclick="applyChaosInfusionToSelectedItem('${key}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${rangeText}<br><span style="font-size:0.78em;color:#b7c6df;">${same ? '적용 중' : costText}</span></button>`;
+    }).join('') : `<div style="grid-column:1/-1; color:#ffb4b4;">${eligibility.reason}</div>`;
+    if (eligibility.ok && !buttons) buttons = '<div style="grid-column:1/-1; color:#9fb4d1;">이 부위에 추가할 수 있는 주입 옵션이 없습니다.</div>';
+    host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${selectedItem.slot.replace(/[12]/,'')}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:#9fb4d1;">T5급 범위 옵션 한 줄을 추가 옵션으로 부여합니다. 추가 옵션 제한: ${explicitCount}/6. 교체/제거 시 정화의 오브가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
 }
 
 function renderCraftOrbActions(selectedItem) {
@@ -3665,13 +3674,15 @@ function buildCraftActionButtons(item) {
     if (selectedItem) {
         let lines = [];
         (selectedItem.baseStats || []).forEach(stat => lines.push(`<div class="tooltip-line" style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</div>`));
-        (selectedItem.stats || []).forEach(stat => {
+        let selectedExplicitStats = (selectedItem.stats || []).slice();
+        if (selectedItem.chaosInfusion) selectedExplicitStats.push({ ...selectedItem.chaosInfusion, statName: `[주입] ${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)}` });
+        selectedExplicitStats.forEach(stat => {
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
             let honeyTag = stat.lockedByHoney ? ` <span style="color:#ffd166; font-weight:700;">[고정됨]</span>` : '';
             let stingerTag = stat.venomStingerBonus ? ` <span style="color:#9bff9e;">[독벌침]</span>` : '';
             lines.push(`<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${tierText}${honeyTag}${stingerTag}</div>`);
         });
-        if ((selectedItem.stats || []).length === 0) lines.push(`<div class="tooltip-line" style="color:#7f8c8d">추가 옵션 없음</div>`);
+        if (selectedExplicitStats.length === 0) lines.push(`<div class="tooltip-line" style="color:#7f8c8d">추가 옵션 없음</div>`);
         if (selectedItem.encroached) {
             if (selectedItem.encroached.liberated && selectedItem.encroached.chosen) {
                 let st = selectedItem.encroached.chosen;
