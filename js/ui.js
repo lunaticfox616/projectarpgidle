@@ -6073,9 +6073,36 @@ function scheduleCloudAutoSync() {
     }, 1200);
 }
 
+
+function schedulePendingForcedCloudSyncDrain() {
+    if (cloudState.pendingForcedSyncRetryTimer) return;
+    cloudState.pendingForcedSyncRetryTimer = setTimeout(() => {
+        cloudState.pendingForcedSyncRetryTimer = null;
+        let pendingForced = cloudState.pendingForcedSyncOptions;
+        if (!pendingForced || !cloudState.configured || !cloudState.user) return;
+        if (cloudState.busy) {
+            schedulePendingForcedCloudSyncDrain();
+            return;
+        }
+        cloudState.pendingForcedSyncOptions = null;
+        syncCloudSave(pendingForced).catch(error => {
+            console.warn(`queued cloud save failed (${pendingForced.reason || 'important'}):`, error);
+            setCloudMessage('대기 중이던 클라우드 저장 실패: ' + (error.message || error));
+        });
+    }, 500);
+}
+
 async function syncCloudSave(options = {}) {
     if (!cloudState.configured || !cloudState.user) return;
-    if (cloudState.busy && options.force !== true) return;
+    if (cloudState.busy) {
+        if (options.force === true) {
+            cloudState.pendingForcedSyncOptions = { ...options, force: true, reason: options.reason || 'important' };
+            setCloudMessage(`클라우드 업로드 대기 중... (${cloudState.pendingForcedSyncOptions.reason})`);
+            updateCloudSaveUI();
+            schedulePendingForcedCloudSyncDrain();
+        }
+        return;
+    }
     cloudState.busy = true;
     cloudState.lastSyncAttemptAt = Date.now();
     setCloudMessage(options.reason ? `클라우드 업로드 중... (${options.reason})` : (options.automatic ? '자동 클라우드 업로드 중...' : '클라우드 업로드 중...'));
@@ -6091,6 +6118,7 @@ async function syncCloudSave(options = {}) {
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
+        if (cloudState.pendingForcedSyncOptions) schedulePendingForcedCloudSyncDrain();
     }
 }
 

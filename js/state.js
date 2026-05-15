@@ -813,7 +813,9 @@ let cloudState = {
     lastRemoteUpdatedAt: 0,
     lastSyncAttemptAt: 0,
     tokenRefreshPromise: null,
-    tokenExpiryWarned: false
+    tokenExpiryWarned: false,
+    pendingForcedSyncOptions: null,
+    pendingForcedSyncRetryTimer: null
 };
 let startupOverlayActive = true;
 let gameplayStarted = false;
