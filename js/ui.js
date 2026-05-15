@@ -1685,15 +1685,16 @@ function showPlayerBuffTooltip(event, name, type, remainSec) {
     let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${type || '버프'}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">${lines.join(' / ') || '효과 정보 없음'}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
 }
-function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage) {
-    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
+function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, specialDps) {
+    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈', flameDecay: '화염 부패' };
     let p = Math.max(0, Number(power || 0));
     let source = Math.max(0, Number(sourceHitDamage || 0));
     let detail = '';
     if (isDamageAilmentType(type)) {
         let dps = getDamageAilmentBaseDpsFromHit(source, p, (cachedTooltipStats && Number.isFinite(cachedTooltipStats.dotDamageScale)) ? cachedTooltipStats.dotDamageScale : 1);
         detail = `초당 피해: 약 ${dps} <span style="color:#9fb4d1;">(히트 피해 ${Math.floor(source)} 기준)</span>`;
-    } else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
+    } else if (type === 'flameDecay') detail = `초당 피해: 약 ${Math.max(0, Math.floor(Number(specialDps || 0)))} <span style="color:#9fb4d1;">(화염 부패 지속 피해)</span><br><span style="color:#ffb48a;">점화 피해 증폭: 생명력 100당 8%</span>`;
+    else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'shock') detail = '받는 피해 증가 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'freeze') detail = '행동 불가 (최대 생명력 대비 타격 비율 반영)';
     let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
@@ -1731,11 +1732,21 @@ function showGemTooltip(event, type, name) {
         }
         if ((skill.hpDmgScale || 0) > 0) {
             let per100 = (skill.hpDmgScale || 0) * 10000;
-            html += `<div class="tooltip-line">생명력 계수: 최대 생명력 100당 약 +${per100.toFixed(1)}% 추가 피해</div>`;
+            html += `<div class="tooltip-line">생명력 계수: 최대 생명력 100당 약 +${per100.toFixed(1)}% 내장 피해 (주문 내장 피해처럼 피해 증가 적용)</div>`;
         }
         if ((skill.regenDmgScale || 0) > 0) html += `<div class="tooltip-line">재생 계수: 재생 1%당 ${skill.regenDmgScale.toFixed(2)}% 추가 배율</div>`;
         if ((skill.fireResDmgScale || 0) > 0) html += `<div class="tooltip-line">화염 저항 계수: 화염 저항 1%당 ${(skill.fireResDmgScale * 100).toFixed(2)}% 추가 배율</div>`;
-        if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용</div>`;
+        if ((skill.fireResOvercapMulPerPct || 0) > 0) {
+            let stats = cachedTooltipStats || null;
+            let rawFireRes = stats && Number.isFinite(stats.rawResF) ? stats.rawResF : null;
+            let maxFireRes = stats && Number.isFinite(stats.maxResF) ? stats.maxResF : null;
+            let appliedOvercap = rawFireRes !== null && maxFireRes !== null ? Math.max(0, rawFireRes - maxFireRes) : null;
+            let currentText = rawFireRes !== null && maxFireRes !== null
+                ? ` · 현재 적용분 ${appliedOvercap.toFixed(1)}% (미적용 화염 저항 ${Math.floor(rawFireRes)}% / 최대 ${Math.floor(maxFireRes)}%)`
+                : ' · 현재 최대 화염 저항을 초과한 미적용 화염 저항 기준';
+            html += `<div class="tooltip-line">초과 화염 저항 계수: 최대 화염 저항 초과 1%당 배율 +${Number(skill.fireResOvercapMulPerPct || 0).toFixed(2)}배${currentText}</div>`;
+        }
+        if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용 · 적에게 화염 부패 디버프 적용 · 화염 부패 대상은 점화 피해가 생명력 100당 8% 증폭</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
         if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
@@ -3011,7 +3022,7 @@ function updateCombatUI(pStats) {
     let ailmentEl = document.getElementById('ui-player-ailments');
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
-        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
+        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d' };
         let text = (game.playerAilments || []).map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
         if (game.woodsmanCurseActive) {
             let curseTaken = (Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.01).toFixed(2);
@@ -3148,15 +3159,16 @@ function updateCombatUI(pStats) {
         let pct = Math.max(0, focusedEnemy.hp / focusedEnemy.maxHp * 100);
         let tags = getEnemyTraitSummary(focusedEnemy);
         if (Array.isArray(focusedEnemy.chaosRealmAffixes) && focusedEnemy.chaosRealmAffixes.length > 0) tags = tags.concat(focusedEnemy.chaosRealmAffixes.map(a => a.name));
-        let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈' };
+        let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈', flameDecay: '🔥 화염 부패' };
         let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
         let enemyDebuffs = (((game.enemyConditionDebuffs || {})[focusedEnemy.id]) || []).filter(row => row && (row.expiresAt || 0) > Date.now());
-        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
-        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
+        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d' };
+        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))},${Math.floor(ail.flameDecayDps || 0)})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
         let curseText = enemyDebuffs.map(row => `<span data-info-tooltip-anchor=\"1\" style=\"color:#ff9bd1;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${row.name}','curse',${Math.ceil(Math.max(0,((row.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">🕯 저주:${row.name} ${Math.ceil(Math.max(0, ((row.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
         ailmentText = [ailmentText, curseText].filter(Boolean).join(' · ');
         let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
+            if (ail.type === 'flameDecay') return sum + Math.floor(Math.max(0, ail.flameDecayDps || 0) * Math.max(0, ail.time || 0));
             if (!isDamageAilmentType(ail.type)) return sum;
             let dps = getEnemyDamageAilmentDps(ail, cachedTooltipStats || getPlayerStats());
             return sum + Math.floor(dps * Math.max(0, ail.time || 0));
@@ -4775,10 +4787,8 @@ function mergeDefaults(save) {
             source: typeof entry.source === 'string' ? entry.source : ''
         };
     }
-    function normalizeDeathLog(log) {
-        if (!log || typeof log !== 'object') return null;
-        let primaryElement = normalizeDamageElementKey(log.primaryElement);
-        let damageSummary = Array.isArray(log.damageSummary) ? log.damageSummary.map(entry => {
+    function normalizeDeathDamageSummaryRows(rows) {
+        let damageSummary = Array.isArray(rows) ? rows.map(entry => {
             if (!entry || typeof entry !== 'object') return null;
             let ele = normalizeDamageElementKey(entry.ele);
             let value = Math.max(0, Math.floor(clampFiniteNumber(entry.value, entry.amount, 0)));
@@ -4786,17 +4796,36 @@ function mergeDefaults(save) {
         }).filter(Boolean) : [];
         let totals = { phys: 0, fire: 0, cold: 0, light: 0, chaos: 0, other: 0 };
         damageSummary.forEach(entry => {
-            totals[entry.ele] = Math.max(0, Math.floor(entry.value || 0));
+            totals[entry.ele] += Math.max(0, Math.floor(entry.value || 0));
         });
-        damageSummary = Object.keys(totals)
+        return Object.keys(totals)
             .map(ele => ({ ele: ele, value: totals[ele] }))
             .filter(entry => entry.value > 0)
             .sort((a, b) => b.value - a.value);
+    }
+    function normalizeDeathLog(log) {
+        if (!log || typeof log !== 'object') return null;
+        let primaryElement = normalizeDamageElementKey(log.primaryElement);
+        let damageSummary = normalizeDeathDamageSummaryRows(log.damageSummary);
+        let ailmentDamageSummary = normalizeDeathDamageSummaryRows(log.ailmentDamageSummary);
+        let activeAilments = Array.isArray(log.activeAilments) ? log.activeAilments.map(row => {
+            if (!row || typeof row !== 'object') return null;
+            let type = typeof row.type === 'string' && row.type ? row.type : 'unknown';
+            return {
+                type: type,
+                label: typeof row.label === 'string' && row.label ? row.label : getAilmentDisplayLabel(type),
+                time: Math.max(0, Math.ceil(clampFiniteNumber(row.time, 0, 0, 30))),
+                power: Math.max(0, clampFiniteNumber(row.power, 0, 0, 1.5)),
+                sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0)))
+            };
+        }).filter(Boolean) : [];
         return {
             primaryElement: primaryElement,
             reasonText: typeof log.reasonText === 'string' && log.reasonText.trim() ? log.reasonText : (DEATH_REASON_TEXT[primaryElement] || DEATH_REASON_TEXT.phys),
             expLost: Math.max(0, Math.floor(clampFiniteNumber(log.expLost, 0, 0))),
             damageSummary: damageSummary,
+            ailmentDamageSummary: ailmentDamageSummary,
+            activeAilments: activeAilments,
             sourceName: typeof log.sourceName === 'string' ? log.sourceName : '',
             at: clampFiniteNumber(log.at, Date.now(), 0)
         };
@@ -4857,10 +4886,12 @@ function mergeDefaults(save) {
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
     merged.seasonChaseUniqueDropped = !!merged.seasonChaseUniqueDropped;
-    merged.skills = Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : [];
+    merged.skills = dedupeList(Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : []);
     if (!merged.skills.includes('기본 공격')) merged.skills.unshift('기본 공격');
-    merged.supports = Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : [];
-    merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports.filter(name => merged.supports.includes(name)) : [];
+    merged.sealedSkills = dedupeList(Array.isArray(merged.sealedSkills) ? merged.sealedSkills.filter(name => !!SKILL_DB[name] && name !== '기본 공격' && !merged.skills.includes(name)) : []);
+    merged.supports = dedupeList(Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : []);
+    merged.sealedSupports = dedupeList(Array.isArray(merged.sealedSupports) ? merged.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !merged.supports.includes(name)) : []);
+    merged.equippedSupports = Array.isArray(merged.equippedSupports) ? dedupeList(merged.equippedSupports.filter(name => merged.supports.includes(name))) : [];
     merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!SEASON_NODES[id]) : [];
     merged.unlockedSeasonContents = Array.isArray(merged.unlockedSeasonContents) ? merged.unlockedSeasonContents.filter(id => typeof id === 'string') : ['season_1'];
     merged.seenSeasonContentNotices = Array.isArray(merged.seenSeasonContentNotices) ? merged.seenSeasonContentNotices.filter(id => typeof id === 'string') : ['season_1'];

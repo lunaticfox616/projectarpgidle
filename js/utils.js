@@ -335,6 +335,31 @@ function getTaggedDamageBreakdown(bucket, skill) {
     });
     return { total: total, parts: parts };
 }
+
+function getOwnedSkillGemNames(state) {
+    let source = state || (typeof game !== 'undefined' ? game : {});
+    return Array.from(new Set([].concat(
+        Array.isArray(source.skills) ? source.skills : [],
+        Array.isArray(source.sealedSkills) ? source.sealedSkills : []
+    ).filter(name => !!name)));
+}
+function getOwnedSupportGemNames(state) {
+    let source = state || (typeof game !== 'undefined' ? game : {});
+    return Array.from(new Set([].concat(
+        Array.isArray(source.supports) ? source.supports : [],
+        Array.isArray(source.sealedSupports) ? source.sealedSupports : []
+    ).filter(name => !!name)));
+}
+function hasSkillGemOwned(name, state) {
+    return !!name && getOwnedSkillGemNames(state).includes(name);
+}
+function hasSupportGemOwned(name, state) {
+    return !!name && getOwnedSupportGemNames(state).includes(name);
+}
+function dedupeList(values) {
+    return Array.from(new Set(Array.isArray(values) ? values.filter(Boolean) : []));
+}
+
 function makeSourceLine(label, value, suffix, formatter) {
     if (!value) return null;
     let rendered = formatter ? formatter(value) : `${Math.floor(value)}${suffix || ''}`;
@@ -356,7 +381,7 @@ let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
 
-safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, makeSourceLine });
+safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine });
 
 function safeExposeGlobals(map) {
     Object.keys(map || {}).forEach(function (key) {
