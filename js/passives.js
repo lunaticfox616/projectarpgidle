@@ -2659,6 +2659,28 @@ function toggleCombatLogCollapse() {
     applyPanelLayoutSettings();
 }
 
+
+function getAilmentDisplayLabel(type) {
+    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈', flameDecay: '화염 부패' };
+    return labels[type] || type || '알 수 없음';
+}
+
+function isPlayerDamageAilmentSource(sourceName) {
+    return ['점화', '중독', '출혈'].includes(sourceName || '');
+}
+
+function snapshotPlayerAilmentsForDeathLog() {
+    return (Array.isArray(game.playerAilments) ? game.playerAilments : [])
+        .filter(ail => ail && (ail.time || 0) > 0)
+        .map(ail => ({
+            type: ail.type || 'unknown',
+            label: getAilmentDisplayLabel(ail.type),
+            time: Math.max(0, Math.ceil(ail.time || 0)),
+            power: Math.max(0, Number(ail.power) || 0),
+            sourceHitDamage: Math.max(0, Math.floor(getStoredAilmentHitDamage(ail)))
+        }));
+}
+
 function closeDeathOverlay() {
     let overlay = document.getElementById('death-overlay');
     if (overlay) overlay.classList.remove('active');
@@ -2671,12 +2693,17 @@ function openDeathOverlay(log) {
     let overlay = document.getElementById('death-overlay');
     if (!overlay) return;
     let damageSummary = Array.isArray(log.damageSummary) ? log.damageSummary.filter(entry => entry && entry.value > 0).sort((a, b) => b.value - a.value) : [];
+    let ailmentDamageSummary = Array.isArray(log.ailmentDamageSummary) ? log.ailmentDamageSummary.filter(entry => entry && entry.value > 0).sort((a, b) => b.value - a.value) : [];
+    let activeAilments = Array.isArray(log.activeAilments) ? log.activeAilments.filter(entry => entry && entry.type) : [];
     let totalDamage = damageSummary.reduce((sum, entry) => sum + Math.max(0, Math.floor(entry.value || 0)), 0);
     document.getElementById('deathlog-title').innerText = `${getDamageElementLabel(log.primaryElement)} 피해로 쓰러졌습니다.`;
-    document.getElementById('deathlog-body').innerText = `${log.reasonText}\n경험치를 ${log.expLost} 잃었습니다.`;
-    document.getElementById('deathlog-damage-list').innerHTML = damageSummary.length > 0 ? damageSummary.map(entry => {
+    let ailmentText = activeAilments.length > 0
+        ? activeAilments.map(ail => `${ail.label || getAilmentDisplayLabel(ail.type)} ${Math.ceil(Math.max(0, ail.time || 0))}초`).join(' · ')
+        : '없음';
+    document.getElementById('deathlog-body').innerText = `${log.reasonText}\n경험치를 ${log.expLost} 잃었습니다.\n죽기 전 상태이상: ${ailmentText}`;
+    let renderDamageRows = (rows, totalForRatio) => rows.map(entry => {
         let value = Math.max(0, Math.floor(entry.value || 0));
-        let ratio = totalDamage > 0 ? (value / totalDamage) * 100 : 0;
+        let ratio = totalForRatio > 0 ? (value / totalForRatio) * 100 : 0;
         let ratioText = ratio >= 10 ? `${Math.round(ratio)}%` : `${ratio.toFixed(1)}%`;
         let barColor = getElementColor(entry.ele);
         return `
@@ -2690,7 +2717,19 @@ function openDeathOverlay(log) {
                 </div>
             </div>
         `;
-    }).join('') : `<div class="deathlog-empty">최근 3초 동안 집계된 피해 기록이 없습니다.</div>`;
+    }).join('');
+    let html = damageSummary.length > 0 ? renderDamageRows(damageSummary, totalDamage) : `<div class="deathlog-empty">최근 3초 동안 집계된 피해 기록이 없습니다.</div>`;
+    if (ailmentDamageSummary.length > 0) {
+        let ailTotal = ailmentDamageSummary.reduce((sum, entry) => sum + Math.max(0, Math.floor(entry.value || 0)), 0);
+        html += `<div class="deathlog-subtitle" style="margin-top:10px;">상태이상 피해 요약</div>${renderDamageRows(ailmentDamageSummary, ailTotal)}`;
+    }
+    if (activeAilments.length > 0) {
+        html += `<div class="deathlog-subtitle" style="margin-top:10px;">죽기 전 걸린 상태이상</div>` + activeAilments.map(ail => {
+            let hitText = (ail.sourceHitDamage || 0) > 0 ? ` · 원천 피해 ${Math.floor(ail.sourceHitDamage)}` : '';
+            return `<div class="deathlog-line"><div class="deathlog-line-top"><span>${ail.label || getAilmentDisplayLabel(ail.type)}</span><strong class="deathlog-value">${Math.ceil(Math.max(0, ail.time || 0))}초<span class="deathlog-ratio">강도 ${(Number(ail.power || 0)).toFixed(2)}${hitText}</span></strong></div></div>`;
+        }).join('');
+    }
+    document.getElementById('deathlog-damage-list').innerHTML = html;
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     overlay.classList.add('active');
     deathOverlayActive = true;
@@ -2719,12 +2758,14 @@ function recordIncomingDamage(ele, amount, sourceName) {
     });
 }
 
-function buildDeathDamageSummary(windowMs) {
+function buildDeathDamageSummary(windowMs, opts) {
     let now = Date.now();
     pruneRecentDamageEvents(now);
+    let options = opts || {};
     let totals = { phys: 0, fire: 0, cold: 0, light: 0, chaos: 0, other: 0 };
     (game.recentDamageEvents || []).forEach(entry => {
         if (!entry || entry.at < now - (windowMs || 3000)) return;
+        if (options.ailmentOnly && !isPlayerDamageAilmentSource(entry.source)) return;
         let key = normalizeDamageElementKey(entry.ele);
         totals[key] += Math.max(0, Math.floor(entry.amount || 0));
     });
@@ -2742,10 +2783,10 @@ function getActRewardChoices(zoneId) {
     if (!config) return [];
     return config.choices.map(choice => {
         let enriched = { ...choice };
-        if (choice.kind === 'skill' && (game.skills || []).includes(choice.skill)) {
+        if (choice.kind === 'skill' && hasSkillGemOwned(choice.skill)) {
             enriched.desc = `${choice.desc} 이미 보유 중이면 패시브 포인트 +${choice.fallbackValue || 1}로 바뀝니다.`;
         }
-        if (choice.kind === 'support' && (game.supports || []).includes(choice.gem)) {
+        if (choice.kind === 'support' && hasSupportGemOwned(choice.gem)) {
             enriched.desc = `${choice.desc} 이미 보유 중이면 ${ORB_DB[choice.currency || 'augment'].name} ${(choice.fallbackValue || 1)}개로 바뀝니다.`;
         }
         return enriched;
@@ -2833,7 +2874,7 @@ function grantActRewardEntry(zoneId, choice) {
         return;
     }
     if (choice.kind === 'skill') {
-        if (!(game.skills || []).includes(choice.skill)) {
+        if (!hasSkillGemOwned(choice.skill)) {
             game.skills.push(choice.skill);
             game.gemData[choice.skill] = game.gemData[choice.skill] || { level: 1, exp: 0 };
             game.noti.skills = true;
@@ -2845,7 +2886,7 @@ function grantActRewardEntry(zoneId, choice) {
         return;
     }
     if (choice.kind === 'support') {
-        if (!(game.supports || []).includes(choice.gem)) {
+        if (!hasSupportGemOwned(choice.gem)) {
             game.supports.push(choice.gem);
             game.supportGemData[choice.gem] = game.supportGemData[choice.gem] || { level: 1, exp: 0 };
             game.noti.skills = true;

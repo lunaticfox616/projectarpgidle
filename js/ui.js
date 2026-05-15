@@ -2,6 +2,7 @@
 let lastHeavyUiRefreshAt = 0;
 let lastPassiveTreeDrawAt = 0;
 let lastPassiveTreeSignature = '';
+let cachedTooltipStats = null;
 
 let mobilePipCanvas = null;
 var lod = 1; // fallback for any legacy FX paths
@@ -1651,8 +1652,12 @@ function renderBreakdownHtml(data) {
 }
 
 function showStatTooltip(event, key) {
-    let stats = cachedTooltipStats || getPlayerStats();
-    let data = stats.breakdowns[key];
+    let stats = cachedTooltipStats;
+    if (!stats || !stats.breakdowns || !stats.breakdowns[key]) {
+        stats = getPlayerStats();
+        cachedTooltipStats = stats;
+    }
+    let data = stats && stats.breakdowns ? stats.breakdowns[key] : null;
     if (!data) return;
     showInfoTooltipHtml(event.clientX, event.clientY, renderBreakdownHtml(data), '#f39c12');
 }
@@ -1680,15 +1685,16 @@ function showPlayerBuffTooltip(event, name, type, remainSec) {
     let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${type || '버프'}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">${lines.join(' / ') || '효과 정보 없음'}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
 }
-function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage) {
-    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
+function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, specialDps) {
+    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈', flameDecay: '화염 부패' };
     let p = Math.max(0, Number(power || 0));
     let source = Math.max(0, Number(sourceHitDamage || 0));
     let detail = '';
     if (isDamageAilmentType(type)) {
         let dps = getDamageAilmentBaseDpsFromHit(source, p, (cachedTooltipStats && Number.isFinite(cachedTooltipStats.dotDamageScale)) ? cachedTooltipStats.dotDamageScale : 1);
         detail = `초당 피해: 약 ${dps} <span style="color:#9fb4d1;">(히트 피해 ${Math.floor(source)} 기준)</span>`;
-    } else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
+    } else if (type === 'flameDecay') detail = `초당 피해: 약 ${Math.max(0, Math.floor(Number(specialDps || 0)))} <span style="color:#9fb4d1;">(화염 부패 지속 피해)</span><br><span style="color:#ffb48a;">점화 피해 증폭: 생명력 100당 8%</span>`;
+    else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'shock') detail = '받는 피해 증가 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'freeze') detail = '행동 불가 (최대 생명력 대비 타격 비율 반영)';
     let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
@@ -1726,11 +1732,21 @@ function showGemTooltip(event, type, name) {
         }
         if ((skill.hpDmgScale || 0) > 0) {
             let per100 = (skill.hpDmgScale || 0) * 10000;
-            html += `<div class="tooltip-line">생명력 계수: 최대 생명력 100당 약 +${per100.toFixed(1)}% 추가 피해</div>`;
+            html += `<div class="tooltip-line">생명력 계수: 최대 생명력 100당 약 +${per100.toFixed(1)}% 내장 피해 (주문 내장 피해처럼 피해 증가 적용)</div>`;
         }
         if ((skill.regenDmgScale || 0) > 0) html += `<div class="tooltip-line">재생 계수: 재생 1%당 ${skill.regenDmgScale.toFixed(2)}% 추가 배율</div>`;
         if ((skill.fireResDmgScale || 0) > 0) html += `<div class="tooltip-line">화염 저항 계수: 화염 저항 1%당 ${(skill.fireResDmgScale * 100).toFixed(2)}% 추가 배율</div>`;
-        if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용</div>`;
+        if ((skill.fireResOvercapMulPerPct || 0) > 0) {
+            let stats = cachedTooltipStats || null;
+            let rawFireRes = stats && Number.isFinite(stats.rawResF) ? stats.rawResF : null;
+            let maxFireRes = stats && Number.isFinite(stats.maxResF) ? stats.maxResF : null;
+            let appliedOvercap = rawFireRes !== null && maxFireRes !== null ? Math.max(0, rawFireRes - maxFireRes) : null;
+            let currentText = rawFireRes !== null && maxFireRes !== null
+                ? ` · 현재 적용분 ${appliedOvercap.toFixed(1)}% (미적용 화염 저항 ${Math.floor(rawFireRes)}% / 최대 ${Math.floor(maxFireRes)}%)`
+                : ' · 현재 최대 화염 저항을 초과한 미적용 화염 저항 기준';
+            html += `<div class="tooltip-line">초과 화염 저항 계수: 최대 화염 저항 초과 1%당 배율 +${Number(skill.fireResOvercapMulPerPct || 0).toFixed(2)}배${currentText}</div>`;
+        }
+        if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용 · 적에게 화염 부패 디버프 적용 · 화염 부패 대상은 점화 피해가 생명력 100당 8% 증폭</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
         if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
@@ -2942,6 +2958,7 @@ function pruneEnemyHpDamageGhostStates(activeEnemyIds) {
 }
 
 function updateCombatUI(pStats) {
+    if (pStats && pStats.breakdowns) cachedTooltipStats = pStats;
     game.playerHp = Math.min(game.playerHp, pStats.maxHp);
     setTextById('ui-hp', Math.max(0, Math.floor(game.playerHp)));
     setTextById('ui-maxhp', pStats.maxHp);
@@ -3005,8 +3022,13 @@ function updateCombatUI(pStats) {
     let ailmentEl = document.getElementById('ui-player-ailments');
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
-        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
+        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d' };
         let text = (game.playerAilments || []).map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
+        if (game.woodsmanCurseActive) {
+            let curseTaken = (Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.01).toFixed(2);
+            let curseText = `<span style=\"color:#d0a8ff;font-weight:700;\">나무꾼의 저주 +${curseTaken}%</span>`;
+            text = text ? `${text} · ${curseText}` : curseText;
+        }
         let activeBuffs = (game.playerConditionBuffs || []).filter(buff => (buff.expiresAt || 0) > Date.now());
         let guardWarcryText = activeBuffs.filter(buff => ['guard', 'warcry'].includes(buff.type)).map(buff => `<span data-info-tooltip-anchor=\"1\" style=\"color:#9be7ff;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${buff.name}','${buff.type || ''}',${Math.ceil(Math.max(0,((buff.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">${buff.name} ${Math.ceil(Math.max(0, ((buff.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
         let ailmentText = [text, guardWarcryText ? `효과: ${guardWarcryText}` : ''].filter(Boolean).join(' · ');
@@ -3075,6 +3097,11 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-aps').innerText = pStats.aspd.toFixed(2);
     document.getElementById('ui-crit').innerText = pStats.crit.toFixed(1);
     document.getElementById('ui-crit-dmg').innerText = Math.floor(pStats.critDmg);
+    document.getElementById('ui-ignite-chance').innerText = Math.max(0, pStats.igniteChance || 0).toFixed(1);
+    document.getElementById('ui-chill-chance').innerText = Math.max(0, pStats.chillChance || 0).toFixed(1);
+    document.getElementById('ui-freeze-chance').innerText = Math.max(0, pStats.freezeChance || 0).toFixed(1);
+    document.getElementById('ui-poison-chance').innerText = Math.max(0, pStats.poisonChance || 0).toFixed(1);
+    document.getElementById('ui-bleed-chance').innerText = Math.max(0, pStats.bleedChance || 0).toFixed(1);
     document.getElementById('ui-move-spd').innerText = Math.floor(pStats.moveSpeed);
     document.getElementById('ui-dr').innerText = Math.floor(pStats.dr);
     let armorEl = document.getElementById('ui-armor'); if (armorEl) armorEl.innerText = Math.floor(pStats.armor || 0);
@@ -3132,15 +3159,16 @@ function updateCombatUI(pStats) {
         let pct = Math.max(0, focusedEnemy.hp / focusedEnemy.maxHp * 100);
         let tags = getEnemyTraitSummary(focusedEnemy);
         if (Array.isArray(focusedEnemy.chaosRealmAffixes) && focusedEnemy.chaosRealmAffixes.length > 0) tags = tags.concat(focusedEnemy.chaosRealmAffixes.map(a => a.name));
-        let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈' };
+        let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈', flameDecay: '🔥 화염 부패' };
         let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
         let enemyDebuffs = (((game.enemyConditionDebuffs || {})[focusedEnemy.id]) || []).filter(row => row && (row.expiresAt || 0) > Date.now());
-        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
-        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
+        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d' };
+        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))},${Math.floor(ail.flameDecayDps || 0)})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
         let curseText = enemyDebuffs.map(row => `<span data-info-tooltip-anchor=\"1\" style=\"color:#ff9bd1;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${row.name}','curse',${Math.ceil(Math.max(0,((row.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">🕯 저주:${row.name} ${Math.ceil(Math.max(0, ((row.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
         ailmentText = [ailmentText, curseText].filter(Boolean).join(' · ');
         let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
+            if (ail.type === 'flameDecay') return sum + Math.floor(Math.max(0, ail.flameDecayDps || 0) * Math.max(0, ail.time || 0));
             if (!isDamageAilmentType(ail.type)) return sum;
             let dps = getEnemyDamageAilmentDps(ail, cachedTooltipStats || getPlayerStats());
             return sum + Math.floor(dps * Math.max(0, ail.time || 0));
@@ -4759,10 +4787,8 @@ function mergeDefaults(save) {
             source: typeof entry.source === 'string' ? entry.source : ''
         };
     }
-    function normalizeDeathLog(log) {
-        if (!log || typeof log !== 'object') return null;
-        let primaryElement = normalizeDamageElementKey(log.primaryElement);
-        let damageSummary = Array.isArray(log.damageSummary) ? log.damageSummary.map(entry => {
+    function normalizeDeathDamageSummaryRows(rows) {
+        let damageSummary = Array.isArray(rows) ? rows.map(entry => {
             if (!entry || typeof entry !== 'object') return null;
             let ele = normalizeDamageElementKey(entry.ele);
             let value = Math.max(0, Math.floor(clampFiniteNumber(entry.value, entry.amount, 0)));
@@ -4770,17 +4796,36 @@ function mergeDefaults(save) {
         }).filter(Boolean) : [];
         let totals = { phys: 0, fire: 0, cold: 0, light: 0, chaos: 0, other: 0 };
         damageSummary.forEach(entry => {
-            totals[entry.ele] = Math.max(0, Math.floor(entry.value || 0));
+            totals[entry.ele] += Math.max(0, Math.floor(entry.value || 0));
         });
-        damageSummary = Object.keys(totals)
+        return Object.keys(totals)
             .map(ele => ({ ele: ele, value: totals[ele] }))
             .filter(entry => entry.value > 0)
             .sort((a, b) => b.value - a.value);
+    }
+    function normalizeDeathLog(log) {
+        if (!log || typeof log !== 'object') return null;
+        let primaryElement = normalizeDamageElementKey(log.primaryElement);
+        let damageSummary = normalizeDeathDamageSummaryRows(log.damageSummary);
+        let ailmentDamageSummary = normalizeDeathDamageSummaryRows(log.ailmentDamageSummary);
+        let activeAilments = Array.isArray(log.activeAilments) ? log.activeAilments.map(row => {
+            if (!row || typeof row !== 'object') return null;
+            let type = typeof row.type === 'string' && row.type ? row.type : 'unknown';
+            return {
+                type: type,
+                label: typeof row.label === 'string' && row.label ? row.label : getAilmentDisplayLabel(type),
+                time: Math.max(0, Math.ceil(clampFiniteNumber(row.time, 0, 0, 30))),
+                power: Math.max(0, clampFiniteNumber(row.power, 0, 0, 1.5)),
+                sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0)))
+            };
+        }).filter(Boolean) : [];
         return {
             primaryElement: primaryElement,
             reasonText: typeof log.reasonText === 'string' && log.reasonText.trim() ? log.reasonText : (DEATH_REASON_TEXT[primaryElement] || DEATH_REASON_TEXT.phys),
             expLost: Math.max(0, Math.floor(clampFiniteNumber(log.expLost, 0, 0))),
             damageSummary: damageSummary,
+            ailmentDamageSummary: ailmentDamageSummary,
+            activeAilments: activeAilments,
             sourceName: typeof log.sourceName === 'string' ? log.sourceName : '',
             at: clampFiniteNumber(log.at, Date.now(), 0)
         };
@@ -4841,10 +4886,12 @@ function mergeDefaults(save) {
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
     merged.seasonChaseUniqueDropped = !!merged.seasonChaseUniqueDropped;
-    merged.skills = Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : [];
+    merged.skills = dedupeList(Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : []);
     if (!merged.skills.includes('기본 공격')) merged.skills.unshift('기본 공격');
-    merged.supports = Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : [];
-    merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports.filter(name => merged.supports.includes(name)) : [];
+    merged.sealedSkills = dedupeList(Array.isArray(merged.sealedSkills) ? merged.sealedSkills.filter(name => !!SKILL_DB[name] && name !== '기본 공격' && !merged.skills.includes(name)) : []);
+    merged.supports = dedupeList(Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : []);
+    merged.sealedSupports = dedupeList(Array.isArray(merged.sealedSupports) ? merged.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !merged.supports.includes(name)) : []);
+    merged.equippedSupports = Array.isArray(merged.equippedSupports) ? dedupeList(merged.equippedSupports.filter(name => merged.supports.includes(name))) : [];
     merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!SEASON_NODES[id]) : [];
     merged.unlockedSeasonContents = Array.isArray(merged.unlockedSeasonContents) ? merged.unlockedSeasonContents.filter(id => typeof id === 'string') : ['season_1'];
     merged.seenSeasonContentNotices = Array.isArray(merged.seenSeasonContentNotices) ? merged.seenSeasonContentNotices.filter(id => typeof id === 'string') : ['season_1'];
@@ -5006,6 +5053,10 @@ function mergeDefaults(save) {
     merged.loopCount = Math.max(0, Math.floor(clampFiniteNumber(merged.loopCount, defaultGame.loopCount, 0)));
     merged.woodsmanDefeatAttempts = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanDefeatAttempts, defaultGame.woodsmanDefeatAttempts, 0)));
     merged.woodsmanSimulatorSeenLoop = !!merged.woodsmanSimulatorSeenLoop;
+    merged.woodsmanCurseActive = !!merged.woodsmanCurseActive;
+    merged.woodsmanCurseDamageTakenStacks = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanCurseDamageTakenStacks, defaultGame.woodsmanCurseDamageTakenStacks || 0, 0)));
+    merged.woodsmanCurseLastTickAt = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanCurseLastTickAt, defaultGame.woodsmanCurseLastTickAt || 0, 0)));
+    merged.woodsmanCurseNextLogStack = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanCurseNextLogStack, defaultGame.woodsmanCurseNextLogStack || 0, 0)));
     merged.chaosInfuserUnlocked = !!merged.chaosInfuserUnlocked || merged.woodsmanSimulatorSeenLoop || Math.max(0, Math.floor(merged.woodsmanDefeatAttempts || 0)) > 0 || (Array.isArray(merged.journalEntries) && merged.journalEntries.includes('woodsman'));
     merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
     merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0));
@@ -5243,7 +5294,8 @@ function getCloudConfig() {
     return { enabled, supabaseUrl, supabaseAnonKey };
 }
 
-
+const CLOUD_TOKEN_REFRESH_LEEWAY_MS = 5 * 60 * 1000;
+const CLOUD_TOKEN_EXPIRY_WARNING_MS = 10 * 60 * 1000;
 
 const CLOUD_SKIP_OAUTH_RESTORE_KEY = 'projectidle_cloud_skip_oauth_restore';
 
@@ -5433,22 +5485,81 @@ function applyCloudSession(session) {
         updateCloudSaveUI();
         return;
     }
+    let expiresAt = Number(session.expires_at) || 0;
+    if (!expiresAt && Number(session.expires_in) > 0) expiresAt = Math.floor(Date.now() / 1000) + Math.floor(Number(session.expires_in));
     cloudState.session = {
         access_token: session.access_token,
         refresh_token: session.refresh_token || (cloudState.session && cloudState.session.refresh_token) || '',
-        expires_at: session.expires_at || 0,
+        expires_at: expiresAt,
         token_type: session.token_type || 'bearer',
         user: session.user || cloudState.user || null
     };
     cloudState.user = cloudState.session.user;
     cloudState.isLoaded = false;
+    cloudState.tokenExpiryWarned = false;
     persistCloudSession(cloudState.session);
     updateCloudSaveUI();
+}
+
+function getCloudSessionExpiresAtMs() {
+    let expiresAt = cloudState.session ? Number(cloudState.session.expires_at || 0) : 0;
+    return expiresAt > 0 ? expiresAt * 1000 : 0;
+}
+
+function notifyCloudSessionExpired(message) {
+    let text = message || '클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.';
+    setCloudMessage(text);
+    if (!cloudState.tokenExpiryWarned && typeof addLog === 'function') addLog(`⚠️ ${text}`, 'loot-rare');
+    cloudState.tokenExpiryWarned = true;
+}
+
+async function refreshCloudSession(reason) {
+    if (!cloudState.session || !cloudState.session.refresh_token) {
+        notifyCloudSessionExpired('클라우드 로그인 갱신 정보가 없습니다. 다시 로그인해주세요.');
+        return false;
+    }
+    if (cloudState.tokenRefreshPromise) return await cloudState.tokenRefreshPromise;
+    cloudState.tokenRefreshPromise = (async () => {
+        try {
+            setCloudMessage(reason ? `클라우드 로그인 갱신 중... (${reason})` : '클라우드 로그인 갱신 중...');
+            let refreshed = await cloudJsonRequest('/auth/v1/token?grant_type=refresh_token', {
+                method: 'POST',
+                useAuth: false,
+                body: { refresh_token: cloudState.session.refresh_token }
+            });
+            applyCloudSession(refreshed);
+            setCloudMessage('클라우드 로그인 세션을 자동 갱신했습니다.');
+            return true;
+        } catch (error) {
+            console.warn('cloud token refresh failed:', error);
+            applyCloudSession(null);
+            notifyCloudSessionExpired('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+            return false;
+        } finally {
+            cloudState.tokenRefreshPromise = null;
+            updateCloudSaveUI();
+        }
+    })();
+    return await cloudState.tokenRefreshPromise;
+}
+
+async function ensureCloudSessionFresh(reason) {
+    if (!cloudState.session || !cloudState.session.access_token) return false;
+    let expiresAtMs = getCloudSessionExpiresAtMs();
+    if (!expiresAtMs) return true;
+    let remaining = expiresAtMs - Date.now();
+    if (remaining <= CLOUD_TOKEN_REFRESH_LEEWAY_MS) return await refreshCloudSession(reason || '만료 예정');
+    if (remaining <= CLOUD_TOKEN_EXPIRY_WARNING_MS && !cloudState.tokenExpiryWarned) notifyCloudSessionExpired('클라우드 로그인 세션이 곧 만료됩니다. 만료 전 자동 갱신 예정입니다.');
+    return true;
 }
 
 async function cloudJsonRequest(path, options = {}) {
     let config = getCloudConfig();
     if (!config.enabled) throw new Error('cloud-save-config.js 설정이 비어 있습니다.');
+    if (options.useAuth !== false) {
+        let fresh = await ensureCloudSessionFresh('요청 전 확인');
+        if (!fresh) throw new Error('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+    }
     let headers = { apikey: config.supabaseAnonKey, ...(options.headers || {}) };
     if (options.useAuth !== false && cloudState.session && cloudState.session.access_token) headers.Authorization = `Bearer ${cloudState.session.access_token}`;
     let body = options.body;
@@ -5688,7 +5799,7 @@ async function linkSocialIdentityProvider(provider) {
     updateCloudSaveUI();
     try {
         let options = getSocialOAuthOptions(provider);
-        let { error } = await client.auth.linkIdentity({ provider, options });
+        let { data, error } = await client.auth.linkIdentity({ provider, options });
         if (error) throw error;
         if (provider === 'kakao') {
             let safeUrl = sanitizeKakaoScopeInUrl(data && data.url);
@@ -5819,27 +5930,14 @@ async function fetchCloudUser() {
 async function restoreCloudSession() {
     let stored = loadStoredCloudSession();
     if (!stored || !stored.access_token) return false;
-    cloudState.session = stored;
-    cloudState.user = stored.user || null;
     if (stored.refresh_token) {
-        try {
-            let refreshed = await cloudJsonRequest('/auth/v1/token?grant_type=refresh_token', {
-                method: 'POST',
-                useAuth: false,
-                body: { refresh_token: stored.refresh_token }
-            });
-            applyCloudSession(refreshed);
-            return true;
-        } catch (refreshError) {
-            console.warn('cloud session refresh failed:', refreshError);
-            setCloudMessage('세션이 만료되었습니다. 다시 로그인해주세요.');
-            applyCloudSession(null);
-            return false;
-        }
+        cloudState.session = stored;
+        cloudState.user = stored.user || null;
+        return await refreshCloudSession('저장된 세션 복원');
     }
-    let user = await fetchCloudUser();
-    applyCloudSession({ ...stored, user });
-    return true;
+    clearCloudSessionStorage();
+    setCloudMessage('저장된 클라우드 세션에 갱신 토큰이 없습니다. 다시 로그인해주세요.');
+    return false;
 }
 
 async function fetchCloudSaveRecord() {
@@ -5904,7 +6002,7 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
-    if (remoteStamp > localStamp + CLOUD_REMOTE_TIME_SKEW_MS) {
+    if (remoteStamp > localStamp + CLOUD_STALE_OVERWRITE_GUARD_MS) {
         applyExternalSave(record.save_data, remoteStamp);
         setCloudMessage(options.automatic ? '클라우드 저장이 더 최신이라 로컬에 먼저 반영했습니다.' : '클라우드 저장이 더 최신이라 덮어쓰기를 막고 자동으로 불러왔습니다.');
         if (!options.silentLog) addLog('클라우드가 더 최신이라 자동으로 불러왔습니다.', 'loot-magic');
@@ -5920,6 +6018,7 @@ async function pushCloudSave(options = {}) {
             await fetchCloudSaveRecord();
         } catch (loadError) {
             console.warn('cloud push preflight remote load failed:', loadError);
+            throw new Error('클라우드 상태를 확인할 수 없어 업로드를 중단했습니다: ' + (loadError.message || loadError));
         }
     }
     persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true });
@@ -5970,12 +6069,18 @@ async function reconcileCloudSaveState(options = {}) {
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
     if (preferRemoteOnResume) {
-        applyExternalSave(record.save_data, remoteStamp);
-        setCloudMessage(strictRemoteResume
-            ? '이어하기(클라우드 우선) 정책으로 서버 저장을 강제로 적용했습니다.'
-            : '이어하기는 클라우드 우선 정책으로 서버 저장을 먼저 적용했습니다.');
-        if (!options.silent) addLog('이어하기(클라우드 우선)로 서버 저장을 적용했습니다.', 'loot-magic');
-        return strictRemoteResume ? 'pulled-remote-resume-strict' : 'pulled-remote-resume-preferred';
+        if (strictRemoteResume || remoteStamp >= localStamp) {
+            applyExternalSave(record.save_data, remoteStamp);
+            setCloudMessage(strictRemoteResume
+                ? '이어하기(클라우드 우선) 정책으로 서버 저장을 적용했습니다.'
+                : '이어하기는 서버 저장이 로컬보다 최신이거나 같은 상태라 클라우드를 적용했습니다.');
+            if (!options.silent) addLog('이어하기(클라우드 우선)로 서버 저장을 적용했습니다.', 'loot-magic');
+            return strictRemoteResume ? 'pulled-remote-resume-strict' : 'pulled-remote-resume-preferred';
+        }
+        await pushCloudSave({ touchModifiedAt: false });
+        setCloudMessage('로컬 저장이 클라우드보다 최신이라 서버 저장 대신 로컬 진행도를 업로드했습니다.');
+        if (!options.silent) addLog('로컬 저장이 더 최신이라 클라우드에 업로드했습니다.', 'loot-magic');
+        return 'pushed-local-newer-than-remote-resume';
     }
     if (isLikelyBootstrapLocalSave(game) && remoteStamp > 0) {
         applyExternalSave(record.save_data, remoteStamp);
@@ -5989,15 +6094,16 @@ async function reconcileCloudSaveState(options = {}) {
         if (!options.silent) addLog('더 최신인 클라우드 세이브를 적용했습니다.', 'loot-magic');
         return 'pulled-remote';
     }
-    if (localStamp > remoteStamp + CLOUD_REMOTE_TIME_SKEW_MS) {
+    if (localStamp > remoteStamp) {
         await pushCloudSave({ touchModifiedAt: false });
-        setCloudMessage('로컬 저장이 더 최신이라 클라우드에 업로드했습니다.');
-        return 'pushed-local';
+        setCloudMessage('로컬 저장이 클라우드보다 최신이라 클라우드에 업로드했습니다.');
+        if (!options.silent) addLog('로컬 저장이 더 최신이라 클라우드에 업로드했습니다.', 'loot-magic');
+        return localStamp > remoteStamp + CLOUD_REMOTE_TIME_SKEW_MS ? 'pushed-local' : 'pushed-local-within-skew';
     }
-    game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, remoteStamp || localStamp);
-    persistLocalSave({ touchModifiedAt: false });
-    setCloudMessage('로컬과 클라우드 저장이 같은 상태입니다.');
-    return 'in-sync';
+    applyExternalSave(record.save_data, remoteStamp);
+    setCloudMessage('로컬과 클라우드 저장 시간이 같거나 클라우드가 근소하게 최신이라 클라우드 저장을 우선 적용했습니다.');
+    if (!options.silent) addLog('저장 시간 차이가 작아 클라우드 세이브를 우선 적용했습니다.', 'loot-magic');
+    return 'pulled-remote-within-skew';
 }
 
 let cloudSyncTimer = null;
@@ -6015,13 +6121,43 @@ function scheduleCloudAutoSync() {
     }, 1200);
 }
 
+
+function schedulePendingForcedCloudSyncDrain() {
+    if (cloudState.pendingForcedSyncRetryTimer) return;
+    cloudState.pendingForcedSyncRetryTimer = setTimeout(() => {
+        cloudState.pendingForcedSyncRetryTimer = null;
+        let pendingForced = cloudState.pendingForcedSyncOptions;
+        if (!pendingForced || !cloudState.configured || !cloudState.user) return;
+        if (cloudState.busy) {
+            schedulePendingForcedCloudSyncDrain();
+            return;
+        }
+        cloudState.pendingForcedSyncOptions = null;
+        syncCloudSave(pendingForced).catch(error => {
+            console.warn(`queued cloud save failed (${pendingForced.reason || 'important'}):`, error);
+            setCloudMessage('대기 중이던 클라우드 저장 실패: ' + (error.message || error));
+        });
+    }, 500);
+}
+
 async function syncCloudSave(options = {}) {
-    if (!cloudState.configured || !cloudState.user || cloudState.busy) return;
+    if (!cloudState.configured || !cloudState.user) return;
+    if (cloudState.busy) {
+        if (options.force === true) {
+            cloudState.pendingForcedSyncOptions = { ...options, force: true, reason: options.reason || 'important' };
+            setCloudMessage(`클라우드 업로드 대기 중... (${cloudState.pendingForcedSyncOptions.reason})`);
+            updateCloudSaveUI();
+            schedulePendingForcedCloudSyncDrain();
+        }
+        return;
+    }
     cloudState.busy = true;
     cloudState.lastSyncAttemptAt = Date.now();
-    setCloudMessage(options.automatic ? '자동 클라우드 업로드 중...' : '클라우드 업로드 중...');
+    setCloudMessage(options.reason ? `클라우드 업로드 중... (${options.reason})` : (options.automatic ? '자동 클라우드 업로드 중...' : '클라우드 업로드 중...'));
     updateCloudSaveUI();
     try {
+        let fresh = await ensureCloudSessionFresh(options.reason || '클라우드 저장');
+        if (!fresh) return;
         let guardResult = await guardAgainstStaleLocalOverwrite({ automatic: !!options.automatic, silentLog: !!options.automatic });
         if (guardResult.status === 'pulled-remote') return;
         await pushCloudSave({ touchModifiedAt: options.automatic !== true });
@@ -6030,6 +6166,7 @@ async function syncCloudSave(options = {}) {
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
+        if (cloudState.pendingForcedSyncOptions) schedulePendingForcedCloudSyncDrain();
     }
 }
 
@@ -6159,7 +6296,7 @@ async function cloudLogin(options = {}) {
             caption: 'Syncing Save Data',
             progress: 58
         });
-        await reconcileCloudSaveState({ createRemoteFromLocal: false });
+        await reconcileCloudSaveState({ createRemoteFromLocal: true });
         addLog('클라우드 세이브 계정에 로그인했습니다.', 'loot-magic');
         if (options.enterGame) await enterGameWorld();
     } catch (error) {
@@ -6195,6 +6332,51 @@ async function cloudLogout() {
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
+    }
+}
+
+
+function requestImmediateCloudSave(reason) {
+    if (!cloudState.configured || !cloudState.user) return false;
+    saveGame({ skipCloudSync: true });
+    syncCloudSave({ automatic: true, force: true, reason: reason || 'important' }).catch(error => {
+        console.warn(`immediate cloud save failed (${reason || 'important'}):`, error);
+        setCloudMessage('즉시 클라우드 저장 실패: ' + (error.message || error));
+    });
+    return true;
+}
+
+
+function pushCloudSaveOnPageExit(reason) {
+    let config = getCloudConfig();
+    if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
+    try {
+        persistLocalSave({ touchModifiedAt: true });
+        ensureSaveMeta();
+        let optimisticSyncAt = Date.now();
+        game.saveMeta.lastCloudSyncAt = optimisticSyncAt;
+        cloudState.lastRemoteUpdatedAt = optimisticSyncAt;
+        persistLocalSave({ touchModifiedAt: false });
+        let payload = JSON.parse(JSON.stringify(game));
+        let body = JSON.stringify({ user_id: cloudState.user.id, save_data: payload });
+        let headers = {
+            apikey: config.supabaseAnonKey,
+            Authorization: `Bearer ${cloudState.session.access_token}`,
+            'Content-Type': 'application/json',
+            Prefer: 'resolution=merge-duplicates,return=minimal'
+        };
+        fetch(config.supabaseUrl + '/rest/v1/cloud_saves', {
+            method: 'POST',
+            headers,
+            body,
+            keepalive: true
+        }).catch(error => console.warn(`cloud save on ${reason || 'page exit'} failed:`, error));
+        cloudState.lastSyncAttemptAt = optimisticSyncAt;
+        setCloudMessage('페이지 종료 전 클라우드 저장을 시도했습니다.');
+        return true;
+    } catch (error) {
+        console.warn(`cloud save on ${reason || 'page exit'} setup failed:`, error);
+        return false;
     }
 }
 
@@ -6401,10 +6583,27 @@ function init() {
     if (!window.__cloudVisibilitySaveBound) {
         window.__cloudVisibilitySaveBound = true;
         document.addEventListener('visibilitychange', function() {
-            if (document.hidden) saveGame();
+            if (document.hidden) {
+                saveGame({ skipCloudSync: true });
+                pushCloudSaveOnPageExit('visibilitychange');
+            }
+        });
+        window.addEventListener('pagehide', function() {
+            saveGame({ skipCloudSync: true });
+            pushCloudSaveOnPageExit('pagehide');
+        });
+        window.addEventListener('beforeunload', function() {
+            saveGame({ skipCloudSync: true });
+            pushCloudSaveOnPageExit('beforeunload');
         });
     }
     initializeCloudSave();
+    if (!window.__cloudTokenRefreshBound) {
+        window.__cloudTokenRefreshBound = true;
+        setInterval(() => {
+            if (cloudState.user && cloudState.session) ensureCloudSessionFresh('주기 확인').catch(error => console.warn('periodic cloud token refresh failed:', error));
+        }, 60000);
+    }
     window.runStartupSmokeChecks = runStartupSmokeChecks;
     if (!window.__globalTouchTooltipCleanup) {
         window.__globalTouchTooltipCleanup = true;
