@@ -3048,7 +3048,12 @@ function performPlayerAttack(pStats) {
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
             let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
             dmg = Math.floor(dmg * (rollPct / 100));
-            if (hitElement === 'chaos') dmg = Math.floor(dmg * Math.max(0, pStats.chaosDamageMultiplier || 1));
+            let damageBeforeMitigation = dmg;
+            if (hitElement === 'chaos') {
+                let chaosMultiplier = Math.max(0, Number(pStats.chaosDamageMultiplier) || 1);
+                dmg = Math.floor(dmg * chaosMultiplier);
+                damageBeforeMitigation = Math.floor(damageBeforeMitigation * chaosMultiplier);
+            }
             if ((targetEnemy.firstHitGuard || 0) > 0 && !targetEnemy.firstHitConsumed) {
                 dmg = Math.floor(dmg * (1 - targetEnemy.firstHitGuard));
                 targetEnemy.firstHitConsumed = true;
@@ -3056,7 +3061,6 @@ function performPlayerAttack(pStats) {
             let burstHits = Math.max(0, (targetEnemy.recentHitsTaken || 0) - 2);
             let hitGuard = (targetEnemy.hitRateGuard || 0) * Math.min(5, burstHits);
             if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
-            let damageBeforeMitigation = dmg;
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
                 if (game.settings.showCombatLog) addLog(`🌀 ${targetEnemy.name} 회피`, 'attack-monster', { noToast: true });
