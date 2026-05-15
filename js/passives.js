@@ -2726,7 +2726,11 @@ function openDeathOverlay(log) {
     if (activeAilments.length > 0) {
         html += `<div class="deathlog-subtitle" style="margin-top:10px;">죽기 전 걸린 상태이상</div>` + activeAilments.map(ail => {
             let hitText = (ail.sourceHitDamage || 0) > 0 ? ` · 원천 피해 ${Math.floor(ail.sourceHitDamage)}` : '';
-            return `<div class="deathlog-line"><div class="deathlog-line-top"><span>${ail.label || getAilmentDisplayLabel(ail.type)}</span><strong class="deathlog-value">${Math.ceil(Math.max(0, ail.time || 0))}초<span class="deathlog-ratio">강도 ${(Number(ail.power || 0)).toFixed(2)}${hitText}</span></strong></div></div>`;
+            let labelText = ail.label || getAilmentDisplayLabel(ail.type);
+            let safeLabel = typeof escapeHTML === 'function'
+                ? escapeHTML(labelText)
+                : String(labelText).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+            return `<div class="deathlog-line"><div class="deathlog-line-top"><span>${safeLabel}</span><strong class="deathlog-value">${Math.ceil(Math.max(0, ail.time || 0))}초<span class="deathlog-ratio">강도 ${(Number(ail.power || 0)).toFixed(2)}${hitText}</span></strong></div></div>`;
         }).join('');
     }
     document.getElementById('deathlog-damage-list').innerHTML = html;
