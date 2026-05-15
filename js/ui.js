@@ -5672,6 +5672,7 @@ function prepareStartupAccountSwitch() {
     clearSupabasePersistedSession();
     applyCloudSession(null);
     cloudState.lastRemoteUpdatedAt = 0;
+    cloudState.lastRemoteLoop = 0;
     setCloudMessage('다른 계정으로 로그인할 수 있습니다.');
     updateCloudSaveUI();
 }
@@ -5691,6 +5692,7 @@ function startGuestMode() {
         applyCloudSession(null);
         cloudState.linkedProviders = [];
         cloudState.lastRemoteUpdatedAt = 0;
+        cloudState.lastRemoteLoop = 0;
     }
     setCloudMessage('게스트 모드로 시작합니다. 이 기기 저장만 사용합니다.');
     setLoadingOverlayState(true, {
@@ -5897,6 +5899,7 @@ function applyExternalSave(snapshot, sourceStamp) {
     ensureSaveMeta();
     if (sourceStamp) {
         cloudState.lastRemoteUpdatedAt = sourceStamp;
+        cloudState.lastRemoteLoop = getSaveLoopNumber(game);
         game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, sourceStamp);
         if (!game.saveMeta.lastModifiedAt) game.saveMeta.lastModifiedAt = sourceStamp;
     }
@@ -5964,6 +5967,7 @@ async function fetchCloudSaveRecord() {
         }
         cloudState.isLoaded = true;
         if (record && record.updated_at) cloudState.lastRemoteUpdatedAt = new Date(record.updated_at).getTime() || 0;
+        if (record && record.save_data) updateRemoteLoopFromRecord(record);
         updateCloudSaveUI();
         return record;
     } catch (error) {
@@ -5981,6 +5985,28 @@ function getLocalSaveStamp() {
 function getRemoteSaveStamp(record) {
     if (!record) return 0;
     return record.updated_at ? (new Date(record.updated_at).getTime() || 0) : ((record.save_data && record.save_data.saveMeta && record.save_data.saveMeta.lastModifiedAt) || 0);
+}
+
+function getSaveLoopNumber(snapshot) {
+    let s = snapshot || {};
+    let season = Math.max(1, Math.floor(Number(s.season) || 1));
+    let loopCount = Math.max(0, Math.floor(Number(s.loopCount) || 0));
+    return Math.max(season, loopCount + 1);
+}
+
+function updateRemoteLoopFromRecord(record) {
+    if (!record || !record.save_data) return 0;
+    let remoteLoop = getSaveLoopNumber(record.save_data);
+    cloudState.lastRemoteLoop = remoteLoop;
+    return remoteLoop;
+}
+
+function shouldBlockLocalPushForRemoteLoop(record, localSnapshot = game) {
+    let localLoop = getSaveLoopNumber(localSnapshot || {});
+    let remoteLoop = updateRemoteLoopFromRecord(record);
+    if (remoteLoop > localLoop) return { blocked: true, reason: 'higher-loop', localLoop, remoteLoop };
+    if (record && record.save_data && isLikelyBootstrapLocalSave(localSnapshot)) return { blocked: true, reason: 'bootstrap-local', localLoop, remoteLoop };
+    return { blocked: false, reason: 'safe', localLoop, remoteLoop };
 }
 
 function isLikelyBootstrapLocalSave(snapshot) {
@@ -6002,6 +6028,16 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
+    let loopGuard = shouldBlockLocalPushForRemoteLoop(record);
+    if (loopGuard.blocked) {
+        applyExternalSave(record.save_data, remoteStamp);
+        let guardMessage = loopGuard.reason === 'bootstrap-local'
+            ? '로컬 세이브가 새로 생성된 기본 상태라 클라우드 업로드를 차단하고 서버 저장을 불러왔습니다.'
+            : `클라우드 루프(${loopGuard.remoteLoop})가 로컬 루프(${loopGuard.localLoop})보다 높아 로컬 업로드를 차단하고 클라우드를 불러왔습니다.`;
+        setCloudMessage(guardMessage);
+        if (!options.silentLog) addLog('클라우드 루프가 더 높아 로컬 저장으로 서버를 덮어쓰지 않았습니다.', 'loot-magic');
+        return { record, status: 'pulled-remote-higher-loop' };
+    }
     if (remoteStamp > localStamp + CLOUD_STALE_OVERWRITE_GUARD_MS) {
         applyExternalSave(record.save_data, remoteStamp);
         setCloudMessage(options.automatic ? '클라우드 저장이 더 최신이라 로컬에 먼저 반영했습니다.' : '클라우드 저장이 더 최신이라 덮어쓰기를 막고 자동으로 불러왔습니다.');
@@ -6013,13 +6049,20 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
 
 async function pushCloudSave(options = {}) {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
-    if (!cloudState.isLoaded) {
-        try {
-            await fetchCloudSaveRecord();
-        } catch (loadError) {
-            console.warn('cloud push preflight remote load failed:', loadError);
-            throw new Error('클라우드 상태를 확인할 수 없어 업로드를 중단했습니다: ' + (loadError.message || loadError));
-        }
+    let remoteRecord = null;
+    try {
+        remoteRecord = await fetchCloudSaveRecord();
+    } catch (loadError) {
+        console.warn('cloud push preflight remote load failed:', loadError);
+        throw new Error('클라우드 상태를 확인할 수 없어 업로드를 중단했습니다: ' + (loadError.message || loadError));
+    }
+    let loopGuard = shouldBlockLocalPushForRemoteLoop(remoteRecord);
+    if (loopGuard.blocked) {
+        let guardMessage = loopGuard.reason === 'bootstrap-local'
+            ? '로컬 세이브가 새로 생성된 기본 상태라 기존 클라우드 저장을 덮어쓸 수 없습니다.'
+            : `클라우드 루프(${loopGuard.remoteLoop})가 로컬 루프(${loopGuard.localLoop})보다 높아 로컬 저장으로 덮어쓸 수 없습니다.`;
+        setCloudMessage(guardMessage);
+        throw new Error(guardMessage);
     }
     persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true });
     let payload = JSON.parse(JSON.stringify(game));
@@ -6033,6 +6076,7 @@ async function pushCloudSave(options = {}) {
     ensureSaveMeta();
     game.saveMeta.lastCloudSyncAt = syncedAt;
     cloudState.lastRemoteUpdatedAt = syncedAt;
+    cloudState.lastRemoteLoop = getSaveLoopNumber(game);
     persistLocalSave({ touchModifiedAt: false });
     updateCloudSaveUI();
     return row;
@@ -6068,6 +6112,16 @@ async function reconcileCloudSaveState(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
+    let loopGuard = shouldBlockLocalPushForRemoteLoop(record);
+    if (loopGuard.blocked) {
+        applyExternalSave(record.save_data, remoteStamp);
+        let guardMessage = loopGuard.reason === 'bootstrap-local'
+            ? '새 기기 기본 로컬 저장으로 판단되어 클라우드 세이브를 우선 적용했습니다.'
+            : `클라우드 루프(${loopGuard.remoteLoop})가 로컬 루프(${loopGuard.localLoop})보다 높아 클라우드 세이브를 우선 적용했습니다.`;
+        setCloudMessage(guardMessage);
+        if (!options.silent) addLog('클라우드 루프가 더 높아 로컬 저장 업로드를 차단하고 서버 저장을 적용했습니다.', 'loot-magic');
+        return 'pulled-remote-higher-loop';
+    }
     if (preferRemoteOnResume) {
         if (strictRemoteResume || remoteStamp >= localStamp) {
             applyExternalSave(record.save_data, remoteStamp);
@@ -6159,7 +6213,7 @@ async function syncCloudSave(options = {}) {
         let fresh = await ensureCloudSessionFresh(options.reason || '클라우드 저장');
         if (!fresh) return;
         let guardResult = await guardAgainstStaleLocalOverwrite({ automatic: !!options.automatic, silentLog: !!options.automatic });
-        if (guardResult.status === 'pulled-remote') return;
+        if (guardResult.status === 'pulled-remote' || guardResult.status === 'pulled-remote-higher-loop') return;
         await pushCloudSave({ touchModifiedAt: options.automatic !== true });
         setCloudMessage(options.automatic ? '클라우드 자동 저장을 완료했습니다.' : '클라우드 업로드를 완료했습니다.');
         if (!options.automatic) addLog('클라우드 세이브를 업로드했습니다.', 'loot-magic');
@@ -6328,6 +6382,7 @@ async function cloudLogout() {
         applyCloudSession(null);
         cloudState.linkedProviders = [];
         cloudState.lastRemoteUpdatedAt = 0;
+        cloudState.lastRemoteLoop = 0;
         setCloudMessage('클라우드 계정에서 로그아웃했습니다.');
     } finally {
         cloudState.busy = false;
@@ -6350,6 +6405,17 @@ function requestImmediateCloudSave(reason) {
 function pushCloudSaveOnPageExit(reason) {
     let config = getCloudConfig();
     if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
+    if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return false;
+    if (!gameplayStarted) return false;
+    let localLoop = getSaveLoopNumber(game);
+    if ((cloudState.lastRemoteLoop || 0) > localLoop) {
+        setCloudMessage(`클라우드 루프(${cloudState.lastRemoteLoop})가 로컬 루프(${localLoop})보다 높아 종료 전 업로드를 차단했습니다.`);
+        return false;
+    }
+    if ((cloudState.lastRemoteLoop || 0) > 0 && isLikelyBootstrapLocalSave(game)) {
+        setCloudMessage('로컬 세이브가 새로 생성된 기본 상태라 종료 전 클라우드 업로드를 차단했습니다.');
+        return false;
+    }
     try {
         persistLocalSave({ touchModifiedAt: true });
         ensureSaveMeta();
