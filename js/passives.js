@@ -5263,7 +5263,7 @@ function passesItemPickupFilter(item) {
 const JEWEL_OPTION_POOL = [
     { id: 'pctDmg', name: '피해 증폭', min: 4, max: 10 },
     { id: 'flatHp', name: '생명력 주입', min: 20, max: 45 },
-    { id: 'crit', name: '치명 보석', min: 2, max: 6 },
+    { id: 'crit', name: '치명 보석', min: 1, max: 3 },
     { id: 'aspd', name: '질주 보석', min: 3, max: 7 },
     { id: 'resAll', name: '수호 보석', min: 4, max: 9 },
     { id: 'physIgnore', name: '절개 파편', min: 2, max: 6 },
@@ -5277,7 +5277,7 @@ const JEWEL_HIDDEN_TIER_COUNT = 5;
 const JEWEL_PETITE_OPTION_POOL = [
     { id: 'pctDmg', name: '작은 피해결', magic: [1, 1], rare: [1, 2] },
     { id: 'flatHp', name: '작은 생명결', magic: [4, 6], rare: [6, 9] },
-    { id: 'crit', name: '작은 치명결', magic: [1, 1], rare: [1, 2] },
+    { id: 'crit', name: '작은 치명결', magic: [0.5, 0.5], rare: [0.5, 1] },
     { id: 'aspd', name: '작은 가속결', magic: [1, 1], rare: [1, 2] },
     { id: 'resAll', name: '작은 수호결', magic: [1, 1], rare: [1, 2] },
     { id: 'resPen', name: '작은 관통결', magic: [1, 1], rare: [1, 2] },

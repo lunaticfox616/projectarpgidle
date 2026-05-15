@@ -886,6 +886,9 @@ function getPlayerStats() {
     let finalLeechInstanceCap = gearBase.leechInstanceCap + gearExplicit.leechInstanceCap + passive.leechInstanceCap + season.leechInstanceCap + ascend.leechInstanceCap + support.leechInstanceCap + reward.leechInstanceCap;
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
+    let allowNegativePhysIgnore = false;
+    let warriorPhysDamageMultiplier = 1;
+    let warriorTakenDamageMultiplier = 1;
     let finalDs = (gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) * 0.75;
     let finalSlamEchoChance = gearBase.slamEchoChance + gearExplicit.slamEchoChance + passive.slamEchoChance + season.slamEchoChance + ascend.slamEchoChance + support.slamEchoChance + reward.slamEchoChance;
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen;
@@ -942,17 +945,25 @@ function getPlayerStats() {
     if (game.ascendClass === 'warrior') {
         // 1) Base multipliers / penalties
         if (hasKeystone('w1')) {
-            finalBaseDmg = Math.floor(finalBaseDmg * 1.12);
+            warriorPhysDamageMultiplier *= 1.12;
             finalMove *= 0.88;
         }
-        if (hasKeystone('w2')) finalAspd = Math.min(12, finalAspd * 1.08);
+        if (hasKeystone('w2')) {
+            let now = Date.now();
+            let stacks = (game.warriorRhythmExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmStacks || 0))) : 0;
+            if (stacks > 0) finalAspd = Math.min(12, finalAspd * (1 + stacks * 0.08));
+        }
         if (hasKeystone('w3')) finalBaseDmg = Math.floor(finalBaseDmg * (isDualWielding() ? 1.08 : 1));
-        if (hasKeystone('w4')) finalPhysIgnore += 15;
-        if (hasKeystone('w5')) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+        if (hasKeystone('w4')) { finalPhysIgnore += 15; allowNegativePhysIgnore = true; }
+        if (hasKeystone('w5')) {
+            let now = Date.now();
+            let stacks = (game.warriorRageExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRageStacks || 0))) : 0;
+            if (stacks > 0) warriorPhysDamageMultiplier *= (1 + stacks * 0.15);
+        }
         if (hasKeystone('w6') && isDualWielding()) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
         if (hasKeystone('w7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
             finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
-            finalDr = Math.min(75, finalDr + 15);
+            warriorTakenDamageMultiplier *= 0.85;
         }
         // 2) Keystone cap/transform phase
         if (hasKeystone('w8')) {
@@ -963,6 +974,7 @@ function getPlayerStats() {
             finalAspd = Math.min(12, finalAspd * 1.15);
             finalMove *= 1.15;
             finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+            finalDs += 15;
         }
     } else if (game.ascendClass === 'gladiator') {
         if (hasKeystone('g1')) finalBaseDmg = Math.floor(finalBaseDmg * 1.12);
@@ -1457,6 +1469,9 @@ function getPlayerStats() {
         leechInstanceCap: finalLeechInstanceCap,
         dr: finalDr,
         physIgnore: finalPhysIgnore,
+        allowNegativePhysIgnore: allowNegativePhysIgnore,
+        warriorPhysDamageMultiplier: warriorPhysDamageMultiplier,
+        warriorTakenDamageMultiplier: warriorTakenDamageMultiplier,
         ds: finalDs,
         slamEchoChance: finalSlamEchoChance,
         minDmgRoll: finalMinDmgRoll,
@@ -1673,7 +1688,13 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     let rawMitigation = getEnemyElementResistance(skillEle, zoneTier, enemy);
     if (skillEle === 'phys') {
         let cappedReduction = Math.max(0, Math.min(80, rawMitigation));
-        if (cappedReduction > 0) cappedReduction = Math.max(0, cappedReduction - Math.max(0, pStats.physIgnore || 0));
+        let ignoreAmount = Math.max(0, Number(pStats.physIgnore) || 0);
+        if (enemy && enemy.isBoss && game.ascendClass === 'warrior' && hasKeystone('w4')) cappedReduction *= 0.5;
+        if (cappedReduction > 0) {
+            cappedReduction = (pStats && pStats.allowNegativePhysIgnore)
+                ? (cappedReduction - ignoreAmount)
+                : Math.max(0, cappedReduction - ignoreAmount);
+        }
         if (rawMitigation < 0) return rawMitigation;
         return cappedReduction;
     }
@@ -2956,6 +2977,13 @@ function performPlayerAttack(pStats) {
     let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
 
     let isCrit = Math.random() < (pStats.crit / 100);
+    if (game.ascendClass === 'warrior' && hasKeystone('w2') && isCrit) {
+        let now = Date.now();
+        let active = (game.warriorRhythmExpiresAt || 0) > now;
+        let stacks = active ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmStacks || 0))) : 0;
+        game.warriorRhythmStacks = Math.min(5, stacks + 1);
+        game.warriorRhythmExpiresAt = now + 2000;
+    }
     if (game.ascendClass === 'gladiator' && hasKeystone('g3')) {
         game.gladiatorVeteranCritBonus = Math.max(0, Math.floor(game.gladiatorVeteranCritBonus || 0));
         if (isCrit) game.gladiatorVeteranCritBonus = 0;
@@ -3043,12 +3071,16 @@ function performPlayerAttack(pStats) {
             if (hitCrit && game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
             let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
             if (randomElementPct) hitBaseDamage = Math.floor(hitBaseDamage * (1 + randomElementPct / 100));
+            if (hitElement === 'phys') hitBaseDamage = Math.floor(hitBaseDamage * Math.max(0, Number(pStats.warriorPhysDamageMultiplier) || 1));
             let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
             let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
             dmg = Math.floor(dmg * (rollPct / 100));
-            if (hitElement === 'chaos') dmg = Math.floor(dmg * Math.max(0, pStats.chaosDamageMultiplier || 1));
+            if (hitElement === 'chaos') {
+                let chaosMultiplier = Math.max(0, Number(pStats.chaosDamageMultiplier) || 1);
+                dmg = Math.floor(dmg * chaosMultiplier);
+            }
             if ((targetEnemy.firstHitGuard || 0) > 0 && !targetEnemy.firstHitConsumed) {
                 dmg = Math.floor(dmg * (1 - targetEnemy.firstHitGuard));
                 targetEnemy.firstHitConsumed = true;
@@ -3478,7 +3510,7 @@ function performMonsterAttacks(pStats) {
                 let hybrid = Math.floor(dmg * 0.32 * (1 - (hybridRes / 100)));
                 dmg += Math.max(0, hybrid);
             }
-            dmg = Math.max(1, Math.floor(dmg * getWoodsmanCurseDamageTakenMul()));
+            dmg = Math.max(1, Math.floor(dmg * getWoodsmanCurseDamageTakenMul() * Math.max(0, Number(pStats.warriorTakenDamageMultiplier) || 1)));
             if (enemy.ele === 'phys' && Math.random() * 100 < Math.max(0, pStats.evadeChance || 0)) {
                 if (game.settings.showCombatLog) addLog(`🌀 회피 성공`, "loot-magic");
                 continue;
@@ -3502,6 +3534,13 @@ function performMonsterAttacks(pStats) {
                 remaining -= absorbed;
             }
             game.playerHp = Math.floor(game.playerHp - remaining);
+            if (remaining > 0 && game.ascendClass === 'warrior' && hasKeystone('w5')) {
+                let now = Date.now();
+                let active = (game.warriorRageExpiresAt || 0) > now;
+                let stacks = active ? Math.max(0, Math.min(5, Math.floor(game.warriorRageStacks || 0))) : 0;
+                game.warriorRageStacks = Math.min(5, stacks + 1);
+                game.warriorRageExpiresAt = now + 5000;
+            }
             if ((enemy.leechPct || 0) > 0 && remaining > 0) {
                 let leeched = Math.max(1, Math.floor(remaining * (enemy.leechPct || 0) / 100));
                 if ((enemy.energyShield || 0) < (enemy.maxEnergyShield || 0)) enemy.energyShield = Math.min(enemy.maxEnergyShield || 0, (enemy.energyShield || 0) + leeched);

@@ -4848,6 +4848,18 @@ function mergeDefaults(save) {
     let passiveAllocationNormalization = normalizeAllocatedPassiveTreeNodes(merged.passives, !!merged.passiveStarEvolution);
     merged.passives = passiveAllocationNormalization.passives;
     merged.autoRefundedPassivePoints = Math.max(0, Math.floor(passiveAllocationNormalization.refunded || 0));
+    function getPassiveTierValueForLoad(statKey, tier) {
+        let statDef = P_STATS[statKey];
+        if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
+        if (tier === 0) return 10;
+        if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
+        if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
+        return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
+    }
+    Object.values(PASSIVE_TREE.nodes || {}).forEach(node => {
+        if (!node || node.stat !== 'critDmg') return;
+        node.val = getPassiveTierValueForLoad('critDmg', Math.max(0, Math.floor(node.tier || 1)));
+    });
     merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
     if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
         merged.discoveredPassives = Array.from(new Set(['n0'].concat(merged.passives || [])));
@@ -6932,6 +6944,35 @@ function isAscendKeystoneRequirementMet(node) {
     return true;
 }
 
+
+function enforceWarriorDualTrainingEquipment(onEnable) {
+    if (game.ascendClass !== 'warrior') return true;
+    game.equipment = game.equipment || {};
+    game.inventory = Array.isArray(game.inventory) ? game.inventory : [];
+    let neck = game.equipment['목걸이'];
+    if (onEnable) {
+        if (neck && neck.slot === '목걸이') {
+            if (game.inventory.length >= getInventoryLimit()) {
+                addLog('쌍수 훈련 활성화를 위해 목걸이를 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
+                return false;
+            }
+            game.inventory.push(neck);
+            game.equipment['목걸이'] = null;
+            addLog('🛡️ 쌍수 훈련 활성화: 기존 목걸이를 인벤토리로 이동했습니다.', 'loot-normal');
+        }
+        return true;
+    }
+    if (neck && neck.slot === '무기') {
+        if (game.inventory.length >= getInventoryLimit()) {
+            addLog('쌍수 훈련 해제를 위해 목걸이 슬롯 무기를 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
+            return false;
+        }
+        game.inventory.push(neck);
+        game.equipment['목걸이'] = null;
+        addLog('🧰 쌍수 훈련 해제: 목걸이 슬롯 무기를 인벤토리로 이동했습니다.', 'loot-normal');
+    }
+    return true;
+}
 function buyAscendKeystone(id) {
     if (!game.ascendClass) return;
     let defs = getClassKeystoneDefs(game.ascendClass);
@@ -6943,6 +6984,7 @@ function buyAscendKeystone(id) {
     if (game.ascendKeystonePoints <= 0) return addLog('키스톤 포인트가 부족합니다.', 'attack-monster');
     if (game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT) return addLog(`키스톤은 최대 ${CLASS_KEYSTONE_PICK_LIMIT}개 선택할 수 있습니다.`, 'attack-monster');
     if (!isAscendKeystoneRequirementMet(node)) return addLog('선행 키스톤 조건이 필요합니다.', 'attack-monster');
+    if (id === 'w3' && !enforceWarriorDualTrainingEquipment(true)) return;
     game.ascendKeystones.push(id);
     game.ascendKeystonePoints -= 1;
     updateStaticUI();
@@ -6963,6 +7005,7 @@ function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
     if (blockers.length > 0) return addLog(`선행 키스톤입니다: ${blockers.map(v => v.name).join(', ')}`, 'attack-monster');
     if ((game.currencies.scour || 0) < 1) return addLog('키스톤 환불에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
     if (!confirm('키스톤을 반환하시겠습니까? (정화의 오브 1 소모)')) return;
+    if (id === 'w3' && !enforceWarriorDualTrainingEquipment(false)) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
     game.ascendKeystones = game.ascendKeystones.filter(key => key !== id);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
@@ -6974,6 +7017,7 @@ function resetAscendKeystones() {
     if (game.ascendKeystones.length <= 0) return;
     let cost = game.ascendKeystones.length;
     if ((game.currencies.scour || 0) < cost) return addLog(`키스톤 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (game.ascendKeystones.includes('w3') && !enforceWarriorDualTrainingEquipment(false)) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + game.ascendKeystones.length;
     game.ascendKeystones = [];
