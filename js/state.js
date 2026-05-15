@@ -48,6 +48,8 @@ for (let i = 1; i <= 20; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1)
 
 
 const CHAOS_REALM_DEFAULT_BONUSES = { pctDmg: 0, move: 0, pctHp: 0, resChaos: 0, resPen: 0, crit: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, critDmg: 0, aspd: 0 };
+const ABYSS_ENDLESS_STEEP_FLOOR_HP_MUL = 1.198;
+const ABYSS_ENDLESS_STEEP_PLAYER_TAKEN_PER_FLOOR = 0.0385;
 const CHAOS_REALM_AFFIX_POOL = [
     { id: 'elemental_wall', name: '원소 장벽', desc: '화염/냉기/번개 저항 대폭 증가' },
     { id: 'iron_bark', name: '철갑 껍질', desc: '방어도와 물리 피해 감소 증가' },
@@ -271,7 +273,7 @@ function getAbyssMonsterScales(zone) {
     if (endlessOver > 0) {
         let steepBand = Math.min(10, endlessOver);
         let smoothBand = Math.max(0, endlessOver - 10);
-        endlessMul = Math.pow(1.18, steepBand) * Math.pow(1.06, smoothBand);
+        endlessMul = Math.pow(ABYSS_ENDLESS_STEEP_FLOOR_HP_MUL, steepBand) * Math.pow(1.06, smoothBand);
     }
     let postLoopOver = Math.max(0, Math.floor((game.season || 1) - 10));
     let postLoopDifficultyMul = postLoopOver > 0 ? (1 + postLoopOver * 0.05 + endlessOver * 0.022) : 1;
@@ -281,7 +283,7 @@ function getAbyssMonsterScales(zone) {
         hordeMul: (1 + (state.horde || 0) * 0.03) * (1 + (state.magnifier || 0) * 0.2),
         dropMul: Math.max(0.2, 1 + ((state.power || 0) + (state.frailty || 0) + (state.resistance || 0) - (state.horde || 0)) * 0.01),
         expMul: Math.max(0.2, 1 + ((state.tenacity || 0) * 0.01) - ((state.horde || 0) * 0.02) + ((state.weakness || 0) * 0.02)),
-        playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + Math.min(10, endlessOver) * 0.035 + Math.max(0, endlessOver - 10) * 0.012 + postLoopOver * 0.03),
+        playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + Math.min(10, endlessOver) * ABYSS_ENDLESS_STEEP_PLAYER_TAKEN_PER_FLOOR + Math.max(0, endlessOver - 10) * 0.012 + postLoopOver * 0.03),
         playerDamageMul: Math.max(0.2, 1 - (state.weakness || 0) * 0.01),
         resistBonus: (state.resistance || 0),
         eliteBonus: (state.elite || 0) * 0.02,
@@ -925,6 +927,10 @@ const defaultGame = {
     loopCount: 0,
     woodsmanDefeatAttempts: 0,
     woodsmanSimulatorSeenLoop: false,
+    woodsmanCurseActive: false,
+    woodsmanCurseDamageTakenStacks: 0,
+    woodsmanCurseLastTickAt: 0,
+    woodsmanCurseNextLogStack: 0,
     currentZoneId: 0,
     maxZoneId: 0,
     killsInZone: 0,
