@@ -2,6 +2,7 @@
 let lastHeavyUiRefreshAt = 0;
 let lastPassiveTreeDrawAt = 0;
 let lastPassiveTreeSignature = '';
+let cachedTooltipStats = null;
 
 let mobilePipCanvas = null;
 var lod = 1; // fallback for any legacy FX paths
@@ -1651,8 +1652,12 @@ function renderBreakdownHtml(data) {
 }
 
 function showStatTooltip(event, key) {
-    let stats = cachedTooltipStats || getPlayerStats();
-    let data = stats.breakdowns[key];
+    let stats = cachedTooltipStats;
+    if (!stats || !stats.breakdowns || !stats.breakdowns[key]) {
+        stats = getPlayerStats();
+        cachedTooltipStats = stats;
+    }
+    let data = stats && stats.breakdowns ? stats.breakdowns[key] : null;
     if (!data) return;
     showInfoTooltipHtml(event.clientX, event.clientY, renderBreakdownHtml(data), '#f39c12');
 }
@@ -2942,6 +2947,7 @@ function pruneEnemyHpDamageGhostStates(activeEnemyIds) {
 }
 
 function updateCombatUI(pStats) {
+    if (pStats && pStats.breakdowns) cachedTooltipStats = pStats;
     game.playerHp = Math.min(game.playerHp, pStats.maxHp);
     setTextById('ui-hp', Math.max(0, Math.floor(game.playerHp)));
     setTextById('ui-maxhp', pStats.maxHp);
@@ -6032,7 +6038,7 @@ async function reconcileCloudSaveState(options = {}) {
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
     if (preferRemoteOnResume) {
-        if (remoteStamp >= localStamp - CLOUD_REMOTE_TIME_SKEW_MS) {
+        if (strictRemoteResume || remoteStamp >= localStamp) {
             applyExternalSave(record.save_data, remoteStamp);
             setCloudMessage(strictRemoteResume
                 ? '이어하기(클라우드 우선) 정책으로 서버 저장을 적용했습니다.'
@@ -6057,13 +6063,14 @@ async function reconcileCloudSaveState(options = {}) {
         if (!options.silent) addLog('더 최신인 클라우드 세이브를 적용했습니다.', 'loot-magic');
         return 'pulled-remote';
     }
-    if (localStamp > remoteStamp + CLOUD_REMOTE_TIME_SKEW_MS) {
+    if (localStamp > remoteStamp) {
         await pushCloudSave({ touchModifiedAt: false });
-        setCloudMessage('로컬 저장이 더 최신이라 클라우드에 업로드했습니다.');
-        return 'pushed-local';
+        setCloudMessage('로컬 저장이 클라우드보다 최신이라 클라우드에 업로드했습니다.');
+        if (!options.silent) addLog('로컬 저장이 더 최신이라 클라우드에 업로드했습니다.', 'loot-magic');
+        return localStamp > remoteStamp + CLOUD_REMOTE_TIME_SKEW_MS ? 'pushed-local' : 'pushed-local-within-skew';
     }
     applyExternalSave(record.save_data, remoteStamp);
-    setCloudMessage('로컬과 클라우드 저장 시간이 거의 같아 클라우드 저장을 우선 적용했습니다.');
+    setCloudMessage('로컬과 클라우드 저장 시간이 같거나 클라우드가 근소하게 최신이라 클라우드 저장을 우선 적용했습니다.');
     if (!options.silent) addLog('저장 시간 차이가 작아 클라우드 세이브를 우선 적용했습니다.', 'loot-magic');
     return 'pulled-remote-within-skew';
 }
