@@ -64,6 +64,26 @@ function addPlayerLeechInstance(rawAmount, pStats, target) {
     game.playerLeechInstances = instances;
     return stored;
 }
+function applyInstantPlayerLeech(rawAmount, pStats, target) {
+    let amount = Math.max(0, Number(rawAmount) || 0);
+    if (amount <= 0) return 0;
+    let leechTarget = target === 'energyShield' ? 'energyShield' : 'life';
+    let caps = getLeechCaps(pStats, leechTarget);
+    if (caps.instanceCap <= 0) return 0;
+    let instantAmount = Math.min(amount, caps.instanceCap);
+    if (instantAmount <= 0) return 0;
+    if (leechTarget === 'energyShield') {
+        let esCap = Math.max(0, Number(pStats && pStats.energyShield) || 0);
+        if (esCap <= 0) return 0;
+        let before = Math.max(0, Number(game.playerEnergyShield) || 0);
+        game.playerEnergyShield = Math.min(esCap, before + instantAmount);
+        return Math.max(0, game.playerEnergyShield - before);
+    }
+    let hpCap = getPlayerHpCap(pStats);
+    let before = Math.max(0, Number(game.playerHp) || 0);
+    game.playerHp = Math.min(hpCap, before + instantAmount);
+    return Math.max(0, game.playerHp - before);
+}
 function tickPlayerLeech(pStats, dt) {
     let instances = getActiveLeechInstances();
     if (instances.length === 0 || dt <= 0) return 0;
@@ -1285,8 +1305,8 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`),
-                `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
-                (game.ascendClass === 'warlock' && hasKeystone('wlk3')) ? '금단 대가: 흡혈 인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.' : null,
+                skill.instantLeech ? '흡혈 타격: 이 젬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복됩니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
+                (game.ascendClass === 'warlock' && hasKeystone('wlk3')) ? `금단 대가: 흡혈 ${skill.instantLeech ? '즉시 회복이 생명력 대신 에너지 보호막에 적용됩니다.' : '인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.'}` : null,
                 `기본 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}% · 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}% · 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
                 `추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p · 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p · 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
                 `적용 전 ${formatValue('leech', rawLeech)}% → 적용 후 ${formatValue('leech', finalLeech)}%`
@@ -3176,7 +3196,8 @@ function performPlayerAttack(pStats) {
     if (pStats.leech > 0 && totalLeechableDamage > 0) {
         let leechAmount = (totalLeechableDamage * (pStats.leech / 100));
         let leechTarget = (game.ascendClass === 'warlock' && hasKeystone('wlk3') && (pStats.energyShield || 0) > 0) ? 'energyShield' : 'life';
-        addPlayerLeechInstance(leechAmount, pStats, leechTarget);
+        if (pStats.sSkill && pStats.sSkill.instantLeech) applyInstantPlayerLeech(leechAmount, pStats, leechTarget);
+        else addPlayerLeechInstance(leechAmount, pStats, leechTarget);
     }
 
     if (game.settings.showCombatLog) {
@@ -3861,4 +3882,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps });
+safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps });
