@@ -3059,7 +3059,6 @@ function performPlayerAttack(pStats) {
             let burstHits = Math.max(0, (targetEnemy.recentHitsTaken || 0) - 2);
             let hitGuard = (targetEnemy.hitRateGuard || 0) * Math.min(5, burstHits);
             if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
-            let damageBeforeMitigation = dmg;
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
                 if (game.settings.showCombatLog) addLog(`🌀 ${targetEnemy.name} 회피`, 'attack-monster', { noToast: true });
