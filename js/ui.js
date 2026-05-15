@@ -6000,13 +6000,29 @@ function isLikelyBootstrapLocalSave(snapshot) {
     let s = snapshot || game || {};
     let hasProgress = false;
     if ((s.level || 1) > 1) hasProgress = true;
+    if ((s.exp || 0) > 0) hasProgress = true;
     if ((s.season || 1) > 1) hasProgress = true;
+    if ((s.loopCount || 0) > 0) hasProgress = true;
     if ((s.maxZoneId || 0) > 0) hasProgress = true;
+    if ((s.killsInZone || 0) > 0) hasProgress = true;
+    if ((s.loopKills || 0) > 0) hasProgress = true;
+    if ((s.loopDeaths || 0) > 0) hasProgress = true;
     if (Array.isArray(s.inventory) && s.inventory.length > 0) hasProgress = true;
-    if (Array.isArray(s.passives) && s.passives.length > 1) hasProgress = true;
-    if (Array.isArray(s.skills) && s.skills.length > 1) hasProgress = true;
+    if (s.equipment && Object.values(s.equipment).some(Boolean)) hasProgress = true;
+    if (Array.isArray(s.passives) && s.passives.length > 0) hasProgress = true;
+    if ((s.passivePoints || 0) > 0) hasProgress = true;
+    if (Array.isArray(s.skills) && s.skills.some(name => name && name !== '기본 공격')) hasProgress = true;
+    if (s.activeSkill && s.activeSkill !== '기본 공격') hasProgress = true;
+    if (s.gemData && Object.keys(s.gemData).length > 0) hasProgress = true;
+    if (Array.isArray(s.supports) && s.supports.length > 0) hasProgress = true;
+    if (s.supportGemData && Object.keys(s.supportGemData).length > 0) hasProgress = true;
     if (s.currencies && Object.keys(s.currencies).some(key => (s.currencies[key] || 0) > 0)) hasProgress = true;
     return !hasProgress;
+}
+
+function shouldPreferRemoteOverBootstrapLocal(record) {
+    if (!record || !record.save_data) return false;
+    return getRemoteSaveStamp(record) > 0 && isLikelyBootstrapLocalSave(game);
 }
 
 async function guardAgainstStaleLocalOverwrite(options = {}) {
@@ -6015,6 +6031,12 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
+    if (shouldPreferRemoteOverBootstrapLocal(record)) {
+        applyExternalSave(record.save_data, remoteStamp);
+        setCloudMessage('현재 기기 로컬 저장이 새 게임 상태라 클라우드 덮어쓰기를 막고 서버 저장을 불러왔습니다.');
+        if (!options.silentLog) addLog('새 기기 기본 저장 대신 클라우드 세이브를 적용했습니다.', 'loot-magic');
+        return { record, status: 'pulled-remote-bootstrap' };
+    }
     if (remoteStamp > localStamp + CLOUD_STALE_OVERWRITE_GUARD_MS) {
         applyExternalSave(record.save_data, remoteStamp);
         setCloudMessage(options.automatic ? '클라우드 저장이 더 최신이라 로컬에 먼저 반영했습니다.' : '클라우드 저장이 더 최신이라 덮어쓰기를 막고 자동으로 불러왔습니다.');
@@ -6083,13 +6105,14 @@ async function reconcileCloudSaveState(options = {}) {
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
     if (preferRemoteOnResume) {
-        if (strictRemoteResume || remoteStamp >= localStamp) {
+        if (strictRemoteResume || remoteStamp >= localStamp || shouldPreferRemoteOverBootstrapLocal(record)) {
+            let bootstrapRemote = !strictRemoteResume && remoteStamp < localStamp && shouldPreferRemoteOverBootstrapLocal(record);
             applyExternalSave(record.save_data, remoteStamp);
             setCloudMessage(strictRemoteResume
                 ? '이어하기(클라우드 우선) 정책으로 서버 저장을 적용했습니다.'
-                : '이어하기는 서버 저장이 로컬보다 최신이거나 같은 상태라 클라우드를 적용했습니다.');
-            if (!options.silent) addLog('이어하기(클라우드 우선)로 서버 저장을 적용했습니다.', 'loot-magic');
-            return strictRemoteResume ? 'pulled-remote-resume-strict' : 'pulled-remote-resume-preferred';
+                : (bootstrapRemote ? '새 기기 기본 로컬 저장으로 판단되어 클라우드 세이브를 우선 적용했습니다.' : '이어하기는 서버 저장이 로컬보다 최신이거나 같은 상태라 클라우드를 적용했습니다.'));
+            if (!options.silent) addLog(bootstrapRemote ? '새 기기 기본 저장 대신 클라우드 세이브를 적용했습니다.' : '이어하기(클라우드 우선)로 서버 저장을 적용했습니다.', 'loot-magic');
+            return strictRemoteResume ? 'pulled-remote-resume-strict' : (bootstrapRemote ? 'pulled-remote-resume-bootstrap' : 'pulled-remote-resume-preferred');
         }
         await pushCloudSave({ touchModifiedAt: false });
         setCloudMessage('로컬 저장이 클라우드보다 최신이라 서버 저장 대신 로컬 진행도를 업로드했습니다.');
@@ -6173,7 +6196,7 @@ async function syncCloudSave(options = {}) {
         let fresh = await ensureCloudSessionFresh(options.reason || '클라우드 저장');
         if (!fresh) return;
         let guardResult = await guardAgainstStaleLocalOverwrite({ automatic: !!options.automatic, silentLog: !!options.automatic });
-        if (guardResult.status === 'pulled-remote') return;
+        if (guardResult.status && guardResult.status.indexOf('pulled-remote') === 0) return;
         await pushCloudSave({ touchModifiedAt: options.automatic !== true });
         setCloudMessage(options.automatic ? '클라우드 자동 저장을 완료했습니다.' : '클라우드 업로드를 완료했습니다.');
         if (!options.automatic) addLog('클라우드 세이브를 업로드했습니다.', 'loot-magic');
@@ -6368,6 +6391,7 @@ function canPushCloudSaveOnPageExit() {
     let remoteCheckedAt = cloudState.lastRemoteCheckedAt || 0;
     if (!cloudState.isLoaded || remoteCheckedAt <= 0) return false;
     if (Date.now() - remoteCheckedAt > CLOUD_SYNC_MIN_INTERVAL_MS) return false;
+    if (knownRemoteStamp > 0 && isLikelyBootstrapLocalSave(game)) return false;
     return localStamp > knownRemoteStamp + CLOUD_STALE_OVERWRITE_GUARD_MS;
 }
 
@@ -6677,7 +6701,10 @@ function init() {
         }, 100);
         requestAnimationFrame(gameLoop);
         if (autoSaveHandle) clearInterval(autoSaveHandle);
-        autoSaveHandle = setInterval(() => saveGame({ skipCloudSync: true }), 15000);
+        autoSaveHandle = setInterval(() => {
+            if (isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
+            saveGame({ skipCloudSync: true });
+        }, 15000);
     }
 }
 
