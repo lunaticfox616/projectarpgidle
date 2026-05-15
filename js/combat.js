@@ -3048,11 +3048,9 @@ function performPlayerAttack(pStats) {
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
             let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
             dmg = Math.floor(dmg * (rollPct / 100));
-            let damageBeforeMitigation = dmg;
             if (hitElement === 'chaos') {
                 let chaosMultiplier = Math.max(0, Number(pStats.chaosDamageMultiplier) || 1);
                 dmg = Math.floor(dmg * chaosMultiplier);
-                damageBeforeMitigation = Math.floor(damageBeforeMitigation * chaosMultiplier);
             }
             if ((targetEnemy.firstHitGuard || 0) > 0 && !targetEnemy.firstHitConsumed) {
                 dmg = Math.floor(dmg * (1 - targetEnemy.firstHitGuard));
