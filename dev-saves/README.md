@@ -16,3 +16,7 @@ fetch('dev-saves/loop9-save.json')
 ```
 
 The app will run the normal `mergeDefaults` path after reload, so omitted runtime fields are filled from `defaultGame`.
+
+## `loop9-supabase.sql`
+
+A Supabase SQL Editor paste-ready upsert for the same Loop 9 save. Replace the placeholder UUID (`00000000-0000-0000-0000-000000000000`) with the target `auth.users.id`, then run the SQL. It writes to `public.cloud_saves(user_id, save_data, updated_at)` and updates the row if it already exists.
