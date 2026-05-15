@@ -1170,6 +1170,21 @@ function getPlayerStats() {
         };
     }
 
+    function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note) {
+        return {
+            title: title,
+            lines: [
+                makeSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0), '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0), '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조 젬', support[statId] || 0, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('성좌 각성', starBlessing[statId] || 0, '%', value => `${value.toFixed(1)}%`),
+                note || `치명타 시 해당 상태 이상 확률: ${Math.floor(critValue)}%`,
+                note ? null : '비치명타는 위 확률을 사용하며, 치명타는 기본적으로 해당 피해 속성의 상태 이상을 보장합니다.'
+            ].filter(Boolean),
+            final: `${Math.max(0, finalValue).toFixed(1)}%`
+        };
+    }
+
     let breakdowns = {
         atk: {
             title: '공격력',
