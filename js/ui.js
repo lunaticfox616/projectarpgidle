@@ -3080,6 +3080,11 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-aps').innerText = pStats.aspd.toFixed(2);
     document.getElementById('ui-crit').innerText = pStats.crit.toFixed(1);
     document.getElementById('ui-crit-dmg').innerText = Math.floor(pStats.critDmg);
+    document.getElementById('ui-ignite-chance').innerText = Math.max(0, pStats.igniteChance || 0).toFixed(1);
+    document.getElementById('ui-chill-chance').innerText = Math.max(0, pStats.chillChance || 0).toFixed(1);
+    document.getElementById('ui-freeze-chance').innerText = Math.max(0, pStats.freezeChance || 0).toFixed(1);
+    document.getElementById('ui-poison-chance').innerText = Math.max(0, pStats.poisonChance || 0).toFixed(1);
+    document.getElementById('ui-bleed-chance').innerText = Math.max(0, pStats.bleedChance || 0).toFixed(1);
     document.getElementById('ui-move-spd').innerText = Math.floor(pStats.moveSpeed);
     document.getElementById('ui-dr').innerText = Math.floor(pStats.dr);
     let armorEl = document.getElementById('ui-armor'); if (armorEl) armorEl.innerText = Math.floor(pStats.armor || 0);
@@ -5757,7 +5762,7 @@ async function linkSocialIdentityProvider(provider) {
     updateCloudSaveUI();
     try {
         let options = getSocialOAuthOptions(provider);
-        let { error } = await client.auth.linkIdentity({ provider, options });
+        let { data, error } = await client.auth.linkIdentity({ provider, options });
         if (error) throw error;
         if (provider === 'kakao') {
             let safeUrl = sanitizeKakaoScopeInUrl(data && data.url);
@@ -5888,16 +5893,14 @@ async function fetchCloudUser() {
 async function restoreCloudSession() {
     let stored = loadStoredCloudSession();
     if (!stored || !stored.access_token) return false;
-    cloudState.session = stored;
-    cloudState.user = stored.user || null;
     if (stored.refresh_token) {
-        let refreshed = await refreshCloudSession('저장된 세션 복원');
-        if (refreshed) return true;
-        return false;
+        cloudState.session = stored;
+        cloudState.user = stored.user || null;
+        return await refreshCloudSession('저장된 세션 복원');
     }
-    let user = await fetchCloudUser();
-    applyCloudSession({ ...stored, user });
-    return true;
+    clearCloudSessionStorage();
+    setCloudMessage('저장된 클라우드 세션에 갱신 토큰이 없습니다. 다시 로그인해주세요.');
+    return false;
 }
 
 async function fetchCloudSaveRecord() {
@@ -5978,6 +5981,7 @@ async function pushCloudSave(options = {}) {
             await fetchCloudSaveRecord();
         } catch (loadError) {
             console.warn('cloud push preflight remote load failed:', loadError);
+            throw new Error('클라우드 상태를 확인할 수 없어 업로드를 중단했습니다: ' + (loadError.message || loadError));
         }
     }
     persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true });
@@ -6028,12 +6032,18 @@ async function reconcileCloudSaveState(options = {}) {
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
     if (preferRemoteOnResume) {
-        applyExternalSave(record.save_data, remoteStamp);
-        setCloudMessage(strictRemoteResume
-            ? '이어하기(클라우드 우선) 정책으로 서버 저장을 강제로 적용했습니다.'
-            : '이어하기는 클라우드 우선 정책으로 서버 저장을 먼저 적용했습니다.');
-        if (!options.silent) addLog('이어하기(클라우드 우선)로 서버 저장을 적용했습니다.', 'loot-magic');
-        return strictRemoteResume ? 'pulled-remote-resume-strict' : 'pulled-remote-resume-preferred';
+        if (remoteStamp >= localStamp - CLOUD_REMOTE_TIME_SKEW_MS) {
+            applyExternalSave(record.save_data, remoteStamp);
+            setCloudMessage(strictRemoteResume
+                ? '이어하기(클라우드 우선) 정책으로 서버 저장을 적용했습니다.'
+                : '이어하기는 서버 저장이 로컬보다 최신이거나 같은 상태라 클라우드를 적용했습니다.');
+            if (!options.silent) addLog('이어하기(클라우드 우선)로 서버 저장을 적용했습니다.', 'loot-magic');
+            return strictRemoteResume ? 'pulled-remote-resume-strict' : 'pulled-remote-resume-preferred';
+        }
+        await pushCloudSave({ touchModifiedAt: false });
+        setCloudMessage('로컬 저장이 클라우드보다 최신이라 서버 저장 대신 로컬 진행도를 업로드했습니다.');
+        if (!options.silent) addLog('로컬 저장이 더 최신이라 클라우드에 업로드했습니다.', 'loot-magic');
+        return 'pushed-local-newer-than-remote-resume';
     }
     if (isLikelyBootstrapLocalSave(game) && remoteStamp > 0) {
         applyExternalSave(record.save_data, remoteStamp);
@@ -6052,10 +6062,10 @@ async function reconcileCloudSaveState(options = {}) {
         setCloudMessage('로컬 저장이 더 최신이라 클라우드에 업로드했습니다.');
         return 'pushed-local';
     }
-    game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, remoteStamp || localStamp);
-    persistLocalSave({ touchModifiedAt: false });
-    setCloudMessage('로컬과 클라우드 저장이 같은 상태입니다.');
-    return 'in-sync';
+    applyExternalSave(record.save_data, remoteStamp);
+    setCloudMessage('로컬과 클라우드 저장 시간이 거의 같아 클라우드 저장을 우선 적용했습니다.');
+    if (!options.silent) addLog('저장 시간 차이가 작아 클라우드 세이브를 우선 적용했습니다.', 'loot-magic');
+    return 'pulled-remote-within-skew';
 }
 
 let cloudSyncTimer = null;
@@ -6248,7 +6258,7 @@ async function cloudLogin(options = {}) {
             caption: 'Syncing Save Data',
             progress: 58
         });
-        await reconcileCloudSaveState({ createRemoteFromLocal: false });
+        await reconcileCloudSaveState({ createRemoteFromLocal: true });
         addLog('클라우드 세이브 계정에 로그인했습니다.', 'loot-magic');
         if (options.enterGame) await enterGameWorld();
     } catch (error) {
@@ -6304,6 +6314,11 @@ function pushCloudSaveOnPageExit(reason) {
     if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
     try {
         persistLocalSave({ touchModifiedAt: true });
+        ensureSaveMeta();
+        let optimisticSyncAt = Date.now();
+        game.saveMeta.lastCloudSyncAt = optimisticSyncAt;
+        cloudState.lastRemoteUpdatedAt = optimisticSyncAt;
+        persistLocalSave({ touchModifiedAt: false });
         let payload = JSON.parse(JSON.stringify(game));
         let body = JSON.stringify({ user_id: cloudState.user.id, save_data: payload });
         let headers = {
@@ -6317,13 +6332,8 @@ function pushCloudSaveOnPageExit(reason) {
             headers,
             body,
             keepalive: true
-        }).then(() => {
-            ensureSaveMeta();
-            game.saveMeta.lastCloudSyncAt = Date.now();
-            cloudState.lastRemoteUpdatedAt = game.saveMeta.lastCloudSyncAt;
-            persistLocalSave({ touchModifiedAt: false });
         }).catch(error => console.warn(`cloud save on ${reason || 'page exit'} failed:`, error));
-        cloudState.lastSyncAttemptAt = Date.now();
+        cloudState.lastSyncAttemptAt = optimisticSyncAt;
         setCloudMessage('페이지 종료 전 클라우드 저장을 시도했습니다.');
         return true;
     } catch (error) {

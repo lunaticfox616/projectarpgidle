@@ -800,7 +800,15 @@ function getPlayerStats() {
     let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
     let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg;
     let dotPctDmg = gearBase.dotPctDmg + gearExplicit.dotPctDmg + passive.dotPctDmg + season.dotPctDmg + ascend.dotPctDmg + support.dotPctDmg + reward.dotPctDmg;
-    let finalPoisonChance = gearBase.poisonChance + gearExplicit.poisonChance + passive.poisonChance + season.poisonChance + ascend.poisonChance + support.poisonChance + reward.poisonChance;
+    function sumAilmentChanceStat(statId) {
+        return (gearBase[statId] || 0) + (gearExplicit[statId] || 0) + (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (support[statId] || 0) + (reward[statId] || 0) + (starBlessing[statId] || 0);
+    }
+    let finalIgniteChance = sumAilmentChanceStat('igniteChance');
+    let finalChillChance = sumAilmentChanceStat('chillChance');
+    let finalFreezeChance = sumAilmentChanceStat('freezeChance');
+    let finalPoisonChance = sumAilmentChanceStat('poisonChance');
+    let finalBleedChance = sumAilmentChanceStat('bleedChance');
+    let ailmentCritChance = { ignite: 100, chill: 100, freeze: 100, poison: 100, bleed: 100 };
     let isSpellSkill = Array.isArray(skill.tags) && skill.tags.includes('spell');
     let isDotSkill = Array.isArray(skill.tags) && skill.tags.includes('dot');
     let spellFlatDmg = 0;
@@ -1104,6 +1112,21 @@ function getPlayerStats() {
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier;
 
+    function makeAilmentChanceBreakdown(title, statId, finalValue, critValue) {
+        return {
+            title: title,
+            lines: [
+                makeSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0), '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0), '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조 젬', support[statId] || 0, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('성좌 각성', starBlessing[statId] || 0, '%', value => `${value.toFixed(1)}%`),
+                `치명타 시 해당 상태 이상 확률: ${Math.floor(critValue)}%`,
+                '비치명타는 위 확률을 사용하며, 치명타는 기본적으로 해당 피해 속성의 상태 이상을 보장합니다.'
+            ].filter(Boolean),
+            final: `${Math.max(0, finalValue).toFixed(1)}%`
+        };
+    }
+
     let breakdowns = {
         atk: {
             title: '공격력',
@@ -1329,6 +1352,11 @@ function getPlayerStats() {
             ],
             final: `${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
         },
+        igniteChance: makeAilmentChanceBreakdown('점화 확률', 'igniteChance', finalIgniteChance, ailmentCritChance.ignite),
+        chillChance: makeAilmentChanceBreakdown('냉각 확률', 'chillChance', finalChillChance, ailmentCritChance.chill),
+        freezeChance: makeAilmentChanceBreakdown('동결 확률', 'freezeChance', finalFreezeChance, ailmentCritChance.freeze),
+        poisonChance: makeAilmentChanceBreakdown('중독 확률', 'poisonChance', finalPoisonChance, ailmentCritChance.poison),
+        bleedChance: makeAilmentChanceBreakdown('출혈 확률', 'bleedChance', finalBleedChance, ailmentCritChance.bleed),
         dps: {
             title: 'DPS',
             lines: [
@@ -1386,7 +1414,12 @@ function getPlayerStats() {
         resChaos: finalResChaos,
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
+        igniteChance: finalIgniteChance,
+        chillChance: finalChillChance,
+        freezeChance: finalFreezeChance,
         poisonChance: finalPoisonChance,
+        bleedChance: finalBleedChance,
+        ailmentCritChance: ailmentCritChance,
         damageScales: damageScales,
         randomElementDamagePct: randomElementDamagePct,
         armor: finalArmor,
@@ -1887,35 +1920,34 @@ function getPlayerDamageAilmentDps(ail, pStats) {
 function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
     if (!enemy || enemy.hp <= 0) return;
     let ele = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
-    let type = getAilmentTypeFromElement(ele);
-    let tryProc = isCrit ? 1 : getPlayerAilmentChance(pStats, type);
-    if (Math.random() >= tryProc) return;
-    let resKey = 'ailRes' + type.charAt(0).toUpperCase() + type.slice(1);
-    let resistChance = Math.max(0, Math.min(0.95, (enemy[resKey] || 0) / 100));
-    if (Math.random() < resistChance) return;
+    let primaryType = getAilmentTypeFromElement(ele);
     let sourceHitDamage = Math.max(0, Math.floor(Number(hitDamage) || 0));
     let hitRatio = Math.max(0.001, Math.min(0.35, sourceHitDamage / Math.max(1, enemy.maxHp || 1)));
     let hitPower = Math.sqrt(Math.max(1, sourceHitDamage)) * 0.01;
-    let damageAilment = isDamageAilmentType(type);
-    let power = damageAilment
-        ? Math.max(0.05, Math.min(1.5, hitPower))
-        : Math.max(0.05, Math.min(1.5, hitPower + (hitRatio * 1.8)));
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
-    let row = enemy.ailments.find(a => a.type === type);
-    let dur = damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10));
-    let payload = { type: type, time: dur, power: power };
-    if (damageAilment) payload.sourceHitDamage = sourceHitDamage;
-    if (row) {
-        row.time = Math.max(row.time || 0, dur);
-        row.power = Math.max(row.power || 0, power);
-        if (damageAilment) row.sourceHitDamage = Math.max(getStoredAilmentHitDamage(row), sourceHitDamage);
-    } else enemy.ailments.push(payload);
-    if (type === 'chill' && hitRatio >= 0.1) {
-        let fr = enemy.ailments.find(a => a.type === 'freeze');
-        let freezeDur = 0.6 + hitRatio * 3.4;
-        if (fr) fr.time = Math.max(fr.time || 0, freezeDur);
-        else enemy.ailments.push({ type: 'freeze', time: freezeDur, power: Math.max(0.2, power * 0.85) });
+    function applyAilmentType(type, forceChance) {
+        let tryProc = isCrit ? 1 : (Number.isFinite(forceChance) ? forceChance : getPlayerAilmentChance(pStats, type));
+        if (Math.random() >= tryProc) return false;
+        let resKey = 'ailRes' + type.charAt(0).toUpperCase() + type.slice(1);
+        let resistChance = Math.max(0, Math.min(0.95, (enemy[resKey] || 0) / 100));
+        if (Math.random() < resistChance) return false;
+        let damageAilment = isDamageAilmentType(type);
+        let power = damageAilment
+            ? Math.max(0.05, Math.min(1.5, hitPower))
+            : Math.max(0.05, Math.min(1.5, hitPower + (hitRatio * 1.8)));
+        let row = enemy.ailments.find(a => a.type === type);
+        let dur = damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10));
+        let payload = { type: type, time: dur, power: power };
+        if (damageAilment) payload.sourceHitDamage = sourceHitDamage;
+        if (row) {
+            row.time = Math.max(row.time || 0, dur);
+            row.power = Math.max(row.power || 0, power);
+            if (damageAilment) row.sourceHitDamage = Math.max(getStoredAilmentHitDamage(row), sourceHitDamage);
+        } else enemy.ailments.push(payload);
+        return true;
     }
+    applyAilmentType(primaryType);
+    if (ele === 'cold') applyAilmentType('freeze');
 }
 
 function tickEnemyAilments(pStats, dt) {

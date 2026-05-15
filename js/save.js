@@ -60,10 +60,12 @@ function saveGame(options = {}) {
 
 let importantSaveTimer = null;
 function queueImportantSave(delayMs) {
+    if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return;
     let delay = Math.max(0, Number.isFinite(delayMs) ? delayMs : 350);
     if (importantSaveTimer) clearTimeout(importantSaveTimer);
     importantSaveTimer = setTimeout(() => {
         importantSaveTimer = null;
+        if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return;
         saveGame({ skipCloudSync: true });
     }, delay);
 }
