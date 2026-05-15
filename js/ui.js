@@ -5971,7 +5971,7 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
-    if (remoteStamp > localStamp + CLOUD_REMOTE_TIME_SKEW_MS) {
+    if (remoteStamp > localStamp + CLOUD_STALE_OVERWRITE_GUARD_MS) {
         applyExternalSave(record.save_data, remoteStamp);
         setCloudMessage(options.automatic ? '클라우드 저장이 더 최신이라 로컬에 먼저 반영했습니다.' : '클라우드 저장이 더 최신이라 덮어쓰기를 막고 자동으로 불러왔습니다.');
         if (!options.silentLog) addLog('클라우드가 더 최신이라 자동으로 불러왔습니다.', 'loot-magic');

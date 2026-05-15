@@ -16,15 +16,17 @@ function applyLeechSoftcap(rawLeech) {
     return LEECH_SOFTCAP_START + midSpan * LEECH_SOFTCAP_MID_EFF + highSpan * LEECH_SOFTCAP_HIGH_EFF;
 }
 
-function getLeechCaps(pStats) {
+function getLeechCaps(pStats, target) {
     let maxHp = Math.max(1, Number(pStats && pStats.maxHp) || 1);
+    let maxEnergyShield = Math.max(0, Number(pStats && pStats.energyShield) || 0);
+    let leechPool = target === 'energyShield' ? Math.max(1, maxEnergyShield) : maxHp;
     let instancePct = Math.max(0, LEECH_BASE_INSTANCE_CAP_PCT + (Number(pStats && pStats.leechInstanceCap) || 0));
     let totalPct = Math.max(0, LEECH_BASE_TOTAL_CAP_PCT + (Number(pStats && pStats.leechTotalCap) || 0));
     let ratePct = Math.max(0, LEECH_BASE_RATE_CAP_PCT + (Number(pStats && pStats.leechRateCap) || 0));
     return {
-        instanceCap: maxHp * instancePct / 100,
-        totalCap: maxHp * totalPct / 100,
-        rateCap: maxHp * ratePct / 100,
+        instanceCap: leechPool * instancePct / 100,
+        totalCap: leechPool * totalPct / 100,
+        rateCap: leechPool * ratePct / 100,
         instancePct: instancePct,
         totalPct: totalPct,
         ratePct: ratePct
@@ -47,7 +49,7 @@ function getLeechOutstandingTotal() {
 function addPlayerLeechInstance(rawAmount, pStats, target) {
     let amount = Math.max(0, Number(rawAmount) || 0);
     if (amount <= 0) return 0;
-    let caps = getLeechCaps(pStats);
+    let caps = getLeechCaps(pStats, target === 'energyShield' ? 'energyShield' : 'life');
     if (caps.instanceCap <= 0 || caps.totalCap <= 0 || caps.rateCap <= 0) return 0;
     let instances = getActiveLeechInstances();
     let outstanding = instances.reduce((sum, inst) => sum + Math.max(0, inst.remaining || 0), 0);
@@ -896,10 +898,17 @@ function getPlayerStats() {
     let finalMaxResF = Math.min(90, 75 + gearBase.maxResF + gearExplicit.maxResF + passive.maxResF + season.maxResF + ascend.maxResF + reward.maxResF);
     let finalMaxResC = Math.min(90, 75 + gearBase.maxResC + gearExplicit.maxResC + passive.maxResC + season.maxResC + ascend.maxResC + reward.maxResC);
     let finalMaxResL = Math.min(90, 75 + gearBase.maxResL + gearExplicit.maxResL + passive.maxResL + season.maxResL + ascend.maxResL + reward.maxResL);
-    let finalResF = Math.min(finalMaxResF, gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + reward.resF - resistPenalty);
-    let finalResC = Math.min(finalMaxResC, gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC - resistPenalty);
-    let finalResL = Math.min(finalMaxResL, gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL - resistPenalty);
-    let finalResChaos = Math.min(75, gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos - resistPenalty);
+    let rawResF = gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + reward.resF - resistPenalty;
+    let rawResC = gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC - resistPenalty;
+    let rawResL = gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL - resistPenalty;
+    let rawResChaos = gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos - resistPenalty;
+    let finalResF = Math.min(finalMaxResF, rawResF);
+    let finalResC = Math.min(finalMaxResC, rawResC);
+    let finalResL = Math.min(finalMaxResL, rawResL);
+    let warlockElementalOvercapToChaos = (game.ascendClass === 'warlock' && hasKeystone('wlk4'))
+        ? (Math.max(0, rawResF - finalMaxResF) + Math.max(0, rawResC - finalMaxResC) + Math.max(0, rawResL - finalMaxResL)) * 0.25
+        : 0;
+    let finalResChaos = Math.min(75, rawResChaos + warlockElementalOvercapToChaos);
     let hpScaleRatio = Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
     let hpFlatBonus = Math.floor(finalBaseDmg * hpScaleRatio);
     finalBaseDmg = Math.floor(finalBaseDmg + hpFlatBonus);
@@ -908,6 +917,10 @@ function getPlayerStats() {
     let dotMultiplier = skill.dotMultiplier || 1;
     let dotStatMultiplier = 1 + Math.max(0, dotPctDmg) / 100;
     let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
+    let instantDamageMultiplier = 1;
+    let chaosDamageMultiplier = 1;
+    let dotTickIntervalMultiplier = 1;
+    let dotDurationMultiplier = 1;
     finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus);
     let damageScales = {
         hpFlatBonus: hpFlatBonus,
@@ -1057,8 +1070,10 @@ function getPlayerStats() {
         }
         if (hasKeystone('e7')) finalBaseDmg = Math.floor(finalBaseDmg * 1.05);
     } else if (game.ascendClass === 'warlock') {
-        if (hasKeystone('wlk1')) finalBaseDmg = Math.floor(finalBaseDmg * 1.12);
-        if (hasKeystone('wlk2')) finalBaseDmg = Math.floor(finalBaseDmg * 1.2);
+        if (hasKeystone('wlk2')) {
+            totalDotDamageMultiplier *= 1.10;
+            instantDamageMultiplier *= 0.90;
+        }
         if (hasKeystone('wlk3')) {
             finalRegen = 0;
             finalEnergyShieldRegenRate = 0;
@@ -1066,13 +1081,18 @@ function getPlayerStats() {
         if (hasKeystone('wlk6')) {
             finalResPen += 43;
             finalCrit = 0;
+            finalPoisonChance += 25;
         }
-        if (hasKeystone('wlk4')) finalBaseDmg = Math.floor(finalBaseDmg * 1.1);
         if (hasKeystone('wlk8')) {
-            finalBaseDmg = Math.floor(finalBaseDmg * 1.25);
+            chaosDamageMultiplier *= 1.25;
             finalLeech *= 0.5;
+            finalRegen *= 0.5;
+            finalPoisonChance += 25;
         }
-        if (hasKeystone('wlk5')) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+        if (hasKeystone('wlk5')) {
+            dotTickIntervalMultiplier /= 1.33;
+            dotDurationMultiplier *= 0.5;
+        }
         if (hasKeystone('wlk7')) {
             if ((game.playerEnergyShield || 0) <= (finalEnergyShield * 0.5)) finalBaseDmg = Math.floor(finalBaseDmg * 1.2);
             finalDr = Math.max(-40, finalDr - 12);
@@ -1117,6 +1137,14 @@ function getPlayerStats() {
         if (hasKeystone('iq4')) finalResPen = 0;
     }
 
+    damageScales.dot = dotMultiplier;
+    damageScales.dotStat = dotStatMultiplier;
+    damageScales.instantDamageMultiplier = instantDamageMultiplier;
+    damageScales.chaosDamageMultiplier = chaosDamageMultiplier;
+    damageScales.dotTickIntervalMultiplier = dotTickIntervalMultiplier;
+    damageScales.dotDurationMultiplier = dotDurationMultiplier;
+    damageScales.warlockElementalOvercapToChaos = warlockElementalOvercapToChaos;
+
     critChance = Math.max(0, Math.min(1, finalCrit / 100));
     critMulti = finalCritDmg / 100;
     avgHit = finalBaseDmg * (1 - critChance) + finalBaseDmg * critChance * critMulti;
@@ -1124,7 +1152,23 @@ function getPlayerStats() {
 
     let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
-    let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier;
+    let dpsDamageMultiplier = instantDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
+    let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier;
+
+    function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note) {
+        return {
+            title: title,
+            lines: [
+                makeSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0), '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0), '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조 젬', support[statId] || 0, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('성좌 각성', starBlessing[statId] || 0, '%', value => `${value.toFixed(1)}%`),
+                note || `치명타 시 해당 상태 이상 확률: ${Math.floor(critValue)}%`,
+                note ? null : '비치명타는 위 확률을 사용하며, 치명타는 기본적으로 해당 피해 속성의 상태 이상을 보장합니다.'
+            ].filter(Boolean),
+            final: `${Math.max(0, finalValue).toFixed(1)}%`
+        };
+    }
 
     function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note) {
         return {
@@ -1158,6 +1202,8 @@ function getPlayerStats() {
                 (skill.fireResDmgScale || 0) > 0 ? `화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (화염 저항 ${Math.floor(finalResF)}%)` : null,
                 (skill.dotMultiplier || 1) !== 1 ? `스킬 지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null,
                 dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null,
+                instantDamageMultiplier !== 1 ? `즉발 피해 배율 ${instantDamageMultiplier.toFixed(2)}x` : null,
+                chaosDamageMultiplier !== 1 ? `카오스 피해 배율 ${chaosDamageMultiplier.toFixed(2)}x` : null,
                 skill.convertedToChaos ? '워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용' : null,
                 `피해 범위 ${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
             ].filter(Boolean),
@@ -1246,6 +1292,7 @@ function getPlayerStats() {
                 makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`),
                 `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
+                (game.ascendClass === 'warlock' && hasKeystone('wlk3')) ? '금단 대가: 흡혈 인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.' : null,
                 `기본 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}% · 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}% · 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
                 `추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p · 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p · 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
                 `적용 전 ${formatValue('leech', rawLeech)}% → 적용 후 ${formatValue('leech', finalLeech)}%`
@@ -1355,7 +1402,8 @@ function getPlayerStats() {
             lines: [
                 makeSourceLine('장비', gearBase.resChaos + gearExplicit.resChaos, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('캠페인 패널티', -resistPenalty, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('캠페인 패널티', -resistPenalty, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('암흑 치환', warlockElementalOvercapToChaos, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
             final: `${Math.floor(finalResChaos)}%`
         },
@@ -1429,6 +1477,10 @@ function getPlayerStats() {
         resChaos: finalResChaos,
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
+        instantDamageMultiplier: instantDamageMultiplier,
+        chaosDamageMultiplier: chaosDamageMultiplier,
+        dotTickIntervalMultiplier: dotTickIntervalMultiplier,
+        dotDurationMultiplier: dotDurationMultiplier,
         igniteChance: finalIgniteChance,
         chillChance: finalChillChance,
         freezeChance: finalFreezeChance,
@@ -1862,11 +1914,14 @@ function applyEnemyDotFromHit(enemy, hitDamage, pStats) {
     let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
     let baseTick = Math.max(1, Math.floor(Math.max(1, hitDamage) * DOT_TICK_FROM_HIT_RATIO * dotDamageScale));
     let nextRawTickDamage = Math.max(1, Math.floor(baseTick * stackMultiplier));
+    let tickInterval = DOT_TICK_INTERVAL * Math.max(0.05, (pStats && Number.isFinite(pStats.dotTickIntervalMultiplier)) ? pStats.dotTickIntervalMultiplier : 1);
+    let duration = DOT_EFFECT_DURATION * Math.max(0.05, (pStats && Number.isFinite(pStats.dotDurationMultiplier)) ? pStats.dotDurationMultiplier : 1);
     enemy.dotState = {
         stacks: nextStacks,
         rawTickDamage: Math.max(nextRawTickDamage, (prev && prev.rawTickDamage) || 0),
-        tickTimer: (prev && Number.isFinite(prev.tickTimer)) ? Math.min(prev.tickTimer, DOT_TICK_INTERVAL) : DOT_TICK_INTERVAL,
-        timeLeft: DOT_EFFECT_DURATION,
+        tickInterval: tickInterval,
+        tickTimer: (prev && Number.isFinite(prev.tickTimer)) ? Math.min(prev.tickTimer, tickInterval) : tickInterval,
+        timeLeft: duration,
         ele: (pStats && pStats.sSkill && pStats.sSkill.ele) || 'chaos',
         skillName: game.activeSkill || 'dot'
     };
@@ -1957,7 +2012,8 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
             ? Math.max(0.05, Math.min(1.5, hitPower))
             : Math.max(0.05, Math.min(1.5, hitPower + (hitRatio * 1.8)));
         let row = enemy.ailments.find(a => a.type === type);
-        let dur = damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10));
+        let durationMul = damageAilment ? Math.max(0.05, (pStats && Number.isFinite(pStats.dotDurationMultiplier)) ? pStats.dotDurationMultiplier : 1) : 1;
+        let dur = (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10))) * durationMul;
         let payload = { type: type, time: dur, power: power };
         if (damageAilment) payload.sourceHitDamage = sourceHitDamage;
         if (row) {
@@ -2011,9 +2067,10 @@ function tickEnemyDotEffects(pStats, dt) {
         let dotState = (enemy.dotState && typeof enemy.dotState === 'object') ? enemy.dotState : null;
         if (!dotState) return;
         dotState.timeLeft = Math.max(0, (dotState.timeLeft || 0) - dt);
-        dotState.tickTimer = (dotState.tickTimer || DOT_TICK_INTERVAL) - dt;
+        let tickInterval = Math.max(0.02, Number(dotState.tickInterval) || DOT_TICK_INTERVAL);
+        dotState.tickTimer = (dotState.tickTimer || tickInterval) - dt;
         while (dotState.tickTimer <= 0 && dotState.timeLeft > 0 && enemy.hp > 0) {
-            dotState.tickTimer += DOT_TICK_INTERVAL;
+            dotState.tickTimer += tickInterval;
             let dotEle = dotState.ele || 'chaos';
             let enemyRes = getEffectiveEnemyMitigation(dotEle, zoneTier, enemy, pStats);
             let dotDmg = Math.max(1, Math.floor((dotState.rawTickDamage || 1) * (1 - (enemyRes / 100))));
@@ -2991,6 +3048,12 @@ function performPlayerAttack(pStats) {
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
             let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
             dmg = Math.floor(dmg * (rollPct / 100));
+            let damageBeforeMitigation = dmg;
+            if (hitElement === 'chaos') {
+                let chaosMultiplier = Math.max(0, Number(pStats.chaosDamageMultiplier) || 1);
+                dmg = Math.floor(dmg * chaosMultiplier);
+                damageBeforeMitigation = Math.floor(damageBeforeMitigation * chaosMultiplier);
+            }
             if ((targetEnemy.firstHitGuard || 0) > 0 && !targetEnemy.firstHitConsumed) {
                 dmg = Math.floor(dmg * (1 - targetEnemy.firstHitGuard));
                 targetEnemy.firstHitConsumed = true;
@@ -2998,7 +3061,7 @@ function performPlayerAttack(pStats) {
             let burstHits = Math.max(0, (targetEnemy.recentHitsTaken || 0) - 2);
             let hitGuard = (targetEnemy.hitRateGuard || 0) * Math.min(5, burstHits);
             if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
-            let damageBeforeMitigation = dmg;
+            dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
                 if (game.settings.showCombatLog) addLog(`🌀 ${targetEnemy.name} 회피`, 'attack-monster', { noToast: true });
                 return;
