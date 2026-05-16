@@ -5467,7 +5467,7 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
         return false;
     }
     if (!canFuseUnique(a) || !canFuseUnique(b)) return addLog('고유 주얼은 기본적으로 융합할 수 없습니다.', 'attack-monster');
-    if (a.isVoid || b.isVoid) {
+    if (a.isVoid || b.isVoid || a.uniqueId === 'uj_void' || b.uniqueId === 'uj_void') {
         game.currencies.jewelShard -= fusionCost;
         let stats = [...aStats, ...bStats];
         let seen = new Set();

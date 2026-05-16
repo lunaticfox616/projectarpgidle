@@ -59,6 +59,15 @@ function pickEquipSlot(item, preferredSlot) {
         if (!game.equipment['장갑2']) return '장갑2';
         return null;
     }
+    if (item.slot === '무기') {
+        let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+        if (warriorDualTrain && !preferredSlot) {
+            if (game.equipment['무기'] && !game.equipment['목걸이']) return '목걸이';
+            if (!game.equipment['무기']) return '무기';
+            if (!game.equipment['목걸이']) return '목걸이';
+            return null;
+        }
+    }
     return candidates[0];
 }
 

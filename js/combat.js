@@ -1574,16 +1574,6 @@ function getPlayerStats() {
         }
     };
 
-    if (activeUniqueIds.has('uj_condensed_curse')) {
-        let enemyDebuffs = game.enemyConditionDebuffs || {};
-        let curseCount = 0;
-        Object.keys(enemyDebuffs).forEach(id => {
-            let list = Array.isArray(enemyDebuffs[id]) ? enemyDebuffs[id] : [];
-            list.forEach(row => { if (row && row.type === 'curse' && (row.expiresAt || 0) > Date.now()) curseCount++; });
-        });
-        if (curseCount > 0) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(1.5, curseCount * 0.1)));
-    }
-    let uniqueClosedEyes = activeUniqueIds.has('uj_closed_eyes');
     let enemy = {
         baseDmg: finalBaseDmg,
         maxHp: finalMaxHp,
@@ -1907,16 +1897,6 @@ function createEnemy(zone, marker, groupIndex) {
     if (trait && trait.hpMul) hp = Math.floor(hp * trait.hpMul);
     let isSky = (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
     if (isSky) name = `☁️ ${name}`;
-    if (activeUniqueIds.has('uj_condensed_curse')) {
-        let enemyDebuffs = game.enemyConditionDebuffs || {};
-        let curseCount = 0;
-        Object.keys(enemyDebuffs).forEach(id => {
-            let list = Array.isArray(enemyDebuffs[id]) ? enemyDebuffs[id] : [];
-            list.forEach(row => { if (row && row.type === 'curse' && (row.expiresAt || 0) > Date.now()) curseCount++; });
-        });
-        if (curseCount > 0) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(1.5, curseCount * 0.1)));
-    }
-    let uniqueClosedEyes = activeUniqueIds.has('uj_closed_eyes');
     let enemy = {
         id: game.nextEnemyId++,
         hp: hp,
