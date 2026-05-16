@@ -2659,6 +2659,28 @@ function toggleCombatLogCollapse() {
     applyPanelLayoutSettings();
 }
 
+
+function getAilmentDisplayLabel(type) {
+    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈', flameDecay: '화염 부패' };
+    return labels[type] || type || '알 수 없음';
+}
+
+function isPlayerDamageAilmentSource(sourceName) {
+    return ['점화', '중독', '출혈'].includes(sourceName || '');
+}
+
+function snapshotPlayerAilmentsForDeathLog() {
+    return (Array.isArray(game.playerAilments) ? game.playerAilments : [])
+        .filter(ail => ail && (ail.time || 0) > 0)
+        .map(ail => ({
+            type: ail.type || 'unknown',
+            label: getAilmentDisplayLabel(ail.type),
+            time: Math.max(0, Math.ceil(ail.time || 0)),
+            power: Math.max(0, Number(ail.power) || 0),
+            sourceHitDamage: Math.max(0, Math.floor(getStoredAilmentHitDamage(ail)))
+        }));
+}
+
 function closeDeathOverlay() {
     let overlay = document.getElementById('death-overlay');
     if (overlay) overlay.classList.remove('active');
@@ -2671,12 +2693,17 @@ function openDeathOverlay(log) {
     let overlay = document.getElementById('death-overlay');
     if (!overlay) return;
     let damageSummary = Array.isArray(log.damageSummary) ? log.damageSummary.filter(entry => entry && entry.value > 0).sort((a, b) => b.value - a.value) : [];
+    let ailmentDamageSummary = Array.isArray(log.ailmentDamageSummary) ? log.ailmentDamageSummary.filter(entry => entry && entry.value > 0).sort((a, b) => b.value - a.value) : [];
+    let activeAilments = Array.isArray(log.activeAilments) ? log.activeAilments.filter(entry => entry && entry.type) : [];
     let totalDamage = damageSummary.reduce((sum, entry) => sum + Math.max(0, Math.floor(entry.value || 0)), 0);
     document.getElementById('deathlog-title').innerText = `${getDamageElementLabel(log.primaryElement)} 피해로 쓰러졌습니다.`;
-    document.getElementById('deathlog-body').innerText = `${log.reasonText}\n경험치를 ${log.expLost} 잃었습니다.`;
-    document.getElementById('deathlog-damage-list').innerHTML = damageSummary.length > 0 ? damageSummary.map(entry => {
+    let ailmentText = activeAilments.length > 0
+        ? activeAilments.map(ail => `${ail.label || getAilmentDisplayLabel(ail.type)} ${Math.ceil(Math.max(0, ail.time || 0))}초`).join(' · ')
+        : '없음';
+    document.getElementById('deathlog-body').innerText = `${log.reasonText}\n경험치를 ${log.expLost} 잃었습니다.\n죽기 전 상태이상: ${ailmentText}`;
+    let renderDamageRows = (rows, totalForRatio) => rows.map(entry => {
         let value = Math.max(0, Math.floor(entry.value || 0));
-        let ratio = totalDamage > 0 ? (value / totalDamage) * 100 : 0;
+        let ratio = totalForRatio > 0 ? (value / totalForRatio) * 100 : 0;
         let ratioText = ratio >= 10 ? `${Math.round(ratio)}%` : `${ratio.toFixed(1)}%`;
         let barColor = getElementColor(entry.ele);
         return `
@@ -2690,7 +2717,23 @@ function openDeathOverlay(log) {
                 </div>
             </div>
         `;
-    }).join('') : `<div class="deathlog-empty">최근 3초 동안 집계된 피해 기록이 없습니다.</div>`;
+    }).join('');
+    let html = damageSummary.length > 0 ? renderDamageRows(damageSummary, totalDamage) : `<div class="deathlog-empty">최근 3초 동안 집계된 피해 기록이 없습니다.</div>`;
+    if (ailmentDamageSummary.length > 0) {
+        let ailTotal = ailmentDamageSummary.reduce((sum, entry) => sum + Math.max(0, Math.floor(entry.value || 0)), 0);
+        html += `<div class="deathlog-subtitle" style="margin-top:10px;">상태이상 피해 요약</div>${renderDamageRows(ailmentDamageSummary, ailTotal)}`;
+    }
+    if (activeAilments.length > 0) {
+        html += `<div class="deathlog-subtitle" style="margin-top:10px;">죽기 전 걸린 상태이상</div>` + activeAilments.map(ail => {
+            let hitText = (ail.sourceHitDamage || 0) > 0 ? ` · 원천 피해 ${Math.floor(ail.sourceHitDamage)}` : '';
+            let labelText = ail.label || getAilmentDisplayLabel(ail.type);
+            let safeLabel = typeof escapeHTML === 'function'
+                ? escapeHTML(labelText)
+                : String(labelText).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+            return `<div class="deathlog-line"><div class="deathlog-line-top"><span>${safeLabel}</span><strong class="deathlog-value">${Math.ceil(Math.max(0, ail.time || 0))}초<span class="deathlog-ratio">강도 ${(Number(ail.power || 0)).toFixed(2)}${hitText}</span></strong></div></div>`;
+        }).join('');
+    }
+    document.getElementById('deathlog-damage-list').innerHTML = html;
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     overlay.classList.add('active');
     deathOverlayActive = true;
@@ -2719,12 +2762,14 @@ function recordIncomingDamage(ele, amount, sourceName) {
     });
 }
 
-function buildDeathDamageSummary(windowMs) {
+function buildDeathDamageSummary(windowMs, opts) {
     let now = Date.now();
     pruneRecentDamageEvents(now);
+    let options = opts || {};
     let totals = { phys: 0, fire: 0, cold: 0, light: 0, chaos: 0, other: 0 };
     (game.recentDamageEvents || []).forEach(entry => {
         if (!entry || entry.at < now - (windowMs || 3000)) return;
+        if (options.ailmentOnly && !isPlayerDamageAilmentSource(entry.source)) return;
         let key = normalizeDamageElementKey(entry.ele);
         totals[key] += Math.max(0, Math.floor(entry.amount || 0));
     });
@@ -2742,10 +2787,10 @@ function getActRewardChoices(zoneId) {
     if (!config) return [];
     return config.choices.map(choice => {
         let enriched = { ...choice };
-        if (choice.kind === 'skill' && (game.skills || []).includes(choice.skill)) {
+        if (choice.kind === 'skill' && hasSkillGemOwned(choice.skill)) {
             enriched.desc = `${choice.desc} 이미 보유 중이면 패시브 포인트 +${choice.fallbackValue || 1}로 바뀝니다.`;
         }
-        if (choice.kind === 'support' && (game.supports || []).includes(choice.gem)) {
+        if (choice.kind === 'support' && hasSupportGemOwned(choice.gem)) {
             enriched.desc = `${choice.desc} 이미 보유 중이면 ${ORB_DB[choice.currency || 'augment'].name} ${(choice.fallbackValue || 1)}개로 바뀝니다.`;
         }
         return enriched;
@@ -2833,7 +2878,7 @@ function grantActRewardEntry(zoneId, choice) {
         return;
     }
     if (choice.kind === 'skill') {
-        if (!(game.skills || []).includes(choice.skill)) {
+        if (!hasSkillGemOwned(choice.skill)) {
             game.skills.push(choice.skill);
             game.gemData[choice.skill] = game.gemData[choice.skill] || { level: 1, exp: 0 };
             game.noti.skills = true;
@@ -2845,7 +2890,7 @@ function grantActRewardEntry(zoneId, choice) {
         return;
     }
     if (choice.kind === 'support') {
-        if (!(game.supports || []).includes(choice.gem)) {
+        if (!hasSupportGemOwned(choice.gem)) {
             game.supports.push(choice.gem);
             game.supportGemData[choice.gem] = game.supportGemData[choice.gem] || { level: 1, exp: 0 };
             game.noti.skills = true;
@@ -4753,8 +4798,13 @@ function getImmutableItemSpecialStats(item) {
     let stat = item.encroached.chosen;
     return [{ ...stat, statName: `[잠식] ${stat.statName || getStatName(stat.id)}`, encroachedFinal: true }];
 }
+function getItemExplicitOptionCount(item) {
+    if (!item) return 0;
+    return (Array.isArray(item.stats) ? item.stats.length : 0) + (item.chaosInfusion ? 1 : 0);
+}
 function getItemOccupiedExplicitModIds(item) {
     let ids = new Set((item && Array.isArray(item.stats) ? item.stats : []).map(stat => stat && stat.id).filter(Boolean));
+    if (item && item.chaosInfusion && item.chaosInfusion.id) ids.add(item.chaosInfusion.id);
     getImmutableItemSpecialStats(item).forEach(stat => {
         if (stat && stat.id) ids.add(stat.id);
     });
@@ -4837,39 +4887,98 @@ function updateItemName(item) {
     else if (item.rarity === 'rare') item.name = `희귀한 ${item.baseName}`;
 }
 
-function rerollExplicitMods(item, rarity, zoneTier) {
+function rerollChaosInfusionForItem(item, previousInfusion) {
+    if (!item || !previousInfusion) return null;
+    let pool = getChaosInfuserOptionsForItem(item);
+    if (pool.length === 0) {
+        item.chaosInfusion = null;
+        return null;
+    }
+    let option = rndChoice(pool);
+    item.chaosInfusion = rollChaosInfusionOption(option);
+    return item.chaosInfusion;
+}
+
+function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let maxTier = Math.max(1, zoneTier);
+    let rerollChaosInfusion = !!(options && options.rerollChaosInfusion);
+    let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
+    if (rerollChaosInfusion) item.chaosInfusion = null;
+    let reservedInfusionCount = previousInfusion ? 1 : 0;
     let locked = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
     item.stats = locked.slice();
     let count = 0;
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
     if (rarity === 'rare') count = 4 + Math.floor(Math.random() * 2);
-    count = Math.max(0, count - locked.length);
+    count = Math.max(0, count - getItemExplicitOptionCount(item) - reservedInfusionCount);
     let mods = pickRandomMods(getAvailableMods(item), count);
     mods.forEach(mod => item.stats.push(rollAffixValue(mod, maxTier)));
+    if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
     updateItemName(item);
 }
 
 
 const CHAOS_INFUSER_OPTIONS = [
-    { id: 'flatDmg', value: 20, currency: 'chaos', cost: 8, label: '기본 피해' },
-    { id: 'pctDmg', value: 28, currency: 'chaos', cost: 8, label: '피해 증가' },
-    { id: 'flatHp', value: 72, currency: 'transmute', cost: 18, label: '최대 생명력' },
-    { id: 'pctHp', value: 20, currency: 'exalted', cost: 1, label: '생명력 증가' },
-    { id: 'aspd', value: 14, currency: 'alteration', cost: 14, label: '공격 속도' },
-    { id: 'crit', value: 7, currency: 'exalted', cost: 1, label: '치명타 확률' },
-    { id: 'critDmg', value: 38, currency: 'divine', cost: 1, label: '치명타 피해' },
-    { id: 'resAll', value: 14, currency: 'chaos', cost: 6, label: '모든 저항' },
-    { id: 'move', value: 15, currency: 'divine', cost: 1, label: '이동 속도' },
-    { id: 'armorPct', value: 30, currency: 'augment', cost: 12, label: '방어도 증가' },
-    { id: 'evasionPct', value: 30, currency: 'augment', cost: 12, label: '회피 증가' },
-    { id: 'energyShieldPct', value: 30, currency: 'augment', cost: 12, label: '에너지 보호막 증가' }
+    { optionId: 'weapon_flatDmg', id: 'flatDmg', min: 12, max: 18, currency: 'chaos', cost: 6, label: '무기 기본 피해', slots: ['무기'] },
+    { optionId: 'weapon_pctDmg', id: 'pctDmg', min: 18, max: 26, currency: 'chaos', cost: 6, label: '무기 피해 증가', slots: ['무기'] },
+    { optionId: 'weapon_aspd', id: 'aspd', min: 8, max: 12, currency: 'alteration', cost: 12, label: '무기 공격 속도', slots: ['무기'] },
+    { optionId: 'armor_pctHp', id: 'pctHp', min: 12, max: 18, currency: 'exalted', cost: 1, label: '갑옷 생명력 증가', slots: ['갑옷'] },
+    { optionId: 'armor_flatHp', id: 'flatHp', min: 55, max: 80, currency: 'transmute', cost: 18, label: '갑옷 최대 생명력', slots: ['갑옷'] },
+    { optionId: 'armor_defensePct', id: 'armorPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '갑옷 방어도 증가', slots: ['갑옷'] },
+    { optionId: 'boots_move', id: 'move', min: 16, max: 22, currency: 'exalted', cost: 1, label: '장화 이동 속도', slots: ['신발'] },
+    { optionId: 'boots_evasionPct', id: 'evasionPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '장화 회피 증가', slots: ['신발'] },
+    { optionId: 'gloves_aspd', id: 'aspd', min: 8, max: 12, currency: 'alteration', cost: 12, label: '장갑 공격 속도', slots: ['장갑'] },
+    { optionId: 'gloves_crit', id: 'crit', min: 4, max: 6, currency: 'exalted', cost: 1, label: '장갑 치명타 확률', slots: ['장갑'] },
+    { optionId: 'helmet_flatHp', id: 'flatHp', min: 45, max: 70, currency: 'transmute', cost: 14, label: '투구 최대 생명력', slots: ['투구'] },
+    { optionId: 'helmet_critDmg', id: 'critDmg', min: 22, max: 32, currency: 'divine', cost: 1, label: '투구 치명타 피해', slots: ['투구'] },
+    { optionId: 'belt_pctHp', id: 'pctHp', min: 10, max: 16, currency: 'exalted', cost: 1, label: '허리띠 생명력 증가', slots: ['허리띠'] },
+    { optionId: 'belt_flatHp', id: 'flatHp', min: 50, max: 76, currency: 'transmute', cost: 16, label: '허리띠 최대 생명력', slots: ['허리띠'] },
+    { optionId: 'jewelry_pctDmg', id: 'pctDmg', min: 16, max: 24, currency: 'chaos', cost: 6, label: '장신구 피해 증가', slots: ['반지', '목걸이'] },
+    { optionId: 'jewelry_resPen', id: 'resPen', min: 4, max: 6, currency: 'chaos', cost: 8, label: '장신구 저항 관통', slots: ['반지', '목걸이'] },
+    { optionId: 'res_all', id: 'resAll', min: 4, max: 7, currency: 'chaos', cost: 5, label: '낮은 모든 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠'] },
+    { optionId: 'res_fire', id: 'resF', min: 12, max: 18, currency: 'chaos', cost: 5, label: '화염 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠'] },
+    { optionId: 'res_cold', id: 'resC', min: 12, max: 18, currency: 'chaos', cost: 5, label: '냉기 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠'] },
+    { optionId: 'res_light', id: 'resL', min: 12, max: 18, currency: 'chaos', cost: 5, label: '번개 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠'] }
 ];
+function getChaosInfuserOptionsForItem(item) {
+    let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
+    let occupied = getItemOccupiedExplicitModIds(item);
+    return CHAOS_INFUSER_OPTIONS.filter(opt => (!opt.slots || opt.slots.includes(slot)) && (!occupied.has(opt.id) || (item && item.chaosInfusion && item.chaosInfusion.id === opt.id)));
+}
+function isChaosInfusionEligibleItem(item) {
+    if (!item) return { ok: false, reason: '아이템 미선택' };
+    if (item.corrupted) return { ok: false, reason: '타락된 아이템에는 혼돈 주입을 할 수 없습니다.' };
+    if (item.rarity === 'unique') return { ok: false, reason: '고유 아이템에는 혼돈 주입을 할 수 없습니다.' };
+    if (item.rarity === 'normal' || item.rarity === 'magic') return { ok: false, reason: '일반/마법 등급 아이템에는 혼돈 주입을 할 수 없습니다.' };
+    if (item.rarity !== 'rare') return { ok: false, reason: '희귀 장비에만 혼돈 주입을 할 수 있습니다.' };
+    let explicitCount = getItemExplicitOptionCount(item);
+    if (!item.chaosInfusion && explicitCount >= 6) return { ok: false, reason: '추가 옵션 6줄 제한에 걸려 더 주입할 수 없습니다.' };
+    if (item.chaosInfusion && explicitCount > 6) return { ok: false, reason: '추가 옵션이 6줄을 초과했습니다. 기존 주입을 제거하세요.' };
+    return { ok: true, reason: '사용 가능' };
+}
+function rollChaosInfusionOption(option) {
+    let min = Number(option && option.min);
+    let max = Number(option && option.max);
+    if (!Number.isFinite(min)) min = Number(option && option.value) || 0;
+    if (!Number.isFinite(max)) max = min;
+    if (max < min) { let tmp = min; min = max; max = tmp; }
+    let val = min + Math.random() * Math.max(0, max - min);
+    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(option.id)) {
+        val = Math.round(val * 10) / 10;
+        min = Math.round(min * 10) / 10;
+        max = Math.round(max * 10) / 10;
+    } else {
+        val = Math.floor(val);
+        min = Math.floor(min);
+        max = Math.floor(max);
+    }
+    return { id: option.id, val: val, valMin: min, valMax: max, tier: 5, statName: getStatName(option.id), temporary: true, source: 'chaosInfuser', sourceOptionId: option.optionId || option.id };
+}
 function isChaosInfuserUnlocked() {
     return !!(game.chaosInfuserUnlocked || game.woodsmanSimulatorSeenLoop || (game.woodsmanDefeatAttempts || 0) > 0 || (game.journalEntries || []).includes('woodsman'));
 }
 function getChaosInfuserOption(optionId) {
-    return CHAOS_INFUSER_OPTIONS.find(opt => opt.id === optionId) || null;
+    return CHAOS_INFUSER_OPTIONS.find(opt => (opt.optionId || opt.id) === optionId || opt.id === optionId) || null;
 }
 function getChaosInfusionCost(option, item) {
     if (!option) return null;
@@ -4892,13 +5001,17 @@ function applyChaosInfusionToSelectedItem(optionId) { if (game.woodsmanBuildLock
     if (!isChaosInfuserUnlocked()) return addLog('나무꾼을 한 번 이상 마주친 뒤 혼돈 주입기를 사용할 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('혼돈 주입 대상 아이템을 선택하세요.', 'attack-monster');
+    let eligibility = isChaosInfusionEligibleItem(item);
+    if (!eligibility.ok) return addLog(eligibility.reason, 'attack-monster');
     let option = getChaosInfuserOption(optionId);
     if (!option || !P_STATS[option.id]) return;
+    if (!getChaosInfuserOptionsForItem(item).some(opt => (opt.optionId || opt.id) === (option.optionId || option.id))) return addLog('이 부위에는 해당 혼돈 주입 옵션을 사용할 수 없습니다.', 'attack-monster');
     let costs = getChaosInfusionCost(option, item);
     if (!canPayCurrencyCosts(costs)) return addLog(`혼돈 주입 재화가 부족합니다. (필요: ${formatCurrencyCosts(costs)})`, 'attack-monster');
     if (!payCurrencyCosts(costs)) return;
-    item.chaosInfusion = { id: option.id, val: option.value, valMin: option.value, valMax: option.value, tier: 5, statName: getStatName(option.id), temporary: true, source: 'chaosInfuser' };
-    addLog(`🧪 혼돈 주입: [${item.name}] ${getStatName(option.id)} +${formatValue(option.id, option.value)} 부여`, 'loot-rare');
+    let infusion = rollChaosInfusionOption(option);
+    item.chaosInfusion = infusion;
+    addLog(`🧪 혼돈 주입: [${item.name}] ${getStatName(option.id)} +${formatValue(option.id, infusion.val)} 부여`, 'loot-rare');
     normalizeItem(item);
     updateStaticUI();
 }
@@ -4914,6 +5027,9 @@ function removeChaosInfusionFromSelectedItem() { if (game.woodsmanBuildLock) ret
 }
 
 window.CHAOS_INFUSER_OPTIONS = CHAOS_INFUSER_OPTIONS;
+window.getChaosInfuserOptionsForItem = getChaosInfuserOptionsForItem;
+window.isChaosInfusionEligibleItem = isChaosInfusionEligibleItem;
+window.getItemExplicitOptionCount = getItemExplicitOptionCount;
 window.isChaosInfuserUnlocked = isChaosInfuserUnlocked;
 window.getChaosInfusionCost = getChaosInfusionCost;
 window.formatCurrencyCosts = formatCurrencyCosts;
@@ -5922,11 +6038,11 @@ function useCurrency(currencyKey) {
 
     let ok = false;
     if (currencyKey === 'transmute') ok = item.rarity === 'normal';
-    else if (currencyKey === 'augment') ok = item.rarity === 'magic' && item.stats.length < 2;
+    else if (currencyKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
     else if (currencyKey === 'alteration') ok = item.rarity === 'magic';
     else if (currencyKey === 'alchemy') ok = item.rarity === 'normal';
-    else if (currencyKey === 'exalted') ok = item.rarity === 'rare' && item.stats.length < 6;
-    else if (currencyKey === 'regal') ok = item.rarity === 'magic' && item.stats.length < 6;
+    else if (currencyKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
+    else if (currencyKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
     else if (currencyKey === 'chaos') ok = item.rarity === 'rare';
     else if (currencyKey === 'divine') ok = item.rarity !== 'normal';
     else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
@@ -6028,7 +6144,7 @@ function useCurrency(currencyKey) {
         }
     } else if (currencyKey === 'alchemy') {
         item.rarity = 'rare';
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item));
+        rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
             guaranteedMod = getSporeGuaranteedMod();
             if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
@@ -6046,7 +6162,7 @@ function useCurrency(currencyKey) {
         item.rarity = 'rare';
         updateItemName(item);
     } else if (currencyKey === 'chaos') {
-        rerollExplicitMods(item, 'rare', getItemCraftTier(item));
+        rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
             guaranteedMod = getSporeGuaranteedMod();
             if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
@@ -6061,13 +6177,20 @@ function useCurrency(currencyKey) {
             if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) stat.val = Math.round(val * 10) / 10;
             else stat.val = Math.floor(val);
         });
+        if (item.chaosInfusion && Number.isFinite(Number(item.chaosInfusion.valMin)) && Number.isFinite(Number(item.chaosInfusion.valMax))) {
+            let stat = item.chaosInfusion;
+            let val = Number(stat.valMin) + Math.random() * (Number(stat.valMax) - Number(stat.valMin));
+            if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) stat.val = Math.round(val * 10) / 10;
+            else stat.val = Math.floor(val);
+        }
     } else if (currencyKey === 'scour') {
         item.stats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
+        item.chaosInfusion = null;
         item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
     } else if (currencyKey === 'tainted') {
         item.corrupted = true;
-        if (Math.random() < 0.35) {
+        if (Math.random() < 0.35 && getItemExplicitOptionCount(item) < 6) {
             let mod = pickWeightedMod(getAvailableMods(item));
             if (mod) item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
             addLog("🩸 타락 : 추가 옵션이 부여되었습니다.", "loot-unique");

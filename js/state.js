@@ -815,6 +815,7 @@ let cloudState = {
     isLoaded: false,
     lastMessage: '설정 전',
     lastRemoteUpdatedAt: 0,
+    lastRemoteLoop: 0,
     lastSyncAttemptAt: 0,
     tokenRefreshPromise: null,
     tokenExpiryWarned: false,

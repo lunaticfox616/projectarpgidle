@@ -206,6 +206,9 @@ function applyFossilChaosCraft(fossilKey) {
     if (guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
 
     let maxTier = getItemCraftTier(item);
+    let previousChaosInfusion = item.chaosInfusion || null;
+    if (previousChaosInfusion) item.chaosInfusion = null;
+    let reservedInfusionCount = previousChaosInfusion ? 1 : 0;
     let hiddenTier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || maxTier));
     let guaranteedMinTier = Math.max(1, hiddenTier - 3);
     let guaranteedMaxTier = Math.max(1, hiddenTier);
@@ -215,13 +218,13 @@ function applyFossilChaosCraft(fossilKey) {
     let newStats = lockedStats.slice();
     let blockedIds = new Set([...immutableIds, ...newStats.map(stat => stat.id)]);
     let guaranteedRoll = rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier);
-    if (!blockedIds.has(guaranteedRoll.id)) {
+    if (!blockedIds.has(guaranteedRoll.id) && (newStats.length + reservedInfusionCount) < 6) {
         newStats.push(guaranteedRoll);
         blockedIds.add(guaranteedRoll.id);
     }
 
     let count = 4 + Math.floor(Math.random() * 2);
-    while (newStats.length < Math.min(6, Math.max(count, lockedStats.length + 1))) {
+    while ((newStats.length + reservedInfusionCount) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
         let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id));
         if (pool.length === 0) break;
         let roll = rollAffixValue(pickWeightedMod(pool), maxTier);
@@ -231,6 +234,7 @@ function applyFossilChaosCraft(fossilKey) {
 
     item.stats = newStats;
     item.rarity = 'rare';
+    if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
     game.currencies[fossilKey]--; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_craft');
     updateItemName(item);
     addLog(`🪨 ${fossil.name} 재련 성공! 확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})`, 'loot-magic');
@@ -391,9 +395,9 @@ function getActiveSkillStats(bonusLevel) {
 safeExposeGlobals({ upgradeActiveGem, upgradeSkyEngraveCap, applySkyGemEnhancementToActive, removeSkyGemEnhancementFromActive, upgradeActiveGemQuality, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, applyFossilCraft, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
 
 
-function sealSkillGem(name){ if(!name||name===game.activeSkill) return addLog('활성 스킬은 봉인할 수 없습니다.','attack-monster'); if(name==='기본 공격') return addLog('기본 공격은 봉인할 수 없습니다.','attack-monster'); if(!game.skills.includes(name)) return; game.skills=game.skills.filter(v=>v!==name); game.sealedSkills=Array.isArray(game.sealedSkills)?game.sealedSkills:[]; if(!game.sealedSkills.includes(name)) game.sealedSkills.push(name); game.resonancePower=(game.resonancePower||10)+1; addLog(`🔒 공격 젬 봉인: ${name} (공명력 +1)`,'loot-magic'); updateStaticUI(); }
-function unsealSkillGem(name){ game.sealedSkills=Array.isArray(game.sealedSkills)?game.sealedSkills:[]; if(!game.sealedSkills.includes(name)) return; if((game.resonancePower||0)<=0) return addLog('공명력이 부족합니다.','attack-monster'); game.resonancePower--; if (!game.skills.includes(name)) game.skills.push(name); game.sealedSkills=game.sealedSkills.filter(v=>v!==name); addLog(`🔓 공격 젬 해제: ${name} (공명력 -1)`,'loot-normal'); updateStaticUI(); }
-function sealSupportGem(name){ if(!game.supports.includes(name)) return; if((game.equippedSupports||[]).includes(name)) return addLog('장착 중 보조젬은 봉인할 수 없습니다.','attack-monster'); game.supports=game.supports.filter(v=>v!==name); game.sealedSupports=Array.isArray(game.sealedSupports)?game.sealedSupports:[]; game.sealedSupports.push(name); game.resonancePower=(game.resonancePower||10)+1; addLog(`🔒 보조 젬 봉인: ${name} (공명력 +1)`,'loot-magic'); updateStaticUI(); }
-function unsealSupportGem(name){ game.sealedSupports=Array.isArray(game.sealedSupports)?game.sealedSupports:[]; if(!game.sealedSupports.includes(name)) return; if((game.resonancePower||0)<=0) return addLog('공명력이 부족합니다.','attack-monster'); game.resonancePower--; if (!game.supports.includes(name)) game.supports.push(name); game.sealedSupports=game.sealedSupports.filter(v=>v!==name); addLog(`🔓 보조 젬 해제: ${name} (공명력 -1)`,'loot-normal'); updateStaticUI(); }
+function sealSkillGem(name){ if(!name||name===game.activeSkill) return addLog('활성 스킬은 봉인할 수 없습니다.','attack-monster'); if(name==='기본 공격') return addLog('기본 공격은 봉인할 수 없습니다.','attack-monster'); game.skills=dedupeList(game.skills); game.sealedSkills=dedupeList(game.sealedSkills).filter(v=>!game.skills.includes(v)); if(!game.skills.includes(name)) return; game.skills=game.skills.filter(v=>v!==name); if(!game.sealedSkills.includes(name)) game.sealedSkills.push(name); game.resonancePower=(game.resonancePower||10)+1; addLog(`🔒 공격 젬 봉인: ${name} (공명력 +1)`,'loot-magic'); updateStaticUI(); }
+function unsealSkillGem(name){ game.skills=dedupeList(game.skills); game.sealedSkills=dedupeList(game.sealedSkills); if(!game.sealedSkills.includes(name)) return; if((game.resonancePower||0)<=0) return addLog('공명력이 부족합니다.','attack-monster'); game.resonancePower--; if (!game.skills.includes(name)) game.skills.push(name); game.sealedSkills=game.sealedSkills.filter(v=>v!==name); addLog(`🔓 공격 젬 해제: ${name} (공명력 -1)`,'loot-normal'); updateStaticUI(); }
+function sealSupportGem(name){ game.supports=dedupeList(game.supports); game.sealedSupports=dedupeList(game.sealedSupports).filter(v=>!game.supports.includes(v)); if(!game.supports.includes(name)) return; if((game.equippedSupports||[]).includes(name)) return addLog('장착 중 보조젬은 봉인할 수 없습니다.','attack-monster'); game.supports=game.supports.filter(v=>v!==name); if(!game.sealedSupports.includes(name)) game.sealedSupports.push(name); game.resonancePower=(game.resonancePower||10)+1; addLog(`🔒 보조 젬 봉인: ${name} (공명력 +1)`,'loot-magic'); updateStaticUI(); }
+function unsealSupportGem(name){ game.supports=dedupeList(game.supports); game.sealedSupports=dedupeList(game.sealedSupports); if(!game.sealedSupports.includes(name)) return; if((game.resonancePower||0)<=0) return addLog('공명력이 부족합니다.','attack-monster'); game.resonancePower--; if (!game.supports.includes(name)) game.supports.push(name); game.sealedSupports=game.sealedSupports.filter(v=>v!==name); addLog(`🔓 보조 젬 해제: ${name} (공명력 -1)`,'loot-normal'); updateStaticUI(); }
 function sealAllInactiveSkillGems(){ (game.skills||[]).slice().forEach(name => { if(name!==game.activeSkill && name!=='기본 공격') sealSkillGem(name); }); }
 function sealAllInactiveSupportGems(){ (game.supports||[]).slice().forEach(name => { if(!(game.equippedSupports||[]).includes(name)) sealSupportGem(name); }); }

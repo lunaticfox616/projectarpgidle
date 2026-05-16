@@ -1728,15 +1728,16 @@ function showPlayerBuffTooltip(event, name, type, remainSec) {
     let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${type || '버프'}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">${lines.join(' / ') || '효과 정보 없음'}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
 }
-function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage) {
-    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
+function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, specialDps) {
+    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈', flameDecay: '화염 부패' };
     let p = Math.max(0, Number(power || 0));
     let source = Math.max(0, Number(sourceHitDamage || 0));
     let detail = '';
     if (isDamageAilmentType(type)) {
         let dps = getDamageAilmentBaseDpsFromHit(source, p, (cachedTooltipStats && Number.isFinite(cachedTooltipStats.dotDamageScale)) ? cachedTooltipStats.dotDamageScale : 1);
         detail = `초당 피해: 약 ${dps} <span style="color:#9fb4d1;">(히트 피해 ${Math.floor(source)} 기준)</span>`;
-    } else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
+    } else if (type === 'flameDecay') detail = `초당 피해: 약 ${Math.max(0, Math.floor(Number(specialDps || 0)))} <span style="color:#9fb4d1;">(화염 부패 지속 피해)</span><br><span style="color:#ffb48a;">점화 피해 증폭: 생명력 100당 8%</span>`;
+    else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'shock') detail = '받는 피해 증가 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'freeze') detail = '행동 불가 (최대 생명력 대비 타격 비율 반영)';
     let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
@@ -1774,11 +1775,21 @@ function showGemTooltip(event, type, name) {
         }
         if ((skill.hpDmgScale || 0) > 0) {
             let per100 = (skill.hpDmgScale || 0) * 10000;
-            html += `<div class="tooltip-line">생명력 계수: 최대 생명력 100당 약 +${per100.toFixed(1)}% 추가 피해</div>`;
+            html += `<div class="tooltip-line">생명력 계수: 최대 생명력 100당 약 +${per100.toFixed(1)}% 내장 피해 (주문 내장 피해처럼 피해 증가 적용)</div>`;
         }
         if ((skill.regenDmgScale || 0) > 0) html += `<div class="tooltip-line">재생 계수: 재생 1%당 ${skill.regenDmgScale.toFixed(2)}% 추가 배율</div>`;
         if ((skill.fireResDmgScale || 0) > 0) html += `<div class="tooltip-line">화염 저항 계수: 화염 저항 1%당 ${(skill.fireResDmgScale * 100).toFixed(2)}% 추가 배율</div>`;
-        if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용</div>`;
+        if ((skill.fireResOvercapMulPerPct || 0) > 0) {
+            let stats = cachedTooltipStats || null;
+            let rawFireRes = stats && Number.isFinite(stats.rawResF) ? stats.rawResF : null;
+            let maxFireRes = stats && Number.isFinite(stats.maxResF) ? stats.maxResF : null;
+            let appliedOvercap = rawFireRes !== null && maxFireRes !== null ? Math.max(0, rawFireRes - maxFireRes) : null;
+            let currentText = rawFireRes !== null && maxFireRes !== null
+                ? ` · 현재 적용분 ${appliedOvercap.toFixed(1)}% (미적용 화염 저항 ${Math.floor(rawFireRes)}% / 최대 ${Math.floor(maxFireRes)}%)`
+                : ' · 현재 최대 화염 저항을 초과한 미적용 화염 저항 기준';
+            html += `<div class="tooltip-line">초과 화염 저항 계수: 최대 화염 저항 초과 1%당 배율 +${Number(skill.fireResOvercapMulPerPct || 0).toFixed(2)}배${currentText}</div>`;
+        }
+        if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용 · 적에게 화염 부패 디버프 적용 · 화염 부패 대상은 점화 피해가 생명력 100당 8% 증폭</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
         if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
@@ -1788,6 +1799,7 @@ function showGemTooltip(event, type, name) {
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${skill.crit}%</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
+        if (skill.instantLeech) html += `<div class="tooltip-line" style="color:#ffb3d1;">특수 옵션: 이 젬을 사용해서 주는 피해에는 흡혈 즉시 적용</div>`;
     }
     if (type === 'support' || SKILL_DB[name].isGem) {
         html += `<div class="tooltip-line" style="margin-top:8px; color:#2ecc71;">총 레벨 ${type === 'support' ? info.totalLevel : info.finalLevel}</div>`;
@@ -1815,7 +1827,9 @@ function showItemTooltip(event, idx, isEquip) {
         let flat = { armor: 0, evasion: 0, energyShield: 0 };
         let pct = { armor: 0, evasion: 0, energyShield: 0 };
         (target.baseStats || []).forEach(stat => { if (base[stat.id] !== undefined) base[stat.id] += Number(stat.val || 0); });
-        (target.stats || []).forEach(stat => {
+        let explicitForDefense = (target.stats || []).slice();
+        if (target.chaosInfusion) explicitForDefense.push(target.chaosInfusion);
+        explicitForDefense.forEach(stat => {
             if (flat[stat.id] !== undefined) flat[stat.id] += Number(stat.val || 0);
             if (stat.id === 'armorPct') pct.armor += Number(stat.val || 0);
             if (stat.id === 'evasionPct') pct.evasion += Number(stat.val || 0);
@@ -1862,9 +1876,11 @@ function showItemTooltip(event, idx, isEquip) {
             }
         });
     }
-    if ((item.stats || []).length > 0) {
-        html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션</div>`;
-        item.stats.forEach(stat => {
+    let explicitStats = (item.stats || []).slice();
+    if (item.chaosInfusion) explicitStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
+    if (explicitStats.length > 0) {
+        html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션 (${explicitStats.length}/6)</div>`;
+        explicitStats.forEach(stat => {
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
             let rangeText = stat.valMin !== undefined && stat.valMax !== undefined ? ` <span style="color:#888;">(${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})</span>${tierText}` : tierText;
             html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${rangeText}</div>`;
@@ -3054,7 +3070,7 @@ function updateCombatUI(pStats) {
     let ailmentEl = document.getElementById('ui-player-ailments');
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
-        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
+        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d' };
         let text = (game.playerAilments || []).map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
         if (game.woodsmanCurseActive) {
             let curseTaken = (Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.01).toFixed(2);
@@ -3191,15 +3207,16 @@ function updateCombatUI(pStats) {
         let pct = Math.max(0, focusedEnemy.hp / focusedEnemy.maxHp * 100);
         let tags = getEnemyTraitSummary(focusedEnemy);
         if (Array.isArray(focusedEnemy.chaosRealmAffixes) && focusedEnemy.chaosRealmAffixes.length > 0) tags = tags.concat(focusedEnemy.chaosRealmAffixes.map(a => a.name));
-        let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈' };
+        let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈', flameDecay: '🔥 화염 부패' };
         let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
         let enemyDebuffs = (((game.enemyConditionDebuffs || {})[focusedEnemy.id]) || []).filter(row => row && (row.expiresAt || 0) > Date.now());
-        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b' };
-        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
+        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d' };
+        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))},${Math.floor(ail.flameDecayDps || 0)})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
         let curseText = enemyDebuffs.map(row => `<span data-info-tooltip-anchor=\"1\" style=\"color:#ff9bd1;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${row.name}','curse',${Math.ceil(Math.max(0,((row.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">🕯 저주:${row.name} ${Math.ceil(Math.max(0, ((row.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
         ailmentText = [ailmentText, curseText].filter(Boolean).join(' · ');
         let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
+            if (ail.type === 'flameDecay') return sum + Math.floor(Math.max(0, ail.flameDecayDps || 0) * Math.max(0, ail.time || 0));
             if (!isDamageAilmentType(ail.type)) return sum;
             let dps = getEnemyDamageAilmentDps(ail, cachedTooltipStats || getPlayerStats());
             return sum + Math.floor(dps * Math.max(0, ail.time || 0));
@@ -3561,11 +3578,11 @@ function getCraftOrbUseState(key, item) {
     if (item.corrupted && key !== 'tainted') return { enabled: false, reason: '타락 아이템은 일반 제작 불가' };
     let ok = false;
     if (key === 'transmute') ok = item.rarity === 'normal';
-    else if (key === 'augment') ok = item.rarity === 'magic' && item.stats.length < 2;
+    else if (key === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
     else if (key === 'alteration') ok = item.rarity === 'magic';
     else if (key === 'alchemy') ok = item.rarity === 'normal';
-    else if (key === 'exalted') ok = item.rarity === 'rare' && item.stats.length < 6;
-    else if (key === 'regal') ok = item.rarity === 'magic' && item.stats.length < 6;
+    else if (key === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
+    else if (key === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
     else if (key === 'chaos') ok = item.rarity === 'rare';
     else if (key === 'divine') ok = item.rarity !== 'normal';
     else if (key === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
@@ -3580,8 +3597,8 @@ function renderCraftSelectedSummary(item) {
         host.innerHTML = '아이템을 선택하세요.';
         return;
     }
-    let statCount = (item.stats || []).length;
-    host.innerHTML = `<div><strong>[${item.slot.replace(/[12]/,'')}] ${item.name}</strong> · ${item.rarity.toUpperCase()} · 옵션 ${statCount}개</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
+    let statCount = getItemExplicitOptionCount(item);
+    host.innerHTML = `<div><strong>[${item.slot.replace(/[12]/,'')}] ${item.name}</strong> · ${item.rarity.toUpperCase()} · 추가 옵션 ${statCount}/6</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
 }
 
 
@@ -3600,17 +3617,22 @@ function renderChaosInfuserPanel(selectedItem) {
         return;
     }
     let current = selectedItem.chaosInfusion
-        ? `<div style="color:#d7a8ff; margin-bottom:8px;">현재 주입: <strong>${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)} +${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.val)}</strong> <button onclick="removeChaosInfusionFromSelectedItem()" ${(game.currencies.scour || 0) > 0 ? '' : 'disabled'}>제거(정화 1)</button></div>`
+        ? `<div style="color:#d7a8ff; margin-bottom:8px;">현재 주입: <strong>${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)} +${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.val)}</strong> <span style="color:#9fb4d1;">(${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.valMin)}~${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.valMax)})</span> <button onclick="removeChaosInfusionFromSelectedItem()" ${(game.currencies.scour || 0) > 0 ? '' : 'disabled'}>제거(정화 1)</button></div>`
         : '<div style="color:#7f8c8d; margin-bottom:8px;">현재 주입 옵션 없음</div>';
-    let options = Array.isArray(window.CHAOS_INFUSER_OPTIONS) ? window.CHAOS_INFUSER_OPTIONS : [];
-    let buttons = options.map(opt => {
+    let eligibility = typeof isChaosInfusionEligibleItem === 'function' ? isChaosInfusionEligibleItem(selectedItem) : { ok: true, reason: '' };
+    let explicitCount = typeof getItemExplicitOptionCount === 'function' ? getItemExplicitOptionCount(selectedItem) : ((selectedItem.stats || []).length + (selectedItem.chaosInfusion ? 1 : 0));
+    let options = typeof getChaosInfuserOptionsForItem === 'function' ? getChaosInfuserOptionsForItem(selectedItem) : (Array.isArray(window.CHAOS_INFUSER_OPTIONS) ? window.CHAOS_INFUSER_OPTIONS : []);
+    let buttons = eligibility.ok ? options.map(opt => {
         let costs = typeof getChaosInfusionCost === 'function' ? getChaosInfusionCost(opt, selectedItem) : [{ key: opt.currency, amount: opt.cost }];
         let canPay = costs.every(row => (game.currencies[row.key] || 0) >= row.amount);
         let costText = typeof formatCurrencyCosts === 'function' ? formatCurrencyCosts(costs) : `${opt.currency} ${opt.cost}`;
-        let same = selectedItem.chaosInfusion && selectedItem.chaosInfusion.id === opt.id;
-        return `<button onclick="applyChaosInfusionToSelectedItem('${opt.id}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${formatValue(opt.id, opt.value)}<br><span style="font-size:0.78em;color:#b7c6df;">${same ? '적용 중' : costText}</span></button>`;
-    }).join('');
-    host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${selectedItem.slot.replace(/[12]/,'')}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:#9fb4d1;">T5급 임시 옵션 한 줄을 확정 부여합니다. 교체/제거 시 정화의 오브가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
+        let key = opt.optionId || opt.id;
+        let same = selectedItem.chaosInfusion && (selectedItem.chaosInfusion.sourceOptionId === key || selectedItem.chaosInfusion.id === opt.id);
+        let rangeText = `${formatValue(opt.id, opt.min)}~${formatValue(opt.id, opt.max)}`;
+        return `<button onclick="applyChaosInfusionToSelectedItem('${key}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${rangeText}<br><span style="font-size:0.78em;color:#b7c6df;">${same ? '적용 중' : costText}</span></button>`;
+    }).join('') : `<div style="grid-column:1/-1; color:#ffb4b4;">${eligibility.reason}</div>`;
+    if (eligibility.ok && !buttons) buttons = '<div style="grid-column:1/-1; color:#9fb4d1;">이 부위에 추가할 수 있는 주입 옵션이 없습니다.</div>';
+    host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${selectedItem.slot.replace(/[12]/,'')}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:#9fb4d1;">T5급 범위 옵션 한 줄을 추가 옵션으로 부여합니다. 추가 옵션 제한: ${explicitCount}/6. 교체/제거 시 정화의 오브가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
 }
 
 function renderCraftOrbActions(selectedItem) {
@@ -3696,13 +3718,15 @@ function buildCraftActionButtons(item) {
     if (selectedItem) {
         let lines = [];
         (selectedItem.baseStats || []).forEach(stat => lines.push(`<div class="tooltip-line" style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</div>`));
-        (selectedItem.stats || []).forEach(stat => {
+        let selectedExplicitStats = (selectedItem.stats || []).slice();
+        if (selectedItem.chaosInfusion) selectedExplicitStats.push({ ...selectedItem.chaosInfusion, statName: `[주입] ${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)}` });
+        selectedExplicitStats.forEach(stat => {
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
             let honeyTag = stat.lockedByHoney ? ` <span style="color:#ffd166; font-weight:700;">[고정됨]</span>` : '';
             let stingerTag = stat.venomStingerBonus ? ` <span style="color:#9bff9e;">[독벌침]</span>` : '';
             lines.push(`<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${tierText}${honeyTag}${stingerTag}</div>`);
         });
-        if ((selectedItem.stats || []).length === 0) lines.push(`<div class="tooltip-line" style="color:#7f8c8d">추가 옵션 없음</div>`);
+        if (selectedExplicitStats.length === 0) lines.push(`<div class="tooltip-line" style="color:#7f8c8d">추가 옵션 없음</div>`);
         if (selectedItem.encroached) {
             if (selectedItem.encroached.liberated && selectedItem.encroached.chosen) {
                 let st = selectedItem.encroached.chosen;
@@ -4819,10 +4843,8 @@ function mergeDefaults(save) {
             source: typeof entry.source === 'string' ? entry.source : ''
         };
     }
-    function normalizeDeathLog(log) {
-        if (!log || typeof log !== 'object') return null;
-        let primaryElement = normalizeDamageElementKey(log.primaryElement);
-        let damageSummary = Array.isArray(log.damageSummary) ? log.damageSummary.map(entry => {
+    function normalizeDeathDamageSummaryRows(rows) {
+        let damageSummary = Array.isArray(rows) ? rows.map(entry => {
             if (!entry || typeof entry !== 'object') return null;
             let ele = normalizeDamageElementKey(entry.ele);
             let value = Math.max(0, Math.floor(clampFiniteNumber(entry.value, entry.amount, 0)));
@@ -4830,17 +4852,36 @@ function mergeDefaults(save) {
         }).filter(Boolean) : [];
         let totals = { phys: 0, fire: 0, cold: 0, light: 0, chaos: 0, other: 0 };
         damageSummary.forEach(entry => {
-            totals[entry.ele] = Math.max(0, Math.floor(entry.value || 0));
+            totals[entry.ele] += Math.max(0, Math.floor(entry.value || 0));
         });
-        damageSummary = Object.keys(totals)
+        return Object.keys(totals)
             .map(ele => ({ ele: ele, value: totals[ele] }))
             .filter(entry => entry.value > 0)
             .sort((a, b) => b.value - a.value);
+    }
+    function normalizeDeathLog(log) {
+        if (!log || typeof log !== 'object') return null;
+        let primaryElement = normalizeDamageElementKey(log.primaryElement);
+        let damageSummary = normalizeDeathDamageSummaryRows(log.damageSummary);
+        let ailmentDamageSummary = normalizeDeathDamageSummaryRows(log.ailmentDamageSummary);
+        let activeAilments = Array.isArray(log.activeAilments) ? log.activeAilments.map(row => {
+            if (!row || typeof row !== 'object') return null;
+            let type = typeof row.type === 'string' && row.type ? row.type : 'unknown';
+            return {
+                type: type,
+                label: typeof row.label === 'string' && row.label ? row.label : getAilmentDisplayLabel(type),
+                time: Math.max(0, Math.ceil(clampFiniteNumber(row.time, 0, 0, 30))),
+                power: Math.max(0, clampFiniteNumber(row.power, 0, 0, 1.5)),
+                sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0)))
+            };
+        }).filter(Boolean) : [];
         return {
             primaryElement: primaryElement,
             reasonText: typeof log.reasonText === 'string' && log.reasonText.trim() ? log.reasonText : (DEATH_REASON_TEXT[primaryElement] || DEATH_REASON_TEXT.phys),
             expLost: Math.max(0, Math.floor(clampFiniteNumber(log.expLost, 0, 0))),
             damageSummary: damageSummary,
+            ailmentDamageSummary: ailmentDamageSummary,
+            activeAilments: activeAilments,
             sourceName: typeof log.sourceName === 'string' ? log.sourceName : '',
             at: clampFiniteNumber(log.at, Date.now(), 0)
         };
@@ -4913,10 +4954,12 @@ function mergeDefaults(save) {
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
     merged.seasonChaseUniqueDropped = !!merged.seasonChaseUniqueDropped;
-    merged.skills = Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : [];
+    merged.skills = dedupeList(Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : []);
     if (!merged.skills.includes('기본 공격')) merged.skills.unshift('기본 공격');
-    merged.supports = Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : [];
-    merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports.filter(name => merged.supports.includes(name)) : [];
+    merged.sealedSkills = dedupeList(Array.isArray(merged.sealedSkills) ? merged.sealedSkills.filter(name => !!SKILL_DB[name] && name !== '기본 공격' && !merged.skills.includes(name)) : []);
+    merged.supports = dedupeList(Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : []);
+    merged.sealedSupports = dedupeList(Array.isArray(merged.sealedSupports) ? merged.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !merged.supports.includes(name)) : []);
+    merged.equippedSupports = Array.isArray(merged.equippedSupports) ? dedupeList(merged.equippedSupports.filter(name => merged.supports.includes(name))) : [];
     merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!SEASON_NODES[id]) : [];
     merged.unlockedSeasonContents = Array.isArray(merged.unlockedSeasonContents) ? merged.unlockedSeasonContents.filter(id => typeof id === 'string') : ['season_1'];
     merged.seenSeasonContentNotices = Array.isArray(merged.seenSeasonContentNotices) ? merged.seenSeasonContentNotices.filter(id => typeof id === 'string') : ['season_1'];
@@ -5697,6 +5740,7 @@ function prepareStartupAccountSwitch() {
     clearSupabasePersistedSession();
     applyCloudSession(null);
     cloudState.lastRemoteUpdatedAt = 0;
+    cloudState.lastRemoteLoop = 0;
     setCloudMessage('다른 계정으로 로그인할 수 있습니다.');
     updateCloudSaveUI();
 }
@@ -5716,6 +5760,7 @@ function startGuestMode() {
         applyCloudSession(null);
         cloudState.linkedProviders = [];
         cloudState.lastRemoteUpdatedAt = 0;
+        cloudState.lastRemoteLoop = 0;
     }
     setCloudMessage('게스트 모드로 시작합니다. 이 기기 저장만 사용합니다.');
     setLoadingOverlayState(true, {
@@ -5922,6 +5967,7 @@ function applyExternalSave(snapshot, sourceStamp) {
     ensureSaveMeta();
     if (sourceStamp) {
         cloudState.lastRemoteUpdatedAt = sourceStamp;
+        cloudState.lastRemoteLoop = getSaveLoopNumber(game);
         game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, sourceStamp);
         if (!game.saveMeta.lastModifiedAt) game.saveMeta.lastModifiedAt = sourceStamp;
     }
@@ -5988,7 +6034,9 @@ async function fetchCloudSaveRecord() {
             }
         }
         cloudState.isLoaded = true;
+        cloudState.lastRemoteCheckedAt = Date.now();
         if (record && record.updated_at) cloudState.lastRemoteUpdatedAt = new Date(record.updated_at).getTime() || 0;
+        if (record && record.save_data) updateRemoteLoopFromRecord(record);
         updateCloudSaveUI();
         return record;
     } catch (error) {
@@ -6008,17 +6056,55 @@ function getRemoteSaveStamp(record) {
     return record.updated_at ? (new Date(record.updated_at).getTime() || 0) : ((record.save_data && record.save_data.saveMeta && record.save_data.saveMeta.lastModifiedAt) || 0);
 }
 
+function getSaveLoopNumber(snapshot) {
+    let s = snapshot || {};
+    let season = Math.max(1, Math.floor(Number(s.season) || 1));
+    let loopCount = Math.max(0, Math.floor(Number(s.loopCount) || 0));
+    return Math.max(season, loopCount + 1);
+}
+
+function updateRemoteLoopFromRecord(record) {
+    if (!record || !record.save_data) return 0;
+    let remoteLoop = getSaveLoopNumber(record.save_data);
+    cloudState.lastRemoteLoop = remoteLoop;
+    return remoteLoop;
+}
+
+function shouldBlockLocalPushForRemoteLoop(record, localSnapshot = game) {
+    let localLoop = getSaveLoopNumber(localSnapshot || {});
+    let remoteLoop = updateRemoteLoopFromRecord(record);
+    if (remoteLoop > localLoop) return { blocked: true, reason: 'higher-loop', localLoop, remoteLoop };
+    if (record && record.save_data && isLikelyBootstrapLocalSave(localSnapshot)) return { blocked: true, reason: 'bootstrap-local', localLoop, remoteLoop };
+    return { blocked: false, reason: 'safe', localLoop, remoteLoop };
+}
+
 function isLikelyBootstrapLocalSave(snapshot) {
     let s = snapshot || game || {};
     let hasProgress = false;
     if ((s.level || 1) > 1) hasProgress = true;
+    if ((s.exp || 0) > 0) hasProgress = true;
     if ((s.season || 1) > 1) hasProgress = true;
+    if ((s.loopCount || 0) > 0) hasProgress = true;
     if ((s.maxZoneId || 0) > 0) hasProgress = true;
+    if ((s.killsInZone || 0) > 0) hasProgress = true;
+    if ((s.loopKills || 0) > 0) hasProgress = true;
+    if ((s.loopDeaths || 0) > 0) hasProgress = true;
     if (Array.isArray(s.inventory) && s.inventory.length > 0) hasProgress = true;
-    if (Array.isArray(s.passives) && s.passives.length > 1) hasProgress = true;
-    if (Array.isArray(s.skills) && s.skills.length > 1) hasProgress = true;
+    if (s.equipment && Object.values(s.equipment).some(Boolean)) hasProgress = true;
+    if (Array.isArray(s.passives) && s.passives.length > 0) hasProgress = true;
+    if ((s.passivePoints || 0) > 0) hasProgress = true;
+    if (Array.isArray(s.skills) && s.skills.some(name => name && name !== '기본 공격')) hasProgress = true;
+    if (s.activeSkill && s.activeSkill !== '기본 공격') hasProgress = true;
+    if (s.gemData && Object.keys(s.gemData).length > 0) hasProgress = true;
+    if (Array.isArray(s.supports) && s.supports.length > 0) hasProgress = true;
+    if (s.supportGemData && Object.keys(s.supportGemData).length > 0) hasProgress = true;
     if (s.currencies && Object.keys(s.currencies).some(key => (s.currencies[key] || 0) > 0)) hasProgress = true;
     return !hasProgress;
+}
+
+function shouldPreferRemoteOverBootstrapLocal(record) {
+    if (!record || !record.save_data) return false;
+    return getRemoteSaveStamp(record) > 0 && isLikelyBootstrapLocalSave(game);
 }
 
 async function guardAgainstStaleLocalOverwrite(options = {}) {
@@ -6027,6 +6113,16 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
+    let loopGuard = shouldBlockLocalPushForRemoteLoop(record);
+    if (loopGuard.blocked) {
+        applyExternalSave(record.save_data, remoteStamp);
+        let guardMessage = loopGuard.reason === 'bootstrap-local'
+            ? '로컬 세이브가 새로 생성된 기본 상태라 클라우드 업로드를 차단하고 서버 저장을 불러왔습니다.'
+            : `클라우드 루프(${loopGuard.remoteLoop})가 로컬 루프(${loopGuard.localLoop})보다 높아 로컬 업로드를 차단하고 클라우드를 불러왔습니다.`;
+        setCloudMessage(guardMessage);
+        if (!options.silentLog) addLog('클라우드 루프가 더 높아 로컬 저장으로 서버를 덮어쓰지 않았습니다.', 'loot-magic');
+        return { record, status: 'pulled-remote-higher-loop' };
+    }
     if (remoteStamp > localStamp + CLOUD_STALE_OVERWRITE_GUARD_MS) {
         applyExternalSave(record.save_data, remoteStamp);
         setCloudMessage(options.automatic ? '클라우드 저장이 더 최신이라 로컬에 먼저 반영했습니다.' : '클라우드 저장이 더 최신이라 덮어쓰기를 막고 자동으로 불러왔습니다.');
@@ -6038,13 +6134,20 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
 
 async function pushCloudSave(options = {}) {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
-    if (!cloudState.isLoaded) {
-        try {
-            await fetchCloudSaveRecord();
-        } catch (loadError) {
-            console.warn('cloud push preflight remote load failed:', loadError);
-            throw new Error('클라우드 상태를 확인할 수 없어 업로드를 중단했습니다: ' + (loadError.message || loadError));
-        }
+    let remoteRecord = null;
+    try {
+        remoteRecord = await fetchCloudSaveRecord();
+    } catch (loadError) {
+        console.warn('cloud push preflight remote load failed:', loadError);
+        throw new Error('클라우드 상태를 확인할 수 없어 업로드를 중단했습니다: ' + (loadError.message || loadError));
+    }
+    let loopGuard = shouldBlockLocalPushForRemoteLoop(remoteRecord);
+    if (loopGuard.blocked) {
+        let guardMessage = loopGuard.reason === 'bootstrap-local'
+            ? '로컬 세이브가 새로 생성된 기본 상태라 기존 클라우드 저장을 덮어쓸 수 없습니다.'
+            : `클라우드 루프(${loopGuard.remoteLoop})가 로컬 루프(${loopGuard.localLoop})보다 높아 로컬 저장으로 덮어쓸 수 없습니다.`;
+        setCloudMessage(guardMessage);
+        throw new Error(guardMessage);
     }
     persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true });
     let payload = JSON.parse(JSON.stringify(game));
@@ -6058,6 +6161,7 @@ async function pushCloudSave(options = {}) {
     ensureSaveMeta();
     game.saveMeta.lastCloudSyncAt = syncedAt;
     cloudState.lastRemoteUpdatedAt = syncedAt;
+    cloudState.lastRemoteLoop = getSaveLoopNumber(game);
     persistLocalSave({ touchModifiedAt: false });
     updateCloudSaveUI();
     return row;
@@ -6093,6 +6197,16 @@ async function reconcileCloudSaveState(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
+    let loopGuard = shouldBlockLocalPushForRemoteLoop(record);
+    if (loopGuard.blocked) {
+        applyExternalSave(record.save_data, remoteStamp);
+        let guardMessage = loopGuard.reason === 'bootstrap-local'
+            ? '새 기기 기본 로컬 저장으로 판단되어 클라우드 세이브를 우선 적용했습니다.'
+            : `클라우드 루프(${loopGuard.remoteLoop})가 로컬 루프(${loopGuard.localLoop})보다 높아 클라우드 세이브를 우선 적용했습니다.`;
+        setCloudMessage(guardMessage);
+        if (!options.silent) addLog('클라우드 루프가 더 높아 로컬 저장 업로드를 차단하고 서버 저장을 적용했습니다.', 'loot-magic');
+        return 'pulled-remote-higher-loop';
+    }
     if (preferRemoteOnResume) {
         if (strictRemoteResume || remoteStamp >= localStamp) {
             applyExternalSave(record.save_data, remoteStamp);
@@ -6184,7 +6298,7 @@ async function syncCloudSave(options = {}) {
         let fresh = await ensureCloudSessionFresh(options.reason || '클라우드 저장');
         if (!fresh) return;
         let guardResult = await guardAgainstStaleLocalOverwrite({ automatic: !!options.automatic, silentLog: !!options.automatic });
-        if (guardResult.status === 'pulled-remote') return;
+        if (guardResult.status === 'pulled-remote' || guardResult.status === 'pulled-remote-higher-loop') return;
         await pushCloudSave({ touchModifiedAt: options.automatic !== true });
         setCloudMessage(options.automatic ? '클라우드 자동 저장을 완료했습니다.' : '클라우드 업로드를 완료했습니다.');
         if (!options.automatic) addLog('클라우드 세이브를 업로드했습니다.', 'loot-magic');
@@ -6353,6 +6467,7 @@ async function cloudLogout() {
         applyCloudSession(null);
         cloudState.linkedProviders = [];
         cloudState.lastRemoteUpdatedAt = 0;
+        cloudState.lastRemoteLoop = 0;
         setCloudMessage('클라우드 계정에서 로그아웃했습니다.');
     } finally {
         cloudState.busy = false;
@@ -6375,6 +6490,17 @@ function requestImmediateCloudSave(reason) {
 function pushCloudSaveOnPageExit(reason) {
     let config = getCloudConfig();
     if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
+    if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return false;
+    if (!gameplayStarted) return false;
+    let localLoop = getSaveLoopNumber(game);
+    if ((cloudState.lastRemoteLoop || 0) > localLoop) {
+        setCloudMessage(`클라우드 루프(${cloudState.lastRemoteLoop})가 로컬 루프(${localLoop})보다 높아 종료 전 업로드를 차단했습니다.`);
+        return false;
+    }
+    if ((cloudState.lastRemoteLoop || 0) > 0 && isLikelyBootstrapLocalSave(game)) {
+        setCloudMessage('로컬 세이브가 새로 생성된 기본 상태라 종료 전 클라우드 업로드를 차단했습니다.');
+        return false;
+    }
     try {
         persistLocalSave({ touchModifiedAt: true });
         ensureSaveMeta();
@@ -6681,7 +6807,10 @@ function init() {
         }, 100);
         requestAnimationFrame(gameLoop);
         if (autoSaveHandle) clearInterval(autoSaveHandle);
-        autoSaveHandle = setInterval(() => saveGame({ skipCloudSync: true }), 15000);
+        autoSaveHandle = setInterval(() => {
+            if (isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
+            saveGame({ skipCloudSync: true });
+        }, 15000);
     }
 }
 

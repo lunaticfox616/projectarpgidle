@@ -382,7 +382,7 @@ function buildBlackMarketOffer(index) {
         return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, reqTier:Math.max(tier, base.reqTier || tier), priceKey:'chaos', price:price };
     }
     if (roll < 0.9) {
-        let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !(game.skills||[]).includes(k));
+        let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
         if (missing.length>0) return { type:'skillGem', name:rndChoice(missing), priceKey:'chaos', price:5 };
     }
     let uniqPool = UNIQUE_DB.filter(u => u && (u.reqTier||1) <= tier + 4 && !u.dropOnly && !u.contentOnly && !u.bossOnly);
@@ -450,7 +450,7 @@ function buyBlackMarketOffer(idx){
         game.currencies[offer.from]-=offer.need; awardCurrency(offer.to, offer.gain);
     } else if (offer.type==='skillGem') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
-        if ((game.skills||[]).includes(offer.name)) return addLog('이미 보유한 젬입니다.', 'attack-monster');
+        if (hasSkillGemOwned(offer.name)) return addLog('이미 보유한 젬입니다.', 'attack-monster');
         game.currencies[offer.priceKey]-=offer.price; game.skills.push(offer.name); game.gemData[offer.name]={level:1,exp:0};
     } else if (offer.type==='baseItem') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
