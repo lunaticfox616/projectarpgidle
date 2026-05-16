@@ -479,9 +479,19 @@ function coreLoop() {
         }
     });
     if (isDeathOverlayOpen()) return;
-    if (game.combatHalted) return;
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
+    if (game.combatHalted && game.moveTimer > 0) {
+        game.moveTimer -= 0.1;
+        if (game.moveTimer <= 0) startEncounterRun();
+        return;
+    }
+    if (game.combatHalted) {
+        let beehive = game.beehive || {};
+        let beehivePause = !!(beehive.inRun && beehive.awaitingClear);
+        if (!(beehivePause || game.inTicketBossFight)) game.combatHalted = false;
+        else return;
+    }
     if (game.playerHp > 0 && game.playerHp < pStats.maxHp) {
         let hpCap = getPlayerHpCap(pStats);
         game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
