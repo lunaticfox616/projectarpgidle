@@ -479,9 +479,19 @@ function coreLoop() {
         }
     });
     if (isDeathOverlayOpen()) return;
-    if (game.combatHalted) return;
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
+    if (game.combatHalted && game.moveTimer > 0) {
+        game.moveTimer -= 0.1;
+        if (game.moveTimer <= 0) startEncounterRun();
+        return;
+    }
+    if (game.combatHalted) {
+        let beehive = game.beehive || {};
+        let beehivePause = !!(beehive.inRun && beehive.awaitingClear);
+        if (!(beehivePause || game.inTicketBossFight)) game.combatHalted = false;
+        else return;
+    }
     if (game.playerHp > 0 && game.playerHp < pStats.maxHp) {
         let hpCap = getPlayerHpCap(pStats);
         game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
@@ -748,6 +758,7 @@ function getPlayerStats() {
         addStatToBucket(reward, 'dr', Math.min(12, r.unique * 1.5));
     }
     if (activeUniqueIds.has('uj_condensed_curse')) addStatToBucket(reward, 'curseCap', 1);
+    let uniqueClosedEyes = activeUniqueIds.has('uj_closed_eyes');
 
     recalculateStarWedgeMutations();
     let mutationMap = (game.starWedge && game.starWedge.nodeMutations) || {};
@@ -1051,9 +1062,6 @@ function getPlayerStats() {
         let overcapFire = Math.max(0, rawResF - finalMaxResF);
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(0.35, overcapFire * 0.005)));
     }
-    let hpScaleRatio = Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
-    let hpFlatBonus = Math.floor(finalBaseDmg * hpScaleRatio);
-    finalBaseDmg = Math.floor(finalBaseDmg + hpFlatBonus);
     let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
     let fireResOvercap = Math.max(0, rawResF - finalMaxResF);
     let fireResOvercapAdditiveMultiplier = Math.max(0, skill.fireResOvercapMulPerPct || 0);
