@@ -5070,7 +5070,11 @@ function mergeDefaults(save) {
     merged.inTicketBossFight = !!merged.inTicketBossFight;
     merged.beehive = (merged.beehive && typeof merged.beehive === 'object') ? merged.beehive : { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 };
     if (!merged.beehive.inRun) resetBeehiveRunModifiers(merged.beehive);
-    merged.combatHalted = !!(merged.beehive && merged.beehive.inRun && !merged.beehive.awaitingClear);
+    if (merged.beehive && merged.beehive.inRun) {
+        merged.combatHalted = !!(merged.beehive.awaitingClear);
+    } else {
+        merged.combatHalted = !!merged.combatHalted;
+    }
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     if (!merged.journalEntries.includes('prologue')) merged.journalEntries.unshift('prologue');
