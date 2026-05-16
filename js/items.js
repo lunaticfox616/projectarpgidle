@@ -40,6 +40,8 @@ function getEquipCandidateSlots(item) {
     if (!item) return [];
     if (item.slot === '반지') return ['반지1', '반지2'];
     if (item.slot === '장갑') return ['장갑1', '장갑2'];
+    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    if (item.slot === '무기') return warriorDualTrain ? ['무기', '목걸이'] : ['무기'];
     return [item.slot];
 }
 
@@ -95,6 +97,15 @@ function equipItem(idx, preferredSlot) {
     }
     let targetSlot = pickEquipSlot(item, preferredSlot);
     if (!targetSlot) return;
+    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    if (targetSlot === '목걸이' && item.slot === '무기' && !warriorDualTrain) {
+        addLog('워리어 키스톤 [쌍수 훈련]이 있어야 목걸이 슬롯에 무기를 장착할 수 있습니다.', 'attack-monster');
+        return;
+    }
+    if (targetSlot === '목걸이' && item.slot === '목걸이' && warriorDualTrain) {
+        addLog('쌍수 훈련 활성화 상태에서는 목걸이를 장착할 수 없습니다.', 'attack-monster');
+        return;
+    }
     let old = game.equipment[targetSlot];
     let movedId = item.id;
     game.equipment[targetSlot] = item;
