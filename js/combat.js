@@ -1052,9 +1052,6 @@ function getPlayerStats() {
         let overcapFire = Math.max(0, rawResF - finalMaxResF);
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(0.35, overcapFire * 0.005)));
     }
-    let hpScaleRatioBase = Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
-    let hpFlatBonusBase = Math.floor(finalBaseDmg * hpScaleRatioBase);
-    finalBaseDmg = Math.floor(finalBaseDmg + hpFlatBonusBase);
     let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
     let fireResOvercap = Math.max(0, rawResF - finalMaxResF);
     let fireResOvercapAdditiveMultiplier = Math.max(0, skill.fireResOvercapMulPerPct || 0);
