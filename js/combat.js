@@ -479,9 +479,19 @@ function coreLoop() {
         }
     });
     if (isDeathOverlayOpen()) return;
-    if (game.combatHalted) return;
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
+    if (game.combatHalted && game.moveTimer > 0) {
+        game.moveTimer -= 0.1;
+        if (game.moveTimer <= 0) startEncounterRun();
+        return;
+    }
+    if (game.combatHalted) {
+        let beehive = game.beehive || {};
+        let beehivePause = !!(beehive.inRun && beehive.awaitingClear);
+        if (!(beehivePause || game.inTicketBossFight)) game.combatHalted = false;
+        else return;
+    }
     if (game.playerHp > 0 && game.playerHp < pStats.maxHp) {
         let hpCap = getPlayerHpCap(pStats);
         game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
@@ -748,6 +758,7 @@ function getPlayerStats() {
         addStatToBucket(reward, 'dr', Math.min(12, r.unique * 1.5));
     }
     if (activeUniqueIds.has('uj_condensed_curse')) addStatToBucket(reward, 'curseCap', 1);
+    let uniqueClosedEyes = activeUniqueIds.has('uj_closed_eyes');
 
     recalculateStarWedgeMutations();
     let mutationMap = (game.starWedge && game.starWedge.nodeMutations) || {};
@@ -1051,9 +1062,6 @@ function getPlayerStats() {
         let overcapFire = Math.max(0, rawResF - finalMaxResF);
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(0.35, overcapFire * 0.005)));
     }
-    let hpScaleRatio = Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
-    let hpFlatBonus = Math.floor(finalBaseDmg * hpScaleRatio);
-    finalBaseDmg = Math.floor(finalBaseDmg + hpFlatBonus);
     let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
     let fireResOvercap = Math.max(0, rawResF - finalMaxResF);
     let fireResOvercapAdditiveMultiplier = Math.max(0, skill.fireResOvercapMulPerPct || 0);
@@ -1769,7 +1777,7 @@ function getEnemyLifeDamagePct(enemy) {
 }
 function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
     if (!enemy || !enemy.isBoss) return;
-    let zone = getZone(game.currentZoneId);
+    let zone = getZone(game.currentZoneId) || getZone(0);
     if (!zone || zone.id !== OUTSIDE_CHAOS_ZONE_ID) return;
     let st = ensureChaosRealmState();
     let pct = getEnemyLifeDamagePct(enemy);
@@ -2160,7 +2168,7 @@ function getEnemyDamageAilmentDps(ail, pStats) {
 function syncEnemyFlameDecayAilment(enemy, dotState, pStats) {
     if (!enemy || !dotState || dotState.skillName !== '화염 부패') return;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
-    let zone = getZone(game.currentZoneId);
+    let zone = getZone(game.currentZoneId) || getZone(0);
     let zoneTier = (zone && zone.tier) || 1;
     let abyssPlayerMul = (getAbyssMonsterScales(zone).playerDamageMul || 1);
     let tickInterval = Math.max(0.02, Number(dotState.tickInterval) || DOT_TICK_INTERVAL);
@@ -2475,14 +2483,15 @@ function advanceMapProgress(pStats) {
     ensureEncounterRun();
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
-    let zone = getZone(game.currentZoneId);
+    let zone = getZone(game.currentZoneId) || getZone(0);
     if (zone && zone.id === 'grand_breach_run') {
         tickGrandBreachRun(zone);
         return;
     }
     let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
-    let baseGain = zone.type === 'trial' ? 0.26 : (zone.type === 'abyss' ? 0.42 : 0.36);
+    let zoneType = zone ? zone.type : 'act';
+    let baseGain = zoneType === 'trial' ? 0.26 : (zoneType === 'abyss' ? 0.42 : 0.36);
     let crowdPenalty = enemyCount > 0 ? Math.max(0.4, 1 - enemyCount * 0.13) : 0.94;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let chaosRealmActRush = zone && zone.type === 'act' && ensureChaosRealmState().highestFloor >= 10 ? 2 : 1;
