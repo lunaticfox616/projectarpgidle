@@ -1232,6 +1232,24 @@ function ensureStarWedgeState() {
     game.starWedge = (game.starWedge && typeof game.starWedge === 'object') ? game.starWedge : {};
     if (!Array.isArray(game.starWedge.wedges)) game.starWedge.wedges = [];
     if (!Array.isArray(game.starWedge.sockets)) game.starWedge.sockets = [];
+    game.starWedge.wedges = game.starWedge.wedges
+        .map(wedge => {
+            if (!wedge || typeof wedge !== 'object') return null;
+            let normalizedId = Number(wedge.id);
+            if (!Number.isFinite(normalizedId)) return null;
+            wedge.id = normalizedId;
+            return wedge;
+        })
+        .filter(Boolean);
+    game.starWedge.sockets = game.starWedge.sockets
+        .map(socket => {
+            if (!socket || typeof socket !== 'object' || typeof socket.nodeId !== 'string') return null;
+            let normalizedWedgeId = Number(socket.wedgeId);
+            if (!Number.isFinite(normalizedWedgeId)) return null;
+            socket.wedgeId = normalizedWedgeId;
+            return socket;
+        })
+        .filter(Boolean);
     if (!game.starWedge.nodeMutations || typeof game.starWedge.nodeMutations !== 'object') game.starWedge.nodeMutations = {};
     if (!Number.isFinite(game.starWedge.skyRiftGauge)) game.starWedge.skyRiftGauge = 0;
     game.starWedge.skyRiftGauge = clampNumber(game.starWedge.skyRiftGauge, 0, 100);
@@ -1242,7 +1260,9 @@ function ensureStarWedgeState() {
     game.starWedge.skyRiftCarryGauge = Number.isFinite(game.starWedge.skyRiftCarryGauge) ? clampNumber(game.starWedge.skyRiftCarryGauge, 0, 99) : 0;
     game.starWedge.constellationBuff = (game.starWedge.constellationBuff && typeof game.starWedge.constellationBuff === 'object') ? game.starWedge.constellationBuff : null;
     game.starWedge.activeMeteorTier = Number.isFinite(game.starWedge.activeMeteorTier) ? Math.max(1, Math.floor(game.starWedge.activeMeteorTier)) : null;
-    if (!Number.isFinite(game.starWedge.selectedWedgeId) || !(game.starWedge.wedges || []).some(w => w.id === game.starWedge.selectedWedgeId)) game.starWedge.selectedWedgeId = null;
+    let selectedWedgeId = Number(game.starWedge.selectedWedgeId);
+    if (!Number.isFinite(selectedWedgeId) || !(game.starWedge.wedges || []).some(w => w.id === selectedWedgeId)) game.starWedge.selectedWedgeId = null;
+    else game.starWedge.selectedWedgeId = selectedWedgeId;
     return game.starWedge;
 }
 
@@ -1333,7 +1353,9 @@ function createStarWedgeItem() {
 
 function getStarWedgeById(wedgeId) {
     let st = ensureStarWedgeState();
-    return (st.wedges || []).find(w => w.id === wedgeId) || null;
+    let normalizedWedgeId = Number(wedgeId);
+    if (!Number.isFinite(normalizedWedgeId)) return null;
+    return (st.wedges || []).find(w => w.id === normalizedWedgeId) || null;
 }
 
 function recalculateStarWedgeMutations() {
