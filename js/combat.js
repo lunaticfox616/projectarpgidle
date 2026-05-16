@@ -748,6 +748,7 @@ function getPlayerStats() {
         addStatToBucket(reward, 'dr', Math.min(12, r.unique * 1.5));
     }
     if (activeUniqueIds.has('uj_condensed_curse')) addStatToBucket(reward, 'curseCap', 1);
+    let uniqueClosedEyes = activeUniqueIds.has('uj_closed_eyes');
 
     recalculateStarWedgeMutations();
     let mutationMap = (game.starWedge && game.starWedge.nodeMutations) || {};
@@ -1051,9 +1052,6 @@ function getPlayerStats() {
         let overcapFire = Math.max(0, rawResF - finalMaxResF);
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(0.35, overcapFire * 0.005)));
     }
-    let hpScaleRatio = Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
-    let hpFlatBonus = Math.floor(finalBaseDmg * hpScaleRatio);
-    finalBaseDmg = Math.floor(finalBaseDmg + hpFlatBonus);
     let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
     let fireResOvercap = Math.max(0, rawResF - finalMaxResF);
     let fireResOvercapAdditiveMultiplier = Math.max(0, skill.fireResOvercapMulPerPct || 0);
