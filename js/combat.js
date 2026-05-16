@@ -1777,7 +1777,7 @@ function getEnemyLifeDamagePct(enemy) {
 }
 function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
     if (!enemy || !enemy.isBoss) return;
-    let zone = getZone(game.currentZoneId);
+    let zone = getZone(game.currentZoneId) || getZone(0);
     if (!zone || zone.id !== OUTSIDE_CHAOS_ZONE_ID) return;
     let st = ensureChaosRealmState();
     let pct = getEnemyLifeDamagePct(enemy);
@@ -2168,7 +2168,7 @@ function getEnemyDamageAilmentDps(ail, pStats) {
 function syncEnemyFlameDecayAilment(enemy, dotState, pStats) {
     if (!enemy || !dotState || dotState.skillName !== '화염 부패') return;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
-    let zone = getZone(game.currentZoneId);
+    let zone = getZone(game.currentZoneId) || getZone(0);
     let zoneTier = (zone && zone.tier) || 1;
     let abyssPlayerMul = (getAbyssMonsterScales(zone).playerDamageMul || 1);
     let tickInterval = Math.max(0.02, Number(dotState.tickInterval) || DOT_TICK_INTERVAL);
@@ -2483,14 +2483,15 @@ function advanceMapProgress(pStats) {
     ensureEncounterRun();
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
-    let zone = getZone(game.currentZoneId);
+    let zone = getZone(game.currentZoneId) || getZone(0);
     if (zone && zone.id === 'grand_breach_run') {
         tickGrandBreachRun(zone);
         return;
     }
     let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
-    let baseGain = zone.type === 'trial' ? 0.26 : (zone.type === 'abyss' ? 0.42 : 0.36);
+    let zoneType = zone ? zone.type : 'act';
+    let baseGain = zoneType === 'trial' ? 0.26 : (zoneType === 'abyss' ? 0.42 : 0.36);
     let crowdPenalty = enemyCount > 0 ? Math.max(0.4, 1 - enemyCount * 0.13) : 0.94;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let chaosRealmActRush = zone && zone.type === 'act' && ensureChaosRealmState().highestFloor >= 10 ? 2 : 1;
