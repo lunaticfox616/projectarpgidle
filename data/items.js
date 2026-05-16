@@ -159,6 +159,7 @@ const ORB_DB = {
     voidChisel: { name: '공허의 끌', desc: '반지/목걸이에 주얼 소켓을 뚫고 제거할 때 쓰입니다.' },
     sealShard: { name: '봉인편린', desc: '시즌6 부적 시스템 핵심 재료입니다. 봉인을 해제해 부적 후보를 확인합니다.' },
     strongSealShard: { name: '강력한 기운의 봉인편린', desc: '희귀한 고급 봉인편린입니다. 더 강한 부적 옵션을 노릴 수 있습니다.' },
+    radiantSealShard: { name: '찬란한 봉인편린', desc: '극도로 희귀한 최상급 봉인편린입니다. 고유 부적 등장 확률이 높습니다.' },
     meteorShard: { name: '운석 파편', desc: '운석 낙하 지점에서 얻는 검은 별 파편. 별쐐기 제작/리롤에 사용됩니다.' },
     incompleteStarWedge: { name: '불완전한 별쐐기', desc: '미완성 별쐐기 코어. 운석 파편과 결합하면 완성할 수 있습니다.' },
     starWedge: { name: '별쐐기', desc: '검은 별의 파편. 패시브 트리에 장착해 주변 노드 효과를 변성시킵니다.' }

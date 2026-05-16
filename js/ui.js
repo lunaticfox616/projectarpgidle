@@ -883,10 +883,13 @@ function isTalismanBoardCellValid(x,y){ return TALISMAN_BOARD_MASK.has(talismanC
 function isTalismanCellInitiallyUnlocked(x, y){ return x >= 2 && x <= 5 && y >= 2 && y <= 5; }
 
 function renderSealShardBadge(source) {
+    let isRadiant = source === 'radiantSealShard';
     let isStrong = source === 'strongSealShard';
-    let color = isStrong ? '#f3c266' : '#9ed2ff';
-    let label = isStrong ? '강력 편린' : '편린';
-    return `<span style="display:inline-flex; align-items:center; gap:4px; font-size:0.72em; color:${color}; border:1px solid ${color}66; border-radius:999px; padding:2px 7px; background:${isStrong ? 'rgba(94,64,17,0.45)' : 'rgba(21,54,83,0.38)'};">${isStrong ? '✦' : '◆'} ${label}</span>`;
+    let color = isRadiant ? '#ffe38a' : (isStrong ? '#f3c266' : '#9ed2ff');
+    let label = isRadiant ? '찬란 편린' : (isStrong ? '강력 편린' : '편린');
+    let icon = isRadiant ? '✹' : (isStrong ? '✦' : '◆');
+    let bg = isRadiant ? 'rgba(120,95,18,0.5)' : (isStrong ? 'rgba(94,64,17,0.45)' : 'rgba(21,54,83,0.38)');
+    return `<span style="display:inline-flex; align-items:center; gap:4px; font-size:0.72em; color:${color}; border:1px solid ${color}66; border-radius:999px; padding:2px 7px; background:${bg};">${icon} ${label}</span>`;
 }
 
 function rollTalismanRevealCount() {
@@ -898,25 +901,64 @@ function rollTalismanRevealCount() {
     return 2;
 }
 
-function rollTalismanCandidate(isStrong) {
-    let shapeKey = rndChoice(Object.keys(TALISMAN_SHAPES));
+
+const TALISMAN_UNIQUE_POOL = [
+    { id:'ut_z_1', name:'굽이치는 전류', shape:'Z', stats:[{stat:'aspd',value:9,label:'공격 속도(%)'},{stat:'lightPctDmg',value:16,label:'번개 피해(%)'}] },
+    { id:'ut_z_2', name:'균열의 발걸음', shape:'Z', stats:[{stat:'move',value:11,label:'이동 속도(%)'},{stat:'resPen',value:8,label:'저항 관통(%)'}] },
+    { id:'ut_s_1', name:'감긴 덩굴', shape:'S', stats:[{stat:'flatHp',value:90,label:'최대 생명력'},{stat:'regen',value:1.4,label:'생명력 재생(%)'}] },
+    { id:'ut_s_2', name:'쐐기 관통', shape:'S', stats:[{stat:'physPctDmg',value:16,label:'물리 피해(%)'},{stat:'crit',value:3,label:'치명타 확률(%)'}] },
+    { id:'ut_l_1', name:'황혼의 궤적', shape:'L', stats:[{stat:'dotPctDmg',value:18,label:'지속 피해 배율(%)'},{stat:'chaosPctDmg',value:14,label:'카오스 피해(%)'}] },
+    { id:'ut_l_2', name:'강철 결의', shape:'L', stats:[{stat:'armorPct',value:18,label:'방어도 증가(%)'},{stat:'dr',value:7,label:'물리 피해 감소(%)'}] },
+    { id:'ut_j_1', name:'냉광의 비늘', shape:'J', stats:[{stat:'coldPctDmg',value:16,label:'냉기 피해(%)'},{stat:'freezeChance',value:10,label:'동결 확률(%)'}] },
+    { id:'ut_j_2', name:'파열의 첨탑', shape:'J', stats:[{stat:'critDmg',value:30,label:'치명타 피해 배율(%)'},{stat:'maxDmgRoll',value:6,label:'최대 피해 보정(%)'}] },
+    { id:'ut_i_1', name:'장궁의 선', shape:'I', stats:[{stat:'projectilePctDmg',value:18,label:'투사체 피해(%)'},{stat:'targetProjectile',value:1,label:'투사체 타겟 +'}] },
+    { id:'ut_i_2', name:'붉은 맥동', shape:'I', stats:[{stat:'firePctDmg',value:17,label:'화염 피해(%)'},{stat:'igniteChance',value:12,label:'점화 확률(%)'}] },
+    { id:'ut_o_1', name:'쌍환의 방패', shape:'O', stats:[{stat:'resAll',value:12,label:'모든 저항(%)'},{stat:'energyShieldPct',value:16,label:'에너지 보호막 증가(%)'}] },
+    { id:'ut_o_2', name:'이중 심장', shape:'O', stats:[{stat:'pctHp',value:12,label:'생명력 증가(%)'},{stat:'regen',value:1.2,label:'생명력 재생(%)'}] },
+    { id:'ut_t_1', name:'왕좌의 창끝', shape:'T', stats:[{stat:'pctDmg',value:18,label:'피해 증가(%)'},{stat:'aspd',value:10,label:'공격 속도(%)'}] },
+    { id:'ut_t_2', name:'교차 절개', shape:'T', stats:[{stat:'meleePctDmg',value:18,label:'근접 피해(%)'},{stat:'crit',value:3.5,label:'치명타 확률(%)'}] },
+    { id:'ut_gravity', name:'중력', shape:'DOT', rarity:'매우 희귀', special:'gravity' },
+    { id:'ut_simple', name:'단순한 부적', shape:'MARK_DOT', rarity:'매우 희귀', special:'simpleCopy' },
+    { id:'ut_temperance', name:'절제의 미덕', shape:'G', rarity:'희귀', special:'temperance' },
+    { id:'ut_pride', name:'오만', shape:'PLUS', rarity:'희귀', special:'pride' },
+    { id:'ut_moment', name:'찰나', shape:'DASH2', rarity:'희귀', special:'moment', bossFinalDmgMin:5, bossFinalDmgMax:15 },
+    { id:'ut_fire_focus', name:'불타는 부적', rarity:'희귀', special:'elementFocus', elem:'fire' },
+    { id:'ut_cold_focus', name:'서릿빛 부적', rarity:'희귀', special:'elementFocus', elem:'cold' },
+    { id:'ut_light_focus', name:'뇌전의 부적', rarity:'희귀', special:'elementFocus', elem:'light' },
+    { id:'ut_phys_focus', name:'쇄격의 부적', rarity:'희귀', special:'elementFocus', elem:'phys' },
+    { id:'ut_chaos_focus', name:'심연의 부적', rarity:'희귀', special:'elementFocus', elem:'chaos' }
+];
+
+function rollTalismanCandidate(currencyKey) {
+    let isStrong = currencyKey === 'strongSealShard';
+    let isRadiant = currencyKey === 'radiantSealShard';
+    let forceUnique = Math.random() < (isRadiant ? 0.62 : (isStrong ? 0.18 : 0.01));
+    if (forceUnique) {
+        let row = rndChoice(TALISMAN_UNIQUE_POOL);
+        let shapeKey = row.shape || rndChoice(['Z','S','L','J','I','O','T']);
+        let tal = { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x,y]) => ({x,y})), rarity: row.rarity || '고유', source: isStrong ? 'strongSealShard' : 'sealShard', isUnique: true, uniqueId: row.id, name: row.name, special: row.special || null, markDir: rndChoice(['up','right','down','left']) };
+        if (row.special === 'temperance') {
+            tal.stats = Array.from({length:3}, ()=>{ let o=rndChoice(TALISMAN_OPTION_POOL); let v=o.min + Math.random()*(o.max-o.min); return { stat:o.stat, label:o.label, value:Number(v.toFixed((o.step||1)<1?1:0))};});
+        } else if (row.special === 'elementFocus') {
+            let gemLv = 1 + Math.floor(Math.random()*3);
+            let inc = 5 + Math.floor(Math.random()*11);
+            let res = 5 + Math.floor(Math.random()*11);
+            let map = { fire:['gemLevel','firePctDmg','resF','화염'], cold:['gemLevel','coldPctDmg','resC','냉기'], light:['gemLevel','lightPctDmg','resL','번개'], phys:['gemLevel','physPctDmg','dr','물리'], chaos:['gemLevel','chaosPctDmg','resChaos','카오스'] }[row.elem];
+            tal.shape = rndChoice(['Z','S','L','J','I','O','T']); tal.cells = TALISMAN_SHAPES[tal.shape].map(([x,y])=>({x,y}));
+            tal.stats=[{stat:map[0],label:`${map[3]} 스킬 젬 레벨`,value:gemLv},{stat:map[1],label:`${map[3]} 스킬 피해(%)`,value:inc},{stat:map[2],label:`${map[3]} 저항(%)`,value:res}];
+        } else if (row.stats) tal.stats=row.stats.map(v=>({...v}));
+        tal.stat = tal.stats && tal.stats[0] ? tal.stats[0].stat : null;
+        tal.statName = row.name;
+        tal.value = tal.stats && tal.stats[0] ? tal.stats[0].value : 0;
+        return tal;
+    }
+    let shapeKey = rndChoice(Object.keys(TALISMAN_SHAPES).filter(k => ['I','O','T','S','Z','J','L'].includes(k)));
     let option = rndChoice(TALISMAN_OPTION_POOL);
     let multiplier = isStrong ? 1.35 : 1.0;
     let rolled = option.min + Math.random() * (option.max - option.min);
     let step = option.step || 1;
     let value = Math.round((rolled * multiplier) / step) * step;
-    return {
-        id: Date.now() + Math.floor(Math.random() * 100000),
-        shape: shapeKey,
-        cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })),
-        stat: option.stat,
-        statName: option.label,
-        value: Number(value.toFixed(step < 1 ? 1 : 0)),
-        valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)),
-        valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)),
-        rarity: isStrong ? '강력한 기운' : '일반',
-        source: isStrong ? 'strongSealShard' : 'sealShard'
-    };
+    return { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })), stat: option.stat, statName: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)), valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)), valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)), rarity: isStrong ? '강력한 기운' : '일반', source: isStrong ? 'strongSealShard' : 'sealShard' };
 }
 
 function startTalismanUnseal(currencyKey) {
@@ -927,7 +969,7 @@ function startTalismanUnseal(currencyKey) {
     game.talismanUnseal = {
         rollsLeft: total,
         totalRolls: total,
-        current: rollTalismanCandidate(currencyKey === 'strongSealShard'),
+        current: rollTalismanCandidate(currencyKey),
         source: currencyKey
     };
     addLog(`🧿 봉인 해제 시작! 총 확인 기회 ${total}회`, 'season-up');
@@ -938,7 +980,7 @@ function previewNextTalismanShape() {
     let state = game.talismanUnseal;
     if (!state || state.rollsLeft <= 1) return;
     state.rollsLeft--;
-    state.current = rollTalismanCandidate(state.source === 'strongSealShard');
+    state.current = rollTalismanCandidate(state.source);
     updateStaticUI();
 }
 
@@ -971,6 +1013,7 @@ function rotateTalismanInInventory(talismanId){
     let target = inv.find(t => t && t.id === talismanId);
     if (!target || !Array.isArray(target.cells)) return;
     target.cells = rotateTalismanCells90(target.cells);
+    if (target.markDir) { let rot={up:'right',right:'down',down:'left',left:'up'}; target.markDir=rot[target.markDir]||target.markDir; }
     addLog(`🔄 부적 회전: [${target.shape}]`, 'loot-normal');
     updateStaticUI();
 }
@@ -3719,7 +3762,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-fossil-actions').innerHTML = fossilButtons.join('') || `<div style="color:#7f8c8d;">보유한 화석이 없습니다.</div>`;
     document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:#7f8c8d;">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:#8fb6d9;">기본 화석 정제는 항상 가능하며, 균사학자 Lv.4부터 원시 화석(복원 전용), Lv.5부터 원시 고대 화석(태고 화석 추가/고급 재화 확률 증가)이 미궁에서 드랍됩니다. 화석 전용 옵션은 Lv.6부터 제작이 아니라 장비 드랍 시 일정 확률로 붙습니다.</div>`;
 
-    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'sealShard', 'strongSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3']);
+    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3']);
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
         if (hiddenCurrencyKeys.has(key)) return false;
         if (key === 'tainted') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
@@ -4156,13 +4199,14 @@ function buildCraftActionButtons(item) {
     let talismanUnlockCost = getTalismanExpandCost(extraUnlocked);
     document.getElementById('ui-talisman-board-size').innerText = talismanUnlockedSet.size;
     document.getElementById('ui-talisman-board-size2').innerText = TALISMAN_BOARD_MASK.size;
-    document.getElementById('ui-talisman-currency').innerHTML = `${renderSealShardBadge('sealShard')} <strong>${game.currencies.sealShard || 0}</strong> &nbsp; ${renderSealShardBadge('strongSealShard')} <strong>${game.currencies.strongSealShard || 0}</strong>`;
+    document.getElementById('ui-talisman-currency').innerHTML = `${renderSealShardBadge('sealShard')} <strong>${game.currencies.sealShard || 0}</strong> &nbsp; ${renderSealShardBadge('strongSealShard')} <strong>${game.currencies.strongSealShard || 0}</strong> &nbsp; ${renderSealShardBadge('radiantSealShard')} <strong>${game.currencies.radiantSealShard || 0}</strong>`;
     let unseal = game.talismanUnseal;
     if (!unseal) {
         document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:8px; color:#9fc4ea;">봉인편린을 해제해 부적 후보를 확인하세요.</div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button onclick="startTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>봉인편린 해제</button>
                 <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
+                <button onclick="startTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란한 기운] 봉인편린 해제</button>
                 <button onclick="expandTalismanBoard()" ${(talismanUnlockCost.sealShard || 0) <= 0 ? 'disabled' : ''}>칸 해금 안내 (${formatTalismanUnlockCostLabel(talismanUnlockCost)})</button>
             </div>`;
     } else {
@@ -4889,6 +4933,18 @@ function mergeDefaults(save) {
     let passiveAllocationNormalization = normalizeAllocatedPassiveTreeNodes(merged.passives, !!merged.passiveStarEvolution);
     merged.passives = passiveAllocationNormalization.passives;
     merged.autoRefundedPassivePoints = Math.max(0, Math.floor(passiveAllocationNormalization.refunded || 0));
+    function getPassiveTierValueForLoad(statKey, tier) {
+        let statDef = P_STATS[statKey];
+        if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
+        if (tier === 0) return 10;
+        if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
+        if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
+        return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
+    }
+    Object.values(PASSIVE_TREE.nodes || {}).forEach(node => {
+        if (!node || node.stat !== 'critDmg') return;
+        node.val = getPassiveTierValueForLoad('critDmg', Math.max(0, Math.floor(node.tier || 1)));
+    });
     merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
     if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
         merged.discoveredPassives = Array.from(new Set(['n0'].concat(merged.passives || [])));
@@ -6790,6 +6846,27 @@ function getExpertiseOverviewHtml(total, spent, free) {
     return `<div class="expertise-panel">전문가 포인트 · 총 <b>${total}</b> / 사용 <b>${spent}</b> / 남은 <b style="color:#ffd36b;">${free}</b> <button style="margin-left:8px;" onclick="resetExpertTree();updateStaticUI();">트리 초기화</button><div class="expertise-summary">분기 투자: ${branchSummary}</div></div>`;
 }
 
+
+
+function formatExpertFavorEffect(effect) {
+    let map = {
+        chillEffectReducePct:'냉각 효과 감소', freezeDurationReducePct:'동결 지속시간 감소', shockEffectReducePct:'감전 효과 감소',
+        igniteDamageReducePct:'점화 피해 감소', bleedDamageReducePct:'출혈 피해 감소', poisonDamageReducePct:'중독 피해 감소',
+        dotTakenDamageReducePct:'받는 지속 피해 감소', takenDamageReduceWhen2EnemiesPct:'적 2명+ 받는 피해 감소', takenDamageReduceWhen1EnemyPct:'적 1명 받는 피해 감소',
+        igniteChance:'점화 확률', igniteDamageMultiplierPct:'점화 피해', accuracyBonusPct:'정확도 보정', minDmgRoll:'최소 피해 보정',
+        projectilePctDmg:'투사체 피해', crit:'치명타 확률', critDmg:'치명타 피해 배율', aspd:'공격 속도', regen:'생명력 재생',
+        energyShieldPct:'에너지 보호막', evasionPct:'회피', pctDmg:'피해', armorPct:'방어도'
+    };
+    return Object.entries(effect||{}).map(([k,v])=>`${map[k]||k} +${v}%`).join(' / ');
+}
+function selectExpertFavor(expertId, optionId){
+    if (!expertId || !optionId) return;
+    if (typeof setSelectedExpertFavor !== 'function') return;
+    let ok = setSelectedExpertFavor(expertId, optionId);
+    if (!ok) return addLog('해당 호의 선택지는 아직 해금되지 않았습니다.', 'attack-monster');
+    addLog(`✨ 전문가의 호의 선택: ${(EXPERT_DEFS[expertId]||{}).name || expertId}`, 'loot-magic');
+    updateStaticUI();
+}
 function getExpertiseCardHtml(id) {
     let d = EXPERT_DEFS[id], lv = getExpertLevel(id), cur = getCurrentExpertUnlock(id), next = getNextExpertUnlock(id), pt = Math.max(0, lv - 15);
     let exp = getExpertExp(id), req = getExpertExpReq(lv);
@@ -6803,7 +6880,12 @@ function getExpertiseCardHtml(id) {
     let historyHtml = history.length > 0
         ? `<div class="expertise-unlock-log"><div style="color:#dce9ff; font-weight:700; margin-bottom:4px;">해금 기록</div>${history.map(row => `<div class="expertise-unlock-entry">Lv.${row.level} · <strong>${row.title}</strong><br><span>${row.desc || ''}</span></div>`).join('')}</div>`
         : '<div class="expertise-muted">해금 기록 없음</div>';
-    return `<div class="expertise-card"><h4>${d.icon} ${d.name} <span class="expertise-muted">Lv.${lv}</span> ${lv>=16?`<span style='color:#ffd36b;'>+${pt}pt</span>`:''}</h4><div class="expertise-muted">EXP ${exp}/${req} · 이번 루프 ${used}/${loopCap}</div><div style="margin:6px 0 8px 0; height:8px; border-radius:999px; background:#1c2a3a; border:1px solid #344b66;"><div style="width:${pct.toFixed(1)}%; height:100%; border-radius:999px; background:linear-gradient(90deg,#3f84ff,#72d1ff);"></div></div><div class="expertise-muted">${currentUnlockLine}</div><div class="expertise-muted">${nextUnlockLine}</div>${historyHtml}</div>`;
+    let favorOptions = (typeof getExpertFavorOptions === 'function') ? getExpertFavorOptions(id) : [];
+    let favorSelected = (typeof getSelectedExpertFavor === 'function') ? getSelectedExpertFavor(id) : null;
+    let favorHtml = favorOptions.length > 0
+        ? `<div class="expertise-panel" style="margin-top:8px;"><div style="color:#dce9ff; font-weight:700; margin-bottom:4px;">전문가의 호의 (영구 1개 선택)</div>${favorOptions.map(opt => { let unlocked = lv >= (opt.level || 1); let active = favorSelected === opt.id; return `<button ${unlocked ? `onclick="selectExpertFavor('${id}','${opt.id}')"` : 'disabled'} style="display:block; width:100%; text-align:left; margin:4px 0; ${active ? 'border-color:#ffd36b; color:#ffd36b;' : ''}">${active ? '✓ ' : ''}${opt.name} ${unlocked ? '' : `(Lv.${opt.level} 필요)`}<br><span class='expertise-muted'>${formatExpertFavorEffect(opt.effect)}</span></button>`; }).join('')}</div>`
+        : '';
+    return `<div class="expertise-card"><h4>${d.icon} ${d.name} <span class="expertise-muted">Lv.${lv}</span> ${lv>=16?`<span style='color:#ffd36b;'>+${pt}pt</span>`:''}</h4><div class="expertise-muted">EXP ${exp}/${req} · 이번 루프 ${used}/${loopCap}</div><div style="margin:6px 0 8px 0; height:8px; border-radius:999px; background:#1c2a3a; border:1px solid #344b66;"><div style="width:${pct.toFixed(1)}%; height:100%; border-radius:999px; background:linear-gradient(90deg,#3f84ff,#72d1ff);"></div></div><div class="expertise-muted">${currentUnlockLine}</div><div class="expertise-muted">${nextUnlockLine}</div>${historyHtml}${favorHtml}</div>`;
 }
 
 function getExpertiseNodeButtonHtml(node) {
@@ -7061,6 +7143,35 @@ function isAscendKeystoneRequirementMet(node) {
     return true;
 }
 
+
+function enforceWarriorDualTrainingEquipment(onEnable) {
+    if (game.ascendClass !== 'warrior') return true;
+    game.equipment = game.equipment || {};
+    game.inventory = Array.isArray(game.inventory) ? game.inventory : [];
+    let neck = game.equipment['목걸이'];
+    if (onEnable) {
+        if (neck && neck.slot === '목걸이') {
+            if (game.inventory.length >= getInventoryLimit()) {
+                addLog('쌍수 훈련 활성화를 위해 목걸이를 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
+                return false;
+            }
+            game.inventory.push(neck);
+            game.equipment['목걸이'] = null;
+            addLog('🛡️ 쌍수 훈련 활성화: 기존 목걸이를 인벤토리로 이동했습니다.', 'loot-normal');
+        }
+        return true;
+    }
+    if (neck && neck.slot === '무기') {
+        if (game.inventory.length >= getInventoryLimit()) {
+            addLog('쌍수 훈련 해제를 위해 목걸이 슬롯 무기를 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
+            return false;
+        }
+        game.inventory.push(neck);
+        game.equipment['목걸이'] = null;
+        addLog('🧰 쌍수 훈련 해제: 목걸이 슬롯 무기를 인벤토리로 이동했습니다.', 'loot-normal');
+    }
+    return true;
+}
 function buyAscendKeystone(id) {
     if (!game.ascendClass) return;
     let defs = getClassKeystoneDefs(game.ascendClass);
@@ -7072,6 +7183,7 @@ function buyAscendKeystone(id) {
     if (game.ascendKeystonePoints <= 0) return addLog('키스톤 포인트가 부족합니다.', 'attack-monster');
     if (game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT) return addLog(`키스톤은 최대 ${CLASS_KEYSTONE_PICK_LIMIT}개 선택할 수 있습니다.`, 'attack-monster');
     if (!isAscendKeystoneRequirementMet(node)) return addLog('선행 키스톤 조건이 필요합니다.', 'attack-monster');
+    if (id === 'w3' && !enforceWarriorDualTrainingEquipment(true)) return;
     game.ascendKeystones.push(id);
     game.ascendKeystonePoints -= 1;
     updateStaticUI();
@@ -7092,6 +7204,7 @@ function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
     if (blockers.length > 0) return addLog(`선행 키스톤입니다: ${blockers.map(v => v.name).join(', ')}`, 'attack-monster');
     if ((game.currencies.scour || 0) < 1) return addLog('키스톤 환불에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
     if (!confirm('키스톤을 반환하시겠습니까? (정화의 오브 1 소모)')) return;
+    if (id === 'w3' && !enforceWarriorDualTrainingEquipment(false)) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
     game.ascendKeystones = game.ascendKeystones.filter(key => key !== id);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
@@ -7103,6 +7216,7 @@ function resetAscendKeystones() {
     if (game.ascendKeystones.length <= 0) return;
     let cost = game.ascendKeystones.length;
     if ((game.currencies.scour || 0) < cost) return addLog(`키스톤 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (game.ascendKeystones.includes('w3') && !enforceWarriorDualTrainingEquipment(false)) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + game.ascendKeystones.length;
     game.ascendKeystones = [];
@@ -7169,4 +7283,4 @@ function getLockedTabMessage(tabId) {
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage });
+safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor });

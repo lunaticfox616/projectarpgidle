@@ -231,7 +231,9 @@ function createEmptyStatBucket() {
         minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
-        armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0
+        armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0,
+        chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
+        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, igniteDamageMultiplierPct: 0, accuracyBonusPct: 0
     };
 }
 function addStatToBucket(bucket, statId, value) {
@@ -298,6 +300,19 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'resChaos') bucket.resChaos += value;
     else if (statId === 'ds') bucket.ds += value;
     else if (statId === 'slamEchoChance') bucket.slamEchoChance += value;
+
+    else if (statId === 'chillEffectReducePct') bucket.chillEffectReducePct += value;
+    else if (statId === 'freezeDurationReducePct') bucket.freezeDurationReducePct += value;
+    else if (statId === 'shockEffectReducePct') bucket.shockEffectReducePct += value;
+    else if (statId === 'igniteDamageReducePct') bucket.igniteDamageReducePct += value;
+    else if (statId === 'bleedDamageReducePct') bucket.bleedDamageReducePct += value;
+    else if (statId === 'poisonDamageReducePct') bucket.poisonDamageReducePct += value;
+    else if (statId === 'dotTakenDamageReducePct') bucket.dotTakenDamageReducePct += value;
+    else if (statId === 'takenDamageReduceWhen2EnemiesPct') bucket.takenDamageReduceWhen2EnemiesPct += value;
+    else if (statId === 'takenDamageReduceWhen1EnemyPct') bucket.takenDamageReduceWhen1EnemyPct += value;
+    else if (statId === 'igniteDamageMultiplierPct') bucket.igniteDamageMultiplierPct += value;
+    else if (statId === 'accuracyBonusPct') bucket.accuracyBonusPct += value;
+
     else if (statId === 'moveEvasion') { bucket.move += value; bucket.evasionPct += value; }
     else if (statId === 'hpArmor') { bucket.flatHp += value; bucket.armor += value * 2; }
     else if (statId === 'aspdMove') { bucket.aspd += value; bucket.move += value; }
