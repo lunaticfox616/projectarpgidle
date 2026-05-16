@@ -841,6 +841,40 @@ const EXPERT_DEFS = {
 };
 
 
+
+const EXPERT_FAVOR_OPTIONS = {
+  mycologist: [
+    { id:'myco_chill_freeze', level:1, name:'가루약: 냉각/동결 완화', effect:{ chillEffectReducePct:50, freezeDurationReducePct:50 } },
+    { id:'myco_shock', level:3, name:'가루약: 감전 완화', effect:{ shockEffectReducePct:30 } },
+    { id:'myco_ignite', level:5, name:'가루약: 점화 완화', effect:{ igniteDamageReducePct:30 } },
+    { id:'myco_bleed', level:7, name:'가루약: 출혈 완화', effect:{ bleedDamageReducePct:30 } },
+    { id:'myco_poison', level:9, name:'가루약: 중독 완화', effect:{ poisonDamageReducePct:30 } }
+  ],
+  gemEngraver: [
+    { id:'gem_dot_taken', level:1, name:'젬 코팅: 지속 피해 저항', effect:{ dotTakenDamageReducePct:12 } },
+    { id:'gem_crowd_taken', level:4, name:'젬 코팅: 다수전 방호', effect:{ takenDamageReduceWhen2EnemiesPct:8 } },
+    { id:'gem_duel_taken', level:7, name:'젬 코팅: 단일전 방호', effect:{ takenDamageReduceWhen1EnemyPct:4 } }
+  ],
+  astronomer: [
+    { id:'astro_ignite', level:1, name:'렌즈: 점화 강화', effect:{ igniteChance:25, igniteDamageMultiplierPct:10 } },
+    { id:'astro_accuracy', level:3, name:'렌즈: 정확도 보정', effect:{ accuracyBonusPct:10 } },
+    { id:'astro_minroll', level:5, name:'렌즈: 최소 피해 보정', effect:{ minDmgRoll:6 } },
+    { id:'astro_projectile', level:7, name:'렌즈: 투사체 피해', effect:{ projectilePctDmg:12 } },
+    { id:'astro_crit', level:9, name:'렌즈: 치명타 확률', effect:{ crit:1.5 } },
+    { id:'astro_critdmg', level:11, name:'렌즈: 치명타 피해', effect:{ critDmg:12.5 } }
+  ],
+  beekeeper: [
+    { id:'bee_speed_regen', level:1, name:'로열젤리: 가속 재생', effect:{ aspd:10, regen:2 } },
+    { id:'bee_crit_es', level:4, name:'로열젤리: 치명/보호막', effect:{ crit:1, energyShieldPct:10 } },
+    { id:'bee_critdmg_eva', level:7, name:'로열젤리: 치피/회피', effect:{ critDmg:12.5, evasionPct:10 } },
+    { id:'bee_dmg_armor', level:10, name:'로열젤리: 피해/방어도', effect:{ pctDmg:15, armorPct:10 } }
+  ]
+};
+function getExpertFavorOptions(expertId){ return (EXPERT_FAVOR_OPTIONS[expertId]||[]).slice(); }
+function getSelectedExpertFavor(expertId){ let st=ensureExpertiseState(); st.favors=(st.favors&&typeof st.favors==='object')?st.favors:{}; return st.favors[expertId]||null; }
+function setSelectedExpertFavor(expertId, optionId){ let st=ensureExpertiseState(); st.favors=(st.favors&&typeof st.favors==='object')?st.favors:{}; let lv=getExpertLevel(expertId); let opt=(EXPERT_FAVOR_OPTIONS[expertId]||[]).find(v=>v.id===optionId && lv>=v.level); if(!opt) return false; st.favors[expertId]=optionId; return true; }
+function getExpertFavorEffectTotals(){ let st=ensureExpertiseState(); st.favors=(st.favors&&typeof st.favors==='object')?st.favors:{}; let out={}; Object.keys(EXPERT_FAVOR_OPTIONS).forEach(expertId=>{ let picked=st.favors[expertId]; let opt=(EXPERT_FAVOR_OPTIONS[expertId]||[]).find(v=>v.id===picked); if(!opt) return; Object.entries(opt.effect||{}).forEach(([k,v])=>{ out[k]=(out[k]||0)+Number(v||0); }); }); return out; }
+
 const EXPERT_EXP_RULES = {
   mycologist: { loopCap: 250, actions: { spore_craft: { exp: 2, cap: 80 }, fossil_refine: { exp: 3, cap: 80 }, fossil_craft: { exp: 3, cap: 80 }, fossil_restore: { exp: 5, cap: 80 }, labyrinth_new_floor: { exp: 10, cap: 60 } } },
   gemEngraver: { loopCap: 250, actions: { boss_core_upgrade: { exp: 3, cap: 80 }, sky_core_upgrade: { exp: 3, cap: 80 }, engrave_slot_expand: { exp: 5, cap: 60 }, engrave_apply: { exp: 1, cap: 100 }, support_gem_upgrade: { exp: 1, cap: 100 } } },
@@ -881,6 +915,7 @@ function ensureExpertiseState(){
   game.expertise.nodes=game.expertise.nodes||{};
   game.expertise.unlockHistory=(game.expertise.unlockHistory&&typeof game.expertise.unlockHistory==='object')?game.expertise.unlockHistory:{};
   game.expertise.unlockedExperts=Array.isArray(game.expertise.unlockedExperts)?game.expertise.unlockedExperts:[];
+  game.expertise.favors=(game.expertise.favors&&typeof game.expertise.favors==='object')?game.expertise.favors:{};
   EXPERT_IDS.forEach(id=>{
     game.expertise.levels[id]=Math.max(1,Math.min(30,Math.floor(game.expertise.levels[id]||1)));
     game.expertise.exp[id]=Math.max(0,Math.floor(game.expertise.exp[id]||0));
@@ -1035,7 +1070,7 @@ const defaultGame = {
     abyssPassivePoints: 0,
     abyssClearedDepths: [],
     abyssPassives: { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 },
-    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, meteorShard: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0 },
+    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendKeystonePoints: 0,
@@ -1108,7 +1143,7 @@ const defaultGame = {
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0 },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talisman: false, expertise: false, jewel: false },
     noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false },
-    expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, expertPointBonus: 0, loopExpCaps: {} }
+    expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }
 };
 
 
@@ -1143,4 +1178,4 @@ function normalizeGemRecord(raw) {
 }
 
 
-safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord, EXPERT_DEFS, EXPERT_TREE_NODES, ensureExpertiseState, getExpertLevel, getExpertExp, addExpertExp, getExpertUnlocks, getExpertUnlockHistory, getCurrentExpertUnlock, getNextExpertUnlock, getExpertPointTotal, getExpertPointSpent, getExpertPointFree, getExpertBranchSpent, getExpertNodeEffectValue, canAllocateExpertNode, allocateExpertNode, resetExpertTree, hasExpertTreeUnlocked, resetExpertiseLoopCaps, EXPERT_EXP_RULES, grantExpertExpByAction });
+safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord, EXPERT_DEFS, EXPERT_TREE_NODES, ensureExpertiseState, getExpertLevel, getExpertExp, addExpertExp, getExpertUnlocks, getExpertUnlockHistory, getCurrentExpertUnlock, getNextExpertUnlock, getExpertPointTotal, getExpertPointSpent, getExpertPointFree, getExpertBranchSpent, getExpertNodeEffectValue, canAllocateExpertNode, allocateExpertNode, resetExpertTree, hasExpertTreeUnlocked, resetExpertiseLoopCaps, EXPERT_EXP_RULES, grantExpertExpByAction, EXPERT_FAVOR_OPTIONS, getExpertFavorOptions, getSelectedExpertFavor, setSelectedExpertFavor, getExpertFavorEffectTotals });

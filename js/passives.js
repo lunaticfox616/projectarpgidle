@@ -5162,7 +5162,7 @@ function awardCurrency(currencyKey, amount) {
         game.noti.skills = true;
         addLog('☁️ 스킬 젬 강화 탭이 개방되었습니다!', 'loot-unique');
     }
-    if (!game.talismanUnlocked && (currencyKey === 'sealShard' || currencyKey === 'strongSealShard')) {
+    if (!game.talismanUnlocked && (currencyKey === 'sealShard' || currencyKey === 'strongSealShard' || currencyKey === 'radiantSealShard')) {
         game.talismanUnlocked = true;
         game.unlocks.talisman = true;
         game.noti.talisman = true;
@@ -5210,6 +5210,7 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 5 && enemy.isElite && Math.random() < 0.008) drops.push(['jewelShard', 1]);
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.08) drops.push(['sealShard', 1]);
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.012) drops.push(['strongSealShard', 1]);
+    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30 && Math.random() < 0.0008) drops.push(['radiantSealShard', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.02) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.006) drops.push(['beastKeyCerberus', 1]);
@@ -5259,6 +5260,34 @@ function passesItemPickupFilter(item) {
     }
     return true;
 }
+
+
+const UNIQUE_JEWEL_DB = [
+    { id:'uj_crown_empty', name:'비어 있는 왕좌', ultra:true, uniqueEffect:'고독한 군림', stats:[{id:'pctDmg',val:25},{id:'gemLevel',val:1}] },
+    { id:'uj_mirror_heart', name:'거울 심장', ultra:true, uniqueEffect:'반대 슬롯 주얼 복제', stats:[{id:'pctDmg',val:8},{id:'resAll',val:8}] },
+    { id:'uj_old_box', name:'오래된 보석함', ultra:true, uniqueEffect:'인벤토리 등급 시너지', stats:[{id:'aspd',val:6},{id:'resAll',val:10}] },
+    { id:'uj_hurried_mind', name:'다급해지는 마음', ultra:true, uniqueEffect:'적이 없으면 이동속도 +50%', stats:[{id:'move',val:12},{id:'regen',val:1.2}] },
+    { id:'uj_condensed_curse', name:'응축된 저주', ultra:true, uniqueEffect:'저주 최대치 +1 / 저주당 피해 +10%', stats:[{id:'dotPctDmg',val:14},{id:'resPen',val:6}] },
+    { id:'uj_burning_will', name:'불같은 의지', ultra:true, uniqueEffect:'화염 최대저항/저항 연계 보너스', stats:[{id:'maxResF',val:2},{id:'firePctDmg',val:12}] },
+    { id:'uj_closed_eyes', name:'질끈 감은 눈', ultra:true, uniqueEffect:'상태이상/저주/버프 무효', stats:[{id:'dr',val:6},{id:'resAll',val:12}] },
+    { id:'uj_void', name:'공허', ultra:true, uniqueEffect:'융합 가능 수 6', stats:[{id:'pctDmg',val:-10},{id:'resAll',val:-10}], voidFusionCharges:6 },
+    { id:'uj_spark_ember', name:'불씨의 파편', stats:[{id:'firePctDmg',val:14},{id:'igniteChance',val:10}] },
+    { id:'uj_frost_nail', name:'서리 못', stats:[{id:'coldPctDmg',val:14},{id:'chillChance',val:10}] },
+    { id:'uj_storm_shard', name:'폭풍 조각', stats:[{id:'lightPctDmg',val:14},{id:'shockEffectReducePct',val:12}] },
+    { id:'uj_venom_eye', name:'독안', stats:[{id:'chaosPctDmg',val:14},{id:'poisonChance',val:12}] },
+    { id:'uj_blood_tine', name:'혈극', stats:[{id:'physPctDmg',val:14},{id:'bleedChance',val:12}] },
+    { id:'uj_iron_husk', name:'강철 껍질', stats:[{id:'armorPct',val:16},{id:'dr',val:5}] },
+    { id:'uj_windstep', name:'바람걸음', stats:[{id:'move',val:14},{id:'aspd',val:8}] },
+    { id:'uj_null_seed', name:'영점 씨앗', stats:[{id:'resPen',val:7},{id:'crit',val:1.2}] },
+    { id:'uj_root_charm', name:'뿌리 부적', stats:[{id:'flatHp',val:55},{id:'regen',val:1.5}] },
+    { id:'uj_tide_mark', name:'조류 각인', stats:[{id:'dotPctDmg',val:12},{id:'dotTakenDamageReducePct',val:8}] },
+    { id:'uj_ash_loop', name:'잿빛 고리', stats:[{id:'critDmg',val:18},{id:'crit',val:1}] },
+    { id:'uj_horizon_pin', name:'지평 핀', stats:[{id:'projectilePctDmg',val:16},{id:'minDmgRoll',val:4}] },
+    { id:'uj_stone_beat', name:'석맥 박동', stats:[{id:'slamPctDmg',val:16},{id:'maxDmgRoll',val:4}] },
+    { id:'uj_lattice', name:'격자 파편', stats:[{id:'resAll',val:10},{id:'energyShieldPct',val:12}] },
+    { id:'uj_bramble', name:'가시덩굴', stats:[{id:'evasionPct',val:12},{id:'takenDamageReduceWhen2EnemiesPct',val:6}] },
+    { id:'uj_dawn_chip', name:'새벽 조각', stats:[{id:'pctDmg',val:12},{id:'takenDamageReduceWhen1EnemyPct',val:4}] }
+];
 
 const JEWEL_OPTION_POOL = [
     { id: 'pctDmg', name: '피해 증폭', min: 4, max: 10 },
@@ -5360,6 +5389,16 @@ function rollJewelPetiteStat(rarity, excludeIds) {
 }
 
 function generateJewelDrop(zoneTier) {
+    let uniqueChance = Math.max(0.002, Math.min(0.02, ((zoneTier || 1) / 1000)));
+    if (Math.random() < uniqueChance) {
+        let pool = UNIQUE_JEWEL_DB.filter(v => !v.ultra);
+        let ultraPool = UNIQUE_JEWEL_DB.filter(v => v.ultra);
+        let row = Math.random() < 0.08 ? rndChoice(ultraPool) : rndChoice(pool);
+        let stats = (row.stats || []).map(st => makeFixedJewelStat(st.id, st.val));
+        let petite = rollJewelPetiteStat('rare', stats.map(st => st.id));
+        if (petite) stats.push(petite);
+        return { id: Date.now() + Math.floor(Math.random() * 100000), uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', uniqueLockedFusion: row.id !== 'uj_void', voidFusionCharges: Number.isFinite(row.voidFusionCharges) ? row.voidFusionCharges : 0, hiddenTier: Math.max(1, ...stats.map(st => st.tier || 1)), stats: stats };
+    }
     let pick = rndChoice(JEWEL_OPTION_POOL);
     let stat = rollJewelStat(pick);
     let rarityRoll = Math.random();
@@ -5380,12 +5419,14 @@ function getJewelStats(jewel) {
 }
 
 function getJewelRarityLabel(rarity) {
+    if (rarity === 'unique') return '고유';
     if (rarity === 'rare') return '레어';
     if (rarity === 'magic') return '매직';
     return '일반';
 }
 
 function getJewelRarityClass(rarity) {
+    if (rarity === 'unique') return 'unique';
     if (rarity === 'rare') return 'rare';
     if (rarity === 'magic') return 'magic';
     return 'normal';
@@ -5394,7 +5435,7 @@ function getJewelRarityClass(rarity) {
 function salvageJewelObject(jewel, silent) {
     if (!jewel || getJewelStats(jewel).length === 0) return;
     let rarity = jewel.rarity || 'normal';
-    let shardGain = rarity === 'rare' ? 9 : (rarity === 'magic' ? 5 : 2);
+    let shardGain = rarity === 'unique' ? 18 : (rarity === 'rare' ? 9 : (rarity === 'magic' ? 5 : 2));
     awardCurrency('jewelShard', shardGain);
     if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (+주얼 결정 ${shardGain})`, 'loot-normal');
 }
@@ -5420,6 +5461,12 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
     let b = game.jewelInventory[sorted[1]];
     let aStats = getJewelCoreStats(a);
     let bStats = getJewelCoreStats(b);
+    function canFuseUnique(j) {
+        if (!j || j.rarity !== 'unique') return true;
+        if (j.uniqueId === 'uj_void') return (j.voidFusionCharges || 0) > 0;
+        return false;
+    }
+    if (!canFuseUnique(a) || !canFuseUnique(b)) return addLog('고유 주얼은 기본적으로 융합할 수 없습니다.', 'attack-monster');
     if (a.isVoid || b.isVoid) {
         game.currencies.jewelShard -= fusionCost;
         let stats = [...aStats, ...bStats];
@@ -5432,7 +5479,9 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
             let cloned = cloneJewelStat(stat);
             if (cloned) merged.push(cloned);
         });
-        game.jewelInventory.splice(sorted[1], 1);
+        if (a && a.uniqueId === 'uj_void' && (a.voidFusionCharges || 0) > 0) a.voidFusionCharges--;
+    if (b && b.uniqueId === 'uj_void' && (b.voidFusionCharges || 0) > 0) b.voidFusionCharges--;
+    game.jewelInventory.splice(sorted[1], 1);
         game.jewelInventory.splice(sorted[0], 1);
         let newJewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, hiddenTier: Math.max(1, ...merged.map(stat => stat.tier || 1)), stats: merged, maxLines: 4 };
         game.jewelInventory.push(newJewel);
@@ -5446,6 +5495,8 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
     let useAmplified = !!(amplifiedEl && amplifiedEl.checked);
     if (useAmplified && (game.currencies.jewelShard || 0) < 8) return addLog('증폭합성에 필요한 주얼 결정이 부족합니다. (필요: 8)', 'attack-monster');
     game.currencies.jewelShard -= fusionCost;
+    if (a && a.uniqueId === 'uj_void' && (a.voidFusionCharges || 0) > 0) a.voidFusionCharges--;
+    if (b && b.uniqueId === 'uj_void' && (b.voidFusionCharges || 0) > 0) b.voidFusionCharges--;
     game.jewelInventory.splice(sorted[1], 1);
     game.jewelInventory.splice(sorted[0], 1);
     let fused = {
@@ -5667,8 +5718,8 @@ function toggleAutoSalvage() {
 }
 
 function syncJewelSalvageControlsFromSettings() {
-    game.settings.jewelAutoSalvageRarities = { normal: false, magic: false, rare: false, ...(game.settings.jewelAutoSalvageRarities || {}) };
-    ['normal', 'magic', 'rare'].forEach(rarity => {
+    game.settings.jewelAutoSalvageRarities = { normal: false, magic: false, rare: false, unique: false, ...(game.settings.jewelAutoSalvageRarities || {}) };
+    ['normal', 'magic', 'rare', 'unique'].forEach(rarity => {
         let el = document.getElementById(`chk-jewel-salvage-${rarity}`);
         if (el) el.checked = !!game.settings.jewelAutoSalvageRarities[rarity];
     });
@@ -5678,7 +5729,7 @@ function syncJewelSalvageControlsFromSettings() {
 
 function updateJewelSalvageSettingsFromUI() {
     game.settings.jewelAutoSalvageRarities = game.settings.jewelAutoSalvageRarities || { normal: false, magic: false, rare: false };
-    ['normal', 'magic', 'rare'].forEach(rarity => {
+    ['normal', 'magic', 'rare', 'unique'].forEach(rarity => {
         let el = document.getElementById(`chk-jewel-salvage-${rarity}`);
         if (el) game.settings.jewelAutoSalvageRarities[rarity] = !!el.checked;
     });
