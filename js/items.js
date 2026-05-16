@@ -40,6 +40,8 @@ function getEquipCandidateSlots(item) {
     if (!item) return [];
     if (item.slot === '반지') return ['반지1', '반지2'];
     if (item.slot === '장갑') return ['장갑1', '장갑2'];
+    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    if (item.slot === '무기') return warriorDualTrain ? ['무기', '목걸이'] : ['무기'];
     return [item.slot];
 }
 
