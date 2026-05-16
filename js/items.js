@@ -65,6 +65,8 @@ function pickEquipSlot(item, preferredSlot) {
             if (game.equipment['무기'] && !game.equipment['목걸이']) return '목걸이';
             if (!game.equipment['무기']) return '무기';
             if (!game.equipment['목걸이']) return '목걸이';
+            let neckItem = game.equipment['목걸이'];
+            if (neckItem && neckItem.slot === '목걸이') return '목걸이';
             return null;
         }
     }
