@@ -83,7 +83,7 @@ const ACT_REWARD_DB = {
         title: '액트 9 클리어 보상',
         body: '다음 중 하나의 능력치를 얻을 수 있습니다.',
         choices: [
-            { kind: 'stat', stat: 'crit', value: 5, label: '치명타 확률 +5%', desc: '치명타 발생 빈도를 높입니다.' },
+            { kind: 'stat', stat: 'crit', value: 2.5, label: '치명타 확률 +2.5%', desc: '치명타 발생 빈도를 높입니다.' },
             { kind: 'stat', stat: 'critDmg', value: 30, label: '치명타 피해 +30%', desc: '치명타 한 방의 무게를 늘립니다.' },
             { kind: 'stat', stat: 'leech', value: 0.8, label: '흡혈 +0.8%', desc: '공격 시 흡혈 인스턴스에 저장되는 회복량을 늘립니다.' },
             { kind: 'stat', stat: 'physIgnore', value: 6, label: '물피감 무시 +6%', desc: '중갑 적을 상대로 물리 빌드의 화력을 안정적으로 확보합니다.' },
