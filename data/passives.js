@@ -27,7 +27,12 @@ const TALISMAN_SHAPES = {
     S: [[1, 0], [2, 0], [0, 1], [1, 1]],
     Z: [[0, 0], [1, 0], [1, 1], [2, 1]],
     J: [[0, 0], [0, 1], [1, 1], [2, 1]],
-    L: [[2, 0], [0, 1], [1, 1], [2, 1]]
+    L: [[2, 0], [0, 1], [1, 1], [2, 1]],
+    DOT: [[0, 0]],
+    MARK_DOT: [[0, 0]],
+    G: [[0, 0], [0, 1], [1, 1]],
+    PLUS: [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2]],
+    DASH2: [[0, 0], [1, 0]]
 };
 
 const TALISMAN_SHAPE_STYLE = {
@@ -37,7 +42,12 @@ const TALISMAN_SHAPE_STYLE = {
     S: { color: '#86efac', glow: 'rgba(134,239,172,0.24)', symbol: '⟍' },
     Z: { color: '#fca5a5', glow: 'rgba(252,165,165,0.24)', symbol: '⟋' },
     J: { color: '#93c5fd', glow: 'rgba(147,197,253,0.24)', symbol: '⌟' },
-    L: { color: '#fdba74', glow: 'rgba(253,186,116,0.24)', symbol: '⌞' }
+    L: { color: '#fdba74', glow: 'rgba(253,186,116,0.24)', symbol: '⌞' },
+    DOT: { color: '#fef08a', glow: 'rgba(254,240,138,0.28)', symbol: '•' },
+    MARK_DOT: { color: '#facc15', glow: 'rgba(250,204,21,0.3)', symbol: '◉' },
+    G: { color: '#a7f3d0', glow: 'rgba(167,243,208,0.28)', symbol: 'ㄱ' },
+    PLUS: { color: '#fda4af', glow: 'rgba(253,164,175,0.3)', symbol: '✛' },
+    DASH2: { color: '#93c5fd', glow: 'rgba(147,197,253,0.28)', symbol: '▬' }
 };
 
 const TALISMAN_OPTION_POOL = [
