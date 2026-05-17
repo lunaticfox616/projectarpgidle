@@ -12,11 +12,13 @@ function getGemEngraverLevelForUnlocks() {
 }
 
 function getSkyEnhancementUnlockLevel(enhanceId) {
-    if (['sky_fury', 'sky_swiftness', 'sky_precision', 'sky_blood'].includes(enhanceId)) return 2;
-    if (['sky_tempest', 'sky_keen', 'sky_blitz'].includes(enhanceId)) return 3;
-    if (enhanceId === 'sky_harmony') return 4;
-    if (String(enhanceId || '').startsWith('sky_awakened')) return 14;
-    return 6;
+    if (['sky_fury', 'sky_swiftness', 'sky_precision', 'sky_blood', 'sky_tempest', 'sky_keen', 'sky_blitz', 'sky_harmony', 'sky_sunder', 'sky_pierce'].includes(enhanceId)) return 1;
+    const byLevel = {
+        sky_gemcraft_edge: 2, sky_gemcraft_swift: 3, sky_gemcraft_focus: 4, sky_gemcraft_pierce: 5, sky_gemcraft_break: 6,
+        sky_gemcraft_vigor: 7, sky_gemcraft_echo: 8, sky_gemcraft_hybrid: 9, sky_gemcraft_dot: 10, sky_gemcraft_critical: 11,
+        sky_awakened_force: 12, sky_awakened_surge: 12, sky_awakened_focus: 13, sky_awakened_overdrive: 14, sky_awakened_resonance: 15
+    };
+    return byLevel[enhanceId] || 6;
 }
 
 function canUseSkyEnhancement(enhanceId) {
@@ -75,10 +77,12 @@ function applySkyGemEnhancementToActive(enhanceId) {
     let enhance = GEM_SKY_ENHANCEMENTS[enhanceId];
     if (!enhance) return;
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
-    if (String(enhanceId || '').startsWith('sky_awakened') && !game.gemData[active].awakened) return addLog('각성 각인은 각성 후보 젬에만 부여할 수 있습니다.', 'attack-monster');
     game.skyGemEnhancements = game.skyGemEnhancements || {};
     game.skyGemEnhancements[active] = Array.isArray(game.skyGemEnhancements[active]) ? game.skyGemEnhancements[active] : [];
     if (game.skyGemEnhancements[active].includes(enhanceId)) return addLog('이미 해당 젬에 적용된 특수 옵션입니다.', 'attack-monster');
+    if (String(enhanceId || '').startsWith('sky_awakened') && game.skyGemEnhancements[active].some(id => String(id || '').startsWith('sky_awakened'))) {
+        return addLog('각성 각인은 젬당 1개만 부여할 수 있습니다.', 'attack-monster');
+    }
     let cap = game.gemData[active].skyEnhanceCap || 1;
     if (game.skyGemEnhancements[active].length >= cap) return addLog(`젬 특수 옵션은 현재 최대 ${cap}개까지 부여할 수 있습니다.`, 'attack-monster');
     game.currencies.skyEssence--;
@@ -354,8 +358,13 @@ function getActiveSkillStats(bonusLevel) {
     if (!skill.isGem) return { ...skill, baseLevel: 0, finalLevel: 0, bonusLevel: 0 };
     let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);
     let materialBonus = (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0);
-    let finalLevel = Math.min(20, gem.level) + bonusLevel + materialBonus;
-    let totalLevel = gem.level + bonusLevel + materialBonus;
+    let awakenedGemLevelBonus = 0;
+    getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
+        let enh = GEM_SKY_ENHANCEMENTS[id];
+        if (enh && enh.stat === 'awakenedGemLevel') awakenedGemLevelBonus += (enh.gemLvVal || 0);
+    });
+    let finalLevel = Math.min(20, gem.level) + bonusLevel + materialBonus + awakenedGemLevelBonus;
+    let totalLevel = gem.level + bonusLevel + materialBonus + awakenedGemLevelBonus;
     let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus };
     stats.dmg = stats.baseDmg + ((finalLevel - 1) * stats.dmgScale);
     stats.spd = stats.baseSpd + ((finalLevel - 1) * stats.spdScale);
@@ -376,17 +385,32 @@ function getActiveSkillStats(bonusLevel) {
         if (enh.stat === 'leech') stats.leech += enh.val;
         if (enh.stat === 'targets') stats.targets = Math.min(99, Math.max(1, (stats.targets || 1) + enh.val));
         if (enh.stat === 'critDmg') stats.critDmgBonus = (stats.critDmgBonus || 0) + enh.val;
+        if (enh.stat === 'ds') stats.dsBonus = (stats.dsBonus || 0) + enh.val;
+        if (enh.stat === 'flatSkillDmgPct') stats.flatSkillDmgPct = (stats.flatSkillDmgPct || 0) + enh.val;
+        if (enh.stat === 'leechRegenHybrid') {
+            stats.leech += (enh.leechVal || 0);
+            stats.regenBonus = (stats.regenBonus || 0) + (enh.regenVal || 0);
+        }
         if (enh.stat === 'physIgnore') stats.physIgnoreBonus = (stats.physIgnoreBonus || 0) + enh.val;
         if (enh.stat === 'resPen') stats.resPenBonus = (stats.resPenBonus || 0) + enh.val;
         if (enh.stat === 'dotMulti' && Array.isArray(stats.tags) && stats.tags.includes('dot')) stats.dmg *= (1 + enh.val / 100);
+        if (enh.stat === 'dotMultiplier' && Array.isArray(stats.tags) && stats.tags.includes('dot')) stats.dotMultiplier = (stats.dotMultiplier || 1) * (1 + enh.val / 100);
         if (enh.stat === 'hybrid') {
             stats.dmg *= (1 + enh.val / 100);
             stats.spd *= (1 + enh.val / 100);
         }
-        if (enh.stat === 'awakenedHybrid') {
-            stats.spd *= (1 + enh.val / 100);
-            stats.crit += enh.critVal || 0;
+        if (enh.stat === 'awakenedDamageMul') stats.dmg *= (1 + (enh.val || 0) / 100);
+        if (enh.stat === 'awakenedAspdMul') stats.spd *= (1 + (enh.val || 0) / 100);
+        if (enh.stat === 'awakenedSpellFlatMul' && Array.isArray(stats.tags) && stats.tags.includes('spell')) stats.spellFlatMulBonus = (stats.spellFlatMulBonus || 0) + (enh.val || 0);
+        if (enh.stat === 'awakenedNoCritDouble') {
+            stats.dmg *= (1 + (enh.val || 0) / 100);
+            stats.cannotCrit = true;
         }
+        if (enh.penaltyDmgPct) stats.dmg *= (1 - (enh.penaltyDmgPct / 100));
+        if (enh.penaltyAspdPct) stats.spd *= (1 - (enh.penaltyAspdPct / 100));
+        if (enh.penaltyCrit) stats.crit = (stats.crit || 0) - enh.penaltyCrit;
+        if (enh.penaltyCritDmg) stats.critDmgBonus = (stats.critDmgBonus || 0) - enh.penaltyCritDmg;
+        if (enh.penaltyResPen) stats.resPenBonus = (stats.resPenBonus || 0) - enh.penaltyResPen;
     });
     return stats;
 }
