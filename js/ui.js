@@ -5724,12 +5724,12 @@ async function continueWithCloudSession() {
     updateCloudSaveUI();
     try {
         advanceLoadingOverlay({
-            title: '세이브 시각을 비교하는 중...',
-            detail: '로컬 저장과 원격 저장 가운데 더 최신인 진행도를 찾고 있습니다.',
+            title: '클라우드 저장을 불러오는 중...',
+            detail: '클라우드 저장 전체를 로컬에 적용할 준비를 하고 있습니다.',
             caption: 'Comparing Timelines',
             progress: 48
         });
-        await reconcileCloudSaveState({ preferRemoteOnResume: true });
+        await reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true });
         await enterGameWorld();
     } catch (error) {
         setCloudMessage('클라우드 세이브 연결 실패: ' + (error.message || error));
@@ -6455,12 +6455,16 @@ async function cloudLogin(options = {}) {
         await refreshCloudLinkedIdentities();
         clearCloudPasswordInput();
         advanceLoadingOverlay({
-            title: '저장 데이터를 동기화하는 중...',
-            detail: '클라우드 세이브와 이 기기 저장 가운데 더 최신인 진행도를 정렬하고 있습니다.',
+            title: '저장 데이터를 불러오는 중...',
+            detail: '계정에 저장된 클라우드 세이브가 있으면 전체 데이터를 우선 적용합니다.',
             caption: 'Syncing Save Data',
             progress: 58
         });
-        await reconcileCloudSaveState({ createRemoteFromLocal: true });
+        await reconcileCloudSaveState({
+            createRemoteFromLocal: true,
+            preferRemoteOnResume: options.enterGame === true,
+            strictRemoteResume: options.enterGame === true
+        });
         addLog('클라우드 세이브 계정에 로그인했습니다.', 'loot-magic');
         if (options.enterGame) await enterGameWorld();
     } catch (error) {
