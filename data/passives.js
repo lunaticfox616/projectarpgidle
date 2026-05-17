@@ -16,8 +16,21 @@ const GEM_SKY_ENHANCEMENTS = {
     sky_harmony: { id: 'sky_harmony', name: '창공의 조율', desc: '스킬 피해 +6%, 공격속도 +6%', stat: 'hybrid', val: 6 },
     sky_sunder: { id: 'sky_sunder', name: '갑주 분쇄', desc: '스킬의 물리 피해 감소 무시 +6%', stat: 'physIgnore', val: 6 },
     sky_pierce: { id: 'sky_pierce', name: '균열 투과', desc: '스킬의 저항 관통 +6%', stat: 'resPen', val: 6 },
-    sky_awakened_force: { id: 'sky_awakened_force', name: '각성 각인', desc: '각성 후보 젬에 부여 가능한 스킬 피해 +14%', stat: 'pctDmg', val: 14 },
-    sky_awakened_surge: { id: 'sky_awakened_surge', name: '잔향 쇄도', desc: '각성 후보 젬에 부여 가능한 공격속도 +10%, 치명타 +4%', stat: 'awakenedHybrid', val: 10, critVal: 4 }
+    sky_gemcraft_edge: { id: 'sky_gemcraft_edge', name: '폭풍 메아리', desc: '스킬의 연속 타격 +18%, 공격속도 -3%', stat: 'ds', val: 18, penaltyAspdPct: 3 },
+    sky_gemcraft_swift: { id: 'sky_gemcraft_swift', name: '혈맥 증폭', desc: '스킬의 흡수 +1.2%, 피해 -4%', stat: 'leechRegenHybrid', leechVal: 1.2, penaltyDmgPct: 4 },
+    sky_gemcraft_focus: { id: 'sky_gemcraft_focus', name: '차원 압축', desc: '스킬의 기본 타격 피해 +12%, 공격속도 -4%', stat: 'flatSkillDmgPct', val: 12, penaltyAspdPct: 4 },
+    sky_gemcraft_pierce: { id: 'sky_gemcraft_pierce', name: '과열 반응', desc: '스킬의 치명타 피해 배율 +40%, 치명타 확률 -3%', stat: 'critDmg', val: 40, penaltyCrit: 3 },
+    sky_gemcraft_break: { id: 'sky_gemcraft_break', name: '파동 분산', desc: '스킬의 타겟 수 +2, 피해 -5%', stat: 'targets', val: 2, penaltyDmgPct: 5 },
+    sky_gemcraft_vigor: { id: 'sky_gemcraft_vigor', name: '축전 사슬', desc: '스킬의 공격속도 +5%, 피해 +5%, 저항 관통 -2%', stat: 'hybrid', val: 5, penaltyResPen: 2 },
+    sky_gemcraft_echo: { id: 'sky_gemcraft_echo', name: '관성 격침', desc: '스킬의 물리 피해 감소 무시 +10%, 치명타 피해 배율 -12%', stat: 'physIgnore', val: 10, penaltyCritDmg: 12 },
+    sky_gemcraft_hybrid: { id: 'sky_gemcraft_hybrid', name: '공명 침식', desc: '스킬의 저항 관통 +10%, 피해 -3%', stat: 'resPen', val: 10, penaltyDmgPct: 3 },
+    sky_gemcraft_dot: { id: 'sky_gemcraft_dot', name: '잔향 도약', desc: '지속 피해 계열 스킬의 지속 피해 배율 +30%, 타격 피해 -6%', stat: 'dotMultiplier', val: 30, penaltyDmgPct: 6 },
+    sky_gemcraft_critical: { id: 'sky_gemcraft_critical', name: '정점 절개', desc: '스킬의 치명타 확률 +9%, 저항 관통 -2%', stat: 'crit', val: 9, penaltyResPen: 2 },
+    sky_awakened_force: { id: 'sky_awakened_force', name: '각성: 파쇄 문양', desc: '젬의 피해 배율 10% 증폭', stat: 'awakenedDamageMul', val: 10 },
+    sky_awakened_surge: { id: 'sky_awakened_surge', name: '각성: 초가속 문양', desc: '젬의 공격 속도 배율 8% 증폭', stat: 'awakenedAspdMul', val: 8 },
+    sky_awakened_focus: { id: 'sky_awakened_focus', name: '각성: 주문핵 문양', desc: '젬의 주문 내장 피해 15% 증폭', stat: 'awakenedSpellFlatMul', val: 15 },
+    sky_awakened_overdrive: { id: 'sky_awakened_overdrive', name: '각성: 금단 파열', desc: '치명타 불가, 젬의 피해 배율 100% 증폭', stat: 'awakenedNoCritDouble', val: 100 },
+    sky_awakened_resonance: { id: 'sky_awakened_resonance', name: '각성: 심층 초월', desc: '젬 레벨 +3', stat: 'awakenedGemLevel', gemLvVal: 3 }
 };
 
 const TALISMAN_SHAPES = {
