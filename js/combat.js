@@ -964,6 +964,7 @@ function getPlayerStats() {
         let spellFlatBonus = gearBase.spellFlatDmg + gearExplicit.spellFlatDmg + passive.spellFlatDmg + season.spellFlatDmg + ascend.spellFlatDmg + reward.spellFlatDmg + support.spellFlatDmg;
         let spellFlatPct = gearBase.spellFlatPct + gearExplicit.spellFlatPct + passive.spellFlatPct + season.spellFlatPct + ascend.spellFlatPct + reward.spellFlatPct + support.spellFlatPct;
         spellFlatDmg = Math.max(1, ((spellBase * 3) + Math.max(0, skillLevel - 1) * spellScale + (spellBase * 0.8 * logBoost * logBoost) + spellFlatBonus) * (1 + spellFlatPct / 100));
+        spellFlatDmg *= (1 + Math.max(0, Number(skill.spellFlatMulBonus) || 0) / 100);
     }
     let totalFlatDmg = isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg);
     let codexBonusRatio = 1 + (getCodexBonusPct() / 100);
@@ -978,6 +979,7 @@ function getPlayerStats() {
     let hpFlatBonus = Math.floor(totalFlatDmg * hpScaleRatio);
     let scaledFlatDmg = totalFlatDmg + hpFlatBonus;
     let finalBaseDmg = Math.floor(scaledFlatDmg * (1 + (generalPctDmg + taggedTotal) / 100) * (skill.dmg || skill.baseDmg || 1) * codexBonusRatio);
+    finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, Number(skill.flatSkillDmgPct) || 0) / 100));
 
     let gearAspd = gearBase.aspd + gearExplicit.aspd;
     let passiveAspd = passive.aspd + season.aspd + ascend.aspd + reward.aspd;
@@ -1021,9 +1023,9 @@ function getPlayerStats() {
     let allowNegativePhysIgnore = false;
     let warriorPhysDamageMultiplier = 1;
     let warriorTakenDamageMultiplier = 1;
-    let finalDs = (gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) * 0.75;
+    let finalDs = ((gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) + (skill.dsBonus || 0)) * 0.75;
     let finalSlamEchoChance = gearBase.slamEchoChance + gearExplicit.slamEchoChance + passive.slamEchoChance + season.slamEchoChance + ascend.slamEchoChance + support.slamEchoChance + reward.slamEchoChance;
-    let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen;
+    let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen + (skill.regenBonus || 0);
     if (activeUniqueIds.has('uj_hurried_mind')) {
         let alive = (game.enemies || []).filter(e => e && e.hp > 0).length;
         if (alive === 0) finalMove *= 1.5;
@@ -1317,6 +1319,7 @@ function getPlayerStats() {
     damageScales.dotDurationMultiplier = dotDurationMultiplier;
     damageScales.warlockElementalOvercapToChaos = warlockElementalOvercapToChaos;
 
+    if (skill.cannotCrit) finalCrit = 0;
     critChance = Math.max(0, Math.min(1, finalCrit / 100));
     critMulti = finalCritDmg / 100;
     avgHit = finalBaseDmg * (1 - critChance) + finalBaseDmg * critChance * critMulti;
@@ -3492,12 +3495,12 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.encounterPlan = [];
         game.encounterIndex = 0;
         game.runProgress = 0;
-    } else if (zone.type === 'seasonBoss' && game.inTicketBossFight) {
+    } else if (zone && zone.type === 'seasonBoss' && game.inTicketBossFight) {
         addLog(message || "☠️ 시즌 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death", { noToast: !!opts.noToast });
         game.currentZoneId = 0;
         game.killsInZone = 0;
         game.inTicketBossFight = false;
-    } else if (zone.type === 'trial') {
+    } else if (zone && zone.type === 'trial') {
         addLog(message || "☠️ 시련 실패! 마을로 귀환합니다.", "death", { noToast: !!opts.noToast });
         game.currentZoneId = game.maxZoneId;
         game.killsInZone = 0;
