@@ -481,6 +481,10 @@ function coreLoop() {
     if (isDeathOverlayOpen()) return;
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
+    if ((Number(game.playerHp) || 0) <= 0) {
+        handlePlayerDefeat(getZone(game.currentZoneId) || getZone(0), pStats, "☠️ 치명상을 입어 쓰러졌습니다.", { fatalElement: 'other', sourceName: '치명상' });
+        return;
+    }
     if (game.combatHalted && game.moveTimer > 0) {
         game.moveTimer -= 0.1;
         if (game.moveTimer <= 0) startEncounterRun();

@@ -5072,7 +5072,7 @@ function mergeDefaults(save) {
     merged.beehive = (merged.beehive && typeof merged.beehive === 'object') ? merged.beehive : { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 };
     if (!merged.beehive.inRun) resetBeehiveRunModifiers(merged.beehive);
     if (merged.beehive && merged.beehive.inRun) {
-        merged.combatHalted = !!(merged.beehive.awaitingClear);
+        merged.combatHalted = !merged.beehive.awaitingClear;
     } else {
         merged.combatHalted = !!merged.combatHalted;
     }
