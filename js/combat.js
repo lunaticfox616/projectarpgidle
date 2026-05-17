@@ -493,8 +493,11 @@ function coreLoop() {
     if (game.combatHalted) {
         let beehive = game.beehive || {};
         let beehivePause = !!(beehive.inRun && beehive.awaitingClear);
-        if (!(beehivePause || game.inTicketBossFight)) game.combatHalted = false;
-        else return;
+        let stopByMapSetting = (game.settings.mapCompleteAction || 'nextZone') === 'stop';
+        let stopByTownSetting = (game.settings.townReturnAction || 'retry') === 'stop';
+        let manualStopState = stopByMapSetting || stopByTownSetting || !!game.pendingLoopDecision;
+        if (beehivePause || game.inTicketBossFight || manualStopState) return;
+        game.combatHalted = false;
     }
     if (game.playerHp > 0 && game.playerHp < pStats.maxHp) {
         let hpCap = getPlayerHpCap(pStats);

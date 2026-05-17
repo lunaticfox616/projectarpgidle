@@ -4690,8 +4690,8 @@ function normalizeItem(item) {
 
 function getItemCraftTier(item) {
     if (!item) return 1;
-    if (Number.isFinite(item.hiddenTier)) return Math.max(1, Math.floor(item.hiddenTier));
-    if (Number.isFinite(item.itemTier)) return Math.max(1, Math.floor(item.itemTier));
+    if (Number.isFinite(item.hiddenTier)) return clampNumber(Math.floor(item.hiddenTier), 1, 10);
+    if (Number.isFinite(item.itemTier)) return clampNumber(Math.floor(item.itemTier), 1, 10);
     return 1;
 }
 
@@ -4762,6 +4762,7 @@ function rollBaseStats(base, zoneTier) {
 function rollAffixValue(mod, maxTier) {
     let statId = mod.statId || mod.id;
     let tier = 1;
+    maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 10);
     while (tier < maxTier && Math.random() < 0.58) tier++;
     let min = mod.base + (tier * mod.step);
     let max = min + mod.step * 1.6;
@@ -4798,6 +4799,8 @@ function pickTierInRangeWeighted(minTier, maxTier) {
 
 function rollAffixValueInTierRange(mod, minTier, maxTier) {
     let statId = mod.statId || mod.id;
+    minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 10);
+    maxTier = clampNumber(Math.floor(Number(maxTier) || minTier), minTier, 10);
     let tier = pickTierInRangeWeighted(minTier, maxTier);
     let min = mod.base + (tier * mod.step);
     let max = min + mod.step * 1.6;
