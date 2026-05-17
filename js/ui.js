@@ -3008,7 +3008,8 @@ function pruneEnemyHpDamageGhostStates(activeEnemyIds) {
 function updateCombatUI(pStats) {
     if (pStats && pStats.breakdowns) cachedTooltipStats = pStats;
     game.playerHp = Math.min(game.playerHp, pStats.maxHp);
-    setTextById('ui-hp', Math.max(0, Math.floor(game.playerHp)));
+    let safeHp = Math.max(0, Number(game.playerHp) || 0);
+    setTextById('ui-hp', safeHp >= 100 ? Math.floor(safeHp) : safeHp.toFixed(1));
     setTextById('ui-maxhp', pStats.maxHp);
     setTextById('ui-maxhp-stat', pStats.maxHp);
     let hpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
@@ -5070,7 +5071,11 @@ function mergeDefaults(save) {
     merged.inTicketBossFight = !!merged.inTicketBossFight;
     merged.beehive = (merged.beehive && typeof merged.beehive === 'object') ? merged.beehive : { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 };
     if (!merged.beehive.inRun) resetBeehiveRunModifiers(merged.beehive);
-    merged.combatHalted = !!(merged.beehive && merged.beehive.inRun && !merged.beehive.awaitingClear);
+    if (merged.beehive && merged.beehive.inRun) {
+        merged.combatHalted = !!(merged.beehive.awaitingClear);
+    } else {
+        merged.combatHalted = !!merged.combatHalted;
+    }
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     if (!merged.journalEntries.includes('prologue')) merged.journalEntries.unshift('prologue');
@@ -5132,7 +5137,7 @@ function mergeDefaults(save) {
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
     merged.settings.notiFilters = { ...(defaultGame.settings.notiFilters || {}), ...(merged.settings.notiFilters || {}) };
-    merged.playerHp = Math.max(1, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 1)));
+    merged.playerHp = Math.max(0, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 0)));
     merged.playerEnergyShield = Math.max(0, Math.floor(clampFiniteNumber(merged.playerEnergyShield, defaultGame.playerEnergyShield, 0))); 
     merged.moveTimer = clampFiniteNumber(merged.moveTimer, defaultGame.moveTimer, 0);
     merged.moveTotalTime = clampFiniteNumber(merged.moveTotalTime, defaultGame.moveTotalTime, 0);
@@ -6078,6 +6083,12 @@ function shouldBlockLocalPushForRemoteLoop(record, localSnapshot = game) {
     return { blocked: false, reason: 'safe', localLoop, remoteLoop };
 }
 
+function getLoopCompareSummary(record, localSnapshot = game) {
+    let localLoop = getSaveLoopNumber(localSnapshot || {});
+    let remoteLoop = updateRemoteLoopFromRecord(record);
+    return { localLoop, remoteLoop, safeToPush: localLoop >= remoteLoop };
+}
+
 function isLikelyBootstrapLocalSave(snapshot) {
     let s = snapshot || game || {};
     let hasProgress = false;
@@ -6216,9 +6227,16 @@ async function reconcileCloudSaveState(options = {}) {
             if (!options.silent) addLog('이어하기(클라우드 우선)로 서버 저장을 적용했습니다.', 'loot-magic');
             return strictRemoteResume ? 'pulled-remote-resume-strict' : 'pulled-remote-resume-preferred';
         }
+        let loopSummary = getLoopCompareSummary(record);
+        if (!loopSummary.safeToPush) {
+            applyExternalSave(record.save_data, remoteStamp);
+            setCloudMessage(`클라우드 루프(${loopSummary.remoteLoop})가 로컬 루프(${loopSummary.localLoop})보다 높아 클라우드를 적용했습니다.`);
+            if (!options.silent) addLog('루프 비교 결과 클라우드 진행이 더 높아 서버 저장을 적용했습니다.', 'loot-magic');
+            return 'pulled-remote-higher-loop-late-guard';
+        }
         await pushCloudSave({ touchModifiedAt: false });
-        setCloudMessage('로컬 저장이 클라우드보다 최신이라 서버 저장 대신 로컬 진행도를 업로드했습니다.');
-        if (!options.silent) addLog('로컬 저장이 더 최신이라 클라우드에 업로드했습니다.', 'loot-magic');
+        setCloudMessage(`루프 비교(로컬 ${loopSummary.localLoop} / 클라우드 ${loopSummary.remoteLoop}) 후 로컬 저장을 업로드했습니다.`);
+        if (!options.silent) addLog(`루프 비교(로컬 ${loopSummary.localLoop} / 클라우드 ${loopSummary.remoteLoop}) 후 클라우드에 업로드했습니다.`, 'loot-magic');
         return 'pushed-local-newer-than-remote-resume';
     }
     if (isLikelyBootstrapLocalSave(game) && remoteStamp > 0) {
@@ -6234,9 +6252,16 @@ async function reconcileCloudSaveState(options = {}) {
         return 'pulled-remote';
     }
     if (localStamp > remoteStamp) {
+        let loopSummary = getLoopCompareSummary(record);
+        if (!loopSummary.safeToPush) {
+            applyExternalSave(record.save_data, remoteStamp);
+            setCloudMessage(`클라우드 루프(${loopSummary.remoteLoop})가 로컬 루프(${loopSummary.localLoop})보다 높아 클라우드를 적용했습니다.`);
+            if (!options.silent) addLog('루프 비교 결과 클라우드 진행이 더 높아 서버 저장을 적용했습니다.', 'loot-magic');
+            return 'pulled-remote-higher-loop-late-guard';
+        }
         await pushCloudSave({ touchModifiedAt: false });
-        setCloudMessage('로컬 저장이 클라우드보다 최신이라 클라우드에 업로드했습니다.');
-        if (!options.silent) addLog('로컬 저장이 더 최신이라 클라우드에 업로드했습니다.', 'loot-magic');
+        setCloudMessage(`루프 비교(로컬 ${loopSummary.localLoop} / 클라우드 ${loopSummary.remoteLoop}) 후 로컬 저장을 업로드했습니다.`);
+        if (!options.silent) addLog(`루프 비교(로컬 ${loopSummary.localLoop} / 클라우드 ${loopSummary.remoteLoop}) 후 클라우드에 업로드했습니다.`, 'loot-magic');
         return localStamp > remoteStamp + CLOUD_REMOTE_TIME_SKEW_MS ? 'pushed-local' : 'pushed-local-within-skew';
     }
     applyExternalSave(record.save_data, remoteStamp);
