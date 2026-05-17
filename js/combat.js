@@ -492,7 +492,7 @@ function coreLoop() {
     }
     if (game.combatHalted) {
         let beehive = game.beehive || {};
-        let beehivePause = !!(beehive.inRun && beehive.awaitingClear);
+        let beehivePause = !!(beehive.inRun && !beehive.awaitingClear);
         let stopByMapSetting = (game.settings.mapCompleteAction || 'nextZone') === 'stop';
         let stopByTownSetting = (game.settings.townReturnAction || 'retry') === 'stop';
         let manualStopState = stopByMapSetting || stopByTownSetting || !!game.pendingLoopDecision;
@@ -542,6 +542,7 @@ function coreLoop() {
     }
 
     syncCrowdPauseState();
+    if (game.beehive && game.beehive.inRun && !game.beehive.awaitingClear) return;
     let progressBefore = game.runProgress;
     let zoneNow = getZone(game.currentZoneId);
     let vRift = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0, pendingWave: false, totalToSpawn: 0, spawnedCount: 0, spawnTick: 0 });

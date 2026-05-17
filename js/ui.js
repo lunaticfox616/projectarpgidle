@@ -475,35 +475,44 @@ function renderLoop8BeehivePanel() {
     panel.style.display = open ? 'block' : 'none';
     if (!open) return;
     let b = game.beehive || (game.beehive = { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 });
+    if (b.inRun && !b.pendingChoice && !b.awaitingClear && !b.queenActive) prepareBeehiveBranchChoices(b);
     let choiceHtml = '';
     if (b.inRun && b.awaitingClear && (game.enemies || []).filter(e => e.hp > 0).length === 0) {
         onBeehiveWaveCleared();
     }
-    if (b.inRun && b.pendingChoice) {
+    let aliveBeeEnemies = (game.enemies || []).filter(e => e && e.hp > 0).length;
+    if (b.inRun && b.pendingChoice && !b.awaitingClear && aliveBeeEnemies <= 0) {
         let c = b.pendingChoice;
         if (c.a && c.b && c.c) {
-            choiceHtml = `<div style="margin-top:8px; display:grid; gap:6px;"><button onclick="resolveBeehiveChoice('a')">${c.a.text}</button><button onclick="resolveBeehiveChoice('b')">${c.b.text}</button><button onclick="resolveBeehiveChoice('c')">${c.c.text}</button></div>`;
+            choiceHtml = `<div style="margin-top:8px; display:grid; gap:6px;"><div style="color:#ffd978; font-weight:700;">갈림길 선택 (${Math.min(10, (b.branchStep || 0) + 1)}/10) · 선택 즉시 벌떼 웨이브가 시작됩니다.</div><button onclick="resolveBeehiveChoice('a')">${c.a.text}</button><button onclick="resolveBeehiveChoice('b')">${c.b.text}</button><button onclick="resolveBeehiveChoice('c')">${c.c.text}</button></div>`;
         } else {
             // Legacy save compatibility: old shape used now/later keys.
-            choiceHtml = `<div style="margin-top:8px; display:grid; gap:6px;"><button onclick="resolveBeehiveChoice('legacy_now')">${c.nowText || '즉시 보상'}</button><button onclick="resolveBeehiveChoice('legacy_later')">${c.laterText || '지연 보상'}</button></div>`;
+            choiceHtml = `<div style="margin-top:8px; display:grid; gap:6px;"><div style="color:#ffd978; font-weight:700;">갈림길 선택 (${Math.min(10, (b.branchStep || 0) + 1)}/10)</div><button onclick="resolveBeehiveChoice('legacy_now')">${c.nowText || '즉시 보상'}</button><button onclick="resolveBeehiveChoice('legacy_later')">${c.laterText || '지연 보상'}</button></div>`;
         }
+    } else if (b.inRun && b.awaitingClear) {
+        choiceHtml = `<div style="margin-top:8px; color:#f3d28a;">${b.queenActive ? '여왕벌 전투 진행 중' : `벌떼 웨이브 진행 중 (${Math.max(0, Math.floor(b.branchStep || 0))}/10)`} · 남은 적 <strong>${aliveBeeEnemies}</strong>마리를 모두 처치해야 진행할 수 있습니다.</div>`;
     }
     let beekeeperLv = getBeekeeperLevelForHive();
     let hiveUnlockText = `양봉업자 Lv.${beekeeperLv} · 카오스 ${beekeeperLv >= 3 ? '해금' : 'Lv.3'} · 신성한오브 ${beekeeperLv >= 5 ? '해금' : 'Lv.5'}`;
     panel.innerHTML = `<div style="color:#f6d68e; margin-bottom:6px;">열쇠: <strong>${game.currencies.hiveKey||0}</strong> · 꽃가루: <strong>${game.currencies.pollen||0}</strong> · 독벌침: <strong>${game.currencies.venomStinger||0}</strong> · 벌꿀: <strong>${game.currencies.enchantedHoney||0}</strong> · 밀랍: <strong>${game.currencies.beeswax||0}</strong></div>
-    <div style="color:#b8c7d8; font-size:0.82em; margin-bottom:8px;">세 갈래길 10회 후 여왕벌 보스. 벌집 진행 중 일반 전투/맵 이동은 정지됩니다.<br>${hiveUnlockText}</div>
-    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="startBeehiveRun()" ${(game.currencies.hiveKey||0)<=0 || b.inRun ? 'disabled':''}>벌집 입장</button><button onclick="advanceBeehivePath()" ${b.inRun && !b.pendingChoice && !b.awaitingClear ? '':'disabled'}>${(b.branchStep||0)>=9?'여왕벌 전투':'다음 갈래 전투'} (${b.branchStep||0}/10)</button><button onclick="forfeitBeehiveRun()" ${b.inRun ? '':'disabled'}>던전 포기</button></div>${choiceHtml}`;
+    <div style="color:#b8c7d8; font-size:0.82em; margin-bottom:8px;">자동 맵 진행 없이 갈림길 선택 → 벌떼 웨이브 → 전멸 확인 순서로 진행됩니다. 선택마다 진행도 10%가 오르고, 10개 갈림길 완료 후 여왕벌이 등장합니다.<br>${hiveUnlockText}</div>
+    <div style="color:#f6d68e; margin-bottom:8px;">진행도: <strong>${Math.min(100, Math.max(0, Math.floor(b.branchStep || 0) * 10))}%</strong> · 완료한 갈림길: <strong>${Math.min(10, Math.max(0, Math.floor(b.branchStep || 0)))}/10</strong>${b.queenActive ? ' · <strong>여왕벌 등장</strong>' : ''}</div>
+    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="startBeehiveRun()" ${(game.currencies.hiveKey||0)<=0 || b.inRun ? 'disabled':''}>벌집 입장</button><button onclick="forfeitBeehiveRun()" ${b.inRun ? '':'disabled'}>던전 포기</button></div>${choiceHtml}`;
 }
 function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false,activeKills:0,requiredKills:0}); let g=v.grandRun||{}; let progress=v.active?`${Math.max(0,Math.floor(v.activeKills||0))}/${Math.max(1,Math.floor(v.requiredKills||0))}`:'-'; let grandText=g.inRun?` · 대균열: <strong>${g.phase==='survival'?'생존전':'보스전'}</strong> · 남은시간: <strong>${Math.max(0,Math.ceil(g.timeLeft||0))}초</strong> · 처치: <strong>${Math.floor(g.kills||0)}</strong>`:''; let canEnter=(v.grandBreachUnlock&&!g.inRun); p.innerHTML=`<div style="color:#c7d2ff;">활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter?'':'disabled'}>대균열 진입</button></div>`; }
 function spawnBeehiveWave(isBoss){
     let b = game.beehive || {};
     let zone = getZone('beehive_run') || getZone(0);
-    let count = isBoss ? 1 : (2 + Math.floor(Math.random() * 2));
+    let step = Math.max(1, Math.floor(b.branchStep || 1));
+    let count = isBoss ? 1 : Math.min(10, 5 + Math.floor(step / 2) + Math.floor(Math.random() * 2));
     game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.moveTimer = 0;
     for (let i = 0; i < count; i++) {
-        let marker = { elite: !isBoss && Math.random() < 0.45, boss: isBoss };
+        let marker = { elite: !isBoss && Math.random() < 0.78, boss: isBoss };
         let enemy = createEnemy(zone, marker, i);
-        let depthScale = 1 + Math.max(0, Math.floor(b.branchStep || 1)) * 0.16 + Math.max(0, Math.floor(b.enemyEmpower || 0)) * 0.22;
+        let depthScale = 1 + Math.max(0, step) * 0.16 + Math.max(0, Math.floor(b.enemyEmpower || 0)) * 0.22;
         enemy.maxHp = Math.floor(enemy.maxHp * depthScale);
         enemy.hp = enemy.maxHp;
         enemy.atkMul *= (1 + Math.max(0, Math.floor(b.enemyEmpower || 0)) * 0.12);
@@ -515,11 +524,14 @@ function spawnBeehiveWave(isBoss){
             enemy.critChance = (enemy.critChance || 0) + 14;
             enemy.penetration = (enemy.penetration || 0) + 18;
             enemy.traitName = `분노한 군체 (강화 ${Math.floor(b.enemyEmpower || 0)})`;
+        } else {
+            enemy.name = `${enemy.isElite ? '정예 ' : ''}🐝 벌집 전투벌`;
+            enemy.traitName = enemy.traitName || '벌떼 돌격';
         }
         game.enemies.push(enemy);
     }
-    if (isBoss) addLog('👑 여왕벌 출현! 매우 강력합니다.', 'loot-unique');
-    else addLog(`🐝 갈래길 전투 시작! (누적 패널티 ${Math.floor(b.enemyEmpower || 0)})`, 'attack-monster');
+    if (isBoss) addLog('👑 10개 갈림길을 완료해 여왕벌이 등장했습니다. 여왕벌을 처치하면 벌집 원정이 완료됩니다.', 'loot-unique');
+    else addLog(`🐝 벌떼 웨이브 시작! 진행도 ${Math.min(100, step * 10)}% · 남은 적을 모두 처치해야 다음 갈림길이 열립니다.`, 'attack-monster');
 }
 function getBeekeeperLevelForHive() {
     return typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
@@ -532,6 +544,7 @@ function resetBeehiveRunModifiers(b) {
     b.rewardMomentum = 0;
     b.penaltyLedger = [];
     b.rewardLedger = [];
+    b.queenActive = false;
 }
 function getBeehiveRewardAmount(base, branchStep, expertLevel) {
     let depthBonus = Math.max(0, Math.floor(branchStep || 0)) * 0.08;
@@ -578,6 +591,25 @@ function pickWeightedBeehiveReward(expertLevel, branchStep, usedTypes) {
     }
     return pool[0].type;
 }
+function prepareBeehiveBranchChoices(b) {
+    if (!b || !b.inRun || b.awaitingClear || b.queenActive) return;
+    let nextStep = Math.min(10, Math.max(1, Math.floor((b.branchStep || 0) + 1)));
+    let lv = getBeekeeperLevelForHive();
+    let used = new Set();
+    let a = pickWeightedBeehiveReward(lv, nextStep, used);
+    used.add(a);
+    let c = pickWeightedBeehiveReward(lv, nextStep, used);
+    used.add(c);
+    let d = pickWeightedBeehiveReward(lv, nextStep, used);
+    b.pendingChoice = {
+        a: buildBeehiveChoiceOption(a, lv, nextStep),
+        b: buildBeehiveChoiceOption(c, lv, nextStep),
+        c: buildBeehiveChoiceOption(d, lv, nextStep),
+        expertLevel: lv,
+        branchStep: nextStep
+    };
+}
+
 function buildBeehiveChoiceOption(type, expertLevel, branchStep) {
     let lv = Math.max(1, Math.floor(expertLevel || getBeekeeperLevelForHive()));
     let step = Math.max(1, Math.floor(branchStep || ((game.beehive || {}).branchStep || 1)));
@@ -630,17 +662,125 @@ function applyBeehiveChoiceReward(pick) {
     }
     return '';
 }
-function startBeehiveRun(){ let b=game.beehive || (game.beehive={}); if((game.currencies.hiveKey||0)<=0||b.inRun) return; resetBeehiveRunModifiers(b); game.currencies.hiveKey--; b.inRun=true; b.branchStep=0; b.inMapZoneId='beehive_run'; b.returnZoneId=game.currentZoneId; game.currentZoneId='beehive_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=true; addLog(`🐝 벌집 원정 시작! 양봉업자 Lv.${getBeekeeperLevelForHive()} 보상표가 적용됩니다.`, 'season-up'); updateStaticUI(); }
-function advanceBeehivePath(){ let b=game.beehive; if(!b.inRun||b.awaitingClear||b.pendingChoice) return; b.branchStep++; b.awaitingClear=true; game.combatHalted=false; spawnBeehiveWave((b.branchStep||0)>=10); updateStaticUI(); }
-function resolveBeehiveChoice(key){ let b=game.beehive; if(!b||!b.pendingChoice) return; let pick=b.pendingChoice[key]; if(!pick && (key==='legacy_now'||key==='legacy_later')) pick = buildBeehiveChoiceOption(key==='legacy_now' ? 'pollen' : 'honey', getBeekeeperLevelForHive(), b.branchStep || 1); if(!pick) return; let result=applyBeehiveChoiceReward(pick); let penaltyText = applyBeehiveChoicePenalty(pick.penalty, b); b.rewardLedger = Array.isArray(b.rewardLedger) ? b.rewardLedger : []; b.penaltyLedger = Array.isArray(b.penaltyLedger) ? b.penaltyLedger : []; if(result) b.rewardLedger.push(result); b.penaltyLedger.push(penaltyText || ''); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_branch_choice'); b.pendingChoice=null; addLog(`🐝 갈래 선택 완료: ${result || '보상 없음'} · 대가: ${penaltyText || '없음'}`, 'loot-magic'); updateStaticUI(); }
-function exitBeehiveRun(message, logType){ let b=game.beehive || {}; b.inRun=false; b.branchStep=0; resetBeehiveRunModifiers(b); game.currentZoneId = b.returnZoneId !== undefined && b.returnZoneId !== null ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.combatHalted=false; if (message) addLog(message, logType || 'attack-monster'); updateStaticUI(); }
-function completeBeehiveRun(){ let b=game.beehive || {}; b.inRun=false; b.cleared=true; b.unlockedPermanent=true; resetBeehiveRunModifiers(b); b.branchStep=0; game.currentZoneId = b.returnZoneId !== undefined && b.returnZoneId !== null ? b.returnZoneId : game.maxZoneId; b.returnZoneId = null; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.combatHalted=false; markLoopSpecialBossKill('beehive_queen'); unlockJournalEntry('beehive_queen'); if(Math.random()<0.08){ let item=generateUniqueItem(Math.max(12,(getZone(game.currentZoneId)||{tier:12}).tier), '무기'); addItemToInventory(item); } if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_clear'); addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되고 벌집 패널티가 초기화되었습니다.', 'level-up'); updateStaticUI(); }
-function onBeehiveWaveCleared(){ let b=game.beehive || {}; if(!b.inRun || !b.awaitingClear) return; b.awaitingClear=false; game.combatHalted=true; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; if((b.branchStep||0)>=10) return completeBeehiveRun(); let lv=getBeekeeperLevelForHive(); let used=new Set(); let a=pickWeightedBeehiveReward(lv,b.branchStep,used); used.add(a); let c=pickWeightedBeehiveReward(lv,b.branchStep,used); used.add(c); let d=pickWeightedBeehiveReward(lv,b.branchStep,used); b.pendingChoice={ a:buildBeehiveChoiceOption(a,lv,b.branchStep), b:buildBeehiveChoiceOption(c,lv,b.branchStep), c:buildBeehiveChoiceOption(d,lv,b.branchStep), expertLevel:lv }; updateStaticUI(); }
+function startBeehiveRun(){
+    let b = game.beehive || (game.beehive = {});
+    if ((game.currencies.hiveKey || 0) <= 0 || b.inRun) return;
+    resetBeehiveRunModifiers(b);
+    game.currencies.hiveKey--;
+    b.inRun = true;
+    b.branchStep = 0;
+    b.inMapZoneId = 'beehive_run';
+    b.returnZoneId = game.currentZoneId;
+    b.queenActive = false;
+    game.currentZoneId = 'beehive_run';
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+    game.moveTimer = 0;
+    game.combatHalted = true;
+    prepareBeehiveBranchChoices(b);
+    addLog(`🐝 벌집 원정 시작! 갈림길을 선택하면 즉시 벌떼 웨이브가 시작됩니다.`, 'season-up');
+    updateStaticUI();
+}
+function advanceBeehivePath(){
+    let b = game.beehive;
+    if (!b || !b.inRun || b.awaitingClear || b.pendingChoice || b.queenActive) return;
+    prepareBeehiveBranchChoices(b);
+    updateStaticUI();
+}
+function resolveBeehiveChoice(key){
+    let b = game.beehive;
+    let liveEnemies = (game.enemies || []).filter(e => e && e.hp > 0).length;
+    if (!b || !b.pendingChoice || b.awaitingClear || liveEnemies > 0) return;
+    let pick = b.pendingChoice[key];
+    let nextStep = Math.min(10, Math.max(1, Math.floor((b.branchStep || 0) + 1)));
+    if (!pick && (key === 'legacy_now' || key === 'legacy_later')) pick = buildBeehiveChoiceOption(key === 'legacy_now' ? 'pollen' : 'honey', getBeekeeperLevelForHive(), nextStep);
+    if (!pick) return;
+    let result = applyBeehiveChoiceReward(pick);
+    let penaltyText = applyBeehiveChoicePenalty(pick.penalty, b);
+    b.rewardLedger = Array.isArray(b.rewardLedger) ? b.rewardLedger : [];
+    b.penaltyLedger = Array.isArray(b.penaltyLedger) ? b.penaltyLedger : [];
+    if (result) b.rewardLedger.push(result);
+    b.penaltyLedger.push(penaltyText || '');
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_branch_choice');
+    b.pendingChoice = null;
+    b.branchStep = nextStep;
+    b.awaitingClear = true;
+    b.queenActive = false;
+    game.runProgress = Math.min(100, b.branchStep * 10);
+    game.combatHalted = false;
+    addLog(`🐝 갈림길 ${b.branchStep}/10 선택 완료: ${result || '보상 없음'} · 대가: ${penaltyText || '없음'} · 벌떼 웨이브 시작`, 'loot-magic');
+    spawnBeehiveWave(false);
+    updateStaticUI();
+}
+function exitBeehiveRun(message, logType){
+    let b = game.beehive || {};
+    b.inRun = false;
+    b.branchStep = 0;
+    resetBeehiveRunModifiers(b);
+    game.currentZoneId = b.returnZoneId !== undefined && b.returnZoneId !== null ? b.returnZoneId : game.maxZoneId;
+    b.returnZoneId = null;
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+    game.combatHalted = false;
+    if (message) addLog(message, logType || 'attack-monster');
+    updateStaticUI();
+}
+function completeBeehiveRun(){
+    let b = game.beehive || {};
+    b.inRun = false;
+    b.cleared = true;
+    b.unlockedPermanent = true;
+    resetBeehiveRunModifiers(b);
+    b.branchStep = 0;
+    game.currentZoneId = b.returnZoneId !== undefined && b.returnZoneId !== null ? b.returnZoneId : game.maxZoneId;
+    b.returnZoneId = null;
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+    game.combatHalted = false;
+    markLoopSpecialBossKill('beehive_queen');
+    unlockJournalEntry('beehive_queen');
+    if (Math.random() < 0.08) {
+        let item = generateUniqueItem(Math.max(12, (getZone(game.currentZoneId) || { tier: 12 }).tier), '무기');
+        addItemToInventory(item);
+    }
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_clear');
+    addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되고 벌집 패널티가 초기화되었습니다.', 'level-up');
+    updateStaticUI();
+}
+function onBeehiveWaveCleared(){
+    let b = game.beehive || {};
+    if (!b.inRun || !b.awaitingClear) return;
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.moveTimer = 0;
+    if (b.queenActive) return completeBeehiveRun();
+    b.awaitingClear = false;
+    game.combatHalted = true;
+    game.runProgress = Math.min(100, Math.max(0, Math.floor(b.branchStep || 0)) * 10);
+    if ((b.branchStep || 0) >= 10) {
+        b.awaitingClear = true;
+        b.queenActive = true;
+        game.combatHalted = false;
+        spawnBeehiveWave(true);
+        updateStaticUI();
+        return;
+    }
+    prepareBeehiveBranchChoices(b);
+    addLog(`🐝 벌떼 웨이브 정리 완료. 다음 갈림길을 선택할 수 있습니다. (${b.branchStep}/10)`, 'loot-magic');
+    updateStaticUI();
+}
 function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; exitBeehiveRun('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); }
 function craftBeehiveCurrency(type){ let beeLv=typeof getExpertLevel==='function'?Math.max(1,Math.floor(getExpertLevel('beekeeper')||1)):1; if(type==='wax'&&beeLv<8) return addLog('밀랍 제작은 양봉업자 Lv.8에 해금됩니다.', 'attack-monster'); if(type!=='key'&&type!=='wax'&&beeLv<6) return addLog('벌꿀/독벌침 교환은 양봉업자 Lv.6에 해금됩니다.', 'attack-monster'); let cost= type==='key'?200:type==='wax'?350:type==='stinger'?600:2000; let discount=typeof getExpertNodeEffectValue==='function'?Math.max(0,getExpertNodeEffectValue('waxCostReducePct')||0)/100:0; if(type==='wax') cost=Math.max(1,Math.floor(cost*(1-discount))); if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(type==='wax') game.currencies.beeswax=(game.currencies.beeswax||0)+1; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_currency_craft'); updateStaticUI(); }
 function triggerVoidBreach(){ let v=game.voidRift; v.active=true; addLog('🕳️ 공허의 구멍이 열렸습니다! 몬스터가 쏟아집니다.', 'attack-monster'); updateStaticUI(); }
 function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if((v.breachClears||0) >= 1 || Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
-function enterGrandBreach(){ let v=game.voidRift; if(!v.grandBreachUnlock) return; if(v.grandRun&&v.grandRun.inRun) return; v.grandBreachUnlock=false; v.grandRun={ inRun:true, phase:'survival', timeLeft:35, kills:0, nextRefillAt:0, lastTickAt:Date.now(), returnZoneId:game.currentZoneId }; game.currentZoneId='grand_breach_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up'); updateStaticUI(); }
+function enterGrandBreach(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let v=game.voidRift; if(!v.grandBreachUnlock) return; if(v.grandRun&&v.grandRun.inRun) return; v.grandBreachUnlock=false; v.grandRun={ inRun:true, phase:'survival', timeLeft:35, kills:0, nextRefillAt:0, lastTickAt:Date.now(), returnZoneId:game.currentZoneId }; game.currentZoneId='grand_breach_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up'); updateStaticUI(); }
 function toggleMeteorAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterMeteor = !game.settings.autoEnterMeteor; addLog(`☄️ 운석 낙하 자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}`, 'season-up'); updateStaticUI(); }
 
 function renderChaosRealmMapPanel() {
@@ -674,8 +814,9 @@ function switchMapSubtab(subtabId) {
     if (panel) panel.classList.add('active');
     if (btn) btn.classList.add('active');
 }
-function enterLabyrinthFloor(floor){ game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
+function enterLabyrinthFloor(floor){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
 function enterChaosRealmPrompt(){
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     let st = ensureChaosRealmState();
     if (!st.unlocked) return addLog('혼돈계는 혼돈 밖 나무꾼에게 최대 생명력 10% 이상의 피해를 준 전투 종료 시 해금됩니다.', 'attack-monster');
     if (!canEnterChaosRealm()) return addLog('혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.', 'attack-monster');
@@ -690,6 +831,7 @@ function enterChaosRealmPrompt(){
 }
 
 function enterTrialWithTicket(trialId) {
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     if (!['trial_3','trial_4'].includes(trialId)) return changeZone(trialId);
     if ((game.currencies.trialKey3 || 0) <= 0) return addLog('시련의 증표가 부족합니다.', 'attack-monster');
     game.currencies.trialKey3 -= 1;
@@ -697,8 +839,8 @@ function enterTrialWithTicket(trialId) {
     changeZone(trialId);
 }
 
-function enterDeepChaosPrompt(){ let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let max=Math.max(20, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth||20)); let v=prompt(`진입할 심화 혼돈 층수를 입력하세요. (21 ~ ${max})`, String(max)); if(v===null)return; let depth=Math.floor(Number(v)||0); if(depth<21||depth>max) return addLog(`21~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); if (unlocked.length > 0 && !unlocked.includes(depth)) return addLog(`해금된 심화 혼돈 층수만 입장 가능합니다.`, 'attack-monster'); enterUnlockedEndlessDepth(depth); }
-function enterLabyrinthPrompt(){ let max=Math.max(1,Math.floor(game.labyrinthUnlockedMaxFloor||game.labyrinthFloor||1)); let v=prompt(`진입할 고대 미궁 층수를 입력하세요. (1 ~ ${max})`, String(max)); if(v===null)return; let floor=Math.floor(Number(v)||0); if(floor<1||floor>max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); enterLabyrinthFloor(floor); }
+function enterDeepChaosPrompt(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let max=Math.max(20, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth||20)); let v=prompt(`진입할 심화 혼돈 층수를 입력하세요. (21 ~ ${max})`, String(max)); if(v===null)return; let depth=Math.floor(Number(v)||0); if(depth<21||depth>max) return addLog(`21~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); if (unlocked.length > 0 && !unlocked.includes(depth)) return addLog(`해금된 심화 혼돈 층수만 입장 가능합니다.`, 'attack-monster'); enterUnlockedEndlessDepth(depth); }
+function enterLabyrinthPrompt(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let max=Math.max(1,Math.floor(game.labyrinthUnlockedMaxFloor||game.labyrinthFloor||1)); let v=prompt(`진입할 고대 미궁 층수를 입력하세요. (1 ~ ${max})`, String(max)); if(v===null)return; let floor=Math.floor(Number(v)||0); if(floor<1||floor>max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); enterLabyrinthFloor(floor); }
 
 
 function getChallengeContractState() {
@@ -4168,13 +4310,13 @@ function buildCraftActionButtons(item) {
             let slotDone = !!(activeGem && engraveCap >= 5);
             let engraveFilled = !!(activeGem && activeEnh.length >= engraveCap);
             document.getElementById('ui-gem-enhance-target').innerHTML = isGem
-                ? `대상 젬: <strong>${active}</strong> (보유 창공의 힘: ${game.currencies.skyEssence || 0})<br><span style="color:#8aa4bf;">핵 강화: 군주의핵 ${activeGem.bossCoreLevel || 0}/5 · 창공의힘 ${activeGem.skyCoreLevel || 0}/5 · 퀄리티 ${activeGem.quality || 0}%${activeGem.awakened ? ' · 각성 후보' : ''} · 각인 슬롯 ${engraveCap}/5</span><div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '각인 슬롯 완료' : '각인 슬롯 확장 가능'}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '각인 장착 완료' : `각인 여유 ${Math.max(0, engraveCap - activeEnh.length)}칸`}</span></div><span style="color:#8aa4bf;">적용 옵션: ${activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '없음'}</span>`
+                ? `대상 젬: <strong>${active}</strong> (보유 창공의 힘: ${game.currencies.skyEssence || 0})<br><span style="color:#8aa4bf;">핵 강화: 군주의핵 ${activeGem.bossCoreLevel || 0}/5 · 창공의힘 ${activeGem.skyCoreLevel || 0}/5 · 퀄리티 ${activeGem.quality || 0}%${activeGem.awakened ? ' · 각성 젬' : ''} · 각인 슬롯 ${engraveCap}/5</span><div style="margin-top:4px; color:#b9d7ff; font-size:0.84em;">각성 각인은 각성 젬 전용이 아니며, 모든 공격 젬에 젬당 1개까지 부여할 수 있습니다.</div><div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '각인 슬롯 완료' : '각인 슬롯 확장 가능'}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '각인 장착 완료' : `각인 여유 ${Math.max(0, engraveCap - activeEnh.length)}칸`}</span></div><span style="color:#8aa4bf;">적용 옵션: ${activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '없음'}</span>`
                 : '공격 젬을 선택하면 창공의 힘으로 특수 옵션을 부여할 수 있습니다.';
             let upgradeBtns = [];
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.bossCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('bossCore', 1)" ${!isGem || (activeGem && activeGem.bossCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.bossCoreLevel >= 5 ? '✅ 군주의 핵 강화 완료' : '군주의 핵 강화'}</strong><br><small>보유: ${game.currencies.bossCore || 0} / 필요: ${bossNeed}${activeGem && activeGem.bossCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.skyCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem || (activeGem && activeGem.skyCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.skyCoreLevel >= 5 ? '✅ 창공의 힘 강화 완료' : '창공의 힘 강화'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${skyNeed}${activeGem && activeGem.skyCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && (activeGem.quality || 0) >= 20 ? 'done' : ''}" onclick="upgradeActiveGemQuality()" ${!isGem || gemExpertLv < 8 || (activeGem && (activeGem.quality || 0) >= 20) ? 'disabled' : ''}><strong>${activeGem && (activeGem.quality || 0) >= 20 ? '✅ 퀄리티 완료' : '젬 퀄리티 강화'}</strong><br><small>젬 각인사 Lv.8 · 보유 군주의 핵: ${game.currencies.bossCore || 0} / 필요: ${qualityNeed}</small></button>`);
-            upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.awakened ? 'done' : ''}" onclick="awakenActiveGemCandidate()" ${!isGem || !awakenReady || (game.currencies.awakenedEcho || 0) < 3 ? 'disabled' : ''}><strong>${activeGem && activeGem.awakened ? '✅ 각성 후보' : '각성 후보 변환'}</strong><br><small>젬 각인사 Lv.15 · Lv.20 필요 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3</small></button>`);
+            upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.awakened ? 'done' : ''}" onclick="awakenActiveGemCandidate()" ${!isGem || !awakenReady || (game.currencies.awakenedEcho || 0) < 3 ? 'disabled' : ''}><strong>${activeGem && activeGem.awakened ? '✅ 각성 젬' : '각성 젬 변환'}</strong><br><small>젬 각인사 Lv.15 · Lv.20 필요 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3 · 젬 레벨 +2/슬롯 보정</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && engraveCap >= 5 ? 'done' : ''}" onclick="upgradeSkyEngraveCap()" ${!isGem || (activeGem && engraveCap >= 5) ? 'disabled' : ''}><strong>${activeGem && engraveCap >= 5 ? '✅ 각인 슬롯 확장 완료' : '창공 각인 슬롯 확장'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${capNeed}${activeGem && engraveCap >= 5 ? ' (최대)' : ''}</small></button>`);
             document.getElementById('ui-gem-upgrade-actions').innerHTML = upgradeBtns.join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 젬 강화 재료가 없습니다.</div>`;
             if ((game.season || 1) >= 4) {
@@ -4183,7 +4325,8 @@ function buildCraftActionButtons(item) {
                     let unlockLv = typeof getSkyEnhancementUnlockLevel === 'function' ? getSkyEnhancementUnlockLevel(enh.id) : 1;
                     let locked = gemExpertLv < unlockLv;
                     let canRemove = applied && gemExpertLv >= 7;
-                    return `<button class="gem-engrave-option ${applied ? 'applied' : ''}" onclick="${applied ? `removeSkyGemEnhancementFromActive('${enh.id}')` : `applySkyGemEnhancementToActive('${enh.id}')`}" ${!isGem || (locked && !applied) || (applied && !canRemove) ? 'disabled' : ''}><strong>${applied ? '✅ ' : ''}${enh.name}${applied ? ' (적용중)' : locked ? ` (Lv.${unlockLv})` : ''}</strong><br><small>${enh.desc}${applied ? (canRemove ? ' · 클릭 시 해제' : ' · 해제 Lv.7 필요') : locked ? ` · 젬 각인사 Lv.${unlockLv} 필요` : ''}</small></button>`;
+                    let awakenedNote = typeof isAwakenedSkyEnhancement === 'function' && isAwakenedSkyEnhancement(enh.id) ? ' · 모든 공격 젬 가능' : '';
+                    return `<button class="gem-engrave-option ${applied ? 'applied' : ''}" onclick="${applied ? `removeSkyGemEnhancementFromActive('${enh.id}')` : `applySkyGemEnhancementToActive('${enh.id}')`}" ${!isGem || (locked && !applied) || (applied && !canRemove) ? 'disabled' : ''}><strong>${applied ? '✅ ' : ''}${enh.name}${applied ? ' (적용중)' : locked ? ` (Lv.${unlockLv})` : ''}</strong><br><small>${enh.desc}${awakenedNote}${applied ? (canRemove ? ' · 클릭 시 해제' : ' · 해제 Lv.7 필요') : locked ? ` · 젬 각인사 Lv.${unlockLv} 필요` : ''}</small></button>`;
                 }).join('');
             } else {
                 document.getElementById('ui-gem-enhance-options').innerHTML = `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 시즌 4부터 해금됩니다.</div>`;
