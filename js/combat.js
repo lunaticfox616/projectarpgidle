@@ -1054,7 +1054,6 @@ function getPlayerStats() {
     let bossDamageDealtMultiplier = 1;
     let bossTakenDamageMultiplier = 1;
     let ailmentResistBonusPct = 0;
-    let swiftOpeningDamageMultiplier = 1;
     let swiftOpeningTakenMultiplier = 1;
     let guardianReflectDamage = 0;
     let guardianBlockChance = 0;
@@ -1196,7 +1195,6 @@ function getPlayerStats() {
             }
         }
         if (hasKeystone('g5')) {
-            if (game.gladiatorSwiftOpeningReady) swiftOpeningDamageMultiplier = 1.30;
             if (game.gladiatorSwiftGuardReady) swiftOpeningTakenMultiplier = 0.70;
         }
         if (hasKeystone('g7')) {
@@ -1380,7 +1378,6 @@ function getPlayerStats() {
     armorReduction = Math.min(90, (finalArmor / (finalArmor + referenceIncomingPhysical * 10)) * 100);
     evadeChance = Math.min(90, (finalEvasion / (finalEvasion + enemyAccuracy)) * 100);
 
-    if (swiftOpeningDamageMultiplier !== 1) finalBaseDmg = Math.floor(finalBaseDmg * swiftOpeningDamageMultiplier);
     damageScales.dot = dotMultiplier;
     damageScales.dotStat = dotStatMultiplier;
     damageScales.instantDamageMultiplier = instantDamageMultiplier;
