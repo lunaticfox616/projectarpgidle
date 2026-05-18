@@ -336,6 +336,10 @@ function allocateLoop10BonusStat(statKey) {
 }
 
 function enterNextEndlessChaosDepth() {
+    if (game.beehive && game.beehive.inRun) {
+        if (typeof warnBeehiveMapTravelBlocked === 'function') return warnBeehiveMapTravelBlocked();
+        return;
+    }
     if ((game.season || 1) < 10) return;
     game.abyssEndlessDepth = Math.max(20, Math.floor(game.abyssEndlessDepth || 20) + 1);
     game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
@@ -350,6 +354,10 @@ function enterNextEndlessChaosDepth() {
 }
 
 function enterUnlockedEndlessDepth(depth) {
+    if (game.beehive && game.beehive.inRun) {
+        if (typeof warnBeehiveMapTravelBlocked === 'function') return warnBeehiveMapTravelBlocked();
+        return;
+    }
     if ((game.season || 1) < 10) return;
     game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
     depth = Math.max(20, Math.floor(depth || 20));
