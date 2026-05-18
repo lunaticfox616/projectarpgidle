@@ -273,7 +273,6 @@ function getAllConditionGemEntriesForCombat() {
 function runConditionGemAutoRules(pStats) {
     let now = Date.now();
     cleanupConditionGemStates(now);
-    if ((game.elementalistOverloadExpiresAt || 0) <= now) game.elementalistOverloadStacks = 0;
     if (!game.conditionGemUnlocked) return;
     if (!Array.isArray(game.skillAutoRules) || game.skillAutoRules.length === 0) return;
     game.conditionGemCooldowns = game.conditionGemCooldowns || {};
@@ -1116,6 +1115,8 @@ function getPlayerStats() {
     let dotStatMultiplier = 1 + Math.max(0, dotPctDmg) / 100;
     let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
     let instantDamageMultiplier = 1;
+    let finalDamageMultiplier = 1;
+    let ailmentPowerMultiplier = 1;
     let talismanBossFinalDmgBonusPct = 0;
     let chaosDamageMultiplier = 1;
     let dotTickIntervalMultiplier = 1;
@@ -1273,7 +1274,7 @@ function getPlayerStats() {
     } else if (game.ascendClass === 'elementalist') {
         if (hasKeystone('e1')) {
             if (skill.ele === 'phys' && !(Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0)) finalBaseDmg = 0;
-            else finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+            else finalDamageMultiplier *= 1.15;
         }
         if (hasKeystone('e2')) {
             finalResF = Math.min(78, finalResF + 15);
@@ -1290,7 +1291,7 @@ function getPlayerStats() {
         if (hasKeystone('e5')) {
             let maxElemRes = Math.max(finalResF, finalResC, finalResL);
             finalResChaos += Math.floor(maxElemRes * 0.5);
-            finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalResChaos) / 100));
+            finalDamageMultiplier *= (1 + Math.max(0, finalResChaos) / 100);
         }
         if (hasKeystone('e6')) {
             finalResPen += 20;
@@ -1298,13 +1299,15 @@ function getPlayerStats() {
         }
         if (hasKeystone('e8')) {
             let stacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0));
-            finalBaseDmg = Math.floor(finalBaseDmg * (1 + stacks * 0.25));
-            finalResPen += (stacks * 5);
-            genericTakenDamageMultiplier *= 1.10;
+            finalDamageMultiplier *= (1 + stacks * 0.04);
+            finalCrit = Math.max(0, finalCrit - stacks);
         }
         if (hasKeystone('e7')) {
             let pool = Array.isArray(skill.randomElementPool) ? skill.randomElementPool : [];
-            if (['fire','cold','light'].every(ele => pool.includes(ele))) finalBaseDmg = Math.floor(finalBaseDmg * 1.05);
+            if (['fire','cold','light'].every(ele => pool.includes(ele))) {
+                finalDamageMultiplier *= 1.05;
+                ailmentPowerMultiplier = Math.max(ailmentPowerMultiplier, 2);
+            }
         }
     } else if (game.ascendClass === 'warlock') {
         if (hasKeystone('wlk2')) {
@@ -1388,6 +1391,8 @@ function getPlayerStats() {
     damageScales.dot = dotMultiplier;
     damageScales.dotStat = dotStatMultiplier;
     damageScales.instantDamageMultiplier = instantDamageMultiplier;
+    damageScales.finalDamageMultiplier = finalDamageMultiplier;
+    damageScales.ailmentPowerMultiplier = ailmentPowerMultiplier;
     damageScales.chaosDamageMultiplier = chaosDamageMultiplier;
     damageScales.dotTickIntervalMultiplier = dotTickIntervalMultiplier;
     damageScales.dotDurationMultiplier = dotDurationMultiplier;
@@ -1401,7 +1406,7 @@ function getPlayerStats() {
 
     let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
-    let dpsDamageMultiplier = instantDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
+    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier;
 
     function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note) {
@@ -1438,6 +1443,7 @@ function getPlayerStats() {
                 (skill.dotMultiplier || 1) !== 1 ? `스킬 지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null,
                 dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null,
                 instantDamageMultiplier !== 1 ? `즉발 피해 배율 ${instantDamageMultiplier.toFixed(2)}x` : null,
+                finalDamageMultiplier !== 1 ? `최종 피해 배율 ${finalDamageMultiplier.toFixed(2)}x` : null,
                 chaosDamageMultiplier !== 1 ? `카오스 피해 배율 ${chaosDamageMultiplier.toFixed(2)}x` : null,
                 skill.convertedToChaos ? '워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용' : null,
                 `피해 범위 ${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
@@ -1734,6 +1740,8 @@ function getPlayerStats() {
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
         instantDamageMultiplier: instantDamageMultiplier,
+        finalDamageMultiplier: finalDamageMultiplier,
+        ailmentPowerMultiplier: ailmentPowerMultiplier,
         chaosDamageMultiplier: chaosDamageMultiplier,
         dotTickIntervalMultiplier: dotTickIntervalMultiplier,
         dotDurationMultiplier: dotDurationMultiplier,
@@ -2294,8 +2302,9 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
     let ele = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
     let primaryType = getAilmentTypeFromElement(ele);
     let sourceHitDamage = Math.max(0, Math.floor(Number(hitDamage) || 0));
-    let hitRatio = Math.max(0.001, Math.min(0.35, sourceHitDamage / Math.max(1, enemy.maxHp || 1)));
-    let hitPower = Math.sqrt(Math.max(1, sourceHitDamage)) * 0.01;
+    let ailmentPowerSourceDamage = Math.max(0, Math.floor(sourceHitDamage * Math.max(0.01, Number(pStats && pStats.ailmentPowerMultiplier) || 1)));
+    let hitRatio = Math.max(0.001, Math.min(0.35, ailmentPowerSourceDamage / Math.max(1, enemy.maxHp || 1)));
+    let hitPower = Math.sqrt(Math.max(1, ailmentPowerSourceDamage)) * 0.01;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
     function applyAilmentType(type, forceChance) {
         let tryProc = isCrit ? 1 : (Number.isFinite(forceChance) ? forceChance : getPlayerAilmentChance(pStats, type));
@@ -2312,11 +2321,11 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
         let durationMul = damageAilment ? Math.max(0.05, (pStats && Number.isFinite(pStats.dotDurationMultiplier)) ? pStats.dotDurationMultiplier : 1) : 1;
         let dur = (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10))) * durationMul;
         let payload = { type: type, time: dur, power: power };
-        if (damageAilment) payload.sourceHitDamage = sourceHitDamage;
+        if (damageAilment) payload.sourceHitDamage = ailmentPowerSourceDamage;
         if (row) {
             row.time = Math.max(row.time || 0, dur);
             row.power = Math.max(row.power || 0, power);
-            if (damageAilment) row.sourceHitDamage = Math.max(getStoredAilmentHitDamage(row), sourceHitDamage);
+            if (damageAilment) row.sourceHitDamage = Math.max(getStoredAilmentHitDamage(row), ailmentPowerSourceDamage);
         } else enemy.ailments.push(payload);
         return true;
     }
@@ -2636,7 +2645,6 @@ function tickGrandBreachRun(zone) {
     if (!g || !g.inRun) return;
     let now = Date.now();
     cleanupConditionGemStates(now);
-    if ((game.elementalistOverloadExpiresAt || 0) <= now) game.elementalistOverloadStacks = 0;
     g.lastTickAt = Number.isFinite(g.lastTickAt) ? g.lastTickAt : now;
     let dt = Math.max(0, (now - g.lastTickAt) / 1000);
     g.lastTickAt = now;
@@ -3314,6 +3322,11 @@ function performPlayerAttack(pStats) {
         if (isCrit) game.gladiatorVeteranCritBonus = 0;
         else game.gladiatorVeteranCritBonus = Math.min(100, game.gladiatorVeteranCritBonus + 5);
     }
+    if (game.ascendClass === 'elementalist' && hasKeystone('e8')) {
+        if (isCrit) game.elementalistOverloadStacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0)) + 1;
+        else game.elementalistOverloadStacks = 0;
+        game.elementalistOverloadExpiresAt = 0;
+    }
     let baseDamage = pStats.baseDmg;
     if (isCrit) {
         baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
@@ -3434,6 +3447,7 @@ function performPlayerAttack(pStats) {
             dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement));
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) dmg = Math.floor(dmg * (1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100)));
+            dmg = Math.floor(dmg * Math.max(0, Number(pStats.finalDamageMultiplier) || 1));
             let hasActiveDoomMark = false;
             if (targetEnemy && targetEnemy.id) {
                 let debs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[targetEnemy.id]) ? game.enemyConditionDebuffs[targetEnemy.id] : [];
@@ -3514,10 +3528,6 @@ function performPlayerAttack(pStats) {
                 let mark = targetEnemy.ailments.find(ail => ail && ail.type === 'assassinWeakness');
                 if (mark) { mark.time = 5; mark.power = stacks; }
                 else targetEnemy.ailments.push({ type: 'assassinWeakness', time: 5, power: stacks });
-            }
-            if (hitCrit && game.ascendClass === 'elementalist' && hasKeystone('e8')) {
-                game.elementalistOverloadStacks = Math.min(3, Math.max(0, Math.floor(game.elementalistOverloadStacks || 0)) + 1);
-                game.elementalistOverloadExpiresAt = Date.now() + 3000;
             }
             if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
             applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, hitCrit);
