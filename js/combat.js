@@ -273,7 +273,6 @@ function getAllConditionGemEntriesForCombat() {
 function runConditionGemAutoRules(pStats) {
     let now = Date.now();
     cleanupConditionGemStates(now);
-    if ((game.elementalistOverloadExpiresAt || 0) <= now) game.elementalistOverloadStacks = 0;
     if (!game.conditionGemUnlocked) return;
     if (!Array.isArray(game.skillAutoRules) || game.skillAutoRules.length === 0) return;
     game.conditionGemCooldowns = game.conditionGemCooldowns || {};
@@ -406,6 +405,7 @@ function enforceWoodsmanBuildLock() {
 }
 
 function clearWoodsmanBuildLock() {
+    game.woodsmanEntrancePending = false;
     resetWoodsmanCurse();
     if (game.woodsmanBuildLock && game.woodsmanBuildSnapshot) {
         // 마지막으로 스냅샷 기준으로 복원
@@ -487,7 +487,9 @@ function coreLoop() {
     }
     if (game.combatHalted && game.moveTimer > 0) {
         game.moveTimer -= 0.1;
-        if (game.moveTimer <= 0) startEncounterRun();
+        if (game.moveTimer <= 0) {
+            if (!finishWoodsmanEntrance()) startEncounterRun();
+        }
         return;
     }
     if (game.combatHalted) {
@@ -537,8 +539,12 @@ function coreLoop() {
                     return;
                 }
             }
-            startEncounterRun();
+            if (!finishWoodsmanEntrance()) startEncounterRun();
         }
+        return;
+    }
+    if (game.woodsmanEntrancePending) {
+        finishWoodsmanEntrance();
         return;
     }
 
@@ -581,6 +587,13 @@ function coreLoop() {
                     let stacks = active ? Math.max(0, Math.min(12, Math.floor(game.gladiatorFlurryStacks || 0))) : 0;
                     game.gladiatorFlurryStacks = Math.min(12, stacks + 1);
                     game.gladiatorFlurryExpiresAt = now + 3000;
+                }
+                if (game.ascendClass === 'warrior' && hasKeystone('w2')) {
+                    let now = Date.now();
+                    let active = (game.warriorRhythmDoubleExpiresAt || 0) > now;
+                    let stacks = active ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmDoubleStacks || 0))) : 0;
+                    game.warriorRhythmDoubleStacks = Math.min(5, stacks + 1);
+                    game.warriorRhythmDoubleExpiresAt = now + 2000;
                 }
             }
 
@@ -719,16 +732,20 @@ function getPlayerStats() {
     let starBlessing = createEmptyStatBucket();
 
     let localDefenseTotals = { armor: 0, evasion: 0, energyShield: 0 };
+    let warriorDualWeaponEffectMultiplier = (game.ascendClass === 'warrior' && hasKeystone('w6') && isDualWielding()) ? 1.5 : 1;
+    let scaleStatList = (stats, multiplier) => multiplier === 1 ? (stats || []) : (stats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number(stat.val) * multiplier } : stat);
     Object.values(game.equipment || {}).forEach(item => {
         if (!item) return;
-        applyStatsToBucket(gearBase, item.baseStats || []);
+        let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
+        let itemBaseStats = scaleStatList(item.baseStats || [], itemStatMultiplier);
+        applyStatsToBucket(gearBase, itemBaseStats);
         let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
-        let explicitItemStats = (item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats);
+        let explicitItemStats = scaleStatList((item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
         applyStatsToBucket(gearExplicit, explicitItemStats);
         let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
         let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;
         let itemPctArmor = 0, itemPctEvasion = 0, itemPctEs = 0;
-        (item.baseStats || []).forEach(stat => {
+        itemBaseStats.forEach(stat => {
             if (!stat) return;
             if (stat.id === 'armor') itemBaseArmor += Number(stat.val || 0);
             if (stat.id === 'evasion') itemBaseEvasion += Number(stat.val || 0);
@@ -754,7 +771,7 @@ function getPlayerStats() {
     (game.jewelSlots || []).forEach((jewel, idx) => {
         let amp = Math.max(0, Math.floor((game.jewelSlotAmplify[idx] || 0)));
         let ampMul = 1 + (amp * 0.03);
-        getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, Math.round(stat.val * ampMul)));
+        getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, Number((Number(stat.val || 0) * ampMul).toFixed(2))));
     });
     let equippedUniqueJewels = getEquippedUniqueJewels();
     let activeUniqueIds = new Set(equippedUniqueJewels.map(entry => entry.jewel.uniqueId));
@@ -1109,6 +1126,8 @@ function getPlayerStats() {
     let dotStatMultiplier = 1 + Math.max(0, dotPctDmg) / 100;
     let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
     let instantDamageMultiplier = 1;
+    let finalDamageMultiplier = 1;
+    let ailmentPowerMultiplier = 1;
     let talismanBossFinalDmgBonusPct = 0;
     let chaosDamageMultiplier = 1;
     let dotTickIntervalMultiplier = 1;
@@ -1142,12 +1161,14 @@ function getPlayerStats() {
     if (game.ascendClass === 'warrior') {
         // 1) Base multipliers / penalties
         if (hasKeystone('w1')) {
-            warriorPhysDamageMultiplier *= 1.12;
-            finalMove *= 0.88;
+            warriorPhysDamageMultiplier *= 1.15;
+            finalArmor = Math.floor(finalArmor * 1.15);
         }
         if (hasKeystone('w2')) {
             let now = Date.now();
-            let stacks = (game.warriorRhythmExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmStacks || 0))) : 0;
+            let critStacks = (game.warriorRhythmExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmStacks || 0))) : 0;
+            let doubleStacks = (game.warriorRhythmDoubleExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmDoubleStacks || 0))) : 0;
+            let stacks = critStacks + doubleStacks;
             if (stacks > 0) finalAspd = Math.min(12, finalAspd * Math.pow(1.08, stacks));
         }
         if (hasKeystone('w3')) finalBaseDmg = Math.floor(finalBaseDmg * (isDualWielding() ? 1.08 : 1));
@@ -1157,20 +1178,17 @@ function getPlayerStats() {
             let stacks = (game.warriorRageExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRageStacks || 0))) : 0;
             if (stacks > 0) warriorPhysDamageMultiplier *= (1 + stacks * 0.15);
         }
-        if (hasKeystone('w6') && isDualWielding()) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
         if (hasKeystone('w7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
             finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
             warriorTakenDamageMultiplier *= 0.85;
         }
         // 2) Keystone cap/transform phase
         if (hasKeystone('w8')) {
-            finalMaxHp = Math.floor(finalMaxHp * 0.8);
-            finalArmor = Math.floor(finalArmor * 0.5);
             finalCrit = Math.min(200, finalCrit + 15);
             finalCritDmg += 15;
             finalAspd = Math.min(12, finalAspd * 1.15);
             finalMove *= 1.15;
-            finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+            finalDamageMultiplier *= 1.15;
             finalDs += 15;
         }
     } else if (game.ascendClass === 'gladiator') {
@@ -1266,7 +1284,7 @@ function getPlayerStats() {
     } else if (game.ascendClass === 'elementalist') {
         if (hasKeystone('e1')) {
             if (skill.ele === 'phys' && !(Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0)) finalBaseDmg = 0;
-            else finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+            else finalDamageMultiplier *= 1.15;
         }
         if (hasKeystone('e2')) {
             finalResF = Math.min(78, finalResF + 15);
@@ -1283,7 +1301,7 @@ function getPlayerStats() {
         if (hasKeystone('e5')) {
             let maxElemRes = Math.max(finalResF, finalResC, finalResL);
             finalResChaos += Math.floor(maxElemRes * 0.5);
-            finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalResChaos) / 100));
+            finalDamageMultiplier *= (1 + Math.max(0, finalResChaos) / 100);
         }
         if (hasKeystone('e6')) {
             finalResPen += 20;
@@ -1291,13 +1309,15 @@ function getPlayerStats() {
         }
         if (hasKeystone('e8')) {
             let stacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0));
-            finalBaseDmg = Math.floor(finalBaseDmg * (1 + stacks * 0.25));
-            finalResPen += (stacks * 5);
-            genericTakenDamageMultiplier *= 1.10;
+            finalDamageMultiplier *= (1 + stacks * 0.04);
+            finalCrit = Math.max(0, finalCrit - stacks);
         }
         if (hasKeystone('e7')) {
             let pool = Array.isArray(skill.randomElementPool) ? skill.randomElementPool : [];
-            if (['fire','cold','light'].every(ele => pool.includes(ele))) finalBaseDmg = Math.floor(finalBaseDmg * 1.05);
+            if (['fire','cold','light'].every(ele => pool.includes(ele))) {
+                finalDamageMultiplier *= 1.05;
+                ailmentPowerMultiplier = Math.max(ailmentPowerMultiplier, 2);
+            }
         }
     } else if (game.ascendClass === 'warlock') {
         if (hasKeystone('wlk2')) {
@@ -1381,6 +1401,8 @@ function getPlayerStats() {
     damageScales.dot = dotMultiplier;
     damageScales.dotStat = dotStatMultiplier;
     damageScales.instantDamageMultiplier = instantDamageMultiplier;
+    damageScales.finalDamageMultiplier = finalDamageMultiplier;
+    damageScales.ailmentPowerMultiplier = ailmentPowerMultiplier;
     damageScales.chaosDamageMultiplier = chaosDamageMultiplier;
     damageScales.dotTickIntervalMultiplier = dotTickIntervalMultiplier;
     damageScales.dotDurationMultiplier = dotDurationMultiplier;
@@ -1394,7 +1416,7 @@ function getPlayerStats() {
 
     let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
-    let dpsDamageMultiplier = instantDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
+    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier;
 
     function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note) {
@@ -1431,6 +1453,7 @@ function getPlayerStats() {
                 (skill.dotMultiplier || 1) !== 1 ? `스킬 지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null,
                 dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null,
                 instantDamageMultiplier !== 1 ? `즉발 피해 배율 ${instantDamageMultiplier.toFixed(2)}x` : null,
+                finalDamageMultiplier !== 1 ? `최종 피해 배율 ${finalDamageMultiplier.toFixed(2)}x` : null,
                 chaosDamageMultiplier !== 1 ? `카오스 피해 배율 ${chaosDamageMultiplier.toFixed(2)}x` : null,
                 skill.convertedToChaos ? '워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용' : null,
                 `피해 범위 ${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
@@ -1727,6 +1750,8 @@ function getPlayerStats() {
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
         instantDamageMultiplier: instantDamageMultiplier,
+        finalDamageMultiplier: finalDamageMultiplier,
+        ailmentPowerMultiplier: ailmentPowerMultiplier,
         chaosDamageMultiplier: chaosDamageMultiplier,
         dotTickIntervalMultiplier: dotTickIntervalMultiplier,
         dotDurationMultiplier: dotDurationMultiplier,
@@ -1775,14 +1800,18 @@ function getGemPresentation(name, isSupport) {
     }
     let db = SKILL_DB[name];
     if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
-    if (!db.isGem) return { baseLevel: 0, totalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
+    if (!db.isGem && !db.levelable) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
+    game.gemData = game.gemData || {};
     let gem = normalizeGemRecord((game.gemData || {})[name]);
-    let materialBonus = (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0);
-    let totalLevel = gem.level + stats.gemBonusSources.total + materialBonus;
-    let finalLevel = Math.min(20, gem.level) + stats.gemBonusSources.total + materialBonus;
+    if (db.levelable) game.gemData[name] = gem;
+    let materialBonus = db.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) : 0;
+    let levelBonus = db.isGem ? stats.gemBonusSources.total : 0;
+    let totalLevel = gem.level + levelBonus + materialBonus;
+    let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus;
     let skill = { ...db };
     skill.dmg = skill.baseDmg + ((finalLevel - 1) * skill.dmgScale);
     skill.spd = skill.baseSpd + ((finalLevel - 1) * skill.spdScale);
+    if (skill.critScale) skill.crit = (skill.crit || 0) + (finalLevel * skill.critScale);
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     skill.dmg *= qualityMul;
     skill.spd *= qualityMul;
@@ -1933,7 +1962,6 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     if (skillEle === 'phys') {
         let cappedReduction = Math.max(0, Math.min(80, rawMitigation));
         let ignoreAmount = Math.max(0, Number(pStats.physIgnore) || 0);
-        if (enemy && enemy.isBoss && game.ascendClass === 'warrior' && hasKeystone('w4')) cappedReduction *= 0.5;
         if (cappedReduction > 0) {
             cappedReduction = (pStats && pStats.allowNegativePhysIgnore)
                 ? (cappedReduction - ignoreAmount)
@@ -2287,8 +2315,9 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
     let ele = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
     let primaryType = getAilmentTypeFromElement(ele);
     let sourceHitDamage = Math.max(0, Math.floor(Number(hitDamage) || 0));
-    let hitRatio = Math.max(0.001, Math.min(0.35, sourceHitDamage / Math.max(1, enemy.maxHp || 1)));
-    let hitPower = Math.sqrt(Math.max(1, sourceHitDamage)) * 0.01;
+    let ailmentPowerSourceDamage = Math.max(0, Math.floor(sourceHitDamage * Math.max(0.01, Number(pStats && pStats.ailmentPowerMultiplier) || 1)));
+    let hitRatio = Math.max(0.001, Math.min(0.35, ailmentPowerSourceDamage / Math.max(1, enemy.maxHp || 1)));
+    let hitPower = Math.sqrt(Math.max(1, ailmentPowerSourceDamage)) * 0.01;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
     function applyAilmentType(type, forceChance) {
         let tryProc = isCrit ? 1 : (Number.isFinite(forceChance) ? forceChance : getPlayerAilmentChance(pStats, type));
@@ -2305,11 +2334,11 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
         let durationMul = damageAilment ? Math.max(0.05, (pStats && Number.isFinite(pStats.dotDurationMultiplier)) ? pStats.dotDurationMultiplier : 1) : 1;
         let dur = (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10))) * durationMul;
         let payload = { type: type, time: dur, power: power };
-        if (damageAilment) payload.sourceHitDamage = sourceHitDamage;
+        if (damageAilment) payload.sourceHitDamage = ailmentPowerSourceDamage;
         if (row) {
             row.time = Math.max(row.time || 0, dur);
             row.power = Math.max(row.power || 0, power);
-            if (damageAilment) row.sourceHitDamage = Math.max(getStoredAilmentHitDamage(row), sourceHitDamage);
+            if (damageAilment) row.sourceHitDamage = Math.max(getStoredAilmentHitDamage(row), ailmentPowerSourceDamage);
         } else enemy.ailments.push(payload);
         return true;
     }
@@ -2465,6 +2494,7 @@ function startMoving(isTown) {
     game.playerLeechInstances = [];
     game.gladiatorSwiftOpeningReady = true;
     game.gladiatorSwiftGuardReady = true;
+    game.woodsmanEntrancePending = false;
     resetWoodsmanCurse();
     let v = game.voidRift;
     if (v && v.active) {
@@ -2598,6 +2628,7 @@ function spawnEncounterMarker(marker) {
 function advanceMapProgress(pStats) {
     if (game.moveTimer > 0) return;
     let zone = getZone(game.currentZoneId) || getZone(0);
+    if (zone && zone.type === 'outsideChaos' && game.woodsmanEntrancePending) return;
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) return;
     ensureEncounterRun();
     if (game.runProgress >= 100) return;
@@ -2627,7 +2658,6 @@ function tickGrandBreachRun(zone) {
     if (!g || !g.inRun) return;
     let now = Date.now();
     cleanupConditionGemStates(now);
-    if ((game.elementalistOverloadExpiresAt || 0) <= now) game.elementalistOverloadStacks = 0;
     g.lastTickAt = Number.isFinite(g.lastTickAt) ? g.lastTickAt : now;
     let dt = Math.max(0, (now - g.lastTickAt) / 1000);
     g.lastTickAt = now;
@@ -2672,13 +2702,17 @@ function grantExpAndGem(enemy, pStats) {
     if (game.settings.showExpLog) addLog(`✨ 경험치 +${exp}`, "exp-txt");
 
     let gemExp = Math.floor(exp * 0.45);
-    if (pStats.sSkill.isGem && game.gemData[game.activeSkill] && game.gemData[game.activeSkill].level < 20) {
+    if ((pStats.sSkill.isGem || pStats.sSkill.levelable) && game.activeSkill) {
+        game.gemData = game.gemData || {};
+        game.gemData[game.activeSkill] = normalizeGemRecord(game.gemData[game.activeSkill]);
         let gem = game.gemData[game.activeSkill];
-        gem.exp += gemExp;
-        if (gem.exp >= getGemReqExp(gem.level)) {
-            gem.level++;
-            gem.exp = 0;
-            addLog(`✨ 젬 [${game.activeSkill}] 레벨업!`, "loot-unique");
+        if (gem.level < 20) {
+            gem.exp += gemExp;
+            if (gem.exp >= getGemReqExp(gem.level)) {
+                gem.level++;
+                gem.exp = 0;
+                addLog(`✨ ${pStats.sSkill.isGem ? '젬' : '스킬'} [${game.activeSkill}] 레벨업!`, "loot-unique");
+            }
         }
     }
     (game.equippedSupports || []).forEach(name => {
@@ -2956,7 +2990,7 @@ function handleEnemyDeath(enemy, pStats) {
         game.encounterPlan = [];
         game.encounterIndex = 0;
         game.runProgress = 0;
-        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : game.maxZoneId;
+        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
         markLoopSpecialBossKill('void_grand_breach');
         unlockJournalEntry('void_grand_breach');
         addLog('🌌 대균열 보스를 격파했습니다!', 'level-up');
@@ -3005,7 +3039,7 @@ function finishEncounterRun() {
         st.entriesCleared = (st.entriesCleared || 0) + 1;
         st.activeMeteorTier = null;
         clearWoodsmanBuildLock();
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
@@ -3023,7 +3057,7 @@ function finishEncounterRun() {
         markLoopSpecialBossKill('woodsman_true');
         addLog('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
         clearWoodsmanBuildLock();
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
@@ -3078,7 +3112,7 @@ function finishEncounterRun() {
             if (isFirstClear) addLog(`👑 [${zone.name}] 통과! 전직 포인트 2점 획득!`, "loot-unique");
             else addLog(`🔁 [${zone.name}] 재도전 완료 (전직 포인트 보상 없음)`, "attack-monster", { noToast: true });
         }
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         game.inTicketBossFight = false;
         startMoving(false);
@@ -3112,7 +3146,7 @@ function finishEncounterRun() {
             startMoving(true);
         } else {
             if (shouldRepeat && keyLeft <= 0) addLog('🔁 반복 도전이 켜져 있지만 입장권이 없어 자동 재도전을 중단합니다.', 'attack-monster');
-            game.currentZoneId = game.maxZoneId;
+            game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
             game.killsInZone = 0;
             game.inTicketBossFight = false;
             startMoving(false);
@@ -3265,7 +3299,7 @@ function finishEncounterRun() {
             updateStaticUI();
             queueImportantSave(180);
             return;
-        } else game.currentZoneId = Math.max(game.currentZoneId, game.maxZoneId);
+        } else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
         let star = game.starWedge || {};
         let beehiveRunning = !!(game.beehive && game.beehive.inRun);
         let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
@@ -3304,6 +3338,11 @@ function performPlayerAttack(pStats) {
         game.gladiatorVeteranCritBonus = Math.max(0, Math.floor(game.gladiatorVeteranCritBonus || 0));
         if (isCrit) game.gladiatorVeteranCritBonus = 0;
         else game.gladiatorVeteranCritBonus = Math.min(100, game.gladiatorVeteranCritBonus + 5);
+    }
+    if (game.ascendClass === 'elementalist' && hasKeystone('e8')) {
+        if (isCrit) game.elementalistOverloadStacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0)) + 1;
+        else game.elementalistOverloadStacks = 0;
+        game.elementalistOverloadExpiresAt = 0;
     }
     let baseDamage = pStats.baseDmg;
     if (isCrit) {
@@ -3353,6 +3392,46 @@ function performPlayerAttack(pStats) {
     let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits));
     let perEnemyHitCount = new Map();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
+    function applyPierceOverkillCarry(sourceEnemy, carryDamage, hitElement, hitCrit) {
+        if (!pStats.sSkill.pierceOverkillCarry || carryDamage <= 0) return;
+        let remainingDamage = Math.max(0, Math.floor(carryDamage));
+        let visited = new Set(sourceEnemy && sourceEnemy.id ? [sourceEnemy.id] : []);
+        let chainLimit = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.targets || 1)));
+        for (let chainIdx = 0; chainIdx < chainLimit && remainingDamage > 0; chainIdx++) {
+            let chainTarget = (game.enemies || []).find(enemy => enemy && enemy.hp > 0 && !visited.has(enemy.id));
+            if (!chainTarget) return;
+            visited.add(chainTarget.id);
+            let zone = getZone(game.currentZoneId);
+            let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+            let beforeHpForForced = chainTarget.hp;
+            let dealtToChain = applyDamageToEnemyResource(chainTarget, remainingDamage);
+            if (chainTarget.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop())) && chainTarget.hp <= 0) {
+                chainTarget.hp = Math.max(1, Math.min(beforeHpForForced, chainTarget.maxHp || 1));
+            }
+            maybeUnlockChaosRealmFromWoodsman(chainTarget);
+            chainTarget.recentHitsTaken = (chainTarget.recentHitsTaken || 0) + 1;
+            chainTarget.recentHitsTimer = 1.8;
+            totalDamage += dealtToChain;
+            totalLeechableDamage += dealtToChain * (chainTarget && chainTarget.leechEffMul !== undefined ? chainTarget.leechEffMul : 1);
+            hits.push(dealtToChain);
+            hitSummary.totalHits += 1;
+            hitSummary.totalDamage += dealtToChain;
+            hitSummary.uniqueTargets.add(chainTarget.id);
+            addBattleFx('hit', {
+                enemyId: chainTarget.id,
+                color: getElementColor(hitElement),
+                crit: hitCrit,
+                projectile: true,
+                chain: true,
+                skillName: game.activeSkill,
+                damage: dealtToChain,
+                duration: 320,
+                element: hitElement
+            });
+            applyEnemyAilmentFromHit(chainTarget, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, remainingDamage, hitCrit);
+            remainingDamage = (chainTarget.hp <= 0) ? Math.max(0, remainingDamage - dealtToChain) : 0;
+        }
+    }
     let randomTargetCapFallbackUsed = false;
     for (let hitIdx = 0; hitIdx < repeats; hitIdx++) {
         let hitEntries = pStats.sSkill.randomTargetEachHit ? [{ mult: 1 }] : targets;
@@ -3425,6 +3504,7 @@ function performPlayerAttack(pStats) {
             dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement));
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) dmg = Math.floor(dmg * (1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100)));
+            dmg = Math.floor(dmg * Math.max(0, Number(pStats.finalDamageMultiplier) || 1));
             let hasActiveDoomMark = false;
             if (targetEnemy && targetEnemy.id) {
                 let debs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[targetEnemy.id]) ? game.enemyConditionDebuffs[targetEnemy.id] : [];
@@ -3457,6 +3537,7 @@ function performPlayerAttack(pStats) {
                 targetEnemy.hp = Math.max(1, Math.min(beforeHpForForced, targetEnemy.maxHp || 1));
             }
             maybeUnlockChaosRealmFromWoodsman(targetEnemy);
+            if (targetEnemy.hp <= 0 && dmg > dealtToEnemy) applyPierceOverkillCarry(targetEnemy, dmg - dealtToEnemy, hitElement, hitCrit);
             if (slamEchoPct > 0 && (pStats.sSkill.tags || []).includes('slam') && dmg > 0 && targetEnemy.hp > 0 && (slamEchoGuaranteed || passiveSlamEchoChance <= 0 || Math.random() < passiveSlamEchoChance)) {
                 game.pendingSlamEchoHits = Array.isArray(game.pendingSlamEchoHits) ? game.pendingSlamEchoHits : [];
                 game.pendingSlamEchoHits.push({
@@ -3505,10 +3586,6 @@ function performPlayerAttack(pStats) {
                 let mark = targetEnemy.ailments.find(ail => ail && ail.type === 'assassinWeakness');
                 if (mark) { mark.time = 5; mark.power = stacks; }
                 else targetEnemy.ailments.push({ type: 'assassinWeakness', time: 5, power: stacks });
-            }
-            if (hitCrit && game.ascendClass === 'elementalist' && hasKeystone('e8')) {
-                game.elementalistOverloadStacks = Math.min(3, Math.max(0, Math.floor(game.elementalistOverloadStacks || 0)) + 1);
-                game.elementalistOverloadExpiresAt = Date.now() + 3000;
             }
             if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
             applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, hitCrit);
@@ -3566,7 +3643,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
             game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
             triggerMapUnlockReveal(game.maxZoneId);
         }
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         game.playerHp = getPlayerHpCap(pStats);
         startMoving(false);
@@ -3585,7 +3662,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
             addLog(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
         }
         clearWoodsmanBuildLock();
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
     } else if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) {
         addLog(message || "☠️ 벌집 전투에서 패배했습니다. 원정이 즉시 종료됩니다.", "death", { noToast: !!opts.noToast });
@@ -3594,7 +3671,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
             game.beehive.inRun = false;
             game.beehive.awaitingClear = false;
             game.beehive.pendingChoice = null;
-            game.currentZoneId = game.beehive.returnZoneId !== undefined && game.beehive.returnZoneId !== null ? game.beehive.returnZoneId : game.maxZoneId;
+            game.currentZoneId = game.beehive.returnZoneId !== undefined && game.beehive.returnZoneId !== null ? game.beehive.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
             game.beehive.returnZoneId = null;
             game.enemies = [];
             game.encounterPlan = [];
@@ -3611,13 +3688,13 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.encounterPlan = [];
         game.encounterIndex = 0;
         game.runProgress = 0;
-        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : game.maxZoneId;
+        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
     } else if (zone && zone.type === 'meteor') {
         addLog(message || "☠️ 운석 낙하 지점에서 패배했습니다. 운석 지점이 닫힙니다.", "death", { noToast: !!opts.noToast });
         let st = ensureStarWedgeState();
         st.activeMeteorTier = null;
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         game.enemies = [];
         game.encounterPlan = [];
@@ -3630,7 +3707,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.inTicketBossFight = false;
     } else if (zone && zone.type === 'trial') {
         addLog(message || "☠️ 시련 실패! 마을로 귀환합니다.", "death", { noToast: !!opts.noToast });
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
     } else {
         expLost = Math.floor(getExpReq(game.level) * 0.1);
@@ -4028,6 +4105,28 @@ function addWoodsmanPendingScore(scoreGain) {
     game.woodsmanLifetimeScore = Math.max(Math.floor(game.woodsmanLifetimeScore || 0), score);
 }
 
+const WOODSMAN_ENTRANCE_DELAY_SECONDS = 3;
+
+function finishWoodsmanEntrance() {
+    let zone = getZone(game.currentZoneId);
+    if (!game.woodsmanEntrancePending) return false;
+    game.woodsmanEntrancePending = false;
+    if (!zone || zone.type !== 'outsideChaos') return false;
+    game.moveTimer = 0;
+    game.moveTotalTime = WOODSMAN_ENTRANCE_DELAY_SECONDS;
+    game.runProgress = 100;
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.enemies = [];
+    game.inEncounter = true;
+    startWoodsmanCurse();
+    addLog('☠️ 하늘이 갈라지고 도끼날의 그림자가 전장을 뒤덮습니다.', 'loot-unique');
+    addLog('🪓 혼돈 밖의 나무꾼이 웅장하게 등장했습니다.', 'loot-unique');
+    spawnEncounterMarker({ at: 100, count: 1, boss: true });
+    updateStaticUI();
+    return true;
+}
+
 
 function enterOutsideChaos() {
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
@@ -4037,18 +4136,18 @@ function enterOutsideChaos() {
     game.woodsmanBuildLock = true;
     game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
     game.killsInZone = 0;
-    game.runProgress = 100;
-    game.moveTimer = 0;
+    game.runProgress = 0;
+    game.moveTotalTime = WOODSMAN_ENTRANCE_DELAY_SECONDS;
+    game.moveTimer = WOODSMAN_ENTRANCE_DELAY_SECONDS;
+    game.isTownReturning = false;
+    game.combatHalted = false;
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.enemies = [];
-    startWoodsmanCurse();
-    addLog('☠️ 금단의 경계 너머, 나무꾼이 모습을 드러냅니다.', 'loot-unique');
-    game.inEncounter = true;
-    game.moveTimer = 0;
-    game.runProgress = 100;
-    // 나무꾼 전투는 즉시 보스 스폰으로 진입
-    spawnEncounterMarker({ at: 100, count: 1, boss: true });
+    game.inEncounter = false;
+    game.woodsmanEntrancePending = true;
+    resetWoodsmanCurse();
+    addLog('☠️ 금단의 경계 너머로 발을 들였습니다. 혼돈이 몇 초간 숨을 고릅니다.', 'loot-unique');
     updateStaticUI();
 }
 
@@ -4128,7 +4227,7 @@ function triggerSeasonReset() {
     game.passives = ['n0'];
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
-    game.gemData = {};
+    game.gemData = { '기본 공격': { level: 1, exp: 0 } };
     game.skyGemEnhancements = {};
     game.supports = [];
     game.equippedSupports = [];

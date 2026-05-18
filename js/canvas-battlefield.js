@@ -360,7 +360,9 @@ function renderBattlefield(forceWhenHidden) {
 
     let caption = '전장을 스캔 중...';
     if (battleAssets.failed && !battleAssets.ready) caption = '전장 에셋 일부 로드 실패 (기본 렌더링으로 전투 진행)';
-    if (game.moveTimer > 0) caption = game.isTownReturning ? '마을로 귀환 중...' : '다음 구간으로 이동 중...';
+    if (game.isTownReturning && game.moveTimer > 0) caption = '마을로 귀환 중...';
+    else if (game.woodsmanEntrancePending) caption = '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
+    else if (game.moveTimer > 0) caption = '다음 구간으로 이동 중...';
     else if (isCrowdProgressPaused()) caption = `적이 ${ENEMY_CROWD_PAUSE_LIMIT}기 이상 몰려 전진이 막혔습니다.`;
     else if (enemies.length > 0) caption = `${enemies.length}기와 교전 중`;
     else if ((game.encounterPlan || []).length > 0) caption = '다음 매복 지점을 탐색 중...';
