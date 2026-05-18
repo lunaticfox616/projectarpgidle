@@ -336,6 +336,10 @@ function allocateLoop10BonusStat(statKey) {
 }
 
 function enterNextEndlessChaosDepth() {
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) {
+        if (typeof warnBeehiveMapTravelBlocked === 'function') return warnBeehiveMapTravelBlocked();
+        return;
+    }
     if ((game.season || 1) < 10) return;
     game.abyssEndlessDepth = Math.max(20, Math.floor(game.abyssEndlessDepth || 20) + 1);
     game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
@@ -350,6 +354,10 @@ function enterNextEndlessChaosDepth() {
 }
 
 function enterUnlockedEndlessDepth(depth) {
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) {
+        if (typeof warnBeehiveMapTravelBlocked === 'function') return warnBeehiveMapTravelBlocked();
+        return;
+    }
     if ((game.season || 1) < 10) return;
     game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
     depth = Math.max(20, Math.floor(depth || 20));
@@ -415,14 +423,14 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'g8', name: '검투의 화신', desc: '연속 타격 +100%, 보스 대상 주고/받는 피해 18% 증폭, 재생 50% 감폭, ES 재생 없음', req: 'g7' }
     ],
     assassin: [
-        { id: 'a1', name: '냉혹한 집중', desc: '치명타 피해 배율 +60%, 치명타 확률 -15%p', req: null },
-        { id: 'a2', name: '그림자 질주', desc: '이동 속도 +20%, 최대 생명력 -10%, 이동속도 1%당 회피 +1', req: null },
-        { id: 'a3', name: '독점 약점', desc: '치명타 발생 시 3초간 대상 받는 피해 +10% (개별 대상, 최대 5중첩)', req: null },
-        { id: 'a4', name: '암전 절개', desc: '물리 피해 감소 무시 +20%, 저항 관통 +20%, 피해 8% 감폭', req: 'a1' },
-        { id: 'a5', name: '사형 선고', desc: '적 생명력 30% 이하 대상 치명타 확률 +100%p', req: 'a3' },
-        { id: 'a6', name: '유리 심장', desc: '현재 생명력 66% 이상일 때 피해 20% 증폭, 이하 16% 감폭', req: 'a2' },
-        { id: 'a7', name: '살의 폭주', desc: '치명타 100% 초과 가능, 초과 치명타 확률 당 치명타 피해 배율 +1%', reqAny: ['a4', 'a5'] },
-        { id: 'a8', name: '종말의 송곳니', desc: '치명타 확률 -20%p, 치명타 피해 배율 +120%, 비치명타 피해 20% 감폭', req: 'a7' }
+        { id: 'a1', name: '냉혹한 집중', desc: '치명타 피해 배율 +66%, 치명타 확률 -6%p', req: null },
+        { id: 'a2', name: '그림자 질주', desc: '이동 시 흐릿함 상태 부여: 이동 속도 +20%, 치명타 피해 배율 +25%, 회피 20% 증폭. 피해를 받으면 해제', req: null },
+        { id: 'a3', name: '독점 약점', desc: '치명타 발생 시 5초간 대상 받는 피해 +6% (개별 대상, 최대 10중첩, 적 상태이상에 표시)', req: null },
+        { id: 'a4', name: '암전 절개', desc: '물리 피해 감소 무시 +25%, 저항 관통 +25%, 피해 8% 감폭', req: 'a1' },
+        { id: 'a5', name: '사형 선고', desc: '모든 공격이 치명타로 간주됩니다. 치명타로 간주된 비-치명타 공격도 치명타 효과와 치명타 피해 배율 보너스를 받습니다.', req: 'a3' },
+        { id: 'a6', name: '유리 심장', desc: '현재 생명력 66% 초과 시 치명타 피해 배율 20% 증폭, 이하 시 회피 20% 증폭', req: 'a2' },
+        { id: 'a7', name: '살의 폭주', desc: '적이 1명일 경우 치명타가 연속 타격 1회 추가로 부여, 치명타 피해 배율 -200%', reqAny: ['a4', 'a5'] },
+        { id: 'a8', name: '종말의 송곳니', desc: '치명타 피해 배율이 2배, 피해 25% 감폭', req: 'a7' }
     ],
     ranger: [
         { id: 'r1', name: '사냥꾼 보법', desc: '이동 속도 15% 증폭, 방어도/에너지 보호막 0', req: null },
@@ -455,24 +463,24 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'wlk8', name: '심연 군주', desc: '카오스 피해 25% 증폭, 생명력 회복 효과 50% 감폭, 중독 확률 +25%', req: 'wlk7' }
     ],
     guardian: [
-        { id: 'gd1', name: '요새의 맹세', desc: '방어도 20% 증폭, 생명력 10% 증폭, 이동 속도 15% 감폭', req: null },
-        { id: 'gd2', name: '생명 성채', desc: '최대 생명력 +15%, 공격 속도 8% 감폭', req: null },
-        { id: 'gd3', name: '수호 재생', desc: '초당 재생 +1.8%, 치명타 피해 배율 -25%', req: null },
-        { id: 'gd4', name: '철벽 전환', desc: '회피/에너지 보호막 0, 그 합의 50%를 방어도로 전환', req: 'gd1' },
-        { id: 'gd5', name: '불침 보루', desc: '받는 최종 피해 감폭 +15%, 주는 피해 15% 감폭', req: 'gd2' },
-        { id: 'gd6', name: '인내 장전', desc: '피격 시 4초간 방어도 +25% (최대 4중첩), 4중첩 소모 반사 피해', req: 'gd3' },
-        { id: 'gd7', name: '최후 저지선', desc: '생명력 30% 이하 시 받는 피해 15% 감폭/주는 피해 15% 증폭, 상태이상 제거(쿨 6초)', reqAny: ['gd4', 'gd5'] },
-        { id: 'gd8', name: '절대 수호', desc: '받는 최종 피해 감폭 +15%, 모든 상태 이상 저항 확률 +50%', req: 'gd7' }
+        { id: 'gd1', name: '요새의 맹세', desc: '방어도 10% 증폭, 방어도의 10%만큼 일반 피해 증가', req: null },
+        { id: 'gd2', name: '생명 성채', desc: '최대 생명력 20% 증폭', req: null },
+        { id: 'gd3', name: '수호 재생', desc: '생명력 재생 회복 속도 20% 증가, 에너지 보호막 재생 속도 20% 감폭', req: null },
+        { id: 'gd4', name: '철벽 전환', desc: '회피/에너지 보호막 0, 그 합의 60%를 방어도로 전환', req: 'gd1' },
+        { id: 'gd5', name: '불침 보루', desc: '받는 최종 피해 15% 감폭, 주는 피해 12% 감폭', req: 'gd2' },
+        { id: 'gd6', name: '인내 장전', desc: '피격 시 4초간 방어도 +30% (최대 5중첩), 5중첩 소모 반사 피해 후 2중첩 유지', req: 'gd3' },
+        { id: 'gd7', name: '최후 저지선', desc: '생명력 40% 이하 시 받는 피해 20% 감폭/주는 피해 20% 증폭, 상태이상 제거(쿨 5초)', reqAny: ['gd4', 'gd5'] },
+        { id: 'gd8', name: '절대 수호', desc: '피해를 막아내 무효로 할 확률 25%, 모든 상태 이상 저항 확률 +50%', req: 'gd7' }
     ],
     inquisitor: [
-        { id: 'iq1', name: '교리 집행', desc: '원소 피해 15% 증폭, 카오스/물리 피해 15% 감폭', req: null },
-        { id: 'iq2', name: '심판 렌즈', desc: '치명타 피해 배율 +45%, 치명타 확률 -8%p', req: null },
-        { id: 'iq3', name: '성서 확장', desc: '보조 젬 한도 +1, 봉인된 젬 4개당 공명력 1 증가, 공격 속도 6% 감폭', req: null },
-        { id: 'iq4', name: '순백 판결', desc: '적 원소 저항을 0으로 간주 (해당 저항에는 원소 관통 미적용)', req: 'iq1' },
-        { id: 'iq5', name: '계시 관통', desc: '저항 관통 +15%, 물리 피해 없음', req: 'iq2' },
-        { id: 'iq6', name: '신성한 희생', desc: '모든 원소/보조 젬 레벨 +1, 공명력 25당 보조 젬 한도 +1, 최대 생명력 -33%', req: 'iq3' },
-        { id: 'iq7', name: '이단 심문', desc: '치명타 시 3초간 대상 받는 원소 피해 +12%', reqAny: ['iq4', 'iq5'] },
-        { id: 'iq8', name: '절대 교리', desc: '원소 피해 15% 증폭, 저항 관통이 원소 피해 증가로 전환', req: 'iq7' }
+        { id: 'iq1', name: '교리 집행', desc: '원소 피해가 현재 사용 중인 총 공명력의 50%만큼 증폭', req: null },
+        { id: 'iq2', name: '심판 렌즈', desc: '치명타 피해 배율 +75%, 치명타 확률 -8%p', req: null },
+        { id: 'iq3', name: '성서 확장', desc: '보조 젬 한도 +1, 공명력 +10, 봉인된 젬 4개당 공명력 1 증가, 공격 속도 6% 감폭', req: null },
+        { id: 'iq4', name: '순백 판결', desc: '적 원소 저항을 0으로 간주 (원소 관통 적용)', req: 'iq1' },
+        { id: 'iq5', name: '계시 관통', desc: '저항 관통 +20%, 물리 피해 없음', req: 'iq2' },
+        { id: 'iq6', name: '신성한 희생', desc: '모든 원소/보조 젬 레벨 +1, 공명력 25당 보조 젬 한도 +1, 최대 생명력 -25%', req: 'iq3' },
+        { id: 'iq7', name: '이단 심문', desc: '사용 중인 공명력에 따라 치명타 피해 배율 증가', reqAny: ['iq4', 'iq5'] },
+        { id: 'iq8', name: '절대 교리', desc: '저항 관통이 원소 피해 증가에도 적용', req: 'iq7' }
     ]
 };
 
@@ -877,10 +885,10 @@ function setSelectedExpertFavor(expertId, optionId){ let st=ensureExpertiseState
 function getExpertFavorEffectTotals(){ let st=ensureExpertiseState(); st.favors=(st.favors&&typeof st.favors==='object')?st.favors:{}; let out={}; Object.keys(EXPERT_FAVOR_OPTIONS).forEach(expertId=>{ let picked=st.favors[expertId]; let opt=(EXPERT_FAVOR_OPTIONS[expertId]||[]).find(v=>v.id===picked); if(!opt) return; Object.entries(opt.effect||{}).forEach(([k,v])=>{ out[k]=(out[k]||0)+Number(v||0); }); }); return out; }
 
 const EXPERT_EXP_RULES = {
-  mycologist: { loopCap: 250, actions: { spore_craft: { exp: 2, cap: 80 }, fossil_refine: { exp: 3, cap: 80 }, fossil_craft: { exp: 3, cap: 80 }, fossil_restore: { exp: 5, cap: 80 }, labyrinth_new_floor: { exp: 10, cap: 60 } } },
-  gemEngraver: { loopCap: 250, actions: { boss_core_upgrade: { exp: 3, cap: 80 }, sky_core_upgrade: { exp: 3, cap: 80 }, engrave_slot_expand: { exp: 5, cap: 60 }, engrave_apply: { exp: 1, cap: 100 }, support_gem_upgrade: { exp: 1, cap: 100 } } },
-  astronomer: { loopCap: 250, actions: { meteor_clear: { exp: 5, cap: 80 }, starwedge_craft: { exp: 5, cap: 80 }, starwedge_reroll: { exp: 1, cap: 100 }, anomaly_observe: { exp: 5, cap: 80 } } },
-  beekeeper: { loopCap: 250, actions: { bee_branch_choice: { exp: 1, cap: 100 }, bee_clear: { exp: 10, cap: 80 }, bee_currency_craft: { exp: 3, cap: 80 }, bee_resource_use: { exp: 2, cap: 80 } } }
+  mycologist: { loopCap: 250, actions: { spore_craft: { exp: 2, cap: 80 }, fossil_refine: { exp: 3, cap: 80 }, fossil_craft: { exp: 3, cap: 80 }, fossil_restore: { exp: 5, cap: 80 }, labyrinth_new_floor: { exp: 10, cap: 60 }, loop_base: { exp: 60 } } },
+  gemEngraver: { loopCap: 250, actions: { boss_core_upgrade: { exp: 3, cap: 80 }, sky_core_upgrade: { exp: 3, cap: 80 }, engrave_slot_expand: { exp: 5, cap: 60 }, engrave_apply: { exp: 1, cap: 100 }, support_gem_upgrade: { exp: 1, cap: 100 }, loop_base: { exp: 60 } } },
+  astronomer: { loopCap: 250, actions: { meteor_clear: { exp: 5, cap: 80 }, starwedge_craft: { exp: 5, cap: 80 }, starwedge_reroll: { exp: 1, cap: 100 }, anomaly_observe: { exp: 5, cap: 80 }, loop_base: { exp: 60 } } },
+  beekeeper: { loopCap: 250, actions: { bee_branch_choice: { exp: 1, cap: 100 }, bee_clear: { exp: 10, cap: 80 }, bee_currency_craft: { exp: 3, cap: 80 }, bee_resource_use: { exp: 2, cap: 80 }, loop_base: { exp: 60 } } }
 };
 
 const EXPERT_TREE_NODES = [
@@ -909,6 +917,35 @@ const EXPERT_TREE_NODES = [
   { id: 'bee_keystone_queen', branch: 'beekeeper', name: '핵심: 왕실 벌집', desc: '여왕벌 이벤트 보상 강화', max: 1, cost: 3, effect: { queenBeeRewardBonusPct: 20 }, requireBranchPoints: 10 }
 ];
 const EXPERT_IDS = ['mycologist','gemEngraver','astronomer','beekeeper'];
+const EXPERT_EXP_GUIDES = {
+  mycologist: [
+    '홀씨를 사용해 장비 옵션을 제작/변환/제거하면 경험치 획득',
+    '화석 제작, 화석 카오스 재련, 원시/고대 화석 복원',
+    '고대 미궁에서 새 최고층을 돌파하면 큰 경험치 획득',
+    '루프 진행 시 기본 경험치 +60'
+  ],
+  gemEngraver: [
+    '군주의 핵/창공의 힘으로 공격 젬 핵 강화',
+    '창공 각인 슬롯 확장, 각인 부여/해제 관련 작업',
+    '젬 퀄리티 강화, 보조 젬 창공 가공/등급·레벨 가공',
+    '각성 젬 변환 및 각성 각인 작업',
+    '루프 진행 시 기본 경험치 +60'
+  ],
+  astronomer: [
+    '운석 낙하 지점 클리어',
+    '이상 현상 관측',
+    '별쐐기 제작/완성/리롤/영원 고정 작업',
+    '별자리·소행성 지도 등 천문 콘텐츠 이용',
+    '루프 진행 시 기본 경험치 +60'
+  ],
+  beekeeper: [
+    '벌집 갈림길 선택 및 벌집 클리어',
+    '꽃가루로 벌집 열쇠/독벌침/벌꿀/밀랍 제작',
+    '밀랍/벌꿀/독벌침 등 벌 재화 사용',
+    '맵핑 중 벌 이벤트 및 여왕벌 이벤트',
+    '루프 진행 시 기본 경험치 +60'
+  ]
+};
 function ensureExpertiseState(){
   game.expertise=(game.expertise&&typeof game.expertise==='object')?game.expertise:{};
   game.expertise.levels=game.expertise.levels||{};
@@ -938,7 +975,7 @@ function getExpertExp(id){return ensureExpertiseState().exp[id]||0;}
 function getExpertExpReq(level){ return Math.floor(35 + level*18 + Math.pow(level,1.45)*8);}
 function addExpertUnlockHistory(id, unlock, isNew){ let st=game.expertise||(game.expertise={}); st.unlockHistory=(st.unlockHistory&&typeof st.unlockHistory==='object')?st.unlockHistory:{}; if(!unlock) return; st.unlockHistory[id]=Array.isArray(st.unlockHistory[id])?st.unlockHistory[id]:[]; if(st.unlockHistory[id].some(row=>row&&row.level===unlock.level)) return; st.unlockHistory[id].push({level:unlock.level,title:unlock.title,desc:unlock.desc||'',at:isNew?Date.now():0}); st.unlockHistory[id].sort((a,b)=>a.level-b.level); if(isNew){ game.noti.expertise=true; if(typeof addLog==='function'){ let def=EXPERT_DEFS[id]||{name:id,icon:'🧠'}; addLog(`${def.icon||'🧠'} ${def.name} Lv.${unlock.level} 해금: ${unlock.title}`, 'season-up'); } } }
 function getExpertUnlockHistory(id){ let st=ensureExpertiseState(); return Array.isArray(st.unlockHistory[id])?st.unlockHistory[id]:[]; }
-function addExpertExp(id,amount,sourceKey){ let st=ensureExpertiseState(); if(!EXPERT_IDS.includes(id)) return false; if(!st.unlockedExperts.includes(id)) st.unlockedExperts.push(id); if(!game.unlocks.expertise) game.unlocks.expertise=true; st.loopExpCaps.total = st.loopExpCaps.total || {}; st.loopExpCaps.bySource = st.loopExpCaps.bySource || {}; st.loopExpCaps.total[id] = st.loopExpCaps.total[id] || 0; st.loopExpCaps.bySource[id] = st.loopExpCaps.bySource[id] || {}; let rule=((EXPERT_EXP_RULES[id]||{}).actions||{})[sourceKey||'']; let totalCap=Math.max(1, Math.floor(((EXPERT_EXP_RULES[id]||{}).loopCap)||250)); let sourceCap=Math.max(1, Math.floor((rule&&rule.cap)||80)); let key=sourceKey||'generic'; let usedSource=st.loopExpCaps.bySource[id][key]||0; let left=Math.max(0, Math.min(totalCap-st.loopExpCaps.total[id], sourceCap-usedSource)); let gain=Math.max(0, Math.min(left, Math.floor(amount||0))); if (gain<=0) return false; let lv=getExpertLevel(id); if(lv>=30) return false; let beforeLv=lv; st.exp[id]+=gain; st.loopExpCaps.total[id]+=gain; st.loopExpCaps.bySource[id][key]=usedSource+gain; while(st.exp[id]>=getExpertExpReq(lv) && lv<30){ st.exp[id]-=getExpertExpReq(lv); lv++; st.levels[id]=lv; } if(lv>beforeLv){ getExpertUnlocks(id).filter(u=>u.level>beforeLv&&u.level<=lv).forEach(u=>addExpertUnlockHistory(id,u,true)); } return true;}
+function addExpertExp(id,amount,sourceKey,options){ let st=ensureExpertiseState(); if(!EXPERT_IDS.includes(id)) return false; if(!st.unlockedExperts.includes(id)) st.unlockedExperts.push(id); if(!game.unlocks.expertise) game.unlocks.expertise=true; let ignoreLoopCaps = !!(options && options.ignoreLoopCaps); st.loopExpCaps.total = st.loopExpCaps.total || {}; st.loopExpCaps.bySource = st.loopExpCaps.bySource || {}; st.loopExpCaps.total[id] = st.loopExpCaps.total[id] || 0; st.loopExpCaps.bySource[id] = st.loopExpCaps.bySource[id] || {}; let rule=((EXPERT_EXP_RULES[id]||{}).actions||{})[sourceKey||'']; let totalCap=Math.max(1, Math.floor(((EXPERT_EXP_RULES[id]||{}).loopCap)||250)); let sourceCap=Math.max(1, Math.floor((rule&&rule.cap)||80)); let key=sourceKey||'generic'; let usedSource=st.loopExpCaps.bySource[id][key]||0; let left=ignoreLoopCaps ? Number.POSITIVE_INFINITY : Math.max(0, Math.min(totalCap-st.loopExpCaps.total[id], sourceCap-usedSource)); let gain=Math.max(0, Math.min(left, Math.floor(amount||0))); if (gain<=0) return false; let lv=getExpertLevel(id); if(lv>=30) return false; let beforeLv=lv; st.exp[id]+=gain; if(!ignoreLoopCaps){ st.loopExpCaps.total[id]+=gain; st.loopExpCaps.bySource[id][key]=usedSource+gain; } while(st.exp[id]>=getExpertExpReq(lv) && lv<30){ st.exp[id]-=getExpertExpReq(lv); lv++; st.levels[id]=lv; } if(lv>beforeLv){ getExpertUnlocks(id).filter(u=>u.level>beforeLv&&u.level<=lv).forEach(u=>addExpertUnlockHistory(id,u,true)); } return true;}
 function grantExpertExpByAction(id, actionKey){ let action=((((EXPERT_EXP_RULES[id]||{}).actions)||{})[actionKey]); if(!action) return false; return addExpertExp(id, action.exp, actionKey); }
 function getExpertUnlocks(id){ return (EXPERT_DEFS[id]||{}).unlocks||[];}
 function getCurrentExpertUnlock(id){ let lv=getExpertLevel(id); return getExpertUnlocks(id).filter(u=>u.level<=lv).slice(-1)[0]||null;}
@@ -958,6 +995,21 @@ function setExpertiseLoopCapsForSeason(season){
 }
 function resetExpertiseLoopCaps(){
   return setExpertiseLoopCapsForSeason(Math.max(1, Math.floor(game.season || 1)));
+}
+function grantLoopBaseExpertExp(){
+  ensureExpertiseState();
+  let gained = [];
+  EXPERT_IDS.forEach(id => {
+    if (!ensureExpertiseState().unlockedExperts.includes(id)) return;
+    let beforeLv = getExpertLevel(id);
+    let loopBaseRule = ((((EXPERT_EXP_RULES[id] || {}).actions) || {}).loop_base) || {};
+    if (addExpertExp(id, loopBaseRule.exp || 0, 'loop_base', { ignoreLoopCaps: true })) {
+      let def = EXPERT_DEFS[id] || { name: id };
+      gained.push(`${def.name} +${loopBaseRule.exp || 0}${getExpertLevel(id) > beforeLv ? ` (Lv.${getExpertLevel(id)})` : ''}`);
+    }
+  });
+  if (gained.length > 0 && typeof addLog === 'function') addLog(`🧠 루프 기본 전문가 경험치: ${gained.join(' / ')}`, 'season-up');
+  return gained;
 }
 function hasExpertTreeUnlocked(){ return getExpertPointTotal() > 0; }
 
@@ -1179,4 +1231,4 @@ function normalizeGemRecord(raw) {
 }
 
 
-safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord, EXPERT_DEFS, EXPERT_TREE_NODES, ensureExpertiseState, getExpertLevel, getExpertExp, addExpertExp, getExpertUnlocks, getExpertUnlockHistory, getCurrentExpertUnlock, getNextExpertUnlock, getExpertPointTotal, getExpertPointSpent, getExpertPointFree, getExpertBranchSpent, getExpertNodeEffectValue, canAllocateExpertNode, allocateExpertNode, resetExpertTree, hasExpertTreeUnlocked, resetExpertiseLoopCaps, EXPERT_EXP_RULES, grantExpertExpByAction, EXPERT_FAVOR_OPTIONS, getExpertFavorOptions, getSelectedExpertFavor, setSelectedExpertFavor, getExpertFavorEffectTotals });
+safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord, EXPERT_DEFS, EXPERT_EXP_GUIDES, EXPERT_TREE_NODES, ensureExpertiseState, getExpertLevel, getExpertExp, addExpertExp, getExpertUnlocks, getExpertUnlockHistory, getCurrentExpertUnlock, getNextExpertUnlock, getExpertPointTotal, getExpertPointSpent, getExpertPointFree, getExpertBranchSpent, getExpertNodeEffectValue, canAllocateExpertNode, allocateExpertNode, resetExpertTree, hasExpertTreeUnlocked, resetExpertiseLoopCaps, EXPERT_EXP_RULES, grantExpertExpByAction, grantLoopBaseExpertExp, EXPERT_FAVOR_OPTIONS, getExpertFavorOptions, getSelectedExpertFavor, setSelectedExpertFavor, getExpertFavorEffectTotals });
