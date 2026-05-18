@@ -46,6 +46,16 @@ function resetGame(overrides) {
 }
 
 resetGame({
+  currentZoneId: 3,
+  beehive: { inRun: false },
+  encounterPlan: [{ at: 999 }],
+  encounterIndex: 0,
+  runProgress: 0,
+});
+exposed.advanceMapProgress({ moveSpeed: 100 });
+assert(context.game.runProgress > 0, 'normal map progress should advance when beehive was never entered');
+
+resetGame({
   currentZoneId: 'beehive_run',
   beehive: { inRun: true, returnZoneId: 4 },
   runProgress: 0,
@@ -84,5 +94,19 @@ resetGame({
 exposed.advanceMapProgress({ moveSpeed: 100 });
 assert(context.game.runProgress > 0, 'normal map progress should advance after stale beehive reconciliation');
 assert(context.game.beehive.inRun === false, 'advanceMapProgress should clear off-map stale beehive state');
+
+
+resetGame({
+  currentZoneId: 'beehive_run',
+  beehive: { inRun: true, pendingChoice: { a: {} } },
+  encounterPlan: [{ at: 999 }],
+  encounterIndex: 0,
+  runProgress: 0,
+  combatHalted: true,
+});
+assert(exposed.isBeehiveRunLockedForMapTravel() === false, 'beehive_run pending choice without returnZone should be treated as stale');
+assert(context.game.currentZoneId === 5, 'stale beehive_run without returnZone should fall back to maxZoneId');
+exposed.advanceMapProgress({ moveSpeed: 100 });
+assert(context.game.runProgress > 0, 'normal map progress should advance after clearing beehive_run pending-choice stale state');
 
 console.log('map progress stale beehive smoke passed');

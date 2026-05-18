@@ -171,8 +171,10 @@ function toggleItemLockById(itemId) {
 
 function hasActiveBeehiveRuntimeState(b) {
     if (!b || !b.inRun) return false;
+    let hasReturnZone = b.returnZoneId !== undefined && b.returnZoneId !== null;
+    let hasStartedRoute = Math.max(0, Math.floor(b.branchStep || 0)) > 0;
     return !!b.awaitingClear
-        || !!b.pendingChoice
+        || (!!b.pendingChoice && (hasReturnZone || hasStartedRoute))
         || !!b.queenActive
         || !!b.pendingWaveReward
         || (Array.isArray(b.pendingQueenRewards) && b.pendingQueenRewards.length > 0)
