@@ -466,6 +466,36 @@ function switchSkillSubtab(subtabId) {
 }
 
 
+
+function closeBeehiveChoiceOverlay() {
+    let el = document.getElementById('beehive-choice-overlay');
+    if (el) el.remove();
+}
+
+function getBeehiveChoiceButtonsHtml(c) {
+    if (!c) return '';
+    if (c.a && c.b && c.c) {
+        return `<button onclick="resolveBeehiveChoice('a')" style="text-align:left;padding:10px;">${c.a.text}</button><button onclick="resolveBeehiveChoice('b')" style="text-align:left;padding:10px;">${c.b.text}</button><button onclick="resolveBeehiveChoice('c')" style="text-align:left;padding:10px;">${c.c.text}</button>`;
+    }
+    return `<button onclick="resolveBeehiveChoice('legacy_now')" style="text-align:left;padding:10px;">${c.nowText || '즉시 보상'}</button><button onclick="resolveBeehiveChoice('legacy_later')" style="text-align:left;padding:10px;">${c.laterText || '지연 보상'}</button>`;
+}
+
+function openBeehiveChoiceOverlay(reasonText) {
+    let b = game.beehive || {};
+    let alive = (game.enemies || []).filter(e => e && e.hp > 0).length;
+    if (!b.inRun || !b.pendingChoice || b.awaitingClear || alive > 0 || document.getElementById('beehive-choice-overlay')) return;
+    let next = Math.min(10, Math.max(1, Math.floor((b.branchStep || 0) + 1)));
+    let html = `<div id="beehive-choice-overlay" style="position:fixed;inset:0;background:rgba(8,8,5,.76);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;">
+        <div style="width:min(920px,95vw);background:#17130b;border:1px solid #9b7a30;border-radius:14px;padding:14px;box-shadow:0 18px 60px rgba(0,0,0,.45);">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;"><strong style="color:#ffd978;font-size:18px;">🐝 벌떼 웨이브 처치 완료</strong><button onclick="closeBeehiveChoiceOverlay()">닫기</button></div>
+            <div style="color:#d9c08a;margin-bottom:10px;line-height:1.45;">${reasonText || '다음 갈림길을 선택하세요.'}<br>갈림길 ${next}/10 · 선택 즉시 다음 벌떼 웨이브가 시작됩니다.</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">${getBeehiveChoiceButtonsHtml(b.pendingChoice)}</div>
+            <div style="color:#95835d;font-size:.82em;margin-top:10px;">닫아도 벌집 패널에서 다시 선택할 수 있습니다.</div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
 function renderLoop8BeehivePanel() {
     let open = (game.season || 1) >= 8;
     let header = document.getElementById('ui-beehive-header');
@@ -482,6 +512,7 @@ function renderLoop8BeehivePanel() {
     }
     let aliveBeeEnemies = (game.enemies || []).filter(e => e && e.hp > 0).length;
     if (b.inRun && b.pendingChoice && !b.awaitingClear && aliveBeeEnemies <= 0) {
+        openBeehiveChoiceOverlay();
         let c = b.pendingChoice;
         if (c.a && c.b && c.c) {
             choiceHtml = `<div style="margin-top:8px; display:grid; gap:6px;"><div style="color:#ffd978; font-weight:700;">갈림길 선택 (${Math.min(10, (b.branchStep || 0) + 1)}/10) · 선택 즉시 벌떼 웨이브가 시작됩니다.</div><button onclick="resolveBeehiveChoice('a')">${c.a.text}</button><button onclick="resolveBeehiveChoice('b')">${c.b.text}</button><button onclick="resolveBeehiveChoice('c')">${c.c.text}</button></div>`;
@@ -721,6 +752,7 @@ function advanceBeehivePath(){
     updateStaticUI();
 }
 function resolveBeehiveChoice(key){
+    closeBeehiveChoiceOverlay();
     let b = game.beehive;
     let liveEnemies = (game.enemies || []).filter(e => e && e.hp > 0).length;
     if (!b || !b.pendingChoice || b.awaitingClear || liveEnemies > 0) return;
@@ -759,6 +791,7 @@ function resolveBeehiveChoice(key){
     updateStaticUI();
 }
 function exitBeehiveRun(message, logType){
+    closeBeehiveChoiceOverlay();
     let b = game.beehive || {};
     b.inRun = false;
     b.branchStep = 0;
@@ -774,6 +807,7 @@ function exitBeehiveRun(message, logType){
     updateStaticUI();
 }
 function completeBeehiveRun(){
+    closeBeehiveChoiceOverlay();
     let b = game.beehive || {};
     let queenRewardResults = [];
     if (Array.isArray(b.pendingQueenRewards)) {
@@ -834,6 +868,7 @@ function onBeehiveWaveCleared(){
     }
     prepareBeehiveBranchChoices(b);
     addLog(`🐝 벌떼 웨이브 정리 완료${rewardResult ? `: ${rewardResult}` : ''}. 다음 갈림길을 선택할 수 있습니다. (${b.branchStep}/10)`, 'loot-magic');
+    openBeehiveChoiceOverlay(rewardResult ? `웨이브 보상: ${rewardResult}` : '웨이브를 정리했습니다.');
     updateStaticUI();
 }
 function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; exitBeehiveRun('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); }
@@ -7535,4 +7570,4 @@ function getLockedTabMessage(tabId) {
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor });
+safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay });

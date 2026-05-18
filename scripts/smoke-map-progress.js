@@ -22,6 +22,8 @@ Object.assign(context, {
   performance: { now: () => 0 },
   ENEMY_CROWD_PAUSE_LIMIT: 999,
   getZone(id) { return { id, type: 'act', tier: 1, maxKills: 10, ele: 'phys' }; },
+  clampNumber(value, min, max) { return Math.max(min, Math.min(max, value)); },
+  createSeededRng() { return () => 0.5; },
   isCrowdProgressPaused() { return false; },
   getAbyssMonsterScales() { return { mapProgressMul: 1 }; },
   ensureChaosRealmState() { return { highestFloor: 0 }; },
@@ -41,6 +43,7 @@ function resetGame(overrides) {
     encounterPlan: [],
     encounterIndex: 0,
     runProgress: 0,
+    moveTimer: 0,
     combatHalted: false,
   }, overrides || {});
 }
@@ -65,6 +68,24 @@ assert(exposed.isBeehiveRunLockedForMapTravel() === false, 'stale beehive_run st
 assert(context.game.currentZoneId === 4, 'stale beehive_run state should return to saved returnZoneId');
 assert(context.game.beehive.inRun === false, 'stale beehive_run state should clear inRun');
 assert(context.game.combatHalted === false, 'stale beehive_run state should unhalt combat');
+
+
+resetGame({
+  currentZoneId: 2,
+  beehive: { inRun: false },
+  inTicketBossFight: true,
+  combatHalted: true,
+  enemies: [{ hp: 10 }],
+  encounterPlan: [],
+  encounterIndex: 0,
+  runProgress: 0,
+});
+assert(exposed.reconcileMapProgressRuntimeState() === true, 'stale normal-map halt/ticket state should be reconciled');
+assert(context.game.inTicketBossFight === false, 'normal map should clear stale ticket boss flag');
+assert(context.game.combatHalted === false, 'normal map should clear stale combat halt');
+assert((context.game.enemies || []).length === 0, 'normal map at 0% should clear impossible stale enemies');
+exposed.advanceMapProgress({ moveSpeed: 100 });
+assert(context.game.runProgress > 0, 'normal map progress should advance after stale halt/ticket recovery');
 
 resetGame({
   currentZoneId: 7,
