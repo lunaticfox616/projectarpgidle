@@ -1808,6 +1808,7 @@ function getGemPresentation(name, isSupport) {
     let skill = { ...db };
     skill.dmg = skill.baseDmg + ((finalLevel - 1) * skill.dmgScale);
     skill.spd = skill.baseSpd + ((finalLevel - 1) * skill.spdScale);
+    if (skill.critScale) skill.crit = (skill.crit || 0) + (finalLevel * skill.critScale);
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     skill.dmg *= qualityMul;
     skill.spd *= qualityMul;
@@ -3384,6 +3385,46 @@ function performPlayerAttack(pStats) {
     let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits));
     let perEnemyHitCount = new Map();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
+    function applyPierceOverkillCarry(sourceEnemy, carryDamage, hitElement, hitCrit) {
+        if (!pStats.sSkill.pierceOverkillCarry || carryDamage <= 0) return;
+        let remainingDamage = Math.max(0, Math.floor(carryDamage));
+        let visited = new Set(sourceEnemy && sourceEnemy.id ? [sourceEnemy.id] : []);
+        let chainLimit = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.targets || 1)));
+        for (let chainIdx = 0; chainIdx < chainLimit && remainingDamage > 0; chainIdx++) {
+            let chainTarget = (game.enemies || []).find(enemy => enemy && enemy.hp > 0 && !visited.has(enemy.id));
+            if (!chainTarget) return;
+            visited.add(chainTarget.id);
+            let zone = getZone(game.currentZoneId);
+            let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+            let beforeHpForForced = chainTarget.hp;
+            let dealtToChain = applyDamageToEnemyResource(chainTarget, remainingDamage);
+            if (chainTarget.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop())) && chainTarget.hp <= 0) {
+                chainTarget.hp = Math.max(1, Math.min(beforeHpForForced, chainTarget.maxHp || 1));
+            }
+            maybeUnlockChaosRealmFromWoodsman(chainTarget);
+            chainTarget.recentHitsTaken = (chainTarget.recentHitsTaken || 0) + 1;
+            chainTarget.recentHitsTimer = 1.8;
+            totalDamage += dealtToChain;
+            totalLeechableDamage += dealtToChain * (chainTarget && chainTarget.leechEffMul !== undefined ? chainTarget.leechEffMul : 1);
+            hits.push(dealtToChain);
+            hitSummary.totalHits += 1;
+            hitSummary.totalDamage += dealtToChain;
+            hitSummary.uniqueTargets.add(chainTarget.id);
+            addBattleFx('hit', {
+                enemyId: chainTarget.id,
+                color: getElementColor(hitElement),
+                crit: hitCrit,
+                projectile: true,
+                chain: true,
+                skillName: game.activeSkill,
+                damage: dealtToChain,
+                duration: 320,
+                element: hitElement
+            });
+            applyEnemyAilmentFromHit(chainTarget, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, remainingDamage, hitCrit);
+            remainingDamage = (chainTarget.hp <= 0) ? Math.max(0, remainingDamage - dealtToChain) : 0;
+        }
+    }
     let randomTargetCapFallbackUsed = false;
     for (let hitIdx = 0; hitIdx < repeats; hitIdx++) {
         let hitEntries = pStats.sSkill.randomTargetEachHit ? [{ mult: 1 }] : targets;
@@ -3489,6 +3530,7 @@ function performPlayerAttack(pStats) {
                 targetEnemy.hp = Math.max(1, Math.min(beforeHpForForced, targetEnemy.maxHp || 1));
             }
             maybeUnlockChaosRealmFromWoodsman(targetEnemy);
+            if (targetEnemy.hp <= 0 && dmg > dealtToEnemy) applyPierceOverkillCarry(targetEnemy, dmg - dealtToEnemy, hitElement, hitCrit);
             if (slamEchoPct > 0 && (pStats.sSkill.tags || []).includes('slam') && dmg > 0 && targetEnemy.hp > 0 && (slamEchoGuaranteed || passiveSlamEchoChance <= 0 || Math.random() < passiveSlamEchoChance)) {
                 game.pendingSlamEchoHits = Array.isArray(game.pendingSlamEchoHits) ? game.pendingSlamEchoHits : [];
                 game.pendingSlamEchoHits.push({

@@ -374,6 +374,7 @@ function getActiveSkillStats(bonusLevel) {
     let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus };
     stats.dmg = stats.baseDmg + ((finalLevel - 1) * stats.dmgScale);
     stats.spd = stats.baseSpd + ((finalLevel - 1) * stats.spdScale);
+    if (stats.critScale) stats.crit = (stats.crit || 0) + (finalLevel * stats.critScale);
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     stats.dmg *= qualityMul;
     stats.spd *= qualityMul;
