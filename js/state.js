@@ -231,6 +231,28 @@ function getCurrentSeasonFinalZoneId() {
     return getSeasonFinalZoneId(game.season || 1);
 }
 
+function getVisibleHuntingMapCapZoneId() {
+    return Math.min(getCurrentSeasonFinalZoneId(), getAbyssZoneIdForDepth(20));
+}
+
+function getHighestUnlockedEndlessChaosDepth() {
+    let depths = [];
+    if (Array.isArray(game && game.abyssUnlockedDepths)) {
+        depths = game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21);
+    }
+    let currentDepth = Math.floor((game && game.abyssEndlessDepth) || 0);
+    if (currentDepth >= 21) depths.push(currentDepth);
+    return depths.length > 0 ? Math.max(...depths) : 0;
+}
+
+function getAutoProgressZoneId(fallbackZoneId) {
+    if ((game.season || 1) >= 10) {
+        let highestDepth = getHighestUnlockedEndlessChaosDepth();
+        if (highestDepth >= 21) return getAbyssZoneIdForDepth(highestDepth);
+    }
+    return fallbackZoneId;
+}
+
 
 
 function getAbyssPassiveState() {
@@ -403,14 +425,14 @@ const CLASS_TEMPLATES = {
 const CLASS_KEYSTONE_PICK_LIMIT = 4;
 const CLASS_KEYSTONE_DEFS = {
     warrior: [
-        { id: 'w1', name: '강철 태세', desc: '물리 피해 12% 증폭, 이동속도 12% 감폭', req: null },
-        { id: 'w2', name: '전장의 리듬', desc: '치명타 발생 시 2초간 공격속도 +8% (최대 5중첩)', req: null },
+        { id: 'w1', name: '강철 태세', desc: '물리 피해 15% 증폭, 방어도 15% 증가', req: null },
+        { id: 'w2', name: '전장의 리듬', desc: '치명타 및 연속 공격 발생 시 각각 2초간 공격속도 +8% (각각 최대 5중첩)', req: null },
         { id: 'w3', name: '쌍수 훈련', desc: '목걸이 슬롯에 무기 장착 가능, 목걸이 장착 불가', req: null },
-        { id: 'w4', name: '갑주 분쇄', desc: '물리 피해 감소 무시가 마이너스까지 적용될 수 있음. 보스 상대로 물리 피해 감소가 절반만 적용', req: 'w1' },
+        { id: 'w4', name: '갑주 분쇄', desc: '물리 피해 감소 무시가 마이너스까지 적용될 수 있음', req: 'w1' },
         { id: 'w5', name: '격노 순환', desc: '피격 시 5초간 물리 피해 +15% (최대 5중첩)', req: 'w2' },
-        { id: 'w6', name: '거인의 힘', desc: '쌍수 상태에서, 최종 피해 15% 증폭', req: 'w3' },
+        { id: 'w6', name: '거인의 힘', desc: '쌍수 상태에서, 각 무기의 효과 50% 증가', req: 'w3' },
         { id: 'w7', name: '불굴의 진군', desc: '생명력 50% 이하 시 받는 피해 15% 감폭, 주는 피해 15% 증폭', reqAny: ['w2', 'w4'] },
-        { id: 'w8', name: '파괴 본능', desc: '생명력이 50% 이상으로 회복/흡수되지 않음, 최대 생명력 -20%, 방어도 50% 감폭, 치명타 확률/치명타 피해 배율/연속타격/공격 속도/이동 속도/피해 +15%', req: 'w7' }
+        { id: 'w8', name: '파괴 본능', desc: '생명력이 50% 이상으로 회복/흡수되지 않음, 치명타 확률/치명타 피해 배율/연속타격/공격 속도/이동 속도 +15%, 최종 피해 +15%', req: 'w7' }
     ],
     gladiator: [
         { id: 'g1', name: '결투 태세', desc: '물리 피해 12% 증폭, 물리가 아닌 피해 20% 감폭', req: null },
@@ -443,14 +465,14 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'r8', name: '폭풍 사냥', desc: '공격 속도와 이동 속도 상호 20% 효율 보정, 최대 생명력 -15%', req: 'r7' }
     ],
     elementalist: [
-        { id: 'e1', name: '원소 공명', desc: '원소 피해 15% 증폭, 물리 피해 없음', req: null },
+        { id: 'e1', name: '원소 공명', desc: '원소 최종 피해 15% 증폭, 물리 피해 없음', req: null },
         { id: 'e2', name: '분광 외피', desc: '모든 원소 저항 +15%, 원소 저항 최대치 +3%, 카오스 저항 -10%', req: null },
         { id: 'e3', name: '마력 순환', desc: '에너지 보호막 재생이 끊기지 않음, 최대 생명력 -15%', req: null },
         { id: 'e4', name: '융해 결합', desc: '모든 스킬이 화염/냉기/번개 33% 영향 스킬로 변화', req: 'e1' },
-        { id: 'e5', name: '공허 결합', desc: '카오스 저항이 가장 높은 원소 저항의 50%만큼 상승, 카오스 저항만큼 원소 피해 증가', req: 'e2' },
+        { id: 'e5', name: '공허 결합', desc: '카오스 저항이 가장 높은 원소 저항의 50%만큼 상승, 카오스 저항만큼 원소 최종 피해 증가', req: 'e2' },
         { id: 'e6', name: '원소 침식', desc: '저항 관통 +20%, 치명타 피해 배율 -25%', req: 'e3' },
-        { id: 'e7', name: '삼원 폭주', desc: '화/냉/번 동시 사용 시 최종 피해 5% 증폭, 상태이상 강도는 최종 피해 비례', reqAny: ['e4', 'e5'] },
-        { id: 'e8', name: '원소 과부하', desc: '치명타 발생 시 3초간 원소 피해 +25%, 저항 관통 +5% (최대 3중첩), 받는 피해 10% 증폭', req: 'e7' }
+        { id: 'e7', name: '삼원 폭주', desc: '화/냉/번 동시 사용 시 최종 피해 5% 증폭, 상태이상 강도는 최종 피해의 2배에 비례', reqAny: ['e4', 'e5'] },
+        { id: 'e8', name: '원소 과부하', desc: '치명타 공격마다 원소 과부하 중첩 획득: 중첩당 원소 최종 피해 +4%, 치명타 확률 -1%p (무한 중첩). 비-치명타 공격 시 모든 중첩을 잃음', req: 'e7' }
     ],
     warlock: [
         { id: 'wlk1', name: '심연 각인', desc: '모든 피해가 카오스 피해가 됨', req: null },
@@ -614,37 +636,37 @@ Object.keys(SKILL_DB).forEach(name => {
 });
 
 const SUPPORT_GEM_DB = {
-    '가속': { baseVal: 1, scale: 0.5, stat: 'aspd', name: '공격 속도', isPct: true, desc: '공격 속도를 올립니다.' },
-    '가벼운 발걸음': { baseVal: 1, scale: 1.0, stat: 'move', name: '이동 속도', isPct: true, desc: '맵 진행 속도를 높입니다.' },
-    '날카로움': { baseVal: 0.2, scale: 0.3, stat: 'crit', name: '치명타 확률', isPct: true, desc: '치명타 확률을 올립니다.' },
-    '근접 물리 피해': { baseVal: 5, scale: 2.0, stat: 'meleePctDmg', name: '근접 피해', isPct: true, desc: '근접 태그가 달린 스킬의 피해를 높입니다.' },
-    '투사체 강화': { baseVal: 5, scale: 2.0, stat: 'projectilePctDmg', name: '투사체 피해', isPct: true, desc: '투사체 태그 스킬을 강화합니다.' },
-    '원소 집중': { baseVal: 5, scale: 2.0, stat: 'elementalPctDmg', name: '원소 피해', isPct: true, desc: '원소 태그 스킬을 강화합니다.' },
-    '화염 주입': { baseVal: 5, scale: 2.0, stat: 'firePctDmg', name: '화염 피해', isPct: true, desc: '화염 스킬의 피해를 높입니다.' },
-    '냉기 증폭': { baseVal: 5, scale: 2.0, stat: 'coldPctDmg', name: '냉기 피해', isPct: true, desc: '냉기 스킬의 피해를 높입니다.' },
-    '번개 전도': { baseVal: 5, scale: 2.0, stat: 'lightPctDmg', name: '번개 피해', isPct: true, desc: '번개 스킬의 피해를 높입니다.' },
-    '혼돈 전환': { baseVal: 5, scale: 2.0, stat: 'chaosPctDmg', name: '카오스 피해', isPct: true, desc: '카오스 스킬의 피해를 높입니다.' },
-    '범위 확장': { baseVal: 5, scale: 2.0, stat: 'aoePctDmg', name: '범위 피해', isPct: true, desc: '범위 태그 스킬의 피해를 높입니다.' },
-    '지속 확산': { baseVal: 6, scale: 2.2, stat: 'dotPctDmg', name: '지속 피해 배율', isPct: true, desc: 'dot 태그 스킬의 지속 피해 배율을 올립니다.' },
-    '무자비': { baseVal: 10, scale: 3.0, stat: 'critDmg', name: '치명타 피해', isPct: true, desc: '치명타 배율을 높입니다.' },
-    '생명력 흡수': { baseVal: 0.5, scale: 0.1, stat: 'leech', name: '생명력 흡수', isPct: true, desc: '공격 시 흡혈을 부여합니다.' },
-    '연속타격': { baseVal: 5, scale: 1.0, stat: 'ds', name: '연속 타격 확률', isPct: true, desc: '한 번 더 타격할 확률을 부여합니다.' },
-    '방어 상승': { baseVal: 2, scale: 0.5, stat: 'dr', name: '받는 피해 감소', isPct: true, desc: '물리 피해 감소를 올립니다.' },
-    '갑주 파쇄': { baseVal: 3, scale: 0.8, stat: 'physIgnore', name: '물피감 무시', isPct: true, desc: '물리 공격이 적의 물리 피해 감소를 더 깊게 파고듭니다.' },
-    '저항 침식': { baseVal: 3, scale: 0.8, stat: 'resPen', name: '저항 관통', isPct: true, desc: '원소/카오스 공격이 적의 저항을 꿰뚫습니다.' },
-    '활력': { baseVal: 0.2, scale: 0.1, stat: 'regen', name: '초당 생명력 재생', isPct: true, desc: '초당 생명력 재생을 제공합니다.' },
-    '재생 억제': { baseVal: 0.1, scale: 0.03, stat: 'regenSuppress', name: '재생 억제', isPct: true, desc: '공격 시 적의 생명력 재생을 해당 수치(%)만큼 감소시킵니다.' },
-    '정밀 하한': { baseVal: 2, scale: 0.8, stat: 'minDmgRoll', name: '최소 피해 보정', isPct: true, desc: '무기 피해 하한을 올려 딜 편차를 줄입니다.' },
-    '과충전 상한': { baseVal: 2, scale: 0.8, stat: 'maxDmgRoll', name: '최대 피해 보정', isPct: true, desc: '무기 피해 상한을 올려 고점 피해를 확장합니다.' },
-    '화염 장막': { baseVal: 4, scale: 1.2, stat: 'resF', name: '화염 저항', isPct: true, desc: '화염 저항을 강화합니다.' },
-    '냉기 장막': { baseVal: 4, scale: 1.2, stat: 'resC', name: '냉기 저항', isPct: true, desc: '냉기 저항을 강화합니다.' },
-    '번개 장막': { baseVal: 4, scale: 1.2, stat: 'resL', name: '번개 저항', isPct: true, desc: '번개 저항을 강화합니다.' },
-    '공허 장막': { baseVal: 3, scale: 1.0, stat: 'resChaos', name: '카오스 저항', isPct: true, desc: '카오스 저항을 강화합니다.' },
-    '물리 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '물리 플랫 피해', isPct: false, desc: '물리 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
-    '화염 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '화염 플랫 피해', isPct: false, desc: '화염 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
-    '냉기 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '냉기 플랫 피해', isPct: false, desc: '냉기 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
-    '번개 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '번개 플랫 피해', isPct: false, desc: '번개 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
-    '카오스 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '카오스 플랫 피해', isPct: false, desc: '카오스 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 }
+    '가속': { baseVal: 1, scale: 0.5, stat: 'aspd', name: '공격 속도', isPct: true, resonanceCosts: [6, 12, 21], desc: '공격 속도를 올립니다.' },
+    '가벼운 발걸음': { baseVal: 1, scale: 1.0, stat: 'move', name: '이동 속도', isPct: true, resonanceCosts: [3, 9, 18], desc: '맵 진행 속도를 높입니다.' },
+    '날카로움': { baseVal: 0.2, scale: 0.3, stat: 'crit', name: '치명타 확률', isPct: true, resonanceCosts: [6, 12, 21], desc: '치명타 확률을 올립니다.' },
+    '근접 물리 피해': { baseVal: 5, scale: 2.0, stat: 'meleePctDmg', name: '근접 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '근접 태그가 달린 스킬의 피해를 높입니다.' },
+    '투사체 강화': { baseVal: 5, scale: 2.0, stat: 'projectilePctDmg', name: '투사체 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '투사체 태그 스킬을 강화합니다.' },
+    '원소 집중': { baseVal: 5, scale: 2.0, stat: 'elementalPctDmg', name: '원소 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '원소 태그 스킬을 강화합니다.' },
+    '화염 주입': { baseVal: 5, scale: 2.0, stat: 'firePctDmg', name: '화염 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '화염 스킬의 피해를 높입니다.' },
+    '냉기 증폭': { baseVal: 5, scale: 2.0, stat: 'coldPctDmg', name: '냉기 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '냉기 스킬의 피해를 높입니다.' },
+    '번개 전도': { baseVal: 5, scale: 2.0, stat: 'lightPctDmg', name: '번개 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '번개 스킬의 피해를 높입니다.' },
+    '혼돈 전환': { baseVal: 5, scale: 2.0, stat: 'chaosPctDmg', name: '카오스 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '카오스 스킬의 피해를 높입니다.' },
+    '범위 확장': { baseVal: 5, scale: 2.0, stat: 'aoePctDmg', name: '범위 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '범위 태그 스킬의 피해를 높입니다.' },
+    '지속 확산': { baseVal: 6, scale: 2.2, stat: 'dotPctDmg', name: '지속 피해 배율', isPct: true, resonanceCosts: [6, 12, 21], desc: 'dot 태그 스킬의 지속 피해 배율을 올립니다.' },
+    '무자비': { baseVal: 10, scale: 3.0, stat: 'critDmg', name: '치명타 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '치명타 배율을 높입니다.' },
+    '생명력 흡수': { baseVal: 0.5, scale: 0.1, stat: 'leech', name: '생명력 흡수', isPct: true, resonanceCosts: [3, 9, 18], desc: '공격 시 흡혈을 부여합니다.' },
+    '연속타격': { baseVal: 5, scale: 1.0, stat: 'ds', name: '연속 타격 확률', isPct: true, resonanceCosts: [9, 21, 33], desc: '한 번 더 타격할 확률을 부여합니다.' },
+    '방어 상승': { baseVal: 2, scale: 0.5, stat: 'dr', name: '받는 피해 감소', isPct: true, resonanceCosts: [3, 9, 18], desc: '물리 피해 감소를 올립니다.' },
+    '갑주 파쇄': { baseVal: 3, scale: 0.8, stat: 'physIgnore', name: '물피감 무시', isPct: true, resonanceCosts: [9, 21, 33], desc: '물리 공격이 적의 물리 피해 감소를 더 깊게 파고듭니다.' },
+    '저항 침식': { baseVal: 3, scale: 0.8, stat: 'resPen', name: '저항 관통', isPct: true, resonanceCosts: [9, 21, 33], desc: '원소/카오스 공격이 적의 저항을 꿰뚫습니다.' },
+    '활력': { baseVal: 0.2, scale: 0.1, stat: 'regen', name: '초당 생명력 재생', isPct: true, resonanceCosts: [3, 9, 18], desc: '초당 생명력 재생을 제공합니다.' },
+    '재생 억제': { baseVal: 0.1, scale: 0.03, stat: 'regenSuppress', name: '재생 억제', isPct: true, resonanceCosts: [3, 9, 18], desc: '공격 시 적의 생명력 재생을 해당 수치(%)만큼 감소시킵니다.' },
+    '정밀 하한': { baseVal: 2, scale: 0.8, stat: 'minDmgRoll', name: '최소 피해 보정', isPct: true, resonanceCosts: [3, 9, 18], desc: '무기 피해 하한을 올려 딜 편차를 줄입니다.' },
+    '과충전 상한': { baseVal: 2, scale: 0.8, stat: 'maxDmgRoll', name: '최대 피해 보정', isPct: true, resonanceCosts: [3, 9, 18], desc: '무기 피해 상한을 올려 고점 피해를 확장합니다.' },
+    '화염 장막': { baseVal: 4, scale: 1.2, stat: 'resF', name: '화염 저항', isPct: true, resonanceCosts: [3, 9, 18], desc: '화염 저항을 강화합니다.' },
+    '냉기 장막': { baseVal: 4, scale: 1.2, stat: 'resC', name: '냉기 저항', isPct: true, resonanceCosts: [3, 9, 18], desc: '냉기 저항을 강화합니다.' },
+    '번개 장막': { baseVal: 4, scale: 1.2, stat: 'resL', name: '번개 저항', isPct: true, resonanceCosts: [3, 9, 18], desc: '번개 저항을 강화합니다.' },
+    '공허 장막': { baseVal: 3, scale: 1.0, stat: 'resChaos', name: '카오스 저항', isPct: true, resonanceCosts: [3, 9, 18], desc: '카오스 저항을 강화합니다.' },
+    '물리 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '물리 플랫 피해', isPct: false, resonanceCosts: [9, 21, 33], desc: '물리 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
+    '화염 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '화염 플랫 피해', isPct: false, resonanceCosts: [9, 21, 33], desc: '화염 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
+    '냉기 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '냉기 플랫 피해', isPct: false, resonanceCosts: [9, 21, 33], desc: '냉기 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
+    '번개 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '번개 플랫 피해', isPct: false, resonanceCosts: [9, 21, 33], desc: '번개 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
+    '카오스 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '카오스 플랫 피해', isPct: false, resonanceCosts: [9, 21, 33], desc: '카오스 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 }
 };
 
 const MOD_DB = [
@@ -838,7 +860,7 @@ let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
 
 // Phase-4 extracted default state schema.
 
@@ -947,28 +969,31 @@ const EXPERT_EXP_GUIDES = {
   ]
 };
 function ensureExpertiseState(){
-  game.expertise=(game.expertise&&typeof game.expertise==='object')?game.expertise:{};
-  game.expertise.levels=game.expertise.levels||{};
-  game.expertise.exp=game.expertise.exp||{};
-  game.expertise.nodes=game.expertise.nodes||{};
-  game.expertise.unlockHistory=(game.expertise.unlockHistory&&typeof game.expertise.unlockHistory==='object')?game.expertise.unlockHistory:{};
-  game.expertise.unlockedExperts=Array.isArray(game.expertise.unlockedExperts)?game.expertise.unlockedExperts:[];
-  game.expertise.favors=(game.expertise.favors&&typeof game.expertise.favors==='object')?game.expertise.favors:{};
+  let runtimeGame = (typeof game !== 'undefined' && game && typeof game === 'object') ? game : ((window.game && typeof window.game === 'object') ? window.game : JSON.parse(JSON.stringify(defaultGame)));
+  game = runtimeGame;
+  window.game = runtimeGame;
+  let st = (runtimeGame.expertise && typeof runtimeGame.expertise === 'object') ? runtimeGame.expertise : (runtimeGame.expertise = {});
+  st.levels=st.levels||{};
+  st.exp=st.exp||{};
+  st.nodes=st.nodes||{};
+  st.unlockHistory=(st.unlockHistory&&typeof st.unlockHistory==='object')?st.unlockHistory:{};
+  st.unlockedExperts=Array.isArray(st.unlockedExperts)?st.unlockedExperts:[];
+  st.favors=(st.favors&&typeof st.favors==='object')?st.favors:{};
   EXPERT_IDS.forEach(id=>{
-    game.expertise.levels[id]=Math.max(1,Math.min(30,Math.floor(game.expertise.levels[id]||1)));
-    game.expertise.exp[id]=Math.max(0,Math.floor(game.expertise.exp[id]||0));
-    game.expertise.unlockHistory[id]=Array.isArray(game.expertise.unlockHistory[id])?game.expertise.unlockHistory[id].filter(row=>row&&Number.isFinite(row.level)&&typeof row.title==='string'):[];
-    let historyLevels=new Set(game.expertise.unlockHistory[id].map(row=>row.level));
-    getExpertUnlocks(id).filter(row=>row.level<=game.expertise.levels[id]).forEach(row=>{
-      if(!historyLevels.has(row.level)){ game.expertise.unlockHistory[id].push({level:row.level,title:row.title,desc:row.desc||'',at:0}); historyLevels.add(row.level); }
+    st.levels[id]=Math.max(1,Math.min(30,Math.floor(st.levels[id]||1)));
+    st.exp[id]=Math.max(0,Math.floor(st.exp[id]||0));
+    st.unlockHistory[id]=Array.isArray(st.unlockHistory[id])?st.unlockHistory[id].filter(row=>row&&Number.isFinite(row.level)&&typeof row.title==='string'):[];
+    let historyLevels=new Set(st.unlockHistory[id].map(row=>row.level));
+    getExpertUnlocks(id).filter(row=>row.level<=st.levels[id]).forEach(row=>{
+      if(!historyLevels.has(row.level)){ st.unlockHistory[id].push({level:row.level,title:row.title,desc:row.desc||'',at:0}); historyLevels.add(row.level); }
     });
   });
-  game.expertise.expertPointBonus=Math.max(0,Math.floor(game.expertise.expertPointBonus||0));
-  game.expertise.loopExpCaps=game.expertise.loopExpCaps||{};
-  const currentSeason = Math.max(1, Math.floor(game.season || 1));
-  if (!Number.isFinite(game.expertise.loopExpCaps.season)) game.expertise.loopExpCaps.season = currentSeason;
-  if (game.expertise.loopExpCaps.season !== currentSeason) setExpertiseLoopCapsForSeason(currentSeason);
-  return game.expertise;
+  st.expertPointBonus=Math.max(0,Math.floor(st.expertPointBonus||0));
+  st.loopExpCaps=st.loopExpCaps||{};
+  const currentSeason = Math.max(1, Math.floor(runtimeGame.season || 1));
+  if (!Number.isFinite(st.loopExpCaps.season)) st.loopExpCaps.season = currentSeason;
+  if (st.loopExpCaps.season !== currentSeason) st.loopExpCaps = { season: currentSeason, total: {}, bySource: {} };
+  return st;
 }
 function getExpertLevel(id){return ensureExpertiseState().levels[id]||1;}
 function getExpertExp(id){return ensureExpertiseState().exp[id]||0;}
@@ -1023,6 +1048,7 @@ const defaultGame = {
     loopCount: 0,
     woodsmanDefeatAttempts: 0,
     woodsmanSimulatorSeenLoop: false,
+    woodsmanEntrancePending: false,
     woodsmanCurseActive: false,
     woodsmanCurseDamageTakenStacks: 0,
     woodsmanCurseLastTickAt: 0,
@@ -1087,7 +1113,7 @@ const defaultGame = {
     passiveStarEvolution: false,
     skills: ['기본 공격'],
     activeSkill: '기본 공격',
-    gemData: {},
+    gemData: { '기본 공격': { level: 1, exp: 0 } },
     supports: [],
     sealedSkills: [],
     sealedSupports: [],

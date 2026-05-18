@@ -21,8 +21,8 @@ const ACT_REWARD_DB = {
         choices: [
             { kind: 'skill', skill: '연속 베기', fallbackKind: 'points', fallbackValue: 1, label: '근접 - 연속 베기', desc: '전방을 빠르게 가르는 근접 기술입니다.' },
             { kind: 'skill', skill: '흡혈 타격', fallbackKind: 'points', fallbackValue: 1, label: '근접 - 흡혈 타격', desc: '카오스 피해와 흡혈이 붙은 근접 일격입니다.' },
-            { kind: 'skill', skill: '관통 사격', fallbackKind: 'points', fallbackValue: 1, label: '투사체 - 관통 사격', desc: '멀리서 적 무리를 꿰뚫는 사격입니다.' },
-            { kind: 'skill', skill: '얼음 창', fallbackKind: 'points', fallbackValue: 1, label: '마법 - 얼음 창', desc: '고위력 냉기 투사체를 발사합니다.' }
+            { kind: 'skill', skill: '관통 사격', fallbackKind: 'points', fallbackValue: 1, label: '투사체 - 관통 사격', desc: '처치 후 남은 피해가 다른 적에게 이어지는 사격입니다.' },
+            { kind: 'skill', skill: '얼음 창', fallbackKind: 'points', fallbackValue: 1, label: '마법 - 얼음 창', desc: '젬 레벨에 따라 치명타가 성장하는 냉기 투사체를 발사합니다.' }
         ]
     },
     2: {
