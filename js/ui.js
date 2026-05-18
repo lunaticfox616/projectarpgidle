@@ -544,6 +544,9 @@ function resetBeehiveRunModifiers(b) {
     b.rewardMomentum = 0;
     b.penaltyLedger = [];
     b.rewardLedger = [];
+    b.pendingWaveReward = null;
+    b.pendingWaveRewardText = '';
+    b.pendingQueenRewards = [];
     b.queenActive = false;
 }
 function getBeehiveRewardAmount(base, branchStep, expertLevel) {
@@ -596,41 +599,69 @@ function prepareBeehiveBranchChoices(b) {
     let nextStep = Math.min(10, Math.max(1, Math.floor((b.branchStep || 0) + 1)));
     let lv = getBeekeeperLevelForHive();
     let used = new Set();
-    let a = pickWeightedBeehiveReward(lv, nextStep, used);
-    used.add(a);
-    let c = pickWeightedBeehiveReward(lv, nextStep, used);
-    used.add(c);
-    let d = pickWeightedBeehiveReward(lv, nextStep, used);
+    let immediate = pickWeightedBeehiveReward(lv, nextStep, used);
+    used.add(immediate);
+    let wave = pickWeightedBeehiveReward(lv, nextStep, used);
+    used.add(wave);
+    let queen = pickWeightedBeehiveReward(lv, nextStep, used);
     b.pendingChoice = {
-        a: buildBeehiveChoiceOption(a, lv, nextStep),
-        b: buildBeehiveChoiceOption(c, lv, nextStep),
-        c: buildBeehiveChoiceOption(d, lv, nextStep),
+        a: buildBeehiveChoiceOption(immediate, lv, nextStep, 'immediate'),
+        b: buildBeehiveChoiceOption(wave, lv, nextStep, 'wave'),
+        c: buildBeehiveChoiceOption(queen, lv, nextStep, 'queen'),
         expertLevel: lv,
         branchStep: nextStep
     };
 }
 
-function buildBeehiveChoiceOption(type, expertLevel, branchStep) {
+function getBeehiveRewardTimingLabel(timing) {
+    if (timing === 'immediate') return '즉시 보상';
+    if (timing === 'queen') return '여왕벌 보상';
+    return '웨이브 보상';
+}
+
+function getBeehiveRewardTimingMultiplier(timing) {
+    if (timing === 'immediate') return 0.55;
+    if (timing === 'queen') return 2.25;
+    return 1;
+}
+
+function scaleBeehiveRewardAmount(baseAmount, timing) {
+    return Math.max(1, Math.floor(Math.max(1, baseAmount || 1) * getBeehiveRewardTimingMultiplier(timing)));
+}
+
+function scaleBeehiveRewardChance(baseChance, timing) {
+    let chance = Number.isFinite(baseChance) ? baseChance : 1;
+    if (timing === 'immediate') return Math.max(0.05, Math.min(1, chance * 0.75));
+    if (timing === 'queen') return Math.min(1, chance + 0.35);
+    return chance;
+}
+
+function buildBeehiveChoiceOption(type, expertLevel, branchStep, timing = 'wave') {
     let lv = Math.max(1, Math.floor(expertLevel || getBeekeeperLevelForHive()));
     let step = Math.max(1, Math.floor(branchStep || ((game.beehive || {}).branchStep || 1)));
     let penaltyPool = getBeehivePenaltyPool(lv, step);
     let penalty = penaltyPool[Math.floor(Math.random() * penaltyPool.length)];
-    let mk = (text, effect, amount, chance) => ({ text: `${text} / 대가: ${penalty.text}`, effect, amount, chance, penalty, expertLevel: lv });
-    if (type === 'pollen') { let amount = getBeehiveRewardAmount(12 + Math.floor(Math.random() * 7), step, lv); return mk(`꽃가루 +${amount}`, 'pollen', amount); }
-    if (type === 'honey') return mk(lv >= 2 ? '벌꿀 획득 확률 30%' : '벌꿀 획득 확률 12%', 'honey', 1, lv >= 2 ? 0.30 : 0.12);
-    if (type === 'stinger') return mk(lv >= 4 ? '독벌침 획득 확률 38%' : '독벌침 획득 확률 14%', 'stinger', 1, lv >= 4 ? 0.38 : 0.14);
-    if (type === 'chaos') { let amount = getBeehiveRewardAmount(1 + (step >= 7 ? 1 : 0), step, lv); return mk(`카오스 오브 +${amount}`, 'chaos', amount); }
-    if (type === 'divine') return mk(lv >= 13 || step >= 8 ? '신성한 오브 +1' : '신성한 오브 획득 확률 35%', 'divine', 1, lv >= 13 || step >= 8 ? 1 : 0.35);
-    if (type === 'jewelShard') { let amount = getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step, lv); return mk(`주얼 파편 +${amount}`, 'jewelShard', amount); }
-    if (type === 'meteorShard') return mk(`운석 파편 +${step >= 8 ? 2 : 1}`, 'meteorShard', step >= 8 ? 2 : 1);
-    if (type === 'beeswax') return mk(`밀랍 +${step >= 8 ? 2 : 1}`, 'beeswax', step >= 8 ? 2 : 1);
+    let label = getBeehiveRewardTimingLabel(timing);
+    let mk = (text, effect, amount, chance) => ({ text: `[${label}] ${text} / 대가: ${penalty.text}`, effect, amount, chance, penalty, expertLevel: lv, timing });
+    if (type === 'pollen') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(12 + Math.floor(Math.random() * 7), step, lv), timing); return mk(`꽃가루 +${amount}`, 'pollen', amount); }
+    if (type === 'honey') { let chance = scaleBeehiveRewardChance(lv >= 2 ? 0.30 : 0.12, timing); return mk(`벌꿀 획득 확률 ${Math.floor(chance * 100)}%`, 'honey', 1, chance); }
+    if (type === 'stinger') { let chance = scaleBeehiveRewardChance(lv >= 4 ? 0.38 : 0.14, timing); return mk(`독벌침 획득 확률 ${Math.floor(chance * 100)}%`, 'stinger', 1, chance); }
+    if (type === 'chaos') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(1 + (step >= 7 ? 1 : 0), step, lv), timing); return mk(`카오스 오브 +${amount}`, 'chaos', amount); }
+    if (type === 'divine') { let chance = scaleBeehiveRewardChance(lv >= 13 || step >= 8 ? 1 : 0.35, timing); return mk(chance >= 1 ? '신성한 오브 +1' : `신성한 오브 획득 확률 ${Math.floor(chance * 100)}%`, 'divine', 1, chance); }
+    if (type === 'jewelShard') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step, lv), timing); return mk(`주얼 파편 +${amount}`, 'jewelShard', amount); }
+    if (type === 'meteorShard') { let amount = scaleBeehiveRewardAmount(step >= 8 ? 2 : 1, timing); return mk(`운석 파편 +${amount}`, 'meteorShard', amount); }
+    if (type === 'beeswax') { let amount = scaleBeehiveRewardAmount(step >= 8 ? 2 : 1, timing); return mk(`밀랍 +${amount}`, 'beeswax', amount); }
     if (type === 'spore') {
         let sporeType = rndChoice(['sporeFire', 'sporeCold', 'sporeLight']);
-        let amount = getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step, lv);
+        let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step, lv), timing);
         return mk(`${ORB_DB[sporeType].name} +${amount}`, sporeType, amount);
     }
-    if (type === 'bundle') return mk('중첩 보상: 꽃가루 + 독벌침 + 카오스', 'bundle', 1);
-    return mk('꽃가루 +10', 'pollen', 10);
+    if (type === 'bundle') {
+        let amount = scaleBeehiveRewardAmount(1, timing);
+        return mk(amount > 1 ? `중첩 보상 x${amount}: 꽃가루 + 독벌침 + 카오스` : '중첩 보상: 꽃가루 + 독벌침 + 카오스', 'bundle', amount);
+    }
+    let amount = scaleBeehiveRewardAmount(10, timing);
+    return mk(`꽃가루 +${amount}`, 'pollen', amount);
 }
 function applyBeehiveChoicePenalty(penalty, b) {
     if (!penalty) return '';
@@ -651,10 +682,10 @@ function applyBeehiveChoiceReward(pick) {
     if (pick.effect === 'honey') { game.currencies.enchantedHoney = (game.currencies.enchantedHoney || 0) + amount; return `벌꿀 +${amount}`; }
     if (pick.effect === 'stinger') { game.currencies.venomStinger = (game.currencies.venomStinger || 0) + amount; return `독벌침 +${amount}`; }
     if (pick.effect === 'bundle') {
-        game.currencies.pollen = (game.currencies.pollen || 0) + 20;
-        game.currencies.venomStinger = (game.currencies.venomStinger || 0) + 1;
-        game.currencies.chaos = (game.currencies.chaos || 0) + 1;
-        return '꽃가루 +20 / 독벌침 +1 / 카오스 +1';
+        game.currencies.pollen = (game.currencies.pollen || 0) + (20 * amount);
+        game.currencies.venomStinger = (game.currencies.venomStinger || 0) + amount;
+        game.currencies.chaos = (game.currencies.chaos || 0) + amount;
+        return `꽃가루 +${20 * amount} / 독벌침 +${amount} / 카오스 +${amount}`;
     }
     if (pick.effect) {
         game.currencies[pick.effect] = (game.currencies[pick.effect] || 0) + amount;
@@ -697,11 +728,23 @@ function resolveBeehiveChoice(key){
     let nextStep = Math.min(10, Math.max(1, Math.floor((b.branchStep || 0) + 1)));
     if (!pick && (key === 'legacy_now' || key === 'legacy_later')) pick = buildBeehiveChoiceOption(key === 'legacy_now' ? 'pollen' : 'honey', getBeekeeperLevelForHive(), nextStep);
     if (!pick) return;
-    let result = applyBeehiveChoiceReward(pick);
     let penaltyText = applyBeehiveChoicePenalty(pick.penalty, b);
     b.rewardLedger = Array.isArray(b.rewardLedger) ? b.rewardLedger : [];
     b.penaltyLedger = Array.isArray(b.penaltyLedger) ? b.penaltyLedger : [];
-    if (result) b.rewardLedger.push(result);
+    let rewardText = String(pick.text || '').split(' / 대가:')[0];
+    let rewardResult = '';
+    b.pendingWaveReward = null;
+    b.pendingWaveRewardText = '';
+    b.pendingQueenRewards = Array.isArray(b.pendingQueenRewards) ? b.pendingQueenRewards : [];
+    if (pick.timing === 'immediate') {
+        rewardResult = applyBeehiveChoiceReward(pick);
+        if (rewardResult) b.rewardLedger.push(rewardResult);
+    } else if (pick.timing === 'queen') {
+        b.pendingQueenRewards.push({ effect: pick.effect, amount: pick.amount, chance: pick.chance, text: rewardText });
+    } else {
+        b.pendingWaveReward = { effect: pick.effect, amount: pick.amount, chance: pick.chance };
+        b.pendingWaveRewardText = rewardText;
+    }
     b.penaltyLedger.push(penaltyText || '');
     if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_branch_choice');
     b.pendingChoice = null;
@@ -710,7 +753,8 @@ function resolveBeehiveChoice(key){
     b.queenActive = false;
     game.runProgress = Math.min(100, b.branchStep * 10);
     game.combatHalted = false;
-    addLog(`🐝 갈림길 ${b.branchStep}/10 선택 완료: ${result || '보상 없음'} · 대가: ${penaltyText || '없음'} · 벌떼 웨이브 시작`, 'loot-magic');
+    let timingText = pick.timing === 'immediate' ? `즉시 지급(${rewardResult || '보상 없음'})` : (pick.timing === 'queen' ? `여왕벌 처치 후 지급(${rewardText || '보상 없음'})` : `웨이브 처치 후 지급(${rewardText || '보상 없음'})`);
+    addLog(`🐝 갈림길 ${b.branchStep}/10 선택 완료: ${timingText} · 대가: ${penaltyText || '없음'} · 벌떼 웨이브 시작`, 'loot-magic');
     spawnBeehiveWave(false);
     updateStaticUI();
 }
@@ -731,6 +775,13 @@ function exitBeehiveRun(message, logType){
 }
 function completeBeehiveRun(){
     let b = game.beehive || {};
+    let queenRewardResults = [];
+    if (Array.isArray(b.pendingQueenRewards)) {
+        b.pendingQueenRewards.forEach(reward => {
+            let result = applyBeehiveChoiceReward(reward);
+            if (result) queenRewardResults.push(result);
+        });
+    }
     b.inRun = false;
     b.cleared = true;
     b.unlockedPermanent = true;
@@ -750,7 +801,7 @@ function completeBeehiveRun(){
         addItemToInventory(item);
     }
     if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_clear');
-    addLog('👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되고 벌집 패널티가 초기화되었습니다.', 'level-up');
+    addLog(`👑 여왕벌 처치! 벌집 클리어 체크가 영구 적용되고 벌집 패널티가 초기화되었습니다.${queenRewardResults.length ? ` 여왕벌 보상: ${queenRewardResults.join(' / ')}` : ''}`, 'level-up');
     updateStaticUI();
 }
 function onBeehiveWaveCleared(){
@@ -761,6 +812,14 @@ function onBeehiveWaveCleared(){
     game.encounterIndex = 0;
     game.moveTimer = 0;
     if (b.queenActive) return completeBeehiveRun();
+    let rewardResult = '';
+    if (b.pendingWaveReward) {
+        rewardResult = applyBeehiveChoiceReward(b.pendingWaveReward);
+        b.rewardLedger = Array.isArray(b.rewardLedger) ? b.rewardLedger : [];
+        if (rewardResult) b.rewardLedger.push(rewardResult);
+        b.pendingWaveReward = null;
+        b.pendingWaveRewardText = '';
+    }
     b.awaitingClear = false;
     game.combatHalted = true;
     game.runProgress = Math.min(100, Math.max(0, Math.floor(b.branchStep || 0)) * 10);
@@ -769,11 +828,12 @@ function onBeehiveWaveCleared(){
         b.queenActive = true;
         game.combatHalted = false;
         spawnBeehiveWave(true);
+        if (rewardResult) addLog(`🐝 벌떼 웨이브 정리 완료: ${rewardResult}. 여왕벌이 등장합니다.`, 'loot-unique');
         updateStaticUI();
         return;
     }
     prepareBeehiveBranchChoices(b);
-    addLog(`🐝 벌떼 웨이브 정리 완료. 다음 갈림길을 선택할 수 있습니다. (${b.branchStep}/10)`, 'loot-magic');
+    addLog(`🐝 벌떼 웨이브 정리 완료${rewardResult ? `: ${rewardResult}` : ''}. 다음 갈림길을 선택할 수 있습니다. (${b.branchStep}/10)`, 'loot-magic');
     updateStaticUI();
 }
 function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; exitBeehiveRun('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); }
@@ -5323,8 +5383,13 @@ function mergeDefaults(save) {
         let maxDeepZoneId = getAbyssZoneIdForDepth(Math.max(20, savedDepth));
         merged.currentZoneId = clampNumber(numericZoneId, 0, Math.max(MAP_ZONES.length - 1, maxDeepZoneId));
     }
-    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID && merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID && merged.currentZoneId !== CHAOS_REALM_ZONE_ID) merged.currentZoneId = 0;
+    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== 'beehive_run' && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID && merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID && merged.currentZoneId !== CHAOS_REALM_ZONE_ID) merged.currentZoneId = 0;
     if (typeof merged.currentZoneId === 'string' && !getZone(merged.currentZoneId)) merged.currentZoneId = 0;
+    if (merged.currentZoneId === 'beehive_run' && !(merged.beehive && merged.beehive.inRun)) merged.currentZoneId = merged.beehive && merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null ? merged.beehive.returnZoneId : merged.maxZoneId;
+    if (merged.beehive && merged.beehive.inRun && merged.currentZoneId !== 'beehive_run') {
+        if (merged.beehive.returnZoneId === undefined || merged.beehive.returnZoneId === null) merged.beehive.returnZoneId = typeof merged.currentZoneId === 'string' ? merged.maxZoneId : merged.currentZoneId;
+        merged.currentZoneId = 'beehive_run';
+    }
     if (merged.woodsmanBuildLock && (merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID || !merged.woodsmanBuildSnapshot)) {
         merged.woodsmanBuildLock = false;
         merged.woodsmanBuildSnapshot = null;
