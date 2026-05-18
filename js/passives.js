@@ -5526,10 +5526,11 @@ function cloneJewelStat(stat) {
 }
 
 function rollJewelStat(option) {
-    let step = Number.isFinite(option.step) && option.step > 0 ? option.step : 1;
+    let hasDecimalRange = !Number.isInteger(Number(option.min)) || !Number.isInteger(Number(option.max));
+    let step = Number.isFinite(option.step) && option.step > 0 ? option.step : (hasDecimalRange ? 0.1 : 1);
     let slots = Math.max(0, Math.floor(((option.max - option.min) / step) + 0.000001));
     let val = option.min + Math.floor(Math.random() * (slots + 1)) * step;
-    val = step < 1 ? Number(val.toFixed(2)) : Math.floor(val);
+    val = (step < 1 || !Number.isInteger(Number(val))) ? Number(val.toFixed(2)) : Math.floor(val);
     return normalizeJewelStat({ id: option.id, val: val, valMin: option.min, valMax: option.max });
 }
 
@@ -5547,10 +5548,11 @@ function rollJewelPetiteStat(rarity, excludeIds) {
     let range = rarity === 'rare' ? option.rare : option.magic;
     let min = range[0];
     let max = range[1];
-    let step = Number.isFinite(option.step) && option.step > 0 ? option.step : 1;
+    let hasDecimalRange = !Number.isInteger(Number(min)) || !Number.isInteger(Number(max));
+    let step = Number.isFinite(option.step) && option.step > 0 ? option.step : (hasDecimalRange ? 0.5 : 1);
     let slots = Math.max(0, Math.floor(((max - min) / step) + 0.000001));
     let val = min + Math.floor(Math.random() * (slots + 1)) * step;
-    val = step < 1 ? Number(val.toFixed(2)) : Math.floor(val);
+    val = (step < 1 || !Number.isInteger(Number(val))) ? Number(val.toFixed(2)) : Math.floor(val);
     let stat = normalizeJewelStat({ id: option.id, val: val, valMin: min, valMax: max, tier: 1, petite: true });
     return stat;
 }

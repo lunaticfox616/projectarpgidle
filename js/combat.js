@@ -761,7 +761,7 @@ function getPlayerStats() {
     (game.jewelSlots || []).forEach((jewel, idx) => {
         let amp = Math.max(0, Math.floor((game.jewelSlotAmplify[idx] || 0)));
         let ampMul = 1 + (amp * 0.03);
-        getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, Math.round(stat.val * ampMul)));
+        getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, Number((Number(stat.val || 0) * ampMul).toFixed(2))));
     });
     let equippedUniqueJewels = getEquippedUniqueJewels();
     let activeUniqueIds = new Set(equippedUniqueJewels.map(entry => entry.jewel.uniqueId));
