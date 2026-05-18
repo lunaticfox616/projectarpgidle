@@ -1548,6 +1548,7 @@ function assertBuildEditable() {
 function changeSkill(name) { if (!assertBuildEditable()) return; game.activeSkill = name; updateStaticUI(); }
 function getSupportResonanceCost(name) {
     let db = SUPPORT_GEM_DB[name] || {};
+    if (Array.isArray(db.resonanceCosts) && Number.isFinite(db.resonanceCosts[0])) return Math.max(1, Math.floor(db.resonanceCosts[0]));
     if (Number.isFinite(db.resonanceCost)) return Math.max(1, Math.floor(db.resonanceCost));
     let stat = db.stat || '';
     if (['flatDmg', 'critDmg', 'resPen', 'physIgnore', 'ds'].includes(stat)) return 3;
@@ -1557,6 +1558,8 @@ function getSupportResonanceCost(name) {
 function getSupportTierResonanceCost(name) {
     let base = getSupportResonanceCost(name);
     let tier = getSupportActiveTier(name);
+    let db = SUPPORT_GEM_DB[name] || {};
+    if (Array.isArray(db.resonanceCosts) && Number.isFinite(db.resonanceCosts[tier - 1])) return Math.max(1, Math.floor(db.resonanceCosts[tier - 1]));
     if (tier <= 1) return base;
     if (tier === 2) return Math.max(base + 2, Math.floor(base * 2.4));
     return Math.max(base + 5, Math.floor(base * 3.8));
@@ -2042,7 +2045,7 @@ function showGemTooltip(event, type, name) {
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
         if (skill.instantLeech) html += `<div class="tooltip-line" style="color:#ffb3d1;">특수 옵션: 이 젬을 사용해서 주는 피해에는 흡혈 즉시 적용</div>`;
     }
-    if (type === 'support' || SKILL_DB[name].isGem) {
+    if (type === 'support' || SKILL_DB[name].isGem || SKILL_DB[name].levelable) {
         html += `<div class="tooltip-line" style="margin-top:8px; color:#2ecc71;">총 레벨 ${type === 'support' ? info.totalLevel : info.finalLevel}</div>`;
         if (type === 'support') {
             html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${stats.gemBonusSources.passive} + 장비 ${stats.gemBonusSources.gear} + 보상 ${stats.gemBonusSources.reward})</div>`;
@@ -4340,7 +4343,7 @@ function buildCraftActionButtons(item) {
         let active = name === game.activeSkill ? 'active' : '';
         let badge = '';
         let gemInfo = getGemPresentation(name, false);
-        if (SKILL_DB[name].isGem) badge = `<span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
+        if (SKILL_DB[name].isGem || SKILL_DB[name].levelable) badge = `<span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
         let sealBtn = name === game.activeSkill ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">🔒 봉인</button>`;
         return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong>${badge}${sealBtn}</div>`;
     }).join('');
@@ -5163,6 +5166,7 @@ function mergeDefaults(save) {
     merged.inventory = (merged.inventory || []).map(normalizeItem);
     Object.keys(merged.equipment).forEach(slot => merged.equipment[slot] = normalizeItem(merged.equipment[slot]));
     merged.gemData = (merged.gemData && typeof merged.gemData === 'object') ? merged.gemData : {};
+    merged.gemData['기본 공격'] = normalizeGemRecord(merged.gemData['기본 공격']);
     Object.keys(merged.gemData).forEach(name => merged.gemData[name] = normalizeGemRecord(merged.gemData[name]));
     merged.supportGemData = (merged.supportGemData && typeof merged.supportGemData === 'object') ? merged.supportGemData : {};
     Object.keys(merged.supportGemData).forEach(name => merged.supportGemData[name] = normalizeGemRecord(merged.supportGemData[name]));

@@ -1800,11 +1800,14 @@ function getGemPresentation(name, isSupport) {
     }
     let db = SKILL_DB[name];
     if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
-    if (!db.isGem) return { baseLevel: 0, totalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
+    if (!db.isGem && !db.levelable) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
+    game.gemData = game.gemData || {};
     let gem = normalizeGemRecord((game.gemData || {})[name]);
-    let materialBonus = (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0);
-    let totalLevel = gem.level + stats.gemBonusSources.total + materialBonus;
-    let finalLevel = Math.min(20, gem.level) + stats.gemBonusSources.total + materialBonus;
+    if (db.levelable) game.gemData[name] = gem;
+    let materialBonus = db.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) : 0;
+    let levelBonus = db.isGem ? stats.gemBonusSources.total : 0;
+    let totalLevel = gem.level + levelBonus + materialBonus;
+    let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus;
     let skill = { ...db };
     skill.dmg = skill.baseDmg + ((finalLevel - 1) * skill.dmgScale);
     skill.spd = skill.baseSpd + ((finalLevel - 1) * skill.spdScale);
@@ -2699,13 +2702,17 @@ function grantExpAndGem(enemy, pStats) {
     if (game.settings.showExpLog) addLog(`✨ 경험치 +${exp}`, "exp-txt");
 
     let gemExp = Math.floor(exp * 0.45);
-    if (pStats.sSkill.isGem && game.gemData[game.activeSkill] && game.gemData[game.activeSkill].level < 20) {
+    if ((pStats.sSkill.isGem || pStats.sSkill.levelable) && game.activeSkill) {
+        game.gemData = game.gemData || {};
+        game.gemData[game.activeSkill] = normalizeGemRecord(game.gemData[game.activeSkill]);
         let gem = game.gemData[game.activeSkill];
-        gem.exp += gemExp;
-        if (gem.exp >= getGemReqExp(gem.level)) {
-            gem.level++;
-            gem.exp = 0;
-            addLog(`✨ 젬 [${game.activeSkill}] 레벨업!`, "loot-unique");
+        if (gem.level < 20) {
+            gem.exp += gemExp;
+            if (gem.exp >= getGemReqExp(gem.level)) {
+                gem.level++;
+                gem.exp = 0;
+                addLog(`✨ ${pStats.sSkill.isGem ? '젬' : '스킬'} [${game.activeSkill}] 레벨업!`, "loot-unique");
+            }
         }
     }
     (game.equippedSupports || []).forEach(name => {
@@ -4220,7 +4227,7 @@ function triggerSeasonReset() {
     game.passives = ['n0'];
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
-    game.gemData = {};
+    game.gemData = { '기본 공격': { level: 1, exp: 0 } };
     game.skyGemEnhancements = {};
     game.supports = [];
     game.equippedSupports = [];

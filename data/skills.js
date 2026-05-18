@@ -6,7 +6,7 @@ function safeExposeData(map) {
 
 // Phase-1 extracted data (global compatibility).
 const SKILL_DB = {
-    '기본 공격': { isGem: false, baseDmg: 1.0, baseSpd: 1.0, leech: 0, crit: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '가장 가까운 적 하나를 가격합니다.', tags: ['attack', 'melee', 'physical'] },
+    '기본 공격': { isGem: false, levelable: true, baseDmg: 1.0, baseSpd: 1.0, dmgScale: 0.05, spdScale: 0.01, leech: 0, crit: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '가장 가까운 적 하나를 가격합니다. 레벨업당 피해 배율 +5%, 공격 속도 +1%가 적용됩니다.', tags: ['attack', 'melee', 'physical'] },
     '연속 베기': { isGem: true, baseDmg: 0.65, baseSpd: 1.8, leech: 0, crit: 0, dmgScale: 0.03, spdScale: 0.04, ele: 'phys', targetMode: 'cleave', targets: 2, desc: '전방 두 적을 빠르게 벱니다.', tags: ['attack', 'melee', 'physical'] },
     '묵직한 강타': { isGem: true, baseDmg: 2.5, baseSpd: 0.5, leech: 0, crit: 5, dmgScale: 0.15, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '단일 적에게 강한 일격을 가합니다.', tags: ['attack', 'melee', 'physical', 'slam'] },
     '흡혈 타격': { isGem: true, baseDmg: 0.95, baseSpd: 1.0, leech: 0.5, instantLeech: true, crit: 0, dmgScale: 0.04, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '카오스 피해와 흡혈이 붙은 일격입니다. 이 젬을 사용해서 주는 피해에는 흡혈이 즉시 적용됩니다.', tags: ['attack', 'melee', 'chaos'] },

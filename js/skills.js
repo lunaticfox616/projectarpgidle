@@ -361,16 +361,19 @@ function getGemBonusSources() {
 
 function getActiveSkillStats(bonusLevel) {
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
-    if (!skill.isGem) return { ...skill, baseLevel: 0, finalLevel: 0, bonusLevel: 0 };
+    if (!skill.isGem && !skill.levelable) return { ...skill, baseLevel: 0, finalLevel: 0, bonusLevel: 0 };
+    game.gemData = game.gemData || {};
     let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);
-    let materialBonus = (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0);
+    if (skill.levelable) game.gemData[game.activeSkill] = gem;
+    let materialBonus = skill.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) : 0;
     let awakenedGemLevelBonus = 0;
-    getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
+    if (skill.isGem) getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
         let enh = GEM_SKY_ENHANCEMENTS[id];
         if (enh && enh.stat === 'awakenedGemLevel') awakenedGemLevelBonus += (enh.gemLvVal || 0);
     });
-    let finalLevel = Math.min(20, gem.level) + bonusLevel + materialBonus + awakenedGemLevelBonus;
-    let totalLevel = gem.level + bonusLevel + materialBonus + awakenedGemLevelBonus;
+    let levelBonus = skill.isGem ? bonusLevel : 0;
+    let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + awakenedGemLevelBonus;
+    let totalLevel = gem.level + levelBonus + materialBonus + awakenedGemLevelBonus;
     let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus };
     stats.dmg = stats.baseDmg + ((finalLevel - 1) * stats.dmgScale);
     stats.spd = stats.baseSpd + ((finalLevel - 1) * stats.spdScale);
@@ -378,11 +381,12 @@ function getActiveSkillStats(bonusLevel) {
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     stats.dmg *= qualityMul;
     stats.spd *= qualityMul;
-    if (gem.level >= 20) {
+    if (skill.isGem && gem.level >= 20) {
         if (game.activeSkill === '연속 베기') stats.spd *= 1.2;
         if (game.activeSkill === '흡혈 타격') stats.leech *= 2;
         if (game.activeSkill === '암살자의 일격') stats.crit += 15;
     }
+    if (!skill.isGem) return stats;
     getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
         let enh = GEM_SKY_ENHANCEMENTS[id];
         if (!enh) return;
