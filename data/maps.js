@@ -41,11 +41,11 @@ const TRIAL_ZONES = [
 
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
 
-const MAX_STAR_WEDGES = 999;
+const MAX_STAR_WEDGES = 3;
+
+const MAX_STAR_WEDGES_HARD_CAP = 8;
 
 const STAR_WEDGE_RADIUS = 3;
-
-const MAX_MUTATIONS_PER_WEDGE = 3;
 
 const STAR_WEDGE_UNLOCK_LOOP = 7;
 
@@ -65,7 +65,22 @@ const STAR_WEDGE_OPTION_POOL = [
     { stat: 'chaosPctDmg', min: 6, max: 18 }
 ];
 
-const STAR_WEDGE_CORE_OPTION_POOL = STAR_WEDGE_OPTION_POOL.slice();
+const STAR_WEDGE_CORE_OPTION_POOL = [
+    { stat: 'flatDmg', min: 8, max: 28 },
+    { stat: 'pctHp', min: 5, max: 14 },
+    { stat: 'elementalPctDmg', min: 8, max: 20 },
+    { stat: 'physPctDmg', min: 8, max: 20 },
+    { stat: 'projectilePctDmg', min: 8, max: 20 },
+    { stat: 'meleePctDmg', min: 8, max: 20 },
+    { stat: 'dotPctDmg', min: 8, max: 20 },
+    { stat: 'resAll', min: 2, max: 6 },
+    { stat: 'ds', min: 4, max: 12 },
+    { stat: 'minDmgRoll', min: 3, max: 8 },
+    { stat: 'maxDmgRoll', min: 4, max: 10 },
+    { stat: 'energyShieldPct', min: 8, max: 18 },
+    { stat: 'armorPct', min: 8, max: 18 },
+    { stat: 'evasionPct', min: 8, max: 18 }
+];
 
 const SEASON_CONTENT_ROADMAP = {
     1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도'] },
@@ -133,4 +148,4 @@ const ABYSS_PASSIVE_NODES = [
     { key: 'magnifier', name: '핵심: 확대경', max: 1, cost: 5, desc: '맵 길이 2배(진행속도 절반), 무리규모 +20%' }
 ];
 
-safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, STAR_WEDGE_RADIUS, MAX_MUTATIONS_PER_WEDGE, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES });
+safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES });

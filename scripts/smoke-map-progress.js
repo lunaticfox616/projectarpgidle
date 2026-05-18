@@ -87,6 +87,20 @@ assert((context.game.enemies || []).length === 0, 'normal map at 0% should clear
 exposed.advanceMapProgress({ moveSpeed: 100 });
 assert(context.game.runProgress > 0, 'normal map progress should advance after stale halt/ticket recovery');
 
+
+resetGame({
+  currentZoneId: 2,
+  beehive: { inRun: false },
+  enemies: [{ hp: 10 }],
+  encounterPlan: [{ at: 30 }],
+  encounterIndex: 0,
+  runProgress: 0,
+});
+assert(exposed.reconcileMapProgressRuntimeState() === false, 'valid live enemy wave with an encounter plan should not be reconciled');
+assert((context.game.enemies || []).length === 1, 'valid live enemy wave should not be cleared at 0%');
+exposed.advanceMapProgress({ moveSpeed: 100 });
+assert(context.game.runProgress > 0, 'normal map progress should still advance with a valid live enemy wave');
+
 resetGame({
   currentZoneId: 7,
   beehive: { inRun: true, pendingChoice: { a: {} }, returnZoneId: 7 },
@@ -112,9 +126,10 @@ resetGame({
   runProgress: 0,
   combatHalted: true,
 });
+exposed.reconcileMapProgressRuntimeState();
+assert(context.game.beehive.inRun === false, 'core-loop reconciliation should clear off-map stale beehive state');
 exposed.advanceMapProgress({ moveSpeed: 100 });
 assert(context.game.runProgress > 0, 'normal map progress should advance after stale beehive reconciliation');
-assert(context.game.beehive.inRun === false, 'advanceMapProgress should clear off-map stale beehive state');
 
 
 resetGame({

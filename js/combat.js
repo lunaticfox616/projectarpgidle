@@ -576,7 +576,15 @@ function coreLoop() {
             for (let chain = 0; chain < extraHits && game.enemies.length > 0; chain++) {
                 if (game.settings.showCombatLog) addLog(`⚔️ [연속 타격] ${chain + 2}연속 공격!`, "loot-rare", { rateKey: 'combat:double-strike', minIntervalMs: 220, aggregateKey: 'combat:double-strike', aggregateWindowMs: 500 });
                 performPlayerAttack(pStats);
+                if (game.ascendClass === 'gladiator' && hasKeystone('g2')) {
+                    let now = Date.now();
+                    let active = (game.gladiatorFlurryExpiresAt || 0) > now;
+                    let stacks = active ? Math.max(0, Math.min(12, Math.floor(game.gladiatorFlurryStacks || 0))) : 0;
+                    game.gladiatorFlurryStacks = Math.min(12, stacks + 1);
+                    game.gladiatorFlurryExpiresAt = now + 3000;
+                }
             }
+
         }
         performMonsterAttacks(pStats);
     }
@@ -779,6 +787,12 @@ function getPlayerStats() {
         if (mut && mut.currentStat) addStatToBucket(passive, mut.currentStat, mut.currentVal);
         else addStatToBucket(passive, node.stat, node.val);
     });
+    let ownedPassiveSet = new Set(safePassives);
+    Object.keys(mutationMap).forEach(nodeId => {
+        let mut = mutationMap[nodeId];
+        if (!mut || mut.lineIndex !== 3 || !mut.currentStat || ownedPassiveSet.has(nodeId)) return;
+        addStatToBucket(passive, mut.currentStat, mut.currentVal);
+    });
 
     safeSeasonNodes.forEach(id => {
         let node = SEASON_NODES[id];
@@ -909,6 +923,10 @@ function getPlayerStats() {
     if (constellation && constellation.stat) addStatToBucket(reward, constellation.stat, constellation.val || 0);
     let skill = getActiveSkillStats(gemSources.total);
     if (game.ascendClass === 'warlock' && hasKeystone('wlk1')) skill = convertSkillDamageToChaos(skill);
+    if (game.ascendClass === 'elementalist' && hasKeystone('e4')) {
+        skill = { ...skill, ele: 'fire', randomElementPool: ['fire', 'cold', 'light'] };
+        skill.tags = Array.from(new Set([...(skill.tags || []), 'elemental']));
+    }
     let favorFx = (typeof getExpertFavorEffectTotals === 'function') ? getExpertFavorEffectTotals() : {};
     Object.keys(favorFx).forEach(statKey => addStatToBucket(reward, statKey, favorFx[statKey] || 0));
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
@@ -1033,6 +1051,13 @@ function getPlayerStats() {
     let allowNegativePhysIgnore = false;
     let warriorPhysDamageMultiplier = 1;
     let warriorTakenDamageMultiplier = 1;
+    let genericTakenDamageMultiplier = 1;
+    let bossDamageDealtMultiplier = 1;
+    let bossTakenDamageMultiplier = 1;
+    let ailmentResistBonusPct = 0;
+    let swiftOpeningDamageMultiplier = 1;
+    let swiftOpeningTakenMultiplier = 1;
+    let guardianReflectDamage = 0;
     let finalDs = ((gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) + (skill.dsBonus || 0)) * 0.75;
     let finalSlamEchoChance = gearBase.slamEchoChance + gearExplicit.slamEchoChance + passive.slamEchoChance + season.slamEchoChance + ascend.slamEchoChance + support.slamEchoChance + reward.slamEchoChance;
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen + (skill.regenBonus || 0);
@@ -1123,7 +1148,7 @@ function getPlayerStats() {
         if (hasKeystone('w2')) {
             let now = Date.now();
             let stacks = (game.warriorRhythmExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmStacks || 0))) : 0;
-            if (stacks > 0) finalAspd = Math.min(12, finalAspd * (1 + stacks * 0.08));
+            if (stacks > 0) finalAspd = Math.min(12, finalAspd * Math.pow(1.08, stacks));
         }
         if (hasKeystone('w3')) finalBaseDmg = Math.floor(finalBaseDmg * (isDualWielding() ? 1.08 : 1));
         if (hasKeystone('w4')) { finalPhysIgnore += 15; allowNegativePhysIgnore = true; }
@@ -1149,10 +1174,17 @@ function getPlayerStats() {
             finalDs += 15;
         }
     } else if (game.ascendClass === 'gladiator') {
-        if (hasKeystone('g1')) finalBaseDmg = Math.floor(finalBaseDmg * 1.12);
+        if (hasKeystone('g1')) {
+            if (skill.ele === 'phys') finalBaseDmg = Math.floor(finalBaseDmg * 1.12);
+            else finalBaseDmg = Math.floor(finalBaseDmg * 0.80);
+        }
         if (hasKeystone('g2')) {
-            finalAspd = Math.min(12, finalAspd * 1.1);
-            finalEvasion = Math.floor(finalEvasion * 1.1);
+            let now = Date.now();
+            let stacks = (game.gladiatorFlurryExpiresAt || 0) > now ? Math.max(0, Math.min(12, Math.floor(game.gladiatorFlurryStacks || 0))) : 0;
+            if (stacks > 0) {
+                finalAspd = Math.min(12, finalAspd * (1 + stacks * 0.03));
+                finalEvasion = Math.floor(finalEvasion * (1 + stacks * 0.03));
+            }
         }
         if (hasKeystone('g3')) finalCrit = Math.min(100, finalCrit + Math.max(0, Math.floor(game.gladiatorVeteranCritBonus || 0)));
         if (hasKeystone('g4')) {
@@ -1162,7 +1194,10 @@ function getPlayerStats() {
                 finalDr = Math.min(75, finalDr + 15);
             }
         }
-        if (hasKeystone('g5')) finalBaseDmg = Math.floor(finalBaseDmg * 1.1);
+        if (hasKeystone('g5')) {
+            if (game.gladiatorSwiftOpeningReady) swiftOpeningDamageMultiplier = 1.30;
+            if (game.gladiatorSwiftGuardReady) swiftOpeningTakenMultiplier = 0.70;
+        }
         if (hasKeystone('g7')) {
             finalDs += Math.floor(Math.max(0, finalEvasion) / 50);
             finalCrit += Math.floor(Math.max(0, finalArmor) / 400);
@@ -1170,7 +1205,10 @@ function getPlayerStats() {
         if (hasKeystone('g8')) {
             finalDs += 100;
             finalBaseDmg = Math.floor(finalBaseDmg * 1.18);
+            bossDamageDealtMultiplier *= 1.18;
+            bossTakenDamageMultiplier *= 1.18;
             finalRegen *= 0.5;
+            finalEnergyShieldRegenRate = 0;
         }
     } else if (game.ascendClass === 'assassin') {
         if (hasKeystone('a1')) {
@@ -1211,7 +1249,10 @@ function getPlayerStats() {
             finalMinDmgRoll = Math.max(5, finalMinDmgRoll - 10);
         }
         if (hasKeystone('r4')) finalAspd = Math.min(12, finalAspd * (1 + Math.max(0, finalMove) * 0.001));
-        if (hasKeystone('r6')) finalBaseDmg = Math.floor(finalBaseDmg * 0.95);
+        if (hasKeystone('r6') && Array.isArray(skill.tags) && skill.tags.includes('projectile')) {
+            skill.targets = Math.min(12, Math.max(1, (skill.targets || 1) + 1));
+            finalBaseDmg = Math.floor(finalBaseDmg * 0.90 * (1 + Math.max(1, Math.floor(skill.targets || 1)) * 0.03));
+        }
         if (hasKeystone('r8')) {
             let aspdBonus = Math.max(0, finalAspd - 1) * 0.2;
             let moveBonus = Math.max(0, finalMove) * 0.002;
@@ -1225,7 +1266,10 @@ function getPlayerStats() {
             finalCrit = Math.min(100, finalCrit + Math.floor(sinceHitSec) * 5);
         }
     } else if (game.ascendClass === 'elementalist') {
-        if (hasKeystone('e1')) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+        if (hasKeystone('e1')) {
+            if (skill.ele === 'phys' && !(Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0)) finalBaseDmg = 0;
+            else finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+        }
         if (hasKeystone('e2')) {
             finalResF = Math.min(78, finalResF + 15);
             finalResC = Math.min(78, finalResC + 15);
@@ -1235,9 +1279,9 @@ function getPlayerStats() {
         if (hasKeystone('e3')) {
             finalMaxHp = Math.floor(finalMaxHp * 0.85);
             finalEnergyShieldRegenRate += 10;
-            finalEnergyShieldRechargeDelay = Math.max(0.4, finalEnergyShieldRechargeDelay - 0.8);
+            finalEnergyShieldRechargeDelay = 0;
         }
-        if (hasKeystone('e4')) finalBaseDmg = Math.floor(finalBaseDmg * 1.12);
+        if (hasKeystone('e4')) { /* 융해 결합: 원소 풀 변환은 skill 생성 직후 적용됨 */ }
         if (hasKeystone('e5')) {
             let maxElemRes = Math.max(finalResF, finalResC, finalResL);
             finalResChaos += Math.floor(maxElemRes * 0.5);
@@ -1251,8 +1295,12 @@ function getPlayerStats() {
             let stacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0));
             finalBaseDmg = Math.floor(finalBaseDmg * (1 + stacks * 0.25));
             finalResPen += (stacks * 5);
+            genericTakenDamageMultiplier *= 1.10;
         }
-        if (hasKeystone('e7')) finalBaseDmg = Math.floor(finalBaseDmg * 1.05);
+        if (hasKeystone('e7')) {
+            let pool = Array.isArray(skill.randomElementPool) ? skill.randomElementPool : [];
+            if (['fire','cold','light'].every(ele => pool.includes(ele))) finalBaseDmg = Math.floor(finalBaseDmg * 1.05);
+        }
     } else if (game.ascendClass === 'warlock') {
         if (hasKeystone('wlk2')) {
             totalDotDamageMultiplier *= 1.10;
@@ -1288,7 +1336,7 @@ function getPlayerStats() {
             finalMove *= 0.85;
         }
         if (hasKeystone('gd2')) finalMaxHp = Math.floor(finalMaxHp * 1.15);
-        if (hasKeystone('gd3')) finalRegen += 1.8;
+        if (hasKeystone('gd3')) { finalRegen += 1.8; finalCritDmg -= 25; }
         if (hasKeystone('gd4')) {
             let converted = Math.floor((finalEvasion + finalEnergyShield) * 0.5);
             finalArmor += converted;
@@ -1299,11 +1347,16 @@ function getPlayerStats() {
             finalBaseDmg = Math.floor(finalBaseDmg * 0.85);
             finalDr = Math.min(75, finalDr + 15);
         }
-        if (hasKeystone('gd6')) finalArmor = Math.floor(finalArmor * 1.15);
-        if (hasKeystone('gd8')) finalDr = Math.min(75, finalDr + 15);
+        if (hasKeystone('gd6')) { let now = Date.now(); let stacks = (game.guardianEnduranceExpiresAt || 0) > now ? Math.max(0, Math.min(4, Math.floor(game.guardianEnduranceStacks || 0))) : 0; if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.25)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.35)); }
+        if (hasKeystone('gd8')) { genericTakenDamageMultiplier *= 0.85; ailmentResistBonusPct += 50; }
         if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.3) {
-            finalDr = Math.min(75, finalDr + 15);
+            genericTakenDamageMultiplier *= 0.85;
             finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+            let now = Date.now();
+            if ((game.guardianLastStandCleanseAt || 0) + 6000 <= now) {
+                game.playerAilments = [];
+                game.guardianLastStandCleanseAt = now;
+            }
         }
     } else if (game.ascendClass === 'inquisitor') {
         if (hasKeystone('iq1')) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
@@ -1311,16 +1364,17 @@ function getPlayerStats() {
             finalCrit = Math.max(0, finalCrit - 8);
             finalCritDmg += 45;
         }
-        if (hasKeystone('iq3')) suppCap += 1;
-        if (hasKeystone('iq5')) finalResPen += 15;
+        if (hasKeystone('iq3')) { suppCap += 1; game.resonancePower = Math.max(Math.floor(game.resonancePower || 0), 10 + Math.floor(((game.sealedSkills || []).length + (game.sealedSupports || []).length) / 4)); finalAspd = Math.max(0.1, finalAspd * 0.94); }
+        if (hasKeystone('iq5')) { finalResPen += 15; if (skill.ele === 'phys' && !(Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0)) finalBaseDmg = 0; }
         if (hasKeystone('iq6')) {
-            suppCap += 1;
+            suppCap += 1 + Math.floor(Math.max(0, Math.floor(game.resonancePower || 0)) / 25);
             finalMaxHp = Math.floor(finalMaxHp * 0.67);
         }
         if (hasKeystone('iq8')) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalResPen) / 100));
         if (hasKeystone('iq4')) finalResPen = 0;
     }
 
+    if (swiftOpeningDamageMultiplier !== 1) finalBaseDmg = Math.floor(finalBaseDmg * swiftOpeningDamageMultiplier);
     damageScales.dot = dotMultiplier;
     damageScales.dotStat = dotStatMultiplier;
     damageScales.instantDamageMultiplier = instantDamageMultiplier;
@@ -1641,6 +1695,12 @@ function getPlayerStats() {
         allowNegativePhysIgnore: allowNegativePhysIgnore,
         warriorPhysDamageMultiplier: warriorPhysDamageMultiplier,
         warriorTakenDamageMultiplier: warriorTakenDamageMultiplier,
+        genericTakenDamageMultiplier: genericTakenDamageMultiplier,
+        bossDamageDealtMultiplier: bossDamageDealtMultiplier,
+        bossTakenDamageMultiplier: bossTakenDamageMultiplier,
+        swiftOpeningTakenMultiplier: swiftOpeningTakenMultiplier,
+        guardianReflectDamage: guardianReflectDamage,
+        ailmentResistBonusPct: ailmentResistBonusPct,
         ds: finalDs,
         slamEchoChance: finalSlamEchoChance,
         minDmgRoll: finalMinDmgRoll,
@@ -2398,6 +2458,8 @@ function startMoving(isTown) {
     game.runProgress = 0;
     game.playerAilments = [];
     game.playerLeechInstances = [];
+    game.gladiatorSwiftOpeningReady = true;
+    game.gladiatorSwiftGuardReady = true;
     resetWoodsmanCurse();
     let v = game.voidRift;
     if (v && v.active) {
@@ -2453,7 +2515,7 @@ function reconcileMapProgressRuntimeState() {
     if (game.moveTimer <= 0 && (game.runProgress || 0) <= 0) {
         let hasPlan = Array.isArray(game.encounterPlan) && game.encounterPlan.length > 0;
         let liveEnemies = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0).length;
-        if (liveEnemies > 0 && (!hasPlan || Math.max(0, Math.floor(game.encounterIndex || 0)) <= 0)) {
+        if (liveEnemies > 0 && !hasPlan && Math.max(0, Math.floor(game.encounterIndex || 0)) === 0) {
             game.enemies = [];
             changed = true;
         }
@@ -2530,7 +2592,6 @@ function spawnEncounterMarker(marker) {
 
 function advanceMapProgress(pStats) {
     if (game.moveTimer > 0) return;
-    reconcileMapProgressRuntimeState();
     let zone = getZone(game.currentZoneId) || getZone(0);
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) return;
     ensureEncounterRun();
@@ -3321,6 +3382,11 @@ function performPlayerAttack(pStats) {
             let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
             if (randomElementPct) hitBaseDamage = Math.floor(hitBaseDamage * (1 + randomElementPct / 100));
             if (hitElement === 'phys') hitBaseDamage = Math.floor(hitBaseDamage * Math.max(0, Number(pStats.warriorPhysDamageMultiplier) || 1));
+            if (targetEnemy.isBoss) hitBaseDamage = Math.floor(hitBaseDamage * Math.max(0, Number(pStats.bossDamageDealtMultiplier) || 1));
+            if (game.ascendClass === 'gladiator' && hasKeystone('g5') && game.gladiatorSwiftOpeningReady) {
+                hitBaseDamage = Math.floor(hitBaseDamage * 1.30);
+                game.gladiatorSwiftOpeningReady = false;
+            }
             let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
@@ -3371,6 +3437,18 @@ function performPlayerAttack(pStats) {
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let beforeHpForForced = targetEnemy.hp;
             let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
+            if (game.ascendClass === 'ranger' && hasKeystone('r5') && targetEnemy.hp > 0) {
+                game.rangerWeakpointMarks = game.rangerWeakpointMarks || {};
+                let mark = game.rangerWeakpointMarks[targetEnemy.id] || { hits: 0 };
+                mark.hits = Math.max(0, Math.floor(mark.hits || 0)) + 1;
+                if (mark.hits >= 3) {
+                    mark.hits = 0;
+                    let bonus = Math.max(1, Math.floor((targetEnemy.maxHp || targetEnemy.hp || 1) * 0.01));
+                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, bonus);
+                    addBattleFx('hit', { enemyId: targetEnemy.id, color: getElementColor('phys'), damage: bonus, duration: 280, element: 'phys' });
+                }
+                game.rangerWeakpointMarks[targetEnemy.id] = mark;
+            }
             if (targetEnemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop())) && targetEnemy.hp <= 0) {
                 targetEnemy.hp = Math.max(1, Math.min(beforeHpForForced, targetEnemy.maxHp || 1));
             }
@@ -3590,7 +3668,7 @@ function getPlayerAilmentResistChance(type, pStats) {
     else if (type === 'shock') res = pStats.resL || 0;
     else if (type === 'poison') res = pStats.resChaos || 0;
     else if (type === 'bleed') res = pStats.dr || 0;
-    return Math.max(0, Math.min(0.75, res / 100));
+    return Math.max(0, Math.min(0.95, (res + (pStats.ailmentResistBonusPct || 0)) / 100));
 }
 
 function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage) {
@@ -3790,7 +3868,12 @@ function performMonsterAttacks(pStats) {
                 if (hybrid > 0) damageBreakdown.push({ ele: normalizeDamageElementKey(enemy.hybridElement), amount: hybrid });
                 dmg = Math.max(1, sumBreakdown());
             }
-            dmg = Math.max(1, Math.floor(dmg * getWoodsmanCurseDamageTakenMul() * Math.max(0, Number(pStats.warriorTakenDamageMultiplier) || 1)));
+            dmg = Math.max(1, Math.floor(dmg * getWoodsmanCurseDamageTakenMul() * Math.max(0, Number(pStats.warriorTakenDamageMultiplier) || 1) * Math.max(0, Number(pStats.genericTakenDamageMultiplier) || 1)));
+            if (enemy.isBoss) dmg = Math.max(1, Math.floor(dmg * Math.max(0, Number(pStats.bossTakenDamageMultiplier) || 1)));
+            if (game.ascendClass === 'gladiator' && hasKeystone('g5') && game.gladiatorSwiftGuardReady) {
+                dmg = Math.max(1, Math.floor(dmg * Math.max(0, Number(pStats.swiftOpeningTakenMultiplier) || 0.70)));
+                game.gladiatorSwiftGuardReady = false;
+            }
             let aliveEnemies = (game.enemies || []).filter(e => e && e.hp > 0).length;
             if (aliveEnemies >= 2) dmg = Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (pStats.takenDamageReduceWhen2EnemiesPct || 0) / 100)))));
             else if (aliveEnemies === 1) dmg = Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (pStats.takenDamageReduceWhen1EnemyPct || 0) / 100)))));
@@ -3817,6 +3900,17 @@ function performMonsterAttacks(pStats) {
                 remaining -= absorbed;
             }
             game.playerHp = Math.floor(game.playerHp - remaining);
+            if (remaining > 0 && game.ascendClass === 'guardian' && hasKeystone('gd6')) {
+                let stacks = Math.max(0, Math.min(4, Math.floor(game.guardianEnduranceStacks || 0))) + 1;
+                game.guardianEnduranceExpiresAt = Date.now() + 4000;
+                if (stacks >= 4) {
+                    let reflect = Math.max(1, Math.floor((pStats.guardianReflectDamage || 1) + remaining));
+                    applyDamageToEnemyResource(enemy, reflect);
+                    addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: reflect, duration: 260, element: 'phys' });
+                    stacks = 0;
+                }
+                game.guardianEnduranceStacks = Math.max(0, Math.min(4, stacks));
+            }
             if (remaining > 0 && game.ascendClass === 'warrior' && hasKeystone('w5')) {
                 let now = Date.now();
                 let active = (game.warriorRageExpiresAt || 0) > now;

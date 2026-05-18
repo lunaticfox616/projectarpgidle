@@ -1003,6 +1003,7 @@ function renderStarWedgePanel() {
     let astronomerLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
     let rerollLockedAttr = astronomerLv >= 5 ? '' : 'disabled';
     let rerollTitle = astronomerLv >= 5 ? '' : ' (천문학자 Lv.5 필요)';
+    let maxEquippedStarWedges = typeof getMaxEquippedStarWedges === 'function' ? getMaxEquippedStarWedges() : MAX_STAR_WEDGES;
     let constellationText = st.constellationBuff ? `${st.constellationBuff.label || getStatName(st.constellationBuff.stat)} +${st.constellationBuff.val}${st.constellationBuff.stat === 'flatHp' ? '' : '%'}${st.constellationBuff.permanent ? ' · 영원' : ''}` : '미관측';
     let socketNodeText = (st.sockets || []).map(entry => {
         let node = PASSIVE_TREE.nodes[entry.nodeId];
@@ -1034,7 +1035,7 @@ function renderStarWedgePanel() {
     panel.innerHTML = `
         <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
             <div style="color:#d6e0ec;">운석 파편: <strong style="color:#ffd36f;">${game.currencies.meteorShard || 0}</strong> · 별가루: <strong style="color:#b7f6ff;">${game.currencies.starDust || 0}</strong> · 불완전한 별쐐기: <strong style="color:#b9d3ff;">${game.currencies.incompleteStarWedge || 0}</strong> · 별쐐기: <strong style="color:#f0ccff;">${game.currencies.starWedge || 0}</strong></div>
-            <div style="color:#8ea5c1;">장착 슬롯: ${socketNodeText} · 별자리: ${constellationText}</div>
+            <div style="color:#8ea5c1;">장착 슬롯: ${(st.sockets || []).length}/${maxEquippedStarWedges} · ${socketNodeText} · 별자리: ${constellationText}</div>
         </div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"><button onclick="craftIncompleteStarWedge()">파편 49 → 불완전한 별쐐기</button><button onclick="craftCompleteStarWedge()">불완전 1 + 파편 77 → 별쐐기</button></div>
         <div style="color:#93a4bb; font-size:0.8em; margin-bottom:8px;">1/2/3경로 노드를 1~3번째 줄로 변성하고, 4번째 [핵심노드] 줄은 슬롯 자신(허브 노드)에 적용됩니다. 장착은 [장착할 슬롯 선택] 후 패시브 트리에서 슬롯을 클릭하세요.</div>
@@ -5254,7 +5255,9 @@ function mergeDefaults(save) {
     merged.starWedge.firstClearDone = !!merged.starWedge.firstClearDone;
     merged.starWedge.selectedWedgeId = Number.isFinite(merged.starWedge.selectedWedgeId) ? merged.starWedge.selectedWedgeId : null;
     merged.starWedge.wedges = Array.isArray(merged.starWedge.wedges) ? merged.starWedge.wedges.filter(w => w && Number.isFinite(w.id) && Array.isArray(w.lines)).slice(0, 60) : [];
-    merged.starWedge.sockets = Array.isArray(merged.starWedge.sockets) ? merged.starWedge.sockets.filter(s => s && typeof s.nodeId === 'string' && Number.isFinite(s.wedgeId)).slice(0, MAX_STAR_WEDGES) : [];
+    let mergedAstronomerLevel = merged.expertise && merged.expertise.levels ? merged.expertise.levels.astronomer : 1;
+    let starWedgeSocketCap = typeof getMaxEquippedStarWedgesForLevel === 'function' ? getMaxEquippedStarWedgesForLevel(mergedAstronomerLevel) : MAX_STAR_WEDGES;
+    merged.starWedge.sockets = Array.isArray(merged.starWedge.sockets) ? merged.starWedge.sockets.filter(s => s && typeof s.nodeId === 'string' && Number.isFinite(s.wedgeId)).slice(0, starWedgeSocketCap) : [];
     merged.starWedge.nodeMutations = (merged.starWedge.nodeMutations && typeof merged.starWedge.nodeMutations === 'object') ? merged.starWedge.nodeMutations : {};
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
