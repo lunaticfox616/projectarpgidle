@@ -2490,7 +2490,7 @@ function spawnEncounterMarker(marker) {
 
 function advanceMapProgress(pStats) {
     if (game.moveTimer > 0) return;
-    if (game.beehive && game.beehive.inRun) return;
+    if (game.beehive && game.beehive.inRun && game.currentZoneId === 'beehive_run') return;
     ensureEncounterRun();
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
