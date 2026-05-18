@@ -421,6 +421,7 @@ function coreLoop() {
     tickWoodsmanCurse();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
+    reconcileMapProgressRuntimeState();
     runConditionGemAutoRules(pStats);
     processPendingSlamEchoHits();
     tickAilments(pStats, 0.1);
@@ -492,7 +493,8 @@ function coreLoop() {
     }
     if (game.combatHalted) {
         let beehive = game.beehive || {};
-        let beehivePause = !!(beehive.inRun && beehive.awaitingClear);
+        let beehiveLocked = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!beehive.inRun;
+        let beehivePause = !!(beehiveLocked && !beehive.awaitingClear);
         let stopByMapSetting = (game.settings.mapCompleteAction || 'nextZone') === 'stop';
         let stopByTownSetting = (game.settings.townReturnAction || 'retry') === 'stop';
         let manualStopState = stopByMapSetting || stopByTownSetting || !!game.pendingLoopDecision;
@@ -542,6 +544,7 @@ function coreLoop() {
     }
 
     syncCrowdPauseState();
+    if ((typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) && !(game.beehive && game.beehive.awaitingClear)) return;
     let progressBefore = game.runProgress;
     let zoneNow = getZone(game.currentZoneId);
     let vRift = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0, pendingWave: false, totalToSpawn: 0, spawnedCount: 0, spawnTick: 0 });
@@ -655,7 +658,7 @@ function processPendingSlamEchoHits() {
 }
 
 
-safeExposeGlobals({ coreLoop });
+safeExposeGlobals({ coreLoop, isRegularAutoProgressZone, reconcileMapProgressRuntimeState });
 
 // Phase-3 extracted core combat runtime block.
 
@@ -1907,7 +1910,7 @@ function createEnemy(zone, marker, groupIndex) {
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.floor(hp * 0.92);
     if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
-    if (game.beehive && game.beehive.inRun) {
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) {
         let empower = Math.max(0, Math.floor(game.beehive.enemyEmpower || 0));
         if (empower > 0) hp = Math.floor(hp * (1 + empower * 0.08));
     }
@@ -2424,6 +2427,44 @@ function ensureEncounterRun() {
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
 }
 
+function isRegularAutoProgressZone(zone) {
+    if (!zone) return false;
+    if (zone.id === 'beehive_run' || zone.id === 'grand_breach_run') return false;
+    if (typeof zone.id === 'string' && zone.id.includes('_boss_')) return false;
+    return ['act', 'abyss', 'trial', 'meteor', 'labyrinth', 'chaosRealm'].includes(zone.type);
+}
+
+function reconcileMapProgressRuntimeState() {
+    let zone = getZone(game.currentZoneId) || getZone(0);
+    if (!zone) return false;
+    if (typeof reconcileBeehiveRunState === 'function') reconcileBeehiveRunState();
+    zone = getZone(game.currentZoneId) || getZone(0);
+    if (!isRegularAutoProgressZone(zone)) return false;
+    let changed = false;
+    let explicitStop = (game.settings && ((game.settings.mapCompleteAction || 'nextZone') === 'stop' || (game.settings.townReturnAction || 'retry') === 'stop')) || !!game.pendingLoopDecision;
+    if (game.inTicketBossFight) {
+        game.inTicketBossFight = false;
+        changed = true;
+    }
+    if (game.combatHalted && !explicitStop) {
+        game.combatHalted = false;
+        changed = true;
+    }
+    if (game.moveTimer <= 0 && (game.runProgress || 0) <= 0) {
+        let hasPlan = Array.isArray(game.encounterPlan) && game.encounterPlan.length > 0;
+        let liveEnemies = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0).length;
+        if (liveEnemies > 0 && (!hasPlan || Math.max(0, Math.floor(game.encounterIndex || 0)) <= 0)) {
+            game.enemies = [];
+            changed = true;
+        }
+        if (!hasPlan) {
+            startEncounterRun();
+            changed = true;
+        }
+    }
+    return changed;
+}
+
 function spawnEncounterMarker(marker) {
     let zone = getZone(game.currentZoneId);
     let count = marker.count || 1;
@@ -2489,11 +2530,12 @@ function spawnEncounterMarker(marker) {
 
 function advanceMapProgress(pStats) {
     if (game.moveTimer > 0) return;
-    if (game.beehive && game.beehive.inRun) return;
+    reconcileMapProgressRuntimeState();
+    let zone = getZone(game.currentZoneId) || getZone(0);
+    if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) return;
     ensureEncounterRun();
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
-    let zone = getZone(game.currentZoneId) || getZone(0);
     if (zone && zone.id === 'grand_breach_run') {
         tickGrandBreachRun(zone);
         return;
@@ -3888,6 +3930,7 @@ function addWoodsmanPendingScore(scoreGain) {
 
 
 function enterOutsideChaos() {
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     if ((game.season || 1) < 10) return addLog('혼돈 밖은 루프 10 이후 개방됩니다.', 'attack-monster');
     if (!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared)) return addLog(`${getLoopAbyssRequirementText(game.season || 1)} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
     game.woodsmanBuildSnapshot = snapshotWoodsmanBuildState();
@@ -3965,6 +4008,7 @@ function triggerSeasonReset() {
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     game.season++;
     if (typeof resetExpertiseLoopCaps === 'function') resetExpertiseLoopCaps();
+    if (typeof grantLoopBaseExpertExp === 'function') grantLoopBaseExpertExp();
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
     if (game.loopCount === 2 && typeof queueTutorialNotice === 'function') {
