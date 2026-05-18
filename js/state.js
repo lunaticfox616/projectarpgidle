@@ -231,6 +231,28 @@ function getCurrentSeasonFinalZoneId() {
     return getSeasonFinalZoneId(game.season || 1);
 }
 
+function getVisibleHuntingMapCapZoneId() {
+    return Math.min(getCurrentSeasonFinalZoneId(), getAbyssZoneIdForDepth(20));
+}
+
+function getHighestUnlockedEndlessChaosDepth() {
+    let depths = [];
+    if (Array.isArray(game && game.abyssUnlockedDepths)) {
+        depths = game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21);
+    }
+    let currentDepth = Math.floor((game && game.abyssEndlessDepth) || 0);
+    if (currentDepth >= 21) depths.push(currentDepth);
+    return depths.length > 0 ? Math.max(...depths) : 0;
+}
+
+function getAutoProgressZoneId(fallbackZoneId) {
+    if ((game.season || 1) >= 10) {
+        let highestDepth = getHighestUnlockedEndlessChaosDepth();
+        if (highestDepth >= 21) return getAbyssZoneIdForDepth(highestDepth);
+    }
+    return fallbackZoneId;
+}
+
 
 
 function getAbyssPassiveState() {
@@ -838,7 +860,7 @@ let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
 
 // Phase-4 extracted default state schema.
 

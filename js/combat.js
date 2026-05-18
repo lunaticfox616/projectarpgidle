@@ -2990,7 +2990,7 @@ function handleEnemyDeath(enemy, pStats) {
         game.encounterPlan = [];
         game.encounterIndex = 0;
         game.runProgress = 0;
-        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : game.maxZoneId;
+        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
         markLoopSpecialBossKill('void_grand_breach');
         unlockJournalEntry('void_grand_breach');
         addLog('🌌 대균열 보스를 격파했습니다!', 'level-up');
@@ -3039,7 +3039,7 @@ function finishEncounterRun() {
         st.entriesCleared = (st.entriesCleared || 0) + 1;
         st.activeMeteorTier = null;
         clearWoodsmanBuildLock();
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
@@ -3057,7 +3057,7 @@ function finishEncounterRun() {
         markLoopSpecialBossKill('woodsman_true');
         addLog('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
         clearWoodsmanBuildLock();
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
@@ -3112,7 +3112,7 @@ function finishEncounterRun() {
             if (isFirstClear) addLog(`👑 [${zone.name}] 통과! 전직 포인트 2점 획득!`, "loot-unique");
             else addLog(`🔁 [${zone.name}] 재도전 완료 (전직 포인트 보상 없음)`, "attack-monster", { noToast: true });
         }
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         game.inTicketBossFight = false;
         startMoving(false);
@@ -3146,7 +3146,7 @@ function finishEncounterRun() {
             startMoving(true);
         } else {
             if (shouldRepeat && keyLeft <= 0) addLog('🔁 반복 도전이 켜져 있지만 입장권이 없어 자동 재도전을 중단합니다.', 'attack-monster');
-            game.currentZoneId = game.maxZoneId;
+            game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
             game.killsInZone = 0;
             game.inTicketBossFight = false;
             startMoving(false);
@@ -3299,7 +3299,7 @@ function finishEncounterRun() {
             updateStaticUI();
             queueImportantSave(180);
             return;
-        } else game.currentZoneId = Math.max(game.currentZoneId, game.maxZoneId);
+        } else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
         let star = game.starWedge || {};
         let beehiveRunning = !!(game.beehive && game.beehive.inRun);
         let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
@@ -3643,7 +3643,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
             game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
             triggerMapUnlockReveal(game.maxZoneId);
         }
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         game.playerHp = getPlayerHpCap(pStats);
         startMoving(false);
@@ -3662,7 +3662,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
             addLog(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
         }
         clearWoodsmanBuildLock();
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
     } else if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) {
         addLog(message || "☠️ 벌집 전투에서 패배했습니다. 원정이 즉시 종료됩니다.", "death", { noToast: !!opts.noToast });
@@ -3671,7 +3671,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
             game.beehive.inRun = false;
             game.beehive.awaitingClear = false;
             game.beehive.pendingChoice = null;
-            game.currentZoneId = game.beehive.returnZoneId !== undefined && game.beehive.returnZoneId !== null ? game.beehive.returnZoneId : game.maxZoneId;
+            game.currentZoneId = game.beehive.returnZoneId !== undefined && game.beehive.returnZoneId !== null ? game.beehive.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
             game.beehive.returnZoneId = null;
             game.enemies = [];
             game.encounterPlan = [];
@@ -3688,13 +3688,13 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.encounterPlan = [];
         game.encounterIndex = 0;
         game.runProgress = 0;
-        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : game.maxZoneId;
+        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
     } else if (zone && zone.type === 'meteor') {
         addLog(message || "☠️ 운석 낙하 지점에서 패배했습니다. 운석 지점이 닫힙니다.", "death", { noToast: !!opts.noToast });
         let st = ensureStarWedgeState();
         st.activeMeteorTier = null;
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         game.enemies = [];
         game.encounterPlan = [];
@@ -3707,7 +3707,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.inTicketBossFight = false;
     } else if (zone && zone.type === 'trial') {
         addLog(message || "☠️ 시련 실패! 마을로 귀환합니다.", "death", { noToast: !!opts.noToast });
-        game.currentZoneId = game.maxZoneId;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
     } else {
         expLost = Math.floor(getExpReq(game.level) * 0.1);

@@ -4078,7 +4078,7 @@ function buildCraftActionButtons(item) {
     if (legacyMapOverview) legacyMapOverview.remove();
     document.querySelectorAll('#tab-map img').forEach(node => node.remove());
 
-    let seasonMapCap = getCurrentSeasonFinalZoneId();
+    let seasonMapCap = typeof getVisibleHuntingMapCapZoneId === 'function' ? getVisibleHuntingMapCapZoneId() : Math.min(getCurrentSeasonFinalZoneId(), getAbyssZoneIdForDepth(20));
     let highestMapZone = Math.min(Math.max(0, Math.floor(game.maxZoneId || 0)), seasonMapCap);
     let mapZones = Array.from({ length: highestMapZone + 1 }, (_, idx) => getZone(idx)).filter(Boolean);
     let mapListHtml = mapZones.map(zone => {
