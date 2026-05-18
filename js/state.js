@@ -947,6 +947,7 @@ const EXPERT_EXP_GUIDES = {
   ]
 };
 function ensureExpertiseState(){
+  if (typeof game === 'undefined' || !game) window.game = JSON.parse(JSON.stringify(defaultGame));
   game.expertise=(game.expertise&&typeof game.expertise==='object')?game.expertise:{};
   game.expertise.levels=game.expertise.levels||{};
   game.expertise.exp=game.expertise.exp||{};

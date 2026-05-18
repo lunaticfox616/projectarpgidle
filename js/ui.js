@@ -3,8 +3,6 @@ let lastHeavyUiRefreshAt = 0;
 let lastPassiveTreeDrawAt = 0;
 let lastPassiveTreeSignature = '';
 let cachedTooltipStats = null;
-let activeItemTooltipToken = null;
-let activeTooltipId = null;
 let gemTooltipCache = null;
 
 let mobilePipCanvas = null;
