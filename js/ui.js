@@ -5273,14 +5273,7 @@ function mergeDefaults(save) {
     if (!merged.gemEnhanceUnlocked && (((merged.currencies || {}).bossCore || 0) > 0 || ((merged.currencies || {}).skyEssence || 0) > 0)) merged.gemEnhanceUnlocked = true;
     merged.inTicketBossFight = !!merged.inTicketBossFight;
     merged.beehive = (merged.beehive && typeof merged.beehive === 'object') ? merged.beehive : { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 };
-    let activeBeehiveRuntime = !!(merged.beehive.inRun && (
-        merged.currentZoneId === 'beehive_run'
-        || merged.beehive.awaitingClear
-        || merged.beehive.pendingChoice
-        || merged.beehive.queenActive
-        || merged.beehive.pendingWaveReward
-        || (Array.isArray(merged.beehive.pendingQueenRewards) && merged.beehive.pendingQueenRewards.length > 0)
-    ));
+    let activeBeehiveRuntime = !!(merged.beehive.inRun && merged.currentZoneId === 'beehive_run');
     if (!activeBeehiveRuntime) {
         merged.beehive.inRun = false;
         resetBeehiveRunModifiers(merged.beehive);
@@ -5397,9 +5390,9 @@ function mergeDefaults(save) {
     if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== 'beehive_run' && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID && merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID && merged.currentZoneId !== CHAOS_REALM_ZONE_ID) merged.currentZoneId = 0;
     if (typeof merged.currentZoneId === 'string' && !getZone(merged.currentZoneId)) merged.currentZoneId = 0;
     if (merged.currentZoneId === 'beehive_run' && !(merged.beehive && merged.beehive.inRun)) merged.currentZoneId = merged.beehive && merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null ? merged.beehive.returnZoneId : merged.maxZoneId;
-    if (merged.beehive && merged.beehive.inRun && (merged.beehive.awaitingClear || merged.beehive.pendingChoice || merged.beehive.queenActive || merged.beehive.pendingWaveReward || (Array.isArray(merged.beehive.pendingQueenRewards) && merged.beehive.pendingQueenRewards.length > 0)) && merged.currentZoneId !== 'beehive_run') {
-        if (merged.beehive.returnZoneId === undefined || merged.beehive.returnZoneId === null) merged.beehive.returnZoneId = typeof merged.currentZoneId === 'string' ? merged.maxZoneId : merged.currentZoneId;
-        merged.currentZoneId = 'beehive_run';
+    if (merged.beehive && merged.beehive.inRun && merged.currentZoneId !== 'beehive_run') {
+        merged.beehive.inRun = false;
+        resetBeehiveRunModifiers(merged.beehive);
     }
     if (merged.woodsmanBuildLock && (merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID || !merged.woodsmanBuildSnapshot)) {
         merged.woodsmanBuildLock = false;

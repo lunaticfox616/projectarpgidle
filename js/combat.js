@@ -2491,11 +2491,11 @@ function spawnEncounterMarker(marker) {
 
 function advanceMapProgress(pStats) {
     if (game.moveTimer > 0) return;
-    if (typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) return;
+    let zone = getZone(game.currentZoneId) || getZone(0);
+    if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) return;
     ensureEncounterRun();
     if (game.runProgress >= 100) return;
     if (isCrowdProgressPaused()) return;
-    let zone = getZone(game.currentZoneId) || getZone(0);
     if (zone && zone.id === 'grand_breach_run') {
         tickGrandBreachRun(zone);
         return;

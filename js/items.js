@@ -172,12 +172,10 @@ function toggleItemLockById(itemId) {
 function isBeehiveRunLockedForMapTravel() {
     let b = game && game.beehive ? game.beehive : null;
     if (!b || !b.inRun) return false;
-    return game.currentZoneId === 'beehive_run'
-        || !!b.awaitingClear
-        || !!b.pendingChoice
-        || !!b.queenActive
-        || !!b.pendingWaveReward
-        || (Array.isArray(b.pendingQueenRewards) && b.pendingQueenRewards.length > 0);
+    // Only the active beehive map itself should lock map travel. Some older saves can
+    // retain pending beehive flags after already returning to a normal map; treating
+    // those stale flags as a global lock stops regular map progress at 0%.
+    return game.currentZoneId === 'beehive_run';
 }
 
 function warnBeehiveMapTravelBlocked() {
