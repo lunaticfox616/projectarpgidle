@@ -492,8 +492,7 @@ function coreLoop() {
     }
     if (game.combatHalted) {
         let beehive = game.beehive || {};
-        let beehiveActiveZone = !!(beehive.inRun && game.currentZoneId === 'beehive_run');
-        let beehivePause = !!(beehiveActiveZone && !beehive.awaitingClear);
+        let beehivePause = !!(beehive.inRun && !beehive.awaitingClear);
         let stopByMapSetting = (game.settings.mapCompleteAction || 'nextZone') === 'stop';
         let stopByTownSetting = (game.settings.townReturnAction || 'retry') === 'stop';
         let manualStopState = stopByMapSetting || stopByTownSetting || !!game.pendingLoopDecision;
@@ -543,7 +542,7 @@ function coreLoop() {
     }
 
     syncCrowdPauseState();
-    if (game.beehive && game.beehive.inRun && game.currentZoneId === 'beehive_run' && !game.beehive.awaitingClear) return;
+    if (game.beehive && game.beehive.inRun && !game.beehive.awaitingClear) return;
     let progressBefore = game.runProgress;
     let zoneNow = getZone(game.currentZoneId);
     let vRift = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0, pendingWave: false, totalToSpawn: 0, spawnedCount: 0, spawnTick: 0 });
@@ -3890,6 +3889,7 @@ function addWoodsmanPendingScore(scoreGain) {
 
 
 function enterOutsideChaos() {
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     if ((game.season || 1) < 10) return addLog('혼돈 밖은 루프 10 이후 개방됩니다.', 'attack-monster');
     if (!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared)) return addLog(`${getLoopAbyssRequirementText(game.season || 1)} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
     game.woodsmanBuildSnapshot = snapshotWoodsmanBuildState();
