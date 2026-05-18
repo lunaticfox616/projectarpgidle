@@ -169,13 +169,54 @@ function toggleItemLockById(itemId) {
     return true;
 }
 
+function hasActiveBeehiveRuntimeState(b) {
+    if (!b || !b.inRun) return false;
+    return !!b.awaitingClear
+        || !!b.pendingChoice
+        || !!b.queenActive
+        || !!b.pendingWaveReward
+        || (Array.isArray(b.pendingQueenRewards) && b.pendingQueenRewards.length > 0)
+        || (game.currentZoneId === 'beehive_run' && (game.enemies || []).some(enemy => enemy && enemy.hp > 0));
+}
+
+function clearBeehiveRuntimeState(b) {
+    if (!b) return;
+    b.inRun = false;
+    b.branchStep = 0;
+    b.pendingChoice = null;
+    b.awaitingClear = false;
+    b.enemyEmpower = 0;
+    b.rewardMomentum = 0;
+    b.penaltyLedger = [];
+    b.rewardLedger = [];
+    b.pendingWaveReward = null;
+    b.pendingWaveRewardText = '';
+    b.pendingQueenRewards = [];
+    b.queenActive = false;
+}
+
+function reconcileBeehiveRunState() {
+    let b = game && game.beehive ? game.beehive : null;
+    if (!b || !b.inRun) return false;
+    if (game.currentZoneId === 'beehive_run' && hasActiveBeehiveRuntimeState(b)) return true;
+    let returnZoneId = b.returnZoneId !== undefined && b.returnZoneId !== null ? b.returnZoneId : game.maxZoneId;
+    clearBeehiveRuntimeState(b);
+    b.returnZoneId = null;
+    if (game.currentZoneId === 'beehive_run') game.currentZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : 0;
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+    game.combatHalted = false;
+    return false;
+}
+
 function isBeehiveRunLockedForMapTravel() {
     let b = game && game.beehive ? game.beehive : null;
     if (!b || !b.inRun) return false;
-    // Only the active beehive map itself should lock map travel. Some older saves can
-    // retain pending beehive flags after already returning to a normal map; treating
-    // those stale flags as a global lock stops regular map progress at 0%.
-    return game.currentZoneId === 'beehive_run';
+    // Only a real active beehive run should lock travel/progress. Older saves can
+    // retain partial beehive flags; reconcile them instead of leaving maps stuck at 0%.
+    return reconcileBeehiveRunState() && game.currentZoneId === 'beehive_run';
 }
 
 function warnBeehiveMapTravelBlocked() {
@@ -229,7 +270,7 @@ function changeZone(id) {
 }
 
 
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked });
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked });
 
 // Phase-3 extracted market/crafting service handlers.
 function marketResetPassiveTreeByDivine() {

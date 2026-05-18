@@ -2491,6 +2491,7 @@ function spawnEncounterMarker(marker) {
 
 function advanceMapProgress(pStats) {
     if (game.moveTimer > 0) return;
+    if (typeof reconcileBeehiveRunState === 'function') reconcileBeehiveRunState();
     let zone = getZone(game.currentZoneId) || getZone(0);
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) return;
     ensureEncounterRun();
