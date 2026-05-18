@@ -1249,7 +1249,8 @@ function ensureStarWedgeState() {
             socket.wedgeId = normalizedWedgeId;
             return socket;
         })
-        .filter(Boolean);
+        .filter(Boolean)
+        .slice(0, typeof getMaxEquippedStarWedges === 'function' ? getMaxEquippedStarWedges() : 3);
     if (!game.starWedge.nodeMutations || typeof game.starWedge.nodeMutations !== 'object') game.starWedge.nodeMutations = {};
     if (!Number.isFinite(game.starWedge.skyRiftGauge)) game.starWedge.skyRiftGauge = 0;
     game.starWedge.skyRiftGauge = clampNumber(game.starWedge.skyRiftGauge, 0, 100);
@@ -1272,6 +1273,25 @@ function isStarWedgeNodeMutable(node) {
     if (node.socketType === 'star_wedge') return false;
     if (['apex', 'evolved', 'transcendent', 'core', 'hub', 'keystone'].includes(node.kind)) return false;
     return true;
+}
+
+
+function getMaxEquippedStarWedgesForLevel(astronomerLevel) {
+    let base = Number.isFinite(Number(typeof MAX_STAR_WEDGES !== 'undefined' ? MAX_STAR_WEDGES : 3)) ? Math.max(1, Math.floor(MAX_STAR_WEDGES)) : 3;
+    let hardCap = Number.isFinite(Number(typeof MAX_STAR_WEDGES_HARD_CAP !== 'undefined' ? MAX_STAR_WEDGES_HARD_CAP : 8)) ? Math.max(base, Math.floor(MAX_STAR_WEDGES_HARD_CAP)) : 8;
+    let astroLv = Math.max(1, Math.floor(Number(astronomerLevel) || 1));
+    let bonus = 0;
+    if (astroLv >= 4) bonus++;
+    if (astroLv >= 7) bonus++;
+    if (astroLv >= 10) bonus++;
+    if (astroLv >= 13) bonus++;
+    if (astroLv >= 15) bonus++;
+    return Math.min(hardCap, base + bonus);
+}
+
+function getMaxEquippedStarWedges() {
+    let astroLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
+    return getMaxEquippedStarWedgesForLevel(astroLv);
 }
 
 function getStarWedgeSocketNodeIds() {
@@ -1326,12 +1346,15 @@ function assignStarWedgeSockets() {
             node.desc = node.desc || '';
         }
     });
-    st.sockets = (st.sockets || []).filter(entry => selectedHubIds.includes(entry.nodeId));
+    st.sockets = (st.sockets || [])
+        .filter(entry => selectedHubIds.includes(entry.nodeId))
+        .slice(0, typeof getMaxEquippedStarWedges === 'function' ? getMaxEquippedStarWedges() : 3);
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
 }
 
-function createRandomStarWedgeLine() {
-    let pick = rndChoice(STAR_WEDGE_OPTION_POOL);
+function createRandomStarWedgeLine(optionPool) {
+    let pool = Array.isArray(optionPool) && optionPool.length > 0 ? optionPool : STAR_WEDGE_OPTION_POOL;
+    let pick = rndChoice(pool);
     let boosted = Math.random() < 0.04;
     let val;
     if (Number.isFinite(pick.step) && pick.step < 1) {
@@ -1347,7 +1370,7 @@ function createRandomStarWedgeLine() {
 }
 
 function createStarWedgeItem() {
-    let coreLine = createRandomStarWedgeLine();
+    let coreLine = createRandomStarWedgeLine(STAR_WEDGE_CORE_OPTION_POOL);
     return { id: Date.now() + Math.floor(Math.random() * 100000), lines: [createRandomStarWedgeLine(), createRandomStarWedgeLine(), createRandomStarWedgeLine(), coreLine] };
 }
 
@@ -1580,7 +1603,7 @@ function rerollStarWedge(wedgeId, keepIndex) { if (game.woodsmanBuildLock) retur
     if (keepIndexes.length > 0 && (game.currencies.incompleteStarWedge || 0) <= 0) return addLog('옵션 고정 리롤에는 불완전한 별쐐기가 필요합니다.', 'attack-monster');
     game.currencies.meteorShard -= meteorCost; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'starwedge_reroll');
     if (keepIndexes.length > 0) game.currencies.incompleteStarWedge--;
-    wedge.lines = wedge.lines.map((line, idx) => keepIndexes.includes(idx) ? line : createRandomStarWedgeLine());
+    wedge.lines = wedge.lines.map((line, idx) => keepIndexes.includes(idx) ? line : createRandomStarWedgeLine(idx === 3 ? STAR_WEDGE_CORE_OPTION_POOL : STAR_WEDGE_OPTION_POOL));
     addLog('☄️ 나무의 결이 끊어지고, 새로운 효과가 혼돈 속에서 벼려졌다.', 'loot-unique');
     if (!((game.journalEntries || []).includes('star_wedge'))) unlockJournalEntry('star_wedge');
     recalculateStarWedgeMutations();
@@ -1624,7 +1647,10 @@ function socketStarWedgeOnNode(nodeId, wedgeId) { if (game.woodsmanBuildLock) re
     if (!node || node.socketType !== 'star_wedge') return addLog('별쐐기 슬롯에만 장착할 수 있습니다.', 'attack-monster');
     let wedge = getStarWedgeById(wedgeId);
     if (!wedge) return addLog('장착할 별쐐기를 찾을 수 없습니다.', 'attack-monster');
-    st.sockets = (st.sockets || []).filter(v => v.nodeId !== nodeId && v.wedgeId !== wedgeId);
+    let maxEquipped = getMaxEquippedStarWedges();
+    let remainingSockets = (st.sockets || []).filter(v => v.nodeId !== nodeId && v.wedgeId !== wedgeId);
+    if (remainingSockets.length >= maxEquipped) return addLog(`별쐐기는 현재 최대 ${maxEquipped}개까지 장착할 수 있습니다. (천문학자 레벨 상승 시 최대 ${MAX_STAR_WEDGES_HARD_CAP}개)`, 'attack-monster');
+    st.sockets = remainingSockets;
     st.sockets.push({ nodeId: nodeId, wedgeId: wedgeId });
     recalculateStarWedgeMutations();
     addLog('☄️ 나무의 결이 끊어지고, 새로운 효과가 혼돈 속에서 벼려졌다.', 'loot-unique');
