@@ -588,6 +588,13 @@ function coreLoop() {
                     game.gladiatorFlurryStacks = Math.min(12, stacks + 1);
                     game.gladiatorFlurryExpiresAt = now + 3000;
                 }
+                if (game.ascendClass === 'warrior' && hasKeystone('w2')) {
+                    let now = Date.now();
+                    let active = (game.warriorRhythmDoubleExpiresAt || 0) > now;
+                    let stacks = active ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmDoubleStacks || 0))) : 0;
+                    game.warriorRhythmDoubleStacks = Math.min(5, stacks + 1);
+                    game.warriorRhythmDoubleExpiresAt = now + 2000;
+                }
             }
 
         }
@@ -725,16 +732,20 @@ function getPlayerStats() {
     let starBlessing = createEmptyStatBucket();
 
     let localDefenseTotals = { armor: 0, evasion: 0, energyShield: 0 };
+    let warriorDualWeaponEffectMultiplier = (game.ascendClass === 'warrior' && hasKeystone('w6') && isDualWielding()) ? 1.5 : 1;
+    let scaleStatList = (stats, multiplier) => multiplier === 1 ? (stats || []) : (stats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number(stat.val) * multiplier } : stat);
     Object.values(game.equipment || {}).forEach(item => {
         if (!item) return;
-        applyStatsToBucket(gearBase, item.baseStats || []);
+        let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
+        let itemBaseStats = scaleStatList(item.baseStats || [], itemStatMultiplier);
+        applyStatsToBucket(gearBase, itemBaseStats);
         let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
-        let explicitItemStats = (item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats);
+        let explicitItemStats = scaleStatList((item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
         applyStatsToBucket(gearExplicit, explicitItemStats);
         let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
         let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;
         let itemPctArmor = 0, itemPctEvasion = 0, itemPctEs = 0;
-        (item.baseStats || []).forEach(stat => {
+        itemBaseStats.forEach(stat => {
             if (!stat) return;
             if (stat.id === 'armor') itemBaseArmor += Number(stat.val || 0);
             if (stat.id === 'evasion') itemBaseEvasion += Number(stat.val || 0);
@@ -1150,12 +1161,14 @@ function getPlayerStats() {
     if (game.ascendClass === 'warrior') {
         // 1) Base multipliers / penalties
         if (hasKeystone('w1')) {
-            warriorPhysDamageMultiplier *= 1.12;
-            finalMove *= 0.88;
+            warriorPhysDamageMultiplier *= 1.15;
+            finalArmor = Math.floor(finalArmor * 1.15);
         }
         if (hasKeystone('w2')) {
             let now = Date.now();
-            let stacks = (game.warriorRhythmExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmStacks || 0))) : 0;
+            let critStacks = (game.warriorRhythmExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmStacks || 0))) : 0;
+            let doubleStacks = (game.warriorRhythmDoubleExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmDoubleStacks || 0))) : 0;
+            let stacks = critStacks + doubleStacks;
             if (stacks > 0) finalAspd = Math.min(12, finalAspd * Math.pow(1.08, stacks));
         }
         if (hasKeystone('w3')) finalBaseDmg = Math.floor(finalBaseDmg * (isDualWielding() ? 1.08 : 1));
@@ -1165,20 +1178,17 @@ function getPlayerStats() {
             let stacks = (game.warriorRageExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRageStacks || 0))) : 0;
             if (stacks > 0) warriorPhysDamageMultiplier *= (1 + stacks * 0.15);
         }
-        if (hasKeystone('w6') && isDualWielding()) finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
         if (hasKeystone('w7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
             finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
             warriorTakenDamageMultiplier *= 0.85;
         }
         // 2) Keystone cap/transform phase
         if (hasKeystone('w8')) {
-            finalMaxHp = Math.floor(finalMaxHp * 0.8);
-            finalArmor = Math.floor(finalArmor * 0.5);
             finalCrit = Math.min(200, finalCrit + 15);
             finalCritDmg += 15;
             finalAspd = Math.min(12, finalAspd * 1.15);
             finalMove *= 1.15;
-            finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
+            finalDamageMultiplier *= 1.15;
             finalDs += 15;
         }
     } else if (game.ascendClass === 'gladiator') {
@@ -1948,7 +1958,6 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     if (skillEle === 'phys') {
         let cappedReduction = Math.max(0, Math.min(80, rawMitigation));
         let ignoreAmount = Math.max(0, Number(pStats.physIgnore) || 0);
-        if (enemy && enemy.isBoss && game.ascendClass === 'warrior' && hasKeystone('w4')) cappedReduction *= 0.5;
         if (cappedReduction > 0) {
             cappedReduction = (pStats && pStats.allowNegativePhysIgnore)
                 ? (cappedReduction - ignoreAmount)
