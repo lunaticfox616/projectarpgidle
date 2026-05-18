@@ -170,7 +170,14 @@ function toggleItemLockById(itemId) {
 }
 
 function isBeehiveRunLockedForMapTravel() {
-    return !!(game && game.beehive && game.beehive.inRun);
+    let b = game && game.beehive ? game.beehive : null;
+    if (!b || !b.inRun) return false;
+    return game.currentZoneId === 'beehive_run'
+        || !!b.awaitingClear
+        || !!b.pendingChoice
+        || !!b.queenActive
+        || !!b.pendingWaveReward
+        || (Array.isArray(b.pendingQueenRewards) && b.pendingQueenRewards.length > 0);
 }
 
 function warnBeehiveMapTravelBlocked() {
