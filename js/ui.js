@@ -3,8 +3,6 @@ let lastHeavyUiRefreshAt = 0;
 let lastPassiveTreeDrawAt = 0;
 let lastPassiveTreeSignature = '';
 let cachedTooltipStats = null;
-let activeItemTooltipToken = null;
-let activeTooltipId = null;
 let gemTooltipCache = null;
 
 let mobilePipCanvas = null;
@@ -5325,8 +5323,10 @@ function mergeDefaults(save) {
         || (Array.isArray(merged.enemies) && merged.enemies.some(enemy => enemy && enemy.hp > 0))
     ));
     if (!activeBeehiveRuntime) {
+        let staleBeehiveReturnZone = beeHasReturnZone ? merged.beehive.returnZoneId : merged.maxZoneId;
         merged.beehive.inRun = false;
         resetBeehiveRunModifiers(merged.beehive);
+        if (merged.currentZoneId === 'beehive_run') merged.currentZoneId = staleBeehiveReturnZone;
     }
     if (merged.beehive && merged.beehive.inRun) {
         merged.combatHalted = !merged.beehive.awaitingClear;

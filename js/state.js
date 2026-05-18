@@ -947,28 +947,31 @@ const EXPERT_EXP_GUIDES = {
   ]
 };
 function ensureExpertiseState(){
-  game.expertise=(game.expertise&&typeof game.expertise==='object')?game.expertise:{};
-  game.expertise.levels=game.expertise.levels||{};
-  game.expertise.exp=game.expertise.exp||{};
-  game.expertise.nodes=game.expertise.nodes||{};
-  game.expertise.unlockHistory=(game.expertise.unlockHistory&&typeof game.expertise.unlockHistory==='object')?game.expertise.unlockHistory:{};
-  game.expertise.unlockedExperts=Array.isArray(game.expertise.unlockedExperts)?game.expertise.unlockedExperts:[];
-  game.expertise.favors=(game.expertise.favors&&typeof game.expertise.favors==='object')?game.expertise.favors:{};
+  let runtimeGame = (typeof game !== 'undefined' && game && typeof game === 'object') ? game : ((window.game && typeof window.game === 'object') ? window.game : JSON.parse(JSON.stringify(defaultGame)));
+  game = runtimeGame;
+  window.game = runtimeGame;
+  let st = (runtimeGame.expertise && typeof runtimeGame.expertise === 'object') ? runtimeGame.expertise : (runtimeGame.expertise = {});
+  st.levels=st.levels||{};
+  st.exp=st.exp||{};
+  st.nodes=st.nodes||{};
+  st.unlockHistory=(st.unlockHistory&&typeof st.unlockHistory==='object')?st.unlockHistory:{};
+  st.unlockedExperts=Array.isArray(st.unlockedExperts)?st.unlockedExperts:[];
+  st.favors=(st.favors&&typeof st.favors==='object')?st.favors:{};
   EXPERT_IDS.forEach(id=>{
-    game.expertise.levels[id]=Math.max(1,Math.min(30,Math.floor(game.expertise.levels[id]||1)));
-    game.expertise.exp[id]=Math.max(0,Math.floor(game.expertise.exp[id]||0));
-    game.expertise.unlockHistory[id]=Array.isArray(game.expertise.unlockHistory[id])?game.expertise.unlockHistory[id].filter(row=>row&&Number.isFinite(row.level)&&typeof row.title==='string'):[];
-    let historyLevels=new Set(game.expertise.unlockHistory[id].map(row=>row.level));
-    getExpertUnlocks(id).filter(row=>row.level<=game.expertise.levels[id]).forEach(row=>{
-      if(!historyLevels.has(row.level)){ game.expertise.unlockHistory[id].push({level:row.level,title:row.title,desc:row.desc||'',at:0}); historyLevels.add(row.level); }
+    st.levels[id]=Math.max(1,Math.min(30,Math.floor(st.levels[id]||1)));
+    st.exp[id]=Math.max(0,Math.floor(st.exp[id]||0));
+    st.unlockHistory[id]=Array.isArray(st.unlockHistory[id])?st.unlockHistory[id].filter(row=>row&&Number.isFinite(row.level)&&typeof row.title==='string'):[];
+    let historyLevels=new Set(st.unlockHistory[id].map(row=>row.level));
+    getExpertUnlocks(id).filter(row=>row.level<=st.levels[id]).forEach(row=>{
+      if(!historyLevels.has(row.level)){ st.unlockHistory[id].push({level:row.level,title:row.title,desc:row.desc||'',at:0}); historyLevels.add(row.level); }
     });
   });
-  game.expertise.expertPointBonus=Math.max(0,Math.floor(game.expertise.expertPointBonus||0));
-  game.expertise.loopExpCaps=game.expertise.loopExpCaps||{};
-  const currentSeason = Math.max(1, Math.floor(game.season || 1));
-  if (!Number.isFinite(game.expertise.loopExpCaps.season)) game.expertise.loopExpCaps.season = currentSeason;
-  if (game.expertise.loopExpCaps.season !== currentSeason) setExpertiseLoopCapsForSeason(currentSeason);
-  return game.expertise;
+  st.expertPointBonus=Math.max(0,Math.floor(st.expertPointBonus||0));
+  st.loopExpCaps=st.loopExpCaps||{};
+  const currentSeason = Math.max(1, Math.floor(runtimeGame.season || 1));
+  if (!Number.isFinite(st.loopExpCaps.season)) st.loopExpCaps.season = currentSeason;
+  if (st.loopExpCaps.season !== currentSeason) st.loopExpCaps = { season: currentSeason, total: {}, bySource: {} };
+  return st;
 }
 function getExpertLevel(id){return ensureExpertiseState().levels[id]||1;}
 function getExpertExp(id){return ensureExpertiseState().exp[id]||0;}
