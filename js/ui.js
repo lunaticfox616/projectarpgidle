@@ -3,8 +3,6 @@ let lastHeavyUiRefreshAt = 0;
 let lastPassiveTreeDrawAt = 0;
 let lastPassiveTreeSignature = '';
 let cachedTooltipStats = null;
-let activeItemTooltipToken = null;
-let activeTooltipId = null;
 let gemTooltipCache = null;
 
 let mobilePipCanvas = null;
@@ -3367,7 +3365,14 @@ function updateCombatUI(pStats) {
     let inlineZoneEl = document.getElementById('ui-combat-zone-inline');
     if (inlineZoneEl) inlineZoneEl.innerText = zoneText;
 
-    if (game.moveTimer > 0) {
+    let pendingWoodsmanEntrance = !!game.woodsmanEntrancePending && zone && zone.type === 'outsideChaos';
+    if (pendingWoodsmanEntrance) {
+        let totalTime = Math.max(0.1, Number(game.moveTotalTime) || 3);
+        let readyPct = Math.min(100, Math.max(0, (1 - Math.max(0, game.moveTimer || 0) / totalTime) * 100));
+        setTextById('ui-progress-label', '☠️ 나무꾼 등장 대기');
+        setTextById('ui-move-time-text', game.moveTimer > 0 ? `${Math.max(0, game.moveTimer).toFixed(1)}초` : '등장 임박');
+        document.getElementById('ui-move-bar').style.width = readyPct + '%';
+    } else if (game.moveTimer > 0) {
         let readyPct = Math.min(100, (1 - game.moveTimer / game.moveTotalTime) * 100);
         setTextById('ui-progress-label', game.isTownReturning ? '🏕️ 재정비 중...' : '🚶 다음 구간 준비');
         setTextById('ui-move-time-text', `${Math.max(0, game.moveTimer).toFixed(1)}초`);
@@ -5325,8 +5330,10 @@ function mergeDefaults(save) {
         || (Array.isArray(merged.enemies) && merged.enemies.some(enemy => enemy && enemy.hp > 0))
     ));
     if (!activeBeehiveRuntime) {
+        let staleBeehiveReturnZone = beeHasReturnZone ? merged.beehive.returnZoneId : merged.maxZoneId;
         merged.beehive.inRun = false;
         resetBeehiveRunModifiers(merged.beehive);
+        if (merged.currentZoneId === 'beehive_run') merged.currentZoneId = staleBeehiveReturnZone;
     }
     if (merged.beehive && merged.beehive.inRun) {
         merged.combatHalted = !merged.beehive.awaitingClear;
@@ -5383,6 +5390,7 @@ function mergeDefaults(save) {
     merged.loopCount = Math.max(0, Math.floor(clampFiniteNumber(merged.loopCount, defaultGame.loopCount, 0)));
     merged.woodsmanDefeatAttempts = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanDefeatAttempts, defaultGame.woodsmanDefeatAttempts, 0)));
     merged.woodsmanSimulatorSeenLoop = !!merged.woodsmanSimulatorSeenLoop;
+    merged.woodsmanEntrancePending = !!(merged.woodsmanEntrancePending && merged.currentZoneId === OUTSIDE_CHAOS_ZONE_ID);
     merged.woodsmanCurseActive = !!merged.woodsmanCurseActive;
     merged.woodsmanCurseDamageTakenStacks = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanCurseDamageTakenStacks, defaultGame.woodsmanCurseDamageTakenStacks || 0, 0)));
     merged.woodsmanCurseLastTickAt = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanCurseLastTickAt, defaultGame.woodsmanCurseLastTickAt || 0, 0)));

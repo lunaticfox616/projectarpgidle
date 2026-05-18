@@ -406,6 +406,7 @@ function enforceWoodsmanBuildLock() {
 }
 
 function clearWoodsmanBuildLock() {
+    game.woodsmanEntrancePending = false;
     resetWoodsmanCurse();
     if (game.woodsmanBuildLock && game.woodsmanBuildSnapshot) {
         // 마지막으로 스냅샷 기준으로 복원
@@ -487,7 +488,9 @@ function coreLoop() {
     }
     if (game.combatHalted && game.moveTimer > 0) {
         game.moveTimer -= 0.1;
-        if (game.moveTimer <= 0) startEncounterRun();
+        if (game.moveTimer <= 0) {
+            if (!finishWoodsmanEntrance()) startEncounterRun();
+        }
         return;
     }
     if (game.combatHalted) {
@@ -537,8 +540,12 @@ function coreLoop() {
                     return;
                 }
             }
-            startEncounterRun();
+            if (!finishWoodsmanEntrance()) startEncounterRun();
         }
+        return;
+    }
+    if (game.woodsmanEntrancePending) {
+        finishWoodsmanEntrance();
         return;
     }
 
@@ -1054,7 +1061,6 @@ function getPlayerStats() {
     let bossDamageDealtMultiplier = 1;
     let bossTakenDamageMultiplier = 1;
     let ailmentResistBonusPct = 0;
-    let swiftOpeningDamageMultiplier = 1;
     let swiftOpeningTakenMultiplier = 1;
     let guardianReflectDamage = 0;
     let guardianBlockChance = 0;
@@ -1196,7 +1202,6 @@ function getPlayerStats() {
             }
         }
         if (hasKeystone('g5')) {
-            if (game.gladiatorSwiftOpeningReady) swiftOpeningDamageMultiplier = 1.30;
             if (game.gladiatorSwiftGuardReady) swiftOpeningTakenMultiplier = 0.70;
         }
         if (hasKeystone('g7')) {
@@ -1380,7 +1385,6 @@ function getPlayerStats() {
     armorReduction = Math.min(90, (finalArmor / (finalArmor + referenceIncomingPhysical * 10)) * 100);
     evadeChance = Math.min(90, (finalEvasion / (finalEvasion + enemyAccuracy)) * 100);
 
-    if (swiftOpeningDamageMultiplier !== 1) finalBaseDmg = Math.floor(finalBaseDmg * swiftOpeningDamageMultiplier);
     damageScales.dot = dotMultiplier;
     damageScales.dotStat = dotStatMultiplier;
     damageScales.instantDamageMultiplier = instantDamageMultiplier;
@@ -2468,6 +2472,7 @@ function startMoving(isTown) {
     game.playerLeechInstances = [];
     game.gladiatorSwiftOpeningReady = true;
     game.gladiatorSwiftGuardReady = true;
+    game.woodsmanEntrancePending = false;
     resetWoodsmanCurse();
     let v = game.voidRift;
     if (v && v.active) {
@@ -2601,6 +2606,7 @@ function spawnEncounterMarker(marker) {
 function advanceMapProgress(pStats) {
     if (game.moveTimer > 0) return;
     let zone = getZone(game.currentZoneId) || getZone(0);
+    if (zone && zone.type === 'outsideChaos' && game.woodsmanEntrancePending) return;
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) return;
     ensureEncounterRun();
     if (game.runProgress >= 100) return;
@@ -4031,6 +4037,28 @@ function addWoodsmanPendingScore(scoreGain) {
     game.woodsmanLifetimeScore = Math.max(Math.floor(game.woodsmanLifetimeScore || 0), score);
 }
 
+const WOODSMAN_ENTRANCE_DELAY_SECONDS = 3;
+
+function finishWoodsmanEntrance() {
+    let zone = getZone(game.currentZoneId);
+    if (!game.woodsmanEntrancePending) return false;
+    game.woodsmanEntrancePending = false;
+    if (!zone || zone.type !== 'outsideChaos') return false;
+    game.moveTimer = 0;
+    game.moveTotalTime = WOODSMAN_ENTRANCE_DELAY_SECONDS;
+    game.runProgress = 100;
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.enemies = [];
+    game.inEncounter = true;
+    startWoodsmanCurse();
+    addLog('☠️ 하늘이 갈라지고 도끼날의 그림자가 전장을 뒤덮습니다.', 'loot-unique');
+    addLog('🪓 혼돈 밖의 나무꾼이 웅장하게 등장했습니다.', 'loot-unique');
+    spawnEncounterMarker({ at: 100, count: 1, boss: true });
+    updateStaticUI();
+    return true;
+}
+
 
 function enterOutsideChaos() {
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
@@ -4040,18 +4068,18 @@ function enterOutsideChaos() {
     game.woodsmanBuildLock = true;
     game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
     game.killsInZone = 0;
-    game.runProgress = 100;
-    game.moveTimer = 0;
+    game.runProgress = 0;
+    game.moveTotalTime = WOODSMAN_ENTRANCE_DELAY_SECONDS;
+    game.moveTimer = WOODSMAN_ENTRANCE_DELAY_SECONDS;
+    game.isTownReturning = false;
+    game.combatHalted = false;
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.enemies = [];
-    startWoodsmanCurse();
-    addLog('☠️ 금단의 경계 너머, 나무꾼이 모습을 드러냅니다.', 'loot-unique');
-    game.inEncounter = true;
-    game.moveTimer = 0;
-    game.runProgress = 100;
-    // 나무꾼 전투는 즉시 보스 스폰으로 진입
-    spawnEncounterMarker({ at: 100, count: 1, boss: true });
+    game.inEncounter = false;
+    game.woodsmanEntrancePending = true;
+    resetWoodsmanCurse();
+    addLog('☠️ 금단의 경계 너머로 발을 들였습니다. 혼돈이 몇 초간 숨을 고릅니다.', 'loot-unique');
     updateStaticUI();
 }
 
