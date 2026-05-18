@@ -169,9 +169,18 @@ function toggleItemLockById(itemId) {
     return true;
 }
 
+function isBeehiveRunLockedForMapTravel() {
+    return !!(game && game.beehive && game.beehive.inRun);
+}
+
+function warnBeehiveMapTravelBlocked() {
+    if (typeof addLog === 'function') addLog('벌집 원정 중에는 [던전 포기] 전까지 다른 지역으로 이동할 수 없습니다.', 'attack-monster');
+    return true;
+}
+
 function changeZone(id) {
+    if (isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     game.inTicketBossFight = false;
-    if (game.beehive && game.beehive.inRun) return addLog('벌집 원정 중에는 던전 포기 전까지 다른 지역으로 이동할 수 없습니다.', 'attack-monster');
     if (typeof id === 'number' && id > game.maxZoneId) return;
     if (id === METEOR_FALL_ZONE_ID) {
         let st = ensureStarWedgeState();
@@ -215,7 +224,7 @@ function changeZone(id) {
 }
 
 
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid });
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked });
 
 // Phase-3 extracted market/crafting service handlers.
 function marketResetPassiveTreeByDivine() {
