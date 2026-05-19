@@ -3893,12 +3893,12 @@ function handlePlayerDefeat(zone, pStats, message, options) {
 function getPlayerAilmentResistChance(type, pStats) {
     if (!pStats) return 0;
     let res = 0;
-    if (type === 'ignite') res = pStats.resF || 0;
-    else if (type === 'chill' || type === 'freeze') res = pStats.resC || 0;
-    else if (type === 'shock') res = pStats.resL || 0;
-    else if (type === 'poison') res = pStats.resChaos || 0;
-    else if (type === 'bleed') res = pStats.dr || 0;
-    return Math.max(0, Math.min(0.95, (res + (pStats.ailmentResistBonusPct || 0)) / 100));
+    if (type === 'ignite') res = (pStats.resF || 0) + (pStats.ailResIgnite || 0);
+    else if (type === 'chill' || type === 'freeze') res = (pStats.resC || 0) + (pStats.ailResFreeze || 0);
+    else if (type === 'shock') res = (pStats.resL || 0) + (pStats.ailResShock || 0);
+    else if (type === 'poison') res = (pStats.resChaos || 0) + (pStats.ailResPoison || 0);
+    else if (type === 'bleed') res = (pStats.dr || 0) + (pStats.ailResBleed || 0);
+    return Math.max(0, Math.min(1.00, (res + (pStats.ailmentResistBonusPct || 0)) / 100));
 }
 
 function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage) {

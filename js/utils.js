@@ -203,9 +203,14 @@ function getStatName(statId) {
         armor: '방어도',
         evasion: '회피',
         energyShield: '에너지 보호막',
-        armorPct: '방어도 증가(%)',
-        evasionPct: '회피 증가(%)',
-        energyShieldPct: '에너지 보호막 증가(%)',
+        armorPct: '방어도(%)',
+        evasionPct: '회피(%)',
+        ailResIgnite: '점화 저항 확률(%)',
+        ailResShock: '감전 저항 확률(%)',
+        ailResFreeze: '냉기 저항 확률(%)',
+        ailResPoison: '중독 저항 확률(%)',
+        ailResBleed: '출혈 저항 확률(%)',
+        energyShieldPct: '에너지 보호막(%)',
         energyShieldRegen: '에너지 보호막 재생률(%)',
         energyShieldRechargeFaster: '보호막 재생 준비시간 감소(초)'
     };
@@ -233,6 +238,7 @@ function createEmptyStatBucket() {
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0,
+        ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
         takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, igniteDamageMultiplierPct: 0, accuracyBonusPct: 0
     };
@@ -329,6 +335,11 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'energyShield') bucket.energyShield += value;
     else if (statId === 'armorPct') bucket.armorPct += value;
     else if (statId === 'evasionPct') bucket.evasionPct += value;
+    else if (statId === 'ailResBleed') bucket.ailResBleed += value;
+    else if (statId === 'ailResPoison') bucket.ailResPoison += value;
+    else if (statId === 'ailResFreeze') bucket.ailResFreeze += value;
+    else if (statId === 'ailResShock') bucket.ailResShock += value;
+    else if (statId === 'ailResIgnite') bucket.ailResIgnite += value;
     else if (statId === 'energyShieldPct') bucket.energyShieldPct += value;
     else if (statId === 'energyShieldRegen') bucket.energyShieldRegen += value;
     else if (statId === 'energyShieldRechargeFaster') bucket.energyShieldRechargeFaster += value;

@@ -5509,7 +5509,16 @@ const JEWEL_OPTION_POOL = [
     { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 },
     { id: 'regenSuppress', name: '봉쇄 파편', min: 0.05, max: 0.12, step: 0.01 },
     { id: 'minDmgRoll', name: '하한 수정', min: 1, max: 3 },
-    { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 }
+    { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 },
+    { id: 'armorPct', name: '강화 외피', min: 4, max: 10 },
+    { id: 'evasionPct', name: '유동 보법', min: 4, max: 10 },
+    { id: 'dr', name: '강인 파편', min: 2, max: 5 },
+    { id: 'energyShieldPct', name: '보호막 기동', min: 4, max: 10 },
+    { id: 'ailResIgnite', name: '소염 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResShock', name: '절연 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResFreeze', name: '방한 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResPoison', name: '해독 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResBleed', name: '지혈 수정', min: 12.5, max: 50, step: 0.5 },
 ];
 const JEWEL_HIDDEN_TIER_COUNT = 5;
 const JEWEL_PETITE_OPTION_POOL = [
@@ -5568,6 +5577,18 @@ function cloneJewelStat(stat) {
 }
 
 function rollJewelStat(option) {
+    if (!option) return null;
+    let ailResIds = new Set(['ailResIgnite','ailResShock','ailResFreeze','ailResPoison','ailResBleed']);
+    if (ailResIds.has(option.id)) {
+        let tier = 1 + Math.floor(Math.random() * JEWEL_HIDDEN_TIER_COUNT);
+        let tierRanges = { 1:[12.5,25], 2:[17,30], 3:[22,36], 4:[26,43], 5:[30,50] };
+        let rng = tierRanges[tier] || [12.5,50];
+        let step = 0.5;
+        let slots = Math.max(0, Math.floor(((rng[1]-rng[0])/step)+0.000001));
+        let val = rng[0] + Math.floor(Math.random() * (slots + 1)) * step;
+        val = Number(val.toFixed(2));
+        return normalizeJewelStat({ id: option.id, val: val, valMin: rng[0], valMax: rng[1], tier: tier });
+    }
     let hasDecimalRange = !Number.isInteger(Number(option.min)) || !Number.isInteger(Number(option.max));
     let step = Number.isFinite(option.step) && option.step > 0 ? option.step : (hasDecimalRange ? 0.1 : 1);
     let slots = Math.max(0, Math.floor(((option.max - option.min) / step) + 0.000001));
