@@ -2173,11 +2173,19 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
 }
 
 
-function getTierDropMulWithCaps(tier) {
+function getTierDropMulWithCaps(tier, zone) {
     let t = Math.max(1, Math.floor(Number(tier) || 1));
     let preSoft = Math.min(10, t - 1);
     let postSoft = Math.max(0, Math.min(20, t) - 10);
-    return 1 + preSoft * 0.02 + postSoft * 0.008;
+    let baseMul = 1 + preSoft * 0.02 + postSoft * 0.008;
+    if (zone && zone.type === 'labyrinth') {
+        let floor = Math.max(1, Math.floor(zone.floor || 1));
+        let over50 = Math.max(0, floor - 50);
+        let over100 = Math.max(0, floor - 100);
+        let damp = 1 - Math.min(0.55, over50 * 0.003 + over100 * 0.0025);
+        return Math.max(0.7, baseMul * damp);
+    }
+    return baseMul;
 }
 
 function createEnemy(zone, marker, groupIndex) {
@@ -2274,7 +2282,7 @@ function createEnemy(zone, marker, groupIndex) {
         traitName: trait ? trait.name : null,
         leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
         expMul: trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1,
-        dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier),
+        dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier, zone),
         isSky: isSky
     };
     if (zone.type === 'outsideChaos') enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);

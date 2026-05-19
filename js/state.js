@@ -184,7 +184,11 @@ function getZone(id) {
     }
     if (id === LABYRINTH_ZONE_ID) {
         let floor = Math.max(1, game.labyrinthFloor || 1);
-        return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: Math.min(20, 7 + Math.floor(floor / 3)), maxKills: 1, ele: 'chaos', floor: floor };
+        let baseTier = Math.min(20, 7 + Math.floor(floor / 3));
+        let over50 = Math.max(0, floor - 50);
+        let over100 = Math.max(0, floor - 100);
+        let extraTier = Math.floor(over50 / 5) + Math.floor(over100 / 3);
+        return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor };
     }
     if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) {
         let depth = getAbyssDepthFromZoneId(id);
