@@ -1171,11 +1171,11 @@ const TALISMAN_UNIQUE_POOL = [
 function rollTalismanCandidate(currencyKey) {
     let isStrong = currencyKey === 'strongSealShard';
     let isRadiant = currencyKey === 'radiantSealShard';
-    let forceUnique = Math.random() < (isRadiant ? 0.62 : (isStrong ? 0.18 : 0.01));
+    let forceUnique = Math.random() < (isRadiant ? 0.24 : (isStrong ? 0.03 : 0.005));
     if (forceUnique) {
         let row = rndChoice(TALISMAN_UNIQUE_POOL);
         let shapeKey = row.shape || rndChoice(['Z','S','L','J','I','O','T']);
-        let tal = { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x,y]) => ({x,y})), rarity: row.rarity || '고유', source: isStrong ? 'strongSealShard' : 'sealShard', isUnique: true, uniqueId: row.id, name: row.name, special: row.special || null, markDir: rndChoice(['up','right','down','left']) };
+        let tal = { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x,y]) => ({x,y})), rarity: row.rarity || '고유', source: isRadiant ? 'radiantSealShard' : (isStrong ? 'strongSealShard' : 'sealShard'), isUnique: true, uniqueId: row.id, name: row.name, special: row.special || null, markDir: rndChoice(['up','right','down','left']) };
         if (row.special === 'temperance') {
             tal.stats = Array.from({length:3}, ()=>{ let o=rndChoice(TALISMAN_OPTION_POOL); let v=o.min + Math.random()*(o.max-o.min); return { stat:o.stat, label:o.label, value:Number(v.toFixed((o.step||1)<1?1:0))};});
         } else if (row.special === 'elementFocus') {
@@ -1264,6 +1264,16 @@ function destroyTalismanFromInventory(talismanId) {
     game.talismanInventory = inv.filter(t => t.id !== talismanId);
     if (game.talismanSelectedId === talismanId) game.talismanSelectedId = null;
     addLog(`🗑️ 부적 파괴: [${target.shape}] ${target.statName} +${target.value}`, 'attack-monster');
+    updateStaticUI();
+}
+
+function salvageAllTalismansInInventory() {
+    let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
+    if (inv.length <= 0) return addLog('일괄 해체할 부적이 없습니다.', 'attack-monster');
+    if (!confirm(`인벤토리 부적 ${inv.length}개를 모두 해체할까요? (보드에 배치된 부적은 유지)`)) return;
+    game.talismanInventory = [];
+    game.talismanSelectedId = null;
+    addLog(`🗑️ 부적 일괄 해체: ${inv.length}개`, 'attack-monster');
     updateStaticUI();
 }
 
@@ -1915,7 +1925,32 @@ function showTalismanBoardTooltip(event, talismanId) {
     setTalismanHoverGroup(talismanId);
     let min = Number.isFinite(placed.valueMin) ? placed.valueMin : placed.value;
     let max = Number.isFinite(placed.valueMax) ? placed.valueMax : placed.value;
-    let html = `<div class="tooltip-title">[${escapeHTML(placed.shape || '?')}] ${escapeHTML(placed.statName || '')}</div><div class="tooltip-line">획득 수치: +${formatValue(placed.stat, placed.value)}</div><div class="tooltip-line">가능 범위: +${formatValue(placed.stat, min)} ~ +${formatValue(placed.stat, max)}</div><div class="tooltip-line">희귀도: ${escapeHTML(placed.rarity || 'normal')}</div>`;
+    let specialDesc = getTalismanSpecialDescription(placed);
+    let html = `<div class="tooltip-title">[${escapeHTML(placed.shape || '?')}] ${escapeHTML(placed.statName || '')}</div><div class="tooltip-line">획득 수치: +${formatValue(placed.stat, placed.value)}</div><div class="tooltip-line">가능 범위: +${formatValue(placed.stat, min)} ~ +${formatValue(placed.stat, max)}</div><div class="tooltip-line">희귀도: ${escapeHTML(placed.rarity || 'normal')}</div>${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
+}
+
+function getTalismanSpecialDescription(talisman) {
+    if (!talisman || !talisman.special) return '';
+    if (talisman.special === 'gravity') return '인접한 부적 수만큼 피해가 증폭됩니다.';
+    if (talisman.special === 'simpleCopy') return '인접한 일반 부적 1개의 수치를 복제합니다.';
+    if (talisman.special === 'temperance') return '무작위 3개 능력치를 동시에 부여합니다.';
+    if (talisman.special === 'pride') return '인접한 고유 부적 수에 비례해 피해가 증폭됩니다.';
+    if (talisman.special === 'moment') return `보스 체력 5% 이하 즉시 처형, 보스 최종 피해 +${talisman.bossFinalDmgMin || 5}~${talisman.bossFinalDmgMax || 15}%`;
+    if (talisman.special === 'elementFocus') return '특정 계열 젬 레벨/피해/저항을 함께 강화합니다.';
+    return talisman.special;
+}
+
+function showTalismanInventoryTooltip(event, talismanId) {
+    let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
+    let t = inv.find(row => row && row.id === talismanId);
+    if (!t) return;
+    let min = Number.isFinite(t.valueMin) ? t.valueMin : t.value;
+    let max = Number.isFinite(t.valueMax) ? t.valueMax : t.value;
+    let specialDesc = getTalismanSpecialDescription(t);
+    let hasPrimaryStat = !!t.stat;
+    let statLine = hasPrimaryStat ? `<div class="tooltip-line">획득 수치: +${formatValue(t.stat, t.value)}</div><div class="tooltip-line">가능 범위: +${formatValue(t.stat, min)} ~ +${formatValue(t.stat, max)}</div>` : '';
+    let html = `<div class="tooltip-title">[${escapeHTML(t.shape || '?')}] ${escapeHTML(t.name || t.statName || '부적')}</div>${statLine}<div class="tooltip-line">희귀도: ${escapeHTML(t.rarity || 'normal')}</div>${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
 }
 
@@ -2070,6 +2105,9 @@ function showItemTooltip(event, idx, isEquip) {
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${item.slot.replace(/[12]/, '')}] ${item.name}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>`;
     html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}</div>`;
     html += `<div class="tooltip-line" style="color:#a8c0da;">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
+    if (item.rarity === 'unique' && item.uniqueEffect) {
+        html += `<div class="tooltip-line" style="margin-top:6px; color:#d7b8ff;">고유 효과: ${escapeHTML(item.uniqueEffect)}</div>`;
+    }
     function getItemDefenseView(target) {
         let base = { armor: 0, evasion: 0, energyShield: 0 };
         let flat = { armor: 0, evasion: 0, energyShield: 0 };
@@ -3778,7 +3816,8 @@ function performUpdateStaticUI() {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';
                 let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
                 let petite = isJewelPetiteStat(stat) ? '쁘띠 ' : '';
-                return `${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${range}${tier}`;
+                let tone = getJewelStatToneColor(stat.id);
+                return `<span style="color:${tone};">${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}</span>${range}${tier}`;
             }).join('<br>');
             return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:86px; border:2px solid ${getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:#d7e9ff;">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
         }).join('');
@@ -3788,13 +3827,27 @@ function performUpdateStaticUI() {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';
                 let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
                 let petite = isJewelPetiteStat(stat) ? '쁘띠 ' : '';
-                return `${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${range}${tier}`;
+                let tone = getJewelStatToneColor(stat.id);
+                return `<span style="color:${tone};">${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}</span>${range}${tier}`;
             }).join('<br>');
             return `<div class="item-card ${selected}" style="min-height:72px;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button onclick="removeBeeswaxFromJewel(${idx})">밀랍 제거</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="salvageJewel(${idx})">해체</button></div></div>`;
         }).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
     }
 
-
+function getJewelStatToneColor(statId) {
+    if (!statId) return '#d7e9ff';
+    if (['firePctDmg', 'resF', 'igniteChance'].includes(statId)) return '#ff9a76';
+    if (['coldPctDmg', 'resC', 'freezeChance'].includes(statId)) return '#8fd3ff';
+    if (['lightPctDmg', 'resL', 'shockChance'].includes(statId)) return '#ffe083';
+    if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(statId)) return '#c7a6ff';
+    if (['armor', 'armorPct', 'dr'].includes(statId)) return '#ffd2a6';
+    if (['evasion', 'evasionPct'].includes(statId)) return '#baffc2';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(statId)) return '#b9c6ff';
+    if (['flatHp', 'pctHp', 'regen'].includes(statId)) return '#ffb3b3';
+    if (['crit', 'critDmg'].includes(statId)) return '#ffd6f2';
+    if (['aspd', 'move'].includes(statId)) return '#fff3a8';
+    return '#d7e9ff';
+}
 
 function buildJewelRangeTooltipHtml(jewel) {
     if (!jewel) return '<div class="tooltip-title">주얼</div><div class="tooltip-line">정보 없음</div>';
@@ -3808,7 +3861,8 @@ function buildJewelRangeTooltipHtml(jewel) {
         let tier = Number.isFinite(Number(stat.tier)) && !petite ? ` <span style="color:#ffd68a;">T${Math.floor(stat.tier)}</span>` : '';
         let petiteLabel = petite ? '<span style="color:#b6d7ff;">쁘띠 </span>' : '';
         let expireText = petite ? ' · 융합 시 소멸' : '';
-        return `<div class="tooltip-line">${petiteLabel}${getStatName(stat.id)}: +${formatJewelStatValue(stat.id, stat.val)}${tier} <span style="color:#9fb4d1;">(고정 범위 ${min}~${max}${expireText})</span></div>`;
+        let tone = getJewelStatToneColor(stat.id);
+        return `<div class="tooltip-line"><span style="color:${tone};">${petiteLabel}${getStatName(stat.id)}: +${formatJewelStatValue(stat.id, stat.val)}${tier}</span> <span style="color:#9fb4d1;">(고정 범위 ${min}~${max}${expireText})</span></div>`;
     }).join('');
     let tierLine = tierSummary ? `<div class="tooltip-line" style="color:#9fb4d1;">숨겨진 티어: T${tierSummary}</div>` : '';
     return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
@@ -4481,6 +4535,7 @@ function buildCraftActionButtons(item) {
                 <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
                 <button onclick="startTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란한 기운] 봉인편린 해제</button>
                 <button onclick="expandTalismanBoard()" ${(talismanUnlockCost.sealShard || 0) <= 0 ? 'disabled' : ''}>칸 해금 안내 (${formatTalismanUnlockCostLabel(talismanUnlockCost)})</button>
+                <button onclick="salvageAllTalismansInInventory()" ${(game.talismanInventory || []).length <= 0 ? 'disabled' : ''} style="background:#6e3f3f; border-color:#8f5959;">부적 일괄 해체</button>
             </div>`;
     } else {
         let shapeStyle = getTalismanShapeStyle(unseal.current.shape);
@@ -4496,7 +4551,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-talisman-inventory').innerHTML = game.talismanInventory.map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
-        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.name || t.statName || '부적'} ${t.stat ? ` · ${t.statName} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 특수: ${t.special}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
+        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.name || t.statName || '부적'} ${t.stat ? ` · ${t.statName} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 효과: ${getTalismanSpecialDescription(t)}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
@@ -5331,7 +5386,7 @@ function mergeDefaults(save) {
         }
     }
     merged.talismanUnlockPickMode = !!merged.talismanUnlockPickMode;
-    merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.stat && t.shape) : [];
+    merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.shape && (t.stat || (Array.isArray(t.stats) && t.stats.length > 0) || t.special || t.isUnique)) : [];
     merged.talismanBoard = Array.isArray(merged.talismanBoard) ? merged.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
     while (merged.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) merged.talismanBoard.push(null);
     merged.talismanPlacements = (merged.talismanPlacements && typeof merged.talismanPlacements === 'object') ? merged.talismanPlacements : {};

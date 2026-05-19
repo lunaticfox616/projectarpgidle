@@ -4915,12 +4915,14 @@ function liberateSelectedEncroachedItem() {
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
     let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
+    // 고유 아이템/장신구는 방어 타입 제한 대상에서 제외
+    let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
     let baseDefenseTypes = new Set((item.baseStats || [])
         .map(stat => stat && stat.id)
         .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
     return MOD_DB.filter(mod => {
         let statId = mod.statId || mod.id;
-        if (defenseSlots.has(item.slot) && ['armor','evasion','energyShield','armorPct','evasionPct','energyShieldPct'].includes(statId)) {
+        if (!bypassDefenseTypeRule && ['armor','evasion','energyShield','armorPct','evasionPct','energyShieldPct'].includes(statId)) {
             if (baseDefenseTypes.size > 0) {
                 if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
                 if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
