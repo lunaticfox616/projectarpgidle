@@ -5381,6 +5381,7 @@ function awardCurrency(currencyKey, amount) {
     }
 }
 
+
 function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let dropBonus = getCodexBonusPct() / 100;

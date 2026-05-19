@@ -1188,7 +1188,7 @@ function rollTalismanCandidate(currencyKey) {
             let gemLv = 1 + Math.floor(Math.random()*3);
             let inc = 5 + Math.floor(Math.random()*11);
             let res = 5 + Math.floor(Math.random()*11);
-            let map = { fire:['gemLevel','firePctDmg','resF','화염'], cold:['gemLevel','coldPctDmg','resC','냉기'], light:['gemLevel','lightPctDmg','resL','번개'], phys:['gemLevel','physPctDmg','dr','물리'], chaos:['gemLevel','chaosPctDmg','resChaos','카오스'] }[row.elem];
+            let map = { fire:['fireGemLevel','firePctDmg','resF','화염'], cold:['coldGemLevel','coldPctDmg','resC','냉기'], light:['lightGemLevel','lightPctDmg','resL','번개'], phys:['physGemLevel','physPctDmg','dr','물리'], chaos:['chaosGemLevel','chaosPctDmg','resChaos','카오스'] }[row.elem];
             tal.shape = rndChoice(['Z','S','L','J','I','O','T']); tal.cells = TALISMAN_SHAPES[tal.shape].map(([x,y])=>({x,y}));
             tal.stats=[{stat:map[0],label:`${map[3]} 스킬 젬 레벨`,value:gemLv},{stat:map[1],label:`${map[3]} 스킬 피해(%)`,value:inc},{stat:map[2],label:`${map[3]} 저항(%)`,value:res}];
         } else if (row.stats) tal.stats=row.stats.map(v=>({...v}));
@@ -2109,6 +2109,7 @@ function showGemTooltip(event, type, name) {
 
 function showItemTooltip(event, idx, isEquip) {
     let item = isEquip ? game.equipment[idx] : game.inventory[idx];
+    let resolveItemStatTone = (statId) => (typeof getItemStatToneColor === 'function') ? getItemStatToneColor(statId) : '#d7e9ff';
     if (!item) return;
     activeItemTooltipToken = isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`;
     let tt = document.getElementById('item-tooltip-box');
@@ -2153,7 +2154,7 @@ function showItemTooltip(event, idx, isEquip) {
             if (stat.id === 'armor' || stat.id === 'evasion' || stat.id === 'energyShield') return;
             let cur = Number(stat.val || 0);
             let { min, max } = getBaseRollRange(stat);
-            html += `<div class="tooltip-line"><span style="color:${getItemStatToneColor(stat.id)};">${stat.statName} +${formatValue(stat.id, cur)}</span> <span style="color:#888;">(${formatValue(stat.id, min)}~${formatValue(stat.id, max)})</span></div>`;
+            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(stat.id)};">${stat.statName} +${formatValue(stat.id, cur)}</span> <span style="color:#888;">(${formatValue(stat.id, min)}~${formatValue(stat.id, max)})</span></div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
             let label = getStatName(id);
@@ -2167,9 +2168,9 @@ function showItemTooltip(event, idx, isEquip) {
                 rangeText = ` <span style="color:#888;">(${formatValue(id, min)}~${formatValue(id, max)})</span>`;
             }
             if (Math.floor(finalVal) === Math.floor(baseVal)) {
-                html += `<div class="tooltip-line">${label}: <span style="color:${getItemStatToneColor(id)};">${Math.floor(baseVal)}</span>${rangeText}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(baseVal)}</span>${rangeText}</div>`;
             } else {
-                html += `<div class="tooltip-line">${label}: <span style="color:${getItemStatToneColor(id)};">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
             }
         });
     }
@@ -2180,7 +2181,7 @@ function showItemTooltip(event, idx, isEquip) {
         explicitStats.forEach(stat => {
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
             let rangeText = stat.valMin !== undefined && stat.valMax !== undefined ? ` <span style="color:#888;">(${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})</span>${tierText}` : tierText;
-            html += `<div class="tooltip-line"><span style="color:${getItemStatToneColor(stat.id)};">${stat.statName} +${formatValue(stat.id, stat.val)}</span>${rangeText}</div>`;
+            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(stat.id)};">${stat.statName} +${formatValue(stat.id, stat.val)}</span>${rangeText}</div>`;
         });
     } else {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#7f8c8d;">노멀 아이템: 추가 옵션 없음</div>`;
@@ -3830,7 +3831,7 @@ function performUpdateStaticUI() {
                 let tone = getJewelStatToneColor(stat.id);
                 return `<span style="color:${tone};">${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}</span>${range}${tier}`;
             }).join('<br>');
-            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:86px; border:2px solid ${getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:#d7e9ff;">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
+            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:86px; border:2px solid ${getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:#d7e9ff;">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
         }).join('');
         document.getElementById('ui-jewel-inventory').innerHTML = game.jewelInventory.map((jewel, idx) => {
             let selected = (jewelFusionSelection || []).includes(idx) ? 'selected' : '';
@@ -3841,7 +3842,7 @@ function performUpdateStaticUI() {
                 let tone = getJewelStatToneColor(stat.id);
                 return `<span style="color:${tone};">${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}</span>${range}${tier}`;
             }).join('<br>');
-            return `<div class="item-card ${selected}" style="min-height:72px;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button onclick="removeBeeswaxFromJewel(${idx})">밀랍 제거</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="salvageJewel(${idx})">해체</button></div></div>`;
+            return `<div class="item-card ${selected}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button onclick="removeBeeswaxFromJewel(${idx})">밀랍 제거</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="salvageJewel(${idx})">해체</button></div></div>`;
         }).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
     }
 

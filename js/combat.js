@@ -2166,6 +2166,14 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     return Math.min(80, rawMitigation);
 }
 
+
+function getTierDropMulWithCaps(tier) {
+    let t = Math.max(1, Math.floor(Number(tier) || 1));
+    let preSoft = Math.min(10, t - 1);
+    let postSoft = Math.max(0, Math.min(20, t) - 10);
+    return 1 + preSoft * 0.02 + postSoft * 0.008;
+}
+
 function createEnemy(zone, marker, groupIndex) {
     let seasonDepth = Math.max(0, (game.season || 1) - 1);
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
@@ -2260,7 +2268,7 @@ function createEnemy(zone, marker, groupIndex) {
         traitName: trait ? trait.name : null,
         leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
         expMul: trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1,
-        dropMul: trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1,
+        dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier),
         isSky: isSky
     };
     if (zone.type === 'outsideChaos') enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
