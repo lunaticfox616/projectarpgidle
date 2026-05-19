@@ -1458,59 +1458,6 @@ function toggleCodexSlotCollapse(slot) {
     updateStaticUI();
 }
 
-function buildCodexRevealedRollPreview(entry, codexKey) {
-    if (!entry || !Array.isArray(entry.stats)) return [];
-    game.uniqueCodex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
-    let rec = game.uniqueCodex[codexKey] || {};
-    if (Array.isArray(rec.revealedRollPreviewStats) && rec.revealedRollPreviewStats.length > 0) return rec.revealedRollPreviewStats;
-
-    // 실제 드랍 파이프라인(generateUniqueItem)과 동일 경로로 1회 샘플을 만든 뒤 캐시
-    let rolled = [];
-    try {
-        if (typeof generateUniqueItem === 'function') {
-            let zoneTier = Number(entry.reqTier || 1);
-            let prevItemIdCounter = (typeof itemIdCounter !== 'undefined') ? itemIdCounter : null;
-            let prevChase = game.seasonChaseUniqueDropped;
-            let prevLogsLen = Array.isArray(game.logs) ? game.logs.length : 0;
-            let generated = generateUniqueItem(zoneTier, (entry.slots && entry.slots[0]) || null, entry.name);
-            if (generated && Array.isArray(generated.stats)) {
-                rolled = generated.stats.map(stat => ({ id: stat.id, val: stat.val, valMin: stat.valMin, valMax: stat.valMax })).filter(Boolean);
-            }
-            if (prevItemIdCounter !== null) itemIdCounter = prevItemIdCounter;
-            game.seasonChaseUniqueDropped = prevChase;
-            if (Array.isArray(game.logs) && game.logs.length > prevLogsLen) game.logs.length = prevLogsLen;
-        }
-    } catch (_) {}
-
-    // 안전 폴백: 샘플 생성 실패 시 기존 DB 범위 롤 사용
-    if (!Array.isArray(rolled) || rolled.length <= 0) {
-        rolled = entry.stats.map(stat => {
-            if (!stat || !stat.id) return null;
-            let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || 0);
-            let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
-            if (max < min) max = min;
-            let val;
-            if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
-                let minStep = Math.round(min * 10);
-                let maxStep = Math.round(max * 10);
-                let roll = minStep + Math.floor(Math.random() * (maxStep - minStep + 1));
-                val = Math.round(roll) / 10;
-                min = minStep / 10;
-                max = maxStep / 10;
-            } else {
-                min = Math.floor(min);
-                max = Math.floor(max);
-                val = min + Math.floor(Math.random() * (max - min + 1));
-            }
-            return { id: stat.id, val: val, valMin: min, valMax: max };
-        }).filter(Boolean);
-    }
-
-    rec.revealedRollPreviewStats = rolled;
-    game.uniqueCodex[codexKey] = rec;
-    return rolled;
-}
-
 function renderCodexStatsHtml(entry, stored, codexKey) {
     let statList = [];
     if (stored && stored.baseName) {
@@ -1524,10 +1471,10 @@ function renderCodexStatsHtml(entry, stored, codexKey) {
         });
     } else if (stored) {
         if (entry.uniqueEffect) statList.push(`<span style="color:#d7b8ff;">[고유 효과] ${escapeHTML(entry.uniqueEffect)}</span>`);
-        let preview = buildCodexRevealedRollPreview(entry, codexKey || `${entry.slots && entry.slots[0] ? entry.slots[0] : ''}|${entry.name || ''}`);
-        preview.forEach(stat => {
-            let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` <span style="color:#8ea0b8;">(${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})</span>` : '';
-            statList.push(`<span>${getStatName(stat.id)} +${formatValue(stat.id, stat.val)}${range}</span>`);
+        (entry.stats || []).forEach(stat => {
+            let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || 0);
+            let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
+            statList.push(`<span>${getStatName(stat.id)} +${formatValue(stat.id, min)}~+${formatValue(stat.id, max)}</span>`);
         });
     }
     return statList.join('<br>');
