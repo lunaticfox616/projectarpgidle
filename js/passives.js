@@ -5419,9 +5419,9 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16) drops.push(['tainted', 1]);
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.03) drops.push(['jewelShard', 3]);
     if ((game.season || 1) >= 5 && enemy.isElite && Math.random() < 0.008) drops.push(['jewelShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.08) drops.push(['sealShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.012) drops.push(['strongSealShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30 && Math.random() < 0.0008) drops.push(['radiantSealShard', 1]);
+    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.02) drops.push(['sealShard', 1]);
+    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.006) drops.push(['strongSealShard', 1]);
+    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30 && Math.random() < 0.00064) drops.push(['radiantSealShard', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.02) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.006) drops.push(['beastKeyCerberus', 1]);

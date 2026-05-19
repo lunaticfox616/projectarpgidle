@@ -1193,11 +1193,11 @@ function rollTalismanCandidate(currencyKey) {
     }
     let shapeKey = rndChoice(Object.keys(TALISMAN_SHAPES).filter(k => ['I','O','T','S','Z','J','L'].includes(k)));
     let option = rndChoice(TALISMAN_OPTION_POOL);
-    let multiplier = isStrong ? 1.35 : 1.0;
+    let multiplier = isRadiant ? 1.6 : (isStrong ? 1.35 : 1.0);
     let rolled = option.min + Math.random() * (option.max - option.min);
     let step = option.step || 1;
     let value = Math.round((rolled * multiplier) / step) * step;
-    return { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })), stat: option.stat, statName: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)), valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)), valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)), rarity: isStrong ? '강력한 기운' : '일반', source: isStrong ? 'strongSealShard' : 'sealShard' };
+    return { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })), stat: option.stat, statName: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)), valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)), valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)), rarity: isRadiant ? '찬란한 기운' : (isStrong ? '강력한 기운' : '일반'), source: isRadiant ? 'radiantSealShard' : (isStrong ? 'strongSealShard' : 'sealShard') };
 }
 
 function startTalismanUnseal(currencyKey) {
@@ -3849,6 +3849,16 @@ function getJewelStatToneColor(statId) {
     return '#d7e9ff';
 }
 
+function getStyledOrbName(orbKey) {
+    let name = (ORB_DB[orbKey] && ORB_DB[orbKey].name) ? ORB_DB[orbKey].name : String(orbKey || '');
+    if (orbKey === 'transmute') return `<span style="color:#9fd3ff;">${name}</span>`;
+    if (orbKey === 'alchemy') return `<span style="color:#ffe07a;">${name}</span>`;
+    if (orbKey === 'chaos' || orbKey === 'exalted') return `<span style="color:#ffbc8a;">${name}</span>`;
+    if (orbKey === 'divine') return `<span style="color:#fff; border:1px solid #000; border-radius:4px; padding:0 4px; background:radial-gradient(circle at 30% 30%, #ffffff 0%, #dfe6f0 45%, #8f99a8 100%); box-shadow:0 0 8px rgba(255,255,255,0.35);">${name}</span>`;
+    if (orbKey === 'tainted') return `<span style="color:#8a2f3f;">${name}</span>`;
+    return name;
+}
+
 function buildJewelRangeTooltipHtml(jewel) {
     if (!jewel) return '<div class="tooltip-title">주얼</div><div class="tooltip-line">정보 없음</div>';
     let stats = getJewelStats(jewel);
@@ -3868,7 +3878,7 @@ function buildJewelRangeTooltipHtml(jewel) {
     return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
 }
 
-safeExposeGlobals({ buildJewelRangeTooltipHtml });
+safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName });
 
 function getCraftActionValidators(item) {
     let hasHoneyLocked = (item.stats || []).some(v => v.lockedByHoney);
@@ -4111,7 +4121,7 @@ function buildCraftActionButtons(item) {
             rightButtons += `<button style="padding:6px 10px; font-size:0.9em; line-height:1; white-space:nowrap;" onclick="useCurrency('${key}')">사용</button>`;
             useBtn += `<div style="display:flex; justify-content:flex-end; margin-top:4px;"><div style="display:flex; flex-wrap:nowrap; align-items:center; gap:4px;">${rightButtons}</div></div>`;
         }
-        return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name">${ORB_DB[key].name}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
+        return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name">${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
     }).join('');
     let sporeHost = document.getElementById('ui-spore-summary');
     if (sporeHost) {

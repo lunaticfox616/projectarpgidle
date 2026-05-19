@@ -3047,7 +3047,7 @@ function rollLootForEnemy(enemy) {
         awardCurrency(drop[0], drop[1]);
         addBattleFx('lootPickup', { enemyId: enemy.id, color: (drop[0] === 'divine' || drop[0] === 'exalted') ? '#ffd166' : '#9ad1ff', duration: 760 });
         if (drop[0] === 'divine' || drop[0] === 'exalted') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ffcf6b', duration: 980 });
-        if (game.settings.showLootLog) addLog(`🪙 ${ORB_DB[drop[0]].name} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
+        if (game.settings.showLootLog) addLog(`🪙 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ORB_DB[drop[0]].name} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
     });
 
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
@@ -3121,7 +3121,7 @@ function rollLootForEnemy(enemy) {
             if (enemy.ele === 'light') pool.push('sporeLight');
             let key = rndChoice(pool);
             awardCurrency(key, 1);
-            if (game.settings.showLootLog) addLog(`🌱 ${ORB_DB[key].name} +1`, 'loot-magic');
+            if (game.settings.showLootLog) addLog(`🌱 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ORB_DB[key].name} +1`, 'loot-magic');
         }
     }
 }
@@ -3397,9 +3397,9 @@ function finishEncounterRun() {
             awardCurrency('fossilAbyssal', 1);
             addLog('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
         }
-        if ((game.season || 1) >= 6 && Math.random() < 0.1) awardCurrency('sealShard', 1);
-        if ((game.season || 1) >= 6 && Math.random() < 0.015) awardCurrency('strongSealShard', 1);
-        if ((game.season || 1) >= 6 && Math.floor(game.labyrinthFloor || 1) >= 30 && Math.random() < 0.002) awardCurrency('radiantSealShard', 1);
+        if ((game.season || 1) >= 6 && Math.random() < 0.025) awardCurrency('sealShard', 1);
+        if ((game.season || 1) >= 6 && Math.random() < 0.0075) awardCurrency('strongSealShard', 1);
+        if ((game.season || 1) >= 6 && Math.floor(game.labyrinthFloor || 1) >= 30 && Math.random() < 0.0016) awardCurrency('radiantSealShard', 1);
         let fossilSummary = [];
         if (gotBaseFossil) fossilSummary.push('기본 화석 +1');
         if (gotTypedFossil) fossilSummary.push(`${rolledFossil.name} +1`);
