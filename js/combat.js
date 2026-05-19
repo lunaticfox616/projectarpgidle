@@ -427,7 +427,7 @@ function coreLoop() {
     let ailmentMap = {};
     (game.playerAilments || []).forEach(ail => { ailmentMap[ail.type] = Math.max(ailmentMap[ail.type] || 0, ail.time || 0); });
     if (ailmentMap.chill) pStats.aspd *= 0.68;
-    if (ailmentMap.shock) pStats.dr = Math.max(-40, pStats.dr - 22);
+    if (ailmentMap.shock) pStats.dr = pStats.uniqueShockInvertTaken ? Math.min(90, pStats.dr + 22) : Math.max(-40, pStats.dr - 22);
     (game.playerConditionBuffs || []).forEach(buff => {
         let delta = getConditionGemStatDelta(buff.name, buff.type);
         if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
@@ -485,9 +485,14 @@ function coreLoop() {
         handlePlayerDefeat(getZone(game.currentZoneId) || getZone(0), pStats, "☠️ 치명상을 입어 쓰러졌습니다.", { fatalElement: 'other', sourceName: '치명상' });
         return;
     }
+    if (game.woodsmanEntrancePending && game.moveTimer <= 0) {
+        finishWoodsmanEntrance();
+        return;
+    }
     if (game.combatHalted && game.moveTimer > 0) {
         game.moveTimer -= 0.1;
         if (game.moveTimer <= 0) {
+            game.lastMoveEndedAt = Date.now();
             if (!finishWoodsmanEntrance()) startEncounterRun();
         }
         return;
@@ -703,6 +708,12 @@ function getEquippedUniqueJewels() {
     Object.values(game.equipment || {}).forEach(item => {
         let j = item && item.voidSocket && item.voidSocket.open ? item.voidSocket.jewel : null;
         if (j && j.rarity === 'unique' && j.uniqueId) equipped.push({ jewel: j, slot: -1, source: 'void' });
+        if (Array.isArray(item && item.abyssSockets)) {
+            item.abyssSockets.forEach((sock, idx) => {
+                let aj = sock && sock.jewel ? sock.jewel : null;
+                if (aj && aj.rarity === 'unique' && aj.uniqueId) equipped.push({ jewel: aj, slot: idx, source: 'abyss' });
+            });
+        }
     });
     return equipped;
 }
@@ -732,10 +743,12 @@ function getPlayerStats() {
     let starBlessing = createEmptyStatBucket();
 
     let localDefenseTotals = { armor: 0, evasion: 0, energyShield: 0 };
+    let equippedUniqueEffects = [];
     let warriorDualWeaponEffectMultiplier = (game.ascendClass === 'warrior' && hasKeystone('w6') && isDualWielding()) ? 1.5 : 1;
     let scaleStatList = (stats, multiplier) => multiplier === 1 ? (stats || []) : (stats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number(stat.val) * multiplier } : stat);
     Object.values(game.equipment || {}).forEach(item => {
         if (!item) return;
+        if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '' });
         let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
         let itemBaseStats = scaleStatList(item.baseStats || [], itemStatMultiplier);
         applyStatsToBucket(gearBase, itemBaseStats);
@@ -766,6 +779,20 @@ function getPlayerStats() {
         if (item.voidSocket && item.voidSocket.open && item.voidSocket.jewel) {
             getJewelStats(item.voidSocket.jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val));
         }
+        if (Array.isArray(item.abyssSockets) && item.abyssSockets.length > 0) {
+            let abyssAmp = 1;
+            if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp') {
+                let p = item.uniqueEffectParams || {};
+                let min = Number(p.ampMin || 1), max = Number(p.ampMax || 100);
+                let pct = (min + max) / 2;
+                abyssAmp = 1 + (pct / 100);
+            }
+            item.abyssSockets.forEach(sock => {
+                let jewel = sock && sock.jewel ? sock.jewel : null;
+                if (!jewel) return;
+                getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, Number((stat.val * abyssAmp).toFixed(2))));
+            });
+        }
     });
     game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0];
     (game.jewelSlots || []).forEach((jewel, idx) => {
@@ -793,6 +820,28 @@ function getPlayerStats() {
     }
     if (activeUniqueIds.has('uj_condensed_curse')) addStatToBucket(reward, 'curseCap', 1);
     let uniqueClosedEyes = activeUniqueIds.has('uj_closed_eyes');
+    let uniqueXpGainPct = 0, uniqueFlatDmgPerLevel = 0, uniqueEsAmpPct = 0, uniqueShockInvertTaken = false, uniqueAlwaysShock = false, uniqueProjectileDoubleStrikePct = 0;
+    let uniqueChaosResDownOnHit = null, uniqueCorpseExplode = null, uniqueInstantLeechPct = 0, uniqueDoubleDamageChancePct = 0, uniqueEsRecoverOnCritPct = 0;
+    let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false, uniqueImmuneIgnite = false;
+    equippedUniqueEffects.forEach(effect => {
+        if (!effect || !effect.key) return;
+        let ep = effect.params || {};
+        if (effect.key === 'xpGainPct') uniqueXpGainPct += Number(ep.pct || 0);
+        else if (effect.key === 'flatDmgPerLevel') uniqueFlatDmgPerLevel += Number(ep.perLevel || 0);
+        else if (effect.key === 'esAmpAndRecoverOnCrit') { uniqueEsAmpPct = Math.max(uniqueEsAmpPct, Number(ep.ampPct || 50)); uniqueEsRecoverOnCritPct = Math.max(uniqueEsRecoverOnCritPct, Number(ep.recoverPctOnCrit || 2)); }
+        else if (effect.key === 'invertShockTaken') uniqueShockInvertTaken = true;
+        else if (effect.key === 'alwaysShock') uniqueAlwaysShock = true;
+        else if (effect.key === 'projectileDoubleStrikePct') uniqueProjectileDoubleStrikePct += Number(ep.pct || 100);
+        else if (effect.key === 'hitApplyChaosResDown') uniqueChaosResDownOnHit = { perHit: Number(ep.perHit || 3), maxStacks: Number(ep.maxStacks || 10) };
+        else if (effect.key === 'corpseExplodeOnKill') uniqueCorpseExplode = { chance: Number(ep.chance || 15), lifePct: Number(ep.lifePct || 25) };
+        else if (effect.key === 'instantLeechAndDoubleDamage') { uniqueInstantLeechPct += Number(ep.instantLeechPct || 25); uniqueDoubleDamageChancePct += Number(ep.doubleDamageChance || 20); }
+        else if (effect.key === 'riderCompass') uniqueRiderCompass = true;
+        else if (effect.key === 'maxRollBonusHit') uniqueMaxRollBonusHit = true;
+        else if (effect.key === 'ceilingSmashDouble') uniqueCeilingSmashDouble = true;
+        else if (effect.key === 'minRollEqualsMaxRoll') uniqueMinRollEqualsMaxRoll = true;
+        else if (effect.key === 'hpToPhysPct') uniqueHpToPhysPct = true;
+        else if (effect.key === 'immuneIgnite') uniqueImmuneIgnite = true;
+    });
 
     recalculateStarWedgeMutations();
     let mutationMap = (game.starWedge && game.starWedge.nodeMutations) || {};
@@ -1049,6 +1098,7 @@ function getPlayerStats() {
     let finalArmor = Math.max(0, Math.floor(gearArmor * (1 + totalArmorPct / 100)));
     let finalEvasion = Math.max(0, Math.floor(gearEvasion * (1 + totalEvasionPct / 100)));
     let finalEnergyShield = Math.max(0, Math.floor(gearEnergyShield * (1 + totalEnergyShieldPct / 100)));
+    if (uniqueEsAmpPct > 0) finalEnergyShield = Math.floor(finalEnergyShield * (1 + uniqueEsAmpPct / 100));
     let finalEnergyShieldRegenRate = Math.max(0, 12.5 + gearBase.energyShieldRegen + gearExplicit.energyShieldRegen + passive.energyShieldRegen + season.energyShieldRegen + ascend.energyShieldRegen + reward.energyShieldRegen);
     let finalEnergyShieldRechargeDelay = Math.max(0.25, 1 - (gearBase.energyShieldRechargeFaster + gearExplicit.energyShieldRechargeFaster + passive.energyShieldRechargeFaster + season.energyShieldRechargeFaster + ascend.energyShieldRechargeFaster + reward.energyShieldRechargeFaster));
     let referenceIncomingPhysical = Math.max(1, Math.floor((2 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 3.1)));
@@ -1078,6 +1128,8 @@ function getPlayerStats() {
     let finalDs = ((gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) + (skill.dsBonus || 0)) * 0.75;
     let finalSlamEchoChance = gearBase.slamEchoChance + gearExplicit.slamEchoChance + passive.slamEchoChance + season.slamEchoChance + ascend.slamEchoChance + support.slamEchoChance + reward.slamEchoChance;
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen + (skill.regenBonus || 0);
+    let flatRegen = gearBase.regenFlat + gearExplicit.regenFlat + passive.regenFlat + season.regenFlat + ascend.regenFlat + support.regenFlat + reward.regenFlat;
+    finalRegen += (flatRegen / Math.max(1, finalMaxHp)) * 100;
     if (activeUniqueIds.has('uj_hurried_mind')) {
         let alive = (game.enemies || []).filter(e => e && e.hp > 0).length;
         if (alive === 0) finalMove *= 1.5;
@@ -1096,6 +1148,8 @@ function getPlayerStats() {
     let finalIgniteDamageMultiplierPct = gearBase.igniteDamageMultiplierPct + gearExplicit.igniteDamageMultiplierPct + passive.igniteDamageMultiplierPct + season.igniteDamageMultiplierPct + ascend.igniteDamageMultiplierPct + support.igniteDamageMultiplierPct + reward.igniteDamageMultiplierPct;
     let finalMinDmgRoll = Math.max(5, 80 + gearBase.minDmgRoll + gearExplicit.minDmgRoll + passive.minDmgRoll + season.minDmgRoll + ascend.minDmgRoll + support.minDmgRoll + reward.minDmgRoll);
     let finalMaxDmgRoll = Math.max(finalMinDmgRoll, 100 + gearBase.maxDmgRoll + gearExplicit.maxDmgRoll + passive.maxDmgRoll + season.maxDmgRoll + ascend.maxDmgRoll + support.maxDmgRoll + reward.maxDmgRoll);
+    if (uniqueMinRollEqualsMaxRoll) finalMinDmgRoll = finalMaxDmgRoll;
+    if (uniqueHpToPhysPct) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalMaxHp / 100) / 100));
 
     let resistPenalty = (game.maxZoneId >= 5 ? 30 : 0) + (game.maxZoneId >= 10 ? 30 : 0);
     let finalMaxResF = Math.min(90, 75 + gearBase.maxResF + gearExplicit.maxResF + passive.maxResF + season.maxResF + ascend.maxResF + reward.maxResF);
@@ -1133,6 +1187,7 @@ function getPlayerStats() {
     let dotTickIntervalMultiplier = 1;
     let dotDurationMultiplier = 1;
     finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus);
+    if (uniqueFlatDmgPerLevel > 0) finalBaseDmg += Math.floor(Math.max(1, game.level || 1) * uniqueFlatDmgPerLevel);
     talismanEntries.forEach(entry => {
         let t = entry.talisman; if (!t) return;
         if (t.special === 'moment') talismanBossFinalDmgBonusPct = Math.max(talismanBossFinalDmgBonusPct, (t.bossFinalDmgMin || 5) + Math.floor(Math.random() * (((t.bossFinalDmgMax || 15) - (t.bossFinalDmgMin || 5)) + 1)));
@@ -1736,7 +1791,7 @@ function getPlayerStats() {
         gemBonusSources: gemSources,
         glovePairAspdBonus: glovePairAspdBonus,
         suppCap: suppCap,
-        expGain: season.expGain,
+        expGain: season.expGain + reward.expGain + uniqueXpGainPct,
         sSkill: skill,
         resPen: finalResPen,
         resF: finalResF,
@@ -1773,8 +1828,20 @@ function getPlayerStats() {
         energyShieldRechargeDelay: finalEnergyShieldRechargeDelay,
         projectileExtraShots: Math.max(0, Math.floor(totalProjectileExtraShots)),
         breakdowns: breakdowns,
-        uniqueClosedEyes: uniqueClosedEyes
+        uniqueClosedEyes: uniqueClosedEyes,
+        uniqueShockInvertTaken: uniqueShockInvertTaken,
+        uniqueAlwaysShock: uniqueAlwaysShock,
+        uniqueProjectileDoubleStrikePct: uniqueProjectileDoubleStrikePct,
+        uniqueChaosResDownOnHit: uniqueChaosResDownOnHit,
+        uniqueCorpseExplode: uniqueCorpseExplode,
+        uniqueInstantLeechPct: uniqueInstantLeechPct,
+        uniqueDoubleDamageChancePct: uniqueDoubleDamageChancePct,
+        uniqueEsRecoverOnCritPct: uniqueEsRecoverOnCritPct,
+        uniqueRiderCompass: uniqueRiderCompass,
+        uniqueMaxRollBonusHit: uniqueMaxRollBonusHit,
+        uniqueCeilingSmashDouble: uniqueCeilingSmashDouble
     };
+    if (uniqueImmuneIgnite) enemy.immuneIgnite = true;
     if (uniqueClosedEyes) {
         enemy.immuneIgnite = true;
         enemy.immuneChill = true;
@@ -1959,6 +2026,18 @@ function getEnemyElementResistance(skillEle, zoneTier, enemy) {
 
 function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     let rawMitigation = getEnemyElementResistance(skillEle, zoneTier, enemy);
+    if (enemy && enemy.isWoodsman && enemy.maxHp > 0) {
+        let missingHpRatio = Math.max(0, Math.min(1, 1 - ((enemy.hp || 0) / enemy.maxHp)));
+        let bonusRes = Math.floor(missingHpRatio * 28);
+        if (skillEle === 'fire') rawMitigation = (enemy.baseResF || rawMitigation) + bonusRes;
+        else if (skillEle === 'cold') rawMitigation = (enemy.baseResC || rawMitigation) + bonusRes;
+        else if (skillEle === 'light') rawMitigation = (enemy.baseResL || rawMitigation) + bonusRes;
+        else if (skillEle === 'chaos') rawMitigation = (enemy.baseResChaos || rawMitigation) + bonusRes;
+    }
+    if (skillEle === 'chaos' && enemy && enemy.id && game.enemyUniqueChaosResDown && game.enemyUniqueChaosResDown[enemy.id]) {
+        let deb = game.enemyUniqueChaosResDown[enemy.id];
+        rawMitigation -= Math.max(0, (deb.perHit || 0) * (deb.stacks || 0));
+    }
     if (skillEle === 'phys') {
         let cappedReduction = Math.max(0, Math.min(80, rawMitigation));
         let ignoreAmount = Math.max(0, Number(pStats.physIgnore) || 0);
@@ -1973,7 +2052,8 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light' || skillEle === 'chaos') {
         if ((skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') && game.ascendClass === 'inquisitor' && hasKeystone('iq4')) rawMitigation = 0;
         let effective = rawMitigation - Math.max(0, pStats.resPen || 0);
-        if (effective > 0) effective = Math.min(80, effective);
+        let cap = Math.max(0, Number(enemy && enemy.maxResCap) || 80);
+        if (effective > 0) effective = Math.min(cap, effective);
         return effective;
     }
     return Math.min(80, rawMitigation);
@@ -2028,6 +2108,13 @@ function createEnemy(zone, marker, groupIndex) {
     if (trait && trait.hpMul) hp = Math.floor(hp * trait.hpMul);
     let isSky = (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
     if (isSky) name = `☁️ ${name}`;
+    let resistBase = isBoss ? Math.min(75, 24 + Math.floor(zone.tier * 2.2)) : (isElite ? Math.min(60, 14 + Math.floor(zone.tier * 1.8)) : Math.min(40, Math.floor(zone.tier * 1.9)));
+    let chaosResBase = isBoss ? Math.min(60, 12 + Math.floor(zone.tier * 1.7)) : (isElite ? Math.min(45, 8 + Math.floor(zone.tier * 1.3)) : Math.min(30, Math.floor(zone.tier * 1.1)));
+    let defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
+    let defenseLoopScale = Math.min(2.2, 1 + Math.max(0, (game.loopCount || 0)) * 0.05);
+    let baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * (isBoss ? 2.2 : (isElite ? 1.6 : 1)));
+    let baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * (isBoss ? 2.1 : (isElite ? 1.5 : 1)));
+    let drBase = isBoss ? Math.min(70, 10 + Math.floor(zone.tier * 1.55)) : (isElite ? Math.min(55, 6 + Math.floor(zone.tier * 1.2)) : Math.min(40, 2 + Math.floor(zone.tier * 0.85)));
     let enemy = {
         id: game.nextEnemyId++,
         hp: hp,
@@ -2040,11 +2127,13 @@ function createEnemy(zone, marker, groupIndex) {
         groupIndex: groupIndex,
         variantSeed: variantSeed,
         ele: enemyEle,
-        dr: Math.max(0, Math.floor(zone.tier * 0.8) + (trait && trait.dr ? trait.dr : 0)),
-        resF: (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0),
-        resC: (trait && trait.resC ? trait.resC : 0) + (abyssScale.resistBonus || 0),
-        resL: (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0),
-        resChaos: (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0),
+        dr: Math.max(0, drBase + (trait && trait.dr ? trait.dr : 0)),
+        resF: Math.min(75, resistBase + (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0)),
+        resC: Math.min(75, resistBase + (trait && trait.resC ? trait.resC : 0) + (abyssScale.resistBonus || 0)),
+        resL: Math.min(75, resistBase + (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0)),
+        resChaos: Math.min(75, chaosResBase + (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0)),
+        armor: baseArmor,
+        evasion: baseEvasion,
         atkMul: trait && trait.atkMul ? trait.atkMul : 1,
         damageMul: zone.type === 'outsideChaos' ? 2 : 1,
         attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1) * (zone.type === 'outsideChaos' ? 1.5 : 1),
@@ -2067,6 +2156,20 @@ function createEnemy(zone, marker, groupIndex) {
         dropMul: trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1,
         isSky: isSky
     };
+    if (zone.type === 'outsideChaos') enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
+    if (zone.type === 'outsideChaos') {
+        enemy.isWoodsman = true;
+        enemy.dr = Math.max(50, enemy.dr + 8);
+        enemy.maxResCap = 85;
+        enemy.baseResF = enemy.resF;
+        enemy.baseResC = enemy.resC;
+        enemy.baseResL = enemy.resL;
+        enemy.baseResChaos = enemy.resChaos;
+        enemy.armor = Math.floor(enemy.armor * 1.35);
+        enemy.evasion = Math.floor(enemy.evasion * 1.3);
+        enemy.armorGuard = Math.max(Number(enemy.armorGuard || 0), 0.12);
+        enemy.evasionChance = Math.max(Number(enemy.evasionChance || 0), 12);
+    }
     applyChaosRealmAffixesToEnemy(enemy, zone);
     applyGrandBreachMobTuning(zone, enemy);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
@@ -2241,9 +2344,11 @@ function getPlayerAilmentChance(pStats, type) {
     return Math.max(0, Math.min(1, base / 100));
 }
 
-function getFreezeApplyChanceFromHitRatio(hitRatio) {
+function getFreezeApplyChanceFromHitRatio(hitRatio, enemyMaxHp) {
     let ratio = Math.max(0, Number(hitRatio) || 0);
-    return Math.max(0.05, Math.min(1, ratio * 3));
+    let hp = Math.max(1, Number(enemyMaxHp) || 1);
+    let hpFactor = Math.max(0.18, 1 / Math.log10(hp + 10));
+    return Math.max(0.01, Math.min(0.7, ratio * 1.8 * hpFactor));
 }
 
 function isDamageAilmentType(type) {
@@ -2325,7 +2430,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
         let resKey = 'ailRes' + type.charAt(0).toUpperCase() + type.slice(1);
         let resistChance = Math.max(0, Math.min(0.95, (enemy[resKey] || 0) / 100));
         if (Math.random() < resistChance) return false;
-        if (type === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(hitRatio)) return false;
+        if (type === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(hitRatio, enemy.maxHp || 1)) return false;
         let damageAilment = isDamageAilmentType(type);
         let power = damageAilment
             ? Math.max(0.05, Math.min(1.5, hitPower))
@@ -2977,6 +3082,16 @@ function handleEnemyDeath(enemy, pStats) {
             if (game.settings.showCombatLog) addLog(`💥 전령 시체폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
         }
     }
+    if (pStats && pStats.uniqueCorpseExplode && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueCorpseExplode.chance || 0) / 100))) {
+        let lifePct = Math.max(0, Number(pStats.uniqueCorpseExplode.lifePct || 0));
+        let splash = Math.max(1, Math.floor((enemy.maxHp || 0) * (lifePct / 100)));
+        (game.enemies || []).forEach(target => {
+            if (!target || target.id === enemy.id || target.hp <= 0) return;
+            target.hp = Math.max(0, target.hp - splash);
+        });
+        addBattleFx('hit', { enemyId: enemy.id, color: '#c56cff', damage: splash, duration: 360, element: 'chaos' });
+        if (game.settings.showCombatLog) addLog(`💥 [종말의 논리] 시체 폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
+    }
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun && (game.enemies || []).filter(entry => entry && entry.hp > 0).length === 0) {
         if (typeof onBeehiveWaveCleared === 'function') onBeehiveWaveCleared();
@@ -3339,12 +3454,15 @@ function performPlayerAttack(pStats) {
         if (isCrit) game.gladiatorVeteranCritBonus = 0;
         else game.gladiatorVeteranCritBonus = Math.min(100, game.gladiatorVeteranCritBonus + 5);
     }
+    let preloadElementalistStacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0));
     if (game.ascendClass === 'elementalist' && hasKeystone('e8')) {
-        if (isCrit) game.elementalistOverloadStacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0)) + 1;
+        if (isCrit) game.elementalistOverloadStacks = preloadElementalistStacks + 1;
         else game.elementalistOverloadStacks = 0;
         game.elementalistOverloadExpiresAt = 0;
     }
     let baseDamage = pStats.baseDmg;
+    let movedRecently = (Date.now() - (game.lastMoveEndedAt || 0)) <= 1200;
+    let riderCompassReady = !!(pStats.uniqueRiderCompass && movedRecently && !game.uniqueRiderCompassConsumed);
     if (isCrit) {
         baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
         if (game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) baseDamage *= 2;
@@ -3389,7 +3507,8 @@ function performPlayerAttack(pStats) {
             curseProjectileExtraHits = Math.max(curseProjectileExtraHits, Math.max(0, Math.floor(fx.projectileExtraHits || 0)));
         }
     }
-    let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits));
+    let uniqueProjectileExtraHits = isProjectileSkill ? Math.max(0, Math.floor((pStats.uniqueProjectileDoubleStrikePct || 0) / 100)) : 0;
+    let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits + uniqueProjectileExtraHits));
     let perEnemyHitCount = new Map();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
     function applyPierceOverkillCarry(sourceEnemy, carryDamage, hitElement, hitCrit) {
@@ -3404,7 +3523,11 @@ function performPlayerAttack(pStats) {
             let zone = getZone(game.currentZoneId);
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let beforeHpForForced = chainTarget.hp;
-            let dealtToChain = applyDamageToEnemyResource(chainTarget, remainingDamage);
+            let chainRes = getEffectiveEnemyMitigation(hitElement, zone.tier, chainTarget, pStats);
+            let chainDamage = Math.floor(remainingDamage * (1 - chainRes / 100));
+            if ((pStats.sSkill.tags || []).includes('projectile')) chainDamage = Math.floor(chainDamage * (chainTarget.projectileDamageTakenMul || 1));
+            if (hitElement === 'phys') chainDamage = Math.floor(chainDamage * (chainTarget.physicalDamageTakenMul || 1));
+            let dealtToChain = applyDamageToEnemyResource(chainTarget, Math.max(1, chainDamage));
             if (chainTarget.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop())) && chainTarget.hp <= 0) {
                 chainTarget.hp = Math.max(1, Math.min(beforeHpForForced, chainTarget.maxHp || 1));
             }
@@ -3460,6 +3583,11 @@ function performPlayerAttack(pStats) {
             if (hitElement === 'phys') enemyRes -= (curseFx.physDrShred || 0);
             let hitCrit = isCrit;
             let hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
+            if (riderCompassReady) {
+                hitBaseDamage = Math.floor(hitBaseDamage * 2);
+                riderCompassReady = false;
+                game.uniqueRiderCompassConsumed = true;
+            }
             if (hitCrit && game.ascendClass === 'assassin' && hasKeystone('a7') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1) hitBaseDamage *= 2;
             if (hitCrit && game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
             let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
@@ -3474,6 +3602,7 @@ function performPlayerAttack(pStats) {
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
             let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
+            if (pStats.uniqueCeilingSmashDouble && rollPct >= 140 && Math.random() < 0.15) dmg *= 2;
             dmg = Math.floor(dmg * (rollPct / 100));
             if (hitElement === 'chaos') {
                 let chaosMultiplier = Math.max(0, Number(pStats.chaosDamageMultiplier) || 1);
@@ -3488,6 +3617,7 @@ function performPlayerAttack(pStats) {
             if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
             let damageBeforeMitigation = dmg;
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
+            if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
             if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
                 if (game.settings.showCombatLog) addLog(`🌀 ${targetEnemy.name} 회피`, 'attack-monster', { noToast: true });
                 return;
@@ -3521,6 +3651,10 @@ function performPlayerAttack(pStats) {
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let beforeHpForForced = targetEnemy.hp;
             let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
+            if (pStats.uniqueMaxRollBonusHit && rollPct >= 130 && dealtToEnemy > 0 && targetEnemy.hp > 0) {
+                let bonus = Math.max(1, Math.floor(dealtToEnemy * 0.5));
+                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, bonus);
+            }
             if (game.ascendClass === 'ranger' && hasKeystone('r5') && targetEnemy.hp > 0) {
                 game.rangerWeakpointMarks = game.rangerWeakpointMarks || {};
                 let mark = game.rangerWeakpointMarks[targetEnemy.id] || { hits: 0 };
@@ -3557,6 +3691,14 @@ function performPlayerAttack(pStats) {
             if ((pStats.regenSuppress || 0) > 0) targetEnemy.regenSuppressPct = Math.min(95, (targetEnemy.regenSuppressPct || 0) + pStats.regenSuppress);
             targetEnemy.recentHitsTaken = (targetEnemy.recentHitsTaken || 0) + 1;
             targetEnemy.recentHitsTimer = 1.8;
+            if (pStats.uniqueChaosResDownOnHit) {
+                game.enemyUniqueChaosResDown = game.enemyUniqueChaosResDown || {};
+                let row = game.enemyUniqueChaosResDown[targetEnemy.id] || { stacks: 0, perHit: pStats.uniqueChaosResDownOnHit.perHit, maxStacks: pStats.uniqueChaosResDownOnHit.maxStacks };
+                row.stacks = Math.min(row.maxStacks, Math.max(0, row.stacks + 1));
+                row.perHit = pStats.uniqueChaosResDownOnHit.perHit;
+                row.maxStacks = pStats.uniqueChaosResDownOnHit.maxStacks;
+                game.enemyUniqueChaosResDown[targetEnemy.id] = row;
+            }
             totalDamage += dealtToEnemy;
             totalLeechableDamage += dealtToEnemy * (targetEnemy && targetEnemy.leechEffMul !== undefined ? targetEnemy.leechEffMul : 1);
             hits.push(dealtToEnemy);
@@ -3589,13 +3731,23 @@ function performPlayerAttack(pStats) {
             }
             if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
             applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, hitCrit);
+            if (pStats.uniqueAlwaysShock) {
+                let shockStats = { ...pStats, sSkill: { ...pStats.sSkill, ele: 'light' } };
+                applyEnemyAilmentFromHit(targetEnemy, shockStats, Math.max(1, Math.floor(dmg * 0.25)), true);
+            }
         });
     }
     if (pStats.leech > 0 && totalLeechableDamage > 0) {
         let leechAmount = (totalLeechableDamage * (pStats.leech / 100));
         let leechTarget = (game.ascendClass === 'warlock' && hasKeystone('wlk3') && (pStats.energyShield || 0) > 0) ? 'energyShield' : 'life';
+        if ((pStats.uniqueInstantLeechPct || 0) > 0) applyInstantPlayerLeech(leechAmount * ((pStats.uniqueInstantLeechPct || 0) / 100), pStats, leechTarget);
         if (pStats.sSkill && pStats.sSkill.instantLeech) applyInstantPlayerLeech(leechAmount, pStats, leechTarget);
         else addPlayerLeechInstance(leechAmount, pStats, leechTarget);
+    }
+
+    if (isCrit && (pStats.uniqueEsRecoverOnCritPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
+        let recover = Math.max(1, Math.floor((pStats.energyShield || 0) * ((pStats.uniqueEsRecoverOnCritPct || 0) / 100)));
+        game.playerEnergyShield = Math.min((pStats.energyShield || 0), Math.max(0, (game.playerEnergyShield || 0) + recover));
     }
 
     if (game.settings.showCombatLog) {
@@ -4108,21 +4260,21 @@ function addWoodsmanPendingScore(scoreGain) {
 const WOODSMAN_ENTRANCE_DELAY_SECONDS = 3;
 
 function finishWoodsmanEntrance() {
-    let zone = getZone(game.currentZoneId);
     if (!game.woodsmanEntrancePending) return false;
     game.woodsmanEntrancePending = false;
+    game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
+    let zone = getZone(OUTSIDE_CHAOS_ZONE_ID);
     if (!zone || zone.type !== 'outsideChaos') return false;
     game.moveTimer = 0;
-    game.moveTotalTime = WOODSMAN_ENTRANCE_DELAY_SECONDS;
-    game.runProgress = 100;
+    game.moveTotalTime = 0;
+    game.runProgress = 0;
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.enemies = [];
     game.inEncounter = true;
     startWoodsmanCurse();
     addLog('☠️ 하늘이 갈라지고 도끼날의 그림자가 전장을 뒤덮습니다.', 'loot-unique');
-    addLog('🪓 혼돈 밖의 나무꾼이 웅장하게 등장했습니다.', 'loot-unique');
-    spawnEncounterMarker({ at: 100, count: 1, boss: true });
+    game.enemies = [createEnemy(zone, { at: 0, count: 1, boss: true }, 0)];
     updateStaticUI();
     return true;
 }
