@@ -974,7 +974,29 @@ function getPlayerStats() {
     }
     function findMarkedNeighborId(entry) {
         if (!entry || !entry.talisman || !entry.talisman.markDir) return null;
-        let anchor = (entry.talisman.cells || [])[0] || {x:0,y:0};
+        let cells = (entry.talisman.cells || []).map(cell => ({ x: cell.x || 0, y: cell.y || 0 }));
+        let anchor = cells[0] || { x: 0, y: 0 };
+        if (cells.length > 0) {
+            let filled = new Set(cells.map(cell => `${cell.x},${cell.y}`));
+            let centerX = cells.reduce((sum, cell) => sum + cell.x, 0) / cells.length;
+            let centerY = cells.reduce((sum, cell) => sum + cell.y, 0) / cells.length;
+            let ranked = cells.map(cell => {
+                let neighbors = 0;
+                if (filled.has(`${cell.x - 1},${cell.y}`)) neighbors++;
+                if (filled.has(`${cell.x + 1},${cell.y}`)) neighbors++;
+                if (filled.has(`${cell.x},${cell.y - 1}`)) neighbors++;
+                if (filled.has(`${cell.x},${cell.y + 1}`)) neighbors++;
+                let dist = Math.hypot(cell.x - centerX, cell.y - centerY);
+                return { cell, neighbors, dist };
+            });
+            ranked.sort((a, b) => {
+                if (b.neighbors !== a.neighbors) return b.neighbors - a.neighbors;
+                if (a.dist !== b.dist) return a.dist - b.dist;
+                if (a.cell.y !== b.cell.y) return a.cell.y - b.cell.y;
+                return a.cell.x - b.cell.x;
+            });
+            anchor = ranked[0].cell;
+        }
         let x=(entry.x||0)+(anchor.x||0), y=(entry.y||0)+(anchor.y||0);
         let d = entry.talisman.markDir === 'up' ? [0,-1] : entry.talisman.markDir === 'right' ? [1,0] : entry.talisman.markDir === 'down' ? [0,1] : [-1,0];
         let nx=x+d[0], ny=y+d[1];
@@ -3013,10 +3035,19 @@ function rollLootForEnemy(enemy) {
                         record.unlockedTier = before + 1;
                         if ((record.activeTier || 1) < record.unlockedTier) {
                             let prevTier = Math.max(1, Math.floor(record.activeTier || 1));
+                            let baseCost = Math.max(1, Math.floor(getSupportResonanceCost(gem)));
+                            let getTierCost = (tier) => {
+                                let db = SUPPORT_GEM_DB[gem] || {};
+                                if (Array.isArray(db.resonanceCosts) && Number.isFinite(db.resonanceCosts[tier - 1])) return Math.max(1, Math.floor(db.resonanceCosts[tier - 1]));
+                                if (tier <= 1) return baseCost;
+                                if (tier === 2) return Math.max(baseCost + 2, Math.floor(baseCost * 2.4));
+                                return Math.max(baseCost + 5, Math.floor(baseCost * 3.8));
+                            };
+                            let isEquipped = (game.equippedSupports || []).includes(gem);
                             let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
                             let remain = Math.max(0, Math.floor(game.resonancePower || 0) - used);
-                            let nextCost = Math.max(1, Math.floor(getSupportResonanceCost(gem) * (record.unlockedTier === 2 ? 2.4 : 3.8)));
-                            if (!(game.equippedSupports || []).includes(gem) || remain >= (nextCost - getSupportResonanceCost(gem) * (prevTier <= 1 ? 1 : (prevTier === 2 ? 2.4 : 3.8)))) {
+                            let extraNeed = Math.max(0, getTierCost(record.unlockedTier) - getTierCost(prevTier));
+                            if (!isEquipped || remain >= extraNeed) {
                                 record.activeTier = record.unlockedTier;
                             }
                         }
@@ -3038,7 +3069,7 @@ function rollLootForEnemy(enemy) {
         awardCurrency(drop[0], drop[1]);
         addBattleFx('lootPickup', { enemyId: enemy.id, color: (drop[0] === 'divine' || drop[0] === 'exalted') ? '#ffd166' : '#9ad1ff', duration: 760 });
         if (drop[0] === 'divine' || drop[0] === 'exalted') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ffcf6b', duration: 980 });
-        if (game.settings.showLootLog) addLog(`🪙 ${ORB_DB[drop[0]].name} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
+        if (game.settings.showLootLog) addLog(`🪙 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ORB_DB[drop[0]].name} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
     });
 
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
@@ -3112,7 +3143,7 @@ function rollLootForEnemy(enemy) {
             if (enemy.ele === 'light') pool.push('sporeLight');
             let key = rndChoice(pool);
             awardCurrency(key, 1);
-            if (game.settings.showLootLog) addLog(`🌱 ${ORB_DB[key].name} +1`, 'loot-magic');
+            if (game.settings.showLootLog) addLog(`🌱 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ORB_DB[key].name} +1`, 'loot-magic');
         }
     }
 }
@@ -3388,9 +3419,9 @@ function finishEncounterRun() {
             awardCurrency('fossilAbyssal', 1);
             addLog('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
         }
-        if ((game.season || 1) >= 6 && Math.random() < 0.1) awardCurrency('sealShard', 1);
-        if ((game.season || 1) >= 6 && Math.random() < 0.015) awardCurrency('strongSealShard', 1);
-        if ((game.season || 1) >= 6 && Math.floor(game.labyrinthFloor || 1) >= 30 && Math.random() < 0.002) awardCurrency('radiantSealShard', 1);
+        if ((game.season || 1) >= 6 && Math.random() < 0.025) awardCurrency('sealShard', 1);
+        if ((game.season || 1) >= 6 && Math.random() < 0.0075) awardCurrency('strongSealShard', 1);
+        if ((game.season || 1) >= 6 && Math.floor(game.labyrinthFloor || 1) >= 30 && Math.random() < 0.0016) awardCurrency('radiantSealShard', 1);
         let fossilSummary = [];
         if (gotBaseFossil) fossilSummary.push('기본 화석 +1');
         if (gotTypedFossil) fossilSummary.push(`${rolledFossil.name} +1`);
