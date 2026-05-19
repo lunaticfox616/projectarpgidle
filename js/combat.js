@@ -810,6 +810,27 @@ function getPlayerStats() {
     }
     if (activeUniqueIds.has('uj_condensed_curse')) addStatToBucket(reward, 'curseCap', 1);
     let uniqueClosedEyes = activeUniqueIds.has('uj_closed_eyes');
+    let uniqueXpGainPct = 0, uniqueFlatDmgPerLevel = 0, uniqueEsAmpPct = 0, uniqueShockInvertTaken = false, uniqueAlwaysShock = false, uniqueProjectileDoubleStrikePct = 0;
+    let uniqueChaosResDownOnHit = null, uniqueCorpseExplode = null, uniqueInstantLeechPct = 0, uniqueDoubleDamageChancePct = 0, uniqueEsRecoverOnCritPct = 0;
+    let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false;
+    equippedUniqueEffects.forEach(effect => {
+        if (!effect || !effect.key) return;
+        let ep = effect.params || {};
+        if (effect.key === 'xpGainPct') uniqueXpGainPct += Number(ep.pct || 0);
+        else if (effect.key === 'flatDmgPerLevel') uniqueFlatDmgPerLevel += Number(ep.perLevel || 0);
+        else if (effect.key === 'esAmpAndRecoverOnCrit') { uniqueEsAmpPct = Math.max(uniqueEsAmpPct, Number(ep.ampPct || 50)); uniqueEsRecoverOnCritPct = Math.max(uniqueEsRecoverOnCritPct, Number(ep.recoverPctOnCrit || 2)); }
+        else if (effect.key === 'invertShockTaken') uniqueShockInvertTaken = true;
+        else if (effect.key === 'alwaysShock') uniqueAlwaysShock = true;
+        else if (effect.key === 'projectileDoubleStrikePct') uniqueProjectileDoubleStrikePct += Number(ep.pct || 100);
+        else if (effect.key === 'hitApplyChaosResDown') uniqueChaosResDownOnHit = { perHit: Number(ep.perHit || 3), maxStacks: Number(ep.maxStacks || 10) };
+        else if (effect.key === 'corpseExplodeOnKill') uniqueCorpseExplode = { chance: Number(ep.chance || 15), lifePct: Number(ep.lifePct || 25) };
+        else if (effect.key === 'instantLeechAndDoubleDamage') { uniqueInstantLeechPct += Number(ep.instantLeechPct || 25); uniqueDoubleDamageChancePct += Number(ep.doubleDamageChance || 20); }
+        else if (effect.key === 'riderCompass') uniqueRiderCompass = true;
+        else if (effect.key === 'maxRollBonusHit') uniqueMaxRollBonusHit = true;
+        else if (effect.key === 'ceilingSmashDouble') uniqueCeilingSmashDouble = true;
+        else if (effect.key === 'minRollEqualsMaxRoll') uniqueMinRollEqualsMaxRoll = true;
+        else if (effect.key === 'hpToPhysPct') uniqueHpToPhysPct = true;
+    });
 
     recalculateStarWedgeMutations();
     let mutationMap = (game.starWedge && game.starWedge.nodeMutations) || {};
@@ -1154,27 +1175,6 @@ function getPlayerStats() {
     let chaosDamageMultiplier = 1;
     let dotTickIntervalMultiplier = 1;
     let dotDurationMultiplier = 1;
-    let uniqueXpGainPct = 0, uniqueFlatDmgPerLevel = 0, uniqueEsAmpPct = 0, uniqueShockInvertTaken = false, uniqueAlwaysShock = false, uniqueProjectileDoubleStrikePct = 0;
-    let uniqueChaosResDownOnHit = null, uniqueCorpseExplode = null, uniqueInstantLeechPct = 0, uniqueDoubleDamageChancePct = 0, uniqueEsRecoverOnCritPct = 0;
-    let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false;
-    equippedUniqueEffects.forEach(effect => {
-        if (!effect || !effect.key) return;
-        let ep = effect.params || {};
-        if (effect.key === 'xpGainPct') uniqueXpGainPct += Number(ep.pct || 0);
-        else if (effect.key === 'flatDmgPerLevel') uniqueFlatDmgPerLevel += Number(ep.perLevel || 0);
-        else if (effect.key === 'esAmpAndRecoverOnCrit') { uniqueEsAmpPct = Math.max(uniqueEsAmpPct, Number(ep.ampPct || 50)); uniqueEsRecoverOnCritPct = Math.max(uniqueEsRecoverOnCritPct, Number(ep.recoverPctOnCrit || 2)); }
-        else if (effect.key === 'invertShockTaken') uniqueShockInvertTaken = true;
-        else if (effect.key === 'alwaysShock') uniqueAlwaysShock = true;
-        else if (effect.key === 'projectileDoubleStrikePct') uniqueProjectileDoubleStrikePct += Number(ep.pct || 100);
-        else if (effect.key === 'hitApplyChaosResDown') uniqueChaosResDownOnHit = { perHit: Number(ep.perHit || 3), maxStacks: Number(ep.maxStacks || 10) };
-        else if (effect.key === 'corpseExplodeOnKill') uniqueCorpseExplode = { chance: Number(ep.chance || 15), lifePct: Number(ep.lifePct || 25) };
-        else if (effect.key === 'instantLeechAndDoubleDamage') { uniqueInstantLeechPct += Number(ep.instantLeechPct || 25); uniqueDoubleDamageChancePct += Number(ep.doubleDamageChance || 20); }
-        else if (effect.key === 'riderCompass') uniqueRiderCompass = true;
-        else if (effect.key === 'maxRollBonusHit') uniqueMaxRollBonusHit = true;
-        else if (effect.key === 'ceilingSmashDouble') uniqueCeilingSmashDouble = true;
-        else if (effect.key === 'minRollEqualsMaxRoll') uniqueMinRollEqualsMaxRoll = true;
-        else if (effect.key === 'hpToPhysPct') uniqueHpToPhysPct = true;
-    });
     finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus);
     if (uniqueFlatDmgPerLevel > 0) finalBaseDmg += Math.floor(Math.max(1, game.level || 1) * uniqueFlatDmgPerLevel);
     talismanEntries.forEach(entry => {
@@ -3569,6 +3569,7 @@ function performPlayerAttack(pStats) {
             if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
             let damageBeforeMitigation = dmg;
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
+            if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
             if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
                 if (game.settings.showCombatLog) addLog(`🌀 ${targetEnemy.name} 회피`, 'attack-monster', { noToast: true });
                 return;
