@@ -1736,12 +1736,6 @@ function getPlayerStats() {
         }
     };
 
-    let resistBase = isBoss ? Math.min(75, 24 + Math.floor(zone.tier * 2.2)) : (isElite ? Math.min(60, 14 + Math.floor(zone.tier * 1.8)) : Math.min(40, Math.floor(zone.tier * 1.9)));
-    let chaosResBase = isBoss ? Math.min(60, 12 + Math.floor(zone.tier * 1.7)) : (isElite ? Math.min(45, 8 + Math.floor(zone.tier * 1.3)) : Math.min(30, Math.floor(zone.tier * 1.1)));
-    let defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
-    let defenseLoopScale = Math.min(2.2, 1 + Math.max(0, (game.loopCount || 0)) * 0.05);
-    let baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * (isBoss ? 2.2 : (isElite ? 1.6 : 1)));
-    let baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * (isBoss ? 2.1 : (isElite ? 1.5 : 1)));
     let enemy = {
         baseDmg: finalBaseDmg,
         maxHp: finalMaxHp,
@@ -3449,10 +3443,7 @@ function performPlayerAttack(pStats) {
     }
     let baseDamage = pStats.baseDmg;
     let movedRecently = (Date.now() - (game.lastMoveEndedAt || 0)) <= 1200;
-    if (pStats.uniqueRiderCompass && movedRecently && !game.uniqueRiderCompassConsumed) {
-        baseDamage = Math.floor(baseDamage * 2);
-        game.uniqueRiderCompassConsumed = true;
-    }
+    let riderCompassReady = !!(pStats.uniqueRiderCompass && movedRecently && !game.uniqueRiderCompassConsumed);
     if (isCrit) {
         baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
         if (game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) baseDamage *= 2;
@@ -3573,6 +3564,11 @@ function performPlayerAttack(pStats) {
             if (hitElement === 'phys') enemyRes -= (curseFx.physDrShred || 0);
             let hitCrit = isCrit;
             let hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
+            if (riderCompassReady) {
+                hitBaseDamage = Math.floor(hitBaseDamage * 2);
+                riderCompassReady = false;
+                game.uniqueRiderCompassConsumed = true;
+            }
             if (hitCrit && game.ascendClass === 'assassin' && hasKeystone('a7') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1) hitBaseDamage *= 2;
             if (hitCrit && game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
             let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
