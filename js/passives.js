@@ -5159,6 +5159,38 @@ function removeJewelFromVoidSocket() { if (game.woodsmanBuildLock) return addLog
     updateStaticUI();
 }
 
+function getAbyssSocketCapacity(item) {
+    if (!item || item.rarity !== 'unique') return 0;
+    if (item.uniqueEffectKey === 'abyssSocketOnItem') return Math.max(1, Math.min(2, Math.floor((item.uniqueEffectParams && item.uniqueEffectParams.max) || 2)));
+    if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp') return Math.max(1, Math.min(2, Math.floor((item.uniqueEffectParams && item.uniqueEffectParams.socketsMax) || 2)));
+    return 0;
+}
+
+function ensureAbyssSockets(item) {
+    let cap = getAbyssSocketCapacity(item);
+    if (!item || cap <= 0) return;
+    if (Array.isArray(item.abyssSockets) && item.abyssSockets.length > 0) return;
+    let p = item.uniqueEffectParams || {};
+    let min = Math.max(1, Math.floor(Number(p.min || p.socketsMin || 1)));
+    let max = Math.max(min, Math.min(cap, Math.floor(Number(p.max || p.socketsMax || cap))));
+    let count = min + Math.floor(Math.random() * (max - min + 1));
+    item.abyssSockets = Array.from({ length: count }, () => ({ jewel: null }));
+}
+
+function insertJewelIntoAbyssSocket(invIdx, socketIdx) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    ensureAbyssSockets(item);
+    if (!item || !Array.isArray(item.abyssSockets) || !item.abyssSockets[socketIdx]) return;
+    if (item.abyssSockets[socketIdx].jewel) return addLog('이미 주얼이 장착되어 있습니다.', 'attack-monster');
+    game.jewelInventory = game.jewelInventory || [];
+    let jewel = game.jewelInventory[invIdx];
+    if (!jewel) return;
+    item.abyssSockets[socketIdx].jewel = jewel;
+    game.jewelInventory.splice(invIdx, 1);
+    addLog(`💠 심연 소켓 #${socketIdx + 1}에 [${jewel.name}] 장착`, 'loot-magic');
+    updateStaticUI();
+}
+
 function createItemFromBase(base, rarity, zoneTier) {
     itemIdCounter++;
     let item = {
@@ -5247,11 +5279,21 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
         itemTier: uniqueTier,
         hiddenTier: uniqueTier,
         baseStats: rollBaseStats(base, uniqueTier),
-        stats: []
+        stats: [],
+        uniqueEffect: unique.uniqueEffect || '',
+        uniqueEffectKey: unique.uniqueEffectKey || '',
+        uniqueEffectParams: unique.uniqueEffectParams ? JSON.parse(JSON.stringify(unique.uniqueEffectParams)) : null
     };
+    if (item.uniqueEffectKey === 'abyssSocketOnItem' || item.uniqueEffectKey === 'abyssSocketAndJewelAmp') {
+        let p = item.uniqueEffectParams || {};
+        let min = Math.max(1, Math.floor(Number(p.min || p.socketsMin || 1)));
+        let max = Math.max(min, Math.floor(Number(p.max || p.socketsMax || 2)));
+        let count = min + Math.floor(Math.random() * (max - min + 1));
+        item.abyssSockets = Array.from({ length: count }, () => ({ jewel: null }));
+    }
     unique.stats.forEach(stat => {
         let rolled = rollUniqueStatValue(stat);
-        let boost = unique.ultraRare ? 1 : 1.1;
+        let boost = 1;
         let val = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
         let min = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
         let max = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
@@ -5467,7 +5509,16 @@ const JEWEL_OPTION_POOL = [
     { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 },
     { id: 'regenSuppress', name: '봉쇄 파편', min: 0.05, max: 0.12, step: 0.01 },
     { id: 'minDmgRoll', name: '하한 수정', min: 1, max: 3 },
-    { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 }
+    { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 },
+    { id: 'armorPct', name: '강화 외피', min: 4, max: 10 },
+    { id: 'evasionPct', name: '유동 보법', min: 4, max: 10 },
+    { id: 'dr', name: '강인 파편', min: 2, max: 5 },
+    { id: 'energyShieldPct', name: '보호막 기동', min: 4, max: 10 },
+    { id: 'ailResIgnite', name: '소염 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResShock', name: '절연 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResFreeze', name: '방한 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResPoison', name: '해독 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResBleed', name: '지혈 수정', min: 12.5, max: 50, step: 0.5 },
 ];
 const JEWEL_HIDDEN_TIER_COUNT = 5;
 const JEWEL_PETITE_OPTION_POOL = [
@@ -5526,6 +5577,18 @@ function cloneJewelStat(stat) {
 }
 
 function rollJewelStat(option) {
+    if (!option) return null;
+    let ailResIds = new Set(['ailResIgnite','ailResShock','ailResFreeze','ailResPoison','ailResBleed']);
+    if (ailResIds.has(option.id)) {
+        let tier = 1 + Math.floor(Math.random() * JEWEL_HIDDEN_TIER_COUNT);
+        let tierRanges = { 1:[12.5,25], 2:[17,30], 3:[22,36], 4:[26,43], 5:[30,50] };
+        let rng = tierRanges[tier] || [12.5,50];
+        let step = 0.5;
+        let slots = Math.max(0, Math.floor(((rng[1]-rng[0])/step)+0.000001));
+        let val = rng[0] + Math.floor(Math.random() * (slots + 1)) * step;
+        val = Number(val.toFixed(2));
+        return normalizeJewelStat({ id: option.id, val: val, valMin: rng[0], valMax: rng[1], tier: tier });
+    }
     let hasDecimalRange = !Number.isInteger(Number(option.min)) || !Number.isInteger(Number(option.max));
     let step = Number.isFinite(option.step) && option.step > 0 ? option.step : (hasDecimalRange ? 0.1 : 1);
     let slots = Math.max(0, Math.floor(((option.max - option.min) / step) + 0.000001));
