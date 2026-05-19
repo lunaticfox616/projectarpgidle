@@ -184,7 +184,11 @@ function getZone(id) {
     }
     if (id === LABYRINTH_ZONE_ID) {
         let floor = Math.max(1, game.labyrinthFloor || 1);
-        return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: Math.min(20, 7 + Math.floor(floor / 3)), maxKills: 1, ele: 'chaos', floor: floor };
+        let baseTier = Math.min(20, 7 + Math.floor(floor / 3));
+        let over50 = Math.max(0, floor - 50);
+        let over100 = Math.max(0, floor - 100);
+        let extraTier = Math.floor(over50 / 5) + Math.floor(over100 / 3);
+        return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor };
     }
     if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) {
         let depth = getAbyssDepthFromZoneId(id);
@@ -246,7 +250,7 @@ function getHighestUnlockedEndlessChaosDepth() {
 }
 
 function getAutoProgressZoneId(fallbackZoneId) {
-    if ((game.season || 1) >= 10) {
+    if ((game.season || 1) >= 10 && hasCurrentLoopChaos20Clear()) {
         let highestDepth = getHighestUnlockedEndlessChaosDepth();
         if (highestDepth >= 21) return getAbyssZoneIdForDepth(highestDepth);
     }
@@ -462,7 +466,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'r5', name: '급소 표식', desc: '같은 적 3회 연속 적중마다 적 최대 체력의 1% 추가 물리 피해', req: 'r2' },
         { id: 'r6', name: '궤적 관통', desc: '관통 스킬 타겟 수 +1, 관통 스킬 피해 10% 감폭, 타겟마다 3% 증폭', req: 'r3' },
         { id: 'r7', name: '추적 본능', desc: '피격되지 않은 시간 1초마다 치명타 확률 +5%p (피격 시 초기화)', reqAny: ['r4', 'r5'] },
-        { id: 'r8', name: '폭풍 사냥', desc: '공격 속도와 이동 속도 상호 20% 효율 보정, 최대 생명력 -15%', req: 'r7' }
+        { id: 'r8', name: '폭풍 사냥', desc: '공격 속도와 이동 속도 상호 7% 효율 보정, 최대 생명력 -15%', req: 'r7' }
     ],
     elementalist: [
         { id: 'e1', name: '원소 공명', desc: '원소 최종 피해 15% 증폭, 물리 피해 없음', req: null },
