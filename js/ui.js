@@ -4656,6 +4656,9 @@ function buildCraftActionButtons(item) {
             });
             return Array.from(set);
         }
+        function adjCount(tid) {
+            return adjIds(tid).length;
+        }
         function findMarkedNeighborId(entry) {
             if (!entry || !entry.talisman || !entry.talisman.markDir) return null;
             let anchor = (typeof getTalismanAnchorCell === 'function') ? getTalismanAnchorCell(entry.talisman) : ((entry.talisman.cells || [])[0] || {x:0,y:0});
@@ -4674,14 +4677,27 @@ function buildCraftActionButtons(item) {
         placements.forEach(row => {
             let t = row && row.talisman;
             if (!t || !t.special) return;
-            if (t.special === 'gravity') addTotal('pctDmg', adjIds(t.id).length * 12);
-            if (t.special === 'pride') addTotal('pctDmg', adjIds(t.id).filter(id => (idPos[id] && idPos[id].talisman && idPos[id].talisman.isUnique)).length * 18);
+            if (t.special === 'gravity') {
+                adjIds(t.id).forEach(nid => {
+                    let n = idPos[nid] && idPos[nid].talisman;
+                    if (!n) return;
+                    let list = Array.isArray(n.stats) && n.stats.length > 0 ? n.stats : (n.stat ? [{ stat:n.stat, value:n.value || 0 }] : []);
+                    list.forEach(st => addTotal(st.stat, (st.value || 0) * 0.25));
+                });
+            }
             if (t.special === 'simpleCopy') {
                 let nid = findMarkedNeighborId(row);
                 let n = nid ? (idPos[nid] && idPos[nid].talisman) : null;
-                if (!n || n.isUnique) return;
+                if (!n) return;
                 let list = Array.isArray(n.stats) && n.stats.length > 0 ? n.stats : (n.stat ? [{ stat:n.stat, value:n.value || 0 }] : []);
                 list.forEach(st => addTotal(st.stat, st.value || 0));
+            }
+            if (t.special === 'pride') {
+                let n = adjCount(t.id);
+                if (n === 0) { addTotal('gemLevel', 1); addTotal('suppCap', 1); }
+                else if (n === 1) addTotal('suppCap', 1);
+                else if (n <= 4) { addTotal('pctDmg', 15); addTotal('aspd', 10); }
+                else { addTotal('crit', 5); addTotal('critDmg', 25); addTotal('pctDmg', 15); addTotal('aspd', 10); }
             }
         });
         let rows = Object.keys(total).map(stat => {
