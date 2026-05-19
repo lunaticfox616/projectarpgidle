@@ -287,15 +287,18 @@ function handleInventoryCardDoubleClick(itemId, mode) {
 function getDropOnlyItemSourceMeta(item) {
     if (!item) return null;
     let base = BASE_ITEM_DB.find(row => row && ((item.baseId && row.id === item.baseId) || (row.slot === String(item.slot || '').replace(/[12]/, '') && row.name === item.baseName)));
-    let type = base && base.dropOnly && base.dropOnly.type;
+    let dropOnly = base && base.dropOnly ? base.dropOnly : null;
+    let sourceKey = dropOnly ? (dropOnly.type || dropOnly.id || null) : null;
     let map = {
         beehive: { badgeClass: 'item-source-badge item-source-badge--beehive', toneClass: 'item-source-tone--beehive', label: '벌집 한정' },
         trial: { badgeClass: 'item-source-badge item-source-badge--trial', toneClass: 'item-source-tone--trial', label: '시련 한정' },
         rift: { badgeClass: 'item-source-badge item-source-badge--rift', toneClass: 'item-source-tone--rift', label: '균열 한정' },
         meteor: { badgeClass: 'item-source-badge item-source-badge--meteor', toneClass: 'item-source-tone--meteor', label: '운석 한정' },
-        ancient_labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: '고대 미궁 한정' }
+        labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: '고대 미궁 한정' },
+        ancient_labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: '고대 미궁 한정' },
+        grand_breach_run: { badgeClass: 'item-source-badge item-source-badge--rift', toneClass: 'item-source-tone--rift', label: '대균열 한정' }
     };
-    return map[type] || null;
+    return sourceKey ? (map[sourceKey] || null) : null;
 }
 
 function renderPaperdoll(targetId, forCrafting) {
