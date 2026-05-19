@@ -1916,6 +1916,7 @@ function getPlayerStats() {
         uniqueQueenBeeSummon: uniqueQueenBeeSummon,
         uniqueBleedWeightOnBleedingHit: uniqueBleedWeightOnBleedingHit,
         uniqueMeteorFootsteps: uniqueMeteorFootsteps
+        ,uniquePoisonExtraStacks: uniqueVenomStride ? 1 : 0
     };
     if (uniqueImmuneIgnite) enemy.immuneIgnite = true;
     if (uniqueFrostSentinel) { enemy.immuneChill = true; enemy.immuneFreeze = true; }
@@ -3828,6 +3829,15 @@ function performPlayerAttack(pStats) {
                 let meteor = Math.max(1, Math.floor(dmg * (Math.max(1, Number(pStats.uniqueMeteorFootsteps.damagePct || 180)) / 100)));
                 (game.enemies || []).forEach(e => { if (!e || e.hp <= 0) return; e.hp = Math.max(0, e.hp - meteor); });
             }
+            if (pStats.uniqueShockTracer && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'shock' && (a.time || 0) > 0)) {
+                let now = Date.now();
+                game.uniqueShockTracerNextAt = Number(game.uniqueShockTracerNextAt || 0);
+                if (now >= game.uniqueShockTracerNextAt) {
+                    game.uniqueShockTracerNextAt = now + 500;
+                    let strike = Math.max(1, Math.floor(dmg * 5));
+                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, strike);
+                }
+            }
             if (pStats.uniqueDragonVeinGuard && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueDragonVeinGuard.chance || 0) / 100))) {
                 let guardAmt = Math.max(1, Math.floor((pStats.maxHp || 0) * Math.max(0, Number(pStats.uniqueDragonVeinGuard.hpPct || 8)) / 100));
                 game.playerUniqueGuard = { amount: guardAmt, expiresAt: Date.now() + Math.max(500, Math.floor((pStats.uniqueDragonVeinGuard.duration || 2) * 1000)) };
@@ -4044,6 +4054,15 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage) {
     let damageAilment = isDamageAilmentType(type);
     let hitSource = Math.max(0, Math.floor(Number(sourceHitDamage) || 0));
     let existing = game.playerAilments.find(row => row.type === type);
+    if (type === 'poison') {
+        let maxStacks = Math.max(1, 1 + Math.max(0, Math.floor((pStats && pStats.uniquePoisonExtraStacks) || 0)));
+        let poisonRows = game.playerAilments.filter(row => row && row.type === 'poison');
+        if (poisonRows.length >= maxStacks) {
+            existing = poisonRows.reduce((a, b) => ((a.time || 0) <= (b.time || 0) ? a : b), poisonRows[0]);
+        } else {
+            existing = null;
+        }
+    }
     if (existing) {
         existing.time = Math.max(existing.time || 0, duration);
         existing.power = Math.max(existing.power || 0, power || 0.1);
@@ -4215,6 +4234,17 @@ function performMonsterAttacks(pStats) {
             let damageBreakdown = [];
             if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
             if (mitigatedElemental > 0) damageBreakdown.push({ ele: enemy.ele, amount: mitigatedElemental });
+            if (pStats.uniqueBleedBlockHelm) {
+                damageBreakdown = damageBreakdown.flatMap(row => {
+                    if (row.ele !== 'phys' || row.amount <= 0) return [row];
+                    let chaosPart = Math.max(0, Math.floor(row.amount * 0.15));
+                    let physPart = Math.max(0, row.amount - chaosPart);
+                    let out = [];
+                    if (physPart > 0) out.push({ ele: 'phys', amount: physPart });
+                    if (chaosPart > 0) out.push({ ele: 'chaos', amount: chaosPart });
+                    return out;
+                });
+            }
             if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: 1 });
             let sumBreakdown = () => damageBreakdown.reduce((sum, row) => sum + Math.max(0, Math.floor(row.amount || 0)), 0);
             let scaleBreakdown = (mul) => {
