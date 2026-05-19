@@ -1458,7 +1458,7 @@ function toggleCodexSlotCollapse(slot) {
     updateStaticUI();
 }
 
-function renderCodexStatsHtml(entry, stored) {
+function renderCodexStatsHtml(entry, stored, codexKey) {
     let statList = [];
     if (stored && stored.baseName) {
         if (stored.uniqueEffect) statList.push(`<span style="color:#d7b8ff;">[고유 효과] ${escapeHTML(stored.uniqueEffect)}</span>`);
@@ -1472,7 +1472,9 @@ function renderCodexStatsHtml(entry, stored) {
     } else if (stored) {
         if (entry.uniqueEffect) statList.push(`<span style="color:#d7b8ff;">[고유 효과] ${escapeHTML(entry.uniqueEffect)}</span>`);
         (entry.stats || []).forEach(stat => {
-            statList.push(`<span>${getStatName(stat.id)} ${formatValue(stat.id, stat.min)}~${formatValue(stat.id, stat.max)}</span>`);
+            let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || 0);
+            let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
+            statList.push(`<span>${getStatName(stat.id)} +${formatValue(stat.id, min)}~+${formatValue(stat.id, max)}</span>`);
         });
     }
     return statList.join('<br>');
@@ -1501,7 +1503,7 @@ function renderUniqueCodexUI() {
             let key = `${slot}|${entry.name}`;
             let stored = game.uniqueCodex[key];
             let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (시즌 리셋됨)') : '미등록';
-            let statHtml = stored ? renderCodexStatsHtml(entry, stored) : '';
+            let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
             lines.push(`<div class="item-card"><div><div class="item-title unique">[${slot}] ${stored ? entry.name : '???'}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '옵션 정보 없음'}</div></div><div class="item-actions">${stored ? (stored.baseName ? `<button onclick="withdrawUniqueFromCodex('${key}')">꺼내기</button>` : `<button disabled>초기화됨</button>`) : `<button disabled>비어있음</button>`}</div></div>`);
         });
     });

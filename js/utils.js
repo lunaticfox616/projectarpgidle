@@ -212,7 +212,11 @@ function getStatName(statId) {
         ailResBleed: '출혈 저항 확률(%)',
         energyShieldPct: '에너지 보호막(%)',
         energyShieldRegen: '에너지 보호막 재생률(%)',
-        energyShieldRechargeFaster: '보호막 재생 준비시간 감소(초)'
+        energyShieldRechargeFaster: '보호막 재생 준비시간 감소(초)',
+        targetCount: '스킬 타겟 수',
+        spellCritDmg: '주문 치명타 피해 배율(%)',
+        spellLeech: '주문 흡혈(%)',
+        shockEffect: '감전 효과(%)'
     };
     return names[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId;
 }
@@ -240,7 +244,7 @@ function createEmptyStatBucket() {
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0,
         ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
-        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, igniteDamageMultiplierPct: 0, accuracyBonusPct: 0
+        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, igniteDamageMultiplierPct: 0, accuracyBonusPct: 0, shockEffect: 0
     };
 }
 function addStatToBucket(bucket, statId, value) {
@@ -343,7 +347,12 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'energyShieldPct') bucket.energyShieldPct += value;
     else if (statId === 'energyShieldRegen') bucket.energyShieldRegen += value;
     else if (statId === 'energyShieldRechargeFaster') bucket.energyShieldRechargeFaster += value;
+    else if (statId === 'targetCount') bucket.targetAny += value;
+    else if (statId === 'spellCritDmg') bucket.critDmg += value;
+    else if (statId === 'spellLeech') bucket.leech += value;
+    else if (statId === 'shockEffect') bucket.shockEffect += value;
 }
+
 function applyStatsToBucket(bucket, stats) {
     (stats || []).forEach(stat => addStatToBucket(bucket, stat.id, stat.val));
 }

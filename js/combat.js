@@ -493,6 +493,7 @@ function coreLoop() {
         game.moveTimer -= 0.1;
         if (game.moveTimer <= 0) {
             game.lastMoveEndedAt = Date.now();
+            game.uniqueRiderCompassConsumed = false;
             if (!finishWoodsmanEntrance()) startEncounterRun();
         }
         return;
@@ -700,6 +701,25 @@ function convertSkillDamageToChaos(skill) {
 }
 
 
+function getUniqueEffectImplementationReport() {
+    let declared = [];
+    try {
+        if (Array.isArray(UNIQUE_DB)) declared = UNIQUE_DB.map(u => u && u.uniqueEffectKey).filter(Boolean);
+    } catch (_) {}
+    let uniqueKeys = Array.from(new Set(declared));
+    let implemented = new Set([
+        'xpGainPct','flatDmgPerLevel','esAmpAndRecoverOnCrit','invertShockTaken','alwaysShock',
+        'projectileDoubleStrikePct','hitApplyChaosResDown','corpseExplodeOnKill','instantLeechAndDoubleDamage',
+        'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
+        'abyssSocketOnItem','abyssSocketAndJewelAmp'
+    ]);
+    return {
+        total: uniqueKeys.length,
+        implemented: uniqueKeys.filter(k => implemented.has(k)),
+        missing: uniqueKeys.filter(k => !implemented.has(k))
+    };
+}
+
 function getEquippedUniqueJewels() {
     let equipped = [];
     (game.jewelSlots || []).forEach((jewel, idx) => {
@@ -841,6 +861,7 @@ function getPlayerStats() {
         else if (effect.key === 'minRollEqualsMaxRoll') uniqueMinRollEqualsMaxRoll = true;
         else if (effect.key === 'hpToPhysPct') uniqueHpToPhysPct = true;
         else if (effect.key === 'immuneIgnite') uniqueImmuneIgnite = true;
+        else if (effect.key === 'abyssSocketOnItem' || effect.key === 'abyssSocketAndJewelAmp') { /* handled by item generation/socket stat merge path */ }
     });
 
     recalculateStarWedgeMutations();
@@ -1802,11 +1823,17 @@ function getPlayerStats() {
         maxResC: finalMaxResC,
         maxResL: finalMaxResL,
         resChaos: finalResChaos,
+        ailResIgnite: (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0),
+        ailResShock: (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0),
+        ailResFreeze: (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0),
+        ailResPoison: (gearExplicit.ailResPoison || 0) + (passive.ailResPoison || 0) + (season.ailResPoison || 0) + (ascend.ailResPoison || 0) + (reward.ailResPoison || 0),
+        ailResBleed: (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0),
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
         instantDamageMultiplier: instantDamageMultiplier,
         finalDamageMultiplier: finalDamageMultiplier,
         ailmentPowerMultiplier: ailmentPowerMultiplier,
+        shockEffectBonusPct: (gearExplicit.shockEffect || 0) + (passive.shockEffect || 0) + (season.shockEffect || 0) + (ascend.shockEffect || 0) + (reward.shockEffect || 0),
         chaosDamageMultiplier: chaosDamageMultiplier,
         dotTickIntervalMultiplier: dotTickIntervalMultiplier,
         dotDurationMultiplier: dotDurationMultiplier,
@@ -3733,7 +3760,8 @@ function performPlayerAttack(pStats) {
             applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, hitCrit);
             if (pStats.uniqueAlwaysShock) {
                 let shockStats = { ...pStats, sSkill: { ...pStats.sSkill, ele: 'light' } };
-                applyEnemyAilmentFromHit(targetEnemy, shockStats, Math.max(1, Math.floor(dmg * 0.25)), true);
+                let shockHit = Math.max(1, Math.floor(dmg * 0.25 * (1 + Math.max(0, Number(pStats.shockEffectBonusPct)||0)/100)));
+                applyEnemyAilmentFromHit(targetEnemy, shockStats, shockHit, true);
             }
         });
     }
@@ -4493,4 +4521,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps });
+safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport });
