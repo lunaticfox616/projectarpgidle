@@ -485,6 +485,10 @@ function coreLoop() {
         handlePlayerDefeat(getZone(game.currentZoneId) || getZone(0), pStats, "☠️ 치명상을 입어 쓰러졌습니다.", { fatalElement: 'other', sourceName: '치명상' });
         return;
     }
+    if (game.woodsmanEntrancePending && game.moveTimer <= 0) {
+        finishWoodsmanEntrance();
+        return;
+    }
     if (game.combatHalted && game.moveTimer > 0) {
         game.moveTimer -= 0.1;
         if (game.moveTimer <= 0) {
@@ -2096,6 +2100,13 @@ function createEnemy(zone, marker, groupIndex) {
     if (trait && trait.hpMul) hp = Math.floor(hp * trait.hpMul);
     let isSky = (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
     if (isSky) name = `☁️ ${name}`;
+    let resistBase = isBoss ? Math.min(75, 24 + Math.floor(zone.tier * 2.2)) : (isElite ? Math.min(60, 14 + Math.floor(zone.tier * 1.8)) : Math.min(40, Math.floor(zone.tier * 1.9)));
+    let chaosResBase = isBoss ? Math.min(60, 12 + Math.floor(zone.tier * 1.7)) : (isElite ? Math.min(45, 8 + Math.floor(zone.tier * 1.3)) : Math.min(30, Math.floor(zone.tier * 1.1)));
+    let defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
+    let defenseLoopScale = Math.min(2.2, 1 + Math.max(0, (game.loopCount || 0)) * 0.05);
+    let baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * (isBoss ? 2.2 : (isElite ? 1.6 : 1)));
+    let baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * (isBoss ? 2.1 : (isElite ? 1.5 : 1)));
+    let drBase = isBoss ? Math.min(70, 10 + Math.floor(zone.tier * 1.55)) : (isElite ? Math.min(55, 6 + Math.floor(zone.tier * 1.2)) : Math.min(40, 2 + Math.floor(zone.tier * 0.85)));
     let enemy = {
         id: game.nextEnemyId++,
         hp: hp,
@@ -2108,7 +2119,7 @@ function createEnemy(zone, marker, groupIndex) {
         groupIndex: groupIndex,
         variantSeed: variantSeed,
         ele: enemyEle,
-        dr: Math.max(0, Math.floor(zone.tier * 0.8) + (trait && trait.dr ? trait.dr : 0)),
+        dr: Math.max(0, drBase + (trait && trait.dr ? trait.dr : 0)),
         resF: Math.min(75, resistBase + (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0)),
         resC: Math.min(75, resistBase + (trait && trait.resC ? trait.resC : 0) + (abyssScale.resistBonus || 0)),
         resL: Math.min(75, resistBase + (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0)),
@@ -2140,7 +2151,7 @@ function createEnemy(zone, marker, groupIndex) {
     if (zone.type === 'outsideChaos') enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
     if (zone.type === 'outsideChaos') {
         enemy.isWoodsman = true;
-        enemy.dr += 8;
+        enemy.dr = Math.max(50, enemy.dr + 8);
         enemy.maxResCap = 85;
         enemy.baseResF = enemy.resF;
         enemy.baseResC = enemy.resC;
@@ -4238,9 +4249,10 @@ function addWoodsmanPendingScore(scoreGain) {
 const WOODSMAN_ENTRANCE_DELAY_SECONDS = 3;
 
 function finishWoodsmanEntrance() {
-    let zone = getZone(game.currentZoneId);
     if (!game.woodsmanEntrancePending) return false;
     game.woodsmanEntrancePending = false;
+    game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
+    let zone = getZone(OUTSIDE_CHAOS_ZONE_ID);
     if (!zone || zone.type !== 'outsideChaos') return false;
     game.moveTimer = 0;
     game.moveTotalTime = 0;
