@@ -287,15 +287,19 @@ function handleInventoryCardDoubleClick(itemId, mode) {
 function getDropOnlyItemSourceMeta(item) {
     if (!item) return null;
     let base = BASE_ITEM_DB.find(row => row && ((item.baseId && row.id === item.baseId) || (row.slot === String(item.slot || '').replace(/[12]/, '') && row.name === item.baseName)));
-    let type = base && base.dropOnly && base.dropOnly.type;
+    let unique = UNIQUE_DB.find(row => row && row.name === item.name && Array.isArray(row.slots) && row.slots.includes(String(item.slot || '').replace(/[12]/, '')));
+    let dropOnly = (base && base.dropOnly) ? base.dropOnly : ((unique && unique.dropOnly) ? unique.dropOnly : null);
+    let sourceKey = dropOnly ? (dropOnly.type || dropOnly.id || null) : null;
     let map = {
         beehive: { badgeClass: 'item-source-badge item-source-badge--beehive', toneClass: 'item-source-tone--beehive', label: '벌집 한정' },
         trial: { badgeClass: 'item-source-badge item-source-badge--trial', toneClass: 'item-source-tone--trial', label: '시련 한정' },
         rift: { badgeClass: 'item-source-badge item-source-badge--rift', toneClass: 'item-source-tone--rift', label: '균열 한정' },
         meteor: { badgeClass: 'item-source-badge item-source-badge--meteor', toneClass: 'item-source-tone--meteor', label: '운석 한정' },
-        ancient_labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: '고대 미궁 한정' }
+        labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: '고대 미궁 한정' },
+        ancient_labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: '고대 미궁 한정' },
+        grand_breach_run: { badgeClass: 'item-source-badge item-source-badge--rift', toneClass: 'item-source-tone--rift', label: '대균열 한정' }
     };
-    return map[type] || null;
+    return sourceKey ? (map[sourceKey] || null) : null;
 }
 
 function renderPaperdoll(targetId, forCrafting) {
@@ -329,8 +333,9 @@ function renderInventoryCard(item, idx, mode) {
     let lockIcon = item.locked ? ' 🔒' : '';
     let lockBtnLabel = item.locked ? '잠금해제' : '잠금';
     let lines = [];
-    (item.baseStats || []).forEach(stat => lines.push(`<span style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
-    (item.stats || []).slice(0, 3).forEach(stat => lines.push(`<span>${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
+    let tone = (statId) => (typeof getItemStatToneColor === 'function') ? getItemStatToneColor(statId) : '#d7e9ff';
+    (item.baseStats || []).forEach(stat => lines.push(`<span style="color:${tone(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
+    (item.stats || []).slice(0, 3).forEach(stat => lines.push(`<span style="color:${tone(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
     if (item.chaosInfusion) lines.push(`<span style="color:#d7a8ff">[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}</span>`);
     if (typeof getImmutableItemSpecialStats === 'function') getImmutableItemSpecialStats(item).slice(0, 1).forEach(stat => lines.push(`<span style="color:#d7b8ff">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
     if (item.encroached && !item.encroached.liberated) lines.push(`<span style="color:#8d7bb3">[잠식] 해방 전</span>`);
