@@ -642,8 +642,8 @@ function renderMarketUI() {
             let cls = offer.type === 'exchange' ? 'currency' : offer.type === 'skillGem' ? 'gem' : offer.type === 'baseItem' ? 'gear' : 'unique';
             let badge = cls === 'currency' ? '재화' : cls === 'gem' ? '젬' : cls === 'gear' ? '장비' : '고유';
             let tooltip = encodeURIComponent(getBlackMarketOfferTooltipHtml(offer));
-            let safeDesc = typeof escapeHTML === 'function' ? escapeHTML(`${desc}${price}`) : `${desc}${price}`;
-            return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span class="market-black-label" data-info-tooltip-anchor="1" data-market-tooltip="${tooltip}" onmouseenter="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmousemove="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmouseleave="hideInfoTooltip()">${safeDesc}</span></div><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
+            let richDesc = `${desc}${price}`;
+            return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span class="market-black-label" data-info-tooltip-anchor="1" data-market-tooltip="${tooltip}" onmouseenter="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmousemove="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmouseleave="hideInfoTooltip()">${richDesc}</span></div><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
         }).join('');
         bmEl.innerHTML = `<div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()">신성한 오브 1개로 품목 +1</button>`;
     }

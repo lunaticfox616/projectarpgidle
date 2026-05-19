@@ -1076,7 +1076,13 @@ function renderTalismanMiniShapeFromCells(cellsInput, shape, options = {}) {
             html += `<span style="width:${cellSize}px; height:${cellSize}px; border-radius:2px; border:1px solid ${isFilled ? style.color : 'rgba(120,140,160,0.35)'}; ${fillStyle} display:block;"></span>`;
         }
     }
-    return `<span style="display:grid; grid-template-columns:repeat(${cols}, ${cellSize}px); grid-auto-rows:${cellSize}px; gap:${gap}px; width:${width}px; height:${height}px; padding:2px; border:1px solid rgba(120,145,175,0.4); border-radius:4px; background:rgba(8,14,22,0.45); box-shadow:0 0 0 1px ${style.glow};">${html}</span>`;
+    let dir = options.markDir;
+    let arrow = '';
+    if (dir === 'up' || dir === 'right' || dir === 'down' || dir === 'left') {
+        let ch = dir === 'up' ? '↑' : (dir === 'right' ? '→' : (dir === 'down' ? '↓' : '←'));
+        arrow = `<span style="position:absolute; right:-4px; bottom:-5px; font-size:${Math.max(10, cellSize + 2)}px; color:#ffd27a; text-shadow:0 0 4px rgba(255,200,110,0.9), 0 0 8px rgba(255,130,60,0.5); line-height:1;">${ch}</span>`;
+    }
+    return `<span style="position:relative; display:grid; grid-template-columns:repeat(${cols}, ${cellSize}px); grid-auto-rows:${cellSize}px; gap:${gap}px; width:${width}px; height:${height}px; padding:2px; border:1px solid rgba(120,145,175,0.4); border-radius:4px; background:rgba(8,14,22,0.45); box-shadow:0 0 0 1px ${style.glow};">${html}${arrow}</span>`;
 }
 
 function getTalismanAnchorCell(talisman) {
@@ -1926,18 +1932,18 @@ function showTalismanBoardTooltip(event, talismanId) {
     let min = Number.isFinite(placed.valueMin) ? placed.valueMin : placed.value;
     let max = Number.isFinite(placed.valueMax) ? placed.valueMax : placed.value;
     let specialDesc = getTalismanSpecialDescription(placed);
-    let html = `<div class="tooltip-title">[${escapeHTML(placed.shape || '?')}] ${escapeHTML(placed.statName || '')}</div><div class="tooltip-line">획득 수치: +${formatValue(placed.stat, placed.value)}</div><div class="tooltip-line">가능 범위: +${formatValue(placed.stat, min)} ~ +${formatValue(placed.stat, max)}</div><div class="tooltip-line">희귀도: ${escapeHTML(placed.rarity || 'normal')}</div>${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}`;
+    let html = `<div class="tooltip-title">[${escapeHTML(placed.shape || '?')}] ${escapeHTML(placed.statName || '')}</div><div class="tooltip-line">획득 수치: +${formatValue(placed.stat, placed.value)}</div><div class="tooltip-line">가능 범위: +${formatValue(placed.stat, min)} ~ +${formatValue(placed.stat, max)}</div>${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
 }
 
 function getTalismanSpecialDescription(talisman) {
     if (!talisman || !talisman.special) return '';
-    if (talisman.special === 'gravity') return '인접한 부적 수만큼 피해가 증폭됩니다.';
-    if (talisman.special === 'simpleCopy') return '인접한 일반 부적 1개의 수치를 복제합니다.';
-    if (talisman.special === 'temperance') return '무작위 3개 능력치를 동시에 부여합니다.';
-    if (talisman.special === 'pride') return '인접한 고유 부적 수에 비례해 피해가 증폭됩니다.';
-    if (talisman.special === 'moment') return `보스 체력 5% 이하 즉시 처형, 보스 최종 피해 +${talisman.bossFinalDmgMin || 5}~${talisman.bossFinalDmgMax || 15}%`;
-    if (talisman.special === 'elementFocus') return '특정 계열 젬 레벨/피해/저항을 함께 강화합니다.';
+    if (talisman.special === 'gravity') return '인접(상하좌우) 부적 1개당 최종 피해 +12%.';
+    if (talisman.special === 'simpleCopy') return `화살표 방향(현재: ${talisman.markDir || 'up'})의 인접 일반 부적 1개 옵션을 동일 수치로 복제.`;
+    if (talisman.special === 'temperance') return '무작위 능력치 3줄을 동시에 부여(각 줄 독립 수치).';
+    if (talisman.special === 'pride') return '인접한 고유 부적 1개당 최종 피해 +18%.';
+    if (talisman.special === 'moment') return `보스 최종 피해 +${talisman.bossFinalDmgMin || 5}~${talisman.bossFinalDmgMax || 15}% 및 보스 체력 5% 이하 즉시 처형.`;
+    if (talisman.special === 'elementFocus') return '해당 계열 젬 레벨/해당 계열 피해/해당 계열 저항 3종을 동시에 부여.';
     return talisman.special;
 }
 
@@ -1950,7 +1956,7 @@ function showTalismanInventoryTooltip(event, talismanId) {
     let specialDesc = getTalismanSpecialDescription(t);
     let hasPrimaryStat = !!t.stat;
     let statLine = hasPrimaryStat ? `<div class="tooltip-line">획득 수치: +${formatValue(t.stat, t.value)}</div><div class="tooltip-line">가능 범위: +${formatValue(t.stat, min)} ~ +${formatValue(t.stat, max)}</div>` : '';
-    let html = `<div class="tooltip-title">[${escapeHTML(t.shape || '?')}] ${escapeHTML(t.name || t.statName || '부적')}</div>${statLine}<div class="tooltip-line">희귀도: ${escapeHTML(t.rarity || 'normal')}</div>${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}`;
+    let html = `<div class="tooltip-title">[${escapeHTML(t.shape || '?')}] ${escapeHTML(t.name || t.statName || '부적')}</div>${statLine}${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
 }
 
@@ -3853,7 +3859,7 @@ function getJewelStatToneColor(statId) {
 function getStyledOrbName(orbKey) {
     let name = (ORB_DB[orbKey] && ORB_DB[orbKey].name) ? ORB_DB[orbKey].name : String(orbKey || '');
     if (orbKey === 'transmute' || orbKey === 'augment') return `<span style="color:#9fd3ff;">${name}</span>`;
-    if (orbKey === 'alchemy') return `<span style="color:#ffe07a;">${name}</span>`;
+    if (orbKey === 'alchemy' || orbKey === 'regal' || orbKey === 'scour' || orbKey === 'blessing') return `<span style="color:#ffe07a;">${name}</span>`;
     if (orbKey === 'chaos' || orbKey === 'exalted') return `<span style="color:#ffbc8a;">${name}</span>`;
     if (orbKey === 'divine') return `<span style="color:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;">${name}</span>`;
     if (orbKey === 'tainted') return `<span style="color:#8a2f3f;">${name}</span>`;
@@ -4550,7 +4556,7 @@ function buildCraftActionButtons(item) {
             </div>`;
     } else {
         let shapeStyle = getTalismanShapeStyle(unseal.current.shape);
-        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">${renderTalismanMiniShape(unseal.current.shape, { cellSize: 8, gap: 1 })}<span>후보: <strong style="color:${shapeStyle.color};">[${unseal.current.shape}] ${unseal.current.statName} +${unseal.current.value}</strong> <span style="color:#9cb5d0;">(${unseal.current.rarity})</span></span>${renderSealShardBadge(unseal.source)}</div>
+        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">${renderTalismanMiniShape(unseal.current.shape, { cellSize: 8, gap: 1, markDir: unseal.current.markDir })}<span>후보: <strong style="color:${shapeStyle.color};">[${unseal.current.shape}] ${unseal.current.statName} +${unseal.current.value}</strong> <span style="color:#9cb5d0;">(${unseal.current.rarity})</span></span>${renderSealShardBadge(unseal.source)}</div>
             <div style="margin-bottom:8px; color:#8fa7c3;">남은 형태 확인 기회: ${unseal.rollsLeft}/${unseal.totalRolls}</div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button onclick="acceptCurrentTalisman()">선택</button>
@@ -4562,7 +4568,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-talisman-inventory').innerHTML = game.talismanInventory.map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
-        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.name || t.statName || '부적'} ${t.stat ? ` · ${t.statName} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 효과: ${getTalismanSpecialDescription(t)}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
+        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.name || t.statName || '부적'} ${t.stat ? ` · ${t.statName} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 효과: ${getTalismanSpecialDescription(t)}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
