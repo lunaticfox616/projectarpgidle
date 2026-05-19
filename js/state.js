@@ -544,7 +544,7 @@ const SEASON_NODE_ROWS = [
 ];
 
 const JEWEL_INVENTORY_LIMIT = 40;
-const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare'];
+const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare', 'unique'];
 
 
 
@@ -1083,7 +1083,7 @@ const defaultGame = {
         itemFilterOnlyNewCodexUnique: false,
         autoEnterMeteor: false,
         jewelAutoSalvageEnabled: false,
-        jewelAutoSalvageRarities: { normal: false, magic: false, rare: false },
+        jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
         mapCompleteAction: 'nextZone',
         townReturnAction: 'retry',
         notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, talisman: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true }

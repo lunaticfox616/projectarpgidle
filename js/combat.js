@@ -708,6 +708,12 @@ function getEquippedUniqueJewels() {
     Object.values(game.equipment || {}).forEach(item => {
         let j = item && item.voidSocket && item.voidSocket.open ? item.voidSocket.jewel : null;
         if (j && j.rarity === 'unique' && j.uniqueId) equipped.push({ jewel: j, slot: -1, source: 'void' });
+        if (Array.isArray(item && item.abyssSockets)) {
+            item.abyssSockets.forEach((sock, idx) => {
+                let aj = sock && sock.jewel ? sock.jewel : null;
+                if (aj && aj.rarity === 'unique' && aj.uniqueId) equipped.push({ jewel: aj, slot: idx, source: 'abyss' });
+            });
+        }
     });
     return equipped;
 }
@@ -816,7 +822,7 @@ function getPlayerStats() {
     let uniqueClosedEyes = activeUniqueIds.has('uj_closed_eyes');
     let uniqueXpGainPct = 0, uniqueFlatDmgPerLevel = 0, uniqueEsAmpPct = 0, uniqueShockInvertTaken = false, uniqueAlwaysShock = false, uniqueProjectileDoubleStrikePct = 0;
     let uniqueChaosResDownOnHit = null, uniqueCorpseExplode = null, uniqueInstantLeechPct = 0, uniqueDoubleDamageChancePct = 0, uniqueEsRecoverOnCritPct = 0;
-    let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false;
+    let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false, uniqueImmuneIgnite = false;
     equippedUniqueEffects.forEach(effect => {
         if (!effect || !effect.key) return;
         let ep = effect.params || {};
@@ -834,6 +840,7 @@ function getPlayerStats() {
         else if (effect.key === 'ceilingSmashDouble') uniqueCeilingSmashDouble = true;
         else if (effect.key === 'minRollEqualsMaxRoll') uniqueMinRollEqualsMaxRoll = true;
         else if (effect.key === 'hpToPhysPct') uniqueHpToPhysPct = true;
+        else if (effect.key === 'immuneIgnite') uniqueImmuneIgnite = true;
     });
 
     recalculateStarWedgeMutations();
@@ -1834,6 +1841,7 @@ function getPlayerStats() {
         uniqueMaxRollBonusHit: uniqueMaxRollBonusHit,
         uniqueCeilingSmashDouble: uniqueCeilingSmashDouble
     };
+    if (uniqueImmuneIgnite) enemy.immuneIgnite = true;
     if (uniqueClosedEyes) {
         enemy.immuneIgnite = true;
         enemy.immuneChill = true;
@@ -3723,7 +3731,10 @@ function performPlayerAttack(pStats) {
             }
             if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
             applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, hitCrit);
-            if (pStats.uniqueAlwaysShock) applyEnemyAilment(targetEnemy, "shock", 3, Math.max(1, Math.floor(dmg * 0.25)));
+            if (pStats.uniqueAlwaysShock) {
+                let shockStats = { ...pStats, sSkill: { ...pStats.sSkill, ele: 'light' } };
+                applyEnemyAilmentFromHit(targetEnemy, shockStats, Math.max(1, Math.floor(dmg * 0.25)), true);
+            }
         });
     }
     if (pStats.leech > 0 && totalLeechableDamage > 0) {
