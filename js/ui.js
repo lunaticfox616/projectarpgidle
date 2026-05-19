@@ -2153,7 +2153,7 @@ function showItemTooltip(event, idx, isEquip) {
             if (stat.id === 'armor' || stat.id === 'evasion' || stat.id === 'energyShield') return;
             let cur = Number(stat.val || 0);
             let { min, max } = getBaseRollRange(stat);
-            html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, cur)} <span style="color:#888;">(${formatValue(stat.id, min)}~${formatValue(stat.id, max)})</span></div>`;
+            html += `<div class="tooltip-line"><span style="color:${getItemStatToneColor(stat.id)};">${stat.statName} +${formatValue(stat.id, cur)}</span> <span style="color:#888;">(${formatValue(stat.id, min)}~${formatValue(stat.id, max)})</span></div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
             let label = getStatName(id);
@@ -2167,9 +2167,9 @@ function showItemTooltip(event, idx, isEquip) {
                 rangeText = ` <span style="color:#888;">(${formatValue(id, min)}~${formatValue(id, max)})</span>`;
             }
             if (Math.floor(finalVal) === Math.floor(baseVal)) {
-                html += `<div class="tooltip-line">${label}: <span style="color:#ffffff;">${Math.floor(baseVal)}</span>${rangeText}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${getItemStatToneColor(id)};">${Math.floor(baseVal)}</span>${rangeText}</div>`;
             } else {
-                html += `<div class="tooltip-line">${label}: <span style="color:#4da3ff;">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${getItemStatToneColor(id)};">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
             }
         });
     }
@@ -2180,7 +2180,7 @@ function showItemTooltip(event, idx, isEquip) {
         explicitStats.forEach(stat => {
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
             let rangeText = stat.valMin !== undefined && stat.valMax !== undefined ? ` <span style="color:#888;">(${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})</span>${tierText}` : tierText;
-            html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${rangeText}</div>`;
+            html += `<div class="tooltip-line"><span style="color:${getItemStatToneColor(stat.id)};">${stat.statName} +${formatValue(stat.id, stat.val)}</span>${rangeText}</div>`;
         });
     } else {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#7f8c8d;">노멀 아이템: 추가 옵션 없음</div>`;
@@ -3860,6 +3860,21 @@ function getJewelStatToneColor(statId) {
     return '#d7e9ff';
 }
 
+function getItemStatToneColor(statId) {
+    if (!statId) return '#d7e9ff';
+    if (['firePctDmg', 'resF', 'igniteChance', 'fireResOvercapMulPerPct'].includes(statId)) return '#ff9a76';
+    if (['coldPctDmg', 'resC', 'freezeChance'].includes(statId)) return '#8fd3ff';
+    if (['lightPctDmg', 'resL', 'shockChance'].includes(statId)) return '#ffe083';
+    if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(statId)) return '#c7a6ff';
+    if (['armor', 'armorPct', 'dr'].includes(statId)) return '#ffd2a6';
+    if (['evasion', 'evasionPct'].includes(statId)) return '#baffc2';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(statId)) return '#b9c6ff';
+    if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(statId)) return '#ffb3b3';
+    if (['crit', 'critDmg'].includes(statId)) return '#ffd6f2';
+    if (['aspd', 'move'].includes(statId)) return '#fff3a8';
+    return '#d7e9ff';
+}
+
 function getStyledOrbName(orbKey) {
     let name = (ORB_DB[orbKey] && ORB_DB[orbKey].name) ? ORB_DB[orbKey].name : String(orbKey || '');
     if (orbKey === 'transmute' || orbKey === 'augment' || orbKey === 'alteration') return `<span style="color:#9fd3ff;">${name}</span>`;
@@ -4607,13 +4622,55 @@ function buildCraftActionButtons(item) {
     }).join('');
     let talismanTotalEl = document.getElementById('ui-talisman-total');
     if (talismanTotalEl) {
+        let placements = Object.values(game.talismanPlacements || {}).filter(row => row && row.talisman);
+        let idPos = {};
+        placements.forEach(row => { if (row.talisman && row.talisman.id) idPos[row.talisman.id] = row; });
         let total = {};
-        Object.values(game.talismanPlacements || {}).forEach(row => {
+        function addTotal(stat, value) {
+            if (!stat || !Number.isFinite(Number(value))) return;
+            total[stat] = (total[stat] || 0) + Number(value || 0);
+        }
+        function adjIds(tid) {
+            let e = idPos[tid]; if (!e) return [];
+            let set = new Set();
+            (e.talisman.cells || []).forEach(cell => {
+                let x=(e.x||0)+(cell.x||0), y=(e.y||0)+(cell.y||0);
+                [[1,0],[-1,0],[0,1],[0,-1]].forEach(d=>{ let nx=x+d[0], ny=y+d[1]; if (nx<0||ny<0||nx>=8||ny>=8) return; let nid=(game.talismanBoard||[])[ny*8 + nx]; if (nid && nid!==tid) set.add(nid); });
+            });
+            return Array.from(set);
+        }
+        function findMarkedNeighborId(entry) {
+            if (!entry || !entry.talisman || !entry.talisman.markDir) return null;
+            let anchor = (typeof getTalismanAnchorCell === 'function') ? getTalismanAnchorCell(entry.talisman) : ((entry.talisman.cells || [])[0] || {x:0,y:0});
+            let x=(entry.x||0)+(anchor.x||0), y=(entry.y||0)+(anchor.y||0);
+            let d = entry.talisman.markDir === 'up' ? [0,-1] : entry.talisman.markDir === 'right' ? [1,0] : entry.talisman.markDir === 'down' ? [0,1] : [-1,0];
+            let nx=x+d[0], ny=y+d[1];
+            if (nx<0||ny<0||nx>=8||ny>=8) return null;
+            return (game.talismanBoard||[])[ny*8 + nx] || null;
+        }
+        placements.forEach(row => {
             let t = row && row.talisman;
-            if (!t || !t.stat) return;
-            total[t.stat] = (total[t.stat] || 0) + (t.value || 0);
+            if (!t) return;
+            if (Array.isArray(t.stats) && t.stats.length > 0) t.stats.forEach(st => addTotal(st.stat, st.value || 0));
+            else if (t.stat) addTotal(t.stat, t.value || 0);
         });
-        let rows = Object.keys(total).map(stat => `${getStatName(stat)} +${formatValue(stat, total[stat])}`);
+        placements.forEach(row => {
+            let t = row && row.talisman;
+            if (!t || !t.special) return;
+            if (t.special === 'gravity') addTotal('pctDmg', adjIds(t.id).length * 12);
+            if (t.special === 'pride') addTotal('pctDmg', adjIds(t.id).filter(id => (idPos[id] && idPos[id].talisman && idPos[id].talisman.isUnique)).length * 18);
+            if (t.special === 'simpleCopy') {
+                let nid = findMarkedNeighborId(row);
+                let n = nid ? (idPos[nid] && idPos[nid].talisman) : null;
+                if (!n || n.isUnique) return;
+                let list = Array.isArray(n.stats) && n.stats.length > 0 ? n.stats : (n.stat ? [{ stat:n.stat, value:n.value || 0 }] : []);
+                list.forEach(st => addTotal(st.stat, st.value || 0));
+            }
+        });
+        let rows = Object.keys(total).map(stat => {
+            let tone = getItemStatToneColor(stat);
+            return `<span style="color:${tone};">${getStatName(stat)} +${formatValue(stat, total[stat])}</span>`;
+        });
         talismanTotalEl.innerHTML = rows.length > 0
             ? `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="display:grid; gap:3px;">${rows.map(row => `<div>• <strong>${row}</strong></div>`).join('')}</div>`
             : `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="color:#9fb4cb;">없음</div>`;

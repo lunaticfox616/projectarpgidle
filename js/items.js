@@ -637,7 +637,10 @@ function renderMarketUI() {
         });
         let offers = rawOffers.map(({ offer, idx }) => {
             if (!offer) return `<div style="opacity:.5;">품절</div>`;
-            let desc = offer.type==='exchange' ? `${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : ORB_DB[offer.from].name} ${offer.need} → ${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : ORB_DB[offer.to].name} ${offer.gain}` : (offer.type==='skillGem' ? `미보유 젬 [${offer.name}]` : offer.name);
+            let safeOfferName = typeof escapeHTML === 'function' ? escapeHTML(String(offer.name || '')) : String(offer.name || '');
+            let desc = offer.type==='exchange'
+                ? `${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : ORB_DB[offer.from].name} ${offer.need} → ${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : ORB_DB[offer.to].name} ${offer.gain}`
+                : (offer.type==='skillGem' ? `미보유 젬 [${safeOfferName}]` : safeOfferName);
             let price = offer.type==='exchange' ? '' : ` (${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.priceKey) : ORB_DB[offer.priceKey].name} ${offer.price})`;
             let cls = offer.type === 'exchange' ? 'currency' : offer.type === 'skillGem' ? 'gem' : offer.type === 'baseItem' ? 'gear' : 'unique';
             let badge = cls === 'currency' ? '재화' : cls === 'gem' ? '젬' : cls === 'gear' ? '장비' : '고유';
