@@ -45,7 +45,7 @@ const ACT_REWARD_DB = {
         title: '액트 5 클리어 보상',
         body: '다음 중 하나의 능력치를 얻을 수 있습니다.',
         choices: [
-            { kind: 'stat', stat: 'flatHp', value: 36, label: '최대 생명력 +36', desc: '기본 생존력을 크게 높입니다.' },
+            { kind: 'stat', stat: 'pctHp', value: 8, label: '최대 생명력 +8%', desc: '최대 생명력을 비율로 크게 높입니다.' },
             { kind: 'stat', stat: 'aspd', value: 6, label: '공격 속도 +6%', desc: '더 빠른 공격 템포를 확보합니다.' },
             { kind: 'stat', stat: 'move', value: 8, label: '이동 속도 +8%', desc: '맵 진행과 포지셔닝을 개선합니다.' }
         ]

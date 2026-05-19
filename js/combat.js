@@ -974,7 +974,29 @@ function getPlayerStats() {
     }
     function findMarkedNeighborId(entry) {
         if (!entry || !entry.talisman || !entry.talisman.markDir) return null;
-        let anchor = (entry.talisman.cells || [])[0] || {x:0,y:0};
+        let cells = (entry.talisman.cells || []).map(cell => ({ x: cell.x || 0, y: cell.y || 0 }));
+        let anchor = cells[0] || { x: 0, y: 0 };
+        if (cells.length > 0) {
+            let filled = new Set(cells.map(cell => `${cell.x},${cell.y}`));
+            let centerX = cells.reduce((sum, cell) => sum + cell.x, 0) / cells.length;
+            let centerY = cells.reduce((sum, cell) => sum + cell.y, 0) / cells.length;
+            let ranked = cells.map(cell => {
+                let neighbors = 0;
+                if (filled.has(`${cell.x - 1},${cell.y}`)) neighbors++;
+                if (filled.has(`${cell.x + 1},${cell.y}`)) neighbors++;
+                if (filled.has(`${cell.x},${cell.y - 1}`)) neighbors++;
+                if (filled.has(`${cell.x},${cell.y + 1}`)) neighbors++;
+                let dist = Math.hypot(cell.x - centerX, cell.y - centerY);
+                return { cell, neighbors, dist };
+            });
+            ranked.sort((a, b) => {
+                if (b.neighbors !== a.neighbors) return b.neighbors - a.neighbors;
+                if (a.dist !== b.dist) return a.dist - b.dist;
+                if (a.cell.y !== b.cell.y) return a.cell.y - b.cell.y;
+                return a.cell.x - b.cell.x;
+            });
+            anchor = ranked[0].cell;
+        }
         let x=(entry.x||0)+(anchor.x||0), y=(entry.y||0)+(anchor.y||0);
         let d = entry.talisman.markDir === 'up' ? [0,-1] : entry.talisman.markDir === 'right' ? [1,0] : entry.talisman.markDir === 'down' ? [0,1] : [-1,0];
         let nx=x+d[0], ny=y+d[1];
@@ -1534,6 +1556,10 @@ function getPlayerStats() {
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
     let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier;
+    let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
+    let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.min(5, Math.floor(totalProjectileExtraShots || 0))) : 0;
+    let projectileExtraShotDpsMul = 1 + projectileExtraShotsForDps;
+    let finalDpsWithProjectileShots = finalDpsAdjusted * projectileExtraShotDpsMul;
 
     function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note) {
         return {
@@ -1794,9 +1820,10 @@ function getPlayerStats() {
                 `공격 속도 ${finalAspd.toFixed(2)}`,
                 `치명 기대값 반영`,
                 `피해 보정 기대값 x${avgRollMultiplier.toFixed(2)} (${Math.floor(finalMinDmgRoll)}~${Math.floor(finalMaxDmgRoll)}%)`,
-                `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`
-            ],
-            final: `${Math.floor(finalDpsAdjusted)}`
+                `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
+                isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null
+            ].filter(Boolean),
+            final: `${Math.floor(finalDpsWithProjectileShots)}`
         },
         gem: {
             title: '젬 레벨 보너스',
@@ -1824,7 +1851,8 @@ function getPlayerStats() {
         takenDamageReduceWhen2EnemiesPct: finalTakenDamageReduceWhen2EnemiesPct,
         takenDamageReduceWhen1EnemyPct: finalTakenDamageReduceWhen1EnemyPct,
         igniteDamageMultiplierPct: finalIgniteDamageMultiplierPct,
-        dps: finalDpsAdjusted || 0,
+        dps: finalDpsWithProjectileShots || 0,
+        dpsBaseNoProjectileShots: finalDpsAdjusted || 0,
         critDmg: finalCritDmg,
         regen: finalRegen,
         regenSuppress: finalRegenSuppress,
@@ -2144,6 +2172,14 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     return Math.min(80, rawMitigation);
 }
 
+
+function getTierDropMulWithCaps(tier) {
+    let t = Math.max(1, Math.floor(Number(tier) || 1));
+    let preSoft = Math.min(10, t - 1);
+    let postSoft = Math.max(0, Math.min(20, t) - 10);
+    return 1 + preSoft * 0.02 + postSoft * 0.008;
+}
+
 function createEnemy(zone, marker, groupIndex) {
     let seasonDepth = Math.max(0, (game.season || 1) - 1);
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
@@ -2238,7 +2274,7 @@ function createEnemy(zone, marker, groupIndex) {
         traitName: trait ? trait.name : null,
         leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
         expMul: trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1,
-        dropMul: trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1,
+        dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier),
         isSky: isSky
     };
     if (zone.type === 'outsideChaos') enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
@@ -3013,10 +3049,19 @@ function rollLootForEnemy(enemy) {
                         record.unlockedTier = before + 1;
                         if ((record.activeTier || 1) < record.unlockedTier) {
                             let prevTier = Math.max(1, Math.floor(record.activeTier || 1));
+                            let baseCost = Math.max(1, Math.floor(getSupportResonanceCost(gem)));
+                            let getTierCost = (tier) => {
+                                let db = SUPPORT_GEM_DB[gem] || {};
+                                if (Array.isArray(db.resonanceCosts) && Number.isFinite(db.resonanceCosts[tier - 1])) return Math.max(1, Math.floor(db.resonanceCosts[tier - 1]));
+                                if (tier <= 1) return baseCost;
+                                if (tier === 2) return Math.max(baseCost + 2, Math.floor(baseCost * 2.4));
+                                return Math.max(baseCost + 5, Math.floor(baseCost * 3.8));
+                            };
+                            let isEquipped = (game.equippedSupports || []).includes(gem);
                             let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
                             let remain = Math.max(0, Math.floor(game.resonancePower || 0) - used);
-                            let nextCost = Math.max(1, Math.floor(getSupportResonanceCost(gem) * (record.unlockedTier === 2 ? 2.4 : 3.8)));
-                            if (!(game.equippedSupports || []).includes(gem) || remain >= (nextCost - getSupportResonanceCost(gem) * (prevTier <= 1 ? 1 : (prevTier === 2 ? 2.4 : 3.8)))) {
+                            let extraNeed = Math.max(0, getTierCost(record.unlockedTier) - getTierCost(prevTier));
+                            if (!isEquipped || remain >= extraNeed) {
                                 record.activeTier = record.unlockedTier;
                             }
                         }
@@ -3038,7 +3083,7 @@ function rollLootForEnemy(enemy) {
         awardCurrency(drop[0], drop[1]);
         addBattleFx('lootPickup', { enemyId: enemy.id, color: (drop[0] === 'divine' || drop[0] === 'exalted') ? '#ffd166' : '#9ad1ff', duration: 760 });
         if (drop[0] === 'divine' || drop[0] === 'exalted') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ffcf6b', duration: 980 });
-        if (game.settings.showLootLog) addLog(`🪙 ${ORB_DB[drop[0]].name} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
+        if (game.settings.showLootLog) addLog(`🪙 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ORB_DB[drop[0]].name} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
     });
 
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
@@ -3112,7 +3157,7 @@ function rollLootForEnemy(enemy) {
             if (enemy.ele === 'light') pool.push('sporeLight');
             let key = rndChoice(pool);
             awardCurrency(key, 1);
-            if (game.settings.showLootLog) addLog(`🌱 ${ORB_DB[key].name} +1`, 'loot-magic');
+            if (game.settings.showLootLog) addLog(`🌱 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ORB_DB[key].name} +1`, 'loot-magic');
         }
     }
 }
@@ -3388,9 +3433,9 @@ function finishEncounterRun() {
             awardCurrency('fossilAbyssal', 1);
             addLog('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
         }
-        if ((game.season || 1) >= 6 && Math.random() < 0.1) awardCurrency('sealShard', 1);
-        if ((game.season || 1) >= 6 && Math.random() < 0.015) awardCurrency('strongSealShard', 1);
-        if ((game.season || 1) >= 6 && Math.floor(game.labyrinthFloor || 1) >= 30 && Math.random() < 0.002) awardCurrency('radiantSealShard', 1);
+        if ((game.season || 1) >= 6 && Math.random() < 0.025) awardCurrency('sealShard', 1);
+        if ((game.season || 1) >= 6 && Math.random() < 0.0075) awardCurrency('strongSealShard', 1);
+        if ((game.season || 1) >= 6 && Math.floor(game.labyrinthFloor || 1) >= 30 && Math.random() < 0.0016) awardCurrency('radiantSealShard', 1);
         let fossilSummary = [];
         if (gotBaseFossil) fossilSummary.push('기본 화석 +1');
         if (gotTypedFossil) fossilSummary.push(`${rolledFossil.name} +1`);
