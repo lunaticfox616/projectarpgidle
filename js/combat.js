@@ -1408,8 +1408,8 @@ function getPlayerStats() {
             finalBaseDmg = Math.floor(finalBaseDmg * 0.90 * (1 + Math.max(1, Math.floor(skill.targets || 1)) * 0.03));
         }
         if (hasKeystone('r8')) {
-            let aspdBonus = Math.max(0, finalAspd - 1) * 0.2;
-            let moveBonus = Math.max(0, finalMove) * 0.002;
+            let aspdBonus = Math.max(0, finalAspd - 1) * 0.07;
+            let moveBonus = Math.max(0, finalMove) * 0.0007;
             finalAspd = Math.min(12, finalAspd * (1 + moveBonus));
             finalMove *= (1 + aspdBonus);
             finalMaxHp = Math.floor(finalMaxHp * 0.85);
