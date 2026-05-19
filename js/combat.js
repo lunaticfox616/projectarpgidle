@@ -2014,6 +2014,14 @@ function getEnemyElementResistance(skillEle, zoneTier, enemy) {
 
 function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     let rawMitigation = getEnemyElementResistance(skillEle, zoneTier, enemy);
+    if (enemy && enemy.isWoodsman && enemy.maxHp > 0) {
+        let missingHpRatio = Math.max(0, Math.min(1, 1 - ((enemy.hp || 0) / enemy.maxHp)));
+        let bonusRes = Math.floor(missingHpRatio * 28);
+        if (skillEle === 'fire') rawMitigation = (enemy.baseResF || rawMitigation) + bonusRes;
+        else if (skillEle === 'cold') rawMitigation = (enemy.baseResC || rawMitigation) + bonusRes;
+        else if (skillEle === 'light') rawMitigation = (enemy.baseResL || rawMitigation) + bonusRes;
+        else if (skillEle === 'chaos') rawMitigation = (enemy.baseResChaos || rawMitigation) + bonusRes;
+    }
     if (skillEle === 'chaos' && enemy && enemy.id && game.enemyUniqueChaosResDown && game.enemyUniqueChaosResDown[enemy.id]) {
         let deb = game.enemyUniqueChaosResDown[enemy.id];
         rawMitigation -= Math.max(0, (deb.perHit || 0) * (deb.stacks || 0));
@@ -2032,7 +2040,8 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light' || skillEle === 'chaos') {
         if ((skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') && game.ascendClass === 'inquisitor' && hasKeystone('iq4')) rawMitigation = 0;
         let effective = rawMitigation - Math.max(0, pStats.resPen || 0);
-        if (effective > 0) effective = Math.min(80, effective);
+        let cap = Math.max(0, Number(enemy && enemy.maxResCap) || 80);
+        if (effective > 0) effective = Math.min(cap, effective);
         return effective;
     }
     return Math.min(80, rawMitigation);
@@ -2100,10 +2109,12 @@ function createEnemy(zone, marker, groupIndex) {
         variantSeed: variantSeed,
         ele: enemyEle,
         dr: Math.max(0, Math.floor(zone.tier * 0.8) + (trait && trait.dr ? trait.dr : 0)),
-        resF: (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0),
-        resC: (trait && trait.resC ? trait.resC : 0) + (abyssScale.resistBonus || 0),
-        resL: (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0),
-        resChaos: (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0),
+        resF: Math.min(75, resistBase + (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0)),
+        resC: Math.min(75, resistBase + (trait && trait.resC ? trait.resC : 0) + (abyssScale.resistBonus || 0)),
+        resL: Math.min(75, resistBase + (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0)),
+        resChaos: Math.min(75, chaosResBase + (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0)),
+        armor: baseArmor,
+        evasion: baseEvasion,
         atkMul: trait && trait.atkMul ? trait.atkMul : 1,
         damageMul: zone.type === 'outsideChaos' ? 2 : 1,
         attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1) * (zone.type === 'outsideChaos' ? 1.5 : 1),
@@ -2126,6 +2137,20 @@ function createEnemy(zone, marker, groupIndex) {
         dropMul: trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1,
         isSky: isSky
     };
+    if (zone.type === 'outsideChaos') enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
+    if (zone.type === 'outsideChaos') {
+        enemy.isWoodsman = true;
+        enemy.dr += 8;
+        enemy.maxResCap = 85;
+        enemy.baseResF = enemy.resF;
+        enemy.baseResC = enemy.resC;
+        enemy.baseResL = enemy.resL;
+        enemy.baseResChaos = enemy.resChaos;
+        enemy.armor = Math.floor(enemy.armor * 1.35);
+        enemy.evasion = Math.floor(enemy.evasion * 1.3);
+        enemy.armorGuard = Math.max(Number(enemy.armorGuard || 0), 0.12);
+        enemy.evasionChance = Math.max(Number(enemy.evasionChance || 0), 12);
+    }
     applyChaosRealmAffixesToEnemy(enemy, zone);
     applyGrandBreachMobTuning(zone, enemy);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
@@ -2300,9 +2325,11 @@ function getPlayerAilmentChance(pStats, type) {
     return Math.max(0, Math.min(1, base / 100));
 }
 
-function getFreezeApplyChanceFromHitRatio(hitRatio) {
+function getFreezeApplyChanceFromHitRatio(hitRatio, enemyMaxHp) {
     let ratio = Math.max(0, Number(hitRatio) || 0);
-    return Math.max(0.05, Math.min(1, ratio * 3));
+    let hp = Math.max(1, Number(enemyMaxHp) || 1);
+    let hpFactor = Math.max(0.18, 1 / Math.log10(hp + 10));
+    return Math.max(0.01, Math.min(0.7, ratio * 1.8 * hpFactor));
 }
 
 function isDamageAilmentType(type) {
@@ -2384,7 +2411,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
         let resKey = 'ailRes' + type.charAt(0).toUpperCase() + type.slice(1);
         let resistChance = Math.max(0, Math.min(0.95, (enemy[resKey] || 0) / 100));
         if (Math.random() < resistChance) return false;
-        if (type === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(hitRatio)) return false;
+        if (type === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(hitRatio, enemy.maxHp || 1)) return false;
         let damageAilment = isDamageAilmentType(type);
         let power = damageAilment
             ? Math.max(0.05, Math.min(1.5, hitPower))
@@ -3416,10 +3443,7 @@ function performPlayerAttack(pStats) {
     }
     let baseDamage = pStats.baseDmg;
     let movedRecently = (Date.now() - (game.lastMoveEndedAt || 0)) <= 1200;
-    if (pStats.uniqueRiderCompass && movedRecently && !game.uniqueRiderCompassConsumed) {
-        baseDamage = Math.floor(baseDamage * 2);
-        game.uniqueRiderCompassConsumed = true;
-    }
+    let riderCompassReady = !!(pStats.uniqueRiderCompass && movedRecently && !game.uniqueRiderCompassConsumed);
     if (isCrit) {
         baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
         if (game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) baseDamage *= 2;
@@ -3540,6 +3564,11 @@ function performPlayerAttack(pStats) {
             if (hitElement === 'phys') enemyRes -= (curseFx.physDrShred || 0);
             let hitCrit = isCrit;
             let hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
+            if (riderCompassReady) {
+                hitBaseDamage = Math.floor(hitBaseDamage * 2);
+                riderCompassReady = false;
+                game.uniqueRiderCompassConsumed = true;
+            }
             if (hitCrit && game.ascendClass === 'assassin' && hasKeystone('a7') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1) hitBaseDamage *= 2;
             if (hitCrit && game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
             let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
@@ -4214,16 +4243,15 @@ function finishWoodsmanEntrance() {
     game.woodsmanEntrancePending = false;
     if (!zone || zone.type !== 'outsideChaos') return false;
     game.moveTimer = 0;
-    game.moveTotalTime = WOODSMAN_ENTRANCE_DELAY_SECONDS;
-    game.runProgress = 100;
+    game.moveTotalTime = 0;
+    game.runProgress = 0;
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.enemies = [];
     game.inEncounter = true;
     startWoodsmanCurse();
     addLog('☠️ 하늘이 갈라지고 도끼날의 그림자가 전장을 뒤덮습니다.', 'loot-unique');
-    addLog('🪓 혼돈 밖의 나무꾼이 웅장하게 등장했습니다.', 'loot-unique');
-    spawnEncounterMarker({ at: 100, count: 1, boss: true });
+    game.enemies = [createEnemy(zone, { at: 0, count: 1, boss: true }, 0)];
     updateStaticUI();
     return true;
 }
