@@ -5159,6 +5159,38 @@ function removeJewelFromVoidSocket() { if (game.woodsmanBuildLock) return addLog
     updateStaticUI();
 }
 
+function getAbyssSocketCapacity(item) {
+    if (!item || item.rarity !== 'unique') return 0;
+    if (item.uniqueEffectKey === 'abyssSocketOnItem') return Math.max(1, Math.min(2, Math.floor((item.uniqueEffectParams && item.uniqueEffectParams.max) || 2)));
+    if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp') return Math.max(1, Math.min(2, Math.floor((item.uniqueEffectParams && item.uniqueEffectParams.socketsMax) || 2)));
+    return 0;
+}
+
+function ensureAbyssSockets(item) {
+    let cap = getAbyssSocketCapacity(item);
+    if (!item || cap <= 0) return;
+    if (Array.isArray(item.abyssSockets) && item.abyssSockets.length > 0) return;
+    let p = item.uniqueEffectParams || {};
+    let min = Math.max(1, Math.floor(Number(p.min || p.socketsMin || 1)));
+    let max = Math.max(min, Math.min(cap, Math.floor(Number(p.max || p.socketsMax || cap))));
+    let count = min + Math.floor(Math.random() * (max - min + 1));
+    item.abyssSockets = Array.from({ length: count }, () => ({ jewel: null }));
+}
+
+function insertJewelIntoAbyssSocket(invIdx, socketIdx) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    ensureAbyssSockets(item);
+    if (!item || !Array.isArray(item.abyssSockets) || !item.abyssSockets[socketIdx]) return;
+    if (item.abyssSockets[socketIdx].jewel) return addLog('이미 주얼이 장착되어 있습니다.', 'attack-monster');
+    game.jewelInventory = game.jewelInventory || [];
+    let jewel = game.jewelInventory[invIdx];
+    if (!jewel) return;
+    item.abyssSockets[socketIdx].jewel = jewel;
+    game.jewelInventory.splice(invIdx, 1);
+    addLog(`💠 심연 소켓 #${socketIdx + 1}에 [${jewel.name}] 장착`, 'loot-magic');
+    updateStaticUI();
+}
+
 function createItemFromBase(base, rarity, zoneTier) {
     itemIdCounter++;
     let item = {
@@ -5247,11 +5279,21 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
         itemTier: uniqueTier,
         hiddenTier: uniqueTier,
         baseStats: rollBaseStats(base, uniqueTier),
-        stats: []
+        stats: [],
+        uniqueEffect: unique.uniqueEffect || '',
+        uniqueEffectKey: unique.uniqueEffectKey || '',
+        uniqueEffectParams: unique.uniqueEffectParams ? JSON.parse(JSON.stringify(unique.uniqueEffectParams)) : null
     };
+    if (item.uniqueEffectKey === 'abyssSocketOnItem' || item.uniqueEffectKey === 'abyssSocketAndJewelAmp') {
+        let p = item.uniqueEffectParams || {};
+        let min = Math.max(1, Math.floor(Number(p.min || p.socketsMin || 1)));
+        let max = Math.max(min, Math.floor(Number(p.max || p.socketsMax || 2)));
+        let count = min + Math.floor(Math.random() * (max - min + 1));
+        item.abyssSockets = Array.from({ length: count }, () => ({ jewel: null }));
+    }
     unique.stats.forEach(stat => {
         let rolled = rollUniqueStatValue(stat);
-        let boost = unique.ultraRare ? 1 : 1.1;
+        let boost = 1;
         let val = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
         let min = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
         let max = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
