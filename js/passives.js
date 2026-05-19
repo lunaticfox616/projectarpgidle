@@ -6133,11 +6133,6 @@ function useCurrency(currencyKey) {
         };
         let ids = new Set(poolMap[sporeMode] || []);
         let avail = getAvailableMods(item).filter(mod => ids.has(mod.statId || mod.id));
-        avail = avail.filter(mod => {
-            let id = mod.statId || mod.id;
-            if ((id === 'targetAny' || id === 'targetProjectile') && !(item.slot === '장갑' || item.slot === '무기')) return false;
-            return true;
-        });
         return pickWeightedMod(avail);
     }
     function rollSporeGuaranteedValue(mod) {
@@ -6166,7 +6161,7 @@ function useCurrency(currencyKey) {
     let usesSporeAffix = sporeAffixCurrencies.includes(currencyKey);
     let isRerollSporeCurrency = rerollSporeCurrencies.includes(currencyKey);
     let needsPrecheck = usesSporeAffix && !isRerollSporeCurrency;
-    if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+    if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
     if (sporeMode !== 'none' && usesSporeAffix && !isRerollSporeCurrency) {
         if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
         consumedSpore = true;
@@ -6177,7 +6172,7 @@ function useCurrency(currencyKey) {
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
             guaranteedMod = getSporeGuaranteedMod();
-            if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+            if (!guaranteedMod) return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
             if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
             consumedSpore = true;
             applyGuaranteedToNonLocked(guaranteedMod);
@@ -6190,7 +6185,7 @@ function useCurrency(currencyKey) {
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
             guaranteedMod = getSporeGuaranteedMod();
-            if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+            if (!guaranteedMod) return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
             if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
             consumedSpore = true;
             applyGuaranteedToNonLocked(guaranteedMod);
@@ -6200,7 +6195,7 @@ function useCurrency(currencyKey) {
         rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
             guaranteedMod = getSporeGuaranteedMod();
-            if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+            if (!guaranteedMod) return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
             if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
             consumedSpore = true;
             applyGuaranteedToNonLocked(guaranteedMod);
@@ -6218,7 +6213,7 @@ function useCurrency(currencyKey) {
         rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
             guaranteedMod = getSporeGuaranteedMod();
-            if (!guaranteedMod) return addLog('선택한 홀씨 태그로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+            if (!guaranteedMod) return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
             if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
             consumedSpore = true;
             applyGuaranteedToNonLocked(guaranteedMod);
@@ -6243,10 +6238,14 @@ function useCurrency(currencyKey) {
         updateItemName(item);
     } else if (currencyKey === 'tainted') {
         item.corrupted = true;
-        if (Math.random() < 0.35 && getItemExplicitOptionCount(item) < 6) {
+        if (Math.random() < 0.35) {
             let mod = pickWeightedMod(getAvailableMods(item));
-            if (mod) item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
-            addLog("🩸 타락 : 추가 옵션이 부여되었습니다.", "loot-unique");
+            if (mod) {
+                item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
+                addLog("🩸 타락 : 추가 옵션이 부여되었습니다.", "loot-unique");
+            } else {
+                addLog("🩸 타락 : 부여 가능한 추가 옵션이 없습니다.", "attack-monster");
+            }
         } else {
             addLog("🩸 타락 : 아이템에 변화가 생기지 않았습니다.", "attack-monster");
         }
