@@ -5251,7 +5251,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     };
     unique.stats.forEach(stat => {
         let rolled = rollUniqueStatValue(stat);
-        let boost = unique.ultraRare ? 1 : 1.1;
+        let boost = 1;
         let val = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
         let min = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
         let max = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
