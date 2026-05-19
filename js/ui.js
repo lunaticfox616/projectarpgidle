@@ -1458,9 +1458,63 @@ function toggleCodexSlotCollapse(slot) {
     updateStaticUI();
 }
 
-function renderCodexStatsHtml(entry, stored) {
+function buildCodexRevealedRollPreview(entry, codexKey) {
+    if (!entry || !Array.isArray(entry.stats)) return [];
+    game.uniqueCodex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
+    let rec = game.uniqueCodex[codexKey] || {};
+    if (Array.isArray(rec.revealedRollPreviewStats) && rec.revealedRollPreviewStats.length > 0) return rec.revealedRollPreviewStats;
+
+    // 실제 드랍 파이프라인(generateUniqueItem)과 동일 경로로 1회 샘플을 만든 뒤 캐시
+    let rolled = [];
+    try {
+        if (typeof generateUniqueItem === 'function') {
+            let zoneTier = Number(entry.reqTier || 1);
+            let prevItemIdCounter = (typeof itemIdCounter !== 'undefined') ? itemIdCounter : null;
+            let prevChase = game.seasonChaseUniqueDropped;
+            let prevLogsLen = Array.isArray(game.logs) ? game.logs.length : 0;
+            let generated = generateUniqueItem(zoneTier, (entry.slots && entry.slots[0]) || null, entry.name);
+            if (generated && Array.isArray(generated.stats)) {
+                rolled = generated.stats.map(stat => ({ id: stat.id, val: stat.val, valMin: stat.valMin, valMax: stat.valMax })).filter(Boolean);
+            }
+            if (prevItemIdCounter !== null) itemIdCounter = prevItemIdCounter;
+            game.seasonChaseUniqueDropped = prevChase;
+            if (Array.isArray(game.logs) && game.logs.length > prevLogsLen) game.logs.length = prevLogsLen;
+        }
+    } catch (_) {}
+
+    // 안전 폴백: 샘플 생성 실패 시 기존 DB 범위 롤 사용
+    if (!Array.isArray(rolled) || rolled.length <= 0) {
+        rolled = entry.stats.map(stat => {
+            if (!stat || !stat.id) return null;
+            let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || 0);
+            let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
+            if (max < min) max = min;
+            let val;
+            if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
+                let minStep = Math.round(min * 10);
+                let maxStep = Math.round(max * 10);
+                let roll = minStep + Math.floor(Math.random() * (maxStep - minStep + 1));
+                val = Math.round(roll) / 10;
+                min = minStep / 10;
+                max = maxStep / 10;
+            } else {
+                min = Math.floor(min);
+                max = Math.floor(max);
+                val = min + Math.floor(Math.random() * (max - min + 1));
+            }
+            return { id: stat.id, val: val, valMin: min, valMax: max };
+        }).filter(Boolean);
+    }
+
+    rec.revealedRollPreviewStats = rolled;
+    game.uniqueCodex[codexKey] = rec;
+    return rolled;
+}
+
+function renderCodexStatsHtml(entry, stored, codexKey) {
     let statList = [];
     if (stored && stored.baseName) {
+        if (stored.uniqueEffect) statList.push(`<span style="color:#d7b8ff;">[고유 효과] ${escapeHTML(stored.uniqueEffect)}</span>`);
         (stored.baseStats || []).forEach(stat => {
             statList.push(`<span style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`);
         });
@@ -1469,8 +1523,11 @@ function renderCodexStatsHtml(entry, stored) {
             statList.push(`<span>${stat.statName} +${formatValue(stat.id, stat.val)}${range}</span>`);
         });
     } else if (stored) {
-        (entry.stats || []).forEach(stat => {
-            statList.push(`<span>${getStatName(stat.id)} ${formatValue(stat.id, stat.min)}~${formatValue(stat.id, stat.max)}</span>`);
+        if (entry.uniqueEffect) statList.push(`<span style="color:#d7b8ff;">[고유 효과] ${escapeHTML(entry.uniqueEffect)}</span>`);
+        let preview = buildCodexRevealedRollPreview(entry, codexKey || `${entry.slots && entry.slots[0] ? entry.slots[0] : ''}|${entry.name || ''}`);
+        preview.forEach(stat => {
+            let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` <span style="color:#8ea0b8;">(${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})</span>` : '';
+            statList.push(`<span>${getStatName(stat.id)} +${formatValue(stat.id, stat.val)}${range}</span>`);
         });
     }
     return statList.join('<br>');
@@ -1499,7 +1556,7 @@ function renderUniqueCodexUI() {
             let key = `${slot}|${entry.name}`;
             let stored = game.uniqueCodex[key];
             let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (시즌 리셋됨)') : '미등록';
-            let statHtml = stored ? renderCodexStatsHtml(entry, stored) : '';
+            let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
             lines.push(`<div class="item-card"><div><div class="item-title unique">[${slot}] ${stored ? entry.name : '???'}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '옵션 정보 없음'}</div></div><div class="item-actions">${stored ? (stored.baseName ? `<button onclick="withdrawUniqueFromCodex('${key}')">꺼내기</button>` : `<button disabled>초기화됨</button>`) : `<button disabled>비어있음</button>`}</div></div>`);
         });
     });
@@ -3754,7 +3811,7 @@ function performUpdateStaticUI() {
         game.jewelSlots = Array.isArray(game.jewelSlots) ? game.jewelSlots : [null, null];
         game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
         jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
-        document.getElementById('ui-jewel-cap').innerHTML = `주얼 인벤토리: <strong>${game.jewelInventory.length}</strong> / ${getJewelInventoryLimit()}`;
+        document.getElementById('ui-jewel-cap').innerHTML = `주얼 인벤토리: <strong>${game.jewelInventory.length}</strong> / ${getJewelInventoryLimit()} · 선택 융합: <strong>${(jewelFusionSelection||[]).length}</strong>`;
         syncJewelSalvageControlsFromSettings();
         game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0];
         document.getElementById('ui-jewel-core-craft').innerHTML = `<div style="color:#f1c67d; margin-bottom:4px;">주얼 제작 재화 (주얼 결정: ${game.currencies.jewelShard || 0})</div>
@@ -3772,21 +3829,21 @@ function performUpdateStaticUI() {
             if (!jewel) return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; cursor:default; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span style="color:#7f8c8d;">비어있음</span><br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span></div>`;
             let desc = getJewelStats(jewel).map(stat => {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';
-                let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : '';
+                let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
                 let petite = isJewelPetiteStat(stat) ? '쁘띠 ' : '';
                 return `${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${range}${tier}`;
-            }).join(' / ');
-            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span> (${desc})<br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
+            }).join('<br>');
+            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:86px; border:2px solid ${getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:#d7e9ff;">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
         }).join('');
         document.getElementById('ui-jewel-inventory').innerHTML = game.jewelInventory.map((jewel, idx) => {
             let selected = (jewelFusionSelection || []).includes(idx) ? 'selected' : '';
             let desc = getJewelStats(jewel).map(stat => {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';
-                let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : '';
+                let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
                 let petite = isJewelPetiteStat(stat) ? '쁘띠 ' : '';
                 return `${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${range}${tier}`;
-            }).join(' / ');
-            return `<div class="item-card ${selected}" style="min-height:72px;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}</div><div class="item-stats">${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button onclick="removeBeeswaxFromJewel(${idx})">밀랍 제거</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="salvageJewel(${idx})">해체</button></div></div>`;
+            }).join('<br>');
+            return `<div class="item-card ${selected}" style="min-height:72px;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button onclick="removeBeeswaxFromJewel(${idx})">밀랍 제거</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="salvageJewel(${idx})">해체</button></div></div>`;
         }).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
     }
 
@@ -3988,6 +4045,7 @@ function buildCraftActionButtons(item) {
             }
         }
         let voidSocketHtml = '';
+        let abyssSocketHtml = '';
         if (selectedItem.slot === '반지' || selectedItem.slot === '목걸이') {
             selectedItem.voidSocket = selectedItem.voidSocket || { open: false, jewel: null };
             if (!selectedItem.voidSocket.open) {
@@ -3999,7 +4057,22 @@ function buildCraftActionButtons(item) {
                 voidSocketHtml = `<div style="color:#9fd6ff;">빈 공허 소켓</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
             }
         }
-        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}</div>`;
+        let abyssCap = typeof getAbyssSocketCapacity === 'function' ? getAbyssSocketCapacity(selectedItem) : 0;
+        if (abyssCap > 0) {
+            if (typeof ensureAbyssSockets === 'function') ensureAbyssSockets(selectedItem);
+            selectedItem.abyssSockets = Array.isArray(selectedItem.abyssSockets) ? selectedItem.abyssSockets : [];
+            let makeBtn = `<div style="color:#9fd6ff;">심연 소켓: ${selectedItem.abyssSockets.length}/${abyssCap} (아이템 고유 옵션으로 제공)</div>`;
+            let rows = selectedItem.abyssSockets.map((sock, sidx) => {
+                if (sock && sock.jewel) {
+                    let j = sock.jewel;
+                    return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: <span class="${getJewelRarityClass(j.rarity)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(${JSON.stringify(j).replace(/"/g, '&quot;')}),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(${JSON.stringify(j).replace(/"/g, '&quot;')}),'#7fb3ff')" onmouseleave="hideInfoTooltip()">${j.name}</span></div>`;
+                }
+                let jewelBtns = (game.jewelInventory || []).map((j, i) => `<button data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${i}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${i}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoAbyssSocket(${i}, ${sidx})">${j.name} 장착</button>`).join('');
+                return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: 빈 슬롯</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
+            }).join('');
+            abyssSocketHtml = `<div class="craft-section-title">심연 소켓</div>${makeBtn}${rows}`;
+        }
+        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = forgeHtml;
     document.getElementById('fossil-item-display').innerHTML = forgeHtml;
@@ -4476,7 +4549,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-talisman-inventory').innerHTML = game.talismanInventory.map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
-        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.statName} +${t.value}</div><div class="item-base-line">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
+        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.name || t.statName || '부적'} ${t.stat ? ` · ${t.statName} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 특수: ${t.special}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
@@ -7159,7 +7232,7 @@ function formatExpertFavorEffect(effect) {
         projectilePctDmg:'투사체 피해', crit:'치명타 확률', critDmg:'치명타 피해 배율', aspd:'공격 속도', regen:'생명력 재생',
         energyShieldPct:'에너지 보호막', evasionPct:'회피', pctDmg:'피해', armorPct:'방어도'
     };
-    return Object.entries(effect||{}).map(([k,v])=>`${map[k]||k} +${v}%`).join(' / ');
+    return Object.entries(effect||{}).map(([k,v])=>`${map[k]||k} +${v}%`).join('<br>');
 }
 function selectExpertFavor(expertId, optionId){
     if (!expertId || !optionId) return;

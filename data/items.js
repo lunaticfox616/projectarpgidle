@@ -6,18 +6,18 @@ function safeExposeData(map) {
 
 // Phase-1 extracted data (global compatibility).
 const UNIQUE_DB = [
-    { name: "핏빛 톱날", slots: ["무기"], reqTier: 1, stats: [{ id: "flatDmg", min: 12, max: 18 }, { id: "leech", min: 0.8, max: 1.2 }, { id: "minDmgRoll", min: 4, max: 7 }] },
-    { name: "순풍의 장화", slots: ["신발"], reqTier: 1, stats: [{ id: "move", min: 14, max: 18 }, { id: "projectilePctDmg", min: 8, max: 12 }] },
-    { name: "도둑의 반지", slots: ["반지"], reqTier: 2, stats: [{ id: "leech", min: 1.4, max: 2.0 }, { id: "chaosPctDmg", min: 14, max: 22 }, { id: "resAll", min: 5, max: 9 }, { id: "move", min: 4, max: 7 }] },
-    { name: "군단 지휘관의 투구", slots: ["투구"], reqTier: 3, stats: [{ id: "flatHp", min: 38, max: 50 }, { id: "aoePctDmg", min: 10, max: 16 }, { id: "dr", min: 3, max: 5 }] },
-    { name: "사냥개의 발톱", slots: ["장갑"], reqTier: 4, stats: [{ id: "aspd", min: 12, max: 18 }, { id: "ds", min: 8, max: 12 }, { id: "minDmgRoll", min: 3, max: 6 }] },
-    { name: "현자의 시선", slots: ["목걸이"], reqTier: 5, stats: [{ id: "gemLevel", min: 1, max: 1 }, { id: "suppCap", min: 1, max: 1 }, { id: "elementalPctDmg", min: 12, max: 18 }] },
-    { name: "분광 고리", slots: ["반지"], reqTier: 6, stats: [{ id: "resAll", min: 10, max: 14 }, { id: "crit", min: 4, max: 6 }, { id: "elementalPctDmg", min: 10, max: 16 }] },
-    { name: "카옴의 심장", slots: ["갑옷"], reqTier: 7, stats: [{ id: "flatHp", min: 150, max: 205 }, { id: "pctHp", min: 14, max: 22 }, { id: "regen", min: 1.0, max: 1.5 }, { id: "dr", min: 4, max: 6 }] },
-    { name: "절단자의 송곳니", slots: ["무기"], reqTier: 7, stats: [{ id: "flatDmg", min: 22, max: 30 }, { id: "physIgnore", min: 8, max: 12 }, { id: "physPctDmg", min: 18, max: 26 }] },
-    { name: "불멸의 띠", slots: ["허리띠"], reqTier: 8, stats: [{ id: "dr", min: 6, max: 9 }, { id: "flatHp", min: 70, max: 95 }, { id: "resChaos", min: 8, max: 12 }] },
-    { name: "분광 천칭", slots: ["목걸이"], reqTier: 8, stats: [{ id: "resPen", min: 8, max: 12 }, { id: "elementalPctDmg", min: 18, max: 26 }, { id: "resAll", min: 8, max: 12 }] },
-    { name: "광전사의 손길", slots: ["장갑"], reqTier: 9, stats: [{ id: "aspd", min: 14, max: 20 }, { id: "ds", min: 10, max: 14 }, { id: "meleePctDmg", min: 18, max: 26 }] },
+    { name: "핏빛 톱날", slots: ["무기"], reqTier: 1, stats: [{ id: "flatDmg", min: 12, max: 18 }, { id: "leech", min: 0.8, max: 1.2 }, { id: "minDmgRoll", min: 4, max: 7 }, { id: "aspd", min: 4, max: 7 }] },
+    { name: "순풍의 장화", slots: ["신발"], reqTier: 1, stats: [{ id: "move", min: 14, max: 18 }, { id: "projectilePctDmg", min: 8, max: 12 }, { id: "aspd", min: 3, max: 6 }, { id: "evasionPct", min: 6, max: 10 }] },
+    { name: "도둑의 반지", slots: ["반지"], reqTier: 2, stats: [{ id: "leech", min: 1.4, max: 2.0 }, { id: "chaosPctDmg", min: 14, max: 22 }, { id: "resAll", min: 5, max: 9 }, { id: "move", min: 4, max: 7 }, { id: "crit", min: 1, max: 3 }] },
+    { name: "군단 지휘관의 투구", slots: ["투구"], reqTier: 3, stats: [{ id: "flatHp", min: 38, max: 50 }, { id: "aoePctDmg", min: 10, max: 16 }, { id: "dr", min: 3, max: 5 }, { id: "resAll", min: 5, max: 8 }] },
+    { name: "사냥개의 발톱", slots: ["장갑"], reqTier: 4, stats: [{ id: "aspd", min: 12, max: 18 }, { id: "ds", min: 8, max: 12 }, { id: "minDmgRoll", min: 3, max: 6 }, { id: "crit", min: 2, max: 4 }] },
+    { name: "현자의 시선", slots: ["목걸이"], reqTier: 5, stats: [{ id: "gemLevel", min: 1, max: 1 }, { id: "suppCap", min: 1, max: 1 }, { id: "elementalPctDmg", min: 12, max: 18 }, { id: "resAll", min: 6, max: 10 }] },
+    { name: "분광 고리", slots: ["반지"], reqTier: 6, stats: [{ id: "resAll", min: 10, max: 14 }, { id: "crit", min: 4, max: 6 }, { id: "elementalPctDmg", min: 10, max: 16 }, { id: "resPen", min: 3, max: 5 }] },
+    { name: "카옴의 심장", slots: ["갑옷"], reqTier: 7, stats: [{ id: "flatHp", min: 150, max: 205 }, { id: "pctHp", min: 14, max: 22 }, { id: "regen", min: 1.0, max: 1.5 }, { id: "dr", min: 4, max: 6 }, { id: "resF", min: 10, max: 16 }] },
+    { name: "절단자의 송곳니", slots: ["무기"], reqTier: 7, stats: [{ id: "flatDmg", min: 22, max: 30 }, { id: "physIgnore", min: 8, max: 12 }, { id: "physPctDmg", min: 18, max: 26 }, { id: "critDmg", min: 14, max: 20 }] },
+    { name: "불멸의 띠", slots: ["허리띠"], reqTier: 8, stats: [{ id: "dr", min: 6, max: 9 }, { id: "flatHp", min: 70, max: 95 }, { id: "resChaos", min: 8, max: 12 }, { id: "regen", min: 0.7, max: 1.2 }] },
+    { name: "분광 천칭", slots: ["목걸이"], reqTier: 8, stats: [{ id: "resPen", min: 8, max: 12 }, { id: "elementalPctDmg", min: 18, max: 26 }, { id: "resAll", min: 8, max: 12 }, { id: "crit", min: 3, max: 5 }] },
+    { name: "광전사의 손길", slots: ["장갑"], reqTier: 9, stats: [{ id: "aspd", min: 14, max: 20 }, { id: "ds", min: 10, max: 14 }, { id: "meleePctDmg", min: 18, max: 26 }, { id: "flatHp", min: 40, max: 65 }] },
     { name: "별의 파괴자", slots: ["무기"], reqTier: 10, stats: [{ id: "flatDmg", min: 40, max: 56 }, { id: "physPctDmg", min: 46, max: 62 }, { id: "critDmg", min: 36, max: 48 }, { id: "physIgnore", min: 8, max: 12 }, { id: "maxDmgRoll", min: 6, max: 10 }] },
     { name: "균열 사냥꾼", slots: ["장갑"], reqTier: 11, stats: [{ id: "physIgnore", min: 8, max: 12 }, { id: "aspd", min: 12, max: 18 }, { id: "meleePctDmg", min: 20, max: 30 }, { id: "maxDmgRoll", min: 4, max: 8 }] },
     { name: "폭군의 왕관", slots: ["투구"], reqTier: 11, stats: [{ id: "aoePctDmg", min: 24, max: 34 }, { id: "critDmg", min: 30, max: 45 }, { id: "flatHp", min: 60, max: 82 }] },
@@ -31,34 +31,34 @@ const UNIQUE_DB = [
     { name: "폭풍 군단장의 창끝", slots: ["무기"], reqTier: 13, stats: [{ id: "lightPctDmg", min: 24, max: 34 }, { id: "crit", min: 8, max: 12 }] },
     { name: "창공의 사슬", slots: ["허리띠"], reqTier: 14, stats: [{ id: "move", min: 14, max: 20 }, { id: "elementalPctDmg", min: 20, max: 30 }] },
     { name: "타락한 심장석", slots: ["갑옷"], reqTier: 15, stats: [{ id: "pctHp", min: 20, max: 30 }, { id: "chaosPctDmg", min: 28, max: 40 }, { id: "resChaos", min: 18, max: 26 }, { id: "flatHp", min: 90, max: 130 }] },
-    { name: "초월자 파쇄검", slots: ["무기"], reqTier: 1, ultraRare: true, stats: [{ id: "flatDmg", min: 65, max: 85 }, { id: "critDmg", min: 110, max: 150 }, { id: "aspd", min: 22, max: 30 }] },
-    { name: "새벽의 약속", slots: ["투구"], reqTier: 6, ultraRare: true, stats: [{ id: "flatHp", min: 180, max: 240 }, { id: "resAll", min: 24, max: 34 }, { id: "regen", min: 2.0, max: 3.0 }] },
-    { name: "심연 군주갑", slots: ["갑옷"], reqTier: 6, ultraRare: true, stats: [{ id: "flatHp", min: 260, max: 340 }, { id: "dr", min: 12, max: 18 }, { id: "resChaos", min: 20, max: 28 }] },
-    { name: "폭풍 추적자", slots: ["신발"], reqTier: 6, ultraRare: true, stats: [{ id: "move", min: 35, max: 45 }, { id: "aspd", min: 18, max: 24 }, { id: "resL", min: 28, max: 38 }] },
-    { name: "종말의 논리", slots: ["목걸이"], reqTier: 10, ultraRare: true, stats: [{ id: "gemLevel", min: 3, max: 3 }, { id: "suppCap", min: 2, max: 2 }, { id: "elementalPctDmg", min: 50, max: 70 }, { id: "resPen", min: 12, max: 20 }, { id: "crit", min: 10, max: 16 }, { id: "flatHp", min: 120, max: 180 }] },
-    { name: "공허 제국의 인장", slots: ["반지"], reqTier: 10, ultraRare: true, stats: [{ id: "resAll", min: 34, max: 45 }, { id: "crit", min: 18, max: 25 }, { id: "chaosPctDmg", min: 45, max: 65 }, { id: "leech", min: 1.8, max: 2.8 }, { id: "resPen", min: 8, max: 14 }] },
-    { name: "황제의 심연띠", slots: ["허리띠"], reqTier: 10, ultraRare: true, stats: [{ id: "flatHp", min: 260, max: 350 }, { id: "pctHp", min: 28, max: 38 }, { id: "dr", min: 12, max: 18 }, { id: "resAll", min: 14, max: 20 }] },
-    { name: "세계파쇄자", slots: ["무기"], reqTier: 10, ultraRare: true, stats: [{ id: "physIgnore", min: 18, max: 26 }, { id: "flatDmg", min: 90, max: 120 }, { id: "critDmg", min: 90, max: 130 }] },
-    { name: "만상 관통석", slots: ["목걸이"], reqTier: 10, ultraRare: true, stats: [{ id: "resPen", min: 18, max: 26 }, { id: "elementalPctDmg", min: 40, max: 58 }, { id: "gemLevel", min: 2, max: 2 }] },
-    { name: "천공 붕괴자", slots: ["무기"], reqTier: 10, ultraRare: true, stats: [{ id: "flatDmg", min: 110, max: 145 }, { id: "lightPctDmg", min: 48, max: 66 }, { id: "critDmg", min: 120, max: 160 }] },
-    { name: "폭우의 석궁", slots: ["무기"], reqTier: 11, ultraRare: true, stats: [{ id: "flatDmg", min: 88, max: 118 }, { id: "projectilePctDmg", min: 62, max: 86 }, { id: "projectileExtraShots", min: 2, max: 4 }] },
-    { name: "칠흑의 연사기", slots: ["무기"], reqTier: 14, ultraRare: true, stats: [{ id: "flatDmg", min: 120, max: 155 }, { id: "projectilePctDmg", min: 74, max: 98 }, { id: "projectileExtraShots", min: 3, max: 5 }] },
-    { name: "성좌의 주문핵", slots: ["무기"], reqTier: 11, ultraRare: true, stats: [{ id: "spellFlatDmg", min: 72, max: 108 }, { id: "spellFlatPct", min: 28, max: 42 }, { id: "crit", min: 10, max: 16 }] },
-    { name: "영겁의 마도서", slots: ["무기"], reqTier: 14, ultraRare: true, stats: [{ id: "spellFlatDmg", min: 96, max: 138 }, { id: "spellFlatPct", min: 36, max: 54 }, { id: "resPen", min: 10, max: 16 }] },
-    { name: "영겁의 손아귀", slots: ["장갑"], reqTier: 10, ultraRare: true, stats: [{ id: "aspd", min: 24, max: 32 }, { id: "ds", min: 24, max: 34 }, { id: "meleePctDmg", min: 44, max: 60 }] },
-    { name: "황혼의 왕관", slots: ["투구"], reqTier: 10, ultraRare: true, stats: [{ id: "crit", min: 20, max: 28 }, { id: "critDmg", min: 90, max: 125 }, { id: "resAll", min: 20, max: 28 }] },
-    { name: "기수의 나침반", slots: ["목걸이"], reqTier: 9, stats: [{ id: "move", min: 12, max: 18 }, { id: "minDmgRoll", min: 5, max: 9 }, { id: "aspd", min: 8, max: 12 }] },
-    { name: "쐐기 파편", slots: ["무기"], reqTier: 9, stats: [{ id: "maxDmgRoll", min: 8, max: 14 }, { id: "flatDmg", min: 28, max: 40 }] },
-    { name: "절대 하한", slots: ["장갑"], reqTier: 10, stats: [{ id: "minDmgRoll", min: 10, max: 16 }, { id: "aspd", min: 10, max: 14 }, { id: "flatHp", min: 55, max: 80 }] },
-    { name: "천정 파쇄", slots: ["무기"], reqTier: 11, stats: [{ id: "maxDmgRoll", min: 12, max: 18 }, { id: "critDmg", min: 30, max: 44 }, { id: "physPctDmg", min: 24, max: 34 }] },
-    { name: "가호의 갑피", slots: ["갑옷"], reqTier: 11, stats: [{ id: "flatHp", min: 160, max: 220 }, { id: "pctHp", min: 18, max: 26 }, { id: "dr", min: 8, max: 12 }] },
+    { name: "초월자 파쇄검", slots: ["무기"], reqTier: 1, ultraRare: true, uniqueEffect: "플레이어 레벨 1당 기본 피해 +10", uniqueEffectKey: "flatDmgPerLevel", uniqueEffectParams: { perLevel: 10 }, stats: [{ id: "flatDmg", min: 65, max: 85 }, { id: "critDmg", min: 110, max: 150 }, { id: "aspd", min: 22, max: 30 }] },
+    { name: "새벽의 약속", slots: ["투구"], reqTier: 6, ultraRare: true, uniqueEffect: "경험치 획득량 +10%", uniqueEffectKey: "xpGainPct", uniqueEffectParams: { pct: 10 }, stats: [{ id: "flatHp", min: 180, max: 240 }, { id: "resAll", min: 24, max: 34 }, { id: "resChaos", min: 24, max: 34 }, { id: "regen", min: 2.0, max: 3.0 }] },
+    { name: "심연 군주갑", slots: ["갑옷"], reqTier: 6, ultraRare: true, uniqueEffect: "심연 주얼 슬롯 (1~2)개", uniqueEffectKey: "abyssSocketOnItem", uniqueEffectParams: { min: 1, max: 2 }, stats: [{ id: "flatHp", min: 260, max: 340 }, { id: "dr", min: 12, max: 18 }, { id: "resChaos", min: 20, max: 28 }] },
+    { name: "폭풍 추적자", slots: ["신발"], reqTier: 6, ultraRare: true, uniqueEffect: "플레이어가 받는 감전 효과 반전 (피해 증가 → 피해 감소)", uniqueEffectKey: "invertShockTaken", stats: [{ id: "move", min: 35, max: 45 }, { id: "aspd", min: 18, max: 24 }, { id: "resL", min: 28, max: 38 }] },
+    { name: "종말의 논리", slots: ["목걸이"], reqTier: 10, ultraRare: true, uniqueEffect: "적 처치 시 15% 확률로 생명력 25% 시체 폭발", uniqueEffectKey: "corpseExplodeOnKill", uniqueEffectParams: { chance: 15, lifePct: 25 }, stats: [{ id: "gemLevel", min: 3, max: 3 }, { id: "suppCap", min: 2, max: 2 }, { id: "elementalPctDmg", min: 50, max: 70 }, { id: "resPen", min: 12, max: 20 }, { id: "crit", min: 10, max: 16 }] },
+    { name: "공허 제국의 인장", slots: ["반지"], reqTier: 10, ultraRare: true, uniqueEffect: "타격 시 적 카오스 저항 -3% (최대 10중첩)", uniqueEffectKey: "hitApplyChaosResDown", uniqueEffectParams: { perHit: 3, maxStacks: 10 }, stats: [{ id: "resAll", min: 34, max: 45 }, { id: "crit", min: 18, max: 25 }, { id: "chaosPctDmg", min: 45, max: 65 }, { id: "leech", min: 1.8, max: 2.8 }, { id: "resPen", min: 8, max: 14 }] },
+    { name: "황제의 심연띠", slots: ["허리띠"], reqTier: 10, ultraRare: true, uniqueEffect: "심연 주얼 슬롯 (1~2)개, 장착 심연 주얼 효과 (1~100)% 증가", uniqueEffectKey: "abyssSocketAndJewelAmp", uniqueEffectParams: { socketsMin: 1, socketsMax: 2, ampMin: 1, ampMax: 100 }, stats: [{ id: "flatHp", min: 260, max: 350 }, { id: "pctHp", min: 28, max: 38 }, { id: "dr", min: 12, max: 18 }, { id: "resAll", min: 14, max: 20 }] },
+    { name: "세계파쇄자", slots: ["무기"], reqTier: 10, ultraRare: true, stats: [{ id: "physIgnore", min: 18, max: 26 }, { id: "flatDmg", min: 90, max: 120 }, { id: "critDmg", min: 90, max: 130 }, { id: "targetCount", min: 3, max: 3 }, { id: "aspd", min: 15, max: 15 }] },
+    { name: "만상 관통석", slots: ["목걸이"], reqTier: 10, ultraRare: true, stats: [{ id: "resPen", min: 18, max: 26 }, { id: "elementalPctDmg", min: 40, max: 58 }, { id: "resAll", min: 20, max: 20 }, { id: "gemLevel", min: 2, max: 4 }] },
+    { name: "천공 붕괴자", slots: ["무기"], reqTier: 10, ultraRare: true, uniqueEffect: "이 무기는 항상 감전 부여", uniqueEffectKey: "alwaysShock", stats: [{ id: "flatDmg", min: 110, max: 145 }, { id: "lightPctDmg", min: 48, max: 66 }, { id: "critDmg", min: 120, max: 160 }, { id: "shockEffect", min: 100, max: 100 }] },
+    { name: "폭우의 석궁", slots: ["무기"], reqTier: 11, ultraRare: true, stats: [{ id: "flatDmg", min: 88, max: 118 }, { id: "projectilePctDmg", min: 62, max: 86 }, { id: "projectileExtraShots", min: 1, max: 5 }, { id: "projectileExtraShots", min: 1, max: 5 }] },
+    { name: "칠흑의 연사기", slots: ["무기"], reqTier: 14, ultraRare: true, uniqueEffect: "투사체 스킬 연속타격 +100%", uniqueEffectKey: "projectileDoubleStrikePct", uniqueEffectParams: { pct: 100 }, stats: [{ id: "flatDmg", min: 120, max: 155 }, { id: "projectilePctDmg", min: 74, max: 98 }, { id: "projectileExtraShots", min: 3, max: 5 }] },
+    { name: "성좌의 주문핵", slots: ["무기"], reqTier: 11, ultraRare: true, stats: [{ id: "spellFlatDmg", min: 72, max: 108 }, { id: "spellFlatPct", min: 28, max: 42 }, { id: "spellCritDmg", min: 70, max: 70 }, { id: "gemLevel", min: 2, max: 3 }] },
+    { name: "영겁의 마도서", slots: ["무기"], reqTier: 14, ultraRare: true, stats: [{ id: "spellFlatDmg", min: 96, max: 138 }, { id: "spellFlatPct", min: 36, max: 54 }, { id: "gemLevel", min: 1, max: 5 }, { id: "spellLeech", min: 1.0, max: 2.5 }] },
+    { name: "영겁의 손아귀", slots: ["장갑"], reqTier: 10, ultraRare: true, stats: [{ id: "aspd", min: 24, max: 32 }, { id: "ds", min: 24, max: 34 }, { id: "meleePctDmg", min: 44, max: 60 }, { id: "leech", min: 1.2, max: 2.4 }, { id: "leechRateCap", min: 40, max: 80 }] },
+    { name: "황혼의 왕관", slots: ["투구"], reqTier: 10, ultraRare: true, uniqueEffect: "에너지 보호막 50% 전역 증폭, 치명타 시 최대 ES의 2% 즉시 회복", uniqueEffectKey: "esAmpAndRecoverOnCrit", uniqueEffectParams: { ampPct: 50, recoverPctOnCrit: 2 }, stats: [{ id: "crit", min: 20, max: 28 }, { id: "critDmg", min: 90, max: 125 }, { id: "resAll", min: 20, max: 28 }] },
+    { name: "기수의 나침반", slots: ["목걸이"], reqTier: 9, uniqueEffect: "이동 후 첫 타격 피해 +100%, 이동 속도 200% 이상 시 회피 20% 증폭", uniqueEffectKey: "riderCompass", stats: [{ id: "move", min: 12, max: 18 }, { id: "minDmgRoll", min: 5, max: 9 }, { id: "aspd", min: 8, max: 12 }] },
+    { name: "쐐기 파편", slots: ["무기"], reqTier: 9, uniqueEffect: "최대 피해 롤 130% 이상 타격 시 피해 50% 추가 타격 1회", uniqueEffectKey: "maxRollBonusHit", stats: [{ id: "maxDmgRoll", min: 8, max: 14 }, { id: "flatDmg", min: 28, max: 40 }] },
+    { name: "절대 하한", slots: ["장갑"], reqTier: 10, uniqueEffect: "최소 피해 보정이 최대 피해 보정과 동일", uniqueEffectKey: "minRollEqualsMaxRoll", stats: [{ id: "minDmgRoll", min: 10, max: 16 }, { id: "aspd", min: 10, max: 14 }, { id: "flatHp", min: 55, max: 80 }] },
+    { name: "천정 파쇄", slots: ["무기"], reqTier: 11, uniqueEffect: "최대 피해 롤 140% 이상 시 15% 확률 2배 피해", uniqueEffectKey: "ceilingSmashDouble", stats: [{ id: "maxDmgRoll", min: 12, max: 18 }, { id: "critDmg", min: 30, max: 44 }, { id: "physPctDmg", min: 24, max: 34 }] },
+    { name: "가호의 갑피", slots: ["갑옷"], reqTier: 11, stats: [{ id: "armor", min: 500, max: 500 }, { id: "armorPct", min: 20, max: 20 }, { id: "dr", min: 6, max: 6 }] },
     { name: "굶주린 톱니", slots: ["반지"], reqTier: 12, stats: [{ id: "leech", min: 1.2, max: 1.8 }, { id: "minDmgRoll", min: 4, max: 7 }, { id: "chaosPctDmg", min: 20, max: 30 }] },
-    { name: "거인의 지지대", slots: ["허리띠"], reqTier: 12, stats: [{ id: "flatHp", min: 100, max: 145 }, { id: "pctHp", min: 14, max: 22 }, { id: "maxDmgRoll", min: 3, max: 6 }] },
+    { name: "거인의 지지대", slots: ["허리띠"], reqTier: 12, uniqueEffect: "최대 생명력 100당 물리 피해 +1%", uniqueEffectKey: "hpToPhysPct", stats: [{ id: "flatHp", min: 100, max: 145 }, { id: "regenFlat", min: 50, max: 200 }, { id: "maxDmgRoll", min: 3, max: 6 }] },
     { name: "지평선 분할자", slots: ["무기"], reqTier: 13, stats: [{ id: "flatDmg", min: 44, max: 60 }, { id: "minDmgRoll", min: 8, max: 12 }, { id: "maxDmgRoll", min: 8, max: 12 }] },
     { name: "용맥 수호", slots: ["장갑"], reqTier: 13, stats: [{ id: "flatHp", min: 70, max: 100 }, { id: "regen", min: 0.9, max: 1.4 }, { id: "minDmgRoll", min: 5, max: 9 }] },
     { name: "운명의 쌍현", slots: ["목걸이"], reqTier: 14, stats: [{ id: "minDmgRoll", min: 7, max: 11 }, { id: "maxDmgRoll", min: 7, max: 11 }, { id: "crit", min: 8, max: 12 }] },
 
-    { name: "불씨 군주의 보행", slots: ["신발"], reqTier: 11, stats: [{ id: "move", min: 16, max: 22 }, { id: "resF", min: 18, max: 26 }, { id: "regen", min: 1.2, max: 1.8 }, { id: "dr", min: 4, max: 7 }] },
+    { name: "불씨 군주의 보행", slots: ["신발"], reqTier: 11, uniqueEffect: "점화 피해를 받지 않음", uniqueEffectKey: "immuneIgnite", stats: [{ id: "move", min: 16, max: 22 }, { id: "resF", min: 18, max: 26 }, { id: "igniteDamageMultiplierPct", min: 30, max: 30 }, { id: "dr", min: 4, max: 7 }] },
     { name: "빙결파수 장화", slots: ["신발"], reqTier: 12, stats: [{ id: "move", min: 15, max: 21 }, { id: "resC", min: 20, max: 28 }, { id: "energyShield", min: 80, max: 130 }, { id: "regen", min: 0.8, max: 1.3 }] },
     { name: "감전추적 경갑", slots: ["신발"], reqTier: 13, stats: [{ id: "move", min: 18, max: 24 }, { id: "resL", min: 20, max: 30 }, { id: "aspd", min: 10, max: 15 }, { id: "crit", min: 6, max: 10 }] },
     { name: "독기 유영화", slots: ["신발"], reqTier: 14, stats: [{ id: "move", min: 16, max: 22 }, { id: "resChaos", min: 18, max: 28 }, { id: "leech", min: 1.0, max: 1.6 }, { id: "chaosPctDmg", min: 20, max: 30 }] },
@@ -74,7 +74,7 @@ const UNIQUE_DB = [
     { name: "대균열의 왕관", slots: ["투구"], reqTier: 17, dropOnly: { id: 'grand_breach_run' }, stats: [{ id: "energyShield", min: 110, max: 170 }, { id: "resPen", min: 8, max: 14 }, { id: "resAll", min: 10, max: 16 }, { id: "flatHp", min: 40, max: 70 }] },
     { name: "미궁 군주의 족쇄", slots: ["신발"], reqTier: 20, dropOnly: { type: 'labyrinth', minFloor: 30 }, stats: [{ id: "move", min: 18, max: 24 }, { id: "armor", min: 110, max: 160 }, { id: "dr", min: 4, max: 8 }, { id: "resAll", min: 10, max: 16 }] },
     { name: "낙성의 발자취", slots: ["신발"], reqTier: 19, dropOnly: { type: 'meteor' }, stats: [{ id: "move", min: 18, max: 24 }, { id: "evasion", min: 120, max: 180 }, { id: "crit", min: 6, max: 10 }, { id: "lightPctDmg", min: 16, max: 26 }] },
-    { name: "영원의 레버", slots: ["무기"], reqTier: 15, ultraRare: true, stats: [{ id: "flatDmg", min: 95, max: 130 }, { id: "minDmgRoll", min: 14, max: 20 }, { id: "maxDmgRoll", min: 14, max: 20 }, { id: "critDmg", min: 90, max: 130 }] }
+    { name: "영원", slots: ["무기"], reqTier: 15, ultraRare: true, uniqueEffect: "흡혈의 25% 즉시 흡수, 20% 확률로 2배 피해", uniqueEffectKey: "instantLeechAndDoubleDamage", uniqueEffectParams: { instantLeechPct: 25, doubleDamageChance: 20 }, stats: [{ id: "flatDmg", min: 95, max: 130 }, { id: "minDmgRoll", min: 14, max: 20 }, { id: "maxDmgRoll", min: 14, max: 20 }, { id: "critDmg", min: 90, max: 130 }] }
 ];
 
 function buildUniqueExtraStat(slot, usedIds) {
@@ -104,16 +104,11 @@ UNIQUE_DB.forEach(unique => {
             if (stat.max < stat.min) stat.max = stat.min;
             return;
         }
-        stat.min = Number((stat.min * 1.8).toFixed(1));
-        stat.max = Number((stat.max * 2.4).toFixed(1));
+        stat.min = Number((stat.min * 1.2).toFixed(1));
+        stat.max = Number((stat.max * 2.0).toFixed(1));
         if (stat.max < stat.min) stat.max = stat.min;
     });
-    if (unique.stats.length <= 2) {
-        let used = new Set(unique.stats.map(s => s.id));
-        unique.stats.push(buildUniqueExtraStat(unique.slots, used));
-        used = new Set(unique.stats.map(s => s.id));
-        unique.stats.push(buildUniqueExtraStat(unique.slots, used));
-    }
+    // removed automatic extra stat injection for low-line uniques
 });
 
 const ORB_DB = {

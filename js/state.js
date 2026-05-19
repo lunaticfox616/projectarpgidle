@@ -544,7 +544,7 @@ const SEASON_NODE_ROWS = [
 ];
 
 const JEWEL_INVENTORY_LIMIT = 40;
-const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare'];
+const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare', 'unique'];
 
 
 
@@ -604,6 +604,11 @@ const P_STATS = {
     energyShield: { name: '에너지 보호막', tiers: [1, 2, 3], s: 10, m: 24, k: 48 },
     armorPct: { name: '방어도(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
     evasionPct: { name: '회피(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
+    ailResIgnite: { name: '점화 저항 확률(%)', tiers: [1, 2, 3], s: 2, m: 4, k: 6, isPct: true },
+    ailResShock: { name: '감전 저항 확률(%)', tiers: [1, 2, 3], s: 2, m: 4, k: 6, isPct: true },
+    ailResFreeze: { name: '냉기 저항 확률(%)', tiers: [1, 2, 3], s: 2, m: 4, k: 6, isPct: true },
+    ailResPoison: { name: '중독 저항 확률(%)', tiers: [1, 2, 3], s: 2, m: 4, k: 6, isPct: true },
+    ailResBleed: { name: '출혈 저항 확률(%)', tiers: [1, 2, 3], s: 2, m: 4, k: 6, isPct: true },
     energyShieldPct: { name: '에너지 보호막(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
     energyShieldRegen: { name: '에너지 보호막 회복속도(%)', tiers: [3], k: 8, isPct: true },
     moveEvasion: { name: '이동 속도 + 회피(%)', tiers: [1, 2, 3], s: 2, m: 5, k: 10, isPct: true },
@@ -685,8 +690,8 @@ const MOD_DB = [
     { id: 'spellFlatDmg', type: 'prefix', statName: '주문 내장 피해', slots: ['무기', '목걸이'], base: 8, step: 6 },
     { id: 'spellFlatPct', type: 'suffix', statName: '주문 내장 피해 증가(%)', slots: ['무기', '목걸이'], base: 6, step: 4 },
     { id: 'flatHp', type: 'prefix', statName: '최대 생명력', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'], base: 15, step: 10 },
-    { id: 'armor', type: 'prefix', statName: '방어도', slots: ['투구', '갑옷', '장갑', '신발'], base: 12, step: 10 },
-    { id: 'evasion', type: 'prefix', statName: '회피', slots: ['투구', '갑옷', '장갑', '신발'], base: 12, step: 10 },
+    { id: 'armor', type: 'prefix', statName: '방어도', slots: ['투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'], base: 12, step: 10 },
+    { id: 'evasion', type: 'prefix', statName: '회피', slots: ['투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'], base: 12, step: 10 },
     { id: 'energyShield', type: 'prefix', statName: '에너지 보호막', slots: ['투구', '갑옷', '장갑', '신발'], base: 9, step: 8 },
     { id: 'armorPct', type: 'suffix', statName: '방어도 증가(%)', slots: ['투구', '갑옷', '장갑', '신발'], base: 6, step: 4 },
     { id: 'evasionPct', type: 'suffix', statName: '회피 증가(%)', slots: ['투구', '갑옷', '장갑', '신발'], base: 6, step: 4 },
@@ -704,6 +709,7 @@ const MOD_DB = [
     { id: 'resChaos', type: 'suffix', statName: '카오스 저항(%)', slots: ['반지'], base: 2, step: 1.4 },
     { id: 'resPen', type: 'suffix', statName: '저항 관통(%)', slots: ['무기', '반지', '목걸이'], base: 0, step: 0.8 },
     { id: 'regen', type: 'suffix', statName: '초당 재생(%)', slots: ['갑옷', '허리띠', '목걸이'], base: 0.2, step: 0.1 },
+    { id: 'regenFlat', type: 'suffix', statName: '생명력 재생(고정)', slots: ['갑옷', '목걸이', '반지', '허리띠'], base: 20, step: 12 },
     { id: 'regenSuppress', type: 'suffix', statName: '재생 억제(%)', slots: ['허리띠'], base: 0.3, step: 0.06 },
     { id: 'regenSuppressGloves', statId: 'regenSuppress', type: 'suffix', statName: '재생 억제(%)', slots: ['장갑'], base: 0.05, step: 0.07 },
     { id: 'regenSuppressAmulet', statId: 'regenSuppress', type: 'suffix', statName: '재생 억제(%)', slots: ['목걸이'], base: 0.1, step: 0 },
@@ -1082,7 +1088,7 @@ const defaultGame = {
         itemFilterOnlyNewCodexUnique: false,
         autoEnterMeteor: false,
         jewelAutoSalvageEnabled: false,
-        jewelAutoSalvageRarities: { normal: false, magic: false, rare: false },
+        jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
         mapCompleteAction: 'nextZone',
         townReturnAction: 'retry',
         notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, talisman: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true }

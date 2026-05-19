@@ -75,7 +75,15 @@ const TALISMAN_OPTION_POOL = [
     { stat: 'dotPctDmg', label: '지속 피해 배율(%)', min: 4, max: 14, step: 1 },
     { stat: 'regenSuppress', label: '재생 억제(%)', min: 0.1, max: 0.1, step: 0.1 },
     { stat: 'minDmgRoll', label: '최소 피해 보정(%)', min: 1, max: 3, step: 1 },
-    { stat: 'maxDmgRoll', label: '최대 피해 보정(%)', min: 1, max: 3, step: 1 }
+    { stat: 'maxDmgRoll', label: '최대 피해 보정(%)', min: 1, max: 3, step: 1 },
+    { stat: 'armorPct', label: '방어도 증가(%)', min: 4, max: 12, step: 1 },
+    { stat: 'evasionPct', label: '회피 증가(%)', min: 4, max: 12, step: 1 },
+    { stat: 'energyShieldPct', label: '에너지 보호막 증가(%)', min: 4, max: 12, step: 1 },
+    { stat: 'ailResIgnite', label: '점화 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
+    { stat: 'ailResShock', label: '감전 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
+    { stat: 'ailResFreeze', label: '냉기 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
+    { stat: 'ailResPoison', label: '중독 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
+    { stat: 'ailResBleed', label: '출혈 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
 ];
 
 const HERO_SELECTION_DEFS = {

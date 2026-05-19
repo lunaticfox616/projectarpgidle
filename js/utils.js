@@ -153,6 +153,7 @@ function getStatName(statId) {
         flatHp: '최대 생명력',
         pctHp: '생명력 증가(%)',
         regen: '초당 생명력 재생(%)',
+        regenFlat: '초당 생명력 재생(고정)',
         flatDmg: '기본 피해',
         pctDmg: '피해 증가(%)',
         meleePctDmg: '근접 피해(%)',
@@ -202,11 +203,20 @@ function getStatName(statId) {
         armor: '방어도',
         evasion: '회피',
         energyShield: '에너지 보호막',
-        armorPct: '방어도 증가(%)',
-        evasionPct: '회피 증가(%)',
-        energyShieldPct: '에너지 보호막 증가(%)',
+        armorPct: '방어도(%)',
+        evasionPct: '회피(%)',
+        ailResIgnite: '점화 저항 확률(%)',
+        ailResShock: '감전 저항 확률(%)',
+        ailResFreeze: '냉기 저항 확률(%)',
+        ailResPoison: '중독 저항 확률(%)',
+        ailResBleed: '출혈 저항 확률(%)',
+        energyShieldPct: '에너지 보호막(%)',
         energyShieldRegen: '에너지 보호막 재생률(%)',
-        energyShieldRechargeFaster: '보호막 재생 준비시간 감소(초)'
+        energyShieldRechargeFaster: '보호막 재생 준비시간 감소(초)',
+        targetCount: '스킬 타겟 수',
+        spellCritDmg: '주문 치명타 피해 배율(%)',
+        spellLeech: '주문 흡혈(%)',
+        shockEffect: '감전 효과(%)'
     };
     return names[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId;
 }
@@ -226,14 +236,15 @@ function getRarityRank(rarity) {
 
 function createEmptyStatBucket() {
     return {
-        flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0,
+        flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, regenFlat: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResF: 0, maxResC: 0, maxResL: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0,
+        ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
-        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, igniteDamageMultiplierPct: 0, accuracyBonusPct: 0
+        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, igniteDamageMultiplierPct: 0, accuracyBonusPct: 0, shockEffect: 0
     };
 }
 function addStatToBucket(bucket, statId, value) {
@@ -287,6 +298,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'critDmg') bucket.critDmg += value;
     else if (statId === 'regen') bucket.regen += value;
     else if (statId === 'regenSuppress') bucket.regenSuppress += value;
+    else if (statId === 'regenFlat') bucket.regenFlat += value;
     else if (statId === 'suppCap') bucket.suppCap += value;
     else if (statId === 'minDmgRoll') bucket.minDmgRoll += value;
     else if (statId === 'maxDmgRoll') bucket.maxDmgRoll += value;
@@ -327,10 +339,20 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'energyShield') bucket.energyShield += value;
     else if (statId === 'armorPct') bucket.armorPct += value;
     else if (statId === 'evasionPct') bucket.evasionPct += value;
+    else if (statId === 'ailResBleed') bucket.ailResBleed += value;
+    else if (statId === 'ailResPoison') bucket.ailResPoison += value;
+    else if (statId === 'ailResFreeze') bucket.ailResFreeze += value;
+    else if (statId === 'ailResShock') bucket.ailResShock += value;
+    else if (statId === 'ailResIgnite') bucket.ailResIgnite += value;
     else if (statId === 'energyShieldPct') bucket.energyShieldPct += value;
     else if (statId === 'energyShieldRegen') bucket.energyShieldRegen += value;
     else if (statId === 'energyShieldRechargeFaster') bucket.energyShieldRechargeFaster += value;
+    else if (statId === 'targetCount') bucket.targetAny += value;
+    else if (statId === 'spellCritDmg') bucket.critDmg += value;
+    else if (statId === 'spellLeech') bucket.leech += value;
+    else if (statId === 'shockEffect') bucket.shockEffect += value;
 }
+
 function applyStatsToBucket(bucket, stats) {
     (stats || []).forEach(stat => addStatToBucket(bucket, stat.id, stat.val));
 }
