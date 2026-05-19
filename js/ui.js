@@ -3988,6 +3988,7 @@ function buildCraftActionButtons(item) {
             }
         }
         let voidSocketHtml = '';
+        let abyssSocketHtml = '';
         if (selectedItem.slot === '반지' || selectedItem.slot === '목걸이') {
             selectedItem.voidSocket = selectedItem.voidSocket || { open: false, jewel: null };
             if (!selectedItem.voidSocket.open) {
@@ -3999,7 +4000,22 @@ function buildCraftActionButtons(item) {
                 voidSocketHtml = `<div style="color:#9fd6ff;">빈 공허 소켓</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
             }
         }
-        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}</div>`;
+        let abyssCap = typeof getAbyssSocketCapacity === 'function' ? getAbyssSocketCapacity(selectedItem) : 0;
+        if (abyssCap > 0) {
+            if (typeof ensureAbyssSockets === 'function') ensureAbyssSockets(selectedItem);
+            selectedItem.abyssSockets = Array.isArray(selectedItem.abyssSockets) ? selectedItem.abyssSockets : [];
+            let makeBtn = `<div style="color:#9fd6ff;">심연 소켓: ${selectedItem.abyssSockets.length}/${abyssCap} (아이템 고유 옵션으로 제공)</div>`;
+            let rows = selectedItem.abyssSockets.map((sock, sidx) => {
+                if (sock && sock.jewel) {
+                    let j = sock.jewel;
+                    return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: <span class="${getJewelRarityClass(j.rarity)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(${JSON.stringify(j).replace(/"/g, '&quot;')}),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(${JSON.stringify(j).replace(/"/g, '&quot;')}),'#7fb3ff')" onmouseleave="hideInfoTooltip()">${j.name}</span></div>`;
+                }
+                let jewelBtns = (game.jewelInventory || []).map((j, i) => `<button data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${i}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${i}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoAbyssSocket(${i}, ${sidx})">${j.name} 장착</button>`).join('');
+                return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: 빈 슬롯</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
+            }).join('');
+            abyssSocketHtml = `<div class="craft-section-title">심연 소켓</div>${makeBtn}${rows}`;
+        }
+        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = forgeHtml;
     document.getElementById('fossil-item-display').innerHTML = forgeHtml;
