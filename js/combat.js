@@ -974,7 +974,29 @@ function getPlayerStats() {
     }
     function findMarkedNeighborId(entry) {
         if (!entry || !entry.talisman || !entry.talisman.markDir) return null;
-        let anchor = (entry.talisman.cells || [])[0] || {x:0,y:0};
+        let cells = (entry.talisman.cells || []).map(cell => ({ x: cell.x || 0, y: cell.y || 0 }));
+        let anchor = cells[0] || { x: 0, y: 0 };
+        if (cells.length > 0) {
+            let filled = new Set(cells.map(cell => `${cell.x},${cell.y}`));
+            let centerX = cells.reduce((sum, cell) => sum + cell.x, 0) / cells.length;
+            let centerY = cells.reduce((sum, cell) => sum + cell.y, 0) / cells.length;
+            let ranked = cells.map(cell => {
+                let neighbors = 0;
+                if (filled.has(`${cell.x - 1},${cell.y}`)) neighbors++;
+                if (filled.has(`${cell.x + 1},${cell.y}`)) neighbors++;
+                if (filled.has(`${cell.x},${cell.y - 1}`)) neighbors++;
+                if (filled.has(`${cell.x},${cell.y + 1}`)) neighbors++;
+                let dist = Math.hypot(cell.x - centerX, cell.y - centerY);
+                return { cell, neighbors, dist };
+            });
+            ranked.sort((a, b) => {
+                if (b.neighbors !== a.neighbors) return b.neighbors - a.neighbors;
+                if (a.dist !== b.dist) return a.dist - b.dist;
+                if (a.cell.y !== b.cell.y) return a.cell.y - b.cell.y;
+                return a.cell.x - b.cell.x;
+            });
+            anchor = ranked[0].cell;
+        }
         let x=(entry.x||0)+(anchor.x||0), y=(entry.y||0)+(anchor.y||0);
         let d = entry.talisman.markDir === 'up' ? [0,-1] : entry.talisman.markDir === 'right' ? [1,0] : entry.talisman.markDir === 'down' ? [0,1] : [-1,0];
         let nx=x+d[0], ny=y+d[1];

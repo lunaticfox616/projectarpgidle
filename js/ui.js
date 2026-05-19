@@ -1932,7 +1932,7 @@ function showTalismanBoardTooltip(event, talismanId) {
     let min = Number.isFinite(placed.valueMin) ? placed.valueMin : placed.value;
     let max = Number.isFinite(placed.valueMax) ? placed.valueMax : placed.value;
     let specialDesc = getTalismanSpecialDescription(placed);
-    let html = `<div class="tooltip-title">[${escapeHTML(placed.shape || '?')}] ${escapeHTML(placed.statName || '')}</div><div class="tooltip-line">획득 수치: +${formatValue(placed.stat, placed.value)}</div><div class="tooltip-line">가능 범위: +${formatValue(placed.stat, min)} ~ +${formatValue(placed.stat, max)}</div>${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}`;
+    let html = `<div class="tooltip-title">[${escapeHTML(placed.shape || '?')}] ${escapeHTML(placed.statName || '')}</div><div class="tooltip-line">수치: +${formatValue(placed.stat, placed.value)} (${formatValue(placed.stat, min)} ~ ${formatValue(placed.stat, max)})</div>${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
 }
 
@@ -1943,7 +1943,11 @@ function getTalismanSpecialDescription(talisman) {
     if (talisman.special === 'temperance') return '무작위 능력치 3줄을 동시에 부여(각 줄 독립 수치).';
     if (talisman.special === 'pride') return '인접한 고유 부적 1개당 최종 피해 +18%.';
     if (talisman.special === 'moment') return `보스 최종 피해 +${talisman.bossFinalDmgMin || 5}~${talisman.bossFinalDmgMax || 15}% 및 보스 체력 5% 이하 즉시 처형.`;
-    if (talisman.special === 'elementFocus') return '해당 계열 젬 레벨/해당 계열 피해/해당 계열 저항 3종을 동시에 부여.';
+    if (talisman.special === 'elementFocus') {
+        let list = Array.isArray(talisman.stats) ? talisman.stats : [];
+        if (list.length >= 3) return `${getStatName(list[0].stat)} +${formatValue(list[0].stat, list[0].value)}, ${getStatName(list[1].stat)} +${formatValue(list[1].stat, list[1].value)}, ${getStatName(list[2].stat)} +${formatValue(list[2].stat, list[2].value)}`;
+        return '해당 계열 젬 레벨/해당 계열 피해/해당 계열 저항 3종을 동시에 부여.';
+    }
     return talisman.special;
 }
 
@@ -1955,7 +1959,7 @@ function showTalismanInventoryTooltip(event, talismanId) {
     let max = Number.isFinite(t.valueMax) ? t.valueMax : t.value;
     let specialDesc = getTalismanSpecialDescription(t);
     let hasPrimaryStat = !!t.stat;
-    let statLine = hasPrimaryStat ? `<div class="tooltip-line">획득 수치: +${formatValue(t.stat, t.value)}</div><div class="tooltip-line">가능 범위: +${formatValue(t.stat, min)} ~ +${formatValue(t.stat, max)}</div>` : '';
+    let statLine = hasPrimaryStat ? `<div class="tooltip-line">수치: +${formatValue(t.stat, t.value)} (${formatValue(t.stat, min)} ~ ${formatValue(t.stat, max)})</div>` : '';
     let html = `<div class="tooltip-title">[${escapeHTML(t.shape || '?')}] ${escapeHTML(t.name || t.statName || '부적')}</div>${statLine}${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
 }
@@ -3858,7 +3862,7 @@ function getJewelStatToneColor(statId) {
 
 function getStyledOrbName(orbKey) {
     let name = (ORB_DB[orbKey] && ORB_DB[orbKey].name) ? ORB_DB[orbKey].name : String(orbKey || '');
-    if (orbKey === 'transmute' || orbKey === 'augment') return `<span style="color:#9fd3ff;">${name}</span>`;
+    if (orbKey === 'transmute' || orbKey === 'augment' || orbKey === 'alteration') return `<span style="color:#9fd3ff;">${name}</span>`;
     if (orbKey === 'alchemy' || orbKey === 'regal' || orbKey === 'scour' || orbKey === 'blessing') return `<span style="color:#ffe07a;">${name}</span>`;
     if (orbKey === 'chaos' || orbKey === 'exalted') return `<span style="color:#ffbc8a;">${name}</span>`;
     if (orbKey === 'divine') return `<span style="color:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;">${name}</span>`;
