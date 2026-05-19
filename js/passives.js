@@ -4915,12 +4915,14 @@ function liberateSelectedEncroachedItem() {
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
     let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
+    // 고유 아이템/장신구는 방어 타입 제한 대상에서 제외
+    let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
     let baseDefenseTypes = new Set((item.baseStats || [])
         .map(stat => stat && stat.id)
         .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
     return MOD_DB.filter(mod => {
         let statId = mod.statId || mod.id;
-        if (defenseSlots.has(item.slot) && ['armor','evasion','energyShield','armorPct','evasionPct','energyShieldPct'].includes(statId)) {
+        if (!bypassDefenseTypeRule && ['armor','evasion','energyShield','armorPct','evasionPct','energyShieldPct'].includes(statId)) {
             if (baseDefenseTypes.size > 0) {
                 if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
                 if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
@@ -5379,6 +5381,7 @@ function awardCurrency(currencyKey, amount) {
     }
 }
 
+
 function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let dropBonus = getCodexBonusPct() / 100;
@@ -5417,9 +5420,9 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16) drops.push(['tainted', 1]);
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.03) drops.push(['jewelShard', 3]);
     if ((game.season || 1) >= 5 && enemy.isElite && Math.random() < 0.008) drops.push(['jewelShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.08) drops.push(['sealShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.012) drops.push(['strongSealShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30 && Math.random() < 0.0008) drops.push(['radiantSealShard', 1]);
+    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.02) drops.push(['sealShard', 1]);
+    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.006) drops.push(['strongSealShard', 1]);
+    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30 && Math.random() < 0.00064) drops.push(['radiantSealShard', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.02) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.006) drops.push(['beastKeyCerberus', 1]);
