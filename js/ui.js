@@ -1193,11 +1193,11 @@ function rollTalismanCandidate(currencyKey) {
     }
     let shapeKey = rndChoice(Object.keys(TALISMAN_SHAPES).filter(k => ['I','O','T','S','Z','J','L'].includes(k)));
     let option = rndChoice(TALISMAN_OPTION_POOL);
-    let multiplier = isStrong ? 1.35 : 1.0;
+    let multiplier = isRadiant ? 1.6 : (isStrong ? 1.35 : 1.0);
     let rolled = option.min + Math.random() * (option.max - option.min);
     let step = option.step || 1;
     let value = Math.round((rolled * multiplier) / step) * step;
-    return { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })), stat: option.stat, statName: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)), valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)), valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)), rarity: isStrong ? '강력한 기운' : '일반', source: isStrong ? 'strongSealShard' : 'sealShard' };
+    return { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })), stat: option.stat, statName: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)), valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)), valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)), rarity: isRadiant ? '찬란한 기운' : (isStrong ? '강력한 기운' : '일반'), source: isRadiant ? 'radiantSealShard' : (isStrong ? 'strongSealShard' : 'sealShard') };
 }
 
 function startTalismanUnseal(currencyKey) {
