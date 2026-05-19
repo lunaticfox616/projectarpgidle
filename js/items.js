@@ -451,7 +451,9 @@ function buildBlackMarketOffer(index) {
 function getBlackMarketOfferTooltipHtml(offer) {
     if (!offer) return '<div class="tooltip-title">품절</div>';
     if (offer.type === 'exchange') {
-        return `<div class="tooltip-title">재화 교환</div><div class="tooltip-line">${ORB_DB[offer.from].name} ${offer.need}개를 ${ORB_DB[offer.to].name} ${offer.gain}개로 교환합니다.</div>`;
+        let fromName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : ORB_DB[offer.from].name;
+        let toName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : ORB_DB[offer.to].name;
+        return `<div class="tooltip-title">재화 교환</div><div class="tooltip-line">${fromName} ${offer.need}개를 ${toName} ${offer.gain}개로 교환합니다.</div>`;
     }
     if (offer.type === 'skillGem') {
         let skill = SKILL_DB[offer.name] || {};
@@ -463,7 +465,12 @@ function getBlackMarketOfferTooltipHtml(offer) {
     if (offer.type === 'unique') {
         let uniq = UNIQUE_DB.find(u => u && u.name === offer.name);
         let lines = (uniq && Array.isArray(uniq.stats) ? uniq.stats.slice(0, 3).map(stat => `${getStatName(stat.id)} +${stat.min}~${stat.max}`) : []);
-        return `<div class="tooltip-title">고유 장비</div><div class="tooltip-line">${offer.name} (티어 ${offer.reqTier})</div><div class="tooltip-line">${lines.join(' / ') || '고유 옵션 보유'}</div>`;
+        let slot = (uniq && Array.isArray(uniq.slots) && uniq.slots.length > 0) ? uniq.slots[0] : '';
+        let codexKey = `${slot}|${offer.name}`;
+        let codex = (game && game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
+        let registered = !!codex[codexKey];
+        let codexLine = registered ? '<span style="color:#8dffb1;">등록됨</span>' : '<span style="color:#ffb0b0;">미등록</span>';
+        return `<div class="tooltip-title">고유 장비</div><div class="tooltip-line">${offer.name} (티어 ${offer.reqTier})</div><div class="tooltip-line">${lines.join(' / ') || '고유 옵션 보유'}</div><div class="tooltip-line">도감 등록: ${codexLine}</div>`;
     }
     return '<div class="tooltip-title">암거래 품목</div>';
 }
@@ -555,7 +562,7 @@ function renderMarketUI() {
             let gainAll = maxTimes * recipe.gain;
             let tone = (recipe.to === 'divine' || recipe.from === 'divine') ? 'divine' : (recipe.to === 'chaos' ? 'chaos' : 'basic');
             return `<div class="market-card market-tone-${tone}">
-                <div class="market-title">${ORB_DB[recipe.from].name} ${recipe.need}개 → ${ORB_DB[recipe.to].name} ${recipe.gain}개</div>
+                <div class="market-title">${typeof getStyledOrbName === 'function' ? getStyledOrbName(recipe.from) : ORB_DB[recipe.from].name} ${recipe.need}개 → ${typeof getStyledOrbName === 'function' ? getStyledOrbName(recipe.to) : ORB_DB[recipe.to].name} ${recipe.gain}개</div>
                 <div class="market-row">
                     <button onclick="exchangeAtMarket('${recipe.id}', false)" ${maxTimes < 1 ? 'disabled' : ''}>1회 교환</button>
                     <button onclick="exchangeAtMarket('${recipe.id}', true)" style="background:#5d6d7e; border-color:#465664;" ${maxTimes < 1 ? 'disabled' : ''}>모두 교환 (${spendAll}→${gainAll})</button>
@@ -630,13 +637,13 @@ function renderMarketUI() {
         });
         let offers = rawOffers.map(({ offer, idx }) => {
             if (!offer) return `<div style="opacity:.5;">품절</div>`;
-            let desc = offer.type==='exchange' ? `${ORB_DB[offer.from].name} ${offer.need} → ${ORB_DB[offer.to].name} ${offer.gain}` : (offer.type==='skillGem' ? `미보유 젬 [${offer.name}]` : offer.name);
-            let price = offer.type==='exchange' ? '' : ` (${ORB_DB[offer.priceKey].name} ${offer.price})`;
+            let desc = offer.type==='exchange' ? `${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : ORB_DB[offer.from].name} ${offer.need} → ${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : ORB_DB[offer.to].name} ${offer.gain}` : (offer.type==='skillGem' ? `미보유 젬 [${offer.name}]` : offer.name);
+            let price = offer.type==='exchange' ? '' : ` (${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.priceKey) : ORB_DB[offer.priceKey].name} ${offer.price})`;
             let cls = offer.type === 'exchange' ? 'currency' : offer.type === 'skillGem' ? 'gem' : offer.type === 'baseItem' ? 'gear' : 'unique';
             let badge = cls === 'currency' ? '재화' : cls === 'gem' ? '젬' : cls === 'gear' ? '장비' : '고유';
             let tooltip = encodeURIComponent(getBlackMarketOfferTooltipHtml(offer));
-            let safeDesc = typeof escapeHTML === 'function' ? escapeHTML(`${desc}${price}`) : `${desc}${price}`;
-            return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span class="market-black-label" data-info-tooltip-anchor="1" data-market-tooltip="${tooltip}" onmouseenter="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmousemove="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmouseleave="hideInfoTooltip()">${safeDesc}</span></div><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
+            let richDesc = `${desc}${price}`;
+            return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span class="market-black-label" data-info-tooltip-anchor="1" data-market-tooltip="${tooltip}" onmouseenter="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmousemove="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmouseleave="hideInfoTooltip()">${richDesc}</span></div><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
         }).join('');
         bmEl.innerHTML = `<div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()">신성한 오브 1개로 품목 +1</button>`;
     }
