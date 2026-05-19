@@ -3863,16 +3863,32 @@ function getJewelStatToneColor(statId) {
 
 function getItemStatToneColor(statId) {
     if (!statId) return '#d7e9ff';
-    if (['firePctDmg', 'resF', 'igniteChance', 'fireResOvercapMulPerPct'].includes(statId)) return '#ff9a76';
-    if (['coldPctDmg', 'resC', 'freezeChance'].includes(statId)) return '#8fd3ff';
-    if (['lightPctDmg', 'resL', 'shockChance'].includes(statId)) return '#ffe083';
-    if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(statId)) return '#c7a6ff';
-    if (['armor', 'armorPct', 'dr'].includes(statId)) return '#ffd2a6';
-    if (['evasion', 'evasionPct'].includes(statId)) return '#baffc2';
-    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(statId)) return '#b9c6ff';
-    if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(statId)) return '#ffb3b3';
-    if (['crit', 'critDmg'].includes(statId)) return '#ffd6f2';
-    if (['aspd', 'move'].includes(statId)) return '#fff3a8';
+    let id = String(statId);
+
+    if (['firePctDmg', 'resF', 'igniteChance', 'fireResOvercapMulPerPct'].includes(id)) return '#ff9a76';
+    if (['coldPctDmg', 'resC', 'freezeChance'].includes(id)) return '#8fd3ff';
+    if (['lightPctDmg', 'resL', 'shockChance'].includes(id)) return '#ffe083';
+    if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(id)) return '#c7a6ff';
+    if (['armor', 'armorPct', 'dr'].includes(id)) return '#ffd2a6';
+    if (['evasion', 'evasionPct'].includes(id)) return '#baffc2';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#b9c6ff';
+    if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(id)) return '#ffb3b3';
+    if (['crit', 'critDmg'].includes(id)) return '#ffd6f2';
+    if (['aspd', 'move'].includes(id)) return '#fff3a8';
+
+    if (id.includes('res') || id.includes('pen')) return '#ffcb8e';
+    if (id.includes('chaos') || id.includes('dot') || id.includes('poison') || id.includes('bleed')) return '#c7a6ff';
+    if (id.includes('fire') || id.includes('ignite') || id.includes('burn')) return '#ff9a76';
+    if (id.includes('cold') || id.includes('freeze') || id.includes('chill')) return '#8fd3ff';
+    if (id.includes('light') || id.includes('shock')) return '#ffe083';
+    if (id.includes('hp') || id.includes('life') || id.includes('regen') || id.includes('leech')) return '#ffb3b3';
+    if (id.includes('armor') || id.includes('block') || id.includes('guard') || id.includes('dr')) return '#ffd2a6';
+    if (id.includes('evasion') || id.includes('dodge')) return '#baffc2';
+    if (id.includes('energyShield') || id.includes('es')) return '#b9c6ff';
+    if (id.includes('crit')) return '#ffd6f2';
+    if (id.includes('aspd') || id.includes('speed') || id.includes('move')) return '#fff3a8';
+    if (id.includes('dmg') || id.includes('atk') || id.includes('spell')) return '#ffcf9f';
+
     return '#d7e9ff';
 }
 
@@ -4257,7 +4273,7 @@ function buildCraftActionButtons(item) {
         </div><div class="map-item-actions"><span class="map-zone-status">해금 최고층: ${maxFloor}층 · 클릭하여 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-labyrinth-list').innerHTML = '';
 
-    let deepChaosOpen = (game.season || 1) >= 10 && !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
+    let deepChaosOpen = (game.season || 1) >= 10 && (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared));
     document.getElementById('ui-deep-chaos-header').style.display = deepChaosOpen ? 'block' : 'none';
     if (deepChaosOpen) {
         let unlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21).sort((a, b) => a - b) : [];
@@ -4335,7 +4351,7 @@ function buildCraftActionButtons(item) {
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
                 game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
-                let loopRequirementMet = !!game.loopProgressCurrent.chaos20Cleared;
+                let loopRequirementMet = (typeof hasCurrentLoopChaos20Clear === 'function') ? hasCurrentLoopChaos20Clear() : !!game.loopProgressCurrent.chaos20Cleared;
                 let loopRequirementText = getLoopAbyssRequirementText(game.season || 1);
                 let unlockedDepthsForReward = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let highestUnlockedForReward = unlockedDepthsForReward.length > 0 ? Math.max(...unlockedDepthsForReward) : Math.floor(game.abyssEndlessDepth || 20); let clearedDepthForReward = Math.max(20, highestUnlockedForReward >= 21 ? (highestUnlockedForReward - 1) : highestUnlockedForReward); let expectedDepthGain = Math.max(0, Math.floor(clearedDepthForReward - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
@@ -4640,6 +4656,9 @@ function buildCraftActionButtons(item) {
             });
             return Array.from(set);
         }
+        function adjCount(tid) {
+            return adjIds(tid).length;
+        }
         function findMarkedNeighborId(entry) {
             if (!entry || !entry.talisman || !entry.talisman.markDir) return null;
             let anchor = (typeof getTalismanAnchorCell === 'function') ? getTalismanAnchorCell(entry.talisman) : ((entry.talisman.cells || [])[0] || {x:0,y:0});
@@ -4658,14 +4677,27 @@ function buildCraftActionButtons(item) {
         placements.forEach(row => {
             let t = row && row.talisman;
             if (!t || !t.special) return;
-            if (t.special === 'gravity') addTotal('pctDmg', adjIds(t.id).length * 12);
-            if (t.special === 'pride') addTotal('pctDmg', adjIds(t.id).filter(id => (idPos[id] && idPos[id].talisman && idPos[id].talisman.isUnique)).length * 18);
+            if (t.special === 'gravity') {
+                adjIds(t.id).forEach(nid => {
+                    let n = idPos[nid] && idPos[nid].talisman;
+                    if (!n) return;
+                    let list = Array.isArray(n.stats) && n.stats.length > 0 ? n.stats : (n.stat ? [{ stat:n.stat, value:n.value || 0 }] : []);
+                    list.forEach(st => addTotal(st.stat, (st.value || 0) * 0.25));
+                });
+            }
             if (t.special === 'simpleCopy') {
                 let nid = findMarkedNeighborId(row);
                 let n = nid ? (idPos[nid] && idPos[nid].talisman) : null;
-                if (!n || n.isUnique) return;
+                if (!n) return;
                 let list = Array.isArray(n.stats) && n.stats.length > 0 ? n.stats : (n.stat ? [{ stat:n.stat, value:n.value || 0 }] : []);
                 list.forEach(st => addTotal(st.stat, st.value || 0));
+            }
+            if (t.special === 'pride') {
+                let n = adjCount(t.id);
+                if (n === 0) { addTotal('gemLevel', 1); addTotal('suppCap', 1); }
+                else if (n === 1) addTotal('suppCap', 1);
+                else if (n <= 4) { addTotal('pctDmg', 15); addTotal('aspd', 10); }
+                else { addTotal('crit', 5); addTotal('critDmg', 25); addTotal('pctDmg', 15); addTotal('aspd', 10); }
             }
         });
         let rows = Object.keys(total).map(stat => {

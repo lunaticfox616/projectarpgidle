@@ -518,7 +518,7 @@ function generateOrganicTree() {
         ],
         ranger: [
             { stat: 'projectilePctDmg', title: '투사체 숙련' },
-            { stat: 'projectileExtraShots', title: '추가 발사' },
+            { stat: 'coldPctDmg', title: '냉기 사격' },
             { stat: 'coldPctDmg', title: '냉기 사격' },
             { stat: 'evasionPct', title: '바람 회피' },
             { stat: 'resC', title: '냉기 저항' }
@@ -888,7 +888,16 @@ function generateOrganicTree() {
     function getCompositeClusterSpec(spoke, depth) {
         let scatteredMaxRes = getScatteredMaxResClusterSpec(spoke, depth);
         if (scatteredMaxRes) return scatteredMaxRes;
-        if (spoke === 4) return { stat: 'moveEvasion', title: '질풍 회피', length: 4 };
+        if (spoke === 4) {
+            if (depth % 2 === 0) return { stat: 'moveEvasion', title: '질풍 회피', length: 4 };
+            const altSpecs = [
+                { stat: 'projectilePctDmg', title: '탄도 숙련', length: 4 },
+                { stat: 'pctHp', title: '생명 순환', length: 4 },
+                { stat: 'resC', title: '한기 내성', length: 4 },
+                { stat: 'projectileExtraShots', title: '추가 발사', length: 4 }
+            ];
+            return altSpecs[Math.floor(depth / 2) % altSpecs.length];
+        }
         if (spoke === 8) return { stat: 'hpArmor', title: '거석 생명', length: 4 };
         if (spoke === 12) return { stat: 'slamPctDmg', endStat: 'slamEchoChance', title: '대지 여진', length: 5 };
         if (spoke === 0) return { stat: 'energyShieldPct', endStat: 'energyShieldRegen', title: '보호막 순환', length: 4 };
@@ -965,6 +974,10 @@ function generateOrganicTree() {
             node.webCellSpoke = spoke;
             node.webCellRing = depth;
             node.val = getTierValue(statForStep, tier);
+            if (statForStep === 'critDmg') {
+                if (chainLength === 4) node.val = [10, 10, 10, 20][i - 1];
+                else if (chainLength === 5) node.val = [12, 12, 12, 12, 25][i - 1];
+            }
             if (isEnd) {
                 node.title = `${themeSpec.title} 핵심`;
                 node.desc = `${PASSIVE_SECTOR_TITLES[theme] || '성좌'}의 ${blueprint.label} 구역을 완성하는 거미줄 칸 내부 전문 노드입니다.`;

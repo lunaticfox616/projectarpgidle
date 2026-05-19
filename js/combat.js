@@ -1408,8 +1408,8 @@ function getPlayerStats() {
             finalBaseDmg = Math.floor(finalBaseDmg * 0.90 * (1 + Math.max(1, Math.floor(skill.targets || 1)) * 0.03));
         }
         if (hasKeystone('r8')) {
-            let aspdBonus = Math.max(0, finalAspd - 1) * 0.2;
-            let moveBonus = Math.max(0, finalMove) * 0.002;
+            let aspdBonus = Math.max(0, finalAspd - 1) * 0.07;
+            let moveBonus = Math.max(0, finalMove) * 0.0007;
             finalAspd = Math.min(12, finalAspd * (1 + moveBonus));
             finalMove *= (1 + aspdBonus);
             finalMaxHp = Math.floor(finalMaxHp * 0.85);
@@ -1556,6 +1556,10 @@ function getPlayerStats() {
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
     let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier;
+    let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
+    let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.min(5, Math.floor(totalProjectileExtraShots || 0))) : 0;
+    let projectileExtraShotDpsMul = 1 + projectileExtraShotsForDps;
+    let finalDpsWithProjectileShots = finalDpsAdjusted * projectileExtraShotDpsMul;
 
     function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note) {
         return {
@@ -1816,9 +1820,10 @@ function getPlayerStats() {
                 `공격 속도 ${finalAspd.toFixed(2)}`,
                 `치명 기대값 반영`,
                 `피해 보정 기대값 x${avgRollMultiplier.toFixed(2)} (${Math.floor(finalMinDmgRoll)}~${Math.floor(finalMaxDmgRoll)}%)`,
-                `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`
-            ],
-            final: `${Math.floor(finalDpsAdjusted)}`
+                `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
+                isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null
+            ].filter(Boolean),
+            final: `${Math.floor(finalDpsWithProjectileShots)}`
         },
         gem: {
             title: '젬 레벨 보너스',
@@ -1846,7 +1851,8 @@ function getPlayerStats() {
         takenDamageReduceWhen2EnemiesPct: finalTakenDamageReduceWhen2EnemiesPct,
         takenDamageReduceWhen1EnemyPct: finalTakenDamageReduceWhen1EnemyPct,
         igniteDamageMultiplierPct: finalIgniteDamageMultiplierPct,
-        dps: finalDpsAdjusted || 0,
+        dps: finalDpsWithProjectileShots || 0,
+        dpsBaseNoProjectileShots: finalDpsAdjusted || 0,
         critDmg: finalCritDmg,
         regen: finalRegen,
         regenSuppress: finalRegenSuppress,
@@ -2167,11 +2173,19 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
 }
 
 
-function getTierDropMulWithCaps(tier) {
+function getTierDropMulWithCaps(tier, zone) {
     let t = Math.max(1, Math.floor(Number(tier) || 1));
     let preSoft = Math.min(10, t - 1);
     let postSoft = Math.max(0, Math.min(20, t) - 10);
-    return 1 + preSoft * 0.02 + postSoft * 0.008;
+    let baseMul = 1 + preSoft * 0.02 + postSoft * 0.008;
+    if (zone && zone.type === 'labyrinth') {
+        let floor = Math.max(1, Math.floor(zone.floor || 1));
+        let over50 = Math.max(0, floor - 50);
+        let over100 = Math.max(0, floor - 100);
+        let damp = 1 - Math.min(0.55, over50 * 0.003 + over100 * 0.0025);
+        return Math.max(0.7, baseMul * damp);
+    }
+    return baseMul;
 }
 
 function createEnemy(zone, marker, groupIndex) {
@@ -2268,7 +2282,7 @@ function createEnemy(zone, marker, groupIndex) {
         traitName: trait ? trait.name : null,
         leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
         expMul: trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1,
-        dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier),
+        dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier, zone),
         isSky: isSky
     };
     if (zone.type === 'outsideChaos') enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
