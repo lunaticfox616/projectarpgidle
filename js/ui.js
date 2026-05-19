@@ -1171,11 +1171,11 @@ const TALISMAN_UNIQUE_POOL = [
 function rollTalismanCandidate(currencyKey) {
     let isStrong = currencyKey === 'strongSealShard';
     let isRadiant = currencyKey === 'radiantSealShard';
-    let forceUnique = Math.random() < (isRadiant ? 0.62 : (isStrong ? 0.18 : 0.01));
+    let forceUnique = Math.random() < (isRadiant ? 0.24 : (isStrong ? 0.03 : 0.005));
     if (forceUnique) {
         let row = rndChoice(TALISMAN_UNIQUE_POOL);
         let shapeKey = row.shape || rndChoice(['Z','S','L','J','I','O','T']);
-        let tal = { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x,y]) => ({x,y})), rarity: row.rarity || '고유', source: isStrong ? 'strongSealShard' : 'sealShard', isUnique: true, uniqueId: row.id, name: row.name, special: row.special || null, markDir: rndChoice(['up','right','down','left']) };
+        let tal = { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x,y]) => ({x,y})), rarity: row.rarity || '고유', source: isRadiant ? 'radiantSealShard' : (isStrong ? 'strongSealShard' : 'sealShard'), isUnique: true, uniqueId: row.id, name: row.name, special: row.special || null, markDir: rndChoice(['up','right','down','left']) };
         if (row.special === 'temperance') {
             tal.stats = Array.from({length:3}, ()=>{ let o=rndChoice(TALISMAN_OPTION_POOL); let v=o.min + Math.random()*(o.max-o.min); return { stat:o.stat, label:o.label, value:Number(v.toFixed((o.step||1)<1?1:0))};});
         } else if (row.special === 'elementFocus') {
@@ -1264,6 +1264,16 @@ function destroyTalismanFromInventory(talismanId) {
     game.talismanInventory = inv.filter(t => t.id !== talismanId);
     if (game.talismanSelectedId === talismanId) game.talismanSelectedId = null;
     addLog(`🗑️ 부적 파괴: [${target.shape}] ${target.statName} +${target.value}`, 'attack-monster');
+    updateStaticUI();
+}
+
+function salvageAllTalismansInInventory() {
+    let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
+    if (inv.length <= 0) return addLog('일괄 해체할 부적이 없습니다.', 'attack-monster');
+    if (!confirm(`인벤토리 부적 ${inv.length}개를 모두 해체할까요? (보드에 배치된 부적은 유지)`)) return;
+    game.talismanInventory = [];
+    game.talismanSelectedId = null;
+    addLog(`🗑️ 부적 일괄 해체: ${inv.length}개`, 'attack-monster');
     updateStaticUI();
 }
 
@@ -4481,6 +4491,7 @@ function buildCraftActionButtons(item) {
                 <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
                 <button onclick="startTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란한 기운] 봉인편린 해제</button>
                 <button onclick="expandTalismanBoard()" ${(talismanUnlockCost.sealShard || 0) <= 0 ? 'disabled' : ''}>칸 해금 안내 (${formatTalismanUnlockCostLabel(talismanUnlockCost)})</button>
+                <button onclick="salvageAllTalismansInInventory()" ${(game.talismanInventory || []).length <= 0 ? 'disabled' : ''} style="background:#6e3f3f; border-color:#8f5959;">부적 일괄 해체</button>
             </div>`;
     } else {
         let shapeStyle = getTalismanShapeStyle(unseal.current.shape);
@@ -5331,7 +5342,7 @@ function mergeDefaults(save) {
         }
     }
     merged.talismanUnlockPickMode = !!merged.talismanUnlockPickMode;
-    merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.stat && t.shape) : [];
+    merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.shape && (t.stat || (Array.isArray(t.stats) && t.stats.length > 0) || t.special || t.isUnique)) : [];
     merged.talismanBoard = Array.isArray(merged.talismanBoard) ? merged.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
     while (merged.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) merged.talismanBoard.push(null);
     merged.talismanPlacements = (merged.talismanPlacements && typeof merged.talismanPlacements === 'object') ? merged.talismanPlacements : {};

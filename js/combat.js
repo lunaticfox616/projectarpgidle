@@ -3013,10 +3013,19 @@ function rollLootForEnemy(enemy) {
                         record.unlockedTier = before + 1;
                         if ((record.activeTier || 1) < record.unlockedTier) {
                             let prevTier = Math.max(1, Math.floor(record.activeTier || 1));
+                            let baseCost = Math.max(1, Math.floor(getSupportResonanceCost(gem)));
+                            let getTierCost = (tier) => {
+                                let db = SUPPORT_GEM_DB[gem] || {};
+                                if (Array.isArray(db.resonanceCosts) && Number.isFinite(db.resonanceCosts[tier - 1])) return Math.max(1, Math.floor(db.resonanceCosts[tier - 1]));
+                                if (tier <= 1) return baseCost;
+                                if (tier === 2) return Math.max(baseCost + 2, Math.floor(baseCost * 2.4));
+                                return Math.max(baseCost + 5, Math.floor(baseCost * 3.8));
+                            };
+                            let isEquipped = (game.equippedSupports || []).includes(gem);
                             let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
                             let remain = Math.max(0, Math.floor(game.resonancePower || 0) - used);
-                            let nextCost = Math.max(1, Math.floor(getSupportResonanceCost(gem) * (record.unlockedTier === 2 ? 2.4 : 3.8)));
-                            if (!(game.equippedSupports || []).includes(gem) || remain >= (nextCost - getSupportResonanceCost(gem) * (prevTier <= 1 ? 1 : (prevTier === 2 ? 2.4 : 3.8)))) {
+                            let extraNeed = Math.max(0, getTierCost(record.unlockedTier) - getTierCost(prevTier));
+                            if (!isEquipped || remain >= extraNeed) {
                                 record.activeTier = record.unlockedTier;
                             }
                         }
