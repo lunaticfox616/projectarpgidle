@@ -309,7 +309,8 @@ function runConditionGemAutoRules(pStats) {
             let limit = Math.max(1, Math.floor((pStats.curseCap || 1)));
             let list = game.enemyConditionDebuffs[target.id] || [];
             let existingIdx = list.findIndex(row => row && row.name === gemName);
-            let nextExpire = now + Math.floor((entry.duration || 6) * 1000);
+            let durMul=1+Math.max(0,Number(pStats&&pStats.uniqueConditionManual&&pStats.uniqueConditionManual.durationPct)||0)/100;
+            let nextExpire = now + Math.floor((entry.duration || 6) * 1000 * durMul);
             if (existingIdx >= 0) {
                 list[existingIdx].expiresAt = nextExpire;
             } else {
@@ -331,11 +332,13 @@ function runConditionGemAutoRules(pStats) {
                 game.enemyCurseExpirePayloads = store;
             }
         } else {
-            game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: now + Math.floor((entry.duration || 4) * 1000) });
+            let durMul=1+Math.max(0,Number(pStats&&pStats.uniqueConditionManual&&pStats.uniqueConditionManual.durationPct)||0)/100;
+            game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: now + Math.floor((entry.duration || 4) * 1000 * durMul) });
             let castDelta = getConditionGemStatDelta(gemName, entry.type);
             if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
         }
-        game.conditionGemCooldowns[gemName] = now + Math.max(2000, Math.floor((entry.castTime || 1) * 1000 + 2500));
+        let cdr=Math.max(0,Number(pStats&&pStats.uniqueConditionManual&&pStats.uniqueConditionManual.cdrPct)||0);
+        game.conditionGemCooldowns[gemName] = now + Math.max(2000, Math.floor(((entry.castTime || 1) * 1000 + 2500) * (1 - cdr/100)));
         if (gemName === '귀환 젬') returnToTown();
         let castDelayMs = Math.max(0, Math.floor((entry.castTime || 0) * 1000));
         game.playerCastDelayUntil = Math.max(now, Math.floor(game.playerCastDelayUntil || 0), now + castDelayMs);
@@ -711,7 +714,7 @@ function getUniqueEffectImplementationReport() {
         'xpGainPct','flatDmgPerLevel','esAmpAndRecoverOnCrit','invertShockTaken','alwaysShock',
         'projectileDoubleStrikePct','hitApplyChaosResDown','corpseExplodeOnKill','instantLeechAndDoubleDamage',
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
-        'abyssSocketOnItem','abyssSocketAndJewelAmp'
+        'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
     ]);
     return {
         total: uniqueKeys.length,
@@ -843,6 +846,9 @@ function getPlayerStats() {
     let uniqueXpGainPct = 0, uniqueFlatDmgPerLevel = 0, uniqueEsAmpPct = 0, uniqueShockInvertTaken = false, uniqueAlwaysShock = false, uniqueProjectileDoubleStrikePct = 0;
     let uniqueChaosResDownOnHit = null, uniqueCorpseExplode = null, uniqueInstantLeechPct = 0, uniqueDoubleDamageChancePct = 0, uniqueEsRecoverOnCritPct = 0;
     let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false, uniqueImmuneIgnite = false;
+    let uniqueFateTwinRollSync=false, uniqueFrostSentinel=false, uniqueShockTracer=false, uniqueVenomStride=false, uniqueBleedBlockHelm=false, uniqueCurseCrownPerCursePct=0, uniqueWarcryResonancePct=0, uniqueConditionManual=null, uniqueStackingElementalResDownOnHit=null;
+    let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null;
+    let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
     equippedUniqueEffects.forEach(effect => {
         if (!effect || !effect.key) return;
         let ep = effect.params || {};
@@ -861,6 +867,26 @@ function getPlayerStats() {
         else if (effect.key === 'minRollEqualsMaxRoll') uniqueMinRollEqualsMaxRoll = true;
         else if (effect.key === 'hpToPhysPct') uniqueHpToPhysPct = true;
         else if (effect.key === 'immuneIgnite') uniqueImmuneIgnite = true;
+
+        else if (effect.key === 'fateTwinRollSync') uniqueFateTwinRollSync = true;
+        else if (effect.key === 'frostSentinelBoots') uniqueFrostSentinel = true;
+        else if (effect.key === 'shockTracerGreaves') uniqueShockTracer = true;
+        else if (effect.key === 'venomStride') uniqueVenomStride = true;
+        else if (effect.key === 'bleedBlockHelm') uniqueBleedBlockHelm = true;
+        else if (effect.key === 'curseCrown') { addStatToBucket(reward, 'curseCap', Number(ep.extraCurseCap || 1)); uniqueCurseCrownPerCursePct = Math.max(uniqueCurseCrownPerCursePct, Number(ep.finalDmgPerCursePct || 6)); }
+        else if (effect.key === 'warcryResonanceBelt') uniqueWarcryResonancePct = Math.max(uniqueWarcryResonancePct, Number(ep.perWarcryAmpPct || 20));
+        else if (effect.key === 'conditionManual') uniqueConditionManual = { durationPct: Number(ep.durationPct || 100), cdrPct: Number(ep.cdrPct || 20) };
+        else if (effect.key === 'stackingElementalResDownOnHit') uniqueStackingElementalResDownOnHit = { perHit: Number(ep.perHit || 2), max: Number(ep.max || 20) };
+        else if (effect.key === 'leechEfficiencyOnKill') uniqueLeechEfficiencyOnKill = { duration: Number(ep.duration || 8), efficiencyPct: Number(ep.efficiencyPct || 100) };
+        else if (effect.key === 'overkillSplash') uniqueOverkillSplash = true;
+        else if (effect.key === 'dragonVeinGuard') uniqueDragonVeinGuard = { chance: Number(ep.chance || 20), duration: Number(ep.duration || 2), hpPct: Number(ep.hpPct || 8) };
+        else if (effect.key === 'guardianArmor') uniqueGuardianArmor = { takenLessPct: Number(ep.takenLessPct || 8), bossTakenLessPct: Number(ep.bossTakenLessPct || 12) };
+        else if (effect.key === 'queenBeeSummonOnHit') uniqueQueenBeeSummon = { chance: Number(ep.chance || 8), hitPct: Number(ep.hitPct || 125), attacks: Number(ep.attacks || 3), maxBees: Number(ep.maxBees || 10) };
+        else if (effect.key === 'bleedWeightOnBleedingHit') uniqueBleedWeightOnBleedingHit = true;
+        else if (effect.key === 'grandBreachCrown') uniqueGrandBreachCrown = { spellFromEsPct: Number(ep.spellFromEsPct || 10), esPct: Number(ep.esPct || 30) };
+        else if (effect.key === 'labyrinthShackles') uniqueLabyrinthShackles = true;
+        else if (effect.key === 'meteorFootsteps') uniqueMeteorFootsteps = { chance: Number(ep.chance || 20), damagePct: Number(ep.damagePct || 180) };
+
         else if (effect.key === 'abyssSocketOnItem' || effect.key === 'abyssSocketAndJewelAmp') { /* handled by item generation/socket stat merge path */ }
     });
 
@@ -1076,6 +1102,7 @@ function getPlayerStats() {
         let spellScale = Number.isFinite(skill.spellFlatScale) ? skill.spellFlatScale : 0;
         let logBoost = Math.log2(Math.max(1, skillLevel));
         let spellFlatBonus = gearBase.spellFlatDmg + gearExplicit.spellFlatDmg + passive.spellFlatDmg + season.spellFlatDmg + ascend.spellFlatDmg + reward.spellFlatDmg + support.spellFlatDmg;
+        if (uniqueGrandBreachCrown) spellFlatBonus += Math.floor(Math.max(0, localDefenseTotals.energyShield) * (Math.max(0, uniqueGrandBreachCrown.spellFromEsPct || 10) / 100));
         let spellFlatPct = gearBase.spellFlatPct + gearExplicit.spellFlatPct + passive.spellFlatPct + season.spellFlatPct + ascend.spellFlatPct + reward.spellFlatPct + support.spellFlatPct;
         spellFlatDmg = Math.max(1, ((spellBase * 3) + Math.max(0, skillLevel - 1) * spellScale + (spellBase * 0.8 * logBoost * logBoost) + spellFlatBonus) * (1 + spellFlatPct / 100));
         spellFlatDmg *= (1 + Math.max(0, Number(skill.spellFlatMulBonus) || 0) / 100);
@@ -1106,6 +1133,11 @@ function getPlayerStats() {
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = Math.min(100, (5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82);
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
+    if (uniqueLabyrinthShackles) {
+        let reduced = Math.max(0, finalMove - 100);
+        finalMove = 100;
+        finalDamageMultiplier *= (1 + reduced / 100);
+    }
     
     let extraFlatArmor = passive.armor + season.armor + ascend.armor + reward.armor;
     let extraFlatEvasion = passive.evasion + season.evasion + ascend.evasion + reward.evasion;
@@ -1119,6 +1151,7 @@ function getPlayerStats() {
     let finalArmor = Math.max(0, Math.floor(gearArmor * (1 + totalArmorPct / 100)));
     let finalEvasion = Math.max(0, Math.floor(gearEvasion * (1 + totalEvasionPct / 100)));
     let finalEnergyShield = Math.max(0, Math.floor(gearEnergyShield * (1 + totalEnergyShieldPct / 100)));
+    if (uniqueGrandBreachCrown) finalEnergyShield = Math.max(0, Math.floor(finalEnergyShield * (1 + Math.max(0, uniqueGrandBreachCrown.esPct || 30) / 100)));
     if (uniqueEsAmpPct > 0) finalEnergyShield = Math.floor(finalEnergyShield * (1 + uniqueEsAmpPct / 100));
     let finalEnergyShieldRegenRate = Math.max(0, 12.5 + gearBase.energyShieldRegen + gearExplicit.energyShieldRegen + passive.energyShieldRegen + season.energyShieldRegen + ascend.energyShieldRegen + reward.energyShieldRegen);
     let finalEnergyShieldRechargeDelay = Math.max(0.25, 1 - (gearBase.energyShieldRechargeFaster + gearExplicit.energyShieldRechargeFaster + passive.energyShieldRechargeFaster + season.energyShieldRechargeFaster + ascend.energyShieldRechargeFaster + reward.energyShieldRechargeFaster));
@@ -1130,6 +1163,9 @@ function getPlayerStats() {
     let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0);
     let rawLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech;
     let finalLeech = applyLeechSoftcap(rawLeech);
+    if (uniqueLeechEfficiencyOnKill && game.uniqueLeechEfficiencyUntil && Date.now() < game.uniqueLeechEfficiencyUntil) {
+        finalLeech *= (1 + Math.max(0, uniqueLeechEfficiencyOnKill.efficiencyPct || 0) / 100);
+    }
     let finalLeechRateCap = gearBase.leechRateCap + gearExplicit.leechRateCap + passive.leechRateCap + season.leechRateCap + ascend.leechRateCap + support.leechRateCap + reward.leechRateCap;
     let finalLeechTotalCap = gearBase.leechTotalCap + gearExplicit.leechTotalCap + passive.leechTotalCap + season.leechTotalCap + ascend.leechTotalCap + support.leechTotalCap + reward.leechTotalCap;
     let finalLeechInstanceCap = gearBase.leechInstanceCap + gearExplicit.leechInstanceCap + passive.leechInstanceCap + season.leechInstanceCap + ascend.leechInstanceCap + support.leechInstanceCap + reward.leechInstanceCap;
@@ -1207,6 +1243,10 @@ function getPlayerStats() {
     let chaosDamageMultiplier = 1;
     let dotTickIntervalMultiplier = 1;
     let dotDurationMultiplier = 1;
+    if (uniqueFateTwinRollSync) { let v=Math.max(finalMinDmgRoll, finalMaxDmgRoll)+(finalCrit*0.2); finalMinDmgRoll=v; finalMaxDmgRoll=v; }
+    if (uniqueVenomStride) finalDamageMultiplier *= 1.30;
+    if (uniqueWarcryResonancePct>0){ let now=Date.now(); let c=(Array.isArray(game.playerConditionBuffs)?game.playerConditionBuffs:[]).filter(b=>b&&b.type==='warcry'&&(b.expiresAt||0)>now).length; if(c>0) finalDamageMultiplier*=(1+(c*uniqueWarcryResonancePct)/100);}
+    if (uniqueCurseCrownPerCursePct>0){ let e=(game.enemies||[]).find(x=>x&&x.hp>0); let n=0; if(e&&game.enemyConditionDebuffs&&Array.isArray(game.enemyConditionDebuffs[e.id])) n=game.enemyConditionDebuffs[e.id].length; if(n>0) finalDamageMultiplier*=(1+(n*uniqueCurseCrownPerCursePct)/100);}
     finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus);
     if (uniqueFlatDmgPerLevel > 0) finalBaseDmg += Math.floor(Math.max(1, game.level || 1) * uniqueFlatDmgPerLevel);
     talismanEntries.forEach(entry => {
@@ -1866,9 +1906,22 @@ function getPlayerStats() {
         uniqueEsRecoverOnCritPct: uniqueEsRecoverOnCritPct,
         uniqueRiderCompass: uniqueRiderCompass,
         uniqueMaxRollBonusHit: uniqueMaxRollBonusHit,
-        uniqueCeilingSmashDouble: uniqueCeilingSmashDouble
+        uniqueCeilingSmashDouble: uniqueCeilingSmashDouble,
+        uniqueConditionManual: uniqueConditionManual,
+        uniqueStackingElementalResDownOnHit: uniqueStackingElementalResDownOnHit,
+        uniqueLeechEfficiencyOnKill: uniqueLeechEfficiencyOnKill,
+        uniqueOverkillSplash: uniqueOverkillSplash,
+        uniqueDragonVeinGuard: uniqueDragonVeinGuard,
+        uniqueGuardianArmor: uniqueGuardianArmor,
+        uniqueQueenBeeSummon: uniqueQueenBeeSummon,
+        uniqueBleedWeightOnBleedingHit: uniqueBleedWeightOnBleedingHit,
+        uniqueMeteorFootsteps: uniqueMeteorFootsteps
+        ,uniquePoisonExtraStacks: uniqueVenomStride ? 1 : 0
     };
     if (uniqueImmuneIgnite) enemy.immuneIgnite = true;
+    if (uniqueFrostSentinel) { enemy.immuneChill = true; enemy.immuneFreeze = true; }
+    if (uniqueShockTracer) enemy.immuneShock = true;
+    if (uniqueBleedBlockHelm) enemy.immuneBleed = true;
     if (uniqueClosedEyes) {
         enemy.immuneIgnite = true;
         enemy.immuneChill = true;
@@ -2060,6 +2113,11 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
         else if (skillEle === 'cold') rawMitigation = (enemy.baseResC || rawMitigation) + bonusRes;
         else if (skillEle === 'light') rawMitigation = (enemy.baseResL || rawMitigation) + bonusRes;
         else if (skillEle === 'chaos') rawMitigation = (enemy.baseResChaos || rawMitigation) + bonusRes;
+    }
+    if (skillEle !== 'chaos' && ['fire','cold','light'].includes(skillEle) && enemy && enemy.id && game.enemyUniqueElementalResDown && game.enemyUniqueElementalResDown[enemy.id]) {
+        let deb = game.enemyUniqueElementalResDown[enemy.id];
+        let shred = Math.min(Math.max(0, Number(deb.max || 20)), Math.max(0, Number(deb.stacks || 0)) * Math.max(0, Number(deb.perHit || 2)));
+        resist -= shred;
     }
     if (skillEle === 'chaos' && enemy && enemy.id && game.enemyUniqueChaosResDown && game.enemyUniqueChaosResDown[enemy.id]) {
         let deb = game.enemyUniqueChaosResDown[enemy.id];
@@ -3119,6 +3177,17 @@ function handleEnemyDeath(enemy, pStats) {
         addBattleFx('hit', { enemyId: enemy.id, color: '#c56cff', damage: splash, duration: 360, element: 'chaos' });
         if (game.settings.showCombatLog) addLog(`💥 [종말의 논리] 시체 폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
     }
+    if (pStats && pStats.uniqueLeechEfficiencyOnKill) {
+        let durationMs = Math.max(1000, Math.floor((pStats.uniqueLeechEfficiencyOnKill.duration || 8) * 1000));
+        game.uniqueLeechEfficiencyUntil = Date.now() + durationMs;
+    }
+    if (pStats && pStats.uniqueOverkillSplash && enemy && Number.isFinite(enemy.lastOverkillDamage) && enemy.lastOverkillDamage > 0) {
+        let splash = Math.max(1, Math.floor(enemy.lastOverkillDamage));
+        (game.enemies || []).forEach(target => {
+            if (!target || target.id === enemy.id || target.hp <= 0) return;
+            target.hp = Math.max(0, target.hp - splash);
+        });
+    }
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun && (game.enemies || []).filter(entry => entry && entry.hp > 0).length === 0) {
         if (typeof onBeehiveWaveCleared === 'function') onBeehiveWaveCleared();
@@ -3463,6 +3532,19 @@ function finishEncounterRun() {
 }
 
 function performPlayerAttack(pStats) {
+    if (Array.isArray(game.queenBees) && game.queenBees.length > 0) {
+        let now = Date.now();
+        game.queenBees = game.queenBees.filter(bee => bee && (bee.expiresAt || 0) > now && (bee.attacksLeft || 0) > 0);
+        game.queenBees.forEach(bee => {
+            if (now < (bee.nextAt || 0)) return;
+            bee.nextAt = now + 1000;
+            bee.attacksLeft = Math.max(0, Math.floor((bee.attacksLeft || 0) - 1));
+            let target = (game.enemies || []).find(e => e && e.hp > 0);
+            if (!target) return;
+            let beeDmg = Math.max(1, Math.floor((pStats.baseDmg || 1) * ((bee.hitPct || 125) / 100)));
+            applyDamageToEnemyResource(target, beeDmg);
+        });
+    }
     let targets = getSkillTargets(pStats);
     if (targets.length === 0) return;
     let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
@@ -3658,6 +3740,7 @@ function performPlayerAttack(pStats) {
             if (hitElement === 'light') dmg = Math.floor(dmg * (curseFx.lightTakenMul || 1));
             if (hitElement === 'chaos') dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
             if (hitCrit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
+            if (pStats.uniqueBleedWeightOnBleedingHit && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'bleed' && (a.time || 0) > 0)) dmg = Math.floor(dmg * 2);
             dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement));
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) dmg = Math.floor(dmg * (1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100)));
@@ -3678,6 +3761,7 @@ function performPlayerAttack(pStats) {
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let beforeHpForForced = targetEnemy.hp;
             let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
+            if (targetEnemy.hp <= 0) targetEnemy.lastOverkillDamage = Math.max(0, dmg - dealtToEnemy);
             if (pStats.uniqueMaxRollBonusHit && rollPct >= 130 && dealtToEnemy > 0 && targetEnemy.hp > 0) {
                 let bonus = Math.max(1, Math.floor(dealtToEnemy * 0.5));
                 dealtToEnemy += applyDamageToEnemyResource(targetEnemy, bonus);
@@ -3726,6 +3810,39 @@ function performPlayerAttack(pStats) {
                 row.maxStacks = pStats.uniqueChaosResDownOnHit.maxStacks;
                 game.enemyUniqueChaosResDown[targetEnemy.id] = row;
             }
+
+            if (pStats.uniqueStackingElementalResDownOnHit && ['fire','cold','light'].includes(hitElement)) {
+                game.enemyUniqueElementalResDown = game.enemyUniqueElementalResDown || {};
+                let row = game.enemyUniqueElementalResDown[targetEnemy.id] || { stacks: 0, perHit: pStats.uniqueStackingElementalResDownOnHit.perHit, max: pStats.uniqueStackingElementalResDownOnHit.max };
+                row.stacks = Math.min(Math.ceil(row.max / Math.max(1,row.perHit)), Math.max(0, row.stacks + 1));
+                row.perHit = pStats.uniqueStackingElementalResDownOnHit.perHit;
+                row.max = pStats.uniqueStackingElementalResDownOnHit.max;
+                game.enemyUniqueElementalResDown[targetEnemy.id] = row;
+            }
+            if (pStats.uniqueQueenBeeSummon && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueQueenBeeSummon.chance || 0) / 100))) {
+                let bees = game.queenBees || [];
+                bees.push({ expiresAt: Date.now() + Math.max(1000, Math.floor((pStats.uniqueQueenBeeSummon.attacks || 3) * 1000)), nextAt: Date.now() + 1000, attacksLeft: Math.max(1, Math.floor(pStats.uniqueQueenBeeSummon.attacks || 3)), hitPct: Math.max(1, Number(pStats.uniqueQueenBeeSummon.hitPct || 125)) });
+                while (bees.length > Math.max(1, Math.floor(pStats.uniqueQueenBeeSummon.maxBees || 10))) bees.shift();
+                game.queenBees = bees;
+            }
+            if (hitCrit && pStats.uniqueMeteorFootsteps && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueMeteorFootsteps.chance || 0) / 100))) {
+                let meteor = Math.max(1, Math.floor(dmg * (Math.max(1, Number(pStats.uniqueMeteorFootsteps.damagePct || 180)) / 100)));
+                (game.enemies || []).forEach(e => { if (!e || e.hp <= 0) return; e.hp = Math.max(0, e.hp - meteor); });
+            }
+            if (pStats.uniqueShockTracer && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'shock' && (a.time || 0) > 0)) {
+                let now = Date.now();
+                game.uniqueShockTracerNextAt = Number(game.uniqueShockTracerNextAt || 0);
+                if (now >= game.uniqueShockTracerNextAt) {
+                    game.uniqueShockTracerNextAt = now + 500;
+                    let strike = Math.max(1, Math.floor(dmg * 5));
+                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, strike);
+                }
+            }
+            if (pStats.uniqueDragonVeinGuard && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueDragonVeinGuard.chance || 0) / 100))) {
+                let guardAmt = Math.max(1, Math.floor((pStats.maxHp || 0) * Math.max(0, Number(pStats.uniqueDragonVeinGuard.hpPct || 8)) / 100));
+                game.playerUniqueGuard = { amount: guardAmt, expiresAt: Date.now() + Math.max(500, Math.floor((pStats.uniqueDragonVeinGuard.duration || 2) * 1000)) };
+            }
+
             totalDamage += dealtToEnemy;
             totalLeechableDamage += dealtToEnemy * (targetEnemy && targetEnemy.leechEffMul !== undefined ? targetEnemy.leechEffMul : 1);
             hits.push(dealtToEnemy);
@@ -3937,6 +4054,15 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage) {
     let damageAilment = isDamageAilmentType(type);
     let hitSource = Math.max(0, Math.floor(Number(sourceHitDamage) || 0));
     let existing = game.playerAilments.find(row => row.type === type);
+    if (type === 'poison') {
+        let maxStacks = Math.max(1, 1 + Math.max(0, Math.floor((pStats && pStats.uniquePoisonExtraStacks) || 0)));
+        let poisonRows = game.playerAilments.filter(row => row && row.type === 'poison');
+        if (poisonRows.length >= maxStacks) {
+            existing = poisonRows.reduce((a, b) => ((a.time || 0) <= (b.time || 0) ? a : b), poisonRows[0]);
+        } else {
+            existing = null;
+        }
+    }
     if (existing) {
         existing.time = Math.max(existing.time || 0, duration);
         existing.power = Math.max(existing.power || 0, power || 0.1);
@@ -4108,6 +4234,17 @@ function performMonsterAttacks(pStats) {
             let damageBreakdown = [];
             if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
             if (mitigatedElemental > 0) damageBreakdown.push({ ele: enemy.ele, amount: mitigatedElemental });
+            if (pStats.uniqueBleedBlockHelm) {
+                damageBreakdown = damageBreakdown.flatMap(row => {
+                    if (row.ele !== 'phys' || row.amount <= 0) return [row];
+                    let chaosPart = Math.max(0, Math.floor(row.amount * 0.15));
+                    let physPart = Math.max(0, row.amount - chaosPart);
+                    let out = [];
+                    if (physPart > 0) out.push({ ele: 'phys', amount: physPart });
+                    if (chaosPart > 0) out.push({ ele: 'chaos', amount: chaosPart });
+                    return out;
+                });
+            }
             if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: 1 });
             let sumBreakdown = () => damageBreakdown.reduce((sum, row) => sum + Math.max(0, Math.floor(row.amount || 0)), 0);
             let scaleBreakdown = (mul) => {
@@ -4128,6 +4265,14 @@ function performMonsterAttacks(pStats) {
             }
             dmg = Math.max(1, Math.floor(dmg * getWoodsmanCurseDamageTakenMul() * Math.max(0, Number(pStats.warriorTakenDamageMultiplier) || 1) * Math.max(0, Number(pStats.genericTakenDamageMultiplier) || 1)));
             if (enemy.isBoss) dmg = Math.max(1, Math.floor(dmg * Math.max(0, Number(pStats.bossTakenDamageMultiplier) || 1)));
+            if (pStats.uniqueGuardianArmor) {
+                let less = Math.max(0, Math.min(95, Number(pStats.uniqueGuardianArmor.takenLessPct || 0)));
+                dmg = Math.max(1, Math.floor(dmg * (1 - less / 100)));
+                if (enemy.isBoss) {
+                    let bossLess = Math.max(0, Math.min(95, Number(pStats.uniqueGuardianArmor.bossTakenLessPct || 0)));
+                    dmg = Math.max(1, Math.floor(dmg * (1 - bossLess / 100)));
+                }
+            }
             if (game.ascendClass === 'gladiator' && hasKeystone('g5') && game.gladiatorSwiftGuardReady) {
                 dmg = Math.max(1, Math.floor(dmg * Math.max(0, Number(pStats.swiftOpeningTakenMultiplier) || 0.70)));
                 game.gladiatorSwiftGuardReady = false;
@@ -4159,6 +4304,11 @@ function performMonsterAttacks(pStats) {
             if (remaining > 0 && game.playerEnergyShield > 0) {
                 let absorbed = Math.min(game.playerEnergyShield, remaining);
                 game.playerEnergyShield -= absorbed;
+                remaining -= absorbed;
+            }
+            if (remaining > 0 && game.playerUniqueGuard && Date.now() < (game.playerUniqueGuard.expiresAt || 0) && (game.playerUniqueGuard.amount || 0) > 0) {
+                let absorbed = Math.min(remaining, Math.floor(game.playerUniqueGuard.amount || 0));
+                game.playerUniqueGuard.amount = Math.max(0, Math.floor((game.playerUniqueGuard.amount || 0) - absorbed));
                 remaining -= absorbed;
             }
             game.playerHp = Math.floor(game.playerHp - remaining);
