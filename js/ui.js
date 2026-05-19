@@ -2172,7 +2172,7 @@ function showItemTooltip(event, idx, isEquip) {
             if (Math.floor(finalVal) === Math.floor(baseVal)) {
                 html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(baseVal)}</span>${rangeText}</div>`;
             } else {
-                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(finalVal)}</span> <span style="color:#9fb4d1;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
             }
         });
     }
@@ -3873,9 +3873,9 @@ function getItemStatToneColor(statId) {
     if (['coldPctDmg', 'resC', 'freezeChance'].includes(id)) return '#8fd3ff';
     if (['lightPctDmg', 'resL', 'shockChance'].includes(id)) return '#ffe083';
     if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(id)) return '#c7a6ff';
-    if (['armor', 'armorPct', 'dr'].includes(id)) return '#8fd3ff';
-    if (['evasion', 'evasionPct'].includes(id)) return '#8fd3ff';
-    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#8fd3ff';
+    if (['armor', 'armorPct', 'dr'].includes(id)) return '#ffd2a6';
+    if (['evasion', 'evasionPct'].includes(id)) return '#baffc2';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#b9c6ff';
     if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(id)) return '#ffb3b3';
     if (['crit', 'critDmg'].includes(id)) return '#ffd6f2';
     if (['aspd', 'move'].includes(id)) return '#fff3a8';
@@ -3886,9 +3886,9 @@ function getItemStatToneColor(statId) {
     if (id.includes('cold') || id.includes('freeze') || id.includes('chill')) return '#8fd3ff';
     if (id.includes('light') || id.includes('shock')) return '#ffe083';
     if (id.includes('hp') || id.includes('life') || id.includes('regen') || id.includes('leech')) return '#ffb3b3';
-    if (id.includes('armor') || id.includes('block') || id.includes('guard') || id.includes('dr')) return '#8fd3ff';
-    if (id.includes('evasion') || id.includes('dodge')) return '#8fd3ff';
-    if (id.includes('energyShield') || id.includes('es')) return '#8fd3ff';
+    if (id.includes('armor') || id.includes('block') || id.includes('guard') || id.includes('dr')) return '#ffd2a6';
+    if (id.includes('evasion') || id.includes('dodge')) return '#baffc2';
+    if (id.includes('energyShield') || id.includes('es')) return '#b9c6ff';
     if (id.includes('crit')) return '#ffd6f2';
     if (id.includes('aspd') || id.includes('speed') || id.includes('move')) return '#fff3a8';
     if (id.includes('dmg') || id.includes('atk') || id.includes('spell')) return '#ffcf9f';
