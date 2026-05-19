@@ -2151,10 +2151,12 @@ function showItemTooltip(event, idx, isEquip) {
             return { min, max };
         }
         item.baseStats.forEach(stat => {
-            if (stat.id === 'armor' || stat.id === 'evasion' || stat.id === 'energyShield') return;
+            let statKey = stat && (stat.id || stat.stat);
+            if (statKey === 'armor' || statKey === 'evasion' || statKey === 'energyShield') return;
             let cur = Number(stat.val || 0);
             let { min, max } = getBaseRollRange(stat);
-            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(stat.id)};">${stat.statName} +${formatValue(stat.id, cur)}</span> <span style="color:#888;">(${formatValue(stat.id, min)}~${formatValue(stat.id, max)})</span></div>`;
+            let label = stat.statName || getStatName(statKey) || statKey;
+            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, cur)}</span> <span style="color:#888;">(${formatValue(statKey, min)}~${formatValue(statKey, max)})</span></div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
             let label = getStatName(id);
@@ -2179,9 +2181,11 @@ function showItemTooltip(event, idx, isEquip) {
     if (explicitStats.length > 0) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션 (${explicitStats.length}/6)</div>`;
         explicitStats.forEach(stat => {
+            let statKey = stat && (stat.id || stat.stat);
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
-            let rangeText = stat.valMin !== undefined && stat.valMax !== undefined ? ` <span style="color:#888;">(${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})</span>${tierText}` : tierText;
-            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(stat.id)};">${stat.statName} +${formatValue(stat.id, stat.val)}</span>${rangeText}</div>`;
+            let rangeText = stat.valMin !== undefined && stat.valMax !== undefined ? ` <span style="color:#888;">(${formatValue(statKey, stat.valMin)}~${formatValue(statKey, stat.valMax)})</span>${tierText}` : tierText;
+            let label = stat.statName || getStatName(statKey) || statKey;
+            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, stat.val)}</span>${rangeText}</div>`;
         });
     } else {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#7f8c8d;">노멀 아이템: 추가 옵션 없음</div>`;
