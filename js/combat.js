@@ -1361,7 +1361,7 @@ function getPlayerStats() {
         if (hasKeystone('w5')) {
             let now = Date.now();
             let stacks = (game.warriorRageExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRageStacks || 0))) : 0;
-            if (stacks > 0) warriorPhysDamageMultiplier *= (1 + stacks * 0.15);
+            if (stacks > 0) warriorPhysDamageMultiplier *= (1 + stacks * 0.05);
         }
         if (hasKeystone('w7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
             finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
@@ -1549,7 +1549,7 @@ function getPlayerStats() {
             finalBaseDmg = Math.floor(finalBaseDmg * 0.88);
             genericTakenDamageMultiplier *= 0.85;
         }
-        if (hasKeystone('gd6')) { let now = Date.now(); let stacks = (game.guardianEnduranceExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) : 0; if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.30)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.6)); }
+        if (hasKeystone('gd6')) { let now = Date.now(); let stacks = (game.guardianEnduranceExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) : 0; if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.11)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.6)); }
         if (guardianArmorDamageBonus) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalArmor) * 0.001));
         if (hasKeystone('gd8')) { guardianBlockChance += 25; ailmentResistBonusPct += 50; }
         if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.4) {

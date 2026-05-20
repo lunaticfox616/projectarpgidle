@@ -2576,7 +2576,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             let attackBlend = clampNumber(Number.isFinite(motionState.attackBlend) ? motionState.attackBlend : 0, 0, 1);
             let hurtBlend = clampNumber(Number.isFinite(motionState.hurtBlend) ? motionState.hurtBlend : (flash ? 1 : 0), 0, 1);
             if (hurtBlend > 0.55) {
-                motionName = 'hit';
+                motionName = 'idle';
             } else if (attackBlend > 0.2 || Math.abs(swingPower) > 0.16) {
                 let effect = skillVisual && skillVisual.effect ? skillVisual.effect : 'slash';
                 if (effect === 'arrow' || effect === 'projectile') motionName = 'bow';
@@ -2610,15 +2610,6 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
                 battleAssets.images.hero,
                 heroFrame.sx, heroFrame.sy, heroFrame.sw, heroFrame.sh,
                 metrics.dx, metrics.dy, metrics.drawW, metrics.drawH
-            );
-            ctx.restore();
-            ctx.save();
-            ctx.globalAlpha = 0.2;
-            ctx.globalCompositeOperation = 'screen';
-            ctx.drawImage(
-                battleAssets.images.hero,
-                heroFrame.sx, heroFrame.sy, heroFrame.sw, heroFrame.sh,
-                metrics.dx - 1, metrics.dy - 1, metrics.drawW, metrics.drawH
             );
             ctx.restore();
             if (DEBUG_BATTLE_ANCHORS) {
