@@ -7166,15 +7166,27 @@ function recoverRuntimeState() {
 }
 
 function runStartupSmokeChecks() {
+    // 기본 배포에서는 상태 오염 가능성이 있는 런타임 시뮬레이션을 실행하지 않는다.
+    // 필요 시 콘솔에서 window.__ENABLE_STARTUP_SMOKE__ = true 로 활성화.
+    if (!(typeof window !== 'undefined' && window.__ENABLE_STARTUP_SMOKE__ === true)) return;
     let snapshot = JSON.parse(JSON.stringify(game));
     let issues = [];
     try {
+        // 저장 데이터 상태(맵 잠금/이벤트 러닝 상태)에 영향받지 않도록 최소 런타임을 정규화한다.
+        game.moveTimer = 0;
+        game.combatHalted = false;
+        game.isTownReturning = false;
+        game.woodsmanEntrancePending = false;
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.encounterIndex = 0;
+        game.runProgress = 0;
         startEncounterRun();
         if (!Array.isArray(game.encounterPlan) || game.encounterPlan.length === 0) issues.push('encounterPlan-empty');
         let before = game.runProgress;
         let stats = getPlayerStats();
         for (let i = 0; i < 6; i++) coreLoop();
-                ensureLoopChallengeState();
+        ensureLoopChallengeState();
         if (game.moveTimer <= 0 && game.runProgress <= before) issues.push('runProgress-stalled');
         if (!Number.isFinite(stats.maxHp) || stats.maxHp <= 0) issues.push('invalid-player-stats');
     } catch (error) {

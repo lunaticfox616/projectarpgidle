@@ -3178,7 +3178,14 @@ function initBattleAssets() {
             if (!fileExists(src)) optionalManifestKeys.add(key);
         }
     });
-    const manifestEntries = Object.entries(manifest);
+    const manifestEntries = Object.entries(manifest).filter(([key, src]) => {
+        if (typeof src !== 'string') return true;
+        if (src.startsWith('data:') || src.startsWith('http') || src.startsWith('https')) return true;
+        if (fileExists(src)) return true;
+        // 로컬 배포본에서 빠진 선택 리소스는 로딩 시도 자체를 건너뛰어 404 콘솔 스팸을 막는다.
+        optionalManifestKeys.add(key);
+        return false;
+    });
     let pending = manifestEntries.length;
     const totalAssets = pending;
     let settled = false;
