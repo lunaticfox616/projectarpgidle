@@ -719,7 +719,7 @@ function processPendingSlamEchoHits() {
         if (!enemy) return;
         let bonus = Math.max(1, Math.floor(row.damage || 0));
         enemy.hp = Math.max(0, enemy.hp - bonus);
-        addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220 });
+        addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220 });
         if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 지진의 함성: ${formatNumberKR(bonus)} 추가 타격`, 'attack-player', { noToast: true });
         if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
     });
