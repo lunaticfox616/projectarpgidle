@@ -1528,33 +1528,31 @@ function renderUniqueCodexUI() {
 
 function grantCodexLegacyStarterUniques() {
     if (!game.uniqueCodexCompletedRewardClaimed) return;
-    let slots = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
-    let granted = [];
-    slots.forEach(slot => {
-        let options = UNIQUE_DB.filter(entry => (entry.slots || [])[0] === slot).sort((a, b) => (a.reqTier || 1) - (b.reqTier || 1));
-        if (options.length === 0) return;
-        let minTier = options[0].reqTier || 1;
-        let pick = rndChoice(options.filter(entry => (entry.reqTier || 1) === minTier));
-        let uniqueTier = pick.reqTier || 1;
-        let base = chooseItemBase(pick.slots[0], uniqueTier);
-        let item = {
-            id: ++itemIdCounter,
-            slot: pick.slots[0],
-            baseName: base.name,
-            name: pick.name,
-            rarity: 'unique',
-            itemTier: uniqueTier,
-            hiddenTier: uniqueTier,
-            baseStats: rollBaseStats(base, uniqueTier),
-            stats: []
-        };
-        pick.stats.forEach(stat => item.stats.push({ id: stat.id, statName: getStatName(stat.id), val: stat.min, valMin: stat.min, valMax: stat.max, tier: 1 }));
-        if ((game.inventory || []).length < getInventoryLimit()) {
-            game.inventory.push(normalizeItem(item));
-            granted.push(`[${slot}] ${pick.name}`);
-        }
+    let act1Pool = UNIQUE_DB.filter(entry => {
+        if (!entry) return false;
+        if ((entry.reqTier || 1) > 1) return false;
+        if (entry.dropOnly || entry.contentOnly || entry.bossOnly) return false;
+        return !!((entry.slots || [])[0]);
     });
-    if (granted.length > 0) addLog(`🎁 도감 완성 특전 지급: ${granted.join(', ')}`, 'loot-unique');
+    if (act1Pool.length === 0) return;
+    if ((game.inventory || []).length >= getInventoryLimit()) return;
+    let pick = rndChoice(act1Pool);
+    let uniqueTier = pick.reqTier || 1;
+    let base = chooseItemBase(pick.slots[0], uniqueTier);
+    let item = {
+        id: ++itemIdCounter,
+        slot: pick.slots[0],
+        baseName: base.name,
+        name: pick.name,
+        rarity: 'unique',
+        itemTier: uniqueTier,
+        hiddenTier: uniqueTier,
+        baseStats: rollBaseStats(base, uniqueTier),
+        stats: []
+    };
+    pick.stats.forEach(stat => item.stats.push({ id: stat.id, statName: getStatName(stat.id), val: stat.min, valMin: stat.min, valMax: stat.max, tier: 1 }));
+    game.inventory.push(normalizeItem(item));
+    addLog(`🎁 도감 완성 특전 지급: [${pick.slots[0]}] ${pick.name} (액트1 고유 랜덤 1개)`, 'loot-unique');
 }
 
 function assertBuildEditable() {
@@ -4823,21 +4821,24 @@ function setupCanvasEvents() {
                 if (bucket && bucket.length) candidates.push(...bucket);
             }
         }
-        (candidates.length > 0 ? candidates : passiveRenderCache.nodes).forEach(node => {
+        let nearbyNodes = (candidates.length > 0 ? candidates : passiveRenderCache.nodes);
+        let nearestStarSlot = null;
+        let nearestStarSlotDistance = Infinity;
+        nearbyNodes.forEach(node => {
             if (getPassiveVisibility(node.id) === 'hidden') return;
             let radius = getPassiveNodeVisualRadius(node) + 8;
             let distance = Math.hypot(node.x - worldX, node.y - worldY);
             if (distance > radius) return;
-            if (!found || distance < foundDistance) {
-                found = node;
-                foundDistance = distance;
-                return;
+            if (selectingStarWedge && node.socketType === 'star_wedge' && distance < nearestStarSlotDistance) {
+                nearestStarSlot = node;
+                nearestStarSlotDistance = distance;
             }
-            if (selectingStarWedge && node.socketType === 'star_wedge' && found && found.socketType !== 'star_wedge' && distance <= (foundDistance + 3)) {
+            if (!found || distance < foundDistance) {
                 found = node;
                 foundDistance = distance;
             }
         });
+        if (selectingStarWedge && nearestStarSlot) return nearestStarSlot;
         return found;
     }
 
@@ -4865,7 +4866,7 @@ function setupCanvasEvents() {
                 ? '✔️ 각성된 별자리를 이미 받아들였습니다.'
                 : '✨ 성좌 진화 이후 드러난 강력한 외곽 노드입니다.';
         } else if (node.socketType === 'star_wedge') {
-            let hasSocket = (starState.sockets || []).find(entry => entry.nodeId === node.id);
+            let hasSocket = (starState.sockets || []).find(entry => String(entry.nodeId) === String(node.id));
             msg = hasSocket ? '🌑 별쐐기가 장착된 슬롯입니다.' : '🌑 별쐐기 장착 가능 슬롯입니다.';
         }
 
@@ -4922,7 +4923,14 @@ function setupCanvasEvents() {
         if (dragDist >= 10 || !hoverNode) return;
         let starState = ensureStarWedgeState();
         if (Number.isFinite(starState.selectedWedgeId)) {
-            if (hoverNode.socketType === 'star_wedge') {
+            let hoveredNodeId = hoverNode && hoverNode.id;
+            let resolvedNode = hoveredNodeId != null ? (PASSIVE_TREE.nodes[hoveredNodeId] || PASSIVE_TREE.nodes[String(hoveredNodeId)] || null) : null;
+            let isStarWedgeSlot = !!(resolvedNode && resolvedNode.socketType === 'star_wedge');
+            if (!isStarWedgeSlot && hoveredNodeId != null) {
+                let hoveredKey = String(hoveredNodeId);
+                isStarWedgeSlot = !!Object.values(PASSIVE_TREE.nodes || {}).find(node => node && node.socketType === 'star_wedge' && String(node.id) === hoveredKey);
+            }
+            if (isStarWedgeSlot) {
                 socketStarWedgeOnNode(hoverNode.id, starState.selectedWedgeId);
                 starState.selectedWedgeId = null;
                 updateStaticUI();
@@ -5618,7 +5626,7 @@ function mergeDefaults(save) {
     merged.settings.autoSalvageRarities = { ...(defaultGame.settings.autoSalvageRarities || {}), ...(merged.settings.autoSalvageRarities || {}) };
     merged.settings.jewelAutoSalvageEnabled = !!merged.settings.jewelAutoSalvageEnabled;
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
-    merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
+    merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
     merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
     merged.selectedHeroId = HERO_SELECTION_DEFS[merged.selectedHeroId] ? merged.selectedHeroId : 'hero1';
     merged.discoveredHeroIds = Array.isArray(merged.discoveredHeroIds) ? merged.discoveredHeroIds.filter(id => HERO_SELECTION_DEFS[id]) : ['hero1'];

@@ -1672,7 +1672,7 @@ function socketStarWedgeOnNode(nodeId, wedgeId) { if (game.woodsmanBuildLock) re
     let remainingSockets = (st.sockets || []).filter(v => String(v.nodeId) !== nodeKey && v.wedgeId !== wedgeId);
     if (remainingSockets.length >= maxEquipped) return addLog(`별쐐기는 현재 최대 ${maxEquipped}개까지 장착할 수 있습니다. (천문학자 레벨 상승 시 최대 ${MAX_STAR_WEDGES_HARD_CAP}개)`, 'attack-monster');
     st.sockets = remainingSockets;
-    st.sockets.push({ nodeId: lookupId, wedgeId: wedgeId });
+    st.sockets.push({ nodeId: String(lookupId), wedgeId: wedgeId });
     recalculateStarWedgeMutations();
     addLog('☄️ 나무의 결이 끊어지고, 새로운 효과가 혼돈 속에서 벼려졌다.', 'loot-unique');
     if (!((game.journalEntries || []).includes('star_wedge'))) unlockJournalEntry('star_wedge');
@@ -1682,7 +1682,8 @@ function socketStarWedgeOnNode(nodeId, wedgeId) { if (game.woodsmanBuildLock) re
 function unsocketStarWedge(nodeId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let st = ensureStarWedgeState();
     let before = (st.sockets || []).length;
-    st.sockets = (st.sockets || []).filter(v => v.nodeId !== nodeId);
+    let targetNodeId = String(nodeId);
+    st.sockets = (st.sockets || []).filter(v => String(v.nodeId) !== targetNodeId);
     if (st.sockets.length === before) return;
     recalculateStarWedgeMutations();
     addLog('☄️ 별쐐기를 슬롯에서 분리했습니다.', 'attack-monster');
@@ -5393,7 +5394,7 @@ function generateEquipmentDrop(enemy) {
     let rarity = 'normal';
     let roll = Math.random();
     if (enemy.isBoss) {
-        if (roll < 0.055) return generateUniqueItem(zoneTier, slot);
+        if (roll < 0.04) return generateUniqueItem(zoneTier, slot);
         rarity = roll < 0.36 ? 'rare' : (roll < 0.80 ? 'magic' : 'normal');
     } else if (enemy.isElite) {
         if (roll < 0.02) return generateUniqueItem(zoneTier, slot);

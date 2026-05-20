@@ -753,6 +753,7 @@
                 <select id="sel-map-complete-action" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
                     <option value="nextZone">다음 지역으로 이동(기본값)</option>
                     <option value="repeatZone">같은지역 반복 전투</option>
+                    <option value="nextLoopBestPlusOne">현재 루프 최고 층의 다음 층으로 진행</option>
                     <option value="stop">전투 중단</option>
                 </select>
             </label>
@@ -783,7 +784,7 @@
             </div>
             <hr style="border-color: #3d3d5c; width: 100%;">
             <button id="btn-open-death-log" onclick="openLastDeathLog()" style="background-color: #4a6078;">☠️ 최근 데스로그 보기</button>
-            <button onclick="saveGame()" style="background-color: #27ae60;">💾 수동 저장</button>
+            <button onclick="saveGame({ manual: true })" style="background-color: #27ae60;">💾 수동 저장</button>
             <button onclick="resetGame()" style="background-color: #c0392b; border-color: #922b21;">♻️ 세이브 완전 초기화</button>
         </div>
         <div class="cloud-panel">
