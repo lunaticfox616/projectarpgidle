@@ -2242,7 +2242,7 @@ function createEnemy(zone, marker, groupIndex) {
     if (zone.type === 'chaosRealm') {
         let realmFloor = Math.max(1, Math.floor(zone.floor || 1));
         // 혼돈계 1층 기준 난이도를 심화 혼돈 30급으로 맞추고, 층이 오를수록 완만히 추가 상승.
-        let realmBaseMul = 8.4;
+        let realmBaseMul = 5;
         let realmFloorMul = 1 + Math.max(0, realmFloor - 1) * 0.06;
         hp = Math.floor(hp * realmBaseMul * realmFloorMul);
     }
