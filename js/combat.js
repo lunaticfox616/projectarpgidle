@@ -3876,6 +3876,9 @@ function performPlayerAttack(pStats) {
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) dmg = Math.floor(dmg * (1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100)));
             dmg = Math.floor(dmg * Math.max(0, Number(pStats.finalDamageMultiplier) || 1));
+            // 보스전에서 다중 감쇠/가드/저항이 겹치면 직접타격이 0으로 떨어져 DoT만 진행되는 교착이 발생할 수 있다.
+            // 명중이 성립한 타격은 최소 1의 직접 피해를 보장해 전투 루프가 정지하지 않게 한다.
+            if (dmg <= 0) dmg = 1;
             let hasActiveDoomMark = false;
             if (targetEnemy && targetEnemy.id) {
                 let debs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[targetEnemy.id]) ? game.enemyConditionDebuffs[targetEnemy.id] : [];
