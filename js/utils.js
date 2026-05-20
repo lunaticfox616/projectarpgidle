@@ -194,6 +194,9 @@ function getStatName(statId) {
         resF: '화염 저항(%)',
         resC: '냉기 저항(%)',
         resL: '번개 저항(%)',
+        maxResF: '최대 화염 저항(%)',
+        maxResC: '최대 냉기 저항(%)',
+        maxResL: '최대 번개 저항(%)',
         resAll: '모든 원소 저항(%)',
         resChaos: '카오스 저항(%)',
         regenSuppress: '재생 억제(%)',
@@ -216,6 +219,10 @@ function getStatName(statId) {
         targetCount: '스킬 타겟 수',
         spellCritDmg: '주문 치명타 피해 배율(%)',
         spellLeech: '주문 흡혈(%)',
+        shockEffectReducePct: '감전 효과 감소(%)',
+        dotTakenDamageReducePct: '받는 지속 피해 감소(%)',
+        takenDamageReduceWhen2EnemiesPct: '적 2명 이상일 때 받는 피해 감소(%)',
+        takenDamageReduceWhen1EnemyPct: '적 1명일 때 받는 피해 감소(%)',
         shockEffect: '감전 효과(%)'
     };
     return names[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId;
