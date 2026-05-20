@@ -2642,7 +2642,7 @@ function tickEnemyAilments(pStats, dt) {
                 let fxKey = `${enemy.id}:${type}`;
                 let now = Date.now();
                 let prev = Number(fxState[fxKey] || 0);
-                if (dealt > 0 && (now - prev) >= 240) {
+                if (type !== 'bleed' && dealt > 0 && (now - prev) >= 240) {
                     fxState[fxKey] = now;
                     addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dealt, duration: 160, element: ele, noLine: true, dot: true });
                 }
