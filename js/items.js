@@ -412,7 +412,7 @@ function confirmSelectedItemBaseUpgrade() {
     if (!nextBase) return closeBaseUpgradeOverlay();
     item.baseId = nextBase.id;
     item.baseName = nextBase.name;
-    item.name = nextBase.name;
+    if (item.rarity !== 'unique') item.name = nextBase.name;
     item.itemTier = Math.max(item.itemTier || 1, nextBase.reqTier || 1);
     item.baseStats = rollBaseStats(nextBase, nextBase.reqTier || 1);
     addLog(`🛠️ 베이스 업그레이드: ${(currentBase && currentBase.name) || '기존'} → ${nextBase.name} (카오스 ${pending.costChaos}${pending.costDivine ? ` + 신성 ${pending.costDivine}` : ''})`, 'loot-magic');

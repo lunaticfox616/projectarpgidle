@@ -518,10 +518,10 @@ function generateOrganicTree() {
         ],
         ranger: [
             { stat: 'projectilePctDmg', title: '투사체 숙련' },
-            { stat: 'coldPctDmg', title: '냉기 사격' },
-            { stat: 'coldPctDmg', title: '냉기 사격' },
+            { stat: 'projectileExtraShots', title: '추가 발사' },
             { stat: 'evasionPct', title: '바람 회피' },
-            { stat: 'resC', title: '냉기 저항' }
+            { stat: 'coldPctDmg', title: '냉기 사격' },
+            { stat: 'coldPctDmg', title: '냉기 사격' }
         ],
         duelist: [
             { stat: 'meleePctDmg', title: '근접 결투' },
@@ -1359,8 +1359,9 @@ function assignStarWedgeSockets() {
             node.desc = node.desc || '';
         }
     });
+    let selectedHubIdSet = new Set(selectedHubIds.map(id => String(id)));
     st.sockets = (st.sockets || [])
-        .filter(entry => selectedHubIds.includes(entry.nodeId))
+        .filter(entry => selectedHubIdSet.has(String(entry && entry.nodeId)))
         .slice(0, typeof getMaxEquippedStarWedges === 'function' ? getMaxEquippedStarWedges() : 3);
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
 }
@@ -4714,6 +4715,14 @@ function normalizeItem(item) {
     }
     item.baseStats = Array.isArray(item.baseStats) ? item.baseStats.map(normalizeStatRecord).filter(Boolean) : [];
     item.stats = Array.isArray(item.stats) ? item.stats.map(normalizeStatRecord).filter(Boolean) : [];
+    let abyssCap = getAbyssSocketCapacity(item);
+    if (abyssCap > 0) {
+        item.abyssSockets = Array.isArray(item.abyssSockets)
+            ? item.abyssSockets.slice(0, abyssCap).map(sock => ({ jewel: (sock && typeof sock.jewel === 'object') ? sock.jewel : null }))
+            : [];
+    } else {
+        item.abyssSockets = [];
+    }
     item.chaosInfusion = item.chaosInfusion ? normalizeStatRecord(item.chaosInfusion) : null;
     if (item.encroached && typeof item.encroached === 'object') {
         let pendingOptions = Array.isArray(item.encroached.pendingOptions) ? item.encroached.pendingOptions.map(normalizeStatRecord).filter(Boolean).slice(0, 3) : [];
@@ -5277,6 +5286,26 @@ function rollUniqueStatValue(stat) {
     return { min: min, max: max, val: val };
 }
 
+const UNIQUE_FIXED_BASE_BY_NAME = {
+    '핏빛 톱날': 'bloodletter_blade',
+    '절단자의 송곳니': 'executioner_blade',
+    '별의 파괴자': 'tempest_pike',
+    '균열추': 'executioner_blade',
+    '폭풍 군단장의 창끝': 'gale_fang_spear',
+    '초월자 파쇄검': 'executioner_blade',
+    '세계파쇄자': 'executioner_blade',
+    '천공 붕괴자': 'executioner_blade',
+    '폭우의 석궁': 'starfall_ballista',
+    '칠흑의 연사기': 'tempest_volley',
+    '성좌의 주문핵': 'void_archon_staff',
+    '영겁의 마도서': 'abyss_chant_staff',
+    '쐐기 파편': 'bloodletter_blade',
+    '천정 파쇄': 'executioner_blade',
+    '지평선 분할자': 'tempest_pike',
+    '영원': 'tempest_pike',
+    '카옴의 심장': 'dread_plate',
+};
+
 function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
     let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
@@ -5289,7 +5318,10 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     if (options.length === 0) options = poolSource.length > 0 ? poolSource : UNIQUE_DB;
     let unique = forcedUnique || rndChoice(options);
     let uniqueTier = unique.reqTier || zoneTier;
-    let base = chooseItemBase(unique.slots[0], uniqueTier);
+    let fixedBaseId = UNIQUE_FIXED_BASE_BY_NAME[unique.name];
+    let base = fixedBaseId ? BASE_ITEM_DB.find(row => row && row.id === fixedBaseId) : null;
+    if (base && (base.slot !== unique.slots[0] || !Array.isArray(base.baseStats) || base.baseStats.length === 0)) base = null;
+    if (!base) base = chooseItemBase(unique.slots[0], uniqueTier);
     itemIdCounter++;
     let item = {
         id: itemIdCounter,

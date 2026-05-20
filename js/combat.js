@@ -1155,6 +1155,7 @@ function getPlayerStats() {
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = Math.min(100, (5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82);
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
+    let finalDamageMultiplier = 1;
     if (uniqueLabyrinthShackles) {
         let reduced = Math.max(0, finalMove - 100);
         finalMove = 100;
@@ -1259,7 +1260,6 @@ function getPlayerStats() {
     let dotStatMultiplier = 1 + Math.max(0, dotPctDmg) / 100;
     let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
     let instantDamageMultiplier = 1;
-    let finalDamageMultiplier = 1;
     let ailmentPowerMultiplier = 1;
     let talismanBossFinalDmgBonusPct = 0;
     let chaosDamageMultiplier = 1;
@@ -3097,11 +3097,17 @@ function rollLootForEnemy(enemy) {
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
     itemChance *= (1 + (getCodexBonusPct() / 100));
     itemChance *= Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
-    if (zone.type === 'abyss') {
-        let abyssDepth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
-        let depthDropDampen = Math.max(0.34, 1 - (abyssDepth - 1) * 0.032);
-        let endlessDropDampen = abyssDepth > 20 ? Math.pow(0.88, abyssDepth - 20) : 1;
-        itemChance *= depthDropDampen * endlessDropDampen;
+    if (zone.type === 'labyrinth') {
+        let floor = Math.max(1, Math.floor(zone.floor || 1));
+        let softCapFloor = 30;
+        let hardCapFloor = 200;
+        let softCapMul = 1;
+        let hardCapMul = 0.3;
+        if (floor > softCapFloor) {
+            let progress = Math.min(1, (floor - softCapFloor) / Math.max(1, hardCapFloor - softCapFloor));
+            let labyrinthDropMul = softCapMul + (hardCapMul - softCapMul) * progress;
+            itemChance *= labyrinthDropMul;
+        }
     }
     if (Math.random() < itemChance) {
         let item = generateEquipmentDrop(enemy);
