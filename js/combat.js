@@ -3219,6 +3219,17 @@ function rollLootForEnemy(enemy) {
     }
 }
 
+
+function clearDotFxThrottleForEnemy(enemyId) {
+    if (!Number.isFinite(enemyId)) return;
+    let fxState = game.dotFxThrottle;
+    if (!fxState || typeof fxState !== 'object') return;
+    let prefix = `${enemyId}:`;
+    Object.keys(fxState).forEach(key => {
+        if (key && key.startsWith(prefix)) delete fxState[key];
+    });
+}
+
 function handleEnemyDeath(enemy, pStats) {
     if (!enemy || !Number.isFinite(enemy.id)) return;
     let liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
@@ -3294,6 +3305,7 @@ function handleEnemyDeath(enemy, pStats) {
         });
     }
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
+    clearDotFxThrottleForEnemy(enemy.id);
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun && (game.enemies || []).filter(entry => entry && entry.hp > 0).length === 0) {
         if (typeof onBeehiveWaveCleared === 'function') onBeehiveWaveCleared();
     }
@@ -4679,6 +4691,7 @@ function triggerSeasonReset() {
     game.playerConditionBuffs = [];
     game.lastConditionGemCast = null;
     game.playerCastDelayUntil = 0;
+    game.dotFxThrottle = {};
     game.sealedSkills = [];
     game.sealedSupports = [];
     game.resonancePower = 10;
