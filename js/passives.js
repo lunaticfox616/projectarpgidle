@@ -518,7 +518,7 @@ function generateOrganicTree() {
         ],
         ranger: [
             { stat: 'projectilePctDmg', title: '투사체 숙련' },
-            { stat: 'projectileExtraShots', title: '추가 발사' },
+            { stat: 'coldPctDmg', title: '냉기 사격' },
             { stat: 'coldPctDmg', title: '냉기 사격' },
             { stat: 'evasionPct', title: '바람 회피' },
             { stat: 'resC', title: '냉기 저항' }
@@ -888,7 +888,16 @@ function generateOrganicTree() {
     function getCompositeClusterSpec(spoke, depth) {
         let scatteredMaxRes = getScatteredMaxResClusterSpec(spoke, depth);
         if (scatteredMaxRes) return scatteredMaxRes;
-        if (spoke === 4) return { stat: 'moveEvasion', title: '질풍 회피', length: 4 };
+        if (spoke === 4) {
+            if (depth % 2 === 0) return { stat: 'moveEvasion', title: '질풍 회피', length: 4 };
+            const altSpecs = [
+                { stat: 'projectilePctDmg', title: '탄도 숙련', length: 4 },
+                { stat: 'pctHp', title: '생명 순환', length: 4 },
+                { stat: 'resC', title: '한기 내성', length: 4 },
+                { stat: 'projectileExtraShots', title: '추가 발사', length: 4 }
+            ];
+            return altSpecs[Math.floor(depth / 2) % altSpecs.length];
+        }
         if (spoke === 8) return { stat: 'hpArmor', title: '거석 생명', length: 4 };
         if (spoke === 12) return { stat: 'slamPctDmg', endStat: 'slamEchoChance', title: '대지 여진', length: 5 };
         if (spoke === 0) return { stat: 'energyShieldPct', endStat: 'energyShieldRegen', title: '보호막 순환', length: 4 };
@@ -965,6 +974,10 @@ function generateOrganicTree() {
             node.webCellSpoke = spoke;
             node.webCellRing = depth;
             node.val = getTierValue(statForStep, tier);
+            if (statForStep === 'critDmg') {
+                if (chainLength === 4) node.val = [10, 10, 10, 20][i - 1];
+                else if (chainLength === 5) node.val = [12, 12, 12, 12, 25][i - 1];
+            }
             if (isEnd) {
                 node.title = `${themeSpec.title} 핵심`;
                 node.desc = `${PASSIVE_SECTOR_TITLES[theme] || '성좌'}의 ${blueprint.label} 구역을 완성하는 거미줄 칸 내부 전문 노드입니다.`;
@@ -1546,7 +1559,7 @@ function grantMeteorEncounterRewards() {
             addLog('☄️ 불완전한 별쐐기를 주웠습니다.', 'loot-magic');
         }
         let starDropBonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('starWedgeDropPct') || 0) / 100 : 0;
-        if (astroLv >= 4 && Math.random() < 0.027 * (1 + starDropBonus)) {
+        if (astroLv >= 4 && Math.random() < 0.0187 * (1 + starDropBonus)) {
             let wedge = createStarWedgeItem();
             st.wedges.push(wedge);
             awardCurrency('starWedge', 1);
@@ -4915,12 +4928,14 @@ function liberateSelectedEncroachedItem() {
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
     let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
+    // 고유 아이템/장신구는 방어 타입 제한 대상에서 제외
+    let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
     let baseDefenseTypes = new Set((item.baseStats || [])
         .map(stat => stat && stat.id)
         .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
     return MOD_DB.filter(mod => {
         let statId = mod.statId || mod.id;
-        if (defenseSlots.has(item.slot) && ['armor','evasion','energyShield','armorPct','evasionPct','energyShieldPct'].includes(statId)) {
+        if (!bypassDefenseTypeRule && ['armor','evasion','energyShield','armorPct','evasionPct','energyShieldPct'].includes(statId)) {
             if (baseDefenseTypes.size > 0) {
                 if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
                 if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
@@ -5379,6 +5394,7 @@ function awardCurrency(currencyKey, amount) {
     }
 }
 
+
 function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let dropBonus = getCodexBonusPct() / 100;
@@ -5417,12 +5433,12 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16) drops.push(['tainted', 1]);
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.03) drops.push(['jewelShard', 3]);
     if ((game.season || 1) >= 5 && enemy.isElite && Math.random() < 0.008) drops.push(['jewelShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.08) drops.push(['sealShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.012) drops.push(['strongSealShard', 1]);
-    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30 && Math.random() < 0.0008) drops.push(['radiantSealShard', 1]);
-    if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.02) drops.push(['blessing', 1]);
+    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.018) drops.push(['sealShard', 1]);
+    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.005) drops.push(['strongSealShard', 1]);
+    if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30 && Math.random() < 0.00052) drops.push(['radiantSealShard', 1]);
+    if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.018) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004) drops.push(['blessing', 1]);
-    if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.006) drops.push(['beastKeyCerberus', 1]);
+    if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.005) drops.push(['beastKeyCerberus', 1]);
     if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
     if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
     return drops;
@@ -5500,11 +5516,21 @@ const UNIQUE_JEWEL_DB = [
 
 const JEWEL_OPTION_POOL = [
     { id: 'pctDmg', name: '피해 증폭', min: 4, max: 10 },
+    { id: 'physPctDmg', name: '물리 증폭', min: 6, max: 15 },
+    { id: 'firePctDmg', name: '화염 증폭', min: 6, max: 15 },
+    { id: 'coldPctDmg', name: '냉기 증폭', min: 6, max: 15 },
+    { id: 'lightPctDmg', name: '번개 증폭', min: 6, max: 15 },
+    { id: 'chaosPctDmg', name: '카오스 증폭', min: 6, max: 15 },
     { id: 'flatHp', name: '생명력 주입', min: 20, max: 45 },
     { id: 'crit', name: '치명 보석', min: 1, max: 3 },
     { id: 'aspd', name: '질주 보석', min: 3, max: 7 },
     { id: 'resAll', name: '수호 보석', min: 4, max: 9 },
+    { id: 'resF', name: '화염 수호', min: 8, max: 18 },
+    { id: 'resC', name: '냉기 수호', min: 8, max: 18 },
+    { id: 'resL', name: '번개 수호', min: 8, max: 18 },
+    { id: 'resChaos', name: '공허 수호', min: 4, max: 8 },
     { id: 'physIgnore', name: '절개 파편', min: 2, max: 6 },
+    { id: 'dr', name: '강인 파편', min: 3, max: 8 },
     { id: 'resPen', name: '관통 수정', min: 2, max: 6 },
     { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 },
     { id: 'regenSuppress', name: '봉쇄 파편', min: 0.05, max: 0.12, step: 0.01 },
@@ -5512,7 +5538,6 @@ const JEWEL_OPTION_POOL = [
     { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 },
     { id: 'armorPct', name: '강화 외피', min: 4, max: 10 },
     { id: 'evasionPct', name: '유동 보법', min: 4, max: 10 },
-    { id: 'dr', name: '강인 파편', min: 2, max: 5 },
     { id: 'energyShieldPct', name: '보호막 기동', min: 4, max: 10 },
     { id: 'ailResIgnite', name: '소염 수정', min: 12.5, max: 50, step: 0.5 },
     { id: 'ailResShock', name: '절연 수정', min: 12.5, max: 50, step: 0.5 },
@@ -5621,11 +5646,14 @@ function rollJewelPetiteStat(rarity, excludeIds) {
 }
 
 function generateJewelDrop(zoneTier) {
-    let uniqueChance = Math.max(0.002, Math.min(0.02, ((zoneTier || 1) / 1000)));
+    let tier = Math.max(1, Number(zoneTier) || 1);
+    let uniqueChance = Math.max(0.003, Math.min(0.03, 0.002 + (tier / 2000)));
     if (Math.random() < uniqueChance) {
         let pool = UNIQUE_JEWEL_DB.filter(v => !v.ultra);
         let ultraPool = UNIQUE_JEWEL_DB.filter(v => v.ultra);
-        let row = Math.random() < 0.08 ? rndChoice(ultraPool) : rndChoice(pool);
+        let canRollUltra = ultraPool.length > 0;
+        let baseRow = pool.length > 0 ? rndChoice(pool) : rndChoice(UNIQUE_JEWEL_DB);
+        let row = (canRollUltra && Math.random() < 0.08) ? rndChoice(ultraPool) : baseRow;
         let stats = (row.stats || []).map(st => makeFixedJewelStat(st.id, st.val));
         let petite = rollJewelPetiteStat('rare', stats.map(st => st.id));
         if (petite) stats.push(petite);

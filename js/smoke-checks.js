@@ -1,14 +1,16 @@
 // Runtime integrity checks for modularized build (non-fatal).
 (function () {
+  var globalRoot = typeof window !== 'undefined' ? window : globalThis;
+
   function missingWindow(name) {
-    return typeof window[name] === 'undefined' || window[name] === null;
+    return typeof globalRoot[name] === 'undefined' || globalRoot[name] === null;
   }
 
   function hasMapZones() {
-    return (typeof window.MAP_ZONES !== 'undefined' && window.MAP_ZONES !== null)
+    return (typeof globalRoot.MAP_ZONES !== 'undefined' && globalRoot.MAP_ZONES !== null)
       || (typeof MAP_ZONES !== 'undefined' && MAP_ZONES !== null);
   }
-  window.runModuleIntegrityChecks = function runModuleIntegrityChecks() {
+  globalRoot.runModuleIntegrityChecks = function runModuleIntegrityChecks() {
     var required = [
       'defaultGame', 'SKILL_DB', 'UNIQUE_DB', 'ORB_DB', 'PASSIVE_TREE',
       'saveGame', 'loadGame', 'updateStaticUI', 'updateCombatUI', 'coreLoop', 'renderBattlefield', 'drawPassiveTree'
