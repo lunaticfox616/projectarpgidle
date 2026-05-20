@@ -7166,6 +7166,9 @@ function recoverRuntimeState() {
 }
 
 function runStartupSmokeChecks() {
+    // 기본 배포에서는 상태 오염 가능성이 있는 런타임 시뮬레이션을 실행하지 않는다.
+    // 필요 시 콘솔에서 window.__ENABLE_STARTUP_SMOKE__ = true 로 활성화.
+    if (!(typeof window !== 'undefined' && window.__ENABLE_STARTUP_SMOKE__ === true)) return;
     let snapshot = JSON.parse(JSON.stringify(game));
     let issues = [];
     try {
