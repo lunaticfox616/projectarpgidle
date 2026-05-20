@@ -1938,10 +1938,10 @@ function showTalismanBoardTooltip(event, talismanId) {
 
 function getTalismanSpecialDescription(talisman) {
     if (!talisman || !talisman.special) return '';
-    if (talisman.special === 'gravity') return '인접(상하좌우) 부적 1개당 최종 피해 +12%.';
-    if (talisman.special === 'simpleCopy') return `화살표 방향(현재: ${talisman.markDir || 'up'})의 인접 일반 부적 1개 옵션을 동일 수치로 복제.`;
+    if (talisman.special === 'gravity') return '인접(상하좌우) 부적들의 능력치를 25%씩 복제해 합산.';
+    if (talisman.special === 'simpleCopy') return `화살표 방향(현재: ${talisman.markDir || 'up'})의 인접 부적 1개의 모든 능력치를 동일 수치로 복제.`;
     if (talisman.special === 'temperance') return '무작위 능력치 3줄을 동시에 부여(각 줄 독립 수치).';
-    if (talisman.special === 'pride') return '인접한 고유 부적 1개당 최종 피해 +18%.';
+    if (talisman.special === 'pride') return '인접 부적 수에 따라 보너스 부여: 0개(젬레벨+1/보조한도+1), 1개(보조한도+1), 2~4개(피해+15%/공속+10%), 5개 이상(치확+5%/치피+25% 포함).';
     if (talisman.special === 'moment') return `보스 최종 피해 +${talisman.bossFinalDmgMin || 5}~${talisman.bossFinalDmgMax || 15}% 및 보스 체력 5% 이하 즉시 처형.`;
     if (talisman.special === 'elementFocus') {
         let list = Array.isArray(talisman.stats) ? talisman.stats : [];
@@ -3868,30 +3868,31 @@ function getJewelStatToneColor(statId) {
 function getItemStatToneColor(statId) {
     if (!statId) return '#d7e9ff';
     let id = String(statId);
+    let low = id.toLowerCase();
 
     if (['firePctDmg', 'resF', 'igniteChance', 'fireResOvercapMulPerPct'].includes(id)) return '#ff9a76';
     if (['coldPctDmg', 'resC', 'freezeChance'].includes(id)) return '#8fd3ff';
     if (['lightPctDmg', 'resL', 'shockChance'].includes(id)) return '#ffe083';
     if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(id)) return '#c7a6ff';
-    if (['armor', 'armorPct', 'dr'].includes(id)) return '#ffd2a6';
-    if (['evasion', 'evasionPct'].includes(id)) return '#baffc2';
-    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#b9c6ff';
+    if (['armor', 'armorPct', 'dr'].includes(id)) return '#8fd3ff';
+    if (['evasion', 'evasionPct'].includes(id)) return '#8fd3ff';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#8fd3ff';
     if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(id)) return '#ffb3b3';
     if (['crit', 'critDmg'].includes(id)) return '#ffd6f2';
     if (['aspd', 'move'].includes(id)) return '#fff3a8';
 
-    if (id.includes('res') || id.includes('pen')) return '#ffcb8e';
-    if (id.includes('chaos') || id.includes('dot') || id.includes('poison') || id.includes('bleed')) return '#c7a6ff';
-    if (id.includes('fire') || id.includes('ignite') || id.includes('burn')) return '#ff9a76';
-    if (id.includes('cold') || id.includes('freeze') || id.includes('chill')) return '#8fd3ff';
-    if (id.includes('light') || id.includes('shock')) return '#ffe083';
-    if (id.includes('hp') || id.includes('life') || id.includes('regen') || id.includes('leech')) return '#ffb3b3';
-    if (id.includes('armor') || id.includes('block') || id.includes('guard') || id.includes('dr')) return '#ffd2a6';
-    if (id.includes('evasion') || id.includes('dodge')) return '#baffc2';
-    if (id.includes('energyShield') || id.includes('es')) return '#b9c6ff';
-    if (id.includes('crit')) return '#ffd6f2';
-    if (id.includes('aspd') || id.includes('speed') || id.includes('move')) return '#fff3a8';
-    if (id.includes('dmg') || id.includes('atk') || id.includes('spell')) return '#ffcf9f';
+    if (low.includes('res') || low.includes('pen')) return '#ffcb8e';
+    if (low.includes('chaos') || low.includes('dot') || low.includes('poison') || low.includes('bleed')) return '#c7a6ff';
+    if (low.includes('fire') || low.includes('ignite') || low.includes('burn')) return '#ff9a76';
+    if (low.includes('cold') || low.includes('freeze') || low.includes('chill')) return '#8fd3ff';
+    if (low.includes('light') || low.includes('shock')) return '#ffe083';
+    if (low.includes('hp') || low.includes('life') || low.includes('regen') || low.includes('leech')) return '#ffb3b3';
+    if (low.includes('armor') || low.includes('block') || low.includes('guard') || low.includes('dr')) return '#8fd3ff';
+    if (low.includes('evasion') || low.includes('dodge')) return '#8fd3ff';
+    if (low.includes('energyshield') || low.includes('es')) return '#8fd3ff';
+    if (low.includes('crit')) return '#ffd6f2';
+    if (low.includes('aspd') || low.includes('speed') || low.includes('move')) return '#fff3a8';
+    if (low.includes('dmg') || low.includes('atk') || low.includes('spell')) return '#ffcf9f';
 
     return '#d7e9ff';
 }
