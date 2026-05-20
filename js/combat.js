@@ -2239,6 +2239,13 @@ function createEnemy(zone, marker, groupIndex) {
         let deepNormalHpMul = abyssDepth >= 21 && abyssDepth <= 30 ? 1.2 : 1;
         hp = Math.floor(hp * (1 + hpRamp) * deepNormalHpMul);
     }
+    if (zone.type === 'chaosRealm') {
+        let realmFloor = Math.max(1, Math.floor(zone.floor || 1));
+        // 혼돈계 1층 기준 난이도를 심화 혼돈 30급으로 맞추고, 층이 오를수록 완만히 추가 상승.
+        let realmBaseMul = 8.4;
+        let realmFloorMul = 1 + Math.max(0, realmFloor - 1) * 0.06;
+        hp = Math.floor(hp * realmBaseMul * realmFloorMul);
+    }
     if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, (game.loopCount || 0) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
