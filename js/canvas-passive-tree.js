@@ -333,7 +333,7 @@ function renderInventoryCard(item, idx, mode) {
     let lockIcon = item.locked ? ' 🔒' : '';
     let lockBtnLabel = item.locked ? '잠금해제' : '잠금';
     let lines = [];
-    let tone = (statId) => (typeof getItemStatToneColor === 'function') ? getItemStatToneColor(statId) : '#d7e9ff';
+    let tone = (statId) => getItemStatToneColor(statId);
     (item.baseStats || []).forEach(stat => lines.push(`<span style="color:${tone(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
     (item.stats || []).slice(0, 3).forEach(stat => lines.push(`<span style="color:${tone(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
     if (item.chaosInfusion) lines.push(`<span style="color:#d7a8ff">[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}</span>`);

@@ -2109,7 +2109,7 @@ function showGemTooltip(event, type, name) {
 
 function showItemTooltip(event, idx, isEquip) {
     let item = isEquip ? game.equipment[idx] : game.inventory[idx];
-    let resolveItemStatTone = (statId) => (typeof getItemStatToneColor === 'function') ? getItemStatToneColor(statId) : '#d7e9ff';
+    let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
     if (!item) return;
     activeItemTooltipToken = isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`;
     let tt = document.getElementById('item-tooltip-box');
@@ -2172,13 +2172,32 @@ function showItemTooltip(event, idx, isEquip) {
             if (Math.floor(finalVal) === Math.floor(baseVal)) {
                 html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(baseVal)}</span>${rangeText}</div>`;
             } else {
-                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(finalVal)}</span> <span style="color:#9fb4d1;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
             }
         });
     }
     let explicitStats = (item.stats || []).slice();
     if (item.chaosInfusion) explicitStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
     if (explicitStats.length > 0) {
+        function getItemTooltipGroupOrder(statId) {
+            let key = String(statId || '').toLowerCase();
+            if (['energyshield', 'energyshieldpct', 'energyshieldregen'].includes(key) || key.includes('energyshield') || key === 'es') return 1;
+            if (['armor', 'armorpct', 'dr'].includes(key) || key.includes('armor')) return 2;
+            if (['evasion', 'evasionpct'].includes(key) || key.includes('evasion')) return 3;
+            if (['flathp', 'pcthp', 'regen', 'regenflat'].includes(key) || key.includes('hp') || key.includes('life')) return 4;
+            if (['resf', 'resc', 'resl', 'resall', 'reschaos'].includes(key) || key.includes('res')) return 5;
+            if (['firepctdmg', 'coldpctdmg', 'lightpctdmg', 'chaospctdmg', 'dotpctdmg', 'pctdmg'].includes(key) || key.includes('dmg') || key.includes('dot')) return 6;
+            if (['crit', 'critdmg'].includes(key) || key.includes('crit')) return 7;
+            if (['aspd', 'move'].includes(key) || key.includes('speed') || key.includes('move')) return 8;
+            return 99;
+        }
+        explicitStats.sort((a, b) => {
+            let aKey = a && (a.id || a.stat);
+            let bKey = b && (b.id || b.stat);
+            let g = getItemTooltipGroupOrder(aKey) - getItemTooltipGroupOrder(bKey);
+            if (g !== 0) return g;
+            return String(aKey || '').localeCompare(String(bKey || ''));
+        });
         html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션 (${explicitStats.length}/6)</div>`;
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
@@ -3926,7 +3945,7 @@ function buildJewelRangeTooltipHtml(jewel) {
     return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
 }
 
-safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName });
+safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor });
 
 function getCraftActionValidators(item) {
     let hasHoneyLocked = (item.stats || []).some(v => v.lockedByHoney);
