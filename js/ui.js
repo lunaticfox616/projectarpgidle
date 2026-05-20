@@ -3837,9 +3837,9 @@ function performUpdateStaticUI() {
         document.getElementById('ui-jewel-core-craft').innerHTML = `<div style="color:#f1c67d; margin-bottom:4px;">주얼 제작 재화 (주얼 결정: ${game.currencies.jewelShard || 0})</div>
         <div style="font-size:0.8em; color:#8fb6d9; margin-bottom:6px;">일반 융합: 1줄 주얼 2개 + 주얼 결정 6개 → 2줄 주얼</div>
         <label style="display:block; font-size:0.78em; color:#e2c9a4; margin-bottom:4px;"><input type="checkbox" id="chk-jewel-amplified-fusion"> 증폭합성 사용 (주얼 결정 8 추가 소모, 랜덤 패널티 + 랜덤 추가옵션)</label>
-        <button onclick="craftJewelFusion()" ${(game.currencies.jewelShard || 0) < 6 ? 'disabled' : ''}>선택한 주얼 융합</button>
-        <div style="margin-top:8px; font-size:0.8em; color:#8fb6d9;">슬롯 증폭: 슬롯 효과 소폭 상승 (최대 10강, 실패 가능)</div>
-        <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="tryAmplifyJewelSlot(0)">슬롯1 증폭 (${game.jewelSlotAmplify[0] || 0}/10 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[0] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[0] || 0) * 100)}%)</button><button onclick="tryAmplifyJewelSlot(1)">슬롯2 증폭 (${game.jewelSlotAmplify[1] || 0}/10 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[1] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[1] || 0) * 100)}%)</button></div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="craftJewelFusion()" ${(game.currencies.jewelShard || 0) < 6 ? 'disabled' : ''}>선택한 주얼 융합</button><button onclick="drawJewelRefine()" ${(game.currencies.jewelShard || 0) < 12 || (game.jewelInventory||[]).length >= getJewelInventoryLimit() ? 'disabled' : ''}>주얼 가공 (주얼 결정 12)</button></div>
+        <div style="margin-top:8px; font-size:0.8em; color:#8fb6d9;">슬롯 증폭: 슬롯 효과 소폭 상승 (최대 20강, 실패 가능)</div>
+        <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="tryAmplifyJewelSlot(0)">슬롯1 증폭 (${game.jewelSlotAmplify[0] || 0}/20 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[0] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[0] || 0) * 100)}%)</button><button onclick="tryAmplifyJewelSlot(1)">슬롯2 증폭 (${game.jewelSlotAmplify[1] || 0}/20 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[1] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[1] || 0) * 100)}%)</button></div>
         <div style="margin-top:8px; color:#b4c9e2; font-size:0.8em;">공허 주얼: 최대 4줄까지 지원</div>
         <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="craftVoidJewel()" ${(game.currencies.voidChisel || 0) <= 0 || (game.jewelInventory||[]).length < 2 ? 'disabled' : ''}>공허 주얼 제작 (끌 1 + 주얼2)</button><button onclick="fuseSelectedVoidJewels()">선택 공허융합</button></div>`;
         document.getElementById('ui-jewel-slots').innerHTML = [0, 1].map(slotIdx => {
@@ -3953,6 +3953,24 @@ function buildJewelRangeTooltipHtml(jewel) {
 }
 
 safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor });
+
+
+function showSocketedJewelTooltip(event, socketType, socketIdx) {
+    let item = typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null;
+    if (!item) return hideInfoTooltip();
+    let jewel = null;
+    if (socketType === 'void') {
+        jewel = item.voidSocket && item.voidSocket.jewel ? item.voidSocket.jewel : null;
+    } else if (socketType === 'abyss') {
+        let sockets = Array.isArray(item.abyssSockets) ? item.abyssSockets : [];
+        let idx = Math.max(0, Math.floor(Number(socketIdx) || 0));
+        jewel = sockets[idx] && sockets[idx].jewel ? sockets[idx].jewel : null;
+    }
+    if (!jewel) return hideInfoTooltip();
+    let html = buildJewelRangeTooltipHtml(jewel);
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
+}
+
 
 function getCraftActionValidators(item) {
     let hasHoneyLocked = (item.stats || []).some(v => v.lockedByHoney);
@@ -4136,7 +4154,7 @@ function buildCraftActionButtons(item) {
             if (!selectedItem.voidSocket.open) {
                 voidSocketHtml = `<button onclick="applyVoidChiselToSelectedItem()" ${(game.currencies.voidChisel||0)<=0?'disabled':''}>🕳️ 공허 소켓 생성</button>`;
             } else if (selectedItem.voidSocket.jewel) {
-                voidSocketHtml = `<div style="color:#9fd6ff;">소켓 주얼: ${selectedItem.voidSocket.jewel.name}</div><button onclick="removeJewelFromVoidSocket()" ${(game.currencies.voidChisel||0)<=0?'disabled':''}>주얼 제거(끌 1)</button>`;
+                voidSocketHtml = `<div style="color:#9fd6ff;">소켓 주얼: <span class="${getJewelRarityClass(selectedItem.voidSocket.jewel.rarity || 'normal')}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'void',0)" onmousemove="showSocketedJewelTooltip(event,'void',0)" onmouseleave="hideInfoTooltip()">${selectedItem.voidSocket.jewel.name}</span></div><button onclick="removeJewelFromVoidSocket()" ${(game.currencies.voidChisel||0)<=0?'disabled':''}>주얼 제거(끌 1)</button>`;
             } else {
                 let jewelBtns = (game.jewelInventory || []).map((j, i) => `<button onclick="insertJewelIntoVoidSocket(${i})">${j.name} 장착</button>`).join('');
                 voidSocketHtml = `<div style="color:#9fd6ff;">빈 공허 소켓</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
@@ -4150,7 +4168,7 @@ function buildCraftActionButtons(item) {
             let rows = selectedItem.abyssSockets.map((sock, sidx) => {
                 if (sock && sock.jewel) {
                     let j = sock.jewel;
-                    return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: <span class="${getJewelRarityClass(j.rarity)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(${JSON.stringify(j).replace(/"/g, '&quot;')}),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(${JSON.stringify(j).replace(/"/g, '&quot;')}),'#7fb3ff')" onmouseleave="hideInfoTooltip()">${j.name}</span></div>`;
+                    return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: <span class="${getJewelRarityClass(j.rarity || 'normal')}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'abyss',${sidx})" onmousemove="showSocketedJewelTooltip(event,'abyss',${sidx})" onmouseleave="hideInfoTooltip()">${j.name}</span></div>`;
                 }
                 let jewelBtns = (game.jewelInventory || []).map((j, i) => `<button data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${i}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${i}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoAbyssSocket(${i}, ${sidx})">${j.name} 장착</button>`).join('');
                 return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: 빈 슬롯</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
@@ -5434,7 +5452,17 @@ function mergeDefaults(save) {
     merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!SEASON_NODES[id]) : [];
     merged.unlockedSeasonContents = Array.isArray(merged.unlockedSeasonContents) ? merged.unlockedSeasonContents.filter(id => typeof id === 'string') : ['season_1'];
     merged.seenSeasonContentNotices = Array.isArray(merged.seenSeasonContentNotices) ? merged.seenSeasonContentNotices.filter(id => typeof id === 'string') : ['season_1'];
-    merged.labyrinthFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.labyrinthFloor, 1, 1)));
+    merged.labyrinthFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.labyrinthFloor, defaultGame.labyrinthFloor || 1, 1)));
+    merged.labyrinthUnlockedMaxFloor = Math.max(
+        merged.labyrinthFloor,
+        Math.floor(clampFiniteNumber(merged.labyrinthUnlockedMaxFloor, defaultGame.labyrinthUnlockedMaxFloor || 1, 1))
+    );
+    merged.abyssEndlessDepth = Math.max(20, Math.floor(clampFiniteNumber(merged.abyssEndlessDepth, defaultGame.abyssEndlessDepth || 20, 20)));
+    merged.abyssUnlockedDepths = Array.isArray(merged.abyssUnlockedDepths)
+        ? Array.from(new Set(merged.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 20))).sort((a, b) => a - b)
+        : [20];
+    if (!merged.abyssUnlockedDepths.includes(20)) merged.abyssUnlockedDepths.unshift(20);
+    if (merged.abyssEndlessDepth >= 21 && !merged.abyssUnlockedDepths.includes(merged.abyssEndlessDepth)) merged.abyssUnlockedDepths.push(merged.abyssEndlessDepth);
     function normalizeJewelRecord(jewel) {
         if (!jewel || typeof jewel !== 'object') return null;
         let stats = typeof getJewelStats === 'function' ? getJewelStats(jewel) : (Array.isArray(jewel.stats) ? jewel.stats.filter(stat => stat && stat.id) : []);
@@ -5443,14 +5471,14 @@ function mergeDefaults(save) {
         let hiddenTier = Math.max(1, Math.floor(Math.max(...stats.map(stat => Math.floor(stat.tier || 1)))));
         let hasWaxBonus = stats.some(stat => stat && stat.waxBonus);
         let statLimit = jewel.waxedByBeeswax || hasWaxBonus ? 5 : 4;
-        return { ...jewel, rarity: ['normal', 'magic', 'rare'].includes(jewel.rarity) ? jewel.rarity : 'normal', waxedByBeeswax: !!jewel.waxedByBeeswax || hasWaxBonus, hiddenTier: hiddenTier, stats: stats.slice(0, statLimit) };
+        return { ...jewel, rarity: ['normal', 'magic', 'rare', 'unique'].includes(jewel.rarity) ? jewel.rarity : 'normal', waxedByBeeswax: !!jewel.waxedByBeeswax || hasWaxBonus, hiddenTier: hiddenTier, stats: stats.slice(0, statLimit) };
     }
     merged.jewelInventory = Array.isArray(merged.jewelInventory) ? merged.jewelInventory.map(normalizeJewelRecord).filter(Boolean) : [];
     let jewelInventoryCap = JEWEL_INVENTORY_LIMIT + (Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0))) * 5);
     merged.jewelInventory = merged.jewelInventory.slice(0, jewelInventoryCap);
     merged.jewelSlots = Array.isArray(merged.jewelSlots) ? merged.jewelSlots.slice(0, 2).map(normalizeJewelRecord) : [null, null];
     while (merged.jewelSlots.length < 2) merged.jewelSlots.push(null);
-    merged.jewelSlotAmplify = Array.isArray(merged.jewelSlotAmplify) ? merged.jewelSlotAmplify.slice(0, 2).map(v => Math.max(0, Math.min(10, Math.floor(v || 0)))) : [0, 0];
+    merged.jewelSlotAmplify = Array.isArray(merged.jewelSlotAmplify) ? merged.jewelSlotAmplify.slice(0, 2).map(v => Math.max(0, Math.min(20, Math.floor(v || 0)))) : [0, 0];
     while (merged.jewelSlotAmplify.length < 2) merged.jewelSlotAmplify.push(0);
     merged.skyGemEnhancements = (merged.skyGemEnhancements && typeof merged.skyGemEnhancements === 'object') ? merged.skyGemEnhancements : {};
     Object.keys(merged.skyGemEnhancements).forEach(skill => {
@@ -6582,6 +6610,24 @@ function getLoopCompareSummary(record, localSnapshot = game) {
     return { localLoop, remoteLoop, safeToPush: localLoop >= remoteLoop };
 }
 
+function getSaveContentRichnessScore(snapshot) {
+    let s = snapshot || {};
+    let score = 0;
+    score += Array.isArray(s.inventory) ? Math.min(200, s.inventory.length) : 0;
+    score += Array.isArray(s.jewelInventory) ? Math.min(120, s.jewelInventory.length * 2) : 0;
+    score += Array.isArray(s.talismanInventory) ? Math.min(120, s.talismanInventory.length * 2) : 0;
+    score += (s.equipment && typeof s.equipment === 'object') ? Object.values(s.equipment).filter(Boolean).length * 8 : 0;
+    score += (s.gemData && typeof s.gemData === 'object') ? Object.keys(s.gemData).length * 3 : 0;
+    score += (s.supportGemData && typeof s.supportGemData === 'object') ? Object.keys(s.supportGemData).length * 3 : 0;
+    score += (s.uniqueCodex && typeof s.uniqueCodex === 'object') ? Math.min(300, Object.keys(s.uniqueCodex).length * 2) : 0;
+    score += (s.expertise && s.expertise.levels && typeof s.expertise.levels === 'object')
+        ? Object.values(s.expertise.levels).reduce((sum, v) => sum + Math.max(0, Math.floor(Number(v) || 0)), 0)
+        : 0;
+    score += Math.max(0, Math.floor(Number(s.abyssEndlessDepth) || 0));
+    score += Math.max(0, Math.floor(Number(s.labyrinthUnlockedMaxFloor) || 0));
+    return score;
+}
+
 function isLikelyBootstrapLocalSave(snapshot) {
     let s = snapshot || game || {};
     let hasProgress = false;
@@ -6748,6 +6794,14 @@ async function reconcileCloudSaveState(options = {}) {
             setCloudMessage(`클라우드 루프(${loopSummary.remoteLoop})가 로컬 루프(${loopSummary.localLoop})보다 높아 클라우드를 적용했습니다.`);
             if (!options.silent) addLog('루프 비교 결과 클라우드 진행이 더 높아 서버 저장을 적용했습니다.', 'loot-magic');
             return 'pulled-remote-higher-loop-late-guard';
+        }
+        let localRichness = getSaveContentRichnessScore(game);
+        let remoteRichness = getSaveContentRichnessScore(record.save_data);
+        if (remoteRichness > localRichness + 20) {
+            applyExternalSave(record.save_data, remoteStamp);
+            setCloudMessage(`클라우드 저장의 콘텐츠 진행도(인벤/젬/도감/전문가)가 로컬보다 높아 클라우드를 적용했습니다. (로컬 ${localRichness} / 클라우드 ${remoteRichness})`);
+            if (!options.silent) addLog('루프는 같거나 낮아도 클라우드의 실제 진행 데이터가 더 풍부해 서버 저장을 적용했습니다.', 'loot-magic');
+            return 'pulled-remote-richer-content';
         }
         await pushCloudSave({ touchModifiedAt: false });
         setCloudMessage(`루프 비교(로컬 ${loopSummary.localLoop} / 클라우드 ${loopSummary.remoteLoop}) 후 로컬 저장을 업로드했습니다.`);

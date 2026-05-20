@@ -2180,10 +2180,10 @@ function getTierDropMulWithCaps(tier, zone) {
     let baseMul = 1 + preSoft * 0.02 + postSoft * 0.008;
     if (zone && zone.type === 'labyrinth') {
         let floor = Math.max(1, Math.floor(zone.floor || 1));
-        let over50 = Math.max(0, floor - 50);
-        let over100 = Math.max(0, floor - 100);
-        let damp = 1 - Math.min(0.55, over50 * 0.003 + over100 * 0.0025);
-        return Math.max(0.7, baseMul * damp);
+        let floor30SoftCapMul = 1.236;
+        if (floor <= 30) return baseMul;
+        if (floor <= 200) return Math.min(baseMul, floor30SoftCapMul);
+        return floor30SoftCapMul;
     }
     return baseMul;
 }
