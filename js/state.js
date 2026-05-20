@@ -293,7 +293,9 @@ function getAbyssMonsterScales(zone) {
     let active = zone && zone.type === 'abyss';
     if (!active) return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
     let depth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 1;
-    let endlessDepth = Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
+    // 심화 혼돈(21+) 기록은 심화 구간에서만 난이도에 반영한다.
+    // 새 루프의 혼돈 1~20에 과거 심화층 배율이 섞이면 난이도가 비정상적으로 급등한다.
+    let endlessDepth = depth <= 20 ? depth : Math.max(depth, Math.floor(game.abyssEndlessDepth || depth));
     let endlessOver = Math.max(0, endlessDepth - 20);
     let endlessMul = 1;
     if (endlessOver > 0) {
