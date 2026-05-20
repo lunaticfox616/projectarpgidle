@@ -1076,7 +1076,13 @@ function renderTalismanMiniShapeFromCells(cellsInput, shape, options = {}) {
             html += `<span style="width:${cellSize}px; height:${cellSize}px; border-radius:2px; border:1px solid ${isFilled ? style.color : 'rgba(120,140,160,0.35)'}; ${fillStyle} display:block;"></span>`;
         }
     }
-    return `<span style="display:grid; grid-template-columns:repeat(${cols}, ${cellSize}px); grid-auto-rows:${cellSize}px; gap:${gap}px; width:${width}px; height:${height}px; padding:2px; border:1px solid rgba(120,145,175,0.4); border-radius:4px; background:rgba(8,14,22,0.45); box-shadow:0 0 0 1px ${style.glow};">${html}</span>`;
+    let dir = options.markDir;
+    let arrow = '';
+    if (dir === 'up' || dir === 'right' || dir === 'down' || dir === 'left') {
+        let ch = dir === 'up' ? '↑' : (dir === 'right' ? '→' : (dir === 'down' ? '↓' : '←'));
+        arrow = `<span style="position:absolute; right:-4px; bottom:-5px; font-size:${Math.max(10, cellSize + 2)}px; color:#ffd27a; text-shadow:0 0 4px rgba(255,200,110,0.9), 0 0 8px rgba(255,130,60,0.5); line-height:1;">${ch}</span>`;
+    }
+    return `<span style="position:relative; display:grid; grid-template-columns:repeat(${cols}, ${cellSize}px); grid-auto-rows:${cellSize}px; gap:${gap}px; width:${width}px; height:${height}px; padding:2px; border:1px solid rgba(120,145,175,0.4); border-radius:4px; background:rgba(8,14,22,0.45); box-shadow:0 0 0 1px ${style.glow};">${html}${arrow}</span>`;
 }
 
 function getTalismanAnchorCell(talisman) {
@@ -1171,18 +1177,18 @@ const TALISMAN_UNIQUE_POOL = [
 function rollTalismanCandidate(currencyKey) {
     let isStrong = currencyKey === 'strongSealShard';
     let isRadiant = currencyKey === 'radiantSealShard';
-    let forceUnique = Math.random() < (isRadiant ? 0.62 : (isStrong ? 0.18 : 0.01));
+    let forceUnique = Math.random() < (isRadiant ? 0.24 : (isStrong ? 0.03 : 0.005));
     if (forceUnique) {
         let row = rndChoice(TALISMAN_UNIQUE_POOL);
         let shapeKey = row.shape || rndChoice(['Z','S','L','J','I','O','T']);
-        let tal = { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x,y]) => ({x,y})), rarity: row.rarity || '고유', source: isStrong ? 'strongSealShard' : 'sealShard', isUnique: true, uniqueId: row.id, name: row.name, special: row.special || null, markDir: rndChoice(['up','right','down','left']) };
+        let tal = { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x,y]) => ({x,y})), rarity: row.rarity || '고유', source: isRadiant ? 'radiantSealShard' : (isStrong ? 'strongSealShard' : 'sealShard'), isUnique: true, uniqueId: row.id, name: row.name, special: row.special || null, markDir: rndChoice(['up','right','down','left']) };
         if (row.special === 'temperance') {
             tal.stats = Array.from({length:3}, ()=>{ let o=rndChoice(TALISMAN_OPTION_POOL); let v=o.min + Math.random()*(o.max-o.min); return { stat:o.stat, label:o.label, value:Number(v.toFixed((o.step||1)<1?1:0))};});
         } else if (row.special === 'elementFocus') {
             let gemLv = 1 + Math.floor(Math.random()*3);
             let inc = 5 + Math.floor(Math.random()*11);
             let res = 5 + Math.floor(Math.random()*11);
-            let map = { fire:['gemLevel','firePctDmg','resF','화염'], cold:['gemLevel','coldPctDmg','resC','냉기'], light:['gemLevel','lightPctDmg','resL','번개'], phys:['gemLevel','physPctDmg','dr','물리'], chaos:['gemLevel','chaosPctDmg','resChaos','카오스'] }[row.elem];
+            let map = { fire:['fireGemLevel','firePctDmg','resF','화염'], cold:['coldGemLevel','coldPctDmg','resC','냉기'], light:['lightGemLevel','lightPctDmg','resL','번개'], phys:['physGemLevel','physPctDmg','dr','물리'], chaos:['chaosGemLevel','chaosPctDmg','resChaos','카오스'] }[row.elem];
             tal.shape = rndChoice(['Z','S','L','J','I','O','T']); tal.cells = TALISMAN_SHAPES[tal.shape].map(([x,y])=>({x,y}));
             tal.stats=[{stat:map[0],label:`${map[3]} 스킬 젬 레벨`,value:gemLv},{stat:map[1],label:`${map[3]} 스킬 피해(%)`,value:inc},{stat:map[2],label:`${map[3]} 저항(%)`,value:res}];
         } else if (row.stats) tal.stats=row.stats.map(v=>({...v}));
@@ -1193,11 +1199,11 @@ function rollTalismanCandidate(currencyKey) {
     }
     let shapeKey = rndChoice(Object.keys(TALISMAN_SHAPES).filter(k => ['I','O','T','S','Z','J','L'].includes(k)));
     let option = rndChoice(TALISMAN_OPTION_POOL);
-    let multiplier = isStrong ? 1.35 : 1.0;
+    let multiplier = isRadiant ? 1.6 : (isStrong ? 1.35 : 1.0);
     let rolled = option.min + Math.random() * (option.max - option.min);
     let step = option.step || 1;
     let value = Math.round((rolled * multiplier) / step) * step;
-    return { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })), stat: option.stat, statName: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)), valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)), valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)), rarity: isStrong ? '강력한 기운' : '일반', source: isStrong ? 'strongSealShard' : 'sealShard' };
+    return { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })), stat: option.stat, statName: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)), valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)), valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)), rarity: isRadiant ? '찬란한 기운' : (isStrong ? '강력한 기운' : '일반'), source: isRadiant ? 'radiantSealShard' : (isStrong ? 'strongSealShard' : 'sealShard') };
 }
 
 function startTalismanUnseal(currencyKey) {
@@ -1264,6 +1270,16 @@ function destroyTalismanFromInventory(talismanId) {
     game.talismanInventory = inv.filter(t => t.id !== talismanId);
     if (game.talismanSelectedId === talismanId) game.talismanSelectedId = null;
     addLog(`🗑️ 부적 파괴: [${target.shape}] ${target.statName} +${target.value}`, 'attack-monster');
+    updateStaticUI();
+}
+
+function salvageAllTalismansInInventory() {
+    let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
+    if (inv.length <= 0) return addLog('일괄 해체할 부적이 없습니다.', 'attack-monster');
+    if (!confirm(`인벤토리 부적 ${inv.length}개를 모두 해체할까요? (보드에 배치된 부적은 유지)`)) return;
+    game.talismanInventory = [];
+    game.talismanSelectedId = null;
+    addLog(`🗑️ 부적 일괄 해체: ${inv.length}개`, 'attack-monster');
     updateStaticUI();
 }
 
@@ -1915,7 +1931,36 @@ function showTalismanBoardTooltip(event, talismanId) {
     setTalismanHoverGroup(talismanId);
     let min = Number.isFinite(placed.valueMin) ? placed.valueMin : placed.value;
     let max = Number.isFinite(placed.valueMax) ? placed.valueMax : placed.value;
-    let html = `<div class="tooltip-title">[${escapeHTML(placed.shape || '?')}] ${escapeHTML(placed.statName || '')}</div><div class="tooltip-line">획득 수치: +${formatValue(placed.stat, placed.value)}</div><div class="tooltip-line">가능 범위: +${formatValue(placed.stat, min)} ~ +${formatValue(placed.stat, max)}</div><div class="tooltip-line">희귀도: ${escapeHTML(placed.rarity || 'normal')}</div>`;
+    let specialDesc = getTalismanSpecialDescription(placed);
+    let html = `<div class="tooltip-title">[${escapeHTML(placed.shape || '?')}] ${escapeHTML(placed.statName || '')}</div><div class="tooltip-line">수치: +${formatValue(placed.stat, placed.value)} (${formatValue(placed.stat, min)} ~ ${formatValue(placed.stat, max)})</div>${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
+}
+
+function getTalismanSpecialDescription(talisman) {
+    if (!talisman || !talisman.special) return '';
+    if (talisman.special === 'gravity') return '인접(상하좌우) 부적들의 능력치를 25%씩 복제해 합산.';
+    if (talisman.special === 'simpleCopy') return `화살표 방향(현재: ${talisman.markDir || 'up'})의 인접 부적 1개의 모든 능력치를 동일 수치로 복제.`;
+    if (talisman.special === 'temperance') return '무작위 능력치 3줄을 동시에 부여(각 줄 독립 수치).';
+    if (talisman.special === 'pride') return '인접 부적 수에 따라 보너스 부여: 0개(젬레벨+1/보조한도+1), 1개(보조한도+1), 2~4개(피해+15%/공속+10%), 5개 이상(치확+5%/치피+25% 포함).';
+    if (talisman.special === 'moment') return `보스 최종 피해 +${talisman.bossFinalDmgMin || 5}~${talisman.bossFinalDmgMax || 15}% 및 보스 체력 5% 이하 즉시 처형.`;
+    if (talisman.special === 'elementFocus') {
+        let list = Array.isArray(talisman.stats) ? talisman.stats : [];
+        if (list.length >= 3) return `${getStatName(list[0].stat)} +${formatValue(list[0].stat, list[0].value)}, ${getStatName(list[1].stat)} +${formatValue(list[1].stat, list[1].value)}, ${getStatName(list[2].stat)} +${formatValue(list[2].stat, list[2].value)}`;
+        return '해당 계열 젬 레벨/해당 계열 피해/해당 계열 저항 3종을 동시에 부여.';
+    }
+    return talisman.special;
+}
+
+function showTalismanInventoryTooltip(event, talismanId) {
+    let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
+    let t = inv.find(row => row && row.id === talismanId);
+    if (!t) return;
+    let min = Number.isFinite(t.valueMin) ? t.valueMin : t.value;
+    let max = Number.isFinite(t.valueMax) ? t.valueMax : t.value;
+    let specialDesc = getTalismanSpecialDescription(t);
+    let hasPrimaryStat = !!t.stat;
+    let statLine = hasPrimaryStat ? `<div class="tooltip-line">수치: +${formatValue(t.stat, t.value)} (${formatValue(t.stat, min)} ~ ${formatValue(t.stat, max)})</div>` : '';
+    let html = `<div class="tooltip-title">[${escapeHTML(t.shape || '?')}] ${escapeHTML(t.name || t.statName || '부적')}</div>${statLine}${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
 }
 
@@ -2064,12 +2109,17 @@ function showGemTooltip(event, type, name) {
 
 function showItemTooltip(event, idx, isEquip) {
     let item = isEquip ? game.equipment[idx] : game.inventory[idx];
+    let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
     if (!item) return;
     activeItemTooltipToken = isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`;
     let tt = document.getElementById('item-tooltip-box');
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${item.slot.replace(/[12]/, '')}] ${item.name}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>`;
     html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}</div>`;
     html += `<div class="tooltip-line" style="color:#a8c0da;">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
+    if (item.rarity === 'unique' && item.uniqueEffect) {
+        let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';
+        html += `<div class="tooltip-line" style="margin-top:6px;"><span style="${uniqueGlow}">✨ 고유 효과: ${escapeHTML(item.uniqueEffect)}</span></div>`;
+    }
     function getItemDefenseView(target) {
         let base = { armor: 0, evasion: 0, energyShield: 0 };
         let flat = { armor: 0, evasion: 0, energyShield: 0 };
@@ -2101,10 +2151,12 @@ function showItemTooltip(event, idx, isEquip) {
             return { min, max };
         }
         item.baseStats.forEach(stat => {
-            if (stat.id === 'armor' || stat.id === 'evasion' || stat.id === 'energyShield') return;
+            let statKey = stat && (stat.id || stat.stat);
+            if (statKey === 'armor' || statKey === 'evasion' || statKey === 'energyShield') return;
             let cur = Number(stat.val || 0);
             let { min, max } = getBaseRollRange(stat);
-            html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, cur)} <span style="color:#888;">(${formatValue(stat.id, min)}~${formatValue(stat.id, max)})</span></div>`;
+            let label = stat.statName || getStatName(statKey) || statKey;
+            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, cur)}</span> <span style="color:#888;">(${formatValue(statKey, min)}~${formatValue(statKey, max)})</span></div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
             let label = getStatName(id);
@@ -2118,9 +2170,9 @@ function showItemTooltip(event, idx, isEquip) {
                 rangeText = ` <span style="color:#888;">(${formatValue(id, min)}~${formatValue(id, max)})</span>`;
             }
             if (Math.floor(finalVal) === Math.floor(baseVal)) {
-                html += `<div class="tooltip-line">${label}: <span style="color:#ffffff;">${Math.floor(baseVal)}</span>${rangeText}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(baseVal)}</span>${rangeText}</div>`;
             } else {
-                html += `<div class="tooltip-line">${label}: <span style="color:#4da3ff;">${Math.floor(finalVal)}</span> <span style="color:#ffffff;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(finalVal)}</span> <span style="color:#9fb4d1;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
             }
         });
     }
@@ -2129,9 +2181,11 @@ function showItemTooltip(event, idx, isEquip) {
     if (explicitStats.length > 0) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션 (${explicitStats.length}/6)</div>`;
         explicitStats.forEach(stat => {
+            let statKey = stat && (stat.id || stat.stat);
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
-            let rangeText = stat.valMin !== undefined && stat.valMax !== undefined ? ` <span style="color:#888;">(${formatValue(stat.id, stat.valMin)}~${formatValue(stat.id, stat.valMax)})</span>${tierText}` : tierText;
-            html += `<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${rangeText}</div>`;
+            let rangeText = stat.valMin !== undefined && stat.valMax !== undefined ? ` <span style="color:#888;">(${formatValue(statKey, stat.valMin)}~${formatValue(statKey, stat.valMax)})</span>${tierText}` : tierText;
+            let label = stat.statName || getStatName(statKey) || statKey;
+            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, stat.val)}</span>${rangeText}</div>`;
         });
     } else {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#7f8c8d;">노멀 아이템: 추가 옵션 없음</div>`;
@@ -3778,9 +3832,10 @@ function performUpdateStaticUI() {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';
                 let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
                 let petite = isJewelPetiteStat(stat) ? '쁘띠 ' : '';
-                return `${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${range}${tier}`;
+                let tone = getJewelStatToneColor(stat.id);
+                return `<span style="color:${tone};">${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}</span>${range}${tier}`;
             }).join('<br>');
-            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:86px; border:2px solid ${getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:#d7e9ff;">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
+            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:86px; border:2px solid ${getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelSlots[${slotIdx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:#d7e9ff;">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
         }).join('');
         document.getElementById('ui-jewel-inventory').innerHTML = game.jewelInventory.map((jewel, idx) => {
             let selected = (jewelFusionSelection || []).includes(idx) ? 'selected' : '';
@@ -3788,13 +3843,69 @@ function performUpdateStaticUI() {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';
                 let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
                 let petite = isJewelPetiteStat(stat) ? '쁘띠 ' : '';
-                return `${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${range}${tier}`;
+                let tone = getJewelStatToneColor(stat.id);
+                return `<span style="color:${tone};">${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}</span>${range}${tier}`;
             }).join('<br>');
-            return `<div class="item-card ${selected}" style="min-height:72px;" title="${escapeHTML(desc)}" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button onclick="removeBeeswaxFromJewel(${idx})">밀랍 제거</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="salvageJewel(${idx})">해체</button></div></div>`;
+            return `<div class="item-card ${selected}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button onclick="removeBeeswaxFromJewel(${idx})">밀랍 제거</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="salvageJewel(${idx})">해체</button></div></div>`;
         }).join('') || `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`;
     }
 
+function getJewelStatToneColor(statId) {
+    if (!statId) return '#d7e9ff';
+    if (['firePctDmg', 'resF', 'igniteChance'].includes(statId)) return '#ff9a76';
+    if (['coldPctDmg', 'resC', 'freezeChance'].includes(statId)) return '#8fd3ff';
+    if (['lightPctDmg', 'resL', 'shockChance'].includes(statId)) return '#ffe083';
+    if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(statId)) return '#c7a6ff';
+    if (['armor', 'armorPct', 'dr'].includes(statId)) return '#ffd2a6';
+    if (['evasion', 'evasionPct'].includes(statId)) return '#baffc2';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(statId)) return '#b9c6ff';
+    if (['flatHp', 'pctHp', 'regen'].includes(statId)) return '#ffb3b3';
+    if (['crit', 'critDmg'].includes(statId)) return '#ffd6f2';
+    if (['aspd', 'move'].includes(statId)) return '#fff3a8';
+    return '#d7e9ff';
+}
 
+function getItemStatToneColor(statId) {
+    if (!statId) return '#d7e9ff';
+    let id = String(statId);
+    let low = id.toLowerCase();
+
+    if (['firePctDmg', 'resF', 'igniteChance', 'fireResOvercapMulPerPct'].includes(id)) return '#ff9a76';
+    if (['coldPctDmg', 'resC', 'freezeChance'].includes(id)) return '#8fd3ff';
+    if (['lightPctDmg', 'resL', 'shockChance'].includes(id)) return '#ffe083';
+    if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(id)) return '#c7a6ff';
+    if (['armor', 'armorPct', 'dr'].includes(id)) return '#8fd3ff';
+    if (['evasion', 'evasionPct'].includes(id)) return '#8fd3ff';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#8fd3ff';
+    if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(id)) return '#ffb3b3';
+    if (['crit', 'critDmg'].includes(id)) return '#ffd6f2';
+    if (['aspd', 'move'].includes(id)) return '#fff3a8';
+
+    if (low.includes('res') || low.includes('pen')) return '#ffcb8e';
+    if (low.includes('chaos') || low.includes('dot') || low.includes('poison') || low.includes('bleed')) return '#c7a6ff';
+    if (low.includes('fire') || low.includes('ignite') || low.includes('burn')) return '#ff9a76';
+    if (low.includes('cold') || low.includes('freeze') || low.includes('chill')) return '#8fd3ff';
+    if (low.includes('light') || low.includes('shock')) return '#ffe083';
+    if (low.includes('hp') || low.includes('life') || low.includes('regen') || low.includes('leech')) return '#ffb3b3';
+    if (low.includes('armor') || low.includes('block') || low.includes('guard') || low.includes('dr')) return '#8fd3ff';
+    if (low.includes('evasion') || low.includes('dodge')) return '#8fd3ff';
+    if (low.includes('energyshield') || low.includes('es')) return '#8fd3ff';
+    if (low.includes('crit')) return '#ffd6f2';
+    if (low.includes('aspd') || low.includes('speed') || low.includes('move')) return '#fff3a8';
+    if (low.includes('dmg') || low.includes('atk') || low.includes('spell')) return '#ffcf9f';
+
+    return '#d7e9ff';
+}
+
+function getStyledOrbName(orbKey) {
+    let name = (ORB_DB[orbKey] && ORB_DB[orbKey].name) ? ORB_DB[orbKey].name : String(orbKey || '');
+    if (orbKey === 'transmute' || orbKey === 'augment' || orbKey === 'alteration') return `<span style="color:#9fd3ff;">${name}</span>`;
+    if (orbKey === 'alchemy' || orbKey === 'regal' || orbKey === 'scour' || orbKey === 'blessing') return `<span style="color:#ffe07a;">${name}</span>`;
+    if (orbKey === 'chaos' || orbKey === 'exalted') return `<span style="color:#ffbc8a;">${name}</span>`;
+    if (orbKey === 'divine') return `<span style="color:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;">${name}</span>`;
+    if (orbKey === 'tainted') return `<span style="color:#8a2f3f;">${name}</span>`;
+    return name;
+}
 
 function buildJewelRangeTooltipHtml(jewel) {
     if (!jewel) return '<div class="tooltip-title">주얼</div><div class="tooltip-line">정보 없음</div>';
@@ -3808,13 +3919,14 @@ function buildJewelRangeTooltipHtml(jewel) {
         let tier = Number.isFinite(Number(stat.tier)) && !petite ? ` <span style="color:#ffd68a;">T${Math.floor(stat.tier)}</span>` : '';
         let petiteLabel = petite ? '<span style="color:#b6d7ff;">쁘띠 </span>' : '';
         let expireText = petite ? ' · 융합 시 소멸' : '';
-        return `<div class="tooltip-line">${petiteLabel}${getStatName(stat.id)}: +${formatJewelStatValue(stat.id, stat.val)}${tier} <span style="color:#9fb4d1;">(고정 범위 ${min}~${max}${expireText})</span></div>`;
+        let tone = getJewelStatToneColor(stat.id);
+        return `<div class="tooltip-line"><span style="color:${tone};">${petiteLabel}${getStatName(stat.id)}: +${formatJewelStatValue(stat.id, stat.val)}${tier}</span> <span style="color:#9fb4d1;">(고정 범위 ${min}~${max}${expireText})</span></div>`;
     }).join('');
     let tierLine = tierSummary ? `<div class="tooltip-line" style="color:#9fb4d1;">숨겨진 티어: T${tierSummary}</div>` : '';
     return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
 }
 
-safeExposeGlobals({ buildJewelRangeTooltipHtml });
+safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor });
 
 function getCraftActionValidators(item) {
     let hasHoneyLocked = (item.stats || []).some(v => v.lockedByHoney);
@@ -4057,7 +4169,7 @@ function buildCraftActionButtons(item) {
             rightButtons += `<button style="padding:6px 10px; font-size:0.9em; line-height:1; white-space:nowrap;" onclick="useCurrency('${key}')">사용</button>`;
             useBtn += `<div style="display:flex; justify-content:flex-end; margin-top:4px;"><div style="display:flex; flex-wrap:nowrap; align-items:center; gap:4px;">${rightButtons}</div></div>`;
         }
-        return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name">${ORB_DB[key].name}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
+        return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name">${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
     }).join('');
     let sporeHost = document.getElementById('ui-spore-summary');
     if (sporeHost) {
@@ -4166,7 +4278,7 @@ function buildCraftActionButtons(item) {
         </div><div class="map-item-actions"><span class="map-zone-status">해금 최고층: ${maxFloor}층 · 클릭하여 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-labyrinth-list').innerHTML = '';
 
-    let deepChaosOpen = (game.season || 1) >= 10 && !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
+    let deepChaosOpen = (game.season || 1) >= 10 && (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared));
     document.getElementById('ui-deep-chaos-header').style.display = deepChaosOpen ? 'block' : 'none';
     if (deepChaosOpen) {
         let unlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21).sort((a, b) => a - b) : [];
@@ -4244,7 +4356,7 @@ function buildCraftActionButtons(item) {
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
                 game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
-                let loopRequirementMet = !!game.loopProgressCurrent.chaos20Cleared;
+                let loopRequirementMet = (typeof hasCurrentLoopChaos20Clear === 'function') ? hasCurrentLoopChaos20Clear() : !!game.loopProgressCurrent.chaos20Cleared;
                 let loopRequirementText = getLoopAbyssRequirementText(game.season || 1);
                 let unlockedDepthsForReward = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let highestUnlockedForReward = unlockedDepthsForReward.length > 0 ? Math.max(...unlockedDepthsForReward) : Math.floor(game.abyssEndlessDepth || 20); let clearedDepthForReward = Math.max(20, highestUnlockedForReward >= 21 ? (highestUnlockedForReward - 1) : highestUnlockedForReward); let expectedDepthGain = Math.max(0, Math.floor(clearedDepthForReward - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
@@ -4481,10 +4593,11 @@ function buildCraftActionButtons(item) {
                 <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
                 <button onclick="startTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란한 기운] 봉인편린 해제</button>
                 <button onclick="expandTalismanBoard()" ${(talismanUnlockCost.sealShard || 0) <= 0 ? 'disabled' : ''}>칸 해금 안내 (${formatTalismanUnlockCostLabel(talismanUnlockCost)})</button>
+                <button onclick="salvageAllTalismansInInventory()" ${(game.talismanInventory || []).length <= 0 ? 'disabled' : ''} style="background:#6e3f3f; border-color:#8f5959;">부적 일괄 해체</button>
             </div>`;
     } else {
         let shapeStyle = getTalismanShapeStyle(unseal.current.shape);
-        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">${renderTalismanMiniShape(unseal.current.shape, { cellSize: 8, gap: 1 })}<span>후보: <strong style="color:${shapeStyle.color};">[${unseal.current.shape}] ${unseal.current.statName} +${unseal.current.value}</strong> <span style="color:#9cb5d0;">(${unseal.current.rarity})</span></span>${renderSealShardBadge(unseal.source)}</div>
+        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">${renderTalismanMiniShape(unseal.current.shape, { cellSize: 8, gap: 1, markDir: unseal.current.markDir })}<span>후보: <strong style="color:${shapeStyle.color};">[${unseal.current.shape}] ${unseal.current.statName} +${unseal.current.value}</strong> <span style="color:#9cb5d0;">(${unseal.current.rarity})</span></span>${renderSealShardBadge(unseal.source)}</div>
             <div style="margin-bottom:8px; color:#8fa7c3;">남은 형태 확인 기회: ${unseal.rollsLeft}/${unseal.totalRolls}</div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button onclick="acceptCurrentTalisman()">선택</button>
@@ -4496,7 +4609,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-talisman-inventory').innerHTML = game.talismanInventory.map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
-        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape)}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.name || t.statName || '부적'} ${t.stat ? ` · ${t.statName} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 특수: ${t.special}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
+        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.name || t.statName || '부적'} ${t.stat ? ` · ${t.statName} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 효과: ${getTalismanSpecialDescription(t)}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
@@ -4531,13 +4644,71 @@ function buildCraftActionButtons(item) {
     }).join('');
     let talismanTotalEl = document.getElementById('ui-talisman-total');
     if (talismanTotalEl) {
+        let placements = Object.values(game.talismanPlacements || {}).filter(row => row && row.talisman);
+        let idPos = {};
+        placements.forEach(row => { if (row.talisman && row.talisman.id) idPos[row.talisman.id] = row; });
         let total = {};
-        Object.values(game.talismanPlacements || {}).forEach(row => {
+        function addTotal(stat, value) {
+            if (!stat || !Number.isFinite(Number(value))) return;
+            total[stat] = (total[stat] || 0) + Number(value || 0);
+        }
+        function adjIds(tid) {
+            let e = idPos[tid]; if (!e) return [];
+            let set = new Set();
+            (e.talisman.cells || []).forEach(cell => {
+                let x=(e.x||0)+(cell.x||0), y=(e.y||0)+(cell.y||0);
+                [[1,0],[-1,0],[0,1],[0,-1]].forEach(d=>{ let nx=x+d[0], ny=y+d[1]; if (nx<0||ny<0||nx>=8||ny>=8) return; let nid=(game.talismanBoard||[])[ny*8 + nx]; if (nid && nid!==tid) set.add(nid); });
+            });
+            return Array.from(set);
+        }
+        function adjCount(tid) {
+            return adjIds(tid).length;
+        }
+        function findMarkedNeighborId(entry) {
+            if (!entry || !entry.talisman || !entry.talisman.markDir) return null;
+            let anchor = (typeof getTalismanAnchorCell === 'function') ? getTalismanAnchorCell(entry.talisman) : ((entry.talisman.cells || [])[0] || {x:0,y:0});
+            let x=(entry.x||0)+(anchor.x||0), y=(entry.y||0)+(anchor.y||0);
+            let d = entry.talisman.markDir === 'up' ? [0,-1] : entry.talisman.markDir === 'right' ? [1,0] : entry.talisman.markDir === 'down' ? [0,1] : [-1,0];
+            let nx=x+d[0], ny=y+d[1];
+            if (nx<0||ny<0||nx>=8||ny>=8) return null;
+            return (game.talismanBoard||[])[ny*8 + nx] || null;
+        }
+        placements.forEach(row => {
             let t = row && row.talisman;
-            if (!t || !t.stat) return;
-            total[t.stat] = (total[t.stat] || 0) + (t.value || 0);
+            if (!t) return;
+            if (Array.isArray(t.stats) && t.stats.length > 0) t.stats.forEach(st => addTotal(st.stat, st.value || 0));
+            else if (t.stat) addTotal(t.stat, t.value || 0);
         });
-        let rows = Object.keys(total).map(stat => `${getStatName(stat)} +${formatValue(stat, total[stat])}`);
+        placements.forEach(row => {
+            let t = row && row.talisman;
+            if (!t || !t.special) return;
+            if (t.special === 'gravity') {
+                adjIds(t.id).forEach(nid => {
+                    let n = idPos[nid] && idPos[nid].talisman;
+                    if (!n) return;
+                    let list = Array.isArray(n.stats) && n.stats.length > 0 ? n.stats : (n.stat ? [{ stat:n.stat, value:n.value || 0 }] : []);
+                    list.forEach(st => addTotal(st.stat, (st.value || 0) * 0.25));
+                });
+            }
+            if (t.special === 'simpleCopy') {
+                let nid = findMarkedNeighborId(row);
+                let n = nid ? (idPos[nid] && idPos[nid].talisman) : null;
+                if (!n) return;
+                let list = Array.isArray(n.stats) && n.stats.length > 0 ? n.stats : (n.stat ? [{ stat:n.stat, value:n.value || 0 }] : []);
+                list.forEach(st => addTotal(st.stat, st.value || 0));
+            }
+            if (t.special === 'pride') {
+                let n = adjCount(t.id);
+                if (n === 0) { addTotal('gemLevel', 1); addTotal('suppCap', 1); }
+                else if (n === 1) addTotal('suppCap', 1);
+                else if (n <= 4) { addTotal('pctDmg', 15); addTotal('aspd', 10); }
+                else { addTotal('crit', 5); addTotal('critDmg', 25); addTotal('pctDmg', 15); addTotal('aspd', 10); }
+            }
+        });
+        let rows = Object.keys(total).map(stat => {
+            let tone = getItemStatToneColor(stat);
+            return `<span style="color:${tone};">${getStatName(stat)} +${formatValue(stat, total[stat])}</span>`;
+        });
         talismanTotalEl.innerHTML = rows.length > 0
             ? `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="display:grid; gap:3px;">${rows.map(row => `<div>• <strong>${row}</strong></div>`).join('')}</div>`
             : `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="color:#9fb4cb;">없음</div>`;
@@ -5331,7 +5502,7 @@ function mergeDefaults(save) {
         }
     }
     merged.talismanUnlockPickMode = !!merged.talismanUnlockPickMode;
-    merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.stat && t.shape) : [];
+    merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.shape && (t.stat || (Array.isArray(t.stats) && t.stats.length > 0) || t.special || t.isUnique)) : [];
     merged.talismanBoard = Array.isArray(merged.talismanBoard) ? merged.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
     while (merged.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) merged.talismanBoard.push(null);
     merged.talismanPlacements = (merged.talismanPlacements && typeof merged.talismanPlacements === 'object') ? merged.talismanPlacements : {};
