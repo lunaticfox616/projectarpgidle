@@ -442,6 +442,26 @@ function sanitizeCombatRuntimeState() {
     }
 }
 
+function recoverStalledCombatExchange() {
+    if ((game.enemies || []).filter(e => e && e.hp > 0).length <= 0) return;
+    let now = Date.now();
+    let last = Math.max(0, Math.floor(game.lastCombatExchangeAt || 0));
+    if (last <= 0) {
+        game.lastCombatExchangeAt = now;
+        return;
+    }
+    if (now - last < 6000) return;
+    // 직접 타격 교환이 장시간 없으면(DoT만 남는 상태 포함) 전투 타이머를 재동기화한다.
+    game.playerCastDelayUntil = Math.min(Math.floor(game.playerCastDelayUntil || 0), now + 250);
+    pTimer = Math.max(1, Number(pTimer) || 0);
+    (game.enemies || []).forEach(enemy => {
+        if (!enemy || enemy.hp <= 0) return;
+        if (!Number.isFinite(enemy.attackTimer) || enemy.attackTimer < 0.1) enemy.attackTimer = 0.9;
+    });
+    game.lastCombatExchangeAt = now;
+    if (game.settings && game.settings.showCombatLog) addLog('🛠️ 전투 교착 감지: 타이머를 재동기화했습니다.', 'attack-monster', { noToast: true });
+}
+
 function coreLoop() {
     if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
     tickWoodsmanCurse();
@@ -610,6 +630,7 @@ function coreLoop() {
         progressStallTicks = 0;
     }
     if ((game.enemies || []).length > 0) {
+        recoverStalledCombatExchange();
         tickEnemyDotEffects(pStats, 0.1);
         tickEnemyAilments(pStats, 0.1);
         let castBlocked = Date.now() < Math.floor(game.playerCastDelayUntil || 0);
@@ -2649,7 +2670,7 @@ function tickEnemyAilments(pStats, dt) {
                 let fxKey = `${enemy.id}:${type}`;
                 let now = Date.now();
                 let prev = Number(fxState[fxKey] || 0);
-                if (type !== 'bleed' && dealt > 0 && (now - prev) >= 240) {
+                if (dealt > 0 && (now - prev) >= 240) {
                     fxState[fxKey] = now;
                     addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dealt, duration: 160, element: ele, noLine: true, dot: true });
                 }
@@ -3885,6 +3906,7 @@ function performPlayerAttack(pStats) {
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let beforeHpForForced = targetEnemy.hp;
             let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
+            if (dealtToEnemy > 0) game.lastCombatExchangeAt = Date.now();
             if (targetEnemy.hp <= 0) targetEnemy.lastOverkillDamage = Math.max(0, dmg - dealtToEnemy);
             if (pStats.uniqueMaxRollBonusHit && rollPct >= 130 && dealtToEnemy > 0 && targetEnemy.hp > 0) {
                 let bonus = Math.max(1, Math.floor(dealtToEnemy * 0.5));
@@ -4436,6 +4458,7 @@ function performMonsterAttacks(pStats) {
                 remaining -= absorbed;
             }
             game.playerHp = Math.floor(game.playerHp - remaining);
+            if (remaining > 0) game.lastCombatExchangeAt = Date.now();
             if (remaining > 0 && game.ascendClass === 'guardian' && hasKeystone('gd6')) {
                 let stacks = Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) + 1;
                 game.guardianEnduranceExpiresAt = Date.now() + 4000;
