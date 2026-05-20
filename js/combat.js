@@ -452,6 +452,8 @@ function coreLoop() {
     if (!Number.isFinite(pStats.aspd) || pStats.aspd <= 0) pStats.aspd = 1;
     if (!Number.isFinite(pStats.moveSpeed) || pStats.moveSpeed <= 0) pStats.moveSpeed = 100;
     if (!Number.isFinite(pStats.maxHp) || pStats.maxHp <= 0) pStats.maxHp = 1;
+    if (!Number.isFinite(pTimer) || pTimer < 0) pTimer = 0;
+    if (!Number.isFinite(game.playerCastDelayUntil)) game.playerCastDelayUntil = 0;
     sanitizeCombatRuntimeState();
     reconcileMapProgressRuntimeState();
     runConditionGemAutoRules(pStats);
@@ -612,7 +614,11 @@ function coreLoop() {
     if ((game.enemies || []).length > 0) {
         tickEnemyDotEffects(pStats, 0.1);
         tickEnemyAilments(pStats, 0.1);
-        let castBlocked = Date.now() < Math.floor(game.playerCastDelayUntil || 0);
+        let nowCast = Date.now();
+        let castUntil = Math.floor(game.playerCastDelayUntil || 0);
+        if (!Number.isFinite(castUntil) || castUntil < 0) castUntil = 0;
+        if (castUntil > nowCast + 5000) { castUntil = nowCast + 500; game.playerCastDelayUntil = castUntil; }
+        let castBlocked = nowCast < castUntil;
         if (!castBlocked) pTimer += 0.1 * pStats.aspd;
         while (!castBlocked && pTimer >= 1.0 && game.enemies.length > 0) {
             pTimer -= 1.0;
@@ -4309,6 +4315,8 @@ function performMonsterAttacks(pStats) {
         chillSlow *= Math.max(0, 1 - Math.max(0, Math.min(0.95, (pStats.chillEffectReducePct || 0) / 100))); 
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
         let atkRate = (0.26 + zone.tier * 0.013) * monsterBaseAttackSpeedMul * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
+        if (!Number.isFinite(atkRate) || atkRate <= 0) atkRate = 0.12;
+        if (!Number.isFinite(enemy.attackTimer) || enemy.attackTimer < 0) enemy.attackTimer = 0;
         enemy.attackTimer += 0.1 * atkRate;
         while (enemy.attackTimer >= 1) {
             if (zone.type === 'outsideChaos') {
