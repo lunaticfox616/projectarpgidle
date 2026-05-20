@@ -518,10 +518,10 @@ function generateOrganicTree() {
         ],
         ranger: [
             { stat: 'projectilePctDmg', title: '투사체 숙련' },
-            { stat: 'coldPctDmg', title: '냉기 사격' },
-            { stat: 'coldPctDmg', title: '냉기 사격' },
+            { stat: 'projectileExtraShots', title: '추가 발사' },
             { stat: 'evasionPct', title: '바람 회피' },
-            { stat: 'resC', title: '냉기 저항' }
+            { stat: 'coldPctDmg', title: '냉기 사격' },
+            { stat: 'coldPctDmg', title: '냉기 사격' }
         ],
         duelist: [
             { stat: 'meleePctDmg', title: '근접 결투' },
@@ -1359,8 +1359,9 @@ function assignStarWedgeSockets() {
             node.desc = node.desc || '';
         }
     });
+    let selectedHubIdSet = new Set(selectedHubIds.map(id => String(id)));
     st.sockets = (st.sockets || [])
-        .filter(entry => selectedHubIds.includes(entry.nodeId))
+        .filter(entry => selectedHubIdSet.has(String(entry && entry.nodeId)))
         .slice(0, typeof getMaxEquippedStarWedges === 'function' ? getMaxEquippedStarWedges() : 3);
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
 }

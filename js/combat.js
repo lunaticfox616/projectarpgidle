@@ -3097,11 +3097,17 @@ function rollLootForEnemy(enemy) {
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
     itemChance *= (1 + (getCodexBonusPct() / 100));
     itemChance *= Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
-    if (zone.type === 'abyss') {
-        let abyssDepth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
-        let depthDropDampen = Math.max(0.34, 1 - (abyssDepth - 1) * 0.032);
-        let endlessDropDampen = abyssDepth > 20 ? Math.pow(0.88, abyssDepth - 20) : 1;
-        itemChance *= depthDropDampen * endlessDropDampen;
+    if (zone.type === 'labyrinth') {
+        let floor = Math.max(1, Math.floor(zone.floor || 1));
+        let softCapFloor = 30;
+        let hardCapFloor = 200;
+        let softCapMul = 1;
+        let hardCapMul = 0.3;
+        if (floor > softCapFloor) {
+            let progress = Math.min(1, (floor - softCapFloor) / Math.max(1, hardCapFloor - softCapFloor));
+            let labyrinthDropMul = softCapMul + (hardCapMul - softCapMul) * progress;
+            itemChance *= labyrinthDropMul;
+        }
     }
     if (Math.random() < itemChance) {
         let item = generateEquipmentDrop(enemy);
