@@ -8,6 +8,13 @@ const LEECH_BASE_INSTANCE_CAP_PCT = 20;
 const LEECH_BASE_TOTAL_CAP_PCT = 40;
 const LEECH_BASE_RATE_CAP_PCT = 4;
 
+
+function formatNumberKR(value) {
+    let n = Number(value || 0);
+    if (!Number.isFinite(n)) n = 0;
+    return Math.floor(n).toLocaleString('ko-KR');
+}
+
 function applyLeechSoftcap(rawLeech) {
     let raw = Math.max(0, Number(rawLeech) || 0);
     if (raw <= LEECH_SOFTCAP_START) return raw;
