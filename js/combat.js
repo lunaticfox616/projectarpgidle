@@ -3222,6 +3222,7 @@ function handleEnemyDeath(enemy, pStats) {
             (game.enemies || []).forEach(target => {
                 if (!target || target.id === enemy.id || target.hp <= 0) return;
                 target.hp = Math.max(0, target.hp - splash);
+                if (target.hp <= 0) handleEnemyDeath(target, pStats);
             });
             if (game.settings.showCombatLog) addLog(`💥 전령 시체폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
         }
@@ -3232,6 +3233,7 @@ function handleEnemyDeath(enemy, pStats) {
         (game.enemies || []).forEach(target => {
             if (!target || target.id === enemy.id || target.hp <= 0) return;
             target.hp = Math.max(0, target.hp - splash);
+            if (target.hp <= 0) handleEnemyDeath(target, pStats);
         });
         addBattleFx('hit', { enemyId: enemy.id, color: '#c56cff', damage: splash, duration: 360, element: 'chaos' });
         if (game.settings.showCombatLog) addLog(`💥 [종말의 논리] 시체 폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
@@ -3245,6 +3247,7 @@ function handleEnemyDeath(enemy, pStats) {
         (game.enemies || []).forEach(target => {
             if (!target || target.id === enemy.id || target.hp <= 0) return;
             target.hp = Math.max(0, target.hp - splash);
+            if (target.hp <= 0) handleEnemyDeath(target, pStats);
         });
     }
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
@@ -4402,6 +4405,9 @@ function performMonsterAttacks(pStats) {
             game.playerEsLastHitAt = Date.now();
             game.playerLastHitAt = Date.now();
             if (game.ascendClass === 'assassin' && hasKeystone('a2')) game.assassinBlurred = false;
+            let topDamageEntry = damageBreakdown
+                .filter(row => row && row.amount > 0)
+                .sort((a, b) => (b.amount || 0) - (a.amount || 0))[0] || { ele: enemy.ele === 'phys' ? 'phys' : (enemy.ele || 'phys'), amount: dmg };
             damageBreakdown.forEach(row => recordIncomingDamage(row.ele, row.amount, enemy.name));
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220 });
             if (game.settings.showCombatLog) {
