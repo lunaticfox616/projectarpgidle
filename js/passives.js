@@ -1359,8 +1359,9 @@ function assignStarWedgeSockets() {
             node.desc = node.desc || '';
         }
     });
+    let selectedHubIdSet = new Set(selectedHubIds.map(id => String(id)));
     st.sockets = (st.sockets || [])
-        .filter(entry => selectedHubIds.includes(entry.nodeId))
+        .filter(entry => selectedHubIdSet.has(String(entry && entry.nodeId)))
         .slice(0, typeof getMaxEquippedStarWedges === 'function' ? getMaxEquippedStarWedges() : 3);
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
 }
