@@ -6795,14 +6795,6 @@ async function reconcileCloudSaveState(options = {}) {
             if (!options.silent) addLog('루프 비교 결과 클라우드 진행이 더 높아 서버 저장을 적용했습니다.', 'loot-magic');
             return 'pulled-remote-higher-loop-late-guard';
         }
-        let localRichness = getSaveContentRichnessScore(game);
-        let remoteRichness = getSaveContentRichnessScore(record.save_data);
-        if (remoteRichness > localRichness + 20) {
-            applyExternalSave(record.save_data, remoteStamp);
-            setCloudMessage(`클라우드 저장의 콘텐츠 진행도(인벤/젬/도감/전문가)가 로컬보다 높아 클라우드를 적용했습니다. (로컬 ${localRichness} / 클라우드 ${remoteRichness})`);
-            if (!options.silent) addLog('루프는 같거나 낮아도 클라우드의 실제 진행 데이터가 더 풍부해 서버 저장을 적용했습니다.', 'loot-magic');
-            return 'pulled-remote-richer-content';
-        }
         await pushCloudSave({ touchModifiedAt: false });
         setCloudMessage(`루프 비교(로컬 ${loopSummary.localLoop} / 클라우드 ${loopSummary.remoteLoop}) 후 로컬 저장을 업로드했습니다.`);
         if (!options.silent) addLog(`루프 비교(로컬 ${loopSummary.localLoop} / 클라우드 ${loopSummary.remoteLoop}) 후 클라우드에 업로드했습니다.`, 'loot-magic');
