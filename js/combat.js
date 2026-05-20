@@ -273,6 +273,9 @@ function getAllConditionGemEntriesForCombat() {
 function runConditionGemAutoRules(pStats) {
     let now = Date.now();
     cleanupConditionGemStates(now);
+    // 조건 젬 시전 중에는 추가 자동 시전을 예약하지 않는다.
+    // (HP 50% 이하 같은 조건에서 함성/가드가 연쇄로 걸리면 일반 공격이 영구 차단될 수 있음)
+    if (now < Math.floor(game.playerCastDelayUntil || 0)) return;
     if (!game.conditionGemUnlocked) return;
     if (!Array.isArray(game.skillAutoRules) || game.skillAutoRules.length === 0) return;
     game.conditionGemCooldowns = game.conditionGemCooldowns || {};
@@ -418,11 +421,38 @@ function clearWoodsmanBuildLock() {
     game.woodsmanBuildSnapshot = null;
 }
 
+
+function sanitizeCombatRuntimeState() {
+    if (!Number.isFinite(game.playerHp)) game.playerHp = 1;
+    game.enemies = Array.isArray(game.enemies) ? game.enemies : [];
+    game.enemies.forEach(enemy => {
+        if (!enemy) return;
+        if (!Number.isFinite(enemy.hp)) enemy.hp = 0;
+        if (!Number.isFinite(enemy.energyShield)) enemy.energyShield = 0;
+        if (!Number.isFinite(enemy.attackTimer)) enemy.attackTimer = 0;
+    });
+    // NaN 체력 엔트리가 남아 있으면 hp>0 판정에는 걸리지 않지만 배열 길이는 유지되어
+    // 보스전 종료/맵 진행 정산이 멈춘 것처럼 보일 수 있다.
+    let invalidOrDead = (game.enemies || []).filter(enemy => enemy && (!Number.isFinite(enemy.hp) || enemy.hp <= 0));
+    if (invalidOrDead.length > 0) {
+        invalidOrDead.forEach(enemy => {
+            if (enemy && Number.isFinite(enemy.id)) handleEnemyDeath(enemy, getPlayerStats());
+        });
+        game.enemies = (game.enemies || []).filter(enemy => enemy && Number.isFinite(enemy.hp) && enemy.hp > 0);
+    }
+}
+
 function coreLoop() {
     if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
     tickWoodsmanCurse();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
+    // Guard against malformed stat payloads from legacy saves/runtime merges.
+    // If ASPD becomes NaN/<=0, pTimer never advances and combat appears frozen.
+    if (!Number.isFinite(pStats.aspd) || pStats.aspd <= 0) pStats.aspd = 1;
+    if (!Number.isFinite(pStats.moveSpeed) || pStats.moveSpeed <= 0) pStats.moveSpeed = 100;
+    if (!Number.isFinite(pStats.maxHp) || pStats.maxHp <= 0) pStats.maxHp = 1;
+    sanitizeCombatRuntimeState();
     reconcileMapProgressRuntimeState();
     runConditionGemAutoRules(pStats);
     processPendingSlamEchoHits();
@@ -503,8 +533,12 @@ function coreLoop() {
     }
     if (game.combatHalted) {
         let beehive = game.beehive || {};
-        let beehiveLocked = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!beehive.inRun;
-        let beehivePause = !!(beehiveLocked && !beehive.awaitingClear);
+        let beehiveLocked = typeof isBeehiveRunLockedForMapTravel === 'function'
+            ? isBeehiveRunLockedForMapTravel()
+            : (!!beehive.inRun && game.currentZoneId === 'beehive_run');
+        // stale beehive flags from older saves can keep combatHalted forever on normal zones.
+        // only an active beehive expedition should block halt recovery.
+        let beehivePause = !!(beehiveLocked && game.currentZoneId === 'beehive_run' && !beehive.awaitingClear);
         let stopByMapSetting = (game.settings.mapCompleteAction || 'nextZone') === 'stop';
         let stopByTownSetting = (game.settings.townReturnAction || 'retry') === 'stop';
         let manualStopState = stopByMapSetting || stopByTownSetting || !!game.pendingLoopDecision;
@@ -2602,7 +2636,16 @@ function tickEnemyAilments(pStats, dt) {
                 let dotDmg = dps > 0 ? Math.max(1, Math.floor(dps * dt * (1 - enemyRes / 100) * abyssPlayerMul * igniteMul)) : 0;
                 let minimumHp = (enemy.isBoss && storyAct && (storyAct.specialType === 'forced_defeat' || (storyAct.specialType === 'loop_gate' && !canBreakWoodsmanLoop()))) ? 1 : 0;
                 let dealt = applyDamageToEnemyResource(enemy, dotDmg, { minimumHp: minimumHp });
-                addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dealt, duration: 200, element: ele, noLine: true, dot: true });
+                // 출혈/점화/중독 도트는 0.1초마다 틱이 들어와 모바일에서 히트 FX가 과도하게 누적될 수 있다.
+                // 특히 출혈 빌드는 틱 빈도/대상 수가 높아 화면이 하얗게 번쩍이며 프레임이 급락하는 증상이 보고됨.
+                let fxState = game.dotFxThrottle || (game.dotFxThrottle = {});
+                let fxKey = `${enemy.id}:${type}`;
+                let now = Date.now();
+                let prev = Number(fxState[fxKey] || 0);
+                if (type !== 'bleed' && dealt > 0 && (now - prev) >= 240) {
+                    fxState[fxKey] = now;
+                    addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dealt, duration: 160, element: ele, noLine: true, dot: true });
+                }
             }
             if (ail.time > 0) next.push(ail);
         });
