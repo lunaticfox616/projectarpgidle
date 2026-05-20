@@ -3893,12 +3893,17 @@ function getItemStatToneColor(statId) {
     if (['coldPctDmg', 'resC', 'freezeChance'].includes(id)) return '#8fd3ff';
     if (['lightPctDmg', 'resL', 'shockChance'].includes(id)) return '#ffe083';
     if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(id)) return '#c7a6ff';
-    if (['armor', 'armorPct', 'dr'].includes(id)) return '#8fd3ff';
-    if (['evasion', 'evasionPct'].includes(id)) return '#8fd3ff';
-    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#8fd3ff';
+    if (['armor', 'armorPct', 'dr'].includes(id)) return '#ffd2a6';
+    if (['evasion', 'evasionPct'].includes(id)) return '#baffc2';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#b9c6ff';
     if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(id)) return '#ffb3b3';
     if (['crit', 'critDmg'].includes(id)) return '#ffd6f2';
     if (['aspd', 'move'].includes(id)) return '#fff3a8';
+    if (['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll'].includes(id)) return '#ffcf9f';
+    if (['spellFlatPct', 'spellFlatDmg'].includes(id)) return '#d4a8ff';
+    if (['leech'].includes(id)) return '#ff8fa3';
+    if (['resPen', 'resAll', 'ds'].includes(id)) return '#ffcb8e';
+    if (['gemLevel', 'suppCap'].includes(id)) return '#a8e6cf';
 
     if (low.includes('res') || low.includes('pen')) return '#ffcb8e';
     if (low.includes('chaos') || low.includes('dot') || low.includes('poison') || low.includes('bleed')) return '#c7a6ff';
@@ -3906,12 +3911,14 @@ function getItemStatToneColor(statId) {
     if (low.includes('cold') || low.includes('freeze') || low.includes('chill')) return '#8fd3ff';
     if (low.includes('light') || low.includes('shock')) return '#ffe083';
     if (low.includes('hp') || low.includes('life') || low.includes('regen') || low.includes('leech')) return '#ffb3b3';
-    if (low.includes('armor') || low.includes('block') || low.includes('guard') || low.includes('dr')) return '#8fd3ff';
-    if (low.includes('evasion') || low.includes('dodge')) return '#8fd3ff';
-    if (low.includes('energyshield') || low.includes('es')) return '#8fd3ff';
+    if (low.includes('armor') || low.includes('block') || low.includes('guard') || low.includes('dr')) return '#ffd2a6';
+    if (low.includes('evasion') || low.includes('dodge')) return '#baffc2';
+    if (low.includes('energyshield') || low.includes('es')) return '#b9c6ff';
     if (low.includes('crit')) return '#ffd6f2';
     if (low.includes('aspd') || low.includes('speed') || low.includes('move')) return '#fff3a8';
-    if (low.includes('dmg') || low.includes('atk') || low.includes('spell')) return '#ffcf9f';
+    if (low.includes('spell')) return '#d4a8ff';
+    if (low.includes('gem') || low.includes('supp')) return '#a8e6cf';
+    if (low.includes('dmg') || low.includes('atk') || low.includes('phys') || low.includes('melee') || low.includes('aoe')) return '#ffcf9f';
 
     return '#d7e9ff';
 }
