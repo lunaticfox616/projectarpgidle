@@ -5393,7 +5393,7 @@ function generateEquipmentDrop(enemy) {
     let rarity = 'normal';
     let roll = Math.random();
     if (enemy.isBoss) {
-        if (roll < 0.055) return generateUniqueItem(zoneTier, slot);
+        if (roll < 0.04) return generateUniqueItem(zoneTier, slot);
         rarity = roll < 0.36 ? 'rare' : (roll < 0.80 ? 'magic' : 'normal');
     } else if (enemy.isElite) {
         if (roll < 0.02) return generateUniqueItem(zoneTier, slot);

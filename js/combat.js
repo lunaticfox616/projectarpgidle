@@ -8,6 +8,13 @@ const LEECH_BASE_INSTANCE_CAP_PCT = 20;
 const LEECH_BASE_TOTAL_CAP_PCT = 40;
 const LEECH_BASE_RATE_CAP_PCT = 4;
 
+
+function formatNumberKR(value) {
+    let n = Number(value || 0);
+    if (!Number.isFinite(n)) n = 0;
+    return Math.floor(n).toLocaleString('ko-KR');
+}
+
 function applyLeechSoftcap(rawLeech) {
     let raw = Math.max(0, Number(rawLeech) || 0);
     if (raw <= LEECH_SOFTCAP_START) return raw;
@@ -452,6 +459,8 @@ function coreLoop() {
     if (!Number.isFinite(pStats.aspd) || pStats.aspd <= 0) pStats.aspd = 1;
     if (!Number.isFinite(pStats.moveSpeed) || pStats.moveSpeed <= 0) pStats.moveSpeed = 100;
     if (!Number.isFinite(pStats.maxHp) || pStats.maxHp <= 0) pStats.maxHp = 1;
+    if (!Number.isFinite(pTimer) || pTimer < 0) pTimer = 0;
+    if (!Number.isFinite(game.playerCastDelayUntil)) game.playerCastDelayUntil = 0;
     sanitizeCombatRuntimeState();
     reconcileMapProgressRuntimeState();
     runConditionGemAutoRules(pStats);
@@ -612,7 +621,11 @@ function coreLoop() {
     if ((game.enemies || []).length > 0) {
         tickEnemyDotEffects(pStats, 0.1);
         tickEnemyAilments(pStats, 0.1);
-        let castBlocked = Date.now() < Math.floor(game.playerCastDelayUntil || 0);
+        let nowCast = Date.now();
+        let castUntil = Math.floor(game.playerCastDelayUntil || 0);
+        if (!Number.isFinite(castUntil) || castUntil < 0) castUntil = 0;
+        if (castUntil > nowCast + 5000) { castUntil = nowCast + 500; game.playerCastDelayUntil = castUntil; }
+        let castBlocked = nowCast < castUntil;
         if (!castBlocked) pTimer += 0.1 * pStats.aspd;
         while (!castBlocked && pTimer >= 1.0 && game.enemies.length > 0) {
             pTimer -= 1.0;
@@ -713,7 +726,7 @@ function processPendingSlamEchoHits() {
         if (!enemy) return;
         let bonus = Math.max(1, Math.floor(row.damage || 0));
         enemy.hp = Math.max(0, enemy.hp - bonus);
-        addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220 });
+        addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220 });
         if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 지진의 함성: ${formatNumberKR(bonus)} 추가 타격`, 'attack-player', { noToast: true });
         if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
     });
@@ -2239,6 +2252,13 @@ function createEnemy(zone, marker, groupIndex) {
         let deepNormalHpMul = abyssDepth >= 21 && abyssDepth <= 30 ? 1.2 : 1;
         hp = Math.floor(hp * (1 + hpRamp) * deepNormalHpMul);
     }
+    if (zone.type === 'chaosRealm') {
+        let realmFloor = Math.max(1, Math.floor(zone.floor || 1));
+        // 혼돈계 1층 기준 난이도를 심화 혼돈 30급으로 맞추고, 층이 오를수록 완만히 추가 상승.
+        let realmBaseMul = 5;
+        let realmFloorMul = 1 + Math.max(0, realmFloor - 1) * 0.06;
+        hp = Math.floor(hp * realmBaseMul * realmFloorMul);
+    }
     if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, (game.loopCount || 0) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
@@ -2642,7 +2662,7 @@ function tickEnemyAilments(pStats, dt) {
                 let fxKey = `${enemy.id}:${type}`;
                 let now = Date.now();
                 let prev = Number(fxState[fxKey] || 0);
-                if (type !== 'bleed' && dealt > 0 && (now - prev) >= 240) {
+                if (dealt > 0 && (now - prev) >= 240) {
                     fxState[fxKey] = now;
                     addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dealt, duration: 160, element: ele, noLine: true, dot: true });
                 }
@@ -3219,6 +3239,17 @@ function rollLootForEnemy(enemy) {
     }
 }
 
+
+function clearDotFxThrottleForEnemy(enemyId) {
+    if (!Number.isFinite(enemyId)) return;
+    let fxState = game.dotFxThrottle;
+    if (!fxState || typeof fxState !== 'object') return;
+    let prefix = `${enemyId}:`;
+    Object.keys(fxState).forEach(key => {
+        if (key && key.startsWith(prefix)) delete fxState[key];
+    });
+}
+
 function handleEnemyDeath(enemy, pStats) {
     if (!enemy || !Number.isFinite(enemy.id)) return;
     let liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
@@ -3294,6 +3325,7 @@ function handleEnemyDeath(enemy, pStats) {
         });
     }
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
+    clearDotFxThrottleForEnemy(enemy.id);
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun && (game.enemies || []).filter(entry => entry && entry.hp > 0).length === 0) {
         if (typeof onBeehiveWaveCleared === 'function') onBeehiveWaveCleared();
     }
@@ -3560,7 +3592,7 @@ function finishEncounterRun() {
                 // Keep current endless depth here; enterNextEndlessChaosDepth() advances by +1 when continuing.
                 // Setting this to nextDepth would double-advance and skip a floor (e.g. 20 -> 22).
                 game.abyssEndlessDepth = Math.max(nowEndless, 20);
-                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
+                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
                 if (game.loopProgressCurrent.chaos20Cleared) {
                     enterNextEndlessChaosDepth();
                     return;
@@ -3603,9 +3635,32 @@ function finishEncounterRun() {
             addLog(`🗺️ 신규 사냥터 [${unlockedZone ? unlockedZone.name : ('구역 ' + game.maxZoneId)}] 개방!`, "season-up");
         }
         game.killsInZone = 0;
+        game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
+        if (zone.type === 'abyss') {
+            let d = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
+            if (d >= 21) game.loopProgressCurrent.bestAbyssDepth = Math.max(Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), d);
+        }
+        if (zone.type === 'labyrinth') game.loopProgressCurrent.bestLabyrinthFloor = Math.max(Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0), Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1)));
+        if (zone.type === 'chaosRealm') game.loopProgressCurrent.bestChaosRealmFloor = Math.max(Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0), Math.max(1, Math.floor(zone.floor || (ensureChaosRealmState().currentFloor || 1))));
         let mapAction = game.settings.mapCompleteAction || 'nextZone';
         if (game.beehive && game.beehive.inRun) mapAction = 'repeatZone';
         if (mapAction === 'repeatZone') game.currentZoneId = zone.id;
+        else if (mapAction === 'nextLoopBestPlusOne') {
+            if (zone.type === 'abyss' && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
+                let nextDepth = Math.max(21, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 21) + 1);
+                let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)) : [];
+                if (unlocked.length > 0 && !unlocked.includes(nextDepth)) nextDepth = Math.max(...unlocked.filter(v => v >= 21));
+                if (nextDepth >= 21) game.currentZoneId = getAbyssZoneIdForDepth(nextDepth);
+                else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
+            } else if (zone.type === 'labyrinth' && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
+                game.labyrinthFloor = Math.max(1, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 1) + 1);
+                game.currentZoneId = LABYRINTH_ZONE_ID;
+            } else if (zone.type === 'chaosRealm' && Math.max(0, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0)) >= 1) {
+                let st = ensureChaosRealmState();
+                st.currentFloor = Math.min(Math.max(1, Math.floor(st.highestFloor || 1)), Math.max(1, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 1) + 1));
+                game.currentZoneId = CHAOS_REALM_ZONE_ID;
+            } else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
+        }
         else if (mapAction === 'stop') {
             game.combatHalted = true;
             game.enemies = [];
@@ -3617,7 +3672,7 @@ function finishEncounterRun() {
             return;
         } else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
         let star = game.starWedge || {};
-        let beehiveRunning = !!(game.beehive && game.beehive.inRun);
+        let beehiveRunning = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
         let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
         if (game.settings && game.settings.autoEnterMeteor && !beehiveRunning && !grandRunning && star.unlocked && star.skyRiftReady && zone.type !== 'meteor') {
             game.currentZoneId = METEOR_FALL_ZONE_ID;
@@ -4289,6 +4344,8 @@ function performMonsterAttacks(pStats) {
         chillSlow *= Math.max(0, 1 - Math.max(0, Math.min(0.95, (pStats.chillEffectReducePct || 0) / 100))); 
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
         let atkRate = (0.26 + zone.tier * 0.013) * monsterBaseAttackSpeedMul * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
+        if (!Number.isFinite(atkRate) || atkRate <= 0) atkRate = 0.12;
+        if (!Number.isFinite(enemy.attackTimer) || enemy.attackTimer < 0) enemy.attackTimer = 0;
         enemy.attackTimer += 0.1 * atkRate;
         while (enemy.attackTimer >= 1) {
             if (zone.type === 'outsideChaos') {
@@ -4610,7 +4667,7 @@ function awardLoopProgressPoints() {
     bonus += woodsmanGain;
     if (bonus > 0) game.loopDeepPoints = Math.max(0, Math.floor(game.loopDeepPoints || 0)) + bonus;
     game.loopProgressBase = { abyssEndlessDepth: nowDepth, labyrinthUnlockedMaxFloor: nowLab, specialBosses: Array.from(new Set([...(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []), ...newBosses])) };
-    game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false };
+    game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
     game.woodsmanSettledScore = Math.max(woodsmanSettled, woodsmanScore);
     game.woodsmanPendingScore = game.woodsmanSettledScore;
     return { bonus, depthGain, labGain, bossGain: newBosses.length, woodsmanGain: woodsmanGain, woodsmanScore: woodsmanScore, woodsmanDelta: woodsmanDelta };
@@ -4679,6 +4736,7 @@ function triggerSeasonReset() {
     game.playerConditionBuffs = [];
     game.lastConditionGemCast = null;
     game.playerCastDelayUntil = 0;
+    game.dotFxThrottle = {};
     game.sealedSkills = [];
     game.sealedSupports = [];
     game.resonancePower = 10;
