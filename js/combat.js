@@ -1155,6 +1155,7 @@ function getPlayerStats() {
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = Math.min(100, (5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82);
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
+    let finalDamageMultiplier = 1;
     if (uniqueLabyrinthShackles) {
         let reduced = Math.max(0, finalMove - 100);
         finalMove = 100;
@@ -1259,7 +1260,6 @@ function getPlayerStats() {
     let dotStatMultiplier = 1 + Math.max(0, dotPctDmg) / 100;
     let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
     let instantDamageMultiplier = 1;
-    let finalDamageMultiplier = 1;
     let ailmentPowerMultiplier = 1;
     let talismanBossFinalDmgBonusPct = 0;
     let chaosDamageMultiplier = 1;
