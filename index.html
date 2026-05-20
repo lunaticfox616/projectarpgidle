@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Project ARPG Idle</title>
+    <title>Projectidle</title>
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/theme.css">
@@ -21,7 +21,7 @@
             <div class="startup-hero-grid">
                 <div class="startup-hero-copy">
                     <div class="startup-brand-wrap">
-                        <div class="startup-wordmark"><span class="startup-wordmark-accent">Project ARPG Idle</span></div>
+                        <div class="startup-wordmark"><span class="startup-wordmark-accent">Projectidle</span></div>
                         <div class="startup-wordmark-bar"></div>
                     </div>
                     <div class="startup-summary-card">
@@ -784,7 +784,7 @@
             </div>
             <hr style="border-color: #3d3d5c; width: 100%;">
             <button id="btn-open-death-log" onclick="openLastDeathLog()" style="background-color: #4a6078;">☠️ 최근 데스로그 보기</button>
-            <button onclick="saveGame()" style="background-color: #27ae60;">💾 수동 저장</button>
+            <button onclick="saveGame({ manual: true })" style="background-color: #27ae60;">💾 수동 저장</button>
             <button onclick="resetGame()" style="background-color: #c0392b; border-color: #922b21;">♻️ 세이브 완전 초기화</button>
         </div>
         <div class="cloud-panel">
