@@ -53,8 +53,15 @@ function loadGame() {
 }
 
 function saveGame(options = {}) {
+    let manual = !!options.manual;
     persistLocalSave({ touchModifiedAt: options.touchModifiedAt !== false });
-    if (!options.skipCloudSync) scheduleCloudAutoSync();
+    if (!options.skipCloudSync) {
+        if (manual && typeof syncCloudSave === 'function' && cloudState && cloudState.configured && cloudState.user) {
+            syncCloudSave({ automatic: false, force: true, reason: 'manual-save' }).catch(error => {
+                if (typeof setCloudMessage === 'function') setCloudMessage('수동 저장 클라우드 업로드 실패: ' + (error && error.message ? error.message : error));
+            });
+        } else scheduleCloudAutoSync();
+    }
     updateCloudSaveUI();
 }
 

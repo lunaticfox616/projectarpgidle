@@ -3377,6 +3377,26 @@ function handleStoryActSpecialDefeat(zone, pStats) {
     return false;
 }
 
+function resolveNextLoopBestPlusOneZone(zone) {
+    game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
+    if (zone && zone.type === 'abyss' && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
+        let nextDepth = Math.max(21, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 21) + 1);
+        let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)) : [];
+        if (unlocked.length > 0 && !unlocked.includes(nextDepth)) nextDepth = Math.max(...unlocked.filter(v => v >= 21));
+        if (nextDepth >= 21) return getAbyssZoneIdForDepth(nextDepth);
+    }
+    if (zone && zone.type === 'labyrinth' && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
+        game.labyrinthFloor = Math.max(1, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 1) + 1);
+        return LABYRINTH_ZONE_ID;
+    }
+    if (zone && zone.type === 'chaosRealm' && Math.max(0, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0)) >= 1) {
+        let st = ensureChaosRealmState();
+        st.currentFloor = Math.min(Math.max(1, Math.floor(st.highestFloor || 1)), Math.max(1, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 1) + 1));
+        return CHAOS_REALM_ZONE_ID;
+    }
+    return null;
+}
+
 function finishEncounterRun() {
     let zone = getZone(game.currentZoneId);
     game.killsInZone++;
@@ -3426,7 +3446,11 @@ function finishEncounterRun() {
         st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
         st.currentFloor = Math.min(st.highestFloor, floor + 1);
         addLog(`🌌 혼돈계 ${floor}층 돌파! ${st.currentFloor}층까지 입장 가능합니다.`, 'season-up');
-        game.currentZoneId = CHAOS_REALM_ZONE_ID;
+        let mapAction = game.settings.mapCompleteAction || 'nextZone';
+        if (mapAction === 'nextLoopBestPlusOne') {
+            let nextZone = resolveNextLoopBestPlusOneZone(zone);
+            game.currentZoneId = nextZone !== null ? nextZone : CHAOS_REALM_ZONE_ID;
+        } else game.currentZoneId = CHAOS_REALM_ZONE_ID;
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
@@ -3534,6 +3558,11 @@ function finishEncounterRun() {
         if (gotPrimalFossil) fossilSummary.push('원시 화석 +1');
         if (gotAncientPrimalFossil) fossilSummary.push('원시 고대 화석 +1');
         addLog(`🏛️ 미궁 ${game.labyrinthFloor}층으로 진입합니다. [${fossilSummary.join(' / ') || '화석 없음'}]`, 'season-up');
+        let mapAction = game.settings.mapCompleteAction || 'nextZone';
+        if (mapAction === 'nextLoopBestPlusOne') {
+            let nextZone = resolveNextLoopBestPlusOneZone(zone);
+            if (nextZone !== null) game.currentZoneId = nextZone;
+        }
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
@@ -3646,20 +3675,8 @@ function finishEncounterRun() {
         if (game.beehive && game.beehive.inRun) mapAction = 'repeatZone';
         if (mapAction === 'repeatZone') game.currentZoneId = zone.id;
         else if (mapAction === 'nextLoopBestPlusOne') {
-            if (zone.type === 'abyss' && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
-                let nextDepth = Math.max(21, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 21) + 1);
-                let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)) : [];
-                if (unlocked.length > 0 && !unlocked.includes(nextDepth)) nextDepth = Math.max(...unlocked.filter(v => v >= 21));
-                if (nextDepth >= 21) game.currentZoneId = getAbyssZoneIdForDepth(nextDepth);
-                else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
-            } else if (zone.type === 'labyrinth' && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
-                game.labyrinthFloor = Math.max(1, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 1) + 1);
-                game.currentZoneId = LABYRINTH_ZONE_ID;
-            } else if (zone.type === 'chaosRealm' && Math.max(0, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0)) >= 1) {
-                let st = ensureChaosRealmState();
-                st.currentFloor = Math.min(Math.max(1, Math.floor(st.highestFloor || 1)), Math.max(1, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 1) + 1));
-                game.currentZoneId = CHAOS_REALM_ZONE_ID;
-            } else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
+            let nextZone = resolveNextLoopBestPlusOneZone(zone);
+            game.currentZoneId = nextZone !== null ? nextZone : getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
         }
         else if (mapAction === 'stop') {
             game.combatHalted = true;
