@@ -3750,7 +3750,6 @@ function performPlayerAttack(pStats) {
     let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits + uniqueProjectileExtraHits));
     let perEnemyHitCount = new Map();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
-    let bleedWeightAppliedTargets = new Set();
     function applyPierceOverkillCarry(sourceEnemy, carryDamage, hitElement, hitCrit) {
         if (!pStats.sSkill.pierceOverkillCarry || carryDamage <= 0) return;
         let remainingDamage = Math.max(0, Math.floor(carryDamage));
@@ -3871,14 +3870,11 @@ function performPlayerAttack(pStats) {
             if (hitElement === 'light') dmg = Math.floor(dmg * (curseFx.lightTakenMul || 1));
             if (hitElement === 'chaos') dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
             if (hitCrit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
-            if (pStats.uniqueBleedWeightOnBleedingHit && !bleedWeightAppliedTargets.has(targetEnemy.id) && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'bleed' && (a.time || 0) > 0)) { dmg = Math.floor(dmg * 2); bleedWeightAppliedTargets.add(targetEnemy.id); }
+            if (pStats.uniqueBleedWeightOnBleedingHit && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'bleed' && (a.time || 0) > 0)) dmg = Math.floor(dmg * 2);
             dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement));
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) dmg = Math.floor(dmg * (1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100)));
             dmg = Math.floor(dmg * Math.max(0, Number(pStats.finalDamageMultiplier) || 1));
-            // 보스전에서 다중 감쇠/가드/저항이 겹치면 직접타격이 0으로 떨어져 DoT만 진행되는 교착이 발생할 수 있다.
-            // 명중이 성립한 타격은 최소 1의 직접 피해를 보장해 전투 루프가 정지하지 않게 한다.
-            if (dmg <= 0) dmg = 1;
             let hasActiveDoomMark = false;
             if (targetEnemy && targetEnemy.id) {
                 let debs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[targetEnemy.id]) ? game.enemyConditionDebuffs[targetEnemy.id] : [];
