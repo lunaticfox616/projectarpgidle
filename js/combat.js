@@ -3592,7 +3592,7 @@ function finishEncounterRun() {
                 // Keep current endless depth here; enterNextEndlessChaosDepth() advances by +1 when continuing.
                 // Setting this to nextDepth would double-advance and skip a floor (e.g. 20 -> 22).
                 game.abyssEndlessDepth = Math.max(nowEndless, 20);
-                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
+                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
                 if (game.loopProgressCurrent.chaos20Cleared) {
                     enterNextEndlessChaosDepth();
                     return;
@@ -3635,9 +3635,32 @@ function finishEncounterRun() {
             addLog(`🗺️ 신규 사냥터 [${unlockedZone ? unlockedZone.name : ('구역 ' + game.maxZoneId)}] 개방!`, "season-up");
         }
         game.killsInZone = 0;
+        game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
+        if (zone.type === 'abyss') {
+            let d = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
+            if (d >= 21) game.loopProgressCurrent.bestAbyssDepth = Math.max(Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), d);
+        }
+        if (zone.type === 'labyrinth') game.loopProgressCurrent.bestLabyrinthFloor = Math.max(Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0), Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1)));
+        if (zone.type === 'chaosRealm') game.loopProgressCurrent.bestChaosRealmFloor = Math.max(Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0), Math.max(1, Math.floor(zone.floor || (ensureChaosRealmState().currentFloor || 1))));
         let mapAction = game.settings.mapCompleteAction || 'nextZone';
         if (game.beehive && game.beehive.inRun) mapAction = 'repeatZone';
         if (mapAction === 'repeatZone') game.currentZoneId = zone.id;
+        else if (mapAction === 'nextLoopBestPlusOne') {
+            if (zone.type === 'abyss' && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
+                let nextDepth = Math.max(21, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 21) + 1);
+                let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)) : [];
+                if (unlocked.length > 0 && !unlocked.includes(nextDepth)) nextDepth = Math.max(...unlocked.filter(v => v >= 21));
+                if (nextDepth >= 21) game.currentZoneId = getAbyssZoneIdForDepth(nextDepth);
+                else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
+            } else if (zone.type === 'labyrinth' && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
+                game.labyrinthFloor = Math.max(1, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 1) + 1);
+                game.currentZoneId = LABYRINTH_ZONE_ID;
+            } else if (zone.type === 'chaosRealm' && Math.max(0, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0)) >= 1) {
+                let st = ensureChaosRealmState();
+                st.currentFloor = Math.min(Math.max(1, Math.floor(st.highestFloor || 1)), Math.max(1, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 1) + 1));
+                game.currentZoneId = CHAOS_REALM_ZONE_ID;
+            } else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
+        }
         else if (mapAction === 'stop') {
             game.combatHalted = true;
             game.enemies = [];
@@ -3649,7 +3672,7 @@ function finishEncounterRun() {
             return;
         } else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
         let star = game.starWedge || {};
-        let beehiveRunning = !!(game.beehive && game.beehive.inRun);
+        let beehiveRunning = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
         let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
         if (game.settings && game.settings.autoEnterMeteor && !beehiveRunning && !grandRunning && star.unlocked && star.skyRiftReady && zone.type !== 'meteor') {
             game.currentZoneId = METEOR_FALL_ZONE_ID;
@@ -4644,7 +4667,7 @@ function awardLoopProgressPoints() {
     bonus += woodsmanGain;
     if (bonus > 0) game.loopDeepPoints = Math.max(0, Math.floor(game.loopDeepPoints || 0)) + bonus;
     game.loopProgressBase = { abyssEndlessDepth: nowDepth, labyrinthUnlockedMaxFloor: nowLab, specialBosses: Array.from(new Set([...(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []), ...newBosses])) };
-    game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false };
+    game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
     game.woodsmanSettledScore = Math.max(woodsmanSettled, woodsmanScore);
     game.woodsmanPendingScore = game.woodsmanSettledScore;
     return { bonus, depthGain, labGain, bossGain: newBosses.length, woodsmanGain: woodsmanGain, woodsmanScore: woodsmanScore, woodsmanDelta: woodsmanDelta };

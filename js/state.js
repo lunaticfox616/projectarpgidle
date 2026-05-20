@@ -1193,7 +1193,7 @@ const defaultGame = {
     abyssUnlockedDepths: [20],
     loopDeepStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 },
     loopProgressBase: { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] },
-    loopProgressCurrent: { specialBosses: [], chaos20Cleared: false },
+    loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 },
     chaosRealm: createDefaultChaosRealmState(),
     pendingLoopDecision: false,
 
