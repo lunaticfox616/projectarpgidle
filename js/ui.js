@@ -2765,7 +2765,8 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             outlineAlpha: 0.86,
             outlineThickness: 1
         };
-        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7 + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
+        let attackXOffset = (downPhase === null && isAttacking && game.selectedHeroId === 'hero3') ? 6 : 0;
+        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset + attackXOffset, y + 7 + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
         if (flash && downPhase === null) {
             ctx.save();
             ctx.globalAlpha = 0.42;
