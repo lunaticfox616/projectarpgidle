@@ -118,6 +118,14 @@ const HERO_SELECTION_DEFS = {
         talentsText: '카오스 피해 +20%, 흡혈 +0.2%, 이동 속도 +12%, 치명타 피해 +20%, 치명타 확률 +2.5%',
         stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 0.2 }, { stat: 'move', value: 12 }, { stat: 'critDmg', value: 20 }, { stat: 'crit', value: 2.5 }],
         strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
+    },
+    hero5: {
+        id: 'hero5',
+        label: '궁수(2)',
+        blindLabel: '궁수(2)',
+        talentsText: '투사체 피해 +20%, 공격 속도 +10%, 치명타 확률 +2%',
+        stats: [{ stat: 'projectilePctDmg', value: 20 }, { stat: 'aspd', value: 10 }, { stat: 'crit', value: 2 }],
+        strips: { idle: 'hero5Custom', walk: 'hero5Custom', attack: 'hero5Custom', hurt: 'hero5Custom', death: 'hero5Custom' }
     }
 };
 
