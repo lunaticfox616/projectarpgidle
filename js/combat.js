@@ -604,6 +604,14 @@ function coreLoop() {
     if ((typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) && !(game.beehive && game.beehive.awaitingClear)) return;
     let progressBefore = game.runProgress;
     let zoneNow = getZone(game.currentZoneId);
+    if (zoneNow && zoneNow.type === 'underworld' && game.playerHp > 0) {
+        let floor = Math.max(1, Math.floor(zoneNow.floor || 1));
+        if (floor >= 15) {
+            let tickPct = floor >= 40 ? 0.02 : (floor >= 30 ? 0.015 : 0.01);
+            let tickDmg = Math.max(1, Math.floor((pStats.maxHp || 1) * tickPct));
+            game.playerHp = Math.max(0, Math.floor(game.playerHp - tickDmg));
+        }
+    }
     let vRift = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0, pendingWave: false, totalToSpawn: 0, spawnedCount: 0, spawnTick: 0 });
     let holdMapProgress = !!(zoneNow && zoneNow.type === "abyss" && vRift.active);
     if (!holdMapProgress) advanceMapProgress(pStats);
@@ -1202,6 +1210,13 @@ function getPlayerStats() {
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = Math.min(100, (5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82);
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
+    let zonePenalty = getZone(game.currentZoneId) || getZone(0);
+    if (zonePenalty && zonePenalty.type === 'underworld') {
+        let uf = Math.max(1, Math.floor(zonePenalty.floor || 1));
+        let gravitySlow = Math.min(0.75, 0.12 + Math.max(0, uf - 1) * 0.018);
+        finalAspd *= (1 - gravitySlow);
+        finalMove *= (1 - gravitySlow);
+    }
     let finalDamageMultiplier = 1;
     if (uniqueLabyrinthShackles) {
         let reduced = Math.max(0, finalMove - 100);
@@ -2279,6 +2294,10 @@ function createEnemy(zone, marker, groupIndex) {
         let realmBaseMul = 5;
         let realmFloorMul = 1 + Math.max(0, realmFloor - 1) * 0.06;
         hp = Math.floor(hp * realmBaseMul * realmFloorMul);
+    }
+    if (zone.type === 'underworld') {
+        let underFloor = Math.max(1, Math.floor(zone.floor || 1));
+        hp = Math.floor(hp * 5 * (1 + Math.max(0, underFloor - 1) * 0.045));
     }
     if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, (game.loopCount || 0) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
@@ -4399,6 +4418,7 @@ function performMonsterAttacks(pStats) {
         chillSlow *= Math.max(0, 1 - Math.max(0, Math.min(0.95, (pStats.chillEffectReducePct || 0) / 100))); 
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
         let atkRate = (0.26 + zone.tier * 0.013) * monsterBaseAttackSpeedMul * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
+        if (zone.type === 'underworld') atkRate *= 0.76;
         if (!Number.isFinite(atkRate) || atkRate <= 0) atkRate = 0.12;
         if (!Number.isFinite(enemy.attackTimer) || enemy.attackTimer < 0) enemy.attackTimer = 0;
         enemy.attackTimer += 0.1 * atkRate;
@@ -4417,6 +4437,7 @@ function performMonsterAttacks(pStats) {
             let shockAmp = ailMap.shock ? Math.min(0.35, 0.08 + ailMap.shock * 0.12) : 0;
             shockAmp *= Math.max(0, 1 - Math.max(0, Math.min(0.95, (pStats.shockEffectReducePct || 0) / 100)));
             let dmg = Math.floor((2.4 + zone.tier * 3.35) * monsterBaseDamageMul * seasonDmgScale * (1 - shockAmp));
+            if (zone.type === 'underworld') dmg = Math.floor(dmg * 0.78);
             dmg = Math.floor(dmg * enemyDmgMul * (enemy.damageMul || 1));
             if (zone.type === 'act' && zone.id <= 1 && (game.season || 1) >= 3) dmg = Math.floor(dmg * 0.58);
             if (enemy.isElite) dmg = Math.floor(dmg * 1.28);
