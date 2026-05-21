@@ -27,14 +27,61 @@ function createSaveSnapshot(sourceGame) {
     return snapshot;
 }
 
+function createCloudSavePayload(sourceGame) {
+    let payload = createSaveSnapshot(sourceGame || game || {});
+    payload.enemies = [];
+    payload.encounterPlan = [];
+    payload.encounterIndex = Math.max(0, Math.floor(payload.encounterIndex || 0));
+    payload.nextEnemyId = Math.max(1, Math.floor(payload.nextEnemyId || 1));
+    payload.combatLog = [];
+    payload.recentDamageEvents = [];
+    payload.pendingSlamEchoHits = [];
+    payload.dotFxThrottle = {};
+    payload.battlefieldEnemySprites = {};
+    payload.enemyConditionDebuffs = {};
+    payload.playerAilments = Array.isArray(payload.playerAilments) ? payload.playerAilments.slice(0, 40) : [];
+    payload.playerLeechInstances = Array.isArray(payload.playerLeechInstances) ? payload.playerLeechInstances.slice(0, 80) : [];
+    return payload;
+}
+
+function sanitizeForSave(value, seen = new WeakSet()) {
+    if (value === null || value === undefined) return value;
+    if (typeof value === 'function' || typeof value === 'symbol') return undefined;
+    if (typeof value !== 'object') return Number.isFinite(value) ? value : (typeof value === 'number' ? 0 : value);
+    if (seen.has(value)) return undefined;
+    seen.add(value);
+    if (Array.isArray(value)) {
+        let out = [];
+        for (let i = 0; i < value.length; i++) {
+            let v = sanitizeForSave(value[i], seen);
+            out.push(v === undefined ? null : v);
+        }
+        return out;
+    }
+    let out = {};
+    Object.keys(value).forEach(key => {
+        let v = sanitizeForSave(value[key], seen);
+        if (v !== undefined) out[key] = v;
+    });
+    return out;
+}
+
 function persistLocalSave(options = {}) {
     ensureSaveMeta();
     if (options.touchModifiedAt !== false) game.saveMeta.lastModifiedAt = Date.now();
     try {
         localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(createSaveSnapshot(game)));
     } catch (e) {
-        console.error('local save failed:', e);
-        if (typeof addLog === 'function') addLog('⚠️ 로컬 저장 실패: 브라우저 저장공간을 확인하세요.', 'loot-rare');
+        try {
+            let sanitized = sanitizeForSave(game || {});
+            if (!sanitized.saveMeta || typeof sanitized.saveMeta !== 'object') sanitized.saveMeta = {};
+            localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(sanitized));
+            if (typeof addLog === 'function') addLog('💾 저장 데이터 정리 후 로컬 저장을 복구했습니다.', 'season-up');
+        } catch (retryError) {
+            console.error('local save failed:', e, retryError);
+            let isQuota = retryError && (retryError.name === 'QuotaExceededError' || /quota|storage/i.test(String(retryError.message || '')));
+            if (typeof addLog === 'function') addLog(isQuota ? '⚠️ 로컬 저장 실패: 브라우저 저장공간을 확인하세요.' : '⚠️ 로컬 저장 실패: 저장 데이터 형식 오류가 발생했습니다.', 'loot-rare');
+        }
     }
     refreshItemIdCounter();
 }
@@ -90,4 +137,4 @@ function setCloudMessage(message) {
 }
 
 
-safeExposeGlobals({ readLocalSaveString, ensureSaveMeta, createSaveSnapshot, persistLocalSave, loadGame, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });
+safeExposeGlobals({ readLocalSaveString, ensureSaveMeta, createSaveSnapshot, createCloudSavePayload, persistLocalSave, loadGame, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });
