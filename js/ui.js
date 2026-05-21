@@ -7385,7 +7385,7 @@ function init() {
         if (autoSaveHandle) clearInterval(autoSaveHandle);
         autoSaveHandle = setInterval(() => {
             if (isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
-            saveGame({ skipCloudSync: true });
+            saveGame();
         }, 15000);
     }
 }
