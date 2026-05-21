@@ -1605,7 +1605,8 @@ function setSupportActiveTier(name, tier) { if (!assertBuildEditable()) return;
         game.supportGemData[name] = rec;
         let nextUsed = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
         let resonancePower = Math.max(0, Math.floor(game.resonancePower || 0));
-        if (nextUsed > resonancePower) {
+        let isCostIncrease = nextUsed > used;
+        if (isCostIncrease && nextUsed > resonancePower) {
             rec.activeTier = prevTier;
             game.supportGemData[name] = rec;
             let need = Math.max(0, nextUsed - used);
