@@ -5676,6 +5676,25 @@ function mergeDefaults(save) {
     merged.recentDamageEvents = Array.isArray(merged.recentDamageEvents) ? merged.recentDamageEvents.map(normalizeRecentDamageEvent).filter(Boolean) : [];
     merged.lastDeathLog = normalizeDeathLog(merged.lastDeathLog);
     merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
+    let aliveEnemyIds = new Set((merged.enemies || []).map(enemy => String(enemy.id)));
+    function pruneEnemyRuntimeMap(rawMap, options = {}) {
+        let map = (rawMap && typeof rawMap === 'object') ? rawMap : {};
+        let keys = Object.keys(map);
+        let maxKeys = Math.max(0, Math.floor(options.maxKeys || 200));
+        let out = {};
+        for (let i = 0; i < keys.length; i++) {
+            let key = keys[i];
+            if (!aliveEnemyIds.has(String(key))) continue;
+            out[key] = map[key];
+            if (Object.keys(out).length >= maxKeys) break;
+        }
+        return out;
+    }
+    merged.enemyKeystoneDebuffs = pruneEnemyRuntimeMap(merged.enemyKeystoneDebuffs, { maxKeys: 120 });
+    merged.rangerWeakpointMarks = pruneEnemyRuntimeMap(merged.rangerWeakpointMarks, { maxKeys: 120 });
+    merged.enemyUniqueChaosResDown = pruneEnemyRuntimeMap(merged.enemyUniqueChaosResDown, { maxKeys: 120 });
+    merged.enemyUniqueElementalResDown = pruneEnemyRuntimeMap(merged.enemyUniqueElementalResDown, { maxKeys: 120 });
+    merged.enemyCurseExpirePayloads = pruneEnemyRuntimeMap(merged.enemyCurseExpirePayloads, { maxKeys: 120 });
     merged.encounterPlan = Array.isArray(merged.encounterPlan) ? merged.encounterPlan.map(normalizeEncounterMarker).filter(Boolean).sort((a, b) => a.at - b.at) : [];
     merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1, MAX_PLAYER_LEVEL)));
     merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));
@@ -7152,31 +7171,22 @@ function pushCloudSaveOnPageExit(reason) {
             Prefer: 'resolution=merge-duplicates,return=minimal'
         };
         let endpoint = config.supabaseUrl + '/rest/v1/cloud_saves';
-        let beaconSent = false;
-        try {
-            if (navigator && typeof navigator.sendBeacon === 'function') {
-                let blob = new Blob([body], { type: 'application/json' });
-                beaconSent = navigator.sendBeacon(endpoint, blob);
+        // NOTE: sendBeacon cannot attach Authorization/apikey headers required by Supabase RLS.
+        // Always use authenticated keepalive fetch on exit path to avoid silent unauthenticated drops.
+        fetch(endpoint, {
+            method: 'POST',
+            headers,
+            body,
+            keepalive: true
+        }).catch(error => {
+            let msg = String((error && error.message) || error || '');
+            let expectedAbort = /failed to fetch|networkerror|abort|cancel/i.test(msg);
+            if (expectedAbort && reason === 'visibilitychange') {
+                console.debug(`cloud save on ${reason} skipped by browser lifecycle:`, error);
+            } else {
+                console.warn(`cloud save on ${reason || 'page exit'} failed:`, error);
             }
-        } catch (beaconError) {
-            beaconSent = false;
-        }
-        if (!beaconSent) {
-            fetch(endpoint, {
-                method: 'POST',
-                headers,
-                body,
-                keepalive: true
-            }).catch(error => {
-                let msg = String((error && error.message) || error || '');
-                let expectedAbort = /failed to fetch|networkerror|abort|cancel/i.test(msg);
-                if (expectedAbort && reason === 'visibilitychange') {
-                    console.debug(`cloud save on ${reason} skipped by browser lifecycle:`, error);
-                } else {
-                    console.warn(`cloud save on ${reason || 'page exit'} failed:`, error);
-                }
-            });
-        }
+        });
         cloudState.lastSyncAttemptAt = optimisticSyncAt;
         setCloudMessage('페이지 종료 전 클라우드 저장을 시도했습니다.');
         return true;
@@ -7192,6 +7202,41 @@ async function cloudPushNow() {
         await syncCloudSave({ automatic: false });
     } catch (error) {
         setCloudMessage('업로드 실패: ' + (error.message || error));
+    }
+}
+
+async function cloudCompactAndPushNow() {
+    if (!cloudState.user || !cloudState.user.id) return setCloudMessage('먼저 로그인해주세요.');
+    if (!confirm('클라우드 저장을 경량화(임시 전투 데이터 제거)해서 즉시 덮어쓸까요?\n핵심 진행 데이터(장비/인벤/패시브/재화)는 유지됩니다.')) return;
+    cloudState.busy = true;
+    setCloudMessage('클라우드 저장 경량화 업로드 중...');
+    updateCloudSaveUI();
+    try {
+        ensureSaveMeta();
+        game.saveMeta.lastModifiedAt = Date.now();
+        persistLocalSave({ touchModifiedAt: false });
+        let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
+        let payloadBytes = 0;
+        try { payloadBytes = JSON.stringify(payload).length; } catch (e) {}
+        let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
+            method: 'POST',
+            headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+            body: { user_id: cloudState.user.id, save_data: payload }
+        });
+        let row = Array.isArray(rows) ? rows[0] : null;
+        let syncedAt = row && row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
+        game.saveMeta.lastCloudSyncAt = syncedAt;
+        cloudState.lastRemoteUpdatedAt = syncedAt;
+        cloudState.lastSyncAttemptAt = Date.now();
+        cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
+        persistLocalSave({ touchModifiedAt: false });
+        setCloudMessage(`경량화 업로드 완료 (${(payloadBytes / 1024).toFixed(1)}KB)`);
+        addLog(`☁️ 경량화 클라우드 저장 완료 (${(payloadBytes / 1024).toFixed(1)}KB)`, 'loot-magic');
+    } catch (error) {
+        setCloudMessage('경량화 업로드 실패: ' + (error.message || error));
+    } finally {
+        cloudState.busy = false;
+        updateCloudSaveUI();
     }
 }
 
@@ -7952,4 +7997,4 @@ function getLockedTabMessage(tabId) {
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay });
+safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, cloudCompactAndPushNow });

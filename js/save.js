@@ -39,6 +39,11 @@ function createCloudSavePayload(sourceGame) {
     payload.dotFxThrottle = {};
     payload.battlefieldEnemySprites = {};
     payload.enemyConditionDebuffs = {};
+    payload.enemyKeystoneDebuffs = {};
+    payload.rangerWeakpointMarks = {};
+    payload.enemyUniqueChaosResDown = {};
+    payload.enemyUniqueElementalResDown = {};
+    payload.enemyCurseExpirePayloads = {};
     payload.playerAilments = Array.isArray(payload.playerAilments) ? payload.playerAilments.slice(0, 40) : [];
     payload.playerLeechInstances = Array.isArray(payload.playerLeechInstances) ? payload.playerLeechInstances.slice(0, 80) : [];
     return payload;

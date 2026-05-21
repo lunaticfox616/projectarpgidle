@@ -170,6 +170,30 @@ function cleanupConditionGemStates(now) {
     game.enemyConditionDebuffs = map;
 }
 
+function pruneEnemyRuntimeDebuffMaps() {
+    let alive = new Set((game.enemies || []).filter(e => e && e.hp > 0).map(e => String(e.id)));
+    function pruneMap(obj, maxKeys) {
+        let src = (obj && typeof obj === 'object') ? obj : {};
+        let keys = Object.keys(src);
+        if (keys.length === 0) return {};
+        let out = {};
+        let kept = 0;
+        for (let i = 0; i < keys.length; i++) {
+            let k = keys[i];
+            if (!alive.has(String(k))) continue;
+            out[k] = src[k];
+            kept++;
+            if (kept >= maxKeys) break;
+        }
+        return out;
+    }
+    game.enemyKeystoneDebuffs = pruneMap(game.enemyKeystoneDebuffs, 180);
+    game.rangerWeakpointMarks = pruneMap(game.rangerWeakpointMarks, 180);
+    game.enemyUniqueChaosResDown = pruneMap(game.enemyUniqueChaosResDown, 180);
+    game.enemyUniqueElementalResDown = pruneMap(game.enemyUniqueElementalResDown, 180);
+    game.enemyCurseExpirePayloads = pruneMap(game.enemyCurseExpirePayloads, 180);
+}
+
 function getConditionGemLevel(name) {
     let levels = game.conditionGemLevels || {};
     return Math.max(1, Math.min(5, Math.floor(levels[name] || 1)));
@@ -601,6 +625,12 @@ function coreLoop() {
     }
 
     syncCrowdPauseState();
+    let _nowPrune = Date.now();
+    game._nextEnemyRuntimePruneAt = Number.isFinite(game._nextEnemyRuntimePruneAt) ? game._nextEnemyRuntimePruneAt : 0;
+    if (_nowPrune >= game._nextEnemyRuntimePruneAt) {
+        pruneEnemyRuntimeDebuffMaps();
+        game._nextEnemyRuntimePruneAt = _nowPrune + 2000;
+    }
     if ((typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) && !(game.beehive && game.beehive.awaitingClear)) return;
     let progressBefore = game.runProgress;
     let zoneNow = getZone(game.currentZoneId);
@@ -3624,6 +3654,33 @@ function finishEncounterRun() {
         startMoving(false);
         updateStaticUI();
         queueImportantSave(200);
+        return;
+    }
+    if (zone.type === 'underworld') {
+        let st = ensureChaosRealmState();
+        let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
+        st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
+        st.currentFloor = Math.min(st.highestFloor, floor + 1);
+        addLog(`🕳️ 지하계 ${floor}층 돌파! ${st.currentFloor}층까지 하강 가능합니다.`, 'season-up');
+        game.killsInZone = 0;
+        let mapAction = game.settings.mapCompleteAction || 'nextZone';
+        if (mapAction === 'repeatZone') game.currentZoneId = UNDERWORLD_ZONE_ID;
+        else if (mapAction === 'nextLoopBestPlusOne') {
+            let nextZone = resolveNextLoopBestPlusOneZone(zone);
+            game.currentZoneId = nextZone !== null ? nextZone : UNDERWORLD_ZONE_ID;
+        } else if (mapAction === 'stop') {
+            game.combatHalted = true;
+            game.enemies = [];
+            game.encounterPlan = [];
+            game.encounterIndex = 0;
+            game.runProgress = 0;
+            updateStaticUI();
+            queueImportantSave(180);
+            return;
+        } else game.currentZoneId = UNDERWORLD_ZONE_ID;
+        startMoving(false);
+        updateStaticUI();
+        queueImportantSave(220);
         return;
     }
 
