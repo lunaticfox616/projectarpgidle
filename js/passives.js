@@ -3882,7 +3882,24 @@ function buildBattleAssetAtlas() {
         }
         return frames.filter(Boolean);
     }
-    function buildStripFramesFromImage(image, minArea, frameCount) {
+    
+    function buildGridFramesFromImage(image, cols, rows) {
+        if (!image || cols <= 0 || rows <= 0) return [];
+        let out = [];
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                let x = Math.round(c * image.width / cols);
+                let nextX = c === cols - 1 ? image.width : Math.round((c + 1) * image.width / cols);
+                let y = Math.round(r * image.height / rows);
+                let nextY = r === rows - 1 ? image.height : Math.round((r + 1) * image.height / rows);
+                let raw = { x: x, y: y, width: Math.max(1, nextX - x), height: Math.max(1, nextY - y) };
+                let trimmed = trimRectToContent(image, raw, 2);
+                out.push(withImageRef(image, trimmed && trimmed.width >= 10 && trimmed.height >= 10 ? trimmed : raw));
+            }
+        }
+        return out.filter(Boolean);
+    }
+function buildStripFramesFromImage(image, minArea, frameCount) {
         if (!image) return [];
         if (Number.isFinite(frameCount) && frameCount > 0) {
             let fixedFrames = buildFixedStripFramesFromImage(image, frameCount);
@@ -3907,6 +3924,52 @@ function buildBattleAssetAtlas() {
     }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
+        if (stripKeys.idle === 'hero5Custom' && stripKeys.walk === 'hero5Custom' && stripKeys.attack === 'hero5Custom' && stripKeys.hurt === 'hero5Custom' && stripKeys.death === 'hero5Custom') {
+            let image = battleAssets.images.hero5Custom;
+            let grid = normalizeFrameSetBasisHeight(buildGridFramesFromImage(image, 4, 4));
+            if (grid.length >= 16) {
+                let idleFrames = grid.slice(0, 4);
+                let walkFrames = grid.slice(4, 8);
+                let attackFrames = grid.slice(8, 14);
+                let hurtFrames = [grid[14]].filter(Boolean);
+                let downFrames = [grid[15]].filter(Boolean);
+                let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
+                return {
+                    characterAnimations: {
+                        idle: idleFrames,
+                        walk_or_run: walkFrames,
+                        sword_attack_body: attackFrames,
+                        cast_body: attackFrames,
+                        hurt: hurtFrames.length > 0 ? hurtFrames : [hold].filter(Boolean),
+                        down_or_knockdown: downFrames.length > 0 ? downFrames : (hurtFrames.length > 0 ? hurtFrames : [hold].filter(Boolean)),
+                        bow_attack_body: attackFrames
+                    },
+                    clipLoop: {
+                        idle: true,
+                        walk_or_run: true,
+                        sword_attack_body: false,
+                        cast_body: false,
+                        hurt: false,
+                        down_or_knockdown: false,
+                        bow_attack_body: false
+                    },
+                    idle: idleFrames,
+                    walk: walkFrames,
+                    run: walkFrames,
+                    swordCombo: attackFrames,
+                    castCombo: attackFrames,
+                    projectileCombo: attackFrames,
+                    bowCombo: attackFrames,
+                    hurt: hurtFrames,
+                    down: downFrames,
+                    attack: attackFrames[0] || hold || null,
+                    sideIdle: hold || null,
+                    sideWalk: walkFrames[0] || hold || null,
+                    frontIdle: hold || null,
+                    frontGuard: idleFrames[1] || hold || null
+                };
+            }
+        }
         let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210, heroStripFrameCounts[stripKeys.idle]));
         let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210, heroStripFrameCounts[stripKeys.walk]));
         let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220, heroStripFrameCounts[stripKeys.attack]));
