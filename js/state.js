@@ -168,8 +168,11 @@ function getZone(id) {
         let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
         return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor) };
     }
-    if (typeof id === 'string' && id.startsWith('trial_')) return TRIAL_ZONES.find(t => t.id === id);
-    if (typeof id === 'string' && id.includes('_boss_')) return SEASON_BOSS_ZONES.find(t => t.id === id);
+    if (typeof id === 'string') {
+        if (id.startsWith('trial_')) return TRIAL_ZONES.find(t => t.id === id);
+        let seasonBossZone = SEASON_BOSS_ZONES.find(t => t.id === id);
+        if (seasonBossZone) return seasonBossZone;
+    }
     if (id === METEOR_FALL_ZONE_ID) {
         let star = (game && game.starWedge) || {};
         let tier = Math.max(8, Math.min(20, Math.floor(star.activeMeteorTier || star.skyRiftMinTier || 13)));
