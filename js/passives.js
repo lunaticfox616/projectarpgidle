@@ -3137,11 +3137,11 @@ function initBattleAssets() {
         hero2Attack: 'assets/hero2/DemonKinBasicAtk001-Sheet.png',
         hero2Hurt: 'assets/hero2/DemonKinHurt001-Sheet.png',
         hero2Death: 'assets/hero2/DemonKinDeath001-Sheet.png',
-        hero3Idle: 'assets/hero3/DruidIdle001-Sheet.png',
-        hero3Walk: 'assets/hero3/DruidWalk001-Sheet.png',
-        hero3Attack: 'assets/hero3/DruidBasicAtk1-Sheet.png',
-        hero3Hurt: 'assets/hero3/DruidHurt001-Sheet.png',
-        hero3Death: 'assets/hero3/DruidDeath001-Sheet.png',
+        hero3Idle: 'assets/hero3/hero3_walk.png',
+        hero3Walk: 'assets/hero3/hero3_walk.png',
+        hero3Attack: 'assets/hero3/hero3_attack.png',
+        hero3Hurt: 'assets/hero3/hero3_walk.png',
+        hero3Death: 'assets/hero3/hero3_walk.png',
         hero4Idle: 'assets/hero4/SeveredFangIdle001-Sheet.png',
         hero4Walk: 'assets/hero4/SeveredFangWalk001-Sheet.png',
         hero4Attack: 'assets/hero4/SeveredFangBasicAtk001-Sheet.png',
@@ -3864,7 +3864,7 @@ function buildBattleAssetAtlas() {
     const heroStripFrameCounts = {
         hero1Idle: 6, hero1Walk: 8, hero1Attack: 7, hero1Hurt: 4, hero1Death: 8,
         hero2Idle: 6, hero2Walk: 8, hero2Attack: 12, hero2Hurt: 4, hero2Death: 8,
-        hero3Idle: 6, hero3Walk: 8, hero3Attack: 13, hero3Hurt: 4, hero3Death: 8,
+        hero3Idle: 9, hero3Walk: 9, hero3Attack: 11, hero3Hurt: 9, hero3Death: 9,
         hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7
     };
     function buildFixedStripFramesFromImage(image, frameCount) {
@@ -3903,11 +3903,31 @@ function buildBattleAssetAtlas() {
         let basisHeight = heights[mid] || heights[0] || 1;
         return list.map(frame => ({ ...frame, basisHeight: basisHeight }));
     }
+    function sanitizeHero3AttackFrames(frames) {
+        let list = (frames || []).filter(Boolean);
+        return list.map(frame => {
+            let width = Math.max(1, Math.round(frame.width || 1));
+            let height = Math.max(1, Math.round(frame.height || 1));
+            if (width <= Math.round(height * 1.15)) return frame;
+            let targetWidth = Math.max(1, Math.round(height * 1.02));
+            let cropWidth = Math.min(width, targetWidth);
+            let sourceRightBiasPx = 6;
+            let maxShift = Math.max(0, width - cropWidth);
+            let shiftX = Math.min(sourceRightBiasPx, maxShift);
+            let nextX = Math.round((frame.x || 0) + (width - cropWidth) + shiftX);
+            return {
+                ...frame,
+                x: nextX,
+                width: Math.max(1, cropWidth - shiftX)
+            };
+        });
+    }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
         let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210, heroStripFrameCounts[stripKeys.idle]));
         let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210, heroStripFrameCounts[stripKeys.walk]));
         let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220, heroStripFrameCounts[stripKeys.attack]));
+        if (heroId === 'hero3') attackFrames = normalizeFrameSetBasisHeight(sanitizeHero3AttackFrames(attackFrames));
         let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200, heroStripFrameCounts[stripKeys.hurt]));
         let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200, heroStripFrameCounts[stripKeys.death]));
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
