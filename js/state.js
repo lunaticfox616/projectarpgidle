@@ -874,6 +874,8 @@ let cloudState = {
     lastRemoteUpdatedAt: 0,
     lastRemoteLoop: 0,
     lastSyncAttemptAt: 0,
+    lastSyncedLocalModifiedAt: 0,
+    pendingAutoSyncDirty: false,
     tokenRefreshPromise: null,
     tokenExpiryWarned: false,
     pendingForcedSyncOptions: null,

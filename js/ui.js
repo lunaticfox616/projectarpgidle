@@ -6864,18 +6864,30 @@ async function reconcileCloudSaveState(options = {}) {
 }
 
 let cloudSyncTimer = null;
+function isCloudSaveDirty() {
+    let localStamp = game && game.saveMeta ? Math.max(0, Number(game.saveMeta.lastModifiedAt || 0)) : 0;
+    let syncedStamp = Math.max(0, Number(cloudState.lastSyncedLocalModifiedAt || 0), Number((game && game.saveMeta && game.saveMeta.lastCloudSyncAt) || 0));
+    return localStamp > syncedStamp;
+}
 function scheduleCloudAutoSync() {
     if (!cloudState.configured || !cloudState.user || cloudState.busy || isStartupOverlayOpen()) return;
+    if (!isCloudSaveDirty()) {
+        cloudState.pendingAutoSyncDirty = false;
+        return;
+    }
     let now = Date.now();
+    cloudState.pendingAutoSyncDirty = true;
     if (now - cloudState.lastSyncAttemptAt < CLOUD_SYNC_MIN_INTERVAL_MS) return;
     if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
     cloudSyncTimer = setTimeout(() => {
         cloudSyncTimer = null;
+        if (!cloudState.pendingAutoSyncDirty || !isCloudSaveDirty()) return;
+        cloudState.pendingAutoSyncDirty = false;
         syncCloudSave({ automatic: true }).catch(error => {
             console.warn('auto cloud sync failed:', error);
             setCloudMessage('자동 클라우드 저장 실패: ' + (error.message || error));
         });
-    }, 1200);
+    }, 5000);
 }
 
 
@@ -6918,6 +6930,7 @@ async function syncCloudSave(options = {}) {
         let guardResult = await guardAgainstStaleLocalOverwrite({ automatic: !!options.automatic, silentLog: !!options.automatic });
         if (guardResult.status === 'pulled-remote' || guardResult.status === 'pulled-remote-higher-loop') return;
         await pushCloudSave({ touchModifiedAt: options.automatic !== true });
+        cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0));
         setCloudMessage(options.automatic ? '클라우드 자동 저장을 완료했습니다.' : '클라우드 업로드를 완료했습니다.');
         if (!options.automatic) addLog('클라우드 세이브를 업로드했습니다.', 'loot-magic');
     } finally {
