@@ -2448,6 +2448,20 @@ function createEnemy(zone, marker, groupIndex) {
 
 function getZoneEncounterProfile(zone) {
     if (zone.type === 'chaosRealm') return { markerCount: 4 + Math.floor((zone.floor || 1) / 8), minPack: 2, maxPack: Math.min(8, 3 + Math.floor((zone.floor || 1) / 6)), eliteChance: 0.35, bossAdds: 2 + Math.floor((zone.floor || 1) / 12), label: `혼돈계 ${zone.floor || 1}층` };
+    if (zone.type === 'underworld') {
+        let floor = Math.max(1, Math.floor(zone.floor || 1));
+        let minPack = Math.min(10, 3 + Math.floor(floor / 7));
+        let maxPack = Math.min(10, minPack + 2 + Math.floor(floor / 14));
+        maxPack = Math.max(minPack, maxPack);
+        return {
+            markerCount: 5 + Math.floor(floor / 6),
+            minPack: minPack,
+            maxPack: maxPack,
+            eliteChance: Math.min(0.55, 0.2 + floor * 0.012),
+            bossAdds: 2 + Math.floor(floor / 10),
+            label: `지하계 ${floor}층`
+        };
+    }
     if (zone.type === 'meteor') return { markerCount: 2, minPack: 2, maxPack: 3, eliteChance: 1, bossAdds: 2, label: '운석' };
     if (zone.type === 'trial') return { markerCount: 3, minPack: 1, maxPack: 2, eliteChance: 1, bossAdds: 2, label: '시련' };
     if (zone.type === 'seasonBoss') return { markerCount: 1, minPack: 1, maxPack: 1, eliteChance: 1, bossAdds: 0, label: '보스' };
