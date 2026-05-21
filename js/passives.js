@@ -3911,11 +3911,14 @@ function buildBattleAssetAtlas() {
             if (width <= Math.round(height * 1.15)) return frame;
             let targetWidth = Math.max(1, Math.round(height * 1.02));
             let cropWidth = Math.min(width, targetWidth);
-            let nextX = Math.round((frame.x || 0) + (width - cropWidth));
+            let sourceRightBiasPx = 6;
+            let maxShift = Math.max(0, width - cropWidth);
+            let shiftX = Math.min(sourceRightBiasPx, maxShift);
+            let nextX = Math.round((frame.x || 0) + (width - cropWidth) + shiftX);
             return {
                 ...frame,
                 x: nextX,
-                width: cropWidth
+                width: Math.max(1, cropWidth - shiftX)
             };
         });
     }
