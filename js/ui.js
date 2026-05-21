@@ -900,6 +900,17 @@ function renderChaosRealmMapPanel() {
     let zone = getZone(CHAOS_REALM_ZONE_ID);
     list.innerHTML = `<div class="map-item ${game.currentZoneId === CHAOS_REALM_ZONE_ID ? 'current' : ''}" ${entryReady ? 'onclick="enterChaosRealmPrompt()"' : ''}><div class="map-item-main"><span>🌌</span><span>혼돈계 ${floor}층<br><span class="map-zone-status">난이도 기준: 혼돈 심화 ${zone ? zone.tier : getChaosRealmTier(floor)}급 · 특징 ${affixes.length}개</span></span></div><div class="map-item-actions"><span class="map-zone-status">${entryReady ? `입장 가능: 1 ~ ${highest}` : '혼돈 20 필요'}</span></div></div>`;
 }
+function renderUnderworldMapPanel() {
+    let panel = document.getElementById('ui-underworld-panel');
+    let list = document.getElementById('ui-underworld-list');
+    if (!panel || !list) return;
+    let st = ensureChaosRealmState();
+    let floor = Math.max(1, Math.floor(st.currentFloor || 1));
+    let highest = Math.max(1, Math.floor(st.highestFloor || 1));
+    let canEnter = typeof canEnterUnderworld === 'function' && canEnterUnderworld();
+    panel.innerHTML = `<div style="font-weight:800; color:#e4d8ff;">지하계: 핵으로 하강</div><div style="margin-top:6px; color:#bfc8ea;">해금 조건: <strong>야수왕 케르베로스 클리어</strong> + <strong>혼돈 심화 30층 돌파</strong> (영구 해금)</div><div style="margin-top:4px; color:${canEnter ? '#d6e4ff' : '#ffcf8a'};">입장 조건: 이번 루프 혼돈 20 클리어 필요 · 고중력으로 층이 깊어질수록 이속/공속 감소 · 15층부터 지속 피해</div>`;
+    list.innerHTML = `<div class="map-item ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}" ${canEnter ? 'onclick="enterUnderworldPrompt()"' : ''}><div class="map-item-main"><span>🕳️</span><span>지하계 ${floor}층<br><span class="map-zone-status">난이도 기준: 혼돈 심화 30급 · 몬스터 피해/공속 완화</span></span></div><div class="map-item-actions"><span class="map-zone-status">${canEnter ? `입장 가능: 1 ~ ${highest}` : '야수왕 케르베로스 + 심화30 + 혼돈20 필요'}</span></div></div>`;
+}
 
 function switchMapSubtab(subtabId) {
     game.mapSubtab = subtabId;
@@ -923,6 +934,19 @@ function enterChaosRealmPrompt(){
     if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
     st.currentFloor = floor;
     changeZone(CHAOS_REALM_ZONE_ID);
+    updateStaticUI();
+}
+function enterUnderworldPrompt(){
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return addLog('지하계 입장 조건: 야수왕 케르베로스 클리어 + 혼돈 심화 30층 + 이번 루프 혼돈20 클리어', 'attack-monster');
+    let st = ensureChaosRealmState();
+    let max = Math.max(1, Math.floor(st.highestFloor || 1));
+    let v = prompt(`진입할 지하계 층수를 입력하세요. (1 ~ ${max})`, String(max));
+    if (v === null) return;
+    let floor = Math.floor(Number(v) || 0);
+    if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
+    st.currentFloor = floor;
+    changeZone(UNDERWORLD_ZONE_ID);
     updateStaticUI();
 }
 
@@ -4357,6 +4381,7 @@ function buildCraftActionButtons(item) {
     </div>` : '';
 
     renderChaosRealmMapPanel();
+    renderUnderworldMapPanel();
 
     let availTrials = TRIAL_ZONES.filter(trial => (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id));
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
@@ -5544,7 +5569,7 @@ function mergeDefaults(save) {
     merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
     merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
-    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
+    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-underworld'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
     merged.gemFoldInactiveSupport = !!merged.gemFoldInactiveSupport;
     if (merged.gemFoldInactive) {
@@ -5651,6 +5676,25 @@ function mergeDefaults(save) {
     merged.recentDamageEvents = Array.isArray(merged.recentDamageEvents) ? merged.recentDamageEvents.map(normalizeRecentDamageEvent).filter(Boolean) : [];
     merged.lastDeathLog = normalizeDeathLog(merged.lastDeathLog);
     merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
+    let aliveEnemyIds = new Set((merged.enemies || []).map(enemy => String(enemy.id)));
+    function pruneEnemyRuntimeMap(rawMap, options = {}) {
+        let map = (rawMap && typeof rawMap === 'object') ? rawMap : {};
+        let keys = Object.keys(map);
+        let maxKeys = Math.max(0, Math.floor(options.maxKeys || 200));
+        let out = {};
+        for (let i = 0; i < keys.length; i++) {
+            let key = keys[i];
+            if (!aliveEnemyIds.has(String(key))) continue;
+            out[key] = map[key];
+            if (Object.keys(out).length >= maxKeys) break;
+        }
+        return out;
+    }
+    merged.enemyKeystoneDebuffs = pruneEnemyRuntimeMap(merged.enemyKeystoneDebuffs, { maxKeys: 120 });
+    merged.rangerWeakpointMarks = pruneEnemyRuntimeMap(merged.rangerWeakpointMarks, { maxKeys: 120 });
+    merged.enemyUniqueChaosResDown = pruneEnemyRuntimeMap(merged.enemyUniqueChaosResDown, { maxKeys: 120 });
+    merged.enemyUniqueElementalResDown = pruneEnemyRuntimeMap(merged.enemyUniqueElementalResDown, { maxKeys: 120 });
+    merged.enemyCurseExpirePayloads = pruneEnemyRuntimeMap(merged.enemyCurseExpirePayloads, { maxKeys: 120 });
     merged.encounterPlan = Array.isArray(merged.encounterPlan) ? merged.encounterPlan.map(normalizeEncounterMarker).filter(Boolean).sort((a, b) => a.at - b.at) : [];
     merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1, MAX_PLAYER_LEVEL)));
     merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));
@@ -5713,7 +5757,7 @@ function mergeDefaults(save) {
         let maxDeepZoneId = getAbyssZoneIdForDepth(Math.max(20, savedDepth));
         merged.currentZoneId = clampNumber(numericZoneId, 0, Math.max(MAP_ZONES.length - 1, maxDeepZoneId));
     }
-    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== 'beehive_run' && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID && merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID && merged.currentZoneId !== CHAOS_REALM_ZONE_ID) merged.currentZoneId = 0;
+    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== 'beehive_run' && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID && merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID && merged.currentZoneId !== CHAOS_REALM_ZONE_ID && merged.currentZoneId !== UNDERWORLD_ZONE_ID) merged.currentZoneId = 0;
     if (typeof merged.currentZoneId === 'string' && !getZone(merged.currentZoneId)) merged.currentZoneId = 0;
     if (merged.currentZoneId === 'beehive_run' && !(merged.beehive && merged.beehive.inRun)) merged.currentZoneId = merged.beehive && merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null ? merged.beehive.returnZoneId : merged.maxZoneId;
     if (merged.beehive && merged.beehive.inRun && merged.currentZoneId !== 'beehive_run') {
@@ -6701,6 +6745,7 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
 
 async function pushCloudSave(options = {}) {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
+    let t0 = Date.now();
     let remoteRecord = null;
     try {
         remoteRecord = await fetchCloudSaveRecord();
@@ -6708,6 +6753,7 @@ async function pushCloudSave(options = {}) {
         console.warn('cloud push preflight remote load failed:', loadError);
         throw new Error('클라우드 상태를 확인할 수 없어 업로드를 중단했습니다: ' + (loadError.message || loadError));
     }
+    let tFetch = Date.now();
     let loopGuard = shouldBlockLocalPushForRemoteLoop(remoteRecord);
     if (loopGuard.blocked) {
         let guardMessage = loopGuard.reason === 'bootstrap-local'
@@ -6717,12 +6763,19 @@ async function pushCloudSave(options = {}) {
         throw new Error(guardMessage);
     }
     persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true });
-    let payload = JSON.parse(JSON.stringify(game));
+    let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
+    let payloadSize = 0;
+    try {
+        payloadSize = JSON.stringify(payload).length;
+        if (payloadSize > 900000 && typeof addLog === 'function') addLog(`☁️ 클라우드 저장 데이터 최적화 적용 (${Math.round(payloadSize / 1024)}KB)`, 'attack-monster', { noToast: true });
+    } catch (e) {}
+    let tSerialize = Date.now();
     let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
         method: 'POST',
         headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
         body: { user_id: cloudState.user.id, save_data: payload }
     });
+    let tUpload = Date.now();
     let row = Array.isArray(rows) ? rows[0] : null;
     let syncedAt = row && row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
     ensureSaveMeta();
@@ -6730,6 +6783,12 @@ async function pushCloudSave(options = {}) {
     cloudState.lastRemoteUpdatedAt = syncedAt;
     cloudState.lastRemoteLoop = getSaveLoopNumber(game);
     persistLocalSave({ touchModifiedAt: false });
+    let fetchMs = Math.max(0, tFetch - t0);
+    let serializeMs = Math.max(0, tSerialize - tFetch);
+    let uploadMs = Math.max(0, tUpload - tSerialize);
+    let totalMs = Math.max(0, tUpload - t0);
+    cloudState.lastSyncProfile = { fetchMs, serializeMs, uploadMs, totalMs, payloadBytes: payloadSize };
+    if (typeof addLog === 'function' && !options.automatic) addLog(`☁️ 업로드 시간 ${totalMs}ms (조회 ${fetchMs}ms · 직렬화 ${serializeMs}ms · 전송 ${uploadMs}ms · ${(payloadSize/1024).toFixed(1)}KB)`, 'attack-monster', { noToast: true });
     updateCloudSaveUI();
     return row;
 }
@@ -6824,18 +6883,30 @@ async function reconcileCloudSaveState(options = {}) {
 }
 
 let cloudSyncTimer = null;
+function isCloudSaveDirty() {
+    let localStamp = game && game.saveMeta ? Math.max(0, Number(game.saveMeta.lastModifiedAt || 0)) : 0;
+    let syncedStamp = Math.max(0, Number(cloudState.lastSyncedLocalModifiedAt || 0), Number((game && game.saveMeta && game.saveMeta.lastCloudSyncAt) || 0));
+    return localStamp > syncedStamp;
+}
 function scheduleCloudAutoSync() {
     if (!cloudState.configured || !cloudState.user || cloudState.busy || isStartupOverlayOpen()) return;
+    if (!isCloudSaveDirty()) {
+        cloudState.pendingAutoSyncDirty = false;
+        return;
+    }
     let now = Date.now();
+    cloudState.pendingAutoSyncDirty = true;
     if (now - cloudState.lastSyncAttemptAt < CLOUD_SYNC_MIN_INTERVAL_MS) return;
     if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
     cloudSyncTimer = setTimeout(() => {
         cloudSyncTimer = null;
+        if (!cloudState.pendingAutoSyncDirty || !isCloudSaveDirty()) return;
+        cloudState.pendingAutoSyncDirty = false;
         syncCloudSave({ automatic: true }).catch(error => {
             console.warn('auto cloud sync failed:', error);
             setCloudMessage('자동 클라우드 저장 실패: ' + (error.message || error));
         });
-    }, 1200);
+    }, 5000);
 }
 
 
@@ -6878,6 +6949,7 @@ async function syncCloudSave(options = {}) {
         let guardResult = await guardAgainstStaleLocalOverwrite({ automatic: !!options.automatic, silentLog: !!options.automatic });
         if (guardResult.status === 'pulled-remote' || guardResult.status === 'pulled-remote-higher-loop') return;
         await pushCloudSave({ touchModifiedAt: options.automatic !== true });
+        cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0));
         setCloudMessage(options.automatic ? '클라우드 자동 저장을 완료했습니다.' : '클라우드 업로드를 완료했습니다.');
         if (!options.automatic) addLog('클라우드 세이브를 업로드했습니다.', 'loot-magic');
     } finally {
@@ -7090,7 +7162,7 @@ function pushCloudSaveOnPageExit(reason) {
         game.saveMeta.lastCloudSyncAt = optimisticSyncAt;
         cloudState.lastRemoteUpdatedAt = optimisticSyncAt;
         persistLocalSave({ touchModifiedAt: false });
-        let payload = JSON.parse(JSON.stringify(game));
+        let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
         let body = JSON.stringify({ user_id: cloudState.user.id, save_data: payload });
         let headers = {
             apikey: config.supabaseAnonKey,
@@ -7098,12 +7170,23 @@ function pushCloudSaveOnPageExit(reason) {
             'Content-Type': 'application/json',
             Prefer: 'resolution=merge-duplicates,return=minimal'
         };
-        fetch(config.supabaseUrl + '/rest/v1/cloud_saves', {
+        let endpoint = config.supabaseUrl + '/rest/v1/cloud_saves';
+        // NOTE: sendBeacon cannot attach Authorization/apikey headers required by Supabase RLS.
+        // Always use authenticated keepalive fetch on exit path to avoid silent unauthenticated drops.
+        fetch(endpoint, {
             method: 'POST',
             headers,
             body,
             keepalive: true
-        }).catch(error => console.warn(`cloud save on ${reason || 'page exit'} failed:`, error));
+        }).catch(error => {
+            let msg = String((error && error.message) || error || '');
+            let expectedAbort = /failed to fetch|networkerror|abort|cancel/i.test(msg);
+            if (expectedAbort && reason === 'visibilitychange') {
+                console.debug(`cloud save on ${reason} skipped by browser lifecycle:`, error);
+            } else {
+                console.warn(`cloud save on ${reason || 'page exit'} failed:`, error);
+            }
+        });
         cloudState.lastSyncAttemptAt = optimisticSyncAt;
         setCloudMessage('페이지 종료 전 클라우드 저장을 시도했습니다.');
         return true;
@@ -7119,6 +7202,41 @@ async function cloudPushNow() {
         await syncCloudSave({ automatic: false });
     } catch (error) {
         setCloudMessage('업로드 실패: ' + (error.message || error));
+    }
+}
+
+async function cloudCompactAndPushNow() {
+    if (!cloudState.user || !cloudState.user.id) return setCloudMessage('먼저 로그인해주세요.');
+    if (!confirm('클라우드 저장을 경량화(임시 전투 데이터 제거)해서 즉시 덮어쓸까요?\n핵심 진행 데이터(장비/인벤/패시브/재화)는 유지됩니다.')) return;
+    cloudState.busy = true;
+    setCloudMessage('클라우드 저장 경량화 업로드 중...');
+    updateCloudSaveUI();
+    try {
+        ensureSaveMeta();
+        game.saveMeta.lastModifiedAt = Date.now();
+        persistLocalSave({ touchModifiedAt: false });
+        let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
+        let payloadBytes = 0;
+        try { payloadBytes = JSON.stringify(payload).length; } catch (e) {}
+        let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
+            method: 'POST',
+            headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+            body: { user_id: cloudState.user.id, save_data: payload }
+        });
+        let row = Array.isArray(rows) ? rows[0] : null;
+        let syncedAt = row && row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
+        game.saveMeta.lastCloudSyncAt = syncedAt;
+        cloudState.lastRemoteUpdatedAt = syncedAt;
+        cloudState.lastSyncAttemptAt = Date.now();
+        cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
+        persistLocalSave({ touchModifiedAt: false });
+        setCloudMessage(`경량화 업로드 완료 (${(payloadBytes / 1024).toFixed(1)}KB)`);
+        addLog(`☁️ 경량화 클라우드 저장 완료 (${(payloadBytes / 1024).toFixed(1)}KB)`, 'loot-magic');
+    } catch (error) {
+        setCloudMessage('경량화 업로드 실패: ' + (error.message || error));
+    } finally {
+        cloudState.busy = false;
+        updateCloudSaveUI();
     }
 }
 
@@ -7879,4 +7997,4 @@ function getLockedTabMessage(tabId) {
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay });
+safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, cloudCompactAndPushNow });

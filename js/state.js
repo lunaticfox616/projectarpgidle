@@ -31,6 +31,7 @@ const LAST_STORY_ZONE_ID = ACT_ZONE_COUNT - 1;
 const ABYSS_START_ZONE_ID = ACT_ZONE_COUNT;
 const OUTSIDE_CHAOS_ZONE_ID = 'outside_chaos_woodsman';
 const CHAOS_REALM_ZONE_ID = 'chaos_realm';
+const UNDERWORLD_ZONE_ID = 'underworld_core';
 
 const MAP_ZONES = STORY_ACTS.map((act, idx) => ({
     id: idx,
@@ -122,6 +123,12 @@ function hasCurrentLoopChaos20Clear() {
 function canEnterChaosRealm() {
     return !!ensureChaosRealmState().unlocked && hasCurrentLoopChaos20Clear();
 }
+function canEnterUnderworld() {
+    let st = ensureChaosRealmState();
+    let hasCerberusClear = Array.isArray(game && game.clearedRootBosses) && game.clearedRootBosses.includes('s6_beast_cerberus');
+    let deepMax = getHighestUnlockedEndlessChaosDepth();
+    return !!st.unlocked && hasCurrentLoopChaos20Clear() && hasCerberusClear && deepMax >= 30;
+}
 
 function getAbyssDepthFromZoneId(id) {
     if (!Number.isFinite(id) || id < ABYSS_START_ZONE_ID) return 0;
@@ -167,6 +174,11 @@ function getZone(id) {
         let realm = ensureChaosRealmState();
         let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
         return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor) };
+    }
+    if (id === UNDERWORLD_ZONE_ID) {
+        let realm = ensureChaosRealmState();
+        let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
+        return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos', floor: floor };
     }
     if (typeof id === 'string') {
         if (id.startsWith('trial_')) return TRIAL_ZONES.find(t => t.id === id);
@@ -862,6 +874,8 @@ let cloudState = {
     lastRemoteUpdatedAt: 0,
     lastRemoteLoop: 0,
     lastSyncAttemptAt: 0,
+    lastSyncedLocalModifiedAt: 0,
+    pendingAutoSyncDirty: false,
     tokenRefreshPromise: null,
     tokenExpiryWarned: false,
     pendingForcedSyncOptions: null,
