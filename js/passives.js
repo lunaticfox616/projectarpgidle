@@ -3864,7 +3864,7 @@ function buildBattleAssetAtlas() {
     const heroStripFrameCounts = {
         hero1Idle: 6, hero1Walk: 8, hero1Attack: 7, hero1Hurt: 4, hero1Death: 8,
         hero2Idle: 6, hero2Walk: 8, hero2Attack: 12, hero2Hurt: 4, hero2Death: 8,
-        hero3Idle: 8, hero3Walk: 8, hero3Attack: 8, hero3Hurt: 8, hero3Death: 8,
+        hero3Idle: 9, hero3Walk: 9, hero3Attack: 11, hero3Hurt: 9, hero3Death: 9,
         hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7
     };
     function buildFixedStripFramesFromImage(image, frameCount) {
