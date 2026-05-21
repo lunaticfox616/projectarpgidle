@@ -2450,8 +2450,9 @@ function getZoneEncounterProfile(zone) {
     if (zone.type === 'chaosRealm') return { markerCount: 4 + Math.floor((zone.floor || 1) / 8), minPack: 2, maxPack: Math.min(8, 3 + Math.floor((zone.floor || 1) / 6)), eliteChance: 0.35, bossAdds: 2 + Math.floor((zone.floor || 1) / 12), label: `혼돈계 ${zone.floor || 1}층` };
     if (zone.type === 'underworld') {
         let floor = Math.max(1, Math.floor(zone.floor || 1));
-        let minPack = 3 + Math.floor(floor / 7);
+        let minPack = Math.min(10, 3 + Math.floor(floor / 7));
         let maxPack = Math.min(10, minPack + 2 + Math.floor(floor / 14));
+        maxPack = Math.max(minPack, maxPack);
         return {
             markerCount: 5 + Math.floor(floor / 6),
             minPack: minPack,
