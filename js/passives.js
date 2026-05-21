@@ -3907,18 +3907,14 @@ function buildBattleAssetAtlas() {
         let list = (frames || []).filter(Boolean);
         return list.map(frame => {
             let width = Math.max(1, Math.round(frame.width || 1));
-            let height = Math.max(1, Math.round(frame.height || 1));
-            if (width <= Math.round(height * 1.15)) return frame;
-            let targetWidth = Math.max(1, Math.round(height * 1.02));
-            let cropWidth = Math.min(width, targetWidth);
-            let sourceRightBiasPx = 6;
-            let maxShift = Math.max(0, width - cropWidth);
-            let shiftX = Math.min(sourceRightBiasPx, maxShift);
-            let nextX = Math.round((frame.x || 0) + (width - cropWidth) + shiftX);
+            let sourceRightBiasPx = 4;
+            let maxShift = Math.max(0, Math.min(sourceRightBiasPx, Math.floor(width * 0.1)));
+            if (maxShift <= 0) return frame;
+            let nextX = Math.round((frame.x || 0) + maxShift);
             return {
                 ...frame,
                 x: nextX,
-                width: Math.max(1, cropWidth - shiftX)
+                width: Math.max(1, width - maxShift)
             };
         });
     }
