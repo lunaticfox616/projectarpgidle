@@ -3137,6 +3137,7 @@ function initBattleAssets() {
         hero2Attack: 'assets/hero2/DemonKinBasicAtk001-Sheet.png',
         hero2Hurt: 'assets/hero2/DemonKinHurt001-Sheet.png',
         hero2Death: 'assets/hero2/DemonKinDeath001-Sheet.png',
+        hero5Custom: 'assets/hero1/hero1.png',
         hero3Idle: 'assets/hero3/DruidIdle001-Sheet.png',
         hero3Walk: 'assets/hero3/DruidWalk001-Sheet.png',
         hero3Attack: 'assets/hero3/DruidBasicAtk1-Sheet.png',
@@ -3232,6 +3233,9 @@ function initBattleAssets() {
             if (key === 'enemies' || key === 'enemies2' || key === 'enemies3') {
                 sanitized = sanitizeWhiteBackdropSheet(sanitized);
                 sanitized = sanitizeLocalMonsterBackdropSheet(sanitized);
+            }
+            if (key === 'hero5Custom') {
+                sanitized = sanitizeWhiteBackdropSheet(sanitized);
             }
             battleAssets.images[key] = sanitized;
         } catch (error) {
@@ -3865,7 +3869,8 @@ function buildBattleAssetAtlas() {
         hero1Idle: 6, hero1Walk: 8, hero1Attack: 7, hero1Hurt: 4, hero1Death: 8,
         hero2Idle: 6, hero2Walk: 8, hero2Attack: 12, hero2Hurt: 4, hero2Death: 8,
         hero3Idle: 6, hero3Walk: 8, hero3Attack: 13, hero3Hurt: 4, hero3Death: 8,
-        hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7
+        hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7,
+        hero5Custom: 16
     };
     function buildFixedStripFramesFromImage(image, frameCount) {
         if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return [];
@@ -3880,7 +3885,24 @@ function buildBattleAssetAtlas() {
         }
         return frames.filter(Boolean);
     }
-    function buildStripFramesFromImage(image, minArea, frameCount) {
+    
+    function buildGridFramesFromImage(image, cols, rows) {
+        if (!image || cols <= 0 || rows <= 0) return [];
+        let out = [];
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                let x = Math.round(c * image.width / cols);
+                let nextX = c === cols - 1 ? image.width : Math.round((c + 1) * image.width / cols);
+                let y = Math.round(r * image.height / rows);
+                let nextY = r === rows - 1 ? image.height : Math.round((r + 1) * image.height / rows);
+                let raw = { x: x, y: y, width: Math.max(1, nextX - x), height: Math.max(1, nextY - y) };
+                let trimmed = trimRectToContent(image, raw, 2);
+                out.push(withImageRef(image, trimmed && trimmed.width >= 10 && trimmed.height >= 10 ? trimmed : raw));
+            }
+        }
+        return out.filter(Boolean);
+    }
+function buildStripFramesFromImage(image, minArea, frameCount) {
         if (!image) return [];
         if (Number.isFinite(frameCount) && frameCount > 0) {
             let fixedFrames = buildFixedStripFramesFromImage(image, frameCount);
@@ -3905,6 +3927,52 @@ function buildBattleAssetAtlas() {
     }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
+        if (stripKeys.idle === 'hero5Custom' && stripKeys.walk === 'hero5Custom' && stripKeys.attack === 'hero5Custom' && stripKeys.hurt === 'hero5Custom' && stripKeys.death === 'hero5Custom') {
+            let image = battleAssets.images.hero5Custom;
+            let grid = normalizeFrameSetBasisHeight(buildGridFramesFromImage(image, 4, 4));
+            if (grid.length >= 16) {
+                let idleFrames = grid.slice(0, 4);
+                let walkFrames = grid.slice(4, 8);
+                let attackFrames = grid.slice(8, 14);
+                let hurtFrames = [grid[14]].filter(Boolean);
+                let downFrames = [grid[15]].filter(Boolean);
+                let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
+                return {
+                    characterAnimations: {
+                        idle: idleFrames,
+                        walk_or_run: walkFrames,
+                        sword_attack_body: attackFrames,
+                        cast_body: attackFrames,
+                        hurt: hurtFrames.length > 0 ? hurtFrames : [hold].filter(Boolean),
+                        down_or_knockdown: downFrames.length > 0 ? downFrames : (hurtFrames.length > 0 ? hurtFrames : [hold].filter(Boolean)),
+                        bow_attack_body: attackFrames
+                    },
+                    clipLoop: {
+                        idle: true,
+                        walk_or_run: true,
+                        sword_attack_body: false,
+                        cast_body: false,
+                        hurt: false,
+                        down_or_knockdown: false,
+                        bow_attack_body: false
+                    },
+                    idle: idleFrames,
+                    walk: walkFrames,
+                    run: walkFrames,
+                    swordCombo: attackFrames,
+                    castCombo: attackFrames,
+                    projectileCombo: attackFrames,
+                    bowCombo: attackFrames,
+                    hurt: hurtFrames,
+                    down: downFrames,
+                    attack: attackFrames[0] || hold || null,
+                    sideIdle: hold || null,
+                    sideWalk: walkFrames[0] || hold || null,
+                    frontIdle: hold || null,
+                    frontGuard: idleFrames[1] || hold || null
+                };
+            }
+        }
         let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210, heroStripFrameCounts[stripKeys.idle]));
         let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210, heroStripFrameCounts[stripKeys.walk]));
         let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220, heroStripFrameCounts[stripKeys.attack]));

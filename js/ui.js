@@ -1596,8 +1596,27 @@ function setSupportActiveTier(name, tier) { if (!assertBuildEditable()) return;
     if (!SUPPORT_GEM_DB[name]) return;
     let rec = normalizeGemRecord(((game.supportGemData || {})[name]) || { level: 1, exp: 0 });
     rec.unlockedTier = Math.max(1, Math.min(3, Math.floor(rec.unlockedTier || 1)));
-    rec.activeTier = Math.max(1, Math.min(rec.unlockedTier, Math.floor(tier || 1)));
-    game.supportGemData[name] = rec;
+    let nextTier = Math.max(1, Math.min(rec.unlockedTier, Math.floor(tier || 1)));
+    let prevTier = Math.max(1, Math.min(rec.unlockedTier, Math.floor(rec.activeTier || 1)));
+    let equipped = (game.equippedSupports || []).includes(name);
+    if (equipped && nextTier !== prevTier) {
+        let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
+        rec.activeTier = nextTier;
+        game.supportGemData[name] = rec;
+        let nextUsed = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
+        let resonancePower = Math.max(0, Math.floor(game.resonancePower || 0));
+        let isCostIncrease = nextUsed > used;
+        if (isCostIncrease && nextUsed > resonancePower) {
+            rec.activeTier = prevTier;
+            game.supportGemData[name] = rec;
+            let need = Math.max(0, nextUsed - used);
+            let remain = Math.max(0, resonancePower - used);
+            return addLog(`공명력 부족 (${remain}/${need})`, 'attack-monster');
+        }
+    } else {
+        rec.activeTier = nextTier;
+        game.supportGemData[name] = rec;
+    }
     normalizeSupportLoadout(false);
     updateStaticUI();
 }
@@ -2557,7 +2576,8 @@ function getLocalBattleHeroVisualTuning() {
         hero1: { baseHeight: 68, minHeight: 60, maxHeight: 84, downShrink: 8.2, maxScaleBoost: 1.24, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
         hero2: { baseHeight: 66, minHeight: 58, maxHeight: 81, downShrink: 8, maxScaleBoost: 1.23, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
         hero3: { baseHeight: 66, minHeight: 58, maxHeight: 81, downShrink: 8, maxScaleBoost: 1.23, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
-        hero4: { baseHeight: 67, minHeight: 59, maxHeight: 82, downShrink: 8.1, maxScaleBoost: 1.24, shadowWidth: 13, shadowHeight: 5.2, shadowAlpha: 0.18, offsetY: 2 }
+        hero4: { baseHeight: 67, minHeight: 59, maxHeight: 82, downShrink: 8.1, maxScaleBoost: 1.24, shadowWidth: 13, shadowHeight: 5.2, shadowAlpha: 0.18, offsetY: 2 },
+        hero5: { baseHeight: 52, minHeight: 46, maxHeight: 64, downShrink: 6.2, maxScaleBoost: 1.1, shadowWidth: 10.5, shadowHeight: 4.4, shadowAlpha: 0.16, offsetY: 1 }
     };
     return { ...defaultTuning, ...(localTuningByHero[game.selectedHeroId] || localTuningByHero.hero1) };
 }
@@ -2719,9 +2739,9 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
             smoothing: 'high',
-            outlineColor: '#ffffff',
-            outlineAlpha: 0.86,
-            outlineThickness: 1
+            outlineColor: game.selectedHeroId === 'hero5' ? '#0f172a' : '#ffffff',
+            outlineAlpha: game.selectedHeroId === 'hero5' ? 0.92 : 0.86,
+            outlineThickness: game.selectedHeroId === 'hero5' ? 2 : 1
         };
         drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + 7 + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
         if (flash && downPhase === null) {
@@ -7202,12 +7222,14 @@ function runStartupSmokeChecks() {
 }
 
 async function resetGame() {
-    if (!confirm("초기화하시겠습니까?")) return;
+    if (!confirm(`⚠️ 정말로 초기화하시겠습니까?\n\n- 현재 기기 로컬 세이브가 즉시 삭제됩니다.\n- 이 작업은 되돌릴 수 없습니다.`)) return;
+    if (!confirm("마지막 확인: 새 게임으로 초기화합니다. 계속할까요?")) return;
     let resetCloudToo = false;
     if (cloudState.user && getCloudConfig().enabled) {
         resetCloudToo = confirm('클라우드 저장도 새 게임 상태로 덮어쓸까요?\n취소를 누르면 이 기기만 초기화되고 현재 계정은 로그아웃됩니다.');
     }
     try {
+        window.__suppressExitSaveOnce = true;
         localStorage.removeItem(LOCAL_SAVE_KEY);
         LEGACY_SAVE_KEYS.forEach(key => localStorage.removeItem(key));
         if (resetCloudToo) {
@@ -7217,7 +7239,10 @@ async function resetGame() {
             game = cloneDefaultGame();
             await pushCloudSave({ touchModifiedAt: true });
         } else if (cloudState.user) {
-            applyCloudSession(null);
+            // Keep signed-in cloud session when user chose not to overwrite cloud data.
+            // We only skip one automatic OAuth-restore cycle so freshly reset local data
+            // is not immediately replaced before startup flow choice is shown.
+            markSkipOAuthRestoreOnce();
         }
     } catch (error) {
         console.error('resetGame failed:', error);
@@ -7311,15 +7336,18 @@ function init() {
         window.__cloudVisibilitySaveBound = true;
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
+                if (window.__suppressExitSaveOnce) return;
                 saveGame({ skipCloudSync: true });
                 pushCloudSaveOnPageExit('visibilitychange');
             }
         });
         window.addEventListener('pagehide', function() {
+            if (window.__suppressExitSaveOnce) return;
             saveGame({ skipCloudSync: true });
             pushCloudSaveOnPageExit('pagehide');
         });
         window.addEventListener('beforeunload', function() {
+            if (window.__suppressExitSaveOnce) return;
             saveGame({ skipCloudSync: true });
             pushCloudSaveOnPageExit('beforeunload');
         });
@@ -7385,7 +7413,7 @@ function init() {
         if (autoSaveHandle) clearInterval(autoSaveHandle);
         autoSaveHandle = setInterval(() => {
             if (isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
-            saveGame({ skipCloudSync: true });
+            saveGame();
         }, 15000);
     }
 }
