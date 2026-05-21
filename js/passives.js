@@ -3903,11 +3903,28 @@ function buildBattleAssetAtlas() {
         let basisHeight = heights[mid] || heights[0] || 1;
         return list.map(frame => ({ ...frame, basisHeight: basisHeight }));
     }
+    function sanitizeHero3AttackFrames(frames) {
+        let list = (frames || []).filter(Boolean);
+        return list.map(frame => {
+            let width = Math.max(1, Math.round(frame.width || 1));
+            let height = Math.max(1, Math.round(frame.height || 1));
+            if (width <= Math.round(height * 1.15)) return frame;
+            let targetWidth = Math.max(1, Math.round(height * 1.02));
+            let cropWidth = Math.min(width, targetWidth);
+            let nextX = Math.round((frame.x || 0) + (width - cropWidth));
+            return {
+                ...frame,
+                x: nextX,
+                width: cropWidth
+            };
+        });
+    }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
         let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210, heroStripFrameCounts[stripKeys.idle]));
         let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210, heroStripFrameCounts[stripKeys.walk]));
         let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220, heroStripFrameCounts[stripKeys.attack]));
+        if (heroId === 'hero3') attackFrames = normalizeFrameSetBasisHeight(sanitizeHero3AttackFrames(attackFrames));
         let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200, heroStripFrameCounts[stripKeys.hurt]));
         let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200, heroStripFrameCounts[stripKeys.death]));
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
