@@ -549,8 +549,9 @@ function coreLoop() {
         // only an active beehive expedition should block halt recovery.
         let beehivePause = !!(beehiveLocked && game.currentZoneId === 'beehive_run' && !beehive.awaitingClear);
         let stopByMapSetting = (game.settings.mapCompleteAction || 'nextZone') === 'stop';
-        let stopByTownSetting = (game.settings.townReturnAction || 'retry') === 'stop';
-        let manualStopState = stopByMapSetting || stopByTownSetting || !!game.pendingLoopDecision;
+        // townReturnAction='stop' is a runtime choice after manual town return/defeat.
+        // During load/reconcile, do not treat this setting itself as a permanent halt condition.
+        let manualStopState = stopByMapSetting || !!game.pendingLoopDecision;
         if (beehivePause || game.inTicketBossFight || manualStopState) return;
         game.combatHalted = false;
     }
