@@ -6889,6 +6889,13 @@ async function syncCloudSave(options = {}) {
 
 async function initializeCloudSave() {
     cloudState.initialized = true;
+    if ((window.location && window.location.protocol) === 'file:') {
+        cloudState.configured = false;
+        setCloudMessage('file:// 로컬 실행에서는 브라우저 보안 정책으로 클라우드 로그인을 비활성화합니다. 로컬 저장 모드로 시작합니다.');
+        updateCloudSaveUI();
+        if (!gameplayStarted) await enterGameWorld();
+        return;
+    }
     cloudState.configured = getCloudConfig().enabled;
     if (!cloudState.configured) {
         setCloudMessage('cloud-save-config.js를 설정하면 클라우드 세이브를 켤 수 있습니다.');
