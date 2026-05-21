@@ -1596,8 +1596,26 @@ function setSupportActiveTier(name, tier) { if (!assertBuildEditable()) return;
     if (!SUPPORT_GEM_DB[name]) return;
     let rec = normalizeGemRecord(((game.supportGemData || {})[name]) || { level: 1, exp: 0 });
     rec.unlockedTier = Math.max(1, Math.min(3, Math.floor(rec.unlockedTier || 1)));
-    rec.activeTier = Math.max(1, Math.min(rec.unlockedTier, Math.floor(tier || 1)));
-    game.supportGemData[name] = rec;
+    let nextTier = Math.max(1, Math.min(rec.unlockedTier, Math.floor(tier || 1)));
+    let prevTier = Math.max(1, Math.min(rec.unlockedTier, Math.floor(rec.activeTier || 1)));
+    let equipped = (game.equippedSupports || []).includes(name);
+    if (equipped && nextTier !== prevTier) {
+        let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
+        rec.activeTier = nextTier;
+        game.supportGemData[name] = rec;
+        let nextUsed = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
+        let resonancePower = Math.max(0, Math.floor(game.resonancePower || 0));
+        if (nextUsed > resonancePower) {
+            rec.activeTier = prevTier;
+            game.supportGemData[name] = rec;
+            let need = Math.max(0, nextUsed - used);
+            let remain = Math.max(0, resonancePower - used);
+            return addLog(`공명력 부족 (${remain}/${need})`, 'attack-monster');
+        }
+    } else {
+        rec.activeTier = nextTier;
+        game.supportGemData[name] = rec;
+    }
     normalizeSupportLoadout(false);
     updateStaticUI();
 }

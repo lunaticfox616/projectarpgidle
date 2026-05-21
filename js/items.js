@@ -241,7 +241,8 @@ function changeZone(id) {
         st.skyRiftMinTier = null;
     }
     let zone = getZone(id);
-    if (zone && zone.type === 'seasonBoss') {
+    if (!zone) return addLog('이동할 수 없는 지역입니다.', 'attack-monster');
+    if (zone.type === 'seasonBoss') {
         if ((game.season || 1) < (zone.reqSeason || 2)) return addLog('아직 시즌 보스가 잠겨 있습니다.', 'attack-monster');
         if ((game.currencies[zone.key] || 0) <= 0) return addLog(`입장 열쇠(${ORB_DB[zone.key].name})가 필요합니다.`, 'attack-monster');
         game.currencies[zone.key]--;
@@ -266,7 +267,6 @@ function changeZone(id) {
     }
     game.currentZoneId = id;
     game.killsInZone = 0;
-    if (!zone) return addLog('이동할 수 없는 지역입니다.', 'attack-monster');
     addLog(`🗺️ ${zone.name} 이동`, "season-up");
     startMoving(true);
     updateStaticUI();
