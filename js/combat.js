@@ -549,8 +549,9 @@ function coreLoop() {
         // only an active beehive expedition should block halt recovery.
         let beehivePause = !!(beehiveLocked && game.currentZoneId === 'beehive_run' && !beehive.awaitingClear);
         let stopByMapSetting = (game.settings.mapCompleteAction || 'nextZone') === 'stop';
-        let stopByTownSetting = (game.settings.townReturnAction || 'retry') === 'stop';
-        let manualStopState = stopByMapSetting || stopByTownSetting || !!game.pendingLoopDecision;
+        // townReturnAction='stop' is a runtime choice after manual town return/defeat.
+        // During load/reconcile, do not treat this setting itself as a permanent halt condition.
+        let manualStopState = stopByMapSetting || !!game.pendingLoopDecision;
         if (beehivePause || game.inTicketBossFight || manualStopState) return;
         game.combatHalted = false;
     }
@@ -1279,13 +1280,13 @@ function getPlayerStats() {
     if (uniqueHpToPhysPct) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalMaxHp / 100) / 100));
 
     let resistPenalty = (game.maxZoneId >= 5 ? 30 : 0) + (game.maxZoneId >= 10 ? 30 : 0);
-    let finalMaxResF = Math.min(90, 75 + gearBase.maxResF + gearExplicit.maxResF + passive.maxResF + season.maxResF + ascend.maxResF + reward.maxResF);
-    let finalMaxResC = Math.min(90, 75 + gearBase.maxResC + gearExplicit.maxResC + passive.maxResC + season.maxResC + ascend.maxResC + reward.maxResC);
-    let finalMaxResL = Math.min(90, 75 + gearBase.maxResL + gearExplicit.maxResL + passive.maxResL + season.maxResL + ascend.maxResL + reward.maxResL);
-    let rawResF = gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + reward.resF - resistPenalty;
-    let rawResC = gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + reward.resC - resistPenalty;
-    let rawResL = gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + reward.resL - resistPenalty;
-    let rawResChaos = gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos - resistPenalty;
+    let finalMaxResF = Math.min(90, 75 + gearBase.maxResF + gearExplicit.maxResF + passive.maxResF + season.maxResF + ascend.maxResF + support.maxResF + reward.maxResF);
+    let finalMaxResC = Math.min(90, 75 + gearBase.maxResC + gearExplicit.maxResC + passive.maxResC + season.maxResC + ascend.maxResC + support.maxResC + reward.maxResC);
+    let finalMaxResL = Math.min(90, 75 + gearBase.maxResL + gearExplicit.maxResL + passive.maxResL + season.maxResL + ascend.maxResL + support.maxResL + reward.maxResL);
+    let rawResF = gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + support.resF + reward.resF - resistPenalty;
+    let rawResC = gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + support.resC + reward.resC - resistPenalty;
+    let rawResL = gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + support.resL + reward.resL - resistPenalty;
+    let rawResChaos = gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + support.resChaos + reward.resChaos - resistPenalty;
     let finalResF = Math.min(finalMaxResF, rawResF);
     let finalResC = Math.min(finalMaxResC, rawResC);
     let finalResL = Math.min(finalMaxResL, rawResL);
@@ -2071,10 +2072,6 @@ function rollEnemyTrait(zone, isElite, isBoss, seed) {
     if (zone && zone.type === 'trial' && zone.id === 'trial_4') {
         list = list.map(trait => trait.id === 'bloodless' ? { id: 'leechResist_trial4', name: '흡혈저항', leechEffMul: 0.45, expMul: trait.expMul, dropMul: trait.dropMul } : trait);
     }
-    if (zone.ele === 'fire') list.unshift({ id: 'fireWard+', name: '화염 과충전', resF: 36 });
-    if (zone.ele === 'cold') list.unshift({ id: 'coldWard+', name: '빙결 과충전', resC: 36 });
-    if (zone.ele === 'light') list.unshift({ id: 'lightWard+', name: '뇌전 과충전', resL: 36 });
-    if (zone.ele === 'chaos') list.unshift({ id: 'chaosWard+', name: '공허 장막', resChaos: 32 });
     if ((game.season || 1) >= 10 && zone && zone.type === 'abyss' && zone.ele === 'chaos') list.unshift({ id: 'veryFast_loop10', name: '매우 빠름', attackSpeedVarMul: 1.34, expMul: 1.10, dropMul: 1.08 });
     let idx = Math.abs(seed || 0) % list.length;
     return { ...list[idx] };
@@ -2168,8 +2165,10 @@ function grantChaosRealmFloorBonus(floor) {
 
 function getEnemyElementResistance(skillEle, zoneTier, enemy) {
     let baseRes = 0;
-    if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') baseRes = Math.min(32, zoneTier * 3);
-    else if (skillEle === 'chaos') baseRes = Math.min(22, zoneTier * 2.2);
+    let zoneProgress = clampNumber(((zoneTier || 1) - 1) / 19, 0, 1);
+    let curved = zoneProgress * zoneProgress;
+    if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') baseRes = 5 + Math.floor(20 * curved);
+    else if (skillEle === 'chaos') baseRes = 5 + Math.floor(20 * curved);
     if (!enemy) return baseRes;
     if (skillEle === 'fire') return baseRes + (enemy.resF || 0);
     if (skillEle === 'cold') return baseRes + (enemy.resC || 0);
@@ -2192,7 +2191,7 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     if (skillEle !== 'chaos' && ['fire','cold','light'].includes(skillEle) && enemy && enemy.id && game.enemyUniqueElementalResDown && game.enemyUniqueElementalResDown[enemy.id]) {
         let deb = game.enemyUniqueElementalResDown[enemy.id];
         let shred = Math.min(Math.max(0, Number(deb.max || 20)), Math.max(0, Number(deb.stacks || 0)) * Math.max(0, Number(deb.perHit || 2)));
-        resist -= shred;
+        rawMitigation -= shred;
     }
     if (skillEle === 'chaos' && enemy && enemy.id && game.enemyUniqueChaosResDown && game.enemyUniqueChaosResDown[enemy.id]) {
         let deb = game.enemyUniqueChaosResDown[enemy.id];
@@ -2233,6 +2232,29 @@ function getTierDropMulWithCaps(tier, zone) {
         return floor30SoftCapMul;
     }
     return baseMul;
+}
+
+
+function getZoneDefenseVariance(zone) {
+    let key = String((zone && zone.id) || 'zone');
+    let seed = Math.abs(hashSeed(key + ':def-var')) % 7;
+    return (seed - 3) * 0.02;
+}
+
+function getZoneElementWardProfile(zone) {
+    if (!zone) return null;
+    let specialBossZone = zone.type === 'outsideChaos'
+        || zone.id === 'beehive_run'
+        || zone.id === 'grand_breach_run'
+        || zone.type === 'meteor'
+        || zone.type === 'seasonBoss'
+        || zone.type === 'trial';
+    if (specialBossZone) return null;
+    let key = String(zone.id || zone.name || 'zone');
+    let elemList = ['fire', 'cold', 'light'];
+    let elem = elemList[Math.abs(hashSeed(key + ':elem-ward')) % elemList.length];
+    let strength = 6 + (Math.abs(hashSeed(key + ':elem-ward-strength')) % 13);
+    return { elem: elem, strength: strength };
 }
 
 function createEnemy(zone, marker, groupIndex) {
@@ -2291,13 +2313,24 @@ function createEnemy(zone, marker, groupIndex) {
     if (trait && trait.hpMul) hp = Math.floor(hp * trait.hpMul);
     let isSky = (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
     if (isSky) name = `☁️ ${name}`;
-    let resistBase = isBoss ? Math.min(75, 24 + Math.floor(zone.tier * 2.2)) : (isElite ? Math.min(60, 14 + Math.floor(zone.tier * 1.8)) : Math.min(40, Math.floor(zone.tier * 1.9)));
-    let chaosResBase = isBoss ? Math.min(60, 12 + Math.floor(zone.tier * 1.7)) : (isElite ? Math.min(45, 8 + Math.floor(zone.tier * 1.3)) : Math.min(30, Math.floor(zone.tier * 1.1)));
+    let zoneProgress = clampNumber(((zone.tier || 1) - 1) / 19, 0, 1);
+    let curved = zoneProgress * zoneProgress;
+    let variance = getZoneDefenseVariance(zone);
+    let normalDrCap = 20, eliteDrCap = 45, bossDrCap = 75;
+    let drFloor = isBoss ? 10 : 0;
+    let drRange = isBoss ? (bossDrCap - drFloor) : (isElite ? eliteDrCap : normalDrCap);
+    let drBase = drFloor + Math.floor(Math.max(0, drRange) * clampNumber(curved + variance, 0, 1));
+
+    let normalResCap = 25, eliteResCap = 60, bossResCap = 80;
+    let resFloor = isBoss ? 15 : 5;
+    let resRange = (isBoss ? bossResCap : (isElite ? eliteResCap : normalResCap)) - resFloor;
+    let resistBase = resFloor + Math.floor(Math.max(0, resRange) * clampNumber(curved + variance, 0, 1));
+    let chaosResBase = resistBase;
+
     let defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
     let defenseLoopScale = Math.min(2.2, 1 + Math.max(0, (game.loopCount || 0)) * 0.05);
     let baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * (isBoss ? 2.2 : (isElite ? 1.6 : 1)));
     let baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * (isBoss ? 2.1 : (isElite ? 1.5 : 1)));
-    let drBase = isBoss ? Math.min(70, 10 + Math.floor(zone.tier * 1.55)) : (isElite ? Math.min(55, 6 + Math.floor(zone.tier * 1.2)) : Math.min(40, 2 + Math.floor(zone.tier * 0.85)));
     let enemy = {
         id: game.nextEnemyId++,
         hp: hp,
@@ -2310,11 +2343,11 @@ function createEnemy(zone, marker, groupIndex) {
         groupIndex: groupIndex,
         variantSeed: variantSeed,
         ele: enemyEle,
-        dr: Math.max(0, drBase + (trait && trait.dr ? trait.dr : 0)),
-        resF: Math.min(75, resistBase + (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0)),
-        resC: Math.min(75, resistBase + (trait && trait.resC ? trait.resC : 0) + (abyssScale.resistBonus || 0)),
-        resL: Math.min(75, resistBase + (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0)),
-        resChaos: Math.min(75, chaosResBase + (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0)),
+        dr: Math.min(90, Math.max(0, drBase + (trait && trait.dr ? trait.dr : 0))),
+        resF: Math.min(95, resistBase + (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0)),
+        resC: Math.min(95, resistBase + (trait && trait.resC ? trait.resC : 0) + (abyssScale.resistBonus || 0)),
+        resL: Math.min(95, resistBase + (trait && trait.resL ? trait.resL : 0) + (abyssScale.resistBonus || 0)),
+        resChaos: Math.min(95, chaosResBase + (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0)),
         armor: baseArmor,
         evasion: baseEvasion,
         atkMul: trait && trait.atkMul ? trait.atkMul : 1,
@@ -2339,6 +2372,12 @@ function createEnemy(zone, marker, groupIndex) {
         dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier, zone),
         isSky: isSky
     };
+    let zoneWard = getZoneElementWardProfile(zone);
+    if (zoneWard) {
+        if (zoneWard.elem === 'fire') enemy.resF = Math.min(95, enemy.resF + zoneWard.strength);
+        else if (zoneWard.elem === 'cold') enemy.resC = Math.min(95, enemy.resC + zoneWard.strength);
+        else if (zoneWard.elem === 'light') enemy.resL = Math.min(95, enemy.resL + zoneWard.strength);
+    }
     if (zone.type === 'outsideChaos') enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
     if (zone.type === 'outsideChaos') {
         enemy.isWoodsman = true;
