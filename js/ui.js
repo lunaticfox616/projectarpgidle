@@ -7228,6 +7228,7 @@ async function resetGame() {
         resetCloudToo = confirm('클라우드 저장도 새 게임 상태로 덮어쓸까요?\n취소를 누르면 이 기기만 초기화되고 현재 계정은 로그아웃됩니다.');
     }
     try {
+        window.__suppressExitSaveOnce = true;
         localStorage.removeItem(LOCAL_SAVE_KEY);
         LEGACY_SAVE_KEYS.forEach(key => localStorage.removeItem(key));
         if (resetCloudToo) {
@@ -7334,15 +7335,18 @@ function init() {
         window.__cloudVisibilitySaveBound = true;
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
+                if (window.__suppressExitSaveOnce) return;
                 saveGame({ skipCloudSync: true });
                 pushCloudSaveOnPageExit('visibilitychange');
             }
         });
         window.addEventListener('pagehide', function() {
+            if (window.__suppressExitSaveOnce) return;
             saveGame({ skipCloudSync: true });
             pushCloudSaveOnPageExit('pagehide');
         });
         window.addEventListener('beforeunload', function() {
+            if (window.__suppressExitSaveOnce) return;
             saveGame({ skipCloudSync: true });
             pushCloudSaveOnPageExit('beforeunload');
         });
