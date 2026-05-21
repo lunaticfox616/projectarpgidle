@@ -7130,7 +7130,7 @@ function pushCloudSaveOnPageExit(reason) {
         game.saveMeta.lastCloudSyncAt = optimisticSyncAt;
         cloudState.lastRemoteUpdatedAt = optimisticSyncAt;
         persistLocalSave({ touchModifiedAt: false });
-        let payload = JSON.parse(JSON.stringify(game));
+        let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
         let body = JSON.stringify({ user_id: cloudState.user.id, save_data: payload });
         let headers = {
             apikey: config.supabaseAnonKey,
@@ -7138,12 +7138,32 @@ function pushCloudSaveOnPageExit(reason) {
             'Content-Type': 'application/json',
             Prefer: 'resolution=merge-duplicates,return=minimal'
         };
-        fetch(config.supabaseUrl + '/rest/v1/cloud_saves', {
-            method: 'POST',
-            headers,
-            body,
-            keepalive: true
-        }).catch(error => console.warn(`cloud save on ${reason || 'page exit'} failed:`, error));
+        let endpoint = config.supabaseUrl + '/rest/v1/cloud_saves';
+        let beaconSent = false;
+        try {
+            if (navigator && typeof navigator.sendBeacon === 'function') {
+                let blob = new Blob([body], { type: 'application/json' });
+                beaconSent = navigator.sendBeacon(endpoint, blob);
+            }
+        } catch (beaconError) {
+            beaconSent = false;
+        }
+        if (!beaconSent) {
+            fetch(endpoint, {
+                method: 'POST',
+                headers,
+                body,
+                keepalive: true
+            }).catch(error => {
+                let msg = String((error && error.message) || error || '');
+                let expectedAbort = /failed to fetch|networkerror|abort|cancel/i.test(msg);
+                if (expectedAbort && reason === 'visibilitychange') {
+                    console.debug(`cloud save on ${reason} skipped by browser lifecycle:`, error);
+                } else {
+                    console.warn(`cloud save on ${reason || 'page exit'} failed:`, error);
+                }
+            });
+        }
         cloudState.lastSyncAttemptAt = optimisticSyncAt;
         setCloudMessage('페이지 종료 전 클라우드 저장을 시도했습니다.');
         return true;
