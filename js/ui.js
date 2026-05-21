@@ -7221,10 +7221,7 @@ function runStartupSmokeChecks() {
 }
 
 async function resetGame() {
-    if (!confirm("⚠️ 정말로 초기화하시겠습니까?
-
-- 현재 기기 로컬 세이브가 즉시 삭제됩니다.
-- 이 작업은 되돌릴 수 없습니다.")) return;
+    if (!confirm(`⚠️ 정말로 초기화하시겠습니까?\n\n- 현재 기기 로컬 세이브가 즉시 삭제됩니다.\n- 이 작업은 되돌릴 수 없습니다.`)) return;
     if (!confirm("마지막 확인: 새 게임으로 초기화합니다. 계속할까요?")) return;
     let resetCloudToo = false;
     if (cloudState.user && getCloudConfig().enabled) {
