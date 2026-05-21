@@ -6885,7 +6885,9 @@ async function reconcileCloudSaveState(options = {}) {
 let cloudSyncTimer = null;
 function isCloudSaveDirty() {
     let localStamp = game && game.saveMeta ? Math.max(0, Number(game.saveMeta.lastModifiedAt || 0)) : 0;
-    let syncedStamp = Math.max(0, Number(cloudState.lastSyncedLocalModifiedAt || 0), Number((game && game.saveMeta && game.saveMeta.lastCloudSyncAt) || 0));
+    // IMPORTANT: only use confirmed sync watermark.
+    // game.saveMeta.lastCloudSyncAt can be set optimistically in page-exit path before network success.
+    let syncedStamp = Math.max(0, Number(cloudState.lastSyncedLocalModifiedAt || 0));
     return localStamp > syncedStamp;
 }
 function scheduleCloudAutoSync() {

@@ -5352,6 +5352,13 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
         let max = Math.max(min, Math.floor(Number(p.max || p.socketsMax || 2)));
         let count = min + Math.floor(Math.random() * (max - min + 1));
         item.abyssSockets = Array.from({ length: count }, () => ({ jewel: null }));
+        if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp') {
+            let ampMin = Math.max(1, Math.floor(Number(p.ampMin || 1)));
+            let ampMax = Math.max(ampMin, Math.floor(Number(p.ampMax || 100)));
+            p.ampPct = ampMin + Math.floor(Math.random() * (ampMax - ampMin + 1));
+            item.uniqueEffectParams = p;
+            item.uniqueEffect = `심연 주얼 슬롯 (${count})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
+        }
     }
     unique.stats.forEach(stat => {
         let rolled = rollUniqueStatValue(stat);
@@ -6387,6 +6394,15 @@ function useCurrency(currencyKey) {
             let val = Number(stat.valMin) + Math.random() * (Number(stat.valMax) - Number(stat.valMin));
             if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) stat.val = Math.round(val * 10) / 10;
             else stat.val = Math.floor(val);
+        }
+        if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp' && item.uniqueEffectParams) {
+            let p = item.uniqueEffectParams;
+            let ampMin = Math.max(1, Math.floor(Number(p.ampMin || 1)));
+            let ampMax = Math.max(ampMin, Math.floor(Number(p.ampMax || 100)));
+            p.ampPct = ampMin + Math.floor(Math.random() * (ampMax - ampMin + 1));
+            item.uniqueEffectParams = p;
+            let socketCount = Array.isArray(item.abyssSockets) ? item.abyssSockets.length : Math.max(1, Math.floor(Number(p.socketsMin || 1)));
+            item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
         }
     } else if (currencyKey === 'scour') {
         item.stats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);

@@ -892,7 +892,7 @@ function getPlayerStats() {
             if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp') {
                 let p = item.uniqueEffectParams || {};
                 let min = Number(p.ampMin || 1), max = Number(p.ampMax || 100);
-                let pct = (min + max) / 2;
+                let pct = Number.isFinite(Number(p.ampPct)) ? Number(p.ampPct) : ((min + max) / 2);
                 abyssAmp = 1 + (pct / 100);
             }
             item.abyssSockets.forEach(sock => {
@@ -1321,7 +1321,7 @@ function getPlayerStats() {
     let finalMinDmgRoll = Math.max(5, 80 + gearBase.minDmgRoll + gearExplicit.minDmgRoll + passive.minDmgRoll + season.minDmgRoll + ascend.minDmgRoll + support.minDmgRoll + reward.minDmgRoll);
     let finalMaxDmgRoll = Math.max(finalMinDmgRoll, 100 + gearBase.maxDmgRoll + gearExplicit.maxDmgRoll + passive.maxDmgRoll + season.maxDmgRoll + ascend.maxDmgRoll + support.maxDmgRoll + reward.maxDmgRoll);
     if (uniqueMinRollEqualsMaxRoll) finalMinDmgRoll = finalMaxDmgRoll;
-    if (uniqueHpToPhysPct) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalMaxHp / 100) / 100));
+    if (uniqueHpToPhysPct && skill.ele === 'phys' && !(Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0)) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalMaxHp / 100) / 100));
 
     let resistPenalty = (game.maxZoneId >= 5 ? 30 : 0) + (game.maxZoneId >= 10 ? 30 : 0);
     let finalMaxResF = Math.min(90, 75 + gearBase.maxResF + gearExplicit.maxResF + passive.maxResF + season.maxResF + ascend.maxResF + support.maxResF + reward.maxResF);
