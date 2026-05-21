@@ -3137,11 +3137,11 @@ function initBattleAssets() {
         hero2Attack: 'assets/hero2/DemonKinBasicAtk001-Sheet.png',
         hero2Hurt: 'assets/hero2/DemonKinHurt001-Sheet.png',
         hero2Death: 'assets/hero2/DemonKinDeath001-Sheet.png',
-        hero3Idle: 'assets/hero3/DruidIdle001-Sheet.png',
-        hero3Walk: 'assets/hero3/DruidWalk001-Sheet.png',
-        hero3Attack: 'assets/hero3/DruidBasicAtk1-Sheet.png',
-        hero3Hurt: 'assets/hero3/DruidHurt001-Sheet.png',
-        hero3Death: 'assets/hero3/DruidDeath001-Sheet.png',
+        hero3Idle: 'assets/hero3/hero3_walk.png',
+        hero3Walk: 'assets/hero3/hero3_walk.png',
+        hero3Attack: 'assets/hero3/hero3_attack.png',
+        hero3Hurt: 'assets/hero3/hero3_walk.png',
+        hero3Death: 'assets/hero3/hero3_walk.png',
         hero4Idle: 'assets/hero4/SeveredFangIdle001-Sheet.png',
         hero4Walk: 'assets/hero4/SeveredFangWalk001-Sheet.png',
         hero4Attack: 'assets/hero4/SeveredFangBasicAtk001-Sheet.png',
@@ -3864,7 +3864,7 @@ function buildBattleAssetAtlas() {
     const heroStripFrameCounts = {
         hero1Idle: 6, hero1Walk: 8, hero1Attack: 7, hero1Hurt: 4, hero1Death: 8,
         hero2Idle: 6, hero2Walk: 8, hero2Attack: 12, hero2Hurt: 4, hero2Death: 8,
-        hero3Idle: 6, hero3Walk: 8, hero3Attack: 13, hero3Hurt: 4, hero3Death: 8,
+        hero3Idle: 8, hero3Walk: 8, hero3Attack: 8, hero3Hurt: 8, hero3Death: 8,
         hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7
     };
     function buildFixedStripFramesFromImage(image, frameCount) {
