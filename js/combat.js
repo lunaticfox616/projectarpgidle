@@ -594,8 +594,9 @@ function coreLoop() {
     if (!Number.isFinite(game.playerEsLastHitAt)) game.playerEsLastHitAt = 0;
     if ((pStats.energyShield || 0) > 0 && game.playerEnergyShield < (pStats.energyShield || 0)) {
         let sinceHit = (Date.now() - (game.playerEsLastHitAt || 0)) / 1000;
+        let noInterruptEsRegen = game.ascendClass === 'elementalist' && hasKeystone('e3');
         let allowRechargeWhileMoving = (game.moveTimer || 0) > 0 && (pStats.energyShieldRechargeDelay || 0) <= 0;
-        if (allowRechargeWhileMoving || sinceHit >= (pStats.energyShieldRechargeDelay || 3)) {
+        if (noInterruptEsRegen || allowRechargeWhileMoving || sinceHit >= (pStats.energyShieldRechargeDelay || 3)) {
             let regenPerSec = (pStats.energyShield || 0) * ((pStats.energyShieldRegenRate || 12.5) / 100);
             game.playerEnergyShield = Math.min((pStats.energyShield || 0), game.playerEnergyShield + regenPerSec * 0.1);
         }
