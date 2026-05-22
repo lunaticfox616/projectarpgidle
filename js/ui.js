@@ -908,8 +908,78 @@ function renderUnderworldMapPanel() {
     let floor = Math.max(1, Math.floor(st.currentFloor || 1));
     let highest = Math.max(1, Math.floor(st.highestFloor || 1));
     let canEnter = typeof canEnterUnderworld === 'function' && canEnterUnderworld();
-    panel.innerHTML = `<div style="font-weight:800; color:#e4d8ff;">지하계: 핵으로 하강</div><div style="margin-top:6px; color:#bfc8ea;">해금 조건: <strong>야수왕 케르베로스 클리어</strong> + <strong>혼돈 심화 30층 돌파</strong> (영구 해금)</div><div style="margin-top:4px; color:${canEnter ? '#d6e4ff' : '#ffcf8a'};">입장 조건: 이번 루프 혼돈 20 클리어 필요 · 고중력으로 층이 깊어질수록 이속/공속 감소 · 15층부터 지속 피해</div>`;
-    list.innerHTML = `<div class="map-item ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}" ${canEnter ? 'onclick="enterUnderworldPrompt()"' : ''}><div class="map-item-main"><span>🕳️</span><span>지하계 ${floor}층<br><span class="map-zone-status">난이도 기준: 혼돈 심화 30급 · 몬스터 피해/공속 완화</span></span></div><div class="map-item-actions"><span class="map-zone-status">${canEnter ? `입장 가능: 1 ~ ${highest}` : '야수왕 케르베로스 + 심화30 + 혼돈20 필요'}</span></div></div>`;
+    let runeState = game.underworldRunes || { unlockedSlots: 0, unlockedRunesMaxNumber: 0 };
+    let runeList = Array.isArray(runeState.obtainedRunes) ? runeState.obtainedRunes : [];
+    let runeCountMap = runeList.reduce((acc, n) => { let k = Math.max(1, Math.floor(n || 1)); acc[k] = (acc[k] || 0) + 1; return acc; }, {});
+    let runeLine = Object.keys(runeCountMap).sort((a,b)=>Number(a)-Number(b)).slice(0, 10).map(k => {
+        let def = getUnderworldRuneDef(Number(k));
+        return `${def ? def.name : ('룬'+k)}×${runeCountMap[k]}`;
+    }).join(', ');
+    let equippedLine = (Array.isArray(runeState.equippedRunes) ? runeState.equippedRunes : []).slice(0, 6).map((no, idx) => {
+        if (!no || idx >= Math.max(0, Math.floor(runeState.unlockedSlots || 0))) return `[${idx + 1}] 비어있음`;
+        let def = getUnderworldRuneDef(no);
+        return `[${idx + 1}] ${def ? `${def.name} (${getStatName(def.stat)} +${formatValue(def.stat, def.val)})` : `룬${no}`}`;
+    }).join('<br>');
+    panel.innerHTML = `<div style="font-weight:800; color:#e4d8ff;">지하계: 핵으로 하강</div><div style="margin-top:6px; color:#bfc8ea;">해금 조건: <strong>야수왕 케르베로스 클리어 + 혼돈 심화 30층 + 고대 미궁 100층</strong> (영구 해금)</div><div style="margin-top:4px; color:${canEnter ? '#d6e4ff' : '#ffcf8a'};">입장 조건: 이번 루프 혼돈 20 클리어 필요 · 고중력으로 층이 깊어질수록 이속/공속 감소 · 15층부터 지속 피해</div><div style="margin-top:6px; color:#c9b8ff;">룬 슬롯 ${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 · 해금된 룬 번호 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))}</div><div style="margin-top:6px;"><button onclick="craftUnderworldRune()">룬 가공 (룬조각 10)</button><button onclick="upgradeUnderworldRune()" style="margin-left:6px;">룬 승급 (동일 룬 3개 + 룬조각)</button></div><div style="margin-top:6px; color:#aebde0;">보유 룬: ${runeLine || '없음'}${Object.keys(runeCountMap).length > 10 ? ' ...' : ''}</div><div style="margin-top:6px; color:#d6e4ff;">장착 룬(영구 적용):<br>${equippedLine || '없음'}</div>`;
+    list.innerHTML = `<div class="map-item ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}" ${canEnter ? 'onclick="enterUnderworldPrompt()"' : ''}><div class="map-item-main"><span>🕳️</span><span>지하계 ${floor}층<br><span class="map-zone-status">난이도 기준: 혼돈 심화 30급 · 전용 드랍/룬 해금</span></span></div><div class="map-item-actions"><span class="map-zone-status">${canEnter ? `입장 가능: 1 ~ ${highest}` : '케르베로스 + 심화30 + 미궁100 + 혼돈20 필요'}</span></div></div>`;
+}
+function ensureUnderworldRuneState() {
+    if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null] };
+    game.underworldRunes.obtainedRunes = Array.isArray(game.underworldRunes.obtainedRunes) ? game.underworldRunes.obtainedRunes : [];
+    game.underworldRunes.equippedRunes = Array.isArray(game.underworldRunes.equippedRunes) ? game.underworldRunes.equippedRunes.slice(0, 6) : [null, null, null, null, null, null];
+    while (game.underworldRunes.equippedRunes.length < 6) game.underworldRunes.equippedRunes.push(null);
+    return game.underworldRunes;
+}
+function getUnderworldRuneDef(no) {
+    return (Array.isArray(UNDERWORLD_RUNE_DB) ? UNDERWORLD_RUNE_DB : []).find(row => row.no === Math.max(1, Math.floor(no || 0))) || null;
+}
+function autoEquipUnderworldRune(no) {
+    let st = ensureUnderworldRuneState();
+    let cap = Math.max(0, Math.min(6, Math.floor(st.unlockedSlots || 0)));
+    if (cap <= 0) return;
+    for (let i = 0; i < cap; i++) {
+        if (!st.equippedRunes[i]) { st.equippedRunes[i] = no; return; }
+    }
+}
+function craftUnderworldRune() {
+    let st = ensureUnderworldRuneState();
+    let maxNo = Math.max(0, Math.floor(st.unlockedRunesMaxNumber || 0));
+    if (maxNo <= 0) return addLog('먼저 지하계 10층 단위 보상으로 룬 번호를 해금하세요.', 'attack-monster');
+    let need = 10;
+    if ((game.currencies.runeShard || 0) < need) return addLog(`룬 조각이 부족합니다. (필요: ${need})`, 'attack-monster');
+    game.currencies.runeShard -= need;
+    let roll = 1 + Math.floor(Math.random() * maxNo);
+    st.obtainedRunes.push(roll);
+    autoEquipUnderworldRune(roll);
+    let def = getUnderworldRuneDef(roll);
+    addLog(`🧿 룬 가공 성공: ${def ? def.name : ('룬'+roll)} 획득 (${def ? `${getStatName(def.stat)} +${formatValue(def.stat, def.val)}` : ''})`, 'loot-unique');
+    updateStaticUI();
+}
+function upgradeUnderworldRune() {
+    let st = ensureUnderworldRuneState();
+    let pool = Array.isArray(st.obtainedRunes) ? st.obtainedRunes : [];
+    if (pool.length < 3) return addLog('승급할 룬이 부족합니다.', 'attack-monster');
+    let count = {};
+    pool.forEach(n => { let k = Math.max(1, Math.floor(n || 1)); count[k] = (count[k] || 0) + 1; });
+    let from = Object.keys(count).map(Number).sort((a,b)=>a-b).find(n => count[n] >= 3 && n < 30);
+    if (!from) return addLog('동일 번호 룬 3개가 필요합니다. (룬30은 승급 불가)', 'attack-monster');
+    let shardNeed = Math.max(5, from);
+    if ((game.currencies.runeShard || 0) < shardNeed) return addLog(`룬 조각이 부족합니다. (필요: ${shardNeed})`, 'attack-monster');
+    game.currencies.runeShard -= shardNeed;
+    let removed = 0;
+    st.obtainedRunes = st.obtainedRunes.filter(n => {
+        if (Math.floor(n || 0) === from && removed < 3) { removed++; return false; }
+        return true;
+    });
+    st.equippedRunes = Array.isArray(st.equippedRunes)
+        ? st.equippedRunes.map(n => (Math.floor(n || 0) === from ? null : n))
+        : [null, null, null, null, null, null];
+    st.obtainedRunes.push(Math.min(30, from + 1));
+    let to = Math.min(30, from + 1);
+    autoEquipUnderworldRune(to);
+    let def = getUnderworldRuneDef(to);
+    addLog(`🧿 룬 승급 성공: 룬${from}×3 + 룬조각 ${shardNeed} → ${def ? def.name : ('룬'+to)} (${def ? `${getStatName(def.stat)} +${formatValue(def.stat, def.val)}` : ''})`, 'loot-unique');
+    updateStaticUI();
 }
 
 function switchMapSubtab(subtabId) {
@@ -938,7 +1008,7 @@ function enterChaosRealmPrompt(){
 }
 function enterUnderworldPrompt(){
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
-    if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return addLog('지하계 입장 조건: 야수왕 케르베로스 클리어 + 혼돈 심화 30층 + 이번 루프 혼돈20 클리어', 'attack-monster');
+    if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return addLog('지하계 입장 조건: 야수왕 케르베로스 클리어 + 혼돈 심화 30층 + 고대 미궁 100층 + 이번 루프 혼돈20 클리어', 'attack-monster');
     let st = ensureChaosRealmState();
     let max = Math.max(1, Math.floor(st.highestFloor || 1));
     let v = prompt(`진입할 지하계 층수를 입력하세요. (1 ~ ${max})`, String(max));
@@ -4485,13 +4555,17 @@ function buildCraftActionButtons(item) {
     }).join('') || `<div style="color:#7f8c8d;">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
     let renderSeasonNode = id => {
         let node = SEASON_NODES[id];
-        let active = game.seasonNodes.includes(id);
+        let lv = getSeasonNodeLevel(id);
+        let active = lv > 0;
+        let evolved = isSeasonTreeEvolved();
+        let cap = evolved ? 5 : 1;
         let reqMet = isSeasonNodeRequirementMet(node);
         let lockedHint = !!node.req && !reqMet ? `<br><span style="color:#d39ca7;">🔒 연결된 이전 노드를 먼저 활성화하세요</span>` : '';
         let statInfo = P_STATS[node.stat] || {};
         let suffix = statInfo.isPct ? '%' : '';
-        let effectText = `${statInfo.name || node.stat} +${formatValue(node.stat, node.val)}${suffix}`;
-        return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="refundSeasonNode('${id}')"` : (!reqMet ? '' : `onclick="buySeason('${id}')"`)}><div class="trait-title">${node.name}</div><div class="trait-desc">${node.desc}<br><span style="color:#9bb9d4;">${effectText}</span></div></div>`;
+        let scaled = Number((node.val * (1 + Math.max(0, lv - 1) * 0.2)).toFixed(2));
+        let effectText = `${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix} (${lv}/${cap})`;
+        return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${(!reqMet || lv >= cap) ? '' : `onclick="buySeason('${id}')"`}><div class="trait-title">${node.name}</div><div class="trait-desc">${node.desc}${lockedHint}<br><span style="color:#9bb9d4;">${effectText}</span>${active ? `<br><button style="margin-top:4px; font-size:0.72em;" onclick="event.stopPropagation(); refundSeasonNode('${id}')">환불</button>` : ''}</div></div>`;
     };
     let visibleSeasonRows = SEASON_NODE_ROWS.filter((row, idx) => idx < 4 || (game.season || 1) >= 5);
     document.getElementById('ui-season-tree').innerHTML = visibleSeasonRows.map(row => `<div class="trait-row">${row.map(renderSeasonNode).join('')}</div>`).join('');
@@ -5493,6 +5567,11 @@ function mergeDefaults(save) {
     merged.sealedSupports = dedupeList(Array.isArray(merged.sealedSupports) ? merged.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !merged.supports.includes(name)) : []);
     merged.equippedSupports = Array.isArray(merged.equippedSupports) ? dedupeList(merged.equippedSupports.filter(name => merged.supports.includes(name))) : [];
     merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!SEASON_NODES[id]) : [];
+    merged.seasonNodeLevels = (merged.seasonNodeLevels && typeof merged.seasonNodeLevels === 'object') ? merged.seasonNodeLevels : {};
+    merged.seasonNodes.forEach(id => {
+        let lv = Math.max(1, Math.floor(merged.seasonNodeLevels[id] || 1));
+        merged.seasonNodeLevels[id] = Math.min(5, lv);
+    });
     merged.unlockedSeasonContents = Array.isArray(merged.unlockedSeasonContents) ? merged.unlockedSeasonContents.filter(id => typeof id === 'string') : ['season_1'];
     merged.seenSeasonContentNotices = Array.isArray(merged.seenSeasonContentNotices) ? merged.seenSeasonContentNotices.filter(id => typeof id === 'string') : ['season_1'];
     merged.labyrinthFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.labyrinthFloor, defaultGame.labyrinthFloor || 1, 1)));
@@ -7753,6 +7832,16 @@ function isSeasonNodeRequirementMet(node) {
     if (Array.isArray(node.req)) return node.req.some(req => game.seasonNodes.includes(req));
     return game.seasonNodes.includes(node.req);
 }
+function getSeasonNodeLevel(id) {
+    game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
+    if (game.seasonNodes.includes(id)) return Math.max(1, Math.floor(game.seasonNodeLevels[id] || 1));
+    return 0;
+}
+function isSeasonTreeEvolved() {
+    let keys = Object.keys(SEASON_NODES || {});
+    if (keys.length <= 0) return false;
+    return keys.every(id => getSeasonNodeLevel(id) >= 1);
+}
 
 function isAscendNodeRequirementMet(node) {
     if (!node || !node.req) return true;
@@ -7807,8 +7896,11 @@ function refundSeasonNode(id) { if (!assertBuildEditable()) return;
     if (blockers.length > 0) return addLog('선행 조건으로 연결된 루프 패시브가 있어 반환할 수 없습니다.', 'attack-monster');
     if ((game.currencies.scour || 0) < 1) return addLog('루프 패시브 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
+    let lv = getSeasonNodeLevel(id);
     game.seasonNodes = game.seasonNodes.filter(nodeId => nodeId !== id);
-    game.seasonPoints = Math.max(0, Math.floor(game.seasonPoints || 0)) + 1;
+    game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
+    delete game.seasonNodeLevels[id];
+    game.seasonPoints = Math.max(0, Math.floor(game.seasonPoints || 0)) + lv;
     updateStaticUI();
 }
 
@@ -7840,8 +7932,14 @@ function refundAscendNode(id) { if (!assertBuildEditable()) return;
 
 function buySeason(id) {
     let node = SEASON_NODES[id];
-    if (!node || game.seasonPoints <= 0 || game.seasonNodes.includes(id) || !isSeasonNodeRequirementMet(node)) return;
-    game.seasonNodes.push(id);
+    game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
+    if (!node || game.seasonPoints <= 0 || !isSeasonNodeRequirementMet(node)) return;
+    let lv = getSeasonNodeLevel(id);
+    let evolved = isSeasonTreeEvolved();
+    let cap = evolved ? 5 : 1;
+    if (lv >= cap) return;
+    if (lv <= 0) game.seasonNodes.push(id);
+    game.seasonNodeLevels[id] = lv + 1;
     game.seasonPoints--;
     updateStaticUI();
 }
@@ -7943,12 +8041,15 @@ function resetAscendKeystones() {
 function resetSeasonNodes() { if (!assertBuildEditable()) return;
     game.seasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
     if (game.seasonNodes.length <= 0) return;
+    game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
+    let totalLv = game.seasonNodes.reduce((s, id) => s + Math.max(1, Math.floor(game.seasonNodeLevels[id] || 1)), 0);
     let cost = game.seasonNodes.length;
     if ((game.currencies.scour || 0) < cost) return addLog(`디버깅 포인트 트리 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
     if (!confirm(`디버깅 포인트 트리 전체 초기화? (정화의 오브 ${cost} 소모)`)) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
-    game.seasonPoints = Math.max(0, Math.floor(game.seasonPoints || 0)) + game.seasonNodes.length;
+    game.seasonPoints = Math.max(0, Math.floor(game.seasonPoints || 0)) + totalLv;
     game.seasonNodes = [];
+    game.seasonNodeLevels = {};
     updateStaticUI();
 }
 
