@@ -5011,7 +5011,7 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
     if (rerollChaosInfusion) item.chaosInfusion = null;
     let reservedInfusionCount = previousInfusion ? 1 : 0;
-    let locked = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
+    let locked = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
     item.stats = locked.slice();
     let count = 0;
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
@@ -5323,6 +5323,14 @@ const UNIQUE_FIXED_BASE_BY_NAME = {
     '칠흑의 연사기': 'tempest_volley',
     '성좌의 주문핵': 'void_archon_staff',
     '영겁의 마도서': 'abyss_chant_staff',
+    '황혼의 왕관': 'oracle_circlet',
+    '빙결파수 장화': 'phase_boots',
+    '대균열의 왕관': 'grand_breach_shard_helm',
+    '가호의 갑피': 'fortress_plate',
+    '수호 성갑': 'dread_plate',
+    '출혈 봉쇄 투구': 'guardian_helm',
+    '폭풍 추적자': 'ghost_stride',
+    '낙성의 발자취': 'meteor_trace_greaves',
     '쐐기 파편': 'bloodletter_blade',
     '천정 파쇄': 'executioner_blade',
     '지평선 분할자': 'tempest_pike',
@@ -5509,6 +5517,14 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.018) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.005) drops.push(['beastKeyCerberus', 1]);
+    if (zone.type === 'underworld') {
+        let underFloor = Math.max(1, Math.floor(zone.floor || 1));
+        if (Math.random() < 0.05) drops.push(['fossil', 1]);
+        if (Math.random() < 0.018) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
+        if (Math.random() < 0.012) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
+        if (underFloor >= 10 && Math.random() < 0.009) drops.push(['runeShard', enemy.isBoss ? 2 : 1]);
+        if (enemy.isBoss && Math.random() < 0.0025) drops.push([rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1]);
+    }
     if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
     if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
     return drops;
@@ -6185,7 +6201,7 @@ function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return 
     if ((game.currencies.sporeFire || 0) < cost || (game.currencies.sporeCold || 0) < cost || (game.currencies.sporeLight || 0) < cost) return addLog(`부패 홀씨에는 각 속성 홀씨 ${cost}개가 필요합니다.`, 'attack-monster');
     let ids = new Set(['firePctDmg','coldPctDmg','lightPctDmg','elementalPctDmg','resF','resC','resL']);
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    let candidates = item.stats.map((stat, idx) => ({ stat, idx })).filter(row => row.stat && !row.stat.lockedByHoney && ids.has(row.stat.id));
+    let candidates = item.stats.map((stat, idx) => ({ stat, idx })).filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift && ids.has(row.stat.id));
     if (candidates.length <= 0) return addLog('제거할 원소 계열 옵션이 없습니다.', 'attack-monster');
     game.currencies.sporeFire -= cost;
     game.currencies.sporeCold -= cost;
@@ -6281,6 +6297,16 @@ function useCurrency(currencyKey) {
     else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
     else if (currencyKey === 'tainted') ok = !item.corrupted;
     else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
+    else if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
+        let slot = String(item.slot || '');
+        let isWeapon = slot === '무기';
+        let isArmor = ['투구', '갑옷', '장갑', '신발', '허리띠'].includes(slot);
+        let isAccessory = ['목걸이', '반지'].includes(slot);
+        if (currencyKey === 'deepWhetstone') ok = isWeapon;
+        if (currencyKey === 'rootIron') ok = isArmor;
+        if (currencyKey === 'jewelPolish') ok = isAccessory;
+        ok = ok && Math.max(0, Math.floor(item.quality || 0)) < 20;
+    }
     if (!ok) return addLog("지금 선택한 아이템에는 사용할 수 없습니다.", "attack-monster");
     if (currencyKey === 'divine' && !confirm('정말 신성한 오브를 사용하시겠습니까?')) return;
 
@@ -6327,7 +6353,7 @@ function useCurrency(currencyKey) {
     function applyGuaranteedToNonLocked(modOverride) {
         let modToApply = modOverride || guaranteedMod || getSporeGuaranteedMod();
         if (!modToApply || !Array.isArray(item.stats) || item.stats.length <= 0) return;
-        let idx = item.stats.findIndex(stat => stat && !stat.lockedByHoney);
+        let idx = item.stats.findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
         if (idx < 0) {
             item.stats.push(rollSporeGuaranteedValue(modToApply));
             return;
@@ -6347,7 +6373,10 @@ function useCurrency(currencyKey) {
         consumedSpore = true;
     }
     game.currencies[currencyKey]--;
-    if (currencyKey === 'transmute') {
+    if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
+        item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
+        addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
+    } else if (currencyKey === 'transmute') {
         item.rarity = 'magic';
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
@@ -6400,7 +6429,7 @@ function useCurrency(currencyKey) {
         }
     } else if (currencyKey === 'divine') {
         item.stats.forEach(stat => {
-            if (stat.lockedByHoney) return;
+            if (stat.lockedByHoney || stat.lockedByRift) return;
             let val = stat.valMin + Math.random() * (stat.valMax - stat.valMin);
             if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) stat.val = Math.round(val * 10) / 10;
             else stat.val = Math.floor(val);
@@ -6421,7 +6450,7 @@ function useCurrency(currencyKey) {
             item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
         }
     } else if (currencyKey === 'scour') {
-        item.stats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
+        item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
         item.chaosInfusion = null;
         item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
