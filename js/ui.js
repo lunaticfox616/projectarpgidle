@@ -2276,7 +2276,7 @@ function showItemTooltip(event, idx, isEquip) {
     }
     let defenseView = getItemDefenseView(item);
     if ((item.baseStats || []).length > 0) {
-        html += `<div class="tooltip-line" style="margin-top:6px; color:#f1c40f;">베이스 옵션</div>`;
+        html += `<div class="tooltip-line" style="margin-top:6px; color:#f1c40f; font-weight:800;">베이스 옵션</div>`;
         function getBaseRollRange(stat) {
             let cur = Number(stat.val || 0);
             let min = Number.isFinite(Number(stat.valMin)) ? Number(stat.valMin) : Number((cur * 0.8).toFixed(2));
@@ -2332,7 +2332,7 @@ function showItemTooltip(event, idx, isEquip) {
             if (g !== 0) return g;
             return String(aKey || '').localeCompare(String(bKey || ''));
         });
-        html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션 (${explicitStats.length}/6)</div>`;
+        html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db; font-weight:800;">추가 옵션 (${explicitStats.length}/6)</div>`;
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
@@ -4316,7 +4316,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-fossil-actions').innerHTML = fossilButtons.join('') || `<div style="color:#7f8c8d;">보유한 화석이 없습니다.</div>`;
     document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:#7f8c8d;">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:#8fb6d9;">기본 화석 정제는 항상 가능하며, 균사학자 Lv.4부터 원시 화석(복원 전용), Lv.5부터 원시 고대 화석(태고 화석 추가/고급 재화 확률 증가)이 미궁에서 드랍됩니다. 화석 전용 옵션은 Lv.6부터 제작이 아니라 장비 드랍 시 일정 확률로 붙습니다.</div>`;
 
-    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']);
+    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']);
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
         if (hiddenCurrencyKeys.has(key)) return false;
         if (key === 'tainted') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
@@ -4370,6 +4370,10 @@ function buildCraftActionButtons(item) {
     if (infuserTabBtn) infuserTabBtn.style.display = chaosInfuserOpen ? 'block' : 'none';
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
     if (!chaosInfuserOpen && game.itemSubtab === 'item-tab-infuser') switchItemSubtab('item-tab-equip');
+    let underworldBtn = document.getElementById('btn-map-tab-underworld');
+    let underworldUnlocked = !!(typeof ensureChaosRealmState === 'function' && ensureChaosRealmState().unlocked);
+    if (underworldBtn) underworldBtn.style.display = underworldUnlocked ? 'block' : 'none';
+    if (game.mapSubtab === 'map-tab-underworld' && !underworldUnlocked) switchMapSubtab('map-tab-zones');
     renderMarketUI();
     renderExpertiseUI();
 

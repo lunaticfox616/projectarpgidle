@@ -256,7 +256,8 @@
             #ui-jewel-slots,
             #ui-jewel-inventory { grid-template-columns: 1fr !important; }
             .tab-btn { min-width: 96px; font-size: 0.86em; }
-            .subtab-row { overflow-x: auto; padding-bottom: 4px; }
+            .subtab-row { overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; -ms-overflow-style: none; }
+            .subtab-row::-webkit-scrollbar { display: none; height: 0; }
             .subtab-btn { flex: 0 0 auto; min-width: 132px; }
             .trait-tree .trait-row { width: 100%; justify-content: flex-start; gap: 8px; padding: 8px; border: 1px dashed #34495e; border-radius: 10px; background: rgba(10, 16, 24, 0.45); }
             .trait-tree .trait-card { flex: 1 1 calc(50% - 8px); min-width: 132px; }
