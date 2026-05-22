@@ -55,9 +55,9 @@ body:not(.light-mode) .subtab-btn {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
   transition: border-color .16s ease, box-shadow .16s ease, transform .12s ease, background .16s ease;
   min-height: 32px;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  line-height: 1.1;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -185,11 +185,3 @@ body:not(.light-mode) .subtab-row {
   border-radius: 12px;
 }
 
-
-body:not(.light-mode) .tab-btn,
-body:not(.light-mode) .subtab-btn {
-  line-height: 1.1 !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  align-self: center;
-}
