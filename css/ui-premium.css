@@ -189,6 +189,23 @@ body:not(.light-mode) .slot-box.selected {
   box-shadow: 0 0 0 1px rgba(192,144,48,0.3), 0 0 14px rgba(192,144,48,0.15);
 }
 
+/* 장비 탭(slot) 가독성/분리감 강화 */
+body:not(.light-mode) #item-tab-equip .paperdoll {
+  padding: 10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #0a111a 0%, #080e16 100%);
+  border: 1px solid #1f3247;
+}
+body:not(.light-mode) #item-tab-equip .slot-box {
+  background: linear-gradient(180deg, #16263a 0%, #0f1a2a 100%);
+  border-color: #3d5876;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(110,156,210,0.12), 0 3px 10px rgba(0,0,0,0.35);
+}
+body:not(.light-mode) #item-tab-equip .slot-box:hover {
+  background: linear-gradient(180deg, #1b3048 0%, #14233a 100%);
+  border-color: #5e84af;
+}
+
 /* ── ITEM CARD ──────────────────────────────────────────────── */
 body:not(.light-mode) .item-card {
   background: linear-gradient(180deg, #111b28 0%, #0d1520 100%);
@@ -271,7 +288,7 @@ body:not(.light-mode) .battlefield-wrap {
 
 /* ── 그룹 타이틀 ── */
 .cfg-group-title {
-  font-size: 0.72em;
+  font-size: 0.82em;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -317,7 +334,7 @@ body:not(.light-mode) .battlefield-wrap {
   cursor: pointer;
 }
 .cfg-label {
-  color: #a8bfd4;
+  color: #edf4ff;
   font-size: 0.88em;
   line-height: 1.3;
 }
@@ -498,7 +515,7 @@ body.light-mode .cfg-group {
   border-color: #c8d8ee;
 }
 body.light-mode .cfg-group-title { color: #8a6010; }
-body.light-mode .cfg-label { color: #3a5070; }
+body.light-mode .cfg-label { color: #f3f8ff; }
 body.light-mode .cfg-sublabel { color: #5a7090; }
 body.light-mode .cfg-select,
 body.light-mode .cfg-number {
@@ -510,3 +527,14 @@ body.light-mode .cfg-grade-chip { background: #fff; border-color: #c0d0e4; color
 
 /* settings-stack max-width 해제 (새 layout으로 대체) */
 #tab-settings .settings-stack { max-width: none; }
+
+.cfg-btn--danger-reset {
+  background: linear-gradient(180deg, #2b0f30 0%, #1b0a20 100%);
+  border-color: #7d3a8f;
+  color: #dfb8ef;
+}
+.cfg-btn--danger-reset:hover {
+  border-color: #9b55ad;
+  color: #f0d3fa;
+  box-shadow: 0 2px 8px rgba(163,74,191,0.24);
+}

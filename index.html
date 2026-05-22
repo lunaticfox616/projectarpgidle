@@ -178,7 +178,7 @@
         </h2>
         <div class="combat-zone-row">
             <div class="combat-zone-row-title" id="ui-combat-zone-inline">⚔️ 전투 액트 1: 뿌리끝 성소</div>
-            <button onclick="returnToTown()" style="background-color: #2980b9; font-size: 0.7em; padding: 4px 8px;">귀환</button>
+            <button onclick="returnToTown()" style="background-color: #8e44ad; border:1px solid #b57ad4; color:#f3e8ff; font-size: 0.7em; padding: 4px 8px;">귀환</button>
         </div>
         <div class="combat-top-status">
             <div style="font-size: 0.9em; font-weight: bold; color: #d980fa; margin-top: 0;"><span id="ui-player-level">Lv.1</span> 경험치</div>
@@ -732,6 +732,16 @@
     <div id="tab-settings" class="tab-content active">
         <div class="settings-layout">
 
+            <!-- ── 저장 & 데이터 ── -->
+            <div class="cfg-group cfg-group--danger">
+                <div class="cfg-group-title">저장 &amp; 데이터</div>
+                <div class="cfg-action-row">
+                    <button id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn cfg-btn--neutral">☠️ 최근 데스로그</button>
+                    <button onclick="saveGame({ manual: true })" class="cfg-btn cfg-btn--save">💾 수동 저장</button>
+                    <button onclick="resetGame()" class="cfg-btn cfg-btn--danger cfg-btn--danger-reset">♻️ 세이브 초기화</button>
+                </div>
+            </div>
+
             <!-- ── 전투 표시 ── -->
             <div class="cfg-group">
                 <div class="cfg-group-title">전투 표시</div>
@@ -834,15 +844,6 @@
                 <div id="ui-tab-order-settings" class="cfg-rows" style="gap:4px;"></div>
             </div>
 
-            <!-- ── 저장 & 데이터 ── -->
-            <div class="cfg-group cfg-group--danger">
-                <div class="cfg-group-title">저장 &amp; 데이터</div>
-                <div class="cfg-action-row">
-                    <button id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn cfg-btn--neutral">☠️ 최근 데스로그</button>
-                    <button onclick="saveGame({ manual: true })" class="cfg-btn cfg-btn--save">💾 수동 저장</button>
-                    <button onclick="resetGame()" class="cfg-btn cfg-btn--danger">♻️ 세이브 초기화</button>
-                </div>
-            </div>
 
         </div>
         <div class="cloud-panel">
