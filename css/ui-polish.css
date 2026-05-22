@@ -153,6 +153,13 @@ body:not(.light-mode) .subtab-btn.active::before {
   background: linear-gradient(90deg, transparent, rgba(200,160,60,0.4), transparent);
 }
 
+/* 특정 하위탭: 색상은 동일, 테두리만 강조 */
+body:not(.light-mode) #btn-item-tab-equip,
+body:not(.light-mode) #btn-skill-tab-equip {
+  border-width: 2px;
+  border-color: #486688;
+}
+
 body:not(.light-mode) .item-card {
   border: 1px solid #314359;
   border-radius: 8px;
@@ -240,5 +247,4 @@ body.light-mode .tab-btn.active,
 body.light-mode .subtab-btn.active {
   box-shadow: 0 0 0 1px rgba(91, 152, 215, .2);
 }
-
 

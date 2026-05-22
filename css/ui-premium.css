@@ -529,12 +529,17 @@ body.light-mode .cfg-grade-chip { background: #fff; border-color: #c0d0e4; color
 #tab-settings .settings-stack { max-width: none; }
 
 .cfg-btn--danger-reset {
-  background: linear-gradient(180deg, #2b0f30 0%, #1b0a20 100%);
-  border-color: #7d3a8f;
-  color: #dfb8ef;
+  background: linear-gradient(180deg, #5a1010 0%, #360909 100%);
+  border-color: #b53a3a;
+  color: #ffd2d2;
 }
 .cfg-btn--danger-reset:hover {
-  border-color: #9b55ad;
-  color: #f0d3fa;
-  box-shadow: 0 2px 8px rgba(163,74,191,0.24);
+  border-color: #d14d4d;
+  color: #ffe6e6;
+  box-shadow: 0 2px 10px rgba(200,60,60,0.28);
+}
+
+.cfg-group--danger-bottom {
+  margin-top: 18px;
+  opacity: 0.92;
 }

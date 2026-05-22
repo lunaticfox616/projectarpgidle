@@ -3715,10 +3715,11 @@ function finishEncounterRun() {
         return;
     }
     if (zone.type === 'underworld') {
-        let st = ensureChaosRealmState();
-        let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
-        st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
-        st.currentFloor = Math.min(st.highestFloor, floor + 1);
+        let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
+        game.underworldProgress = uw;
+        let floor = Math.max(1, Math.floor(zone.floor || uw.currentFloor || 1));
+        uw.highestFloor = Math.max(Math.floor(uw.highestFloor || 1), floor + 1);
+        uw.currentFloor = Math.min(uw.highestFloor, floor + 1);
         if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [] };
         if (floor % 10 === 0) {
             let runeState = game.underworldRunes;
@@ -3731,7 +3732,7 @@ function finishEncounterRun() {
                 addLog(`🧿 지하계 ${floor}층 보상: 룬 슬롯 ${runeState.unlockedSlots}/6, 룬 번호 1~${runeState.unlockedRunesMaxNumber} 해금`, 'loot-unique');
             }
         }
-        addLog(`🕳️ 지하계 ${floor}층 돌파! ${st.currentFloor}층까지 하강 가능합니다.`, 'season-up');
+        addLog(`🕳️ 지하계 ${floor}층 돌파! ${uw.currentFloor}층까지 하강 가능합니다.`, 'season-up');
         game.killsInZone = 0;
         let mapAction = game.settings.mapCompleteAction || 'nextZone';
         if (mapAction === 'repeatZone') game.currentZoneId = UNDERWORLD_ZONE_ID;
