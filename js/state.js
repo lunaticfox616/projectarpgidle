@@ -758,7 +758,7 @@ const FOSSIL_DB = [
     { key: 'fossilPrismatic', name: '프리즘 화석', desc: '카오스 재련 + 저항/원소 계열 옵션 1개 확정', guaranteedStats: ['resAll', 'resF', 'resC', 'resL', 'elementalPctDmg', 'resPen'] },
     { key: 'fossilAbyssal', name: '심연 화석', desc: '카오스 재련 + 카오스/흡혈/재생 계열 옵션 1개 확정', guaranteedStats: ['chaosPctDmg', 'leech', 'regen'] },
     { key: 'fossilPrimordial', name: '태고 화석', desc: '원시 고대 화석 복원 전용 + 관통/카오스 계열 옵션 1개 확정', guaranteedStats: ['physIgnore', 'resPen', 'chaosPctDmg', 'critDmg'], ancientPrimalOnly: true },
-    { key: 'fossilBulwark', name: '🛡️ 방패 화석', desc: '카오스 재련 + 최대저항/최대 물리피해감소 계열 1개 확정', guaranteedStats: ['maxResF', 'maxResC', 'maxResL', 'maxResChaos', 'maxDr'] },
+    { key: 'fossilBulwark', name: '🛡️ 방패 화석', desc: '카오스 재련 + 최대 화염/냉기/번개 저항 계열 1개 확정', guaranteedStats: ['maxResF', 'maxResC', 'maxResL'] },
     { key: 'fossilWedge', name: '🗡️ 쐐기 화석', desc: '카오스 재련 + 투사체/치명 계열 1개 확정', guaranteedStats: ['projectileExtraShots', 'projectilePctDmg', 'crit'] },
     { key: 'fossilOld', name: '📜 오래된 화석', desc: '카오스 재련 + 화석 전용 옵션 1개 확정', guaranteedStats: [] },
     { key: 'fossilRift', name: '🌀 균열 화석', desc: '카오스 재련 + 균열 표식(제거 불가) + 나머지 추가 옵션 50% 증폭', guaranteedStats: [] }

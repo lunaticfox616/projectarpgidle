@@ -4592,7 +4592,8 @@ function buildCraftActionButtons(item) {
         let scaled = Number((node.val * (1 + Math.max(0, lv - 1) * 0.2)).toFixed(2));
         let levelText = active ? ` (${lv}/${cap})` : '';
         let effectText = `${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}${levelText}`;
-        return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${reqMet ? `onclick="buySeason('${id}')"` : ''}><div class="trait-title">${node.name}</div><div class="trait-desc">${node.desc}${lockedHint}<br><span style="color:#9bb9d4;">${effectText}</span></div></div>`;
+        let refundLink = active ? `<br><span style=\"color:#e4b4b4; font-size:0.78em; text-decoration:underline; cursor:pointer;\" onclick=\"event.stopPropagation(); askRefundSeasonNode('${id}')\">환불</span>` : '';
+        return `<div class=\"trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}\" ${reqMet ? `onclick=\"buySeason('${id}')\"` : ''}><div class=\"trait-title\">${node.name}</div><div class=\"trait-desc\">${node.desc}${lockedHint}<br><span style=\"color:#9bb9d4;\">${effectText}</span>${refundLink}</div></div>`;
     };
     let visibleSeasonRows = SEASON_NODE_ROWS.filter((row, idx) => idx < 4 || (game.season || 1) >= 5);
     document.getElementById('ui-season-tree').innerHTML = visibleSeasonRows.map(row => `<div class="trait-row">${row.map(renderSeasonNode).join('')}</div>`).join('');
@@ -7910,6 +7911,11 @@ function refundPassiveNode(id) { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 
+function askRefundSeasonNode(id) { if (!assertBuildEditable()) return;
+    if (!confirm('해당 디버깅 노드를 환불하시겠습니까? (정화의 오브 1 소모)')) return;
+    return refundSeasonNode(id);
+}
+
 function refundSeasonNode(id) { if (!assertBuildEditable()) return;
     game.seasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
     if (!game.seasonNodes.includes(id)) return;
@@ -8132,4 +8138,4 @@ function getLockedTabMessage(tabId) {
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, cloudCompactAndPushNow });
+safeExposeGlobals({ checkUnlocks, buySeason, askRefundSeasonNode, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, cloudCompactAndPushNow });
