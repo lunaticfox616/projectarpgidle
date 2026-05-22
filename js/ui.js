@@ -965,16 +965,21 @@ function upgradeUnderworldRune() {
     if (!from) return addLog('동일 번호 룬 3개가 필요합니다. (룬30은 승급 불가)', 'attack-monster');
     let shardNeed = Math.max(5, from);
     if ((game.currencies.runeShard || 0) < shardNeed) return addLog(`룬 조각이 부족합니다. (필요: ${shardNeed})`, 'attack-monster');
+    let unlockedMax = Math.max(1, Math.min(30, Math.floor(st.unlockedRunesMaxNumber || 1)));
+    if (from >= unlockedMax) return addLog(`현재는 룬${from}을 승급할 수 없습니다. (해금된 최대 번호: ${unlockedMax})`, 'attack-monster');
     game.currencies.runeShard -= shardNeed;
     let removed = 0;
     st.obtainedRunes = st.obtainedRunes.filter(n => {
         if (Math.floor(n || 0) === from && removed < 3) { removed++; return false; }
         return true;
     });
+    let equipRemoved = 0;
     st.equippedRunes = Array.isArray(st.equippedRunes)
-        ? st.equippedRunes.map(n => (Math.floor(n || 0) === from ? null : n))
+        ? st.equippedRunes.map(n => {
+            if (Math.floor(n || 0) === from && equipRemoved < 3) { equipRemoved++; return null; }
+            return n;
+        })
         : [null, null, null, null, null, null];
-    let unlockedMax = Math.max(1, Math.min(30, Math.floor(st.unlockedRunesMaxNumber || 1)));
     let to = Math.min(unlockedMax, from + 1);
     st.obtainedRunes.push(to);
     autoEquipUnderworldRune(to);
