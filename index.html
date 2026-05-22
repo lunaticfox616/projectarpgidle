@@ -173,15 +173,14 @@
 
     <div class="panel combat-panel" style="position: relative;">
         <h2 style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #3d3d5c; padding-bottom: 5px;">
-            <span>⚔️ 전투</span>
-            <span style="font-size: 0.75em; font-weight: normal; color: #a5b1c2; flex: 1; text-align: center;" id="ui-combat-zone">⚔️ 전투 액트 1: 뿌리끝 성소</span>
+            <span style="font-size: 0.75em; font-weight: normal; color: #a5b1c2; flex: 1; text-align: center;" id="ui-combat-zone">액트 1: 뿌리끝 성소</span>
         </h2>
         <div class="combat-zone-row">
-            <div class="combat-zone-row-title" id="ui-combat-zone-inline">⚔️ 전투 액트 1: 뿌리끝 성소</div>
-            <button onclick="returnToTown()" style="background-color: #2980b9; font-size: 0.7em; padding: 4px 8px;">귀환</button>
+            <div class="combat-zone-row-title" id="ui-combat-zone-inline">Lv.1 재능명</div>
+            <button onclick="returnToTown()" style="background-color: #8e44ad; border:1px solid #b57ad4; color:#f3e8ff; font-size: 0.7em; padding: 4px 8px;">귀환</button>
         </div>
         <div class="combat-top-status">
-            <div style="font-size: 0.9em; font-weight: bold; color: #d980fa; margin-top: 0;"><span id="ui-player-level">Lv.1</span> 경험치</div>
+            <div style="font-size: 0.9em; font-weight: bold; color: #d980fa; margin-top: 0;">경험치</div>
             <div class="hp-bar-bg" style="height: 12px; margin-top: 2px;">
                 <div id="ui-exp-bar" class="hp-bar-fill exp" style="width: 0%;"></div>
                 <div class="hp-text" style="line-height: 12px; font-size: 10px;"><span id="ui-exp">0</span> / <span id="ui-maxexp">100</span></div>
@@ -198,7 +197,7 @@
         <div class="combat-dashboard">
             <div class="combat-stage">
                 <div id="move-area" style="text-align: center; margin-bottom: 10px;">
-                    <strong id="ui-progress-label" style="color: #3498db; font-size: 1.05em;">🧭 맵 진행</strong>
+                    <strong id="ui-progress-label" style="color: #3498db; font-size: 1.05em;">🧭 진행도</strong>
                     <div class="hp-bar-bg" style="height: 20px;">
                         <div id="ui-move-bar" class="hp-bar-fill move" style="width: 0%;"></div>
                         <div class="hp-text" id="ui-move-time-text">0%</div>
@@ -218,7 +217,7 @@
             <div class="combat-feed">
                 <div class="combat-feed-title">
                     <span>전투 로그</span>
-                    <span class="combat-feed-sub">실시간 전황</span>
+                    <span class="combat-feed-sub"></span>
                     <button id="btn-combat-log-toggle" class="combat-log-toggle" onclick="toggleCombatLogCollapse()">접기</button>
                 </div>
                 <div id="log"></div>
@@ -732,6 +731,16 @@
     <div id="tab-settings" class="tab-content active">
         <div class="settings-layout">
 
+            <!-- ── 저장 & 데이터 ── -->
+            <div class="cfg-group cfg-group--danger">
+                <div class="cfg-group-title">저장 &amp; 데이터</div>
+                <div class="cfg-action-row">
+                    <button id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn cfg-btn--neutral">☠️ 최근 데스로그</button>
+                    <button onclick="saveGame({ manual: true })" class="cfg-btn cfg-btn--save">💾 수동 저장</button>
+                    <div></div>
+                </div>
+            </div>
+
             <!-- ── 전투 표시 ── -->
             <div class="cfg-group">
                 <div class="cfg-group-title">전투 표시</div>
@@ -834,15 +843,13 @@
                 <div id="ui-tab-order-settings" class="cfg-rows" style="gap:4px;"></div>
             </div>
 
-            <!-- ── 저장 & 데이터 ── -->
-            <div class="cfg-group cfg-group--danger">
-                <div class="cfg-group-title">저장 &amp; 데이터</div>
-                <div class="cfg-action-row">
-                    <button id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn cfg-btn--neutral">☠️ 최근 데스로그</button>
-                    <button onclick="saveGame({ manual: true })" class="cfg-btn cfg-btn--save">💾 수동 저장</button>
-                    <button onclick="resetGame()" class="cfg-btn cfg-btn--danger">♻️ 세이브 초기화</button>
+            <div class="cfg-group cfg-group--danger cfg-group--danger-bottom">
+                <div class="cfg-group-title">초기화</div>
+                <div class="cfg-rows">
+                    <button onclick="resetGame()" class="cfg-btn cfg-btn--danger cfg-btn--danger-reset">♻️ 세이브 초기화</button>
                 </div>
             </div>
+
 
         </div>
         <div class="cloud-panel">

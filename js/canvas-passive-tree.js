@@ -314,7 +314,8 @@ function renderPaperdoll(targetId, forCrafting) {
             if (typeof getImmutableItemSpecialStats === 'function') displayStats = displayStats.concat(getImmutableItemSpecialStats(item));
             else if (item.encroached && !item.encroached.liberated) displayStats.push({ id: 'encroached', val: 0, statName: '[잠식] 해방 전' });
             let statsHtml = displayStats.slice(0, 2).map(stat => `${stat.statName} +${formatValue(stat.id, stat.val)}`).join('<br>');
-            let click = forCrafting ? `selectForCrafting('${slot}', true)` : '';
+            let canSelectFromEquipTab = !forCrafting && targetId === 'ui-equip-list';
+            let click = (forCrafting || canSelectFromEquipTab) ? `selectForCrafting('${slot}', true)` : '';
             let doubleClick = `event.stopPropagation(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
             let footer = forCrafting ? `<button style="font-size:0.7em; padding:2px;" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">선택</button>` : `<button style="font-size:0.7em; padding:2px;" onclick="event.stopPropagation(); unequipItem('${slot}')">해제</button>`;
             let sourceMeta = getDropOnlyItemSourceMeta(item);

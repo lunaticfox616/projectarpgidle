@@ -62,9 +62,9 @@ body:not(.light-mode) .tab-btn {
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #7a8fa3;
-  font-weight: 600;
-  font-size: 0.82em;
+  color: #9eb6cb;
+  font-weight: 800;
+  font-size: 0.86em;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 0 4px;
@@ -90,7 +90,7 @@ body:not(.light-mode) .tab-btn::after {
 
 body:not(.light-mode) .tab-btn:hover {
   background: rgba(180,200,230,0.05);
-  color: #b8ccdf;
+  color: #e0ecf7;
 }
 body:not(.light-mode) .tab-btn:hover::after {
   background: rgba(180,200,230,0.2);
@@ -98,7 +98,7 @@ body:not(.light-mode) .tab-btn:hover::after {
 
 body:not(.light-mode) .tab-btn.active {
   background: linear-gradient(180deg, rgba(200,160,60,0.07) 0%, transparent 100%);
-  color: #e8c26a;
+  color: #ffd783;
   text-shadow: 0 0 12px rgba(232,194,106,0.35);
   border-right-color: rgba(255,255,255,0.05);
 }
@@ -145,12 +145,19 @@ body:not(.light-mode) .subtab-btn:hover {
 body:not(.light-mode) .subtab-btn.active {
   border-color: #b08830;
   background: linear-gradient(180deg, #2a1e08 0%, #1e1506 100%);
-  color: #e8c26a;
+  color: #ffd783;
   box-shadow: 0 0 0 1px rgba(200,160,60,0.2), 0 0 10px rgba(200,160,60,0.15), inset 0 1px 0 rgba(255,220,120,0.1);
   text-shadow: 0 0 8px rgba(232,194,106,0.4);
 }
 body:not(.light-mode) .subtab-btn.active::before {
   background: linear-gradient(90deg, transparent, rgba(200,160,60,0.4), transparent);
+}
+
+/* 특정 하위탭: 색상은 동일, 테두리만 강조 */
+body:not(.light-mode) #btn-item-tab-equip,
+body:not(.light-mode) #btn-skill-tab-equip {
+  border-width: 2px;
+  border-color: #486688;
 }
 
 body:not(.light-mode) .item-card {
@@ -240,5 +247,4 @@ body.light-mode .tab-btn.active,
 body.light-mode .subtab-btn.active {
   box-shadow: 0 0 0 1px rgba(91, 152, 215, .2);
 }
-
 

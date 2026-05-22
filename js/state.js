@@ -130,6 +130,13 @@ function canEnterUnderworld() {
     let labFloor = Math.max(1, Math.floor((game && game.labyrinthUnlockedMaxFloor) || (game && game.labyrinthFloor) || 1));
     return !!st.unlocked && hasCurrentLoopChaos20Clear() && hasCerberusClear && deepMax >= 30 && labFloor >= 100;
 }
+function isUnderworldUnlockedPermanent() {
+    let st = ensureChaosRealmState();
+    let hasCerberusClear = Array.isArray(game && game.clearedRootBosses) && game.clearedRootBosses.includes('s6_beast_cerberus');
+    let deepMax = getHighestUnlockedEndlessChaosDepth();
+    let labFloor = Math.max(1, Math.floor((game && game.labyrinthUnlockedMaxFloor) || (game && game.labyrinthFloor) || 1));
+    return !!st.unlocked && hasCerberusClear && deepMax >= 30 && labFloor >= 100;
+}
 
 function getAbyssDepthFromZoneId(id) {
     if (!Number.isFinite(id) || id < ABYSS_START_ZONE_ID) return 0;
@@ -177,8 +184,8 @@ function getZone(id) {
         return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor) };
     }
     if (id === UNDERWORLD_ZONE_ID) {
-        let realm = ensureChaosRealmState();
-        let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
+        let uw = (game && game.underworldProgress) || {};
+        let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
         return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos', floor: floor };
     }
     if (typeof id === 'string') {
@@ -1251,6 +1258,7 @@ const defaultGame = {
     loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 },
     chaosRealm: createDefaultChaosRealmState(),
     underworldRunes: { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null] },
+    underworldProgress: { highestFloor: 1, currentFloor: 1 },
     pendingLoopDecision: false,
 
     skyGemEnhancements: {},
