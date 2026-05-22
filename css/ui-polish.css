@@ -57,7 +57,7 @@ body:not(.light-mode) .subtab-btn {
   min-height: 32px;
   padding-top: 4px;
   padding-bottom: 4px;
-  line-height: 1.2;
+  line-height: 1.1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -183,4 +183,13 @@ body:not(.light-mode) .tab-header,
 body:not(.light-mode) .subtab-row {
   border: 1px solid rgba(73, 102, 133, 0.35);
   border-radius: 12px;
+}
+
+
+body:not(.light-mode) .tab-btn,
+body:not(.light-mode) .subtab-btn {
+  line-height: 1.1 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  align-self: center;
 }

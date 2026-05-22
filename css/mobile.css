@@ -31,12 +31,13 @@
     min-height: 28px !important;
     max-height: 28px;
     height: 28px !important;
-    line-height: 28px;
+    line-height: 1.1 !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    vertical-align: middle;
     box-sizing: border-box;
   }
 }
