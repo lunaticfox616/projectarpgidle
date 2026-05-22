@@ -224,6 +224,20 @@ function applyFossilChaosCraft(fossilKey) {
     let guaranteedMinTier = Math.max(1, hiddenTier - 3);
     let guaranteedMaxTier = Math.max(1, hiddenTier);
     let guaranteed = specialFossil ? null : pickWeightedMod(guaranteedPool);
+    let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
+    let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
+    let baseDefenseTypes = new Set((item.baseStats || [])
+        .map(stat => stat && stat.id)
+        .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
+    function canUseDefenseStat(statId) {
+        if (bypassDefenseTypeRule) return true;
+        if (!['armor', 'evasion', 'energyShield', 'armorPct', 'evasionPct', 'energyShieldPct'].includes(statId)) return true;
+        if (baseDefenseTypes.size <= 0) return true;
+        if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
+        if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
+        if (statId.startsWith('energyShield') && !baseDefenseTypes.has('energyShield')) return false;
+        return true;
+    }
 
     let lockedStats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
     let newStats = lockedStats.slice();
@@ -238,12 +252,13 @@ function applyFossilChaosCraft(fossilKey) {
         let pool = getFossilExclusivePool(item);
         if (pool.length <= 0) return addLog('화석 전용 옵션을 부여할 수 없습니다.', 'attack-monster');
         let row = rndChoice(pool);
-        newStats.push({ id: row.id, statName: row.statName, val: Number((row.base + Math.max(0, hiddenTier - 1) * row.step).toFixed(2)), fossilExclusive: true });
+        let fixedVal = Number.isFinite(Number(row.fixedVal)) ? Number(row.fixedVal) : Number((row.base + Math.max(0, hiddenTier - 1) * row.step).toFixed(2));
+        newStats.push({ id: row.id, statName: row.statName, val: Number(fixedVal.toFixed(2)), fossilExclusive: true });
     }
 
     let count = 4 + Math.floor(Math.random() * 2);
     while ((newStats.length + reservedInfusionCount) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
-        let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id));
+        let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id) && canUseDefenseStat(mod.statId || mod.id));
         if (pool.length === 0) break;
         let roll = rollAffixValue(pickWeightedMod(pool), maxTier);
         newStats.push(roll);
@@ -275,7 +290,7 @@ function restorePrimalFossil(kind) {
     let baseFossilGain = isAncient ? 2 : 1;
     awardCurrency('fossil', baseFossilGain);
     rewardLines.push(`미궁 화석 +${baseFossilGain}`);
-    let typed = rndChoice(FOSSIL_DB.filter(row => row.key !== 'fossilAbyssal' && !row.ancientPrimalOnly));
+    let typed = rndChoice(FOSSIL_DB.filter(row => row.key !== 'fossilAbyssal' && !row.ancientPrimalOnly && row.key !== 'fossilOld' && row.key !== 'fossilRift'));
     awardCurrency(typed.key, 1);
     rewardLines.push(`${typed.name} +1`);
     if (isAncient) {

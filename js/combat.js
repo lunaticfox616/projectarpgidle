@@ -594,7 +594,8 @@ function coreLoop() {
     if (!Number.isFinite(game.playerEsLastHitAt)) game.playerEsLastHitAt = 0;
     if ((pStats.energyShield || 0) > 0 && game.playerEnergyShield < (pStats.energyShield || 0)) {
         let sinceHit = (Date.now() - (game.playerEsLastHitAt || 0)) / 1000;
-        if (sinceHit >= (pStats.energyShieldRechargeDelay || 3)) {
+        let allowRechargeWhileMoving = (game.moveTimer || 0) > 0;
+        if (allowRechargeWhileMoving || sinceHit >= (pStats.energyShieldRechargeDelay || 3)) {
             let regenPerSec = (pStats.energyShield || 0) * ((pStats.energyShieldRegenRate || 12.5) / 100);
             game.playerEnergyShield = Math.min((pStats.energyShield || 0), game.playerEnergyShield + regenPerSec * 0.1);
         }
@@ -1291,8 +1292,8 @@ function getPlayerStats() {
     let finalEnergyShield = Math.max(0, Math.floor(gearEnergyShield * (1 + totalEnergyShieldPct / 100)));
     if (uniqueGrandBreachCrown) finalEnergyShield = Math.max(0, Math.floor(finalEnergyShield * (1 + Math.max(0, uniqueGrandBreachCrown.esPct || 30) / 100)));
     if (uniqueEsAmpPct > 0) finalEnergyShield = Math.floor(finalEnergyShield * (1 + uniqueEsAmpPct / 100));
-    let finalEnergyShieldRegenRate = Math.max(0, 12.5 + gearBase.energyShieldRegen + gearExplicit.energyShieldRegen + passive.energyShieldRegen + season.energyShieldRegen + ascend.energyShieldRegen + reward.energyShieldRegen);
-    let finalEnergyShieldRechargeDelay = Math.max(0.25, 1 - (gearBase.energyShieldRechargeFaster + gearExplicit.energyShieldRechargeFaster + passive.energyShieldRechargeFaster + season.energyShieldRechargeFaster + ascend.energyShieldRechargeFaster + reward.energyShieldRechargeFaster));
+    let finalEnergyShieldRegenRate = Math.max(0, 12.5 + gearBase.energyShieldRegen + gearExplicit.energyShieldRegen + passive.energyShieldRegen + season.energyShieldRegen + ascend.energyShieldRegen + support.energyShieldRegen + reward.energyShieldRegen);
+    let finalEnergyShieldRechargeDelay = Math.max(0.25, 1 - (gearBase.energyShieldRechargeFaster + gearExplicit.energyShieldRechargeFaster + passive.energyShieldRechargeFaster + season.energyShieldRechargeFaster + ascend.energyShieldRechargeFaster + support.energyShieldRechargeFaster + reward.energyShieldRechargeFaster));
     let referenceIncomingPhysical = Math.max(1, Math.floor((2 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 3.1)));
     let armorReduction = Math.min(90, (finalArmor / (finalArmor + referenceIncomingPhysical * 10)) * 100);
     let enemyAccuracy = Math.max(60, Math.floor(90 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 24));
