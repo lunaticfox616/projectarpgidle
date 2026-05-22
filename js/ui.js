@@ -974,8 +974,9 @@ function upgradeUnderworldRune() {
     st.equippedRunes = Array.isArray(st.equippedRunes)
         ? st.equippedRunes.map(n => (Math.floor(n || 0) === from ? null : n))
         : [null, null, null, null, null, null];
-    st.obtainedRunes.push(Math.min(30, from + 1));
-    let to = Math.min(30, from + 1);
+    let unlockedMax = Math.max(1, Math.min(30, Math.floor(st.unlockedRunesMaxNumber || 1)));
+    let to = Math.min(unlockedMax, from + 1);
+    st.obtainedRunes.push(to);
     autoEquipUnderworldRune(to);
     let def = getUnderworldRuneDef(to);
     addLog(`🧿 룬 승급 성공: 룬${from}×3 + 룬조각 ${shardNeed} → ${def ? def.name : ('룬'+to)} (${def ? `${getStatName(def.stat)} +${formatValue(def.stat, def.val)}` : ''})`, 'loot-unique');

@@ -269,7 +269,9 @@ function applyFossilChaosCraft(fossilKey) {
     if (fossilKey === 'fossilRift') {
         newStats = newStats.map(stat => (stat && !stat.lockedByHoney && !stat.lockedByRift && Number.isFinite(Number(stat.val))) ? { ...stat, val: Number((Number(stat.val) * 1.5).toFixed(2)) } : stat);
         let riftMarker = { id: 'fossilRiftBlank', statName: '균열 - 아무 효과 없음 (제거/변경 불가)', val: 0, lockedByRift: true };
-        if ((newStats.length + reservedInfusionCount) < 6) newStats.push(riftMarker);
+        let existingRiftIdx = newStats.findIndex(stat => stat && stat.id === 'fossilRiftBlank');
+        if (existingRiftIdx >= 0) newStats[existingRiftIdx] = riftMarker;
+        else if ((newStats.length + reservedInfusionCount) < 6) newStats.push(riftMarker);
         else {
             let replaceIdx = -1;
             for (let i = newStats.length - 1; i >= 0; i--) {
