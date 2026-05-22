@@ -858,7 +858,8 @@ function getPlayerStats() {
         if (!item) return;
         if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '' });
         let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
-        let itemBaseStats = scaleStatList(item.baseStats || [], itemStatMultiplier);
+        let qualityMul = 1 + (Math.max(0, Math.min(20, Math.floor(item.quality || 0))) / 100);
+        let itemBaseStats = scaleStatList((item.baseStats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * qualityMul).toFixed(2)) } : stat), itemStatMultiplier);
         applyStatsToBucket(gearBase, itemBaseStats);
         let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
         let explicitItemStats = scaleStatList((item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
@@ -931,7 +932,7 @@ function getPlayerStats() {
     let uniqueXpGainPct = 0, uniqueFlatDmgPerLevel = 0, uniqueEsAmpPct = 0, uniqueShockInvertTaken = false, uniqueAlwaysShock = false, uniqueProjectileDoubleStrikePct = 0;
     let uniqueChaosResDownOnHit = null, uniqueCorpseExplode = null, uniqueInstantLeechPct = 0, uniqueDoubleDamageChancePct = 0, uniqueEsRecoverOnCritPct = 0;
     let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false, uniqueImmuneIgnite = false;
-    let uniqueFateTwinRollSync=false, uniqueFrostSentinel=false, uniqueShockTracer=false, uniqueVenomStride=false, uniqueBleedBlockHelm=false, uniqueCurseCrownPerCursePct=0, uniqueWarcryResonancePct=0, uniqueConditionManual=null, uniqueStackingElementalResDownOnHit=null;
+    let uniqueFateTwinRollSync=false, uniqueFrostSentinel=false, uniqueShockTracer=null, uniqueVenomStride=false, uniqueBleedBlockHelm=false, uniqueCurseCrownPerCursePct=0, uniqueWarcryResonancePct=0, uniqueConditionManual=null, uniqueStackingElementalResDownOnHit=null;
     let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null;
     let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
     equippedUniqueEffects.forEach(effect => {
@@ -955,7 +956,7 @@ function getPlayerStats() {
 
         else if (effect.key === 'fateTwinRollSync') uniqueFateTwinRollSync = true;
         else if (effect.key === 'frostSentinelBoots') uniqueFrostSentinel = true;
-        else if (effect.key === 'shockTracerGreaves') uniqueShockTracer = true;
+        else if (effect.key === 'shockTracerGreaves') uniqueShockTracer = { shockEffectPct: Number(ep.shockEffectPct || 25), strikeDamagePct: Number(ep.strikeDamagePct || 500), icdSec: Number(ep.icdSec || 0.5) };
         else if (effect.key === 'venomStride') uniqueVenomStride = true;
         else if (effect.key === 'bleedBlockHelm') uniqueBleedBlockHelm = true;
         else if (effect.key === 'curseCrown') { addStatToBucket(reward, 'curseCap', Number(ep.extraCurseCap || 1)); uniqueCurseCrownPerCursePct = Math.max(uniqueCurseCrownPerCursePct, Number(ep.finalDmgPerCursePct || 6)); }
@@ -991,9 +992,13 @@ function getPlayerStats() {
         addStatToBucket(passive, mut.currentStat, mut.currentVal);
     });
 
+    let seasonNodeLevels = (game && game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object') ? game.seasonNodeLevels : {};
     safeSeasonNodes.forEach(id => {
         let node = SEASON_NODES[id];
-        if (node) addStatToBucket(season, node.stat, node.val);
+        if (!node) return;
+        let lv = Math.max(1, Math.floor(seasonNodeLevels[id] || 1));
+        let scaled = Number((node.val * (1 + Math.max(0, lv - 1) * 0.2)).toFixed(4));
+        addStatToBucket(season, node.stat, scaled);
     });
 
     if (game.ascendClass) {
@@ -1020,6 +1025,24 @@ function getPlayerStats() {
     addStatToBucket(reward, 'crit', (loopDeep.crit || 0) * 0.6);
     let chaosRealmBonus = (ensureChaosRealmState().permanentBonuses || {});
     Object.keys(chaosRealmBonus).forEach(statKey => addStatToBucket(reward, statKey, chaosRealmBonus[statKey] || 0));
+    let runeCorpseExplodeChance = 0;
+    let runeCorpseExplodeLifePct = 0;
+    let runeResonancePower = 0;
+    if (Array.isArray(UNDERWORLD_RUNE_DB)) {
+        let runeState = game.underworldRunes || {};
+        let cap = Math.max(0, Math.min(6, Math.floor(runeState.unlockedSlots || 0)));
+        let equipped = Array.isArray(runeState.equippedRunes) ? runeState.equippedRunes.slice(0, cap) : [];
+        equipped.forEach(no => {
+            let n = Math.max(1, Math.floor(no || 0));
+            if (!n) return;
+            let rune = UNDERWORLD_RUNE_DB.find(row => row.no === n);
+            if (!rune) return;
+            if (rune.stat === 'corpseExplodeChance') runeCorpseExplodeChance += Number(rune.val || 0);
+            else if (rune.stat === 'corpseExplodeLifePct') runeCorpseExplodeLifePct += Number(rune.val || 0);
+            else if (rune.stat === 'resonancePower') runeResonancePower += Number(rune.val || 0);
+            else addStatToBucket(reward, rune.stat, rune.val);
+        });
+    }
     safeJournalBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
@@ -1531,6 +1554,7 @@ function getPlayerStats() {
         if (hasKeystone('e5')) {
             let maxElemRes = Math.max(finalResF, finalResC, finalResL);
             finalResChaos += Math.floor(maxElemRes * 0.5);
+            finalResChaos = Math.min(75, finalResChaos);
             finalDamageMultiplier *= (1 + Math.max(0, finalResChaos) / 100);
         }
         if (hasKeystone('e6')) {
@@ -2036,11 +2060,17 @@ function getPlayerStats() {
         uniqueQueenBeeSummon: uniqueQueenBeeSummon,
         uniqueBleedWeightOnBleedingHit: uniqueBleedWeightOnBleedingHit,
         uniqueMeteorFootsteps: uniqueMeteorFootsteps
-        ,uniquePoisonExtraStacks: uniqueVenomStride ? 1 : 0
+        ,uniquePoisonExtraStacks: uniqueVenomStride ? 1 : 0,
+        runeCorpseExplodeChance: runeCorpseExplodeChance,
+        runeCorpseExplodeLifePct: runeCorpseExplodeLifePct,
+        runeResonancePower: runeResonancePower
     };
     if (uniqueImmuneIgnite) enemy.immuneIgnite = true;
     if (uniqueFrostSentinel) { enemy.immuneChill = true; enemy.immuneFreeze = true; }
-    if (uniqueShockTracer) enemy.immuneShock = true;
+    if (uniqueShockTracer) {
+        enemy.immuneShock = true;
+        addStatToBucket(reward, 'shockEffect', Math.max(0, Number(uniqueShockTracer.shockEffectPct || 0)));
+    }
     if (uniqueBleedBlockHelm) enemy.immuneBleed = true;
     if (uniqueClosedEyes) {
         enemy.immuneIgnite = true;
@@ -3402,6 +3432,16 @@ function handleEnemyDeath(enemy, pStats) {
             if (game.settings.showCombatLog) addLog(`💥 전령 시체폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
         }
     }
+    if (pStats && (pStats.runeCorpseExplodeChance || 0) > 0 && Math.random() < Math.max(0, Math.min(1, Number(pStats.runeCorpseExplodeChance || 0) / 100))) {
+        let lifePct = Math.max(0, Number(pStats.runeCorpseExplodeLifePct || 0));
+        let splash = Math.max(1, Math.floor((enemy.maxHp || 0) * (lifePct / 100)));
+        (game.enemies || []).forEach(target => {
+            if (!target || target.id === enemy.id || target.hp <= 0) return;
+            target.hp = Math.max(0, target.hp - splash);
+            if (target.hp <= 0) handleEnemyDeath(target, pStats);
+        });
+        if (game.settings.showCombatLog) addLog(`💥 룬 시체폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
+    }
     if (pStats && pStats.uniqueCorpseExplode && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueCorpseExplode.chance || 0) / 100))) {
         let lifePct = Math.max(0, Number(pStats.uniqueCorpseExplode.lifePct || 0));
         let splash = Math.max(1, Math.floor((enemy.maxHp || 0) * (lifePct / 100)));
@@ -3675,6 +3715,18 @@ function finishEncounterRun() {
         let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
         st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
         st.currentFloor = Math.min(st.highestFloor, floor + 1);
+        if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [] };
+        if (floor % 10 === 0) {
+            let runeState = game.underworldRunes;
+            let unlockTier = Math.floor(floor / 10);
+            let prevSlots = Math.max(0, Math.floor(runeState.unlockedSlots || 0));
+            let prevMaxRuneNo = Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0));
+            runeState.unlockedSlots = Math.min(6, Math.max(prevSlots, unlockTier));
+            runeState.unlockedRunesMaxNumber = Math.min(30, Math.max(prevMaxRuneNo, unlockTier));
+            if (runeState.unlockedSlots > prevSlots || runeState.unlockedRunesMaxNumber > prevMaxRuneNo) {
+                addLog(`🧿 지하계 ${floor}층 보상: 룬 슬롯 ${runeState.unlockedSlots}/6, 룬 번호 1~${runeState.unlockedRunesMaxNumber} 해금`, 'loot-unique');
+            }
+        }
         addLog(`🕳️ 지하계 ${floor}층 돌파! ${st.currentFloor}층까지 하강 가능합니다.`, 'season-up');
         game.killsInZone = 0;
         let mapAction = game.settings.mapCompleteAction || 'nextZone';
@@ -4138,8 +4190,10 @@ function performPlayerAttack(pStats) {
                 let now = Date.now();
                 game.uniqueShockTracerNextAt = Number(game.uniqueShockTracerNextAt || 0);
                 if (now >= game.uniqueShockTracerNextAt) {
-                    game.uniqueShockTracerNextAt = now + 500;
-                    let strike = Math.max(1, Math.floor(dmg * 5));
+                    let icdMs = Math.max(100, Math.floor((Number(pStats.uniqueShockTracer.icdSec || 0.5)) * 1000));
+                    game.uniqueShockTracerNextAt = now + icdMs;
+                    let strikePct = Math.max(1, Number(pStats.uniqueShockTracer.strikeDamagePct || 500));
+                    let strike = Math.max(1, Math.floor(dmg * (strikePct / 100)));
                     dealtToEnemy += applyDamageToEnemyResource(targetEnemy, strike);
                 }
             }
