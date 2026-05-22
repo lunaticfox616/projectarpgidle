@@ -2061,8 +2061,9 @@ function getPlayerStats() {
         uniqueGuardianArmor: uniqueGuardianArmor,
         uniqueQueenBeeSummon: uniqueQueenBeeSummon,
         uniqueBleedWeightOnBleedingHit: uniqueBleedWeightOnBleedingHit,
-        uniqueMeteorFootsteps: uniqueMeteorFootsteps
-        ,uniquePoisonExtraStacks: uniqueVenomStride ? 1 : 0,
+        uniqueMeteorFootsteps: uniqueMeteorFootsteps,
+        uniqueShockTracer: uniqueShockTracer,
+        uniquePoisonExtraStacks: uniqueVenomStride ? 1 : 0,
         runeCorpseExplodeChance: runeCorpseExplodeChance,
         runeCorpseExplodeLifePct: runeCorpseExplodeLifePct,
         runeResonancePower: runeResonancePower

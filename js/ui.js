@@ -7962,14 +7962,13 @@ function buySeason(id) {
     game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
     if (!node || !isSeasonNodeRequirementMet(node)) return;
     let lv = getSeasonNodeLevel(id);
-    if (lv > 0) {
-        if (!confirm('이미 배운 디버깅 노드입니다. 환불하시겠습니까? (정화의 오브 1 소모)')) return;
+    let evolved = isSeasonTreeEvolved();
+    let cap = evolved ? 5 : 1;
+    if (lv >= cap && lv > 0) {
+        if (!confirm('이미 최대 단계입니다. 환불하시겠습니까? (정화의 오브 1 소모)')) return;
         return refundSeasonNode(id);
     }
     if (game.seasonPoints <= 0) return;
-    let evolved = isSeasonTreeEvolved();
-    let cap = evolved ? 5 : 1;
-    if (lv >= cap) return;
     if (lv <= 0) game.seasonNodes.push(id);
     game.seasonNodeLevels[id] = lv + 1;
     game.seasonPoints--;
