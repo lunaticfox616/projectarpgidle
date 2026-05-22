@@ -5864,7 +5864,14 @@ function mergeDefaults(save) {
     merged.chaosRealm.unlocked = !!merged.chaosRealm.unlocked;
     merged.chaosRealm.highestFloor = Math.max(0, Math.floor(clampFiniteNumber(merged.chaosRealm.highestFloor, 0, 0)));
     merged.chaosRealm.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.chaosRealm.currentFloor, 1, 1)));
-    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...(merged.underworldProgress || {}) };
+    let hasSavedUnderworldProgress = !!(save && typeof save === 'object' && save.underworldProgress && typeof save.underworldProgress === 'object');
+    let legacyUnderworldProgress = {};
+    if (!hasSavedUnderworldProgress) {
+        let legacyHighest = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).highestFloor, 1, 1)));
+        let legacyCurrent = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).currentFloor, 1, 1)));
+        legacyUnderworldProgress = { highestFloor: legacyHighest, currentFloor: legacyCurrent };
+    }
+    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...legacyUnderworldProgress, ...(merged.underworldProgress || {}) };
     merged.underworldProgress.highestFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.highestFloor, 1, 1)));
     merged.underworldProgress.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.currentFloor, 1, 1)));
     merged.chaosRealm.clearedFloors = Array.isArray(merged.chaosRealm.clearedFloors) ? Array.from(new Set(merged.chaosRealm.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
