@@ -6300,8 +6300,8 @@ function useCurrency(currencyKey) {
     else if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
         let slot = String(item.slot || '');
         let isWeapon = slot === '무기';
-        let isArmor = ['투구', '갑옷', '장갑1', '장갑2', '신발', '허리띠'].includes(slot);
-        let isAccessory = ['목걸이', '반지1', '반지2'].includes(slot);
+        let isArmor = ['투구', '갑옷', '장갑', '신발', '허리띠'].includes(slot);
+        let isAccessory = ['목걸이', '반지'].includes(slot);
         if (currencyKey === 'deepWhetstone') ok = isWeapon;
         if (currencyKey === 'rootIron') ok = isArmor;
         if (currencyKey === 'jewelPolish') ok = isAccessory;

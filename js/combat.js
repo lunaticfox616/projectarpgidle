@@ -1033,8 +1033,8 @@ function getPlayerStats() {
         let cap = Math.max(0, Math.min(6, Math.floor(runeState.unlockedSlots || 0)));
         let equipped = Array.isArray(runeState.equippedRunes) ? runeState.equippedRunes.slice(0, cap) : [];
         equipped.forEach(no => {
-            let n = Math.max(1, Math.floor(no || 0));
-            if (!n) return;
+            let n = Math.floor(Number(no) || 0);
+            if (n <= 0) return;
             let rune = UNDERWORLD_RUNE_DB.find(row => row.no === n);
             if (!rune) return;
             if (rune.stat === 'corpseExplodeChance') runeCorpseExplodeChance += Number(rune.val || 0);

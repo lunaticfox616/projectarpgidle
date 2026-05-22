@@ -225,7 +225,7 @@ function applyFossilChaosCraft(fossilKey) {
     let guaranteedMaxTier = Math.max(1, hiddenTier);
     let guaranteed = specialFossil ? null : pickWeightedMod(guaranteedPool);
 
-    let lockedStats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
+    let lockedStats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
     let newStats = lockedStats.slice();
     let blockedIds = new Set([...immutableIds, ...newStats.map(stat => stat.id)]);
     if (guaranteed) {
@@ -250,7 +250,7 @@ function applyFossilChaosCraft(fossilKey) {
         blockedIds.add(roll.id);
     }
     if (fossilKey === 'fossilRift') {
-        newStats = newStats.map(stat => (stat && !stat.lockedByHoney && Number.isFinite(Number(stat.val))) ? { ...stat, val: Number((Number(stat.val) * 1.5).toFixed(2)) } : stat);
+        newStats = newStats.map(stat => (stat && !stat.lockedByHoney && !stat.lockedByRift && Number.isFinite(Number(stat.val))) ? { ...stat, val: Number((Number(stat.val) * 1.5).toFixed(2)) } : stat);
         if ((newStats.length + reservedInfusionCount) < 6) newStats.push({ id: 'fossilRiftBlank', statName: '균열 - 아무 효과 없음 (제거/변경 불가)', val: 0, lockedByRift: true });
     }
 
