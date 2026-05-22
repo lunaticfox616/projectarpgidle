@@ -230,6 +230,7 @@ function applyFossilChaosCraft(fossilKey) {
         .map(stat => stat && stat.id)
         .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
     function canUseDefenseStat(statId) {
+        statId = String(statId || '');
         if (bypassDefenseTypeRule) return true;
         if (!['armor', 'evasion', 'energyShield', 'armorPct', 'evasionPct', 'energyShieldPct'].includes(statId)) return true;
         if (baseDefenseTypes.size <= 0) return true;
@@ -253,7 +254,8 @@ function applyFossilChaosCraft(fossilKey) {
         if (pool.length <= 0) return addLog('화석 전용 옵션을 부여할 수 없습니다.', 'attack-monster');
         let row = rndChoice(pool);
         let fixedVal = Number.isFinite(Number(row.fixedVal)) ? Number(row.fixedVal) : Number((row.base + Math.max(0, hiddenTier - 1) * row.step).toFixed(2));
-        newStats.push({ id: row.id, statName: row.statName, val: Number(fixedVal.toFixed(2)), fossilExclusive: true });
+        let rolled = Number(fixedVal.toFixed(2));
+        newStats.push({ id: row.id, statName: row.statName, val: rolled, valMin: rolled, valMax: rolled, fossilExclusive: true });
     }
 
     let count = 4 + Math.floor(Math.random() * 2);

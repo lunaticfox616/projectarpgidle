@@ -971,6 +971,9 @@ function upgradeUnderworldRune() {
         if (Math.floor(n || 0) === from && removed < 3) { removed++; return false; }
         return true;
     });
+    st.equippedRunes = Array.isArray(st.equippedRunes)
+        ? st.equippedRunes.map(n => (Math.floor(n || 0) === from ? null : n))
+        : [null, null, null, null, null, null];
     st.obtainedRunes.push(Math.min(30, from + 1));
     let to = Math.min(30, from + 1);
     autoEquipUnderworldRune(to);
