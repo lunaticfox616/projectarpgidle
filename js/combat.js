@@ -594,8 +594,9 @@ function coreLoop() {
     if (!Number.isFinite(game.playerEsLastHitAt)) game.playerEsLastHitAt = 0;
     if ((pStats.energyShield || 0) > 0 && game.playerEnergyShield < (pStats.energyShield || 0)) {
         let sinceHit = (Date.now() - (game.playerEsLastHitAt || 0)) / 1000;
-        let allowRechargeWhileMoving = (game.moveTimer || 0) > 0;
-        if (allowRechargeWhileMoving || sinceHit >= (pStats.energyShieldRechargeDelay || 3)) {
+        let noInterruptEsRegen = game.ascendClass === 'elementalist' && hasKeystone('e3');
+        let allowRechargeWhileMoving = (game.moveTimer || 0) > 0 && (pStats.energyShieldRechargeDelay || 0) <= 0;
+        if (noInterruptEsRegen || allowRechargeWhileMoving || sinceHit >= (pStats.energyShieldRechargeDelay || 3)) {
             let regenPerSec = (pStats.energyShield || 0) * ((pStats.energyShieldRegenRate || 12.5) / 100);
             game.playerEnergyShield = Math.min((pStats.energyShield || 0), game.playerEnergyShield + regenPerSec * 0.1);
         }
@@ -1633,7 +1634,7 @@ function getPlayerStats() {
         }
     } else if (game.ascendClass === 'inquisitor') {
         if (hasKeystone('iq3')) { suppCap += 1; game.resonancePower = Math.max(Math.floor(game.resonancePower || 0), 10 + Math.floor(((game.sealedSkills || []).length + (game.sealedSupports || []).length) / 4)); finalAspd = Math.max(0.1, finalAspd * 0.94); }
-        let inquisitorResonancePower = Math.max(0, Math.floor(game.resonancePower || 0));
+        let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + runeResonancePower));
         let inquisitorElementalSkill = ['fire', 'cold', 'light'].includes(skill.ele) || (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0);
         if (hasKeystone('iq1') && inquisitorElementalSkill) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (inquisitorResonancePower * 0.5) / 100));
         if (hasKeystone('iq2')) {
@@ -2018,7 +2019,7 @@ function getPlayerStats() {
         instantDamageMultiplier: instantDamageMultiplier,
         finalDamageMultiplier: finalDamageMultiplier,
         ailmentPowerMultiplier: ailmentPowerMultiplier,
-        shockEffectBonusPct: (gearExplicit.shockEffect || 0) + (passive.shockEffect || 0) + (season.shockEffect || 0) + (ascend.shockEffect || 0) + (reward.shockEffect || 0),
+        shockEffectBonusPct: (gearExplicit.shockEffect || 0) + (passive.shockEffect || 0) + (season.shockEffect || 0) + (ascend.shockEffect || 0) + (reward.shockEffect || 0) + Math.max(0, Number(uniqueShockTracer && uniqueShockTracer.shockEffectPct || 0)),
         chaosDamageMultiplier: chaosDamageMultiplier,
         dotTickIntervalMultiplier: dotTickIntervalMultiplier,
         dotDurationMultiplier: dotDurationMultiplier,
@@ -3262,7 +3263,8 @@ function rollLootForEnemy(enemy) {
                             };
                             let isEquipped = (game.equippedSupports || []).includes(gem);
                             let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-                            let remain = Math.max(0, Math.floor(game.resonancePower || 0) - used);
+                            let resonanceCap = Math.floor((game.resonancePower || 0) + ((getPlayerStats().runeResonancePower || 0)));
+                            let remain = Math.max(0, resonanceCap - used);
                             let extraNeed = Math.max(0, getTierCost(record.unlockedTier) - getTierCost(prevTier));
                             if (!isEquipped || remain >= extraNeed) {
                                 record.activeTier = record.unlockedTier;
