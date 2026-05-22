@@ -268,7 +268,18 @@ function applyFossilChaosCraft(fossilKey) {
     }
     if (fossilKey === 'fossilRift') {
         newStats = newStats.map(stat => (stat && !stat.lockedByHoney && !stat.lockedByRift && Number.isFinite(Number(stat.val))) ? { ...stat, val: Number((Number(stat.val) * 1.5).toFixed(2)) } : stat);
-        if ((newStats.length + reservedInfusionCount) < 6) newStats.push({ id: 'fossilRiftBlank', statName: '균열 - 아무 효과 없음 (제거/변경 불가)', val: 0, lockedByRift: true });
+        let riftMarker = { id: 'fossilRiftBlank', statName: '균열 - 아무 효과 없음 (제거/변경 불가)', val: 0, lockedByRift: true };
+        if ((newStats.length + reservedInfusionCount) < 6) newStats.push(riftMarker);
+        else {
+            let replaceIdx = -1;
+            for (let i = newStats.length - 1; i >= 0; i--) {
+                let st = newStats[i];
+                if (!st || st.lockedByHoney || st.lockedByRift) continue;
+                replaceIdx = i;
+                break;
+            }
+            if (replaceIdx >= 0) newStats[replaceIdx] = riftMarker;
+        }
     }
 
     item.stats = newStats;
