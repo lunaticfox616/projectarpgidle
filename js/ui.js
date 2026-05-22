@@ -2276,7 +2276,7 @@ function showItemTooltip(event, idx, isEquip) {
     }
     let defenseView = getItemDefenseView(item);
     if ((item.baseStats || []).length > 0) {
-        html += `<div class="tooltip-line" style="margin-top:6px; color:#f1c40f;">베이스 옵션</div>`;
+        html += `<div class="tooltip-line" style="margin-top:6px; color:#f1c40f; font-weight:800;">베이스 옵션</div>`;
         function getBaseRollRange(stat) {
             let cur = Number(stat.val || 0);
             let min = Number.isFinite(Number(stat.valMin)) ? Number(stat.valMin) : Number((cur * 0.8).toFixed(2));
@@ -2332,7 +2332,7 @@ function showItemTooltip(event, idx, isEquip) {
             if (g !== 0) return g;
             return String(aKey || '').localeCompare(String(bKey || ''));
         });
-        html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db;">추가 옵션 (${explicitStats.length}/6)</div>`;
+        html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db; font-weight:800;">추가 옵션 (${explicitStats.length}/6)</div>`;
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
@@ -4371,7 +4371,7 @@ function buildCraftActionButtons(item) {
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
     if (!chaosInfuserOpen && game.itemSubtab === 'item-tab-infuser') switchItemSubtab('item-tab-equip');
     let underworldBtn = document.getElementById('btn-map-tab-underworld');
-    let underworldUnlocked = (typeof canEnterUnderworld === 'function' && canEnterUnderworld());
+    let underworldUnlocked = !!(typeof ensureChaosRealmState === 'function' && ensureChaosRealmState().unlocked);
     if (underworldBtn) underworldBtn.style.display = underworldUnlocked ? 'block' : 'none';
     if (game.mapSubtab === 'map-tab-underworld' && !underworldUnlocked) switchMapSubtab('map-tab-zones');
     renderMarketUI();
