@@ -213,7 +213,8 @@ function applyFossilChaosCraft(fossilKey) {
     if (item.corrupted) return addLog('타락한 아이템은 제작할 수 없습니다.', 'attack-monster');
     let immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
     let guaranteedPool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && fossil.guaranteedStats.includes(mod.id) && !immutableIds.has(mod.statId || mod.id));
-    if (guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
+    let specialFossil = ['fossilOld', 'fossilRift'].includes(fossilKey);
+    if (!specialFossil && guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
 
     let maxTier = getItemCraftTier(item);
     let previousChaosInfusion = item.chaosInfusion || null;
@@ -222,15 +223,22 @@ function applyFossilChaosCraft(fossilKey) {
     let hiddenTier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || maxTier));
     let guaranteedMinTier = Math.max(1, hiddenTier - 3);
     let guaranteedMaxTier = Math.max(1, hiddenTier);
-    let guaranteed = pickWeightedMod(guaranteedPool);
+    let guaranteed = specialFossil ? null : pickWeightedMod(guaranteedPool);
 
-    let lockedStats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
+    let lockedStats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
     let newStats = lockedStats.slice();
     let blockedIds = new Set([...immutableIds, ...newStats.map(stat => stat.id)]);
-    let guaranteedRoll = rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier);
-    if (!blockedIds.has(guaranteedRoll.id) && (newStats.length + reservedInfusionCount) < 6) {
-        newStats.push(guaranteedRoll);
-        blockedIds.add(guaranteedRoll.id);
+    if (guaranteed) {
+        let guaranteedRoll = rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier);
+        if (!blockedIds.has(guaranteedRoll.id) && (newStats.length + reservedInfusionCount) < 6) {
+            newStats.push(guaranteedRoll);
+            blockedIds.add(guaranteedRoll.id);
+        }
+    } else if (fossilKey === 'fossilOld') {
+        let pool = getFossilExclusivePool(item);
+        if (pool.length <= 0) return addLog('화석 전용 옵션을 부여할 수 없습니다.', 'attack-monster');
+        let row = rndChoice(pool);
+        newStats.push({ id: row.id, statName: row.statName, val: Number((row.base + Math.max(0, hiddenTier - 1) * row.step).toFixed(2)), fossilExclusive: true });
     }
 
     let count = 4 + Math.floor(Math.random() * 2);
@@ -241,13 +249,18 @@ function applyFossilChaosCraft(fossilKey) {
         newStats.push(roll);
         blockedIds.add(roll.id);
     }
+    if (fossilKey === 'fossilRift') {
+        newStats = newStats.map(stat => (stat && !stat.lockedByHoney && !stat.lockedByRift && Number.isFinite(Number(stat.val))) ? { ...stat, val: Number((Number(stat.val) * 1.5).toFixed(2)) } : stat);
+        if ((newStats.length + reservedInfusionCount) < 6) newStats.push({ id: 'fossilRiftBlank', statName: '균열 - 아무 효과 없음 (제거/변경 불가)', val: 0, lockedByRift: true });
+    }
 
     item.stats = newStats;
     item.rarity = 'rare';
     if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
     game.currencies[fossilKey]--; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_craft');
     updateItemName(item);
-    addLog(`🪨 ${fossil.name} 재련 성공! 확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})`, 'loot-magic');
+    let line = guaranteed ? `확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})` : (fossilKey === 'fossilOld' ? '확정 옵션: [화석 전용 옵션]' : '균열 표식 + 나머지 옵션 50% 증폭');
+    addLog(`🪨 ${fossil.name} 재련 성공! ${line}`, 'loot-magic');
     updateStaticUI();
 }
 
