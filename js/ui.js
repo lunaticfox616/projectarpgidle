@@ -1680,6 +1680,17 @@ function getSupportResonanceCost(name) {
     if (['aspd', 'crit', 'dotPctDmg', 'elementalPctDmg', 'meleePctDmg', 'projectilePctDmg'].includes(stat)) return 2;
     return 1;
 }
+
+function getEffectiveResonanceCap() {
+    let base = Math.max(0, Math.floor(game.resonancePower || 0));
+    let runeBonus = 0;
+    if (typeof getPlayerStats === 'function') {
+        let stats = getPlayerStats();
+        runeBonus = Math.max(0, Math.floor((stats && stats.runeResonancePower) || 0));
+    }
+    return base + runeBonus;
+}
+
 function getSupportTierResonanceCost(name) {
     let base = getSupportResonanceCost(name);
     let tier = getSupportActiveTier(name);
@@ -1711,7 +1722,7 @@ function setSupportActiveTier(name, tier) { if (!assertBuildEditable()) return;
         rec.activeTier = nextTier;
         game.supportGemData[name] = rec;
         let nextUsed = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-        let resonancePower = Math.max(0, Math.floor(game.resonancePower || 0));
+        let resonancePower = getEffectiveResonanceCap();
         if (nextUsed > resonancePower) {
             rec.activeTier = prevTier;
             game.supportGemData[name] = rec;
@@ -1732,7 +1743,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
     if (idx > -1) game.equippedSupports.splice(idx, 1);
     else if (game.equippedSupports.length < getPlayerStats().suppCap) {
         let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-        let remain = Math.max(0, Math.floor(game.resonancePower || 0) - used);
+        let remain = Math.max(0, getEffectiveResonanceCap() - used);
         let activeTier = getSupportActiveTier(name);
         let cost = getSupportTierResonanceCost(name);
         if (remain < cost) return addLog(`공명력 부족 (${remain}/${cost})`, 'attack-monster');
@@ -4632,7 +4643,7 @@ function buildCraftActionButtons(item) {
     if (foldActiveBtn) foldActiveBtn.style.background = (!foldAttackInactive && !foldSupportInactive) ? '#2f6a42' : '#2c3e50';
     if (foldAttackBtn) foldAttackBtn.style.background = foldAttackInactive ? '#2f6a42' : '#2c3e50';
     if (foldSupportBtn) foldSupportBtn.style.background = foldSupportInactive ? '#2f6a42' : '#2c3e50';
-    let resonancePower = Math.max(0, Math.floor(game.resonancePower || 0));
+    let resonancePower = getEffectiveResonanceCap();
     let sealedSkills = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
     let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
     let skillsHtml = game.skills.filter(name => {

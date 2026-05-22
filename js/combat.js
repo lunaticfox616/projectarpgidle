@@ -3263,7 +3263,7 @@ function rollLootForEnemy(enemy) {
                             };
                             let isEquipped = (game.equippedSupports || []).includes(gem);
                             let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-                            let resonanceCap = Math.floor((game.resonancePower || 0) + ((getPlayerStats().runeResonancePower || 0)));
+                            let resonanceCap = typeof getEffectiveResonanceCap === 'function' ? getEffectiveResonanceCap() : Math.floor((game.resonancePower || 0) + ((getPlayerStats().runeResonancePower || 0)));
                             let remain = Math.max(0, resonanceCap - used);
                             let extraNeed = Math.max(0, getTierCost(record.unlockedTier) - getTierCost(prevTier));
                             if (!isEquipped || remain >= extraNeed) {
