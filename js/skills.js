@@ -213,7 +213,8 @@ function applyFossilChaosCraft(fossilKey) {
     if (item.corrupted) return addLog('타락한 아이템은 제작할 수 없습니다.', 'attack-monster');
     let immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
     let guaranteedPool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && fossil.guaranteedStats.includes(mod.id) && !immutableIds.has(mod.statId || mod.id));
-    if (guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
+    let specialFossil = ['fossilOld', 'fossilRift'].includes(fossilKey);
+    if (!specialFossil && guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
 
     let maxTier = getItemCraftTier(item);
     let previousChaosInfusion = item.chaosInfusion || null;
@@ -222,24 +223,65 @@ function applyFossilChaosCraft(fossilKey) {
     let hiddenTier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || maxTier));
     let guaranteedMinTier = Math.max(1, hiddenTier - 3);
     let guaranteedMaxTier = Math.max(1, hiddenTier);
-    let guaranteed = pickWeightedMod(guaranteedPool);
+    let guaranteed = specialFossil ? null : pickWeightedMod(guaranteedPool);
+    let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
+    let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
+    let baseDefenseTypes = new Set((item.baseStats || [])
+        .map(stat => stat && stat.id)
+        .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
+    function canUseDefenseStat(statId) {
+        statId = String(statId || '');
+        if (bypassDefenseTypeRule) return true;
+        if (!['armor', 'evasion', 'energyShield', 'armorPct', 'evasionPct', 'energyShieldPct'].includes(statId)) return true;
+        if (baseDefenseTypes.size <= 0) return true;
+        if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
+        if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
+        if (statId.startsWith('energyShield') && !baseDefenseTypes.has('energyShield')) return false;
+        return true;
+    }
 
-    let lockedStats = (item.stats || []).filter(stat => stat && stat.lockedByHoney);
+    let lockedStats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
     let newStats = lockedStats.slice();
     let blockedIds = new Set([...immutableIds, ...newStats.map(stat => stat.id)]);
-    let guaranteedRoll = rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier);
-    if (!blockedIds.has(guaranteedRoll.id) && (newStats.length + reservedInfusionCount) < 6) {
-        newStats.push(guaranteedRoll);
-        blockedIds.add(guaranteedRoll.id);
+    if (guaranteed) {
+        let guaranteedRoll = rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier);
+        if (!blockedIds.has(guaranteedRoll.id) && (newStats.length + reservedInfusionCount) < 6) {
+            newStats.push(guaranteedRoll);
+            blockedIds.add(guaranteedRoll.id);
+        }
+    } else if (fossilKey === 'fossilOld') {
+        let pool = getFossilExclusivePool(item);
+        if (pool.length <= 0) return addLog('화석 전용 옵션을 부여할 수 없습니다.', 'attack-monster');
+        let row = rndChoice(pool);
+        let fixedVal = Number.isFinite(Number(row.fixedVal)) ? Number(row.fixedVal) : Number((row.base + Math.max(0, hiddenTier - 1) * row.step).toFixed(2));
+        let rolled = Number(fixedVal.toFixed(2));
+        newStats.push({ id: row.id, statName: row.statName, val: rolled, valMin: rolled, valMax: rolled, fossilExclusive: true });
     }
 
     let count = 4 + Math.floor(Math.random() * 2);
     while ((newStats.length + reservedInfusionCount) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
-        let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id));
+        let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id) && canUseDefenseStat(mod.statId || mod.id));
         if (pool.length === 0) break;
         let roll = rollAffixValue(pickWeightedMod(pool), maxTier);
         newStats.push(roll);
         blockedIds.add(roll.id);
+    }
+    if (fossilKey === 'fossilRift') {
+        newStats = newStats.map(stat => (stat && !stat.lockedByHoney && !stat.lockedByRift && Number.isFinite(Number(stat.val))) ? { ...stat, val: Number((Number(stat.val) * 1.5).toFixed(2)) } : stat);
+        let riftMarker = { id: 'fossilRiftBlank', statName: '균열 - 아무 효과 없음 (제거/변경 불가)', val: 0, lockedByRift: true };
+        let existingRiftIdx = newStats.findIndex(stat => stat && stat.id === 'fossilRiftBlank');
+        if (existingRiftIdx >= 0) newStats[existingRiftIdx] = riftMarker;
+        else if ((newStats.length + reservedInfusionCount) < 6) newStats.push(riftMarker);
+        else {
+            let replaceIdx = -1;
+            for (let i = newStats.length - 1; i >= 0; i--) {
+                let st = newStats[i];
+                if (!st || st.lockedByHoney || st.lockedByRift) continue;
+                replaceIdx = i;
+                break;
+            }
+            if (replaceIdx >= 0) newStats[replaceIdx] = riftMarker;
+        }
     }
 
     item.stats = newStats;
@@ -247,7 +289,8 @@ function applyFossilChaosCraft(fossilKey) {
     if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
     game.currencies[fossilKey]--; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_craft');
     updateItemName(item);
-    addLog(`🪨 ${fossil.name} 재련 성공! 확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})`, 'loot-magic');
+    let line = guaranteed ? `확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})` : (fossilKey === 'fossilOld' ? '확정 옵션: [화석 전용 옵션]' : '균열 표식 + 나머지 옵션 50% 증폭');
+    addLog(`🪨 ${fossil.name} 재련 성공! ${line}`, 'loot-magic');
     updateStaticUI();
 }
 
@@ -262,7 +305,7 @@ function restorePrimalFossil(kind) {
     let baseFossilGain = isAncient ? 2 : 1;
     awardCurrency('fossil', baseFossilGain);
     rewardLines.push(`미궁 화석 +${baseFossilGain}`);
-    let typed = rndChoice(FOSSIL_DB.filter(row => row.key !== 'fossilAbyssal' && !row.ancientPrimalOnly));
+    let typed = rndChoice(FOSSIL_DB.filter(row => row.key !== 'fossilAbyssal' && !row.ancientPrimalOnly && row.key !== 'fossilOld' && row.key !== 'fossilRift'));
     awardCurrency(typed.key, 1);
     rewardLines.push(`${typed.name} +1`);
     if (isAncient) {
