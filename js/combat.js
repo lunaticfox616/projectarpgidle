@@ -4572,6 +4572,8 @@ function performMonsterAttacks(pStats) {
             if (enemy.isBoss) dmg = Math.floor(dmg * (1.14 + zone.tier * 0.16));
             if (!enemy.isBoss) dmg = Math.floor(dmg * crowdPenalty);
             dmg = Math.floor(dmg * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (enemy.isBoss ? (abyssScale.bossMul || 1) : 1));
+            // 몬스터 혼합 타격은 '원본 피해'를 먼저 50:50으로 분할한 뒤,
+            // 물리/속성을 각각 별도로 방어 계산한다. (한쪽 감소 후 재분할 금지)
             let physicalPortion = Math.floor(dmg * 0.5);
             let elementalPortion = Math.max(0, dmg - physicalPortion);
             if (zone.type === 'outsideChaos' && enemy.maxHp > 0) {
