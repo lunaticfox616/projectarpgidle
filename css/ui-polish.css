@@ -37,45 +37,120 @@ body:not(.light-mode) .forge-panel {
   box-shadow: 0 8px 28px rgba(2, 6, 12, 0.42), inset 0 1px 0 rgba(184, 212, 244, 0.04);
 }
 
-body:not(.light-mode) .tab-header,
+/* ── TAB HEADER ─────────────────────────────────────────────── */
+body:not(.light-mode) .tab-header {
+  background: linear-gradient(180deg, #0f1520 0%, #0b1018 100%);
+  border-bottom: 1px solid #1c2a3a;
+  gap: 2px;
+  padding: 0 4px;
+  align-items: stretch;
+  height: 44px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(180,140,60,0.08);
+}
+
 body:not(.light-mode) .subtab-row {
-  background: linear-gradient(180deg, #111a27 0%, #0e1622 100%);
-  border-bottom: 1px solid var(--ui-border-soft);
-  gap: 6px;
-  padding: 6px;
+  background: linear-gradient(180deg, #0e1a28 0%, #0b1420 100%);
+  border-bottom: 1px solid #1c2c3f;
+  gap: 5px;
+  padding: 6px 8px;
   align-items: center;
 }
 
-body:not(.light-mode) .tab-btn,
-body:not(.light-mode) .subtab-btn {
-  border: 1px solid #2b3b50;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #1a2637 0%, #131d2b 100%);
-  color: #c9d9eb;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
-  transition: border-color .16s ease, box-shadow .16s ease, transform .12s ease, background .16s ease;
-  min-height: 32px;
-  padding-top: 6px;
-  padding-bottom: 6px;
-  line-height: 1;
+/* ── TAB BUTTONS ────────────────────────────────────────────── */
+body:not(.light-mode) .tab-btn {
+  position: relative;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #7a8fa3;
+  font-weight: 600;
+  font-size: 0.82em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0 4px;
+  min-height: 44px;
+  border-right: 1px solid rgba(255,255,255,0.04);
+  box-shadow: none;
+  transition: color .15s ease, background .15s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  vertical-align: middle;
+}
+body:not(.light-mode) .tab-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  background: transparent;
+  border-radius: 2px 2px 0 0;
+  transition: background .18s ease, left .18s ease, right .18s ease;
 }
 
-body:not(.light-mode) .tab-btn:hover,
+body:not(.light-mode) .tab-btn:hover {
+  background: rgba(180,200,230,0.05);
+  color: #b8ccdf;
+}
+body:not(.light-mode) .tab-btn:hover::after {
+  background: rgba(180,200,230,0.2);
+}
+
+body:not(.light-mode) .tab-btn.active {
+  background: linear-gradient(180deg, rgba(200,160,60,0.07) 0%, transparent 100%);
+  color: #e8c26a;
+  text-shadow: 0 0 12px rgba(232,194,106,0.35);
+  border-right-color: rgba(255,255,255,0.05);
+}
+body:not(.light-mode) .tab-btn.active::after {
+  left: 10%;
+  right: 10%;
+  background: linear-gradient(90deg, transparent, #c9a040, #e8c26a, #c9a040, transparent);
+  height: 2px;
+  box-shadow: 0 0 8px rgba(232,194,106,0.6);
+}
+
+/* ── SUBTAB BUTTONS ─────────────────────────────────────────── */
+body:not(.light-mode) .subtab-btn {
+  position: relative;
+  border: 1px solid #25374e;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #141f2e 0%, #0f1825 100%);
+  color: #8aa0b8;
+  font-weight: 600;
+  font-size: 0.82em;
+  letter-spacing: 0.03em;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+  transition: border-color .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+body:not(.light-mode) .subtab-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 6px 6px 0 0;
+}
+
 body:not(.light-mode) .subtab-btn:hover {
-  border-color: #3f5775;
-  background: linear-gradient(180deg, #223246 0%, #172536 100%);
+  border-color: #3a5570;
+  background: linear-gradient(180deg, #1a2a3d 0%, #131f30 100%);
+  color: #c0d4e8;
 }
 
-body:not(.light-mode) .tab-btn.active,
 body:not(.light-mode) .subtab-btn.active {
-  border-color: var(--ui-accent);
-  color: #e7f4ff;
-  background: linear-gradient(180deg, #20374f 0%, #172a3e 100%);
-  box-shadow: 0 0 0 1px rgba(154, 214, 255, 0.25), 0 0 16px var(--ui-accent-glow), inset 0 1px 0 rgba(255,255,255,0.10);
+  border-color: #b08830;
+  background: linear-gradient(180deg, #2a1e08 0%, #1e1506 100%);
+  color: #e8c26a;
+  box-shadow: 0 0 0 1px rgba(200,160,60,0.2), 0 0 10px rgba(200,160,60,0.15), inset 0 1px 0 rgba(255,220,120,0.1);
+  text-shadow: 0 0 8px rgba(232,194,106,0.4);
+}
+body:not(.light-mode) .subtab-btn.active::before {
+  background: linear-gradient(90deg, transparent, rgba(200,160,60,0.4), transparent);
 }
 
 body:not(.light-mode) .item-card {
@@ -166,22 +241,4 @@ body.light-mode .subtab-btn.active {
   box-shadow: 0 0 0 1px rgba(91, 152, 215, .2);
 }
 
-
-body:not(.light-mode) .tab-btn,
-body:not(.light-mode) .subtab-btn {
-  letter-spacing: .01em;
-  font-weight: 600;
-  border-color: #334a63;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 1px 0 rgba(6,12,20,.55);
-}
-body:not(.light-mode) .tab-btn.active,
-body:not(.light-mode) .subtab-btn.active {
-  border-color: #6bb7ec;
-  background: linear-gradient(180deg, #27425d 0%, #1a2e45 100%);
-}
-body:not(.light-mode) .tab-header,
-body:not(.light-mode) .subtab-row {
-  border: 1px solid rgba(73, 102, 133, 0.35);
-  border-radius: 12px;
-}
 

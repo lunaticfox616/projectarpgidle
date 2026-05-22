@@ -3226,6 +3226,7 @@ function initBattleAssets() {
 
     function queueBattleSheetSanitization(key, image) {
         if (!ENABLE_BATTLE_SHEET_SANITIZATION) return;
+        if (isLocalFileProtocol()) return;  // file:// 환경에서는 canvas.getImageData가 SecurityError를 던지므로 sanitization 건너뜀
         if (battleAssets.loadTicket !== loadTicket) return;
         try {
             let sanitized = sanitizeBattleSheet(image);
@@ -3643,6 +3644,7 @@ function sanitizeLocalMonsterBackdropSheet(image) {
 
 function heroSheetHasTransparency(image) {
     if (!image || !image.width || !image.height) return false;
+    if (isLocalFileProtocol()) return true;  // file:// 환경에서는 getImageData SecurityError 우회 — 히어로 시트는 투명도 있다고 가정
     const canvas = document.createElement('canvas');
     canvas.width = image.width;
     canvas.height = image.height;

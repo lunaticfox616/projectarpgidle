@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="css/theme.css">
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/ui-polish.css">
+    <link rel="stylesheet" href="css/ui-premium.css">
     <link rel="stylesheet" href="css/mobile.css">
 </head>
 <body>
@@ -232,7 +233,7 @@
     <button id="left-pane-expand-fab" onclick="toggleLeftPaneCollapse()" title="전투 패널 펼치기" aria-label="전투 패널 펼치기">▶</button>
     <div class="tab-header">
         <div class="tab-btn" id="btn-tab-battle" onclick="switchTab('tab-battle')">전투</div>
-        <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: block;">캐릭터</div>
+        <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: flex;">캐릭터</div>
         <div class="tab-btn" id="btn-tab-char" onclick="switchTab('tab-char')">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">루프 <span id="noti-season" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-expertise" onclick="switchTab('tab-expertise')">전문가 <span id="noti-expertise" class="noti-dot"></span></div>
@@ -241,10 +242,10 @@
         <div class="tab-btn" id="btn-tab-jewel" onclick="switchTab('tab-jewel')" style="display:none;">주얼</div>
         <div class="tab-btn" id="btn-tab-map" onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-skills" onclick="switchTab('tab-skills')">스킬 젬 <span id="noti-skills" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-journal" onclick="switchTab('tab-journal')" style="display: block;">저널</div>
+        <div class="tab-btn" id="btn-tab-journal" onclick="switchTab('tab-journal')" style="display: flex;">저널</div>
         <div class="tab-btn" id="btn-tab-codex" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-talisman" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
-        <div class="tab-btn active" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: block;">설정</div>
+        <div class="tab-btn active" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: flex;">설정</div>
     </div>
     <div class="tab-header tab-header-bottom" id="tab-header-bottom"></div>
     <div id="tab-battle" class="tab-content"></div>
@@ -729,71 +730,120 @@
     </div>
 
     <div id="tab-settings" class="tab-content active">
-        <h2>⚙️ 설정</h2>
-        <div class="settings-stack">
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-combat-scene" onchange="updateSettings()" checked> 전투 화면 표시</label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-combat" onchange="updateSettings()" checked> 전투 로그 표시</label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-aggregate" onchange="updateSettings()" checked> 전투 로그 0.5초 집계</label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-rate-limit" onchange="updateSettings()" checked> 일반/연속타격 로그 속도 제한</label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-spawn" onchange="updateSettings()" checked> 적/보스 등장 로그 표시</label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-exp" onchange="updateSettings()" checked> 경험치 로그 표시</label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-loot" onchange="updateSettings()" checked> 전리품 로그 표시</label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-log-crowd" onchange="updateSettings()" checked> 몬스터 과밀 정지/해제 로그 표시</label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-death-notice" onchange="updateSettings()" checked> 사망 시 알림 표시</label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; cursor: pointer;"><input type="checkbox" id="chk-mobile-battle-pip" onchange="updateSettings()" checked> 모바일 전투 PiP 표시</label>
-            <div style="background:#1a1a24; padding:10px; border:1px solid #3d3d5c; border-radius:6px;">
-                <label style="display:block; margin-bottom:8px;"><input type="checkbox" id="chk-item-filter-enabled" onchange="updateSettings()"> 아이템 필터 사용</label>
-                <div style="display:grid; gap:6px; font-size:0.86em;">
-                    <div>습득할 아이템 등급:
-                        <label><input type="checkbox" id="chk-item-filter-normal" onchange="updateSettings()"> 일반</label>
-                        <label><input type="checkbox" id="chk-item-filter-magic" onchange="updateSettings()"> 매직</label>
-                        <label><input type="checkbox" id="chk-item-filter-rare" onchange="updateSettings()"> 레어</label>
-                        <label><input type="checkbox" id="chk-item-filter-unique" onchange="updateSettings()"> 고유</label>
+        <div class="settings-layout">
+
+            <!-- ── 전투 표시 ── -->
+            <div class="cfg-group">
+                <div class="cfg-group-title">전투 표시</div>
+                <div class="cfg-rows">
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-combat-scene" onchange="updateSettings()" checked><span class="cfg-label">전투 화면 표시</span></label>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-death-notice" onchange="updateSettings()" checked><span class="cfg-label">사망 시 알림 표시</span></label>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-mobile-battle-pip" onchange="updateSettings()" checked><span class="cfg-label">모바일 전투 PiP 표시</span></label>
+                </div>
+            </div>
+
+            <!-- ── 전투 로그 ── -->
+            <div class="cfg-group">
+                <div class="cfg-group-title">전투 로그</div>
+                <div class="cfg-rows">
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-log-combat" onchange="updateSettings()" checked><span class="cfg-label">전투 로그 표시</span></label>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-log-aggregate" onchange="updateSettings()" checked><span class="cfg-label">0.5초 집계 표시</span></label>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-log-rate-limit" onchange="updateSettings()" checked><span class="cfg-label">연속타격 로그 속도 제한</span></label>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-log-spawn" onchange="updateSettings()" checked><span class="cfg-label">적/보스 등장 로그</span></label>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-log-exp" onchange="updateSettings()" checked><span class="cfg-label">경험치 로그</span></label>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-log-loot" onchange="updateSettings()" checked><span class="cfg-label">전리품 로그</span></label>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-log-crowd" onchange="updateSettings()" checked><span class="cfg-label">몬스터 과밀 정지/해제 로그</span></label>
+                </div>
+            </div>
+
+            <!-- ── 전투 동작 ── -->
+            <div class="cfg-group">
+                <div class="cfg-group-title">전투 동작</div>
+                <div class="cfg-rows">
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">맵 완료 시</span>
+                        <select id="sel-map-complete-action" onchange="updateSettings()" class="cfg-select">
+                            <option value="nextZone">다음 지역으로 이동</option>
+                            <option value="repeatZone">같은 지역 반복</option>
+                            <option value="nextLoopBestPlusOne">루프 최고 층 다음으로</option>
+                            <option value="stop">전투 중단</option>
+                        </select>
                     </div>
-                    <label>옵션 티어 기준: <input id="inp-item-filter-tier-threshold" type="number" min="1" max="20" value="10" onchange="updateSettings()" style="width:62px;"></label>
-                    <label>기준 이상 옵션 개수 최소: <input id="inp-item-filter-tier-count" type="number" min="0" max="6" value="0" onchange="updateSettings()" style="width:62px;"></label>
-                    <label>숨겨진 티어 최소: <input id="inp-item-filter-hidden-tier" type="number" min="1" max="20" value="1" onchange="updateSettings()" style="width:62px;"></label>
-                    <label><input type="checkbox" id="chk-item-filter-unique-new-codex" onchange="updateSettings()"> 도감에 없는 고유만 습득</label>
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">귀환 시</span>
+                        <select id="sel-town-return-action" onchange="updateSettings()" class="cfg-select">
+                            <option value="retry">바로 재전투</option>
+                            <option value="stop">전투 중단</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                <span>맵 완료 시 설정</span>
-                <select id="sel-map-complete-action" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
-                    <option value="nextZone">다음 지역으로 이동(기본값)</option>
-                    <option value="repeatZone">같은지역 반복 전투</option>
-                    <option value="nextLoopBestPlusOne">현재 루프 최고 층의 다음 층으로 진행</option>
-                    <option value="stop">전투 중단</option>
-                </select>
-            </label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                <span>귀환 시 설정</span>
-                <select id="sel-town-return-action" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
-                    <option value="retry">바로 재전투 시도(기본값)</option>
-                    <option value="stop">전투 중단</option>
-                </select>
-            </label>
-            <label style="background: #1a1a24; padding: 10px; border: 1px solid #3d3d5c; border-radius: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                <span>테마 모드</span>
-                <select id="sel-theme-mode" onchange="updateSettings()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px;">
-                    <option value="dark">다크모드</option>
-                    <option value="light">라이트모드</option>
-                </select>
-            </label>
-            <div style="background:#1a1a24; padding:10px; border:1px solid #3d3d5c; border-radius:6px; display:grid; gap:8px;">
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                    <span>현재 캐릭터 외형</span>
-                    <select id="sel-active-hero" onchange="onHeroSelectionChanged()" style="background:#0e141d; color:#dbe9ff; border:1px solid #3d536e; border-radius:6px; padding:4px 8px; min-width:140px;"></select>
+
+            <!-- ── 아이템 필터 ── -->
+            <div class="cfg-group">
+                <div class="cfg-group-title">아이템 필터</div>
+                <div class="cfg-rows">
+                    <label class="cfg-toggle cfg-toggle--header"><input type="checkbox" id="chk-item-filter-enabled" onchange="updateSettings()"><span class="cfg-label">아이템 필터 사용</span></label>
+                    <div class="cfg-filter-grades">
+                        <span class="cfg-sublabel">습득 등급</span>
+                        <div class="cfg-grade-checks">
+                            <label class="cfg-grade-chip"><input type="checkbox" id="chk-item-filter-normal" onchange="updateSettings()">일반</label>
+                            <label class="cfg-grade-chip"><input type="checkbox" id="chk-item-filter-magic" onchange="updateSettings()">매직</label>
+                            <label class="cfg-grade-chip cfg-grade-rare"><input type="checkbox" id="chk-item-filter-rare" onchange="updateSettings()">레어</label>
+                            <label class="cfg-grade-chip cfg-grade-unique"><input type="checkbox" id="chk-item-filter-unique" onchange="updateSettings()">고유</label>
+                        </div>
+                    </div>
+                    <div class="cfg-number-row">
+                        <span class="cfg-sublabel">옵션 티어 기준</span>
+                        <input id="inp-item-filter-tier-threshold" type="number" min="1" max="20" value="10" onchange="updateSettings()" class="cfg-number">
+                    </div>
+                    <div class="cfg-number-row">
+                        <span class="cfg-sublabel">기준 이상 옵션 개수 최소</span>
+                        <input id="inp-item-filter-tier-count" type="number" min="0" max="6" value="0" onchange="updateSettings()" class="cfg-number">
+                    </div>
+                    <div class="cfg-number-row">
+                        <span class="cfg-sublabel">숨겨진 티어 최소</span>
+                        <input id="inp-item-filter-hidden-tier" type="number" min="1" max="20" value="1" onchange="updateSettings()" class="cfg-number">
+                    </div>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-item-filter-unique-new-codex" onchange="updateSettings()"><span class="cfg-label">도감에 없는 고유만 습득</span></label>
                 </div>
-                <div id="ui-hero-talent-summary" style="font-size:0.82em; color:#9ec3e8;">캐릭터 재능 정보 로딩 중...</div>
             </div>
-            <div style="background:#1a1a24; padding:10px; border:1px solid #3d3d5c; border-radius:6px; display:grid; gap:6px;">
-                <div style="color:#d5e7fa; font-weight:700;">탭 순서/위치 조정</div>
-                <div id="ui-tab-order-settings" style="display:grid; gap:4px;"></div>
+
+            <!-- ── 외형 & 인터페이스 ── -->
+            <div class="cfg-group">
+                <div class="cfg-group-title">외형 &amp; 인터페이스</div>
+                <div class="cfg-rows">
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">테마 모드</span>
+                        <select id="sel-theme-mode" onchange="updateSettings()" class="cfg-select">
+                            <option value="dark">다크모드</option>
+                            <option value="light">라이트모드</option>
+                        </select>
+                    </div>
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">캐릭터 외형</span>
+                        <select id="sel-active-hero" onchange="onHeroSelectionChanged()" class="cfg-select" style="min-width:140px;"></select>
+                    </div>
+                    <div id="ui-hero-talent-summary" class="cfg-hero-talent"></div>
+                </div>
             </div>
-            <hr style="border-color: #3d3d5c; width: 100%;">
-            <button id="btn-open-death-log" onclick="openLastDeathLog()" style="background-color: #4a6078;">☠️ 최근 데스로그 보기</button>
-            <button onclick="saveGame({ manual: true })" style="background-color: #27ae60;">💾 수동 저장</button>
-            <button onclick="resetGame()" style="background-color: #c0392b; border-color: #922b21;">♻️ 세이브 완전 초기화</button>
+
+            <!-- ── 탭 배치 ── -->
+            <div class="cfg-group">
+                <div class="cfg-group-title">탭 순서 / 위치 조정</div>
+                <div id="ui-tab-order-settings" class="cfg-rows" style="gap:4px;"></div>
+            </div>
+
+            <!-- ── 저장 & 데이터 ── -->
+            <div class="cfg-group cfg-group--danger">
+                <div class="cfg-group-title">저장 &amp; 데이터</div>
+                <div class="cfg-action-row">
+                    <button id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn cfg-btn--neutral">☠️ 최근 데스로그</button>
+                    <button onclick="saveGame({ manual: true })" class="cfg-btn cfg-btn--save">💾 수동 저장</button>
+                    <button onclick="resetGame()" class="cfg-btn cfg-btn--danger">♻️ 세이브 초기화</button>
+                </div>
+            </div>
+
         </div>
         <div class="cloud-panel">
             <div class="cloud-header">

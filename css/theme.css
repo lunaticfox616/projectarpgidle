@@ -5,7 +5,7 @@
         .map-zone-status { color: #8ca5be; font-size: 0.78em; font-weight: normal; }
 
         .subtab-row { display: flex; gap: 8px; margin-bottom: 15px; }
-        .subtab-btn { flex: 1; padding: 10px 0; background: #1a1a24; color: #888; border: 1px solid #2a2a35; border-radius: 6px; }
+        .subtab-btn { flex: 1; padding: 10px 0; background: #1a1a24; color: #888; border: 1px solid #2a2a35; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
         .subtab-btn.active { background: #2b1e0d; border-color: #e67e22; color: #f1c40f; }
         .subtab-content { display: none; }
         .subtab-content.active { display: block; }
