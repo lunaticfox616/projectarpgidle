@@ -678,7 +678,7 @@ const SUPPORT_GEM_DB = {
     '무자비': { baseVal: 10, scale: 3.0, stat: 'critDmg', name: '치명타 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '치명타 배율을 높입니다.' },
     '생명력 흡수': { baseVal: 0.5, scale: 0.1, stat: 'leech', name: '생명력 흡수', isPct: true, resonanceCosts: [3, 9, 18], desc: '공격 시 흡혈을 부여합니다.' },
     '연속타격': { baseVal: 5, scale: 1.0, stat: 'ds', name: '연속 타격 확률', isPct: true, resonanceCosts: [9, 21, 33], desc: '한 번 더 타격할 확률을 부여합니다.' },
-    '방어 상승': { baseVal: 2, scale: 0.5, stat: 'dr', name: '받는 피해 감소', isPct: true, resonanceCosts: [3, 9, 18], desc: '물리 피해 감소를 올립니다.' },
+    '방어 상승': { baseVal: 2, scale: 0.5, stat: 'dr', name: '물리 피해 감소', isPct: true, resonanceCosts: [3, 9, 18], desc: '물리 피해 감소를 올립니다.' },
     '갑주 파쇄': { baseVal: 3, scale: 0.8, stat: 'physIgnore', name: '물피감 무시', isPct: true, resonanceCosts: [9, 21, 33], desc: '물리 공격이 적의 물리 피해 감소를 더 깊게 파고듭니다.' },
     '저항 침식': { baseVal: 3, scale: 0.8, stat: 'resPen', name: '저항 관통', isPct: true, resonanceCosts: [9, 21, 33], desc: '원소/카오스 공격이 적의 저항을 꿰뚫습니다.' },
     '활력': { baseVal: 0.2, scale: 0.1, stat: 'regen', name: '초당 생명력 재생', isPct: true, resonanceCosts: [3, 9, 18], desc: '초당 생명력 재생을 제공합니다.' },

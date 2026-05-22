@@ -1094,7 +1094,7 @@ function renderChallengeContractPanel() {
 }
 function toggleSeasonBossRepeat() {
     game.autoRepeatSeasonBoss = !game.autoRepeatSeasonBoss;
-    addLog(`🗝️ 시즌 보스 반복 도전: ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`, 'season-up');
+    addLog(`🗝️ 뿌리 보스 반복 도전: ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`, 'season-up');
     updateStaticUI();
 }
 
@@ -1535,7 +1535,7 @@ function tryGrantCodexCompletionReward() {
     if (progress.total <= 0 || progress.stored < progress.total) return;
     if (game.uniqueCodexCompletedRewardClaimed) return;
     game.uniqueCodexCompletedRewardClaimed = true;
-    addLog('📚 도감 완성! 다음 시즌 환생부터 부위별 최하위 고유 선택 특전이 활성화됩니다.', 'loot-unique');
+    addLog('📚 도감 완성! 다음 루프 환생부터 부위별 최하위 고유 선택 특전이 활성화됩니다.', 'loot-unique');
 }
 
 function storeUniqueToCodexByItemId(itemId) {
@@ -1564,7 +1564,7 @@ function withdrawUniqueFromCodex(key) {
     game.uniqueCodex = game.uniqueCodex || {};
     let stored = game.uniqueCodex[key];
     if (!stored) return addLog('해당 도감 아이템은 비어 있습니다.', 'attack-monster');
-    if (stored.revealed && !stored.baseName) return addLog('이번 시즌에는 도감 정보만 남아 있어 꺼낼 수 없습니다.', 'attack-monster');
+    if (stored.revealed && !stored.baseName) return addLog('이번 루프에는 도감 정보만 남아 있어 꺼낼 수 없습니다.', 'attack-monster');
     if ((game.inventory || []).length >= getInventoryLimit()) return addLog('인벤토리가 가득 차서 꺼낼 수 없습니다.', 'attack-monster');
     let clone = normalizeItem(JSON.parse(JSON.stringify(stored)));
     clone.id = ++itemIdCounter;
@@ -1625,7 +1625,7 @@ function renderUniqueCodexUI() {
         entries.forEach(entry => {
             let key = `${slot}|${entry.name}`;
             let stored = game.uniqueCodex[key];
-            let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (시즌 리셋됨)') : '미등록';
+            let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (루프 리셋됨)') : '미등록';
             let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
             lines.push(`<div class="item-card"><div><div class="item-title unique">[${slot}] ${stored ? entry.name : '???'}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '옵션 정보 없음'}</div></div><div class="item-actions">${stored ? (stored.baseName ? `<button onclick="withdrawUniqueFromCodex('${key}')">꺼내기</button>` : `<button disabled>초기화됨</button>`) : `<button disabled>비어있음</button>`}</div></div>`);
         });
@@ -2142,7 +2142,7 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
         let basis = source > 0 ? `받은 피해 ${Math.floor(source)} 기준` : '최대 생명력 기반';
         detail = `초당 피해: 약 ${dps} <span style="color:#9fb4d1;">(${basis})</span>`;
     } else if (type === 'chill') detail = `공격 속도 약 32% 감소`;
-    else if (type === 'shock') detail = `물리 피해 감소 -22% (최저 -40%)`;
+    else if (type === 'shock') detail = `물리 피해 감소 -22% (최저 -40%)`; // dr은 물리 피해 감소 전용
     else if (type === 'freeze') detail = '행동 불가';
     let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ff7f7f');
@@ -4748,7 +4748,7 @@ function buildCraftActionButtons(item) {
                     return `<button class="gem-engrave-option ${applied ? 'applied' : ''}" onclick="${applied ? `removeSkyGemEnhancementFromActive('${enh.id}')` : `applySkyGemEnhancementToActive('${enh.id}')`}" ${!isGem || (locked && !applied) || (applied && !canRemove) ? 'disabled' : ''}><strong>${applied ? '✅ ' : ''}${enh.name}${applied ? ' (적용중)' : locked ? ` (Lv.${unlockLv})` : ''}</strong><br><small>${enh.desc}${awakenedNote}${applied ? (canRemove ? ' · 클릭 시 해제' : ' · 해제 Lv.7 필요') : locked ? ` · 젬 각인사 Lv.${unlockLv} 필요` : ''}</small></button>`;
                 }).join('');
             } else {
-                document.getElementById('ui-gem-enhance-options').innerHTML = `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 시즌 4부터 해금됩니다.</div>`;
+                document.getElementById('ui-gem-enhance-options').innerHTML = `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 루프 4부터 해금됩니다.</div>`;
             }
         }
     }
@@ -8098,7 +8098,7 @@ function resetAscendNodes() { if (!assertBuildEditable()) return;
 }
 
 function selectClass(key) {
-    if (confirm(`[${CLASS_TEMPLATES[key].name}] 직업을 선택하시겠습니까? 이번 시즌에는 변경할 수 없습니다.`)) {
+    if (confirm(`[${CLASS_TEMPLATES[key].name}] 직업을 선택하시겠습니까? 이번 루프에는 변경할 수 없습니다.`)) {
         game.ascendClass = key;
         game.ascendKeystones = [];
         updateStaticUI();
@@ -8122,7 +8122,7 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
     if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비/제작 탭이 열립니다.';
-    if (tabId === 'tab-jewel') return '루프/시즌 5에 도달하거나 주얼 또는 주얼 결정을 얻으면 주얼 탭이 열립니다.';
+    if (tabId === 'tab-jewel') return '루프 5에 도달하거나 주얼 또는 주얼 결정을 얻으면 주얼 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';
     if (tabId === 'tab-codex') return '첫 고유 아이템을 획득하면 도감 탭이 열립니다.';
     if (tabId === 'tab-talisman') return '봉인편린을 획득하면 부적 탭이 열립니다.';

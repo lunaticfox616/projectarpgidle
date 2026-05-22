@@ -13,3 +13,21 @@
   #ui-talisman-inventory .item-base-line { font-size: 0.78em; line-height: 1.35; white-space: normal; }
   #ui-talisman-inventory button { min-height: 32px; padding: 4px 8px; }
 }
+
+@media (max-width: 640px) {
+  .tab-header,
+  .subtab-row {
+    overflow-y: hidden;
+    align-items: center;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .tab-btn,
+  .subtab-btn {
+    min-height: 30px;
+    height: 30px;
+    line-height: 1;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}

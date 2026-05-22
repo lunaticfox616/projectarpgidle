@@ -30,7 +30,7 @@ function isAwakenedSkyEnhancement(enhanceId) {
 }
 
 function upgradeActiveGem(materialKey, amount) {
-    if ((game.season || 1) < 2) return addLog('아직 시즌 전용 젬 강화가 잠겨 있습니다.', 'attack-monster');
+    if ((game.season || 1) < 2) return addLog('아직 루프 전용 젬 강화가 잠겨 있습니다.', 'attack-monster');
     let active = game.activeSkill;
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
@@ -51,7 +51,7 @@ function upgradeActiveGem(materialKey, amount) {
 }
 
 function upgradeSkyEngraveCap() {
-    if ((game.season || 1) < 4) return addLog('창공 각인 확장은 시즌4부터 가능합니다.', 'attack-monster');
+    if ((game.season || 1) < 4) return addLog('창공 각인 확장은 루프4부터 가능합니다.', 'attack-monster');
     let active = game.activeSkill;
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
@@ -72,7 +72,7 @@ function getSkyEnhancementForSkill(skillName) {
 }
 
 function applySkyGemEnhancementToActive(enhanceId) {
-    if ((game.season || 1) < 4) return addLog('창공의 힘은 시즌4부터 사용할 수 있습니다.', 'attack-monster');
+    if ((game.season || 1) < 4) return addLog('창공의 힘은 루프4부터 사용할 수 있습니다.', 'attack-monster');
     if ((game.currencies.skyEssence || 0) <= 0) return addLog('창공의 힘이 부족합니다.', 'attack-monster');
     if (!canUseSkyEnhancement(enhanceId)) return addLog(`해당 각인은 젬 각인사 Lv.${getSkyEnhancementUnlockLevel(enhanceId)}에 해금됩니다.`, 'attack-monster');
     let active = game.activeSkill;
@@ -179,7 +179,7 @@ function awakenActiveGemCandidate() {
 }
 
 function applyFossilCraft() {
-    if ((game.season || 1) < 3) return addLog('미궁 제작은 시즌3부터 사용할 수 있습니다.', 'attack-monster');
+    if ((game.season || 1) < 3) return addLog('미궁 제작은 루프3부터 사용할 수 있습니다.', 'attack-monster');
     if ((game.currencies.fossil || 0) <= 0) return addLog('미궁 화석이 부족합니다.', 'attack-monster');
     game.currencies.fossil--;
     let randomFossil = rndChoice(FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly));
@@ -204,7 +204,7 @@ function getFossilExclusivePool(item) {
 }
 
 function applyFossilChaosCraft(fossilKey) {
-    if ((game.season || 1) < 3) return addLog('미궁 제작은 시즌3부터 사용할 수 있습니다.', 'attack-monster');
+    if ((game.season || 1) < 3) return addLog('미궁 제작은 루프3부터 사용할 수 있습니다.', 'attack-monster');
     let fossil = FOSSIL_DB.find(entry => entry.key === fossilKey);
     if (!fossil) return;
     if ((game.currencies[fossilKey] || 0) <= 0) return addLog(`${fossil.name}이 부족합니다.`, 'attack-monster');

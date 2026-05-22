@@ -243,7 +243,7 @@ function changeZone(id) {
     let zone = getZone(id);
     if (!zone) return addLog('이동할 수 없는 지역입니다.', 'attack-monster');
     if (zone.type === 'seasonBoss') {
-        if ((game.season || 1) < (zone.reqSeason || 2)) return addLog('아직 시즌 보스가 잠겨 있습니다.', 'attack-monster');
+        if ((game.season || 1) < (zone.reqSeason || 2)) return addLog('아직 뿌리 보스가 잠겨 있습니다.', 'attack-monster');
         if ((game.currencies[zone.key] || 0) <= 0) return addLog(`입장 열쇠(${ORB_DB[zone.key].name})가 필요합니다.`, 'attack-monster');
         game.currencies[zone.key]--;
         game.inTicketBossFight = true;
@@ -256,7 +256,7 @@ function changeZone(id) {
         realm.currentFloor = Math.max(1, Math.min(maxFloor, Math.floor(realm.currentFloor || 1)));
     }
     if (id === LABYRINTH_ZONE_ID) {
-        if ((game.season || 1) < 3) return addLog('고대 미궁은 시즌3부터 개방됩니다.', 'attack-monster');
+        if ((game.season || 1) < 3) return addLog('고대 미궁은 루프3부터 개방됩니다.', 'attack-monster');
         if ((game.maxZoneId || 0) < 5) return addLog('액트 5를 먼저 클리어해야 미궁에 입장할 수 있습니다.', 'attack-monster');
     }
     if (typeof id === 'number' && id >= ABYSS_START_ZONE_ID) {
@@ -324,7 +324,7 @@ function marketExpandJewelInventoryByDivine() {
     if ((game.season || 1) < 5) return addLog('주얼 해금 후 이용할 수 있습니다.', 'attack-monster');
     let cost = getJewelMarketExpandCost();
     if ((game.currencies.divine || 0) < cost) return addLog(`신성한 오브가 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (!confirm(`신성한 오브 ${cost}개로 주얼 인벤토리를 영구히 5칸 확장할까요? (시즌 종료 후에도 초기화되지 않음)`)) return;
+    if (!confirm(`신성한 오브 ${cost}개로 주얼 인벤토리를 영구히 5칸 확장할까요? (루프 종료 후에도 초기화되지 않음)`)) return;
     game.currencies.divine -= cost;
     game.jewelInventoryExpandLevel = Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)) + 1;
     addLog(`💠 주얼 인벤토리 영구 확장 완료! 현재 최대 칸: ${getJewelInventoryLimit()}`, 'loot-unique');

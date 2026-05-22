@@ -3788,7 +3788,7 @@ function finishEncounterRun() {
             if (zone.id === 9) unlockJournalEntry('act_10');
             if (zone.id === 9 && Math.max(0, Math.floor(game.loopDeaths || 0)) <= 0) unlockJournalEntry('immortal');
             if (storyAct && storyAct.specialType === 'loop_gate') {
-                addLog('🗡️ 창조 권능 절단이 완성되었다. 나무꾼을 베어낸 루프가 새 시즌의 문을 연다.', 'loot-unique');
+                addLog('🗡️ 창조 권능 절단이 완성되었다. 나무꾼을 베어낸 루프가 새 루프의 문을 연다.', 'loot-unique');
                 triggerSeasonReset();
                 return;
             }
@@ -4361,7 +4361,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.encounterIndex = 0;
         game.runProgress = 0;
     } else if (zone && zone.type === 'seasonBoss' && game.inTicketBossFight) {
-        addLog(message || "☠️ 시즌 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death", { noToast: !!opts.noToast });
+        addLog(message || "☠️ 뿌리 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death", { noToast: !!opts.noToast });
         game.currentZoneId = 0;
         game.killsInZone = 0;
         game.inTicketBossFight = false;

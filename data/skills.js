@@ -81,7 +81,7 @@ const CONDITION_GEM_DB = {
     { name:'가시 방패', type:'guard', castTime:0.7, duration:3, tags:['physical','guard'], desc:'가시 반격 보호막.' },
     { name:'현무 장막', type:'guard', castTime:0.6, duration:2.2, tags:['elemental','guard'], desc:'(구) 원소 장막.' },
     { name:'응보 방패', type:'guard', castTime:0.7, duration:3, tags:['physical','guard'], desc:'(구) 가시 방패.' },
-    { name:'철의 맹세', type:'guard', castTime:0.6, duration:4, tags:['physical','guard'], desc:'피해 감소.' },
+    { name:'철의 맹세', type:'guard', castTime:0.6, duration:4, tags:['physical','guard'], desc:'물리 피해 감소.' },
     { name:'서리 장벽', type:'guard', castTime:0.6, duration:2.5, tags:['cold','guard'], desc:'냉기 보호막.' },
     { name:'폭풍 장벽', type:'guard', castTime:0.6, duration:2.5, tags:['lightning','guard'], desc:'번개 보호막.' },
     { name:'심연 껍질', type:'guard', castTime:0.7, duration:2.8, tags:['chaos','guard'], desc:'카오스 보호막.' },
