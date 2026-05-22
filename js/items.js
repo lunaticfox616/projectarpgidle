@@ -443,10 +443,30 @@ function buildBlackMarketOffer(index) {
         let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
         if (missing.length>0) return { type:'skillGem', name:rndChoice(missing), priceKey:'chaos', price:5 };
     }
-    let uniqPool = UNIQUE_DB.filter(u => u && (u.reqTier||1) <= tier + 4 && !u.dropOnly && !u.contentOnly && !u.bossOnly);
-    let uniq = rndChoice(uniqPool.length ? uniqPool : UNIQUE_DB);
-    let price = uniq.ultraRare ? Math.max(3, Math.floor((uniq.reqTier || tier) / 4)) : Math.max(1, Math.floor((uniq.reqTier || tier) / 8));
-    return { type:'unique', name:uniq.name, slot:uniq.slots[0], reqTier:uniq.reqTier||tier, priceKey:'divine', price:price };
+    let uniqPool = UNIQUE_DB.filter(u => u && (u.reqTier || 1) <= tier + 4 && !u.dropOnly && !u.contentOnly && !u.bossOnly);
+    let normalPool = uniqPool.filter(u => !u.ultraRare);
+    let chasePool = uniqPool.filter(u => u.ultraRare);
+    let tierNorm = Math.max(1, Math.min(20, tier));
+    let chaseChance = Math.max(0.004, 0.03 - (tierNorm * 0.0008));
+    let pickChase = chasePool.length > 0 && Math.random() < chaseChance;
+    let uniq = pickChase
+        ? rndChoice(chasePool)
+        : rndChoice(normalPool.length ? normalPool : (uniqPool.length ? uniqPool : UNIQUE_DB));
+    let req = uniq.reqTier || tier;
+    let price = 1;
+    if (uniq.ultraRare) {
+        let minPrice = 5;
+        let maxPrice = 10;
+        if (req >= 16) { minPrice = 15; maxPrice = 25; }
+        else if (req >= 13) { minPrice = 10; maxPrice = 18; }
+        else if (req >= 10) { minPrice = 8; maxPrice = 14; }
+        price = minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
+    } else {
+        let minPrice = Math.max(1, Math.floor(req / 10));
+        let maxPrice = Math.max(minPrice + 1, Math.floor(req / 4) + 1);
+        price = minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
+    }
+    return { type:'unique', name:uniq.name, slot:uniq.slots[0], reqTier:req, priceKey:'divine', price:price };
 }
 
 function getBlackMarketOfferTooltipHtml(offer) {
@@ -489,12 +509,28 @@ function showBlackMarketOfferTooltip(event, encodedHtml) {
 
 function refreshBlackMarket(force) {
     if (!isMarketUnlocked()) return;
-    game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [] };
+    game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {} };
+    game.blackMarket.lockedOffers = (game.blackMarket.lockedOffers && typeof game.blackMarket.lockedOffers === 'object') ? game.blackMarket.lockedOffers : {};
     let now = Date.now();
     if (!force && now < (game.blackMarket.nextRefreshAt || 0)) return;
     let count = 6 + Math.max(0, Math.floor(game.blackMarket.extraSlots || 0));
-    game.blackMarket.offers = Array.from({ length: count }, (_, i) => buildBlackMarketOffer(i));
+    let prevOffers = Array.isArray(game.blackMarket.offers) ? game.blackMarket.offers : [];
+    game.blackMarket.offers = Array.from({ length: count }, (_, i) => {
+        if (game.blackMarket.lockedOffers[i] && prevOffers[i]) return prevOffers[i];
+        return buildBlackMarketOffer(i);
+    });
     game.blackMarket.nextRefreshAt = now + (10 * 60 * 1000);
+}
+
+function toggleBlackMarketOfferLock(idx) {
+    game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {} };
+    game.blackMarket.lockedOffers = (game.blackMarket.lockedOffers && typeof game.blackMarket.lockedOffers === 'object') ? game.blackMarket.lockedOffers : {};
+    let offer = (game.blackMarket.offers || [])[idx];
+    if (!offer) return;
+    let isLocked = !!game.blackMarket.lockedOffers[idx];
+    if (isLocked) delete game.blackMarket.lockedOffers[idx];
+    else game.blackMarket.lockedOffers[idx] = true;
+    updateStaticUI();
 }
 
 function expandBlackMarketSlotsByDivine(){
@@ -540,6 +576,7 @@ function buyBlackMarketOffer(idx){
         let item = generateUniqueItem(offer.reqTier, offer.slot, offer.name); if(item) addItemToInventory(item);
     }
     game.blackMarket.offers[idx]=null;
+    if (game.blackMarket && game.blackMarket.lockedOffers) delete game.blackMarket.lockedOffers[idx];
     addLog('🕶️ 암거래 구매 완료', 'loot-magic');
     updateStaticUI();
 }
@@ -647,11 +684,13 @@ function renderMarketUI() {
             let badge = cls === 'currency' ? '재화' : cls === 'gem' ? '젬' : cls === 'gear' ? '장비' : '고유';
             let tooltip = encodeURIComponent(getBlackMarketOfferTooltipHtml(offer));
             let richDesc = `${desc}${price}`;
-            return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span class="market-black-label" data-info-tooltip-anchor="1" data-market-tooltip="${tooltip}" onmouseenter="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmousemove="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmouseleave="hideInfoTooltip()">${richDesc}</span></div><button onclick="buyBlackMarketOffer(${idx})">구매</button></div>`;
+            let isLocked = !!(game.blackMarket && game.blackMarket.lockedOffers && game.blackMarket.lockedOffers[idx]);
+            let lockLabel = isLocked ? '🔒 잠금' : '🔓 잠금';
+            return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span class="market-black-label" data-info-tooltip-anchor="1" data-market-tooltip="${tooltip}" onmouseenter="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmousemove="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmouseleave="hideInfoTooltip()">${richDesc}</span></div><div style="display:flex; gap:4px;"><button onclick="buyBlackMarketOffer(${idx})">구매</button><button onclick="toggleBlackMarketOfferLock(${idx})">${lockLabel}</button></div></div>`;
         }).join('');
         bmEl.innerHTML = `<div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()">신성한 오브 1개로 품목 +1</button>`;
     }
 }
 
 
-safeExposeGlobals({ showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, toggleBlackMarketOfferLock, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
