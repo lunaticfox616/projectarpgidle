@@ -127,7 +127,8 @@ function canEnterUnderworld() {
     let st = ensureChaosRealmState();
     let hasCerberusClear = Array.isArray(game && game.clearedRootBosses) && game.clearedRootBosses.includes('s6_beast_cerberus');
     let deepMax = getHighestUnlockedEndlessChaosDepth();
-    return !!st.unlocked && hasCurrentLoopChaos20Clear() && hasCerberusClear && deepMax >= 30;
+    let labFloor = Math.max(1, Math.floor((game && game.labyrinthUnlockedMaxFloor) || (game && game.labyrinthFloor) || 1));
+    return !!st.unlocked && hasCurrentLoopChaos20Clear() && hasCerberusClear && deepMax >= 30 && labFloor >= 100;
 }
 
 function getAbyssDepthFromZoneId(id) {
@@ -677,7 +678,7 @@ const SUPPORT_GEM_DB = {
     '무자비': { baseVal: 10, scale: 3.0, stat: 'critDmg', name: '치명타 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '치명타 배율을 높입니다.' },
     '생명력 흡수': { baseVal: 0.5, scale: 0.1, stat: 'leech', name: '생명력 흡수', isPct: true, resonanceCosts: [3, 9, 18], desc: '공격 시 흡혈을 부여합니다.' },
     '연속타격': { baseVal: 5, scale: 1.0, stat: 'ds', name: '연속 타격 확률', isPct: true, resonanceCosts: [9, 21, 33], desc: '한 번 더 타격할 확률을 부여합니다.' },
-    '방어 상승': { baseVal: 2, scale: 0.5, stat: 'dr', name: '받는 피해 감소', isPct: true, resonanceCosts: [3, 9, 18], desc: '물리 피해 감소를 올립니다.' },
+    '방어 상승': { baseVal: 2, scale: 0.5, stat: 'dr', name: '물리 피해 감소', isPct: true, resonanceCosts: [3, 9, 18], desc: '물리 피해 감소를 올립니다.' },
     '갑주 파쇄': { baseVal: 3, scale: 0.8, stat: 'physIgnore', name: '물피감 무시', isPct: true, resonanceCosts: [9, 21, 33], desc: '물리 공격이 적의 물리 피해 감소를 더 깊게 파고듭니다.' },
     '저항 침식': { baseVal: 3, scale: 0.8, stat: 'resPen', name: '저항 관통', isPct: true, resonanceCosts: [9, 21, 33], desc: '원소/카오스 공격이 적의 저항을 꿰뚫습니다.' },
     '활력': { baseVal: 0.2, scale: 0.1, stat: 'regen', name: '초당 생명력 재생', isPct: true, resonanceCosts: [3, 9, 18], desc: '초당 생명력 재생을 제공합니다.' },
@@ -756,19 +757,55 @@ const FOSSIL_DB = [
     { key: 'fossilGale', name: '돌풍 화석', desc: '카오스 재련 + 속도/치명 계열 옵션 1개 확정', guaranteedStats: ['aspd', 'crit', 'move'] },
     { key: 'fossilPrismatic', name: '프리즘 화석', desc: '카오스 재련 + 저항/원소 계열 옵션 1개 확정', guaranteedStats: ['resAll', 'resF', 'resC', 'resL', 'elementalPctDmg', 'resPen'] },
     { key: 'fossilAbyssal', name: '심연 화석', desc: '카오스 재련 + 카오스/흡혈/재생 계열 옵션 1개 확정', guaranteedStats: ['chaosPctDmg', 'leech', 'regen'] },
-    { key: 'fossilPrimordial', name: '태고 화석', desc: '원시 고대 화석 복원 전용 + 관통/카오스 계열 옵션 1개 확정', guaranteedStats: ['physIgnore', 'resPen', 'chaosPctDmg', 'critDmg'], ancientPrimalOnly: true }
+    { key: 'fossilPrimordial', name: '태고 화석', desc: '원시 고대 화석 복원 전용 + 관통/카오스 계열 옵션 1개 확정', guaranteedStats: ['physIgnore', 'resPen', 'chaosPctDmg', 'critDmg'], ancientPrimalOnly: true },
+    { key: 'fossilBulwark', name: '🛡️ 방패 화석', desc: '카오스 재련 + 최대 화염/냉기/번개 저항 계열 1개 확정', guaranteedStats: ['maxResF', 'maxResC', 'maxResL'] },
+    { key: 'fossilWedge', name: '🗡️ 쐐기 화석', desc: '카오스 재련 + 투사체/치명 계열 1개 확정', guaranteedStats: ['projectileExtraShots', 'projectilePctDmg', 'crit'] },
+    { key: 'fossilOld', name: '📜 오래된 화석', desc: '카오스 재련 + 화석 전용 옵션 1개 확정', guaranteedStats: [] },
+    { key: 'fossilRift', name: '🌀 균열 화석', desc: '카오스 재련 + 균열 표식(제거 불가) + 나머지 추가 옵션 50% 증폭', guaranteedStats: [] }
 ];
 
 const FOSSIL_EXCLUSIVE_MODS = [
-    { id: 'fossilVoidHeart', statId: 'chaosPctDmg', type: 'special', statName: '심연 맥동 (카오스 피해%)', slots: ['무기', '목걸이', '반지'], base: 10, step: 5, fossilExclusive: true },
-    { id: 'fossilWarMarch', statId: 'move', type: 'special', statName: '군단 진군 (이동 속도%)', slots: ['신발', '허리띠'], base: 8, step: 3, fossilExclusive: true },
-    { id: 'fossilSoulWard', statId: 'resAll', type: 'special', statName: '영혼 수호 (모든 원소 저항%)', slots: ['갑옷', '투구', '허리띠'], base: 8, step: 3, fossilExclusive: true },
-    { id: 'fossilGemPulse', statId: 'gemLevel', type: 'special', statName: '룬 맥동 (스킬 젬 레벨)', slots: ['목걸이'], base: 1, step: 0, fossilExclusive: true },
-    { id: 'fossilSupportLink', statId: 'suppCap', type: 'special', statName: '결속 잔향 (보조 젬 한도)', slots: ['목걸이'], base: 1, step: 0, fossilExclusive: true },
-    { id: 'fossilArmorRift', statId: 'physIgnore', type: 'special', statName: '전쟁 균열 (물피감 무시%)', slots: ['무기', '장갑', '목걸이'], base: 4, step: 1.6, fossilExclusive: true },
-    { id: 'fossilPrismNeedle', statId: 'resPen', type: 'special', statName: '프리즘 송곳 (저항 관통%)', slots: ['무기', '목걸이', '반지'], base: 4, step: 1.4, fossilExclusive: true },
-    { id: 'fossilBoundFloor', statId: 'minDmgRoll', type: 'special', statName: '결속 하한 (최소 피해 보정%)', slots: ['무기', '장갑'], base: 3, step: 1.2, fossilExclusive: true },
-    { id: 'fossilSkyCeil', statId: 'maxDmgRoll', type: 'special', statName: '천공 상한 (최대 피해 보정%)', slots: ['무기', '장갑'], base: 3, step: 1.2, fossilExclusive: true }
+    { id: 'fossilVoidHeart', statId: 'chaosPctDmg', type: 'special', statName: '심연 맥동 (카오스 피해%)', slots: ['무기', '목걸이', '반지'], base: 6, step: 2.5, fixedVal: 55, fossilExclusive: true },
+    { id: 'fossilWarMarch', statId: 'move', type: 'special', statName: '군단 진군 (이동 속도%)', slots: ['신발', '허리띠'], base: 4, step: 1.5, fixedVal: 35, fossilExclusive: true },
+    { id: 'fossilSoulWard', statId: 'resAll', type: 'special', statName: '영혼 수호 (모든 원소 저항%)', slots: ['갑옷', '투구', '허리띠'], base: 4, step: 1.5, fixedVal: 35, fossilExclusive: true },
+    { id: 'fossilGemPulse', statId: 'gemLevel', type: 'special', statName: '룬 맥동 (스킬 젬 레벨)', slots: ['목걸이'], base: 1, step: 0, fixedVal: 1, fossilExclusive: true },
+    { id: 'fossilSupportLink', statId: 'suppCap', type: 'special', statName: '결속 잔향 (보조 젬 한도)', slots: ['목걸이'], base: 1, step: 0, fixedVal: 1, fossilExclusive: true },
+    { id: 'fossilArmorRift', statId: 'physIgnore', type: 'special', statName: '전쟁 균열 (물피감 무시%)', slots: ['무기', '장갑', '목걸이'], base: 2, step: 0.8, fixedVal: 18.4, fossilExclusive: true },
+    { id: 'fossilPrismNeedle', statId: 'resPen', type: 'special', statName: '프리즘 송곳 (저항 관통%)', slots: ['무기', '목걸이', '반지'], base: 2, step: 0.7, fixedVal: 16.6, fossilExclusive: true },
+    { id: 'fossilBoundFloor', statId: 'minDmgRoll', type: 'special', statName: '결속 하한 (최소 피해 보정%)', slots: ['무기', '장갑'], base: 2, step: 0.6, fixedVal: 13.8, fossilExclusive: true },
+    { id: 'fossilSkyCeil', statId: 'maxDmgRoll', type: 'special', statName: '천공 상한 (최대 피해 보정%)', slots: ['무기', '장갑'], base: 2, step: 0.6, fixedVal: 13.8, fossilExclusive: true }
+];
+const UNDERWORLD_RUNE_DB = [
+    { no: 1, id: 'uw_rune_1', name: '초생', stat: 'flatHp', val: 30 },
+    { no: 2, id: 'uw_rune_2', name: '절단', stat: 'flatDmg', val: 8 },
+    { no: 3, id: 'uw_rune_3', name: '강벽', stat: 'armor', val: 30 },
+    { no: 4, id: 'uw_rune_4', name: '경풍', stat: 'evasion', val: 30 },
+    { no: 5, id: 'uw_rune_5', name: '영갑', stat: 'energyShield', val: 30 },
+    { no: 6, id: 'uw_rune_6', name: '화관', stat: 'resF', val: 3 },
+    { no: 7, id: 'uw_rune_7', name: '설관', stat: 'resC', val: 3 },
+    { no: 8, id: 'uw_rune_8', name: '뢰관', stat: 'resL', val: 3 },
+    { no: 9, id: 'uw_rune_9', name: '공식', stat: 'resChaos', val: 1.5 },
+    { no: 10, id: 'uw_rune_10', name: '균결', stat: 'resAll', val: 1 },
+    { no: 11, id: 'uw_rune_11', name: '혈전', stat: 'physPctDmg', val: 12 },
+    { no: 12, id: 'uw_rune_12', name: '염전', stat: 'firePctDmg', val: 12 },
+    { no: 13, id: 'uw_rune_13', name: '빙전', stat: 'coldPctDmg', val: 12 },
+    { no: 14, id: 'uw_rune_14', name: '뢰전', stat: 'lightPctDmg', val: 12 },
+    { no: 15, id: 'uw_rune_15', name: '허전', stat: 'chaosPctDmg', val: 12 },
+    { no: 16, id: 'uw_rune_16', name: '비화', stat: 'corpseExplodeChance', val: 5 },
+    { no: 17, id: 'uw_rune_17', name: '분화', stat: 'corpseExplodeLifePct', val: 8 },
+    { no: 18, id: 'uw_rune_18', name: '극염', stat: 'maxResF', val: 1 },
+    { no: 19, id: 'uw_rune_19', name: '극한', stat: 'maxResC', val: 1 },
+    { no: 20, id: 'uw_rune_20', name: '극뢰', stat: 'maxResL', val: 1 },
+    { no: 21, id: 'uw_rune_21', name: '천공', stat: 'resPen', val: 5 },
+    { no: 22, id: 'uw_rune_22', name: '심절', stat: 'physIgnore', val: 5 },
+    { no: 23, id: 'uw_rune_23', name: '공율', stat: 'resonancePower', val: 10 },
+    { no: 24, id: 'uw_rune_24', name: '추동', stat: 'move', val: 3 },
+    { no: 25, id: 'uw_rune_25', name: '속결', stat: 'aspd', val: 3 },
+    { no: 26, id: 'uw_rune_26', name: '예각', stat: 'crit', val: 1 },
+    { no: 27, id: 'uw_rune_27', name: '쇄광', stat: 'critDmg', val: 3 },
+    { no: 28, id: 'uw_rune_28', name: '연격', stat: 'ds', val: 2 },
+    { no: 29, id: 'uw_rune_29', name: '저류', stat: 'minDmgRoll', val: 2 },
+    { no: 30, id: 'uw_rune_30', name: '고조', stat: 'maxDmgRoll', val: 2 }
 ];
 
 const BASE_ITEM_DB = [
@@ -1178,7 +1215,7 @@ const defaultGame = {
     abyssPassivePoints: 0,
     abyssClearedDepths: [],
     abyssPassives: { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 },
-    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0 },
+    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendKeystonePoints: 0,
@@ -1193,6 +1230,7 @@ const defaultGame = {
     woodsmanLifetimeScore: 0,
     woodsmanSettledScore: 0,
     seasonNodes: [],
+    seasonNodeLevels: {},
     labyrinthFloor: 1,
     jewelInventory: [],
     jewelSlots: [null, null],
@@ -1212,6 +1250,7 @@ const defaultGame = {
     loopProgressBase: { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] },
     loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 },
     chaosRealm: createDefaultChaosRealmState(),
+    underworldRunes: { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null] },
     pendingLoopDecision: false,
 
     skyGemEnhancements: {},

@@ -7,4 +7,36 @@
 @media (max-width: 640px) {
   .tab-btn { font-size: 0.9em; }
   button { min-height: 36px; }
+  #ui-talisman-inventory { grid-template-columns: 1fr !important; gap: 10px !important; }
+  #ui-talisman-inventory .item-card { padding: 12px; min-height: 96px !important; }
+  #ui-talisman-inventory .item-title { font-size: 0.9em; line-height: 1.35; word-break: keep-all; }
+  #ui-talisman-inventory .item-base-line { font-size: 0.78em; line-height: 1.35; white-space: normal; }
+  #ui-talisman-inventory button { min-height: 32px; padding: 4px 8px; }
+}
+
+@media (max-width: 640px) {
+  .tab-header,
+  .subtab-row {
+    overflow-y: hidden !important;
+    align-items: center;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    min-height: 34px;
+    max-height: 34px;
+    height: 34px;
+    box-sizing: border-box;
+  }
+  .tab-btn,
+  .subtab-btn {
+    min-height: 28px !important;
+    max-height: 28px;
+    height: 28px !important;
+    line-height: 28px;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+  }
 }

@@ -91,15 +91,30 @@ function persistLocalSave(options = {}) {
     refreshItemIdCounter();
 }
 
+
+function normalizeLocalRuntimeAfterLoad() {
+    if (!game) return;
+    let zone = (typeof getZone === 'function') ? getZone(game.currentZoneId) : null;
+    if (!zone && typeof getAutoProgressZoneId === 'function') {
+        game.currentZoneId = getAutoProgressZoneId(Math.max(0, Math.floor(game.maxZoneId || 0)));
+    }
+    if (!Array.isArray(game.enemies)) game.enemies = [];
+    if (!Array.isArray(game.encounterPlan)) game.encounterPlan = [];
+    if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
+    if (game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
+}
+
 function loadGame() {
     try {
         let save = readLocalSaveString();
         if (save) game = mergeDefaults(JSON.parse(save));
         else game = cloneDefaultGame();
         ensureSaveMeta();
+        normalizeLocalRuntimeAfterLoad();
         refreshItemIdCounter();
     } catch (e) {
         game = cloneDefaultGame();
+        normalizeLocalRuntimeAfterLoad();
         refreshItemIdCounter();
     }
 }
