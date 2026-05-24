@@ -517,13 +517,20 @@
             });
         });
 
-        // bridge galaxies through representative boss/gateway planets
-        const hubs = [1,2,3,4,5].map(g => planets.filter(n => n.orbit===g).sort((a,b)=>distance(a,{x:0,y:0})-distance(b,{x:0,y:0}))[0]).filter(Boolean);
-        for (let i=0;i<hubs.length;i++) {
-            for (let j=i+1;j<hubs.length;j++) {
-                if ((i+j)%2===0) addEdge(hubs[i].id, hubs[j].id, 'route');
-            }
+        // bridge galaxies through representative hub planets (single connected component)
+        const hubs = [1,2,3,4,5]
+            .map(g => planets.filter(n => n.orbit === g).sort((a, b) => distance(a, { x: 0, y: 0 }) - distance(b, { x: 0, y: 0 }))[0])
+            .filter(Boolean);
+
+        // Ensure start gateway (planet-0) reaches the mesh.
+        const startNode = planets.find(n => n.id === 'planet-0');
+        if (startNode && hubs.length > 0) {
+            hubs.forEach(hub => addEdge(startNode.id, hub.id, 'spine'));
         }
+
+        // Connect hubs in a chain + ring so all galaxies stay reachable.
+        for (let i = 0; i < hubs.length - 1; i++) addEdge(hubs[i].id, hubs[i + 1].id, 'route');
+        if (hubs.length > 2) addEdge(hubs[0].id, hubs[hubs.length - 1].id, 'route');
 
         asteroids.forEach(ast => {
             const localPlanets = planets.filter(p => p.orbit === ast.orbit);
