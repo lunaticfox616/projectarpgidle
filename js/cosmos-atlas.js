@@ -446,7 +446,9 @@
                 x: orbit === 0 ? 0 : center.x + Math.cos(angle) * ring,
                 y: orbit === 0 ? 0 : center.y + Math.sin(angle) * ring,
                 radius: orbit === 0 ? 16 : Math.max(8, 15 - orbit),
-                labelPriority: orbit === 0 ? 10 : Math.max(1, 7 - orbit)
+                labelPriority: orbit === 0 ? 10 : Math.max(1, 7 - orbit),
+                sizeClass: 1 + Math.floor(seeded01(p.name + ':size') * 5),
+                gravity: Math.max(1, Math.round((1.0 + orbit * 0.7 + seeded01(p.name + ':grav') * 2.4) * 10) / 10)
             };
             ATLAS.nodes.push(node);
         });
@@ -468,7 +470,9 @@
                 x: center.x + Math.cos(angle) * r,
                 y: center.y + Math.sin(angle) * r,
                 radius: Math.max(7.2, 14 - orbit),
-                labelPriority: 0
+                labelPriority: 0,
+                sizeClass: 1 + Math.floor(seeded01('ast-size-' + no) * 3),
+                gravity: Math.max(0.8, Math.round((0.8 + orbit * 0.55 + seeded01('ast-grav-' + no) * 1.6) * 10) / 10)
             };
             ATLAS.nodes.push(node);
         });
@@ -494,23 +498,40 @@
         const planets = ATLAS.nodes.filter(n => n.kind === 'planet');
         const asteroids = ATLAS.nodes.filter(n => n.kind === 'asteroid');
 
-        for (let i = 0; i < planets.length - 1; i++) addEdge(planets[i].id, planets[i + 1].id, 'spine');
-
-        ATLAS.nodes.forEach(node => {
-            if (node.id === 'planet-0') return;
-            const candidates = ATLAS.nodes
-                .filter(other => other.id !== node.id && other.orbit <= node.orbit && Math.abs(other.orbit - node.orbit) <= 1)
-                .map(other => [other, distance(node, other)])
-                .sort((a, b) => a[1] - b[1])
-                .slice(0, node.kind === 'planet' ? 3 : 2);
-            candidates.forEach(pair => addEdge(node.id, pair[0].id, node.kind === 'planet' ? 'route' : 'asteroid'));
+        // POE atlas-like mesh: local nearest links + a loose backbone per galaxy.
+        [1, 2, 3, 4, 5].forEach(galaxy => {
+            const gp = planets.filter(n => n.orbit === galaxy);
+            gp.sort((a, b) => Math.atan2(a.y, a.x) - Math.atan2(b.y, b.x));
+            for (let i = 0; i < gp.length; i++) {
+                const a = gp[i];
+                const b = gp[(i + 1) % gp.length];
+                if (a && b && a.id !== b.id) addEdge(a.id, b.id, 'spine');
+            }
+            gp.forEach(node => {
+                const near = gp
+                    .filter(o => o.id !== node.id)
+                    .map(o => [o, distance(node, o)])
+                    .sort((x, y) => x[1] - y[1])
+                    .slice(0, 3);
+                near.forEach(pair => addEdge(node.id, pair[0].id, 'route'));
+            });
         });
 
+        // bridge galaxies through representative boss/gateway planets
+        const hubs = [1,2,3,4,5].map(g => planets.filter(n => n.orbit===g).sort((a,b)=>distance(a,{x:0,y:0})-distance(b,{x:0,y:0}))[0]).filter(Boolean);
+        for (let i=0;i<hubs.length;i++) {
+            for (let j=i+1;j<hubs.length;j++) {
+                if ((i+j)%2===0) addEdge(hubs[i].id, hubs[j].id, 'route');
+            }
+        }
+
         asteroids.forEach(ast => {
-            const nearestPlanet = planets
+            const localPlanets = planets.filter(p => p.orbit === ast.orbit);
+            const nearest = (localPlanets.length ? localPlanets : planets)
                 .map(p => [p, distance(ast, p)])
-                .sort((a, b) => a[1] - b[1])[0];
-            if (nearestPlanet) addEdge(ast.id, nearestPlanet[0].id, 'asteroid');
+                .sort((a, b) => a[1] - b[1])
+                .slice(0, 2);
+            nearest.forEach(pair => addEdge(ast.id, pair[0].id, 'asteroid'));
         });
     }
 
@@ -974,12 +995,18 @@
         ctx.save();
         ctx.translate(w / 2 + ATLAS.camera.x * ATLAS.camera.scale, h / 2 + ATLAS.camera.y * ATLAS.camera.scale);
         ctx.scale(ATLAS.camera.scale, ATLAS.camera.scale);
-        [170, 300, 430, 560, 700].forEach((r, idx) => {
+        const galaxyShells = [{x:0,y:0,r:220,label:'G1'},{x:470,y:-280,r:230,label:'G2'},{x:-470,y:-280,r:230,label:'G3'},{x:540,y:250,r:230,label:'G4'},{x:-540,y:250,r:230,label:'G5'}];
+        galaxyShells.forEach((g, idx) => {
             ctx.beginPath();
-            ctx.arc(0, 0, r, 0, Math.PI * 2);
-            ctx.strokeStyle = idx % 2 ? 'rgba(91, 152, 215, 0.10)' : 'rgba(127, 201, 255, 0.14)';
-            ctx.lineWidth = 1.2 / ATLAS.camera.scale;
+            ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+            ctx.strokeStyle = idx === 0 ? 'rgba(180,220,255,0.24)' : 'rgba(127, 201, 255, 0.18)';
+            ctx.lineWidth = 1.5 / ATLAS.camera.scale;
+            ctx.setLineDash([6 / ATLAS.camera.scale, 7 / ATLAS.camera.scale]);
             ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(200,225,255,0.65)';
+            ctx.font = `${Math.max(12, 15 / ATLAS.camera.scale)}px Malgun Gothic, sans-serif`;
+            ctx.fillText(g.label, g.x - 10 / ATLAS.camera.scale, g.y - g.r - 10 / ATLAS.camera.scale);
         });
         ctx.restore();
     }
@@ -1082,6 +1109,16 @@
             ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
             ctx.stroke();
 
+            const tierText = `T${getDisplayedNodeTier(node)}`;
+            if (node.kind === 'planet') {
+                ctx.font = `${Math.max(10, 11 * (selected ? 1.12 : 1))}px Malgun Gothic, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'rgba(6,10,18,0.88)';
+                ctx.fillRect(p.x - 14, p.y - 8, 28, 16);
+                ctx.fillStyle = '#ffd88a';
+                ctx.fillText(tierText, p.x, p.y);
+            }
             if (node.kind === 'planet' && (selected || hover || node.labelPriority >= 5 || ATLAS.camera.scale > 0.98)) {
                 ctx.globalAlpha = status === 'locked' ? 0.62 : 1;
                 ctx.font = `${selected ? 17 : 13}px Malgun Gothic, sans-serif`;
@@ -1127,7 +1164,6 @@
         const node = ATLAS.byId.get(ATLAS.selectedId) || ATLAS.byId.get(state.selectedId) || ATLAS.byId.get('planet-0');
         if (!node) return;
         const status = getNodeStatus(node);
-        const neighbors = getNeighbors(node.id).map(id => ATLAS.byId.get(id)).filter(Boolean);
         const rewardLine = node.tag === 'boss'
             ? `은하 보스 보상: 첫 클리어 시 ${getBossStoneName(node)} 획득 · 우주석 슬롯 장착 시 난이도 바닥 상승 · 현재 단계 ${getBossStage(node)}`
             : (node.kind === 'planet'
@@ -1146,13 +1182,14 @@
                 <div>${escapeHtml(rewardLine)}</div>
             </div>
             <div class="cosmos-detail-section">
-                <div class="cosmos-section-label">Linked Stars</div>
-                <div>${neighbors.slice(0, 8).map(n => escapeHtml(n.name)).join(' · ') || '없음'}${neighbors.length > 8 ? ' ...' : ''}</div>
+                <div class="cosmos-section-label">행성 정보</div>
+                <div>크기 등급: ${Math.max(1, Math.floor(node.sizeClass || 1))} · 중력: ${Number(node.gravity || 1).toFixed(1)}g</div>
+                <div style="margin-top:4px; color:#a9bdd3;">진행도 요구치: +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 패널티 강도: +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</div>
             </div>
             <div class="cosmos-actions">
                 <button onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '보스 도전' : '전투 도전'}</button><button onclick="exploreSelectedCosmosNode()" ${status === 'available' ? '' : 'disabled'}>${node.tag === 'boss' ? '보스 격파 처리' : '탐사 완료 처리'}</button>
                 ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 장착</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">초점 이동</button>
-                <button onclick="resetCosmosAtlasCamera()">지도 초기화</button><button onclick="autoHuntCosmosLowest()">자동사냥(저티어순)</button>
+                <button onclick="resetCosmosAtlasCamera()">지도 초기화</button>
             </div>
             <div class="cosmos-help">${isCosmosUnlocked() ? '탐사 완료된 노드와 연결된 노드가 다음 탐사 후보로 열린다.' : '우주계는 지하계 30층 도달 시 해금된다.'}</div>`;
     }
@@ -1223,27 +1260,6 @@
     }
 
 
-    function autoHuntCosmosLowest() {
-        buildCosmosAtlasData();
-        const state = getState();
-        const candidates = ATLAS.nodes.filter(n => getNodeStatus(n) === 'available').sort((a, b) => {
-            const ta = getDisplayedNodeTier(a);
-            const tb = getDisplayedNodeTier(b);
-            if (ta !== tb) return ta - tb;
-            if (a.kind !== b.kind) return a.kind === 'planet' ? -1 : 1;
-            return (a.orbit || 0) - (b.orbit || 0);
-        });
-        if (!candidates.length) {
-            if (typeof window.addLog === 'function') window.addLog('자동사냥 가능한 우주 노드가 없습니다.', 'attack-monster');
-            return;
-        }
-        const node = candidates[0];
-        ATLAS.selectedId = node.id;
-        state.selectedId = node.id;
-        if (typeof window.addLog === 'function') window.addLog(`🤖 자동사냥 선택: ${node.name} (Tier ${getDisplayedNodeTier(node)})`, 'season-up');
-        challengeSelectedCosmosNode();
-        renderCosmosAtlas();
-    }
     function focusCosmosAtlasOnSelected() {
         const state = getState();
         const node = ATLAS.byId.get(ATLAS.selectedId || state.selectedId);
@@ -1272,7 +1288,6 @@
     window.exploreSelectedCosmosNode = exploreSelectedCosmosNode;
     window.challengeSelectedCosmosNode = challengeSelectedCosmosNode;
     window.equipBossStoneByGalaxy = equipBossStoneByGalaxy;
-    window.autoHuntCosmosLowest = autoHuntCosmosLowest;
     window.focusCosmosAtlasOnSelected = focusCosmosAtlasOnSelected;
     window.resetCosmosAtlasCamera = resetCosmosAtlasCamera;
     window.installCosmosAtlas = installCosmosAtlas;
