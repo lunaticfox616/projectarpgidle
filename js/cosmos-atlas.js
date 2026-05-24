@@ -403,17 +403,24 @@
 
     function buildCosmosAtlasData() {
         if (ATLAS.nodes.length) return;
-        const ringRadius = [0, 170, 300, 430, 560, 700];
-        const ringCounts = { 0: 1, 1: 5, 2: 9, 3: 13, 4: 12, 5: 10 };
-        const ringIndex = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        const galaxyRadius = 430;
+        const galaxyCenters = {0:{x:0,y:0}};
+        for (let g = 1; g <= 5; g++) {
+            const a = -Math.PI / 2 + ((Math.PI * 2 * (g - 1)) / 5);
+            galaxyCenters[g] = { x: Math.cos(a) * galaxyRadius, y: Math.sin(a) * galaxyRadius };
+        }
+        const galaxyCounts = { 0: 1, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        COSMOS_PLANETS.forEach(p => { const o = Math.max(0, Math.min(5, Math.floor(p.orbit || 0))); galaxyCounts[o] = (galaxyCounts[o] || 0) + 1; });
+        const galaxyIndex = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
         COSMOS_PLANETS.forEach((p, idx) => {
             const orbit = Math.max(0, Math.min(5, Math.floor(p.orbit || 0)));
-            const pos = ringIndex[orbit]++;
-            const total = ringCounts[orbit] || 1;
-            const jitter = (seeded01(p.name + ':angle') - 0.5) * 0.22;
-            const angle = orbit === 0 ? 0 : ((Math.PI * 2 * pos) / total) + jitter + orbit * 0.23;
-            const r = ringRadius[orbit] + (seeded01(p.name + ':radius') - 0.5) * (orbit === 0 ? 0 : 52);
+            const pos = galaxyIndex[orbit]++;
+            const total = Math.max(1, galaxyCounts[orbit] || 1);
+            const jitter = (seeded01(p.name + ':angle') - 0.5) * 0.28;
+            const angle = orbit === 0 ? 0 : ((Math.PI * 2 * pos) / total) + jitter;
+            const ring = orbit === 0 ? 0 : 70 + (pos % 3) * 22 + (seeded01(p.name + ':radius') - 0.5) * 18;
+            const center = galaxyCenters[orbit] || { x: 0, y: 0 };
             const node = {
                 id: `planet-${idx}`,
                 kind: 'planet',
@@ -423,8 +430,8 @@
                 tag: p.tag,
                 orbit,
                 tier: Math.max(1, orbit * 4 + 1 + Math.floor(seeded01(p.name + ':tier') * 4)),
-                x: orbit === 0 ? 0 : Math.cos(angle) * r,
-                y: orbit === 0 ? 0 : Math.sin(angle) * r,
+                x: orbit === 0 ? 0 : center.x + Math.cos(angle) * ring,
+                y: orbit === 0 ? 0 : center.y + Math.sin(angle) * ring,
                 radius: orbit === 0 ? 16 : Math.max(8, 15 - orbit),
                 labelPriority: orbit === 0 ? 10 : Math.max(1, 7 - orbit)
             };
@@ -434,7 +441,8 @@
         COSMOS_ASTEROID_NUMBERS.forEach((no) => {
             const orbit = 1 + Math.floor(seeded01('ast-orbit-' + no) * 5);
             const angle = seeded01('ast-angle-' + no) * Math.PI * 2;
-            const r = ringRadius[orbit] + (seeded01('ast-radius-' + no) - 0.5) * 110;
+            const center = galaxyCenters[orbit] || { x: 0, y: 0 };
+            const r = 118 + (seeded01('ast-radius-' + no) - 0.5) * 62;
             const node = {
                 id: `asteroid-${no}`,
                 kind: 'asteroid',
@@ -444,8 +452,8 @@
                 tag: 'asteroid',
                 orbit,
                 tier: Math.max(1, orbit * 3 + Math.floor(seeded01('ast-tier-' + no) * 4)),
-                x: Math.cos(angle) * r,
-                y: Math.sin(angle) * r,
+                x: center.x + Math.cos(angle) * r,
+                y: center.y + Math.sin(angle) * r,
                 radius: Math.max(7.2, 14 - orbit),
                 labelPriority: 0
             };
@@ -565,7 +573,9 @@
 
     function canChallengeNode(node) {
         if (!node) return false;
-        return getNodeStatus(node) === 'available' || getNodeStatus(node) === 'cleared';
+        const status = getNodeStatus(node);
+        if (status === 'available') return true;
+        return status === 'cleared' && node.tag === 'boss';
     }
 
     function getCosmosPowerScore() {
@@ -1122,7 +1132,7 @@
             <div class="cosmos-actions">
                 <button onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '보스 도전' : '전투 도전'}</button><button onclick="exploreSelectedCosmosNode()" ${status === 'available' ? '' : 'disabled'}>${node.tag === 'boss' ? '보스 격파 처리' : '탐사 완료 처리'}</button>
                 ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 장착</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">초점 이동</button>
-                <button onclick="resetCosmosAtlasCamera()">지도 초기화</button>
+                <button onclick="resetCosmosAtlasCamera()">지도 초기화</button><button onclick="autoHuntCosmosLowest()">자동사냥(저티어순)</button>
             </div>
             <div class="cosmos-help">${isCosmosUnlocked() ? '탐사 완료된 노드와 연결된 노드가 다음 탐사 후보로 열린다.' : '우주계는 지하계 60층 도달 시 해금된다.'}</div>`;
     }
@@ -1133,11 +1143,12 @@
         const node = ATLAS.byId.get(ATLAS.selectedId || state.selectedId || 'planet-0');
         if (!node) return;
         const status = getNodeStatus(node);
-        if (status !== 'available') {
+        const repeatBossRun = status === 'cleared' && node.tag === 'boss';
+        if (!(status === 'available' || repeatBossRun)) {
             if (typeof window.addLog === 'function') window.addLog('아직 별길이 연결되지 않은 우주계 노드입니다.', 'attack-monster');
             return;
         }
-        if (!state.cleared.includes(node.id)) state.cleared.push(node.id);
+        if (status === 'available' && !state.cleared.includes(node.id)) state.cleared.push(node.id);
         if (node.tag === 'boss' && !state.bossClears.includes(node.id)) state.bossClears.push(node.id);
         if (node.tag === 'boss') {
             const nextKill = Math.max(0, Math.floor((state.bossKills && state.bossKills[node.id]) || 0)) + 1;
@@ -1187,8 +1198,31 @@
             if (typeof window.addLog === 'function') window.addLog('패배! 세팅을 보강하고 다시 도전하세요.', 'attack-monster');
             return;
         }
-        if (typeof window.addLog === 'function') window.addLog('승리! 해당 노드의 탐사 완료를 진행합니다.', 'season-up');
+        if (typeof window.addLog === 'function') window.addLog(node.tag === 'boss' && getNodeStatus(node) === 'cleared' ? '승리! 보스 재도전 보상을 정산합니다.' : '승리! 해당 노드의 탐사 완료를 진행합니다.', 'season-up');
         exploreSelectedCosmosNode();
+    }
+
+
+    function autoHuntCosmosLowest() {
+        buildCosmosAtlasData();
+        const state = getState();
+        const candidates = ATLAS.nodes.filter(n => getNodeStatus(n) === 'available').sort((a, b) => {
+            const ta = getDisplayedNodeTier(a);
+            const tb = getDisplayedNodeTier(b);
+            if (ta !== tb) return ta - tb;
+            if (a.kind !== b.kind) return a.kind === 'planet' ? -1 : 1;
+            return (a.orbit || 0) - (b.orbit || 0);
+        });
+        if (!candidates.length) {
+            if (typeof window.addLog === 'function') window.addLog('자동사냥 가능한 우주 노드가 없습니다.', 'attack-monster');
+            return;
+        }
+        const node = candidates[0];
+        ATLAS.selectedId = node.id;
+        state.selectedId = node.id;
+        if (typeof window.addLog === 'function') window.addLog(`🤖 자동사냥 선택: ${node.name} (Tier ${getDisplayedNodeTier(node)})`, 'season-up');
+        challengeSelectedCosmosNode();
+        renderCosmosAtlas();
     }
     function focusCosmosAtlasOnSelected() {
         const state = getState();
@@ -1218,6 +1252,7 @@
     window.exploreSelectedCosmosNode = exploreSelectedCosmosNode;
     window.challengeSelectedCosmosNode = challengeSelectedCosmosNode;
     window.equipBossStoneByGalaxy = equipBossStoneByGalaxy;
+    window.autoHuntCosmosLowest = autoHuntCosmosLowest;
     window.focusCosmosAtlasOnSelected = focusCosmosAtlasOnSelected;
     window.resetCosmosAtlasCamera = resetCosmosAtlasCamera;
     window.installCosmosAtlas = installCosmosAtlas;
