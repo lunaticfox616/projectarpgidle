@@ -403,12 +403,21 @@
 
     function buildCosmosAtlasData() {
         if (ATLAS.nodes.length) return;
-        const galaxyRadius = 430;
-        const galaxyCenters = {0:{x:0,y:0}};
-        for (let g = 1; g <= 5; g++) {
-            const a = -Math.PI / 2 + ((Math.PI * 2 * (g - 1)) / 5);
-            galaxyCenters[g] = { x: Math.cos(a) * galaxyRadius, y: Math.sin(a) * galaxyRadius };
-        }
+        const galaxyCenters = {
+            0: { x: 0, y: 0 },
+            1: { x: 0, y: 0 },      // 중앙 은하
+            2: { x: 470, y: -280 }, // 1시
+            3: { x: -470, y: -280 },// 11시
+            4: { x: 540, y: 250 },  // 4시
+            5: { x: -540, y: 250 }  // 7시
+        };
+        const galaxySpineAngles = {
+            1: -Math.PI / 2,
+            2: -Math.PI / 6,
+            3: -Math.PI * 5 / 6,
+            4: Math.PI / 7,
+            5: Math.PI * 6 / 7
+        };
         const galaxyCounts = { 0: 1, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
         COSMOS_PLANETS.forEach(p => { const o = Math.max(0, Math.min(5, Math.floor(p.orbit || 0))); galaxyCounts[o] = (galaxyCounts[o] || 0) + 1; });
         const galaxyIndex = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -417,9 +426,13 @@
             const orbit = Math.max(0, Math.min(5, Math.floor(p.orbit || 0)));
             const pos = galaxyIndex[orbit]++;
             const total = Math.max(1, galaxyCounts[orbit] || 1);
-            const jitter = (seeded01(p.name + ':angle') - 0.5) * 0.28;
-            const angle = orbit === 0 ? 0 : ((Math.PI * 2 * pos) / total) + jitter;
-            const ring = orbit === 0 ? 0 : 70 + (pos % 3) * 22 + (seeded01(p.name + ':radius') - 0.5) * 18;
+            const base = galaxySpineAngles[orbit] || 0;
+            const spread = Math.min(Math.PI * 1.25, Math.PI * (0.68 + Math.min(1, total / 18) * 0.55));
+            const lane = total <= 1 ? 0.5 : (pos / (total - 1));
+            const arc = (lane - 0.5) * spread;
+            const jitter = (seeded01(p.name + ':angle') - 0.5) * 0.16;
+            const angle = orbit === 0 ? 0 : base + arc + jitter;
+            const ring = orbit === 0 ? 0 : 110 + (pos % 4) * 34 + (seeded01(p.name + ':radius') - 0.5) * 16;
             const center = galaxyCenters[orbit] || { x: 0, y: 0 };
             const node = {
                 id: `planet-${idx}`,
@@ -442,7 +455,7 @@
             const orbit = 1 + Math.floor(seeded01('ast-orbit-' + no) * 5);
             const angle = seeded01('ast-angle-' + no) * Math.PI * 2;
             const center = galaxyCenters[orbit] || { x: 0, y: 0 };
-            const r = 118 + (seeded01('ast-radius-' + no) - 0.5) * 62;
+            const r = 168 + (seeded01('ast-radius-' + no) - 0.5) * 86;
             const node = {
                 id: `asteroid-${no}`,
                 kind: 'asteroid',
@@ -526,7 +539,7 @@
             ? window.game.underworldProgress
             : null;
         const highestFloor = underworld ? Math.max(1, Math.floor(underworld.highestFloor || 1)) : 1;
-        return highestFloor >= 60;
+        return highestFloor >= 30;
     }
 
     function getNodeStatus(node) {
@@ -1054,12 +1067,19 @@
                 ctx.fill();
             }
 
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, r * (selected ? 1.28 : hover ? 1.18 : 1), 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
+            const drawR = r * (selected ? 1.28 : hover ? 1.18 : 1);
+            if (node.kind === 'planet') {
+                drawPlanetSurface(ctx, node, p, drawR, status);
+            } else {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
             ctx.lineWidth = selected ? 3 : hover ? 2.4 : 1.4;
             ctx.strokeStyle = selected ? '#ffffff' : status === 'available' ? '#9fd4ff' : status === 'cleared' ? '#9ef0bf' : '#586780';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
             ctx.stroke();
 
             if (node.kind === 'planet' && (selected || hover || node.labelPriority >= 5 || ATLAS.camera.scale > 0.98)) {
@@ -1134,7 +1154,7 @@
                 ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 장착</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">초점 이동</button>
                 <button onclick="resetCosmosAtlasCamera()">지도 초기화</button><button onclick="autoHuntCosmosLowest()">자동사냥(저티어순)</button>
             </div>
-            <div class="cosmos-help">${isCosmosUnlocked() ? '탐사 완료된 노드와 연결된 노드가 다음 탐사 후보로 열린다.' : '우주계는 지하계 60층 도달 시 해금된다.'}</div>`;
+            <div class="cosmos-help">${isCosmosUnlocked() ? '탐사 완료된 노드와 연결된 노드가 다음 탐사 후보로 열린다.' : '우주계는 지하계 30층 도달 시 해금된다.'}</div>`;
     }
 
     function exploreSelectedCosmosNode() {
