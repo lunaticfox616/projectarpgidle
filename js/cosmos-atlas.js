@@ -1067,12 +1067,19 @@
                 ctx.fill();
             }
 
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, r * (selected ? 1.28 : hover ? 1.18 : 1), 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
+            const drawR = r * (selected ? 1.28 : hover ? 1.18 : 1);
+            if (node.kind === 'planet') {
+                drawPlanetSurface(ctx, node, p, drawR, status);
+            } else {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
             ctx.lineWidth = selected ? 3 : hover ? 2.4 : 1.4;
             ctx.strokeStyle = selected ? '#ffffff' : status === 'available' ? '#9fd4ff' : status === 'cleared' ? '#9ef0bf' : '#586780';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
             ctx.stroke();
 
             if (node.kind === 'planet' && (selected || hover || node.labelPriority >= 5 || ATLAS.camera.scale > 0.98)) {
