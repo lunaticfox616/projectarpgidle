@@ -70,7 +70,9 @@ const STAR_WEDGE_OPTION_POOL = [
     { stat: 'armorPct', min: 10, max: 18 },
     { stat: 'evasionPct', min: 10, max: 18 },
     { stat: 'energyShieldPct', min: 10, max: 18 },
-    { stat: 'maxRes', min: 1, max: 1 }
+    { stat: 'maxResF', min: 1, max: 1 },
+    { stat: 'maxResC', min: 1, max: 1 },
+    { stat: 'maxResL', min: 1, max: 1 }
 ];
 
 const STAR_WEDGE_CORE_OPTION_POOL = [
