@@ -10,6 +10,25 @@
     return (typeof globalRoot.MAP_ZONES !== 'undefined' && globalRoot.MAP_ZONES !== null)
       || (typeof MAP_ZONES !== 'undefined' && MAP_ZONES !== null);
   }
+
+  function ensureCosmosAtlasAssets() {
+    if (typeof document === 'undefined') return;
+    if (!document.querySelector('link[href*="css/cosmos-atlas.css"]')) {
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'css/cosmos-atlas.css?v=20260524-cosmos1';
+      document.head.appendChild(link);
+    }
+    if (!document.querySelector('script[src*="js/cosmos-atlas.js"]')) {
+      var script = document.createElement('script');
+      script.defer = true;
+      script.src = 'js/cosmos-atlas.js?v=20260524-cosmos1';
+      document.body.appendChild(script);
+    }
+  }
+
+  ensureCosmosAtlasAssets();
+
   globalRoot.runModuleIntegrityChecks = function runModuleIntegrityChecks() {
     var required = [
       'defaultGame', 'SKILL_DB', 'UNIQUE_DB', 'ORB_DB', 'PASSIVE_TREE',

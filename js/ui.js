@@ -1537,7 +1537,7 @@ function toggleGemFoldMode(mode) {
 }
 
 function getUniqueCodexProgress() {
-    let keys = new Set(UNIQUE_DB.map(entry => `${entry.slots[0]}|${entry.name}`));
+    let keys = new Set(UNIQUE_DB.filter(entry => !entry.realmCodexOnly).map(entry => `${entry.slots[0]}|${entry.name}`));
     let codex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
     let stored = Object.keys(codex).filter(key => !!codex[key] && keys.has(key)).length;
     return { stored: stored, total: keys.size };
@@ -1626,14 +1626,19 @@ function renderUniqueCodexUI() {
     if (!summary || !listEl) return;
     game.uniqueCodex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
     game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
-    let progress = getUniqueCodexProgress();
+    game.codexSubtab = (game.codexSubtab === 'realm') ? 'realm' : 'main';
+    let realmOnly = game.codexSubtab === 'realm';
+    let pool = UNIQUE_DB.filter(entry => realmOnly ? !!entry.realmCodexOnly : !entry.realmCodexOnly);
+    let keySet = new Set(pool.map(entry => `${entry.slots[0]}|${entry.name}`));
+    let storedCount = Object.keys(game.uniqueCodex).filter(key => !!game.uniqueCodex[key] && keySet.has(key)).length;
+    let progress = { stored: storedCount, total: keySet.size };
     let bonus = progress.stored * 0.2;
     let rewardState = progress.stored >= progress.total ? '완성' : '미완성';
-    summary.innerHTML = `등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% · 완성 상태: <strong>${rewardState}</strong>`;
+    summary.innerHTML = `[${realmOnly ? '계(Realm) 도감' : '기존 도감'}] 등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% · 완성 상태: <strong>${rewardState}</strong>`;
     let bySlot = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
     let lines = [];
     bySlot.forEach(slot => {
-        let entries = UNIQUE_DB.filter(entry => (entry.slots || [])[0] === slot);
+        let entries = pool.filter(entry => (entry.slots || [])[0] === slot);
         if (entries.length === 0) return;
         let slotStored = entries.filter(entry => !!game.uniqueCodex[`${slot}|${entry.name}`]).length;
         let collapsed = !!game.codexCollapsedSlots[slot];
@@ -1648,6 +1653,10 @@ function renderUniqueCodexUI() {
         });
     });
     listEl.innerHTML = lines.join('');
+}
+function setCodexSubtab(tab) {
+    game.codexSubtab = (tab === 'realm') ? 'realm' : 'main';
+    updateStaticUI();
 }
 
 function grantCodexLegacyStarterUniques() {
@@ -5743,6 +5752,7 @@ function mergeDefaults(save) {
     merged.gemEnhanceUnlocked = !!merged.gemEnhanceUnlocked;
     merged.uniqueCodex = (merged.uniqueCodex && typeof merged.uniqueCodex === 'object') ? merged.uniqueCodex : {};
     merged.codexCollapsedSlots = (merged.codexCollapsedSlots && typeof merged.codexCollapsedSlots === 'object') ? merged.codexCollapsedSlots : {};
+    merged.codexSubtab = (merged.codexSubtab === 'realm') ? 'realm' : 'main';
     merged.uniqueCodexCompletedRewardClaimed = !!merged.uniqueCodexCompletedRewardClaimed;
     if (!merged.gemEnhanceUnlocked && (((merged.currencies || {}).bossCore || 0) > 0 || ((merged.currencies || {}).skyEssence || 0) > 0)) merged.gemEnhanceUnlocked = true;
     merged.inTicketBossFight = !!merged.inTicketBossFight;

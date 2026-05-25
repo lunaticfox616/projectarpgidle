@@ -52,34 +52,44 @@ const STAR_WEDGE_UNLOCK_LOOP = 7;
 const STAR_WEDGE_UNLOCK_ACT = 7;
 
 const STAR_WEDGE_OPTION_POOL = [
-    { stat: 'pctDmg', min: 7, max: 16 },
-    { stat: 'flatHp', min: 32, max: 96 },
-    { stat: 'aspd', min: 2, max: 8 },
+    { stat: 'pctDmg', min: 10, max: 16 },
+    { stat: 'flatHp', min: 56, max: 96 },
+    { stat: 'aspd', min: 4, max: 8 },
     { stat: 'crit', min: 2, max: 9 },
-    { stat: 'critDmg', min: 10, max: 28 },
-    { stat: 'dr', min: 1, max: 7 },
-    { stat: 'move', min: 2, max: 9 },
-    { stat: 'physIgnore', min: 2, max: 8 },
-    { stat: 'resPen', min: 2, max: 8 },
-    { stat: 'regen', min: 0.2, max: 1.2, step: 0.1 },
-    { stat: 'chaosPctDmg', min: 6, max: 18 }
+    { stat: 'critDmg', min: 16, max: 28 },
+    { stat: 'dr', min: 3, max: 7 },
+    { stat: 'move', min: 4, max: 9 },
+    { stat: 'physIgnore', min: 4, max: 8 },
+    { stat: 'resPen', min: 4, max: 8 },
+    { stat: 'regen', min: 0.6, max: 1.2, step: 0.1 },
+    { stat: 'chaosPctDmg', min: 10, max: 18 },
+    { stat: 'resF', min: 6, max: 14 },
+    { stat: 'resC', min: 6, max: 14 },
+    { stat: 'resL', min: 6, max: 14 },
+    { stat: 'resChaos', min: 3, max: 7 },
+    { stat: 'armorPct', min: 10, max: 18 },
+    { stat: 'evasionPct', min: 10, max: 18 },
+    { stat: 'energyShieldPct', min: 10, max: 18 },
+    { stat: 'maxResF', min: 1, max: 1 },
+    { stat: 'maxResC', min: 1, max: 1 },
+    { stat: 'maxResL', min: 1, max: 1 }
 ];
 
 const STAR_WEDGE_CORE_OPTION_POOL = [
-    { stat: 'flatDmg', min: 8, max: 28 },
-    { stat: 'pctHp', min: 5, max: 14 },
-    { stat: 'elementalPctDmg', min: 8, max: 20 },
-    { stat: 'physPctDmg', min: 8, max: 20 },
-    { stat: 'projectilePctDmg', min: 8, max: 20 },
-    { stat: 'meleePctDmg', min: 8, max: 20 },
-    { stat: 'dotPctDmg', min: 8, max: 20 },
-    { stat: 'resAll', min: 2, max: 6 },
-    { stat: 'ds', min: 4, max: 12 },
-    { stat: 'minDmgRoll', min: 3, max: 8 },
-    { stat: 'maxDmgRoll', min: 4, max: 10 },
-    { stat: 'energyShieldPct', min: 8, max: 18 },
-    { stat: 'armorPct', min: 8, max: 18 },
-    { stat: 'evasionPct', min: 8, max: 18 }
+    { stat: 'flatDmg', min: 16, max: 32 },
+    { stat: 'pctHp', min: 9, max: 16 },
+    { stat: 'elementalPctDmg', min: 14, max: 24 },
+    { stat: 'physPctDmg', min: 14, max: 24 },
+    { stat: 'projectilePctDmg', min: 14, max: 24 },
+    { stat: 'meleePctDmg', min: 14, max: 24 },
+    { stat: 'dotPctDmg', min: 14, max: 24 },
+    { stat: 'resAll', min: 4, max: 7 },
+    { stat: 'ds', min: 8, max: 14 },
+    { stat: 'minDmgRoll', min: 5, max: 9 },
+    { stat: 'maxDmgRoll', min: 7, max: 12 },
+    { stat: 'energyShieldPct', min: 14, max: 21 },
+    { stat: 'armorPct', min: 14, max: 21 },
+    { stat: 'evasionPct', min: 14, max: 21 }
 ];
 
 const SEASON_CONTENT_ROADMAP = {
