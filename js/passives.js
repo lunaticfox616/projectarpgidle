@@ -1520,7 +1520,7 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
     let astroLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
     if (astroLv < 1 || !st.unlocked || st.skyRiftReady) return;
     if (!zone) return;
-    let eligible = (zone.type === 'act' && zone.id >= STAR_WEDGE_UNLOCK_ACT) || zone.type === 'abyss' || zone.type === 'labyrinth';
+    let eligible = (zone.type === 'act' && zone.id >= STAR_WEDGE_UNLOCK_ACT) || zone.type === 'abyss' || zone.type === 'labyrinth' || zone.type === 'chaosRealm' || zone.type === 'underworld' || zone.type === 'cosmos';
     if (!eligible) return;
     let gain = enemy && enemy.isBoss ? 3.8 : (enemy && enemy.isElite ? 1.6 : 0.35);
     if (typeof getExpertNodeEffectValue === 'function') gain *= (1 + (Math.max(0, getExpertNodeEffectValue('meteorGaugeGainPct')) / 100));
@@ -1561,7 +1561,14 @@ function grantMeteorEncounterRewards() {
         }
         let starDropBonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('starWedgeDropPct') || 0) / 100 : 0;
         if (astroLv >= 4 && Math.random() < 0.0187 * (1 + starDropBonus)) {
-            let wedge = createStarWedgeItem();
+            let uniqueChance = Math.min(0.35, Math.max(0, (game.currencies.astralCore || 0) * 0.02));
+    if ((game.currencies.astralCore || 0) > 0) game.currencies.astralCore--;
+    let wedge = createStarWedgeItem();
+    if (Math.random() < uniqueChance) {
+        wedge.uniqueType = rndChoice(['instant_boost', 'linkless_learn', 'core_bypass']);
+        wedge.unique = true;
+        wedge.lines = wedge.lines.map(line => ({ ...line, val: Number.isFinite(line.val) ? Math.round(line.val * 1.65 * 10) / 10 : line.val, boosted: true }));
+    }
             st.wedges.push(wedge);
             awardCurrency('starWedge', 1);
             addLog('☄️ 완성된 별쐐기가 떨어졌다!', 'loot-unique');
@@ -1592,10 +1599,17 @@ function craftCompleteStarWedge() { if (game.woodsmanBuildLock) return addLog('�
     if ((game.currencies.meteorShard || 0) < 77) return addLog('운석 파편이 부족합니다. (필요: 77)', 'attack-monster');
     game.currencies.incompleteStarWedge--;
     game.currencies.meteorShard -= 77; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'starwedge_craft');
+    let uniqueChance = Math.min(0.35, Math.max(0, (game.currencies.astralCore || 0) * 0.02));
+    if ((game.currencies.astralCore || 0) > 0) game.currencies.astralCore--;
     let wedge = createStarWedgeItem();
+    if (Math.random() < uniqueChance) {
+        wedge.uniqueType = rndChoice(['instant_boost', 'linkless_learn', 'core_bypass']);
+        wedge.unique = true;
+        wedge.lines = wedge.lines.map(line => ({ ...line, val: Number.isFinite(line.val) ? Math.round(line.val * 1.65 * 10) / 10 : line.val, boosted: true }));
+    }
     st.wedges.push(wedge);
     awardCurrency('starWedge', 1);
-    addLog('🔧 별쐐기를 완성했습니다.', 'loot-unique');
+    addLog(wedge.unique ? `🌌 고유 별쐐기 완성! [${wedge.uniqueType}]` : '🔧 별쐐기를 완성했습니다.', 'loot-unique');
     updateStaticUI();
 }
 
