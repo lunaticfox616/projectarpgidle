@@ -182,6 +182,22 @@ const COSMOS_EFFECT_KEYS = [
     { key: 'cosmosSustain', params: { regen: 1.4, leech: 1.0 } },
     { key: 'cosmosBossSlayer', params: { pct: 16, critDmg: 24 } }
 ];
+while (COSMOS_EFFECT_KEYS.length < 50) {
+    let idx = COSMOS_EFFECT_KEYS.length;
+    COSMOS_EFFECT_KEYS.push({
+        key: 'cosmosStatBundle',
+        params: {
+            pctDmg: 6 + (idx % 5) * 2,
+            dr: (idx % 3 === 0) ? 4 : 0,
+            move: (idx % 4 === 0) ? 8 : 0,
+            aspd: (idx % 4 === 1) ? 8 : 0,
+            resPen: (idx % 5 === 2) ? 6 : 0,
+            critDmg: (idx % 6 === 0) ? 12 : 0,
+            regen: (idx % 7 === 0) ? 0.8 : 0,
+            leech: (idx % 7 === 1) ? 0.6 : 0
+        }
+    });
+}
 const COSMOS_REALM_ENTRIES = [
     '성도의 발화점','광추의 파편','성운 봉인','은하의 각인','공전의 귀환',
     '초신성 직조','별자리 금속','월광 항법','항성 낙인','성단의 결',

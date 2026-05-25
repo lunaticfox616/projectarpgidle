@@ -802,7 +802,7 @@ function getUniqueEffectImplementationReport() {
         'projectileDoubleStrikePct','hitApplyChaosResDown','corpseExplodeOnKill','instantLeechAndDoubleDamage',
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
         'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
-        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer'
+        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle'
     ]);
     return {
         total: uniqueKeys.length,
@@ -981,6 +981,16 @@ function getPlayerStats() {
         else if (effect.key === 'cosmosPenetration') addStatToBucket(reward, 'resPen', Number(ep.pen || 8));
         else if (effect.key === 'cosmosSustain') { addStatToBucket(reward, 'regen', Number(ep.regen || 1.2)); addStatToBucket(reward, 'leech', Number(ep.leech || 0.8)); }
         else if (effect.key === 'cosmosBossSlayer') { addStatToBucket(reward, 'pctDmg', Number(ep.pct || 14)); addStatToBucket(reward, 'critDmg', Number(ep.critDmg || 20)); }
+        else if (effect.key === 'cosmosStatBundle') {
+            addStatToBucket(reward, 'pctDmg', Number(ep.pctDmg || 0));
+            addStatToBucket(reward, 'dr', Number(ep.dr || 0));
+            addStatToBucket(reward, 'move', Number(ep.move || 0));
+            addStatToBucket(reward, 'aspd', Number(ep.aspd || 0));
+            addStatToBucket(reward, 'resPen', Number(ep.resPen || 0));
+            addStatToBucket(reward, 'critDmg', Number(ep.critDmg || 0));
+            addStatToBucket(reward, 'regen', Number(ep.regen || 0));
+            addStatToBucket(reward, 'leech', Number(ep.leech || 0));
+        }
 
         else if (effect.key === 'abyssSocketOnItem' || effect.key === 'abyssSocketAndJewelAmp') { /* handled by item generation/socket stat merge path */ }
     });
