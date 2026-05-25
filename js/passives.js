@@ -1389,6 +1389,40 @@ function createStarWedgeItem() {
     return { id: Date.now() + Math.floor(Math.random() * 100000), lines: [createRandomStarWedgeLine(), createRandomStarWedgeLine(), createRandomStarWedgeLine(), coreLine] };
 }
 
+
+
+function createUniqueStarWedgeItem() {
+    const type = rndChoice(['asteroid_belt','sun','zero_gravity','black_hole','satellite','comet','resonant_star']);
+    const id = Date.now() + Math.floor(Math.random() * 100000);
+    const mk = () => createRandomStarWedgeLine();
+    const mkCore = () => createRandomStarWedgeLine(STAR_WEDGE_CORE_OPTION_POOL);
+    let wedge = { id, unique: true, uniqueType: type, lines: [mk(), mk(), mk(), mkCore()] };
+    if (type === 'sun') {
+        let core = mkCore();
+        core.val = Number.isFinite(core.val) ? Math.round(core.val * 3 * 10) / 10 : core.val;
+        wedge.lines = [null, null, null, core];
+    } else if (type === 'comet') {
+        wedge.lines = [
+            { stat: 'move', val: 12, boosted: true },
+            { stat: 'move', val: 16, boosted: true },
+            { stat: 'move', val: 20, boosted: true },
+            { stat: 'move', val: 24, boosted: true }
+        ];
+    } else if (type === 'resonant_star') {
+        wedge.lines = [mk(), mk(), mk(), { stat: 'suppCap', val: 1, boosted: true }];
+    } else if (type === 'black_hole') {
+        const hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(n => n && n.kind === 'hub').map(n => String(n.id));
+        wedge.recordedHubNodeId = hubs.length ? rndChoice(hubs) : null;
+    }
+    return wedge;
+}
+
+function injectMutation(st, conflictNodes, nodeId, payload) {
+    if (conflictNodes.has(nodeId)) return;
+    if (st.nodeMutations[nodeId]) { delete st.nodeMutations[nodeId]; conflictNodes.add(nodeId); return; }
+    st.nodeMutations[nodeId] = payload;
+}
+
 function getStarWedgeById(wedgeId) {
     let st = ensureStarWedgeState();
     let normalizedWedgeId = Number(wedgeId);
@@ -1404,6 +1438,47 @@ function recalculateStarWedgeMutations() {
         let wedge = getStarWedgeById(socket.wedgeId);
         let center = PASSIVE_TREE.nodes[socket.nodeId];
         if (!wedge || !center) return;
+        const centerX = Number(center.x || 0), centerY = Number(center.y || 0);
+        const radialNodes = Object.values(PASSIVE_TREE.nodes || {}).filter(n => n && Number.isFinite(Number(n.x)) && Number.isFinite(Number(n.y)));
+        const radialDist = (n) => Math.hypot(Number(n.x||0)-centerX, Number(n.y||0)-centerY);
+
+        if (wedge.unique && wedge.uniqueType === 'black_hole' && wedge.recordedHubNodeId) {
+            st.virtualLearnNodes = st.virtualLearnNodes || {};
+            st.virtualLearnNodes[String(wedge.recordedHubNodeId)] = true;
+            st.disabledNodeEffects = st.disabledNodeEffects || {};
+            st.disabledNodeEffects[String(center.id)] = true;
+            st.disabledNodeEffects[String(wedge.recordedHubNodeId)] = true;
+        }
+        if (wedge.unique && wedge.uniqueType === 'sun') {
+            let coreLineSun = Array.isArray(wedge.lines) ? wedge.lines[3] : null;
+            if (coreLineSun && coreLineSun.stat) {
+                injectMutation(st, conflictNodes, center.id, { wedgeId:wedge.id, socketNodeId:center.id, lineIndex:3, originalStat:center.stat, originalVal:center.val, currentStat:coreLineSun.stat, currentVal:coreLineSun.val });
+            }
+            return;
+        }
+        if (wedge.unique && (wedge.uniqueType === 'zero_gravity' || wedge.uniqueType === 'asteroid_belt' || wedge.uniqueType === 'satellite')) {
+            const r1 = wedge.uniqueType === 'asteroid_belt' ? 120 : 0;
+            const r2 = wedge.uniqueType === 'asteroid_belt' ? 300 : (wedge.uniqueType === 'satellite' ? 260 : 220);
+            radialNodes.forEach(n => {
+                const d = radialDist(n);
+                if (d < r1 || d > r2 || String(n.id)===String(center.id)) return;
+                const nodeKind = String(n.kind || '');
+                if (wedge.uniqueType === 'satellite' && nodeKind === 'core') {
+                    st.disabledNodeEffects = st.disabledNodeEffects || {};
+                    st.disabledNodeEffects[String(n.id)] = true;
+                    return;
+                }
+                if (wedge.uniqueType === 'satellite' && nodeKind === 'core') return;
+                if (!isStarWedgeNodeMutable(n) && wedge.uniqueType !== 'satellite') return;
+                const line = wedge.lines[Math.min(2, Math.max(0, Math.floor((d / Math.max(1, r2)) * 3)))];
+                if (!line || !line.stat) return;
+                injectMutation(st, conflictNodes, String(n.id), { wedgeId:wedge.id, socketNodeId:center.id, lineIndex:0, originalStat:n.stat, originalVal:n.val, currentStat:line.stat, currentVal:line.val });
+            });
+            let coreLine = Array.isArray(wedge.lines) ? wedge.lines[3] : null;
+            if (coreLine && coreLine.stat && wedge.uniqueType !== 'satellite') injectMutation(st, conflictNodes, center.id, { wedgeId:wedge.id, socketNodeId:center.id, lineIndex:3, originalStat:center.stat, originalVal:center.val, currentStat:coreLine.stat, currentVal:coreLine.val });
+            return;
+        }
+
         let queue = [{ id: center.id, dist: 0 }];
         let seen = new Set([center.id]);
         while (queue.length) {
@@ -1570,12 +1645,7 @@ function grantMeteorEncounterRewards() {
         if (astroLv >= 4 && Math.random() < 0.0187 * (1 + starDropBonus)) {
             let uniqueChance = Math.min(0.35, Math.max(0, (game.currencies.astralCore || 0) * 0.02));
     if ((game.currencies.astralCore || 0) > 0) game.currencies.astralCore--;
-    let wedge = createStarWedgeItem();
-    if (Math.random() < uniqueChance) {
-        wedge.uniqueType = rndChoice(['instant_boost', 'linkless_learn', 'core_bypass']);
-        wedge.unique = true;
-        wedge.lines = wedge.lines.map(line => ({ ...line, val: Number.isFinite(line.val) ? Math.round(line.val * 1.65 * 10) / 10 : line.val, boosted: true }));
-    }
+    let wedge = Math.random() < uniqueChance ? createUniqueStarWedgeItem() : createStarWedgeItem();
             st.wedges.push(wedge);
             awardCurrency('starWedge', 1);
             addLog('☄️ 완성된 별쐐기가 떨어졌다!', 'loot-unique');
@@ -1608,12 +1678,7 @@ function craftCompleteStarWedge() { if (game.woodsmanBuildLock) return addLog('�
     game.currencies.meteorShard -= 77; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'starwedge_craft');
     let uniqueChance = Math.min(0.35, Math.max(0, (game.currencies.astralCore || 0) * 0.02));
     if ((game.currencies.astralCore || 0) > 0) game.currencies.astralCore--;
-    let wedge = createStarWedgeItem();
-    if (Math.random() < uniqueChance) {
-        wedge.uniqueType = rndChoice(['instant_boost', 'linkless_learn', 'core_bypass']);
-        wedge.unique = true;
-        wedge.lines = wedge.lines.map(line => ({ ...line, val: Number.isFinite(line.val) ? Math.round(line.val * 1.65 * 10) / 10 : line.val, boosted: true }));
-    }
+    let wedge = Math.random() < uniqueChance ? createUniqueStarWedgeItem() : createStarWedgeItem();
     st.wedges.push(wedge);
     awardCurrency('starWedge', 1);
     addLog(wedge.unique ? `🌌 고유 별쐐기 완성! [${wedge.uniqueType}]` : '🔧 별쐐기를 완성했습니다.', 'loot-unique');
