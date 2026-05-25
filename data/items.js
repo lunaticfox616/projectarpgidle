@@ -77,6 +77,31 @@ const UNIQUE_DB = [
     { name: "영원", slots: ["무기"], reqTier: 15, ultraRare: true, uniqueEffect: "흡혈의 25% 즉시 흡수, 20% 확률로 2배 피해", uniqueEffectKey: "instantLeechAndDoubleDamage", uniqueEffectParams: { instantLeechPct: 25, doubleDamageChance: 20 }, stats: [{ id: "flatDmg", min: 95, max: 130 }, { id: "minDmgRoll", min: 14, max: 20 }, { id: "maxDmgRoll", min: 14, max: 20 }, { id: "critDmg", min: 90, max: 130 }] }
 ];
 
+const REALM_UNIQUE_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
+const REALM_UNIQUE_STATS = [
+    [{ id: 'flatDmg', min: 36, max: 55 }, { id: 'critDmg', min: 18, max: 36 }, { id: 'aspd', min: 9, max: 16 }],
+    [{ id: 'flatHp', min: 70, max: 118 }, { id: 'dr', min: 6, max: 11 }, { id: 'resAll', min: 8, max: 14 }],
+    [{ id: 'chaosPctDmg', min: 24, max: 42 }, { id: 'resChaos', min: 14, max: 22 }, { id: 'leech', min: 0.9, max: 1.6 }],
+    [{ id: 'armorPct', min: 18, max: 32 }, { id: 'evasionPct', min: 18, max: 32 }, { id: 'energyShieldPct', min: 18, max: 32 }],
+    [{ id: 'resF', min: 12, max: 20 }, { id: 'resC', min: 12, max: 20 }, { id: 'resL', min: 12, max: 20 }],
+    [{ id: 'resPen', min: 7, max: 14 }, { id: 'elementalPctDmg', min: 22, max: 38 }, { id: 'crit', min: 5, max: 10 }]
+];
+function addRealmUniques(realm, count, tierStart, prefix) {
+    for (let i = 0; i < count; i++) {
+        UNIQUE_DB.push({
+            name: `${prefix} ${i + 1}형`,
+            slots: [REALM_UNIQUE_SLOTS[i % REALM_UNIQUE_SLOTS.length]],
+            reqTier: tierStart + Math.floor(i / 4),
+            realmCodexOnly: true,
+            realm,
+            stats: JSON.parse(JSON.stringify(REALM_UNIQUE_STATS[i % REALM_UNIQUE_STATS.length]))
+        });
+    }
+}
+addRealmUniques('chaos', 10, 12, '혼돈계 유물');
+addRealmUniques('underworld', 10, 16, '지하계 유물');
+addRealmUniques('cosmos', 50, 18, '우주계 성유물');
+
 function buildUniqueExtraStat(slot, usedIds) {
     let slotKey = Array.isArray(slot) ? slot[0] : slot;
     let pool = {

@@ -903,6 +903,12 @@ const BASE_ITEM_DB = [
     { id: 'ember_circlet', slot: '투구', name: '잿불 서클릿', reqTier: 11, baseStats: [{ id: 'energyShield', base: 126 }, { id: 'resF', base: 10 }] },
     { id: 'tidal_vest', slot: '갑옷', name: '조류의 흉갑', reqTier: 11, baseStats: [{ id: 'flatHp', base: 66 }, { id: 'resC', base: 10 }] },
     { id: 'gale_treads', slot: '신발', name: '질풍 발굽', reqTier: 11, baseStats: [{ id: 'move', base: 16 }, { id: 'evasion', base: 94 }] }
+    ,{ id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 송곳', reqTier: 18, realmBase: 'chaos', baseStats: [{ id: 'flatDmg', base: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] }
+    ,{ id: 'chaos_realm_coil', slot: '반지', name: '혼돈계 소용돌이 반지', reqTier: 18, realmBase: 'chaos', baseStats: [{ id: 'chaosPctDmg', base: 18 }, { id: 'resChaos', base: 10 }] }
+    ,{ id: 'underworld_bastion', slot: '갑옷', name: '지하계 철벽 흉갑', reqTier: 20, realmBase: 'underworld', baseStats: [{ id: 'flatHp', base: 120 }, { id: 'armor', base: 260 }, { id: 'dr', base: 8 }] }
+    ,{ id: 'underworld_chain', slot: '허리띠', name: '지하계 결속 허리띠', reqTier: 20, realmBase: 'underworld', baseStats: [{ id: 'flatHp', base: 110 }, { id: 'resAll', base: 10 }, { id: 'resChaos', base: 12 }] }
+    ,{ id: 'cosmos_prism_lance', slot: '무기', name: '우주계 프리즘 랜스', reqTier: 22, realmBase: 'cosmos', baseStats: [{ id: 'flatDmg', base: 52 }, { id: 'elementalPctDmg', base: 28 }, { id: 'resPen', base: 9 }] }
+    ,{ id: 'cosmos_core_amulet', slot: '목걸이', name: '우주계 핵성 목걸이', reqTier: 22, realmBase: 'cosmos', baseStats: [{ id: 'gemLevel', base: 1 }, { id: 'suppCap', base: 1 }, { id: 'resAll', base: 10 }] }
 ];
 
 
@@ -1279,6 +1285,7 @@ const defaultGame = {
     gemEnhanceUnlocked: false,
     uniqueCodex: {},
     codexCollapsedSlots: {},
+    codexSubtab: 'main',
     uniqueCodexCompletedRewardClaimed: false,
     starWedge: {
         unlocked: false,
