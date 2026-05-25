@@ -174,7 +174,13 @@ const COSMOS_EFFECT_KEYS = [
     { key: 'warcryResonanceBelt', params: { perWarcryAmpPct: 16 } },
     { key: 'meteorFootsteps', params: { chance: 18, damagePct: 160 } },
     { key: 'alwaysShock', params: {} },
-    { key: 'invertShockTaken', params: {} }
+    { key: 'invertShockTaken', params: {} },
+    { key: 'cosmosFinalDmg', params: { pct: 14 } },
+    { key: 'cosmosTakenLess', params: { dr: 10 } },
+    { key: 'cosmosSpeedBurst', params: { move: 14, aspd: 12 } },
+    { key: 'cosmosPenetration', params: { pen: 10 } },
+    { key: 'cosmosSustain', params: { regen: 1.4, leech: 1.0 } },
+    { key: 'cosmosBossSlayer', params: { pct: 16, critDmg: 24 } }
 ];
 const COSMOS_REALM_ENTRIES = [
     '성도의 발화점','광추의 파편','성운 봉인','은하의 각인','공전의 귀환',
