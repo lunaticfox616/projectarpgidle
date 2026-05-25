@@ -182,7 +182,8 @@ function applyFossilCraft() {
     if ((game.season || 1) < 3) return addLog('미궁 제작은 루프3부터 사용할 수 있습니다.', 'attack-monster');
     if ((game.currencies.fossil || 0) <= 0) return addLog('미궁 화석이 부족합니다.', 'attack-monster');
     game.currencies.fossil--;
-    let randomFossil = rndChoice(FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly));
+    let underworldOnlyFossils = new Set(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']);
+    let randomFossil = rndChoice(FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly && !underworldOnlyFossils.has(fossil.key)));
     game.currencies[randomFossil.key] = (game.currencies[randomFossil.key] || 0) + 1;
     if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_refine');
     addLog(`🪨 기본 화석을 정제해 [${randomFossil.name}] 1개를 획득했습니다.`, 'loot-magic');
