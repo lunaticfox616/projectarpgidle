@@ -1202,7 +1202,7 @@
                 <div style="margin-top:4px; color:#a9bdd3;">진행도 요구치: +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 패널티 강도: +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</div>
             </div>
             <div class="cosmos-actions">
-                <button onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '보스 도전' : '전투 도전'}</button><button onclick="exploreSelectedCosmosNode()" ${status === 'available' ? '' : 'disabled'}>${node.tag === 'boss' ? '보스 격파 처리' : '탐사 완료 처리'}</button>
+                <button onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '보스 도전' : '전투 도전'}</button>
                 ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 장착</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">초점 이동</button>
                 <button onclick="resetCosmosAtlasCamera()">지도 초기화</button>
             </div>
@@ -1216,6 +1216,10 @@
         if (!node) return;
         const status = getNodeStatus(node);
         const repeatBossRun = status === 'cleared' && node.tag === 'boss';
+        if (status === 'available') {
+            if (typeof window.addLog === 'function') window.addLog('우주계 노드는 도전에 성공해야 탐사가 완료됩니다.', 'attack-monster');
+            return;
+        }
         if (!(status === 'available' || repeatBossRun)) {
             if (typeof window.addLog === 'function') window.addLog('아직 별길이 연결되지 않은 우주계 노드입니다.', 'attack-monster');
             return;

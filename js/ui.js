@@ -1537,7 +1537,7 @@ function toggleGemFoldMode(mode) {
 }
 
 function getUniqueCodexProgress() {
-    let keys = new Set(UNIQUE_DB.map(entry => `${entry.slots[0]}|${entry.name}`));
+    let keys = new Set(UNIQUE_DB.filter(entry => !entry.realmCodexOnly).map(entry => `${entry.slots[0]}|${entry.name}`));
     let codex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
     let stored = Object.keys(codex).filter(key => !!codex[key] && keys.has(key)).length;
     return { stored: stored, total: keys.size };
