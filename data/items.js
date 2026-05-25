@@ -78,29 +78,43 @@ const UNIQUE_DB = [
 ];
 
 const REALM_UNIQUE_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
-const REALM_UNIQUE_STATS = [
-    [{ id: 'flatDmg', min: 36, max: 55 }, { id: 'critDmg', min: 18, max: 36 }, { id: 'aspd', min: 9, max: 16 }],
-    [{ id: 'flatHp', min: 70, max: 118 }, { id: 'dr', min: 6, max: 11 }, { id: 'resAll', min: 8, max: 14 }],
-    [{ id: 'chaosPctDmg', min: 24, max: 42 }, { id: 'resChaos', min: 14, max: 22 }, { id: 'leech', min: 0.9, max: 1.6 }],
-    [{ id: 'armorPct', min: 18, max: 32 }, { id: 'evasionPct', min: 18, max: 32 }, { id: 'energyShieldPct', min: 18, max: 32 }],
-    [{ id: 'resF', min: 12, max: 20 }, { id: 'resC', min: 12, max: 20 }, { id: 'resL', min: 12, max: 20 }],
-    [{ id: 'resPen', min: 7, max: 14 }, { id: 'elementalPctDmg', min: 22, max: 38 }, { id: 'crit', min: 5, max: 10 }]
-];
-function addRealmUniques(realm, count, tierStart, prefix) {
-    for (let i = 0; i < count; i++) {
+const CHAOS_REALM_NAMES = ['파열의 언약', '균열의 정수', '공허의 갈고리', '타락각 투구', '균열군주의 피부', '독성 심연갑', '침식 장갑', '망각 추적화', '잠식 목걸이', '절단 반지'];
+const UNDERWORLD_REALM_NAMES = ['심층 제련검', '암반 분쇄기', '망자 감시투구', '지하 성채갑', '대지 구속장갑', '철벽 척력화', '룬 심장 목걸이', '지맥 반지', '골렘 허리띠', '중핵 결속대'];
+const COSMOS_REALM_NAMES = Array.from({ length: 50 }, (_, i) => `성도 유니크 ${String(i + 1).padStart(2, '0')}`);
+const REALM_STAT_PACKS = {
+    chaos: [
+        [{ id: 'chaosPctDmg', min: 26, max: 44 }, { id: 'resChaos', min: 15, max: 24 }, { id: 'leech', min: 1.0, max: 1.8 }],
+        [{ id: 'flatDmg', min: 38, max: 58 }, { id: 'critDmg', min: 20, max: 40 }, { id: 'physIgnore', min: 7, max: 13 }],
+        [{ id: 'flatHp', min: 80, max: 132 }, { id: 'dr', min: 7, max: 12 }, { id: 'resAll', min: 8, max: 14 }]
+    ],
+    underworld: [
+        [{ id: 'armorPct', min: 20, max: 34 }, { id: 'evasionPct', min: 20, max: 34 }, { id: 'energyShieldPct', min: 20, max: 34 }],
+        [{ id: 'flatHp', min: 90, max: 145 }, { id: 'dr', min: 8, max: 14 }, { id: 'regen', min: 1.0, max: 1.8 }],
+        [{ id: 'resF', min: 13, max: 22 }, { id: 'resC', min: 13, max: 22 }, { id: 'resL', min: 13, max: 22 }]
+    ],
+    cosmos: [
+        [{ id: 'resPen', min: 8, max: 16 }, { id: 'elementalPctDmg', min: 24, max: 42 }, { id: 'crit', min: 6, max: 11 }],
+        [{ id: 'gemLevel', min: 1, max: 1 }, { id: 'suppCap', min: 1, max: 1 }, { id: 'resAll', min: 9, max: 15 }],
+        [{ id: 'flatDmg', min: 40, max: 62 }, { id: 'aspd', min: 10, max: 17 }, { id: 'maxDmgRoll', min: 7, max: 13 }],
+        [{ id: 'move', min: 14, max: 22 }, { id: 'critDmg', min: 22, max: 42 }, { id: 'resChaos', min: 10, max: 18 }]
+    ]
+};
+function pushRealmUniqueSet(realm, names, tierStart) {
+    let packs = REALM_STAT_PACKS[realm] || REALM_STAT_PACKS.cosmos;
+    names.forEach((name, i) => {
         UNIQUE_DB.push({
-            name: `${prefix} ${i + 1}형`,
+            name,
             slots: [REALM_UNIQUE_SLOTS[i % REALM_UNIQUE_SLOTS.length]],
             reqTier: tierStart + Math.floor(i / 4),
             realmCodexOnly: true,
             realm,
-            stats: JSON.parse(JSON.stringify(REALM_UNIQUE_STATS[i % REALM_UNIQUE_STATS.length]))
+            stats: JSON.parse(JSON.stringify(packs[i % packs.length]))
         });
-    }
+    });
 }
-addRealmUniques('chaos', 10, 12, '혼돈계 유물');
-addRealmUniques('underworld', 10, 16, '지하계 유물');
-addRealmUniques('cosmos', 50, 18, '우주계 성유물');
+pushRealmUniqueSet('chaos', CHAOS_REALM_NAMES, 12);
+pushRealmUniqueSet('underworld', UNDERWORLD_REALM_NAMES, 16);
+pushRealmUniqueSet('cosmos', COSMOS_REALM_NAMES, 18);
 
 function buildUniqueExtraStat(slot, usedIds) {
     let slotKey = Array.isArray(slot) ? slot[0] : slot;
