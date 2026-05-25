@@ -1267,6 +1267,7 @@ function ensureStarWedgeState() {
     if (!game.starWedge.nodeMutations || typeof game.starWedge.nodeMutations !== 'object') game.starWedge.nodeMutations = {};
     if (!Number.isFinite(game.starWedge.skyRiftGauge)) game.starWedge.skyRiftGauge = 0;
     game.starWedge.skyRiftGauge = clampNumber(game.starWedge.skyRiftGauge, 0, 100);
+    game.starWedge.skyRiftAllCosmos = !!game.starWedge.skyRiftAllCosmos;
     game.starWedge.entriesCleared = Math.max(0, Math.floor(game.starWedge.entriesCleared || 0));
     game.starWedge.skyRiftReady = !!game.starWedge.skyRiftReady;
     game.starWedge.firstClearDone = !!game.starWedge.firstClearDone;
@@ -1522,6 +1523,11 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
     if (!zone) return;
     let eligible = (zone.type === 'act' && zone.id >= STAR_WEDGE_UNLOCK_ACT) || zone.type === 'abyss' || zone.type === 'labyrinth' || zone.type === 'chaosRealm' || zone.type === 'underworld' || zone.type === 'cosmos';
     if (!eligible) return;
+    if (!st.skyRiftReady && (st.skyRiftGauge || 0) <= 0.0001) {
+        st.skyRiftAllCosmos = true;
+        st.skyRiftMinTier = null;
+    }
+    if (zone.type !== 'cosmos') st.skyRiftAllCosmos = false;
     let gain = enemy && enemy.isBoss ? 3.8 : (enemy && enemy.isElite ? 1.6 : 0.35);
     if (typeof getExpertNodeEffectValue === 'function') gain *= (1 + (Math.max(0, getExpertNodeEffectValue('meteorGaugeGainPct')) / 100));
     if (astroLv >= 2 && Math.random() < (enemy && enemy.isElite ? 0.035 : 0.006)) awardCurrency('starDust', 1);
@@ -1530,6 +1536,7 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
     st.skyRiftGauge = clampNumber(nextGauge, 0, 100);
     let tier = Math.max(1, Math.floor(zone.tier || 1));
     st.skyRiftMinTier = Number.isFinite(st.skyRiftMinTier) ? Math.min(st.skyRiftMinTier, tier) : tier;
+    if (!st.skyRiftAllCosmos) st.skyRiftMinTier = Math.min(20, Math.floor(st.skyRiftMinTier || 20));
     if (st.skyRiftGauge >= 100 && !st.skyRiftReady) {
         let overflow = Math.max(0, nextGauge - 100);
         st.skyRiftGauge = 100;

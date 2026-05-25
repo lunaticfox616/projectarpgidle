@@ -195,7 +195,9 @@ function getZone(id) {
     }
     if (id === METEOR_FALL_ZONE_ID) {
         let star = (game && game.starWedge) || {};
-        let tier = Math.max(8, Math.min(40, Math.floor(star.activeMeteorTier || star.skyRiftMinTier || 13)));
+        let allowBeyond20 = !!star.skyRiftAllCosmos;
+        let tierCap = allowBeyond20 ? 40 : 20;
+        let tier = Math.max(8, Math.min(tierCap, Math.floor(star.activeMeteorTier || star.skyRiftMinTier || 13)));
         return {
             id: METEOR_FALL_ZONE_ID,
             name: '운석 낙하 지점',
@@ -1284,6 +1286,7 @@ const defaultGame = {
         skyRiftGauge: 0,
         skyRiftReady: false,
         skyRiftMinTier: null,
+        skyRiftAllCosmos: false,
         activeMeteorTier: null,
         lastAnomalyAt: 0,
         skyRiftCarryGauge: 0,
