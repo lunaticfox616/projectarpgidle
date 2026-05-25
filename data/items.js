@@ -154,6 +154,28 @@ const COSMOS_EFFECT_LINES = [
     '궤도 정박기: 은하 보스 격파 시 우주석 추가 1개 확률 +20%',
     '창공 미분기: 우주계 노드 클리어 시 다음 노드 첫 타격 피해 +60%'
 ];
+const COSMOS_EFFECT_KEYS = [
+    { key: 'corpseExplodeOnKill', params: { chance: 16, lifePct: 22 } },
+    { key: 'hitApplyChaosResDown', params: { perHit: 2, maxStacks: 12 } },
+    { key: 'guardianArmor', params: { takenLessPct: 7, bossTakenLessPct: 10 } },
+    { key: 'riderCompass', params: {} },
+    { key: 'maxRollBonusHit', params: {} },
+    { key: 'ceilingSmashDouble', params: {} },
+    { key: 'fateTwinRollSync', params: { critToRollPct: 18 } },
+    { key: 'dragonVeinGuard', params: { chance: 22, duration: 2, hpPct: 8 } },
+    { key: 'stackingElementalResDownOnHit', params: { perHit: 2, max: 22 } },
+    { key: 'leechEfficiencyOnKill', params: { duration: 8, efficiencyPct: 90 } },
+    { key: 'conditionManual', params: { durationPct: 80, cdrPct: 16 } },
+    { key: 'shockTracerGreaves', params: { shockEffectPct: 20, strikeDamagePct: 420, icdSec: 0.6 } },
+    { key: 'venomStride', params: { poisonMorePct: 25, poisonExtraStack: 1 } },
+    { key: 'frostSentinelBoots', params: { chillEffectPct: 40 } },
+    { key: 'bleedBlockHelm', params: { physToChaosTakenPct: 12 } },
+    { key: 'curseCrown', params: { extraCurseCap: 1, finalDmgPerCursePct: 5 } },
+    { key: 'warcryResonanceBelt', params: { perWarcryAmpPct: 16 } },
+    { key: 'meteorFootsteps', params: { chance: 18, damagePct: 160 } },
+    { key: 'alwaysShock', params: {} },
+    { key: 'invertShockTaken', params: {} }
+];
 const COSMOS_REALM_ENTRIES = [
     '성도의 발화점','광추의 파편','성운 봉인','은하의 각인','공전의 귀환',
     '초신성 직조','별자리 금속','월광 항법','항성 낙인','성단의 결',
@@ -187,6 +209,7 @@ const REALM_STAT_PACKS = {
 function pushRealmUniqueSet(realm, entries, tierStart) {
     let packs = REALM_STAT_PACKS[realm] || REALM_STAT_PACKS.cosmos;
     entries.forEach((entry, i) => {
+        let cosmosEffect = realm === 'cosmos' ? COSMOS_EFFECT_KEYS[i % COSMOS_EFFECT_KEYS.length] : null;
         UNIQUE_DB.push({
             name: entry.name,
             slots: [REALM_UNIQUE_SLOTS[i % REALM_UNIQUE_SLOTS.length]],
@@ -194,6 +217,8 @@ function pushRealmUniqueSet(realm, entries, tierStart) {
             realmCodexOnly: true,
             realm,
             uniqueEffect: entry.effect,
+            uniqueEffectKey: cosmosEffect ? cosmosEffect.key : undefined,
+            uniqueEffectParams: cosmosEffect ? cosmosEffect.params : undefined,
             stats: JSON.parse(JSON.stringify(packs[i % packs.length]))
         });
     });
