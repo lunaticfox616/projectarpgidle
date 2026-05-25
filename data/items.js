@@ -78,9 +78,42 @@ const UNIQUE_DB = [
 ];
 
 const REALM_UNIQUE_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
-const CHAOS_REALM_NAMES = ['파열의 언약', '균열의 정수', '공허의 갈고리', '타락각 투구', '균열군주의 피부', '독성 심연갑', '침식 장갑', '망각 추적화', '잠식 목걸이', '절단 반지'];
-const UNDERWORLD_REALM_NAMES = ['심층 제련검', '암반 분쇄기', '망자 감시투구', '지하 성채갑', '대지 구속장갑', '철벽 척력화', '룬 심장 목걸이', '지맥 반지', '골렘 허리띠', '중핵 결속대'];
-const COSMOS_REALM_NAMES = Array.from({ length: 50 }, (_, i) => `성도 유니크 ${String(i + 1).padStart(2, '0')}`);
+const CHAOS_REALM_ENTRIES = [
+    { name: '파열의 언약', effect: '출혈 중인 적에게 주는 피해 22% 증폭' },
+    { name: '균열의 정수', effect: '타격 시 12% 확률로 균열파 발동' },
+    { name: '공허의 갈고리', effect: '카오스 피해의 8%를 즉시 흡수' },
+    { name: '타락각 투구', effect: '중독 최대 중첩 +1' },
+    { name: '균열군주의 피부', effect: '피격 시 10% 확률로 1.5초 무적 장막' },
+    { name: '독성 심연갑', effect: '중독 지속시간 +35%' },
+    { name: '침식 장갑', effect: '원소 저항 관통 +7%' },
+    { name: '망각 추적화', effect: '처치 후 3초간 이동속도 +24%' },
+    { name: '잠식 목걸이', effect: '저주가 걸린 적에게 치명타 피해 +28%' },
+    { name: '절단 반지', effect: '최소 피해 보정 +10%' }
+];
+const UNDERWORLD_REALM_ENTRIES = [
+    { name: '심층 제련검', effect: '방어도 1000당 물리 피해 +3%' },
+    { name: '암반 분쇄기', effect: '보스에게 주는 피해 18% 증폭' },
+    { name: '망자 감시투구', effect: '사망 방지 보호막(최대생명력 12%) 20초마다 재생성' },
+    { name: '지하 성채갑', effect: '받는 지속 피해 14% 감소' },
+    { name: '대지 구속장갑', effect: '근접 타격 시 2초간 피해감소 +6%' },
+    { name: '철벽 척력화', effect: '이동 중 피격 시 경직 면역' },
+    { name: '룬 심장 목걸이', effect: '보조 젬 한도 +1' },
+    { name: '지맥 반지', effect: '생명력 재생 +1.5%' },
+    { name: '골렘 허리띠', effect: '최대 생명력 +10%' },
+    { name: '중핵 결속대', effect: '모든 최대 저항 +1%' }
+];
+const COSMOS_REALM_ENTRIES = [
+    '성도의 발화점','광추의 파편','성운 봉인','은하의 각인','공전의 귀환',
+    '초신성 직조','별자리 금속','월광 항법','항성 낙인','성단의 결',
+    '서광 공명기','자전 폭심','빛무리 경첩','천구의 열쇠','유성 궤도핵',
+    '오로라 박동','천문 추침','성운 분기','행성외권','영점 편광',
+    '은하 심도','항성 절편','성류 고리','별무덤 인장','자력 낙화',
+    '성층 반향','혜성 구속','태양풍 초점','월식 잔광','항성 원환',
+    '중력 접힘','성운 승화','공전 쐐기','자전 공명','천체 해석기',
+    '광년 축전기','성핵 타래','여명 자침','천공 스피너','우주맥 봉인',
+    '은하연 다발','성흔 제어핵','항성 편극','감마 포개짐','광권 반전',
+    '극야 성환','유성 정렬자','성도 지시계','궤도 정박기','창공 미분기'
+].map((name, idx) => ({ name, effect: `우주계 전용 효과 #${idx + 1}: 행성 클리어 시 20초간 공격/방어 성능 상승` }));
 const REALM_STAT_PACKS = {
     chaos: [
         [{ id: 'chaosPctDmg', min: 26, max: 44 }, { id: 'resChaos', min: 15, max: 24 }, { id: 'leech', min: 1.0, max: 1.8 }],
@@ -99,22 +132,23 @@ const REALM_STAT_PACKS = {
         [{ id: 'move', min: 14, max: 22 }, { id: 'critDmg', min: 22, max: 42 }, { id: 'resChaos', min: 10, max: 18 }]
     ]
 };
-function pushRealmUniqueSet(realm, names, tierStart) {
+function pushRealmUniqueSet(realm, entries, tierStart) {
     let packs = REALM_STAT_PACKS[realm] || REALM_STAT_PACKS.cosmos;
-    names.forEach((name, i) => {
+    entries.forEach((entry, i) => {
         UNIQUE_DB.push({
-            name,
+            name: entry.name,
             slots: [REALM_UNIQUE_SLOTS[i % REALM_UNIQUE_SLOTS.length]],
             reqTier: tierStart + Math.floor(i / 4),
             realmCodexOnly: true,
             realm,
+            uniqueEffect: entry.effect,
             stats: JSON.parse(JSON.stringify(packs[i % packs.length]))
         });
     });
 }
-pushRealmUniqueSet('chaos', CHAOS_REALM_NAMES, 12);
-pushRealmUniqueSet('underworld', UNDERWORLD_REALM_NAMES, 16);
-pushRealmUniqueSet('cosmos', COSMOS_REALM_NAMES, 18);
+pushRealmUniqueSet('chaos', CHAOS_REALM_ENTRIES, 12);
+pushRealmUniqueSet('underworld', UNDERWORLD_REALM_ENTRIES, 16);
+pushRealmUniqueSet('cosmos', COSMOS_REALM_ENTRIES, 18);
 
 function buildUniqueExtraStat(slot, usedIds) {
     let slotKey = Array.isArray(slot) ? slot[0] : slot;
