@@ -304,7 +304,7 @@ function getDropOnlyItemSourceMeta(item) {
 
 function renderPaperdoll(targetId, forCrafting) {
     let html = '';
-    ['무기', '투구', '목걸이', '장갑2', '갑옷', '장갑1', '반지1', '허리띠', '반지2', '신발'].forEach(slot => {
+    ['무기', '투구', '목걸이', '장갑1', '갑옷', '장갑2', '반지1', '허리띠', '반지2', '신발'].forEach(slot => {
         let item = game.equipment[slot];
         let displaySlot = slot.replace(/[12]/, '');
         let selected = isCraftSelectionEquip() && getCraftSelectionRef() === slot;

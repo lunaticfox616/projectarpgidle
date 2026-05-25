@@ -80,8 +80,8 @@ function isDualSlotItem(slotName) {
 function getDualSlotDisplayLabel(targetSlot) {
     if (targetSlot === '반지1') return '왼쪽 반지';
     if (targetSlot === '반지2') return '오른쪽 반지';
-    if (targetSlot === '장갑1') return '오른쪽 장갑';
-    if (targetSlot === '장갑2') return '왼쪽 장갑';
+    if (targetSlot === '장갑1') return '왼쪽 장갑';
+    if (targetSlot === '장갑2') return '오른쪽 장갑';
     return targetSlot;
 }
 
@@ -443,7 +443,7 @@ function buildBlackMarketOffer(index) {
         let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
         if (missing.length>0) return { type:'skillGem', name:rndChoice(missing), priceKey:'chaos', price:5 };
     }
-    let uniqPool = UNIQUE_DB.filter(u => u && (u.reqTier || 1) <= tier + 4 && !u.dropOnly && !u.contentOnly && !u.bossOnly);
+    let uniqPool = UNIQUE_DB.filter(u => u && (u.reqTier || 1) <= tier + 4 && !u.dropOnly && !u.contentOnly && !u.bossOnly && !u.realmCodexOnly);
     let normalPool = uniqPool.filter(u => !u.ultraRare);
     let chasePool = uniqPool.filter(u => u.ultraRare);
     let tierNorm = Math.max(1, Math.min(20, tier));
