@@ -4103,7 +4103,7 @@ function renderSearchSection(containerId, key, placeholder, rowsHtml, emptyHtml)
     let input = root.querySelector(`input[data-search-key="${key}"]`);
     let list = root.querySelector('.search-result-list');
     if (!input || !list) {
-        root.innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px;"><input data-search-key="${key}" placeholder="${placeholder}" value="${escapeHTML(sf[key] || '')}" oninput="updateSearchFilter('${key}', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div><div class="search-result-list"></div>`;
+        root.innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px;"><input data-search-key="${key}" placeholder="${placeholder}" value="${escapeHTML(sf[key] || '')}" oninput="updateSearchFilter('${key}', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div><div class="search-result-list" style="display:contents;"></div>`;
         input = root.querySelector(`input[data-search-key="${key}"]`);
         list = root.querySelector('.search-result-list');
     }
@@ -8353,7 +8353,11 @@ function ensureUnderworldRuneBonusMilestones(no){
 function enhanceUnderworldRune(){
     let st=ensureUnderworldRuneState();
     let v=prompt('강화할 룬 번호(1~30)를 입력하세요.','1'); if(v===null) return;
-    let no=Math.max(1,Math.min(30,Math.floor(Number(v)||0))); let have=(st.obtainedRunes||[]).some(n=>Math.floor(n||0)===no);
+    let trimmed = String(v).trim();
+    if (!/^\d+$/.test(trimmed)) return addLog('숫자만 입력할 수 있습니다. 작업을 취소했습니다.', 'attack-monster');
+    let no = Math.floor(Number(trimmed));
+    if (!Number.isFinite(no) || no < 1 || no > 30) return addLog('1~30 범위의 룬 번호를 입력하세요. 작업을 취소했습니다.', 'attack-monster');
+    let have=(st.obtainedRunes||[]).some(n=>Math.floor(n||0)===no);
     if(!have) return addLog('해당 번호 룬을 보유해야 강화할 수 있습니다.','attack-monster');
     let lv=Math.max(0,Math.floor(st.enhanceLvByNo[no]||0)); if(lv>=15) return addLog('룬 강화는 최대 +15입니다.','attack-monster');
     let c=260 + lv*220, s=150 + lv*150, g=55 + lv*58, shard=120 + lv*90;
@@ -8368,7 +8372,10 @@ function enhanceUnderworldRune(){
 function rerollUnderworldRuneBonus(){
     let st=ensureUnderworldRuneState();
     let v=prompt('리롤할 룬 번호(1~30)를 입력하세요.','1'); if(v===null) return;
-    let no=Math.max(1,Math.min(30,Math.floor(Number(v)||0)));
+    let trimmed = String(v).trim();
+    if (!/^\d+$/.test(trimmed)) return addLog('숫자만 입력할 수 있습니다. 작업을 취소했습니다.', 'attack-monster');
+    let no = Math.floor(Number(trimmed));
+    if (!Number.isFinite(no) || no < 1 || no > 30) return addLog('1~30 범위의 룬 번호를 입력하세요. 작업을 취소했습니다.', 'attack-monster');
     let lv=Math.max(0,Math.floor((st.enhanceLvByNo||{})[no]||0));
     let lineCount = lv >= 15 ? 3 : (lv >= 10 ? 2 : (lv >= 5 ? 1 : 0));
     if(lineCount<=0) return addLog('해당 룬은 +5 이상부터 리롤할 보너스 옵션이 생깁니다.','attack-monster');
