@@ -5436,15 +5436,27 @@ const UNIQUE_FIXED_BASE_BY_NAME = {
 };
 
 function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
+    let zone = getZone(game.currentZoneId) || {};
+    let canDropUniqueInZone = (unique) => {
+        if (!unique) return false;
+        if (unique.realmCodexOnly) return false;
+        if (!unique.dropOnly) return true;
+        let dropOnly = unique.dropOnly;
+        if (dropOnly.type && zone.type !== dropOnly.type) return false;
+        if (dropOnly.id && zone.id !== dropOnly.id) return false;
+        if (dropOnly.minFloor && Math.floor(zone.floor || 0) < dropOnly.minFloor) return false;
+        return true;
+    };
     let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
     let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
-    let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && !unique.realmCodexOnly);
-    let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare && !unique.realmCodexOnly && zoneTier >= (unique.reqTier || 1));
+    let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
+    let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare && canDropUniqueInZone(unique) && zoneTier >= (unique.reqTier || 1));
     let canRollChase = !game.seasonChaseUniqueDropped && chaseOptions.length > 0 && Math.random() < 0.0008;
     let poolSource = canRollChase ? chaseOptions : normalOptions;
     let options = poolSource.filter(unique => unique.slots.includes(slot) && zoneTier >= (unique.reqTier || 1));
     if (options.length === 0) options = poolSource.filter(unique => zoneTier >= (unique.reqTier || 1));
-    if (options.length === 0) options = poolSource.length > 0 ? poolSource : UNIQUE_DB;
+    if (options.length === 0) options = poolSource.length > 0 ? poolSource : UNIQUE_DB.filter(unique => canDropUniqueInZone(unique));
+    if (options.length === 0) options = UNIQUE_DB.filter(unique => !unique.realmCodexOnly);
     let unique = forcedUnique || rndChoice(options);
     let uniqueTier = unique.reqTier || zoneTier;
     let fixedBaseId = UNIQUE_FIXED_BASE_BY_NAME[unique.name];
@@ -5620,6 +5632,9 @@ function getCurrencyDrops(enemy) {
         if (Math.random() < 0.018) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
         if (Math.random() < 0.012) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
         if (underFloor >= 10 && Math.random() < 0.009) drops.push(['runeShard', enemy.isBoss ? 2 : 1]);
+        if (Math.random() < 0.0032) drops.push(['underCopper', 1]);
+        if (Math.random() < 0.0018) drops.push(['underSilver', 1]);
+        if (Math.random() < 0.0009) drops.push(['underGold', 1]);
         if (enemy.isBoss && Math.random() < 0.0025) drops.push([rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1]);
     }
     if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
@@ -6402,7 +6417,7 @@ function useCurrency(currencyKey) {
         if (currencyKey === 'deepWhetstone') ok = isWeapon;
         if (currencyKey === 'rootIron') ok = isArmor;
         if (currencyKey === 'jewelPolish') ok = isAccessory;
-        ok = ok && Math.max(0, Math.floor(item.quality || 0)) < 20;
+        ok = ok && Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
     }
     if (!ok) return addLog("지금 선택한 아이템에는 사용할 수 없습니다.", "attack-monster");
     if (currencyKey === 'divine' && !confirm('정말 신성한 오브를 사용하시겠습니까?')) return;
