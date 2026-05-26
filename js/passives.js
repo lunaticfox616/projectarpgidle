@@ -975,7 +975,7 @@ function generateOrganicTree() {
             node.webCellRing = depth;
             node.val = getTierValue(statForStep, tier);
             if (statForStep === 'critDmg') {
-                if (chainLength === 4) node.val = [10, 10, 10, 20][i - 1];
+                if (chainLength === 4) node.val = [8, 8, 12, 20][i - 1];
                 else if (chainLength === 5) node.val = [12, 12, 12, 12, 25][i - 1];
             }
             if (isEnd) {
