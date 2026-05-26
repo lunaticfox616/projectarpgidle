@@ -3982,7 +3982,7 @@ function performUpdateStaticUI() {
     const sf = getSearchFilterState();
     const equipInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
         let item = row.item || {};
-        let hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.stats || []).map(s => s && s.id).join(' ')}`;
+        let hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')}`;
         return matchSearchQuery(hay, sf.equip);
     });
     renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join(''), '');
@@ -4024,7 +4024,7 @@ function performUpdateStaticUI() {
         }).join('');
         const jewelRows = game.jewelInventory.map((jewel, idx) => ({ jewel, idx })).filter(row => {
             const jewel = row.jewel || {};
-            const statText = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} ${stat.id}`).join(' ');
+            const statText = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} ${stat.id} ${stat.val}`).join(' ');
             return matchSearchQuery(`${jewel.name || ''} ${jewel.rarity || ''} ${statText}`, sf.jewel);
         });
         let jewelRowsHtml = jewelRows.map(({jewel, idx}) => {
@@ -4036,7 +4036,8 @@ function performUpdateStaticUI() {
                 let tone = getJewelStatToneColor(stat.id);
                 return `<span style="color:${tone};">${petite}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}</span>${range}${tier}`;
             }).join('<br>');
-            return `<div class="item-card ${selected}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${jewel.name}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button onclick="removeBeeswaxFromJewel(${idx})">밀랍 제거</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="salvageJewel(${idx})">해체</button></div></div>`;
+            let q = sf.jewel;
+            return `<div class="item-card ${selected}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button onclick="removeBeeswaxFromJewel(${idx})">밀랍 제거</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="salvageJewel(${idx})">해체</button></div></div>`;
         }).join('');
         renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`);
     }
@@ -4096,6 +4097,22 @@ function getItemStatToneColor(statId) {
 }
 
 
+
+function getSearchTokens(query) {
+    return String(query || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+}
+function highlightSearchText(text, query) {
+    let raw = String(text || '');
+    let tokens = getSearchTokens(query).sort((a,b)=>b.length-a.length);
+    if (tokens.length <= 0) return escapeHTML(raw);
+    let out = escapeHTML(raw);
+    tokens.forEach(tok => {
+        if (!tok) return;
+        let escTok = tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        out = out.replace(new RegExp(escTok, 'gi'), m => `<mark style="background:#5a4a1a;color:#ffe8a3;padding:0 1px;border-radius:2px;">${m}</mark>`);
+    });
+    return out;
+}
 function renderSearchSection(containerId, key, placeholder, rowsHtml, emptyHtml) {
     let root = document.getElementById(containerId);
     if (!root) return;
@@ -4905,7 +4922,8 @@ function buildCraftActionButtons(item) {
     let talismanRowsHtml = talismanRows.map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
-        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.name || t.statName || '부적'} ${t.stat ? ` · ${t.statName} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 효과: ${getTalismanSpecialDescription(t)}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
+        let q = sf.talisman;
+        return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${highlightSearchText((t.name || t.statName || '부적'), q)} ${t.stat ? ` · ${t.statName} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 효과: ${getTalismanSpecialDescription(t)}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('');
     renderSearchSection('ui-talisman-inventory', 'talisman', '부적 검색 (이름/형태/옵션)', talismanRowsHtml, `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`);
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {

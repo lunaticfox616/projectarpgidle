@@ -1222,6 +1222,10 @@ function getPlayerStats() {
     function sumStatAcrossBuckets(statId) {
         return gearBase[statId] + gearExplicit[statId] + passive[statId] + season[statId] + ascend[statId] + support[statId] + reward[statId] + (starBlessing[statId] || 0);
     }
+
+    let hasRandomElementConversion = Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0;
+    let skillHasElementalConversion = hasRandomElementConversion || ['fire','cold','light','chaos'].includes(skill.ele);
+
     let randomElementDamagePct = Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0 ? {
         fire: sumStatAcrossBuckets('firePctDmg'),
         cold: sumStatAcrossBuckets('coldPctDmg'),
@@ -1368,7 +1372,7 @@ function getPlayerStats() {
     let finalMinDmgRoll = Math.max(5, 80 + gearBase.minDmgRoll + gearExplicit.minDmgRoll + passive.minDmgRoll + season.minDmgRoll + ascend.minDmgRoll + support.minDmgRoll + reward.minDmgRoll);
     let finalMaxDmgRoll = Math.max(finalMinDmgRoll, 100 + gearBase.maxDmgRoll + gearExplicit.maxDmgRoll + passive.maxDmgRoll + season.maxDmgRoll + ascend.maxDmgRoll + support.maxDmgRoll + reward.maxDmgRoll);
     if (uniqueMinRollEqualsMaxRoll) finalMinDmgRoll = finalMaxDmgRoll;
-    if (uniqueHpToPhysPct && skill.ele === 'phys' && !(Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0)) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalMaxHp / 100) / 100));
+    if (uniqueHpToPhysPct && skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalMaxHp / 100) / 100));
 
     let resistPenalty = (game.maxZoneId >= 5 ? 30 : 0) + (game.maxZoneId >= 10 ? 30 : 0);
     let finalMaxResF = Math.min(90, 75 + gearBase.maxResF + gearExplicit.maxResF + passive.maxResF + season.maxResF + ascend.maxResF + support.maxResF + reward.maxResF);
@@ -1560,7 +1564,7 @@ function getPlayerStats() {
         }
     } else if (game.ascendClass === 'elementalist') {
         if (hasKeystone('e1')) {
-            if (skill.ele === 'phys' && !(Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0)) finalBaseDmg = 0;
+            if (skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = 0;
             else finalDamageMultiplier *= 1.15;
         }
         if (hasKeystone('e2')) {
@@ -1663,7 +1667,7 @@ function getPlayerStats() {
             finalCrit = Math.max(0, finalCrit - 8);
             finalCritDmg += 75;
         }
-        if (hasKeystone('iq5')) { finalResPen += 20; if (skill.ele === 'phys' && !(Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0)) finalBaseDmg = 0; }
+        if (hasKeystone('iq5')) { finalResPen += 20; if (skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = 0; }
         if (hasKeystone('iq6')) {
             suppCap += 1 + Math.floor(inquisitorResonancePower / 25);
             finalMaxHp = Math.floor(finalMaxHp * 0.75);
@@ -2290,7 +2294,7 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     if (skillEle !== 'chaos' && ['fire','cold','light'].includes(skillEle) && enemy && enemy.id && game.enemyUniqueElementalResDown && game.enemyUniqueElementalResDown[enemy.id]) {
         let deb = game.enemyUniqueElementalResDown[enemy.id];
         let shred = Math.min(Math.max(0, Number(deb.max || 20)), Math.max(0, Number(deb.stacks || 0)) * Math.max(0, Number(deb.perHit || 2)));
-        resist -= shred;
+        rawMitigation -= shred;
     }
     if (skillEle === 'chaos' && enemy && enemy.id && game.enemyUniqueChaosResDown && game.enemyUniqueChaosResDown[enemy.id]) {
         let deb = game.enemyUniqueChaosResDown[enemy.id];
@@ -3999,6 +4003,7 @@ function performPlayerAttack(pStats) {
         return pStats.sSkill.ele || 'phys';
     };
     let swingElement = getHitElement();
+    if (!['phys','fire','cold','light','chaos'].includes(swingElement)) swingElement = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
     game.lastSkillHitElement = swingElement;
     addBattleFx('playerSwing', {
         color: getElementColor(swingElement),
@@ -4125,6 +4130,7 @@ function performPlayerAttack(pStats) {
                 game.gladiatorSwiftOpeningReady = false;
             }
             let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
+            if (!Number.isFinite(dmg)) dmg = 0;
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
             let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
@@ -4162,6 +4168,7 @@ function performPlayerAttack(pStats) {
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) dmg = Math.floor(dmg * (1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100)));
             dmg = Math.floor(dmg * Math.max(0, Number(pStats.finalDamageMultiplier) || 1));
+            if (!Number.isFinite(dmg) || dmg < 0) dmg = 0;
             let hasActiveDoomMark = false;
             if (targetEnemy && targetEnemy.id) {
                 let debs = (game.enemyConditionDebuffs && game.enemyConditionDebuffs[targetEnemy.id]) ? game.enemyConditionDebuffs[targetEnemy.id] : [];
