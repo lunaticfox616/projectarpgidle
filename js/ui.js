@@ -4029,6 +4029,7 @@ function performUpdateStaticUI() {
         });
         let jewelRowsHtml = jewelRows.map(({jewel, idx}) => {
             let selected = (jewelFusionSelection || []).includes(idx) ? 'selected' : '';
+            let q = sf.jewel;
             let desc = getJewelStats(jewel).map(stat => {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';
                 let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
@@ -4036,7 +4037,6 @@ function performUpdateStaticUI() {
                 let tone = getJewelStatToneColor(stat.id);
                 return `<span style="color:${tone};">${petite}${highlightSearchText(getStatName(stat.id), q)} +${formatJewelStatValue(stat.id, stat.val)}</span>${range}${tier}`;
             }).join('<br>');
-            let q = sf.jewel;
             return `<div class="item-card ${selected}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button onclick="removeBeeswaxFromJewel(${idx})">밀랍 제거</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="salvageJewel(${idx})">해체</button></div></div>`;
         }).join('');
         renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`);
