@@ -4842,7 +4842,7 @@ function buildCraftActionButtons(item) {
     }).map(name => `<div class="skill-gem" style="opacity:0.78;"><strong>🔒 ${highlightSearchText(name, sf.skill)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSkillGem('${name}')">해제 (공명 -1)</button></div>`).join('');
     let skillsHtml = skillsRows;
     if (!foldAttackInactive) skillsHtml += `<div style="margin-top:6px;"><button style="width:100%; font-size:0.75em; padding:4px 8px;" onclick="sealAllInactiveSkillGems()">미사용 젬 일괄 봉인</button></div>`;
-    if (sealedSkillRows) skillsHtml += sealedSkillRows;
+    if (!foldAttackInactive && sealedSkillRows) skillsHtml += sealedSkillRows;
     let skillsListEl = document.getElementById('ui-skills-list');
     if (skillsListEl && skillsListEl.dataset.renderSig !== skillsHtml) {
         renderSearchSection('ui-skills-list', 'skill', '스킬 젬 검색', skillsHtml, '');
@@ -4901,7 +4901,7 @@ function buildCraftActionButtons(item) {
     }).map(name => `<div class="skill-gem support-gem" style="opacity:0.78;"><strong>🔒 ${highlightSearchText(name, sf.support)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSupportGem('${name}')">해제 (공명 -1)</button></div>`).join('');
     let supportHtml = supportRows;
     if (!foldSupportInactive) supportHtml += `<div style="margin-top:6px;"><button style="width:100%; font-size:0.75em; padding:4px 8px;" onclick="sealAllInactiveSupportGems()">미사용 젬 일괄 봉인</button></div>`;
-    if (sealedSupportRows) supportHtml += sealedSupportRows;
+    if (!foldSupportInactive && sealedSupportRows) supportHtml += sealedSupportRows;
     let supportListEl = document.getElementById('ui-support-list');
     if (supportListEl && supportListEl.dataset.renderSig !== supportHtml) {
         renderSearchSection('ui-support-list', 'support', '보조 젬 검색', supportHtml, '');
