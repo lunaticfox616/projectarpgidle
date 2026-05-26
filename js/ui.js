@@ -4215,7 +4215,7 @@ function bulkSalvageEquipBySearch(salvageUnmatched) {
         const matched = matchSearchQuery(hay, sf.equip);
         if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched)) return survivors.push(item);
         if (item.locked) { lockedSkipped++; return survivors.push(item); }
-        awardSalvage(item); removed++;
+        salvageItemObject(item, true); removed++;
     });
     game.inventory = survivors;
     if (removed <= 0) return addLog(`해체 대상이 없습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
