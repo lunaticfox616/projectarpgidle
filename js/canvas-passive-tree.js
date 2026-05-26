@@ -304,6 +304,8 @@ function getDropOnlyItemSourceMeta(item) {
 
 function renderPaperdoll(targetId, forCrafting) {
     let html = '';
+    let query = (typeof getSearchFilterState === 'function' ? (getSearchFilterState().equip || '') : '');
+    let hi = (typeof highlightSearchText === 'function') ? highlightSearchText : ((v) => escapeHTML(String(v||'')));
     ['무기', '투구', '목걸이', '장갑1', '갑옷', '장갑2', '반지1', '허리띠', '반지2', '신발'].forEach(slot => {
         let item = game.equipment[slot];
         let displaySlot = slot.replace(/[12]/, '');
