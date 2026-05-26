@@ -3986,7 +3986,8 @@ function performUpdateStaticUI() {
         let hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
         return matchSearchQuery(hay, sf.equip);
     });
-    renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join(''), '');
+    let equipSearchTools = `<div style="grid-column:1/-1; display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;"><button onclick="bulkSalvageEquipBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkSalvageEquipBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">검색되지 않은 항목 해체</button></div>`;
+    renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipSearchTools + equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join(''), '');
     document.getElementById('ui-craft-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'craft')).join('');
     document.getElementById('ui-fossil-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'fossil')).join('');
     let infuserInv = document.getElementById('ui-infuser-inventory-list');
@@ -4040,7 +4041,8 @@ function performUpdateStaticUI() {
             }).join('<br>');
             return `<div class="item-card ${selected}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${idx}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button onclick="removeBeeswaxFromJewel(${idx})">밀랍 제거</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="salvageJewel(${idx})">해체</button></div></div>`;
         }).join('');
-        renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`);
+        let jewelTools = `<div style="grid-column:1/-1; display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;"><button onclick="bulkSalvageJewelsBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkSalvageJewelsBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">검색되지 않은 항목 해체</button></div>`;
+        renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelTools + jewelRowsHtml, `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`);
     }
 
 function getJewelStatToneColor(statId) {
@@ -4199,6 +4201,56 @@ function matchSearchQuery(raw, query) {
     if (!q) return true;
     const text = String(raw || '').toLowerCase();
     return q.split(/\s+/).filter(Boolean).every(tok => text.includes(tok));
+}
+function shouldBulkSalvageBySearch(isMatched, salvageUnmatched) { return salvageUnmatched ? !isMatched : isMatched; }
+function bulkSalvageEquipBySearch(salvageUnmatched) {
+    if (!assertBuildEditable()) return;
+    const sf = getSearchFilterState();
+    const survivors = [];
+    let removed = 0, lockedSkipped = 0;
+    (game.inventory || []).forEach(item => {
+        if (!item) return;
+        const underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
+        const hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
+        const matched = matchSearchQuery(hay, sf.equip);
+        if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched)) return survivors.push(item);
+        if (item.locked) { lockedSkipped++; return survivors.push(item); }
+        awardSalvage(item); removed++;
+    });
+    game.inventory = survivors;
+    if (removed <= 0) return addLog(`해체 대상이 없습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
+    addLog(`🧪 장비 ${removed}개 해체 완료${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    updateStaticUI();
+}
+function bulkSalvageJewelsBySearch(salvageUnmatched) {
+    if (!assertBuildEditable()) return;
+    const sf = getSearchFilterState();
+    let removed = 0;
+    for (let i = (game.jewelInventory || []).length - 1; i >= 0; i--) {
+        const jewel = game.jewelInventory[i] || {};
+        const statText = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} ${stat.id} ${stat.val}`).join(' ');
+        const matched = matchSearchQuery(`${jewel.name || ''} ${jewel.rarity || ''} ${statText}`, sf.jewel);
+        if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched)) continue;
+        salvageJewelObject(jewel, true); game.jewelInventory.splice(i, 1); removed++;
+    }
+    if (removed <= 0) return addLog('해체 대상 주얼이 없습니다.', 'attack-monster');
+    addLog(`💠 주얼 ${removed}개 해체 완료`, 'loot-normal'); updateStaticUI();
+}
+function bulkSalvageTalismansBySearch(salvageUnmatched) {
+    if (!assertBuildEditable()) return;
+    const sf = getSearchFilterState();
+    let removed = 0;
+    const next = [];
+    (game.talismanInventory || []).forEach(t => {
+        const stats = (Array.isArray(t.stats) ? t.stats.map(s => `${s.id || ''} ${getStatName(s.id || '')}`).join(' ') : '');
+        const matched = matchSearchQuery(`${t.name || ''} ${t.shape || ''} ${t.rarity || ''} ${t.statName || ''} ${stats}`, sf.talisman);
+        if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched)) return next.push(t);
+        removed++;
+    });
+    if (removed <= 0) return addLog('해체 대상 부적이 없습니다.', 'attack-monster');
+    game.talismanInventory = next;
+    addLog(`🧩 부적 ${removed}개 해체 완료`, 'loot-normal');
+    updateStaticUI();
 }
 
 function getStyledOrbName(orbKey) {
@@ -5007,7 +5059,8 @@ function buildCraftActionButtons(item) {
         let q = sf.talisman;
         return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${highlightSearchText((t.name || t.statName || '부적'), q)} ${t.stat ? ` · ${highlightSearchText(t.statName, q)} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 효과: ${highlightSearchText(getTalismanSpecialDescription(t), q)}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
     }).join('');
-    renderSearchSection('ui-talisman-inventory', 'talisman', '부적 검색 (이름/형태/옵션)', talismanRowsHtml, `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`);
+    let talismanTools = `<div style="grid-column:1/-1; display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;"><button onclick="bulkSalvageTalismansBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkSalvageTalismansBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">검색되지 않은 항목 해체</button></div>`;
+    renderSearchSection('ui-talisman-inventory', 'talisman', '부적 검색 (이름/형태/옵션)', talismanTools + talismanRowsHtml, `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`);
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
         let y = Math.floor(i / TALISMAN_BOARD_W);
