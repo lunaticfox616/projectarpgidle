@@ -5620,6 +5620,9 @@ function getCurrencyDrops(enemy) {
         if (Math.random() < 0.018) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
         if (Math.random() < 0.012) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
         if (underFloor >= 10 && Math.random() < 0.009) drops.push(['runeShard', enemy.isBoss ? 2 : 1]);
+        if (Math.random() < 0.0032) drops.push(['underCopper', 1]);
+        if (Math.random() < 0.0018) drops.push(['underSilver', 1]);
+        if (Math.random() < 0.0009) drops.push(['underGold', 1]);
         if (enemy.isBoss && Math.random() < 0.0025) drops.push([rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1]);
     }
     if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);

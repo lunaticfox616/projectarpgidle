@@ -1056,10 +1056,14 @@ function getPlayerStats() {
             if (n <= 0) return;
             let rune = UNDERWORLD_RUNE_DB.find(row => row.no === n);
             if (!rune) return;
-            if (rune.stat === 'corpseExplodeChance') runeCorpseExplodeChance += Number(rune.val || 0);
-            else if (rune.stat === 'corpseExplodeLifePct') runeCorpseExplodeLifePct += Number(rune.val || 0);
-            else if (rune.stat === 'resonancePower') runeResonancePower += Number(rune.val || 0);
-            else addStatToBucket(reward, rune.stat, rune.val);
+            let lv = Math.max(0, Math.floor((runeState.enhanceLvByNo && runeState.enhanceLvByNo[n]) || 0));
+            let boosted = Number(rune.val || 0) * (1 + lv * 0.01);
+            if (rune.stat === 'corpseExplodeChance') runeCorpseExplodeChance += boosted;
+            else if (rune.stat === 'corpseExplodeLifePct') runeCorpseExplodeLifePct += boosted;
+            else if (rune.stat === 'resonancePower') runeResonancePower += boosted;
+            else addStatToBucket(reward, rune.stat, boosted);
+            let bonusLines = (runeState.bonusLinesByNo && Array.isArray(runeState.bonusLinesByNo[n])) ? runeState.bonusLinesByNo[n] : [];
+            bonusLines.forEach(line => { if (line && line.stat) addStatToBucket(reward, line.stat, Number(line.val || 0)); });
         });
     }
     safeJournalBonuses.forEach(entry => {
