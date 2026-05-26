@@ -1277,7 +1277,7 @@ const TALISMAN_UNIQUE_POOL = [
     { id:'ut_s_1', name:'감긴 덩굴', shape:'S', stats:[{stat:'flatHp',value:90,label:'최대 생명력'},{stat:'regen',value:1.4,label:'생명력 재생(%)'}] },
     { id:'ut_s_2', name:'쐐기 관통', shape:'S', stats:[{stat:'physPctDmg',value:16,label:'물리 피해(%)'},{stat:'crit',value:3,label:'치명타 확률(%)'}] },
     { id:'ut_l_1', name:'황혼의 궤적', shape:'L', stats:[{stat:'dotPctDmg',value:18,label:'지속 피해 배율(%)'},{stat:'chaosPctDmg',value:14,label:'카오스 피해(%)'}] },
-    { id:'ut_l_2', name:'강철 결의', shape:'L', stats:[{stat:'armorPct',value:18,label:'방어도 증가(%)'},{stat:'dr',value:7,label:'물리 피해 감소(%)'}] },
+    { id:'ut_l_2', name:'강철 결의', shape:'L', stats:[{stat:'armorPct',value:18,label:'방어도 증가(%)'},{stat:'dr',value:7,label:'받는 물리 피해 감소(%)'}] },
     { id:'ut_j_1', name:'냉광의 비늘', shape:'J', stats:[{stat:'coldPctDmg',value:16,label:'냉기 피해(%)'},{stat:'freezeChance',value:10,label:'동결 확률(%)'}] },
     { id:'ut_j_2', name:'파열의 첨탑', shape:'J', stats:[{stat:'critDmg',value:30,label:'치명타 피해 배율(%)'},{stat:'maxDmgRoll',value:6,label:'최대 피해 보정(%)'}] },
     { id:'ut_i_1', name:'장궁의 선', shape:'I', stats:[{stat:'projectilePctDmg',value:18,label:'투사체 피해(%)'},{stat:'targetProjectile',value:1,label:'투사체 타겟 +'}] },
@@ -3983,7 +3983,7 @@ function performUpdateStaticUI() {
         let hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.stats || []).map(s => s && s.id).join(' ')}`;
         return matchSearchQuery(hay, sf.equip);
     });
-    document.getElementById('ui-inventory-list').innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px;"><input placeholder="장비 검색 (이름/슬롯/옵션)" value="${escapeHTML(sf.equip)}" oninput="updateSearchFilter('equip', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div>` + equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join('');
+    document.getElementById('ui-inventory-list').innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px;"><input data-search-key="equip" placeholder="장비 검색 (이름/슬롯/옵션)" value="${escapeHTML(sf.equip)}" oninput="updateSearchFilter('equip', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div>` + equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join('');
     document.getElementById('ui-craft-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'craft')).join('');
     document.getElementById('ui-fossil-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'fossil')).join('');
     let infuserInv = document.getElementById('ui-infuser-inventory-list');
@@ -4025,7 +4025,7 @@ function performUpdateStaticUI() {
             const statText = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} ${stat.id}`).join(' ');
             return matchSearchQuery(`${jewel.name || ''} ${jewel.rarity || ''} ${statText}`, sf.jewel);
         });
-        document.getElementById('ui-jewel-inventory').innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px;"><input placeholder="주얼 검색 (이름/옵션)" value="${escapeHTML(sf.jewel)}" oninput="updateSearchFilter('jewel', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div>` + jewelRows.map(({jewel, idx}) => {
+        document.getElementById('ui-jewel-inventory').innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px;"><input data-search-key="jewel" placeholder="주얼 검색 (이름/옵션)" value="${escapeHTML(sf.jewel)}" oninput="updateSearchFilter('jewel', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div>` + jewelRows.map(({jewel, idx}) => {
             let selected = (jewelFusionSelection || []).includes(idx) ? 'selected' : '';
             let desc = getJewelStats(jewel).map(stat => {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';
@@ -4106,7 +4106,22 @@ function getSearchFilterState() {
 function updateSearchFilter(key, value) {
     const d = getSearchFilterState();
     d[key] = String(value || '');
+    let cursor = null;
+    let active = document.activeElement;
+    if (active && active.tagName === 'INPUT' && active.dataset && active.dataset.searchKey === key) {
+        let pos = Number(active.selectionStart);
+        cursor = Number.isFinite(pos) ? pos : String(value || '').length;
+    }
     if (typeof updateStaticUI === 'function') updateStaticUI();
+    if (cursor !== null) {
+        let next = document.querySelector(`input[data-search-key="${key}"]`);
+        if (next) {
+            next.focus();
+            let len = next.value.length;
+            let pos = Math.max(0, Math.min(cursor, len));
+            next.setSelectionRange(pos, pos);
+        }
+    }
 }
 function matchSearchQuery(raw, query) {
     const q = String(query || '').trim().toLowerCase();
@@ -4717,7 +4732,7 @@ function buildCraftActionButtons(item) {
     let resonancePower = getEffectiveResonanceCap();
     let sealedSkills = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
     let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
-    let skillsHtml = `<div style="margin-bottom:6px;"><input placeholder="스킬 젬 검색" value="${escapeHTML(sf.skill)}" oninput="updateSearchFilter('skill', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div>` + game.skills.filter(name => {
+    let skillsHtml = `<div style="margin-bottom:6px;"><input data-search-key="skill" placeholder="스킬 젬 검색" value="${escapeHTML(sf.skill)}" oninput="updateSearchFilter('skill', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div>` + game.skills.filter(name => {
         if (!matchSearchQuery(`${name} ${(SKILL_DB[name] && (SKILL_DB[name].tags || []).join(' ')) || ''}`, sf.skill)) return false;
         if (!foldAttackInactive) return true;
         return name === game.activeSkill;
@@ -4746,7 +4761,7 @@ function buildCraftActionButtons(item) {
         let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
         suppResonanceEl.innerText = `${Math.max(0, Math.floor(game.resonancePower || 0) - used)}`;
     }
-    let supportHtml = `<div style="margin-bottom:6px;"><input placeholder="보조 젬 검색" value="${escapeHTML(sf.support)}" oninput="updateSearchFilter('support', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div>` + game.supports.filter(name => {
+    let supportHtml = `<div style="margin-bottom:6px;"><input data-search-key="support" placeholder="보조 젬 검색" value="${escapeHTML(sf.support)}" oninput="updateSearchFilter('support', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div>` + game.supports.filter(name => {
         if (!matchSearchQuery(`${name} ${(SUPPORT_GEM_DB[name] && (SUPPORT_GEM_DB[name].tags || []).join(' ')) || ''}`, sf.support)) return false;
         if (!foldSupportInactive) return true;
         return game.equippedSupports.includes(name);
@@ -4861,7 +4876,7 @@ function buildCraftActionButtons(item) {
         const stats = (Array.isArray(t.stats) ? t.stats.map(s => `${s.id || ''} ${getStatName(s.id || '')}`).join(' ') : '');
         return matchSearchQuery(`${t.name || ''} ${t.shape || ''} ${t.rarity || ''} ${t.statName || ''} ${stats}`, sf.talisman);
     });
-    document.getElementById('ui-talisman-inventory').innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px;"><input placeholder="부적 검색 (이름/형태/옵션)" value="${escapeHTML(sf.talisman)}" oninput="updateSearchFilter('talisman', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div>` + talismanRows.map(t => {
+    document.getElementById('ui-talisman-inventory').innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px;"><input data-search-key="talisman" placeholder="부적 검색 (이름/형태/옵션)" value="${escapeHTML(sf.talisman)}" oninput="updateSearchFilter('talisman', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div>` + talismanRows.map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
         return `<div class="item-card ${selected ? 'selected' : ''}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${selected ? 'rare' : 'magic'}" style="color:${shapeStyle.color};">[${t.shape}] ${t.name || t.statName || '부적'} ${t.stat ? ` · ${t.statName} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 효과: ${getTalismanSpecialDescription(t)}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
