@@ -4234,6 +4234,7 @@ function bulkSalvageJewelsBySearch(salvageUnmatched) {
         salvageJewelObject(jewel, true); game.jewelInventory.splice(i, 1); removed++;
     }
     if (removed <= 0) return addLog('해체 대상 주얼이 없습니다.', 'attack-monster');
+    jewelFusionSelection = [];
     addLog(`💠 주얼 ${removed}개 해체 완료`, 'loot-normal'); updateStaticUI();
 }
 function bulkSalvageTalismansBySearch(salvageUnmatched) {
