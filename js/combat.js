@@ -866,7 +866,15 @@ function getPlayerStats() {
         let itemBaseStats = scaleStatList((item.baseStats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * qualityMul).toFixed(2)) } : stat), itemStatMultiplier);
         applyStatsToBucket(gearBase, itemBaseStats);
         let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
-        let explicitItemStats = scaleStatList((item.stats || []).concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
+        let riftAmpRow = (item.stats || []).find(stat => stat && stat.id === 'fossilRiftAmp');
+        let riftAmpMul = 1 + (Math.max(0, Number(riftAmpRow && riftAmpRow.val) || 0) / 100);
+        let adjustedExplicitStats = (item.stats || []).map(stat => {
+            if (!stat) return stat;
+            if (stat.id === 'fossilRiftBlank' || stat.id === 'fossilRiftAmp') return stat;
+            if (!Number.isFinite(Number(stat.val))) return stat;
+            return { ...stat, val: Number((Number(stat.val) * riftAmpMul).toFixed(2)) };
+        });
+        let explicitItemStats = scaleStatList(adjustedExplicitStats.concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
         applyStatsToBucket(gearExplicit, explicitItemStats);
         let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
         let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;
@@ -1948,11 +1956,11 @@ function getPlayerStats() {
         ailmentResist: {
             title: '상태이상 저항 확률',
             lines: [
-                `점화 저항: ${Math.floor(getPlayerAilmentResistChance('ignite', { ...pStats, ailmentResistBonusPct }))}%`,
-                `냉각/동결 저항: ${Math.floor(getPlayerAilmentResistChance('freeze', { ...pStats, ailmentResistBonusPct }))}%`,
-                `감전 저항: ${Math.floor(getPlayerAilmentResistChance('shock', { ...pStats, ailmentResistBonusPct }))}%`,
-                `중독 저항: ${Math.floor(getPlayerAilmentResistChance('poison', { ...pStats, ailmentResistBonusPct }))}%`,
-                `출혈 저항: ${Math.floor(getPlayerAilmentResistChance('bleed', { ...pStats, ailmentResistBonusPct }))}%`
+                `점화 저항: ${Math.floor(getPlayerAilmentResistChance('ignite', { resF: finalResF, ailResIgnite: (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0), ailmentResistBonusPct }))}%`,
+                `냉각/동결 저항: ${Math.floor(getPlayerAilmentResistChance('freeze', { resC: finalResC, ailResFreeze: (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0), ailmentResistBonusPct }))}%`,
+                `감전 저항: ${Math.floor(getPlayerAilmentResistChance('shock', { resL: finalResL, ailResShock: (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0), ailmentResistBonusPct }))}%`,
+                `중독 저항: ${Math.floor(getPlayerAilmentResistChance('poison', { resChaos: finalResChaos, ailResPoison: (gearExplicit.ailResPoison || 0) + (passive.ailResPoison || 0) + (season.ailResPoison || 0) + (ascend.ailResPoison || 0) + (reward.ailResPoison || 0), ailmentResistBonusPct }))}%`,
+                `출혈 저항: ${Math.floor(getPlayerAilmentResistChance('bleed', { dr: finalDr, ailResBleed: (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0), ailmentResistBonusPct }))}%`
             ],
             final: `${Math.floor(ailmentResistBonusPct)}% 추가 저항`
         },
