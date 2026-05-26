@@ -861,7 +861,8 @@ function getPlayerStats() {
         if (!item) return;
         if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '' });
         let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
-        let qualityMul = 1 + (Math.max(0, Math.min(20, Math.floor(item.quality || 0))) / 100);
+        let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
+        let qualityMul = 1 + (Math.max(0, Math.min(qualityCap, Math.floor(item.quality || 0))) / 100);
         let itemBaseStats = scaleStatList((item.baseStats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * qualityMul).toFixed(2)) } : stat), itemStatMultiplier);
         applyStatsToBucket(gearBase, itemBaseStats);
         let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
