@@ -168,6 +168,25 @@ function getStarWedgeUnlockReady() {
 }
 
 function getZone(id) {
+    if (id === 'cosmos_challenge') {
+        let cosmos = (game && game.cosmosAtlas && typeof game.cosmosAtlas === 'object') ? game.cosmosAtlas : {};
+        let c = (cosmos.activeChallenge && typeof cosmos.activeChallenge === 'object') ? cosmos.activeChallenge : null;
+        if (c) {
+            return {
+                id: 'cosmos_challenge',
+                name: `우주계 ${c.name || '행성'}`,
+                type: 'cosmos',
+                tier: Math.max(1, Math.floor(c.tier || 1)),
+                maxKills: 1,
+                ele: c.ele || 'chaos',
+                cosmosNodeId: c.nodeId || null,
+                cosmosTag: c.tag || '',
+                gravity: Math.max(1, Number(c.gravity || 1)),
+                sizeClass: Math.max(1, Math.floor(c.sizeClass || 1)),
+                theme: c.theme || ''
+            };
+        }
+    }
     if (id === 'beehive_run') {
         let step = Math.max(1, Math.floor((game && game.beehive && game.beehive.branchStep) || 1));
         return { id: 'beehive_run', name: `벌집 심층 ${step}갈래`, type: 'beehive', tier: Math.min(24, 10 + step), maxKills: 1, ele: 'chaos' };
