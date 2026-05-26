@@ -4156,7 +4156,7 @@ function renderSearchSection(containerId, key, placeholder, rowsHtml, emptyHtml)
     let input = root.querySelector(`input[data-search-key="${key}"]`);
     let list = root.querySelector('.search-result-list');
     if (!input || !list) {
-        root.innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px;"><input data-search-key="${key}" placeholder="${placeholder}" value="${escapeHTML(sf[key] || '')}" oninput="updateSearchFilter('${key}', this.value)" style="width:100%; max-width:100%; box-sizing:border-box; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"><div style="margin-top:6px;"><button onclick="resetSearchFilter('${key}')" style="padding:4px 8px; font-size:12px;">검색어 리셋</button></div></div><div class="search-result-list" style="display:contents;"></div>`;
+        root.innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px; width:100%; max-width:100%; overflow:hidden;"><input data-search-key="${key}" placeholder="${placeholder}" value="${escapeHTML(sf[key] || '')}" oninput="updateSearchFilter('${key}', this.value)" style="display:block; width:100%; max-width:100%; box-sizing:border-box; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"><div style="margin-top:6px;"><button onclick="resetSearchFilter('${key}')" style="padding:4px 8px; font-size:12px;">검색어 리셋</button></div></div><div class="search-result-list" style="display:contents;"></div>`;
         input = root.querySelector(`input[data-search-key="${key}"]`);
         list = root.querySelector('.search-result-list');
     }
