@@ -866,7 +866,7 @@ function getPlayerStats() {
         let itemBaseStats = scaleStatList((item.baseStats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * qualityMul).toFixed(2)) } : stat), itemStatMultiplier);
         applyStatsToBucket(gearBase, itemBaseStats);
         let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
-        let explicitItemStats = scaleStatList((item.stats || []).concat(item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
+        let explicitItemStats = scaleStatList((item.stats || []).concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
         applyStatsToBucket(gearExplicit, explicitItemStats);
         let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
         let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;

@@ -322,7 +322,7 @@ function renderPaperdoll(targetId, forCrafting) {
         let displaySlot = slot.replace(/[12]/, '');
         let selected = isCraftSelectionEquip() && getCraftSelectionRef() === slot;
         if (item) {
-            let displayStats = (item.baseStats || []).concat(item.stats || []);
+            let displayStats = (item.baseStats || []).concat(item.stats || [], item.underEnchant ? [item.underEnchant] : []);
             if (item.chaosInfusion) displayStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
             if (typeof getImmutableItemSpecialStats === 'function') displayStats = displayStats.concat(getImmutableItemSpecialStats(item));
             else if (item.encroached && !item.encroached.liberated) displayStats.push({ id: 'encroached', val: 0, statName: '[잠식] 해방 전' });
@@ -364,6 +364,7 @@ function renderInventoryCard(item, idx, mode) {
     let tone = (statId) => toneFn ? toneFn(statId) : '#d7e9ff';
     (item.baseStats || []).forEach(stat => lines.push(`<span style="color:${tone(stat.id)}">${hi(stat.statName)} +${formatValue(stat.id, stat.val)}</span>`));
     (item.stats || []).slice(0, 3).forEach(stat => lines.push(`<span style="color:${tone(stat.id)}">${hi(stat.statName)} +${formatValue(stat.id, stat.val)}</span>`));
+    if (item.underEnchant) lines.push(`<span style="color:#ffd28a">[인챈트] ${hi(item.underEnchant.statName || getStatName(item.underEnchant.id))} +${formatValue(item.underEnchant.id, item.underEnchant.val)}</span>`);
     if (item.chaosInfusion) lines.push(`<span style="color:#d7a8ff">[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}</span>`);
     if (typeof getImmutableItemSpecialStats === 'function') getImmutableItemSpecialStats(item).slice(0, 1).forEach(stat => lines.push(`<span style="color:#d7b8ff">${hi(stat.statName)} +${formatValue(stat.id, stat.val)}</span>`));
     if (item.encroached && !item.encroached.liberated) lines.push(`<span style="color:#8d7bb3">[잠식] 해방 전</span>`);
