@@ -4803,7 +4803,18 @@ function buildCraftActionButtons(item) {
     let sealedSkills = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
     let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
     let skillsRows = game.skills.filter(name => {
-        if (!matchSearchQuery(`${name} ${(SKILL_DB[name] && (SKILL_DB[name].tags || []).join(' ')) || ''}`, sf.skill)) return false;
+        let def = SKILL_DB[name] || {};
+        let statText = Array.isArray(def.stats) ? def.stats.map(st => getStatName(st.id || st.stat || '')).join(' ') : '';
+        let searchable = [
+            name,
+            Array.isArray(def.tags) ? def.tags.join(' ') : '',
+            String(def.desc || ''),
+            String(def.type || ''),
+            String(def.ele || ''),
+            String(def.targetMode || ''),
+            statText
+        ].join(' ');
+        if (!matchSearchQuery(searchable, sf.skill)) return false;
         if (!foldAttackInactive) return true;
         return name === game.activeSkill;
     }).map(name => {
@@ -4812,7 +4823,7 @@ function buildCraftActionButtons(item) {
         let gemInfo = getGemPresentation(name, false);
         if (SKILL_DB[name].isGem || SKILL_DB[name].levelable) badge = `<span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
         let sealBtn = name === game.activeSkill ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">🔒 봉인</button>`;
-        return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong>${badge}${sealBtn}</div>`;
+        return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.skill)}</strong>${badge}${sealBtn}</div>`;
     }).join('');
     let skillsHtml = skillsRows;
     if (!foldAttackInactive) skillsHtml += `<div style="margin-top:6px;"><button style="width:100%; font-size:0.75em; padding:4px 8px;" onclick="sealAllInactiveSkillGems()">미사용 젬 일괄 봉인</button></div>`;
@@ -4834,7 +4845,18 @@ function buildCraftActionButtons(item) {
         suppResonanceEl.innerText = `${Math.max(0, Math.floor(game.resonancePower || 0) - used)}`;
     }
     let supportRows = game.supports.filter(name => {
-        if (!matchSearchQuery(`${name} ${(SUPPORT_GEM_DB[name] && (SUPPORT_GEM_DB[name].tags || []).join(' ')) || ''}`, sf.support)) return false;
+        let def = SUPPORT_GEM_DB[name] || {};
+        let statText = Array.isArray(def.stats) ? def.stats.map(st => getStatName(st.id || st.stat || '')).join(' ') : '';
+        let searchable = [
+            name,
+            Array.isArray(def.tags) ? def.tags.join(' ') : '',
+            String(def.desc || ''),
+            String(def.type || ''),
+            String(def.ele || ''),
+            String(def.targetMode || ''),
+            statText
+        ].join(' ');
+        if (!matchSearchQuery(searchable, sf.support)) return false;
         if (!foldSupportInactive) return true;
         return game.equippedSupports.includes(name);
     }).map(name => {
@@ -4846,7 +4868,7 @@ function buildCraftActionButtons(item) {
         let cost = getSupportTierResonanceCost(name);
         let sealBtn = active ? '' : `<button style="margin-left:4px; font-size:0.66em; padding:1px 4px;" onclick="event.stopPropagation(); sealSupportGem('${name}')">🔒 봉인</button>`;
         let tierBtns = [1,2,3].map(t => `<button style="font-size:0.62em; padding:1px 3px; ${t<=unlockedTier?'':'opacity:.4;'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${t})" ${t<=unlockedTier?'':'disabled'}>${t===1?'하':t===2?'중':'상'}</button>`).join('');
-        return `<div class="skill-gem support-gem ${active}" onclick="toggleSupport('${name}')" onmouseover="showGemTooltip(event,'support','${name}')" onmouseenter="showGemTooltip(event,'support','${name}')" onmousemove="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()"><strong>${escapeHTML(name)}</strong><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">${tierLabel} · Lv.${gemInfo.totalLevel} · 공명 ${cost}</span><span style="display:inline-flex; gap:2px; margin-left:4px;">${tierBtns}</span>${sealBtn}</div>`;
+        return `<div class="skill-gem support-gem ${active}" onclick="toggleSupport('${name}')" onmouseover="showGemTooltip(event,'support','${name}')" onmouseenter="showGemTooltip(event,'support','${name}')" onmousemove="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.support)}</strong><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">${tierLabel} · Lv.${gemInfo.totalLevel} · 공명 ${cost}</span><span style="display:inline-flex; gap:2px; margin-left:4px;">${tierBtns}</span>${sealBtn}</div>`;
     }).join('');
     let supportHtml = supportRows;
     if (!foldSupportInactive) supportHtml += `<div style="margin-top:6px;"><button style="width:100%; font-size:0.75em; padding:4px 8px;" onclick="sealAllInactiveSupportGems()">미사용 젬 일괄 봉인</button></div>`;
@@ -5053,7 +5075,8 @@ function buildCraftActionButtons(item) {
         });
         let rows = Object.keys(total).map(stat => {
             let tone = getItemStatToneColor(stat);
-            return `<span style="color:${tone};">${getStatName(stat)} +${formatValue(stat, total[stat])}</span>`;
+            let label = stat === 'dr' ? '물리 피해 감소(%)' : getStatName(stat);
+            return `<span style="color:${tone};">${label} +${formatValue(stat, total[stat])}</span>`;
         });
         talismanTotalEl.innerHTML = rows.length > 0
             ? `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="display:grid; gap:3px;">${rows.map(row => `<div>• <strong>${row}</strong></div>`).join('')}</div>`
@@ -8436,6 +8459,5 @@ function rerollUnderworldRuneBonus(){
     addLog(`🎲 룬 옵션 리롤: 룬${no} 보너스 ${lineCount}줄 재설정 → ${txt}`,'season-up');
     updateStaticUI();
 }
-
 
 
