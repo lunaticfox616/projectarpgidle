@@ -268,12 +268,12 @@ function applyFossilChaosCraft(fossilKey) {
         blockedIds.add(roll.id);
     }
     if (fossilKey === 'fossilRift') {
-        newStats = newStats.map(stat => (stat && !stat.lockedByHoney && !stat.lockedByRift && Number.isFinite(Number(stat.val))) ? { ...stat, val: Number((Number(stat.val) * 1.5).toFixed(2)) } : stat);
-        let riftMarker = { id: 'fossilRiftBlank', statName: '균열 - 아무 효과 없음 (제거/변경 불가)', val: 0, lockedByRift: true };
-        let existingRiftIdx = newStats.findIndex(stat => stat && stat.id === 'fossilRiftBlank');
-        if (existingRiftIdx >= 0) newStats[existingRiftIdx] = riftMarker;
-        else if ((newStats.length + reservedInfusionCount) < 6) newStats.push(riftMarker);
-        else {
+        let riftMarker = { id: 'fossilRiftBlank', statName: '균열 옵션: 균열 표식 (제거/변경 불가)', val: 0, lockedByRift: true };
+        let ampMarker = { id: 'fossilRiftAmp', statName: '균열 옵션: 추가 옵션 효과 50% 증폭', val: 50 };
+        let markerIds = new Set(['fossilRiftBlank', 'fossilRiftAmp']);
+        newStats = newStats.filter(stat => !(stat && markerIds.has(stat.id)));
+        let ensureMarker = (marker) => {
+            if ((newStats.length + reservedInfusionCount) < 6) { newStats.push(marker); return; }
             let replaceIdx = -1;
             for (let i = newStats.length - 1; i >= 0; i--) {
                 let st = newStats[i];
@@ -281,8 +281,10 @@ function applyFossilChaosCraft(fossilKey) {
                 replaceIdx = i;
                 break;
             }
-            if (replaceIdx >= 0) newStats[replaceIdx] = riftMarker;
-        }
+            if (replaceIdx >= 0) newStats[replaceIdx] = marker;
+        };
+        ensureMarker(riftMarker);
+        ensureMarker(ampMarker);
     }
 
     item.stats = newStats;
@@ -290,7 +292,7 @@ function applyFossilChaosCraft(fossilKey) {
     if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
     game.currencies[fossilKey]--; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_craft');
     updateItemName(item);
-    let line = guaranteed ? `확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})` : (fossilKey === 'fossilOld' ? '확정 옵션: [화석 전용 옵션]' : '균열 표식 + 나머지 옵션 50% 증폭');
+    let line = guaranteed ? `확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})` : (fossilKey === 'fossilOld' ? '확정 옵션: [화석 전용 옵션]' : '확정 옵션 2줄: [균열 표식] + [추가 옵션 효과 50% 증폭]');
     addLog(`🪨 ${fossil.name} 재련 성공! ${line}`, 'loot-magic');
     updateStaticUI();
 }

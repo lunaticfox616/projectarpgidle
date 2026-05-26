@@ -531,7 +531,8 @@ function renderLoop8BeehivePanel() {
     <div style="color:#f6d68e; margin-bottom:8px;">진행도: <strong>${Math.min(100, Math.max(0, Math.floor(b.branchStep || 0) * 10))}%</strong> · 완료한 갈림길: <strong>${Math.min(10, Math.max(0, Math.floor(b.branchStep || 0)))}/10</strong>${b.queenActive ? ' · <strong>여왕벌 등장</strong>' : ''}</div>
     <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="startBeehiveRun()" ${(game.currencies.hiveKey||0)<=0 || b.inRun ? 'disabled':''}>벌집 입장</button><button onclick="forfeitBeehiveRun()" ${b.inRun ? '':'disabled'}>던전 포기</button></div>${choiceHtml}`;
 }
-function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false,activeKills:0,requiredKills:0}); let g=v.grandRun||{}; let progress=v.active?`${Math.max(0,Math.floor(v.activeKills||0))}/${Math.max(1,Math.floor(v.requiredKills||0))}`:'-'; let grandText=g.inRun?` · 대균열: <strong>${g.phase==='survival'?'생존전':'보스전'}</strong> · 남은시간: <strong>${Math.max(0,Math.ceil(g.timeLeft||0))}초</strong> · 처치: <strong>${Math.floor(g.kills||0)}</strong>`:''; let canEnter=(v.grandBreachUnlock&&!g.inRun); p.innerHTML=`<div style="color:#c7d2ff;">활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter?'':'disabled'}>대균열 진입</button></div>`; }
+function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false,activeKills:0,requiredKills:0}); let g=v.grandRun||{}; if(g.inRun && game.currentZoneId!=='grand_breach_run'){ g.inRun=false; g.phase='failed'; g.timeLeft=0; v.grandRun=g; } let progress=v.active?`${Math.max(0,Math.floor(v.activeKills||0))}/${Math.max(1,Math.floor(v.requiredKills||0))}`:'-'; let grandText=(g.inRun&&game.currentZoneId==='grand_breach_run')?` · 대균열: <strong>${g.phase==='survival'?'생존전':'보스전'}</strong> · 남은시간: <strong>${Math.max(0,Math.ceil(g.timeLeft||0))}초</strong> · 처치: <strong>${Math.floor(g.kills||0)}</strong>`:''; let canEnter=(v.grandBreachUnlock&&!g.inRun); p.innerHTML=`<div style="color:#c7d2ff;">활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter?'':'disabled'}>대균열 진입</button></div>`; }
+
 function spawnBeehiveWave(isBoss){
     let b = game.beehive || {};
     let zone = getZone('beehive_run') || getZone(0);
@@ -876,7 +877,8 @@ function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; exitBeehi
 function craftBeehiveCurrency(type){ let beeLv=typeof getExpertLevel==='function'?Math.max(1,Math.floor(getExpertLevel('beekeeper')||1)):1; if(type==='wax'&&beeLv<8) return addLog('밀랍 제작은 양봉업자 Lv.8에 해금됩니다.', 'attack-monster'); if(type!=='key'&&type!=='wax'&&beeLv<6) return addLog('벌꿀/독벌침 교환은 양봉업자 Lv.6에 해금됩니다.', 'attack-monster'); let cost= type==='key'?200:type==='wax'?350:type==='stinger'?600:2000; let discount=typeof getExpertNodeEffectValue==='function'?Math.max(0,getExpertNodeEffectValue('waxCostReducePct')||0)/100:0; if(type==='wax') cost=Math.max(1,Math.floor(cost*(1-discount))); if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(type==='wax') game.currencies.beeswax=(game.currencies.beeswax||0)+1; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_currency_craft'); updateStaticUI(); }
 function triggerVoidBreach(){ let v=game.voidRift; v.active=true; addLog('🕳️ 공허의 구멍이 열렸습니다! 몬스터가 쏟아집니다.', 'attack-monster'); updateStaticUI(); }
 function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if((v.breachClears||0) >= 1 || Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
-function enterGrandBreach(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let v=game.voidRift; if(!v.grandBreachUnlock) return; if(v.grandRun&&v.grandRun.inRun) return; v.grandBreachUnlock=false; v.grandRun={ inRun:true, phase:'survival', timeLeft:35, kills:0, nextRefillAt:0, lastTickAt:Date.now(), returnZoneId:game.currentZoneId }; game.currentZoneId='grand_breach_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up'); updateStaticUI(); }
+function enterGrandBreach(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let v=game.voidRift; if(!v.grandBreachUnlock) return; if(v.grandRun&&v.grandRun.inRun&&game.currentZoneId!=='grand_breach_run'){ v.grandRun.inRun=false; v.grandRun.phase='failed'; v.grandRun.timeLeft=0; } if(v.grandRun&&v.grandRun.inRun) return; v.grandBreachUnlock=false; v.grandRun={ inRun:true, phase:'survival', timeLeft:35, kills:0, nextRefillAt:0, lastTickAt:Date.now(), returnZoneId:game.currentZoneId }; game.currentZoneId='grand_breach_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up'); updateStaticUI(); }
+
 function toggleMeteorAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterMeteor = !game.settings.autoEnterMeteor; addLog(`☄️ 운석 낙하 자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}`, 'season-up'); updateStaticUI(); }
 
 function renderChaosRealmMapPanel() {
@@ -4154,7 +4156,7 @@ function renderSearchSection(containerId, key, placeholder, rowsHtml, emptyHtml)
     let input = root.querySelector(`input[data-search-key="${key}"]`);
     let list = root.querySelector('.search-result-list');
     if (!input || !list) {
-        root.innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px;"><input data-search-key="${key}" placeholder="${placeholder}" value="${escapeHTML(sf[key] || '')}" oninput="updateSearchFilter('${key}', this.value)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"></div><div class="search-result-list" style="display:contents;"></div>`;
+        root.innerHTML = `<div style="grid-column:1/-1; margin-bottom:6px;"><input data-search-key="${key}" placeholder="${placeholder}" value="${escapeHTML(sf[key] || '')}" oninput="updateSearchFilter('${key}', this.value)" style="width:100%; max-width:100%; box-sizing:border-box; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#dbe9ff;"><div style="margin-top:6px;"><button onclick="resetSearchFilter('${key}')" style="padding:4px 8px; font-size:12px;">검색어 리셋</button></div></div><div class="search-result-list" style="display:contents;"></div>`;
         input = root.querySelector(`input[data-search-key="${key}"]`);
         list = root.querySelector('.search-result-list');
     }
@@ -4172,6 +4174,7 @@ function getSearchFilterState() {
     d.support = String(d.support || '');
     return d;
 }
+function resetSearchFilter(key) { updateSearchFilter(key, ''); }
 function updateSearchFilter(key, value) {
     const d = getSearchFilterState();
     d[key] = String(value || '');
@@ -4208,6 +4211,16 @@ function bulkSalvageEquipBySearch(salvageUnmatched) {
     const sf = getSearchFilterState();
     const survivors = [];
     let removed = 0, lockedSkipped = 0;
+    const targetCount = (game.inventory || []).reduce((count, item) => {
+        if (!item) return count;
+        const underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
+        const hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
+        const matched = matchSearchQuery(hay, sf.equip);
+        if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched) || item.locked) return count;
+        return count + 1;
+    }, 0);
+    if (targetCount <= 0) return addLog('해체 대상이 없습니다.', 'attack-monster');
+    if (!confirm(`장비 ${targetCount}개를 해체할까요?`)) return;
     (game.inventory || []).forEach(item => {
         if (!item) return;
         const underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
@@ -4218,22 +4231,29 @@ function bulkSalvageEquipBySearch(salvageUnmatched) {
         salvageItemObject(item, true); removed++;
     });
     game.inventory = survivors;
-    if (removed <= 0) return addLog(`해체 대상이 없습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
     addLog(`🧪 장비 ${removed}개 해체 완료${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 function bulkSalvageJewelsBySearch(salvageUnmatched) {
     if (!assertBuildEditable()) return;
     const sf = getSearchFilterState();
-    let removed = 0;
+    const targets = [];
     for (let i = (game.jewelInventory || []).length - 1; i >= 0; i--) {
         const jewel = game.jewelInventory[i] || {};
         const statText = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} ${stat.id} ${stat.val}`).join(' ');
         const matched = matchSearchQuery(`${jewel.name || ''} ${jewel.rarity || ''} ${statText}`, sf.jewel);
-        if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched)) continue;
-        salvageJewelObject(jewel, true); game.jewelInventory.splice(i, 1); removed++;
+        if (shouldBulkSalvageBySearch(matched, !!salvageUnmatched)) targets.push(i);
     }
-    if (removed <= 0) return addLog('해체 대상 주얼이 없습니다.', 'attack-monster');
+    if (targets.length <= 0) return addLog('해체 대상 주얼이 없습니다.', 'attack-monster');
+    if (!confirm(`주얼 ${targets.length}개를 해체할까요?`)) return;
+    let removed = 0;
+    targets.forEach(i => {
+        const jewel = game.jewelInventory[i];
+        if (!jewel) return;
+        salvageJewelObject(jewel, true);
+        game.jewelInventory.splice(i, 1);
+        removed++;
+    });
     jewelFusionSelection = [];
     addLog(`💠 주얼 ${removed}개 해체 완료`, 'loot-normal'); updateStaticUI();
 }
@@ -4283,7 +4303,7 @@ function buildJewelRangeTooltipHtml(jewel) {
     return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
 }
 
-safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor, updateSearchFilter });
+safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor, updateSearchFilter, resetSearchFilter, bulkSalvageEquipBySearch, bulkSalvageJewelsBySearch, bulkSalvageTalismansBySearch });
 
 
 function showSocketedJewelTooltip(event, socketType, socketIdx) {

@@ -290,6 +290,7 @@ function getDropOnlyItemSourceMeta(item) {
     let unique = UNIQUE_DB.find(row => row && row.name === item.name && Array.isArray(row.slots) && row.slots.includes(String(item.slot || '').replace(/[12]/, '')));
     let dropOnly = (base && base.dropOnly) ? base.dropOnly : ((unique && unique.dropOnly) ? unique.dropOnly : null);
     let sourceKey = dropOnly ? (dropOnly.type || dropOnly.id || null) : null;
+    if (!sourceKey && base && base.realmBase) sourceKey = `realm_${base.realmBase}`;
     let map = {
         beehive: { badgeClass: 'item-source-badge item-source-badge--beehive', toneClass: 'item-source-tone--beehive', label: '벌집 한정' },
         trial: { badgeClass: 'item-source-badge item-source-badge--trial', toneClass: 'item-source-tone--trial', label: '시련 한정' },
@@ -297,7 +298,10 @@ function getDropOnlyItemSourceMeta(item) {
         meteor: { badgeClass: 'item-source-badge item-source-badge--meteor', toneClass: 'item-source-tone--meteor', label: '운석 한정' },
         labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: '고대 미궁 한정' },
         ancient_labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: '고대 미궁 한정' },
-        grand_breach_run: { badgeClass: 'item-source-badge item-source-badge--rift', toneClass: 'item-source-tone--rift', label: '대균열 한정' }
+        grand_breach_run: { badgeClass: 'item-source-badge item-source-badge--rift', toneClass: 'item-source-tone--rift', label: '대균열 한정' },
+        realm_chaos: { badgeClass: 'item-source-badge item-source-badge--realm-chaos', toneClass: 'item-source-tone--realm-chaos', label: '혼돈계 한정' },
+        realm_underworld: { badgeClass: 'item-source-badge item-source-badge--realm-underworld', toneClass: 'item-source-tone--realm-underworld', label: '지하계 한정' },
+        realm_cosmos: { badgeClass: 'item-source-badge item-source-badge--realm-cosmos', toneClass: 'item-source-tone--realm-cosmos', label: '우주계 한정' }
     };
     return sourceKey ? (map[sourceKey] || null) : null;
 }
