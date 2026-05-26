@@ -467,6 +467,10 @@
         const galaxyCounts = { 0: 1, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
         const orbitBossAssigned = {1:false,2:false,3:false,4:false,5:false};
+        for (let i = 0; i < COSMOS_PLANETS.length; i++) {
+            const o = Math.max(0, Math.min(5, Math.floor(COSMOS_PLANETS[i].orbit || 0)));
+            if (o >= 1 && COSMOS_PLANETS[i].tag === 'boss') orbitBossAssigned[o] = true;
+        }
         for (let i = COSMOS_PLANETS.length - 1; i >= 0; i--) {
             const o = Math.max(0, Math.min(5, Math.floor(COSMOS_PLANETS[i].orbit || 0)));
             if (o >= 1 && !orbitBossAssigned[o]) { COSMOS_PLANETS[i].tag = 'boss'; orbitBossAssigned[o] = true; }
@@ -744,8 +748,8 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
     }
     function getCosmosChallengeTier(node) {
         const tier = Math.max(1, Math.floor(getDisplayedNodeTier(node) || 1));
-        const ease = getCosmosMasteryValue('challengeEase') * 0.015;
-        const risk = getCosmosMasteryValue('highRisk') * 0.02;
+        const ease = getCosmosMasteryValue('challengeEase') * 0.015 + getCosmosMasteryValue('riftGuard') * 0.007;
+        const risk = getCosmosMasteryValue('highRisk') * 0.02 - getCosmosMasteryValue('gravityHarness') * 0.002;
         const relief = node && node.kind === 'planet'
             ? getCosmosMasteryValue('planetRelief') * 0.012
             : getCosmosMasteryValue('voidSurvey') * 0.008;
@@ -1374,6 +1378,11 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
             + getCosmosMasteryValue('warpEfficiency') * 0.01
             + (node.kind === 'asteroid' ? getCosmosMasteryValue('asteroidRelief') * 0.016 : 0)
             + (node.tag === 'boss' ? (getCosmosMasteryValue('bossBounty') * 0.04 + getCosmosMasteryValue('apexProtocol') * 0.018) : 0)
+            + getCosmosMasteryValue('echoCache') * 0.01
+            + (node.kind === 'planet' ? getCosmosMasteryValue('resonanceDrive') * 0.006 : 0)
+            + (node.kind === 'asteroid' ? getCosmosMasteryValue('stellarForge') * 0.009 : 0)
+            + (node.orbit >= 4 ? getCosmosMasteryValue('frontierTax') * 0.013 : 0)
+            + (node.tag === 'boss' ? getCosmosMasteryValue('starbreaker') * 0.018 : 0)
             + (firstClear ? getCosmosMasteryValue('chainMastery') * 0.02 : 0);
         const reward = Math.max(1, Math.floor(rewardBase * rewardMul * focusMul));
         state.starDust = Math.max(0, Math.floor(state.starDust || 0)) + reward;
