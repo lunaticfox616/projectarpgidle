@@ -3982,7 +3982,8 @@ function performUpdateStaticUI() {
     const sf = getSearchFilterState();
     const equipInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
         let item = row.item || {};
-        let hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')}`;
+        let underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
+        let hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
         return matchSearchQuery(hay, sf.equip);
     });
     renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join(''), '');
@@ -8397,6 +8398,7 @@ ${labels}`,'1');
     return validSlots[parsed - 1];
 }
 function applyUnderworldEnchant(){
+    if (!assertBuildEditable()) return;
     let slot = pickEquippedSlotByPrompt(['무기','갑옷','투구']); if(!slot) return;
     let item = game.equipment && game.equipment[slot]; if(!item) return addLog('해당 부위 장비가 없습니다.','attack-monster');
     let pools = {
@@ -8416,6 +8418,7 @@ function applyUnderworldEnchant(){
     updateStaticUI();
 }
 function attemptUnderworldLimitBreak(){
+    if (!assertBuildEditable()) return;
     let slot = pickEquippedSlotByPrompt(['무기','투구','갑옷','장갑1','장갑2','신발','목걸이','반지1','반지2','허리띠']); if(!slot) return;
     let item = game.equipment && game.equipment[slot]; if(!item) return addLog('해당 부위 장비가 없습니다.','attack-monster');
     let q=Math.floor(item.quality||0); if(q!==20) return addLog('한계돌파는 퀄리티 20%에서만 가능합니다.','attack-monster');
@@ -8451,6 +8454,7 @@ function ensureUnderworldRuneBonusMilestones(no){
     while (st.bonusLinesByNo[no].length < target) st.bonusLinesByNo[no].push(rollUnderworldRuneBonusLine());
 }
 function enhanceUnderworldRune(){
+    if (!assertBuildEditable()) return;
     let st=ensureUnderworldRuneState();
     let v=prompt('강화할 룬 번호(1~30)를 입력하세요.','1'); if(v===null) return;
     let trimmed = String(v).trim();
@@ -8470,6 +8474,7 @@ function enhanceUnderworldRune(){
     updateStaticUI();
 }
 function rerollUnderworldRuneBonus(){
+    if (!assertBuildEditable()) return;
     let st=ensureUnderworldRuneState();
     let v=prompt('리롤할 룬 번호(1~30)를 입력하세요.','1'); if(v===null) return;
     let trimmed = String(v).trim();
