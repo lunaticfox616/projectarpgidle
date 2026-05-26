@@ -231,7 +231,7 @@
 <div id="right-pane">
     <button id="left-pane-expand-fab" onclick="toggleLeftPaneCollapse()" title="전투 패널 펼치기" aria-label="전투 패널 펼치기">▶</button>
     <div class="tab-header">
-        <div class="tab-btn" id="btn-tab-battle" onclick="switchTab('tab-battle')">전투</div>
+        <div class="tab-btn" id="btn-tab-battle" onclick="switchTab('tab-battle')"><span class="tab-label">전투</span><span id="noti-battle" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: flex;">캐릭터</div>
         <div class="tab-btn" id="btn-tab-char" onclick="switchTab('tab-char')">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">루프 <span id="noti-season" class="noti-dot"></span></div>
@@ -720,7 +720,7 @@
     <div id="tab-codex" class="tab-content">
         <h2>📚 고유 아이템 도감</h2>
         <div style="display:flex; gap:8px; margin-bottom:10px;">
-            <button id="btn-codex-main" onclick="setCodexSubtab('main')">기존 도감</button>
+            <button id="btn-codex-main" onclick="setCodexSubtab('main')">나무 도감</button>
             <button id="btn-codex-realm" onclick="setCodexSubtab('realm')">계(Realm) 도감</button>
         </div>
         <div id="ui-codex-summary" style="margin-bottom:10px; color:#c3d9ef;"></div>
@@ -937,7 +937,7 @@
 <script defer src="js/combat.js?v=20260518-assassin-tune1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260513-gemfix1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260513-gemfix1"></script>
-<script defer src="js/ui.js?v=20260518-assassin-tune1"></script>
+<script defer src="js/ui.js?v=20260526-highlight-hotfix1"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
 <script defer src="js/main.js?v=20260513-gemfix1"></script>
 </body>
