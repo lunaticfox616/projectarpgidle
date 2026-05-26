@@ -943,14 +943,16 @@ function renderUnderworldMapPanel() {
         ][idx];
         return `<div style="position:absolute; ${pos} width:88px; min-height:40px; border-radius:10px; padding:5px 6px; text-align:center; font-size:0.74em; border:1px solid ${unlocked ? '#5e6fb0' : '#3d435c'}; background:${unlocked ? 'linear-gradient(180deg,#202b4a,#141c33)' : 'linear-gradient(180deg,#1b1d2a,#121420)'}; color:${unlocked ? '#dce6ff' : '#7f87a8'};">[${idx + 1}]<br>${label}</div>`;
     }).join('');
-    panel.innerHTML = `<div style="font-weight:800; color:#e4d8ff;">지하계: 핵으로 하강</div><div style="margin-top:4px; color:${canEnter ? '#d6e4ff' : '#ffcf8a'};">입장 조건: 이번 루프 혼돈 20 클리어 필요 · 고중력으로 층이 깊어질수록 이속/공속 감소 · 15층부터 지속 피해</div><div style="margin-top:6px; color:#c9b8ff;">룬 슬롯 ${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 · 해금된 룬 번호 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))}</div><div style=\"position:relative; height:170px; margin-top:8px; border:1px solid #313f66; border-radius:12px; background:linear-gradient(180deg,#12192d,#0c1020);\">${slots}</div><div style="margin-top:4px; color:#9fe3d6;">룬 조각: <strong>${runeShardCount}</strong></div><div style="margin-top:4px; color:#ffd8a8;">우버 뿌리 입장권: ${ticketLine}</div><div style="margin-top:6px;"><button onclick="craftUnderworldRune()">룬 가공 (룬조각 10)</button><button onclick="upgradeUnderworldRune()" style="margin-left:6px;">룬 승급 (동일 룬 3개 + 룬조각)</button></div><div style="margin-top:6px; color:#aebde0;">보유 룬: ${runeLine || '없음'}${Object.keys(runeCountMap).length > 10 ? ' ...' : ''}</div><div style="margin-top:6px; color:#d6e4ff;">장착 룬(영구 적용):<br>${equippedLine || '없음'}</div>`;
+    panel.innerHTML = `<div style="font-weight:800; color:#e4d8ff;">지하계: 핵으로 하강</div><div style="margin-top:4px; color:${canEnter ? '#d6e4ff' : '#ffcf8a'};">입장 조건: 이번 루프 혼돈 20 클리어 필요 · 고중력으로 층이 깊어질수록 이속/공속 감소 · 15층부터 지속 피해</div><div style="margin-top:6px; color:#c9b8ff;">룬 슬롯 ${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 · 해금된 룬 번호 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))}</div><div style=\"position:relative; height:170px; margin-top:8px; border:1px solid #313f66; border-radius:12px; background:linear-gradient(180deg,#12192d,#0c1020);\">${slots}</div><div style="margin-top:4px; color:#9fe3d6;">룬 조각: <strong>${runeShardCount}</strong></div><div style="margin-top:4px; color:#d7c6a0;">지하계 재화: 구리 <strong>${Math.floor((game.currencies||{}).underCopper||0)}</strong> · 은 <strong>${Math.floor((game.currencies||{}).underSilver||0)}</strong> · 금 <strong>${Math.floor((game.currencies||{}).underGold||0)}</strong></div><div style="margin-top:4px; color:#ffd8a8;">우버 뿌리 입장권: ${ticketLine}</div><div style="margin-top:6px;"><button onclick="craftUnderworldRune()">룬 가공 (룬조각 10)</button><button onclick="upgradeUnderworldRune()" style="margin-left:6px;">룬 승급 (동일 룬 3개 + 룬조각)</button><button onclick="applyUnderworldEnchant()" style="margin-left:6px;">지하계 인챈트</button><button onclick="attemptUnderworldLimitBreak()" style="margin-left:6px;">20% 한계돌파</button><button onclick="enhanceUnderworldRune()" style="margin-left:6px;">룬 강화</button><button onclick="rerollUnderworldRuneBonus()" style="margin-left:6px;">룬 옵션 리롤</button></div><div style="margin-top:6px; color:#aebde0;">보유 룬: ${runeLine || '없음'}${Object.keys(runeCountMap).length > 10 ? ' ...' : ''}</div><div style="margin-top:6px; color:#d6e4ff;">장착 룬(영구 적용):<br>${equippedLine || '없음'}</div>`;
     list.innerHTML = `<div class="map-item ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}" ${canEnter ? 'onclick="enterUnderworldPrompt()"' : ''} style="${canEnter ? '' : 'opacity:.65; cursor:not-allowed;'}"><div class="map-item-main"><span>🕳️</span><span>지하계 ${floor}층</span></div><div class="map-item-actions"><button ${canEnter ? '' : 'disabled'}>층 선택 입장</button></div></div>`;
 }
 function ensureUnderworldRuneState() {
-    if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null] };
+    if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {} };
     game.underworldRunes.obtainedRunes = Array.isArray(game.underworldRunes.obtainedRunes) ? game.underworldRunes.obtainedRunes : [];
     game.underworldRunes.equippedRunes = Array.isArray(game.underworldRunes.equippedRunes) ? game.underworldRunes.equippedRunes.slice(0, 6) : [null, null, null, null, null, null];
     while (game.underworldRunes.equippedRunes.length < 6) game.underworldRunes.equippedRunes.push(null);
+    game.underworldRunes.enhanceLvByNo = (game.underworldRunes.enhanceLvByNo && typeof game.underworldRunes.enhanceLvByNo === 'object') ? game.underworldRunes.enhanceLvByNo : {};
+    game.underworldRunes.bonusLinesByNo = (game.underworldRunes.bonusLinesByNo && typeof game.underworldRunes.bonusLinesByNo === 'object') ? game.underworldRunes.bonusLinesByNo : {};
     return game.underworldRunes;
 }
 function getUnderworldRuneDef(no) {
@@ -4397,7 +4399,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-fossil-actions').innerHTML = fossilButtons.join('') || `<div style="color:#7f8c8d;">보유한 화석이 없습니다.</div>`;
     document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:#7f8c8d;">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:#8fb6d9;">기본 화석 정제는 항상 가능하며, 균사학자 Lv.4부터 원시 화석(복원 전용), Lv.5부터 원시 고대 화석(태고 화석 추가/고급 재화 확률 증가)이 미궁에서 드랍됩니다. 화석 전용 옵션은 Lv.6부터 제작이 아니라 장비 드랍 시 일정 확률로 붙습니다.</div>`;
 
-    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']);
+    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']);
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
         if (hiddenCurrencyKeys.has(key)) return false;
         if (key === 'tainted') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
@@ -8250,3 +8252,97 @@ function getLockedTabMessage(tabId) {
 
 
 safeExposeGlobals({ checkUnlocks, buySeason, askRefundSeasonNode, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, cloudCompactAndPushNow });
+
+
+function pickEquippedSlotByPrompt(validSlots){
+    let labels = validSlots.map((slot,i)=>`${i+1}. ${slot}${game.equipment&&game.equipment[slot]?` (${game.equipment[slot].name||'장비'})`:''}`).join('\n');
+    let v = prompt(`대상을 선택하세요:
+${labels}`,'1');
+    if (v===null) return null;
+    let idx = Math.max(1, Math.min(validSlots.length, Math.floor(Number(v)||0))) - 1;
+    return validSlots[idx];
+}
+function applyUnderworldEnchant(){
+    let slot = pickEquippedSlotByPrompt(['무기','갑옷','투구']); if(!slot) return;
+    let item = game.equipment && game.equipment[slot]; if(!item) return addLog('해당 부위 장비가 없습니다.','attack-monster');
+    let pools = {
+      '무기':[ ['pctDmg',8,24,2], ['spellFlatPct',6,18,2], ['projectileExtraShots',1,1,3], ['resPen',5,14,2], ['physIgnore',5,14,2], ['flatDmg',12,38,1] ],
+      '갑옷':[ ['pctHp',4,12,1], ['flatHp',45,140,1], ['armorPct',8,24,1], ['evasionPct',8,24,1], ['energyShieldPct',8,24,1], ['maxResF',1,2,3], ['maxResC',1,2,3], ['maxResL',1,2,3], ['resChaos',4,10,2] ],
+      '투구':[ ['targetAny',1,1,3], ['critDmg',18,25,2], ['armor',40,120,1], ['evasion',40,120,1], ['energyShield',35,105,1], ['crit',2,6,2] ]
+    };
+    let row = pools[slot][Math.floor(Math.random()*pools[slot].length)];
+    let [id,min,max,str]=row; let val = min + Math.random()*(max-min); if(max===min) val=max;
+    val = Number((Math.round(val*10)/10).toFixed(1));
+    let costC = Math.max(4, str*6), costS=Math.max(2,str*3), costG=Math.max(1,str-1);
+    if((game.currencies.underCopper||0)<costC || (game.currencies.underSilver||0)<costS || (game.currencies.underGold||0)<costG) return addLog(`지하계 재화 부족 (구리 ${costC}/은 ${costS}/금 ${costG})`,'attack-monster');
+    game.currencies.underCopper-=costC; game.currencies.underSilver-=costS; game.currencies.underGold-=costG;
+    item.stats = Array.isArray(item.stats)?item.stats:[];
+    item.stats.push({id, statName:getStatName(id), val, valMin:val, valMax:val, underEnchant:true});
+    addLog(`⛏️ 지하계 인챈트 성공: [${item.name}] ${getStatName(id)} +${formatValue(id,val)} (비용 구리${costC}/은${costS}/금${costG})`,'loot-rare');
+    updateStaticUI();
+}
+function attemptUnderworldLimitBreak(){
+    let slot = pickEquippedSlotByPrompt(['무기','투구','갑옷','장갑1','장갑2','신발','목걸이','반지1','반지2','허리띠']); if(!slot) return;
+    let item = game.equipment && game.equipment[slot]; if(!item) return addLog('해당 부위 장비가 없습니다.','attack-monster');
+    let q=Math.floor(item.quality||0); if(q!==20) return addLog('한계돌파는 퀄리티 20%에서만 가능합니다.','attack-monster');
+    if(item.qualityLockedByLimitBreak) return addLog('이미 한계돌파를 시도한 장비입니다. 퀄리티 재부여 불가 상태입니다.','attack-monster');
+    let baseCost = (slot.includes('반지')||slot==='목걸이'||slot==='허리띠')? [24,12,4] : (slot==='무기'?[30,16,6]:[28,14,5]);
+    if((game.currencies.underCopper||0)<baseCost[0]||(game.currencies.underSilver||0)<baseCost[1]||(game.currencies.underGold||0)<baseCost[2]) return addLog(`지하계 재화 부족 (구리 ${baseCost[0]}/은 ${baseCost[1]}/금 ${baseCost[2]})`,'attack-monster');
+    game.currencies.underCopper-=baseCost[0]; game.currencies.underSilver-=baseCost[1]; game.currencies.underGold-=baseCost[2];
+    let delta = -10 + Math.floor(Math.random()*21);
+    item.quality = Math.max(0,Math.min(30, q + delta));
+    item.qualityLockedByLimitBreak = true;
+    addLog(`🧱 한계돌파 시도: [${item.name}] 퀄리티 ${q}% → ${item.quality}% (변동 ${delta>=0?'+':''}${delta}%, 재부여 잠김)`,'season-up');
+    updateStaticUI();
+}
+function getUnderworldRuneBonusPool(){
+    return [
+        { stat:'flatHp', min:10, max:30 }, { stat:'flatDmg', min:2, max:6 }, { stat:'aspd', min:0.4, max:1.2 },
+        { stat:'move', min:0.4, max:1.2 }, { stat:'crit', min:0.2, max:0.8 }, { stat:'critDmg', min:1.5, max:4.0 },
+        { stat:'resPen', min:0.3, max:1.0 }, { stat:'physIgnore', min:0.3, max:1.0 }, { stat:'resAll', min:0.2, max:0.6 }
+    ];
+}
+function rollUnderworldRuneBonusLine(){
+    let pool = getUnderworldRuneBonusPool();
+    let row = pool[Math.floor(Math.random()*pool.length)];
+    let v = row.min + Math.random()*(row.max-row.min);
+    let val = Number((Math.round(v*10)/10).toFixed(1));
+    return { stat: row.stat, val: val };
+}
+function ensureUnderworldRuneBonusMilestones(no){
+    let st=ensureUnderworldRuneState();
+    let lv=Math.max(0, Math.floor((st.enhanceLvByNo||{})[no]||0));
+    let target = lv >= 15 ? 3 : (lv >= 10 ? 2 : (lv >= 5 ? 1 : 0));
+    st.bonusLinesByNo[no] = Array.isArray(st.bonusLinesByNo[no]) ? st.bonusLinesByNo[no] : [];
+    while (st.bonusLinesByNo[no].length < target) st.bonusLinesByNo[no].push(rollUnderworldRuneBonusLine());
+}
+function enhanceUnderworldRune(){
+    let st=ensureUnderworldRuneState();
+    let v=prompt('강화할 룬 번호(1~30)를 입력하세요.','1'); if(v===null) return;
+    let no=Math.max(1,Math.min(30,Math.floor(Number(v)||0))); let have=(st.obtainedRunes||[]).some(n=>Math.floor(n||0)===no);
+    if(!have) return addLog('해당 번호 룬을 보유해야 강화할 수 있습니다.','attack-monster');
+    let lv=Math.max(0,Math.floor(st.enhanceLvByNo[no]||0)); if(lv>=15) return addLog('룬 강화는 최대 +15입니다.','attack-monster');
+    let c=260 + lv*220, s=150 + lv*150, g=55 + lv*58, shard=120 + lv*90;
+    if((game.currencies.underCopper||0)<c||(game.currencies.underSilver||0)<s||(game.currencies.underGold||0)<g||(game.currencies.runeShard||0)<shard) return addLog(`강화 재화 부족 (구리${c}/은${s}/금${g}/룬조각${shard})`,'attack-monster');
+    game.currencies.underCopper-=c; game.currencies.underSilver-=s; game.currencies.underGold-=g; game.currencies.runeShard-=shard;
+    st.enhanceLvByNo[no]=lv+1;
+    ensureUnderworldRuneBonusMilestones(no);
+    let bonusCnt = (st.bonusLinesByNo[no]||[]).length;
+    addLog(`🧿 룬 강화 성공: 룬${no} +${lv+1} (보너스 옵션 ${bonusCnt}줄)`, 'loot-unique');
+    updateStaticUI();
+}
+function rerollUnderworldRuneBonus(){
+    let st=ensureUnderworldRuneState();
+    let v=prompt('리롤할 룬 번호(1~30)를 입력하세요.','1'); if(v===null) return;
+    let no=Math.max(1,Math.min(30,Math.floor(Number(v)||0)));
+    let lv=Math.max(0,Math.floor((st.enhanceLvByNo||{})[no]||0));
+    let lineCount = lv >= 15 ? 3 : (lv >= 10 ? 2 : (lv >= 5 ? 1 : 0));
+    if(lineCount<=0) return addLog('해당 룬은 +5 이상부터 리롤할 보너스 옵션이 생깁니다.','attack-monster');
+    let c=180 + lv*110, s=95 + lv*80, g=36 + lv*34;
+    if((game.currencies.underCopper||0)<c||(game.currencies.underSilver||0)<s||(game.currencies.underGold||0)<g) return addLog(`리롤 재화 부족 (구리${c}/은${s}/금${g})`,'attack-monster');
+    game.currencies.underCopper-=c; game.currencies.underSilver-=s; game.currencies.underGold-=g;
+    st.bonusLinesByNo[no] = Array.from({length:lineCount}, ()=>rollUnderworldRuneBonusLine());
+    let txt = st.bonusLinesByNo[no].map(r=>`${getStatName(r.stat)} +${formatValue(r.stat,r.val)}`).join(' / ');
+    addLog(`🎲 룬 옵션 리롤: 룬${no} 보너스 ${lineCount}줄 재설정 → ${txt}`,'season-up');
+    updateStaticUI();
+}
