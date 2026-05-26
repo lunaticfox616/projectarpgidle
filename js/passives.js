@@ -5247,14 +5247,17 @@ function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) retur
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if ((game.currencies.enchantedHoney || 0) <= 0) return addLog('마력 깃든 벌꿀이 부족합니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    if (item.stats.length <= 0) return addLog('고정할 옵션이 없습니다.', 'attack-monster');
+    if (item.stats.length < 4) return addLog('벌꿀 고정은 추가 옵션이 4개 이상일 때만 사용할 수 있습니다.', 'attack-monster');
     if (item.stats.some(stat => stat && stat.lockedByHoney)) return addLog('이 장비에는 이미 고정 옵션이 있습니다.', 'attack-monster');
-    let pick = item.stats[Math.floor(Math.random() * item.stats.length)];
+    let candidates = item.stats.filter(stat => stat && !stat.lockedByRift);
+    if (candidates.length <= 0) return addLog('고정 가능한 옵션이 없습니다.', 'attack-monster');
+    let pick = candidates[Math.floor(Math.random() * candidates.length)];
     pick.lockedByHoney = true;
     game.currencies.enchantedHoney--;
     addLog(`🍯 [${item.name}] 옵션 고정 적용: ${pick.statName || getStatName(pick.id)}`, 'loot-unique');
     updateStaticUI();
 }
+
 
 function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
