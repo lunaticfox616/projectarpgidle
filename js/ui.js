@@ -4110,13 +4110,17 @@ function updateSearchFilter(key, value) {
     d[key] = String(value || '');
     let cursor = null;
     let active = document.activeElement;
+    let activeTabId = null;
     if (active && active.tagName === 'INPUT' && active.dataset && active.dataset.searchKey === key) {
         let pos = Number(active.selectionStart);
         cursor = Number.isFinite(pos) ? pos : String(value || '').length;
+        let activeTab = active.closest('.tab-content.active');
+        activeTabId = activeTab ? activeTab.id : null;
     }
     if (typeof updateStaticUI === 'function') updateStaticUI();
     if (cursor !== null) {
-        let next = document.querySelector(`input[data-search-key="${key}"]`);
+        let scope = activeTabId ? document.getElementById(activeTabId) : null;
+        let next = scope ? scope.querySelector(`input[data-search-key="${key}"]`) : document.querySelector(`input[data-search-key="${key}"]`);
         if (next) {
             next.focus();
             let len = next.value.length;
