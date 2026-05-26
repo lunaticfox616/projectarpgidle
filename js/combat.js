@@ -866,7 +866,15 @@ function getPlayerStats() {
         let itemBaseStats = scaleStatList((item.baseStats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * qualityMul).toFixed(2)) } : stat), itemStatMultiplier);
         applyStatsToBucket(gearBase, itemBaseStats);
         let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
-        let explicitItemStats = scaleStatList((item.stats || []).concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
+        let riftAmpRow = (item.stats || []).find(stat => stat && stat.id === 'fossilRiftAmp');
+        let riftAmpMul = 1 + (Math.max(0, Number(riftAmpRow && riftAmpRow.val) || 0) / 100);
+        let adjustedExplicitStats = (item.stats || []).map(stat => {
+            if (!stat) return stat;
+            if (stat.id === 'fossilRiftBlank' || stat.id === 'fossilRiftAmp') return stat;
+            if (!Number.isFinite(Number(stat.val))) return stat;
+            return { ...stat, val: Number((Number(stat.val) * riftAmpMul).toFixed(2)) };
+        });
+        let explicitItemStats = scaleStatList(adjustedExplicitStats.concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
         applyStatsToBucket(gearExplicit, explicitItemStats);
         let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
         let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;
@@ -1250,7 +1258,7 @@ function getPlayerStats() {
     let finalFreezeChance = sumAilmentChanceStat('freezeChance');
     let finalPoisonChance = sumAilmentChanceStat('poisonChance');
     let finalBleedChance = sumAilmentChanceStat('bleedChance');
-    let ailmentCritChance = { ignite: 100, chill: 100, freeze: 100, poison: 100, bleed: 100 };
+    let ailmentCritChance = { ignite: 25, chill: 25, freeze: 25, poison: 25, bleed: 25 };
     let isSpellSkill = Array.isArray(skill.tags) && skill.tags.includes('spell');
     let isDotSkill = Array.isArray(skill.tags) && skill.tags.includes('dot');
     let spellFlatDmg = 0;
@@ -1289,7 +1297,7 @@ function getPlayerStats() {
 
     let gearCrit = gearBase.crit + gearExplicit.crit;
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
-    let finalCrit = Math.min(100, (5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82);
+    let finalCrit = Math.min(100, (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82);
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
     let zonePenalty = getZone(game.currentZoneId) || getZone(0);
     if (zonePenalty && zonePenalty.type === 'underworld') {
@@ -1714,7 +1722,7 @@ function getPlayerStats() {
                 makeSourceLine('보조 젬', support[statId] || 0, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('성좌 각성', starBlessing[statId] || 0, '%', value => `${value.toFixed(1)}%`),
                 note || `치명타 시 해당 상태 이상 확률: ${Math.floor(critValue)}%`,
-                note ? null : '비치명타는 위 확률을 사용하며, 치명타는 기본적으로 해당 피해 속성의 상태 이상을 보장합니다.'
+                note ? null : '비치명타는 위 확률을 사용하며, 치명타는 해당 상태 이상 확률에 +25%가 추가됩니다.'
             ].filter(Boolean),
             final: `${Math.max(0, finalValue).toFixed(1)}%`
         };
@@ -1762,7 +1770,7 @@ function getPlayerStats() {
         crit: {
             title: '치명타 확률',
             lines: [
-                `기본 5.0%`,
+                `기본 2.5%`,
                 makeSourceLine('장비', gearCrit, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passiveCrit, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('보조 젬', support.crit, '%', value => `${value.toFixed(1)}%`),
@@ -1943,6 +1951,18 @@ function getPlayerStats() {
                 makeSourceLine('암흑 치환', warlockElementalOvercapToChaos, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
             final: `${Math.floor(finalResChaos)}%`
+        },
+
+        ailmentResist: {
+            title: '상태이상 저항 확률',
+            lines: [
+                `점화 저항: ${Math.floor(getPlayerAilmentResistChance('ignite', { resF: finalResF, ailResIgnite: (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0), ailmentResistBonusPct }))}%`,
+                `냉각/동결 저항: ${Math.floor(getPlayerAilmentResistChance('freeze', { resC: finalResC, ailResFreeze: (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0), ailmentResistBonusPct }))}%`,
+                `감전 저항: ${Math.floor(getPlayerAilmentResistChance('shock', { resL: finalResL, ailResShock: (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0), ailmentResistBonusPct }))}%`,
+                `중독 저항: ${Math.floor(getPlayerAilmentResistChance('poison', { resChaos: finalResChaos, ailResPoison: (gearExplicit.ailResPoison || 0) + (passive.ailResPoison || 0) + (season.ailResPoison || 0) + (ascend.ailResPoison || 0) + (reward.ailResPoison || 0), ailmentResistBonusPct }))}%`,
+                `출혈 저항: ${Math.floor(getPlayerAilmentResistChance('bleed', { dr: finalDr, ailResBleed: (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0), ailmentResistBonusPct }))}%`
+            ],
+            final: `${Math.floor(ailmentResistBonusPct)}% 추가 저항`
         },
         dmgRoll: {
             title: '피해 보정 범위',
@@ -2789,7 +2809,8 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
     let hitPower = Math.sqrt(Math.max(1, ailmentPowerSourceDamage)) * 0.01;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
     function applyAilmentType(type, forceChance) {
-        let tryProc = isCrit ? 1 : (Number.isFinite(forceChance) ? forceChance : getPlayerAilmentChance(pStats, type));
+        let baseChance = (Number.isFinite(forceChance) ? forceChance : getPlayerAilmentChance(pStats, type));
+        let tryProc = Math.max(0, Math.min(1, baseChance + (isCrit ? 0.25 : 0)));
         if (Math.random() >= tryProc) return false;
         let resKey = 'ailRes' + type.charAt(0).toUpperCase() + type.slice(1);
         let resistChance = Math.max(0, Math.min(0.95, (enemy[resKey] || 0) / 100));
