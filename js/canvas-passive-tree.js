@@ -304,6 +304,19 @@ function getDropOnlyItemSourceMeta(item) {
 
 function renderPaperdoll(targetId, forCrafting) {
     let html = '';
+    let query = '';
+    try {
+        if (typeof getSearchFilterState === 'function') {
+            let sf = getSearchFilterState();
+            query = sf && typeof sf.equip === 'string' ? sf.equip : '';
+        }
+    } catch (_e) { query = ''; }
+    let hi = (text) => {
+        try {
+            if (typeof highlightSearchText === 'function') return highlightSearchText(text, query);
+        } catch (_e) {}
+        return escapeHTML(String(text || ''));
+    };
     ['무기', '투구', '목걸이', '장갑1', '갑옷', '장갑2', '반지1', '허리띠', '반지2', '신발'].forEach(slot => {
         let item = game.equipment[slot];
         let displaySlot = slot.replace(/[12]/, '');
@@ -313,7 +326,7 @@ function renderPaperdoll(targetId, forCrafting) {
             if (item.chaosInfusion) displayStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
             if (typeof getImmutableItemSpecialStats === 'function') displayStats = displayStats.concat(getImmutableItemSpecialStats(item));
             else if (item.encroached && !item.encroached.liberated) displayStats.push({ id: 'encroached', val: 0, statName: '[잠식] 해방 전' });
-            let statsHtml = displayStats.slice(0, 2).map(stat => `${stat.statName} +${formatValue(stat.id, stat.val)}`).join('<br>');
+            let statsHtml = displayStats.slice(0, 2).map(stat => `${hi(stat.statName)} +${formatValue(stat.id, stat.val)}`).join('<br>');
             let canSelectFromEquipTab = !forCrafting && targetId === 'ui-equip-list';
             let click = (forCrafting || canSelectFromEquipTab) ? `selectForCrafting('${slot}', true)` : '';
             let doubleClick = `event.stopPropagation(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
@@ -331,15 +344,28 @@ function renderPaperdoll(targetId, forCrafting) {
 
 function renderInventoryCard(item, idx, mode) {
     let selected = !isCraftSelectionEquip() && getCraftSelectionRef() === item.id;
+    let query = '';
+    try {
+        if (typeof getSearchFilterState === 'function') {
+            let sf = getSearchFilterState();
+            query = sf && typeof sf.equip === 'string' ? sf.equip : '';
+        }
+    } catch (_e) { query = ''; }
+    let hi = (text) => {
+        try {
+            if (typeof highlightSearchText === 'function') return highlightSearchText(text, query);
+        } catch (_e) {}
+        return escapeHTML(String(text || ''));
+    };
     let lockIcon = item.locked ? ' 🔒' : '';
     let lockBtnLabel = item.locked ? '잠금해제' : '잠금';
     let lines = [];
     let toneFn = (typeof window !== 'undefined' && typeof window.getItemStatToneColor === 'function') ? window.getItemStatToneColor : null;
     let tone = (statId) => toneFn ? toneFn(statId) : '#d7e9ff';
-    (item.baseStats || []).forEach(stat => lines.push(`<span style="color:${tone(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
-    (item.stats || []).slice(0, 3).forEach(stat => lines.push(`<span style="color:${tone(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
+    (item.baseStats || []).forEach(stat => lines.push(`<span style="color:${tone(stat.id)}">${hi(stat.statName)} +${formatValue(stat.id, stat.val)}</span>`));
+    (item.stats || []).slice(0, 3).forEach(stat => lines.push(`<span style="color:${tone(stat.id)}">${hi(stat.statName)} +${formatValue(stat.id, stat.val)}</span>`));
     if (item.chaosInfusion) lines.push(`<span style="color:#d7a8ff">[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}</span>`);
-    if (typeof getImmutableItemSpecialStats === 'function') getImmutableItemSpecialStats(item).slice(0, 1).forEach(stat => lines.push(`<span style="color:#d7b8ff">${stat.statName} +${formatValue(stat.id, stat.val)}</span>`));
+    if (typeof getImmutableItemSpecialStats === 'function') getImmutableItemSpecialStats(item).slice(0, 1).forEach(stat => lines.push(`<span style="color:#d7b8ff">${hi(stat.statName)} +${formatValue(stat.id, stat.val)}</span>`));
     if (item.encroached && !item.encroached.liberated) lines.push(`<span style="color:#8d7bb3">[잠식] 해방 전</span>`);
     if ((item.stats || []).length === 0 && !item.chaosInfusion && !item.encroached) lines.push(`<span style="color:#7f8c8d">추가 옵션 없음</span>`);
     let actions = '';
@@ -356,7 +382,7 @@ function renderInventoryCard(item, idx, mode) {
     let sourceMeta = getDropOnlyItemSourceMeta(item);
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
     let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
-    return `<div class="item-card ${selected ? 'selected' : ''} ${sourceTone}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${item.slot}] ${item.name}${sourceBadge}${recordedTag}${lockIcon}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${item.baseName}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
+    return `<div class="item-card ${selected ? 'selected' : ''} ${sourceTone}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${item.slot}] ${hi(item.name)}${sourceBadge}${recordedTag}${lockIcon}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${item.baseName}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
 }
 
 function triggerMapUnlockReveal(zoneId) {
