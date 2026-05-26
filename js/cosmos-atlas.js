@@ -372,6 +372,26 @@
         installed: false,
         needsFrame: false
     };
+    const COSMOS_MASTERY_NODES = [
+        { key: 'planetRelief', name: '행성 패널티 완화', max: 30, cost: 1, desc: '행성 진행도/중력 패널티 완화 +1.2% (최대 36%)' },
+        { key: 'asteroidRelief', name: '소행성 패널티 완화', max: 20, cost: 1, desc: '소행성 요구치 완화 +1.5% (최대 30%)' },
+        { key: 'combatFocus', name: '전투 파밍 집중', max: 15, cost: 1, desc: '전투 드랍/전리품 기대치 +1.5% (최대 22.5%)' },
+        { key: 'craftFocus', name: '제작 파밍 집중', max: 15, cost: 1, desc: '제작 재료 드랍 기대치 +1.5% (최대 22.5%)' },
+        { key: 'stardustGain', name: '별가루 증폭', max: 20, cost: 1, desc: '우주계 별가루 획득 +1.5% (최대 30%)' },
+        { key: 'challengeEase', name: '행성 난이도 완화', max: 10, cost: 1, desc: '행성 전투 난이도 -1.5% (최대 -15%)' },
+        { key: 'highRisk', name: '고위험 난이도', max: 10, cost: 1, desc: '우주계 난이도 +2% (최대 +20%), 보상 +3% (최대 +30%)' },
+        { key: 'bossBounty', name: '보스 보상 강화', max: 5, cost: 1, desc: '은하 보스 별가루 보상 +4% (최대 +20%)' }
+    ];
+    const COSMOS_MASTERY_LINKS = {
+        planetRelief: [],
+        asteroidRelief: ['planetRelief:5'],
+        combatFocus: ['planetRelief:8'],
+        craftFocus: ['asteroidRelief:6'],
+        stardustGain: ['combatFocus:6', 'craftFocus:6'],
+        challengeEase: ['planetRelief:12'],
+        highRisk: ['challengeEase:4', 'stardustGain:8'],
+        bossBounty: ['highRisk:4']
+    };
 
     function hashSeed(input) {
         let h = 2166136261;
@@ -556,8 +576,55 @@
         state.bossRelics = Array.isArray(state.bossRelics) ? state.bossRelics : [];
         state.bossStones = state.bossStones && typeof state.bossStones === 'object' ? state.bossStones : {};
         state.equippedStoneGalaxy = Number.isFinite(state.equippedStoneGalaxy) ? Math.max(0, Math.min(5, Math.floor(state.equippedStoneGalaxy))) : 0;
+        state.masteryPointsSpent = Math.max(0, Math.floor(state.masteryPointsSpent || 0));
+        state.mastery = state.mastery && typeof state.mastery === 'object' ? state.mastery : {};
+        COSMOS_MASTERY_NODES.forEach(node => {
+            state.mastery[node.key] = Math.max(0, Math.min(node.max, Math.floor(state.mastery[node.key] || 0)));
+        });
         if (!state.camera) state.camera = { x: 0, y: 0, scale: 0.72 };
         return state;
+    }
+    function getCosmosMasteryValue(key) {
+        const state = getState();
+        return Math.max(0, Math.floor((state.mastery || {})[key] || 0));
+    }
+    function getCosmosMasteryTotalPoints() {
+        const state = getState();
+        return ATLAS.nodes.reduce((sum, node) => sum + (state.cleared.includes(node.id) ? 1 : 0), 0);
+    }
+    function getCosmosMasteryFreePoints() {
+        const state = getState();
+        const spent = COSMOS_MASTERY_NODES.reduce((sum, node) => sum + getCosmosMasteryValue(node.key) * node.cost, 0);
+        state.masteryPointsSpent = spent;
+        return Math.max(0, getCosmosMasteryTotalPoints() - spent);
+    }
+    function allocateCosmosMastery(nodeKey) {
+        const state = getState();
+        const node = COSMOS_MASTERY_NODES.find(n => n.key === nodeKey);
+        if (!node) return;
+        const reqFail = getCosmosMasteryLockReason(node.key);
+        if (reqFail) return window.addLog && window.addLog(reqFail, 'attack-monster');
+        const current = getCosmosMasteryValue(node.key);
+        if (current >= node.max) return window.addLog && window.addLog('해당 성도술 노드는 이미 최대 단계입니다.', 'attack-monster');
+        if (getCosmosMasteryFreePoints() < node.cost) return window.addLog && window.addLog(`성도술 포인트가 부족합니다. (필요: ${node.cost})`, 'attack-monster');
+        state.mastery[node.key] = current + 1;
+        state.masteryPointsSpent += node.cost;
+        if (typeof window.addLog === 'function') window.addLog(`✨ 성도술 강화: ${node.name} ${current + 1}/${node.max}`, 'season-up');
+        renderCosmosAtlas();
+    }
+    function getCosmosMasteryLockReason(nodeKey) {
+        const node = COSMOS_MASTERY_NODES.find(n => n.key === nodeKey);
+        if (!node) return null;
+        const reqs = COSMOS_MASTERY_LINKS[node.key] || [];
+        for (let i = 0; i < reqs.length; i++) {
+            const [reqKey, reqLvRaw] = String(reqs[i]).split(':');
+            const reqLv = Math.max(1, Math.floor(Number(reqLvRaw || 1)));
+            if (getCosmosMasteryValue(reqKey) < reqLv) {
+                const reqNode = COSMOS_MASTERY_NODES.find(n => n.key === reqKey);
+                return `선행 노드 필요: ${(reqNode && reqNode.name) || reqKey} ${reqLv}레벨`;
+            }
+        }
+        return null;
     }
 
     function isCosmosUnlocked() {
@@ -619,26 +686,19 @@
         return status === 'cleared' && node.tag === 'boss';
     }
 
-    function getCosmosPowerScore() {
-        if (!window.game) return 0;
-        const lv = Math.max(1, Math.floor(window.game.level || 1));
-        const loop = Math.max(0, Math.floor(window.game.loopCount || 0));
-        const rel = Math.max(0, Math.floor((((window.game.cosmosAtlas || {}).bossRelics || []).length)));
-        return lv * 8 + loop * 40 + rel * 65;
-    }
-
-
-
     function getCosmosEquivalentUnderworldFloor(node) {
         const tier = Math.max(1, Math.floor(getDisplayedNodeTier(node) || 1));
         return 30 + (tier - 1);
     }
-    function getNodeChallengeNeed(node) {
+    function getCosmosChallengeTier(node) {
         const tier = Math.max(1, Math.floor(getDisplayedNodeTier(node) || 1));
-        const uwFloor = getCosmosEquivalentUnderworldFloor(node);
-        const bossMul = node && node.tag === 'boss' ? 2.6 : 1;
-        // Cosmos T1 ~= Underworld 30F baseline, then scale up with tier/floor.
-        return Math.floor((220 + (uwFloor * 11) + (tier * 56)) * bossMul);
+        const ease = getCosmosMasteryValue('challengeEase') * 0.015;
+        const risk = getCosmosMasteryValue('highRisk') * 0.02;
+        const relief = node && node.kind === 'planet'
+            ? getCosmosMasteryValue('planetRelief') * 0.012
+            : getCosmosMasteryValue('asteroidRelief') * 0.015;
+        const finalMul = Math.max(0.65, 1 + risk - ease - relief);
+        return Math.max(1, Math.floor(tier * finalMul));
     }
 
 
@@ -1168,6 +1228,7 @@
             <div><b>${cleared}</b> / ${ATLAS.nodes.length} 탐사 완료</div>
             <div>행성 ${planetsCleared} / 50 · 소행성 ${asteroidsCleared} / 75</div>
             <div>탐사 가능 노드: <b>${unlocked ? available : 0}</b></div>
+            <div>성도술 포인트: <b>${getCosmosMasteryFreePoints()}</b> / ${getCosmosMasteryTotalPoints()}</div>
             <div>별가루: <b>${state.starDust}</b></div>
             <div>은하 유물(랜덤): <b>${(state.bossRelics || []).length}</b></div>
             <div>우주석 슬롯: <b>${Math.max(0, Math.floor(state.equippedStoneGalaxy || 0))}</b> / 5</div>`;
@@ -1201,6 +1262,21 @@
                 <div>크기 등급: ${Math.max(1, Math.floor(node.sizeClass || 1))} · 중력: ${Number(node.gravity || 1).toFixed(1)}g</div>
                 <div style="margin-top:4px; color:#a9bdd3;">진행도 요구치: +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 패널티 강도: +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</div>
             </div>
+            <div class="cosmos-detail-section">
+                <div class="cosmos-section-label">성도술 (탐사 1회당 1포인트)</div>
+                <div style="margin-bottom:6px;">가용 포인트: <b>${getCosmosMasteryFreePoints()}</b> / 누적 획득 <b>${getCosmosMasteryTotalPoints()}</b></div>
+                ${COSMOS_MASTERY_NODES.map(n => {
+                    const lockReason = getCosmosMasteryLockReason(n.key);
+                    const canSpend = getCosmosMasteryFreePoints() >= n.cost && getCosmosMasteryValue(n.key) < n.max && !lockReason;
+                    const links = COSMOS_MASTERY_LINKS[n.key] || [];
+                    const linkLine = links.length ? `연결 조건: ${links.map(v => {
+                        const [k, lv] = String(v).split(':');
+                        const r = COSMOS_MASTERY_NODES.find(row => row.key === k);
+                        return `${r ? r.name : k} ${Math.max(1, Math.floor(Number(lv || 1)))}Lv`;
+                    }).join(' · ')}` : '연결 조건: 시작 노드';
+                    return `<div style="margin-bottom:6px;"><button onclick="allocateCosmosMastery('${n.key}')" ${canSpend ? '' : 'disabled'}>+</button> <b>${n.name}</b> ${getCosmosMasteryValue(n.key)}/${n.max}<div style="font-size:11px;color:#9cb2ca;">${n.desc}</div><div style="font-size:11px;color:${lockReason ? '#ffb3b3' : '#86a9d2'};">${lockReason || linkLine}</div></div>`;
+                }).join('')}
+            </div>
             <div class="cosmos-actions">
                 <button onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '보스 도전' : '전투 도전'}</button>
                 ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 장착</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">초점 이동</button>
@@ -1209,15 +1285,16 @@
             <div class="cosmos-help">${isCosmosUnlocked() ? '탐사 완료된 노드와 연결된 노드가 다음 탐사 후보로 열린다.' : '우주계는 지하계 30층 도달 시 해금된다.'}</div>`;
     }
 
-    function exploreSelectedCosmosNode() {
+    function exploreSelectedCosmosNode(nodeIdOverride) {
         buildCosmosAtlasData();
         const state = getState();
-        const node = ATLAS.byId.get(ATLAS.selectedId || state.selectedId || 'planet-0');
+        const targetId = nodeIdOverride || ATLAS.selectedId || state.selectedId || 'planet-0';
+        const node = ATLAS.byId.get(targetId);
         if (!node) return;
         const status = getNodeStatus(node);
         const repeatBossRun = status === 'cleared' && node.tag === 'boss';
         if (status === 'available') {
-            if (typeof window.addLog === 'function') window.addLog('우주계 노드는 도전에 성공해야 탐사가 완료됩니다.', 'attack-monster');
+            if (typeof window.addLog === 'function') window.addLog('행성은 도전에 성공해야 탐사가 완료됩니다.', 'attack-monster');
             return;
         }
         if (!(status === 'available' || repeatBossRun)) {
@@ -1232,7 +1309,15 @@
             const g = String(Math.max(1, Math.min(5, Math.floor(node.orbit || 1))));
             if (!state.bossStones[g]) state.bossStones[g] = getBossStoneName(node);
         }
-        const reward = node.tag === 'boss' ? (30 + node.orbit * 10 + getBossStage(node) * 10) : (node.kind === 'planet' ? 5 + node.orbit * 2 : 2 + node.orbit);
+        const rewardBase = node.tag === 'boss' ? (30 + node.orbit * 10 + getBossStage(node) * 10) : (node.kind === 'planet' ? 5 + node.orbit * 2 : 2 + node.orbit);
+        const focusMul = node.kind === 'planet'
+            ? (1 + getCosmosMasteryValue('combatFocus') * 0.015)
+            : (1 + getCosmosMasteryValue('craftFocus') * 0.015);
+        const rewardMul = 1
+            + getCosmosMasteryValue('stardustGain') * 0.015
+            + getCosmosMasteryValue('highRisk') * 0.03
+            + (node.tag === 'boss' ? getCosmosMasteryValue('bossBounty') * 0.04 : 0);
+        const reward = Math.max(1, Math.floor(rewardBase * rewardMul * focusMul));
         state.starDust = Math.max(0, Math.floor(state.starDust || 0)) + reward;
         if (window.game && window.game.currencies) {
             window.game.currencies.starDust = Math.max(0, Math.floor(window.game.currencies.starDust || 0)) + reward;
@@ -1255,27 +1340,46 @@
 
 
 
+    function startCosmosBattle(node) {
+        if (!window.game || !node) return;
+        const tier = getCosmosChallengeTier(node);
+        const gravity = Math.max(1, Number(node.gravity || 1));
+        const sizeClass = Math.max(1, Math.floor(node.sizeClass || 1));
+        const state = getState();
+        state.activeChallenge = {
+            nodeId: node.id,
+            name: node.name,
+            tier,
+            gravity,
+            sizeClass,
+            tag: node.tag || '',
+            theme: node.theme || '',
+            ele: node.tag === 'boss' ? 'chaos' : (node.tag === 'cold' ? 'cold' : (node.tag === 'fire' ? 'fire' : (node.tag === 'light' ? 'light' : 'chaos')))
+        };
+        window.game.currentZoneId = 'cosmos_challenge';
+        window.game.killsInZone = 0;
+        window.game.enemies = [];
+        window.game.encounterPlan = [];
+        window.game.encounterIndex = 0;
+        window.game.runProgress = 0;
+        window.game.moveTimer = 0;
+        window.game.combatHalted = false;
+        if (typeof window.startMoving === 'function') window.startMoving(true);
+    }
+
     function challengeSelectedCosmosNode() {
         buildCosmosAtlasData();
         const state = getState();
         const node = ATLAS.byId.get(ATLAS.selectedId || state.selectedId || 'planet-0');
         if (!node) return;
         if (!canChallengeNode(node)) {
-            if (typeof window.addLog === 'function') window.addLog('해당 우주 노드는 아직 도전할 수 없습니다.', 'attack-monster');
+            if (typeof window.addLog === 'function') window.addLog('해당 행성은 아직 도전할 수 없습니다.', 'attack-monster');
             return;
         }
-        const power = getCosmosPowerScore();
-        const need = getNodeChallengeNeed(node);
-        const success = power >= need || Math.random() < Math.min(0.35, Math.max(0.02, (power / Math.max(1, need)) * 0.08));
         if (typeof window.addLog === 'function') {
-            window.addLog(`⚔️ ${node.name} 도전: 전력 ${power} / 요구 ${need}`, 'attack-monster');
+            window.addLog(`⚔️ ${node.name} 도전 시작: 중력 ${Number(node.gravity || 1).toFixed(1)}g · 크기 등급 ${Math.max(1, Math.floor(node.sizeClass || 1))} · 특징 ${node.theme}`, 'attack-monster');
         }
-        if (!success) {
-            if (typeof window.addLog === 'function') window.addLog('패배! 세팅을 보강하고 다시 도전하세요.', 'attack-monster');
-            return;
-        }
-        if (typeof window.addLog === 'function') window.addLog(node.tag === 'boss' && getNodeStatus(node) === 'cleared' ? '승리! 보스 재도전 보상을 정산합니다.' : '승리! 해당 노드의 탐사 완료를 진행합니다.', 'season-up');
-        exploreSelectedCosmosNode();
+        startCosmosBattle(node);
     }
 
 
@@ -1306,6 +1410,7 @@
     window.renderCosmosAtlas = renderCosmosAtlas;
     window.exploreSelectedCosmosNode = exploreSelectedCosmosNode;
     window.challengeSelectedCosmosNode = challengeSelectedCosmosNode;
+    window.allocateCosmosMastery = allocateCosmosMastery;
     window.equipBossStoneByGalaxy = equipBossStoneByGalaxy;
     window.focusCosmosAtlasOnSelected = focusCosmosAtlasOnSelected;
     window.resetCosmosAtlasCamera = resetCosmosAtlasCamera;

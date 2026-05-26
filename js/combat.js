@@ -2497,6 +2497,14 @@ function createEnemy(zone, marker, groupIndex) {
 }
 
 function getZoneEncounterProfile(zone) {
+    if (zone.type === 'cosmos') {
+        let gravity = Math.max(1, Number(zone.gravity || 1));
+        let sizeClass = Math.max(1, Math.floor(zone.sizeClass || 1));
+        let markerCount = Math.max(4, Math.min(12, 4 + sizeClass + Math.floor((gravity - 1) * 4)));
+        let minPack = Math.max(2, Math.min(6, 2 + Math.floor(sizeClass / 2)));
+        let maxPack = Math.max(minPack, Math.min(9, minPack + 2 + Math.floor((gravity - 1) * 2)));
+        return { markerCount, minPack, maxPack, eliteChance: Math.min(0.75, 0.16 + sizeClass * 0.05), bossAdds: 2 + Math.floor(sizeClass / 2), label: zone.name || '우주계' };
+    }
     if (zone.type === 'chaosRealm') return { markerCount: 4 + Math.floor((zone.floor || 1) / 8), minPack: 2, maxPack: Math.min(8, 3 + Math.floor((zone.floor || 1) / 6)), eliteChance: 0.35, bossAdds: 2 + Math.floor((zone.floor || 1) / 12), label: `혼돈계 ${zone.floor || 1}층` };
     if (zone.type === 'underworld') {
         let floor = Math.max(1, Math.floor(zone.floor || 1));
@@ -2549,6 +2557,19 @@ function getZoneEncounterProfile(zone) {
 }
 
 function generateEncounterPlan(zone) {
+    if (zone.type === 'cosmos') {
+        let p = getZoneEncounterProfile(zone);
+        let plan = [];
+        for (let i = 1; i <= p.markerCount; i++) {
+            plan.push({
+                at: Math.min(98, Math.floor((100 / (p.markerCount + 1)) * i)),
+                count: p.minPack + Math.floor(Math.random() * Math.max(1, (p.maxPack - p.minPack + 1))),
+                elite: Math.random() < p.eliteChance
+            });
+        }
+        plan.push({ at: 100, count: Math.max(1, p.bossAdds), boss: true });
+        return plan;
+    }
     if (zone.type === 'meteor') return [{ at: 36, count: 2, elite: true }, { at: 76, count: 3, elite: true }, { at: 100, count: 2, boss: true }];
     if (zone.type === 'trial') return [{ at: 18, count: 1, elite: true }, { at: 54, count: 2, elite: true }, { at: 100, count: 2, boss: true }];
     if (zone.id === 's6_beast_cerberus') {
@@ -3769,6 +3790,18 @@ function finishEncounterRun() {
         startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
+        return;
+    }
+    if (zone.type === 'cosmos') {
+        if (typeof window.exploreSelectedCosmosNode === 'function') {
+            window.exploreSelectedCosmosNode(zone.cosmosNodeId || null);
+        }
+        if (game.cosmosAtlas && typeof game.cosmosAtlas === 'object') game.cosmosAtlas.activeChallenge = null;
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+        game.killsInZone = 0;
+        startMoving(false);
+        updateStaticUI();
+        queueImportantSave(200);
         return;
     }
 
