@@ -1285,10 +1285,11 @@
             <div class="cosmos-help">${isCosmosUnlocked() ? '탐사 완료된 노드와 연결된 노드가 다음 탐사 후보로 열린다.' : '우주계는 지하계 30층 도달 시 해금된다.'}</div>`;
     }
 
-    function exploreSelectedCosmosNode() {
+    function exploreSelectedCosmosNode(nodeIdOverride) {
         buildCosmosAtlasData();
         const state = getState();
-        const node = ATLAS.byId.get(ATLAS.selectedId || state.selectedId || 'planet-0');
+        const targetId = nodeIdOverride || ATLAS.selectedId || state.selectedId || 'planet-0';
+        const node = ATLAS.byId.get(targetId);
         if (!node) return;
         const status = getNodeStatus(node);
         const repeatBossRun = status === 'cleared' && node.tag === 'boss';

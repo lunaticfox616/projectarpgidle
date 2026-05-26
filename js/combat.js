@@ -3794,8 +3794,9 @@ function finishEncounterRun() {
     }
     if (zone.type === 'cosmos') {
         if (typeof window.exploreSelectedCosmosNode === 'function') {
-            window.exploreSelectedCosmosNode();
+            window.exploreSelectedCosmosNode(zone.cosmosNodeId || null);
         }
+        if (game.cosmosAtlas && typeof game.cosmosAtlas === 'object') game.cosmosAtlas.activeChallenge = null;
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         startMoving(false);
