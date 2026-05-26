@@ -4208,6 +4208,16 @@ function bulkSalvageEquipBySearch(salvageUnmatched) {
     const sf = getSearchFilterState();
     const survivors = [];
     let removed = 0, lockedSkipped = 0;
+    const targetCount = (game.inventory || []).reduce((count, item) => {
+        if (!item) return count;
+        const underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
+        const hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
+        const matched = matchSearchQuery(hay, sf.equip);
+        if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched) || item.locked) return count;
+        return count + 1;
+    }, 0);
+    if (targetCount <= 0) return addLog('해체 대상이 없습니다.', 'attack-monster');
+    if (!confirm(`장비 ${targetCount}개를 해체할까요?`)) return;
     (game.inventory || []).forEach(item => {
         if (!item) return;
         const underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
@@ -4218,22 +4228,29 @@ function bulkSalvageEquipBySearch(salvageUnmatched) {
         salvageItemObject(item, true); removed++;
     });
     game.inventory = survivors;
-    if (removed <= 0) return addLog(`해체 대상이 없습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
     addLog(`🧪 장비 ${removed}개 해체 완료${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 function bulkSalvageJewelsBySearch(salvageUnmatched) {
     if (!assertBuildEditable()) return;
     const sf = getSearchFilterState();
-    let removed = 0;
+    const targets = [];
     for (let i = (game.jewelInventory || []).length - 1; i >= 0; i--) {
         const jewel = game.jewelInventory[i] || {};
         const statText = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} ${stat.id} ${stat.val}`).join(' ');
         const matched = matchSearchQuery(`${jewel.name || ''} ${jewel.rarity || ''} ${statText}`, sf.jewel);
-        if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched)) continue;
-        salvageJewelObject(jewel, true); game.jewelInventory.splice(i, 1); removed++;
+        if (shouldBulkSalvageBySearch(matched, !!salvageUnmatched)) targets.push(i);
     }
-    if (removed <= 0) return addLog('해체 대상 주얼이 없습니다.', 'attack-monster');
+    if (targets.length <= 0) return addLog('해체 대상 주얼이 없습니다.', 'attack-monster');
+    if (!confirm(`주얼 ${targets.length}개를 해체할까요?`)) return;
+    let removed = 0;
+    targets.forEach(i => {
+        const jewel = game.jewelInventory[i];
+        if (!jewel) return;
+        salvageJewelObject(jewel, true);
+        game.jewelInventory.splice(i, 1);
+        removed++;
+    });
     jewelFusionSelection = [];
     addLog(`💠 주얼 ${removed}개 해체 완료`, 'loot-normal'); updateStaticUI();
 }
@@ -4283,7 +4300,7 @@ function buildJewelRangeTooltipHtml(jewel) {
     return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
 }
 
-safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor, updateSearchFilter });
+safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor, updateSearchFilter, bulkSalvageEquipBySearch, bulkSalvageJewelsBySearch, bulkSalvageTalismansBySearch });
 
 
 function showSocketedJewelTooltip(event, socketType, socketIdx) {
