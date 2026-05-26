@@ -6405,7 +6405,7 @@ function useCurrency(currencyKey) {
         if (currencyKey === 'deepWhetstone') ok = isWeapon;
         if (currencyKey === 'rootIron') ok = isArmor;
         if (currencyKey === 'jewelPolish') ok = isAccessory;
-        ok = ok && Math.max(0, Math.floor(item.quality || 0)) < 20;
+        ok = ok && Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
     }
     if (!ok) return addLog("지금 선택한 아이템에는 사용할 수 없습니다.", "attack-monster");
     if (currencyKey === 'divine' && !confirm('정말 신성한 오브를 사용하시겠습니까?')) return;
