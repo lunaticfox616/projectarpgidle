@@ -975,7 +975,7 @@ function generateOrganicTree() {
             node.webCellRing = depth;
             node.val = getTierValue(statForStep, tier);
             if (statForStep === 'critDmg') {
-                if (chainLength === 4) node.val = [10, 10, 10, 20][i - 1];
+                if (chainLength === 4) node.val = [8, 8, 12, 20][i - 1];
                 else if (chainLength === 5) node.val = [12, 12, 12, 12, 25][i - 1];
             }
             if (isEnd) {
@@ -4892,15 +4892,20 @@ function getUniqueCodexKeyByItem(item) {
 
 function chooseItemBase(slot, zoneTier) {
     let zone = getZone(game.currentZoneId) || {};
+    const zoneRealm = zone.type === 'chaosRealm' ? 'chaos' : (zone.type === 'underworld' ? 'underworld' : (zone.type === 'cosmos' ? 'cosmos' : null));
     let candidates = BASE_ITEM_DB.filter(base => {
         if (base.slot !== slot || base.reqTier > zoneTier) return false;
+        if (base.realmBase && base.realmBase !== zoneRealm) return false;
+        if (!base.realmBase && zoneRealm && ['chaos','underworld','cosmos'].includes(zoneRealm)) {
+            // allow common bases in realm zones too
+        }
         if (!base.dropOnly) return true;
         if (base.dropOnly.type && zone.type !== base.dropOnly.type) return false;
         if (base.dropOnly.id && zone.id !== base.dropOnly.id) return false;
         if (base.dropOnly.minFloor && Math.floor(zone.floor || 0) < base.dropOnly.minFloor) return false;
         return true;
     });
-    if (candidates.length === 0) candidates = BASE_ITEM_DB.filter(base => base.slot === slot);
+    if (candidates.length === 0) candidates = BASE_ITEM_DB.filter(base => base.slot === slot && !base.realmBase);
     candidates.sort((a, b) => a.reqTier - b.reqTier);
     let take = candidates.slice(-Math.min(3, candidates.length));
     return rndChoice(take);
@@ -5242,14 +5247,17 @@ function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) retur
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if ((game.currencies.enchantedHoney || 0) <= 0) return addLog('마력 깃든 벌꿀이 부족합니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    if (item.stats.length <= 0) return addLog('고정할 옵션이 없습니다.', 'attack-monster');
+    if (item.stats.length < 4) return addLog('벌꿀 고정은 추가 옵션이 4개 이상일 때만 사용할 수 있습니다.', 'attack-monster');
     if (item.stats.some(stat => stat && stat.lockedByHoney)) return addLog('이 장비에는 이미 고정 옵션이 있습니다.', 'attack-monster');
-    let pick = item.stats[Math.floor(Math.random() * item.stats.length)];
+    let candidates = item.stats.filter(stat => stat && !stat.lockedByRift);
+    if (candidates.length <= 0) return addLog('고정 가능한 옵션이 없습니다.', 'attack-monster');
+    let pick = candidates[Math.floor(Math.random() * candidates.length)];
     pick.lockedByHoney = true;
     game.currencies.enchantedHoney--;
     addLog(`🍯 [${item.name}] 옵션 고정 적용: ${pick.statName || getStatName(pick.id)}`, 'loot-unique');
     updateStaticUI();
 }
+
 
 function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();

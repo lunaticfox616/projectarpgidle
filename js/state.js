@@ -189,7 +189,13 @@ function getZone(id) {
     }
     if (id === 'beehive_run') {
         let step = Math.max(1, Math.floor((game && game.beehive && game.beehive.branchStep) || 1));
-        return { id: 'beehive_run', name: `벌집 심층 ${step}갈래`, type: 'beehive', tier: Math.min(24, 10 + step), maxKills: 1, ele: 'chaos' };
+        let entryDepth = Math.max(21, Math.floor((game && game.beehive && game.beehive.entryDeepChaosDepth) || 21));
+        return { id: 'beehive_run', name: `벌집 심층 ${step}갈래`, type: 'beehive', tier: entryDepth, maxKills: 1, ele: 'chaos', entryDeepChaosDepth: entryDepth };
+    }
+    if (id === 'colony_run') {
+        let wave = Math.max(1, Math.floor((game && game.colony && game.colony.wave) || 1));
+        let depth = Math.max(21, Math.floor((game && game.colony && game.colony.entryDeepChaosDepth) || 21));
+        return { id: 'colony_run', name: `군락지 방어 ${wave}웨이브`, type: 'colony', tier: depth + Math.floor(wave / 2), maxKills: 1, ele: 'chaos', entryDeepChaosDepth: depth };
     }
     if (id === 'grand_breach_run') {
         let kills = Math.max(0, Math.floor((((game || {}).voidRift || {}).grandRun || {}).kills || 0));
@@ -1249,7 +1255,7 @@ const defaultGame = {
     abyssPassivePoints: 0,
     abyssClearedDepths: [],
     abyssPassives: { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 },
-    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
+    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, hiveTrace: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendKeystonePoints: 0,
@@ -1270,6 +1276,7 @@ const defaultGame = {
     jewelSlots: [null, null],
     jewelSlotAmplify: [0, 0],
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
+    colony: { inRun: false, wave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1 },
     voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 },
     sporeCraftModes: {},
     shrineState: { active: null, nextRollAt: 0 },
