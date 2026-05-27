@@ -1006,7 +1006,10 @@ function renderChaosRealmMapPanel() {
     let bonusLine = [`피해 +${(bonus.pctDmg||0).toFixed(1)}%`, `이속 +${(bonus.move||0).toFixed(1)}%`, `생명력 +${(bonus.pctHp||0).toFixed(1)}%`, `카오스저항 +${Math.floor(bonus.resChaos||0)}%`, `치명 +${Math.floor(bonus.crit||0)}%`, `관통 +${Math.floor(bonus.resPen||0)}%`, `방어/회피/보호막 +${Math.floor(bonus.armorPct||0)}%`, `치피 +${Math.floor(bonus.critDmg||0)}%`, `공속 +${Math.floor(bonus.aspd||0)}%`].join(' · ');
     panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;"><div><div style="font-weight:800; color:#efd6ff; font-size:1.05em;">혼돈계 영구 레이어</div><div style="color:#aebde0; margin-top:4px;">루프로 초기화되지 않습니다. 최고 입장층 <strong style="color:#ffd36b;">${highest}층</strong> · 클리어 ${st.clearedFloors.length}층 · 나무꾼 최고 피해율 ${best.toFixed(1)}%</div></div><button onclick="enterChaosRealmPrompt()" ${entryReady ? '' : 'disabled'}>층 선택 입장</button></div><div style="margin-top:8px; color:${entryReady ? '#d6e4ff' : '#ffcf8a'};">${entryReady ? `영구 보너스: ${bonusLine}` : '입장 조건: 이번 루프에서 혼돈 20 클리어 필요 · 진행도/보너스는 보존됨'}</div><div style="margin-top:8px; color:#bda8ff;">현재 선택층 특징: ${affixes.map(a => `${a.name}(${a.desc})`).join(' · ')}</div>${highest >= 10 ? '<div style="margin-top:6px; color:#7dffb2;">혼돈계 10층 효과 활성: 모든 액트 구간 지도 길이 50% 축소</div>' : ''}`;
     let zone = getZone(CHAOS_REALM_ZONE_ID);
-    list.innerHTML = `<div class="map-item ${game.currentZoneId === CHAOS_REALM_ZONE_ID ? 'current' : ''}" ${entryReady ? 'onclick="enterChaosRealmPrompt()"' : ''}><div class="map-item-main"><span>🌌</span><span>혼돈계 ${floor}층<br><span class="map-zone-status">난이도 기준: 혼돈 심화 ${zone ? zone.tier : getChaosRealmTier(floor)}급 · 특징 ${affixes.length}개</span></span></div><div class="map-item-actions"><span class="map-zone-status">${entryReady ? `입장 가능: 1 ~ ${highest}` : '혼돈 20 필요'}</span></div></div>`;
+    let echo = (game.woodsmanEchoRun && typeof game.woodsmanEchoRun === 'object') ? game.woodsmanEchoRun : { bestDps: 0 };
+    let woodsmanEchoUnlocked = Array.isArray(game.journalEntries) && game.journalEntries.includes('woodsman_echo');
+    list.innerHTML = `<div class="map-item ${game.currentZoneId === CHAOS_REALM_ZONE_ID ? 'current' : ''}" ${entryReady ? 'onclick="enterChaosRealmPrompt()"' : ''}><div class="map-item-main"><span>🌌</span><span>혼돈계 ${floor}층<br><span class="map-zone-status">난이도 기준: 혼돈 심화 ${zone ? zone.tier : getChaosRealmTier(floor)}급 · 특징 ${affixes.length}개</span></span></div><div class="map-item-actions"><span class="map-zone-status">${entryReady ? `입장 가능: 1 ~ ${highest}` : '혼돈 20 필요'}</span></div></div>`
+        + (woodsmanEchoUnlocked ? `<div class="map-item ${game.currentZoneId === WOODSMAN_ECHO_ZONE_ID ? 'current' : ''}" onclick="enterWoodsmanEchoChallenge()"><div class="map-item-main"><span>🪵</span><span>나무꾼의 잔상 (전투력 측정)<br><span class="map-zone-status">30초 전투 · 체력 ? · 공격하지 않는 허수아비(실체력 1000배)</span></span></div><div class="map-item-actions"><span class="map-zone-status">최고 DPS ${Math.floor(echo.bestDps || 0).toLocaleString()}</span></div></div>` : '');
 }
 function renderUnderworldMapPanel() {
     let panel = document.getElementById('ui-underworld-panel');
@@ -3859,7 +3862,13 @@ function updateCombatUI(pStats) {
         if (ghostEl) { ghostEl.style.width = `${ghostPct}%`; ghostEl.style.display = ghostDisplay; }
         if (hpEl) hpEl.style.width = `${pct}%`;
         if (pendingEl) { pendingEl.style.left = `${pendingStartPct}%`; pendingEl.style.width = `${pendingPct}%`; }
-        if (hpTextEl) hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${Math.floor(focusedEnemy.energyShield)} · ` : ''}${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}`;
+        if (hpTextEl) {
+            let zoneNow = getZone(game.currentZoneId);
+            if (zoneNow && zoneNow.type === 'woodsmanEcho') {
+                let totalDealt = Math.max(0, Math.floor((focusedEnemy.echoStartHp || focusedEnemy.maxHp || 0) - Math.max(0, focusedEnemy.hp || 0)));
+                hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${Math.floor(focusedEnemy.energyShield)} · ` : ''}${totalDealt.toLocaleString()} / ?`;
+            } else hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${Math.floor(focusedEnemy.energyShield)} · ` : ''}${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}`;
+        }
         if (ailmentEl) ailmentEl.innerHTML = ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음';
         if (traitEl) traitEl.innerText = `특성: ${tags.join(' · ') || '일반'}`;
     }
@@ -6269,6 +6278,12 @@ function mergeDefaults(save) {
     merged.woodsmanPendingScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanPendingScore, defaultGame.woodsmanPendingScore || 0, 0)));
     merged.woodsmanLifetimeScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanLifetimeScore, defaultGame.woodsmanLifetimeScore || 0, 0)));
     merged.woodsmanSettledScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanSettledScore, defaultGame.woodsmanSettledScore || 0, 0)));
+    merged.woodsmanEchoRun = (merged.woodsmanEchoRun && typeof merged.woodsmanEchoRun === 'object') ? merged.woodsmanEchoRun : { active:false, timeLeft:0, duration:30, lastTickAt:0, totalDamage:0, bestDps:0 };
+    merged.woodsmanEchoRun.active = !!merged.woodsmanEchoRun.active;
+    merged.woodsmanEchoRun.timeLeft = Math.max(0, Number(merged.woodsmanEchoRun.timeLeft || 0));
+    merged.woodsmanEchoRun.duration = 30;
+    merged.woodsmanEchoRun.totalDamage = Math.max(0, Math.floor(Number(merged.woodsmanEchoRun.totalDamage || 0)));
+    merged.woodsmanEchoRun.bestDps = Math.max(0, Number(merged.woodsmanEchoRun.bestDps || 0));
     merged.loopProgressBase = { ...(defaultGame.loopProgressBase || {}), ...(merged.loopProgressBase || {}) };
     merged.loopProgressCurrent = { ...(defaultGame.loopProgressCurrent || {}), ...(merged.loopProgressCurrent || {}) };
     merged.loopProgressBase.specialBosses = Array.isArray(merged.loopProgressBase.specialBosses) ? merged.loopProgressBase.specialBosses : [];

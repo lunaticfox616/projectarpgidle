@@ -31,6 +31,7 @@ const LAST_STORY_ZONE_ID = ACT_ZONE_COUNT - 1;
 const ABYSS_START_ZONE_ID = ACT_ZONE_COUNT;
 const OUTSIDE_CHAOS_ZONE_ID = 'outside_chaos_woodsman';
 const CHAOS_REALM_ZONE_ID = 'chaos_realm';
+const WOODSMAN_ECHO_ZONE_ID = 'woodsman_echo_challenge';
 const UNDERWORLD_ZONE_ID = 'underworld_core';
 
 const MAP_ZONES = STORY_ACTS.map((act, idx) => ({
@@ -208,6 +209,7 @@ function getZone(id) {
         let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
         return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor) };
     }
+    if (id === WOODSMAN_ECHO_ZONE_ID) return { id: WOODSMAN_ECHO_ZONE_ID, name: '나무꾼의 잔상', type: 'woodsmanEcho', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos' };
     if (id === UNDERWORLD_ZONE_ID) {
         let uw = (game && game.underworldProgress) || {};
         let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
@@ -1387,6 +1389,7 @@ const defaultGame = {
     woodsmanPendingScore: 0,
     woodsmanLifetimeScore: 0,
     woodsmanSettledScore: 0,
+    woodsmanEchoRun: { active: false, timeLeft: 0, duration: 30, lastTickAt: 0, totalDamage: 0, bestDps: 0 },
     seasonNodes: [],
     seasonNodeLevels: {},
     labyrinthFloor: 1,

@@ -2999,7 +2999,8 @@ function grantJournalBonus(entryId) {
     game.journalBonusClaims = (game.journalBonusClaims && typeof game.journalBonusClaims === 'object') ? game.journalBonusClaims : {};
     if (game.journalBonusClaims[entryId]) return;
     game.journalBonuses = Array.isArray(game.journalBonuses) ? game.journalBonuses : [];
-    game.journalBonuses.push({ entryId: entryId, stat: entry.bonus.stat, value: entry.bonus.value });
+    if (entry.bonus.stat === 'passivePoint') game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + Math.max(0, Math.floor(entry.bonus.value || 0));
+    else game.journalBonuses.push({ entryId: entryId, stat: entry.bonus.stat, value: entry.bonus.value });
     game.journalBonusClaims[entryId] = true;
     addLog(`🕮 저널 영구 보너스 획득: ${entry.bonus.label}`, 'season-up');
 }

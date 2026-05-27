@@ -3442,13 +3442,17 @@ function advanceMapProgress(pStats) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     if (zone && zone.type === 'outsideChaos' && game.woodsmanEntrancePending) return;
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) return;
-    ensureEncounterRun();
-    if (game.runProgress >= 100) return;
-    if (isCrowdProgressPaused()) return;
     if (zone && zone.id === 'grand_breach_run') {
         tickGrandBreachRun(zone);
         return;
     }
+    if (zone && zone.type === 'woodsmanEcho') {
+        tickWoodsmanEchoRun();
+        return;
+    }
+    ensureEncounterRun();
+    if (game.runProgress >= 100) return;
+    if (isCrowdProgressPaused()) return;
     let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let zoneType = zone ? zone.type : 'act';
@@ -3464,6 +3468,42 @@ function advanceMapProgress(pStats) {
     }
 }
 
+
+function ensureWoodsmanEchoRunState() {
+    game.woodsmanEchoRun = (game.woodsmanEchoRun && typeof game.woodsmanEchoRun === 'object') ? game.woodsmanEchoRun : {};
+    let run = game.woodsmanEchoRun;
+    run.active = !!run.active;
+    run.duration = 30;
+    run.timeLeft = Math.max(0, Number(run.timeLeft || 0));
+    run.lastTickAt = Math.max(0, Math.floor(run.lastTickAt || 0));
+    run.totalDamage = Math.max(0, Math.floor(run.totalDamage || 0));
+    run.bestDps = Math.max(0, Number(run.bestDps || 0));
+    return run;
+}
+function finishWoodsmanEchoRun() {
+    let run = ensureWoodsmanEchoRunState();
+    let elapsed = Math.max(0.001, run.duration - Math.max(0, run.timeLeft || 0));
+    let dps = run.totalDamage / elapsed;
+    run.bestDps = Math.max(run.bestDps || 0, dps);
+    run.active = false;
+    run.timeLeft = 0;
+    game.enemies = [];
+    game.combatHalted = true;
+    game.currentZoneId = CHAOS_REALM_ZONE_ID;
+    addLog(`🪵 나무꾼의 잔상: 총 피해 ${Math.floor(run.totalDamage).toLocaleString()} · 최종 DPS ${Math.floor(dps).toLocaleString()} (최고 ${Math.floor(run.bestDps).toLocaleString()})`, 'season-up');
+    updateStaticUI();
+}
+function tickWoodsmanEchoRun() {
+    let run = ensureWoodsmanEchoRunState();
+    if (!run.active) return;
+    let now = Date.now();
+    run.lastTickAt = Number.isFinite(run.lastTickAt) && run.lastTickAt > 0 ? run.lastTickAt : now;
+    run.timeLeft = Math.max(0, run.timeLeft - Math.max(0, (now - run.lastTickAt) / 1000));
+    run.lastTickAt = now;
+    let target = (game.enemies || []).find(e => e && e.hp > 0);
+    if (target) run.totalDamage = Math.max(0, Math.floor((target.echoStartHp || target.maxHp || 0) - Math.max(0, target.hp || 0)));
+    if (run.timeLeft <= 0) finishWoodsmanEchoRun();
+}
 function tickGrandBreachRun(zone) {
     let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
     let g = v.grandRun;
@@ -3987,6 +4027,7 @@ function finishEncounterRun() {
         addWoodsmanPendingScore(1000000);
         let realm = ensureChaosRealmState();
         realm.woodsmanBestDamagePct = 100;
+        unlockJournalEntry('woodsman_echo');
         maybeUnlockChaosRealmFromWoodsman({ isBoss: true, hp: 0, maxHp: 1 }, { finalize: true });
         markLoopSpecialBossKill('woodsman_true');
         addLog('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
@@ -4989,6 +5030,7 @@ function performMonsterAttacks(pStats) {
     let crowdPenalty = Math.max(0.34, 1 - Math.max(0, aliveCount - 1) * 0.055);
     for (let enemy of (game.enemies || [])) {
         if (enemy.hp <= 0) continue;
+        if (enemy.noAttack) continue;
         let ailMap = {};
         (enemy.ailments || []).forEach(ail => { if ((ail.time || 0) > 0) ailMap[ail.type] = Math.max(ailMap[ail.type] || 0, ail.power || 0); });
         if (ailMap.freeze) continue;
@@ -5420,6 +5462,36 @@ function enterOutsideChaos() {
     updateStaticUI();
 }
 
+function enterWoodsmanEchoChallenge() {
+    let st = ensureChaosRealmState();
+    if (!st.unlocked) return addLog('혼돈계 해금 이후 이용 가능합니다.', 'attack-monster');
+    if (!(Array.isArray(game.journalEntries) && game.journalEntries.includes('woodsman_echo'))) return addLog('나무꾼 완전 격파 이후에만 도전할 수 있습니다.', 'attack-monster');
+    let run = ensureWoodsmanEchoRunState();
+    run.active = true;
+    run.duration = 30;
+    run.timeLeft = 30;
+    run.lastTickAt = Date.now();
+    run.totalDamage = 0;
+    game.currentZoneId = WOODSMAN_ECHO_ZONE_ID;
+    game.killsInZone = 0;
+    game.runProgress = 0;
+    game.moveTimer = 0;
+    game.moveTotalTime = 0;
+    game.combatHalted = false;
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    let zone = getZone(OUTSIDE_CHAOS_ZONE_ID);
+    let dummy = createEnemy(zone, { at: 0, count: 1, boss: true }, 0);
+    dummy.name = '나무꾼의 잔상';
+    dummy.maxHp = Math.max(1, Math.floor((dummy.maxHp || 1) * 1000));
+    dummy.hp = dummy.maxHp;
+    dummy.echoStartHp = dummy.maxHp;
+    dummy.noAttack = true;
+    game.enemies = [dummy];
+    addLog('📏 나무꾼의 잔상 도전 시작: 30초 동안 최대 피해를 기록하세요. (허수아비는 공격하지 않습니다)', 'season-up');
+    updateStaticUI();
+}
+
 function awardLoopProgressPoints() {
     game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
     game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
@@ -5611,4 +5683,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport });
+safeExposeGlobals({ getPlayerStats, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport });
