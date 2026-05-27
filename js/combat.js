@@ -2329,6 +2329,7 @@ function getPlayerStats() {
         maxResC: finalMaxResC,
         maxResL: finalMaxResL,
         resChaos: finalResChaos,
+        critResist: Math.max(0, Math.min(80, finalCritResist)),
         ailResIgnite: (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0) + (colonyWardBonus.ailResIgnite || 0),
         ailResShock: (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0) + (colonyWardBonus.ailResShock || 0),
         ailResFreeze: (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0) + (colonyWardBonus.ailResFreeze || 0),
@@ -5180,7 +5181,8 @@ function performMonsterAttacks(pStats) {
                 if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: 1 });
             };
             dmg = Math.max(1, sumBreakdown());
-            if ((enemy.critChance || 0) > 0 && Math.random() < (enemy.critChance / 100)) {
+            let enemyCritChance = Math.max(0, (enemy.critChance || 0) - Math.max(0, Math.min(80, pStats.critResist || 0)));
+            if (enemyCritChance > 0 && Math.random() < (enemyCritChance / 100)) {
                 scaleBreakdown(enemy.critDamageMul || 1.55);
                 dmg = Math.max(1, sumBreakdown());
             }
