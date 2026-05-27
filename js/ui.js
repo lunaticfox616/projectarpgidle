@@ -1809,14 +1809,26 @@ function assertBuildEditable() {
     return true;
 }
 
-function changeSkill(name) { if (!assertBuildEditable()) return; game.activeSkill = name; updateStaticUI(); }
-function toggleSummonAttackSkill(name) { if (!assertBuildEditable()) return;
+function changeSkill(name) { if (!assertBuildEditable()) return;
     let def = SKILL_DB[name] || {};
-    if (!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack'))) return;
-    game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
-    let idx = game.equippedSummonSkills.indexOf(name);
-    if (idx > -1) game.equippedSummonSkills.splice(idx, 1);
-    else game.equippedSummonSkills.push(name);
+    if (def && Array.isArray(def.tags) && def.tags.includes('summon_attack')) {
+        game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
+        game.equippedSummonSkills = Array.from(new Set(game.equippedSummonSkills.filter(gemName => {
+            let gemDef = SKILL_DB[gemName] || {};
+            return !!(gemDef && Array.isArray(gemDef.tags) && gemDef.tags.includes('summon_attack') && Array.isArray(game.skills) && game.skills.includes(gemName));
+        })));
+        let cap = 1;
+        try {
+            let stats = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
+            cap = Math.max(1, Math.min(8, Math.floor((stats && stats.summonCap) || 1)));
+        } catch (e) {}
+        if (!game.equippedSummonSkills.includes(name) && game.equippedSummonSkills.length >= cap) {
+            addLog(`소환수 한도(${cap})로 인해 [${name}]은(는) 장착할 수 없습니다.`, 'attack-monster');
+            return;
+        }
+        if (!game.equippedSummonSkills.includes(name)) game.equippedSummonSkills.push(name);
+    }
+    game.activeSkill = name;
     updateStaticUI();
 }
 function getSupportResonanceCost(name) {
@@ -2376,6 +2388,14 @@ function showGemTooltip(event, type, name) {
         if (skill.pierceOverkillCarry) html += `<div class="tooltip-line" style="color:#8fffe0;">특수 옵션: 처치 후 남은 피해가 다른 적에게 관통 연쇄</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
         if (skill.instantLeech) html += `<div class="tooltip-line" style="color:#ffb3d1;">특수 옵션: 이 젬을 사용해서 주는 피해에는 흡혈 즉시 적용</div>`;
+        if ((info.tags || []).includes('summon')) {
+            const preview = (typeof getSummonTooltipPreview === 'function') ? getSummonTooltipPreview(name, stats) : null;
+            if (preview) {
+                html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}</div>`;
+                html += `<div class="tooltip-line">예상 1타 피해: ${preview.hitDamageMin} ~ ${preview.hitDamageMax}${preview.attackPerSecond > 0 ? ` · 공속 ${preview.attackPerSecond}/s` : ''}</div>`;
+                if (preview.redirectPct > 0) html += `<div class="tooltip-line">피해 대리: 히트 피해 ${preview.redirectPct}%</div>`;
+            }
+        }
     }
     if (type === 'support' || SKILL_DB[name].isGem || SKILL_DB[name].levelable) {
         html += `<div class="tooltip-line" style="margin-top:8px; color:#2ecc71;">총 레벨 ${type === 'support' ? info.totalLevel : info.finalLevel}</div>`;
@@ -5039,9 +5059,8 @@ function buildCraftActionButtons(item) {
         let badge = '';
         let gemInfo = getGemPresentation(name, false);
         if (SKILL_DB[name].isGem || SKILL_DB[name].levelable) badge = `<span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
-        let summonBtn = isSummonAttack ? `<button style="margin-left:6px; font-size:0.68em; padding:2px 6px;" onclick="event.stopPropagation(); toggleSummonAttackSkill('${name}')">${summonEquipped ? '소환 OFF' : '소환 ON'}</button>` : '';
         let sealBtn = name === game.activeSkill ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">🔒 봉인</button>`;
-        return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.skill)}</strong>${badge}${summonBtn}${sealBtn}</div>`;
+        return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.skill)}</strong>${badge}${sealBtn}</div>`;
     }).join('');
     let sealedSkillRows = sealedSkills.filter(name => {
         let def = SKILL_DB[name] || {};
