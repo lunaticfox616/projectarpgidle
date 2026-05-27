@@ -518,12 +518,33 @@ function getSummonProfile(gemName) {
     return table[gemName] || { role: 'attack', baseHp: 220, baseArmor: 20, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 20, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.03, hpScaleExp: 1.16, dmgScaleBase: 0.022, dmgScaleExp: 1.18, armorScaleBase: 0.015, armorScaleExp: 1.12, evasionScaleBase: 0.015, evasionScaleExp: 1.12 };
 }
 
+function getSummonTooltipPreview(gemName, pStats) {
+    let stats = pStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : null) || {};
+    let profile = getSummonProfile(gemName);
+    let gemLv = Math.max(1, ((game.gemData || {})[gemName] || {}).level || 1);
+    let dmgGrowth = 1 + (Math.pow(gemLv, profile.dmgScaleExp || 1.18) * (profile.dmgScaleBase || 0.022));
+    let base = Math.max(1, Math.floor((profile.baseDamage || 20) * dmgGrowth));
+    let dmgMul = 1 + ((stats.summonPctDmg || 0) / 100) + ((stats.summonEfficiency || 0) / 100);
+    let hit = Math.max(1, Math.floor(base * dmgMul));
+    let critChance = Math.max(0, Math.min(0.95, ((profile.baseCrit || 0) + (stats.summonCrit || 0)) / 100));
+    let critMul = Math.max(1.2, ((profile.baseCritDmg || 140) + (stats.summonCritDmg || 0)) / 100);
+    return {
+        roleLabel: profile.role === 'guard' ? '방어 소환수' : '공격 소환수',
+        hitDamageMin: hit,
+        hitDamageMax: Math.max(hit, Math.floor(hit * (1 + critChance * (critMul - 1)))),
+        attackPerSecond: profile.role === 'guard' ? 0 : (Math.round((1 + Math.max(0, (stats.summonAspd || 0) / 100)) * 100) / 100),
+        redirectPct: Math.max(0, Math.min(100, profile.redirectPct || 0))
+    };
+}
+
 function ensureSummonRuntime(pStats) {
     if (!Array.isArray(game.summons)) game.summons = [];
     game.summonSeq = Math.max(1, Math.floor(game.summonSeq || 1));
     let maxCap = Math.max(1, Math.min(8, Math.floor(pStats.summonCap || 1)));
     let defs = getActiveSummonGemDefs();
-    let activeDefs = defs.slice(0, maxCap);
+    let guardDefs = defs.filter(row => row && row.db && Array.isArray(row.db.tags) && row.db.tags.includes('summon_guard'));
+    let attackDefs = defs.filter(row => row && row.db && Array.isArray(row.db.tags) && row.db.tags.includes('summon_attack'));
+    let activeDefs = guardDefs.concat(attackDefs).slice(0, maxCap);
     let activeKeys = new Set(activeDefs.map((row, idx) => `${row.name}::${idx}`));
     game.summons = game.summons.filter(s => s && activeKeys.has(`${s.gemName}::${s.slotIdx}`));
     let now = Date.now();
