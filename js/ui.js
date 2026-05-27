@@ -1813,6 +1813,10 @@ function changeSkill(name) { if (!assertBuildEditable()) return;
     let def = SKILL_DB[name] || {};
     if (def && Array.isArray(def.tags) && def.tags.includes('summon_attack')) {
         game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
+        game.equippedSummonSkills = Array.from(new Set(game.equippedSummonSkills.filter(gemName => {
+            let gemDef = SKILL_DB[gemName] || {};
+            return !!(gemDef && Array.isArray(gemDef.tags) && gemDef.tags.includes('summon_attack') && Array.isArray(game.skills) && game.skills.includes(gemName));
+        })));
         let cap = 1;
         try {
             let stats = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
