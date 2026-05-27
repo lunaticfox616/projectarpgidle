@@ -2063,11 +2063,12 @@ function getHeroSelectionDef(heroId) {
     return HERO_SELECTION_DEFS[heroId] || HERO_SELECTION_DEFS.hero1;
 }
 
-function syncHeroSelectionState(source) {
+function syncHeroSelectionState(source, options = {}) {
     if (!Array.isArray(game.discoveredHeroIds)) game.discoveredHeroIds = [];
     game.discoveredHeroIds = game.discoveredHeroIds.filter(id => HERO_SELECTION_DEFS[id]);
     if (!HERO_SELECTION_DEFS[game.selectedHeroId]) game.selectedHeroId = 'hero1';
-    if (!game.discoveredHeroIds.includes(game.selectedHeroId)) game.discoveredHeroIds.push(game.selectedHeroId);
+    let shouldRecordSelected = !!options.recordSelected || !!game.heroSelectionInitialized || !!game.heroFreeSwitchUnlocked;
+    if (shouldRecordSelected && !game.discoveredHeroIds.includes(game.selectedHeroId)) game.discoveredHeroIds.push(game.selectedHeroId);
     let unlockedBefore = !!game.heroFreeSwitchUnlocked;
     if (game.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length) game.heroFreeSwitchUnlocked = true;
     if (!unlockedBefore && game.heroFreeSwitchUnlocked) addLog('🧬 모든 캐릭터 재능을 확인했습니다. 설정에서 언제든 외형 변경이 가능합니다.', 'season-up');
@@ -2103,7 +2104,7 @@ function applyHeroSelection(heroId, options = {}) {
     if (!HERO_SELECTION_DEFS[heroId]) return false;
     let prev = game.selectedHeroId;
     game.selectedHeroId = heroId;
-    syncHeroSelectionState();
+    syncHeroSelectionState(null, { recordSelected: true });
     if (prev !== heroId && battleAssets && battleAssets.ready) battleAssets.atlas = buildBattleAssetAtlas();
     renderHeroSelectionControls();
     if (!options.silent && prev !== heroId) addLog(`🧬 캐릭터 변경: ${getHeroSelectionDef(heroId).label}`, 'season-up');
@@ -3769,7 +3770,9 @@ function updateCombatUI(pStats) {
         document.getElementById('ui-move-bar').style.width = game.runProgress + '%';
     }
 
-    document.getElementById('ui-dps').innerText = Math.floor(pStats.dps);
+    setTextById('ui-total-dps', Math.floor(pStats.totalDps || ((pStats.dps || 0) + (pStats.summonDps || 0))));
+    setTextById('ui-dps', Math.floor(pStats.directDps || pStats.dps || 0));
+    setTextById('ui-summon-dps', Math.floor(pStats.summonDps || 0));
     document.getElementById('ui-atk').innerText = Math.floor(pStats.baseDmg);
     document.getElementById('ui-aps').innerText = pStats.aspd.toFixed(2);
     document.getElementById('ui-crit').innerText = pStats.crit.toFixed(1);
@@ -6224,10 +6227,13 @@ function mergeDefaults(save) {
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
     merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
-    merged.selectedHeroId = HERO_SELECTION_DEFS[merged.selectedHeroId] ? merged.selectedHeroId : 'hero1';
-    merged.discoveredHeroIds = Array.isArray(merged.discoveredHeroIds) ? merged.discoveredHeroIds.filter(id => HERO_SELECTION_DEFS[id]) : ['hero1'];
-    if (!merged.discoveredHeroIds.includes(merged.selectedHeroId)) merged.discoveredHeroIds.push(merged.selectedHeroId);
     merged.heroSelectionInitialized = !!merged.heroSelectionInitialized;
+    merged.selectedHeroId = HERO_SELECTION_DEFS[merged.selectedHeroId] ? merged.selectedHeroId : 'hero1';
+    merged.discoveredHeroIds = Array.isArray(merged.discoveredHeroIds) ? merged.discoveredHeroIds.filter(id => HERO_SELECTION_DEFS[id]) : [];
+    if (!merged.heroSelectionInitialized && !merged.heroFreeSwitchUnlocked && merged.selectedHeroId === 'hero1' && merged.discoveredHeroIds.length === 1 && merged.discoveredHeroIds[0] === 'hero1') {
+        merged.discoveredHeroIds = [];
+    }
+    if ((merged.heroSelectionInitialized || merged.heroFreeSwitchUnlocked) && !merged.discoveredHeroIds.includes(merged.selectedHeroId)) merged.discoveredHeroIds.push(merged.selectedHeroId);
     merged.heroFreeSwitchUnlocked = !!merged.heroFreeSwitchUnlocked || merged.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length;
     merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
     merged.abyssPassivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.abyssPassivePoints, defaultGame.abyssPassivePoints, 0)));

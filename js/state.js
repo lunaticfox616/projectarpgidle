@@ -735,6 +735,7 @@ const P_STATS = {
     expGain: { name: '경험치 획득(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
     minDmgRoll: { name: '최소 피해 보정(%)', tiers: [1, 2, 3], s: 1, m: 2, k: 4, isPct: true },
     maxDmgRoll: { name: '최대 피해 보정(%)', tiers: [1, 2, 3], s: 1, m: 2, k: 4, isPct: true },
+    summonFlatDmg: { name: '소환수 기본 피해', tiers: [1, 2, 3], s: 3, m: 7, k: 14 },
     summonPctDmg: { name: '소환수 피해(%)', tiers: [1, 2, 3], s: 5, m: 10, k: 18, isPct: true },
     summonAspd: { name: '소환수 공격 속도(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 14, isPct: true },
     summonHpPct: { name: '소환수 생명력(%)', tiers: [1, 2, 3], s: 4, m: 9, k: 16, isPct: true },
@@ -784,7 +785,12 @@ const SUPPORT_GEM_DB = {
     '화염 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '화염 플랫 피해', isPct: false, resonanceCosts: [9, 21, 33], desc: '화염 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
     '냉기 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '냉기 플랫 피해', isPct: false, resonanceCosts: [9, 21, 33], desc: '냉기 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
     '번개 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '번개 플랫 피해', isPct: false, resonanceCosts: [9, 21, 33], desc: '번개 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
-    '카오스 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '카오스 플랫 피해', isPct: false, resonanceCosts: [9, 21, 33], desc: '카오스 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 }
+    '카오스 전령': { baseVal: 8, scale: 3.2, stat: 'flatDmg', name: '카오스 플랫 피해', isPct: false, resonanceCosts: [9, 21, 33], desc: '카오스 플랫 피해를 높이고 처치 시 시체폭발 확률을 부여합니다.', heraldExplodeBase: 0.06, heraldExplodeScale: 0.004 },
+    '사역 피해 증폭': { baseVal: 6, scale: 2.4, stat: 'summonPctDmg', name: '소환수 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '소환수의 공격 피해를 높입니다.' },
+    '사역 가속': { baseVal: 4, scale: 1.6, stat: 'summonAspd', name: '소환수 공격 속도', isPct: true, resonanceCosts: [6, 12, 21], desc: '소환수의 공격 속도를 높입니다.' },
+    '사역 예리함': { baseVal: 1, scale: 0.45, stat: 'summonCrit', name: '소환수 치명타 확률', isPct: true, resonanceCosts: [6, 12, 21], desc: '소환수의 치명타 확률을 올립니다.' },
+    '사역 무자비': { baseVal: 12, scale: 4.0, stat: 'summonCritDmg', name: '소환수 치명타 피해 배율', isPct: true, resonanceCosts: [9, 21, 33], desc: '소환수의 치명타 피해 배율을 올립니다.' },
+    '사역 생명력': { baseVal: 8, scale: 2.8, stat: 'summonHpPct', name: '소환수 생명력', isPct: true, resonanceCosts: [3, 9, 18], desc: '소환수의 최대 생명력을 높입니다.' }
 };
 
 const MOD_DB = [
@@ -800,8 +806,10 @@ const MOD_DB = [
     { id: 'chaosPctDmg', type: 'prefix', statName: '카오스 피해(%)', slots: ['무기', '반지', '목걸이', '장갑'], base: 4, step: 3 },
     { id: 'aoePctDmg', type: 'prefix', statName: '범위 피해(%)', slots: ['무기', '투구', '목걸이', '갑옷'], base: 4, step: 3 },
     { id: 'dotPctDmg', type: 'prefix', statName: '지속 피해 배율(%)', slots: ['무기', '반지', '목걸이'], base: 4, step: 3 },
+    { id: 'summonFlatDmg', type: 'prefix', statName: '소환수 기본 피해', slots: ['무기'], base: 4, step: 4 },
     { id: 'summonPctDmg', type: 'prefix', statName: '소환수 피해(%)', slots: ['무기', '반지'], base: 6, step: 4 },
     { id: 'summonHpPct', type: 'prefix', statName: '소환수 생명력(%)', slots: ['무기', '반지'], base: 6, step: 4 },
+    { id: 'summonAspd', type: 'suffix', statName: '소환수 공격 속도(%)', slots: ['무기'], base: 3, step: 2 },
     { id: 'summonCrit', type: 'suffix', statName: '소환수 치명타 확률(%)', slots: ['무기', '반지'], base: 1, step: 1 },
     { id: 'summonCritDmg', type: 'suffix', statName: '소환수 치명타 피해 배율(%)', slots: ['무기', '반지'], base: 8, step: 4 },
     { id: 'summonEfficiency', type: 'suffix', statName: '소환수 효율(%)', slots: ['무기', '반지'], base: 4, step: 3 },
@@ -1311,7 +1319,7 @@ const defaultGame = {
         notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, talisman: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true }
     },
     selectedHeroId: 'hero1',
-    discoveredHeroIds: ['hero1'],
+    discoveredHeroIds: [],
     heroSelectionInitialized: false,
     heroFreeSwitchUnlocked: false,
     pendingLoopHeroSelection: false,

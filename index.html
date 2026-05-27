@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Projectidle</title>
     <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/layout.css?v=20260527-tooltip-z1">
     <link rel="stylesheet" href="css/theme.css">
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/ui-polish.css">
     <link rel="stylesheet" href="css/ui-premium.css">
     <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="css/cosmos-atlas.css">
 </head>
 <body>
 
@@ -254,8 +255,16 @@
         <div style="color:#8fa7be; margin-bottom:10px;">현재 전투 성능과 방어 수치를 한눈에 확인할 수 있습니다.</div>
         <div class="stat-grid">
             <div class="stat-item tip full" onmouseenter="showStatTooltip(event,'dps')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">🗡️ DPS</span>
-                <span class="stat-value" id="ui-dps" style="color: #ff7979;">10</span>
+                <span class="stat-label">⚔️ 총 DPS</span>
+                <span class="stat-value" id="ui-total-dps" style="color: #ff7979;">10</span>
+            </div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'directDps')" onmouseleave="hideInfoTooltip()">
+                <span class="stat-label">🗡️ 직접 DPS</span>
+                <span class="stat-value" id="ui-dps" style="color: #ffb1b1;">10</span>
+            </div>
+            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'summonDps')" onmouseleave="hideInfoTooltip()">
+                <span class="stat-label">🐺 소환 DPS</span>
+                <span class="stat-value" id="ui-summon-dps" style="color: #78e6c1;">0</span>
             </div>
             <div class="stat-item tip" onmouseenter="showStatTooltip(event,'atk')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">⚔️ 공격력</span>
@@ -932,16 +941,17 @@
 <script defer src="data/passives.js?v=20260513-gemfix1"></script>
 <script defer src="data/bosses.js?v=20260513-gemfix1"></script>
 <script defer src="data/rewards.js?v=20260513-gemfix1"></script>
-<script defer src="js/utils.js?v=20260513-gemfix1"></script>
-<script defer src="js/state.js?v=20260518-assassin-tune1"></script>
+<script defer src="js/utils.js?v=20260527-summon-dps1"></script>
+<script defer src="js/state.js?v=20260527-summon-dps1"></script>
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
 <script defer src="js/items.js?v=20260518-map-progress4"></script>
 <script defer src="js/skills.js?v=20260517-awaken1"></script>
-<script defer src="js/passives.js?v=20260526-zone-dropfix1"></script>
-<script defer src="js/combat.js?v=20260527-finalhp-hotfix2"></script>
+<script defer src="js/passives.js?v=20260527-summon-dps1"></script>
+<script defer src="js/combat.js?v=20260527-summon-dps1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260513-gemfix1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260526-highlight-hotfix1"></script>
-<script defer src="js/ui.js?v=20260526-highlight-hotfix1"></script>
+<script defer src="js/ui.js?v=20260527-summon-dps1"></script>
+<script defer src="js/cosmos-atlas.js?v=20260527-spiral-galaxy4"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
 <script defer src="js/main.js?v=20260513-gemfix1"></script>
 </body>
