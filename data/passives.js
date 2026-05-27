@@ -118,6 +118,54 @@ const HERO_SELECTION_DEFS = {
         talentsText: '카오스 피해 +20%, 흡혈 +0.2%, 이동 속도 +12%, 치명타 피해 +20%, 치명타 확률 +2.5%',
         stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 0.2 }, { stat: 'move', value: 12 }, { stat: 'critDmg', value: 20 }, { stat: 'crit', value: 2.5 }],
         strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
+    },
+    hero5: {
+        id: 'hero5',
+        label: '성기사',
+        blindLabel: '성기사',
+        talentsText: '물리/번개 피해 +20%, 방어도/에너지 보호막 +15%, 연속 타격 +5%, 카오스 저항 +8%, 최대 카오스 저항 +1%',
+        stats: [{ stat: 'physPctDmg', value: 20 }, { stat: 'lightPctDmg', value: 20 }, { stat: 'armorPct', value: 15 }, { stat: 'energyShieldPct', value: 15 }, { stat: 'ds', value: 5 }, { stat: 'resChaos', value: 8 }, { stat: 'maxResChaos', value: 1 }],
+        strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
+    },
+    hero6: {
+        id: 'hero6',
+        label: '저격수',
+        blindLabel: '저격수',
+        talentsText: '투사체 피해 +20%, 치명타 확률 +5%, 치명타 피해 +25%, 공격 속도 -5%, 최대 대미지 보정 +10%',
+        stats: [{ stat: 'projectilePctDmg', value: 20 }, { stat: 'crit', value: 5 }, { stat: 'critDmg', value: 25 }, { stat: 'aspd', value: -5 }, { stat: 'maxDmgRoll', value: 10 }],
+        strips: { idle: 'hero1Idle', walk: 'hero1Walk', attack: 'hero1Attack', hurt: 'hero1Hurt', death: 'hero1Death' }
+    },
+    hero7: {
+        id: 'hero7',
+        label: '소환사',
+        blindLabel: '소환사',
+        talentsText: '소환수 피해 +20%, 소환수 한도 +1, 소환수 효율 +20%',
+        stats: [{ stat: 'summonPctDmg', value: 20 }, { stat: 'summonCap', value: 1 }, { stat: 'summonEfficiency', value: 20 }],
+        strips: { idle: 'hero3Idle', walk: 'hero3Walk', attack: 'hero3Attack', hurt: 'hero3Hurt', death: 'hero3Death' }
+    },
+    hero8: {
+        id: 'hero8',
+        label: '수호자',
+        blindLabel: '수호자',
+        talentsText: '최대 생명력 +15%, 받는 피해 -5%, 생명력 재생 +1%, 방어도 +20%',
+        stats: [{ stat: 'pctHp', value: 15 }, { stat: 'genericTakenDamageReducePct', value: 5 }, { stat: 'regen', value: 1 }, { stat: 'armorPct', value: 20 }],
+        strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
+    },
+    hero9: {
+        id: 'hero9',
+        label: '원소술사',
+        blindLabel: '원소술사',
+        talentsText: '원소 피해 +22%, 원소 저항 관통 +10%, 모든 원소 저항 +5%',
+        stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'resPen', value: 10 }, { stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }],
+        strips: { idle: 'hero3Idle', walk: 'hero3Walk', attack: 'hero3Attack', hurt: 'hero3Hurt', death: 'hero3Death' }
+    },
+    hero10: {
+        id: 'hero10',
+        label: '연금술사',
+        blindLabel: '연금술사',
+        talentsText: '지속 피해 배율 +20%, 이동 속도 +10%, 회피 +15%, 출혈/점화/중독 확률 +15%',
+        stats: [{ stat: 'dotPctDmg', value: 20 }, { stat: 'move', value: 10 }, { stat: 'evasionPct', value: 15 }, { stat: 'bleedChance', value: 15 }, { stat: 'igniteChance', value: 15 }, { stat: 'poisonChance', value: 15 }],
+        strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
     }
 };
 
@@ -249,6 +297,17 @@ const PASSIVE_SPECIAL_NODE_CONFIGS = [
     { sector: 'marauder', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '절맥 강타', desc: '강한 충격이 적의 회복 혈류를 억제합니다.' },
     { sector: 'duelist', kinds: ['major', 'keystone'], stat: 'minDmgRoll', val: 4, title: '하한 제압', desc: '연속 교전에서도 피해 하한을 안정적으로 유지합니다.' },
     { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'maxDmgRoll', val: 4, title: '상한 폭발', desc: '강타의 최고 피해를 끌어올립니다.' }
+    ,
+    { sector: 'witch', kinds: ['deadend', 'major'], stat: 'summonPctDmg', val: 18, title: '별빛 사역', desc: '소환수의 공격력이 크게 상승합니다.' },
+    { sector: 'templar', kinds: ['deadend', 'major'], stat: 'summonPctDmg', val: 16, title: '신성 소환술', desc: '소환체에게 안정적인 공격 증폭을 부여합니다.' },
+    { sector: 'shadow', kinds: ['deadend', 'major'], stat: 'summonPctDmg', val: 17, title: '그림자 사역', desc: '암영 사역이 소환수의 전투 능력을 강화합니다.' },
+    { sector: 'duelist', kinds: ['deadend', 'major'], stat: 'summonHpPct', val: 15, title: '전투 사육', desc: '소환수 생명력이 상승해 전선을 오래 유지합니다.' },
+    { sector: 'marauder', kinds: ['deadend', 'major'], stat: 'summonHpPct', val: 18, title: '야수 생존본능', desc: '소환수의 체력과 생존성이 크게 향상됩니다.' },
+    { sector: 'ranger', kinds: ['deadend', 'major'], stat: 'summonCritDmg', val: 20, title: '예리한 사역', desc: '소환수 치명타 피해 배율을 크게 끌어올립니다.' },
+    { sector: 'witch', kinds: ['keystone'], stat: 'summonPctDmg', val: 24, title: '공명 군주', desc: '소환수 공격 성능의 한계를 확장합니다.' },
+    { sector: 'templar', kinds: ['keystone'], stat: 'summonHpPct', val: 22, title: '성역 사역', desc: '소환체의 생명력과 유지력을 크게 강화합니다.' },
+    { sector: 'duelist', kinds: ['keystone'], stat: 'summonPctDmg', val: 22, title: '전장 조련', desc: '전장에서 소환수의 전투 화력을 크게 끌어올립니다.' },
+    { sector: 'ranger', kinds: ['keystone'], stat: 'summonCritDmg', val: 28, title: '추적 사역', desc: '소환수 치명타 피해 배율을 추가로 상승시킵니다.' }
 ];
 
 safeExposeData({ GEM_SKY_ENHANCEMENTS, TALISMAN_SHAPES, TALISMAN_SHAPE_STYLE, TALISMAN_OPTION_POOL, HERO_SELECTION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_STYLE, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });

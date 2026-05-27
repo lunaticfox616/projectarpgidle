@@ -492,11 +492,113 @@ function runColonyDefenseTick(pStats) {
     return true;
 }
 
+function getActiveSummonGemDefs() {
+    let owned = Array.isArray(game.skills) ? game.skills : [];
+    let equippedSummonAttack = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
+    let attackSet = new Set(equippedSummonAttack);
+    return owned
+        .map(name => ({ name, db: SKILL_DB[name] }))
+        .filter(row => {
+            if (!row.db || !Array.isArray(row.db.tags) || !row.db.tags.includes('summon')) return false;
+            if (row.db.tags.includes('summon_attack')) return attackSet.has(row.name);
+            return true;
+        });
+}
+
+function getSummonProfile(gemName) {
+    let table = {
+        '서리늑대 소환': { role: 'attack', baseHp: 220, baseArmor: 24, baseEvasion: 40, baseRes: { fire: 10, cold: 20, light: 10, chaos: 0 }, baseDamage: 24, baseCrit: 8, baseCritDmg: 150, respawnMs: 2000, hpScaleBase: 0.028, hpScaleExp: 1.16, dmgScaleBase: 0.024, dmgScaleExp: 1.22, armorScaleBase: 0.016, armorScaleExp: 1.12, evasionScaleBase: 0.019, evasionScaleExp: 1.15 },
+        '불곰 소환': { role: 'attack', baseHp: 280, baseArmor: 36, baseEvasion: 18, baseRes: { fire: 24, cold: 8, light: 10, chaos: 0 }, baseDamage: 28, baseCrit: 5, baseCritDmg: 145, respawnMs: 2000, hpScaleBase: 0.03, hpScaleExp: 1.18, dmgScaleBase: 0.026, dmgScaleExp: 1.2, armorScaleBase: 0.02, armorScaleExp: 1.14, evasionScaleBase: 0.012, evasionScaleExp: 1.1 },
+        '벼락멧돼지 소환': { role: 'attack', baseHp: 240, baseArmor: 22, baseEvasion: 28, baseRes: { fire: 8, cold: 8, light: 26, chaos: 0 }, baseDamage: 26, baseCrit: 7, baseCritDmg: 150, respawnMs: 2000, hpScaleBase: 0.029, hpScaleExp: 1.17, dmgScaleBase: 0.027, dmgScaleExp: 1.22, armorScaleBase: 0.015, armorScaleExp: 1.11, evasionScaleBase: 0.016, evasionScaleExp: 1.13 },
+        '칼날까마귀 소환': { role: 'attack', baseHp: 210, baseArmor: 18, baseEvasion: 52, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 23, baseCrit: 11, baseCritDmg: 160, respawnMs: 2000, hpScaleBase: 0.026, hpScaleExp: 1.14, dmgScaleBase: 0.023, dmgScaleExp: 1.21, armorScaleBase: 0.013, armorScaleExp: 1.1, evasionScaleBase: 0.022, evasionScaleExp: 1.16 },
+        '공허 유충 소환': { role: 'attack', baseHp: 265, baseArmor: 26, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 28 }, baseDamage: 27, baseCrit: 6, baseCritDmg: 152, respawnMs: 2000, hpScaleBase: 0.031, hpScaleExp: 1.19, dmgScaleBase: 0.025, dmgScaleExp: 1.2, armorScaleBase: 0.017, armorScaleExp: 1.13, evasionScaleBase: 0.013, evasionScaleExp: 1.1 },
+        '벌떼 소환': { role: 'attack', baseHp: 195, baseArmor: 16, baseEvasion: 48, baseRes: { fire: 10, cold: 10, light: 10, chaos: 5 }, baseDamage: 18, baseCrit: 9, baseCritDmg: 145, respawnMs: 2000, hpScaleBase: 0.024, hpScaleExp: 1.13, dmgScaleBase: 0.021, dmgScaleExp: 1.18, armorScaleBase: 0.012, armorScaleExp: 1.08, evasionScaleBase: 0.02, evasionScaleExp: 1.14 },
+        '수액 골렘 소환': { role: 'guard', baseHp: 420, baseArmor: 60, baseEvasion: 12, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 10, baseCrit: 0, baseCritDmg: 130, respawnMs: 4000, redirectPct: 25, hpScaleBase: 0.038, hpScaleExp: 1.2, dmgScaleBase: 0.014, dmgScaleExp: 1.15, armorScaleBase: 0.026, armorScaleExp: 1.16, evasionScaleBase: 0.01, evasionScaleExp: 1.08 }
+    };
+    return table[gemName] || { role: 'attack', baseHp: 220, baseArmor: 20, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 20, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.03, hpScaleExp: 1.16, dmgScaleBase: 0.022, dmgScaleExp: 1.18, armorScaleBase: 0.015, armorScaleExp: 1.12, evasionScaleBase: 0.015, evasionScaleExp: 1.12 };
+}
+
+function ensureSummonRuntime(pStats) {
+    if (!Array.isArray(game.summons)) game.summons = [];
+    game.summonSeq = Math.max(1, Math.floor(game.summonSeq || 1));
+    let maxCap = Math.max(1, Math.min(8, Math.floor(pStats.summonCap || 1)));
+    let defs = getActiveSummonGemDefs();
+    let now = Date.now();
+    defs.slice(0, maxCap).forEach((row, idx) => {
+        let existing = game.summons.find(s => s && s.gemName === row.name && s.slotIdx === idx);
+        if (existing) return;
+        let profile = getSummonProfile(row.name);
+        let isGuard = profile.role === 'guard';
+        let gemLv = Math.max(1, ((game.gemData || {})[row.name] || {}).level || 1);
+        let hpGrowth = 1 + (Math.pow(gemLv, profile.hpScaleExp || 1.16) * (profile.hpScaleBase || 0.03));
+        let dmgGrowth = 1 + (Math.pow(gemLv, profile.dmgScaleExp || 1.18) * (profile.dmgScaleBase || 0.022));
+        let armorGrowth = 1 + (Math.pow(gemLv, profile.armorScaleExp || 1.12) * (profile.armorScaleBase || 0.015));
+        let evasionGrowth = 1 + (Math.pow(gemLv, profile.evasionScaleExp || 1.12) * (profile.evasionScaleBase || 0.015));
+        let baseHp = profile.baseHp * hpGrowth;
+        let hpMul = 1 + ((pStats.summonHpPct || 0) / 100);
+        let effMul = 1 + ((pStats.summonEfficiency || 0) / 100);
+        let maxHp = Math.max(1, Math.floor(baseHp * hpMul * effMul));
+        game.summons.push({
+            id: game.summonSeq++,
+            gemName: row.name,
+            slotIdx: idx,
+            role: isGuard ? 'guard' : 'attack',
+            hp: maxHp,
+            maxHp: maxHp,
+            armor: Math.max(0, Math.floor((profile.baseArmor || 0) * armorGrowth)),
+            evasion: Math.max(0, Math.floor((profile.baseEvasion || 0) * evasionGrowth)),
+            resFire: Math.max(-60, Math.min(90, profile.baseRes.fire || 0)),
+            resCold: Math.max(-60, Math.min(90, profile.baseRes.cold || 0)),
+            resLight: Math.max(-60, Math.min(90, profile.baseRes.light || 0)),
+            resChaos: Math.max(-60, Math.min(90, profile.baseRes.chaos || 0)),
+            redirectPct: Math.max(0, Math.min(100, profile.redirectPct || 0)),
+            respawnMs: isGuard ? 4000 : 2000,
+            baseDamage: Math.max(1, Math.floor((profile.baseDamage || 20) * dmgGrowth)),
+            crit: Math.max(0, profile.baseCrit || 0),
+            critDmg: Math.max(100, profile.baseCritDmg || 140),
+            alive: true,
+            respawnAt: 0,
+            nextAttackAt: now + 300
+        });
+    });
+    game.summons.forEach(s => {
+        if (!s || s.alive || !s.respawnAt || now < s.respawnAt) return;
+        s.alive = true;
+        s.hp = s.maxHp;
+        s.respawnAt = 0;
+        s.nextAttackAt = now + 300;
+    });
+}
+
+function runSummonAttackTick(pStats) {
+    let now = Date.now();
+    let aliveEnemies = (game.enemies || []).filter(e => e && e.hp > 0);
+    if (aliveEnemies.length <= 0) return;
+    (game.summons || []).forEach(s => {
+        if (!s || !s.alive) return;
+        if (s.role !== 'attack') return;
+        if (now < (s.nextAttackAt || 0)) return;
+        s.nextAttackAt = now + 1000;
+        let target = aliveEnemies[0];
+        if (!target) return;
+        let base = Math.max(1, Math.floor(s.baseDamage || 20));
+        let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100);
+        let critChance = Math.max(0, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
+        let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
+        let dmg = Math.max(1, Math.floor(base * dmgMul));
+        if (Math.random() < critChance) dmg = Math.max(1, Math.floor(dmg * critMul));
+        applyDamageToEnemyResource(target, dmg);
+        addBattleFx('hit', { enemyId: target.id, color: getElementColor('chaos'), damage: dmg, duration: 220 });
+        if (target.hp <= 0) handleEnemyDeath(target, pStats);
+    });
+}
+
 function coreLoop() {
     if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
     tickWoodsmanCurse();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
+    ensureSummonRuntime(pStats);
     // Guard against malformed stat payloads from legacy saves/runtime merges.
     // If ASPD becomes NaN/<=0, pTimer never advances and combat appears frozen.
     if (!Number.isFinite(pStats.aspd) || pStats.aspd <= 0) pStats.aspd = 1;
@@ -714,6 +816,7 @@ function coreLoop() {
             }
 
         }
+        runSummonAttackTick(pStats);
         performMonsterAttacks(pStats);
     }
     zoneNow = getZone(game.currentZoneId);
@@ -2164,7 +2267,14 @@ function getPlayerStats() {
         uniquePoisonExtraStacks: uniqueVenomStride ? 1 : 0,
         runeCorpseExplodeChance: runeCorpseExplodeChance,
         runeCorpseExplodeLifePct: runeCorpseExplodeLifePct,
-        runeResonancePower: runeResonancePower
+        runeResonancePower: runeResonancePower,
+        summonPctDmg: Math.max(0, (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (reward.summonPctDmg || 0)),
+        summonHpPct: Math.max(0, (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (reward.summonHpPct || 0)),
+        summonCrit: Math.max(0, (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (reward.summonCrit || 0)),
+        summonCritDmg: Math.max(0, (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (reward.summonCritDmg || 0)),
+        summonCap: Math.max(1, 1 + Math.floor((gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (reward.summonCap || 0))),
+        summonEfficiency: Math.max(0, (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
+        summonGuardRedirectPct: Math.max(0, Math.min(100, (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0)))
     };
     if (uniqueImmuneIgnite) enemy.immuneIgnite = true;
     if (uniqueFrostSentinel) { enemy.immuneChill = true; enemy.immuneFreeze = true; }
@@ -4874,6 +4984,40 @@ function performMonsterAttacks(pStats) {
             }
 
             let remaining = dmg;
+            let guardRedirectPct = Math.max(0, Math.min(100, Math.floor(pStats.summonGuardRedirectPct || 0)));
+            let aliveGuards = (game.summons || []).filter(s => s && s.alive && s.role === 'guard' && s.hp > 0);
+            if (guardRedirectPct > 0 && aliveGuards.length > 0) {
+                let redirect = Math.min(remaining, Math.floor(remaining * (guardRedirectPct / 100)));
+                if (redirect > 0) {
+                    let each = Math.max(1, Math.floor(redirect / aliveGuards.length));
+                    let redirectedTotal = 0;
+                    aliveGuards.forEach((guard, idx) => {
+                        if (!guard.alive || guard.hp <= 0) return;
+                        let share = idx === (aliveGuards.length - 1) ? Math.max(0, redirect - redirectedTotal) : each;
+                        let local = Math.max(0, Math.min(100, Number(guard.redirectPct || 0)));
+                        if (local > 0) share = Math.floor(share * (local / 100));
+                        let evade = Math.max(0, Math.min(85, (guard.evasion || 0) / ((guard.evasion || 0) + 300) * 100));
+                        if (Math.random() * 100 < evade) share = 0;
+                        let guardRes = 0;
+                        if (enemy.ele === 'fire') guardRes = guard.resFire || 0;
+                        else if (enemy.ele === 'cold') guardRes = guard.resCold || 0;
+                        else if (enemy.ele === 'light') guardRes = guard.resLight || 0;
+                        else if (enemy.ele === 'chaos') guardRes = guard.resChaos || 0;
+                        let reduced = Math.max(0, Math.floor(share * (1 - (Math.max(-60, guardRes) / 100))));
+                        let armorRed = Math.min(85, (guard.armor || 0) / ((guard.armor || 0) + Math.max(1, reduced) * 8) * 100);
+                        reduced = Math.max(0, Math.floor(reduced * (1 - armorRed / 100)));
+                        reduced = Math.max(0, Math.min(reduced, guard.hp));
+                        if (reduced <= 0) return;
+                        guard.hp = Math.max(0, guard.hp - reduced);
+                        redirectedTotal += reduced;
+                        if (guard.hp <= 0) {
+                            guard.alive = false;
+                            guard.respawnAt = Date.now() + Math.max(2000, Math.floor(guard.respawnMs || 4000));
+                        }
+                    });
+                    remaining = Math.max(0, remaining - redirectedTotal);
+                }
+            }
             game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
             if (remaining > 0 && game.playerEnergyShield > 0) {
                 let absorbed = Math.min(game.playerEnergyShield, remaining);

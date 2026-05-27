@@ -1807,6 +1807,15 @@ function assertBuildEditable() {
 }
 
 function changeSkill(name) { if (!assertBuildEditable()) return; game.activeSkill = name; updateStaticUI(); }
+function toggleSummonAttackSkill(name) { if (!assertBuildEditable()) return;
+    let def = SKILL_DB[name] || {};
+    if (!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack'))) return;
+    game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
+    let idx = game.equippedSummonSkills.indexOf(name);
+    if (idx > -1) game.equippedSummonSkills.splice(idx, 1);
+    else game.equippedSummonSkills.push(name);
+    updateStaticUI();
+}
 function getSupportResonanceCost(name) {
     let db = SUPPORT_GEM_DB[name] || {};
     if (Array.isArray(db.resonanceCosts) && Number.isFinite(db.resonanceCosts[0])) return Math.max(1, Math.floor(db.resonanceCosts[0]));
@@ -5000,11 +5009,16 @@ function buildCraftActionButtons(item) {
         return name === game.activeSkill;
     }).map(name => {
         let active = name === game.activeSkill ? 'active' : '';
+        let def = SKILL_DB[name] || {};
+        let isSummonAttack = !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack'));
+        let summonEquipped = !!(Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
+        if (isSummonAttack && summonEquipped) active = 'active';
         let badge = '';
         let gemInfo = getGemPresentation(name, false);
         if (SKILL_DB[name].isGem || SKILL_DB[name].levelable) badge = `<span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
+        let summonBtn = isSummonAttack ? `<button style="margin-left:6px; font-size:0.68em; padding:2px 6px;" onclick="event.stopPropagation(); toggleSummonAttackSkill('${name}')">${summonEquipped ? '소환 OFF' : '소환 ON'}</button>` : '';
         let sealBtn = name === game.activeSkill ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">🔒 봉인</button>`;
-        return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.skill)}</strong>${badge}${sealBtn}</div>`;
+        return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.skill)}</strong>${badge}${summonBtn}${sealBtn}</div>`;
     }).join('');
     let sealedSkillRows = sealedSkills.filter(name => {
         let def = SKILL_DB[name] || {};
@@ -6264,6 +6278,12 @@ function mergeDefaults(save) {
     merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
     merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
     merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
+    merged.equippedSummonSkills = Array.isArray(merged.equippedSummonSkills)
+        ? Array.from(new Set(merged.equippedSummonSkills.filter(name => {
+            let def = SKILL_DB[name] || {};
+            return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack') && merged.skills.includes(name));
+        })))
+        : [];
     if (typeof merged.currentZoneId === 'string' && /^\d+$/.test(merged.currentZoneId)) merged.currentZoneId = parseInt(merged.currentZoneId, 10);
     if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
     if (typeof merged.maxZoneId !== 'string') {
