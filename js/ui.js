@@ -6296,7 +6296,7 @@ function mergeDefaults(save) {
         let maxDeepZoneId = getAbyssZoneIdForDepth(Math.max(20, savedDepth));
         merged.currentZoneId = clampNumber(numericZoneId, 0, Math.max(MAP_ZONES.length - 1, maxDeepZoneId));
     }
-    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== 'beehive_run' && merged.currentZoneId !== 'cosmos_challenge' && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID && merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID && merged.currentZoneId !== CHAOS_REALM_ZONE_ID && merged.currentZoneId !== UNDERWORLD_ZONE_ID) merged.currentZoneId = 0;
+    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== 'beehive_run' && merged.currentZoneId !== 'colony_run' && merged.currentZoneId !== 'cosmos_challenge' && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID && merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID && merged.currentZoneId !== CHAOS_REALM_ZONE_ID && merged.currentZoneId !== UNDERWORLD_ZONE_ID) merged.currentZoneId = 0;
     if (typeof merged.currentZoneId === 'string' && !getZone(merged.currentZoneId)) merged.currentZoneId = 0;
     if (merged.currentZoneId === 'beehive_run' && !(merged.beehive && merged.beehive.inRun)) merged.currentZoneId = merged.beehive && merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null ? merged.beehive.returnZoneId : merged.maxZoneId;
     if (merged.beehive && merged.beehive.inRun && merged.currentZoneId !== 'beehive_run') {

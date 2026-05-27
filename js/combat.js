@@ -523,8 +523,11 @@ function ensureSummonRuntime(pStats) {
     game.summonSeq = Math.max(1, Math.floor(game.summonSeq || 1));
     let maxCap = Math.max(1, Math.min(8, Math.floor(pStats.summonCap || 1)));
     let defs = getActiveSummonGemDefs();
+    let activeDefs = defs.slice(0, maxCap);
+    let activeKeys = new Set(activeDefs.map((row, idx) => `${row.name}::${idx}`));
+    game.summons = game.summons.filter(s => s && activeKeys.has(`${s.gemName}::${s.slotIdx}`));
     let now = Date.now();
-    defs.slice(0, maxCap).forEach((row, idx) => {
+    activeDefs.forEach((row, idx) => {
         let existing = game.summons.find(s => s && s.gemName === row.name && s.slotIdx === idx);
         if (existing) return;
         let profile = getSummonProfile(row.name);
