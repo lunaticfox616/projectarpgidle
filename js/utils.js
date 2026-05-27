@@ -368,6 +368,14 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'spellCritDmg') bucket.critDmg += value;
     else if (statId === 'spellLeech') bucket.leech += value;
     else if (statId === 'shockEffect') bucket.shockEffect += value;
+
+    else if (statId === 'summonPctDmg') bucket.summonPctDmg += value;
+    else if (statId === 'summonHpPct') bucket.summonHpPct += value;
+    else if (statId === 'summonCrit') bucket.summonCrit += value;
+    else if (statId === 'summonCritDmg') bucket.summonCritDmg += value;
+    else if (statId === 'summonCap') bucket.summonCap += value;
+    else if (statId === 'summonEfficiency') bucket.summonEfficiency += value;
+    else if (statId === 'summonGuardRedirectPct') bucket.summonGuardRedirectPct += value;
 }
 
 function applyStatsToBucket(bucket, stats) {
