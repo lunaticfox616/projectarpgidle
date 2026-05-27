@@ -872,6 +872,7 @@ function getPlayerStats() {
     let ascend = createEmptyStatBucket();
     let reward = createEmptyStatBucket();
     let starBlessing = createEmptyStatBucket();
+    let colonyWardBonus = {};
 
     let localDefenseTotals = { armor: 0, evasion: 0, energyShield: 0 };
     let equippedUniqueEffects = [];
@@ -893,31 +894,6 @@ function getPlayerStats() {
             if (stat.id === 'fossilRiftBlank' || stat.id === 'fossilRiftAmp') return stat;
             if (!Number.isFinite(Number(stat.val))) return stat;
         
-    let colonyWardBonus = {};
-    let cw = (game && game.colony && Array.isArray(game.colony.wardEquipped)) ? game.colony.wardEquipped : [];
-    let cwSlots = Math.max(1, Math.min(4, Math.floor((game && game.colony && game.colony.wardSlots) || 1)));
-    cw.slice(0, cwSlots).forEach(w => { if (w && w.stat) colonyWardBonus[w.stat] = (colonyWardBonus[w.stat] || 0) + Number(w.val || 0); });
-    finalHp += (colonyWardBonus.flatHp || 0);
-    finalArmor += (colonyWardBonus.armor || 0);
-    finalEvasion += (colonyWardBonus.evasion || 0);
-    finalEnergyShield += (colonyWardBonus.energyShield || 0);
-    finalDr = Math.min(75, finalDr + (colonyWardBonus.dr || 0));
-    finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
-    finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0));
-    finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0));
-    finalResChaos = Math.min(90, finalResChaos + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0));
-    finalMaxResF = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
-    finalMaxResC = Math.min(90, finalMaxResC + (colonyWardBonus.maxResC || 0));
-    finalMaxResL = Math.min(90, finalMaxResL + (colonyWardBonus.maxResL || 0));
-    finalRegen += (colonyWardBonus.regenFlat || 0);
-    finalEnergyShieldRegenRate += (colonyWardBonus.energyShieldRegen || 0);
-    finalCritResist = Math.min(80, finalCritResist + (colonyWardBonus.critResist || 0));
-    finalDotTakenDamageReducePct += (colonyWardBonus.dotTakenDamageReducePct || 0);
-    finalIgniteDamageReducePct += (colonyWardBonus.igniteDamageReducePct || 0);
-    finalBleedDamageReducePct += (colonyWardBonus.bleedDamageReducePct || 0);
-    finalPoisonDamageReducePct += (colonyWardBonus.poisonDamageReducePct || 0);
-    finalTakenDamageReduceWhen2EnemiesPct += (colonyWardBonus.takenDamageReduceWhen2EnemiesPct || 0);
-    finalTakenDamageReduceWhen1EnemyPct += (colonyWardBonus.takenDamageReduceWhen1EnemyPct || 0);
     return { ...stat, val: Number((Number(stat.val) * riftAmpMul).toFixed(2)) };
         });
         let explicitItemStats = scaleStatList(adjustedExplicitStats.concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
@@ -1773,6 +1749,32 @@ function getPlayerStats() {
             final: `${Math.max(0, finalValue).toFixed(1)}%`
         };
     }
+
+
+    let cw = (game && game.colony && Array.isArray(game.colony.wardEquipped)) ? game.colony.wardEquipped : [];
+    let cwSlots = Math.max(1, Math.min(4, Math.floor((game && game.colony && game.colony.wardSlots) || 1)));
+    cw.slice(0, cwSlots).forEach(w => { if (w && w.stat) colonyWardBonus[w.stat] = (colonyWardBonus[w.stat] || 0) + Number(w.val || 0); });
+    finalMaxResF = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
+    finalMaxResC = Math.min(90, finalMaxResC + (colonyWardBonus.maxResC || 0));
+    finalMaxResL = Math.min(90, finalMaxResL + (colonyWardBonus.maxResL || 0));
+    finalHp += (colonyWardBonus.flatHp || 0);
+    finalArmor += (colonyWardBonus.armor || 0);
+    finalEvasion += (colonyWardBonus.evasion || 0);
+    finalEnergyShield += (colonyWardBonus.energyShield || 0);
+    finalDr = Math.min(75, finalDr + (colonyWardBonus.dr || 0));
+    finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
+    finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0));
+    finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0));
+    finalResChaos = Math.min(90, finalResChaos + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0));
+    finalRegen += (colonyWardBonus.regenFlat || 0);
+    finalEnergyShieldRegenRate += (colonyWardBonus.energyShieldRegen || 0);
+    finalCritResist = Math.min(80, finalCritResist + (colonyWardBonus.critResist || 0));
+    finalDotTakenDamageReducePct += (colonyWardBonus.dotTakenDamageReducePct || 0);
+    finalIgniteDamageReducePct += (colonyWardBonus.igniteDamageReducePct || 0);
+    finalBleedDamageReducePct += (colonyWardBonus.bleedDamageReducePct || 0);
+    finalPoisonDamageReducePct += (colonyWardBonus.poisonDamageReducePct || 0);
+    finalTakenDamageReduceWhen2EnemiesPct += (colonyWardBonus.takenDamageReduceWhen2EnemiesPct || 0);
+    finalTakenDamageReduceWhen1EnemyPct += (colonyWardBonus.takenDamageReduceWhen1EnemyPct || 0);
 
     let breakdowns = {
         atk: {
@@ -4797,6 +4799,15 @@ function performMonsterAttacks(pStats) {
             let damageBreakdown = [];
             if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
             if (mitigatedElemental > 0) damageBreakdown.push({ ele: enemy.ele, amount: mitigatedElemental });
+            damageBreakdown = damageBreakdown.map(row => {
+                let less = 0;
+                if (row.ele === 'fire') less = pStats.fireTakenDamageReducePct || 0;
+                else if (row.ele === 'cold') less = pStats.coldTakenDamageReducePct || 0;
+                else if (row.ele === 'light') less = pStats.lightTakenDamageReducePct || 0;
+                else if (row.ele === 'chaos') less = pStats.chaosTakenDamageReducePct || 0;
+                if (less > 0) return { ele: row.ele, amount: Math.max(0, Math.floor((row.amount || 0) * (1 - Math.max(0, Math.min(0.9, less / 100))))) };
+                return row;
+            }).filter(row => row.amount > 0);
             if (pStats.uniqueBleedBlockHelm) {
                 damageBreakdown = damageBreakdown.flatMap(row => {
                     if (row.ele !== 'phys' || row.amount <= 0) return [row];

@@ -498,7 +498,7 @@ function openBeehiveChoiceOverlay(reasonText) {
 }
 
 function renderLoop8BeehivePanel() {
-    let open = (game.season || 1) >= 15;
+    let open = (game.season || 1) >= 8;
     let header = document.getElementById('ui-beehive-header');
     let panel = document.getElementById('ui-beehive-panel');
     if (!header || !panel) return;
