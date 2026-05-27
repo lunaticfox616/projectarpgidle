@@ -473,6 +473,25 @@ function sanitizeCombatRuntimeState() {
     }
 }
 
+
+function runColonyDefenseTick(pStats) {
+    let zoneNow = getZone(game.currentZoneId);
+    if (!zoneNow || zoneNow.id !== 'colony_run' || !(game.colony && game.colony.inRun)) return false;
+    if ((game.enemies || []).length <= 0 && typeof spawnColonyWave === 'function') spawnColonyWave();
+    tickEnemyDotEffects(pStats, 0.1);
+    tickEnemyAilments(pStats, 0.1);
+    let nowCast = Date.now();
+    let castUntil = Math.floor(game.playerCastDelayUntil || 0);
+    let castBlocked = nowCast < castUntil;
+    if (!castBlocked) pTimer += 0.1 * pStats.aspd;
+    while (!castBlocked && pTimer >= 1.0 && (game.enemies || []).length > 0) {
+        pTimer -= 1.0;
+        performPlayerAttack(pStats);
+    }
+    performMonsterAttacks(pStats);
+    return true;
+}
+
 function coreLoop() {
     if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
     tickWoodsmanCurse();
@@ -636,6 +655,7 @@ function coreLoop() {
     if ((typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) && !(game.beehive && game.beehive.awaitingClear)) return;
     let progressBefore = game.runProgress;
     let zoneNow = getZone(game.currentZoneId);
+    if (runColonyDefenseTick(pStats)) return;
     if (zoneNow && zoneNow.type === 'underworld' && game.playerHp > 0) {
         let floor = Math.max(1, Math.floor(zoneNow.floor || 1));
         if (floor >= 15) {
@@ -852,6 +872,7 @@ function getPlayerStats() {
     let ascend = createEmptyStatBucket();
     let reward = createEmptyStatBucket();
     let starBlessing = createEmptyStatBucket();
+    let colonyWardBonus = {};
 
     let localDefenseTotals = { armor: 0, evasion: 0, energyShield: 0 };
     let equippedUniqueEffects = [];
@@ -872,7 +893,8 @@ function getPlayerStats() {
             if (!stat) return stat;
             if (stat.id === 'fossilRiftBlank' || stat.id === 'fossilRiftAmp') return stat;
             if (!Number.isFinite(Number(stat.val))) return stat;
-            return { ...stat, val: Number((Number(stat.val) * riftAmpMul).toFixed(2)) };
+        
+    return { ...stat, val: Number((Number(stat.val) * riftAmpMul).toFixed(2)) };
         });
         let explicitItemStats = scaleStatList(adjustedExplicitStats.concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
         applyStatsToBucket(gearExplicit, explicitItemStats);
@@ -1728,6 +1750,32 @@ function getPlayerStats() {
         };
     }
 
+
+    let cw = (game && game.colony && Array.isArray(game.colony.wardEquipped)) ? game.colony.wardEquipped : [];
+    let cwSlots = Math.max(1, Math.min(4, Math.floor((game && game.colony && game.colony.wardSlots) || 1)));
+    cw.slice(0, cwSlots).forEach(w => { if (w && w.stat) colonyWardBonus[w.stat] = (colonyWardBonus[w.stat] || 0) + Number(w.val || 0); });
+    finalMaxResF = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
+    finalMaxResC = Math.min(90, finalMaxResC + (colonyWardBonus.maxResC || 0));
+    finalMaxResL = Math.min(90, finalMaxResL + (colonyWardBonus.maxResL || 0));
+    finalHp += (colonyWardBonus.flatHp || 0);
+    finalArmor += (colonyWardBonus.armor || 0);
+    finalEvasion += (colonyWardBonus.evasion || 0);
+    finalEnergyShield += (colonyWardBonus.energyShield || 0);
+    finalDr = Math.min(75, finalDr + (colonyWardBonus.dr || 0));
+    finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
+    finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0));
+    finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0));
+    finalResChaos = Math.min(90, finalResChaos + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0));
+    finalRegen += (colonyWardBonus.regenFlat || 0);
+    finalEnergyShieldRegenRate += (colonyWardBonus.energyShieldRegen || 0);
+    finalCritResist = Math.min(80, finalCritResist + (colonyWardBonus.critResist || 0));
+    finalDotTakenDamageReducePct += (colonyWardBonus.dotTakenDamageReducePct || 0);
+    finalIgniteDamageReducePct += (colonyWardBonus.igniteDamageReducePct || 0);
+    finalBleedDamageReducePct += (colonyWardBonus.bleedDamageReducePct || 0);
+    finalPoisonDamageReducePct += (colonyWardBonus.poisonDamageReducePct || 0);
+    finalTakenDamageReduceWhen2EnemiesPct += (colonyWardBonus.takenDamageReduceWhen2EnemiesPct || 0);
+    finalTakenDamageReduceWhen1EnemyPct += (colonyWardBonus.takenDamageReduceWhen1EnemyPct || 0);
+
     let breakdowns = {
         atk: {
             title: '공격력',
@@ -2011,6 +2059,10 @@ function getPlayerStats() {
         igniteDamageReducePct: finalIgniteDamageReducePct,
         bleedDamageReducePct: finalBleedDamageReducePct,
         poisonDamageReducePct: finalPoisonDamageReducePct,
+        fireTakenDamageReducePct: Math.max(0, colonyWardBonus.fireTakenDamageReducePct || 0),
+        coldTakenDamageReducePct: Math.max(0, colonyWardBonus.coldTakenDamageReducePct || 0),
+        lightTakenDamageReducePct: Math.max(0, colonyWardBonus.lightTakenDamageReducePct || 0),
+        chaosTakenDamageReducePct: Math.max(0, colonyWardBonus.chaosTakenDamageReducePct || 0),
         dotTakenDamageReducePct: finalDotTakenDamageReducePct,
         takenDamageReduceWhen2EnemiesPct: finalTakenDamageReduceWhen2EnemiesPct,
         takenDamageReduceWhen1EnemyPct: finalTakenDamageReduceWhen1EnemyPct,
@@ -2055,11 +2107,11 @@ function getPlayerStats() {
         maxResC: finalMaxResC,
         maxResL: finalMaxResL,
         resChaos: finalResChaos,
-        ailResIgnite: (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0),
-        ailResShock: (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0),
-        ailResFreeze: (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0),
-        ailResPoison: (gearExplicit.ailResPoison || 0) + (passive.ailResPoison || 0) + (season.ailResPoison || 0) + (ascend.ailResPoison || 0) + (reward.ailResPoison || 0),
-        ailResBleed: (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0),
+        ailResIgnite: (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0) + (colonyWardBonus.ailResIgnite || 0),
+        ailResShock: (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0) + (colonyWardBonus.ailResShock || 0),
+        ailResFreeze: (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0) + (colonyWardBonus.ailResFreeze || 0),
+        ailResPoison: (gearExplicit.ailResPoison || 0) + (passive.ailResPoison || 0) + (season.ailResPoison || 0) + (ascend.ailResPoison || 0) + (reward.ailResPoison || 0) + (colonyWardBonus.ailResPoison || 0),
+        ailResBleed: (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0) + (colonyWardBonus.ailResBleed || 0),
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
         instantDamageMultiplier: instantDamageMultiplier,
@@ -2843,6 +2895,7 @@ function tickEnemyAilments(pStats, dt) {
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
+        if (zone && zone.id === 'colony_run' && Number(enemy.colonyDist || 0) > 8) return;
         enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
         if (enemy.ailments.length <= 0) return;
         let next = [];
@@ -2883,6 +2936,7 @@ function tickEnemyDotEffects(pStats, dt) {
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     (game.enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0) return;
+        if (zone && zone.id === 'colony_run' && Number(enemy.colonyDist || 0) > 8) return;
         let dotState = (enemy.dotState && typeof enemy.dotState === 'object') ? enemy.dotState : null;
         if (!dotState) return;
         dotState.timeLeft = Math.max(0, (dotState.timeLeft || 0) - dt);
@@ -3025,7 +3079,7 @@ function ensureEncounterRun() {
 
 function isRegularAutoProgressZone(zone) {
     if (!zone) return false;
-    if (zone.id === 'beehive_run' || zone.id === 'grand_breach_run') return false;
+    if (zone.id === 'beehive_run' || zone.id === 'colony_run' || zone.id === 'grand_breach_run') return false;
     if (typeof zone.id === 'string' && zone.id.includes('_boss_')) return false;
     return ['act', 'abyss', 'trial', 'meteor', 'labyrinth', 'chaosRealm'].includes(zone.type);
 }
@@ -3428,6 +3482,15 @@ function rollLootForEnemy(enemy) {
         if (game.settings.showLootLog) addLog('🗝️ 벌집 입장권 열쇠를 발견했습니다.', 'loot-rare');
     }
     let sporeUnlocked = Math.max(0, Math.floor(game.loopCount || 0)) >= 2;
+    let isDeepChaosZone = zone && zone.type === 'abyss' && Math.max(0, Math.floor(zone.depth || 0)) >= 21;
+    if ((game.season || 1) >= 15 && (isDeepChaosZone || game.currentZoneId === 'beehive_run' || game.currentZoneId === 'grand_breach_run')) {
+        let traceChance = isDeepChaosZone ? 0.006 : (game.currentZoneId === 'grand_breach_run' ? 0.009 : 0.004);
+        if (Math.random() < traceChance) {
+            awardCurrency('colonyTrace', 1);
+            addLog('🧭 군락지 흔적을 발견했습니다.', 'loot-magic', { noToast: true });
+        }
+    }
+
     if (sporeUnlocked && zone && (zone.type === 'act' || zone.type === 'abyss')) {
         let sporeChance = enemy.isBoss ? 0.32 : (enemy.isElite ? 0.2 : 0.11);
         if (Math.random() < sporeChance) {
@@ -3541,6 +3604,37 @@ function handleEnemyDeath(enemy, pStats) {
     clearDotFxThrottleForEnemy(enemy.id);
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun && (game.enemies || []).filter(entry => entry && entry.hp > 0).length === 0) {
         if (typeof onBeehiveWaveCleared === 'function') onBeehiveWaveCleared();
+    }
+    if (zone && zone.id === 'colony_run' && game.colony && game.colony.inRun) {
+        game.colony.kills = Math.max(0, Math.floor((game.colony.kills || 0) + 1));
+        if ((game.colony.kills || 0) >= Math.max(1, Math.floor(game.colony.requiredKills || 1))) {
+            if (Math.random() < 0.6) awardCurrency('colonyShard', 1 + Math.floor((game.colony.wave || 1) / 3));
+            if (Math.random() < 0.35) awardCurrency('chaos', 1);
+
+            if (Math.random() < 0.42) {
+                let c = game.colony || (game.colony = {});
+                c.wardInventory = Array.isArray(c.wardInventory) ? c.wardInventory : [];
+                if (typeof generateColonyWard === 'function') {
+                    let ward = generateColonyWard();
+                    c.wardInventory.push(ward);
+                    addLog(`🛡️ 군락지 액막이 부적 획득: ${ward.name}`, 'loot-rare');
+                }
+            }
+            if (Math.random() < 0.42) {
+                let c = game.colony || (game.colony = {});
+                c.wardInventory = Array.isArray(c.wardInventory) ? c.wardInventory : [];
+                if (typeof generateColonyWard === 'function') {
+                    let ward = generateColonyWard();
+                    c.wardInventory.push(ward);
+                    addLog(`🛡️ 군락지 액막이 부적 획득: ${ward.name}`, 'loot-rare');
+                }
+            }
+            game.colony.wave = Math.max(1, Math.floor((game.colony.wave || 1) + 1));
+            game.colony.kills = 0;
+            game.colony.requiredKills = Math.min(60, 16 + Math.floor((game.colony.wave || 1) * 3));
+            if (typeof spawnColonyWave === 'function') spawnColonyWave();
+            addLog(`🪲 군락지 웨이브 완료! 다음 웨이브 ${game.colony.wave} 시작.`, 'loot-magic');
+        }
     }
     if (zone && zone.id === 'grand_breach_run' && enemy.isBoss && grand && grand.inRun) {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
@@ -4408,6 +4502,11 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         clearWoodsmanBuildLock();
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
+    } else if (zone && zone.id === 'colony_run' && game.colony && game.colony.inRun) {
+        addLog(message || "☠️ 군락지 방어전에서 패배했습니다.", "death", { noToast: !!opts.noToast });
+        game.colony.inRun = false;
+        game.currentZoneId = game.colony.returnZoneId !== undefined && game.colony.returnZoneId !== null ? game.colony.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
+        game.colony.returnZoneId = null;
     } else if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) {
         addLog(message || "☠️ 벌집 전투에서 패배했습니다. 원정이 즉시 종료됩니다.", "death", { noToast: !!opts.noToast });
         if (typeof exitBeehiveRun === 'function') exitBeehiveRun('', 'death');
@@ -4569,7 +4668,20 @@ function tickAilments(pStats, dt) {
     game.playerAilments = next;
 }
 
+
+function updateColonyDefenseApproach() {
+    let zone = getZone(game.currentZoneId);
+    if (!zone || zone.id !== 'colony_run' || !(game.colony && game.colony.inRun)) return;
+    let enemies = (game.enemies || []).filter(e => e && e.hp > 0);
+    enemies.forEach(e => {
+        if (!Number.isFinite(e.colonyDist)) e.colonyDist = 100 + Math.random() * 40;
+        let spd = Math.max(0.1, Number(e.colonyMoveSpeed || e.moveSpeed || 0.6));
+        e.colonyDist = Math.max(0, e.colonyDist - spd * 0.55);
+    });
+}
+
 function performMonsterAttacks(pStats) {
+    updateColonyDefenseApproach();
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
@@ -4687,6 +4799,15 @@ function performMonsterAttacks(pStats) {
             let damageBreakdown = [];
             if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
             if (mitigatedElemental > 0) damageBreakdown.push({ ele: enemy.ele, amount: mitigatedElemental });
+            damageBreakdown = damageBreakdown.map(row => {
+                let less = 0;
+                if (row.ele === 'fire') less = pStats.fireTakenDamageReducePct || 0;
+                else if (row.ele === 'cold') less = pStats.coldTakenDamageReducePct || 0;
+                else if (row.ele === 'light') less = pStats.lightTakenDamageReducePct || 0;
+                else if (row.ele === 'chaos') less = pStats.chaosTakenDamageReducePct || 0;
+                if (less > 0) return { ele: row.ele, amount: Math.max(0, Math.floor((row.amount || 0) * (1 - Math.max(0, Math.min(0.9, less / 100))))) };
+                return row;
+            }).filter(row => row.amount > 0);
             if (pStats.uniqueBleedBlockHelm) {
                 damageBreakdown = damageBreakdown.flatMap(row => {
                     if (row.ele !== 'phys' || row.amount <= 0) return [row];
