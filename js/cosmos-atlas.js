@@ -367,18 +367,26 @@
         tooltip: null,
         selectedId: 'planet-0',
         hoverId: null,
-        camera: { x: 0, y: 0, scale: 0.72 },
+        camera: { x: 0, y: 0, scale: 0.56 },
         drag: { active: false, moved: false, startX: 0, startY: 0, baseX: 0, baseY: 0 },
         installed: false,
         needsFrame: false
     };
+    const DEFAULT_COSMOS_CAMERA_SCALE = 0.56;
+    const COSMOS_LAYOUT_VERSION = 'spiral-25x5-v2';
+    const GALAXY_SEQUENCE = [1, 2, 3, 4, 5];
+    const NODES_PER_GALAXY = 25;
+    const PLANETS_PER_GALAXY = 10;
+    const ASTEROIDS_PER_GALAXY = 15;
+    const PLANET_SPIRAL_SLOTS = [0, 3, 5, 8, 10, 13, 15, 18, 21, 23];
+    const ASTEROID_SPIRAL_SLOTS = [1, 2, 4, 6, 7, 9, 11, 12, 14, 16, 17, 19, 20, 22, 24];
+    const GALAXY_BOSS_PLANET_INDEX = { 1: 3, 2: 12, 3: 27, 4: 35, 5: 49 };
     const GALAXY_SPECS = {
-        0: { x: 0, y: 0, r: 180, label: 'G0 중심핵' },
-        1: { x: 0, y: -70, r: 520, label: 'G1 관문권' },
-        2: { x: 1120, y: -690, r: 540, label: 'G2 북동은하' },
-        3: { x: -1160, y: -660, r: 520, label: 'G3 북서은하' },
-        4: { x: 1320, y: 740, r: 560, label: 'G4 남동은하' },
-        5: { x: -1260, y: 810, r: 540, label: 'G5 남서은하' }
+        1: { x: 0, y: 0, r: 330, angle: -Math.PI / 2, label: 'G1 중앙은하', accent: '#f6c461' },
+        2: { x: 520, y: -430, r: 340, angle: -Math.PI / 3.5, label: 'G2 북동 나선은하', accent: '#7fc9ff' },
+        3: { x: 950, y: 250, r: 350, angle: Math.PI / 9, label: 'G3 남동 나선은하', accent: '#8ef0b3' },
+        4: { x: 390, y: 900, r: 360, angle: Math.PI * 0.72, label: 'G4 남서 나선은하', accent: '#c58cff' },
+        5: { x: -520, y: 620, r: 350, angle: Math.PI * 1.12, label: 'G5 북서 나선은하', accent: '#ff9f7a' }
     };
     const COSMOS_MASTERY_NODES = [
         { key: 'planetRelief', name: '행성 패널티 완화', max: 30, cost: 1, desc: '행성 진행도/중력 패널티 완화 +1.2% (최대 36%)' },
@@ -398,7 +406,7 @@
         { key: 'stellarForge', name: '항성 단조', max: 26, cost: 1, desc: '제작 재화 추가 획득 +0.9% (최대 23.4%)' },
         { key: 'echoCache', name: '에코 저장고', max: 20, cost: 1, desc: '탐사 완료 보너스 별가루 +1.0% (최대 20%)' },
         { key: 'riftGuard', name: '균열 방벽', max: 20, cost: 1, desc: '우주계 받는 피해 완화 +0.7% (최대 14%)' },
-        { key: 'frontierTax', name: '개척자 세공', max: 18, cost: 1, desc: '깊은 궤도(4~5) 보상 +1.3% (최대 23.4%)' },
+        { key: 'frontierTax', name: '개척자 세공', max: 18, cost: 1, desc: '외곽 은하(G4~G5) 보상 +1.3% (최대 23.4%)' },
         { key: 'chainMastery', name: '초회 정복 보너스', max: 18, cost: 1, desc: '미클리어 노드 첫 완료 별가루 +2.0% (최대 36%)' },
         { key: 'apexProtocol', name: '은하 핵 반응', max: 22, cost: 1, desc: '보스 처치 별가루 +1.8% (최대 39.6%)' },
         { key: 'starbreaker', name: '성핵 분쇄', max: 12, cost: 1, desc: '보스 전투 피해 +1.8% (최대 21.6%)' }
@@ -455,74 +463,80 @@
         return String(no).padStart(3, '0');
     }
 
+    function getGalaxyForPlanetIndex(idx) {
+        return Math.max(1, Math.min(5, 1 + Math.floor(idx / PLANETS_PER_GALAXY)));
+    }
+
+    function getGalaxyForAsteroidIndex(idx) {
+        return Math.max(1, Math.min(5, 1 + Math.floor(idx / ASTEROIDS_PER_GALAXY)));
+    }
+
+    function getColorWithAlpha(hex, alpha) {
+        const raw = String(hex || '#7fc9ff').replace('#', '');
+        const full = raw.length === 3 ? raw.split('').map(ch => ch + ch).join('') : raw.padEnd(6, 'f').slice(0, 6);
+        const num = parseInt(full, 16);
+        const r = (num >> 16) & 255;
+        const g = (num >> 8) & 255;
+        const b = num & 255;
+        return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, Number(alpha) || 0))})`;
+    }
+
+    function getGalaxyAccent(galaxy, alpha) {
+        const spec = GALAXY_SPECS[galaxy] || GALAXY_SPECS[1];
+        return alpha == null ? spec.accent : getColorWithAlpha(spec.accent, alpha);
+    }
+
+    function getGalaxySpiralPosition(galaxy, slot, seed, kind) {
+        const spec = GALAXY_SPECS[galaxy] || GALAXY_SPECS[1];
+        if (galaxy === 1 && slot === 0) return { x: spec.x, y: spec.y };
+        const safeSlot = Math.max(0, Math.min(NODES_PER_GALAXY - 1, Math.floor(slot || 0)));
+        const turn = spec.angle + safeSlot * 0.56;
+        const inner = galaxy === 1 ? 42 : 58;
+        const step = galaxy === 1 ? 12.4 : 12.8;
+        const noise = (seeded01(seed + ':spiral') - 0.5) * (kind === 'planet' ? 18 : 28);
+        const radius = inner + safeSlot * step + noise;
+        const side = (seeded01(seed + ':side') - 0.5) * (kind === 'planet' ? 14 : 20);
+        return {
+            x: spec.x + Math.cos(turn) * radius + Math.cos(turn + Math.PI / 2) * side,
+            y: spec.y + Math.sin(turn) * radius + Math.sin(turn + Math.PI / 2) * side
+        };
+    }
+
     function buildCosmosAtlasData() {
         if (ATLAS.nodes.length) return;
-        const galaxyCenters = Object.keys(GALAXY_SPECS).reduce((acc, key) => {
-            const spec = GALAXY_SPECS[key];
-            acc[key] = { x: spec.x, y: spec.y };
-            return acc;
-        }, {});
-        const galaxySpineAngles = {
-            1: -Math.PI / 2,
-            2: -Math.PI / 6,
-            3: -Math.PI * 5 / 6,
-            4: Math.PI / 7,
-            5: Math.PI * 6 / 7
-        };
-        const galaxyCounts = { 0: 1, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-
-        const orbitBossAssigned = {1:false,2:false,3:false,4:false,5:false};
-        for (let i = 0; i < COSMOS_PLANETS.length; i++) {
-            const o = Math.max(0, Math.min(5, Math.floor(COSMOS_PLANETS[i].orbit || 0)));
-            if (o >= 1 && COSMOS_PLANETS[i].tag === 'boss') orbitBossAssigned[o] = true;
-        }
-        for (let i = COSMOS_PLANETS.length - 1; i >= 0; i--) {
-            const o = Math.max(0, Math.min(5, Math.floor(COSMOS_PLANETS[i].orbit || 0)));
-            if (o >= 1 && !orbitBossAssigned[o]) { COSMOS_PLANETS[i].tag = 'boss'; orbitBossAssigned[o] = true; }
-        }
-
-        COSMOS_PLANETS.forEach(p => { const o = Math.max(0, Math.min(5, Math.floor(p.orbit || 0))); galaxyCounts[o] = (galaxyCounts[o] || 0) + 1; });
-        const galaxyIndex = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
         COSMOS_PLANETS.forEach((p, idx) => {
-            const orbit = Math.max(0, Math.min(5, Math.floor(p.orbit || 0)));
-            const pos = galaxyIndex[orbit]++;
-            const total = Math.max(1, galaxyCounts[orbit] || 1);
-            const base = galaxySpineAngles[orbit] || 0;
-            const spread = Math.min(Math.PI * 1.25, Math.PI * (0.68 + Math.min(1, total / 18) * 0.55));
-            const lane = total <= 1 ? 0.5 : (pos / (total - 1));
-            const arc = (lane - 0.5) * spread;
-            const jitter = (seeded01(p.name + ':angle') - 0.5) * 0.16;
-            const angle = orbit === 0 ? 0 : base + arc + jitter;
-            const ringBase = orbit === 0 ? 0 : (GALAXY_SPECS[orbit] ? GALAXY_SPECS[orbit].r * 0.42 : 220);
-            const ringStep = orbit === 0 ? 0 : 34 + orbit * 4;
-            const ring = orbit === 0 ? 0 : ringBase + (pos % 4) * ringStep + (seeded01(p.name + ':radius') - 0.5) * 52;
-            const center = galaxyCenters[orbit] || { x: 0, y: 0 };
+            const orbit = getGalaxyForPlanetIndex(idx);
+            const galaxyPos = idx % PLANETS_PER_GALAXY;
+            const slot = PLANET_SPIRAL_SLOTS[galaxyPos] || galaxyPos;
+            const pos = getGalaxySpiralPosition(orbit, slot, p.name, 'planet');
             const node = {
                 id: `planet-${idx}`,
                 kind: 'planet',
                 name: p.name,
                 source: p.source,
                 theme: p.theme,
-                tag: p.tag,
+                tag: GALAXY_BOSS_PLANET_INDEX[orbit] === idx ? 'boss' : p.tag,
+                baseTag: p.tag,
                 orbit,
+                localIndex: galaxyPos,
+                localSlot: slot,
                 tier: Math.min(25, 1 + Math.floor(idx / 5)),
-                x: orbit === 0 ? 0 : center.x + Math.cos(angle) * ring,
-                y: orbit === 0 ? 0 : center.y + Math.sin(angle) * ring,
-                radius: orbit === 0 ? 16 : Math.max(8, 15 - orbit),
-                labelPriority: orbit === 0 ? 10 : Math.max(1, 7 - orbit),
+                x: pos.x,
+                y: pos.y,
+                radius: idx === 0 ? 17 : Math.max(8, 15 - orbit * 0.8),
+                labelPriority: idx === 0 ? 10 : Math.max(2, 7 - orbit),
                 sizeClass: 1 + Math.floor(seeded01(p.name + ':size') * 5),
                 gravity: Math.max(1, Math.round((1.0 + orbit * 0.7 + seeded01(p.name + ':grav') * 2.4) * 10) / 10)
             };
             ATLAS.nodes.push(node);
         });
 
-        COSMOS_ASTEROID_NUMBERS.forEach((no) => {
-            const orbit = 1 + Math.floor(seeded01('ast-orbit-' + no) * 5);
-            const angle = seeded01('ast-angle-' + no) * Math.PI * 2;
-            const center = galaxyCenters[orbit] || { x: 0, y: 0 };
-            const shell = GALAXY_SPECS[orbit] || { r: 520 };
-            const r = shell.r + 120 + (seeded01('ast-radius-' + no) - 0.5) * 200;
+        COSMOS_ASTEROID_NUMBERS.forEach((no, idx) => {
+            const orbit = getGalaxyForAsteroidIndex(idx);
+            const galaxyPos = idx % ASTEROIDS_PER_GALAXY;
+            const slot = ASTEROID_SPIRAL_SLOTS[galaxyPos] || galaxyPos;
+            const pos = getGalaxySpiralPosition(orbit, slot, 'asteroid-' + no, 'asteroid');
             const node = {
                 id: `asteroid-${no}`,
                 kind: 'asteroid',
@@ -531,9 +545,11 @@
                 theme: '소행성 지대 / 재료·별가루',
                 tag: 'asteroid',
                 orbit,
+                localIndex: PLANETS_PER_GALAXY + galaxyPos,
+                localSlot: slot,
                 tier: Math.min(25, 1 + Math.floor((50 + COSMOS_ASTEROID_NUMBERS.indexOf(no)) / 5)),
-                x: center.x + Math.cos(angle) * r,
-                y: center.y + Math.sin(angle) * r,
+                x: pos.x,
+                y: pos.y,
                 radius: Math.max(7.2, 14 - orbit),
                 labelPriority: 0,
                 sizeClass: 1 + Math.floor(seeded01('ast-size-' + no) * 3),
@@ -554,8 +570,8 @@
                     if (d >= minD) continue;
                     const push = (minD - d) * 0.5;
                     const nx = dx / d, ny = dy / d;
-                    if (a.orbit > 0) { a.x -= nx * push; a.y -= ny * push; }
-                    if (b.orbit > 0) { b.x += nx * push; b.y += ny * push; }
+                    if (a.id !== 'planet-0') { a.x -= nx * push; a.y -= ny * push; }
+                    if (b.id !== 'planet-0') { b.x += nx * push; b.y += ny * push; }
                     moved = true;
                 }
             }
@@ -582,39 +598,38 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
         const planets = ATLAS.nodes.filter(n => n.kind === 'planet');
         const asteroids = ATLAS.nodes.filter(n => n.kind === 'asteroid');
 
-        // POE atlas-like mesh: local nearest links + a loose backbone per galaxy.
-        [1, 2, 3, 4, 5].forEach(galaxy => {
-            const gp = planets.filter(n => n.orbit === galaxy);
-            gp.sort((a, b) => Math.atan2(a.y, a.x) - Math.atan2(b.y, b.x));
-            for (let i = 0; i < gp.length; i++) {
-                const a = gp[i];
-                const b = gp[(i + 1) % gp.length];
-                if (a && b && a.id !== b.id) addEdge(a.id, b.id, 'spine');
+        // Local clockwise spirals: every galaxy contains 10 planets + 15 asteroids.
+        GALAXY_SEQUENCE.forEach(galaxy => {
+            const localNodes = ATLAS.nodes
+                .filter(n => n.orbit === galaxy)
+                .sort((a, b) => (a.localSlot || 0) - (b.localSlot || 0));
+            for (let i = 0; i < localNodes.length - 1; i++) {
+                addEdge(localNodes[i].id, localNodes[i + 1].id, i % 5 === 0 ? 'spine' : 'route');
             }
+
+            const gp = planets.filter(n => n.orbit === galaxy);
             gp.forEach(node => {
                 const near = gp
                     .filter(o => o.id !== node.id)
                     .map(o => [o, distance(node, o)])
                     .sort((x, y) => x[1] - y[1])
-                    .slice(0, 3);
+                    .slice(0, 2);
                 near.forEach(pair => addEdge(node.id, pair[0].id, 'route'));
             });
         });
 
-        // bridge galaxies through representative hub planets (single connected component)
-        const hubs = [1,2,3,4,5]
-            .map(g => planets.filter(n => n.orbit === g).sort((a, b) => distance(a, { x: 0, y: 0 }) - distance(b, { x: 0, y: 0 }))[0])
-            .filter(Boolean);
-
-        // Ensure start gateway (planet-0) reaches the mesh.
-        const startNode = planets.find(n => n.id === 'planet-0');
-        if (startNode && hubs.length > 0) {
-            hubs.forEach(hub => addEdge(startNode.id, hub.id, 'spine'));
+        // Hidden transition links keep progression continuous without drawing hard galaxy-to-galaxy lines.
+        for (let i = 0; i < GALAXY_SEQUENCE.length - 1; i++) {
+            const currentGalaxy = GALAXY_SEQUENCE[i];
+            const nextGalaxy = GALAXY_SEQUENCE[i + 1];
+            const exitNode = ATLAS.nodes
+                .filter(n => n.orbit === currentGalaxy)
+                .sort((a, b) => (b.localSlot || 0) - (a.localSlot || 0))[0];
+            const entryNode = ATLAS.nodes
+                .filter(n => n.orbit === nextGalaxy)
+                .sort((a, b) => (a.localSlot || 0) - (b.localSlot || 0))[0];
+            if (exitNode && entryNode) addEdge(exitNode.id, entryNode.id, 'transition');
         }
-
-        // Connect hubs in a chain + ring so all galaxies stay reachable.
-        for (let i = 0; i < hubs.length - 1; i++) addEdge(hubs[i].id, hubs[i + 1].id, 'route');
-        if (hubs.length > 2) addEdge(hubs[0].id, hubs[hubs.length - 1].id, 'route');
 
         asteroids.forEach(ast => {
             const localPlanets = planets.filter(p => p.orbit === ast.orbit);
@@ -634,6 +649,11 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
         state.cleared = Array.isArray(state.cleared) ? state.cleared : [];
         state.selectedId = state.selectedId || 'planet-0';
         state.camera = state.camera && typeof state.camera === 'object' ? state.camera : null;
+        if (state.layoutVersion !== COSMOS_LAYOUT_VERSION) {
+            state.cleared = state.cleared.filter(id => id !== 'planet-0');
+            state.camera = { x: 0, y: 0, scale: DEFAULT_COSMOS_CAMERA_SCALE };
+            state.layoutVersion = COSMOS_LAYOUT_VERSION;
+        }
         state.starDust = Math.max(0, Math.floor(state.starDust || 0));
         state.bossClears = Array.isArray(state.bossClears) ? state.bossClears : [];
         state.bossKills = state.bossKills && typeof state.bossKills === 'object' ? state.bossKills : {};
@@ -645,7 +665,7 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
         COSMOS_MASTERY_NODES.forEach(node => {
             state.mastery[node.key] = Math.max(0, Math.min(node.max, Math.floor(state.mastery[node.key] || 0)));
         });
-        if (!state.camera) state.camera = { x: 0, y: 0, scale: 0.72 };
+        if (!state.camera) state.camera = { x: 0, y: 0, scale: DEFAULT_COSMOS_CAMERA_SCALE };
         return state;
     }
     function getCosmosMasteryValue(key) {
@@ -839,13 +859,13 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
             panel.id = 'map-tab-cosmos';
             panel.className = 'subtab-content cosmos-atlas-tab';
             panel.innerHTML = `
-                <h2>🌠 우주계 아틀라스 <span class="h2-right">이름 있는 행성 50개 · 소행성 75개 · 총 125개 노드</span></h2>
+                <h2>🌠 우주계 아틀라스 <span class="h2-right">5개 은하 × 25개 노드 · 행성 50개 · 소행성 75개</span></h2>
                 <div id="ui-cosmos-panel" class="cosmos-panel">
                     <div class="cosmos-header">
                         <div>
                             <div class="cosmos-kicker">Cosmic Atlas</div>
                             <div class="cosmos-title">별을 잇는 우주계 탐험 지도</div>
-                            <div class="cosmos-desc">마우스 드래그: 이동 · 휠/버튼: 확대·축소 · 노드 클릭: 행성/소행성 선택 · 탐사 완료 시 연결된 별길이 열린다.</div>
+                            <div class="cosmos-desc">마우스 드래그: 이동 · 휠/버튼: 확대·축소 · 노드 클릭: 행성/소행성 선택 · G1 중앙은하에서 G2→G3→G4→G5 시계방향 회오리 별길이 열린다.</div>
                             <div class="cosmos-zoom-controls"><button class="subtab-btn" type="button" onclick="zoomCosmosAtlas(1.14)">＋</button><button class="subtab-btn" type="button" onclick="zoomCosmosAtlas(0.88)">－</button><button class="subtab-btn" type="button" onclick="resetCosmosAtlasCamera()">중앙</button></div>
                         </div>
                         <div class="cosmos-summary" id="ui-cosmos-summary"></div>
@@ -1137,18 +1157,34 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
         ctx.save();
         ctx.translate(w / 2 + ATLAS.camera.x * ATLAS.camera.scale, h / 2 + ATLAS.camera.y * ATLAS.camera.scale);
         ctx.scale(ATLAS.camera.scale, ATLAS.camera.scale);
-        const galaxyShells = [1, 2, 3, 4, 5].map(key => GALAXY_SPECS[key]).filter(Boolean);
-        galaxyShells.forEach((g, idx) => {
+        GALAXY_SEQUENCE.forEach((galaxy) => {
+            const g = GALAXY_SPECS[galaxy];
+            if (!g) return;
+            ctx.save();
+            ctx.globalAlpha = 0.72;
             ctx.beginPath();
-            ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
-            ctx.strokeStyle = idx === 0 ? 'rgba(180,220,255,0.24)' : 'rgba(127, 201, 255, 0.18)';
-            ctx.lineWidth = 1.5 / ATLAS.camera.scale;
-            ctx.setLineDash([6 / ATLAS.camera.scale, 7 / ATLAS.camera.scale]);
+            for (let slot = 0; slot < NODES_PER_GALAXY; slot++) {
+                const point = getGalaxySpiralPosition(galaxy, slot, `${g.label}:guide:${slot}`, 'asteroid');
+                if (slot === 0) ctx.moveTo(point.x, point.y);
+                else ctx.lineTo(point.x, point.y);
+            }
+            ctx.strokeStyle = getColorWithAlpha(g.accent, 0.18);
+            ctx.lineWidth = 1.3 / ATLAS.camera.scale;
             ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.fillStyle = 'rgba(200,225,255,0.65)';
-            ctx.font = `${Math.max(12, 15 / ATLAS.camera.scale)}px Malgun Gothic, sans-serif`;
-            ctx.fillText(g.label, g.x - 14 / ATLAS.camera.scale, g.y - g.r - 10 / ATLAS.camera.scale);
+
+            ctx.beginPath();
+            ctx.moveTo(g.x - 42 / ATLAS.camera.scale, g.y);
+            ctx.lineTo(g.x + 42 / ATLAS.camera.scale, g.y);
+            ctx.moveTo(g.x, g.y - 42 / ATLAS.camera.scale);
+            ctx.lineTo(g.x, g.y + 42 / ATLAS.camera.scale);
+            ctx.strokeStyle = getColorWithAlpha(g.accent, 0.28);
+            ctx.lineWidth = 1 / ATLAS.camera.scale;
+            ctx.stroke();
+
+            ctx.fillStyle = getColorWithAlpha(g.accent, 0.90);
+            ctx.font = `800 ${Math.max(13, 16 / ATLAS.camera.scale)}px Malgun Gothic, sans-serif`;
+            ctx.fillText(`${g.label} · 25개`, g.x - 26 / ATLAS.camera.scale, g.y - 62 / ATLAS.camera.scale);
+            ctx.restore();
         });
         ctx.restore();
     }
@@ -1163,6 +1199,7 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
     function drawEdges(ctx) {
         ctx.save();
         ATLAS.edges.forEach(edge => {
+            if (edge.type === 'transition') return;
             const a = ATLAS.byId.get(edge.a);
             const b = ATLAS.byId.get(edge.b);
             if (!a || !b) return;
@@ -1175,7 +1212,9 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
             ctx.beginPath();
             ctx.moveTo(pa.x, pa.y);
             ctx.lineTo(pb.x, pb.y);
-            ctx.strokeStyle = open ? 'rgba(127, 201, 255, 0.48)' : partial ? 'rgba(127, 201, 255, 0.22)' : 'rgba(80, 92, 120, 0.13)';
+            const sameGalaxy = a.orbit === b.orbit;
+            const galaxyColor = sameGalaxy ? getGalaxyAccent(a.orbit, open ? 0.48 : partial ? 0.22 : 0.11) : 'rgba(80, 92, 120, 0.08)';
+            ctx.strokeStyle = sameGalaxy ? galaxyColor : (open ? 'rgba(127, 201, 255, 0.18)' : partial ? 'rgba(127, 201, 255, 0.10)' : 'rgba(80, 92, 120, 0.06)');
             ctx.lineWidth = edge.type === 'spine' ? 2.3 : edge.type === 'asteroid' ? 0.9 : 1.35;
             ctx.stroke();
         });
@@ -1253,7 +1292,7 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
                 ctx.fill();
             }
             ctx.lineWidth = selected ? 3 : hover ? 2.4 : 1.4;
-            ctx.strokeStyle = selected ? '#ffffff' : status === 'available' ? '#9fd4ff' : status === 'cleared' ? '#9ef0bf' : '#586780';
+            ctx.strokeStyle = selected ? '#ffffff' : status === 'available' ? getGalaxyAccent(node.orbit, 0.95) : status === 'cleared' ? '#9ef0bf' : getGalaxyAccent(node.orbit, 0.34);
             ctx.beginPath();
             ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
             ctx.stroke();
@@ -1298,9 +1337,13 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
         const planetsCleared = ATLAS.nodes.filter(n => n.kind === 'planet' && state.cleared.includes(n.id)).length;
         const asteroidsCleared = ATLAS.nodes.filter(n => n.kind === 'asteroid' && state.cleared.includes(n.id)).length;
         const unlocked = isCosmosUnlocked();
+        const galaxyCounts = GALAXY_SEQUENCE
+            .map(g => `G${g} ${ATLAS.nodes.filter(n => n.orbit === g).length}/${NODES_PER_GALAXY}`)
+            .join(' · ');
         ATLAS.summary.innerHTML = `
             <div><b>${cleared}</b> / ${ATLAS.nodes.length} 탐사 완료</div>
             <div>행성 ${planetsCleared} / 50 · 소행성 ${asteroidsCleared} / 75</div>
+            <div>${galaxyCounts}</div>
             <div>탐사 가능 노드: <b>${unlocked ? available : 0}</b></div>
             <div>성도술 포인트: <b>${getCosmosMasteryFreePoints()}</b> / ${getCosmosMasteryTotalPoints()}</div>
             <div>별가루: <b>${state.starDust}</b></div>
@@ -1321,7 +1364,7 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
                 : `소행성 보상: 별가루 +${2 + node.orbit} · 제작 재료 소량`);
         ATLAS.detail.innerHTML = `
             <div class="cosmos-detail-title">${node.kind === 'planet' ? '🪐' : '☄️'} ${escapeHtml(node.name)}</div>
-            <div class="cosmos-detail-source">원본: ${escapeHtml(node.source)} · 궤도 ${node.orbit} · Tier ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · 은하 보스' : ''}</div>
+            <div class="cosmos-detail-source">원본: ${escapeHtml(node.source)} · 은하 G${node.orbit} · Tier ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · 은하 보스' : ''}</div>
             <div class="cosmos-status ${status}">${getStatusLabel(status)}</div>
             <div class="cosmos-detail-section">
                 <div class="cosmos-section-label">Theme</div>
@@ -1333,6 +1376,7 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
             </div>
             <div class="cosmos-detail-section">
                 <div class="cosmos-section-label">행성 정보</div>
+                <div>소속: G${node.orbit} · 은하 내 슬롯 ${Math.max(1, Math.floor((node.localSlot || 0) + 1))}/${NODES_PER_GALAXY}</div>
                 <div>크기 등급: ${Math.max(1, Math.floor(node.sizeClass || 1))} · 중력: ${Number(node.gravity || 1).toFixed(1)}g</div>
                 <div style="margin-top:4px; color:#a9bdd3;">진행도 요구치: +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 패널티 강도: +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</div>
             </div>
@@ -1367,9 +1411,10 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
         if (!node) return;
         const status = getNodeStatus(node);
         const repeatBossRun = status === 'cleared' && node.tag === 'boss';
+        const completedChallenge = state.activeChallenge && state.activeChallenge.nodeId === node.id;
         const firstClear = !state.cleared.includes(node.id);
-        if (status === 'available') {
-            if (typeof window.addLog === 'function') window.addLog('행성은 도전에 성공해야 탐사가 완료됩니다.', 'attack-monster');
+        if ((status === 'available' || repeatBossRun) && !completedChallenge) {
+            if (typeof window.addLog === 'function') window.addLog('우주계 전투 완료 후 탐사가 기록됩니다.', 'attack-monster');
             return;
         }
         if (!(status === 'available' || repeatBossRun)) {
@@ -1456,7 +1501,7 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
         const node = ATLAS.byId.get(ATLAS.selectedId || state.selectedId || 'planet-0');
         if (!node) return;
         if (!canChallengeNode(node)) {
-            if (typeof window.addLog === 'function') window.addLog('해당 행성은 아직 도전할 수 없습니다.', 'attack-monster');
+            if (typeof window.addLog === 'function') window.addLog('해당 우주계 노드는 아직 도전할 수 없습니다.', 'attack-monster');
             return;
         }
         if (typeof window.addLog === 'function') {
@@ -1472,13 +1517,13 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
         if (!node) return;
         ATLAS.camera.x = -node.x;
         ATLAS.camera.y = -node.y;
-        ATLAS.camera.scale = Math.max(0.72, ATLAS.camera.scale);
+        ATLAS.camera.scale = Math.max(DEFAULT_COSMOS_CAMERA_SCALE, ATLAS.camera.scale);
         saveCamera();
         renderCosmosAtlas();
     }
 
     function resetCosmosAtlasCamera() {
-        ATLAS.camera = { x: 0, y: 0, scale: 0.72 };
+        ATLAS.camera = { x: 0, y: 0, scale: DEFAULT_COSMOS_CAMERA_SCALE };
         saveCamera();
         renderCosmosAtlas();
     }
