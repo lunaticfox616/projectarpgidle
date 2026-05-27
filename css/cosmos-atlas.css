@@ -54,6 +54,12 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   line-height: 1.55;
 }
 
+.cosmos-zoom-controls {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
 .cosmos-summary {
   min-width: 210px;
   display: grid;
