@@ -2032,6 +2032,38 @@ function getClassTreeDef(clsKey) {
     } else if (clsKey === 'inquisitor') {
         tree.n9 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.3), req: 'n6' };
         tree.n10 = { stat: 'resPen', val: 18, req: ['n7', 'n8', 'n9'] };
+    } else if (clsKey === 'soulbinder') {
+        tree.n1 = { stat: 'summonPctDmg', val: scaleClassStat('summonPctDmg', getEntryStatBase('summonPctDmg'), 1.5), req: null };
+        tree.n2 = { stat: 'summonHpPct', val: scaleClassStat('summonHpPct', getEntryStatBase('summonHpPct'), 1.5), req: 'n1' };
+        tree.n3 = { stat: 'summonAspd', val: scaleClassStat('summonAspd', getEntryStatBase('summonAspd'), 1.5), req: 'n1' };
+        tree.n4 = { stat: 'summonPctDmg', val: scaleClassStat('summonPctDmg', getMajorStatBase('summonPctDmg'), 1.5), req: 'n2' };
+        tree.n5 = { stat: 'summonHpPct', val: scaleClassStat('summonHpPct', getMajorStatBase('summonHpPct'), 1.5), req: ['n2', 'n3'] };
+        tree.n6 = { stat: 'summonAspd', val: scaleClassStat('summonAspd', getMajorStatBase('summonAspd'), 1.5), req: 'n3' };
+        tree.n7 = { stat: 'summonPctDmg', val: scaleClassStat('summonPctDmg', getMajorStatBase('summonPctDmg'), 2.2), req: 'n4' };
+        tree.n8 = { stat: 'summonHpPct', val: scaleClassStat('summonHpPct', getMajorStatBase('summonHpPct'), 2.2), req: 'n5' };
+        tree.n9 = { stat: 'summonAspd', val: scaleClassStat('summonAspd', getMajorStatBase('summonAspd'), 2.2), req: 'n6' };
+        tree.n10 = { stat: 'summonPctDmg', val: 100, req: ['n7', 'n8', 'n9'] };
+    } else if (clsKey === 'catalyst') {
+        tree.n1 = { stat: 'dotPctDmg', val: scaleClassStat('dotPctDmg', getEntryStatBase('dotPctDmg'), 1.5), req: null };
+        tree.n2 = { stat: 'igniteDamageMultiplierPct', val: scaleClassStat('igniteDamageMultiplierPct', getEntryStatBase('igniteDamageMultiplierPct'), 1.5), req: 'n1' };
+        tree.n3 = { stat: 'poisonDamageMultiplierPct', val: scaleClassStat('poisonDamageMultiplierPct', getEntryStatBase('poisonDamageMultiplierPct'), 1.5), req: 'n1' };
+        tree.n4 = { stat: 'dotPctDmg', val: scaleClassStat('dotPctDmg', getMajorStatBase('dotPctDmg'), 1.5), req: 'n2' };
+        tree.n5 = { stat: 'igniteDamageMultiplierPct', val: scaleClassStat('igniteDamageMultiplierPct', getMajorStatBase('igniteDamageMultiplierPct'), 1.5), req: ['n2', 'n3'] };
+        tree.n6 = { stat: 'poisonDamageMultiplierPct', val: scaleClassStat('poisonDamageMultiplierPct', getMajorStatBase('poisonDamageMultiplierPct'), 1.5), req: 'n3' };
+        tree.n7 = { stat: 'dotPctDmg', val: scaleClassStat('dotPctDmg', getMajorStatBase('dotPctDmg'), 2.2), req: 'n4' };
+        tree.n8 = { stat: 'igniteDamageMultiplierPct', val: scaleClassStat('igniteDamageMultiplierPct', getMajorStatBase('igniteDamageMultiplierPct'), 2.2), req: 'n5' };
+        tree.n9 = { stat: 'poisonDamageMultiplierPct', val: scaleClassStat('poisonDamageMultiplierPct', getMajorStatBase('poisonDamageMultiplierPct'), 2.2), req: 'n6' };
+        tree.n10 = { stat: 'dotPctDmg', val: 100, req: ['n7', 'n8', 'n9'] };
+    } else if (clsKey === 'crusader') {
+        tree.n1 = { stat: 'physPctDmg', val: scaleClassStat('physPctDmg', getEntryStatBase('physPctDmg'), 1.5), req: null };
+        tree.n2 = { stat: 'armorPct', val: scaleClassStat('armorPct', getEntryStatBase('armorPct'), 1.5), req: 'n1' };
+        tree.n3 = { stat: 'resAll', val: scaleClassStat('resAll', getEntryStatBase('resAll'), 1.5), req: 'n1' };
+        tree.n4 = { stat: 'lightPctDmg', val: scaleClassStat('lightPctDmg', getMajorStatBase('lightPctDmg'), 1.5), req: 'n2' };
+        tree.n5 = { stat: 'energyShieldPct', val: scaleClassStat('energyShieldPct', getMajorStatBase('energyShieldPct'), 1.5), req: ['n2', 'n3'] };
+        tree.n6 = { stat: 'dr', val: scaleClassStat('dr', getMajorStatBase('dr'), 1.5), req: 'n3' };
+        tree.n7 = { stat: 'physPctDmg', val: scaleClassStat('physPctDmg', getMajorStatBase('physPctDmg'), 2.2), req: 'n4' };
+        tree.n8 = { stat: 'armorPct', val: scaleClassStat('armorPct', getMajorStatBase('armorPct'), 2.2), req: 'n5' };
+        tree.n9 = { stat: 'resAll', val: scaleClassStat('resAll', getMajorStatBase('resAll'), 2.2), req: 'n6' };
     }
     if ((game.completedTrials || []).includes('trial_4')) {
         const coreByClass = {
@@ -2967,7 +2999,8 @@ function grantJournalBonus(entryId) {
     game.journalBonusClaims = (game.journalBonusClaims && typeof game.journalBonusClaims === 'object') ? game.journalBonusClaims : {};
     if (game.journalBonusClaims[entryId]) return;
     game.journalBonuses = Array.isArray(game.journalBonuses) ? game.journalBonuses : [];
-    game.journalBonuses.push({ entryId: entryId, stat: entry.bonus.stat, value: entry.bonus.value });
+    if (entry.bonus.stat === 'passivePoint') game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + Math.max(0, Math.floor(entry.bonus.value || 0));
+    else game.journalBonuses.push({ entryId: entryId, stat: entry.bonus.stat, value: entry.bonus.value });
     game.journalBonusClaims[entryId] = true;
     addLog(`🕮 저널 영구 보너스 획득: ${entry.bonus.label}`, 'season-up');
 }
