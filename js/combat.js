@@ -507,62 +507,227 @@ function getActiveSummonGemDefs() {
 
 function getSummonProfile(gemName) {
     let table = {
-        '서리늑대 소환': { role: 'attack', baseHp: 220, baseArmor: 24, baseEvasion: 40, baseRes: { fire: 10, cold: 20, light: 10, chaos: 0 }, baseDamage: 24, baseCrit: 8, baseCritDmg: 150, respawnMs: 2000, hpScaleBase: 0.028, hpScaleExp: 1.16, dmgScaleBase: 0.024, dmgScaleExp: 1.22, armorScaleBase: 0.016, armorScaleExp: 1.12, evasionScaleBase: 0.019, evasionScaleExp: 1.15 },
-        '불곰 소환': { role: 'attack', baseHp: 280, baseArmor: 36, baseEvasion: 18, baseRes: { fire: 24, cold: 8, light: 10, chaos: 0 }, baseDamage: 28, baseCrit: 5, baseCritDmg: 145, respawnMs: 2000, hpScaleBase: 0.03, hpScaleExp: 1.18, dmgScaleBase: 0.026, dmgScaleExp: 1.2, armorScaleBase: 0.02, armorScaleExp: 1.14, evasionScaleBase: 0.012, evasionScaleExp: 1.1 },
-        '벼락멧돼지 소환': { role: 'attack', baseHp: 240, baseArmor: 22, baseEvasion: 28, baseRes: { fire: 8, cold: 8, light: 26, chaos: 0 }, baseDamage: 26, baseCrit: 7, baseCritDmg: 150, respawnMs: 2000, hpScaleBase: 0.029, hpScaleExp: 1.17, dmgScaleBase: 0.027, dmgScaleExp: 1.22, armorScaleBase: 0.015, armorScaleExp: 1.11, evasionScaleBase: 0.016, evasionScaleExp: 1.13 },
-        '칼날까마귀 소환': { role: 'attack', baseHp: 210, baseArmor: 18, baseEvasion: 52, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 23, baseCrit: 11, baseCritDmg: 160, respawnMs: 2000, hpScaleBase: 0.026, hpScaleExp: 1.14, dmgScaleBase: 0.023, dmgScaleExp: 1.21, armorScaleBase: 0.013, armorScaleExp: 1.1, evasionScaleBase: 0.022, evasionScaleExp: 1.16 },
-        '공허 유충 소환': { role: 'attack', baseHp: 265, baseArmor: 26, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 28 }, baseDamage: 27, baseCrit: 6, baseCritDmg: 152, respawnMs: 2000, hpScaleBase: 0.031, hpScaleExp: 1.19, dmgScaleBase: 0.025, dmgScaleExp: 1.2, armorScaleBase: 0.017, armorScaleExp: 1.13, evasionScaleBase: 0.013, evasionScaleExp: 1.1 },
-        '벌떼 소환': { role: 'attack', baseHp: 195, baseArmor: 16, baseEvasion: 48, baseRes: { fire: 10, cold: 10, light: 10, chaos: 5 }, baseDamage: 18, baseCrit: 9, baseCritDmg: 145, respawnMs: 2000, hpScaleBase: 0.024, hpScaleExp: 1.13, dmgScaleBase: 0.021, dmgScaleExp: 1.18, armorScaleBase: 0.012, armorScaleExp: 1.08, evasionScaleBase: 0.02, evasionScaleExp: 1.14 },
-        '수액 골렘 소환': { role: 'guard', baseHp: 420, baseArmor: 60, baseEvasion: 12, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 10, baseCrit: 0, baseCritDmg: 130, respawnMs: 4000, redirectPct: 25, hpScaleBase: 0.038, hpScaleExp: 1.2, dmgScaleBase: 0.014, dmgScaleExp: 1.15, armorScaleBase: 0.026, armorScaleExp: 1.16, evasionScaleBase: 0.01, evasionScaleExp: 1.08 }
+        '서리늑대 소환': { role: 'attack', ele: 'cold', baseHp: 220, baseArmor: 24, baseEvasion: 40, baseRes: { fire: 10, cold: 20, light: 10, chaos: 0 }, baseDamage: 24, baseCrit: 8, baseCritDmg: 150, respawnMs: 2000, hpScaleBase: 0.028, hpScaleExp: 1.16, dmgScaleBase: 0.024, dmgScaleExp: 1.22, armorScaleBase: 0.016, armorScaleExp: 1.12, evasionScaleBase: 0.019, evasionScaleExp: 1.15 },
+        '불곰 소환': { role: 'attack', ele: 'fire', baseHp: 280, baseArmor: 36, baseEvasion: 18, baseRes: { fire: 24, cold: 8, light: 10, chaos: 0 }, baseDamage: 28, baseCrit: 5, baseCritDmg: 145, respawnMs: 2000, hpScaleBase: 0.03, hpScaleExp: 1.18, dmgScaleBase: 0.026, dmgScaleExp: 1.2, armorScaleBase: 0.02, armorScaleExp: 1.14, evasionScaleBase: 0.012, evasionScaleExp: 1.1 },
+        '벼락멧돼지 소환': { role: 'attack', ele: 'light', baseHp: 240, baseArmor: 22, baseEvasion: 28, baseRes: { fire: 8, cold: 8, light: 26, chaos: 0 }, baseDamage: 26, baseCrit: 7, baseCritDmg: 150, respawnMs: 2000, hpScaleBase: 0.029, hpScaleExp: 1.17, dmgScaleBase: 0.027, dmgScaleExp: 1.22, armorScaleBase: 0.015, armorScaleExp: 1.11, evasionScaleBase: 0.016, evasionScaleExp: 1.13 },
+        '칼날까마귀 소환': { role: 'attack', ele: 'phys', baseHp: 210, baseArmor: 18, baseEvasion: 52, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 23, baseCrit: 11, baseCritDmg: 160, respawnMs: 2000, hpScaleBase: 0.026, hpScaleExp: 1.14, dmgScaleBase: 0.023, dmgScaleExp: 1.21, armorScaleBase: 0.013, armorScaleExp: 1.1, evasionScaleBase: 0.022, evasionScaleExp: 1.16 },
+        '공허 유충 소환': { role: 'attack', ele: 'chaos', baseHp: 265, baseArmor: 26, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 28 }, baseDamage: 27, baseCrit: 6, baseCritDmg: 152, respawnMs: 2000, hpScaleBase: 0.031, hpScaleExp: 1.19, dmgScaleBase: 0.025, dmgScaleExp: 1.2, armorScaleBase: 0.017, armorScaleExp: 1.13, evasionScaleBase: 0.013, evasionScaleExp: 1.1 },
+        '벌떼 소환': { role: 'attack', ele: 'chaos', baseHp: 195, baseArmor: 16, baseEvasion: 48, baseRes: { fire: 10, cold: 10, light: 10, chaos: 5 }, baseDamage: 18, baseCrit: 9, baseCritDmg: 145, respawnMs: 2000, hpScaleBase: 0.024, hpScaleExp: 1.13, dmgScaleBase: 0.021, dmgScaleExp: 1.18, armorScaleBase: 0.012, armorScaleExp: 1.08, evasionScaleBase: 0.02, evasionScaleExp: 1.14 },
+        '수액 골렘 소환': { role: 'guard', ele: 'phys', baseHp: 420, baseArmor: 60, baseEvasion: 12, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 10, baseCrit: 0, baseCritDmg: 130, respawnMs: 4000, redirectPct: 25, hpScaleBase: 0.038, hpScaleExp: 1.2, dmgScaleBase: 0.014, dmgScaleExp: 1.15, armorScaleBase: 0.026, armorScaleExp: 1.16, evasionScaleBase: 0.01, evasionScaleExp: 1.08 }
     };
-    return table[gemName] || { role: 'attack', baseHp: 220, baseArmor: 20, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 20, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.03, hpScaleExp: 1.16, dmgScaleBase: 0.022, dmgScaleExp: 1.18, armorScaleBase: 0.015, armorScaleExp: 1.12, evasionScaleBase: 0.015, evasionScaleExp: 1.12 };
+    return table[gemName] || { role: 'attack', ele: 'phys', baseHp: 220, baseArmor: 20, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 20, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.03, hpScaleExp: 1.16, dmgScaleBase: 0.022, dmgScaleExp: 1.18, armorScaleBase: 0.015, armorScaleExp: 1.12, evasionScaleBase: 0.015, evasionScaleExp: 1.12 };
+}
+
+function getSummonRuntimeCap(pStats) {
+    return Math.max(1, Math.min(8, Math.floor((pStats && pStats.summonCap) || 1)));
+}
+
+function buildActiveSummonRuntimeDefs(pStats) {
+    let maxCap = getSummonRuntimeCap(pStats);
+    let defs = getActiveSummonGemDefs();
+    let activeDefs = defs.slice(0, maxCap).map((row, idx) => ({ ...row, slotIdx: idx, duplicateIndex: 0 }));
+    let duplicatePool = defs.filter(row => row && row.db && Array.isArray(row.db.tags) && row.db.tags.includes('summon_attack'));
+    let cursor = 0;
+    while (activeDefs.length < maxCap && duplicatePool.length > 0) {
+        let src = duplicatePool[cursor % duplicatePool.length];
+        activeDefs.push({ ...src, slotIdx: activeDefs.length, duplicateIndex: Math.floor(cursor / duplicatePool.length) + 1 });
+        cursor++;
+    }
+    return activeDefs.slice(0, maxCap);
+}
+
+function getSummonGemLevel(gemName) {
+    return Math.max(1, ((game.gemData || {})[gemName] || {}).level || 1);
+}
+
+function getSummonScaledBaseDamage(profile, gemLv, pStats) {
+    let dmgGrowth = 1 + (Math.pow(gemLv, profile.dmgScaleExp || 1.18) * (profile.dmgScaleBase || 0.022));
+    let flat = Math.max(0, (pStats && pStats.summonFlatDmg) || 0);
+    return Math.max(1, Math.floor(((profile.baseDamage || 20) * dmgGrowth) + flat));
+}
+
+function buildSummonRuntimeStats(row, pStats, now) {
+    let profile = getSummonProfile(row.name);
+    let isGuard = profile.role === 'guard';
+    let gemLv = getSummonGemLevel(row.name);
+    let hpGrowth = 1 + (Math.pow(gemLv, profile.hpScaleExp || 1.16) * (profile.hpScaleBase || 0.03));
+    let armorGrowth = 1 + (Math.pow(gemLv, profile.armorScaleExp || 1.12) * (profile.armorScaleBase || 0.015));
+    let evasionGrowth = 1 + (Math.pow(gemLv, profile.evasionScaleExp || 1.12) * (profile.evasionScaleBase || 0.015));
+    let baseHp = profile.baseHp * hpGrowth;
+    let hpMul = 1 + ((pStats.summonHpPct || 0) / 100);
+    let effMul = 1 + ((pStats.summonEfficiency || 0) / 100);
+    let maxHp = Math.max(1, Math.floor(baseHp * hpMul * effMul));
+    return {
+        gemName: row.name,
+        slotIdx: row.slotIdx,
+        duplicateIndex: row.duplicateIndex || 0,
+        role: isGuard ? 'guard' : 'attack',
+        hp: maxHp,
+        maxHp: maxHp,
+        armor: Math.max(0, Math.floor((profile.baseArmor || 0) * armorGrowth)),
+        evasion: Math.max(0, Math.floor((profile.baseEvasion || 0) * evasionGrowth)),
+        resFire: Math.max(-60, Math.min(90, profile.baseRes.fire || 0)),
+        resCold: Math.max(-60, Math.min(90, profile.baseRes.cold || 0)),
+        resLight: Math.max(-60, Math.min(90, profile.baseRes.light || 0)),
+        resChaos: Math.max(-60, Math.min(90, profile.baseRes.chaos || 0)),
+        redirectPct: Math.max(0, Math.min(100, profile.redirectPct || 0)),
+        respawnMs: isGuard ? 4000 : 2000,
+        baseDamage: getSummonScaledBaseDamage(profile, gemLv, pStats),
+        ele: profile.ele || 'phys',
+        crit: Math.max(0, profile.baseCrit || 0),
+        critDmg: Math.max(100, profile.baseCritDmg || 140),
+        alive: true,
+        respawnAt: 0,
+        nextAttackAt: now + 300
+    };
+}
+
+function getLimitedSummonPenetrationStats(pStats) {
+    let fullPen = game.ascendClass === 'soulbinder' && hasKeystone('sb6');
+    return {
+        ...pStats,
+        resPen: fullPen ? Math.max(0, pStats.resPen || 0) : Math.min(25, Math.max(0, pStats.resPen || 0) * 0.35),
+        physIgnore: Math.min(20, Math.max(0, pStats.physIgnore || 0) * 0.35)
+    };
+}
+
+function getLimitedSummonFinalDamageMultiplier(pStats) {
+    let mul = Math.max(0, Number(pStats && pStats.finalDamageMultiplier) || 1);
+    if (mul <= 1) return mul;
+    return 1 + Math.min(1.5, (mul - 1) * 0.65);
+}
+
+function getLimitedSummonBossDamageMultiplier(pStats, target) {
+    if (!target || !target.isBoss) return 1;
+    let mul = Math.max(0, Number(pStats && pStats.bossDamageDealtMultiplier) || 1);
+    if (mul <= 1) return mul;
+    return 1 + Math.min(1.25, (mul - 1) * 0.65);
+}
+
+function getSummonAttackIntervalMs(pStats) {
+    let summonAspdMul = 1 + Math.max(0, ((pStats && pStats.summonAspd) || 0) / 100);
+    return Math.max(120, Math.floor(1000 / summonAspdMul));
+}
+
+function getSummonHitDamageInfo(s, pStats, target, options) {
+    let expected = !!(options && options.expected);
+    let ele = s.ele || 'phys';
+    let zone = getZone(game.currentZoneId) || getZone(0);
+    let zoneTier = (zone && zone.tier) || 1;
+    let base = Math.max(1, Math.floor(s.baseDamage || 20));
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb1')) base = Math.max(1, Math.floor(base * 1.15));
+    let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100);
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) dmgMul += Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100;
+    let critChance = Math.max(0, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
+    let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
+    let crit = false;
+    let dmg = Math.max(1, base * dmgMul);
+    if (expected) dmg *= ((1 - critChance) + (critChance * critMul));
+    else if (Math.random() < critChance) { dmg *= critMul; crit = true; }
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) dmg *= (1 + Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100);
+    if (target && target.isBoss) dmg *= getLimitedSummonBossDamageMultiplier(pStats, target);
+    let curseFx = target ? getEnemyConditionDebuffFactor(target) : { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, lightTakenMul: 1, chaosTakenMul: 1, critDmgTakenMul: 1 };
+    let limitedStats = getLimitedSummonPenetrationStats(pStats);
+    let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, target, limitedStats) - (curseFx.resShred || 0);
+    if (ele === 'fire') enemyRes -= (curseFx.resFShred || 0);
+    if (ele === 'cold') enemyRes -= (curseFx.resCShred || 0);
+    if (ele === 'light') enemyRes -= (curseFx.resLShred || 0);
+    if (ele === 'chaos') enemyRes -= (curseFx.resChaosShred || 0);
+    if (ele === 'phys') enemyRes -= (curseFx.physDrShred || 0);
+    if (!expected && target && (target.evasionChance || 0) > 0 && Math.random() * 100 < target.evasionChance) dmg = 0;
+    dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
+    dmg = Math.floor(dmg * (curseFx.mul || 1));
+    if (ele === 'phys' && target) dmg = Math.floor(dmg * (target.physicalDamageTakenMul || 1));
+    if (ele === 'light') dmg = Math.floor(dmg * (curseFx.lightTakenMul || 1));
+    if (ele === 'chaos') dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
+    if (crit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
+    if (target) dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(target, ele));
+    dmg = Math.floor(dmg * (getAbyssMonsterScales(zone).playerDamageMul || 1));
+    if (target && target.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) dmg = Math.floor(dmg * (1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100)));
+    dmg = Math.floor(dmg * getLimitedSummonFinalDamageMultiplier(pStats));
+    return { damage: Math.max(0, Math.floor(dmg)), crit: crit, critChance: critChance, element: ele };
+}
+
+function getSummonAilmentStats(pStats, element) {
+    let scale = (game.ascendClass === 'soulbinder' && hasKeystone('sb6')) ? 0.5 : 0.35;
+    return {
+        ...pStats,
+        sSkill: { ...(pStats.sSkill || {}), ele: element || 'phys' },
+        igniteChance: Math.max(0, (pStats.igniteChance || 0) * scale),
+        chillChance: Math.max(0, (pStats.chillChance || 0) * scale),
+        freezeChance: Math.max(0, (pStats.freezeChance || 0) * scale),
+        shockChance: Math.max(0, (pStats.shockChance || 0) * scale),
+        poisonChance: Math.max(0, (pStats.poisonChance || 0) * scale),
+        bleedChance: Math.max(0, (pStats.bleedChance || 0) * scale),
+        ailmentResistPenPct: Math.max(0, (pStats.ailmentResistPenPct || 0) * scale),
+        ailmentPowerMultiplier: 1 + Math.max(0, ((pStats.ailmentPowerMultiplier || 1) - 1) * scale),
+        dotDurationMultiplier: 1 + Math.max(0, ((pStats.dotDurationMultiplier || 1) - 1) * scale)
+    };
+}
+
+function applySummonAilmentFromHit(target, pStats, hitElement, hitDamage, isCrit) {
+    if (!target || hitDamage <= 0) return;
+    applyEnemyAilmentFromHit(target, getSummonAilmentStats(pStats, hitElement), hitDamage, isCrit);
+}
+
+function estimateSummonDps(pStats) {
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb5')) {
+        return { total: 0, activeCount: 0, lines: ['홀로서기 각인: 소환수 직접 공격 비활성화'] };
+    }
+    let target = (game.enemies || []).find(e => e && e.hp > 0) || null;
+    let intervalSec = getSummonAttackIntervalMs(pStats) / 1000;
+    let rows = buildActiveSummonRuntimeDefs(pStats);
+    let total = 0;
+    let activeCount = 0;
+    let lines = [];
+    rows.forEach(row => {
+        let profile = getSummonProfile(row.name);
+        if (profile.role === 'guard') return;
+        let gemLv = getSummonGemLevel(row.name);
+        let s = {
+            gemName: row.name,
+            ele: profile.ele || 'phys',
+            baseDamage: getSummonScaledBaseDamage(profile, gemLv, pStats),
+            crit: Math.max(0, profile.baseCrit || 0),
+            critDmg: Math.max(100, profile.baseCritDmg || 140)
+        };
+        let hit = getSummonHitDamageInfo(s, pStats, target, { expected: true });
+        let dps = hit.damage / intervalSec;
+        total += dps;
+        activeCount++;
+    });
+    lines.push(`공격 소환수 ${activeCount}기 · 공격 주기 ${intervalSec.toFixed(2)}초`);
+    if (rows.length > activeCount) lines.push(`방어/보조 소환수 ${rows.length - activeCount}기는 DPS에서 제외`);
+    lines.push('최종 피해/보스 피해/관통/상태이상 계열은 제한 계수로 반영');
+    if (rows.some(row => row.duplicateIndex > 0)) lines.push('남는 소환수 한도는 공격 소환수 중복 소환으로 사용');
+    return { total: Math.max(0, total), activeCount: activeCount, lines: lines };
 }
 
 function ensureSummonRuntime(pStats) {
     if (!Array.isArray(game.summons)) game.summons = [];
     game.summonSeq = Math.max(1, Math.floor(game.summonSeq || 1));
-    let maxCap = Math.max(1, Math.min(8, Math.floor(pStats.summonCap || 1)));
-    let defs = getActiveSummonGemDefs();
-    let activeDefs = defs.slice(0, maxCap);
-    let activeKeys = new Set(activeDefs.map((row, idx) => `${row.name}::${idx}`));
+    let activeDefs = buildActiveSummonRuntimeDefs(pStats);
+    let activeKeys = new Set(activeDefs.map(row => `${row.name}::${row.slotIdx}`));
     game.summons = game.summons.filter(s => s && activeKeys.has(`${s.gemName}::${s.slotIdx}`));
     let now = Date.now();
-    activeDefs.forEach((row, idx) => {
-        let existing = game.summons.find(s => s && s.gemName === row.name && s.slotIdx === idx);
-        if (existing) return;
-        let profile = getSummonProfile(row.name);
-        let isGuard = profile.role === 'guard';
-        let gemLv = Math.max(1, ((game.gemData || {})[row.name] || {}).level || 1);
-        let hpGrowth = 1 + (Math.pow(gemLv, profile.hpScaleExp || 1.16) * (profile.hpScaleBase || 0.03));
-        let dmgGrowth = 1 + (Math.pow(gemLv, profile.dmgScaleExp || 1.18) * (profile.dmgScaleBase || 0.022));
-        let armorGrowth = 1 + (Math.pow(gemLv, profile.armorScaleExp || 1.12) * (profile.armorScaleBase || 0.015));
-        let evasionGrowth = 1 + (Math.pow(gemLv, profile.evasionScaleExp || 1.12) * (profile.evasionScaleBase || 0.015));
-        let baseHp = profile.baseHp * hpGrowth;
-        let hpMul = 1 + ((pStats.summonHpPct || 0) / 100);
-        let effMul = 1 + ((pStats.summonEfficiency || 0) / 100);
-        let maxHp = Math.max(1, Math.floor(baseHp * hpMul * effMul));
-        game.summons.push({
-            id: game.summonSeq++,
-            gemName: row.name,
-            slotIdx: idx,
-            role: isGuard ? 'guard' : 'attack',
-            hp: maxHp,
-            maxHp: maxHp,
-            armor: Math.max(0, Math.floor((profile.baseArmor || 0) * armorGrowth)),
-            evasion: Math.max(0, Math.floor((profile.baseEvasion || 0) * evasionGrowth)),
-            resFire: Math.max(-60, Math.min(90, profile.baseRes.fire || 0)),
-            resCold: Math.max(-60, Math.min(90, profile.baseRes.cold || 0)),
-            resLight: Math.max(-60, Math.min(90, profile.baseRes.light || 0)),
-            resChaos: Math.max(-60, Math.min(90, profile.baseRes.chaos || 0)),
-            redirectPct: Math.max(0, Math.min(100, profile.redirectPct || 0)),
-            respawnMs: isGuard ? 4000 : 2000,
-            baseDamage: Math.max(1, Math.floor((profile.baseDamage || 20) * dmgGrowth)),
-            crit: Math.max(0, profile.baseCrit || 0),
-            critDmg: Math.max(100, profile.baseCritDmg || 140),
-            alive: true,
-            respawnAt: 0,
-            nextAttackAt: now + 300
-        });
+    activeDefs.forEach(row => {
+        let existing = game.summons.find(s => s && s.gemName === row.name && s.slotIdx === row.slotIdx);
+        let runtime = buildSummonRuntimeStats(row, pStats, now);
+        if (existing) {
+            let wasAlive = !!existing.alive;
+            let hpRatio = (wasAlive && existing.maxHp > 0) ? Math.max(0, Math.min(1, (existing.hp || 0) / existing.maxHp)) : 0;
+            let id = existing.id;
+            let respawnAt = existing.respawnAt || 0;
+            let nextAttackAt = existing.nextAttackAt || now + 300;
+            Object.assign(existing, runtime);
+            existing.id = id;
+            existing.alive = wasAlive;
+            existing.hp = wasAlive ? Math.max(1, Math.min(existing.maxHp, Math.floor(existing.maxHp * hpRatio))) : 0;
+            existing.respawnAt = respawnAt;
+            existing.nextAttackAt = nextAttackAt;
+            return;
+        }
+        game.summons.push({ id: game.summonSeq++, ...runtime });
     });
     game.summons.forEach(s => {
         if (!s || s.alive || !s.respawnAt || now < s.respawnAt) return;
@@ -582,23 +747,13 @@ function runSummonAttackTick(pStats) {
         if (!s || !s.alive) return;
         if (s.role !== 'attack') return;
         if (now < (s.nextAttackAt || 0)) return;
-        let summonAspdMul = 1 + Math.max(0, (pStats.summonAspd || 0) / 100);
-        s.nextAttackAt = now + Math.max(120, Math.floor(1000 / summonAspdMul));
-        let target = aliveEnemies[0];
+        s.nextAttackAt = now + getSummonAttackIntervalMs(pStats);
+        let target = (game.enemies || []).find(e => e && e.hp > 0);
         if (!target) return;
-        let base = Math.max(1, Math.floor(s.baseDamage || 20));
-        if (game.ascendClass === 'soulbinder' && hasKeystone('sb1')) base = Math.max(1, Math.floor(base * 1.15));
-        let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100);
-        if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) dmgMul += Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100;
-        if (game.ascendClass === 'soulbinder' && hasKeystone('sb6')) dmgMul += Math.max(0, pStats.resPen || 0) / 100;
-        let critChance = Math.max(0, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
-        let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
-        let dmg = Math.max(1, Math.floor(base * dmgMul));
-        if (Math.random() < critChance) dmg = Math.max(1, Math.floor(dmg * critMul));
-        if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
-            dmg = Math.max(1, Math.floor(dmg * (1 + Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100)));
-        }
+        let hit = getSummonHitDamageInfo(s, pStats, target);
+        let dmg = Math.max(0, hit.damage || 0);
         let dealt = applyDamageToEnemyResource(target, dmg);
+        applySummonAilmentFromHit(target, pStats, hit.element, dmg, hit.crit);
         if (game.ascendClass === 'soulbinder' && hasKeystone('sb3')) {
             let heal = Math.max(0, Math.floor(dealt * 0.03));
             if (heal > 0) s.hp = Math.min(s.maxHp || s.hp || 1, (s.hp || 0) + heal);
@@ -607,7 +762,7 @@ function runSummonAttackTick(pStats) {
                 game.playerHp = Math.min(maxHp, Math.max(0, Math.floor((game.playerHp || 0) + heal)));
             }
         }
-        addBattleFx('hit', { enemyId: target.id, color: getElementColor('chaos'), damage: dmg, duration: 220 });
+        addBattleFx('hit', { enemyId: target.id, color: getElementColor(hit.element), damage: dmg, crit: hit.crit, duration: 220, element: hit.element });
         if (target.hp <= 0) handleEnemyDeath(target, pStats);
     });
 }
@@ -1896,11 +2051,13 @@ function getPlayerStats() {
         if (hasKeystone('sb8')) sbSummonCapBonus += 3;
         if (hasKeystone('sb6')) finalResPen += 16;
         if (hasKeystone('sb5')) {
-            let sumPct = Math.max(0, (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (reward.summonPctDmg || 0));
-            let sumCrit = Math.max(0, (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (reward.summonCrit || 0));
-            let sumCritDmg = Math.max(0, (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (reward.summonCritDmg || 0));
-            let sumAspd = Math.max(0, (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (reward.summonAspd || 0));
-            let sumHp = Math.max(0, (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (reward.summonHpPct || 0));
+            let sumFlat = Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0));
+            let sumPct = Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0));
+            let sumCrit = Math.max(0, (gearBase.summonCrit || 0) + (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (support.summonCrit || 0) + (reward.summonCrit || 0));
+            let sumCritDmg = Math.max(0, (gearBase.summonCritDmg || 0) + (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (support.summonCritDmg || 0) + (reward.summonCritDmg || 0));
+            let sumAspd = Math.max(0, (gearBase.summonAspd || 0) + (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (support.summonAspd || 0) + (reward.summonAspd || 0));
+            let sumHp = Math.max(0, (gearBase.summonHpPct || 0) + (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (support.summonHpPct || 0) + (reward.summonHpPct || 0));
+            finalBaseDmg += Math.floor(sumFlat);
             finalBaseDmg = Math.floor(finalBaseDmg * (1 + sumPct / 100));
             finalCrit += sumCrit;
             finalCritDmg += sumCritDmg;
@@ -2388,16 +2545,40 @@ function getPlayerStats() {
         runeCorpseExplodeChance: runeCorpseExplodeChance,
         runeCorpseExplodeLifePct: runeCorpseExplodeLifePct,
         runeResonancePower: runeResonancePower,
-        summonPctDmg: Math.max(0, (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (reward.summonPctDmg || 0)),
-        summonAspd: Math.max(0, (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (reward.summonAspd || 0) + sbSummonAspdBonus),
-        summonHpPct: Math.max(0, (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (reward.summonHpPct || 0)),
-        summonCrit: Math.max(0, (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (reward.summonCrit || 0)),
-        summonCritDmg: Math.max(0, (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (reward.summonCritDmg || 0)),
-        summonCap: Math.max(1, 1 + Math.floor((gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (reward.summonCap || 0) + sbSummonCapBonus)),
-        summonEfficiency: Math.max(0, (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
-        summonGuardRedirectPct: Math.max(0, Math.min(100, (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0))),
+        summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
+        summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0)),
+        summonAspd: Math.max(0, (gearBase.summonAspd || 0) + (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (support.summonAspd || 0) + (reward.summonAspd || 0) + sbSummonAspdBonus),
+        summonHpPct: Math.max(0, (gearBase.summonHpPct || 0) + (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (support.summonHpPct || 0) + (reward.summonHpPct || 0)),
+        summonCrit: Math.max(0, (gearBase.summonCrit || 0) + (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (support.summonCrit || 0) + (reward.summonCrit || 0)),
+        summonCritDmg: Math.max(0, (gearBase.summonCritDmg || 0) + (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (support.summonCritDmg || 0) + (reward.summonCritDmg || 0)),
+        summonCap: Math.max(1, 1 + Math.floor((gearBase.summonCap || 0) + (gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (support.summonCap || 0) + (reward.summonCap || 0) + sbSummonCapBonus)),
+        summonEfficiency: Math.max(0, (gearBase.summonEfficiency || 0) + (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (support.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
+        summonGuardRedirectPct: Math.max(0, Math.min(100, (gearBase.summonGuardRedirectPct || 0) + (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (support.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0))),
         poisonDamageMultiplierPct: Math.max(0, (gearExplicit.poisonDamageMultiplierPct || 0) + (passive.poisonDamageMultiplierPct || 0) + (season.poisonDamageMultiplierPct || 0) + (ascend.poisonDamageMultiplierPct || 0) + (support.poisonDamageMultiplierPct || 0) + (reward.poisonDamageMultiplierPct || 0)),
         sbPlayerDamageFromSummonPct: Math.max(0, sbPlayerDamageFromSummonPct)
+    };
+    let summonEstimate = estimateSummonDps(enemy);
+    enemy.summonDps = Math.max(0, summonEstimate.total || 0);
+    enemy.directDps = Math.max(0, enemy.dps || 0);
+    enemy.totalDps = enemy.directDps + enemy.summonDps;
+    enemy.breakdowns.directDps = {
+        title: '직접 DPS',
+        lines: (enemy.breakdowns.dps && enemy.breakdowns.dps.lines ? enemy.breakdowns.dps.lines.slice() : []),
+        final: `${Math.floor(enemy.directDps)}`
+    };
+    enemy.breakdowns.summonDps = {
+        title: '소환 DPS',
+        lines: summonEstimate.lines || [],
+        final: `${Math.floor(enemy.summonDps)}`
+    };
+    enemy.breakdowns.dps = {
+        title: '총 DPS',
+        lines: [
+            `직접 DPS ${Math.floor(enemy.directDps)}`,
+            `예상 소환 DPS ${Math.floor(enemy.summonDps)}`,
+            `총 DPS = 직접 DPS + 예상 소환 DPS`
+        ].concat((enemy.breakdowns.dps && enemy.breakdowns.dps.lines ? enemy.breakdowns.dps.lines : [])),
+        final: `${Math.floor(enemy.totalDps)}`
     };
     if (uniqueImmuneIgnite) enemy.immuneIgnite = true;
     if (uniqueFrostSentinel) { enemy.immuneChill = true; enemy.immuneFreeze = true; }
@@ -5686,4 +5867,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport });
+safeExposeGlobals({ getPlayerStats, ensureSummonRuntime, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport });

@@ -2720,6 +2720,19 @@ function isLoopHeroSelectOpen() {
     return !!overlay && overlay.classList.contains('active');
 }
 
+function buildHeroChoiceTooltipHtml(heroId, experienced) {
+    let def = HERO_SELECTION_DEFS[heroId];
+    if (!def) return '';
+    return `<div class="tooltip-title">${escapeHTML(def.label)}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
+        <div class="tooltip-line" style="color:#f6c461;">재능 효과</div>
+        <div class="tooltip-line">${escapeHTML(def.talentsText)}</div>`;
+}
+
+function showHeroChoiceTooltip(event, heroId, experienced) {
+    if (typeof showInfoTooltipHtml !== 'function') return;
+    showInfoTooltipHtml(event.clientX, event.clientY, buildHeroChoiceTooltipHtml(heroId, !!experienced), '#f6c461');
+}
+
 function openLoopHeroSelection(onSelect, options = {}) {
     let overlay = document.getElementById('loop-hero-select-overlay');
     let grid = document.getElementById('loop-hero-select-grid');
@@ -2736,11 +2749,11 @@ function openLoopHeroSelection(onSelect, options = {}) {
     if (kickerEl) kickerEl.innerText = options.kicker || 'Loop Selection';
     if (titleEl) titleEl.innerText = options.title || '다음 루프 캐릭터 선택';
     if (bodyEl) bodyEl.innerText = options.body || '이번 루프에서 사용할 캐릭터를 선택하세요.';
-    let experiencedSet = new Set(Array.isArray(game.discoveredHeroIds) ? game.discoveredHeroIds : []);
+    let experiencedSet = new Set(game.heroSelectionInitialized && Array.isArray(game.discoveredHeroIds) ? game.discoveredHeroIds : []);
     grid.innerHTML = HERO_SELECTION_ORDER.map(id => {
         let def = HERO_SELECTION_DEFS[id];
         let experienced = experiencedSet.has(id);
-        return `<button class="reward-choice" onclick="chooseLoopHero('${id}')"><strong>${escapeHTML(def.label)}${experienced ? ' <span style=\"color:#9fd8ff; font-size:0.8em;\">(경험함)</span>' : ''}</strong>${escapeHTML(def.talentsText)}</button>`;
+        return `<button class="reward-choice hero-choice" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="chooseLoopHero('${id}')"><strong>${escapeHTML(def.label)}</strong></button>`;
     }).join('');
     overlay.classList.add('active');
 }
@@ -5299,7 +5312,7 @@ function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return 
     if (item.slot !== '무기') return addLog('독벌침은 무기에만 사용할 수 있습니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     let occupiedIds = getItemOccupiedExplicitModIds(item);
-    let attackMods = MOD_DB.filter(mod => mod.slots.includes('무기') && ['flatDmg', 'aspd', 'crit', 'critDmg', 'resPen', 'physPctDmg', 'elementalPctDmg', 'chaosPctDmg', 'leech', 'minDmgRoll', 'maxDmgRoll'].includes(mod.statId || mod.id) && !occupiedIds.has(mod.statId || mod.id));
+    let attackMods = MOD_DB.filter(mod => mod.slots.includes('무기') && ['flatDmg', 'aspd', 'crit', 'critDmg', 'resPen', 'physPctDmg', 'elementalPctDmg', 'chaosPctDmg', 'leech', 'minDmgRoll', 'maxDmgRoll', 'summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonCrit', 'summonCritDmg'].includes(mod.statId || mod.id) && !occupiedIds.has(mod.statId || mod.id));
     if (attackMods.length <= 0) return;
     let mod = pickWeightedMod(attackMods);
     let rolled = rollAffixValue(mod, getItemCraftTier(item));
