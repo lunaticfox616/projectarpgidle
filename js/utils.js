@@ -251,7 +251,8 @@ function createEmptyStatBucket() {
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0,
         ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
-        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, igniteDamageMultiplierPct: 0, accuracyBonusPct: 0, shockEffect: 0
+        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, igniteDamageMultiplierPct: 0, accuracyBonusPct: 0, shockEffect: 0,
+        summonPctDmg: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0
     };
 }
 function addStatToBucket(bucket, statId, value) {
@@ -358,6 +359,14 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'spellCritDmg') bucket.critDmg += value;
     else if (statId === 'spellLeech') bucket.leech += value;
     else if (statId === 'shockEffect') bucket.shockEffect += value;
+
+    else if (statId === 'summonPctDmg') bucket.summonPctDmg += value;
+    else if (statId === 'summonHpPct') bucket.summonHpPct += value;
+    else if (statId === 'summonCrit') bucket.summonCrit += value;
+    else if (statId === 'summonCritDmg') bucket.summonCritDmg += value;
+    else if (statId === 'summonCap') bucket.summonCap += value;
+    else if (statId === 'summonEfficiency') bucket.summonEfficiency += value;
+    else if (statId === 'summonGuardRedirectPct') bucket.summonGuardRedirectPct += value;
 }
 
 function applyStatsToBucket(bucket, stats) {
