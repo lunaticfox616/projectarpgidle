@@ -1975,7 +1975,7 @@ function getPlayerStats() {
     finalMaxResF = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
     finalMaxResC = Math.min(90, finalMaxResC + (colonyWardBonus.maxResC || 0));
     finalMaxResL = Math.min(90, finalMaxResL + (colonyWardBonus.maxResL || 0));
-    finalHp += (colonyWardBonus.flatHp || 0);
+    finalMaxHp += (colonyWardBonus.flatHp || 0);
     finalArmor += (colonyWardBonus.armor || 0);
     finalEvasion += (colonyWardBonus.evasion || 0);
     finalEnergyShield += (colonyWardBonus.energyShield || 0);
