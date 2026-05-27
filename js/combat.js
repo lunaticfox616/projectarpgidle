@@ -3439,9 +3439,6 @@ function advanceMapProgress(pStats) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     if (zone && zone.type === 'outsideChaos' && game.woodsmanEntrancePending) return;
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) return;
-    ensureEncounterRun();
-    if (game.runProgress >= 100) return;
-    if (isCrowdProgressPaused()) return;
     if (zone && zone.id === 'grand_breach_run') {
         tickGrandBreachRun(zone);
         return;
@@ -3450,6 +3447,9 @@ function advanceMapProgress(pStats) {
         tickWoodsmanEchoRun();
         return;
     }
+    ensureEncounterRun();
+    if (game.runProgress >= 100) return;
+    if (isCrowdProgressPaused()) return;
     let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let zoneType = zone ? zone.type : 'act';
@@ -5027,6 +5027,7 @@ function performMonsterAttacks(pStats) {
     let crowdPenalty = Math.max(0.34, 1 - Math.max(0, aliveCount - 1) * 0.055);
     for (let enemy of (game.enemies || [])) {
         if (enemy.hp <= 0) continue;
+        if (enemy.noAttack) continue;
         let ailMap = {};
         (enemy.ailments || []).forEach(ail => { if ((ail.time || 0) > 0) ailMap[ail.type] = Math.max(ailMap[ail.type] || 0, ail.power || 0); });
         if (ailMap.freeze) continue;
