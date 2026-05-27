@@ -374,3 +374,12 @@
 .expertise-unlock-entry{padding:5px 0;border-top:1px solid rgba(143,182,217,.18);color:#bfd3ea;font-size:.86em}
 .expertise-unlock-entry:first-of-type{border-top:0}
 .expertise-unlock-entry span{color:#8fa8c2}
+
+
+.item-source-badge--realm-chaos{background:#3a143f;color:#f3b5ff;border-color:#d261ff}
+.item-source-badge--realm-underworld{background:#2f2414;color:#ffd89a;border-color:#e8b15d}
+.item-source-badge--realm-cosmos{background:#102645;color:#9dd8ff;border-color:#59b6ff}
+.item-card.item-source-tone--realm-chaos,.slot-box.item-source-tone--realm-chaos{border-color:#9e46be;background:linear-gradient(160deg,rgba(58,20,63,.34),rgba(28,12,36,.34));box-shadow:0 0 0 1px rgba(210,97,255,.35),inset 0 0 14px rgba(210,97,255,.14),0 0 18px rgba(133,48,158,.18)}
+.item-card.item-source-tone--realm-underworld,.slot-box.item-source-tone--realm-underworld{border-color:#b0782d;background:linear-gradient(160deg,rgba(55,36,17,.32),rgba(30,20,10,.32));box-shadow:0 0 0 1px rgba(232,177,93,.32),inset 0 0 14px rgba(255,204,120,.12),0 0 18px rgba(168,118,47,.16)}
+.item-card.item-source-tone--realm-cosmos,.slot-box.item-source-tone--realm-cosmos{border-color:#3e8ec9;background:linear-gradient(160deg,rgba(16,38,69,.34),rgba(8,22,44,.34));box-shadow:0 0 0 1px rgba(89,182,255,.34),inset 0 0 14px rgba(112,201,255,.12),0 0 18px rgba(62,142,201,.18)}
+.item-card.item-source-tone--realm-chaos::after,.item-card.item-source-tone--realm-underworld::after,.item-card.item-source-tone--realm-cosmos::after,.slot-box.item-source-tone--realm-chaos::after,.slot-box.item-source-tone--realm-underworld::after,.slot-box.item-source-tone--realm-cosmos::after{content:'';position:absolute;inset:1px;border-radius:inherit;pointer-events:none;background:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,0) 42%)}

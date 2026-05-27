@@ -189,7 +189,13 @@ function getZone(id) {
     }
     if (id === 'beehive_run') {
         let step = Math.max(1, Math.floor((game && game.beehive && game.beehive.branchStep) || 1));
-        return { id: 'beehive_run', name: `벌집 심층 ${step}갈래`, type: 'beehive', tier: Math.min(24, 10 + step), maxKills: 1, ele: 'chaos' };
+        let entryDepth = Math.max(21, Math.floor((game && game.beehive && game.beehive.entryDeepChaosDepth) || 21));
+        return { id: 'beehive_run', name: `벌집 심층 ${step}갈래`, type: 'beehive', tier: entryDepth, maxKills: 1, ele: 'chaos', entryDeepChaosDepth: entryDepth };
+    }
+    if (id === 'colony_run') {
+        let wave = Math.max(1, Math.floor((game && game.colony && game.colony.wave) || 1));
+        let depth = Math.max(21, Math.floor((game && game.colony && game.colony.entryDeepChaosDepth) || 21));
+        return { id: 'colony_run', name: `군락지 방어 ${wave}웨이브`, type: 'colony', tier: depth + Math.floor(wave / 2), maxKills: 1, ele: 'chaos', entryDeepChaosDepth: depth };
     }
     if (id === 'grand_breach_run') {
         let kills = Math.max(0, Math.floor((((game || {}).voidRift || {}).grandRun || {}).kills || 0));
@@ -469,7 +475,11 @@ const CLASS_TEMPLATES = {
     elementalist: { name: '엘리멘탈리스트', desc: '원소 피해와 원소 저항 특화', m1: 'elementalPctDmg', m2: 'resAll', d: 'regen' },
     warlock: { name: '워록', desc: '혼돈 피해와 생명력 흡수', m1: 'chaosPctDmg', m2: 'dotPctDmg', d: 'pctHp' },
     guardian: { name: '가디언', desc: '방어도와 생명력으로 버티는 성벽', m1: 'armor', m2: 'flatHp', d: 'dr' },
-    inquisitor: { name: '인퀴지터', desc: '원소 치명타 및 보조 스킬 전문', m1: 'elementalPctDmg', m2: 'critDmg', d: 'suppCap' }
+    inquisitor: { name: '인퀴지터', desc: '원소 치명타 및 보조 스킬 전문', m1: 'elementalPctDmg', m2: 'critDmg', d: 'suppCap' },
+    soulbinder: { name: '소울바인더', desc: '소환·지속 피해 및 에너지 보호막 운영', m1: 'dotPctDmg', m2: 'energyShield', d: 'regen' },
+    catalyst: { name: '카탈리스트', desc: '연금·상태이상·혼합 피해 증폭', m1: 'elementalPctDmg', m2: 'chaosPctDmg', d: 'resPen' },
+    hunter: { name: '헌터', desc: '저격·투사체 극딜과 약점 관통', m1: 'projectilePctDmg', m2: 'critDmg', d: 'crit' },
+    crusader: { name: '크루세이더', desc: '신성 방벽·저항·근접 수호', m1: 'meleePctDmg', m2: 'resAll', d: 'dr' }
 };
 
 const CLASS_KEYSTONE_PICK_LIMIT = 4;
@@ -534,6 +544,48 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'wlk7', name: '피의 계약', desc: '에너지 보호막 50% 이하에서 피해 20% 증폭, 받는 피해 12% 증폭', reqAny: ['wlk4', 'wlk6'] },
         { id: 'wlk8', name: '심연 군주', desc: '카오스 피해 25% 증폭, 생명력 회복 효과 50% 감폭, 중독 확률 +25%', req: 'wlk7' }
     ],
+
+    soulbinder: [
+        { id: 'sb1', name: '영혼 결속', desc: '지속 피해 12% 증폭, 즉발 피해 8% 감폭', req: null },
+        { id: 'sb2', name: '공허 방벽', desc: '에너지 보호막 +25%, 생명력 -12%', req: null },
+        { id: 'sb3', name: '사령 파동', desc: '상태이상 확률 +12%, 상태이상 피해 10% 증폭', req: null },
+        { id: 'sb4', name: '혼령 증폭', desc: '보조 젬 한도 +1, 최종 피해 8% 증폭', req: 'sb1' },
+        { id: 'sb5', name: '생기 전환', desc: '재생 20% 증폭, 받는 지속 피해 10% 감폭', req: 'sb2' },
+        { id: 'sb6', name: '절규 도장', desc: '저항 관통 +16%, 치명타 확률 -4%p', req: 'sb3' },
+        { id: 'sb7', name: '유령 행진', desc: '이동 속도 +12%, 에너지 보호막 재생 속도 +20%', reqAny: ['sb4', 'sb5'] },
+        { id: 'sb8', name: '혼백 군주', desc: '지속 피해 +22%, 받는 피해 12% 감폭', req: 'sb7' }
+    ],
+    catalyst: [
+        { id: 'ct1', name: '촉매 순환', desc: '원소/카오스 피해 10% 증폭', req: null },
+        { id: 'ct2', name: '불안정 배합', desc: '치명타 피해 +40%, 치명타 확률 -3%p', req: null },
+        { id: 'ct3', name: '확산 반응', desc: '상태이상 확률 +15%, 상태이상 저항 관통 +10%', req: null },
+        { id: 'ct4', name: '진액 분해', desc: '저항 관통 +18%', req: 'ct1' },
+        { id: 'ct5', name: '연쇄 폭주', desc: '연속 타격 +25%, 이동 속도 +8%', req: 'ct2' },
+        { id: 'ct6', name: '독성 잔향', desc: '중독/점화/출혈 피해 20% 증폭', req: 'ct3' },
+        { id: 'ct7', name: '배합 극한', desc: '최소/최대 피해 보정 +6%', reqAny: ['ct4', 'ct5'] },
+        { id: 'ct8', name: '철학자의 화로', desc: '최종 피해 18% 증폭, 받는 피해 8% 증폭', req: 'ct7' }
+    ],
+    hunter: [
+        { id: 'h1', name: '정조준', desc: '투사체 피해 15% 증폭', req: null },
+        { id: 'h2', name: '약점 추적', desc: '치명타 확률 +6%p', req: null },
+        { id: 'h3', name: '매복 보법', desc: '이동 속도 +12%, 회피 +10%', req: null },
+        { id: 'h4', name: '관통 저격', desc: '저항 관통 +14%', req: 'h1' },
+        { id: 'h5', name: '심장 파열', desc: '치명타 피해 +60%', req: 'h2' },
+        { id: 'h6', name: '사거리 장악', desc: '투사체 타겟 수 +1', req: 'h3' },
+        { id: 'h7', name: '완벽한 한 발', desc: '보스 대상 피해 +15%', reqAny: ['h4', 'h5'] },
+        { id: 'h8', name: '사냥 종료', desc: '투사체 최종 피해 +20%, 받는 피해 10% 감폭', req: 'h7' }
+    ],
+    crusader: [
+        { id: 'cr1', name: '신성 방패', desc: '모든 저항 +12%', req: null },
+        { id: 'cr2', name: '순례의 맹세', desc: '최대 생명력 +15%', req: null },
+        { id: 'cr3', name: '징벌의 타격', desc: '근접 피해 +14%', req: null },
+        { id: 'cr4', name: '성흔 보루', desc: '받는 피해 10% 감폭', req: 'cr1' },
+        { id: 'cr5', name: '의지의 깃발', desc: '재생 +1.0%, 에너지 보호막 +12%', req: 'cr2' },
+        { id: 'cr6', name: '성전의 창', desc: '저항 관통 +12%, 치명타 피해 +30%', req: 'cr3' },
+        { id: 'cr7', name: '수호 진군', desc: '방어도/회피/보호막 +15%', reqAny: ['cr4', 'cr5'] },
+        { id: 'cr8', name: '최후의 성가', desc: '최종 피해 +15%, 받는 피해 12% 감폭', req: 'cr7' }
+    ],
+
     guardian: [
         { id: 'gd1', name: '요새의 맹세', desc: '방어도 10% 증폭, 방어도의 10%만큼 일반 피해 증가', req: null },
         { id: 'gd2', name: '생명 성채', desc: '최대 생명력 20% 증폭', req: null },
@@ -680,7 +732,14 @@ const P_STATS = {
     resChaos: { name: '카오스 저항(%)', tiers: [3], k: 4, isPct: true },
     expGain: { name: '경험치 획득(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
     minDmgRoll: { name: '최소 피해 보정(%)', tiers: [1, 2, 3], s: 1, m: 2, k: 4, isPct: true },
-    maxDmgRoll: { name: '최대 피해 보정(%)', tiers: [1, 2, 3], s: 1, m: 2, k: 4, isPct: true }
+    maxDmgRoll: { name: '최대 피해 보정(%)', tiers: [1, 2, 3], s: 1, m: 2, k: 4, isPct: true },
+    summonPctDmg: { name: '소환수 피해(%)', tiers: [1, 2, 3], s: 5, m: 10, k: 18, isPct: true },
+    summonHpPct: { name: '소환수 생명력(%)', tiers: [1, 2, 3], s: 4, m: 9, k: 16, isPct: true },
+    summonCrit: { name: '소환수 치명타 확률(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
+    summonCritDmg: { name: '소환수 치명타 피해 배율(%)', tiers: [2, 3], m: 6, k: 15, isPct: true },
+    summonCap: { name: '소환수 최대 한도', tiers: [3], k: 1 },
+    summonEfficiency: { name: '소환수 효율(%)', tiers: [2, 3], m: 4, k: 10, isPct: true },
+    summonGuardRedirectPct: { name: '방어형 소환수 피해 대리(%)', tiers: [3], k: 4, isPct: true }
 };
 
 Object.keys(SKILL_DB).forEach(name => {
@@ -737,6 +796,12 @@ const MOD_DB = [
     { id: 'chaosPctDmg', type: 'prefix', statName: '카오스 피해(%)', slots: ['무기', '반지', '목걸이', '장갑'], base: 4, step: 3 },
     { id: 'aoePctDmg', type: 'prefix', statName: '범위 피해(%)', slots: ['무기', '투구', '목걸이', '갑옷'], base: 4, step: 3 },
     { id: 'dotPctDmg', type: 'prefix', statName: '지속 피해 배율(%)', slots: ['무기', '반지', '목걸이'], base: 4, step: 3 },
+    { id: 'summonPctDmg', type: 'prefix', statName: '소환수 피해(%)', slots: ['무기', '반지'], base: 6, step: 4 },
+    { id: 'summonHpPct', type: 'prefix', statName: '소환수 생명력(%)', slots: ['무기', '반지'], base: 6, step: 4 },
+    { id: 'summonCrit', type: 'suffix', statName: '소환수 치명타 확률(%)', slots: ['무기', '반지'], base: 1, step: 1 },
+    { id: 'summonCritDmg', type: 'suffix', statName: '소환수 치명타 피해 배율(%)', slots: ['무기', '반지'], base: 8, step: 4 },
+    { id: 'summonEfficiency', type: 'suffix', statName: '소환수 효율(%)', slots: ['무기', '반지'], base: 4, step: 3 },
+    { id: 'summonCap', type: 'special', statName: '소환수 최대 한도', slots: ['반지'], base: 1, step: 0, weight: 0.35 },
     { id: 'spellFlatDmg', type: 'prefix', statName: '주문 내장 피해', slots: ['무기', '목걸이'], base: 8, step: 6 },
     { id: 'spellFlatPct', type: 'suffix', statName: '주문 내장 피해 증가(%)', slots: ['무기', '목걸이'], base: 6, step: 4 },
     { id: 'flatHp', type: 'prefix', statName: '최대 생명력', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'], base: 15, step: 10 },
@@ -917,8 +982,14 @@ const BASE_ITEM_DB = [
     { id: 'stormbind_mitts', slot: '장갑', name: '뇌격 결속 장갑', reqTier: 10, baseStats: [{ id: 'aspd', base: 7 }, { id: 'resL', base: 9 }] },
     { id: 'sunstride_boots', slot: '신발', name: '태양 질주화', reqTier: 10, baseStats: [{ id: 'move', base: 15 }, { id: 'resF', base: 9 }] },
     { id: 'moonbound_ring', slot: '반지', name: '월인 반지', reqTier: 10, baseStats: [{ id: 'resC', base: 9 }, { id: 'crit', base: 4 }] },
+    { id: 'familiar_loop', slot: '반지', name: '사역마 고리', reqTier: 6, baseStats: [{ id: 'summonPctDmg', base: 12 }, { id: 'summonHpPct', base: 10 }] },
+    { id: 'beastcall_band', slot: '반지', name: '야수 부름 반지', reqTier: 11, baseStats: [{ id: 'summonEfficiency', base: 12 }, { id: 'summonCrit', base: 4 }] },
+    { id: 'overlord_ring', slot: '반지', name: '군주 반지', reqTier: 15, baseStats: [{ id: 'summonPctDmg', base: 18 }, { id: 'summonCap', base: 1 }] },
     { id: 'graveknot_belt', slot: '허리띠', name: '묘결 속박대', reqTier: 10, baseStats: [{ id: 'flatHp', base: 60 }, { id: 'resChaos', base: 9 }] },
     { id: 'echo_lance', slot: '무기', name: '메아리 창', reqTier: 11, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'aspd', base: 7 }] },
+    { id: 'spirit_call_wand', slot: '무기', name: '정령 소환봉', reqTier: 6, baseStats: [{ id: 'flatDmg', base: 10 }, { id: 'summonPctDmg', base: 18 }, { id: 'summonEfficiency', base: 8 }] },
+    { id: 'gravebind_scepter', slot: '무기', name: '묘지 결속 홀', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 16 }, { id: 'summonPctDmg', base: 26 }, { id: 'summonHpPct', base: 18 }] },
+    { id: 'astral_familiar_staff', slot: '무기', name: '성운 사역마 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 22 }, { id: 'summonPctDmg', base: 36 }, { id: 'summonCritDmg', base: 24 }] },
     { id: 'ember_circlet', slot: '투구', name: '잿불 서클릿', reqTier: 11, baseStats: [{ id: 'energyShield', base: 126 }, { id: 'resF', base: 10 }] },
     { id: 'tidal_vest', slot: '갑옷', name: '조류의 흉갑', reqTier: 11, baseStats: [{ id: 'flatHp', base: 66 }, { id: 'resC', base: 10 }] },
     { id: 'gale_treads', slot: '신발', name: '질풍 발굽', reqTier: 11, baseStats: [{ id: 'move', base: 16 }, { id: 'evasion', base: 94 }] }
@@ -1207,12 +1278,15 @@ const defaultGame = {
     playerAilments: [],
     playerLeechInstances: [],
     nextEnemyId: 1,
+    summons: [],
+    summonSeq: 1,
     passives: [],
     discoveredPassives: [],
     passiveLayoutVersion: PASSIVE_LAYOUT_VERSION,
     passiveStarEvolution: false,
     skills: ['기본 공격'],
     activeSkill: '기본 공격',
+    equippedSummonSkills: [],
     gemData: { '기본 공격': { level: 1, exp: 0 } },
     supports: [],
     sealedSkills: [],
@@ -1249,7 +1323,7 @@ const defaultGame = {
     abyssPassivePoints: 0,
     abyssClearedDepths: [],
     abyssPassives: { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 },
-    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
+    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, hiveTrace: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendKeystonePoints: 0,
@@ -1270,6 +1344,7 @@ const defaultGame = {
     jewelSlots: [null, null],
     jewelSlotAmplify: [0, 0],
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
+    colony: { inRun: false, wave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1 },
     voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 },
     sporeCraftModes: {},
     shrineState: { active: null, nextRollAt: 0 },
