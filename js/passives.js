@@ -5115,6 +5115,9 @@ function liberateSelectedEncroachedItem() {
 
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
+    let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonCrit', 'summonCritDmg']);
+    let isSummonBaseWeapon = item && item.slot === '무기' && Array.isArray(item.baseStats)
+        && item.baseStats.some(stat => stat && ['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd'].includes(stat.id));
     let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
     // 고유 아이템/장신구는 방어 타입 제한 대상에서 제외
     let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
@@ -5130,6 +5133,7 @@ function getAvailableMods(item) {
                 if (statId.startsWith('energyShield') && !baseDefenseTypes.has('energyShield')) return false;
             }
         }
+        if (item.slot === '무기' && summonOnlyModIds.has(statId) && !isSummonBaseWeapon) return false;
         return mod.slots.includes(item.slot) && !existing.has(statId);
     });
 }
