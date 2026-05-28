@@ -1004,6 +1004,84 @@ function generateOrganicTree() {
         }
     }
 
+
+    function buildDeflectCluster(clusterKey, angle, radiusStart, values, finalMajor) {
+        let anchors = Object.values(PASSIVE_TREE.nodes)
+            .filter(node => node && !node.clusterId)
+            .map(node => ({ node: node, dist: Math.abs(angleDistance(Math.atan2(node.y, node.x), angle)) * 560 + Math.abs(Math.hypot(node.x, node.y) - radiusStart) }))
+            .sort((a, b) => a.dist - b.dist);
+        let prev = anchors.length > 0 ? anchors[0].node : root;
+        for (let i = 0; i < values.length; i++) {
+            let stepRadius = radiusStart + i * 74;
+            let stepAngle = angle + (i - 1.5) * 0.035;
+            let stat = finalMajor && i === values.length - 1 ? 'deflectMajor' : 'deflectChance';
+            let node = addNode(
+                Math.cos(stepAngle) * stepRadius,
+                Math.sin(stepAngle) * stepRadius * webYScale,
+                i === values.length - 1 ? 3 : 2,
+                stat,
+                { sector: 'deflect', kind: i === values.length - 1 ? 'keystone' : 'major', depth: maxDepth - 2 + i, lane: i }
+            );
+            if (!node) return;
+            applyNodeSpec(node, {
+                stat: stat,
+                val: values[i],
+                title: i === values.length - 1 ? '빗겨내기 숙련' : '빗겨내기 자세',
+                desc: finalMajor && i === values.length - 1
+                    ? '빗겨내기 확률을 크게 올리고, 빗겨낸 피해의 감소율을 추가로 강화합니다.'
+                    : '공격을 정면으로 받지 않고 흘려 받는 방어 성좌입니다.',
+                kind: i === values.length - 1 ? 'keystone' : 'major',
+                effectLabel: finalMajor && i === values.length - 1 ? `빗겨내기 확률 +${values[i]}%, 빗겨내기 피해 감소 +3%` : `빗겨내기 확률 +${values[i]}%`
+            }, node.kind);
+            node.clusterId = clusterKey;
+            node.clusterRole = 'deflect';
+            node.clusterRoleLabel = '빗겨내기';
+            node.clusterStep = i + 1;
+            node.clusterLength = values.length;
+            if (prev) connect(prev.id, node.id);
+            prev = node;
+        }
+    }
+
+    function buildBlockCluster(clusterKey, angle, radiusStart, values, stat, labelSuffix) {
+        let anchors = Object.values(PASSIVE_TREE.nodes)
+            .filter(node => node && !node.clusterId)
+            .map(node => ({ node: node, dist: Math.abs(angleDistance(Math.atan2(node.y, node.x), angle)) * 560 + Math.abs(Math.hypot(node.x, node.y) - radiusStart) }))
+            .sort((a, b) => a.dist - b.dist);
+        let prev = anchors.length > 0 ? anchors[0].node : root;
+        for (let i = 0; i < values.length; i++) {
+            let stepRadius = radiusStart + i * 74;
+            let stepAngle = angle + (i - 1.5) * 0.035;
+            let node = addNode(
+                Math.cos(stepAngle) * stepRadius,
+                Math.sin(stepAngle) * stepRadius * webYScale,
+                i === values.length - 1 ? 3 : 2,
+                stat,
+                { sector: 'block', kind: i === values.length - 1 ? 'keystone' : 'major', depth: maxDepth - 2 + i, lane: i }
+            );
+            if (!node) return;
+            let title = stat === 'blockChancePct' ? '막기 기반 강화' : '막기 자세';
+            let desc = stat === 'blockChancePct'
+                ? '방패의 베이스 막기 확률에서만 비율로 증가하는 방어 성좌입니다.'
+                : '최종 막기 확률에 직접 더해지는 방어 성좌입니다.';
+            applyNodeSpec(node, {
+                stat: stat,
+                val: values[i],
+                title: i === values.length - 1 ? `${title} 숙련` : title,
+                desc: desc,
+                kind: i === values.length - 1 ? 'keystone' : 'major',
+                effectLabel: `막기 확률 +${values[i]}${labelSuffix}`
+            }, node.kind);
+            node.clusterId = clusterKey;
+            node.clusterRole = 'block';
+            node.clusterRoleLabel = '막기';
+            node.clusterStep = i + 1;
+            node.clusterLength = values.length;
+            if (prev) connect(prev.id, node.id);
+            prev = node;
+        }
+    }
+
     let baseOuterRadius = Object.values(PASSIVE_TREE.nodes).filter(node => !node.clusterId).reduce((max, node) => Math.max(max, Math.hypot(node.x, node.y)), 0);
     let outerAnchors = Object.values(PASSIVE_TREE.nodes)
         .filter(node => !node.clusterId)
@@ -1083,6 +1161,11 @@ function generateOrganicTree() {
         if (leftNode && tipNode) connect(leftNode.id, tipNode.id);
         if (rightNode && tipNode) connect(rightNode.id, tipNode.id);
     });
+
+    buildDeflectCluster('deflect_chance_cluster', 0.34, getWebRadius(7) * PASSIVE_WORLD_SCALE, [4, 4, 4, 8], false);
+    buildDeflectCluster('deflect_reduction_cluster', 0.72, getWebRadius(7.6) * PASSIVE_WORLD_SCALE, [3, 3, 3, 6], true);
+    buildBlockCluster('block_flat_cluster', 2.55, getWebRadius(7.1) * PASSIVE_WORLD_SCALE, [1.5, 1.5, 1.5, 3], 'blockChance', '%p');
+    buildBlockCluster('block_base_pct_cluster', 3.02, getWebRadius(7.7) * PASSIVE_WORLD_SCALE, [20, 20, 20, 30], 'blockChancePct', '% 증가');
 
     ensureOuterHubNeighborConnections(4);
 
@@ -5119,7 +5202,7 @@ function getAvailableMods(item) {
     let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonCrit', 'summonCritDmg']);
     let isSummonBaseWeapon = item && item.slot === '무기' && Array.isArray(item.baseStats)
         && item.baseStats.some(stat => stat && ['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd'].includes(stat.id));
-    let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
+    let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발', '방패']);
     // 고유 아이템/장신구는 방어 타입 제한 대상에서 제외
     let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
     let baseDefenseTypes = new Set((item.baseStats || [])
@@ -5134,6 +5217,8 @@ function getAvailableMods(item) {
                 if (statId.startsWith('energyShield') && !baseDefenseTypes.has('energyShield')) return false;
             }
         }
+        if (statId === 'deflectChance' && !baseDefenseTypes.has('evasion')) return false;
+        if (item.slot === '방패' && statId === 'spellGemLevel' && !baseDefenseTypes.has('energyShield')) return false;
         if (item.slot === '무기' && summonOnlyModIds.has(statId) && !isSummonBaseWeapon) return false;
         return mod.slots.includes(item.slot) && !existing.has(statId);
     });

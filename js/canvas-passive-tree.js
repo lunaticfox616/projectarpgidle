@@ -362,7 +362,7 @@ function renderPaperdoll(targetId, forCrafting) {
         } catch (_e) {}
         return highlightEquipTextLocal(text, query);
     };
-    ['무기', '투구', '목걸이', '장갑1', '갑옷', '장갑2', '반지1', '허리띠', '반지2', '신발'].forEach(slot => {
+    ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'].forEach(slot => {
         let item = game.equipment[slot];
         let displaySlot = slot.replace(/[12]/, '');
         let selected = isCraftSelectionEquip() && getCraftSelectionRef() === slot;
@@ -372,6 +372,21 @@ function renderPaperdoll(targetId, forCrafting) {
             if (typeof getImmutableItemSpecialStats === 'function') displayStats = displayStats.concat(getImmutableItemSpecialStats(item));
             else if (item.encroached && !item.encroached.liberated) displayStats.push({ id: 'encroached', val: 0, statName: '[잠식] 해방 전' });
             let statsHtml = displayStats.slice(0, 2).map(stat => `${hi(stat.statName)} +${formatValue(stat.id, stat.val)}`).join('<br>');
+            if (slot === '방패') {
+                let baseArmor = displayStats.filter(s => s && s.id === 'armor').reduce((a, b) => a + Number(b.val || 0), 0);
+                let baseEvasion = displayStats.filter(s => s && s.id === 'evasion').reduce((a, b) => a + Number(b.val || 0), 0);
+                let baseEs = displayStats.filter(s => s && s.id === 'energyShield').reduce((a, b) => a + Number(b.val || 0), 0);
+                let armorPct = displayStats.filter(s => s && s.id === 'armorPct').reduce((a, b) => a + Number(b.val || 0), 0);
+                let evasionPct = displayStats.filter(s => s && s.id === 'evasionPct').reduce((a, b) => a + Number(b.val || 0), 0);
+                let esPct = displayStats.filter(s => s && s.id === 'energyShieldPct').reduce((a, b) => a + Number(b.val || 0), 0);
+                let baseBlock = displayStats.filter(s => s && s.id === 'baseBlockChance').reduce((a, b) => a + Number(b.val || 0), 0);
+                let blockPct = displayStats.filter(s => s && s.id === 'blockChancePct').reduce((a, b) => a + Number(b.val || 0), 0);
+                let blockFlat = displayStats.filter(s => s && s.id === 'blockChance').reduce((a, b) => a + Number(b.val || 0), 0);
+                if (baseArmor > 0) statsHtml += `<br>${hi('방어도')} ${Math.floor(baseArmor * (1 + armorPct / 100))} (${Math.floor(baseArmor)})`;
+                if (baseEvasion > 0) statsHtml += `<br>${hi('회피')} ${Math.floor(baseEvasion * (1 + evasionPct / 100))} (${Math.floor(baseEvasion)})`;
+                if (baseEs > 0) statsHtml += `<br>${hi('에너지 보호막')} ${Math.floor(baseEs * (1 + esPct / 100))} (${Math.floor(baseEs)})`;
+                if (baseBlock > 0) statsHtml += `<br>${hi('막기 확률')} ${(baseBlock * (1 + blockPct / 100) + blockFlat).toFixed(1)}% (${baseBlock.toFixed(1)}%)`;
+            }
             let canSelectFromEquipTab = !forCrafting && targetId === 'ui-equip-list';
             let click = (forCrafting || canSelectFromEquipTab) ? `selectForCrafting('${slot}', true)` : '';
             let doubleClick = `event.stopPropagation(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;

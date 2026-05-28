@@ -131,8 +131,8 @@ function getPlayerHpCap(pStats) {
 
 function isDualWielding() {
     let mainWeapon = game.equipment && game.equipment['무기'];
-    let neckWeapon = game.equipment && game.equipment['목걸이'];
-    return !!(mainWeapon && neckWeapon && neckWeapon.slot === '무기');
+    let shieldWeapon = game.equipment && game.equipment['방패'];
+    return !!(mainWeapon && shieldWeapon && shieldWeapon.slot === '무기');
 }
 
 
@@ -631,7 +631,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     else if (Math.random() < critChance) { dmg *= critMul; crit = true; }
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) dmg *= (1 + Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100);
     if (target && target.isBoss) dmg *= getLimitedSummonBossDamageMultiplier(pStats, target);
-    let curseFx = target ? getEnemyConditionDebuffFactor(target) : { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, lightTakenMul: 1, chaosTakenMul: 1, critDmgTakenMul: 1 };
+    let curseFx = target ? getEnemyConditionDebuffFactor(target, pStats) : { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, lightTakenMul: 1, chaosTakenMul: 1, critDmgTakenMul: 1 };
     let limitedStats = getLimitedSummonPenetrationStats(pStats);
     let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, target, limitedStats) - (curseFx.resShred || 0);
     if (ele === 'fire') enemyRes -= (curseFx.resFShred || 0);
@@ -1239,6 +1239,7 @@ function getPlayerStats() {
             if (stat.id === 'armor') itemBaseArmor += Number(stat.val || 0);
             if (stat.id === 'evasion') itemBaseEvasion += Number(stat.val || 0);
             if (stat.id === 'energyShield') itemBaseEs += Number(stat.val || 0);
+            if (stat.id === 'baseBlockChance') shieldBaseBlockChance += Number(stat.val || 0);
         });
         explicitItemStats.forEach(stat => {
             if (!stat) return;
@@ -1248,6 +1249,9 @@ function getPlayerStats() {
             if (stat.id === 'armorPct') itemPctArmor += Number(stat.val || 0);
             if (stat.id === 'evasionPct') itemPctEvasion += Number(stat.val || 0);
             if (stat.id === 'energyShieldPct') itemPctEs += Number(stat.val || 0);
+            if (stat.id === 'baseBlockChance') shieldBaseBlockChance += Number(stat.val || 0);
+            if (stat.id === 'blockChancePct') shieldBlockChancePct += Number(stat.val || 0);
+            if (stat.id === 'blockChance') shieldBlockChanceFlat += Number(stat.val || 0);
         });
         localDefenseTotals.armor += (itemBaseArmor + itemFlatArmor) * (1 + itemPctArmor / 100);
         localDefenseTotals.evasion += (itemBaseEvasion + itemFlatEvasion) * (1 + itemPctEvasion / 100);
@@ -1708,6 +1712,8 @@ function getPlayerStats() {
     let armorReduction = Math.min(90, (finalArmor / (finalArmor + referenceIncomingPhysical * 10)) * 100);
     let enemyAccuracy = Math.max(60, Math.floor(90 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 24));
     let evadeChance = Math.min(90, (finalEvasion / (finalEvasion + enemyAccuracy)) * 100);
+    let finalDeflectChance = Math.max(0, gearBase.deflectChance + gearExplicit.deflectChance + passive.deflectChance + season.deflectChance + ascend.deflectChance + support.deflectChance + reward.deflectChance);
+    let finalDeflectDamageReduce = Math.max(0, gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce + passive.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + support.deflectDamageReduce + reward.deflectDamageReduce);
 
     let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0);
     let rawLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech;
@@ -1730,6 +1736,9 @@ function getPlayerStats() {
     let swiftOpeningTakenMultiplier = 1;
     let guardianReflectDamage = 0;
     let guardianBlockChance = 0;
+    let shieldBaseBlockChance = 0;
+    let shieldBlockChancePct = 0;
+    let shieldBlockChanceFlat = 0;
     let guardianArmorDamageBonus = false;
     let sbSummonAspdBonus = 0;
     let sbSummonCapBonus = 0;
@@ -1991,7 +2000,7 @@ function getPlayerStats() {
         }
         if (hasKeystone('cr3') && skill.ele === 'light') {
             let holyAdd = Math.floor((Math.max(0, finalEnergyShield) / 100) * Math.max(1, Math.floor(game.level || 1)));
-            finalBaseDmg = Math.max(1, holyAdd);
+            finalBaseDmg = Math.max(1, finalBaseDmg + holyAdd);
         }
         if (hasKeystone('cr4')) finalMaxResL = Math.min(90, finalMaxResL + 3);
         if (hasKeystone('cr5')) {
@@ -2191,7 +2200,11 @@ function getPlayerStats() {
 
     let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
-    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
+    let soulbinderSb7PlayerMul = 1;
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
+        soulbinderSb7PlayerMul += Math.max(0, (sbPlayerDamageFromSummonPct || 0) * ((gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0)) / 100);
+    }
+    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1) * soulbinderSb7PlayerMul;
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier;
     let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
     let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.min(5, Math.floor(totalProjectileExtraShots || 0))) : 0;
@@ -2510,6 +2523,18 @@ function getPlayerStats() {
         }
     };
 
+    // 방패 막기 공식
+    // 1) 방패 옵션의 막기 확률(%) 증가는 방패 베이스 막기 확률 자체를 상승시킨다.
+    // 2) 패시브/키스톤 등 기타 막기 확률(%) 증가는 원본 베이스 막기 확률에서만 %로 증가한다.
+    // 3) 막기 확률 +%p는 마지막에 더한다.
+    // 4) 최종 상한 50%.
+    let effectiveShieldBaseBlockChance = Math.max(0, shieldBaseBlockChance * (1 + Math.max(0, shieldBlockChancePct) / 100));
+    let blockChanceFromOtherPct = Math.max(0,
+        guardianBlockChance + gearBase.blockChancePct + passive.blockChancePct + season.blockChancePct + ascend.blockChancePct + support.blockChancePct + reward.blockChancePct
+    );
+    let flatBlockChanceBonus = Math.max(0, shieldBlockChanceFlat + gearBase.blockChance + passive.blockChance + season.blockChance + ascend.blockChance + support.blockChance + reward.blockChance);
+    let finalBlockChance = Math.min(50, Math.max(0, effectiveShieldBaseBlockChance + (shieldBaseBlockChance * blockChanceFromOtherPct / 100) + flatBlockChanceBonus));
+
     let enemy = {
         baseDmg: finalBaseDmg,
         maxHp: finalMaxHp,
@@ -2550,6 +2575,13 @@ function getPlayerStats() {
         swiftOpeningTakenMultiplier: swiftOpeningTakenMultiplier,
         guardianReflectDamage: guardianReflectDamage,
         guardianBlockChance: guardianBlockChance,
+        shieldBaseBlockChance: shieldBaseBlockChance,
+        effectiveShieldBaseBlockChance: effectiveShieldBaseBlockChance,
+        shieldBlockChancePct: shieldBlockChancePct,
+        shieldBlockChanceFlat: shieldBlockChanceFlat,
+        blockChance: finalBlockChance,
+        deflectChance: finalDeflectChance,
+        deflectDamageReduce: finalDeflectDamageReduce,
         ailmentResistBonusPct: ailmentResistBonusPct,
         ailmentResistPenPct: ailmentResistPenPct,
         crusaderLightningIgnoreRes: crusaderLightningIgnoreRes,
@@ -5539,13 +5571,21 @@ function performMonsterAttacks(pStats) {
             let evadeRoll = Math.random() * 100;
             if (game.ascendClass === 'hunter' && hasKeystone('h3')) evadeRoll = Math.min(evadeRoll, Math.random() * 100);
             if (enemy.ele === 'phys' && evadeRoll < evadeChance) {
+                spawnDamageText({ x: width * 0.28, y: height * 0.64, value: '회피!', miss: true, color: '#9fb4c8' });
                 if (game.settings.showCombatLog) addLog(`🌀 회피 성공`, "loot-magic");
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
                 continue;
             }
-            if (Math.random() * 100 < Math.max(0, Math.min(95, pStats.guardianBlockChance || 0))) {
-                if (game.settings.showCombatLog) addLog(`🛡️ 절대 수호: 피해 무효`, "loot-magic");
+            if (Math.random() * 100 < Math.max(0, Math.min(50, pStats.blockChance || pStats.guardianBlockChance || 0))) {
+                spawnDamageText({ x: width * 0.28, y: height * 0.64, value: '막아냄!', miss: true, color: '#a7a7a7' });
+                if (game.settings.showCombatLog) addLog(`🛡️ 막아냄!`, "loot-magic");
                 continue;
+            }
+            if (Math.random() * 100 < Math.max(0, Math.min(75, pStats.deflectChance || 0))) {
+                let deflectReduce = Math.max(0, Math.min(85, 40 + Number(pStats.deflectDamageReduce || 0)));
+                dmg = Math.max(1, Math.floor(dmg * (1 - deflectReduce / 100)));
+                spawnDamageText({ x: width * 0.28, y: height * 0.64, value: '빗겨냄!', miss: true, color: '#b7c7b7' });
+                if (game.settings.showCombatLog) addLog(`🪶 빗겨내기 성공: 피해 ${Math.floor(deflectReduce)}% 감소`, "loot-magic");
             }
             let ailRoll = Math.random();
             if (game.ascendClass === 'hunter' && hasKeystone('h3')) ailRoll = Math.max(ailRoll, Math.random());

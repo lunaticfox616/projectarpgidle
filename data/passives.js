@@ -171,7 +171,7 @@ const HERO_SELECTION_DEFS = {
 
 const PASSIVE_TREE = { nodes: {}, edges: [] };
 
-const PASSIVE_TARGET_NODES = 1200;
+const PASSIVE_TARGET_NODES = 1230;
 
 const PASSIVE_DISCOVERY_RADIUS = 155;
 
