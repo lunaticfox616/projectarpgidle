@@ -1809,24 +1809,54 @@ function assertBuildEditable() {
     return true;
 }
 
+function isSummonGuardSupport(name) {
+    let def = SUPPORT_GEM_DB[name] || {};
+    return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_guard'));
+}
+
+function getEquippedSummonGuardSupports() {
+    let supports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
+    return supports.filter(name => isSummonGuardSupport(name));
+}
+
+function normalizeEquippedSummonAttackSkills() {
+    game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
+    game.equippedSummonSkills = Array.from(new Set(game.equippedSummonSkills.filter(gemName => {
+        let gemDef = SKILL_DB[gemName] || {};
+        return !!(gemDef && Array.isArray(gemDef.tags) && gemDef.tags.includes('summon_attack') && Array.isArray(game.skills) && game.skills.includes(gemName));
+    })));
+    return game.equippedSummonSkills;
+}
+
+function getEquippedSummonCount() {
+    return normalizeEquippedSummonAttackSkills().length + getEquippedSummonGuardSupports().length;
+}
+
+function getSummonEquipCapFromStats(stats) {
+    return Math.max(1, Math.min(8, Math.floor((stats && stats.summonCap) || 1)));
+}
+
 function changeSkill(name) { if (!assertBuildEditable()) return;
     let def = SKILL_DB[name] || {};
     if (def && Array.isArray(def.tags) && def.tags.includes('summon_attack')) {
-        game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
-        game.equippedSummonSkills = Array.from(new Set(game.equippedSummonSkills.filter(gemName => {
-            let gemDef = SKILL_DB[gemName] || {};
-            return !!(gemDef && Array.isArray(gemDef.tags) && gemDef.tags.includes('summon_attack') && Array.isArray(game.skills) && game.skills.includes(gemName));
-        })));
+        normalizeEquippedSummonAttackSkills();
+        let alreadyEquipped = game.equippedSummonSkills.includes(name);
+        if (alreadyEquipped) {
+            game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== name);
+            if (game.activeSkill === name) game.activeSkill = '기본 공격';
+            updateStaticUI();
+            return;
+        }
         let cap = 1;
         try {
             let stats = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
-            cap = Math.max(1, Math.min(8, Math.floor((stats && stats.summonCap) || 1)));
+            cap = getSummonEquipCapFromStats(stats);
         } catch (e) {}
-        if (!game.equippedSummonSkills.includes(name) && game.equippedSummonSkills.length >= cap) {
+        if (getEquippedSummonCount() >= cap) {
             addLog(`소환수 한도(${cap})로 인해 [${name}]은(는) 장착할 수 없습니다.`, 'attack-monster');
             return;
         }
-        if (!game.equippedSummonSkills.includes(name)) game.equippedSummonSkills.push(name);
+        game.equippedSummonSkills.push(name);
     }
     game.activeSkill = name;
     updateStaticUI();
@@ -1901,9 +1931,19 @@ function setSupportActiveTier(name, tier) { if (!assertBuildEditable()) return;
 }
 function toggleSupport(name) { if (!assertBuildEditable()) return;
     normalizeSupportLoadout(false);
+    game.equippedSupports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
     let idx = game.equippedSupports.indexOf(name);
     if (idx > -1) game.equippedSupports.splice(idx, 1);
-    else if (game.equippedSupports.length < getPlayerStats().suppCap) {
+    else {
+        let stats = getPlayerStats();
+        if (game.equippedSupports.length >= stats.suppCap) {
+            updateStaticUI();
+            return;
+        }
+        if (isSummonGuardSupport(name)) {
+            let cap = getSummonEquipCapFromStats(stats);
+            if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]은(는) 장착할 수 없습니다.`, 'attack-monster');
+        }
         let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
         let remain = Math.max(0, getEffectiveResonanceCap() - used);
         let activeTier = getSupportActiveTier(name);
@@ -2349,6 +2389,13 @@ function showGemTooltip(event, type, name) {
         if (TAGGED_DAMAGE_STAT_BY_TAG && Object.values(TAGGED_DAMAGE_STAT_BY_TAG).includes(info.statId)) {
             let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === info.statId);
             html += `<div class="tooltip-line">적용 태그: ${translateSkillTag(tag)}</div>`;
+        }
+        if (SUPPORT_GEM_DB[name] && Array.isArray(SUPPORT_GEM_DB[name].tags) && SUPPORT_GEM_DB[name].tags.includes('summon')) {
+            const preview = (typeof getSummonTooltipPreview === 'function') ? getSummonTooltipPreview(name, stats) : null;
+            if (preview) {
+                html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}</div>`;
+                if (preview.redirectPct > 0) html += `<div class="tooltip-line">피해 대리: 히트 피해 ${preview.redirectPct}%</div>`;
+            }
         }
     } else {
         let skill = info.skill || SKILL_DB[name];
@@ -6048,6 +6095,19 @@ function mergeDefaults(save) {
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
     merged.seasonChaseUniqueDropped = !!merged.seasonChaseUniqueDropped;
+    if (Array.isArray(merged.skills) && merged.skills.includes('수액 골렘 소환')) {
+        merged.supports = Array.isArray(merged.supports) ? merged.supports : [];
+        if (!merged.supports.includes('수액 골렘 소환')) merged.supports.push('수액 골렘 소환');
+        merged.supportGemData = (merged.supportGemData && typeof merged.supportGemData === 'object') ? merged.supportGemData : {};
+        if (!merged.supportGemData['수액 골렘 소환']) {
+            merged.supportGemData['수액 골렘 소환'] = normalizeGemRecord((merged.gemData || {})['수액 골렘 소환'] || { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 });
+        }
+        if (merged.activeSkill === '수액 골렘 소환') {
+            merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports : [];
+            if (!merged.equippedSupports.includes('수액 골렘 소환')) merged.equippedSupports.push('수액 골렘 소환');
+            merged.activeSkill = '기본 공격';
+        }
+    }
     merged.skills = dedupeList(Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : []);
     if (!merged.skills.includes('기본 공격')) merged.skills.unshift('기본 공격');
     merged.sealedSkills = dedupeList(Array.isArray(merged.sealedSkills) ? merged.sealedSkills.filter(name => !!SKILL_DB[name] && name !== '기본 공격' && !merged.skills.includes(name)) : []);
