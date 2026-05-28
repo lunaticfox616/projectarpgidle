@@ -1781,7 +1781,6 @@ function getPlayerStats() {
     let chaosDamageMultiplier = 1;
     let dotTickIntervalMultiplier = 1;
     let dotDurationMultiplier = 1;
-    if (uniqueFateTwinRollSync) { let v=Math.max(finalMinDmgRoll, finalMaxDmgRoll)+(finalCrit*0.2); finalMinDmgRoll=v; finalMaxDmgRoll=v; }
     if (uniqueVenomStride) finalDamageMultiplier *= 1.30;
     if (uniqueWarcryResonancePct>0){ let now=Date.now(); let c=(Array.isArray(game.playerConditionBuffs)?game.playerConditionBuffs:[]).filter(b=>b&&b.type==='warcry'&&(b.expiresAt||0)>now).length; if(c>0) finalDamageMultiplier*=(1+(c*uniqueWarcryResonancePct)/100);}
     if (uniqueCurseCrownPerCursePct>0){ let e=(game.enemies||[]).find(x=>x&&x.hp>0); let n=0; if(e&&game.enemyConditionDebuffs&&Array.isArray(game.enemyConditionDebuffs[e.id])) n=game.enemyConditionDebuffs[e.id].length; if(n>0) finalDamageMultiplier*=(1+(n*uniqueCurseCrownPerCursePct)/100);}
@@ -2139,9 +2138,20 @@ function getPlayerStats() {
     damageScales.warlockElementalOvercapToChaos = warlockElementalOvercapToChaos;
 
     if (skill.cannotCrit) finalCrit = 0;
+    if (uniqueFateTwinRollSync) {
+        let critForTwin = Math.max(0, finalCrit);
+        let v = Math.max(finalMinDmgRoll, finalMaxDmgRoll) + (critForTwin * 0.2);
+        finalMinDmgRoll = v;
+        finalMaxDmgRoll = v;
+    }
     critChance = Math.max(0, Math.min(1, finalCrit / 100));
     critMulti = finalCritDmg / 100;
-    avgHit = finalBaseDmg * (1 - critChance) + finalBaseDmg * critChance * critMulti;
+    if (game.ascendClass === 'hunter' && hasKeystone('h8')) {
+        let expectedCritCount = Math.max(0, finalCrit / 100);
+        avgHit = finalBaseDmg * (1 + ((Math.max(1, critMulti) - 1) * expectedCritCount));
+    } else {
+        avgHit = finalBaseDmg * (1 - critChance) + finalBaseDmg * critChance * critMulti;
+    }
     finalDps = avgHit * finalAspd;
 
     let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
