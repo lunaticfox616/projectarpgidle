@@ -1665,6 +1665,10 @@ function getPlayerStats() {
     let finalCrit = Math.min(100, (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82);
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
     if (uniqueKillMoveStacks && game.uniqueKillMoveStacksState && (game.uniqueKillMoveStacksState.expiresAt || 0) > Date.now()) finalMove += Math.max(0, Math.floor(game.uniqueKillMoveStacksState.stacks || 0)) * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
+    if (uniqueMeleeArmorAmp && (game.uniqueMeleeArmorAmpExpiresAt || 0) > Date.now()) {
+        let stacks = Math.max(0, Math.min(Math.floor(uniqueMeleeArmorAmp.maxStacks || 3), Math.floor(game.uniqueMeleeArmorAmpStacks || 0)));
+        if (stacks > 0) finalArmor = Math.floor(finalArmor * Math.pow(1 + Math.max(0, Number(uniqueMeleeArmorAmp.ampPct || 5)) / 100, stacks));
+    }
     let zonePenalty = getZone(game.currentZoneId) || getZone(0);
     if (zonePenalty && zonePenalty.type === 'underworld') {
         let uf = Math.max(1, Math.floor(zonePenalty.floor || 1));
@@ -2607,7 +2611,7 @@ function getPlayerStats() {
         uniqueConditionManual: uniqueConditionManual,
         uniqueStackingElementalResDownOnHit: uniqueStackingElementalResDownOnHit,
         uniqueLeechEfficiencyOnKill: uniqueLeechEfficiencyOnKill,
-        uniqueKillMoveStacks: uniqueKillMoveStacks, uniqueEnemyRegenCutAndMinRoll: uniqueEnemyRegenCutAndMinRoll, uniqueAllResDownOnHit: uniqueAllResDownOnHit, uniqueCursedTakenAndRefresh: uniqueCursedTakenAndRefresh, uniquePhysDrHalfTakenAsMore: uniquePhysDrHalfTakenAsMore, uniqueMeleeArmorAmp: uniqueMeleeArmorAmp, uniqueArmorAppliesToDot: uniqueArmorAppliesToDot, uniqueNoCollisionBlock: uniqueNoCollisionBlock,
+        uniqueKillMoveStacks: uniqueKillMoveStacks, uniqueEnemyRegenCutAndMinRoll: uniqueEnemyRegenCutAndMinRoll, uniqueAllResDownOnHit: uniqueAllResDownOnHit, uniqueCursedTakenAndRefresh: uniqueCursedTakenAndRefresh, uniquePhysDrHalfTakenAsMore: uniquePhysDrHalfTakenAsMore, uniqueMeleeArmorAmp: uniqueMeleeArmorAmp, uniqueArmorAppliesToDot: uniqueArmorAppliesToDot, uniqueNoCollisionBlock: uniqueNoCollisionBlock, ignoreEnemyCollision: !!uniqueNoCollisionBlock,
         uniqueOverkillSplash: uniqueOverkillSplash,
         uniqueDragonVeinGuard: uniqueDragonVeinGuard,
         uniqueGuardianArmor: uniqueGuardianArmor,
@@ -4272,6 +4276,7 @@ function resolveNextLoopBestPlusOneZone(zone) {
 
 function finishEncounterRun() {
     let zone = getZone(game.currentZoneId);
+    let mapAction = (game.settings && game.settings.mapCompleteAction) || 'nextZone';
     game.killsInZone++;
 
     if (zone.type === 'meteor') {
@@ -4401,7 +4406,6 @@ function finishEncounterRun() {
         return;
     }
     if (zone.type === 'labyrinth') {
-        let mapAction = game.settings.mapCompleteAction || 'nextZone';
         let prevLab = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
         let clearedFloor = Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1));
         if (mapAction === 'repeatZone') {
@@ -4889,6 +4893,13 @@ function performPlayerAttack(pStats) {
             if (hitElement === 'chaos') dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
             if (hitCrit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
             if (pStats.uniqueBleedWeightOnBleedingHit && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'bleed' && (a.time || 0) > 0)) dmg = Math.floor(dmg * 2);
+            if (pStats.uniqueMeleeArmorAmp && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('melee')) {
+                let now = Date.now();
+                let active = (game.uniqueMeleeArmorAmpExpiresAt || 0) > now;
+                let stacks = active ? Math.max(0, Math.floor(game.uniqueMeleeArmorAmpStacks || 0)) : 0;
+                game.uniqueMeleeArmorAmpStacks = Math.min(Math.floor(pStats.uniqueMeleeArmorAmp.maxStacks || 3), stacks + 1);
+                game.uniqueMeleeArmorAmpExpiresAt = now + Math.floor((pStats.uniqueMeleeArmorAmp.duration || 2) * 1000);
+            }
             dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement));
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) dmg = Math.floor(dmg * (1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100)));
