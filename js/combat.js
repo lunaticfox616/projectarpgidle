@@ -1207,6 +1207,9 @@ function getPlayerStats() {
     let colonyWardBonus = {};
 
     let localDefenseTotals = { armor: 0, evasion: 0, energyShield: 0 };
+    let shieldBaseBlockChance = 0;
+    let shieldBlockChancePct = 0;
+    let shieldBlockChanceFlat = 0;
     let equippedUniqueEffects = [];
     let warriorDualWeaponEffectMultiplier = (game.ascendClass === 'warrior' && hasKeystone('w6') && isDualWielding()) ? 1.5 : 1;
     let scaleStatList = (stats, multiplier) => multiplier === 1 ? (stats || []) : (stats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number(stat.val) * multiplier } : stat);
@@ -1682,10 +1685,6 @@ function getPlayerStats() {
         finalMove *= (1 - gravitySlow);
     }
     let finalDamageMultiplier = 1;
-    if (uniqueMaxHpPct) finalMaxHp = Math.floor(finalMaxHp * (1 + Math.max(0, uniqueMaxHpPct) / 100));
-    if (uniqueRegenRateAndRegen) { finalRegen += Number(uniqueRegenRateAndRegen.regen || 0); finalRegen *= (1 + Math.max(0, Number(uniqueRegenRateAndRegen.regenRatePct || 0)) / 100); }
-    if (uniqueAllMaxRes) { finalMaxResF += uniqueAllMaxRes; finalMaxResC += uniqueAllMaxRes; finalMaxResL += uniqueAllMaxRes; }
-    if (uniqueEnemyRegenCutAndMinRoll) finalMinDmgRoll += Number(uniqueEnemyRegenCutAndMinRoll.minRoll || 0);
     if (uniqueLabyrinthShackles) {
         let reduced = Math.max(0, finalMove - 100);
         finalMove = 100;
@@ -1736,9 +1735,6 @@ function getPlayerStats() {
     let swiftOpeningTakenMultiplier = 1;
     let guardianReflectDamage = 0;
     let guardianBlockChance = 0;
-    let shieldBaseBlockChance = 0;
-    let shieldBlockChancePct = 0;
-    let shieldBlockChanceFlat = 0;
     let guardianArmorDamageBonus = false;
     let sbSummonAspdBonus = 0;
     let sbSummonCapBonus = 0;
@@ -1782,6 +1778,7 @@ function getPlayerStats() {
     let finalMaxResF = Math.min(90, 75 + gearBase.maxResF + gearExplicit.maxResF + passive.maxResF + season.maxResF + ascend.maxResF + support.maxResF + reward.maxResF);
     let finalMaxResC = Math.min(90, 75 + gearBase.maxResC + gearExplicit.maxResC + passive.maxResC + season.maxResC + ascend.maxResC + support.maxResC + reward.maxResC);
     let finalMaxResL = Math.min(90, 75 + gearBase.maxResL + gearExplicit.maxResL + passive.maxResL + season.maxResL + ascend.maxResL + support.maxResL + reward.maxResL);
+    let finalMaxResChaos = Math.min(90, 75 + gearBase.maxResChaos + gearExplicit.maxResChaos + passive.maxResChaos + season.maxResChaos + ascend.maxResChaos + support.maxResChaos + reward.maxResChaos);
     let rawResF = gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + support.resF + reward.resF - resistPenalty;
     let rawResC = gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + support.resC + reward.resC - resistPenalty;
     let rawResL = gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + support.resL + reward.resL - resistPenalty;
@@ -1796,6 +1793,7 @@ function getPlayerStats() {
         finalMaxResF = Math.min(90, finalMaxResF + addMax);
         finalMaxResC = Math.min(90, finalMaxResC + addMax);
         finalMaxResL = Math.min(90, finalMaxResL + addMax);
+        finalMaxResChaos = Math.min(90, finalMaxResChaos + addMax);
     }
     let finalResF = Math.min(finalMaxResF, rawResF);
     let finalResC = Math.min(finalMaxResC, rawResC);
@@ -1803,7 +1801,7 @@ function getPlayerStats() {
     let warlockElementalOvercapToChaos = (game.ascendClass === 'warlock' && hasKeystone('wlk4'))
         ? (Math.max(0, rawResF - finalMaxResF) + Math.max(0, rawResC - finalMaxResC) + Math.max(0, rawResL - finalMaxResL)) * 0.25
         : 0;
-    let finalResChaos = Math.min(75, rawResChaos + warlockElementalOvercapToChaos);
+    let finalResChaos = Math.min(finalMaxResChaos, rawResChaos + warlockElementalOvercapToChaos);
     if (activeUniqueIds.has('uj_burning_will')) {
         let overcapFire = Math.max(0, rawResF - finalMaxResF);
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(0.35, overcapFire * 0.005)));
@@ -2038,7 +2036,7 @@ function getPlayerStats() {
         if (hasKeystone('e5')) {
             let maxElemRes = Math.max(finalResF, finalResC, finalResL);
             finalResChaos += Math.floor(maxElemRes * 0.5);
-            finalResChaos = Math.min(75, finalResChaos);
+            finalResChaos = Math.min(finalMaxResChaos, finalResChaos);
             finalDamageMultiplier *= (1 + Math.max(0, finalResChaos) / 100);
         }
         if (hasKeystone('e6')) {
@@ -2233,6 +2231,7 @@ function getPlayerStats() {
     finalMaxResF = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
     finalMaxResC = Math.min(90, finalMaxResC + (colonyWardBonus.maxResC || 0));
     finalMaxResL = Math.min(90, finalMaxResL + (colonyWardBonus.maxResL || 0));
+    finalMaxResChaos = Math.min(90, finalMaxResChaos + (colonyWardBonus.maxResChaos || 0));
     finalMaxHp += (colonyWardBonus.flatHp || 0);
     finalArmor += (colonyWardBonus.armor || 0);
     finalEvasion += (colonyWardBonus.evasion || 0);
@@ -2241,7 +2240,7 @@ function getPlayerStats() {
     finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
     finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0));
     finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0));
-    finalResChaos = Math.min(90, finalResChaos + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0));
+    finalResChaos = Math.min(finalMaxResChaos, finalResChaos + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0));
     finalRegen += (colonyWardBonus.regenFlat || 0);
     finalEnergyShieldRegenRate += (colonyWardBonus.energyShieldRegen || 0);
     finalCritResist = Math.min(80, finalCritResist + (colonyWardBonus.critResist || 0));
@@ -2604,6 +2603,7 @@ function getPlayerStats() {
         maxResF: finalMaxResF,
         maxResC: finalMaxResC,
         maxResL: finalMaxResL,
+        maxResChaos: finalMaxResChaos,
         resChaos: finalResChaos,
         critResist: Math.max(0, Math.min(80, finalCritResist)),
         ailResIgnite: (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0) + (colonyWardBonus.ailResIgnite || 0),

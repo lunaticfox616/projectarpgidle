@@ -198,6 +198,7 @@ function getStatName(statId) {
         maxResF: '최대 화염 저항(%)',
         maxResC: '최대 냉기 저항(%)',
         maxResL: '최대 번개 저항(%)',
+        maxResChaos: '최대 카오스 저항(%)',
         resAll: '모든 원소 저항(%)',
         resChaos: '카오스 저항(%)',
         regenSuppress: '재생 억제(%)',
@@ -247,7 +248,7 @@ function getRarityRank(rarity) {
 function createEmptyStatBucket() {
     return {
         flatDmg: 0, weaponFlatDmgPct: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, regenFlat: 0,
-        dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResF: 0, maxResC: 0, maxResL: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
+        dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResF: 0, maxResC: 0, maxResL: 0, maxResChaos: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
@@ -318,6 +319,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'maxResF') bucket.maxResF += value;
     else if (statId === 'maxResC') bucket.maxResC += value;
     else if (statId === 'maxResL') bucket.maxResL += value;
+    else if (statId === 'maxResChaos') bucket.maxResChaos += value;
     else if (statId === 'resC') bucket.resC += value;
     else if (statId === 'resL') bucket.resL += value;
     else if (statId === 'resAll') { bucket.resF += value; bucket.resC += value; bucket.resL += value; }
