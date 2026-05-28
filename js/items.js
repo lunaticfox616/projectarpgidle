@@ -535,13 +535,21 @@ function toggleBlackMarketOfferLock(idx) {
 }
 
 function expandBlackMarketSlotsByDivine(){
-    if ((game.currencies.divine||0) < 1) return addLog('신성한 오브가 부족합니다.', 'attack-monster');
-    game.currencies.divine--;
+    let cost = getBlackMarketSlotExpandCost();
+    if ((game.currencies.divine||0) < cost) return addLog(`신성한 오브가 부족합니다. (필요 ${cost})`, 'attack-monster');
+    game.currencies.divine -= cost;
     game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [] };
     game.blackMarket.extraSlots = Math.max(0, Math.floor(game.blackMarket.extraSlots||0)) + 1;
     refreshBlackMarket(true);
-    addLog('🕶️ 암거래상 품목 슬롯이 늘어났습니다.', 'loot-unique');
+    addLog(`🕶️ 암거래상 품목 슬롯이 늘어났습니다. (신성한 오브 ${cost} 소모)`, 'loot-unique');
     updateStaticUI();
+}
+
+
+function getBlackMarketSlotExpandCost() {
+    game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [] };
+    let bought = Math.max(0, Math.floor(game.blackMarket.extraSlots || 0));
+    return 1 + bought;
 }
 
 function buyBlackMarketOffer(idx){
@@ -689,9 +697,9 @@ function renderMarketUI() {
             let lockLabel = isLocked ? '🔒 잠금' : '🔓 잠금';
             return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span class="market-black-label" data-info-tooltip-anchor="1" data-market-tooltip="${tooltip}" onmouseenter="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmousemove="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmouseleave="hideInfoTooltip()">${richDesc}</span></div><div style="display:flex; gap:4px;"><button onclick="buyBlackMarketOffer(${idx})">구매</button><button onclick="toggleBlackMarketOfferLock(${idx})">${lockLabel}</button></div></div>`;
         }).join('');
-        bmEl.innerHTML = `<div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()">신성한 오브 1개로 품목 +1</button>`;
+        bmEl.innerHTML = `<div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()">신성한 오브 ${getBlackMarketSlotExpandCost()}개로 품목 +1</button>`;
     }
 }
 
 
-safeExposeGlobals({ showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, toggleBlackMarketOfferLock, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketSlotExpandCost, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
