@@ -1662,8 +1662,9 @@ function getPlayerStats() {
     let hpScaleRatio = Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
     let hpFlatBonus = Math.floor(totalFlatDmg * hpScaleRatio);
     let scaledFlatDmg = totalFlatDmg + hpFlatBonus;
-    let finalBaseDmg = Math.floor(scaledFlatDmg * (1 + (generalPctDmg + taggedTotal) / 100) * (skill.dmg || skill.baseDmg || 1) * codexBonusRatio);
-    finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, Number(skill.flatSkillDmgPct) || 0) / 100));
+    let baseDamageIncreaseMultiplier = (1 + (generalPctDmg + taggedTotal) / 100) * (skill.dmg || skill.baseDmg || 1) * codexBonusRatio;
+    baseDamageIncreaseMultiplier *= (1 + Math.max(0, Number(skill.flatSkillDmgPct) || 0) / 100);
+    let finalBaseDmg = Math.floor(scaledFlatDmg * baseDamageIncreaseMultiplier);
 
     let gearAspd = gearBase.aspd + gearExplicit.aspd;
     let passiveAspd = passive.aspd + season.aspd + ascend.aspd + reward.aspd;
@@ -1742,6 +1743,8 @@ function getPlayerStats() {
     let ailmentResistPenPct = 0;
     let crusaderLightningIgnoreRes = false;
     let crusaderNoResPenOnLightning = false;
+    let crusaderHolyFlatDmg = 0;
+    let crusaderHolyScaledDmg = 0;
     let finalDs = ((gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) + (skill.dsBonus || 0)) * 0.75;
     let finalSlamEchoChance = gearBase.slamEchoChance + gearExplicit.slamEchoChance + passive.slamEchoChance + season.slamEchoChance + ascend.slamEchoChance + support.slamEchoChance + reward.slamEchoChance;
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen + (skill.regenBonus || 0);
@@ -1990,15 +1993,8 @@ function getPlayerStats() {
     } else if (game.ascendClass === 'crusader') {
         if (hasKeystone('cr1')) { finalRegen += 1.5; finalRegen *= 1.4; }
         if (hasKeystone('cr2')) {
-            let firePct = gearBase.firePctDmg + gearExplicit.firePctDmg + passive.firePctDmg + season.firePctDmg + ascend.firePctDmg + support.firePctDmg + reward.firePctDmg;
-            let coldPct = gearBase.coldPctDmg + gearExplicit.coldPctDmg + passive.coldPctDmg + season.coldPctDmg + ascend.coldPctDmg + support.coldPctDmg + reward.coldPctDmg;
-            if (skill.ele === 'light') finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, firePct + coldPct) / 100));
             crusaderLightningIgnoreRes = true;
             crusaderNoResPenOnLightning = true;
-        }
-        if (hasKeystone('cr3') && skill.ele === 'light') {
-            let holyAdd = Math.floor((Math.max(0, finalEnergyShield) / 100) * Math.max(1, Math.floor(game.level || 1)));
-            finalBaseDmg = Math.max(1, finalBaseDmg + holyAdd);
         }
         if (hasKeystone('cr4')) finalMaxResL = Math.min(90, finalMaxResL + 3);
         if (hasKeystone('cr5')) {
@@ -2014,6 +2010,16 @@ function getPlayerStats() {
             finalEnergyShield += addEs;
             finalArmor += addArmor;
             finalEnergyShieldRechargeDelay = Math.max(0.1, finalEnergyShieldRechargeDelay * 0.5);
+        }
+        if (hasKeystone('cr3') && skill.ele === 'light') {
+            crusaderHolyFlatDmg = Math.floor((Math.max(0, finalEnergyShield) / 100) * Math.max(1, Math.floor(game.level || 1)));
+            crusaderHolyScaledDmg = Math.floor(crusaderHolyFlatDmg * baseDamageIncreaseMultiplier);
+            finalBaseDmg = Math.max(1, finalBaseDmg + crusaderHolyScaledDmg);
+        }
+        if (hasKeystone('cr2')) {
+            let firePct = gearBase.firePctDmg + gearExplicit.firePctDmg + passive.firePctDmg + season.firePctDmg + ascend.firePctDmg + support.firePctDmg + reward.firePctDmg;
+            let coldPct = gearBase.coldPctDmg + gearExplicit.coldPctDmg + passive.coldPctDmg + season.coldPctDmg + ascend.coldPctDmg + support.coldPctDmg + reward.coldPctDmg;
+            if (skill.ele === 'light') finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, firePct + coldPct) / 100));
         }
         if (hasKeystone('cr8') && (game.crusaderLightningAegisUntil || 0) > Date.now()) finalBaseDmg = Math.floor(finalBaseDmg * (skill.ele === 'light' ? 1.5 : 1));
     } else if (game.ascendClass === 'elementalist') {
@@ -2264,6 +2270,7 @@ function getPlayerStats() {
                 taggedSummary.length > 0 ? `적용 태그: ${taggedSummary.join(' / ')}` : null,
                 `스킬 배율 ${formatPercentMultiplier(skill.dmg || 1)}`,
                 (skill.hpDmgScale || 0) > 0 ? `생명력 계수 내장 피해 +${Math.floor(hpFlatBonus)} (최대 생명력 ${Math.floor(finalMaxHp)}, 피해 증가 적용)` : null,
+                crusaderHolyFlatDmg > 0 ? `신성한 검 번개 기본 피해 +${Math.floor(crusaderHolyFlatDmg)} → ${Math.floor(crusaderHolyScaledDmg)} (피해 증가 적용)` : null,
                 (skill.regenDmgScale || 0) > 0 ? `재생 계수 배율 ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
                 (skill.fireResDmgScale || 0) > 0 ? `화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (화염 저항 ${Math.floor(finalResF)}%)` : null,
                 (skill.fireResOvercapMulPerPct || 0) > 0 ? `초과 화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (미적용 화염 저항 ${Math.floor(rawResF)}%/${Math.floor(finalMaxResF)}%, 최대치 초과 적용분 ${fireResOvercap.toFixed(1)}%)` : null,
