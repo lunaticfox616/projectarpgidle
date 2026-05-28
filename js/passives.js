@@ -3371,6 +3371,16 @@ function initBattleAssets() {
         hero4Attack: 'assets/hero4/SeveredFangBasicAtk001-Sheet.png',
         hero4Hurt: 'assets/hero4/SeveredFangHurt001-Sheet.png',
         hero4Death: 'assets/hero4/SeveredFangDeath001-Sheet.png',
+        hero5Idle: 'assets/hero5/hero5_walk.png',
+        hero5Walk: 'assets/hero5/hero5_walk.png',
+        hero5Attack: 'assets/hero5/hero5_attack.png',
+        hero5Hurt: 'assets/hero5/hero5_walk.png',
+        hero5Death: 'assets/hero5/hero5_walk.png',
+        hero9Idle: 'assets/hero9/hero9_walk.png',
+        hero9Walk: 'assets/hero9/hero9_walk.png',
+        hero9Attack: 'assets/hero9/hero9_attack.png',
+        hero9Hurt: 'assets/hero9/hero9_walk.png',
+        hero9Death: 'assets/hero9/hero9_walk.png',
         ...(defaultHeroSrc ? { heroLegacy: defaultHeroSrc } : {}),
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
@@ -4092,7 +4102,9 @@ function buildBattleAssetAtlas() {
         hero1Idle: 6, hero1Walk: 8, hero1Attack: 7, hero1Hurt: 4, hero1Death: 8,
         hero2Idle: 6, hero2Walk: 8, hero2Attack: 12, hero2Hurt: 4, hero2Death: 8,
         hero3Idle: 9, hero3Walk: 9, hero3Attack: 11, hero3Hurt: 9, hero3Death: 9,
-        hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7
+        hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7,
+        hero5Idle: 11, hero5Walk: 11, hero5Attack: 9, hero5Hurt: 11, hero5Death: 11,
+        hero9Idle: 9, hero9Walk: 9, hero9Attack: 8, hero9Hurt: 9, hero9Death: 9
     };
     function buildFixedStripFramesFromImage(image, frameCount) {
         if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return [];
@@ -4168,7 +4180,7 @@ function buildBattleAssetAtlas() {
             clipLoop: {
                 idle: true,
                 walk_or_run: true,
-                sword_attack_body: heroId === 'hero2' || heroId === 'hero3' || heroId === 'hero4',
+                sword_attack_body: heroId === 'hero2' || heroId === 'hero3' || heroId === 'hero4' || heroId === 'hero5' || heroId === 'hero9',
                 cast_body: false,
                 hurt: false,
                 down_or_knockdown: false,
