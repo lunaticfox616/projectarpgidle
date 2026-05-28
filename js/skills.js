@@ -233,6 +233,7 @@ function applyFossilChaosCraft(fossilKey) {
     function canUseDefenseStat(statId) {
         statId = String(statId || '');
         if (bypassDefenseTypeRule) return true;
+        if (statId === 'deflectChance') return baseDefenseTypes.has('evasion');
         if (!['armor', 'evasion', 'energyShield', 'armorPct', 'evasionPct', 'energyShieldPct'].includes(statId)) return true;
         if (baseDefenseTypes.size <= 0) return true;
         if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;

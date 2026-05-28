@@ -2488,7 +2488,7 @@ function showItemTooltip(event, idx, isEquip) {
             let key = String(statId || '').toLowerCase();
             if (['energyshield', 'energyshieldpct', 'energyshieldregen'].includes(key) || key.includes('energyshield') || key === 'es') return 1;
             if (['armor', 'armorpct', 'dr'].includes(key) || key.includes('armor')) return 2;
-            if (['evasion', 'evasionpct'].includes(key) || key.includes('evasion')) return 3;
+            if (['evasion', 'evasionpct', 'deflectchance', 'deflectdamagereduce'].includes(key) || key.includes('evasion') || key.includes('deflect')) return 3;
             if (['flathp', 'pcthp', 'regen', 'regenflat'].includes(key) || key.includes('hp') || key.includes('life')) return 4;
             if (['resf', 'resc', 'resl', 'resall', 'reschaos'].includes(key) || key.includes('res')) return 5;
             if (['firepctdmg', 'coldpctdmg', 'lightpctdmg', 'chaospctdmg', 'dotpctdmg', 'pctdmg'].includes(key) || key.includes('dmg') || key.includes('dot')) return 6;
@@ -3789,6 +3789,8 @@ function updateCombatUI(pStats) {
     let armorEl = document.getElementById('ui-armor'); if (armorEl) armorEl.innerText = Math.floor(pStats.armor || 0);
     let evasionEl = document.getElementById('ui-evasion'); if (evasionEl) evasionEl.innerText = Math.floor(pStats.evasion || 0);
     let esEl = document.getElementById('ui-es'); if (esEl) esEl.innerText = Math.floor(pStats.energyShield || 0);
+    let blockEl = document.getElementById('ui-block-chance'); if (blockEl) blockEl.innerText = Math.max(0, Number(pStats.blockChance || 0)).toFixed(1);
+    let deflectEl = document.getElementById('ui-deflect-chance'); if (deflectEl) deflectEl.innerText = Math.max(0, Number(pStats.deflectChance || 0)).toFixed(1);
     document.getElementById('ui-phys-ignore').innerText = Math.floor(pStats.physIgnore || 0);
     document.getElementById('ui-res-pen').innerText = Math.floor(pStats.resPen || 0);
     document.getElementById('ui-res-fire').innerText = Math.floor(pStats.resF);
@@ -4203,7 +4205,7 @@ function getJewelStatToneColor(statId) {
     if (['lightPctDmg', 'resL', 'shockChance'].includes(statId)) return '#ffe083';
     if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(statId)) return '#c7a6ff';
     if (['armor', 'armorPct', 'dr'].includes(statId)) return '#ffd2a6';
-    if (['evasion', 'evasionPct'].includes(statId)) return '#baffc2';
+    if (['evasion', 'evasionPct', 'deflectChance', 'deflectDamageReduce'].includes(statId)) return '#baffc2';
     if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(statId)) return '#b9c6ff';
     if (['flatHp', 'pctHp', 'regen'].includes(statId)) return '#ffb3b3';
     if (['crit', 'critDmg'].includes(statId)) return '#ffd6f2';
@@ -4221,7 +4223,7 @@ function getItemStatToneColor(statId) {
     if (['lightPctDmg', 'resL', 'shockChance'].includes(id)) return '#ffe083';
     if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(id)) return '#c7a6ff';
     if (['armor', 'armorPct', 'dr'].includes(id)) return '#ffd2a6';
-    if (['evasion', 'evasionPct'].includes(id)) return '#baffc2';
+    if (['evasion', 'evasionPct', 'deflectChance', 'deflectDamageReduce'].includes(id)) return '#baffc2';
     if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#b9c6ff';
     if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(id)) return '#ffb3b3';
     if (['crit', 'critDmg'].includes(id)) return '#ffd6f2';
@@ -4239,7 +4241,7 @@ function getItemStatToneColor(statId) {
     if (low.includes('light') || low.includes('shock')) return '#ffe083';
     if (low.includes('hp') || low.includes('life') || low.includes('regen') || low.includes('leech')) return '#ffb3b3';
     if (low.includes('armor') || low.includes('block') || low.includes('guard') || low.includes('dr')) return '#ffd2a6';
-    if (low.includes('evasion') || low.includes('dodge')) return '#baffc2';
+    if (low.includes('evasion') || low.includes('dodge') || low.includes('deflect')) return '#baffc2';
     if (low.includes('energyshield') || low.includes('es')) return '#b9c6ff';
     if (low.includes('crit')) return '#ffd6f2';
     if (low.includes('aspd') || low.includes('speed') || low.includes('move')) return '#fff3a8';
@@ -8493,27 +8495,27 @@ function enforceWarriorDualTrainingEquipment(onEnable) {
     if (game.ascendClass !== 'warrior') return true;
     game.equipment = game.equipment || {};
     game.inventory = Array.isArray(game.inventory) ? game.inventory : [];
-    let neck = game.equipment['목걸이'];
+    let shield = game.equipment['방패'];
     if (onEnable) {
-        if (neck && neck.slot === '목걸이') {
+        if (shield && shield.slot === '방패') {
             if (game.inventory.length >= getInventoryLimit()) {
-                addLog('쌍수 훈련 활성화를 위해 목걸이를 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
+                addLog('쌍수 훈련 활성화를 위해 방패를 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
                 return false;
             }
-            game.inventory.push(neck);
-            game.equipment['목걸이'] = null;
-            addLog('🛡️ 쌍수 훈련 활성화: 기존 목걸이를 인벤토리로 이동했습니다.', 'loot-normal');
+            game.inventory.push(shield);
+            game.equipment['방패'] = null;
+            addLog('🛡️ 쌍수 훈련 활성화: 기존 방패를 인벤토리로 이동했습니다.', 'loot-normal');
         }
         return true;
     }
-    if (neck && neck.slot === '무기') {
+    if (shield && shield.slot === '무기') {
         if (game.inventory.length >= getInventoryLimit()) {
-            addLog('쌍수 훈련 해제를 위해 목걸이 슬롯 무기를 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
+            addLog('쌍수 훈련 해제를 위해 방패 슬롯 무기를 해제해야 하지만 인벤토리가 가득 찼습니다.', 'attack-monster');
             return false;
         }
-        game.inventory.push(neck);
-        game.equipment['목걸이'] = null;
-        addLog('🧰 쌍수 훈련 해제: 목걸이 슬롯 무기를 인벤토리로 이동했습니다.', 'loot-normal');
+        game.inventory.push(shield);
+        game.equipment['방패'] = null;
+        addLog('🧰 쌍수 훈련 해제: 방패 슬롯 무기를 인벤토리로 이동했습니다.', 'loot-normal');
     }
     return true;
 }

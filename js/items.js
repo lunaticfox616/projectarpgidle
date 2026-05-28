@@ -41,7 +41,7 @@ function getEquipCandidateSlots(item) {
     if (item.slot === '반지') return ['반지1', '반지2'];
     if (item.slot === '장갑') return ['장갑1', '장갑2'];
     let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
-    if (item.slot === '무기') return warriorDualTrain ? ['무기', '목걸이'] : ['무기'];
+    if (item.slot === '무기') return warriorDualTrain ? ['무기', '방패'] : ['무기'];
     return [item.slot];
 }
 
@@ -62,11 +62,11 @@ function pickEquipSlot(item, preferredSlot) {
     if (item.slot === '무기') {
         let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
         if (warriorDualTrain && !preferredSlot) {
-            if (game.equipment['무기'] && !game.equipment['목걸이']) return '목걸이';
+            if (game.equipment['무기'] && !game.equipment['방패']) return '방패';
             if (!game.equipment['무기']) return '무기';
-            if (!game.equipment['목걸이']) return '목걸이';
-            let neckItem = game.equipment['목걸이'];
-            if (neckItem && neckItem.slot === '목걸이') return '목걸이';
+            if (!game.equipment['방패']) return '방패';
+            let shieldItem = game.equipment['방패'];
+            if (shieldItem && shieldItem.slot === '방패') return '방패';
             return null;
         }
     }
@@ -109,12 +109,8 @@ function equipItem(idx, preferredSlot) {
     let targetSlot = pickEquipSlot(item, preferredSlot);
     if (!targetSlot) return;
     let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
-    if (targetSlot === '목걸이' && item.slot === '무기' && !warriorDualTrain) {
-        addLog('워리어 키스톤 [쌍수 훈련]이 있어야 목걸이 슬롯에 무기를 장착할 수 있습니다.', 'attack-monster');
-        return;
-    }
-    if (targetSlot === '목걸이' && item.slot === '목걸이' && warriorDualTrain) {
-        addLog('쌍수 훈련 활성화 상태에서는 목걸이를 장착할 수 없습니다.', 'attack-monster');
+    if (targetSlot === '방패' && item.slot === '무기' && !warriorDualTrain) {
+        addLog('워리어 키스톤 [쌍수 훈련]이 있어야 방패 슬롯에 무기를 장착할 수 있습니다.', 'attack-monster');
         return;
     }
     let old = game.equipment[targetSlot];
@@ -350,7 +346,8 @@ function upgradeSelectedItemBase() {
             신발: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'move']),
             목걸이: new Set([]),
             반지: new Set([]),
-            허리띠: new Set(['flatHp'])
+            허리띠: new Set(['flatHp']),
+            방패: new Set(['armor', 'evasion', 'energyShield', 'baseBlockChance'])
         };
         let coreSet = coreStatsBySlot[slot] || new Set();
         return (base.baseStats || [])
@@ -362,7 +359,7 @@ function upgradeSelectedItemBase() {
     let currentSecondarySignature = getSecondaryStatSignature(currentBase, currentBase.slot);
     let candidates = BASE_ITEM_DB
         .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase)
-        .filter(base => ['투구','갑옷','장갑','신발'].includes(base.slot) ? getDefenseProfile(base) === currentProfile : true)
+        .filter(base => ['투구','갑옷','장갑','신발','방패'].includes(base.slot) ? getDefenseProfile(base) === currentProfile : true)
         .sort((a,b)=>a.reqTier-b.reqTier);
     if (currentSecondarySignature.length > 0) {
         let exactSecondaryCandidates = candidates.filter(base => {
@@ -434,7 +431,7 @@ function buildBlackMarketOffer(index) {
         return { type:'exchange', name:`암거래 교환 #${index+1}`, from:recipe.from, to:recipe.to, need:Math.max(1, Math.floor(recipe.need*0.8)), gain:gain };
     }
     if (roll < 0.75) {
-        let slot = rndChoice(['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠']);
+        let slot = rndChoice(['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패']);
         let candidates = BASE_ITEM_DB.filter(base => base && base.slot === slot && !base.dropOnly && (base.reqTier || 1) <= (tier + 3));
         let base = candidates.length ? rndChoice(candidates) : chooseItemBase(slot, tier);
         let price = Math.max(2, Math.floor((base.reqTier || tier) / 2) + 2);

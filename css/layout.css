@@ -103,7 +103,7 @@
         .slot-box { background: #1a1a24; border: 1px solid #3d3d5c; border-radius: 6px; padding: 6px; min-height: 65px; display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
         .slot-box:hover { background-color: #222230; border-color: #7f8c8d; }
         .slot-box.selected { border-color: #e74c3c; box-shadow: 0 0 8px rgba(231,76,60,0.5); }
-        .slot-무기 { grid-column: 1; grid-row: 1; } .slot-투구 { grid-column: 2; grid-row: 1; } .slot-목걸이 { grid-column: 3; grid-row: 1; } .slot-장갑2 { grid-column: 1; grid-row: 2; } .slot-갑옷 { grid-column: 2; grid-row: 2; } .slot-장갑1 { grid-column: 3; grid-row: 2; } .slot-반지1 { grid-column: 1; grid-row: 3; } .slot-허리띠 { grid-column: 2; grid-row: 3; } .slot-반지2 { grid-column: 3; grid-row: 3; } .slot-신발 { grid-column: 2; grid-row: 4; }
+        .slot-무기 { grid-column: 1; grid-row: 2; } .slot-투구 { grid-column: 2; grid-row: 1; } .slot-목걸이 { grid-column: 3; grid-row: 1; } .slot-갑옷 { grid-column: 2; grid-row: 2; } .slot-방패 { grid-column: 3; grid-row: 2; } .slot-반지1 { grid-column: 1; grid-row: 3; } .slot-허리띠 { grid-column: 2; grid-row: 3; } .slot-반지2 { grid-column: 3; grid-row: 3; } .slot-장갑1 { grid-column: 1; grid-row: 4; } .slot-신발 { grid-column: 2; grid-row: 4; } .slot-장갑2 { grid-column: 3; grid-row: 4; }
 
         .skill-gem { padding: 10px; border-radius: 4px; background-color: #2c3e50; border: 1px solid #34495e; cursor: pointer; transition: 0.2s; position: relative; }
         .skill-gem:hover { filter: brightness(1.2); }

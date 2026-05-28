@@ -489,7 +489,7 @@ const CLASS_KEYSTONE_DEFS = {
     warrior: [
         { id: 'w1', name: '강철 태세', desc: '물리 피해 15% 증폭, 방어도 15% 증가', req: null },
         { id: 'w2', name: '전장의 리듬', desc: '치명타 및 연속 공격 발생 시 각각 2초간 공격속도 +8% (각각 최대 5중첩)', req: null },
-        { id: 'w3', name: '쌍수 훈련', desc: '목걸이 슬롯에 무기 장착 가능, 목걸이 장착 불가', req: null },
+        { id: 'w3', name: '쌍수 훈련', desc: '방패 슬롯에 무기 장착 가능', req: null },
         { id: 'w4', name: '갑주 분쇄', desc: '물리 피해 감소 무시가 마이너스까지 적용될 수 있음', req: 'w1' },
         { id: 'w5', name: '격노 순환', desc: '피격 시 5초간 물리 피해 +5% (최대 5중첩, 곱연산)', req: 'w2' },
         { id: 'w6', name: '거인의 힘', desc: '쌍수 상태에서, 각 무기의 효과 50% 증가', req: 'w3' },
@@ -700,6 +700,10 @@ const P_STATS = {
     meleeGemLevel: { name: '근접 스킬 젬 레벨', tiers: [3], k: 1 },
     slamGemLevel: { name: '강타 스킬 젬 레벨', tiers: [3], k: 1 },
     spellGemLevel: { name: '주문 스킬 젬 레벨', tiers: [3], k: 1 },
+    blockChance: { name: '막기 확률(+%p)', tiers: [2, 3], m: 1, k: 4, isPct: true },
+    blockChancePct: { name: '막기 확률(%) 증가', tiers: [2, 3], m: 12, k: 36, isPct: true },
+    baseBlockChance: { name: '베이스 막기 확률(+%p)', tiers: [3], k: 1, isPct: true },
+    maxResChaos: { name: '최대 카오스 저항(%)', tiers: [3], k: 1, isPct: true },
     dotGemLevel: { name: '지속 피해 스킬 젬 레벨', tiers: [3], k: 1 },
     aoeGemLevel: { name: '범위 스킬 젬 레벨', tiers: [3], k: 1 },
     dr: { name: '물리 피해 감소(%)', tiers: [3], k: 4, isPct: true },
@@ -708,6 +712,9 @@ const P_STATS = {
     energyShield: { name: '에너지 보호막', tiers: [1, 2, 3], s: 10, m: 24, k: 48 },
     armorPct: { name: '방어도(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
     evasionPct: { name: '회피(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
+    deflectChance: { name: '빗겨내기 확률(%)', tiers: [1, 2, 3], s: 4, m: 6, k: 8, isPct: true },
+    deflectMajor: { name: '빗겨내기 확률 + 피해 감소', tiers: [3], k: 6, isPct: true },
+    deflectDamageReduce: { name: '빗겨내기 피해 감소(%)', tiers: [3], k: 3, isPct: true },
     ailResIgnite: { name: '점화 저항 확률(%)', tiers: [1, 2, 3], s: 2, m: 4, k: 6, isPct: true },
     ailResShock: { name: '감전 저항 확률(%)', tiers: [1, 2, 3], s: 2, m: 4, k: 6, isPct: true },
     ailResFreeze: { name: '냉기 저항 확률(%)', tiers: [1, 2, 3], s: 2, m: 4, k: 6, isPct: true },
@@ -823,6 +830,7 @@ const MOD_DB = [
     { id: 'energyShield', type: 'prefix', statName: '에너지 보호막', slots: ['투구', '갑옷', '장갑', '신발'], base: 9, step: 8 },
     { id: 'armorPct', type: 'suffix', statName: '방어도 증가(%)', slots: ['투구', '갑옷', '장갑', '신발'], base: 6, step: 4 },
     { id: 'evasionPct', type: 'suffix', statName: '회피 증가(%)', slots: ['투구', '갑옷', '장갑', '신발'], base: 6, step: 4 },
+    { id: 'deflectChance', type: 'suffix', statName: '빗겨내기 확률(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 1, step: 1 },
     { id: 'energyShieldPct', type: 'suffix', statName: '에너지 보호막 증가(%)', slots: ['투구', '갑옷', '장갑', '신발'], base: 6, step: 4 },
     { id: 'pctHp', type: 'suffix', statName: '생명력 증가(%)', slots: ['갑옷', '허리띠'], base: 4, step: 3 },
     { id: 'aspd', type: 'suffix', statName: '공격 속도(%)', slots: ['무기', '반지', '목걸이', '허리띠', '장갑'], base: 2, step: 2 },
@@ -854,7 +862,14 @@ const MOD_DB = [
     { id: 'ds', type: 'suffix', statName: '연속 타격(%)', slots: ['장갑', '무기'], base: 5, step: 3 },
     { id: 'minDmgRollWeapon', statId: 'minDmgRoll', type: 'suffix', statName: '최소 피해 보정(%)', slots: ['무기'], base: 4, step: 2 },
     { id: 'maxDmgRollWeapon', statId: 'maxDmgRoll', type: 'suffix', statName: '최대 피해 보정(%)', slots: ['무기'], base: 4, step: 2 },
-    { id: 'suppCap', type: 'special', statName: '보조 스킬 젬 한도', slots: ['목걸이'], base: 1, step: 0 }
+    { id: 'suppCap', type: 'special', statName: '보조 스킬 젬 한도', slots: ['목걸이'], base: 1, step: 0 },
+    { id: 'shieldBlockPct', statId: 'blockChancePct', type: 'suffix', statName: '막기 확률(%) 증가', slots: ['방패'], base: 12, step: 8 },
+    { id: 'shieldBlockFlat', statId: 'blockChance', type: 'suffix', statName: '막기 확률(+%p)', slots: ['방패'], base: 1, step: 0.8 },
+    { id: 'shieldMaxResF', statId: 'maxResF', type: 'special', statName: '최대 화염 저항(%)', slots: ['방패'], base: 1, step: 0.7, weight: 0.35 },
+    { id: 'shieldMaxResC', statId: 'maxResC', type: 'special', statName: '최대 냉기 저항(%)', slots: ['방패'], base: 1, step: 0.7, weight: 0.35 },
+    { id: 'shieldMaxResL', statId: 'maxResL', type: 'special', statName: '최대 번개 저항(%)', slots: ['방패'], base: 1, step: 0.7, weight: 0.35 },
+    { id: 'shieldMaxResChaos', statId: 'maxResChaos', type: 'special', statName: '최대 카오스 저항(%)', slots: ['방패'], base: 1, step: 0.4, weight: 0.25 },
+    { id: 'shieldSpellGemLevel', statId: 'spellGemLevel', type: 'special', statName: '모든 주문 스킬 젬 레벨', slots: ['방패'], base: 1, step: 0.7, weight: 0.3 }
 ];
 
 const FOSSIL_DB = [
@@ -1053,7 +1068,19 @@ const BASE_ITEM_DB = [
     { id: 'astral_familiar_staff', slot: '무기', name: '성운 사역마 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 22 }, { id: 'summonPctDmg', base: 36 }, { id: 'summonCritDmg', base: 24 }] },
     { id: 'ember_circlet', slot: '투구', name: '잿불 서클릿', reqTier: 11, baseStats: [{ id: 'energyShield', base: 126 }, { id: 'resF', base: 10 }] },
     { id: 'tidal_vest', slot: '갑옷', name: '조류의 흉갑', reqTier: 11, baseStats: [{ id: 'flatHp', base: 66 }, { id: 'resC', base: 10 }] },
-    { id: 'gale_treads', slot: '신발', name: '질풍 발굽', reqTier: 11, baseStats: [{ id: 'move', base: 16 }, { id: 'evasion', base: 94 }] }
+    { id: 'gale_treads', slot: '신발', name: '질풍 발굽', reqTier: 11, baseStats: [{ id: 'move', base: 16 }, { id: 'evasion', base: 94 }] },
+    { id: 'buckler_scrap', slot: '방패', name: '고철 버클러', reqTier: 1, baseStats: [{ id: 'armor', base: 38 }, { id: 'baseBlockChance', base: 5.5 }] },
+    { id: 'tower_wall', slot: '방패', name: '타워 월', reqTier: 8, baseStats: [{ id: 'armor', base: 96 }, { id: 'baseBlockChance', base: 4.2 }] },
+    { id: 'woven_guard', slot: '방패', name: '직조 가드', reqTier: 4, baseStats: [{ id: 'evasion', base: 62 }, { id: 'baseBlockChance', base: 6.0 }] },
+    { id: 'phase_bulwark', slot: '방패', name: '위상 불워크', reqTier: 12, baseStats: [{ id: 'evasion', base: 122 }, { id: 'baseBlockChance', base: 3.8 }] },
+    { id: 'aegis_focus', slot: '방패', name: '아이기스 포커스', reqTier: 4, baseStats: [{ id: 'energyShield', base: 66 }, { id: 'baseBlockChance', base: 6.5 }] },
+    { id: 'starlit_focus', slot: '방패', name: '성광 초점패', reqTier: 12, baseStats: [{ id: 'energyShield', base: 132 }, { id: 'baseBlockChance', base: 3.2 }] },
+    { id: 'scale_guard', slot: '방패', name: '비늘 방패', reqTier: 6, baseStats: [{ id: 'armor', base: 58 }, { id: 'evasion', base: 56 }, { id: 'baseBlockChance', base: 5.0 }] },
+    { id: 'bastion_aegis', slot: '방패', name: '보루 이지스', reqTier: 14, baseStats: [{ id: 'armor', base: 114 }, { id: 'evasion', base: 108 }, { id: 'baseBlockChance', base: 4.0 }] },
+    { id: 'ward_kite', slot: '방패', name: '수호 카이트', reqTier: 6, baseStats: [{ id: 'armor', base: 56 }, { id: 'energyShield', base: 54 }, { id: 'baseBlockChance', base: 5.8 }] },
+    { id: 'sanctum_aegis', slot: '방패', name: '성소 이지스', reqTier: 14, baseStats: [{ id: 'armor', base: 112 }, { id: 'energyShield', base: 106 }, { id: 'baseBlockChance', base: 3.6 }] },
+    { id: 'mist_guard', slot: '방패', name: '안개 수호패', reqTier: 6, baseStats: [{ id: 'evasion', base: 54 }, { id: 'energyShield', base: 52 }, { id: 'baseBlockChance', base: 5.2 }] },
+    { id: 'moon_barrier', slot: '방패', name: '월영 배리어', reqTier: 14, baseStats: [{ id: 'evasion', base: 108 }, { id: 'energyShield', base: 104 }, { id: 'baseBlockChance', base: 3.4 }] }
     ,{ id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 송곳', reqTier: 18, realmBase: 'chaos', baseStats: [{ id: 'flatDmg', base: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] }
     ,{ id: 'chaos_realm_coil', slot: '반지', name: '혼돈계 소용돌이 반지', reqTier: 18, realmBase: 'chaos', baseStats: [{ id: 'chaosPctDmg', base: 18 }, { id: 'resChaos', base: 10 }] }
     ,{ id: 'underworld_bastion', slot: '갑옷', name: '지하계 철벽 흉갑', reqTier: 20, realmBase: 'underworld', baseStats: [{ id: 'flatHp', base: 120 }, { id: 'armor', base: 260 }, { id: 'dr', base: 8 }] }
@@ -1376,7 +1403,7 @@ const defaultGame = {
     talismanSelectedId: null,
     talismanUnseal: null,
     talismanUnlockPickMode: false,
-    equipment: { '무기': null, '투구': null, '갑옷': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '허리띠': null },
+    equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '허리띠': null },
     inventory: [],
     inventoryExpandLevel: 0,
     jewelInventoryExpandLevel: 0,
