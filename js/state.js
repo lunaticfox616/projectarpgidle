@@ -478,10 +478,10 @@ const CLASS_TEMPLATES = {
     warlock: { name: '워록', desc: '혼돈 피해와 생명력 흡수', m1: 'chaosPctDmg', m2: 'dotPctDmg', d: 'pctHp' },
     guardian: { name: '가디언', desc: '방어도와 생명력으로 버티는 성벽', m1: 'armor', m2: 'flatHp', d: 'dr' },
     inquisitor: { name: '인퀴지터', desc: '원소 치명타 및 보조 스킬 전문', m1: 'elementalPctDmg', m2: 'critDmg', d: 'suppCap' },
-    soulbinder: { name: '소울바인더', desc: '소환·지속 피해 및 에너지 보호막 운영', m1: 'dotPctDmg', m2: 'energyShield', d: 'regen' },
-    catalyst: { name: '카탈리스트', desc: '연금·상태이상·혼합 피해 증폭', m1: 'elementalPctDmg', m2: 'chaosPctDmg', d: 'resPen' },
-    hunter: { name: '헌터', desc: '저격·투사체 극딜과 약점 관통', m1: 'projectilePctDmg', m2: 'critDmg', d: 'crit' },
-    crusader: { name: '크루세이더', desc: '신성 방벽·저항·근접 수호', m1: 'meleePctDmg', m2: 'resAll', d: 'dr' }
+    soulbinder: { name: '소울바인더', desc: '소환계열 특화', m1: 'dotPctDmg', m2: 'energyShield', d: 'regen' },
+    catalyst: { name: '카탈리스트', desc: '상태 이상 및 지속 피해 특화', m1: 'elementalPctDmg', m2: 'chaosPctDmg', d: 'resPen' },
+    hunter: { name: '헌터', desc: '치명타 및 단일 개체 특화', m1: 'projectilePctDmg', m2: 'critDmg', d: 'crit' },
+    crusader: { name: '크루세이더', desc: '번개 피해 및 방어도 에너지 보호막 혼합 특화', m1: 'meleePctDmg', m2: 'resAll', d: 'dr' }
 };
 
 const CLASS_KEYSTONE_PICK_LIMIT = 4;
