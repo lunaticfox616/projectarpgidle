@@ -5095,7 +5095,7 @@ function buildCraftActionButtons(item) {
     if (suppMaxEl) suppMaxEl.innerText = pStats.suppCap;
     if (suppResonanceEl) {
         let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-        suppResonanceEl.innerText = `${Math.max(0, Math.floor(game.resonancePower || 0) - used)}`;
+        suppResonanceEl.innerText = `${Math.max(0, getEffectiveResonanceCap() - used)}`;
     }
     let supportRows = game.supports.filter(name => {
         let def = SUPPORT_GEM_DB[name] || {};

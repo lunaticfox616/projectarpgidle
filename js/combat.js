@@ -631,7 +631,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     else if (Math.random() < critChance) { dmg *= critMul; crit = true; }
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) dmg *= (1 + Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100);
     if (target && target.isBoss) dmg *= getLimitedSummonBossDamageMultiplier(pStats, target);
-    let curseFx = target ? getEnemyConditionDebuffFactor(target) : { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, lightTakenMul: 1, chaosTakenMul: 1, critDmgTakenMul: 1 };
+    let curseFx = target ? getEnemyConditionDebuffFactor(target, pStats) : { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, lightTakenMul: 1, chaosTakenMul: 1, critDmgTakenMul: 1 };
     let limitedStats = getLimitedSummonPenetrationStats(pStats);
     let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, target, limitedStats) - (curseFx.resShred || 0);
     if (ele === 'fire') enemyRes -= (curseFx.resFShred || 0);
