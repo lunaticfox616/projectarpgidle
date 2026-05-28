@@ -1945,7 +1945,7 @@ function getPlayerStats() {
         if (hasKeystone('h8')) {
             let dsAsCrit = Math.max(0, finalDs);
             finalDs = 0;
-            finalCrit += dsAsCrit + (Math.max(0, Math.floor(totalProjectileExtraShots || 0)) * 100);
+            finalCrit += dsAsCrit;
         }
     } else if (game.ascendClass === 'crusader') {
         if (hasKeystone('cr1')) { finalRegen += 1.5; finalRegen *= 1.4; }
@@ -4770,7 +4770,8 @@ function performPlayerAttack(pStats) {
                 }
                 if (critCount > 0) {
                     hitCrit = true;
-                    hitBaseDamage = Math.floor(hitBaseDamage * Math.pow(Math.max(1, pStats.critDmg / 100), critCount));
+                    let critMul = Math.max(1, pStats.critDmg / 100);
+                    hitBaseDamage = Math.floor(hitBaseDamage * (1 + ((critMul - 1) * critCount)));
                 }
             } else {
                 hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
