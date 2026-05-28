@@ -155,6 +155,7 @@ function getStatName(statId) {
         regen: '초당 생명력 재생(%)',
         regenFlat: '초당 생명력 재생(고정)',
         flatDmg: '기본 피해',
+        weaponFlatDmgPct: '무기의 기본 피해 증가(%)',
         pctDmg: '피해 증가(%)',
         meleePctDmg: '근접 피해(%)',
         slamPctDmg: '강타 피해(%)',
@@ -243,7 +244,7 @@ function getRarityRank(rarity) {
 
 function createEmptyStatBucket() {
     return {
-        flatDmg: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, regenFlat: 0,
+        flatDmg: 0, weaponFlatDmgPct: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, regenFlat: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResF: 0, maxResC: 0, maxResL: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
@@ -259,6 +260,7 @@ function addStatToBucket(bucket, statId, value) {
     value = Number(value);
     if (!statId || !Number.isFinite(value)) return;
     if (statId === 'flatDmg') bucket.flatDmg += value;
+    else if (statId === 'weaponFlatDmgPct') bucket.weaponFlatDmgPct += value;
     else if (statId === 'pctDmg') bucket.pctDmg += value;
     else if (statId === 'meleePctDmg') bucket.meleePctDmg += value;
     else if (statId === 'slamPctDmg') bucket.slamPctDmg += value;
