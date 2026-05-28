@@ -256,7 +256,7 @@ function getConditionGemStatDelta(name, type) {
     return out;
 }
 
-function getEnemyConditionDebuffFactor(enemy) {
+function getEnemyConditionDebuffFactor(enemy, pStats) {
     let list = (game.enemyConditionDebuffs && enemy) ? (game.enemyConditionDebuffs[enemy.id] || []) : [];
     let fx = { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, projectileTakenMul: 1, lightTakenMul: 1, chaosTakenMul: 1, enemyDmgMul: 1, enemyRegenRateMul: 1, projectileExtraHits: 0, critDmgTakenMul: 1 };
     list.forEach(deb => {
@@ -276,6 +276,7 @@ function getEnemyConditionDebuffFactor(enemy) {
         fx.projectileExtraHits += (d.projectileExtraHits || 0);
         fx.critDmgTakenMul *= (d.enemyCritDmgTakenMul || 1);
     });
+    if (pStats && pStats.uniqueCursedTakenAndRefresh && list.length > 0) fx.mul *= Math.max(1, Number(pStats.uniqueCursedTakenAndRefresh.takenMul) || 1);
     fx.mul = Math.min(1.35, fx.mul);
     fx.resShred = Math.min(20, fx.resShred);
     return fx;
@@ -1836,7 +1837,7 @@ function getPlayerStats() {
         talismanBossFinalDmgBonusPct: talismanBossFinalDmgBonusPct
     };
     let suppCap = 2 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap;
-    if (uniqueResonanceAndSuppCap) { suppCap += Math.floor(uniqueResonanceAndSuppCap.suppCap || 0); game.resonancePower = Math.max(Math.floor(game.resonancePower || 0), Math.floor(uniqueResonanceAndSuppCap.resonancePower || 0)); }
+    if (uniqueResonanceAndSuppCap) suppCap += Math.floor(uniqueResonanceAndSuppCap.suppCap || 0);
 
     let critChance = finalCrit / 100;
     let critMulti = finalCritDmg / 100;
@@ -2621,6 +2622,7 @@ function getPlayerStats() {
         uniqueStackingElementalResDownOnHit: uniqueStackingElementalResDownOnHit,
         uniqueLeechEfficiencyOnKill: uniqueLeechEfficiencyOnKill,
         uniqueKillMoveStacks: uniqueKillMoveStacks, uniqueEnemyRegenCutAndMinRoll: uniqueEnemyRegenCutAndMinRoll, uniqueAllResDownOnHit: uniqueAllResDownOnHit, uniqueCursedTakenAndRefresh: uniqueCursedTakenAndRefresh, uniquePhysDrHalfTakenAsMore: uniquePhysDrHalfTakenAsMore, uniqueMeleeArmorAmp: uniqueMeleeArmorAmp, uniqueArmorAppliesToDot: uniqueArmorAppliesToDot, uniqueNoCollisionBlock: uniqueNoCollisionBlock, ignoreEnemyCollision: !!uniqueNoCollisionBlock,
+        uniqueResonanceFloor: uniqueResonanceAndSuppCap ? Math.floor(uniqueResonanceAndSuppCap.resonancePower || 0) : 0,
         uniqueOverkillSplash: uniqueOverkillSplash,
         uniqueDragonVeinGuard: uniqueDragonVeinGuard,
         uniqueGuardianArmor: uniqueGuardianArmor,
@@ -3350,8 +3352,13 @@ function getPlayerDamageAilmentFallbackDps(type, power, pStats) {
 
 function getPlayerDamageAilmentDps(ail, pStats) {
     let source = getStoredAilmentHitDamage(ail);
-    if (source > 0) return getDamageAilmentBaseDpsFromHit(source, ail ? ail.power : 0, 1);
-    return getPlayerDamageAilmentFallbackDps(ail ? ail.type : null, ail ? ail.power : 0, pStats);
+    let dps = source > 0 ? getDamageAilmentBaseDpsFromHit(source, ail ? ail.power : 0, 1) : getPlayerDamageAilmentFallbackDps(ail ? ail.type : null, ail ? ail.power : 0, pStats);
+    if (pStats && pStats.uniqueArmorAppliesToDot) {
+        let armor = Math.max(0, Number(pStats.armor) || 0);
+        let armorRed = Math.min(0.8, armor / (armor + 1200));
+        dps = Math.max(0, Math.floor(dps * (1 - armorRed)));
+    }
+    return dps;
 }
 
 function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
@@ -4808,7 +4815,7 @@ function performPlayerAttack(pStats) {
             let nextHitCount = (perEnemyHitCount.get(targetEnemy.id) || 0) + 1;
             perEnemyHitCount.set(targetEnemy.id, nextHitCount);
             let hitElement = swingElement;
-            let curseFx = getEnemyConditionDebuffFactor(targetEnemy);
+            let curseFx = getEnemyConditionDebuffFactor(targetEnemy, pStats);
             let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
             if (hitElement === 'fire') enemyRes -= (curseFx.resFShred || 0);
             if (hitElement === 'cold') enemyRes -= (curseFx.resCShred || 0);
@@ -4934,6 +4941,17 @@ function performPlayerAttack(pStats) {
                 row.doomDamage = Math.max(0, Math.floor(row.doomDamage || 0) + dmg);
                 curseStore[targetEnemy.id] = row;
                 game.enemyCurseExpirePayloads = curseStore;
+            }
+            if (targetEnemy && targetEnemy.id && pStats.uniqueCursedTakenAndRefresh) {
+                let refreshSec = Math.max(0, Number(pStats.uniqueCursedTakenAndRefresh.refreshSec || 0));
+                if (refreshSec > 0 && game.enemyConditionDebuffs && Array.isArray(game.enemyConditionDebuffs[targetEnemy.id])) {
+                    let nextExpire = Date.now() + Math.floor(refreshSec * 1000);
+                    game.enemyConditionDebuffs[targetEnemy.id] = game.enemyConditionDebuffs[targetEnemy.id].map(deb => {
+                        if (!deb) return deb;
+                        if ((deb.expiresAt || 0) > Date.now()) deb.expiresAt = Math.max(deb.expiresAt || 0, nextExpire);
+                        return deb;
+                    });
+                }
             }
             let zone = getZone(game.currentZoneId);
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
@@ -5500,6 +5518,11 @@ function performMonsterAttacks(pStats) {
                     let bossLess = Math.max(0, Math.min(95, Number(pStats.uniqueGuardianArmor.bossTakenLessPct || 0)));
                     dmg = Math.max(1, Math.floor(dmg * (1 - bossLess / 100)));
                 }
+            }
+            if (pStats.uniquePhysDrHalfTakenAsMore && enemy.ele === 'phys') {
+                let ratio = Math.max(0, Number(pStats.uniquePhysDrHalfTakenAsMore.ratio || 0.5));
+                let takenMore = Math.max(0, (Math.max(0, Number(pStats.dr) || 0) / 100) * ratio);
+                dmg = Math.max(1, Math.floor(dmg * (1 + takenMore)));
             }
             if (game.ascendClass === 'gladiator' && hasKeystone('g5') && game.gladiatorSwiftGuardReady) {
                 dmg = Math.max(1, Math.floor(dmg * Math.max(0, Number(pStats.swiftOpeningTakenMultiplier) || 0.70)));

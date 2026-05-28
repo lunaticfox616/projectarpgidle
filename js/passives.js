@@ -3313,6 +3313,7 @@ function initBattleAssets() {
         bgAct8: 'assets/background/act8.png',
         bgAct9: 'assets/background/act9.png',
         bgAct10: 'assets/background/act10.png',
+        summon1: 'assets/summon/summon1.png',
     };
     const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['effectsV2', 'weapons', 'tiles']));
     Object.entries(manifest).forEach(([key, src]) => {

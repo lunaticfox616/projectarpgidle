@@ -1847,6 +1847,8 @@ function getEffectiveResonanceCap() {
     if (typeof getPlayerStats === 'function') {
         let stats = getPlayerStats();
         runeBonus = Math.max(0, Math.floor((stats && stats.runeResonancePower) || 0));
+        let tempFloor = Math.max(0, Math.floor((stats && stats.uniqueResonanceFloor) || 0));
+        base = Math.max(base, tempFloor);
     }
     return base + runeBonus;
 }

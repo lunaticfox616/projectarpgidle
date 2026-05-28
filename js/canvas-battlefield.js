@@ -114,6 +114,7 @@ function renderBattlefield(forceWhenHidden) {
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
     drawSkillWeaponLayer(ctx, playerPos, now, 'back');
+    drawActiveSummons(ctx, playerPos, now);
     drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15, playerFlash, swingPower, currentSkillVisual, now, {
         advanceBlend: advanceBlend,
         attackBlend: attackBlend,
@@ -409,6 +410,48 @@ function getEnemyShortLabel(enemy) {
     if (enemy.ele === 'light') return '번개';
     if (enemy.ele === 'chaos') return '공허';
     return '추종자';
+}
+
+
+const SUMMON_SPRITE_ORDER = ['서리늑대 소환', '불곰 소환', '벼락멧돼지 소환', '칼날까마귀 소환', '공허 유충 소환', '벌떼 소환', '수액 골렘 소환'];
+
+function getSummonSpriteFrameRectByName(name, image) {
+    if (!image) return null;
+    const cols = 7;
+    const frameW = Math.floor(image.width / cols);
+    const frameH = image.height;
+    if (frameW <= 0 || frameH <= 0) return null;
+    const normalizeName = String(name || '').replace(/\s+/g, ' ').trim();
+    const index = Math.max(0, SUMMON_SPRITE_ORDER.findIndex(label => label === normalizeName));
+    return { sx: frameW * index, sy: 0, sw: frameW, sh: frameH };
+}
+
+function drawActiveSummons(ctx, playerPos, now) {
+    const summons = (game.summons || []).filter(s => s && s.alive && (s.hp || 0) > 0);
+    if (summons.length <= 0) return;
+    const image = battleAssets && battleAssets.images ? battleAssets.images.summon1 : null;
+    const radius = 24 + Math.min(40, summons.length * 4);
+    summons.forEach((summon, idx) => {
+        const angle = (now / 1000) * 0.9 + (idx / Math.max(1, summons.length)) * Math.PI * 2;
+        const x = playerPos.x + Math.cos(angle) * radius;
+        const y = playerPos.y - 18 + Math.sin(angle) * 12;
+        if (image) {
+            const frame = getSummonSpriteFrameRectByName(summon.gemName, image);
+            if (frame) {
+                const size = summon.role === 'guard' ? 42 : 34;
+                const drawW = size;
+                const drawH = Math.max(18, Math.round(size * (frame.sh / Math.max(1, frame.sw))));
+                ctx.drawImage(image, frame.sx, frame.sy, frame.sw, frame.sh, Math.round(x - drawW / 2), Math.round(y - drawH / 2), drawW, drawH);
+                return;
+            }
+        }
+        ctx.save();
+        ctx.fillStyle = summon.role === 'guard' ? 'rgba(132, 205, 167, 0.8)' : 'rgba(159, 212, 255, 0.8)';
+        ctx.beginPath();
+        ctx.arc(x, y, summon.role === 'guard' ? 8 : 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
 }
 
 
