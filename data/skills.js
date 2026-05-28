@@ -48,8 +48,7 @@ const SKILL_DB = {
     '벼락멧돼지 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 전투 시작 시 벼락멧돼지를 소환합니다. 소환수는 플레이어 기본 공격/치명/속도/원소 증폭을 상속하지 않습니다.', tags: ['summon', 'summon_attack', 'light'] },
     '칼날까마귀 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 전투 시작 시 칼날까마귀를 소환합니다. 소환수 전용 스탯만 적용됩니다.', tags: ['summon', 'summon_attack', 'physical'] },
     '공허 유충 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 전투 시작 시 공허 유충을 소환합니다. 플레이어 일반 피해 증가는 기본적으로 상속되지 않습니다.', tags: ['summon', 'summon_attack', 'chaos'] },
-    '벌떼 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 전투 시작 시 벌떼를 소환합니다. 다단 타격형 개체이며 소환수 전용 스탯만 적용됩니다.', tags: ['summon', 'summon_attack', 'physical'] },
-    '수액 골렘 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '방어형 소환수 보조 젬. 전투 시작 시 수액 골렘을 소환하며, 살아있는 동안 플레이어가 받을 최종 히트 피해의 일부를 대신 받습니다. 지속 피해는 기본적으로 대리하지 않습니다.', tags: ['summon', 'summon_guard', 'physical'] }
+    '벌떼 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '공격형 소환수 젬. 전투 시작 시 벌떼를 소환합니다. 다단 타격형 개체이며 소환수 전용 스탯만 적용됩니다.', tags: ['summon', 'summon_attack', 'physical'] }
 };
 
 
