@@ -495,7 +495,11 @@ function runColonyDefenseTick(pStats) {
 function getActiveSummonGemDefs() {
     let owned = Array.isArray(game.skills) ? game.skills : [];
     let equippedSummonAttack = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
-    let attackSet = new Set(equippedSummonAttack);
+    let ownedSummonAttack = owned.filter(name => {
+        let db = SKILL_DB[name];
+        return !!(db && Array.isArray(db.tags) && db.tags.includes('summon_attack'));
+    });
+    let attackSet = new Set((equippedSummonAttack.length > 0 ? equippedSummonAttack : ownedSummonAttack).filter(name => owned.includes(name)));
     return owned
         .map(name => ({ name, db: SKILL_DB[name] }))
         .filter(row => {
@@ -1665,10 +1669,6 @@ function getPlayerStats() {
     let finalCrit = (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82;
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
     if (uniqueKillMoveStacks && game.uniqueKillMoveStacksState && (game.uniqueKillMoveStacksState.expiresAt || 0) > Date.now()) finalMove += Math.max(0, Math.floor(game.uniqueKillMoveStacksState.stacks || 0)) * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
-    if (uniqueMeleeArmorAmp && (game.uniqueMeleeArmorAmpExpiresAt || 0) > Date.now()) {
-        let stacks = Math.max(0, Math.min(Math.floor(uniqueMeleeArmorAmp.maxStacks || 3), Math.floor(game.uniqueMeleeArmorAmpStacks || 0)));
-        if (stacks > 0) finalArmor = Math.floor(finalArmor * Math.pow(1 + Math.max(0, Number(uniqueMeleeArmorAmp.ampPct || 5)) / 100, stacks));
-    }
     let zonePenalty = getZone(game.currentZoneId) || getZone(0);
     if (zonePenalty && zonePenalty.type === 'underworld') {
         let uf = Math.max(1, Math.floor(zonePenalty.floor || 1));
@@ -1760,6 +1760,11 @@ function getPlayerStats() {
     let finalIgniteDamageMultiplierPct = gearBase.igniteDamageMultiplierPct + gearExplicit.igniteDamageMultiplierPct + passive.igniteDamageMultiplierPct + season.igniteDamageMultiplierPct + ascend.igniteDamageMultiplierPct + support.igniteDamageMultiplierPct + reward.igniteDamageMultiplierPct;
     let finalMinDmgRoll = Math.max(5, 80 + gearBase.minDmgRoll + gearExplicit.minDmgRoll + passive.minDmgRoll + season.minDmgRoll + ascend.minDmgRoll + support.minDmgRoll + reward.minDmgRoll);
     let finalMaxDmgRoll = Math.max(finalMinDmgRoll, 100 + gearBase.maxDmgRoll + gearExplicit.maxDmgRoll + passive.maxDmgRoll + season.maxDmgRoll + ascend.maxDmgRoll + support.maxDmgRoll + reward.maxDmgRoll);
+    if (uniqueMaxHpPct) finalMaxHp = Math.floor(finalMaxHp * (1 + Math.max(0, uniqueMaxHpPct) / 100));
+    if (uniqueMeleeArmorAmp && (game.uniqueMeleeArmorAmpExpiresAt || 0) > Date.now()) {
+        let stacks = Math.max(0, Math.min(Math.floor(uniqueMeleeArmorAmp.maxStacks || 3), Math.floor(game.uniqueMeleeArmorAmpStacks || 0)));
+        if (stacks > 0) finalArmor = Math.floor(finalArmor * Math.pow(1 + Math.max(0, Number(uniqueMeleeArmorAmp.ampPct || 5)) / 100, stacks));
+    }
     if (uniqueMinRollEqualsMaxRoll) finalMinDmgRoll = finalMaxDmgRoll;
     if (uniqueHpToPhysPct && skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalMaxHp / 100) / 100));
 
@@ -1771,6 +1776,9 @@ function getPlayerStats() {
     let rawResC = gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + support.resC + reward.resC - resistPenalty;
     let rawResL = gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + support.resL + reward.resL - resistPenalty;
     let rawResChaos = gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + support.resChaos + reward.resChaos - resistPenalty;
+    if (uniqueRegenRateAndRegen) { finalRegen += Number(uniqueRegenRateAndRegen.regen || 0); finalRegen *= (1 + Math.max(0, Number(uniqueRegenRateAndRegen.regenRatePct || 0)) / 100); }
+    if (uniqueAllMaxRes) { finalMaxResF += uniqueAllMaxRes; finalMaxResC += uniqueAllMaxRes; finalMaxResL += uniqueAllMaxRes; }
+    if (uniqueEnemyRegenCutAndMinRoll) finalMinDmgRoll += Number(uniqueEnemyRegenCutAndMinRoll.minRoll || 0);
     if (game.ascendClass === 'catalyst' && hasKeystone('ct2')) {
         let addRes = Math.max(0, dotPctDmg) * 0.1;
         let addMax = Math.floor(Math.max(0, dotPctDmg) * 0.01);
@@ -4730,7 +4738,7 @@ function performPlayerAttack(pStats) {
     let uniqueProjectileExtraHits = isProjectileSkill ? Math.max(0, Math.floor((pStats.uniqueProjectileDoubleStrikePct || 0) / 100)) : 0;
     let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits + uniqueProjectileExtraHits));
     if (game.ascendClass === 'hunter' && hasKeystone('h7')) {
-        let originalTargets = Math.max(1, Math.floor(pStats.sSkill.targets || 1));
+        let originalTargets = Math.max(1, Math.floor((Array.isArray(targets) && targets.length > 0) ? targets.length : (pStats.sSkill.targets || 1)));
         pStats.sSkill.targets = 1;
         repeats = Math.max(1, Math.min(12, repeats + Math.max(0, originalTargets - 1)));
     }
