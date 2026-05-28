@@ -1945,7 +1945,7 @@ function getPlayerStats() {
         if (hasKeystone('h8')) {
             let dsAsCrit = Math.max(0, finalDs);
             finalDs = 0;
-            finalCrit += dsAsCrit + (Math.max(0, Math.floor(totalProjectileExtraShots || 0)) * 100);
+            finalCrit += dsAsCrit;
         }
     } else if (game.ascendClass === 'crusader') {
         if (hasKeystone('cr1')) { finalRegen += 1.5; finalRegen *= 1.4; }
