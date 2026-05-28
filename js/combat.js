@@ -4770,7 +4770,8 @@ function performPlayerAttack(pStats) {
                 }
                 if (critCount > 0) {
                     hitCrit = true;
-                    hitBaseDamage = Math.floor(hitBaseDamage * Math.pow(Math.max(1, pStats.critDmg / 100), critCount));
+                    let critMul = Math.max(1, pStats.critDmg / 100);
+                    hitBaseDamage = Math.floor(hitBaseDamage * (1 + ((critMul - 1) * critCount)));
                 }
             } else {
                 hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
