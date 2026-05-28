@@ -2191,7 +2191,11 @@ function getPlayerStats() {
 
     let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
-    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
+    let soulbinderSb7PlayerMul = 1;
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
+        soulbinderSb7PlayerMul += Math.max(0, (sbPlayerDamageFromSummonPct || 0) * ((gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0)) / 100);
+    }
+    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1) * soulbinderSb7PlayerMul;
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier;
     let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
     let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.min(5, Math.floor(totalProjectileExtraShots || 0))) : 0;
