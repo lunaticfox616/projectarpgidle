@@ -414,16 +414,41 @@ function getEnemyShortLabel(enemy) {
 
 
 const SUMMON_SPRITE_ORDER = ['서리늑대 소환', '불곰 소환', '벼락멧돼지 소환', '칼날까마귀 소환', '공허 유충 소환', '벌떼 소환', '수액 골렘 소환'];
+const summonSpriteFrameCache = new WeakMap();
+const SUMMON1_CANONICAL_WIDTH = 540;
+// summon1.png 수동 분석 기준 경계(좌->우, 7프레임).
+const SUMMON1_FRAME_BOUNDARIES = [0, 74, 152, 233, 313, 396, 464, 540];
+
+function buildSummonSpriteFramesByContent(image) {
+    if (!image || !image.width || !image.height) return null;
+    const cached = summonSpriteFrameCache.get(image);
+    if (cached) return cached;
+    const frameCount = SUMMON_SPRITE_ORDER.length;
+    const scale = image.width / SUMMON1_CANONICAL_WIDTH;
+    const boundaries = SUMMON1_FRAME_BOUNDARIES.map((value, idx) => {
+        if (idx === 0) return 0;
+        if (idx === SUMMON1_FRAME_BOUNDARIES.length - 1) return image.width;
+        return clampNumber(Math.round(value * scale), 0, image.width);
+    });
+    const frames = [];
+    for (let i = 0; i < frameCount; i++) {
+        const sx = boundaries[i];
+        const ex = boundaries[i + 1];
+        const sw = Math.max(1, ex - sx);
+        frames.push({ sx, sy: 0, sw, sh: image.height });
+    }
+    summonSpriteFrameCache.set(image, frames);
+    return frames;
+}
 
 function getSummonSpriteFrameRectByName(name, image) {
     if (!image) return null;
-    const cols = 7;
-    const frameW = Math.floor(image.width / cols);
-    const frameH = image.height;
-    if (frameW <= 0 || frameH <= 0) return null;
+    const frames = buildSummonSpriteFramesByContent(image);
+    if (!frames || frames.length <= 0) return null;
     const normalizeName = String(name || '').replace(/\s+/g, ' ').trim();
     const index = Math.max(0, SUMMON_SPRITE_ORDER.findIndex(label => label === normalizeName));
-    return { sx: frameW * index, sy: 0, sw: frameW, sh: frameH };
+    const safeIndex = Math.min(index, frames.length - 1);
+    return frames[safeIndex];
 }
 
 function drawActiveSummons(ctx, playerPos, now) {
