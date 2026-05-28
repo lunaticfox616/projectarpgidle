@@ -1662,7 +1662,7 @@ function getPlayerStats() {
 
     let gearCrit = gearBase.crit + gearExplicit.crit;
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
-    let finalCrit = Math.min(100, (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82);
+    let finalCrit = (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82;
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
     if (uniqueKillMoveStacks && game.uniqueKillMoveStacksState && (game.uniqueKillMoveStacksState.expiresAt || 0) > Date.now()) finalMove += Math.max(0, Math.floor(game.uniqueKillMoveStacksState.stacks || 0)) * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
     if (uniqueMeleeArmorAmp && (game.uniqueMeleeArmorAmpExpiresAt || 0) > Date.now()) {
@@ -2162,6 +2162,7 @@ function getPlayerStats() {
     damageScales.dotDurationMultiplier = dotDurationMultiplier;
     damageScales.warlockElementalOvercapToChaos = warlockElementalOvercapToChaos;
 
+    if (!(game.ascendClass === 'hunter' && hasKeystone('h8'))) finalCrit = Math.min(100, finalCrit);
     if (skill.cannotCrit) finalCrit = 0;
     if (uniqueFateTwinRollSync) {
         let critForTwin = Math.max(0, finalCrit);
