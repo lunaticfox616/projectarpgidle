@@ -125,7 +125,7 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '성기사',
         talentsText: '물리/번개 피해 +20%, 방어도/에너지 보호막 +15%, 연속 타격 +5%, 카오스 저항 +8%, 최대 카오스 저항 +1%',
         stats: [{ stat: 'physPctDmg', value: 20 }, { stat: 'lightPctDmg', value: 20 }, { stat: 'armorPct', value: 15 }, { stat: 'energyShieldPct', value: 15 }, { stat: 'ds', value: 5 }, { stat: 'resChaos', value: 8 }, { stat: 'maxResChaos', value: 1 }],
-        strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
+        strips: { idle: 'hero5Idle', walk: 'hero5Walk', attack: 'hero5Attack', hurt: 'hero5Hurt', death: 'hero5Death' }
     },
     hero6: {
         id: 'hero6',
@@ -157,7 +157,7 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '원소술사',
         talentsText: '원소 피해 +22%, 원소 저항 관통 +10%, 모든 원소 저항 +5%',
         stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'resPen', value: 10 }, { stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }],
-        strips: { idle: 'hero3Idle', walk: 'hero3Walk', attack: 'hero3Attack', hurt: 'hero3Hurt', death: 'hero3Death' }
+        strips: { idle: 'hero9Idle', walk: 'hero9Walk', attack: 'hero9Attack', hurt: 'hero9Hurt', death: 'hero9Death' }
     },
     hero10: {
         id: 'hero10',
