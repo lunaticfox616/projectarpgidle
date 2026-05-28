@@ -795,6 +795,7 @@ const SUPPORT_GEM_DB = {
 
 const MOD_DB = [
     { id: 'flatDmg', type: 'prefix', statName: '기본 피해', slots: ['무기', '반지', '목걸이', '허리띠', '장갑'], base: 3, step: 3 },
+    { id: 'weaponFlatDmgPct', type: 'prefix', statName: '무기의 기본 피해 증가(%)', slots: ['무기'], base: 6, step: 4 },
     { id: 'pctDmg', type: 'prefix', statName: '피해 증가(%)', slots: ['무기', '반지', '목걸이'], base: 5, step: 4 },
     { id: 'meleePctDmg', type: 'prefix', statName: '근접 피해(%)', slots: ['무기', '장갑', '목걸이', '허리띠'], base: 5, step: 4 },
     { id: 'projectilePctDmg', type: 'prefix', statName: '투사체 피해(%)', slots: ['무기', '반지', '장갑', '목걸이'], base: 5, step: 4 },
