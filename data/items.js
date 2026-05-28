@@ -85,22 +85,22 @@ const CHAOS_REALM_ENTRIES = [
     { name: '타락각 투구', effect: '중독 최대 중첩 +1' },
     { name: '균열군주의 피부', effect: '피격 시 10% 확률로 1.5초 무적 장막' },
     { name: '독성 심연갑', effect: '중독 지속시간 +35%' },
-    { name: '침식 장갑', effect: '원소 저항 관통 +7%' },
-    { name: '망각 추적화', effect: '처치 후 3초간 이동속도 +24%' },
-    { name: '잠식 목걸이', effect: '저주가 걸린 적에게 치명타 피해 +28%' },
-    { name: '절단 반지', effect: '최소 피해 보정 +10%' }
+    { name: '침식 장갑', effect: '공격 시 적의 모든 저항이 5% 감소 (최대 4중첩)' },
+    { name: '망각 추적화', effect: '처치 후 20초간 이동 속도 +10% (쿨타임 1초, 최대 20중첩, 새로운 맵 진입 시 초기화)' },
+    { name: '잠식 목걸이', effect: '저주가 걸린 적이 받는 피해 +10%, 공격 적중 시 적에게 걸린 저주의 지속시간이 갱신됨' },
+    { name: '절단 반지', effect: '적의 모든 재생 효율 50% 감소, 최소 피해 보정 +10%' }
 ];
 const UNDERWORLD_REALM_ENTRIES = [
     { name: '심층 제련검', effect: '방어도 1000당 물리 피해 +3%' },
-    { name: '암반 분쇄기', effect: '보스에게 주는 피해 18% 증폭' },
+    { name: '암반 분쇄기', effect: '적의 원래 물리 피해 감소의 절반만큼 적이 받는 피해 증가.' },
     { name: '망자 감시투구', effect: '사망 방지 보호막(최대생명력 12%) 20초마다 재생성' },
-    { name: '지하 성채갑', effect: '받는 지속 피해 14% 감소' },
-    { name: '대지 구속장갑', effect: '근접 타격 시 2초간 피해감소 +6%' },
-    { name: '철벽 척력화', effect: '이동 중 피격 시 경직 면역' },
-    { name: '룬 심장 목걸이', effect: '보조 젬 한도 +1' },
-    { name: '지맥 반지', effect: '생명력 재생 +1.5%' },
-    { name: '골렘 허리띠', effect: '최대 생명력 +10%' },
-    { name: '중핵 결속대', effect: '모든 최대 저항 +1%' }
+    { name: '지하 성채갑', effect: '방어도의 물리 피해 감소가 모든 지속 피해에도 적용' },
+    { name: '대지 구속장갑', effect: '근접 타격 시 2초간 방어도 5% 증폭 (최대 3중첩)' },
+    { name: '철벽 척력화', effect: '적 한도 초과로 인해 이동이 막히지 않음' },
+    { name: '룬 심장 목걸이', effect: '공명력 +150, 보조 젬 한도 +3' },
+    { name: '지맥 반지', effect: '생명력 재생 속도 25% 증폭, 생명력 재생 +2%' },
+    { name: '골렘 허리띠', effect: '최대 생명력 +35%' },
+    { name: '중핵 결속대', effect: '모든 최대 저항 +3%' }
 ];
 const COSMOS_EFFECT_LINES = [
     '성도의 발화점: 같은 대상 7회 연속 타격 시 별화염 폭발(공격력의 420%)',
@@ -230,17 +230,34 @@ const REALM_STAT_PACKS = {
 };
 function pushRealmUniqueSet(realm, entries, tierStart) {
     let packs = REALM_STAT_PACKS[realm] || REALM_STAT_PACKS.cosmos;
+    let dropTypeByRealm = { chaos: 'chaosRealm', underworld: 'underworld', cosmos: 'cosmos' };
     entries.forEach((entry, i) => {
         let cosmosEffect = realm === 'cosmos' ? COSMOS_EFFECT_KEYS[i % COSMOS_EFFECT_KEYS.length] : null;
+        let realmEffectMap = {
+            '침식 장갑': { key: 'realmAllResDownOnHit', params: { perHit: 5, max: 4, duration: 5 } },
+            '망각 추적화': { key: 'realmKillMoveStacks', params: { movePerStack: 10, maxStacks: 20, duration: 20, cooldownSec: 1 } },
+            '잠식 목걸이': { key: 'realmCursedTakenAndRefresh', params: { takenMul: 1.10, refreshSec: 4 } },
+            '절단 반지': { key: 'realmEnemyRegenCutAndMinRoll', params: { enemyRegenRateMul: 0.5, minRoll: 10 } },
+            '암반 분쇄기': { key: 'realmPhysDrHalfTakenAsMore', params: { ratio: 0.5 } },
+            '지하 성채갑': { key: 'realmArmorAppliesToDot', params: {} },
+            '대지 구속장갑': { key: 'realmMeleeArmorAmp', params: { ampPct: 5, maxStacks: 3, duration: 2 } },
+            '철벽 척력화': { key: 'realmNoCollisionBlock', params: {} },
+            '룬 심장 목걸이': { key: 'realmResonanceAndSuppCap', params: { resonancePower: 150, suppCap: 3 } },
+            '지맥 반지': { key: 'realmRegenRateAndRegen', params: { regenRatePct: 25, regen: 2 } },
+            '골렘 허리띠': { key: 'realmMaxHpPct', params: { pctHp: 35 } },
+            '중핵 결속대': { key: 'realmAllMaxRes', params: { maxRes: 3 } }
+        };
+        let realmNamed = realmEffectMap[entry.name] || null;
         UNIQUE_DB.push({
             name: entry.name,
             slots: [REALM_UNIQUE_SLOTS[i % REALM_UNIQUE_SLOTS.length]],
             reqTier: tierStart + Math.floor(i / 4),
             realmCodexOnly: true,
             realm,
+            dropOnly: { type: dropTypeByRealm[realm] || 'cosmos' },
             uniqueEffect: entry.effect,
-            uniqueEffectKey: cosmosEffect ? cosmosEffect.key : undefined,
-            uniqueEffectParams: cosmosEffect ? cosmosEffect.params : undefined,
+            uniqueEffectKey: realmNamed ? realmNamed.key : (cosmosEffect ? cosmosEffect.key : undefined),
+            uniqueEffectParams: realmNamed ? realmNamed.params : (cosmosEffect ? cosmosEffect.params : undefined),
             stats: JSON.parse(JSON.stringify(packs[i % packs.length]))
         });
     });

@@ -336,6 +336,7 @@ function upgradeSelectedItemBase() {
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || BASE_ITEM_DB.find(base => base && base.name === item.baseName && base.slot === item.slot);
     if (!currentBase) return addLog('현재 베이스 정보를 찾을 수 없습니다.', 'attack-monster');
+    if (currentBase.realmBase) return addLog('계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.', 'attack-monster');
     function getDefenseProfile(base) {
         let ids = new Set((base.baseStats || []).map(stat => stat.id));
         return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
@@ -360,7 +361,7 @@ function upgradeSelectedItemBase() {
     let currentProfile = getDefenseProfile(currentBase);
     let currentSecondarySignature = getSecondaryStatSignature(currentBase, currentBase.slot);
     let candidates = BASE_ITEM_DB
-        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly)
+        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase)
         .filter(base => ['투구','갑옷','장갑','신발'].includes(base.slot) ? getDefenseProfile(base) === currentProfile : true)
         .sort((a,b)=>a.reqTier-b.reqTier);
     if (currentSecondarySignature.length > 0) {
@@ -451,7 +452,7 @@ function buildBlackMarketOffer(index) {
     let pickChase = chasePool.length > 0 && Math.random() < chaseChance;
     let uniq = pickChase
         ? rndChoice(chasePool)
-        : rndChoice(normalPool.length ? normalPool : (uniqPool.length ? uniqPool : UNIQUE_DB));
+        : rndChoice(normalPool.length ? normalPool : (uniqPool.length ? uniqPool : UNIQUE_DB.filter(u => u && !u.dropOnly && !u.contentOnly && !u.bossOnly && !u.realmCodexOnly)));
     let req = uniq.reqTier || tier;
     let price = 1;
     if (uniq.ultraRare) {
