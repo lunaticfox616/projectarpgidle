@@ -511,15 +511,15 @@ function getActiveSummonGemDefs() {
 
 function getSummonProfile(gemName) {
     let table = {
-        '서리늑대 소환': { role: 'attack', ele: 'cold', baseHp: 220, baseArmor: 24, baseEvasion: 40, baseRes: { fire: 10, cold: 20, light: 10, chaos: 0 }, baseDamage: 24, baseCrit: 8, baseCritDmg: 150, respawnMs: 2000, hpScaleBase: 0.028, hpScaleExp: 1.16, dmgScaleBase: 0.024, dmgScaleExp: 1.22, armorScaleBase: 0.016, armorScaleExp: 1.12, evasionScaleBase: 0.019, evasionScaleExp: 1.15 },
-        '불곰 소환': { role: 'attack', ele: 'fire', baseHp: 280, baseArmor: 36, baseEvasion: 18, baseRes: { fire: 24, cold: 8, light: 10, chaos: 0 }, baseDamage: 28, baseCrit: 5, baseCritDmg: 145, respawnMs: 2000, hpScaleBase: 0.03, hpScaleExp: 1.18, dmgScaleBase: 0.026, dmgScaleExp: 1.2, armorScaleBase: 0.02, armorScaleExp: 1.14, evasionScaleBase: 0.012, evasionScaleExp: 1.1 },
-        '벼락멧돼지 소환': { role: 'attack', ele: 'light', baseHp: 240, baseArmor: 22, baseEvasion: 28, baseRes: { fire: 8, cold: 8, light: 26, chaos: 0 }, baseDamage: 26, baseCrit: 7, baseCritDmg: 150, respawnMs: 2000, hpScaleBase: 0.029, hpScaleExp: 1.17, dmgScaleBase: 0.027, dmgScaleExp: 1.22, armorScaleBase: 0.015, armorScaleExp: 1.11, evasionScaleBase: 0.016, evasionScaleExp: 1.13 },
-        '칼날까마귀 소환': { role: 'attack', ele: 'phys', baseHp: 210, baseArmor: 18, baseEvasion: 52, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 23, baseCrit: 11, baseCritDmg: 160, respawnMs: 2000, hpScaleBase: 0.026, hpScaleExp: 1.14, dmgScaleBase: 0.023, dmgScaleExp: 1.21, armorScaleBase: 0.013, armorScaleExp: 1.1, evasionScaleBase: 0.022, evasionScaleExp: 1.16 },
-        '공허 유충 소환': { role: 'attack', ele: 'chaos', baseHp: 265, baseArmor: 26, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 28 }, baseDamage: 27, baseCrit: 6, baseCritDmg: 152, respawnMs: 2000, hpScaleBase: 0.031, hpScaleExp: 1.19, dmgScaleBase: 0.025, dmgScaleExp: 1.2, armorScaleBase: 0.017, armorScaleExp: 1.13, evasionScaleBase: 0.013, evasionScaleExp: 1.1 },
-        '벌떼 소환': { role: 'attack', ele: 'chaos', baseHp: 195, baseArmor: 16, baseEvasion: 48, baseRes: { fire: 10, cold: 10, light: 10, chaos: 5 }, baseDamage: 18, baseCrit: 9, baseCritDmg: 145, respawnMs: 2000, hpScaleBase: 0.024, hpScaleExp: 1.13, dmgScaleBase: 0.021, dmgScaleExp: 1.18, armorScaleBase: 0.012, armorScaleExp: 1.08, evasionScaleBase: 0.02, evasionScaleExp: 1.14 },
-        '수액 골렘 소환': { role: 'guard', ele: 'phys', baseHp: 420, baseArmor: 60, baseEvasion: 12, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 10, baseCrit: 0, baseCritDmg: 130, respawnMs: 4000, redirectPct: 25, hpScaleBase: 0.038, hpScaleExp: 1.2, dmgScaleBase: 0.014, dmgScaleExp: 1.15, armorScaleBase: 0.026, armorScaleExp: 1.16, evasionScaleBase: 0.01, evasionScaleExp: 1.08 }
+        '서리늑대 소환': { role: 'attack', ele: 'cold', trait: '빠른 공속', baseHp: 220, baseArmor: 24, baseEvasion: 42, baseRes: { fire: 10, cold: 24, light: 10, chaos: 0 }, baseDamage: 24, attackSpeedMul: 1.35, baseCrit: 8, baseCritDmg: 150, resPenBonus: 4, respawnMs: 2000, hpScaleBase: 0.038, hpScaleExp: 1.12, dmgPerLevelPct: 0.105, armorScaleBase: 0.018, armorScaleExp: 1.1, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '불곰 소환': { role: 'attack', ele: 'fire', trait: '강한 1타', baseHp: 315, baseArmor: 44, baseEvasion: 16, baseRes: { fire: 28, cold: 8, light: 10, chaos: 0 }, baseDamage: 38, attackSpeedMul: 0.78, baseCrit: 5, baseCritDmg: 145, resPenBonus: 2, respawnMs: 2000, hpScaleBase: 0.045, hpScaleExp: 1.14, dmgPerLevelPct: 0.135, armorScaleBase: 0.026, armorScaleExp: 1.12, evasionScaleBase: 0.012, evasionScaleExp: 1.08 },
+        '벼락멧돼지 소환': { role: 'attack', ele: 'light', trait: '높은 저항 관통', baseHp: 245, baseArmor: 24, baseEvasion: 30, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 27, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
+        '칼날까마귀 소환': { role: 'attack', ele: 'phys', trait: '치명타 특화', baseHp: 210, baseArmor: 18, baseEvasion: 58, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 22, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 2000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
+        '공허 유충 소환': { role: 'attack', ele: 'chaos', trait: '카오스 관통', baseHp: 270, baseArmor: 26, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 28, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 2000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
+        '벌떼 소환': { role: 'attack', ele: 'chaos', trait: '매우 빠른 공속', baseHp: 190, baseArmor: 16, baseEvasion: 50, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 16, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 2000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '수액 골렘 소환': { role: 'guard', ele: 'phys', trait: '피해 대리', baseHp: 420, baseArmor: 60, baseEvasion: 12, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 10, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 4000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
     };
-    return table[gemName] || { role: 'attack', ele: 'phys', baseHp: 220, baseArmor: 20, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 20, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.03, hpScaleExp: 1.16, dmgScaleBase: 0.022, dmgScaleExp: 1.18, armorScaleBase: 0.015, armorScaleExp: 1.12, evasionScaleBase: 0.015, evasionScaleExp: 1.12 };
+    return table[gemName] || { role: 'attack', ele: 'phys', trait: '균형형', baseHp: 220, baseArmor: 20, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 20, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
 }
 
 function getSummonRuntimeCap(pStats) {
@@ -540,13 +540,15 @@ function buildActiveSummonRuntimeDefs(pStats) {
     return activeDefs.slice(0, maxCap);
 }
 
-function getSummonGemLevel(gemName, source) {
+function getSummonGemLevel(gemName, source, pStats) {
     let records = source === 'support' ? (game.supportGemData || {}) : (game.gemData || {});
-    return Math.max(1, (records[gemName] || {}).level || 1);
+    let baseLevel = Math.max(1, (records[gemName] || {}).level || 1);
+    let bonus = Math.max(0, Math.floor((pStats && pStats.gemBonusSources && pStats.gemBonusSources.total) || 0));
+    return Math.max(1, baseLevel + bonus);
 }
 
 function getSummonScaledBaseDamage(profile, gemLv, pStats) {
-    let dmgGrowth = 1 + (Math.pow(gemLv, profile.dmgScaleExp || 1.18) * (profile.dmgScaleBase || 0.022));
+    let dmgGrowth = 1 + Math.max(0, gemLv - 1) * (profile.dmgPerLevelPct || 0.1);
     let flat = Math.max(0, (pStats && pStats.summonFlatDmg) || 0);
     return Math.max(1, Math.floor(((profile.baseDamage || 20) * dmgGrowth) + flat));
 }
@@ -554,10 +556,11 @@ function getSummonScaledBaseDamage(profile, gemLv, pStats) {
 function buildSummonRuntimeStats(row, pStats, now) {
     let profile = getSummonProfile(row.name);
     let isGuard = profile.role === 'guard';
-    let gemLv = getSummonGemLevel(row.name, row.source);
-    let hpGrowth = 1 + (Math.pow(gemLv, profile.hpScaleExp || 1.16) * (profile.hpScaleBase || 0.03));
-    let armorGrowth = 1 + (Math.pow(gemLv, profile.armorScaleExp || 1.12) * (profile.armorScaleBase || 0.015));
-    let evasionGrowth = 1 + (Math.pow(gemLv, profile.evasionScaleExp || 1.12) * (profile.evasionScaleBase || 0.015));
+    let gemLv = getSummonGemLevel(row.name, row.source, pStats);
+    let levelSteps = Math.max(0, gemLv - 1);
+    let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
+    let armorGrowth = 1 + (Math.pow(levelSteps, profile.armorScaleExp || 1.1) * (profile.armorScaleBase || 0.015));
+    let evasionGrowth = 1 + (Math.pow(levelSteps, profile.evasionScaleExp || 1.1) * (profile.evasionScaleBase || 0.015));
     let baseHp = profile.baseHp * hpGrowth;
     let hpMul = 1 + ((pStats.summonHpPct || 0) / 100);
     let effMul = 1 + ((pStats.summonEfficiency || 0) / 100);
@@ -567,6 +570,8 @@ function buildSummonRuntimeStats(row, pStats, now) {
         slotIdx: row.slotIdx,
         duplicateIndex: row.duplicateIndex || 0,
         role: isGuard ? 'guard' : 'attack',
+        gemLevel: gemLv,
+        trait: profile.trait || '',
         hp: maxHp,
         maxHp: maxHp,
         armor: Math.max(0, Math.floor((profile.baseArmor || 0) * armorGrowth)),
@@ -575,10 +580,13 @@ function buildSummonRuntimeStats(row, pStats, now) {
         resCold: Math.max(-60, Math.min(90, profile.baseRes.cold || 0)),
         resLight: Math.max(-60, Math.min(90, profile.baseRes.light || 0)),
         resChaos: Math.max(-60, Math.min(90, profile.baseRes.chaos || 0)),
-        redirectPct: Math.max(0, Math.min(100, Math.max(profile.redirectPct || 0, (isGuard && pStats ? (pStats.summonGuardRedirectPct || 0) : 0)))),
+        redirectPct: isGuard ? 100 : Math.max(0, Math.min(100, profile.redirectPct || 0)),
         respawnMs: isGuard ? 4000 : 2000,
         baseDamage: getSummonScaledBaseDamage(profile, gemLv, pStats),
         ele: profile.ele || 'phys',
+        attackSpeedMul: Math.max(0, Number(profile.attackSpeedMul || 1)),
+        resPenBonus: Math.max(0, Number(profile.resPenBonus || 0)),
+        physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
         crit: Math.max(0, profile.baseCrit || 0),
         critDmg: Math.max(100, profile.baseCritDmg || 140),
         alive: true,
@@ -587,12 +595,14 @@ function buildSummonRuntimeStats(row, pStats, now) {
     };
 }
 
-function getLimitedSummonPenetrationStats(pStats) {
+function getLimitedSummonPenetrationStats(pStats, summon) {
     let fullPen = game.ascendClass === 'soulbinder' && hasKeystone('sb6');
+    let baseResPen = fullPen ? Math.max(0, pStats.resPen || 0) : Math.min(25, Math.max(0, pStats.resPen || 0) * 0.35);
+    let basePhysIgnore = Math.min(20, Math.max(0, pStats.physIgnore || 0) * 0.35);
     return {
         ...pStats,
-        resPen: fullPen ? Math.max(0, pStats.resPen || 0) : Math.min(25, Math.max(0, pStats.resPen || 0) * 0.35),
-        physIgnore: Math.min(20, Math.max(0, pStats.physIgnore || 0) * 0.35)
+        resPen: baseResPen + Math.max(0, (summon && summon.resPenBonus) || 0),
+        physIgnore: basePhysIgnore + Math.max(0, (summon && summon.physIgnoreBonus) || 0)
     };
 }
 
@@ -609,9 +619,10 @@ function getLimitedSummonBossDamageMultiplier(pStats, target) {
     return 1 + Math.min(1.25, (mul - 1) * 0.65);
 }
 
-function getSummonAttackIntervalMs(pStats) {
+function getSummonAttackIntervalMs(pStats, summon) {
+    let profileMul = Math.max(0.1, Number((summon && summon.attackSpeedMul) || 1));
     let summonAspdMul = 1 + Math.max(0, ((pStats && pStats.summonAspd) || 0) / 100);
-    return Math.max(120, Math.floor(1000 / summonAspdMul));
+    return Math.max(120, Math.floor(1000 / (summonAspdMul * profileMul)));
 }
 
 function getSummonHitDamageInfo(s, pStats, target, options) {
@@ -632,7 +643,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) dmg *= (1 + Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100);
     if (target && target.isBoss) dmg *= getLimitedSummonBossDamageMultiplier(pStats, target);
     let curseFx = target ? getEnemyConditionDebuffFactor(target, pStats) : { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, lightTakenMul: 1, chaosTakenMul: 1, critDmgTakenMul: 1 };
-    let limitedStats = getLimitedSummonPenetrationStats(pStats);
+    let limitedStats = getLimitedSummonPenetrationStats(pStats, s);
     let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, target, limitedStats) - (curseFx.resShred || 0);
     if (ele === 'fire') enemyRes -= (curseFx.resFShred || 0);
     if (ele === 'cold') enemyRes -= (curseFx.resCShred || 0);
@@ -680,7 +691,6 @@ function estimateSummonDps(pStats) {
         return { total: 0, activeCount: 0, lines: ['홀로서기 각인: 소환수 직접 공격 비활성화'] };
     }
     let target = (game.enemies || []).find(e => e && e.hp > 0) || null;
-    let intervalSec = getSummonAttackIntervalMs(pStats) / 1000;
     let rows = buildActiveSummonRuntimeDefs(pStats);
     let total = 0;
     let activeCount = 0;
@@ -688,20 +698,24 @@ function estimateSummonDps(pStats) {
     rows.forEach(row => {
         let profile = getSummonProfile(row.name);
         if (profile.role === 'guard') return;
-        let gemLv = getSummonGemLevel(row.name, row.source);
+        let gemLv = getSummonGemLevel(row.name, row.source, pStats);
         let s = {
             gemName: row.name,
             ele: profile.ele || 'phys',
             baseDamage: getSummonScaledBaseDamage(profile, gemLv, pStats),
+            attackSpeedMul: Math.max(0.1, Number(profile.attackSpeedMul || 1)),
+            resPenBonus: Math.max(0, Number(profile.resPenBonus || 0)),
+            physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
             crit: Math.max(0, profile.baseCrit || 0),
             critDmg: Math.max(100, profile.baseCritDmg || 140)
         };
+        let intervalSec = getSummonAttackIntervalMs(pStats, s) / 1000;
         let hit = getSummonHitDamageInfo(s, pStats, target, { expected: true });
         let dps = hit.damage / intervalSec;
         total += dps;
         activeCount++;
     });
-    lines.push(`공격 소환수 ${activeCount}기 · 공격 주기 ${intervalSec.toFixed(2)}초`);
+    lines.push(`공격 소환수 ${activeCount}기 · 소환수별 공격 주기 적용`);
     if (rows.length > activeCount) lines.push(`방어/보조 소환수 ${rows.length - activeCount}기는 DPS에서 제외`);
     lines.push('최종 피해/보스 피해/관통/상태이상 계열은 제한 계수로 반영');
     if (rows.some(row => row.duplicateIndex > 0)) lines.push('남는 소환수 한도는 공격 소환수 중복 소환으로 사용');
@@ -711,18 +725,30 @@ function estimateSummonDps(pStats) {
 function getSummonTooltipPreview(gemName, pStats) {
     let stats = pStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : null) || {};
     let profile = getSummonProfile(gemName);
-    let gemLv = getSummonGemLevel(gemName, SUPPORT_GEM_DB[gemName] ? 'support' : 'skill');
-    let dmgGrowth = 1 + (Math.pow(gemLv, profile.dmgScaleExp || 1.18) * (profile.dmgScaleBase || 0.022));
-    let base = Math.max(1, Math.floor((profile.baseDamage || 20) * dmgGrowth));
-    let dmgMul = 1 + ((stats.summonPctDmg || 0) / 100) + ((stats.summonEfficiency || 0) / 100);
-    let hit = Math.max(1, Math.floor(base * dmgMul));
+    let gemLv = getSummonGemLevel(gemName, SUPPORT_GEM_DB[gemName] ? 'support' : 'skill', stats);
+    let hitProfile = {
+        gemName: gemName,
+        ele: profile.ele || 'phys',
+        baseDamage: getSummonScaledBaseDamage(profile, gemLv, stats),
+        attackSpeedMul: Math.max(0.1, Number(profile.attackSpeedMul || 1)),
+        resPenBonus: Math.max(0, Number(profile.resPenBonus || 0)),
+        physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
+        crit: Math.max(0, profile.baseCrit || 0),
+        critDmg: Math.max(100, profile.baseCritDmg || 140)
+    };
+    let hit = getSummonHitDamageInfo(hitProfile, stats, null, { expected: true });
     let critChance = Math.max(0, Math.min(0.95, ((profile.baseCrit || 0) + (stats.summonCrit || 0)) / 100));
-    let critMul = Math.max(1.2, ((profile.baseCritDmg || 140) + (stats.summonCritDmg || 0)) / 100);
     return {
         roleLabel: profile.role === 'guard' ? '방어 소환수' : '공격 소환수',
-        hitDamageMin: hit,
-        hitDamageMax: Math.max(hit, Math.floor(hit * (1 + critChance * (critMul - 1)))),
-        attackPerSecond: profile.role === 'guard' ? 0 : (Math.round((1 + Math.max(0, (stats.summonAspd || 0) / 100)) * 100) / 100),
+        trait: profile.trait || '',
+        gemLevel: gemLv,
+        hitDamageMin: hitProfile.baseDamage,
+        hitDamageMax: Math.max(hitProfile.baseDamage, Math.floor(hit.damage || hitProfile.baseDamage)),
+        attackPerSecond: profile.role === 'guard' ? 0 : (Math.round((1000 / getSummonAttackIntervalMs(stats, hitProfile)) * 100) / 100),
+        critChancePct: Math.round(critChance * 1000) / 10,
+        critDmgPct: Math.max(100, (profile.baseCritDmg || 140) + (stats.summonCritDmg || 0)),
+        resPenBonus: Math.max(0, Number(profile.resPenBonus || 0)),
+        physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
         redirectPct: Math.max(0, Math.min(100, Math.max(profile.redirectPct || 0, (stats.summonGuardRedirectPct || 0))))
     };
 }
@@ -771,7 +797,7 @@ function runSummonAttackTick(pStats) {
         if (!s || !s.alive) return;
         if (s.role !== 'attack') return;
         if (now < (s.nextAttackAt || 0)) return;
-        s.nextAttackAt = now + getSummonAttackIntervalMs(pStats);
+        s.nextAttackAt = now + getSummonAttackIntervalMs(pStats, s);
         let target = (game.enemies || []).find(e => e && e.hp > 0);
         if (!target) return;
         let hit = getSummonHitDamageInfo(s, pStats, target);
@@ -3860,6 +3886,22 @@ function grantExpAndGem(enemy, pStats) {
             }
         }
     }
+    game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
+    game.equippedSummonSkills.forEach(name => {
+        let def = SKILL_DB[name] || {};
+        if (!def || !Array.isArray(def.tags) || !def.tags.includes('summon_attack')) return;
+        game.gemData = game.gemData || {};
+        game.gemData[name] = normalizeGemRecord(game.gemData[name]);
+        let gem = game.gemData[name];
+        if (gem && gem.level < 20) {
+            gem.exp += gemExp;
+            if (gem.exp >= getGemReqExp(gem.level)) {
+                gem.level++;
+                gem.exp = 0;
+                addLog(`🐾 소환수 젬 [${name}] 레벨업!`, "loot-unique");
+            }
+        }
+    });
     (game.equippedSupports || []).forEach(name => {
         let gem = game.supportGemData[name];
         if (gem && gem.level < 20) {

@@ -1857,6 +1857,9 @@ function changeSkill(name) { if (!assertBuildEditable()) return;
             return;
         }
         game.equippedSummonSkills.push(name);
+        if (game.activeSkill === name) game.activeSkill = '기본 공격';
+        updateStaticUI();
+        return;
     }
     game.activeSkill = name;
     updateStaticUI();
@@ -2393,7 +2396,8 @@ function showGemTooltip(event, type, name) {
         if (SUPPORT_GEM_DB[name] && Array.isArray(SUPPORT_GEM_DB[name].tags) && SUPPORT_GEM_DB[name].tags.includes('summon')) {
             const preview = (typeof getSummonTooltipPreview === 'function') ? getSummonTooltipPreview(name, stats) : null;
             if (preview) {
-                html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}</div>`;
+                html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}${preview.trait ? ` · 특징: ${preview.trait}` : ''}</div>`;
+                html += `<div class="tooltip-line">소환수 레벨: ${preview.gemLevel}</div>`;
                 if (preview.redirectPct > 0) html += `<div class="tooltip-line">피해 대리: 히트 피해 ${preview.redirectPct}%</div>`;
             }
         }
@@ -2440,8 +2444,12 @@ function showGemTooltip(event, type, name) {
         if ((info.tags || []).includes('summon')) {
             const preview = (typeof getSummonTooltipPreview === 'function') ? getSummonTooltipPreview(name, stats) : null;
             if (preview) {
-                html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}</div>`;
+                html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}${preview.trait ? ` · 특징: ${preview.trait}` : ''}</div>`;
+                html += `<div class="tooltip-line">소환수 레벨: ${preview.gemLevel}</div>`;
                 html += `<div class="tooltip-line">예상 1타 피해: ${preview.hitDamageMin} ~ ${preview.hitDamageMax}${preview.attackPerSecond > 0 ? ` · 공속 ${preview.attackPerSecond}/s` : ''}</div>`;
+                if (preview.critChancePct > 0) html += `<div class="tooltip-line">치명타: ${preview.critChancePct}% · 치명 피해 ${Math.floor(preview.critDmgPct)}%</div>`;
+                if (preview.resPenBonus > 0) html += `<div class="tooltip-line">소환수 자체 저항 관통 +${preview.resPenBonus}%</div>`;
+                if (preview.physIgnoreBonus > 0) html += `<div class="tooltip-line">소환수 자체 물리 피해 감소 무시 +${preview.physIgnoreBonus}%</div>`;
                 if (preview.redirectPct > 0) html += `<div class="tooltip-line">피해 대리: 히트 피해 ${preview.redirectPct}%</div>`;
             }
         }
@@ -6102,9 +6110,9 @@ function mergeDefaults(save) {
         if (!merged.supportGemData['수액 골렘 소환']) {
             merged.supportGemData['수액 골렘 소환'] = normalizeGemRecord((merged.gemData || {})['수액 골렘 소환'] || { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 });
         }
+        merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports : [];
+        if (!merged.equippedSupports.includes('수액 골렘 소환')) merged.equippedSupports.push('수액 골렘 소환');
         if (merged.activeSkill === '수액 골렘 소환') {
-            merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports : [];
-            if (!merged.equippedSupports.includes('수액 골렘 소환')) merged.equippedSupports.push('수액 골렘 소환');
             merged.activeSkill = '기본 공격';
         }
     }
@@ -6393,6 +6401,9 @@ function mergeDefaults(save) {
     merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
     merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
     merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
+    if (merged.activeSkill && SKILL_DB[merged.activeSkill] && Array.isArray(SKILL_DB[merged.activeSkill].tags) && SKILL_DB[merged.activeSkill].tags.includes('summon_attack')) {
+        merged.activeSkill = '기본 공격';
+    }
     merged.equippedSummonSkills = Array.isArray(merged.equippedSummonSkills)
         ? Array.from(new Set(merged.equippedSummonSkills.filter(name => {
             let def = SKILL_DB[name] || {};
