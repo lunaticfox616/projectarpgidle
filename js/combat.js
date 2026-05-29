@@ -517,7 +517,7 @@ function getSummonProfile(gemName) {
         '칼날까마귀 소환': { role: 'attack', ele: 'phys', trait: '치명타 특화', baseHp: 210, baseArmor: 18, baseEvasion: 58, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 22, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 2000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
         '공허 유충 소환': { role: 'attack', ele: 'chaos', trait: '카오스 관통', baseHp: 270, baseArmor: 26, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 28, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 2000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
         '벌떼 소환': { role: 'attack', ele: 'chaos', trait: '매우 빠른 공속', baseHp: 190, baseArmor: 16, baseEvasion: 50, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 16, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 2000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
-        '수액 골렘 소환': { role: 'guard', ele: 'phys', trait: '피해 대리', baseHp: 420, baseArmor: 60, baseEvasion: 12, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 10, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 4000, redirectPct: 25, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
+        '수액 골렘 소환': { role: 'guard', ele: 'phys', trait: '피해 대리', baseHp: 420, baseArmor: 60, baseEvasion: 12, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 10, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 4000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
     };
     return table[gemName] || { role: 'attack', ele: 'phys', trait: '균형형', baseHp: 220, baseArmor: 20, baseEvasion: 20, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 20, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
 }
@@ -580,7 +580,7 @@ function buildSummonRuntimeStats(row, pStats, now) {
         resCold: Math.max(-60, Math.min(90, profile.baseRes.cold || 0)),
         resLight: Math.max(-60, Math.min(90, profile.baseRes.light || 0)),
         resChaos: Math.max(-60, Math.min(90, profile.baseRes.chaos || 0)),
-        redirectPct: Math.max(0, Math.min(100, Math.max(profile.redirectPct || 0, (isGuard && pStats ? (pStats.summonGuardRedirectPct || 0) : 0)))),
+        redirectPct: isGuard ? 100 : Math.max(0, Math.min(100, profile.redirectPct || 0)),
         respawnMs: isGuard ? 4000 : 2000,
         baseDamage: getSummonScaledBaseDamage(profile, gemLv, pStats),
         ele: profile.ele || 'phys',

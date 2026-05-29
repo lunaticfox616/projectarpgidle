@@ -6110,9 +6110,9 @@ function mergeDefaults(save) {
         if (!merged.supportGemData['수액 골렘 소환']) {
             merged.supportGemData['수액 골렘 소환'] = normalizeGemRecord((merged.gemData || {})['수액 골렘 소환'] || { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 });
         }
+        merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports : [];
+        if (!merged.equippedSupports.includes('수액 골렘 소환')) merged.equippedSupports.push('수액 골렘 소환');
         if (merged.activeSkill === '수액 골렘 소환') {
-            merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports : [];
-            if (!merged.equippedSupports.includes('수액 골렘 소환')) merged.equippedSupports.push('수액 골렘 소환');
             merged.activeSkill = '기본 공격';
         }
     }
