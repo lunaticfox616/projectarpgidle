@@ -2365,7 +2365,7 @@ function syncBattleTabLayout(forceTabSwitch) {
     if (!tabBattle || !leftPane || !battleColumn || !battleBtn) return;
     let isMobileBattle = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches;
     document.body.classList.toggle('mobile-battle-tab', isMobileBattle);
-    battleBtn.style.display = isMobileBattle ? 'block' : 'none';
+    battleBtn.style.display = isMobileBattle ? 'flex' : 'none';
     if (isMobileBattle) {
         if (!battleTabDocked || battleColumn.parentElement !== tabBattle) tabBattle.appendChild(battleColumn);
         battleTabDocked = true;
@@ -5117,9 +5117,7 @@ function chooseItemBase(slot, zoneTier) {
         return true;
     });
     if (candidates.length === 0) candidates = BASE_ITEM_DB.filter(base => base.slot === slot && !base.realmBase);
-    candidates.sort((a, b) => a.reqTier - b.reqTier);
-    let take = candidates.slice(-Math.min(3, candidates.length));
-    return rndChoice(take);
+    return rndChoice(candidates);
 }
 
 function rollBaseStats(base, zoneTier) {
