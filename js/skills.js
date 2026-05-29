@@ -363,29 +363,54 @@ function normalizeSupportLoadout(logChange) {
     return removed.length > 0;
 }
 
-function getGemBonusSources() {
+const GEM_LEVEL_TAG_RULES = [
+    { stat: 'elementalGemLevel', tag: 'elemental' },
+    { stat: 'fireGemLevel', tag: 'fire' },
+    { stat: 'coldGemLevel', tag: 'cold' },
+    { stat: 'lightGemLevel', tag: 'lightning' },
+    { stat: 'chaosGemLevel', tag: 'chaos' },
+    { stat: 'physGemLevel', tag: 'physical' },
+    { stat: 'projectileGemLevel', tag: 'projectile' },
+    { stat: 'meleeGemLevel', tag: 'melee' },
+    { stat: 'slamGemLevel', tag: 'slam' },
+    { stat: 'spellGemLevel', tag: 'spell' },
+    { stat: 'dotGemLevel', tag: 'dot' },
+    { stat: 'aoeGemLevel', tag: 'aoe' }
+];
+
+function getGemLevelTargetTags(target) {
+    let def = null;
+    let tags = [];
+    if (Array.isArray(target)) {
+        tags = target.slice();
+    } else {
+        let name = target || game.activeSkill;
+        def = SKILL_DB[name] || SUPPORT_GEM_DB[name] || SKILL_DB['기본 공격'];
+        tags = Array.isArray(def.tags) ? def.tags.slice() : [];
+    }
+    if (def && def.ele) {
+        if (def.ele === 'fire') tags.push('fire', 'elemental');
+        if (def.ele === 'cold') tags.push('cold', 'elemental');
+        if (def.ele === 'light') tags.push('lightning', 'elemental');
+        if (def.ele === 'chaos') tags.push('chaos');
+        if (def.ele === 'phys') tags.push('physical');
+    }
+    return Array.from(new Set(tags));
+}
+
+function getGemBonusSources(target) {
     let gear = 0;
     let passive = 0;
     let reward = 0;
-    let activeSkillDef = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
-    let activeTags = Array.isArray(activeSkillDef.tags) ? activeSkillDef.tags : [];
-    const tagGemLevelRules = [
-        { stat: 'elementalGemLevel', tag: 'elemental' },
-        { stat: 'fireGemLevel', tag: 'fire' },
-        { stat: 'coldGemLevel', tag: 'cold' },
-        { stat: 'lightGemLevel', tag: 'lightning' },
-        { stat: 'chaosGemLevel', tag: 'chaos' },
-        { stat: 'physGemLevel', tag: 'physical' },
-        { stat: 'projectileGemLevel', tag: 'projectile' },
-        { stat: 'meleeGemLevel', tag: 'melee' },
-        { stat: 'slamGemLevel', tag: 'slam' },
-        { stat: 'spellGemLevel', tag: 'spell' },
-        { stat: 'dotGemLevel', tag: 'dot' },
-        { stat: 'aoeGemLevel', tag: 'aoe' }
-    ];
+    let activeTags = getGemLevelTargetTags(target);
     Object.values(game.equipment || {}).forEach(item => {
         if (!item) return;
-        [...(item.baseStats || []), ...(item.stats || []), ...(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [])].forEach(stat => { if (stat.id === 'gemLevel') gear += stat.val; });
+        [...(item.baseStats || []), ...(item.stats || []), ...(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [])].forEach(stat => {
+            if (stat.id === 'gemLevel') gear += stat.val;
+            GEM_LEVEL_TAG_RULES.forEach(rule => {
+                if (stat.id === rule.stat && activeTags.includes(rule.tag)) gear += stat.val;
+            });
+        });
     });
     (game.passives || []).forEach(id => {
         let node = PASSIVE_TREE.nodes[id];
@@ -393,7 +418,7 @@ function getGemBonusSources() {
         let statId = mut && mut.currentStat ? mut.currentStat : (node && node.stat);
         let statVal = mut && Number.isFinite(mut.currentVal) ? mut.currentVal : (node && node.val);
         if (node && statId === 'gemLevel') passive += statVal;
-        tagGemLevelRules.forEach(rule => {
+        GEM_LEVEL_TAG_RULES.forEach(rule => {
             if (node && statId === rule.stat && activeTags.includes(rule.tag)) passive += statVal;
         });
     });

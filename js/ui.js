@@ -1873,6 +1873,7 @@ function changeSkill(name) { if (!assertBuildEditable()) return;
         normalizeEquippedSummonAttackSkills();
         let alreadyEquipped = game.equippedSummonSkills.includes(name);
         if (alreadyEquipped) {
+            game.summonLoadoutInitialized = true;
             game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== name);
             if (game.activeSkill === name) game.activeSkill = '기본 공격';
             updateStaticUI();
@@ -1887,6 +1888,7 @@ function changeSkill(name) { if (!assertBuildEditable()) return;
             addLog(`소환수 한도(${cap})로 인해 [${name}]은(는) 장착할 수 없습니다.`, 'attack-monster');
             return;
         }
+        game.summonLoadoutInitialized = true;
         game.equippedSummonSkills.push(name);
         if (game.activeSkill === name) game.activeSkill = '기본 공격';
         updateStaticUI();
@@ -2224,6 +2226,9 @@ function updateSettings() {
     game.settings.showCrowdPauseLog = document.getElementById('chk-log-crowd').checked;
     game.settings.showDeathNotice = document.getElementById('chk-death-notice').checked;
     game.settings.showMobileBattlePip = document.getElementById('chk-mobile-battle-pip').checked;
+    let damageFormatSelect = document.getElementById('sel-damage-number-format');
+    let damageFormat = damageFormatSelect ? damageFormatSelect.value : game.settings.damageNumberFormat;
+    game.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(damageFormat) ? damageFormat : 'comma';
     game.settings.itemFilterEnabled = document.getElementById('chk-item-filter-enabled').checked;
     game.settings.itemFilterRarities = game.settings.itemFilterRarities || { normal: true, magic: true, rare: true, unique: true };
     game.settings.itemFilterRarities.normal = document.getElementById('chk-item-filter-normal').checked;
@@ -6037,6 +6042,33 @@ function mergeDefaults(save) {
             at: clampFiniteNumber(log.at, Date.now(), 0)
         };
     }
+    function estimateSummonEquipCapForMergedSave(state) {
+        let bonus = 0;
+        function statValue(stat) {
+            if (!stat || typeof stat !== 'object') return 0;
+            if (Number.isFinite(stat.val)) return stat.val;
+            if (Number.isFinite(stat.value)) return stat.value;
+            if (Number.isFinite(stat.base)) return stat.base;
+            return 0;
+        }
+        Object.values((state && state.equipment) || {}).forEach(item => {
+            if (!item) return;
+            [...(item.baseStats || []), ...(item.stats || []), ...(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [])].forEach(stat => {
+                if (stat && stat.id === 'summonCap') bonus += statValue(stat);
+            });
+        });
+        (state && Array.isArray(state.passives) ? state.passives : []).forEach(id => {
+            let node = PASSIVE_TREE.nodes[id];
+            let mut = state.starWedge && state.starWedge.nodeMutations ? state.starWedge.nodeMutations[id] : null;
+            let statId = mut && mut.currentStat ? mut.currentStat : (node && node.stat);
+            let statVal = mut && Number.isFinite(mut.currentVal) ? mut.currentVal : (node && node.val);
+            if (node && statId === 'summonCap') bonus += statVal || 0;
+        });
+        (state && Array.isArray(state.actRewardBonuses) ? state.actRewardBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
+        (state && Array.isArray(state.journalBonuses) ? state.journalBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
+        return Math.max(1, Math.min(8, Math.floor(1 + bonus)));
+    }
+
     let merged = {
         ...defaultGame,
         ...save,
@@ -6356,6 +6388,7 @@ function mergeDefaults(save) {
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
+    merged.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(merged.settings.damageNumberFormat) ? merged.settings.damageNumberFormat : 'comma';
     merged.settings.notiFilters = { ...(defaultGame.settings.notiFilters || {}), ...(merged.settings.notiFilters || {}) };
     merged.playerHp = Math.max(0, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 0)));
     merged.playerEnergyShield = Math.max(0, Math.floor(clampFiniteNumber(merged.playerEnergyShield, defaultGame.playerEnergyShield, 0))); 
@@ -6413,6 +6446,14 @@ function mergeDefaults(save) {
             return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack') && merged.skills.includes(name));
         })))
         : [];
+    let ownedSummonAttackSkills = (Array.isArray(merged.skills) ? merged.skills : []).filter(name => {
+        let def = SKILL_DB[name] || {};
+        return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack'));
+    });
+    if (!merged.summonLoadoutInitialized && merged.equippedSummonSkills.length === 0 && ownedSummonAttackSkills.length > 0) {
+        merged.equippedSummonSkills = ownedSummonAttackSkills.slice(0, estimateSummonEquipCapForMergedSave(merged));
+    }
+    merged.summonLoadoutInitialized = true;
     if (typeof merged.currentZoneId === 'string' && /^\d+$/.test(merged.currentZoneId)) merged.currentZoneId = parseInt(merged.currentZoneId, 10);
     if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
     if (typeof merged.maxZoneId !== 'string') {
@@ -8075,6 +8116,7 @@ function init() {
     document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
     document.getElementById('chk-mobile-battle-pip').checked = game.settings.showMobileBattlePip !== false;
+    document.getElementById('sel-damage-number-format').value = ['comma', 'korean', 'korean_short', 'english'].includes(game.settings.damageNumberFormat) ? game.settings.damageNumberFormat : 'comma';
     game.settings.itemFilterRarities = { normal: true, magic: true, rare: true, unique: true, ...(game.settings.itemFilterRarities || {}) };
     document.getElementById('chk-item-filter-enabled').checked = !!game.settings.itemFilterEnabled;
     document.getElementById('chk-item-filter-normal').checked = game.settings.itemFilterRarities.normal !== false;
