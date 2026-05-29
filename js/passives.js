@@ -2316,6 +2316,7 @@ let battleAssets = {
     failed: false,
     failedKeys: [],
     loadTicket: 0,
+    loadPromise: null,
     images: {},
     backdrops: {},
     atlas: null
@@ -3276,6 +3277,7 @@ function reloadBattleAssets() {
     battleAssets.images = {};
     battleAssets.backdrops = {};
     battleAssets.atlas = null;
+    battleAssets.loadPromise = null;
     battleVisualState.weaponAtlasResolved = null;
     battleVisualState.effectAtlasResolved = null;
     battleVisualState.gridOccupancyCache = new WeakMap();
@@ -3343,11 +3345,16 @@ function fileExists(path) {
     }
 }
 function initBattleAssets() {
-    if (battleAssets.loading || battleAssets.ready || battleAssets.failed) return;
+    if (battleAssets.ready) return Promise.resolve(true);
+    if (battleAssets.loading && battleAssets.loadPromise) return battleAssets.loadPromise;
+    if (battleAssets.failed) return Promise.resolve(false);
     battleAssets.loading = true;
     battleAssets.failedKeys = [];
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
+    battleAssets.loadPromise = null;
     const loadTicket = battleAssets.loadTicket;
+    let resolveLoadPromise;
+    battleAssets.loadPromise = new Promise(resolve => { resolveLoadPromise = resolve; });
     const customHeroSrc = getCustomHeroSheetDataUrl();
     const defaultHeroSrc = customHeroSrc || null;
     const manifest = {
@@ -3409,19 +3416,9 @@ function initBattleAssets() {
         summon1: 'assets/summon/summon1.png',
     };
     const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['effectsV2', 'weapons', 'tiles']));
-    Object.entries(manifest).forEach(([key, src]) => {
-        if (typeof src === 'string' && !src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('https')) {
-            if (!fileExists(src)) optionalManifestKeys.add(key);
-        }
-    });
-    const manifestEntries = Object.entries(manifest).filter(([key, src]) => {
-        if (typeof src !== 'string') return true;
-        if (src.startsWith('data:') || src.startsWith('http') || src.startsWith('https')) return true;
-        if (fileExists(src)) return true;
-        // 로컬 배포본에서 빠진 선택 리소스는 로딩 시도 자체를 건너뛰어 404 콘솔 스팸을 막는다.
-        optionalManifestKeys.add(key);
-        return false;
-    });
+    // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
+    // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
+    const manifestEntries = Object.entries(manifest);
     let pending = manifestEntries.length;
     const totalAssets = pending;
     let settled = false;
@@ -3445,10 +3442,12 @@ function initBattleAssets() {
         settled = true;
         if (battleAssets.failedKeys.length === 0) {
             finalizeBattleAssets();
+            if (resolveLoadPromise) resolveLoadPromise(!!battleAssets.ready);
             return;
         }
         console.warn('battle asset load completed with missing files:', battleAssets.failedKeys.join(', '));
         finalizeBattleAssets();
+        if (resolveLoadPromise) resolveLoadPromise(!!battleAssets.ready);
     }
 
     setTimeout(() => {
@@ -3457,7 +3456,7 @@ function initBattleAssets() {
         if (!battleAssets.failedKeys.includes('timeout')) battleAssets.failedKeys.push('timeout');
         pending = 0;
         finishLoad();
-    }, 8000);
+    }, 30000);
 
     function queueBattleSheetSanitization(key, image) {
         if (!ENABLE_BATTLE_SHEET_SANITIZATION) return;
@@ -3501,9 +3500,9 @@ function initBattleAssets() {
             if (!optionalManifestKeys.has(key)) {
                 battleAssets.failed = true;
                 battleAssets.failedKeys.push(key);
+                console.warn('battle asset load failed:', key, src);
             }
             pending--;
-            console.warn('battle asset load failed:', key, src);
             updateBattleAssetLoadProgress(key);
             finishLoad();
             loadManifestEntryAt(index + 1);
@@ -3512,6 +3511,7 @@ function initBattleAssets() {
     }
     updateBattleAssetLoadProgress();
     loadManifestEntryAt(0);
+    return battleAssets.loadPromise;
 }
 
 function sanitizeBattleSheet(image) {
