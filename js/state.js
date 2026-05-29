@@ -1377,6 +1377,7 @@ const defaultGame = {
     skills: ['기본 공격'],
     activeSkill: '기본 공격',
     equippedSummonSkills: [],
+    summonLoadoutInitialized: false,
     gemData: { '기본 공격': { level: 1, exp: 0 } },
     supports: [],
     sealedSkills: [],

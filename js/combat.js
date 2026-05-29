@@ -543,7 +543,8 @@ function buildActiveSummonRuntimeDefs(pStats) {
 function getSummonGemLevel(gemName, source, pStats) {
     let records = source === 'support' ? (game.supportGemData || {}) : (game.gemData || {});
     let baseLevel = Math.max(1, (records[gemName] || {}).level || 1);
-    let bonus = Math.max(0, Math.floor((pStats && pStats.gemBonusSources && pStats.gemBonusSources.total) || 0));
+    let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(gemName) : (pStats && pStats.gemBonusSources);
+    let bonus = Math.max(0, Math.floor((sources && sources.total) || 0));
     return Math.max(1, baseLevel + bonus);
 }
 

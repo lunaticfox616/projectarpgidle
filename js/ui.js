@@ -1873,6 +1873,7 @@ function changeSkill(name) { if (!assertBuildEditable()) return;
         normalizeEquippedSummonAttackSkills();
         let alreadyEquipped = game.equippedSummonSkills.includes(name);
         if (alreadyEquipped) {
+            game.summonLoadoutInitialized = true;
             game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== name);
             if (game.activeSkill === name) game.activeSkill = '기본 공격';
             updateStaticUI();
@@ -1887,6 +1888,7 @@ function changeSkill(name) { if (!assertBuildEditable()) return;
             addLog(`소환수 한도(${cap})로 인해 [${name}]은(는) 장착할 수 없습니다.`, 'attack-monster');
             return;
         }
+        game.summonLoadoutInitialized = true;
         game.equippedSummonSkills.push(name);
         if (game.activeSkill === name) game.activeSkill = '기본 공격';
         updateStaticUI();
@@ -6040,6 +6042,33 @@ function mergeDefaults(save) {
             at: clampFiniteNumber(log.at, Date.now(), 0)
         };
     }
+    function estimateSummonEquipCapForMergedSave(state) {
+        let bonus = 0;
+        function statValue(stat) {
+            if (!stat || typeof stat !== 'object') return 0;
+            if (Number.isFinite(stat.val)) return stat.val;
+            if (Number.isFinite(stat.value)) return stat.value;
+            if (Number.isFinite(stat.base)) return stat.base;
+            return 0;
+        }
+        Object.values((state && state.equipment) || {}).forEach(item => {
+            if (!item) return;
+            [...(item.baseStats || []), ...(item.stats || []), ...(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [])].forEach(stat => {
+                if (stat && stat.id === 'summonCap') bonus += statValue(stat);
+            });
+        });
+        (state && Array.isArray(state.passives) ? state.passives : []).forEach(id => {
+            let node = PASSIVE_TREE.nodes[id];
+            let mut = state.starWedge && state.starWedge.nodeMutations ? state.starWedge.nodeMutations[id] : null;
+            let statId = mut && mut.currentStat ? mut.currentStat : (node && node.stat);
+            let statVal = mut && Number.isFinite(mut.currentVal) ? mut.currentVal : (node && node.val);
+            if (node && statId === 'summonCap') bonus += statVal || 0;
+        });
+        (state && Array.isArray(state.actRewardBonuses) ? state.actRewardBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
+        (state && Array.isArray(state.journalBonuses) ? state.journalBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
+        return Math.max(1, Math.min(8, Math.floor(1 + bonus)));
+    }
+
     let merged = {
         ...defaultGame,
         ...save,
@@ -6417,6 +6446,14 @@ function mergeDefaults(save) {
             return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack') && merged.skills.includes(name));
         })))
         : [];
+    let ownedSummonAttackSkills = (Array.isArray(merged.skills) ? merged.skills : []).filter(name => {
+        let def = SKILL_DB[name] || {};
+        return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack'));
+    });
+    if (!merged.summonLoadoutInitialized && merged.equippedSummonSkills.length === 0 && ownedSummonAttackSkills.length > 0) {
+        merged.equippedSummonSkills = ownedSummonAttackSkills.slice(0, estimateSummonEquipCapForMergedSave(merged));
+    }
+    merged.summonLoadoutInitialized = true;
     if (typeof merged.currentZoneId === 'string' && /^\d+$/.test(merged.currentZoneId)) merged.currentZoneId = parseInt(merged.currentZoneId, 10);
     if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
     if (typeof merged.maxZoneId !== 'string') {
