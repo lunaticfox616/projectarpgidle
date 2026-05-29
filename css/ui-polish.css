@@ -248,3 +248,20 @@ body.light-mode .subtab-btn.active {
   box-shadow: 0 0 0 1px rgba(91, 152, 215, .2);
 }
 
+
+.search-filter-panel {
+  overflow: visible;
+}
+
+.search-filter-input {
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+
+.search-filter-input:focus,
+input[data-search-key]:focus {
+  outline: none;
+  border-color: #8fd3ff !important;
+  box-shadow: inset 0 0 0 1px rgba(143, 211, 255, 0.78), 0 0 0 1px rgba(143, 211, 255, 0.18);
+}
