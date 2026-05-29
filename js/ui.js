@@ -3441,37 +3441,9 @@ function drawGemAttackTrail(ctx, element, sx, sy, tx, ty, t) {
 }
 
 function drawBattleSwingFx(ctx, fx, t, playerPos) {
-    let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
-    let swingElement = normalizeBattleElement(fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
-    let swingTheme = getImpactThemeByElement(swingElement);
-    ctx.save();
-    ctx.globalAlpha = 1 - t * 0.72;
-    let reach = 16 + t * 18;
-    ctx.strokeStyle = fx.color || swingTheme.primary || skillVisual.primary;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(playerPos.x + 3, playerPos.y - 4);
-    ctx.quadraticCurveTo(playerPos.x + 10 + t * 10, playerPos.y - 26, playerPos.x + reach, playerPos.y - 10);
-    ctx.stroke();
-    ctx.strokeStyle = swingTheme.secondary || skillVisual.secondary;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(playerPos.x + 6, playerPos.y - 1);
-    ctx.lineTo(playerPos.x + reach - 2, playerPos.y - 6);
-    ctx.stroke();
-    if (fx.crit) {
-        ctx.globalAlpha = (1 - t) * 0.52;
-        ctx.strokeStyle = '#fff6c8';
-        ctx.lineWidth = 2;
-        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
-            let angle = -0.8 + i * 0.5 + t * 0.25;
-            ctx.beginPath();
-            ctx.moveTo(playerPos.x + 10, playerPos.y - 6);
-            ctx.lineTo(playerPos.x + 10 + Math.cos(angle) * (18 + t * 10), playerPos.y - 6 + Math.sin(angle) * (18 + t * 10));
-            ctx.stroke();
-        }
-    }
-    ctx.restore();
+    // Keep playerSwing events for attack animation timing, but do not draw the
+    // extra slash/arc strokes around the player sprite.
+    return;
 }
 
 function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
