@@ -775,6 +775,15 @@
                     <label class="cfg-toggle"><input type="checkbox" id="chk-combat-scene" onchange="updateSettings()" checked><span class="cfg-label">전투 화면 표시</span></label>
                     <label class="cfg-toggle"><input type="checkbox" id="chk-death-notice" onchange="updateSettings()" checked><span class="cfg-label">사망 시 알림 표시</span></label>
                     <label class="cfg-toggle"><input type="checkbox" id="chk-mobile-battle-pip" onchange="updateSettings()" checked><span class="cfg-label">모바일 전투 PiP 표시</span></label>
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">대미지 폰트 표기</span>
+                        <select id="sel-damage-number-format" onchange="updateSettings()" class="cfg-select">
+                            <option value="comma">쉼표 (1,234,567,890)</option>
+                            <option value="korean">한글 전체 (12억3456만7890)</option>
+                            <option value="korean_short">한글 최대 단위 (12.3억)</option>
+                            <option value="english">영어 축약 (1.234B)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -942,7 +951,7 @@
 </div>
 
 <script src="js/bootstrap.js?v=20260513-gemfix1"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260513-gemfix1"></script>
 <script defer src="data/maps.js?v=20260518-starwedge-cap1"></script>

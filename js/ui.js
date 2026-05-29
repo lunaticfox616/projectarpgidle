@@ -26,7 +26,7 @@ function startBattleAssetLoadNow() {
         clearTimeout(battleAssetDeferredInitHandle);
         battleAssetDeferredInitHandle = null;
     }
-    initBattleAssets();
+    return initBattleAssets();
 }
 
 function scheduleDeferredBattleAssetLoad() {
@@ -36,6 +36,37 @@ function scheduleDeferredBattleAssetLoad() {
         battleAssetDeferredInitHandle = null;
         startBattleAssetLoadNow();
     }, 1800);
+}
+
+
+async function ensureBattleAssetsLoadedBeforeEntry() {
+    if (battleAssets.ready) return true;
+    advanceLoadingOverlay({
+        title: '전장 에셋을 불러오는 중...',
+        detail: '첫 전투에 필요한 이미지 에셋을 모두 확인하고 있습니다.',
+        caption: 'Loading Battle Assets',
+        progress: 56
+    });
+    let result = false;
+    try {
+        result = await startBattleAssetLoadNow();
+    } catch (error) {
+        console.warn('battle asset preload failed:', error);
+    }
+    if (battleAssets.failed && !battleAssets.ready) {
+        advanceLoadingOverlay({
+            detail: '일부 에셋 확인에 실패했습니다. 기본 렌더링으로 계속 준비합니다.',
+            caption: 'Asset Fallback',
+            progress: 92
+        });
+    } else {
+        advanceLoadingOverlay({
+            detail: '전장 에셋 로딩이 완료되었습니다.',
+            caption: 'Assets Ready',
+            progress: 92
+        });
+    }
+    return result;
 }
 
 function ensureMobileBattlePip() {
@@ -1809,24 +1840,57 @@ function assertBuildEditable() {
     return true;
 }
 
+function isSummonGuardSupport(name) {
+    let def = SUPPORT_GEM_DB[name] || {};
+    return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_guard'));
+}
+
+function getEquippedSummonGuardSupports() {
+    let supports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
+    return supports.filter(name => isSummonGuardSupport(name));
+}
+
+function normalizeEquippedSummonAttackSkills() {
+    game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
+    game.equippedSummonSkills = Array.from(new Set(game.equippedSummonSkills.filter(gemName => {
+        let gemDef = SKILL_DB[gemName] || {};
+        return !!(gemDef && Array.isArray(gemDef.tags) && gemDef.tags.includes('summon_attack') && Array.isArray(game.skills) && game.skills.includes(gemName));
+    })));
+    return game.equippedSummonSkills;
+}
+
+function getEquippedSummonCount() {
+    return normalizeEquippedSummonAttackSkills().length + getEquippedSummonGuardSupports().length;
+}
+
+function getSummonEquipCapFromStats(stats) {
+    return Math.max(1, Math.min(8, Math.floor((stats && stats.summonCap) || 1)));
+}
+
 function changeSkill(name) { if (!assertBuildEditable()) return;
     let def = SKILL_DB[name] || {};
     if (def && Array.isArray(def.tags) && def.tags.includes('summon_attack')) {
-        game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
-        game.equippedSummonSkills = Array.from(new Set(game.equippedSummonSkills.filter(gemName => {
-            let gemDef = SKILL_DB[gemName] || {};
-            return !!(gemDef && Array.isArray(gemDef.tags) && gemDef.tags.includes('summon_attack') && Array.isArray(game.skills) && game.skills.includes(gemName));
-        })));
+        normalizeEquippedSummonAttackSkills();
+        let alreadyEquipped = game.equippedSummonSkills.includes(name);
+        if (alreadyEquipped) {
+            game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== name);
+            if (game.activeSkill === name) game.activeSkill = '기본 공격';
+            updateStaticUI();
+            return;
+        }
         let cap = 1;
         try {
             let stats = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
-            cap = Math.max(1, Math.min(8, Math.floor((stats && stats.summonCap) || 1)));
+            cap = getSummonEquipCapFromStats(stats);
         } catch (e) {}
-        if (!game.equippedSummonSkills.includes(name) && game.equippedSummonSkills.length >= cap) {
+        if (getEquippedSummonCount() >= cap) {
             addLog(`소환수 한도(${cap})로 인해 [${name}]은(는) 장착할 수 없습니다.`, 'attack-monster');
             return;
         }
-        if (!game.equippedSummonSkills.includes(name)) game.equippedSummonSkills.push(name);
+        game.equippedSummonSkills.push(name);
+        if (game.activeSkill === name) game.activeSkill = '기본 공격';
+        updateStaticUI();
+        return;
     }
     game.activeSkill = name;
     updateStaticUI();
@@ -1901,9 +1965,19 @@ function setSupportActiveTier(name, tier) { if (!assertBuildEditable()) return;
 }
 function toggleSupport(name) { if (!assertBuildEditable()) return;
     normalizeSupportLoadout(false);
+    game.equippedSupports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
     let idx = game.equippedSupports.indexOf(name);
     if (idx > -1) game.equippedSupports.splice(idx, 1);
-    else if (game.equippedSupports.length < getPlayerStats().suppCap) {
+    else {
+        let stats = getPlayerStats();
+        if (game.equippedSupports.length >= stats.suppCap) {
+            updateStaticUI();
+            return;
+        }
+        if (isSummonGuardSupport(name)) {
+            let cap = getSummonEquipCapFromStats(stats);
+            if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]은(는) 장착할 수 없습니다.`, 'attack-monster');
+        }
         let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
         let remain = Math.max(0, getEffectiveResonanceCap() - used);
         let activeTier = getSupportActiveTier(name);
@@ -2150,6 +2224,9 @@ function updateSettings() {
     game.settings.showCrowdPauseLog = document.getElementById('chk-log-crowd').checked;
     game.settings.showDeathNotice = document.getElementById('chk-death-notice').checked;
     game.settings.showMobileBattlePip = document.getElementById('chk-mobile-battle-pip').checked;
+    let damageFormatSelect = document.getElementById('sel-damage-number-format');
+    let damageFormat = damageFormatSelect ? damageFormatSelect.value : game.settings.damageNumberFormat;
+    game.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(damageFormat) ? damageFormat : 'comma';
     game.settings.itemFilterEnabled = document.getElementById('chk-item-filter-enabled').checked;
     game.settings.itemFilterRarities = game.settings.itemFilterRarities || { normal: true, magic: true, rare: true, unique: true };
     game.settings.itemFilterRarities.normal = document.getElementById('chk-item-filter-normal').checked;
@@ -2350,6 +2427,14 @@ function showGemTooltip(event, type, name) {
             let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === info.statId);
             html += `<div class="tooltip-line">적용 태그: ${translateSkillTag(tag)}</div>`;
         }
+        if (SUPPORT_GEM_DB[name] && Array.isArray(SUPPORT_GEM_DB[name].tags) && SUPPORT_GEM_DB[name].tags.includes('summon')) {
+            const preview = (typeof getSummonTooltipPreview === 'function') ? getSummonTooltipPreview(name, stats) : null;
+            if (preview) {
+                html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}${preview.trait ? ` · 특징: ${preview.trait}` : ''}</div>`;
+                html += `<div class="tooltip-line">소환수 레벨: ${preview.gemLevel}</div>`;
+                if (preview.redirectPct > 0) html += `<div class="tooltip-line">피해 대리: 히트 피해 ${preview.redirectPct}%</div>`;
+            }
+        }
     } else {
         let skill = info.skill || SKILL_DB[name];
         html += `<div class="tooltip-line">${info.desc}</div>`;
@@ -2393,8 +2478,12 @@ function showGemTooltip(event, type, name) {
         if ((info.tags || []).includes('summon')) {
             const preview = (typeof getSummonTooltipPreview === 'function') ? getSummonTooltipPreview(name, stats) : null;
             if (preview) {
-                html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}</div>`;
+                html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}${preview.trait ? ` · 특징: ${preview.trait}` : ''}</div>`;
+                html += `<div class="tooltip-line">소환수 레벨: ${preview.gemLevel}</div>`;
                 html += `<div class="tooltip-line">예상 1타 피해: ${preview.hitDamageMin} ~ ${preview.hitDamageMax}${preview.attackPerSecond > 0 ? ` · 공속 ${preview.attackPerSecond}/s` : ''}</div>`;
+                if (preview.critChancePct > 0) html += `<div class="tooltip-line">치명타: ${preview.critChancePct}% · 치명 피해 ${Math.floor(preview.critDmgPct)}%</div>`;
+                if (preview.resPenBonus > 0) html += `<div class="tooltip-line">소환수 자체 저항 관통 +${preview.resPenBonus}%</div>`;
+                if (preview.physIgnoreBonus > 0) html += `<div class="tooltip-line">소환수 자체 물리 피해 감소 무시 +${preview.physIgnoreBonus}%</div>`;
                 if (preview.redirectPct > 0) html += `<div class="tooltip-line">피해 대리: 히트 피해 ${preview.redirectPct}%</div>`;
             }
         }
@@ -3355,37 +3444,9 @@ function drawGemAttackTrail(ctx, element, sx, sy, tx, ty, t) {
 }
 
 function drawBattleSwingFx(ctx, fx, t, playerPos) {
-    let skillVisual = getBattleSkillVisual(fx.skillName, SKILL_DB[fx.skillName] || SKILL_DB['기본 공격']);
-    let swingElement = normalizeBattleElement(fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
-    let swingTheme = getImpactThemeByElement(swingElement);
-    ctx.save();
-    ctx.globalAlpha = 1 - t * 0.72;
-    let reach = 16 + t * 18;
-    ctx.strokeStyle = fx.color || swingTheme.primary || skillVisual.primary;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(playerPos.x + 3, playerPos.y - 4);
-    ctx.quadraticCurveTo(playerPos.x + 10 + t * 10, playerPos.y - 26, playerPos.x + reach, playerPos.y - 10);
-    ctx.stroke();
-    ctx.strokeStyle = swingTheme.secondary || skillVisual.secondary;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(playerPos.x + 6, playerPos.y - 1);
-    ctx.lineTo(playerPos.x + reach - 2, playerPos.y - 6);
-    ctx.stroke();
-    if (fx.crit) {
-        ctx.globalAlpha = (1 - t) * 0.52;
-        ctx.strokeStyle = '#fff6c8';
-        ctx.lineWidth = 2;
-        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
-            let angle = -0.8 + i * 0.5 + t * 0.25;
-            ctx.beginPath();
-            ctx.moveTo(playerPos.x + 10, playerPos.y - 6);
-            ctx.lineTo(playerPos.x + 10 + Math.cos(angle) * (18 + t * 10), playerPos.y - 6 + Math.sin(angle) * (18 + t * 10));
-            ctx.stroke();
-        }
-    }
-    ctx.restore();
+    // Keep playerSwing events for attack animation timing, but do not draw the
+    // extra slash/arc strokes around the player sprite.
+    return;
 }
 
 function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
@@ -6048,6 +6109,19 @@ function mergeDefaults(save) {
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
     merged.seasonChaseUniqueDropped = !!merged.seasonChaseUniqueDropped;
+    if (Array.isArray(merged.skills) && merged.skills.includes('수액 골렘 소환')) {
+        merged.supports = Array.isArray(merged.supports) ? merged.supports : [];
+        if (!merged.supports.includes('수액 골렘 소환')) merged.supports.push('수액 골렘 소환');
+        merged.supportGemData = (merged.supportGemData && typeof merged.supportGemData === 'object') ? merged.supportGemData : {};
+        if (!merged.supportGemData['수액 골렘 소환']) {
+            merged.supportGemData['수액 골렘 소환'] = normalizeGemRecord((merged.gemData || {})['수액 골렘 소환'] || { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 });
+        }
+        merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports : [];
+        if (!merged.equippedSupports.includes('수액 골렘 소환')) merged.equippedSupports.push('수액 골렘 소환');
+        if (merged.activeSkill === '수액 골렘 소환') {
+            merged.activeSkill = '기본 공격';
+        }
+    }
     merged.skills = dedupeList(Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : []);
     if (!merged.skills.includes('기본 공격')) merged.skills.unshift('기본 공격');
     merged.sealedSkills = dedupeList(Array.isArray(merged.sealedSkills) ? merged.sealedSkills.filter(name => !!SKILL_DB[name] && name !== '기본 공격' && !merged.skills.includes(name)) : []);
@@ -6285,6 +6359,7 @@ function mergeDefaults(save) {
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
+    merged.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(merged.settings.damageNumberFormat) ? merged.settings.damageNumberFormat : 'comma';
     merged.settings.notiFilters = { ...(defaultGame.settings.notiFilters || {}), ...(merged.settings.notiFilters || {}) };
     merged.playerHp = Math.max(0, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 0)));
     merged.playerEnergyShield = Math.max(0, Math.floor(clampFiniteNumber(merged.playerEnergyShield, defaultGame.playerEnergyShield, 0))); 
@@ -6333,6 +6408,9 @@ function mergeDefaults(save) {
     merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
     merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
     merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
+    if (merged.activeSkill && SKILL_DB[merged.activeSkill] && Array.isArray(SKILL_DB[merged.activeSkill].tags) && SKILL_DB[merged.activeSkill].tags.includes('summon_attack')) {
+        merged.activeSkill = '기본 공격';
+    }
     merged.equippedSummonSkills = Array.isArray(merged.equippedSummonSkills)
         ? Array.from(new Set(merged.equippedSummonSkills.filter(name => {
             let def = SKILL_DB[name] || {};
@@ -6853,8 +6931,9 @@ async function enterGameWorld() {
         title: '전장을 불러오는 중...',
         detail: '전투 로그와 캐릭터 상태를 복원하고 있습니다.',
         caption: 'Restoring Battlefield',
-        progress: 88
+        progress: 48
     });
+    await ensureBattleAssetsLoadedBeforeEntry();
     gameplayStarted = true;
     setStartupOverlayActive(false);
     try {
@@ -8000,6 +8079,7 @@ function init() {
     document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
     document.getElementById('chk-mobile-battle-pip').checked = game.settings.showMobileBattlePip !== false;
+    document.getElementById('sel-damage-number-format').value = ['comma', 'korean', 'korean_short', 'english'].includes(game.settings.damageNumberFormat) ? game.settings.damageNumberFormat : 'comma';
     game.settings.itemFilterRarities = { normal: true, magic: true, rare: true, unique: true, ...(game.settings.itemFilterRarities || {}) };
     document.getElementById('chk-item-filter-enabled').checked = !!game.settings.itemFilterEnabled;
     document.getElementById('chk-item-filter-normal').checked = game.settings.itemFilterRarities.normal !== false;

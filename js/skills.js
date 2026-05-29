@@ -408,6 +408,10 @@ function getGemBonusSources() {
 
 function getActiveSkillStats(bonusLevel) {
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
+    if (skill && Array.isArray(skill.tags) && skill.tags.includes('summon_attack')) {
+        game.activeSkill = '기본 공격';
+        skill = SKILL_DB['기본 공격'];
+    }
     if (!skill.isGem && !skill.levelable) return { ...skill, baseLevel: 0, finalLevel: 0, bonusLevel: 0 };
     game.gemData = game.gemData || {};
     let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);

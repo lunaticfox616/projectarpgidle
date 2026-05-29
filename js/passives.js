@@ -2316,6 +2316,7 @@ let battleAssets = {
     failed: false,
     failedKeys: [],
     loadTicket: 0,
+    loadPromise: null,
     images: {},
     backdrops: {},
     atlas: null
@@ -2512,6 +2513,75 @@ function spawnVisualProjectile(config) {
         enemyShot: !!config.enemyShot
     });
 }
+const DAMAGE_NUMBER_FORMATS = ['comma', 'korean', 'korean_short', 'english'];
+
+function normalizeDamageNumberFormat(format) {
+    return DAMAGE_NUMBER_FORMATS.includes(format) ? format : 'comma';
+}
+
+function trimFixedNumber(value, digits) {
+    let factor = Math.pow(10, digits);
+    let truncated = Math.floor(Math.max(0, Number(value) || 0) * factor) / factor;
+    let text = truncated.toFixed(digits);
+    return text.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+}
+
+function formatKoreanFullDamageNumber(value) {
+    let remaining = Math.max(0, Math.floor(Number(value) || 0));
+    if (remaining < 10000) return `${remaining}`;
+    const units = [
+        { value: 1000000000000, label: '조' },
+        { value: 100000000, label: '억' },
+        { value: 10000, label: '만' }
+    ];
+    let text = '';
+    units.forEach(unit => {
+        let part = Math.floor(remaining / unit.value);
+        if (part <= 0) return;
+        text += `${part}${unit.label}`;
+        remaining %= unit.value;
+    });
+    if (remaining > 0) text += `${remaining}`;
+    return text || '0';
+}
+
+function formatKoreanShortDamageNumber(value) {
+    let amount = Math.max(0, Number(value) || 0);
+    const units = [
+        { value: 1000000000000, label: '조' },
+        { value: 100000000, label: '억' },
+        { value: 10000, label: '만' }
+    ];
+    for (const unit of units) {
+        if (amount >= unit.value) return `${trimFixedNumber(amount / unit.value, 1)}${unit.label}`;
+    }
+    return `${Math.floor(amount)}`;
+}
+
+function formatEnglishShortDamageNumber(value) {
+    let amount = Math.max(0, Number(value) || 0);
+    const units = [
+        { value: 1000000000000, label: 'T' },
+        { value: 1000000000, label: 'B' },
+        { value: 1000000, label: 'M' },
+        { value: 1000, label: 'K' }
+    ];
+    for (const unit of units) {
+        if (amount >= unit.value) return `${trimFixedNumber(amount / unit.value, 3)}${unit.label}`;
+    }
+    return `${Math.floor(amount)}`;
+}
+
+function formatDamageNumberForDisplay(value, format) {
+    let amount = Math.max(0, Math.floor(Number(value) || 0));
+    let savedFormat = (typeof game !== 'undefined' && game && game.settings) ? game.settings.damageNumberFormat : 'comma';
+    let mode = normalizeDamageNumberFormat(format || savedFormat);
+    if (mode === 'korean') return formatKoreanFullDamageNumber(amount);
+    if (mode === 'korean_short') return formatKoreanShortDamageNumber(amount);
+    if (mode === 'english') return formatEnglishShortDamageNumber(amount);
+    return amount.toLocaleString();
+}
+
 function spawnDamageText(config) {
     battleVisualState.damageTexts.push({
         start: performance.now(),
@@ -2554,7 +2624,7 @@ function drawDamageTexts(ctx, now) {
         ctx.textAlign = 'center';
         ctx.lineWidth = 3;
         ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-        let textValue = `${Math.max(0, Math.floor(text.value))}`;
+        let textValue = formatDamageNumberForDisplay(text.value);
         ctx.strokeText(textValue, x, y);
         let dotColor = text.dotType === 'fire' ? '#ff9f43' : (text.dotType === 'chaos' ? '#c56cff' : (text.dotType === 'phys' ? '#ff6b6b' : '#b57cff'));
         ctx.fillStyle = text.dot ? dotColor : (text.enemyHit ? '#ff8e8e' : (text.crit ? '#ffd36f' : '#f3f6ff'));
@@ -3276,6 +3346,7 @@ function reloadBattleAssets() {
     battleAssets.images = {};
     battleAssets.backdrops = {};
     battleAssets.atlas = null;
+    battleAssets.loadPromise = null;
     battleVisualState.weaponAtlasResolved = null;
     battleVisualState.effectAtlasResolved = null;
     battleVisualState.gridOccupancyCache = new WeakMap();
@@ -3343,11 +3414,16 @@ function fileExists(path) {
     }
 }
 function initBattleAssets() {
-    if (battleAssets.loading || battleAssets.ready || battleAssets.failed) return;
+    if (battleAssets.ready) return Promise.resolve(true);
+    if (battleAssets.loading && battleAssets.loadPromise) return battleAssets.loadPromise;
+    if (battleAssets.failed) return Promise.resolve(false);
     battleAssets.loading = true;
     battleAssets.failedKeys = [];
     battleAssets.loadTicket = (battleAssets.loadTicket || 0) + 1;
+    battleAssets.loadPromise = null;
     const loadTicket = battleAssets.loadTicket;
+    let resolveLoadPromise;
+    battleAssets.loadPromise = new Promise(resolve => { resolveLoadPromise = resolve; });
     const customHeroSrc = getCustomHeroSheetDataUrl();
     const defaultHeroSrc = customHeroSrc || null;
     const manifest = {
@@ -3409,19 +3485,9 @@ function initBattleAssets() {
         summon1: 'assets/summon/summon1.png',
     };
     const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['effectsV2', 'weapons', 'tiles']));
-    Object.entries(manifest).forEach(([key, src]) => {
-        if (typeof src === 'string' && !src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('https')) {
-            if (!fileExists(src)) optionalManifestKeys.add(key);
-        }
-    });
-    const manifestEntries = Object.entries(manifest).filter(([key, src]) => {
-        if (typeof src !== 'string') return true;
-        if (src.startsWith('data:') || src.startsWith('http') || src.startsWith('https')) return true;
-        if (fileExists(src)) return true;
-        // 로컬 배포본에서 빠진 선택 리소스는 로딩 시도 자체를 건너뛰어 404 콘솔 스팸을 막는다.
-        optionalManifestKeys.add(key);
-        return false;
-    });
+    // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
+    // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
+    const manifestEntries = Object.entries(manifest);
     let pending = manifestEntries.length;
     const totalAssets = pending;
     let settled = false;
@@ -3445,10 +3511,12 @@ function initBattleAssets() {
         settled = true;
         if (battleAssets.failedKeys.length === 0) {
             finalizeBattleAssets();
+            if (resolveLoadPromise) resolveLoadPromise(!!battleAssets.ready);
             return;
         }
         console.warn('battle asset load completed with missing files:', battleAssets.failedKeys.join(', '));
         finalizeBattleAssets();
+        if (resolveLoadPromise) resolveLoadPromise(!!battleAssets.ready);
     }
 
     setTimeout(() => {
@@ -3457,7 +3525,7 @@ function initBattleAssets() {
         if (!battleAssets.failedKeys.includes('timeout')) battleAssets.failedKeys.push('timeout');
         pending = 0;
         finishLoad();
-    }, 8000);
+    }, 30000);
 
     function queueBattleSheetSanitization(key, image) {
         if (!ENABLE_BATTLE_SHEET_SANITIZATION) return;
@@ -3501,9 +3569,9 @@ function initBattleAssets() {
             if (!optionalManifestKeys.has(key)) {
                 battleAssets.failed = true;
                 battleAssets.failedKeys.push(key);
+                console.warn('battle asset load failed:', key, src);
             }
             pending--;
-            console.warn('battle asset load failed:', key, src);
             updateBattleAssetLoadProgress(key);
             finishLoad();
             loadManifestEntryAt(index + 1);
@@ -3512,6 +3580,7 @@ function initBattleAssets() {
     }
     updateBattleAssetLoadProgress();
     loadManifestEntryAt(0);
+    return battleAssets.loadPromise;
 }
 
 function sanitizeBattleSheet(image) {
