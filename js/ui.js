@@ -4690,6 +4690,116 @@ function showCurrencyCardTooltip(event, key, reason) {
 window.showCurrencyCardTooltip = showCurrencyCardTooltip;
 window.showOrbTooltip = showCurrencyCardTooltip;
 
+
+const MOBILE_CRAFT_CURRENCY_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'enchantedHoney', 'venomStinger', 'voidChisel'];
+const MOBILE_CRAFT_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish'];
+
+function getMobileCraftCurrencyOptions() {
+    return MOBILE_CRAFT_CURRENCY_KEYS.filter(key => {
+        if (!ORB_DB[key]) return false;
+        if ((game.currencies[key] || 0) <= 0) return false;
+        if (key === 'tainted' && (game.season || 1) < 5) return false;
+        return true;
+    });
+}
+
+function getMobileCraftCurrencyUseState(key, item) {
+    if (!key || !ORB_DB[key]) return { enabled: false, reason: '재화를 선택하세요.' };
+    if ((game.currencies[key] || 0) <= 0) return { enabled: false, reason: '보유량 없음' };
+    if (!item) return { enabled: false, reason: '아이템을 선택하세요.' };
+    if (key === 'enchantedHoney') {
+        let v = getCraftActionValidators(item);
+        return { enabled: !!v.honey, reason: v.honey ? '사용 가능' : '현재 아이템 조건 불일치' };
+    }
+    if (key === 'venomStinger') {
+        let v = getCraftActionValidators(item);
+        return { enabled: !!v.stinger, reason: v.stinger ? '사용 가능' : '현재 아이템 조건 불일치' };
+    }
+    if (key === 'voidChisel') {
+        let enabled = (item.slot === '반지' || item.slot === '목걸이') && !(item.voidSocket && item.voidSocket.open);
+        return { enabled: enabled, reason: enabled ? '사용 가능' : '반지/목걸이의 빈 공허 소켓에만 사용 가능' };
+    }
+    if (MOBILE_CRAFT_ORB_KEYS.includes(key)) {
+        if (item.corrupted && key !== 'tainted') return { enabled: false, reason: '타락한 아이템에는 사용 불가' };
+        if (key === 'blessing') return { enabled: Array.isArray(item.baseStats) && item.baseStats.length > 0, reason: Array.isArray(item.baseStats) && item.baseStats.length > 0 ? '사용 가능' : '베이스 옵션 없음' };
+        if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(key)) {
+            let slot = String(item.slot || '');
+            let isWeapon = slot === '무기';
+            let isArmor = ['투구', '갑옷', '장갑', '신발', '허리띠'].includes(slot);
+            let isAccessory = ['목걸이', '반지'].includes(slot);
+            let slotOk = (key === 'deepWhetstone' && isWeapon) || (key === 'rootIron' && isArmor) || (key === 'jewelPolish' && isAccessory);
+            let qualityOk = Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
+            return { enabled: slotOk && qualityOk, reason: slotOk && qualityOk ? '사용 가능' : '현재 아이템 조건 불일치' };
+        }
+        return getCraftOrbUseState(key, item);
+    }
+    return { enabled: false, reason: '지원하지 않는 재화' };
+}
+
+function selectMobileCraftCurrency(key) {
+    if (!getMobileCraftCurrencyOptions().includes(key)) return;
+    game.mobileCraftCurrencyKey = key;
+    updateStaticUI();
+}
+window.selectMobileCraftCurrency = selectMobileCraftCurrency;
+
+function useSelectedMobileCraftCurrency() {
+    let key = game.mobileCraftCurrencyKey;
+    if (!key) return addLog('사용할 재화를 먼저 선택하세요.', 'attack-monster');
+    if (key === 'enchantedHoney') return applyEnchantedHoneyToSelectedItem();
+    if (key === 'venomStinger') return applyVenomStingerToSelectedItem();
+    if (key === 'voidChisel') return applyVoidChiselToSelectedItem();
+    return useCurrency(key);
+}
+window.useSelectedMobileCraftCurrency = useSelectedMobileCraftCurrency;
+
+function openMobileCraftCurrencyOverlay() {
+    let options = getMobileCraftCurrencyOptions();
+    let old = document.getElementById('mobile-craft-currency-overlay');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    let overlay = document.createElement('div');
+    overlay.id = 'mobile-craft-currency-overlay';
+    overlay.className = 'mobile-craft-currency-overlay';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    let current = game.mobileCraftCurrencyKey || '';
+    let listHtml = options.length ? options.map(key => {
+        let selected = key === current ? ' selected' : '';
+        return `<button type="button" class="mobile-craft-currency-option${selected}" onclick="selectMobileCraftCurrency('${key}'); var overlayEl = document.getElementById('mobile-craft-currency-overlay'); if (overlayEl) overlayEl.remove();"><div style="font-weight:800;">${getStyledOrbName(key)}${selected ? ' ✓' : ''}</div><div style="font-size:0.82em; color:#9fb4d1; margin-top:3px;">보유 x ${game.currencies[key] || 0}</div></button>`;
+    }).join('') : '<div style="grid-column:1/-1; color:#8fa7be; padding:12px; text-align:center;">보유 중인 사용 가능 재화가 없습니다.</div>';
+    overlay.innerHTML = `<div class="mobile-craft-currency-panel"><div class="mobile-craft-currency-head" style="margin-bottom:10px;"><div><div style="color:#e6f1ff; font-size:1.02em; font-weight:900;">사용할 재화 선택</div><div style="color:#8fa7be; font-size:0.78em; margin-top:2px;">보유하고 해금된 재화만 표시됩니다.</div></div><button type="button" onclick="var overlayEl = document.getElementById('mobile-craft-currency-overlay'); if (overlayEl) overlayEl.remove();">닫기</button></div><div class="mobile-craft-currency-list">${listHtml}</div></div>`;
+    document.body.appendChild(overlay);
+}
+window.openMobileCraftCurrencyOverlay = openMobileCraftCurrencyOverlay;
+
+function renderMobileCraftCurrencyPicker(item) {
+    let host = document.getElementById('ui-mobile-craft-currency-picker');
+    if (!host) return;
+    let options = getMobileCraftCurrencyOptions();
+    if (!options.includes(game.mobileCraftCurrencyKey)) game.mobileCraftCurrencyKey = options[0] || '';
+    let key = game.mobileCraftCurrencyKey;
+    if (!key) {
+        host.innerHTML = `<div class="mobile-craft-currency-card"><div class="mobile-craft-currency-head"><div class="mobile-craft-currency-title">빠른 제작</div><button type="button" onclick="openMobileCraftCurrencyOverlay()">사용할 재화 선택</button></div><div class="mobile-craft-currency-meta">보유하고 해금된 제작 재화가 없습니다.</div></div>`;
+        return;
+    }
+    let state = getMobileCraftCurrencyUseState(key, item);
+    host.innerHTML = `<div class="mobile-craft-currency-card"><div class="mobile-craft-currency-head"><div class="mobile-craft-currency-title">빠른 제작</div><button type="button" onclick="openMobileCraftCurrencyOverlay()">변경</button></div><div class="mobile-craft-currency-row" style="margin-top:7px;"><div class="mobile-craft-currency-selected">${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div><div class="mobile-craft-currency-meta">${state.reason || '사용 가능'}</div><div class="mobile-craft-currency-actions"><button type="button" onclick="openMobileCraftCurrencyOverlay()">사용할 재화 선택</button><button type="button" onclick="useSelectedMobileCraftCurrency()" ${state.enabled ? '' : 'disabled'}>사용</button></div></div>`;
+}
+
+function buildSporeSummaryHtml() {
+    return `<div style="border:1px solid #3d4f71; border-radius:10px; padding:8px; margin-bottom:8px; background:linear-gradient(160deg, rgba(39,51,86,0.25), rgba(16,22,38,0.5));">
+            <div style="font-weight:700; color:#d7e6ff; margin-bottom:6px; font-size:0.92em;">🌱 홀씨 보유량</div>
+            <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px;">
+                <div style="padding:5px; border:1px solid #6b3a3a; border-radius:8px; color:#ff9f9f; font-size:0.86em;">화염 홀씨<br><strong>x ${game.currencies.sporeFire || 0}</strong></div>
+                <div style="padding:5px; border:1px solid #3a5a7a; border-radius:8px; color:#9fd6ff; font-size:0.86em;">냉기 홀씨<br><strong>x ${game.currencies.sporeCold || 0}</strong></div>
+                <div style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; color:#ffe08a; font-size:0.86em;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+                <button onclick="applyCorruptSporeToSelectedItem()" ${typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 7 ? '' : 'disabled'}>부패 홀씨 (각 8)</button>
+                <button onclick="applyRiftSporeToSelectedItem()" ${typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 9 ? '' : 'disabled'}>균열 홀씨 (화석1+각5)</button>
+            </div>
+        </div>`;
+}
+
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
     let defs = [
@@ -4702,6 +4812,7 @@ function buildCraftActionButtons(item) {
 
     let selectedItem = getSelectedCraftItem();
     renderCraftSelectedSummary(selectedItem);
+    renderMobileCraftCurrencyPicker(selectedItem);
     let forgeHtml = '아이템을 클릭하여 선택';
     if (selectedItem) {
         let lines = [];
@@ -4793,21 +4904,11 @@ function buildCraftActionButtons(item) {
         let premiumGray = (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish') ? 'style="background:linear-gradient(180deg,#656d78,#4f5660); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 6px rgba(220,225,235,.2);"' : '';
         return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name" ${premiumGray}>${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
     }).join('');
-    let sporeHost = document.getElementById('ui-spore-summary');
-    if (sporeHost) {
-        sporeHost.innerHTML = `<div style="border:1px solid #3d4f71; border-radius:10px; padding:8px; margin-bottom:8px; background:linear-gradient(160deg, rgba(39,51,86,0.25), rgba(16,22,38,0.5));">
-            <div style="font-weight:700; color:#d7e6ff; margin-bottom:6px; font-size:0.92em;">🌱 홀씨 보유량</div>
-            <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px;">
-                <div style="padding:5px; border:1px solid #6b3a3a; border-radius:8px; color:#ff9f9f; font-size:0.86em;">화염 홀씨<br><strong>x ${game.currencies.sporeFire || 0}</strong></div>
-                <div style="padding:5px; border:1px solid #3a5a7a; border-radius:8px; color:#9fd6ff; font-size:0.86em;">냉기 홀씨<br><strong>x ${game.currencies.sporeCold || 0}</strong></div>
-                <div style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; color:#ffe08a; font-size:0.86em;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
-            </div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
-                <button onclick="applyCorruptSporeToSelectedItem()" ${typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 7 ? '' : 'disabled'}>부패 홀씨 (각 8)</button>
-                <button onclick="applyRiftSporeToSelectedItem()" ${typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 9 ? '' : 'disabled'}>균열 홀씨 (화석1+각5)</button>
-            </div>
-        </div>`;
-    }
+    let sporeHtml = buildSporeSummaryHtml();
+    ['ui-spore-summary', 'ui-spore-summary-mobile'].forEach(id => {
+        let sporeHost = document.getElementById(id);
+        if (sporeHost) sporeHost.innerHTML = sporeHtml;
+    });
 
     renderChaosInfuserPanel(selectedItem);
     renderCraftOrbActions(selectedItem);

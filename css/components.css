@@ -383,3 +383,118 @@
 .item-card.item-source-tone--realm-underworld,.slot-box.item-source-tone--realm-underworld{border-color:#b0782d;background:linear-gradient(160deg,rgba(55,36,17,.32),rgba(30,20,10,.32));box-shadow:0 0 0 1px rgba(232,177,93,.32),inset 0 0 14px rgba(255,204,120,.12),0 0 18px rgba(168,118,47,.16)}
 .item-card.item-source-tone--realm-cosmos,.slot-box.item-source-tone--realm-cosmos{border-color:#3e8ec9;background:linear-gradient(160deg,rgba(16,38,69,.34),rgba(8,22,44,.34));box-shadow:0 0 0 1px rgba(89,182,255,.34),inset 0 0 14px rgba(112,201,255,.12),0 0 18px rgba(62,142,201,.18)}
 .item-card.item-source-tone--realm-chaos::after,.item-card.item-source-tone--realm-underworld::after,.item-card.item-source-tone--realm-cosmos::after,.slot-box.item-source-tone--realm-chaos::after,.slot-box.item-source-tone--realm-underworld::after,.slot-box.item-source-tone--realm-cosmos::after{content:'';position:absolute;inset:1px;border-radius:inherit;pointer-events:none;background:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,0) 42%)}
+
+.mobile-craft-currency-picker,
+.craft-selected-summary-mobile {
+  display: none;
+}
+
+.mobile-craft-currency-card {
+  border: 1px solid #3d5f83;
+  border-radius: 12px;
+  padding: 9px;
+  margin: 8px 0;
+  background: linear-gradient(160deg, rgba(34, 54, 82, 0.92), rgba(13, 22, 36, 0.96));
+  box-shadow: inset 0 1px 0 rgba(201, 226, 255, 0.05), 0 8px 18px rgba(0,0,0,0.22);
+}
+
+.mobile-craft-currency-head,
+.mobile-craft-currency-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mobile-craft-currency-title {
+  color: #d8e8ff;
+  font-size: 0.82em;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.mobile-craft-currency-selected {
+  color: #ffd783;
+  font-weight: 800;
+  min-width: 0;
+}
+
+.mobile-craft-currency-meta {
+  color: #91a9c2;
+  font-size: 0.78em;
+  margin-top: 4px;
+}
+
+.mobile-craft-currency-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mobile-craft-currency-actions button,
+.mobile-craft-currency-head button {
+  min-height: 30px;
+  padding: 4px 9px;
+  font-size: 0.82em;
+}
+
+.mobile-craft-currency-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 14px;
+  background: rgba(3, 7, 13, 0.72);
+  box-sizing: border-box;
+}
+
+.mobile-craft-currency-panel {
+  width: min(560px, 100%);
+  max-height: min(72dvh, 620px);
+  overflow-y: auto;
+  border: 1px solid #426287;
+  border-radius: 18px 18px 12px 12px;
+  background: linear-gradient(180deg, #182538 0%, #0f1724 100%);
+  box-shadow: 0 -12px 34px rgba(0,0,0,0.48), inset 0 1px 0 rgba(220,238,255,0.06);
+  padding: 12px;
+}
+
+.mobile-craft-currency-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mobile-craft-currency-option {
+  min-height: 54px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid #304964;
+  background: linear-gradient(180deg, #1b2a3d 0%, #132033 100%);
+  color: #dcecff;
+  text-align: left;
+}
+
+.mobile-craft-currency-option.selected {
+  border-color: #d9b85d;
+  color: #ffe6a3;
+  box-shadow: 0 0 0 1px rgba(217,184,93,0.22), 0 0 16px rgba(217,184,93,0.12);
+}
+
+@media (max-width: 1080px) {
+  #item-tab-craft .mobile-craft-currency-picker,
+  #item-tab-craft .craft-selected-summary-mobile {
+    display: block;
+  }
+
+  #item-tab-craft #ui-spore-summary {
+    display: none;
+  }
+
+  #item-tab-craft #ui-currency-grid {
+    min-height: 0;
+  }
+}
