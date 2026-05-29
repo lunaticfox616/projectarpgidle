@@ -26,7 +26,7 @@ function startBattleAssetLoadNow() {
         clearTimeout(battleAssetDeferredInitHandle);
         battleAssetDeferredInitHandle = null;
     }
-    initBattleAssets();
+    return initBattleAssets();
 }
 
 function scheduleDeferredBattleAssetLoad() {
@@ -36,6 +36,37 @@ function scheduleDeferredBattleAssetLoad() {
         battleAssetDeferredInitHandle = null;
         startBattleAssetLoadNow();
     }, 1800);
+}
+
+
+async function ensureBattleAssetsLoadedBeforeEntry() {
+    if (battleAssets.ready) return true;
+    advanceLoadingOverlay({
+        title: '전장 에셋을 불러오는 중...',
+        detail: '첫 전투에 필요한 이미지 에셋을 모두 확인하고 있습니다.',
+        caption: 'Loading Battle Assets',
+        progress: 56
+    });
+    let result = false;
+    try {
+        result = await startBattleAssetLoadNow();
+    } catch (error) {
+        console.warn('battle asset preload failed:', error);
+    }
+    if (battleAssets.failed && !battleAssets.ready) {
+        advanceLoadingOverlay({
+            detail: '일부 에셋 확인에 실패했습니다. 기본 렌더링으로 계속 준비합니다.',
+            caption: 'Asset Fallback',
+            progress: 92
+        });
+    } else {
+        advanceLoadingOverlay({
+            detail: '전장 에셋 로딩이 완료되었습니다.',
+            caption: 'Assets Ready',
+            progress: 92
+        });
+    }
+    return result;
 }
 
 function ensureMobileBattlePip() {
@@ -6924,8 +6955,9 @@ async function enterGameWorld() {
         title: '전장을 불러오는 중...',
         detail: '전투 로그와 캐릭터 상태를 복원하고 있습니다.',
         caption: 'Restoring Battlefield',
-        progress: 88
+        progress: 48
     });
+    await ensureBattleAssetsLoadedBeforeEntry();
     gameplayStarted = true;
     setStartupOverlayActive(false);
     try {
