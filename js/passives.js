@@ -1623,7 +1623,11 @@ function recalculateStarWedgeMutations() {
 
 function tryUnlockMeteorContentByProgress() {
     let st = ensureStarWedgeState();
-    if (st.unlocked || !getStarWedgeUnlockReady()) return false;
+    if (st.unlocked) {
+        if (getStarWedgeSocketNodeIds().length === 0) assignStarWedgeSockets();
+        return false;
+    }
+    if (!getStarWedgeUnlockReady()) return false;
     st.unlocked = true;
     assignStarWedgeSockets();
     recalculateStarWedgeMutations();

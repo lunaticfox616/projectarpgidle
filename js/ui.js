@@ -573,7 +573,8 @@ function renderLoop15ColonyPanel() {
     if (!open) return;
     let c = game.colony || (game.colony = { inRun:false, wave:0, kills:0, requiredKills:0, rewardPending:false });
     let status = c.inRun ? `진행중 · 웨이브 ${Math.max(1,Math.floor(c.wave||1))} · 처치 ${Math.max(0,Math.floor(c.kills||0))}/${Math.max(1,Math.floor(c.requiredKills||1))}` : '대기중';
-    let slotMax = Math.max(1, Math.min(4, Math.floor(c.wardSlots||1)));
+    c.wardSlots = 4;
+    let slotMax = c.wardSlots;
     c.wardInventory = Array.isArray(c.wardInventory) ? c.wardInventory : [];
     c.wardEquipped = Array.isArray(c.wardEquipped) ? c.wardEquipped : [null,null,null,null];
     let equippedLine = c.wardEquipped.slice(0, slotMax).map((w, i) => w ? `<button onclick="unequipColonyWard(${i})">${w.name}</button>` : `<span style="color:#7fa08a;">빈 슬롯 ${i+1}</span>`).join(' · ');
@@ -624,16 +625,13 @@ function generateColonyWard(){
 function equipColonyWardById(id){
     let c=game.colony||(game.colony={}); c.wardInventory=Array.isArray(c.wardInventory)?c.wardInventory:[]; c.wardEquipped=Array.isArray(c.wardEquipped)?c.wardEquipped:[null,null,null,null];
     let idx=c.wardInventory.findIndex(w=>w&&w.id===id); if(idx<0) return;
-    let slotMax=Math.max(1,Math.min(4,Math.floor(c.wardSlots||1))); let slot=-1; for(let i=0;i<slotMax;i++){ if(!c.wardEquipped[i]){ slot=i; break; } }
+    c.wardSlots=4; let slotMax=c.wardSlots; let slot=-1; for(let i=0;i<slotMax;i++){ if(!c.wardEquipped[i]){ slot=i; break; } }
     if(slot<0) return addLog('장착 가능한 액막이 부적 슬롯이 없습니다.', 'attack-monster');
     c.wardEquipped[slot]=c.wardInventory[idx]; c.wardInventory.splice(idx,1); updateStaticUI();
 }
 function unequipColonyWard(slot){ let c=game.colony||{}; c.wardInventory=Array.isArray(c.wardInventory)?c.wardInventory:[]; c.wardEquipped=Array.isArray(c.wardEquipped)?c.wardEquipped:[null,null,null,null]; if(!c.wardEquipped[slot]) return; c.wardInventory.push(c.wardEquipped[slot]); c.wardEquipped[slot]=null; updateStaticUI(); }
 function unlockColonyWardSlot(){
-    let c=game.colony||(game.colony={}); c.wardSlots=Math.max(1,Math.min(4,Math.floor(c.wardSlots||1))); if(c.wardSlots>=4) return;
-    let costs=[{colonyShard:20,strongSealShard:2},{colonyShard:45,strongSealShard:6},{colonyShard:75,strongSealShard:12,radiantSealShard:2}]; let cost=costs[c.wardSlots-1];
-    for (let k of Object.keys(cost)) if ((game.currencies[k]||0)<cost[k]) return addLog('편린 재화가 부족합니다.', 'attack-monster');
-    for (let k of Object.keys(cost)) game.currencies[k]-=cost[k]; c.wardSlots++; addLog(`🛡️ 액막이 부적 슬롯 ${c.wardSlots}개 해금!`, 'level-up'); updateStaticUI();
+    let c=game.colony||(game.colony={}); c.wardSlots=4; addLog('🛡️ 액막이 부적 슬롯 4개가 해금되어 있습니다.', 'level-up'); updateStaticUI();
 }
 
 function startColonyRun(){
@@ -1890,11 +1888,13 @@ function changeSkill(name) { if (!assertBuildEditable()) return;
         }
         game.summonLoadoutInitialized = true;
         game.equippedSummonSkills.push(name);
+        if (SKILL_DB[name] && SKILL_DB[name].isGem) game.gemEnhanceTargetSkill = name;
         if (game.activeSkill === name) game.activeSkill = '기본 공격';
         updateStaticUI();
         return;
     }
     game.activeSkill = name;
+    if (SKILL_DB[name] && SKILL_DB[name].isGem) game.gemEnhanceTargetSkill = name;
     updateStaticUI();
 }
 function getSupportResonanceCost(name) {
@@ -5331,7 +5331,15 @@ function buildCraftActionButtons(item) {
         }
         if (!gemEnhanceOpen && game.skillSubtab === 'skill-tab-enhance') game.skillSubtab = 'skill-tab-equip';
         if (gemEnhanceOpen) {
-            let active = game.activeSkill;
+            let active = (typeof getGemEnhanceTargetSkill === 'function') ? getGemEnhanceTargetSkill() : game.activeSkill;
+            let ownedEnhanceTargets = (Array.isArray(game.skills) ? game.skills : []).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
+            if ((!active || !SKILL_DB[active] || !SKILL_DB[active].isGem) && ownedEnhanceTargets.length > 0) active = ownedEnhanceTargets[0];
+            let targetButtons = ownedEnhanceTargets.map(name => {
+                let def = SKILL_DB[name] || {};
+                let summonMark = (Array.isArray(def.tags) && def.tags.includes('summon_attack')) ? ' 🐾' : '';
+                let selected = name === active;
+                return `<button style="min-height:24px; padding:3px 8px; font-size:0.76em; ${selected ? 'background:#2f6a42; border-color:#3f9b5c;' : ''}" onclick="selectGemEnhanceTargetSkill('${name}')">${selected ? '✅ ' : ''}${name}${summonMark}</button>`;
+            }).join(' ');
             let isGem = !!(SKILL_DB[active] && SKILL_DB[active].isGem);
             let activeEnh = getSkyEnhancementForSkill(active);
             let activeGem = isGem ? normalizeGemRecord((game.gemData || {})[active]) : null;
@@ -5345,9 +5353,9 @@ function buildCraftActionButtons(item) {
             let coreDone = !!(activeGem && activeGem.bossCoreLevel >= 5 && activeGem.skyCoreLevel >= 5);
             let slotDone = !!(activeGem && engraveCap >= 5);
             let engraveFilled = !!(activeGem && activeEnh.length >= engraveCap);
-            document.getElementById('ui-gem-enhance-target').innerHTML = isGem
+            document.getElementById('ui-gem-enhance-target').innerHTML = `<div style="margin-bottom:6px; display:flex; gap:4px; flex-wrap:wrap;">${targetButtons || '<span style="color:#7f8c8d;">보유 공격 젬 없음</span>'}</div>` + (isGem
                 ? `대상 젬: <strong>${active}</strong> (보유 창공의 힘: ${game.currencies.skyEssence || 0})<br><span style="color:#8aa4bf;">핵 강화: 군주의핵 ${activeGem.bossCoreLevel || 0}/5 · 창공의힘 ${activeGem.skyCoreLevel || 0}/5 · 퀄리티 ${activeGem.quality || 0}%${activeGem.awakened ? ' · 각성 젬' : ''} · 각인 슬롯 ${engraveCap}/5</span><div style="margin-top:4px; color:#b9d7ff; font-size:0.84em;">각성 각인은 각성 젬 전용이 아니며, 모든 공격 젬에 젬당 1개까지 부여할 수 있습니다.</div><div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '각인 슬롯 완료' : '각인 슬롯 확장 가능'}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '각인 장착 완료' : `각인 여유 ${Math.max(0, engraveCap - activeEnh.length)}칸`}</span></div><span style="color:#8aa4bf;">적용 옵션: ${activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '없음'}</span>`
-                : '공격 젬을 선택하면 창공의 힘으로 특수 옵션을 부여할 수 있습니다.';
+                : '공격 젬을 선택하면 창공의 힘으로 특수 옵션을 부여할 수 있습니다.');
             let upgradeBtns = [];
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.bossCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('bossCore', 1)" ${!isGem || (activeGem && activeGem.bossCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.bossCoreLevel >= 5 ? '✅ 군주의 핵 강화 완료' : '군주의 핵 강화'}</strong><br><small>보유: ${game.currencies.bossCore || 0} / 필요: ${bossNeed}${activeGem && activeGem.bossCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.skyCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem || (activeGem && activeGem.skyCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.skyCoreLevel >= 5 ? '✅ 창공의 힘 강화 완료' : '창공의 힘 강화'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${skyNeed}${activeGem && activeGem.skyCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
@@ -6378,6 +6386,7 @@ function mergeDefaults(save) {
     merged.talismanUnseal = (merged.talismanUnseal && merged.talismanUnseal.current) ? merged.talismanUnseal : null;
     if (merged.talismanUnlocked) merged.unlocks.talisman = true;
     merged.gemEnhanceUnlocked = !!merged.gemEnhanceUnlocked;
+    merged.gemEnhanceTargetSkill = (typeof merged.gemEnhanceTargetSkill === 'string' && SKILL_DB[merged.gemEnhanceTargetSkill] && SKILL_DB[merged.gemEnhanceTargetSkill].isGem && Array.isArray(merged.skills) && merged.skills.includes(merged.gemEnhanceTargetSkill)) ? merged.gemEnhanceTargetSkill : null;
     merged.uniqueCodex = (merged.uniqueCodex && typeof merged.uniqueCodex === 'object') ? merged.uniqueCodex : {};
     merged.codexCollapsedSlots = (merged.codexCollapsedSlots && typeof merged.codexCollapsedSlots === 'object') ? merged.codexCollapsedSlots : {};
     merged.codexSubtab = (merged.codexSubtab === 'realm') ? 'realm' : 'main';
@@ -6385,6 +6394,11 @@ function mergeDefaults(save) {
     if (!merged.gemEnhanceUnlocked && (((merged.currencies || {}).bossCore || 0) > 0 || ((merged.currencies || {}).skyEssence || 0) > 0)) merged.gemEnhanceUnlocked = true;
     merged.inTicketBossFight = !!merged.inTicketBossFight;
     merged.beehive = (merged.beehive && typeof merged.beehive === 'object') ? merged.beehive : { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 };
+    merged.colony = (merged.colony && typeof merged.colony === 'object') ? { ...defaultGame.colony, ...merged.colony } : { ...defaultGame.colony };
+    merged.colony.wardInventory = Array.isArray(merged.colony.wardInventory) ? merged.colony.wardInventory : [];
+    merged.colony.wardEquipped = Array.isArray(merged.colony.wardEquipped) ? merged.colony.wardEquipped.slice(0, 4) : [null,null,null,null];
+    while (merged.colony.wardEquipped.length < 4) merged.colony.wardEquipped.push(null);
+    merged.colony.wardSlots = 4;
     let beeHasReturnZone = merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null;
     let beeHasStartedRoute = Math.max(0, Math.floor(merged.beehive.branchStep || 0)) > 0;
     let activeBeehiveRuntime = !!(merged.beehive.inRun && merged.currentZoneId === 'beehive_run' && (
@@ -6539,6 +6553,7 @@ function mergeDefaults(save) {
     merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
     merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
     if (merged.activeSkill && SKILL_DB[merged.activeSkill] && Array.isArray(SKILL_DB[merged.activeSkill].tags) && SKILL_DB[merged.activeSkill].tags.includes('summon_attack')) {
+        if (!merged.gemEnhanceTargetSkill) merged.gemEnhanceTargetSkill = merged.activeSkill;
         merged.activeSkill = '기본 공격';
     }
     merged.equippedSummonSkills = Array.isArray(merged.equippedSummonSkills)
@@ -6555,6 +6570,12 @@ function mergeDefaults(save) {
         merged.equippedSummonSkills = ownedSummonAttackSkills.slice(0, estimateSummonEquipCapForMergedSave(merged));
     }
     merged.summonLoadoutInitialized = true;
+    if (!merged.gemEnhanceTargetSkill) {
+        let ownedEnhanceTargets = (Array.isArray(merged.skills) ? merged.skills : []).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
+        if (ownedEnhanceTargets.includes(merged.activeSkill)) merged.gemEnhanceTargetSkill = merged.activeSkill;
+        else if (merged.equippedSummonSkills.length > 0) merged.gemEnhanceTargetSkill = merged.equippedSummonSkills[0];
+        else merged.gemEnhanceTargetSkill = ownedEnhanceTargets[0] || null;
+    }
     if (typeof merged.currentZoneId === 'string' && /^\d+$/.test(merged.currentZoneId)) merged.currentZoneId = parseInt(merged.currentZoneId, 10);
     if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
     if (typeof merged.maxZoneId !== 'string') {
