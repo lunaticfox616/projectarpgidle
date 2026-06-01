@@ -6291,6 +6291,8 @@ function mergeDefaults(save) {
         return Math.max(1, Math.min(8, Math.floor(1 + bonus)));
     }
 
+    let savedColony = (save && save.colony && typeof save.colony === 'object') ? save.colony : null;
+    let savedColonyHadWardSlotVersion = !!(savedColony && Object.prototype.hasOwnProperty.call(savedColony, 'wardSlotVersion'));
     let merged = {
         ...defaultGame,
         ...save,
@@ -6513,7 +6515,7 @@ function mergeDefaults(save) {
     merged.colony.wardEquipped = Array.isArray(merged.colony.wardEquipped) ? merged.colony.wardEquipped.slice(0, 4) : [null,null,null,null];
     while (merged.colony.wardEquipped.length < 4) merged.colony.wardEquipped.push(null);
     let highestWardSlot = merged.colony.wardEquipped.reduce((max, ward, idx) => ward ? Math.max(max, idx + 1) : max, 1);
-    if (!merged.colony.wardSlotVersion) merged.colony.wardSlots = highestWardSlot;
+    if (!savedColonyHadWardSlotVersion) merged.colony.wardSlots = highestWardSlot;
     else merged.colony.wardSlots = Math.max(1, Math.min(4, Math.floor(merged.colony.wardSlots || 1)));
     merged.colony.wardSlots = Math.max(merged.colony.wardSlots, highestWardSlot);
     merged.colony.wardSlotVersion = 1;
