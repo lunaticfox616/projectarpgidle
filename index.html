@@ -731,14 +731,23 @@
 
     <div id="tab-talisman" class="tab-content">
         <h2>🧿 부적 공방</h2>
-        <div id="ui-talisman-currency" style="margin-bottom:10px; color:#b9d7ff;"></div>
-        <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
-        <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
-        <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
-        <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (해금 <span id="ui-talisman-board-size">16</span>/<span id="ui-talisman-board-size2">44</span>칸)</h3>
-        <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
-            <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(8, 42px); gap:4px;"></div>
-            <div id="ui-talisman-total" style="min-width:240px; color:#d7e6ff; background:#101722; border:1px solid #35506b; border-radius:8px; padding:10px;"></div>
+        <div class="subtab-row" style="margin-bottom:10px;">
+            <button class="subtab-btn active" id="btn-talisman-sub-board" onclick="switchTalismanSubtab('talisman-sub-board')">부적 보드</button>
+            <button class="subtab-btn" id="btn-talisman-sub-colony-ward" onclick="switchTalismanSubtab('talisman-sub-colony-ward')">🛡️ 군락지 액막이</button>
+        </div>
+        <div id="talisman-sub-board" class="subtab-content active">
+            <div id="ui-talisman-currency" style="margin-bottom:10px; color:#b9d7ff;"></div>
+            <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
+            <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
+            <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
+            <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (해금 <span id="ui-talisman-board-size">16</span>/<span id="ui-talisman-board-size2">44</span>칸)</h3>
+            <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+                <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(8, 42px); gap:4px;"></div>
+                <div id="ui-talisman-total" style="min-width:240px; color:#d7e6ff; background:#101722; border:1px solid #35506b; border-radius:8px; padding:10px;"></div>
+            </div>
+        </div>
+        <div id="talisman-sub-colony-ward" class="subtab-content">
+            <div id="ui-colony-ward-talisman-panel"></div>
         </div>
     </div>
 

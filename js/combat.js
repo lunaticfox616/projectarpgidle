@@ -890,6 +890,7 @@ function coreLoop() {
             });
         }
     });
+    applyCosmosPlayerDebuffsToStats(pStats);
     if (isDeathOverlayOpen()) return;
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
@@ -2236,8 +2237,8 @@ function getPlayerStats() {
 
 
     let cw = (game && game.colony && Array.isArray(game.colony.wardEquipped)) ? game.colony.wardEquipped : [];
-    let cwSlots = 4;
-    if (game && game.colony) game.colony.wardSlots = 4;
+    let cwSlots = Math.max(1, Math.min(4, Math.floor((game && game.colony && game.colony.wardSlots) || 1)));
+    if (game && game.colony) game.colony.wardSlots = cwSlots;
     cw.slice(0, cwSlots).forEach(w => { if (w && w.stat) colonyWardBonus[w.stat] = (colonyWardBonus[w.stat] || 0) + Number(w.val || 0); });
     finalMaxResF = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
     finalMaxResC = Math.min(90, finalMaxResC + (colonyWardBonus.maxResC || 0));
@@ -2980,6 +2981,238 @@ function getZoneElementWardProfile(zone) {
     return { elem: elem, strength: strength };
 }
 
+function getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, seed) {
+    if (!zone || zone.type !== 'cosmos' || (!isElite && !isBoss)) return null;
+    const tag = String(zone.cosmosTag || '').trim() || 'stellar';
+    const sizeClass = Math.max(1, Math.min(5, Math.floor(zone.sizeClass || 1)));
+    const gravity = Math.max(1, Number(zone.gravity || 1));
+    const power = (isBoss ? 1.45 : 1) * (1 + Math.max(0, sizeClass - 1) * 0.06 + Math.max(0, gravity - 1) * 0.04);
+    const byTag = {
+        crit: 'critResist', toxiccrit: 'critResist', mirror: 'critResist', reflect: 'critResist', balance: 'critResist', judgement: 'critResist',
+        guard: 'critDamageResist', shield: 'critDamageResist', relic: 'critDamageResist', belt: 'critDamageResist', tank: 'critDamageResist', purify: 'critDamageResist',
+        projectile: 'comboGuard', bind: 'comboGuard', path: 'comboGuard', node: 'comboGuard', gate: 'comboGuard', loop: 'comboGuard', warp: 'comboGuard',
+        charge: 'heavySlow', impact: 'heavySlow', aoe: 'heavySlow', fire: 'heavySlow', physical: 'heavySlow', core: 'heavySlow', end: 'heavySlow',
+        speed: 'fast', hunt: 'fast', arcane: 'fast', dual: 'fast', companion: 'fast', sting: 'fast',
+        absorb: 'energyShield', cold: 'energyShield', vital: 'energyShield', regen: 'energyShield', seed: 'energyShield', flower: 'energyShield',
+        map: 'evasion', wealth: 'evasion', reward: 'evasion', gateway: 'evasion', outer: 'evasion', skill: 'evasion',
+        venom: 'armor', poison: 'armor', chaos: 'armor', curse: 'armor', sacrifice: 'armor', asteroid: 'armor', boss: 'heavySlow'
+    };
+    const archetype = byTag[tag] || ['critResist', 'critDamageResist', 'comboGuard', 'heavySlow', 'fast', 'energyShield', 'evasion', 'armor'][Math.abs(seed || 0) % 8];
+    const trait = {
+        id: `cosmos_${archetype}`,
+        name: '',
+        expMul: 1 + (isBoss ? 0.16 : 0.08),
+        dropMul: 1 + (isBoss ? 0.12 : 0.06),
+        bossDebuffs: []
+    };
+    if (archetype === 'critResist') {
+        trait.name = '우주계 한정: 성운 굴절';
+        trait.critResistPct = Math.floor((isBoss ? 42 : 26) * power);
+        trait.critDamageResistPct = Math.floor((isBoss ? 38 : 22) * power);
+    } else if (archetype === 'critDamageResist') {
+        trait.name = '우주계 한정: 항성 장갑';
+        trait.critDamageResistPct = Math.floor((isBoss ? 58 : 36) * power);
+        trait.dr = Math.floor((isBoss ? 10 : 6) * power);
+        trait.armorMul = 1 + (isBoss ? 0.85 : 0.55) * power;
+    } else if (archetype === 'comboGuard') {
+        trait.name = '우주계 한정: 연속 타격 저항';
+        trait.hitRateGuard = Math.min(0.28, (isBoss ? 0.12 : 0.08) * power);
+        trait.comboTakenLessPct = Math.min(70, Math.floor((isBoss ? 38 : 24) * power));
+    } else if (archetype === 'heavySlow') {
+        trait.name = '우주계 한정: 중력 강타';
+        trait.atkMul = 1 + (isBoss ? 0.62 : 0.38) * power;
+        trait.damageMul = 1 + (isBoss ? 0.28 : 0.16) * power;
+        trait.attackSpeedVarMul = Math.max(0.42, 1 - (isBoss ? 0.32 : 0.22) * power);
+        trait.penetration = Math.floor((isBoss ? 8 : 4) * power);
+    } else if (archetype === 'fast') {
+        trait.name = '우주계 한정: 광속 공세';
+        trait.attackSpeedVarMul = 1 + (isBoss ? 0.55 : 0.34) * power;
+        trait.critChanceBonus = Math.floor((isBoss ? 12 : 7) * power);
+        trait.evasionChance = Math.floor((isBoss ? 18 : 10) * power);
+    } else if (archetype === 'energyShield') {
+        const esPct = Math.min(100, Math.max(50, Math.floor(50 + ((Math.abs(seed || 0) % 51)) + (isBoss ? 18 : 0))));
+        trait.name = `우주계 한정: 에너지 보호막 ${esPct}%`;
+        trait.energyShieldPct = esPct;
+        trait.resAll = Math.floor((isBoss ? 8 : 4) * power);
+    } else if (archetype === 'evasion') {
+        trait.name = '우주계 한정: 성간 회피';
+        trait.evasionMul = 1 + (isBoss ? 1.65 : 1.05) * power;
+        trait.evasionChance = Math.min(72, Math.floor((isBoss ? 42 : 28) * power));
+    } else if (archetype === 'armor') {
+        trait.name = '우주계 한정: 운석 장갑';
+        trait.armorMul = 1 + (isBoss ? 2.2 : 1.35) * power;
+        trait.armorGuard = Math.min(0.72, (isBoss ? 0.36 : 0.24) * power);
+        trait.dr = Math.floor((isBoss ? 14 : 8) * power);
+    }
+    if (isBoss) {
+        const debuffSets = {
+            critResist: ['cosmos_res_down', 'cosmos_aspd_down'],
+            critDamageResist: ['cosmos_regen_down', 'cosmos_res_down'],
+            comboGuard: ['cosmos_aspd_down', 'cosmos_leech_down'],
+            heavySlow: ['cosmos_res_down', 'cosmos_regen_down'],
+            fast: ['cosmos_aspd_down', 'cosmos_leech_down'],
+            energyShield: ['cosmos_regen_down', 'cosmos_leech_down'],
+            evasion: ['cosmos_aspd_down', 'cosmos_res_down'],
+            armor: ['cosmos_leech_down', 'cosmos_regen_down']
+        };
+        trait.bossDebuffs = debuffSets[archetype] || ['cosmos_res_down'];
+        trait.debuffPower = Math.min(1.7, power);
+    }
+    return trait;
+}
+
+function applyCosmosExclusiveTraitToEnemy(enemy, trait) {
+    if (!enemy || !trait) return;
+    enemy.traitName = enemy.traitName ? `${enemy.traitName} · ${trait.name}` : trait.name;
+    if (Number.isFinite(trait.dr)) enemy.dr = Math.min(90, Math.max(0, enemy.dr + trait.dr));
+    if (Number.isFinite(trait.resAll)) {
+        enemy.resF = Math.min(95, enemy.resF + trait.resAll);
+        enemy.resC = Math.min(95, enemy.resC + trait.resAll);
+        enemy.resL = Math.min(95, enemy.resL + trait.resAll);
+        enemy.resChaos = Math.min(95, enemy.resChaos + trait.resAll);
+    }
+    if (Number.isFinite(trait.armorMul)) enemy.armor = Math.floor(enemy.armor * Math.max(0.1, trait.armorMul));
+    if (Number.isFinite(trait.evasionMul)) enemy.evasion = Math.floor(enemy.evasion * Math.max(0.1, trait.evasionMul));
+    if (Number.isFinite(trait.armorGuard)) enemy.armorGuard = Math.max(Number(enemy.armorGuard || 0), trait.armorGuard);
+    if (Number.isFinite(trait.evasionChance)) enemy.evasionChance = Math.max(Number(enemy.evasionChance || 0), Math.min(78, trait.evasionChance));
+    if (Number.isFinite(trait.hitRateGuard)) enemy.hitRateGuard = Math.max(Number(enemy.hitRateGuard || 0), trait.hitRateGuard);
+    if (Number.isFinite(trait.comboTakenLessPct)) enemy.comboTakenLessPct = Math.max(Number(enemy.comboTakenLessPct || 0), trait.comboTakenLessPct);
+    if (Number.isFinite(trait.critResistPct)) enemy.critResistPct = Math.max(Number(enemy.critResistPct || 0), trait.critResistPct);
+    if (Number.isFinite(trait.critDamageResistPct)) enemy.critDamageResistPct = Math.max(Number(enemy.critDamageResistPct || 0), trait.critDamageResistPct);
+    if (Number.isFinite(trait.penetration)) enemy.penetration = Math.max(Number(enemy.penetration || 0), Number(enemy.penetration || 0) + trait.penetration);
+    if (Number.isFinite(trait.energyShieldPct)) {
+        enemy.maxEnergyShield = Math.max(Math.floor(Number(enemy.maxEnergyShield || 0)), Math.floor((enemy.maxHp || 1) * trait.energyShieldPct / 100));
+        enemy.energyShield = Math.max(Math.floor(Number(enemy.energyShield || 0)), enemy.maxEnergyShield);
+    }
+    if (Array.isArray(trait.bossDebuffs) && trait.bossDebuffs.length > 0) {
+        enemy.cosmosBossDebuffs = trait.bossDebuffs.slice();
+        enemy.cosmosBossDebuffPower = Math.max(1, Number(trait.debuffPower || 1));
+    }
+}
+
+function getCosmosDebuffSpec(type, power) {
+    const p = Math.max(1, Number(power || 1));
+    const table = {
+        cosmos_regen_down: { type, label: '재생 효율 감소', value: Math.min(70, Math.floor(32 * p)), duration: 5.5 },
+        cosmos_leech_down: { type, label: '흡혈 효율 감소', value: Math.min(75, Math.floor(36 * p)), duration: 5.5 },
+        cosmos_res_down: { type, label: '저항 감소', value: Math.min(38, Math.floor(16 * p)), duration: 5.0 },
+        cosmos_aspd_down: { type, label: '공격 속도 감소', value: Math.min(46, Math.floor(20 * p)), duration: 4.5 }
+    };
+    return table[type] || null;
+}
+
+function applyCosmosBossPlayerDebuff(enemy) {
+    if (!enemy || !enemy.isBoss || !Array.isArray(enemy.cosmosBossDebuffs) || enemy.cosmosBossDebuffs.length <= 0) return;
+    const now = Date.now();
+    if (now < Math.floor(enemy.nextCosmosBossDebuffAt || 0)) return;
+    enemy.nextCosmosBossDebuffAt = now + 3200;
+    const type = enemy.cosmosBossDebuffs[Math.abs((enemy.variantSeed || 0) + Math.floor(now / 3200)) % enemy.cosmosBossDebuffs.length];
+    const spec = getCosmosDebuffSpec(type, enemy.cosmosBossDebuffPower || 1);
+    if (!spec) return;
+    game.cosmosPlayerDebuffs = Array.isArray(game.cosmosPlayerDebuffs) ? game.cosmosPlayerDebuffs : [];
+    let row = game.cosmosPlayerDebuffs.find(d => d && d.type === spec.type);
+    if (!row) { row = { type: spec.type, label: spec.label, value: 0, expiresAt: 0 }; game.cosmosPlayerDebuffs.push(row); }
+    row.label = spec.label;
+    row.value = Math.max(Number(row.value || 0), spec.value);
+    row.expiresAt = Math.max(Number(row.expiresAt || 0), now + Math.floor(spec.duration * 1000));
+    if (game.settings && game.settings.showCombatLog) addLog(`🌌 ${enemy.name}의 우주계 보스 디버프: ${spec.label} -${spec.value}%`, 'attack-monster', { noToast: true });
+}
+
+function applyCosmosPlayerDebuffsToStats(pStats) {
+    game.cosmosPlayerDebuffs = Array.isArray(game.cosmosPlayerDebuffs) ? game.cosmosPlayerDebuffs : [];
+    const currentZone = getZone(game.currentZoneId);
+    if (!currentZone || currentZone.type !== 'cosmos') {
+        game.cosmosPlayerDebuffs = [];
+        return;
+    }
+    const now = Date.now();
+    game.cosmosPlayerDebuffs = game.cosmosPlayerDebuffs.filter(d => d && (d.expiresAt || 0) > now);
+    game.cosmosPlayerDebuffs.forEach(d => {
+        const value = Math.max(0, Math.min(90, Number(d.value || 0)));
+        if (d.type === 'cosmos_regen_down') {
+            pStats.regen = Math.max(0, (pStats.regen || 0) * (1 - value / 100));
+            pStats.energyShieldRegenRate = Math.max(0, (pStats.energyShieldRegenRate || 0) * (1 - value / 100));
+        } else if (d.type === 'cosmos_leech_down') {
+            pStats.leech = Math.max(0, (pStats.leech || 0) * (1 - value / 100));
+        } else if (d.type === 'cosmos_res_down') {
+            pStats.resF -= value;
+            pStats.resC -= value;
+            pStats.resL -= value;
+            pStats.resChaos -= value;
+        } else if (d.type === 'cosmos_aspd_down') {
+            pStats.aspd *= Math.max(0.2, 1 - value / 100);
+        }
+    });
+}
+
+function getCosmosEnemyModifiers(zone, isElite, isBoss) {
+    if (!zone || zone.type !== 'cosmos') return null;
+    let tag = String(zone.cosmosTag || '').trim();
+    let sizeClass = Math.max(1, Math.min(5, Math.floor(zone.sizeClass || 1)));
+    let gravity = Math.max(1, Number(zone.gravity || 1));
+    let sizePressure = Math.max(0, sizeClass - 1);
+    let gravityPressure = Math.max(0, gravity - 1);
+    let bossMul = isBoss ? 1.35 : (isElite ? 1.12 : 1);
+    let mod = {
+        hpMul: 1 + sizePressure * 0.10 + gravityPressure * 0.13,
+        damageMul: 1 + sizePressure * 0.025 + gravityPressure * 0.055,
+        atkMul: 1 + gravityPressure * 0.035,
+        attackSpeedMul: Math.max(0.72, 1 - gravityPressure * 0.018 + sizePressure * 0.012),
+        dr: Math.floor(sizePressure * 2 + gravityPressure * 3),
+        resAll: Math.floor(gravityPressure * 4),
+        armorMul: 1 + sizePressure * 0.09 + gravityPressure * 0.08,
+        evasionMul: 1 + Math.max(0, 3 - sizeClass) * 0.035,
+        critChanceBonus: 0,
+        penetration: Math.floor(gravityPressure * 2),
+        regenMul: 1,
+        ailmentChanceBonus: 0,
+        firstHitGuard: 0,
+        patternMode: null,
+        traitName: `우주계:${tag || 'stellar'} ${sizeClass}등급/${gravity.toFixed(1)}g`
+    };
+    const tagMods = {
+        gateway: { resAll: 3, firstHitGuard: 0.08 },
+        arcane: { resChaos: 8, penetration: 3 },
+        cold: { resC: 14, attackSpeedMul: 0.94, ailmentChanceBonus: 0.04 },
+        fire: { resF: 14, damageMul: 0.09, ailmentChanceBonus: 0.03 },
+        hunt: { attackSpeedMul: 1.08, critChanceBonus: 5 },
+        venom: { resChaos: 10, regenMul: 1.25, ailmentChanceBonus: 0.05 },
+        relic: { armorMul: 1.16, dr: 4 },
+        guard: { dr: 7, firstHitGuard: 0.14 },
+        speed: { attackSpeedMul: 1.18, evasionMul: 1.18 },
+        projectile: { penetration: 5, damageMul: 0.04 },
+        map: { resAll: 5, evasionMul: 1.08 },
+        seed: { regenMul: 1.45 },
+        shield: { firstHitGuard: 0.20, resAll: 5 },
+        loop: { attackSpeedMul: 1.08, hpMul: 0.08 },
+        wealth: { dropMul: 1.08 },
+        mirror: { evasionMul: 1.14, firstHitGuard: 0.10 },
+        vital: { hpMul: 0.18, regenMul: 1.35 },
+        crit: { critChanceBonus: 9 },
+        belt: { armorMul: 1.12, resAll: 4 },
+        gate: { penetration: 4, resChaos: 8 },
+        bind: { attackSpeedMul: 0.92, dr: 5 },
+        reflect: { firstHitGuard: 0.18, resAll: 4 },
+        aoe: { damageMul: 0.10, hpMul: 0.08 },
+        curse: { resChaos: 14, ailmentChanceBonus: 0.06 },
+        charge: { atkMul: 0.12, penetration: 4 },
+        chaos: { resChaos: 16, damageMul: 0.08 },
+        warp: { attackSpeedMul: 1.12, evasionMul: 1.1 },
+        asteroid: { armorMul: 1.08, dropMul: 1.04 },
+        boss: { hpMul: 0.35, damageMul: 0.18, dr: 8, resAll: 8, penetration: 6, critChanceBonus: 7, firstHitGuard: 0.22, patternMode: 'cosmos' }
+    };
+    let extra = tagMods[tag] || {};
+    Object.keys(extra).forEach(key => {
+        if (key === 'patternMode') mod.patternMode = extra[key];
+        else if (key === 'traitName') mod.traitName = extra[key];
+        else if (key === 'attackSpeedMul' || key === 'armorMul' || key === 'evasionMul' || key === 'regenMul' || key === 'dropMul') mod[key] = (mod[key] || 1) * extra[key];
+        else mod[key] = (mod[key] || 0) + extra[key];
+    });
+    mod.hpMul = Math.max(0.5, mod.hpMul * bossMul);
+    mod.damageMul = Math.max(0.5, mod.damageMul * (isBoss ? 1.1 : 1));
+    return mod;
+}
+
 function createEnemy(zone, marker, groupIndex) {
     let seasonDepth = Math.max(0, (game.season || 1) - 1);
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
@@ -3035,9 +3268,13 @@ function createEnemy(zone, marker, groupIndex) {
     let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
     let variantSeed = ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
+    const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss);
+    const cosmosExclusiveTrait = getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, variantSeed);
     const woodsmanRegenMul = 0.1;
-    const regenMul = (zone.type === 'outsideChaos' && isBoss) ? woodsmanRegenMul : 1;
+    const regenMul = ((zone.type === 'outsideChaos' && isBoss) ? woodsmanRegenMul : 1) * (cosmosMods && cosmosMods.regenMul ? cosmosMods.regenMul : 1);
     if (trait && trait.hpMul) hp = Math.floor(hp * trait.hpMul);
+    if (cosmosMods && cosmosMods.hpMul) hp = Math.floor(hp * cosmosMods.hpMul);
+    if (cosmosExclusiveTrait && cosmosExclusiveTrait.hpMul) hp = Math.floor(hp * cosmosExclusiveTrait.hpMul);
     let isSky = (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
     if (isSky) name = `☁️ ${name}`;
     let zoneProgress = clampNumber(((zone.tier || 1) - 1) / 19, 0, 1);
@@ -3077,26 +3314,26 @@ function createEnemy(zone, marker, groupIndex) {
         resChaos: Math.min(95, chaosResBase + (trait && trait.resChaos ? trait.resChaos : 0) + (abyssScale.resistBonus || 0)),
         armor: baseArmor,
         evasion: baseEvasion,
-        atkMul: trait && trait.atkMul ? trait.atkMul : 1,
-        damageMul: zone.type === 'outsideChaos' ? 2 : 1,
-        attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1) * (zone.type === 'outsideChaos' ? 1.5 : 1),
-        critChance: ((game.season || 1) >= 2 ? (isBoss ? 16 : isElite ? 10 : 4) : 0) + (trait && trait.critChanceBonus ? trait.critChanceBonus : 0),
+        atkMul: (trait && trait.atkMul ? trait.atkMul : 1) * (cosmosMods && cosmosMods.atkMul ? cosmosMods.atkMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.atkMul ? cosmosExclusiveTrait.atkMul : 1),
+        damageMul: (zone.type === 'outsideChaos' ? 2 : 1) * (cosmosMods && cosmosMods.damageMul ? cosmosMods.damageMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.damageMul ? cosmosExclusiveTrait.damageMul : 1),
+        attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1) * (zone.type === 'outsideChaos' ? 1.5 : 1) * (cosmosMods && cosmosMods.attackSpeedMul ? cosmosMods.attackSpeedMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.attackSpeedVarMul ? cosmosExclusiveTrait.attackSpeedVarMul : 1),
+        critChance: ((game.season || 1) >= 2 ? (isBoss ? 16 : isElite ? 10 : 4) : 0) + (trait && trait.critChanceBonus ? trait.critChanceBonus : 0) + (cosmosMods && cosmosMods.critChanceBonus ? cosmosMods.critChanceBonus : 0) + (cosmosExclusiveTrait && cosmosExclusiveTrait.critChanceBonus ? cosmosExclusiveTrait.critChanceBonus : 0),
         regenRate: ((game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0) * 0.12 * regenMul,
         regenSuppressPct: 0,
-        penetration: (game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0,
+        penetration: ((game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0) + (cosmosMods && cosmosMods.penetration ? cosmosMods.penetration : 0),
         hybridElement: (game.season || 1) >= 3 ? rndChoice(['fire', 'cold', 'light', 'chaos']) : null,
-        ailmentChance: (game.season || 1) >= 4 ? (isBoss ? 0.14 : (isElite ? 0.08 : 0.03)) : 0,
-        firstHitGuard: (game.season || 1) >= 5 ? (isBoss ? 0.75 : ((trait && trait.firstHitGuard) || 0)) : 0,
+        ailmentChance: ((game.season || 1) >= 4 ? (isBoss ? 0.14 : (isElite ? 0.08 : 0.03)) : 0) + (cosmosMods && cosmosMods.ailmentChanceBonus ? cosmosMods.ailmentChanceBonus : 0),
+        firstHitGuard: Math.max((game.season || 1) >= 5 ? (isBoss ? 0.75 : ((trait && trait.firstHitGuard) || 0)) : 0, cosmosMods && cosmosMods.firstHitGuard ? cosmosMods.firstHitGuard : 0),
         hitRateGuard: (game.season || 1) >= 5 ? ((trait && trait.hitRateGuard) || (isBoss ? 0.06 : 0)) : 0,
         recentHitsTaken: 0,
         recentHitsTimer: 0,
-        patternMode: (game.season || 1) >= 6 && isBoss ? rndChoice(['burst', 'ramp', 'slam']) : null,
+        patternMode: (cosmosMods && cosmosMods.patternMode) || ((game.season || 1) >= 6 && isBoss ? rndChoice(['burst', 'ramp', 'slam']) : null),
         disableExecute: zone.type === 'outsideChaos',
         disableHpScaleDamage: zone.type === 'outsideChaos',
         traitName: trait ? trait.name : null,
         leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
-        expMul: trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1,
-        dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier, zone),
+        expMul: (trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1) * (cosmosExclusiveTrait && Number.isFinite(cosmosExclusiveTrait.expMul) ? Math.max(1, cosmosExclusiveTrait.expMul) : 1),
+        dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * (cosmosExclusiveTrait && Number.isFinite(cosmosExclusiveTrait.dropMul) ? Math.max(1, cosmosExclusiveTrait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier, zone),
         isSky: isSky
     };
     let zoneWard = getZoneElementWardProfile(zone);
@@ -3105,6 +3342,21 @@ function createEnemy(zone, marker, groupIndex) {
         else if (zoneWard.elem === 'cold') enemy.resC = Math.min(95, enemy.resC + zoneWard.strength);
         else if (zoneWard.elem === 'light') enemy.resL = Math.min(95, enemy.resL + zoneWard.strength);
     }
+    if (cosmosMods) {
+        enemy.dr = Math.min(90, Math.max(0, enemy.dr + (cosmosMods.dr || 0)));
+        enemy.resF = Math.min(95, enemy.resF + (cosmosMods.resAll || 0) + (cosmosMods.resF || 0));
+        enemy.resC = Math.min(95, enemy.resC + (cosmosMods.resAll || 0) + (cosmosMods.resC || 0));
+        enemy.resL = Math.min(95, enemy.resL + (cosmosMods.resAll || 0) + (cosmosMods.resL || 0));
+        enemy.resChaos = Math.min(95, enemy.resChaos + (cosmosMods.resAll || 0) + (cosmosMods.resChaos || 0));
+        enemy.armor = Math.floor(enemy.armor * (cosmosMods.armorMul || 1));
+        enemy.evasion = Math.floor(enemy.evasion * (cosmosMods.evasionMul || 1));
+        enemy.dropMul *= cosmosMods.dropMul || 1;
+        enemy.cosmosTag = zone.cosmosTag || '';
+        enemy.cosmosSizeClass = Math.max(1, Math.floor(zone.sizeClass || 1));
+        enemy.cosmosGravity = Math.max(1, Number(zone.gravity || 1));
+        enemy.traitName = enemy.traitName ? `${enemy.traitName} · ${cosmosMods.traitName}` : cosmosMods.traitName;
+    }
+    applyCosmosExclusiveTraitToEnemy(enemy, cosmosExclusiveTrait);
     if (zone.type === 'outsideChaos') enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
     if (zone.type === 'outsideChaos') {
         enemy.isWoodsman = true;
@@ -4909,6 +5161,15 @@ function performPlayerAttack(pStats) {
             } else {
                 hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
             }
+            if (hitCrit && (targetEnemy.critResistPct || 0) > 0 && Math.random() * 100 < Math.max(0, Math.min(95, targetEnemy.critResistPct || 0))) {
+                hitCrit = false;
+                hitBaseDamage = pStats.baseDmg;
+            }
+            if (hitCrit && (targetEnemy.critDamageResistPct || 0) > 0) {
+                let critResist = Math.max(0, Math.min(95, Number(targetEnemy.critDamageResistPct || 0))) / 100;
+                let basePart = Math.max(1, Math.floor(pStats.baseDmg || 1));
+                hitBaseDamage = Math.max(1, Math.floor(basePart + Math.max(0, hitBaseDamage - basePart) * (1 - critResist)));
+            }
             if (riderCompassReady) {
                 hitBaseDamage = Math.floor(hitBaseDamage * 2);
                 riderCompassReady = false;
@@ -4952,6 +5213,10 @@ function performPlayerAttack(pStats) {
             let burstHits = Math.max(0, (targetEnemy.recentHitsTaken || 0) - 2);
             let hitGuard = (targetEnemy.hitRateGuard || 0) * Math.min(5, burstHits);
             if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
+            if ((targetEnemy.comboTakenLessPct || 0) > 0 && burstHits > 0) {
+                let comboLess = Math.max(0, Math.min(85, Number(targetEnemy.comboTakenLessPct || 0) * Math.min(5, burstHits) / 5));
+                dmg = Math.floor(dmg * (1 - comboLess / 100));
+            }
             let damageBeforeMitigation = dmg;
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
@@ -5467,6 +5732,7 @@ function performMonsterAttacks(pStats) {
         if (!Number.isFinite(enemy.attackTimer) || enemy.attackTimer < 0) enemy.attackTimer = 0;
         enemy.attackTimer += 0.1 * atkRate;
         while (enemy.attackTimer >= 1) {
+            if (zone && zone.type === 'cosmos') applyCosmosBossPlayerDebuff(enemy);
             if (zone.type === 'outsideChaos') {
                 enemy.nextCurseAt = Number.isFinite(enemy.nextCurseAt) ? enemy.nextCurseAt : 0;
                 if (Date.now() >= enemy.nextCurseAt) {
@@ -6030,6 +6296,7 @@ function triggerSeasonReset() {
     game.talismanUnlockPickMode = false;
     if (game.settings) {
         game.settings.autoSalvageEnabled = false;
+        game.settings.jewelAutoSalvageEnabled = false;
         game.settings.itemFilterEnabled = false;
     }
     game.loopDeepPoints = Math.max(loopDeepBeforeReset, loopDeepExpectedAfterSettle);

@@ -355,6 +355,20 @@
 ];
     const COSMOS_ASTEROID_NUMBERS = [32, 60, 81, 111, 115, 127, 132, 140, 155, 156, 164, 166, 168, 170, 181, 183, 195, 198, 204, 208, 211, 214, 227, 234, 241, 261, 264, 291, 299, 308, 331, 343, 349, 358, 365, 394, 406, 430, 431, 442, 463, 477, 486, 511, 533, 550, 554, 599, 681, 693, 702, 715, 726, 737, 756, 757, 761, 767, 769, 778, 781, 786, 800, 813, 824, 843, 866, 886, 900, 944, 947, 964, 969, 985, 1000];
 
+    const COSMOS_LAYOUT_VERSION = 20260601;
+    const DEFAULT_COSMOS_CAMERA_SCALE = 0.56;
+    const GALAXY_SEQUENCE = [1, 2, 3, 4, 5];
+    const PLANETS_PER_GALAXY = 10;
+    const ASTEROIDS_PER_GALAXY = 15;
+    const NODES_PER_GALAXY = PLANETS_PER_GALAXY + ASTEROIDS_PER_GALAXY;
+    const GALAXY_BOSS_PLANET_INDEX = {
+        1: 46,
+        2: 47,
+        3: 48,
+        4: 49,
+        5: 45
+    };
+
     const ATLAS = {
         nodes: [],
         edges: [],
@@ -367,66 +381,19 @@
         tooltip: null,
         selectedId: 'planet-0',
         hoverId: null,
-        camera: { x: 0, y: 0, scale: 0.56 },
+        camera: { x: 0, y: 0, scale: DEFAULT_COSMOS_CAMERA_SCALE },
         drag: { active: false, moved: false, startX: 0, startY: 0, baseX: 0, baseY: 0 },
         installed: false,
         needsFrame: false
     };
     const GALAXY_SPECS = {
-        0: { x: 0, y: 0, r: 180, label: 'G0 중심핵' },
-        1: { x: 0, y: -70, r: 520, label: 'G1 관문권' },
-        2: { x: 1120, y: -690, r: 540, label: 'G2 북동은하' },
-        3: { x: -1160, y: -660, r: 520, label: 'G3 북서은하' },
-        4: { x: 1320, y: 740, r: 560, label: 'G4 남동은하' },
-        5: { x: -1260, y: 810, r: 540, label: 'G5 남서은하' }
+        0: { x: 0, y: 0, r: 180, angle: 0, accent: '#f8e7a0', label: 'G0 중심핵' },
+        1: { x: 0, y: -760, r: 390, angle: -Math.PI / 2, accent: '#82d8ff', label: 'G1 관문권' },
+        2: { x: 1110, y: -360, r: 410, angle: -Math.PI / 6, accent: '#b38cff', label: 'G2 북동은하' },
+        3: { x: -1110, y: -360, r: 410, angle: -Math.PI * 5 / 6, accent: '#7cf2c8', label: 'G3 북서은하' },
+        4: { x: 900, y: 820, r: 430, angle: Math.PI / 4, accent: '#ffb36e', label: 'G4 남동은하' },
+        5: { x: -900, y: 820, r: 430, angle: Math.PI * 3 / 4, accent: '#ff80bc', label: 'G5 남서은하' }
     };
-    const COSMOS_MASTERY_NODES = [
-        { key: 'planetRelief', name: '행성 패널티 완화', max: 30, cost: 1, desc: '행성 진행도/중력 패널티 완화 +1.2% (최대 36%)' },
-        { key: 'asteroidRelief', name: '소행성 수확 증폭', max: 24, cost: 1, desc: '소행성 클리어 별가루 +1.6% (최대 38.4%)' },
-        { key: 'combatFocus', name: '전투 파밍 집중', max: 24, cost: 1, desc: '전투 드랍/전리품 기대치 +1.0% (최대 24%)' },
-        { key: 'craftFocus', name: '제작 파밍 집중', max: 24, cost: 1, desc: '제작 재료 드랍 기대치 +1.0% (최대 24%)' },
-        { key: 'stardustGain', name: '별가루 증폭', max: 30, cost: 1, desc: '우주계 별가루 획득 +1.0% (최대 30%)' },
-        { key: 'challengeEase', name: '행성 난이도 완화', max: 22, cost: 1, desc: '행성 전투 난이도 -1.0% (최대 -22%)' },
-        { key: 'highRisk', name: '고위험 난이도', max: 20, cost: 1, desc: '우주계 난이도 +1.5%(최대 +30%), 보상 +2.2%(최대 +44%)' },
-        { key: 'bossBounty', name: '보스 보상 강화', max: 18, cost: 1, desc: '은하 보스 별가루 보상 +2.2% (최대 +39.6%)' },
-        { key: 'routeInsight', name: '별길 통찰', max: 28, cost: 1, desc: '잠금 별길 해금 요구치 완화 +0.9% (최대 25.2%)' },
-        { key: 'gravityHarness', name: '중력 제어', max: 22, cost: 1, desc: '중력 페널티 완화 +1.0% (최대 22%)' },
-        { key: 'warpEfficiency', name: '항성 추진', max: 20, cost: 1, desc: '모든 우주계 클리어 별가루 +1.0% (최대 20%)' },
-        { key: 'eliteHunt', name: '유물 감응', max: 20, cost: 1, desc: '보스 유물 드랍 확률 +0.7%p (최대 +14%p)' },
-        { key: 'resonanceDrive', name: '공명 구동', max: 22, cost: 1, desc: '우주계 전투 최종 피해 +0.6% (최대 13.2%)' },
-        { key: 'voidSurvey', name: '공허 측량', max: 20, cost: 1, desc: '소행성 보상 품질 +1.0% (최대 20%)' },
-        { key: 'stellarForge', name: '항성 단조', max: 26, cost: 1, desc: '제작 재화 추가 획득 +0.9% (최대 23.4%)' },
-        { key: 'echoCache', name: '에코 저장고', max: 20, cost: 1, desc: '탐사 완료 보너스 별가루 +1.0% (최대 20%)' },
-        { key: 'riftGuard', name: '균열 방벽', max: 20, cost: 1, desc: '우주계 받는 피해 완화 +0.7% (최대 14%)' },
-        { key: 'frontierTax', name: '개척자 세공', max: 18, cost: 1, desc: '외곽 은하(G4~G5) 보상 +1.3% (최대 23.4%)' },
-        { key: 'chainMastery', name: '초회 정복 보너스', max: 18, cost: 1, desc: '미클리어 노드 첫 완료 별가루 +2.0% (최대 36%)' },
-        { key: 'apexProtocol', name: '은하 핵 반응', max: 22, cost: 1, desc: '보스 처치 별가루 +1.8% (최대 39.6%)' },
-        { key: 'starbreaker', name: '성핵 분쇄', max: 12, cost: 1, desc: '보스 전투 피해 +1.8% (최대 21.6%)' }
-    ];
-    const COSMOS_MASTERY_LINKS = {
-        planetRelief: [],
-        asteroidRelief: ['planetRelief:6'],
-        combatFocus: ['planetRelief:8'],
-        craftFocus: ['asteroidRelief:8'],
-        stardustGain: ['combatFocus:8', 'craftFocus:8'],
-        challengeEase: ['planetRelief:12'],
-        highRisk: ['challengeEase:8', 'stardustGain:10'],
-        bossBounty: ['highRisk:6'],
-        routeInsight: ['planetRelief:10'],
-        gravityHarness: ['routeInsight:8'],
-        warpEfficiency: ['routeInsight:10'],
-        eliteHunt: ['combatFocus:10'],
-        resonanceDrive: ['combatFocus:12', 'gravityHarness:10'],
-        voidSurvey: ['asteroidRelief:10'],
-        stellarForge: ['craftFocus:10', 'voidSurvey:8'],
-        echoCache: ['stardustGain:10'],
-        riftGuard: ['challengeEase:10', 'gravityHarness:10'],
-        frontierTax: ['warpEfficiency:8', 'voidSurvey:10'],
-        chainMastery: ['routeInsight:12', 'echoCache:8'],
-        apexProtocol: ['bossBounty:8', 'riftGuard:8'],
-        starbreaker: ['apexProtocol:10', 'resonanceDrive:10']
-    };
-
     function hashSeed(input) {
         let h = 2166136261;
         let s = String(input || '');
@@ -455,24 +422,18 @@
         return String(no).padStart(3, '0');
     }
 
-    function buildCosmosAtlasData() {
-        if (ATLAS.nodes.length) return;
-        const galaxyCenters = Object.keys(GALAXY_SPECS).reduce((acc, key) => {
-            const spec = GALAXY_SPECS[key];
-            acc[key] = { x: spec.x, y: spec.y };
-            return acc;
-        }, {});
-        const galaxySpineAngles = {
-            1: -Math.PI / 2,
-            2: -Math.PI / 6,
-            3: -Math.PI * 5 / 6,
-            4: Math.PI / 7,
-            5: Math.PI * 6 / 7
-        };
-        const galaxyCounts = { 0: 1, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    function getGalaxyForPlanetIndex(idx) {
+        if (idx <= 0) return 0;
+        return GALAXY_SEQUENCE[(idx - 1) % GALAXY_SEQUENCE.length];
+    }
+
+    function getGalaxyPlanetSlot(idx) {
+        if (idx <= 0) return 0;
+        return Math.floor((idx - 1) / GALAXY_SEQUENCE.length);
+    }
 
     function getGalaxyForAsteroidIndex(idx) {
-        return Math.max(1, Math.min(5, 1 + Math.floor(idx / ASTEROIDS_PER_GALAXY)));
+        return GALAXY_SEQUENCE[Math.max(0, Math.min(GALAXY_SEQUENCE.length - 1, Math.floor(idx / ASTEROIDS_PER_GALAXY)))];
     }
 
     function getColorWithAlpha(hex, alpha) {
@@ -492,65 +453,80 @@
 
     function getGalaxySpiralPosition(galaxy, slot, seed, kind) {
         const spec = GALAXY_SPECS[galaxy] || GALAXY_SPECS[1];
-        if (galaxy === 1 && slot === 0) return { x: spec.x, y: spec.y };
+        if (galaxy === 0) return { x: spec.x, y: spec.y };
         const safeSlot = Math.max(0, Math.min(NODES_PER_GALAXY - 1, Math.floor(slot || 0)));
-        const turn = spec.angle + safeSlot * 0.56;
-        const inner = galaxy === 1 ? 42 : 58;
-        const step = galaxy === 1 ? 12.4 : 12.8;
-        const noise = (seeded01(seed + ':spiral') - 0.5) * (kind === 'planet' ? 18 : 28);
-        const radius = inner + safeSlot * step + noise;
-        const side = (seeded01(seed + ':side') - 0.5) * (kind === 'planet' ? 14 : 20);
+        const normalized = NODES_PER_GALAXY <= 1 ? 0 : safeSlot / (NODES_PER_GALAXY - 1);
+        const turn = spec.angle + 1.18 + safeSlot * 0.92 + seeded01(seed + ':turn') * 0.26;
+        const inner = kind === 'planet' ? 58 : 130;
+        const outer = spec.r * (kind === 'planet' ? 0.74 : 0.96);
+        const radius = inner + (outer - inner) * Math.sqrt(normalized) + (seeded01(seed + ':radius') - 0.5) * (kind === 'planet' ? 24 : 44);
+        const side = (seeded01(seed + ':side') - 0.5) * (kind === 'planet' ? 22 : 36);
         return {
             x: spec.x + Math.cos(turn) * radius + Math.cos(turn + Math.PI / 2) * side,
             y: spec.y + Math.sin(turn) * radius + Math.sin(turn + Math.PI / 2) * side
         };
     }
 
+    function clampNodeToGalaxy(node) {
+        if (!node || node.orbit === 0) return;
+        const spec = GALAXY_SPECS[node.orbit] || GALAXY_SPECS[1];
+        const dx = node.x - spec.x;
+        const dy = node.y - spec.y;
+        const d = Math.hypot(dx, dy) || 0.001;
+        const maxR = spec.r * 1.05;
+        if (d <= maxR) return;
+        node.x = spec.x + dx / d * maxR;
+        node.y = spec.y + dy / d * maxR;
+    }
+
     function buildCosmosAtlasData() {
         if (ATLAS.nodes.length) return;
+        ATLAS.nodes.length = 0;
+        ATLAS.edges.length = 0;
+        ATLAS.byId.clear();
+
 
         COSMOS_PLANETS.forEach((p, idx) => {
-            const orbit = Math.max(0, Math.min(5, Math.floor(p.orbit || 0)));
-            const pos = galaxyIndex[orbit]++;
-            const total = Math.max(1, galaxyCounts[orbit] || 1);
-            const base = galaxySpineAngles[orbit] || 0;
-            const spread = Math.min(Math.PI * 1.25, Math.PI * (0.68 + Math.min(1, total / 18) * 0.55));
-            const lane = total <= 1 ? 0.5 : (pos / (total - 1));
-            const arc = (lane - 0.5) * spread;
-            const jitter = (seeded01(p.name + ':angle') - 0.5) * 0.16;
-            const angle = orbit === 0 ? 0 : base + arc + jitter;
-            const ringBase = orbit === 0 ? 0 : (GALAXY_SPECS[orbit] ? GALAXY_SPECS[orbit].r * 0.42 : 220);
-            const ringStep = orbit === 0 ? 0 : 34 + orbit * 4;
-            const ring = orbit === 0 ? 0 : ringBase + (pos % 4) * ringStep + (seeded01(p.name + ':radius') - 0.5) * 52;
-            const center = galaxyCenters[orbit] || { x: 0, y: 0 };
+            const galaxy = getGalaxyForPlanetIndex(idx);
+            const planetSlot = getGalaxyPlanetSlot(idx);
+            const localSlot = galaxy === 0 ? 0 : planetSlot;
+            const pos = getGalaxySpiralPosition(galaxy, localSlot, `planet-${idx}-${p.name}`, 'planet');
+            const isGalaxyBoss = galaxy > 0 && GALAXY_BOSS_PLANET_INDEX[galaxy] === idx;
+            const tag = isGalaxyBoss || p.tag === 'boss' ? 'boss' : p.tag;
+            const sizeSeed = seeded01(p.name + ':size');
+            const gravitySeed = seeded01(p.name + ':grav');
+            const sizeClass = idx === 0 ? 1 : Math.max(1, Math.min(5, 1 + Math.floor(sizeSeed * 5)));
+            const gravity = idx === 0 ? 1 : Math.max(1, Math.round((1.05 + galaxy * 0.18 + sizeClass * 0.18 + gravitySeed * 1.35) * 10) / 10);
             const node = {
                 id: `planet-${idx}`,
                 kind: 'planet',
                 name: p.name,
                 source: p.source,
                 theme: p.theme,
-                tag: GALAXY_BOSS_PLANET_INDEX[orbit] === idx ? 'boss' : p.tag,
+                tag,
                 baseTag: p.tag,
-                orbit,
-                localIndex: galaxyPos,
-                localSlot: slot,
-                tier: Math.min(25, 1 + Math.floor(idx / 5)),
+                orbit: galaxy,
+                originalOrbit: Math.max(0, Math.floor(p.orbit || 0)),
+                localIndex: localSlot,
+                localSlot,
+                tier: Math.min(25, idx === 0 ? 1 : 1 + Math.floor((idx - 1) / 2)),
                 x: pos.x,
                 y: pos.y,
-                radius: idx === 0 ? 17 : Math.max(8, 15 - orbit * 0.8),
-                labelPriority: idx === 0 ? 10 : Math.max(2, 7 - orbit),
-                sizeClass: 1 + Math.floor(seeded01(p.name + ':size') * 5),
-                gravity: Math.max(1, Math.round((1.0 + orbit * 0.7 + seeded01(p.name + ':grav') * 2.4) * 10) / 10)
+                radius: idx === 0 ? 18 : Math.max(9, 15.5 - galaxy * 0.45 + sizeClass * 0.35),
+                labelPriority: idx === 0 ? 10 : (tag === 'boss' ? 8 : Math.max(2, 7 - Math.floor(localSlot / 2))),
+                sizeClass,
+                gravity
             };
             ATLAS.nodes.push(node);
         });
 
-        COSMOS_ASTEROID_NUMBERS.forEach((no) => {
-            const orbit = 1 + Math.floor(seeded01('ast-orbit-' + no) * 5);
-            const angle = seeded01('ast-angle-' + no) * Math.PI * 2;
-            const center = galaxyCenters[orbit] || { x: 0, y: 0 };
-            const shell = GALAXY_SPECS[orbit] || { r: 520 };
-            const r = shell.r + 120 + (seeded01('ast-radius-' + no) - 0.5) * 200;
+        COSMOS_ASTEROID_NUMBERS.forEach((no, idx) => {
+            const galaxy = getGalaxyForAsteroidIndex(idx);
+            const asteroidSlot = idx % ASTEROIDS_PER_GALAXY;
+            const localSlot = PLANETS_PER_GALAXY + asteroidSlot;
+            const pos = getGalaxySpiralPosition(galaxy, localSlot, `asteroid-${no}`, 'asteroid');
+            const sizeClass = Math.max(1, Math.min(4, 1 + Math.floor(seeded01('ast-size-' + no) * 4)));
+            const gravity = Math.max(0.9, Math.round((0.95 + galaxy * 0.16 + sizeClass * 0.13 + seeded01('ast-grav-' + no) * 1.05) * 10) / 10);
             const node = {
                 id: `asteroid-${no}`,
                 kind: 'asteroid',
@@ -558,40 +534,46 @@
                 source: `Asteroid #${no}`,
                 theme: '소행성 지대 / 재료·별가루',
                 tag: 'asteroid',
-                orbit,
-                localIndex: PLANETS_PER_GALAXY + galaxyPos,
-                localSlot: slot,
-                tier: Math.min(25, 1 + Math.floor((50 + COSMOS_ASTEROID_NUMBERS.indexOf(no)) / 5)),
+                baseTag: 'asteroid',
+                orbit: galaxy,
+                originalOrbit: galaxy,
+                localIndex: localSlot,
+                localSlot,
+                tier: Math.min(25, 6 + Math.floor(idx / 4)),
                 x: pos.x,
                 y: pos.y,
-                radius: Math.max(7.2, 14 - orbit),
+                radius: Math.max(7.5, 11.5 - galaxy * 0.25 + sizeClass * 0.2),
                 labelPriority: 0,
-                sizeClass: 1 + Math.floor(seeded01('ast-size-' + no) * 3),
-                gravity: Math.max(0.8, Math.round((0.8 + orbit * 0.55 + seeded01('ast-grav-' + no) * 1.6) * 10) / 10)
+                sizeClass,
+                gravity
             };
             ATLAS.nodes.push(node);
         });
 
-        
-        for (let pass = 0; pass < 160; pass++) {
+        for (let pass = 0; pass < 120; pass++) {
             let moved = false;
             for (let i = 0; i < ATLAS.nodes.length; i++) {
                 for (let j = i + 1; j < ATLAS.nodes.length; j++) {
-                    const a = ATLAS.nodes[i], b = ATLAS.nodes[j];
-                    const minD = (a.radius + b.radius + 22);
-                    const dx = b.x - a.x, dy = b.y - a.y;
+                    const a = ATLAS.nodes[i];
+                    const b = ATLAS.nodes[j];
+                    if (a.orbit !== b.orbit) continue;
+                    const minD = a.radius + b.radius + (a.orbit === 0 ? 28 : 18);
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
                     const d = Math.hypot(dx, dy) || 0.001;
                     if (d >= minD) continue;
                     const push = (minD - d) * 0.5;
-                    const nx = dx / d, ny = dy / d;
-                    if (a.id !== 'planet-0') { a.x -= nx * push; a.y -= ny * push; }
-                    if (b.id !== 'planet-0') { b.x += nx * push; b.y += ny * push; }
+                    const nx = dx / d;
+                    const ny = dy / d;
+                    if (a.id !== 'planet-0') { a.x -= nx * push; a.y -= ny * push; clampNodeToGalaxy(a); }
+                    if (b.id !== 'planet-0') { b.x += nx * push; b.y += ny * push; clampNodeToGalaxy(b); }
                     moved = true;
                 }
             }
             if (!moved) break;
         }
-ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
+
+        ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
         buildEdges();
     }
 
@@ -641,12 +623,13 @@ ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
                 const a = ATLAS.byId.get(va);
                 unvisited.forEach(vb => {
                     const b = ATLAS.byId.get(vb);
+                    if (!canLink(a, b)) return;
                     const d = distance(a, b);
                     if (!best || d < best.d) best = { a, b, d };
                 });
             });
             if (!best) break;
-            link(best.a, best.b, 'spine');
+            if (!link(best.a, best.b, 'spine')) break;
             visited.add(best.b.id);
             unvisited.delete(best.b.id);
         }

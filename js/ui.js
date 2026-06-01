@@ -563,6 +563,112 @@ function renderLoop8BeehivePanel() {
     <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="startBeehiveRun()" ${(game.currencies.hiveKey||0)<=0 || b.inRun ? 'disabled':''}>벌집 입장</button><button onclick="forfeitBeehiveRun()" ${b.inRun ? '':'disabled'}>던전 포기</button></div>${choiceHtml}`;
 }
 
+const COLONY_WARD_MAX_SLOTS = 4;
+const COLONY_WARD_SLOT_UNLOCK_COSTS = {
+    2: { colonyShard: 25 },
+    3: { colonyShard: 75 },
+    4: { colonyShard: 150, colonyTrace: 1 }
+};
+
+function normalizeColonyWardState() {
+    let c = game.colony || (game.colony = {});
+    c.wardInventory = Array.isArray(c.wardInventory) ? c.wardInventory : [];
+    c.wardEquipped = Array.isArray(c.wardEquipped) ? c.wardEquipped.slice(0, COLONY_WARD_MAX_SLOTS) : [null, null, null, null];
+    while (c.wardEquipped.length < COLONY_WARD_MAX_SLOTS) c.wardEquipped.push(null);
+    let highestEquipped = c.wardEquipped.reduce((max, ward, idx) => ward ? Math.max(max, idx + 1) : max, 1);
+    c.wardSlots = Math.max(1, Math.min(COLONY_WARD_MAX_SLOTS, Math.max(highestEquipped, Math.floor(c.wardSlots || 1))));
+    c.wardSlotVersion = 1;
+    return c;
+}
+
+function getColonyWardStatLabel(stat) {
+    const labels = {
+        flatHp: '최대 생명력', armor: '방어도', evasion: '회피', energyShield: '에너지 보호막', resAll: '모든 저항',
+        maxResF: '최대 화염 저항', maxResC: '최대 냉기 저항', maxResL: '최대 번개 저항', resChaos: '카오스 저항',
+        ailResIgnite: '점화 저항', ailResFreeze: '냉각/동결 저항', ailResShock: '감전 저항', ailResPoison: '중독 저항', ailResBleed: '출혈 저항',
+        regenFlat: '생명력 재생', energyShieldRegen: '에너지 보호막 회복속도', critResist: '치명타 저항', dr: '받는 물리 피해 감소',
+        fireTakenDamageReducePct: '받는 화염 피해 감소', coldTakenDamageReducePct: '받는 냉기 피해 감소', lightTakenDamageReducePct: '받는 번개 피해 감소', chaosTakenDamageReducePct: '받는 카오스 피해 감소',
+        dotTakenDamageReducePct: '받는 지속 피해 감소', takenDamageReduceWhen2EnemiesPct: '받는 피해 감소(2마리 이상)', takenDamageReduceWhen1EnemyPct: '받는 피해 감소(1마리)',
+        igniteDamageReducePct: '받는 점화 피해 감소', bleedDamageReducePct: '받는 출혈 피해 감소', poisonDamageReducePct: '받는 중독 피해 감소'
+    };
+    return labels[stat] || getStatName(stat || '');
+}
+
+function getColonyWardValueText(ward) {
+    if (!ward) return '';
+    return `${getColonyWardStatLabel(ward.stat)} +${formatValue(ward.stat, Number(ward.val || 0))}`;
+}
+
+function buildColonyWardTooltipHtml(ward) {
+    if (!ward) return '<div class="tooltip-title">빈 액막이 슬롯</div>';
+    return `<div class="tooltip-title">${escapeHTML(ward.name || '군락지 액막이 부적')}</div>
+        <div class="tooltip-line" style="color:#bfffd1;">효과: ${escapeHTML(getColonyWardValueText(ward))}</div>
+        <div class="tooltip-line" style="color:#9fb7ca;">장착 중인 액막이 부적은 플레이어 방어 능력치에 즉시 합산됩니다.</div>
+        <div class="tooltip-line" style="color:#ffd98a;">획득처: 군락지 웨이브 보상 / 여왕 보상</div>`;
+}
+
+function getColonyWardSlotCost(slot) {
+    return COLONY_WARD_SLOT_UNLOCK_COSTS[Math.max(2, Math.min(COLONY_WARD_MAX_SLOTS, Math.floor(slot || 2)))] || null;
+}
+
+function formatColonyWardCost(cost) {
+    if (!cost) return '최대 해금';
+    let names = { colonyShard: '군락지 편린', colonyTrace: '군락지 흔적' };
+    return Object.keys(cost).map(key => `${names[key] || key} ${Math.floor(game.currencies[key] || 0)}/${cost[key]}`).join(' · ');
+}
+
+function canPayColonyWardCost(cost) {
+    if (!cost) return false;
+    return Object.keys(cost).every(key => Math.floor(game.currencies[key] || 0) >= cost[key]);
+}
+
+function renderColonyWardPanel(targetId) {
+    let panel = document.getElementById(targetId || 'ui-colony-ward-talisman-panel');
+    if (!panel) return;
+    let open = (game.season || 1) >= 15;
+    let c = normalizeColonyWardState();
+    let slotMax = Math.max(1, Math.min(COLONY_WARD_MAX_SLOTS, Math.floor(c.wardSlots || 1)));
+    let nextSlot = slotMax + 1;
+    let nextCost = nextSlot <= COLONY_WARD_MAX_SLOTS ? getColonyWardSlotCost(nextSlot) : null;
+    let total = {};
+    c.wardEquipped.slice(0, slotMax).forEach(w => { if (w && w.stat) total[w.stat] = (total[w.stat] || 0) + Number(w.val || 0); });
+    let totalRows = Object.keys(total).map(stat => `<span style="color:${getItemStatToneColor(stat)};">${escapeHTML(getColonyWardStatLabel(stat))} +${formatValue(stat, total[stat])}</span>`);
+    let slots = Array.from({ length: COLONY_WARD_MAX_SLOTS }, (_, i) => {
+        let unlocked = i < slotMax;
+        let ward = c.wardEquipped[i];
+        let inner = ward ? `<div style="font-weight:800;color:#eafff0;">${escapeHTML(ward.name || '액막이')}</div><div style="margin-top:4px;color:#aaf7c2;">${escapeHTML(getColonyWardValueText(ward))}</div><button style="margin-top:8px;" onclick="unequipColonyWard(${i})">해제</button>` : (unlocked ? `<div style="font-weight:800;color:#dfffe8;">빈 슬롯 ${i + 1}</div><div style="margin-top:4px;color:#7fa08a;">보유 액막이를 장착하세요.</div>` : `<div style="font-weight:800;color:#7f8d87;">잠김 ${i + 1}</div><div style="margin-top:4px;color:#60766c;">슬롯 확장 필요</div>`);
+        let hover = ward ? ` data-info-tooltip-anchor="1" onmouseenter="showColonyWardTooltip(event,'equipped',${i})" onmousemove="showColonyWardTooltip(event,'equipped',${i})" onmouseleave="hideInfoTooltip()"` : '';
+        return `<div class="colony-ward-slot ${unlocked ? 'unlocked' : 'locked'}"${hover}>${inner}</div>`;
+    }).join('');
+    let inv = c.wardInventory.length > 0 ? c.wardInventory.map(w => `<button class="colony-ward-chip" data-info-tooltip-anchor="1" onmouseenter="showColonyWardTooltip(event,'inventory','${w.id}')" onmousemove="showColonyWardTooltip(event,'inventory','${w.id}')" onmouseleave="hideInfoTooltip()" onclick="equipColonyWardById('${w.id}')"><strong>${escapeHTML(w.name || '액막이')}</strong><span>${escapeHTML(getColonyWardValueText(w))}</span></button>`).join('') : '<div style="color:#6f8f7a;">보유한 액막이 부적이 없습니다.</div>';
+    panel.innerHTML = `<div class="colony-ward-panel">
+        <div class="colony-ward-hero"><div><div class="colony-ward-kicker">Colony Ward Charm</div><div class="colony-ward-title">군락지 액막이 부적</div><div class="colony-ward-desc">군락지에서 얻는 방어형 부적입니다. 슬롯은 처음 1/4에서 시작하며, 군락지 재화를 사용해 4/4까지 해금합니다.</div></div><div class="colony-ward-currency">군락지 흔적 <b>${game.currencies.colonyTrace || 0}</b><br>군락지 편린 <b>${game.currencies.colonyShard || 0}</b></div></div>
+        ${open ? '' : '<div class="colony-ward-locked">루프 15 이후 군락지와 액막이 부적이 해금됩니다.</div>'}
+        <div class="colony-ward-actions"><span>해금 슬롯 <b>${slotMax}/${COLONY_WARD_MAX_SLOTS}</b></span><button onclick="unlockColonyWardSlot()" ${!open || slotMax >= COLONY_WARD_MAX_SLOTS || !canPayColonyWardCost(nextCost) ? 'disabled' : ''}>다음 슬롯 확장</button><span class="colony-ward-cost">${slotMax >= COLONY_WARD_MAX_SLOTS ? '모든 슬롯 해금 완료' : `다음 비용: ${formatColonyWardCost(nextCost)}`}</span></div>
+        <div class="colony-ward-grid">${slots}</div>
+        <div class="colony-ward-section"><div class="colony-ward-section-title">보유 액막이</div><div class="colony-ward-inventory">${inv}</div></div>
+        <div class="colony-ward-section"><div class="colony-ward-section-title">적용 효과 합계</div><div class="colony-ward-total">${totalRows.length ? totalRows.map(row => `<div>• <strong>${row}</strong></div>`).join('') : '<span style="color:#8da99a;">장착된 액막이가 없습니다.</span>'}</div></div>
+    </div>`;
+}
+
+function showColonyWardTooltip(event, source, ref) {
+    let c = normalizeColonyWardState();
+    let ward = source === 'equipped' ? c.wardEquipped[Math.floor(ref || 0)] : c.wardInventory.find(w => w && w.id === ref);
+    showInfoTooltipHtml(event.clientX, event.clientY, buildColonyWardTooltipHtml(ward), '#76e6a0');
+}
+
+function switchTalismanSubtab(tabId) {
+    let active = tabId === 'talisman-sub-colony-ward' ? tabId : 'talisman-sub-board';
+    ['talisman-sub-board', 'talisman-sub-colony-ward'].forEach(id => {
+        let el = document.getElementById(id);
+        let btn = document.getElementById(id === 'talisman-sub-board' ? 'btn-talisman-sub-board' : 'btn-talisman-sub-colony-ward');
+        if (el) el.classList.toggle('active', id === active);
+        if (btn) btn.classList.toggle('active', id === active);
+    });
+    game.talismanSubtab = active;
+    if (active === 'talisman-sub-colony-ward') renderColonyWardPanel('ui-colony-ward-talisman-panel');
+}
+
 function renderLoop15ColonyPanel() {
     let open = (game.season || 1) >= 15;
     let header = document.getElementById('ui-colony-header');
@@ -570,22 +676,16 @@ function renderLoop15ColonyPanel() {
     if (!header || !panel) return;
     header.style.display = open ? 'block' : 'none';
     panel.style.display = open ? 'block' : 'none';
+    renderColonyWardPanel('ui-colony-ward-talisman-panel');
     if (!open) return;
-    let c = game.colony || (game.colony = { inRun:false, wave:0, kills:0, requiredKills:0, rewardPending:false });
+    let c = normalizeColonyWardState();
     let status = c.inRun ? `진행중 · 웨이브 ${Math.max(1,Math.floor(c.wave||1))} · 처치 ${Math.max(0,Math.floor(c.kills||0))}/${Math.max(1,Math.floor(c.requiredKills||1))}` : '대기중';
-    c.wardSlots = 4;
-    let slotMax = c.wardSlots;
-    c.wardInventory = Array.isArray(c.wardInventory) ? c.wardInventory : [];
-    c.wardEquipped = Array.isArray(c.wardEquipped) ? c.wardEquipped : [null,null,null,null];
-    let equippedLine = c.wardEquipped.slice(0, slotMax).map((w, i) => w ? `<button onclick="unequipColonyWard(${i})">${w.name}</button>` : `<span style="color:#7fa08a;">빈 슬롯 ${i+1}</span>`).join(' · ');
-    let invLine = c.wardInventory.slice(0, 6).map(w => `<button onclick="equipColonyWardById('${w.id}')">${w.name}</button>`).join(' ');
     panel.innerHTML = `<div style="color:#c9f7d6; margin-bottom:6px;">군락지 흔적: <strong>${game.currencies.colonyTrace||0}</strong> · 군락지 편린: <strong>${game.currencies.colonyShard||0}</strong></div>
     <div style="color:#9fd3b1; font-size:.84em; margin-bottom:8px;">루프 15 이후 해금. 혼돈 심화(21+), 벌집, 대균열에서 아주 낮은 확률로 군락지 흔적 획득. 입장 시 마지막 혼돈 심화 층 기준 난이도로 웨이브가 진행됩니다.</div>
     <div style="color:#e3ffe8; margin-bottom:8px;">상태: <strong>${status}</strong></div>
-    <div style="margin-top:8px;color:#a5e3bc;">액막이 슬롯: <strong>${slotMax}/4</strong> <button onclick="unlockColonyWardSlot()" ${slotMax>=4?'disabled':''}>슬롯 확장</button><div style="margin-top:6px;display:grid;gap:4px;">${equippedLine||'없음'}</div><div style="margin-top:6px;color:#c9f7d6;">보유 액막이: ${invLine||'<span style="color:#6f8f7a;">없음</span>'}</div></div>
+    <div style="margin-top:8px;color:#a5e3bc;">액막이 슬롯: <strong>${Math.max(1, Math.floor(c.wardSlots || 1))}/4</strong> · 장착/확장은 <button onclick="switchTab('tab-talisman'); switchTalismanSubtab('talisman-sub-colony-ward')">부적 &gt; 군락지 액막이</button>에서 관리합니다.</div>
     <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><button onclick="startColonyRun()" ${(game.currencies.colonyTrace||0)<=0 || c.inRun ? 'disabled':''}>군락지 입장</button><button onclick="forfeitColonyRun()" ${c.inRun ? '' : 'disabled'}>군락지 포기</button></div>`;
 }
-
 
 function generateColonyWard(){
     const pool = [
@@ -623,15 +723,25 @@ function generateColonyWard(){
     return { id: `colony_ward_${Date.now()}_${Math.floor(Math.random()*99999)}`, stat: pick.id, val: val, name: `액막이 부적 · ${pick.label}${val}` };
 }
 function equipColonyWardById(id){
-    let c=game.colony||(game.colony={}); c.wardInventory=Array.isArray(c.wardInventory)?c.wardInventory:[]; c.wardEquipped=Array.isArray(c.wardEquipped)?c.wardEquipped:[null,null,null,null];
-    let idx=c.wardInventory.findIndex(w=>w&&w.id===id); if(idx<0) return;
-    c.wardSlots=4; let slotMax=c.wardSlots; let slot=-1; for(let i=0;i<slotMax;i++){ if(!c.wardEquipped[i]){ slot=i; break; } }
-    if(slot<0) return addLog('장착 가능한 액막이 부적 슬롯이 없습니다.', 'attack-monster');
-    c.wardEquipped[slot]=c.wardInventory[idx]; c.wardInventory.splice(idx,1); updateStaticUI();
+    let c = normalizeColonyWardState();
+    let idx = c.wardInventory.findIndex(w => w && w.id === id); if (idx < 0) return;
+    let slotMax = Math.max(1, Math.min(COLONY_WARD_MAX_SLOTS, Math.floor(c.wardSlots || 1)));
+    let slot = -1; for (let i = 0; i < slotMax; i++) { if (!c.wardEquipped[i]) { slot = i; break; } }
+    if (slot < 0) return addLog('장착 가능한 액막이 부적 슬롯이 없습니다. 부적 탭에서 슬롯을 확장하세요.', 'attack-monster');
+    c.wardEquipped[slot] = c.wardInventory[idx]; c.wardInventory.splice(idx, 1); updateStaticUI();
 }
-function unequipColonyWard(slot){ let c=game.colony||{}; c.wardInventory=Array.isArray(c.wardInventory)?c.wardInventory:[]; c.wardEquipped=Array.isArray(c.wardEquipped)?c.wardEquipped:[null,null,null,null]; if(!c.wardEquipped[slot]) return; c.wardInventory.push(c.wardEquipped[slot]); c.wardEquipped[slot]=null; updateStaticUI(); }
+function unequipColonyWard(slot){ let c = normalizeColonyWardState(); slot = Math.floor(slot || 0); if(!c.wardEquipped[slot]) return; c.wardInventory.push(c.wardEquipped[slot]); c.wardEquipped[slot]=null; updateStaticUI(); }
 function unlockColonyWardSlot(){
-    let c=game.colony||(game.colony={}); c.wardSlots=4; addLog('🛡️ 액막이 부적 슬롯 4개가 해금되어 있습니다.', 'level-up'); updateStaticUI();
+    let c = normalizeColonyWardState();
+    let nextSlot = Math.max(2, Math.floor(c.wardSlots || 1) + 1);
+    if (nextSlot > COLONY_WARD_MAX_SLOTS) return addLog('🛡️ 액막이 부적 슬롯은 이미 4/4입니다.', 'level-up');
+    let cost = getColonyWardSlotCost(nextSlot);
+    if (!canPayColonyWardCost(cost)) return addLog(`액막이 슬롯 확장 재화가 부족합니다. 필요: ${formatColonyWardCost(cost)}`, 'attack-monster');
+    let paidLabel = formatColonyWardCost(cost);
+    Object.keys(cost).forEach(key => { game.currencies[key] = Math.max(0, Math.floor(game.currencies[key] || 0) - cost[key]); });
+    c.wardSlots = nextSlot;
+    addLog(`🛡️ 액막이 부적 슬롯 ${nextSlot}/4 해금 (${paidLabel})`, 'level-up');
+    updateStaticUI();
 }
 
 function startColonyRun(){
@@ -5524,6 +5634,9 @@ function buildCraftActionButtons(item) {
             ? `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="display:grid; gap:3px;">${rows.map(row => `<div>• <strong>${row}</strong></div>`).join('')}</div>`
             : `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="color:#9fb4cb;">없음</div>`;
     }
+    if (document.getElementById('talisman-sub-colony-ward')) {
+        switchTalismanSubtab(game.talismanSubtab === 'talisman-sub-colony-ward' ? 'talisman-sub-colony-ward' : 'talisman-sub-board');
+    }
     let journalList = document.getElementById('ui-journal-list');
     if (journalList) {
         let unlocked = new Set((game.journalEntries || []).filter(id => JOURNAL_DB[id]));
@@ -6178,6 +6291,8 @@ function mergeDefaults(save) {
         return Math.max(1, Math.min(8, Math.floor(1 + bonus)));
     }
 
+    let savedColony = (save && save.colony && typeof save.colony === 'object') ? save.colony : null;
+    let savedColonyHadWardSlotVersion = !!(savedColony && Object.prototype.hasOwnProperty.call(savedColony, 'wardSlotVersion'));
     let merged = {
         ...defaultGame,
         ...save,
@@ -6378,6 +6493,7 @@ function mergeDefaults(save) {
         }
     }
     merged.talismanUnlockPickMode = !!merged.talismanUnlockPickMode;
+    merged.talismanSubtab = merged.talismanSubtab === 'talisman-sub-colony-ward' ? 'talisman-sub-colony-ward' : 'talisman-sub-board';
     merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.shape && (t.stat || (Array.isArray(t.stats) && t.stats.length > 0) || t.special || t.isUnique)) : [];
     merged.talismanBoard = Array.isArray(merged.talismanBoard) ? merged.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
     while (merged.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) merged.talismanBoard.push(null);
@@ -6398,7 +6514,11 @@ function mergeDefaults(save) {
     merged.colony.wardInventory = Array.isArray(merged.colony.wardInventory) ? merged.colony.wardInventory : [];
     merged.colony.wardEquipped = Array.isArray(merged.colony.wardEquipped) ? merged.colony.wardEquipped.slice(0, 4) : [null,null,null,null];
     while (merged.colony.wardEquipped.length < 4) merged.colony.wardEquipped.push(null);
-    merged.colony.wardSlots = 4;
+    let highestWardSlot = merged.colony.wardEquipped.reduce((max, ward, idx) => ward ? Math.max(max, idx + 1) : max, 1);
+    if (!savedColonyHadWardSlotVersion) merged.colony.wardSlots = highestWardSlot;
+    else merged.colony.wardSlots = Math.max(1, Math.min(4, Math.floor(merged.colony.wardSlots || 1)));
+    merged.colony.wardSlots = Math.max(merged.colony.wardSlots, highestWardSlot);
+    merged.colony.wardSlotVersion = 1;
     let beeHasReturnZone = merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null;
     let beeHasStartedRoute = Math.max(0, Math.floor(merged.beehive.branchStep || 0)) > 0;
     let activeBeehiveRuntime = !!(merged.beehive.inRun && merged.currentZoneId === 'beehive_run' && (
