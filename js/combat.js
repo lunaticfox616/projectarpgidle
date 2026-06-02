@@ -738,11 +738,15 @@ function getSummonTooltipPreview(gemName, pStats) {
         critDmg: Math.max(100, profile.baseCritDmg || 140)
     };
     let hit = getSummonHitDamageInfo(hitProfile, stats, null, { expected: true });
+    let levelSteps = Math.max(0, gemLv - 1);
+    let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
+    let maxHp = Math.max(1, Math.floor((profile.baseHp || 1) * hpGrowth * (1 + ((stats.summonHpPct || 0) / 100)) * (1 + ((stats.summonEfficiency || 0) / 100))));
     let critChance = Math.max(0, Math.min(0.95, ((profile.baseCrit || 0) + (stats.summonCrit || 0)) / 100));
     return {
         roleLabel: profile.role === 'guard' ? '방어 소환수' : '공격 소환수',
         trait: profile.trait || '',
         gemLevel: gemLv,
+        maxHp: maxHp,
         hitDamageMin: hitProfile.baseDamage,
         hitDamageMax: Math.max(hitProfile.baseDamage, Math.floor(hit.damage || hitProfile.baseDamage)),
         attackPerSecond: profile.role === 'guard' ? 0 : (Math.round((1000 / getSummonAttackIntervalMs(stats, hitProfile)) * 100) / 100),
@@ -1565,8 +1569,8 @@ function getPlayerStats() {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
         if (!db) return;
-        let activeTier = Math.max(1, Math.min(3, Math.floor(gem.activeTier || gem.unlockedTier || 1)));
-        let tierMul = activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2;
+        let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
+        let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
         let effectiveLevel = Math.max(1, gem.level + gemSources.total);
         let val = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
         addStatToBucket(support, db.stat, val);
@@ -1610,6 +1614,16 @@ function getPlayerStats() {
     let taggedSummary = Object.keys(taggedMap).map(tag => `${translateSkillTag(tag)} ${Math.floor(taggedMap[tag])}%`);
     function sumStatAcrossBuckets(statId) {
         return gearBase[statId] + gearExplicit[statId] + passive[statId] + season[statId] + ascend[statId] + support[statId] + reward[statId] + (starBlessing[statId] || 0);
+    }
+    let crusaderThunderDoctrinePct = 0;
+    if (game.ascendClass === 'crusader' && hasKeystone('cr2') && skill.ele === 'light') {
+        let firePct = sumStatAcrossBuckets('firePctDmg');
+        let coldPct = sumStatAcrossBuckets('coldPctDmg');
+        crusaderThunderDoctrinePct = Math.max(0, firePct + coldPct);
+        if (crusaderThunderDoctrinePct > 0) {
+            taggedTotal += crusaderThunderDoctrinePct;
+            taggedSummary.push(`천뢰 교리: 화염/냉기 피해 ${Math.floor(crusaderThunderDoctrinePct)}%를 번개 피해에 추가 적용`);
+        }
     }
 
     let hasRandomElementConversion = Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0;
@@ -1836,7 +1850,10 @@ function getPlayerStats() {
     if (uniqueFlatDmgPerLevel > 0) finalBaseDmg += Math.floor(Math.max(1, game.level || 1) * uniqueFlatDmgPerLevel);
     talismanEntries.forEach(entry => {
         let t = entry.talisman; if (!t) return;
-        if (t.special === 'moment') talismanBossFinalDmgBonusPct = Math.max(talismanBossFinalDmgBonusPct, (t.bossFinalDmgMin || 5) + Math.floor(Math.random() * (((t.bossFinalDmgMax || 15) - (t.bossFinalDmgMin || 5)) + 1)));
+        if (t.special === 'moment') {
+            let roll = typeof getTalismanMomentRoll === 'function' ? getTalismanMomentRoll(t) : (t.bossFinalDmgRoll || t.bossFinalDmgValue || t.bossFinalDmgMin || 5);
+            talismanBossFinalDmgBonusPct = Math.max(talismanBossFinalDmgBonusPct, roll);
+        }
     });
     let damageScales = {
         hpFlatBonus: hpFlatBonus,
@@ -1849,6 +1866,7 @@ function getPlayerStats() {
         dot: dotMultiplier,
         dotStat: dotStatMultiplier,
         randomElementDamagePct: randomElementDamagePct,
+        crusaderThunderDoctrinePct: crusaderThunderDoctrinePct,
         talismanBossFinalDmgBonusPct: talismanBossFinalDmgBonusPct
     };
     let suppCap = 2 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap;
@@ -2020,11 +2038,6 @@ function getPlayerStats() {
             crusaderHolyFlatDmg = Math.floor((Math.max(0, finalEnergyShield) / 100) * Math.max(1, Math.floor(game.level || 1)));
             crusaderHolyScaledDmg = Math.floor(crusaderHolyFlatDmg * baseDamageIncreaseMultiplier);
             finalBaseDmg = Math.max(1, finalBaseDmg + crusaderHolyScaledDmg);
-        }
-        if (hasKeystone('cr2')) {
-            let firePct = gearBase.firePctDmg + gearExplicit.firePctDmg + passive.firePctDmg + season.firePctDmg + ascend.firePctDmg + support.firePctDmg + reward.firePctDmg;
-            let coldPct = gearBase.coldPctDmg + gearExplicit.coldPctDmg + passive.coldPctDmg + season.coldPctDmg + ascend.coldPctDmg + support.coldPctDmg + reward.coldPctDmg;
-            if (skill.ele === 'light') finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, firePct + coldPct) / 100));
         }
         if (hasKeystone('cr8') && (game.crusaderLightningAegisUntil || 0) > Date.now()) finalBaseDmg = Math.floor(finalBaseDmg * (skill.ele === 'light' ? 1.5 : 1));
     } else if (game.ascendClass === 'elementalist') {
@@ -2740,8 +2753,8 @@ function getGemPresentation(name, isSupport) {
         if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null };
         let totalLevel = Math.max(1, gem.level + stats.gemBonusSources.total);
         let val = db.baseVal + ((totalLevel - 1) * db.scale);
-        let activeTier = Math.max(1, Math.min(3, Math.floor(gem.activeTier || gem.unlockedTier || 1)));
-        let tierMul = activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2;
+        let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
+        let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
         return { baseLevel: gem.level, totalLevel: totalLevel, value: val * tierMul, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier };
     }
     let db = SKILL_DB[name];
@@ -4259,8 +4272,11 @@ function rollLootForEnemy(enemy) {
                     didImprove = true;
                 } else {
                     let record = normalizeGemRecord(game.supportGemData[gem] || { level:1, exp:0 });
-                    let before = Math.max(1, Math.floor(record.unlockedTier || 1));
-                    if (before < 3) {
+                    let tierCap = typeof getSupportTierCap === 'function' ? getSupportTierCap(gem) : 3;
+                    let before = Math.max(1, Math.min(tierCap, Math.floor(record.unlockedTier || 1)));
+                    record.unlockedTier = before;
+                    record.activeTier = Math.max(1, Math.min(before, Math.floor(record.activeTier || 1)));
+                    if (before < tierCap) {
                         record.unlockedTier = before + 1;
                         if ((record.activeTier || 1) < record.unlockedTier) {
                             let prevTier = Math.max(1, Math.floor(record.activeTier || 1));
@@ -4289,7 +4305,8 @@ function rollLootForEnemy(enemy) {
                     game.noti.skills = true;
                     checkUnlocks();
                     let tier = ((game.supportGemData[gem] || {}).unlockedTier || 1);
-                    if (game.settings.showLootLog) addLog(`🟢 보조젬 <span class='loot-rare'>[${gem}]</span> 획득! (해금: ${tier >= 3 ? '상급' : tier === 2 ? '중급' : '하급'})`);
+                    let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(gem, tier) : (tier >= 3 ? '상급' : tier === 2 ? '중급' : '하급');
+                    if (game.settings.showLootLog) addLog(`🟢 보조젬 <span class='loot-rare'>[${gem}]</span> 획득! (해금: ${tierLabel})`);
                 }
             }
         }

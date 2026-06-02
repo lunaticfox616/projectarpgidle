@@ -5105,6 +5105,8 @@ function getUniqueCodexKeyByItem(item) {
     return `${item.slot}|${item.name}`;
 }
 
+const EQUIPMENT_DROP_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'];
+
 function chooseItemBase(slot, zoneTier) {
     let zone = getZone(game.currentZoneId) || {};
     const zoneRealm = zone.type === 'chaosRealm' ? 'chaos' : (zone.type === 'underworld' ? 'underworld' : (zone.type === 'cosmos' ? 'cosmos' : null));
@@ -5153,11 +5155,39 @@ function rollBaseStats(base, zoneTier) {
     });
 }
 
+
+function rollTierValueAffix(mod, statId, tier) {
+    let range = mod.tierValues[Math.max(0, Math.min(mod.tierValues.length - 1, tier - 1))];
+    let min = Array.isArray(range) ? Number(range[0]) : Number(range);
+    let max = Array.isArray(range) ? Number(range[1]) : min;
+    if (!Number.isFinite(min)) min = Number(mod.base) || 0;
+    if (!Number.isFinite(max)) max = min;
+    if (max < min) { let tmp = min; min = max; max = tmp; }
+    let val = min + Math.floor(Math.random() * (Math.floor(max) - Math.floor(min) + 1));
+    return { id: statId, val: val, valMin: Math.floor(min), valMax: Math.floor(max), tier: tier, statName: mod.statName };
+}
+
+function rerollStoredAffixValue(stat) {
+    let min = Number(stat && stat.valMin);
+    let max = Number(stat && stat.valMax);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return;
+    if (max < min) { let tmp = min; min = max; max = tmp; }
+    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
+        let val = min + Math.random() * (max - min);
+        stat.val = Math.round(val * 10) / 10;
+        return;
+    }
+    let minInt = Math.floor(min);
+    let maxInt = Math.floor(max);
+    stat.val = minInt + Math.floor(Math.random() * (maxInt - minInt + 1));
+}
+
 function rollAffixValue(mod, maxTier) {
     let statId = mod.statId || mod.id;
     let tier = 1;
     maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 10);
     while (tier < maxTier && Math.random() < 0.58) tier++;
+    if (Array.isArray(mod.tierValues)) return rollTierValueAffix(mod, statId, tier);
     let min = mod.base + (tier * mod.step);
     let max = min + mod.step * 1.6;
     let val = min + Math.random() * (max - min);
@@ -5196,6 +5226,7 @@ function rollAffixValueInTierRange(mod, minTier, maxTier) {
     minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 10);
     maxTier = clampNumber(Math.floor(Number(maxTier) || minTier), minTier, 10);
     let tier = pickTierInRangeWeighted(minTier, maxTier);
+    if (Array.isArray(mod.tierValues)) return rollTierValueAffix(mod, statId, tier);
     let min = mod.base + (tier * mod.step);
     let max = min + mod.step * 1.6;
     let val = min + Math.random() * (max - min);
@@ -5350,8 +5381,8 @@ const CHAOS_INFUSER_OPTIONS = [
     { optionId: 'weapon_pctDmg', id: 'pctDmg', min: 18, max: 26, currency: 'chaos', cost: 6, label: '무기 피해 증가', slots: ['무기'] },
     { optionId: 'weapon_aspd', id: 'aspd', min: 8, max: 12, currency: 'alteration', cost: 12, label: '무기 공격 속도', slots: ['무기'] },
     { optionId: 'armor_pctHp', id: 'pctHp', min: 12, max: 18, currency: 'exalted', cost: 1, label: '갑옷 생명력 증가', slots: ['갑옷'] },
-    { optionId: 'armor_flatHp', id: 'flatHp', min: 55, max: 80, currency: 'transmute', cost: 18, label: '갑옷 최대 생명력', slots: ['갑옷'] },
-    { optionId: 'armor_defensePct', id: 'armorPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '갑옷 방어도 증가', slots: ['갑옷'] },
+    { optionId: 'armor_flatHp', id: 'flatHp', min: 55, max: 80, currency: 'transmute', cost: 18, label: '갑옷/방패 최대 생명력', slots: ['갑옷', '방패'] },
+    { optionId: 'armor_defensePct', id: 'armorPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '갑옷/방패 방어도 증가', slots: ['갑옷', '방패'] },
     { optionId: 'boots_move', id: 'move', min: 16, max: 22, currency: 'exalted', cost: 1, label: '장화 이동 속도', slots: ['신발'] },
     { optionId: 'boots_evasionPct', id: 'evasionPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '장화 회피 증가', slots: ['신발'] },
     { optionId: 'gloves_aspd', id: 'aspd', min: 8, max: 12, currency: 'alteration', cost: 12, label: '장갑 공격 속도', slots: ['장갑'] },
@@ -5362,10 +5393,12 @@ const CHAOS_INFUSER_OPTIONS = [
     { optionId: 'belt_flatHp', id: 'flatHp', min: 50, max: 76, currency: 'transmute', cost: 16, label: '허리띠 최대 생명력', slots: ['허리띠'] },
     { optionId: 'jewelry_pctDmg', id: 'pctDmg', min: 16, max: 24, currency: 'chaos', cost: 6, label: '장신구 피해 증가', slots: ['반지', '목걸이'] },
     { optionId: 'jewelry_resPen', id: 'resPen', min: 4, max: 6, currency: 'chaos', cost: 8, label: '장신구 저항 관통', slots: ['반지', '목걸이'] },
-    { optionId: 'res_all', id: 'resAll', min: 4, max: 7, currency: 'chaos', cost: 5, label: '낮은 모든 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠'] },
-    { optionId: 'res_fire', id: 'resF', min: 12, max: 18, currency: 'chaos', cost: 5, label: '화염 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠'] },
-    { optionId: 'res_cold', id: 'resC', min: 12, max: 18, currency: 'chaos', cost: 5, label: '냉기 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠'] },
-    { optionId: 'res_light', id: 'resL', min: 12, max: 18, currency: 'chaos', cost: 5, label: '번개 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠'] }
+    { optionId: 'res_all', id: 'resAll', min: 4, max: 7, currency: 'chaos', cost: 5, label: '낮은 모든 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
+    { optionId: 'res_fire', id: 'resF', min: 12, max: 18, currency: 'chaos', cost: 5, label: '화염 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
+    { optionId: 'res_cold', id: 'resC', min: 12, max: 18, currency: 'chaos', cost: 5, label: '냉기 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
+    { optionId: 'res_light', id: 'resL', min: 12, max: 18, currency: 'chaos', cost: 5, label: '번개 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
+    { optionId: 'shield_chaos_res', id: 'resChaos', min: 8, max: 12, currency: 'chaos', cost: 6, label: '방패 카오스 저항', slots: ['방패'] },
+    { optionId: 'shield_block_pct', id: 'blockChancePct', min: 16, max: 24, currency: 'augment', cost: 12, label: '방패 막기 확률 증가', slots: ['방패'] }
 ];
 function getChaosInfuserOptionsForItem(item) {
     let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
@@ -5675,7 +5708,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
         return true;
     };
     let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
-    let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
+    let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
     let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare && canDropUniqueInZone(unique) && zoneTier >= (unique.reqTier || 1));
     let canRollChase = !game.seasonChaseUniqueDropped && chaseOptions.length > 0 && Math.random() < 0.0008;
@@ -5756,7 +5789,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
 
 function generateEquipmentDrop(enemy) {
     let zoneTier = getZone(game.currentZoneId).tier;
-    let slot = rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
+    let slot = rndChoice(EQUIPMENT_DROP_SLOTS);
     let base = chooseItemBase(slot, zoneTier);
     let rarity = 'normal';
     let roll = Math.random();
@@ -6769,15 +6802,10 @@ function useCurrency(currencyKey) {
     } else if (currencyKey === 'divine') {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney || stat.lockedByRift) return;
-            let val = stat.valMin + Math.random() * (stat.valMax - stat.valMin);
-            if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) stat.val = Math.round(val * 10) / 10;
-            else stat.val = Math.floor(val);
+            rerollStoredAffixValue(stat);
         });
         if (item.chaosInfusion && Number.isFinite(Number(item.chaosInfusion.valMin)) && Number.isFinite(Number(item.chaosInfusion.valMax))) {
-            let stat = item.chaosInfusion;
-            let val = Number(stat.valMin) + Math.random() * (Number(stat.valMax) - Number(stat.valMin));
-            if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) stat.val = Math.round(val * 10) / 10;
-            else stat.val = Math.floor(val);
+            rerollStoredAffixValue(item.chaosInfusion);
         }
         if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp' && item.uniqueEffectParams) {
             let p = item.uniqueEffectParams;
