@@ -639,10 +639,19 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
     let crit = false;
     let dmg = Math.max(1, base * dmgMul);
+    let ailmentSourceDmg = Math.max(1, base * dmgMul);
     if (expected) dmg *= ((1 - critChance) + (critChance * critMul));
     else if (Math.random() < critChance) { dmg *= critMul; crit = true; }
-    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) dmg *= (1 + Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100);
-    if (target && target.isBoss) dmg *= getLimitedSummonBossDamageMultiplier(pStats, target);
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
+        let soulbinderMul = 1 + Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100;
+        dmg *= soulbinderMul;
+        ailmentSourceDmg *= soulbinderMul;
+    }
+    if (target && target.isBoss) {
+        let bossMul = getLimitedSummonBossDamageMultiplier(pStats, target);
+        dmg *= bossMul;
+        ailmentSourceDmg *= bossMul;
+    }
     let curseFx = target ? getEnemyConditionDebuffFactor(target, pStats) : { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, lightTakenMul: 1, chaosTakenMul: 1, critDmgTakenMul: 1 };
     let limitedStats = getLimitedSummonPenetrationStats(pStats, s);
     let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, target, limitedStats) - (curseFx.resShred || 0);
@@ -651,18 +660,44 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (ele === 'light') enemyRes -= (curseFx.resLShred || 0);
     if (ele === 'chaos') enemyRes -= (curseFx.resChaosShred || 0);
     if (ele === 'phys') enemyRes -= (curseFx.physDrShred || 0);
-    if (!expected && target && (target.evasionChance || 0) > 0 && Math.random() * 100 < target.evasionChance) dmg = 0;
+    if (!expected && target && (target.evasionChance || 0) > 0 && Math.random() * 100 < target.evasionChance) {
+        dmg = 0;
+        ailmentSourceDmg = 0;
+    }
     dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
+    ailmentSourceDmg = Math.floor(ailmentSourceDmg * (1 - (enemyRes / 100)));
     dmg = Math.floor(dmg * (curseFx.mul || 1));
-    if (ele === 'phys' && target) dmg = Math.floor(dmg * (target.physicalDamageTakenMul || 1));
-    if (ele === 'light') dmg = Math.floor(dmg * (curseFx.lightTakenMul || 1));
-    if (ele === 'chaos') dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
+    ailmentSourceDmg = Math.floor(ailmentSourceDmg * (curseFx.mul || 1));
+    if (ele === 'phys' && target) {
+        dmg = Math.floor(dmg * (target.physicalDamageTakenMul || 1));
+        ailmentSourceDmg = Math.floor(ailmentSourceDmg * (target.physicalDamageTakenMul || 1));
+    }
+    if (ele === 'light') {
+        dmg = Math.floor(dmg * (curseFx.lightTakenMul || 1));
+        ailmentSourceDmg = Math.floor(ailmentSourceDmg * (curseFx.lightTakenMul || 1));
+    }
+    if (ele === 'chaos') {
+        dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
+        ailmentSourceDmg = Math.floor(ailmentSourceDmg * (curseFx.chaosTakenMul || 1));
+    }
     if (crit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
-    if (target) dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(target, ele));
-    dmg = Math.floor(dmg * (getAbyssMonsterScales(zone).playerDamageMul || 1));
-    if (target && target.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) dmg = Math.floor(dmg * (1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100)));
-    dmg = Math.floor(dmg * getLimitedSummonFinalDamageMultiplier(pStats));
-    return { damage: Math.max(0, Math.floor(dmg)), crit: crit, critChance: critChance, element: ele };
+    if (target) {
+        let keystoneMul = getKeystoneEnemyTakenMultiplier(target, ele);
+        dmg = Math.floor(dmg * keystoneMul);
+        ailmentSourceDmg = Math.floor(ailmentSourceDmg * keystoneMul);
+    }
+    let abyssMul = getAbyssMonsterScales(zone).playerDamageMul || 1;
+    dmg = Math.floor(dmg * abyssMul);
+    ailmentSourceDmg = Math.floor(ailmentSourceDmg * abyssMul);
+    if (target && target.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) {
+        let talismanMul = 1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100);
+        dmg = Math.floor(dmg * talismanMul);
+        ailmentSourceDmg = Math.floor(ailmentSourceDmg * talismanMul);
+    }
+    let finalMul = getLimitedSummonFinalDamageMultiplier(pStats);
+    dmg = Math.floor(dmg * finalMul);
+    ailmentSourceDmg = Math.floor(ailmentSourceDmg * finalMul);
+    return { damage: Math.max(0, Math.floor(dmg)), ailmentSourceDamage: Math.max(0, Math.floor(ailmentSourceDmg)), crit: crit, critChance: critChance, element: ele };
 }
 
 function getSummonAilmentStats(pStats, element) {
@@ -682,9 +717,13 @@ function getSummonAilmentStats(pStats, element) {
     };
 }
 
-function applySummonAilmentFromHit(target, pStats, hitElement, hitDamage, isCrit) {
+function applySummonAilmentFromHit(target, pStats, hitElement, hitDamage, isCrit, ailmentSourceDamage) {
     if (!target || hitDamage <= 0) return;
-    applyEnemyAilmentFromHit(target, getSummonAilmentStats(pStats, hitElement), hitDamage, isCrit);
+    let hasExplicitSource = Number.isFinite(Number(ailmentSourceDamage));
+    applyEnemyAilmentFromHit(target, getSummonAilmentStats(pStats, hitElement), hitDamage, isCrit, {
+        ailmentSourceDamage: hasExplicitSource ? ailmentSourceDamage : hitDamage,
+        critDotBonusPct: (hasExplicitSource && isCrit) ? 50 : 0
+    });
 }
 
 function estimateSummonDps(pStats) {
@@ -808,7 +847,7 @@ function runSummonAttackTick(pStats) {
         let hit = getSummonHitDamageInfo(s, pStats, target);
         let dmg = Math.max(0, hit.damage || 0);
         let dealt = applyDamageToEnemyResource(target, dmg);
-        applySummonAilmentFromHit(target, pStats, hit.element, dmg, hit.crit);
+        applySummonAilmentFromHit(target, pStats, hit.element, dmg, hit.crit, hit.ailmentSourceDamage);
         if (game.ascendClass === 'soulbinder' && hasKeystone('sb3')) {
             let heal = Math.max(0, Math.floor(dealt * 0.03));
             if (heal > 0) s.hp = Math.min(s.maxHp || s.hp || 1, (s.hp || 0) + heal);
@@ -2655,6 +2694,7 @@ function getPlayerStats() {
         ailResBleed: (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0) + (colonyWardBonus.ailResBleed || 0),
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
+        dotCritBonusScale: dotMultiplier,
         instantDamageMultiplier: instantDamageMultiplier,
         finalDamageMultiplier: finalDamageMultiplier,
         ailmentPowerMultiplier: ailmentPowerMultiplier,
@@ -3625,17 +3665,28 @@ function getStoredAilmentHitDamage(ail) {
     return Math.max(0, Number(ail.sourceHitDamage || ail.hitDamage || 0) || 0);
 }
 
-function getDamageAilmentBaseDpsFromHit(hitDamage, power, scale) {
+function getDamageAilmentBaseDpsFromHit(hitDamage, power, scale, critDotBonusPct, critDotBonusScale) {
     let source = Math.max(0, Number(hitDamage) || 0);
     if (source <= 0) return 0;
-    let p = Math.max(0, Number(power) || 0);
-    let mul = Math.max(0.01, Number(scale) || 1);
-    return Math.max(1, Math.floor(source * (0.10 + p * 0.08) * mul));
+    let mul = getDamageAilmentEffectiveDotScale(scale, critDotBonusPct, critDotBonusScale);
+    return Math.max(1, Math.floor(source * 0.90 * mul));
+}
+
+function getDamageAilmentEffectiveDotScale(scale, critDotBonusPct, critDotBonusScale) {
+    let baseScale = Math.max(0.01, Number(scale) || 1);
+    let bonusPct = Math.max(0, Number(critDotBonusPct) || 0);
+    let bonusScale = Math.max(0.01, Number(critDotBonusScale) || 1);
+    return baseScale + (bonusPct / 100) * bonusScale;
+}
+
+function getDamageAilmentScore(sourceDamage, critDotBonusPct, scale, critDotBonusScale) {
+    let source = Math.max(0, Number(sourceDamage) || 0);
+    return source * getDamageAilmentEffectiveDotScale(scale, critDotBonusPct, critDotBonusScale);
 }
 
 function getEnemyDamageAilmentDps(ail, pStats) {
     let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
-    let dps = getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale);
+    let dps = getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
     if (ail && ail.type === 'ignite') dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.igniteDamageMultiplierPct) || 0) / 100));
     if (ail && ail.type === 'poison') dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.poisonDamageMultiplierPct) || 0) / 100));
     return dps;
@@ -3656,6 +3707,8 @@ function cloneEnemyAilmentForSpread(ail) {
     if (isDamageAilmentType(ail.type)) {
         copy.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(), Math.floor(ail.stacks || 1)));
         copy.sourceHitDamage = getStoredAilmentHitDamage(ail);
+        copy.critDotBonusPct = Math.max(0, Number(ail.critDotBonusPct) || 0);
+        copy.ailmentDotScore = Math.max(0, Number(ail.ailmentDotScore) || 0);
     }
     return copy;
 }
@@ -3672,7 +3725,13 @@ function mergeEnemyAilment(target, incoming) {
     row.power = Math.max(row.power || 0, incoming.power || 0);
     if (isDamageAilmentType(incoming.type)) {
         row.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(), Math.max(Math.floor(row.stacks || 1), Math.floor(incoming.stacks || 1))));
-        row.sourceHitDamage = Math.max(getStoredAilmentHitDamage(row), getStoredAilmentHitDamage(incoming));
+        let rowScore = Math.max(0, Number(row.ailmentDotScore) || getStoredAilmentHitDamage(row));
+        let incomingScore = Math.max(0, Number(incoming.ailmentDotScore) || getStoredAilmentHitDamage(incoming));
+        if (incomingScore >= rowScore) {
+            row.sourceHitDamage = getStoredAilmentHitDamage(incoming);
+            row.critDotBonusPct = Math.max(0, Number(incoming.critDotBonusPct) || 0);
+            row.ailmentDotScore = incomingScore;
+        }
     }
     return true;
 }
@@ -3739,7 +3798,7 @@ function getPlayerDamageAilmentFallbackDps(type, power, pStats) {
 
 function getPlayerDamageAilmentDps(ail, pStats) {
     let source = getStoredAilmentHitDamage(ail);
-    let dps = source > 0 ? getDamageAilmentBaseDpsFromHit(source, ail ? ail.power : 0, 1) : getPlayerDamageAilmentFallbackDps(ail ? ail.type : null, ail ? ail.power : 0, pStats);
+    let dps = source > 0 ? getDamageAilmentBaseDpsFromHit(source, ail ? ail.power : 0, 1, ail ? ail.critDotBonusPct : 0, 1) : getPlayerDamageAilmentFallbackDps(ail ? ail.type : null, ail ? ail.power : 0, pStats);
     if (pStats && pStats.uniqueArmorAppliesToDot) {
         let armor = Math.max(0, Number(pStats.armor) || 0);
         let armorRed = Math.min(0.8, armor / (armor + 1200));
@@ -3748,13 +3807,16 @@ function getPlayerDamageAilmentDps(ail, pStats) {
     return dps;
 }
 
-function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
+function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     if (!enemy || enemy.hp <= 0) return;
     let ele = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
     let primaryType = getAilmentTypeFromElement(ele);
-    let sourceHitDamage = Math.max(0, Math.floor(Number(hitDamage) || 0));
+    let opts = (options && typeof options === 'object') ? options : {};
+    let sourceHitDamage = Math.max(0, Math.floor(Number(opts.ailmentSourceDamage !== undefined ? opts.ailmentSourceDamage : hitDamage) || 0));
     let catalystAilmentMul = (game.ascendClass === 'catalyst' && hasKeystone('ct1')) ? 1.5 : 1;
     let ailmentPowerSourceDamage = Math.max(0, Math.floor(sourceHitDamage * Math.max(0.01, Number(pStats && pStats.ailmentPowerMultiplier) || 1) * catalystAilmentMul));
+    let critDotBonusPct = Math.max(0, Number(opts.critDotBonusPct !== undefined ? opts.critDotBonusPct : (isCrit ? 50 : 0)) || 0);
+    let ailmentDotScore = getDamageAilmentScore(ailmentPowerSourceDamage, critDotBonusPct, pStats && Number.isFinite(pStats.dotDamageScale) ? pStats.dotDamageScale : 1, pStats && Number.isFinite(pStats.dotCritBonusScale) ? pStats.dotCritBonusScale : 1);
     let hitRatio = Math.max(0.001, Math.min(0.35, ailmentPowerSourceDamage / Math.max(1, enemy.maxHp || 1)));
     let hitPower = Math.sqrt(Math.max(1, ailmentPowerSourceDamage)) * 0.01;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
@@ -3769,17 +3831,29 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
         if (type === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(hitRatio, enemy.maxHp || 1)) return false;
         let damageAilment = isDamageAilmentType(type);
         let power = damageAilment
-            ? Math.max(0.05, Math.min(1.5, hitPower))
+            ? 0.90
             : Math.max(0.05, Math.min(1.5, hitPower + (hitRatio * 1.8)));
         let row = enemy.ailments.find(a => a.type === type);
         let durationMul = damageAilment ? Math.max(0.05, (pStats && Number.isFinite(pStats.dotDurationMultiplier)) ? pStats.dotDurationMultiplier : 1) : 1;
         let dur = (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10))) * durationMul;
         let payload = { type: type, time: dur, power: power, stacks: 1 };
-        if (damageAilment) payload.sourceHitDamage = ailmentPowerSourceDamage;
+        if (damageAilment) {
+            payload.sourceHitDamage = ailmentPowerSourceDamage;
+            payload.critDotBonusPct = critDotBonusPct;
+            payload.ailmentDotScore = ailmentDotScore;
+        }
         if (row) {
             row.time = Math.max(row.time || 0, dur);
             row.power = Math.max(row.power || 0, power);
-            if (damageAilment) row.sourceHitDamage = Math.max(getStoredAilmentHitDamage(row), ailmentPowerSourceDamage);
+            if (damageAilment) {
+                let rowScore = Math.max(0, Number(row.ailmentDotScore) || getStoredAilmentHitDamage(row));
+                let incomingScore = ailmentDotScore;
+                if (incomingScore >= rowScore) {
+                    row.sourceHitDamage = ailmentPowerSourceDamage;
+                    row.critDotBonusPct = critDotBonusPct;
+                    row.ailmentDotScore = incomingScore;
+                }
+            }
             if (damageAilment) {
                 let maxStacks = getEnemyDamageAilmentMaxStacks();
                 row.stacks = Math.max(1, Math.min(maxStacks, Math.floor((row.stacks || 1) + 1)));
@@ -5159,10 +5233,11 @@ function performPlayerAttack(pStats) {
     }
     let perEnemyHitCount = new Map();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
-    function applyPierceOverkillCarry(sourceEnemy, carryDamage, hitElement, hitCrit) {
+    function applyPierceOverkillCarry(sourceEnemy, carryDamage, hitElement, hitCrit, ailmentCarrySourceDamage) {
         let hunterSinglePierce = game.ascendClass === 'hunter' && hasKeystone('h4') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1;
         if ((!pStats.sSkill.pierceOverkillCarry && !hunterSinglePierce) || carryDamage <= 0) return;
         let remainingDamage = Math.max(0, Math.floor(carryDamage));
+        let remainingAilmentSourceDamage = Math.max(0, Math.floor(Number(ailmentCarrySourceDamage !== undefined ? ailmentCarrySourceDamage : carryDamage) || 0));
         let visited = new Set(sourceEnemy && sourceEnemy.id ? [sourceEnemy.id] : []);
         let chainLimit = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.targets || 1)));
         for (let chainIdx = 0; chainIdx < chainLimit && remainingDamage > 0; chainIdx++) {
@@ -5200,8 +5275,19 @@ function performPlayerAttack(pStats) {
                 duration: 320,
                 element: hitElement
             });
-            applyEnemyAilmentFromHit(chainTarget, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, remainingDamage, hitCrit);
-            remainingDamage = (chainTarget.hp <= 0) ? Math.max(0, remainingDamage - dealtToChain) : 0;
+            applyEnemyAilmentFromHit(chainTarget, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, remainingDamage, hitCrit, {
+                ailmentSourceDamage: remainingAilmentSourceDamage,
+                critDotBonusPct: hitCrit ? 50 : 0
+            });
+            if (chainTarget.hp <= 0) {
+                let prevRemainingDamage = remainingDamage;
+                remainingDamage = Math.max(0, remainingDamage - dealtToChain);
+                let carryRatio = prevRemainingDamage > 0 ? (remainingDamage / prevRemainingDamage) : 0;
+                remainingAilmentSourceDamage = Math.max(0, Math.floor(remainingAilmentSourceDamage * carryRatio));
+            } else {
+                remainingDamage = 0;
+                remainingAilmentSourceDamage = 0;
+            }
         }
     }
     let randomTargetCapFallbackUsed = false;
@@ -5241,6 +5327,7 @@ function performPlayerAttack(pStats) {
                 row.time = Math.max(row.time || 0, Number(pStats.uniqueAllResDownOnHit.duration || 5));
             }
             let hitBaseDamage = pStats.baseDmg;
+            let ailmentBaseDamage = pStats.baseDmg;
             if (game.ascendClass === 'hunter' && hasKeystone('h8')) {
                 let critCount = 0;
                 let critChancePct = Math.max(0, Number(pStats.crit) || 0);
@@ -5268,52 +5355,83 @@ function performPlayerAttack(pStats) {
             }
             if (riderCompassReady) {
                 hitBaseDamage = Math.floor(hitBaseDamage * 2);
+                ailmentBaseDamage = Math.floor(ailmentBaseDamage * 2);
                 riderCompassReady = false;
                 game.uniqueRiderCompassConsumed = true;
             }
             if (hitCrit && game.ascendClass === 'assassin' && hasKeystone('a7') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1) hitBaseDamage *= 2;
             if (hitCrit && game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) hitBaseDamage *= 2;
             let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
-            if (randomElementPct) hitBaseDamage = Math.floor(hitBaseDamage * (1 + randomElementPct / 100));
-            if (hitElement === 'phys') hitBaseDamage = Math.floor(hitBaseDamage * Math.max(0, Number(pStats.warriorPhysDamageMultiplier) || 1));
+            if (randomElementPct) {
+                hitBaseDamage = Math.floor(hitBaseDamage * (1 + randomElementPct / 100));
+                ailmentBaseDamage = Math.floor(ailmentBaseDamage * (1 + randomElementPct / 100));
+            }
+            if (hitElement === 'phys') {
+                let physMul = Math.max(0, Number(pStats.warriorPhysDamageMultiplier) || 1);
+                hitBaseDamage = Math.floor(hitBaseDamage * physMul);
+                ailmentBaseDamage = Math.floor(ailmentBaseDamage * physMul);
+            }
             if (game.ascendClass === 'hunter' && hasKeystone('h1')) {
                 let aliveCnt = (game.enemies || []).filter(e => e && e.hp > 0).length;
-                hitBaseDamage = Math.floor(hitBaseDamage * (aliveCnt === 1 ? 1.25 : 1.10));
+                let hunterMul = aliveCnt === 1 ? 1.25 : 1.10;
+                hitBaseDamage = Math.floor(hitBaseDamage * hunterMul);
+                ailmentBaseDamage = Math.floor(ailmentBaseDamage * hunterMul);
             }
             if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
-                hitBaseDamage = Math.floor(hitBaseDamage * (1 + Math.max(0, (pStats.sbPlayerDamageFromSummonPct || 0) * (pStats.summonPctDmg || 0)) / 100));
+                let soulbinderMul = 1 + Math.max(0, (pStats.sbPlayerDamageFromSummonPct || 0) * (pStats.summonPctDmg || 0)) / 100;
+                hitBaseDamage = Math.floor(hitBaseDamage * soulbinderMul);
+                ailmentBaseDamage = Math.floor(ailmentBaseDamage * soulbinderMul);
             }
             if (game.ascendClass === 'catalyst' && hasKeystone('ct5') && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && (a.time || 0) > 0)) {
                 hitBaseDamage = Math.floor(hitBaseDamage * 1.2);
+                ailmentBaseDamage = Math.floor(ailmentBaseDamage * 1.2);
             }
-            if (targetEnemy.isBoss) hitBaseDamage = Math.floor(hitBaseDamage * Math.max(0, Number(pStats.bossDamageDealtMultiplier) || 1));
+            if (targetEnemy.isBoss) {
+                let bossMul = Math.max(0, Number(pStats.bossDamageDealtMultiplier) || 1);
+                hitBaseDamage = Math.floor(hitBaseDamage * bossMul);
+                ailmentBaseDamage = Math.floor(ailmentBaseDamage * bossMul);
+            }
             if (game.ascendClass === 'gladiator' && hasKeystone('g5') && game.gladiatorSwiftOpeningReady) {
                 hitBaseDamage = Math.floor(hitBaseDamage * 1.30);
+                ailmentBaseDamage = Math.floor(ailmentBaseDamage * 1.30);
                 game.gladiatorSwiftOpeningReady = false;
             }
             let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
+            let ailmentSourceDamage = Math.floor(ailmentBaseDamage * (hit.mult || 1));
             if (!Number.isFinite(dmg)) dmg = 0;
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
             let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
-            if (pStats.uniqueCeilingSmashDouble && rollPct >= 140 && Math.random() < 0.15) dmg *= 2;
+            if (pStats.uniqueCeilingSmashDouble && rollPct >= 140 && Math.random() < 0.15) {
+                dmg *= 2;
+                ailmentSourceDamage *= 2;
+            }
             dmg = Math.floor(dmg * (rollPct / 100));
+            ailmentSourceDamage = Math.floor(ailmentSourceDamage * (rollPct / 100));
             if (hitElement === 'chaos') {
                 let chaosMultiplier = Math.max(0, Number(pStats.chaosDamageMultiplier) || 1);
                 dmg = Math.floor(dmg * chaosMultiplier);
+                ailmentSourceDamage = Math.floor(ailmentSourceDamage * chaosMultiplier);
             }
             if ((targetEnemy.firstHitGuard || 0) > 0 && !targetEnemy.firstHitConsumed) {
                 dmg = Math.floor(dmg * (1 - targetEnemy.firstHitGuard));
+                ailmentSourceDamage = Math.floor(ailmentSourceDamage * (1 - targetEnemy.firstHitGuard));
                 targetEnemy.firstHitConsumed = true;
             }
             let burstHits = Math.max(0, (targetEnemy.recentHitsTaken || 0) - 2);
             let hitGuard = (targetEnemy.hitRateGuard || 0) * Math.min(5, burstHits);
-            if (hitGuard > 0) dmg = Math.floor(dmg * Math.max(0.2, 1 - hitGuard));
+            if (hitGuard > 0) {
+                let hitGuardMul = Math.max(0.2, 1 - hitGuard);
+                dmg = Math.floor(dmg * hitGuardMul);
+                ailmentSourceDamage = Math.floor(ailmentSourceDamage * hitGuardMul);
+            }
             if ((targetEnemy.comboTakenLessPct || 0) > 0 && burstHits > 0) {
                 let comboLess = Math.max(0, Math.min(85, Number(targetEnemy.comboTakenLessPct || 0) * Math.min(5, burstHits) / 5));
                 dmg = Math.floor(dmg * (1 - comboLess / 100));
+                ailmentSourceDamage = Math.floor(ailmentSourceDamage * (1 - comboLess / 100));
             }
             let damageBeforeMitigation = dmg;
+            let ailmentDamageBeforeCritMitigation = Math.max(0, Math.floor(ailmentSourceDamage));
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
             if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
@@ -5399,7 +5517,11 @@ function performPlayerAttack(pStats) {
                 targetEnemy.hp = Math.max(1, Math.min(beforeHpForForced, targetEnemy.maxHp || 1));
             }
             maybeUnlockChaosRealmFromWoodsman(targetEnemy);
-            if (targetEnemy.hp <= 0 && dmg > dealtToEnemy) applyPierceOverkillCarry(targetEnemy, dmg - dealtToEnemy, hitElement, hitCrit);
+            if (targetEnemy.hp <= 0 && dmg > dealtToEnemy) {
+                let overkillDamage = dmg - dealtToEnemy;
+                let ailmentOverkillSourceDamage = dmg > 0 ? Math.floor(ailmentDamageBeforeCritMitigation * (overkillDamage / dmg)) : 0;
+                applyPierceOverkillCarry(targetEnemy, overkillDamage, hitElement, hitCrit, ailmentOverkillSourceDamage);
+            }
             if (slamEchoPct > 0 && (pStats.sSkill.tags || []).includes('slam') && dmg > 0 && targetEnemy.hp > 0 && (slamEchoGuaranteed || passiveSlamEchoChance <= 0 || Math.random() < passiveSlamEchoChance)) {
                 game.pendingSlamEchoHits = Array.isArray(game.pendingSlamEchoHits) ? game.pendingSlamEchoHits : [];
                 game.pendingSlamEchoHits.push({
@@ -5493,7 +5615,10 @@ function performPlayerAttack(pStats) {
                 else targetEnemy.ailments.push({ type: 'assassinWeakness', time: 5, power: stacks });
             }
             if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
-            applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, hitCrit);
+            applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, hitCrit, {
+                ailmentSourceDamage: ailmentDamageBeforeCritMitigation,
+                critDotBonusPct: hitCrit ? 50 : 0
+            });
             if (pStats.uniqueAlwaysShock) {
                 let shockStats = { ...pStats, sSkill: { ...pStats.sSkill, ele: 'light' } };
                 let shockHit = Math.max(1, Math.floor(dmg * 0.25 * (1 + Math.max(0, Number(pStats.shockEffectBonusPct)||0)/100)));
@@ -5670,13 +5795,16 @@ function getPlayerAilmentResistChance(type, pStats) {
     return Math.max(0, Math.min(1.00, (res + (pStats.ailmentResistBonusPct || 0)) / 100));
 }
 
-function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage) {
+function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, options) {
     if (!type || duration <= 0) return;
     if ((type === 'ignite' && pStats.immuneIgnite) || (type === 'chill' && pStats.immuneChill) || (type === 'freeze' && pStats.immuneFreeze) || (type === 'shock' && pStats.immuneShock) || (type === 'bleed' && pStats.immuneBleed)) return;
     if (Math.random() < getPlayerAilmentResistChance(type, pStats)) return;
     game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];
     let damageAilment = isDamageAilmentType(type);
-    let hitSource = Math.max(0, Math.floor(Number(sourceHitDamage) || 0));
+    let opts = (options && typeof options === 'object') ? options : {};
+    let hitSource = Math.max(0, Math.floor(Number(opts.ailmentSourceDamage !== undefined ? opts.ailmentSourceDamage : sourceHitDamage) || 0));
+    let critDotBonusPct = Math.max(0, Number(opts.critDotBonusPct) || 0);
+    let ailmentDotScore = getDamageAilmentScore(hitSource, critDotBonusPct, 1, 1);
     let existing = game.playerAilments.find(row => row.type === type);
     if (type === 'poison') {
         let maxStacks = Math.max(1, 1 + Math.max(0, Math.floor((pStats && pStats.uniquePoisonExtraStacks) || 0)));
@@ -5690,10 +5818,22 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage) {
     if (existing) {
         existing.time = Math.max(existing.time || 0, duration);
         existing.power = Math.max(existing.power || 0, power || 0.1);
-        if (damageAilment) existing.sourceHitDamage = Math.max(getStoredAilmentHitDamage(existing), hitSource);
+        if (damageAilment) {
+            let existingScore = Math.max(0, Number(existing.ailmentDotScore) || getStoredAilmentHitDamage(existing));
+            let incomingScore = ailmentDotScore;
+            if (incomingScore >= existingScore) {
+                existing.sourceHitDamage = hitSource;
+                existing.critDotBonusPct = critDotBonusPct;
+                existing.ailmentDotScore = incomingScore;
+            }
+        }
     } else {
         let row = { type: type, time: duration, power: Math.max(0.1, power || 0.1) };
-        if (damageAilment) row.sourceHitDamage = hitSource;
+        if (damageAilment) {
+            row.sourceHitDamage = hitSource;
+            row.critDotBonusPct = critDotBonusPct;
+            row.ailmentDotScore = ailmentDotScore;
+        }
         game.playerAilments.push(row);
     }
 }
@@ -5919,10 +6059,13 @@ function performMonsterAttacks(pStats) {
                 if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: 1 });
             };
             dmg = Math.max(1, sumBreakdown());
+            let ailmentSourceDamageBeforeCrit = dmg;
+            let enemyCritDotBonusPct = 0;
             let enemyCritChance = Math.max(0, (enemy.critChance || 0) - Math.max(0, Math.min(80, pStats.critResist || 0)));
             if (enemyCritChance > 0 && Math.random() < (enemyCritChance / 100)) {
                 scaleBreakdown(enemy.critDamageMul || 1.55);
                 dmg = Math.max(1, sumBreakdown());
+                enemyCritDotBonusPct = 50;
             }
             if (enemy.hybridElement && Math.random() < 0.35) {
                 let hybridRes = enemy.hybridElement === 'fire' ? pStats.resF : enemy.hybridElement === 'cold' ? pStats.resC : enemy.hybridElement === 'light' ? pStats.resL : pStats.resChaos;
@@ -5984,9 +6127,12 @@ function performMonsterAttacks(pStats) {
                 let hitRatio = Math.max(0.001, Math.min(0.35, dmg / Math.max(1, pStats.maxHp || 1)));
                 let damageAilment = isDamageAilmentType(ail);
                 let ailPower = damageAilment
-                    ? Math.max(0.1, Math.min(1.5, Math.sqrt(Math.max(1, dmg)) * 0.01))
+                    ? 0.90
                     : Math.max(0.1, Math.min(1.5, (Math.sqrt(Math.max(1, dmg)) * 0.01) + (hitRatio * 1.8)));
-                applyPlayerAilment(ail, enemy.isBoss ? 5 : 3, ailPower, pStats, dmg);
+                applyPlayerAilment(ail, enemy.isBoss ? 5 : 3, ailPower, pStats, dmg, {
+                    ailmentSourceDamage: ailmentSourceDamageBeforeCrit,
+                    critDotBonusPct: enemyCritDotBonusPct
+                });
                 if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각' : ail === 'shock' ? '감전' : '중독'} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster');
             }
 
