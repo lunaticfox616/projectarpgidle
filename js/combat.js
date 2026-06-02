@@ -2231,10 +2231,12 @@ function getPlayerStats() {
     if (isDotSkill) {
         let dotTickInterval = DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier);
         let dotDuration = DOT_EFFECT_DURATION * Math.max(0.05, dotDurationMultiplier);
-        let expectedDotStacks = Math.max(1, Math.min(DOT_STACK_MAX, Math.floor(finalAspd * dotDuration)));
+        let expectedDotStackRate = finalAspd * expectedDoubleStrikeMultiplier;
+        let expectedDotStacks = Math.max(1, Math.min(DOT_STACK_MAX, Math.floor(expectedDotStackRate * dotDuration)));
         let expectedDotStackMultiplier = getDotStackMultiplier(expectedDotStacks);
         let expectedDotSourceHit = avgHit * avgRollMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1) * soulbinderSb7PlayerMul;
         estimatedSkillDotDps = Math.max(0, expectedDotSourceHit * DOT_TICK_FROM_HIT_RATIO * totalDotDamageMultiplier * expectedDotStackMultiplier / Math.max(0.02, dotTickInterval));
+        damageScales.estimatedDotStackRate = expectedDotStackRate;
         damageScales.estimatedDotStacks = expectedDotStacks;
         damageScales.estimatedDotStackMultiplier = expectedDotStackMultiplier;
         damageScales.estimatedSkillDotDps = estimatedSkillDotDps;
