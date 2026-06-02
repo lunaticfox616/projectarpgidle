@@ -639,10 +639,19 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
     let crit = false;
     let dmg = Math.max(1, base * dmgMul);
+    let ailmentSourceDmg = Math.max(1, base * dmgMul);
     if (expected) dmg *= ((1 - critChance) + (critChance * critMul));
     else if (Math.random() < critChance) { dmg *= critMul; crit = true; }
-    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) dmg *= (1 + Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100);
-    if (target && target.isBoss) dmg *= getLimitedSummonBossDamageMultiplier(pStats, target);
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
+        let soulbinderMul = 1 + Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100;
+        dmg *= soulbinderMul;
+        ailmentSourceDmg *= soulbinderMul;
+    }
+    if (target && target.isBoss) {
+        let bossMul = getLimitedSummonBossDamageMultiplier(pStats, target);
+        dmg *= bossMul;
+        ailmentSourceDmg *= bossMul;
+    }
     let curseFx = target ? getEnemyConditionDebuffFactor(target, pStats) : { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, lightTakenMul: 1, chaosTakenMul: 1, critDmgTakenMul: 1 };
     let limitedStats = getLimitedSummonPenetrationStats(pStats, s);
     let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, target, limitedStats) - (curseFx.resShred || 0);
@@ -651,18 +660,44 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (ele === 'light') enemyRes -= (curseFx.resLShred || 0);
     if (ele === 'chaos') enemyRes -= (curseFx.resChaosShred || 0);
     if (ele === 'phys') enemyRes -= (curseFx.physDrShred || 0);
-    if (!expected && target && (target.evasionChance || 0) > 0 && Math.random() * 100 < target.evasionChance) dmg = 0;
+    if (!expected && target && (target.evasionChance || 0) > 0 && Math.random() * 100 < target.evasionChance) {
+        dmg = 0;
+        ailmentSourceDmg = 0;
+    }
     dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
+    ailmentSourceDmg = Math.floor(ailmentSourceDmg * (1 - (enemyRes / 100)));
     dmg = Math.floor(dmg * (curseFx.mul || 1));
-    if (ele === 'phys' && target) dmg = Math.floor(dmg * (target.physicalDamageTakenMul || 1));
-    if (ele === 'light') dmg = Math.floor(dmg * (curseFx.lightTakenMul || 1));
-    if (ele === 'chaos') dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
+    ailmentSourceDmg = Math.floor(ailmentSourceDmg * (curseFx.mul || 1));
+    if (ele === 'phys' && target) {
+        dmg = Math.floor(dmg * (target.physicalDamageTakenMul || 1));
+        ailmentSourceDmg = Math.floor(ailmentSourceDmg * (target.physicalDamageTakenMul || 1));
+    }
+    if (ele === 'light') {
+        dmg = Math.floor(dmg * (curseFx.lightTakenMul || 1));
+        ailmentSourceDmg = Math.floor(ailmentSourceDmg * (curseFx.lightTakenMul || 1));
+    }
+    if (ele === 'chaos') {
+        dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
+        ailmentSourceDmg = Math.floor(ailmentSourceDmg * (curseFx.chaosTakenMul || 1));
+    }
     if (crit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
-    if (target) dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(target, ele));
-    dmg = Math.floor(dmg * (getAbyssMonsterScales(zone).playerDamageMul || 1));
-    if (target && target.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) dmg = Math.floor(dmg * (1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100)));
-    dmg = Math.floor(dmg * getLimitedSummonFinalDamageMultiplier(pStats));
-    return { damage: Math.max(0, Math.floor(dmg)), crit: crit, critChance: critChance, element: ele };
+    if (target) {
+        let keystoneMul = getKeystoneEnemyTakenMultiplier(target, ele);
+        dmg = Math.floor(dmg * keystoneMul);
+        ailmentSourceDmg = Math.floor(ailmentSourceDmg * keystoneMul);
+    }
+    let abyssMul = getAbyssMonsterScales(zone).playerDamageMul || 1;
+    dmg = Math.floor(dmg * abyssMul);
+    ailmentSourceDmg = Math.floor(ailmentSourceDmg * abyssMul);
+    if (target && target.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) {
+        let talismanMul = 1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100);
+        dmg = Math.floor(dmg * talismanMul);
+        ailmentSourceDmg = Math.floor(ailmentSourceDmg * talismanMul);
+    }
+    let finalMul = getLimitedSummonFinalDamageMultiplier(pStats);
+    dmg = Math.floor(dmg * finalMul);
+    ailmentSourceDmg = Math.floor(ailmentSourceDmg * finalMul);
+    return { damage: Math.max(0, Math.floor(dmg)), ailmentSourceDamage: Math.max(0, Math.floor(ailmentSourceDmg)), crit: crit, critChance: critChance, element: ele };
 }
 
 function getSummonAilmentStats(pStats, element) {
@@ -682,9 +717,13 @@ function getSummonAilmentStats(pStats, element) {
     };
 }
 
-function applySummonAilmentFromHit(target, pStats, hitElement, hitDamage, isCrit) {
+function applySummonAilmentFromHit(target, pStats, hitElement, hitDamage, isCrit, ailmentSourceDamage) {
     if (!target || hitDamage <= 0) return;
-    applyEnemyAilmentFromHit(target, getSummonAilmentStats(pStats, hitElement), hitDamage, isCrit);
+    let hasExplicitSource = Number.isFinite(Number(ailmentSourceDamage));
+    applyEnemyAilmentFromHit(target, getSummonAilmentStats(pStats, hitElement), hitDamage, isCrit, {
+        ailmentSourceDamage: hasExplicitSource ? ailmentSourceDamage : hitDamage,
+        critDotBonusPct: (hasExplicitSource && isCrit) ? 50 : 0
+    });
 }
 
 function estimateSummonDps(pStats) {
@@ -808,7 +847,7 @@ function runSummonAttackTick(pStats) {
         let hit = getSummonHitDamageInfo(s, pStats, target);
         let dmg = Math.max(0, hit.damage || 0);
         let dealt = applyDamageToEnemyResource(target, dmg);
-        applySummonAilmentFromHit(target, pStats, hit.element, dmg, hit.crit);
+        applySummonAilmentFromHit(target, pStats, hit.element, dmg, hit.crit, hit.ailmentSourceDamage);
         if (game.ascendClass === 'soulbinder' && hasKeystone('sb3')) {
             let heal = Math.max(0, Math.floor(dealt * 0.03));
             if (heal > 0) s.hp = Math.min(s.maxHp || s.hp || 1, (s.hp || 0) + heal);
