@@ -1499,6 +1499,9 @@ function getPlayerStats() {
             bonusLines.forEach(line => { if (line && line.stat) addStatToBucket(reward, line.stat, Number(line.val || 0)); });
         });
     }
+    if (typeof getCoreCubeActiveStats === 'function') {
+        getCoreCubeActiveStats().forEach(stat => { if (stat && stat.id) addStatToBucket(reward, stat.id, stat.val); });
+    }
     safeJournalBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
@@ -1655,6 +1658,35 @@ function getPlayerStats() {
     function sumStatAcrossBuckets(statId) {
         return gearBase[statId] + gearExplicit[statId] + passive[statId] + season[statId] + ascend[statId] + support[statId] + reward[statId] + (starBlessing[statId] || 0);
     }
+    let coreCubeAddedDamagePct = {
+        phys: sumStatAcrossBuckets('addedPhysDamagePct'),
+        fire: sumStatAcrossBuckets('addedFireDamagePct'),
+        cold: sumStatAcrossBuckets('addedColdDamagePct'),
+        light: sumStatAcrossBuckets('addedLightDamagePct'),
+        chaos: sumStatAcrossBuckets('addedChaosDamagePct')
+    };
+    let coreCubeFlatElementDamage = {
+        fire: sumStatAcrossBuckets('fireFlatDmg'),
+        cold: sumStatAcrossBuckets('coldFlatDmg'),
+        light: sumStatAcrossBuckets('lightFlatDmg'),
+        chaos: sumStatAcrossBuckets('chaosFlatDmg')
+    };
+    let coreCubeTakenFlatReduce = {
+        phys: sumStatAcrossBuckets('physFlatTakenReduce'),
+        fire: sumStatAcrossBuckets('fireFlatTakenReduce'),
+        cold: sumStatAcrossBuckets('coldFlatTakenReduce'),
+        light: sumStatAcrossBuckets('lightFlatTakenReduce'),
+        chaos: sumStatAcrossBuckets('chaosFlatTakenReduce'),
+        all: sumStatAcrossBuckets('allFlatTakenReduce')
+    };
+    let coreCubePhysTakenAs = {
+        fire: sumStatAcrossBuckets('physTakenAsFire'),
+        cold: sumStatAcrossBuckets('physTakenAsCold'),
+        light: sumStatAcrossBuckets('physTakenAsLight'),
+        chaos: sumStatAcrossBuckets('physTakenAsChaos')
+    };
+    let coreCubeDoubleDamageChance = sumStatAcrossBuckets('doubleDamageChance');
+    let coreCubeSlamEchoDamagePct = sumStatAcrossBuckets('slamEchoDamagePct');
     let crusaderThunderDoctrinePct = 0;
     if (game.ascendClass === 'crusader' && hasKeystone('cr2') && skill.ele === 'light') {
         let firePct = sumStatAcrossBuckets('firePctDmg');
@@ -1806,6 +1838,7 @@ function getPlayerStats() {
     let crusaderHolyScaledDmg = 0;
     let finalDs = ((gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) + (skill.dsBonus || 0)) * 0.75;
     let finalSlamEchoChance = gearBase.slamEchoChance + gearExplicit.slamEchoChance + passive.slamEchoChance + season.slamEchoChance + ascend.slamEchoChance + support.slamEchoChance + reward.slamEchoChance;
+    let finalSlamEchoDamagePct = Math.max(0, coreCubeSlamEchoDamagePct || 0);
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen + (skill.regenBonus || 0);
     let flatRegen = gearBase.regenFlat + gearExplicit.regenFlat + passive.regenFlat + season.regenFlat + ascend.regenFlat + support.regenFlat + reward.regenFlat;
     finalRegen += (flatRegen / Math.max(1, finalMaxHp)) * 100;
@@ -2256,12 +2289,14 @@ function getPlayerStats() {
 
     let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
+    let expectedAddedDamageMultiplier = 1 + Math.max(0, Object.values(coreCubeAddedDamagePct).reduce((sum, value) => sum + (Number(value) || 0), 0)) / 100;
+    if (expectedAddedDamageMultiplier > 1) damageScales.coreCubeAddedDamageMultiplier = expectedAddedDamageMultiplier;
     let soulbinderSb7PlayerMul = 1;
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
         soulbinderSb7PlayerMul += Math.max(0, (sbPlayerDamageFromSummonPct || 0) * ((gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0)) / 100);
     }
     let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1) * soulbinderSb7PlayerMul;
-    let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier;
+    let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier * expectedAddedDamageMultiplier;
     let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
     let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.min(5, Math.floor(totalProjectileExtraShots || 0))) : 0;
     let projectileExtraShotDpsMul = 1 + projectileExtraShotsForDps;
@@ -2611,7 +2646,8 @@ function getPlayerStats() {
         guardianBlockChance + gearBase.blockChancePct + passive.blockChancePct + season.blockChancePct + ascend.blockChancePct + support.blockChancePct + reward.blockChancePct
     );
     let flatBlockChanceBonus = Math.max(0, shieldBlockChanceFlat + gearBase.blockChance + passive.blockChance + season.blockChance + ascend.blockChance + support.blockChance + reward.blockChance);
-    let finalBlockChance = Math.min(50, Math.max(0, effectiveShieldBaseBlockChance + (shieldBaseBlockChance * blockChanceFromOtherPct / 100) + flatBlockChanceBonus));
+    let finalBlockChanceCap = Math.max(50, Math.min(75, 50 + Math.max(0, sumStatAcrossBuckets('blockChanceMax'))));
+    let finalBlockChance = Math.min(finalBlockChanceCap, Math.max(0, effectiveShieldBaseBlockChance + (shieldBaseBlockChance * blockChanceFromOtherPct / 100) + flatBlockChanceBonus));
 
     let enemy = {
         baseDmg: finalBaseDmg,
@@ -2660,6 +2696,7 @@ function getPlayerStats() {
         shieldBlockChancePct: shieldBlockChancePct,
         shieldBlockChanceFlat: shieldBlockChanceFlat,
         blockChance: finalBlockChance,
+        blockChanceMax: finalBlockChanceCap,
         deflectChance: finalDeflectChance,
         deflectDamageReduce: finalDeflectDamageReduce,
         ailmentResistBonusPct: ailmentResistBonusPct,
@@ -2668,6 +2705,7 @@ function getPlayerStats() {
         crusaderNoResPenOnLightning: crusaderNoResPenOnLightning,
         ds: finalDs,
         slamEchoChance: finalSlamEchoChance,
+        slamEchoDamagePct: finalSlamEchoDamagePct,
         minDmgRoll: finalMinDmgRoll,
         maxDmgRoll: finalMaxDmgRoll,
         gemLv: gemSources.total,
@@ -2710,6 +2748,10 @@ function getPlayerStats() {
         ailmentCritChance: ailmentCritChance,
         damageScales: damageScales,
         randomElementDamagePct: randomElementDamagePct,
+        addedDamagePctByElement: coreCubeAddedDamagePct,
+        flatElementDamage: coreCubeFlatElementDamage,
+        takenFlatReduce: coreCubeTakenFlatReduce,
+        physTakenAs: coreCubePhysTakenAs,
         talismanBossFinalDmgBonusPct: talismanBossFinalDmgBonusPct,
         armor: finalArmor,
         evasion: finalEvasion,
@@ -2727,7 +2769,7 @@ function getPlayerStats() {
         uniqueChaosResDownOnHit: uniqueChaosResDownOnHit,
         uniqueCorpseExplode: uniqueCorpseExplode,
         uniqueInstantLeechPct: uniqueInstantLeechPct,
-        uniqueDoubleDamageChancePct: uniqueDoubleDamageChancePct,
+        uniqueDoubleDamageChancePct: uniqueDoubleDamageChancePct + Math.max(0, coreCubeDoubleDamageChance || 0),
         uniqueEsRecoverOnCritPct: uniqueEsRecoverOnCritPct,
         uniqueRiderCompass: uniqueRiderCompass,
         uniqueMaxRollBonusHit: uniqueMaxRollBonusHit,
@@ -4465,10 +4507,18 @@ function rollLootForEnemy(enemy) {
     }
 
     getCurrencyDrops(enemy).forEach(drop => {
+        if (!drop || !drop[0]) return;
+        if (drop[0] === 'blurred45') {
+            let gain = typeof addCoreCubeBlurred45 === 'function' ? addCoreCubeBlurred45(drop[1]) : 0;
+            addBattleFx('lootPickup', { enemyId: enemy.id, color: '#9de8ff', duration: 760 });
+            if (game.settings.showLootLog) addLog(`🧊 흐릿한 45면체 +${gain || drop[1]}`, 'loot-unique');
+            return;
+        }
         awardCurrency(drop[0], drop[1]);
         addBattleFx('lootPickup', { enemyId: enemy.id, color: (drop[0] === 'divine' || drop[0] === 'exalted') ? '#ffd166' : '#9ad1ff', duration: 760 });
         if (drop[0] === 'divine' || drop[0] === 'exalted') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ffcf6b', duration: 980 });
-        if (game.settings.showLootLog) addLog(`🪙 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ORB_DB[drop[0]].name} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
+        let currencyName = typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ((ORB_DB[drop[0]] && ORB_DB[drop[0]].name) || drop[0]);
+        if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
     });
 
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
@@ -5205,7 +5255,7 @@ function performPlayerAttack(pStats) {
     let slamEchoDelayMs = 1000;
     let slamEchoGuaranteed = false;
     let passiveSlamEchoChance = Math.max(0, Math.min(100, pStats.slamEchoChance || 0)) / 100;
-    if (passiveSlamEchoChance > 0 && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('slam')) slamEchoPct = Math.max(slamEchoPct, 0.25);
+    if (passiveSlamEchoChance > 0 && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('slam')) slamEchoPct = Math.max(slamEchoPct, Math.max(0.25, (Number(pStats.slamEchoDamagePct || 0) / 100)));
     (game.playerConditionBuffs || []).forEach(buff => {
         let delta = getConditionGemStatDelta(buff.name, buff.type);
         if (delta.slamEchoPct) { slamEchoPct = Math.max(slamEchoPct, delta.slamEchoPct); slamEchoGuaranteed = true; }
@@ -5439,6 +5489,25 @@ function performPlayerAttack(pStats) {
                 return;
             }
             dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
+            let addedDamagePctByElement = (pStats && pStats.addedDamagePctByElement) || {};
+            let flatElementDamage = (pStats && pStats.flatElementDamage) || {};
+            ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(addEle => {
+                let addPct = Math.max(0, Number(addedDamagePctByElement[addEle] || 0));
+                let addFlat = addEle === 'phys' ? 0 : Math.max(0, Number(flatElementDamage[addEle] || 0));
+                let rawAdded = Math.floor((damageBeforeMitigation * addPct / 100) + addFlat);
+                if (rawAdded <= 0) return;
+                let addRes = getEffectiveEnemyMitigation(addEle, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
+                if (addEle === 'fire') addRes -= (curseFx.resFShred || 0);
+                if (addEle === 'cold') addRes -= (curseFx.resCShred || 0);
+                if (addEle === 'light') addRes -= (curseFx.resLShred || 0);
+                if (addEle === 'chaos') addRes -= (curseFx.resChaosShred || 0);
+                if (addEle === 'phys') addRes -= (curseFx.physDrShred || 0);
+                let mitigatedAdded = Math.floor(rawAdded * (1 - (addRes / 100)));
+                if (addEle === 'phys') mitigatedAdded = Math.floor(mitigatedAdded * (targetEnemy.physicalDamageTakenMul || 1));
+                if (addEle === 'light') mitigatedAdded = Math.floor(mitigatedAdded * (curseFx.lightTakenMul || 1));
+                if (addEle === 'chaos') mitigatedAdded = Math.floor(mitigatedAdded * (curseFx.chaosTakenMul || 1));
+                if (mitigatedAdded > 0) dmg += mitigatedAdded;
+            });
             dmg = Math.floor(dmg * (curseFx.mul || 1));
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * (curseFx.mul || 1));
             if ((pStats.sSkill.tags || []).includes('projectile')) {
@@ -6045,6 +6114,23 @@ function performMonsterAttacks(pStats) {
                 physicalPortion = dmg;
                 elementalPortion = 0;
             }
+            let convertedTakenAsBreakdown = [];
+            let physTakenAs = (pStats && pStats.physTakenAs) || {};
+            let takenAsEntries = [['fire', physTakenAs.fire || 0], ['cold', physTakenAs.cold || 0], ['light', physTakenAs.light || 0], ['chaos', physTakenAs.chaos || 0]];
+            let totalTakenAs = takenAsEntries.reduce((sum, row) => sum + Math.max(0, Number(row[1]) || 0), 0);
+            let takenAsScale = totalTakenAs > 75 ? 75 / totalTakenAs : 1;
+            takenAsEntries.forEach(row => {
+                let ele = row[0];
+                let pct = Math.max(0, Number(row[1]) || 0) * takenAsScale;
+                if (pct <= 0 || physicalPortion <= 0) return;
+                let shifted = Math.min(physicalPortion, Math.floor(physicalPortion * pct / 100));
+                if (shifted <= 0) return;
+                physicalPortion = Math.max(0, physicalPortion - shifted);
+                let res = ele === 'fire' ? pStats.resF : ele === 'cold' ? pStats.resC : ele === 'light' ? pStats.resL : pStats.resChaos;
+                res = Math.max(-60, res - (enemy.penetration || 0));
+                let mitigated = Math.max(0, Math.floor(shifted * (1 - (res / 100))));
+                if (mitigated > 0) convertedTakenAsBreakdown.push({ ele, amount: mitigated });
+            });
             let elementalRes = 0;
             if (enemy.ele === 'fire') elementalRes = pStats.resF;
             else if (enemy.ele === 'cold') elementalRes = pStats.resC;
@@ -6057,6 +6143,7 @@ function performMonsterAttacks(pStats) {
             let damageBreakdown = [];
             if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
             if (mitigatedElemental > 0) damageBreakdown.push({ ele: enemy.ele, amount: mitigatedElemental });
+            if (convertedTakenAsBreakdown.length > 0) damageBreakdown = damageBreakdown.concat(convertedTakenAsBreakdown);
             damageBreakdown = damageBreakdown.map(row => {
                 let less = 0;
                 if (row.ele === 'fire') less = pStats.fireTakenDamageReducePct || 0;
@@ -6089,6 +6176,13 @@ function performMonsterAttacks(pStats) {
                     return out;
                 });
             }
+            let takenFlatReduce = (pStats && pStats.takenFlatReduce) || {};
+            damageBreakdown = damageBreakdown.map(row => {
+                if (!row || row.amount <= 0) return row;
+                let flatLess = Math.max(0, Number(takenFlatReduce.all || 0)) + Math.max(0, Number(takenFlatReduce[row.ele] || 0));
+                if (flatLess <= 0) return row;
+                return { ele: row.ele, amount: Math.max(0, Math.floor((row.amount || 0) - flatLess)) };
+            }).filter(row => row && row.amount > 0);
             if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: 1 });
             let sumBreakdown = () => damageBreakdown.reduce((sum, row) => sum + Math.max(0, Math.floor(row.amount || 0)), 0);
             let scaleBreakdown = (mul) => {
@@ -6559,6 +6653,7 @@ function triggerSeasonReset() {
     game.starWedge.constellationBuff = preservedConstellationBuff;
     game.unlocks = { ...defaultGame.unlocks };
     game.noti = { ...defaultGame.noti };
+    if (typeof relockCoreCubeForLoop === 'function') relockCoreCubeForLoop();
     game.itemSubtab = 'item-tab-equip';
     game.skillSubtab = 'skill-tab-equip';
     game.mapSubtab = 'map-tab-zones';
