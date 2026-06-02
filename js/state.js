@@ -799,7 +799,7 @@ const SUPPORT_GEM_DB = {
     '사역 예리함': { baseVal: 1, scale: 0.45, stat: 'summonCrit', name: '소환수 치명타 확률', isPct: true, resonanceCosts: [6, 12, 21], desc: '소환수의 치명타 확률을 올립니다.' },
     '사역 무자비': { baseVal: 12, scale: 4.0, stat: 'summonCritDmg', name: '소환수 치명타 피해 배율', isPct: true, resonanceCosts: [9, 21, 33], desc: '소환수의 치명타 피해 배율을 올립니다.' },
     '사역 생명력': { baseVal: 8, scale: 2.8, stat: 'summonHpPct', name: '소환수 생명력', isPct: true, resonanceCosts: [3, 9, 18], desc: '소환수의 최대 생명력을 높입니다.' },
-    '수액 골렘 소환': { baseVal: 25, scale: 0, stat: 'summonGuardRedirectPct', name: '방어형 소환수 피해 대리', isPct: true, resonanceCosts: [6, 12, 21], desc: '방어형 소환수 보조 젬. 장착 시 수액 골렘을 소환하고, 살아있는 동안 플레이어가 받을 최종 히트 피해의 일부를 대신 받습니다. 지속 피해는 기본적으로 대리하지 않습니다.', tags: ['summon', 'summon_guard', 'physical'] }
+    '수액 골렘 소환': { baseVal: 25, scale: 0, stat: 'summonGuardRedirectPct', name: '방어형 소환수 피해 대리', isPct: true, noTiers: true, tierMul: 1.4, resonanceCosts: [9], desc: '방어형 소환수 보조 젬. 하급/중급/상급 구분이 없는 통합형 보조 젬입니다. 장착 시 수액 골렘을 소환하고, 살아있는 동안 플레이어가 받을 최종 히트 피해의 일부를 대신 받습니다. 지속 피해는 기본적으로 대리하지 않습니다.', tags: ['summon', 'summon_guard', 'physical'] }
 };
 
 const MOD_DB = [
