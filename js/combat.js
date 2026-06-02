@@ -1612,6 +1612,7 @@ function getPlayerStats() {
         taggedMap[tag] = (taggedMap[tag] || 0) + part.value;
     });
     let taggedSummary = Object.keys(taggedMap).map(tag => `${translateSkillTag(tag)} ${Math.floor(taggedMap[tag])}%`);
+    let baseTaggedTotal = taggedTotal;
     function sumStatAcrossBuckets(statId) {
         return gearBase[statId] + gearExplicit[statId] + passive[statId] + season[statId] + ascend[statId] + support[statId] + reward[statId] + (starBlessing[statId] || 0);
     }
@@ -2285,7 +2286,9 @@ function getPlayerStats() {
                 isSpellSkill ? null : makeSourceLine('패시브', passiveFlatDmg),
                 makeSourceLine('성좌 각성', starBlessing.pctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('총 피해 증가', generalPctDmg, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('태그 보너스', taggedTotal, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('태그 보너스', baseTaggedTotal, '%', value => `${Math.floor(value)}%`),
+                crusaderThunderDoctrinePct > 0 ? makeSourceLine('천뢰 교리(화염/냉기 → 번개)', crusaderThunderDoctrinePct, '%', value => `${Math.floor(value)}%`) : null,
+                crusaderThunderDoctrinePct > 0 ? makeSourceLine('피해 증가 합계', generalPctDmg + taggedTotal, '%', value => `${Math.floor(value)}%`) : null,
                 taggedSummary.length > 0 ? `적용 태그: ${taggedSummary.join(' / ')}` : null,
                 `스킬 배율 ${formatPercentMultiplier(skill.dmg || 1)}`,
                 (skill.hpDmgScale || 0) > 0 ? `생명력 계수 내장 피해 +${Math.floor(hpFlatBonus)} (최대 생명력 ${Math.floor(finalMaxHp)}, 피해 증가 적용)` : null,
@@ -2532,6 +2535,7 @@ function getPlayerStats() {
                 `평균 한 방 ${Math.floor(avgHit)}`,
                 `공격 속도 ${finalAspd.toFixed(2)}`,
                 `치명 기대값 반영`,
+                crusaderThunderDoctrinePct > 0 ? `천뢰 교리 반영: 화염/냉기 피해 증가 +${Math.floor(crusaderThunderDoctrinePct)}%가 번개 공격력/평균 한 방/DPS에 적용` : null,
                 `피해 보정 기대값 x${avgRollMultiplier.toFixed(2)} (${Math.floor(finalMinDmgRoll)}~${Math.floor(finalMaxDmgRoll)}%)`,
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
                 isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null
