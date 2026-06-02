@@ -5105,6 +5105,8 @@ function getUniqueCodexKeyByItem(item) {
     return `${item.slot}|${item.name}`;
 }
 
+const EQUIPMENT_DROP_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'];
+
 function chooseItemBase(slot, zoneTier) {
     let zone = getZone(game.currentZoneId) || {};
     const zoneRealm = zone.type === 'chaosRealm' ? 'chaos' : (zone.type === 'underworld' ? 'underworld' : (zone.type === 'cosmos' ? 'cosmos' : null));
@@ -5675,7 +5677,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
         return true;
     };
     let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
-    let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
+    let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
     let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare && canDropUniqueInZone(unique) && zoneTier >= (unique.reqTier || 1));
     let canRollChase = !game.seasonChaseUniqueDropped && chaseOptions.length > 0 && Math.random() < 0.0008;
@@ -5756,7 +5758,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
 
 function generateEquipmentDrop(enemy) {
     let zoneTier = getZone(game.currentZoneId).tier;
-    let slot = rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
+    let slot = rndChoice(EQUIPMENT_DROP_SLOTS);
     let base = chooseItemBase(slot, zoneTier);
     let rarity = 'normal';
     let roll = Math.random();
