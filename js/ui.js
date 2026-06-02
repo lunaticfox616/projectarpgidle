@@ -2539,13 +2539,13 @@ function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, 
     let source = Math.max(0, Number(sourceHitDamage || 0));
     let detail = '';
     if (isDamageAilmentType(type)) {
-        let dps = getDamageAilmentBaseDpsFromHit(source, p, (cachedTooltipStats && Number.isFinite(cachedTooltipStats.dotDamageScale)) ? cachedTooltipStats.dotDamageScale : 1);
-        detail = `초당 피해: 약 ${dps} <span style="color:#9fb4d1;">(히트 피해 ${Math.floor(source)} 기준)</span>`;
+        detail = `원천피해: ${Math.floor(source)}`;
     } else if (type === 'flameDecay') detail = `초당 피해: 약 ${Math.max(0, Math.floor(Number(specialDps || 0)))} <span style="color:#9fb4d1;">(화염 부패 지속 피해)</span><br><span style="color:#ffb48a;">점화 피해 증폭: 생명력 100당 8%</span>`;
     else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'shock') detail = '받는 피해 증가 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'freeze') detail = '행동 불가 (최대 생명력 대비 타격 비율 반영)';
-    let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
+    let powerLine = isDamageAilmentType(type) ? '' : `<div class="tooltip-line">위력: ${p.toFixed(2)}</div>`;
+    let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div>${powerLine}<div class="tooltip-line">${detail}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ffcf88');
 }
 
