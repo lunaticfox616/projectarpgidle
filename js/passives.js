@@ -5105,6 +5105,8 @@ function getUniqueCodexKeyByItem(item) {
     return `${item.slot}|${item.name}`;
 }
 
+const EQUIPMENT_DROP_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'];
+
 function chooseItemBase(slot, zoneTier) {
     let zone = getZone(game.currentZoneId) || {};
     const zoneRealm = zone.type === 'chaosRealm' ? 'chaos' : (zone.type === 'underworld' ? 'underworld' : (zone.type === 'cosmos' ? 'cosmos' : null));
@@ -5153,11 +5155,24 @@ function rollBaseStats(base, zoneTier) {
     });
 }
 
+
+function rollTierValueAffix(mod, statId, tier) {
+    let range = mod.tierValues[Math.max(0, Math.min(mod.tierValues.length - 1, tier - 1))];
+    let min = Array.isArray(range) ? Number(range[0]) : Number(range);
+    let max = Array.isArray(range) ? Number(range[1]) : min;
+    if (!Number.isFinite(min)) min = Number(mod.base) || 0;
+    if (!Number.isFinite(max)) max = min;
+    if (max < min) { let tmp = min; min = max; max = tmp; }
+    let val = min + Math.floor(Math.random() * (Math.floor(max) - Math.floor(min) + 1));
+    return { id: statId, val: val, valMin: Math.floor(min), valMax: Math.floor(max), tier: tier, statName: mod.statName };
+}
+
 function rollAffixValue(mod, maxTier) {
     let statId = mod.statId || mod.id;
     let tier = 1;
     maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 10);
     while (tier < maxTier && Math.random() < 0.58) tier++;
+    if (Array.isArray(mod.tierValues)) return rollTierValueAffix(mod, statId, tier);
     let min = mod.base + (tier * mod.step);
     let max = min + mod.step * 1.6;
     let val = min + Math.random() * (max - min);
@@ -5196,6 +5211,7 @@ function rollAffixValueInTierRange(mod, minTier, maxTier) {
     minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 10);
     maxTier = clampNumber(Math.floor(Number(maxTier) || minTier), minTier, 10);
     let tier = pickTierInRangeWeighted(minTier, maxTier);
+    if (Array.isArray(mod.tierValues)) return rollTierValueAffix(mod, statId, tier);
     let min = mod.base + (tier * mod.step);
     let max = min + mod.step * 1.6;
     let val = min + Math.random() * (max - min);
@@ -5675,7 +5691,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
         return true;
     };
     let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
-    let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
+    let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
     let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare && canDropUniqueInZone(unique) && zoneTier >= (unique.reqTier || 1));
     let canRollChase = !game.seasonChaseUniqueDropped && chaseOptions.length > 0 && Math.random() < 0.0008;
@@ -5756,7 +5772,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
 
 function generateEquipmentDrop(enemy) {
     let zoneTier = getZone(game.currentZoneId).tier;
-    let slot = rndChoice(['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠']);
+    let slot = rndChoice(EQUIPMENT_DROP_SLOTS);
     let base = chooseItemBase(slot, zoneTier);
     let rarity = 'normal';
     let roll = Math.random();
