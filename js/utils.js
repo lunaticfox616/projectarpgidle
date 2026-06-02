@@ -135,6 +135,47 @@ const COMPARE_STAT_META = {
     minDmgRoll: { label: '최소피해 보정', format: value => `${Math.floor(value)}%` },
     maxDmgRoll: { label: '최대피해 보정', format: value => `${Math.floor(value)}%` }
 };
+
+function getTalismanMomentRoll(talisman, options = {}) {
+    if (!talisman || talisman.special !== 'moment') return 0;
+    let min = Math.floor(Number.isFinite(Number(talisman.bossFinalDmgMin)) ? Number(talisman.bossFinalDmgMin) : 5);
+    let max = Math.floor(Number.isFinite(Number(talisman.bossFinalDmgMax)) ? Number(talisman.bossFinalDmgMax) : 15);
+    if (max < min) { let tmp = min; min = max; max = tmp; }
+    let current = Number(talisman.bossFinalDmgRoll);
+    if (!Number.isFinite(current)) current = Number(talisman.bossFinalDmgValue);
+    if (!Number.isFinite(current) && options && options.rollIfMissing === false) return min;
+    if (!Number.isFinite(current)) current = min + Math.floor(Math.random() * (max - min + 1));
+    current = Math.max(min, Math.min(max, Math.floor(current)));
+    talisman.bossFinalDmgRoll = current;
+    talisman.bossFinalDmgValue = current;
+    talisman.value = current;
+    return current;
+}
+
+
+function isTierlessSupportGem(name) {
+    let db = (typeof SUPPORT_GEM_DB !== 'undefined' && SUPPORT_GEM_DB) ? SUPPORT_GEM_DB[name] : null;
+    return !!(db && db.noTiers);
+}
+function getSupportTierCap(name) {
+    return isTierlessSupportGem(name) ? 1 : 3;
+}
+function getSupportTierLabel(name, tier) {
+    if (isTierlessSupportGem(name)) return '통합';
+    return tier === 3 ? '상급' : (tier === 2 ? '중급' : '하급');
+}
+function getSupportTierMultiplier(name, tier) {
+    let db = (typeof SUPPORT_GEM_DB !== 'undefined' && SUPPORT_GEM_DB) ? (SUPPORT_GEM_DB[name] || {}) : {};
+    if (isTierlessSupportGem(name)) return Number.isFinite(Number(db.tierMul)) ? Number(db.tierMul) : 1;
+    tier = Math.max(1, Math.min(3, Math.floor(Number(tier) || 1)));
+    return tier === 1 ? 1 : (tier === 2 ? 1.55 : 2.2);
+}
+function formatSupportGemEffectValue(value) {
+    let num = Number(value);
+    if (!Number.isFinite(num)) num = 0;
+    return num.toFixed(1);
+}
+
 function formatValue(statId, value) {
     if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) return Number(value).toFixed(1);
     return Math.floor(value);
@@ -199,6 +240,7 @@ function getStatName(statId) {
         maxResC: '최대 냉기 저항(%)',
         maxResL: '최대 번개 저항(%)',
         maxResChaos: '최대 카오스 저항(%)',
+        maxResAll: '모든 원소 최대 저항(%)',
         resAll: '모든 원소 저항(%)',
         resChaos: '카오스 저항(%)',
         regenSuppress: '재생 억제(%)',
@@ -320,6 +362,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'maxResC') bucket.maxResC += value;
     else if (statId === 'maxResL') bucket.maxResL += value;
     else if (statId === 'maxResChaos') bucket.maxResChaos += value;
+    else if (statId === 'maxResAll') { bucket.maxResF += value; bucket.maxResC += value; bucket.maxResL += value; }
     else if (statId === 'resC') bucket.resC += value;
     else if (statId === 'resL') bucket.resL += value;
     else if (statId === 'resAll') { bucket.resF += value; bucket.resC += value; bucket.resL += value; }
