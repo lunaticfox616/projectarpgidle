@@ -5305,9 +5305,9 @@ function buildCraftActionButtons(item) {
             if (!node) return '';
             let active = game.ascendNodes.includes(id);
             let reqMet = isAscendNodeRequirementMet(node);
-            let statInfo = P_STATS[node.stat];
-            let desc = node.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name} +${node.val}${statInfo.isPct ? '%' : ''}`;
-            let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : statInfo.name);
+            let statInfo = P_STATS[node.stat] || { name: getStatName(node.stat), isPct: false };
+            let desc = node.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name || node.stat} +${node.val}${statInfo.isPct ? '%' : ''}`;
+            let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : (statInfo.name || node.stat));
             return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="refundAscendNode('${id}')"` : (!reqMet ? '' : `onclick="buyAscend('${id}')"`)}><div class="trait-title">${title}</div><div class="trait-desc">${desc}</div></div>`;
         };
         let coreRow = (tree.n11 || tree.n12) ? `<div class="trait-row">${renderAscend('n11')}${renderAscend('n12')}</div>` : '';
