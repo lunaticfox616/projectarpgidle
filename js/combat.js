@@ -2227,6 +2227,19 @@ function getPlayerStats() {
     let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.min(5, Math.floor(totalProjectileExtraShots || 0))) : 0;
     let projectileExtraShotDpsMul = 1 + projectileExtraShotsForDps;
     let finalDpsWithProjectileShots = finalDpsAdjusted * projectileExtraShotDpsMul;
+    let estimatedSkillDotDps = 0;
+    if (isDotSkill) {
+        let dotTickInterval = DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier);
+        let dotDuration = DOT_EFFECT_DURATION * Math.max(0.05, dotDurationMultiplier);
+        let expectedDotStacks = Math.max(1, Math.min(DOT_STACK_MAX, Math.floor(finalAspd * dotDuration)));
+        let expectedDotStackMultiplier = getDotStackMultiplier(expectedDotStacks);
+        let expectedDotSourceHit = avgHit * avgRollMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1) * soulbinderSb7PlayerMul;
+        estimatedSkillDotDps = Math.max(0, expectedDotSourceHit * DOT_TICK_FROM_HIT_RATIO * totalDotDamageMultiplier * expectedDotStackMultiplier / Math.max(0.02, dotTickInterval));
+        damageScales.estimatedDotStacks = expectedDotStacks;
+        damageScales.estimatedDotStackMultiplier = expectedDotStackMultiplier;
+        damageScales.estimatedSkillDotDps = estimatedSkillDotDps;
+    }
+    let finalPlayerSkillDps = finalDpsWithProjectileShots + estimatedSkillDotDps;
 
     function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note) {
         return {
@@ -2532,9 +2545,10 @@ function getPlayerStats() {
                 crusaderThunderDoctrinePct > 0 ? `천뢰 교리 반영: 화염/냉기 피해 증가 +${Math.floor(crusaderThunderDoctrinePct)}%가 번개 공격력/평균 한 방/DPS에 적용` : null,
                 `피해 보정 기대값 x${avgRollMultiplier.toFixed(2)} (${Math.floor(finalMinDmgRoll)}~${Math.floor(finalMaxDmgRoll)}%)`,
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
-                isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null
+                isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null,
+                estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null
             ].filter(Boolean),
-            final: `${Math.floor(finalDpsWithProjectileShots)}`
+            final: `${Math.floor(finalPlayerSkillDps)}`
         },
         gem: {
             title: '젬 레벨 보너스',
@@ -2578,7 +2592,9 @@ function getPlayerStats() {
         takenDamageReduceWhen2EnemiesPct: finalTakenDamageReduceWhen2EnemiesPct,
         takenDamageReduceWhen1EnemyPct: finalTakenDamageReduceWhen1EnemyPct,
         igniteDamageMultiplierPct: finalIgniteDamageMultiplierPct,
-        dps: finalDpsWithProjectileShots || 0,
+        dps: finalPlayerSkillDps || 0,
+        hitDps: finalDpsWithProjectileShots || 0,
+        skillDotDps: estimatedSkillDotDps || 0,
         dpsBaseNoProjectileShots: finalDpsAdjusted || 0,
         critDmg: finalCritDmg,
         regen: finalRegen,
