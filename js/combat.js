@@ -5440,14 +5440,42 @@ function performPlayerAttack(pStats) {
             }
             dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
             dmg = Math.floor(dmg * (curseFx.mul || 1));
-            if ((pStats.sSkill.tags || []).includes('projectile')) dmg = Math.floor(dmg * (curseFx.projectileTakenMul || 1) * (targetEnemy.projectileDamageTakenMul || 1));
-            if ((pStats.sSkill.tags || []).includes('spell')) dmg = Math.floor(dmg * (targetEnemy.spellDamageTakenMul || 1));
-            if (hitElement === 'phys') dmg = Math.floor(dmg * (targetEnemy.physicalDamageTakenMul || 1));
-            if ((targetEnemy.armorGuard || 0) > 0 && hitElement === 'phys') dmg = Math.floor(dmg * Math.max(0.2, 1 - targetEnemy.armorGuard));
-            if (hitElement === 'light') dmg = Math.floor(dmg * (curseFx.lightTakenMul || 1));
-            if (hitElement === 'chaos') dmg = Math.floor(dmg * (curseFx.chaosTakenMul || 1));
+            ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * (curseFx.mul || 1));
+            if ((pStats.sSkill.tags || []).includes('projectile')) {
+                let projectileTakenMul = (curseFx.projectileTakenMul || 1) * (targetEnemy.projectileDamageTakenMul || 1);
+                dmg = Math.floor(dmg * projectileTakenMul);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * projectileTakenMul);
+            }
+            if ((pStats.sSkill.tags || []).includes('spell')) {
+                let spellTakenMul = targetEnemy.spellDamageTakenMul || 1;
+                dmg = Math.floor(dmg * spellTakenMul);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * spellTakenMul);
+            }
+            if (hitElement === 'phys') {
+                let physicalTakenMul = targetEnemy.physicalDamageTakenMul || 1;
+                dmg = Math.floor(dmg * physicalTakenMul);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * physicalTakenMul);
+            }
+            if ((targetEnemy.armorGuard || 0) > 0 && hitElement === 'phys') {
+                let armorGuardMul = Math.max(0.2, 1 - targetEnemy.armorGuard);
+                dmg = Math.floor(dmg * armorGuardMul);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * armorGuardMul);
+            }
+            if (hitElement === 'light') {
+                let lightTakenMul = curseFx.lightTakenMul || 1;
+                dmg = Math.floor(dmg * lightTakenMul);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * lightTakenMul);
+            }
+            if (hitElement === 'chaos') {
+                let chaosTakenMul = curseFx.chaosTakenMul || 1;
+                dmg = Math.floor(dmg * chaosTakenMul);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * chaosTakenMul);
+            }
             if (hitCrit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
-            if (pStats.uniqueBleedWeightOnBleedingHit && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'bleed' && (a.time || 0) > 0)) dmg = Math.floor(dmg * 2);
+            if (pStats.uniqueBleedWeightOnBleedingHit && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'bleed' && (a.time || 0) > 0)) {
+                dmg = Math.floor(dmg * 2);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * 2);
+            }
             if (pStats.uniqueMeleeArmorAmp && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('melee')) {
                 let now = Date.now();
                 let active = (game.uniqueMeleeArmorAmpExpiresAt || 0) > now;
@@ -5455,10 +5483,18 @@ function performPlayerAttack(pStats) {
                 game.uniqueMeleeArmorAmpStacks = Math.min(Math.floor(pStats.uniqueMeleeArmorAmp.maxStacks || 3), stacks + 1);
                 game.uniqueMeleeArmorAmpExpiresAt = now + Math.floor((pStats.uniqueMeleeArmorAmp.duration || 2) * 1000);
             }
-            dmg = Math.floor(dmg * getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement));
+            let keystoneTakenMul = getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement);
+            dmg = Math.floor(dmg * keystoneTakenMul);
+            ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * keystoneTakenMul);
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
-            if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) dmg = Math.floor(dmg * (1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100)));
-            dmg = Math.floor(dmg * Math.max(0, Number(pStats.finalDamageMultiplier) || 1));
+            if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) {
+                let talismanBossMul = 1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100);
+                dmg = Math.floor(dmg * talismanBossMul);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * talismanBossMul);
+            }
+            let finalDamageMul = Math.max(0, Number(pStats.finalDamageMultiplier) || 1);
+            dmg = Math.floor(dmg * finalDamageMul);
+            ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * finalDamageMul);
             if (!Number.isFinite(dmg) || dmg < 0) dmg = 0;
             if (game.ascendClass === 'hunter' && hasKeystone('h2') && targetEnemy) {
                 targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
@@ -5468,6 +5504,7 @@ function performPlayerAttack(pStats) {
             }
             if (game.ascendClass === 'hunter' && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'hunterExpose' && (a.time || 0) > 0)) {
                 dmg = Math.floor(dmg * 1.2);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * 1.2);
             }
             let hasActiveDoomMark = false;
             if (targetEnemy && targetEnemy.id) {
