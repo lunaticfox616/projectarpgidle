@@ -2173,12 +2173,6 @@ function getPlayerStats() {
         }
         if (hasKeystone('sb7')) sbPlayerDamageFromSummonPct += 0.5;
     } else if (game.ascendClass === 'catalyst') {
-        if (hasKeystone('ct3')) {
-            finalIgniteChance += 15;
-            finalPoisonChance += 15;
-            finalBleedChance += 15;
-            ailmentResistPenPct += 15;
-        }
         if (hasKeystone('ct7')) {
             let overflow = Math.max(0, finalIgniteChance - 100) + Math.max(0, finalPoisonChance - 100) + Math.max(0, finalBleedChance - 100);
             totalDotDamageMultiplier *= (1 + overflow / 100);
@@ -3629,6 +3623,68 @@ function getEnemyDamageAilmentDps(ail, pStats) {
     return dps;
 }
 
+function getEnemyDamageAilmentMaxStacks() {
+    let cap = 1;
+    if (game.ascendClass === 'catalyst' && hasKeystone('ct6')) cap += 1;
+    if (game.ascendClass === 'catalyst' && hasKeystone('ct8')) cap += 2;
+    return Math.max(1, cap);
+}
+
+function cloneEnemyAilmentForSpread(ail) {
+    if (!ail || (ail.time || 0) <= 0) return null;
+    const spreadableTypes = ['ignite', 'poison', 'bleed', 'chill', 'shock', 'freeze'];
+    if (!spreadableTypes.includes(ail.type)) return null;
+    let copy = { type: ail.type, time: Math.max(0, Number(ail.time) || 0), power: Math.max(0, Number(ail.power) || 0) };
+    if (isDamageAilmentType(ail.type)) {
+        copy.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(), Math.floor(ail.stacks || 1)));
+        copy.sourceHitDamage = getStoredAilmentHitDamage(ail);
+    }
+    return copy;
+}
+
+function mergeEnemyAilment(target, incoming) {
+    if (!target || !incoming || (incoming.time || 0) <= 0) return false;
+    target.ailments = Array.isArray(target.ailments) ? target.ailments : [];
+    let row = target.ailments.find(ail => ail && ail.type === incoming.type);
+    if (!row) {
+        target.ailments.push({ ...incoming });
+        return true;
+    }
+    row.time = Math.max(row.time || 0, incoming.time || 0);
+    row.power = Math.max(row.power || 0, incoming.power || 0);
+    if (isDamageAilmentType(incoming.type)) {
+        row.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(), Math.max(Math.floor(row.stacks || 1), Math.floor(incoming.stacks || 1))));
+        row.sourceHitDamage = Math.max(getStoredAilmentHitDamage(row), getStoredAilmentHitDamage(incoming));
+    }
+    return true;
+}
+
+function spreadCatalystAilmentsOnDeath(enemy) {
+    if (game.ascendClass !== 'catalyst' || !hasKeystone('ct3')) return;
+    if (!enemy || !Array.isArray(enemy.ailments)) return;
+    let ailments = enemy.ailments.map(cloneEnemyAilmentForSpread).filter(Boolean);
+    if (ailments.length <= 0) return;
+    let sourceGroup = Number.isFinite(enemy.groupIndex) ? enemy.groupIndex : 0;
+    let sourceDist = Number.isFinite(enemy.colonyDist) ? enemy.colonyDist : null;
+    let targets = (game.enemies || [])
+        .filter(target => target && target.id !== enemy.id && target.hp > 0)
+        .sort((a, b) => {
+            if (sourceDist !== null && Number.isFinite(a.colonyDist) && Number.isFinite(b.colonyDist)) {
+                let da = Math.abs(a.colonyDist - sourceDist);
+                let db = Math.abs(b.colonyDist - sourceDist);
+                if (da !== db) return da - db;
+            }
+            let ga = Math.abs((Number.isFinite(a.groupIndex) ? a.groupIndex : 0) - sourceGroup);
+            let gb = Math.abs((Number.isFinite(b.groupIndex) ? b.groupIndex : 0) - sourceGroup);
+            if (ga !== gb) return ga - gb;
+            return (a.id || 0) - (b.id || 0);
+        })
+        .slice(0, 2);
+    if (targets.length <= 0) return;
+    targets.forEach(target => ailments.forEach(ail => mergeEnemyAilment(target, ail)));
+    if (game.settings && game.settings.showCombatLog) addLog(`🧪 확산 반응: 남은 상태이상이 주변 적 ${targets.length}마리에게 퍼졌습니다.`, 'attack-player', { rateKey: 'catalyst:spread', minIntervalMs: 500 });
+}
+
 function syncEnemyFlameDecayAilment(enemy, dotState, pStats) {
     if (!enemy || !dotState || dotState.skillName !== '화염 부패') return;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
@@ -3707,8 +3763,8 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit) {
             row.power = Math.max(row.power || 0, power);
             if (damageAilment) row.sourceHitDamage = Math.max(getStoredAilmentHitDamage(row), ailmentPowerSourceDamage);
             if (damageAilment) {
-                let bonusStacks = (game.ascendClass === 'catalyst' && hasKeystone('ct8')) ? 2 : ((game.ascendClass === 'catalyst' && hasKeystone('ct6')) ? 1 : 0);
-                row.stacks = Math.max(1, Math.min(12, Math.floor((row.stacks || 1) + 1 + bonusStacks)));
+                let maxStacks = getEnemyDamageAilmentMaxStacks();
+                row.stacks = Math.max(1, Math.min(maxStacks, Math.floor((row.stacks || 1) + 1)));
             }
         } else enemy.ailments.push(payload);
         return true;
@@ -4441,6 +4497,7 @@ function handleEnemyDeath(enemy, pStats) {
     grantExpAndGem(enemy, pStats);
     rollLootForEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
+    spreadCatalystAilmentsOnDeath(enemy);
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });

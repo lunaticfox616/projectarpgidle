@@ -560,12 +560,12 @@ const CLASS_KEYSTONE_DEFS = {
     catalyst: [
         { id: 'ct1', name: '과잉 촉매', desc: '상태이상 지속 피해 유발 기준 피해가 실제 타격의 1.5배로 계산', req: null },
         { id: 'ct2', name: '내성 배합', desc: '지속 피해 배율의 10%만큼 모든 저항 상승, 1%만큼 최대 저항 상승(내림)', req: null },
-        { id: 'ct3', name: '확산 반응', desc: '상태이상 확률 +15%, 상태이상 저항 관통 +15%', req: null },
+        { id: 'ct3', name: '확산 반응', desc: '상태이상에 걸린 적이 사망 시 남은 상태이상을 주변 적 2마리에게 확산', req: null },
         { id: 'ct4', name: '여운 회피', desc: '회피 성공 시 다음 타격에만 회피 30% 증폭', req: 'ct1' },
         { id: 'ct5', name: '감염 추적', desc: '적이 상태이상일 때 주는 피해 20% 증폭', req: 'ct2' },
-        { id: 'ct6', name: '중첩 독성', desc: '중독/점화/출혈 중첩 +1', req: 'ct3' },
+        { id: 'ct6', name: '중첩 독성', desc: '중독/점화/출혈 최대 중첩 +1', req: 'ct3' },
         { id: 'ct7', name: '배합 역치', desc: '치명타 없음. 치명타 확률은 상태이상 확률로 전환되고, 초과분은 지속 피해 배율로 전환', reqAny: ['ct4', 'ct5'] },
-        { id: 'ct8', name: '파열 용해', desc: '중독/점화/출혈 중첩 +2, 4중첩 시 2초 쿨로 누적 피해 즉시 폭발', req: 'ct7' }
+        { id: 'ct8', name: '파열 용해', desc: '중독/점화/출혈 최대 중첩 +2, 4중첩 시 2초 쿨로 누적 피해 즉시 폭발', req: 'ct6' }
     ],
     hunter: [
         { id: 'h1', name: '단일 조준', desc: '투사체 피해 10% 증폭, 타겟이 하나면 25% 증폭', req: null },
@@ -752,6 +752,7 @@ const P_STATS = {
     summonCap: { name: '소환수 최대 한도', tiers: [3], k: 1 },
     summonEfficiency: { name: '소환수 효율(%)', tiers: [2, 3], m: 4, k: 10, isPct: true },
     summonGuardRedirectPct: { name: '방어형 소환수 피해 대리(%)', tiers: [3], k: 4, isPct: true },
+    igniteDamageMultiplierPct: { name: '점화 피해 증가(%)', tiers: [2, 3], m: 4, k: 10, isPct: true },
     poisonDamageMultiplierPct: { name: '중독 피해 증가(%)', tiers: [2, 3], m: 4, k: 10, isPct: true }
 };
 
