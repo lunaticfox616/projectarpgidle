@@ -199,6 +199,7 @@ function getStatName(statId) {
         maxResC: '최대 냉기 저항(%)',
         maxResL: '최대 번개 저항(%)',
         maxResChaos: '최대 카오스 저항(%)',
+        maxResAll: '모든 원소 최대 저항(%)',
         resAll: '모든 원소 저항(%)',
         resChaos: '카오스 저항(%)',
         regenSuppress: '재생 억제(%)',
@@ -320,6 +321,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'maxResC') bucket.maxResC += value;
     else if (statId === 'maxResL') bucket.maxResL += value;
     else if (statId === 'maxResChaos') bucket.maxResChaos += value;
+    else if (statId === 'maxResAll') { bucket.maxResF += value; bucket.maxResC += value; bucket.maxResL += value; }
     else if (statId === 'resC') bucket.resC += value;
     else if (statId === 'resL') bucket.resL += value;
     else if (statId === 'resAll') { bucket.resF += value; bucket.resC += value; bucket.resL += value; }
