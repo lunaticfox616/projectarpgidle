@@ -2365,7 +2365,7 @@ function getPlayerStats() {
     // 1) 방패 옵션의 막기 확률(%) 증가는 방패 베이스 막기 확률 자체를 상승시킨다.
     // 2) 패시브/키스톤 등 기타 막기 확률(%) 증가는 원본 베이스 막기 확률에서만 %로 증가한다.
     // 3) 막기 확률 +%p는 마지막에 더한다.
-    // 4) 최종 상한 50%.
+    // 4) 최종 상한은 기본 50%, 막기 확률 상한 증가로 최대 75%까지 상승한다.
     let effectiveShieldBaseBlockChance = Math.max(0, shieldBaseBlockChance * (1 + Math.max(0, shieldBlockChancePct) / 100));
     let blockChanceFromOtherPct = Math.max(0,
         guardianBlockChance + gearBase.blockChancePct + passive.blockChancePct + season.blockChancePct + ascend.blockChancePct + support.blockChancePct + reward.blockChancePct
@@ -6303,7 +6303,9 @@ function performMonsterAttacks(pStats) {
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
                 continue;
             }
-            if (Math.random() * 100 < Math.max(0, Math.min(50, pStats.blockChance || pStats.guardianBlockChance || 0))) {
+            let blockRollCap = Math.max(50, Math.min(75, Number(pStats.blockChanceMax || 50)));
+            let blockRollChance = Math.max(0, Math.min(blockRollCap, pStats.blockChance || pStats.guardianBlockChance || 0));
+            if (Math.random() * 100 < blockRollChance) {
                 spawnDamageText({ x: width * 0.28, y: height * 0.64, value: '막아냄!', miss: true, color: '#a7a7a7' });
                 if (game.settings.showCombatLog) addLog(`🛡️ 막아냄!`, "loot-magic");
                 continue;
