@@ -6565,7 +6565,12 @@ function finishWoodsmanEntrance() {
 function enterOutsideChaos() {
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     if ((game.season || 1) < 10) return addLog('혼돈 밖은 루프 10 이후 개방됩니다.', 'attack-monster');
-    if (!(typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared))) return addLog(`${getLoopAbyssRequirementText(game.season || 1)} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
+    let outsideChaosRequirementMet = typeof hasCurrentLoopAbyssRequirementClear === 'function'
+        ? hasCurrentLoopAbyssRequirementClear(game.season || 1)
+        : ((getSeasonAbyssDepthCap(game.season || 1) <= 20)
+            ? (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared))
+            : Math.max(0, Math.floor((game.loopProgressCurrent && game.loopProgressCurrent.bestAbyssDepth) || 0)) >= getSeasonAbyssDepthCap(game.season || 1));
+    if (!outsideChaosRequirementMet) return addLog(`${getLoopAbyssRequirementText(game.season || 1)} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
     game.woodsmanBuildSnapshot = snapshotWoodsmanBuildState();
     game.woodsmanBuildLock = true;
     game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
