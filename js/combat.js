@@ -2361,6 +2361,19 @@ function getPlayerStats() {
     finalTakenDamageReduceWhen2EnemiesPct += (colonyWardBonus.takenDamageReduceWhen2EnemiesPct || 0);
     finalTakenDamageReduceWhen1EnemyPct += (colonyWardBonus.takenDamageReduceWhen1EnemyPct || 0);
 
+    // 방패 막기 공식
+    // 1) 방패 옵션의 막기 확률(%) 증가는 방패 베이스 막기 확률 자체를 상승시킨다.
+    // 2) 패시브/키스톤 등 기타 막기 확률(%) 증가는 원본 베이스 막기 확률에서만 %로 증가한다.
+    // 3) 막기 확률 +%p는 마지막에 더한다.
+    // 4) 최종 상한 50%.
+    let effectiveShieldBaseBlockChance = Math.max(0, shieldBaseBlockChance * (1 + Math.max(0, shieldBlockChancePct) / 100));
+    let blockChanceFromOtherPct = Math.max(0,
+        guardianBlockChance + gearBase.blockChancePct + passive.blockChancePct + season.blockChancePct + ascend.blockChancePct + support.blockChancePct + reward.blockChancePct
+    );
+    let flatBlockChanceBonus = Math.max(0, shieldBlockChanceFlat + gearBase.blockChance + passive.blockChance + season.blockChance + ascend.blockChance + support.blockChance + reward.blockChance);
+    let finalBlockChanceCap = Math.max(50, Math.min(75, 50 + Math.max(0, sumStatAcrossBuckets('blockChanceMax'))));
+    let finalBlockChance = Math.min(finalBlockChanceCap, Math.max(0, effectiveShieldBaseBlockChance + (shieldBaseBlockChance * blockChanceFromOtherPct / 100) + flatBlockChanceBonus));
+
     let breakdowns = {
         atk: {
             title: '공격력',
@@ -2529,6 +2542,49 @@ function getPlayerStats() {
             ].filter(Boolean),
             final: `${Math.floor(finalEnergyShield)}`
         },
+        blockChance: {
+            title: '막기 확률',
+            lines: [
+                makeSourceLine('방패 기본 막기', shieldBaseBlockChance, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('방패 막기 확률 증가', shieldBlockChancePct, '%', value => `${value.toFixed(1)}%`),
+                effectiveShieldBaseBlockChance !== shieldBaseBlockChance ? `증가 적용 방패 기본 막기: ${effectiveShieldBaseBlockChance.toFixed(1)}%` : null,
+                makeSourceLine('기타 막기 확률 증가', blockChanceFromOtherPct, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('막기 확률 보너스', flatBlockChanceBonus, '%', value => `${value.toFixed(1)}%`),
+                `막기 확률 상한: ${finalBlockChanceCap.toFixed(1)}%`,
+                '몬스터의 일반 타격 피해를 막으면 해당 타격 피해를 받지 않습니다.'
+            ].filter(Boolean),
+            final: `${finalBlockChance.toFixed(1)}%`
+        },
+        blockChanceMax: {
+            title: '막기 확률 상한',
+            lines: [
+                '기본 막기 확률 상한 50%',
+                makeSourceLine('상한 증가', Math.max(0, sumStatAcrossBuckets('blockChanceMax')), '%', value => `${value.toFixed(1)}%`),
+                '상한 증가는 최대 75%까지 적용됩니다.'
+            ],
+            final: `${finalBlockChanceCap.toFixed(1)}%`
+        },
+        deflectChance: {
+            title: '빗겨내기 확률',
+            lines: [
+                makeSourceLine('장비', gearBase.deflectChance + gearExplicit.deflectChance, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('패시브', passive.deflectChance + season.deflectChance + ascend.deflectChance + reward.deflectChance, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조 젬', support.deflectChance, '%', value => `${value.toFixed(1)}%`),
+                `빗겨내기 성공 시 피해 감소: ${Math.min(85, 40 + finalDeflectDamageReduce).toFixed(1)}%`,
+                '기본 피해 감소 40%에 빗겨내기 피해 감소 옵션이 더해지며, 최대 85%까지 적용됩니다.'
+            ].filter(Boolean),
+            final: `${finalDeflectChance.toFixed(1)}%`
+        },
+        deflectDamageReduce: {
+            title: '빗겨내기 피해 감소',
+            lines: [
+                makeSourceLine('장비', gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('패시브', passive.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + reward.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
+                makeSourceLine('보조 젬', support.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
+                '실제 감소율은 기본 40% + 이 수치입니다.'
+            ].filter(Boolean),
+            final: `${finalDeflectDamageReduce.toFixed(1)}%`
+        },
         physIgnore: {
             title: '물리 피해 감소 무시',
             lines: [
@@ -2636,19 +2692,6 @@ function getPlayerStats() {
             final: `총 +${gemSources.total}`
         }
     };
-
-    // 방패 막기 공식
-    // 1) 방패 옵션의 막기 확률(%) 증가는 방패 베이스 막기 확률 자체를 상승시킨다.
-    // 2) 패시브/키스톤 등 기타 막기 확률(%) 증가는 원본 베이스 막기 확률에서만 %로 증가한다.
-    // 3) 막기 확률 +%p는 마지막에 더한다.
-    // 4) 최종 상한 50%.
-    let effectiveShieldBaseBlockChance = Math.max(0, shieldBaseBlockChance * (1 + Math.max(0, shieldBlockChancePct) / 100));
-    let blockChanceFromOtherPct = Math.max(0,
-        guardianBlockChance + gearBase.blockChancePct + passive.blockChancePct + season.blockChancePct + ascend.blockChancePct + support.blockChancePct + reward.blockChancePct
-    );
-    let flatBlockChanceBonus = Math.max(0, shieldBlockChanceFlat + gearBase.blockChance + passive.blockChance + season.blockChance + ascend.blockChance + support.blockChance + reward.blockChance);
-    let finalBlockChanceCap = Math.max(50, Math.min(75, 50 + Math.max(0, sumStatAcrossBuckets('blockChanceMax'))));
-    let finalBlockChance = Math.min(finalBlockChanceCap, Math.max(0, effectiveShieldBaseBlockChance + (shieldBaseBlockChance * blockChanceFromOtherPct / 100) + flatBlockChanceBonus));
 
     let enemy = {
         baseDmg: finalBaseDmg,
@@ -5104,11 +5147,13 @@ function finishEncounterRun() {
                 // Setting this to nextDepth would double-advance and skip a floor (e.g. 20 -> 22).
                 game.abyssEndlessDepth = Math.max(nowEndless, 20);
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
-                if (game.loopProgressCurrent.chaos20Cleared) {
+                let hadLoopRequirementBeforeClear = (typeof hasCurrentLoopChaos20Clear === 'function') ? hasCurrentLoopChaos20Clear() : !!game.loopProgressCurrent.chaos20Cleared;
+                if (depth >= 21) game.loopProgressCurrent.bestAbyssDepth = Math.max(Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), depth);
+                game.loopProgressCurrent.chaos20Cleared = true;
+                if (depth >= 21 && hadLoopRequirementBeforeClear) {
                     enterNextEndlessChaosDepth();
                     return;
                 }
-                game.loopProgressCurrent.chaos20Cleared = true;
                 game.pendingLoopDecision = true;
                 game.combatHalted = true;
                 game.enemies = [];
@@ -6487,7 +6532,7 @@ function finishWoodsmanEntrance() {
 function enterOutsideChaos() {
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     if ((game.season || 1) < 10) return addLog('혼돈 밖은 루프 10 이후 개방됩니다.', 'attack-monster');
-    if (!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared)) return addLog(`${getLoopAbyssRequirementText(game.season || 1)} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
+    if (!(typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared))) return addLog(`${getLoopAbyssRequirementText(game.season || 1)} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
     game.woodsmanBuildSnapshot = snapshotWoodsmanBuildState();
     game.woodsmanBuildLock = true;
     game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;

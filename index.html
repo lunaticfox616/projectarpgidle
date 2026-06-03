@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Projectidle</title>
     <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/layout.css?v=20260527-tooltip-z1">
+    <link rel="stylesheet" href="css/layout.css?v=20260603-runtime-fix1">
     <link rel="stylesheet" href="css/theme.css">
-    <link rel="stylesheet" href="css/components.css?v=20260529-mobile-craft1">
+    <link rel="stylesheet" href="css/components.css?v=20260603-runtime-fix1">
     <link rel="stylesheet" href="css/ui-polish.css">
     <link rel="stylesheet" href="css/ui-premium.css">
     <link rel="stylesheet" href="css/mobile.css">
@@ -313,12 +313,12 @@
                 <span class="stat-value" id="ui-evasion">0</span>
                 <span class="stat-unit"></span>
             </div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'blockChance')" onmouseleave="hideInfoTooltip()">
+            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'blockChance')" onmousemove="showStatTooltip(event,'blockChance')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">🛡️ 막기 확률</span>
                 <span class="stat-value" id="ui-block-chance">0</span>
                 <span class="stat-unit">%</span>
             </div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'deflectChance')" onmouseleave="hideInfoTooltip()">
+            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'deflectChance')" onmousemove="showStatTooltip(event,'deflectChance')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">🪶 빗겨내기 확률</span>
                 <span class="stat-value" id="ui-deflect-chance">0</span>
                 <span class="stat-unit">%</span>
@@ -715,8 +715,16 @@
             <h2 id="ui-gem-enhance-header" style="margin-top:0; display:none;">☁️ 스킬 젬 강화</h2>
             <div id="ui-gem-enhance-panel" style="display:none; background:#11151c; border:1px solid #32506d; border-radius:10px; padding:12px;">
                 <div id="ui-gem-enhance-target" class="gem-enhance-target"></div>
-                <div id="ui-gem-upgrade-actions" class="gem-enhance-actions"></div>
-                <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
+                <div class="gem-enhance-section gem-upgrade-section">
+                    <div class="gem-enhance-section-title">🛠️ 강화 섹션</div>
+                    <div class="gem-enhance-section-desc">군주의 핵, 창공의 힘, 퀄리티, 각성 젬 등 젬 자체 성장 기능입니다.</div>
+                    <div id="ui-gem-upgrade-actions" class="gem-enhance-actions"></div>
+                </div>
+                <div class="gem-enhance-section gem-inscription-section">
+                    <div class="gem-enhance-section-title">✒️ 각인 섹션</div>
+                    <div class="gem-enhance-section-desc">창공 각인 슬롯 확장과 공격 젬 특수 옵션 각인을 관리합니다.</div>
+                    <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
+                </div>
             </div>
         </div>
         <div id="skill-tab-condition" class="subtab-content">
@@ -983,13 +991,13 @@
 <script defer src="js/state.js?v=20260531-starwedge-fix1"></script>
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
 <script defer src="js/items.js?v=20260518-map-progress4"></script>
-<script defer src="js/skills.js?v=20260531-starwedge-fix1"></script>
-<script defer src="js/passives.js?v=20260531-starwedge-fix1"></script>
+<script defer src="js/skills.js?v=20260603-runtime-fix1"></script>
+<script defer src="js/passives.js?v=20260603-runtime-fix1"></script>
 <script defer src="js/core-cube.js?v=20260602-core-cube1"></script>
-<script defer src="js/combat.js?v=20260602-ailment-source1"></script>
+<script defer src="js/combat.js?v=20260603-runtime-fix1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260513-gemfix1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260526-highlight-hotfix1"></script>
-<script defer src="js/ui.js?v=20260602-ailment-tooltip1"></script>
+<script defer src="js/ui.js?v=20260603-runtime-fix1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260527-spiral-galaxy4"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
 <script defer src="js/main.js?v=20260513-gemfix1"></script>
