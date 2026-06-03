@@ -398,7 +398,10 @@ function generateCoreCubeOptions(combo) {
             : coreCubeRandInt(rng, def.min, def.max);
         let option = { ...def, value };
         if (def.pairedStat) option.pairedValue = value * (def.pairedMul || 1);
-        if (def.extraMin) option.extraValue = coreCubeRandInt(rng, def.extraMin, def.extraMax || def.extraMin);
+        if (def.extraMin) {
+            option.extraValue = coreCubeRandInt(rng, def.extraMin, def.extraMax || def.extraMin);
+            if (def.id === 'slam_aftershock') option.pairedValue = option.extraValue;
+        }
         option.text = formatCoreCubeOption(option);
         options.push(option);
     }

@@ -1671,6 +1671,7 @@ function getPlayerStats() {
         light: sumStatAcrossBuckets('lightFlatDmg'),
         chaos: sumStatAcrossBuckets('chaosFlatDmg')
     };
+    let coreCubeFlatElementDamageTotal = Object.values(coreCubeFlatElementDamage).reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0);
     let coreCubeTakenFlatReduce = {
         phys: sumStatAcrossBuckets('physFlatTakenReduce'),
         fire: sumStatAcrossBuckets('fireFlatTakenReduce'),
@@ -1741,7 +1742,7 @@ function getPlayerStats() {
         spellFlatDmg = Math.max(1, ((spellBase * 3) + Math.max(0, skillLevel - 1) * spellScale + (spellBase * 0.8 * logBoost * logBoost) + spellFlatBonus) * (1 + spellFlatPct / 100));
         spellFlatDmg *= (1 + Math.max(0, Number(skill.spellFlatMulBonus) || 0) / 100);
     }
-    let totalFlatDmg = isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg);
+    let totalFlatDmg = (isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg)) + coreCubeFlatElementDamageTotal;
     let codexBonusRatio = 1 + (getCodexBonusPct() / 100);
 
     let gearFlatHp = gearBase.flatHp + gearExplicit.flatHp;
@@ -5490,11 +5491,9 @@ function performPlayerAttack(pStats) {
             }
             dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
             let addedDamagePctByElement = (pStats && pStats.addedDamagePctByElement) || {};
-            let flatElementDamage = (pStats && pStats.flatElementDamage) || {};
             ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(addEle => {
                 let addPct = Math.max(0, Number(addedDamagePctByElement[addEle] || 0));
-                let addFlat = addEle === 'phys' ? 0 : Math.max(0, Number(flatElementDamage[addEle] || 0));
-                let rawAdded = Math.floor((damageBeforeMitigation * addPct / 100) + addFlat);
+                let rawAdded = Math.floor(damageBeforeMitigation * addPct / 100);
                 if (rawAdded <= 0) return;
                 let addRes = getEffectiveEnemyMitigation(addEle, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
                 if (addEle === 'fire') addRes -= (curseFx.resFShred || 0);
@@ -6115,22 +6114,25 @@ function performMonsterAttacks(pStats) {
                 elementalPortion = 0;
             }
             let convertedTakenAsBreakdown = [];
+            let originalPhysicalPortion = physicalPortion;
             let physTakenAs = (pStats && pStats.physTakenAs) || {};
             let takenAsEntries = [['fire', physTakenAs.fire || 0], ['cold', physTakenAs.cold || 0], ['light', physTakenAs.light || 0], ['chaos', physTakenAs.chaos || 0]];
             let totalTakenAs = takenAsEntries.reduce((sum, row) => sum + Math.max(0, Number(row[1]) || 0), 0);
             let takenAsScale = totalTakenAs > 75 ? 75 / totalTakenAs : 1;
+            let totalShiftedPhysical = 0;
             takenAsEntries.forEach(row => {
                 let ele = row[0];
                 let pct = Math.max(0, Number(row[1]) || 0) * takenAsScale;
-                if (pct <= 0 || physicalPortion <= 0) return;
-                let shifted = Math.min(physicalPortion, Math.floor(physicalPortion * pct / 100));
+                if (pct <= 0 || originalPhysicalPortion <= 0) return;
+                let shifted = Math.min(originalPhysicalPortion - totalShiftedPhysical, Math.floor(originalPhysicalPortion * pct / 100));
                 if (shifted <= 0) return;
-                physicalPortion = Math.max(0, physicalPortion - shifted);
+                totalShiftedPhysical += shifted;
                 let res = ele === 'fire' ? pStats.resF : ele === 'cold' ? pStats.resC : ele === 'light' ? pStats.resL : pStats.resChaos;
                 res = Math.max(-60, res - (enemy.penetration || 0));
                 let mitigated = Math.max(0, Math.floor(shifted * (1 - (res / 100))));
                 if (mitigated > 0) convertedTakenAsBreakdown.push({ ele, amount: mitigated });
             });
+            physicalPortion = Math.max(0, originalPhysicalPortion - totalShiftedPhysical);
             let elementalRes = 0;
             if (enemy.ele === 'fire') elementalRes = pStats.resF;
             else if (enemy.ele === 'cold') elementalRes = pStats.resC;
@@ -6179,10 +6181,22 @@ function performMonsterAttacks(pStats) {
             let takenFlatReduce = (pStats && pStats.takenFlatReduce) || {};
             damageBreakdown = damageBreakdown.map(row => {
                 if (!row || row.amount <= 0) return row;
-                let flatLess = Math.max(0, Number(takenFlatReduce.all || 0)) + Math.max(0, Number(takenFlatReduce[row.ele] || 0));
-                if (flatLess <= 0) return row;
-                return { ele: row.ele, amount: Math.max(0, Math.floor((row.amount || 0) - flatLess)) };
+                let elementFlatLess = Math.max(0, Number(takenFlatReduce[row.ele] || 0));
+                if (elementFlatLess <= 0) return row;
+                return { ele: row.ele, amount: Math.max(0, Math.floor((row.amount || 0) - elementFlatLess)) };
             }).filter(row => row && row.amount > 0);
+            let allFlatLess = Math.max(0, Number(takenFlatReduce.all || 0));
+            while (allFlatLess > 0 && damageBreakdown.length > 0) {
+                let targetIndex = 0;
+                for (let i = 1; i < damageBreakdown.length; i++) {
+                    if ((damageBreakdown[i].amount || 0) > (damageBreakdown[targetIndex].amount || 0)) targetIndex = i;
+                }
+                let spend = Math.min(allFlatLess, Math.max(0, Math.floor(damageBreakdown[targetIndex].amount || 0)));
+                if (spend <= 0) break;
+                damageBreakdown[targetIndex].amount = Math.max(0, Math.floor((damageBreakdown[targetIndex].amount || 0) - spend));
+                allFlatLess -= spend;
+                damageBreakdown = damageBreakdown.filter(row => row && row.amount > 0);
+            }
             if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: 1 });
             let sumBreakdown = () => damageBreakdown.reduce((sum, row) => sum + Math.max(0, Math.floor(row.amount || 0)), 0);
             let scaleBreakdown = (mul) => {
