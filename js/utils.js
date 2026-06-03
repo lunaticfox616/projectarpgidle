@@ -549,9 +549,23 @@ let previewPassiveNodes = new Set();
 
 safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine });
 
+window.__runtimeFallbackQueues = window.__runtimeFallbackQueues || {};
+
+function flushRuntimeFallbackQueue(key) {
+    let queue = (window.__runtimeFallbackQueues && window.__runtimeFallbackQueues[key]) || [];
+    if (!queue.length || typeof window[key] !== "function" || window[key].__placeholderGlobal === true) return;
+    window.__runtimeFallbackQueues[key] = [];
+    queue.splice(0, 20).forEach(function (args) {
+        try { window[key].apply(null, args || []); } catch (e) { console.error(key + " queued call failed:", e); }
+    });
+}
+
 function safeExposeGlobals(map) {
     Object.keys(map || {}).forEach(function (key) {
-        if (typeof window[key] === "undefined" || (window[key] && window[key].__placeholderGlobal === true)) window[key] = map[key];
+        if (typeof window[key] === "undefined" || (window[key] && window[key].__placeholderGlobal === true)) {
+            window[key] = map[key];
+            if (!(window[key] && window[key].__placeholderGlobal === true)) flushRuntimeFallbackQueue(key);
+        }
     });
 }
 window.safeExposeGlobals = window.safeExposeGlobals || safeExposeGlobals;
@@ -632,9 +646,18 @@ if (typeof window.getPlayerDamageAilmentDps === "undefined") {
     };
     window.getPlayerDamageAilmentDps.__placeholderGlobal = true;
 }
-function installRuntimeFunctionFallback(name, fallback) {
+function queueRuntimeFallbackCall(name, args) {
+    window.__runtimeFallbackQueues = window.__runtimeFallbackQueues || {};
+    let queue = window.__runtimeFallbackQueues[name] = window.__runtimeFallbackQueues[name] || [];
+    if (queue.length < 20) queue.push(Array.prototype.slice.call(args || []));
+}
+
+function installRuntimeFunctionFallback(name, fallback, options = {}) {
     if (typeof window[name] === "undefined") {
-        window[name] = fallback;
+        window[name] = function runtimeFunctionFallbackWrapper() {
+            if (options.queue) queueRuntimeFallbackCall(name, arguments);
+            return fallback.apply(this, arguments);
+        };
         window[name].__placeholderGlobal = true;
     }
 }
@@ -645,9 +668,9 @@ installRuntimeFunctionFallback("startEncounterRun", function startEncounterRunFa
         state.encounterPlan = Array.isArray(state.encounterPlan) ? state.encounterPlan : [];
         state.encounterIndex = Math.max(0, Math.floor(state.encounterIndex || 0));
     }
-});
+}, { queue: true });
 installRuntimeFunctionFallback("coreLoop", function coreLoopFallback() {});
-installRuntimeFunctionFallback("updateStaticUI", function updateStaticUIFallback() {});
+installRuntimeFunctionFallback("updateStaticUI", function updateStaticUIFallback() {}, { queue: true });
 installRuntimeFunctionFallback("startMoving", function startMovingFallback(force) {
     let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
     if (state) {
@@ -656,7 +679,7 @@ installRuntimeFunctionFallback("startMoving", function startMovingFallback(force
         state.moveTimer = Math.max(0, Number(state.moveTimer) || 0);
         state.moveTotalTime = Math.max(0, Number(state.moveTotalTime) || 0);
     }
-});
+}, { queue: true });
 installRuntimeFunctionFallback("returnToTown", function returnToTownFallback() {
     let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
     if (state) {
@@ -664,13 +687,13 @@ installRuntimeFunctionFallback("returnToTown", function returnToTownFallback() {
         state.combatHalted = true;
         state.enemies = [];
     }
-});
-installRuntimeFunctionFallback("triggerSeasonReset", function triggerSeasonResetFallback() {});
+}, { queue: true });
+installRuntimeFunctionFallback("triggerSeasonReset", function triggerSeasonResetFallback() {}, { queue: true });
 installRuntimeFunctionFallback("chooseLoopAdvance", function chooseLoopAdvanceFallback() {
     let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
     if (state) state.pendingLoopDecision = false;
-});
-installRuntimeFunctionFallback("enterOutsideChaos", function enterOutsideChaosFallback() {});
+}, { queue: true });
+installRuntimeFunctionFallback("enterOutsideChaos", function enterOutsideChaosFallback() {}, { queue: true });
 installRuntimeFunctionFallback("getConditionGemStatDelta", function getConditionGemStatDeltaFallback() {
     return {};
 });
