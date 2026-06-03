@@ -647,6 +647,16 @@ installRuntimeFunctionFallback("startEncounterRun", function startEncounterRunFa
     }
 });
 installRuntimeFunctionFallback("coreLoop", function coreLoopFallback() {});
+installRuntimeFunctionFallback("updateStaticUI", function updateStaticUIFallback() {});
+installRuntimeFunctionFallback("startMoving", function startMovingFallback(force) {
+    let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
+    if (state) {
+        state.combatHalted = false;
+        state.isTownReturning = false;
+        state.moveTimer = Math.max(0, Number(state.moveTimer) || 0);
+        state.moveTotalTime = Math.max(0, Number(state.moveTotalTime) || 0);
+    }
+});
 installRuntimeFunctionFallback("returnToTown", function returnToTownFallback() {
     let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
     if (state) {
