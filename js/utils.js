@@ -590,3 +590,49 @@ if (typeof window.isCrowdProgressPaused === "undefined") {
     };
     window.isCrowdProgressPaused.__placeholderGlobal = true;
 }
+if (typeof window.isDamageAilmentType === "undefined") {
+    window.isDamageAilmentType = function isDamageAilmentTypeFallback(type) {
+        return type === "ignite" || type === "poison" || type === "bleed";
+    };
+    window.isDamageAilmentType.__placeholderGlobal = true;
+}
+
+if (typeof window.getStoredAilmentHitDamage === "undefined") {
+    window.getStoredAilmentHitDamage = function getStoredAilmentHitDamageFallback(ail) {
+        if (!ail) return 0;
+        return Math.max(0, Number(ail.sourceHitDamage || ail.hitDamage || 0) || 0);
+    };
+    window.getStoredAilmentHitDamage.__placeholderGlobal = true;
+}
+
+if (typeof window.getDamageAilmentBaseDpsFromHit === "undefined") {
+    window.getDamageAilmentBaseDpsFromHit = function getDamageAilmentBaseDpsFromHitFallback(hitDamage, power, scale, critDotBonusPct, critDotBonusScale) {
+        let source = Math.max(0, Number(hitDamage) || 0);
+        if (source <= 0) return 0;
+        let baseScale = Math.max(0.01, Number(scale) || 1);
+        let bonusPct = Math.max(0, Number(critDotBonusPct) || 0);
+        let bonusScale = Math.max(0.01, Number(critDotBonusScale) || 1);
+        return Math.max(1, Math.floor(source * 0.90 * (baseScale + (bonusPct / 100) * bonusScale)));
+    };
+    window.getDamageAilmentBaseDpsFromHit.__placeholderGlobal = true;
+}
+
+if (typeof window.getEnemyDamageAilmentDps === "undefined") {
+    window.getEnemyDamageAilmentDps = function getEnemyDamageAilmentDpsFallback(ail, pStats) {
+        let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
+        let dps = window.getDamageAilmentBaseDpsFromHit(window.getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
+        if (ail && ail.type === "ignite") dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.igniteDamageMultiplierPct) || 0) / 100));
+        if (ail && ail.type === "poison") dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.poisonDamageMultiplierPct) || 0) / 100));
+        return dps;
+    };
+    window.getEnemyDamageAilmentDps.__placeholderGlobal = true;
+}
+
+if (typeof window.getPlayerDamageAilmentDps === "undefined") {
+    window.getPlayerDamageAilmentDps = function getPlayerDamageAilmentDpsFallback(ail, pStats) {
+        let source = window.getStoredAilmentHitDamage(ail);
+        if (source <= 0 && pStats && pStats.maxHp) source = Math.max(1, Math.floor((pStats.maxHp || 1) * 0.08));
+        return window.getDamageAilmentBaseDpsFromHit(source, ail ? ail.power : 0, 1, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
+    };
+    window.getPlayerDamageAilmentDps.__placeholderGlobal = true;
+}

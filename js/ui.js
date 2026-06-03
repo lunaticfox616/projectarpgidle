@@ -31,6 +31,71 @@ function getUiPlayerStats(fallback = {}) {
     return cachedTooltipStats || fallback;
 }
 
+function getUiGlobalFunction(name) {
+    try {
+        if (typeof window !== 'undefined' && typeof window[name] === 'function') return window[name];
+    } catch (e) {}
+    return null;
+}
+
+function isUiDamageAilmentType(type) {
+    let provider = getUiGlobalFunction('isDamageAilmentType');
+    if (provider) {
+        try { return !!provider(type); } catch (e) {}
+    }
+    return type === 'ignite' || type === 'poison' || type === 'bleed';
+}
+
+function getUiStoredAilmentHitDamage(ail) {
+    let provider = getUiGlobalFunction('getStoredAilmentHitDamage');
+    if (provider) {
+        try { return Math.max(0, Number(provider(ail)) || 0); } catch (e) {}
+    }
+    return Math.max(0, Number((ail && (ail.sourceHitDamage || ail.hitDamage)) || 0) || 0);
+}
+
+function getUiPlayerDamageAilmentDps(ail, stats) {
+    let provider = getUiGlobalFunction('getPlayerDamageAilmentDps');
+    if (provider) {
+        try { return Math.max(0, Math.floor(Number(provider(ail, stats)) || 0)); } catch (e) {}
+    }
+    let source = getUiStoredAilmentHitDamage(ail);
+    if (source <= 0 && stats && stats.maxHp) source = Math.max(1, Math.floor((stats.maxHp || 1) * 0.08));
+    return Math.max(0, Math.floor(source * 0.9));
+}
+
+function getUiEnemyDamageAilmentDps(ail, stats) {
+    let provider = getUiGlobalFunction('getEnemyDamageAilmentDps');
+    if (provider) {
+        try { return Math.max(0, Math.floor(Number(provider(ail, stats)) || 0)); } catch (e) {}
+    }
+    return Math.max(0, Math.floor(getUiStoredAilmentHitDamage(ail) * 0.9));
+}
+
+function getUiSkillTargets(stats) {
+    let provider = getUiGlobalFunction('getSkillTargets');
+    if (provider) {
+        try { return provider(stats) || []; } catch (e) {}
+    }
+    return [];
+}
+
+function getUiCrowdProgressPaused() {
+    let provider = getUiGlobalFunction('isCrowdProgressPaused');
+    if (provider) {
+        try { return !!provider(); } catch (e) {}
+    }
+    return false;
+}
+
+function getUiCrowdPauseLimit() {
+    try {
+        if (typeof ENEMY_CROWD_PAUSE_LIMIT !== 'undefined') return ENEMY_CROWD_PAUSE_LIMIT;
+        if (typeof window !== 'undefined' && Number.isFinite(Number(window.ENEMY_CROWD_PAUSE_LIMIT))) return Number(window.ENEMY_CROWD_PAUSE_LIMIT);
+    } catch (e) {}
+    return 20;
+}
+
 function startBattleAssetLoadNow() {
     window.__battleAssetAutoloadEnabled = true;
     if (battleAssetDeferredInitHandle) {
@@ -2531,9 +2596,9 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
     let p = Math.max(0.1, Number(power || 0.1));
     let source = Math.max(0, Number(sourceHitDamage || 0));
     let detail = '';
-    if (isDamageAilmentType(type)) {
+    if (isUiDamageAilmentType(type)) {
         let tooltipStats = cachedTooltipStats || getUiPlayerStats(null);
-        let dps = getPlayerDamageAilmentDps({ type: type, power: p, sourceHitDamage: source }, tooltipStats);
+        let dps = getUiPlayerDamageAilmentDps({ type: type, power: p, sourceHitDamage: source }, tooltipStats);
         let basis = source > 0 ? `받은 피해 ${Math.floor(source)} 기준` : '최대 생명력 기반';
         detail = `초당 피해: 약 ${dps} <span style="color:#9fb4d1;">(${basis})</span>`;
     } else if (type === 'chill') detail = `공격 속도 약 32% 감소`;
@@ -2553,13 +2618,13 @@ function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, 
     let p = Math.max(0, Number(power || 0));
     let source = Math.max(0, Number(sourceHitDamage || 0));
     let detail = '';
-    if (isDamageAilmentType(type)) {
+    if (isUiDamageAilmentType(type)) {
         detail = `원천피해: ${Math.floor(source)}`;
     } else if (type === 'flameDecay') detail = `초당 피해: 약 ${Math.max(0, Math.floor(Number(specialDps || 0)))} <span style="color:#9fb4d1;">(화염 부패 지속 피해)</span><br><span style="color:#ffb48a;">점화 피해 증폭: 생명력 100당 8%</span>`;
     else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'shock') detail = '받는 피해 증가 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'freeze') detail = '행동 불가 (최대 생명력 대비 타격 비율 반영)';
-    let powerLine = isDamageAilmentType(type) ? '' : `<div class="tooltip-line">위력: ${p.toFixed(2)}</div>`;
+    let powerLine = isUiDamageAilmentType(type) ? '' : `<div class="tooltip-line">위력: ${p.toFixed(2)}</div>`;
     let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div>${powerLine}<div class="tooltip-line">${detail}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ffcf88');
 }
@@ -3908,7 +3973,7 @@ function updateCombatUI(pStats) {
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
         let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d', assassinWeakness: '#ff9bd1' };
-        let text = (game.playerAilments || []).map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
+        let text = (game.playerAilments || []).map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)},${Math.floor(getUiStoredAilmentHitDamage(ail))})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
         if (game.woodsmanCurseActive) {
             let curseTaken = (Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.01).toFixed(2);
             let curseText = `<span style=\"color:#d0a8ff;font-weight:700;\">나무꾼의 저주 +${curseTaken}%</span>`;
@@ -3930,8 +3995,8 @@ function updateCombatUI(pStats) {
         if (mobileAilmentEl) mobileAilmentEl.innerHTML = isMobile ? desktopText : '';
         let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
-            if (!isDamageAilmentType(ail.type)) return sum;
-            return sum + Math.floor(getPlayerDamageAilmentDps(ail, pStats) * Math.max(0, ail.time || 0));
+            if (!isUiDamageAilmentType(ail.type)) return sum;
+            return sum + Math.floor(getUiPlayerDamageAilmentDps(ail, pStats) * Math.max(0, ail.time || 0));
         }, 0);
         let playerHpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
         let pendingPlayerPct = Math.max(0, Math.min(playerHpPct, (projectedPlayerAilDmg / Math.max(1, pStats.maxHp)) * 100));
@@ -3980,9 +4045,9 @@ function updateCombatUI(pStats) {
         setTextById('ui-progress-label', game.isTownReturning ? '🏕️ 재정비 중...' : '🚶 다음 구간 준비');
         setTextById('ui-move-time-text', `${Math.max(0, game.moveTimer).toFixed(1)}초`);
         document.getElementById('ui-move-bar').style.width = readyPct + '%';
-    } else if (isCrowdProgressPaused()) {
+    } else if (getUiCrowdProgressPaused()) {
         setTextById('ui-progress-label', '⛔ 전장 정리 중');
-        setTextById('ui-move-time-text', `적 ${ENEMY_CROWD_PAUSE_LIMIT}기 이상`);
+        setTextById('ui-move-time-text', `적 ${getUiCrowdPauseLimit()}기 이상`);
         document.getElementById('ui-move-bar').style.width = game.runProgress + '%';
     } else {
         setTextById('ui-progress-label', '🧭 진행도');
@@ -4049,7 +4114,7 @@ function updateCombatUI(pStats) {
 
     let enemies = (game.enemies || []).filter(enemy => enemy && (enemy.hp || 0) > 0);
     pruneEnemyHpDamageGhostStates(enemies.map(enemy => enemy.id));
-    let targetIds = getSkillTargets(pStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
+    let targetIds = getUiSkillTargets(pStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     let focusedEnemy = enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
     let enemyListEl = document.getElementById('ui-enemy-list');
     if (!focusedEnemy) {
@@ -4065,14 +4130,14 @@ function updateCombatUI(pStats) {
         let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
         let enemyDebuffs = (((game.enemyConditionDebuffs || {})[focusedEnemy.id]) || []).filter(row => row && (row.expiresAt || 0) > Date.now());
         let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d', assassinWeakness: '#ff9bd1' };
-        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))},${Math.floor(ail.flameDecayDps || 0)},${Number(ail.critDotBonusPct || 0).toFixed(3)})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type}${ail.type === 'assassinWeakness' ? ` ${Math.floor(ail.power || 0)}중첩` : ''} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
+        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getUiStoredAilmentHitDamage(ail))},${Math.floor(ail.flameDecayDps || 0)},${Number(ail.critDotBonusPct || 0).toFixed(3)})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type}${ail.type === 'assassinWeakness' ? ` ${Math.floor(ail.power || 0)}중첩` : ''} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
         let curseText = enemyDebuffs.map(row => `<span data-info-tooltip-anchor=\"1\" style=\"color:#ff9bd1;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${row.name}','curse',${Math.ceil(Math.max(0,((row.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">🕯 저주:${row.name} ${Math.ceil(Math.max(0, ((row.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
         ailmentText = [ailmentText, curseText].filter(Boolean).join(' · ');
         let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             if (ail.type === 'flameDecay') return sum + Math.floor(Math.max(0, ail.flameDecayDps || 0) * Math.max(0, ail.time || 0));
-            if (!isDamageAilmentType(ail.type)) return sum;
-            let dps = getEnemyDamageAilmentDps(ail, cachedTooltipStats || getUiPlayerStats());
+            if (!isUiDamageAilmentType(ail.type)) return sum;
+            let dps = getUiEnemyDamageAilmentDps(ail, cachedTooltipStats || getUiPlayerStats());
             return sum + Math.floor(dps * Math.max(0, ail.time || 0));
         }, 0);
         let pendingPct = Math.max(0, Math.min(pct, (projectedAilmentDamage / Math.max(1, focusedEnemy.maxHp || 1)) * 100));
