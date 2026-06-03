@@ -20,6 +20,17 @@ const PLAYER_HP_DAMAGE_GHOST_HOLD_MS = 260;
 const PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC = 34;
 const ENEMY_HP_DAMAGE_GHOST_SNAP_MS = 680;
 
+
+function getUiPlayerStats(fallback = {}) {
+    try {
+        let provider = (typeof getPlayerStats === 'function')
+            ? getPlayerStats
+            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
+        if (provider) return provider() || fallback;
+    } catch (e) {}
+    return cachedTooltipStats || fallback;
+}
+
 function startBattleAssetLoadNow() {
     window.__battleAssetAutoloadEnabled = true;
     if (battleAssetDeferredInitHandle) {
@@ -1995,7 +2006,7 @@ function changeSkill(name) { if (!assertBuildEditable()) return;
         }
         let cap = 1;
         try {
-            let stats = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
+            let stats = getUiPlayerStats(null);
             cap = getSummonEquipCapFromStats(stats);
         } catch (e) {}
         if (getEquippedSummonCount() >= cap) {
@@ -2026,8 +2037,8 @@ function getSupportResonanceCost(name) {
 function getEffectiveResonanceCap() {
     let base = Math.max(0, Math.floor(game.resonancePower || 0));
     let runeBonus = 0;
-    if (typeof getPlayerStats === 'function') {
-        let stats = getPlayerStats();
+    let stats = getUiPlayerStats(null);
+    if (stats) {
         runeBonus = Math.max(0, Math.floor((stats && stats.runeResonancePower) || 0));
         let tempFloor = Math.max(0, Math.floor((stats && stats.uniqueResonanceFloor) || 0));
         base = Math.max(base, tempFloor);
@@ -2089,7 +2100,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
     let idx = game.equippedSupports.indexOf(name);
     if (idx > -1) game.equippedSupports.splice(idx, 1);
     else {
-        let stats = getPlayerStats();
+        let stats = getUiPlayerStats();
         if (game.equippedSupports.length >= stats.suppCap) {
             updateStaticUI();
             return;
@@ -2521,7 +2532,7 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
     let source = Math.max(0, Number(sourceHitDamage || 0));
     let detail = '';
     if (isDamageAilmentType(type)) {
-        let tooltipStats = cachedTooltipStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : null);
+        let tooltipStats = cachedTooltipStats || getUiPlayerStats(null);
         let dps = getPlayerDamageAilmentDps({ type: type, power: p, sourceHitDamage: source }, tooltipStats);
         let basis = source > 0 ? `받은 피해 ${Math.floor(source)} 기준` : '최대 생명력 기반';
         detail = `초당 피해: 약 ${dps} <span style="color:#9fb4d1;">(${basis})</span>`;
@@ -2555,7 +2566,7 @@ function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, 
 
 function showGemTooltip(event, type, name) {
     let info = getGemPresentation(name, type === 'support');
-    let stats = getPlayerStats();
+    let stats = getUiPlayerStats();
     let cacheKey = `${type || 'active'}:${name}:${info && (info.totalLevel || info.finalLevel || info.baseLevel || 1)}`;
     let html = `<div class="tooltip-title">${name}</div>`;
     if (type === 'support') {
@@ -2763,10 +2774,10 @@ function showItemTooltip(event, idx, isEquip) {
         let compareSlots = getEquipCandidateSlots(item).filter(slotKey => !!game.equipment[slotKey]);
         if (compareSlots.length === 0 && item.slot !== '반지') compareSlots = getEquipCandidateSlots(item);
         compareSlots.forEach((targetSlot, idx) => {
-            let before = getPlayerStats();
+            let before = getUiPlayerStats();
             let backup = game.equipment[targetSlot];
             game.equipment[targetSlot] = item;
-            let after = getPlayerStats();
+            let after = getUiPlayerStats();
             game.equipment[targetSlot] = backup;
             let changedLines = Object.keys(COMPARE_STAT_META).map(key => {
                 let diff = (after[key] || 0) - (before[key] || 0);
@@ -3134,7 +3145,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             const _motionMs = { walk: 285, run: 190, slash: 160, throw: 170, cast: 180, bow: 175, hit: 200, idle: 320 };
             let _frameMs = _motionMs[motionName] || 220;
             if (motionName === 'walk' || motionName === 'run') {
-                let moveSpeed = Number(getPlayerStats().moveSpeed) || 100;
+                let moveSpeed = Number(getUiPlayerStats().moveSpeed) || 100;
                 let moveRatio = clampNumber(moveSpeed / 100, 0.6, 3.2);
                 _frameMs = clampNumber(_frameMs / moveRatio, 62, 460);
             }
@@ -3229,14 +3240,14 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             let phase = clampNumber(attackProgress, 0, 0.999);
             let idx = Math.floor(phase * sequence.length);
             if (clipLoop.sword_attack_body === true) {
-                let aspd = Math.max(0.1, Number(getPlayerStats().aspd) || 1);
+                let aspd = Math.max(0.1, Number(getUiPlayerStats().aspd) || 1);
                 let loopFrameMs = clampNumber(120 / aspd, 38, 170);
                 idx = Math.floor((now / loopFrameMs) % sequence.length);
             }
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         let idleFrame = pickCycle(idleCycle, 920, 0);
-        let moveStat = Math.max(70, Number(getPlayerStats().move) || 100);
+        let moveStat = Math.max(70, Number(getUiPlayerStats().move) || 100);
         let moveRatio = clampNumber(moveStat / 100, 0.85, 2.25);
         const WALK_ANIM_SPEED_MULT = 2;
         let moveCycleSpeed = clampNumber((1040 / moveRatio) / WALK_ANIM_SPEED_MULT, 310, 490);
@@ -4061,7 +4072,7 @@ function updateCombatUI(pStats) {
             if (!ail || (ail.time || 0) <= 0) return sum;
             if (ail.type === 'flameDecay') return sum + Math.floor(Math.max(0, ail.flameDecayDps || 0) * Math.max(0, ail.time || 0));
             if (!isDamageAilmentType(ail.type)) return sum;
-            let dps = getEnemyDamageAilmentDps(ail, cachedTooltipStats || getPlayerStats());
+            let dps = getEnemyDamageAilmentDps(ail, cachedTooltipStats || getUiPlayerStats());
             return sum + Math.floor(dps * Math.max(0, ail.time || 0));
         }, 0);
         let pendingPct = Math.max(0, Math.min(pct, (projectedAilmentDamage / Math.max(1, focusedEnemy.maxHp || 1)) * 100));
@@ -4267,7 +4278,7 @@ function performUpdateStaticUI() {
     calculateReachableNodes();
     refreshPassiveVisibility();
     normalizeSupportLoadout(true);
-    let pStats = getPlayerStats();
+    let pStats = getUiPlayerStats();
     cachedTooltipStats = pStats;
     updateCombatUI(pStats);
     let showCombatScene = game.settings.showCombatScene !== false;
@@ -8408,7 +8419,7 @@ function runStartupSmokeChecks() {
         startEncounterRun();
         if (!Array.isArray(game.encounterPlan) || game.encounterPlan.length === 0) issues.push('encounterPlan-empty');
         let before = game.runProgress;
-        let stats = getPlayerStats();
+        let stats = getUiPlayerStats();
         for (let i = 0; i < 6; i++) coreLoop();
         ensureLoopChallengeState();
         if (game.moveTimer <= 0 && game.runProgress <= before) issues.push('runProgress-stalled');
@@ -8609,11 +8620,11 @@ function init() {
                         updateStaticUI();
                     }
                 }
-                updateCombatUI(getPlayerStats());
+                updateCombatUI(getUiPlayerStats());
             } catch (error) {
                 console.error('gameTick error:', error);
                 recoverRuntimeState();
-                try { updateCombatUI(getPlayerStats()); } catch (uiError) { console.error('tick UI recovery failed:', uiError); }
+                try { updateCombatUI(getUiPlayerStats()); } catch (uiError) { console.error('tick UI recovery failed:', uiError); }
             }
         }, 100);
         requestAnimationFrame(gameLoop);

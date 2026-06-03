@@ -6265,6 +6265,20 @@ function performMonsterAttacks(pStats) {
                 damageBreakdown = damageBreakdown.map(row => ({ ele: row.ele, amount: Math.max(0, Math.floor((row.amount || 0) * mul)) })).filter(row => row.amount > 0);
                 if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: 1 });
             };
+            let scaleBreakdownToTotal = (targetTotal) => {
+                targetTotal = Math.max(1, Math.floor(targetTotal || 1));
+                let sourceTotal = Math.max(1, sumBreakdown());
+                let remainingTotal = targetTotal;
+                damageBreakdown = damageBreakdown.map((row, idx) => {
+                    let amount = idx === damageBreakdown.length - 1
+                        ? remainingTotal
+                        : Math.max(0, Math.floor(((row.amount || 0) / sourceTotal) * targetTotal));
+                    remainingTotal = Math.max(0, remainingTotal - amount);
+                    return { ele: row.ele, amount };
+                }).filter(row => row.amount > 0);
+                if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: targetTotal });
+                return Math.max(1, sumBreakdown());
+            };
             dmg = Math.max(1, sumBreakdown());
             let ailmentSourceDamageBeforeCrit = dmg;
             let enemyCritDotBonusPct = 0;
@@ -6325,7 +6339,7 @@ function performMonsterAttacks(pStats) {
             }
             if (Math.random() * 100 < Math.max(0, Math.min(75, pStats.deflectChance || 0))) {
                 let deflectReduce = Math.max(0, Math.min(85, 40 + Number(pStats.deflectDamageReduce || 0)));
-                dmg = Math.max(1, Math.floor(dmg * (1 - deflectReduce / 100)));
+                dmg = scaleBreakdownToTotal(Math.max(1, Math.floor(dmg * (1 - deflectReduce / 100))));
                 spawnDamageText({ x: width * 0.28, y: height * 0.64, value: '빗겨냄!', miss: true, color: '#b7c7b7' });
                 if (game.settings.showCombatLog) addLog(`🪶 빗겨내기 성공: 피해 ${Math.floor(deflectReduce)}% 감소`, "loot-magic");
             }
