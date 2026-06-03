@@ -1,3 +1,41 @@
+function getCanvasPlayerStats(fallback = {}) {
+    try {
+        let provider = (typeof getPlayerStats === 'function')
+            ? getPlayerStats
+            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
+        if (provider) return provider() || fallback;
+    } catch (e) {}
+    return fallback;
+}
+
+function getCanvasSkillTargets(stats) {
+    try {
+        let provider = (typeof getSkillTargets === 'function')
+            ? getSkillTargets
+            : ((typeof window !== 'undefined' && typeof window.getSkillTargets === 'function') ? window.getSkillTargets : null);
+        if (provider) return provider(stats) || [];
+    } catch (e) {}
+    return [];
+}
+
+function getCanvasCrowdProgressPaused() {
+    try {
+        let provider = (typeof isCrowdProgressPaused === 'function')
+            ? isCrowdProgressPaused
+            : ((typeof window !== 'undefined' && typeof window.isCrowdProgressPaused === 'function') ? window.isCrowdProgressPaused : null);
+        return provider ? !!provider() : false;
+    } catch (e) {}
+    return false;
+}
+
+function getCanvasCrowdPauseLimit() {
+    try {
+        if (typeof ENEMY_CROWD_PAUSE_LIMIT !== 'undefined') return ENEMY_CROWD_PAUSE_LIMIT;
+        if (typeof window !== 'undefined' && Number.isFinite(Number(window.ENEMY_CROWD_PAUSE_LIMIT))) return Number(window.ENEMY_CROWD_PAUSE_LIMIT);
+    } catch (e) {}
+    return 20;
+}
+
 // Phase-2 extracted battlefield canvas renderer block.
 function renderBattlefield(forceWhenHidden) {
     const canvas = document.getElementById('battlefield-canvas');
@@ -109,7 +147,7 @@ function renderBattlefield(forceWhenHidden) {
     if (swingFx && swingFx.id !== battleVisualState.lastAutoSwingId && now >= (battleVisualState.lastAutoSkillAt || 0)) {
         playSkillFromActiveGem(game.activeSkill || '기본 공격');
         battleVisualState.lastAutoSwingId = swingFx.id;
-        const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, getPlayerStats().aspd)) * 100));
+        const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, getCanvasPlayerStats().aspd)) * 100));
         battleVisualState.lastAutoSkillAt = now + _atkInterval;
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
@@ -170,7 +208,7 @@ function renderBattlefield(forceWhenHidden) {
         ctx.restore();
     });
 
-    let pStatsNow = getPlayerStats();
+    let pStatsNow = getCanvasPlayerStats();
     let playerHpPct = clampNumber((game.playerHp || 0) / Math.max(1, pStatsNow.maxHp || 1), 0, 1);
     if (!Number.isFinite(battleVisualState.playerHpGhostPct)) battleVisualState.playerHpGhostPct = playerHpPct;
     if (!Number.isFinite(battleVisualState.playerHpLastPct)) battleVisualState.playerHpLastPct = playerHpPct;
@@ -241,7 +279,7 @@ function renderBattlefield(forceWhenHidden) {
         }
         ctx.restore();
     }
-    let currentTargets = getSkillTargets(getPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
+    let currentTargets = getCanvasSkillTargets(getCanvasPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
@@ -364,7 +402,7 @@ function renderBattlefield(forceWhenHidden) {
     if (game.isTownReturning && game.moveTimer > 0) caption = '마을로 귀환 중...';
     else if (game.woodsmanEntrancePending) caption = '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
     else if (game.moveTimer > 0) caption = '다음 구간으로 이동 중...';
-    else if (isCrowdProgressPaused()) caption = `적이 ${ENEMY_CROWD_PAUSE_LIMIT}기 이상 몰려 전진이 막혔습니다.`;
+    else if (getCanvasCrowdProgressPaused()) caption = `적이 ${getCanvasCrowdPauseLimit()}기 이상 몰려 전진이 막혔습니다.`;
     else if (enemies.length > 0) caption = `${enemies.length}기와 교전 중`;
     else if ((game.encounterPlan || []).length > 0) caption = '다음 매복 지점을 탐색 중...';
     document.getElementById('ui-battlefield-caption').innerText = caption;
