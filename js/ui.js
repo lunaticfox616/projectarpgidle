@@ -20,6 +20,147 @@ const PLAYER_HP_DAMAGE_GHOST_HOLD_MS = 260;
 const PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC = 34;
 const ENEMY_HP_DAMAGE_GHOST_SNAP_MS = 680;
 
+function getDefaultUiPlayerStats() {
+    return {
+        maxHp: 1, energyShield: 0, baseDmg: 0, directDps: 0, dps: 0, totalDps: 0, summonDps: 0,
+        aspd: 1, crit: 0, critDmg: 150, move: 100, moveSpeed: 100, dr: 0, armor: 0, evasion: 0,
+        resF: 0, resC: 0, resL: 0, resChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
+        igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0,
+        blockChance: 0, blockChanceMax: 50, deflectChance: 0, deflectDamageReduce: 0,
+        suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}
+    };
+}
+
+function normalizeUiPlayerStats(stats, fallback = {}) {
+    let normalized = Object.assign(getDefaultUiPlayerStats(), fallback || {}, (stats && typeof stats === 'object') ? stats : {});
+    let numericDefaults = getDefaultUiPlayerStats();
+    Object.keys(numericDefaults).forEach(key => {
+        if (key === 'breakdowns') return;
+        let value = Number(normalized[key]);
+        normalized[key] = Number.isFinite(value) ? value : numericDefaults[key];
+    });
+    normalized.maxHp = Math.max(1, Number(normalized.maxHp) || 1);
+    normalized.aspd = Math.max(0.01, Number(normalized.aspd) || 1);
+    normalized.move = Math.max(0, Number(normalized.move) || 100);
+    normalized.moveSpeed = Math.max(0, Number(normalized.moveSpeed) || 100);
+    normalized.critDmg = Number.isFinite(Number(normalized.critDmg)) ? Number(normalized.critDmg) : 150;
+    normalized.breakdowns = (normalized.breakdowns && typeof normalized.breakdowns === 'object') ? normalized.breakdowns : {};
+    return normalized;
+}
+
+function getUiPlayerStats(fallback = {}) {
+    try {
+        let provider = (typeof getPlayerStats === 'function')
+            ? getPlayerStats
+            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
+        if (provider) return normalizeUiPlayerStats(provider(), fallback);
+    } catch (e) {}
+    return normalizeUiPlayerStats(cachedTooltipStats, fallback);
+}
+
+function getUiGlobalFunction(name) {
+    try {
+        if (typeof window !== 'undefined' && typeof window[name] === 'function') return window[name];
+    } catch (e) {}
+    return null;
+}
+
+function isUiDamageAilmentType(type) {
+    let provider = getUiGlobalFunction('isDamageAilmentType');
+    if (provider) {
+        try { return !!provider(type); } catch (e) {}
+    }
+    return type === 'ignite' || type === 'poison' || type === 'bleed';
+}
+
+function getUiStoredAilmentHitDamage(ail) {
+    let provider = getUiGlobalFunction('getStoredAilmentHitDamage');
+    if (provider) {
+        try { return Math.max(0, Number(provider(ail)) || 0); } catch (e) {}
+    }
+    return Math.max(0, Number((ail && (ail.sourceHitDamage || ail.hitDamage)) || 0) || 0);
+}
+
+function getUiPlayerDamageAilmentDps(ail, stats) {
+    let provider = getUiGlobalFunction('getPlayerDamageAilmentDps');
+    if (provider) {
+        try { return Math.max(0, Math.floor(Number(provider(ail, stats)) || 0)); } catch (e) {}
+    }
+    let source = getUiStoredAilmentHitDamage(ail);
+    if (source <= 0 && stats && stats.maxHp) source = Math.max(1, Math.floor((stats.maxHp || 1) * 0.08));
+    return Math.max(0, Math.floor(source * 0.9));
+}
+
+function getUiEnemyDamageAilmentDps(ail, stats) {
+    let provider = getUiGlobalFunction('getEnemyDamageAilmentDps');
+    if (provider) {
+        try { return Math.max(0, Math.floor(Number(provider(ail, stats)) || 0)); } catch (e) {}
+    }
+    return Math.max(0, Math.floor(getUiStoredAilmentHitDamage(ail) * 0.9));
+}
+
+function getUiSkillTargets(stats) {
+    let provider = getUiGlobalFunction('getSkillTargets');
+    if (provider) {
+        try { return provider(stats) || []; } catch (e) {}
+    }
+    return [];
+}
+
+function getUiCrowdProgressPaused() {
+    let provider = getUiGlobalFunction('isCrowdProgressPaused');
+    if (provider) {
+        try { return !!provider(); } catch (e) {}
+    }
+    return false;
+}
+
+function getUiCrowdPauseLimit() {
+    try {
+        if (typeof ENEMY_CROWD_PAUSE_LIMIT !== 'undefined') return ENEMY_CROWD_PAUSE_LIMIT;
+        if (typeof window !== 'undefined' && Number.isFinite(Number(window.ENEMY_CROWD_PAUSE_LIMIT))) return Number(window.ENEMY_CROWD_PAUSE_LIMIT);
+    } catch (e) {}
+    return 20;
+}
+
+function runUiGlobalFunction(name, args = []) {
+    let provider = getUiGlobalFunction(name);
+    if (provider) {
+        try { return provider.apply(null, args); } catch (e) { console.error(`${name} failed:`, e); }
+    }
+    return undefined;
+}
+
+function runUiStartEncounter() {
+    return runUiGlobalFunction('startEncounterRun');
+}
+
+function runUiCoreLoop() {
+    return runUiGlobalFunction('coreLoop');
+}
+
+function getUiConditionGemStatDelta(name, type) {
+    let provider = getUiGlobalFunction('getConditionGemStatDelta');
+    if (provider) {
+        try { return provider(name, type) || {}; } catch (e) {}
+    }
+    return {};
+}
+
+function getUiGemPresentation(name, isSupport) {
+    let provider = getUiGlobalFunction('getGemPresentation');
+    if (provider) {
+        try { return provider(name, isSupport) || {}; } catch (e) {}
+    }
+    let db = isSupport ? (SUPPORT_GEM_DB[name] || {}) : (SKILL_DB[name] || {});
+    let store = isSupport ? (game.supportGemData || {}) : (game.gemData || {});
+    let level = Math.max(1, Math.floor(((store[name] || {}).level) || 1));
+    if (isSupport) {
+        return { baseLevel: level, totalLevel: level, value: Number(db.baseVal || 0), desc: db.desc || '', statName: db.name || name, statId: db.stat || null, activeTier: 1 };
+    }
+    return { baseLevel: db.isGem || db.levelable ? level : 0, totalLevel: db.isGem || db.levelable ? level : 0, finalLevel: db.isGem || db.levelable ? level : 0, desc: db.desc || '', statName: name, skill: db, tags: getSkillTagList(db) };
+}
+
 function startBattleAssetLoadNow() {
     window.__battleAssetAutoloadEnabled = true;
     if (battleAssetDeferredInitHandle) {
@@ -364,7 +505,7 @@ function rollConditionGemChoices() {
 
 function getConditionGemDetail(entry) {
     if (!entry) return '';
-    let d = getConditionGemStatDelta(entry.name, entry.type);
+    let d = getUiConditionGemStatDelta(entry.name, entry.type);
     let out = [];
     if (d.enemyTakenMul) out.push(`받는피해 +${Math.round((d.enemyTakenMul - 1) * 100)}%`);
     if (d.enemyResShred) out.push(`저항관통 +${d.enemyResShred}`);
@@ -1995,7 +2136,7 @@ function changeSkill(name) { if (!assertBuildEditable()) return;
         }
         let cap = 1;
         try {
-            let stats = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
+            let stats = getUiPlayerStats(null);
             cap = getSummonEquipCapFromStats(stats);
         } catch (e) {}
         if (getEquippedSummonCount() >= cap) {
@@ -2026,8 +2167,8 @@ function getSupportResonanceCost(name) {
 function getEffectiveResonanceCap() {
     let base = Math.max(0, Math.floor(game.resonancePower || 0));
     let runeBonus = 0;
-    if (typeof getPlayerStats === 'function') {
-        let stats = getPlayerStats();
+    let stats = getUiPlayerStats(null);
+    if (stats) {
         runeBonus = Math.max(0, Math.floor((stats && stats.runeResonancePower) || 0));
         let tempFloor = Math.max(0, Math.floor((stats && stats.uniqueResonanceFloor) || 0));
         base = Math.max(base, tempFloor);
@@ -2089,7 +2230,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
     let idx = game.equippedSupports.indexOf(name);
     if (idx > -1) game.equippedSupports.splice(idx, 1);
     else {
-        let stats = getPlayerStats();
+        let stats = getUiPlayerStats();
         if (game.equippedSupports.length >= stats.suppCap) {
             updateStaticUI();
             return;
@@ -2502,7 +2643,11 @@ function renderBreakdownHtml(data) {
 function showStatTooltip(event, key) {
     let stats = cachedTooltipStats;
     if (!stats || !stats.breakdowns || !stats.breakdowns[key]) {
-        stats = getPlayerStats();
+        let statsProvider = (typeof getPlayerStats === 'function')
+            ? getPlayerStats
+            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
+        if (!statsProvider) return;
+        stats = statsProvider();
         cachedTooltipStats = stats;
     }
     let data = stats && stats.breakdowns ? stats.breakdowns[key] : null;
@@ -2516,9 +2661,9 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
     let p = Math.max(0.1, Number(power || 0.1));
     let source = Math.max(0, Number(sourceHitDamage || 0));
     let detail = '';
-    if (isDamageAilmentType(type)) {
-        let tooltipStats = cachedTooltipStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : null);
-        let dps = getPlayerDamageAilmentDps({ type: type, power: p, sourceHitDamage: source }, tooltipStats);
+    if (isUiDamageAilmentType(type)) {
+        let tooltipStats = cachedTooltipStats || getUiPlayerStats(null);
+        let dps = getUiPlayerDamageAilmentDps({ type: type, power: p, sourceHitDamage: source }, tooltipStats);
         let basis = source > 0 ? `받은 피해 ${Math.floor(source)} 기준` : '최대 생명력 기반';
         detail = `초당 피해: 약 ${dps} <span style="color:#9fb4d1;">(${basis})</span>`;
     } else if (type === 'chill') detail = `공격 속도 약 32% 감소`;
@@ -2528,7 +2673,7 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ff7f7f');
 }
 function showPlayerBuffTooltip(event, name, type, remainSec) {
-    let delta = getConditionGemStatDelta(name, type || 'buff');
+    let delta = getUiConditionGemStatDelta(name, type || 'buff');
     let lines = Object.keys(delta || {}).map(key => `${getStatName(key)} ${delta[key] >= 0 ? '+' : ''}${formatValue(key, delta[key])}`);
     let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${type || '버프'}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">${lines.join(' / ') || '효과 정보 없음'}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
@@ -2538,20 +2683,20 @@ function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, 
     let p = Math.max(0, Number(power || 0));
     let source = Math.max(0, Number(sourceHitDamage || 0));
     let detail = '';
-    if (isDamageAilmentType(type)) {
+    if (isUiDamageAilmentType(type)) {
         detail = `원천피해: ${Math.floor(source)}`;
     } else if (type === 'flameDecay') detail = `초당 피해: 약 ${Math.max(0, Math.floor(Number(specialDps || 0)))} <span style="color:#9fb4d1;">(화염 부패 지속 피해)</span><br><span style="color:#ffb48a;">점화 피해 증폭: 생명력 100당 8%</span>`;
     else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'shock') detail = '받는 피해 증가 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'freeze') detail = '행동 불가 (최대 생명력 대비 타격 비율 반영)';
-    let powerLine = isDamageAilmentType(type) ? '' : `<div class="tooltip-line">위력: ${p.toFixed(2)}</div>`;
+    let powerLine = isUiDamageAilmentType(type) ? '' : `<div class="tooltip-line">위력: ${p.toFixed(2)}</div>`;
     let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div>${powerLine}<div class="tooltip-line">${detail}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ffcf88');
 }
 
 function showGemTooltip(event, type, name) {
-    let info = getGemPresentation(name, type === 'support');
-    let stats = getPlayerStats();
+    let info = getUiGemPresentation(name, type === 'support');
+    let stats = getUiPlayerStats();
     let cacheKey = `${type || 'active'}:${name}:${info && (info.totalLevel || info.finalLevel || info.baseLevel || 1)}`;
     let html = `<div class="tooltip-title">${name}</div>`;
     if (type === 'support') {
@@ -2759,10 +2904,10 @@ function showItemTooltip(event, idx, isEquip) {
         let compareSlots = getEquipCandidateSlots(item).filter(slotKey => !!game.equipment[slotKey]);
         if (compareSlots.length === 0 && item.slot !== '반지') compareSlots = getEquipCandidateSlots(item);
         compareSlots.forEach((targetSlot, idx) => {
-            let before = getPlayerStats();
+            let before = getUiPlayerStats();
             let backup = game.equipment[targetSlot];
             game.equipment[targetSlot] = item;
-            let after = getPlayerStats();
+            let after = getUiPlayerStats();
             game.equipment[targetSlot] = backup;
             let changedLines = Object.keys(COMPARE_STAT_META).map(key => {
                 let diff = (after[key] || 0) - (before[key] || 0);
@@ -3130,7 +3275,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             const _motionMs = { walk: 285, run: 190, slash: 160, throw: 170, cast: 180, bow: 175, hit: 200, idle: 320 };
             let _frameMs = _motionMs[motionName] || 220;
             if (motionName === 'walk' || motionName === 'run') {
-                let moveSpeed = Number(getPlayerStats().moveSpeed) || 100;
+                let moveSpeed = Number(getUiPlayerStats().moveSpeed) || 100;
                 let moveRatio = clampNumber(moveSpeed / 100, 0.6, 3.2);
                 _frameMs = clampNumber(_frameMs / moveRatio, 62, 460);
             }
@@ -3225,14 +3370,14 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             let phase = clampNumber(attackProgress, 0, 0.999);
             let idx = Math.floor(phase * sequence.length);
             if (clipLoop.sword_attack_body === true) {
-                let aspd = Math.max(0.1, Number(getPlayerStats().aspd) || 1);
+                let aspd = Math.max(0.1, Number(getUiPlayerStats().aspd) || 1);
                 let loopFrameMs = clampNumber(120 / aspd, 38, 170);
                 idx = Math.floor((now / loopFrameMs) % sequence.length);
             }
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         let idleFrame = pickCycle(idleCycle, 920, 0);
-        let moveStat = Math.max(70, Number(getPlayerStats().move) || 100);
+        let moveStat = Math.max(70, Number(getUiPlayerStats().move) || 100);
         let moveRatio = clampNumber(moveStat / 100, 0.85, 2.25);
         const WALK_ANIM_SPEED_MULT = 2;
         let moveCycleSpeed = clampNumber((1040 / moveRatio) / WALK_ANIM_SPEED_MULT, 310, 490);
@@ -3827,6 +3972,7 @@ function pruneEnemyHpDamageGhostStates(activeEnemyIds) {
 }
 
 function updateCombatUI(pStats) {
+    pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
     if (pStats && pStats.breakdowns) cachedTooltipStats = pStats;
     game.playerHp = Math.min(game.playerHp, pStats.maxHp);
     let safeHp = Math.max(0, Number(game.playerHp) || 0);
@@ -3893,7 +4039,7 @@ function updateCombatUI(pStats) {
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
         let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d', assassinWeakness: '#ff9bd1' };
-        let text = (game.playerAilments || []).map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
+        let text = (game.playerAilments || []).map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)},${Math.floor(getUiStoredAilmentHitDamage(ail))})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
         if (game.woodsmanCurseActive) {
             let curseTaken = (Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.01).toFixed(2);
             let curseText = `<span style=\"color:#d0a8ff;font-weight:700;\">나무꾼의 저주 +${curseTaken}%</span>`;
@@ -3915,8 +4061,8 @@ function updateCombatUI(pStats) {
         if (mobileAilmentEl) mobileAilmentEl.innerHTML = isMobile ? desktopText : '';
         let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
-            if (!isDamageAilmentType(ail.type)) return sum;
-            return sum + Math.floor(getPlayerDamageAilmentDps(ail, pStats) * Math.max(0, ail.time || 0));
+            if (!isUiDamageAilmentType(ail.type)) return sum;
+            return sum + Math.floor(getUiPlayerDamageAilmentDps(ail, pStats) * Math.max(0, ail.time || 0));
         }, 0);
         let playerHpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
         let pendingPlayerPct = Math.max(0, Math.min(playerHpPct, (projectedPlayerAilDmg / Math.max(1, pStats.maxHp)) * 100));
@@ -3965,9 +4111,9 @@ function updateCombatUI(pStats) {
         setTextById('ui-progress-label', game.isTownReturning ? '🏕️ 재정비 중...' : '🚶 다음 구간 준비');
         setTextById('ui-move-time-text', `${Math.max(0, game.moveTimer).toFixed(1)}초`);
         document.getElementById('ui-move-bar').style.width = readyPct + '%';
-    } else if (isCrowdProgressPaused()) {
+    } else if (getUiCrowdProgressPaused()) {
         setTextById('ui-progress-label', '⛔ 전장 정리 중');
-        setTextById('ui-move-time-text', `적 ${ENEMY_CROWD_PAUSE_LIMIT}기 이상`);
+        setTextById('ui-move-time-text', `적 ${getUiCrowdPauseLimit()}기 이상`);
         document.getElementById('ui-move-bar').style.width = game.runProgress + '%';
     } else {
         setTextById('ui-progress-label', '🧭 진행도');
@@ -4034,7 +4180,7 @@ function updateCombatUI(pStats) {
 
     let enemies = (game.enemies || []).filter(enemy => enemy && (enemy.hp || 0) > 0);
     pruneEnemyHpDamageGhostStates(enemies.map(enemy => enemy.id));
-    let targetIds = getSkillTargets(pStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
+    let targetIds = getUiSkillTargets(pStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     let focusedEnemy = enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
     let enemyListEl = document.getElementById('ui-enemy-list');
     if (!focusedEnemy) {
@@ -4050,14 +4196,14 @@ function updateCombatUI(pStats) {
         let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
         let enemyDebuffs = (((game.enemyConditionDebuffs || {})[focusedEnemy.id]) || []).filter(row => row && (row.expiresAt || 0) > Date.now());
         let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d', assassinWeakness: '#ff9bd1' };
-        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getStoredAilmentHitDamage(ail))},${Math.floor(ail.flameDecayDps || 0)},${Number(ail.critDotBonusPct || 0).toFixed(3)})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type}${ail.type === 'assassinWeakness' ? ` ${Math.floor(ail.power || 0)}중첩` : ''} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
+        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getUiStoredAilmentHitDamage(ail))},${Math.floor(ail.flameDecayDps || 0)},${Number(ail.critDotBonusPct || 0).toFixed(3)})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type}${ail.type === 'assassinWeakness' ? ` ${Math.floor(ail.power || 0)}중첩` : ''} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
         let curseText = enemyDebuffs.map(row => `<span data-info-tooltip-anchor=\"1\" style=\"color:#ff9bd1;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${row.name}','curse',${Math.ceil(Math.max(0,((row.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">🕯 저주:${row.name} ${Math.ceil(Math.max(0, ((row.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
         ailmentText = [ailmentText, curseText].filter(Boolean).join(' · ');
         let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             if (ail.type === 'flameDecay') return sum + Math.floor(Math.max(0, ail.flameDecayDps || 0) * Math.max(0, ail.time || 0));
-            if (!isDamageAilmentType(ail.type)) return sum;
-            let dps = getEnemyDamageAilmentDps(ail, cachedTooltipStats || getPlayerStats());
+            if (!isUiDamageAilmentType(ail.type)) return sum;
+            let dps = getUiEnemyDamageAilmentDps(ail, cachedTooltipStats || getUiPlayerStats());
             return sum + Math.floor(dps * Math.max(0, ail.time || 0));
         }, 0);
         let pendingPct = Math.max(0, Math.min(pct, (projectedAilmentDamage / Math.max(1, focusedEnemy.maxHp || 1)) * 100));
@@ -4263,7 +4409,7 @@ function performUpdateStaticUI() {
     calculateReachableNodes();
     refreshPassiveVisibility();
     normalizeSupportLoadout(true);
-    let pStats = getPlayerStats();
+    let pStats = getUiPlayerStats();
     cachedTooltipStats = pStats;
     updateCombatUI(pStats);
     let showCombatScene = game.settings.showCombatScene !== false;
@@ -4944,6 +5090,89 @@ function buildSporeSummaryHtml() {
         </div>`;
 }
 
+
+function getCraftTargetControlsHtml() {
+    return `<div class="craft-target-actions"><button type="button" onclick="event.stopPropagation(); openCraftItemPickerOverlay('equip')">장비</button><button type="button" onclick="event.stopPropagation(); openCraftItemPickerOverlay('inventory')">인벤토리</button></div>`;
+}
+
+function closeCraftItemPickerOverlay() {
+    let overlay = document.getElementById('craft-item-picker-overlay');
+    if (overlay) overlay.remove();
+}
+
+function selectCraftPickerEquipment(slot) {
+    if (!slot || !(game.equipment || {})[slot]) return;
+    selectForCrafting(slot, true);
+    closeCraftItemPickerOverlay();
+}
+
+function selectCraftPickerInventoryItem(itemId) {
+    let id = Number(itemId);
+    if (!Number.isFinite(id) || !(game.inventory || []).some(item => item && item.id === id)) return;
+    selectForCrafting(id, false);
+    closeCraftItemPickerOverlay();
+}
+
+function getCraftPickerItemLines(item) {
+    if (!item) return '';
+    let rows = [];
+    (item.baseStats || []).slice(0, 1).forEach(stat => rows.push(`${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`));
+    (item.stats || []).slice(0, 2).forEach(stat => rows.push(`${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`));
+    if (item.chaosInfusion) rows.push(`[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}`);
+    if (item.encroached && !item.encroached.liberated) rows.push('[잠식] 해방 전');
+    return rows.map(row => `<div style="color:#9fb4d1; font-size:.78em; margin-top:2px;">${escapeHTML(row)}</div>`).join('');
+}
+
+function getCraftPickerCardHtml(item, options) {
+    options = options || {};
+    let selected = !!options.selected;
+    let rarity = item && item.rarity ? item.rarity : 'normal';
+    let slotLabel = options.slotLabel || (item && item.slot ? item.slot : '장비');
+    let sourceMeta = item && typeof getDropOnlyItemSourceMeta === 'function' ? getDropOnlyItemSourceMeta(item) : null;
+    let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
+    return `<button type="button" class="craft-picker-card ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
+        <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(slotLabel.replace(/[12]/, ''))}] ${escapeHTML(item.name || '장비')}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
+        <div class="item-base-line" style="font-size:.78em;">${escapeHTML(item.baseName || '')}</div>
+        ${getCraftPickerItemLines(item)}
+    </button>`;
+}
+
+function openCraftItemPickerOverlay(kind) {
+    closeCraftItemPickerOverlay();
+    let isEquip = kind === 'equip';
+    let overlay = document.createElement('div');
+    overlay.id = 'craft-item-picker-overlay';
+    overlay.className = 'craft-picker-overlay';
+    overlay.onclick = event => { if (event.target === overlay) closeCraftItemPickerOverlay(); };
+    let currentRef = getCraftSelectionRef();
+    let currentIsEquip = isCraftSelectionEquip();
+    let bodyHtml = '';
+    if (isEquip) {
+        let slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
+        bodyHtml = `<div class="craft-picker-equip-grid">${slots.map(slot => {
+            let item = game.equipment && game.equipment[slot];
+            if (!item) return `<button type="button" class="craft-picker-card empty" disabled><div style="font-weight:800;">[${slot.replace(/[12]/, '')}]</div><div style="color:#7f8c8d; margin-top:5px;">비어있음</div></button>`;
+            return getCraftPickerCardHtml(item, {
+                slotLabel: slot,
+                selected: currentIsEquip && currentRef === slot,
+                onclick: `selectCraftPickerEquipment('${slot}')`,
+                tooltip: `onmouseenter="showItemTooltip(event, '${slot}', true)" onmousemove="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"`
+            });
+        }).join('')}</div>`;
+    } else {
+        let rows = (game.inventory || []).map((item, idx) => getCraftPickerCardHtml(item, {
+            selected: !currentIsEquip && currentRef === item.id,
+            onclick: `selectCraftPickerInventoryItem(${item.id})`,
+            tooltip: `onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"`
+        })).join('');
+        bodyHtml = rows ? `<div class="craft-picker-grid">${rows}</div>` : `<div class="deathlog-empty">인벤토리에 제작할 장비가 없습니다.</div>`;
+    }
+    overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title">${isEquip ? '장착 장비에서 제작 대상 선택' : '인벤토리에서 제작 대상 선택'}</div><div class="craft-picker-desc">카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.</div></div><button type="button" onclick="closeCraftItemPickerOverlay()">닫기</button></div><div class="craft-picker-body">${bodyHtml}</div></div>`;
+    document.body.appendChild(overlay);
+}
+
+safeExposeGlobals({ openCraftItemPickerOverlay, closeCraftItemPickerOverlay, selectCraftPickerEquipment, selectCraftPickerInventoryItem });
+
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
     let defs = [
@@ -4957,7 +5186,8 @@ function buildCraftActionButtons(item) {
     let selectedItem = getSelectedCraftItem();
     renderCraftSelectedSummary(selectedItem);
     renderMobileCraftCurrencyPicker(selectedItem);
-    let forgeHtml = '아이템을 클릭하여 선택';
+    let craftTargetControls = getCraftTargetControlsHtml();
+    let craftSelectedBodyHtml = `<div style="color:#9fb4d1;">아이템을 클릭하여 선택</div>`;
     if (selectedItem) {
         let lines = [];
         (selectedItem.baseStats || []).forEach(stat => lines.push(`<div class="tooltip-line" style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</div>`));
@@ -5006,10 +5236,10 @@ function buildCraftActionButtons(item) {
             }).join('');
             abyssSocketHtml = `<div class="craft-section-title">심연 소켓</div>${makeBtn}${rows}`;
         }
-        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
+        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
-    document.getElementById('forge-item-display').innerHTML = forgeHtml;
-    document.getElementById('fossil-item-display').innerHTML = forgeHtml;
+    document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div style="padding-right:86px;">${craftSelectedBodyHtml}</div>`;
+    document.getElementById('fossil-item-display').innerHTML = craftSelectedBodyHtml;
     let fossilButtons = [];
     let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
     if ((game.currencies.fossil || 0) > 0) fossilButtons.push(`<button onclick="applyFossilCraft()">기본 화석 정제 (${game.currencies.fossil || 0})</button>`);
@@ -5229,7 +5459,8 @@ function buildCraftActionButtons(item) {
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
                 game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
-                let loopRequirementMet = (typeof hasCurrentLoopChaos20Clear === 'function') ? hasCurrentLoopChaos20Clear() : !!game.loopProgressCurrent.chaos20Cleared;
+                let deepChaosUnlocked = (typeof hasCurrentLoopChaos20Clear === 'function') ? hasCurrentLoopChaos20Clear() : !!game.loopProgressCurrent.chaos20Cleared;
+                let loopRequirementMet = (typeof hasCurrentLoopAbyssRequirementClear === 'function') ? hasCurrentLoopAbyssRequirementClear(game.season || 1) : deepChaosUnlocked;
                 let loopRequirementText = getLoopAbyssRequirementText(game.season || 1);
                 let unlockedDepthsForReward = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let highestUnlockedForReward = unlockedDepthsForReward.length > 0 ? Math.max(...unlockedDepthsForReward) : Math.floor(game.abyssEndlessDepth || 20); let clearedDepthForReward = Math.max(20, highestUnlockedForReward >= 21 ? (highestUnlockedForReward - 1) : highestUnlockedForReward); let expectedDepthGain = Math.max(0, Math.floor(clearedDepthForReward - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
@@ -5242,7 +5473,7 @@ function buildCraftActionButtons(item) {
                 loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">${loopRequirementText} 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
                 <div style="background:linear-gradient(160deg, rgba(84,59,136,0.22), rgba(26,31,56,0.35)); border:1px solid #5f4a93; border-radius:10px; padding:10px; margin-bottom:8px;">
                     <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="triggerSeasonReset()" ${loopRequirementMet ? '' : 'disabled'}>지금 즉시 루프</button><button class="ominous-entry-btn" onclick="enterOutsideChaos()" ${(game.season||1)>=10 && loopRequirementMet?'':'disabled'}>☠️ 혼돈 밖 진입</button></div>
-                    <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()" ${loopRequirementMet ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:#9fb4d1;">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${loopRequirementMet ? '' : ` (${loopRequirementText} 필요)`}</span></div>
+                    <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()" ${deepChaosUnlocked ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:#9fb4d1;">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${deepChaosUnlocked ? '' : ` (혼돈 20 클리어 필요)`}</span></div>
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
                 <div style="margin-top:4px; color:#9ec4f0;">${deepTotalLine}</div>
@@ -5369,7 +5600,7 @@ function buildCraftActionButtons(item) {
         let summonEquipped = !!(Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
         if (isSummonAttack && summonEquipped) active = 'active';
         let badge = '';
-        let gemInfo = getGemPresentation(name, false);
+        let gemInfo = getUiGemPresentation(name, false);
         if (SKILL_DB[name].isGem || SKILL_DB[name].levelable) badge = `<span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
         let sealBtn = name === game.activeSkill ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">🔒 봉인</button>`;
         return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.skill)}</strong>${badge}${sealBtn}</div>`;
@@ -5424,7 +5655,7 @@ function buildCraftActionButtons(item) {
         return game.equippedSupports.includes(name);
     }).map(name => {
         let active = game.equippedSupports.includes(name) ? 'active' : '';
-        let gemInfo = getGemPresentation(name, true);
+        let gemInfo = getUiGemPresentation(name, true);
         let tierCap = typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3;
         let unlockedTier = Math.max(1, Math.min(tierCap, Math.floor((((game.supportGemData || {})[name]) || {}).unlockedTier || 1)));
         let activeTier = getSupportActiveTier(name);
@@ -5506,10 +5737,10 @@ function buildCraftActionButtons(item) {
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.skyCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem || (activeGem && activeGem.skyCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.skyCoreLevel >= 5 ? '✅ 창공의 힘 강화 완료' : '창공의 힘 강화'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${skyNeed}${activeGem && activeGem.skyCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && (activeGem.quality || 0) >= 20 ? 'done' : ''}" onclick="upgradeActiveGemQuality()" ${!isGem || gemExpertLv < 8 || (activeGem && (activeGem.quality || 0) >= 20) ? 'disabled' : ''}><strong>${activeGem && (activeGem.quality || 0) >= 20 ? '✅ 퀄리티 완료' : '젬 퀄리티 강화'}</strong><br><small>젬 각인사 Lv.8 · 보유 군주의 핵: ${game.currencies.bossCore || 0} / 필요: ${qualityNeed}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.awakened ? 'done' : ''}" onclick="awakenActiveGemCandidate()" ${!isGem || !awakenReady || (game.currencies.awakenedEcho || 0) < 3 ? 'disabled' : ''}><strong>${activeGem && activeGem.awakened ? '✅ 각성 젬' : '각성 젬 변환'}</strong><br><small>젬 각인사 Lv.15 · Lv.20 필요 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3 · 젬 레벨 +2/슬롯 보정</small></button>`);
-            upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && engraveCap >= 5 ? 'done' : ''}" onclick="upgradeSkyEngraveCap()" ${!isGem || (activeGem && engraveCap >= 5) ? 'disabled' : ''}><strong>${activeGem && engraveCap >= 5 ? '✅ 각인 슬롯 확장 완료' : '창공 각인 슬롯 확장'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${capNeed}${activeGem && engraveCap >= 5 ? ' (최대)' : ''}</small></button>`);
+            let engraveCapButton = `<button class="gem-upgrade-btn ${activeGem && engraveCap >= 5 ? 'done' : ''}" onclick="upgradeSkyEngraveCap()" ${!isGem || (activeGem && engraveCap >= 5) ? 'disabled' : ''}><strong>${activeGem && engraveCap >= 5 ? '✅ 각인 슬롯 확장 완료' : '창공 각인 슬롯 확장'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${capNeed}${activeGem && engraveCap >= 5 ? ' (최대)' : ''}</small></button>`;
             document.getElementById('ui-gem-upgrade-actions').innerHTML = upgradeBtns.join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 젬 강화 재료가 없습니다.</div>`;
             if ((game.season || 1) >= 4) {
-                document.getElementById('ui-gem-enhance-options').innerHTML = Object.values(GEM_SKY_ENHANCEMENTS).map(enh => {
+                document.getElementById('ui-gem-enhance-options').innerHTML = engraveCapButton + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => {
                     let applied = activeEnh.includes(enh.id);
                     let unlockLv = typeof getSkyEnhancementUnlockLevel === 'function' ? getSkyEnhancementUnlockLevel(enh.id) : 1;
                     let locked = gemExpertLv < unlockLv;
@@ -5518,7 +5749,7 @@ function buildCraftActionButtons(item) {
                     return `<button class="gem-engrave-option ${applied ? 'applied' : ''}" onclick="${applied ? `removeSkyGemEnhancementFromActive('${enh.id}')` : `applySkyGemEnhancementToActive('${enh.id}')`}" ${!isGem || (locked && !applied) || (applied && !canRemove) ? 'disabled' : ''}><strong>${applied ? '✅ ' : ''}${enh.name}${applied ? ' (적용중)' : locked ? ` (Lv.${unlockLv})` : ''}</strong><br><small>${enh.desc}${awakenedNote}${applied ? (canRemove ? ' · 클릭 시 해제' : ' · 해제 Lv.7 필요') : locked ? ` · 젬 각인사 Lv.${unlockLv} 필요` : ''}</small></button>`;
                 }).join('');
             } else {
-                document.getElementById('ui-gem-enhance-options').innerHTML = `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 루프 4부터 해금됩니다.</div>`;
+                document.getElementById('ui-gem-enhance-options').innerHTML = engraveCapButton + `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 루프 4부터 해금됩니다.</div>`;
             }
         }
     }
@@ -6509,7 +6740,7 @@ function mergeDefaults(save) {
     merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
     merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
-    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-underworld'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
+    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-underworld', 'map-tab-cosmos'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
@@ -8298,7 +8529,7 @@ function reportFatalError(stage, error) {
 
 function recoverRuntimeState() {
     game = mergeDefaults(game || {});
-    if (game.moveTimer <= 0 && (!Array.isArray(game.encounterPlan) || game.encounterPlan.length === 0)) startEncounterRun();
+    if (game.moveTimer <= 0 && (!Array.isArray(game.encounterPlan) || game.encounterPlan.length === 0)) runUiStartEncounter();
 }
 
 function runStartupSmokeChecks() {
@@ -8317,11 +8548,11 @@ function runStartupSmokeChecks() {
         game.encounterPlan = [];
         game.encounterIndex = 0;
         game.runProgress = 0;
-        startEncounterRun();
+        runUiStartEncounter();
         if (!Array.isArray(game.encounterPlan) || game.encounterPlan.length === 0) issues.push('encounterPlan-empty');
         let before = game.runProgress;
-        let stats = getPlayerStats();
-        for (let i = 0; i < 6; i++) coreLoop();
+        let stats = getUiPlayerStats();
+        for (let i = 0; i < 6; i++) runUiCoreLoop();
         ensureLoopChallengeState();
         if (game.moveTimer <= 0 && game.runProgress <= before) issues.push('runProgress-stalled');
         if (!Number.isFinite(stats.maxHp) || stats.maxHp <= 0) issues.push('invalid-player-stats');
@@ -8428,7 +8659,7 @@ function init() {
     checkUnlocks();
     renderExpertiseUI();
     normalizeSupportLoadout(false);
-    if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
+    if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) runUiStartEncounter();
     runStartupSmokeChecks();
     if (!(game.discoveredPassives || []).includes('n0')) game.discoveredPassives.push('n0');
     window.addEventListener('resize', function() {
@@ -8509,7 +8740,7 @@ function init() {
         gameTickHandle = setInterval(() => {
             try {
                 if (isStartupOverlayOpen() || isLoadingOverlayOpen() || isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) return;
-                coreLoop();
+                runUiCoreLoop();
                 ensureLoopChallengeState();
                 if (pendingHeavyUiRefresh) {
                     let now = Date.now();
@@ -8521,11 +8752,11 @@ function init() {
                         updateStaticUI();
                     }
                 }
-                updateCombatUI(getPlayerStats());
+                updateCombatUI(getUiPlayerStats());
             } catch (error) {
                 console.error('gameTick error:', error);
                 recoverRuntimeState();
-                try { updateCombatUI(getPlayerStats()); } catch (uiError) { console.error('tick UI recovery failed:', uiError); }
+                try { updateCombatUI(getUiPlayerStats()); } catch (uiError) { console.error('tick UI recovery failed:', uiError); }
             }
         }, 100);
         requestAnimationFrame(gameLoop);
