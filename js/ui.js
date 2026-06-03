@@ -20,15 +20,42 @@ const PLAYER_HP_DAMAGE_GHOST_HOLD_MS = 260;
 const PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC = 34;
 const ENEMY_HP_DAMAGE_GHOST_SNAP_MS = 680;
 
+function getDefaultUiPlayerStats() {
+    return {
+        maxHp: 1, energyShield: 0, baseDmg: 0, directDps: 0, dps: 0, totalDps: 0, summonDps: 0,
+        aspd: 1, crit: 0, critDmg: 150, move: 100, moveSpeed: 100, dr: 0, armor: 0, evasion: 0,
+        resF: 0, resC: 0, resL: 0, resChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
+        igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0,
+        blockChance: 0, blockChanceMax: 50, deflectChance: 0, deflectDamageReduce: 0,
+        suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}
+    };
+}
+
+function normalizeUiPlayerStats(stats, fallback = {}) {
+    let normalized = Object.assign(getDefaultUiPlayerStats(), fallback || {}, (stats && typeof stats === 'object') ? stats : {});
+    let numericDefaults = getDefaultUiPlayerStats();
+    Object.keys(numericDefaults).forEach(key => {
+        if (key === 'breakdowns') return;
+        let value = Number(normalized[key]);
+        normalized[key] = Number.isFinite(value) ? value : numericDefaults[key];
+    });
+    normalized.maxHp = Math.max(1, Number(normalized.maxHp) || 1);
+    normalized.aspd = Math.max(0.01, Number(normalized.aspd) || 1);
+    normalized.move = Math.max(0, Number(normalized.move) || 100);
+    normalized.moveSpeed = Math.max(0, Number(normalized.moveSpeed) || 100);
+    normalized.critDmg = Number.isFinite(Number(normalized.critDmg)) ? Number(normalized.critDmg) : 150;
+    normalized.breakdowns = (normalized.breakdowns && typeof normalized.breakdowns === 'object') ? normalized.breakdowns : {};
+    return normalized;
+}
 
 function getUiPlayerStats(fallback = {}) {
     try {
         let provider = (typeof getPlayerStats === 'function')
             ? getPlayerStats
             : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
-        if (provider) return provider() || fallback;
+        if (provider) return normalizeUiPlayerStats(provider(), fallback);
     } catch (e) {}
-    return cachedTooltipStats || fallback;
+    return normalizeUiPlayerStats(cachedTooltipStats, fallback);
 }
 
 function getUiGlobalFunction(name) {
@@ -3907,6 +3934,7 @@ function pruneEnemyHpDamageGhostStates(activeEnemyIds) {
 }
 
 function updateCombatUI(pStats) {
+    pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
     if (pStats && pStats.breakdowns) cachedTooltipStats = pStats;
     game.playerHp = Math.min(game.playerHp, pStats.maxHp);
     let safeHp = Math.max(0, Number(game.playerHp) || 0);

@@ -559,16 +559,12 @@ window.safeExposeGlobals = window.safeExposeGlobals || safeExposeGlobals;
 if (typeof window.getPlayerStats === "undefined") {
     window.getPlayerStats = function getPlayerStatsFallback() {
         return {
-            maxHp: 1,
-            energyShield: 0,
-            aspd: 1,
-            move: 100,
-            moveSpeed: 100,
-            suppCap: 0,
-            summonCap: 1,
-            runeResonancePower: 0,
-            uniqueResonanceFloor: 0,
-            breakdowns: {}
+            maxHp: 1, energyShield: 0, baseDmg: 0, directDps: 0, dps: 0, totalDps: 0, summonDps: 0,
+            aspd: 1, crit: 0, critDmg: 150, move: 100, moveSpeed: 100, dr: 0, armor: 0, evasion: 0,
+            resF: 0, resC: 0, resL: 0, resChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
+            igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0,
+            blockChance: 0, blockChanceMax: 50, deflectChance: 0, deflectDamageReduce: 0,
+            suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}
         };
     };
     window.getPlayerStats.__placeholderGlobal = true;
