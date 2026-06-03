@@ -632,3 +632,32 @@ if (typeof window.getPlayerDamageAilmentDps === "undefined") {
     };
     window.getPlayerDamageAilmentDps.__placeholderGlobal = true;
 }
+function installRuntimeFunctionFallback(name, fallback) {
+    if (typeof window[name] === "undefined") {
+        window[name] = fallback;
+        window[name].__placeholderGlobal = true;
+    }
+}
+
+installRuntimeFunctionFallback("startEncounterRun", function startEncounterRunFallback() {
+    let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
+    if (state) {
+        state.encounterPlan = Array.isArray(state.encounterPlan) ? state.encounterPlan : [];
+        state.encounterIndex = Math.max(0, Math.floor(state.encounterIndex || 0));
+    }
+});
+installRuntimeFunctionFallback("coreLoop", function coreLoopFallback() {});
+installRuntimeFunctionFallback("returnToTown", function returnToTownFallback() {
+    let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
+    if (state) {
+        state.isTownReturning = false;
+        state.combatHalted = true;
+        state.enemies = [];
+    }
+});
+installRuntimeFunctionFallback("triggerSeasonReset", function triggerSeasonResetFallback() {});
+installRuntimeFunctionFallback("chooseLoopAdvance", function chooseLoopAdvanceFallback() {
+    let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
+    if (state) state.pendingLoopDecision = false;
+});
+installRuntimeFunctionFallback("enterOutsideChaos", function enterOutsideChaosFallback() {});

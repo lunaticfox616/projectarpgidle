@@ -123,6 +123,22 @@ function getUiCrowdPauseLimit() {
     return 20;
 }
 
+function runUiGlobalFunction(name, args = []) {
+    let provider = getUiGlobalFunction(name);
+    if (provider) {
+        try { return provider.apply(null, args); } catch (e) { console.error(`${name} failed:`, e); }
+    }
+    return undefined;
+}
+
+function runUiStartEncounter() {
+    return runUiGlobalFunction('startEncounterRun');
+}
+
+function runUiCoreLoop() {
+    return runUiGlobalFunction('coreLoop');
+}
+
 function startBattleAssetLoadNow() {
     window.__battleAssetAutoloadEnabled = true;
     if (battleAssetDeferredInitHandle) {
@@ -8491,7 +8507,7 @@ function reportFatalError(stage, error) {
 
 function recoverRuntimeState() {
     game = mergeDefaults(game || {});
-    if (game.moveTimer <= 0 && (!Array.isArray(game.encounterPlan) || game.encounterPlan.length === 0)) startEncounterRun();
+    if (game.moveTimer <= 0 && (!Array.isArray(game.encounterPlan) || game.encounterPlan.length === 0)) runUiStartEncounter();
 }
 
 function runStartupSmokeChecks() {
@@ -8510,11 +8526,11 @@ function runStartupSmokeChecks() {
         game.encounterPlan = [];
         game.encounterIndex = 0;
         game.runProgress = 0;
-        startEncounterRun();
+        runUiStartEncounter();
         if (!Array.isArray(game.encounterPlan) || game.encounterPlan.length === 0) issues.push('encounterPlan-empty');
         let before = game.runProgress;
         let stats = getUiPlayerStats();
-        for (let i = 0; i < 6; i++) coreLoop();
+        for (let i = 0; i < 6; i++) runUiCoreLoop();
         ensureLoopChallengeState();
         if (game.moveTimer <= 0 && game.runProgress <= before) issues.push('runProgress-stalled');
         if (!Number.isFinite(stats.maxHp) || stats.maxHp <= 0) issues.push('invalid-player-stats');
@@ -8621,7 +8637,7 @@ function init() {
     checkUnlocks();
     renderExpertiseUI();
     normalizeSupportLoadout(false);
-    if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
+    if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) runUiStartEncounter();
     runStartupSmokeChecks();
     if (!(game.discoveredPassives || []).includes('n0')) game.discoveredPassives.push('n0');
     window.addEventListener('resize', function() {
@@ -8702,7 +8718,7 @@ function init() {
         gameTickHandle = setInterval(() => {
             try {
                 if (isStartupOverlayOpen() || isLoadingOverlayOpen() || isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) return;
-                coreLoop();
+                runUiCoreLoop();
                 ensureLoopChallengeState();
                 if (pendingHeavyUiRefresh) {
                     let now = Date.now();
