@@ -2502,7 +2502,11 @@ function renderBreakdownHtml(data) {
 function showStatTooltip(event, key) {
     let stats = cachedTooltipStats;
     if (!stats || !stats.breakdowns || !stats.breakdowns[key]) {
-        stats = getPlayerStats();
+        let statsProvider = (typeof getPlayerStats === 'function')
+            ? getPlayerStats
+            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
+        if (!statsProvider) return;
+        stats = statsProvider();
         cachedTooltipStats = stats;
     }
     let data = stats && stats.breakdowns ? stats.breakdowns[key] : null;

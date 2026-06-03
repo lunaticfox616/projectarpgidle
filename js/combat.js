@@ -5160,8 +5160,13 @@ function finishEncounterRun() {
                 // Setting this to nextDepth would double-advance and skip a floor (e.g. 20 -> 22).
                 game.abyssEndlessDepth = Math.max(nowEndless, 20);
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
+                let hadLoopRequirementBeforeClear = (typeof hasCurrentLoopChaos20Clear === 'function') ? hasCurrentLoopChaos20Clear() : !!game.loopProgressCurrent.chaos20Cleared;
                 if (depth >= 21) game.loopProgressCurrent.bestAbyssDepth = Math.max(Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), depth);
                 game.loopProgressCurrent.chaos20Cleared = true;
+                if (depth >= 21 && hadLoopRequirementBeforeClear) {
+                    enterNextEndlessChaosDepth();
+                    return;
+                }
                 game.pendingLoopDecision = true;
                 game.combatHalted = true;
                 game.enemies = [];
