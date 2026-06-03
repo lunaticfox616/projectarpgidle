@@ -1,0 +1,69 @@
+.core-cube-locked {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 207, 138, 0.35);
+  border-radius: 12px;
+  background: rgba(92, 58, 24, 0.22);
+  color: #ffdfad;
+  line-height: 1.55;
+}
+.core-cube-shell {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.92fr) minmax(310px, 1.08fr);
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(142, 203, 255, 0.22);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 22% 20%, rgba(85, 160, 255, 0.13), transparent 32%),
+    linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)),
+    rgba(7, 11, 24, 0.72);
+  box-shadow: 0 18px 48px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.core-cube-shell.locked { opacity: 0.72; }
+.core-cube-shell.completed { border-color: rgba(255, 172, 82, 0.48); box-shadow: 0 0 48px rgba(255, 142, 55, 0.14), inset 0 0 30px rgba(255, 142, 55, 0.08); }
+.core-cube-stage {
+  min-height: 440px;
+  position: relative;
+  border: 1px solid rgba(126, 191, 255, 0.16);
+  border-radius: 16px;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 44%, rgba(119, 203, 255, 0.14), transparent 45%), #070b17;
+}
+.core-cube-visual { position: absolute; inset: 18px 118px 18px 18px; display:flex; align-items:center; justify-content:center; }
+.core-cube-orb {
+  width: 190px; height: 190px; border-radius: 34px;
+  display:flex; align-items:center; justify-content:center; text-align:center;
+  color:#e9fbff; font-weight:900; letter-spacing:.12em; line-height:1.35;
+  transform: rotateX(58deg) rotateZ(45deg);
+  border: 2px solid rgba(148, 238, 255, 0.72);
+  background: linear-gradient(135deg, rgba(86,210,255,.25), rgba(255,255,255,.05));
+  box-shadow: 0 0 36px rgba(85, 220, 255, .28), inset 0 0 34px rgba(85, 220, 255, .14);
+}
+.core-cube-shell.completed .core-cube-orb { border-color: rgba(255, 199, 114, .84); box-shadow: 0 0 46px rgba(255, 156, 66, .36), inset 0 0 38px rgba(255, 156, 66, .18); }
+.core-cube-ring { position:absolute; width:260px; height:260px; border-radius:50%; border:1px solid rgba(139, 225, 255, .18); box-shadow: 0 0 40px rgba(94, 211, 255, .10); }
+.core-cube-faces { position:absolute; top:18px; right:18px; bottom:18px; width:104px; display:grid; gap:8px; grid-template-rows: repeat(6, 1fr); }
+.core-cube-face {
+  border:1px solid rgba(138, 211, 255, .24); border-radius:12px; padding:8px;
+  background: rgba(10, 18, 36, .78); color:#dcefff; text-align:left; cursor:pointer;
+}
+.core-cube-face span { display:block; color:#90a9c5; font-size:.78em; }
+.core-cube-face strong { display:block; margin-top:5px; font-size:.84em; }
+.core-cube-face.selected { border-color:#ffd980; box-shadow:0 0 18px rgba(255,217,128,.22); }
+.core-cube-face.powered { border-color:#7cecff; background:rgba(22, 64, 86, .58); }
+.core-cube-face.completed { border-color:#ffa34f; color:#ffe5c2; }
+.core-cube-side { display:grid; gap:10px; }
+.core-cube-card { border:1px solid rgba(162, 203, 255, .16); border-radius:14px; padding:12px; background:rgba(4, 8, 18, .48); }
+.core-cube-card h3 { margin:0 0 8px; color:#e2edff; }
+.core-cube-card p { margin:8px 0 0; color:#8fa6c4; font-size:.86em; line-height:1.45; }
+.core-cube-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.core-cube-row span { color:#aabbd2; }
+.core-cube-good { color:#93ffc2 !important; }
+.core-cube-inventory { display:grid; grid-template-columns: repeat(auto-fill, minmax(118px,1fr)); gap:7px; margin-top:10px; }
+.core-cube-power { text-align:left; min-height:42px; }
+.core-cube-power span { color:#9fb2c8; margin-left:4px; }
+.core-cube-complete { border-color:rgba(255,185,95,.48); background:linear-gradient(180deg, rgba(255,142,55,.45), rgba(95,45,16,.55)); }
+.core-cube-options { display:grid; gap:7px; margin-top:10px; }
+.core-cube-option { padding:9px 10px; border:1px solid rgba(147,255,194,.18); border-radius:11px; background:rgba(30,90,70,.16); color:#dffff0; }
+.core-cube-muted { color:#8fa6c4; font-size:.9em; }
+@media (max-width: 1080px) { .core-cube-shell { grid-template-columns:1fr; } .core-cube-stage { min-height:360px; } }

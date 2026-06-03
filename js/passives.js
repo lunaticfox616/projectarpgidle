@@ -2347,6 +2347,7 @@ const TAB_UNLOCK_GATES = {
     'tab-skills': 'skills',
     'tab-codex': 'codex',
     'tab-talisman': 'talisman',
+    'tab-cube': 'cube',
     'tab-map': 'map',
     'tab-traits': 'traits',
     'tab-expertise': 'expertise'
@@ -5892,6 +5893,7 @@ function getCurrencyDrops(enemy) {
         if (Math.random() < 0.018) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
         if (Math.random() < 0.012) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
         if (underFloor >= 10 && Math.random() < 0.009) drops.push(['runeShard', enemy.isBoss ? 2 : 1]);
+        if (typeof canDropCoreCubeBlurred45 === 'function' && canDropCoreCubeBlurred45() && Math.random() < (enemy.isBoss ? 0.18 : (enemy.isElite ? 0.055 : 0.018))) drops.push(['blurred45', 1]);
         if (Math.random() < 0.0032) drops.push(['underCopper', 1]);
         if (Math.random() < 0.0018) drops.push(['underSilver', 1]);
         if (Math.random() < 0.0009) drops.push(['underGold', 1]);
