@@ -3,7 +3,7 @@
   var globalRoot = typeof window !== 'undefined' ? window : globalThis;
 
   function missingWindow(name) {
-    return typeof globalRoot[name] === 'undefined' || globalRoot[name] === null;
+    return typeof globalRoot[name] === 'undefined' || globalRoot[name] === null || !!(globalRoot[name] && globalRoot[name].__placeholderGlobal === true);
   }
 
   function hasMapZones() {
@@ -32,7 +32,7 @@
   globalRoot.runModuleIntegrityChecks = function runModuleIntegrityChecks() {
     var required = [
       'defaultGame', 'SKILL_DB', 'UNIQUE_DB', 'ORB_DB', 'PASSIVE_TREE',
-      'saveGame', 'loadGame', 'updateStaticUI', 'updateCombatUI', 'coreLoop', 'renderBattlefield', 'drawPassiveTree'
+      'saveGame', 'loadGame', 'updateStaticUI', 'updateCombatUI', 'coreLoop', 'startMoving', 'startEncounterRun', 'renderBattlefield', 'drawPassiveTree'
     ];
     var missingKeys = required.filter(missingWindow);
     if (!hasMapZones()) missingKeys.push('MAP_ZONES');

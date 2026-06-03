@@ -11,6 +11,17 @@ window.GameModules.items = {
 
 let craftingSelectionState = { ref: null, isEquip: false };
 
+function runItemStartMoving(force) {
+    try {
+        let provider = (typeof startMoving === 'function')
+            ? startMoving
+            : ((typeof window !== 'undefined' && typeof window.startMoving === 'function') ? window.startMoving : null);
+        if (provider) return provider(force);
+    } catch (e) {
+        console.error('startMoving failed:', e);
+    }
+}
+
 function getCraftSelectionRef() { return craftingSelectionState.ref; }
 function isCraftSelectionEquip() { return !!craftingSelectionState.isEquip; }
 function clearCraftSelection() { craftingSelectionState.ref = null; craftingSelectionState.isEquip = false; }
@@ -264,7 +275,7 @@ function changeZone(id) {
     game.currentZoneId = id;
     game.killsInZone = 0;
     addLog(`🗺️ ${zone.name} 이동`, "season-up");
-    startMoving(true);
+    runItemStartMoving(true);
     updateStaticUI();
 }
 
