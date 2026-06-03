@@ -3,7 +3,7 @@
   var globalRoot = typeof window !== 'undefined' ? window : globalThis;
 
   function missingWindow(name) {
-    return typeof globalRoot[name] === 'undefined' || globalRoot[name] === null;
+    return typeof globalRoot[name] === 'undefined' || globalRoot[name] === null || !!(globalRoot[name] && globalRoot[name].__placeholderGlobal === true);
   }
 
   function hasMapZones() {
@@ -16,13 +16,13 @@
     if (!document.querySelector('link[href*="css/cosmos-atlas.css"]')) {
       var link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'css/cosmos-atlas.css?v=20260524-cosmos1';
+      link.href = 'css/cosmos-atlas.css?v=20260603-runtime-coherent1';
       document.head.appendChild(link);
     }
     if (!document.querySelector('script[src*="js/cosmos-atlas.js"]')) {
       var script = document.createElement('script');
       script.defer = true;
-      script.src = 'js/cosmos-atlas.js?v=20260524-cosmos1';
+      script.src = 'js/cosmos-atlas.js?v=20260603-runtime-coherent1';
       document.body.appendChild(script);
     }
   }
@@ -32,7 +32,7 @@
   globalRoot.runModuleIntegrityChecks = function runModuleIntegrityChecks() {
     var required = [
       'defaultGame', 'SKILL_DB', 'UNIQUE_DB', 'ORB_DB', 'PASSIVE_TREE',
-      'saveGame', 'loadGame', 'updateStaticUI', 'updateCombatUI', 'coreLoop', 'renderBattlefield', 'drawPassiveTree'
+      'saveGame', 'loadGame', 'getPlayerStats', 'getSkillTargets', 'updateStaticUI', 'updateCombatUI', 'coreLoop', 'startMoving', 'startEncounterRun', 'renderBattlefield', 'drawPassiveTree'
     ];
     var missingKeys = required.filter(missingWindow);
     if (!hasMapZones()) missingKeys.push('MAP_ZONES');

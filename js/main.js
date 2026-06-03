@@ -8,8 +8,10 @@ function bootGame() {
     if (gameBooted) return;
     gameBooted = true;
     try {
+        if (typeof runModuleIntegrityChecks === 'function' && !runModuleIntegrityChecks()) {
+            throw new Error('필수 런타임 모듈이 아직 실제 구현으로 교체되지 않았습니다. 새로고침 후에도 반복되면 캐시가 꼬인 상태입니다.');
+        }
         init();
-    try { if (typeof runModuleIntegrityChecks === 'function') runModuleIntegrityChecks(); } catch (e) { console.warn('integrity check failed:', e); }
     } catch (error) {
         gameBooted = false;
         reportFatalError('init', error);
