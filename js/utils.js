@@ -578,7 +578,7 @@ if (typeof window.getPlayerStats === "undefined") {
             resF: 0, resC: 0, resL: 0, resChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
             igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0,
             blockChance: 0, blockChanceMax: 50, deflectChance: 0, deflectDamageReduce: 0,
-            suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}
+            suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}, __uiFallbackStats: true
         };
     };
     window.getPlayerStats.__placeholderGlobal = true;
@@ -690,8 +690,7 @@ installRuntimeFunctionFallback("returnToTown", function returnToTownFallback() {
 }, { queue: true });
 installRuntimeFunctionFallback("triggerSeasonReset", function triggerSeasonResetFallback() {}, { queue: true });
 installRuntimeFunctionFallback("chooseLoopAdvance", function chooseLoopAdvanceFallback() {
-    let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
-    if (state) state.pendingLoopDecision = false;
+    // The real handler consumes pendingLoopDecision. Keep the flag intact while this queued fallback waits.
 }, { queue: true });
 installRuntimeFunctionFallback("enterOutsideChaos", function enterOutsideChaosFallback() {}, { queue: true });
 installRuntimeFunctionFallback("getConditionGemStatDelta", function getConditionGemStatDeltaFallback() {

@@ -32,7 +32,9 @@ function getDefaultUiPlayerStats() {
 }
 
 function normalizeUiPlayerStats(stats, fallback = {}) {
+    let fromFallback = !!((stats && stats.__uiFallbackStats) || (fallback && fallback.__uiFallbackStats));
     let normalized = Object.assign(getDefaultUiPlayerStats(), fallback || {}, (stats && typeof stats === 'object') ? stats : {});
+    if (fromFallback) normalized.__uiFallbackStats = true;
     let numericDefaults = getDefaultUiPlayerStats();
     Object.keys(numericDefaults).forEach(key => {
         if (key === 'breakdowns') return;
@@ -53,9 +55,12 @@ function getUiPlayerStats(fallback = {}) {
         let provider = (typeof getPlayerStats === 'function')
             ? getPlayerStats
             : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
-        if (provider) return normalizeUiPlayerStats(provider(), fallback);
+        if (provider && provider.__placeholderGlobal !== true) return normalizeUiPlayerStats(provider(), fallback);
+        if (cachedTooltipStats && cachedTooltipStats.__uiFallbackStats !== true) return normalizeUiPlayerStats(cachedTooltipStats, fallback);
+        return normalizeUiPlayerStats(Object.assign({}, fallback || {}, { __uiFallbackStats: true }), fallback);
     } catch (e) {}
-    return normalizeUiPlayerStats(cachedTooltipStats, fallback);
+    if (cachedTooltipStats && cachedTooltipStats.__uiFallbackStats !== true) return normalizeUiPlayerStats(cachedTooltipStats, fallback);
+    return normalizeUiPlayerStats(Object.assign({}, fallback || {}, { __uiFallbackStats: true }), fallback);
 }
 
 function getUiGlobalFunction(name) {
@@ -3973,8 +3978,9 @@ function pruneEnemyHpDamageGhostStates(activeEnemyIds) {
 
 function updateCombatUI(pStats) {
     pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
-    if (pStats && pStats.breakdowns) cachedTooltipStats = pStats;
-    game.playerHp = Math.min(game.playerHp, pStats.maxHp);
+    if (pStats.__uiFallbackStats) pStats.maxHp = Math.max(pStats.maxHp, Math.max(1, Number(game.playerHp) || 1));
+    if (pStats && pStats.breakdowns && !pStats.__uiFallbackStats) cachedTooltipStats = pStats;
+    if (!pStats.__uiFallbackStats) game.playerHp = Math.min(game.playerHp, pStats.maxHp);
     let safeHp = Math.max(0, Number(game.playerHp) || 0);
     setTextById('ui-hp', safeHp >= 100 ? Math.floor(safeHp) : safeHp.toFixed(1));
     setTextById('ui-maxhp', pStats.maxHp);

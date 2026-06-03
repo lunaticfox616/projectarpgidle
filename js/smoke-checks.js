@@ -16,13 +16,13 @@
     if (!document.querySelector('link[href*="css/cosmos-atlas.css"]')) {
       var link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'css/cosmos-atlas.css?v=20260524-cosmos1';
+      link.href = 'css/cosmos-atlas.css?v=20260603-runtime-coherent1';
       document.head.appendChild(link);
     }
     if (!document.querySelector('script[src*="js/cosmos-atlas.js"]')) {
       var script = document.createElement('script');
       script.defer = true;
-      script.src = 'js/cosmos-atlas.js?v=20260524-cosmos1';
+      script.src = 'js/cosmos-atlas.js?v=20260603-runtime-coherent1';
       document.body.appendChild(script);
     }
   }
@@ -32,7 +32,7 @@
   globalRoot.runModuleIntegrityChecks = function runModuleIntegrityChecks() {
     var required = [
       'defaultGame', 'SKILL_DB', 'UNIQUE_DB', 'ORB_DB', 'PASSIVE_TREE',
-      'saveGame', 'loadGame', 'updateStaticUI', 'updateCombatUI', 'coreLoop', 'startMoving', 'startEncounterRun', 'renderBattlefield', 'drawPassiveTree'
+      'saveGame', 'loadGame', 'getPlayerStats', 'getSkillTargets', 'updateStaticUI', 'updateCombatUI', 'coreLoop', 'startMoving', 'startEncounterRun', 'renderBattlefield', 'drawPassiveTree'
     ];
     var missingKeys = required.filter(missingWindow);
     if (!hasMapZones()) missingKeys.push('MAP_ZONES');
