@@ -661,3 +661,27 @@ installRuntimeFunctionFallback("chooseLoopAdvance", function chooseLoopAdvanceFa
     if (state) state.pendingLoopDecision = false;
 });
 installRuntimeFunctionFallback("enterOutsideChaos", function enterOutsideChaosFallback() {});
+installRuntimeFunctionFallback("getConditionGemStatDelta", function getConditionGemStatDeltaFallback() {
+    return {};
+});
+
+installRuntimeFunctionFallback("getGemPresentation", function getGemPresentationFallback(name, isSupport) {
+    let db = isSupport
+        ? ((typeof SUPPORT_GEM_DB !== "undefined" && SUPPORT_GEM_DB && SUPPORT_GEM_DB[name]) || {})
+        : ((typeof SKILL_DB !== "undefined" && SKILL_DB && SKILL_DB[name]) || {});
+    let level = 1;
+    try {
+        let store = isSupport ? ((window.game && window.game.supportGemData) || {}) : ((window.game && window.game.gemData) || {});
+        level = Math.max(1, Math.floor((store[name] && store[name].level) || 1));
+    } catch (e) {}
+    if (isSupport) {
+        return {
+            baseLevel: level, totalLevel: level, value: Number(db.baseVal || 0), desc: db.desc || "",
+            statName: db.name || name, statId: db.stat || null, activeTier: 1
+        };
+    }
+    return {
+        baseLevel: db.isGem || db.levelable ? level : 0, totalLevel: db.isGem || db.levelable ? level : 0, finalLevel: db.isGem || db.levelable ? level : 0,
+        desc: db.desc || "", statName: name, skill: db, tags: (typeof getSkillTagList === "function" ? getSkillTagList(db) : (Array.isArray(db.tags) ? db.tags : []))
+    };
+});

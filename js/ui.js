@@ -139,6 +139,28 @@ function runUiCoreLoop() {
     return runUiGlobalFunction('coreLoop');
 }
 
+function getUiConditionGemStatDelta(name, type) {
+    let provider = getUiGlobalFunction('getConditionGemStatDelta');
+    if (provider) {
+        try { return provider(name, type) || {}; } catch (e) {}
+    }
+    return {};
+}
+
+function getUiGemPresentation(name, isSupport) {
+    let provider = getUiGlobalFunction('getGemPresentation');
+    if (provider) {
+        try { return provider(name, isSupport) || {}; } catch (e) {}
+    }
+    let db = isSupport ? (SUPPORT_GEM_DB[name] || {}) : (SKILL_DB[name] || {});
+    let store = isSupport ? (game.supportGemData || {}) : (game.gemData || {});
+    let level = Math.max(1, Math.floor(((store[name] || {}).level) || 1));
+    if (isSupport) {
+        return { baseLevel: level, totalLevel: level, value: Number(db.baseVal || 0), desc: db.desc || '', statName: db.name || name, statId: db.stat || null, activeTier: 1 };
+    }
+    return { baseLevel: db.isGem || db.levelable ? level : 0, totalLevel: db.isGem || db.levelable ? level : 0, finalLevel: db.isGem || db.levelable ? level : 0, desc: db.desc || '', statName: name, skill: db, tags: getSkillTagList(db) };
+}
+
 function startBattleAssetLoadNow() {
     window.__battleAssetAutoloadEnabled = true;
     if (battleAssetDeferredInitHandle) {
@@ -483,7 +505,7 @@ function rollConditionGemChoices() {
 
 function getConditionGemDetail(entry) {
     if (!entry) return '';
-    let d = getConditionGemStatDelta(entry.name, entry.type);
+    let d = getUiConditionGemStatDelta(entry.name, entry.type);
     let out = [];
     if (d.enemyTakenMul) out.push(`받는피해 +${Math.round((d.enemyTakenMul - 1) * 100)}%`);
     if (d.enemyResShred) out.push(`저항관통 +${d.enemyResShred}`);
@@ -2651,7 +2673,7 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ff7f7f');
 }
 function showPlayerBuffTooltip(event, name, type, remainSec) {
-    let delta = getConditionGemStatDelta(name, type || 'buff');
+    let delta = getUiConditionGemStatDelta(name, type || 'buff');
     let lines = Object.keys(delta || {}).map(key => `${getStatName(key)} ${delta[key] >= 0 ? '+' : ''}${formatValue(key, delta[key])}`);
     let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${type || '버프'}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">${lines.join(' / ') || '효과 정보 없음'}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
@@ -2673,7 +2695,7 @@ function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, 
 }
 
 function showGemTooltip(event, type, name) {
-    let info = getGemPresentation(name, type === 'support');
+    let info = getUiGemPresentation(name, type === 'support');
     let stats = getUiPlayerStats();
     let cacheKey = `${type || 'active'}:${name}:${info && (info.totalLevel || info.finalLevel || info.baseLevel || 1)}`;
     let html = `<div class="tooltip-title">${name}</div>`;
@@ -5578,7 +5600,7 @@ function buildCraftActionButtons(item) {
         let summonEquipped = !!(Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
         if (isSummonAttack && summonEquipped) active = 'active';
         let badge = '';
-        let gemInfo = getGemPresentation(name, false);
+        let gemInfo = getUiGemPresentation(name, false);
         if (SKILL_DB[name].isGem || SKILL_DB[name].levelable) badge = `<span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
         let sealBtn = name === game.activeSkill ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">🔒 봉인</button>`;
         return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.skill)}</strong>${badge}${sealBtn}</div>`;
@@ -5633,7 +5655,7 @@ function buildCraftActionButtons(item) {
         return game.equippedSupports.includes(name);
     }).map(name => {
         let active = game.equippedSupports.includes(name) ? 'active' : '';
-        let gemInfo = getGemPresentation(name, true);
+        let gemInfo = getUiGemPresentation(name, true);
         let tierCap = typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3;
         let unlockedTier = Math.max(1, Math.min(tierCap, Math.floor((((game.supportGemData || {})[name]) || {}).unlockedTier || 1)));
         let activeTier = getSupportActiveTier(name);
