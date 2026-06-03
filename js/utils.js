@@ -551,7 +551,113 @@ safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJ
 
 function safeExposeGlobals(map) {
     Object.keys(map || {}).forEach(function (key) {
-        if (typeof window[key] === "undefined") window[key] = map[key];
+        if (typeof window[key] === "undefined" || (window[key] && window[key].__placeholderGlobal === true)) window[key] = map[key];
     });
 }
 window.safeExposeGlobals = window.safeExposeGlobals || safeExposeGlobals;
+
+if (typeof window.getPlayerStats === "undefined") {
+    window.getPlayerStats = function getPlayerStatsFallback() {
+        return {
+            maxHp: 1, energyShield: 0, baseDmg: 0, directDps: 0, dps: 0, totalDps: 0, summonDps: 0,
+            aspd: 1, crit: 0, critDmg: 150, move: 100, moveSpeed: 100, dr: 0, armor: 0, evasion: 0,
+            resF: 0, resC: 0, resL: 0, resChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
+            igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0,
+            blockChance: 0, blockChanceMax: 50, deflectChance: 0, deflectDamageReduce: 0,
+            suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}
+        };
+    };
+    window.getPlayerStats.__placeholderGlobal = true;
+}
+
+if (typeof window.getSkillTargets === "undefined") {
+    window.getSkillTargets = function getSkillTargetsFallback() {
+        return [];
+    };
+    window.getSkillTargets.__placeholderGlobal = true;
+}
+if (typeof window.ENEMY_CROWD_PAUSE_LIMIT === "undefined") {
+    window.ENEMY_CROWD_PAUSE_LIMIT = 20;
+}
+
+if (typeof window.isCrowdProgressPaused === "undefined") {
+    window.isCrowdProgressPaused = function isCrowdProgressPausedFallback() {
+        return false;
+    };
+    window.isCrowdProgressPaused.__placeholderGlobal = true;
+}
+if (typeof window.isDamageAilmentType === "undefined") {
+    window.isDamageAilmentType = function isDamageAilmentTypeFallback(type) {
+        return type === "ignite" || type === "poison" || type === "bleed";
+    };
+    window.isDamageAilmentType.__placeholderGlobal = true;
+}
+
+if (typeof window.getStoredAilmentHitDamage === "undefined") {
+    window.getStoredAilmentHitDamage = function getStoredAilmentHitDamageFallback(ail) {
+        if (!ail) return 0;
+        return Math.max(0, Number(ail.sourceHitDamage || ail.hitDamage || 0) || 0);
+    };
+    window.getStoredAilmentHitDamage.__placeholderGlobal = true;
+}
+
+if (typeof window.getDamageAilmentBaseDpsFromHit === "undefined") {
+    window.getDamageAilmentBaseDpsFromHit = function getDamageAilmentBaseDpsFromHitFallback(hitDamage, power, scale, critDotBonusPct, critDotBonusScale) {
+        let source = Math.max(0, Number(hitDamage) || 0);
+        if (source <= 0) return 0;
+        let baseScale = Math.max(0.01, Number(scale) || 1);
+        let bonusPct = Math.max(0, Number(critDotBonusPct) || 0);
+        let bonusScale = Math.max(0.01, Number(critDotBonusScale) || 1);
+        return Math.max(1, Math.floor(source * 0.90 * (baseScale + (bonusPct / 100) * bonusScale)));
+    };
+    window.getDamageAilmentBaseDpsFromHit.__placeholderGlobal = true;
+}
+
+if (typeof window.getEnemyDamageAilmentDps === "undefined") {
+    window.getEnemyDamageAilmentDps = function getEnemyDamageAilmentDpsFallback(ail, pStats) {
+        let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
+        let dps = window.getDamageAilmentBaseDpsFromHit(window.getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
+        if (ail && ail.type === "ignite") dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.igniteDamageMultiplierPct) || 0) / 100));
+        if (ail && ail.type === "poison") dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.poisonDamageMultiplierPct) || 0) / 100));
+        return dps;
+    };
+    window.getEnemyDamageAilmentDps.__placeholderGlobal = true;
+}
+
+if (typeof window.getPlayerDamageAilmentDps === "undefined") {
+    window.getPlayerDamageAilmentDps = function getPlayerDamageAilmentDpsFallback(ail, pStats) {
+        let source = window.getStoredAilmentHitDamage(ail);
+        if (source <= 0 && pStats && pStats.maxHp) source = Math.max(1, Math.floor((pStats.maxHp || 1) * 0.08));
+        return window.getDamageAilmentBaseDpsFromHit(source, ail ? ail.power : 0, 1, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
+    };
+    window.getPlayerDamageAilmentDps.__placeholderGlobal = true;
+}
+function installRuntimeFunctionFallback(name, fallback) {
+    if (typeof window[name] === "undefined") {
+        window[name] = fallback;
+        window[name].__placeholderGlobal = true;
+    }
+}
+
+installRuntimeFunctionFallback("startEncounterRun", function startEncounterRunFallback() {
+    let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
+    if (state) {
+        state.encounterPlan = Array.isArray(state.encounterPlan) ? state.encounterPlan : [];
+        state.encounterIndex = Math.max(0, Math.floor(state.encounterIndex || 0));
+    }
+});
+installRuntimeFunctionFallback("coreLoop", function coreLoopFallback() {});
+installRuntimeFunctionFallback("returnToTown", function returnToTownFallback() {
+    let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
+    if (state) {
+        state.isTownReturning = false;
+        state.combatHalted = true;
+        state.enemies = [];
+    }
+});
+installRuntimeFunctionFallback("triggerSeasonReset", function triggerSeasonResetFallback() {});
+installRuntimeFunctionFallback("chooseLoopAdvance", function chooseLoopAdvanceFallback() {
+    let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
+    if (state) state.pendingLoopDecision = false;
+});
+installRuntimeFunctionFallback("enterOutsideChaos", function enterOutsideChaosFallback() {});
