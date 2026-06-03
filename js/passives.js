@@ -2134,11 +2134,11 @@ function getClassTreeDef(clsKey) {
         tree.n1 = { stat: 'dotPctDmg', val: scaleClassStat('dotPctDmg', getEntryStatBase('dotPctDmg'), 1.5), req: null };
         tree.n2 = { stat: 'igniteDamageMultiplierPct', val: scaleClassStat('igniteDamageMultiplierPct', getEntryStatBase('igniteDamageMultiplierPct'), 1.5), req: 'n1' };
         tree.n3 = { stat: 'poisonDamageMultiplierPct', val: scaleClassStat('poisonDamageMultiplierPct', getEntryStatBase('poisonDamageMultiplierPct'), 1.5), req: 'n1' };
-        tree.n4 = { stat: 'dotPctDmg', val: scaleClassStat('dotPctDmg', getMajorStatBase('dotPctDmg'), 1.5), req: 'n2' };
-        tree.n5 = { stat: 'igniteDamageMultiplierPct', val: scaleClassStat('igniteDamageMultiplierPct', getMajorStatBase('igniteDamageMultiplierPct'), 1.5), req: ['n2', 'n3'] };
+        tree.n4 = { stat: 'igniteDamageMultiplierPct', val: scaleClassStat('igniteDamageMultiplierPct', getMajorStatBase('igniteDamageMultiplierPct'), 1.5), req: 'n2' };
+        tree.n5 = { stat: 'dotPctDmg', val: scaleClassStat('dotPctDmg', getMajorStatBase('dotPctDmg'), 1.5), req: ['n2', 'n3'] };
         tree.n6 = { stat: 'poisonDamageMultiplierPct', val: scaleClassStat('poisonDamageMultiplierPct', getMajorStatBase('poisonDamageMultiplierPct'), 1.5), req: 'n3' };
-        tree.n7 = { stat: 'dotPctDmg', val: scaleClassStat('dotPctDmg', getMajorStatBase('dotPctDmg'), 2.2), req: 'n4' };
-        tree.n8 = { stat: 'igniteDamageMultiplierPct', val: scaleClassStat('igniteDamageMultiplierPct', getMajorStatBase('igniteDamageMultiplierPct'), 2.2), req: 'n5' };
+        tree.n7 = { stat: 'igniteDamageMultiplierPct', val: scaleClassStat('igniteDamageMultiplierPct', getMajorStatBase('igniteDamageMultiplierPct'), 2.2), req: 'n4' };
+        tree.n8 = { stat: 'dotPctDmg', val: scaleClassStat('dotPctDmg', getMajorStatBase('dotPctDmg'), 2.2), req: 'n5' };
         tree.n9 = { stat: 'poisonDamageMultiplierPct', val: scaleClassStat('poisonDamageMultiplierPct', getMajorStatBase('poisonDamageMultiplierPct'), 2.2), req: 'n6' };
         tree.n10 = { stat: 'dotPctDmg', val: 100, req: ['n7', 'n8', 'n9'] };
     } else if (clsKey === 'crusader') {
@@ -3066,7 +3066,7 @@ function openDeathOverlay(log) {
     let totalDamage = damageSummary.reduce((sum, entry) => sum + Math.max(0, Math.floor(entry.value || 0)), 0);
     document.getElementById('deathlog-title').innerText = `${getDamageElementLabel(log.primaryElement)} 피해로 쓰러졌습니다.`;
     let ailmentText = activeAilments.length > 0
-        ? activeAilments.map(ail => `${ail.label || getAilmentDisplayLabel(ail.type)} ${Math.ceil(Math.max(0, ail.time || 0))}초`).join(' · ')
+        ? activeAilments.slice(0, 4).map(ail => `${ail.label || getAilmentDisplayLabel(ail.type)} ${Math.ceil(Math.max(0, ail.time || 0))}초`).join(' · ') + (activeAilments.length > 4 ? ` 외 ${activeAilments.length - 4}개` : '')
         : '없음';
     document.getElementById('deathlog-body').innerText = `${log.reasonText}\n경험치를 ${log.expLost} 잃었습니다.\n죽기 전 상태이상: ${ailmentText}`;
     let renderDamageRows = (rows, totalForRatio) => rows.map(entry => {
