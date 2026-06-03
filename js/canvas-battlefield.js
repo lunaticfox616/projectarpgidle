@@ -1,3 +1,13 @@
+function getCanvasPlayerStats(fallback = {}) {
+    try {
+        let provider = (typeof getPlayerStats === 'function')
+            ? getPlayerStats
+            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
+        if (provider) return provider() || fallback;
+    } catch (e) {}
+    return fallback;
+}
+
 // Phase-2 extracted battlefield canvas renderer block.
 function renderBattlefield(forceWhenHidden) {
     const canvas = document.getElementById('battlefield-canvas');
@@ -109,7 +119,7 @@ function renderBattlefield(forceWhenHidden) {
     if (swingFx && swingFx.id !== battleVisualState.lastAutoSwingId && now >= (battleVisualState.lastAutoSkillAt || 0)) {
         playSkillFromActiveGem(game.activeSkill || '기본 공격');
         battleVisualState.lastAutoSwingId = swingFx.id;
-        const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, getPlayerStats().aspd)) * 100));
+        const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, getCanvasPlayerStats().aspd)) * 100));
         battleVisualState.lastAutoSkillAt = now + _atkInterval;
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
@@ -170,7 +180,7 @@ function renderBattlefield(forceWhenHidden) {
         ctx.restore();
     });
 
-    let pStatsNow = getPlayerStats();
+    let pStatsNow = getCanvasPlayerStats();
     let playerHpPct = clampNumber((game.playerHp || 0) / Math.max(1, pStatsNow.maxHp || 1), 0, 1);
     if (!Number.isFinite(battleVisualState.playerHpGhostPct)) battleVisualState.playerHpGhostPct = playerHpPct;
     if (!Number.isFinite(battleVisualState.playerHpLastPct)) battleVisualState.playerHpLastPct = playerHpPct;
@@ -241,7 +251,7 @@ function renderBattlefield(forceWhenHidden) {
         }
         ctx.restore();
     }
-    let currentTargets = getSkillTargets(getPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
+    let currentTargets = getSkillTargets(getCanvasPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
