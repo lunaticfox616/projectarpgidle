@@ -573,3 +573,10 @@ if (typeof window.getPlayerStats === "undefined") {
     };
     window.getPlayerStats.__placeholderGlobal = true;
 }
+
+if (typeof window.getSkillTargets === "undefined") {
+    window.getSkillTargets = function getSkillTargetsFallback() {
+        return [];
+    };
+    window.getSkillTargets.__placeholderGlobal = true;
+}

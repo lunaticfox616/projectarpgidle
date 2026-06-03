@@ -8,6 +8,16 @@ function getCanvasPlayerStats(fallback = {}) {
     return fallback;
 }
 
+function getCanvasSkillTargets(stats) {
+    try {
+        let provider = (typeof getSkillTargets === 'function')
+            ? getSkillTargets
+            : ((typeof window !== 'undefined' && typeof window.getSkillTargets === 'function') ? window.getSkillTargets : null);
+        if (provider) return provider(stats) || [];
+    } catch (e) {}
+    return [];
+}
+
 // Phase-2 extracted battlefield canvas renderer block.
 function renderBattlefield(forceWhenHidden) {
     const canvas = document.getElementById('battlefield-canvas');
@@ -251,7 +261,7 @@ function renderBattlefield(forceWhenHidden) {
         }
         ctx.restore();
     }
-    let currentTargets = getSkillTargets(getCanvasPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
+    let currentTargets = getCanvasSkillTargets(getCanvasPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
