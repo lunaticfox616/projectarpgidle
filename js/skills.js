@@ -378,7 +378,11 @@ function getItemTotalStats(item) {
 }
 
 function normalizeSupportLoadout(logChange) {
-    let cap = getPlayerStats().suppCap;
+    let statsProvider = (typeof getPlayerStats === 'function')
+        ? getPlayerStats
+        : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
+    if (!statsProvider) return false;
+    let cap = Math.max(0, Math.floor((statsProvider() || {}).suppCap || 0));
     if ((game.equippedSupports || []).length <= cap) return false;
     let removed = game.equippedSupports.splice(cap);
     if (logChange && removed.length > 0) addLog("🟢 장착 한도가 줄어 보조 젬 일부가 자동 해제되었습니다.", "attack-monster");
