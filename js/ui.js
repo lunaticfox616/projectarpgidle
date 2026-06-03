@@ -4944,6 +4944,89 @@ function buildSporeSummaryHtml() {
         </div>`;
 }
 
+
+function getCraftTargetControlsHtml() {
+    return `<div class="craft-target-actions"><button type="button" onclick="event.stopPropagation(); openCraftItemPickerOverlay('equip')">장비</button><button type="button" onclick="event.stopPropagation(); openCraftItemPickerOverlay('inventory')">인벤토리</button></div>`;
+}
+
+function closeCraftItemPickerOverlay() {
+    let overlay = document.getElementById('craft-item-picker-overlay');
+    if (overlay) overlay.remove();
+}
+
+function selectCraftPickerEquipment(slot) {
+    if (!slot || !(game.equipment || {})[slot]) return;
+    selectForCrafting(slot, true);
+    closeCraftItemPickerOverlay();
+}
+
+function selectCraftPickerInventoryItem(itemId) {
+    let id = Number(itemId);
+    if (!Number.isFinite(id) || !(game.inventory || []).some(item => item && item.id === id)) return;
+    selectForCrafting(id, false);
+    closeCraftItemPickerOverlay();
+}
+
+function getCraftPickerItemLines(item) {
+    if (!item) return '';
+    let rows = [];
+    (item.baseStats || []).slice(0, 1).forEach(stat => rows.push(`${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`));
+    (item.stats || []).slice(0, 2).forEach(stat => rows.push(`${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`));
+    if (item.chaosInfusion) rows.push(`[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}`);
+    if (item.encroached && !item.encroached.liberated) rows.push('[잠식] 해방 전');
+    return rows.map(row => `<div style="color:#9fb4d1; font-size:.78em; margin-top:2px;">${escapeHTML(row)}</div>`).join('');
+}
+
+function getCraftPickerCardHtml(item, options) {
+    options = options || {};
+    let selected = !!options.selected;
+    let rarity = item && item.rarity ? item.rarity : 'normal';
+    let slotLabel = options.slotLabel || (item && item.slot ? item.slot : '장비');
+    let sourceMeta = item && typeof getDropOnlyItemSourceMeta === 'function' ? getDropOnlyItemSourceMeta(item) : null;
+    let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
+    return `<button type="button" class="craft-picker-card ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
+        <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(slotLabel.replace(/[12]/, ''))}] ${escapeHTML(item.name || '장비')}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
+        <div class="item-base-line" style="font-size:.78em;">${escapeHTML(item.baseName || '')}</div>
+        ${getCraftPickerItemLines(item)}
+    </button>`;
+}
+
+function openCraftItemPickerOverlay(kind) {
+    closeCraftItemPickerOverlay();
+    let isEquip = kind === 'equip';
+    let overlay = document.createElement('div');
+    overlay.id = 'craft-item-picker-overlay';
+    overlay.className = 'craft-picker-overlay';
+    overlay.onclick = event => { if (event.target === overlay) closeCraftItemPickerOverlay(); };
+    let currentRef = getCraftSelectionRef();
+    let currentIsEquip = isCraftSelectionEquip();
+    let bodyHtml = '';
+    if (isEquip) {
+        let slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
+        bodyHtml = `<div class="craft-picker-equip-grid">${slots.map(slot => {
+            let item = game.equipment && game.equipment[slot];
+            if (!item) return `<button type="button" class="craft-picker-card empty" disabled><div style="font-weight:800;">[${slot.replace(/[12]/, '')}]</div><div style="color:#7f8c8d; margin-top:5px;">비어있음</div></button>`;
+            return getCraftPickerCardHtml(item, {
+                slotLabel: slot,
+                selected: currentIsEquip && currentRef === slot,
+                onclick: `selectCraftPickerEquipment('${slot}')`,
+                tooltip: `onmouseenter="showItemTooltip(event, '${slot}', true)" onmousemove="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"`
+            });
+        }).join('')}</div>`;
+    } else {
+        let rows = (game.inventory || []).map((item, idx) => getCraftPickerCardHtml(item, {
+            selected: !currentIsEquip && currentRef === item.id,
+            onclick: `selectCraftPickerInventoryItem(${item.id})`,
+            tooltip: `onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"`
+        })).join('');
+        bodyHtml = rows ? `<div class="craft-picker-grid">${rows}</div>` : `<div class="deathlog-empty">인벤토리에 제작할 장비가 없습니다.</div>`;
+    }
+    overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title">${isEquip ? '장착 장비에서 제작 대상 선택' : '인벤토리에서 제작 대상 선택'}</div><div class="craft-picker-desc">카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.</div></div><button type="button" onclick="closeCraftItemPickerOverlay()">닫기</button></div><div class="craft-picker-body">${bodyHtml}</div></div>`;
+    document.body.appendChild(overlay);
+}
+
+safeExposeGlobals({ openCraftItemPickerOverlay, closeCraftItemPickerOverlay, selectCraftPickerEquipment, selectCraftPickerInventoryItem });
+
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
     let defs = [
@@ -4957,7 +5040,8 @@ function buildCraftActionButtons(item) {
     let selectedItem = getSelectedCraftItem();
     renderCraftSelectedSummary(selectedItem);
     renderMobileCraftCurrencyPicker(selectedItem);
-    let forgeHtml = '아이템을 클릭하여 선택';
+    let craftTargetControls = getCraftTargetControlsHtml();
+    let craftSelectedBodyHtml = `<div style="color:#9fb4d1;">아이템을 클릭하여 선택</div>`;
     if (selectedItem) {
         let lines = [];
         (selectedItem.baseStats || []).forEach(stat => lines.push(`<div class="tooltip-line" style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</div>`));
@@ -5006,10 +5090,10 @@ function buildCraftActionButtons(item) {
             }).join('');
             abyssSocketHtml = `<div class="craft-section-title">심연 소켓</div>${makeBtn}${rows}`;
         }
-        forgeHtml = `<div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
+        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
-    document.getElementById('forge-item-display').innerHTML = forgeHtml;
-    document.getElementById('fossil-item-display').innerHTML = forgeHtml;
+    document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div style="padding-right:86px;">${craftSelectedBodyHtml}</div>`;
+    document.getElementById('fossil-item-display').innerHTML = craftSelectedBodyHtml;
     let fossilButtons = [];
     let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
     if ((game.currencies.fossil || 0) > 0) fossilButtons.push(`<button onclick="applyFossilCraft()">기본 화석 정제 (${game.currencies.fossil || 0})</button>`);
@@ -5506,10 +5590,10 @@ function buildCraftActionButtons(item) {
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.skyCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem || (activeGem && activeGem.skyCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.skyCoreLevel >= 5 ? '✅ 창공의 힘 강화 완료' : '창공의 힘 강화'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${skyNeed}${activeGem && activeGem.skyCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && (activeGem.quality || 0) >= 20 ? 'done' : ''}" onclick="upgradeActiveGemQuality()" ${!isGem || gemExpertLv < 8 || (activeGem && (activeGem.quality || 0) >= 20) ? 'disabled' : ''}><strong>${activeGem && (activeGem.quality || 0) >= 20 ? '✅ 퀄리티 완료' : '젬 퀄리티 강화'}</strong><br><small>젬 각인사 Lv.8 · 보유 군주의 핵: ${game.currencies.bossCore || 0} / 필요: ${qualityNeed}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.awakened ? 'done' : ''}" onclick="awakenActiveGemCandidate()" ${!isGem || !awakenReady || (game.currencies.awakenedEcho || 0) < 3 ? 'disabled' : ''}><strong>${activeGem && activeGem.awakened ? '✅ 각성 젬' : '각성 젬 변환'}</strong><br><small>젬 각인사 Lv.15 · Lv.20 필요 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3 · 젬 레벨 +2/슬롯 보정</small></button>`);
-            upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && engraveCap >= 5 ? 'done' : ''}" onclick="upgradeSkyEngraveCap()" ${!isGem || (activeGem && engraveCap >= 5) ? 'disabled' : ''}><strong>${activeGem && engraveCap >= 5 ? '✅ 각인 슬롯 확장 완료' : '창공 각인 슬롯 확장'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${capNeed}${activeGem && engraveCap >= 5 ? ' (최대)' : ''}</small></button>`);
+            let engraveCapButton = `<button class="gem-upgrade-btn ${activeGem && engraveCap >= 5 ? 'done' : ''}" onclick="upgradeSkyEngraveCap()" ${!isGem || (activeGem && engraveCap >= 5) ? 'disabled' : ''}><strong>${activeGem && engraveCap >= 5 ? '✅ 각인 슬롯 확장 완료' : '창공 각인 슬롯 확장'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${capNeed}${activeGem && engraveCap >= 5 ? ' (최대)' : ''}</small></button>`;
             document.getElementById('ui-gem-upgrade-actions').innerHTML = upgradeBtns.join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 젬 강화 재료가 없습니다.</div>`;
             if ((game.season || 1) >= 4) {
-                document.getElementById('ui-gem-enhance-options').innerHTML = Object.values(GEM_SKY_ENHANCEMENTS).map(enh => {
+                document.getElementById('ui-gem-enhance-options').innerHTML = engraveCapButton + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => {
                     let applied = activeEnh.includes(enh.id);
                     let unlockLv = typeof getSkyEnhancementUnlockLevel === 'function' ? getSkyEnhancementUnlockLevel(enh.id) : 1;
                     let locked = gemExpertLv < unlockLv;
@@ -5518,7 +5602,7 @@ function buildCraftActionButtons(item) {
                     return `<button class="gem-engrave-option ${applied ? 'applied' : ''}" onclick="${applied ? `removeSkyGemEnhancementFromActive('${enh.id}')` : `applySkyGemEnhancementToActive('${enh.id}')`}" ${!isGem || (locked && !applied) || (applied && !canRemove) ? 'disabled' : ''}><strong>${applied ? '✅ ' : ''}${enh.name}${applied ? ' (적용중)' : locked ? ` (Lv.${unlockLv})` : ''}</strong><br><small>${enh.desc}${awakenedNote}${applied ? (canRemove ? ' · 클릭 시 해제' : ' · 해제 Lv.7 필요') : locked ? ` · 젬 각인사 Lv.${unlockLv} 필요` : ''}</small></button>`;
                 }).join('');
             } else {
-                document.getElementById('ui-gem-enhance-options').innerHTML = `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 루프 4부터 해금됩니다.</div>`;
+                document.getElementById('ui-gem-enhance-options').innerHTML = engraveCapButton + `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 루프 4부터 해금됩니다.</div>`;
             }
         }
     }
@@ -6509,7 +6593,7 @@ function mergeDefaults(save) {
     merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
     merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
-    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-underworld'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
+    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-underworld', 'map-tab-cosmos'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;

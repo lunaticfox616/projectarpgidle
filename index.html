@@ -313,12 +313,12 @@
                 <span class="stat-value" id="ui-evasion">0</span>
                 <span class="stat-unit"></span>
             </div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'blockChance')" onmouseleave="hideInfoTooltip()">
+            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'blockChance')" onmousemove="showStatTooltip(event,'blockChance')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">🛡️ 막기 확률</span>
                 <span class="stat-value" id="ui-block-chance">0</span>
                 <span class="stat-unit">%</span>
             </div>
-            <div class="stat-item tip" onmouseenter="showStatTooltip(event,'deflectChance')" onmouseleave="hideInfoTooltip()">
+            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'deflectChance')" onmousemove="showStatTooltip(event,'deflectChance')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">🪶 빗겨내기 확률</span>
                 <span class="stat-value" id="ui-deflect-chance">0</span>
                 <span class="stat-unit">%</span>
@@ -715,8 +715,16 @@
             <h2 id="ui-gem-enhance-header" style="margin-top:0; display:none;">☁️ 스킬 젬 강화</h2>
             <div id="ui-gem-enhance-panel" style="display:none; background:#11151c; border:1px solid #32506d; border-radius:10px; padding:12px;">
                 <div id="ui-gem-enhance-target" class="gem-enhance-target"></div>
-                <div id="ui-gem-upgrade-actions" class="gem-enhance-actions"></div>
-                <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
+                <div class="gem-enhance-section gem-upgrade-section">
+                    <div class="gem-enhance-section-title">🛠️ 강화 섹션</div>
+                    <div class="gem-enhance-section-desc">군주의 핵, 창공의 힘, 퀄리티, 각성 젬 등 젬 자체 성장 기능입니다.</div>
+                    <div id="ui-gem-upgrade-actions" class="gem-enhance-actions"></div>
+                </div>
+                <div class="gem-enhance-section gem-inscription-section">
+                    <div class="gem-enhance-section-title">✒️ 각인 섹션</div>
+                    <div class="gem-enhance-section-desc">창공 각인 슬롯 확장과 공격 젬 특수 옵션 각인을 관리합니다.</div>
+                    <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
+                </div>
             </div>
         </div>
         <div id="skill-tab-condition" class="subtab-content">
