@@ -5025,6 +5025,8 @@ function openCraftItemPickerOverlay(kind) {
     document.body.appendChild(overlay);
 }
 
+safeExposeGlobals({ openCraftItemPickerOverlay, closeCraftItemPickerOverlay, selectCraftPickerEquipment, selectCraftPickerInventoryItem });
+
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
     let defs = [
