@@ -580,3 +580,13 @@ if (typeof window.getSkillTargets === "undefined") {
     };
     window.getSkillTargets.__placeholderGlobal = true;
 }
+if (typeof window.ENEMY_CROWD_PAUSE_LIMIT === "undefined") {
+    window.ENEMY_CROWD_PAUSE_LIMIT = 20;
+}
+
+if (typeof window.isCrowdProgressPaused === "undefined") {
+    window.isCrowdProgressPaused = function isCrowdProgressPausedFallback() {
+        return false;
+    };
+    window.isCrowdProgressPaused.__placeholderGlobal = true;
+}

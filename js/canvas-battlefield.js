@@ -18,6 +18,24 @@ function getCanvasSkillTargets(stats) {
     return [];
 }
 
+function getCanvasCrowdProgressPaused() {
+    try {
+        let provider = (typeof isCrowdProgressPaused === 'function')
+            ? isCrowdProgressPaused
+            : ((typeof window !== 'undefined' && typeof window.isCrowdProgressPaused === 'function') ? window.isCrowdProgressPaused : null);
+        return provider ? !!provider() : false;
+    } catch (e) {}
+    return false;
+}
+
+function getCanvasCrowdPauseLimit() {
+    try {
+        if (typeof ENEMY_CROWD_PAUSE_LIMIT !== 'undefined') return ENEMY_CROWD_PAUSE_LIMIT;
+        if (typeof window !== 'undefined' && Number.isFinite(Number(window.ENEMY_CROWD_PAUSE_LIMIT))) return Number(window.ENEMY_CROWD_PAUSE_LIMIT);
+    } catch (e) {}
+    return 20;
+}
+
 // Phase-2 extracted battlefield canvas renderer block.
 function renderBattlefield(forceWhenHidden) {
     const canvas = document.getElementById('battlefield-canvas');
@@ -384,7 +402,7 @@ function renderBattlefield(forceWhenHidden) {
     if (game.isTownReturning && game.moveTimer > 0) caption = '마을로 귀환 중...';
     else if (game.woodsmanEntrancePending) caption = '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
     else if (game.moveTimer > 0) caption = '다음 구간으로 이동 중...';
-    else if (isCrowdProgressPaused()) caption = `적이 ${ENEMY_CROWD_PAUSE_LIMIT}기 이상 몰려 전진이 막혔습니다.`;
+    else if (getCanvasCrowdProgressPaused()) caption = `적이 ${getCanvasCrowdPauseLimit()}기 이상 몰려 전진이 막혔습니다.`;
     else if (enemies.length > 0) caption = `${enemies.length}기와 교전 중`;
     else if ((game.encounterPlan || []).length > 0) caption = '다음 매복 지점을 탐색 중...';
     document.getElementById('ui-battlefield-caption').innerText = caption;
