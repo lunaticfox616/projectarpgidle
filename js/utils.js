@@ -551,7 +551,42 @@ safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJ
 
 function safeExposeGlobals(map) {
     Object.keys(map || {}).forEach(function (key) {
-        if (typeof window[key] === "undefined") window[key] = map[key];
+        if (typeof window[key] === "undefined" || (window[key] && window[key].__placeholderGlobal === true)) window[key] = map[key];
     });
 }
 window.safeExposeGlobals = window.safeExposeGlobals || safeExposeGlobals;
+
+if (typeof window.getPlayerStats === "undefined") {
+    window.getPlayerStats = function getPlayerStatsFallback() {
+        return {
+            maxHp: 1,
+            energyShield: 0,
+            aspd: 1,
+            move: 100,
+            moveSpeed: 100,
+            suppCap: 0,
+            summonCap: 1,
+            runeResonancePower: 0,
+            uniqueResonanceFloor: 0,
+            breakdowns: {}
+        };
+    };
+    window.getPlayerStats.__placeholderGlobal = true;
+}
+
+if (typeof window.getSkillTargets === "undefined") {
+    window.getSkillTargets = function getSkillTargetsFallback() {
+        return [];
+    };
+    window.getSkillTargets.__placeholderGlobal = true;
+}
+if (typeof window.ENEMY_CROWD_PAUSE_LIMIT === "undefined") {
+    window.ENEMY_CROWD_PAUSE_LIMIT = 20;
+}
+
+if (typeof window.isCrowdProgressPaused === "undefined") {
+    window.isCrowdProgressPaused = function isCrowdProgressPausedFallback() {
+        return false;
+    };
+    window.isCrowdProgressPaused.__placeholderGlobal = true;
+}
