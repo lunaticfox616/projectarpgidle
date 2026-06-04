@@ -550,6 +550,7 @@ function refreshBlackMarket(force) {
     let prevOffers = Array.isArray(bm.offers) ? bm.offers.slice(0, count) : [];
     bm.offers = Array.from({ length: count }, (_, i) => {
         if (bm.lockedOffers[i] && prevOffers[i]) return prevOffers[i];
+        if (bm.lockedOffers[i]) delete bm.lockedOffers[i];
         return buildBlackMarketOffer(i);
     });
     bm.nextRefreshAt = now + (10 * 60 * 1000);
