@@ -7,7 +7,20 @@ const LEECH_SOFTCAP_HIGH_EFF = 0.3;
 const LEECH_BASE_INSTANCE_CAP_PCT = 20;
 const LEECH_BASE_TOTAL_CAP_PCT = 40;
 const LEECH_BASE_RATE_CAP_PCT = 4;
+const ARMOR_MITIGATION_SCALE = 24;
+const EVASION_ACCURACY_SCALE = 2.25;
 
+function getArmorPhysicalReductionPct(armor, incomingPhysical) {
+    let armorValue = Math.max(0, Number(armor) || 0);
+    let hitValue = Math.max(1, Number(incomingPhysical) || 1);
+    return Math.min(90, (armorValue / (armorValue + hitValue * ARMOR_MITIGATION_SCALE)) * 100);
+}
+
+function getEvasionChancePct(evasion, enemyAccuracy) {
+    let evasionValue = Math.max(0, Number(evasion) || 0);
+    let accuracyValue = Math.max(1, Number(enemyAccuracy) || 1);
+    return Math.min(90, (evasionValue / (evasionValue + accuracyValue * EVASION_ACCURACY_SCALE)) * 100);
+}
 
 function formatNumberKR(value) {
     let n = Number(value || 0);
@@ -1883,9 +1896,9 @@ function getPlayerStats() {
     let finalEnergyShieldRegenRate = Math.max(0, 12.5 + gearBase.energyShieldRegen + gearExplicit.energyShieldRegen + passive.energyShieldRegen + season.energyShieldRegen + ascend.energyShieldRegen + support.energyShieldRegen + reward.energyShieldRegen);
     let finalEnergyShieldRechargeDelay = Math.max(0.25, 1 - (gearBase.energyShieldRechargeFaster + gearExplicit.energyShieldRechargeFaster + passive.energyShieldRechargeFaster + season.energyShieldRechargeFaster + ascend.energyShieldRechargeFaster + support.energyShieldRechargeFaster + reward.energyShieldRechargeFaster));
     let referenceIncomingPhysical = Math.max(1, Math.floor((2 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 3.1)));
-    let armorReduction = Math.min(90, (finalArmor / (finalArmor + referenceIncomingPhysical * 10)) * 100);
+    let armorReduction = getArmorPhysicalReductionPct(finalArmor, referenceIncomingPhysical);
     let enemyAccuracy = Math.max(60, Math.floor(90 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 24));
-    let evadeChance = Math.min(90, (finalEvasion / (finalEvasion + enemyAccuracy)) * 100);
+    let evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
     let finalDeflectChance = Math.max(0, gearBase.deflectChance + gearExplicit.deflectChance + passive.deflectChance + season.deflectChance + ascend.deflectChance + support.deflectChance + reward.deflectChance);
     let finalDeflectDamageReduce = Math.max(0, gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce + passive.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + support.deflectDamageReduce + reward.deflectDamageReduce);
 
@@ -2345,8 +2358,8 @@ function getPlayerStats() {
     }
 
     finalCritDmg = Math.max(0, finalCritDmg);
-    armorReduction = Math.min(90, (finalArmor / (finalArmor + referenceIncomingPhysical * 10)) * 100);
-    evadeChance = Math.min(90, (finalEvasion / (finalEvasion + enemyAccuracy)) * 100);
+    armorReduction = getArmorPhysicalReductionPct(finalArmor, referenceIncomingPhysical);
+    evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
 
     damageScales.dot = dotMultiplier;
     damageScales.dotStat = dotStatMultiplier;
@@ -2445,6 +2458,8 @@ function getPlayerStats() {
     finalMaxHp += (colonyWardBonus.flatHp || 0);
     finalArmor += (colonyWardBonus.armor || 0);
     finalEvasion += (colonyWardBonus.evasion || 0);
+    armorReduction = getArmorPhysicalReductionPct(finalArmor, referenceIncomingPhysical);
+    evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
     finalEnergyShield += (colonyWardBonus.energyShield || 0);
     finalDr = Math.min(75, finalDr + (colonyWardBonus.dr || 0));
     finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
@@ -6368,7 +6383,7 @@ function performMonsterAttacks(pStats) {
             else if (enemy.ele === 'chaos') elementalRes = pStats.resChaos;
             elementalRes = Math.max(-60, elementalRes - (enemy.penetration || 0));
             let mitigatedElemental = Math.max(0, Math.floor(elementalPortion * (1 - (elementalRes / 100))));
-            let physRes = Math.max(-60, (pStats.dr + (pStats.armor / (pStats.armor + Math.max(1, physicalPortion) * 10)) * 100) - (enemy.penetration || 0));
+            let physRes = Math.max(-60, (pStats.dr + getArmorPhysicalReductionPct(pStats.armor, physicalPortion)) - (enemy.penetration || 0));
             let mitigatedPhysical = Math.max(0, Math.floor(physicalPortion * (1 - (physRes / 100))));
             let damageBreakdown = [];
             if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
@@ -6499,7 +6514,7 @@ function performMonsterAttacks(pStats) {
             }
             let evadeRoll = Math.random() * 100;
             if (game.ascendClass === 'hunter' && hasKeystone('h3')) evadeRoll = Math.min(evadeRoll, Math.random() * 100);
-            if (enemy.ele === 'phys' && evadeRoll < evadeChance) {
+            if (evadeRoll < evadeChance) {
                 spawnDamageText({ x: width * 0.28, y: height * 0.64, value: '회피!', miss: true, color: '#9fb4c8' });
                 if (game.settings.showCombatLog) addLog(`🌀 회피 성공`, "loot-magic");
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
