@@ -31,6 +31,8 @@
         body.light-mode .stat-item { border-bottom-color: #d5e1ef; }
         body.light-mode .stat-label { color: #35516e; }
         body.light-mode .stat-value { color: #173a63; }
+        body.light-mode .ailment-stat-title { color: #35516e; }
+        body.light-mode .ailment-chip-value { color: #173a63; }
         body.light-mode .stat-unit { color: #6f89a4; }
         body.light-mode .trait-tree { background: #f6faff; border-color: #c8d7e8; }
         body.light-mode .trait-card { background: #ffffff; border-color: #b8cbe0; color: #28435f; box-shadow: 0 3px 8px rgba(84, 113, 146, 0.12); }
