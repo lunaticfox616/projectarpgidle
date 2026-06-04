@@ -16,13 +16,13 @@
     if (!document.querySelector('link[href*="css/cosmos-atlas.css"]')) {
       var link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'css/cosmos-atlas.css?v=20260603-runtime-coherent1';
+      link.href = 'css/cosmos-atlas.css?v=20260603-runtime-coherent2';
       document.head.appendChild(link);
     }
     if (!document.querySelector('script[src*="js/cosmos-atlas.js"]')) {
       var script = document.createElement('script');
       script.defer = true;
-      script.src = 'js/cosmos-atlas.js?v=20260603-runtime-coherent1';
+      script.src = 'js/cosmos-atlas.js?v=20260603-runtime-coherent2';
       document.body.appendChild(script);
     }
   }
