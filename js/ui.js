@@ -6692,6 +6692,11 @@ function mergeDefaults(save) {
         });
         (state && Array.isArray(state.actRewardBonuses) ? state.actRewardBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
         (state && Array.isArray(state.journalBonuses) ? state.journalBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
+        let keystones = (state && Array.isArray(state.ascendKeystones)) ? state.ascendKeystones : [];
+        if (state && state.ascendClass === 'soulbinder') {
+            if (keystones.includes('sb4')) bonus += 1;
+            if (keystones.includes('sb8')) bonus += 3;
+        }
         return Math.max(1, Math.min(8, Math.floor(1 + bonus)));
     }
 
