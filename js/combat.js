@@ -2829,18 +2829,6 @@ function getPlayerStats() {
         }
     };
 
-    // 방패 막기 공식
-    // 1) 방패 옵션의 막기 확률(%) 증가는 방패 베이스 막기 확률 자체를 상승시킨다.
-    // 2) 패시브/키스톤 등 기타 막기 확률(%) 증가는 원본 베이스 막기 확률에서만 %로 증가한다.
-    // 3) 막기 확률 +%p는 마지막에 더한다.
-    // 4) 최종 상한 50%.
-    let effectiveShieldBaseBlockChance = Math.max(0, shieldBaseBlockChance * (1 + Math.max(0, shieldBlockChancePct) / 100));
-    let blockChanceFromOtherPct = Math.max(0,
-        guardianBlockChance + gearBase.blockChancePct + passive.blockChancePct + season.blockChancePct + ascend.blockChancePct + support.blockChancePct + reward.blockChancePct
-    );
-    let flatBlockChanceBonus = Math.max(0, shieldBlockChanceFlat + gearBase.blockChance + passive.blockChance + season.blockChance + ascend.blockChance + support.blockChance + reward.blockChance);
-    let finalBlockChanceCap = Math.max(50, Math.min(75, 50 + Math.max(0, sumStatAcrossBuckets('blockChanceMax'))));
-    let finalBlockChance = Math.min(finalBlockChanceCap, Math.max(0, effectiveShieldBaseBlockChance + (shieldBaseBlockChance * blockChanceFromOtherPct / 100) + flatBlockChanceBonus));
 
     let enemy = {
         baseDmg: finalBaseDmg,
@@ -5035,6 +5023,16 @@ function handleStoryActSpecialDefeat(zone, pStats) {
     return false;
 }
 
+function ensureNextEndlessChaosDepthUnlocked(depth) {
+    let clearedDepth = Math.max(1, Math.floor(depth || 1));
+    if ((game.season || 1) < 10 || clearedDepth < 20) return 0;
+    game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
+    let nextDepth = Math.max(21, clearedDepth + 1);
+    if (!game.abyssUnlockedDepths.includes(nextDepth)) game.abyssUnlockedDepths.push(nextDepth);
+    game.abyssUnlockedDepths = Array.from(new Set(game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 20))).sort((a, b) => a - b);
+    return nextDepth;
+}
+
 function resolveNextLoopBestPlusOneZone(zone) {
     game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
     if (zone && zone.type === 'abyss' && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
@@ -5301,6 +5299,7 @@ function finishEncounterRun() {
                 game.abyssPassivePoints = Math.max(0, Math.floor(game.abyssPassivePoints || 0)) + 5;
                 addLog(`🌌 혼돈 ${depth} 클리어 보상: 혼돈 패시브 포인트 +5`, 'season-up');
             }
+            ensureNextEndlessChaosDepthUnlocked(depth);
         }
         if (zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
         if (zone.type === 'act') {
@@ -5331,11 +5330,10 @@ function finishEncounterRun() {
                 let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
                 let nowEndless = Math.max(20, depth, Math.floor(game.abyssEndlessDepth || depth));
-                let nextDepth = Math.max(21, nowEndless + 1);
-                if (!game.abyssUnlockedDepths.includes(nextDepth)) game.abyssUnlockedDepths.push(nextDepth);
-                // Keep current endless depth here; enterNextEndlessChaosDepth() advances by +1 when continuing.
-                // Setting this to nextDepth would double-advance and skip a floor (e.g. 20 -> 22).
-                game.abyssEndlessDepth = Math.max(nowEndless, 20);
+                ensureNextEndlessChaosDepthUnlocked(nowEndless);
+                // Preserve a higher recorded endless depth when clearing a lower loop cap; continuing advances from here.
+                // Setting this to the unlocked next depth would double-advance and skip a floor (e.g. 20 -> 22).
+                game.abyssEndlessDepth = nowEndless;
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
                 let seasonAbyssCap = getSeasonAbyssDepthCap(game.season || 1);
                 let bestAbyssDepthBeforeClear = Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0));
