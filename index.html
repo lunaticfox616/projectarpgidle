@@ -378,6 +378,11 @@
                 <span class="stat-value" id="ui-freeze-chance">0.0</span>
                 <span class="stat-unit">%</span>
             </div>
+            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'shockChance')" onmousemove="showStatTooltip(event,'shockChance')" onmouseleave="hideInfoTooltip()">
+                <span class="stat-label" style="color:#ffe083;">⚡ 감전 확률</span>
+                <span class="stat-value" id="ui-shock-chance">0.0</span>
+                <span class="stat-unit">%</span>
+            </div>
             <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'poisonChance')" onmousemove="showStatTooltip(event,'poisonChance')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label" style="color:#c56cff;">☠️ 중독 확률</span>
                 <span class="stat-value" id="ui-poison-chance">0.0</span>
@@ -386,6 +391,36 @@
             <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'bleedChance')" onmousemove="showStatTooltip(event,'bleedChance')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label" style="color:#ff6b6b;">🩸 출혈 확률</span>
                 <span class="stat-value" id="ui-bleed-chance">0.0</span>
+                <span class="stat-unit">%</span>
+            </div>
+            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistIgniteChance')" onmousemove="showStatTooltip(event,'ailmentResistIgniteChance')" onmouseleave="hideInfoTooltip()">
+                <span class="stat-label" style="color:#ffb16a;">🔥 점화 저항 확률</span>
+                <span class="stat-value" id="ui-ail-res-ignite">0.0</span>
+                <span class="stat-unit">%</span>
+            </div>
+            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistChillChance')" onmousemove="showStatTooltip(event,'ailmentResistChillChance')" onmouseleave="hideInfoTooltip()">
+                <span class="stat-label" style="color:#b9f0ff;">❄️ 냉각 저항 확률</span>
+                <span class="stat-value" id="ui-ail-res-chill">0.0</span>
+                <span class="stat-unit">%</span>
+            </div>
+            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistFreezeChance')" onmousemove="showStatTooltip(event,'ailmentResistFreezeChance')" onmouseleave="hideInfoTooltip()">
+                <span class="stat-label" style="color:#75bbff;">🧊 동결 저항 확률</span>
+                <span class="stat-value" id="ui-ail-res-freeze">0.0</span>
+                <span class="stat-unit">%</span>
+            </div>
+            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistShockChance')" onmousemove="showStatTooltip(event,'ailmentResistShockChance')" onmouseleave="hideInfoTooltip()">
+                <span class="stat-label" style="color:#ffe083;">⚡ 감전 저항 확률</span>
+                <span class="stat-value" id="ui-ail-res-shock">0.0</span>
+                <span class="stat-unit">%</span>
+            </div>
+            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistPoisonChance')" onmousemove="showStatTooltip(event,'ailmentResistPoisonChance')" onmouseleave="hideInfoTooltip()">
+                <span class="stat-label" style="color:#d28bff;">☠️ 중독 저항 확률</span>
+                <span class="stat-value" id="ui-ail-res-poison">0.0</span>
+                <span class="stat-unit">%</span>
+            </div>
+            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistBleedChance')" onmousemove="showStatTooltip(event,'ailmentResistBleedChance')" onmouseleave="hideInfoTooltip()">
+                <span class="stat-label" style="color:#ff8585;">🩸 출혈 저항 확률</span>
+                <span class="stat-value" id="ui-ail-res-bleed">0.0</span>
                 <span class="stat-unit">%</span>
             </div>
             <div class="stat-item tip" id="row-regen" onmouseenter="showStatTooltip(event,'regen')" onmouseleave="hideInfoTooltip()" style="display: none;">
@@ -992,17 +1027,17 @@
 <script defer src="data/passives.js?v=20260603-runtime-coherent2"></script>
 <script defer src="data/bosses.js?v=20260603-runtime-coherent2"></script>
 <script defer src="data/rewards.js?v=20260603-runtime-coherent2"></script>
-<script defer src="js/utils.js?v=20260604-armor-uniques1"></script>
-<script defer src="js/state.js?v=20260604-cube-underworld1"></script>
+<script defer src="js/utils.js?v=20260604-ailment-stats1"></script>
+<script defer src="js/state.js?v=20260604-ailment-stats1"></script>
 <script defer src="js/save.js?v=20260603-runtime-coherent2"></script>
 <script defer src="js/skills.js?v=20260604-summon-counts1"></script>
 <script defer src="js/passives.js?v=20260604-armor-uniques1"></script>
 <script defer src="js/core-cube.js?v=20260604-cube-underworld2"></script>
-<script defer src="js/combat.js?v=20260604-cube-underworld2"></script>
+<script defer src="js/combat.js?v=20260604-ailment-stats1"></script>
 <script defer src="js/items.js?v=20260604-summon-counts1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260603-runtime-coherent2"></script>
-<script defer src="js/canvas-passive-tree.js?v=20260604-shield-summary1"></script>
-<script defer src="js/ui.js?v=20260604-legacy-underworld1"></script>
+<script defer src="js/canvas-passive-tree.js?v=20260604-shield-lines1"></script>
+<script defer src="js/ui.js?v=20260604-ailment-stats1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260603-runtime-coherent2"></script>
 <script defer src="js/smoke-checks.js?v=20260603-runtime-coherent2"></script>
 <script defer src="js/main.js?v=20260603-runtime-coherent2"></script>

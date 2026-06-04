@@ -4267,6 +4267,22 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-res-cold').innerText = Math.floor(pStats.resC);
     document.getElementById('ui-res-light').innerText = Math.floor(pStats.resL);
     document.getElementById('ui-res-chaos').innerText = Math.floor(pStats.resChaos);
+    let setStatText = (id, value, formatter) => {
+        let el = document.getElementById(id);
+        if (el) el.innerText = formatter ? formatter(value) : value;
+    };
+    setStatText('ui-ignite-chance', pStats.igniteChance || 0, value => Number(value || 0).toFixed(1));
+    setStatText('ui-chill-chance', pStats.chillChance || 0, value => Number(value || 0).toFixed(1));
+    setStatText('ui-freeze-chance', pStats.freezeChance || 0, value => Number(value || 0).toFixed(1));
+    setStatText('ui-shock-chance', pStats.shockChance || 0, value => Number(value || 0).toFixed(1));
+    setStatText('ui-poison-chance', pStats.poisonChance || 0, value => Number(value || 0).toFixed(1));
+    setStatText('ui-bleed-chance', pStats.bleedChance || 0, value => Number(value || 0).toFixed(1));
+    setStatText('ui-ail-res-ignite', pStats.ailmentResistIgniteChance || 0, value => Number(value || 0).toFixed(1));
+    setStatText('ui-ail-res-chill', pStats.ailmentResistChillChance || 0, value => Number(value || 0).toFixed(1));
+    setStatText('ui-ail-res-freeze', pStats.ailmentResistFreezeChance || 0, value => Number(value || 0).toFixed(1));
+    setStatText('ui-ail-res-shock', pStats.ailmentResistShockChance || 0, value => Number(value || 0).toFixed(1));
+    setStatText('ui-ail-res-poison', pStats.ailmentResistPoisonChance || 0, value => Number(value || 0).toFixed(1));
+    setStatText('ui-ail-res-bleed', pStats.ailmentResistBleedChance || 0, value => Number(value || 0).toFixed(1));
     document.getElementById('ui-min-dmg-roll').innerText = Math.floor(pStats.minDmgRoll || 80);
     document.getElementById('ui-max-dmg-roll').innerText = Math.floor(pStats.maxDmgRoll || 100);
     document.getElementById('ui-loop-deaths').innerText = Math.max(0, Math.floor(game.loopDeaths || 0));

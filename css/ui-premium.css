@@ -515,7 +515,10 @@ body.light-mode .cfg-group {
   border-color: #c8d8ee;
 }
 body.light-mode .cfg-group-title { color: #8a6010; }
-body.light-mode .cfg-label { color: #f3f8ff; }
+body.light-mode .cfg-label,
+body.light-mode .cfg-toggle--header { color: #243247; }
+body.light-mode .cfg-toggle:hover { background: rgba(53, 92, 135, 0.08); }
+body.light-mode .cfg-toggle:hover .cfg-label { color: #173a63; }
 body.light-mode .cfg-sublabel { color: #5a7090; }
 body.light-mode .cfg-select,
 body.light-mode .cfg-number {
