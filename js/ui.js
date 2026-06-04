@@ -2142,49 +2142,114 @@ function getEquippedSummonGuardSupports() {
     return supports.filter(name => isSummonGuardSupport(name));
 }
 
+function isSummonAttackSkillGem(name) {
+    let gemDef = SKILL_DB[name] || {};
+    return !!(gemDef && Array.isArray(gemDef.tags) && gemDef.tags.includes('summon_attack'));
+}
+
 function normalizeEquippedSummonAttackSkills() {
     game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
-    game.equippedSummonSkills = Array.from(new Set(game.equippedSummonSkills.filter(gemName => {
-        let gemDef = SKILL_DB[gemName] || {};
-        return !!(gemDef && Array.isArray(gemDef.tags) && gemDef.tags.includes('summon_attack') && Array.isArray(game.skills) && game.skills.includes(gemName));
-    })));
+    game.summonSkillCounts = (game.summonSkillCounts && typeof game.summonSkillCounts === 'object') ? game.summonSkillCounts : {};
+    let owned = Array.isArray(game.skills) ? game.skills : [];
+    game.equippedSummonSkills = Array.from(new Set(game.equippedSummonSkills.filter(gemName => isSummonAttackSkillGem(gemName) && owned.includes(gemName))));
+    Object.keys(game.summonSkillCounts).forEach(gemName => {
+        if (!game.equippedSummonSkills.includes(gemName)) delete game.summonSkillCounts[gemName];
+    });
+    game.equippedSummonSkills.forEach(gemName => {
+        let count = Math.max(1, Math.floor(Number(game.summonSkillCounts[gemName]) || 1));
+        game.summonSkillCounts[gemName] = count;
+    });
     return game.equippedSummonSkills;
 }
 
+function getSummonSkillCount(name) {
+    normalizeEquippedSummonAttackSkills();
+    return Math.max(0, Math.floor(Number((game.summonSkillCounts || {})[name]) || 0));
+}
+
+function getEquippedSummonAttackCount() {
+    return normalizeEquippedSummonAttackSkills().reduce((sum, name) => sum + getSummonSkillCount(name), 0);
+}
+
 function getEquippedSummonCount() {
-    return normalizeEquippedSummonAttackSkills().length + getEquippedSummonGuardSupports().length;
+    return getEquippedSummonAttackCount() + getEquippedSummonGuardSupports().length;
 }
 
 function getSummonEquipCapFromStats(stats) {
     return Math.max(1, Math.min(8, Math.floor((stats && stats.summonCap) || 1)));
 }
 
+function normalizeSummonLoadout(logChange, stats) {
+    normalizeEquippedSummonAttackSkills();
+    let cap = getSummonEquipCapFromStats(stats || getUiPlayerStats(null));
+    let guardSupports = getEquippedSummonGuardSupports();
+    let changed = false;
+    if (guardSupports.length > cap) {
+        let keepGuards = new Set(guardSupports.slice(0, cap));
+        game.equippedSupports = (game.equippedSupports || []).filter(name => !isSummonGuardSupport(name) || keepGuards.has(name));
+        guardSupports = getEquippedSummonGuardSupports();
+        changed = true;
+    }
+    let guardCount = guardSupports.length;
+    let attackCap = Math.max(0, cap - guardCount);
+    let used = 0;
+    game.equippedSummonSkills.slice().forEach(name => {
+        let current = getSummonSkillCount(name);
+        let allowed = Math.max(0, Math.min(current, attackCap - used));
+        if (allowed <= 0) {
+            game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== name);
+            delete game.summonSkillCounts[name];
+            changed = true;
+            return;
+        }
+        if (allowed !== current) {
+            game.summonSkillCounts[name] = allowed;
+            changed = true;
+        }
+        used += allowed;
+    });
+    if (changed && logChange) addLog(`🐾 소환수 한도(${cap})에 맞춰 초과 소환수가 자동 해제되었습니다.`, 'attack-monster');
+    return changed;
+}
+
+function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) return;
+    if (!isSummonAttackSkillGem(name) || !Array.isArray(game.skills) || !game.skills.includes(name)) return;
+    normalizeEquippedSummonAttackSkills();
+    game.summonLoadoutInitialized = true;
+    let current = getSummonSkillCount(name);
+    if (delta > 0) {
+        let cap = getSummonEquipCapFromStats(getUiPlayerStats(null));
+        if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]을(를) 추가 소환할 수 없습니다.`, 'attack-monster');
+        if (!game.equippedSummonSkills.includes(name)) game.equippedSummonSkills.push(name);
+        game.summonSkillCounts[name] = current + 1;
+        if (SKILL_DB[name] && SKILL_DB[name].isGem) game.gemEnhanceTargetSkill = name;
+        if (game.activeSkill === name) game.activeSkill = '기본 공격';
+        updateStaticUI();
+        return;
+    }
+    if (current <= 1) {
+        game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== name);
+        delete game.summonSkillCounts[name];
+    } else {
+        game.summonSkillCounts[name] = current - 1;
+    }
+    if (game.activeSkill === name) game.activeSkill = '기본 공격';
+    updateStaticUI();
+}
+
 function changeSkill(name) { if (!assertBuildEditable()) return;
     let def = SKILL_DB[name] || {};
     if (def && Array.isArray(def.tags) && def.tags.includes('summon_attack')) {
         normalizeEquippedSummonAttackSkills();
-        let alreadyEquipped = game.equippedSummonSkills.includes(name);
-        if (alreadyEquipped) {
+        if (game.equippedSummonSkills.includes(name)) {
             game.summonLoadoutInitialized = true;
             game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== name);
+            delete game.summonSkillCounts[name];
             if (game.activeSkill === name) game.activeSkill = '기본 공격';
             updateStaticUI();
             return;
         }
-        let cap = 1;
-        try {
-            let stats = getUiPlayerStats(null);
-            cap = getSummonEquipCapFromStats(stats);
-        } catch (e) {}
-        if (getEquippedSummonCount() >= cap) {
-            addLog(`소환수 한도(${cap})로 인해 [${name}]은(는) 장착할 수 없습니다.`, 'attack-monster');
-            return;
-        }
-        game.summonLoadoutInitialized = true;
-        game.equippedSummonSkills.push(name);
-        if (SKILL_DB[name] && SKILL_DB[name].isGem) game.gemEnhanceTargetSkill = name;
-        if (game.activeSkill === name) game.activeSkill = '기본 공격';
-        updateStaticUI();
+        changeSummonSkillCount(name, 1);
         return;
     }
     game.activeSkill = name;
@@ -4467,6 +4532,7 @@ function performUpdateStaticUI() {
     refreshPassiveVisibility();
     normalizeSupportLoadout(true);
     let pStats = getUiPlayerStats();
+    if (typeof normalizeSummonLoadout === 'function' && normalizeSummonLoadout(true, pStats)) pStats = getUiPlayerStats();
     cachedTooltipStats = pStats;
     updateCombatUI(pStats);
     let showCombatScene = game.settings.showCombatScene !== false;
@@ -5153,12 +5219,16 @@ function getCraftTargetControlsHtml() {
 }
 
 function closeCraftItemPickerOverlay() {
+    if (typeof hideItemTooltip === 'function') hideItemTooltip();
+    if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
     let overlay = document.getElementById('craft-item-picker-overlay');
     if (overlay) overlay.remove();
 }
 
 function selectCraftPickerEquipment(slot) {
     if (!slot || !(game.equipment || {})[slot]) return;
+    if (typeof hideItemTooltip === 'function') hideItemTooltip();
+    if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
     selectForCrafting(slot, true);
     closeCraftItemPickerOverlay();
 }
@@ -5166,6 +5236,8 @@ function selectCraftPickerEquipment(slot) {
 function selectCraftPickerInventoryItem(itemId) {
     let id = Number(itemId);
     if (!Number.isFinite(id) || !(game.inventory || []).some(item => item && item.id === id)) return;
+    if (typeof hideItemTooltip === 'function') hideItemTooltip();
+    if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
     selectForCrafting(id, false);
     closeCraftItemPickerOverlay();
 }
@@ -5187,7 +5259,8 @@ function getCraftPickerCardHtml(item, options) {
     let slotLabel = options.slotLabel || (item && item.slot ? item.slot : '장비');
     let sourceMeta = item && typeof getDropOnlyItemSourceMeta === 'function' ? getDropOnlyItemSourceMeta(item) : null;
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
-    return `<button type="button" class="craft-picker-card ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
+    let extraClass = options.extraClass || '';
+    return `<button type="button" class="craft-picker-card ${extraClass} ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}">
         <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(slotLabel.replace(/[12]/, ''))}] ${escapeHTML(item.name || '장비')}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
         <div class="item-base-line" style="font-size:.78em;">${escapeHTML(item.baseName || '')}</div>
         ${getCraftPickerItemLines(item)}
@@ -5206,21 +5279,21 @@ function openCraftItemPickerOverlay(kind) {
     let bodyHtml = '';
     if (isEquip) {
         let slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
-        bodyHtml = `<div class="craft-picker-equip-grid">${slots.map(slot => {
+        bodyHtml = `<div class="paperdoll craft-picker-equip-grid">${slots.map(slot => {
             let item = game.equipment && game.equipment[slot];
-            if (!item) return `<button type="button" class="craft-picker-card empty" disabled><div style="font-weight:800;">[${slot.replace(/[12]/, '')}]</div><div style="color:#7f8c8d; margin-top:5px;">비어있음</div></button>`;
+            let slotClass = `slot-box slot-${slot}`;
+            if (!item) return `<button type="button" class="craft-picker-card ${slotClass} empty" disabled><div style="font-weight:800;">[${slot.replace(/[12]/, '')}]</div><div style="color:#7f8c8d; margin-top:5px;">비어있음</div></button>`;
             return getCraftPickerCardHtml(item, {
                 slotLabel: slot,
                 selected: currentIsEquip && currentRef === slot,
                 onclick: `selectCraftPickerEquipment('${slot}')`,
-                tooltip: `onmouseenter="showItemTooltip(event, '${slot}', true)" onmousemove="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"`
+                extraClass: slotClass
             });
         }).join('')}</div>`;
     } else {
-        let rows = (game.inventory || []).map((item, idx) => getCraftPickerCardHtml(item, {
+        let rows = (game.inventory || []).map(item => getCraftPickerCardHtml(item, {
             selected: !currentIsEquip && currentRef === item.id,
-            onclick: `selectCraftPickerInventoryItem(${item.id})`,
-            tooltip: `onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"`
+            onclick: `selectCraftPickerInventoryItem(${item.id})`
         })).join('');
         bodyHtml = rows ? `<div class="craft-picker-grid">${rows}</div>` : `<div class="deathlog-empty">인벤토리에 제작할 장비가 없습니다.</div>`;
     }
@@ -5649,7 +5722,7 @@ function buildCraftActionButtons(item) {
         ].join(' ');
         if (!matchSearchQuery(searchable, sf.skill)) return false;
         if (!foldAttackInactive) return true;
-        return name === game.activeSkill;
+        return name === game.activeSkill || (isSummonAttackSkillGem(name) && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
     }).map(name => {
         let active = name === game.activeSkill ? 'active' : '';
         let def = SKILL_DB[name] || {};
@@ -5659,8 +5732,14 @@ function buildCraftActionButtons(item) {
         let badge = '';
         let gemInfo = getUiGemPresentation(name, false);
         if (SKILL_DB[name].isGem || SKILL_DB[name].levelable) badge = `<span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
-        let sealBtn = name === game.activeSkill ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">🔒 봉인</button>`;
-        return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.skill)}</strong>${badge}${sealBtn}</div>`;
+        let summonControls = '';
+        if (isSummonAttack && summonEquipped) {
+            let count = getSummonSkillCount(name);
+            let countText = summonEquipped ? `${count}기` : '0기';
+            summonControls = `<span class="summon-gem-controls"><button class="summon-gem-count-btn" title="소환 해제" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', -1)">−</button><span class="summon-gem-count" title="현재 소환 수">🐾 ${countText}</span><button class="summon-gem-count-btn" title="추가 소환" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', 1)">+</button></span>`;
+        }
+        let sealBtn = (name === game.activeSkill || summonEquipped) ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">🔒 봉인</button>`;
+        return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.skill)}</strong>${badge}${summonControls}${sealBtn}</div>`;
     }).join('');
     let sealedSkillRows = sealedSkills.filter(name => {
         let def = SKILL_DB[name] || {};
@@ -6620,6 +6699,11 @@ function mergeDefaults(save) {
         });
         (state && Array.isArray(state.actRewardBonuses) ? state.actRewardBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
         (state && Array.isArray(state.journalBonuses) ? state.journalBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
+        let keystones = (state && Array.isArray(state.ascendKeystones)) ? state.ascendKeystones : [];
+        if (state && state.ascendClass === 'soulbinder') {
+            if (keystones.includes('sb4')) bonus += 1;
+            if (keystones.includes('sb8')) bonus += 3;
+        }
         return Math.max(1, Math.min(8, Math.floor(1 + bonus)));
     }
 
@@ -6799,7 +6883,13 @@ function mergeDefaults(save) {
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
     merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-underworld', 'map-tab-cosmos'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
-    if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
+    let coreCubeUnderworldCredit = !!(merged.underworldProgress && merged.underworldProgress.floor10Cleared);
+    let coreCubeRuneCredit = (merged.underworldRunes && typeof merged.underworldRunes === 'object') ? merged.underworldRunes : {};
+    coreCubeUnderworldCredit = coreCubeUnderworldCredit
+        || Math.max(0, Math.floor(Number(coreCubeRuneCredit.unlockedSlots) || 0)) >= 1
+        || Math.max(0, Math.floor(Number(coreCubeRuneCredit.unlockedRunesMaxNumber) || 0)) >= 1;
+    if (merged.coreCube && merged.coreCube.unlocked && coreCubeUnderworldCredit) merged.unlocks.cube = true;
+    else if (merged.unlocks) merged.unlocks.cube = false;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
     merged.gemFoldInactiveSupport = !!merged.gemFoldInactiveSupport;
     if (merged.gemFoldInactive) {
@@ -6975,16 +7065,18 @@ function mergeDefaults(save) {
     merged.chaosRealm.unlocked = !!merged.chaosRealm.unlocked;
     merged.chaosRealm.highestFloor = Math.max(0, Math.floor(clampFiniteNumber(merged.chaosRealm.highestFloor, 0, 0)));
     merged.chaosRealm.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.chaosRealm.currentFloor, 1, 1)));
-    let hasSavedUnderworldProgress = !!(save && typeof save === 'object' && save.underworldProgress && typeof save.underworldProgress === 'object');
-    let legacyUnderworldProgress = {};
-    if (!hasSavedUnderworldProgress) {
-        let legacyHighest = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).highestFloor, 1, 1)));
-        let legacyCurrent = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).currentFloor, 1, 1)));
-        legacyUnderworldProgress = { highestFloor: legacyHighest, currentFloor: legacyCurrent };
-    }
-    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...legacyUnderworldProgress, ...(merged.underworldProgress || {}) };
+    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...(merged.underworldProgress || {}) };
     merged.underworldProgress.highestFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.highestFloor, 1, 1)));
     merged.underworldProgress.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.currentFloor, 1, 1)));
+    let savedRunes = (merged.underworldRunes && typeof merged.underworldRunes === 'object') ? merged.underworldRunes : {};
+    let underworld10ClearCredit = !!merged.underworldProgress.floor10Cleared
+        || Math.max(0, Math.floor(Number(savedRunes.unlockedSlots) || 0)) >= 1
+        || Math.max(0, Math.floor(Number(savedRunes.unlockedRunesMaxNumber) || 0)) >= 1;
+    merged.underworldProgress.floor10Cleared = underworld10ClearCredit;
+    if (!underworld10ClearCredit) {
+        merged.underworldProgress.highestFloor = Math.min(merged.underworldProgress.highestFloor, 10);
+        merged.underworldProgress.currentFloor = Math.min(merged.underworldProgress.currentFloor, merged.underworldProgress.highestFloor);
+    }
     merged.chaosRealm.clearedFloors = Array.isArray(merged.chaosRealm.clearedFloors) ? Array.from(new Set(merged.chaosRealm.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
     merged.chaosRealm.woodsmanBestDamagePct = Math.max(0, Math.min(100, Number(merged.chaosRealm.woodsmanBestDamagePct) || 0));
     Object.keys(CHAOS_REALM_DEFAULT_BONUSES).forEach(key => { merged.chaosRealm.permanentBonuses[key] = Math.max(0, Number(merged.chaosRealm.permanentBonuses[key]) || 0); });
@@ -7017,13 +7109,49 @@ function mergeDefaults(save) {
             return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack') && merged.skills.includes(name));
         })))
         : [];
+    let hasSavedSummonSkillCounts = !!(save && Object.prototype.hasOwnProperty.call(save, 'summonSkillCounts') && save.summonSkillCounts && typeof save.summonSkillCounts === 'object');
+    merged.summonSkillCounts = hasSavedSummonSkillCounts ? { ...merged.summonSkillCounts } : {};
+    Object.keys(merged.summonSkillCounts).forEach(name => { if (!merged.equippedSummonSkills.includes(name)) delete merged.summonSkillCounts[name]; });
+    if (hasSavedSummonSkillCounts) merged.equippedSummonSkills.forEach(name => { merged.summonSkillCounts[name] = Math.max(1, Math.floor(Number(merged.summonSkillCounts[name]) || 1)); });
     let ownedSummonAttackSkills = (Array.isArray(merged.skills) ? merged.skills : []).filter(name => {
         let def = SKILL_DB[name] || {};
         return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack'));
     });
+    let saveSummonCap = estimateSummonEquipCapForMergedSave(merged);
     if (!merged.summonLoadoutInitialized && merged.equippedSummonSkills.length === 0 && ownedSummonAttackSkills.length > 0) {
-        merged.equippedSummonSkills = ownedSummonAttackSkills.slice(0, estimateSummonEquipCapForMergedSave(merged));
+        merged.equippedSummonSkills = ownedSummonAttackSkills.slice(0, saveSummonCap);
+        if (hasSavedSummonSkillCounts) merged.equippedSummonSkills.forEach(name => { merged.summonSkillCounts[name] = Math.max(1, Math.floor(Number(merged.summonSkillCounts[name]) || 1)); });
     }
+    if (!hasSavedSummonSkillCounts) {
+        let legacySummonCounts = {};
+        let guardCount = (Array.isArray(merged.equippedSupports) ? merged.equippedSupports : []).filter(name => {
+            let def = SUPPORT_GEM_DB[name] || {};
+            return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_guard'));
+        }).length;
+        let baseAttackSlots = Math.max(0, Math.min(merged.equippedSummonSkills.length, saveSummonCap - guardCount));
+        merged.equippedSummonSkills.slice(0, baseAttackSlots).forEach(name => { legacySummonCounts[name] = (legacySummonCounts[name] || 0) + 1; });
+        let usedSlots = Math.min(saveSummonCap, guardCount + baseAttackSlots);
+        let cursor = 0;
+        while (usedSlots < saveSummonCap && merged.equippedSummonSkills.length > 0) {
+            let name = merged.equippedSummonSkills[cursor % merged.equippedSummonSkills.length];
+            legacySummonCounts[name] = (legacySummonCounts[name] || 0) + 1;
+            usedSlots++;
+            cursor++;
+        }
+        merged.summonSkillCounts = legacySummonCounts;
+    }
+    let saveSummonUsed = 0;
+    merged.equippedSummonSkills.slice().forEach(name => {
+        let current = Math.max(1, Math.floor(Number(merged.summonSkillCounts[name]) || 1));
+        let allowed = Math.max(0, Math.min(current, saveSummonCap - saveSummonUsed));
+        if (allowed <= 0) {
+            merged.equippedSummonSkills = merged.equippedSummonSkills.filter(gemName => gemName !== name);
+            delete merged.summonSkillCounts[name];
+            return;
+        }
+        merged.summonSkillCounts[name] = allowed;
+        saveSummonUsed += allowed;
+    });
     merged.summonLoadoutInitialized = true;
     if (!merged.gemEnhanceTargetSkill) {
         let ownedEnhanceTargets = (Array.isArray(merged.skills) ? merged.skills : []).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
