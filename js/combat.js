@@ -5341,10 +5341,11 @@ function finishEncounterRun() {
             if ((game.season || 1) >= 10 && zone.type === 'abyss') {
                 let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-                ensureNextEndlessChaosDepthUnlocked(depth);
-                // Keep the cleared endless depth here; enterNextEndlessChaosDepth() advances by +1 when continuing.
+                let nowEndless = Math.max(20, depth, Math.floor(game.abyssEndlessDepth || depth));
+                ensureNextEndlessChaosDepthUnlocked(nowEndless);
+                // Preserve a higher recorded endless depth when clearing a lower loop cap; continuing advances from here.
                 // Setting this to the unlocked next depth would double-advance and skip a floor (e.g. 20 -> 22).
-                game.abyssEndlessDepth = Math.max(20, depth);
+                game.abyssEndlessDepth = nowEndless;
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
                 let seasonAbyssCap = getSeasonAbyssDepthCap(game.season || 1);
                 let bestAbyssDepthBeforeClear = Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0));

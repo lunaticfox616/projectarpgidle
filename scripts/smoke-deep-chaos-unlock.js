@@ -20,4 +20,11 @@ const before = Array.from(context.game.abyssUnlockedDepths);
 assert.strictEqual(context.ensureNextEndlessChaosDepthUnlocked(28), 0, 'pre-loop-10 clears should not unlock endless floors');
 assert.deepStrictEqual(Array.from(context.game.abyssUnlockedDepths), before, 'pre-loop-10 call should not mutate unlocked depths');
 
+
+const branchContext = { game: { season: 11, abyssEndlessDepth: 31, abyssUnlockedDepths: [20, 21, 31] } };
+vm.createContext(branchContext);
+vm.runInContext(`${match[0]}; const depth = 21; let nowEndless = Math.max(20, depth, Math.floor(game.abyssEndlessDepth || depth)); ensureNextEndlessChaosDepthUnlocked(nowEndless); game.abyssEndlessDepth = nowEndless;`, branchContext);
+assert.strictEqual(branchContext.game.abyssEndlessDepth, 31, 'clearing a lower loop cap should preserve the higher recorded endless depth');
+assert(branchContext.game.abyssUnlockedDepths.includes(32), 'continuing from a preserved higher depth should have the next higher floor unlocked');
+
 console.log('deep chaos unlock smoke checks passed');
