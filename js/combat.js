@@ -5170,6 +5170,7 @@ function finishEncounterRun() {
         let floor = Math.max(1, Math.floor(zone.floor || uw.currentFloor || 1));
         uw.highestFloor = Math.max(Math.floor(uw.highestFloor || 1), floor + 1);
         uw.currentFloor = Math.min(uw.highestFloor, floor + 1);
+        if (floor >= 10) uw.floor10Cleared = true;
         if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [] };
         if (floor % 10 === 0) {
             let runeState = game.underworldRunes;

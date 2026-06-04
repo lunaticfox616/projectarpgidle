@@ -5219,12 +5219,16 @@ function getCraftTargetControlsHtml() {
 }
 
 function closeCraftItemPickerOverlay() {
+    if (typeof hideItemTooltip === 'function') hideItemTooltip();
+    if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
     let overlay = document.getElementById('craft-item-picker-overlay');
     if (overlay) overlay.remove();
 }
 
 function selectCraftPickerEquipment(slot) {
     if (!slot || !(game.equipment || {})[slot]) return;
+    if (typeof hideItemTooltip === 'function') hideItemTooltip();
+    if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
     selectForCrafting(slot, true);
     closeCraftItemPickerOverlay();
 }
@@ -5232,6 +5236,8 @@ function selectCraftPickerEquipment(slot) {
 function selectCraftPickerInventoryItem(itemId) {
     let id = Number(itemId);
     if (!Number.isFinite(id) || !(game.inventory || []).some(item => item && item.id === id)) return;
+    if (typeof hideItemTooltip === 'function') hideItemTooltip();
+    if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
     selectForCrafting(id, false);
     closeCraftItemPickerOverlay();
 }
@@ -5253,7 +5259,8 @@ function getCraftPickerCardHtml(item, options) {
     let slotLabel = options.slotLabel || (item && item.slot ? item.slot : '장비');
     let sourceMeta = item && typeof getDropOnlyItemSourceMeta === 'function' ? getDropOnlyItemSourceMeta(item) : null;
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
-    return `<button type="button" class="craft-picker-card ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
+    let extraClass = options.extraClass || '';
+    return `<button type="button" class="craft-picker-card ${extraClass} ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}">
         <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(slotLabel.replace(/[12]/, ''))}] ${escapeHTML(item.name || '장비')}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
         <div class="item-base-line" style="font-size:.78em;">${escapeHTML(item.baseName || '')}</div>
         ${getCraftPickerItemLines(item)}
@@ -5272,21 +5279,21 @@ function openCraftItemPickerOverlay(kind) {
     let bodyHtml = '';
     if (isEquip) {
         let slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
-        bodyHtml = `<div class="craft-picker-equip-grid">${slots.map(slot => {
+        bodyHtml = `<div class="paperdoll craft-picker-equip-grid">${slots.map(slot => {
             let item = game.equipment && game.equipment[slot];
-            if (!item) return `<button type="button" class="craft-picker-card empty" disabled><div style="font-weight:800;">[${slot.replace(/[12]/, '')}]</div><div style="color:#7f8c8d; margin-top:5px;">비어있음</div></button>`;
+            let slotClass = `slot-box slot-${slot}`;
+            if (!item) return `<button type="button" class="craft-picker-card ${slotClass} empty" disabled><div style="font-weight:800;">[${slot.replace(/[12]/, '')}]</div><div style="color:#7f8c8d; margin-top:5px;">비어있음</div></button>`;
             return getCraftPickerCardHtml(item, {
                 slotLabel: slot,
                 selected: currentIsEquip && currentRef === slot,
                 onclick: `selectCraftPickerEquipment('${slot}')`,
-                tooltip: `onmouseenter="showItemTooltip(event, '${slot}', true)" onmousemove="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"`
+                extraClass: slotClass
             });
         }).join('')}</div>`;
     } else {
-        let rows = (game.inventory || []).map((item, idx) => getCraftPickerCardHtml(item, {
+        let rows = (game.inventory || []).map(item => getCraftPickerCardHtml(item, {
             selected: !currentIsEquip && currentRef === item.id,
-            onclick: `selectCraftPickerInventoryItem(${item.id})`,
-            tooltip: `onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"`
+            onclick: `selectCraftPickerInventoryItem(${item.id})`
         })).join('');
         bodyHtml = rows ? `<div class="craft-picker-grid">${rows}</div>` : `<div class="deathlog-empty">인벤토리에 제작할 장비가 없습니다.</div>`;
     }
@@ -6876,7 +6883,13 @@ function mergeDefaults(save) {
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
     merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-underworld', 'map-tab-cosmos'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
-    if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
+    let coreCubeUnderworldCredit = !!(merged.underworldProgress && merged.underworldProgress.floor10Cleared);
+    let coreCubeRuneCredit = (merged.underworldRunes && typeof merged.underworldRunes === 'object') ? merged.underworldRunes : {};
+    coreCubeUnderworldCredit = coreCubeUnderworldCredit
+        || Math.max(0, Math.floor(Number(coreCubeRuneCredit.unlockedSlots) || 0)) >= 1
+        || Math.max(0, Math.floor(Number(coreCubeRuneCredit.unlockedRunesMaxNumber) || 0)) >= 1;
+    if (merged.coreCube && merged.coreCube.unlocked && coreCubeUnderworldCredit) merged.unlocks.cube = true;
+    else if (merged.unlocks) merged.unlocks.cube = false;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
     merged.gemFoldInactiveSupport = !!merged.gemFoldInactiveSupport;
     if (merged.gemFoldInactive) {
@@ -7052,16 +7065,18 @@ function mergeDefaults(save) {
     merged.chaosRealm.unlocked = !!merged.chaosRealm.unlocked;
     merged.chaosRealm.highestFloor = Math.max(0, Math.floor(clampFiniteNumber(merged.chaosRealm.highestFloor, 0, 0)));
     merged.chaosRealm.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.chaosRealm.currentFloor, 1, 1)));
-    let hasSavedUnderworldProgress = !!(save && typeof save === 'object' && save.underworldProgress && typeof save.underworldProgress === 'object');
-    let legacyUnderworldProgress = {};
-    if (!hasSavedUnderworldProgress) {
-        let legacyHighest = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).highestFloor, 1, 1)));
-        let legacyCurrent = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).currentFloor, 1, 1)));
-        legacyUnderworldProgress = { highestFloor: legacyHighest, currentFloor: legacyCurrent };
-    }
-    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...legacyUnderworldProgress, ...(merged.underworldProgress || {}) };
+    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...(merged.underworldProgress || {}) };
     merged.underworldProgress.highestFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.highestFloor, 1, 1)));
     merged.underworldProgress.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.currentFloor, 1, 1)));
+    let savedRunes = (merged.underworldRunes && typeof merged.underworldRunes === 'object') ? merged.underworldRunes : {};
+    let underworld10ClearCredit = !!merged.underworldProgress.floor10Cleared
+        || Math.max(0, Math.floor(Number(savedRunes.unlockedSlots) || 0)) >= 1
+        || Math.max(0, Math.floor(Number(savedRunes.unlockedRunesMaxNumber) || 0)) >= 1;
+    merged.underworldProgress.floor10Cleared = underworld10ClearCredit;
+    if (!underworld10ClearCredit) {
+        merged.underworldProgress.highestFloor = Math.min(merged.underworldProgress.highestFloor, 10);
+        merged.underworldProgress.currentFloor = Math.min(merged.underworldProgress.currentFloor, merged.underworldProgress.highestFloor);
+    }
     merged.chaosRealm.clearedFloors = Array.isArray(merged.chaosRealm.clearedFloors) ? Array.from(new Set(merged.chaosRealm.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
     merged.chaosRealm.woodsmanBestDamagePct = Math.max(0, Math.min(100, Number(merged.chaosRealm.woodsmanBestDamagePct) || 0));
     Object.keys(CHAOS_REALM_DEFAULT_BONUSES).forEach(key => { merged.chaosRealm.permanentBonuses[key] = Math.max(0, Number(merged.chaosRealm.permanentBonuses[key]) || 0); });

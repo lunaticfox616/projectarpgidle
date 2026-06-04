@@ -63,17 +63,36 @@ function ensureCoreCubeState() {
     return game.coreCube;
 }
 
+function hasUnderworld10ClearCredit() {
+    let uw = (game && game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : {};
+    let runes = (game && game.underworldRunes && typeof game.underworldRunes === 'object') ? game.underworldRunes : {};
+    return !!uw.floor10Cleared
+        || Math.max(0, Math.floor(Number(runes.unlockedSlots) || 0)) >= 1
+        || Math.max(0, Math.floor(Number(runes.unlockedRunesMaxNumber) || 0)) >= 1;
+}
+
+function revokeInvalidCoreCubeUnlockIfNeeded(st, info) {
+    if (!st || !st.everUnlocked || info.underworld10Cleared) return false;
+    st.unlocked = false;
+    st.everUnlocked = false;
+    st.relockUntilDrop = false;
+    st.unlockNoticeSeen = false;
+    if (game && game.unlocks) game.unlocks.cube = false;
+    if (game && game.noti) game.noti.cube = false;
+    return true;
+}
+
 function getCoreCubeUnlockInfo() {
     let uw = (game && game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : {};
     let highest = Math.max(1, Math.floor(Number(uw.highestFloor) || 1));
-    let underworld10Cleared = highest >= 11;
+    let underworld10Cleared = hasUnderworld10ClearCredit();
     let loopReady = Math.max(1, Math.floor(Number((game && game.season) || 1))) >= 20 || Math.max(0, Math.floor(Number((game && game.loopCount) || 0))) >= 20;
     let st = (game && game.coreCube && typeof game.coreCube === 'object') ? game.coreCube : {};
     let firstUnlockReady = underworld10Cleared && loopReady;
     return {
         unlocked: !!st.unlocked,
         firstUnlockReady,
-        dropEligible: firstUnlockReady || !!st.everUnlocked,
+        dropEligible: firstUnlockReady || (!!st.everUnlocked && underworld10Cleared),
         underworld10Cleared,
         loopReady,
         highestFloor: highest,
@@ -90,6 +109,7 @@ function canDropCoreCubeBlurred45() {
 function isCoreCubeUnlocked() {
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
+    if (revokeInvalidCoreCubeUnlockIfNeeded(st, info)) return false;
     if (!st.everUnlocked && info.firstUnlockReady) {
         st.unlocked = true;
         st.everUnlocked = true;
@@ -103,6 +123,7 @@ function maybeUnlockCoreCube(options = {}) {
     if (!game) return false;
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
+    if (revokeInvalidCoreCubeUnlockIfNeeded(st, info)) return false;
     if (!st.everUnlocked && !info.firstUnlockReady) return false;
     if (!st.everUnlocked && info.firstUnlockReady) {
         st.unlocked = true;
@@ -464,4 +485,4 @@ function renderCoreCubePanel() {
         </div>`;
 }
 
-safeExposeGlobals({ getCoreCubeDefaultState, normalizeCoreCubeState, ensureCoreCubeState, getCoreCubeUnlockInfo, isCoreCubeUnlocked, maybeUnlockCoreCube, relockCoreCubeForLoop, canDropCoreCubeBlurred45, addCoreCubeBlurred45, addCoreCubePower, useCoreCubeBlurred45, selectCoreCubeFace, socketCoreCubePower, socketRandomCoreCubePower, resetCoreCube, completeCoreCube, generateCoreCubeOptions, getCoreCubeActiveStats, renderCoreCubePanel });
+safeExposeGlobals({ getCoreCubeDefaultState, normalizeCoreCubeState, ensureCoreCubeState, getCoreCubeUnlockInfo, hasUnderworld10ClearCredit, isCoreCubeUnlocked, maybeUnlockCoreCube, relockCoreCubeForLoop, canDropCoreCubeBlurred45, addCoreCubeBlurred45, addCoreCubePower, useCoreCubeBlurred45, selectCoreCubeFace, socketCoreCubePower, socketRandomCoreCubePower, resetCoreCube, completeCoreCube, generateCoreCubeOptions, getCoreCubeActiveStats, renderCoreCubePanel });
