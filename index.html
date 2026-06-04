@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Projectidle</title>
     <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/layout.css?v=20260604-summon-counts1">
+    <link rel="stylesheet" href="css/layout.css?v=20260604-ailment-inline5">
     <link rel="stylesheet" href="css/theme.css">
     <link rel="stylesheet" href="css/components.css?v=20260603-runtime-coherent2">
     <link rel="stylesheet" href="css/ui-polish.css">
@@ -363,30 +363,27 @@
                 <span class="stat-value" id="ui-res-chaos">0</span>
                 <span class="stat-unit">%</span>
             </div>
-            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'igniteChance')" onmousemove="showStatTooltip(event,'igniteChance')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label" style="color:#ff9f43;">🔥 점화 확률</span>
-                <span class="stat-value" id="ui-ignite-chance">0.0</span>
-                <span class="stat-unit">%</span>
+            <div class="stat-item full ailment-stat-block">
+                <div class="ailment-stat-title">상태이상 유발 확률</div>
+                <div class="ailment-stat-inline-row">
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'igniteChance')" onmousemove="showStatTooltip(event,'igniteChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ff9f43;">🔥점화</span> <span class="ailment-chip-value" id="ui-ignite-chance">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'chillChance')" onmousemove="showStatTooltip(event,'chillChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#9be7ff;">❄️냉각</span> <span class="ailment-chip-value" id="ui-chill-chance">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'freezeChance')" onmousemove="showStatTooltip(event,'freezeChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#4da3ff;">🧊동결</span> <span class="ailment-chip-value" id="ui-freeze-chance">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'shockChance')" onmousemove="showStatTooltip(event,'shockChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ffe083;">⚡감전</span> <span class="ailment-chip-value" id="ui-shock-chance">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'poisonChance')" onmousemove="showStatTooltip(event,'poisonChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#c56cff;">☠️중독</span> <span class="ailment-chip-value" id="ui-poison-chance">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'bleedChance')" onmousemove="showStatTooltip(event,'bleedChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ff6b6b;">🩸출혈</span> <span class="ailment-chip-value" id="ui-bleed-chance">0</span>%</span>
+                </div>
             </div>
-            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'chillChance')" onmousemove="showStatTooltip(event,'chillChance')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label" style="color:#9be7ff;">❄️ 냉각 확률</span>
-                <span class="stat-value" id="ui-chill-chance">0.0</span>
-                <span class="stat-unit">%</span>
-            </div>
-            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'freezeChance')" onmousemove="showStatTooltip(event,'freezeChance')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label" style="color:#4da3ff;">🧊 동결 확률</span>
-                <span class="stat-value" id="ui-freeze-chance">0.0</span>
-                <span class="stat-unit">%</span>
-            </div>
-            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'poisonChance')" onmousemove="showStatTooltip(event,'poisonChance')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label" style="color:#c56cff;">☠️ 중독 확률</span>
-                <span class="stat-value" id="ui-poison-chance">0.0</span>
-                <span class="stat-unit">%</span>
-            </div>
-            <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'bleedChance')" onmousemove="showStatTooltip(event,'bleedChance')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label" style="color:#ff6b6b;">🩸 출혈 확률</span>
-                <span class="stat-value" id="ui-bleed-chance">0.0</span>
-                <span class="stat-unit">%</span>
+            <div class="stat-item full ailment-stat-block">
+                <div class="ailment-stat-title">상태이상 저항 확률</div>
+                <div class="ailment-stat-inline-row">
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistIgniteChance')" onmousemove="showStatTooltip(event,'ailmentResistIgniteChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ffb16a;">🔥점화</span> <span class="ailment-chip-value" id="ui-ail-res-ignite">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistChillChance')" onmousemove="showStatTooltip(event,'ailmentResistChillChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#b9f0ff;">❄️냉각</span> <span class="ailment-chip-value" id="ui-ail-res-chill">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistFreezeChance')" onmousemove="showStatTooltip(event,'ailmentResistFreezeChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#75bbff;">🧊동결</span> <span class="ailment-chip-value" id="ui-ail-res-freeze">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistShockChance')" onmousemove="showStatTooltip(event,'ailmentResistShockChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ffe083;">⚡감전</span> <span class="ailment-chip-value" id="ui-ail-res-shock">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistPoisonChance')" onmousemove="showStatTooltip(event,'ailmentResistPoisonChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#d28bff;">☠️중독</span> <span class="ailment-chip-value" id="ui-ail-res-poison">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistBleedChance')" onmousemove="showStatTooltip(event,'ailmentResistBleedChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ff8585;">🩸출혈</span> <span class="ailment-chip-value" id="ui-ail-res-bleed">0</span>%</span>
+                </div>
             </div>
             <div class="stat-item tip" id="row-regen" onmouseenter="showStatTooltip(event,'regen')" onmouseleave="hideInfoTooltip()" style="display: none;">
                 <span class="stat-label">💖 초당 생명력 재생</span>
@@ -992,17 +989,17 @@
 <script defer src="data/passives.js?v=20260603-runtime-coherent2"></script>
 <script defer src="data/bosses.js?v=20260603-runtime-coherent2"></script>
 <script defer src="data/rewards.js?v=20260603-runtime-coherent2"></script>
-<script defer src="js/utils.js?v=20260604-armor-uniques1"></script>
-<script defer src="js/state.js?v=20260604-cube-underworld1"></script>
+<script defer src="js/utils.js?v=20260604-ailment-stats1"></script>
+<script defer src="js/state.js?v=20260604-ailment-stats1"></script>
 <script defer src="js/save.js?v=20260603-runtime-coherent2"></script>
 <script defer src="js/skills.js?v=20260604-summon-counts1"></script>
 <script defer src="js/passives.js?v=20260604-armor-uniques1"></script>
 <script defer src="js/core-cube.js?v=20260604-cube-underworld2"></script>
-<script defer src="js/combat.js?v=20260604-cube-underworld2"></script>
+<script defer src="js/combat.js?v=20260604-soulbinder-complement1"></script>
 <script defer src="js/items.js?v=20260604-summon-counts1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260603-runtime-coherent2"></script>
-<script defer src="js/canvas-passive-tree.js?v=20260604-shield-summary1"></script>
-<script defer src="js/ui.js?v=20260604-legacy-underworld1"></script>
+<script defer src="js/canvas-passive-tree.js?v=20260604-shield-summary2"></script>
+<script defer src="js/ui.js?v=20260604-ailment-inline1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260603-runtime-coherent2"></script>
 <script defer src="js/smoke-checks.js?v=20260603-runtime-coherent2"></script>
 <script defer src="js/main.js?v=20260603-runtime-coherent2"></script>
