@@ -2424,13 +2424,13 @@ function getPlayerStats() {
         };
     }
 
-    function makeAilmentResistBreakdown(title, ailmentLabel, baseValue, ailmentResValue, finalValue) {
+    function makeAilmentResistBreakdown(title, ailmentLabel, ailmentResValue, finalValue) {
         return {
             title: title,
             lines: [
-                makeSourceLine(`${ailmentLabel} 저항 확률`, finalValue, '%', value => `${Math.max(0, value).toFixed(1)}%`),
-                `계산 기준: 기반 저항 ${Math.floor(baseValue)}% + ${ailmentLabel} 저항 옵션 ${Number(ailmentResValue || 0).toFixed(1)}% + 추가 저항 ${Math.floor(ailmentResistBonusPct)}%`,
-                '표시값은 해당 상태이상을 막아낼 실제 저항 확률입니다.'
+                makeSourceLine(`${ailmentLabel} 방지 확률`, finalValue, '%', value => `${Math.max(0, value).toFixed(1)}%`),
+                `계산 기준: ${ailmentLabel} 방지 옵션 ${Number(ailmentResValue || 0).toFixed(1)}% + 공통 방지 ${Math.floor(ailmentResistBonusPct)}%`,
+                '피해 저항(화염/냉기/번개/카오스/물리 피해 감소)은 상태이상 방지 확률에 합산되지 않습니다.'
             ].filter(Boolean),
             final: `${Math.max(0, finalValue).toFixed(1)}%`
         };
@@ -2469,12 +2469,12 @@ function getPlayerStats() {
     let ailResShockTotal = (gearBase.ailResShock || 0) + (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0) + (colonyWardBonus.ailResShock || 0);
     let ailResPoisonTotal = (gearBase.ailResPoison || 0) + (gearExplicit.ailResPoison || 0) + (passive.ailResPoison || 0) + (season.ailResPoison || 0) + (ascend.ailResPoison || 0) + (reward.ailResPoison || 0) + (colonyWardBonus.ailResPoison || 0);
     let ailResBleedTotal = (gearBase.ailResBleed || 0) + (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0) + (colonyWardBonus.ailResBleed || 0);
-    let finalAilmentResistIgniteChance = getPlayerAilmentResistChance('ignite', { resF: finalResF, ailResIgnite: ailResIgniteTotal, ailmentResistBonusPct }) * 100;
-    let finalAilmentResistChillChance = getPlayerAilmentResistChance('chill', { resC: finalResC, ailResFreeze: ailResFreezeTotal, ailmentResistBonusPct }) * 100;
-    let finalAilmentResistFreezeChance = getPlayerAilmentResistChance('freeze', { resC: finalResC, ailResFreeze: ailResFreezeTotal, ailmentResistBonusPct }) * 100;
-    let finalAilmentResistShockChance = getPlayerAilmentResistChance('shock', { resL: finalResL, ailResShock: ailResShockTotal, ailmentResistBonusPct }) * 100;
-    let finalAilmentResistPoisonChance = getPlayerAilmentResistChance('poison', { resChaos: finalResChaos, ailResPoison: ailResPoisonTotal, ailmentResistBonusPct }) * 100;
-    let finalAilmentResistBleedChance = getPlayerAilmentResistChance('bleed', { dr: finalDr, ailResBleed: ailResBleedTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistIgniteChance = getPlayerAilmentResistChance('ignite', { ailResIgnite: ailResIgniteTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistChillChance = getPlayerAilmentResistChance('chill', { ailResFreeze: ailResFreezeTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistFreezeChance = getPlayerAilmentResistChance('freeze', { ailResFreeze: ailResFreezeTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistShockChance = getPlayerAilmentResistChance('shock', { ailResShock: ailResShockTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistPoisonChance = getPlayerAilmentResistChance('poison', { ailResPoison: ailResPoisonTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistBleedChance = getPlayerAilmentResistChance('bleed', { ailResBleed: ailResBleedTotal, ailmentResistBonusPct }) * 100;
 
 
     // 방패 막기 공식
@@ -2762,16 +2762,16 @@ function getPlayerStats() {
         },
 
         ailmentResist: {
-            title: '상태이상 저항 확률',
+            title: '상태이상 방지 확률',
             lines: [
-                `점화 저항: ${finalAilmentResistIgniteChance.toFixed(1)}%`,
-                `냉각 저항: ${finalAilmentResistChillChance.toFixed(1)}%`,
-                `동결 저항: ${finalAilmentResistFreezeChance.toFixed(1)}%`,
-                `감전 저항: ${finalAilmentResistShockChance.toFixed(1)}%`,
-                `중독 저항: ${finalAilmentResistPoisonChance.toFixed(1)}%`,
-                `출혈 저항: ${finalAilmentResistBleedChance.toFixed(1)}%`
+                `점화 방지: ${finalAilmentResistIgniteChance.toFixed(1)}%`,
+                `냉각 방지: ${finalAilmentResistChillChance.toFixed(1)}%`,
+                `동결 방지: ${finalAilmentResistFreezeChance.toFixed(1)}%`,
+                `감전 방지: ${finalAilmentResistShockChance.toFixed(1)}%`,
+                `중독 방지: ${finalAilmentResistPoisonChance.toFixed(1)}%`,
+                `출혈 방지: ${finalAilmentResistBleedChance.toFixed(1)}%`
             ],
-            final: `${Math.floor(ailmentResistBonusPct)}% 추가 저항`
+            final: `${Math.floor(ailmentResistBonusPct)}% 공통 방지`
         },
         dmgRoll: {
             title: '피해 보정 범위',
@@ -2785,12 +2785,12 @@ function getPlayerStats() {
         chillChance: makeAilmentChanceBreakdown('냉각 확률', 'chillChance', finalChillChance, ailmentCritChance.chill),
         freezeChance: makeAilmentChanceBreakdown('동결 확률', 'freezeChance', finalFreezeChance, ailmentCritChance.freeze, '냉기 피해 치명타는 동결 시도를 보장합니다. 그 외에는 해당 확률로 동결을 시도하며, 시도 성공 후 적의 최대 생명력 대비 타격 피해로 동결 적용 판정을 합니다.'),
         shockChance: makeAilmentChanceBreakdown('감전 확률', 'shockChance', finalShockChance, ailmentCritChance.shock),
-        ailmentResistIgniteChance: makeAilmentResistBreakdown('점화 저항 확률', '점화', finalResF, ailResIgniteTotal, finalAilmentResistIgniteChance),
-        ailmentResistChillChance: makeAilmentResistBreakdown('냉각 저항 확률', '냉각', finalResC, ailResFreezeTotal, finalAilmentResistChillChance),
-        ailmentResistFreezeChance: makeAilmentResistBreakdown('동결 저항 확률', '동결', finalResC, ailResFreezeTotal, finalAilmentResistFreezeChance),
-        ailmentResistShockChance: makeAilmentResistBreakdown('감전 저항 확률', '감전', finalResL, ailResShockTotal, finalAilmentResistShockChance),
-        ailmentResistPoisonChance: makeAilmentResistBreakdown('중독 저항 확률', '중독', finalResChaos, ailResPoisonTotal, finalAilmentResistPoisonChance),
-        ailmentResistBleedChance: makeAilmentResistBreakdown('출혈 저항 확률', '출혈', finalDr, ailResBleedTotal, finalAilmentResistBleedChance),
+        ailmentResistIgniteChance: makeAilmentResistBreakdown('점화 저항 확률', '점화', ailResIgniteTotal, finalAilmentResistIgniteChance),
+        ailmentResistChillChance: makeAilmentResistBreakdown('냉각 저항 확률', '냉각', ailResFreezeTotal, finalAilmentResistChillChance),
+        ailmentResistFreezeChance: makeAilmentResistBreakdown('동결 저항 확률', '동결', ailResFreezeTotal, finalAilmentResistFreezeChance),
+        ailmentResistShockChance: makeAilmentResistBreakdown('감전 저항 확률', '감전', ailResShockTotal, finalAilmentResistShockChance),
+        ailmentResistPoisonChance: makeAilmentResistBreakdown('중독 저항 확률', '중독', ailResPoisonTotal, finalAilmentResistPoisonChance),
+        ailmentResistBleedChance: makeAilmentResistBreakdown('출혈 저항 확률', '출혈', ailResBleedTotal, finalAilmentResistBleedChance),
         poisonChance: makeAilmentChanceBreakdown('중독 확률', 'poisonChance', finalPoisonChance, ailmentCritChance.poison),
         bleedChance: makeAilmentChanceBreakdown('출혈 확률', 'bleedChance', finalBleedChance, ailmentCritChance.bleed),
         dps: {
@@ -6119,11 +6119,11 @@ function handlePlayerDefeat(zone, pStats, message, options) {
 function getPlayerAilmentResistChance(type, pStats) {
     if (!pStats) return 0;
     let res = 0;
-    if (type === 'ignite') res = (pStats.resF || 0) + (pStats.ailResIgnite || 0);
-    else if (type === 'chill' || type === 'freeze') res = (pStats.resC || 0) + (pStats.ailResFreeze || 0);
-    else if (type === 'shock') res = (pStats.resL || 0) + (pStats.ailResShock || 0);
-    else if (type === 'poison') res = (pStats.resChaos || 0) + (pStats.ailResPoison || 0);
-    else if (type === 'bleed') res = (pStats.dr || 0) + (pStats.ailResBleed || 0);
+    if (type === 'ignite') res = pStats.ailResIgnite || 0;
+    else if (type === 'chill' || type === 'freeze') res = pStats.ailResFreeze || 0;
+    else if (type === 'shock') res = pStats.ailResShock || 0;
+    else if (type === 'poison') res = pStats.ailResPoison || 0;
+    else if (type === 'bleed') res = pStats.ailResBleed || 0;
     return Math.max(0, Math.min(1.00, (res + (pStats.ailmentResistBonusPct || 0)) / 100));
 }
 
