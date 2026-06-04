@@ -2424,14 +2424,13 @@ function getPlayerStats() {
         };
     }
 
-    function makeAilmentResistBreakdown(title, baseLabel, baseValue, ailmentResValue, finalValue) {
+    function makeAilmentResistBreakdown(title, ailmentLabel, baseValue, ailmentResValue, finalValue) {
         return {
             title: title,
             lines: [
-                makeSourceLine(baseLabel, baseValue, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('상태 저항 옵션', ailmentResValue, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('추가 저항', ailmentResistBonusPct, '%', value => `${Math.floor(value)}%`),
-                '표시값은 기반 저항 + 상태 저항 옵션 + 추가 저항을 합산한 실제 저항 확률입니다.'
+                makeSourceLine(`${ailmentLabel} 저항 확률`, finalValue, '%', value => `${Math.max(0, value).toFixed(1)}%`),
+                `계산 기준: 기반 저항 ${Math.floor(baseValue)}% + ${ailmentLabel} 저항 옵션 ${Number(ailmentResValue || 0).toFixed(1)}% + 추가 저항 ${Math.floor(ailmentResistBonusPct)}%`,
+                '표시값은 해당 상태이상을 막아낼 실제 저항 확률입니다.'
             ].filter(Boolean),
             final: `${Math.max(0, finalValue).toFixed(1)}%`
         };
@@ -2786,12 +2785,12 @@ function getPlayerStats() {
         chillChance: makeAilmentChanceBreakdown('냉각 확률', 'chillChance', finalChillChance, ailmentCritChance.chill),
         freezeChance: makeAilmentChanceBreakdown('동결 확률', 'freezeChance', finalFreezeChance, ailmentCritChance.freeze, '냉기 피해 치명타는 동결 시도를 보장합니다. 그 외에는 해당 확률로 동결을 시도하며, 시도 성공 후 적의 최대 생명력 대비 타격 피해로 동결 적용 판정을 합니다.'),
         shockChance: makeAilmentChanceBreakdown('감전 확률', 'shockChance', finalShockChance, ailmentCritChance.shock),
-        ailmentResistIgniteChance: makeAilmentResistBreakdown('점화 저항 확률', '화염 저항', finalResF, ailResIgniteTotal, finalAilmentResistIgniteChance),
-        ailmentResistChillChance: makeAilmentResistBreakdown('냉각 저항 확률', '냉기 저항', finalResC, ailResFreezeTotal, finalAilmentResistChillChance),
-        ailmentResistFreezeChance: makeAilmentResistBreakdown('동결 저항 확률', '냉기 저항', finalResC, ailResFreezeTotal, finalAilmentResistFreezeChance),
-        ailmentResistShockChance: makeAilmentResistBreakdown('감전 저항 확률', '번개 저항', finalResL, ailResShockTotal, finalAilmentResistShockChance),
-        ailmentResistPoisonChance: makeAilmentResistBreakdown('중독 저항 확률', '카오스 저항', finalResChaos, ailResPoisonTotal, finalAilmentResistPoisonChance),
-        ailmentResistBleedChance: makeAilmentResistBreakdown('출혈 저항 확률', '물리 피해 감소', finalDr, ailResBleedTotal, finalAilmentResistBleedChance),
+        ailmentResistIgniteChance: makeAilmentResistBreakdown('점화 저항 확률', '점화', finalResF, ailResIgniteTotal, finalAilmentResistIgniteChance),
+        ailmentResistChillChance: makeAilmentResistBreakdown('냉각 저항 확률', '냉각', finalResC, ailResFreezeTotal, finalAilmentResistChillChance),
+        ailmentResistFreezeChance: makeAilmentResistBreakdown('동결 저항 확률', '동결', finalResC, ailResFreezeTotal, finalAilmentResistFreezeChance),
+        ailmentResistShockChance: makeAilmentResistBreakdown('감전 저항 확률', '감전', finalResL, ailResShockTotal, finalAilmentResistShockChance),
+        ailmentResistPoisonChance: makeAilmentResistBreakdown('중독 저항 확률', '중독', finalResChaos, ailResPoisonTotal, finalAilmentResistPoisonChance),
+        ailmentResistBleedChance: makeAilmentResistBreakdown('출혈 저항 확률', '출혈', finalDr, ailResBleedTotal, finalAilmentResistBleedChance),
         poisonChance: makeAilmentChanceBreakdown('중독 확률', 'poisonChance', finalPoisonChance, ailmentCritChance.poison),
         bleedChance: makeAilmentChanceBreakdown('출혈 확률', 'bleedChance', finalBleedChance, ailmentCritChance.bleed),
         dps: {
