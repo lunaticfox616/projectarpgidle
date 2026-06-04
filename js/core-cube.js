@@ -103,7 +103,8 @@ function getCoreCubeUnlockInfo() {
 function canDropCoreCubeBlurred45() {
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
-    return !!(info.dropEligible || st.everUnlocked);
+    if (revokeInvalidCoreCubeUnlockIfNeeded(st, info)) return false;
+    return !!info.dropEligible;
 }
 
 function isCoreCubeUnlocked() {
@@ -155,9 +156,11 @@ function relockCoreCubeForLoop() {
 
 function addCoreCubeBlurred45(amount = 1) {
     let st = ensureCoreCubeState();
+    let info = getCoreCubeUnlockInfo();
+    if (revokeInvalidCoreCubeUnlockIfNeeded(st, info) || !info.dropEligible) return 0;
     let gain = Math.max(1, Math.floor(Number(amount) || 1));
     st.blurred45 += gain;
-    if (st.everUnlocked && !st.unlocked) {
+    if (st.everUnlocked && !st.unlocked && info.underworld10Cleared) {
         st.unlocked = true;
         st.relockUntilDrop = false;
         if (game && game.unlocks) game.unlocks.cube = true;

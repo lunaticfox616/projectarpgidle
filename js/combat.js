@@ -4675,8 +4675,9 @@ function rollLootForEnemy(enemy) {
         if (!drop || !drop[0]) return;
         if (drop[0] === 'blurred45') {
             let gain = typeof addCoreCubeBlurred45 === 'function' ? addCoreCubeBlurred45(drop[1]) : 0;
+            if (gain <= 0) return;
             addBattleFx('lootPickup', { enemyId: enemy.id, color: '#9de8ff', duration: 760 });
-            if (game.settings.showLootLog) addLog(`🧊 흐릿한 45면체 +${gain || drop[1]}`, 'loot-unique');
+            if (game.settings.showLootLog) addLog(`🧊 흐릿한 45면체 +${gain}`, 'loot-unique');
             return;
         }
         awardCurrency(drop[0], drop[1]);
