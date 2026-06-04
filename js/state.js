@@ -1408,6 +1408,7 @@ const defaultGame = {
     skills: ['기본 공격'],
     activeSkill: '기본 공격',
     equippedSummonSkills: [],
+    summonSkillCounts: {},
     summonLoadoutInitialized: false,
     gemData: { '기본 공격': { level: 1, exp: 0 } },
     supports: [],
@@ -1483,7 +1484,7 @@ const defaultGame = {
     loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 },
     chaosRealm: createDefaultChaosRealmState(),
     underworldRunes: { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {}, bonusLinesByNo: {} },
-    underworldProgress: { highestFloor: 1, currentFloor: 1 },
+    underworldProgress: { highestFloor: 1, currentFloor: 1, floor10Cleared: false },
     coreCube: { unlocked: false, everUnlocked: false, relockUntilDrop: false, unlockNoticeSeen: false, selectedFace: 0, blurred45: 0, powers: {}, faces: [null, null, null, null, null, null], completed: false, isCompleting: false, revealedOptions: [], optionMechanism: null, lastPower: null },
     pendingLoopDecision: false,
 
