@@ -5260,7 +5260,7 @@ function getCraftPickerCardHtml(item, options) {
     let sourceMeta = item && typeof getDropOnlyItemSourceMeta === 'function' ? getDropOnlyItemSourceMeta(item) : null;
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
     let extraClass = options.extraClass || '';
-    return `<button type="button" class="craft-picker-card ${extraClass} ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}">
+    return `<button type="button" class="craft-picker-card ${extraClass} ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
         <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(slotLabel.replace(/[12]/, ''))}] ${escapeHTML(item.name || '장비')}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
         <div class="item-base-line" style="font-size:.78em;">${escapeHTML(item.baseName || '')}</div>
         ${getCraftPickerItemLines(item)}
@@ -5287,7 +5287,8 @@ function openCraftItemPickerOverlay(kind) {
                 slotLabel: slot,
                 selected: currentIsEquip && currentRef === slot,
                 onclick: `selectCraftPickerEquipment('${slot}')`,
-                extraClass: slotClass
+                extraClass: slotClass,
+                tooltip: `onmouseenter="showItemTooltip(event, '${slot}', true)" onmousemove="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"`
             });
         }).join('')}</div>`;
     } else {
@@ -7065,7 +7066,14 @@ function mergeDefaults(save) {
     merged.chaosRealm.unlocked = !!merged.chaosRealm.unlocked;
     merged.chaosRealm.highestFloor = Math.max(0, Math.floor(clampFiniteNumber(merged.chaosRealm.highestFloor, 0, 0)));
     merged.chaosRealm.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.chaosRealm.currentFloor, 1, 1)));
-    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...(merged.underworldProgress || {}) };
+    let hasSavedUnderworldProgress = !!(save && typeof save === 'object' && save.underworldProgress && typeof save.underworldProgress === 'object');
+    let legacyUnderworldProgress = {};
+    if (!hasSavedUnderworldProgress) {
+        let legacyHighest = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).highestFloor, 1, 1)));
+        let legacyCurrent = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).currentFloor, 1, 1)));
+        legacyUnderworldProgress = { highestFloor: legacyHighest, currentFloor: legacyCurrent, floor10Cleared: legacyHighest >= 11 };
+    }
+    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...legacyUnderworldProgress, ...(merged.underworldProgress || {}) };
     merged.underworldProgress.highestFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.highestFloor, 1, 1)));
     merged.underworldProgress.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.currentFloor, 1, 1)));
     let savedRunes = (merged.underworldRunes && typeof merged.underworldRunes === 'object') ? merged.underworldRunes : {};
