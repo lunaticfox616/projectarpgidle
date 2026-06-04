@@ -683,6 +683,7 @@ const P_STATS = {
     igniteChance: { name: '점화 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     chillChance: { name: '냉각 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     freezeChance: { name: '동결 확률(%)', tiers: [2, 3], m: 5, k: 10, isPct: true },
+    shockChance: { name: '감전 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     poisonChance: { name: '중독 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     bleedChance: { name: '출혈 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     spellFlatDmg: { name: '주문 내장 피해', tiers: [1, 2, 3], s: 5, m: 12, k: 22 },
