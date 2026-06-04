@@ -3492,8 +3492,23 @@ function initBattleAssets() {
     const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['effectsV2', 'weapons', 'tiles']));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
-    const manifestEntries = Object.entries(manifest);
-    let pending = manifestEntries.length;
+    const selectedHeroId = (game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1';
+    const selectedHeroKeys = new Set(Object.values((HERO_SELECTION_DEFS[selectedHeroId] || HERO_SELECTION_DEFS.hero1 || {}).strips || {}));
+    const criticalManifestKeys = new Set(['enemies', 'effects', 'summon1', ...selectedHeroKeys]);
+    const manifestGroupsBySrc = new Map();
+    Object.entries(manifest).forEach(([key, src]) => {
+        if (!manifestGroupsBySrc.has(src)) manifestGroupsBySrc.set(src, { src: src, keys: [], priority: 3 });
+        let group = manifestGroupsBySrc.get(src);
+        group.keys.push(key);
+        if (criticalManifestKeys.has(key)) group.priority = Math.min(group.priority, 0);
+        else if (key.startsWith('backdrop')) group.priority = Math.min(group.priority, 1);
+        else if (key === 'enemies2' || key === 'enemies3' || key === 'effectsV2') group.priority = Math.min(group.priority, 2);
+    });
+    const manifestGroups = Array.from(manifestGroupsBySrc.values()).sort((a, b) => a.priority - b.priority || a.src.localeCompare(b.src));
+    const maxParallelLoads = Math.max(4, Math.min(8, Number((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 6) || 6));
+    let pending = manifestGroups.length;
+    let nextGroupIndex = 0;
+    let activeLoads = 0;
     const totalAssets = pending;
     let settled = false;
     function updateBattleAssetLoadProgress(currentKey) {
@@ -3548,43 +3563,56 @@ function initBattleAssets() {
         }
     }
 
-    function loadManifestEntryAt(index) {
-        if (index >= manifestEntries.length || battleAssets.loadTicket !== loadTicket || settled) return;
-        let [key, src] = manifestEntries[index];
-        let img = new Image();
-        if (!isLocalFileProtocol()) img.crossOrigin = 'anonymous';
-        img.onload = function() {
-            try {
-                if (key.startsWith('backdrop') || key.startsWith('bgAct')) {
-                    battleAssets.backdrops[key] = img;
-                } else {
-                    let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || (key === 'heroLegacy' && heroSheetHasTransparency(img));
-                    battleAssets.images[key] = img;
-                    if (!keepOriginalSheet) queueBattleSheetSanitization(key, img);
+    function storeLoadedBattleImage(key, image) {
+        try {
+            if (key.startsWith('backdrop') || key.startsWith('bgAct')) {
+                battleAssets.backdrops[key] = image;
+            } else {
+                let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
+                battleAssets.images[key] = image;
+                if (!keepOriginalSheet) queueBattleSheetSanitization(key, image);
+            }
+        } catch (error) {
+            battleAssets.images[key] = image;
+        }
+    }
+
+    function markBattleAssetGroupDone(group) {
+        pending--;
+        activeLoads = Math.max(0, activeLoads - 1);
+        updateBattleAssetLoadProgress(group.keys.join(','));
+        finishLoad();
+        pumpBattleAssetQueue();
+    }
+
+    function pumpBattleAssetQueue() {
+        if (settled || battleAssets.loadTicket !== loadTicket) return;
+        while (activeLoads < maxParallelLoads && nextGroupIndex < manifestGroups.length) {
+            let group = manifestGroups[nextGroupIndex++];
+            activeLoads++;
+            let img = new Image();
+            if (!isLocalFileProtocol()) img.crossOrigin = 'anonymous';
+            img.decoding = 'async';
+            img.loading = 'eager';
+            try { img.fetchPriority = group.priority <= 1 ? 'high' : 'auto'; } catch (e) {}
+            img.onload = function() {
+                group.keys.forEach(key => storeLoadedBattleImage(key, img));
+                markBattleAssetGroupDone(group);
+            };
+            img.onerror = function() {
+                let requiredKeys = group.keys.filter(key => !optionalManifestKeys.has(key));
+                if (requiredKeys.length > 0) {
+                    battleAssets.failed = true;
+                    requiredKeys.forEach(key => battleAssets.failedKeys.push(key));
+                    console.warn('battle asset load failed:', requiredKeys.join(','), group.src);
                 }
-            } catch (error) {
-                battleAssets.images[key] = img;
-            }
-            pending--;
-            updateBattleAssetLoadProgress(key);
-            finishLoad();
-            loadManifestEntryAt(index + 1);
-        };
-        img.onerror = function() {
-            if (!optionalManifestKeys.has(key)) {
-                battleAssets.failed = true;
-                battleAssets.failedKeys.push(key);
-                console.warn('battle asset load failed:', key, src);
-            }
-            pending--;
-            updateBattleAssetLoadProgress(key);
-            finishLoad();
-            loadManifestEntryAt(index + 1);
-        };
-        img.src = src;
+                markBattleAssetGroupDone(group);
+            };
+            img.src = group.src;
+        }
     }
     updateBattleAssetLoadProgress();
-    loadManifestEntryAt(0);
+    pumpBattleAssetQueue();
     return battleAssets.loadPromise;
 }
 
@@ -5314,9 +5342,12 @@ function liberateSelectedEncroachedItem() {
 
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
-    let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonCrit', 'summonCritDmg']);
-    let isSummonBaseWeapon = item && item.slot === '무기' && Array.isArray(item.baseStats)
-        && item.baseStats.some(stat => stat && ['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd'].includes(stat.id));
+    let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen']);
+    let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonHpPct', 'summonAspd', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonCap', 'summonResPen']);
+    let hasSummonBaseStat = item && Array.isArray(item.baseStats)
+        && item.baseStats.some(stat => stat && summonBaseStatIds.has(stat.id));
+    let isSummonBaseWeapon = item && item.slot === '무기' && hasSummonBaseStat;
+    let isSummonBaseRing = item && item.slot === '반지' && hasSummonBaseStat;
     let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발', '방패']);
     // 고유 아이템/장신구는 방어 타입 제한 대상에서 제외
     let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
@@ -5335,6 +5366,7 @@ function getAvailableMods(item) {
         if (statId === 'deflectChance' && !baseDefenseTypes.has('evasion')) return false;
         if (item.slot === '방패' && statId === 'spellGemLevel' && !baseDefenseTypes.has('energyShield')) return false;
         if (item.slot === '무기' && summonOnlyModIds.has(statId) && !isSummonBaseWeapon) return false;
+        if (item.slot === '반지' && summonOnlyModIds.has(statId) && !isSummonBaseRing) return false;
         return mod.slots.includes(item.slot) && !existing.has(statId);
     });
 }
@@ -5694,6 +5726,39 @@ const UNIQUE_FIXED_BASE_BY_NAME = {
     '지평선 분할자': 'tempest_pike',
     '영원': 'tempest_pike',
     '카옴의 심장': 'dread_plate',
+    '첫 계약': 'apprentice_familiar_wand',
+    '무리의 서약': 'spirit_call_wand',
+    '묘지종 사령홀': 'gravebind_scepter',
+    '칼날폭풍 지휘봉': 'ritual_familiar_staff',
+    '뭉툭한 사역 지팡이': 'astral_familiar_staff',
+    '효율적인 아콘 사역마 지팡이': 'archon_familiar_staff',
+    '새끼 사역마의 인장': 'familiar_loop',
+    '군주의 오른손 고리': 'overlord_ring',
+    '찌그러진 생존 방패': 'buckler_scrap',
+    '철벽의 심장판': 'tower_wall',
+    '접이식 방패': 'mirage_guard',
+    '별빛 응축기': 'starlit_focus',
+    '용비늘 방패': 'runic_scale_guard',
+    '성소의 맹세': 'relic_kite',
+    '달그림자': 'moon_barrier',
+    '아스트랄 수호성': 'astral_barrier',
+    '새벽 현자 후드': 'cloth_hood',
+    '맹세의 바르부트': 'gilded_barbute',
+    '사제의 왕관': 'void_crown',
+    '철면피': 'runic_bastion_helm',
+    '생존자의 외투': 'leather_vest',
+    '어느 성전사의 낡은 판금': 'templar_mail',
+    '별무리': 'astral_plate',
+    '맹독 외투': 'thornweave_coat',
+    '조류의 수호흉갑': 'tidal_vest',
+    '숨은 칼날 장갑': 'hide_gloves',
+    '보호장갑': 'ward_gauntlets',
+    '잔류전류': 'storm_touch',
+    '번개 강타': 'stormbind_mitts',
+    '헝겊 순례자': 'rag_boots',
+    '추적자': 'phase_treader',
+    '명사수의 경보': 'deadeye_boots',
+    '태양의 불길': 'sunstride_boots',
 };
 
 function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {

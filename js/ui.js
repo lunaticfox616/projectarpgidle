@@ -104,6 +104,31 @@ function getUiEnemyDamageAilmentDps(ail, stats) {
     return Math.max(0, Math.floor(getUiStoredAilmentHitDamage(ail) * 0.9));
 }
 
+function getUiPlayerShockTakenDamageIncreasePct(power, stats) {
+    let provider = getUiGlobalFunction('getPlayerShockTakenDamageIncreasePct');
+    if (provider) {
+        try { return Number(provider(stats || {}, power)) || 0; } catch (e) {}
+    }
+    let reduction = Math.max(0, Math.min(0.95, Number(stats && stats.shockEffectReducePct || 0) / 100));
+    let value = 22 * (1 - reduction);
+    return (stats && stats.uniqueShockInvertTaken) ? -value : value;
+}
+
+function getUiEnemyShockTakenDamageIncreasePct(power, stats) {
+    let provider = getUiGlobalFunction('getEnemyShockTakenDamageIncreasePct');
+    if (provider) {
+        try { return Math.max(0, Number(provider({ type: 'shock', time: 1, power: power }, stats || {})) || 0); } catch (e) {}
+    }
+    let base = Math.min(35, 8 + Math.max(0, Number(power || 0)) * 12);
+    let bonus = Math.max(0, Number(stats && stats.shockEffectBonusPct) || 0);
+    return Math.max(0, Math.min(50, base * (1 + bonus / 100)));
+}
+
+function formatUiTakenDamageShockLine(value) {
+    let pct = Math.abs(Number(value) || 0).toFixed(1).replace(/\.0$/, '');
+    return value < 0 ? `받는 피해 감소: ${pct}%` : `받는 피해 증가: ${pct}%`;
+}
+
 function getUiSkillTargets(stats) {
     let provider = getUiGlobalFunction('getSkillTargets');
     if (provider) {
@@ -1947,8 +1972,15 @@ function getUniqueCodexProgress() {
     return { stored: stored, total: keys.size };
 }
 
+function getCodexBonusPctFromCount(storedCount) {
+    let count = Math.max(0, Math.floor(Number(storedCount) || 0));
+    let preSoftCap = Math.min(50, count) * 0.2;
+    let postSoftCap = Math.max(0, count - 50) * 0.1;
+    return preSoftCap + postSoftCap;
+}
+
 function getCodexBonusPct() {
-    return getUniqueCodexProgress().stored * 0.2;
+    return getCodexBonusPctFromCount(getUniqueCodexProgress().stored);
 }
 
 function tryGrantCodexCompletionReward() {
@@ -2036,9 +2068,9 @@ function renderUniqueCodexUI() {
     let keySet = new Set(pool.map(entry => `${entry.slots[0]}|${entry.name}`));
     let storedCount = Object.keys(game.uniqueCodex).filter(key => !!game.uniqueCodex[key] && keySet.has(key)).length;
     let progress = { stored: storedCount, total: keySet.size };
-    let bonus = progress.stored * 0.2;
+    let bonus = getCodexBonusPctFromCount(progress.stored);
     let rewardState = progress.stored >= progress.total ? '완성' : '미완성';
-    summary.innerHTML = `[${realmOnly ? '계(Realm) 도감' : '기존 도감'}] 등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% · 완성 상태: <strong>${rewardState}</strong>`;
+    summary.innerHTML = `[${realmOnly ? '계(Realm) 도감' : '기존 도감'}] 등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% <span style="color:#9fb4d1;">(50개까지 0.2%, 이후 0.1%)</span> · 완성 상태: <strong>${rewardState}</strong>`;
     let bySlot = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
     let lines = [];
     bySlot.forEach(slot => {
@@ -2672,7 +2704,11 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
         let basis = source > 0 ? `받은 피해 ${Math.floor(source)} 기준` : '최대 생명력 기반';
         detail = `초당 피해: 약 ${dps} <span style="color:#9fb4d1;">(${basis})</span>`;
     } else if (type === 'chill') detail = `공격 속도 약 32% 감소`;
-    else if (type === 'shock') detail = `물리 피해 감소 -22% (최저 -40%)`; // dr은 물리 피해 감소 전용
+    else if (type === 'shock') {
+        let tooltipStats = cachedTooltipStats || getUiPlayerStats(null);
+        let shockTakenIncrease = getUiPlayerShockTakenDamageIncreasePct(p, tooltipStats);
+        detail = formatUiTakenDamageShockLine(shockTakenIncrease);
+    }
     else if (type === 'freeze') detail = '행동 불가';
     let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ff7f7f');
@@ -2702,7 +2738,11 @@ function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, 
         detail = `총 피해량: 약 ${totalDamage} <span style="color:#9fb4d1;">(초당 피해: 약 ${dps}, 화염 부패 지속 피해)</span><br><span style="color:#ffb48a;">점화 피해 증폭: 생명력 100당 8%</span>`;
     }
     else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
-    else if (type === 'shock') detail = '받는 피해 증가 (최대 생명력 대비 타격 비율 반영)';
+    else if (type === 'shock') {
+        let tooltipStats = cachedTooltipStats || getUiPlayerStats(null);
+        let shockTakenIncrease = getUiEnemyShockTakenDamageIncreasePct(p, tooltipStats);
+        detail = `${formatUiTakenDamageShockLine(shockTakenIncrease)} <span style="color:#9fb4d1;">(최대 생명력 대비 타격 비율 반영)</span>`;
+    }
     else if (type === 'freeze') detail = '행동 불가 (최대 생명력 대비 타격 비율 반영)';
     let powerLine = isUiDamageAilmentType(type) ? '' : `<div class="tooltip-line">위력: ${p.toFixed(2)}</div>`;
     let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(remainSec)}초</div>${powerLine}<div class="tooltip-line">${detail}</div>`;
