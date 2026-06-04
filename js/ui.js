@@ -5292,10 +5292,9 @@ function openCraftItemPickerOverlay(kind) {
             });
         }).join('')}</div>`;
     } else {
-        let rows = (game.inventory || []).map((item, idx) => getCraftPickerCardHtml(item, {
+        let rows = (game.inventory || []).map(item => getCraftPickerCardHtml(item, {
             selected: !currentIsEquip && currentRef === item.id,
-            onclick: `selectCraftPickerInventoryItem(${item.id})`,
-            tooltip: `onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"`
+            onclick: `selectCraftPickerInventoryItem(${item.id})`
         })).join('');
         bodyHtml = rows ? `<div class="craft-picker-grid">${rows}</div>` : `<div class="deathlog-empty">인벤토리에 제작할 장비가 없습니다.</div>`;
     }
