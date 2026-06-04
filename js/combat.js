@@ -532,16 +532,22 @@ function runColonyDefenseTick(pStats) {
 
 function getActiveSummonGemDefs() {
     let owned = Array.isArray(game.skills) ? game.skills : [];
+    game.summonSkillCounts = (game.summonSkillCounts && typeof game.summonSkillCounts === 'object') ? game.summonSkillCounts : {};
     let equippedSummonAttack = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
-    let attackSet = new Set(equippedSummonAttack.filter(name => owned.includes(name)));
-    let defs = owned
-        .map(name => ({ name, db: SKILL_DB[name], source: 'skill' }))
-        .filter(row => {
-            if (!row.db || !Array.isArray(row.db.tags) || !row.db.tags.includes('summon_attack')) return false;
-            return attackSet.has(row.name);
-        });
+    let attackNames = Array.from(new Set(equippedSummonAttack.filter(name => {
+        let db = SKILL_DB[name];
+        return owned.includes(name) && db && Array.isArray(db.tags) && db.tags.includes('summon_attack');
+    })));
+    let defs = [];
+    attackNames.forEach(name => {
+        let count = Math.max(1, Math.floor(Number(game.summonSkillCounts[name]) || 1));
+        game.summonSkillCounts[name] = count;
+        for (let i = 0; i < count; i++) defs.push({ name, db: SKILL_DB[name], source: 'skill', duplicateIndex: i });
+    });
+    game.equippedSummonSkills = attackNames;
+    Object.keys(game.summonSkillCounts).forEach(name => { if (!attackNames.includes(name)) delete game.summonSkillCounts[name]; });
     let supportSummons = (game.equippedSupports || [])
-        .map(name => ({ name, db: SUPPORT_GEM_DB[name], source: 'support' }))
+        .map(name => ({ name, db: SUPPORT_GEM_DB[name], source: 'support', duplicateIndex: 0 }))
         .filter(row => row.db && Array.isArray(row.db.tags) && row.db.tags.includes('summon_guard'));
     return supportSummons.concat(defs);
 }
@@ -566,15 +572,7 @@ function getSummonRuntimeCap(pStats) {
 function buildActiveSummonRuntimeDefs(pStats) {
     let maxCap = getSummonRuntimeCap(pStats);
     let defs = getActiveSummonGemDefs();
-    let activeDefs = defs.slice(0, maxCap).map((row, idx) => ({ ...row, slotIdx: idx, duplicateIndex: 0 }));
-    let duplicatePool = defs.filter(row => row && row.db && Array.isArray(row.db.tags) && row.db.tags.includes('summon_attack'));
-    let cursor = 0;
-    while (activeDefs.length < maxCap && duplicatePool.length > 0) {
-        let src = duplicatePool[cursor % duplicatePool.length];
-        activeDefs.push({ ...src, slotIdx: activeDefs.length, duplicateIndex: Math.floor(cursor / duplicatePool.length) + 1 });
-        cursor++;
-    }
-    return activeDefs.slice(0, maxCap);
+    return defs.slice(0, maxCap).map((row, idx) => ({ ...row, slotIdx: idx, duplicateIndex: row.duplicateIndex || 0 }));
 }
 
 function getSummonGemLevel(gemName, source, pStats) {
