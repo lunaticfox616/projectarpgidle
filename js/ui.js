@@ -271,7 +271,7 @@ function switchTab(tabId) {
             activeBtn.scrollIntoView();
         }
     }
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
     updateStaticUI();
@@ -599,6 +599,78 @@ function getColonyWardValueText(ward) {
     return `${getColonyWardStatLabel(ward.stat)} +${formatValue(ward.stat, Number(ward.val || 0))}`;
 }
 
+function getColonyWardSearchText(ward) {
+    if (!ward) return '';
+    return `${ward.name || ''} ${ward.stat || ''} ${getColonyWardStatLabel(ward.stat)} ${getColonyWardValueText(ward)} ${ward.val || ''}`;
+}
+
+function getColonyWardSearchFilterState() {
+    game.settings = game.settings || {};
+    game.settings.searchFilters = (game.settings.searchFilters && typeof game.settings.searchFilters === 'object') ? game.settings.searchFilters : {};
+    game.settings.searchFilters.colonyWard = String(game.settings.searchFilters.colonyWard || '');
+    return game.settings.searchFilters;
+}
+
+function matchColonyWardSearchQuery(raw, query) {
+    const q = String(query || '').trim().toLowerCase();
+    if (!q) return true;
+    const text = String(raw || '').toLowerCase();
+    return q.split(/\s+/).filter(Boolean).every(tok => text.includes(tok));
+}
+
+function highlightColonyWardSearchText(text, query) {
+    const raw = String(text || '');
+    const tokens = String(query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length <= 0) return escapeHTML(raw);
+    let ranges = [];
+    const lower = raw.toLowerCase();
+    tokens.forEach(token => {
+        let from = 0;
+        while (from < lower.length) {
+            let idx = lower.indexOf(token, from);
+            if (idx < 0) break;
+            ranges.push([idx, idx + token.length]);
+            from = idx + Math.max(1, token.length);
+        }
+    });
+    if (ranges.length <= 0) return escapeHTML(raw);
+    ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    let merged = [];
+    ranges.forEach(range => {
+        let last = merged[merged.length - 1];
+        if (!last || range[0] > last[1]) merged.push(range.slice());
+        else last[1] = Math.max(last[1], range[1]);
+    });
+    let out = '';
+    let cursor = 0;
+    merged.forEach(([start, end]) => {
+        if (start > cursor) out += escapeHTML(raw.slice(cursor, start));
+        out += `<mark style="background:#365a2b;color:#dfffe8;padding:0 1px;border-radius:2px;">${escapeHTML(raw.slice(start, end))}</mark>`;
+        cursor = end;
+    });
+    if (cursor < raw.length) out += escapeHTML(raw.slice(cursor));
+    return out;
+}
+
+function getColonyWardSearchQuery() {
+    return getColonyWardSearchFilterState().colonyWard;
+}
+
+function updateColonyWardSearchFilter(value) {
+    getColonyWardSearchFilterState().colonyWard = String(value || '');
+    if (typeof updateStaticUI === 'function') updateStaticUI();
+}
+
+function resetColonyWardSearchFilter() {
+    updateColonyWardSearchFilter('');
+}
+
+function getColonyWardDismantleReward(ward) {
+    if (!ward) return 1;
+    let value = Math.abs(Number(ward.val || 0));
+    return Math.max(1, Math.min(6, 1 + Math.floor(value / 40)));
+}
+
 function buildColonyWardTooltipHtml(ward) {
     if (!ward) return '<div class="tooltip-title">빈 액막이 슬롯</div>';
     return `<div class="tooltip-title">${escapeHTML(ward.name || '군락지 액막이 부적')}</div>
@@ -627,6 +699,7 @@ function renderColonyWardPanel(targetId) {
     if (!panel) return;
     let open = (game.season || 1) >= 15;
     let c = normalizeColonyWardState();
+    let wardQuery = getColonyWardSearchQuery();
     let slotMax = Math.max(1, Math.min(COLONY_WARD_MAX_SLOTS, Math.floor(c.wardSlots || 1)));
     let nextSlot = slotMax + 1;
     let nextCost = nextSlot <= COLONY_WARD_MAX_SLOTS ? getColonyWardSlotCost(nextSlot) : null;
@@ -640,13 +713,15 @@ function renderColonyWardPanel(targetId) {
         let hover = ward ? ` data-info-tooltip-anchor="1" onmouseenter="showColonyWardTooltip(event,'equipped',${i})" onmousemove="showColonyWardTooltip(event,'equipped',${i})" onmouseleave="hideInfoTooltip()"` : '';
         return `<div class="colony-ward-slot ${unlocked ? 'unlocked' : 'locked'}"${hover}>${inner}</div>`;
     }).join('');
-    let inv = c.wardInventory.length > 0 ? c.wardInventory.map(w => `<button class="colony-ward-chip" data-info-tooltip-anchor="1" onmouseenter="showColonyWardTooltip(event,'inventory','${w.id}')" onmousemove="showColonyWardTooltip(event,'inventory','${w.id}')" onmouseleave="hideInfoTooltip()" onclick="equipColonyWardById('${w.id}')"><strong>${escapeHTML(w.name || '액막이')}</strong><span>${escapeHTML(getColonyWardValueText(w))}</span></button>`).join('') : '<div style="color:#6f8f7a;">보유한 액막이 부적이 없습니다.</div>';
+    let filteredInventory = c.wardInventory.filter(w => matchColonyWardSearchQuery(getColonyWardSearchText(w), wardQuery));
+    let inv = c.wardInventory.length > 0 ? (filteredInventory.length > 0 ? filteredInventory.map(w => `<div class="colony-ward-chip" data-info-tooltip-anchor="1" onmouseenter="showColonyWardTooltip(event,'inventory','${w.id}')" onmousemove="showColonyWardTooltip(event,'inventory','${w.id}')" onmouseleave="hideInfoTooltip()"><button type="button" onclick="equipColonyWardById('${w.id}')"><strong>${highlightColonyWardSearchText(w.name || '액막이', wardQuery)}</strong><span>${highlightColonyWardSearchText(getColonyWardValueText(w), wardQuery)}</span></button><button type="button" class="colony-ward-dismantle" onclick="dismantleColonyWardById('${w.id}')">해체 +${getColonyWardDismantleReward(w)}</button></div>`).join('') : '<div style="color:#6f8f7a;">검색 조건에 맞는 액막이가 없습니다.</div>') : '<div style="color:#6f8f7a;">보유한 액막이 부적이 없습니다.</div>';
+    let wardTools = `<button onclick="bulkDismantleColonyWardsBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkDismantleColonyWardsBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">미검색 항목 해체</button>`;
     panel.innerHTML = `<div class="colony-ward-panel">
         <div class="colony-ward-hero"><div><div class="colony-ward-kicker">Colony Ward Charm</div><div class="colony-ward-title">군락지 액막이 부적</div><div class="colony-ward-desc">군락지에서 얻는 방어형 부적입니다. 슬롯은 처음 1/4에서 시작하며, 군락지 재화를 사용해 4/4까지 해금합니다.</div></div><div class="colony-ward-currency">군락지 흔적 <b>${game.currencies.colonyTrace || 0}</b><br>군락지 편린 <b>${game.currencies.colonyShard || 0}</b></div></div>
         ${open ? '' : '<div class="colony-ward-locked">루프 15 이후 군락지와 액막이 부적이 해금됩니다.</div>'}
         <div class="colony-ward-actions"><span>해금 슬롯 <b>${slotMax}/${COLONY_WARD_MAX_SLOTS}</b></span><button onclick="unlockColonyWardSlot()" ${!open || slotMax >= COLONY_WARD_MAX_SLOTS || !canPayColonyWardCost(nextCost) ? 'disabled' : ''}>다음 슬롯 확장</button><span class="colony-ward-cost">${slotMax >= COLONY_WARD_MAX_SLOTS ? '모든 슬롯 해금 완료' : `다음 비용: ${formatColonyWardCost(nextCost)}`}</span></div>
         <div class="colony-ward-grid">${slots}</div>
-        <div class="colony-ward-section"><div class="colony-ward-section-title">보유 액막이</div><div class="colony-ward-inventory">${inv}</div></div>
+        <div class="colony-ward-section"><div class="colony-ward-section-title">보유 액막이 <span style="color:#8fbf9b; font-weight:600;">(${filteredInventory.length}/${c.wardInventory.length})</span></div><div class="search-filter-panel colony-ward-search"><input class="search-filter-input" data-search-key="colonyWard" placeholder="액막이 옵션 검색 (이름/옵션/수치)" value="${escapeHTML(wardQuery)}" oninput="updateColonyWardSearchFilter(this.value)"><div class="search-action-row"><button onclick="resetColonyWardSearchFilter()">검색어 리셋</button>${wardTools}</div></div><div class="colony-ward-inventory">${inv}</div></div>
         <div class="colony-ward-section"><div class="colony-ward-section-title">적용 효과 합계</div><div class="colony-ward-total">${totalRows.length ? totalRows.map(row => `<div>• <strong>${row}</strong></div>`).join('') : '<span style="color:#8da99a;">장착된 액막이가 없습니다.</span>'}</div></div>
     </div>`;
 }
@@ -722,6 +797,42 @@ function generateColonyWard(){
     let val = pick.min + Math.floor(Math.random() * (pick.max-pick.min+1));
     return { id: `colony_ward_${Date.now()}_${Math.floor(Math.random()*99999)}`, stat: pick.id, val: val, name: `액막이 부적 · ${pick.label}${val}` };
 }
+function dismantleColonyWardById(id) {
+    if (!assertBuildEditable()) return;
+    let c = normalizeColonyWardState();
+    let idx = c.wardInventory.findIndex(w => w && w.id === id);
+    if (idx < 0) return addLog('해체할 액막이 부적을 찾을 수 없습니다.', 'attack-monster');
+    let ward = c.wardInventory[idx];
+    let gain = getColonyWardDismantleReward(ward);
+    c.wardInventory.splice(idx, 1);
+    game.currencies.colonyShard = Math.max(0, Math.floor(game.currencies.colonyShard || 0)) + gain;
+    addLog(`🛡️ 액막이 부적 해체: ${ward.name || '액막이'} · 군락지 편린 +${gain}`, 'loot-normal');
+    updateStaticUI();
+}
+
+function bulkDismantleColonyWardsBySearch(salvageUnmatched) {
+    if (!assertBuildEditable()) return;
+    let c = normalizeColonyWardState();
+    let wardQuery = getColonyWardSearchQuery();
+    let targets = [];
+    (c.wardInventory || []).forEach((ward, idx) => {
+        let matched = matchColonyWardSearchQuery(getColonyWardSearchText(ward), wardQuery);
+        if ((salvageUnmatched ? !matched : matched)) targets.push({ ward, idx });
+    });
+    if (targets.length <= 0) return addLog('해체 대상 액막이 부적이 없습니다.', 'attack-monster');
+    if (!confirm(`액막이 부적 ${targets.length}개를 해체할까요? (장착 중인 액막이는 유지됩니다.)`)) return;
+    let targetIds = new Set(targets.map(row => row.ward && row.ward.id).filter(Boolean));
+    let gained = 0;
+    c.wardInventory = (c.wardInventory || []).filter(ward => {
+        if (!ward || !targetIds.has(ward.id)) return true;
+        gained += getColonyWardDismantleReward(ward);
+        return false;
+    });
+    game.currencies.colonyShard = Math.max(0, Math.floor(game.currencies.colonyShard || 0)) + gained;
+    addLog(`🛡️ 액막이 부적 ${targets.length}개 해체 완료 · 군락지 편린 +${gained}`, 'loot-normal');
+    updateStaticUI();
+}
+
 function equipColonyWardById(id){
     let c = normalizeColonyWardState();
     let idx = c.wardInventory.findIndex(w => w && w.id === id); if (idx < 0) return;
@@ -4303,11 +4414,15 @@ function performUpdateStaticUI() {
         }
     }
     renderStarWedgePanel();
+    if (typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
+    if (typeof renderCoreCubePanel === 'function') renderCoreCubePanel();
 
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'map', 'traits', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
     let jewelTabBtn = document.getElementById('btn-tab-jewel');
     if (jewelTabBtn) jewelTabBtn.style.display = game.unlocks.jewel ? 'flex' : 'none';
+    let cubeTabBtn = document.getElementById('btn-tab-cube');
+    if (cubeTabBtn) cubeTabBtn.style.display = (game.unlocks && game.unlocks.cube) || (typeof isCoreCubeUnlocked === 'function' && isCoreCubeUnlocked()) ? 'flex' : 'none';
     let battleBtn = document.getElementById('btn-tab-battle');
     if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'flex' : 'none';
     let summarySkillTreeBtn = document.getElementById('btn-summary-tab-char');
@@ -4535,6 +4650,7 @@ function getSearchFilterState() {
     d.equip = String(d.equip || '');
     d.jewel = String(d.jewel || '');
     d.talisman = String(d.talisman || '');
+    d.colonyWard = String(d.colonyWard || '');
     d.skill = String(d.skill || '');
     d.support = String(d.support || '');
     return d;
@@ -4668,7 +4784,7 @@ function buildJewelRangeTooltipHtml(jewel) {
     return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
 }
 
-safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor, updateSearchFilter, resetSearchFilter, bulkSalvageEquipBySearch, bulkSalvageJewelsBySearch, bulkSalvageTalismansBySearch });
+safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor, updateSearchFilter, resetSearchFilter, bulkSalvageEquipBySearch, bulkSalvageJewelsBySearch, bulkSalvageTalismansBySearch, bulkDismantleColonyWardsBySearch, dismantleColonyWardById, updateColonyWardSearchFilter, resetColonyWardSearchFilter });
 
 
 function showSocketedJewelTooltip(event, socketType, socketIdx) {
@@ -6344,6 +6460,7 @@ function mergeDefaults(save) {
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
     merged.unlocks.jewel = !!merged.unlocks.jewel;
+    merged.unlocks.cube = !!merged.unlocks.cube;
     if (!save.currencies && save.materials) {
         merged.currencies.transmute += Math.floor(save.materials / 2);
         merged.currencies.augment += Math.floor(save.materials / 4);
@@ -6505,6 +6622,8 @@ function mergeDefaults(save) {
     merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
     merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-underworld'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
+    merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
+    if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
     merged.gemFoldInactiveSupport = !!merged.gemFoldInactiveSupport;
     if (merged.gemFoldInactive) {
@@ -8664,6 +8783,7 @@ function syncDerivedTabUnlock(tabId) {
         game.unlocks.jewel = true;
         game.noti.jewel = true;
     }
+    if (tabId === 'tab-cube' && typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
 }
 
 function checkUnlocks() {
@@ -8705,6 +8825,7 @@ function checkUnlocks() {
         game.noti.items = true;
         queueTutorialNotice('unlock_market', '거래소 개방', '액트 5를 클리어해 거래소가 열렸습니다.\n장비/제작 탭의 거래소에서 재화 교환과 특수 서비스를 이용할 수 있습니다.', 'tab-items', 'item-tab-market');
     }
+    if (typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
     if (game.season > 1 && !u.season) {
         u.season = true;
         game.noti.season = true;
@@ -9026,13 +9147,14 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';
     if (tabId === 'tab-codex') return '첫 고유 아이템을 획득하면 도감 탭이 열립니다.';
     if (tabId === 'tab-talisman') return '봉인편린을 획득하면 부적 탭이 열립니다.';
+    if (tabId === 'tab-cube') return '지하계 10층을 클리어하고 루프 20에 도달하면 큐브 탭이 열립니다.';
     if (tabId === 'tab-map') return '새 사냥터를 발견하면 지도 탭이 열립니다.';
     if (tabId === 'tab-traits') return '전직 시련을 통과하면 직업전직 탭이 열립니다.';
     return '아직 해금되지 않은 탭입니다.';
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, askRefundSeasonNode, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, equipColonyWardById, unequipColonyWard, unlockColonyWardSlot, cloudCompactAndPushNow });
+safeExposeGlobals({ checkUnlocks, buySeason, askRefundSeasonNode, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, equipColonyWardById, unequipColonyWard, unlockColonyWardSlot, dismantleColonyWardById, bulkDismantleColonyWardsBySearch, updateColonyWardSearchFilter, resetColonyWardSearchFilter, cloudCompactAndPushNow });
 
 
 function pickEquippedSlotByPrompt(validSlots){

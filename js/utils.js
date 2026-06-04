@@ -269,7 +269,28 @@ function getStatName(statId) {
         dotTakenDamageReducePct: '받는 지속 피해 감소(%)',
         takenDamageReduceWhen2EnemiesPct: '적 2명 이상일 때 받는 피해 감소(%)',
         takenDamageReduceWhen1EnemyPct: '적 1명일 때 받는 피해 감소(%)',
-        shockEffect: '감전 효과(%)'
+        shockEffect: '감전 효과(%)',
+        physFlatTakenReduce: '받는 물리 피해 감소 flat',
+        fireFlatTakenReduce: '받는 화염 피해 감소 flat',
+        coldFlatTakenReduce: '받는 냉기 피해 감소 flat',
+        lightFlatTakenReduce: '받는 번개 피해 감소 flat',
+        chaosFlatTakenReduce: '받는 카오스 피해 감소 flat',
+        allFlatTakenReduce: '받는 피해 감소 flat',
+        physTakenAsFire: '받는 물리 피해의 일부를 화염 피해로 받음(%)',
+        physTakenAsCold: '받는 물리 피해의 일부를 냉기 피해로 받음(%)',
+        physTakenAsLight: '받는 물리 피해의 일부를 번개 피해로 받음(%)',
+        physTakenAsChaos: '받는 물리 피해의 일부를 카오스 피해로 받음(%)',
+        addedFireDamagePct: '총 피해의 일부만큼 화염 추가 피해(%)',
+        addedColdDamagePct: '총 피해의 일부만큼 냉기 추가 피해(%)',
+        addedLightDamagePct: '총 피해의 일부만큼 번개 추가 피해(%)',
+        addedChaosDamagePct: '총 피해의 일부만큼 카오스 추가 피해(%)',
+        addedPhysDamagePct: '총 피해의 일부만큼 물리 추가 피해(%)',
+        fireFlatDmg: '화염 기본 피해',
+        coldFlatDmg: '냉기 기본 피해',
+        lightFlatDmg: '번개 기본 피해',
+        chaosFlatDmg: '카오스 기본 피해',
+        doubleDamageChance: '확률로 2배의 피해를 줌(%)',
+        slamEchoDamagePct: '여진 피해량(%)'
     };
     return names[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId;
 }
@@ -291,7 +312,11 @@ function createEmptyStatBucket() {
     return {
         flatDmg: 0, weaponFlatDmgPct: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, regenFlat: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResF: 0, maxResC: 0, maxResL: 0, maxResChaos: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
-        minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0,
+        minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0, slamEchoDamagePct: 0, doubleDamageChance: 0, blockChanceMax: 0,
+        physFlatTakenReduce: 0, fireFlatTakenReduce: 0, coldFlatTakenReduce: 0, lightFlatTakenReduce: 0, chaosFlatTakenReduce: 0, allFlatTakenReduce: 0,
+        physTakenAsFire: 0, physTakenAsCold: 0, physTakenAsLight: 0, physTakenAsChaos: 0,
+        addedFireDamagePct: 0, addedColdDamagePct: 0, addedLightDamagePct: 0, addedChaosDamagePct: 0, addedPhysDamagePct: 0,
+        fireFlatDmg: 0, coldFlatDmg: 0, lightFlatDmg: 0, chaosFlatDmg: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0, deflectChance: 0, deflectDamageReduce: 0, blockChance: 0, blockChancePct: 0,
@@ -423,6 +448,28 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'spellCritDmg') bucket.critDmg += value;
     else if (statId === 'spellLeech') bucket.leech += value;
     else if (statId === 'shockEffect') bucket.shockEffect += value;
+    else if (statId === 'blockChanceMax') bucket.blockChanceMax += value;
+    else if (statId === 'slamEchoDamagePct') bucket.slamEchoDamagePct += value;
+    else if (statId === 'doubleDamageChance') bucket.doubleDamageChance += value;
+    else if (statId === 'physFlatTakenReduce') bucket.physFlatTakenReduce += value;
+    else if (statId === 'fireFlatTakenReduce') bucket.fireFlatTakenReduce += value;
+    else if (statId === 'coldFlatTakenReduce') bucket.coldFlatTakenReduce += value;
+    else if (statId === 'lightFlatTakenReduce') bucket.lightFlatTakenReduce += value;
+    else if (statId === 'chaosFlatTakenReduce') bucket.chaosFlatTakenReduce += value;
+    else if (statId === 'allFlatTakenReduce') bucket.allFlatTakenReduce += value;
+    else if (statId === 'physTakenAsFire') bucket.physTakenAsFire += value;
+    else if (statId === 'physTakenAsCold') bucket.physTakenAsCold += value;
+    else if (statId === 'physTakenAsLight') bucket.physTakenAsLight += value;
+    else if (statId === 'physTakenAsChaos') bucket.physTakenAsChaos += value;
+    else if (statId === 'addedFireDamagePct') bucket.addedFireDamagePct += value;
+    else if (statId === 'addedColdDamagePct') bucket.addedColdDamagePct += value;
+    else if (statId === 'addedLightDamagePct') bucket.addedLightDamagePct += value;
+    else if (statId === 'addedChaosDamagePct') bucket.addedChaosDamagePct += value;
+    else if (statId === 'addedPhysDamagePct') bucket.addedPhysDamagePct += value;
+    else if (statId === 'fireFlatDmg') bucket.fireFlatDmg += value;
+    else if (statId === 'coldFlatDmg') bucket.coldFlatDmg += value;
+    else if (statId === 'lightFlatDmg') bucket.lightFlatDmg += value;
+    else if (statId === 'chaosFlatDmg') bucket.chaosFlatDmg += value;
 
     else if (statId === 'summonFlatDmg') bucket.summonFlatDmg += value;
     else if (statId === 'summonPctDmg') bucket.summonPctDmg += value;

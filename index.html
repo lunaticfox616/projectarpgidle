@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/ui-premium.css">
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="css/cosmos-atlas.css">
+    <link rel="stylesheet" href="css/core-cube.css?v=20260604-core-cube-visual1">
 </head>
 <body>
 
@@ -245,6 +246,7 @@
         <div class="tab-btn" id="btn-tab-journal" onclick="switchTab('tab-journal')" style="display: flex;">저널</div>
         <div class="tab-btn" id="btn-tab-codex" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-talisman" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-cube" onclick="switchTab('tab-cube')" style="display:none;">큐브 <span id="noti-cube" class="noti-dot"></span></div>
         <div class="tab-btn active" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: flex;">설정</div>
     </div>
     <div class="tab-header tab-header-bottom" id="tab-header-bottom"></div>
@@ -760,6 +762,12 @@
         <div id="ui-codex-summary" style="margin-bottom:10px; color:#c3d9ef;"></div>
         <div id="ui-codex-list" class="inventory-grid"></div>
     </div>
+    <div id="tab-cube" class="tab-content">
+        <h2>🧊 코어 큐브</h2>
+        <div style="color:#9fb6d8; margin-bottom:10px;">흐릿한 45면체를 해석해 1~45번 동력원을 얻고, 큐브 6면에 붙여 옵션 4줄을 발현합니다.</div>
+        <div id="ui-core-cube-panel"></div>
+    </div>
+
     <div id="tab-journal" class="tab-content">
         <h2>📓 저널</h2>
         <div style="color:#8fa7be; margin-bottom:10px;">액트를 클리어할 때마다 대화 기록이 해금됩니다.</div>
@@ -977,6 +985,7 @@
 <script defer src="js/items.js?v=20260518-map-progress4"></script>
 <script defer src="js/skills.js?v=20260531-starwedge-fix1"></script>
 <script defer src="js/passives.js?v=20260531-starwedge-fix1"></script>
+<script defer src="js/core-cube.js?v=20260604-core-cube-visual1"></script>
 <script defer src="js/combat.js?v=20260602-ailment-source1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260513-gemfix1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260526-highlight-hotfix1"></script>
