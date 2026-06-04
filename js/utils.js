@@ -215,6 +215,7 @@ function getStatName(statId) {
         igniteChance: '점화 확률(%)',
         chillChance: '냉각 확률(%)',
         freezeChance: '동결 확률(%)',
+        shockChance: '감전 확률(%)',
         poisonChance: '중독 확률(%)',
         bleedChance: '출혈 확률(%)',
         aspd: '공격 속도(%)',
@@ -267,6 +268,8 @@ function getStatName(statId) {
         spellLeech: '주문 흡혈(%)',
         shockEffectReducePct: '감전 효과 감소(%)',
         dotTakenDamageReducePct: '받는 지속 피해 감소(%)',
+        genericTakenDamageReducePct: '받는 피해 감소(%)',
+        shockedEnemyHitDamageMorePct: '감전된 적 타격 피해 증가(%)',
         takenDamageReduceWhen2EnemiesPct: '적 2명 이상일 때 받는 피해 감소(%)',
         takenDamageReduceWhen1EnemyPct: '적 1명일 때 받는 피해 감소(%)',
         shockEffect: '감전 효과(%)',
@@ -322,8 +325,8 @@ function createEmptyStatBucket() {
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0, deflectChance: 0, deflectDamageReduce: 0, blockChance: 0, blockChancePct: 0,
         ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
-        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, igniteDamageMultiplierPct: 0, poisonDamageMultiplierPct: 0, accuracyBonusPct: 0, shockEffect: 0,
-        summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0
+        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, genericTakenDamageReducePct: 0, shockedEnemyHitDamageMorePct: 0, igniteDamageMultiplierPct: 0, poisonDamageMultiplierPct: 0, accuracyBonusPct: 0, shockEffect: 0,
+        summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0
     };
 }
 function addStatToBucket(bucket, statId, value) {
@@ -346,6 +349,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'igniteChance') bucket.igniteChance += value;
     else if (statId === 'chillChance') bucket.chillChance += value;
     else if (statId === 'freezeChance') bucket.freezeChance += value;
+    else if (statId === 'shockChance') bucket.shockChance += value;
     else if (statId === 'poisonChance') bucket.poisonChance += value;
     else if (statId === 'bleedChance') bucket.bleedChance += value;
     else if (statId === 'spellFlatDmg') bucket.spellFlatDmg += value;
@@ -404,6 +408,8 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'dotTakenDamageReducePct') bucket.dotTakenDamageReducePct += value;
     else if (statId === 'takenDamageReduceWhen2EnemiesPct') bucket.takenDamageReduceWhen2EnemiesPct += value;
     else if (statId === 'takenDamageReduceWhen1EnemyPct') bucket.takenDamageReduceWhen1EnemyPct += value;
+    else if (statId === 'genericTakenDamageReducePct') bucket.genericTakenDamageReducePct += value;
+    else if (statId === 'shockedEnemyHitDamageMorePct') bucket.shockedEnemyHitDamageMorePct += value;
     else if (statId === 'igniteDamageMultiplierPct') bucket.igniteDamageMultiplierPct += value;
     else if (statId === 'poisonDamageMultiplierPct') bucket.poisonDamageMultiplierPct += value;
     else if (statId === 'accuracyBonusPct') bucket.accuracyBonusPct += value;
@@ -416,6 +422,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'summonCap') bucket.summonCap += value;
     else if (statId === 'summonEfficiency') bucket.summonEfficiency += value;
     else if (statId === 'summonGuardRedirectPct') bucket.summonGuardRedirectPct += value;
+    else if (statId === 'summonResPen') bucket.summonResPen += value;
 
     else if (statId === 'moveEvasion') { bucket.move += value; bucket.evasionPct += value; }
     else if (statId === 'hpArmor') { bucket.flatHp += value; bucket.armor += value * 2; }
@@ -480,6 +487,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'summonCap') bucket.summonCap += value;
     else if (statId === 'summonEfficiency') bucket.summonEfficiency += value;
     else if (statId === 'summonGuardRedirectPct') bucket.summonGuardRedirectPct += value;
+    else if (statId === 'summonResPen') bucket.summonResPen += value;
 }
 
 function applyStatsToBucket(bucket, stats) {
@@ -549,9 +557,171 @@ let previewPassiveNodes = new Set();
 
 safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine });
 
+window.__runtimeFallbackQueues = window.__runtimeFallbackQueues || {};
+
+function flushRuntimeFallbackQueue(key) {
+    let queue = (window.__runtimeFallbackQueues && window.__runtimeFallbackQueues[key]) || [];
+    if (!queue.length || typeof window[key] !== "function" || window[key].__placeholderGlobal === true) return;
+    window.__runtimeFallbackQueues[key] = [];
+    queue.splice(0, 20).forEach(function (args) {
+        try { window[key].apply(null, args || []); } catch (e) { console.error(key + " queued call failed:", e); }
+    });
+}
+
 function safeExposeGlobals(map) {
     Object.keys(map || {}).forEach(function (key) {
-        if (typeof window[key] === "undefined") window[key] = map[key];
+        if (typeof window[key] === "undefined" || (window[key] && window[key].__placeholderGlobal === true)) {
+            window[key] = map[key];
+            if (!(window[key] && window[key].__placeholderGlobal === true)) flushRuntimeFallbackQueue(key);
+        }
     });
 }
 window.safeExposeGlobals = window.safeExposeGlobals || safeExposeGlobals;
+
+if (typeof window.getPlayerStats === "undefined") {
+    window.getPlayerStats = function getPlayerStatsFallback() {
+        return {
+            maxHp: 1, energyShield: 0, baseDmg: 0, directDps: 0, dps: 0, totalDps: 0, summonDps: 0,
+            aspd: 1, crit: 0, critDmg: 150, move: 100, moveSpeed: 100, dr: 0, armor: 0, evasion: 0,
+            resF: 0, resC: 0, resL: 0, resChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
+            igniteChance: 0, chillChance: 0, freezeChance: 0, shockChance: 0, poisonChance: 0, bleedChance: 0,
+            blockChance: 0, blockChanceMax: 50, deflectChance: 0, deflectDamageReduce: 0,
+            suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}, __uiFallbackStats: true
+        };
+    };
+    window.getPlayerStats.__placeholderGlobal = true;
+}
+
+if (typeof window.getSkillTargets === "undefined") {
+    window.getSkillTargets = function getSkillTargetsFallback() {
+        return [];
+    };
+    window.getSkillTargets.__placeholderGlobal = true;
+}
+if (typeof window.ENEMY_CROWD_PAUSE_LIMIT === "undefined") {
+    window.ENEMY_CROWD_PAUSE_LIMIT = 20;
+}
+
+if (typeof window.isCrowdProgressPaused === "undefined") {
+    window.isCrowdProgressPaused = function isCrowdProgressPausedFallback() {
+        return false;
+    };
+    window.isCrowdProgressPaused.__placeholderGlobal = true;
+}
+if (typeof window.isDamageAilmentType === "undefined") {
+    window.isDamageAilmentType = function isDamageAilmentTypeFallback(type) {
+        return type === "ignite" || type === "poison" || type === "bleed";
+    };
+    window.isDamageAilmentType.__placeholderGlobal = true;
+}
+
+if (typeof window.getStoredAilmentHitDamage === "undefined") {
+    window.getStoredAilmentHitDamage = function getStoredAilmentHitDamageFallback(ail) {
+        if (!ail) return 0;
+        return Math.max(0, Number(ail.sourceHitDamage || ail.hitDamage || 0) || 0);
+    };
+    window.getStoredAilmentHitDamage.__placeholderGlobal = true;
+}
+
+if (typeof window.getDamageAilmentBaseDpsFromHit === "undefined") {
+    window.getDamageAilmentBaseDpsFromHit = function getDamageAilmentBaseDpsFromHitFallback(hitDamage, power, scale, critDotBonusPct, critDotBonusScale) {
+        let source = Math.max(0, Number(hitDamage) || 0);
+        if (source <= 0) return 0;
+        let baseScale = Math.max(0.01, Number(scale) || 1);
+        let bonusPct = Math.max(0, Number(critDotBonusPct) || 0);
+        let bonusScale = Math.max(0.01, Number(critDotBonusScale) || 1);
+        return Math.max(1, Math.floor(source * 0.90 * (baseScale + (bonusPct / 100) * bonusScale)));
+    };
+    window.getDamageAilmentBaseDpsFromHit.__placeholderGlobal = true;
+}
+
+if (typeof window.getEnemyDamageAilmentDps === "undefined") {
+    window.getEnemyDamageAilmentDps = function getEnemyDamageAilmentDpsFallback(ail, pStats) {
+        let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
+        let dps = window.getDamageAilmentBaseDpsFromHit(window.getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
+        if (ail && ail.type === "ignite") dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.igniteDamageMultiplierPct) || 0) / 100));
+        if (ail && ail.type === "poison") dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.poisonDamageMultiplierPct) || 0) / 100));
+        return dps;
+    };
+    window.getEnemyDamageAilmentDps.__placeholderGlobal = true;
+}
+
+if (typeof window.getPlayerDamageAilmentDps === "undefined") {
+    window.getPlayerDamageAilmentDps = function getPlayerDamageAilmentDpsFallback(ail, pStats) {
+        let source = window.getStoredAilmentHitDamage(ail);
+        if (source <= 0 && pStats && pStats.maxHp) source = Math.max(1, Math.floor((pStats.maxHp || 1) * 0.08));
+        return window.getDamageAilmentBaseDpsFromHit(source, ail ? ail.power : 0, 1, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
+    };
+    window.getPlayerDamageAilmentDps.__placeholderGlobal = true;
+}
+function queueRuntimeFallbackCall(name, args) {
+    window.__runtimeFallbackQueues = window.__runtimeFallbackQueues || {};
+    let queue = window.__runtimeFallbackQueues[name] = window.__runtimeFallbackQueues[name] || [];
+    if (queue.length < 20) queue.push(Array.prototype.slice.call(args || []));
+}
+
+function installRuntimeFunctionFallback(name, fallback, options = {}) {
+    if (typeof window[name] === "undefined") {
+        window[name] = function runtimeFunctionFallbackWrapper() {
+            if (options.queue) queueRuntimeFallbackCall(name, arguments);
+            return fallback.apply(this, arguments);
+        };
+        window[name].__placeholderGlobal = true;
+    }
+}
+
+installRuntimeFunctionFallback("startEncounterRun", function startEncounterRunFallback() {
+    let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
+    if (state) {
+        state.encounterPlan = Array.isArray(state.encounterPlan) ? state.encounterPlan : [];
+        state.encounterIndex = Math.max(0, Math.floor(state.encounterIndex || 0));
+    }
+}, { queue: true });
+installRuntimeFunctionFallback("coreLoop", function coreLoopFallback() {});
+installRuntimeFunctionFallback("updateStaticUI", function updateStaticUIFallback() {}, { queue: true });
+installRuntimeFunctionFallback("startMoving", function startMovingFallback(force) {
+    let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
+    if (state) {
+        state.combatHalted = false;
+        state.isTownReturning = false;
+        state.moveTimer = Math.max(0, Number(state.moveTimer) || 0);
+        state.moveTotalTime = Math.max(0, Number(state.moveTotalTime) || 0);
+    }
+}, { queue: true });
+installRuntimeFunctionFallback("returnToTown", function returnToTownFallback() {
+    let state = (typeof window !== "undefined" && window.game) ? window.game : (typeof game === "object" ? game : null);
+    if (state) {
+        state.isTownReturning = false;
+        state.combatHalted = true;
+        state.enemies = [];
+    }
+}, { queue: true });
+installRuntimeFunctionFallback("triggerSeasonReset", function triggerSeasonResetFallback() {}, { queue: true });
+installRuntimeFunctionFallback("chooseLoopAdvance", function chooseLoopAdvanceFallback() {
+    // The real handler consumes pendingLoopDecision. Keep the flag intact while this queued fallback waits.
+}, { queue: true });
+installRuntimeFunctionFallback("enterOutsideChaos", function enterOutsideChaosFallback() {}, { queue: true });
+installRuntimeFunctionFallback("getConditionGemStatDelta", function getConditionGemStatDeltaFallback() {
+    return {};
+});
+
+installRuntimeFunctionFallback("getGemPresentation", function getGemPresentationFallback(name, isSupport) {
+    let db = isSupport
+        ? ((typeof SUPPORT_GEM_DB !== "undefined" && SUPPORT_GEM_DB && SUPPORT_GEM_DB[name]) || {})
+        : ((typeof SKILL_DB !== "undefined" && SKILL_DB && SKILL_DB[name]) || {});
+    let level = 1;
+    try {
+        let store = isSupport ? ((window.game && window.game.supportGemData) || {}) : ((window.game && window.game.gemData) || {});
+        level = Math.max(1, Math.floor((store[name] && store[name].level) || 1));
+    } catch (e) {}
+    if (isSupport) {
+        return {
+            baseLevel: level, totalLevel: level, value: Number(db.baseVal || 0), desc: db.desc || "",
+            statName: db.name || name, statId: db.stat || null, activeTier: 1
+        };
+    }
+    return {
+        baseLevel: db.isGem || db.levelable ? level : 0, totalLevel: db.isGem || db.levelable ? level : 0, finalLevel: db.isGem || db.levelable ? level : 0,
+        desc: db.desc || "", statName: name, skill: db, tags: (typeof getSkillTagList === "function" ? getSkillTagList(db) : (Array.isArray(db.tags) ? db.tags : []))
+    };
+});

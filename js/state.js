@@ -279,6 +279,13 @@ function getLoopAbyssRequirementText(seasonValue) {
     return `루프 조건: ${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap} 클리어`;
 }
 
+function hasCurrentLoopAbyssRequirementClear(seasonValue) {
+    let cap = getSeasonAbyssDepthCap(seasonValue || (game && game.season) || 1);
+    if (cap <= 20) return hasCurrentLoopChaos20Clear();
+    let bestDepth = Math.max(0, Math.floor((game && game.loopProgressCurrent && game.loopProgressCurrent.bestAbyssDepth) || 0));
+    return bestDepth >= cap;
+}
+
 function getSeasonFinalZoneId(seasonValue) {
     return LAST_STORY_ZONE_ID + getSeasonAbyssDepthCap(seasonValue);
 }
@@ -676,6 +683,7 @@ const P_STATS = {
     igniteChance: { name: '점화 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     chillChance: { name: '냉각 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     freezeChance: { name: '동결 확률(%)', tiers: [2, 3], m: 5, k: 10, isPct: true },
+    shockChance: { name: '감전 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     poisonChance: { name: '중독 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     bleedChance: { name: '출혈 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     spellFlatDmg: { name: '주문 내장 피해', tiers: [1, 2, 3], s: 5, m: 12, k: 22 },
@@ -752,6 +760,7 @@ const P_STATS = {
     summonCap: { name: '소환수 최대 한도', tiers: [3], k: 1 },
     summonEfficiency: { name: '소환수 효율(%)', tiers: [2, 3], m: 4, k: 10, isPct: true },
     summonGuardRedirectPct: { name: '방어형 소환수 피해 대리(%)', tiers: [3], k: 4, isPct: true },
+    summonResPen: { name: '소환수 저항 관통(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
     igniteDamageMultiplierPct: { name: '점화 피해 증가(%)', tiers: [2, 3], m: 4, k: 10, isPct: true },
     poisonDamageMultiplierPct: { name: '중독 피해 증가(%)', tiers: [2, 3], m: 4, k: 10, isPct: true }
 };
@@ -825,6 +834,7 @@ const MOD_DB = [
     { id: 'summonCritDmg', type: 'suffix', statName: '소환수 치명타 피해 배율(%)', slots: ['무기', '반지'], base: 8, step: 4 },
     { id: 'summonEfficiency', type: 'suffix', statName: '소환수 효율(%)', slots: ['무기', '반지'], base: 4, step: 3 },
     { id: 'summonCap', type: 'special', statName: '소환수 최대 한도', slots: ['반지'], base: 1, step: 0, weight: 0.35 },
+    { id: 'summonResPen', type: 'suffix', statName: '소환수 저항 관통(%)', slots: ['무기'], base: 2, step: 2, weight: 0.7 },
     { id: 'spellFlatDmg', type: 'prefix', statName: '주문 내장 피해', slots: ['무기', '목걸이'], base: 8, step: 6 },
     { id: 'spellFlatPct', type: 'suffix', statName: '주문 내장 피해 증가(%)', slots: ['무기', '목걸이', '방패'], base: 6, step: 4 },
     { id: 'flatHp', type: 'prefix', statName: '최대 생명력', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 15, step: 10 },
@@ -935,7 +945,9 @@ const UNDERWORLD_RUNE_DB = [
 
 const BASE_ITEM_DB = [
     { id: 'rusted_blade', slot: '무기', name: '녹슨 검', reqTier: 1, baseStats: [{ id: 'flatDmg', base: 4 }] },
+    { id: 'apprentice_familiar_wand', slot: '무기', name: '견습 사역봉', reqTier: 1, baseStats: [{ id: 'flatDmg', base: 5 }, { id: 'summonPctDmg', base: 10 }, { id: 'summonEfficiency', base: 4 }] },
     { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 도끼', reqTier: 3, baseStats: [{ id: 'flatDmg', base: 8 }, { id: 'crit', base: 3 }] },
+    { id: 'pact_familiar_wand', slot: '무기', name: '계약 사역봉', reqTier: 4, baseStats: [{ id: 'flatDmg', base: 8 }, { id: 'summonPctDmg', base: 14 }, { id: 'summonEfficiency', base: 6 }] },
     { id: 'abyss_spear', slot: '무기', name: '심연의 창', reqTier: 7, baseStats: [{ id: 'flatDmg', base: 14 }, { id: 'aspd', base: 6 }] },
     { id: 'bloodletter_blade', slot: '무기', name: '혈각 검', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 21 }, { id: 'crit', base: 5 }] },
     { id: 'gale_fang_spear', slot: '무기', name: '질풍 송곳창', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 22 }, { id: 'aspd', base: 8 }] },
@@ -945,6 +957,7 @@ const BASE_ITEM_DB = [
     { id: 'stormbolt_launcher', slot: '무기', name: '폭전 발사기', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 22 }, { id: 'projectilePctDmg', base: 18 }, { id: 'projectileExtraShots', base: 1 }] },
     { id: 'starfall_ballista', slot: '무기', name: '유성 발리스타', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 32 }, { id: 'projectilePctDmg', base: 26 }, { id: 'projectileExtraShots', base: 2 }] },
     { id: 'needle_recurve', slot: '무기', name: '바늘 리커브', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 17 }, { id: 'projectilePctDmg', base: 14 }] },
+    { id: 'spiritbound_wand', slot: '무기', name: '영혼 결속봉', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 13 }, { id: 'summonPctDmg', base: 22 }, { id: 'summonEfficiency', base: 10 }] },
     { id: 'seeker_railgun', slot: '무기', name: '추적 레일건', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 26 }, { id: 'projectilePctDmg', base: 22 }, { id: 'projectileExtraShots', base: 2 }] },
     { id: 'tempest_volley', slot: '무기', name: '폭풍 연사궁', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 35 }, { id: 'projectilePctDmg', base: 30 }, { id: 'projectileExtraShots', base: 3 }] },
     { id: 'nova_rod', slot: '무기', name: '노바 로드', reqTier: 5, baseStats: [{ id: 'flatDmg', base: 7 }, { id: 'spellFlatDmg', base: 20 }] },
@@ -952,7 +965,9 @@ const BASE_ITEM_DB = [
     { id: 'void_archon_staff', slot: '무기', name: '공허 대현자 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 18 }, { id: 'spellFlatDmg', base: 58 }, { id: 'spellFlatPct', base: 22 }] },
     { id: 'ember_wand', slot: '무기', name: '잿불 완드', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 10 }, { id: 'spellFlatDmg', base: 30 }] },
     { id: 'echo_focus', slot: '무기', name: '메아리 초점봉', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 14 }, { id: 'spellFlatDmg', base: 46 }, { id: 'spellFlatPct', base: 16 }] },
+    { id: 'ritual_familiar_staff', slot: '무기', name: '의식 사역마 지팡이', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 18 }, { id: 'summonPctDmg', base: 30 }, { id: 'summonEfficiency', base: 14 }] },
     { id: 'abyss_chant_staff', slot: '무기', name: '심연 창가 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 20 }, { id: 'spellFlatDmg', base: 64 }, { id: 'spellFlatPct', base: 26 }] },
+    { id: 'archon_familiar_staff', slot: '무기', name: '아콘 사역마 지팡이', reqTier: 16, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'summonPctDmg', base: 40 }, { id: 'summonEfficiency', base: 18 }] },
     { id: 'cloth_hood', slot: '투구', name: '천 후드', reqTier: 1, baseStats: [{ id: 'flatHp', base: 12 }, { id: 'energyShield', base: 36 }] },
     { id: 'war_helm', slot: '투구', name: '전투 투구', reqTier: 4, baseStats: [{ id: 'flatHp', base: 28 }, { id: 'armor', base: 105 }, { id: 'dr', base: 2 }] },
     { id: 'bastion_helm', slot: '투구', name: '보루 투구', reqTier: 8, baseStats: [{ id: 'flatHp', base: 44 }, { id: 'armor', base: 170 }, { id: 'dr', base: 3 }] },
@@ -1034,6 +1049,7 @@ const BASE_ITEM_DB = [
     { id: 'sage_amulet', slot: '목걸이', name: '현자의 목걸이', reqTier: 5, baseStats: [{ id: 'crit', base: 4 }, { id: 'resAll', base: 4 }] },
     { id: 'star_pendant', slot: '목걸이', name: '성좌 펜던트', reqTier: 9, baseStats: [{ id: 'gemLevel', base: 1 }, { id: 'pctDmg', base: 8 }] },
     { id: 'copper_ring', slot: '반지', name: '구리 반지', reqTier: 1, baseStats: [{ id: 'flatDmg', base: 1 }] },
+    { id: 'summoner_loop', slot: '반지', name: '소환사의 고리', reqTier: 4, baseStats: [{ id: 'summonPctDmg', base: 10 }, { id: 'summonEfficiency', base: 5 }] },
     { id: 'opal_ring', slot: '반지', name: '오팔 반지', reqTier: 5, baseStats: [{ id: 'pctDmg', base: 6 }] },
     { id: 'sapphire_band', slot: '반지', name: '푸른 띠 반지', reqTier: 9, baseStats: [{ id: 'resAll', base: 6 }, { id: 'crit', base: 3 }] },
     { id: 'void_loop_ring', slot: '반지', name: '공허 고리', reqTier: 12, baseStats: [{ id: 'resChaos', base: 4 }, { id: 'chaosPctDmg', base: 7 }] },
@@ -1074,17 +1090,30 @@ const BASE_ITEM_DB = [
     { id: 'tidal_vest', slot: '갑옷', name: '조류의 흉갑', reqTier: 11, baseStats: [{ id: 'flatHp', base: 66 }, { id: 'resC', base: 10 }] },
     { id: 'gale_treads', slot: '신발', name: '질풍 발굽', reqTier: 11, baseStats: [{ id: 'move', base: 16 }, { id: 'evasion', base: 94 }] },
     { id: 'buckler_scrap', slot: '방패', name: '고철 버클러', reqTier: 1, baseStats: [{ id: 'armor', base: 38 }, { id: 'baseBlockChance', base: 5.5 }] },
-    { id: 'tower_wall', slot: '방패', name: '타워 월', reqTier: 8, baseStats: [{ id: 'armor', base: 96 }, { id: 'baseBlockChance', base: 4.2 }] },
+    { id: 'iron_buckler', slot: '방패', name: '철 버클러', reqTier: 4, baseStats: [{ id: 'armor', base: 62 }, { id: 'baseBlockChance', base: 5.4 }] },
     { id: 'woven_guard', slot: '방패', name: '직조 가드', reqTier: 4, baseStats: [{ id: 'evasion', base: 62 }, { id: 'baseBlockChance', base: 6.0 }] },
-    { id: 'phase_bulwark', slot: '방패', name: '위상 불워크', reqTier: 12, baseStats: [{ id: 'evasion', base: 122 }, { id: 'baseBlockChance', base: 3.8 }] },
     { id: 'aegis_focus', slot: '방패', name: '아이기스 포커스', reqTier: 4, baseStats: [{ id: 'energyShield', base: 66 }, { id: 'baseBlockChance', base: 6.5 }] },
+    { id: 'scale_guard', slot: '방패', name: '비늘 방패', reqTier: 4, baseStats: [{ id: 'armor', base: 58 }, { id: 'evasion', base: 56 }, { id: 'baseBlockChance', base: 5.0 }] },
+    { id: 'ward_kite', slot: '방패', name: '수호 카이트', reqTier: 4, baseStats: [{ id: 'armor', base: 56 }, { id: 'energyShield', base: 54 }, { id: 'baseBlockChance', base: 5.8 }] },
+    { id: 'mist_guard', slot: '방패', name: '안개 수호패', reqTier: 4, baseStats: [{ id: 'evasion', base: 54 }, { id: 'energyShield', base: 52 }, { id: 'baseBlockChance', base: 5.2 }] },
+    { id: 'tower_wall', slot: '방패', name: '타워 월', reqTier: 8, baseStats: [{ id: 'armor', base: 96 }, { id: 'baseBlockChance', base: 4.2 }] },
+    { id: 'mirage_guard', slot: '방패', name: '신기루 가드', reqTier: 8, baseStats: [{ id: 'evasion', base: 94 }, { id: 'baseBlockChance', base: 5.4 }] },
+    { id: 'ether_focus', slot: '방패', name: '에테르 초점패', reqTier: 8, baseStats: [{ id: 'energyShield', base: 102 }, { id: 'baseBlockChance', base: 5.8 }] },
+    { id: 'drake_scale_guard', slot: '방패', name: '용비늘 방패', reqTier: 8, baseStats: [{ id: 'armor', base: 86 }, { id: 'evasion', base: 84 }, { id: 'baseBlockChance', base: 4.6 }] },
+    { id: 'temple_kite', slot: '방패', name: '사원 카이트', reqTier: 8, baseStats: [{ id: 'armor', base: 84 }, { id: 'energyShield', base: 82 }, { id: 'baseBlockChance', base: 5.2 }] },
+    { id: 'veil_guard', slot: '방패', name: '장막 수호패', reqTier: 8, baseStats: [{ id: 'evasion', base: 84 }, { id: 'energyShield', base: 80 }, { id: 'baseBlockChance', base: 4.8 }] },
+    { id: 'citadel_wall', slot: '방패', name: '성채 방벽', reqTier: 12, baseStats: [{ id: 'armor', base: 126 }, { id: 'baseBlockChance', base: 3.8 }] },
+    { id: 'phase_bulwark', slot: '방패', name: '위상 불워크', reqTier: 12, baseStats: [{ id: 'evasion', base: 122 }, { id: 'baseBlockChance', base: 3.8 }] },
     { id: 'starlit_focus', slot: '방패', name: '성광 초점패', reqTier: 12, baseStats: [{ id: 'energyShield', base: 132 }, { id: 'baseBlockChance', base: 3.2 }] },
-    { id: 'scale_guard', slot: '방패', name: '비늘 방패', reqTier: 6, baseStats: [{ id: 'armor', base: 58 }, { id: 'evasion', base: 56 }, { id: 'baseBlockChance', base: 5.0 }] },
-    { id: 'bastion_aegis', slot: '방패', name: '보루 이지스', reqTier: 14, baseStats: [{ id: 'armor', base: 114 }, { id: 'evasion', base: 108 }, { id: 'baseBlockChance', base: 4.0 }] },
-    { id: 'ward_kite', slot: '방패', name: '수호 카이트', reqTier: 6, baseStats: [{ id: 'armor', base: 56 }, { id: 'energyShield', base: 54 }, { id: 'baseBlockChance', base: 5.8 }] },
-    { id: 'sanctum_aegis', slot: '방패', name: '성소 이지스', reqTier: 14, baseStats: [{ id: 'armor', base: 112 }, { id: 'energyShield', base: 106 }, { id: 'baseBlockChance', base: 3.6 }] },
-    { id: 'mist_guard', slot: '방패', name: '안개 수호패', reqTier: 6, baseStats: [{ id: 'evasion', base: 54 }, { id: 'energyShield', base: 52 }, { id: 'baseBlockChance', base: 5.2 }] },
-    { id: 'moon_barrier', slot: '방패', name: '월영 배리어', reqTier: 14, baseStats: [{ id: 'evasion', base: 108 }, { id: 'energyShield', base: 104 }, { id: 'baseBlockChance', base: 3.4 }] }
+    { id: 'runic_scale_guard', slot: '방패', name: '룬비늘 방패', reqTier: 12, baseStats: [{ id: 'armor', base: 112 }, { id: 'evasion', base: 108 }, { id: 'baseBlockChance', base: 4.0 }] },
+    { id: 'relic_kite', slot: '방패', name: '유물 카이트', reqTier: 12, baseStats: [{ id: 'armor', base: 110 }, { id: 'energyShield', base: 106 }, { id: 'baseBlockChance', base: 3.8 }] },
+    { id: 'moon_barrier', slot: '방패', name: '월영 배리어', reqTier: 12, baseStats: [{ id: 'evasion', base: 108 }, { id: 'energyShield', base: 104 }, { id: 'baseBlockChance', base: 3.4 }] },
+    { id: 'adamant_wall', slot: '방패', name: '금강 방벽', reqTier: 16, baseStats: [{ id: 'armor', base: 158 }, { id: 'baseBlockChance', base: 3.2 }] },
+    { id: 'nightveil_guard', slot: '방패', name: '밤장막 가드', reqTier: 16, baseStats: [{ id: 'evasion', base: 154 }, { id: 'baseBlockChance', base: 3.4 }] },
+    { id: 'archon_focus', slot: '방패', name: '아콘 초점패', reqTier: 16, baseStats: [{ id: 'energyShield', base: 166 }, { id: 'baseBlockChance', base: 3.0 }] },
+    { id: 'bastion_aegis', slot: '방패', name: '보루 이지스', reqTier: 16, baseStats: [{ id: 'armor', base: 142 }, { id: 'evasion', base: 136 }, { id: 'baseBlockChance', base: 3.4 }] },
+    { id: 'sanctum_aegis', slot: '방패', name: '성소 이지스', reqTier: 16, baseStats: [{ id: 'armor', base: 140 }, { id: 'energyShield', base: 134 }, { id: 'baseBlockChance', base: 3.1 }] },
+    { id: 'astral_barrier', slot: '방패', name: '성운 배리어', reqTier: 16, baseStats: [{ id: 'evasion', base: 136 }, { id: 'energyShield', base: 132 }, { id: 'baseBlockChance', base: 2.9 }] }
     ,{ id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 송곳', reqTier: 18, realmBase: 'chaos', baseStats: [{ id: 'flatDmg', base: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] }
     ,{ id: 'chaos_realm_coil', slot: '반지', name: '혼돈계 소용돌이 반지', reqTier: 18, realmBase: 'chaos', baseStats: [{ id: 'chaosPctDmg', base: 18 }, { id: 'resChaos', base: 10 }] }
     ,{ id: 'underworld_bastion', slot: '갑옷', name: '지하계 철벽 흉갑', reqTier: 20, realmBase: 'underworld', baseStats: [{ id: 'flatHp', base: 120 }, { id: 'armor', base: 260 }, { id: 'dr', base: 8 }] }
@@ -1123,7 +1152,7 @@ let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
 
 // Phase-4 extracted default state schema.
 
@@ -1380,6 +1409,7 @@ const defaultGame = {
     skills: ['기본 공격'],
     activeSkill: '기본 공격',
     equippedSummonSkills: [],
+    summonSkillCounts: {},
     summonLoadoutInitialized: false,
     gemData: { '기본 공격': { level: 1, exp: 0 } },
     supports: [],

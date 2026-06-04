@@ -11,6 +11,42 @@ window.GameModules.items = {
 
 let craftingSelectionState = { ref: null, isEquip: false };
 
+const BLACK_MARKET_BASE_SLOT_COUNT = 6;
+const BLACK_MARKET_MAX_SLOT_COUNT = 50;
+const BLACK_MARKET_MAX_EXTRA_SLOTS = Math.max(0, BLACK_MARKET_MAX_SLOT_COUNT - BLACK_MARKET_BASE_SLOT_COUNT);
+
+function normalizeBlackMarketState() {
+    game.blackMarket = (game.blackMarket && typeof game.blackMarket === 'object') ? game.blackMarket : { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {} };
+    game.blackMarket.extraSlots = Math.max(0, Math.min(BLACK_MARKET_MAX_EXTRA_SLOTS, Math.floor(Number(game.blackMarket.extraSlots) || 0)));
+    game.blackMarket.offers = Array.isArray(game.blackMarket.offers) ? game.blackMarket.offers.slice(0, BLACK_MARKET_MAX_SLOT_COUNT) : [];
+    game.blackMarket.lockedOffers = (game.blackMarket.lockedOffers && typeof game.blackMarket.lockedOffers === 'object') ? game.blackMarket.lockedOffers : {};
+    Object.keys(game.blackMarket.lockedOffers).forEach(key => {
+        let idx = Math.floor(Number(key));
+        if (!Number.isFinite(idx) || idx < 0 || idx >= BLACK_MARKET_MAX_SLOT_COUNT) delete game.blackMarket.lockedOffers[key];
+    });
+    return game.blackMarket;
+}
+
+function getBlackMarketSlotCount() {
+    let bm = normalizeBlackMarketState();
+    return Math.min(BLACK_MARKET_MAX_SLOT_COUNT, BLACK_MARKET_BASE_SLOT_COUNT + Math.max(0, Math.floor(bm.extraSlots || 0)));
+}
+
+function isBlackMarketSlotCapReached() {
+    return getBlackMarketSlotCount() >= BLACK_MARKET_MAX_SLOT_COUNT;
+}
+
+function runItemStartMoving(force) {
+    try {
+        let provider = (typeof startMoving === 'function')
+            ? startMoving
+            : ((typeof window !== 'undefined' && typeof window.startMoving === 'function') ? window.startMoving : null);
+        if (provider) return provider(force);
+    } catch (e) {
+        console.error('startMoving failed:', e);
+    }
+}
+
 function getCraftSelectionRef() { return craftingSelectionState.ref; }
 function isCraftSelectionEquip() { return !!craftingSelectionState.isEquip; }
 function clearCraftSelection() { craftingSelectionState.ref = null; craftingSelectionState.isEquip = false; }
@@ -264,7 +300,7 @@ function changeZone(id) {
     game.currentZoneId = id;
     game.killsInZone = 0;
     addLog(`🗺️ ${zone.name} 이동`, "season-up");
-    startMoving(true);
+    runItemStartMoving(true);
     updateStaticUI();
 }
 
@@ -507,49 +543,50 @@ function showBlackMarketOfferTooltip(event, encodedHtml) {
 
 function refreshBlackMarket(force) {
     if (!isMarketUnlocked()) return;
-    game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {} };
-    game.blackMarket.lockedOffers = (game.blackMarket.lockedOffers && typeof game.blackMarket.lockedOffers === 'object') ? game.blackMarket.lockedOffers : {};
+    let bm = normalizeBlackMarketState();
     let now = Date.now();
-    if (!force && now < (game.blackMarket.nextRefreshAt || 0)) return;
-    let count = 6 + Math.max(0, Math.floor(game.blackMarket.extraSlots || 0));
-    let prevOffers = Array.isArray(game.blackMarket.offers) ? game.blackMarket.offers : [];
-    game.blackMarket.offers = Array.from({ length: count }, (_, i) => {
-        if (game.blackMarket.lockedOffers[i] && prevOffers[i]) return prevOffers[i];
+    let count = getBlackMarketSlotCount();
+    if (!force && now < (bm.nextRefreshAt || 0)) return;
+    let prevOffers = Array.isArray(bm.offers) ? bm.offers.slice(0, count) : [];
+    bm.offers = Array.from({ length: count }, (_, i) => {
+        if (bm.lockedOffers[i] && prevOffers[i]) return prevOffers[i];
+        if (bm.lockedOffers[i]) delete bm.lockedOffers[i];
         return buildBlackMarketOffer(i);
     });
-    game.blackMarket.nextRefreshAt = now + (10 * 60 * 1000);
+    bm.nextRefreshAt = now + (10 * 60 * 1000);
 }
 
 function toggleBlackMarketOfferLock(idx) {
-    game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {} };
-    game.blackMarket.lockedOffers = (game.blackMarket.lockedOffers && typeof game.blackMarket.lockedOffers === 'object') ? game.blackMarket.lockedOffers : {};
-    let offer = (game.blackMarket.offers || [])[idx];
+    let bm = normalizeBlackMarketState();
+    let offer = (bm.offers || [])[idx];
     if (!offer) return;
-    let isLocked = !!game.blackMarket.lockedOffers[idx];
-    if (isLocked) delete game.blackMarket.lockedOffers[idx];
-    else game.blackMarket.lockedOffers[idx] = true;
+    let isLocked = !!bm.lockedOffers[idx];
+    if (isLocked) delete bm.lockedOffers[idx];
+    else bm.lockedOffers[idx] = true;
     updateStaticUI();
 }
 
 function expandBlackMarketSlotsByDivine(){
+    let bm = normalizeBlackMarketState();
+    if (isBlackMarketSlotCapReached()) return addLog(`암거래상 품목 한도는 최대 ${BLACK_MARKET_MAX_SLOT_COUNT}개입니다.`, 'attack-monster');
     let cost = getBlackMarketSlotExpandCost();
     if ((game.currencies.divine||0) < cost) return addLog(`신성한 오브가 부족합니다. (필요 ${cost})`, 'attack-monster');
     game.currencies.divine -= cost;
-    game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [] };
-    game.blackMarket.extraSlots = Math.max(0, Math.floor(game.blackMarket.extraSlots||0)) + 1;
+    bm.extraSlots = Math.min(BLACK_MARKET_MAX_EXTRA_SLOTS, Math.max(0, Math.floor(bm.extraSlots||0)) + 1);
     refreshBlackMarket(true);
-    addLog(`🕶️ 암거래상 품목 슬롯이 늘어났습니다. (신성한 오브 ${cost} 소모)`, 'loot-unique');
+    addLog(`🕶️ 암거래상 품목 슬롯이 늘어났습니다. (${getBlackMarketSlotCount()}/${BLACK_MARKET_MAX_SLOT_COUNT}, 신성한 오브 ${cost} 소모)`, 'loot-unique');
     updateStaticUI();
 }
 
 
 function getBlackMarketSlotExpandCost() {
-    game.blackMarket = game.blackMarket || { nextRefreshAt: 0, extraSlots: 0, offers: [] };
-    let bought = Math.max(0, Math.floor(game.blackMarket.extraSlots || 0));
+    let bm = normalizeBlackMarketState();
+    let bought = Math.max(0, Math.floor(bm.extraSlots || 0));
     return 1 + bought;
 }
 
 function buyBlackMarketOffer(idx){
+    normalizeBlackMarketState();
     refreshBlackMarket(false);
     let offer = (game.blackMarket && game.blackMarket.offers || [])[idx]; if(!offer) return;
     if (offer.type==='exchange') {
@@ -671,7 +708,8 @@ function renderMarketUI() {
         let remain = Math.max(0, Math.floor(((game.blackMarket && game.blackMarket.nextRefreshAt || 0) - Date.now()) / 1000));
         let mm = String(Math.floor(remain / 60)).padStart(2,'0');
         let ss = String(remain % 60).padStart(2,'0');
-        let rawOffers = (game.blackMarket && game.blackMarket.offers || []).map((offer, idx) => ({ offer, idx }));
+        normalizeBlackMarketState();
+        let rawOffers = (game.blackMarket && game.blackMarket.offers || []).slice(0, BLACK_MARKET_MAX_SLOT_COUNT).map((offer, idx) => ({ offer, idx }));
         let orderMap = { exchange: 0, skillGem: 1, baseItem: 2, unique: 3 };
         rawOffers.sort((a, b) => {
             let ao = a.offer ? (orderMap[a.offer.type] ?? 9) : 99;
@@ -694,9 +732,12 @@ function renderMarketUI() {
             let lockLabel = isLocked ? '🔒 잠금' : '🔓 잠금';
             return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span class="market-black-label" data-info-tooltip-anchor="1" data-market-tooltip="${tooltip}" onmouseenter="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmousemove="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmouseleave="hideInfoTooltip()">${richDesc}</span></div><div style="display:flex; gap:4px;"><button onclick="buyBlackMarketOffer(${idx})">구매</button><button onclick="toggleBlackMarketOfferLock(${idx})">${lockLabel}</button></div></div>`;
         }).join('');
-        bmEl.innerHTML = `<div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()">신성한 오브 ${getBlackMarketSlotExpandCost()}개로 품목 +1</button>`;
+        let slotCount = getBlackMarketSlotCount();
+        let atCap = slotCount >= BLACK_MARKET_MAX_SLOT_COUNT;
+        let expandLabel = atCap ? `품목 한도 최대치 (${slotCount}/${BLACK_MARKET_MAX_SLOT_COUNT})` : `신성한 오브 ${getBlackMarketSlotExpandCost()}개로 품목 +1 (${slotCount}/${BLACK_MARKET_MAX_SLOT_COUNT})`;
+        bmEl.innerHTML = `<div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()" ${atCap ? 'disabled' : ''}>${expandLabel}</button>`;
     }
 }
 
 
-safeExposeGlobals({ showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketSlotExpandCost, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
