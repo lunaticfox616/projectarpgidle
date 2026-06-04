@@ -7089,18 +7089,37 @@ function mergeDefaults(save) {
             return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack') && merged.skills.includes(name));
         })))
         : [];
-    merged.summonSkillCounts = (merged.summonSkillCounts && typeof merged.summonSkillCounts === 'object') ? merged.summonSkillCounts : {};
+    let hasSavedSummonSkillCounts = !!(save && Object.prototype.hasOwnProperty.call(save, 'summonSkillCounts') && save.summonSkillCounts && typeof save.summonSkillCounts === 'object');
+    merged.summonSkillCounts = hasSavedSummonSkillCounts ? { ...merged.summonSkillCounts } : {};
     Object.keys(merged.summonSkillCounts).forEach(name => { if (!merged.equippedSummonSkills.includes(name)) delete merged.summonSkillCounts[name]; });
-    merged.equippedSummonSkills.forEach(name => { merged.summonSkillCounts[name] = Math.max(1, Math.floor(Number(merged.summonSkillCounts[name]) || 1)); });
+    if (hasSavedSummonSkillCounts) merged.equippedSummonSkills.forEach(name => { merged.summonSkillCounts[name] = Math.max(1, Math.floor(Number(merged.summonSkillCounts[name]) || 1)); });
     let ownedSummonAttackSkills = (Array.isArray(merged.skills) ? merged.skills : []).filter(name => {
         let def = SKILL_DB[name] || {};
         return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack'));
     });
-    if (!merged.summonLoadoutInitialized && merged.equippedSummonSkills.length === 0 && ownedSummonAttackSkills.length > 0) {
-        merged.equippedSummonSkills = ownedSummonAttackSkills.slice(0, estimateSummonEquipCapForMergedSave(merged));
-        merged.equippedSummonSkills.forEach(name => { merged.summonSkillCounts[name] = 1; });
-    }
     let saveSummonCap = estimateSummonEquipCapForMergedSave(merged);
+    if (!merged.summonLoadoutInitialized && merged.equippedSummonSkills.length === 0 && ownedSummonAttackSkills.length > 0) {
+        merged.equippedSummonSkills = ownedSummonAttackSkills.slice(0, saveSummonCap);
+        if (hasSavedSummonSkillCounts) merged.equippedSummonSkills.forEach(name => { merged.summonSkillCounts[name] = Math.max(1, Math.floor(Number(merged.summonSkillCounts[name]) || 1)); });
+    }
+    if (!hasSavedSummonSkillCounts) {
+        let legacySummonCounts = {};
+        let guardCount = (Array.isArray(merged.equippedSupports) ? merged.equippedSupports : []).filter(name => {
+            let def = SUPPORT_GEM_DB[name] || {};
+            return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_guard'));
+        }).length;
+        let baseAttackSlots = Math.max(0, Math.min(merged.equippedSummonSkills.length, saveSummonCap - guardCount));
+        merged.equippedSummonSkills.slice(0, baseAttackSlots).forEach(name => { legacySummonCounts[name] = (legacySummonCounts[name] || 0) + 1; });
+        let usedSlots = Math.min(saveSummonCap, guardCount + baseAttackSlots);
+        let cursor = 0;
+        while (usedSlots < saveSummonCap && merged.equippedSummonSkills.length > 0) {
+            let name = merged.equippedSummonSkills[cursor % merged.equippedSummonSkills.length];
+            legacySummonCounts[name] = (legacySummonCounts[name] || 0) + 1;
+            usedSlots++;
+            cursor++;
+        }
+        merged.summonSkillCounts = legacySummonCounts;
+    }
     let saveSummonUsed = 0;
     merged.equippedSummonSkills.slice().forEach(name => {
         let current = Math.max(1, Math.floor(Number(merged.summonSkillCounts[name]) || 1));
