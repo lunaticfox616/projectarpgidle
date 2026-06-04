@@ -72,13 +72,12 @@ function addPlayerLeechInstance(rawAmount, pStats, target) {
     return stored;
 }
 function applyInstantPlayerLeech(rawAmount, pStats, target) {
-    let amount = Math.max(0, Number(rawAmount) || 0);
-    if (amount <= 0) return 0;
     let leechTarget = target === 'energyShield' ? 'energyShield' : 'life';
+    let instantAmount = Math.max(0, Number(rawAmount) || 0);
+    if (instantAmount <= 0) return 0;
     let caps = getLeechCaps(pStats, leechTarget);
     if (caps.instanceCap <= 0) return 0;
-    let instantAmount = Math.min(amount, caps.instanceCap);
-    if (instantAmount <= 0) return 0;
+    instantAmount = Math.min(instantAmount, caps.instanceCap);
     if (leechTarget === 'energyShield') {
         let esCap = Math.max(0, Number(pStats && pStats.energyShield) || 0);
         if (esCap <= 0) return 0;
@@ -668,8 +667,8 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let zoneTier = (zone && zone.tier) || 1;
     let base = Math.max(1, Math.floor(s.baseDamage || 20));
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb1')) base = Math.max(1, Math.floor(base * 1.15));
-    let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100);
-    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) dmgMul += Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100;
+    let soulbinderComplementPct = Math.max(0, Number((pStats && pStats.sbSummonDamageFromPlayerPct) || 0));
+    let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100) + (soulbinderComplementPct / 100);
     let critChance = Math.max(0, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
     let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
     let crit = false;
@@ -683,11 +682,6 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     } else if (pStats.uniqueSummonNonCritNoDamage) {
         dmg = 0;
         ailmentSourceDmg = 0;
-    }
-    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
-        let soulbinderMul = 1 + Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100;
-        dmg *= soulbinderMul;
-        ailmentSourceDmg *= soulbinderMul;
     }
     if (target && target.isBoss) {
         let bossMul = getLimitedSummonBossDamageMultiplier(pStats, target);
@@ -1810,9 +1804,10 @@ function getPlayerStats() {
     let finalIgniteChance = sumAilmentChanceStat('igniteChance');
     let finalChillChance = sumAilmentChanceStat('chillChance');
     let finalFreezeChance = sumAilmentChanceStat('freezeChance');
+    let finalShockChance = sumAilmentChanceStat('shockChance');
     let finalPoisonChance = sumAilmentChanceStat('poisonChance');
     let finalBleedChance = sumAilmentChanceStat('bleedChance');
-    let ailmentCritChance = { ignite: 25, chill: 25, freeze: 25, poison: 25, bleed: 25 };
+    let ailmentCritChance = { ignite: 25, chill: 25, freeze: 25, shock: 25, poison: 25, bleed: 25 };
     let isSpellSkill = Array.isArray(skill.tags) && skill.tags.includes('spell');
     let isDotSkill = Array.isArray(skill.tags) && skill.tags.includes('dot');
     let spellFlatDmg = 0;
@@ -1921,6 +1916,7 @@ function getPlayerStats() {
     let sbSummonAspdBonus = 0;
     let sbSummonCapBonus = 0;
     let sbPlayerDamageFromSummonPct = 0;
+    let sbSummonDamageFromPlayerPct = 0;
     let ailmentResistPenPct = 0;
     let crusaderLightningIgnoreRes = false;
     let crusaderNoResPenOnLightning = false;
@@ -2333,7 +2329,10 @@ function getPlayerStats() {
             finalAspd = Math.max(0.1, finalAspd * (1 + sumAspd / 100));
             finalMaxHp = Math.floor(finalMaxHp * (1 + sumHp / 100));
         }
-        if (hasKeystone('sb7')) sbPlayerDamageFromSummonPct += 0.5;
+        if (hasKeystone('sb7')) {
+            if (!hasKeystone('sb5')) sbPlayerDamageFromSummonPct += 0.5;
+            sbSummonDamageFromPlayerPct += Math.max(0, generalPctDmg * 0.5);
+        }
     } else if (game.ascendClass === 'catalyst') {
         if (hasKeystone('ct7')) {
             let overflow = Math.max(0, finalIgniteChance - 100) + Math.max(0, finalPoisonChance - 100) + Math.max(0, finalBleedChance - 100);
@@ -2422,6 +2421,18 @@ function getPlayerStats() {
         };
     }
 
+    function makeAilmentResistBreakdown(title, ailmentLabel, ailmentResValue, finalValue) {
+        return {
+            title: title,
+            lines: [
+                makeSourceLine(`${ailmentLabel} 방지 확률`, finalValue, '%', value => `${Math.max(0, value).toFixed(1)}%`),
+                `계산 기준: ${ailmentLabel} 방지 옵션 ${Number(ailmentResValue || 0).toFixed(1)}% + 공통 방지 ${Math.floor(ailmentResistBonusPct)}%`,
+                '피해 저항(화염/냉기/번개/카오스/물리 피해 감소)은 상태이상 방지 확률에 합산되지 않습니다.'
+            ].filter(Boolean),
+            final: `${Math.max(0, finalValue).toFixed(1)}%`
+        };
+    }
+
 
     let cw = (game && game.colony && Array.isArray(game.colony.wardEquipped)) ? game.colony.wardEquipped : [];
     let cwSlots = Math.max(1, Math.min(4, Math.floor((game && game.colony && game.colony.wardSlots) || 1)));
@@ -2449,6 +2460,19 @@ function getPlayerStats() {
     finalPoisonDamageReducePct += (colonyWardBonus.poisonDamageReducePct || 0);
     finalTakenDamageReduceWhen2EnemiesPct += (colonyWardBonus.takenDamageReduceWhen2EnemiesPct || 0);
     finalTakenDamageReduceWhen1EnemyPct += (colonyWardBonus.takenDamageReduceWhen1EnemyPct || 0);
+
+    let ailResIgniteTotal = (gearBase.ailResIgnite || 0) + (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0) + (colonyWardBonus.ailResIgnite || 0);
+    let ailResFreezeTotal = (gearBase.ailResFreeze || 0) + (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0) + (colonyWardBonus.ailResFreeze || 0);
+    let ailResShockTotal = (gearBase.ailResShock || 0) + (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0) + (colonyWardBonus.ailResShock || 0);
+    let ailResPoisonTotal = (gearBase.ailResPoison || 0) + (gearExplicit.ailResPoison || 0) + (passive.ailResPoison || 0) + (season.ailResPoison || 0) + (ascend.ailResPoison || 0) + (reward.ailResPoison || 0) + (colonyWardBonus.ailResPoison || 0);
+    let ailResBleedTotal = (gearBase.ailResBleed || 0) + (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0) + (colonyWardBonus.ailResBleed || 0);
+    let finalAilmentResistIgniteChance = getPlayerAilmentResistChance('ignite', { ailResIgnite: ailResIgniteTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistChillChance = getPlayerAilmentResistChance('chill', { ailResFreeze: ailResFreezeTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistFreezeChance = getPlayerAilmentResistChance('freeze', { ailResFreeze: ailResFreezeTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistShockChance = getPlayerAilmentResistChance('shock', { ailResShock: ailResShockTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistPoisonChance = getPlayerAilmentResistChance('poison', { ailResPoison: ailResPoisonTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistBleedChance = getPlayerAilmentResistChance('bleed', { ailResBleed: ailResBleedTotal, ailmentResistBonusPct }) * 100;
+
 
     // 방패 막기 공식
     // 1) 방패 옵션의 막기 확률(%) 증가는 방패 베이스 막기 확률 자체를 상승시킨다.
@@ -2574,10 +2598,10 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`),
-                skill.instantLeech ? '흡혈 타격: 이 젬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복됩니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
+                skill.instantLeech ? '흡혈 타격: 이 젬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
                 (game.ascendClass === 'warlock' && hasKeystone('wlk3')) ? `금단 대가: 흡혈 ${skill.instantLeech ? '즉시 회복이 생명력 대신 에너지 보호막에 적용됩니다.' : '인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.'}` : null,
-                `기본 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}% · 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}% · 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
-                `추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p · 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p · 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
+                `일반 흡혈 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}% · 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}% · 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
+                `일반 흡혈 추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p · 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p · 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
                 `적용 전 ${formatValue('leech', rawLeech)}% → 적용 후 ${formatValue('leech', finalLeech)}%`
             ].filter(Boolean),
             final: `${formatValue('leech', finalLeech)}%`
@@ -2735,15 +2759,16 @@ function getPlayerStats() {
         },
 
         ailmentResist: {
-            title: '상태이상 저항 확률',
+            title: '상태이상 방지 확률',
             lines: [
-                `점화 저항: ${Math.floor(getPlayerAilmentResistChance('ignite', { resF: finalResF, ailResIgnite: (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0), ailmentResistBonusPct }))}%`,
-                `냉각/동결 저항: ${Math.floor(getPlayerAilmentResistChance('freeze', { resC: finalResC, ailResFreeze: (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0), ailmentResistBonusPct }))}%`,
-                `감전 저항: ${Math.floor(getPlayerAilmentResistChance('shock', { resL: finalResL, ailResShock: (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0), ailmentResistBonusPct }))}%`,
-                `중독 저항: ${Math.floor(getPlayerAilmentResistChance('poison', { resChaos: finalResChaos, ailResPoison: (gearExplicit.ailResPoison || 0) + (passive.ailResPoison || 0) + (season.ailResPoison || 0) + (ascend.ailResPoison || 0) + (reward.ailResPoison || 0), ailmentResistBonusPct }))}%`,
-                `출혈 저항: ${Math.floor(getPlayerAilmentResistChance('bleed', { dr: finalDr, ailResBleed: (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0), ailmentResistBonusPct }))}%`
+                `점화 방지: ${finalAilmentResistIgniteChance.toFixed(1)}%`,
+                `냉각 방지: ${finalAilmentResistChillChance.toFixed(1)}%`,
+                `동결 방지: ${finalAilmentResistFreezeChance.toFixed(1)}%`,
+                `감전 방지: ${finalAilmentResistShockChance.toFixed(1)}%`,
+                `중독 방지: ${finalAilmentResistPoisonChance.toFixed(1)}%`,
+                `출혈 방지: ${finalAilmentResistBleedChance.toFixed(1)}%`
             ],
-            final: `${Math.floor(ailmentResistBonusPct)}% 추가 저항`
+            final: `${Math.floor(ailmentResistBonusPct)}% 공통 방지`
         },
         dmgRoll: {
             title: '피해 보정 범위',
@@ -2756,6 +2781,13 @@ function getPlayerStats() {
         igniteChance: makeAilmentChanceBreakdown('점화 확률', 'igniteChance', finalIgniteChance, ailmentCritChance.ignite),
         chillChance: makeAilmentChanceBreakdown('냉각 확률', 'chillChance', finalChillChance, ailmentCritChance.chill),
         freezeChance: makeAilmentChanceBreakdown('동결 확률', 'freezeChance', finalFreezeChance, ailmentCritChance.freeze, '냉기 피해 치명타는 동결 시도를 보장합니다. 그 외에는 해당 확률로 동결을 시도하며, 시도 성공 후 적의 최대 생명력 대비 타격 피해로 동결 적용 판정을 합니다.'),
+        shockChance: makeAilmentChanceBreakdown('감전 확률', 'shockChance', finalShockChance, ailmentCritChance.shock),
+        ailmentResistIgniteChance: makeAilmentResistBreakdown('점화 저항 확률', '점화', ailResIgniteTotal, finalAilmentResistIgniteChance),
+        ailmentResistChillChance: makeAilmentResistBreakdown('냉각 저항 확률', '냉각', ailResFreezeTotal, finalAilmentResistChillChance),
+        ailmentResistFreezeChance: makeAilmentResistBreakdown('동결 저항 확률', '동결', ailResFreezeTotal, finalAilmentResistFreezeChance),
+        ailmentResistShockChance: makeAilmentResistBreakdown('감전 저항 확률', '감전', ailResShockTotal, finalAilmentResistShockChance),
+        ailmentResistPoisonChance: makeAilmentResistBreakdown('중독 저항 확률', '중독', ailResPoisonTotal, finalAilmentResistPoisonChance),
+        ailmentResistBleedChance: makeAilmentResistBreakdown('출혈 저항 확률', '출혈', ailResBleedTotal, finalAilmentResistBleedChance),
         poisonChance: makeAilmentChanceBreakdown('중독 확률', 'poisonChance', finalPoisonChance, ailmentCritChance.poison),
         bleedChance: makeAilmentChanceBreakdown('출혈 확률', 'bleedChance', finalBleedChance, ailmentCritChance.bleed),
         dps: {
@@ -2858,11 +2890,17 @@ function getPlayerStats() {
         maxResChaos: finalMaxResChaos,
         resChaos: finalResChaos,
         critResist: Math.max(0, Math.min(80, finalCritResist)),
-        ailResIgnite: (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0) + (colonyWardBonus.ailResIgnite || 0),
-        ailResShock: (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0) + (colonyWardBonus.ailResShock || 0),
-        ailResFreeze: (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0) + (colonyWardBonus.ailResFreeze || 0),
-        ailResPoison: (gearExplicit.ailResPoison || 0) + (passive.ailResPoison || 0) + (season.ailResPoison || 0) + (ascend.ailResPoison || 0) + (reward.ailResPoison || 0) + (colonyWardBonus.ailResPoison || 0),
-        ailResBleed: (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0) + (colonyWardBonus.ailResBleed || 0),
+        ailResIgnite: ailResIgniteTotal,
+        ailResShock: ailResShockTotal,
+        ailResFreeze: ailResFreezeTotal,
+        ailResPoison: ailResPoisonTotal,
+        ailResBleed: ailResBleedTotal,
+        ailmentResistIgniteChance: finalAilmentResistIgniteChance,
+        ailmentResistChillChance: finalAilmentResistChillChance,
+        ailmentResistFreezeChance: finalAilmentResistFreezeChance,
+        ailmentResistShockChance: finalAilmentResistShockChance,
+        ailmentResistPoisonChance: finalAilmentResistPoisonChance,
+        ailmentResistBleedChance: finalAilmentResistBleedChance,
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
         dotCritBonusScale: dotMultiplier,
@@ -2876,6 +2914,7 @@ function getPlayerStats() {
         igniteChance: finalIgniteChance,
         chillChance: finalChillChance,
         freezeChance: finalFreezeChance,
+        shockChance: finalShockChance,
         poisonChance: finalPoisonChance,
         bleedChance: finalBleedChance,
         ailmentCritChance: ailmentCritChance,
@@ -2944,7 +2983,8 @@ function getPlayerStats() {
         summonGuardRedirectPct: Math.max(0, Math.min(100, (gearBase.summonGuardRedirectPct || 0) + (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (support.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0))),
         poisonDamageMultiplierPct: Math.max(0, (gearExplicit.poisonDamageMultiplierPct || 0) + (passive.poisonDamageMultiplierPct || 0) + (season.poisonDamageMultiplierPct || 0) + (ascend.poisonDamageMultiplierPct || 0) + (support.poisonDamageMultiplierPct || 0) + (reward.poisonDamageMultiplierPct || 0)),
         shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
-        sbPlayerDamageFromSummonPct: Math.max(0, sbPlayerDamageFromSummonPct)
+        sbPlayerDamageFromSummonPct: Math.max(0, sbPlayerDamageFromSummonPct),
+        sbSummonDamageFromPlayerPct: Math.max(0, sbSummonDamageFromPlayerPct)
     };
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
@@ -5914,11 +5954,12 @@ function performPlayerAttack(pStats) {
             }
         });
     }
+    let instantLeechRecovered = 0;
     if (pStats.leech > 0 && totalLeechableDamage > 0) {
         let leechAmount = (totalLeechableDamage * (pStats.leech / 100));
         let leechTarget = (game.ascendClass === 'warlock' && hasKeystone('wlk3') && (pStats.energyShield || 0) > 0) ? 'energyShield' : 'life';
-        if ((pStats.uniqueInstantLeechPct || 0) > 0) applyInstantPlayerLeech(leechAmount * ((pStats.uniqueInstantLeechPct || 0) / 100), pStats, leechTarget);
-        if (pStats.sSkill && pStats.sSkill.instantLeech) applyInstantPlayerLeech(leechAmount, pStats, leechTarget);
+        if ((pStats.uniqueInstantLeechPct || 0) > 0) instantLeechRecovered += applyInstantPlayerLeech(leechAmount * ((pStats.uniqueInstantLeechPct || 0) / 100), pStats, leechTarget);
+        if (pStats.sSkill && pStats.sSkill.instantLeech) instantLeechRecovered += applyInstantPlayerLeech(leechAmount, pStats, leechTarget);
         else addPlayerLeechInstance(leechAmount, pStats, leechTarget);
     }
 
@@ -5950,6 +5991,12 @@ function performPlayerAttack(pStats) {
         if (!hiddenScaleTags.includes('regen') && (scales.regen || 1) > 1.0001) scaleLabels.push(`재생x${(scales.regen || 1).toFixed(2)}`);
         if (!hiddenScaleTags.includes('fireRes') && (scales.fireRes || 1) > 1.0001) scaleLabels.push(`화저x${(scales.fireRes || 1).toFixed(2)}`);
         if (scaleLabels.length > 0) line += ` [계수 ${scaleLabels.join(' / ')}]`;
+        if (instantLeechRecovered > 0) {
+            let instantLeechText = instantLeechRecovered < 1
+                ? instantLeechRecovered.toFixed(2)
+                : (instantLeechRecovered < 10 ? instantLeechRecovered.toFixed(1).replace(/\.0$/, '') : `${Math.floor(instantLeechRecovered)}`);
+            line += ` · 즉시흡수 +${instantLeechText}`;
+        }
         addLog(line, isCrit ? 'attack-crit' : 'attack-player', { rateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', minIntervalMs: isCrit ? 120 : 180, aggregateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', aggregateWindowMs: 500 });
     }
 
@@ -6075,11 +6122,11 @@ function handlePlayerDefeat(zone, pStats, message, options) {
 function getPlayerAilmentResistChance(type, pStats) {
     if (!pStats) return 0;
     let res = 0;
-    if (type === 'ignite') res = (pStats.resF || 0) + (pStats.ailResIgnite || 0);
-    else if (type === 'chill' || type === 'freeze') res = (pStats.resC || 0) + (pStats.ailResFreeze || 0);
-    else if (type === 'shock') res = (pStats.resL || 0) + (pStats.ailResShock || 0);
-    else if (type === 'poison') res = (pStats.resChaos || 0) + (pStats.ailResPoison || 0);
-    else if (type === 'bleed') res = (pStats.dr || 0) + (pStats.ailResBleed || 0);
+    if (type === 'ignite') res = pStats.ailResIgnite || 0;
+    else if (type === 'chill' || type === 'freeze') res = pStats.ailResFreeze || 0;
+    else if (type === 'shock') res = pStats.ailResShock || 0;
+    else if (type === 'poison') res = pStats.ailResPoison || 0;
+    else if (type === 'bleed') res = pStats.ailResBleed || 0;
     return Math.max(0, Math.min(1.00, (res + (pStats.ailmentResistBonusPct || 0)) / 100));
 }
 

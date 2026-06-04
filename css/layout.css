@@ -49,6 +49,12 @@
         .stat-item.tip:hover { color: #fff; }
         .stat-label { color: #c7d5e4; min-width: 0; }
         .stat-value { min-width: 56px; text-align: right; color: #eef5fc; font-weight: bold; }
+        .stat-item.full.ailment-stat-block { display: grid; grid-template-columns: 132px repeat(6, minmax(max-content, 1fr)); align-items: baseline; gap: 6px 8px; padding: 8px 0; overflow: visible; white-space: nowrap; }
+        .ailment-stat-title { color: #8fb6d9; font-size: 0.82em; font-weight: 800; letter-spacing: 0.04em; white-space: nowrap; }
+        .ailment-stat-inline-row { display: contents; line-height: 1.55; }
+        .ailment-stat-chip { display: inline-flex; align-items: baseline; gap: 3px; min-width: 0; white-space: nowrap; cursor: help; justify-content: flex-start; }
+        .ailment-chip-label { font-weight: 800; }
+        .ailment-chip-value { color: #eef5fc; font-weight: 900; font-variant-numeric: tabular-nums; }
         .stat-unit { min-width: 16px; text-align: right; color: #8ea3b8; }
 
         #item-tooltip-box, #canvas-tooltip, #info-tooltip { display: none; position: fixed; z-index: 9999; background: rgba(10,10,15,0.97); border: 1px solid #777; padding: 12px; border-radius: 6px; pointer-events: none; color: #eee; box-shadow: 0 5px 15px rgba(0,0,0,0.8); min-width: 200px; font-size: 0.9em; line-height: 1.5; }
