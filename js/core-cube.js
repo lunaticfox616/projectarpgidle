@@ -4,6 +4,37 @@ const CORE_CUBE_FACE_COUNT = 6;
 const CORE_CUBE_POWER_MIN = 1;
 const CORE_CUBE_POWER_MAX = 45;
 
+const CORE_CUBE_VERTICES = [
+    [-1, -1,  1], [ 1, -1,  1], [ 1,  1,  1], [-1,  1,  1],
+    [-1, -1, -1], [ 1, -1, -1], [ 1,  1, -1], [-1,  1, -1]
+];
+const CORE_CUBE_FACE_DEFS = [
+    { id: 0, name: '1번 면', verts: [0, 1, 2, 3] },
+    { id: 1, name: '2번 면', verts: [5, 4, 7, 6] },
+    { id: 2, name: '3번 면', verts: [3, 2, 6, 7] },
+    { id: 3, name: '4번 면', verts: [4, 5, 1, 0] },
+    { id: 4, name: '5번 면', verts: [1, 5, 6, 2] },
+    { id: 5, name: '6번 면', verts: [4, 0, 3, 7] }
+];
+const coreCubeCanvasView = {
+    canvas: null,
+    ctx: null,
+    textureCanvas: null,
+    textureCtx: null,
+    animationFrame: null,
+    rotationMatrix: [
+        [0.78, 0.00, 0.62],
+        [-0.24, 0.92, 0.31],
+        [-0.57, -0.39, 0.72]
+    ],
+    dragging: false,
+    dragMoved: false,
+    dragStartX: 0,
+    dragStartY: 0,
+    lastTrackballVector: null,
+    projectedFaces: []
+};
+
 function getCoreCubeDefaultState() {
     return {
         unlocked: false,
@@ -63,36 +94,17 @@ function ensureCoreCubeState() {
     return game.coreCube;
 }
 
-function hasUnderworld10ClearCredit() {
-    let uw = (game && game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : {};
-    let runes = (game && game.underworldRunes && typeof game.underworldRunes === 'object') ? game.underworldRunes : {};
-    return !!uw.floor10Cleared
-        || Math.max(0, Math.floor(Number(runes.unlockedSlots) || 0)) >= 1
-        || Math.max(0, Math.floor(Number(runes.unlockedRunesMaxNumber) || 0)) >= 1;
-}
-
-function revokeInvalidCoreCubeUnlockIfNeeded(st, info) {
-    if (!st || !st.everUnlocked || info.underworld10Cleared) return false;
-    st.unlocked = false;
-    st.everUnlocked = false;
-    st.relockUntilDrop = false;
-    st.unlockNoticeSeen = false;
-    if (game && game.unlocks) game.unlocks.cube = false;
-    if (game && game.noti) game.noti.cube = false;
-    return true;
-}
-
 function getCoreCubeUnlockInfo() {
     let uw = (game && game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : {};
     let highest = Math.max(1, Math.floor(Number(uw.highestFloor) || 1));
-    let underworld10Cleared = hasUnderworld10ClearCredit();
+    let underworld10Cleared = highest >= 11;
     let loopReady = Math.max(1, Math.floor(Number((game && game.season) || 1))) >= 20 || Math.max(0, Math.floor(Number((game && game.loopCount) || 0))) >= 20;
     let st = (game && game.coreCube && typeof game.coreCube === 'object') ? game.coreCube : {};
     let firstUnlockReady = underworld10Cleared && loopReady;
     return {
         unlocked: !!st.unlocked,
         firstUnlockReady,
-        dropEligible: firstUnlockReady || (!!st.everUnlocked && underworld10Cleared),
+        dropEligible: firstUnlockReady || !!st.everUnlocked,
         underworld10Cleared,
         loopReady,
         highestFloor: highest,
@@ -103,14 +115,12 @@ function getCoreCubeUnlockInfo() {
 function canDropCoreCubeBlurred45() {
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
-    if (revokeInvalidCoreCubeUnlockIfNeeded(st, info)) return false;
-    return !!info.dropEligible;
+    return !!(info.dropEligible || st.everUnlocked);
 }
 
 function isCoreCubeUnlocked() {
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
-    if (revokeInvalidCoreCubeUnlockIfNeeded(st, info)) return false;
     if (!st.everUnlocked && info.firstUnlockReady) {
         st.unlocked = true;
         st.everUnlocked = true;
@@ -124,7 +134,6 @@ function maybeUnlockCoreCube(options = {}) {
     if (!game) return false;
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
-    if (revokeInvalidCoreCubeUnlockIfNeeded(st, info)) return false;
     if (!st.everUnlocked && !info.firstUnlockReady) return false;
     if (!st.everUnlocked && info.firstUnlockReady) {
         st.unlocked = true;
@@ -156,11 +165,9 @@ function relockCoreCubeForLoop() {
 
 function addCoreCubeBlurred45(amount = 1) {
     let st = ensureCoreCubeState();
-    let info = getCoreCubeUnlockInfo();
-    if (revokeInvalidCoreCubeUnlockIfNeeded(st, info) || !info.dropEligible) return 0;
     let gain = Math.max(1, Math.floor(Number(amount) || 1));
     st.blurred45 += gain;
-    if (st.everUnlocked && !st.unlocked && info.underworld10Cleared) {
+    if (st.everUnlocked && !st.unlocked) {
         st.unlocked = true;
         st.relockUntilDrop = false;
         if (game && game.unlocks) game.unlocks.cube = true;
@@ -181,14 +188,18 @@ function addCoreCubePower(powerNo, count = 1) {
     return n;
 }
 
-function removeCoreCubePower(powerNo, count = 1) {
-    let st = ensureCoreCubeState();
+function consumeCoreCubePowerFromState(st, powerNo, count = 1) {
+    if (!st || !st.powers) return false;
     let n = Math.floor(Number(powerNo) || 0);
     let need = Math.max(1, Math.floor(Number(count) || 1));
     if (!st.powers[n] || st.powers[n] < need) return false;
     st.powers[n] -= need;
     if (st.powers[n] <= 0) delete st.powers[n];
     return true;
+}
+
+function removeCoreCubePower(powerNo, count = 1) {
+    return consumeCoreCubePowerFromState(ensureCoreCubeState(), powerNo, count);
 }
 
 function useCoreCubeBlurred45() {
@@ -216,7 +227,7 @@ function socketCoreCubePower(powerNo) {
     let faceIndex = Math.max(0, Math.min(CORE_CUBE_FACE_COUNT - 1, Math.floor(st.selectedFace || 0)));
     if (st.faces[faceIndex] !== null) return addLog('이미 동력원이 각인된 면입니다.', 'attack-monster');
     let n = Math.floor(Number(powerNo) || 0);
-    if (!removeCoreCubePower(n, 1)) return addLog(`${n}의 동력원이 부족합니다.`, 'attack-monster');
+    if (!consumeCoreCubePowerFromState(st, n, 1)) return addLog(`${n}의 동력원이 부족합니다.`, 'attack-monster');
     st.faces[faceIndex] = n;
     addLog(`🧊 코어 큐브 ${faceIndex + 1}번 면에 ${n}의 동력원 각인`, 'loot-magic');
     renderCoreCubePanel();
@@ -228,13 +239,13 @@ function socketRandomCoreCubePower(allRemaining = false) {
     if (st.completed) return addLog('완성된 큐브입니다. 재구성 후 다시 각인할 수 있습니다.', 'attack-monster');
     let emptyFaces = st.faces.map((value, idx) => value === null ? idx : null).filter(idx => idx !== null);
     if (emptyFaces.length <= 0) return addLog('비어 있는 큐브 면이 없습니다.', 'attack-monster');
-    let total = getCoreCubePowerTotal();
+    let total = Object.values(st.powers || {}).reduce((sum, count) => sum + Math.max(0, Math.floor(count || 0)), 0);
     let targetFaces = allRemaining ? emptyFaces : [st.selectedFace];
     targetFaces = targetFaces.filter(idx => st.faces[idx] === null);
     if (total < targetFaces.length) return addLog('동력원이 부족합니다.', 'attack-monster');
     targetFaces.forEach(idx => {
-        let picked = pickRandomCoreCubePower();
-        if (picked !== null && removeCoreCubePower(picked, 1)) st.faces[idx] = picked;
+        let picked = pickRandomCoreCubePowerFromState(st);
+        if (picked !== null && consumeCoreCubePowerFromState(st, picked, 1)) st.faces[idx] = picked;
     });
     renderCoreCubePanel();
     updateStaticUI();
@@ -245,9 +256,8 @@ function getCoreCubePowerTotal() {
     return Object.values(st.powers || {}).reduce((sum, count) => sum + Math.max(0, Math.floor(count || 0)), 0);
 }
 
-function pickRandomCoreCubePower() {
-    let st = ensureCoreCubeState();
-    let total = getCoreCubePowerTotal();
+function pickRandomCoreCubePowerFromState(st) {
+    let total = Object.values((st && st.powers) || {}).reduce((sum, count) => sum + Math.max(0, Math.floor(count || 0)), 0);
     if (total <= 0) return null;
     let cursor = Math.floor(Math.random() * total);
     let entries = Object.keys(st.powers || {}).map(Number).sort((a, b) => a - b);
@@ -257,6 +267,10 @@ function pickRandomCoreCubePower() {
         cursor -= count;
     }
     return null;
+}
+
+function pickRandomCoreCubePower() {
+    return pickRandomCoreCubePowerFromState(ensureCoreCubeState());
 }
 
 function resetCoreCube() {
@@ -453,39 +467,426 @@ function getCoreCubeActiveStats() {
     return stats;
 }
 
+function toCoreCubeRoman(num) {
+    const table = [[40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+    let result = '';
+    let value = Math.max(1, Math.floor(Number(num) || 1));
+    table.forEach(([amount, symbol]) => {
+        while (value >= amount) {
+            result += symbol;
+            value -= amount;
+        }
+    });
+    return result;
+}
+
+function coreCubeMultiplyMatrixVector(m, v) {
+    return [
+        m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2],
+        m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
+        m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2]
+    ];
+}
+
+function coreCubeMultiplyMatrices(a, b) {
+    const r = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (let y = 0; y < 3; y++) {
+        for (let x = 0; x < 3; x++) {
+            r[y][x] = a[y][0] * b[0][x] + a[y][1] * b[1][x] + a[y][2] * b[2][x];
+        }
+    }
+    return r;
+}
+
+function coreCubeNormalizeVector(v) {
+    const len = Math.hypot(v[0], v[1], v[2]) || 1;
+    return [v[0] / len, v[1] / len, v[2] / len];
+}
+
+function coreCubeCross(a, b) {
+    return [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0]
+    ];
+}
+
+function coreCubeDot(a, b) {
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+function coreCubeCreateRotationMatrix(axis, angle) {
+    const [x, y, z] = coreCubeNormalizeVector(axis);
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+    const t = 1 - c;
+    return [
+        [t * x * x + c,     t * x * y - s * z, t * x * z + s * y],
+        [t * x * y + s * z, t * y * y + c,     t * y * z - s * x],
+        [t * x * z - s * y, t * y * z + s * x, t * z * z + c]
+    ];
+}
+
+function coreCubeGetTrackballVector(clientX, clientY) {
+    const canvas = coreCubeCanvasView.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const nx = ((clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1;
+    const ny = -(((clientY - rect.top) / Math.max(1, rect.height)) * 2 - 1);
+    const lengthSq = nx * nx + ny * ny;
+    if (lengthSq <= 1) return coreCubeNormalizeVector([nx, ny, Math.sqrt(1 - lengthSq)]);
+    return coreCubeNormalizeVector([nx, ny, 0]);
+}
+
+function coreCubeGetNormal(a, b, c) {
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+    const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    const nx = uy * vz - uz * vy;
+    const ny = uz * vx - ux * vz;
+    const nz = ux * vy - uy * vx;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    return [nx / len, ny / len, nz / len];
+}
+
+function coreCubePointInPolygon(point, polygon) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y;
+        const xj = polygon[j].x, yj = polygon[j].y;
+        const intersect = yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+function initCoreCubeTextureCanvas() {
+    if (coreCubeCanvasView.textureCanvas || typeof document === 'undefined') return;
+    coreCubeCanvasView.textureCanvas = document.createElement('canvas');
+    coreCubeCanvasView.textureCanvas.width = 256;
+    coreCubeCanvasView.textureCanvas.height = 256;
+    coreCubeCanvasView.textureCtx = coreCubeCanvasView.textureCanvas.getContext('2d');
+}
+
+function resizeCoreCubeCanvas() {
+    const canvas = coreCubeCanvasView.canvas;
+    const ctx = coreCubeCanvasView.ctx;
+    if (!canvas || !ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawCoreCubeCanvas();
+}
+
+function coreCubeProjectVertex(v) {
+    const canvas = coreCubeCanvasView.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const [x, y, z] = v;
+    const distance = 4.3;
+    const scale = Math.min(rect.width, rect.height) * 0.15;
+    const perspective = distance / (distance - z);
+    return {
+        x: rect.width / 2 + x * scale * perspective,
+        y: rect.height / 2 - y * scale * perspective,
+        z
+    };
+}
+
+function drawCoreCubeBackground(rect) {
+    const ctx = coreCubeCanvasView.ctx;
+    ctx.save();
+    for (let i = 0; i < 54; i++) {
+        const x = (Math.sin(i * 12.9898) * 43758.5453) % 1;
+        const y = (Math.sin(i * 78.233) * 24634.6345) % 1;
+        const px = Math.abs(x) * rect.width;
+        const py = Math.abs(y) * rect.height;
+        const radius = 0.7 + (i % 4) * 0.32;
+        ctx.fillStyle = `rgba(150, 215, 255, ${0.05 + (i % 5) * 0.014})`;
+        ctx.beginPath();
+        ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+function drawCoreCubeCanvas() {
+    const canvas = coreCubeCanvasView.canvas;
+    const ctx = coreCubeCanvasView.ctx;
+    if (!canvas || !ctx || !canvas.isConnected) return;
+    const rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    drawCoreCubeBackground(rect);
+
+    const st = ensureCoreCubeState();
+    const rotated = CORE_CUBE_VERTICES.map(v => coreCubeMultiplyMatrixVector(coreCubeCanvasView.rotationMatrix, v));
+    const projected = rotated.map(coreCubeProjectVertex);
+    const drawableFaces = CORE_CUBE_FACE_DEFS.map(face => {
+        const points = face.verts.map(index => projected[index]);
+        const avgZ = points.reduce((sum, p) => sum + p.z, 0) / points.length;
+        const normal = coreCubeGetNormal(rotated[face.verts[0]], rotated[face.verts[1]], rotated[face.verts[2]]);
+        return { ...face, value: st.faces[face.id], points, avgZ, normalZ: normal[2] };
+    }).sort((a, b) => a.avgZ - b.avgZ);
+    coreCubeCanvasView.projectedFaces = drawableFaces.filter(face => face.normalZ > -0.12).sort((a, b) => b.avgZ - a.avgZ);
+    drawableFaces.forEach(face => drawCoreCubeFace(face, st));
+    drawCoreCubeWireframe(drawableFaces, st.completed);
+}
+
+function drawCoreCubeFace(face, st) {
+    const ctx = coreCubeCanvasView.ctx;
+    const points = face.points;
+    const isSelected = st.selectedFace === face.id;
+    const hasPower = face.value !== null;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    ctx.closePath();
+    if (st.completed) {
+        const pulse = 0.16 + Math.sin(performance.now() * 0.005) * 0.05;
+        ctx.fillStyle = `rgba(255, 142, 55, ${pulse})`;
+        ctx.fill();
+        ctx.shadowBlur = 28;
+        ctx.shadowColor = 'rgba(255, 142, 55, 0.90)';
+        ctx.strokeStyle = 'rgba(255, 190, 110, 0.72)';
+        ctx.lineWidth = 2.0;
+        ctx.stroke();
+    } else if (hasPower) {
+        const gradient = ctx.createLinearGradient(points[0].x, points[0].y, points[2].x, points[2].y);
+        gradient.addColorStop(0, 'rgba(80, 230, 255, 0.24)');
+        gradient.addColorStop(0.5, 'rgba(120, 190, 255, 0.14)');
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0.045)');
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = 'rgba(75, 230, 255, 0.62)';
+        ctx.strokeStyle = 'rgba(110, 240, 255, 0.34)';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+    } else {
+        ctx.fillStyle = 'rgba(120, 165, 210, 0.022)';
+        ctx.fill();
+    }
+    if (!st.completed && isSelected) {
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = 'rgba(255, 217, 128, 0.65)';
+        ctx.strokeStyle = 'rgba(255, 224, 150, 0.70)';
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+    }
+    ctx.restore();
+    if (hasPower) drawCoreCubeRomanTexture(face, toCoreCubeRoman(face.value), st.completed);
+}
+
+function drawCoreCubeRomanTexture(face, roman, completed) {
+    initCoreCubeTextureCanvas();
+    const textureCanvas = coreCubeCanvasView.textureCanvas;
+    const textureCtx = coreCubeCanvasView.textureCtx;
+    if (!textureCanvas || !textureCtx) return;
+    textureCtx.clearRect(0, 0, 256, 256);
+    const bg = textureCtx.createRadialGradient(128, 128, 16, 128, 128, 120);
+    bg.addColorStop(0, completed ? 'rgba(255, 160, 70, 0.20)' : 'rgba(100, 225, 255, 0.14)');
+    bg.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    textureCtx.fillStyle = bg;
+    textureCtx.fillRect(0, 0, 256, 256);
+    textureCtx.save();
+    textureCtx.translate(128, 128);
+    textureCtx.textAlign = 'center';
+    textureCtx.textBaseline = 'middle';
+    textureCtx.font = "900 52px Georgia, 'Times New Roman', serif";
+    textureCtx.shadowBlur = completed ? 18 : 14;
+    textureCtx.shadowColor = completed ? 'rgba(255, 160, 74, 0.72)' : 'rgba(150, 235, 255, 0.55)';
+    textureCtx.lineWidth = 4;
+    textureCtx.strokeStyle = completed ? 'rgba(255, 170, 74, 0.34)' : 'rgba(170, 245, 255, 0.28)';
+    textureCtx.strokeText(roman, 0, 0);
+    textureCtx.fillStyle = completed ? 'rgba(255, 230, 190, 0.78)' : 'rgba(210, 250, 255, 0.70)';
+    textureCtx.fillText(roman, 0, 0);
+    textureCtx.restore();
+    const points = face.points;
+    drawCoreCubeImageTriangle(textureCanvas, 0, 0, 256, 0, 256, 256, points[0], points[1], points[2]);
+    drawCoreCubeImageTriangle(textureCanvas, 0, 0, 256, 256, 0, 256, points[0], points[2], points[3]);
+}
+
+function drawCoreCubeImageTriangle(img, sx0, sy0, sx1, sy1, sx2, sy2, p0, p1, p2) {
+    const ctx = coreCubeCanvasView.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.closePath();
+    ctx.clip();
+    const denom = sx0 * (sy1 - sy2) + sx1 * (sy2 - sy0) + sx2 * (sy0 - sy1);
+    const a = (p0.x * (sy1 - sy2) + p1.x * (sy2 - sy0) + p2.x * (sy0 - sy1)) / denom;
+    const c = (p0.x * (sx2 - sx1) + p1.x * (sx0 - sx2) + p2.x * (sx1 - sx0)) / denom;
+    const e = (p0.x * (sx1 * sy2 - sx2 * sy1) + p1.x * (sx2 * sy0 - sx0 * sy2) + p2.x * (sx0 * sy1 - sx1 * sy0)) / denom;
+    const b = (p0.y * (sy1 - sy2) + p1.y * (sy2 - sy0) + p2.y * (sy0 - sy1)) / denom;
+    const d = (p0.y * (sx2 - sx1) + p1.y * (sx0 - sx2) + p2.y * (sx1 - sx0)) / denom;
+    const f = (p0.y * (sx1 * sy2 - sx2 * sy1) + p1.y * (sx2 * sy0 - sx0 * sy2) + p2.y * (sx0 * sy1 - sx1 * sy0)) / denom;
+    ctx.transform(a, b, c, d, e, f);
+    ctx.drawImage(img, 0, 0);
+    ctx.restore();
+}
+
+function drawCoreCubeWireframe(drawableFaces, completed) {
+    const ctx = coreCubeCanvasView.ctx;
+    const edges = new Map();
+    drawableFaces.forEach(face => {
+        for (let i = 0; i < face.points.length; i++) {
+            const a = face.verts[i];
+            const b = face.verts[(i + 1) % face.verts.length];
+            const key = [Math.min(a, b), Math.max(a, b)].join('-');
+            if (!edges.has(key)) edges.set(key, [face.points[i], face.points[(i + 1) % face.points.length]]);
+        }
+    });
+    const pulse = completed ? 0.72 + Math.sin(performance.now() * 0.006) * 0.18 : 1;
+    ctx.save();
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter';
+    for (const [, [a, b]] of edges) {
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        if (completed) {
+            ctx.shadowBlur = 32;
+            ctx.shadowColor = `rgba(255, 132, 36, ${0.95 * pulse})`;
+            ctx.strokeStyle = `rgba(255, 146, 55, ${0.78 * pulse})`;
+            ctx.lineWidth = 5.2;
+            ctx.stroke();
+            ctx.shadowBlur = 12;
+            ctx.strokeStyle = `rgba(255, 232, 178, ${0.92 * pulse})`;
+            ctx.lineWidth = 1.25;
+            ctx.stroke();
+        } else {
+            ctx.shadowBlur = 22;
+            ctx.shadowColor = 'rgba(75, 230, 255, 0.82)';
+            ctx.strokeStyle = 'rgba(95, 235, 255, 0.58)';
+            ctx.lineWidth = 3.8;
+            ctx.stroke();
+            ctx.shadowBlur = 8;
+            ctx.strokeStyle = 'rgba(225, 255, 255, 0.80)';
+            ctx.lineWidth = 1.0;
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+}
+
+function startCoreCubeCanvasAnimation() {
+    if (coreCubeCanvasView.animationFrame) cancelAnimationFrame(coreCubeCanvasView.animationFrame);
+    const animate = () => {
+        if (!coreCubeCanvasView.canvas || !coreCubeCanvasView.canvas.isConnected) {
+            coreCubeCanvasView.animationFrame = null;
+            return;
+        }
+        if (!coreCubeCanvasView.dragging) {
+            const idleRotation = coreCubeCreateRotationMatrix([0.22, 1, 0.08], 0.0045);
+            coreCubeCanvasView.rotationMatrix = coreCubeMultiplyMatrices(idleRotation, coreCubeCanvasView.rotationMatrix);
+        }
+        drawCoreCubeCanvas();
+        coreCubeCanvasView.animationFrame = requestAnimationFrame(animate);
+    };
+    coreCubeCanvasView.animationFrame = requestAnimationFrame(animate);
+}
+
+function bindCoreCubeCanvas(canvas) {
+    if (!canvas || coreCubeCanvasView.canvas === canvas) return;
+    coreCubeCanvasView.canvas = canvas;
+    coreCubeCanvasView.ctx = canvas.getContext('2d');
+    initCoreCubeTextureCanvas();
+    canvas.addEventListener('mousedown', event => {
+        coreCubeCanvasView.dragging = true;
+        coreCubeCanvasView.dragMoved = false;
+        coreCubeCanvasView.dragStartX = event.clientX;
+        coreCubeCanvasView.dragStartY = event.clientY;
+        coreCubeCanvasView.lastTrackballVector = coreCubeGetTrackballVector(event.clientX, event.clientY);
+    });
+    canvas.addEventListener('mousemove', event => {
+        if (!coreCubeCanvasView.dragging) return;
+        const dx = event.clientX - coreCubeCanvasView.dragStartX;
+        const dy = event.clientY - coreCubeCanvasView.dragStartY;
+        if (Math.hypot(dx, dy) > 4) coreCubeCanvasView.dragMoved = true;
+        const currentVector = coreCubeGetTrackballVector(event.clientX, event.clientY);
+        const previousVector = coreCubeCanvasView.lastTrackballVector;
+        const axis = coreCubeCross(previousVector, currentVector);
+        const axisLength = Math.hypot(axis[0], axis[1], axis[2]);
+        if (axisLength > 0.0001) {
+            const angle = Math.acos(Math.max(-1, Math.min(1, coreCubeDot(previousVector, currentVector))));
+            const rotation = coreCubeCreateRotationMatrix(axis, angle * 1.35);
+            coreCubeCanvasView.rotationMatrix = coreCubeMultiplyMatrices(rotation, coreCubeCanvasView.rotationMatrix);
+            coreCubeCanvasView.lastTrackballVector = currentVector;
+            drawCoreCubeCanvas();
+        }
+    });
+    ['mouseup', 'mouseleave'].forEach(type => canvas.addEventListener(type, () => {
+        coreCubeCanvasView.dragging = false;
+        coreCubeCanvasView.lastTrackballVector = null;
+    }));
+    canvas.addEventListener('click', event => {
+        if (coreCubeCanvasView.dragMoved) return;
+        const rect = canvas.getBoundingClientRect();
+        const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        for (const face of coreCubeCanvasView.projectedFaces) {
+            if (coreCubePointInPolygon(point, face.points)) {
+                selectCoreCubeFace(face.id);
+                return;
+            }
+        }
+    });
+    if (!bindCoreCubeCanvas.resizeBound && typeof window !== 'undefined') {
+        window.addEventListener('resize', resizeCoreCubeCanvas);
+        bindCoreCubeCanvas.resizeBound = true;
+    }
+    resizeCoreCubeCanvas();
+    startCoreCubeCanvasAnimation();
+}
+
+function initCoreCubeCanvas() {
+    if (typeof document === 'undefined') return;
+    const canvas = document.getElementById('coreCubeCanvas');
+    if (!canvas) return;
+    bindCoreCubeCanvas(canvas);
+    resizeCoreCubeCanvas();
+}
+
+
 function renderCoreCubePanel() {
+    if (typeof document === 'undefined') return;
     let host = document.getElementById('ui-core-cube-panel');
     if (!host || !game) return;
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
     let unlocked = isCoreCubeUnlocked();
+    st = ensureCoreCubeState();
     let faceHtml = st.faces.map((value, idx) => {
         let cls = ['core-cube-face'];
         if (idx === st.selectedFace) cls.push('selected');
         if (value !== null) cls.push('powered');
         if (st.completed) cls.push('completed');
-        return `<button class="${cls.join(' ')}" onclick="selectCoreCubeFace(${idx})"><span>${idx + 1}번 면</span><strong>${value === null ? '비어 있음' : value + ' 동력'}</strong></button>`;
+        return `<button type="button" class="${cls.join(' ')}" onclick="selectCoreCubeFace(${idx})"><span>${idx + 1}번 면</span><strong>${value === null ? '비어 있음' : value + ' 동력'}</strong></button>`;
     }).join('');
     let powerEntries = Object.keys(st.powers || {}).map(Number).sort((a, b) => a - b);
-    let inventoryHtml = powerEntries.length ? powerEntries.map(no => `<button class="core-cube-power" onclick="socketCoreCubePower(${no})" ${st.completed ? 'disabled' : ''}>${no}의 동력원 <span>×${st.powers[no]}</span></button>`).join('') : '<div class="core-cube-muted">보유 동력원이 없습니다.</div>';
+    let selectedFilled = st.faces[st.selectedFace] !== null;
+    let inventoryHtml = powerEntries.length
+        ? powerEntries.map(no => `<button type="button" class="core-cube-power" onclick="socketCoreCubePower(${no})" ${st.completed || selectedFilled || !unlocked ? 'disabled' : ''}>${no}의 동력원 <span>×${st.powers[no]}</span></button>`).join('')
+        : '<div class="core-cube-muted">보유 동력원이 없습니다.</div>';
     let comboText = st.faces.every(v => v !== null) ? st.faces.slice().sort((a, b) => a - b).join(' / ') : '6면 각인 필요';
     let optionsHtml = (st.revealedOptions || []).length ? st.revealedOptions.map(row => `<div class="core-cube-option">${row.text || formatCoreCubeOption(row)}</div>`).join('') : '<div class="core-cube-muted">큐브를 완성하면 옵션 4줄이 발현됩니다.</div>';
     let lockedHtml = `<div class="core-cube-locked"><strong>코어 큐브 잠김</strong><br>해금 조건: 지하계 10층 클리어 (${info.underworld10Cleared ? '완료' : `최고 ${info.highestFloor}층`}) · 루프 20 (${info.loopReady ? '완료' : `현재 ${info.currentLoop}`})</div>`;
     host.innerHTML = `${unlocked ? '' : lockedHtml}
         <div class="core-cube-shell ${st.completed ? 'completed' : ''} ${unlocked ? '' : 'locked'}">
             <div class="core-cube-stage">
-                <div class="core-cube-visual">
-                    <div class="core-cube-orb">CORE<br>CUBE</div>
-                    <div class="core-cube-ring"></div>
-                </div>
+                <div class="core-cube-stage-title"><span>Subterranean Core</span><strong>코어 큐브</strong></div>
+                <div class="core-cube-canvas-wrap"><canvas id="coreCubeCanvas" aria-label="코어 큐브 3D 캔버스"></canvas></div>
+                <div class="core-cube-stage-complete"><button type="button" class="core-cube-complete" onclick="completeCoreCube()" ${unlocked && !st.completed && st.faces.every(v => v !== null) ? '' : 'disabled'}>코어 큐브 완성</button></div>
                 <div class="core-cube-faces">${faceHtml}</div>
             </div>
             <div class="core-cube-side">
-                <div class="core-cube-card"><h3>흐릿한 45면체</h3><div class="core-cube-row"><span>보유 <strong>${st.blurred45}</strong></span><button onclick="useCoreCubeBlurred45()" ${unlocked && st.blurred45 > 0 ? '' : 'disabled'}>사용</button></div><p>사용 시 1~45 중 하나의 동력원을 획득합니다. 이 재료는 재화 목록에 표시되지 않습니다.</p>${st.lastPower ? `<p class="core-cube-good">최근 획득: ${st.lastPower}의 동력원</p>` : ''}</div>
-                <div class="core-cube-card"><h3>동력원 보관함</h3><div class="core-cube-row"><span>선택 면: <strong>${st.selectedFace + 1}번</strong></span><button onclick="socketRandomCoreCubePower(false)" ${unlocked && !st.completed && st.faces[st.selectedFace] === null && getCoreCubePowerTotal() > 0 ? '' : 'disabled'}>선택 면 무작위</button><button onclick="socketRandomCoreCubePower(true)" ${unlocked && !st.completed && getCoreCubePowerTotal() >= st.faces.filter(v => v === null).length && st.faces.some(v => v === null) ? '' : 'disabled'}>전체 무작위</button></div><div class="core-cube-inventory">${inventoryHtml}</div></div>
-                <div class="core-cube-card"><h3>큐브 완성</h3><div class="core-cube-row"><button class="core-cube-complete" onclick="completeCoreCube()" ${unlocked && !st.completed && st.faces.every(v => v !== null) ? '' : 'disabled'}>코어 큐브 완성</button><button onclick="resetCoreCube()" ${unlocked && (st.completed || st.faces.some(v => v !== null)) ? '' : 'disabled'}>재구성</button></div><p>현재 조합: <strong>${comboText}</strong></p><div class="core-cube-options">${optionsHtml}</div></div>
+                <div class="core-cube-card"><h3>흐릿한 45면체</h3><div class="core-cube-row"><span>보유 <strong>${st.blurred45}</strong></span><button type="button" onclick="useCoreCubeBlurred45()" ${unlocked && st.blurred45 > 0 ? '' : 'disabled'}>사용</button></div><p>사용 시 1~45 중 하나의 동력원을 획득합니다. 이 재료는 재화 목록에 표시되지 않습니다.</p>${st.lastPower ? `<p class="core-cube-good">최근 획득: ${st.lastPower}의 동력원</p>` : ''}</div>
+                <div class="core-cube-card"><h3>동력원 보관함</h3><div class="core-cube-row"><span>선택 면: <strong>${st.selectedFace + 1}번</strong> · ${selectedFilled ? '<strong class="core-cube-good">각인됨</strong>' : '비어 있음'}</span><button type="button" onclick="socketRandomCoreCubePower(false)" ${unlocked && !st.completed && st.faces[st.selectedFace] === null && getCoreCubePowerTotal() > 0 ? '' : 'disabled'}>선택 면 무작위</button><button type="button" onclick="socketRandomCoreCubePower(true)" ${unlocked && !st.completed && getCoreCubePowerTotal() >= st.faces.filter(v => v === null).length && st.faces.some(v => v === null) ? '' : 'disabled'}>전체 무작위</button></div><div class="core-cube-inventory">${inventoryHtml}</div><p>동력원 버튼을 누르면 선택된 면에 즉시 각인됩니다. 각인된 동력원은 재구성 전까지 회수할 수 없습니다.</p></div>
+                <div class="core-cube-card"><h3>큐브 완성</h3><div class="core-cube-row"><button type="button" class="core-cube-complete" onclick="completeCoreCube()" ${unlocked && !st.completed && st.faces.every(v => v !== null) ? '' : 'disabled'}>코어 큐브 완성</button><button type="button" onclick="resetCoreCube()" ${unlocked && (st.completed || st.faces.some(v => v !== null)) ? '' : 'disabled'}>재구성</button></div><p>현재 조합: <strong>${comboText}</strong></p><div class="core-cube-options">${optionsHtml}</div></div>
             </div>
         </div>`;
+    initCoreCubeCanvas();
 }
 
-safeExposeGlobals({ getCoreCubeDefaultState, normalizeCoreCubeState, ensureCoreCubeState, getCoreCubeUnlockInfo, hasUnderworld10ClearCredit, isCoreCubeUnlocked, maybeUnlockCoreCube, relockCoreCubeForLoop, canDropCoreCubeBlurred45, addCoreCubeBlurred45, addCoreCubePower, useCoreCubeBlurred45, selectCoreCubeFace, socketCoreCubePower, socketRandomCoreCubePower, resetCoreCube, completeCoreCube, generateCoreCubeOptions, getCoreCubeActiveStats, renderCoreCubePanel });
+safeExposeGlobals({ getCoreCubeDefaultState, normalizeCoreCubeState, ensureCoreCubeState, getCoreCubeUnlockInfo, isCoreCubeUnlocked, maybeUnlockCoreCube, relockCoreCubeForLoop, canDropCoreCubeBlurred45, addCoreCubeBlurred45, addCoreCubePower, useCoreCubeBlurred45, selectCoreCubeFace, socketCoreCubePower, socketRandomCoreCubePower, resetCoreCube, completeCoreCube, generateCoreCubeOptions, getCoreCubeActiveStats, renderCoreCubePanel });

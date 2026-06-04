@@ -293,17 +293,7 @@ function getStatName(statId) {
         lightFlatDmg: '번개 기본 피해',
         chaosFlatDmg: '카오스 기본 피해',
         doubleDamageChance: '확률로 2배의 피해를 줌(%)',
-        slamEchoDamagePct: '여진 피해량(%)',
-        summonFlatDmg: '소환수 기본 피해',
-        summonPctDmg: '소환수 피해(%)',
-        summonAspd: '소환수 공격 속도(%)',
-        summonHpPct: '소환수 생명력(%)',
-        summonCrit: '소환수 치명타 확률(%)',
-        summonCritDmg: '소환수 치명타 피해 배율(%)',
-        summonCap: '소환수 최대 한도',
-        summonEfficiency: '소환수 효율(%)',
-        summonGuardRedirectPct: '방어형 소환수 피해 대리(%)',
-        summonResPen: '소환수 저항 관통(%)'
+        slamEchoDamagePct: '여진 피해량(%)'
     };
     return names[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId;
 }
@@ -330,7 +320,7 @@ function createEmptyStatBucket() {
         physTakenAsFire: 0, physTakenAsCold: 0, physTakenAsLight: 0, physTakenAsChaos: 0,
         addedFireDamagePct: 0, addedColdDamagePct: 0, addedLightDamagePct: 0, addedChaosDamagePct: 0, addedPhysDamagePct: 0,
         fireFlatDmg: 0, coldFlatDmg: 0, lightFlatDmg: 0, chaosFlatDmg: 0,
-        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, shockChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
+        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0, deflectChance: 0, deflectDamageReduce: 0, blockChance: 0, blockChancePct: 0,
         ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,

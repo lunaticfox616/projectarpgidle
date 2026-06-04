@@ -2829,6 +2829,19 @@ function getPlayerStats() {
         }
     };
 
+    // 방패 막기 공식
+    // 1) 방패 옵션의 막기 확률(%) 증가는 방패 베이스 막기 확률 자체를 상승시킨다.
+    // 2) 패시브/키스톤 등 기타 막기 확률(%) 증가는 원본 베이스 막기 확률에서만 %로 증가한다.
+    // 3) 막기 확률 +%p는 마지막에 더한다.
+    // 4) 최종 상한 50%.
+    let effectiveShieldBaseBlockChance = Math.max(0, shieldBaseBlockChance * (1 + Math.max(0, shieldBlockChancePct) / 100));
+    let blockChanceFromOtherPct = Math.max(0,
+        guardianBlockChance + gearBase.blockChancePct + passive.blockChancePct + season.blockChancePct + ascend.blockChancePct + support.blockChancePct + reward.blockChancePct
+    );
+    let flatBlockChanceBonus = Math.max(0, shieldBlockChanceFlat + gearBase.blockChance + passive.blockChance + season.blockChance + ascend.blockChance + support.blockChance + reward.blockChance);
+    let finalBlockChanceCap = Math.max(50, Math.min(75, 50 + Math.max(0, sumStatAcrossBuckets('blockChanceMax'))));
+    let finalBlockChance = Math.min(finalBlockChanceCap, Math.max(0, effectiveShieldBaseBlockChance + (shieldBaseBlockChance * blockChanceFromOtherPct / 100) + flatBlockChanceBonus));
+
     let enemy = {
         baseDmg: finalBaseDmg,
         maxHp: finalMaxHp,
@@ -4730,9 +4743,8 @@ function rollLootForEnemy(enemy) {
         if (!drop || !drop[0]) return;
         if (drop[0] === 'blurred45') {
             let gain = typeof addCoreCubeBlurred45 === 'function' ? addCoreCubeBlurred45(drop[1]) : 0;
-            if (gain <= 0) return;
             addBattleFx('lootPickup', { enemyId: enemy.id, color: '#9de8ff', duration: 760 });
-            if (game.settings.showLootLog) addLog(`🧊 흐릿한 45면체 +${gain}`, 'loot-unique');
+            if (game.settings.showLootLog) addLog(`🧊 흐릿한 45면체 +${gain || drop[1]}`, 'loot-unique');
             return;
         }
         awardCurrency(drop[0], drop[1]);
