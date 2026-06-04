@@ -5035,6 +5035,16 @@ function handleStoryActSpecialDefeat(zone, pStats) {
     return false;
 }
 
+function ensureNextEndlessChaosDepthUnlocked(depth) {
+    let clearedDepth = Math.max(1, Math.floor(depth || 1));
+    if ((game.season || 1) < 10 || clearedDepth < 20) return 0;
+    game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
+    let nextDepth = Math.max(21, clearedDepth + 1);
+    if (!game.abyssUnlockedDepths.includes(nextDepth)) game.abyssUnlockedDepths.push(nextDepth);
+    game.abyssUnlockedDepths = Array.from(new Set(game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 20))).sort((a, b) => a - b);
+    return nextDepth;
+}
+
 function resolveNextLoopBestPlusOneZone(zone) {
     game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
     if (zone && zone.type === 'abyss' && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
@@ -5301,6 +5311,7 @@ function finishEncounterRun() {
                 game.abyssPassivePoints = Math.max(0, Math.floor(game.abyssPassivePoints || 0)) + 5;
                 addLog(`🌌 혼돈 ${depth} 클리어 보상: 혼돈 패시브 포인트 +5`, 'season-up');
             }
+            ensureNextEndlessChaosDepthUnlocked(depth);
         }
         if (zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
         if (zone.type === 'act') {
@@ -5330,12 +5341,10 @@ function finishEncounterRun() {
             if ((game.season || 1) >= 10 && zone.type === 'abyss') {
                 let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-                let nowEndless = Math.max(20, depth, Math.floor(game.abyssEndlessDepth || depth));
-                let nextDepth = Math.max(21, nowEndless + 1);
-                if (!game.abyssUnlockedDepths.includes(nextDepth)) game.abyssUnlockedDepths.push(nextDepth);
-                // Keep current endless depth here; enterNextEndlessChaosDepth() advances by +1 when continuing.
-                // Setting this to nextDepth would double-advance and skip a floor (e.g. 20 -> 22).
-                game.abyssEndlessDepth = Math.max(nowEndless, 20);
+                ensureNextEndlessChaosDepthUnlocked(depth);
+                // Keep the cleared endless depth here; enterNextEndlessChaosDepth() advances by +1 when continuing.
+                // Setting this to the unlocked next depth would double-advance and skip a floor (e.g. 20 -> 22).
+                game.abyssEndlessDepth = Math.max(20, depth);
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
                 let seasonAbyssCap = getSeasonAbyssDepthCap(game.season || 1);
                 let bestAbyssDepthBeforeClear = Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0));
