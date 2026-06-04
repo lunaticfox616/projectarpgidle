@@ -373,7 +373,7 @@ function renderPaperdoll(targetId, forCrafting) {
             else if (item.encroached && !item.encroached.liberated) displayStats.push({ id: 'encroached', val: 0, statName: '[잠식] 해방 전' });
             let shieldBaseSummaryIds = new Set(['armor', 'evasion', 'energyShield', 'baseBlockChance']);
             let summaryStats = slot === '방패' ? displayStats.filter(stat => stat && !shieldBaseSummaryIds.has(stat.id)) : displayStats;
-            let statLines = summaryStats.slice(0, 2).map(stat => `${hi(stat.statName)} +${formatValue(stat.id, stat.val)}`);
+            let statLines = summaryStats.slice(0, 2).map(stat => `${hi(stat.statName || getStatName(stat.id))} +${formatValue(stat.id, stat.val)}`);
             if (slot === '방패') {
                 let baseArmor = displayStats.filter(s => s && s.id === 'armor').reduce((a, b) => a + Number(b.val || 0), 0);
                 let baseEvasion = displayStats.filter(s => s && s.id === 'evasion').reduce((a, b) => a + Number(b.val || 0), 0);
