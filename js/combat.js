@@ -72,14 +72,9 @@ function addPlayerLeechInstance(rawAmount, pStats, target) {
     return stored;
 }
 function applyInstantPlayerLeech(rawAmount, pStats, target) {
-    let amount = Math.max(0, Number(rawAmount) || 0);
-    if (amount <= 0) return 0;
-    let leechTarget = target === 'energyShield' ? 'energyShield' : 'life';
-    let caps = getLeechCaps(pStats, leechTarget);
-    if (caps.instanceCap <= 0) return 0;
-    let instantAmount = Math.min(amount, caps.instanceCap);
+    let instantAmount = Math.max(0, Number(rawAmount) || 0);
     if (instantAmount <= 0) return 0;
-    instantAmount = Math.max(1, Math.floor(instantAmount));
+    let leechTarget = target === 'energyShield' ? 'energyShield' : 'life';
     if (leechTarget === 'energyShield') {
         let esCap = Math.max(0, Number(pStats && pStats.energyShield) || 0);
         if (esCap <= 0) return 0;
@@ -669,8 +664,8 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let zoneTier = (zone && zone.tier) || 1;
     let base = Math.max(1, Math.floor(s.baseDamage || 20));
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb1')) base = Math.max(1, Math.floor(base * 1.15));
-    let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100);
-    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) dmgMul += Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100;
+    let soulbinderComplementPct = Math.max(0, Number((pStats && pStats.sbSummonDamageFromPlayerPct) || 0));
+    let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100) + (soulbinderComplementPct / 100);
     let critChance = Math.max(0, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
     let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
     let crit = false;
@@ -684,11 +679,6 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     } else if (pStats.uniqueSummonNonCritNoDamage) {
         dmg = 0;
         ailmentSourceDmg = 0;
-    }
-    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
-        let soulbinderMul = 1 + Math.max(0, (pStats.pctDmg || 0) * 0.5) / 100;
-        dmg *= soulbinderMul;
-        ailmentSourceDmg *= soulbinderMul;
     }
     if (target && target.isBoss) {
         let bossMul = getLimitedSummonBossDamageMultiplier(pStats, target);
@@ -1923,6 +1913,7 @@ function getPlayerStats() {
     let sbSummonAspdBonus = 0;
     let sbSummonCapBonus = 0;
     let sbPlayerDamageFromSummonPct = 0;
+    let sbSummonDamageFromPlayerPct = 0;
     let ailmentResistPenPct = 0;
     let crusaderLightningIgnoreRes = false;
     let crusaderNoResPenOnLightning = false;
@@ -2335,7 +2326,10 @@ function getPlayerStats() {
             finalAspd = Math.max(0.1, finalAspd * (1 + sumAspd / 100));
             finalMaxHp = Math.floor(finalMaxHp * (1 + sumHp / 100));
         }
-        if (hasKeystone('sb7')) sbPlayerDamageFromSummonPct += 0.5;
+        if (hasKeystone('sb7')) {
+            sbPlayerDamageFromSummonPct += 0.5;
+            sbSummonDamageFromPlayerPct += Math.max(0, generalPctDmg * 0.5);
+        }
     } else if (game.ascendClass === 'catalyst') {
         if (hasKeystone('ct7')) {
             let overflow = Math.max(0, finalIgniteChance - 100) + Math.max(0, finalPoisonChance - 100) + Math.max(0, finalBleedChance - 100);
@@ -2601,10 +2595,10 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('보조 젬', support.leech, '%', value => `${formatValue('leech', value)}%`),
-                skill.instantLeech ? '흡혈 타격: 이 젬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복됩니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
+                skill.instantLeech ? '흡혈 타격: 이 젬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 흡혈 인스턴스 캡을 적용받지 않습니다.' : `타격 시 즉시 회복 대신 흡혈 인스턴스 생성`,
                 (game.ascendClass === 'warlock' && hasKeystone('wlk3')) ? `금단 대가: 흡혈 ${skill.instantLeech ? '즉시 회복이 생명력 대신 에너지 보호막에 적용됩니다.' : '인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.'}` : null,
-                `기본 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}% · 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}% · 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
-                `추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p · 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p · 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
+                `일반 흡혈 캡: 타격당 최대 생명력 ${LEECH_BASE_INSTANCE_CAP_PCT}% · 전체 저장 ${LEECH_BASE_TOTAL_CAP_PCT}% · 인스턴스당 초당 ${LEECH_BASE_RATE_CAP_PCT}%`,
+                `일반 흡혈 추가 캡: 회복 속도 +${formatValue('leechRateCap', finalLeechRateCap)}%p · 전체 +${formatValue('leechTotalCap', finalLeechTotalCap)}%p · 타격당 +${formatValue('leechInstanceCap', finalLeechInstanceCap)}%p`,
                 `적용 전 ${formatValue('leech', rawLeech)}% → 적용 후 ${formatValue('leech', finalLeech)}%`
             ].filter(Boolean),
             final: `${formatValue('leech', finalLeech)}%`
@@ -2986,7 +2980,8 @@ function getPlayerStats() {
         summonGuardRedirectPct: Math.max(0, Math.min(100, (gearBase.summonGuardRedirectPct || 0) + (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (support.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0))),
         poisonDamageMultiplierPct: Math.max(0, (gearExplicit.poisonDamageMultiplierPct || 0) + (passive.poisonDamageMultiplierPct || 0) + (season.poisonDamageMultiplierPct || 0) + (ascend.poisonDamageMultiplierPct || 0) + (support.poisonDamageMultiplierPct || 0) + (reward.poisonDamageMultiplierPct || 0)),
         shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
-        sbPlayerDamageFromSummonPct: Math.max(0, sbPlayerDamageFromSummonPct)
+        sbPlayerDamageFromSummonPct: Math.max(0, sbPlayerDamageFromSummonPct),
+        sbSummonDamageFromPlayerPct: Math.max(0, sbSummonDamageFromPlayerPct)
     };
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
@@ -5993,7 +5988,12 @@ function performPlayerAttack(pStats) {
         if (!hiddenScaleTags.includes('regen') && (scales.regen || 1) > 1.0001) scaleLabels.push(`재생x${(scales.regen || 1).toFixed(2)}`);
         if (!hiddenScaleTags.includes('fireRes') && (scales.fireRes || 1) > 1.0001) scaleLabels.push(`화저x${(scales.fireRes || 1).toFixed(2)}`);
         if (scaleLabels.length > 0) line += ` [계수 ${scaleLabels.join(' / ')}]`;
-        if (instantLeechRecovered > 0) line += ` · 즉시흡수 +${Math.floor(instantLeechRecovered)}`;
+        if (instantLeechRecovered > 0) {
+            let instantLeechText = instantLeechRecovered < 1
+                ? instantLeechRecovered.toFixed(2)
+                : (instantLeechRecovered < 10 ? instantLeechRecovered.toFixed(1).replace(/\.0$/, '') : `${Math.floor(instantLeechRecovered)}`);
+            line += ` · 즉시흡수 +${instantLeechText}`;
+        }
         addLog(line, isCrit ? 'attack-crit' : 'attack-player', { rateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', minIntervalMs: isCrit ? 120 : 180, aggregateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', aggregateWindowMs: 500 });
     }
 
