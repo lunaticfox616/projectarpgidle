@@ -28,6 +28,21 @@ function formatNumberKR(value) {
     return Math.floor(n).toLocaleString('ko-KR');
 }
 
+function addEvasionCombatLog(target, isPlayer) {
+    if (game.settings && game.settings.showCombatLog === false) return;
+    let targetName = String(target && target.name ? target.name : '적');
+    let isWoodsman = !isPlayer && (targetName.includes('나무꾼') || (target && target.zoneType === 'outsideChaos'));
+    let message = isPlayer
+        ? '🌀 플레이어 회피'
+        : (isWoodsman ? '🪓 나무꾼 회피' : `🌀 ${targetName} 회피`);
+    let aggregateKey = isPlayer ? 'combat:evasion:player' : (isWoodsman ? 'combat:evasion:woodsman' : `combat:evasion:enemy:${targetName}`);
+    addLog(message, isPlayer ? 'loot-magic' : 'attack-monster', {
+        noToast: true,
+        aggregateKey: aggregateKey,
+        aggregateWindowMs: 450
+    });
+}
+
 function applyLeechSoftcap(rawLeech) {
     let raw = Math.max(0, Number(rawLeech) || 0);
     if (raw <= LEECH_SOFTCAP_START) return raw;
@@ -712,6 +727,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (!expected && target && (target.evasionChance || 0) > 0 && Math.random() * 100 < target.evasionChance) {
         dmg = 0;
         ailmentSourceDmg = 0;
+        addEvasionCombatLog(target, false);
     }
     dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
     ailmentSourceDmg = Math.floor(ailmentSourceDmg * (1 - (enemyRes / 100)));
@@ -934,7 +950,12 @@ function coreLoop() {
     if (!Number.isFinite(game.playerCastDelayUntil)) game.playerCastDelayUntil = 0;
     sanitizeCombatRuntimeState();
     reconcileMapProgressRuntimeState();
-    runConditionGemAutoRules(pStats);
+    if (pStats.uniqueClosedEyes) {
+        game.playerConditionBuffs = [];
+        game.enemyConditionDebuffs = {};
+    } else {
+        runConditionGemAutoRules(pStats);
+    }
     processPendingSlamEchoHits();
     tickAilments(pStats, 0.1);
     let ailmentMap = {};
@@ -1421,6 +1442,14 @@ function getPlayerStats() {
     let uniqueAllResDownOnHit=null, uniqueKillMoveStacks=null, uniqueCursedTakenAndRefresh=null, uniqueEnemyRegenCutAndMinRoll=null, uniquePhysDrHalfTakenAsMore=null, uniqueArmorAppliesToDot=false, uniqueMeleeArmorAmp=null, uniqueNoCollisionBlock=false, uniqueResonanceAndSuppCap=null, uniqueRegenRateAndRegen=null, uniqueMaxHpPct=0, uniqueAllMaxRes=0;
     let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null;
     let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
+    if (activeUniqueIds.has('uj_crown_empty')) {
+        let otherUniqueCount = equippedUniqueJewels.filter(entry => entry && entry.jewel && entry.jewel.uniqueId !== 'uj_crown_empty').length;
+        if (otherUniqueCount === 0) {
+            addStatToBucket(reward, 'pctDmg', 25);
+            addStatToBucket(reward, 'gemLevel', 1);
+        }
+    }
+    if (activeUniqueIds.has('uj_condensed_curse')) uniqueCurseCrownPerCursePct = Math.max(uniqueCurseCrownPerCursePct, 10);
     let uniqueSummonDeathDamageBuff=null, uniqueSummonCritAspdStacks=null, uniqueSummonNonCritNoDamage=false;
     let uniqueBlockRecoverEnergyShieldPct=0, uniqueDeflectStealth=null, uniqueChaosTakenDamageReducePct=0, uniqueLifeRecoupTakenDamage=null;
     equippedUniqueEffects.forEach(effect => {
@@ -2179,6 +2208,11 @@ function getPlayerStats() {
         if (hasKeystone('h6') && Array.isArray(skill.tags) && skill.tags.includes('projectile')) {
             skill.targets = Math.min(12, Math.max(1, (skill.targets || 1) + 1));
             totalProjectileExtraShots += 1;
+        }
+        if (hasKeystone('h7')) {
+            let solitaryOriginalTargets = Math.max(1, Math.floor(skill.targets || 1));
+            finalDs += Math.max(0, solitaryOriginalTargets - 1) * 100;
+            skill.targets = 1;
         }
         if (hasKeystone('h8')) {
             let dsAsCrit = Math.max(0, finalDs);
@@ -5515,9 +5549,7 @@ function performPlayerAttack(pStats) {
     let uniqueProjectileExtraHits = isProjectileSkill ? Math.max(0, Math.floor((pStats.uniqueProjectileDoubleStrikePct || 0) / 100)) : 0;
     let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits + uniqueProjectileExtraHits));
     if (game.ascendClass === 'hunter' && hasKeystone('h7')) {
-        let originalTargets = Math.max(1, Math.floor((Array.isArray(targets) && targets.length > 0) ? targets.length : (pStats.sSkill.targets || 1)));
         pStats.sSkill.targets = 1;
-        repeats = Math.max(1, Math.min(12, repeats + Math.max(0, originalTargets - 1)));
     }
     let perEnemyHitCount = new Map();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
@@ -5723,7 +5755,7 @@ function performPlayerAttack(pStats) {
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
             if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
-                if (game.settings.showCombatLog) addLog(`🌀 ${targetEnemy.name} 회피`, 'attack-monster', { noToast: true });
+                addEvasionCombatLog(targetEnemy, false);
                 return;
             }
             dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
@@ -6526,7 +6558,7 @@ function performMonsterAttacks(pStats) {
             if (game.ascendClass === 'hunter' && hasKeystone('h3')) evadeRoll = Math.min(evadeRoll, Math.random() * 100);
             if (evadeRoll < evadeChance) {
                 spawnDamageText({ x: width * 0.28, y: height * 0.64, value: '회피!', miss: true, color: '#9fb4c8' });
-                if (game.settings.showCombatLog) addLog(`🌀 회피 성공`, "loot-magic");
+                addEvasionCombatLog(null, true);
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
                 continue;
             }
@@ -6961,6 +6993,7 @@ function triggerSeasonReset() {
     game.claimedActRewards = [];
     game.actRewardBonuses = [];
     game.seasonChaseUniqueDropped = false;
+    game.seasonChaseUniqueDrops = [];
     game.uniqueCodex = codexReveal;
     game.starWedge = JSON.parse(JSON.stringify(defaultGame.starWedge));
     game.starWedge.wedges = preservedEternalWedges;
