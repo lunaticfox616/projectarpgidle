@@ -6013,13 +6013,13 @@ function passesItemPickupFilter(item) {
 
 
 const UNIQUE_JEWEL_DB = [
-    { id:'uj_crown_empty', name:'비어 있는 왕좌', ultra:true, uniqueEffect:'고독한 군림', stats:[{id:'pctDmg',val:25},{id:'gemLevel',val:1}] },
+    { id:'uj_crown_empty', name:'비어 있는 왕좌', ultra:true, uniqueEffect:'다른 고유 주얼이 없으면 피해 +25%, 젬 레벨 +1 추가', stats:[{id:'pctDmg',val:25},{id:'gemLevel',val:1}] },
     { id:'uj_mirror_heart', name:'거울 심장', ultra:true, uniqueEffect:'반대 슬롯 주얼 복제', stats:[{id:'pctDmg',val:8},{id:'resAll',val:8}] },
     { id:'uj_old_box', name:'오래된 보석함', ultra:true, uniqueEffect:'인벤토리 등급 시너지', stats:[{id:'aspd',val:6},{id:'resAll',val:10}] },
     { id:'uj_hurried_mind', name:'다급해지는 마음', ultra:true, uniqueEffect:'적이 없으면 이동속도 +50%', stats:[{id:'move',val:12},{id:'regen',val:1.2}] },
-    { id:'uj_condensed_curse', name:'응축된 저주', ultra:true, uniqueEffect:'저주 최대치 +1 / 저주당 피해 +10%', stats:[{id:'dotPctDmg',val:14},{id:'resPen',val:6}] },
+    { id:'uj_condensed_curse', name:'응축된 저주', ultra:true, uniqueEffect:'저주 최대치 +1, 대상 저주당 최종 피해 +10%', stats:[{id:'dotPctDmg',val:14},{id:'resPen',val:6}] },
     { id:'uj_burning_will', name:'불같은 의지', ultra:true, uniqueEffect:'화염 최대저항/저항 연계 보너스', stats:[{id:'maxResF',val:2},{id:'firePctDmg',val:12}] },
-    { id:'uj_closed_eyes', name:'질끈 감은 눈', ultra:true, uniqueEffect:'상태이상/저주/버프 무효', stats:[{id:'dr',val:6},{id:'resAll',val:12}] },
+    { id:'uj_closed_eyes', name:'질끈 감은 눈', ultra:true, uniqueEffect:'플레이어 상태이상 면역, 컨디션 버프/적 저주 비활성', stats:[{id:'dr',val:6},{id:'resAll',val:12}] },
     { id:'uj_void', name:'공허', ultra:true, uniqueEffect:'융합 가능 수 6', stats:[{id:'pctDmg',val:-10},{id:'resAll',val:-10}], voidFusionCharges:6 },
     { id:'uj_spark_ember', name:'불씨의 파편', stats:[{id:'firePctDmg',val:14},{id:'igniteChance',val:10}] },
     { id:'uj_frost_nail', name:'서리 못', stats:[{id:'coldPctDmg',val:14},{id:'chillChance',val:10}] },
@@ -6086,7 +6086,7 @@ function getJewelOptionDef(statId) {
 }
 
 function isJewelPetiteStat(stat) {
-    return !!(stat && stat.petite);
+    return !!(stat && stat.petite && !stat.waxBonus);
 }
 
 function getJewelCoreStats(jewel) {
@@ -6225,10 +6225,18 @@ function salvageJewelObject(jewel, silent) {
     if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (+주얼 결정 ${shardGain})`, 'loot-normal');
 }
 
+function showWaxedJewelCraftRestriction(jewel, actionLabel) {
+    let name = jewel && jewel.name ? jewel.name : '밀랍 주얼';
+    if (typeof openWaxedItemRestrictionOverlay === 'function') return openWaxedItemRestrictionOverlay(name, actionLabel || '제작');
+    addLog(`🐝 [${name}]은 밀랍 처리로 고정되어 ${actionLabel || '제작'}할 수 없습니다.`, 'attack-monster');
+}
+
 function toggleJewelFusionSelection(idx) {
     jewelFusionSelection = jewelFusionSelection || [];
     if (jewelFusionSelection.includes(idx)) jewelFusionSelection = jewelFusionSelection.filter(v => v !== idx);
     else {
+        let jewel = (game.jewelInventory || [])[idx];
+        if (jewel && jewel.waxedByBeeswax) return showWaxedJewelCraftRestriction(jewel, '주얼 합성');
         jewelFusionSelection.push(idx);
         if (jewelFusionSelection.length > 2) jewelFusionSelection = jewelFusionSelection.slice(-2);
     }
@@ -6263,6 +6271,8 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
     let sorted = jewelFusionSelection.slice().sort((a, b) => a - b);
     let a = game.jewelInventory[sorted[0]];
     let b = game.jewelInventory[sorted[1]];
+    let waxedMaterial = [a, b].find(jewel => jewel && jewel.waxedByBeeswax);
+    if (waxedMaterial) return showWaxedJewelCraftRestriction(waxedMaterial, '주얼 합성');
     let aStats = getJewelCoreStats(a);
     let bStats = getJewelCoreStats(b);
     function canFuseUnique(j) {
@@ -6331,6 +6341,8 @@ function craftVoidJewel() { if (game.woodsmanBuildLock) return addLog('☠️ �
     game.jewelInventory = game.jewelInventory || [];
     if ((game.currencies.voidChisel || 0) <= 0) return addLog('공허의 끌이 부족합니다.', 'attack-monster');
     if (game.jewelInventory.length < 2) return addLog('공허 주얼 제작에는 주얼 2개가 필요합니다.', 'attack-monster');
+    let waxedMaterial = game.jewelInventory.slice(0, 2).find(jewel => jewel && jewel.waxedByBeeswax);
+    if (waxedMaterial) return showWaxedJewelCraftRestriction(waxedMaterial, '공허 주얼 제작');
     let a = game.jewelInventory.shift();
     let b = game.jewelInventory.shift();
     let stats = [...getJewelCoreStats(a), ...getJewelCoreStats(b)].slice(0, 4).map(cloneJewelStat).filter(Boolean);
@@ -6345,6 +6357,8 @@ function fuseVoidJewel(idxA, idxB) {
     game.jewelInventory = game.jewelInventory || [];
     let a = game.jewelInventory[idxA], b = game.jewelInventory[idxB];
     if (!a || !b || idxA === idxB) return;
+    let waxedMaterial = [a, b].find(jewel => jewel && jewel.waxedByBeeswax);
+    if (waxedMaterial) return showWaxedJewelCraftRestriction(waxedMaterial, '공허 주얼 융합');
     if (!(a.isVoid || b.isVoid)) return addLog('공허 주얼 융합은 최소 1개의 공허 주얼이 필요합니다.', 'attack-monster');
     let stats = [...getJewelCoreStats(a), ...getJewelCoreStats(b)];
     let seen = new Set();
@@ -6414,9 +6428,19 @@ function tryAmplifyJewelSlot(slotIndex) {
     updateStaticUI();
 }
 
+function toggleJewelLock(idx) {
+    game.jewelInventory = game.jewelInventory || [];
+    let jewel = game.jewelInventory[idx];
+    if (!jewel) return;
+    jewel.locked = !jewel.locked;
+    addLog(`${jewel.locked ? '🔒' : '🔓'} 주얼 잠금 ${jewel.locked ? '설정' : '해제'}: ${jewel.name || '주얼'}`, 'loot-normal');
+    updateStaticUI();
+}
+
 function salvageJewel(idx) {
     let jewel = (game.jewelInventory || [])[idx];
     if (!jewel) return;
+    if (jewel.locked) return addLog('잠금된 주얼은 해체할 수 없습니다.', 'attack-monster');
     salvageJewelObject(jewel, false);
     game.jewelInventory.splice(idx, 1);
     jewelFusionSelection = [];
@@ -6432,19 +6456,21 @@ function bulkSalvageJewels() { if (game.woodsmanBuildLock) return addLog('☠️
     if (selectedRarities.length === 0) return addLog('주얼 해체 등급을 선택하세요.', 'attack-monster');
     let kept = [];
     let removed = 0;
+    let lockedSkipped = 0;
     game.jewelInventory.forEach(jewel => {
         let rarity = jewel.rarity || 'normal';
         if (selectedRarities.includes(rarity)) {
+            if (jewel.locked) { lockedSkipped++; kept.push(jewel); return; }
             salvageJewelObject(jewel, true);
             removed++;
         } else {
             kept.push(jewel);
         }
     });
-    if (removed === 0) return addLog('선택한 등급의 주얼이 없습니다.', 'attack-monster');
+    if (removed === 0) return addLog(`선택한 등급의 주얼이 없습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
     game.jewelInventory = kept;
     jewelFusionSelection = [];
-    addLog(`💠 주얼 ${removed}개를 해체해 주얼 결정을 회수했습니다.`, 'loot-normal');
+    addLog(`💠 주얼 ${removed}개를 해체해 주얼 결정을 회수했습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 
@@ -6678,44 +6704,53 @@ function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return add
     updateStaticUI();
 }
 
+function getJewelBeeswaxPreview(jewel) {
+    let stats = getJewelStats(jewel).filter(stat => !stat.waxBonus);
+    if (stats.length <= 0) return null;
+    let source = stats.map((stat, index) => ({ stat, index }))
+        .sort((a, b) => (Number(a.stat.tier || 1) - Number(b.stat.tier || 1)) || (a.index - b.index))[0].stat;
+    let waxStat = cloneJewelStat(source);
+    waxStat.petite = false;
+    waxStat.waxBonus = true;
+    waxStat.val = Number((Number(source.val || 0) * 0.35).toFixed(1));
+    waxStat.valMin = waxStat.val;
+    waxStat.valMax = waxStat.val;
+    return { stats, source, waxStat };
+}
+
 function applyBeeswaxToJewel(idx) {
     let beeLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
     if (beeLv < 8) return addLog('주얼 밀랍 처리는 양봉업자 Lv.8에 해금됩니다.', 'attack-monster');
     game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
     let jewel = game.jewelInventory[idx];
     if (!jewel) return;
-    if (jewel.waxedByBeeswax) return addLog('이미 밀랍 처리된 주얼입니다.', 'attack-monster');
+    if (jewel.waxedByBeeswax) return showWaxedJewelCraftRestriction(jewel, '밀랍 재처리');
     if ((game.currencies.beeswax || 0) < 1) return addLog('밀랍이 부족합니다.', 'attack-monster');
-    let stats = getJewelStats(jewel);
-    if (stats.length <= 0) return;
+    if (!getJewelBeeswaxPreview(jewel)) return addLog('밀랍으로 복제할 주얼 옵션이 없습니다.', 'attack-monster');
+    if (typeof openBeeswaxApplicationOverlay === 'function') return openBeeswaxApplicationOverlay('jewel', idx);
+    return commitBeeswaxToJewel(idx);
+}
+
+function commitBeeswaxToJewel(idx) {
+    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
+    let jewel = game.jewelInventory[idx];
+    if (!jewel || jewel.waxedByBeeswax || (game.currencies.beeswax || 0) < 1) return false;
+    let preview = getJewelBeeswaxPreview(jewel);
+    if (!preview) return false;
     game.currencies.beeswax--;
-    let target = stats.slice().sort((a, b) => (Number(a.tier || 1) - Number(b.tier || 1)))[0];
-    target = cloneJewelStat(target);
-    target.petite = true;
-    target.waxBonus = true;
-    target.val = Number((Number(target.val || 0) * 0.35).toFixed(1));
-    target.valMin = target.val;
-    target.valMax = target.val;
-    let maxStats = Math.max(5, stats.length + 1);
-    jewel.stats = stats.concat([target]).slice(0, maxStats);
+    jewel.stats = preview.stats.concat([preview.waxStat]);
     jewel.waxedByBeeswax = true;
-    jewel.name = `밀랍 ${jewel.name}`;
+    jewel.name = `밀랍 ${String(jewel.name || '주얼').replace(/^밀랍\s+/, '')}`;
     if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_resource_use');
-    addLog(`🐝 주얼 밀랍 처리 완료: ${getStatName(target.id)} +${formatJewelStatValue(target.id, target.val)}`, 'loot-rare');
+    addLog(`🐝 주얼 밀랍 처리 완료: ${getStatName(preview.waxStat.id)} +${formatJewelStatValue(preview.waxStat.id, preview.waxStat.val)}`, 'loot-rare');
     updateStaticUI();
+    return true;
 }
 
 function removeBeeswaxFromJewel(idx) {
-    let beeLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
-    if (beeLv < 9) return addLog('밀랍 제거는 양봉업자 Lv.9에 해금됩니다.', 'attack-monster');
-    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
-    let jewel = game.jewelInventory[idx];
+    let jewel = (game.jewelInventory || [])[idx];
     if (!jewel || !jewel.waxedByBeeswax) return;
-    jewel.stats = getJewelStats(jewel).filter(stat => !stat.waxBonus);
-    jewel.waxedByBeeswax = false;
-    jewel.name = String(jewel.name || '').replace(/^밀랍\s+/, '');
-    addLog('🐝 주얼 밀랍 처리를 제거했습니다.', 'loot-normal');
-    updateStaticUI();
+    return showWaxedJewelCraftRestriction(jewel, '밀랍 제거');
 }
 
 function useCurrency(currencyKey) {
