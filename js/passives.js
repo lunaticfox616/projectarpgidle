@@ -6237,12 +6237,34 @@ function showWaxedJewelCraftRestriction(jewel, actionLabel) {
     addLog(`🐝 [${name}]은 밀랍 처리로 고정되어 ${actionLabel || '제작'}할 수 없습니다.`, 'attack-monster');
 }
 
+function showLockedJewelCraftRestriction(jewel, actionLabel) {
+    let name = jewel && jewel.name ? jewel.name : '잠금 주얼';
+    addLog(`🔒 잠금된 주얼은 ${actionLabel || '제작'} 재료로 사용할 수 없습니다. [${name}]`, 'attack-monster');
+}
+
+function getProtectedJewelCraftMaterial(jewels) {
+    let materials = Array.isArray(jewels) ? jewels.filter(Boolean) : [];
+    let locked = materials.find(jewel => jewel.locked);
+    if (locked) return { jewel: locked, reason: 'locked' };
+    let waxed = materials.find(jewel => jewel.waxedByBeeswax);
+    if (waxed) return { jewel: waxed, reason: 'waxed' };
+    return null;
+}
+
+function rejectProtectedJewelCraftMaterial(jewels, actionLabel) {
+    let protectedMaterial = getProtectedJewelCraftMaterial(jewels);
+    if (!protectedMaterial) return false;
+    if (protectedMaterial.reason === 'locked') showLockedJewelCraftRestriction(protectedMaterial.jewel, actionLabel);
+    else showWaxedJewelCraftRestriction(protectedMaterial.jewel, actionLabel);
+    return true;
+}
+
 function toggleJewelFusionSelection(idx) {
     jewelFusionSelection = jewelFusionSelection || [];
     if (jewelFusionSelection.includes(idx)) jewelFusionSelection = jewelFusionSelection.filter(v => v !== idx);
     else {
         let jewel = (game.jewelInventory || [])[idx];
-        if (jewel && jewel.waxedByBeeswax) return showWaxedJewelCraftRestriction(jewel, '주얼 합성');
+        if (rejectProtectedJewelCraftMaterial([jewel], '주얼 합성')) return;
         jewelFusionSelection.push(idx);
         if (jewelFusionSelection.length > 2) jewelFusionSelection = jewelFusionSelection.slice(-2);
     }
@@ -6277,8 +6299,7 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
     let sorted = jewelFusionSelection.slice().sort((a, b) => a - b);
     let a = game.jewelInventory[sorted[0]];
     let b = game.jewelInventory[sorted[1]];
-    let waxedMaterial = [a, b].find(jewel => jewel && jewel.waxedByBeeswax);
-    if (waxedMaterial) return showWaxedJewelCraftRestriction(waxedMaterial, '주얼 합성');
+    if (rejectProtectedJewelCraftMaterial([a, b], '주얼 합성')) return;
     let aStats = getJewelCoreStats(a);
     let bStats = getJewelCoreStats(b);
     function canFuseUnique(j) {
@@ -6347,8 +6368,8 @@ function craftVoidJewel() { if (game.woodsmanBuildLock) return addLog('☠️ �
     game.jewelInventory = game.jewelInventory || [];
     if ((game.currencies.voidChisel || 0) <= 0) return addLog('공허의 끌이 부족합니다.', 'attack-monster');
     if (game.jewelInventory.length < 2) return addLog('공허 주얼 제작에는 주얼 2개가 필요합니다.', 'attack-monster');
-    let waxedMaterial = game.jewelInventory.slice(0, 2).find(jewel => jewel && jewel.waxedByBeeswax);
-    if (waxedMaterial) return showWaxedJewelCraftRestriction(waxedMaterial, '공허 주얼 제작');
+    let craftMaterials = game.jewelInventory.slice(0, 2);
+    if (rejectProtectedJewelCraftMaterial(craftMaterials, '공허 주얼 제작')) return;
     let a = game.jewelInventory.shift();
     let b = game.jewelInventory.shift();
     let stats = [...getJewelCoreStats(a), ...getJewelCoreStats(b)].slice(0, 4).map(cloneJewelStat).filter(Boolean);
@@ -6363,8 +6384,7 @@ function fuseVoidJewel(idxA, idxB) {
     game.jewelInventory = game.jewelInventory || [];
     let a = game.jewelInventory[idxA], b = game.jewelInventory[idxB];
     if (!a || !b || idxA === idxB) return;
-    let waxedMaterial = [a, b].find(jewel => jewel && jewel.waxedByBeeswax);
-    if (waxedMaterial) return showWaxedJewelCraftRestriction(waxedMaterial, '공허 주얼 융합');
+    if (rejectProtectedJewelCraftMaterial([a, b], '공허 주얼 융합')) return;
     if (!(a.isVoid || b.isVoid)) return addLog('공허 주얼 융합은 최소 1개의 공허 주얼이 필요합니다.', 'attack-monster');
     let stats = [...getJewelCoreStats(a), ...getJewelCoreStats(b)];
     let seen = new Set();
