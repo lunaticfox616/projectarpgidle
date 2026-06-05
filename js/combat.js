@@ -602,10 +602,60 @@ function buildActiveSummonRuntimeDefs(pStats) {
     return defs.slice(0, maxCap).map((row, idx) => ({ ...row, slotIdx: idx, duplicateIndex: row.duplicateIndex || 0 }));
 }
 
+function getEquippedJewelGemLevelBonusSources() {
+    let gear = 0;
+    let addJewelGemLevels = (jewel, multiplier) => {
+        if (!jewel || typeof getJewelStats !== 'function') return;
+        let mul = Number.isFinite(Number(multiplier)) ? Number(multiplier) : 1;
+        getJewelStats(jewel).forEach(stat => {
+            if (stat && stat.id === 'gemLevel') gear += Number(stat.val || 0) * mul;
+        });
+    };
+    Object.values(game.equipment || {}).forEach(item => {
+        if (!item) return;
+        if (item.voidSocket && item.voidSocket.open) addJewelGemLevels(item.voidSocket.jewel, 1);
+        let abyssAmp = 1;
+        if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp') {
+            let params = item.uniqueEffectParams || {};
+            let min = Number(params.ampMin || 1), max = Number(params.ampMax || 100);
+            let pct = Number.isFinite(Number(params.ampPct)) ? Number(params.ampPct) : ((min + max) / 2);
+            abyssAmp += pct / 100;
+        }
+        (Array.isArray(item.abyssSockets) ? item.abyssSockets : []).forEach(socket => addJewelGemLevels(socket && socket.jewel, abyssAmp));
+    });
+    (game.jewelSlots || []).forEach((jewel, idx) => {
+        let amplify = Math.max(0, Math.floor(((game.jewelSlotAmplify || [])[idx]) || 0));
+        addJewelGemLevels(jewel, 1 + (amplify * 0.03));
+    });
+    (game.jewelSlots || []).forEach((jewel, idx) => {
+        if (!jewel || jewel.uniqueId !== 'uj_mirror_heart') return;
+        addJewelGemLevels((game.jewelSlots || [])[idx === 0 ? 1 : 0], 1);
+    });
+    return gear;
+}
+
+function hasEmptyThroneSoloBonus() {
+    if (typeof getEquippedUniqueJewels !== 'function') return false;
+    let equipped = getEquippedUniqueJewels();
+    return equipped.some(entry => entry && entry.jewel && entry.jewel.uniqueId === 'uj_crown_empty')
+        && equipped.every(entry => entry && entry.jewel && entry.jewel.uniqueId === 'uj_crown_empty');
+}
+
 function getTargetGemBonusSources(target, fallbackSources) {
     let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(target) : fallbackSources;
     sources = sources ? { ...sources } : { gear: 0, passive: 0, reward: 0, total: 0 };
-    if (game.ascendClass === 'inquisitor' && hasKeystone('iq6')) {
+    let jewelGemLevel = getEquippedJewelGemLevelBonusSources();
+    sources.gear = Number(sources.gear || 0) + jewelGemLevel;
+    sources.total = Number(sources.total || 0) + jewelGemLevel;
+    if (hasEmptyThroneSoloBonus()) {
+        sources.reward = Number(sources.reward || 0) + 1;
+        sources.total = Number(sources.total || 0) + 1;
+    }
+    let targetName = Array.isArray(target) ? null : (target || game.activeSkill);
+    let isSupportGem = !!(targetName && typeof SUPPORT_GEM_DB !== 'undefined' && SUPPORT_GEM_DB[targetName]);
+    let targetTags = (typeof getGemLevelTargetTags === 'function') ? getGemLevelTargetTags(target) : [];
+    let isElementalGem = targetTags.includes('elemental');
+    if (game.ascendClass === 'inquisitor' && hasKeystone('iq6') && (isElementalGem || isSupportGem)) {
         sources.reward = Number(sources.reward || 0) + 1;
         sources.total = Number(sources.total || 0) + 1;
     }

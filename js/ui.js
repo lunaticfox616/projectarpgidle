@@ -7117,8 +7117,9 @@ function mergeDefaults(save) {
     merged.claimableActRewards = (merged.claimableActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
+    let legacySeasonChaseUniqueDropped = merged.seasonChaseUniqueDropped === true;
     merged.seasonChaseUniqueDrops = Array.from(new Set((Array.isArray(merged.seasonChaseUniqueDrops) ? merged.seasonChaseUniqueDrops : []).filter(name => typeof name === 'string' && name)));
-    merged.seasonChaseUniqueDropped = merged.seasonChaseUniqueDrops.length > 0;
+    merged.seasonChaseUniqueDropped = legacySeasonChaseUniqueDropped || merged.seasonChaseUniqueDrops.length > 0;
     if (Array.isArray(merged.skills) && merged.skills.includes('수액 골렘 소환')) {
         merged.supports = Array.isArray(merged.supports) ? merged.supports : [];
         if (!merged.supports.includes('수액 골렘 소환')) merged.supports.push('수액 골렘 소환');
