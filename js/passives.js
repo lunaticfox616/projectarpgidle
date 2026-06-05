@@ -5776,8 +5776,12 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
     let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
-    let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare && canDropUniqueInZone(unique) && zoneTier >= (unique.reqTier || 1));
-    let canRollChase = !game.seasonChaseUniqueDropped && chaseOptions.length > 0 && Math.random() < 0.0008;
+    let seasonChaseDrops = new Set(Array.isArray(game.seasonChaseUniqueDrops) ? game.seasonChaseUniqueDrops : []);
+    let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare
+        && canDropUniqueInZone(unique)
+        && zoneTier >= (unique.reqTier || 1)
+        && !seasonChaseDrops.has(unique.name));
+    let canRollChase = !forcedUnique && chaseOptions.length > 0 && Math.random() < 0.0008;
     let poolSource = canRollChase ? chaseOptions : normalOptions;
     let options = poolSource.filter(unique => unique.slots.includes(slot) && zoneTier >= (unique.reqTier || 1));
     if (options.length === 0) options = poolSource.filter(unique => zoneTier >= (unique.reqTier || 1));
@@ -5827,8 +5831,10 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
         let max = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
         item.stats.push({ id: stat.id, val: val, valMin: min, valMax: max, tier: 0, statName: getStatName(stat.id) });
     });
-    if (unique.ultraRare) {
-        game.seasonChaseUniqueDropped = true;
+    if (unique.ultraRare && canRollChase) {
+        game.seasonChaseUniqueDrops = Array.isArray(game.seasonChaseUniqueDrops) ? game.seasonChaseUniqueDrops : [];
+        if (!game.seasonChaseUniqueDrops.includes(unique.name)) game.seasonChaseUniqueDrops.push(unique.name);
+        game.seasonChaseUniqueDropped = game.seasonChaseUniqueDrops.length > 0;
         addLog(`🌠 체이싱 유니크 발견! [${unique.name}]`, 'loot-unique');
     }
     return item;
@@ -6231,12 +6237,34 @@ function showWaxedJewelCraftRestriction(jewel, actionLabel) {
     addLog(`🐝 [${name}]은 밀랍 처리로 고정되어 ${actionLabel || '제작'}할 수 없습니다.`, 'attack-monster');
 }
 
+function showLockedJewelCraftRestriction(jewel, actionLabel) {
+    let name = jewel && jewel.name ? jewel.name : '잠금 주얼';
+    addLog(`🔒 잠금된 주얼은 ${actionLabel || '제작'} 재료로 사용할 수 없습니다. [${name}]`, 'attack-monster');
+}
+
+function getProtectedJewelCraftMaterial(jewels) {
+    let materials = Array.isArray(jewels) ? jewels.filter(Boolean) : [];
+    let locked = materials.find(jewel => jewel.locked);
+    if (locked) return { jewel: locked, reason: 'locked' };
+    let waxed = materials.find(jewel => jewel.waxedByBeeswax);
+    if (waxed) return { jewel: waxed, reason: 'waxed' };
+    return null;
+}
+
+function rejectProtectedJewelCraftMaterial(jewels, actionLabel) {
+    let protectedMaterial = getProtectedJewelCraftMaterial(jewels);
+    if (!protectedMaterial) return false;
+    if (protectedMaterial.reason === 'locked') showLockedJewelCraftRestriction(protectedMaterial.jewel, actionLabel);
+    else showWaxedJewelCraftRestriction(protectedMaterial.jewel, actionLabel);
+    return true;
+}
+
 function toggleJewelFusionSelection(idx) {
     jewelFusionSelection = jewelFusionSelection || [];
     if (jewelFusionSelection.includes(idx)) jewelFusionSelection = jewelFusionSelection.filter(v => v !== idx);
     else {
         let jewel = (game.jewelInventory || [])[idx];
-        if (jewel && jewel.waxedByBeeswax) return showWaxedJewelCraftRestriction(jewel, '주얼 합성');
+        if (rejectProtectedJewelCraftMaterial([jewel], '주얼 합성')) return;
         jewelFusionSelection.push(idx);
         if (jewelFusionSelection.length > 2) jewelFusionSelection = jewelFusionSelection.slice(-2);
     }
@@ -6271,8 +6299,7 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
     let sorted = jewelFusionSelection.slice().sort((a, b) => a - b);
     let a = game.jewelInventory[sorted[0]];
     let b = game.jewelInventory[sorted[1]];
-    let waxedMaterial = [a, b].find(jewel => jewel && jewel.waxedByBeeswax);
-    if (waxedMaterial) return showWaxedJewelCraftRestriction(waxedMaterial, '주얼 합성');
+    if (rejectProtectedJewelCraftMaterial([a, b], '주얼 합성')) return;
     let aStats = getJewelCoreStats(a);
     let bStats = getJewelCoreStats(b);
     function canFuseUnique(j) {
@@ -6341,8 +6368,8 @@ function craftVoidJewel() { if (game.woodsmanBuildLock) return addLog('☠️ �
     game.jewelInventory = game.jewelInventory || [];
     if ((game.currencies.voidChisel || 0) <= 0) return addLog('공허의 끌이 부족합니다.', 'attack-monster');
     if (game.jewelInventory.length < 2) return addLog('공허 주얼 제작에는 주얼 2개가 필요합니다.', 'attack-monster');
-    let waxedMaterial = game.jewelInventory.slice(0, 2).find(jewel => jewel && jewel.waxedByBeeswax);
-    if (waxedMaterial) return showWaxedJewelCraftRestriction(waxedMaterial, '공허 주얼 제작');
+    let craftMaterials = game.jewelInventory.slice(0, 2);
+    if (rejectProtectedJewelCraftMaterial(craftMaterials, '공허 주얼 제작')) return;
     let a = game.jewelInventory.shift();
     let b = game.jewelInventory.shift();
     let stats = [...getJewelCoreStats(a), ...getJewelCoreStats(b)].slice(0, 4).map(cloneJewelStat).filter(Boolean);
@@ -6357,8 +6384,7 @@ function fuseVoidJewel(idxA, idxB) {
     game.jewelInventory = game.jewelInventory || [];
     let a = game.jewelInventory[idxA], b = game.jewelInventory[idxB];
     if (!a || !b || idxA === idxB) return;
-    let waxedMaterial = [a, b].find(jewel => jewel && jewel.waxedByBeeswax);
-    if (waxedMaterial) return showWaxedJewelCraftRestriction(waxedMaterial, '공허 주얼 융합');
+    if (rejectProtectedJewelCraftMaterial([a, b], '공허 주얼 융합')) return;
     if (!(a.isVoid || b.isVoid)) return addLog('공허 주얼 융합은 최소 1개의 공허 주얼이 필요합니다.', 'attack-monster');
     let stats = [...getJewelCoreStats(a), ...getJewelCoreStats(b)];
     let seen = new Set();

@@ -6993,6 +6993,7 @@ function triggerSeasonReset() {
     game.claimedActRewards = [];
     game.actRewardBonuses = [];
     game.seasonChaseUniqueDropped = false;
+    game.seasonChaseUniqueDrops = [];
     game.uniqueCodex = codexReveal;
     game.starWedge = JSON.parse(JSON.stringify(defaultGame.starWedge));
     game.starWedge.wedges = preservedEternalWedges;
