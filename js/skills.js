@@ -424,6 +424,91 @@ function getGemLevelTargetTags(target) {
     return Array.from(new Set(tags));
 }
 
+
+function getTalismanAnchorCellForGemBonus(talisman) {
+    if (!talisman) return { x: 0, y: 0 };
+    if (typeof getTalismanAnchorCell === 'function') return getTalismanAnchorCell(talisman);
+    let cells = Array.isArray(talisman.cells) ? talisman.cells : [];
+    if (cells.length === 0) return { x: 0, y: 0 };
+    let filled = new Set(cells.map(cell => `${cell.x || 0},${cell.y || 0}`));
+    let centerX = cells.reduce((sum, cell) => sum + (cell.x || 0), 0) / cells.length;
+    let centerY = cells.reduce((sum, cell) => sum + (cell.y || 0), 0) / cells.length;
+    let ranked = cells.map(cell => {
+        let x = cell.x || 0, y = cell.y || 0;
+        let neighbors = 0;
+        if (filled.has(`${x - 1},${y}`)) neighbors++;
+        if (filled.has(`${x + 1},${y}`)) neighbors++;
+        if (filled.has(`${x},${y - 1}`)) neighbors++;
+        if (filled.has(`${x},${y + 1}`)) neighbors++;
+        return { cell: { x: x, y: y }, neighbors: neighbors, dist: Math.hypot(x - centerX, y - centerY) };
+    });
+    ranked.sort((a, b) => {
+        if (b.neighbors !== a.neighbors) return b.neighbors - a.neighbors;
+        if (a.dist !== b.dist) return a.dist - b.dist;
+        if (a.cell.y !== b.cell.y) return a.cell.y - b.cell.y;
+        return a.cell.x - b.cell.x;
+    });
+    return ranked[0].cell;
+}
+
+function getTalismanGemBonusSources(activeTags) {
+    let total = 0;
+    let tags = Array.isArray(activeTags) ? activeTags : [];
+    let entries = Object.values((game && game.talismanPlacements) || {}).filter(entry => entry && entry.talisman);
+    let idPos = {};
+    entries.forEach(entry => { if (entry.talisman && entry.talisman.id) idPos[entry.talisman.id] = entry; });
+    function addGemStat(statId, value) {
+        let val = Number(value || 0);
+        if (!statId || !Number.isFinite(val)) return;
+        if (statId === 'gemLevel') total += val;
+        GEM_LEVEL_TAG_RULES.forEach(rule => {
+            if (statId === rule.stat && tags.includes(rule.tag)) total += val;
+        });
+    }
+    function statList(talisman) {
+        if (!talisman) return [];
+        if (Array.isArray(talisman.stats) && talisman.stats.length > 0) return talisman.stats;
+        return talisman.stat ? [{ stat: talisman.stat, value: talisman.value || 0 }] : [];
+    }
+    function adjIds(tid) {
+        let e = idPos[tid]; if (!e) return [];
+        let set = new Set();
+        (e.talisman.cells || []).forEach(cell => {
+            let x = (e.x || 0) + (cell.x || 0), y = (e.y || 0) + (cell.y || 0);
+            [[1,0],[-1,0],[0,1],[0,-1]].forEach(d => {
+                let nx = x + d[0], ny = y + d[1];
+                if (nx < 0 || ny < 0 || nx >= 8 || ny >= 8) return;
+                let nid = ((game && game.talismanBoard) || [])[ny * 8 + nx];
+                if (nid && nid !== tid) set.add(nid);
+            });
+        });
+        return Array.from(set);
+    }
+    function findMarkedNeighborId(entry) {
+        if (!entry || !entry.talisman || !entry.talisman.markDir) return null;
+        let anchor = getTalismanAnchorCellForGemBonus(entry.talisman);
+        let x = (entry.x || 0) + (anchor.x || 0), y = (entry.y || 0) + (anchor.y || 0);
+        let d = entry.talisman.markDir === 'up' ? [0,-1] : entry.talisman.markDir === 'right' ? [1,0] : entry.talisman.markDir === 'down' ? [0,1] : [-1,0];
+        let nx = x + d[0], ny = y + d[1];
+        if (nx < 0 || ny < 0 || nx >= 8 || ny >= 8) return null;
+        return ((game && game.talismanBoard) || [])[ny * 8 + nx] || null;
+    }
+    entries.forEach(entry => statList(entry.talisman).forEach(st => addGemStat(st.stat, st.value || 0)));
+    entries.forEach(entry => {
+        let t = entry.talisman;
+        if (!t || !t.special) return;
+        if (t.special === 'gravity') {
+            adjIds(t.id).forEach(nid => statList(idPos[nid] && idPos[nid].talisman).forEach(st => addGemStat(st.stat, (st.value || 0) * 0.25)));
+        }
+        if (t.special === 'simpleCopy') {
+            let nid = findMarkedNeighborId(entry);
+            statList(nid ? (idPos[nid] && idPos[nid].talisman) : null).forEach(st => addGemStat(st.stat, st.value || 0));
+        }
+        if (t.special === 'pride' && adjIds(t.id).length === 0) addGemStat('gemLevel', 1);
+    });
+    return total;
+}
+
 function getGemBonusSources(target) {
     let gear = 0;
     let passive = 0;
@@ -454,6 +539,7 @@ function getGemBonusSources(target) {
     (game.journalBonuses || []).forEach(entry => {
         if (entry && entry.stat === 'gemLevel') reward += entry.value;
     });
+    reward += getTalismanGemBonusSources(activeTags);
     return { gear: gear, passive: passive, reward: reward, total: gear + passive + reward };
 }
 
