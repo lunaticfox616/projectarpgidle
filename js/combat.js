@@ -2180,6 +2180,11 @@ function getPlayerStats() {
             skill.targets = Math.min(12, Math.max(1, (skill.targets || 1) + 1));
             totalProjectileExtraShots += 1;
         }
+        if (hasKeystone('h7')) {
+            let solitaryOriginalTargets = Math.max(1, Math.floor(skill.targets || 1));
+            finalDs += Math.max(0, solitaryOriginalTargets - 1) * 100;
+            skill.targets = 1;
+        }
         if (hasKeystone('h8')) {
             let dsAsCrit = Math.max(0, finalDs);
             finalDs = 0;
@@ -5515,9 +5520,7 @@ function performPlayerAttack(pStats) {
     let uniqueProjectileExtraHits = isProjectileSkill ? Math.max(0, Math.floor((pStats.uniqueProjectileDoubleStrikePct || 0) / 100)) : 0;
     let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits + uniqueProjectileExtraHits));
     if (game.ascendClass === 'hunter' && hasKeystone('h7')) {
-        let originalTargets = Math.max(1, Math.floor((Array.isArray(targets) && targets.length > 0) ? targets.length : (pStats.sSkill.targets || 1)));
         pStats.sSkill.targets = 1;
-        repeats = Math.max(1, Math.min(12, repeats + Math.max(0, originalTargets - 1)));
     }
     let perEnemyHitCount = new Map();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
