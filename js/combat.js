@@ -28,6 +28,21 @@ function formatNumberKR(value) {
     return Math.floor(n).toLocaleString('ko-KR');
 }
 
+function addEvasionCombatLog(target, isPlayer) {
+    if (game.settings && game.settings.showCombatLog === false) return;
+    let targetName = String(target && target.name ? target.name : '적');
+    let isWoodsman = !isPlayer && (targetName.includes('나무꾼') || (target && target.zoneType === 'outsideChaos'));
+    let message = isPlayer
+        ? '🌀 플레이어 회피'
+        : (isWoodsman ? '🪓 나무꾼 회피' : `🌀 ${targetName} 회피`);
+    let aggregateKey = isPlayer ? 'combat:evasion:player' : (isWoodsman ? 'combat:evasion:woodsman' : `combat:evasion:enemy:${targetName}`);
+    addLog(message, isPlayer ? 'loot-magic' : 'attack-monster', {
+        noToast: true,
+        aggregateKey: aggregateKey,
+        aggregateWindowMs: 450
+    });
+}
+
 function applyLeechSoftcap(rawLeech) {
     let raw = Math.max(0, Number(rawLeech) || 0);
     if (raw <= LEECH_SOFTCAP_START) return raw;
@@ -587,10 +602,24 @@ function buildActiveSummonRuntimeDefs(pStats) {
     return defs.slice(0, maxCap).map((row, idx) => ({ ...row, slotIdx: idx, duplicateIndex: row.duplicateIndex || 0 }));
 }
 
+function getTargetGemBonusSources(target, fallbackSources) {
+    let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(target) : fallbackSources;
+    sources = sources ? { ...sources } : { gear: 0, passive: 0, reward: 0, total: 0 };
+    let targetName = Array.isArray(target) ? null : (target || game.activeSkill);
+    let isSupportGem = !!(targetName && typeof SUPPORT_GEM_DB !== 'undefined' && SUPPORT_GEM_DB[targetName]);
+    let targetTags = (typeof getGemLevelTargetTags === 'function') ? getGemLevelTargetTags(target) : [];
+    let isElementalGem = targetTags.includes('elemental');
+    if (game.ascendClass === 'inquisitor' && hasKeystone('iq6') && (isElementalGem || isSupportGem)) {
+        sources.reward = Number(sources.reward || 0) + 1;
+        sources.total = Number(sources.total || 0) + 1;
+    }
+    return sources;
+}
+
 function getSummonGemLevel(gemName, source, pStats) {
     let records = source === 'support' ? (game.supportGemData || {}) : (game.gemData || {});
     let baseLevel = Math.max(1, (records[gemName] || {}).level || 1);
-    let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(gemName) : (pStats && pStats.gemBonusSources);
+    let sources = getTargetGemBonusSources(gemName, pStats && pStats.gemBonusSources);
     let bonus = Math.max(0, Math.floor((sources && sources.total) || 0));
     return Math.max(1, baseLevel + bonus);
 }
@@ -712,6 +741,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (!expected && target && (target.evasionChance || 0) > 0 && Math.random() * 100 < target.evasionChance) {
         dmg = 0;
         ailmentSourceDmg = 0;
+        addEvasionCombatLog(target, false);
     }
     dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
     ailmentSourceDmg = Math.floor(ailmentSourceDmg * (1 - (enemyRes / 100)));
@@ -934,7 +964,12 @@ function coreLoop() {
     if (!Number.isFinite(game.playerCastDelayUntil)) game.playerCastDelayUntil = 0;
     sanitizeCombatRuntimeState();
     reconcileMapProgressRuntimeState();
-    runConditionGemAutoRules(pStats);
+    if (pStats.uniqueClosedEyes) {
+        game.playerConditionBuffs = [];
+        game.enemyConditionDebuffs = {};
+    } else {
+        runConditionGemAutoRules(pStats);
+    }
     processPendingSlamEchoHits();
     tickAilments(pStats, 0.1);
     let ailmentMap = {};
@@ -1421,6 +1456,14 @@ function getPlayerStats() {
     let uniqueAllResDownOnHit=null, uniqueKillMoveStacks=null, uniqueCursedTakenAndRefresh=null, uniqueEnemyRegenCutAndMinRoll=null, uniquePhysDrHalfTakenAsMore=null, uniqueArmorAppliesToDot=false, uniqueMeleeArmorAmp=null, uniqueNoCollisionBlock=false, uniqueResonanceAndSuppCap=null, uniqueRegenRateAndRegen=null, uniqueMaxHpPct=0, uniqueAllMaxRes=0;
     let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null;
     let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
+    if (activeUniqueIds.has('uj_crown_empty')) {
+        let otherUniqueCount = equippedUniqueJewels.filter(entry => entry && entry.jewel && entry.jewel.uniqueId !== 'uj_crown_empty').length;
+        if (otherUniqueCount === 0) {
+            addStatToBucket(reward, 'pctDmg', 25);
+            addStatToBucket(reward, 'gemLevel', 1);
+        }
+    }
+    if (activeUniqueIds.has('uj_condensed_curse')) uniqueCurseCrownPerCursePct = Math.max(uniqueCurseCrownPerCursePct, 10);
     let uniqueSummonDeathDamageBuff=null, uniqueSummonCritAspdStacks=null, uniqueSummonNonCritNoDamage=false;
     let uniqueBlockRecoverEnergyShieldPct=0, uniqueDeflectStealth=null, uniqueChaosTakenDamageReducePct=0, uniqueLifeRecoupTakenDamage=null;
     equippedUniqueEffects.forEach(effect => {
@@ -1693,19 +1736,15 @@ function getPlayerStats() {
         }
     });
 
-    let gemSources = getGemBonusSources();
-    let hasIq6Keystone = (game.ascendClass === 'inquisitor') && hasKeystone('iq6');
-    if (hasIq6Keystone) {
-        gemSources.reward += 1;
-        gemSources.total += 1;
-    }
+    let gemSources = getTargetGemBonusSources(game.activeSkill);
     safeEquippedSupports.forEach(name => {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
         if (!db) return;
         let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
         let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
-        let effectiveLevel = Math.max(1, gem.level + gemSources.total);
+        let supportGemSources = getTargetGemBonusSources(name);
+        let effectiveLevel = Math.max(1, gem.level + supportGemSources.total);
         let val = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
         addStatToBucket(support, db.stat, val);
     });
@@ -2179,6 +2218,11 @@ function getPlayerStats() {
         if (hasKeystone('h6') && Array.isArray(skill.tags) && skill.tags.includes('projectile')) {
             skill.targets = Math.min(12, Math.max(1, (skill.targets || 1) + 1));
             totalProjectileExtraShots += 1;
+        }
+        if (hasKeystone('h7')) {
+            let solitaryOriginalTargets = Math.max(1, Math.floor(skill.targets || 1));
+            finalDs += Math.max(0, solitaryOriginalTargets - 1) * 100;
+            skill.targets = 1;
         }
         if (hasKeystone('h8')) {
             let dsAsCrit = Math.max(0, finalDs);
@@ -3046,15 +3090,16 @@ function getPlayerStats() {
 
 function getGemPresentation(name, isSupport) {
     let stats = getPlayerStats();
+    let targetGemSources = getTargetGemBonusSources(name, stats.gemBonusSources);
     if (isSupport) {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
-        if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null };
-        let totalLevel = Math.max(1, gem.level + stats.gemBonusSources.total);
+        if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null, gemBonusSources: targetGemSources };
+        let totalLevel = Math.max(1, gem.level + targetGemSources.total);
         let val = db.baseVal + ((totalLevel - 1) * db.scale);
         let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
         let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
-        return { baseLevel: gem.level, totalLevel: totalLevel, value: val * tierMul, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier };
+        return { baseLevel: gem.level, totalLevel: totalLevel, value: val * tierMul, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources };
     }
     let db = SKILL_DB[name];
     if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
@@ -3063,7 +3108,7 @@ function getGemPresentation(name, isSupport) {
     let gem = normalizeGemRecord((game.gemData || {})[name]);
     if (db.levelable) game.gemData[name] = gem;
     let materialBonus = db.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) : 0;
-    let levelBonus = db.isGem ? stats.gemBonusSources.total : 0;
+    let levelBonus = db.isGem ? targetGemSources.total : 0;
     let totalLevel = gem.level + levelBonus + materialBonus;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus;
     let skill = { ...db };
@@ -3073,7 +3118,7 @@ function getGemPresentation(name, isSupport) {
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     skill.dmg *= qualityMul;
     skill.spd *= qualityMul;
-    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill) };
+    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources };
 }
 
 function getSkillTargets(pStats) {
@@ -5515,9 +5560,7 @@ function performPlayerAttack(pStats) {
     let uniqueProjectileExtraHits = isProjectileSkill ? Math.max(0, Math.floor((pStats.uniqueProjectileDoubleStrikePct || 0) / 100)) : 0;
     let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits + uniqueProjectileExtraHits));
     if (game.ascendClass === 'hunter' && hasKeystone('h7')) {
-        let originalTargets = Math.max(1, Math.floor((Array.isArray(targets) && targets.length > 0) ? targets.length : (pStats.sSkill.targets || 1)));
         pStats.sSkill.targets = 1;
-        repeats = Math.max(1, Math.min(12, repeats + Math.max(0, originalTargets - 1)));
     }
     let perEnemyHitCount = new Map();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
@@ -5723,7 +5766,7 @@ function performPlayerAttack(pStats) {
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
             if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
-                if (game.settings.showCombatLog) addLog(`🌀 ${targetEnemy.name} 회피`, 'attack-monster', { noToast: true });
+                addEvasionCombatLog(targetEnemy, false);
                 return;
             }
             dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
@@ -6526,7 +6569,7 @@ function performMonsterAttacks(pStats) {
             if (game.ascendClass === 'hunter' && hasKeystone('h3')) evadeRoll = Math.min(evadeRoll, Math.random() * 100);
             if (evadeRoll < evadeChance) {
                 spawnDamageText({ x: width * 0.28, y: height * 0.64, value: '회피!', miss: true, color: '#9fb4c8' });
-                if (game.settings.showCombatLog) addLog(`🌀 회피 성공`, "loot-magic");
+                addEvasionCombatLog(null, true);
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
                 continue;
             }
@@ -6961,6 +7004,7 @@ function triggerSeasonReset() {
     game.claimedActRewards = [];
     game.actRewardBonuses = [];
     game.seasonChaseUniqueDropped = false;
+    game.seasonChaseUniqueDrops = [];
     game.uniqueCodex = codexReveal;
     game.starWedge = JSON.parse(JSON.stringify(defaultGame.starWedge));
     game.starWedge.wedges = preservedEternalWedges;
