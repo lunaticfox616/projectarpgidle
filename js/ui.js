@@ -3195,11 +3195,12 @@ function showGemTooltip(event, type, name) {
         }
     }
     if (type === 'support' || SKILL_DB[name].isGem || SKILL_DB[name].levelable) {
+        let gemBonusSources = info.gemBonusSources || stats.gemBonusSources;
         html += `<div class="tooltip-line" style="margin-top:8px; color:#2ecc71;">총 레벨 ${type === 'support' ? info.totalLevel : info.finalLevel}</div>`;
         if (type === 'support') {
-            html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${stats.gemBonusSources.passive} + 장비 ${stats.gemBonusSources.gear} + 보상 ${stats.gemBonusSources.reward})</div>`;
+            html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${gemBonusSources.passive} + 장비 ${gemBonusSources.gear} + 보상 ${gemBonusSources.reward})</div>`;
         } else {
-            html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${stats.gemBonusSources.passive} + 장비 ${stats.gemBonusSources.gear} + 보상 ${stats.gemBonusSources.reward} + 군주의핵 ${info.bossCoreLevel || 0} + 창공의힘 ${info.skyCoreLevel || 0})</div>`;
+            html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${gemBonusSources.passive} + 장비 ${gemBonusSources.gear} + 보상 ${gemBonusSources.reward} + 군주의핵 ${info.bossCoreLevel || 0} + 창공의힘 ${info.skyCoreLevel || 0})</div>`;
         }
     }
     let border = type === 'support' ? '#2bcbba' : '#ff5252';

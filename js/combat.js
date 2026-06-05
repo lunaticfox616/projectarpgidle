@@ -602,10 +602,20 @@ function buildActiveSummonRuntimeDefs(pStats) {
     return defs.slice(0, maxCap).map((row, idx) => ({ ...row, slotIdx: idx, duplicateIndex: row.duplicateIndex || 0 }));
 }
 
+function getTargetGemBonusSources(target, fallbackSources) {
+    let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(target) : fallbackSources;
+    sources = sources ? { ...sources } : { gear: 0, passive: 0, reward: 0, total: 0 };
+    if (game.ascendClass === 'inquisitor' && hasKeystone('iq6')) {
+        sources.reward = Number(sources.reward || 0) + 1;
+        sources.total = Number(sources.total || 0) + 1;
+    }
+    return sources;
+}
+
 function getSummonGemLevel(gemName, source, pStats) {
     let records = source === 'support' ? (game.supportGemData || {}) : (game.gemData || {});
     let baseLevel = Math.max(1, (records[gemName] || {}).level || 1);
-    let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(gemName) : (pStats && pStats.gemBonusSources);
+    let sources = getTargetGemBonusSources(gemName, pStats && pStats.gemBonusSources);
     let bonus = Math.max(0, Math.floor((sources && sources.total) || 0));
     return Math.max(1, baseLevel + bonus);
 }
@@ -1722,19 +1732,15 @@ function getPlayerStats() {
         }
     });
 
-    let gemSources = getGemBonusSources();
-    let hasIq6Keystone = (game.ascendClass === 'inquisitor') && hasKeystone('iq6');
-    if (hasIq6Keystone) {
-        gemSources.reward += 1;
-        gemSources.total += 1;
-    }
+    let gemSources = getTargetGemBonusSources(game.activeSkill);
     safeEquippedSupports.forEach(name => {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
         if (!db) return;
         let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
         let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
-        let effectiveLevel = Math.max(1, gem.level + gemSources.total);
+        let supportGemSources = getTargetGemBonusSources(name);
+        let effectiveLevel = Math.max(1, gem.level + supportGemSources.total);
         let val = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
         addStatToBucket(support, db.stat, val);
     });
@@ -3080,15 +3086,16 @@ function getPlayerStats() {
 
 function getGemPresentation(name, isSupport) {
     let stats = getPlayerStats();
+    let targetGemSources = getTargetGemBonusSources(name, stats.gemBonusSources);
     if (isSupport) {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
-        if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null };
-        let totalLevel = Math.max(1, gem.level + stats.gemBonusSources.total);
+        if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: '정의되지 않은 보조젬', statName: name, statId: null, gemBonusSources: targetGemSources };
+        let totalLevel = Math.max(1, gem.level + targetGemSources.total);
         let val = db.baseVal + ((totalLevel - 1) * db.scale);
         let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
         let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
-        return { baseLevel: gem.level, totalLevel: totalLevel, value: val * tierMul, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier };
+        return { baseLevel: gem.level, totalLevel: totalLevel, value: val * tierMul, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources };
     }
     let db = SKILL_DB[name];
     if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
@@ -3097,7 +3104,7 @@ function getGemPresentation(name, isSupport) {
     let gem = normalizeGemRecord((game.gemData || {})[name]);
     if (db.levelable) game.gemData[name] = gem;
     let materialBonus = db.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) : 0;
-    let levelBonus = db.isGem ? stats.gemBonusSources.total : 0;
+    let levelBonus = db.isGem ? targetGemSources.total : 0;
     let totalLevel = gem.level + levelBonus + materialBonus;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus;
     let skill = { ...db };
@@ -3107,7 +3114,7 @@ function getGemPresentation(name, isSupport) {
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     skill.dmg *= qualityMul;
     skill.spd *= qualityMul;
-    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill) };
+    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources };
 }
 
 function getSkillTargets(pStats) {
