@@ -1502,6 +1502,7 @@ const defaultGame = {
     claimedActRewards: [],
     actRewardBonuses: [],
     seasonChaseUniqueDropped: false,
+    seasonChaseUniqueDrops: [],
     gemEnhanceUnlocked: false,
     gemEnhanceTargetSkill: null,
     uniqueCodex: {},

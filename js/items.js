@@ -546,6 +546,10 @@ function refreshBlackMarket(force) {
     let bm = normalizeBlackMarketState();
     let now = Date.now();
     let count = getBlackMarketSlotCount();
+    Object.keys(bm.lockedOffers || {}).forEach(key => {
+        let idx = Math.floor(Number(key));
+        if (!Number.isFinite(idx) || idx < 0 || idx >= count) delete bm.lockedOffers[key];
+    });
     if (!force && now < (bm.nextRefreshAt || 0)) return;
     let prevOffers = Array.isArray(bm.offers) ? bm.offers.slice(0, count) : [];
     bm.offers = Array.from({ length: count }, (_, i) => {
@@ -709,7 +713,8 @@ function renderMarketUI() {
         let mm = String(Math.floor(remain / 60)).padStart(2,'0');
         let ss = String(remain % 60).padStart(2,'0');
         normalizeBlackMarketState();
-        let rawOffers = (game.blackMarket && game.blackMarket.offers || []).slice(0, BLACK_MARKET_MAX_SLOT_COUNT).map((offer, idx) => ({ offer, idx }));
+        let slotCount = getBlackMarketSlotCount();
+        let rawOffers = (game.blackMarket && game.blackMarket.offers || []).slice(0, slotCount).map((offer, idx) => ({ offer, idx }));
         let orderMap = { exchange: 0, skillGem: 1, baseItem: 2, unique: 3 };
         rawOffers.sort((a, b) => {
             let ao = a.offer ? (orderMap[a.offer.type] ?? 9) : 99;
@@ -732,7 +737,6 @@ function renderMarketUI() {
             let lockLabel = isLocked ? '🔒 잠금' : '🔓 잠금';
             return `<div class="market-black-offer ${cls}"><div><span class="market-black-badge ${cls}">${badge}</span> <span class="market-black-label" data-info-tooltip-anchor="1" data-market-tooltip="${tooltip}" onmouseenter="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmousemove="showBlackMarketOfferTooltip(event,this.dataset.marketTooltip)" onmouseleave="hideInfoTooltip()">${richDesc}</span></div><div style="display:flex; gap:4px;"><button onclick="buyBlackMarketOffer(${idx})">구매</button><button onclick="toggleBlackMarketOfferLock(${idx})">${lockLabel}</button></div></div>`;
         }).join('');
-        let slotCount = getBlackMarketSlotCount();
         let atCap = slotCount >= BLACK_MARKET_MAX_SLOT_COUNT;
         let expandLabel = atCap ? `품목 한도 최대치 (${slotCount}/${BLACK_MARKET_MAX_SLOT_COUNT})` : `신성한 오브 ${getBlackMarketSlotExpandCost()}개로 품목 +1 (${slotCount}/${BLACK_MARKET_MAX_SLOT_COUNT})`;
         bmEl.innerHTML = `<div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${offers}</div><button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()" ${atCap ? 'disabled' : ''}>${expandLabel}</button>`;

@@ -389,6 +389,7 @@ function renderPaperdoll(targetId, forCrafting) {
                 if (baseEs > 0) statLines.push(`${hi('에너지 보호막')} ${Math.floor(baseEs * (1 + esPct / 100))} (${Math.floor(baseEs)})`);
                 if (baseBlock > 0) statLines.push(`${hi('막기 확률')} ${(baseBlock * (1 + blockPct / 100) + blockFlat).toFixed(1)}% (${baseBlock.toFixed(1)}%)`);
             }
+            statLines = statLines.slice(0, 2);
             let statsHtml = statLines.join('<br>');
             let canSelectFromEquipTab = !forCrafting && targetId === 'ui-equip-list';
             let click = (forCrafting || canSelectFromEquipTab) ? `selectForCrafting('${slot}', true)` : '';
