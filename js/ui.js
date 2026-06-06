@@ -6228,8 +6228,6 @@ function buildCraftActionButtons(item) {
     game.talismanInventory = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
     game.talismanPlacements = (game.talismanPlacements && typeof game.talismanPlacements === 'object') ? game.talismanPlacements : {};
     let talismanUnlockedSet = getTalismanUnlockedCellsSet();
-    let extraUnlocked = Math.max(0, talismanUnlockedSet.size - 9);
-    let talismanUnlockCost = getTalismanExpandCost(extraUnlocked);
     document.getElementById('ui-talisman-board-size').innerText = talismanUnlockedSet.size;
     document.getElementById('ui-talisman-board-size2').innerText = TALISMAN_BOARD_MASK.size;
     document.getElementById('ui-talisman-currency').innerHTML = `${renderSealShardBadge('sealShard')} <strong>${game.currencies.sealShard || 0}</strong> &nbsp; ${renderSealShardBadge('strongSealShard')} <strong>${game.currencies.strongSealShard || 0}</strong> &nbsp; ${renderSealShardBadge('radiantSealShard')} <strong>${game.currencies.radiantSealShard || 0}</strong>`;
@@ -6240,9 +6238,12 @@ function buildCraftActionButtons(item) {
                 <button onclick="startTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>봉인편린 해제</button>
                 <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
                 <button onclick="startTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란한 기운] 봉인편린 해제</button>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px solid #29415a;">
                 <button onclick="exchangeTalismanShards('strong')" ${(game.currencies.sealShard || 0) < 80 ? 'disabled' : ''}>편린 80 → 강력 편린 1</button>
                 <button onclick="exchangeTalismanShards('radiant')" ${(game.currencies.strongSealShard || 0) < 40 ? 'disabled' : ''}>강력 편린 40 → 찬란 편린 1</button>
-                <button onclick="expandTalismanBoard()" ${(talismanUnlockCost.sealShard || 0) <= 0 ? 'disabled' : ''}>칸 해금 안내 (${formatTalismanUnlockCostLabel(talismanUnlockCost)})</button>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
                 <button onclick="salvageAllTalismansInInventory()" ${(game.talismanInventory || []).some(t => !isLockedInventoryObject(t)) ? '' : 'disabled'} style="background:#6e3f3f; border-color:#8f5959;">부적 일괄 해체</button>
             </div>`;
     } else {
