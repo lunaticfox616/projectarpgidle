@@ -5144,6 +5144,13 @@ function resolveNextLoopBestPlusOneZone(zone) {
     return null;
 }
 
+function unlockConditionGemsAfterRootBossClear() {
+    if (game.conditionGemUnlocked || (game.season || 1) < 2) return false;
+    game.conditionGemUnlocked = true;
+    addLog('🧠 컨디션 젬 시스템이 해금되었습니다!', 'loot-unique');
+    return true;
+}
+
 function finishEncounterRun() {
     let zone = getZone(game.currentZoneId);
     let mapAction = (game.settings && game.settings.mapCompleteAction) || 'nextZone';
@@ -5244,10 +5251,7 @@ function finishEncounterRun() {
         let firstRootBossClear = !(game.clearedRootBosses || []).includes(zone.id);
         game.clearedRootBosses = Array.isArray(game.clearedRootBosses) ? game.clearedRootBosses : [];
         if (firstRootBossClear) game.clearedRootBosses.push(zone.id);
-        if (!game.conditionGemUnlocked && firstRootBossClear && (game.season || 1) >= 2) {
-            game.conditionGemUnlocked = true;
-            addLog('🧠 컨디션 젬 시스템이 해금되었습니다!', 'loot-unique');
-        }
+        unlockConditionGemsAfterRootBossClear();
         if (Math.random() < 0.5) awardCurrency(zone.reward || 'bossCore', 1);
         if (Math.random() < 0.4) {
             let bossUnique = generateUniqueItem(zone.tier || 12);
