@@ -1688,7 +1688,7 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
     let astroLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
     if (astroLv < 1 || !st.unlocked || st.skyRiftReady) return;
     if (!zone) return;
-    let eligible = (zone.type === 'act' && zone.id >= STAR_WEDGE_UNLOCK_ACT) || zone.type === 'abyss' || zone.type === 'labyrinth' || zone.type === 'chaosRealm' || zone.type === 'underworld' || zone.type === 'cosmos';
+    let eligible = (zone.type === 'act' && zone.id >= STAR_WEDGE_UNLOCK_ACT) || zone.type === 'abyss' || zone.type === 'labyrinth' || zone.type === 'chaosRealm' || zone.type === 'skyTower' || zone.type === 'underworld' || zone.type === 'cosmos';
     if (!eligible) return;
     if (!st.skyRiftReady && (st.skyRiftGauge || 0) <= 0.0001) {
         st.skyRiftAllCosmos = true;
@@ -5923,6 +5923,11 @@ function awardCurrency(currencyKey, amount) {
             if (honeyPct > 0) gain *= (1 + (honeyPct / 100));
         }
         gain = Math.max(1, Math.floor(gain));
+    }
+    if (currencyKey === 'condensedSkyPower') {
+        let st = ensureSkyTowerState();
+        st.condensedPower = Math.max(0, Math.floor(st.condensedPower || 0)) + gain;
+        return gain;
     }
     game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + gain;
     if (currencyKey === 'divine' && gain > 0) {
