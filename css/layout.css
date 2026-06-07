@@ -58,8 +58,17 @@
         .stat-unit { min-width: 16px; text-align: right; color: #8ea3b8; }
 
         #item-tooltip-box, #canvas-tooltip, #info-tooltip { display: none; position: fixed; z-index: 9999; background: rgba(10,10,15,0.97); border: 1px solid #777; padding: 12px; border-radius: 6px; pointer-events: none; color: #eee; box-shadow: 0 5px 15px rgba(0,0,0,0.8); min-width: 200px; font-size: 0.9em; line-height: 1.5; }
+        #item-tooltip-box { max-width: min(720px, calc(100vw - 20px)); max-height: calc(100vh - 20px); overflow: hidden auto; overscroll-behavior: contain; }
+        #item-tooltip-box.dual-compare-tooltip { width: min(680px, calc(100vw - 20px)); }
         #canvas-tooltip { z-index: 1000; border-color: #f39c12; min-width: 180px; }
         #info-tooltip { z-index: 9998; max-width: 340px; }
+        .item-compare-single, .item-compare-grid { margin-top: 8px; border-top: 1px dashed #555; padding-top: 8px; }
+        .item-compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: start; }
+        .item-compare-panel { min-width: 0; padding: 7px 8px; border: 1px solid rgba(148,163,184,0.22); border-radius: 6px; background: rgba(15,23,42,0.34); }
+        .item-compare-title { color: #aaa; font-weight: 800; margin-bottom: 3px; }
+        .item-compare-line { line-height: 1.32; }
+        .item-compare-empty { color: #7f8c8d; }
+        @media (max-width: 560px) { .item-compare-grid { grid-template-columns: 1fr; } }
         .tooltip-title { font-weight: bold; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 6px; }
         .tooltip-line { color: #cbd5e1; }
         .tooltip-final { margin-top: 8px; color: #2ecc71; font-weight: bold; }

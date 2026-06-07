@@ -72,6 +72,22 @@ function upgradeActiveGem(materialKey, amount) {
     updateStaticUI();
 }
 
+
+function upgradeActiveGemWithCondensedSkyPower() {
+    let active = getGemEnhanceTargetSkill();
+    if (!isEnhanceableAttackGem(active) || !Array.isArray(game.skills) || !game.skills.includes(active)) return addLog('영구 강화할 공격 젬을 먼저 선택하세요.', 'attack-monster');
+    let st = ensureSkyTowerState();
+    if (!st.unlocked) return addLog('응축 창공 젬 강화는 창공의 탑 해금 이후 가능합니다.', 'attack-monster');
+    let current = getSkyTowerGemBoostLevel(active);
+    if (current >= getSkyTowerGemBoostMaxLevel()) return addLog('해당 젬의 응축 창공 강화는 최대 단계입니다.', 'attack-monster');
+    let cost = getSkyTowerGemBoostCost(active);
+    if (Math.max(0, Math.floor(st.condensedPower || 0)) < cost) return addLog(`응축된 창공의 힘이 부족합니다. (필요: ${cost})`, 'attack-monster');
+    st.condensedPower -= cost;
+    st.gemBoosts[active] = current + 1;
+    addLog(`☁️ [${active}] 응축 창공 영구 강화 ${current + 1}/${getSkyTowerGemBoostMaxLevel()} (루프 초기화 없음)`, 'loot-unique');
+    updateStaticUI();
+}
+
 function upgradeSkyEngraveCap() {
     if ((game.season || 1) < 4) return addLog('창공 각인 확장은 루프4부터 가능합니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
@@ -616,7 +632,7 @@ function getActiveSkillStats(bonusLevel) {
 }
 
 
-safeExposeGlobals({ upgradeActiveGem, upgradeSkyEngraveCap, applySkyGemEnhancementToActive, removeSkyGemEnhancementFromActive, upgradeActiveGemQuality, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
+safeExposeGlobals({ upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, applySkyGemEnhancementToActive, removeSkyGemEnhancementFromActive, upgradeActiveGemQuality, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
 
 
 function sealSkillGem(name){ if(!name||name===game.activeSkill) return addLog('활성 스킬은 봉인할 수 없습니다.','attack-monster'); if(name==='기본 공격') return addLog('기본 공격은 봉인할 수 없습니다.','attack-monster'); game.skills=dedupeList(game.skills); game.sealedSkills=dedupeList(game.sealedSkills).filter(v=>!game.skills.includes(v)); if(!game.skills.includes(name)) return; game.skills=game.skills.filter(v=>v!==name); if(Array.isArray(game.equippedSummonSkills)) game.equippedSummonSkills=game.equippedSummonSkills.filter(v=>v!==name); if(game.summonSkillCounts&&typeof game.summonSkillCounts==='object') delete game.summonSkillCounts[name]; if(!game.sealedSkills.includes(name)) game.sealedSkills.push(name); game.resonancePower=(game.resonancePower||10)+1; addLog(`🔒 공격 젬 봉인: ${name} (공명력 +1)`,'loot-magic'); updateStaticUI(); }

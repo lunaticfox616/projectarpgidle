@@ -1462,6 +1462,28 @@ function renderChaosRealmMapPanel() {
     list.innerHTML = `<div class="map-item ${game.currentZoneId === CHAOS_REALM_ZONE_ID ? 'current' : ''}" ${entryReady ? 'onclick="enterChaosRealmPrompt()"' : ''}><div class="map-item-main"><span>🌌</span><span>혼돈계 ${floor}층<br><span class="map-zone-status">난이도 기준: 혼돈 심화 ${zone ? zone.tier : getChaosRealmTier(floor)}급 · 특징 ${affixes.length}개</span></span></div><div class="map-item-actions"><span class="map-zone-status">${entryReady ? `입장 가능: 1 ~ ${highest}` : '혼돈 20 필요'}</span></div></div>`
         + (woodsmanEchoUnlocked ? `<div class="map-item ${game.currentZoneId === WOODSMAN_ECHO_ZONE_ID ? 'current' : ''}" onclick="enterWoodsmanEchoChallenge()"><div class="map-item-main"><span>🪵</span><span>나무꾼의 잔상 (전투력 측정)<br><span class="map-zone-status">30초 전투 · 체력 ? · 공격하지 않는 허수아비(실체력 1000배)</span></span></div><div class="map-item-actions"><span class="map-zone-status">최고 DPS ${Math.floor(echo.bestDps || 0).toLocaleString()}</span></div></div>` : '');
 }
+function renderSkyTowerMapPanel() {
+    let panel = document.getElementById('ui-sky-tower-panel');
+    let list = document.getElementById('ui-sky-tower-list');
+    if (!panel || !list) return;
+    let tower = ensureSkyTowerState();
+    let unlocked = !!tower.unlocked;
+    let ready = typeof canEnterSkyTower === 'function' && canEnterSkyTower();
+    let currentFloor = Math.max(1, Math.floor(tower.currentFloor || 1));
+    let highest = Math.max(1, Math.floor(tower.highestFloor || 1));
+    let remaining = typeof getSkyTowerRemainingClears === 'function' ? getSkyTowerRemainingClears() : 0;
+    let limit = typeof getSkyTowerLoopClearLimit === 'function' ? getSkyTowerLoopClearLimit() : 25;
+    let cleared = Array.isArray(tower.clearedFloors) ? tower.clearedFloors.length : 0;
+    let condensed = Math.floor(tower.condensedPower || 0);
+    let zone = getZone(SKY_TOWER_ZONE_ID);
+    if (!unlocked) {
+        panel.innerHTML = `<div style="font-weight:800; color:#bfe8ff;">창공의 탑</div><div style="margin-top:5px; color:#ffcf8a;">해금 조건: 루프 15 이후 + 이번 루프 혼돈계 20층 클리어</div><div style="margin-top:4px; color:#9fc6dd;">해금 후 다음 루프부터는 혼돈 입성 시 바로 입장할 수 있습니다.</div>`;
+        list.innerHTML = `<div class="map-item" style="opacity:.65; cursor:not-allowed;"><div class="map-item-main"><span>🔒</span><span>창공의 탑 봉인<br><span class="map-zone-status">${(game.season || 1) >= 15 ? '혼돈계 20층 클리어 필요' : '루프 15 필요'}</span></span></div><div class="map-item-actions"><button disabled>층 선택 입장</button></div></div>`;
+        return;
+    }
+    panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;"><div><div style="font-weight:800; color:#bfe8ff; font-size:1.05em;">창공의 탑</div><div style="margin-top:4px; color:#d6e4ff;">이번 루프 남은 클리어 가능 층수 <strong style="color:#ffd36b;">${remaining}/${limit}</strong> · 영구 클리어 <strong>${cleared}</strong>층 · 최고 입장층 <strong>${highest}</strong>층</div></div><button onclick="enterSkyTowerPrompt()" ${ready ? '' : 'disabled'}>층 선택 입장</button></div><div style="margin-top:7px; color:#9fc6dd;">일반 맵보다 길이가 5배입니다. 한번도 클리어한 적 없는 층은 응축된 창공의 힘을 확정 지급하고, 이미 클리어한 층은 낮은 확률로 지급합니다.</div><div style="margin-top:5px; color:#d6e4ff;">응축된 창공의 힘 <strong style="color:#bfe8ff;">${condensed}</strong> · 현재 선택층 난이도 ${zone ? zone.tier : getSkyTowerTier(currentFloor)}급</div><div style="margin-top:5px; color:${ready ? '#7dffb2' : '#ffcf8a'};">${ready ? '입장 가능: 원하는 층을 선택할 수 있습니다.' : '이번 루프 혼돈 입성 후 입장할 수 있습니다.'}</div>`;
+    list.innerHTML = `<div class="map-item ${game.currentZoneId === SKY_TOWER_ZONE_ID ? 'current' : ''}" ${ready ? 'onclick="enterSkyTowerPrompt()"' : ''} style="${ready ? '' : 'opacity:.65; cursor:not-allowed;'}"><div class="map-item-main"><span>☁️</span><span>창공의 탑 ${currentFloor}층<br><span class="map-zone-status">입장 가능 층 1 ~ ${highest} · 영구 클리어 ${cleared}층</span></span></div><div class="map-item-actions"><span class="map-zone-status">${ready ? `잔여 클리어 ${remaining}/${limit}` : '혼돈 입성 필요'}</span><button ${ready ? '' : 'disabled'}>층 선택 입장</button></div></div>`;
+}
 function renderUnderworldMapPanel() {
     let panel = document.getElementById('ui-underworld-panel');
     let list = document.getElementById('ui-underworld-list');
@@ -1490,6 +1512,12 @@ function renderUnderworldMapPanel() {
         `번개 ${Math.max(0, Math.floor((game.currencies || {}).uberRootTicketStorm || 0))}`,
         `카오스 ${Math.max(0, Math.floor((game.currencies || {}).uberRootTicketChaos || 0))}`
     ].join(' · ');
+    let skyTower = ensureSkyTowerState();
+    let skyStoneLevel = Math.max(0, Math.floor(((skyTower.skyStone || {}).level) || 0));
+    let skyStonePct = typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0;
+    let skyStoneCost = typeof getSkyStoneNextCost === 'function' ? getSkyStoneNextCost() : 20;
+    let skyStoneMaxed = skyStoneLevel >= (typeof getSkyStoneMaxLevel === 'function' ? getSkyStoneMaxLevel() : 15);
+    let skyStonePanel = `<div style="margin-top:10px; padding:9px; border:1px solid #44637c; border-radius:10px; background:rgba(35,54,72,0.42);"><div style="font-weight:800; color:#bfe8ff;">☁️ 창공석 ${skyStoneLevel > 0 ? `+${skyStoneLevel}` : '(미제작)'}</div><div style="margin-top:3px; color:#9fc6dd;">주변의 중력이 일그러질 정도로 창공의 힘이 응축된 돌</div><div style="margin-top:4px; color:#d6e4ff;">지하계 패널티 감소: <strong>${skyStonePct}%</strong> / 75% · 응축된 창공의 힘 <strong>${Math.floor(skyTower.condensedPower || 0)}</strong></div><button style="margin-top:6px;" onclick="upgradeSkyStone()" ${skyStoneMaxed ? 'disabled' : ''}>${skyStoneLevel > 0 ? '창공석 강화' : '창공석 제작'} (${skyStoneMaxed ? '최대' : `필요 ${skyStoneCost}`})</button></div>`;
     let slots = Array.from({ length: 6 }).map((_, idx) => {
         let no = (Array.isArray(runeState.equippedRunes) ? runeState.equippedRunes : [])[idx];
         let unlocked = idx < Math.max(0, Math.floor(runeState.unlockedSlots || 0));
@@ -1505,7 +1533,7 @@ function renderUnderworldMapPanel() {
         ][idx];
         return `<div style="position:absolute; ${pos} width:88px; min-height:40px; border-radius:10px; padding:5px 6px; text-align:center; font-size:0.74em; border:1px solid ${unlocked ? '#5e6fb0' : '#3d435c'}; background:${unlocked ? 'linear-gradient(180deg,#202b4a,#141c33)' : 'linear-gradient(180deg,#1b1d2a,#121420)'}; color:${unlocked ? '#dce6ff' : '#7f87a8'};">[${idx + 1}]<br>${label}</div>`;
     }).join('');
-    panel.innerHTML = `<div style="font-weight:800; color:#e4d8ff;">지하계: 핵으로 하강</div><div style="margin-top:4px; color:${canEnter ? '#d6e4ff' : '#ffcf8a'};">입장 조건: 이번 루프 혼돈 20 클리어 필요 · 고중력으로 층이 깊어질수록 이속/공속 감소 · 15층부터 지속 피해</div><div style="margin-top:6px; color:#c9b8ff;">룬 슬롯 ${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 · 해금된 룬 번호 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))}</div><div style=\"position:relative; height:170px; margin-top:8px; border:1px solid #313f66; border-radius:12px; background:linear-gradient(180deg,#12192d,#0c1020);\">${slots}</div><div style="margin-top:4px; color:#9fe3d6;">룬 조각: <strong>${runeShardCount}</strong></div><div style="margin-top:4px; color:#d7c6a0;">지하계 재화: 구리 <strong>${Math.floor((game.currencies||{}).underCopper||0)}</strong> · 은 <strong>${Math.floor((game.currencies||{}).underSilver||0)}</strong> · 금 <strong>${Math.floor((game.currencies||{}).underGold||0)}</strong></div><div style="margin-top:4px; color:#ffd8a8;">우버 뿌리 입장권: ${ticketLine}</div><div style="margin-top:6px;"><button onclick="craftUnderworldRune()">룬 가공 (룬조각 10)</button><button onclick="upgradeUnderworldRune()" style="margin-left:6px;">룬 승급 (동일 룬 3개 + 룬조각)</button><button onclick="applyUnderworldEnchant()" style="margin-left:6px;">지하계 인챈트</button><button onclick="attemptUnderworldLimitBreak()" style="margin-left:6px;">20% 한계돌파</button><button onclick="enhanceUnderworldRune()" style="margin-left:6px;">룬 강화</button><button onclick="rerollUnderworldRuneBonus()" style="margin-left:6px;">룬 옵션 리롤</button></div><div style="margin-top:6px; color:#aebde0;">보유 룬: ${runeLine || '없음'}${Object.keys(runeCountMap).length > 10 ? ' ...' : ''}</div><div style="margin-top:6px; color:#d6e4ff;">장착 룬(영구 적용):<br>${equippedLine || '없음'}</div>`;
+    panel.innerHTML = `<div style="font-weight:800; color:#e4d8ff;">지하계: 핵으로 하강</div><div style="margin-top:4px; color:${canEnter ? '#d6e4ff' : '#ffcf8a'};">입장 조건: 이번 루프 혼돈 20 클리어 필요 · 고중력으로 층이 깊어질수록 이속/공속 감소 · 15층부터 지속 피해</div><div style="margin-top:6px; color:#c9b8ff;">룬 슬롯 ${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 · 해금된 룬 번호 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))}</div><div style=\"position:relative; height:170px; margin-top:8px; border:1px solid #313f66; border-radius:12px; background:linear-gradient(180deg,#12192d,#0c1020);\">${slots}</div><div style="margin-top:4px; color:#9fe3d6;">룬 조각: <strong>${runeShardCount}</strong></div><div style="margin-top:4px; color:#d7c6a0;">지하계 재화: 구리 <strong>${Math.floor((game.currencies||{}).underCopper||0)}</strong> · 은 <strong>${Math.floor((game.currencies||{}).underSilver||0)}</strong> · 금 <strong>${Math.floor((game.currencies||{}).underGold||0)}</strong></div><div style="margin-top:4px; color:#ffd8a8;">우버 뿌리 입장권: ${ticketLine}</div><div style="margin-top:6px;"><button onclick="craftUnderworldRune()">룬 가공 (룬조각 10)</button><button onclick="upgradeUnderworldRune()" style="margin-left:6px;">룬 승급 (동일 룬 3개 + 룬조각)</button><button onclick="applyUnderworldEnchant()" style="margin-left:6px;">지하계 인챈트</button><button onclick="attemptUnderworldLimitBreak()" style="margin-left:6px;">20% 한계돌파</button><button onclick="enhanceUnderworldRune()" style="margin-left:6px;">룬 강화</button><button onclick="rerollUnderworldRuneBonus()" style="margin-left:6px;">룬 옵션 리롤</button></div>${skyStonePanel}<div style="margin-top:6px; color:#aebde0;">보유 룬: ${runeLine || '없음'}${Object.keys(runeCountMap).length > 10 ? ' ...' : ''}</div><div style="margin-top:6px; color:#d6e4ff;">장착 룬(영구 적용):<br>${equippedLine || '없음'}</div>`;
     list.innerHTML = `<div class="map-item ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}" ${canEnter ? 'onclick="enterUnderworldPrompt()"' : ''} style="${canEnter ? '' : 'opacity:.65; cursor:not-allowed;'}"><div class="map-item-main"><span>🕳️</span><span>지하계 ${floor}층</span></div><div class="map-item-actions"><button ${canEnter ? '' : 'disabled'}>층 선택 입장</button></div></div>`;
 }
 function ensureUnderworldRuneState() {
@@ -1585,6 +1613,36 @@ function switchMapSubtab(subtabId) {
     if (btn) btn.classList.add('active');
 }
 function enterLabyrinthFloor(floor){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
+
+function enterSkyTowerPrompt(){
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    let st = ensureSkyTowerState();
+    if (!st.unlocked) return addLog('창공의 탑은 루프 15 이후 이번 루프 혼돈 20층 클리어 시 해금됩니다.', 'attack-monster');
+    if (!(typeof canEnterSkyTower === 'function' && canEnterSkyTower())) return addLog('창공의 탑은 영구 해금 후 해당 루프에서 혼돈에 입성하면 입장할 수 있습니다.', 'attack-monster');
+    let max = Math.max(1, Math.floor(st.highestFloor || 1));
+    let v = prompt(`진입할 창공의 탑 층수를 입력하세요. (1 ~ ${max})\n이번 루프 남은 클리어 가능 층수: ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, String(Math.max(1, Math.floor(st.currentFloor || max))));
+    if (v === null) return;
+    let floor = Math.floor(Number(v) || 0);
+    if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
+    st.currentFloor = floor;
+    changeZone(SKY_TOWER_ZONE_ID);
+    updateStaticUI();
+}
+function upgradeSkyStone() {
+    let st = ensureSkyTowerState();
+    let max = getSkyStoneMaxLevel();
+    let lv = Math.max(0, Math.floor(((st.skyStone || {}).level) || 0));
+    if (lv >= max) return addLog('창공석은 이미 최종 강화 상태입니다.', 'attack-monster');
+    let cost = getSkyStoneNextCost();
+    if (Math.max(0, Math.floor(st.condensedPower || 0)) < cost) return addLog(`응축된 창공의 힘이 부족합니다. (필요: ${cost})`, 'attack-monster');
+    st.condensedPower -= cost;
+    st.skyStone = st.skyStone || { crafted: false, level: 0 };
+    st.skyStone.crafted = true;
+    st.skyStone.level = lv + 1;
+    addLog(`☁️ 창공석 ${lv === 0 ? '제작' : '강화'} 완료: 지하계 패널티 감소 ${getSkyStoneReductionPct()}%`, 'loot-unique');
+    updateStaticUI();
+}
+
 function enterChaosRealmPrompt(){
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     let st = ensureChaosRealmState();
@@ -3232,7 +3290,7 @@ function showGemTooltip(event, type, name) {
         if (type === 'support') {
             html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${gemBonusSources.passive} + 장비 ${gemBonusSources.gear} + 보상 ${gemBonusSources.reward})</div>`;
         } else {
-            html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${gemBonusSources.passive} + 장비 ${gemBonusSources.gear} + 보상 ${gemBonusSources.reward} + 군주의핵 ${info.bossCoreLevel || 0} + 창공의힘 ${info.skyCoreLevel || 0})</div>`;
+            html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${gemBonusSources.passive} + 장비 ${gemBonusSources.gear} + 보상 ${gemBonusSources.reward} + 군주의핵 ${info.bossCoreLevel || 0} + 창공의힘 ${info.skyCoreLevel || 0} + 응축창공 ${info.permanentSkyBonus || 0})</div>`;
         }
     }
     let border = type === 'support' ? '#2bcbba' : '#ff5252';
@@ -3355,6 +3413,7 @@ function showItemTooltip(event, idx, isEquip) {
     if (!isEquip) {
         let compareSlots = getEquipCandidateSlots(item).filter(slotKey => !!game.equipment[slotKey]);
         if (compareSlots.length === 0 && item.slot !== '반지') compareSlots = getEquipCandidateSlots(item);
+        let compareSections = [];
         compareSlots.forEach((targetSlot, idx) => {
             let before = getUiPlayerStats();
             let backup = game.equipment[targetSlot];
@@ -3367,19 +3426,22 @@ function showItemTooltip(event, idx, isEquip) {
                 let meta = COMPARE_STAT_META[key];
                 let color = diff > 0 ? '#2ecc71' : '#e74c3c';
                 let sign = diff > 0 ? '▲' : '▼';
-                return `<div class="tooltip-line"><span style="color:${color}">${sign}</span> ${meta.label}: <span style="color:${color}">${meta.format(Math.abs(diff))}</span></div>`;
+                return `<div class="tooltip-line item-compare-line"><span style="color:${color}">${sign}</span> ${meta.label}: <span style="color:${color}">${meta.format(Math.abs(diff))}</span></div>`;
             }).filter(Boolean);
+            let label = getDualSlotDisplayLabel(targetSlot);
             if (changedLines.length > 0) {
-                let label = getDualSlotDisplayLabel(targetSlot);
-                html += `<div class="tooltip-line" style="margin-top:8px; border-top:1px dashed #555; padding-top:8px; color:#aaa;">${label} 기준 착용 시 변화</div>`;
-                html += changedLines.join('');
+                compareSections.push(`<div class="item-compare-panel"><div class="tooltip-line item-compare-title">${label} 기준 착용 시 변화</div>${changedLines.join('')}</div>`);
             } else if (isDualSlotItem(item.slot)) {
-                let label = getDualSlotDisplayLabel(targetSlot);
-                html += `<div class="tooltip-line" style="margin-top:${idx === 0 ? 8 : 4}px; color:#7f8c8d;">${label} 교체 시 변화 없음</div>`;
+                compareSections.push(`<div class="item-compare-panel item-compare-empty"><div class="tooltip-line item-compare-title">${label}</div><div class="tooltip-line">교체 시 변화 없음</div></div>`);
             }
         });
+        if (compareSections.length > 0) {
+            let layoutClass = compareSections.length > 1 ? 'item-compare-grid' : 'item-compare-single';
+            html += `<div class="${layoutClass}">${compareSections.join('')}</div>`;
+        }
     }
 
+    tt.classList.toggle('dual-compare-tooltip', !isEquip && isDualSlotItem(item.slot));
     tt.innerHTML = html;
     tt.style.display = 'block';
     positionTooltipElement(tt, event.clientX, event.clientY);
@@ -5750,7 +5812,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-fossil-actions').innerHTML = fossilButtons.join('') || `<div style="color:#7f8c8d;">보유한 화석이 없습니다.</div>`;
     document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:#7f8c8d;">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:#8fb6d9;">기본 화석 정제는 항상 가능하며, 균사학자 Lv.4부터 원시 화석(복원 전용), Lv.5부터 원시 고대 화석(태고 화석 추가/고급 재화 확률 증가)이 미궁에서 드랍됩니다. 화석 전용 옵션은 Lv.6부터 제작이 아니라 장비 드랍 시 일정 확률로 붙습니다.</div>`;
 
-    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'colonyTrace', 'colonyShard', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']);
+    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'colonyTrace', 'colonyShard', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'condensedSkyPower', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']);
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
         if (hiddenCurrencyKeys.has(key)) return false;
         if (key === 'tainted') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
@@ -5907,6 +5969,7 @@ function buildCraftActionButtons(item) {
     </div>` : '';
 
     renderChaosRealmMapPanel();
+    renderSkyTowerMapPanel();
     renderUnderworldMapPanel();
 
     let availTrials = TRIAL_ZONES.filter(trial => (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id));
@@ -6231,15 +6294,20 @@ function buildCraftActionButtons(item) {
             let skyNeed = activeGem ? ((activeGem.skyCoreLevel || 0) + 1) : 1;
             let engraveCap = activeGem ? (activeGem.skyEnhanceCap || 1) : 1;
             let capNeed = activeGem ? (engraveCap + 1) : 2;
+            let permanentSkyBoost = isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(active) : 0;
+            let permanentSkyCost = isGem && typeof getSkyTowerGemBoostCost === 'function' ? getSkyTowerGemBoostCost(active) : 0;
+            let permanentSkyMax = typeof getSkyTowerGemBoostMaxLevel === 'function' ? getSkyTowerGemBoostMaxLevel() : 3;
+            let condensedPower = (typeof ensureSkyTowerState === 'function' ? ensureSkyTowerState().condensedPower : 0) || 0;
             let coreDone = !!(activeGem && activeGem.bossCoreLevel >= 5 && activeGem.skyCoreLevel >= 5);
             let slotDone = !!(activeGem && engraveCap >= 5);
             let engraveFilled = !!(activeGem && activeEnh.length >= engraveCap);
             document.getElementById('ui-gem-enhance-target').innerHTML = `<div style="margin-bottom:6px; display:flex; gap:4px; flex-wrap:wrap;">${targetButtons || '<span style="color:#7f8c8d;">보유 공격 젬 없음</span>'}</div>` + (isGem
-                ? `대상 젬: <strong>${active}</strong> (보유 창공의 힘: ${game.currencies.skyEssence || 0})<br><span style="color:#8aa4bf;">핵 강화: 군주의핵 ${activeGem.bossCoreLevel || 0}/5 · 창공의힘 ${activeGem.skyCoreLevel || 0}/5 · 퀄리티 ${activeGem.quality || 0}%${activeGem.awakened ? ' · 각성 젬' : ''} · 각인 슬롯 ${engraveCap}/5</span><div style="margin-top:4px; color:#b9d7ff; font-size:0.84em;">각성 각인은 각성 젬 전용이 아니며, 모든 공격 젬에 젬당 1개까지 부여할 수 있습니다.</div><div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '각인 슬롯 완료' : '각인 슬롯 확장 가능'}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '각인 장착 완료' : `각인 여유 ${Math.max(0, engraveCap - activeEnh.length)}칸`}</span></div><span style="color:#8aa4bf;">적용 옵션: ${activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '없음'}</span>`
+                ? `대상 젬: <strong>${active}</strong> (보유 창공의 힘: ${game.currencies.skyEssence || 0})<br><span style="color:#8aa4bf;">핵 강화: 군주의핵 ${activeGem.bossCoreLevel || 0}/5 · 창공의힘 ${activeGem.skyCoreLevel || 0}/5 · 퀄리티 ${activeGem.quality || 0}%${activeGem.awakened ? ' · 각성 젬' : ''} · 응축창공 ${permanentSkyBoost}/${permanentSkyMax} · 각인 슬롯 ${engraveCap}/5</span><div style="margin-top:4px; color:#b9d7ff; font-size:0.84em;">각성 각인은 각성 젬 전용이 아니며, 모든 공격 젬에 젬당 1개까지 부여할 수 있습니다.</div><div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '각인 슬롯 완료' : '각인 슬롯 확장 가능'}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '각인 장착 완료' : `각인 여유 ${Math.max(0, engraveCap - activeEnh.length)}칸`}</span></div><span style="color:#8aa4bf;">적용 옵션: ${activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '없음'}</span>`
                 : '공격 젬을 선택하면 창공의 힘으로 특수 옵션을 부여할 수 있습니다.');
             let upgradeBtns = [];
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.bossCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('bossCore', 1)" ${!isGem || (activeGem && activeGem.bossCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.bossCoreLevel >= 5 ? '✅ 군주의 핵 강화 완료' : '군주의 핵 강화'}</strong><br><small>보유: ${game.currencies.bossCore || 0} / 필요: ${bossNeed}${activeGem && activeGem.bossCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.skyCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem || (activeGem && activeGem.skyCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.skyCoreLevel >= 5 ? '✅ 창공의 힘 강화 완료' : '창공의 힘 강화'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${skyNeed}${activeGem && activeGem.skyCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
+            upgradeBtns.push(`<button class="gem-upgrade-btn ${permanentSkyBoost >= permanentSkyMax ? 'done' : ''}" onclick="upgradeActiveGemWithCondensedSkyPower()" ${!isGem || permanentSkyBoost >= permanentSkyMax ? 'disabled' : ''}><strong>${permanentSkyBoost >= permanentSkyMax ? '✅ 응축 창공 강화 완료' : '응축 창공 영구 강화'}</strong><br><small>루프 초기화 없음 · 보유: ${Math.floor(condensedPower)} / 필요: ${permanentSkyCost}${permanentSkyBoost >= permanentSkyMax ? ' (최대)' : ''}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && (activeGem.quality || 0) >= 20 ? 'done' : ''}" onclick="upgradeActiveGemQuality()" ${!isGem || gemExpertLv < 8 || (activeGem && (activeGem.quality || 0) >= 20) ? 'disabled' : ''}><strong>${activeGem && (activeGem.quality || 0) >= 20 ? '✅ 퀄리티 완료' : '젬 퀄리티 강화'}</strong><br><small>젬 각인사 Lv.8 · 보유 군주의 핵: ${game.currencies.bossCore || 0} / 필요: ${qualityNeed}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.awakened ? 'done' : ''}" onclick="awakenActiveGemCandidate()" ${!isGem || !awakenReady || (game.currencies.awakenedEcho || 0) < 3 ? 'disabled' : ''}><strong>${activeGem && activeGem.awakened ? '✅ 각성 젬' : '각성 젬 변환'}</strong><br><small>젬 각인사 Lv.15 · Lv.20 필요 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3 · 젬 레벨 +2/슬롯 보정</small></button>`);
             let engraveCapButton = `<button class="gem-upgrade-btn ${activeGem && engraveCap >= 5 ? 'done' : ''}" onclick="upgradeSkyEngraveCap()" ${!isGem || (activeGem && engraveCap >= 5) ? 'disabled' : ''}><strong>${activeGem && engraveCap >= 5 ? '✅ 각인 슬롯 확장 완료' : '창공 각인 슬롯 확장'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${capNeed}${activeGem && engraveCap >= 5 ? ' (최대)' : ''}</small></button>`;
@@ -7259,7 +7327,7 @@ function mergeDefaults(save) {
     merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
     merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
-    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-underworld'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
+    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
@@ -7433,6 +7501,9 @@ function mergeDefaults(save) {
     merged.loopDeepPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.loopDeepPoints, defaultGame.loopDeepPoints, 0)));
     merged.loopDeepStats = { ...(defaultGame.loopDeepStats || {}), ...(merged.loopDeepStats || {}) };
     merged.chaosRealm = { ...createDefaultChaosRealmState(), ...(merged.chaosRealm || {}) };
+    merged.skyTower = { ...createDefaultSkyTowerState(), ...(merged.skyTower || {}) };
+    merged.skyTower.skyStone = { ...(createDefaultSkyTowerState().skyStone || {}), ...((merged.skyTower || {}).skyStone || {}) };
+    merged.skyTower.gemBoosts = { ...((merged.skyTower || {}).gemBoosts || {}) };
     merged.chaosRealm.permanentBonuses = { ...CHAOS_REALM_DEFAULT_BONUSES, ...((merged.chaosRealm || {}).permanentBonuses || {}) };
     merged.chaosRealm.unlocked = !!merged.chaosRealm.unlocked;
     merged.chaosRealm.highestFloor = Math.max(0, Math.floor(clampFiniteNumber(merged.chaosRealm.highestFloor, 0, 0)));
@@ -7460,6 +7531,18 @@ function mergeDefaults(save) {
     merged.chaosRealm.woodsmanBestDamagePct = Math.max(0, Math.min(100, Number(merged.chaosRealm.woodsmanBestDamagePct) || 0));
     Object.keys(CHAOS_REALM_DEFAULT_BONUSES).forEach(key => { merged.chaosRealm.permanentBonuses[key] = Math.max(0, Number(merged.chaosRealm.permanentBonuses[key]) || 0); });
     if (merged.chaosRealm.unlocked && merged.chaosRealm.highestFloor < 1) merged.chaosRealm.highestFloor = 1;
+    merged.skyTower.unlocked = !!merged.skyTower.unlocked;
+    merged.skyTower.highestFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.skyTower.highestFloor, 1, 1)));
+    merged.skyTower.currentFloor = Math.max(1, Math.min(merged.skyTower.highestFloor, Math.floor(clampFiniteNumber(merged.skyTower.currentFloor, 1, 1))));
+    merged.skyTower.loopSeason = Math.max(1, Math.floor(clampFiniteNumber(merged.skyTower.loopSeason, merged.season || 1, 1)));
+    if (merged.skyTower.loopSeason !== Math.max(1, Math.floor(merged.season || 1))) { merged.skyTower.loopSeason = Math.max(1, Math.floor(merged.season || 1)); merged.skyTower.clearedThisLoop = 0; }
+    merged.skyTower.clearedThisLoop = Math.max(0, Math.min(getSkyTowerLoopClearLimit(), Math.floor(clampFiniteNumber(merged.skyTower.clearedThisLoop, 0, 0))));
+    merged.skyTower.clearedFloors = Array.isArray(merged.skyTower.clearedFloors) ? Array.from(new Set(merged.skyTower.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
+    merged.skyTower.condensedPower = Math.max(0, Math.floor(clampFiniteNumber(merged.skyTower.condensedPower, 0, 0)));
+    merged.skyTower.skyStone.level = Math.max(0, Math.min(getSkyStoneMaxLevel(), Math.floor(clampFiniteNumber(merged.skyTower.skyStone.level, 0, 0))));
+    merged.skyTower.skyStone.crafted = !!merged.skyTower.skyStone.crafted || merged.skyTower.skyStone.level > 0;
+    Object.keys(merged.skyTower.gemBoosts).forEach(name => { merged.skyTower.gemBoosts[name] = Math.max(0, Math.min(getSkyTowerGemBoostMaxLevel(), Math.floor(clampFiniteNumber(merged.skyTower.gemBoosts[name], 0, 0)))); if (merged.skyTower.gemBoosts[name] <= 0) delete merged.skyTower.gemBoosts[name]; });
+    if (!merged.skyTower.unlocked && ((merged.season || 1) > 15 || ((merged.season || 1) >= 15 && (merged.loopProgressCurrent && merged.loopProgressCurrent.chaos20Cleared)))) merged.skyTower.unlocked = true;
     merged.woodsmanPendingScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanPendingScore, defaultGame.woodsmanPendingScore || 0, 0)));
     merged.woodsmanLifetimeScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanLifetimeScore, defaultGame.woodsmanLifetimeScore || 0, 0)));
     merged.woodsmanSettledScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanSettledScore, defaultGame.woodsmanSettledScore || 0, 0)));
@@ -7473,7 +7556,8 @@ function mergeDefaults(save) {
     merged.loopProgressCurrent = { ...(defaultGame.loopProgressCurrent || {}), ...(merged.loopProgressCurrent || {}) };
     merged.loopProgressBase.specialBosses = Array.isArray(merged.loopProgressBase.specialBosses) ? merged.loopProgressBase.specialBosses : [];
     merged.loopProgressCurrent.specialBosses = Array.isArray(merged.loopProgressCurrent.specialBosses) ? merged.loopProgressCurrent.specialBosses : [];
-    merged.loopProgressCurrent.chaos20Cleared = !!merged.loopProgressCurrent.chaos20Cleared;
+    merged.loopProgressCurrent.chaos20Cleared = !!merged.loopProgressCurrent.chaos20Cleared || (Array.isArray(merged.abyssClearedDepths) && merged.abyssClearedDepths.map(v => Math.floor(v || 0)).includes(20));
+    if (!merged.skyTower.unlocked && (merged.season || 1) >= 15 && merged.loopProgressCurrent.chaos20Cleared) merged.skyTower.unlocked = true;
     merged.pendingLoopDecision = !!merged.pendingLoopDecision;
     merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
     merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
@@ -7550,7 +7634,7 @@ function mergeDefaults(save) {
         let maxDeepZoneId = getAbyssZoneIdForDepth(Math.max(20, savedDepth));
         merged.currentZoneId = clampNumber(numericZoneId, 0, Math.max(MAP_ZONES.length - 1, maxDeepZoneId));
     }
-    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== 'beehive_run' && merged.currentZoneId !== 'colony_run' && merged.currentZoneId !== 'cosmos_challenge' && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID && merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID && merged.currentZoneId !== CHAOS_REALM_ZONE_ID && merged.currentZoneId !== UNDERWORLD_ZONE_ID) merged.currentZoneId = 0;
+    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== 'beehive_run' && merged.currentZoneId !== 'colony_run' && merged.currentZoneId !== 'cosmos_challenge' && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID && merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID && merged.currentZoneId !== CHAOS_REALM_ZONE_ID && merged.currentZoneId !== SKY_TOWER_ZONE_ID && merged.currentZoneId !== UNDERWORLD_ZONE_ID) merged.currentZoneId = 0;
     if (typeof merged.currentZoneId === 'string' && !getZone(merged.currentZoneId)) merged.currentZoneId = 0;
     if (merged.currentZoneId === 'beehive_run' && !(merged.beehive && merged.beehive.inRun)) merged.currentZoneId = merged.beehive && merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null ? merged.beehive.returnZoneId : merged.maxZoneId;
     if (merged.beehive && merged.beehive.inRun && merged.currentZoneId !== 'beehive_run') {
