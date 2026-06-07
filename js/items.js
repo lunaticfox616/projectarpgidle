@@ -15,14 +15,22 @@ const BLACK_MARKET_BASE_SLOT_COUNT = 6;
 const BLACK_MARKET_MAX_SLOT_COUNT = 50;
 const BLACK_MARKET_MAX_EXTRA_SLOTS = Math.max(0, BLACK_MARKET_MAX_SLOT_COUNT - BLACK_MARKET_BASE_SLOT_COUNT);
 
+function isUniqueEligibleForBlackMarket(unique) {
+    return !!(unique && !unique.dropOnly && !unique.contentOnly && !unique.bossOnly && !unique.realmCodexOnly);
+}
+
 function normalizeBlackMarketState() {
     game.blackMarket = (game.blackMarket && typeof game.blackMarket === 'object') ? game.blackMarket : { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {} };
     game.blackMarket.extraSlots = Math.max(0, Math.min(BLACK_MARKET_MAX_EXTRA_SLOTS, Math.floor(Number(game.blackMarket.extraSlots) || 0)));
-    game.blackMarket.offers = Array.isArray(game.blackMarket.offers) ? game.blackMarket.offers.slice(0, BLACK_MARKET_MAX_SLOT_COUNT) : [];
+    game.blackMarket.offers = Array.isArray(game.blackMarket.offers) ? game.blackMarket.offers.slice(0, BLACK_MARKET_MAX_SLOT_COUNT).map(offer => {
+        if (!offer || offer.type !== 'unique') return offer;
+        let unique = UNIQUE_DB.find(row => row && row.name === offer.name);
+        return isUniqueEligibleForBlackMarket(unique) ? offer : null;
+    }) : [];
     game.blackMarket.lockedOffers = (game.blackMarket.lockedOffers && typeof game.blackMarket.lockedOffers === 'object') ? game.blackMarket.lockedOffers : {};
     Object.keys(game.blackMarket.lockedOffers).forEach(key => {
         let idx = Math.floor(Number(key));
-        if (!Number.isFinite(idx) || idx < 0 || idx >= BLACK_MARKET_MAX_SLOT_COUNT) delete game.blackMarket.lockedOffers[key];
+        if (!Number.isFinite(idx) || idx < 0 || idx >= BLACK_MARKET_MAX_SLOT_COUNT || !game.blackMarket.offers[idx]) delete game.blackMarket.lockedOffers[key];
     });
     return game.blackMarket;
 }
@@ -477,7 +485,7 @@ function buildBlackMarketOffer(index) {
         let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
         if (missing.length>0) return { type:'skillGem', name:rndChoice(missing), priceKey:'chaos', price:5 };
     }
-    let uniqPool = UNIQUE_DB.filter(u => u && (u.reqTier || 1) <= tier + 4 && !u.dropOnly && !u.contentOnly && !u.bossOnly && !u.realmCodexOnly);
+    let uniqPool = UNIQUE_DB.filter(u => (u.reqTier || 1) <= tier + 4 && isUniqueEligibleForBlackMarket(u));
     let normalPool = uniqPool.filter(u => !u.ultraRare);
     let chasePool = uniqPool.filter(u => u.ultraRare);
     let tierNorm = Math.max(1, Math.min(20, tier));
@@ -485,7 +493,7 @@ function buildBlackMarketOffer(index) {
     let pickChase = chasePool.length > 0 && Math.random() < chaseChance;
     let uniq = pickChase
         ? rndChoice(chasePool)
-        : rndChoice(normalPool.length ? normalPool : (uniqPool.length ? uniqPool : UNIQUE_DB.filter(u => u && !u.dropOnly && !u.contentOnly && !u.bossOnly && !u.realmCodexOnly)));
+        : rndChoice(normalPool.length ? normalPool : (uniqPool.length ? uniqPool : UNIQUE_DB.filter(isUniqueEligibleForBlackMarket)));
     let req = uniq.reqTier || tier;
     let price = 1;
     if (uniq.ultraRare) {

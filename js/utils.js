@@ -116,6 +116,16 @@ const COMPARE_STAT_META = {
     crit: { label: '치명타', format: value => `${value.toFixed(1)}%` },
     critDmg: { label: '치피배', format: value => `${Math.floor(value)}%` },
     maxHp: { label: '최대 생명력', format: value => `${Math.floor(value)}` },
+    armor: { label: '방어도', format: value => `${Math.floor(value)}` },
+    armorReduction: { label: '방어도 피해 감소', format: value => `${value.toFixed(1)}%` },
+    evasion: { label: '회피', format: value => `${Math.floor(value)}` },
+    evadeChance: { label: '회피 확률', format: value => `${value.toFixed(1)}%` },
+    energyShield: { label: '에너지 보호막', format: value => `${Math.floor(value)}` },
+    energyShieldRegenRate: { label: '에너지 보호막 재생', format: value => `${value.toFixed(1)}%` },
+    deflectChance: { label: '빗겨내기 확률', format: value => `${value.toFixed(1)}%` },
+    deflectDamageReduce: { label: '빗겨내기 피해 감소', format: value => `${value.toFixed(1)}%` },
+    blockChance: { label: '막기 확률', format: value => `${value.toFixed(1)}%` },
+    blockChanceMax: { label: '막기 확률 상한', format: value => `${value.toFixed(1)}%` },
     moveSpeed: { label: '이동 속도', format: value => `${Math.floor(value)}%` },
     dr: { label: '물피감', format: value => `${Math.floor(value)}%` },
     physIgnore: { label: '물피감 무시', format: value => `${Math.floor(value)}%` },
@@ -227,6 +237,7 @@ function getStatName(statId) {
         leechTotalCap: '흡혈 총 회복량 캡(최대 생명력 %)',
         leechInstanceCap: '흡혈 타격당 회복량 캡(최대 생명력 %)',
         gemLevel: '모든 스킬 젬 레벨',
+        summonGemLevel: '소환수 공격 스킬 젬 레벨',
         dr: '받는 피해 감소(%)',
         physIgnore: '물리 피해 감소 무시(%)',
         ds: '연속 타격(%)',
@@ -326,7 +337,7 @@ function createEmptyStatBucket() {
         ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
         takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, genericTakenDamageReducePct: 0, shockedEnemyHitDamageMorePct: 0, igniteDamageMultiplierPct: 0, poisonDamageMultiplierPct: 0, accuracyBonusPct: 0, shockEffect: 0,
-        summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0
+        summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0, summonGemLevel: 0
     };
 }
 function addStatToBucket(bucket, statId, value) {
@@ -423,6 +434,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'summonEfficiency') bucket.summonEfficiency += value;
     else if (statId === 'summonGuardRedirectPct') bucket.summonGuardRedirectPct += value;
     else if (statId === 'summonResPen') bucket.summonResPen += value;
+    else if (statId === 'summonGemLevel') bucket.summonGemLevel += value;
 
     else if (statId === 'moveEvasion') { bucket.move += value; bucket.evasionPct += value; }
     else if (statId === 'hpArmor') { bucket.flatHp += value; bucket.armor += value * 2; }
@@ -488,6 +500,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'summonEfficiency') bucket.summonEfficiency += value;
     else if (statId === 'summonGuardRedirectPct') bucket.summonGuardRedirectPct += value;
     else if (statId === 'summonResPen') bucket.summonResPen += value;
+    else if (statId === 'summonGemLevel') bucket.summonGemLevel += value;
 }
 
 function applyStatsToBucket(bucket, stats) {

@@ -401,7 +401,8 @@ const GEM_LEVEL_TAG_RULES = [
     { stat: 'slamGemLevel', tag: 'slam' },
     { stat: 'spellGemLevel', tag: 'spell' },
     { stat: 'dotGemLevel', tag: 'dot' },
-    { stat: 'aoeGemLevel', tag: 'aoe' }
+    { stat: 'aoeGemLevel', tag: 'aoe' },
+    { stat: 'summonGemLevel', tag: 'summon_attack' }
 ];
 
 function getGemLevelTargetTags(target) {

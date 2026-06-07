@@ -602,13 +602,17 @@ function buildActiveSummonRuntimeDefs(pStats) {
     return defs.slice(0, maxCap).map((row, idx) => ({ ...row, slotIdx: idx, duplicateIndex: row.duplicateIndex || 0 }));
 }
 
-function getEquippedJewelGemLevelBonusSources() {
+function getEquippedJewelGemLevelBonusSources(target) {
     let gear = 0;
+    let activeTags = typeof getGemLevelTargetTags === 'function' ? getGemLevelTargetTags(target) : [];
     let addJewelGemLevels = (jewel, multiplier) => {
         if (!jewel || typeof getJewelStats !== 'function') return;
         let mul = Number.isFinite(Number(multiplier)) ? Number(multiplier) : 1;
         getJewelStats(jewel).forEach(stat => {
-            if (stat && stat.id === 'gemLevel') gear += Number(stat.val || 0) * mul;
+            if (!stat) return;
+            let value = Number(stat.val || 0) * mul;
+            if (stat.id === 'gemLevel') gear += value;
+            if (stat.id === 'summonGemLevel' && activeTags.includes('summon_attack')) gear += value;
         });
     };
     Object.values(game.equipment || {}).forEach(item => {
@@ -644,7 +648,7 @@ function hasEmptyThroneSoloBonus() {
 function getTargetGemBonusSources(target, fallbackSources) {
     let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(target) : fallbackSources;
     sources = sources ? { ...sources } : { gear: 0, passive: 0, reward: 0, total: 0 };
-    let jewelGemLevel = getEquippedJewelGemLevelBonusSources();
+    let jewelGemLevel = getEquippedJewelGemLevelBonusSources(target);
     sources.gear = Number(sources.gear || 0) + jewelGemLevel;
     sources.total = Number(sources.total || 0) + jewelGemLevel;
     if (hasEmptyThroneSoloBonus()) {
@@ -670,8 +674,21 @@ function getSummonGemLevel(gemName, source, pStats) {
     return Math.max(1, baseLevel + bonus);
 }
 
+function getAttackSummonGrowthSteps(gemLv) {
+    let levelSteps = Math.max(0, Math.floor(Number(gemLv || 1)) - 1);
+    let earlySteps = Math.min(19, levelSteps);
+    let post20Steps = Math.max(0, levelSteps - earlySteps);
+    return 0.3 + (earlySteps * 1.08) + (post20Steps * 1.45) + (Math.pow(post20Steps, 1.15) * 0.12);
+}
+
+function getSummonLevelGrowthSteps(profile, gemLv) {
+    return profile && profile.role === 'attack'
+        ? getAttackSummonGrowthSteps(gemLv)
+        : Math.max(0, Math.floor(Number(gemLv || 1)) - 1);
+}
+
 function getSummonScaledBaseDamage(profile, gemLv, pStats) {
-    let dmgGrowth = 1 + Math.max(0, gemLv - 1) * (profile.dmgPerLevelPct || 0.1);
+    let dmgGrowth = 1 + getSummonLevelGrowthSteps(profile, gemLv) * (profile.dmgPerLevelPct || 0.1);
     let flat = Math.max(0, (pStats && pStats.summonFlatDmg) || 0);
     return Math.max(1, Math.floor(((profile.baseDamage || 20) * dmgGrowth) + flat));
 }
@@ -680,7 +697,7 @@ function buildSummonRuntimeStats(row, pStats, now) {
     let profile = getSummonProfile(row.name);
     let isGuard = profile.role === 'guard';
     let gemLv = getSummonGemLevel(row.name, row.source, pStats);
-    let levelSteps = Math.max(0, gemLv - 1);
+    let levelSteps = getSummonLevelGrowthSteps(profile, gemLv);
     let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
     let armorGrowth = 1 + (Math.pow(levelSteps, profile.armorScaleExp || 1.1) * (profile.armorScaleBase || 0.015));
     let evasionGrowth = 1 + (Math.pow(levelSteps, profile.evasionScaleExp || 1.1) * (profile.evasionScaleBase || 0.015));
@@ -902,7 +919,7 @@ function getSummonTooltipPreview(gemName, pStats) {
         critDmg: Math.max(100, profile.baseCritDmg || 140)
     };
     let hit = getSummonHitDamageInfo(hitProfile, stats, null, { expected: true });
-    let levelSteps = Math.max(0, gemLv - 1);
+    let levelSteps = getSummonLevelGrowthSteps(profile, gemLv);
     let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
     let maxHp = Math.max(1, Math.floor((profile.baseHp || 1) * hpGrowth * (1 + ((stats.summonHpPct || 0) / 100)) * (1 + ((stats.summonEfficiency || 0) / 100))));
     let critChance = Math.max(0, Math.min(0.95, ((profile.baseCrit || 0) + (stats.summonCrit || 0)) / 100));
@@ -993,6 +1010,11 @@ function runSummonAttackTick(pStats) {
         addBattleFx('hit', { enemyId: target.id, color: getElementColor(hit.element), damage: dmg, crit: hit.crit, duration: 220, element: hit.element });
         if (target.hp <= 0) handleEnemyDeath(target, pStats);
     });
+}
+
+function markPlayerMovementCompleted() {
+    game.lastMoveEndedAt = Date.now();
+    game.uniqueRiderCompassConsumed = false;
 }
 
 function coreLoop() {
@@ -1091,8 +1113,7 @@ function coreLoop() {
     if (game.combatHalted && game.moveTimer > 0) {
         game.moveTimer -= 0.1;
         if (game.moveTimer <= 0) {
-            game.lastMoveEndedAt = Date.now();
-            game.uniqueRiderCompassConsumed = false;
+            markPlayerMovementCompleted();
             if (!finishWoodsmanEntrance()) startEncounterRun();
         }
         return;
@@ -1147,6 +1168,7 @@ function coreLoop() {
     if (game.moveTimer > 0) {
         game.moveTimer -= 0.1;
         if (game.moveTimer <= 0) {
+            markPlayerMovementCompleted();
             if (game.isTownReturning) {
                 game.isTownReturning = false;
                 if ((game.settings.townReturnAction || 'retry') === 'stop') {
@@ -1371,6 +1393,20 @@ function getEquippedUniqueJewels() {
         }
     });
     return equipped;
+}
+
+function getLabyrinthShacklesDamageMultiplier(moveSpeed) {
+    let reducedMoveSpeed = Math.max(0, Number(moveSpeed || 0) - 100);
+    return 1 + (reducedMoveSpeed * 0.5) / 100;
+}
+
+function getAbsoluteFloorDamageRoll(maxDamageRoll) {
+    return Math.max(5, Number(maxDamageRoll || 0) * 0.85);
+}
+
+function getSolitaryHuntDoubleStrikeBonus(originalTargets) {
+    let reducedTargets = Math.max(0, Math.floor(Number(originalTargets || 1)) - 1);
+    return (Math.min(5, reducedTargets) * 100) + (Math.max(0, reducedTargets - 5) * 50);
 }
 
 function getPlayerStats() {
@@ -1959,9 +1995,8 @@ function getPlayerStats() {
     }
     let finalDamageMultiplier = 1;
     if (uniqueLabyrinthShackles) {
-        let reduced = Math.max(0, finalMove - 100);
+        finalDamageMultiplier *= getLabyrinthShacklesDamageMultiplier(finalMove);
         finalMove = 100;
-        finalDamageMultiplier *= (1 + reduced / 100);
     }
     
     let extraFlatArmor = passive.armor + season.armor + ascend.armor + reward.armor;
@@ -2020,7 +2055,9 @@ function getPlayerStats() {
     let crusaderNoResPenOnLightning = false;
     let crusaderHolyFlatDmg = 0;
     let crusaderHolyScaledDmg = 0;
-    let finalDs = ((gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds) + (skill.dsBonus || 0)) * 0.75;
+    let baseDsFromSources = gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds;
+    let skillDsBonus = skill.dsBonus || 0;
+    let finalDs = baseDsFromSources + skillDsBonus;
     let finalSlamEchoChance = gearBase.slamEchoChance + gearExplicit.slamEchoChance + passive.slamEchoChance + season.slamEchoChance + ascend.slamEchoChance + support.slamEchoChance + reward.slamEchoChance;
     let finalSlamEchoDamagePct = Math.max(0, coreCubeSlamEchoDamagePct || 0);
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen + (skill.regenBonus || 0);
@@ -2050,29 +2087,44 @@ function getPlayerStats() {
         let stacks = Math.max(0, Math.min(Math.floor(uniqueMeleeArmorAmp.maxStacks || 3), Math.floor(game.uniqueMeleeArmorAmpStacks || 0)));
         if (stacks > 0) finalArmor = Math.floor(finalArmor * Math.pow(1 + Math.max(0, Number(uniqueMeleeArmorAmp.ampPct || 5)) / 100, stacks));
     }
-    if (uniqueMinRollEqualsMaxRoll) finalMinDmgRoll = finalMaxDmgRoll;
+    if (uniqueMinRollEqualsMaxRoll) {
+        finalMaxDmgRoll = getAbsoluteFloorDamageRoll(finalMaxDmgRoll);
+        finalMinDmgRoll = finalMaxDmgRoll;
+    }
     if (uniqueHpToPhysPct && skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalMaxHp / 100) / 100));
 
     let resistPenalty = (game.maxZoneId >= 5 ? 30 : 0) + (game.maxZoneId >= 10 ? 30 : 0);
+    let resistanceBlendBonus = 0;
+    let resistanceBlendMaxBonus = 0;
+    let crusaderLightningMaxResBonus = 0;
+    let elementalistResistanceShift = { resF: 0, resC: 0, resL: 0, resChaos: 0 };
+    let elementalistChaosConversionBonus = 0;
     let finalMaxResF = Math.min(90, 75 + gearBase.maxResF + gearExplicit.maxResF + passive.maxResF + season.maxResF + ascend.maxResF + support.maxResF + reward.maxResF);
     let finalMaxResC = Math.min(90, 75 + gearBase.maxResC + gearExplicit.maxResC + passive.maxResC + season.maxResC + ascend.maxResC + support.maxResC + reward.maxResC);
     let finalMaxResL = Math.min(90, 75 + gearBase.maxResL + gearExplicit.maxResL + passive.maxResL + season.maxResL + ascend.maxResL + support.maxResL + reward.maxResL);
     let finalMaxResChaos = Math.min(90, 75 + gearBase.maxResChaos + gearExplicit.maxResChaos + passive.maxResChaos + season.maxResChaos + ascend.maxResChaos + support.maxResChaos + reward.maxResChaos);
-    let rawResF = gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + support.resF + reward.resF - resistPenalty;
-    let rawResC = gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + support.resC + reward.resC - resistPenalty;
-    let rawResL = gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + support.resL + reward.resL - resistPenalty;
-    let rawResChaos = gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + support.resChaos + reward.resChaos - resistPenalty;
+    let hasElementalistPrismaticShell = game.ascendClass === 'elementalist' && hasKeystone('e2');
+    if (hasElementalistPrismaticShell) {
+        elementalistResistanceShift = { resF: 15, resC: 15, resL: 15, resChaos: -10 };
+        finalMaxResF = Math.min(90, finalMaxResF + 3);
+        finalMaxResC = Math.min(90, finalMaxResC + 3);
+        finalMaxResL = Math.min(90, finalMaxResL + 3);
+    }
+    let rawResF = gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + support.resF + reward.resF + elementalistResistanceShift.resF - resistPenalty;
+    let rawResC = gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + support.resC + reward.resC + elementalistResistanceShift.resC - resistPenalty;
+    let rawResL = gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + support.resL + reward.resL + elementalistResistanceShift.resL - resistPenalty;
+    let rawResChaos = gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + support.resChaos + reward.resChaos + elementalistResistanceShift.resChaos - resistPenalty;
     if (uniqueRegenRateAndRegen) { finalRegen += Number(uniqueRegenRateAndRegen.regen || 0); finalRegen *= (1 + Math.max(0, Number(uniqueRegenRateAndRegen.regenRatePct || 0)) / 100); }
     if (uniqueAllMaxRes) { finalMaxResF += uniqueAllMaxRes; finalMaxResC += uniqueAllMaxRes; finalMaxResL += uniqueAllMaxRes; }
     if (uniqueEnemyRegenCutAndMinRoll) finalMinDmgRoll += Number(uniqueEnemyRegenCutAndMinRoll.minRoll || 0);
     if (game.ascendClass === 'catalyst' && hasKeystone('ct2')) {
-        let addRes = Math.max(0, dotPctDmg) * 0.1;
-        let addMax = Math.floor(Math.max(0, dotPctDmg) * 0.01);
-        rawResF += addRes; rawResC += addRes; rawResL += addRes; rawResChaos += addRes;
-        finalMaxResF = Math.min(90, finalMaxResF + addMax);
-        finalMaxResC = Math.min(90, finalMaxResC + addMax);
-        finalMaxResL = Math.min(90, finalMaxResL + addMax);
-        finalMaxResChaos = Math.min(90, finalMaxResChaos + addMax);
+        resistanceBlendBonus = Math.max(0, dotPctDmg) * 0.1;
+        resistanceBlendMaxBonus = Math.floor(Math.max(0, dotPctDmg) * 0.01);
+        rawResF += resistanceBlendBonus; rawResC += resistanceBlendBonus; rawResL += resistanceBlendBonus; rawResChaos += resistanceBlendBonus;
+        finalMaxResF = Math.min(90, finalMaxResF + resistanceBlendMaxBonus);
+        finalMaxResC = Math.min(90, finalMaxResC + resistanceBlendMaxBonus);
+        finalMaxResL = Math.min(90, finalMaxResL + resistanceBlendMaxBonus);
+        finalMaxResChaos = Math.min(90, finalMaxResChaos + resistanceBlendMaxBonus);
     }
     let finalResF = Math.min(finalMaxResF, rawResF);
     let finalResC = Math.min(finalMaxResC, rawResC);
@@ -2267,13 +2319,13 @@ function getPlayerStats() {
         }
         if (hasKeystone('h7')) {
             let solitaryOriginalTargets = Math.max(1, Math.floor(skill.targets || 1));
-            finalDs += Math.max(0, solitaryOriginalTargets - 1) * 100;
+            finalDs += getSolitaryHuntDoubleStrikeBonus(solitaryOriginalTargets);
             skill.targets = 1;
         }
         if (hasKeystone('h8')) {
             let dsAsCrit = Math.max(0, finalDs);
             finalDs = 0;
-            finalCrit += dsAsCrit;
+            finalCrit = Math.min(1000, finalCrit + dsAsCrit);
         }
     } else if (game.ascendClass === 'crusader') {
         if (hasKeystone('cr1')) { finalRegen += 1.5; finalRegen *= 1.4; }
@@ -2281,7 +2333,11 @@ function getPlayerStats() {
             crusaderLightningIgnoreRes = true;
             crusaderNoResPenOnLightning = true;
         }
-        if (hasKeystone('cr4')) finalMaxResL = Math.min(90, finalMaxResL + 3);
+        if (hasKeystone('cr4')) {
+            let previousMaxResL = finalMaxResL;
+            finalMaxResL = Math.min(90, finalMaxResL + 3);
+            crusaderLightningMaxResBonus = finalMaxResL - previousMaxResL;
+        }
         if (hasKeystone('cr5')) {
             finalRegen += 3;
             finalMaxHp = Math.floor(finalMaxHp * 1.1);
@@ -2307,12 +2363,6 @@ function getPlayerStats() {
             if (skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = 0;
             else finalDamageMultiplier *= 1.15;
         }
-        if (hasKeystone('e2')) {
-            finalResF = Math.min(78, finalResF + 15);
-            finalResC = Math.min(78, finalResC + 15);
-            finalResL = Math.min(78, finalResL + 15);
-            finalResChaos -= 10;
-        }
         if (hasKeystone('e3')) {
             finalMaxHp = Math.floor(finalMaxHp * 0.85);
             finalEnergyShieldRegenRate += 10;
@@ -2321,8 +2371,8 @@ function getPlayerStats() {
         if (hasKeystone('e4')) { /* 융해 결합: 원소 풀 변환은 skill 생성 직후 적용됨 */ }
         if (hasKeystone('e5')) {
             let maxElemRes = Math.max(finalResF, finalResC, finalResL);
-            finalResChaos += Math.floor(maxElemRes * 0.5);
-            finalResChaos = Math.min(finalMaxResChaos, finalResChaos);
+            elementalistChaosConversionBonus = Math.floor(maxElemRes * 0.5);
+            finalResChaos = Math.min(finalMaxResChaos, finalResChaos + elementalistChaosConversionBonus);
             finalDamageMultiplier *= (1 + Math.max(0, finalResChaos) / 100);
         }
         if (hasKeystone('e6')) {
@@ -2424,26 +2474,32 @@ function getPlayerStats() {
             let sumCrit = Math.max(0, (gearBase.summonCrit || 0) + (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (support.summonCrit || 0) + (reward.summonCrit || 0));
             let sumCritDmg = Math.max(0, (gearBase.summonCritDmg || 0) + (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (support.summonCritDmg || 0) + (reward.summonCritDmg || 0));
             let sumAspd = Math.max(0, (gearBase.summonAspd || 0) + (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (support.summonAspd || 0) + (reward.summonAspd || 0));
-            let sumHp = Math.max(0, (gearBase.summonHpPct || 0) + (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (support.summonHpPct || 0) + (reward.summonHpPct || 0));
             finalBaseDmg += Math.floor(sumFlat);
             finalBaseDmg = Math.floor(finalBaseDmg * (1 + sumPct / 100));
             finalCrit += sumCrit;
             finalCritDmg += sumCritDmg;
             finalAspd = Math.max(0.1, finalAspd * (1 + sumAspd / 100));
-            finalMaxHp = Math.floor(finalMaxHp * (1 + sumHp / 100));
         }
         if (hasKeystone('sb7')) {
             if (!hasKeystone('sb5')) sbPlayerDamageFromSummonPct += 0.5;
             sbSummonDamageFromPlayerPct += Math.max(0, generalPctDmg * 0.5);
         }
     } else if (game.ascendClass === 'catalyst') {
+        if (hasKeystone('ct4')) {
+            finalMove *= 1.2;
+            finalCritDmg += 25;
+            finalEvasion = Math.floor(finalEvasion * 1.2);
+        }
+        if (hasKeystone('ct6')) {
+            totalDotDamageMultiplier *= 2;
+            dotDurationMultiplier *= 0.5;
+        }
         if (hasKeystone('ct7')) {
-            let overflow = Math.max(0, finalIgniteChance - 100) + Math.max(0, finalPoisonChance - 100) + Math.max(0, finalBleedChance - 100);
-            totalDotDamageMultiplier *= (1 + overflow / 100);
-            finalIgniteChance += Math.max(0, finalCrit);
-            finalPoisonChance += Math.max(0, finalCrit);
-            finalBleedChance += Math.max(0, finalCrit);
-            finalCrit = 0;
+            let convertedCritChance = Math.max(0, finalCrit);
+            let convertedCritDamage = Math.max(0, finalCritDmg) * 0.2;
+            totalDotDamageMultiplier *= (1 + (convertedCritChance + convertedCritDamage) / 100);
+            if (Array.isArray(skill.tags) && skill.tags.includes('attack')) finalCrit = 100;
+            finalCritDmg = 100 + Math.max(0, (totalDotDamageMultiplier - 1) * 100 * 0.2);
         }
     }
 
@@ -2461,8 +2517,9 @@ function getPlayerStats() {
     damageScales.dotDurationMultiplier = dotDurationMultiplier;
     damageScales.warlockElementalOvercapToChaos = warlockElementalOvercapToChaos;
 
-    if (!(game.ascendClass === 'hunter' && hasKeystone('h8'))) finalCrit = Math.min(100, finalCrit);
-    if (skill.cannotCrit) finalCrit = 0;
+    if (game.ascendClass === 'hunter' && hasKeystone('h8')) finalCrit = Math.min(1000, finalCrit);
+    else finalCrit = Math.min(100, finalCrit);
+    if (skill.cannotCrit && !(game.ascendClass === 'catalyst' && hasKeystone('ct7') && Array.isArray(skill.tags) && skill.tags.includes('attack'))) finalCrit = 0;
     if (uniqueFateTwinRollSync) {
         let critForTwin = Math.max(0, finalCrit);
         let v = Math.max(finalMinDmgRoll, finalMaxDmgRoll) + (critForTwin * 0.2);
@@ -2530,7 +2587,10 @@ function getPlayerStats() {
             lines: [
                 makeSourceLine(`${ailmentLabel} 방지 확률`, finalValue, '%', value => `${Math.max(0, value).toFixed(1)}%`),
                 `계산 기준: ${ailmentLabel} 방지 옵션 ${Number(ailmentResValue || 0).toFixed(1)}% + 공통 방지 ${Math.floor(ailmentResistBonusPct)}%`,
-                '피해 저항(화염/냉기/번개/카오스/물리 피해 감소)은 상태이상 방지 확률에 합산되지 않습니다.'
+                medicineResistanceAilmentBonus.ignite > 0 || medicineResistanceAilmentBonus.freeze > 0 || medicineResistanceAilmentBonus.shock > 0
+                    ? `약품 내성: 최고 비-제한 원소 저항 상태이상 방지 +100% (점화 ${medicineResistanceAilmentBonus.ignite}% / 냉각·동결 ${medicineResistanceAilmentBonus.freeze}% / 감전 ${medicineResistanceAilmentBonus.shock}%)`
+                    : null,
+                '피해 저항(화염/냉기/번개/카오스/물리 피해 감소)은 상태이상 방지 확률에 직접 합산되지 않습니다.'
             ].filter(Boolean),
             final: `${Math.max(0, finalValue).toFixed(1)}%`
         };
@@ -2548,6 +2608,8 @@ function getPlayerStats() {
     finalMaxHp += (colonyWardBonus.flatHp || 0);
     finalArmor += (colonyWardBonus.armor || 0);
     finalEvasion += (colonyWardBonus.evasion || 0);
+    let riderCompassEvasionMorePct = uniqueRiderCompass && finalMove >= 200 ? 20 : 0;
+    if (riderCompassEvasionMorePct > 0) finalEvasion = Math.floor(finalEvasion * (1 + riderCompassEvasionMorePct / 100));
     armorReduction = getArmorPhysicalReductionPct(finalArmor, referenceIncomingPhysical);
     evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
     finalEnergyShield += (colonyWardBonus.energyShield || 0);
@@ -2566,9 +2628,21 @@ function getPlayerStats() {
     finalTakenDamageReduceWhen2EnemiesPct += (colonyWardBonus.takenDamageReduceWhen2EnemiesPct || 0);
     finalTakenDamageReduceWhen1EnemyPct += (colonyWardBonus.takenDamageReduceWhen1EnemyPct || 0);
 
-    let ailResIgniteTotal = (gearBase.ailResIgnite || 0) + (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0) + (colonyWardBonus.ailResIgnite || 0);
-    let ailResFreezeTotal = (gearBase.ailResFreeze || 0) + (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0) + (colonyWardBonus.ailResFreeze || 0);
-    let ailResShockTotal = (gearBase.ailResShock || 0) + (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0) + (colonyWardBonus.ailResShock || 0);
+    let uncappedResF = rawResF + (colonyWardBonus.resAll || 0);
+    let uncappedResC = rawResC + (colonyWardBonus.resAll || 0);
+    let uncappedResL = rawResL + (colonyWardBonus.resAll || 0);
+    let uncappedResChaos = rawResChaos + warlockElementalOvercapToChaos + elementalistChaosConversionBonus + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0);
+    let medicineResistanceAilmentBonus = { ignite: 0, freeze: 0, shock: 0 };
+    if (game.ascendClass === 'catalyst' && hasKeystone('ct2')) {
+        let highestUncappedElementalResistance = Math.max(uncappedResF, uncappedResC, uncappedResL);
+        if (uncappedResF === highestUncappedElementalResistance) medicineResistanceAilmentBonus.ignite = 100;
+        if (uncappedResC === highestUncappedElementalResistance) medicineResistanceAilmentBonus.freeze = 100;
+        if (uncappedResL === highestUncappedElementalResistance) medicineResistanceAilmentBonus.shock = 100;
+    }
+
+    let ailResIgniteTotal = (gearBase.ailResIgnite || 0) + (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0) + (colonyWardBonus.ailResIgnite || 0) + medicineResistanceAilmentBonus.ignite;
+    let ailResFreezeTotal = (gearBase.ailResFreeze || 0) + (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0) + (colonyWardBonus.ailResFreeze || 0) + medicineResistanceAilmentBonus.freeze;
+    let ailResShockTotal = (gearBase.ailResShock || 0) + (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0) + (colonyWardBonus.ailResShock || 0) + medicineResistanceAilmentBonus.shock;
     let ailResPoisonTotal = (gearBase.ailResPoison || 0) + (gearExplicit.ailResPoison || 0) + (passive.ailResPoison || 0) + (season.ailResPoison || 0) + (ascend.ailResPoison || 0) + (reward.ailResPoison || 0) + (colonyWardBonus.ailResPoison || 0);
     let ailResBleedTotal = (gearBase.ailResBleed || 0) + (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0) + (colonyWardBonus.ailResBleed || 0);
     let finalAilmentResistIgniteChance = getPlayerAilmentResistChance('ignite', { ailResIgnite: ailResIgniteTotal, ailmentResistBonusPct }) * 100;
@@ -2591,6 +2665,40 @@ function getPlayerStats() {
     let flatBlockChanceBonus = Math.max(0, shieldBlockChanceFlat + gearBase.blockChance + passive.blockChance + season.blockChance + ascend.blockChance + support.blockChance + reward.blockChance);
     let finalBlockChanceCap = Math.max(50, Math.min(75, 50 + Math.max(0, sumStatAcrossBuckets('blockChanceMax'))));
     let finalBlockChance = Math.min(finalBlockChanceCap, Math.max(0, effectiveShieldBaseBlockChance + (shieldBaseBlockChance * blockChanceFromOtherPct / 100) + flatBlockChanceBonus));
+
+    function formatSignedPercentagePointLine(label, value) {
+        let amount = Number(value || 0);
+        if (!amount) return null;
+        return `${label} ${amount > 0 ? '+' : ''}${Math.floor(amount)}%p`;
+    }
+
+    function formatResistanceSourceLine(label, value) {
+        let amount = Number(value || 0);
+        if (!amount) return null;
+        let rendered = Number.isInteger(amount) ? `${Math.abs(amount)}` : Math.abs(amount).toFixed(1);
+        return `${label} ${amount > 0 ? '+' : '-'}${rendered}%`;
+    }
+
+    function makeResistanceBreakdown(title, statId, maxStatId, finalValue, maxValue, extraLines, extraMaxLines) {
+        let maxGear = (gearBase[maxStatId] || 0) + (gearExplicit[maxStatId] || 0);
+        let maxPassive = (passive[maxStatId] || 0) + (season[maxStatId] || 0) + (ascend[maxStatId] || 0) + (reward[maxStatId] || 0);
+        return {
+            title: title,
+            lines: [
+                formatResistanceSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0)),
+                formatResistanceSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0)),
+                formatResistanceSourceLine('보조 젬', support[statId] || 0),
+                ...(extraLines || []),
+                formatResistanceSourceLine('캠페인 패널티', -resistPenalty),
+                `최대 저항: ${Math.floor(maxValue)}% (기본 75%)`,
+                formatResistanceSourceLine('최대 저항 · 장비', maxGear),
+                formatResistanceSourceLine('최대 저항 · 패시브', maxPassive),
+                formatResistanceSourceLine('최대 저항 · 보조 젬', support[maxStatId] || 0),
+                ...(extraMaxLines || [])
+            ].filter(Boolean),
+            final: `${Math.floor(finalValue)}%`
+        };
+    }
 
     let breakdowns = {
         atk: {
@@ -2714,9 +2822,12 @@ function getPlayerStats() {
         ds: {
             title: '연속 타격',
             lines: [
-                makeSourceLine('장비', gearBase.ds + gearExplicit.ds, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.ds + season.ds + ascend.ds + reward.ds, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.ds, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('장비', gearBase.ds + gearExplicit.ds, '%p', value => `${Math.floor(value)}%p`),
+                makeSourceLine('패시브', passive.ds + season.ds + ascend.ds + reward.ds, '%p', value => `${Math.floor(value)}%p`),
+                makeSourceLine('보조 젬', support.ds, '%p', value => `${Math.floor(value)}%p`),
+                makeSourceLine('스킬', skillDsBonus, '%p', value => `${Math.floor(value)}%p`),
+                formatSignedPercentagePointLine('기타 효과', finalDs - baseDsFromSources - skillDsBonus),
+                '각 수치는 연속 타격 확률에 합산되는 %p입니다.'
             ].filter(Boolean),
             final: `${Math.floor(finalDs)}%`
         },
@@ -2745,6 +2856,7 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearBase.evasion + gearExplicit.evasion),
                 makeSourceLine('패시브', passive.evasion + season.evasion + ascend.evasion + reward.evasion),
                 makeSourceLine('회피 증가', totalEvasionPct, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('기수의 나침반 증폭', riderCompassEvasionMorePct, '%', value => `${Math.floor(value)}%`),
                 `예상 회피 확률(동일 레벨 적 기준): ${evadeChance.toFixed(1)}%`
             ].filter(Boolean),
             final: `${Math.floor(finalEvasion)}`
@@ -2825,43 +2937,47 @@ function getPlayerStats() {
             ].filter(Boolean),
             final: `${Math.floor(finalResPen)}%`
         },
-        resF: {
-            title: '화염 저항',
-            lines: [
-                makeSourceLine('장비', gearBase.resF + gearExplicit.resF, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.resF + season.resF + ascend.resF + reward.resF, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('캠페인 패널티', -resistPenalty, '%', value => `${Math.floor(value)}%`)
-            ].filter(Boolean),
-            final: `${Math.floor(finalResF)}%`
-        },
-        resC: {
-            title: '냉기 저항',
-            lines: [
-                makeSourceLine('장비', gearBase.resC + gearExplicit.resC, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.resC + season.resC + ascend.resC + reward.resC, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('캠페인 패널티', -resistPenalty, '%', value => `${Math.floor(value)}%`)
-            ].filter(Boolean),
-            final: `${Math.floor(finalResC)}%`
-        },
-        resL: {
-            title: '번개 저항',
-            lines: [
-                makeSourceLine('장비', gearBase.resL + gearExplicit.resL, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.resL + season.resL + ascend.resL + reward.resL, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('캠페인 패널티', -resistPenalty, '%', value => `${Math.floor(value)}%`)
-            ].filter(Boolean),
-            final: `${Math.floor(finalResL)}%`
-        },
-        resChaos: {
-            title: '카오스 저항',
-            lines: [
-                makeSourceLine('장비', gearBase.resChaos + gearExplicit.resChaos, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.resChaos + season.resChaos + ascend.resChaos + reward.resChaos, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('캠페인 패널티', -resistPenalty, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('암흑 치환', warlockElementalOvercapToChaos, '%', value => `${Math.floor(value)}%`)
-            ].filter(Boolean),
-            final: `${Math.floor(finalResChaos)}%`
-        },
+        resF: makeResistanceBreakdown('화염 저항', 'resF', 'maxResF', finalResF, finalMaxResF, [
+            formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
+            formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resF),
+            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
+        ], [
+            formatResistanceSourceLine('최대 저항 · 영역 고유 효과', uniqueAllMaxRes),
+            formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
+            formatResistanceSourceLine('최대 저항 · 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
+            formatResistanceSourceLine('최대 저항 · 군락 수호구', colonyWardBonus.maxResF || 0)
+        ]),
+        resC: makeResistanceBreakdown('냉기 저항', 'resC', 'maxResC', finalResC, finalMaxResC, [
+            formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
+            formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resC),
+            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
+        ], [
+            formatResistanceSourceLine('최대 저항 · 영역 고유 효과', uniqueAllMaxRes),
+            formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
+            formatResistanceSourceLine('최대 저항 · 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
+            formatResistanceSourceLine('최대 저항 · 군락 수호구', colonyWardBonus.maxResC || 0)
+        ]),
+        resL: makeResistanceBreakdown('번개 저항', 'resL', 'maxResL', finalResL, finalMaxResL, [
+            formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
+            formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resL),
+            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
+        ], [
+            formatResistanceSourceLine('최대 저항 · 영역 고유 효과', uniqueAllMaxRes),
+            formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
+            formatResistanceSourceLine('최대 저항 · 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
+            formatResistanceSourceLine('최대 저항 · 전하 보루', crusaderLightningMaxResBonus),
+            formatResistanceSourceLine('최대 저항 · 군락 수호구', colonyWardBonus.maxResL || 0)
+        ]),
+        resChaos: makeResistanceBreakdown('카오스 저항', 'resChaos', 'maxResChaos', finalResChaos, finalMaxResChaos, [
+            formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
+            formatResistanceSourceLine('암흑 치환', warlockElementalOvercapToChaos),
+            formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resChaos),
+            formatResistanceSourceLine('공허 결합', elementalistChaosConversionBonus),
+            formatResistanceSourceLine('군락 수호구', (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0))
+        ], [
+            formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
+            formatResistanceSourceLine('최대 저항 · 군락 수호구', colonyWardBonus.maxResChaos || 0)
+        ]),
 
         ailmentResist: {
             title: '상태이상 방지 확률',
@@ -2987,14 +3103,17 @@ function getPlayerStats() {
         sSkill: skill,
         resPen: finalResPen,
         resF: finalResF,
-        rawResF: rawResF,
+        rawResF: uncappedResF,
         resC: finalResC,
+        rawResC: uncappedResC,
         resL: finalResL,
+        rawResL: uncappedResL,
         maxResF: finalMaxResF,
         maxResC: finalMaxResC,
         maxResL: finalMaxResL,
         maxResChaos: finalMaxResChaos,
         resChaos: finalResChaos,
+        rawResChaos: uncappedResChaos,
         critResist: Math.max(0, Math.min(80, finalCritResist)),
         ailResIgnite: ailResIgniteTotal,
         ailResShock: ailResShockTotal,
@@ -4109,8 +4228,7 @@ function spreadCatalystAilmentsOnDeath(enemy) {
             let gb = Math.abs((Number.isFinite(b.groupIndex) ? b.groupIndex : 0) - sourceGroup);
             if (ga !== gb) return ga - gb;
             return (a.id || 0) - (b.id || 0);
-        })
-        .slice(0, 2);
+        });
     if (targets.length <= 0) return;
     targets.forEach(target => ailments.forEach(ail => mergeEnemyAilment(target, ail)));
     if (game.settings && game.settings.showCombatLog) addLog(`🧪 확산 반응: 남은 상태이상이 주변 적 ${targets.length}마리에게 퍼졌습니다.`, 'attack-player', { rateKey: 'catalyst:spread', minIntervalMs: 500 });
@@ -4167,7 +4285,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     let primaryType = getAilmentTypeFromElement(ele);
     let opts = (options && typeof options === 'object') ? options : {};
     let sourceHitDamage = Math.max(0, Math.floor(Number(opts.ailmentSourceDamage !== undefined ? opts.ailmentSourceDamage : hitDamage) || 0));
-    let catalystAilmentMul = (game.ascendClass === 'catalyst' && hasKeystone('ct1')) ? 1.5 : 1;
+    let catalystAilmentMul = (game.ascendClass === 'catalyst' && hasKeystone('ct1')) ? 2 : 1;
     let ailmentPowerSourceDamage = Math.max(0, Math.floor(sourceHitDamage * Math.max(0.01, Number(pStats && pStats.ailmentPowerMultiplier) || 1) * catalystAilmentMul));
     let critDotBonusPct = Math.max(0, Number(opts.critDotBonusPct !== undefined ? opts.critDotBonusPct : (isCrit ? 50 : 0)) || 0);
     let ailmentDotScore = getDamageAilmentScore(ailmentPowerSourceDamage, critDotBonusPct, pStats && Number.isFinite(pStats.dotDamageScale) ? pStats.dotDamageScale : 1, pStats && Number.isFinite(pStats.dotCritBonusScale) ? pStats.dotCritBonusScale : 1);
@@ -4220,7 +4338,8 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     if (game.ascendClass === 'catalyst' && hasKeystone('ct8')) {
         let now = Date.now();
         if ((game.catalystBurstReadyAt || 0) <= now) {
-            let burstReady = (enemy.ailments || []).some(a => a && ['ignite','poison','bleed'].includes(a.type) && (a.stacks || 1) >= 4 && (a.time || 0) > 0);
+            let maxDamageAilmentStacks = getEnemyDamageAilmentMaxStacks();
+            let burstReady = (enemy.ailments || []).some(a => a && ['ignite','poison','bleed'].includes(a.type) && (a.stacks || 1) >= maxDamageAilmentStacks && (a.time || 0) > 0);
             if (burstReady) {
                 let burst = 0;
                 (enemy.ailments || []).forEach(a => {
@@ -4231,7 +4350,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
                 });
                 if (burst > 0) {
                     applyDamageToEnemyResource(enemy, burst);
-                    game.catalystBurstReadyAt = now + 2000;
+                    game.catalystBurstReadyAt = now + 1000;
                 }
             }
         }
@@ -5560,8 +5679,7 @@ function performPlayerAttack(pStats) {
         game.elementalistOverloadExpiresAt = 0;
     }
     let baseDamage = pStats.baseDmg;
-    let movedRecently = (Date.now() - (game.lastMoveEndedAt || 0)) <= 1200;
-    let riderCompassReady = !!(pStats.uniqueRiderCompass && movedRecently && !game.uniqueRiderCompassConsumed);
+    let riderCompassReady = !!(pStats.uniqueRiderCompass && (game.lastMoveEndedAt || 0) > 0 && !game.uniqueRiderCompassConsumed);
     if (isCrit) {
         baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
         if (game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) baseDamage *= 2;
@@ -5613,6 +5731,8 @@ function performPlayerAttack(pStats) {
         pStats.sSkill.targets = 1;
     }
     let perEnemyHitCount = new Map();
+    let originalPierceTargets = new Set(targets.map(entry => entry && entry.enemy).filter(Boolean));
+    let pierceOverkillCarryStartedTargets = new Set();
     let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
     function applyPierceOverkillCarry(sourceEnemy, carryDamage, hitElement, hitCrit, ailmentCarrySourceDamage) {
         let hunterSinglePierce = game.ascendClass === 'hunter' && hasKeystone('h4') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1;
@@ -5622,7 +5742,8 @@ function performPlayerAttack(pStats) {
         let visited = new Set(sourceEnemy && sourceEnemy.id ? [sourceEnemy.id] : []);
         let chainLimit = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.targets || 1)));
         for (let chainIdx = 0; chainIdx < chainLimit && remainingDamage > 0; chainIdx++) {
-            let chainTarget = (game.enemies || []).find(enemy => enemy && enemy.hp > 0 && !visited.has(enemy.id));
+            let chainTarget = (game.enemies || []).find(enemy => enemy && enemy.hp > 0 && !visited.has(enemy.id)
+                && (!pStats.sSkill.pierceOverkillCarry || !originalPierceTargets.has(enemy)));
             if (!chainTarget) return;
             visited.add(chainTarget.id);
             let zone = getZone(game.currentZoneId);
@@ -5966,7 +6087,13 @@ function performPlayerAttack(pStats) {
             if (targetEnemy.hp <= 0 && dmg > dealtToEnemy) {
                 let overkillDamage = dmg - dealtToEnemy;
                 let ailmentOverkillSourceDamage = dmg > 0 ? Math.floor(ailmentDamageBeforeCritMitigation * (overkillDamage / dmg)) : 0;
-                applyPierceOverkillCarry(targetEnemy, overkillDamage, hitElement, hitCrit, ailmentOverkillSourceDamage);
+                let isOriginalPierceTarget = originalPierceTargets.size === 0 || originalPierceTargets.has(targetEnemy);
+                let canStartPierceCarry = !pStats.sSkill.pierceOverkillCarry
+                    || (isOriginalPierceTarget && !pierceOverkillCarryStartedTargets.has(targetEnemy));
+                if (canStartPierceCarry) {
+                    if (pStats.sSkill.pierceOverkillCarry) pierceOverkillCarryStartedTargets.add(targetEnemy);
+                    applyPierceOverkillCarry(targetEnemy, overkillDamage, hitElement, hitCrit, ailmentOverkillSourceDamage);
+                }
             }
             if (slamEchoPct > 0 && (pStats.sSkill.tags || []).includes('slam') && dmg > 0 && targetEnemy.hp > 0 && (slamEchoGuaranteed || passiveSlamEchoChance <= 0 || Math.random() < passiveSlamEchoChance)) {
                 game.pendingSlamEchoHits = Array.isArray(game.pendingSlamEchoHits) ? game.pendingSlamEchoHits : [];

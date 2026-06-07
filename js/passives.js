@@ -3437,11 +3437,11 @@ function initBattleAssets() {
         hero1Attack: 'assets/hero1/ElfBasicAtk001BGR-Sheet-export.png',
         hero1Hurt: 'assets/hero1/ElfHurt001-Sheet-export.png',
         hero1Death: 'assets/hero1/ElfDeath001-Sheet-export.png',
-        hero2Idle: 'assets/hero2/DemonKinIdle001-Sheet.png',
-        hero2Walk: 'assets/hero2/DemonKinWalk001-Sheet.png',
-        hero2Attack: 'assets/hero2/DemonKinBasicAtk001-Sheet.png',
-        hero2Hurt: 'assets/hero2/DemonKinHurt001-Sheet.png',
-        hero2Death: 'assets/hero2/DemonKinDeath001-Sheet.png',
+        hero2Idle: 'assets/hero2/hero2_walk.png',
+        hero2Walk: 'assets/hero2/hero2_walk.png',
+        hero2Attack: 'assets/hero2/hero2_attack.png',
+        hero2Hurt: 'assets/hero2/hero2_walk.png',
+        hero2Death: 'assets/hero2/hero2_walk.png',
         hero3Idle: 'assets/hero3/hero3_walk.png',
         hero3Walk: 'assets/hero3/hero3_walk.png',
         hero3Attack: 'assets/hero3/hero3_attack.png',
@@ -3457,11 +3457,21 @@ function initBattleAssets() {
         hero5Attack: 'assets/hero5/hero5_attack.png',
         hero5Hurt: 'assets/hero5/hero5_walk.png',
         hero5Death: 'assets/hero5/hero5_walk.png',
+        hero6Idle: 'assets/hero6/hero6_walk.png',
+        hero6Walk: 'assets/hero6/hero6_walk.png',
+        hero6Attack: 'assets/hero6/hero6_attack.png',
+        hero6Hurt: 'assets/hero6/hero6_walk.png',
+        hero6Death: 'assets/hero6/hero6_walk.png',
         hero9Idle: 'assets/hero9/hero9_walk.png',
         hero9Walk: 'assets/hero9/hero9_walk.png',
         hero9Attack: 'assets/hero9/hero9_attack.png',
         hero9Hurt: 'assets/hero9/hero9_walk.png',
         hero9Death: 'assets/hero9/hero9_walk.png',
+        hero10Idle: 'assets/hero10/hero10_walk.png',
+        hero10Walk: 'assets/hero10/hero10_walk.png',
+        hero10Attack: 'assets/hero10/hero10_attack.png',
+        hero10Hurt: 'assets/hero10/hero10_walk.png',
+        hero10Death: 'assets/hero10/hero10_walk.png',
         ...(defaultHeroSrc ? { heroLegacy: defaultHeroSrc } : {}),
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
@@ -4202,11 +4212,13 @@ function buildBattleAssetAtlas() {
     }
     const heroStripFrameCounts = {
         hero1Idle: 6, hero1Walk: 8, hero1Attack: 7, hero1Hurt: 4, hero1Death: 8,
-        hero2Idle: 6, hero2Walk: 8, hero2Attack: 12, hero2Hurt: 4, hero2Death: 8,
+        hero2Idle: 13, hero2Walk: 13, hero2Attack: 20, hero2Hurt: 13, hero2Death: 13,
         hero3Idle: 9, hero3Walk: 9, hero3Attack: 11, hero3Hurt: 9, hero3Death: 9,
         hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7,
         hero5Idle: 11, hero5Walk: 11, hero5Attack: 9, hero5Hurt: 11, hero5Death: 11,
-        hero9Idle: 9, hero9Walk: 9, hero9Attack: 8, hero9Hurt: 9, hero9Death: 9
+        hero6Idle: 13, hero6Walk: 13, hero6Attack: 14, hero6Hurt: 13, hero6Death: 13,
+        hero9Idle: 9, hero9Walk: 9, hero9Attack: 8, hero9Hurt: 9, hero9Death: 9,
+        hero10Idle: 12, hero10Walk: 12, hero10Attack: 10, hero10Hurt: 12, hero10Death: 12
     };
     function buildFixedStripFramesFromImage(image, frameCount) {
         if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return [];
@@ -4268,6 +4280,13 @@ function buildBattleAssetAtlas() {
         let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200, heroStripFrameCounts[stripKeys.hurt]));
         let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200, heroStripFrameCounts[stripKeys.death]));
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
+        const walkFallbackHeroIds = new Set(['hero2', 'hero6', 'hero10']);
+        if (walkFallbackHeroIds.has(heroId)) {
+            let restingFrame = walkFrames[0] || idleFrames[0];
+            idleFrames = [restingFrame].filter(Boolean);
+            hurtFrames = [restingFrame].filter(Boolean);
+            downFrames = [restingFrame].filter(Boolean);
+        }
         let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
         return {
             characterAnimations: {
@@ -4282,7 +4301,7 @@ function buildBattleAssetAtlas() {
             clipLoop: {
                 idle: true,
                 walk_or_run: true,
-                sword_attack_body: heroId === 'hero2' || heroId === 'hero3' || heroId === 'hero4' || heroId === 'hero5' || heroId === 'hero9',
+                sword_attack_body: heroId === 'hero3' || heroId === 'hero4' || heroId === 'hero5' || heroId === 'hero9',
                 cast_body: false,
                 hurt: false,
                 down_or_knockdown: false,
@@ -5162,10 +5181,19 @@ function rollBaseStats(base, zoneTier) {
         let scale = (stat.id === 'energyShield') ? 1.5 : 1;
         let scaledMin = minBase * scale;
         let scaledMax = maxBase * scale;
+        let usesDecimalRoll = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+        if (scaledMax > 0) {
+            let positiveMinimum = usesDecimalRoll ? 0.1 : 1;
+            scaledMin = Math.max(positiveMinimum, scaledMin);
+            scaledMax = Math.max(scaledMin, scaledMax);
+        }
         let val = scaledMin + Math.random() * Math.max(0, (scaledMax - scaledMin));
-        if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) val = Math.round(val * 10) / 10;
+        if (usesDecimalRoll) val = Math.round(val * 10) / 10;
         else if (stat.id === 'projectileExtraShots') val = Math.max(1, Math.round(val));
-        else val = Math.floor(val);
+        else {
+            val = Math.floor(val);
+            if (scaledMax > 0) val = Math.max(1, val);
+        }
         if (stat.id === 'flatDmg') {
             scaledMin = Math.max(1, scaledMin);
             scaledMax = Math.max(scaledMin, scaledMax);
@@ -5342,8 +5370,8 @@ function liberateSelectedEncroachedItem() {
 
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
-    let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen']);
-    let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonHpPct', 'summonAspd', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonCap', 'summonResPen']);
+    let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
+    let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonHpPct', 'summonAspd', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonCap', 'summonResPen', 'summonGemLevel']);
     let hasSummonBaseStat = item && Array.isArray(item.baseStats)
         && item.baseStats.some(stat => stat && summonBaseStatIds.has(stat.id));
     let isSummonBaseWeapon = item && item.slot === '무기' && hasSummonBaseStat;
@@ -5787,7 +5815,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     let options = poolSource.filter(unique => unique.slots.includes(slot) && zoneTier >= (unique.reqTier || 1));
     if (options.length === 0) options = poolSource.filter(unique => zoneTier >= (unique.reqTier || 1));
     if (options.length === 0) options = poolSource.length > 0 ? poolSource : UNIQUE_DB.filter(unique => canDropUniqueInZone(unique));
-    if (options.length === 0) options = UNIQUE_DB.filter(unique => !unique.realmCodexOnly);
+    if (options.length === 0) options = UNIQUE_DB.filter(unique => canDropUniqueInZone(unique));
     let unique = forcedUnique || rndChoice(options);
     let uniqueTier = unique.reqTier || zoneTier;
     let fixedBaseId = UNIQUE_FIXED_BASE_BY_NAME[unique.name];
@@ -6071,6 +6099,14 @@ const JEWEL_OPTION_POOL = [
     { id: 'armorPct', name: '강화 외피', min: 4, max: 10 },
     { id: 'evasionPct', name: '유동 보법', min: 4, max: 10 },
     { id: 'energyShieldPct', name: '보호막 기동', min: 4, max: 10 },
+    { id: 'summonFlatDmg', name: '사역 피해 주입', min: 4, max: 12 },
+    { id: 'summonPctDmg', name: '지배자의 파편', min: 6, max: 16 },
+    { id: 'summonAspd', name: '무리의 가속', min: 3, max: 9, step: 0.5 },
+    { id: 'summonHpPct', name: '사역 생명핵', min: 6, max: 16 },
+    { id: 'summonCrit', name: '야수의 눈', min: 1, max: 4, step: 0.5 },
+    { id: 'summonCritDmg', name: '포식의 송곳니', min: 10, max: 28 },
+    { id: 'summonEfficiency', name: '영혼 결속정', min: 4, max: 12 },
+    { id: 'summonResPen', name: '사역 관통석', min: 1, max: 5, step: 0.5 },
     { id: 'ailResIgnite', name: '소염 수정', min: 12.5, max: 50, step: 0.5 },
     { id: 'ailResShock', name: '절연 수정', min: 12.5, max: 50, step: 0.5 },
     { id: 'ailResFreeze', name: '방한 수정', min: 12.5, max: 50, step: 0.5 },

@@ -559,20 +559,20 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'sb2', name: '나눠갖기', desc: '소환수가 플레이어가 받는 피해의 50%를 대신 받음', req: null },
         { id: 'sb3', name: '야생성', desc: '소환수 흡혈 +3%', req: null },
         { id: 'sb4', name: '무리', desc: '소환수 한도 +1, 소환수 공격 속도 15% 증폭', req: 'sb1' },
-        { id: 'sb5', name: '홀로서기', desc: '소환수의 기본 공격력/추가 스탯을 플레이어가 가짐, 소환수는 공격하지 않음', req: 'sb2' },
+        { id: 'sb5', name: '홀로서기', desc: '소환수의 기본 공격력과 공격적인 추가 스탯만 플레이어가 가짐, 소환수 생명력 등 방어적인 소환 옵션은 전이되지 않으며 소환수는 공격하지 않음', req: 'sb2' },
         { id: 'sb6', name: '꿰뚫는 이', desc: '저항 관통 +16%, 플레이어 저항 관통이 소환수 공격에도 100% 적용', req: 'sb3' },
         { id: 'sb7', name: '상호 보완', desc: '플레이어 피해의 50%를 소환수에 추가, 소환수 피해의 50%를 플레이어에게 추가', reqAny: ['sb4', 'sb3'] },
         { id: 'sb8', name: '군주', desc: '소환수 한도 +3', req: 'sb7' }
     ],
     catalyst: [
-        { id: 'ct1', name: '과잉 촉매', desc: '상태이상 지속 피해 유발 기준 피해가 실제 타격의 1.5배로 계산', req: null },
-        { id: 'ct2', name: '내성 배합', desc: '지속 피해 배율의 10%만큼 모든 저항 상승, 1%만큼 최대 저항 상승(내림)', req: null },
-        { id: 'ct3', name: '확산 반응', desc: '상태이상에 걸린 적이 사망 시 남은 상태이상을 주변 적 2마리에게 확산', req: null },
-        { id: 'ct4', name: '여운 회피', desc: '회피 성공 시 다음 타격에만 회피 30% 증폭', req: 'ct1' },
+        { id: 'ct1', name: '과잉 촉매', desc: '상태이상 지속 피해 유발 기준 피해가 실제 타격의 2배로 계산', req: null },
+        { id: 'ct2', name: '약품 내성', desc: '지속 피해 배율의 10%만큼 모든 저항 상승, 1%만큼 최대 저항 상승(내림). 가장 높은 비-제한 원소 저항이 주는 상태이상 저항 +100% (공동 최고 저항은 모두 적용)', req: null },
+        { id: 'ct3', name: '확산 반응', desc: '상태이상에 걸린 적이 사망 시 남은 상태이상을 모든 주변 적에게 확산', req: null },
+        { id: 'ct4', name: '연막 포션', desc: '영구 은신: 이동 속도 +20%, 치명타 피해 배율 +25%, 회피 20% 증폭. 회피 성공 시 다음 타격에만 회피 30% 증폭', req: 'ct1' },
         { id: 'ct5', name: '감염 추적', desc: '적이 상태이상일 때 주는 피해 20% 증폭', req: 'ct2' },
-        { id: 'ct6', name: '중첩 독성', desc: '중독/점화/출혈 최대 중첩 +1', req: 'ct3' },
-        { id: 'ct7', name: '배합 역치', desc: '치명타 없음. 치명타 확률은 상태이상 확률로 전환되고, 초과분은 지속 피해 배율로 전환', reqAny: ['ct4', 'ct5'] },
-        { id: 'ct8', name: '파열 용해', desc: '중독/점화/출혈 최대 중첩 +2, 4중첩 시 2초 쿨로 누적 피해 즉시 폭발', req: 'ct6' }
+        { id: 'ct6', name: '중첩 독성', desc: '중독/점화/출혈 최대 중첩 +1, 상태이상 피해 100% 증폭, 상태이상 지속 시간 50% 감폭', req: 'ct3' },
+        { id: 'ct7', name: '완벽한 배합', desc: '모든 공격이 항상 치명타, 치명타 확률의 100% 및 치명타 피해 배율의 20%가 지속 피해 배율로 전환, 치명타에 치명타 피해 배율 대신 지속 피해 배율의 20% 적용', reqAny: ['ct4', 'ct5'] },
+        { id: 'ct8', name: '파열 용해', desc: '중독/점화/출혈 최대 중첩 +2, 최대 중첩 시 1초 쿨로 누적 피해 즉시 폭발', req: 'ct6' }
     ],
     hunter: [
         { id: 'h1', name: '단일 조준', desc: '투사체 피해 10% 증폭, 타겟이 하나면 25% 증폭', req: null },
@@ -581,8 +581,8 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'h4', name: '연쇄 관통', desc: '타겟이 하나면 공격이 100% 관통(초과 피해 100% 연쇄 관통)', req: 'h1' },
         { id: 'h5', name: '급소 격발', desc: '치명타 피해 배율 +250%, 치명타 확률 -25', req: 'h2' },
         { id: 'h6', name: '사거리 장악', desc: '투사체 스킬 타겟 수 +1, 투사체 추가 발사 +1', req: 'h3' },
-        { id: 'h7', name: '고독 사냥', desc: '타겟 수 1로 고정, 줄어든 타겟 수 x100% 연속 타격 획득', reqAny: ['h4', 'h5'] },
-        { id: 'h8', name: '절멸 사격', desc: '연속타격 불가, 연속타격 확률을 치명타 확률로 전환, 초과 치명타/다중 치명타 허용', req: 'h7' }
+        { id: 'h7', name: '고독 사냥', desc: '타겟 수 1로 고정, 줄어든 타겟 5개까지 각 연속 타격 +100%p, 이후 각 +50%p', reqAny: ['h4', 'h5'] },
+        { id: 'h8', name: '절멸 사격', desc: '연속타격 불가, 연속타격 확률을 치명타 확률로 전환, 초과 치명타/다중 치명타 허용 (최대 1000%)', req: 'h7' }
     ],
     crusader: [
         { id: 'cr1', name: '신성화', desc: '신성화 효과: 생명력 재생 +1.5%, 생명력 재생 속도 +40%', req: null },
@@ -761,6 +761,7 @@ const P_STATS = {
     summonEfficiency: { name: '소환수 효율(%)', tiers: [2, 3], m: 4, k: 10, isPct: true },
     summonGuardRedirectPct: { name: '방어형 소환수 피해 대리(%)', tiers: [3], k: 4, isPct: true },
     summonResPen: { name: '소환수 저항 관통(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
+    summonGemLevel: { name: '소환수 공격 스킬 젬 레벨', tiers: [3], k: 1 },
     igniteDamageMultiplierPct: { name: '점화 피해 증가(%)', tiers: [2, 3], m: 4, k: 10, isPct: true },
     poisonDamageMultiplierPct: { name: '중독 피해 증가(%)', tiers: [2, 3], m: 4, k: 10, isPct: true }
 };
@@ -835,6 +836,8 @@ const MOD_DB = [
     { id: 'summonEfficiency', type: 'suffix', statName: '소환수 효율(%)', slots: ['무기', '반지'], base: 4, step: 3 },
     { id: 'summonCap', type: 'special', statName: '소환수 최대 한도', slots: ['반지'], base: 1, step: 0, weight: 0.35 },
     { id: 'summonResPen', type: 'suffix', statName: '소환수 저항 관통(%)', slots: ['무기'], base: 2, step: 2, weight: 0.7 },
+    { id: 'summonWeaponGemLevel', statId: 'summonGemLevel', type: 'special', statName: '소환수 공격 스킬 젬 레벨', slots: ['무기'], tierValues: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5], weight: 0.15 },
+    { id: 'summonRingGemLevel', statId: 'summonGemLevel', type: 'special', statName: '소환수 공격 스킬 젬 레벨', slots: ['반지'], tierValues: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], weight: 0.15 },
     { id: 'spellFlatDmg', type: 'prefix', statName: '주문 내장 피해', slots: ['무기', '목걸이'], base: 8, step: 6 },
     { id: 'spellFlatPct', type: 'suffix', statName: '주문 내장 피해 증가(%)', slots: ['무기', '목걸이', '방패'], base: 6, step: 4 },
     { id: 'flatHp', type: 'prefix', statName: '최대 생명력', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 15, step: 10 },
@@ -1075,8 +1078,8 @@ const BASE_ITEM_DB = [
     { id: 'meteor_trace_greaves', slot: '신발', name: '운석 자취 경갑', reqTier: 19, baseStats: [{ id: 'move', base: 22 }, { id: 'evasion', base: 150 }, { id: 'crit', base: 8 }, { id: 'resL', base: 14 }], dropOnly: { type: 'meteor' } },
     { id: 'runic_bastion_helm', slot: '투구', name: '룬 철벽투구', reqTier: 9, baseStats: [{ id: 'flatHp', base: 46 }, { id: 'armor', base: 92 }] },
     { id: 'thornweave_coat', slot: '갑옷', name: '가시결 외투', reqTier: 9, baseStats: [{ id: 'flatHp', base: 58 }, { id: 'evasion', base: 116 }] },
-    { id: 'stormbind_mitts', slot: '장갑', name: '뇌격 결속 장갑', reqTier: 10, baseStats: [{ id: 'aspd', base: 7 }, { id: 'resL', base: 9 }] },
-    { id: 'sunstride_boots', slot: '신발', name: '태양 질주화', reqTier: 10, baseStats: [{ id: 'move', base: 15 }, { id: 'resF', base: 9 }] },
+    { id: 'stormbind_mitts', slot: '장갑', name: '뇌격 결속 장갑', reqTier: 10, baseStats: [{ id: 'aspd', base: 7 }, { id: 'resL', base: 9 }, { id: 'energyShield', base: 112 }] },
+    { id: 'sunstride_boots', slot: '신발', name: '태양 질주화', reqTier: 10, baseStats: [{ id: 'move', base: 15 }, { id: 'resF', base: 9 }, { id: 'evasion', base: 120 }] },
     { id: 'moonbound_ring', slot: '반지', name: '월인 반지', reqTier: 10, baseStats: [{ id: 'resC', base: 9 }, { id: 'crit', base: 4 }] },
     { id: 'familiar_loop', slot: '반지', name: '사역마 고리', reqTier: 6, baseStats: [{ id: 'summonPctDmg', base: 12 }, { id: 'summonHpPct', base: 10 }] },
     { id: 'beastcall_band', slot: '반지', name: '야수 부름 반지', reqTier: 11, baseStats: [{ id: 'summonEfficiency', base: 12 }, { id: 'summonCrit', base: 4 }] },
@@ -1087,7 +1090,7 @@ const BASE_ITEM_DB = [
     { id: 'gravebind_scepter', slot: '무기', name: '묘지 결속 홀', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 16 }, { id: 'summonPctDmg', base: 26 }, { id: 'summonHpPct', base: 18 }] },
     { id: 'astral_familiar_staff', slot: '무기', name: '성운 사역마 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 22 }, { id: 'summonPctDmg', base: 36 }, { id: 'summonCritDmg', base: 24 }] },
     { id: 'ember_circlet', slot: '투구', name: '잿불 서클릿', reqTier: 11, baseStats: [{ id: 'energyShield', base: 126 }, { id: 'resF', base: 10 }] },
-    { id: 'tidal_vest', slot: '갑옷', name: '조류의 흉갑', reqTier: 11, baseStats: [{ id: 'flatHp', base: 66 }, { id: 'resC', base: 10 }] },
+    { id: 'tidal_vest', slot: '갑옷', name: '조류의 흉갑', reqTier: 11, baseStats: [{ id: 'flatHp', base: 66 }, { id: 'resC', base: 10 }, { id: 'armor', base: 145 }, { id: 'evasion', base: 150 }] },
     { id: 'gale_treads', slot: '신발', name: '질풍 발굽', reqTier: 11, baseStats: [{ id: 'move', base: 16 }, { id: 'evasion', base: 94 }] },
     { id: 'buckler_scrap', slot: '방패', name: '고철 버클러', reqTier: 1, baseStats: [{ id: 'armor', base: 38 }, { id: 'baseBlockChance', base: 5.5 }] },
     { id: 'iron_buckler', slot: '방패', name: '철 버클러', reqTier: 4, baseStats: [{ id: 'armor', base: 62 }, { id: 'baseBlockChance', base: 5.4 }] },
