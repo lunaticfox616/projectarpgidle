@@ -141,7 +141,7 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '저격수',
         talentsText: '투사체 피해 +20%, 치명타 확률 +5%, 치명타 피해 +25%, 공격 속도 -5%, 최대 대미지 보정 +10%',
         stats: [{ stat: 'projectilePctDmg', value: 20 }, { stat: 'crit', value: 5 }, { stat: 'critDmg', value: 25 }, { stat: 'aspd', value: -5 }, { stat: 'maxDmgRoll', value: 10 }],
-        strips: { idle: 'hero6Idle', walk: 'hero6Walk', attack: 'hero6Attack', hurt: 'hero6Hurt', death: 'hero6Death' }
+        strips: { idle: 'hero1Idle', walk: 'hero1Walk', attack: 'hero1Attack', hurt: 'hero1Hurt', death: 'hero1Death' }
     },
     hero7: {
         id: 'hero7',
