@@ -570,7 +570,8 @@ function getActiveSkillStats(bonusLevel) {
     game.gemData = game.gemData || {};
     let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);
     if (skill.levelable) game.gemData[game.activeSkill] = gem;
-    let materialBonus = skill.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) : 0;
+    let permanentSkyBonus = skill.isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(game.activeSkill) : 0;
+    let materialBonus = skill.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
     let awakenedGemLevelBonus = 0;
     if (skill.isGem) getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
         let enh = GEM_SKY_ENHANCEMENTS[id];
@@ -579,7 +580,7 @@ function getActiveSkillStats(bonusLevel) {
     let levelBonus = skill.isGem ? bonusLevel : 0;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + awakenedGemLevelBonus;
     let totalLevel = gem.level + levelBonus + materialBonus + awakenedGemLevelBonus;
-    let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus };
+    let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus, permanentSkyBonusLevel: permanentSkyBonus };
     stats.dmg = stats.baseDmg + ((finalLevel - 1) * stats.dmgScale);
     stats.spd = stats.baseSpd + ((finalLevel - 1) * stats.spdScale);
     if (stats.critScale) stats.crit = (stats.crit || 0) + (finalLevel * stats.critScale);
