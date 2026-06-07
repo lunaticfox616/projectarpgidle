@@ -4212,11 +4212,11 @@ function buildBattleAssetAtlas() {
     }
     const heroStripFrameCounts = {
         hero1Idle: 6, hero1Walk: 8, hero1Attack: 7, hero1Hurt: 4, hero1Death: 8,
-        hero2Idle: 13, hero2Walk: 13, hero2Attack: 20, hero2Hurt: 13, hero2Death: 13,
+        hero2Idle: 13, hero2Walk: 13, hero2Attack: 18, hero2Hurt: 13, hero2Death: 13,
         hero3Idle: 9, hero3Walk: 9, hero3Attack: 11, hero3Hurt: 9, hero3Death: 9,
         hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7,
         hero5Idle: 11, hero5Walk: 11, hero5Attack: 9, hero5Hurt: 11, hero5Death: 11,
-        hero6Idle: 13, hero6Walk: 13, hero6Attack: 14, hero6Hurt: 13, hero6Death: 13,
+        hero6Idle: 13, hero6Walk: 13, hero6Attack: 13, hero6Hurt: 13, hero6Death: 13,
         hero9Idle: 9, hero9Walk: 9, hero9Attack: 8, hero9Hurt: 9, hero9Death: 9,
         hero10Idle: 12, hero10Walk: 12, hero10Attack: 10, hero10Hurt: 12, hero10Death: 12
     };
