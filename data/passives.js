@@ -79,6 +79,14 @@ const TALISMAN_OPTION_POOL = [
     { stat: 'armorPct', label: '방어도 증가(%)', min: 4, max: 12, step: 1 },
     { stat: 'evasionPct', label: '회피 증가(%)', min: 4, max: 12, step: 1 },
     { stat: 'energyShieldPct', label: '에너지 보호막 증가(%)', min: 4, max: 12, step: 1 },
+    { stat: 'summonFlatDmg', label: '소환수 추가 피해', min: 4, max: 12, step: 1 },
+    { stat: 'summonPctDmg', label: '소환수 피해 증가(%)', min: 6, max: 16, step: 1 },
+    { stat: 'summonAspd', label: '소환수 공격 속도(%)', min: 3, max: 9, step: 0.5 },
+    { stat: 'summonHpPct', label: '소환수 생명력 증가(%)', min: 6, max: 16, step: 1 },
+    { stat: 'summonCrit', label: '소환수 치명타 확률(%)', min: 1, max: 4, step: 0.5 },
+    { stat: 'summonCritDmg', label: '소환수 치명타 피해 배율(%)', min: 10, max: 28, step: 1 },
+    { stat: 'summonEfficiency', label: '소환수 효율(%)', min: 4, max: 12, step: 1 },
+    { stat: 'summonResPen', label: '소환수 저항 관통(%)', min: 1, max: 5, step: 0.5 },
     { stat: 'ailResIgnite', label: '점화 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
     { stat: 'ailResShock', label: '감전 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
     { stat: 'ailResFreeze', label: '냉기 저항 확률(%)', min: 12.5, max: 50, step: 0.5 },
@@ -133,7 +141,7 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '저격수',
         talentsText: '투사체 피해 +20%, 치명타 확률 +5%, 치명타 피해 +25%, 공격 속도 -5%, 최대 대미지 보정 +10%',
         stats: [{ stat: 'projectilePctDmg', value: 20 }, { stat: 'crit', value: 5 }, { stat: 'critDmg', value: 25 }, { stat: 'aspd', value: -5 }, { stat: 'maxDmgRoll', value: 10 }],
-        strips: { idle: 'hero1Idle', walk: 'hero1Walk', attack: 'hero1Attack', hurt: 'hero1Hurt', death: 'hero1Death' }
+        strips: { idle: 'hero6Idle', walk: 'hero6Walk', attack: 'hero6Attack', hurt: 'hero6Hurt', death: 'hero6Death' }
     },
     hero7: {
         id: 'hero7',
@@ -165,7 +173,7 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '연금술사',
         talentsText: '지속 피해 배율 +20%, 이동 속도 +10%, 회피 +15%, 출혈/점화/중독 확률 +15%',
         stats: [{ stat: 'dotPctDmg', value: 20 }, { stat: 'move', value: 10 }, { stat: 'evasionPct', value: 15 }, { stat: 'bleedChance', value: 15 }, { stat: 'igniteChance', value: 15 }, { stat: 'poisonChance', value: 15 }],
-        strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
+        strips: { idle: 'hero10Idle', walk: 'hero10Walk', attack: 'hero10Attack', hurt: 'hero10Hurt', death: 'hero10Death' }
     }
 };
 

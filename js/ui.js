@@ -24,7 +24,7 @@ function getDefaultUiPlayerStats() {
     return {
         maxHp: 1, energyShield: 0, baseDmg: 0, directDps: 0, dps: 0, totalDps: 0, summonDps: 0,
         aspd: 1, crit: 0, critDmg: 150, move: 100, moveSpeed: 100, dr: 0, armor: 0, evasion: 0,
-        resF: 0, resC: 0, resL: 0, resChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
+        resF: 0, rawResF: 0, resC: 0, rawResC: 0, resL: 0, rawResL: 0, resChaos: 0, rawResChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
         igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0,
         blockChance: 0, blockChanceMax: 50, deflectChance: 0, deflectDamageReduce: 0,
         suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}
@@ -1850,6 +1850,7 @@ const TALISMAN_UNIQUE_POOL = [
     { id:'ut_o_2', name:'이중 심장', shape:'O', stats:[{stat:'pctHp',value:12,label:'생명력 증가(%)'},{stat:'regen',value:1.2,label:'생명력 재생(%)'}] },
     { id:'ut_t_1', name:'왕좌의 창끝', shape:'T', stats:[{stat:'pctDmg',value:18,label:'피해 증가(%)'},{stat:'aspd',value:10,label:'공격 속도(%)'}] },
     { id:'ut_t_2', name:'교차 절개', shape:'T', stats:[{stat:'meleePctDmg',value:18,label:'근접 피해(%)'},{stat:'crit',value:3.5,label:'치명타 확률(%)'}] },
+    { id:'ut_soul_shepherd', name:'영혼 목자의 계약', shape:'T', stats:[{stat:'summonGemLevel',value:2,label:'소환수 공격 스킬 젬 레벨'},{stat:'summonPctDmg',value:20,label:'소환수 피해 증가(%)'},{stat:'summonHpPct',value:16,label:'소환수 생명력 증가(%)'}] },
     { id:'ut_gravity', name:'중력', shape:'DOT', rarity:'매우 희귀', special:'gravity' },
     { id:'ut_simple', name:'단순한 부적', shape:'MARK_DOT', rarity:'매우 희귀', special:'simpleCopy' },
     { id:'ut_temperance', name:'절제의 미덕', shape:'G', rarity:'희귀', special:'temperance' },
@@ -2103,15 +2104,50 @@ function rotateTalismanInInventory(talismanId){
     updateStaticUI();
 }
 
-function destroyTalismanFromInventory(talismanId) {
-    let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
-    let target = inv.find(t => t && t.id === talismanId);
-    if (!target) return;
-    if (isLockedInventoryObject(target)) return addLog('잠금된 부적은 파괴할 수 없습니다.', 'attack-monster');
-    game.talismanInventory = inv.filter(t => t.id !== talismanId);
-    if (game.talismanSelectedId === talismanId) game.talismanSelectedId = null;
-    addLog(`🗑️ 부적 파괴: ${getTalismanDisplayName(target)}${target.stat ? ` +${formatValue(target.stat, target.value)}` : ''}`, 'attack-monster');
+let pendingTalismanDismantle = null;
+
+function closeTalismanDismantleOverlay() {
+    pendingTalismanDismantle = null;
+    let overlay = document.getElementById('talisman-dismantle-overlay');
+    if (overlay) overlay.classList.remove('active');
+}
+
+function openTalismanDismantleOverlay(ids, title, description, logLabel) {
+    let idSet = new Set((ids || []).map(id => String(id)));
+    let targets = (game.talismanInventory || []).filter(t => t && idSet.has(String(t.id)) && !isLockedInventoryObject(t));
+    if (targets.length <= 0) return addLog('해체할 수 있는 부적이 없습니다.', 'attack-monster');
+    pendingTalismanDismantle = { ids: targets.map(t => t.id), logLabel: logLabel || '부적 해체' };
+    let overlay = document.getElementById('talisman-dismantle-overlay');
+    let titleEl = document.getElementById('talisman-dismantle-title');
+    let bodyEl = document.getElementById('talisman-dismantle-body');
+    if (titleEl) titleEl.textContent = title || '부적을 해체할까요?';
+    if (bodyEl) bodyEl.innerHTML = `<div style="color:#ffb8a8; line-height:1.6;"><strong>${targets.length}개</strong>의 부적이 영구적으로 사라집니다.</div><div style="color:#b8c8dd; margin-top:8px;">${escapeHTML(description || '이 작업은 되돌릴 수 없습니다.')}</div>`;
+    if (overlay) overlay.classList.add('active');
+}
+
+function confirmTalismanDismantle() {
+    let pending = pendingTalismanDismantle;
+    if (!pending) return closeTalismanDismantleOverlay();
+    let idSet = new Set((pending.ids || []).map(id => String(id)));
+    let removed = [];
+    game.talismanInventory = (game.talismanInventory || []).filter(t => {
+        if (!t || !idSet.has(String(t.id)) || isLockedInventoryObject(t)) return true;
+        removed.push(t);
+        return false;
+    });
+    if (!game.talismanInventory.some(t => t && t.id === game.talismanSelectedId)) game.talismanSelectedId = null;
+    closeTalismanDismantleOverlay();
+    if (removed.length <= 0) return addLog('해체할 수 있는 부적이 없습니다.', 'attack-monster');
+    let detail = removed.length === 1 ? `: ${getTalismanDisplayName(removed[0])}` : `: ${removed.length}개`;
+    addLog(`🗑️ ${pending.logLabel}${detail}`, 'attack-monster');
     updateStaticUI();
+}
+
+function destroyTalismanFromInventory(talismanId) {
+    let target = (game.talismanInventory || []).find(t => t && t.id === talismanId);
+    if (!target) return;
+    if (isLockedInventoryObject(target)) return addLog('잠금된 부적은 해체할 수 없습니다.', 'attack-monster');
+    openTalismanDismantleOverlay([talismanId], `${getTalismanDisplayName(target)} 해체`, '선택한 부적을 해체하면 복구할 수 없습니다.', '부적 해체');
 }
 
 function salvageAllTalismansInInventory() {
@@ -2120,11 +2156,7 @@ function salvageAllTalismansInInventory() {
     let removable = inv.filter(t => !isLockedInventoryObject(t));
     let lockedSkipped = inv.length - removable.length;
     if (removable.length <= 0) return addLog(`일괄 해체할 부적이 없습니다. (잠금 ${lockedSkipped}개 보호)`, 'attack-monster');
-    if (!confirm(`인벤토리 부적 ${removable.length}개를 모두 해체할까요? (보드/잠금 부적은 유지)`)) return;
-    game.talismanInventory = inv.filter(t => isLockedInventoryObject(t));
-    if (!game.talismanInventory.some(t => t && t.id === game.talismanSelectedId)) game.talismanSelectedId = null;
-    addLog(`🗑️ 부적 일괄 해체: ${removable.length}개${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
-    updateStaticUI();
+    openTalismanDismantleOverlay(removable.map(t => t.id), '인벤토리 부적 일괄 해체', `보드와 잠금 부적은 유지됩니다.${lockedSkipped > 0 ? ` 잠금 ${lockedSkipped}개는 보호됩니다.` : ''}`, '부적 일괄 해체');
 }
 
 function getTalismanUnlockedCellsSet() {
@@ -3178,7 +3210,7 @@ function showGemTooltip(event, type, name) {
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${Number(skill.crit).toFixed(Number.isInteger(skill.crit) ? 0 : 1)}%</div>`;
         if (skill.critScale) html += `<div class="tooltip-line">치명타 성장: 젬 레벨당 +${skill.critScale}%</div>`;
-        if (skill.pierceOverkillCarry) html += `<div class="tooltip-line" style="color:#8fffe0;">특수 옵션: 처치 후 남은 피해가 다른 적에게 관통 연쇄</div>`;
+        if (skill.pierceOverkillCarry) html += `<div class="tooltip-line" style="color:#8fffe0;">특수 옵션: 각 원본 타겟의 초과 피해가 다른 적에게 연속 관통</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
         if (skill.instantLeech) html += `<div class="tooltip-line" style="color:#ffb3d1;">특수 옵션: 이 젬을 사용해서 주는 피해에는 흡혈 즉시 적용</div>`;
         if ((info.tags || []).includes('summon')) {
@@ -4391,6 +4423,12 @@ function pruneEnemyHpDamageGhostStates(activeEnemyIds) {
     });
 }
 
+function formatCappedResistanceValue(appliedValue, uncappedValue) {
+    let applied = Math.floor(Number(appliedValue) || 0);
+    let uncapped = Number.isFinite(Number(uncappedValue)) ? Math.floor(Number(uncappedValue)) : applied;
+    return applied === uncapped ? `${applied}` : `${applied} (${uncapped})`;
+}
+
 function updateCombatUI(pStats) {
     pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
     if (pStats.__uiFallbackStats) pStats.maxHp = Math.max(pStats.maxHp, Math.max(1, Number(game.playerHp) || 1));
@@ -4563,10 +4601,10 @@ function updateCombatUI(pStats) {
     let deflectEl = document.getElementById('ui-deflect-chance'); if (deflectEl) deflectEl.innerText = Math.max(0, Number(pStats.deflectChance || 0)).toFixed(1);
     document.getElementById('ui-phys-ignore').innerText = Math.floor(pStats.physIgnore || 0);
     document.getElementById('ui-res-pen').innerText = Math.floor(pStats.resPen || 0);
-    document.getElementById('ui-res-fire').innerText = Math.floor(pStats.resF);
-    document.getElementById('ui-res-cold').innerText = Math.floor(pStats.resC);
-    document.getElementById('ui-res-light').innerText = Math.floor(pStats.resL);
-    document.getElementById('ui-res-chaos').innerText = Math.floor(pStats.resChaos);
+    document.getElementById('ui-res-fire').innerText = formatCappedResistanceValue(pStats.resF, pStats.rawResF);
+    document.getElementById('ui-res-cold').innerText = formatCappedResistanceValue(pStats.resC, pStats.rawResC);
+    document.getElementById('ui-res-light').innerText = formatCappedResistanceValue(pStats.resL, pStats.rawResL);
+    document.getElementById('ui-res-chaos').innerText = formatCappedResistanceValue(pStats.resChaos, pStats.rawResChaos);
     let setStatText = (id, value, formatter) => {
         let el = document.getElementById(id);
         if (el) el.innerText = formatter ? formatter(value) : value;
@@ -5226,20 +5264,18 @@ function bulkSalvageJewelsBySearch(salvageUnmatched) {
 function bulkSalvageTalismansBySearch(salvageUnmatched) {
     if (!assertBuildEditable()) return;
     const sf = getSearchFilterState();
-    let removed = 0;
-    const next = [];
+    const targets = [];
     let lockedSkipped = 0;
     (game.talismanInventory || []).forEach(t => {
         const stats = (Array.isArray(t.stats) ? t.stats.map(s => `${s.stat || s.id || ''} ${s.label || ''} ${getStatName(s.stat || s.id || '')}`).join(' ') : '');
         const matched = matchSearchQuery(`${t.name || ''} ${t.shape || ''} ${t.rarity || ''} ${t.statName || ''} ${stats}`, sf.talisman);
-        if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched)) return next.push(t);
-        if (isLockedInventoryObject(t)) { lockedSkipped++; return next.push(t); }
-        removed++;
+        if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched)) return;
+        if (isLockedInventoryObject(t)) { lockedSkipped++; return; }
+        targets.push(t);
     });
-    if (removed <= 0) return addLog(`해체 대상 부적이 없습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
-    game.talismanInventory = next;
-    addLog(`🧩 부적 ${removed}개 해체 완료${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
-    updateStaticUI();
+    if (targets.length <= 0) return addLog(`해체 대상 부적이 없습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
+    let targetLabel = salvageUnmatched ? '미검색 항목' : '검색 항목';
+    openTalismanDismantleOverlay(targets.map(t => t.id), `${targetLabel} 부적 해체`, `${targetLabel}에 해당하는 부적만 해체합니다.${lockedSkipped > 0 ? ` 잠금 ${lockedSkipped}개는 보호됩니다.` : ''}`, `${targetLabel} 부적 해체`);
 }
 
 function getStyledOrbName(orbKey) {
@@ -5273,7 +5309,7 @@ function buildJewelRangeTooltipHtml(jewel) {
     return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${uniqueLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
 }
 
-safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor, updateSearchFilter, resetSearchFilter, bulkSalvageEquipBySearch, bulkSalvageJewelsBySearch, bulkSalvageTalismansBySearch, bulkDismantleColonyWardsBySearch, dismantleColonyWardById, updateColonyWardSearchFilter, resetColonyWardSearchFilter, exchangeTalismanShards, applyBeeswaxToTalisman, removeBeeswaxFromTalisman, openBeeswaxApplicationOverlay, confirmBeeswaxApplication, closeBeeswaxWarningOverlay, openWaxedItemRestrictionOverlay, toggleTalismanLock, toggleColonyWardLock });
+safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor, updateSearchFilter, resetSearchFilter, bulkSalvageEquipBySearch, bulkSalvageJewelsBySearch, bulkSalvageTalismansBySearch, bulkDismantleColonyWardsBySearch, dismantleColonyWardById, updateColonyWardSearchFilter, resetColonyWardSearchFilter, exchangeTalismanShards, applyBeeswaxToTalisman, removeBeeswaxFromTalisman, openBeeswaxApplicationOverlay, confirmBeeswaxApplication, closeBeeswaxWarningOverlay, openWaxedItemRestrictionOverlay, closeTalismanDismantleOverlay, confirmTalismanDismantle, toggleTalismanLock, toggleColonyWardLock });
 
 
 function showSocketedJewelTooltip(event, socketType, socketIdx) {
@@ -6270,7 +6306,7 @@ function buildCraftActionButtons(item) {
         let talismanCardClass = isUniqueTalisman ? 'item-card--unique-special' : '';
         let talismanTitleClass = isUniqueTalisman ? 'unique' : (selected ? 'rare' : 'magic');
         let talismanUniqueBadge = isUniqueTalisman ? '<span class="unique-inventory-badge">✨ 고유</span>' : '';
-        return `<div class="item-card ${selected ? 'selected' : ''} ${talismanCardClass}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${talismanTitleClass}" style="${isUniqueTalisman ? '' : `color:${shapeStyle.color};`}">${isLockedInventoryObject(t) ? '🔒 ' : ''}${talismanUniqueBadge}${highlightSearchText(getTalismanDisplayName(t), q)} ${t.stat ? ` · ${highlightSearchText(t.statName, q)} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 효과: ${highlightSearchText(getTalismanSpecialDescription(t), q)}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); toggleTalismanLock(${t.id})" style="padding:4px 8px; min-height:30px;">${getLockButtonLabel(t)}</button>${t.waxedByBeeswax ? `<button disabled style="padding:4px 8px; min-height:30px;">밀랍</button>` : `<button onclick="event.stopPropagation(); applyBeeswaxToTalisman(${t.id})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'} style="padding:4px 8px; min-height:30px;">밀랍</button>`}<button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" ${isLockedInventoryObject(t) ? 'disabled' : ''} style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">파괴</button></div></div></div>`;
+        return `<div class="item-card ${selected ? 'selected' : ''} ${talismanCardClass}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${talismanTitleClass}" style="${isUniqueTalisman ? '' : `color:${shapeStyle.color};`}">${isLockedInventoryObject(t) ? '🔒 ' : ''}${talismanUniqueBadge}${highlightSearchText(getTalismanDisplayName(t), q)} ${t.stat ? ` · ${highlightSearchText(t.statName, q)} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:#b7d4f2;">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${t.special ? `· 효과: ${highlightSearchText(getTalismanSpecialDescription(t), q)}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); toggleTalismanLock(${t.id})" style="padding:4px 8px; min-height:30px;">${getLockButtonLabel(t)}</button>${t.waxedByBeeswax ? `<button disabled style="padding:4px 8px; min-height:30px;">밀랍</button>` : `<button onclick="event.stopPropagation(); applyBeeswaxToTalisman(${t.id})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'} style="padding:4px 8px; min-height:30px;">밀랍</button>`}<button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" ${isLockedInventoryObject(t) ? 'disabled' : ''} style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">해체</button></div></div></div>`;
     }).join('');
     let talismanTools = `<button onclick="bulkSalvageTalismansBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkSalvageTalismansBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">미검색 항목 해체</button>`;
     renderSearchSection('ui-talisman-inventory', 'talisman', '부적 검색 (이름/형태/옵션)', talismanRowsHtml, `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 부적이 없습니다.</div>`, talismanTools);
@@ -9801,7 +9837,7 @@ function getLockedTabMessage(tabId) {
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, askRefundSeasonNode, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, equipColonyWardById, unequipColonyWard, unlockColonyWardSlot, dismantleColonyWardById, bulkDismantleColonyWardsBySearch, updateColonyWardSearchFilter, resetColonyWardSearchFilter, exchangeTalismanShards, applyBeeswaxToTalisman, removeBeeswaxFromTalisman, openBeeswaxApplicationOverlay, confirmBeeswaxApplication, closeBeeswaxWarningOverlay, openWaxedItemRestrictionOverlay, toggleTalismanLock, toggleColonyWardLock, cloudCompactAndPushNow });
+safeExposeGlobals({ checkUnlocks, buySeason, askRefundSeasonNode, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, equipColonyWardById, unequipColonyWard, unlockColonyWardSlot, dismantleColonyWardById, bulkDismantleColonyWardsBySearch, updateColonyWardSearchFilter, resetColonyWardSearchFilter, exchangeTalismanShards, applyBeeswaxToTalisman, removeBeeswaxFromTalisman, openBeeswaxApplicationOverlay, confirmBeeswaxApplication, closeBeeswaxWarningOverlay, openWaxedItemRestrictionOverlay, closeTalismanDismantleOverlay, confirmTalismanDismantle, toggleTalismanLock, toggleColonyWardLock, cloudCompactAndPushNow });
 
 
 function pickEquippedSlotByPrompt(validSlots){
