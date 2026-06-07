@@ -1205,7 +1205,8 @@ function coreLoop() {
         let floor = Math.max(1, Math.floor(zoneNow.floor || 1));
         if (floor >= 15) {
             let tickPct = floor >= 40 ? 0.02 : (floor >= 30 ? 0.015 : 0.01);
-            let tickDmg = Math.max(1, Math.floor((pStats.maxHp || 1) * tickPct));
+            let skyStoneMitigation = 1 - Math.max(0, Math.min(75, typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)) / 100;
+            let tickDmg = Math.max(1, Math.floor((pStats.maxHp || 1) * tickPct * skyStoneMitigation));
             game.playerHp = Math.max(0, Math.floor(game.playerHp - tickDmg));
         }
     }
@@ -1990,6 +1991,8 @@ function getPlayerStats() {
     if (zonePenalty && zonePenalty.type === 'underworld') {
         let uf = Math.max(1, Math.floor(zonePenalty.floor || 1));
         let gravitySlow = Math.min(0.75, 0.12 + Math.max(0, uf - 1) * 0.018);
+        let skyStoneReduction = Math.max(0, Math.min(75, typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)) / 100;
+        gravitySlow *= (1 - skyStoneReduction);
         finalAspd *= (1 - gravitySlow);
         finalMove *= (1 - gravitySlow);
     }
@@ -3272,7 +3275,8 @@ function getGemPresentation(name, isSupport) {
     game.gemData = game.gemData || {};
     let gem = normalizeGemRecord((game.gemData || {})[name]);
     if (db.levelable) game.gemData[name] = gem;
-    let materialBonus = db.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) : 0;
+    let permanentSkyBonus = db.isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(name) : 0;
+    let materialBonus = db.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
     let levelBonus = db.isGem ? targetGemSources.total : 0;
     let totalLevel = gem.level + levelBonus + materialBonus;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus;
@@ -3283,7 +3287,7 @@ function getGemPresentation(name, isSupport) {
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     skill.dmg *= qualityMul;
     skill.spd *= qualityMul;
-    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources };
+    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, permanentSkyBonus: permanentSkyBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources };
 }
 
 function getSkillTargets(pStats) {
@@ -3759,6 +3763,10 @@ function createEnemy(zone, marker, groupIndex) {
         let realmFloorMul = 1 + Math.max(0, realmFloor - 1) * 0.06;
         hp = Math.floor(hp * realmBaseMul * realmFloorMul);
     }
+    if (zone.type === 'skyTower') {
+        let towerFloor = Math.max(1, Math.floor(zone.floor || 1));
+        hp = Math.floor(hp * 4.2 * (1 + Math.max(0, towerFloor - 1) * 0.035));
+    }
     if (zone.type === 'underworld') {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
         hp = Math.floor(hp * 5 * (1 + Math.max(0, underFloor - 1) * 0.045));
@@ -3909,6 +3917,12 @@ function getZoneEncounterProfile(zone) {
         return { markerCount, minPack, maxPack, eliteChance: Math.min(0.75, 0.16 + sizeClass * 0.05), bossAdds: 2 + Math.floor(sizeClass / 2), label: zone.name || '우주계' };
     }
     if (zone.type === 'chaosRealm') return { markerCount: 4 + Math.floor((zone.floor || 1) / 8), minPack: 2, maxPack: Math.min(8, 3 + Math.floor((zone.floor || 1) / 6)), eliteChance: 0.35, bossAdds: 2 + Math.floor((zone.floor || 1) / 12), label: `혼돈계 ${zone.floor || 1}층` };
+    if (zone.type === 'skyTower') {
+        let floor = Math.max(1, Math.floor(zone.floor || 1));
+        let minPack = Math.min(9, 2 + Math.floor(floor / 10));
+        let maxPack = Math.min(10, minPack + 2 + Math.floor(floor / 18));
+        return { markerCount: 40 + Math.floor(floor / 3), minPack: minPack, maxPack: Math.max(minPack, maxPack), eliteChance: Math.min(0.5, 0.18 + floor * 0.006), bossAdds: 2 + Math.floor(floor / 12), label: `창공의 탑 ${floor}층` };
+    }
     if (zone.type === 'underworld') {
         let floor = Math.max(1, Math.floor(zone.floor || 1));
         let minPack = Math.min(10, 3 + Math.floor(floor / 7));
@@ -4551,7 +4565,7 @@ function isRegularAutoProgressZone(zone) {
     if (!zone) return false;
     if (zone.id === 'beehive_run' || zone.id === 'colony_run' || zone.id === 'grand_breach_run') return false;
     if (typeof zone.id === 'string' && zone.id.includes('_boss_')) return false;
-    return ['act', 'abyss', 'trial', 'meteor', 'labyrinth', 'chaosRealm'].includes(zone.type);
+    return ['act', 'abyss', 'trial', 'meteor', 'labyrinth', 'chaosRealm', 'skyTower'].includes(zone.type);
 }
 
 function reconcileMapProgressRuntimeState() {
@@ -4667,7 +4681,7 @@ function advanceMapProgress(pStats) {
     let abyssScale = getAbyssMonsterScales(zone);
     let enemyCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let zoneType = zone ? zone.type : 'act';
-    let baseGain = zoneType === 'trial' ? 0.26 : (zoneType === 'abyss' ? 0.42 : 0.36);
+    let baseGain = zoneType === 'trial' ? 0.26 : (zoneType === 'abyss' ? 0.42 : (zoneType === 'skyTower' ? 0.072 : 0.36));
     let crowdPenalty = enemyCount > 0 ? Math.max(0.4, 1 - enemyCount * 0.13) : 0.94;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let chaosRealmActRush = zone && zone.type === 'act' && ensureChaosRealmState().highestFloor >= 10 ? 2 : 1;
@@ -5331,6 +5345,40 @@ function finishEncounterRun() {
         queueImportantSave(220);
         return;
     }
+    if (zone.type === 'skyTower') {
+        let st = ensureSkyTowerState();
+        let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
+        let remainingBefore = getSkyTowerRemainingClears();
+        if (remainingBefore > 0) {
+            st.clearedFloors = Array.isArray(st.clearedFloors) ? st.clearedFloors : [];
+            let firstClear = !st.clearedFloors.includes(floor);
+            let reward = 0;
+            if (firstClear) {
+                reward = getSkyTowerRewardAmount(floor);
+                st.clearedFloors.push(floor);
+                st.clearedFloors = Array.from(new Set(st.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b);
+                st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
+                st.currentFloor = Math.min(st.highestFloor, floor + 1);
+            } else {
+                if (Math.random() < 0.16) reward = Math.max(1, Math.floor(getSkyTowerRewardAmount(floor) * 0.35));
+                st.currentFloor = Math.max(1, Math.min(Math.floor(st.highestFloor || 1), floor));
+            }
+            if (reward > 0) st.condensedPower = Math.max(0, Math.floor(st.condensedPower || 0)) + reward;
+            st.clearedThisLoop = Math.min(getSkyTowerLoopClearLimit(), Math.max(0, Math.floor(st.clearedThisLoop || 0)) + 1);
+            let rewardText = firstClear
+                ? `최초 클리어 보상: 응축된 창공의 힘 +${reward}`
+                : (reward > 0 ? `반복 클리어 보상: 응축된 창공의 힘 +${reward}` : '반복 클리어: 응축된 창공의 힘 미발견');
+            addLog(`☁️ 창공의 탑 ${floor}층 돌파! ${rewardText} · 이번 루프 잔여 클리어 ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, reward > 0 ? 'loot-unique' : 'season-up');
+        } else {
+            addLog(`☁️ 창공의 탑 ${floor}층 도전 완료. 이번 루프의 클리어 보상/진행 한도는 모두 사용했습니다.`, 'attack-monster');
+        }
+        game.killsInZone = 0;
+        game.currentZoneId = SKY_TOWER_ZONE_ID;
+        startMoving(false);
+        updateStaticUI();
+        queueImportantSave(220);
+        return;
+    }
     if (zone.type === 'trial') {
         let isFirstClear = !game.completedTrials.includes(zone.id);
         if (isFirstClear) game.completedTrials.push(zone.id);
@@ -5514,6 +5562,11 @@ function finishEncounterRun() {
                 addLog(`🌌 혼돈 ${depth} 클리어 보상: 혼돈 패시브 포인트 +5`, 'season-up');
             }
             ensureNextEndlessChaosDepthUnlocked(depth);
+            if (depth >= 20) {
+                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
+                game.loopProgressCurrent.chaos20Cleared = true;
+                if (typeof maybeUnlockSkyTowerFromChaos20 === 'function') maybeUnlockSkyTowerFromChaos20();
+            }
         }
         if (zone.type === 'act' && zone.id <= 9) markActRewardReady(zone.id);
         if (zone.type === 'act') {
@@ -5556,6 +5609,7 @@ function finishEncounterRun() {
                     : bestAbyssDepthBeforeClear >= seasonAbyssCap;
                 if (depth >= 21) game.loopProgressCurrent.bestAbyssDepth = Math.max(bestAbyssDepthBeforeClear, depth);
                 game.loopProgressCurrent.chaos20Cleared = true;
+                if (typeof maybeUnlockSkyTowerFromChaos20 === 'function') maybeUnlockSkyTowerFromChaos20();
                 if (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear) {
                     enterNextEndlessChaosDepth();
                     return;
@@ -6544,6 +6598,7 @@ function performMonsterAttacks(pStats) {
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
         let atkRate = (0.26 + zone.tier * 0.013) * monsterBaseAttackSpeedMul * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
         if (zone.type === 'underworld') atkRate *= 0.76;
+        if (zone.type === 'skyTower') atkRate *= 1.05;
         if (!Number.isFinite(atkRate) || atkRate <= 0) atkRate = 0.12;
         if (!Number.isFinite(enemy.attackTimer) || enemy.attackTimer < 0) enemy.attackTimer = 0;
         enemy.attackTimer += 0.1 * atkRate;
@@ -6562,6 +6617,7 @@ function performMonsterAttacks(pStats) {
             let seasonDmgScale = 1 + seasonDepth * (0.05 + (tierPressure * 0.07));
             let dmg = Math.floor((2.4 + zone.tier * 3.35) * monsterBaseDamageMul * seasonDmgScale);
             if (zone.type === 'underworld') dmg = Math.floor(dmg * 0.78);
+            if (zone.type === 'skyTower') dmg = Math.floor(dmg * 1.08);
             dmg = Math.floor(dmg * enemyDmgMul * (enemy.damageMul || 1));
             if (zone.type === 'act' && zone.id <= 1 && (game.season || 1) >= 3) dmg = Math.floor(dmg * 0.58);
             if (enemy.isElite) dmg = Math.floor(dmg * 1.28);
@@ -7108,6 +7164,7 @@ function triggerSeasonReset() {
         : null;
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
+    let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -7193,6 +7250,9 @@ function triggerSeasonReset() {
     game.skillSubtab = 'skill-tab-equip';
     game.mapSubtab = 'map-tab-zones';
     game.chaosRealm = preservedChaosRealm;
+    game.skyTower = preservedSkyTower;
+    game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));
+    game.skyTower.clearedThisLoop = 0;
     game.gemEnhanceUnlocked = false;
     game.inTicketBossFight = false;
     game.talismanUnlocked = false;

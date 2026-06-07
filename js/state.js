@@ -31,6 +31,7 @@ const LAST_STORY_ZONE_ID = ACT_ZONE_COUNT - 1;
 const ABYSS_START_ZONE_ID = ACT_ZONE_COUNT;
 const OUTSIDE_CHAOS_ZONE_ID = 'outside_chaos_woodsman';
 const CHAOS_REALM_ZONE_ID = 'chaos_realm';
+const SKY_TOWER_ZONE_ID = 'sky_tower';
 const WOODSMAN_ECHO_ZONE_ID = 'woodsman_echo_challenge';
 const UNDERWORLD_ZONE_ID = 'underworld_core';
 
@@ -139,6 +140,101 @@ function isUnderworldUnlockedPermanent() {
     return !!st.unlocked && hasCerberusClear && deepMax >= 30 && labFloor >= 100;
 }
 
+
+function createDefaultSkyTowerState() {
+    return {
+        unlocked: false,
+        highestFloor: 1,
+        currentFloor: 1,
+        clearedThisLoop: 0,
+        clearedFloors: [],
+        loopSeason: 1,
+        condensedPower: 0,
+        skyStone: { crafted: false, level: 0 },
+        gemBoosts: {}
+    };
+}
+function ensureSkyTowerState() {
+    let st = (game && game.skyTower && typeof game.skyTower === 'object') ? game.skyTower : (game.skyTower = createDefaultSkyTowerState());
+    let currentSeason = Math.max(1, Math.floor((game && game.season) || 1));
+    st.unlocked = !!st.unlocked;
+    st.highestFloor = Math.max(1, Math.floor(st.highestFloor || 1));
+    st.currentFloor = Math.max(1, Math.min(st.highestFloor, Math.floor(st.currentFloor || 1)));
+    st.loopSeason = Math.max(1, Math.floor(st.loopSeason || currentSeason));
+    if (st.loopSeason !== currentSeason) {
+        st.loopSeason = currentSeason;
+        st.clearedThisLoop = 0;
+    }
+    st.clearedThisLoop = Math.max(0, Math.min(getSkyTowerLoopClearLimit(), Math.floor(st.clearedThisLoop || 0)));
+    st.clearedFloors = Array.isArray(st.clearedFloors) ? Array.from(new Set(st.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
+    st.condensedPower = Math.max(0, Math.floor(st.condensedPower || 0));
+    st.skyStone = (st.skyStone && typeof st.skyStone === 'object') ? st.skyStone : { crafted: false, level: 0 };
+    st.skyStone.level = Math.max(0, Math.min(getSkyStoneMaxLevel(), Math.floor(st.skyStone.level || 0)));
+    st.skyStone.crafted = !!st.skyStone.crafted || st.skyStone.level > 0;
+    st.gemBoosts = (st.gemBoosts && typeof st.gemBoosts === 'object') ? st.gemBoosts : {};
+    Object.keys(st.gemBoosts).forEach(name => {
+        let lv = Math.max(0, Math.min(getSkyTowerGemBoostMaxLevel(), Math.floor(st.gemBoosts[name] || 0)));
+        if (lv > 0) st.gemBoosts[name] = lv;
+        else delete st.gemBoosts[name];
+    });
+    if (!st.unlocked && (currentSeason > 15 || (currentSeason >= 15 && hasCurrentLoopChaos20Clear()))) st.unlocked = true;
+    return st;
+}
+function getSkyTowerLoopClearLimit() { return 25; }
+function getSkyTowerRemainingClears() {
+    let st = ensureSkyTowerState();
+    return Math.max(0, getSkyTowerLoopClearLimit() - Math.max(0, Math.floor(st.clearedThisLoop || 0)));
+}
+function hasCurrentLoopChaosAccess() {
+    if (hasCurrentLoopChaos20Clear()) return true;
+    if (typeof game === 'undefined' || !game) return false;
+    let maxZone = Number.isFinite(game.maxZoneId) ? game.maxZoneId : 0;
+    if (maxZone >= ABYSS_START_ZONE_ID) return true;
+    if (Array.isArray(game.abyssClearedDepths) && game.abyssClearedDepths.length > 0) return true;
+    let currentDepth = typeof game.currentZoneId !== 'string' ? getAbyssDepthFromZoneId(game.currentZoneId) : 0;
+    return currentDepth >= 1;
+}
+function maybeUnlockSkyTowerFromChaos20() {
+    let st = ensureSkyTowerState();
+    if (!st.unlocked && (game.season || 1) >= 15 && hasCurrentLoopChaos20Clear()) {
+        st.unlocked = true;
+        if (typeof addLog === 'function') addLog('☁️ 창공의 탑이 열렸습니다. 이후 루프에서는 혼돈 입성부터 도전할 수 있습니다.', 'loot-unique');
+        return true;
+    }
+    return false;
+}
+function canEnterSkyTower() {
+    let st = ensureSkyTowerState();
+    return !!st.unlocked && hasCurrentLoopChaosAccess();
+}
+function getSkyTowerTier(floor) {
+    let safeFloor = Math.max(1, Math.floor(floor || 1));
+    return 48 + Math.floor((safeFloor - 1) * 0.38);
+}
+function getSkyTowerRewardAmount(floor) {
+    let safeFloor = Math.max(1, Math.floor(floor || 1));
+    return 3 + Math.floor(safeFloor / 5);
+}
+function getSkyStoneMaxLevel() { return 15; }
+function getSkyStoneReductionPct() {
+    let st = ensureSkyTowerState();
+    return Math.max(0, Math.min(75, Math.floor(((st.skyStone || {}).level || 0) * 5)));
+}
+function getSkyStoneNextCost() {
+    let st = ensureSkyTowerState();
+    let lv = Math.max(0, Math.floor(((st.skyStone || {}).level || 0)));
+    return 20 + lv * 10 + Math.floor(lv * lv * 2);
+}
+function getSkyTowerGemBoostMaxLevel() { return 3; }
+function getSkyTowerGemBoostLevel(skillName) {
+    let st = ensureSkyTowerState();
+    return Math.max(0, Math.min(getSkyTowerGemBoostMaxLevel(), Math.floor((st.gemBoosts || {})[skillName] || 0)));
+}
+function getSkyTowerGemBoostCost(skillName) {
+    let lv = getSkyTowerGemBoostLevel(skillName);
+    return [60, 120, 240][lv] || 999999;
+}
+
 function getAbyssDepthFromZoneId(id) {
     if (!Number.isFinite(id) || id < ABYSS_START_ZONE_ID) return 0;
     return Math.max(1, Math.floor(id - ABYSS_START_ZONE_ID + 1));
@@ -208,6 +304,11 @@ function getZone(id) {
         let realm = ensureChaosRealmState();
         let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
         return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor) };
+    }
+    if (id === SKY_TOWER_ZONE_ID) {
+        let st = ensureSkyTowerState();
+        let floor = Math.max(1, Math.floor(st.currentFloor || 1));
+        return { id: SKY_TOWER_ZONE_ID, name: `창공의 탑 ${floor}층`, type: 'skyTower', tier: getSkyTowerTier(floor), maxKills: 1, ele: 'chaos', floor: floor };
     }
     if (id === WOODSMAN_ECHO_ZONE_ID) return { id: WOODSMAN_ECHO_ZONE_ID, name: '나무꾼의 잔상', type: 'woodsmanEcho', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos' };
     if (id === UNDERWORLD_ZONE_ID) {
@@ -1155,7 +1256,7 @@ let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost });
 
 // Phase-4 extracted default state schema.
 
@@ -1450,7 +1551,7 @@ const defaultGame = {
     abyssPassivePoints: 0,
     abyssClearedDepths: [],
     abyssPassives: { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 },
-    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, hiveTrace: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
+    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, hiveTrace: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0, condensedSkyPower: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendKeystonePoints: 0,
@@ -1487,6 +1588,7 @@ const defaultGame = {
     loopProgressBase: { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] },
     loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 },
     chaosRealm: createDefaultChaosRealmState(),
+    skyTower: createDefaultSkyTowerState(),
     underworldRunes: { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {}, bonusLinesByNo: {} },
     underworldProgress: { highestFloor: 1, currentFloor: 1 },
     coreCube: { unlocked: false, everUnlocked: false, relockUntilDrop: false, unlockNoticeSeen: false, selectedFace: 0, blurred45: 0, powers: {}, faces: [null, null, null, null, null, null], completed: false, isCompleting: false, revealedOptions: [], optionMechanism: null, lastPower: null },
