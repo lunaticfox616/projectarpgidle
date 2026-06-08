@@ -112,7 +112,19 @@ function getPassiveStatAccent(statId) {
     if (['flatHp', 'pctHp', 'regen', 'leech'].includes(statId)) {
         return { ...base, activeOuter: '#9be1b9', activeMid: '#327858', activeGlow: 'rgba(100,210,145,0.28)', reachOuter: '#6dc89b', reachMid: '#173127', previewOuter: 'rgba(88,155,124,0.56)', idleOuter: 'rgba(128,182,154,0.92)', text: '#c8ffe0' };
     }
-    if (['flatDmg', 'pctDmg', 'meleePctDmg', 'physPctDmg', 'aoePctDmg', 'ds', 'dr', 'physIgnore'].includes(statId)) {
+    if (['igniteChance', 'chillChance', 'freezeChance', 'shockChance', 'poisonChance', 'bleedChance'].includes(statId)) {
+        return { ...base, activeOuter: '#ff9bb6', activeMid: '#8a3a4d', activeGlow: 'rgba(255,113,151,0.3)', reachOuter: '#e0708d', reachMid: '#361822', previewOuter: 'rgba(164,82,105,0.56)', idleOuter: 'rgba(194,112,133,0.92)', text: '#ffd8e2' };
+    }
+    if (['armor', 'armorPct', 'evasion', 'evasionPct', 'deflectChance', 'dr', 'blockChance', 'blockChancePct'].includes(statId)) {
+        return { ...base, activeOuter: '#5dcaa5', activeMid: '#236753', activeGlow: 'rgba(93,202,165,0.3)', reachOuter: '#4eb18f', reachMid: '#14312a', previewOuter: 'rgba(69,137,116,0.56)', idleOuter: 'rgba(98,169,147,0.92)', text: '#caffef' };
+    }
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(statId)) {
+        return { ...base, activeOuter: '#b9c6ff', activeMid: '#4a5295', activeGlow: 'rgba(132,154,255,0.32)', reachOuter: '#8999e6', reachMid: '#1d2344', previewOuter: 'rgba(96,107,166,0.56)', idleOuter: 'rgba(130,141,196,0.92)', text: '#e4e8ff' };
+    }
+    if (['ailResIgnite', 'ailResShock', 'ailResFreeze', 'ailResPoison', 'ailResBleed'].includes(statId)) {
+        return { ...base, activeOuter: '#d7e1ea', activeMid: '#667786', activeGlow: 'rgba(188,207,222,0.26)', reachOuter: '#aab8c4', reachMid: '#26323c', previewOuter: 'rgba(122,137,150,0.56)', idleOuter: 'rgba(151,164,176,0.92)', text: '#edf5fb' };
+    }
+    if (['flatDmg', 'pctDmg', 'meleePctDmg', 'physPctDmg', 'aoePctDmg', 'ds', 'physIgnore'].includes(statId)) {
         return { ...base, activeOuter: '#ffca8b', activeMid: '#865233', activeGlow: 'rgba(255,174,94,0.28)', reachOuter: '#d39b69', reachMid: '#2f2118', previewOuter: 'rgba(151,109,76,0.56)', idleOuter: 'rgba(178,143,110,0.92)', text: '#ffe2c0' };
     }
     if (['aspd', 'move', 'projectilePctDmg', 'suppCap', 'gemLevel', 'expGain'].includes(statId)) {
@@ -388,9 +400,10 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
     ctx.globalAlpha = revealAlpha;
 
     if (!lightweightMode && palette.glow && palette.glow !== 'rgba(0,0,0,0)') {
+        const glowRadius = active ? radius + 16 : radius + (node.tier >= 3 ? 12 : 8);
         ctx.beginPath();
-        ctx.arc(node.x, node.y, radius + (node.tier >= 3 ? 12 : 8), 0, Math.PI * 2);
-        const glow = ctx.createRadialGradient(node.x, node.y, Math.max(1, radius * 0.35), node.x, node.y, radius + 14);
+        ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2);
+        const glow = ctx.createRadialGradient(node.x, node.y, Math.max(1, radius * 0.35), node.x, node.y, glowRadius + 6);
         glow.addColorStop(0, palette.glow);
         glow.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = glow;
@@ -421,7 +434,7 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
 
     if (active || reachable) {
         ctx.beginPath();
-        ctx.arc(node.x, node.y, innerR * 0.42, 0, Math.PI * 2);
+        ctx.arc(node.x, node.y, innerR * (active ? 0.55 : 0.42), 0, Math.PI * 2);
         ctx.fillStyle = active ? '#fff8e7' : 'rgba(166,205,228,0.55)';
         ctx.fill();
     }
@@ -1997,7 +2010,7 @@ function revealAroundNode(nodeId, options) {
         }
     });
     if (!options.noBurst && (newlyDiscovered.length > 0 || options.forcePulse)) {
-        passiveRevealBursts.push({
+        let burst = {
             originId: nodeId,
             nodeIds: newlyDiscovered,
             x: origin.x,
@@ -2005,7 +2018,9 @@ function revealAroundNode(nodeId, options) {
             radius: radius,
             startTime: performance.now(),
             duration: 900
-        });
+        };
+        passiveRevealBursts.push(burst);
+        if (typeof spawnPassiveRevealBurstOverlay === 'function') spawnPassiveRevealBurstOverlay(burst);
     }
     refreshPassiveVisibility();
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
