@@ -2585,6 +2585,19 @@ function getPlayerStats() {
         damageScales.estimatedSkillDotDps = estimatedSkillDotDps;
     }
     let finalPlayerSkillDps = finalDpsWithProjectileShots + estimatedSkillDotDps;
+    let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? (1 + (Math.max(0, finalMaxHp) / 100) * Math.max(0, Number(skill.igniteTakenHpScalePer100 || 0))) : 1;
+    let flameDecayDpsLines = [];
+    if (skill.flameDecayDebuff) {
+        flameDecayDpsLines = [
+            `화염 부패 기대 지속 DPS ${Math.floor(estimatedSkillDotDps)} (생명력/재생/초과 화염 저항/지속 피해 배율 적용, 적 저항 적용 전)`,
+            `생명력 계수: 최대 생명력 ${Math.floor(finalMaxHp)} → 내장 피해 +${Math.floor(hpFlatBonus)}`,
+            (skill.regenDmgScale || 0) > 0 ? `생명력 재생 계수: ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
+            `초과 화염 저항 계수: ${fireResScaledBonus.toFixed(2)}x (미적용 화염 저항 ${Math.floor(rawResF)}% / 최대 ${Math.floor(finalMaxResF)}%, 초과 ${fireResOvercap.toFixed(1)}%)`,
+            `지속 피해 총 배율: ${totalDotDamageMultiplier.toFixed(2)}x (스킬 ${dotMultiplier.toFixed(2)}x · 스탯 ${dotStatMultiplier.toFixed(2)}x)`,
+            `화염 부패 대상 점화 피해 증폭: ${flameDecayIgniteTakenMultiplierPreview.toFixed(2)}x (생명력 100당 ${(Math.max(0, Number(skill.igniteTakenHpScalePer100 || 0)) * 100).toFixed(1)}%)`,
+            `실제 적별 화염 부패 DPS는 적 상태이상 툴팁에서 저항/심연 배율까지 반영해 표시됩니다.`
+        ].filter(Boolean);
+    }
 
     function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note, effectLines) {
         return {
@@ -3066,7 +3079,7 @@ function getPlayerStats() {
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
                 isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null,
                 estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null
-            ].filter(Boolean),
+            ].concat(flameDecayDpsLines).filter(Boolean),
             final: `${Math.floor(finalPlayerSkillDps)}`
         },
         gem: {
@@ -3172,6 +3185,7 @@ function getPlayerStats() {
         ailmentResistBleedChance: finalAilmentResistBleedChance,
         resistPenalty: resistPenalty,
         dotDamageScale: totalDotDamageMultiplier,
+        flameDecayIgniteTakenMultiplier: flameDecayIgniteTakenMultiplierPreview,
         dotCritBonusScale: dotMultiplier,
         instantDamageMultiplier: instantDamageMultiplier,
         finalDamageMultiplier: finalDamageMultiplier,
@@ -4304,7 +4318,17 @@ function syncEnemyFlameDecayAilment(enemy, dotState, pStats) {
     let enemyRes = getEffectiveEnemyMitigation(dotState.ele || 'fire', zoneTier, enemy, pStats);
     let dps = Math.max(1, Math.floor(((dotState.rawTickDamage || 1) / tickInterval) * (1 - enemyRes / 100) * abyssPlayerMul));
     let row = enemy.ailments.find(ail => ail && ail.type === 'flameDecay');
-    let payload = { type: 'flameDecay', time: Math.max(0, dotState.timeLeft || 0), power: Math.max(0, dotState.stacks || 1), flameDecayDps: dps };
+    let payload = {
+        type: 'flameDecay',
+        time: Math.max(0, dotState.timeLeft || 0),
+        power: Math.max(0, dotState.stacks || 1),
+        flameDecayDps: dps,
+        rawTickDamage: Math.max(0, Number(dotState.rawTickDamage || 0)),
+        tickInterval: tickInterval,
+        enemyRes: enemyRes,
+        abyssPlayerMul: abyssPlayerMul,
+        igniteTakenMultiplier: Math.max(1, Number(pStats && pStats.flameDecayIgniteTakenMultiplier) || getFlameDecayIgniteTakenMultiplier(pStats))
+    };
     if (row) Object.assign(row, payload);
     else enemy.ailments.push(payload);
 }
