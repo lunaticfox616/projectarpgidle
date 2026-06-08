@@ -983,7 +983,7 @@
         const original = window.updateStaticUI;
         window.updateStaticUI = function() {
             const result = typeof original === 'function' ? original.apply(this, arguments) : undefined;
-            try { renderCosmosAtlas(); } catch (e) {}
+            try { renderCosmosAtlas(); } catch (error) { console.error('cosmos atlas render failed:', error); }
             return result;
         };
     }
@@ -1510,7 +1510,7 @@
             }
         }
         if (typeof window.saveGame === 'function') {
-            try { window.saveGame({ auto: true, silent: true }); } catch (e) {}
+            try { window.saveGame({ auto: true, silent: true }); } catch (error) { console.error('cosmos atlas save failed:', error); }
         }
         renderCosmosAtlas();
     }

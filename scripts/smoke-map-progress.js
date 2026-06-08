@@ -145,4 +145,20 @@ assert(context.game.currentZoneId === 5, 'stale beehive_run without returnZone s
 exposed.advanceMapProgress({ moveSpeed: 100 });
 assert(context.game.runProgress > 0, 'normal map progress should advance after clearing beehive_run pending-choice stale state');
 
+let loopSelectionRequest = null;
+context.dispatchRuntimeEvent = (name, detail) => {
+  if (name !== 'loop-hero-selection-requested') return false;
+  loopSelectionRequest = detail;
+  detail.handled = true;
+  return true;
+};
+resetGame({
+  currentZoneId: 2,
+  pendingLoopHeroSelection: true,
+  selectedHeroId: 'hero2',
+});
+assert(exposed.ensurePendingLoopHeroSelectionPrompt() === true, 'pending loop selection must be delegated to the runtime event boundary');
+assert(loopSelectionRequest && typeof loopSelectionRequest.select === 'function', 'loop selection event must provide a selection command');
+assert(loopSelectionRequest.options.title === '중단된 루프의 재능 선택', 'loop selection event must preserve resume copy');
+
 console.log('map progress stale beehive smoke passed');
