@@ -3285,13 +3285,16 @@ function showGemTooltip(event, type, name) {
             let stats = cachedTooltipStats || null;
             let rawFireRes = stats && Number.isFinite(stats.rawResF) ? stats.rawResF : null;
             let maxFireRes = stats && Number.isFinite(stats.maxResF) ? stats.maxResF : null;
+            let overcapCap = Number.isFinite(Number(skill.fireResOvercapCap)) ? Math.max(0, Number(skill.fireResOvercapCap)) : Infinity;
             let appliedOvercap = rawFireRes !== null && maxFireRes !== null ? Math.max(0, rawFireRes - maxFireRes) : null;
+            let effectiveOvercap = appliedOvercap !== null ? Math.min(appliedOvercap, overcapCap) : null;
+            let capText = Number.isFinite(overcapCap) ? ` (최대 ${overcapCap.toFixed(0)}%까지 적용)` : '';
             let currentText = rawFireRes !== null && maxFireRes !== null
-                ? ` · 현재 적용분 ${appliedOvercap.toFixed(1)}% (미적용 화염 저항 ${Math.floor(rawFireRes)}% / 최대 ${Math.floor(maxFireRes)}%)`
+                ? ` · 현재 초과 ${appliedOvercap.toFixed(1)}% 중 적용 ${effectiveOvercap.toFixed(1)}% (미적용 화염 저항 ${Math.floor(rawFireRes)}% / 최대 ${Math.floor(maxFireRes)}%)`
                 : ' · 현재 최대 화염 저항을 초과한 미적용 화염 저항 기준';
-            html += `<div class="tooltip-line">초과 화염 저항 계수: 최대 화염 저항 초과 1%당 배율 +${Number(skill.fireResOvercapMulPerPct || 0).toFixed(2)}배${currentText}</div>`;
+            html += `<div class="tooltip-line">초과 화염 저항 계수: 최대 화염 저항 초과 1%당 배율 +${Number(skill.fireResOvercapMulPerPct || 0).toFixed(2)}배${capText}${currentText}</div>`;
         }
-        if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용 · 적에게 화염 부패 디버프 적용 · 화염 부패 대상은 점화 피해가 생명력 100당 8% 증폭</div>`;
+        if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용 · 적에게 화염 부패 디버프 적용 · 화염 부패 대상은 점화 피해가 생명력 100당 8% 증폭(최대 ${(Math.max(1, Number(skill.igniteTakenMaxMultiplier || 0)) || 1).toFixed(1)}x)</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
         if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
         html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
@@ -7391,9 +7394,10 @@ function mergeDefaults(save) {
     merged.claimableActRewards = (merged.claimableActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
     merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
-    let legacySeasonChaseUniqueDropped = merged.seasonChaseUniqueDropped === true;
     merged.seasonChaseUniqueDrops = Array.from(new Set((Array.isArray(merged.seasonChaseUniqueDrops) ? merged.seasonChaseUniqueDrops : []).filter(name => typeof name === 'string' && name)));
-    merged.seasonChaseUniqueDropped = legacySeasonChaseUniqueDropped || merged.seasonChaseUniqueDrops.length > 0;
+    // Old saves only had a boolean flag and could not identify which chase unique dropped.
+    // Do not treat that unknown legacy flag as a full chase-unique blacklist.
+    merged.seasonChaseUniqueDropped = merged.seasonChaseUniqueDrops.length > 0;
     if (Array.isArray(merged.skills) && merged.skills.includes('수액 골렘 소환')) {
         merged.supports = Array.isArray(merged.supports) ? merged.supports : [];
         if (!merged.supports.includes('수액 골렘 소환')) merged.supports.push('수액 골렘 소환');
