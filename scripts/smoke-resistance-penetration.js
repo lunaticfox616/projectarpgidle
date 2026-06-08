@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const fs = require('fs');
+const vm = require('vm');
 const assert = require('assert');
 
 const combat = fs.readFileSync('js/combat.js', 'utf8');
@@ -22,7 +23,23 @@ assert(incomingPhysicalLine, 'incoming physical mitigation calculation must exis
 assert(incomingPhysicalLine[0].includes('pStats.dr'), 'incoming physical damage must still use player physical damage reduction');
 assert(incomingPhysicalLine[0].includes('getArmorPhysicalReductionPct'), 'incoming physical damage must still use player armor');
 assert(!incomingPhysicalLine[0].includes('enemy.penetration'), 'monster resistance penetration must not bypass player physical mitigation or armor');
-assert(combat.includes('elementalRes = Math.max(-60, elementalRes - (enemy.penetration || 0));'), 'monster resistance penetration must still apply to elemental and chaos resistance');
-assert(combat.includes('res = Math.max(-60, res - (enemy.penetration || 0));'), 'monster resistance penetration must still apply after physical damage is taken as elemental or chaos damage');
+assert(!incomingPhysicalLine[0].includes('enemy.resistanceReduction'), 'monster resistance reduction must not bypass player physical mitigation or armor');
+
+const resistanceHelper = combat.match(/function getPlayerResistanceAfterEnemyModifiers\(pStats, element, enemy, effectMultiplier\) \{[\s\S]*?\n\}/);
+assert(resistanceHelper, 'incoming resistance modifier helper must exist');
+const context = {};
+vm.createContext(context);
+vm.runInContext(`${resistanceHelper[0]}; this.getPlayerResistanceAfterEnemyModifiers = getPlayerResistanceAfterEnemyModifiers;`, context);
+const overcappedFire = { resF: 75, rawResF: 130, maxResF: 75 };
+assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers(overcappedFire, 'fire', { penetration: 30 }), 45, 'penetration must apply after the resistance cap');
+assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers(overcappedFire, 'fire', { resistanceReduction: 30 }), 75, 'resistance reduction must subtract from uncapped resistance before applying the cap');
+assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers({ resF: 75, rawResF: 75, maxResF: 75 }, 'fire', { resistanceReduction: 30 }), 45, 'resistance reduction must lower non-overcapped resistance normally');
+assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers(overcappedFire, 'fire', { resistanceReduction: 40, penetration: 20 }), 55, 'resistance reduction must apply before the cap and penetration must apply afterward');
+
+assert(combat.includes("let isDeepChaos = zone.type === 'abyss';"), 'deep chaos enemy generation must be identified explicitly');
+assert(combat.includes('penetration: (isDeepChaos ? 0 : baselineResistancePressure)'), 'deep chaos enemies must not receive the old baseline resistance penetration');
+assert(combat.includes('resistanceReduction: isDeepChaos ? baselineResistancePressure : 0'), 'deep chaos enemies must receive resistance reduction instead');
+assert(combat.includes('getPlayerResistanceAfterEnemyModifiers(pStats, ele, enemy)'), 'converted elemental and chaos damage must use resistance reduction and penetration handling');
+assert(combat.includes('getPlayerResistanceAfterEnemyModifiers(pStats, enemy.ele, enemy)'), 'direct elemental and chaos damage must use resistance reduction and penetration handling');
 
 console.log('resistance penetration smoke checks passed');

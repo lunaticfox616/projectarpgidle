@@ -3841,6 +3841,8 @@ function createEnemy(zone, marker, groupIndex) {
     let defenseLoopScale = Math.min(2.2, 1 + Math.max(0, (game.loopCount || 0)) * 0.05);
     let baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * (isBoss ? 2.2 : (isElite ? 1.6 : 1)));
     let baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * (isBoss ? 2.1 : (isElite ? 1.5 : 1)));
+    let baselineResistancePressure = (game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0;
+    let isDeepChaos = zone.type === 'abyss';
     let enemy = {
         id: game.nextEnemyId++,
         hp: hp,
@@ -3866,7 +3868,8 @@ function createEnemy(zone, marker, groupIndex) {
         critChance: ((game.season || 1) >= 2 ? (isBoss ? 16 : isElite ? 10 : 4) : 0) + (trait && trait.critChanceBonus ? trait.critChanceBonus : 0) + (cosmosMods && cosmosMods.critChanceBonus ? cosmosMods.critChanceBonus : 0) + (cosmosExclusiveTrait && cosmosExclusiveTrait.critChanceBonus ? cosmosExclusiveTrait.critChanceBonus : 0),
         regenRate: ((game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0) * 0.12 * regenMul,
         regenSuppressPct: 0,
-        penetration: ((game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0) + (cosmosMods && cosmosMods.penetration ? cosmosMods.penetration : 0),
+        penetration: (isDeepChaos ? 0 : baselineResistancePressure) + (cosmosMods && cosmosMods.penetration ? cosmosMods.penetration : 0),
+        resistanceReduction: isDeepChaos ? baselineResistancePressure : 0,
         hybridElement: (game.season || 1) >= 3 ? rndChoice(['fire', 'cold', 'light', 'chaos']) : null,
         ailmentChance: ((game.season || 1) >= 4 ? (isBoss ? 0.14 : (isElite ? 0.08 : 0.03)) : 0) + (cosmosMods && cosmosMods.ailmentChanceBonus ? cosmosMods.ailmentChanceBonus : 0),
         firstHitGuard: Math.max((game.season || 1) >= 5 ? (isBoss ? 0.75 : ((trait && trait.firstHitGuard) || 0)) : 0, cosmosMods && cosmosMods.firstHitGuard ? cosmosMods.firstHitGuard : 0),
@@ -6548,6 +6551,24 @@ function updateColonyDefenseApproach() {
     });
 }
 
+function getPlayerResistanceAfterEnemyModifiers(pStats, element, enemy, effectMultiplier) {
+    let keyByElement = { fire: 'F', cold: 'C', light: 'L', chaos: 'Chaos' };
+    let suffix = keyByElement[element];
+    if (!suffix) return 0;
+    let finalResistance = Number((pStats && pStats[`res${suffix}`]) || 0);
+    let uncappedResistance = Number.isFinite(Number(pStats && pStats[`rawRes${suffix}`]))
+        ? Number(pStats[`rawRes${suffix}`])
+        : finalResistance;
+    let maxResistance = Number.isFinite(Number(pStats && pStats[`maxRes${suffix}`]))
+        ? Number(pStats[`maxRes${suffix}`])
+        : 75;
+    let multiplier = Math.max(0, Number(effectMultiplier == null ? 1 : effectMultiplier) || 0);
+    let resistanceReduction = Math.max(0, Number((enemy && enemy.resistanceReduction) || 0)) * multiplier;
+    let penetration = Math.max(0, Number((enemy && enemy.penetration) || 0)) * multiplier;
+    let reducedResistance = Math.min(maxResistance, uncappedResistance - resistanceReduction);
+    return Math.max(-60, reducedResistance - penetration);
+}
+
 function performMonsterAttacks(pStats) {
     updateColonyDefenseApproach();
     let zone = getZone(game.currentZoneId);
@@ -6672,18 +6693,14 @@ function performMonsterAttacks(pStats) {
                 let shifted = Math.min(originalPhysicalPortion - totalShiftedPhysical, Math.floor(originalPhysicalPortion * pct / 100));
                 if (shifted <= 0) return;
                 totalShiftedPhysical += shifted;
-                let res = ele === 'fire' ? pStats.resF : ele === 'cold' ? pStats.resC : ele === 'light' ? pStats.resL : pStats.resChaos;
-                res = Math.max(-60, res - (enemy.penetration || 0));
+                let res = getPlayerResistanceAfterEnemyModifiers(pStats, ele, enemy);
                 let mitigated = Math.max(0, Math.floor(shifted * (1 - (res / 100))));
                 if (mitigated > 0) convertedTakenAsBreakdown.push({ ele, amount: mitigated });
             });
             physicalPortion = Math.max(0, originalPhysicalPortion - totalShiftedPhysical);
-            let elementalRes = 0;
-            if (enemy.ele === 'fire') elementalRes = pStats.resF;
-            else if (enemy.ele === 'cold') elementalRes = pStats.resC;
-            else if (enemy.ele === 'light') elementalRes = pStats.resL;
-            else if (enemy.ele === 'chaos') elementalRes = pStats.resChaos;
-            elementalRes = Math.max(-60, elementalRes - (enemy.penetration || 0));
+            let elementalRes = ['fire', 'cold', 'light', 'chaos'].includes(enemy.ele)
+                ? getPlayerResistanceAfterEnemyModifiers(pStats, enemy.ele, enemy)
+                : 0;
             let mitigatedElemental = Math.max(0, Math.floor(elementalPortion * (1 - (elementalRes / 100))));
             let physRes = Math.max(-60, pStats.dr + getArmorPhysicalReductionPct(pStats.armor, physicalPortion));
             let mitigatedPhysical = Math.max(0, Math.floor(physicalPortion * (1 - (physRes / 100))));
@@ -6777,8 +6794,7 @@ function performMonsterAttacks(pStats) {
                 enemyCritDotBonusPct = 50;
             }
             if (enemy.hybridElement && Math.random() < 0.35) {
-                let hybridRes = enemy.hybridElement === 'fire' ? pStats.resF : enemy.hybridElement === 'cold' ? pStats.resC : enemy.hybridElement === 'light' ? pStats.resL : pStats.resChaos;
-                hybridRes = Math.max(-60, hybridRes - ((enemy.penetration || 0) * 0.7));
+                let hybridRes = getPlayerResistanceAfterEnemyModifiers(pStats, enemy.hybridElement, enemy, 0.7);
                 let hybrid = Math.max(0, Math.floor(dmg * 0.32 * (1 - (hybridRes / 100))));
                 if (hybrid > 0) damageBreakdown.push({ ele: normalizeDamageElementKey(enemy.hybridElement), amount: hybrid });
                 dmg = Math.max(1, sumBreakdown());
