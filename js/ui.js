@@ -3089,17 +3089,20 @@ function getTalismanTooltipStatLines(talisman) {
     return line ? [line] : [];
 }
 
+function buildTalismanTooltipHtml(talisman) {
+    if (!talisman) return '<div class="tooltip-title">부적</div>';
+    let statLine = getTalismanTooltipStatLines(talisman).map(line => `<div class="tooltip-line">${escapeHTML(line)}</div>`).join('');
+    let specialDesc = getTalismanSpecialDescription(talisman);
+    let momentRollLine = talisman.special === 'moment' ? `<div class="tooltip-line" style="color:#ffe38a;">찰나 롤: +${typeof getTalismanMomentRoll === 'function' ? getTalismanMomentRoll(talisman) : (talisman.bossFinalDmgRoll || talisman.bossFinalDmgMin || 5)}% (가능 범위 +${talisman.bossFinalDmgMin || 5}~${talisman.bossFinalDmgMax || 15}%)</div>` : '';
+    let sourceLine = talisman.source ? `<div class="tooltip-line" style="color:#9fc4ea;">${escapeHTML(talisman.rarity || '부적')} · 형태 ${escapeHTML(talisman.shape || '-')}</div>` : '';
+    return `<div class="tooltip-title">${escapeHTML(getTalismanDisplayName(talisman))}</div>${sourceLine}${statLine}${specialDesc ? `<div class="tooltip-line" style="color:#ffd6a0;">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}${momentRollLine}`;
+}
+
 function showTalismanBoardTooltip(event, talismanId) {
     let placed = talismanId ? ((game.talismanPlacements || {})[talismanId] || {}).talisman : null;
     if (!placed) return;
     setTalismanHoverGroup(talismanId);
-    let min = Number.isFinite(placed.valueMin) ? placed.valueMin : placed.value;
-    let max = Number.isFinite(placed.valueMax) ? placed.valueMax : placed.value;
-    let specialDesc = getTalismanSpecialDescription(placed);
-    let momentRollLine = placed.special === 'moment' ? `<div class=\"tooltip-line\" style=\"color:#ffe38a;\">찰나 롤: +${typeof getTalismanMomentRoll === 'function' ? getTalismanMomentRoll(placed) : (placed.bossFinalDmgRoll || placed.bossFinalDmgMin || 5)}% (가능 범위 +${placed.bossFinalDmgMin || 5}~${placed.bossFinalDmgMax || 15}%)</div>` : '';
-    let statLine = getTalismanTooltipStatLines(placed).map(line => `<div class=\"tooltip-line\">${escapeHTML(line)}</div>`).join('');
-    let html = `<div class="tooltip-title">${escapeHTML(getTalismanDisplayName(placed))}</div>${statLine}${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}${momentRollLine}`;
-    showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
+    showInfoTooltipHtml(event.clientX, event.clientY, buildTalismanTooltipHtml(placed), '#8fd3ff');
 }
 
 function getTalismanSpecialDescription(talisman) {
@@ -3126,13 +3129,13 @@ function showTalismanInventoryTooltip(event, talismanId) {
     let inv = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
     let t = inv.find(row => row && row.id === talismanId);
     if (!t) return;
-    let min = Number.isFinite(t.valueMin) ? t.valueMin : t.value;
-    let max = Number.isFinite(t.valueMax) ? t.valueMax : t.value;
-    let specialDesc = getTalismanSpecialDescription(t);
-    let statLine = getTalismanTooltipStatLines(t).map(line => `<div class="tooltip-line">${escapeHTML(line)}</div>`).join('');
-    let momentRollLine = t.special === 'moment' ? `<div class=\"tooltip-line\" style=\"color:#ffe38a;\">찰나 롤: +${typeof getTalismanMomentRoll === 'function' ? getTalismanMomentRoll(t) : (t.bossFinalDmgRoll || t.bossFinalDmgMin || 5)}% (가능 범위 +${t.bossFinalDmgMin || 5}~${t.bossFinalDmgMax || 15}%)</div>` : '';
-    let html = `<div class="tooltip-title">${escapeHTML(getTalismanDisplayName(t))}</div>${statLine}${specialDesc ? `<div class=\"tooltip-line\" style=\"color:#ffd6a0;\">고유 효과: ${escapeHTML(specialDesc)}</div>` : ''}${momentRollLine}`;
-    showInfoTooltipHtml(event.clientX, event.clientY, html, '#8fd3ff');
+    showInfoTooltipHtml(event.clientX, event.clientY, buildTalismanTooltipHtml(t), '#8fd3ff');
+}
+
+function showTalismanUnsealTooltip(event) {
+    let current = game.talismanUnseal && game.talismanUnseal.current;
+    if (!current) return;
+    showInfoTooltipHtml(event.clientX, event.clientY, buildTalismanTooltipHtml(current), '#8fd3ff');
 }
 
 function showTalismanUnlockTooltip(event, x, y) {
@@ -5435,7 +5438,7 @@ function getCraftActionValidators(item) {
         honey: !!item && (game.currencies.enchantedHoney || 0) > 0 && !hasHoneyLocked,
         stinger: !!item && (game.currencies.venomStinger || 0) > 0 && item.slot === '무기',
         baseUpgrade: !!item,
-        voidSocket: !!item && (item.slot === '반지' || item.slot === '목걸이')
+        voidSocket: !!item && (typeof isVoidSocketAccessoryItem === 'function' ? isVoidSocketAccessoryItem(item) : (String(item.slot || '').replace(/[12]$/, '') === '반지' || String(item.slot || '').replace(/[12]$/, '') === '목걸이'))
     };
 }
 
@@ -5597,7 +5600,7 @@ function getMobileCraftCurrencyUseState(key, item) {
         return { enabled: !!v.stinger, reason: v.stinger ? '사용 가능' : '현재 아이템 조건 불일치' };
     }
     if (key === 'voidChisel') {
-        let enabled = (item.slot === '반지' || item.slot === '목걸이') && !(item.voidSocket && item.voidSocket.open);
+        let enabled = (typeof isVoidSocketAccessoryItem === 'function' ? isVoidSocketAccessoryItem(item) : (String(item.slot || '').replace(/[12]$/, '') === '반지' || String(item.slot || '').replace(/[12]$/, '') === '목걸이')) && !(item.voidSocket && item.voidSocket.open);
         return { enabled: enabled, reason: enabled ? '사용 가능' : '반지/목걸이의 빈 공허 소켓에만 사용 가능' };
     }
     if (MOBILE_CRAFT_ORB_KEYS.includes(key)) {
@@ -5809,14 +5812,14 @@ function buildCraftActionButtons(item) {
         }
         let voidSocketHtml = '';
         let abyssSocketHtml = '';
-        if (selectedItem.slot === '반지' || selectedItem.slot === '목걸이') {
+        if (typeof isVoidSocketAccessoryItem === 'function' ? isVoidSocketAccessoryItem(selectedItem) : (String(selectedItem.slot || '').replace(/[12]$/, '') === '반지' || String(selectedItem.slot || '').replace(/[12]$/, '') === '목걸이')) {
             selectedItem.voidSocket = selectedItem.voidSocket || { open: false, jewel: null };
             if (!selectedItem.voidSocket.open) {
                 voidSocketHtml = `<button onclick="applyVoidChiselToSelectedItem()" ${(game.currencies.voidChisel||0)<=0?'disabled':''}>🕳️ 공허 소켓 생성</button>`;
             } else if (selectedItem.voidSocket.jewel) {
                 voidSocketHtml = `<div style="color:#9fd6ff;">소켓 주얼: <span class="${getJewelRarityClass(selectedItem.voidSocket.jewel.rarity || 'normal')}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'void',0)" onmousemove="showSocketedJewelTooltip(event,'void',0)" onmouseleave="hideInfoTooltip()">${selectedItem.voidSocket.jewel.name}</span></div><button onclick="removeJewelFromVoidSocket()" ${(game.currencies.voidChisel||0)<=0?'disabled':''}>주얼 제거(끌 1)</button>`;
             } else {
-                let jewelBtns = (game.jewelInventory || []).map((j, i) => `<button onclick="insertJewelIntoVoidSocket(${i})">${j.name} 장착</button>`).join('');
+                let jewelBtns = (game.jewelInventory || []).map((j, i) => `<button data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${i}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${i}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoVoidSocket(${i})">${j.name} 장착</button>`).join('');
                 voidSocketHtml = `<div style="color:#9fd6ff;">빈 공허 소켓</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
             }
         }
@@ -5828,7 +5831,7 @@ function buildCraftActionButtons(item) {
             let rows = selectedItem.abyssSockets.map((sock, sidx) => {
                 if (sock && sock.jewel) {
                     let j = sock.jewel;
-                    return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: <span class="${getJewelRarityClass(j.rarity || 'normal')}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'abyss',${sidx})" onmousemove="showSocketedJewelTooltip(event,'abyss',${sidx})" onmouseleave="hideInfoTooltip()">${j.name}</span></div>`;
+                    return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: <span class="${getJewelRarityClass(j.rarity || 'normal')}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'abyss',${sidx})" onmousemove="showSocketedJewelTooltip(event,'abyss',${sidx})" onmouseleave="hideInfoTooltip()">${j.name}</span> <button onclick="removeJewelFromAbyssSocket(${sidx})">제거</button></div>`;
                 }
                 let jewelBtns = (game.jewelInventory || []).map((j, i) => `<button data-info-tooltip-anchor="1" onmouseenter="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${i}]),'#7fb3ff')" onmousemove="showInfoTooltipHtml(event.clientX,event.clientY,buildJewelRangeTooltipHtml(game.jewelInventory[${i}]),'#7fb3ff')" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoAbyssSocket(${i}, ${sidx})">${j.name} 장착</button>`).join('');
                 return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: 빈 슬롯</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
@@ -5862,12 +5865,13 @@ function buildCraftActionButtons(item) {
         let useBtn = '';
         if (key === 'enchantedHoney') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyEnchantedHoneyToSelectedItem()">사용</button></div>`;
         if (key === 'venomStinger') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVenomStingerToSelectedItem()">사용</button></div>`;
+        if (key === 'voidChisel') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVoidChiselToSelectedItem()">사용</button></div>`;
         let sporeModes = game.sporeCraftModes || {};
         let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
         let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','scour','tainted','blessing'].includes(key);
         let canUseSporeMode = ['transmute','augment','alteration','alchemy','exalted','regal','chaos'].includes(key);
         let mode = sporeModes[key] || 'none';
-        let reason = getCraftOrbUseState(key, getSelectedCraftItem()).reason;
+        let reason = key === 'voidChisel' ? getMobileCraftCurrencyUseState(key, getSelectedCraftItem()).reason : getCraftOrbUseState(key, getSelectedCraftItem()).reason;
         if (isCraftOrb) {
             let rightButtons = '';
             if (canUseSporeMode) rightButtons += `<button style="padding:6px 10px; font-size:0.9em; line-height:1; white-space:nowrap;" onclick="openSporeModeOverlay('${key}')">홀씨:${modeLabelMap[mode] || '미사용'}</button>`;
@@ -6391,7 +6395,7 @@ function buildCraftActionButtons(item) {
     } else {
         let shapeStyle = getTalismanShapeStyle(unseal.current.shape);
         let currentLabel = unseal.current.special ? `${getTalismanDisplayName(unseal.current)} · ${getTalismanSpecialDescription(unseal.current)}` : `${unseal.current.statName} +${formatValue(unseal.current.stat, unseal.current.value)}`;
-        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">${renderTalismanMiniShape(unseal.current.shape, { cellSize: 8, gap: 1, markDir: unseal.current.markDir })}<span>후보: <strong style="color:${shapeStyle.color};">${escapeHTML(currentLabel)}</strong> <span style="color:#9cb5d0;">(${unseal.current.rarity})</span></span>${renderSealShardBadge(unseal.source)}</div>
+        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;" data-info-tooltip-anchor="1" onmouseenter="showTalismanUnsealTooltip(event)" onmousemove="showTalismanUnsealTooltip(event)" onmouseleave="hideInfoTooltip()">${renderTalismanMiniShape(unseal.current.shape, { cellSize: 8, gap: 1, markDir: unseal.current.markDir })}<span>후보: <strong style="color:${shapeStyle.color};">${escapeHTML(currentLabel)}</strong> <span style="color:#9cb5d0;">(${unseal.current.rarity})</span></span>${renderSealShardBadge(unseal.source)}</div>
             <div style="margin-bottom:8px; color:#8fa7c3;">남은 형태 확인 기회: ${unseal.rollsLeft}/${unseal.totalRolls}</div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button onclick="acceptCurrentTalisman()">선택</button>
