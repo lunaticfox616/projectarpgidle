@@ -1465,6 +1465,7 @@ const defaultGame = {
         showCrowdPauseLog: true,
         showDeathNotice: true,
         showMobileBattlePip: true,
+        pauseGameOnOverlay: false,
         damageNumberFormat: 'comma',
         themeMode: 'dark',
         leftPaneCollapsed: false,
