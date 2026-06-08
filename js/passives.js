@@ -5578,6 +5578,11 @@ function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) retur
 }
 
 
+function isVoidSocketAccessoryItem(item) {
+    let slot = String(item && item.slot || '').replace(/[12]$/, '');
+    return slot === '반지' || slot === '목걸이';
+}
+
 function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
@@ -5601,8 +5606,7 @@ function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return 
 function applyVoidChiselToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
-    let isAccessory = item.slot === '반지' || item.slot === '목걸이';
-    if (!isAccessory) return addLog('공허의 끌은 반지/목걸이에만 사용할 수 있습니다.', 'attack-monster');
+    if (!isVoidSocketAccessoryItem(item)) return addLog('공허의 끌은 반지/목걸이에만 사용할 수 있습니다.', 'attack-monster');
     if ((game.currencies.voidChisel || 0) <= 0) return addLog('공허의 끌이 부족합니다.', 'attack-monster');
     item.voidSocket = item.voidSocket || { open: false, jewel: null };
     if (item.voidSocket.open) return addLog('이미 공허 소켓이 뚫려 있습니다.', 'attack-monster');
@@ -5669,6 +5673,22 @@ function insertJewelIntoAbyssSocket(invIdx, socketIdx) { if (game.woodsmanBuildL
     addLog(`💠 심연 소켓 #${socketIdx + 1}에 [${jewel.name}] 장착`, 'loot-magic');
     updateStaticUI();
 }
+
+function removeJewelFromAbyssSocket(socketIdx) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    ensureAbyssSockets(item);
+    let idx = Math.max(0, Math.floor(Number(socketIdx) || 0));
+    if (!item || !Array.isArray(item.abyssSockets) || !item.abyssSockets[idx] || !item.abyssSockets[idx].jewel) return;
+    game.jewelInventory = game.jewelInventory || [];
+    if (game.jewelInventory.length >= getJewelInventoryLimit()) return addLog('주얼 인벤토리가 가득 찼습니다.', 'attack-monster');
+    let jewel = item.abyssSockets[idx].jewel;
+    game.jewelInventory.push(jewel);
+    item.abyssSockets[idx].jewel = null;
+    addLog(`심연 소켓 #${idx + 1}에서 [${jewel.name}] 제거`, 'loot-normal');
+    updateStaticUI();
+}
+
+safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket });
 
 function createItemFromBase(base, rarity, zoneTier) {
     itemIdCounter++;
@@ -5811,8 +5831,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
     let seasonChaseDrops = new Set(Array.isArray(game.seasonChaseUniqueDrops) ? game.seasonChaseUniqueDrops : []);
-    let hasUnknownLegacyChaseDrop = game.seasonChaseUniqueDropped === true && seasonChaseDrops.size === 0;
-    let chaseOptions = hasUnknownLegacyChaseDrop ? [] : UNIQUE_DB.filter(unique => unique.ultraRare
+    let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare
         && canDropUniqueInZone(unique)
         && zoneTier >= (unique.reqTier || 1)
         && !seasonChaseDrops.has(unique.name));
