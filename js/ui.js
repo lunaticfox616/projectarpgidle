@@ -12,6 +12,7 @@ var lod = 1; // fallback for any legacy FX paths
 let mobilePipCtx = null;
 let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 94, lastTapAt: 0 };
 let mobilePipRefreshHandle = null;
+let mobilePipRefreshErrorReported = false;
 let battleAssetDeferredInitHandle = null;
 let playerHpDamageGhostPct = null;
 let playerHpDamageGhostLastPct = null;
@@ -52,47 +53,44 @@ function normalizeUiPlayerStats(stats, fallback = {}) {
     return normalized;
 }
 
-function getUiPlayerStats(fallback = {}) {
+function getUiGlobalFunction(name) {
+    if (typeof window === 'undefined') return null;
+    let provider = window[name];
+    if (typeof provider !== 'function' || provider.__placeholderGlobal === true) return null;
+    return provider;
+}
+
+function callUiProvider(name, provider, args = []) {
     try {
-        let provider = (typeof getPlayerStats === 'function')
-            ? getPlayerStats
-            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
-        if (provider && provider.__placeholderGlobal !== true) return normalizeUiPlayerStats(provider(), fallback);
-        if (cachedTooltipStats && cachedTooltipStats.__uiFallbackStats !== true) return normalizeUiPlayerStats(cachedTooltipStats, fallback);
-        return normalizeUiPlayerStats(Object.assign({}, fallback || {}, { __uiFallbackStats: true }), fallback);
-    } catch (e) {}
+        return provider.apply(null, args);
+    } catch (error) {
+        console.error(`${name} failed:`, error);
+        throw error;
+    }
+}
+
+function getUiPlayerStats(fallback = {}) {
+    let provider = getUiGlobalFunction('getPlayerStats');
+    if (provider) return normalizeUiPlayerStats(callUiProvider('getPlayerStats', provider), fallback);
     if (cachedTooltipStats && cachedTooltipStats.__uiFallbackStats !== true) return normalizeUiPlayerStats(cachedTooltipStats, fallback);
     return normalizeUiPlayerStats(Object.assign({}, fallback || {}, { __uiFallbackStats: true }), fallback);
 }
 
-function getUiGlobalFunction(name) {
-    try {
-        if (typeof window !== 'undefined' && typeof window[name] === 'function') return window[name];
-    } catch (e) {}
-    return null;
-}
-
 function isUiDamageAilmentType(type) {
     let provider = getUiGlobalFunction('isDamageAilmentType');
-    if (provider) {
-        try { return !!provider(type); } catch (e) {}
-    }
+    if (provider) return !!callUiProvider('isDamageAilmentType', provider, [type]);
     return type === 'ignite' || type === 'poison' || type === 'bleed';
 }
 
 function getUiStoredAilmentHitDamage(ail) {
     let provider = getUiGlobalFunction('getStoredAilmentHitDamage');
-    if (provider) {
-        try { return Math.max(0, Number(provider(ail)) || 0); } catch (e) {}
-    }
+    if (provider) return Math.max(0, Number(callUiProvider('getStoredAilmentHitDamage', provider, [ail])) || 0);
     return Math.max(0, Number((ail && (ail.sourceHitDamage || ail.hitDamage)) || 0) || 0);
 }
 
 function getUiPlayerDamageAilmentDps(ail, stats) {
     let provider = getUiGlobalFunction('getPlayerDamageAilmentDps');
-    if (provider) {
-        try { return Math.max(0, Math.floor(Number(provider(ail, stats)) || 0)); } catch (e) {}
-    }
+    if (provider) return Math.max(0, Math.floor(Number(callUiProvider('getPlayerDamageAilmentDps', provider, [ail, stats])) || 0));
     let source = getUiStoredAilmentHitDamage(ail);
     if (source <= 0 && stats && stats.maxHp) source = Math.max(1, Math.floor((stats.maxHp || 1) * 0.08));
     return Math.max(0, Math.floor(source * 0.9));
@@ -100,17 +98,13 @@ function getUiPlayerDamageAilmentDps(ail, stats) {
 
 function getUiEnemyDamageAilmentDps(ail, stats) {
     let provider = getUiGlobalFunction('getEnemyDamageAilmentDps');
-    if (provider) {
-        try { return Math.max(0, Math.floor(Number(provider(ail, stats)) || 0)); } catch (e) {}
-    }
+    if (provider) return Math.max(0, Math.floor(Number(callUiProvider('getEnemyDamageAilmentDps', provider, [ail, stats])) || 0));
     return Math.max(0, Math.floor(getUiStoredAilmentHitDamage(ail) * 0.9));
 }
 
 function getUiPlayerShockTakenDamageIncreasePct(power, stats) {
     let provider = getUiGlobalFunction('getPlayerShockTakenDamageIncreasePct');
-    if (provider) {
-        try { return Number(provider(stats || {}, power)) || 0; } catch (e) {}
-    }
+    if (provider) return Number(callUiProvider('getPlayerShockTakenDamageIncreasePct', provider, [stats || {}, power])) || 0;
     let reduction = Math.max(0, Math.min(0.95, Number(stats && stats.shockEffectReducePct || 0) / 100));
     let value = 22 * (1 - reduction);
     return (stats && stats.uniqueShockInvertTaken) ? -value : value;
@@ -118,9 +112,7 @@ function getUiPlayerShockTakenDamageIncreasePct(power, stats) {
 
 function getUiEnemyShockTakenDamageIncreasePct(power, stats) {
     let provider = getUiGlobalFunction('getEnemyShockTakenDamageIncreasePct');
-    if (provider) {
-        try { return Math.max(0, Number(provider({ type: 'shock', time: 1, power: power }, stats || {})) || 0); } catch (e) {}
-    }
+    if (provider) return Math.max(0, Number(callUiProvider('getEnemyShockTakenDamageIncreasePct', provider, [{ type: 'shock', time: 1, power }, stats || {}])) || 0);
     let base = Math.min(35, 8 + Math.max(0, Number(power || 0)) * 12);
     let bonus = Math.max(0, Number(stats && stats.shockEffectBonusPct) || 0);
     return Math.max(0, Math.min(50, base * (1 + bonus / 100)));
@@ -133,34 +125,23 @@ function formatUiTakenDamageShockLine(value) {
 
 function getUiSkillTargets(stats) {
     let provider = getUiGlobalFunction('getSkillTargets');
-    if (provider) {
-        try { return provider(stats) || []; } catch (e) {}
-    }
-    return [];
+    return provider ? (callUiProvider('getSkillTargets', provider, [stats]) || []) : [];
 }
 
 function getUiCrowdProgressPaused() {
     let provider = getUiGlobalFunction('isCrowdProgressPaused');
-    if (provider) {
-        try { return !!provider(); } catch (e) {}
-    }
-    return false;
+    return provider ? !!callUiProvider('isCrowdProgressPaused', provider) : false;
 }
 
 function getUiCrowdPauseLimit() {
-    try {
-        if (typeof ENEMY_CROWD_PAUSE_LIMIT !== 'undefined') return ENEMY_CROWD_PAUSE_LIMIT;
-        if (typeof window !== 'undefined' && Number.isFinite(Number(window.ENEMY_CROWD_PAUSE_LIMIT))) return Number(window.ENEMY_CROWD_PAUSE_LIMIT);
-    } catch (e) {}
+    if (typeof ENEMY_CROWD_PAUSE_LIMIT !== 'undefined') return ENEMY_CROWD_PAUSE_LIMIT;
+    if (typeof window !== 'undefined' && Number.isFinite(Number(window.ENEMY_CROWD_PAUSE_LIMIT))) return Number(window.ENEMY_CROWD_PAUSE_LIMIT);
     return 20;
 }
 
 function runUiGlobalFunction(name, args = []) {
     let provider = getUiGlobalFunction(name);
-    if (provider) {
-        try { return provider.apply(null, args); } catch (e) { console.error(`${name} failed:`, e); }
-    }
-    return undefined;
+    return provider ? callUiProvider(name, provider, args) : undefined;
 }
 
 function runUiStartEncounter() {
@@ -173,17 +154,12 @@ function runUiCoreLoop() {
 
 function getUiConditionGemStatDelta(name, type) {
     let provider = getUiGlobalFunction('getConditionGemStatDelta');
-    if (provider) {
-        try { return provider(name, type) || {}; } catch (e) {}
-    }
-    return {};
+    return provider ? (callUiProvider('getConditionGemStatDelta', provider, [name, type]) || {}) : {};
 }
 
 function getUiGemPresentation(name, isSupport) {
     let provider = getUiGlobalFunction('getGemPresentation');
-    if (provider) {
-        try { return provider(name, isSupport) || {}; } catch (e) {}
-    }
+    if (provider) return callUiProvider('getGemPresentation', provider, [name, isSupport]) || {};
     let db = isSupport ? (SUPPORT_GEM_DB[name] || {}) : (SKILL_DB[name] || {});
     let store = isSupport ? (game.supportGemData || {}) : (game.gemData || {});
     let level = Math.max(1, Math.floor(((store[name] || {}).level) || 1));
@@ -341,7 +317,11 @@ function startMobilePipRefreshLoop() {
             updateMobileBattlePipVisibility();
             if (isMobileBattlePipVisible()) renderBattlefield(true);
             renderMobileBattlePipFrame();
-        } catch (e) {}
+            mobilePipRefreshErrorReported = false;
+        } catch (error) {
+            if (!mobilePipRefreshErrorReported) console.error('mobile battle PIP refresh failed:', error);
+            mobilePipRefreshErrorReported = true;
+        }
     }, 120);
 }
 
@@ -2979,6 +2959,37 @@ function ensureInitialHeroSelection() {
         body: '첫 루프에서 사용할 캐릭터를 선택하세요.'
     });
 }
+
+function playLoopRewriteEffect() {
+    let overlay = document.getElementById('loop-rewrite-overlay');
+    if (!overlay) return;
+    overlay.innerHTML = '<div class="rewrite-card"><div class="rewrite-title">세계가 되감기는 중…</div><div class="rewrite-sub">흔적을 거슬러, 이전 루프로 복귀합니다.</div></div>';
+    document.body.classList.add('loop-rewrite-active');
+    overlay.classList.remove('active');
+    void overlay.offsetWidth;
+    overlay.classList.add('active');
+    setTimeout(() => {
+        overlay.classList.remove('active');
+        document.body.classList.remove('loop-rewrite-active');
+    }, 1950);
+}
+
+window.addEventListener('project-idle:loop-hero-selection-requested', event => {
+    let detail = event && event.detail;
+    if (!detail || typeof detail.select !== 'function') return;
+    if (isLoopHeroSelectOpen() || isStartupOverlayOpen() || isLoadingOverlayOpen() || isDeathOverlayOpen()) return;
+    detail.handled = true;
+    openLoopHeroSelection(detail.select, detail.options || {});
+});
+
+window.addEventListener('project-idle:loop-hero-selection-completed', event => {
+    let detail = event && event.detail;
+    if (!detail) return;
+    if (detail.changed) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(detail.heroId).label} 캐릭터를 선택했습니다.`, 'season-up');
+    switchTab('tab-character');
+});
+
+window.addEventListener('project-idle:loop-rewrite-started', playLoopRewriteEffect);
 
 function updateSettings() {
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
@@ -8009,7 +8020,7 @@ const CLOUD_TOKEN_EXPIRY_WARNING_MS = 10 * 60 * 1000;
 const CLOUD_SKIP_OAUTH_RESTORE_KEY = 'projectidle_cloud_skip_oauth_restore';
 
 function markSkipOAuthRestoreOnce() {
-    try { localStorage.setItem(CLOUD_SKIP_OAUTH_RESTORE_KEY, '1'); } catch (e) {}
+    try { localStorage.setItem(CLOUD_SKIP_OAUTH_RESTORE_KEY, '1'); } catch (error) { console.warn('failed to mark OAuth restore skip:', error); }
 }
 
 function consumeSkipOAuthRestoreOnce() {
@@ -8167,20 +8178,25 @@ function escapeHTML(value) {
 function persistCloudSession(session) {
     try {
         localStorage.setItem(CLOUD_SESSION_STORAGE_KEY, JSON.stringify(session));
-    } catch (e) {}
+    } catch (error) {
+        console.warn('failed to persist cloud session:', error);
+    }
 }
 
 function clearCloudSessionStorage() {
     try {
         localStorage.removeItem(CLOUD_SESSION_STORAGE_KEY);
-    } catch (e) {}
+    } catch (error) {
+        console.warn('failed to clear cloud session storage:', error);
+    }
 }
 
 function loadStoredCloudSession() {
     try {
         let raw = localStorage.getItem(CLOUD_SESSION_STORAGE_KEY);
         return raw ? JSON.parse(raw) : null;
-    } catch (e) {
+    } catch (error) {
+        console.warn('failed to load cloud session:', error);
         return null;
     }
 }
@@ -8613,7 +8629,9 @@ function applyExternalSave(snapshot, sourceStamp) {
         game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, sourceStamp);
         if (!game.saveMeta.lastModifiedAt) game.saveMeta.lastModifiedAt = sourceStamp;
     }
-    persistLocalSave({ touchModifiedAt: false });
+    if (!persistLocalSave({ touchModifiedAt: false, allowRecoveryWrite: true })) {
+        throw new Error('클라우드 저장을 로컬에 기록하지 못했습니다.');
+    }
     recoverRuntimeState();
     refreshPassiveVisibility();
     tickShrineState();
@@ -8800,6 +8818,10 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
 
 async function pushCloudSave(options = {}) {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
+    if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) {
+        let status = getLocalSaveStatus();
+        throw new Error(status.message || '로컬 저장이 차단되어 클라우드 업로드를 중단했습니다.');
+    }
     let t0 = Date.now();
     let remoteRecord = null;
     try {
@@ -8817,13 +8839,12 @@ async function pushCloudSave(options = {}) {
         setCloudMessage(guardMessage);
         throw new Error(guardMessage);
     }
-    persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true });
+    if (!persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true })) {
+        throw new Error('로컬 저장에 실패하여 클라우드 업로드를 중단했습니다.');
+    }
     let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
-    let payloadSize = 0;
-    try {
-        payloadSize = JSON.stringify(payload).length;
-        if (payloadSize > 900000 && typeof addLog === 'function') addLog(`☁️ 클라우드 저장 데이터 최적화 적용 (${Math.round(payloadSize / 1024)}KB)`, 'attack-monster', { noToast: true });
-    } catch (e) {}
+    let payloadSize = JSON.stringify(payload).length;
+    if (payloadSize > 900000 && typeof addLog === 'function') addLog(`☁️ 클라우드 저장 데이터 최적화 적용 (${Math.round(payloadSize / 1024)}KB)`, 'attack-monster', { noToast: true });
     let tSerialize = Date.now();
     let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
         method: 'POST',
@@ -9189,7 +9210,7 @@ async function cloudLogout() {
 
 function requestImmediateCloudSave(reason) {
     if (!cloudState.configured || !cloudState.user) return false;
-    saveGame({ skipCloudSync: true });
+    if (!saveGame({ skipCloudSync: true })) return false;
     syncCloudSave({ automatic: true, force: true, reason: reason || 'important' }).catch(error => {
         console.warn(`immediate cloud save failed (${reason || 'important'}):`, error);
         setCloudMessage('즉시 클라우드 저장 실패: ' + (error.message || error));
@@ -9200,6 +9221,7 @@ function requestImmediateCloudSave(reason) {
 
 function pushCloudSaveOnPageExit(reason) {
     let config = getCloudConfig();
+    if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) return false;
     if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return false;
     if (!gameplayStarted) return false;
@@ -9213,12 +9235,14 @@ function pushCloudSaveOnPageExit(reason) {
         return false;
     }
     try {
-        persistLocalSave({ touchModifiedAt: true });
+        if (!persistLocalSave({ touchModifiedAt: true })) return false;
         ensureSaveMeta();
         let optimisticSyncAt = Date.now();
         game.saveMeta.lastCloudSyncAt = optimisticSyncAt;
         cloudState.lastRemoteUpdatedAt = optimisticSyncAt;
-        persistLocalSave({ touchModifiedAt: false });
+        if (!persistLocalSave({ touchModifiedAt: false })) {
+            throw new Error('로컬 저장에 실패하여 경량화 업로드를 중단했습니다.');
+        }
         let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
         let body = JSON.stringify({ user_id: cloudState.user.id, save_data: payload });
         let headers = {
@@ -9273,8 +9297,7 @@ async function cloudCompactAndPushNow() {
         game.saveMeta.lastModifiedAt = Date.now();
         persistLocalSave({ touchModifiedAt: false });
         let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
-        let payloadBytes = 0;
-        try { payloadBytes = JSON.stringify(payload).length; } catch (e) {}
+        let payloadBytes = JSON.stringify(payload).length;
         let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
             method: 'POST',
             headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
@@ -9408,7 +9431,9 @@ async function resetGame() {
             Object.keys(localStorage).forEach(key => {
                 if (/^poeIdleSaveData_/i.test(String(key || ''))) localStorage.removeItem(key);
             });
-        } catch (e) {}
+        } catch (error) {
+            console.warn('failed to enumerate legacy local saves during reset:', error);
+        }
         if (resetCloudToo) {
             cloudState.busy = true;
             setCloudMessage('클라우드 저장을 초기화하는 중입니다...');
@@ -9434,7 +9459,11 @@ function init() {
         gameplayStarted = false;
         setStartupOverlayActive(true);
         setLoadingOverlayState(false);
-        loadGame();
+        let localSaveStatus = loadGame();
+        if (localSaveStatus.writable === false) {
+            setCloudMessage(localSaveStatus.message);
+            addLog(`⚠️ ${localSaveStatus.message}`, 'loot-rare');
+        }
         updateCloudSaveUI();
         setTimeout(init, 0);
         return;
@@ -10116,7 +10145,7 @@ function getLockedTabMessage(tabId) {
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, askRefundSeasonNode, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, equipColonyWardById, unequipColonyWard, unlockColonyWardSlot, dismantleColonyWardById, bulkDismantleColonyWardsBySearch, updateColonyWardSearchFilter, resetColonyWardSearchFilter, exchangeTalismanShards, applyBeeswaxToTalisman, removeBeeswaxFromTalisman, openBeeswaxApplicationOverlay, confirmBeeswaxApplication, closeBeeswaxWarningOverlay, openWaxedItemRestrictionOverlay, closeTalismanDismantleOverlay, confirmTalismanDismantle, toggleTalismanLock, toggleColonyWardLock, cloudCompactAndPushNow });
+safeExposeGlobals({ checkUnlocks, buySeason, askRefundSeasonNode, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, equipColonyWardById, unequipColonyWard, unlockColonyWardSlot, cloudCompactAndPushNow });
 
 
 function pickEquippedSlotByPrompt(validSlots){

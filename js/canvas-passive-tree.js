@@ -475,7 +475,10 @@ function getEquipSearchQueryLocal() {
         }
         let d = game && game.settings && game.settings.searchFilters;
         return d && typeof d.equip === 'string' ? d.equip : '';
-    } catch (_e) { return ''; }
+    } catch (error) {
+        console.error('equipment search query failed:', error);
+        return '';
+    }
 }
 
 function highlightEquipTextLocal(text, query) {
@@ -520,7 +523,9 @@ function renderPaperdoll(targetId, forCrafting) {
     let hi = (text) => {
         try {
             if (typeof highlightSearchText === 'function') return highlightSearchText(text, query);
-        } catch (_e) {}
+        } catch (error) {
+            console.error('equipment search highlight failed:', error);
+        }
         return highlightEquipTextLocal(text, query);
     };
     ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'].forEach(slot => {
@@ -573,7 +578,9 @@ function renderInventoryCard(item, idx, mode) {
     let hi = (text) => {
         try {
             if (typeof highlightSearchText === 'function') return highlightSearchText(text, query);
-        } catch (_e) {}
+        } catch (error) {
+            console.error('inventory search highlight failed:', error);
+        }
         return highlightEquipTextLocal(text, query);
     };
     let lockIcon = item.locked ? ' 🔒' : '';

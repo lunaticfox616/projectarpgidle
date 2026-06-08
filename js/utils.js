@@ -553,6 +553,12 @@ function makeSourceLine(label, value, suffix, formatter) {
     return `${label} +${rendered}`;
 }
 
+function dispatchRuntimeEvent(name, detail = {}) {
+    if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function' || typeof window.CustomEvent !== 'function') return false;
+    window.dispatchEvent(new window.CustomEvent(`project-idle:${name}`, { detail }));
+    return detail.handled === true;
+}
+
 
 
 
@@ -568,7 +574,7 @@ let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
 
-safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine });
+safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, dispatchRuntimeEvent });
 
 window.__runtimeFallbackQueues = window.__runtimeFallbackQueues || {};
 
@@ -583,10 +589,14 @@ function flushRuntimeFallbackQueue(key) {
 
 function safeExposeGlobals(map) {
     Object.keys(map || {}).forEach(function (key) {
-        if (typeof window[key] === "undefined" || (window[key] && window[key].__placeholderGlobal === true)) {
-            window[key] = map[key];
-            if (!(window[key] && window[key].__placeholderGlobal === true)) flushRuntimeFallbackQueue(key);
+        let current = window[key];
+        let incoming = map[key];
+        let canReplace = typeof current === "undefined" || (current && current.__placeholderGlobal === true);
+        if (!canReplace && current !== incoming) {
+            throw new Error("Duplicate global exposure: " + key);
         }
+        window[key] = incoming;
+        if (!(incoming && incoming.__placeholderGlobal === true)) flushRuntimeFallbackQueue(key);
     });
 }
 window.safeExposeGlobals = window.safeExposeGlobals || safeExposeGlobals;
@@ -726,7 +736,9 @@ installRuntimeFunctionFallback("getGemPresentation", function getGemPresentation
     try {
         let store = isSupport ? ((window.game && window.game.supportGemData) || {}) : ((window.game && window.game.gemData) || {});
         level = Math.max(1, Math.floor((store[name] && store[name].level) || 1));
-    } catch (e) {}
+    } catch (error) {
+        console.error('gem presentation fallback state read failed:', error);
+    }
     if (isSupport) {
         return {
             baseLevel: level, totalLevel: level, value: Number(db.baseVal || 0), desc: db.desc || "",

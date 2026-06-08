@@ -1,14 +1,58 @@
 // Phase-2 extracted save helpers and persistence flow.
-function readLocalSaveString() {
+const localSaveRuntimeState = {
+    status: 'uninitialized',
+    writable: true,
+    sourceKey: null,
+    backupKey: null,
+    message: ''
+};
+
+function setLocalSaveRuntimeState(status, options = {}) {
+    localSaveRuntimeState.status = status;
+    localSaveRuntimeState.writable = options.writable !== false;
+    localSaveRuntimeState.sourceKey = options.sourceKey || null;
+    localSaveRuntimeState.backupKey = options.backupKey || null;
+    localSaveRuntimeState.message = options.message || '';
+}
+
+function getLocalSaveStatus() {
+    return { ...localSaveRuntimeState };
+}
+
+function canPersistLocalSave() {
+    return localSaveRuntimeState.writable !== false;
+}
+
+function readLocalSaveResult() {
     try {
         let save = localStorage.getItem(LOCAL_SAVE_KEY);
-        if (save) return save;
+        if (save) return { status: 'ok', save, sourceKey: LOCAL_SAVE_KEY };
         for (let i = 0; i < LEGACY_SAVE_KEYS.length; i++) {
             save = localStorage.getItem(LEGACY_SAVE_KEYS[i]);
-            if (save) return save;
+            if (save) return { status: 'ok', save, sourceKey: LEGACY_SAVE_KEYS[i] };
         }
-    } catch (e) {}
-    return null;
+        return { status: 'missing', save: null, sourceKey: null };
+    } catch (error) {
+        return { status: 'unavailable', save: null, sourceKey: null, error };
+    }
+}
+
+function readLocalSaveString() {
+    let result = readLocalSaveResult();
+    if (result.status === 'unavailable') throw result.error;
+    return result.save;
+}
+
+function preserveCorruptLocalSave(rawSave) {
+    if (!rawSave) return null;
+    let backupKey = `${LOCAL_SAVE_KEY}_corrupt_${Date.now()}`;
+    try {
+        localStorage.setItem(backupKey, rawSave);
+        return backupKey;
+    } catch (error) {
+        console.error('failed to preserve corrupt local save:', error);
+        return null;
+    }
 }
 
 function ensureSaveMeta() {
@@ -72,23 +116,31 @@ function sanitizeForSave(value, seen = new WeakSet()) {
 }
 
 function persistLocalSave(options = {}) {
+    if (!canPersistLocalSave() && options.allowRecoveryWrite !== true) return false;
     ensureSaveMeta();
     if (options.touchModifiedAt !== false) game.saveMeta.lastModifiedAt = Date.now();
     try {
         localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(createSaveSnapshot(game)));
-    } catch (e) {
+    } catch (error) {
         try {
             let sanitized = sanitizeForSave(game || {});
             if (!sanitized.saveMeta || typeof sanitized.saveMeta !== 'object') sanitized.saveMeta = {};
             localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(sanitized));
             if (typeof addLog === 'function') addLog('💾 저장 데이터 정리 후 로컬 저장을 복구했습니다.', 'season-up');
         } catch (retryError) {
-            console.error('local save failed:', e, retryError);
+            console.error('local save failed:', error, retryError);
             let isQuota = retryError && (retryError.name === 'QuotaExceededError' || /quota|storage/i.test(String(retryError.message || '')));
+            setLocalSaveRuntimeState('write-failed', {
+                writable: false,
+                message: isQuota ? '브라우저 저장공간 부족으로 자동 저장을 중단했습니다.' : '로컬 저장 실패로 자동 저장을 중단했습니다.'
+            });
             if (typeof addLog === 'function') addLog(isQuota ? '⚠️ 로컬 저장 실패: 브라우저 저장공간을 확인하세요.' : '⚠️ 로컬 저장 실패: 저장 데이터 형식 오류가 발생했습니다.', 'loot-rare');
+            return false;
         }
     }
+    setLocalSaveRuntimeState('ok', { writable: true, sourceKey: LOCAL_SAVE_KEY });
     refreshItemIdCounter();
+    return true;
 }
 
 
@@ -105,23 +157,48 @@ function normalizeLocalRuntimeAfterLoad() {
 }
 
 function loadGame() {
-    try {
-        let save = readLocalSaveString();
-        if (save) game = mergeDefaults(JSON.parse(save));
-        else game = cloneDefaultGame();
-        ensureSaveMeta();
-        normalizeLocalRuntimeAfterLoad();
-        refreshItemIdCounter();
-    } catch (e) {
+    let result = readLocalSaveResult();
+    if (result.status === 'unavailable') {
+        console.error('local save storage is unavailable:', result.error);
+        setLocalSaveRuntimeState('unavailable', {
+            writable: false,
+            message: '브라우저 저장소에 접근할 수 없어 자동 저장과 클라우드 업로드를 중단했습니다.'
+        });
         game = cloneDefaultGame();
-        normalizeLocalRuntimeAfterLoad();
-        refreshItemIdCounter();
+    } else if (result.status === 'missing') {
+        setLocalSaveRuntimeState('missing', { writable: true });
+        game = cloneDefaultGame();
+    } else {
+        try {
+            game = mergeDefaults(JSON.parse(result.save));
+            setLocalSaveRuntimeState('ok', { writable: true, sourceKey: result.sourceKey });
+        } catch (error) {
+            let backupKey = preserveCorruptLocalSave(result.save);
+            console.error('local save is corrupt; automatic writes are blocked:', error);
+            setLocalSaveRuntimeState('corrupt', {
+                writable: false,
+                sourceKey: result.sourceKey,
+                backupKey,
+                message: backupKey
+                    ? `손상된 저장을 ${backupKey}에 보존했으며 자동 저장과 클라우드 업로드를 중단했습니다.`
+                    : '저장 데이터가 손상되어 자동 저장과 클라우드 업로드를 중단했습니다.'
+            });
+            game = cloneDefaultGame();
+        }
     }
+    ensureSaveMeta();
+    normalizeLocalRuntimeAfterLoad();
+    refreshItemIdCounter();
+    return getLocalSaveStatus();
 }
 
 function saveGame(options = {}) {
     let manual = !!options.manual;
-    persistLocalSave({ touchModifiedAt: options.touchModifiedAt !== false });
+    let persisted = persistLocalSave({ touchModifiedAt: options.touchModifiedAt !== false });
+    if (!persisted) {
+        if (manual && typeof setCloudMessage === 'function') setCloudMessage(localSaveRuntimeState.message || '로컬 저장이 차단되어 저장하지 못했습니다.');
+        return false;
+    }
     if (!options.skipCloudSync) {
         if (manual && typeof syncCloudSave === 'function' && cloudState && cloudState.configured && cloudState.user) {
             syncCloudSave({ automatic: false, force: true, reason: 'manual-save' }).catch(error => {
@@ -130,6 +207,7 @@ function saveGame(options = {}) {
         } else scheduleCloudAutoSync();
     }
     updateCloudSaveUI();
+    return true;
 }
 
 let importantSaveTimer = null;
@@ -157,4 +235,4 @@ function setCloudMessage(message) {
 }
 
 
-safeExposeGlobals({ readLocalSaveString, ensureSaveMeta, createSaveSnapshot, createCloudSavePayload, persistLocalSave, loadGame, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });
+safeExposeGlobals({ readLocalSaveString, readLocalSaveResult, getLocalSaveStatus, canPersistLocalSave, ensureSaveMeta, createSaveSnapshot, createCloudSavePayload, persistLocalSave, loadGame, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });

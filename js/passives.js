@@ -3610,7 +3610,7 @@ function initBattleAssets() {
             if (!isLocalFileProtocol()) img.crossOrigin = 'anonymous';
             img.decoding = 'async';
             img.loading = 'eager';
-            try { img.fetchPriority = group.priority <= 1 ? 'high' : 'auto'; } catch (e) {}
+            if ('fetchPriority' in img) img.fetchPriority = group.priority <= 1 ? 'high' : 'auto';
             img.onload = function() {
                 group.keys.forEach(key => storeLoadedBattleImage(key, img));
                 markBattleAssetGroupDone(group);

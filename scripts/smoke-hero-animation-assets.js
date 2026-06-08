@@ -5,21 +5,38 @@ const heroData = fs.readFileSync('data/passives.js', 'utf8');
 const passives = fs.readFileSync('js/passives.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 
-const expectedHeroes = [
-    { id: 'hero2', walkFrames: 13, attackFrames: 20 },
-    { id: 'hero6', walkFrames: 13, attackFrames: 14 },
-    { id: 'hero10', walkFrames: 12, attackFrames: 10 }
-];
+function readPngDimensions(filePath) {
+    const png = fs.readFileSync(filePath);
+    assert.strictEqual(png.toString('ascii', 1, 4), 'PNG', `${filePath} must be a PNG file`);
+    return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+}
 
-for (const hero of expectedHeroes) {
+function getConfiguredFrameCount(stripKey) {
+    const match = passives.match(new RegExp(`${stripKey}:\\s*(\\d+)`));
+    assert(match, `${stripKey} must have an explicit frame count`);
+    return Number(match[1]);
+}
+
+const expectedHeroes = ['hero2', 'hero6', 'hero10'];
+for (const heroId of expectedHeroes) {
     assert.match(
         heroData,
-        new RegExp(`strips: \\{ idle: '${hero.id}Idle', walk: '${hero.id}Walk', attack: '${hero.id}Attack', hurt: '${hero.id}Hurt', death: '${hero.id}Death' \\}`),
-        `${hero.id} must select its own canvas animation strips`
+        new RegExp(`strips: \\{ idle: '${heroId}Idle', walk: '${heroId}Walk', attack: '${heroId}Attack', hurt: '${heroId}Hurt', death: '${heroId}Death' \\}`),
+        `${heroId} must select its own canvas animation strips`
     );
-    assert(passives.includes(`${hero.id}Walk: 'assets/${hero.id}/${hero.id}_walk.png'`), `${hero.id} walk sheet path must be registered`);
-    assert(passives.includes(`${hero.id}Attack: 'assets/${hero.id}/${hero.id}_attack.png'`), `${hero.id} attack sheet path must be registered`);
-    assert(passives.includes(`${hero.id}Idle: ${hero.walkFrames}, ${hero.id}Walk: ${hero.walkFrames}, ${hero.id}Attack: ${hero.attackFrames}`), `${hero.id} frame counts must match the supplied strips`);
+
+    for (const animation of ['walk', 'attack']) {
+        const stripKey = `${heroId}${animation[0].toUpperCase()}${animation.slice(1)}`;
+        const assetPath = `assets/${heroId}/${heroId}_${animation}.png`;
+        assert(passives.includes(`${stripKey}: '${assetPath}'`), `${stripKey} must register ${assetPath}`);
+        const dimensions = readPngDimensions(assetPath);
+        assert.strictEqual(dimensions.width % dimensions.height, 0, `${assetPath} must contain square frames`);
+        assert.strictEqual(
+            getConfiguredFrameCount(stripKey),
+            dimensions.width / dimensions.height,
+            `${stripKey} frame count must match the supplied strip`
+        );
+    }
 }
 
 assert(!passives.includes('assets/hero2/DemonKin'), 'warrior must no longer load the legacy DemonKin sheets');

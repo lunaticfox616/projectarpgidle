@@ -1114,7 +1114,6 @@ function coreLoop() {
         }
     });
     applyCosmosPlayerDebuffsToStats(pStats);
-    if (isDeathOverlayOpen()) return;
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
     if ((Number(game.playerHp) || 0) <= 0) {
@@ -1375,9 +1374,9 @@ function convertSkillDamageToChaos(skill) {
 
 function getUniqueEffectImplementationReport() {
     let declared = [];
-    try {
-        if (Array.isArray(UNIQUE_DB)) declared = UNIQUE_DB.map(u => u && u.uniqueEffectKey).filter(Boolean);
-    } catch (_) {}
+    if (typeof UNIQUE_DB !== 'undefined' && Array.isArray(UNIQUE_DB)) {
+        declared = UNIQUE_DB.map(unique => unique && unique.uniqueEffectKey).filter(Boolean);
+    }
     let uniqueKeys = Array.from(new Set(declared));
     let implemented = new Set([
         'xpGainPct','flatDmgPerLevel','esAmpAndRecoverOnCrit','invertShockTaken','alwaysShock',
@@ -7073,37 +7072,34 @@ function applyTrialTrapTick(pStats) {
     }
 }
 
+function applyLoopHeroSelection(heroId, previousHeroId) {
+    game.pendingLoopHeroSelection = false;
+    saveGame({ skipCloudSync: true });
+    if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 캐릭터 선택 완료');
+    startMoving(true);
+    dispatchRuntimeEvent('loop-hero-selection-completed', {
+        heroId,
+        changed: heroId !== previousHeroId
+    });
+}
+
+function requestLoopHeroSelection(options = {}) {
+    let previousHeroId = game.selectedHeroId || 'hero1';
+    let detail = {
+        handled: false,
+        options,
+        select: heroId => applyLoopHeroSelection(heroId, previousHeroId)
+    };
+    return dispatchRuntimeEvent('loop-hero-selection-requested', detail);
+}
+
 function ensurePendingLoopHeroSelectionPrompt() {
     if (!game || !game.pendingLoopHeroSelection) return false;
-    if (isLoopHeroSelectOpen() || isStartupOverlayOpen() || isLoadingOverlayOpen() || isDeathOverlayOpen()) return false;
-    let previousHeroId = game.selectedHeroId || 'hero1';
-    openLoopHeroSelection((heroId) => {
-        if (heroId !== previousHeroId) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(heroId).label} 캐릭터를 선택했습니다.`, 'season-up');
-        game.pendingLoopHeroSelection = false;
-        saveGame({ skipCloudSync: true });
-        if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 캐릭터 선택 완료');
-        startMoving(true);
-        switchTab('tab-character');
-    }, {
+    return requestLoopHeroSelection({
         kicker: 'Loop Resume',
         title: '중단된 루프의 재능 선택',
         body: '저장된 루프 진행을 이어가기 전에 이번 루프 재능을 선택하세요.'
     });
-    return true;
-}
-
-function playLoopRewriteEffect() {
-    let overlay = document.getElementById('loop-rewrite-overlay');
-    if (!overlay) return;
-    overlay.innerHTML = `<div class="rewrite-card"><div class="rewrite-title">세계가 되감기는 중…</div><div class="rewrite-sub">흔적을 거슬러, 이전 루프로 복귀합니다.</div></div>`;
-    document.body.classList.add('loop-rewrite-active');
-    overlay.classList.remove('active');
-    void overlay.offsetWidth;
-    overlay.classList.add('active');
-    setTimeout(() => {
-        overlay.classList.remove('active');
-        document.body.classList.remove('loop-rewrite-active');
-    }, 1950);
 }
 
 function markLoopSpecialBossKill(bossKey) {
@@ -7111,7 +7107,6 @@ function markLoopSpecialBossKill(bossKey) {
     game.loopProgressCurrent.specialBosses = Array.isArray(game.loopProgressCurrent.specialBosses) ? game.loopProgressCurrent.specialBosses : [];
     if (!game.loopProgressCurrent.specialBosses.includes(bossKey)) game.loopProgressCurrent.specialBosses.push(bossKey);
 }
-
 
 function addWoodsmanPendingScore(scoreGain) {
     let score = Math.max(0, Math.floor(scoreGain || 0));
@@ -7242,8 +7237,7 @@ function triggerSeasonReset() {
         let parts = key.split('|');
         codexReveal[key] = { revealed: true, slot: parts[0] || '', name: parts[1] || '' };
     });
-    playLoopRewriteEffect();
-    let previousHeroId = game.selectedHeroId || 'hero1';
+    dispatchRuntimeEvent('loop-rewrite-started');
     let prevStarWedge = (game.starWedge && typeof game.starWedge === 'object') ? game.starWedge : {};
     let preservedEternalWedges = Array.isArray(prevStarWedge.wedges)
         ? prevStarWedge.wedges.filter(w => w && w.eternal).map(w => JSON.parse(JSON.stringify(w)))
@@ -7377,14 +7371,7 @@ function triggerSeasonReset() {
     game.pendingLoopHeroSelection = true;
     saveGame({ skipCloudSync: true });
     if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 진행');
-    openLoopHeroSelection((heroId) => {
-        if (heroId !== previousHeroId) addLog(`🧬 루프 전환으로 ${getHeroSelectionDef(heroId).label} 캐릭터를 선택했습니다.`, 'season-up');
-        game.pendingLoopHeroSelection = false;
-        saveGame({ skipCloudSync: true });
-        if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 캐릭터 선택 완료');
-        startMoving(true);
-        switchTab('tab-character');
-    });
+    requestLoopHeroSelection();
 }
 
 function chooseLoopAdvance(shouldLoop) {

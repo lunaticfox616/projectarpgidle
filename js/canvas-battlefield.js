@@ -1,38 +1,28 @@
+function getCanvasRuntimeFunction(name) {
+    if (typeof window === 'undefined') return null;
+    let provider = window[name];
+    if (typeof provider !== 'function' || provider.__placeholderGlobal === true) return null;
+    return provider;
+}
+
 function getCanvasPlayerStats(fallback = {}) {
-    try {
-        let provider = (typeof getPlayerStats === 'function')
-            ? getPlayerStats
-            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
-        if (provider) return provider() || fallback;
-    } catch (e) {}
-    return fallback;
+    let provider = getCanvasRuntimeFunction('getPlayerStats');
+    return provider ? (provider() || fallback) : fallback;
 }
 
 function getCanvasSkillTargets(stats) {
-    try {
-        let provider = (typeof getSkillTargets === 'function')
-            ? getSkillTargets
-            : ((typeof window !== 'undefined' && typeof window.getSkillTargets === 'function') ? window.getSkillTargets : null);
-        if (provider) return provider(stats) || [];
-    } catch (e) {}
-    return [];
+    let provider = getCanvasRuntimeFunction('getSkillTargets');
+    return provider ? (provider(stats) || []) : [];
 }
 
 function getCanvasCrowdProgressPaused() {
-    try {
-        let provider = (typeof isCrowdProgressPaused === 'function')
-            ? isCrowdProgressPaused
-            : ((typeof window !== 'undefined' && typeof window.isCrowdProgressPaused === 'function') ? window.isCrowdProgressPaused : null);
-        return provider ? !!provider() : false;
-    } catch (e) {}
-    return false;
+    let provider = getCanvasRuntimeFunction('isCrowdProgressPaused');
+    return provider ? !!provider() : false;
 }
 
 function getCanvasCrowdPauseLimit() {
-    try {
-        if (typeof ENEMY_CROWD_PAUSE_LIMIT !== 'undefined') return ENEMY_CROWD_PAUSE_LIMIT;
-        if (typeof window !== 'undefined' && Number.isFinite(Number(window.ENEMY_CROWD_PAUSE_LIMIT))) return Number(window.ENEMY_CROWD_PAUSE_LIMIT);
-    } catch (e) {}
+    if (typeof ENEMY_CROWD_PAUSE_LIMIT !== 'undefined') return ENEMY_CROWD_PAUSE_LIMIT;
+    if (typeof window !== 'undefined' && Number.isFinite(Number(window.ENEMY_CROWD_PAUSE_LIMIT))) return Number(window.ENEMY_CROWD_PAUSE_LIMIT);
     return 20;
 }
 
