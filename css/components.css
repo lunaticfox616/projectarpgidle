@@ -503,3 +503,85 @@
 body.light-mode .colony-ward-panel{background:linear-gradient(145deg,#f4fff8,#eef7ff);color:#20442d;border-color:#91d8aa}body.light-mode .colony-ward-title{color:#143820}body.light-mode .colony-ward-desc,body.light-mode .colony-ward-total{color:#496855}
 .colony-ward-search{margin-bottom:10px;display:grid;gap:7px}.colony-ward-search input{width:100%;box-sizing:border-box;padding:7px 9px;border-radius:9px;border:1px solid rgba(118,230,160,.28);background:rgba(2,12,8,.42);color:#dfffe8}.colony-ward-search .search-action-row{display:flex;gap:6px;flex-wrap:wrap}.colony-ward-search button{font-size:.78rem;padding:5px 8px}.colony-ward-chip{padding:0!important;overflow:hidden}.colony-ward-chip>button:first-child{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;text-align:left;border:0!important;background:transparent!important;box-shadow:none!important;padding:9px 10px!important}.colony-ward-dismantle{width:100%;border-top:1px solid rgba(255,160,160,.18)!important;border-left:0!important;border-right:0!important;border-bottom:0!important;border-radius:0!important;background:rgba(110,63,63,.68)!important;color:#ffd0d0!important;font-size:.76rem!important;padding:6px 10px!important;text-align:left!important}
 body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;border-color:#91d8aa}body.light-mode .colony-ward-dismantle{background:#ffe9e9!important;color:#8a3333!important}
+
+/* Passive tree compositor overlay: animated rings are CSS-only so rAF does not repaint the canvas. */
+.passive-tree-overlay {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 2;
+    contain: layout paint style;
+}
+
+.passive-tree-overlay-world {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+}
+
+.passive-overlay-node,
+.passive-reveal-burst {
+    position: absolute;
+    box-sizing: border-box;
+    border-radius: 999px;
+    transform: translate3d(-50%, -50%, 0);
+    will-change: transform, opacity;
+}
+
+.passive-overlay-node {
+    border: 1.2px solid transparent;
+    animation: passiveReachableRotate 2.8s linear infinite;
+    opacity: var(--passive-ring-alpha, 1);
+}
+
+.passive-overlay-node::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.2px;
+    background: repeating-conic-gradient(rgba(155, 220, 255, 0.62) 0deg 7deg, transparent 7deg 23deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+}
+
+.passive-overlay-node.hover-current {
+    border-style: solid;
+    border-color: rgba(195, 231, 255, 0.88);
+    box-shadow: 0 0 0 8px rgba(151, 205, 255, 0.14), 0 0 18px rgba(151, 205, 255, 0.36);
+    animation-duration: 1.15s;
+}
+
+.passive-overlay-node.hover-current::before,
+.passive-overlay-node.hover-linked::before {
+    display: none;
+}
+
+.passive-overlay-node.hover-linked {
+    border-style: solid;
+    border-color: rgba(151, 205, 255, 0.78);
+    box-shadow: 0 0 0 5px rgba(151, 205, 255, 0.10);
+    animation: none;
+}
+
+.passive-reveal-burst {
+    border: 8px solid rgba(245, 223, 173, 0.42);
+    box-shadow: 0 0 18px rgba(245, 223, 173, 0.28);
+    animation: passiveRevealBurst 900ms ease-out forwards;
+}
+
+@keyframes passiveReachableRotate {
+    to { transform: translate3d(-50%, -50%, 0) rotate(360deg); }
+}
+
+@keyframes passiveRevealBurst {
+    from { opacity: 1; transform: translate3d(-50%, -50%, 0) scale(0.02); }
+    to { opacity: 0; transform: translate3d(-50%, -50%, 0) scale(1); }
+}

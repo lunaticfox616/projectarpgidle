@@ -174,3 +174,27 @@
         .summon-gem-count { min-width: 44px; text-align: center; font-size: 0.74em; font-weight: 800; color: #dffaf0; background: rgba(18, 74, 58, 0.72); border: 1px solid rgba(120, 230, 193, 0.55); border-radius: 999px; padding: 2px 7px; }
         .summon-gem-count-btn { width: 22px; min-height: 22px; padding: 0; border-radius: 50%; font-size: 0.82em; font-weight: 900; line-height: 1; background: #173b35; border: 1px solid #45a889; color: #dffaf0; }
         .summon-gem-count-btn:hover { filter: brightness(1.18); }
+
+@media (max-width: 720px) {
+    .stat-item.full.ailment-stat-block {
+        grid-template-columns: 1fr;
+        gap: 5px;
+        white-space: normal;
+        overflow: hidden;
+    }
+    .ailment-stat-inline-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px 6px;
+        min-width: 0;
+    }
+    .ailment-stat-chip {
+        flex: 1 1 76px;
+        min-width: 0;
+        font-size: 0.9em;
+    }
+    .ailment-chip-label,
+    .ailment-chip-value {
+        min-width: 0;
+    }
+}
