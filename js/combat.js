@@ -6685,7 +6685,7 @@ function performMonsterAttacks(pStats) {
             else if (enemy.ele === 'chaos') elementalRes = pStats.resChaos;
             elementalRes = Math.max(-60, elementalRes - (enemy.penetration || 0));
             let mitigatedElemental = Math.max(0, Math.floor(elementalPortion * (1 - (elementalRes / 100))));
-            let physRes = Math.max(-60, (pStats.dr + getArmorPhysicalReductionPct(pStats.armor, physicalPortion)) - (enemy.penetration || 0));
+            let physRes = Math.max(-60, pStats.dr + getArmorPhysicalReductionPct(pStats.armor, physicalPortion));
             let mitigatedPhysical = Math.max(0, Math.floor(physicalPortion * (1 - (physRes / 100))));
             let damageBreakdown = [];
             if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
