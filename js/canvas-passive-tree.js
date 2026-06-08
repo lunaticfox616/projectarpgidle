@@ -1,5 +1,195 @@
 // Phase-2 extracted passive tree canvas draw block.
 
+function ensurePassiveTreeOverlay() {
+    let overlay = document.getElementById('passive-tree-overlay');
+    const container = document.getElementById('tree-container');
+    if (!overlay && container) {
+        overlay = document.createElement('div');
+        overlay.id = 'passive-tree-overlay';
+        overlay.className = 'passive-tree-overlay';
+        overlay.setAttribute('aria-hidden', 'true');
+        overlay.innerHTML = '<div class="passive-tree-overlay-world"></div>';
+        container.appendChild(overlay);
+    }
+    if (!overlay) return null;
+    let world = overlay.querySelector('.passive-tree-overlay-world');
+    if (!world) {
+        world = document.createElement('div');
+        world.className = 'passive-tree-overlay-world';
+        overlay.appendChild(world);
+    }
+    return { overlay, world };
+}
+
+function updatePassiveTreeOverlayTransform(displayWidth, displayHeight) {
+    const parts = ensurePassiveTreeOverlay();
+    if (!parts) return null;
+    parts.world.style.transform = `translate3d(${displayWidth / 2 + camX}px, ${displayHeight / 2 + camY}px, 0) scale(${camZoom})`;
+    return parts;
+}
+
+function syncPassiveTreeOverlay(displayWidth, displayHeight, visibleNodes, hoveredLinkedIds, hoveredPathNodeIds, ultraZoomedOutMode) {
+    const parts = updatePassiveTreeOverlayTransform(displayWidth, displayHeight);
+    if (!parts) return;
+    const world = parts.world;
+    const wanted = new Set();
+    if (!ultraZoomedOutMode) {
+        visibleNodes.forEach(node => {
+            const visibility = getPassiveVisibility(node.id);
+            if (visibility === 'hidden') return;
+            const active = (game.passives || []).includes(node.id);
+            const reachable = reachableNodes.has(node.id);
+            const hoverCurrent = !!(hoverNode && hoverNode.id === node.id);
+            const hoverLinked = !!(hoverNode && hoverNode.id !== node.id && (hoveredLinkedIds.has(node.id) || hoveredPathNodeIds.has(node.id)));
+            if ((!active && reachable) || hoverCurrent || hoverLinked) {
+                const key = `node:${node.id}`;
+                wanted.add(key);
+                let el = world.querySelector(`[data-passive-overlay-key="${key}"]`);
+                if (!el) {
+                    el = document.createElement('div');
+                    el.className = 'passive-overlay-node';
+                    el.dataset.passiveOverlayKey = key;
+                    world.appendChild(el);
+                }
+                const radius = getPassiveNodeVisualRadius(node) + (hoverCurrent ? 9 : (hoverLinked ? 7.5 : 5.5));
+                const size = Math.max(1, radius * 2);
+                el.style.left = `${node.x}px`;
+                el.style.top = `${node.y}px`;
+                el.style.width = `${size}px`;
+                el.style.height = `${size}px`;
+                el.style.setProperty('--passive-ring-alpha', String(Math.max(0.35, getNodeRevealAmount(node))));
+                el.classList.toggle('hover-current', hoverCurrent);
+                el.classList.toggle('hover-linked', hoverLinked);
+            }
+        });
+    }
+    Array.from(world.querySelectorAll('.passive-overlay-node')).forEach(el => {
+        if (!wanted.has(el.dataset.passiveOverlayKey)) el.remove();
+    });
+}
+
+function spawnPassiveRevealBurstOverlay(burst) {
+    if (!burst) return;
+    const canvas = document.getElementById('tree-canvas');
+    const displayWidth = passiveCanvasMetrics.width || (canvas ? canvas.clientWidth : 0);
+    const displayHeight = passiveCanvasMetrics.height || (canvas ? canvas.clientHeight : 0);
+    const parts = updatePassiveTreeOverlayTransform(displayWidth, displayHeight);
+    if (!parts) return;
+    const el = document.createElement('div');
+    el.className = 'passive-reveal-burst';
+    const radius = Math.max(1, burst.radius || 1);
+    el.style.left = `${burst.x || 0}px`;
+    el.style.top = `${burst.y || 0}px`;
+    el.style.width = `${radius * 2}px`;
+    el.style.height = `${radius * 2}px`;
+    el.style.animationDuration = `${Math.max(100, burst.duration || 900)}ms`;
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+    parts.world.appendChild(el);
+}
+
+
+
+function drawPassiveSearchHighlight(ctx, node, radius, accent) {
+    ctx.save();
+    const ringColor = accent && accent.activeOuter ? accent.activeOuter : '#ffffff';
+    const textColor = accent && accent.text ? accent.text : '#ffffff';
+    ctx.globalAlpha = 0.95;
+    ctx.shadowColor = ringColor;
+    ctx.shadowBlur = 16;
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius + 10, 0, Math.PI * 2);
+    ctx.strokeStyle = ringColor;
+    ctx.lineWidth = Math.max(1.4, 2.2 / Math.max(0.35, camZoom));
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    const label = getPassiveNodeDisplayName(node);
+    if (label && camZoom >= 0.18) {
+        const fontSize = Math.max(10, Math.min(22, 12 / Math.max(0.32, camZoom)));
+        ctx.font = `700 ${fontSize}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        const y = node.y - radius - 14;
+        const padX = 6 / Math.max(0.42, camZoom);
+        const h = fontSize + 5;
+        const w = ctx.measureText(label).width + padX * 2;
+        ctx.fillStyle = 'rgba(6,10,16,0.82)';
+        ctx.strokeStyle = ringColor;
+        ctx.lineWidth = 1 / Math.max(0.45, camZoom);
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') ctx.roundRect(node.x - w / 2, y - h, w, h, 5 / Math.max(0.45, camZoom));
+        else ctx.rect(node.x - w / 2, y - h, w, h);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = textColor;
+        ctx.fillText(label, node.x, y - 3);
+    }
+    ctx.restore();
+}
+
+
+function getPassiveNodeEffectShortLabel(node) {
+    if (!node) return '';
+    const stat = node.stat || '';
+    const shortByStat = {
+        flatHp: '생명', pctHp: '생명', regen: '재생', leech: '흡혈',
+        flatDmg: '피해', pctDmg: '피해', meleePctDmg: '근접', physPctDmg: '물리', aoePctDmg: '범위', projectilePctDmg: '투사체',
+        firePctDmg: '화염', coldPctDmg: '냉기', lightPctDmg: '번개', chaosPctDmg: '카오스', elementalPctDmg: '원소', dotPctDmg: '지속피해',
+        crit: '치명', critDmg: '치피', aspd: '공속', move: '이속',
+        armor: '방어', armorPct: '방어', evasion: '회피', evasionPct: '회피', energyShield: '보호막', energyShieldPct: '보호막', energyShieldRegen: '보호재생',
+        deflectChance: '빗겨내기', dr: '피감', blockChance: '막기', blockChancePct: '막기',
+        resF: '화염저항', resC: '냉기저항', resL: '번개저항', resAll: '모든저항', resChaos: '카오저항', resPen: '저항관통',
+        igniteChance: '점화', chillChance: '냉각', freezeChance: '동결', shockChance: '감전', poisonChance: '중독', bleedChance: '출혈',
+        ailResIgnite: '점화저항', ailResShock: '감전저항', ailResFreeze: '동결저항', ailResPoison: '중독저항', ailResBleed: '출혈저항',
+        gemLevel: '젬레벨', suppCap: '보조젬', expGain: '경험치', ds: '방어확률', physIgnore: '방어무시'
+    };
+    let label = shortByStat[stat] || getStatName(stat) || getPassiveEffectLabel(node) || '';
+    label = String(label)
+        .replace(/\([^)]*\)/g, '')
+        .replace(/[+\-]?\d+(?:\.\d+)?\s*%?/g, '')
+        .replace(/[·:：]/g, ' ')
+        .replace(/증가|확률|획득|피해량|효과/g, '')
+        .replace(/\s+/g, '')
+        .trim();
+    if (!label) label = getPassiveNodeDisplayName(node) || '';
+    return label.length > 6 ? label.slice(0, 6) : label;
+}
+
+function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility, zoomedOutMode) {
+    if (!node || visibility === 'hidden' || zoomedOutMode || camZoom < 0.46) return;
+    const important = node.kind === 'major' || node.kind === 'hub' || node.kind === 'apex' || node.kind === 'transcendent';
+    const hovered = !!(hoverNode && hoverNode.id === node.id);
+    if (!important && !reachable && !hovered) return;
+
+    const label = getPassiveNodeEffectShortLabel(node);
+    if (!label) return;
+    const accent = getPassiveStatAccent(node.stat);
+    const fontSize = Math.max(9, Math.min(15, 10.5 / Math.max(0.55, camZoom)));
+    const padX = 4.5 / Math.max(0.6, camZoom);
+    const padY = 2.5 / Math.max(0.6, camZoom);
+    const x = node.x + radius + 6 / Math.max(0.7, camZoom);
+    const y = node.y + fontSize * 0.38;
+
+    ctx.save();
+    ctx.font = `700 ${fontSize}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const w = ctx.measureText(label).width + padX * 2;
+    const h = fontSize + padY * 2;
+    ctx.globalAlpha = active ? 0.98 : (reachable ? 0.9 : 0.76);
+    ctx.fillStyle = 'rgba(5,9,15,0.78)';
+    ctx.strokeStyle = active ? accent.activeOuter : (reachable ? accent.reachOuter : 'rgba(150,175,200,0.5)');
+    ctx.lineWidth = Math.max(0.7, 1 / Math.max(0.55, camZoom));
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y - h / 2, w, h, 4 / Math.max(0.65, camZoom));
+    else ctx.rect(x, y - h / 2, w, h);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = accent.text || '#dce6f2';
+    ctx.fillText(label, x + padX, y);
+    ctx.restore();
+}
+
 function getHoveredPassivePathNodeIds(hoveredNodeId) {
     if (!hoveredNodeId) return new Set();
     let edges = passiveRenderCache && Array.isArray(passiveRenderCache.edges) ? passiveRenderCache.edges : [];
@@ -121,21 +311,7 @@ function drawPassiveTree() {
         ctx.fill();
     });
 
-    // 리빌 펄스
-    if (!lightweightMode && !zoomedOutMode) passiveRevealBursts.forEach(burst => {
-        const progress = clampNumber((performance.now() - burst.startTime) / burst.duration, 0, 1);
-        const radius = burst.radius * progress;
-        const alpha = 1 - progress;
-
-        ctx.beginPath();
-        ctx.arc(burst.x, burst.y, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(245,223,173,${alpha * 0.42})`;
-        ctx.lineWidth = 8;
-        ctx.shadowColor = `rgba(245,223,173,${alpha * 0.28})`;
-        ctx.shadowBlur = 18;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-    });
+    // 리빌 펄스는 CSS overlay에서 animationend까지 GPU compositor로 처리한다.
 
     let hoveredLinkedIds = new Set();
     let hoveredPathNodeIds = getHoveredPassivePathNodeIds(hoverNode && hoverNode.id);
@@ -179,10 +355,10 @@ function drawPassiveTree() {
             });
         } else if (hoveredLink || linkedHoverChain || onHoveredPath) {
             drawPassiveLink(ctx, a, b, {
-                stroke: hoveredLink ? 'rgba(141,188,230,0.98)' : (onHoveredPath ? 'rgba(255,216,120,0.95)' : 'rgba(112,165,214,0.82)'),
-                innerStroke: hoveredLink ? 'rgba(222,244,255,0.96)' : (onHoveredPath ? 'rgba(255,244,196,0.82)' : 'rgba(198,228,255,0.58)'),
-                width: hoveredLink ? 5.2 : (onHoveredPath ? 4.8 : 3.8),
-                shadow: lightweightMode ? 'transparent' : (onHoveredPath ? 'rgba(255,216,120,0.42)' : 'rgba(151,206,255,0.38)'),
+                stroke: hoveredLink ? 'rgba(238,248,255,0.98)' : (onHoveredPath ? 'rgba(255,216,120,0.95)' : 'rgba(112,165,214,0.82)'),
+                innerStroke: hoveredLink ? 'rgba(255,255,255,0.96)' : (onHoveredPath ? 'rgba(255,244,196,0.82)' : 'rgba(198,228,255,0.58)'),
+                width: hoveredLink ? 5.4 : (onHoveredPath ? 4.8 : 3.8),
+                shadow: lightweightMode ? 'transparent' : (hoveredLink ? 'rgba(238,248,255,0.38)' : (onHoveredPath ? 'rgba(255,216,120,0.42)' : 'rgba(151,206,255,0.38)')),
                 blur: lightweightMode ? 0 : 15
             });
         } else if (activeLink) {
@@ -221,38 +397,22 @@ function drawPassiveTree() {
     // 노드
     visibleNodes.forEach(node => {
         const visibility = getPassiveVisibility(node.id);
-        if (visibility === 'hidden') return;
-        const revealAlpha = getNodeRevealAmount(node);
-        const active = (game.passives || []).includes(node.id);
-        const reachable = reachableNodes.has(node.id);
+        const hiddenSilhouette = visibility === 'hidden' && zoomedOutMode;
+        if (visibility === 'hidden' && !hiddenSilhouette) return;
+        const searchInfo = (typeof getPassiveNodeSearchMatch === 'function') ? getPassiveNodeSearchMatch(node) : { active: false, matches: true };
+        const revealAlpha = hiddenSilhouette ? (searchInfo.active && searchInfo.matches ? 0.18 : 0.12) : getNodeRevealAmount(node);
+        const active = !hiddenSilhouette && (game.passives || []).includes(node.id);
+        const reachable = !hiddenSilhouette && reachableNodes.has(node.id);
         const radius = getPassiveNodeVisualRadius(node) + ((hoverNode && hoverNode.id === node.id) ? 1.5 : 0);
         const palette = getPassiveNodePalette(node, active, reachable, visibility);
+        const searchDimmed = searchInfo.active && !searchInfo.matches;
+        const nodeAlpha = revealAlpha * (searchDimmed ? 0.28 : 1);
 
-        drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, revealAlpha, lightweightMode);
+        drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, nodeAlpha, lightweightMode || hiddenSilhouette || searchDimmed);
+        if (!searchDimmed) drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility, zoomedOutMode);
+        if (searchInfo.active && searchInfo.matches) drawPassiveSearchHighlight(ctx, node, radius, palette);
 
-        if (!ultraZoomedOutMode && !active && reachable) {
-            ctx.save();
-            ctx.globalAlpha = revealAlpha;
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius + 5.5, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(155,220,255,0.56)';
-            ctx.lineWidth = 1.25;
-            ctx.setLineDash([4, 6]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.restore();
-        }
-
-        if (!ultraZoomedOutMode && hoverNode && (hoveredLinkedIds.has(node.id) || hoveredPathNodeIds.has(node.id)) && hoverNode.id !== node.id) {
-            ctx.save();
-            ctx.globalAlpha = Math.max(0.35, revealAlpha * 0.9);
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius + 7.5, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(151,205,255,0.78)';
-            ctx.lineWidth = 1.4;
-            ctx.stroke();
-            ctx.restore();
-        }
+        // reachable/hover rings are maintained in the CSS overlay below.
     });
 
     // 미개척 안개는 과도한 블랙아웃을 피하기 위해 최소 수준으로만 적용
@@ -267,7 +427,7 @@ function drawPassiveTree() {
 
     ctx.restore();
 
-
+    syncPassiveTreeOverlay(displayWidth, displayHeight, visibleNodes, hoveredLinkedIds, hoveredPathNodeIds, ultraZoomedOutMode);
 }
 
 function handleEquipmentSlotDoubleClick(slot, forCrafting) {
@@ -463,4 +623,4 @@ function triggerMapUnlockReveal(zoneId) {
 }
 
 
-Object.assign(window, { drawPassiveTree });
+Object.assign(window, { drawPassiveTree, syncPassiveTreeOverlay, spawnPassiveRevealBurstOverlay, updatePassiveTreeOverlayTransform });
