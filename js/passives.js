@@ -5688,7 +5688,7 @@ function removeJewelFromAbyssSocket(socketIdx) { if (game.woodsmanBuildLock) ret
     updateStaticUI();
 }
 
-safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket });
+safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, getVoidJewelCraftMaterialIndices, craftVoidJewel, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
 
 function createItemFromBase(base, rarity, zoneTier) {
     itemIdCounter++;
@@ -6431,18 +6431,35 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
     updateStaticUI();
 }
 
+function getVoidJewelCraftMaterialIndices() {
+    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
+    let validSelected = (jewelFusionSelection || [])
+        .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length)
+        .filter((idx, pos, arr) => arr.indexOf(idx) === pos);
+    if (validSelected.length === 2 && !getProtectedJewelCraftMaterial(validSelected.map(idx => game.jewelInventory[idx]))) return validSelected;
+    return game.jewelInventory
+        .map((jewel, idx) => ({ jewel, idx }))
+        .filter(entry => entry.jewel && !entry.jewel.locked && !entry.jewel.waxedByBeeswax)
+        .slice(0, 2)
+        .map(entry => entry.idx);
+}
+
 function craftVoidJewel() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     game.jewelInventory = game.jewelInventory || [];
     if ((game.currencies.voidChisel || 0) <= 0) return addLog('공허의 끌이 부족합니다.', 'attack-monster');
-    if (game.jewelInventory.length < 2) return addLog('공허 주얼 제작에는 주얼 2개가 필요합니다.', 'attack-monster');
-    let craftMaterials = game.jewelInventory.slice(0, 2);
+    let materialIndices = getVoidJewelCraftMaterialIndices();
+    if (materialIndices.length < 2) return addLog('공허 주얼 제작에는 잠금/밀랍 처리되지 않은 주얼 2개가 필요합니다.', 'attack-monster');
+    let craftMaterials = materialIndices.map(idx => game.jewelInventory[idx]);
     if (rejectProtectedJewelCraftMaterial(craftMaterials, '공허 주얼 제작')) return;
-    let a = game.jewelInventory.shift();
-    let b = game.jewelInventory.shift();
+    let sorted = materialIndices.slice().sort((a, b) => b - a);
+    let removed = sorted.map(idx => game.jewelInventory.splice(idx, 1)[0]).reverse();
+    let a = removed[0];
+    let b = removed[1];
     let stats = [...getJewelCoreStats(a), ...getJewelCoreStats(b)].slice(0, 4).map(cloneJewelStat).filter(Boolean);
     let jewel = { id: Date.now() + Math.floor(Math.random()*10000), name: '공허 주얼', rarity: 'magic', isVoid: true, hiddenTier: Math.max(1, ...stats.map(stat => stat.tier || 1)), stats: stats, maxLines: 4 };
     game.currencies.voidChisel--;
     game.jewelInventory.push(jewel);
+    jewelFusionSelection = [];
     addLog('🕳️ 공허 주얼 제작 완료 (최대 4줄)', 'loot-rare');
     updateStaticUI();
 }
