@@ -345,6 +345,27 @@ function startMobilePipRefreshLoop() {
     }, 120);
 }
 
+
+function isOverlayElementOpen(selector) {
+    let el = document.querySelector(selector);
+    if (!el) return false;
+    if (el.classList && el.classList.contains('active')) return true;
+    let style = (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') ? window.getComputedStyle(el) : null;
+    return !style || (style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0);
+}
+
+function isPauseSettingOverlayOpen() {
+    let modalSelectors = [
+        '.tutorial-overlay.active',
+        '#condition-gem-overlay',
+        '#beehive-choice-overlay',
+        '#spore-mode-overlay',
+        '#mobile-craft-currency-overlay',
+        '#craft-item-picker-overlay'
+    ];
+    return modalSelectors.some(selector => isOverlayElementOpen(selector));
+}
+
 function tickShrineState(){
     game.shrineState = game.shrineState || { active: null, nextRollAt: 0 };
     let now = Date.now();
@@ -3177,7 +3198,7 @@ function showPlayerBuffTooltip(event, name, type, remainSec) {
     let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${type || '버프'}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">${lines.join(' / ') || '효과 정보 없음'}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
 }
-function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, specialDps, critDotBonusPct, stackCount) {
+function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, specialDps, critDotBonusPct, stackCount, rawTickDamage, tickInterval, enemyRes, abyssPlayerMul, igniteTakenMultiplier) {
     let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈', flameDecay: '화염 부패' };
     let p = Math.max(0, Number(power || 0));
     let source = Math.max(0, Number(sourceHitDamage || 0));
@@ -3193,7 +3214,15 @@ function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, 
     } else if (type === 'flameDecay') {
         let dps = Math.max(0, Math.floor(Number(specialDps || 0)));
         let totalDamage = Math.max(0, Math.floor(dps * remainSec));
-        detail = `총 피해량: 약 ${totalDamage} <span style="color:#9fb4d1;">(초당 피해: 약 ${dps}, 화염 부패 지속 피해)</span><br><span style="color:#ffb48a;">점화 피해 증폭: 생명력 100당 8%</span>`;
+        let rawTick = Math.max(0, Math.floor(Number(rawTickDamage || 0)));
+        let interval = Math.max(0.02, Number(tickInterval || 0));
+        let rawDps = rawTick > 0 ? Math.floor(rawTick / interval) : 0;
+        let res = Number.isFinite(Number(enemyRes)) ? Number(enemyRes) : null;
+        let abyss = Number.isFinite(Number(abyssPlayerMul)) ? Number(abyssPlayerMul) : 1;
+        let igniteMul = Math.max(1, Number(igniteTakenMultiplier || 1));
+        let resistText = res !== null ? ` · 적 화염 저항/관통 후 ${res.toFixed(1)}%` : '';
+        let abyssText = Math.abs(abyss - 1) > 0.001 ? ` · 심연/지역 배율 ${abyss.toFixed(2)}x` : '';
+        detail = `총 피해량: 약 ${totalDamage} <span style="color:#9fb4d1;">(최종 초당 피해: 약 ${dps}, 원시 ${rawDps}/s${resistText}${abyssText})</span><br><span style="color:#ffb48a;">점화 피해 증폭: ${igniteMul.toFixed(2)}x (생명력 기반 시너지)</span>`;
     }
     else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
     else if (type === 'shock') {
@@ -4743,7 +4772,7 @@ function updateCombatUI(pStats) {
         let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
         let enemyDebuffs = (((game.enemyConditionDebuffs || {})[focusedEnemy.id]) || []).filter(row => row && (row.expiresAt || 0) > Date.now());
         let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d', assassinWeakness: '#ff9bd1' };
-        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getUiStoredAilmentHitDamage(ail))},${Math.floor(ail.flameDecayDps || 0)},${Number(ail.critDotBonusPct || 0).toFixed(3)},${Math.max(1, Math.floor(ail.stacks || 1))})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type}${ail.type === 'assassinWeakness' ? ` ${Math.floor(ail.power || 0)}중첩` : ''} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
+        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getUiStoredAilmentHitDamage(ail))},${Math.floor(ail.flameDecayDps || 0)},${Number(ail.critDotBonusPct || 0).toFixed(3)},${Math.max(1, Math.floor(ail.stacks || 1))},${Math.floor(ail.rawTickDamage || 0)},${Number(ail.tickInterval || 0).toFixed(3)},${Number(ail.enemyRes || 0).toFixed(3)},${Number(ail.abyssPlayerMul || 1).toFixed(3)},${Number(ail.igniteTakenMultiplier || 1).toFixed(3)})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type}${ail.type === 'assassinWeakness' ? ` ${Math.floor(ail.power || 0)}중첩` : ''} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
         let curseText = enemyDebuffs.map(row => `<span data-info-tooltip-anchor=\"1\" style=\"color:#ff9bd1;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${row.name}','curse',${Math.ceil(Math.max(0,((row.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">🕯 저주:${row.name} ${Math.ceil(Math.max(0, ((row.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
         ailmentText = [ailmentText, curseText].filter(Boolean).join(' · ');
         let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
@@ -9530,7 +9559,7 @@ function init() {
             try {
                 let overlayPause = !!(game.settings && game.settings.pauseGameOnOverlay);
                 let blockingOverlayOpen = isStartupOverlayOpen() || isLoadingOverlayOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen();
-                let optionalOverlayOpen = overlayPause && (isTutorialOpen() || !!document.querySelector('.tutorial-overlay.active'));
+                let optionalOverlayOpen = overlayPause && isPauseSettingOverlayOpen();
                 if (blockingOverlayOpen || optionalOverlayOpen) return;
                 runUiCoreLoop();
                 ensureLoopChallengeState();
