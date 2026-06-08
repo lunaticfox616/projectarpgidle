@@ -338,17 +338,8 @@ function drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode) {
     ctx.translate(node.x, node.y);
 
     if (node.tier === 0) {
-        ctx.rotate(performance.now() * 0.00008);
-        for (let i = 0; i < 6; i++) {
-            ctx.rotate(Math.PI / 3);
-            ctx.beginPath();
-            ctx.moveTo(radius + 4, 0);
-            ctx.lineTo(radius + 11, -2.5);
-            ctx.lineTo(radius + 11, 2.5);
-            ctx.closePath();
-            ctx.fillStyle = active ? 'rgba(245,223,173,0.65)' : 'rgba(120,140,156,0.34)';
-            ctx.fill();
-        }
+        ctx.restore();
+        return;
     } else if (node.kind === 'apex' || node.kind === 'transcendent') {
         ctx.rotate(performance.now() * (node.kind === 'transcendent' ? 0.00012 : 0.00008));
         ctx.beginPath();
@@ -725,7 +716,8 @@ function generateOrganicTree() {
     const webYScale = 1;
     const angleStep = Math.PI * 2 / webSpokeCount;
 
-    let root = addNode(0, 0, 0, 'flatHp', { sector: 'center', kind: 'root', depth: 0, lane: 0 });
+    let root = addNode(0, 0, 0, 'flatDmg', { sector: 'center', kind: 'root', depth: 0, lane: 0 });
+    if (root) root.val = 8;
     let webNodes = {};
 
     function getWebSectorIndex(spoke) {
@@ -2408,9 +2400,8 @@ function fitPassiveCameraToBounds(force) {
     if (!container || container.offsetParent === null) return;
     let width = Math.max(1, container.clientWidth);
     let height = Math.max(1, container.clientHeight);
-    let treeWidth = Math.max(1, PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX + 420);
-    let treeHeight = Math.max(1, PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY + 420);
-    camZoom = clampNumber(Math.min((width * 0.84) / treeWidth, (height * 0.84) / treeHeight), 0.12, 0.52);
+    let defaultZoom = Math.min(width, height) / 780;
+    camZoom = clampNumber(defaultZoom, 0.42, 0.72);
     camX = 0;
     camY = 0;
     passiveCameraInitialized = true;

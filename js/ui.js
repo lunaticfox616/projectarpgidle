@@ -2970,6 +2970,8 @@ function updateSettings() {
     game.settings.showCrowdPauseLog = document.getElementById('chk-log-crowd').checked;
     game.settings.showDeathNotice = document.getElementById('chk-death-notice').checked;
     game.settings.showMobileBattlePip = document.getElementById('chk-mobile-battle-pip').checked;
+    let pauseOverlayCheckbox = document.getElementById('chk-pause-overlay');
+    game.settings.pauseGameOnOverlay = !!(pauseOverlayCheckbox && pauseOverlayCheckbox.checked);
     let damageFormatSelect = document.getElementById('sel-damage-number-format');
     let damageFormat = damageFormatSelect ? damageFormatSelect.value : game.settings.damageNumberFormat;
     game.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(damageFormat) ? damageFormat : 'comma';
@@ -6575,6 +6577,9 @@ function getPassiveNodeSearchMatch(node) {
     let filter = state.filter || 'all';
     let active = !!query || filter !== 'all';
     if (!active) return { active: false, matches: true, query, filter };
+    if (node && typeof getPassiveVisibility === 'function' && getPassiveVisibility(node.id) === 'hidden') {
+        return { active: true, matches: false, query, filter };
+    }
     return {
         active: true,
         matches: doesPassiveNodeMatchSearch(node, query) && doesPassiveNodeMatchFilter(node, filter),
@@ -6898,7 +6903,7 @@ function setupCanvasEvents() {
         let localY = e.clientY - rect.top;
         let worldX = (localX - centerX - camX) / camZoom;
         let worldY = (localY - centerY - camY) / camZoom;
-        camZoom *= (e.deltaY > 0 ? 0.8 : 1.2);
+        camZoom *= (e.deltaY > 0 ? 0.74 : 1.32);
         camZoom = clampNumber(camZoom, 0.12, 2.5);
         camX = localX - centerX - worldX * camZoom;
         camY = localY - centerY - worldY * camZoom;
@@ -9419,6 +9424,7 @@ function init() {
     document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
     document.getElementById('chk-mobile-battle-pip').checked = game.settings.showMobileBattlePip !== false;
+    document.getElementById('chk-pause-overlay').checked = !!game.settings.pauseGameOnOverlay;
     document.getElementById('sel-damage-number-format').value = ['comma', 'korean', 'korean_short', 'english'].includes(game.settings.damageNumberFormat) ? game.settings.damageNumberFormat : 'comma';
     game.settings.itemFilterRarities = { normal: true, magic: true, rare: true, unique: true, ...(game.settings.itemFilterRarities || {}) };
     document.getElementById('chk-item-filter-enabled').checked = !!game.settings.itemFilterEnabled;
@@ -9522,7 +9528,9 @@ function init() {
         if (gameTickHandle) clearInterval(gameTickHandle);
         gameTickHandle = setInterval(() => {
             try {
-                if (isStartupOverlayOpen() || isLoadingOverlayOpen() || isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) return;
+                let overlayPause = !!(game.settings && game.settings.pauseGameOnOverlay);
+                let activeGameplayOverlay = !!document.querySelector('.tutorial-overlay.active');
+                if (isStartupOverlayOpen() || isLoadingOverlayOpen() || (overlayPause && activeGameplayOverlay)) return;
                 runUiCoreLoop();
                 ensureLoopChallengeState();
                 if (pendingHeavyUiRefresh) {
