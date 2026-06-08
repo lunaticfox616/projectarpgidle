@@ -27,7 +27,7 @@ assert(!incomingPhysicalLine[0].includes('enemy.resistanceReduction'), 'monster 
 
 const resistanceHelper = combat.match(/function getPlayerResistanceAfterEnemyModifiers\(pStats, element, enemy, effectMultiplier\) \{[\s\S]*?\n\}/);
 assert(resistanceHelper, 'incoming resistance modifier helper must exist');
-const context = {};
+const context = { MIN_PENETRATED_RESISTANCE: -200 };
 vm.createContext(context);
 vm.runInContext(`${resistanceHelper[0]}; this.getPlayerResistanceAfterEnemyModifiers = getPlayerResistanceAfterEnemyModifiers;`, context);
 const overcappedFire = { resF: 75, rawResF: 130, maxResF: 75 };
@@ -35,6 +35,20 @@ assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers(overcappedFire
 assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers(overcappedFire, 'fire', { resistanceReduction: 30 }), 75, 'resistance reduction must subtract from uncapped resistance before applying the cap');
 assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers({ resF: 75, rawResF: 75, maxResF: 75 }, 'fire', { resistanceReduction: 30 }), 45, 'resistance reduction must lower non-overcapped resistance normally');
 assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers(overcappedFire, 'fire', { resistanceReduction: 40, penetration: 20 }), 55, 'resistance reduction must apply before the cap and penetration must apply afterward');
+assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers(overcappedFire, 'fire', { penetration: 400 }), -200, 'monster penetration must stop at -200% effective resistance');
+assert(combat.includes('const MIN_PENETRATED_RESISTANCE = -200;'), 'player and monster penetration must share the -200% resistance floor');
+assert(resistanceBranch.includes('Math.max(MIN_PENETRATED_RESISTANCE, effective)'), 'player penetration must stop at -200% effective enemy resistance');
+
+const playerMitigationContext = {
+    MIN_PENETRATED_RESISTANCE: -200,
+    game: { ascendClass: null, enemyUniqueElementalResDown: {}, enemyUniqueChaosResDown: {} },
+    hasKeystone: () => false,
+    getEnemyElementResistance: () => 50
+};
+vm.createContext(playerMitigationContext);
+vm.runInContext(`${enemyMitigationBlock}; this.getEffectiveEnemyMitigation = getEffectiveEnemyMitigation;`, playerMitigationContext);
+assert.strictEqual(playerMitigationContext.getEffectiveEnemyMitigation('fire', 1, {}, { resPen: 400 }), -200, 'player penetration must stop at -200% effective enemy resistance at runtime');
+assert.strictEqual(playerMitigationContext.getEffectiveEnemyMitigation('fire', 1, {}, { resPen: 30 }), 20, 'player penetration below the floor must retain its normal calculation');
 
 assert(combat.includes("let isDeepChaos = zone.type === 'abyss';"), 'deep chaos enemy generation must be identified explicitly');
 assert(combat.includes('penetration: (isDeepChaos ? 0 : baselineResistancePressure)'), 'deep chaos enemies must not receive the old baseline resistance penetration');
