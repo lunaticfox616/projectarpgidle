@@ -9529,8 +9529,9 @@ function init() {
         gameTickHandle = setInterval(() => {
             try {
                 let overlayPause = !!(game.settings && game.settings.pauseGameOnOverlay);
-                let activeGameplayOverlay = !!document.querySelector('.tutorial-overlay.active');
-                if (isStartupOverlayOpen() || isLoadingOverlayOpen() || (overlayPause && activeGameplayOverlay)) return;
+                let blockingOverlayOpen = isStartupOverlayOpen() || isLoadingOverlayOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen();
+                let optionalOverlayOpen = overlayPause && (isTutorialOpen() || !!document.querySelector('.tutorial-overlay.active'));
+                if (blockingOverlayOpen || optionalOverlayOpen) return;
                 runUiCoreLoop();
                 ensureLoopChallengeState();
                 if (pendingHeavyUiRefresh) {
