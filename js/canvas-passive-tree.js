@@ -159,6 +159,7 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     if (!node || visibility === 'hidden' || zoomedOutMode || camZoom < 0.46) return;
     const important = node.kind === 'major' || node.kind === 'hub' || node.kind === 'apex' || node.kind === 'transcendent';
     const hovered = !!(hoverNode && hoverNode.id === node.id);
+    if (active && !important) return;
     if (!important && !reachable && !hovered) return;
 
     const label = getPassiveNodeEffectShortLabel(node);
