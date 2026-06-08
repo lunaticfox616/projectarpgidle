@@ -2,6 +2,8 @@
 let lastHeavyUiRefreshAt = 0;
 let lastPassiveTreeDrawAt = 0;
 let lastPassiveTreeSignature = '';
+let passiveTreeSearch = '';
+let passiveTreeFilter = 'all';
 let cachedTooltipStats = null;
 let gemTooltipCache = null;
 
@@ -2968,6 +2970,8 @@ function updateSettings() {
     game.settings.showCrowdPauseLog = document.getElementById('chk-log-crowd').checked;
     game.settings.showDeathNotice = document.getElementById('chk-death-notice').checked;
     game.settings.showMobileBattlePip = document.getElementById('chk-mobile-battle-pip').checked;
+    let pauseOverlayCheckbox = document.getElementById('chk-pause-overlay');
+    game.settings.pauseGameOnOverlay = !!(pauseOverlayCheckbox && pauseOverlayCheckbox.checked);
     let damageFormatSelect = document.getElementById('sel-damage-number-format');
     let damageFormat = damageFormatSelect ? damageFormatSelect.value : game.settings.damageNumberFormat;
     game.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(damageFormat) ? damageFormat : 'comma';
@@ -4934,10 +4938,12 @@ function shouldRedrawPassiveTree(now) {
         (game.discoveredPassives || []).length,
         game.startNode || '',
         game.ascendClass || '',
-        game.season || 1
+        game.season || 1,
+        (game.settings && game.settings.passiveTreeSearch) || '',
+        (game.settings && game.settings.passiveTreeFilter) || 'all'
     ].join('|');
     let changed = signature !== lastPassiveTreeSignature;
-    let due = (now - lastPassiveTreeDrawAt) >= 180;
+    let due = (now - lastPassiveTreeDrawAt) >= 500;
     if (changed) lastPassiveTreeSignature = signature;
     return changed || due;
 }
@@ -6514,7 +6520,132 @@ function buildCraftActionButtons(item) {
     switchMapSubtab(game.mapSubtab || 'map-tab-zones');
 }
 
+
+function ensurePassiveTreeSearchSettings() {
+    if (typeof game !== 'undefined' && game) {
+        if (!game.settings || typeof game.settings !== 'object') game.settings = {};
+        if (typeof game.settings.passiveTreeSearch !== 'string') game.settings.passiveTreeSearch = passiveTreeSearch || '';
+        if (typeof game.settings.passiveTreeFilter !== 'string') game.settings.passiveTreeFilter = passiveTreeFilter || 'all';
+        passiveTreeSearch = game.settings.passiveTreeSearch;
+        passiveTreeFilter = game.settings.passiveTreeFilter;
+    }
+    return { search: passiveTreeSearch || '', filter: passiveTreeFilter || 'all' };
+}
+
+function getPassiveTreeSearchState() {
+    return ensurePassiveTreeSearchSettings();
+}
+
+function getPassiveTreeNodeSearchText(node) {
+    if (!node) return '';
+    let parts = [
+        node.id,
+        node.title,
+        node.desc,
+        getPassiveNodeDisplayName(node),
+        getPassiveEffectLabel(node),
+        getStatName(node.stat)
+    ];
+    return parts.filter(Boolean).join(' ').toLowerCase();
+}
+
+function getPassiveTreeNodeCategory(node) {
+    let stat = node && node.stat;
+    if (['flatDmg', 'pctDmg', 'meleePctDmg', 'physPctDmg', 'aoePctDmg', 'projectilePctDmg', 'crit', 'critDmg', 'ds', 'physIgnore', 'igniteChance', 'chillChance', 'freezeChance', 'shockChance', 'poisonChance', 'bleedChance'].includes(stat)) return 'offense';
+    if (['flatHp', 'pctHp', 'regen', 'leech', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'energyShieldRegen', 'deflectChance', 'dr', 'blockChance', 'blockChancePct', 'resF', 'resC', 'resL', 'resAll', 'resChaos', 'ailResIgnite', 'ailResShock', 'ailResFreeze', 'ailResPoison', 'ailResBleed'].includes(stat)) return 'defense';
+    if (['firePctDmg', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'elementalPctDmg', 'dotPctDmg', 'resPen'].includes(stat)) return 'element';
+    if (['aspd', 'move', 'suppCap', 'gemLevel', 'expGain'].includes(stat) || (node && node.socketType === 'star_wedge')) return 'utility';
+    return 'other';
+}
+
+function doesPassiveNodeMatchSearch(node, query) {
+    let q = String(query || '').trim().toLowerCase();
+    if (!q) return true;
+    return q.split(/\s+/).filter(Boolean).every(token => getPassiveTreeNodeSearchText(node).includes(token));
+}
+
+function doesPassiveNodeMatchFilter(node, filter) {
+    let f = filter || 'all';
+    if (f === 'all') return true;
+    if (f === 'offense') return getPassiveTreeNodeCategory(node) === 'offense' || getPassiveTreeNodeCategory(node) === 'element';
+    return getPassiveTreeNodeCategory(node) === f;
+}
+
+function getPassiveNodeSearchMatch(node) {
+    let state = getPassiveTreeSearchState();
+    let query = String(state.search || '').trim();
+    let filter = state.filter || 'all';
+    let active = !!query || filter !== 'all';
+    if (!active) return { active: false, matches: true, query, filter };
+    if (node && typeof getPassiveVisibility === 'function' && getPassiveVisibility(node.id) === 'hidden') {
+        return { active: true, matches: false, query, filter };
+    }
+    return {
+        active: true,
+        matches: doesPassiveNodeMatchSearch(node, query) && doesPassiveNodeMatchFilter(node, filter),
+        query,
+        filter
+    };
+}
+
+function setPassiveTreeSearchState(next) {
+    let cur = ensurePassiveTreeSearchSettings();
+    let search = next && next.search !== undefined ? String(next.search || '') : cur.search;
+    let filter = next && next.filter !== undefined ? String(next.filter || 'all') : cur.filter;
+    if (!['all', 'offense', 'defense', 'element', 'utility'].includes(filter)) filter = 'all';
+    passiveTreeSearch = search;
+    passiveTreeFilter = filter;
+    if (typeof game !== 'undefined' && game) {
+        if (!game.settings || typeof game.settings !== 'object') game.settings = {};
+        game.settings.passiveTreeSearch = passiveTreeSearch;
+        game.settings.passiveTreeFilter = passiveTreeFilter;
+    }
+    syncPassiveTreeSearchControls();
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
+    if (document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active')) {
+        resizePassiveTreeCanvas(false);
+        drawPassiveTree();
+        lastPassiveTreeDrawAt = Date.now();
+    }
+}
+
+function syncPassiveTreeSearchControls() {
+    let state = ensurePassiveTreeSearchSettings();
+    let input = document.getElementById('passive-search-input');
+    if (input && input.value !== state.search) input.value = state.search;
+    document.querySelectorAll('[data-passive-filter]').forEach(btn => {
+        let active = btn.dataset.passiveFilter === state.filter;
+        btn.style.background = active ? '#2c5878' : '';
+        btn.style.borderColor = active ? '#7fc7ff' : '';
+        btn.style.color = active ? '#e8f7ff' : '';
+        btn.style.boxShadow = active ? '0 0 10px rgba(127,199,255,0.24)' : '';
+    });
+}
+
+function setupPassiveTreeSearchControls() {
+    if (window.__passiveTreeSearchControlsBound) {
+        syncPassiveTreeSearchControls();
+        return;
+    }
+    window.__passiveTreeSearchControlsBound = true;
+    let input = document.getElementById('passive-search-input');
+    if (input) {
+        input.addEventListener('input', () => setPassiveTreeSearchState({ search: input.value }));
+    }
+    document.querySelectorAll('[data-passive-filter]').forEach(btn => {
+        btn.addEventListener('click', () => setPassiveTreeSearchState({ filter: btn.dataset.passiveFilter || 'all' }));
+    });
+    let clear = document.getElementById('passive-search-clear');
+    if (clear) {
+        clear.addEventListener('click', () => setPassiveTreeSearchState({ search: '', filter: 'all' }));
+    }
+    syncPassiveTreeSearchControls();
+}
+
+Object.assign(window, { getPassiveTreeSearchState, getPassiveNodeSearchMatch, setupPassiveTreeSearchControls, setPassiveTreeSearchState });
+
 function setupCanvasEvents() {
+    setupPassiveTreeSearchControls();
     const canvas = document.getElementById('tree-canvas');
     if (!canvas) return;
     const canvasTooltip = document.getElementById('canvas-tooltip');
@@ -6607,19 +6738,27 @@ function setupCanvasEvents() {
             msg = hasSocket ? '🌑 별쐐기가 장착된 슬롯입니다.' : '🌑 별쐐기 장착 가능 슬롯입니다.';
         }
 
-        let mutationHtml = '';
+        let effectBadge = (label, accent, caption) => {
+            let tone = accent || passiveAccent;
+            return `<div class="tooltip-line" style="flex:1 1 160px; margin-top:6px; padding:8px 10px; border-radius:9px; border:1px solid ${tone.activeOuter}; background:linear-gradient(135deg, ${tone.activeGlow || 'rgba(120,160,200,0.18)'}, rgba(8,12,20,0.72)); box-shadow:inset 0 0 14px rgba(255,255,255,0.04), 0 0 12px ${tone.previewGlow || 'rgba(120,160,200,0.12)'}; color:${tone.text}; font-weight:800; font-size:1.04em; line-height:1.35;">
+                <div style="font-size:0.72em; color:#9fb6cc; font-weight:700; margin-bottom:2px;">${caption}</div>
+                ${label}
+            </div>`;
+        };
+        let effectHtml = effectBadge(getPassiveEffectLabel(node), passiveAccent, '효과');
         if (mutation) {
+            let originalAccent = getPassiveStatAccent(mutation.originalStat);
+            let currentAccent = getPassiveStatAccent(mutation.currentStat);
             let originalLabel = `${getStatName(mutation.originalStat)} +${formatValue(mutation.originalStat, mutation.originalVal)}${P_STATS[mutation.originalStat] && P_STATS[mutation.originalStat].isPct ? '%' : ''}`;
             let currentLabel = `${getStatName(mutation.currentStat)} +${formatValue(mutation.currentStat, mutation.currentVal)}${P_STATS[mutation.currentStat] && P_STATS[mutation.currentStat].isPct ? '%' : ''}`;
-            mutationHtml = `<div class="tooltip-line" style="margin-top:6px; color:#9bb2c9;">기존 효과: ${originalLabel}</div><div class="tooltip-line" style="color:#f0b7ff;">변성 효과: ${currentLabel}</div>`;
+            effectHtml = `<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:stretch;">${effectBadge(originalLabel, originalAccent, '기존 효과')}${effectBadge(currentLabel, currentAccent, '변성 효과')}</div>`;
         }
 
         canvasTooltip.innerHTML =
             `<div class="tooltip-title" style="color:${node.tier >= 3 || node.kind === 'apex' || node.kind === 'transcendent' ? '#e7bf73' : '#b9d0df'}">${getPassiveNodeDisplayName(node)}</div>
              <div class="tooltip-line">${getPassiveKindLabel(node)}</div>
-             <div class="tooltip-line" style="color:${passiveAccent.text}">효과: ${getPassiveEffectLabel(node)}</div>
-             ${node.desc ? `<div class="tooltip-line" style="margin-top:4px;">${node.desc}</div>` : ''}
-             ${mutationHtml}
+             ${effectHtml}
+             ${node.desc ? `<div class="tooltip-line" style="margin-top:6px; color:#c6d4e2;">${node.desc}</div>` : ''}
              <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;
 
         canvasTooltip.style.display = 'block';
@@ -6764,7 +6903,7 @@ function setupCanvasEvents() {
         let localY = e.clientY - rect.top;
         let worldX = (localX - centerX - camX) / camZoom;
         let worldY = (localY - centerY - camY) / camZoom;
-        camZoom *= (e.deltaY > 0 ? 0.8 : 1.2);
+        camZoom *= (e.deltaY > 0 ? 0.74 : 1.32);
         camZoom = clampNumber(camZoom, 0.12, 2.5);
         camX = localX - centerX - worldX * camZoom;
         camY = localY - centerY - worldY * camZoom;
@@ -6900,6 +7039,7 @@ function resizePassiveTreeCanvas(force) {
     passiveCanvasMetrics.width = displayWidth;
     passiveCanvasMetrics.height = displayHeight;
     passiveCanvasMetrics.dpr = dpr;
+    if (typeof updatePassiveTreeOverlayTransform === 'function') updatePassiveTreeOverlayTransform(displayWidth, displayHeight);
 
     const ctx = canvas.getContext('2d');
     if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -9284,6 +9424,7 @@ function init() {
     document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
     document.getElementById('chk-mobile-battle-pip').checked = game.settings.showMobileBattlePip !== false;
+    document.getElementById('chk-pause-overlay').checked = !!game.settings.pauseGameOnOverlay;
     document.getElementById('sel-damage-number-format').value = ['comma', 'korean', 'korean_short', 'english'].includes(game.settings.damageNumberFormat) ? game.settings.damageNumberFormat : 'comma';
     game.settings.itemFilterRarities = { normal: true, magic: true, rare: true, unique: true, ...(game.settings.itemFilterRarities || {}) };
     document.getElementById('chk-item-filter-enabled').checked = !!game.settings.itemFilterEnabled;
@@ -9387,7 +9528,10 @@ function init() {
         if (gameTickHandle) clearInterval(gameTickHandle);
         gameTickHandle = setInterval(() => {
             try {
-                if (isStartupOverlayOpen() || isLoadingOverlayOpen() || isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) return;
+                let overlayPause = !!(game.settings && game.settings.pauseGameOnOverlay);
+                let blockingOverlayOpen = isStartupOverlayOpen() || isLoadingOverlayOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen();
+                let optionalOverlayOpen = overlayPause && (isTutorialOpen() || !!document.querySelector('.tutorial-overlay.active'));
+                if (blockingOverlayOpen || optionalOverlayOpen) return;
                 runUiCoreLoop();
                 ensureLoopChallengeState();
                 if (pendingHeavyUiRefresh) {
@@ -9420,13 +9564,27 @@ function gameLoop() {
     try {
         if (document.hidden) return;
         if (isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
-            if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
+            if (document.getElementById('tab-char').classList.contains('active')) {
+                let passiveNow = Date.now();
+                if (shouldRedrawPassiveTree(passiveNow)) {
+                    resizePassiveTreeCanvas(false);
+                    drawPassiveTree();
+                    lastPassiveTreeDrawAt = passiveNow;
+                }
+            }
             updateMobileBattlePipVisibility();
             renderBattlefield(isMobileBattlePipVisible());
             renderMobileBattlePipFrame();
             return;
         }
-        if (document.getElementById('tab-char').classList.contains('active') || passiveRevealBursts.length > 0) drawPassiveTree();
+        if (document.getElementById('tab-char').classList.contains('active')) {
+            let passiveNow = Date.now();
+            if (shouldRedrawPassiveTree(passiveNow)) {
+                resizePassiveTreeCanvas(false);
+                drawPassiveTree();
+                lastPassiveTreeDrawAt = passiveNow;
+            }
+        }
         updateMobileBattlePipVisibility();
         renderBattlefield(isMobileBattlePipVisible());
         renderMobileBattlePipFrame();
