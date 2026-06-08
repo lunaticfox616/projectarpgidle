@@ -2159,9 +2159,11 @@ function getPlayerStats() {
     }
     let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
     let fireResOvercap = Math.max(0, rawResF - finalMaxResF);
+    let fireResOvercapCap = Number.isFinite(Number(skill.fireResOvercapCap)) ? Math.max(0, Number(skill.fireResOvercapCap)) : Infinity;
+    let effectiveFireResOvercap = Math.min(fireResOvercap, fireResOvercapCap);
     let fireResOvercapAdditiveMultiplier = Math.max(0, skill.fireResOvercapMulPerPct || 0);
     let fireResScaledBonus = fireResOvercapAdditiveMultiplier > 0
-        ? 1 + (fireResOvercap * fireResOvercapAdditiveMultiplier)
+        ? 1 + (effectiveFireResOvercap * fireResOvercapAdditiveMultiplier)
         : 1 + Math.max(0, finalResF * (skill.fireResDmgScale || 0));
     let dotMultiplier = skill.dotMultiplier || 1;
     let dotStatMultiplier = 1 + Math.max(0, dotPctDmg) / 100;
@@ -2190,6 +2192,8 @@ function getPlayerStats() {
         regen: regenScaledBonus,
         fireRes: fireResScaledBonus,
         fireResOvercap: fireResOvercap,
+        effectiveFireResOvercap: effectiveFireResOvercap,
+        fireResOvercapCap: fireResOvercapCap,
         rawResF: rawResF,
         fireResOvercapAdditiveMultiplier: fireResOvercapAdditiveMultiplier,
         dot: dotMultiplier,
@@ -2585,16 +2589,16 @@ function getPlayerStats() {
         damageScales.estimatedSkillDotDps = estimatedSkillDotDps;
     }
     let finalPlayerSkillDps = finalDpsWithProjectileShots + estimatedSkillDotDps;
-    let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? (1 + (Math.max(0, finalMaxHp) / 100) * Math.max(0, Number(skill.igniteTakenHpScalePer100 || 0))) : 1;
+    let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? getFlameDecayIgniteTakenMultiplier({ maxHp: finalMaxHp, sSkill: skill }) : 1;
     let flameDecayDpsLines = [];
     if (skill.flameDecayDebuff) {
         flameDecayDpsLines = [
-            `화염 부패 기대 지속 DPS ${Math.floor(estimatedSkillDotDps)} (생명력/재생/초과 화염 저항/지속 피해 배율 적용, 적 저항 적용 전)`,
+            `화염 부패 기대 지속 DPS ${Math.floor(estimatedSkillDotDps)} (생명력/초과 화염 저항/지속 피해 배율 적용, 적 저항 적용 전)`,
             `생명력 계수: 최대 생명력 ${Math.floor(finalMaxHp)} → 내장 피해 +${Math.floor(hpFlatBonus)}`,
             (skill.regenDmgScale || 0) > 0 ? `생명력 재생 계수: ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
-            `초과 화염 저항 계수: ${fireResScaledBonus.toFixed(2)}x (미적용 화염 저항 ${Math.floor(rawResF)}% / 최대 ${Math.floor(finalMaxResF)}%, 초과 ${fireResOvercap.toFixed(1)}%)`,
+            `초과 화염 저항 계수: ${fireResScaledBonus.toFixed(2)}x (미적용 화염 저항 ${Math.floor(rawResF)}% / 최대 ${Math.floor(finalMaxResF)}%, 초과 ${fireResOvercap.toFixed(1)}% 중 적용 ${effectiveFireResOvercap.toFixed(1)}%)`,
             `지속 피해 총 배율: ${totalDotDamageMultiplier.toFixed(2)}x (스킬 ${dotMultiplier.toFixed(2)}x · 스탯 ${dotStatMultiplier.toFixed(2)}x)`,
-            `화염 부패 대상 점화 피해 증폭: ${flameDecayIgniteTakenMultiplierPreview.toFixed(2)}x (생명력 100당 ${(Math.max(0, Number(skill.igniteTakenHpScalePer100 || 0)) * 100).toFixed(1)}%)`,
+            `화염 부패 대상 점화 피해 증폭: ${flameDecayIgniteTakenMultiplierPreview.toFixed(2)}x (생명력 100당 ${(Math.max(0, Number(skill.igniteTakenHpScalePer100 || 0)) * 100).toFixed(1)}%, 최대 ${(Math.max(1, Number(skill.igniteTakenMaxMultiplier || 0)) || 1).toFixed(1)}x)`,
             `실제 적별 화염 부패 DPS는 적 상태이상 툴팁에서 저항/심연 배율까지 반영해 표시됩니다.`
         ].filter(Boolean);
     }
@@ -2775,7 +2779,7 @@ function getPlayerStats() {
                 crusaderHolyFlatDmg > 0 ? `신성한 검 번개 기본 피해 +${Math.floor(crusaderHolyFlatDmg)} → ${Math.floor(crusaderHolyScaledDmg)} (피해 증가 적용)` : null,
                 (skill.regenDmgScale || 0) > 0 ? `재생 계수 배율 ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
                 (skill.fireResDmgScale || 0) > 0 ? `화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (화염 저항 ${Math.floor(finalResF)}%)` : null,
-                (skill.fireResOvercapMulPerPct || 0) > 0 ? `초과 화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (미적용 화염 저항 ${Math.floor(rawResF)}%/${Math.floor(finalMaxResF)}%, 최대치 초과 적용분 ${fireResOvercap.toFixed(1)}%)` : null,
+                (skill.fireResOvercapMulPerPct || 0) > 0 ? `초과 화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (미적용 화염 저항 ${Math.floor(rawResF)}%/${Math.floor(finalMaxResF)}%, 초과 ${fireResOvercap.toFixed(1)}% 중 적용 ${effectiveFireResOvercap.toFixed(1)}%)` : null,
                 (skill.dotMultiplier || 1) !== 1 ? `스킬 지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null,
                 dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null,
                 instantDamageMultiplier !== 1 ? `즉발 피해 배율 ${instantDamageMultiplier.toFixed(2)}x` : null,
@@ -4337,7 +4341,9 @@ function getFlameDecayIgniteTakenMultiplier(pStats) {
     let skill = pStats && pStats.sSkill;
     let per100 = Math.max(0, Number(skill && skill.igniteTakenHpScalePer100) || 0);
     if (per100 <= 0) return 1;
-    return 1 + (Math.max(0, Number(pStats && pStats.maxHp) || 0) / 100) * per100;
+    let uncapped = 1 + (Math.max(0, Number(pStats && pStats.maxHp) || 0) / 100) * per100;
+    let cap = Math.max(1, Number(skill && skill.igniteTakenMaxMultiplier) || Infinity);
+    return Math.min(uncapped, cap);
 }
 
 function getPlayerDamageAilmentFallbackDps(type, power, pStats) {
