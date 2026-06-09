@@ -2561,7 +2561,12 @@ function getPlayerStats() {
 
     let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
     let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
-    let expectedAddedDamageMultiplier = 1 + Math.max(0, Object.values(coreCubeAddedDamagePct).reduce((sum, value) => sum + (Number(value) || 0), 0)) / 100;
+    let coreCubeAddedDamageLabels = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' };
+    let coreCubeAddedDamageTotalPct = Math.max(0, Object.values(coreCubeAddedDamagePct).reduce((sum, value) => sum + (Number(value) || 0), 0));
+    let coreCubeAddedDamageParts = Object.keys(coreCubeAddedDamagePct)
+        .filter(ele => Math.max(0, Number(coreCubeAddedDamagePct[ele] || 0)) > 0)
+        .map(ele => `${coreCubeAddedDamageLabels[ele]} ${Math.floor(coreCubeAddedDamagePct[ele])}%`);
+    let expectedAddedDamageMultiplier = 1 + coreCubeAddedDamageTotalPct / 100;
     if (expectedAddedDamageMultiplier > 1) damageScales.coreCubeAddedDamageMultiplier = expectedAddedDamageMultiplier;
     let soulbinderSb7PlayerMul = 1;
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
@@ -3080,6 +3085,7 @@ function getPlayerStats() {
                 crusaderThunderDoctrinePct > 0 ? `천뢰 교리 반영: 화염/냉기 피해 증가 +${Math.floor(crusaderThunderDoctrinePct)}%가 번개 공격력/평균 한 방/DPS에 적용` : null,
                 `피해 보정 기대값 x${avgRollMultiplier.toFixed(2)} (${Math.floor(finalMinDmgRoll)}~${Math.floor(finalMaxDmgRoll)}%)`,
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
+                coreCubeAddedDamageTotalPct > 0 ? `코어 큐브 추가 피해 x${expectedAddedDamageMultiplier.toFixed(2)} (총 피해의 ${Math.floor(coreCubeAddedDamageTotalPct)}% → ${coreCubeAddedDamageParts.join(' / ')})` : null,
                 isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null,
                 estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null
             ].concat(flameDecayDpsLines).filter(Boolean),
