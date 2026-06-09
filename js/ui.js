@@ -1579,7 +1579,13 @@ function autoEquipUnderworldRune(no) {
     let cap = Math.max(0, Math.min(6, Math.floor(st.unlockedSlots || 0)));
     if (cap <= 0) return;
     for (let i = 0; i < cap; i++) {
-        if (!st.equippedRunes[i]) { st.equippedRunes[i] = no; return; }
+        if (!st.equippedRunes[i]) {
+            // 인벤토리에서 해당 룬 1개 제거 후 슬롯에 장착
+            let ownedIdx = st.obtainedRunes.findIndex(n => Math.floor(n || 0) === Math.floor(no || 0));
+            if (ownedIdx !== -1) st.obtainedRunes.splice(ownedIdx, 1);
+            st.equippedRunes[i] = no;
+            return;
+        }
     }
 }
 function closeUnderworldRuneOverlay() {
@@ -1593,6 +1599,14 @@ function equipUnderworldRuneToSlot(slotIndex, no) {
     let cap = Math.max(0, Math.min(6, Math.floor(st.unlockedSlots || 0)));
     let runeNo = Math.max(1, Math.floor(Number(no) || 0));
     if (idx >= cap || !getUnderworldRuneDef(runeNo)) return;
+    // 보유 인벤토리에 해당 룬이 있는지 확인
+    let ownedIdx = st.obtainedRunes.findIndex(n => Math.floor(n || 0) === runeNo);
+    if (ownedIdx === -1) return; // 보유하지 않은 룬은 장착 불가
+    // 기존에 슬롯에 장착된 룬이 있으면 인벤토리로 반환
+    let prevRune = st.equippedRunes[idx];
+    if (prevRune) st.obtainedRunes.push(Math.floor(prevRune));
+    // 인벤토리에서 룬 1개 제거 후 슬롯에 장착
+    st.obtainedRunes.splice(ownedIdx, 1);
     st.equippedRunes[idx] = runeNo;
     closeUnderworldRuneOverlay();
     updateStaticUI();
@@ -1601,6 +1615,8 @@ function unequipUnderworldRuneSlot(slotIndex) {
     let st = ensureUnderworldRuneState();
     let idx = Math.max(0, Math.floor(Number(slotIndex) || 0));
     if (idx >= Math.max(0, Math.min(6, Math.floor(st.unlockedSlots || 0)))) return;
+    let prevRune = st.equippedRunes[idx];
+    if (prevRune) st.obtainedRunes.push(Math.floor(prevRune)); // 인벤토리로 반환
     st.equippedRunes[idx] = null;
     closeUnderworldRuneOverlay();
     updateStaticUI();
