@@ -5762,17 +5762,22 @@ function finishEncounterRun() {
             game.currentZoneId = METEOR_FALL_ZONE_ID;
             addLog('☄️ 자동입장: 하늘 균열 100% 충전으로 운석 낙하 지점에 진입합니다.', 'season-up');
         }
+        checkUnlocks();
+        if ((game.settings.townReturnAction || 'retry') === 'stop') {
+            game.combatHalted = true;
+            game.enemies = [];
+            game.encounterPlan = [];
+            game.encounterIndex = 0;
+            game.runProgress = 0;
+        } else startMoving(false);
+        updateStaticUI();
+        queueImportantSave(220);
+        return;
     }
+    // 구역 maxKills 미달성 시 — 다음 encounter 진행
     checkUnlocks();
-    if ((game.settings.townReturnAction || 'retry') === 'stop') {
-        game.combatHalted = true;
-        game.enemies = [];
-        game.encounterPlan = [];
-        game.encounterIndex = 0;
-        game.runProgress = 0;
-    } else startMoving(false);
+    startMoving(false);
     updateStaticUI();
-    queueImportantSave(220);
 }
 
 function performPlayerAttack(pStats) {
