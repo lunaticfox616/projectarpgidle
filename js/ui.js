@@ -3348,6 +3348,45 @@ function showGemTooltip(event, type, name) {
     showInfoTooltipHtml(event.clientX, event.clientY, html, border);
 }
 
+function getItemStatToneColor(statId) {
+    if (!statId) return '#d7e9ff';
+    let id = String(statId);
+    let low = id.toLowerCase();
+
+    if (['firePctDmg', 'resF', 'igniteChance', 'fireResOvercapMulPerPct'].includes(id)) return '#ff9a76';
+    if (['coldPctDmg', 'resC', 'freezeChance'].includes(id)) return '#8fd3ff';
+    if (['lightPctDmg', 'resL', 'shockChance'].includes(id)) return '#ffe083';
+    if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(id)) return '#c7a6ff';
+    if (['armor', 'armorPct', 'dr'].includes(id)) return '#ffd2a6';
+    if (['evasion', 'evasionPct', 'deflectChance', 'deflectDamageReduce'].includes(id)) return '#baffc2';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#b9c6ff';
+    if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(id)) return '#ffb3b3';
+    if (['crit', 'critDmg'].includes(id)) return '#ffd6f2';
+    if (['aspd', 'move'].includes(id)) return '#fff3a8';
+    if (['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll'].includes(id)) return '#ffcf9f';
+    if (['spellFlatPct', 'spellFlatDmg'].includes(id)) return '#d4a8ff';
+    if (['leech'].includes(id)) return '#ff8fa3';
+    if (['resPen', 'resAll', 'ds'].includes(id)) return '#ffcb8e';
+    if (['gemLevel', 'suppCap'].includes(id)) return '#a8e6cf';
+
+    if (low.includes('res') || low.includes('pen')) return '#ffcb8e';
+    if (low.includes('chaos') || low.includes('dot') || low.includes('poison') || low.includes('bleed')) return '#c7a6ff';
+    if (low.includes('fire') || low.includes('ignite') || low.includes('burn')) return '#ff9a76';
+    if (low.includes('cold') || low.includes('freeze') || low.includes('chill')) return '#8fd3ff';
+    if (low.includes('light') || low.includes('shock')) return '#ffe083';
+    if (low.includes('hp') || low.includes('life') || low.includes('regen') || low.includes('leech')) return '#ffb3b3';
+    if (low.includes('armor') || low.includes('block') || low.includes('guard') || low.includes('dr')) return '#ffd2a6';
+    if (low.includes('evasion') || low.includes('dodge') || low.includes('deflect')) return '#baffc2';
+    if (low.includes('energyshield') || low.includes('es')) return '#b9c6ff';
+    if (low.includes('crit')) return '#ffd6f2';
+    if (low.includes('aspd') || low.includes('speed') || low.includes('move')) return '#fff3a8';
+    if (low.includes('spell')) return '#d4a8ff';
+    if (low.includes('gem') || low.includes('supp')) return '#a8e6cf';
+    if (low.includes('dmg') || low.includes('atk') || low.includes('phys') || low.includes('melee') || low.includes('aoe')) return '#ffcf9f';
+
+    return '#d7e9ff';
+}
+
 function getItemSlotDisplayLabel(item, fallbackLabel) {
     let rawSlot = item && item.slot !== undefined && item.slot !== null ? item.slot : null;
     if (rawSlot === null && item && Array.isArray(item.slots) && item.slots.length > 0) rawSlot = item.slots[0];
@@ -5170,47 +5209,6 @@ function getJewelStatToneColor(statId) {
     return '#d7e9ff';
 }
 
-function getItemStatToneColor(statId) {
-    if (!statId) return '#d7e9ff';
-    let id = String(statId);
-    let low = id.toLowerCase();
-
-    if (['firePctDmg', 'resF', 'igniteChance', 'fireResOvercapMulPerPct'].includes(id)) return '#ff9a76';
-    if (['coldPctDmg', 'resC', 'freezeChance'].includes(id)) return '#8fd3ff';
-    if (['lightPctDmg', 'resL', 'shockChance'].includes(id)) return '#ffe083';
-    if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(id)) return '#c7a6ff';
-    if (['armor', 'armorPct', 'dr'].includes(id)) return '#ffd2a6';
-    if (['evasion', 'evasionPct', 'deflectChance', 'deflectDamageReduce'].includes(id)) return '#baffc2';
-    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#b9c6ff';
-    if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(id)) return '#ffb3b3';
-    if (['crit', 'critDmg'].includes(id)) return '#ffd6f2';
-    if (['aspd', 'move'].includes(id)) return '#fff3a8';
-    if (['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll'].includes(id)) return '#ffcf9f';
-    if (['spellFlatPct', 'spellFlatDmg'].includes(id)) return '#d4a8ff';
-    if (['leech'].includes(id)) return '#ff8fa3';
-    if (['resPen', 'resAll', 'ds'].includes(id)) return '#ffcb8e';
-    if (['gemLevel', 'suppCap'].includes(id)) return '#a8e6cf';
-
-    if (low.includes('res') || low.includes('pen')) return '#ffcb8e';
-    if (low.includes('chaos') || low.includes('dot') || low.includes('poison') || low.includes('bleed')) return '#c7a6ff';
-    if (low.includes('fire') || low.includes('ignite') || low.includes('burn')) return '#ff9a76';
-    if (low.includes('cold') || low.includes('freeze') || low.includes('chill')) return '#8fd3ff';
-    if (low.includes('light') || low.includes('shock')) return '#ffe083';
-    if (low.includes('hp') || low.includes('life') || low.includes('regen') || low.includes('leech')) return '#ffb3b3';
-    if (low.includes('armor') || low.includes('block') || low.includes('guard') || low.includes('dr')) return '#ffd2a6';
-    if (low.includes('evasion') || low.includes('dodge') || low.includes('deflect')) return '#baffc2';
-    if (low.includes('energyshield') || low.includes('es')) return '#b9c6ff';
-    if (low.includes('crit')) return '#ffd6f2';
-    if (low.includes('aspd') || low.includes('speed') || low.includes('move')) return '#fff3a8';
-    if (low.includes('spell')) return '#d4a8ff';
-    if (low.includes('gem') || low.includes('supp')) return '#a8e6cf';
-    if (low.includes('dmg') || low.includes('atk') || low.includes('phys') || low.includes('melee') || low.includes('aoe')) return '#ffcf9f';
-
-    return '#d7e9ff';
-}
-
-
-
 function getSearchTokens(query) {
     return String(query || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
 }
@@ -5790,6 +5788,47 @@ function openCraftItemPickerOverlay(kind) {
     overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title">${isEquip ? '장착 장비에서 제작 대상 선택' : '인벤토리에서 제작 대상 선택'}</div><div class="craft-picker-desc">카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.</div></div><button type="button" onclick="closeCraftItemPickerOverlay()">닫기</button></div><div class="craft-picker-body">${bodyHtml}</div></div>`;
     document.body.appendChild(overlay);
 }
+
+function exposeUiRenderHelpersOnce() {
+    if (window.__uiRenderHelperGlobalsExposed) return;
+    let helpers = {
+        getStyledOrbName,
+        getItemStatToneColor,
+        updateSearchFilter,
+        resetSearchFilter,
+        bulkSalvageEquipBySearch,
+        bulkSalvageJewelsBySearch,
+        bulkSalvageTalismansBySearch,
+        bulkDismantleColonyWardsBySearch,
+        dismantleColonyWardById,
+        updateColonyWardSearchFilter,
+        resetColonyWardSearchFilter,
+        exchangeTalismanShards,
+        applyBeeswaxToTalisman,
+        removeBeeswaxFromTalisman,
+        openBeeswaxApplicationOverlay,
+        confirmBeeswaxApplication,
+        closeBeeswaxWarningOverlay,
+        openWaxedItemRestrictionOverlay,
+        closeTalismanDismantleOverlay,
+        confirmTalismanDismantle,
+        toggleTalismanLock,
+        toggleColonyWardLock,
+        openCraftItemPickerOverlay,
+        closeCraftItemPickerOverlay,
+        selectCraftPickerEquipment,
+        selectCraftPickerInventoryItem,
+        showSocketedJewelTooltip
+    };
+    let pending = {};
+    Object.keys(helpers).forEach(key => {
+        let current = window[key];
+        if (typeof current === 'undefined' || (current && current.__placeholderGlobal === true) || current === helpers[key]) pending[key] = helpers[key];
+    });
+    if (Object.keys(pending).length > 0) safeExposeGlobals(pending);
+    window.__uiRenderHelperGlobalsExposed = true;
+}
+exposeUiRenderHelpersOnce();
 
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
