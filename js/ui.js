@@ -5430,8 +5430,6 @@ const createJewelRangeTooltipHtml = function createJewelRangeTooltipHtml(jewel) 
     return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${uniqueLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
 };
 
-safeExposeGlobals({ getStyledOrbName, getItemStatToneColor, updateSearchFilter, resetSearchFilter, bulkSalvageEquipBySearch, bulkSalvageJewelsBySearch, bulkSalvageTalismansBySearch, bulkDismantleColonyWardsBySearch, dismantleColonyWardById, updateColonyWardSearchFilter, resetColonyWardSearchFilter, exchangeTalismanShards, applyBeeswaxToTalisman, removeBeeswaxFromTalisman, openBeeswaxApplicationOverlay, confirmBeeswaxApplication, closeBeeswaxWarningOverlay, openWaxedItemRestrictionOverlay, closeTalismanDismantleOverlay, confirmTalismanDismantle, toggleTalismanLock, toggleColonyWardLock });
-
 
 function showSocketedJewelTooltip(event, socketType, socketIdx) {
     let item = typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null;
