@@ -1497,17 +1497,19 @@ function renderUnderworldMapPanel() {
     let highest = Math.max(1, Math.floor(uw.highestFloor || 1));
     let canEnter = typeof canEnterUnderworld === 'function' && canEnterUnderworld();
     let runeState = game.underworldRunes || { unlockedSlots: 0, unlockedRunesMaxNumber: 0 };
-    let runeList = Array.isArray(runeState.obtainedRunes) ? runeState.obtainedRunes : [];
-    let runeCountMap = runeList.reduce((acc, n) => { let k = Math.max(1, Math.floor(n || 1)); acc[k] = (acc[k] || 0) + 1; return acc; }, {});
-    let runeLine = Object.keys(runeCountMap).sort((a,b)=>Number(a)-Number(b)).slice(0, 10).map(k => {
-        let def = getUnderworldRuneDef(Number(k));
-        return `${def ? def.name : ('룬'+k)}×${runeCountMap[k]}`;
-    }).join(', ');
+    let runeCountMap = getUnderworldRuneCountMap(runeState.obtainedRunes);
+    let runeLine = Object.keys(runeCountMap).sort((a,b)=>Number(a)-Number(b)).slice(0, 12).map(k => {
+        let runeNo = Number(k);
+        let def = getUnderworldRuneDef(runeNo);
+        let label = def ? def.name : ('룬' + k);
+        return `<button type="button" class="underworld-rune-chip" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${runeNo})" onmousemove="showUnderworldRuneTooltip(event,${runeNo})" onmouseleave="hideInfoTooltip()">${label}×${runeCountMap[k]}</button>`;
+    }).join('');
     let equippedLine = (Array.isArray(runeState.equippedRunes) ? runeState.equippedRunes : []).slice(0, 6).map((no, idx) => {
-        if (!no || idx >= Math.max(0, Math.floor(runeState.unlockedSlots || 0))) return `[${idx + 1}] 비어있음`;
-        let def = getUnderworldRuneDef(no);
-        return `[${idx + 1}] ${def ? `${def.name} (${getStatName(def.stat)} +${formatValue(def.stat, def.val)})` : `룬${no}`}`;
-    }).join('<br>');
+        if (idx >= Math.max(0, Math.floor(runeState.unlockedSlots || 0))) return '';
+        let def = no ? getUnderworldRuneDef(no) : null;
+        let label = def ? `${def.name} (${getUnderworldRuneEffectHtml(no)})` : '비어있음';
+        return `<div class="underworld-equipped-row">[${idx + 1}] ${label}</div>`;
+    }).filter(Boolean).join('');
     let runeShardCount = Math.max(0, Math.floor((game.currencies || {}).runeShard || 0));
     let ticketLine = [
         `화염 ${Math.max(0, Math.floor((game.currencies || {}).uberRootTicketFlame || 0))}`,
@@ -1526,17 +1528,12 @@ function renderUnderworldMapPanel() {
         let unlocked = idx < Math.max(0, Math.floor(runeState.unlockedSlots || 0));
         let def = no ? getUnderworldRuneDef(no) : null;
         let label = unlocked ? (def ? def.name : (no ? `룬${no}` : '비어있음')) : '잠김';
-        let pos = [
-            'left:50%; top:0%; transform:translate(-50%,0);',
-            'left:84%; top:25%; transform:translate(-50%,-50%);',
-            'left:84%; top:75%; transform:translate(-50%,-50%);',
-            'left:50%; top:100%; transform:translate(-50%,-100%);',
-            'left:16%; top:75%; transform:translate(-50%,-50%);',
-            'left:16%; top:25%; transform:translate(-50%,-50%);'
-        ][idx];
-        return `<div style="position:absolute; ${pos} width:88px; min-height:40px; border-radius:10px; padding:5px 6px; text-align:center; font-size:0.74em; border:1px solid ${unlocked ? '#5e6fb0' : '#3d435c'}; background:${unlocked ? 'linear-gradient(180deg,#202b4a,#141c33)' : 'linear-gradient(180deg,#1b1d2a,#121420)'}; color:${unlocked ? '#dce6ff' : '#7f87a8'};">[${idx + 1}]<br>${label}</div>`;
+        let effect = unlocked && def ? getUnderworldRuneEffectHtml(no) : (unlocked ? '클릭해 장착' : '슬롯 해금 필요');
+        let tooltip = no ? `showUnderworldRuneTooltip(event,${no})` : '';
+        let attrs = unlocked ? `onclick="openUnderworldRuneOverlay(${idx})" data-info-tooltip-anchor="1" onmouseenter="${tooltip}" onmousemove="${tooltip}" onmouseleave="hideInfoTooltip()"` : 'disabled';
+        return `<button type="button" class="underworld-rune-slot ${unlocked ? 'unlocked' : 'locked'}" ${attrs}><span class="underworld-rune-slot-no">${idx + 1}</span><strong>${label}</strong><small>${effect}</small></button>`;
     }).join('');
-    panel.innerHTML = `<div style="font-weight:800; color:#e4d8ff;">지하계: 핵으로 하강</div><div style="margin-top:4px; color:${canEnter ? '#d6e4ff' : '#ffcf8a'};">입장 조건: 이번 루프 혼돈 20 클리어 필요 · 고중력으로 층이 깊어질수록 이속/공속 감소 · 15층부터 지속 피해</div><div style="margin-top:6px; color:#c9b8ff;">룬 슬롯 ${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 · 해금된 룬 번호 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))}</div><div style=\"position:relative; height:170px; margin-top:8px; border:1px solid #313f66; border-radius:12px; background:linear-gradient(180deg,#12192d,#0c1020);\">${slots}</div><div style="margin-top:4px; color:#9fe3d6;">룬 조각: <strong>${runeShardCount}</strong></div><div style="margin-top:4px; color:#d7c6a0;">지하계 재화: 구리 <strong>${Math.floor((game.currencies||{}).underCopper||0)}</strong> · 은 <strong>${Math.floor((game.currencies||{}).underSilver||0)}</strong> · 금 <strong>${Math.floor((game.currencies||{}).underGold||0)}</strong></div><div style="margin-top:4px; color:#ffd8a8;">우버 뿌리 입장권: ${ticketLine}</div><div style="margin-top:6px;"><button onclick="craftUnderworldRune()">룬 가공 (룬조각 10)</button><button onclick="upgradeUnderworldRune()" style="margin-left:6px;">룬 승급 (동일 룬 3개 + 룬조각)</button><button onclick="applyUnderworldEnchant()" style="margin-left:6px;">지하계 인챈트</button><button onclick="attemptUnderworldLimitBreak()" style="margin-left:6px;">20% 한계돌파</button><button onclick="enhanceUnderworldRune()" style="margin-left:6px;">룬 강화</button><button onclick="rerollUnderworldRuneBonus()" style="margin-left:6px;">룬 옵션 리롤</button></div>${skyStonePanel}<div style="margin-top:6px; color:#aebde0;">보유 룬: ${runeLine || '없음'}${Object.keys(runeCountMap).length > 10 ? ' ...' : ''}</div><div style="margin-top:6px; color:#d6e4ff;">장착 룬(영구 적용):<br>${equippedLine || '없음'}</div>`;
+    panel.innerHTML = `<div style="font-weight:800; color:#e4d8ff;">지하계: 핵으로 하강</div><div style="margin-top:4px; color:${canEnter ? '#d6e4ff' : '#ffcf8a'};">입장 조건: 이번 루프 혼돈 20 클리어 필요 · 고중력으로 층이 깊어질수록 이속/공속 감소 · 15층부터 지속 피해</div><div style="margin-top:6px; color:#c9b8ff;">룬 슬롯 ${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 · 해금된 룬 번호 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))}</div><div class=\"underworld-rune-slots\">${slots}</div><div style="margin-top:4px; color:#9fe3d6;">룬 조각: <strong>${runeShardCount}</strong></div><div style="margin-top:4px; color:#d7c6a0;">지하계 재화: 구리 <strong>${Math.floor((game.currencies||{}).underCopper||0)}</strong> · 은 <strong>${Math.floor((game.currencies||{}).underSilver||0)}</strong> · 금 <strong>${Math.floor((game.currencies||{}).underGold||0)}</strong></div><div style="margin-top:4px; color:#ffd8a8;">우버 뿌리 입장권: ${ticketLine}</div><div style="margin-top:6px;"><button onclick="craftUnderworldRune()">룬 가공 (룬조각 10)</button><button onclick="openUnderworldRuneUpgradeOverlay()" style="margin-left:6px;">룬 승급 (동일 룬 3개 + 룬조각)</button><button onclick="applyUnderworldEnchant()" style="margin-left:6px;">지하계 인챈트</button><button onclick="attemptUnderworldLimitBreak()" style="margin-left:6px;">20% 한계돌파</button><button onclick="enhanceUnderworldRune()" style="margin-left:6px;">룬 강화</button><button onclick="rerollUnderworldRuneBonus()" style="margin-left:6px;">룬 옵션 리롤</button></div>${skyStonePanel}<div style="margin-top:6px; color:#aebde0;">보유 룬:<div class=\"underworld-rune-inventory\">${runeLine || '<span style=\"color:#7f8c8d;\">없음</span>'}${Object.keys(runeCountMap).length > 12 ? '<span style=\"color:#8fa0c4;\">...</span>' : ''}</div></div><div style="margin-top:6px; color:#d6e4ff;">장착 룬(영구 적용):<div class=\"underworld-equipped-list\">${equippedLine || '<span style=\"color:#7f8c8d;\">없음</span>'}</div></div>`;
     list.innerHTML = `<div class="map-item ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}" ${canEnter ? 'onclick="enterUnderworldPrompt()"' : ''} style="${canEnter ? '' : 'opacity:.65; cursor:not-allowed;'}"><div class="map-item-main"><span>🕳️</span><span>지하계 ${floor}층</span></div><div class="map-item-actions"><button ${canEnter ? '' : 'disabled'}>층 선택 입장</button></div></div>`;
 }
 function ensureUnderworldRuneState() {
@@ -1551,6 +1548,32 @@ function ensureUnderworldRuneState() {
 function getUnderworldRuneDef(no) {
     return (Array.isArray(UNDERWORLD_RUNE_DB) ? UNDERWORLD_RUNE_DB : []).find(row => row.no === Math.max(1, Math.floor(no || 0))) || null;
 }
+function getUnderworldRuneCountMap(runes) {
+    return (Array.isArray(runes) ? runes : []).reduce((acc, n) => {
+        let key = Math.max(1, Math.floor(n || 1));
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+    }, {});
+}
+function getUnderworldRuneEffectHtml(no) {
+    let def = getUnderworldRuneDef(no);
+    if (!def) return `<span style="color:#8fa0c4;">룬 정보 없음</span>`;
+    let tone = typeof getItemStatToneColor === 'function' ? getItemStatToneColor(def.stat) : '#dce6ff';
+    return `<span style="color:${tone};">${getStatName(def.stat)} +${formatValue(def.stat, def.val)}</span>`;
+}
+function buildUnderworldRuneTooltipHtml(no) {
+    let def = getUnderworldRuneDef(no);
+    if (!def) return '<div class="tooltip-title">알 수 없는 룬</div><div class="tooltip-line">룬 효과 정보가 없습니다.</div>';
+    let st = ensureUnderworldRuneState();
+    let lv = Math.max(0, Math.floor((st.enhanceLvByNo || {})[def.no] || 0));
+    let boosted = Number(def.val || 0) * (1 + lv * 0.01);
+    let mainLine = `${getStatName(def.stat)} +${formatValue(def.stat, boosted)}${lv > 0 ? ` <span style="color:#9fb4d1;">(+${lv} 강화)</span>` : ''}`;
+    let bonusLines = ((st.bonusLinesByNo || {})[def.no] || []).map(line => `<div class="tooltip-line" style="color:${getItemStatToneColor(line.stat)};">보너스 · ${getStatName(line.stat)} +${formatValue(line.stat, line.val)}</div>`).join('');
+    return `<div class="tooltip-title">${escapeHTML(def.name)} <span style="color:#9fb4d1;">룬${def.no}</span></div><div class="tooltip-line" style="color:${getItemStatToneColor(def.stat)};">${mainLine}</div>${bonusLines || '<div class="tooltip-line" style="color:#8fa0c4;">강화 보너스 옵션 없음</div>'}`;
+}
+function showUnderworldRuneTooltip(event, no) {
+    showInfoTooltipHtml(event.clientX, event.clientY, buildUnderworldRuneTooltipHtml(no), '#9b7cff');
+}
 function autoEquipUnderworldRune(no) {
     let st = ensureUnderworldRuneState();
     let cap = Math.max(0, Math.min(6, Math.floor(st.unlockedSlots || 0)));
@@ -1558,6 +1581,54 @@ function autoEquipUnderworldRune(no) {
     for (let i = 0; i < cap; i++) {
         if (!st.equippedRunes[i]) { st.equippedRunes[i] = no; return; }
     }
+}
+function closeUnderworldRuneOverlay() {
+    if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
+    let overlay = document.getElementById('underworld-rune-overlay');
+    if (overlay) overlay.remove();
+}
+function equipUnderworldRuneToSlot(slotIndex, no) {
+    let st = ensureUnderworldRuneState();
+    let idx = Math.max(0, Math.floor(Number(slotIndex) || 0));
+    let cap = Math.max(0, Math.min(6, Math.floor(st.unlockedSlots || 0)));
+    let runeNo = Math.max(1, Math.floor(Number(no) || 0));
+    if (idx >= cap || !getUnderworldRuneDef(runeNo)) return;
+    st.equippedRunes[idx] = runeNo;
+    closeUnderworldRuneOverlay();
+    updateStaticUI();
+}
+function unequipUnderworldRuneSlot(slotIndex) {
+    let st = ensureUnderworldRuneState();
+    let idx = Math.max(0, Math.floor(Number(slotIndex) || 0));
+    if (idx >= Math.max(0, Math.min(6, Math.floor(st.unlockedSlots || 0)))) return;
+    st.equippedRunes[idx] = null;
+    closeUnderworldRuneOverlay();
+    updateStaticUI();
+}
+function getUnderworldRuneOverlayOptionsHtml(slotIndex, runeCountMap) {
+    let keys = Object.keys(runeCountMap).sort((a, b) => Number(a) - Number(b));
+    if (keys.length === 0) return '<div class="deathlog-empty">보유한 룬이 없습니다.</div>';
+    return keys.map(key => {
+        let no = Number(key);
+        let def = getUnderworldRuneDef(no);
+        let title = def ? def.name : `룬${no}`;
+        return `<button type="button" class="underworld-rune-option" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${no})" onmousemove="showUnderworldRuneTooltip(event,${no})" onmouseleave="hideInfoTooltip()" onclick="equipUnderworldRuneToSlot(${slotIndex},${no})"><strong>${title}</strong><span>보유 ${runeCountMap[key]}개 · ${getUnderworldRuneEffectHtml(no)}</span></button>`;
+    }).join('');
+}
+function openUnderworldRuneOverlay(slotIndex) {
+    closeUnderworldRuneOverlay();
+    let st = ensureUnderworldRuneState();
+    let idx = Math.max(0, Math.floor(Number(slotIndex) || 0));
+    let cap = Math.max(0, Math.min(6, Math.floor(st.unlockedSlots || 0)));
+    if (idx >= cap) return;
+    let runeCountMap = getUnderworldRuneCountMap(st.obtainedRunes);
+    let current = st.equippedRunes[idx] ? buildUnderworldRuneTooltipHtml(st.equippedRunes[idx]) : '<div class="tooltip-line">현재 비어있음</div>';
+    let overlay = document.createElement('div');
+    overlay.id = 'underworld-rune-overlay';
+    overlay.className = 'underworld-rune-overlay';
+    overlay.onclick = event => { if (event.target === overlay) closeUnderworldRuneOverlay(); };
+    overlay.innerHTML = `<div class="underworld-rune-overlay-panel"><div class="underworld-rune-overlay-head"><div><div class="underworld-rune-overlay-title">룬 슬롯 ${idx + 1} 선택</div><div class="underworld-rune-overlay-desc">보유한 룬을 클릭해 장착하거나 현재 슬롯을 비울 수 있습니다.</div></div><button type="button" onclick="closeUnderworldRuneOverlay()">닫기</button></div><div class="underworld-rune-current">${current}</div><div class="underworld-rune-option-grid">${getUnderworldRuneOverlayOptionsHtml(idx, runeCountMap)}</div><div class="underworld-rune-overlay-actions"><button type="button" onclick="unequipUnderworldRuneSlot(${idx})" ${st.equippedRunes[idx] ? '' : 'disabled'}>이 슬롯 해제</button></div></div>`;
+    document.body.appendChild(overlay);
 }
 function craftUnderworldRune() {
     let st = ensureUnderworldRuneState();
@@ -1573,34 +1644,52 @@ function craftUnderworldRune() {
     addLog(`🧿 룬 가공 성공: ${def ? def.name : ('룬'+roll)} 획득 (${def ? `${getStatName(def.stat)} +${formatValue(def.stat, def.val)}` : ''})`, 'loot-unique');
     updateStaticUI();
 }
-function upgradeUnderworldRune() {
+function getUnderworldRuneUpgradeOptionHtml(no, count, unlockedMax) {
+    let shardNeed = Math.max(5, no);
+    let canPay = (game.currencies.runeShard || 0) >= shardNeed;
+    let canUpgrade = no < unlockedMax && canPay;
+    let target = Math.min(unlockedMax, no + 1);
+    let def = getUnderworldRuneDef(no);
+    let toDef = getUnderworldRuneDef(target);
+    let status = canUpgrade ? `룬${target}으로 승급 · 룬조각 ${shardNeed}` : (no >= unlockedMax ? `해금 최대 번호 ${unlockedMax} 필요` : `룬조각 부족 (${shardNeed})`);
+    let title = def ? `${def.name} 룬${no}` : `룬${no}`;
+    let targetName = toDef ? `${toDef.name} 룬${target}` : `룬${target}`;
+    return `<button type="button" class="underworld-rune-option" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${no})" onmousemove="showUnderworldRuneTooltip(event,${no})" onmouseleave="hideInfoTooltip()" onclick="upgradeUnderworldRune(${no})" ${canUpgrade ? '' : 'disabled'}><strong>${title} ×${count}</strong><span>${getUnderworldRuneEffectHtml(no)}</span><span>→ ${targetName} · ${status}</span></button>`;
+}
+function openUnderworldRuneUpgradeOverlay() {
+    closeUnderworldRuneOverlay();
     let st = ensureUnderworldRuneState();
-    let pool = Array.isArray(st.obtainedRunes) ? st.obtainedRunes : [];
-    if (pool.length < 3) return addLog('승급할 룬이 부족합니다.', 'attack-monster');
-    let count = {};
-    pool.forEach(n => { let k = Math.max(1, Math.floor(n || 1)); count[k] = (count[k] || 0) + 1; });
-    let from = Object.keys(count).map(Number).sort((a,b)=>a-b).find(n => count[n] >= 3 && n < 30);
-    if (!from) return addLog('동일 번호 룬 3개가 필요합니다. (룬30은 승급 불가)', 'attack-monster');
+    let count = getUnderworldRuneCountMap(st.obtainedRunes);
+    let unlockedMax = Math.max(1, Math.min(30, Math.floor(st.unlockedRunesMaxNumber || 1)));
+    let rows = Object.keys(count).map(Number).sort((a, b) => a - b).filter(no => count[no] >= 3 && no < 30);
+    if (rows.length === 0) return addLog('동일 번호 룬 3개가 필요합니다. (룬30은 승급 불가)', 'attack-monster');
+    let overlay = document.createElement('div');
+    overlay.id = 'underworld-rune-overlay';
+    overlay.className = 'underworld-rune-overlay';
+    overlay.onclick = event => { if (event.target === overlay) closeUnderworldRuneOverlay(); };
+    let options = rows.map(no => getUnderworldRuneUpgradeOptionHtml(no, count[no], unlockedMax)).join('');
+    overlay.innerHTML = `<div class="underworld-rune-overlay-panel"><div class="underworld-rune-overlay-head"><div><div class="underworld-rune-overlay-title">룬 승급 대상 선택</div><div class="underworld-rune-overlay-desc">동일 번호 룬 3개와 룬조각을 사용해 어떤 룬을 다음 번호로 승급할지 선택하세요.</div></div><button type="button" onclick="closeUnderworldRuneOverlay()">닫기</button></div><div class="underworld-rune-option-grid">${options}</div></div>`;
+    document.body.appendChild(overlay);
+}
+function upgradeUnderworldRune(fromNo) {
+    if (fromNo === undefined || fromNo === null) return openUnderworldRuneUpgradeOverlay();
+    let st = ensureUnderworldRuneState();
+    let count = getUnderworldRuneCountMap(st.obtainedRunes);
+    let from = Math.max(1, Math.floor(Number(fromNo) || 0));
+    if ((count[from] || 0) < 3 || from >= 30) return addLog('동일 번호 룬 3개가 필요합니다. (룬30은 승급 불가)', 'attack-monster');
     let shardNeed = Math.max(5, from);
     if ((game.currencies.runeShard || 0) < shardNeed) return addLog(`룬 조각이 부족합니다. (필요: ${shardNeed})`, 'attack-monster');
     let unlockedMax = Math.max(1, Math.min(30, Math.floor(st.unlockedRunesMaxNumber || 1)));
     if (from >= unlockedMax) return addLog(`현재는 룬${from}을 승급할 수 없습니다. (해금된 최대 번호: ${unlockedMax})`, 'attack-monster');
     game.currencies.runeShard -= shardNeed;
     let removed = 0;
-    st.obtainedRunes = st.obtainedRunes.filter(n => {
-        if (Math.floor(n || 0) === from && removed < 3) { removed++; return false; }
-        return true;
-    });
+    st.obtainedRunes = st.obtainedRunes.filter(n => Math.floor(n || 0) === from && removed++ < 3 ? false : true);
     let equipRemoved = 0;
-    st.equippedRunes = Array.isArray(st.equippedRunes)
-        ? st.equippedRunes.map(n => {
-            if (Math.floor(n || 0) === from && equipRemoved < 3) { equipRemoved++; return null; }
-            return n;
-        })
-        : [null, null, null, null, null, null];
+    st.equippedRunes = Array.isArray(st.equippedRunes) ? st.equippedRunes.map(n => Math.floor(n || 0) === from && equipRemoved++ < 3 ? null : n) : [null, null, null, null, null, null];
     let to = Math.min(unlockedMax, from + 1);
     st.obtainedRunes.push(to);
     autoEquipUnderworldRune(to);
+    closeUnderworldRuneOverlay();
     let def = getUnderworldRuneDef(to);
     addLog(`🧿 룬 승급 성공: 룬${from}×3 + 룬조각 ${shardNeed} → ${def ? def.name : ('룬'+to)} (${def ? `${getStatName(def.stat)} +${formatValue(def.stat, def.val)}` : ''})`, 'loot-unique');
     updateStaticUI();
@@ -5818,7 +5907,13 @@ function exposeUiRenderHelpersOnce() {
         closeCraftItemPickerOverlay,
         selectCraftPickerEquipment,
         selectCraftPickerInventoryItem,
-        showSocketedJewelTooltip
+        showSocketedJewelTooltip,
+        openUnderworldRuneOverlay,
+        openUnderworldRuneUpgradeOverlay,
+        closeUnderworldRuneOverlay,
+        equipUnderworldRuneToSlot,
+        unequipUnderworldRuneSlot,
+        showUnderworldRuneTooltip
     };
     let pending = {};
     Object.keys(helpers).forEach(key => {
@@ -5847,14 +5942,14 @@ function buildCraftActionButtons(item) {
     let craftSelectedBodyHtml = `<div style="color:#9fb4d1;">아이템을 클릭하여 선택</div>`;
     if (selectedItem) {
         let lines = [];
-        (selectedItem.baseStats || []).forEach(stat => lines.push(`<div class="tooltip-line" style="color:#95a5a6">${stat.statName} +${formatValue(stat.id, stat.val)}</div>`));
+        (selectedItem.baseStats || []).forEach(stat => lines.push(`<div class="tooltip-line craft-option-line craft-option-line--base" style="color:${getItemStatToneColor(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}</div>`));
         let selectedExplicitStats = (selectedItem.stats || []).slice();
         if (selectedItem.chaosInfusion) selectedExplicitStats.push({ ...selectedItem.chaosInfusion, statName: `[주입] ${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)}` });
         selectedExplicitStats.forEach(stat => {
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
             let honeyTag = stat.lockedByHoney ? ` <span style="color:#ffd166; font-weight:700;">[고정됨]</span>` : '';
             let stingerTag = stat.venomStingerBonus ? ` <span style="color:#9bff9e;">[독벌침]</span>` : '';
-            lines.push(`<div class="tooltip-line">${stat.statName} +${formatValue(stat.id, stat.val)}${tierText}${honeyTag}${stingerTag}</div>`);
+            lines.push(`<div class="tooltip-line craft-option-line" style="color:${getItemStatToneColor(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}${tierText}${honeyTag}${stingerTag}</div>`);
         });
         if (selectedExplicitStats.length === 0) lines.push(`<div class="tooltip-line" style="color:#7f8c8d">추가 옵션 없음</div>`);
         if (selectedItem.encroached) {
@@ -5895,7 +5990,7 @@ function buildCraftActionButtons(item) {
         }
         craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
-    document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div style="padding-right:86px;">${craftSelectedBodyHtml}</div>`;
+    document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div class="craft-selected-body">${craftSelectedBodyHtml}</div>`;
     document.getElementById('fossil-item-display').innerHTML = craftSelectedBodyHtml;
     let fossilButtons = [];
     let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
