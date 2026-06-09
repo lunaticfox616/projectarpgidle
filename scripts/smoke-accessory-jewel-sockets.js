@@ -25,11 +25,15 @@ assert(ui.includes('function getItemSlotDisplayLabel(item, fallbackLabel)'), 'cr
 assert(ui.includes('[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}'), 'selected craft item header must not call selectedItem.slot.replace directly');
 assert(ui.includes('onclick="insertJewelIntoVoidSocket(${i})"'), 'empty void sockets must render insert buttons');
 assert(!ui.includes('safeExposeGlobals({ getStyledOrbName'), 'UI helper group must not be explicitly re-exposed over automatic classic-script globals');
+assert(!ui.includes('safeExposeGlobals({ openCraftItemPickerOverlay'), 'craft picker handlers must not be explicitly re-exposed over automatic classic-script globals');
+assert(!ui.includes('safeExposeGlobals({ switchTab'), 'UI switchTab handler must not be explicitly re-exposed over automatic classic-script globals');
+assert(!ui.includes('safeExposeGlobals({ updateStaticUI'), 'UI updateStaticUI handler must not be explicitly re-exposed over automatic classic-script globals');
+assert(!ui.includes('safeExposeGlobals({ checkUnlocks'), 'UI unlock/action handler group must not be explicitly re-exposed over automatic classic-script globals');
 assert(!ui.includes('safeExposeGlobals({ showJewelRangeTooltip'), 'jewel tooltip hover must not add a new explicit global that can collide at runtime');
 assert(!ui.includes('safeExposeGlobals({ buildJewelRangeTooltipHtml'), 'legacy jewel tooltip builder must not be globally re-exposed');
 assert(ui.includes('getVoidJewelCraftMaterialIndices().length < 2'), 'void jewel craft button must use eligible material count, not raw inventory size');
 assert(index.includes('js/passives.js?v=20260608-jewel-socket4'), 'passives cache buster must be updated for socket fixes');
-assert(index.includes('js/ui.js?v=20260609-jewel-socket8'), 'ui cache buster must be updated for socket fixes');
+assert(index.includes('js/ui.js?v=20260609-jewel-socket9'), 'ui cache buster must be updated for socket fixes');
 assert(index.includes('data/skills.js?v=20260608-flame-socket2'), 'skill data cache buster must include latest flame decay data');
 assert(index.includes('js/combat.js?v=20260608-flame-socket2'), 'combat cache buster must include latest flame decay formula');
 

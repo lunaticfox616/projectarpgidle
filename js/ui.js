@@ -4461,7 +4461,6 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
 }
 
 
-safeExposeGlobals({ switchTab });
 
 function setTextById(id, value) {
     let el = document.getElementById(id);
@@ -4937,7 +4936,6 @@ function isEdgeInViewport(edge, viewport, margin) {
 }
 
 
-safeExposeGlobals({ updateCombatUI });
 
 
 // Phase-2 appended static UI renderer block.
@@ -5792,8 +5790,6 @@ function openCraftItemPickerOverlay(kind) {
     overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title">${isEquip ? '장착 장비에서 제작 대상 선택' : '인벤토리에서 제작 대상 선택'}</div><div class="craft-picker-desc">카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.</div></div><button type="button" onclick="closeCraftItemPickerOverlay()">닫기</button></div><div class="craft-picker-body">${bodyHtml}</div></div>`;
     document.body.appendChild(overlay);
 }
-
-safeExposeGlobals({ openCraftItemPickerOverlay, closeCraftItemPickerOverlay, selectCraftPickerEquipment, selectCraftPickerInventoryItem });
 
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
@@ -9672,7 +9668,6 @@ function gameLoop() {
 }
 
 
-safeExposeGlobals({ updateStaticUI });
 
 // Phase-4 extracted unlock/class/tab helper block.
 
@@ -10154,7 +10149,6 @@ function getLockedTabMessage(tabId) {
 }
 
 
-safeExposeGlobals({ checkUnlocks, buySeason, askRefundSeasonNode, refundSeasonNode, refundPassiveNode, selectClass, buyAscend, refundAscendNode, buyAscendKeystone, refundAscendKeystone, resetAscendKeystones, resetSeasonNodes, resetAscendNodes, getLockedTabMessage, selectExpertFavor, openBeehiveChoiceOverlay, closeBeehiveChoiceOverlay, equipColonyWardById, unequipColonyWard, unlockColonyWardSlot, cloudCompactAndPushNow });
 
 
 function pickEquippedSlotByPrompt(validSlots){
