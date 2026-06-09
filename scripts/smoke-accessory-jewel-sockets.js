@@ -54,19 +54,30 @@ function loadSocketRuntime() {
 }
 
 
-function loadUiSlotDisplayRuntime() {
-    const start = ui.indexOf('function getItemSlotDisplayLabel(item, fallbackLabel)');
-    const end = ui.indexOf('function showItemTooltip', start);
-    assert(start >= 0 && end > start, 'item slot display helper must be discoverable');
-    const sandbox = {};
-    vm.runInNewContext(`${ui.slice(start, end)}; this.getItemSlotDisplayLabel = getItemSlotDisplayLabel;`, sandbox);
+function loadUiCraftSummaryRuntime() {
+    const slotStart = ui.indexOf('function getItemSlotDisplayLabel(item, fallbackLabel)');
+    const slotEnd = ui.indexOf('function showItemTooltip', slotStart);
+    const summaryStart = ui.indexOf('function renderCraftSelectedSummary(item)');
+    const summaryEnd = ui.indexOf('function renderChaosInfuserPanel', summaryStart);
+    assert(slotStart >= 0 && slotEnd > slotStart, 'item slot display helper must be discoverable');
+    assert(summaryStart >= 0 && summaryEnd > summaryStart, 'craft selected summary renderer must be discoverable');
+    const host = { innerHTML: '' };
+    const sandbox = {
+        document: { getElementById(id) { return id === 'ui-craft-selected-summary' ? host : null; } },
+        getItemExplicitOptionCount(item) { return Array.isArray(item && item.stats) ? item.stats.length : 0; },
+        host
+    };
+    vm.runInNewContext(`${ui.slice(slotStart, slotEnd)}\n${ui.slice(summaryStart, summaryEnd)}\nthis.getItemSlotDisplayLabel = getItemSlotDisplayLabel;\nthis.renderCraftSelectedSummary = renderCraftSelectedSummary;`, sandbox);
     return sandbox;
 }
 
-const uiSlotRuntime = loadUiSlotDisplayRuntime();
-assert.strictEqual(uiSlotRuntime.getItemSlotDisplayLabel({ slots: ['목걸이'] }), '목걸이', 'slotless slots[] necklaces must render with a concrete display slot');
-assert.strictEqual(uiSlotRuntime.getItemSlotDisplayLabel({ slot: '반지2' }), '반지', 'equipped ring display slots must hide numeric suffixes');
-assert.strictEqual(uiSlotRuntime.getItemSlotDisplayLabel({}, '장비'), '장비', 'slotless non-records must fall back to a safe display label');
+const uiCraftRuntime = loadUiCraftSummaryRuntime();
+assert.strictEqual(uiCraftRuntime.getItemSlotDisplayLabel({ slots: ['목걸이'] }), '목걸이', 'slotless slots[] necklaces must render with a concrete display slot');
+assert.strictEqual(uiCraftRuntime.getItemSlotDisplayLabel({ slot: '반지2' }), '반지', 'equipped ring display slots must hide numeric suffixes');
+assert.strictEqual(uiCraftRuntime.getItemSlotDisplayLabel({}, '장비'), '장비', 'slotless non-records must fall back to a safe display label');
+uiCraftRuntime.renderCraftSelectedSummary({ slots: ['목걸이'], name: '슬롯 배열 목걸이', rarity: 'rare', baseName: '레거시 베이스', stats: [] });
+assert(uiCraftRuntime.host.innerHTML.includes('[목걸이] 슬롯 배열 목걸이'), 'slotless slots[] selected craft item must render a concrete accessory header');
+assert(!uiCraftRuntime.host.innerHTML.includes('[undefined]'), 'slotless slots[] selected craft item header must not leak undefined');
 
 const runtime = loadSocketRuntime();
 assert.strictEqual(runtime.isVoidSocketAccessoryItem({ slot: '반지1' }), true, 'equipped left ring slot must be accepted as an accessory');
