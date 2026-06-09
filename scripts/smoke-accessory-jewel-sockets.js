@@ -21,6 +21,8 @@ assert(passives.includes('jewelFusionSelection = [];'), 'void jewel crafting sho
 assert(ui.includes('onclick="removeJewelFromAbyssSocket(${sidx})"'), 'socketed abyss jewels must render a remove button');
 assert(ui.includes('onclick="applyVoidChiselToSelectedItem()">사용</button>'), 'void chisel currency card must expose a use button');
 assert(ui.includes('key === \'voidChisel\' ? getMobileCraftCurrencyUseState'), 'void chisel tooltip reason must use the special currency validator');
+assert(ui.includes('function getItemSlotDisplayLabel(item, fallbackLabel)'), 'craft UI must derive display slots from slot or slots[] records');
+assert(ui.includes('[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}'), 'selected craft item header must not call selectedItem.slot.replace directly');
 assert(ui.includes('onclick="insertJewelIntoVoidSocket(${i})"'), 'empty void sockets must render insert buttons');
 assert(ui.includes("safeExposeGlobals({ showJewelRangeTooltip, getStyledOrbName"), 'jewel tooltip hover handler must be explicitly exposed without the legacy tooltip builder name');
 assert(!ui.includes('safeExposeGlobals({ buildJewelRangeTooltipHtml'), 'legacy jewel tooltip builder must not be globally re-exposed');
