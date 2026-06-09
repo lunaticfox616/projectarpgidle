@@ -5579,8 +5579,13 @@ function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) retur
 
 
 function isVoidSocketAccessoryItem(item) {
-    let slot = String(item && item.slot || '').replace(/[12]$/, '');
-    return slot === '반지' || slot === '목걸이';
+    let candidates = [];
+    if (item && item.slot !== undefined && item.slot !== null) candidates.push(item.slot);
+    if (item && Array.isArray(item.slots)) candidates = candidates.concat(item.slots);
+    return candidates.some(candidate => {
+        let slot = String(candidate || '').replace(/[12]$/, '');
+        return slot === '반지' || slot === '목걸이';
+    });
 }
 
 function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
