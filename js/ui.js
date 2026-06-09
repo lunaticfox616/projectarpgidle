@@ -5402,7 +5402,7 @@ function getStyledOrbName(orbKey) {
     return name;
 }
 
-function buildJewelRangeTooltipHtml(jewel) {
+const buildJewelRangeTooltipHtml = function buildJewelRangeTooltipHtml(jewel) {
     if (!jewel) return '<div class="tooltip-title">주얼</div><div class="tooltip-line">정보 없음</div>';
     let stats = getJewelStats(jewel);
     let coreStats = stats.filter(stat => !isJewelPetiteStat(stat));
@@ -5421,7 +5421,7 @@ function buildJewelRangeTooltipHtml(jewel) {
     let tierLine = tierSummary ? `<div class="tooltip-line" style="color:#9fb4d1;">숨겨진 티어: T${tierSummary}</div>` : '';
     let uniqueLine = jewel.rarity === 'unique' && jewel.uniqueEffect ? `<div class="tooltip-line" style="color:#d7b8ff;">✨ 고유 효과: ${escapeHTML(jewel.uniqueEffect)}</div>` : '';
     return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${uniqueLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
-}
+};
 
 safeExposeGlobals({ buildJewelRangeTooltipHtml, getStyledOrbName, getItemStatToneColor, updateSearchFilter, resetSearchFilter, bulkSalvageEquipBySearch, bulkSalvageJewelsBySearch, bulkSalvageTalismansBySearch, bulkDismantleColonyWardsBySearch, dismantleColonyWardById, updateColonyWardSearchFilter, resetColonyWardSearchFilter, exchangeTalismanShards, applyBeeswaxToTalisman, removeBeeswaxFromTalisman, openBeeswaxApplicationOverlay, confirmBeeswaxApplication, closeBeeswaxWarningOverlay, openWaxedItemRestrictionOverlay, closeTalismanDismantleOverlay, confirmTalismanDismantle, toggleTalismanLock, toggleColonyWardLock });
 
