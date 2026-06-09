@@ -21,12 +21,14 @@ assert(passives.includes('jewelFusionSelection = [];'), 'void jewel crafting sho
 assert(ui.includes('onclick="removeJewelFromAbyssSocket(${sidx})"'), 'socketed abyss jewels must render a remove button');
 assert(ui.includes('onclick="applyVoidChiselToSelectedItem()">사용</button>'), 'void chisel currency card must expose a use button');
 assert(ui.includes('key === \'voidChisel\' ? getMobileCraftCurrencyUseState'), 'void chisel tooltip reason must use the special currency validator');
+assert(ui.includes('function getItemSlotDisplayLabel(item, fallbackLabel)'), 'craft UI must derive display slots from slot or slots[] records');
+assert(ui.includes('[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}'), 'selected craft item header must not call selectedItem.slot.replace directly');
 assert(ui.includes('onclick="insertJewelIntoVoidSocket(${i})"'), 'empty void sockets must render insert buttons');
 assert(ui.includes("safeExposeGlobals({ showJewelRangeTooltip, getStyledOrbName"), 'jewel tooltip hover handler must be explicitly exposed without the legacy tooltip builder name');
 assert(!ui.includes('safeExposeGlobals({ buildJewelRangeTooltipHtml'), 'legacy jewel tooltip builder must not be globally re-exposed');
 assert(ui.includes('getVoidJewelCraftMaterialIndices().length < 2'), 'void jewel craft button must use eligible material count, not raw inventory size');
 assert(index.includes('js/passives.js?v=20260608-jewel-socket4'), 'passives cache buster must be updated for socket fixes');
-assert(index.includes('js/ui.js?v=20260609-jewel-socket5'), 'ui cache buster must be updated for socket fixes');
+assert(index.includes('js/ui.js?v=20260609-jewel-socket6'), 'ui cache buster must be updated for socket fixes');
 assert(index.includes('data/skills.js?v=20260608-flame-socket2'), 'skill data cache buster must include latest flame decay data');
 assert(index.includes('js/combat.js?v=20260608-flame-socket2'), 'combat cache buster must include latest flame decay formula');
 
@@ -50,6 +52,21 @@ function loadSocketRuntime() {
     vm.runInNewContext(passives.slice(start, end), sandbox);
     return sandbox;
 }
+
+
+function loadUiSlotDisplayRuntime() {
+    const start = ui.indexOf('function getItemSlotDisplayLabel(item, fallbackLabel)');
+    const end = ui.indexOf('function showItemTooltip', start);
+    assert(start >= 0 && end > start, 'item slot display helper must be discoverable');
+    const sandbox = {};
+    vm.runInNewContext(`${ui.slice(start, end)}; this.getItemSlotDisplayLabel = getItemSlotDisplayLabel;`, sandbox);
+    return sandbox;
+}
+
+const uiSlotRuntime = loadUiSlotDisplayRuntime();
+assert.strictEqual(uiSlotRuntime.getItemSlotDisplayLabel({ slots: ['목걸이'] }), '목걸이', 'slotless slots[] necklaces must render with a concrete display slot');
+assert.strictEqual(uiSlotRuntime.getItemSlotDisplayLabel({ slot: '반지2' }), '반지', 'equipped ring display slots must hide numeric suffixes');
+assert.strictEqual(uiSlotRuntime.getItemSlotDisplayLabel({}, '장비'), '장비', 'slotless non-records must fall back to a safe display label');
 
 const runtime = loadSocketRuntime();
 assert.strictEqual(runtime.isVoidSocketAccessoryItem({ slot: '반지1' }), true, 'equipped left ring slot must be accepted as an accessory');

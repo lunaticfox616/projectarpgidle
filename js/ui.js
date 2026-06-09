@@ -3348,13 +3348,20 @@ function showGemTooltip(event, type, name) {
     showInfoTooltipHtml(event.clientX, event.clientY, html, border);
 }
 
+function getItemSlotDisplayLabel(item, fallbackLabel) {
+    let rawSlot = item && item.slot !== undefined && item.slot !== null ? item.slot : null;
+    if (rawSlot === null && item && Array.isArray(item.slots) && item.slots.length > 0) rawSlot = item.slots[0];
+    let label = rawSlot !== null ? rawSlot : (fallbackLabel || '장비');
+    return String(label || '장비').replace(/[12]$/, '');
+}
+
 function showItemTooltip(event, idx, isEquip) {
     let item = isEquip ? game.equipment[idx] : game.inventory[idx];
     let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
     if (!item) return;
     activeItemTooltipToken = isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`;
     let tt = document.getElementById('item-tooltip-box');
-    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${item.slot.replace(/[12]/, '')}] ${item.name}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>`;
+    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${item.name}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>`;
     html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}</div>`;
     html += `<div class="tooltip-line" style="color:#a8c0da;">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
     if (item.rarity === 'unique' && item.uniqueEffect) {
@@ -5490,7 +5497,7 @@ function renderCraftSelectedSummary(item) {
         return;
     }
     let statCount = getItemExplicitOptionCount(item);
-    host.innerHTML = `<div><strong>[${item.slot.replace(/[12]/,'')}] ${item.name}</strong> · ${item.rarity.toUpperCase()} · 추가 옵션 ${statCount}/6</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
+    host.innerHTML = `<div><strong>[${getItemSlotDisplayLabel(item)}] ${item.name}</strong> · ${item.rarity.toUpperCase()} · 추가 옵션 ${statCount}/6</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
 }
 
 
@@ -5524,7 +5531,7 @@ function renderChaosInfuserPanel(selectedItem) {
         return `<button onclick="applyChaosInfusionToSelectedItem('${key}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${rangeText}<br><span style="font-size:0.78em;color:#b7c6df;">${same ? '적용 중' : costText}</span></button>`;
     }).join('') : `<div style="grid-column:1/-1; color:#ffb4b4;">${eligibility.reason}</div>`;
     if (eligibility.ok && !buttons) buttons = '<div style="grid-column:1/-1; color:#9fb4d1;">이 부위에 추가할 수 있는 주입 옵션이 없습니다.</div>';
-    host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${selectedItem.slot.replace(/[12]/,'')}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:#9fb4d1;">T5급 범위 옵션 한 줄을 추가 옵션으로 부여합니다. 추가 옵션 제한: ${explicitCount}/6. 교체/제거 시 정화의 오브가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
+    host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:#9fb4d1;">T5급 범위 옵션 한 줄을 추가 옵션으로 부여합니다. 추가 옵션 제한: ${explicitCount}/6. 교체/제거 시 정화의 오브가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
 }
 
 function renderCraftOrbActions(selectedItem) {
@@ -5752,7 +5759,7 @@ function getCraftPickerCardHtml(item, options) {
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
     let extraClass = options.extraClass || '';
     return `<button type="button" class="craft-picker-card ${extraClass} ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
-        <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(slotLabel.replace(/[12]/, ''))}] ${escapeHTML(item.name || '장비')}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
+        <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(getItemSlotDisplayLabel(item, slotLabel))}] ${escapeHTML(item.name || '장비')}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
         <div class="item-base-line" style="font-size:.78em;">${escapeHTML(item.baseName || '')}</div>
         ${getCraftPickerItemLines(item)}
     </button>`;
@@ -5858,7 +5865,7 @@ function buildCraftActionButtons(item) {
             }).join('');
             abyssSocketHtml = `<div class="craft-section-title">심연 소켓</div>${makeBtn}${rows}`;
         }
-        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${selectedItem.slot.replace(/[12]/, '')}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
+        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div style="padding-right:86px;">${craftSelectedBodyHtml}</div>`;
     document.getElementById('fossil-item-display').innerHTML = craftSelectedBodyHtml;
