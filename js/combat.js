@@ -819,6 +819,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (!expected && target && (target.evasionChance || 0) > 0 && Math.random() * 100 < target.evasionChance) {
         dmg = 0;
         ailmentSourceDmg = 0;
+        addBattleFx('enemyEvade', { enemyId: target.id, text: '회피!', color: '#9fb4c8', duration: 260 });
         addEvasionCombatLog(target, false);
     }
     dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
@@ -6079,6 +6080,7 @@ function performPlayerAttack(pStats) {
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
             if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
+                addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(targetEnemy, false);
                 return;
             }
@@ -6902,7 +6904,7 @@ function performMonsterAttacks(pStats) {
             let evadeRoll = Math.random() * 100;
             if (game.ascendClass === 'hunter' && hasKeystone('h3')) evadeRoll = Math.min(evadeRoll, Math.random() * 100);
             if (evadeRoll < evadeChance) {
-                spawnDamageText({ x: width * 0.28, y: height * 0.64, value: '회피!', miss: true, color: '#9fb4c8' });
+                addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(null, true);
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
                 continue;
@@ -6914,7 +6916,7 @@ function performMonsterAttacks(pStats) {
                     let recover = Math.max(1, Math.floor((pStats.energyShield || 0) * Math.max(0, Number(pStats.uniqueBlockRecoverEnergyShieldPct || 0)) / 100));
                     game.playerEnergyShield = Math.min((pStats.energyShield || 0), Math.max(0, Number(game.playerEnergyShield) || 0) + recover);
                 }
-                spawnDamageText({ x: width * 0.28, y: height * 0.64, value: '막아냄!', miss: true, color: '#a7a7a7' });
+                addBattleFx('statusText', { text: '막아냄!', color: '#a7a7a7', duration: 260 });
                 if (game.settings.showCombatLog) addLog(`🛡️ 막아냄!`, "loot-magic");
                 continue;
             }
@@ -6925,7 +6927,7 @@ function performMonsterAttacks(pStats) {
                     let cfg = pStats.uniqueDeflectStealth || {};
                     game.shadowStealthExpiresAt = Date.now() + Math.max(1, Number(cfg.duration || 3)) * 1000;
                 }
-                spawnDamageText({ x: width * 0.28, y: height * 0.64, value: '빗겨냄!', miss: true, color: '#b7c7b7' });
+                addBattleFx('statusText', { text: '빗겨냄!', color: '#b7c7b7', duration: 260 });
                 if (game.settings.showCombatLog) addLog(`🪶 빗겨내기 성공: 피해 ${Math.floor(deflectReduce)}% 감소`, "loot-magic");
             }
             let ailRoll = Math.random();
