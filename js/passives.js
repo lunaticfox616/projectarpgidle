@@ -5838,7 +5838,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare
         && canDropUniqueInZone(unique)
         && zoneTier >= (unique.reqTier || 1));
-    let canRollChase = !forcedUnique && chaseOptions.length > 0 && Math.random() < 0.0008;
+    let canRollChase = !forcedUnique && chaseOptions.length > 0 && Math.random() < 0.0016;
     let poolSource = canRollChase ? chaseOptions : normalOptions;
     let options = poolSource.filter(unique => unique.slots.includes(slot) && zoneTier >= (unique.reqTier || 1));
     if (options.length === 0) options = poolSource.filter(unique => zoneTier >= (unique.reqTier || 1));
@@ -5976,6 +5976,26 @@ function awardCurrency(currencyKey, amount) {
 }
 
 
+function getMappingTicketDrops(enemy, zone, mappingOpened) {
+    let drops = [];
+    if (!mappingOpened || !zone || zone.type === 'trial' || zone.type === 'seasonBoss') return drops;
+    if ((game.season || 1) >= 2) {
+        if (enemy.isBoss && Math.random() < 0.044) {
+            drops.push([rndChoice(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm']), 1]);
+        } else if (enemy.isElite && Math.random() < 0.01) {
+            drops.push([rndChoice(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm']), 1]);
+        }
+    }
+    let highTrialUnlocked = (game.unlockedTrials || []).includes('trial_3')
+        || (game.unlockedTrials || []).includes('trial_4')
+        || (game.completedTrials || []).includes('trial_3')
+        || (game.completedTrials || []).includes('trial_4');
+    if (!highTrialUnlocked) return drops;
+    let trialKeyChance = enemy.isBoss ? 0.015 : (enemy.isElite ? 0.001 : 0);
+    if (trialKeyChance > 0 && Math.random() < trialKeyChance) drops.push(['trialKey3', 1]);
+    return drops;
+}
+
 function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let dropBonus = getCodexBonusPct() / 100;
@@ -6001,15 +6021,7 @@ function getCurrencyDrops(enemy) {
         drops.push([[ 'transmute', 'transmute', 'augment', 'alteration', 'scour' ][Math.floor(Math.random() * 5)], 1]);
     }
     let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
-    if ((game.season || 1) >= 2 && mappingOpened && zone.type !== 'trial' && zone.type !== 'seasonBoss') {
-        if (enemy.isBoss && Math.random() < 0.044) {
-            let key = ['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm'][Math.floor(Math.random() * 3)];
-            drops.push([key, 1]);
-        } else if (enemy.isElite && Math.random() < 0.01) {
-            let key = ['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm'][Math.floor(Math.random() * 3)];
-            drops.push([key, 1]);
-        }
-    }
+    drops.push(...getMappingTicketDrops(enemy, zone, mappingOpened));
     if ((game.season || 1) >= 4 && enemy.isSky && Math.random() < 0.35) drops.push(['skyEssence', 1]);
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16) drops.push(['tainted', 1]);
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.03) drops.push(['jewelShard', 3]);

@@ -14,9 +14,19 @@ let craftingSelectionState = { ref: null, isEquip: false };
 const BLACK_MARKET_BASE_SLOT_COUNT = 6;
 const BLACK_MARKET_MAX_SLOT_COUNT = 50;
 const BLACK_MARKET_MAX_EXTRA_SLOTS = Math.max(0, BLACK_MARKET_MAX_SLOT_COUNT - BLACK_MARKET_BASE_SLOT_COUNT);
+const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;
 
 function isUniqueEligibleForBlackMarket(unique) {
-    return !!(unique && !unique.dropOnly && !unique.contentOnly && !unique.bossOnly && !unique.realmCodexOnly);
+    if (!unique || unique.contentOnly || unique.bossOnly || unique.realmCodexOnly) return false;
+    if (!unique.dropOnly) return true;
+    return !!(unique.dropOnly && unique.dropOnly.type === 'cosmos');
+}
+
+function rollBlackMarketChaseUniquePrice(reqTier) {
+    let tier = Math.max(1, Math.floor(Number(reqTier) || 1));
+    let minPrice = Math.max(30, Math.min(150, Math.floor(tier * 2)));
+    let maxPrice = Math.max(minPrice, Math.min(150, Math.floor(tier * 7.5)));
+    return minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
 }
 
 function normalizeBlackMarketState() {
@@ -489,27 +499,21 @@ function buildBlackMarketOffer(index) {
     let uniqPool = UNIQUE_DB.filter(u => (u.reqTier || 1) <= tier + 4 && isUniqueEligibleForBlackMarket(u));
     let normalPool = uniqPool.filter(u => !u.ultraRare);
     let chasePool = uniqPool.filter(u => u.ultraRare);
-    let tierNorm = Math.max(1, Math.min(20, tier));
-    let chaseChance = Math.max(0.004, 0.03 - (tierNorm * 0.0008));
-    let pickChase = chasePool.length > 0 && Math.random() < chaseChance;
+    let pickChase = chasePool.length > 0 && Math.random() < BLACK_MARKET_CHASE_UNIQUE_CHANCE;
+    let fallbackPool = uniqPool.length ? uniqPool : UNIQUE_DB.filter(isUniqueEligibleForBlackMarket);
     let uniq = pickChase
         ? rndChoice(chasePool)
-        : rndChoice(normalPool.length ? normalPool : (uniqPool.length ? uniqPool : UNIQUE_DB.filter(isUniqueEligibleForBlackMarket)));
+        : rndChoice(normalPool.length ? normalPool : fallbackPool);
     let req = uniq.reqTier || tier;
     let price = 1;
     if (uniq.ultraRare) {
-        let minPrice = 5;
-        let maxPrice = 10;
-        if (req >= 16) { minPrice = 15; maxPrice = 25; }
-        else if (req >= 13) { minPrice = 10; maxPrice = 18; }
-        else if (req >= 10) { minPrice = 8; maxPrice = 14; }
-        price = minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
+        price = rollBlackMarketChaseUniquePrice(req);
     } else {
         let minPrice = Math.max(1, Math.floor(req / 10));
         let maxPrice = Math.max(minPrice + 1, Math.floor(req / 4) + 1);
         price = minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
     }
-    return { type:'unique', name:uniq.name, slot:uniq.slots[0], reqTier:req, priceKey:'divine', price:price };
+    return { type:'unique', name:uniq.name, slot:uniq.slots[0], reqTier:req, priceKey:'divine', price:price, chase: !!uniq.ultraRare };
 }
 
 function getBlackMarketOfferTooltipHtml(offer) {
@@ -528,13 +532,19 @@ function getBlackMarketOfferTooltipHtml(offer) {
     }
     if (offer.type === 'unique') {
         let uniq = UNIQUE_DB.find(u => u && u.name === offer.name);
-        let lines = (uniq && Array.isArray(uniq.stats) ? uniq.stats.slice(0, 3).map(stat => `${getStatName(stat.id)} +${stat.min}~${stat.max}`) : []);
         let slot = (uniq && Array.isArray(uniq.slots) && uniq.slots.length > 0) ? uniq.slots[0] : '';
         let codexKey = `${slot}|${offer.name}`;
         let codex = (game && game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
         let registered = !!codex[codexKey];
         let codexLine = registered ? '<span style="color:#8dffb1;">등록됨</span>' : '<span style="color:#ffb0b0;">미등록</span>';
-        return `<div class="tooltip-title">고유 장비</div><div class="tooltip-line">${offer.name} (티어 ${offer.reqTier})</div><div class="tooltip-line">${lines.join(' / ') || '고유 옵션 보유'}</div><div class="tooltip-line">도감 등록: ${codexLine}</div>`;
+        let effectLine = uniq && uniq.uniqueEffect ? `<div class="tooltip-line" style="color:#d7b8ff;">[고유 효과] ${escapeHTML(uniq.uniqueEffect)}</div>` : '';
+        let statLines = (uniq && Array.isArray(uniq.stats) ? uniq.stats.map(stat => {
+            let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || 0);
+            let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
+            return `<div class="tooltip-line">${getStatName(stat.id)} +${formatValue(stat.id, min)}~+${formatValue(stat.id, max)}</div>`;
+        }) : []);
+        let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">🌠 체이싱 유니크 암거래 품목</div>' : '';
+        return `<div class="tooltip-title">도감 고유 정보 · ${offer.name} (티어 ${offer.reqTier})</div>${chaseLine}${effectLine}${statLines.join('') || '<div class="tooltip-line">고유 옵션 보유</div>'}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
     }
     return '<div class="tooltip-title">암거래 품목</div>';
 }
@@ -738,8 +748,8 @@ function renderMarketUI() {
                 ? `${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : ORB_DB[offer.from].name} ${offer.need} → ${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : ORB_DB[offer.to].name} ${offer.gain}`
                 : (offer.type==='skillGem' ? `미보유 젬 [${safeOfferName}]` : safeOfferName);
             let price = offer.type==='exchange' ? '' : ` (${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.priceKey) : ORB_DB[offer.priceKey].name} ${offer.price})`;
-            let cls = offer.type === 'exchange' ? 'currency' : offer.type === 'skillGem' ? 'gem' : offer.type === 'baseItem' ? 'gear' : 'unique';
-            let badge = cls === 'currency' ? '재화' : cls === 'gem' ? '젬' : cls === 'gear' ? '장비' : '고유';
+            let cls = offer.type === 'exchange' ? 'currency' : offer.type === 'skillGem' ? 'gem' : offer.type === 'baseItem' ? 'gear' : (offer.chase ? 'unique chase' : 'unique');
+            let badge = cls === 'currency' ? '재화' : cls === 'gem' ? '젬' : cls === 'gear' ? '장비' : (offer.chase ? '체이싱' : '고유');
             let tooltip = encodeURIComponent(getBlackMarketOfferTooltipHtml(offer));
             let richDesc = `${desc}${price}`;
             let isLocked = !!(game.blackMarket && game.blackMarket.lockedOffers && game.blackMarket.lockedOffers[idx]);
