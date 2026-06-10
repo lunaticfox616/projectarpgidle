@@ -2605,7 +2605,8 @@ function spawnDamageText(config) {
         dot: !!config.dot,
         dotType: config.dotType || '',
         miss: !!config.miss,
-        color: config.color || ''
+        color: config.color || '',
+        deflected: !!config.deflected
     });
 }
 function drawVisualProjectile(ctx, projectile, now) {
@@ -2640,7 +2641,7 @@ function drawDamageTexts(ctx, now) {
         let textValue = text.miss ? String(text.value) : formatDamageNumberForDisplay(text.value);
         ctx.strokeText(textValue, x, y);
         let dotColor = text.dotType === 'fire' ? '#ff9f43' : (text.dotType === 'chaos' ? '#c56cff' : (text.dotType === 'phys' ? '#ff6b6b' : '#b57cff'));
-        ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.enemyHit ? '#ff8e8e' : (text.crit ? '#ffd36f' : '#f3f6ff')));
+        ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.deflected ? '#8fe3b0' : (text.enemyHit ? '#ff8e8e' : (text.crit ? '#ffd36f' : '#f3f6ff'))));
         ctx.fillText(textValue, x, y);
         ctx.restore();
     });

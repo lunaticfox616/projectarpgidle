@@ -175,7 +175,8 @@ function renderBattlefield(forceWhenHidden) {
                     x: playerPos.x + 14,
                     y: playerPos.y - 36,
                     value: fx.damage,
-                    enemyHit: true
+                    enemyHit: true,
+                    deflected: !!fx.deflected
                 });
             }
             handled = true;

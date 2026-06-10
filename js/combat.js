@@ -6920,6 +6920,8 @@ function performMonsterAttacks(pStats) {
                 if (game.settings.showCombatLog) addLog(`🛡️ 막아냄!`, "loot-magic");
                 continue;
             }
+            let deflected = false;
+            let deflectReducePct = 0;
             if (Math.random() * 100 < Math.max(0, Math.min(75, pStats.deflectChance || 0))) {
                 let deflectReduce = Math.max(0, Math.min(85, 40 + Number(pStats.deflectDamageReduce || 0)));
                 dmg = scaleBreakdownToTotal(Math.max(1, Math.floor(dmg * (1 - deflectReduce / 100))));
@@ -6927,8 +6929,8 @@ function performMonsterAttacks(pStats) {
                     let cfg = pStats.uniqueDeflectStealth || {};
                     game.shadowStealthExpiresAt = Date.now() + Math.max(1, Number(cfg.duration || 3)) * 1000;
                 }
-                addBattleFx('statusText', { text: '빗겨냄!', color: '#b7c7b7', duration: 260 });
-                if (game.settings.showCombatLog) addLog(`🪶 빗겨내기 성공: 피해 ${Math.floor(deflectReduce)}% 감소`, "loot-magic");
+                deflected = true;
+                deflectReducePct = Math.floor(deflectReduce);
             }
             let ailRoll = Math.random();
             if (game.ascendClass === 'hunter' && hasKeystone('h3')) ailRoll = Math.max(ailRoll, Math.random());
@@ -7044,14 +7046,15 @@ function performMonsterAttacks(pStats) {
                 .filter(row => row && row.amount > 0)
                 .sort((a, b) => (b.amount || 0) - (a.amount || 0))[0] || { ele: enemy.ele === 'phys' ? 'phys' : (enemy.ele || 'phys'), amount: dmg };
             damageBreakdown.forEach(row => recordIncomingDamage(row.ele, row.amount, enemy.name));
-            addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220 });
+            addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected });
             if (game.settings.showCombatLog) {
                 let breakdownText = damageBreakdown
                     .filter(row => row.amount > 0)
                     .sort((a, b) => b.amount - a.amount)
                     .map(row => `${getDamageElementLabel(row.ele)} ${Math.floor(row.amount)}`)
                     .join(' / ');
-                addLog(`🩸 [${getDamageElementLabel(topDamageEntry.ele)}] 피격 (${dmg} 피해 · ${breakdownText})`, "attack-monster");
+                let deflectText = deflected ? ` · 🪶빗겨냄 -${deflectReducePct}%` : '';
+                addLog(`🩸 [${getDamageElementLabel(topDamageEntry.ele)}] 피격 (${dmg} 피해 · ${breakdownText}${deflectText})`, "attack-monster");
             }
             if (game.playerHp <= 0) {
                 handlePlayerDefeat(zone, pStats, null, { fatalElement: topDamageEntry.ele, sourceName: enemy.name });
