@@ -1813,6 +1813,28 @@ function enterTrialWithTicket(trialId) {
     changeZone(trialId);
 }
 
+// 나무꾼의 잔상(전투력 측정기) 해금 여부 = 혼돈 밖 나무꾼 100% 처치
+function isWoodsmanEchoUnlocked() {
+    if (typeof ensureChaosRealmState !== 'function') return false;
+    return (ensureChaosRealmState().woodsmanBestDamagePct || 0) >= 100;
+}
+// 시련 노출: 카오스/코어 키 중 1개 이상 보유
+function canSeeTalentBloomTrial() {
+    return (game.currencies.chaosKey || 0) >= 1 || (game.currencies.coreKey || 0) >= 1;
+}
+// 입장/개화 가능: 나무꾼의 잔상 해금 + 직업 보유 + 카오스/코어 키 각 1개 이상
+function canEnterTalentBloomTrial() {
+    return isWoodsmanEchoUnlocked() && !!game.ascendClass
+        && (game.currencies.chaosKey || 0) >= 1 && (game.currencies.coreKey || 0) >= 1;
+}
+function enterTalentBloomTrial() {
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    if (!isWoodsmanEchoUnlocked()) return addLog('🔒 나무꾼의 잔상이 아직 열리지 않았습니다. 혼돈 밖 나무꾼을 100% 처치하세요.', 'attack-monster');
+    if (!game.ascendClass) return addLog('🔒 재능 개화는 직업(전직) 선택 후 도전할 수 있습니다.', 'attack-monster');
+    if ((game.currencies.chaosKey || 0) < 1 || (game.currencies.coreKey || 0) < 1) return addLog('🔒 카오스 키와 코어 키가 각각 1개씩 필요합니다.', 'attack-monster');
+    changeZone('trial_5');
+}
+
 function enterDeepChaosPrompt(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let max=Math.max(20, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth||20)); let v=prompt(`진입할 심화 혼돈 층수를 입력하세요. (21 ~ ${max})`, String(max)); if(v===null)return; let depth=Math.floor(Number(v)||0); if(depth<21||depth>max) return addLog(`21~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); if (unlocked.length > 0 && !unlocked.includes(depth)) return addLog(`해금된 심화 혼돈 층수만 입장 가능합니다.`, 'attack-monster'); enterUnlockedEndlessDepth(depth); }
 function enterLabyrinthPrompt(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let max=Math.max(1,Math.floor(game.labyrinthUnlockedMaxFloor||game.labyrinthFloor||1)); let v=prompt(`진입할 고대 미궁 층수를 입력하세요. (1 ~ ${max})`, String(max)); if(v===null)return; let floor=Math.floor(Number(v)||0); if(floor<1||floor>max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); enterLabyrinthFloor(floor); }
 
@@ -6206,11 +6228,27 @@ function buildCraftActionButtons(item) {
     renderSkyTowerMapPanel();
     renderUnderworldMapPanel();
 
-    let availTrials = TRIAL_ZONES.filter(trial => (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id));
+    let availTrials = TRIAL_ZONES.filter(trial => {
+        if (trial.bloomTrial) return canSeeTalentBloomTrial();
+        return (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id);
+    });
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
 
     renderLoop9VoidRiftPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
+        if (trial.bloomTrial) {
+            let isCurrent = game.currentZoneId === trial.id;
+            let chaosKeys = Math.floor(game.currencies.chaosKey || 0);
+            let coreKeys = Math.floor(game.currencies.coreKey || 0);
+            let ready = canEnterTalentBloomTrial();
+            let hint;
+            if (ready) hint = '개화 도전';
+            else if (chaosKeys < 1 || coreKeys < 1) hint = `카오스 ${chaosKeys}/1 · 코어 ${coreKeys}/1`;
+            else if (!isWoodsmanEchoUnlocked()) hint = '🔒 나무꾼의 잔상 필요';
+            else if (!game.ascendClass) hint = '🔒 직업(전직) 필요';
+            else hint = '🔒 조건 미충족';
+            return `<div class="map-item ${isCurrent ? 'current' : 'trial'}" ${ready ? `onclick="enterTalentBloomTrial()"` : ''}><span>🌸 ${trial.name}</span><span style="font-size:0.8em; font-weight:normal;">${hint}</span></div>`;
+        }
         let isCurrent = game.currentZoneId === trial.id;
         let isCompleted = game.completedTrials.includes(trial.id);
         let needsTicket = isCompleted && (trial.id === 'trial_3' || trial.id === 'trial_4');

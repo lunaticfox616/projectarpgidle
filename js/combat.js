@@ -1149,7 +1149,8 @@ function coreLoop() {
     }
     if (game.playerHp > 0 && game.playerHp < pStats.maxHp) {
         let hpCap = getPlayerHpCap(pStats);
-        game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
+        let bloomRegenMul = Math.max(0.05, 1 - Math.max(0, Math.min(0.95, game.bloomTrialRegenSuppress || 0)));
+        game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1 * bloomRegenMul);
     }
     if ((game.delayedGuardHealPool || 0) > 0) {
         let tickHeal = Math.max(0, (game.delayedGuardHealPool / 4) * 0.1);
@@ -2008,6 +2009,13 @@ function getPlayerStats() {
         let gravitySlow = Math.min(0.75, 0.12 + Math.max(0, uf - 1) * 0.018);
         let skyStoneReduction = Math.max(0, Math.min(75, typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)) / 100;
         gravitySlow *= (1 - skyStoneReduction);
+        finalAspd *= (1 - gravitySlow);
+        finalMove *= (1 - gravitySlow);
+    }
+    if (zonePenalty && zonePenalty.bloomTrial && zonePenalty.underworldPenaltyFloor) {
+        // 지하계 N층급 중력 패널티: 창공석으로 줄일 수 없음
+        let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || 1));
+        let gravitySlow = Math.min(0.75, 0.12 + Math.max(0, uf - 1) * 0.018);
         finalAspd *= (1 - gravitySlow);
         finalMove *= (1 - gravitySlow);
     }
@@ -3435,8 +3443,8 @@ function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
     }
 }
 function applyChaosRealmAffixesToEnemy(enemy, zone) {
-    if (!enemy || !zone || zone.type !== 'chaosRealm') return enemy;
-    let floor = Math.max(1, Math.floor(zone.floor || 1));
+    if (!enemy || !zone || (zone.type !== 'chaosRealm' && !zone.bloomTrialAffixFloor)) return enemy;
+    let floor = Math.max(1, Math.floor(zone.bloomTrialAffixFloor || zone.floor || 1));
     let scale = getChaosRealmAffixScale(floor);
     let affixes = getChaosRealmAffixes(floor);
     enemy.chaosRealmFloor = floor;
@@ -4127,11 +4135,37 @@ function reserveBattleSlot(usedSlots) {
 }
 
 function primeTrialHazardTimer(zone) {
+    // 개화 시련 밖으로 나가면 누적된 재생 억제를 해제한다.
+    if (!zone || !zone.bloomTrial) game.bloomTrialRegenSuppress = 0;
     if (!zone || zone.type !== 'trial') {
         trialHazardTimer = 0;
         return;
     }
     trialHazardTimer = 1.8 + Math.random() * 1.6;
+}
+
+// 재능 개화 시련 클리어 처리. (P1: 키 소모 + 조합 기록 / P2·P3: 5차 노드·재능 탭·개화 카드 보상 확장 예정)
+function handleTalentBloomClear(zone) {
+    game.currencies.chaosKey = Math.max(0, Math.floor(game.currencies.chaosKey || 0) - 1);
+    game.currencies.coreKey = Math.max(0, Math.floor(game.currencies.coreKey || 0) - 1);
+    game.bloomTrialRegenSuppress = 0;
+    let heroId = game.selectedHeroId || 'hero1';
+    let classKey = game.ascendClass || 'none';
+    let comboKey = `${heroId}__${classKey}`;
+    game.talentBloomClears = Math.max(0, Math.floor(game.talentBloomClears || 0)) + 1;
+    game.talentBloomCombos = Array.isArray(game.talentBloomCombos) ? game.talentBloomCombos : [];
+    let isNewCombo = !game.talentBloomCombos.includes(comboKey);
+    if (isNewCombo) game.talentBloomCombos.push(comboKey);
+    let heroLabel = (typeof getHeroSelectionDef === 'function') ? getHeroSelectionDef(heroId).label : heroId;
+    let classLabel = (typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[classKey]) ? CLASS_TEMPLATES[classKey].name : '무직';
+    addLog(`🌸 재능 개화 성공! [${heroLabel} × ${classLabel}]${isNewCombo ? ' (신규 조합!)' : ''} · 보상은 후속 단계에서 지급됩니다.`, 'loot-unique');
+    // P2: 직업 5차 노드 해금 + 포인트/키스톤, P3: 재능 탭 + 개화 카드 지급 — 이 지점에서 확장.
+    game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+    game.killsInZone = 0;
+    game.inTicketBossFight = false;
+    startMoving(false);
+    updateStaticUI();
+    queueImportantSave(200);
 }
 
 function isCrowdProgressPaused() {
@@ -5459,6 +5493,10 @@ function finishEncounterRun() {
         startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
+        return;
+    }
+    if (zone.type === 'trial' && zone.bloomTrial) {
+        handleTalentBloomClear(zone);
         return;
     }
     if (zone.type === 'trial') {
@@ -7084,6 +7122,10 @@ function applyTrialTrapTick(pStats) {
     game.playerEsLastHitAt = Date.now();
     recordIncomingDamage('phys', trapDamage, '시련 함정');
     addBattleFx('trialTrap', { color: '#ffd36b', duration: 460 });
+    if (zone.bloomTrial && (zone.trapRegenSuppressPct || 0) > 0) {
+        game.bloomTrialRegenSuppress = Math.min(0.95, (game.bloomTrialRegenSuppress || 0) + (zone.trapRegenSuppressPct || 0) / 100);
+        addLog(`❄️ 혹독한 한기: 생명력 재생 억제 ${Math.round((game.bloomTrialRegenSuppress || 0) * 100)}%`, 'attack-monster', { noToast: true });
+    }
     addLog(`⚠️ 시련 함정 발동 [${getDamageElementLabel('phys')}] (${trapDamage} 피해)`, 'attack-monster', { noToast: true });
     if (game.playerHp <= 0) {
         handlePlayerDefeat(zone, pStats, "☠️ 시련 함정에 쓰러졌습니다. 마을로 귀환합니다.", { fatalElement: 'phys', sourceName: '시련 함정', noToast: true });
