@@ -855,6 +855,14 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let finalMul = getLimitedSummonFinalDamageMultiplier(pStats);
     dmg = Math.floor(dmg * finalMul);
     ailmentSourceDmg = Math.floor(ailmentSourceDmg * finalMul);
+    // 재능 개화 표면 키스톤: 조건부 피해 배율
+    if (typeof getTalentKeystoneDamageMul === 'function') {
+        let ksMul = getTalentKeystoneDamageMul(target, ele, crit, pStats);
+        if (ksMul !== 1) {
+            dmg = Math.floor(dmg * ksMul);
+            ailmentSourceDmg = Math.floor(ailmentSourceDmg * ksMul);
+        }
+    }
     return { damage: Math.max(0, Math.floor(dmg)), ailmentSourceDamage: Math.max(0, Math.floor(ailmentSourceDmg)), crit: crit, critChance: critChance, element: ele };
 }
 
