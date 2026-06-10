@@ -2376,6 +2376,7 @@ const TAB_UNLOCK_GATES = {
     'tab-cube': 'cube',
     'tab-map': 'map',
     'tab-traits': 'traits',
+    'tab-talent': 'talent',
     'tab-expertise': 'expertise'
 };
 const MOBILE_BATTLE_BREAKPOINT = 1080;
