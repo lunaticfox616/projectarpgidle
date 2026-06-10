@@ -4144,7 +4144,7 @@ function primeTrialHazardTimer(zone) {
     trialHazardTimer = 1.8 + Math.random() * 1.6;
 }
 
-// 재능 개화 시련 클리어 처리. (P1: 키 소모 + 조합 기록 / P2·P3: 5차 노드·재능 탭·개화 카드 보상 확장 예정)
+// 재능 개화 시련 클리어 처리. (키 소모 + 조합 기록 + 직업 5차 노드 해금 + 개화 카드 획득/강화)
 function handleTalentBloomClear(zone) {
     game.currencies.chaosKey = Math.max(0, Math.floor(game.currencies.chaosKey || 0) - 1);
     game.currencies.coreKey = Math.max(0, Math.floor(game.currencies.coreKey || 0) - 1);
@@ -4169,7 +4169,20 @@ function handleTalentBloomClear(zone) {
         addLog(`🌸 [${classLabel}] 5차 개화 노드 해금! 전직 포인트 +1 · 키스톤 포인트 +1`, 'loot-unique');
         if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_fifth_node', '5차 개화 노드 해금', '직업전직 탭에 5차 재능 개화 노드가 추가되었습니다.', 'tab-traits');
     }
-    // P3: 재능 탭 + 120 개화 카드 지급 — 이 지점에서 확장.
+    // 재능 개화 카드 획득/강화 + 재능 탭 해금
+    if (typeof recordTalentBloomCard === 'function') {
+        let result = recordTalentBloomCard(comboKey);
+        if (!game.unlocks) game.unlocks = {};
+        let firstUnlock = !game.unlocks.talent;
+        game.unlocks.talent = true;
+        game.noti.talent = true;
+        let cardLabel = `${heroLabel} × ${classLabel}`;
+        if (firstUnlock) {
+            if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_talent_tab', '재능 탭 해금', '재능 개화 카드를 획득했습니다! 재능 탭에서 보유 카드와 효과를 확인하세요.', 'tab-talent');
+        }
+        addLog(`🃏 개화 카드 [${cardLabel}] Lv.${result.card.level} (점수 ${result.score})${result.leveledUp ? ' · 레벨 상승!' : ''}`, 'loot-unique');
+        if (typeof renderTalentTab === 'function' && document.getElementById('tab-talent') && document.getElementById('tab-talent').classList.contains('active')) renderTalentTab();
+    }
     game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
     game.killsInZone = 0;
     game.inTicketBossFight = false;
