@@ -103,7 +103,12 @@ function drawPassiveSearchHighlight(ctx, node, radius, accent) {
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    const label = getPassiveNodeDisplayName(node);
+    // 타이틀이 지정된 노드는 깔끔한 고유명을, 그 외에는 stat 이름을 쓴다.
+    // stat 이름의 '(%)'·'(초)'·끝의 '증가' 접미사는 타이틀 노드와 통일성을 위해 표시에서만 정리한다.
+    const label = String(getPassiveNodeDisplayName(node) || '')
+        .replace(/\s*\([^)]*\)\s*$/, '')
+        .replace(/\s*증가$/, '')
+        .trim();
     if (label && camZoom >= 0.18) {
         const fontSize = Math.max(10, Math.min(22, 12 / Math.max(0.32, camZoom)));
         ctx.font = `700 ${fontSize}px sans-serif`;
@@ -134,16 +139,26 @@ function getPassiveNodeEffectShortLabel(node) {
     const shortByStat = {
         flatHp: '생명', pctHp: '생명', regen: '재생', leech: '흡혈',
         flatDmg: '피해', pctDmg: '피해', meleePctDmg: '근접', physPctDmg: '물리', aoePctDmg: '범위', projectilePctDmg: '투사체',
-        firePctDmg: '화염', coldPctDmg: '냉기', lightPctDmg: '번개', chaosPctDmg: '카오스', elementalPctDmg: '원소', dotPctDmg: '지속피해',
-        crit: '치명', critDmg: '치피', aspd: '공속', move: '이속',
+        firePctDmg: '화염', coldPctDmg: '냉기', lightPctDmg: '번개', chaosPctDmg: '카오스', elementalPctDmg: '원소', dotPctDmg: '지속피해', spellFlatPct: '주문',
+        slamPctDmg: '강타', slamEchoChance: '강타반향', projectileExtraShots: '추가발사',
+        crit: '치명', critDmg: '치피', aspd: '공속', move: '이속', ds: '연타',
         armor: '방어', armorPct: '방어', evasion: '회피', evasionPct: '회피', energyShield: '보호막', energyShieldPct: '보호막', energyShieldRegen: '보호재생',
-        deflectChance: '빗겨내기', dr: '피감', blockChance: '막기', blockChancePct: '막기',
+        deflectChance: '빗겨내기', deflectMajor: '빗겨강화', dr: '피감', blockChance: '막기', blockChancePct: '막기증폭',
         resF: '화염저항', resC: '냉기저항', resL: '번개저항', resAll: '모든저항', resChaos: '카오저항', resPen: '저항관통',
+        maxResF: '화염최대', maxResC: '냉기최대', maxResL: '번개최대', maxResChaos: '카오최대', chaosResElemPenalty: '혼돈절연',
         igniteChance: '점화', chillChance: '냉각', freezeChance: '동결', shockChance: '감전', poisonChance: '중독', bleedChance: '출혈',
         ailResIgnite: '점화저항', ailResShock: '감전저항', ailResFreeze: '동결저항', ailResPoison: '중독저항', ailResBleed: '출혈저항',
-        gemLevel: '젬레벨', suppCap: '보조젬', expGain: '경험치', ds: '방어확률', physIgnore: '방어무시'
+        regenSuppress: '재생억제', physIgnore: '물리무시', minDmgRoll: '하한', maxDmgRoll: '상한',
+        leechRateCap: '흡혈속도', leechTotalCap: '흡혈총량', leechInstanceCap: '흡혈타격',
+        moveEvasion: '이속회피', hpArmor: '생명방어', aspdMove: '공속이속',
+        summonPctDmg: '소환피해', summonHpPct: '소환생명', summonCritDmg: '소환치피', summonFlatDmg: '소환피해', summonCrit: '소환치명', summonAspd: '소환공속',
+        gemLevel: '젬레벨', suppCap: '보조젬', expGain: '경험치',
+        fireGemLevel: '화염젬', coldGemLevel: '냉기젬', lightGemLevel: '번개젬', chaosGemLevel: '카오스젬', physGemLevel: '물리젬',
+        projectileGemLevel: '투사체젬', meleeGemLevel: '근접젬', slamGemLevel: '강타젬', spellGemLevel: '주문젬', dotGemLevel: '지속젬', aoeGemLevel: '범위젬', elementalGemLevel: '원소젬'
     };
-    let label = shortByStat[stat] || getStatName(stat) || getPassiveEffectLabel(node) || '';
+    // 큐레이션된 짧은 라벨은 단어 중간에서 잘리지 않도록 그대로 사용한다.
+    if (shortByStat[stat]) return shortByStat[stat];
+    let label = getStatName(stat) || getPassiveEffectLabel(node) || '';
     label = String(label)
         .replace(/\([^)]*\)/g, '')
         .replace(/[+\-]?\d+(?:\.\d+)?\s*%?/g, '')
