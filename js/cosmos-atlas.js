@@ -1151,11 +1151,22 @@
         });
     }
 
+    function syncCosmosTabVisibility() {
+        const btn = document.getElementById('btn-map-tab-cosmos');
+        const unlocked = isCosmosUnlocked();
+        if (btn) btn.style.display = unlocked ? '' : 'none';
+        if (!unlocked && window.game && window.game.mapSubtab === 'map-tab-cosmos') {
+            if (typeof window.switchMapSubtab === 'function') window.switchMapSubtab('map-tab-zones');
+            else window.game.mapSubtab = 'map-tab-zones';
+        }
+    }
+
     function renderCosmosAtlas() {
         if (!ATLAS.installed) {
             installCosmosAtlas();
             return;
         }
+        syncCosmosTabVisibility();
         if (!ATLAS.canvas || !ATLAS.ctx) return;
         resizeCanvasToHost();
         drawAtlas();

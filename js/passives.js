@@ -5835,11 +5835,9 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
     let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
-    let seasonChaseDrops = new Set(Array.isArray(game.seasonChaseUniqueDrops) ? game.seasonChaseUniqueDrops : []);
     let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare
         && canDropUniqueInZone(unique)
-        && zoneTier >= (unique.reqTier || 1)
-        && !seasonChaseDrops.has(unique.name));
+        && zoneTier >= (unique.reqTier || 1));
     let canRollChase = !forcedUnique && chaseOptions.length > 0 && Math.random() < 0.0008;
     let poolSource = canRollChase ? chaseOptions : normalOptions;
     let options = poolSource.filter(unique => unique.slots.includes(slot) && zoneTier >= (unique.reqTier || 1));

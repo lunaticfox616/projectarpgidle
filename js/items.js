@@ -267,6 +267,7 @@ function warnBeehiveMapTravelBlocked() {
 }
 
 function changeZone(id) {
+    if (game.pendingLoopReady) return addLog('⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.', 'attack-monster');
     if (isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     game.inTicketBossFight = false;
     if (typeof id === 'number' && id > game.maxZoneId) return;
