@@ -346,6 +346,10 @@
 .market-black-badge.gem{background:#372a64;color:#d9c9ff}
 .market-black-badge.gear{background:#1f4e48;color:#c4fff3}
 .market-black-badge.unique{background:#624b1f;color:#ffe7b3}
+
+.market-black-offer.unique.chase{border-color:#ffd36a;background:linear-gradient(135deg,#4a2b0c 0%,#1a1321 55%,#0f1723 100%);box-shadow:0 0 16px rgba(255,179,64,.32),inset 0 0 12px rgba(255,226,148,.12)}
+.market-black-badge.unique.chase,.market-black-offer.unique.chase .market-black-badge{background:#8f5a12;color:#fff3c4;box-shadow:0 0 10px rgba(255,197,92,.45)}
+.market-black-offer.unique.chase .market-black-label{color:#ffe0a3;font-weight:800;text-shadow:0 0 8px rgba(255,193,82,.45)}
 .market-black-label{cursor:help;overflow-wrap:anywhere;}
 
 

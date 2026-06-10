@@ -12,6 +12,7 @@ const itemDataSource = fs.readFileSync('data/items.js', 'utf8');
 
 assert(!passivesSource.includes('hasUnknownLegacyChaseDrop'), 'legacy boolean-only chase state must not disable every chase unique drop');
 assert(passivesSource.includes('let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare'), 'chase unique pool must be built from ultra-rare uniques');
+assert(passivesSource.includes('Math.random() < 0.0016'), 'chase unique field drop chance must be 0.16%');
 assert(!passivesSource.includes('seasonChaseDrops.has(unique.name)'), 'chase uniques must not be limited to one drop per item');
 assert(!uiSource.includes('legacySeasonChaseUniqueDropped || merged.seasonChaseUniqueDrops.length > 0'), 'save normalization must not preserve an unknown legacy chase flag as a global blocker');
 assert(uiSource.includes('merged.seasonChaseUniqueDropped = merged.seasonChaseUniqueDrops.length > 0;'), 'legacy chase boolean should be derived only from known dropped names');
