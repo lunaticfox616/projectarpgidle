@@ -1480,11 +1480,35 @@ function renderSkyTowerMapPanel() {
     let condensed = Math.floor(tower.condensedPower || 0);
     let zone = getZone(SKY_TOWER_ZONE_ID);
     if (!unlocked) {
-        panel.innerHTML = `<div style="font-weight:800; color:#bfe8ff;">창공의 탑</div><div style="margin-top:5px; color:#ffcf8a;">해금 조건: 루프 15 이후 + 이번 루프 혼돈계 20층 클리어</div><div style="margin-top:4px; color:#9fc6dd;">해금 후 다음 루프부터는 혼돈 입성 시 바로 입장할 수 있습니다.</div>`;
+        panel.innerHTML = `<div class="sky-tower-head">
+            <div>
+                <div class="sky-tower-title">☁️ 창공의 탑</div>
+                <div class="sky-tower-sub">해금 후 다음 루프부터는 혼돈 입성 시 바로 입장할 수 있습니다.</div>
+            </div>
+            <span class="sky-tower-lock-chip">🔒 봉인됨</span>
+        </div>
+        <div class="sky-tower-chips">
+            <span class="sky-tower-chip ${(game.season || 1) >= 15 ? 'done' : ''}">루프 15 이후 ${(game.season || 1) >= 15 ? '✔' : `(현재 루프 ${game.season || 1})`}</span>
+            <span class="sky-tower-chip">이번 루프 혼돈계 20층 클리어</span>
+        </div>`;
         list.innerHTML = `<div class="map-item" style="opacity:.65; cursor:not-allowed;"><div class="map-item-main"><span>🔒</span><span>창공의 탑 봉인<br><span class="map-zone-status">${(game.season || 1) >= 15 ? '혼돈계 20층 클리어 필요' : '루프 15 필요'}</span></span></div><div class="map-item-actions"><button disabled>층 선택 입장</button></div></div>`;
         return;
     }
-    panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;"><div><div style="font-weight:800; color:#bfe8ff; font-size:1.05em;">창공의 탑</div><div style="margin-top:4px; color:#d6e4ff;">이번 루프 남은 클리어 가능 층수 <strong style="color:#ffd36b;">${remaining}/${limit}</strong> · 영구 클리어 <strong>${cleared}</strong>층 · 최고 입장층 <strong>${highest}</strong>층</div></div><button onclick="enterSkyTowerPrompt()" ${ready ? '' : 'disabled'}>층 선택 입장</button></div><div style="margin-top:7px; color:#9fc6dd;">일반 맵보다 길이가 5배입니다. 한번도 클리어한 적 없는 층은 응축된 창공의 힘을 확정 지급하고, 이미 클리어한 층은 낮은 확률로 지급합니다.</div><div style="margin-top:5px; color:#d6e4ff;">응축된 창공의 힘 <strong style="color:#bfe8ff;">${condensed}</strong> · 현재 선택층 난이도 ${zone ? zone.tier : getSkyTowerTier(currentFloor)}급</div><div style="margin-top:5px; color:${ready ? '#7dffb2' : '#ffcf8a'};">${ready ? '입장 가능: 원하는 층을 선택할 수 있습니다.' : '이번 루프 혼돈 입성 후 입장할 수 있습니다.'}</div>`;
+    panel.innerHTML = `<div class="sky-tower-head">
+        <div>
+            <div class="sky-tower-title">☁️ 창공의 탑</div>
+            <div class="sky-tower-sub">일반 맵보다 길이가 5배입니다. 처음 클리어하는 층은 응축된 창공의 힘을 확정 지급하고, 이미 클리어한 층은 낮은 확률로 지급합니다.</div>
+        </div>
+        <button onclick="enterSkyTowerPrompt()" ${ready ? '' : 'disabled'}>층 선택 입장</button>
+    </div>
+    <div class="sky-tower-chips">
+        <span class="sky-tower-chip">남은 클리어 <b>${remaining}/${limit}</b></span>
+        <span class="sky-tower-chip">영구 클리어 <b>${cleared}층</b></span>
+        <span class="sky-tower-chip">최고 입장층 <b>${highest}층</b></span>
+        <span class="sky-tower-chip">응축된 창공의 힘 <b>${condensed}</b></span>
+        <span class="sky-tower-chip">선택층 난이도 <b>${zone ? zone.tier : getSkyTowerTier(currentFloor)}급</b></span>
+    </div>
+    <div class="sky-tower-note" style="color:${ready ? '#7dffb2' : '#ffcf8a'};">${ready ? '입장 가능: 1층부터 최고 입장층까지 원하는 층을 선택할 수 있습니다.' : '이번 루프 혼돈 입성 후 입장할 수 있습니다.'}</div>`;
     list.innerHTML = `<div class="map-item ${game.currentZoneId === SKY_TOWER_ZONE_ID ? 'current' : ''}" ${ready ? 'onclick="enterSkyTowerPrompt()"' : ''} style="${ready ? '' : 'opacity:.65; cursor:not-allowed;'}"><div class="map-item-main"><span>☁️</span><span>창공의 탑 ${currentFloor}층<br><span class="map-zone-status">입장 가능 층 1 ~ ${highest} · 영구 클리어 ${cleared}층</span></span></div><div class="map-item-actions"><span class="map-zone-status">${ready ? `잔여 클리어 ${remaining}/${limit}` : '혼돈 입성 필요'}</span><button ${ready ? '' : 'disabled'}>층 선택 입장</button></div></div>`;
 }
 function renderUnderworldMapPanel() {
@@ -2560,7 +2584,7 @@ function renderUniqueCodexUI() {
     let bonus = getCodexBonusPctFromCount(progress.stored);
     let rewardState = progress.stored >= progress.total ? '완성' : '미완성';
     summary.innerHTML = `[${realmOnly ? '계(Realm) 도감' : '기존 도감'}] 등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% <span style="color:#9fb4d1;">(50개까지 0.2%, 이후 0.1%)</span> · 완성 상태: <strong>${rewardState}</strong>`;
-    let bySlot = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
+    let bySlot = ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
     let lines = [];
     bySlot.forEach(slot => {
         let entries = pool.filter(entry => (entry.slots || [])[0] === slot);
@@ -5168,6 +5192,8 @@ function performUpdateStaticUI() {
     if (!showCombatScene && caption) caption.innerText = '전투가 진행중입니다.';
     let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
     if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
+    let loopReadyBanner = document.getElementById('loop-ready-banner');
+    if (loopReadyBanner) loopReadyBanner.classList.toggle('active', !!game.pendingLoopReady);
     let shrineBox = document.getElementById('ui-shrine-box');
     if (shrineBox) {
         let active = game.shrineState && game.shrineState.active;
@@ -7670,7 +7696,7 @@ function mergeDefaults(save) {
     merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
     merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
-    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
+    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
@@ -7902,6 +7928,7 @@ function mergeDefaults(save) {
     merged.loopProgressCurrent.chaos20Cleared = !!merged.loopProgressCurrent.chaos20Cleared || (Array.isArray(merged.abyssClearedDepths) && merged.abyssClearedDepths.map(v => Math.floor(v || 0)).includes(20));
     if (!merged.skyTower.unlocked && (merged.season || 1) >= 15 && merged.loopProgressCurrent.chaos20Cleared) merged.skyTower.unlocked = true;
     merged.pendingLoopDecision = !!merged.pendingLoopDecision;
+    merged.pendingLoopReady = !!merged.pendingLoopReady;
     merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
     merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
     merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');

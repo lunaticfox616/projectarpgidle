@@ -1594,6 +1594,7 @@ const defaultGame = {
     underworldProgress: { highestFloor: 1, currentFloor: 1 },
     coreCube: { unlocked: false, everUnlocked: false, relockUntilDrop: false, unlockNoticeSeen: false, selectedFace: 0, blurred45: 0, powers: {}, faces: [null, null, null, null, null, null], completed: false, isCompleting: false, revealedOptions: [], optionMechanism: null, lastPower: null },
     pendingLoopDecision: false,
+    pendingLoopReady: false,
 
     skyGemEnhancements: {},
     recentDamageEvents: [],

@@ -723,6 +723,9 @@ installRuntimeFunctionFallback("triggerSeasonReset", function triggerSeasonReset
 installRuntimeFunctionFallback("chooseLoopAdvance", function chooseLoopAdvanceFallback() {
     // The real handler consumes pendingLoopDecision. Keep the flag intact while this queued fallback waits.
 }, { queue: true });
+installRuntimeFunctionFallback("confirmLoopReady", function confirmLoopReadyFallback() {
+    // The real handler consumes pendingLoopReady. Keep the flag intact while this queued fallback waits.
+}, { queue: true });
 installRuntimeFunctionFallback("enterOutsideChaos", function enterOutsideChaosFallback() {}, { queue: true });
 installRuntimeFunctionFallback("getConditionGemStatDelta", function getConditionGemStatDeltaFallback() {
     return {};

@@ -1142,7 +1142,7 @@ function coreLoop() {
         let beehivePause = !!(beehiveLocked && game.currentZoneId === 'beehive_run' && !beehive.awaitingClear);
         let stopByMapSetting = (game.settings.mapCompleteAction || 'nextZone') === 'stop';
         let stopByTownSetting = (game.settings.townReturnAction || 'retry') === 'stop';
-        let manualStopState = stopByMapSetting || stopByTownSetting || !!game.pendingLoopDecision;
+        let manualStopState = stopByMapSetting || stopByTownSetting || !!game.pendingLoopDecision || !!game.pendingLoopReady;
         if (beehivePause || game.inTicketBossFight || manualStopState) return;
         game.combatHalted = false;
     }
@@ -4656,7 +4656,7 @@ function reconcileMapProgressRuntimeState() {
     zone = getZone(game.currentZoneId) || getZone(0);
     if (!isRegularAutoProgressZone(zone)) return false;
     let changed = false;
-    let explicitStop = (game.settings && ((game.settings.mapCompleteAction || 'nextZone') === 'stop' || (game.settings.townReturnAction || 'retry') === 'stop')) || !!game.pendingLoopDecision;
+    let explicitStop = (game.settings && ((game.settings.mapCompleteAction || 'nextZone') === 'stop' || (game.settings.townReturnAction || 'retry') === 'stop')) || !!game.pendingLoopDecision || !!game.pendingLoopReady;
     if (game.inTicketBossFight) {
         game.inTicketBossFight = false;
         changed = true;
@@ -5667,7 +5667,7 @@ function finishEncounterRun() {
             if (zone.id === 9 && Math.max(0, Math.floor(game.loopDeaths || 0)) <= 0) unlockJournalEntry('immortal');
             if (storyAct && storyAct.specialType === 'loop_gate') {
                 addLog('🗡️ 창조 권능 절단이 완성되었다. 나무꾼을 베어낸 루프가 새 루프의 문을 연다.', 'loot-unique');
-                triggerSeasonReset();
+                handleSeasonLoopConditionMet();
                 return;
             }
         }
@@ -5704,7 +5704,7 @@ function finishEncounterRun() {
                 updateStaticUI();
                 return;
             }
-            triggerSeasonReset();
+            handleSeasonLoopConditionMet();
             return;
         }
         if (zone.type === 'abyss' && !game.unlockedTrials.includes('trial_3')) {
@@ -5798,8 +5798,10 @@ function performPlayerAttack(pStats) {
     if (targets.length === 0) return;
     let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
 
-    let isCrit = Math.random() < (pStats.crit / 100);
-    if (game.ascendClass === 'assassin' && hasKeystone('a5')) isCrit = true;
+    // 키스톤으로 보장된 치명타(암살자 a5, 촉매 ct7 공격 스킬)는 적 치명타 저항 굴림도 무시한다.
+    let guaranteedCrit = (game.ascendClass === 'assassin' && hasKeystone('a5'))
+        || (game.ascendClass === 'catalyst' && hasKeystone('ct7') && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('attack'));
+    let isCrit = guaranteedCrit || Math.random() < (pStats.crit / 100);
     if (game.ascendClass === 'warrior' && hasKeystone('w2') && isCrit) {
         let now = Date.now();
         let active = (game.warriorRhythmExpiresAt || 0) > now;
@@ -5986,7 +5988,7 @@ function performPlayerAttack(pStats) {
             } else {
                 hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
             }
-            if (hitCrit && (targetEnemy.critResistPct || 0) > 0 && Math.random() * 100 < Math.max(0, Math.min(95, targetEnemy.critResistPct || 0))) {
+            if (hitCrit && !guaranteedCrit && (targetEnemy.critResistPct || 0) > 0 && Math.random() * 100 < Math.max(0, Math.min(95, targetEnemy.critResistPct || 0))) {
                 hitCrit = false;
                 hitBaseDamage = pStats.baseDmg;
             }
@@ -7242,6 +7244,7 @@ function triggerSeasonReset() {
         addLog('☠️ 혼돈 밖 전투를 중단하고 루프를 진행합니다. 세팅 잠금이 해제되었습니다.', 'season-up');
     }
     game.pendingLoopDecision = false;
+    game.pendingLoopReady = false;
     let codexReveal = {};
     Object.keys(game.uniqueCodex || {}).forEach(key => {
         if (!key || !game.uniqueCodex[key]) return;
@@ -7385,6 +7388,32 @@ function triggerSeasonReset() {
     requestLoopHeroSelection();
 }
 
+/**
+ * 루프 조건 달성 시 진입점. 루프 10 미만에서는 즉시 리셋하지 않고
+ * 시간을 멈춘 상태(pendingLoopReady)로 전환해 아이템 정리·도감 등록 시간을 준다.
+ * 루프 10 이상의 비혼돈 경로는 기존처럼 즉시 리셋한다.
+ */
+function handleSeasonLoopConditionMet() {
+    if ((game.season || 1) >= 10) {
+        triggerSeasonReset();
+        return;
+    }
+    game.pendingLoopReady = true;
+    game.combatHalted = true;
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+    addLog('⏸️ 루프 조건 달성! 시간이 멈췄습니다. 아이템 정리와 도감 등록을 마친 뒤 [루프 진행] 버튼을 누르세요.', 'season-up');
+    updateStaticUI();
+}
+
+function confirmLoopReady() {
+    if (!game.pendingLoopReady) return;
+    game.pendingLoopReady = false;
+    triggerSeasonReset();
+}
+
 function chooseLoopAdvance(shouldLoop) {
     if (!game.pendingLoopDecision) return;
     if (shouldLoop) {
@@ -7398,4 +7427,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport });
+safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport });
