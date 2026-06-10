@@ -6035,8 +6035,14 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.018) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.005) drops.push(['beastKeyCerberus', 1]);
+    if (zone.type === 'chaosRealm') {
+        let chaosKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
+        if (Math.random() < chaosKeyChance) drops.push(['chaosKey', 1]);
+    }
     if (zone.type === 'underworld') {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
+        let coreKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
+        if (Math.random() < coreKeyChance) drops.push(['coreKey', 1]);
         if (Math.random() < 0.05) drops.push(['fossil', 1]);
         if (Math.random() < 0.018) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
         if (Math.random() < 0.012) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
