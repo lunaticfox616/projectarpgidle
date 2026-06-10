@@ -107,8 +107,8 @@ function getTalentCardEffectLines(heroId, classKey, level) {
 function getTalentCardName(heroId, classKey) {
     let heroLabel = (typeof getHeroSelectionDef === 'function') ? getHeroSelectionDef(heroId).label : heroId;
     let classLabel = (typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[classKey]) ? CLASS_TEMPLATES[classKey].name : '무직';
-    let def = getTalentCardDef(heroId, classKey);
-    let bloomName = (def && def.name) ? def.name : `${heroLabel} × ${classLabel}`;
+    // 카드 이름 = 실제 인게임 재능 이름 + 실제 인게임 전직 이름 (예: '궁수 소울바인더')
+    let bloomName = `${heroLabel} ${classLabel}`;
     return { heroLabel, classLabel, bloomName };
 }
 
@@ -248,7 +248,7 @@ function renderTalentTab() {
                 <span class="talent-card-title">${bloomName}</span>
                 <span class="talent-card-level">Lv.${level}/${TALENT_CARD_MAX_LEVEL}</span>
             </div>
-            <div class="talent-card-sub">${heroLabel} × ${classLabel}</div>
+            <div class="talent-card-sub">재능 ${heroLabel} · 전직 ${classLabel}</div>
             <div class="talent-card-effects">${lines.join('<br>')}</div>
             <div class="talent-card-foot">${equipped ? '✅ 장착됨 · ' : ''}점수 ${Math.max(0, Math.floor(card.score || 0))} · 개화 ${Math.max(0, Math.floor(card.count || 0))}회 · ${nextText}</div>
         </div>`;
