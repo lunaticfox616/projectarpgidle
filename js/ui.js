@@ -3015,6 +3015,24 @@ function getHeroSelectionDef(heroId) {
     return HERO_SELECTION_DEFS[heroId] || HERO_SELECTION_DEFS.hero1;
 }
 
+// 외형(스프라이트) 전용 재능 id. 설정에서 고른 외형 우선, 없으면 이번 루프의 활성 재능을 따른다.
+function getAppearanceHeroId() {
+    if (game && HERO_SELECTION_DEFS[game.appearanceHeroId]) return game.appearanceHeroId;
+    return (game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1';
+}
+
+// 설정 탭 전용: 스탯(활성 재능)은 건드리지 않고 외형만 바꾼다.
+function applyAppearanceSelection(heroId, options = {}) {
+    if (!HERO_SELECTION_DEFS[heroId]) return false;
+    let prev = getAppearanceHeroId();
+    game.appearanceHeroId = heroId;
+    if (prev !== heroId && battleAssets && battleAssets.ready) battleAssets.atlas = buildBattleAssetAtlas();
+    renderHeroSelectionControls();
+    if (!options.silent && prev !== heroId) addLog(`🎨 외형 변경: ${getHeroSelectionDef(heroId).label}`, 'season-up');
+    if (!options.skipSave) queueImportantSave(200);
+    return true;
+}
+
 function syncHeroSelectionState(source, options = {}) {
     if (!Array.isArray(game.discoveredHeroIds)) game.discoveredHeroIds = [];
     game.discoveredHeroIds = game.discoveredHeroIds.filter(id => HERO_SELECTION_DEFS[id]);
@@ -3023,14 +3041,16 @@ function syncHeroSelectionState(source, options = {}) {
     if (shouldRecordSelected && !game.discoveredHeroIds.includes(game.selectedHeroId)) game.discoveredHeroIds.push(game.selectedHeroId);
     let unlockedBefore = !!game.heroFreeSwitchUnlocked;
     if (game.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length) game.heroFreeSwitchUnlocked = true;
-    if (!unlockedBefore && game.heroFreeSwitchUnlocked) addLog('🧬 모든 캐릭터 재능을 확인했습니다. 설정에서 언제든 외형 변경이 가능합니다.', 'season-up');
+    if (!unlockedBefore && game.heroFreeSwitchUnlocked) addLog('🧬 모든 캐릭터 재능을 확인했습니다. 설정에서 언제든 외형 변경이 가능합니다. (스탯은 루프 선택 고정)', 'season-up');
     if (source === 'init') return;
     let summaryEl = document.getElementById('ui-hero-talent-summary');
     if (summaryEl) {
         let def = getHeroSelectionDef(game.selectedHeroId);
+        let appearanceId = getAppearanceHeroId();
         let discovered = Math.min(HERO_SELECTION_ORDER.length, game.discoveredHeroIds.length);
-        let unlockText = game.heroFreeSwitchUnlocked ? '자유 변경 해금됨' : `해금 진행 ${discovered}/${HERO_SELECTION_ORDER.length}`;
-        summaryEl.innerText = `${def.label} · 재능: ${def.talentsText} · ${unlockText}`;
+        let unlockText = game.heroFreeSwitchUnlocked ? '외형 자유 변경 해금됨' : `해금 진행 ${discovered}/${HERO_SELECTION_ORDER.length}`;
+        let appearanceText = appearanceId !== game.selectedHeroId ? ` · 외형: ${getHeroSelectionDef(appearanceId).label}` : '';
+        summaryEl.innerText = `활성 재능: ${def.label} (루프 고정) · ${def.talentsText}${appearanceText} · ${unlockText}`;
     }
 }
 
@@ -3041,13 +3061,13 @@ function renderHeroSelectionControls() {
         let def = HERO_SELECTION_DEFS[id];
         return `<option value="${id}">${def.label}</option>`;
     }).join('');
-    selectEl.value = game.selectedHeroId || 'hero1';
+    selectEl.value = getAppearanceHeroId();
     if (!game.heroFreeSwitchUnlocked) {
         selectEl.disabled = true;
-        selectEl.title = '모든 캐릭터를 한 번씩 선택하면 자유 변경이 해금됩니다.';
+        selectEl.title = '모든 캐릭터를 한 번씩 선택하면 외형 자유 변경이 해금됩니다.';
     } else {
         selectEl.disabled = false;
-        selectEl.title = '';
+        selectEl.title = '외형(스프라이트)만 변경합니다. 활성 재능과 스탯은 루프 선택으로만 바뀝니다.';
     }
     syncHeroSelectionState();
 }
@@ -3068,11 +3088,12 @@ function onHeroSelectionChanged() {
     let selectEl = document.getElementById('sel-active-hero');
     if (!selectEl) return;
     if (!game.heroFreeSwitchUnlocked) {
-        addLog('🔒 아직 자유 변경이 잠겨 있습니다. 루프를 돌며 모든 캐릭터를 확인하세요.', 'attack-monster');
-        selectEl.value = game.selectedHeroId || 'hero1';
+        addLog('🔒 아직 외형 변경이 잠겨 있습니다. 루프를 돌며 모든 캐릭터를 확인하세요.', 'attack-monster');
+        selectEl.value = getAppearanceHeroId();
         return;
     }
-    applyHeroSelection(selectEl.value);
+    // 외형만 변경한다. 활성 재능(스탯)은 루프 선택으로만 바뀌며 다음 루프까지 잠긴다.
+    applyAppearanceSelection(selectEl.value);
     updateStaticUI();
 }
 
