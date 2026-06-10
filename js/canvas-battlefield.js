@@ -175,9 +175,29 @@ function renderBattlefield(forceWhenHidden) {
                     x: playerPos.x + 14,
                     y: playerPos.y - 36,
                     value: fx.damage,
-                    enemyHit: true
+                    enemyHit: true,
+                    deflected: !!fx.deflected
                 });
             }
+            handled = true;
+        } else if (fx.type === 'enemyEvade') {
+            let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
+            spawnDamageText({
+                x: enemyPos.x,
+                y: enemyPos.y - 30,
+                value: fx.text || '회피!',
+                miss: true,
+                color: fx.color || '#9fb4c8'
+            });
+            handled = true;
+        } else if (fx.type === 'statusText') {
+            spawnDamageText({
+                x: playerPos.x + 14,
+                y: playerPos.y - 40,
+                value: fx.text || '회피!',
+                miss: true,
+                color: fx.color || '#9fb4c8'
+            });
             handled = true;
         } else {
             handled = true;

@@ -2603,7 +2603,10 @@ function spawnDamageText(config) {
         crit: !!config.crit,
         enemyHit: !!config.enemyHit,
         dot: !!config.dot,
-        dotType: config.dotType || ''
+        dotType: config.dotType || '',
+        miss: !!config.miss,
+        color: config.color || '',
+        deflected: !!config.deflected
     });
 }
 function drawVisualProjectile(ctx, projectile, now) {
@@ -2631,14 +2634,14 @@ function drawDamageTexts(ctx, now) {
         let y = text.y - rise * t;
         ctx.save();
         ctx.globalAlpha = 1 - t;
-        ctx.font = text.dot ? 'bold 10px Consolas' : (text.crit ? 'bold 14px Consolas' : 'bold 12px Consolas');
+        ctx.font = text.miss ? 'bold 13px Consolas' : (text.dot ? 'bold 10px Consolas' : (text.crit ? 'bold 14px Consolas' : 'bold 12px Consolas'));
         ctx.textAlign = 'center';
         ctx.lineWidth = 3;
         ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-        let textValue = formatDamageNumberForDisplay(text.value);
+        let textValue = text.miss ? String(text.value) : formatDamageNumberForDisplay(text.value);
         ctx.strokeText(textValue, x, y);
         let dotColor = text.dotType === 'fire' ? '#ff9f43' : (text.dotType === 'chaos' ? '#c56cff' : (text.dotType === 'phys' ? '#ff6b6b' : '#b57cff'));
-        ctx.fillStyle = text.dot ? dotColor : (text.enemyHit ? '#ff8e8e' : (text.crit ? '#ffd36f' : '#f3f6ff'));
+        ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.deflected ? '#8fe3b0' : (text.enemyHit ? '#ff8e8e' : (text.crit ? '#ffd36f' : '#f3f6ff'))));
         ctx.fillText(textValue, x, y);
         ctx.restore();
     });

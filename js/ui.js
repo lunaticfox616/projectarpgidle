@@ -8357,6 +8357,71 @@ function escapeHTML(value) {
         .replace(/'/g, '&#39;');
 }
 
+let __patchNotesCache = null;
+
+// changelog.md 파싱: "## 버전 — 날짜" 헤더와 "- 항목" 불릿을 엔트리로 변환합니다.
+function parseChangelogMarkdown(text) {
+    let entries = [];
+    let current = null;
+    String(text || '').split(/\r?\n/).forEach(line => {
+        let header = line.match(/^##\s+(.+?)\s*$/);
+        if (header) {
+            let title = header[1].trim();
+            let version = title;
+            let date = '';
+            let parts = title.split(/\s+[—–-]\s+/);
+            if (parts.length >= 2) {
+                version = parts[0].trim();
+                date = parts.slice(1).join(' - ').trim();
+            }
+            current = { version: version, date: date, items: [] };
+            entries.push(current);
+            return;
+        }
+        let bullet = line.match(/^\s*[-*]\s+(.+?)\s*$/);
+        if (bullet && current) current.items.push(bullet[1].trim());
+    });
+    return entries;
+}
+
+function buildPatchNotesHTML(notes) {
+    if (!Array.isArray(notes) || !notes.length) return '<div class="patch-note-empty">등록된 패치 노트가 없습니다.</div>';
+    return notes.map(entry => {
+        let items = (entry.items || []).map(it => `<li>${escapeHTML(it)}</li>`).join('');
+        return `<div class="patch-note-entry">`
+            + `<div class="patch-note-head">`
+            + `<span class="patch-note-version">${escapeHTML(entry.version || '')}</span>`
+            + `<span class="patch-note-date">${escapeHTML(entry.date || '')}</span>`
+            + `</div>`
+            + `<ul class="patch-note-list">${items}</ul>`
+            + `</div>`;
+    }).join('');
+}
+
+function applyPatchNotesHTML(html) {
+    ['ui-patch-notes-settings', 'startup-patch-notes'].forEach(id => {
+        let el = document.getElementById(id);
+        if (el) el.innerHTML = html;
+    });
+}
+
+function renderPatchNotes() {
+    if (__patchNotesCache) {
+        applyPatchNotesHTML(buildPatchNotesHTML(__patchNotesCache));
+        return;
+    }
+    applyPatchNotesHTML('<div class="patch-note-empty">패치 노트를 불러오는 중입니다.</div>');
+    fetch('changelog.md', { cache: 'no-cache' })
+        .then(res => res.ok ? res.text() : Promise.reject(new Error('changelog load failed')))
+        .then(text => {
+            __patchNotesCache = parseChangelogMarkdown(text);
+            applyPatchNotesHTML(buildPatchNotesHTML(__patchNotesCache));
+        })
+        .catch(() => {
+            applyPatchNotesHTML('<div class="patch-note-empty">패치 노트를 불러오지 못했습니다.</div>');
+        });
+}
+
 function persistCloudSession(session) {
     try {
         localStorage.setItem(CLOUD_SESSION_STORAGE_KEY, JSON.stringify(session));
@@ -9640,6 +9705,7 @@ function init() {
         window.__startupFirstPaintDone = true;
         gameplayStarted = false;
         setStartupOverlayActive(true);
+        renderPatchNotes();
         setLoadingOverlayState(false);
         let localSaveStatus = loadGame();
         if (localSaveStatus.writable === false) {
