@@ -15,35 +15,12 @@ const TALENT_BLOOM_TOTAL_CARDS = 120;
 // 나무꾼 잔상 전투력(최고 DPS)의 로그 환산 기준. DPS가 2배 될 때마다 +1점(층과 동일 스케일).
 const TALENT_BLOOM_DPS_BASE = 1000;
 
-// 이면(재능) 효과: 캐릭터(재능)별 주력 스탯. 레벨당 perLevel(%) 증가.
-const TALENT_CARD_TALENT_EFFECT = {
-    hero1: { stat: 'projectilePctDmg', perLevel: 3 },
-    hero2: { stat: 'meleePctDmg', perLevel: 3 },
-    hero3: { stat: 'elementalPctDmg', perLevel: 3 },
-    hero4: { stat: 'chaosPctDmg', perLevel: 3 },
-    hero5: { stat: 'physPctDmg', perLevel: 3 },
-    hero6: { stat: 'projectilePctDmg', perLevel: 3 },
-    hero7: { stat: 'summonPctDmg', perLevel: 3 },
-    hero8: { stat: 'pctHp', perLevel: 2 },
-    hero9: { stat: 'elementalPctDmg', perLevel: 3 },
-    hero10: { stat: 'dotPctDmg', perLevel: 3 }
-};
-
-// 표면(직업) 효과: 직업별 키스톤 테마. 레벨당 perLevel(%) 증가하는 스탯 묶음.
-const TALENT_CARD_CLASS_EFFECT = {
-    warrior: { title: '⚔️ 불굴의 격타', stats: [{ stat: 'physPctDmg', perLevel: 4 }, { stat: 'critDmg', perLevel: 5 }] },
-    gladiator: { title: '🌀 연격의 투기', stats: [{ stat: 'meleePctDmg', perLevel: 4 }, { stat: 'aspd', perLevel: 2 }] },
-    assassin: { title: '🗡️ 암살 본능', stats: [{ stat: 'crit', perLevel: 2 }, { stat: 'critDmg', perLevel: 6 }] },
-    ranger: { title: '🏹 정밀 사격', stats: [{ stat: 'projectilePctDmg', perLevel: 4 }, { stat: 'move', perLevel: 2 }] },
-    elementalist: { title: '🔥 원소 공명', stats: [{ stat: 'elementalPctDmg', perLevel: 4 }, { stat: 'resPen', perLevel: 1 }] },
-    warlock: { title: '☠️ 부패 가속', stats: [{ stat: 'chaosPctDmg', perLevel: 4 }, { stat: 'dotPctDmg', perLevel: 3 }] },
-    guardian: { title: '🛡️ 수호 의지', stats: [{ stat: 'armorPct', perLevel: 3 }, { stat: 'pctHp', perLevel: 2 }] },
-    inquisitor: { title: '⚖️ 심판의 빛', stats: [{ stat: 'elementalPctDmg', perLevel: 4 }, { stat: 'crit', perLevel: 1 }] },
-    soulbinder: { title: '👻 영혼 결속', stats: [{ stat: 'dotPctDmg', perLevel: 4 }, { stat: 'summonPctDmg', perLevel: 3 }] },
-    catalyst: { title: '✨ 촉매 반응', stats: [{ stat: 'elementalPctDmg', perLevel: 4 }, { stat: 'aspd', perLevel: 1 }] },
-    hunter: { title: '🎯 추적자', stats: [{ stat: 'projectilePctDmg', perLevel: 4 }, { stat: 'critDmg', perLevel: 4 }] },
-    crusader: { title: '✝️ 성전 가호', stats: [{ stat: 'lightPctDmg', perLevel: 4 }, { stat: 'armorPct', perLevel: 2 }] }
-};
+// 카드 효과는 data/talent-cards.js의 TALENT_BLOOM_CARD_DEFS(120개 조합 = 5차전직 1개당 표면 1 + 이면 1)에서 조회한다.
+function getTalentCardDef(heroId, classKey) {
+    let key = makeTalentComboKey(heroId, classKey);
+    if (typeof TALENT_BLOOM_CARD_DEFS !== 'undefined' && TALENT_BLOOM_CARD_DEFS[key]) return TALENT_BLOOM_CARD_DEFS[key];
+    return null;
+}
 
 function parseTalentComboKey(comboKey) {
     let parts = String(comboKey || '').split('__');
@@ -102,14 +79,14 @@ function recordTalentBloomCard(comboKey) {
     return { card, leveledUp: card.level > prevLevel, score };
 }
 
-// 카드의 표면/이면 효과를 레벨에 맞춰 스탯 묶음으로 반환. (P4: 스탯 반영에 사용)
+// 카드의 표면(1)·이면(1) 효과를 레벨에 맞춰 스탯 목록으로 반환. (조합당 고유 정의에서 조회)
 function getTalentCardStatBonuses(heroId, classKey, level) {
     let lv = Math.max(1, Math.min(TALENT_CARD_MAX_LEVEL, Math.floor(level || 1)));
+    let def = getTalentCardDef(heroId, classKey);
+    if (!def) return [];
     let out = [];
-    let talent = TALENT_CARD_TALENT_EFFECT[heroId];
-    if (talent) out.push({ stat: talent.stat, val: talent.perLevel * lv, kind: 'hidden' });
-    let cls = TALENT_CARD_CLASS_EFFECT[classKey];
-    if (cls) cls.stats.forEach(s => out.push({ stat: s.stat, val: s.perLevel * lv, kind: 'surface' }));
+    if (def.surface && def.surface.stat) out.push({ stat: def.surface.stat, val: def.surface.perLevel * lv, kind: 'surface' });
+    if (def.hidden && def.hidden.stat) out.push({ stat: def.hidden.stat, val: def.hidden.perLevel * lv, kind: 'hidden' });
     return out;
 }
 
@@ -130,7 +107,9 @@ function getTalentCardEffectLines(heroId, classKey, level) {
 function getTalentCardName(heroId, classKey) {
     let heroLabel = (typeof getHeroSelectionDef === 'function') ? getHeroSelectionDef(heroId).label : heroId;
     let classLabel = (typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[classKey]) ? CLASS_TEMPLATES[classKey].name : '무직';
-    return { heroLabel, classLabel };
+    let def = getTalentCardDef(heroId, classKey);
+    let bloomName = (def && def.name) ? def.name : `${heroLabel} × ${classLabel}`;
+    return { heroLabel, classLabel, bloomName };
 }
 
 function getOwnedTalentCardCount() {
@@ -258,7 +237,7 @@ function renderTalentTab() {
     let cardsHtml = ownedKeys.map(key => {
         let card = owned[key];
         let { heroId, classKey } = parseTalentComboKey(key);
-        let { heroLabel, classLabel } = getTalentCardName(heroId, classKey);
+        let { heroLabel, classLabel, bloomName } = getTalentCardName(heroId, classKey);
         let level = Math.max(1, Math.floor(card.level || 1));
         let lines = getTalentCardEffectLines(heroId, classKey, level);
         let nextThreshold = level < TALENT_CARD_MAX_LEVEL ? TALENT_CARD_LEVEL_THRESHOLDS[level] : null;
@@ -266,9 +245,10 @@ function renderTalentTab() {
         let equipped = getTalentCardSlotIndex(key) >= 0;
         return `<div class="talent-card${equipped ? ' equipped' : ''}" onclick="equipTalentCard('${key}')" title="클릭하여 ${equipped ? '해제' : '장착'}">
             <div class="talent-card-head">
-                <span class="talent-card-title">${heroLabel} × ${classLabel}</span>
+                <span class="talent-card-title">${bloomName}</span>
                 <span class="talent-card-level">Lv.${level}/${TALENT_CARD_MAX_LEVEL}</span>
             </div>
+            <div class="talent-card-sub">${heroLabel} × ${classLabel}</div>
             <div class="talent-card-effects">${lines.join('<br>')}</div>
             <div class="talent-card-foot">${equipped ? '✅ 장착됨 · ' : ''}점수 ${Math.max(0, Math.floor(card.score || 0))} · 개화 ${Math.max(0, Math.floor(card.count || 0))}회 · ${nextText}</div>
         </div>`;
