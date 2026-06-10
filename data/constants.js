@@ -9,20 +9,6 @@ const PASSIVE_LAYOUT_VERSION = 16;
 const LOCAL_SAVE_KEY = 'poeIdleSaveData_v9';
 const LEGACY_SAVE_KEYS = ['poeIdleSaveData_v8', 'poeIdleSaveData_v7'];
 const CLOUD_SESSION_STORAGE_KEY = 'poeIdleCloudSession_v1';
-const GAME_VERSION = 'v0.9.0';
-// 패치 노트: 최신 항목이 맨 위에 오도록 정렬합니다. (설정 탭 / 시작 화면에 표시)
-const PATCH_NOTES = [
-    {
-        version: 'v0.9.0',
-        date: '2026-06-10',
-        items: [
-            '전투 화면에서 플레이어 또는 몬스터가 회피하면 "회피!" 텍스트가 표시됩니다.',
-            '빗겨낸 피해는 대미지 숫자 색상(연녹색)과 전투 로그로 구분해 표시합니다.',
-            '설정 탭과 시작 화면에 패치 노트를 추가했습니다.'
-        ]
-    }
-];
-
 const CLOUD_SYNC_MIN_INTERVAL_MS = 300000;
 const CLOUD_REMOTE_TIME_SKEW_MS = 60 * 1000;
 const CLOUD_STALE_OVERWRITE_GUARD_MS = 5000;
