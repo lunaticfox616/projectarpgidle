@@ -273,6 +273,37 @@ function getTalentKeystoneDamageMul(target, ele, crit, pStats) {
     return mul;
 }
 
+// 표면 키스톤이 부여하는 "고유 효과"(게임의 unique-effect 엔진 키)들을 레벨 반영해 반환.
+// surface.uniq: [{ key, perLevelParams?: { paramName: perLevelValue }, params?: { 고정값 } }]
+function getTalentCardUniqEffects(heroId, classKey, level) {
+    let lv = Math.max(1, Math.min(TALENT_CARD_MAX_LEVEL, Math.floor(level || 1)));
+    let def = getTalentCardDef(heroId, classKey);
+    if (!def || !def.surface || !Array.isArray(def.surface.uniq)) return [];
+    let cardName = def.name || `${heroId} ${classKey}`;
+    return def.surface.uniq.map(u => {
+        if (!u || !u.key) return null;
+        let params = Object.assign({}, u.params || {});
+        if (u.perLevelParams) Object.keys(u.perLevelParams).forEach(p => { params[p] = (u.perLevelParams[p] || 0) * lv; });
+        return { key: u.key, params: params, itemName: '개화 키스톤: ' + cardName, sourceSlot: 'talentKeystone' };
+    }).filter(Boolean);
+}
+
+// 전투 호출용: 장착된 표면 키스톤들의 고유 효과 목록(고유효과 엔진에 주입).
+function getActiveTalentKeystoneUniqueEffects() {
+    let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
+    let loadout = Array.isArray(game.talentCardLoadout) ? game.talentCardLoadout : [];
+    let unlocked = getUnlockedTalentSlotCount();
+    if (unlocked <= 0) return [];
+    let out = [];
+    for (let i = 0; i < Math.min(unlocked, loadout.length); i++) {
+        let key = loadout[i];
+        if (!key || !owned[key]) continue;
+        let { heroId, classKey } = parseTalentComboKey(key);
+        out.push(...getTalentCardUniqEffects(heroId, classKey, owned[key].level));
+    }
+    return out;
+}
+
 function renderTalentTab() {
     let summaryEl = document.getElementById('ui-talent-summary');
     let gridEl = document.getElementById('ui-talent-card-grid');
