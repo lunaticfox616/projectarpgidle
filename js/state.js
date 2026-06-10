@@ -1491,6 +1491,7 @@ const defaultGame = {
     heroFreeSwitchUnlocked: false,
     talentBloomClears: 0,
     talentBloomCombos: [],
+    bloomedClasses: [],
     bloomTrialRegenSuppress: 0,
     pendingLoopHeroSelection: false,
     passivePoints: 0,

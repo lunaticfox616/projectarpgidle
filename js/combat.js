@@ -4158,8 +4158,18 @@ function handleTalentBloomClear(zone) {
     if (isNewCombo) game.talentBloomCombos.push(comboKey);
     let heroLabel = (typeof getHeroSelectionDef === 'function') ? getHeroSelectionDef(heroId).label : heroId;
     let classLabel = (typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[classKey]) ? CLASS_TEMPLATES[classKey].name : '무직';
-    addLog(`🌸 재능 개화 성공! [${heroLabel} × ${classLabel}]${isNewCombo ? ' (신규 조합!)' : ''} · 보상은 후속 단계에서 지급됩니다.`, 'loot-unique');
-    // P2: 직업 5차 노드 해금 + 포인트/키스톤, P3: 재능 탭 + 개화 카드 지급 — 이 지점에서 확장.
+    addLog(`🌸 재능 개화 성공! [${heroLabel} × ${classLabel}]${isNewCombo ? ' (신규 조합!)' : ''}`, 'loot-unique');
+    // 해당 직업으로 첫 개화 시: 5차 노드 해금 + 전직 포인트 + 키스톤 포인트 지급 (직업당 1회)
+    game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
+    if (game.ascendClass && !game.bloomedClasses.includes(game.ascendClass)) {
+        game.bloomedClasses.push(game.ascendClass);
+        game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + 1;
+        game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
+        game.ascendRank = Math.max(game.ascendRank || 0, 5);
+        addLog(`🌸 [${classLabel}] 5차 개화 노드 해금! 전직 포인트 +1 · 키스톤 포인트 +1`, 'loot-unique');
+        if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_fifth_node', '5차 개화 노드 해금', '직업전직 탭에 5차 재능 개화 노드가 추가되었습니다.', 'tab-traits');
+    }
+    // P3: 재능 탭 + 120 개화 카드 지급 — 이 지점에서 확장.
     game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
     game.killsInZone = 0;
     game.inTicketBossFight = false;
