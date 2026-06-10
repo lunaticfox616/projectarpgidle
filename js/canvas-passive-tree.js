@@ -137,24 +137,24 @@ function getPassiveNodeEffectShortLabel(node) {
     if (!node) return '';
     const stat = node.stat || '';
     const shortByStat = {
-        flatHp: '생명', pctHp: '생명', regen: '재생', leech: '흡혈',
-        flatDmg: '피해', pctDmg: '피해', meleePctDmg: '근접', physPctDmg: '물리', aoePctDmg: '범위', projectilePctDmg: '투사체',
-        firePctDmg: '화염', coldPctDmg: '냉기', lightPctDmg: '번개', chaosPctDmg: '카오스', elementalPctDmg: '원소', dotPctDmg: '지속피해', spellFlatPct: '주문',
-        slamPctDmg: '강타', slamEchoChance: '강타반향', projectileExtraShots: '추가발사',
-        crit: '치명', critDmg: '치피', aspd: '공속', move: '이속', ds: '연타',
-        armor: '방어', armorPct: '방어', evasion: '회피', evasionPct: '회피', energyShield: '보호막', energyShieldPct: '보호막', energyShieldRegen: '보호재생',
-        deflectChance: '빗겨내기', deflectMajor: '빗겨강화', dr: '피감', blockChance: '막기', blockChancePct: '막기증폭',
-        resF: '화염저항', resC: '냉기저항', resL: '번개저항', resAll: '모든저항', resChaos: '카오저항', resPen: '저항관통',
-        maxResF: '화염최대', maxResC: '냉기최대', maxResL: '번개최대', maxResChaos: '카오최대', chaosResElemPenalty: '혼돈절연',
-        igniteChance: '점화', chillChance: '냉각', freezeChance: '동결', shockChance: '감전', poisonChance: '중독', bleedChance: '출혈',
+        flatHp: '생명력', pctHp: '생명(%)', regen: '재생', leech: '흡혈',
+        flatDmg: '피해', pctDmg: '피해(%)', meleePctDmg: '근접(%)', physPctDmg: '물리피해(%)', aoePctDmg: '범위피해(%)', projectilePctDmg: '투사체피해(%)',
+        firePctDmg: '화염피해(%)', coldPctDmg: '냉기피해(%)', lightPctDmg: '번개피해(%)', chaosPctDmg: '카오스피해(%)', elementalPctDmg: '원소피해(%)', dotPctDmg: '지속피해(%)', spellFlatPct: '주문내장(%)',
+        slamPctDmg: '강타피해(%)', slamEchoChance: '여진확률', projectileExtraShots: '투사체추가',
+        crit: '치명타 확률', critDmg: '치명타 피해', aspd: '공격 속도', move: '이동 속도', ds: '연속타격',
+        armor: '방어도', armorPct: '방어도(%)', evasion: '회피', evasionPct: '회피(%)', energyShield: '보호막', energyShieldPct: '보호막(%)', energyShieldRegen: '보호막재생',
+        deflectChance: '빗겨내기', deflectMajor: '빗겨내기', dr: '피감', blockChance: '막기', blockChancePct: '막기증폭',
+        resF: '화염저항', resC: '냉기저항', resL: '번개저항', resAll: '모든원소저항', resChaos: '카오스저항', resPen: '저항관통',
+        maxResF: '화염최대', maxResC: '냉기최대', maxResL: '번개최대', maxResChaos: '카오스최대', chaosResElemPenalty: '카오스저항+',
+        igniteChance: '점화확률', chillChance: '냉각확률', freezeChance: '동결확률', shockChance: '감전확률', poisonChance: '중독확률', bleedChance: '출혈확률',
         ailResIgnite: '점화저항', ailResShock: '감전저항', ailResFreeze: '동결저항', ailResPoison: '중독저항', ailResBleed: '출혈저항',
-        regenSuppress: '재생억제', physIgnore: '물리무시', minDmgRoll: '하한', maxDmgRoll: '상한',
-        leechRateCap: '흡혈속도', leechTotalCap: '흡혈총량', leechInstanceCap: '흡혈타격',
-        moveEvasion: '이속회피', hpArmor: '생명방어', aspdMove: '공속이속',
-        summonPctDmg: '소환피해', summonHpPct: '소환생명', summonCritDmg: '소환치피', summonFlatDmg: '소환피해', summonCrit: '소환치명', summonAspd: '소환공속',
-        gemLevel: '젬레벨', suppCap: '보조젬', expGain: '경험치',
-        fireGemLevel: '화염젬', coldGemLevel: '냉기젬', lightGemLevel: '번개젬', chaosGemLevel: '카오스젬', physGemLevel: '물리젬',
-        projectileGemLevel: '투사체젬', meleeGemLevel: '근접젬', slamGemLevel: '강타젬', spellGemLevel: '주문젬', dotGemLevel: '지속젬', aoeGemLevel: '범위젬', elementalGemLevel: '원소젬'
+        regenSuppress: '재생억제', physIgnore: '물리무시', minDmgRoll: '최소보정', maxDmgRoll: '최대보정',
+        leechRateCap: '흡혈속도캡', leechTotalCap: '흡혈총량캡', leechInstanceCap: '흡혈캡',
+        moveEvasion: '이속 및 회피', hpArmor: '생명력 및 방어도', aspdMove: '공속 및 이속',
+        summonPctDmg: '소환피해(%)', summonHpPct: '소환생명(%)', summonCritDmg: '소환치피', summonFlatDmg: '소환피해', summonCrit: '소환치명', summonAspd: '소환공속',
+        gemLevel: '젬레벨', suppCap: '보조젬한도', expGain: '경험치',
+        fireGemLevel: '화염젬레벨', coldGemLevel: '냉기젬레벨', lightGemLevel: '번개젬레벨', chaosGemLevel: '카오스젬레벨', physGemLevel: '물리젬레벨',
+        projectileGemLevel: '투사체젬레벨', meleeGemLevel: '근접젬레벨', slamGemLevel: '강타젬레벨', spellGemLevel: '주문젬레벨', dotGemLevel: '지속젬레벨', aoeGemLevel: '범위젬레벨', elementalGemLevel: '원소젬레벨'
     };
     // 큐레이션된 짧은 라벨은 단어 중간에서 잘리지 않도록 그대로 사용한다.
     if (shortByStat[stat]) return shortByStat[stat];
