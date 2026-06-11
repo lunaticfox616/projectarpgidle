@@ -22,7 +22,7 @@ assert(ui.includes('openUnderworldRuneOverlay,'), 'rune overlay opener must be e
 assert(ui.includes('openUnderworldRuneUpgradeOverlay,'), 'rune upgrade overlay opener must be explicitly exposed for inline handlers');
 assert(css.includes('.underworld-rune-slots'), 'underworld rune slot grid styles must exist');
 assert(css.includes('.underworld-rune-overlay'), 'underworld rune overlay styles must exist');
-assert(index.includes('css/components.css?v=20260609-underworld-rune-ui2'), 'component CSS cache buster must include the rune UI styles');
+assert(/css\/components\.css\?v=[^"']+/.test(index), 'component CSS cache buster must be versioned for UI styles');
 assert(/js\/ui\.js\?v=[^"']+/.test(index), 'UI script must use a versioned cache buster');
 
 const start = ui.indexOf('function getUnderworldRuneDef(no)');

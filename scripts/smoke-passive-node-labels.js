@@ -40,4 +40,14 @@ assert.strictEqual(shortLabel({ stat: 'leechInstanceCap' }), '흡혈캡', 'leech
 const fallback = shortLabel({ stat: 'unmappedStat' });
 assert(fallback.length <= 6, 'unmapped fallback label must remain within the truncation cap');
 
+const componentsCss = fs.readFileSync(path.join(repoRoot, 'css/components.css'), 'utf8');
+const canvasSource = fs.readFileSync(path.join(repoRoot, 'js/canvas-passive-tree.js'), 'utf8');
+const uiSource = fs.readFileSync(path.join(repoRoot, 'js/ui.js'), 'utf8');
+const passivesSource = fs.readFileSync(path.join(repoRoot, 'js/passives.js'), 'utf8');
+assert(!componentsCss.includes('passiveReachableRotate'), 'allocatable passive nodes must not use rotating dashed overlay animation');
+assert(!componentsCss.includes('.passive-overlay-node::before'), 'allocatable passive nodes must not draw dashed pseudo-element rings');
+assert(!canvasSource.includes('visibleGlowNodes'), 'passive tree draw loop must not iterate glow-only node halos');
+assert(uiSource.includes('passiveRenderCache.glowNodes = [];'), 'passive state cache must skip glow node collection');
+assert(!passivesSource.includes('glow: accent.reachGlow'), 'reachable passive palette must not add glow around allocatable nodes');
+
 console.log('passive node label smoke checks passed');

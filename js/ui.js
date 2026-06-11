@@ -377,7 +377,7 @@ function renderTabOrderSettings() {
         return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
     }).join('');
 }
-const TAB_DRAG_LONG_PRESS_MS = 360;
+const TAB_DRAG_LONG_PRESS_MS = 260;
 const TAB_DRAG_CANCEL_PX = 8;
 let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
@@ -404,9 +404,24 @@ function getTabHeaderUnderPoint(clientX, clientY) {
     }) || null;
 }
 
+function updateTabDragGhost(state, clientX, clientY) {
+    if (!state || !state.ghost) return;
+    state.ghost.style.left = `${clientX}px`;
+    state.ghost.style.top = `${clientY}px`;
+}
+
 function beginTabHeaderDrag(state) {
     if (!state || state.dragging) return;
     state.dragging = true;
+    let rect = state.button.getBoundingClientRect();
+    state.ghost = state.button.cloneNode(true);
+    state.ghost.removeAttribute('id');
+    state.ghost.setAttribute('aria-hidden', 'true');
+    state.ghost.classList.add('tab-drag-ghost');
+    state.ghost.style.width = `${Math.max(1, rect.width)}px`;
+    state.ghost.style.height = `${Math.max(1, rect.height)}px`;
+    document.body.appendChild(state.ghost);
+    updateTabDragGhost(state, state.lastX, state.lastY);
     state.button.classList.add('dragging');
     document.body.classList.add('tab-drag-active');
 }
@@ -439,6 +454,7 @@ function clearTabHeaderDragState(saveOrder) {
     tabHeaderDragState = null;
     if (!state) return;
     clearTimeout(state.longPressTimer);
+    if (state.ghost) state.ghost.remove();
     state.button.classList.remove('dragging');
     document.body.classList.remove('tab-drag-active');
     if (saveOrder && state.dragging) {
@@ -458,6 +474,9 @@ function onTabHeaderPointerDown(event) {
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        ghost: null,
         dragging: false,
         longPressTimer: setTimeout(() => beginTabHeaderDrag(tabHeaderDragState), TAB_DRAG_LONG_PRESS_MS)
     };
@@ -467,6 +486,8 @@ function onTabHeaderPointerDown(event) {
 function onTabHeaderPointerMove(event) {
     let state = tabHeaderDragState;
     if (!state || event.pointerId !== state.pointerId) return;
+    state.lastX = event.clientX;
+    state.lastY = event.clientY;
     let moved = Math.abs(event.clientX - state.startX) + Math.abs(event.clientY - state.startY);
     if (!state.dragging && moved > TAB_DRAG_CANCEL_PX) {
         clearTabHeaderDragState(false);
@@ -474,6 +495,7 @@ function onTabHeaderPointerMove(event) {
     }
     if (!state.dragging) return;
     event.preventDefault();
+    updateTabDragGhost(state, event.clientX, event.clientY);
     moveDraggedTabToPoint(state, event.clientX, event.clientY);
 }
 
@@ -5193,13 +5215,7 @@ function rebuildPassiveStructureCache() {
 }
 
 function rebuildPassiveStateCache() {
-    passiveRenderCache.glowNodes = passiveRenderCache.nodes.filter(node => {
-        if (!isPassiveNodeAvailable(node)) return false;
-        let visibility = getPassiveVisibility(node.id);
-        if (visibility === 'hidden') return false;
-        let discovered = discoveredPassiveNodes.has(node.id) || (game.passives || []).includes(node.id);
-        return discovered || visibility === 'preview';
-    });
+    passiveRenderCache.glowNodes = [];
     passiveRenderCache.activeEdges = passiveRenderCache.edges.filter(edge => {
         if (!isPassiveNodeAvailable(edge.a) || !isPassiveNodeAvailable(edge.b)) return false;
         let va = getPassiveVisibility(edge.a.id);

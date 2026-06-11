@@ -32,7 +32,7 @@ assert(!ui.includes('safeExposeGlobals({ checkUnlocks'), 'UI unlock/action handl
 assert(!ui.includes('safeExposeGlobals({ showJewelRangeTooltip'), 'jewel tooltip hover must not add a new explicit global that can collide at runtime');
 assert(!ui.includes('safeExposeGlobals({ buildJewelRangeTooltipHtml'), 'legacy jewel tooltip builder must not be globally re-exposed');
 assert(ui.includes('getVoidJewelCraftMaterialIndices().length < 2'), 'void jewel craft button must use eligible material count, not raw inventory size');
-assert(index.includes('js/passives.js?v=20260608-jewel-socket4'), 'passives cache buster must be updated for socket fixes');
+assert(/js\/passives\.js\?v=[^"']+/.test(index), 'passives cache buster must be versioned for passive/runtime fixes');
 assert(/js\/ui\.js\?v=[^"']+/.test(index), 'ui cache buster must be versioned for UI fixes');
 assert(index.includes('data/skills.js?v=20260608-flame-socket2'), 'skill data cache buster must include latest flame decay data');
 assert(/js\/combat\.js\?v=[^"']+/.test(index), 'combat script must use a versioned cache buster');

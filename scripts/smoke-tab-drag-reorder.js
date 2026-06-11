@@ -33,11 +33,13 @@ function extractFunctionBlock(source, name) {
   throw new Error(`${name} body not found`);
 }
 
-assert(ui.includes('TAB_DRAG_LONG_PRESS_MS'), 'tab drag must use a long-press threshold');
+assert(ui.includes('const TAB_DRAG_LONG_PRESS_MS = 260;'), 'tab drag long-press threshold must be shortened');
 assert(ui.includes('document.addEventListener(\'click\', onTabHeaderClickCapture, true)'), 'tab drag must suppress the follow-up click after a drag');
 assert(ui.includes('isUiPointerInteractionActive()'), 'static UI refresh must defer while a pointer interaction is active');
 assert(css.includes('.tab-btn.dragging'), 'dragging tab style must exist');
-assert(index.includes('css/base.css?v=20260611-tab-drag1'), 'base CSS cache buster must include tab drag styles');
+assert(css.includes('.tab-drag-ghost'), 'dragging tab ghost style must exist');
+assert(ui.includes('function updateTabDragGhost'), 'tab drag must move a ghost element with the pointer');
+assert(index.includes('css/base.css?v=20260611-tab-drag2'), 'base CSS cache buster must include tab ghost styles');
 assert(/js\/ui\.js\?v=[^"']+/.test(index), 'UI script must use a versioned cache buster for tab drag handlers');
 
 const clickRuntime = {

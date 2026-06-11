@@ -678,12 +678,14 @@ function getSummonGemLevel(gemName, source, pStats) {
 
 function getAttackSummonGrowthSteps(gemLv) {
     let levelSteps = Math.max(0, Math.floor(Number(gemLv || 1)) - 1);
-    let earlySteps = Math.min(19, levelSteps);
-    let post20Steps = Math.max(0, levelSteps - earlySteps);
+    let pre10Steps = Math.min(8, levelSteps);
+    let level10Steps = Math.min(11, Math.max(0, levelSteps - pre10Steps));
+    let post20Steps = Math.max(0, levelSteps - pre10Steps - level10Steps);
     let initialSteps = 9;
-    let earlyGrowth = (earlySteps * 1.25) + (Math.pow(earlySteps, 1.08) * 0.2);
-    let post20Growth = (post20Steps * 1.75) + (Math.pow(post20Steps, 1.15) * 0.35);
-    return initialSteps + earlyGrowth + post20Growth;
+    let pre10Growth = (pre10Steps * 1.25) + (Math.pow(pre10Steps, 1.08) * 0.2);
+    let level10Growth = (level10Steps * 1.75) + (Math.pow(level10Steps, 1.22) * 0.55);
+    let post20Growth = (post20Steps * 2.35) + (Math.pow(post20Steps, 1.28) * 0.9);
+    return initialSteps + pre10Growth + level10Growth + post20Growth;
 }
 
 function getSummonLevelGrowthSteps(profile, gemLv) {

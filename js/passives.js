@@ -173,7 +173,7 @@ function getPassiveNodePalette(node, active, reachable, visibility) {
             outer: node.kind === 'transcendent' ? '#d1b778' : '#a88b5f',
             mid: '#251b14',
             inner: '#2c3642',
-            glow: 'rgba(173,192,224,0.18)',
+            glow: 'rgba(0,0,0,0)',
             text: '#e1cfaa'
         };
     }
@@ -200,7 +200,7 @@ function getPassiveNodePalette(node, active, reachable, visibility) {
             outer: accent.reachOuter,
             mid: accent.reachMid,
             inner: '#24303b',
-            glow: accent.reachGlow,
+            glow: 'rgba(0,0,0,0)',
             text: accent.text
         };
     }
