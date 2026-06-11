@@ -185,21 +185,21 @@ body:not(.light-mode) .item-title.unique { color: var(--ui-unique); text-shadow:
 body:not(.light-mode) #item-tooltip-box,
 body:not(.light-mode) #canvas-tooltip,
 body:not(.light-mode) #info-tooltip {
-  background: linear-gradient(180deg, rgba(16,24,39,.82) 0%, rgba(10,16,25,.82) 100%);
+  background: linear-gradient(180deg, rgba(16,24,39,.76) 0%, rgba(10,16,25,.76) 100%);
   border: 1px solid #3a5371;
   box-shadow: 0 14px 34px rgba(0,0,0,.55);
   backdrop-filter: blur(2px);
 }
-body:not(.light-mode) #item-tooltip-box.dual-compare-tooltip {
+body:not(.light-mode) #item-tooltip-box.item-compare-tooltip {
   background: transparent;
   border: 0;
   box-shadow: none;
   backdrop-filter: none;
 }
-body:not(.light-mode) .dual-compare-tooltip .item-tooltip-main,
-body:not(.light-mode) .dual-compare-tooltip .item-compare-single,
-body:not(.light-mode) .dual-compare-tooltip .item-compare-grid {
-  background: linear-gradient(180deg, rgba(16,24,39,.82) 0%, rgba(10,16,25,.82) 100%);
+body:not(.light-mode) .item-compare-tooltip .item-tooltip-main,
+body:not(.light-mode) .item-compare-tooltip .item-compare-single,
+body:not(.light-mode) .item-compare-tooltip .item-compare-grid {
+  background: linear-gradient(180deg, rgba(16,24,39,.76) 0%, rgba(10,16,25,.76) 100%);
   border-color: #4d6584;
   box-shadow: 0 14px 34px rgba(0,0,0,.55);
   backdrop-filter: blur(2px);

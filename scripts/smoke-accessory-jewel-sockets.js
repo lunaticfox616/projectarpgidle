@@ -161,10 +161,28 @@ itemTooltipRuntime.getUiPlayerStats = () => {
     return { flatHp };
 };
 itemTooltipRuntime.showItemTooltip({ clientX: 1, clientY: 2 }, 0, false);
-assert(itemTooltipRuntime.tooltipHost.classList.contains('dual-compare-tooltip'), 'dual-slot item comparison must use compact dual tooltip class');
+assert(itemTooltipRuntime.tooltipHost.classList.contains('item-compare-tooltip'), 'dual-slot item comparison must use split compare tooltip host class');
+assert(itemTooltipRuntime.tooltipHost.classList.contains('dual-compare-tooltip'), 'dual-slot item comparison must keep compact dual tooltip class');
 assert(itemTooltipRuntime.tooltipHost.innerHTML.includes('class="item-tooltip-main"'), 'dual comparison tooltip must wrap item details separately from comparison panels');
 assert(itemTooltipRuntime.tooltipHost.innerHTML.includes('class="item-compare-grid"'), 'two-slot comparison must render as a compact compare grid');
 assert.strictEqual((itemTooltipRuntime.tooltipHost.innerHTML.match(/item-compare-panel/g) || []).length, 2, 'ring comparison must render both equipped-slot comparison panels');
+
+itemTooltipRuntime.game.inventory = [{
+    id: 125,
+    slot: '장갑',
+    name: '비교 장갑',
+    rarity: 'rare',
+    baseName: '테스트 장갑',
+    hiddenTier: 4,
+    baseStats: [],
+    stats: [{ id: 'flatHp', val: 33, statName: '생명력' }]
+}];
+itemTooltipRuntime.game.equipment = { 장갑: { id: 203, slot: '장갑', stats: [{ id: 'flatHp', val: 7 }] } };
+itemTooltipRuntime.showItemTooltip({ clientX: 1, clientY: 2 }, 0, false);
+assert(itemTooltipRuntime.tooltipHost.classList.contains('item-compare-tooltip'), 'single-slot item comparison must also use split compare tooltip host class');
+assert(!itemTooltipRuntime.tooltipHost.classList.contains('dual-compare-tooltip'), 'single-slot item comparison must not use dual-only tooltip class');
+assert(itemTooltipRuntime.tooltipHost.innerHTML.includes('class="item-compare-single"'), 'single-slot comparison must render a separate comparison panel below item details');
+assert(itemTooltipRuntime.tooltipHost.innerHTML.includes('class="item-tooltip-main"'), 'single-slot comparison tooltip must keep item details in a separate sibling panel');
 
 const uiCraftRuntime = loadUiCraftSummaryRuntime();
 assert.strictEqual(uiCraftRuntime.getItemSlotDisplayLabel({ slots: ['목걸이'] }), '목걸이', 'slotless slots[] necklaces must render with a concrete display slot');
