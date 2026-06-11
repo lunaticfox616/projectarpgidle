@@ -185,9 +185,10 @@ body:not(.light-mode) .item-title.unique { color: var(--ui-unique); text-shadow:
 body:not(.light-mode) #item-tooltip-box,
 body:not(.light-mode) #canvas-tooltip,
 body:not(.light-mode) #info-tooltip {
-  background: linear-gradient(180deg, #101827 0%, #0a1019 100%);
+  background: linear-gradient(180deg, rgba(16,24,39,.90) 0%, rgba(10,16,25,.90) 100%);
   border: 1px solid #3a5371;
   box-shadow: 0 14px 34px rgba(0,0,0,.55);
+  backdrop-filter: blur(2px);
 }
 body:not(.light-mode) #item-tooltip-box { border-color: #4d6584; }
 body:not(.light-mode) #canvas-tooltip { border-color: #6b578d; }
