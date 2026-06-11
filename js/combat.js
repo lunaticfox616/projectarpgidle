@@ -679,13 +679,9 @@ function getSummonGemLevel(gemName, source, pStats) {
 function getAttackSummonGrowthSteps(gemLv) {
     let levelSteps = Math.max(0, Math.floor(Number(gemLv || 1)) - 1);
     let pre10Steps = Math.min(8, levelSteps);
-    let level10Steps = Math.min(11, Math.max(0, levelSteps - pre10Steps));
-    let post20Steps = Math.max(0, levelSteps - pre10Steps - level10Steps);
-    let initialSteps = 9;
-    let pre10Growth = (pre10Steps * 1.25) + (Math.pow(pre10Steps, 1.08) * 0.2);
-    let level10Growth = (level10Steps * 1.75) + (Math.pow(level10Steps, 1.22) * 0.55);
-    let post20Growth = (post20Steps * 2.35) + (Math.pow(post20Steps, 1.28) * 0.9);
-    return initialSteps + pre10Growth + level10Growth + post20Growth;
+    let level10Steps = Math.min(11, Math.max(0, levelSteps - 8));
+    let post20Steps = Math.max(0, levelSteps - 19);
+    return 9 + (pre10Steps * 6) + (level10Steps * 29) + (post20Steps * 80);
 }
 
 function getSummonLevelGrowthSteps(profile, gemLv) {
@@ -950,7 +946,6 @@ function estimateSummonDps(pStats) {
         total += dps;
         activeCount++;
         if (!groups.has(row.name)) {
-            let dmgGrowth = 1 + getSummonLevelGrowthSteps(profile, gemLv) * (profile.dmgPerLevelPct || 0.1);
             let flat = Math.max(0, (pStats && pStats.summonFlatDmg) || 0);
             let sharedInc = getSummonSharedDamageIncreasePct(s, pStats);
             let dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
@@ -959,7 +954,7 @@ function estimateSummonDps(pStats) {
             let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
             let aps = 1000 / getSummonAttackIntervalMs(pStats, s);
             let penResPen = getLimitedSummonPenetrationStats(pStats, s).resPen;
-            groups.set(row.name, { profile, gemLv, s, dmgGrowth, flat, sharedInc, dmgMul, ownAttackPower, critChance, critMul, aps, penResPen, hit, dps, count: 0 });
+            groups.set(row.name, { profile, gemLv, s, flat, sharedInc, dmgMul, ownAttackPower, critChance, critMul, aps, penResPen, hit, dps, count: 0 });
         }
         groups.get(row.name).count++;
     });
@@ -967,7 +962,7 @@ function estimateSummonDps(pStats) {
     groups.forEach((g, name) => {
         let mute = (txt) => `<span style="color:#8aa4bf;">${txt}</span>`;
         lines.push(`<span style="color:#cfe3ff; font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span> · 젬 Lv.${g.gemLv} · ${eleLabel(g.s.ele)}`);
-        lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = (기본 ${g.profile.baseDamage} × 레벨성장 ${g.dmgGrowth.toFixed(2)}${g.flat > 0 ? ` + 추가 피해 ${Math.floor(g.flat)}` : ''}) × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
+        lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
         lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
         lines.push(mute(`&nbsp;&nbsp;치명타 ${(g.critChance * 100).toFixed(1)}% × 피해 ${Math.floor(g.critMul * 100)}% · 공속 ${g.aps.toFixed(2)}/초 · 저항 관통 ${Math.floor(g.penResPen)}%`));
         lines.push(mute(`&nbsp;&nbsp;기대 타격 ${Math.floor(g.hit.damage)} → 1기당 ${Math.floor(g.dps)} DPS (적 저항·제한 계수 반영)`));

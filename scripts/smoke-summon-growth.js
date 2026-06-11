@@ -24,11 +24,34 @@ const lv20 = context.getAttackSummonGrowthSteps(20);
 const lv21 = context.getAttackSummonGrowthSteps(21);
 const lv30 = context.getAttackSummonGrowthSteps(30);
 assert.strictEqual(lv1, 9, 'attack summon level-1 growth baseline must be 20x the previous 0.45 baseline');
-assert(lv20 > 50, 'levels 10-20 should now grow much more steeply than the prior curve');
-assert((lv10 - lv9) > (lv2 - lv1) * 1.5, 'attack summon growth should steepen starting at level 10');
-assert((lv20 - lv19) > (lv11 - lv10), 'attack summon growth should keep accelerating through level 20');
+assert(!growthFn[0].includes('Math.pow'), 'attack summon growth should stay as a simple stepped linear curve');
+assert(lv20 >= 370, 'level-20 attack summon growth must be at least five times stronger than the prior 65-step curve');
+assert((lv10 - lv9) > (lv2 - lv1) * 2, 'attack summon growth should steepen starting at level 10');
 assert((lv21 - lv20) > (lv20 - lv19), 'growth after level 20 should be steeper than growth before level 20');
-assert(lv30 > 90, 'high-level attack summons should materially outgrow the old linear curve');
+assert(lv30 >= 1000, 'high-level attack summons should materially outgrow the old linear curve');
+assert(combatSource.includes('공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가'), 'summon DPS tooltip must show the already-scaled base damage instead of base × level-growth text');
+assert(!combatSource.includes('× 레벨성장'), 'summon DPS tooltip must not expose base × level-growth multiplication text');
+const levelGrowthFn = combatSource.match(/function getSummonLevelGrowthSteps\(profile, gemLv\) \{[\s\S]*?\n\}/);
+const scaledBaseFn = combatSource.match(/function getSummonScaledBaseDamage\(profile, gemLv, pStats\) \{[\s\S]*?\n\}/);
+assert(levelGrowthFn && scaledBaseFn, 'summon scaled base damage helpers must exist');
+vm.runInContext(`${levelGrowthFn[0]}\n${scaledBaseFn[0]}; this.getSummonScaledBaseDamage = getSummonScaledBaseDamage;`, context);
+const scaledVoidLv20 = context.getSummonScaledBaseDamage({ role: 'attack', baseDamage: 63, dmgPerLevelPct: 0.118 }, 20, { summonFlatDmg: 0 });
+assert.strictEqual(scaledVoidLv20, Math.floor(63 * (1 + (lv20 * 0.118))), 'attack summon level growth must be applied to actual scaled base damage');
+assert(scaledVoidLv20 >= 2700, 'level-20 attack summon base damage should be at least five times stronger than the prior 65-step curve');
+const priorLv20Steps = 65;
+const level20Profiles = [
+    { baseDamage: 54, dmgPerLevelPct: 0.105 },
+    { baseDamage: 86, dmgPerLevelPct: 0.135 },
+    { baseDamage: 62, dmgPerLevelPct: 0.112 },
+    { baseDamage: 50, dmgPerLevelPct: 0.108 },
+    { baseDamage: 63, dmgPerLevelPct: 0.118 },
+    { baseDamage: 36, dmgPerLevelPct: 0.092 }
+];
+level20Profiles.forEach(profile => {
+    const prior = Math.floor(profile.baseDamage * (1 + (priorLv20Steps * profile.dmgPerLevelPct)));
+    const next = context.getSummonScaledBaseDamage({ role: 'attack', ...profile }, 20, { summonFlatDmg: 0 });
+    assert(next >= prior * 5, 'every attack summon level-20 base damage must be at least 5x the prior curve');
+});
 assert(combatSource.includes("profile && profile.role === 'attack'"), 'the boosted curve must be limited to attack summons');
 assert(dataSkillsSource.includes("tags: ['summon', 'summon_attack'"), 'attack summon skill gems must carry the summon_attack tag');
 assert(!dataSkillsSource.includes('수액 골렘 소환'), 'Sap Golem must remain outside the attack skill gem database');
