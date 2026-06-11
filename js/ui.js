@@ -377,7 +377,159 @@ function renderTabOrderSettings() {
         return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
     }).join('');
 }
+const TAB_DRAG_LONG_PRESS_MS = 180;
+const TAB_DRAG_CANCEL_PX = 8;
+let tabHeaderDragState = null;
+let tabHeaderSuppressClickUntil = 0;
+
+function getTabButtonFromTarget(target) {
+    return target && target.closest ? target.closest('.tab-header .tab-btn') : null;
+}
+
+function getTabHeaders() {
+    return Array.from(document.querySelectorAll('.tab-header'));
+}
+
+function getTabHeaderOrderSnapshot(headers) {
+    return (headers || getTabHeaders()).flatMap(header => Array.from(header.querySelectorAll('.tab-btn')).map(el => el.id).filter(Boolean));
+}
+
+function getTabHeaderUnderPoint(clientX, clientY) {
+    let hit = document.elementFromPoint ? document.elementFromPoint(clientX, clientY) : null;
+    let hitHeader = hit && hit.closest ? hit.closest('.tab-header') : null;
+    if (hitHeader) return hitHeader;
+    return getTabHeaders().find(header => {
+        let rect = header.getBoundingClientRect();
+        return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+    }) || null;
+}
+
+function updateTabDragGhost(state, clientX, clientY) {
+    if (!state || !state.ghost) return;
+    let offsetX = Number.isFinite(state.grabOffsetX) ? state.grabOffsetX : 0;
+    let offsetY = Number.isFinite(state.grabOffsetY) ? state.grabOffsetY : 0;
+    state.ghost.style.left = `${clientX - offsetX}px`;
+    state.ghost.style.top = `${clientY - offsetY}px`;
+}
+
+function beginTabHeaderDrag(state) {
+    if (!state || state.dragging) return;
+    state.dragging = true;
+    let rect = state.button.getBoundingClientRect();
+    state.grabOffsetX = clampNumber(state.lastX - rect.left, 0, rect.width);
+    state.grabOffsetY = clampNumber(state.lastY - rect.top, 0, rect.height);
+    state.ghost = state.button.cloneNode(true);
+    state.ghost.removeAttribute('id');
+    state.ghost.setAttribute('aria-hidden', 'true');
+    state.ghost.classList.add('tab-drag-ghost');
+    state.ghost.style.width = `${Math.max(1, rect.width)}px`;
+    state.ghost.style.height = `${Math.max(1, rect.height)}px`;
+    document.body.appendChild(state.ghost);
+    updateTabDragGhost(state, state.lastX, state.lastY);
+    state.button.classList.add('dragging');
+    document.body.classList.add('tab-drag-active');
+}
+
+function moveDraggedTabToPoint(state, clientX, clientY) {
+    let header = getTabHeaderUnderPoint(clientX, clientY) || state.button.parentElement;
+    if (!header) return;
+    if (state.button.parentElement !== header) header.appendChild(state.button);
+    let siblings = Array.from(header.querySelectorAll('.tab-btn')).filter(el => el !== state.button);
+    let before = siblings.find(el => {
+        let rect = el.getBoundingClientRect();
+        return clientX < rect.left + rect.width / 2;
+    });
+    header.insertBefore(state.button, before || null);
+}
+
+function commitTabHeaderDragOrder() {
+    let headers = getTabHeaders();
+    game.settings = game.settings || {};
+    game.settings.tabPlacement = game.settings.tabPlacement || {};
+    headers.forEach(header => {
+        let placement = header.id === 'tab-header-bottom' ? 'bottom' : 'top';
+        Array.from(header.querySelectorAll('.tab-btn')).forEach(btn => { game.settings.tabPlacement[btn.id] = placement; });
+    });
+    game.settings.tabOrder = getTabHeaderOrderSnapshot(headers);
+}
+
+function clearTabHeaderDragState(saveOrder) {
+    let state = tabHeaderDragState;
+    tabHeaderDragState = null;
+    if (!state) return;
+    clearTimeout(state.longPressTimer);
+    if (state.ghost) state.ghost.remove();
+    state.button.classList.remove('dragging');
+    document.body.classList.remove('tab-drag-active');
+    if (saveOrder && state.dragging) {
+        commitTabHeaderDragOrder();
+        tabHeaderSuppressClickUntil = Date.now() + 450;
+        applyTabHeaderOrder(true);
+        queueImportantSave(300);
+    }
+}
+
+function onTabHeaderPointerDown(event) {
+    if (tabHeaderDragState) return;
+    let button = getTabButtonFromTarget(event.target);
+    if (!button || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    tabHeaderDragState = {
+        button,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        grabOffsetX: 0,
+        grabOffsetY: 0,
+        ghost: null,
+        dragging: false,
+        longPressTimer: setTimeout(() => beginTabHeaderDrag(tabHeaderDragState), TAB_DRAG_LONG_PRESS_MS)
+    };
+    if (button.setPointerCapture) button.setPointerCapture(event.pointerId);
+}
+
+function onTabHeaderPointerMove(event) {
+    let state = tabHeaderDragState;
+    if (!state || event.pointerId !== state.pointerId) return;
+    state.lastX = event.clientX;
+    state.lastY = event.clientY;
+    let moved = Math.abs(event.clientX - state.startX) + Math.abs(event.clientY - state.startY);
+    if (!state.dragging && moved > TAB_DRAG_CANCEL_PX) {
+        clearTabHeaderDragState(false);
+        return;
+    }
+    if (!state.dragging) return;
+    event.preventDefault();
+    updateTabDragGhost(state, event.clientX, event.clientY);
+    moveDraggedTabToPoint(state, event.clientX, event.clientY);
+}
+
+function onTabHeaderPointerEnd(event) {
+    let state = tabHeaderDragState;
+    if (!state || event.pointerId !== state.pointerId) return;
+    clearTabHeaderDragState(true);
+}
+
+function onTabHeaderClickCapture(event) {
+    if (Date.now() <= tabHeaderSuppressClickUntil && getTabButtonFromTarget(event.target)) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+}
+
+function installTabHeaderDragReorder() {
+    if (window.__tabHeaderDragReorderBound) return;
+    window.__tabHeaderDragReorderBound = true;
+    document.addEventListener('pointerdown', onTabHeaderPointerDown, true);
+    document.addEventListener('pointermove', onTabHeaderPointerMove, { capture: true, passive: false });
+    document.addEventListener('pointerup', onTabHeaderPointerEnd, true);
+    document.addEventListener('pointercancel', event => clearTabHeaderDragState(false), true);
+    document.addEventListener('click', onTabHeaderClickCapture, true);
+}
+
 function applyTabHeaderOrder(shouldRenderSettings){
+    installTabHeaderDragReorder();
     let headers = Array.from(document.querySelectorAll('.tab-header'));
     let topHeader = headers[0];
     if(!topHeader) return;
@@ -3052,6 +3204,11 @@ function renderHeroSelectionControls() {
     syncHeroSelectionState();
 }
 
+function persistHeroSelectionChange(reason) {
+    if (!saveGame({ skipCloudSync: true })) return;
+    if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave(reason || '캐릭터 재능 변경');
+}
+
 function applyHeroSelection(heroId, options = {}) {
     if (!HERO_SELECTION_DEFS[heroId]) return false;
     let prev = game.selectedHeroId;
@@ -3060,7 +3217,7 @@ function applyHeroSelection(heroId, options = {}) {
     if (prev !== heroId && battleAssets && battleAssets.ready) battleAssets.atlas = buildBattleAssetAtlas();
     renderHeroSelectionControls();
     if (!options.silent && prev !== heroId) addLog(`🧬 캐릭터 변경: ${getHeroSelectionDef(heroId).label}`, 'season-up');
-    if (!options.skipSave) queueImportantSave(200);
+    if (!options.skipSave) persistHeroSelectionChange('캐릭터 재능 변경');
     return true;
 }
 
@@ -3081,7 +3238,7 @@ function ensureInitialHeroSelection() {
     openLoopHeroSelection((pickedId) => {
         game.heroSelectionInitialized = true;
         addLog(`🧬 첫 루프 캐릭터가 정해졌습니다: ${HERO_SELECTION_DEFS[pickedId].blindLabel}`, 'season-up');
-        queueImportantSave(120);
+        persistHeroSelectionChange('첫 루프 캐릭터 선택');
     }, {
         kicker: 'Character Selection',
         title: '시작 캐릭터 선택',
@@ -3409,9 +3566,12 @@ function showGemTooltip(event, type, name) {
         }
     } else {
         let skill = info.skill || SKILL_DB[name];
+        let isSummonAttackTooltip = (info.tags || []).includes('summon_attack');
         html += `<div class="tooltip-line">${info.desc}</div>`;
-        html += `<div class="tooltip-line" style="margin-top:6px;">피해 배율 ${formatPercentMultiplier(skill.dmg || skill.baseDmg || 1)}</div>`;
-        html += `<div class="tooltip-line">공속 배율 ${formatPercentMultiplier(skill.spd || skill.baseSpd || 1)}</div>`;
+        if (!isSummonAttackTooltip) {
+            html += `<div class="tooltip-line" style="margin-top:6px;">피해 배율 ${formatPercentMultiplier(skill.dmg || skill.baseDmg || 1)}</div>`;
+            html += `<div class="tooltip-line">공속 배율 ${formatPercentMultiplier(skill.spd || skill.baseSpd || 1)}</div>`;
+        }
         if ((info.tags || []).includes('spell')) {
             let spellLv = Math.max(1, info.finalLevel || 1);
             let spellLog = Math.log2(spellLv);
@@ -3440,10 +3600,12 @@ function showGemTooltip(event, type, name) {
         if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용 · 적에게 화염 부패 디버프 적용 · 화염 부패 대상은 점화 피해가 생명력 100당 8% 증폭(최대 ${(Math.max(1, Number(skill.igniteTakenMaxMultiplier || 0)) || 1).toFixed(1)}x)</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
         if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
-        html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
-        let maxTargetsView = Math.max(1, skill.targets || 1);
-        if (skill.targetMode === 'all') maxTargetsView = Math.min(8, Math.max(6, skill.targets || 6));
-        html += `<div class="tooltip-line">최대 타겟 수: ${maxTargetsView}</div>`;
+        if (!isSummonAttackTooltip) {
+            html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
+            let maxTargetsView = Math.max(1, skill.targets || 1);
+            if (skill.targetMode === 'all') maxTargetsView = Math.min(8, Math.max(6, skill.targets || 6));
+            html += `<div class="tooltip-line">최대 타겟 수: ${maxTargetsView}</div>`;
+        }
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: ${info.tags.join(' / ')}</div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${Number(skill.crit).toFixed(Number.isInteger(skill.crit) ? 0 : 1)}%</div>`;
         if (skill.critScale) html += `<div class="tooltip-line">치명타 성장: 젬 레벨당 +${skill.critScale}%</div>`;
@@ -3635,6 +3797,8 @@ function showItemTooltip(event, idx, isEquip) {
         }
     }
 
+    let itemTooltipMainHtml = html;
+    let hasItemCompareSections = false;
     if (!isEquip) {
         let compareSlots = getEquipCandidateSlots(item).filter(slotKey => !!game.equipment[slotKey]);
         if (compareSlots.length === 0 && item.slot !== '반지') compareSlots = getEquipCandidateSlots(item);
@@ -3661,11 +3825,13 @@ function showItemTooltip(event, idx, isEquip) {
             }
         });
         if (compareSections.length > 0) {
+            hasItemCompareSections = true;
             let layoutClass = compareSections.length > 1 ? 'item-compare-grid' : 'item-compare-single';
-            html += `<div class="${layoutClass}">${compareSections.join('')}</div>`;
+            html = `<div class="item-tooltip-main">${itemTooltipMainHtml}</div><div class="${layoutClass}">${compareSections.join('')}</div>`;
         }
     }
 
+    tt.classList.toggle('item-compare-tooltip', hasItemCompareSections);
     tt.classList.toggle('dual-compare-tooltip', !isEquip && isDualSlotItem(item.slot));
     tt.innerHTML = html;
     tt.style.display = 'block';
@@ -5055,13 +5221,7 @@ function rebuildPassiveStructureCache() {
 }
 
 function rebuildPassiveStateCache() {
-    passiveRenderCache.glowNodes = passiveRenderCache.nodes.filter(node => {
-        if (!isPassiveNodeAvailable(node)) return false;
-        let visibility = getPassiveVisibility(node.id);
-        if (visibility === 'hidden') return false;
-        let discovered = discoveredPassiveNodes.has(node.id) || (game.passives || []).includes(node.id);
-        return discovered || visibility === 'preview';
-    });
+    passiveRenderCache.glowNodes = [];
     passiveRenderCache.activeEdges = passiveRenderCache.edges.filter(edge => {
         if (!isPassiveNodeAvailable(edge.a) || !isPassiveNodeAvailable(edge.b)) return false;
         let va = getPassiveVisibility(edge.a.id);
@@ -5109,21 +5269,50 @@ function isEdgeInViewport(edge, viewport, margin) {
 // Phase-2 appended static UI renderer block.
 let uiRefreshQueued = false;
 let uiRefreshRunning = false;
-let uiRefreshLastPointerAt = 0;
-let uiRefreshLastFlushAt = 0;
-let uiRefreshPendingForce = false;
-const UI_REFRESH_CLICK_GUARD_MS = 90;
-const UI_REFRESH_FORCE_FLUSH_MS = 250;
+let uiPointerInteraction = null;
+let uiPointerFlushTimer = null;
+const UI_REFRESH_POINTER_FLUSH_DELAY_MS = 35;
+const UI_REFRESH_LONG_POINTER_LIMIT_MS = 8000;
+
+function isClickSensitiveTarget(target) {
+    return !!(target && target.closest && target.closest('button, .tab-btn, .subtab-btn, a, input, select, textarea, [onclick], [role="button"], .item-card, .skill-gem, .slot-box, .map-item'));
+}
+
+function beginUiPointerInteraction(event) {
+    if (event && event.pointerType === 'mouse' && event.button !== 0) return;
+    if (!isClickSensitiveTarget(event && event.target)) return;
+    uiPointerInteraction = { pointerId: event.pointerId, startedAt: Date.now() };
+}
+
+function scheduleDeferredStaticUiFlush(delayMs) {
+    if (uiPointerFlushTimer) return;
+    uiPointerFlushTimer = setTimeout(() => {
+        uiPointerFlushTimer = null;
+        if (uiRefreshQueued && !uiRefreshRunning) requestAnimationFrame(processQueuedUIRefresh);
+    }, Math.max(0, delayMs || 0));
+}
+
+function finishUiPointerInteraction(event) {
+    if (!uiPointerInteraction) return;
+    if (event && event.pointerId !== uiPointerInteraction.pointerId) return;
+    uiPointerInteraction = null;
+    if (uiRefreshQueued) scheduleDeferredStaticUiFlush(UI_REFRESH_POINTER_FLUSH_DELAY_MS);
+}
+
+function isUiPointerInteractionActive(now = Date.now()) {
+    if (!uiPointerInteraction) return false;
+    return (now - uiPointerInteraction.startedAt) < UI_REFRESH_LONG_POINTER_LIMIT_MS;
+}
 
 if (!window.__uiRefreshPointerGuardBound) {
     window.__uiRefreshPointerGuardBound = true;
-    document.addEventListener('pointerdown', () => { uiRefreshLastPointerAt = Date.now(); }, true);
+    document.addEventListener('pointerdown', beginUiPointerInteraction, true);
+    document.addEventListener('pointerup', finishUiPointerInteraction, true);
+    document.addEventListener('pointercancel', finishUiPointerInteraction, true);
 }
 
 function updateStaticUI(forceImmediate) {
-    if (forceImmediate) {
-        uiRefreshPendingForce = true;
-    }
+    void forceImmediate;
     if (uiRefreshQueued || uiRefreshRunning) return;
     uiRefreshQueued = true;
     requestAnimationFrame(processQueuedUIRefresh);
@@ -5131,21 +5320,16 @@ function updateStaticUI(forceImmediate) {
 
 function processQueuedUIRefresh() {
     uiRefreshQueued = false;
-    let now = Date.now();
-    let inGuardWindow = (now - uiRefreshLastPointerAt) < UI_REFRESH_CLICK_GUARD_MS;
-    let forceFlush = uiRefreshPendingForce || (now - uiRefreshLastFlushAt) >= UI_REFRESH_FORCE_FLUSH_MS;
-    if (inGuardWindow && !forceFlush) {
+    if (isUiPointerInteractionActive()) {
         uiRefreshQueued = true;
-        requestAnimationFrame(processQueuedUIRefresh);
+        scheduleDeferredStaticUiFlush(UI_REFRESH_POINTER_FLUSH_DELAY_MS);
         return;
     }
-    uiRefreshPendingForce = false;
     uiRefreshRunning = true;
     try {
         performUpdateStaticUI();
     } finally {
         uiRefreshRunning = false;
-        uiRefreshLastFlushAt = Date.now();
         if (uiRefreshQueued) requestAnimationFrame(processQueuedUIRefresh);
     }
 }

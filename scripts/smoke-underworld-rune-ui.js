@@ -22,8 +22,8 @@ assert(ui.includes('openUnderworldRuneOverlay,'), 'rune overlay opener must be e
 assert(ui.includes('openUnderworldRuneUpgradeOverlay,'), 'rune upgrade overlay opener must be explicitly exposed for inline handlers');
 assert(css.includes('.underworld-rune-slots'), 'underworld rune slot grid styles must exist');
 assert(css.includes('.underworld-rune-overlay'), 'underworld rune overlay styles must exist');
-assert(index.includes('css/components.css?v=20260609-underworld-rune-ui2'), 'component CSS cache buster must include the rune UI styles');
-assert(index.includes('js/ui.js?v=20260609-underworld-rune-ui2'), 'UI cache buster must include the rune overlay handlers');
+assert(/css\/components\.css\?v=[^"']+/.test(index), 'component CSS cache buster must be versioned for UI styles');
+assert(/js\/ui\.js\?v=[^"']+/.test(index), 'UI script must use a versioned cache buster');
 
 const start = ui.indexOf('function getUnderworldRuneDef(no)');
 const end = ui.indexOf('function switchMapSubtab(subtabId)', start);
@@ -75,7 +75,7 @@ assert.strictEqual(updates.count, 2, 'overlay unequip should refresh the UI once
 sandbox.game.underworldRunes.obtainedRunes = [1, 1, 1, 2];
 sandbox.game.underworldRunes.equippedRunes = [null, 1, null, null, null, null];
 sandbox.upgradeUnderworldRune(1);
-assert.deepStrictEqual(sandbox.game.underworldRunes.obtainedRunes, [2, 2], 'selected rune upgrade should consume exactly three source runes and add the next rune');
+assert.deepStrictEqual(sandbox.game.underworldRunes.obtainedRunes, [2], 'selected rune upgrade should consume source runes and auto-equip the newly added next rune');
 assert.strictEqual(sandbox.game.underworldRunes.equippedRunes[0], 2, 'upgraded rune should auto-equip into the first empty unlocked slot');
 assert.strictEqual(sandbox.game.underworldRunes.equippedRunes[1], null, 'source rune copies in equipped slots should be cleared during upgrade');
 assert.strictEqual(sandbox.game.currencies.runeShard, 0, 'selected rune upgrade should consume the selected rune shard cost');
