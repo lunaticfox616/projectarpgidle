@@ -920,6 +920,10 @@ function estimateSummonDps(pStats) {
     let total = 0;
     let activeCount = 0;
     let lines = [];
+    let groups = new Map();
+    let sbActive = game.ascendClass === 'soulbinder' && hasKeystone('sb7');
+    let sbShare = (sbActive && !hasKeystone('sb5')) ? 0.5 * Math.max(0, Number((pStats && pStats.sbPlayerAttackPower) || 0)) : 0;
+    let eleLabel = (ele) => typeof getDamageElementLabel === 'function' ? getDamageElementLabel(ele) : (ele || 'phys');
     rows.forEach(row => {
         let profile = getSummonProfile(row.name);
         if (profile.role === 'guard') return;
@@ -939,13 +943,34 @@ function estimateSummonDps(pStats) {
         let dps = hit.damage / intervalSec;
         total += dps;
         activeCount++;
+        if (!groups.has(row.name)) {
+            let dmgGrowth = 1 + getSummonLevelGrowthSteps(profile, gemLv) * (profile.dmgPerLevelPct || 0.1);
+            let flat = Math.max(0, (pStats && pStats.summonFlatDmg) || 0);
+            let sharedInc = getSummonSharedDamageIncreasePct(s, pStats);
+            let dmgMul = 1 + (((pStats.summonPctDmg || 0) + (pStats.summonEfficiency || 0) + sharedInc) / 100);
+            let ownAttackPower = (s.baseDamage * dmgMul) + sbShare;
+            let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
+            let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
+            let aps = 1000 / getSummonAttackIntervalMs(pStats, s);
+            let penResPen = getLimitedSummonPenetrationStats(pStats, s).resPen;
+            groups.set(row.name, { profile, gemLv, s, dmgGrowth, flat, sharedInc, dmgMul, ownAttackPower, critChance, critMul, aps, penResPen, hit, dps, count: 0 });
+        }
+        groups.get(row.name).count++;
     });
-    lines.push(`공격 소환수 ${activeCount}기 · 소환수별 공격 주기 적용`);
-    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && Math.max(0, Number(pStats && pStats.sbPlayerAttackPower) || 0) > 0) {
-        lines.push(`상호 보완: 내 공격력 ${Math.floor(pStats.sbPlayerAttackPower)}의 50%(+${Math.floor(0.5 * pStats.sbPlayerAttackPower)})가 소환수 타격마다 가산`);
+    lines.push(`공격 소환수 ${activeCount}기 · 소환수별 공격 주기로 합산`);
+    groups.forEach((g, name) => {
+        let mute = (txt) => `<span style="color:#8aa4bf;">${txt}</span>`;
+        lines.push(`<span style="color:#cfe3ff; font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span> · 젬 Lv.${g.gemLv} · ${eleLabel(g.s.ele)}`);
+        lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = (기본 ${g.profile.baseDamage} × 레벨성장 ${g.dmgGrowth.toFixed(2)}${g.flat > 0 ? ` + 추가 피해 ${Math.floor(g.flat)}` : ''}) × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
+        lines.push(mute(`&nbsp;&nbsp;피해 증가 합계 +${Math.floor((g.dmgMul - 1) * 100)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 효율 ${Math.floor(pStats.summonEfficiency || 0)}% + 공유 ${Math.floor(g.sharedInc)}%)`));
+        lines.push(mute(`&nbsp;&nbsp;치명타 ${(g.critChance * 100).toFixed(1)}% × 피해 ${Math.floor(g.critMul * 100)}% · 공속 ${g.aps.toFixed(2)}/초 · 저항 관통 ${Math.floor(g.penResPen)}%`));
+        lines.push(mute(`&nbsp;&nbsp;기대 타격 ${Math.floor(g.hit.damage)} → 1기당 ${Math.floor(g.dps)} DPS (적 저항·제한 계수 반영)`));
+    });
+    if (sbActive && sbShare > 0) {
+        lines.push(`상호 보완: 내 공격력 ${Math.floor(pStats.sbPlayerAttackPower)}의 50%(+${Math.floor(sbShare)})가 소환수 타격마다 가산`);
     }
     if (rows.length > activeCount) lines.push(`방어/보조 소환수 ${rows.length - activeCount}기는 DPS에서 제외`);
-    lines.push('최종 피해/보스 피해/관통/상태이상 계열은 제한 계수로 반영');
+    lines.push('소환수 공격력은 피해 증가가 적용된 값이며, 적 저항·최종 피해·보스 피해·관통은 소환수 제한 계수로 반영됩니다.');
     if (rows.some(row => row.duplicateIndex > 0)) lines.push('남는 소환수 한도는 공격 소환수 중복 소환으로 사용');
     return { total: Math.max(0, total), activeCount: activeCount, lines: lines };
 }
