@@ -695,6 +695,26 @@ function getSummonScaledBaseDamage(profile, gemLv, pStats) {
     return Math.max(1, Math.floor(((profile.baseDamage || 20) * dmgGrowth) + flat));
 }
 
+// Representative attack summon's own per-hit attack power (pre-crit, before any sb7 complement).
+// Used by Soulbinder '상호 보완'(sb7) so the player/summon share each other's *attack power* rather
+// than the raw %damage stat. Computed from summon-only stats, so it never depends on the player's
+// complement bonus — keeping the cross-share free of any feedback loop.
+function getRepresentativeSummonAttackPower(summonStats) {
+    let names = (Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [])
+        .filter(name => SKILL_DB[name] && Array.isArray(SKILL_DB[name].tags) && SKILL_DB[name].tags.includes('summon_attack'));
+    let best = 0;
+    names.forEach(name => {
+        let profile = getSummonProfile(name);
+        if (profile.role === 'guard') return;
+        let gemLv = getSummonGemLevel(name, 'skill', summonStats);
+        let base = getSummonScaledBaseDamage(profile, gemLv, summonStats);
+        let sharedInc = getSummonSharedDamageIncreasePct({ gemName: name }, summonStats);
+        let ownMul = 1 + ((summonStats.summonPctDmg || 0) + (summonStats.summonEfficiency || 0) + sharedInc) / 100;
+        best = Math.max(best, base * ownMul);
+    });
+    return Math.max(0, best);
+}
+
 function buildSummonRuntimeStats(row, pStats, now) {
     let profile = getSummonProfile(row.name);
     let isGuard = profile.role === 'guard';
@@ -787,14 +807,21 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let zoneTier = (zone && zone.tier) || 1;
     let base = Math.max(1, Math.floor(s.baseDamage || 20));
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb1')) base = Math.max(1, Math.floor(base * 1.15));
-    let soulbinderComplementPct = Math.max(0, Number((pStats && pStats.sbSummonDamageFromPlayerPct) || 0));
     let sharedIncreasePct = getSummonSharedDamageIncreasePct(s, pStats);
-    let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100) + (soulbinderComplementPct / 100) + (sharedIncreasePct / 100);
+    let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100) + (sharedIncreasePct / 100);
     let critChance = Math.max(0, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
     let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
     let crit = false;
     let dmg = Math.max(1, base * dmgMul);
     let ailmentSourceDmg = Math.max(1, base * dmgMul);
+    // 상호 보완(sb7): 플레이어 공격력(타격당 기본 피해)의 50%를 소환수 타격에 가산(치명타 적용 전).
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
+        let sbPlayerShare = 0.5 * Math.max(0, Number((pStats && pStats.sbPlayerAttackPower) || 0));
+        if (sbPlayerShare > 0) {
+            dmg += sbPlayerShare;
+            ailmentSourceDmg += sbPlayerShare;
+        }
+    }
     if (expected) {
         dmg *= pStats.uniqueSummonNonCritNoDamage ? (critChance * critMul) : ((1 - critChance) + (critChance * critMul));
     } else if (Math.random() < critChance) {
@@ -2067,8 +2094,7 @@ function getPlayerStats() {
     let guardianArmorDamageBonus = false;
     let sbSummonAspdBonus = 0;
     let sbSummonCapBonus = 0;
-    let sbPlayerDamageFromSummonPct = 0;
-    let sbSummonDamageFromPlayerPct = 0;
+    let sbPlayerAttackPower = 0;
     let ailmentResistPenPct = 0;
     let crusaderLightningIgnoreRes = false;
     let crusaderNoResPenOnLightning = false;
@@ -2506,8 +2532,22 @@ function getPlayerStats() {
             finalAspd = Math.max(0.1, finalAspd * (1 + sumAspd / 100));
         }
         if (hasKeystone('sb7')) {
-            if (!hasKeystone('sb5')) sbPlayerDamageFromSummonPct += 0.5;
-            sbSummonDamageFromPlayerPct += Math.max(0, generalPctDmg * 0.5);
+            // 상호 보완: 플레이어/소환수가 서로의 '공격력'(타격당 기본 피해)의 50%를 나눠 가집니다.
+            // 각 측의 공격력은 상대의 보너스를 제외한 자기 스탯만으로 계산하므로 무한 피드백이 없습니다.
+            // 플레이어 공격력(보너스 적용 전)을 소환수에게 전달.
+            sbPlayerAttackPower = Math.max(0, finalBaseDmg);
+            // 소환수 공격력(대표 소환수의 타격당 기본 피해)의 50%를 플레이어 기본 피해에 가산.
+            let summonStatsForShare = {
+                summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
+                summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0)),
+                summonEfficiency: Math.max(0, (gearBase.summonEfficiency || 0) + (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (support.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
+                summonSharedPctDmg: Math.max(0, generalPctDmg),
+                summonSharedTaggedPctDmg: {}
+            };
+            if (!hasKeystone('sb5')) {
+                let summonAttackPower = getRepresentativeSummonAttackPower(summonStatsForShare);
+                finalBaseDmg += Math.floor(0.5 * summonAttackPower);
+            }
         }
     } else if (game.ascendClass === 'catalyst') {
         if (hasKeystone('ct4')) {
@@ -2570,11 +2610,8 @@ function getPlayerStats() {
         .map(ele => `${coreCubeAddedDamageLabels[ele]} ${Math.floor(coreCubeAddedDamagePct[ele])}%`);
     let expectedAddedDamageMultiplier = 1 + coreCubeAddedDamageTotalPct / 100;
     if (expectedAddedDamageMultiplier > 1) damageScales.coreCubeAddedDamageMultiplier = expectedAddedDamageMultiplier;
-    let soulbinderSb7PlayerMul = 1;
-    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
-        soulbinderSb7PlayerMul += Math.max(0, (sbPlayerDamageFromSummonPct || 0) * ((gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0)) / 100);
-    }
-    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1) * soulbinderSb7PlayerMul;
+    // Soulbinder sb7 player gain is now baked into finalBaseDmg as flat attack power, so no separate multiplier here.
+    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier * expectedAddedDamageMultiplier;
     let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
     let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.min(5, Math.floor(totalProjectileExtraShots || 0))) : 0;
@@ -2587,7 +2624,7 @@ function getPlayerStats() {
         let expectedDotStackRate = finalAspd * expectedDoubleStrikeMultiplier;
         let expectedDotStacks = Math.max(1, Math.min(DOT_STACK_MAX, Math.floor(expectedDotStackRate * dotDuration)));
         let expectedDotStackMultiplier = getDotStackMultiplier(expectedDotStacks);
-        let expectedDotSourceHit = avgHit * avgRollMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1) * soulbinderSb7PlayerMul;
+        let expectedDotSourceHit = avgHit * avgRollMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
         estimatedSkillDotDps = Math.max(0, expectedDotSourceHit * DOT_TICK_FROM_HIT_RATIO * totalDotDamageMultiplier * expectedDotStackMultiplier / Math.max(0.02, dotTickInterval));
         damageScales.estimatedDotStackRate = expectedDotStackRate;
         damageScales.estimatedDotStacks = expectedDotStacks;
@@ -3279,8 +3316,7 @@ function getPlayerStats() {
         summonGuardRedirectPct: Math.max(0, Math.min(100, (gearBase.summonGuardRedirectPct || 0) + (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (support.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0))),
         poisonDamageMultiplierPct: Math.max(0, finalPoisonDamageMultiplierPct),
         shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
-        sbPlayerDamageFromSummonPct: Math.max(0, sbPlayerDamageFromSummonPct),
-        sbSummonDamageFromPlayerPct: Math.max(0, sbSummonDamageFromPlayerPct)
+        sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower)
     };
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
@@ -6023,11 +6059,8 @@ function performPlayerAttack(pStats) {
                 hitBaseDamage = Math.floor(hitBaseDamage * hunterMul);
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * hunterMul);
             }
-            if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
-                let soulbinderMul = 1 + Math.max(0, (pStats.sbPlayerDamageFromSummonPct || 0) * (pStats.summonPctDmg || 0)) / 100;
-                hitBaseDamage = Math.floor(hitBaseDamage * soulbinderMul);
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * soulbinderMul);
-            }
+            // Soulbinder sb7 player gain is baked into pStats.baseDmg as flat attack power (see getPlayerStats),
+            // so the player hit no longer needs a separate summon→player multiplier here.
             if (game.ascendClass === 'catalyst' && hasKeystone('ct5') && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && (a.time || 0) > 0)) {
                 hitBaseDamage = Math.floor(hitBaseDamage * 1.2);
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * 1.2);
