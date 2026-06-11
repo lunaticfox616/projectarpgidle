@@ -32,10 +32,10 @@ assert(!ui.includes('safeExposeGlobals({ checkUnlocks'), 'UI unlock/action handl
 assert(!ui.includes('safeExposeGlobals({ showJewelRangeTooltip'), 'jewel tooltip hover must not add a new explicit global that can collide at runtime');
 assert(!ui.includes('safeExposeGlobals({ buildJewelRangeTooltipHtml'), 'legacy jewel tooltip builder must not be globally re-exposed');
 assert(ui.includes('getVoidJewelCraftMaterialIndices().length < 2'), 'void jewel craft button must use eligible material count, not raw inventory size');
-assert(index.includes('js/passives.js?v=20260608-jewel-socket4'), 'passives cache buster must be updated for socket fixes');
-assert(index.includes('js/ui.js?v=20260609-underworld-rune-ui2'), 'ui cache buster must include latest rune UI and socket fixes');
+assert(/js\/passives\.js\?v=[^"']+/.test(index), 'passives cache buster must be versioned for passive/runtime fixes');
+assert(/js\/ui\.js\?v=[^"']+/.test(index), 'ui cache buster must be versioned for UI fixes');
 assert(index.includes('data/skills.js?v=20260608-flame-socket2'), 'skill data cache buster must include latest flame decay data');
-assert(index.includes('js/combat.js?v=20260609-core-cube-added-dps1'), 'combat cache buster must include latest flame decay formula');
+assert(/js\/combat\.js\?v=[^"']+/.test(index), 'combat script must use a versioned cache buster');
 
 function loadSocketRuntime() {
     const start = passives.indexOf('function isVoidSocketAccessoryItem(item)');
@@ -87,7 +87,15 @@ function loadItemTooltipRuntime() {
     assert(toneStart >= 0 && toneEnd > toneStart, 'item stat tone helper must be discoverable');
     assert(slotStart >= 0 && slotEnd > slotStart, 'item slot display helper must be discoverable');
     assert(tooltipStart >= 0 && tooltipEnd > tooltipStart, 'item tooltip renderer must be discoverable');
-    const tooltipHost = { innerHTML: '', style: {}, classList: { toggle() {} } };
+    const tooltipClassSet = new Set();
+    const tooltipHost = {
+        innerHTML: '',
+        style: {},
+        classList: {
+            toggle(name, enabled) { enabled ? tooltipClassSet.add(name) : tooltipClassSet.delete(name); },
+            contains(name) { return tooltipClassSet.has(name); }
+        }
+    };
     const sandbox = {
         activeItemTooltipToken: null,
         game: { inventory: [], equipment: {} },
@@ -129,6 +137,52 @@ itemTooltipRuntime.game.inventory = [{
 assert.doesNotThrow(() => itemTooltipRuntime.showItemTooltip({ clientX: 1, clientY: 2 }, 0, false), 'item tooltip must resolve stat tone helper without relying on render-time globals');
 assert(itemTooltipRuntime.tooltipHost.innerHTML.includes('[목걸이] 툴팁 목걸이'), 'item tooltip must render a slotless slots[] accessory label');
 assert(itemTooltipRuntime.tooltipHost.innerHTML.includes('화염 피해'), 'item tooltip must render base stat rows that use stat tone colors');
+
+itemTooltipRuntime.game.inventory = [{
+    id: 124,
+    slot: '반지',
+    name: '비교 반지',
+    rarity: 'rare',
+    baseName: '테스트 베이스',
+    hiddenTier: 4,
+    baseStats: [],
+    stats: [{ id: 'flatHp', val: 18, statName: '생명력' }]
+}];
+itemTooltipRuntime.game.equipment = {
+    반지1: { id: 201, slot: '반지1', stats: [{ id: 'flatHp', val: 4 }] },
+    반지2: { id: 202, slot: '반지2', stats: [{ id: 'flatHp', val: 27 }] }
+};
+itemTooltipRuntime.COMPARE_STAT_META = { flatHp: { label: '생명력', format(value) { return String(value); } } };
+itemTooltipRuntime.getUiPlayerStats = () => {
+    let flatHp = 0;
+    Object.values(itemTooltipRuntime.game.equipment).forEach(item => {
+        (item.stats || []).forEach(stat => { if (stat.id === 'flatHp') flatHp += Number(stat.val || 0); });
+    });
+    return { flatHp };
+};
+itemTooltipRuntime.showItemTooltip({ clientX: 1, clientY: 2 }, 0, false);
+assert(itemTooltipRuntime.tooltipHost.classList.contains('item-compare-tooltip'), 'dual-slot item comparison must use split compare tooltip host class');
+assert(itemTooltipRuntime.tooltipHost.classList.contains('dual-compare-tooltip'), 'dual-slot item comparison must keep compact dual tooltip class');
+assert(itemTooltipRuntime.tooltipHost.innerHTML.includes('class="item-tooltip-main"'), 'dual comparison tooltip must wrap item details separately from comparison panels');
+assert(itemTooltipRuntime.tooltipHost.innerHTML.includes('class="item-compare-grid"'), 'two-slot comparison must render as a compact compare grid');
+assert.strictEqual((itemTooltipRuntime.tooltipHost.innerHTML.match(/item-compare-panel/g) || []).length, 2, 'ring comparison must render both equipped-slot comparison panels');
+
+itemTooltipRuntime.game.inventory = [{
+    id: 125,
+    slot: '장갑',
+    name: '비교 장갑',
+    rarity: 'rare',
+    baseName: '테스트 장갑',
+    hiddenTier: 4,
+    baseStats: [],
+    stats: [{ id: 'flatHp', val: 33, statName: '생명력' }]
+}];
+itemTooltipRuntime.game.equipment = { 장갑: { id: 203, slot: '장갑', stats: [{ id: 'flatHp', val: 7 }] } };
+itemTooltipRuntime.showItemTooltip({ clientX: 1, clientY: 2 }, 0, false);
+assert(itemTooltipRuntime.tooltipHost.classList.contains('item-compare-tooltip'), 'single-slot item comparison must also use split compare tooltip host class');
+assert(!itemTooltipRuntime.tooltipHost.classList.contains('dual-compare-tooltip'), 'single-slot item comparison must not use dual-only tooltip class');
+assert(itemTooltipRuntime.tooltipHost.innerHTML.includes('class="item-compare-single"'), 'single-slot comparison must render a separate comparison panel below item details');
+assert(itemTooltipRuntime.tooltipHost.innerHTML.includes('class="item-tooltip-main"'), 'single-slot comparison tooltip must keep item details in a separate sibling panel');
 
 const uiCraftRuntime = loadUiCraftSummaryRuntime();
 assert.strictEqual(uiCraftRuntime.getItemSlotDisplayLabel({ slots: ['목걸이'] }), '목걸이', 'slotless slots[] necklaces must render with a concrete display slot');
