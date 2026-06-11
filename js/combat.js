@@ -582,15 +582,15 @@ function getActiveSummonGemDefs() {
 
 function getSummonProfile(gemName) {
     let table = {
-        '서리늑대 소환': { role: 'attack', ele: 'cold', trait: '빠른 공속', baseHp: 330, baseArmor: 36, baseEvasion: 63, baseRes: { fire: 10, cold: 24, light: 10, chaos: 0 }, baseDamage: 36, attackSpeedMul: 1.35, baseCrit: 8, baseCritDmg: 150, resPenBonus: 4, respawnMs: 2000, hpScaleBase: 0.038, hpScaleExp: 1.12, dmgPerLevelPct: 0.105, armorScaleBase: 0.018, armorScaleExp: 1.1, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
-        '불곰 소환': { role: 'attack', ele: 'fire', trait: '강한 1타', baseHp: 473, baseArmor: 66, baseEvasion: 24, baseRes: { fire: 28, cold: 8, light: 10, chaos: 0 }, baseDamage: 57, attackSpeedMul: 0.78, baseCrit: 5, baseCritDmg: 145, resPenBonus: 2, respawnMs: 2000, hpScaleBase: 0.045, hpScaleExp: 1.14, dmgPerLevelPct: 0.135, armorScaleBase: 0.026, armorScaleExp: 1.12, evasionScaleBase: 0.012, evasionScaleExp: 1.08 },
-        '벼락멧돼지 소환': { role: 'attack', ele: 'light', trait: '높은 저항 관통', baseHp: 368, baseArmor: 36, baseEvasion: 45, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 41, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
-        '칼날까마귀 소환': { role: 'attack', ele: 'phys', trait: '치명타 특화', baseHp: 315, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 33, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 2000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
-        '공허 유충 소환': { role: 'attack', ele: 'chaos', trait: '카오스 관통', baseHp: 405, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 42, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 2000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
-        '벌떼 소환': { role: 'attack', ele: 'chaos', trait: '매우 빠른 공속', baseHp: 285, baseArmor: 24, baseEvasion: 75, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 24, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 2000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '서리늑대 소환': { role: 'attack', ele: 'cold', trait: '빠른 공속', baseHp: 330, baseArmor: 36, baseEvasion: 63, baseRes: { fire: 10, cold: 24, light: 10, chaos: 0 }, baseDamage: 54, attackSpeedMul: 1.35, baseCrit: 8, baseCritDmg: 150, resPenBonus: 4, respawnMs: 2000, hpScaleBase: 0.038, hpScaleExp: 1.12, dmgPerLevelPct: 0.105, armorScaleBase: 0.018, armorScaleExp: 1.1, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '불곰 소환': { role: 'attack', ele: 'fire', trait: '강한 1타', baseHp: 473, baseArmor: 66, baseEvasion: 24, baseRes: { fire: 28, cold: 8, light: 10, chaos: 0 }, baseDamage: 86, attackSpeedMul: 0.78, baseCrit: 5, baseCritDmg: 145, resPenBonus: 2, respawnMs: 2000, hpScaleBase: 0.045, hpScaleExp: 1.14, dmgPerLevelPct: 0.135, armorScaleBase: 0.026, armorScaleExp: 1.12, evasionScaleBase: 0.012, evasionScaleExp: 1.08 },
+        '벼락멧돼지 소환': { role: 'attack', ele: 'light', trait: '높은 저항 관통', baseHp: 368, baseArmor: 36, baseEvasion: 45, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 62, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
+        '칼날까마귀 소환': { role: 'attack', ele: 'phys', trait: '치명타 특화', baseHp: 315, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 50, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 2000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
+        '공허 유충 소환': { role: 'attack', ele: 'chaos', trait: '카오스 관통', baseHp: 405, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 63, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 2000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
+        '벌떼 소환': { role: 'attack', ele: 'chaos', trait: '매우 빠른 공속', baseHp: 285, baseArmor: 24, baseEvasion: 75, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 36, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 2000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
         '수액 골렘 소환': { role: 'guard', ele: 'phys', trait: '피해 대리', baseHp: 630, baseArmor: 90, baseEvasion: 18, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 15, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 4000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
     };
-    return table[gemName] || { role: 'attack', ele: 'phys', trait: '균형형', baseHp: 330, baseArmor: 30, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 30, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
+    return table[gemName] || { role: 'attack', ele: 'phys', trait: '균형형', baseHp: 330, baseArmor: 30, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 45, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
 }
 
 function getSummonRuntimeCap(pStats) {
@@ -672,14 +672,15 @@ function getSummonGemLevel(gemName, source, pStats) {
     let baseLevel = Math.max(1, (records[gemName] || {}).level || 1);
     let sources = getTargetGemBonusSources(gemName, pStats && pStats.gemBonusSources);
     let bonus = Math.max(0, Math.floor((sources && sources.total) || 0));
-    return Math.max(1, baseLevel + bonus);
+    let engraveBonus = typeof getGemSkyEnhanceGemLevelBonus === 'function' ? getGemSkyEnhanceGemLevelBonus(gemName) : 0;
+    return Math.max(1, baseLevel + bonus + engraveBonus);
 }
 
 function getAttackSummonGrowthSteps(gemLv) {
     let levelSteps = Math.max(0, Math.floor(Number(gemLv || 1)) - 1);
     let earlySteps = Math.min(19, levelSteps);
     let post20Steps = Math.max(0, levelSteps - earlySteps);
-    return 0.3 + (earlySteps * 1.08) + (post20Steps * 1.45) + (Math.pow(post20Steps, 1.15) * 0.12);
+    return 0.45 + (earlySteps * 1.25) + (post20Steps * 1.75) + (Math.pow(post20Steps, 1.15) * 0.15);
 }
 
 function getSummonLevelGrowthSteps(profile, gemLv) {
@@ -692,6 +693,26 @@ function getSummonScaledBaseDamage(profile, gemLv, pStats) {
     let dmgGrowth = 1 + getSummonLevelGrowthSteps(profile, gemLv) * (profile.dmgPerLevelPct || 0.1);
     let flat = Math.max(0, (pStats && pStats.summonFlatDmg) || 0);
     return Math.max(1, Math.floor(((profile.baseDamage || 20) * dmgGrowth) + flat));
+}
+
+// Representative attack summon's own per-hit attack power (pre-crit, before any sb7 complement).
+// Used by Soulbinder '상호 보완'(sb7) so the player/summon share each other's *attack power* rather
+// than the raw %damage stat. Computed from summon-only stats, so it never depends on the player's
+// complement bonus — keeping the cross-share free of any feedback loop.
+function getRepresentativeSummonAttackPower(summonStats) {
+    let names = (Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [])
+        .filter(name => SKILL_DB[name] && Array.isArray(SKILL_DB[name].tags) && SKILL_DB[name].tags.includes('summon_attack'));
+    let best = 0;
+    names.forEach(name => {
+        let profile = getSummonProfile(name);
+        if (profile.role === 'guard') return;
+        let gemLv = getSummonGemLevel(name, 'skill', summonStats);
+        let base = getSummonScaledBaseDamage(profile, gemLv, summonStats);
+        let sharedInc = getSummonSharedDamageIncreasePct({ gemName: name }, summonStats);
+        let ownMul = 1 + ((summonStats.summonPctDmg || 0) + (summonStats.summonEfficiency || 0) + sharedInc) / 100;
+        best = Math.max(best, base * ownMul);
+    });
+    return Math.max(0, best);
 }
 
 function buildSummonRuntimeStats(row, pStats, now) {
@@ -738,8 +759,8 @@ function buildSummonRuntimeStats(row, pStats, now) {
 
 function getLimitedSummonPenetrationStats(pStats, summon) {
     let fullPen = game.ascendClass === 'soulbinder' && hasKeystone('sb6');
-    let baseResPen = fullPen ? Math.max(0, pStats.resPen || 0) : Math.min(25, Math.max(0, pStats.resPen || 0) * 0.35);
-    let basePhysIgnore = Math.min(20, Math.max(0, pStats.physIgnore || 0) * 0.35);
+    let baseResPen = fullPen ? Math.max(0, pStats.resPen || 0) : Math.min(40, Math.max(0, pStats.resPen || 0) * 0.55);
+    let basePhysIgnore = Math.min(30, Math.max(0, pStats.physIgnore || 0) * 0.55);
     return {
         ...pStats,
         resPen: baseResPen + Math.max(0, (summon && summon.resPenBonus) || 0) + Math.max(0, (pStats && pStats.summonResPen) || 0),
@@ -748,9 +769,8 @@ function getLimitedSummonPenetrationStats(pStats, summon) {
 }
 
 function getLimitedSummonFinalDamageMultiplier(pStats) {
-    let mul = Math.max(0, Number(pStats && pStats.finalDamageMultiplier) || 1);
-    if (mul <= 1) return mul;
-    return 1 + Math.min(1.5, (mul - 1) * 0.65);
+    // 소환수도 플레이어의 최종 피해 배율을 전부 적용받습니다(축소 제거).
+    return Math.max(0, Number(pStats && pStats.finalDamageMultiplier) || 1);
 }
 
 function getLimitedSummonBossDamageMultiplier(pStats, target) {
@@ -786,14 +806,21 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let zoneTier = (zone && zone.tier) || 1;
     let base = Math.max(1, Math.floor(s.baseDamage || 20));
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb1')) base = Math.max(1, Math.floor(base * 1.15));
-    let soulbinderComplementPct = Math.max(0, Number((pStats && pStats.sbSummonDamageFromPlayerPct) || 0));
     let sharedIncreasePct = getSummonSharedDamageIncreasePct(s, pStats);
-    let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100) + (soulbinderComplementPct / 100) + (sharedIncreasePct / 100);
-    let critChance = Math.max(0, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
+    let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100) + (sharedIncreasePct / 100);
+    let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
     let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
     let crit = false;
     let dmg = Math.max(1, base * dmgMul);
     let ailmentSourceDmg = Math.max(1, base * dmgMul);
+    // 상호 보완(sb7): 플레이어 공격력(타격당 기본 피해)의 50%를 소환수 타격에 가산(치명타 적용 전).
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
+        let sbPlayerShare = 0.5 * Math.max(0, Number((pStats && pStats.sbPlayerAttackPower) || 0));
+        if (sbPlayerShare > 0) {
+            dmg += sbPlayerShare;
+            ailmentSourceDmg += sbPlayerShare;
+        }
+    }
     if (expected) {
         dmg *= pStats.uniqueSummonNonCritNoDamage ? (critChance * critMul) : ((1 - critChance) + (critChance * critMul));
     } else if (Math.random() < critChance) {
@@ -914,6 +941,9 @@ function estimateSummonDps(pStats) {
         activeCount++;
     });
     lines.push(`공격 소환수 ${activeCount}기 · 소환수별 공격 주기 적용`);
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && Math.max(0, Number(pStats && pStats.sbPlayerAttackPower) || 0) > 0) {
+        lines.push(`상호 보완: 내 공격력 ${Math.floor(pStats.sbPlayerAttackPower)}의 50%(+${Math.floor(0.5 * pStats.sbPlayerAttackPower)})가 소환수 타격마다 가산`);
+    }
     if (rows.length > activeCount) lines.push(`방어/보조 소환수 ${rows.length - activeCount}기는 DPS에서 제외`);
     lines.push('최종 피해/보스 피해/관통/상태이상 계열은 제한 계수로 반영');
     if (rows.some(row => row.duplicateIndex > 0)) lines.push('남는 소환수 한도는 공격 소환수 중복 소환으로 사용');
@@ -2066,8 +2096,9 @@ function getPlayerStats() {
     let guardianArmorDamageBonus = false;
     let sbSummonAspdBonus = 0;
     let sbSummonCapBonus = 0;
-    let sbPlayerDamageFromSummonPct = 0;
-    let sbSummonDamageFromPlayerPct = 0;
+    let sbPlayerAttackPower = 0;
+    let sbSummonAttackPower = 0;
+    let sbSummonShareToPlayer = 0;
     let ailmentResistPenPct = 0;
     let crusaderLightningIgnoreRes = false;
     let crusaderNoResPenOnLightning = false;
@@ -2505,8 +2536,23 @@ function getPlayerStats() {
             finalAspd = Math.max(0.1, finalAspd * (1 + sumAspd / 100));
         }
         if (hasKeystone('sb7')) {
-            if (!hasKeystone('sb5')) sbPlayerDamageFromSummonPct += 0.5;
-            sbSummonDamageFromPlayerPct += Math.max(0, generalPctDmg * 0.5);
+            // 상호 보완: 플레이어/소환수가 서로의 '공격력'(타격당 기본 피해)의 50%를 나눠 가집니다.
+            // 각 측의 공격력은 상대의 보너스를 제외한 자기 스탯만으로 계산하므로 무한 피드백이 없습니다.
+            // 플레이어 공격력(보너스 적용 전)을 소환수에게 전달.
+            sbPlayerAttackPower = Math.max(0, finalBaseDmg);
+            // 소환수 공격력(대표 소환수의 타격당 기본 피해)의 50%를 플레이어 기본 피해에 가산.
+            let summonStatsForShare = {
+                summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
+                summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0)),
+                summonEfficiency: Math.max(0, (gearBase.summonEfficiency || 0) + (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (support.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
+                summonSharedPctDmg: Math.max(0, generalPctDmg),
+                summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumStatAcrossBuckets(statId))]))
+            };
+            sbSummonAttackPower = getRepresentativeSummonAttackPower(summonStatsForShare);
+            if (!hasKeystone('sb5')) {
+                sbSummonShareToPlayer = Math.floor(0.5 * sbSummonAttackPower);
+                finalBaseDmg += sbSummonShareToPlayer;
+            }
         }
     } else if (game.ascendClass === 'catalyst') {
         if (hasKeystone('ct4')) {
@@ -2569,11 +2615,8 @@ function getPlayerStats() {
         .map(ele => `${coreCubeAddedDamageLabels[ele]} ${Math.floor(coreCubeAddedDamagePct[ele])}%`);
     let expectedAddedDamageMultiplier = 1 + coreCubeAddedDamageTotalPct / 100;
     if (expectedAddedDamageMultiplier > 1) damageScales.coreCubeAddedDamageMultiplier = expectedAddedDamageMultiplier;
-    let soulbinderSb7PlayerMul = 1;
-    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
-        soulbinderSb7PlayerMul += Math.max(0, (sbPlayerDamageFromSummonPct || 0) * ((gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0)) / 100);
-    }
-    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1) * soulbinderSb7PlayerMul;
+    // Soulbinder sb7 player gain is now baked into finalBaseDmg as flat attack power, so no separate multiplier here.
+    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier * expectedAddedDamageMultiplier;
     let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
     let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.min(5, Math.floor(totalProjectileExtraShots || 0))) : 0;
@@ -2586,7 +2629,7 @@ function getPlayerStats() {
         let expectedDotStackRate = finalAspd * expectedDoubleStrikeMultiplier;
         let expectedDotStacks = Math.max(1, Math.min(DOT_STACK_MAX, Math.floor(expectedDotStackRate * dotDuration)));
         let expectedDotStackMultiplier = getDotStackMultiplier(expectedDotStacks);
-        let expectedDotSourceHit = avgHit * avgRollMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1) * soulbinderSb7PlayerMul;
+        let expectedDotSourceHit = avgHit * avgRollMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
         estimatedSkillDotDps = Math.max(0, expectedDotSourceHit * DOT_TICK_FROM_HIT_RATIO * totalDotDamageMultiplier * expectedDotStackMultiplier / Math.max(0.02, dotTickInterval));
         damageScales.estimatedDotStackRate = expectedDotStackRate;
         damageScales.estimatedDotStacks = expectedDotStacks;
@@ -2791,6 +2834,8 @@ function getPlayerStats() {
                 finalDamageMultiplier !== 1 ? `최종 피해 배율 ${finalDamageMultiplier.toFixed(2)}x` : null,
                 chaosDamageMultiplier !== 1 ? `카오스 피해 배율 ${chaosDamageMultiplier.toFixed(2)}x` : null,
                 skill.convertedToChaos ? '워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용' : null,
+                (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? `상호 보완: 소환수 공격력 ${Math.floor(sbSummonAttackPower)}의 50% → 기본 피해 +${Math.floor(sbSummonShareToPlayer)}` : null,
+                (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && !hasKeystone('sb5') && sbPlayerAttackPower > 0) ? `상호 보완: 내 공격력 ${Math.floor(sbPlayerAttackPower)}의 50%(+${Math.floor(0.5 * sbPlayerAttackPower)})를 각 소환수 타격에 전달` : null,
                 `피해 범위 ${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
             ].filter(Boolean),
             final: `${Math.floor(finalBaseDmg)}`
@@ -3088,7 +3133,8 @@ function getPlayerStats() {
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
                 coreCubeAddedDamageTotalPct > 0 ? `코어 큐브 추가 피해 x${expectedAddedDamageMultiplier.toFixed(2)} (총 피해의 ${Math.floor(coreCubeAddedDamageTotalPct)}% → ${coreCubeAddedDamageParts.join(' / ')})` : null,
                 isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null,
-                estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null
+                estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null,
+                (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? `상호 보완: 소환수 공격력 공유로 기본 피해 +${Math.floor(sbSummonShareToPlayer)} 반영 (DPS 포함)` : null
             ].concat(flameDecayDpsLines).filter(Boolean),
             final: `${Math.floor(finalPlayerSkillDps)}`
         },
@@ -3278,8 +3324,7 @@ function getPlayerStats() {
         summonGuardRedirectPct: Math.max(0, Math.min(100, (gearBase.summonGuardRedirectPct || 0) + (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (support.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0))),
         poisonDamageMultiplierPct: Math.max(0, finalPoisonDamageMultiplierPct),
         shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
-        sbPlayerDamageFromSummonPct: Math.max(0, sbPlayerDamageFromSummonPct),
-        sbSummonDamageFromPlayerPct: Math.max(0, sbSummonDamageFromPlayerPct)
+        sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower)
     };
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
@@ -6022,11 +6067,8 @@ function performPlayerAttack(pStats) {
                 hitBaseDamage = Math.floor(hitBaseDamage * hunterMul);
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * hunterMul);
             }
-            if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
-                let soulbinderMul = 1 + Math.max(0, (pStats.sbPlayerDamageFromSummonPct || 0) * (pStats.summonPctDmg || 0)) / 100;
-                hitBaseDamage = Math.floor(hitBaseDamage * soulbinderMul);
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * soulbinderMul);
-            }
+            // Soulbinder sb7 player gain is baked into pStats.baseDmg as flat attack power (see getPlayerStats),
+            // so the player hit no longer needs a separate summon→player multiplier here.
             if (game.ascendClass === 'catalyst' && hasKeystone('ct5') && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && (a.time || 0) > 0)) {
                 hitBaseDamage = Math.floor(hitBaseDamage * 1.2);
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * 1.2);
@@ -7267,6 +7309,7 @@ function triggerSeasonReset() {
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
     let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
+    let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -7355,7 +7398,7 @@ function triggerSeasonReset() {
     game.skyTower = preservedSkyTower;
     game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));
     game.skyTower.clearedThisLoop = 0;
-    game.gemEnhanceUnlocked = false;
+    game.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
     game.inTicketBossFight = false;
     game.talismanUnlocked = false;
     game.talismanBoardUnlock = 3;

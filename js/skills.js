@@ -109,6 +109,17 @@ function getSkyEnhancementForSkill(skillName) {
     return Array.isArray(pool) ? pool : [];
 }
 
+// Total skill-gem-level bonus granted by sky engravings (e.g. '각성: 심층 초월' = 젬 레벨 +3).
+// Shared by the active skill and summon gem-level paths so engravings apply consistently.
+function getGemSkyEnhanceGemLevelBonus(skillName) {
+    let bonus = 0;
+    getSkyEnhancementForSkill(skillName).forEach(id => {
+        let enh = GEM_SKY_ENHANCEMENTS[id];
+        if (enh && enh.stat === 'awakenedGemLevel') bonus += (enh.gemLvVal || 0);
+    });
+    return Math.max(0, Math.floor(bonus));
+}
+
 function applySkyGemEnhancementToActive(enhanceId) {
     if ((game.season || 1) < 4) return addLog('창공의 힘은 루프4부터 사용할 수 있습니다.', 'attack-monster');
     if ((game.currencies.skyEssence || 0) <= 0) return addLog('창공의 힘이 부족합니다.', 'attack-monster');
@@ -136,14 +147,21 @@ function applySkyGemEnhancementToActive(enhanceId) {
     updateStaticUI();
 }
 
+function getSkyGemEnhancementRemoveCost() {
+    // 젬 각인사 Lv.7에서는 무료(자유 해제), 그 전에는 창공의 힘을 소모하여 해제할 수 있습니다.
+    return getGemEngraverLevelForUnlocks() >= 7 ? 0 : 2;
+}
+
 function removeSkyGemEnhancementFromActive(enhanceId) {
-    if (getGemEngraverLevelForUnlocks() < 7) return addLog('각인 자유 해제는 젬 각인사 Lv.7에 해금됩니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     let pool = Array.isArray(game.skyGemEnhancements && game.skyGemEnhancements[active]) ? game.skyGemEnhancements[active] : [];
     if (!pool.includes(enhanceId)) return;
+    let cost = getSkyGemEnhancementRemoveCost();
+    if (cost > 0 && (game.currencies.skyEssence || 0) < cost) return addLog(`각인 해제에 필요한 창공의 힘이 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if (cost > 0) game.currencies.skyEssence = Math.max(0, (game.currencies.skyEssence || 0) - cost);
     game.skyGemEnhancements[active] = pool.filter(id => id !== enhanceId);
     let enh = GEM_SKY_ENHANCEMENTS[enhanceId];
-    addLog(`☁️ [${active}] ${enh ? enh.name : '각인'} 옵션을 해제했습니다.`, 'attack-monster');
+    addLog(`☁️ [${active}] ${enh ? enh.name : '각인'} 옵션을 해제했습니다.${cost > 0 ? ` (창공의 힘 ${cost} 소모)` : ''}`, 'attack-monster');
     updateStaticUI();
 }
 
@@ -572,11 +590,7 @@ function getActiveSkillStats(bonusLevel) {
     if (skill.levelable) game.gemData[game.activeSkill] = gem;
     let permanentSkyBonus = skill.isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(game.activeSkill) : 0;
     let materialBonus = skill.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
-    let awakenedGemLevelBonus = 0;
-    if (skill.isGem) getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
-        let enh = GEM_SKY_ENHANCEMENTS[id];
-        if (enh && enh.stat === 'awakenedGemLevel') awakenedGemLevelBonus += (enh.gemLvVal || 0);
-    });
+    let awakenedGemLevelBonus = skill.isGem ? getGemSkyEnhanceGemLevelBonus(game.activeSkill) : 0;
     let levelBonus = skill.isGem ? bonusLevel : 0;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + awakenedGemLevelBonus;
     let totalLevel = gem.level + levelBonus + materialBonus + awakenedGemLevelBonus;
@@ -633,7 +647,7 @@ function getActiveSkillStats(bonusLevel) {
 }
 
 
-safeExposeGlobals({ upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, applySkyGemEnhancementToActive, removeSkyGemEnhancementFromActive, upgradeActiveGemQuality, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
+safeExposeGlobals({ upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, applySkyGemEnhancementToActive, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
 
 
 function sealSkillGem(name){ if(!name||name===game.activeSkill) return addLog('활성 스킬은 봉인할 수 없습니다.','attack-monster'); if(name==='기본 공격') return addLog('기본 공격은 봉인할 수 없습니다.','attack-monster'); game.skills=dedupeList(game.skills); game.sealedSkills=dedupeList(game.sealedSkills).filter(v=>!game.skills.includes(v)); if(!game.skills.includes(name)) return; game.skills=game.skills.filter(v=>v!==name); if(Array.isArray(game.equippedSummonSkills)) game.equippedSummonSkills=game.equippedSummonSkills.filter(v=>v!==name); if(game.summonSkillCounts&&typeof game.summonSkillCounts==='object') delete game.summonSkillCounts[name]; if(!game.sealedSkills.includes(name)) game.sealedSkills.push(name); game.resonancePower=(game.resonancePower||10)+1; addLog(`🔒 공격 젬 봉인: ${name} (공명력 +1)`,'loot-magic'); updateStaticUI(); }
