@@ -135,21 +135,90 @@ function getTalentCardEffectLines(heroId, classKey, level) {
     if (!def) return [];
     let lines = [];
     if (def.surface) {
-        let desc = def.surface.desc || '';
-        let parts = [];
+        let pos = [];   // 효과(장점)
+        let neg = [];   // 단점(트레이드오프)
+        // 고유 메커니즘(uniq) — 실제 효과를 간략히
+        (def.surface.uniq || []).forEach(u => {
+            if (!u || !u.key) return;
+            let p = Object.assign({}, u.params || {});
+            if (u.perLevelParams) Object.keys(u.perLevelParams).forEach(k => { p[k] = (u.perLevelParams[k] || 0) * lv; });
+            pos.push(getTalentUniqLabel(u.key, p));
+        });
+        // 조건부 피해 배율
         if (def.surface.dmg) {
             let cond = getTalentKeystoneConditionText(def.surface.dmg.when, def.surface.dmg.threshold);
-            parts.push(`${cond}모든 피해 +${(def.surface.dmg.perLevel || 0) * lv}%`);
+            pos.push(`${cond}모든 피해 +${(def.surface.dmg.perLevel || 0) * lv}%`);
         }
+        // 키스톤 스탯/트레이드오프
         let ops = Array.isArray(def.surface.ops) ? def.surface.ops : (def.surface.stat ? [{ stat: def.surface.stat, perLevel: def.surface.perLevel }] : []);
-        ops.forEach(o => { if (o && o.stat) { let v = (o.perLevel || 0) * lv; parts.push(`${getTalentStatLabel(o.stat)} ${v >= 0 ? '+' : ''}${v}%`); } });
-        let numeric = parts.length ? ` <span style="color:#c8d6ea;">(${parts.join(', ')})</span>` : '';
-        lines.push(`<span style="color:#ffd36b;">⭐ ${desc}</span>${numeric}`);
+        ops.forEach(o => {
+            if (!o || !o.stat) return;
+            let v = (o.perLevel || 0) * lv;
+            (v < 0 ? neg : pos).push(`${getTalentStatLabel(o.stat)} ${v >= 0 ? '+' : ''}${v}%`);
+        });
+        let html = `<span style="color:#ffd36b;">⭐ ${pos.join(' · ') || '효과 없음'}</span>`;
+        if (neg.length) html += ` <span style="color:#ff8c8c;">(단점: ${neg.join(', ')})</span>`;
+        lines.push(html);
     }
     if (def.hidden && def.hidden.stat) {
         lines.push(`<span style="color:#9fe0ff;">[이면] ${getTalentStatLabel(def.hidden.stat)} +${(def.hidden.perLevel || 0) * lv}%</span>`);
     }
     return lines;
+}
+
+// 고유 효과 키 → 실제 효과를 나타내는 간략한 한국어 설명(파라미터 반영).
+function getTalentUniqLabel(key, p) {
+    p = p || {};
+    const M = {
+        cosmosPenetration: () => `저항 관통 +${p.pen}%`,
+        poisonDamageMorePct: () => `중독 피해 +${p.pct}%`,
+        igniteDamageMorePct: () => `점화 피해 +${p.pct}%`,
+        hitShockedEnemyDamageMorePct: () => `감전된 적 대상 피해 +${p.pct}%`,
+        alwaysShock: () => `타격 시 항상 감전`,
+        stackingElementalResDownOnHit: () => `타격 시 적 원소 저항 -${p.perHit}%(최대 ${p.max}%)`,
+        hitApplyChaosResDown: () => `타격 시 적 카오스 저항 -${p.perHit}%(최대 ${p.maxStacks}중첩)`,
+        realmAllResDownOnHit: () => `타격 시 적 모든 저항 -${p.perHit}%(최대 ${p.max}%, ${p.duration}초)`,
+        minRollEqualsMaxRoll: () => `항상 최대 피해로 적중`,
+        maxRollBonusHit: () => `최대 피해 굴림 시 추가 타격`,
+        instantLeechAndDoubleDamage: () => `즉시 흡혈 ${p.instantLeechPct}% · 2배 피해 ${p.doubleDamageChance}% 확률`,
+        projectileDoubleStrikePct: () => `투사체 추가 발사 ${p.pct}%`,
+        lifePctAsEnergyShield: () => `최대 생명력의 ${p.pct}%를 에너지 보호막으로`,
+        hpToPhysPct: () => `최대 생명력이 물리 피해를 강화`,
+        labyrinthShackles: () => `이동 속도가 피해로 전환`,
+        grandBreachCrown: () => `에너지 보호막 +${p.esPct}% · ES의 ${p.spellFromEsPct}%를 주문 피해로`,
+        guardianArmor: () => `받는 피해 -${p.takenLessPct}%(보스 -${p.bossTakenLessPct}%)`,
+        curseCrown: () => `저주 한도 +${p.extraCurseCap} · 저주당 피해 +${p.finalDmgPerCursePct}%`,
+        genericTakenDamageReducePct: () => `받는 피해 -${p.pct}%`,
+        chaosTakenDamageReducePct: () => `받는 카오스 피해 -${p.pct}%`,
+        uniqueTakenReduceWhen1Enemy: () => `적 1마리일 때 받는 피해 -${p.pct}%`,
+        uniqueTakenReduceWhen2Enemies: () => `적 2마리 이상일 때 받는 피해 -${p.pct}%`,
+        lifeRecoupTakenDamage: () => `받은 피해의 ${p.pct}%를 ${p.duration}초간 생명력으로 회수`,
+        realmAllMaxRes: () => `모든 최대 저항 +${p.maxRes}%`,
+        immuneBleed: () => `출혈 면역`,
+        immuneFreeze: () => `빙결 면역`,
+        immuneIgnite: () => `점화 면역`,
+        uniqueBlockChance: () => `막기 확률 +${p.chance}%`,
+        dragonVeinGuard: () => `피격 시 ${p.chance}% 확률로 ${p.duration}초 피해 경감`,
+        leechEfficiencyOnKill: () => `처치 시 ${p.duration}초간 흡혈 효율 +${p.efficiencyPct}%`,
+        cosmosSustain: () => `생명력 재생 +${p.regen}% · 흡혈 +${p.leech}%`,
+        realmRegenRateAndRegen: () => `재생 속도 +${p.regenRatePct}% · 생명력 재생 +${p.regen}%`,
+        corpseExplodeOnKill: () => `처치 시 ${p.chance}% 확률로 시체 폭발(생명력 ${p.lifePct}%)`,
+        meteorFootsteps: () => `이동 시 ${p.chance}% 확률로 메테오(${p.damagePct}%)`,
+        queenBeeSummonOnHit: () => `타격 시 ${p.chance}% 확률로 벌 소환(최대 ${p.maxBees})`,
+        shockTracerGreaves: () => `타격 시 감전 추적탄(${p.strikeDamagePct}%)`,
+        frostSentinelBoots: () => `냉기 파수꾼 소환`,
+        realmKillMoveStacks: () => `처치 시 이동 속도 +${p.movePerStack}%(최대 ${p.maxStacks}중첩)`,
+        overkillSplash: () => `초과 처치 피해 광역 확산`,
+        summonDeathDamageBuff: () => `소환수 사망 시 피해 +${p.pct}%(${p.duration}초)`,
+        summonCritAspdStacks: () => `소환수 치명타 시 공격 속도 +${p.aspd}%(최대 ${p.maxStacks}중첩)`,
+        summonCapBonus: () => `소환수 한도 +${p.cap}`,
+        summonEfficiencyBonus: () => `소환수 효율 +${p.pct}%`,
+        projectileTargetBonus: () => `투사체 대상 +${p.target}`,
+        dsAndTargetAnyBonus: () => `연속 타격 +${p.ds}% · 대상 +${p.target}`,
+        esAmpAndRecoverOnCrit: () => `에너지 보호막 +${p.ampPct}% · 치명타 시 ES 회복 ${p.recoverPctOnCrit}%`,
+        warcryResonanceBelt: () => `함성당 피해 +${p.perWarcryAmpPct}%`
+    };
+    return M[key] ? M[key]() : key;
 }
 
 function getTalentCardName(heroId, classKey) {
