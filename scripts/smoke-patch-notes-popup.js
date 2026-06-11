@@ -35,5 +35,7 @@ assert(/\.patch-notes-modal-body\s*\{[^}]*overflow|\.patch-note-body\s*\{[^}]*ov
   'patch note body must be scrollable');
 assert(/\.patch-notes-modal-body\s*\{[^}]*max-height/.test(css), 'popup body must cap its height for scrolling');
 assert(css.includes('.patch-notes-open-btn'), 'open button must be styled');
+// Popup must sit above the startup overlay (z-index 14000) so it opens on the main screen too.
+assert(/#patch-notes-overlay\s*\{[^}]*z-index:\s*1[5-9]\d{3}/.test(css), 'patch notes popup must have a z-index above the startup overlay');
 
 console.log('patch notes popup smoke checks passed');
