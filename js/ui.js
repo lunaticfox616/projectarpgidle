@@ -3052,6 +3052,11 @@ function renderHeroSelectionControls() {
     syncHeroSelectionState();
 }
 
+function persistHeroSelectionChange(reason) {
+    if (!saveGame({ skipCloudSync: true })) return;
+    if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave(reason || '캐릭터 재능 변경');
+}
+
 function applyHeroSelection(heroId, options = {}) {
     if (!HERO_SELECTION_DEFS[heroId]) return false;
     let prev = game.selectedHeroId;
@@ -3060,7 +3065,7 @@ function applyHeroSelection(heroId, options = {}) {
     if (prev !== heroId && battleAssets && battleAssets.ready) battleAssets.atlas = buildBattleAssetAtlas();
     renderHeroSelectionControls();
     if (!options.silent && prev !== heroId) addLog(`🧬 캐릭터 변경: ${getHeroSelectionDef(heroId).label}`, 'season-up');
-    if (!options.skipSave) queueImportantSave(200);
+    if (!options.skipSave) persistHeroSelectionChange('캐릭터 재능 변경');
     return true;
 }
 
@@ -3081,7 +3086,7 @@ function ensureInitialHeroSelection() {
     openLoopHeroSelection((pickedId) => {
         game.heroSelectionInitialized = true;
         addLog(`🧬 첫 루프 캐릭터가 정해졌습니다: ${HERO_SELECTION_DEFS[pickedId].blindLabel}`, 'season-up');
-        queueImportantSave(120);
+        persistHeroSelectionChange('첫 루프 캐릭터 선택');
     }, {
         kicker: 'Character Selection',
         title: '시작 캐릭터 선택',

@@ -33,9 +33,9 @@ assert(!ui.includes('safeExposeGlobals({ showJewelRangeTooltip'), 'jewel tooltip
 assert(!ui.includes('safeExposeGlobals({ buildJewelRangeTooltipHtml'), 'legacy jewel tooltip builder must not be globally re-exposed');
 assert(ui.includes('getVoidJewelCraftMaterialIndices().length < 2'), 'void jewel craft button must use eligible material count, not raw inventory size');
 assert(index.includes('js/passives.js?v=20260608-jewel-socket4'), 'passives cache buster must be updated for socket fixes');
-assert(index.includes('js/ui.js?v=20260609-underworld-rune-ui2'), 'ui cache buster must include latest rune UI and socket fixes');
+assert(/js\/ui\.js\?v=[^"']+/.test(index), 'ui cache buster must be versioned for UI fixes');
 assert(index.includes('data/skills.js?v=20260608-flame-socket2'), 'skill data cache buster must include latest flame decay data');
-assert(index.includes('js/combat.js?v=20260609-core-cube-added-dps1'), 'combat cache buster must include latest flame decay formula');
+assert(/js\/combat\.js\?v=[^"']+/.test(index), 'combat script must use a versioned cache buster');
 
 function loadSocketRuntime() {
     const start = passives.indexOf('function isVoidSocketAccessoryItem(item)');

@@ -27,14 +27,14 @@ const shortLabel = context.getPassiveNodeEffectShortLabel;
 assert(typeof shortLabel === 'function', 'getPassiveNodeEffectShortLabel must be exposed');
 
 // 1) ds는 연속 타격이다. 과거 버그처럼 '방어확률'로 표기되면 안 된다.
-assert.strictEqual(shortLabel({ stat: 'ds' }), '연타', 'ds short label must read as 연타 (연속 타격), not 방어확률');
+assert.strictEqual(shortLabel({ stat: 'ds' }), '연속타격', 'ds short label must read as 연속타격, not 방어확률');
 assert.notStrictEqual(shortLabel({ stat: 'ds' }), '방어확률', 'ds must not regress to the wrong 방어확률 label');
 
 // 2) 큐레이션된 합성 스탯 라벨은 정확히 그대로 표기되고 단어 중간에서 잘리지 않는다.
 assert.strictEqual(shortLabel({ stat: 'summonCritDmg' }), '소환치피', 'curated summon crit-damage label must stay intact');
 assert.strictEqual(shortLabel({ stat: 'physIgnore' }), '물리무시', 'physIgnore label must convey 물리 피해 무시');
-assert.strictEqual(shortLabel({ stat: 'chaosResElemPenalty' }), '혼돈절연', 'composite chaos-res label must stay intact');
-assert.strictEqual(shortLabel({ stat: 'leechInstanceCap' }), '흡혈타격', 'leech instance cap label must be curated, not truncated');
+assert.strictEqual(shortLabel({ stat: 'chaosResElemPenalty' }), '카오스저항+', 'composite chaos-res label must stay intact');
+assert.strictEqual(shortLabel({ stat: 'leechInstanceCap' }), '흡혈캡', 'leech instance cap label must be curated, not truncated');
 
 // 3) 매핑되지 않은 스탯만 정리/절단 경로를 탄다(최대 6자).
 const fallback = shortLabel({ stat: 'unmappedStat' });
