@@ -6551,9 +6551,10 @@ function buildCraftActionButtons(item) {
                     let applied = activeEnh.includes(enh.id);
                     let unlockLv = typeof getSkyEnhancementUnlockLevel === 'function' ? getSkyEnhancementUnlockLevel(enh.id) : 1;
                     let locked = gemExpertLv < unlockLv;
-                    let canRemove = applied && gemExpertLv >= 7;
+                    let removeCost = typeof getSkyGemEnhancementRemoveCost === 'function' ? getSkyGemEnhancementRemoveCost() : 0;
+                    let removeLabel = removeCost > 0 ? ` · 클릭 시 해제 (창공의 힘 ${removeCost})` : ' · 클릭 시 무료 해제';
                     let awakenedNote = typeof isAwakenedSkyEnhancement === 'function' && isAwakenedSkyEnhancement(enh.id) ? ' · 모든 공격 젬 가능' : '';
-                    return `<button class="gem-engrave-option ${applied ? 'applied' : ''}" onclick="${applied ? `removeSkyGemEnhancementFromActive('${enh.id}')` : `applySkyGemEnhancementToActive('${enh.id}')`}" ${!isGem || (locked && !applied) || (applied && !canRemove) ? 'disabled' : ''}><strong>${applied ? '✅ ' : ''}${enh.name}${applied ? ' (적용중)' : locked ? ` (Lv.${unlockLv})` : ''}</strong><br><small>${enh.desc}${awakenedNote}${applied ? (canRemove ? ' · 클릭 시 해제' : ' · 해제 Lv.7 필요') : locked ? ` · 젬 각인사 Lv.${unlockLv} 필요` : ''}</small></button>`;
+                    return `<button class="gem-engrave-option ${applied ? 'applied' : ''}" onclick="${applied ? `removeSkyGemEnhancementFromActive('${enh.id}')` : `applySkyGemEnhancementToActive('${enh.id}')`}" ${!isGem || (locked && !applied) ? 'disabled' : ''}><strong>${applied ? '✅ ' : ''}${enh.name}${applied ? ' (적용중)' : locked ? ` (Lv.${unlockLv})` : ''}</strong><br><small>${enh.desc}${awakenedNote}${applied ? removeLabel : locked ? ` · 젬 각인사 Lv.${unlockLv} 필요` : ''}</small></button>`;
                 }).join('');
             } else {
                 document.getElementById('ui-gem-enhance-options').innerHTML = engraveCapButton + `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 루프 4부터 해금됩니다.</div>`;

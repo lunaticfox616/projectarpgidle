@@ -672,7 +672,8 @@ function getSummonGemLevel(gemName, source, pStats) {
     let baseLevel = Math.max(1, (records[gemName] || {}).level || 1);
     let sources = getTargetGemBonusSources(gemName, pStats && pStats.gemBonusSources);
     let bonus = Math.max(0, Math.floor((sources && sources.total) || 0));
-    return Math.max(1, baseLevel + bonus);
+    let engraveBonus = typeof getGemSkyEnhanceGemLevelBonus === 'function' ? getGemSkyEnhanceGemLevelBonus(gemName) : 0;
+    return Math.max(1, baseLevel + bonus + engraveBonus);
 }
 
 function getAttackSummonGrowthSteps(gemLv) {
@@ -7267,6 +7268,7 @@ function triggerSeasonReset() {
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
     let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
+    let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -7355,7 +7357,7 @@ function triggerSeasonReset() {
     game.skyTower = preservedSkyTower;
     game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));
     game.skyTower.clearedThisLoop = 0;
-    game.gemEnhanceUnlocked = false;
+    game.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
     game.inTicketBossFight = false;
     game.talismanUnlocked = false;
     game.talismanBoardUnlock = 3;
