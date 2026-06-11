@@ -7,7 +7,7 @@ const polishCss = fs.readFileSync('css/ui-polish.css', 'utf8');
 const indexHtml = fs.readFileSync('index.html', 'utf8');
 
 assert(
-    layoutCss.includes('background: rgba(10,10,15,0.88)'),
+    layoutCss.includes('background: rgba(10,10,15,0.78)'),
     'base custom tooltip background should be translucent.'
 );
 assert(
@@ -15,7 +15,7 @@ assert(
     'base custom tooltip should blur content behind the translucent layer.'
 );
 assert(
-    polishCss.includes('rgba(16,24,39,.90)') && polishCss.includes('rgba(10,16,25,.90)'),
+    polishCss.includes('rgba(16,24,39,.82)') && polishCss.includes('rgba(10,16,25,.82)'),
     'dark-mode custom tooltip override should preserve translucency.'
 );
 assert(
@@ -23,12 +23,19 @@ assert(
     'dark-mode custom tooltip override should keep the blur effect.'
 );
 assert(
-    layoutCss.includes('#item-tooltip-box.dual-compare-tooltip { width: fit-content;'),
-    'dual comparison tooltip must size to content instead of forcing a wide fixed box.'
+    polishCss.includes('body:not(.light-mode) #item-tooltip-box.dual-compare-tooltip')
+        && polishCss.includes('background: transparent;'),
+    'dark-mode dual comparison host should stay transparent so only sibling panels are drawn.'
 );
 assert(
-    layoutCss.includes('.dual-compare-tooltip .item-tooltip-main'),
-    'dual comparison tooltip must isolate the item details column to remove unused horizontal space.'
+    layoutCss.includes('#item-tooltip-box.dual-compare-tooltip { width: fit-content;')
+        && layoutCss.includes('background: transparent; box-shadow: none;'),
+    'dual comparison tooltip host must size to content and stop drawing a containing panel.'
+);
+assert(
+    layoutCss.includes('.dual-compare-tooltip .item-tooltip-main')
+        && layoutCss.includes('margin: 5px auto 0; padding: 8px; border: 1px solid #4d6584;'),
+    'dual comparison tooltip must render item details and comparison as sibling panels.'
 );
 assert(
     layoutCss.includes('grid-template-columns: repeat(2, minmax(180px, max-content))'),
