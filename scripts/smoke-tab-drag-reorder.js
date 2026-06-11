@@ -38,11 +38,12 @@ assert(ui.includes('document.addEventListener(\'click\', onTabHeaderClickCapture
 assert(ui.includes('isUiPointerInteractionActive()'), 'static UI refresh must defer while a pointer interaction is active');
 assert(css.includes('.tab-btn.dragging'), 'dragging tab style must exist');
 assert(css.includes('.tab-drag-ghost'), 'dragging tab ghost style must exist');
-assert(css.includes('display: inline-flex !important'), 'dragging tab ghost must override hidden tab display');
-assert(css.includes('transform-origin: left top'), 'dragging tab ghost must anchor from its top-left corner');
+assert(css.includes('display: flex'), 'dragging tab ghost must render independently from hidden tab buttons');
+assert(!css.includes('transform: translate(-50%, -50%)'), 'dragging tab ghost must not center-shift away from the pointer offset');
 assert(ui.includes('function updateTabDragGhost'), 'tab drag must move a ghost element with the pointer');
+assert(ui.includes("document.createElement('div')") && ui.includes("state.ghost.innerHTML = state.button.innerHTML"), 'tab drag ghost must not clone the hidden/flex tab button element itself');
 assert(ui.includes('clientX - offsetX') && ui.includes('clientY - offsetY'), 'tab drag ghost must preserve the pointer grab offset');
-assert(index.includes('css/base.css?v=20260611-tab-drag3'), 'base CSS cache buster must include tab ghost styles');
+assert(index.includes('css/base.css?v=20260611-tab-drag4'), 'base CSS cache buster must include tab ghost styles');
 assert(/js\/ui\.js\?v=[^"']+/.test(index), 'UI script must use a versioned cache buster for tab drag handlers');
 
 const clickRuntime = {

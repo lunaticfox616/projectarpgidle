@@ -80,7 +80,7 @@
         .tab-btn:hover { background: #222230; color: #fff; }
         .tab-btn.active { background: #121216; color: #e8c26a; }
         .tab-btn.dragging { opacity: 0.34; transform: scale(0.96); z-index: 45; box-shadow: 0 0 0 1px #e8c26a, 0 8px 22px rgba(0,0,0,0.45); }
-        .tab-drag-ghost { position: fixed; display: inline-flex !important; align-items: center; justify-content: center; box-sizing: border-box; transform: scale(1.04); transform-origin: left top; z-index: 20000; pointer-events: none; user-select: none; -webkit-user-drag: none; opacity: 0.94; background: #121216; color: #e8c26a; border: 1px solid #f5d178; border-radius: 8px; box-shadow: 0 12px 28px rgba(0,0,0,0.55); }
+        .tab-drag-ghost { position: fixed; display: flex; align-items: center; justify-content: center; box-sizing: border-box; z-index: 20000; pointer-events: none; user-select: none; -webkit-user-drag: none; opacity: 0.94; background: #121216; color: #e8c26a; border: 1px solid #f5d178; border-radius: 8px; box-shadow: 0 12px 28px rgba(0,0,0,0.55); font: inherit; font-weight: bold; line-height: 1; text-align: center; }
         body.tab-drag-active, body.tab-drag-active .tab-header { cursor: grabbing; user-select: none; }
         .tab-content { padding: 15px; display: none; overflow-y: auto; flex: 1; height: 100%; min-height: 0; box-sizing: border-box; }
         .tab-content.active { display: block; }

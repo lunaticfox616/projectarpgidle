@@ -418,10 +418,10 @@ function beginTabHeaderDrag(state) {
     let rect = state.button.getBoundingClientRect();
     state.grabOffsetX = clampNumber(state.lastX - rect.left, 0, rect.width);
     state.grabOffsetY = clampNumber(state.lastY - rect.top, 0, rect.height);
-    state.ghost = state.button.cloneNode(true);
-    state.ghost.removeAttribute('id');
+    state.ghost = document.createElement('div');
+    state.ghost.className = 'tab-drag-ghost';
     state.ghost.setAttribute('aria-hidden', 'true');
-    state.ghost.classList.add('tab-drag-ghost');
+    state.ghost.innerHTML = state.button.innerHTML;
     state.ghost.style.width = `${Math.max(1, rect.width)}px`;
     state.ghost.style.height = `${Math.max(1, rect.height)}px`;
     document.body.appendChild(state.ghost);
