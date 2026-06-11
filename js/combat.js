@@ -709,7 +709,7 @@ function getRepresentativeSummonAttackPower(summonStats) {
         let gemLv = getSummonGemLevel(name, 'skill', summonStats);
         let base = getSummonScaledBaseDamage(profile, gemLv, summonStats);
         let sharedInc = getSummonSharedDamageIncreasePct({ gemName: name }, summonStats);
-        let ownMul = 1 + ((summonStats.summonPctDmg || 0) + (summonStats.summonEfficiency || 0) + sharedInc) / 100;
+        let ownMul = (1 + ((summonStats.summonPctDmg || 0) + sharedInc) / 100) * (1 + ((summonStats.summonEfficiency || 0) / 100));
         best = Math.max(best, base * ownMul);
     });
     return Math.max(0, best);
@@ -807,7 +807,8 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let base = Math.max(1, Math.floor(s.baseDamage || 20));
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb1')) base = Math.max(1, Math.floor(base * 1.15));
     let sharedIncreasePct = getSummonSharedDamageIncreasePct(s, pStats);
-    let dmgMul = 1 + ((pStats.summonPctDmg || 0) / 100) + ((pStats.summonEfficiency || 0) / 100) + (sharedIncreasePct / 100);
+    // 소환수 효율은 피해 증가(소환수 피해/공유)와 합산이 아니라 별도 곱연산으로 적용합니다.
+    let dmgMul = (1 + ((pStats.summonPctDmg || 0) / 100) + (sharedIncreasePct / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
     let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
     let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
     let crit = false;
@@ -947,7 +948,7 @@ function estimateSummonDps(pStats) {
             let dmgGrowth = 1 + getSummonLevelGrowthSteps(profile, gemLv) * (profile.dmgPerLevelPct || 0.1);
             let flat = Math.max(0, (pStats && pStats.summonFlatDmg) || 0);
             let sharedInc = getSummonSharedDamageIncreasePct(s, pStats);
-            let dmgMul = 1 + (((pStats.summonPctDmg || 0) + (pStats.summonEfficiency || 0) + sharedInc) / 100);
+            let dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
             let ownAttackPower = (s.baseDamage * dmgMul) + sbShare;
             let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
             let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
@@ -962,7 +963,7 @@ function estimateSummonDps(pStats) {
         let mute = (txt) => `<span style="color:#8aa4bf;">${txt}</span>`;
         lines.push(`<span style="color:#cfe3ff; font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span> · 젬 Lv.${g.gemLv} · ${eleLabel(g.s.ele)}`);
         lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = (기본 ${g.profile.baseDamage} × 레벨성장 ${g.dmgGrowth.toFixed(2)}${g.flat > 0 ? ` + 추가 피해 ${Math.floor(g.flat)}` : ''}) × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
-        lines.push(mute(`&nbsp;&nbsp;피해 증가 합계 +${Math.floor((g.dmgMul - 1) * 100)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 효율 ${Math.floor(pStats.summonEfficiency || 0)}% + 공유 ${Math.floor(g.sharedInc)}%)`));
+        lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
         lines.push(mute(`&nbsp;&nbsp;치명타 ${(g.critChance * 100).toFixed(1)}% × 피해 ${Math.floor(g.critMul * 100)}% · 공속 ${g.aps.toFixed(2)}/초 · 저항 관통 ${Math.floor(g.penResPen)}%`));
         lines.push(mute(`&nbsp;&nbsp;기대 타격 ${Math.floor(g.hit.damage)} → 1기당 ${Math.floor(g.dps)} DPS (적 저항·제한 계수 반영)`));
     });
