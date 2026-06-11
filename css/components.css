@@ -539,50 +539,23 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 
 .passive-overlay-node {
     border: 1.2px solid transparent;
-    animation: passiveReachableRotate 2.8s linear infinite;
     opacity: var(--passive-ring-alpha, 1);
-}
-
-.passive-overlay-node::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1.2px;
-    background: repeating-conic-gradient(rgba(155, 220, 255, 0.62) 0deg 7deg, transparent 7deg 23deg);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    mask-composite: exclude;
 }
 
 .passive-overlay-node.hover-current {
     border-style: solid;
     border-color: rgba(195, 231, 255, 0.88);
-    box-shadow: 0 0 0 8px rgba(151, 205, 255, 0.14), 0 0 18px rgba(151, 205, 255, 0.36);
-    animation-duration: 1.15s;
-}
-
-.passive-overlay-node.hover-current::before,
-.passive-overlay-node.hover-linked::before {
-    display: none;
 }
 
 .passive-overlay-node.hover-linked {
     border-style: solid;
     border-color: rgba(151, 205, 255, 0.78);
-    box-shadow: 0 0 0 5px rgba(151, 205, 255, 0.10);
-    animation: none;
 }
 
 .passive-reveal-burst {
     border: 8px solid rgba(245, 223, 173, 0.42);
     box-shadow: 0 0 18px rgba(245, 223, 173, 0.28);
     animation: passiveRevealBurst 900ms ease-out forwards;
-}
-
-@keyframes passiveReachableRotate {
-    to { transform: translate3d(-50%, -50%, 0) rotate(360deg); }
 }
 
 @keyframes passiveRevealBurst {
