@@ -37,11 +37,9 @@ function syncPassiveTreeOverlay(displayWidth, displayHeight, visibleNodes, hover
         visibleNodes.forEach(node => {
             const visibility = getPassiveVisibility(node.id);
             if (visibility === 'hidden') return;
-            const active = (game.passives || []).includes(node.id);
-            const reachable = reachableNodes.has(node.id);
             const hoverCurrent = !!(hoverNode && hoverNode.id === node.id);
             const hoverLinked = !!(hoverNode && hoverNode.id !== node.id && (hoveredLinkedIds.has(node.id) || hoveredPathNodeIds.has(node.id)));
-            if ((!active && reachable) || hoverCurrent || hoverLinked) {
+            if (hoverCurrent || hoverLinked) {
                 const key = `node:${node.id}`;
                 wanted.add(key);
                 let el = world.querySelector(`[data-passive-overlay-key="${key}"]`);
@@ -266,7 +264,6 @@ function drawPassiveTree() {
 
     const viewport = getPassiveWorldViewport(displayWidth, displayHeight);
     const visibleNodes = passiveRenderCache.nodes.filter(node => isNodeInViewport(node, viewport, 120));
-    const visibleGlowNodes = passiveRenderCache.glowNodes.filter(node => isNodeInViewport(node, viewport, 180));
     const visibleEdges = passiveRenderCache.activeEdges.filter(edge => isEdgeInViewport(edge, viewport, 120));
 
     // 화면 배경
@@ -296,36 +293,6 @@ function drawPassiveTree() {
     ctx.fill();
 
     if (!lightweightMode && !zoomedOutMode) drawPassiveEvolutionAura(ctx);
-
-    // 탐험 밝혀짐 후광
-    if (!zoomedOutMode) visibleGlowNodes.forEach(node => {
-        if (!isPassiveNodeAvailable(node)) return;
-        const visibility = getPassiveVisibility(node.id);
-        if (visibility === 'hidden') return;
-
-        const discovered = discoveredPassiveNodes.has(node.id) || (game.passives || []).includes(node.id);
-        const preview = visibility === 'preview';
-        const radius = getPassiveNodeVisualRadius(node);
-
-        if (!discovered && !preview) return;
-
-        const haloR = discovered ? (radius * 7.5) : (radius * 4.6);
-        if (lightweightMode) return;
-        const g = ctx.createRadialGradient(node.x, node.y, radius * 0.4, node.x, node.y, haloR);
-        if (discovered) {
-            g.addColorStop(0, 'rgba(227,194,124,0.16)');
-            g.addColorStop(0.18, 'rgba(114,151,204,0.12)');
-            g.addColorStop(1, 'rgba(0,0,0,0)');
-        } else {
-            g.addColorStop(0, 'rgba(105,133,160,0.08)');
-            g.addColorStop(1, 'rgba(0,0,0,0)');
-        }
-
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, haloR, 0, Math.PI * 2);
-        ctx.fill();
-    });
 
     // 리빌 펄스는 CSS overlay에서 animationend까지 GPU compositor로 처리한다.
 

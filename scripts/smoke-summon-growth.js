@@ -15,14 +15,43 @@ const context = {};
 vm.createContext(context);
 vm.runInContext(`${growthFn[0]}; this.getAttackSummonGrowthSteps = getAttackSummonGrowthSteps;`, context);
 const lv1 = context.getAttackSummonGrowthSteps(1);
+const lv2 = context.getAttackSummonGrowthSteps(2);
+const lv9 = context.getAttackSummonGrowthSteps(9);
+const lv10 = context.getAttackSummonGrowthSteps(10);
+const lv11 = context.getAttackSummonGrowthSteps(11);
 const lv19 = context.getAttackSummonGrowthSteps(19);
 const lv20 = context.getAttackSummonGrowthSteps(20);
 const lv21 = context.getAttackSummonGrowthSteps(21);
 const lv30 = context.getAttackSummonGrowthSteps(30);
-assert(lv1 > 0, 'attack summons should receive a small level-1 baseline increase');
-assert(lv20 > 19, 'levels 1-20 should grow above the previous one-step-per-level curve');
+assert.strictEqual(lv1, 9, 'attack summon level-1 growth baseline must be 20x the previous 0.45 baseline');
+assert(!growthFn[0].includes('Math.pow'), 'attack summon growth should stay as a simple stepped linear curve');
+assert(lv20 >= 370, 'level-20 attack summon growth must be at least five times stronger than the prior 65-step curve');
+assert((lv10 - lv9) > (lv2 - lv1) * 2, 'attack summon growth should steepen starting at level 10');
 assert((lv21 - lv20) > (lv20 - lv19), 'growth after level 20 should be steeper than growth before level 20');
-assert(lv30 > 29 * 1.15, 'high-level attack summons should materially outgrow the old linear curve');
+assert(lv30 >= 1000, 'high-level attack summons should materially outgrow the old linear curve');
+assert(combatSource.includes('공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가'), 'summon DPS tooltip must show the already-scaled base damage instead of base × level-growth text');
+assert(!combatSource.includes('× 레벨성장'), 'summon DPS tooltip must not expose base × level-growth multiplication text');
+const levelGrowthFn = combatSource.match(/function getSummonLevelGrowthSteps\(profile, gemLv\) \{[\s\S]*?\n\}/);
+const scaledBaseFn = combatSource.match(/function getSummonScaledBaseDamage\(profile, gemLv, pStats\) \{[\s\S]*?\n\}/);
+assert(levelGrowthFn && scaledBaseFn, 'summon scaled base damage helpers must exist');
+vm.runInContext(`${levelGrowthFn[0]}\n${scaledBaseFn[0]}; this.getSummonScaledBaseDamage = getSummonScaledBaseDamage;`, context);
+const scaledVoidLv20 = context.getSummonScaledBaseDamage({ role: 'attack', baseDamage: 63, dmgPerLevelPct: 0.118 }, 20, { summonFlatDmg: 0 });
+assert.strictEqual(scaledVoidLv20, Math.floor(63 * (1 + (lv20 * 0.118))), 'attack summon level growth must be applied to actual scaled base damage');
+assert(scaledVoidLv20 >= 2700, 'level-20 attack summon base damage should be at least five times stronger than the prior 65-step curve');
+const priorLv20Steps = 65;
+const level20Profiles = [
+    { baseDamage: 54, dmgPerLevelPct: 0.105 },
+    { baseDamage: 86, dmgPerLevelPct: 0.135 },
+    { baseDamage: 62, dmgPerLevelPct: 0.112 },
+    { baseDamage: 50, dmgPerLevelPct: 0.108 },
+    { baseDamage: 63, dmgPerLevelPct: 0.118 },
+    { baseDamage: 36, dmgPerLevelPct: 0.092 }
+];
+level20Profiles.forEach(profile => {
+    const prior = Math.floor(profile.baseDamage * (1 + (priorLv20Steps * profile.dmgPerLevelPct)));
+    const next = context.getSummonScaledBaseDamage({ role: 'attack', ...profile }, 20, { summonFlatDmg: 0 });
+    assert(next >= prior * 5, 'every attack summon level-20 base damage must be at least 5x the prior curve');
+});
 assert(combatSource.includes("profile && profile.role === 'attack'"), 'the boosted curve must be limited to attack summons');
 assert(dataSkillsSource.includes("tags: ['summon', 'summon_attack'"), 'attack summon skill gems must carry the summon_attack tag');
 assert(!dataSkillsSource.includes('수액 골렘 소환'), 'Sap Golem must remain outside the attack skill gem database');
@@ -74,5 +103,64 @@ assert.strictEqual(sharedContext.getSummonSharedDamageIncreasePct({ gemName: '�
 assert.strictEqual(sharedContext.getSummonSharedDamageIncreasePct({ gemName: '칼날까마귀 소환' }, sharedStats), 32, 'physical summons must inherit generic and physical increases only');
 assert(combatSource.includes('(sharedIncreasePct / 100)'), 'shared damage increases must be included in summon hit scaling');
 assert(!sharedDamageFn[0].includes('flatDmg'), 'shared summon scaling must not inherit player flat damage');
+
+
+function extractFunctionBlock(source, name) {
+    const start = source.indexOf(`function ${name}`);
+    assert(start >= 0, `${name} must exist`);
+    const bodyStart = source.indexOf('{', source.indexOf(')', start));
+    assert(bodyStart >= 0, `${name} body must start`);
+    let depth = 0;
+    let quote = null;
+    let escaped = false;
+    for (let i = bodyStart; i < source.length; i++) {
+        const ch = source[i];
+        if (quote) {
+            if (escaped) escaped = false;
+            else if (ch === '\\') escaped = true;
+            else if (ch === quote) quote = null;
+            continue;
+        }
+        if (ch === '"' || ch === "'" || ch === '`') quote = ch;
+        else if (ch === '{') depth++;
+        else if (ch === '}') {
+            depth--;
+            if (depth === 0) return source.slice(start, i + 1);
+        }
+    }
+    throw new Error(`${name} body not found`);
+}
+
+const tooltipContext = {
+    SKILL_DB: {
+        '서리늑대 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1, targetMode: 'single', targets: 1, desc: '소환수 공격 젬', tags: ['summon', 'summon_attack', 'cold'] },
+        '연속 베기': { isGem: true, baseDmg: 0.65, baseSpd: 1.8, targetMode: 'cleave', targets: 2, desc: '일반 공격 젬', tags: ['attack', 'melee'] }
+    },
+    SUPPORT_GEM_DB: {},
+    TAGGED_DAMAGE_STAT_BY_TAG: {},
+    gemTooltipCache: null,
+    capturedHtml: '',
+    getUiGemPresentation(name) {
+        const skill = tooltipContext.SKILL_DB[name];
+        return { baseLevel: 1, finalLevel: 1, totalLevel: 1, desc: skill.desc, skill, tags: skill.tags, gemBonusSources: { passive: 0, gear: 0, reward: 0 } };
+    },
+    getUiPlayerStats() { return { gemBonusSources: { passive: 0, gear: 0, reward: 0 } }; },
+    formatPercentMultiplier(value) { return `${Number(value).toFixed(2)}x`; },
+    getSummonTooltipPreview() { return { roleLabel: '공격 소환수', trait: '빠른 공속', gemLevel: 1, hitDamageMin: 1, hitDamageMax: 2, attackPerSecond: 1.2, critChancePct: 0, critDmgPct: 140, resPenBonus: 0, physIgnoreBonus: 0, redirectPct: 0 }; },
+    showInfoTooltipHtml(x, y, html) { tooltipContext.capturedHtml = html; }
+};
+tooltipContext.cachedTooltipStats = null;
+vm.createContext(tooltipContext);
+vm.runInContext(`${extractFunctionBlock(fs.readFileSync('js/ui.js', 'utf8'), 'showGemTooltip')}; this.showGemTooltip = showGemTooltip;`, tooltipContext);
+tooltipContext.showGemTooltip({ clientX: 0, clientY: 0 }, 'active', '서리늑대 소환');
+assert(!tooltipContext.capturedHtml.includes('피해 배율'), 'summon attack tooltip must hide generic damage multiplier');
+assert(!tooltipContext.capturedHtml.includes('공속 배율'), 'summon attack tooltip must hide generic attack-speed multiplier');
+assert(!tooltipContext.capturedHtml.includes('타겟 방식'), 'summon attack tooltip must hide target mode');
+assert(!tooltipContext.capturedHtml.includes('최대 타겟 수'), 'summon attack tooltip must hide max target count');
+tooltipContext.showGemTooltip({ clientX: 0, clientY: 0 }, 'active', '연속 베기');
+assert(tooltipContext.capturedHtml.includes('피해 배율'), 'normal attack tooltip should keep generic damage multiplier');
+assert(tooltipContext.capturedHtml.includes('공속 배율'), 'normal attack tooltip should keep generic attack-speed multiplier');
+assert(tooltipContext.capturedHtml.includes('타겟 방식'), 'normal attack tooltip should keep target mode');
+assert(tooltipContext.capturedHtml.includes('최대 타겟 수'), 'normal attack tooltip should keep max target count');
 
 console.log('summon growth smoke checks passed');
