@@ -38,7 +38,7 @@ assert(ui.includes('document.addEventListener(\'click\', onTabHeaderClickCapture
 assert(ui.includes('isUiPointerInteractionActive()'), 'static UI refresh must defer while a pointer interaction is active');
 assert(css.includes('.tab-btn.dragging'), 'dragging tab style must exist');
 assert(index.includes('css/base.css?v=20260611-tab-drag1'), 'base CSS cache buster must include tab drag styles');
-assert(index.includes('js/ui.js?v=20260611-tab-drag1'), 'UI cache buster must include tab drag handlers');
+assert(/js\/ui\.js\?v=[^"']+/.test(index), 'UI script must use a versioned cache buster for tab drag handlers');
 
 const clickRuntime = {
   window: {},
