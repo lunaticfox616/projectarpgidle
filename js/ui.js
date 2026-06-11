@@ -8400,10 +8400,19 @@ function buildPatchNotesHTML(notes) {
 }
 
 function applyPatchNotesHTML(html) {
-    ['ui-patch-notes-settings', 'startup-patch-notes'].forEach(id => {
-        let el = document.getElementById(id);
-        if (el) el.innerHTML = html;
-    });
+    let el = document.getElementById('patch-notes-overlay-body');
+    if (el) el.innerHTML = html;
+}
+
+function openPatchNotes() {
+    renderPatchNotes();
+    let overlay = document.getElementById('patch-notes-overlay');
+    if (overlay) overlay.classList.add('active');
+}
+
+function closePatchNotes() {
+    let overlay = document.getElementById('patch-notes-overlay');
+    if (overlay) overlay.classList.remove('active');
 }
 
 function renderPatchNotes() {
