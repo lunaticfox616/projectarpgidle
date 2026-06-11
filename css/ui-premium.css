@@ -663,6 +663,10 @@ body.light-mode .patch-note-date {
 .tutorial-card.patch-notes-card {
   width: min(560px, calc(100vw - 32px));
 }
+/* 시작 화면 오버레이(z-index 14000)/로딩 오버레이(14500)보다 위에 떠야 메인 화면에서도 보입니다. */
+#patch-notes-overlay {
+  z-index: 15000;
+}
 .patch-notes-modal-body {
   max-height: 60vh;
   margin-top: 10px;
