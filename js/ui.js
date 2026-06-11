@@ -377,7 +377,7 @@ function renderTabOrderSettings() {
         return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
     }).join('');
 }
-const TAB_DRAG_LONG_PRESS_MS = 260;
+const TAB_DRAG_LONG_PRESS_MS = 180;
 const TAB_DRAG_CANCEL_PX = 8;
 let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
@@ -406,14 +406,18 @@ function getTabHeaderUnderPoint(clientX, clientY) {
 
 function updateTabDragGhost(state, clientX, clientY) {
     if (!state || !state.ghost) return;
-    state.ghost.style.left = `${clientX}px`;
-    state.ghost.style.top = `${clientY}px`;
+    let offsetX = Number.isFinite(state.grabOffsetX) ? state.grabOffsetX : 0;
+    let offsetY = Number.isFinite(state.grabOffsetY) ? state.grabOffsetY : 0;
+    state.ghost.style.left = `${clientX - offsetX}px`;
+    state.ghost.style.top = `${clientY - offsetY}px`;
 }
 
 function beginTabHeaderDrag(state) {
     if (!state || state.dragging) return;
     state.dragging = true;
     let rect = state.button.getBoundingClientRect();
+    state.grabOffsetX = clampNumber(state.lastX - rect.left, 0, rect.width);
+    state.grabOffsetY = clampNumber(state.lastY - rect.top, 0, rect.height);
     state.ghost = state.button.cloneNode(true);
     state.ghost.removeAttribute('id');
     state.ghost.setAttribute('aria-hidden', 'true');
@@ -476,6 +480,8 @@ function onTabHeaderPointerDown(event) {
         startY: event.clientY,
         lastX: event.clientX,
         lastY: event.clientY,
+        grabOffsetX: 0,
+        grabOffsetY: 0,
         ghost: null,
         dragging: false,
         longPressTimer: setTimeout(() => beginTabHeaderDrag(tabHeaderDragState), TAB_DRAG_LONG_PRESS_MS)

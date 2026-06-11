@@ -33,13 +33,16 @@ function extractFunctionBlock(source, name) {
   throw new Error(`${name} body not found`);
 }
 
-assert(ui.includes('const TAB_DRAG_LONG_PRESS_MS = 260;'), 'tab drag long-press threshold must be shortened');
+assert(ui.includes('const TAB_DRAG_LONG_PRESS_MS = 180;'), 'tab drag long-press threshold must be shortened to 180ms');
 assert(ui.includes('document.addEventListener(\'click\', onTabHeaderClickCapture, true)'), 'tab drag must suppress the follow-up click after a drag');
 assert(ui.includes('isUiPointerInteractionActive()'), 'static UI refresh must defer while a pointer interaction is active');
 assert(css.includes('.tab-btn.dragging'), 'dragging tab style must exist');
 assert(css.includes('.tab-drag-ghost'), 'dragging tab ghost style must exist');
+assert(css.includes('display: inline-flex !important'), 'dragging tab ghost must override hidden tab display');
+assert(css.includes('transform-origin: left top'), 'dragging tab ghost must anchor from its top-left corner');
 assert(ui.includes('function updateTabDragGhost'), 'tab drag must move a ghost element with the pointer');
-assert(index.includes('css/base.css?v=20260611-tab-drag2'), 'base CSS cache buster must include tab ghost styles');
+assert(ui.includes('clientX - offsetX') && ui.includes('clientY - offsetY'), 'tab drag ghost must preserve the pointer grab offset');
+assert(index.includes('css/base.css?v=20260611-tab-drag3'), 'base CSS cache buster must include tab ghost styles');
 assert(/js\/ui\.js\?v=[^"']+/.test(index), 'UI script must use a versioned cache buster for tab drag handlers');
 
 const clickRuntime = {
