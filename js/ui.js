@@ -3769,6 +3769,7 @@ function showItemTooltip(event, idx, isEquip) {
         }
     }
 
+    let itemTooltipMainHtml = html;
     if (!isEquip) {
         let compareSlots = getEquipCandidateSlots(item).filter(slotKey => !!game.equipment[slotKey]);
         if (compareSlots.length === 0 && item.slot !== '반지') compareSlots = getEquipCandidateSlots(item);
@@ -3796,7 +3797,7 @@ function showItemTooltip(event, idx, isEquip) {
         });
         if (compareSections.length > 0) {
             let layoutClass = compareSections.length > 1 ? 'item-compare-grid' : 'item-compare-single';
-            html += `<div class="${layoutClass}">${compareSections.join('')}</div>`;
+            html = `<div class="item-tooltip-main">${itemTooltipMainHtml}</div><div class="${layoutClass}">${compareSections.join('')}</div>`;
         }
     }
 
