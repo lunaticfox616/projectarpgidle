@@ -79,6 +79,8 @@
         .tab-btn .tab-label { display:inline-flex; align-items:center; line-height:1; min-height:1em; }
         .tab-btn:hover { background: #222230; color: #fff; }
         .tab-btn.active { background: #121216; color: #e8c26a; }
+        .tab-btn.dragging { opacity: 0.72; transform: scale(0.96); z-index: 45; box-shadow: 0 0 0 1px #e8c26a, 0 8px 22px rgba(0,0,0,0.45); }
+        body.tab-drag-active, body.tab-drag-active .tab-header { cursor: grabbing; user-select: none; }
         .tab-content { padding: 15px; display: none; overflow-y: auto; flex: 1; height: 100%; min-height: 0; box-sizing: border-box; }
         .tab-content.active { display: block; }
         .noti-dot { display: none; position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; background-color: #e74c3c; border-radius: 50%; box-shadow: 0 0 5px #e74c3c; z-index: 10; }
