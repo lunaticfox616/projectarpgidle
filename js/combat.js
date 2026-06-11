@@ -942,6 +942,9 @@ function estimateSummonDps(pStats) {
         activeCount++;
     });
     lines.push(`공격 소환수 ${activeCount}기 · 소환수별 공격 주기 적용`);
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && Math.max(0, Number(pStats && pStats.sbPlayerAttackPower) || 0) > 0) {
+        lines.push(`상호 보완: 내 공격력 ${Math.floor(pStats.sbPlayerAttackPower)}의 50%(+${Math.floor(0.5 * pStats.sbPlayerAttackPower)})가 소환수 타격마다 가산`);
+    }
     if (rows.length > activeCount) lines.push(`방어/보조 소환수 ${rows.length - activeCount}기는 DPS에서 제외`);
     lines.push('최종 피해/보스 피해/관통/상태이상 계열은 제한 계수로 반영');
     if (rows.some(row => row.duplicateIndex > 0)) lines.push('남는 소환수 한도는 공격 소환수 중복 소환으로 사용');
@@ -2095,6 +2098,8 @@ function getPlayerStats() {
     let sbSummonAspdBonus = 0;
     let sbSummonCapBonus = 0;
     let sbPlayerAttackPower = 0;
+    let sbSummonAttackPower = 0;
+    let sbSummonShareToPlayer = 0;
     let ailmentResistPenPct = 0;
     let crusaderLightningIgnoreRes = false;
     let crusaderNoResPenOnLightning = false;
@@ -2544,9 +2549,10 @@ function getPlayerStats() {
                 summonSharedPctDmg: Math.max(0, generalPctDmg),
                 summonSharedTaggedPctDmg: {}
             };
+            sbSummonAttackPower = getRepresentativeSummonAttackPower(summonStatsForShare);
             if (!hasKeystone('sb5')) {
-                let summonAttackPower = getRepresentativeSummonAttackPower(summonStatsForShare);
-                finalBaseDmg += Math.floor(0.5 * summonAttackPower);
+                sbSummonShareToPlayer = Math.floor(0.5 * sbSummonAttackPower);
+                finalBaseDmg += sbSummonShareToPlayer;
             }
         }
     } else if (game.ascendClass === 'catalyst') {
@@ -2829,6 +2835,8 @@ function getPlayerStats() {
                 finalDamageMultiplier !== 1 ? `최종 피해 배율 ${finalDamageMultiplier.toFixed(2)}x` : null,
                 chaosDamageMultiplier !== 1 ? `카오스 피해 배율 ${chaosDamageMultiplier.toFixed(2)}x` : null,
                 skill.convertedToChaos ? '워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용' : null,
+                (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? `상호 보완: 소환수 공격력 ${Math.floor(sbSummonAttackPower)}의 50% → 기본 피해 +${Math.floor(sbSummonShareToPlayer)}` : null,
+                (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && !hasKeystone('sb5') && sbPlayerAttackPower > 0) ? `상호 보완: 내 공격력 ${Math.floor(sbPlayerAttackPower)}의 50%(+${Math.floor(0.5 * sbPlayerAttackPower)})를 각 소환수 타격에 전달` : null,
                 `피해 범위 ${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
             ].filter(Boolean),
             final: `${Math.floor(finalBaseDmg)}`
@@ -3126,7 +3134,8 @@ function getPlayerStats() {
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
                 coreCubeAddedDamageTotalPct > 0 ? `코어 큐브 추가 피해 x${expectedAddedDamageMultiplier.toFixed(2)} (총 피해의 ${Math.floor(coreCubeAddedDamageTotalPct)}% → ${coreCubeAddedDamageParts.join(' / ')})` : null,
                 isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null,
-                estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null
+                estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null,
+                (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? `상호 보완: 소환수 공격력 공유로 기본 피해 +${Math.floor(sbSummonShareToPlayer)} 반영 (DPS 포함)` : null
             ].concat(flameDecayDpsLines).filter(Boolean),
             final: `${Math.floor(finalPlayerSkillDps)}`
         },

@@ -22,6 +22,16 @@ assert(src.includes('sbPlayerAttackPower'), 'new attack-power field must exist')
 assert(src.includes('getRepresentativeSummonAttackPower'), 'representative summon attack power helper must exist');
 assert(state.includes("name: '상호 보완', desc: '플레이어 공격력"), 'keystone description must describe attack-power sharing');
 
+// The shared values must be surfaced in the character-tab attack-power, DPS, and summon-DPS tooltips.
+assert(src.includes('상호 보완: 소환수 공격력 ${Math.floor(sbSummonAttackPower)}의 50% → 기본 피해 +'),
+  'attack power tooltip must show the summon→player share');
+assert(src.includes('상호 보완: 내 공격력 ${Math.floor(sbPlayerAttackPower)}의 50%'),
+  'attack power tooltip must show the player→summon transfer');
+assert(src.includes('상호 보완: 소환수 공격력 공유로 기본 피해 +${Math.floor(sbSummonShareToPlayer)} 반영 (DPS 포함)'),
+  'DPS tooltip must note the sb7 contribution');
+assert(src.includes('상호 보완: 내 공격력 ${Math.floor(pStats.sbPlayerAttackPower)}의 50%'),
+  'summon DPS breakdown must note the player attack power added per summon hit');
+
 const names = ['getSummonProfile', 'getSummonScaledBaseDamage', 'getAttackSummonGrowthSteps', 'getSummonLevelGrowthSteps',
   'getRepresentativeSummonAttackPower', 'getSummonGemLevel', 'getTargetGemBonusSources',
   'getEquippedJewelGemLevelBonusSources', 'hasEmptyThroneSoloBonus', 'getLimitedSummonPenetrationStats',
