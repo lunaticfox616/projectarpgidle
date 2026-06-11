@@ -77,10 +77,11 @@ function stats(extra) {
 }
 const summon = { gemName: '서리늑대 소환', ele: 'cold', baseDamage: 1000, attackSpeedMul: 1, resPenBonus: 0, physIgnoreBonus: 0, crit: 0, critDmg: 140 };
 
-// Player → Summon: summon hit gains flat 50% of player attack power (pre-crit).
+// Player → Summon: summon hit gains flat 50% of player attack power (added pre-crit, so it scales
+// with the same crit expectation as the base hit). base 1000 + 0.5*2000 share => exactly 2x base.
 const noShare = ctx.getSummonHitDamageInfo(summon, stats(), null, { expected: true }).damage;
 const withShare = ctx.getSummonHitDamageInfo(summon, stats({ sbPlayerAttackPower: 2000 }), null, { expected: true }).damage;
-assert.strictEqual(withShare - noShare, 1000, 'summon must gain flat 0.5 * player attack power');
+assert.strictEqual(withShare, noShare * 2, 'summon must gain flat 0.5 * player attack power (pre-crit)');
 
 // Without sb7 the field is ignored.
 ctx.__ks = [];
