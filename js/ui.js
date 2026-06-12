@@ -3060,7 +3060,14 @@ function applyHeroSelection(heroId, options = {}) {
     if (prev !== heroId && battleAssets && battleAssets.ready) battleAssets.atlas = buildBattleAssetAtlas();
     renderHeroSelectionControls();
     if (!options.silent && prev !== heroId) addLog(`🧬 캐릭터 변경: ${getHeroSelectionDef(heroId).label}`, 'season-up');
-    if (!options.skipSave) queueImportantSave(200);
+    if (!options.skipSave) {
+        // 캐릭터(재능) 변경은 즉시 클라우드에 반영해 다른 기기에서도 동일하게 로딩되도록 합니다.
+        let pushedToCloud = (prev !== heroId && typeof requestImmediateCloudSave === 'function'
+            && cloudState && cloudState.configured && cloudState.user)
+            ? requestImmediateCloudSave('캐릭터(재능) 변경')
+            : false;
+        if (!pushedToCloud) queueImportantSave(200);
+    }
     return true;
 }
 
