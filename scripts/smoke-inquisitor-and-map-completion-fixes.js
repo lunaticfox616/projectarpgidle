@@ -105,9 +105,81 @@ assert.strictEqual(completionContext.game.underworldProgress.currentFloor, 7, 'r
 assert.strictEqual(completionContext.game.underworldProgress.highestFloor, 8, 'repeating an underworld floor must still unlock the next floor');
 assert.strictEqual(completionContext.game.currentZoneId, 'underworld_core', 'repeat-zone must remain in the underworld map');
 
-const doctrineLine = combatSource.match(/inquisitorAbsoluteDoctrinePct > 0 \? `([^`]+)` : null/);
-assert(doctrineLine, 'Absolute Doctrine must add a DPS breakdown line');
-assert(doctrineLine[1].includes('${Math.floor(inquisitorAbsoluteDoctrinePct)}%'), 'Absolute Doctrine DPS breakdown must show the applied resistance-penetration percentage');
-assert(doctrineLine[1].includes('평균 한 방/DPS에 적용'), 'Absolute Doctrine DPS breakdown must explain that the value is included in DPS');
+function makeDoctrineGame() {
+  return {
+    level: 1,
+    equipment: {},
+    passives: [],
+    seasonNodes: [],
+    ascendNodes: [],
+    ascendClass: 'inquisitor',
+    ascendKeystones: [],
+    actRewardBonuses: [{ stat: 'resPen', value: 30 }],
+    journalBonuses: [],
+    equippedSupports: [],
+    selectedSkill: 'flame',
+    activeSkill: 'flame',
+    skillLevels: { flame: 1 },
+    supportLinks: {},
+    season: 20,
+    loopCount: 20,
+    talismanPlacements: {},
+    talismanBoard: [],
+    jewelSlots: [],
+    coreCube: { completed: false, revealedOptions: [], powers: {}, faces: [null, null, null, null, null, null] },
+    unlocks: {},
+    enemies: [],
+    class: 'warrior',
+    resonancePower: 0,
+  };
+}
+
+function createDoctrineHarness() {
+  const context = {
+    console, Date, Math, window: null,
+    game: makeDoctrineGame(),
+    safeExposeGlobals: exposed => Object.assign(context, exposed),
+    P_STATS: {}, PASSIVES: {}, SEASON_NODES: {}, ASCEND_NODES: {}, SUPPORT_GEMS: {},
+    SKILLS: { flame: { id: 'flame', name: '화염 공격', ele: 'fire', dmg: 1, spd: 1, tags: ['attack'], targets: 1 } },
+    UNIQUE_EFFECTS: {}, UNIQUE_JEWELS: {}, UNIQUE_JEWEL_EFFECTS: {}, UNDERWORLD_RUNE_DB: [], PASSIVE_STAR_BLESSING: {},
+    DOT_TICK_INTERVAL: 1, DOT_EFFECT_DURATION: 4, DOT_STACK_MAX: 5,
+    LEECH_BASE_INSTANCE_CAP_PCT: 10, LEECH_BASE_TOTAL_CAP_PCT: 20, LEECH_BASE_RATE_CAP_PCT: 2,
+    getEquippedSupportGems: () => [], getSupportGemLevel: () => 1, getSkillGemLevel: () => 1,
+    getSkillDef: id => context.SKILLS[id] || context.SKILLS.flame,
+    getActiveSkillStats: () => ({ ...context.SKILLS.flame }),
+    getClassTreeDef: () => ({}),
+    hasKeystone: id => context.game.ascendKeystones.includes(id),
+    isDualWielding: () => false, getHeroSelectionDef: () => ({ stats: [] }), getSkyTowerLoopBonus: () => ({}),
+    getLoopDeepBonus: () => ({}), ensureChaosRealmState: () => ({ permanentBonuses: {} }), getFavorEffects: () => ({}),
+    getActiveShrineBuff: () => null, getActiveConstellationBonus: () => null, getSkillTargets: skill => skill.targets || 1,
+    getGemAddedBaseDamage: () => 0, getGemPresentation: () => ({}), getCodexBonusPct: () => 0,
+    getZone: () => ({ resistPenalty: 0, accuracy: 100 }), getConditionGemStatDelta: () => 0,
+    recalculateStarWedgeMutations: () => {}, assignStarWedgeSockets: () => {}, getArmorPhysicalReductionPct: () => 0,
+    getEvasionChancePct: () => 0, getEnemyAccuracy: () => 100, getSkillTagDamageStatId: () => null,
+    translateSkillTag: tag => tag, estimateSummonDps: () => ({ total: 0, lines: [] }), safeGetEquippedItem: () => null,
+    getActiveSupportLinks: () => [], getActiveEnemyShockTakenDamageIncreasePct: () => 0,
+    getPlayerShockTakenDamageIncreasePct: () => 0, getEnemyShockTakenDamageIncreasePct: () => 0,
+    isDamageAilmentType: () => false, getDamageAilmentBaseDpsFromHit: () => 0, getDotStackMultiplier: stacks => stacks,
+    dispatchRuntimeEvent: () => {}, clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
+  };
+  context.window = context;
+  vm.createContext(context);
+  ['js/utils.js', 'js/core-cube.js', 'js/combat.js'].forEach(file => {
+    vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
+    if (file === 'js/utils.js') vm.runInContext('game = window.game;', context);
+  });
+  return context;
+}
+
+const doctrineContext = createDoctrineHarness();
+const withoutDoctrine = doctrineContext.getPlayerStats();
+doctrineContext.game.ascendKeystones = ['iq8'];
+const withDoctrine = doctrineContext.getPlayerStats();
+const doctrineDpsLine = withDoctrine.breakdowns.dps.lines.find(line => line.includes('절대 교리 반영'));
+assert.strictEqual(withDoctrine.baseDmg, Math.floor(withoutDoctrine.baseDmg * 1.3), 'Absolute Doctrine must apply the same 30% contribution shown in the DPS breakdown');
+assert(withDoctrine.directDps > withoutDoctrine.directDps, 'Absolute Doctrine must increase displayed DPS for an elemental skill with resistance penetration');
+assert(doctrineDpsLine && doctrineDpsLine.includes('저항 관통 +30%'), 'DPS breakdown must show the applied 30% resistance-penetration contribution');
+assert(doctrineDpsLine.includes('평균 한 방/DPS에 적용'), 'DPS breakdown must explain that Absolute Doctrine is included in average hit and DPS');
+assert(!withoutDoctrine.breakdowns.dps.lines.some(line => line.includes('절대 교리 반영')), 'DPS breakdown must omit Absolute Doctrine when the keystone is inactive');
 
 console.log('inquisitor and map completion regression checks passed');
