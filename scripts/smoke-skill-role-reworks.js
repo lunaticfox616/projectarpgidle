@@ -51,7 +51,7 @@ const clean = enemy(1);
 const burning = enemy(2);
 burning.ailments.push({ type: 'ignite', time: 2, power: 1, sourceHitDamage: 100 });
 assert.strictEqual(context.getSkillConditionalDamageMultiplier(flame, clean), 1, 'Flame Slash must not gain its multiplier on a clean target');
-assert.strictEqual(context.getSkillConditionalDamageMultiplier(flame, burning), 1.3, 'Flame Slash must gain 30% hit damage against an ignited target');
+assert.strictEqual(context.getSkillConditionalDamageMultiplier(flame, burning), 1.15, 'Flame Slash must gain 15% hit damage against an ignited target');
 const ailmentStats = context.getSkillAilmentStats({ igniteChance: 5, poisonChance: 7, sSkill: flame }, 'fire');
 assert.strictEqual(ailmentStats.igniteChance, 30, 'Flame Slash must add its ignite chance without changing unrelated poison chance');
 assert.strictEqual(ailmentStats.poisonChance, 7, 'Flame Slash must preserve unrelated ailment stats');
@@ -103,6 +103,7 @@ assert.strictEqual(coldTarget.dotStacks, erosion.dotStackCap, 'Frozen Erosion mu
 assert.strictEqual(coldTarget.skillSlowPct, erosion.dotStackCap * erosion.dotStackSlowPct, 'Frozen Erosion slow must accumulate with its capped stacks');
 
 const contagion = skills['심연 전염'];
+assert.strictEqual(contagion.dotMultiplier, 1.3, 'Abyss Contagion must use the nerfed 30% increased DoT multiplier');
 const dying = enemy(1, 0); const recipient = enemy(2);
 dying.dotState = { skillName: '심연 전염', timeLeft: 2.5, rawTickDamage: 40, stacks: 3, tickTimer: 0.5, tickInterval: 1, ele: 'chaos' };
 game.enemies = [dying, recipient];
