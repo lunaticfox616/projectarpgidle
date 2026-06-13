@@ -7861,6 +7861,8 @@ function mergeDefaults(save) {
     merged.starWedge.skyRiftReady = !!merged.starWedge.skyRiftReady;
     merged.starWedge.skyRiftMinTier = Number.isFinite(merged.starWedge.skyRiftMinTier) ? Math.max(1, Math.floor(merged.starWedge.skyRiftMinTier)) : null;
     merged.starWedge.activeMeteorTier = Number.isFinite(merged.starWedge.activeMeteorTier) ? Math.max(1, Math.floor(merged.starWedge.activeMeteorTier)) : null;
+    let meteorReturnZoneId = merged.starWedge.meteorReturnZoneId;
+    merged.starWedge.meteorReturnZoneId = (typeof meteorReturnZoneId === 'number' || typeof meteorReturnZoneId === 'string') && meteorReturnZoneId !== METEOR_FALL_ZONE_ID ? meteorReturnZoneId : null;
     merged.starWedge.lastAnomalyAt = Number.isFinite(merged.starWedge.lastAnomalyAt) ? Math.max(0, Math.floor(merged.starWedge.lastAnomalyAt)) : 0;
     merged.starWedge.skyRiftCarryGauge = clampFiniteNumber(merged.starWedge.skyRiftCarryGauge, 0, 0, 99);
     merged.starWedge.constellationBuff = (merged.starWedge.constellationBuff && typeof merged.starWedge.constellationBuff === 'object') ? merged.starWedge.constellationBuff : null;

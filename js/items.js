@@ -286,6 +286,7 @@ function changeZone(id) {
         if (!st.unlocked) return addLog('운석 낙하 지점은 아직 잠겨 있습니다.', 'attack-monster');
         if (!st.skyRiftReady) return addLog('하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.', 'attack-monster');
         st.activeMeteorTier = Math.max(1, Math.floor(st.skyRiftMinTier || 1));
+        st.meteorReturnZoneId = null;
         st.skyRiftReady = false;
         st.skyRiftGauge = Math.max(0, Math.floor(st.skyRiftCarryGauge || 0));
         st.skyRiftCarryGauge = 0;
