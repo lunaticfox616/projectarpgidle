@@ -305,17 +305,6 @@ const PASSIVE_SPECIAL_NODE_CONFIGS = [
     { sector: 'marauder', kinds: ['deadend'], stat: 'regenSuppress', val: 0.5, title: '절맥 강타', desc: '강한 충격이 적의 회복 혈류를 억제합니다.' },
     { sector: 'duelist', kinds: ['major', 'keystone'], stat: 'minDmgRoll', val: 4, title: '하한 안정', desc: '연속 교전에서도 피해 하한을 안정적으로 유지합니다.' },
     { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'maxDmgRoll', val: 4, title: '상한 폭발', desc: '강타의 최고 피해를 끌어올립니다.' }
-    ,
-    { sector: 'witch', kinds: ['deadend', 'major'], stat: 'summonPctDmg', val: 18, title: '별빛 사역', desc: '소환수의 공격력이 크게 상승합니다.' },
-    { sector: 'templar', kinds: ['deadend', 'major'], stat: 'summonPctDmg', val: 16, title: '신성 소환술', desc: '소환체에게 안정적인 공격 증폭을 부여합니다.' },
-    { sector: 'shadow', kinds: ['deadend', 'major'], stat: 'summonPctDmg', val: 17, title: '그림자 사역', desc: '암영 사역이 소환수의 전투 능력을 강화합니다.' },
-    { sector: 'duelist', kinds: ['deadend', 'major'], stat: 'summonHpPct', val: 15, title: '전투 사육', desc: '소환수 생명력이 상승해 전선을 오래 유지합니다.' },
-    { sector: 'marauder', kinds: ['deadend', 'major'], stat: 'summonHpPct', val: 18, title: '야수 생존본능', desc: '소환수의 체력과 생존성이 크게 향상됩니다.' },
-    { sector: 'ranger', kinds: ['deadend', 'major'], stat: 'summonCritDmg', val: 20, title: '예리한 사역', desc: '소환수 치명타 피해 배율을 크게 끌어올립니다.' },
-    { sector: 'witch', kinds: ['keystone'], stat: 'summonPctDmg', val: 24, title: '공명 군주', desc: '소환수 공격 성능의 한계를 확장합니다.' },
-    { sector: 'templar', kinds: ['keystone'], stat: 'summonHpPct', val: 22, title: '성역 사역', desc: '소환체의 생명력과 유지력을 크게 강화합니다.' },
-    { sector: 'duelist', kinds: ['keystone'], stat: 'summonPctDmg', val: 22, title: '전장 조련', desc: '전장에서 소환수의 전투 화력을 크게 끌어올립니다.' },
-    { sector: 'ranger', kinds: ['keystone'], stat: 'summonCritDmg', val: 28, title: '추적 사역', desc: '소환수 치명타 피해 배율을 추가로 상승시킵니다.' }
 ];
 
 safeExposeData({ GEM_SKY_ENHANCEMENTS, TALISMAN_SHAPES, TALISMAN_SHAPE_STYLE, TALISMAN_OPTION_POOL, HERO_SELECTION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_STYLE, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });

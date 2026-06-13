@@ -878,11 +878,24 @@ function generateOrganicTree() {
         const specs = [
             { stat: 'chaosPctDmg', title: '심연 독기', length: 4 },
             { stat: 'dotPctDmg', title: '부패 지속', length: 4 },
-            { stat: 'poisonChance', title: '중독 지원', length: 4 },
+            { stat: 'coldPctDmg', title: '빙결 한기', length: 4 },
             { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 젬 독성', length: 5 },
             { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 젬 부식', length: 5 }
         ];
         return specs[(spoke + depth) % specs.length];
+    }
+    function getDirectionalClusterSpec(spoke, depth) {
+        const fixedClusters = {
+            '10:5': { stat: 'firePctDmg', title: '서녘 화염', length: 4 },
+            '11:8': { stat: 'firePctDmg', title: '황혼 화염', length: 4 },
+            '14:6': { stat: 'firePctDmg', title: '여명 화염', length: 4 },
+            '0:6': { stat: 'coldPctDmg', title: '천정 서리', length: 4 },
+            '1:6': { stat: 'lightPctDmg', title: '새벽 번개', length: 4 },
+            '14:9': { stat: 'summonAspd', title: '성좌 지휘', length: 4 },
+            '15:5': { stat: 'summonPctDmg', title: '별무리 사역', length: 5 },
+            '15:8': { stat: 'summonHpPct', title: '사역 생명핵', length: 4 }
+        };
+        return fixedClusters[`${spoke}:${depth}`] || null;
     }
     function getScatteredMaxResClusterSpec(spoke, depth) {
         if (spoke === 5 && depth % 4 === 1) return { stat: 'resF', endStat: 'maxResF', title: '화염 최대 저항', length: 4 };
@@ -924,6 +937,8 @@ function generateOrganicTree() {
         return isEnd && spec.endStat ? spec.endStat : spec.stat;
     }
     function getFinalClusterSpec(themeSpec, spoke, depth, theme) {
+        let directional = getDirectionalClusterSpec(spoke, depth);
+        if (directional) return directional;
         if (isOneOClockCluster(spoke)) return getOneOClockClusterSpec(spoke, depth);
         if (themeSpec.stat === 'gemLevel') {
             if (!retainedGlobalGemLevelCluster && depth >= maxDepth - 1) {
@@ -979,6 +994,7 @@ function generateOrganicTree() {
             node.webCellSpoke = spoke;
             node.webCellRing = depth;
             node.val = getTierValue(statForStep, tier);
+            if (statForStep === 'slamPctDmg') node.val *= 2;
             if (statForStep === 'critDmg') {
                 if (chainLength === 4) node.val = [8, 8, 12, 20][i - 1];
                 else if (chainLength === 5) node.val = [12, 12, 12, 12, 25][i - 1];
@@ -1169,6 +1185,8 @@ function generateOrganicTree() {
 
     buildDeflectCluster('deflect_chance_cluster', 0.34, getWebRadius(7) * PASSIVE_WORLD_SCALE, [4, 4, 4, 8], false);
     buildDeflectCluster('deflect_reduction_cluster', 0.72, getWebRadius(7.6) * PASSIVE_WORLD_SCALE, [3, 3, 3, 6], true);
+    buildDeflectCluster('deflect_south_cluster', 1.30, getWebRadius(7.2) * PASSIVE_WORLD_SCALE, [4, 4, 4, 8], false);
+    buildBlockCluster('block_south_cluster', 1.52, getWebRadius(7.5) * PASSIVE_WORLD_SCALE, [1.5, 1.5, 1.5, 3], 'blockChance', '%p');
     buildBlockCluster('block_flat_cluster', 2.55, getWebRadius(7.1) * PASSIVE_WORLD_SCALE, [1.5, 1.5, 1.5, 3], 'blockChance', '%p');
     buildBlockCluster('block_base_pct_cluster', 3.02, getWebRadius(7.7) * PASSIVE_WORLD_SCALE, [20, 20, 20, 30], 'blockChancePct', '% 증가');
 
