@@ -4240,7 +4240,10 @@ function applyEnemyDotFromHit(enemy, hitDamage, pStats) {
     if (!enemy || enemy.hp <= 0) return;
     let prev = (enemy.dotState && typeof enemy.dotState === 'object') ? enemy.dotState : null;
     let nextStacks = Math.min(DOT_STACK_MAX, Math.max(0, (prev && prev.stacks) || 0) + 1);
-    let stackMultiplier = getDotStackMultiplier(nextStacks);
+    let skillStackCap = Math.max(1, Math.floor(Number(pStats && pStats.sSkill && pStats.sSkill.dotStackCap) || DOT_STACK_MAX));
+    nextStacks = Math.min(skillStackCap, nextStacks);
+    let skillStackGrowth = Math.max(0, Number(pStats && pStats.sSkill && pStats.sSkill.dotStackDamagePct) || 0) / 100;
+    let stackMultiplier = skillStackGrowth > 0 ? Math.pow(1 + skillStackGrowth, nextStacks - 1) : getDotStackMultiplier(nextStacks);
     let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
     let baseTick = Math.max(1, Math.floor(Math.max(1, hitDamage) * DOT_TICK_FROM_HIT_RATIO * dotDamageScale));
     let nextRawTickDamage = Math.max(1, Math.floor(baseTick * stackMultiplier));
@@ -4255,8 +4258,54 @@ function applyEnemyDotFromHit(enemy, hitDamage, pStats) {
         ele: (pStats && pStats.sSkill && pStats.sSkill.ele) || 'chaos',
         skillName: game.activeSkill || 'dot'
     };
+    enemy.skillSlowPct = Math.min(95, Math.max(0, Number(pStats && pStats.sSkill && pStats.sSkill.dotStackSlowPct) || 0) * nextStacks);
     if (pStats && pStats.sSkill && pStats.sSkill.flameDecayDebuff) syncEnemyFlameDecayAilment(enemy, enemy.dotState, pStats);
     enemy.dotStacks = nextStacks;
+}
+
+function getSkillAilmentStats(pStats, hitElement) {
+    let skill = pStats.sSkill || {};
+    let bonus = skill.ailmentChanceBonus || {};
+    return {
+        ...pStats,
+        igniteChance: (pStats.igniteChance || 0) + (bonus.ignite || 0),
+        poisonChance: (pStats.poisonChance || 0) + (bonus.poison || 0),
+        sSkill: { ...skill, ele: hitElement }
+    };
+}
+
+function getSkillConditionalDamageMultiplier(skill, enemy) {
+    let multiplier = 1;
+    let active = skill.activeAilmentDamageMore;
+    let ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
+    if (active && ailments.some(ail => ail && ail.type === active.type && (ail.time || 0) > 0)) {
+        multiplier *= 1 + Math.max(0, Number(active.pct) || 0) / 100;
+    }
+    let missingPct = 1 - Math.max(0, enemy.hp || 0) / Math.max(1, enemy.maxHp || 1);
+    multiplier *= 1 + missingPct * Math.max(0, Number(skill.missingLifeDamagePct) || 0) / 100;
+    return multiplier;
+}
+
+function spreadSkillAilmentOnHit(source, skill) {
+    let config = skill.ailmentSpreadOnHit;
+    if (!config || Math.random() >= Math.max(0, Math.min(1, Number(config.chance) || 0))) return;
+    let ailment = (source.ailments || []).find(ail => ail && ail.type === config.type && (ail.time || 0) > 0);
+    let copy = cloneEnemyAilmentForSpread(ailment);
+    if (!copy) return;
+    let targets = (game.enemies || []).filter(enemy => enemy && enemy.id !== source.id && enemy.hp > 0);
+    targets.slice(0, Math.max(1, Math.floor(config.targets || 1))).forEach(target => mergeEnemyAilment(target, copy));
+}
+
+function applySkillPeriodicOnHit(enemy, skill, damage) {
+    let config = skill.periodicOnHit;
+    if (!config || enemy.hp <= 0 || Math.random() >= Math.max(0, Math.min(1, Number(config.chance) || 0))) return;
+    enemy.skillPeriodic = {
+        hitsLeft: Math.max(1, Math.floor(config.hits || 1)),
+        interval: Math.max(0.05, Number(config.interval) || 1),
+        timer: Math.max(0.05, Number(config.interval) || 1),
+        damage: Math.max(1, Math.floor(damage * Math.max(0, Number(config.damagePct) || 0) / 100)),
+        ele: config.ele || skill.ele || 'phys'
+    };
 }
 
 function getAilmentTypeFromElement(ele) {
@@ -4583,6 +4632,25 @@ function tickEnemyAilments(pStats, dt) {
             if (ail.time > 0) next.push(ail);
         });
         enemy.ailments = next;
+        if (enemy.hp <= 0) handleEnemyDeath(enemy, pStats);
+    });
+    tickEnemySkillPeriodicEffects(pStats, dt);
+}
+
+function tickEnemySkillPeriodicEffects(pStats, dt) {
+    let zone = getZone(game.currentZoneId);
+    let zoneTier = (zone && zone.tier) || 1;
+    (game.enemies || []).forEach(enemy => {
+        let effect = enemy && enemy.hp > 0 ? enemy.skillPeriodic : null;
+        if (!effect || effect.hitsLeft <= 0) return;
+        effect.timer -= dt;
+        while (effect.timer <= 0 && effect.hitsLeft > 0 && enemy.hp > 0) {
+            effect.timer += effect.interval;
+            effect.hitsLeft--;
+            let mitigation = getEffectiveEnemyMitigation(effect.ele, zoneTier, enemy, pStats);
+            applyDamageToEnemyResource(enemy, Math.max(1, Math.floor(effect.damage * (1 - mitigation / 100))));
+        }
+        if (effect.hitsLeft <= 0 || enemy.hp <= 0) enemy.skillPeriodic = null;
         if (enemy.hp <= 0) handleEnemyDeath(enemy, pStats);
     });
 }
@@ -5251,6 +5319,7 @@ function handleEnemyDeath(enemy, pStats) {
     // 이미 처리되어 enemies 배열에서 제거된 적(중복 재귀 호출)은 무시한다.
     if (!liveRef || liveRef.hp > 0) return;
     enemy = liveRef;
+    transferSkillDotOnDeath(enemy);
     let zone = getZone(game.currentZoneId);
     let grand = (game.voidRift || {}).grandRun;
     if (zone && zone.id === 'grand_breach_run' && grand && grand.inRun && grand.phase === 'survival' && !enemy.isBoss) {
@@ -5398,6 +5467,19 @@ function handleEnemyDeath(enemy, pStats) {
         chainedDefeats.forEach(defeated => handleEnemyDeath(defeated, pStats));
     }
     pendingHeavyUiRefresh = true;
+}
+
+function transferSkillDotOnDeath(enemy) {
+    let dotState = enemy && enemy.dotState;
+    let skill = dotState && SKILL_DB[dotState.skillName];
+    let config = skill && skill.dotTransferOnDeath;
+    if (!config || dotState.timeLeft <= 0) return;
+    let target = (game.enemies || []).find(entry => entry && entry.id !== enemy.id && entry.hp > 0);
+    if (!target) return;
+    let scale = Math.max(0, Number(config.remainingDamagePct) || 0) / 100;
+    let transferred = { ...dotState, rawTickDamage: Math.max(1, Math.floor(dotState.rawTickDamage * scale)) };
+    if (!target.dotState || transferred.rawTickDamage >= target.dotState.rawTickDamage) target.dotState = transferred;
+    target.dotStacks = Math.max(target.dotStacks || 0, transferred.stacks || 1);
 }
 
 function canBreakWoodsmanLoop() {
@@ -5973,6 +6055,7 @@ function performPlayerAttack(pStats) {
     }
     let uniqueProjectileExtraHits = isProjectileSkill ? Math.max(0, Math.floor((pStats.uniqueProjectileDoubleStrikePct || 0) / 100)) : 0;
     let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits + uniqueProjectileExtraHits));
+    let baseRepeats = Math.max(1, Math.floor(pStats.sSkill.multiHit || 1));
     if (game.ascendClass === 'hunter' && hasKeystone('h7')) {
         pStats.sSkill.targets = 1;
     }
@@ -6143,6 +6226,9 @@ function performPlayerAttack(pStats) {
             }
             let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
             let ailmentSourceDamage = Math.floor(ailmentBaseDamage * (hit.mult || 1));
+            let repeatDamageMultiplier = hitIdx < baseRepeats ? 1 : Math.max(0, Number(pStats.sSkill.extraProjectileDamagePct) || 100) / 100;
+            dmg = Math.floor(dmg * repeatDamageMultiplier);
+            ailmentSourceDamage = Math.floor(ailmentSourceDamage * repeatDamageMultiplier);
             if (!Number.isFinite(dmg)) dmg = 0;
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
@@ -6177,6 +6263,9 @@ function performPlayerAttack(pStats) {
             }
             let damageBeforeMitigation = dmg;
             let ailmentDamageBeforeCritMitigation = Math.max(0, Math.floor(ailmentSourceDamage));
+            let skillConditionalMultiplier = getSkillConditionalDamageMultiplier(pStats.sSkill, targetEnemy);
+            dmg = Math.floor(dmg * skillConditionalMultiplier);
+            ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * skillConditionalMultiplier);
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
             if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
@@ -6349,6 +6438,8 @@ function performPlayerAttack(pStats) {
                 });
             }
             if ((pStats.damageScales || {}).talismanBossFinalDmgBonusPct && targetEnemy.hp > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) <= 0.05) targetEnemy.hp = 0;
+            if (pStats.sSkill.executeThreshold && !targetEnemy.isBoss && targetEnemy.hp > 0
+                && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) < pStats.sSkill.executeThreshold) targetEnemy.hp = 0;
             if (game.ascendClass === 'gladiator' && hasKeystone('g6') && targetEnemy.hp > 0) {
                 let executeThreshold = targetEnemy.isBoss ? 0.10 : 0.20;
                 if ((targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) < executeThreshold) {
@@ -6432,10 +6523,12 @@ function performPlayerAttack(pStats) {
                 else targetEnemy.ailments.push({ type: 'assassinWeakness', time: 5, power: stacks });
             }
             if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
-            applyEnemyAilmentFromHit(targetEnemy, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, dmg, hitCrit, {
+            applyEnemyAilmentFromHit(targetEnemy, getSkillAilmentStats(pStats, hitElement), dmg, hitCrit, {
                 ailmentSourceDamage: ailmentDamageBeforeCritMitigation,
                 critDotBonusPct: hitCrit ? 50 : 0
             });
+            spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill);
+            applySkillPeriodicOnHit(targetEnemy, pStats.sSkill, dealtToEnemy);
             if (pStats.uniqueAlwaysShock) {
                 let shockStats = { ...pStats, sSkill: { ...pStats.sSkill, ele: 'light' } };
                 let shockHit = Math.max(1, Math.floor(dmg * 0.25 * (1 + Math.max(0, Number(pStats.shockEffectBonusPct)||0)/100)));
@@ -6804,6 +6897,7 @@ function performMonsterAttacks(pStats) {
         curseDebuffs.forEach(deb => { curseSlow += (getConditionGemStatDelta(deb.name, 'curse').enemyAspdSlow || 0); });
         curseDebuffs.forEach(deb => { enemyDmgMul *= (getConditionGemStatDelta(deb.name, 'curse').enemyDmgMul || 1); });
         let chillSlow = ailMap.chill ? Math.min(0.45, 0.12 + ailMap.chill * 0.14) : 0;
+        chillSlow += Math.max(0, Math.min(0.5, Number(enemy.skillSlowPct || 0) / 100));
         chillSlow *= Math.max(0, 1 - Math.max(0, Math.min(0.95, (pStats.chillEffectReducePct || 0) / 100))); 
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
         let atkRate = (0.26 + zone.tier * 0.013) * monsterBaseAttackSpeedMul * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
