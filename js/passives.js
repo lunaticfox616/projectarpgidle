@@ -7009,7 +7009,17 @@ function useCurrency(currencyKey) {
     let usesSporeAffix = sporeAffixCurrencies.includes(currencyKey);
     let isRerollSporeCurrency = rerollSporeCurrencies.includes(currencyKey);
     let needsPrecheck = usesSporeAffix && !isRerollSporeCurrency;
-    if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+    if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) {
+        if (currencyKey !== 'exalted') return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+        addLog('선택한 홀씨로 새 옵션을 부여할 수 없어 홀씨를 소모하지 않고 일반 엑잘티드 제작을 진행합니다.', 'loot-normal');
+        sporeMode = 'none';
+        usesSporeAffix = false;
+    }
+    let exaltedMod = null;
+    if (currencyKey === 'exalted') {
+        exaltedMod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
+        if (!exaltedMod) return addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster');
+    }
     if (sporeMode !== 'none' && usesSporeAffix && !isRerollSporeCurrency) {
         if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
         consumedSpore = true;
@@ -7052,8 +7062,7 @@ function useCurrency(currencyKey) {
             applyGuaranteedToNonLocked(guaranteedMod);
         }
     } else if (currencyKey === 'exalted') {
-        let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
-        if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
+        item.stats.push((exaltedMod === guaranteedMod) ? rollSporeGuaranteedValue(exaltedMod) : rollAffixValue(exaltedMod, getItemCraftTier(item)));
         updateItemName(item);
     } else if (currencyKey === 'regal') {
         let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
