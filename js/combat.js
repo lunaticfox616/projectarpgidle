@@ -5456,8 +5456,7 @@ function resolveNextLoopBestPlusOneZone(zone) {
 }
 
 function enterAutomaticMeteorEncounter() {
-    let st = ensureStarWedgeState();
-    st.meteorReturnZoneId = game.currentZoneId;
+    prepareMeteorEncounterEntry(game.currentZoneId);
     game.currentZoneId = METEOR_FALL_ZONE_ID;
 }
 

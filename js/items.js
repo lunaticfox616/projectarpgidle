@@ -128,7 +128,8 @@ function pickEquipSlot(item, preferredSlot) {
 }
 
 function isDualSlotItem(slotName) {
-    return slotName === '반지' || slotName === '장갑';
+    if (slotName === '반지' || slotName === '장갑') return true;
+    return slotName === '무기' && game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
 }
 
 function getDualSlotDisplayLabel(targetSlot) {
@@ -136,6 +137,8 @@ function getDualSlotDisplayLabel(targetSlot) {
     if (targetSlot === '반지2') return '오른쪽 반지';
     if (targetSlot === '장갑1') return '왼쪽 장갑';
     if (targetSlot === '장갑2') return '오른쪽 장갑';
+    if (targetSlot === '무기') return '주 무기';
+    if (targetSlot === '방패') return '방패';
     return targetSlot;
 }
 
@@ -152,6 +155,11 @@ function findInventoryIndexById(itemId) {
 function equipItem(idx, preferredSlot) {
     let item = game.inventory[idx];
     if (!item) return;
+    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    if (item.slot === '무기' && warriorDualTrain && !preferredSlot && game.equipment['무기'] && game.equipment['방패']) {
+        openWeaponSlotOverlayByItemId(item.id);
+        return;
+    }
     if (item.slot === '반지' && !preferredSlot && dualSlotBothOccupied('반지')) {
         openRingSlotOverlayByItemId(item.id);
         return;
@@ -162,7 +170,6 @@ function equipItem(idx, preferredSlot) {
     }
     let targetSlot = pickEquipSlot(item, preferredSlot);
     if (!targetSlot) return;
-    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
     if (targetSlot === '방패' && item.slot === '무기' && !warriorDualTrain) {
         addLog('워리어 키스톤 [쌍수 훈련]이 있어야 방패 슬롯에 무기를 장착할 수 있습니다.', 'attack-monster');
         return;
@@ -276,6 +283,16 @@ function warnBeehiveMapTravelBlocked() {
     return true;
 }
 
+function prepareMeteorEncounterEntry(returnZoneId) {
+    let st = ensureStarWedgeState();
+    st.activeMeteorTier = Math.max(1, Math.floor(st.skyRiftMinTier || 1));
+    st.meteorReturnZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : null;
+    st.skyRiftReady = false;
+    st.skyRiftGauge = Math.max(0, Math.floor(st.skyRiftCarryGauge || 0));
+    st.skyRiftCarryGauge = 0;
+    st.skyRiftMinTier = null;
+}
+
 function changeZone(id) {
     if (game.pendingLoopReady) return addLog('⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.', 'attack-monster');
     if (isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
@@ -285,12 +302,7 @@ function changeZone(id) {
         let st = ensureStarWedgeState();
         if (!st.unlocked) return addLog('운석 낙하 지점은 아직 잠겨 있습니다.', 'attack-monster');
         if (!st.skyRiftReady) return addLog('하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.', 'attack-monster');
-        st.activeMeteorTier = Math.max(1, Math.floor(st.skyRiftMinTier || 1));
-        st.meteorReturnZoneId = null;
-        st.skyRiftReady = false;
-        st.skyRiftGauge = Math.max(0, Math.floor(st.skyRiftCarryGauge || 0));
-        st.skyRiftCarryGauge = 0;
-        st.skyRiftMinTier = null;
+        prepareMeteorEncounterEntry(null);
     }
     let zone = getZone(id);
     if (!zone) return addLog('이동할 수 없는 지역입니다.', 'attack-monster');

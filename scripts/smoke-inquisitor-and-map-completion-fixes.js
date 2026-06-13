@@ -44,63 +44,110 @@ const supportBonus = gemContext.getTargetGemBonusSources('효과 증폭 보조')
 assert.strictEqual(supportBonus.passive, 2, 'Inquisitor fourth-ascendancy gem levels must apply to support gems');
 assert.strictEqual(supportBonus.total, 2, 'support gem total level bonus must include the fourth-ascendancy node');
 
+const completionLogs = [];
 const completionContext = {
-  Math,
-  Array,
-  Object,
-  Number,
+  console, Date, Math, Array, Object, Number, JSON,
+  window: null,
+  game: {},
+  safeExposeGlobals(exposed) {
+    Object.assign(completionContext, exposed);
+  },
   METEOR_FALL_ZONE_ID: 'meteor_fall_site',
   UNDERWORLD_ZONE_ID: 'underworld_core',
   LABYRINTH_ZONE_ID: 'labyrinth',
   CHAOS_REALM_ZONE_ID: 'chaos_realm',
-  game: {},
-  getAbyssZoneIdForDepth: depth => `abyss_${depth}`,
-  ensureChaosRealmState: () => ({ highestFloor: 1, currentFloor: 1 }),
-  grantMeteorEncounterRewards() {},
-  ensureStarWedgeState: () => completionContext.game.starWedge,
-  clearWoodsmanBuildLock() {},
+  FOSSIL_DB: [],
+  getZone(id) {
+    if (id === 'meteor_fall_site') return { id, type: 'meteor', tier: 12, name: '운석 낙하 지점' };
+    if (id === 'underworld_core') {
+      let floor = completionContext.game.underworldProgress.currentFloor;
+      return { id, type: 'underworld', floor, tier: 30, name: `지하계 ${floor}층` };
+    }
+    return { id, type: 'act', tier: 1, maxKills: 1, name: `지역 ${id}` };
+  },
+  getCurrentSeasonFinalZoneId: () => 20,
+  getStoryActByZoneId: () => null,
   getAutoProgressZoneId: id => id,
-  startMoving() {},
-  updateStaticUI() {},
+  ensureChaosRealmState: () => ({ highestFloor: 1, currentFloor: 1 }),
+  ensureStarWedgeState: () => completionContext.game.starWedge,
+  grantMeteorEncounterRewards() {},
+  clearWoodsmanBuildLock() {},
+  triggerMapUnlockReveal() {},
+  markActRewardReady() {},
+  checkUnlocks() {},
   queueImportantSave() {},
-  addLog() {},
+  updateStaticUI() {},
+  addLog(message) { completionLogs.push(message); },
+  isBeehiveRunLockedForMapTravel: () => false,
+  P_STATS: {}, PASSIVES: {}, SEASON_NODES: {}, ASCEND_NODES: {}, SUPPORT_GEMS: {},
+  SKILLS: { slash: { id: 'slash', name: '기본 공격', ele: 'phys', dmg: 1, spd: 1, tags: ['attack'], targets: 1 } },
+  UNIQUE_EFFECTS: {}, UNIQUE_JEWELS: {}, UNIQUE_JEWEL_EFFECTS: {}, UNDERWORLD_RUNE_DB: [], PASSIVE_STAR_BLESSING: {},
+  DOT_TICK_INTERVAL: 1, DOT_EFFECT_DURATION: 4, DOT_STACK_MAX: 5,
+  LEECH_BASE_INSTANCE_CAP_PCT: 10, LEECH_BASE_TOTAL_CAP_PCT: 20, LEECH_BASE_RATE_CAP_PCT: 2,
+  getEquippedSupportGems: () => [], getSupportGemLevel: () => 1, getSkillGemLevel: () => 1,
+  getSkillDef: id => completionContext.SKILLS[id] || completionContext.SKILLS.slash,
+  getActiveSkillStats: () => ({ ...completionContext.SKILLS.slash }), getClassTreeDef: () => ({}), hasKeystone: () => false,
+  isDualWielding: () => false, getHeroSelectionDef: () => ({ stats: [] }), getSkyTowerLoopBonus: () => ({}),
+  getLoopDeepBonus: () => ({}), getFavorEffects: () => ({}), getActiveShrineBuff: () => null,
+  getActiveConstellationBonus: () => null, getSkillTargets: skill => skill.targets || 1, getGemAddedBaseDamage: () => 0,
+  getGemPresentation: () => ({}), getCodexBonusPct: () => 0, getConditionGemStatDelta: () => 0,
+  recalculateStarWedgeMutations: () => {}, assignStarWedgeSockets: () => {}, getArmorPhysicalReductionPct: () => 0,
+  getEvasionChancePct: () => 0, getEnemyAccuracy: () => 100, getSkillTagDamageStatId: () => null,
+  translateSkillTag: tag => tag, estimateSummonDps: () => ({ total: 0, lines: [] }), safeGetEquippedItem: () => null,
+  getActiveSupportLinks: () => [], getActiveEnemyShockTakenDamageIncreasePct: () => 0,
+  getPlayerShockTakenDamageIncreasePct: () => 0, getEnemyShockTakenDamageIncreasePct: () => 0,
+  isDamageAilmentType: () => false, getDamageAilmentBaseDpsFromHit: () => 0, getDotStackMultiplier: stacks => stacks,
+  dispatchRuntimeEvent: () => {}, clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
 };
-completionContext.getZone = () => completionContext.zone;
+completionContext.window = completionContext;
 vm.createContext(completionContext);
-vm.runInContext([
-  extractFunction(combatSource, 'resolveNextLoopBestPlusOneZone'),
-  extractFunction(combatSource, 'enterAutomaticMeteorEncounter'),
-  extractFunction(combatSource, 'finishEncounterRun'),
-  'this.enterAutomaticMeteorEncounter = enterAutomaticMeteorEncounter;',
-  'this.finishEncounterRun = finishEncounterRun;',
-].join('\n'), completionContext);
+['js/utils.js', 'js/items.js', 'js/core-cube.js', 'js/combat.js'].forEach(file => {
+  vm.runInContext(fs.readFileSync(file, 'utf8'), completionContext, { filename: file });
+  if (file === 'js/utils.js') vm.runInContext('game = window.game;', completionContext);
+});
 
 completionContext.game = {
-  currentZoneId: 'labyrinth',
-  maxZoneId: 99,
+  ...makeDoctrineGame(),
+  currentZoneId: 10,
+  maxZoneId: 12,
   killsInZone: 0,
-  settings: { mapCompleteAction: 'nextLoopBestPlusOne' },
-  loopProgressCurrent: { bestAbyssDepth: 25, bestLabyrinthFloor: 8, bestChaosRealmFloor: 4 },
-  starWedge: { entriesCleared: 0, activeMeteorTier: 3 },
+  season: 1,
+  settings: { mapCompleteAction: 'nextZone', townReturnAction: 'retry', autoEnterMeteor: true },
+  loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 25, bestLabyrinthFloor: 8, bestChaosRealmFloor: 4 },
+  starWedge: { unlocked: true, skyRiftReady: true, skyRiftMinTier: 12, skyRiftGauge: 100, skyRiftCarryGauge: 7, entriesCleared: 0, activeMeteorTier: null },
+  beehive: { inRun: false },
+  voidRift: {},
+  noti: {},
+  enemies: [],
+  encounterPlan: [],
 };
-completionContext.enterAutomaticMeteorEncounter();
-assert.strictEqual(completionContext.game.currentZoneId, 'meteor_fall_site', 'automatic meteor entry must replace the prepared destination temporarily');
-assert.strictEqual(completionContext.game.starWedge.meteorReturnZoneId, 'labyrinth', 'automatic meteor entry must preserve the exact interrupted destination');
-
-completionContext.zone = { id: 'meteor_fall_site', type: 'meteor' };
+vm.runInContext('game = window.game;', completionContext);
 completionContext.finishEncounterRun();
-assert.strictEqual(completionContext.game.currentZoneId, 'labyrinth', 'meteor clear must resume the interrupted labyrinth instead of prioritizing an abyss record');
+assert.strictEqual(completionContext.game.currentZoneId, 'meteor_fall_site', 'normal map completion must trigger the production automatic-meteor entry path');
+assert.strictEqual(completionContext.game.starWedge.meteorReturnZoneId, 12, 'automatic meteor entry must preserve the destination selected by map completion');
+assert.strictEqual(completionContext.game.starWedge.activeMeteorTier, 12, 'automatic meteor entry must initialize the encounter tier through the production entry path');
+assert.strictEqual(completionContext.game.starWedge.skyRiftReady, false, 'automatic meteor entry must consume the ready rift');
+assert.strictEqual(completionContext.game.starWedge.skyRiftGauge, 7, 'automatic meteor entry must carry the configured overflow gauge');
+assert(completionContext.game.moveTimer > 0, 'normal map completion must continue through the real movement transition');
+assert(completionLogs.some(message => message.includes('자동입장')), 'automatic meteor entry must remain observable in the combat log');
+
+completionContext.finishEncounterRun();
+assert.strictEqual(completionContext.game.currentZoneId, 12, 'meteor completion must resume the destination interrupted by automatic entry');
 assert.strictEqual(completionContext.game.starWedge.meteorReturnZoneId, null, 'meteor return destination must be consumed after the encounter');
 assert.strictEqual(completionContext.game.starWedge.entriesCleared, 1, 'meteor completion rewards and counters must remain intact');
 
-completionContext.zone = { id: 'underworld_core', type: 'underworld', floor: 7 };
 completionContext.game = {
+  ...makeDoctrineGame(),
   currentZoneId: 'underworld_core',
+  maxZoneId: 5,
   killsInZone: 0,
-  settings: { mapCompleteAction: 'repeatZone' },
+  settings: { mapCompleteAction: 'repeatZone', townReturnAction: 'retry' },
   underworldProgress: { highestFloor: 7, currentFloor: 7 },
   underworldRunes: { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [] },
+  enemies: [],
+  encounterPlan: [],
 };
+vm.runInContext('game = window.game;', completionContext);
 completionContext.finishEncounterRun();
 assert.strictEqual(completionContext.game.underworldProgress.currentFloor, 7, 'repeat-zone must keep the cleared underworld floor selected');
 assert.strictEqual(completionContext.game.underworldProgress.highestFloor, 8, 'repeating an underworld floor must still unlock the next floor');

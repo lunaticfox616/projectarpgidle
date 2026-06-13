@@ -878,11 +878,24 @@ function generateOrganicTree() {
         const specs = [
             { stat: 'chaosPctDmg', title: '심연 독기', length: 4 },
             { stat: 'dotPctDmg', title: '부패 지속', length: 4 },
-            { stat: 'poisonChance', title: '중독 지원', length: 4 },
+            { stat: 'coldPctDmg', title: '빙결 한기', length: 4 },
             { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 젬 독성', length: 5 },
             { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 젬 부식', length: 5 }
         ];
         return specs[(spoke + depth) % specs.length];
+    }
+    function getDirectionalClusterSpec(spoke, depth) {
+        const fixedClusters = {
+            '10:5': { stat: 'firePctDmg', title: '서녘 화염', length: 4 },
+            '11:8': { stat: 'firePctDmg', title: '황혼 화염', length: 4 },
+            '14:6': { stat: 'firePctDmg', title: '여명 화염', length: 4 },
+            '0:6': { stat: 'coldPctDmg', title: '천정 서리', length: 4 },
+            '1:6': { stat: 'lightPctDmg', title: '새벽 번개', length: 4 },
+            '14:9': { stat: 'summonAspd', title: '성좌 지휘', length: 4 },
+            '15:5': { stat: 'summonPctDmg', title: '별무리 사역', length: 5 },
+            '15:8': { stat: 'summonHpPct', title: '사역 생명핵', length: 4 }
+        };
+        return fixedClusters[`${spoke}:${depth}`] || null;
     }
     function getScatteredMaxResClusterSpec(spoke, depth) {
         if (spoke === 5 && depth % 4 === 1) return { stat: 'resF', endStat: 'maxResF', title: '화염 최대 저항', length: 4 };
@@ -924,6 +937,8 @@ function generateOrganicTree() {
         return isEnd && spec.endStat ? spec.endStat : spec.stat;
     }
     function getFinalClusterSpec(themeSpec, spoke, depth, theme) {
+        let directional = getDirectionalClusterSpec(spoke, depth);
+        if (directional) return directional;
         if (isOneOClockCluster(spoke)) return getOneOClockClusterSpec(spoke, depth);
         if (themeSpec.stat === 'gemLevel') {
             if (!retainedGlobalGemLevelCluster && depth >= maxDepth - 1) {
@@ -979,6 +994,7 @@ function generateOrganicTree() {
             node.webCellSpoke = spoke;
             node.webCellRing = depth;
             node.val = getTierValue(statForStep, tier);
+            if (statForStep === 'slamPctDmg') node.val *= 2;
             if (statForStep === 'critDmg') {
                 if (chainLength === 4) node.val = [8, 8, 12, 20][i - 1];
                 else if (chainLength === 5) node.val = [12, 12, 12, 12, 25][i - 1];
@@ -1169,6 +1185,8 @@ function generateOrganicTree() {
 
     buildDeflectCluster('deflect_chance_cluster', 0.34, getWebRadius(7) * PASSIVE_WORLD_SCALE, [4, 4, 4, 8], false);
     buildDeflectCluster('deflect_reduction_cluster', 0.72, getWebRadius(7.6) * PASSIVE_WORLD_SCALE, [3, 3, 3, 6], true);
+    buildDeflectCluster('deflect_south_cluster', 1.30, getWebRadius(7.2) * PASSIVE_WORLD_SCALE, [4, 4, 4, 8], false);
+    buildBlockCluster('block_south_cluster', 1.52, getWebRadius(7.5) * PASSIVE_WORLD_SCALE, [1.5, 1.5, 1.5, 3], 'blockChance', '%p');
     buildBlockCluster('block_flat_cluster', 2.55, getWebRadius(7.1) * PASSIVE_WORLD_SCALE, [1.5, 1.5, 1.5, 3], 'blockChance', '%p');
     buildBlockCluster('block_base_pct_cluster', 3.02, getWebRadius(7.7) * PASSIVE_WORLD_SCALE, [20, 20, 20, 30], 'blockChancePct', '% 증가');
 
@@ -2322,6 +2340,7 @@ let divineBannerTimer = null;
 let jewelFusionSelection = [];
 let pendingRingEquipItemId = null;
 let pendingGloveEquipItemId = null;
+let pendingWeaponEquipItemId = null;
 let deathOverlayActive = false;
 let battleAssets = {
     loading: false,
@@ -2987,6 +3006,25 @@ function selectGloveSlotFromOverlay(slot) {
     let itemId = pendingGloveEquipItemId;
     closeGloveSlotOverlay();
     if (!Number.isInteger(itemId)) return;
+    equipItemById(itemId, slot);
+}
+
+function openWeaponSlotOverlayByItemId(itemId) {
+    pendingWeaponEquipItemId = Number.isFinite(itemId) ? itemId : null;
+    let overlay = document.getElementById('weapon-slot-overlay');
+    if (overlay) overlay.classList.add('active');
+}
+
+function closeWeaponSlotOverlay() {
+    pendingWeaponEquipItemId = null;
+    let overlay = document.getElementById('weapon-slot-overlay');
+    if (overlay) overlay.classList.remove('active');
+}
+
+function selectWeaponSlotFromOverlay(slot) {
+    let itemId = pendingWeaponEquipItemId;
+    closeWeaponSlotOverlay();
+    if (!Number.isInteger(itemId) || !['무기', '방패'].includes(slot)) return;
     equipItemById(itemId, slot);
 }
 
@@ -6971,7 +7009,14 @@ function useCurrency(currencyKey) {
     let usesSporeAffix = sporeAffixCurrencies.includes(currencyKey);
     let isRerollSporeCurrency = rerollSporeCurrencies.includes(currencyKey);
     let needsPrecheck = usesSporeAffix && !isRerollSporeCurrency;
-    if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
+    if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) {
+        return addLog('선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다. 홀씨 모드를 미사용으로 바꾸거나 해당 계열의 기존 옵션을 제거하세요.', 'attack-monster');
+    }
+    let exaltedMod = null;
+    if (currencyKey === 'exalted') {
+        exaltedMod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
+        if (!exaltedMod) return addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster');
+    }
     if (sporeMode !== 'none' && usesSporeAffix && !isRerollSporeCurrency) {
         if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
         consumedSpore = true;
@@ -7014,8 +7059,7 @@ function useCurrency(currencyKey) {
             applyGuaranteedToNonLocked(guaranteedMod);
         }
     } else if (currencyKey === 'exalted') {
-        let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
-        if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
+        item.stats.push((exaltedMod === guaranteedMod) ? rollSporeGuaranteedValue(exaltedMod) : rollAffixValue(exaltedMod, getItemCraftTier(item)));
         updateItemName(item);
     } else if (currencyKey === 'regal') {
         let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
