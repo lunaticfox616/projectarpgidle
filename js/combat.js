@@ -5426,17 +5426,18 @@ function ensureNextEndlessChaosDepthUnlocked(depth) {
 
 function resolveNextLoopBestPlusOneZone(zone) {
     game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
-    if (zone && zone.type === 'abyss' && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
+    let resolveAnyClimb = zone && zone.type === 'meteor';
+    if (zone && (zone.type === 'abyss' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
         let nextDepth = Math.max(21, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 21) + 1);
         let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)) : [];
         if (unlocked.length > 0 && !unlocked.includes(nextDepth)) nextDepth = Math.max(...unlocked.filter(v => v >= 21));
         if (nextDepth >= 21) return getAbyssZoneIdForDepth(nextDepth);
     }
-    if (zone && zone.type === 'labyrinth' && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
+    if (zone && (zone.type === 'labyrinth' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
         game.labyrinthFloor = Math.max(1, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 1) + 1);
         return LABYRINTH_ZONE_ID;
     }
-    if (zone && zone.type === 'chaosRealm' && Math.max(0, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0)) >= 1) {
+    if (zone && (zone.type === 'chaosRealm' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0)) >= 1) {
         let st = ensureChaosRealmState();
         st.currentFloor = Math.min(Math.max(1, Math.floor(st.highestFloor || 1)), Math.max(1, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 1) + 1));
         return CHAOS_REALM_ZONE_ID;
