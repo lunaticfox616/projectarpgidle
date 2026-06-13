@@ -3605,6 +3605,11 @@ function showGemTooltip(event, type, name) {
         if (skill.ailmentChanceBonus && skill.ailmentChanceBonus.ignite) html += `<div class="tooltip-line">점화 확률 보너스: +${skill.ailmentChanceBonus.ignite}%</div>`;
         if (skill.ailmentChanceBonus && skill.ailmentChanceBonus.poison) html += `<div class="tooltip-line">중독 확률 보너스: +${skill.ailmentChanceBonus.poison}%</div>`;
         if (skill.activeAilmentDamageMore) html += `<div class="tooltip-line">활성 ${skill.activeAilmentDamageMore.type === 'ignite' ? '점화' : skill.activeAilmentDamageMore.type} 대상 적중 피해: ${skill.activeAilmentDamageMore.pct}% 증폭</div>`;
+        if (skill.consumeAilmentDamageMore) {
+            let ailmentLabels = { chill: '냉각', freeze: '동결' };
+            let consumeText = skill.consumeAilmentDamageMore.map(row => `${ailmentLabels[row.type] || row.type} 소모 시 ${row.pct}%`).join(' / ');
+            html += `<div class="tooltip-line">상태 소모 증폭: ${consumeText} 증폭</div>`;
+        }
         if (skill.ailmentSpreadOnHit) html += `<div class="tooltip-line">전파: ${Math.round(skill.ailmentSpreadOnHit.chance * 100)}% 확률로 다른 적 ${skill.ailmentSpreadOnHit.targets}기</div>`;
         if (skill.missingLifeDamagePct) html += `<div class="tooltip-line">잃은 생명력 비례 피해: 최대 +${skill.missingLifeDamagePct}%</div>`;
         if (skill.executeThreshold) html += `<div class="tooltip-line">처형: 일반 적 생명력 ${(skill.executeThreshold * 100).toFixed(0)}% 미만</div>`;

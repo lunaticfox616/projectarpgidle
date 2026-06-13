@@ -4281,6 +4281,15 @@ function getSkillConditionalDamageMultiplier(skill, enemy) {
     if (active && ailments.some(ail => ail && ail.type === active.type && (ail.time || 0) > 0)) {
         multiplier *= 1 + Math.max(0, Number(active.pct) || 0) / 100;
     }
+    let consumed = false;
+    (skill.consumeAilmentDamageMore || []).forEach(config => {
+        if (consumed) return;
+        let index = ailments.findIndex(ail => ail && ail.type === config.type && (ail.time || 0) > 0);
+        if (index < 0) return;
+        multiplier *= 1 + Math.max(0, Number(config.pct) || 0) / 100;
+        ailments.splice(index, 1);
+        consumed = true;
+    });
     let missingPct = 1 - Math.max(0, enemy.hp || 0) / Math.max(1, enemy.maxHp || 1);
     multiplier *= 1 + missingPct * Math.max(0, Number(skill.missingLifeDamagePct) || 0) / 100;
     return multiplier;
