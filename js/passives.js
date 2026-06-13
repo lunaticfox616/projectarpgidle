@@ -1363,6 +1363,8 @@ function ensureStarWedgeState() {
     game.starWedge.skyRiftCarryGauge = Number.isFinite(game.starWedge.skyRiftCarryGauge) ? clampNumber(game.starWedge.skyRiftCarryGauge, 0, 99) : 0;
     game.starWedge.constellationBuff = (game.starWedge.constellationBuff && typeof game.starWedge.constellationBuff === 'object') ? game.starWedge.constellationBuff : null;
     game.starWedge.activeMeteorTier = Number.isFinite(game.starWedge.activeMeteorTier) ? Math.max(1, Math.floor(game.starWedge.activeMeteorTier)) : null;
+    let returnZoneId = game.starWedge.meteorReturnZoneId;
+    game.starWedge.meteorReturnZoneId = (typeof returnZoneId === 'number' || typeof returnZoneId === 'string') && returnZoneId !== METEOR_FALL_ZONE_ID ? returnZoneId : null;
     let selectedWedgeId = Number(game.starWedge.selectedWedgeId);
     if (!Number.isFinite(selectedWedgeId) || !(game.starWedge.wedges || []).some(w => w.id === selectedWedgeId)) game.starWedge.selectedWedgeId = null;
     else game.starWedge.selectedWedgeId = selectedWedgeId;

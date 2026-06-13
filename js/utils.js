@@ -609,7 +609,7 @@ if (typeof window.getPlayerStats === "undefined") {
             resF: 0, resC: 0, resL: 0, resChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
             igniteChance: 0, chillChance: 0, freezeChance: 0, shockChance: 0, poisonChance: 0, bleedChance: 0,
             blockChance: 0, blockChanceMax: 50, deflectChance: 0, deflectDamageReduce: 0,
-            suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}, __uiFallbackStats: true
+            suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, inquisitorResonanceBonus: 0, breakdowns: {}, __uiFallbackStats: true
         };
     };
     window.getPlayerStats.__placeholderGlobal = true;
