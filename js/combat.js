@@ -660,6 +660,15 @@ function getTargetGemBonusSources(target, fallbackSources) {
     let isSupportGem = !!(targetName && typeof SUPPORT_GEM_DB !== 'undefined' && SUPPORT_GEM_DB[targetName]);
     let targetTags = (typeof getGemLevelTargetTags === 'function') ? getGemLevelTargetTags(target) : [];
     let isElementalGem = targetTags.includes('elemental');
+    if (game.ascendClass && typeof getClassTreeDef === 'function') {
+        let ascendTree = getClassTreeDef(game.ascendClass);
+        let ascendGemLevel = (game.ascendNodes || []).reduce((total, id) => {
+            let node = ascendTree[id];
+            return total + (node && node.stat === 'gemLevel' ? Number(node.val || 0) : 0);
+        }, 0);
+        sources.passive = Number(sources.passive || 0) + ascendGemLevel;
+        sources.total = Number(sources.total || 0) + ascendGemLevel;
+    }
     if (game.ascendClass === 'inquisitor' && hasKeystone('iq6') && (isElementalGem || isSupportGem)) {
         sources.reward = Number(sources.reward || 0) + 1;
         sources.total = Number(sources.total || 0) + 1;
@@ -2116,6 +2125,7 @@ function getPlayerStats() {
     let bossDamageDealtMultiplier = 1;
     let bossTakenDamageMultiplier = 1;
     let ailmentResistBonusPct = 0;
+    let inquisitorAbsoluteDoctrinePct = 0;
     let swiftOpeningTakenMultiplier = 1;
     let guardianReflectDamage = 0;
     let guardianBlockChance = 0;
@@ -2544,7 +2554,10 @@ function getPlayerStats() {
             finalMaxHp = Math.floor(finalMaxHp * 0.75);
         }
         if (hasKeystone('iq7')) finalCritDmg += inquisitorResonancePower;
-        if (hasKeystone('iq8') && inquisitorElementalSkill) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalResPen) / 100));
+        if (hasKeystone('iq8') && inquisitorElementalSkill) {
+            inquisitorAbsoluteDoctrinePct = Math.max(0, finalResPen);
+            finalBaseDmg = Math.floor(finalBaseDmg * (1 + inquisitorAbsoluteDoctrinePct / 100));
+        }
     } else if (game.ascendClass === 'soulbinder') {
         if (hasKeystone('sb4')) { sbSummonAspdBonus += 15; sbSummonCapBonus += 1; }
         if (hasKeystone('sb8')) sbSummonCapBonus += 3;
@@ -3155,6 +3168,7 @@ function getPlayerStats() {
                 `공격 속도 ${finalAspd.toFixed(2)}`,
                 `치명 기대값 반영`,
                 crusaderThunderDoctrinePct > 0 ? `천뢰 교리 반영: 화염/냉기 피해 증가 +${Math.floor(crusaderThunderDoctrinePct)}%가 번개 공격력/평균 한 방/DPS에 적용` : null,
+                inquisitorAbsoluteDoctrinePct > 0 ? `절대 교리 반영: 저항 관통 +${Math.floor(inquisitorAbsoluteDoctrinePct)}%가 원소 피해/평균 한 방/DPS에 적용` : null,
                 `피해 보정 기대값 x${avgRollMultiplier.toFixed(2)} (${Math.floor(finalMinDmgRoll)}~${Math.floor(finalMaxDmgRoll)}%)`,
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
                 coreCubeAddedDamageTotalPct > 0 ? `코어 큐브 추가 피해 x${expectedAddedDamageMultiplier.toFixed(2)} (총 피해의 ${Math.floor(coreCubeAddedDamageTotalPct)}% → ${coreCubeAddedDamageParts.join(' / ')})` : null,
@@ -5412,17 +5426,18 @@ function ensureNextEndlessChaosDepthUnlocked(depth) {
 
 function resolveNextLoopBestPlusOneZone(zone) {
     game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
-    if (zone && zone.type === 'abyss' && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
+    let resolveAnyClimb = zone && zone.type === 'meteor';
+    if (zone && (zone.type === 'abyss' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
         let nextDepth = Math.max(21, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 21) + 1);
         let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)) : [];
         if (unlocked.length > 0 && !unlocked.includes(nextDepth)) nextDepth = Math.max(...unlocked.filter(v => v >= 21));
         if (nextDepth >= 21) return getAbyssZoneIdForDepth(nextDepth);
     }
-    if (zone && zone.type === 'labyrinth' && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
+    if (zone && (zone.type === 'labyrinth' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
         game.labyrinthFloor = Math.max(1, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 1) + 1);
         return LABYRINTH_ZONE_ID;
     }
-    if (zone && zone.type === 'chaosRealm' && Math.max(0, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0)) >= 1) {
+    if (zone && (zone.type === 'chaosRealm' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0)) >= 1) {
         let st = ensureChaosRealmState();
         st.currentFloor = Math.min(Math.max(1, Math.floor(st.highestFloor || 1)), Math.max(1, Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 1) + 1));
         return CHAOS_REALM_ZONE_ID;
@@ -5448,7 +5463,8 @@ function finishEncounterRun() {
         st.entriesCleared = (st.entriesCleared || 0) + 1;
         st.activeMeteorTier = null;
         clearWoodsmanBuildLock();
-        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+        let nextZone = mapAction === 'nextLoopBestPlusOne' ? resolveNextLoopBestPlusOneZone(zone) : null;
+        game.currentZoneId = nextZone !== null ? nextZone : getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
@@ -5650,7 +5666,7 @@ function finishEncounterRun() {
         game.underworldProgress = uw;
         let floor = Math.max(1, Math.floor(zone.floor || uw.currentFloor || 1));
         uw.highestFloor = Math.max(Math.floor(uw.highestFloor || 1), floor + 1);
-        uw.currentFloor = Math.min(uw.highestFloor, floor + 1);
+        uw.currentFloor = mapAction === 'repeatZone' ? floor : Math.min(uw.highestFloor, floor + 1);
         if (floor >= 10) uw.floor10Cleared = true;
         if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [] };
         if (floor % 10 === 0) {
@@ -5664,7 +5680,7 @@ function finishEncounterRun() {
                 addLog(`🧿 지하계 ${floor}층 보상: 룬 슬롯 ${runeState.unlockedSlots}/6, 룬 번호 1~${runeState.unlockedRunesMaxNumber} 해금`, 'loot-unique');
             }
         }
-        addLog(`🕳️ 지하계 ${floor}층 돌파! ${uw.currentFloor}층까지 하강 가능합니다.`, 'season-up');
+        addLog(`🕳️ 지하계 ${floor}층 돌파! ${uw.highestFloor}층까지 하강 가능합니다.`, 'season-up');
         game.killsInZone = 0;
         if (mapAction === 'repeatZone') game.currentZoneId = UNDERWORLD_ZONE_ID;
         else if (mapAction === 'nextLoopBestPlusOne') {
