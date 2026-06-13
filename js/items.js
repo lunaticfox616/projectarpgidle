@@ -138,7 +138,7 @@ function getDualSlotDisplayLabel(targetSlot) {
     if (targetSlot === '장갑1') return '왼쪽 장갑';
     if (targetSlot === '장갑2') return '오른쪽 장갑';
     if (targetSlot === '무기') return '주 무기';
-    if (targetSlot === '방패') return '보조 무기/방패';
+    if (targetSlot === '방패') return '방패';
     return targetSlot;
 }
 
@@ -156,7 +156,7 @@ function equipItem(idx, preferredSlot) {
     let item = game.inventory[idx];
     if (!item) return;
     let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
-    if (item.slot === '무기' && warriorDualTrain && !preferredSlot) {
+    if (item.slot === '무기' && warriorDualTrain && !preferredSlot && game.equipment['무기'] && game.equipment['방패']) {
         openWeaponSlotOverlayByItemId(item.id);
         return;
     }
