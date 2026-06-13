@@ -77,6 +77,20 @@ const beforeMul = context.getSkillConditionalDamageMultiplier(rupture, before);
 const afterMul = context.getSkillConditionalDamageMultiplier(rupture, after);
 assert(afterMul > beforeMul, 'Dark Rupture damage must rise continuously across the execute boundary');
 assert(before.hp / before.maxHp >= rupture.executeThreshold && after.hp / after.maxHp < rupture.executeThreshold, 'execute fixtures must straddle the configured 15% threshold');
+const emptyRuptureTarget = enemy(3); emptyRuptureTarget.hp = 0;
+assert.strictEqual(context.getSkillConditionalDamageMultiplier(rupture, emptyRuptureTarget), 1.3, 'Dark Rupture missing-life bonus must cap at 30% increased damage');
+
+const frostLance = skills['빙결 파열창'];
+const chilledTarget = enemy(1);
+chilledTarget.ailments.push({ type: 'chill', time: 2, power: 1 }, { type: 'shock', time: 2, power: 1 });
+assert.strictEqual(context.getSkillConditionalDamageMultiplier(frostLance, chilledTarget), 1.2, 'Frozen Rupture Lance must consume chill for 20% more hit damage');
+assert(!chilledTarget.ailments.some(row => row.type === 'chill'), 'Frozen Rupture Lance must consume chill after using the chill bonus');
+assert(chilledTarget.ailments.some(row => row.type === 'shock'), 'Frozen Rupture Lance must not consume unrelated ailments');
+const frozenAndChilledTarget = enemy(2);
+frozenAndChilledTarget.ailments.push({ type: 'chill', time: 2, power: 1 }, { type: 'freeze', time: 2, power: 1 });
+assert.strictEqual(context.getSkillConditionalDamageMultiplier(frostLance, frozenAndChilledTarget), 1.4, 'Frozen Rupture Lance must prefer consuming freeze for 40% more hit damage');
+assert(frozenAndChilledTarget.ailments.some(row => row.type === 'chill'), 'Frozen Rupture Lance must not consume chill when the freeze bonus is used');
+assert(!frozenAndChilledTarget.ailments.some(row => row.type === 'freeze'), 'Frozen Rupture Lance must consume freeze after using the freeze bonus');
 
 const barrage = skills['연발 사격'];
 const baseTotal = barrage.multiHit;
@@ -103,7 +117,7 @@ assert.strictEqual(coldTarget.dotStacks, erosion.dotStackCap, 'Frozen Erosion mu
 assert.strictEqual(coldTarget.skillSlowPct, erosion.dotStackCap * erosion.dotStackSlowPct, 'Frozen Erosion slow must accumulate with its capped stacks');
 
 const contagion = skills['심연 전염'];
-assert.strictEqual(contagion.dotMultiplier, 1.3, 'Abyss Contagion must use the nerfed 30% increased DoT multiplier');
+assert.strictEqual(contagion.dotMultiplier, 1.42, 'Abyss Contagion must keep its rolled-back DoT multiplier');
 const dying = enemy(1, 0); const recipient = enemy(2);
 dying.dotState = { skillName: '심연 전염', timeLeft: 2.5, rawTickDamage: 40, stacks: 3, tickTimer: 0.5, tickInterval: 1, ele: 'chaos' };
 game.enemies = [dying, recipient];
