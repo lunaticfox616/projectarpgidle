@@ -3601,6 +3601,16 @@ function showGemTooltip(event, type, name) {
         if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용 · 적에게 화염 부패 디버프 적용 · 화염 부패 대상은 점화 피해가 생명력 100당 8% 증폭(최대 ${(Math.max(1, Number(skill.igniteTakenMaxMultiplier || 0)) || 1).toFixed(1)}x)</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
         if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
+        if (skill.extraProjectileDamagePct) html += `<div class="tooltip-line">추가 투사체 타격 배율: 기본 타격의 ${Number(skill.extraProjectileDamagePct).toFixed(0)}%</div>`;
+        if (skill.ailmentChanceBonus && skill.ailmentChanceBonus.ignite) html += `<div class="tooltip-line">점화 확률 보너스: +${skill.ailmentChanceBonus.ignite}%</div>`;
+        if (skill.ailmentChanceBonus && skill.ailmentChanceBonus.poison) html += `<div class="tooltip-line">중독 확률 보너스: +${skill.ailmentChanceBonus.poison}%</div>`;
+        if (skill.activeAilmentDamageMore) html += `<div class="tooltip-line">활성 ${skill.activeAilmentDamageMore.type === 'ignite' ? '점화' : skill.activeAilmentDamageMore.type} 대상 적중 피해: ${skill.activeAilmentDamageMore.pct}% 증폭</div>`;
+        if (skill.ailmentSpreadOnHit) html += `<div class="tooltip-line">전파: ${Math.round(skill.ailmentSpreadOnHit.chance * 100)}% 확률로 다른 적 ${skill.ailmentSpreadOnHit.targets}기</div>`;
+        if (skill.missingLifeDamagePct) html += `<div class="tooltip-line">잃은 생명력 비례 피해: 최대 +${skill.missingLifeDamagePct}%</div>`;
+        if (skill.executeThreshold) html += `<div class="tooltip-line">처형: 일반 적 생명력 ${(skill.executeThreshold * 100).toFixed(0)}% 미만</div>`;
+        if (skill.periodicOnHit) html += `<div class="tooltip-line">반복 타격: ${skill.periodicOnHit.interval}초 간격 · ${skill.periodicOnHit.hits}회 · 적중 피해의 ${skill.periodicOnHit.damagePct}%</div>`;
+        if (skill.dotStackCap) html += `<div class="tooltip-line">누적: 최대 ${skill.dotStackCap}중첩 · 중첩당 피해 +${skill.dotStackDamagePct}% / 둔화 +${skill.dotStackSlowPct}%</div>`;
+        if (skill.dotTransferOnDeath) html += `<div class="tooltip-line">처치 전파: 남은 지속 피해의 ${skill.dotTransferOnDeath.remainingDamagePct}%를 다른 적 ${skill.dotTransferOnDeath.targets}기에게 이전</div>`;
         if (!isSummonAttackTooltip) {
             html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
             let maxTargetsView = Math.max(1, skill.targets || 1);
