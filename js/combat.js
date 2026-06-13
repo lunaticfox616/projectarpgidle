@@ -2126,6 +2126,7 @@ function getPlayerStats() {
     let bossTakenDamageMultiplier = 1;
     let ailmentResistBonusPct = 0;
     let inquisitorAbsoluteDoctrinePct = 0;
+    let inquisitorResonanceBonus = 0;
     let swiftOpeningTakenMultiplier = 1;
     let guardianReflectDamage = 0;
     let guardianBlockChance = 0;
@@ -2540,8 +2541,13 @@ function getPlayerStats() {
             }
         }
     } else if (game.ascendClass === 'inquisitor') {
-        if (hasKeystone('iq3')) { suppCap += 1; game.resonancePower = Math.max(Math.floor(game.resonancePower || 0), 10 + Math.floor(((game.sealedSkills || []).length + (game.sealedSupports || []).length) / 4)); finalAspd = Math.max(0.1, finalAspd * 0.94); }
-        let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + runeResonancePower));
+        if (hasKeystone('iq3')) {
+            let sealedGemCount = (game.sealedSkills || []).length + (game.sealedSupports || []).length;
+            inquisitorResonanceBonus = 10 + Math.floor(sealedGemCount / 4);
+            suppCap += 1;
+            finalAspd = Math.max(0.1, finalAspd * 0.94);
+        }
+        let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + runeResonancePower + inquisitorResonanceBonus));
         let inquisitorElementalSkill = ['fire', 'cold', 'light'].includes(skill.ele) || (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0);
         if (hasKeystone('iq1') && inquisitorElementalSkill) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (inquisitorResonancePower * 0.5) / 100));
         if (hasKeystone('iq2')) {
@@ -3330,6 +3336,7 @@ function getPlayerStats() {
         uniqueLeechEfficiencyOnKill: uniqueLeechEfficiencyOnKill,
         uniqueKillMoveStacks: uniqueKillMoveStacks, uniqueEnemyRegenCutAndMinRoll: uniqueEnemyRegenCutAndMinRoll, uniqueAllResDownOnHit: uniqueAllResDownOnHit, uniqueCursedTakenAndRefresh: uniqueCursedTakenAndRefresh, uniquePhysDrHalfTakenAsMore: uniquePhysDrHalfTakenAsMore, uniqueMeleeArmorAmp: uniqueMeleeArmorAmp, uniqueArmorAppliesToDot: uniqueArmorAppliesToDot, uniqueNoCollisionBlock: uniqueNoCollisionBlock, ignoreEnemyCollision: !!uniqueNoCollisionBlock,
         uniqueResonanceFloor: uniqueResonanceAndSuppCap ? Math.floor(uniqueResonanceAndSuppCap.resonancePower || 0) : 0,
+        inquisitorResonanceBonus: inquisitorResonanceBonus,
         uniqueOverkillSplash: uniqueOverkillSplash,
         uniqueDragonVeinGuard: uniqueDragonVeinGuard,
         uniqueGuardianArmor: uniqueGuardianArmor,
@@ -5096,7 +5103,10 @@ function rollLootForEnemy(enemy) {
                             };
                             let isEquipped = (game.equippedSupports || []).includes(gem);
                             let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-                            let resonanceCap = typeof getEffectiveResonanceCap === 'function' ? getEffectiveResonanceCap() : Math.floor((game.resonancePower || 0) + ((getPlayerStats().runeResonancePower || 0)));
+                            let resonanceStats = typeof getEffectiveResonanceCap === 'function' ? null : getPlayerStats();
+                            let resonanceCap = typeof getEffectiveResonanceCap === 'function'
+                                ? getEffectiveResonanceCap()
+                                : Math.floor((game.resonancePower || 0) + (resonanceStats.runeResonancePower || 0) + (resonanceStats.inquisitorResonanceBonus || 0));
                             let remain = Math.max(0, resonanceCap - used);
                             let extraNeed = Math.max(0, getTierCost(record.unlockedTier) - getTierCost(prevTier));
                             if (!isEquipped || remain >= extraNeed) {

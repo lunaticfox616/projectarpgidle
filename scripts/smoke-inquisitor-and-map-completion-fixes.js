@@ -4,6 +4,7 @@ const vm = require('vm');
 const assert = require('assert');
 
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}(`);
@@ -181,5 +182,37 @@ assert(withDoctrine.directDps > withoutDoctrine.directDps, 'Absolute Doctrine mu
 assert(doctrineDpsLine && doctrineDpsLine.includes('저항 관통 +30%'), 'DPS breakdown must show the applied 30% resistance-penetration contribution');
 assert(doctrineDpsLine.includes('평균 한 방/DPS에 적용'), 'DPS breakdown must explain that Absolute Doctrine is included in average hit and DPS');
 assert(!withoutDoctrine.breakdowns.dps.lines.some(line => line.includes('절대 교리 반영')), 'DPS breakdown must omit Absolute Doctrine when the keystone is inactive');
+
+doctrineContext.game.ascendKeystones = ['iq3'];
+doctrineContext.game.resonancePower = 10;
+doctrineContext.game.sealedSkills = [];
+doctrineContext.game.sealedSupports = [];
+const scriptureExpansionStats = doctrineContext.getPlayerStats();
+assert.strictEqual(scriptureExpansionStats.inquisitorResonanceBonus, 10, 'Scripture Expansion must grant a flat +10 resonance bonus');
+assert.strictEqual(doctrineContext.game.resonancePower, 10, 'reading player stats must not mutate stored resonance power');
+
+const resonanceUiContext = {
+  Math,
+  game: doctrineContext.game,
+  getUiPlayerStats: () => scriptureExpansionStats,
+};
+vm.createContext(resonanceUiContext);
+vm.runInContext(`${extractFunction(uiSource, 'getEffectiveResonanceCap')}; this.getEffectiveResonanceCap = getEffectiveResonanceCap;`, resonanceUiContext);
+assert.strictEqual(resonanceUiContext.getEffectiveResonanceCap(), 20, 'the support-gem UI must display base resonance 10 plus the iq3 bonus 10');
+doctrineContext.game.ascendKeystones = ['iq1'];
+const doctrineExecutionOnly = doctrineContext.getPlayerStats();
+doctrineContext.game.ascendKeystones = ['iq1', 'iq3'];
+const doctrineWithExpansion = doctrineContext.getPlayerStats();
+assert(doctrineWithExpansion.baseDmg > doctrineExecutionOnly.baseDmg, 'iq1 damage scaling must use the +10 resonance granted by iq3');
+
+doctrineContext.game.ascendKeystones = ['iq3'];
+doctrineContext.game.resonancePower = 14;
+doctrineContext.game.sealedSkills = ['a', 'b'];
+doctrineContext.game.sealedSupports = ['c', 'd'];
+const sealedGemStats = doctrineContext.getPlayerStats();
+resonanceUiContext.game = doctrineContext.game;
+resonanceUiContext.getUiPlayerStats = () => sealedGemStats;
+assert.strictEqual(sealedGemStats.inquisitorResonanceBonus, 11, 'Scripture Expansion must add +1 resonance per four sealed gems');
+assert.strictEqual(resonanceUiContext.getEffectiveResonanceCap(), 25, 'effective resonance must include stored seal resonance and the iq3 sealed-gem bonus exactly once');
 
 console.log('inquisitor and map completion regression checks passed');

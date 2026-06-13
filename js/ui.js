@@ -30,7 +30,7 @@ function getDefaultUiPlayerStats() {
         resF: 0, rawResF: 0, resC: 0, rawResC: 0, resL: 0, rawResL: 0, resChaos: 0, rawResChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
         igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0,
         blockChance: 0, blockChanceMax: 50, deflectChance: 0, deflectDamageReduce: 0,
-        suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}
+        suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, inquisitorResonanceBonus: 0, breakdowns: {}
     };
 }
 
@@ -2938,7 +2938,8 @@ function getEffectiveResonanceCap() {
     if (stats) {
         runeBonus = Math.max(0, Math.floor((stats && stats.runeResonancePower) || 0));
         let tempFloor = Math.max(0, Math.floor((stats && stats.uniqueResonanceFloor) || 0));
-        base = Math.max(base, tempFloor);
+        let inquisitorBonus = Math.max(0, Math.floor((stats && stats.inquisitorResonanceBonus) || 0));
+        base = Math.max(base, tempFloor) + inquisitorBonus;
     }
     return base + runeBonus;
 }
