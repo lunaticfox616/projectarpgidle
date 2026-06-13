@@ -276,6 +276,16 @@ function warnBeehiveMapTravelBlocked() {
     return true;
 }
 
+function prepareMeteorEncounterEntry(returnZoneId) {
+    let st = ensureStarWedgeState();
+    st.activeMeteorTier = Math.max(1, Math.floor(st.skyRiftMinTier || 1));
+    st.meteorReturnZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : null;
+    st.skyRiftReady = false;
+    st.skyRiftGauge = Math.max(0, Math.floor(st.skyRiftCarryGauge || 0));
+    st.skyRiftCarryGauge = 0;
+    st.skyRiftMinTier = null;
+}
+
 function changeZone(id) {
     if (game.pendingLoopReady) return addLog('⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.', 'attack-monster');
     if (isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
@@ -285,11 +295,7 @@ function changeZone(id) {
         let st = ensureStarWedgeState();
         if (!st.unlocked) return addLog('운석 낙하 지점은 아직 잠겨 있습니다.', 'attack-monster');
         if (!st.skyRiftReady) return addLog('하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.', 'attack-monster');
-        st.activeMeteorTier = Math.max(1, Math.floor(st.skyRiftMinTier || 1));
-        st.skyRiftReady = false;
-        st.skyRiftGauge = Math.max(0, Math.floor(st.skyRiftCarryGauge || 0));
-        st.skyRiftCarryGauge = 0;
-        st.skyRiftMinTier = null;
+        prepareMeteorEncounterEntry(null);
     }
     let zone = getZone(id);
     if (!zone) return addLog('이동할 수 없는 지역입니다.', 'attack-monster');

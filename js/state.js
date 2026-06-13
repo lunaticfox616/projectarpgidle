@@ -1624,6 +1624,7 @@ const defaultGame = {
         skyRiftMinTier: null,
         skyRiftAllCosmos: false,
         activeMeteorTier: null,
+        meteorReturnZoneId: null,
         lastAnomalyAt: 0,
         skyRiftCarryGauge: 0,
         constellationBuff: null,

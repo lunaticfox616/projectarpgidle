@@ -30,7 +30,7 @@ function getDefaultUiPlayerStats() {
         resF: 0, rawResF: 0, resC: 0, rawResC: 0, resL: 0, rawResL: 0, resChaos: 0, rawResChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
         igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0,
         blockChance: 0, blockChanceMax: 50, deflectChance: 0, deflectDamageReduce: 0,
-        suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}
+        suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, inquisitorResonanceBonus: 0, breakdowns: {}
     };
 }
 
@@ -2938,7 +2938,8 @@ function getEffectiveResonanceCap() {
     if (stats) {
         runeBonus = Math.max(0, Math.floor((stats && stats.runeResonancePower) || 0));
         let tempFloor = Math.max(0, Math.floor((stats && stats.uniqueResonanceFloor) || 0));
-        base = Math.max(base, tempFloor);
+        let inquisitorBonus = Math.max(0, Math.floor((stats && stats.inquisitorResonanceBonus) || 0));
+        base = Math.max(base, tempFloor) + inquisitorBonus;
     }
     return base + runeBonus;
 }
@@ -7861,6 +7862,8 @@ function mergeDefaults(save) {
     merged.starWedge.skyRiftReady = !!merged.starWedge.skyRiftReady;
     merged.starWedge.skyRiftMinTier = Number.isFinite(merged.starWedge.skyRiftMinTier) ? Math.max(1, Math.floor(merged.starWedge.skyRiftMinTier)) : null;
     merged.starWedge.activeMeteorTier = Number.isFinite(merged.starWedge.activeMeteorTier) ? Math.max(1, Math.floor(merged.starWedge.activeMeteorTier)) : null;
+    let meteorReturnZoneId = merged.starWedge.meteorReturnZoneId;
+    merged.starWedge.meteorReturnZoneId = (typeof meteorReturnZoneId === 'number' || typeof meteorReturnZoneId === 'string') && meteorReturnZoneId !== METEOR_FALL_ZONE_ID ? meteorReturnZoneId : null;
     merged.starWedge.lastAnomalyAt = Number.isFinite(merged.starWedge.lastAnomalyAt) ? Math.max(0, Math.floor(merged.starWedge.lastAnomalyAt)) : 0;
     merged.starWedge.skyRiftCarryGauge = clampFiniteNumber(merged.starWedge.skyRiftCarryGauge, 0, 0, 99);
     merged.starWedge.constellationBuff = (merged.starWedge.constellationBuff && typeof merged.starWedge.constellationBuff === 'object') ? merged.starWedge.constellationBuff : null;
