@@ -87,9 +87,13 @@ vm.runInContext(`
 
 assert.strictEqual(vm.runInContext('getItemExplicitOptionCount(game.inventory[0])', context), 4, 'fixture must begin at four of six explicit options');
 vm.runInContext("useCurrency('exalted')", context);
-assert.strictEqual(vm.runInContext('getItemExplicitOptionCount(game.inventory[0])', context), 5, 'exalted orb must add an available fifth option');
-assert.strictEqual(vm.runInContext('game.currencies.exalted', context), 0, 'successful exalted crafting must consume one orb');
-assert.strictEqual(vm.runInContext('game.currencies.sporeFire', context), 10, 'unavailable spore guarantee must not consume spores');
-assert(logs.some(entry => entry.message.includes('일반 엑잘티드 제작')), 'fallback to normal exalted crafting must be observable');
+assert.strictEqual(vm.runInContext('getItemExplicitOptionCount(game.inventory[0])', context), 4, 'unavailable spore guarantee must leave the item unchanged');
+assert.strictEqual(vm.runInContext('game.currencies.exalted', context), 1, 'blocked exalted crafting must not consume the orb');
+assert.strictEqual(vm.runInContext('game.currencies.sporeFire', context), 10, 'blocked exalted crafting must not consume spores');
+assert(logs.some(entry => entry.message.includes('홀씨 모드를 미사용으로 바꾸거나')), 'blocked crafting must explain how to resolve the unavailable spore guarantee');
+
+vm.runInContext("game.sporeCraftModes.exalted = 'none'; useCurrency('exalted')", context);
+assert.strictEqual(vm.runInContext('getItemExplicitOptionCount(game.inventory[0])', context), 5, 'disabling the exhausted spore mode must allow normal exalted crafting');
+assert.strictEqual(vm.runInContext('game.currencies.exalted', context), 0, 'successful normal exalted crafting must consume the orb');
 
 console.log('exalted four-of-six smoke checks passed');
