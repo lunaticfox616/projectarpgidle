@@ -2340,6 +2340,7 @@ let divineBannerTimer = null;
 let jewelFusionSelection = [];
 let pendingRingEquipItemId = null;
 let pendingGloveEquipItemId = null;
+let pendingWeaponEquipItemId = null;
 let deathOverlayActive = false;
 let battleAssets = {
     loading: false,
@@ -3005,6 +3006,25 @@ function selectGloveSlotFromOverlay(slot) {
     let itemId = pendingGloveEquipItemId;
     closeGloveSlotOverlay();
     if (!Number.isInteger(itemId)) return;
+    equipItemById(itemId, slot);
+}
+
+function openWeaponSlotOverlayByItemId(itemId) {
+    pendingWeaponEquipItemId = Number.isFinite(itemId) ? itemId : null;
+    let overlay = document.getElementById('weapon-slot-overlay');
+    if (overlay) overlay.classList.add('active');
+}
+
+function closeWeaponSlotOverlay() {
+    pendingWeaponEquipItemId = null;
+    let overlay = document.getElementById('weapon-slot-overlay');
+    if (overlay) overlay.classList.remove('active');
+}
+
+function selectWeaponSlotFromOverlay(slot) {
+    let itemId = pendingWeaponEquipItemId;
+    closeWeaponSlotOverlay();
+    if (!Number.isInteger(itemId) || !['무기', '방패'].includes(slot)) return;
     equipItemById(itemId, slot);
 }
 

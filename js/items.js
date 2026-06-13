@@ -128,7 +128,8 @@ function pickEquipSlot(item, preferredSlot) {
 }
 
 function isDualSlotItem(slotName) {
-    return slotName === '반지' || slotName === '장갑';
+    if (slotName === '반지' || slotName === '장갑') return true;
+    return slotName === '무기' && game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
 }
 
 function getDualSlotDisplayLabel(targetSlot) {
@@ -136,6 +137,8 @@ function getDualSlotDisplayLabel(targetSlot) {
     if (targetSlot === '반지2') return '오른쪽 반지';
     if (targetSlot === '장갑1') return '왼쪽 장갑';
     if (targetSlot === '장갑2') return '오른쪽 장갑';
+    if (targetSlot === '무기') return '주 무기';
+    if (targetSlot === '방패') return '보조 무기/방패';
     return targetSlot;
 }
 
@@ -152,6 +155,11 @@ function findInventoryIndexById(itemId) {
 function equipItem(idx, preferredSlot) {
     let item = game.inventory[idx];
     if (!item) return;
+    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    if (item.slot === '무기' && warriorDualTrain && !preferredSlot) {
+        openWeaponSlotOverlayByItemId(item.id);
+        return;
+    }
     if (item.slot === '반지' && !preferredSlot && dualSlotBothOccupied('반지')) {
         openRingSlotOverlayByItemId(item.id);
         return;
@@ -162,7 +170,6 @@ function equipItem(idx, preferredSlot) {
     }
     let targetSlot = pickEquipSlot(item, preferredSlot);
     if (!targetSlot) return;
-    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
     if (targetSlot === '방패' && item.slot === '무기' && !warriorDualTrain) {
         addLog('워리어 키스톤 [쌍수 훈련]이 있어야 방패 슬롯에 무기를 장착할 수 있습니다.', 'attack-monster');
         return;
