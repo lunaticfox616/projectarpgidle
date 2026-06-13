@@ -5445,6 +5445,12 @@ function resolveNextLoopBestPlusOneZone(zone) {
     return null;
 }
 
+function enterAutomaticMeteorEncounter() {
+    let st = ensureStarWedgeState();
+    st.meteorReturnZoneId = game.currentZoneId;
+    game.currentZoneId = METEOR_FALL_ZONE_ID;
+}
+
 function unlockConditionGemsAfterRootBossClear() {
     if (game.conditionGemUnlocked || (game.season || 1) < 2) return false;
     game.conditionGemUnlocked = true;
@@ -5463,8 +5469,9 @@ function finishEncounterRun() {
         st.entriesCleared = (st.entriesCleared || 0) + 1;
         st.activeMeteorTier = null;
         clearWoodsmanBuildLock();
-        let nextZone = mapAction === 'nextLoopBestPlusOne' ? resolveNextLoopBestPlusOneZone(zone) : null;
-        game.currentZoneId = nextZone !== null ? nextZone : getAutoProgressZoneId(game.maxZoneId);
+        let returnZoneId = st.meteorReturnZoneId;
+        st.meteorReturnZoneId = null;
+        game.currentZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         startMoving(false);
         updateStaticUI();
@@ -5847,7 +5854,7 @@ function finishEncounterRun() {
         let beehiveRunning = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
         let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
         if (game.settings && game.settings.autoEnterMeteor && !beehiveRunning && !grandRunning && star.unlocked && star.skyRiftReady && zone.type !== 'meteor') {
-            game.currentZoneId = METEOR_FALL_ZONE_ID;
+            enterAutomaticMeteorEncounter();
             addLog('☄️ 자동입장: 하늘 균열 100% 충전으로 운석 낙하 지점에 진입합니다.', 'season-up');
         }
         checkUnlocks();
@@ -6548,7 +6555,9 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         addLog(message || "☠️ 운석 낙하 지점에서 패배했습니다. 운석 지점이 닫힙니다.", "death", { noToast: !!opts.noToast });
         let st = ensureStarWedgeState();
         st.activeMeteorTier = null;
-        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+        let returnZoneId = st.meteorReturnZoneId;
+        st.meteorReturnZoneId = null;
+        game.currentZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         game.enemies = [];
         game.encounterPlan = [];

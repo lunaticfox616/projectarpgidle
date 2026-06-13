@@ -68,22 +68,28 @@ completionContext.getZone = () => completionContext.zone;
 vm.createContext(completionContext);
 vm.runInContext([
   extractFunction(combatSource, 'resolveNextLoopBestPlusOneZone'),
+  extractFunction(combatSource, 'enterAutomaticMeteorEncounter'),
   extractFunction(combatSource, 'finishEncounterRun'),
+  'this.enterAutomaticMeteorEncounter = enterAutomaticMeteorEncounter;',
   'this.finishEncounterRun = finishEncounterRun;',
 ].join('\n'), completionContext);
 
-completionContext.zone = { id: 'meteor_fall_site', type: 'meteor' };
 completionContext.game = {
-  currentZoneId: 'meteor_fall_site',
+  currentZoneId: 'labyrinth',
   maxZoneId: 99,
   killsInZone: 0,
   settings: { mapCompleteAction: 'nextLoopBestPlusOne' },
-  loopProgressCurrent: { bestAbyssDepth: 25, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 },
-  abyssUnlockedDepths: [21, 22, 23, 24, 25, 26],
+  loopProgressCurrent: { bestAbyssDepth: 25, bestLabyrinthFloor: 8, bestChaosRealmFloor: 4 },
   starWedge: { entriesCleared: 0, activeMeteorTier: 3 },
 };
+completionContext.enterAutomaticMeteorEncounter();
+assert.strictEqual(completionContext.game.currentZoneId, 'meteor_fall_site', 'automatic meteor entry must replace the prepared destination temporarily');
+assert.strictEqual(completionContext.game.starWedge.meteorReturnZoneId, 'labyrinth', 'automatic meteor entry must preserve the exact interrupted destination');
+
+completionContext.zone = { id: 'meteor_fall_site', type: 'meteor' };
 completionContext.finishEncounterRun();
-assert.strictEqual(completionContext.game.currentZoneId, 'abyss_26', 'meteor clear must honor next-loop-best-plus-one instead of returning to the highest map zone');
+assert.strictEqual(completionContext.game.currentZoneId, 'labyrinth', 'meteor clear must resume the interrupted labyrinth instead of prioritizing an abyss record');
+assert.strictEqual(completionContext.game.starWedge.meteorReturnZoneId, null, 'meteor return destination must be consumed after the encounter');
 assert.strictEqual(completionContext.game.starWedge.entriesCleared, 1, 'meteor completion rewards and counters must remain intact');
 
 completionContext.zone = { id: 'underworld_core', type: 'underworld', floor: 7 };
