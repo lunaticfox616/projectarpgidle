@@ -3,9 +3,11 @@
 // 전환해 정리 시간을 주고, [루프 진행] 확정 시에만 리셋한다.
 const fs = require('fs');
 const path = require('path');
+const assertNode = require('assert');
 const vm = require('vm');
 
 const repoRoot = path.resolve(__dirname, '..');
+const combatSource = fs.readFileSync(path.join(repoRoot, 'js/combat.js'), 'utf8');
 const exposed = {};
 const context = {
   console,
@@ -37,6 +39,10 @@ vm.runInContext(fs.readFileSync(path.join(repoRoot, 'js/combat.js'), 'utf8'), co
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
+
+assertNode(combatSource.includes('let preservedTalismanUnlocked = !!game.talismanUnlocked || !!(game.unlocks && game.unlocks.talisman);'), 'loop reset must capture permanent talisman tab unlock state');
+assertNode(combatSource.includes('if (preservedTalismanUnlocked) game.unlocks.talisman = true;'), 'loop reset must restore the talisman tab unlock flag');
+assertNode(!combatSource.includes('game.talismanUnlocked = false;'), 'loop reset must not force the talisman tab back to locked');
 
 let resetCalls = 0;
 context.triggerSeasonReset = () => {

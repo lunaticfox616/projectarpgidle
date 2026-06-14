@@ -526,7 +526,31 @@ function buildBlackMarketOffer(index) {
         let maxPrice = Math.max(minPrice + 1, Math.floor(req / 4) + 1);
         price = minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
     }
-    return { type:'unique', name:uniq.name, slot:uniq.slots[0], reqTier:req, priceKey:'divine', price:price, chase: !!uniq.ultraRare };
+    return {
+        type:'unique',
+        name:uniq.name,
+        slot:uniq.slots[0],
+        reqTier:req,
+        priceKey:'divine',
+        price:price,
+        chase: !!uniq.ultraRare,
+        uniqueEffect: uniq.uniqueEffect || '',
+        uniqueStats: Array.isArray(uniq.stats) ? uniq.stats.map(stat => ({ ...stat })) : []
+    };
+}
+
+function getBlackMarketUniqueTooltipOptionLines(offer, uniq) {
+    let effect = (offer && offer.uniqueEffect) || (uniq && uniq.uniqueEffect) || '';
+    let sourceStats = Array.isArray(offer && offer.uniqueStats) ? offer.uniqueStats : (uniq && uniq.stats);
+    let effectLine = effect ? `<div class="tooltip-line" style="color:#d7b8ff;">✨ 고유 효과: ${escapeHTML(effect)}</div>` : '';
+    let statLines = (Array.isArray(sourceStats) ? sourceStats : []).map(stat => {
+        let statId = stat.id;
+        let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || stat.val || 0);
+        let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
+        let label = stat.statName || getStatName(statId);
+        return `<div class="tooltip-line" style="color:#ffd98a;">고유 옵션 · ${escapeHTML(label)} +${formatValue(statId, min)}~+${formatValue(statId, max)}</div>`;
+    });
+    return effectLine + (statLines.join('') || '<div class="tooltip-line">고유 옵션 보유</div>');
 }
 
 function getBlackMarketOfferTooltipHtml(offer) {
@@ -550,14 +574,9 @@ function getBlackMarketOfferTooltipHtml(offer) {
         let codex = (game && game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
         let registered = !!codex[codexKey];
         let codexLine = registered ? '<span style="color:#8dffb1;">등록됨</span>' : '<span style="color:#ffb0b0;">미등록</span>';
-        let effectLine = uniq && uniq.uniqueEffect ? `<div class="tooltip-line" style="color:#d7b8ff;">[고유 효과] ${escapeHTML(uniq.uniqueEffect)}</div>` : '';
-        let statLines = (uniq && Array.isArray(uniq.stats) ? uniq.stats.map(stat => {
-            let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || 0);
-            let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
-            return `<div class="tooltip-line">${getStatName(stat.id)} +${formatValue(stat.id, min)}~+${formatValue(stat.id, max)}</div>`;
-        }) : []);
+        let optionLines = getBlackMarketUniqueTooltipOptionLines(offer, uniq);
         let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">🌠 체이싱 유니크 암거래 품목</div>' : '';
-        return `<div class="tooltip-title">도감 고유 정보 · ${offer.name} (티어 ${offer.reqTier})</div>${chaseLine}${effectLine}${statLines.join('') || '<div class="tooltip-line">고유 옵션 보유</div>'}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
+        return `<div class="tooltip-title">도감 고유 정보 · ${escapeHTML(offer.name)} (티어 ${offer.reqTier})</div>${chaseLine}${optionLines}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
     }
     return '<div class="tooltip-title">암거래 품목</div>';
 }
