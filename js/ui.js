@@ -3567,13 +3567,14 @@ function showGemTooltip(event, type, name) {
         }
     } else {
         let skill = info.skill || SKILL_DB[name];
-        let isSummonAttackTooltip = (info.tags || []).includes('summon_attack');
+        let rawSkillTags = Array.isArray(skill.tags) ? skill.tags : [];
+        let isSummonAttackTooltip = rawSkillTags.includes('summon_attack');
         html += `<div class="tooltip-line">${info.desc}</div>`;
         if (!isSummonAttackTooltip) {
             html += `<div class="tooltip-line" style="margin-top:6px;">피해 배율 ${formatPercentMultiplier(skill.dmg || skill.baseDmg || 1)}</div>`;
             html += `<div class="tooltip-line">공속 배율 ${formatPercentMultiplier(skill.spd || skill.baseSpd || 1)}</div>`;
         }
-        if ((info.tags || []).includes('spell')) {
+        if (rawSkillTags.includes('spell')) {
             let spellLv = Math.max(1, info.finalLevel || 1);
             let spellLog = Math.log2(spellLv);
             let spellFlat = ((skill.spellFlatBase || 0) * 3) + Math.max(0, spellLv - 1) * (skill.spellFlatScale || 0) + ((skill.spellFlatBase || 0) * 0.8 * spellLog * spellLog);
@@ -3628,7 +3629,7 @@ function showGemTooltip(event, type, name) {
         if (skill.pierceOverkillCarry) html += `<div class="tooltip-line" style="color:#8fffe0;">특수 옵션: 각 원본 타겟의 초과 피해가 다른 적에게 연속 관통</div>`;
         if (skill.leech) html += `<div class="tooltip-line">추가 흡혈 +${skill.leech}%</div>`;
         if (skill.instantLeech) html += `<div class="tooltip-line" style="color:#ffb3d1;">특수 옵션: 이 젬을 사용해서 주는 피해에는 흡혈 즉시 적용</div>`;
-        if ((info.tags || []).includes('summon')) {
+        if (rawSkillTags.includes('summon')) {
             const preview = (typeof getSummonTooltipPreview === 'function') ? getSummonTooltipPreview(name, stats) : null;
             if (preview) {
                 html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}${preview.trait ? ` · 특징: ${preview.trait}` : ''}</div>`;

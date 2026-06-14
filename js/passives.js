@@ -1047,16 +1047,16 @@ function generateOrganicTree() {
             applyNodeSpec(node, {
                 stat: stat,
                 val: values[i],
-                title: i === values.length - 1 ? '빗겨내기 숙련' : '빗겨내기 자세',
+                title: i === values.length - 1 ? '비껴내기 숙련' : '비껴내기 자세',
                 desc: finalMajor && i === values.length - 1
-                    ? '빗겨내기 확률을 크게 올리고, 빗겨낸 피해의 감소율을 추가로 강화합니다.'
+                    ? '비껴내기 확률을 크게 올리고, 비껴낸 피해의 감소율을 추가로 강화합니다.'
                     : '공격을 정면으로 받지 않고 흘려 받는 방어 성좌입니다.',
                 kind: i === values.length - 1 ? 'keystone' : 'major',
-                effectLabel: finalMajor && i === values.length - 1 ? `빗겨내기 확률 +${values[i]}%, 빗겨내기 피해 감소 +3%` : `빗겨내기 확률 +${values[i]}%`
+                effectLabel: finalMajor && i === values.length - 1 ? `비껴내기 확률 +${values[i]}%, 비껴내기 피해 감소 +3%` : `비껴내기 확률 +${values[i]}%`
             }, node.kind);
             node.clusterId = clusterKey;
             node.clusterRole = 'deflect';
-            node.clusterRoleLabel = '빗겨내기';
+            node.clusterRoleLabel = '비껴내기';
             node.clusterStep = i + 1;
             node.clusterLength = values.length;
             if (prev) connect(prev.id, node.id);
