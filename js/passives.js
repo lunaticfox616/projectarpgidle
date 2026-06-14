@@ -2912,6 +2912,12 @@ function closeRewardOverlay() {
     lastTime = Date.now();
 }
 
+function getHeroAppearanceId() {
+    let cosmeticId = game && HERO_SELECTION_DEFS[game.appearanceHeroId] ? game.appearanceHeroId : null;
+    if (cosmeticId) return cosmeticId;
+    return game && HERO_SELECTION_DEFS[game.selectedHeroId] ? game.selectedHeroId : 'hero1';
+}
+
 function isLoopHeroSelectOpen() {
     let overlay = document.getElementById('loop-hero-select-overlay');
     return !!overlay && overlay.classList.contains('active');
@@ -3560,7 +3566,7 @@ function initBattleAssets() {
     const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['effectsV2', 'weapons', 'tiles']));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
-    const selectedHeroId = (game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1';
+    const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1');
     const selectedHeroKeys = new Set(Object.values((HERO_SELECTION_DEFS[selectedHeroId] || HERO_SELECTION_DEFS.hero1 || {}).strips || {}));
     const criticalManifestKeys = new Set(['enemies', 'effects', 'summon1', ...selectedHeroKeys]);
     const manifestGroupsBySrc = new Map();
@@ -4871,7 +4877,7 @@ function buildBattleAssetAtlas() {
         let defs = scaleSafeHeroClipDefs(getBattleHero1SafeClipDefs(), image.width / 1448, image.height / 1086);
         return buildSafeHeroFrameSetFromClipDefs(image, defs);
     }
-    let selectedHeroDef = getHeroSelectionDef(game.selectedHeroId);
+    let selectedHeroDef = getHeroSelectionDef(typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId);
 
     function buildEnemyTransparentImage(image) {
         if (!image) return image;
