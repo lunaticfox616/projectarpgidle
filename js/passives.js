@@ -2169,13 +2169,22 @@ function getClassTreeDef(clsKey) {
         tree.n9 = { stat: 'poisonDamageMultiplierPct', val: scaleClassStat('poisonDamageMultiplierPct', getMajorStatBase('poisonDamageMultiplierPct'), 2.2), req: 'n6' };
         tree.n10 = { stat: 'dotPctDmg', val: 100, req: ['n7', 'n8', 'n9'] };
     } else if (clsKey === 'crusader') {
-        tree.n1 = { stat: 'physPctDmg', val: scaleClassStat('physPctDmg', getEntryStatBase('physPctDmg'), 1.5), req: null };
+        tree.n1 = { stats: [
+            { stat: 'physPctDmg', val: scaleClassStat('physPctDmg', getEntryStatBase('physPctDmg'), 1.5) },
+            { stat: 'lightPctDmg', val: scaleClassStat('lightPctDmg', getEntryStatBase('lightPctDmg'), 1.5) }
+        ], req: null };
         tree.n2 = { stat: 'armorPct', val: scaleClassStat('armorPct', getEntryStatBase('armorPct'), 1.5), req: 'n1' };
         tree.n3 = { stat: 'resAll', val: scaleClassStat('resAll', getEntryStatBase('resAll'), 1.5), req: 'n1' };
-        tree.n4 = { stat: 'lightPctDmg', val: scaleClassStat('lightPctDmg', getMajorStatBase('lightPctDmg'), 1.5), req: 'n2' };
+        tree.n4 = { stats: [
+            { stat: 'physPctDmg', val: scaleClassStat('physPctDmg', getMajorStatBase('physPctDmg'), 1.5) },
+            { stat: 'lightPctDmg', val: scaleClassStat('lightPctDmg', getMajorStatBase('lightPctDmg'), 1.5) }
+        ], req: 'n2' };
         tree.n5 = { stat: 'energyShieldPct', val: scaleClassStat('energyShieldPct', getMajorStatBase('energyShieldPct'), 1.5), req: ['n2', 'n3'] };
         tree.n6 = { stat: 'dr', val: scaleClassStat('dr', getMajorStatBase('dr'), 1.5), req: 'n3' };
-        tree.n7 = { stat: 'physPctDmg', val: scaleClassStat('physPctDmg', getMajorStatBase('physPctDmg'), 2.2), req: 'n4' };
+        tree.n7 = { stats: [
+            { stat: 'physPctDmg', val: scaleClassStat('physPctDmg', getMajorStatBase('physPctDmg'), 2.2) },
+            { stat: 'lightPctDmg', val: scaleClassStat('lightPctDmg', getMajorStatBase('lightPctDmg'), 2.2) }
+        ], req: 'n4' };
         tree.n8 = { stat: 'armorPct', val: scaleClassStat('armorPct', getMajorStatBase('armorPct'), 2.2), req: 'n5' };
         tree.n9 = { stat: 'resAll', val: scaleClassStat('resAll', getMajorStatBase('resAll'), 2.2), req: 'n6' };
     }
