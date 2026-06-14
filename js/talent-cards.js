@@ -387,6 +387,11 @@ function talentOnPlayerAttack(pStats, isCrit) {
     }
 }
 
+// 26 숲마당 투사: 플레이어 공격이 반드시 명중(적 회피 무시).
+function getTalentAlwaysHit() {
+    return isTalentCardActive('hero3__gladiator') > 0;
+}
+
 // 재능 처형: 활성 카드 중 "낮은 체력 일반 몬스터 마무리" 임계값(체력 비율). 없으면 0.
 function getTalentExecuteThreshold() {
     let t = 0;
