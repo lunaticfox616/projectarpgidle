@@ -363,6 +363,31 @@ function getTalentKeystoneDamageMul(target, ele, crit, pStats) {
     return mul;
 }
 
+// DPS 표시용: 장착 키스톤 조건부 배율 요약(상시분 곱 + 조건부 목록).
+function getTalentKeystoneDamageSummary() {
+    let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
+    let loadout = Array.isArray(game.talentCardLoadout) ? game.talentCardLoadout : [];
+    let unlocked = getUnlockedTalentSlotCount();
+    let alwaysMul = 1, conditional = [];
+    for (let i = 0; i < Math.min(unlocked, loadout.length); i++) {
+        let key = loadout[i];
+        if (!key || !owned[key]) continue;
+        let { heroId, classKey } = parseTalentComboKey(key);
+        let ks = getTalentCardKeystoneDamage(heroId, classKey, owned[key].level);
+        if (!ks || !(ks.moreMul > 0)) continue;
+        if (ks.when === 'always') alwaysMul *= (1 + ks.moreMul / 100);
+        else conditional.push({ when: ks.when, threshold: ks.threshold, moreMul: ks.moreMul });
+    }
+    return { alwaysMul, conditional };
+}
+
+// 장착 카드들의 이면+표면 스탯 기여 합산 맵 {statId: val} (브레이크다운 표기용).
+function getActiveTalentStatMap() {
+    let map = {};
+    getActiveTalentCardStatBonuses().forEach(b => { map[b.id] = (map[b.id] || 0) + b.val; });
+    return map;
+}
+
 // 표면 키스톤이 부여하는 "고유 효과"(게임의 unique-effect 엔진 키)들을 레벨 반영해 반환.
 // surface.uniq: [{ key, perLevelParams?: { paramName: perLevelValue }, params?: { 고정값 } }]
 function getTalentCardUniqEffects(heroId, classKey, level) {
