@@ -240,6 +240,22 @@
             .stat-grid { grid-template-columns: 1fr; gap: 6px 12px; }
             .stat-item.full { grid-column: auto; }
             .inventory-grid, .map-grid { grid-template-columns: 1fr; }
+            #ui-map-list.map-grid--split { display: block; }
+            #ui-inventory-list,
+            #ui-craft-inventory-list,
+            #ui-fossil-inventory-list,
+            #ui-infuser-inventory-list { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+            #ui-inventory-list .item-card,
+            #ui-craft-inventory-list .item-card,
+            #ui-fossil-inventory-list .item-card,
+            #ui-infuser-inventory-list .item-card { min-width: 0; font-size: 0.86em; }
+            #ui-map-list.map-grid--split .map-zone-group-header { padding: 8px 10px; font-size: 0.9em; }
+            #ui-map-list.map-grid--split .map-zone-grid--hunting { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            #ui-map-list.map-grid--split .map-zone-grid--chaos { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+            #ui-map-list.map-grid--split .map-item { min-width: 0; }
+            #ui-map-list.map-grid--split .map-zone-grid--chaos .map-item { padding: 8px 4px; gap: 4px; font-size: 0.72em; }
+            #ui-map-list.map-grid--split .map-zone-grid--chaos .map-item-main { justify-content: center; text-align: center; flex-direction: column; gap: 2px; }
+            #ui-map-list.map-grid--split .map-zone-grid--chaos .map-item-actions { justify-content: center; }
             .paperdoll { gap: 6px; }
             .slot-box { min-height: 58px; }
             .battlefield-wrap { height: 182px; }
@@ -250,11 +266,13 @@
             .bulk-salvage-bar > div:last-child { width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; }
             .settings-stack { max-width: none; }
             .responsive-split-grid,
-            #ui-skills-list,
-            #ui-support-list,
             #ui-class-grid,
             #ui-jewel-slots,
             #ui-jewel-inventory { grid-template-columns: 1fr !important; }
+            #ui-skills-list,
+            #ui-support-list { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+            #ui-skills-list .skill-gem,
+            #ui-support-list .skill-gem { min-width: 0; font-size: 0.86em; }
             .tab-btn { min-width: 96px; font-size: 0.86em; }
             .subtab-row { overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; -ms-overflow-style: none; }
             .subtab-row::-webkit-scrollbar { display: none; height: 0; }

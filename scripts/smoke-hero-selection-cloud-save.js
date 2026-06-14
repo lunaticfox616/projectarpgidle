@@ -3,16 +3,17 @@ const fs = require('fs');
 const vm = require('vm');
 
 const source = fs.readFileSync('js/ui.js', 'utf8');
-function extractFunctionBlock(name) {
-  const start = source.indexOf(`function ${name}`);
+const passivesSource = fs.readFileSync('js/passives.js', 'utf8');
+function extractFunctionBlock(name, fromSource = source) {
+  const start = fromSource.indexOf(`function ${name}`);
   assert(start >= 0, `${name} must exist`);
-  const bodyStart = source.indexOf('{', source.indexOf(')', start));
+  const bodyStart = fromSource.indexOf('{', fromSource.indexOf(')', start));
   assert(bodyStart >= 0, `${name} body must start`);
   let depth = 0;
   let stringQuote = null;
   let escaped = false;
-  for (let i = bodyStart; i < source.length; i++) {
-    const ch = source[i];
+  for (let i = bodyStart; i < fromSource.length; i++) {
+    const ch = fromSource[i];
     if (stringQuote) {
       if (escaped) {
         escaped = false;
@@ -29,7 +30,7 @@ function extractFunctionBlock(name) {
       depth++;
     } else if (ch === '}') {
       depth--;
-      if (depth === 0) return source.slice(start, i + 1);
+      if (depth === 0) return fromSource.slice(start, i + 1);
     }
   }
   throw new Error(`${name} body not found`);
@@ -46,6 +47,7 @@ const sandbox = {
   HERO_SELECTION_ORDER: ['hero1', 'hero2'],
   game: {
     selectedHeroId: 'hero1',
+    appearanceHeroId: null,
     discoveredHeroIds: ['hero1'],
     heroSelectionInitialized: true,
     heroFreeSwitchUnlocked: true
@@ -64,19 +66,28 @@ const sandbox = {
 sandbox.window = sandbox;
 vm.createContext(sandbox);
 vm.runInContext([
+  extractFunctionBlock('getHeroAppearanceId', passivesSource),
   extractFunctionBlock('getHeroSelectionDef'),
   extractFunctionBlock('syncHeroSelectionState'),
   extractFunctionBlock('persistHeroSelectionChange'),
   extractFunctionBlock('applyHeroSelection')
 ].join('\n'), sandbox);
 
-assert.strictEqual(sandbox.applyHeroSelection('hero2'), true, 'hero selection should succeed');
-assert.strictEqual(sandbox.game.selectedHeroId, 'hero2', 'selected hero must change');
-assert.strictEqual(JSON.stringify(sandbox.saves), JSON.stringify([{ skipCloudSync: true }]), 'hero change must first persist local save without scheduling duplicate cloud sync');
-assert.strictEqual(JSON.stringify(sandbox.cloudReasons), JSON.stringify(['캐릭터 재능 변경']), 'hero change must request immediate cloud upload');
+assert.strictEqual(sandbox.applyHeroSelection('hero2', { cosmeticOnly: true }), true, 'settings hero selection should succeed as a cosmetic change');
+assert.strictEqual(sandbox.game.selectedHeroId, 'hero1', 'settings hero selection must not change the actual talent hero');
+assert.strictEqual(sandbox.game.appearanceHeroId, 'hero2', 'settings hero selection must change only the appearance hero');
+assert.strictEqual(JSON.stringify(sandbox.saves), JSON.stringify([{ skipCloudSync: true }]), 'cosmetic hero change must first persist local save without scheduling duplicate cloud sync');
+assert.strictEqual(JSON.stringify(sandbox.cloudReasons), JSON.stringify(['캐릭터 외형 변경']), 'cosmetic hero change must request immediate cloud upload with an appearance reason');
 
-sandbox.saves = [];
-sandbox.cloudReasons = [];
+saves.length = 0;
+cloudReasons.length = 0;
+assert.strictEqual(sandbox.applyHeroSelection('hero2'), true, 'loop hero selection should still support actual talent changes');
+assert.strictEqual(sandbox.game.selectedHeroId, 'hero2', 'loop hero selection must change the actual talent hero');
+assert.strictEqual(sandbox.game.appearanceHeroId, 'hero2', 'actual hero changes must not clear an existing cosmetic appearance');
+assert.strictEqual(JSON.stringify(sandbox.cloudReasons), JSON.stringify(['캐릭터 재능 변경']), 'actual hero change must keep the talent-change upload reason');
+
+saves.length = 0;
+cloudReasons.length = 0;
 sandbox.applyHeroSelection('hero1', { skipSave: true, silent: true });
 assert.strictEqual(JSON.stringify(sandbox.saves), JSON.stringify([]), 'skipSave hero selections are persisted by their callback boundary');
 assert.strictEqual(JSON.stringify(sandbox.cloudReasons), JSON.stringify([]), 'skipSave must not upload before callback finalizes related state');
