@@ -299,24 +299,6 @@ pushRealmUniqueSet('chaos', CHAOS_REALM_ENTRIES, 12);
 pushRealmUniqueSet('underworld', UNDERWORLD_REALM_ENTRIES, 16);
 pushRealmUniqueSet('cosmos', COSMOS_REALM_ENTRIES, 18);
 
-const UNIQUE_STAT_MULTIPLIER = 1.5;
-
-UNIQUE_DB.forEach(unique => {
-    if (!unique || !Array.isArray(unique.stats)) return;
-    unique.stats.forEach(stat => {
-        if (!Number.isFinite(stat.min) || !Number.isFinite(stat.max)) return;
-        if (['projectileExtraShots', 'gemLevel', 'suppCap', 'targetCount'].includes(stat.id)) {
-            stat.min = Math.floor(stat.min);
-            stat.max = Math.floor(stat.max);
-            if (stat.max < stat.min) stat.max = stat.min;
-            return;
-        }
-        stat.min = Number((stat.min * UNIQUE_STAT_MULTIPLIER).toFixed(1));
-        stat.max = Number((stat.max * UNIQUE_STAT_MULTIPLIER).toFixed(1));
-        if (stat.max < stat.min) stat.max = stat.min;
-    });
-});
-
 const ORB_DB = {
     transmute: { name: '진화의 오브', desc: '노멀 아이템을 매직으로 바꿉니다.' },
     augment: { name: '확장의 오브', desc: '매직 아이템의 빈 옵션 칸을 하나 채웁니다.' },
@@ -373,7 +355,7 @@ const ORB_DB = {
     sporeFire: { name: '화염 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
     sporeCold: { name: '냉기 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
     sporeLight: { name: '번개 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
-    voidChisel: { name: '공허의 끌', desc: '반지/목걸이에 주얼 소켓을 뚫고 제거할 때 쓰입니다.' },
+    voidChisel: { name: '공허의 끌', desc: '반지/목걸이에 주얼 소켓을 뚫거나 공허 주얼 제작/융합에 쓰입니다.' },
     sealShard: { name: '봉인편린', desc: '루프6 부적 시스템 핵심 재료입니다. 봉인을 해제해 부적 후보를 확인합니다.' },
     strongSealShard: { name: '강력한 기운의 봉인편린', desc: '희귀한 고급 봉인편린입니다. 더 강한 부적 옵션을 노릴 수 있습니다.' },
     radiantSealShard: { name: '찬란한 봉인편린', desc: '극도로 희귀한 최상급 봉인편린입니다. 고유 부적 등장 확률이 높습니다.' },

@@ -5616,11 +5616,13 @@ function ensureNextEndlessChaosDepthUnlocked(depth) {
 function resolveNextLoopBestPlusOneZone(zone) {
     game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
     let resolveAnyClimb = zone && zone.type === 'meteor';
-    if (zone && (zone.type === 'abyss' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
-        let nextDepth = Math.max(21, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 21) + 1);
+    let currentAbyssDepth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
+    let currentLoopAbyssDepth = Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), currentAbyssDepth);
+    if (zone && (zone.type === 'abyss' || resolveAnyClimb) && currentLoopAbyssDepth >= 20) {
+        let nextDepth = Math.max(21, currentLoopAbyssDepth + 1);
         let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)) : [];
-        if (unlocked.length > 0 && !unlocked.includes(nextDepth)) nextDepth = Math.max(...unlocked.filter(v => v >= 21));
-        if (nextDepth >= 21) return getAbyssZoneIdForDepth(nextDepth);
+        if (unlocked.length > 0 && !unlocked.includes(nextDepth)) return null;
+        return getAbyssZoneIdForDepth(nextDepth);
     }
     if (zone && (zone.type === 'labyrinth' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
         game.labyrinthFloor = Math.max(1, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 1) + 1);
@@ -5971,10 +5973,10 @@ function finishEncounterRun() {
                 let hadCurrentSeasonLoopRequirementBeforeClear = seasonAbyssCap <= 20
                     ? (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!game.loopProgressCurrent.chaos20Cleared)
                     : bestAbyssDepthBeforeClear >= seasonAbyssCap;
-                if (depth >= 21) game.loopProgressCurrent.bestAbyssDepth = Math.max(bestAbyssDepthBeforeClear, depth);
+                if (depth >= 20) game.loopProgressCurrent.bestAbyssDepth = Math.max(bestAbyssDepthBeforeClear, depth);
                 game.loopProgressCurrent.chaos20Cleared = true;
                 if (typeof maybeUnlockSkyTowerFromChaos20 === 'function') maybeUnlockSkyTowerFromChaos20();
-                if (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear) {
+                if (mapAction === 'nextLoopBestPlusOne' || (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear)) {
                     enterNextEndlessChaosDepth();
                     return;
                 }
@@ -6018,7 +6020,7 @@ function finishEncounterRun() {
         game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
         if (zone.type === 'abyss') {
             let d = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
-            if (d >= 21) game.loopProgressCurrent.bestAbyssDepth = Math.max(Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), d);
+            if (d >= 20) game.loopProgressCurrent.bestAbyssDepth = Math.max(Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), d);
         }
         if (zone.type === 'labyrinth') game.loopProgressCurrent.bestLabyrinthFloor = Math.max(Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0), Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1)));
         if (zone.type === 'chaosRealm') game.loopProgressCurrent.bestChaosRealmFloor = Math.max(Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0), Math.max(1, Math.floor(zone.floor || (ensureChaosRealmState().currentFloor || 1))));
@@ -7568,6 +7570,7 @@ function triggerSeasonReset() {
     let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
     let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
     let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
+    let preservedTalismanUnlocked = !!game.talismanUnlocked || !!(game.unlocks && game.unlocks.talisman);
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -7625,7 +7628,7 @@ function triggerSeasonReset() {
     game.jewelInventory = [];
     game.jewelSlots = [null, null];
     game.jewelSlotAmplify = [0, 0];
-    game.talismanUnlocked = false;
+    game.talismanUnlocked = preservedTalismanUnlocked;
     game.talismanBoardUnlock = Math.max(3, Math.floor(defaultGame.talismanBoardUnlock || 3));
     game.talismanUnlockedCells = [];
     game.talismanInventory = [];
@@ -7647,6 +7650,7 @@ function triggerSeasonReset() {
     game.starWedge.wedges = preservedEternalWedges;
     game.starWedge.constellationBuff = preservedConstellationBuff;
     game.unlocks = { ...defaultGame.unlocks };
+    if (preservedTalismanUnlocked) game.unlocks.talisman = true;
     game.noti = { ...defaultGame.noti };
     if (typeof relockCoreCubeForLoop === 'function') relockCoreCubeForLoop();
     game.itemSubtab = 'item-tab-equip';
@@ -7658,7 +7662,7 @@ function triggerSeasonReset() {
     game.skyTower.clearedThisLoop = 0;
     game.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
     game.inTicketBossFight = false;
-    game.talismanUnlocked = false;
+    game.talismanUnlocked = preservedTalismanUnlocked;
     game.talismanBoardUnlock = 3;
     game.talismanInventory = [];
     game.talismanBoard = [];

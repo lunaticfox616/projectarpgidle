@@ -49,7 +49,8 @@ assert(itemsSource.includes('const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;'),
 assert(itemsSource.includes("return !!(unique.dropOnly && unique.dropOnly.type === 'cosmos');"), 'cosmos-only uniques must be black market eligible');
 assert(itemsSource.includes('price = rollBlackMarketChaseUniquePrice(req);'), 'chase unique market prices must use the divine-price roller');
 assert(itemsSource.includes('offer.chase ? \'체이싱\' : \'고유\''), 'chase uniques must render with a distinct black-market badge');
-assert(itemsSource.includes('[고유 효과] ${escapeHTML(uniq.uniqueEffect)}'), 'black market unique tooltip must include codex-style unique effect text');
+assert(itemsSource.includes('✨ 고유 효과: ${escapeHTML(effect)}'), 'black market unique tooltip must include unique effect text');
+assert(itemsSource.includes('고유 옵션 · ${escapeHTML(label)}'), 'black market unique tooltip must label unique stat options');
 
 const marketSandbox = {
   Math: Object.create(Math),

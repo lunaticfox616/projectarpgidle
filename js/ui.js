@@ -6,6 +6,7 @@ let passiveTreeSearch = '';
 let passiveTreeFilter = 'all';
 let cachedTooltipStats = null;
 let gemTooltipCache = null;
+let mapZoneGroupCollapseState = { hunting: false, chaos: false };
 
 let mobilePipCanvas = null;
 var lod = 1; // fallback for any legacy FX paths
@@ -22,6 +23,32 @@ let enemyHpDamageGhostStates = new Map();
 const PLAYER_HP_DAMAGE_GHOST_HOLD_MS = 260;
 const PLAYER_HP_DAMAGE_GHOST_DECAY_PCT_PER_SEC = 34;
 const ENEMY_HP_DAMAGE_GHOST_SNAP_MS = 680;
+
+function isMapZoneGroupCollapsed(groupKey) {
+    return !!(mapZoneGroupCollapseState && mapZoneGroupCollapseState[groupKey]);
+}
+
+function toggleMapZoneGroup(groupKey) {
+    if (!Object.prototype.hasOwnProperty.call(mapZoneGroupCollapseState, groupKey)) return;
+    mapZoneGroupCollapseState[groupKey] = !mapZoneGroupCollapseState[groupKey];
+    lastRenderedMapListHtml = '';
+    updateStaticUI();
+}
+
+function buildMapZoneGroupHtml(groupKey, title, cards) {
+    if (!cards.length) return '';
+    let collapsed = isMapZoneGroupCollapsed(groupKey);
+    let icon = collapsed ? '▶' : '▼';
+    let countText = `${cards.length}개`;
+    let gridHtml = collapsed ? '' : `<div class="map-zone-grid map-zone-grid--${groupKey}">${cards.map(card => card.html).join('')}</div>`;
+    return `<section class="map-zone-group ${collapsed ? 'collapsed' : ''}" data-map-zone-group="${groupKey}">
+        <button type="button" class="map-zone-group-header" onclick="toggleMapZoneGroup('${groupKey}')" aria-expanded="${collapsed ? 'false' : 'true'}">
+            <span class="map-zone-group-title"><span class="map-zone-group-icon">${icon}</span>${title}</span>
+            <span class="map-zone-group-count">${countText}</span>
+        </button>
+        ${gridHtml}
+    </section>`;
+}
 
 function getDefaultUiPlayerStats() {
     return {
@@ -341,7 +368,8 @@ function isPauseSettingOverlayOpen() {
         '#beehive-choice-overlay',
         '#spore-mode-overlay',
         '#mobile-craft-currency-overlay',
-        '#craft-item-picker-overlay'
+        '#craft-item-picker-overlay',
+        '#void-jewel-overlay'
     ];
     return modalSelectors.some(selector => isOverlayElementOpen(selector));
 }
@@ -363,7 +391,6 @@ function clickActiveShrine(){
     game.shrineBuff = { name: active.name, stat: stat, value: value, expiresAt: Date.now() + 45000 };
     game.shrineState.active = null;
     addLog(`🛕 ${active.name} 축복 활성화!`, 'loot-rare');
-    applyTabHeaderOrder();
     updateStaticUI();
 }
 
@@ -381,6 +408,9 @@ const TAB_DRAG_LONG_PRESS_MS = 180;
 const TAB_DRAG_CANCEL_PX = 8;
 let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
+let lastTabHeaderUiSignature = '';
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop'];
+const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'];
 
 function getTabButtonFromTarget(target) {
     return target && target.closest ? target.closest('.tab-header .tab-btn') : null;
@@ -453,6 +483,12 @@ function commitTabHeaderDragOrder() {
     game.settings.tabOrder = getTabHeaderOrderSnapshot(headers);
 }
 
+function activateTabButtonFromDrag(button) {
+    if (!button || !button.id || typeof switchTab !== 'function') return;
+    if (!button.id.startsWith('btn-tab-')) return;
+    switchTab(button.id.replace(/^btn-/, ''));
+}
+
 function clearTabHeaderDragState(saveOrder) {
     let state = tabHeaderDragState;
     tabHeaderDragState = null;
@@ -466,6 +502,7 @@ function clearTabHeaderDragState(saveOrder) {
         tabHeaderSuppressClickUntil = Date.now() + 450;
         applyTabHeaderOrder(true);
         queueImportantSave(300);
+        activateTabButtonFromDrag(state.button);
     }
 }
 
@@ -571,6 +608,49 @@ function moveTabButton(tabId, dir){
     let ni=Math.max(0, Math.min(order.length-1, idx+dir)); if(ni===idx) return;
     let t=order[idx]; order[idx]=order[ni]; order[ni]=t; game.settings.tabOrder=order;
     applyTabHeaderOrder(true);
+}
+
+function getTabHeaderUiSignature() {
+    let unlocks = game.unlocks || {};
+    let noti = game.noti || {};
+    let filters = (game.settings && game.settings.notiFilters) || {};
+    let mobileBattle = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'mobileBattle' : 'desktopBattle';
+    return [
+        mobileBattle,
+        TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}:${noti[key] && filters[key] !== false ? 1 : 0}`).join('|'),
+        Array.isArray(game.settings && game.settings.tabOrder) ? game.settings.tabOrder.join(',') : '',
+        JSON.stringify((game.settings && game.settings.tabPlacement) || {})
+    ].join('::');
+}
+
+function updateTabNotificationDots() {
+    TAB_HEADER_NOTI_KEYS.forEach(key => {
+        let el = document.getElementById('noti-' + key);
+        if (el) el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none';
+    });
+}
+
+function updateTabUnlockButtons() {
+    TAB_UNLOCK_BUTTON_KEYS.forEach(key => {
+        document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none';
+    });
+    let jewelTabBtn = document.getElementById('btn-tab-jewel');
+    if (jewelTabBtn) jewelTabBtn.style.display = game.unlocks.jewel ? 'flex' : 'none';
+    let cubeTabBtn = document.getElementById('btn-tab-cube');
+    let cubeOpen = (game.unlocks && game.unlocks.cube) || (typeof isCoreCubeUnlocked === 'function' && isCoreCubeUnlocked());
+    if (cubeTabBtn) cubeTabBtn.style.display = cubeOpen ? 'flex' : 'none';
+    let battleBtn = document.getElementById('btn-tab-battle');
+    if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'flex' : 'none';
+}
+
+function refreshTabHeaderUiIfNeeded() {
+    let signature = getTabHeaderUiSignature();
+    if (signature === lastTabHeaderUiSignature) return false;
+    lastTabHeaderUiSignature = signature;
+    applyTabHeaderOrder();
+    updateTabNotificationDots();
+    updateTabUnlockButtons();
+    return true;
 }
 
 function isNotiEnabled(key){ game.settings=game.settings||{}; game.settings.notiFilters=game.settings.notiFilters||{}; return game.settings.notiFilters[key] !== false; }
@@ -5389,7 +5469,7 @@ function performUpdateStaticUI() {
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });
     tickShrineState();
-    applyTabHeaderOrder();
+    refreshTabHeaderUiIfNeeded();
     calculateReachableNodes();
     refreshPassiveVisibility();
     normalizeSupportLoadout(true);
@@ -5502,7 +5582,7 @@ function performUpdateStaticUI() {
         <div style="margin-top:8px; font-size:0.8em; color:#8fb6d9;">슬롯 증폭: 슬롯 효과 소폭 상승 (최대 20강, 실패 가능)</div>
         <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="tryAmplifyJewelSlot(0)">슬롯1 증폭 (${game.jewelSlotAmplify[0] || 0}/20 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[0] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[0] || 0) * 100)}%)</button><button onclick="tryAmplifyJewelSlot(1)">슬롯2 증폭 (${game.jewelSlotAmplify[1] || 0}/20 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[1] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[1] || 0) * 100)}%)</button></div>
         <div style="margin-top:8px; color:#b4c9e2; font-size:0.8em;">공허 주얼: 최대 4줄까지 지원</div>
-        <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="craftVoidJewel()" ${(game.currencies.voidChisel || 0) <= 0 || (typeof getVoidJewelCraftMaterialIndices === 'function' ? getVoidJewelCraftMaterialIndices().length < 2 : (game.jewelInventory||[]).filter(j => j && !j.locked && !j.waxedByBeeswax).length < 2) ? 'disabled' : ''}>공허 주얼 제작 (끌 1 + 주얼2)</button><button onclick="fuseSelectedVoidJewels()">선택 공허융합</button></div>`;
+        <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="openVoidJewelCraftOverlay()" ${(game.currencies.voidChisel || 0) <= 0 || (typeof getVoidJewelCraftMaterialIndices === 'function' ? getVoidJewelCraftMaterialIndices().length < 2 : (game.jewelInventory||[]).filter(j => j && !j.locked && !j.waxedByBeeswax).length < 2) ? 'disabled' : ''}>공허 주얼 제작 (끌 1 + 주얼2)</button><button onclick="openVoidJewelFusionOverlay()">선택 공허융합</button></div>`;
         document.getElementById('ui-jewel-slots').innerHTML = [0, 1].map(slotIdx => {
             let jewel = game.jewelSlots[slotIdx];
             let ampLv = (game.jewelSlotAmplify && game.jewelSlotAmplify[slotIdx]) || 0;
@@ -6325,8 +6405,9 @@ function buildCraftActionButtons(item) {
     let seasonMapCap = typeof getVisibleHuntingMapCapZoneId === 'function' ? getVisibleHuntingMapCapZoneId() : Math.min(getCurrentSeasonFinalZoneId(), getAbyssZoneIdForDepth(20));
     let highestMapZone = Math.min(Math.max(0, Math.floor(game.maxZoneId || 0)), seasonMapCap);
     let mapZones = Array.from({ length: highestMapZone + 1 }, (_, idx) => getZone(idx)).filter(Boolean);
-    let mapListHtml = mapZones.map(zone => {
+    let mapCards = mapZones.map(zone => {
         let idx = Number(zone.id);
+        let isChaosMap = zone.type === 'abyss';
         let current = idx === game.currentZoneId ? 'current' : '';
         let unlockReveal = idx === pendingMapRevealZoneId ? 'map-unlock-reveal' : '';
         let icon = zone.ele === 'fire' ? '🔥' : (zone.ele === 'cold' ? '❄️' : (zone.ele === 'light' ? '⚡' : (zone.ele === 'chaos' ? '☠️' : '🩸')));
@@ -6348,15 +6429,24 @@ function buildCraftActionButtons(item) {
         if (isActRewardZone && rewardReady) actionHtml = `<button class="map-reward-btn" onclick="event.stopPropagation(); openActReward(${idx})">보상 받기</button>`;
         else if (isActRewardZone && rewardClaimed) actionHtml = `<button class="map-reward-btn claimed" disabled>보상 완료</button>`;
         else if (cleared) actionHtml = `<span class="map-zone-status">정복 완료</span>`;
-        return `
-            <div class="map-item ${current} ${unlockReveal}" onclick="changeZone(${idx})">
+        return {
+            isChaosMap,
+            html: `
+            <div class="map-item ${isChaosMap ? 'map-item--chaos' : ''} ${current} ${unlockReveal}" onclick="changeZone(${idx})">
                 <div class="map-item-main"><span>${icon}</span><span>${mapZoneText}</span></div>
                 <div class="map-item-actions">${actionHtml}</div>
             </div>
-        `;
-    }).join('');
+        `
+        };
+    });
+    let huntingMapCards = mapCards.filter(card => !card.isChaosMap);
+    let chaosMapCards = mapCards.filter(card => card.isChaosMap);
+    let mapListHtml = buildMapZoneGroupHtml('hunting', '일반 사냥터', huntingMapCards) +
+        buildMapZoneGroupHtml('chaos', '혼돈', chaosMapCards);
     if (lastRenderedMapListHtml !== mapListHtml) {
-        document.getElementById('ui-map-list').innerHTML = mapListHtml;
+        let mapListEl = document.getElementById('ui-map-list');
+        mapListEl.classList.add('map-grid--split');
+        mapListEl.innerHTML = mapListHtml;
         lastRenderedMapListHtml = mapListHtml;
     }
 
@@ -6390,16 +6480,10 @@ function buildCraftActionButtons(item) {
         </div><div class="map-item-actions"><span class="map-zone-status">해금 최고층: ${maxFloor}층 · 클릭하여 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-labyrinth-list').innerHTML = '';
 
-    let deepChaosOpen = (game.season || 1) >= 10 && (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared));
-    document.getElementById('ui-deep-chaos-header').style.display = deepChaosOpen ? 'block' : 'none';
-    if (deepChaosOpen) {
-        let unlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21).sort((a, b) => a - b) : [];
-        let highestDepth = Math.max(21, unlockedDepths.length > 0 ? unlockedDepths[unlockedDepths.length - 1] : Math.floor(game.abyssEndlessDepth || 21));
-        document.getElementById('ui-deep-chaos-list').innerHTML = `<div class="map-item ${getAbyssDepthFromZoneId(game.currentZoneId) >= 21 ? 'current' : ''}" onclick="enterDeepChaosPrompt()">
-            <div class="map-item-main"><span>♾️</span><span>혼돈 심화층<br><span class="map-zone-status">현재 심화층: ${Math.floor(game.abyssEndlessDepth || 21)}층 · 최고 기록: ${highestDepth}층</span></span></div>
-            <div class="map-item-actions"><span class="map-zone-status">입장 가능: 21 ~ ${highestDepth}</span></div>
-        </div><div class="map-item-actions"><span class="map-zone-status">클릭하여 심화 층수 선택 입장</span></div></div>`;
-    } else document.getElementById('ui-deep-chaos-list').innerHTML = '';
+    // 사냥터 선택은 현재 시즌의 혼돈 20까지만 보여준다.
+    // 혼돈 심화층 입장은 루프/시즌 패널의 전용 버튼에서만 처리한다.
+    document.getElementById('ui-deep-chaos-header').style.display = 'none';
+    document.getElementById('ui-deep-chaos-list').innerHTML = '';
 
     let meteorUnlocked = !!(game.starWedge && game.starWedge.unlocked);
     let meteorReady = !!(game.starWedge && game.starWedge.skyRiftReady);
@@ -7307,8 +7391,7 @@ function setupCanvasEvents() {
             revealAroundNode(hoverNode.id, { forcePulse: true });
             unlockPassiveStarEvolution();
             tickShrineState();
-    applyTabHeaderOrder();
-    calculateReachableNodes();
+            calculateReachableNodes();
             addLog(`🌟 ${getPassiveNodeDisplayName(hoverNode)} 활성화!`, "loot-magic");
             updateStaticUI();
         }
@@ -9115,7 +9198,7 @@ function applyExternalSave(snapshot, sourceStamp) {
     recoverRuntimeState();
     refreshPassiveVisibility();
     tickShrineState();
-    applyTabHeaderOrder();
+    refreshTabHeaderUiIfNeeded();
     calculateReachableNodes();
     normalizeSupportLoadout(false);
     try {
@@ -9889,8 +9972,8 @@ function runStartupSmokeChecks() {
     } finally {
         game = snapshot;
         tickShrineState();
-    applyTabHeaderOrder();
-    calculateReachableNodes();
+        refreshTabHeaderUiIfNeeded();
+        calculateReachableNodes();
         refreshPassiveVisibility();
         normalizeSupportLoadout(false);
     }
@@ -9956,7 +10039,7 @@ function init() {
     scheduleDeferredBattleAssetLoad();
     refreshPassiveVisibility();
     tickShrineState();
-    applyTabHeaderOrder();
+    refreshTabHeaderUiIfNeeded();
     calculateReachableNodes();
     document.getElementById('chk-combat-scene').checked = game.settings.showCombatScene !== false;
     document.getElementById('chk-log-combat').checked = game.settings.showCombatLog !== false;
@@ -9965,7 +10048,6 @@ function init() {
     document.getElementById('chk-log-spawn').checked = game.settings.showSpawnLog !== false;
     document.getElementById('chk-log-exp').checked = game.settings.showExpLog !== false;
 
-    applyTabHeaderOrder();
 
     document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
     document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;

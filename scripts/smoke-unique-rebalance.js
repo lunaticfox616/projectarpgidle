@@ -13,13 +13,13 @@ vm.runInContext(itemSource, context);
 const uniqueDb = context.window.UNIQUE_DB;
 const firstContract = uniqueDb.find(unique => unique.name === '첫 계약');
 const firstContractFlat = firstContract.stats.find(stat => stat.id === 'summonFlatDmg');
-assert.strictEqual(firstContractFlat.min, 6, 'unique minimum stats must use the 1.5x multiplier');
-assert.strictEqual(firstContractFlat.max, 12, 'unique maximum stats must use the 1.5x multiplier');
+assert.strictEqual(firstContractFlat.min, 4, 'unique minimum stats must use the authored value without a runtime multiplier');
+assert.strictEqual(firstContractFlat.max, 8, 'unique maximum stats must use the authored value without a runtime multiplier');
 assert(!uniqueDb.some(unique => unique.stats.length === 3 || unique.stats.length === 4), 'all formerly 3-4 line uniques must have directly defined fifth/sixth options');
 assert(!itemSource.includes('buildUniqueExtraStat'), 'runtime unique extra-option generation must be removed');
 assert(!itemSource.includes('generatedExtra'), 'generated extra-option markers must be removed');
 assert(!itemSource.includes('targetStatCount'), 'random unique option line-count selection must be removed');
-assert(itemSource.includes('const UNIQUE_STAT_MULTIPLIER = 1.5;'), 'the global unique stat multiplier must remain 1.5x');
+assert(!itemSource.includes('UNIQUE_STAT_MULTIPLIER'), 'unique stat multiplier must be removed');
 
 const baseStart = stateSource.indexOf('const BASE_ITEM_DB = [');
 const baseEnd = stateSource.indexOf('\n];', baseStart);

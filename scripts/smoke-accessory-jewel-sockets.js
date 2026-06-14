@@ -14,6 +14,7 @@ assert(passives.includes('if (!isVoidSocketAccessoryItem(item)) return addLog'),
 assert(passives.includes('function removeJewelFromAbyssSocket(socketIdx)'), 'abyss socket jewel removal helper must exist');
 assert(passives.includes('item.abyssSockets[idx].jewel = null;'), 'abyss socket removal must clear the socket');
 assert(passives.includes('safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection'), 'socket and jewel helpers must be explicitly exposed for inline UI handlers');
+assert(passives.includes('openVoidJewelCraftOverlay') && passives.includes('confirmVoidJewelFusion'), 'void jewel overlay craft/fusion handlers must be exposed');
 assert(!passives.includes('game.jewelInventory.splice(invIdx, 1);\n    game.jewelInventory.splice(invIdx, 1);'), 'abyss socket insertion must not remove two inventory jewels');
 assert(passives.includes('function getVoidJewelCraftMaterialIndices()'), 'void jewel crafting should choose valid material jewels');
 assert(passives.includes('!entry.jewel.locked && !entry.jewel.waxedByBeeswax'), 'void jewel crafting must ignore locked/waxed materials for fallback selection');
@@ -24,6 +25,9 @@ assert(ui.includes('key === \'voidChisel\' ? getMobileCraftCurrencyUseState'), '
 assert(ui.includes('function getItemSlotDisplayLabel(item, fallbackLabel)'), 'craft UI must derive display slots from slot or slots[] records');
 assert(ui.includes('[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}'), 'selected craft item header must not call selectedItem.slot.replace directly');
 assert(ui.includes('onclick="insertJewelIntoVoidSocket(${i})"'), 'empty void sockets must render insert buttons');
+assert(ui.includes('onclick="openVoidJewelCraftOverlay()"'), 'void jewel craft button must open the selection overlay');
+assert(ui.includes('onclick="openVoidJewelFusionOverlay()"'), 'void fusion button must open the confirmation overlay');
+assert(ui.includes("'#void-jewel-overlay'"), 'void jewel overlay must pause gameplay when overlay pause is enabled');
 assert(ui.includes('function exposeUiRenderHelpersOnce()'), 'UI render helper globals must be exposed through a one-time render boundary');
 assert(ui.includes('window.__uiRenderHelperGlobalsExposed'), 'UI render helper exposure must be guarded against repeat refreshes');
 assert(!ui.includes('safeExposeGlobals({ switchTab'), 'UI switchTab handler must not be explicitly re-exposed over automatic classic-script globals');
@@ -58,6 +62,39 @@ function loadSocketRuntime() {
     return sandbox;
 }
 
+
+
+function loadVoidJewelRuntime() {
+    const start = passives.indexOf('const JEWEL_OPTION_POOL = [');
+    const end = passives.indexOf('function getJewelAmplifyCost', start);
+    assert(start >= 0 && end > start, 'void jewel runtime block must be discoverable');
+    const overlayHost = { innerHTML: '', remove() { this.removed = true; } };
+    const sandbox = {
+        console,
+        Math,
+        jewelFusionSelection: [],
+        voidJewelOverlayState: { mode: null, selected: [] },
+        game: { woodsmanBuildLock: false, currencies: { voidChisel: 2 }, jewelInventory: [] },
+        logs: [],
+        updates: 0,
+        document: {
+            body: { insertAdjacentHTML() { sandbox.overlayHost = overlayHost; } },
+            getElementById(id) { return id === 'void-jewel-overlay' ? sandbox.overlayHost : null; }
+        },
+        overlayHost,
+        addLog(message, type) { sandbox.logs.push({ message, type }); return message; },
+        updateStaticUI() { sandbox.updates += 1; },
+        escapeHTML(value) { return String(value == null ? '' : value); },
+        getStatName(id) { return id; },
+        formatValue(id, value) { return String(value); },
+        rndChoice(list) { return list[0]; }
+    };
+    vm.runInNewContext(`${passives.slice(start, end)}
+this.openVoidJewelOverlay = openVoidJewelOverlay;
+this.confirmVoidJewelCraft = confirmVoidJewelCraft;
+this.fuseVoidJewel = fuseVoidJewel;`, sandbox);
+    return sandbox;
+}
 
 function loadUiCraftSummaryRuntime() {
     const slotStart = ui.indexOf('function getItemSlotDisplayLabel(item, fallbackLabel)');
@@ -122,6 +159,36 @@ this.showItemTooltip = showItemTooltip;`, sandbox);
     sandbox.tooltipHost = tooltipHost;
     return sandbox;
 }
+
+
+const voidRuntime = loadVoidJewelRuntime();
+voidRuntime.game.jewelInventory = [
+    { name: '재료 A', stats: [{ id: 'pctDmg', val: 5 }, { id: 'flatHp', val: 30 }] },
+    { name: '재료 B', stats: [{ id: 'crit', val: 2 }, { id: 'resAll', val: 6 }] }
+];
+voidRuntime.openVoidJewelOverlay('craft', [0, 1]);
+assert(voidRuntime.overlayHost.innerHTML.includes('보유 공허의 끌'), 'void jewel craft overlay must show owned chisels');
+assert(voidRuntime.overlayHost.innerHTML.includes('예상 결과'), 'void jewel craft overlay must show expected stats');
+assert(voidRuntime.overlayHost.innerHTML.includes('pctDmg +5'), 'void jewel craft overlay must preview inherited stats');
+voidRuntime.confirmVoidJewelCraft();
+assert.strictEqual(voidRuntime.game.currencies.voidChisel, 1, 'void jewel crafting must consume one chisel after confirmation');
+assert.strictEqual(voidRuntime.game.jewelInventory.length, 1, 'void jewel crafting must consume two selected material jewels and add one result');
+assert.strictEqual(voidRuntime.game.jewelInventory[0].isVoid, true, 'void jewel crafting result must be marked as void');
+
+voidRuntime.game.currencies.voidChisel = 1;
+voidRuntime.game.jewelInventory = [
+    { name: '공허 재료', isVoid: true, stats: [{ id: 'pctDmg', val: 5 }, { id: 'flatHp', val: 30 }, { id: 'crit', val: 2 }, { id: 'resAll', val: 6 }] },
+    { name: '보조 재료', stats: [{ id: 'aspd', val: 4 }, { id: 'move', val: 7 }] }
+];
+voidRuntime.openVoidJewelOverlay('fusion', [0, 1]);
+assert(voidRuntime.overlayHost.innerHTML.includes('최대 3줄만 계승'), 'void fusion overlay must explain the three inherited line limit');
+assert(voidRuntime.overlayHost.innerHTML.includes('무작위 옵션 1줄'), 'void fusion overlay must explain the random fourth line');
+voidRuntime.fuseVoidJewel(0, 1);
+const fusedVoid = voidRuntime.game.jewelInventory[0];
+assert.strictEqual(voidRuntime.game.currencies.voidChisel, 0, 'void fusion must consume one chisel');
+assert.strictEqual(fusedVoid.stats.length, 4, 'void fusion must create three inherited lines plus one random line');
+assert.strictEqual(fusedVoid.stats.slice(0, 3).map(stat => stat.id).join(','), 'pctDmg,flatHp,crit', 'void fusion must inherit only the first three unique core stats');
+assert.notStrictEqual(fusedVoid.stats[3].id, 'resAll', 'void fusion fourth line must be random rather than the fourth source line');
 
 const itemTooltipRuntime = loadItemTooltipRuntime();
 itemTooltipRuntime.game.inventory = [{

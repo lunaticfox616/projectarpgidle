@@ -66,6 +66,7 @@ const completionContext = {
     return { id, type: 'act', tier: 1, maxKills: 1, name: `지역 ${id}` };
   },
   getCurrentSeasonFinalZoneId: () => 20,
+  getAbyssZoneIdForDepth: depth => depth,
   getStoryActByZoneId: () => null,
   getAutoProgressZoneId: id => id,
   ensureChaosRealmState: () => ({ highestFloor: 1, currentFloor: 1 }),
@@ -152,6 +153,22 @@ completionContext.finishEncounterRun();
 assert.strictEqual(completionContext.game.underworldProgress.currentFloor, 7, 'repeat-zone must keep the cleared underworld floor selected');
 assert.strictEqual(completionContext.game.underworldProgress.highestFloor, 8, 'repeating an underworld floor must still unlock the next floor');
 assert.strictEqual(completionContext.game.currentZoneId, 'underworld_core', 'repeat-zone must remain in the underworld map');
+
+
+completionContext.game = {
+  ...makeDoctrineGame(),
+  loopProgressCurrent: { specialBosses: [], chaos20Cleared: true, bestAbyssDepth: 20, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 },
+  abyssUnlockedDepths: [20, 21, 30],
+};
+vm.runInContext('game = window.game;', completionContext);
+const depth20NextLoopTarget = completionContext.resolveNextLoopBestPlusOneZone({ id: 20, type: 'abyss', depth: 20 });
+assert.strictEqual(depth20NextLoopTarget, completionContext.getAbyssZoneIdForDepth(21), 'nextLoopBestPlusOne must go to the next area from the current loop depth after chaos 20');
+completionContext.game.loopProgressCurrent.bestAbyssDepth = 30;
+const missingUnlockedNextTarget = completionContext.resolveNextLoopBestPlusOneZone({ id: 20, type: 'abyss', depth: 20 });
+assert.strictEqual(missingUnlockedNextTarget, null, 'nextLoopBestPlusOne must not fall back to an older highest unlocked deep chaos floor when the current-loop next depth is unavailable');
+completionContext.game.abyssUnlockedDepths.push(31);
+const depth30NextLoopTarget = completionContext.resolveNextLoopBestPlusOneZone({ id: 30, type: 'abyss', depth: 30 });
+assert.strictEqual(depth30NextLoopTarget, completionContext.getAbyssZoneIdForDepth(31), 'nextLoopBestPlusOne may continue to the next unlocked current-loop deep chaos floor');
 
 function makeDoctrineGame() {
   return {
