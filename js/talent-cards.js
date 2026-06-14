@@ -79,21 +79,30 @@ function recordTalentBloomCard(comboKey) {
     return { card, leveledUp: card.level > prevLevel, score };
 }
 
-// ── 표면효과 = 키스톤(조건부 피해 배율 + 키스톤 스탯/트레이드오프), 이면효과 = 단일 스탯 ──
-// surface 스키마: { desc, dmg?: { perLevel, when, threshold }, ops?: [{ stat, perLevel }] }
-//   when ∈ always|lowLife|highLife|vsBoss|onCrit|fewEnemies|manyEnemies|moving
-//   ops 의 perLevel 이 음수면 트레이드오프(단점). (구버전 { stat, perLevel } 도 호환)
+// ── 표면효과 = 키스톤(설명 표시), 이면효과 = 실제 스탯(배열, lv10 = 만렙 수치, 레벨 비례) ──
+// surface 스키마: { desc } (표시 전용). hidden: [{ stat, lv10 }]
 function scaleTalentOps(ops, lv, kind) {
     return (ops || []).filter(o => o && o.stat).map(o => ({ stat: o.stat, val: (o.perLevel || 0) * lv, kind }));
 }
 
-// 장착 스탯 합산용: 이면(단일 스탯) + 표면 키스톤의 스탯 op들(트레이드오프 포함). 표면의 조건부 피해 배율(dmg)은 제외.
+function talentHiddenList(def) {
+    if (!def || !def.hidden) return [];
+    if (Array.isArray(def.hidden)) return def.hidden;
+    return [def.hidden];
+}
+function talentHiddenVal(h, lv) {
+    // lv10 = 만렙(10레벨) 수치 → 현재 레벨 비례. (구버전 perLevel 도 호환)
+    let base = (h.lv10 !== undefined) ? (Number(h.lv10) || 0) * lv / TALENT_CARD_MAX_LEVEL : (Number(h.perLevel) || 0) * lv;
+    return Math.round(base * 100) / 100;
+}
+
+// 장착 스탯 합산용: 이면 스탯들(레벨 비례). (표면은 설명 표시 전용이라 스탯 미반영)
 function getTalentCardStatBonuses(heroId, classKey, level) {
     let lv = Math.max(1, Math.min(TALENT_CARD_MAX_LEVEL, Math.floor(level || 1)));
     let def = getTalentCardDef(heroId, classKey);
     if (!def) return [];
     let out = [];
-    if (def.hidden && def.hidden.stat) out.push({ stat: def.hidden.stat, val: (def.hidden.perLevel || 0) * lv, kind: 'hidden' });
+    talentHiddenList(def).forEach(h => { if (h && h.stat) out.push({ stat: h.stat, val: talentHiddenVal(h, lv), kind: 'hidden' }); });
     if (def.surface) {
         if (Array.isArray(def.surface.ops)) out.push(...scaleTalentOps(def.surface.ops, lv, 'surface'));
         else if (def.surface.stat) out.push({ stat: def.surface.stat, val: (def.surface.perLevel || 0) * lv, kind: 'surface' });
@@ -110,7 +119,24 @@ function getTalentCardKeystoneDamage(heroId, classKey, level) {
     return { moreMul: (d.perLevel || 0) * lv, when: d.when || 'always', threshold: d.threshold };
 }
 
+const TALENT_STAT_LABELS = {
+    pctDmg: '피해 증가', physPctDmg: '물리 피해', meleePctDmg: '근접 피해', projectilePctDmg: '투사체 피해',
+    elementalPctDmg: '원소 피해', firePctDmg: '화염 피해', coldPctDmg: '냉기 피해', lightPctDmg: '번개 피해',
+    chaosPctDmg: '카오스 피해', dotPctDmg: '지속 피해 배율', summonPctDmg: '소환수 피해', aoePctDmg: '범위 피해',
+    slamPctDmg: '강타 피해', weaponFlatDmgPct: '무기 기본 피해', crit: '치명타 확률', critDmg: '치명타 피해',
+    aspd: '공격 속도', ds: '연속 타격', move: '이동 속도', pctHp: '생명력 증가', armorPct: '방어도',
+    evasionPct: '회피', energyShieldPct: '에너지 보호막', resPen: '저항 관통', leech: '생명력 흡수',
+    dr: '받는 피해 감소', physIgnore: '물리 피해 감소 무시', regen: '생명력 재생', regenSuppress: '재생 억제',
+    blockChance: '막기 확률', deflectDamageReduce: '빗겨내기 피해 감소', resAll: '모든 원소 저항', resChaos: '카오스 저항',
+    igniteChance: '점화 확률', poisonChance: '중독 확률', bleedChance: '출혈 확률', shockChance: '감전 확률',
+    freezeChance: '동결 확률', chillChance: '한기 확률',
+    ailResIgnite: '점화 저항 확률', ailResShock: '감전 저항 확률', ailResFreeze: '동결 저항 확률',
+    ailResPoison: '중독 저항 확률', ailResBleed: '출혈 저항 확률',
+    summonAspd: '소환수 공격 속도', summonHpPct: '소환수 생명력', summonResPen: '소환수 저항 관통',
+    summonCritDmg: '소환수 치명타 피해', summonCrit: '소환수 치명타 확률', summonEfficiency: '소환수 효율'
+};
 function getTalentStatLabel(stat) {
+    if (TALENT_STAT_LABELS[stat]) return TALENT_STAT_LABELS[stat];
     if (typeof P_STATS !== 'undefined' && P_STATS[stat] && P_STATS[stat].name) return P_STATS[stat].name;
     if (typeof getStatName === 'function') return getStatName(stat);
     return stat;
@@ -129,39 +155,34 @@ function getTalentKeystoneConditionText(when, threshold) {
     }
 }
 
+function escapeTalentHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 function getTalentCardEffectLines(heroId, classKey, level) {
     let lv = Math.max(1, Math.min(TALENT_CARD_MAX_LEVEL, Math.floor(level || 1)));
     let def = getTalentCardDef(heroId, classKey);
     if (!def) return [];
     let lines = [];
-    if (def.surface) {
-        let pos = [];   // 효과(장점)
-        let neg = [];   // 단점(트레이드오프)
-        // 고유 메커니즘(uniq) — 실제 효과를 간략히
+    // 표면효과: 설명 표시(기획 텍스트)
+    if (def.surface && def.surface.desc) {
+        lines.push(`<span style="color:#ffd36b;">⭐ [표면] ${escapeTalentHtml(def.surface.desc)}</span>`);
+    } else if (def.surface) {
+        // 구버전(uniq/dmg/ops) 호환 표시
+        let pos = [];
         (def.surface.uniq || []).forEach(u => {
             if (!u || !u.key) return;
             let p = Object.assign({}, u.params || {});
             if (u.perLevelParams) Object.keys(u.perLevelParams).forEach(k => { p[k] = (u.perLevelParams[k] || 0) * lv; });
             pos.push(getTalentUniqLabel(u.key, p));
         });
-        // 조건부 피해 배율
-        if (def.surface.dmg) {
-            let cond = getTalentKeystoneConditionText(def.surface.dmg.when, def.surface.dmg.threshold);
-            pos.push(`${cond}모든 피해 +${(def.surface.dmg.perLevel || 0) * lv}%`);
-        }
-        // 키스톤 스탯/트레이드오프
-        let ops = Array.isArray(def.surface.ops) ? def.surface.ops : (def.surface.stat ? [{ stat: def.surface.stat, perLevel: def.surface.perLevel }] : []);
-        ops.forEach(o => {
-            if (!o || !o.stat) return;
-            let v = (o.perLevel || 0) * lv;
-            (v < 0 ? neg : pos).push(`${getTalentStatLabel(o.stat)} ${v >= 0 ? '+' : ''}${v}%`);
-        });
-        let html = `<span style="color:#ffd36b;">⭐ ${pos.join(' · ') || '효과 없음'}</span>`;
-        if (neg.length) html += ` <span style="color:#ff8c8c;">(단점: ${neg.join(', ')})</span>`;
-        lines.push(html);
+        if (def.surface.dmg) pos.push(`${getTalentKeystoneConditionText(def.surface.dmg.when, def.surface.dmg.threshold)}모든 피해 +${(def.surface.dmg.perLevel || 0) * lv}%`);
+        if (pos.length) lines.push(`<span style="color:#ffd36b;">⭐ ${pos.join(' · ')}</span>`);
     }
-    if (def.hidden && def.hidden.stat) {
-        lines.push(`<span style="color:#9fe0ff;">[이면] ${getTalentStatLabel(def.hidden.stat)} +${(def.hidden.perLevel || 0) * lv}%</span>`);
+    // 이면효과: 실제 스탯(레벨 비례)
+    let hid = talentHiddenList(def).filter(h => h && h.stat);
+    if (hid.length) {
+        let parts = hid.map(h => `${getTalentStatLabel(h.stat)} +${talentHiddenVal(h, lv)}%`);
+        lines.push(`<span style="color:#9fe0ff;">[이면] ${parts.join(' · ')}</span>`);
     }
     return lines;
 }
