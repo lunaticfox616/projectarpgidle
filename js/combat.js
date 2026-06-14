@@ -1064,6 +1064,7 @@ function coreLoop() {
         runConditionGemAutoRules(pStats);
     }
     processPendingSlamEchoHits();
+    processTalentInquisitorMarks();
     tickAilments(pStats, 0.1);
     let ailmentMap = {};
     let activePlayerShock = null;
@@ -1364,6 +1365,29 @@ function processPendingSlamEchoHits() {
     });
     game.pendingSlamEchoHits = next;
 }
+
+// 8 심문궁: 누적된 표식 피해를 5초 후 폭발(누적의 12%, 쿨타임 6초).
+function processTalentInquisitorMarks() {
+    let store = game.talentInquisitorMarks;
+    if (!store || typeof store !== 'object') return;
+    let now = Date.now();
+    let lv = (typeof isTalentCardActive === 'function') ? isTalentCardActive('hero1__inquisitor') : 0;
+    Object.keys(store).forEach(id => {
+        let mk = store[id];
+        if (!mk) { delete store[id]; return; }
+        let enemy = (game.enemies || []).find(e => e && e.id === id && e.hp > 0);
+        if (!enemy) { delete store[id]; return; }
+        if (mk.explodeAt && now >= mk.explodeAt) {
+            let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
+            enemy.hp = Math.max(0, enemy.hp - dmg);
+            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: dmg, duration: 240 });
+            if (game.settings && game.settings.showCombatLog !== false) addLog(`⚖️ 심판 표식 폭발: ${formatNumberKR(dmg)}`, 'attack-player', { noToast: true });
+            mk.accumulated = 0; mk.explodeAt = 0; mk.cooldownUntil = now + 6000;
+            if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
+        }
+    });
+}
+const TALENT_CARD_MAX_LEVEL_REF = 10;
 
 
 safeExposeGlobals({ coreLoop, isRegularAutoProgressZone, reconcileMapProgressRuntimeState });
@@ -6314,6 +6338,17 @@ function performPlayerAttack(pStats) {
                 let exThr = getTalentExecuteThreshold();
                 if (exThr > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= exThr) {
                     dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+                }
+            }
+            // 8 심문궁: 표식 누적(쿨타임 아닐 때), 5초 후 processTalentInquisitorMarks에서 폭발
+            if (dmg > 0 && targetEnemy.hp > 0 && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__inquisitor')) {
+                game.talentInquisitorMarks = (game.talentInquisitorMarks && typeof game.talentInquisitorMarks === 'object') ? game.talentInquisitorMarks : {};
+                let nowMk = Date.now();
+                let mk = game.talentInquisitorMarks[targetEnemy.id] || { accumulated: 0, explodeAt: 0, cooldownUntil: 0 };
+                if ((mk.cooldownUntil || 0) <= nowMk) {
+                    if (!mk.explodeAt) mk.explodeAt = nowMk + 5000;
+                    mk.accumulated = (mk.accumulated || 0) + dmg;
+                    game.talentInquisitorMarks[targetEnemy.id] = mk;
                 }
             }
             if (targetEnemy.hp <= 0) targetEnemy.lastOverkillDamage = Math.max(0, dmg - dealtToEnemy);
