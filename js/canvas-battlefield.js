@@ -309,6 +309,11 @@ function renderBattlefield(forceWhenHidden) {
         }
         ctx.fillStyle = currentTargets.includes(enemy.id) ? '#f1c40f' : '#e94f64';
         ctx.fillRect(barX, barY, Math.max(2, Math.round(barWidth * pct)), 6);
+        let esPct = (enemy.maxEnergyShield || 0) > 0 ? clampNumber((enemy.energyShield || 0) / Math.max(1, enemy.maxEnergyShield), 0, 1) : 0;
+        if (esPct > 0) {
+            ctx.fillStyle = 'rgba(92, 184, 255, 0.92)';
+            ctx.fillRect(barX, barY - 4, Math.max(2, Math.round(barWidth * esPct)), 3);
+        }
         ctx.strokeStyle = currentTargets.includes(enemy.id) ? 'rgba(255, 224, 130, 0.95)' : 'rgba(255,255,255,0.14)';
         ctx.lineWidth = 1;
         ctx.strokeRect(barX - 0.5, barY - 0.5, barWidth + 1, 7);

@@ -1,5 +1,13 @@
 // Phase-2 extracted passive tree canvas draw block.
 
+function isCraftSelectionEquipAvailableLocal() {
+    return typeof isCraftSelectionEquip === 'function' && isCraftSelectionEquip();
+}
+
+function getCraftSelectionRefLocal() {
+    return typeof getCraftSelectionRef === 'function' ? getCraftSelectionRef() : null;
+}
+
 function ensurePassiveTreeOverlay() {
     let overlay = document.getElementById('passive-tree-overlay');
     const container = document.getElementById('tree-container');
@@ -513,7 +521,7 @@ function renderPaperdoll(targetId, forCrafting) {
     ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'].forEach(slot => {
         let item = game.equipment[slot];
         let displaySlot = slot.replace(/[12]/, '');
-        let selected = isCraftSelectionEquip() && getCraftSelectionRef() === slot;
+        let selected = isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === slot;
         if (item) {
             let displayStats = (item.baseStats || []).concat(item.stats || [], item.underEnchant ? [item.underEnchant] : []);
             if (item.chaosInfusion) displayStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
@@ -555,7 +563,7 @@ function renderPaperdoll(targetId, forCrafting) {
 }
 
 function renderInventoryCard(item, idx, mode) {
-    let selected = !isCraftSelectionEquip() && getCraftSelectionRef() === item.id;
+    let selected = !isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === item.id;
     let query = getEquipSearchQueryLocal();
     let hi = (text) => {
         try {

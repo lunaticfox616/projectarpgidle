@@ -273,13 +273,14 @@ function applyFossilChaosCraft(fossilKey) {
     let specialFossil = ['fossilOld', 'fossilRift'].includes(fossilKey);
     if (!specialFossil && guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
 
-    let maxTier = getItemCraftTier(item);
+    let tierRange = typeof getCraftTierRangeForItem === 'function' ? getCraftTierRangeForItem(item, 'fossil') : { min: 1, max: getItemCraftTier(item) };
+    let maxTier = tierRange.max;
     let previousChaosInfusion = item.chaosInfusion || null;
     if (previousChaosInfusion) item.chaosInfusion = null;
     let reservedInfusionCount = previousChaosInfusion ? 1 : 0;
     let hiddenTier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || maxTier));
-    let guaranteedMinTier = Math.max(1, hiddenTier - 3);
-    let guaranteedMaxTier = Math.max(1, hiddenTier);
+    let guaranteedMinTier = Math.max(tierRange.min || 1, hiddenTier >= 11 ? tierRange.min : hiddenTier - 3);
+    let guaranteedMaxTier = Math.max(guaranteedMinTier, hiddenTier);
     let guaranteed = specialFossil ? null : pickWeightedMod(guaranteedPool);
     let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
     let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
@@ -320,7 +321,7 @@ function applyFossilChaosCraft(fossilKey) {
     while ((newStats.length + reservedInfusionCount) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
         let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id) && canUseDefenseStat(mod.statId || mod.id));
         if (pool.length === 0) break;
-        let roll = rollAffixValue(pickWeightedMod(pool), maxTier);
+        let roll = rollAffixValueInTierRange(pickWeightedMod(pool), tierRange.min || 1, maxTier);
         newStats.push(roll);
         blockedIds.add(roll.id);
     }

@@ -345,8 +345,7 @@ function getZone(id) {
     }
     if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) {
         let depth = getAbyssDepthFromZoneId(id);
-        let legacyEndlessDepth = Math.floor((game && game.abyssEndlessDepth) || depth);
-        let displayDepth = (depth === 20 && legacyEndlessDepth > 20) ? legacyEndlessDepth : depth;
+        let displayDepth = depth;
         let baseZone = MAP_ZONES[Math.min(id, getAbyssZoneIdForDepth(20))];
         return {
             ...(baseZone || {}),
@@ -1486,6 +1485,7 @@ const defaultGame = {
         notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true }
     },
     selectedHeroId: 'hero1',
+    appearanceHeroId: null,
     discoveredHeroIds: [],
     heroSelectionInitialized: false,
     heroFreeSwitchUnlocked: false,

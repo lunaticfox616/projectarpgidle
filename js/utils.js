@@ -241,7 +241,7 @@ function getStatName(statId) {
         leechInstanceCap: '흡혈 타격당 회복량 캡(최대 생명력 %)',
         gemLevel: '모든 스킬 젬 레벨',
         summonGemLevel: '소환수 공격 스킬 젬 레벨',
-        dr: '받는 피해 감소(%)',
+        dr: '물리 피해 감소(%)',
         physIgnore: '물리 피해 감소 무시(%)',
         ds: '연속 타격(%)',
         suppCap: '보조 스킬 젬 한도',
