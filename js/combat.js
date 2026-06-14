@@ -5277,6 +5277,12 @@ function handleEnemyDeath(enemy, pStats) {
         grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
     }
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
+    // 14 콜로세움 브레이커: 처치마다 관중의 함성 1중첩, 5중첩 시 다음 공격이 투기장 일격
+    if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero2__gladiator')) {
+        game.talentRuntime = (game.talentRuntime && typeof game.talentRuntime === 'object') ? game.talentRuntime : {};
+        game.talentRuntime.colosseumKills = (game.talentRuntime.colosseumKills || 0) + 1;
+        if (game.talentRuntime.colosseumKills >= 5) { game.talentRuntime.colosseumKills = 0; game.talentRuntime.colosseumReady = true; }
+    }
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
     grantExpAndGem(enemy, pStats);
     rollLootForEnemy(enemy);
@@ -5914,7 +5920,17 @@ function performPlayerAttack(pStats) {
             applyDamageToEnemyResource(target, beeDmg);
         });
     }
+    // 14 콜로세움 브레이커: 5처치 충전 시 다음 공격을 투기장 일격(광역 5 + 피해 120% 증폭, 단일이면 +20%)으로
+    let colosseumStrikeMul = 1, colosseumSavedTargets = null;
+    if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero2__gladiator') && game.talentRuntime && game.talentRuntime.colosseumReady) {
+        game.talentRuntime.colosseumReady = false;
+        let aliveCount = (game.enemies || []).filter(e => e && e.hp > 0).length;
+        colosseumStrikeMul = 2.2 * (aliveCount <= 1 ? 1.2 : 1);
+        colosseumSavedTargets = pStats.sSkill.targets;
+        pStats.sSkill.targets = Math.max(5, pStats.sSkill.targets || 1);
+    }
     let targets = getSkillTargets(pStats);
+    if (colosseumSavedTargets !== null) pStats.sSkill.targets = colosseumSavedTargets;
     if (targets.length === 0) return;
     let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
 
@@ -6083,6 +6099,16 @@ function performPlayerAttack(pStats) {
             if (hitElement === 'phys') enemyRes -= (curseFx.physDrShred || 0);
             if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let rs = targetEnemy.ailments.find(a => a && a.type === 'realmAllResDown' && (a.time || 0) > 0); if (rs) enemyRes -= Math.max(0, Math.floor(rs.stacks || 0)) * Math.max(0, Number((pStats.uniqueAllResDownOnHit && pStats.uniqueAllResDownOnHit.perHit) || 0)); }
             let hitCrit = isCrit;
+            // 49 새벽의기사: 몬스터별 처음 3타는 치명 불가 + 번개 저항 반대로 간주
+            if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero5__warrior')) {
+                game.talentDawnHits = (game.talentDawnHits && typeof game.talentDawnHits === 'object') ? game.talentDawnHits : {};
+                let dh = game.talentDawnHits[targetEnemy.id] || 0;
+                if (dh < 3) {
+                    game.talentDawnHits[targetEnemy.id] = dh + 1;
+                    hitCrit = false;
+                    if (hitElement === 'light') enemyRes = -enemyRes;
+                }
+            }
             if (pStats.uniqueAllResDownOnHit && targetEnemy) {
                 let now = Date.now();
                 targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
@@ -6297,6 +6323,14 @@ function performPlayerAttack(pStats) {
             let finalDamageMul = Math.max(0, Number(pStats.finalDamageMultiplier) || 1);
             dmg = Math.floor(dmg * finalDamageMul);
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * finalDamageMul);
+            // 재능 정밀 공격 배율(2 플레쳐 매3타, 14 콜로세움 투기장 일격) — 인라인 경로 적용
+            if (typeof getTalentAttackDamageMul === 'function') {
+                let tAtkMul = getTalentAttackDamageMul() * (colosseumStrikeMul || 1);
+                if (tAtkMul !== 1) {
+                    dmg = Math.floor(dmg * tAtkMul);
+                    ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * tAtkMul);
+                }
+            }
             if (!Number.isFinite(dmg) || dmg < 0) dmg = 0;
             if (game.ascendClass === 'hunter' && hasKeystone('h2') && targetEnemy) {
                 targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
@@ -6364,6 +6398,19 @@ function performPlayerAttack(pStats) {
                     mk.accumulated = (mk.accumulated || 0) + dmg;
                     game.talentInquisitorMarks[targetEnemy.id] = mk;
                 }
+            }
+            // 6 헥스보우: 저주 걸린 적 공격 시 저주 제거 + 0.2배 광역 폭발
+            if (dmg > 0 && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__warlock')
+                && game.enemyConditionDebuffs && Array.isArray(game.enemyConditionDebuffs[targetEnemy.id])
+                && game.enemyConditionDebuffs[targetEnemy.id].some(d => d && (d.expiresAt || 0) > Date.now())) {
+                game.enemyConditionDebuffs[targetEnemy.id] = [];
+                let splash = Math.max(1, Math.floor(dmg * 0.2));
+                (game.enemies || []).forEach(e => {
+                    if (!e || e.hp <= 0 || e.id === targetEnemy.id) return;
+                    e.hp = Math.max(0, e.hp - splash);
+                    addBattleFx('hit', { enemyId: e.id, color: getElementColor('chaos'), damage: splash, duration: 220 });
+                    if (e.hp <= 0) handleEnemyDeath(e, pStats);
+                });
             }
             if (targetEnemy.hp <= 0) targetEnemy.lastOverkillDamage = Math.max(0, dmg - dealtToEnemy);
             if (pStats.uniqueMaxRollBonusHit && rollPct >= 130 && dealtToEnemy > 0 && targetEnemy.hp > 0) {
@@ -7055,6 +7102,10 @@ function performMonsterAttacks(pStats) {
             if (aliveEnemies >= 2) dmg = Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (pStats.takenDamageReduceWhen2EnemiesPct || 0) / 100)))));
             else if (aliveEnemies === 1) dmg = Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (pStats.takenDamageReduceWhen1EnemyPct || 0) / 100)))));
             let evadeChance = Math.max(0, pStats.evadeChance || 0);
+            // 7 에이기스: 직전 막기 성공 시 이번 회피 10% 증폭
+            if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian') && game.talentRuntime && game.talentRuntime.aegisEvadeAmp) {
+                evadeChance *= 1.10; game.talentRuntime.aegisEvadeAmp = false;
+            }
             if (game.ascendClass === 'catalyst' && hasKeystone('ct4') && game.catalystEvadeBoostReady) {
                 evadeChance *= 1.3;
                 game.catalystEvadeBoostReady = false;
@@ -7065,11 +7116,18 @@ function performMonsterAttacks(pStats) {
                 addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(null, true);
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
+                // 7 에이기스: 회피 성공 → 다음 공격 막기 확률 +5%p
+                if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian')) { game.talentRuntime = game.talentRuntime || {}; game.talentRuntime.aegisBlockBonus = 5; }
                 continue;
             }
             let blockRollCap = Math.max(50, Math.min(75, Number(pStats.blockChanceMax || 50)));
-            let blockRollChance = Math.max(0, Math.min(blockRollCap, pStats.blockChance || pStats.guardianBlockChance || 0));
+            // 7 에이기스: 직전 회피 성공 시 이번 막기 확률 +5%p
+            let aegisBlockBonus = 0;
+            if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian') && game.talentRuntime && game.talentRuntime.aegisBlockBonus) { aegisBlockBonus = game.talentRuntime.aegisBlockBonus; game.talentRuntime.aegisBlockBonus = 0; }
+            let blockRollChance = Math.max(0, Math.min(blockRollCap, (pStats.blockChance || pStats.guardianBlockChance || 0) + aegisBlockBonus));
             if (Math.random() * 100 < blockRollChance) {
+                // 7 에이기스: 막기 성공 → 다음 회피 10% 증폭
+                if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian')) { game.talentRuntime = game.talentRuntime || {}; game.talentRuntime.aegisEvadeAmp = true; }
                 if ((pStats.uniqueBlockRecoverEnergyShieldPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
                     let recover = Math.max(1, Math.floor((pStats.energyShield || 0) * Math.max(0, Number(pStats.uniqueBlockRecoverEnergyShieldPct || 0)) / 100));
                     game.playerEnergyShield = Math.min((pStats.energyShield || 0), Math.max(0, Number(game.playerEnergyShield) || 0) + recover);
