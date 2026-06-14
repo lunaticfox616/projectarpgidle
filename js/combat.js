@@ -6280,6 +6280,14 @@ function performPlayerAttack(pStats) {
             let keystoneTakenMul = getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement);
             dmg = Math.floor(dmg * keystoneTakenMul);
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * keystoneTakenMul);
+            // 재능 상태이상 시너지(5/29/99): 적 상태이상 기반 받는 피해 증가
+            if (typeof getTalentEnemyTakenMul === 'function') {
+                let talentTakenMul = getTalentEnemyTakenMul(targetEnemy, hitElement, hitCrit);
+                if (talentTakenMul !== 1) {
+                    dmg = Math.floor(dmg * talentTakenMul);
+                    ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * talentTakenMul);
+                }
+            }
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) {
                 let talismanBossMul = 1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100);

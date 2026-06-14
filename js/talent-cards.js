@@ -396,6 +396,26 @@ function getTalentFullLifeBurst(enemy, wasFull) {
     return Math.max(0, Math.floor((enemy.maxHp || enemy.hp || 0) * pct));
 }
 
+// 상태이상 시너지형 표면효과: 적이 받는 피해 배율(라이브 판정, 적 상태이상 기반).
+//  5 프리즈믹 아처 / 29 브리지트 / 99 서리암살자
+function getTalentEnemyTakenMul(enemy, ele, crit) {
+    let a = (enemy && Array.isArray(enemy.ailments)) ? enemy.ailments : [];
+    let has = t => a.some(x => x && x.type === t && (x.time || 0) > 0);
+    let m = 1;
+    if (isTalentCardActive('hero1__elementalist')) {           // 5: 냉기→허약, 점화→그을림
+        if (crit && (has('chill') || has('freeze'))) m *= 1.15;
+        if (ele === 'fire' && has('ignite')) m *= 1.20;
+    }
+    if (isTalentCardActive('hero3__elementalist') && ele !== 'phys' && ele !== 'chaos'
+        && has('ignite') && has('freeze') && has('shock')) {   // 29: 세 상태이상 → 원소 피해 +20%
+        m *= 1.20;
+    }
+    if (isTalentCardActive('hero9__assassin') && (has('chill') || has('freeze'))) { // 99: 냉각된 적 받는 피해 +
+        m *= 1.12;
+    }
+    return m;
+}
+
 // 26 숲마당 투사: 플레이어 공격이 반드시 명중(적 회피 무시).
 function getTalentAlwaysHit() {
     return isTalentCardActive('hero3__gladiator') > 0;
