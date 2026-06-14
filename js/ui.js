@@ -5281,6 +5281,7 @@ function updateCombatUI(pStats) {
                     <div class="enemy-name"></div>
                     <div class="hp-bar-bg">
                         <div class="hp-bar-fill enemy-damage-ghost"></div>
+                        <div class="hp-bar-fill enemy-es"></div>
                         <div class="hp-bar-fill enemy"></div>
                         <div class="hp-bar-fill enemy-pending"></div>
                         <div class="hp-text"></div>
@@ -5292,6 +5293,7 @@ function updateCombatUI(pStats) {
         }
         let nameEl = enemyListEl.querySelector('.enemy-name');
         let ghostEl = enemyListEl.querySelector('.enemy-damage-ghost');
+        let esEl = enemyListEl.querySelector('.hp-bar-fill.enemy-es');
         let hpEl = enemyListEl.querySelector('.hp-bar-fill.enemy');
         let pendingEl = enemyListEl.querySelector('.enemy-pending');
         let hpTextEl = enemyListEl.querySelector('.hp-text');
@@ -5299,6 +5301,11 @@ function updateCombatUI(pStats) {
         let traitEl = enemyListEl.querySelector('.enemy-traits');
         if (nameEl) nameEl.innerText = getEnemyDisplayName(focusedEnemy);
         if (ghostEl) { ghostEl.style.width = `${ghostPct}%`; ghostEl.style.display = ghostDisplay; }
+        if (esEl) {
+            let esPct = (focusedEnemy.maxEnergyShield || 0) > 0 ? Math.max(0, Math.min(100, ((focusedEnemy.energyShield || 0) / Math.max(1, focusedEnemy.maxEnergyShield)) * 100)) : 0;
+            esEl.style.width = `${esPct}%`;
+            esEl.style.display = esPct > 0 ? 'block' : 'none';
+        }
         if (hpEl) hpEl.style.width = `${pct}%`;
         if (pendingEl) { pendingEl.style.left = `${pendingStartPct}%`; pendingEl.style.width = `${pendingPct}%`; }
         if (hpTextEl) {
@@ -5917,6 +5924,7 @@ function getCraftOrbUseState(key, item) {
     else if (key === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
     else if (key === 'chaos') ok = item.rarity === 'rare';
     else if (key === 'divine') ok = item.rarity !== 'normal';
+    else if (key === 'annulment') ok = Array.isArray(item.stats) && item.stats.some(stat => stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
     else if (key === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
     else if (key === 'tainted') ok = !item.corrupted;
     return { enabled: ok, reason: ok ? '사용 가능' : '현재 아이템 조건 불일치' };
@@ -6035,8 +6043,8 @@ window.showCurrencyCardTooltip = showCurrencyCardTooltip;
 window.showOrbTooltip = showCurrencyCardTooltip;
 
 
-const MOBILE_CRAFT_CURRENCY_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'enchantedHoney', 'venomStinger', 'voidChisel'];
-const MOBILE_CRAFT_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish'];
+const MOBILE_CRAFT_CURRENCY_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'enchantedHoney', 'venomStinger', 'voidChisel'];
+const MOBILE_CRAFT_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish'];
 
 function getMobileCraftCurrencyOptions() {
     return MOBILE_CRAFT_CURRENCY_KEYS.filter(key => {
@@ -6373,7 +6381,7 @@ function buildCraftActionButtons(item) {
         if (key === 'voidChisel') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVoidChiselToSelectedItem()">사용</button></div>`;
         let sporeModes = game.sporeCraftModes || {};
         let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
-        let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','scour','tainted','blessing'].includes(key);
+        let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','annulment','scour','tainted','blessing'].includes(key);
         let canUseSporeMode = ['transmute','augment','alteration','alchemy','exalted','regal','chaos'].includes(key);
         let mode = sporeModes[key] || 'none';
         let reason = key === 'voidChisel' ? getMobileCraftCurrencyUseState(key, getSelectedCraftItem()).reason : getCraftOrbUseState(key, getSelectedCraftItem()).reason;

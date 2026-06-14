@@ -5194,9 +5194,21 @@ function normalizeItem(item) {
 
 function getItemCraftTier(item) {
     if (!item) return 1;
-    if (Number.isFinite(item.hiddenTier)) return clampNumber(Math.floor(item.hiddenTier), 1, 10);
-    if (Number.isFinite(item.itemTier)) return clampNumber(Math.floor(item.itemTier), 1, 10);
+    if (Number.isFinite(item.hiddenTier)) return clampNumber(Math.floor(item.hiddenTier), 1, 15);
+    if (Number.isFinite(item.itemTier)) return clampNumber(Math.floor(item.itemTier), 1, 15);
     return 1;
+}
+
+function getRealmEquipmentHiddenTierCap(zone) {
+    if (!zone || zone.type !== 'cosmos') return Math.max(1, Math.floor(Number(zone && zone.tier) || 1));
+    let cosmosTier = Math.max(1, Math.floor(Number(zone.tier) || 1));
+    return Math.min(15, 11 + Math.floor((cosmosTier - 1) / 5));
+}
+
+function getCraftTierRangeForItem(item, source) {
+    let maxTier = getItemCraftTier(item);
+    if (maxTier < 11) return { min: 1, max: maxTier };
+    return { min: source === 'spore' ? 9 : 10, max: maxTier };
 }
 
 function getTierVisualLevel(tierValue) {
@@ -5307,7 +5319,7 @@ function rerollStoredAffixValue(stat) {
 function rollAffixValue(mod, maxTier) {
     let statId = mod.statId || mod.id;
     let tier = 1;
-    maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 10);
+    maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 15);
     while (tier < maxTier && Math.random() < 0.58) tier++;
     if (Array.isArray(mod.tierValues)) return rollTierValueAffix(mod, statId, tier);
     let min = mod.base + (tier * mod.step);
@@ -5345,8 +5357,8 @@ function pickTierInRangeWeighted(minTier, maxTier) {
 
 function rollAffixValueInTierRange(mod, minTier, maxTier) {
     let statId = mod.statId || mod.id;
-    minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 10);
-    maxTier = clampNumber(Math.floor(Number(maxTier) || minTier), minTier, 10);
+    minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 15);
+    maxTier = clampNumber(Math.floor(Number(maxTier) || minTier), minTier, 15);
     let tier = pickTierInRangeWeighted(minTier, maxTier);
     if (Array.isArray(mod.tierValues)) return rollTierValueAffix(mod, statId, tier);
     let min = mod.base + (tier * mod.step);
@@ -5764,7 +5776,7 @@ function createItemFromBase(base, rarity, zoneTier) {
         name: base.name,
         rarity: rarity,
         itemTier: zoneTier,
-        hiddenTier: zoneTier,
+        hiddenTier: Math.max(1, Math.floor(Number(zoneTier) || 1)),
         baseStats: rollBaseStats(base, zoneTier),
         stats: []
     };
@@ -5976,23 +5988,24 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
 }
 
 function generateEquipmentDrop(enemy) {
-    let zoneTier = getZone(game.currentZoneId).tier;
+    let zone = getZone(game.currentZoneId) || {};
+    let hiddenTierCap = getRealmEquipmentHiddenTierCap(zone);
     let slot = rndChoice(EQUIPMENT_DROP_SLOTS);
-    let base = chooseItemBase(slot, zoneTier);
+    let base = chooseItemBase(slot, hiddenTierCap);
     let rarity = 'normal';
     let roll = Math.random();
     if (enemy.isBoss) {
-        if (roll < 0.04) return generateUniqueItem(zoneTier, slot);
+        if (roll < 0.04) return generateUniqueItem(hiddenTierCap, slot);
         rarity = roll < 0.36 ? 'rare' : (roll < 0.80 ? 'magic' : 'normal');
     } else if (enemy.isElite) {
-        if (roll < 0.02) return generateUniqueItem(zoneTier, slot);
+        if (roll < 0.02) return generateUniqueItem(hiddenTierCap, slot);
         rarity = roll < 0.24 ? 'rare' : (roll < 0.62 ? 'magic' : 'normal');
     } else {
-        if (roll < 0.006) return generateUniqueItem(zoneTier, slot);
+        if (roll < 0.006) return generateUniqueItem(hiddenTierCap, slot);
         rarity = roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
     }
-    let item = createItemFromBase(base, rarity, zoneTier);
-    item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier);
+    let item = createItemFromBase(base, rarity, hiddenTierCap);
+    item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, hiddenTierCap);
     return maybeApplyChaosRealmEncroachment(item, enemy, getZone(game.currentZoneId));
 }
 
@@ -6081,6 +6094,7 @@ function getCurrencyDrops(enemy) {
     }
     let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     drops.push(...getMappingTicketDrops(enemy, zone, mappingOpened));
+    if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['annulment', 1]);
     if ((game.season || 1) >= 4 && enemy.isSky && Math.random() < 0.35) drops.push(['skyEssence', 1]);
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16) drops.push(['tainted', 1]);
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.03) drops.push(['jewelShard', 3]);
@@ -7030,6 +7044,16 @@ function removeBeeswaxFromJewel(idx) {
     return showWaxedJewelCraftRestriction(jewel, '밀랍 제거');
 }
 
+function isRemovableExplicitStat(stat) {
+    return !!(stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
+}
+
+function getAnnulmentRemovableStats(item) {
+    return (item && Array.isArray(item.stats) ? item.stats : [])
+        .map((stat, index) => ({ stat, index }))
+        .filter(row => isRemovableExplicitStat(row.stat));
+}
+
 function useCurrency(currencyKey) {
     let item = getSelectedCraftItem();
     if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
@@ -7048,6 +7072,7 @@ function useCurrency(currencyKey) {
     else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
     else if (currencyKey === 'tainted') ok = !item.corrupted;
     else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
+    else if (currencyKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
     else if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
         let slot = String(item.slot || '');
         let isWeapon = slot === '무기';
@@ -7079,7 +7104,7 @@ function useCurrency(currencyKey) {
         }
         return true;
     }
-    function getSporeGuaranteedMod() {
+    function getSporeGuaranteedMod(allowReplacement) {
         if (sporeMode === 'none') return null;
         let poolMap = {
             fire: ['firePctDmg','resF','aspd','crit','critDmg','resPen','ds','targetAny','targetProjectile'],
@@ -7089,17 +7114,17 @@ function useCurrency(currencyKey) {
             damage: ['firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg','pctDmg','dotPctDmg','critDmg','dr']
         };
         let ids = new Set(poolMap[sporeMode] || []);
-        let avail = getAvailableMods(item).filter(mod => ids.has(mod.statId || mod.id));
+        let source = allowReplacement ? MOD_DB.filter(mod => mod.slots.includes(item.slot)) : getAvailableMods(item);
+        let avail = source.filter(mod => ids.has(mod.statId || mod.id));
         return pickWeightedMod(avail);
     }
     function rollSporeGuaranteedValue(mod) {
         if (!mod) return null;
-        let tier = Math.max(1, getItemCraftTier(item));
-        // 일반 드랍 대비 약 +2티어 보정
-        let boostedTier = Math.min(10, tier + 2);
-        let minTier = Math.max(1, boostedTier - 1);
-        let maxTier = Math.max(minTier, boostedTier);
-        return rollAffixValueInTierRange(mod, minTier, maxTier);
+        let range = getCraftTierRangeForItem(item, 'spore');
+        // 일반 드랍 대비 약 +2티어 보정. 숨겨진 11티어 이상 장비는 홀씨 전용 범위(9~숨은 티어)를 사용한다.
+        let boostedTier = Math.min(range.max, Math.max(range.min, getItemCraftTier(item)) + 2);
+        let minTier = Math.max(range.min, boostedTier - 1);
+        return rollAffixValueInTierRange(mod, minTier, boostedTier);
     }
     function applyGuaranteedToNonLocked(modOverride) {
         let modToApply = modOverride || guaranteedMod || getSporeGuaranteedMod();
@@ -7138,11 +7163,12 @@ function useCurrency(currencyKey) {
         item.rarity = 'magic';
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
-            guaranteedMod = getSporeGuaranteedMod();
-            if (!guaranteedMod) return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
-            if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
-            consumedSpore = true;
-            applyGuaranteedToNonLocked(guaranteedMod);
+            guaranteedMod = getSporeGuaranteedMod(true);
+            if (guaranteedMod) {
+                if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
+                consumedSpore = true;
+                applyGuaranteedToNonLocked(guaranteedMod);
+            } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
     } else if (currencyKey === 'augment') {
         let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
@@ -7151,21 +7177,23 @@ function useCurrency(currencyKey) {
     } else if (currencyKey === 'alteration') {
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
-            guaranteedMod = getSporeGuaranteedMod();
-            if (!guaranteedMod) return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
-            if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
-            consumedSpore = true;
-            applyGuaranteedToNonLocked(guaranteedMod);
+            guaranteedMod = getSporeGuaranteedMod(true);
+            if (guaranteedMod) {
+                if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
+                consumedSpore = true;
+                applyGuaranteedToNonLocked(guaranteedMod);
+            } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
     } else if (currencyKey === 'alchemy') {
         item.rarity = 'rare';
         rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
-            guaranteedMod = getSporeGuaranteedMod();
-            if (!guaranteedMod) return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
-            if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
-            consumedSpore = true;
-            applyGuaranteedToNonLocked(guaranteedMod);
+            guaranteedMod = getSporeGuaranteedMod(true);
+            if (guaranteedMod) {
+                if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
+                consumedSpore = true;
+                applyGuaranteedToNonLocked(guaranteedMod);
+            } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
     } else if (currencyKey === 'exalted') {
         item.stats.push((exaltedMod === guaranteedMod) ? rollSporeGuaranteedValue(exaltedMod) : rollAffixValue(exaltedMod, getItemCraftTier(item)));
@@ -7178,11 +7206,12 @@ function useCurrency(currencyKey) {
     } else if (currencyKey === 'chaos') {
         rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
-            guaranteedMod = getSporeGuaranteedMod();
-            if (!guaranteedMod) return addLog('홀씨로 부여 가능한 옵션이 없습니다.', 'attack-monster');
-            if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
-            consumedSpore = true;
-            applyGuaranteedToNonLocked(guaranteedMod);
+            guaranteedMod = getSporeGuaranteedMod(true);
+            if (guaranteedMod) {
+                if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
+                consumedSpore = true;
+                applyGuaranteedToNonLocked(guaranteedMod);
+            } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
     } else if (currencyKey === 'divine') {
         item.stats.forEach(stat => {
@@ -7201,6 +7230,13 @@ function useCurrency(currencyKey) {
             let socketCount = Array.isArray(item.abyssSockets) ? item.abyssSockets.length : Math.max(1, Math.floor(Number(p.socketsMin || 1)));
             item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
         }
+    } else if (currencyKey === 'annulment') {
+        let removable = getAnnulmentRemovableStats(item);
+        if (removable.length <= 0) return addLog('제거할 수 있는 추가 옵션이 없습니다.', 'attack-monster');
+        let picked = rndChoice(removable);
+        let removed = item.stats.splice(picked.index, 1)[0];
+        updateItemName(item);
+        addLog(`🕳️ 소멸의 오브: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique');
     } else if (currencyKey === 'scour') {
         item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
         item.chaosInfusion = null;

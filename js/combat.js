@@ -4234,7 +4234,7 @@ function generateEncounterPlan(zone) {
                 elite: Math.random() < p.eliteChance
             });
         }
-        plan.push({ at: 100, count: Math.max(1, p.bossAdds), boss: true });
+        plan.push({ at: 100, count: 1, boss: true });
         return plan;
     }
     if (zone.type === 'meteor') return [{ at: 36, count: 2, elite: true }, { at: 76, count: 3, elite: true }, { at: 100, count: 2, boss: true }];
