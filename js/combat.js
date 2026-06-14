@@ -192,6 +192,40 @@ function getAliveEnemyByRuntimeKey(enemyId) {
     return (game.enemies || []).find(e => e && e.id === numericId && e.hp > 0) || null;
 }
 
+function getActiveTalentCardId() {
+    if (!game.selectedHeroId || !game.ascendClass) return null;
+    return `${game.selectedHeroId}__${game.ascendClass}`;
+}
+
+function isTalentCardActive(cardId) {
+    return getActiveTalentCardId() === cardId;
+}
+
+function getActiveTalentUniqueEffects() {
+    if (isTalentCardActive('hero1__gladiator')) {
+        return [{ key: 'projectileTargetBonus', params: { target: 3 }, talentCardId: 'hero1__gladiator' }];
+    }
+    return [];
+}
+
+function prepareTalentPlayerAttackContext(pStats) {
+    game.talentFletcherAttackBoostActive = false;
+    if (!isTalentCardActive('hero1__gladiator')) return;
+    if (!pStats || !pStats.sSkill || !Array.isArray(pStats.sSkill.tags) || !pStats.sSkill.tags.includes('projectile')) return;
+    game.talentFletcherCount = Math.max(0, Math.floor(game.talentFletcherCount || 0)) + 1;
+    if (game.talentFletcherCount % 3 !== 0) return;
+    game.talentFletcherAttackBoostActive = true;
+    pStats.sSkill.targets = Math.min(12, Math.max(1, Math.floor(pStats.sSkill.targets || 1)) + 3);
+}
+
+function getTalentAttackDamageMul() {
+    return game.talentFletcherAttackBoostActive ? 1.33 : 1;
+}
+
+function getTalentKeystoneDamageMul(targetEnemy, hitElement, hitCrit, pStats) {
+    return 1;
+}
+
 function getTalentPlayerHitDamageMultiplier(targetEnemy, hitElement, hitCrit, pStats) {
     function coerceTalentMultiplier(value) {
         let numericValue = Number(value);
@@ -199,21 +233,18 @@ function getTalentPlayerHitDamageMultiplier(targetEnemy, hitElement, hitCrit, pS
         return Math.max(0, numericValue);
     }
     let mul = 1;
-    if (typeof getTalentKeystoneDamageMul === 'function') {
-        mul *= coerceTalentMultiplier(getTalentKeystoneDamageMul(targetEnemy, hitElement, hitCrit, pStats));
-    }
+    mul *= coerceTalentMultiplier(getTalentKeystoneDamageMul(targetEnemy, hitElement, hitCrit, pStats));
     return mul;
 }
 
 function getTalentPlayerAttackDamageMultiplier() {
-    if (typeof getTalentAttackDamageMul !== 'function') return 1;
     let mul = Number(getTalentAttackDamageMul());
     if (!Number.isFinite(mul)) return 1;
     return Math.max(0, mul);
 }
 
 function updateTalentButcherHitMark(enemy) {
-    if (typeof isTalentCardActive !== 'function' || !isTalentCardActive('hero2__assassin')) return;
+    if (!isTalentCardActive('hero2__assassin')) return;
     if (!enemy || enemy.isBoss) return;
     game.talentButcherMarks = game.talentButcherMarks || {};
     let row = game.talentButcherMarks[enemy.id] || { hits: 0 };
@@ -223,7 +254,7 @@ function updateTalentButcherHitMark(enemy) {
 
 function canApplyTalentExecuteThreshold(enemy, threshold) {
     if (!enemy || enemy.isBoss || threshold <= 0) return false;
-    if (typeof isTalentCardActive !== 'function' || !isTalentCardActive('hero2__assassin')) return true;
+    if (!isTalentCardActive('hero2__assassin')) return true;
     let row = game.talentButcherMarks && game.talentButcherMarks[enemy.id];
     return Math.max(0, Math.floor((row && row.hits) || 0)) >= 4;
 }
@@ -1634,6 +1665,7 @@ function getPlayerStats() {
             });
         }
     });
+    getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
     game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0];
     (game.jewelSlots || []).forEach((jewel, idx) => {
         let amp = Math.max(0, Math.floor((game.jewelSlotAmplify[idx] || 0)));
@@ -6045,6 +6077,7 @@ function performPlayerAttack(pStats) {
             applyDamageToEnemyResource(target, beeDmg);
         });
     }
+    prepareTalentPlayerAttackContext(pStats);
     let targets = getSkillTargets(pStats);
     if (targets.length === 0) return;
     let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
