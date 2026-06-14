@@ -6340,6 +6340,12 @@ function performPlayerAttack(pStats) {
                     dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
                 }
             }
+            // 10 스팅어: 지속 피해가 걸린 일반 몬스터가 저체력이면 마무리(지속피해 점유 처형)
+            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__catalyst')
+                && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && ['poison', 'ignite', 'bleed'].includes(a.type) && (a.time || 0) > 0)
+                && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= 0.20) {
+                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+            }
             // 8 심문궁: 표식 누적(쿨타임 아닐 때), 5초 후 processTalentInquisitorMarks에서 폭발
             if (dmg > 0 && targetEnemy.hp > 0 && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__inquisitor')) {
                 game.talentInquisitorMarks = (game.talentInquisitorMarks && typeof game.talentInquisitorMarks === 'object') ? game.talentInquisitorMarks : {};
