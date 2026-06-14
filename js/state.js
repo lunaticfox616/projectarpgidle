@@ -345,8 +345,7 @@ function getZone(id) {
     }
     if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) {
         let depth = getAbyssDepthFromZoneId(id);
-        let legacyEndlessDepth = Math.floor((game && game.abyssEndlessDepth) || depth);
-        let displayDepth = (depth === 20 && legacyEndlessDepth > 20) ? legacyEndlessDepth : depth;
+        let displayDepth = depth;
         let baseZone = MAP_ZONES[Math.min(id, getAbyssZoneIdForDepth(20))];
         return {
             ...(baseZone || {}),

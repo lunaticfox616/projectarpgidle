@@ -2046,6 +2046,24 @@ function enterTrialWithTicket(trialId) {
 }
 
 function enterDeepChaosPrompt(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let max=Math.max(20, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth||20)); let v=prompt(`진입할 심화 혼돈 층수를 입력하세요. (21 ~ ${max})`, String(max)); if(v===null)return; let depth=Math.floor(Number(v)||0); if(depth<21||depth>max) return addLog(`21~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); if (unlocked.length > 0 && !unlocked.includes(depth)) return addLog(`해금된 심화 혼돈 층수만 입장 가능합니다.`, 'attack-monster'); enterUnlockedEndlessDepth(depth); }
+
+function getDeepChaosEntryState() {
+    let open = (game.season || 1) >= 10 && (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared));
+    if (!open) return { open: false, highestDepth: 20, currentDepth: Math.floor(game.abyssEndlessDepth || 20) };
+    let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : [];
+    let highest = Math.max(21, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth || 21));
+    return { open: true, highestDepth: highest, currentDepth: Math.floor(game.abyssEndlessDepth || 21) };
+}
+
+function getDeepChaosMapEntryHtml() {
+    let state = getDeepChaosEntryState();
+    if (!state.open) return '';
+    let current = getAbyssDepthFromZoneId(game.currentZoneId) >= 21 ? 'current' : '';
+    return `<div class="map-item map-item--deep-chaos ${current}" onclick="enterDeepChaosPrompt()">
+        <div class="map-item-main"><span>♾️</span><span>혼돈 심화층<br><span class="map-zone-status">현재 심화층: ${state.currentDepth}층 · 최고 기록: ${state.highestDepth}층</span></span></div>
+        <div class="map-item-actions"><span class="map-zone-status">입장 가능: 21 ~ ${state.highestDepth}</span></div>
+    </div>`;
+}
 function enterLabyrinthPrompt(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let max=Math.max(1,Math.floor(game.labyrinthUnlockedMaxFloor||game.labyrinthFloor||1)); let v=prompt(`진입할 고대 미궁 층수를 입력하세요. (1 ~ ${max})`, String(max)); if(v===null)return; let floor=Math.floor(Number(v)||0); if(floor<1||floor>max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); enterLabyrinthFloor(floor); }
 
 
@@ -6441,6 +6459,8 @@ function buildCraftActionButtons(item) {
     });
     let huntingMapCards = mapCards.filter(card => !card.isChaosMap);
     let chaosMapCards = mapCards.filter(card => card.isChaosMap);
+    let deepChaosCardHtml = getDeepChaosMapEntryHtml();
+    if (deepChaosCardHtml) chaosMapCards.push({ isChaosMap: true, html: deepChaosCardHtml });
     let mapListHtml = buildMapZoneGroupHtml('hunting', '일반 사냥터', huntingMapCards) +
         buildMapZoneGroupHtml('chaos', '혼돈', chaosMapCards);
     if (lastRenderedMapListHtml !== mapListHtml) {
@@ -6461,7 +6481,7 @@ function buildCraftActionButtons(item) {
         seasonBossRepeatBtn.style.background = game.autoRepeatSeasonBoss ? '#2f6a42' : '#5b4a2f';
         seasonBossRepeatBtn.style.minWidth = '0';
     }
-    document.getElementById('ui-season-boss-list').innerHTML = seasonBosses.map(zone => {
+    let rootBossListHtml = seasonBosses.map(zone => {
         let keys = game.currencies[zone.key] || 0;
         let disabled = keys <= 0;
         return `<div class="map-item ${game.currentZoneId === zone.id ? 'current' : ''}" ${disabled ? '' : `onclick="changeZone('${zone.id}')"`}>
@@ -6469,6 +6489,8 @@ function buildCraftActionButtons(item) {
             <div class="map-item-actions"><span class="map-zone-status">${ORB_DB[zone.key].name}: ${keys}</span></div>
         </div>`;
     }).join('');
+    rootBossListHtml += getDeepChaosMapEntryHtml();
+    document.getElementById('ui-season-boss-list').innerHTML = rootBossListHtml;
 
     let labyrinthOpen = (game.season || 1) >= 3;
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
@@ -6480,8 +6502,8 @@ function buildCraftActionButtons(item) {
         </div><div class="map-item-actions"><span class="map-zone-status">해금 최고층: ${maxFloor}층 · 클릭하여 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-labyrinth-list').innerHTML = '';
 
-    // 사냥터 선택은 현재 시즌의 혼돈 20까지만 보여준다.
-    // 혼돈 심화층 입장은 루프/시즌 패널의 전용 버튼에서만 처리한다.
+    // 혼돈 심화 입장은 사냥터 선택/뿌리 보스 도전 카드로 노출한다.
+    // 기존 전용 섹션은 중복 표시를 피하기 위해 비운다.
     document.getElementById('ui-deep-chaos-header').style.display = 'none';
     document.getElementById('ui-deep-chaos-list').innerHTML = '';
 

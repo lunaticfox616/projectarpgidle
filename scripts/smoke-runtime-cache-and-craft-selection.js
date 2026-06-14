@@ -5,8 +5,11 @@ const vm = require('vm');
 const index = fs.readFileSync('index.html', 'utf8');
 const canvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 
-['css/layout.css', 'css/components.css', 'data/items.js', 'js/utils.js', 'js/state.js', 'js/items.js', 'js/passives.js', 'js/combat.js', 'js/canvas-passive-tree.js', 'js/ui.js'].forEach(asset => {
+['css/layout.css', 'css/components.css', 'data/items.js', 'js/utils.js', 'js/items.js', 'js/passives.js', 'js/combat.js', 'js/canvas-passive-tree.js'].forEach(asset => {
   assert(index.includes(`${asset}?v=20260614-runtime-fixes1`), `${asset} cache buster must include the runtime fixes version`);
+});
+['js/state.js', 'js/ui.js'].forEach(asset => {
+  assert(index.includes(`${asset}?v=20260614-deep-chaos-map1`), `${asset} cache buster must include the deep-chaos map version`);
 });
 assert(canvasSource.includes('function isCraftSelectionEquipAvailableLocal()'), 'canvas paperdoll must guard missing craft-selection equip helper');
 assert(canvasSource.includes('function getCraftSelectionRefLocal()'), 'canvas paperdoll must guard missing craft-selection ref helper');
