@@ -186,6 +186,79 @@ function hasKeystone(id) {
     return Array.isArray(game.ascendKeystones) && game.ascendKeystones.includes(id);
 }
 
+function getAliveEnemyByRuntimeKey(enemyId) {
+    let numericId = Number(enemyId);
+    if (!Number.isFinite(numericId)) return null;
+    return (game.enemies || []).find(e => e && e.id === numericId && e.hp > 0) || null;
+}
+
+function getActiveTalentCardId() {
+    if (!game.selectedHeroId || !game.ascendClass) return null;
+    return `${game.selectedHeroId}__${game.ascendClass}`;
+}
+
+function isTalentCardActive(cardId) {
+    return getActiveTalentCardId() === cardId;
+}
+
+function getActiveTalentUniqueEffects() {
+    if (isTalentCardActive('hero1__gladiator')) {
+        return [{ key: 'projectileTargetBonus', params: { target: 3 }, talentCardId: 'hero1__gladiator' }];
+    }
+    return [];
+}
+
+function prepareTalentPlayerAttackContext(pStats) {
+    game.talentFletcherAttackBoostActive = false;
+    if (!isTalentCardActive('hero1__gladiator')) return;
+    if (!pStats || !pStats.sSkill || !Array.isArray(pStats.sSkill.tags) || !pStats.sSkill.tags.includes('projectile')) return;
+    game.talentFletcherCount = Math.max(0, Math.floor(game.talentFletcherCount || 0)) + 1;
+    if (game.talentFletcherCount % 3 !== 0) return;
+    game.talentFletcherAttackBoostActive = true;
+    pStats.sSkill.targets = Math.min(12, Math.max(1, Math.floor(pStats.sSkill.targets || 1)) + 3);
+}
+
+function getTalentAttackDamageMul() {
+    return game.talentFletcherAttackBoostActive ? 1.33 : 1;
+}
+
+function getTalentKeystoneDamageMul(targetEnemy, hitElement, hitCrit, pStats) {
+    return 1;
+}
+
+function getTalentPlayerHitDamageMultiplier(targetEnemy, hitElement, hitCrit, pStats) {
+    function coerceTalentMultiplier(value) {
+        let numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) return 1;
+        return Math.max(0, numericValue);
+    }
+    let mul = 1;
+    mul *= coerceTalentMultiplier(getTalentKeystoneDamageMul(targetEnemy, hitElement, hitCrit, pStats));
+    return mul;
+}
+
+function getTalentPlayerAttackDamageMultiplier() {
+    let mul = Number(getTalentAttackDamageMul());
+    if (!Number.isFinite(mul)) return 1;
+    return Math.max(0, mul);
+}
+
+function updateTalentButcherHitMark(enemy) {
+    if (!isTalentCardActive('hero2__assassin')) return;
+    if (!enemy || enemy.isBoss) return;
+    game.talentButcherMarks = game.talentButcherMarks || {};
+    let row = game.talentButcherMarks[enemy.id] || { hits: 0 };
+    row.hits = Math.max(0, Math.floor(row.hits || 0)) + 1;
+    game.talentButcherMarks[enemy.id] = row;
+}
+
+function canApplyTalentExecuteThreshold(enemy, threshold) {
+    if (!enemy || enemy.isBoss || threshold <= 0) return false;
+    if (!isTalentCardActive('hero2__assassin')) return true;
+    let row = game.talentButcherMarks && game.talentButcherMarks[enemy.id];
+    return Math.max(0, Math.floor((row && row.hits) || 0)) >= 4;
+}
+
 function getPlayerHpCap(pStats) {
     if (!pStats) return 0;
     let maxHp = Math.max(0, pStats.maxHp || 0);
@@ -206,7 +279,7 @@ function cleanupConditionGemStates(now) {
         let pending = game.enemyCurseExpirePayloads || {};
         let row = pending[enemyId];
         if (!row || !row.doomDamage) return;
-        let enemy = (game.enemies || []).find(e => e && e.id === enemyId && e.hp > 0);
+        let enemy = getAliveEnemyByRuntimeKey(enemyId);
         if (!enemy) return;
         let bonus = Math.max(0, Math.floor(row.doomDamage * 0.16));
         if (bonus <= 0) return;
@@ -255,6 +328,7 @@ function pruneEnemyRuntimeDebuffMaps() {
     game.enemyUniqueChaosResDown = pruneMap(game.enemyUniqueChaosResDown, 180);
     game.enemyUniqueElementalResDown = pruneMap(game.enemyUniqueElementalResDown, 180);
     game.enemyCurseExpirePayloads = pruneMap(game.enemyCurseExpirePayloads, 180);
+    game.talentButcherMarks = pruneMap(game.talentButcherMarks, 180);
 }
 
 function getConditionGemLevel(name) {
@@ -1490,6 +1564,11 @@ function getSolitaryHuntDoubleStrikeBonus(originalTargets) {
     return (Math.min(5, reducedTargets) * 100) + (Math.max(0, reducedTargets - 5) * 50);
 }
 
+function isDeferredTalentProjectileTargetEffect(effect) {
+    if (!effect || effect.key !== 'projectileTargetBonus') return false;
+    return effect.cardId === 'hero1__gladiator' || effect.talentCardId === 'hero1__gladiator';
+}
+
 function getPlayerStats() {
     const safePassives = Array.isArray(game.passives) ? game.passives : [];
     const safeSeasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
@@ -1586,6 +1665,7 @@ function getPlayerStats() {
             });
         }
     });
+    getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
     game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0];
     (game.jewelSlots || []).forEach((jewel, idx) => {
         let amp = Math.max(0, Math.floor((game.jewelSlotAmplify[idx] || 0)));
@@ -1704,7 +1784,10 @@ function getPlayerStats() {
         else if (effect.key === 'uniqueMinDmgRoll') addStatToBucket(reward, 'minDmgRoll', Number(ep.pct || 5));
         else if (effect.key === 'hitShockedEnemyDamageMorePct') addStatToBucket(reward, 'shockedEnemyHitDamageMorePct', Number(ep.pct || 50));
         else if (effect.key === 'noCollisionBlock') uniqueNoCollisionBlock = true;
-        else if (effect.key === 'projectileTargetBonus') addStatToBucket(reward, 'targetProjectile', Number(ep.target || 1));
+        else if (effect.key === 'projectileTargetBonus') {
+            if (isDeferredTalentProjectileTargetEffect(effect)) return;
+            addStatToBucket(reward, 'targetProjectile', Number(ep.target || 1));
+        }
         else if (effect.key === 'igniteDamageMorePct') addStatToBucket(reward, 'igniteDamageMultiplierPct', Number(ep.pct || 25));
         else if (effect.key === 'cosmosFinalDmg') addStatToBucket(reward, 'pctDmg', Number(ep.pct || 12));
         else if (effect.key === 'cosmosTakenLess') addStatToBucket(reward, 'dr', Number(ep.dr || 8));
@@ -5533,11 +5616,13 @@ function ensureNextEndlessChaosDepthUnlocked(depth) {
 function resolveNextLoopBestPlusOneZone(zone) {
     game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
     let resolveAnyClimb = zone && zone.type === 'meteor';
-    if (zone && (zone.type === 'abyss' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0)) >= 21) {
-        let nextDepth = Math.max(21, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 21) + 1);
+    let currentAbyssDepth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
+    let currentLoopAbyssDepth = Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), currentAbyssDepth);
+    if (zone && (zone.type === 'abyss' || resolveAnyClimb) && currentLoopAbyssDepth >= 20) {
+        let nextDepth = Math.max(21, currentLoopAbyssDepth + 1);
         let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)) : [];
-        if (unlocked.length > 0 && !unlocked.includes(nextDepth)) nextDepth = Math.max(...unlocked.filter(v => v >= 21));
-        if (nextDepth >= 21) return getAbyssZoneIdForDepth(nextDepth);
+        if (unlocked.length > 0 && !unlocked.includes(nextDepth)) return null;
+        return getAbyssZoneIdForDepth(nextDepth);
     }
     if (zone && (zone.type === 'labyrinth' || resolveAnyClimb) && Math.max(0, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0)) >= 1) {
         game.labyrinthFloor = Math.max(1, Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 1) + 1);
@@ -5888,10 +5973,10 @@ function finishEncounterRun() {
                 let hadCurrentSeasonLoopRequirementBeforeClear = seasonAbyssCap <= 20
                     ? (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!game.loopProgressCurrent.chaos20Cleared)
                     : bestAbyssDepthBeforeClear >= seasonAbyssCap;
-                if (depth >= 21) game.loopProgressCurrent.bestAbyssDepth = Math.max(bestAbyssDepthBeforeClear, depth);
+                if (depth >= 20) game.loopProgressCurrent.bestAbyssDepth = Math.max(bestAbyssDepthBeforeClear, depth);
                 game.loopProgressCurrent.chaos20Cleared = true;
                 if (typeof maybeUnlockSkyTowerFromChaos20 === 'function') maybeUnlockSkyTowerFromChaos20();
-                if (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear) {
+                if (mapAction === 'nextLoopBestPlusOne' || (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear)) {
                     enterNextEndlessChaosDepth();
                     return;
                 }
@@ -5935,7 +6020,7 @@ function finishEncounterRun() {
         game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
         if (zone.type === 'abyss') {
             let d = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
-            if (d >= 21) game.loopProgressCurrent.bestAbyssDepth = Math.max(Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), d);
+            if (d >= 20) game.loopProgressCurrent.bestAbyssDepth = Math.max(Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), d);
         }
         if (zone.type === 'labyrinth') game.loopProgressCurrent.bestLabyrinthFloor = Math.max(Math.floor(game.loopProgressCurrent.bestLabyrinthFloor || 0), Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1)));
         if (zone.type === 'chaosRealm') game.loopProgressCurrent.bestChaosRealmFloor = Math.max(Math.floor(game.loopProgressCurrent.bestChaosRealmFloor || 0), Math.max(1, Math.floor(zone.floor || (ensureChaosRealmState().currentFloor || 1))));
@@ -5994,6 +6079,7 @@ function performPlayerAttack(pStats) {
             applyDamageToEnemyResource(target, beeDmg);
         });
     }
+    prepareTalentPlayerAttackContext(pStats);
     let targets = getSkillTargets(pStats);
     if (targets.length === 0) return;
     let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
@@ -6034,6 +6120,7 @@ function performPlayerAttack(pStats) {
     let swingElement = getHitElement();
     if (!['phys','fire','cold','light','chaos'].includes(swingElement)) swingElement = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
     game.lastSkillHitElement = swingElement;
+    let talentAttackMul = getTalentPlayerAttackDamageMultiplier();
     addBattleFx('playerSwing', {
         color: getElementColor(swingElement),
         element: swingElement,
@@ -6238,6 +6325,10 @@ function performPlayerAttack(pStats) {
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * 1.30);
                 game.gladiatorSwiftOpeningReady = false;
             }
+            let talentKeystoneMul = getTalentPlayerHitDamageMultiplier(targetEnemy, hitElement, hitCrit, pStats);
+            let talentHitMul = talentAttackMul * talentKeystoneMul;
+            hitBaseDamage = Math.floor(hitBaseDamage * talentHitMul);
+            ailmentBaseDamage = Math.floor(ailmentBaseDamage * talentHitMul);
             let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
             let ailmentSourceDamage = Math.floor(ailmentBaseDamage * (hit.mult || 1));
             let repeatDamageMultiplier = hitIdx < baseRepeats ? 1 : Math.max(0, Number(pStats.sSkill.extraProjectileDamagePct) || 100) / 100;
@@ -6452,7 +6543,8 @@ function performPlayerAttack(pStats) {
                 });
             }
             if ((pStats.damageScales || {}).talismanBossFinalDmgBonusPct && targetEnemy.hp > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) <= 0.05) targetEnemy.hp = 0;
-            if (pStats.sSkill.executeThreshold && !targetEnemy.isBoss && targetEnemy.hp > 0
+            updateTalentButcherHitMark(targetEnemy);
+            if (canApplyTalentExecuteThreshold(targetEnemy, pStats.sSkill.executeThreshold) && targetEnemy.hp > 0
                 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) < pStats.sSkill.executeThreshold) targetEnemy.hp = 0;
             if (game.ascendClass === 'gladiator' && hasKeystone('g6') && targetEnemy.hp > 0) {
                 let executeThreshold = targetEnemy.isBoss ? 0.10 : 0.20;
@@ -7478,6 +7570,7 @@ function triggerSeasonReset() {
     let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
     let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
     let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
+    let preservedTalismanUnlocked = !!game.talismanUnlocked || !!(game.unlocks && game.unlocks.talisman);
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -7535,7 +7628,7 @@ function triggerSeasonReset() {
     game.jewelInventory = [];
     game.jewelSlots = [null, null];
     game.jewelSlotAmplify = [0, 0];
-    game.talismanUnlocked = false;
+    game.talismanUnlocked = preservedTalismanUnlocked;
     game.talismanBoardUnlock = Math.max(3, Math.floor(defaultGame.talismanBoardUnlock || 3));
     game.talismanUnlockedCells = [];
     game.talismanInventory = [];
@@ -7557,6 +7650,7 @@ function triggerSeasonReset() {
     game.starWedge.wedges = preservedEternalWedges;
     game.starWedge.constellationBuff = preservedConstellationBuff;
     game.unlocks = { ...defaultGame.unlocks };
+    if (preservedTalismanUnlocked) game.unlocks.talisman = true;
     game.noti = { ...defaultGame.noti };
     if (typeof relockCoreCubeForLoop === 'function') relockCoreCubeForLoop();
     game.itemSubtab = 'item-tab-equip';
@@ -7568,7 +7662,7 @@ function triggerSeasonReset() {
     game.skyTower.clearedThisLoop = 0;
     game.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
     game.inTicketBossFight = false;
-    game.talismanUnlocked = false;
+    game.talismanUnlocked = preservedTalismanUnlocked;
     game.talismanBoardUnlock = 3;
     game.talismanInventory = [];
     game.talismanBoard = [];
