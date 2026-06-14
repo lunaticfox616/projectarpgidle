@@ -6302,7 +6302,13 @@ function performPlayerAttack(pStats) {
             let zone = getZone(game.currentZoneId);
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let beforeHpForForced = targetEnemy.hp;
+            let talentWasFull = beforeHpForForced >= (targetEnemy.maxHp || beforeHpForForced || 1);
             let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
+            // 23 산맥추적자: 생명력 최대인 적 첫 타격 시 최대 생명력 비례 추가 피해
+            if (typeof getTalentFullLifeBurst === 'function' && targetEnemy.hp > 0) {
+                let fullBurst = getTalentFullLifeBurst(targetEnemy, talentWasFull);
+                if (fullBurst > 0) dealtToEnemy += applyDamageToEnemyResource(targetEnemy, fullBurst);
+            }
             // 재능 처형(15 도살자/71 하운드): 낮은 체력 일반 몬스터 마무리
             if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof getTalentExecuteThreshold === 'function') {
                 let exThr = getTalentExecuteThreshold();

@@ -25,7 +25,7 @@ const TALENT_BLOOM_CARD_DEFS = {
     'hero2__inquisitor': { name: "집행자", surface: {"desc": "보스 또는 정예에게 첫 타격 시 지속 시간이 무제한인 집행 명령을 선고하여 5%의 추가 피해를 입힘 (중첩 불가)", "dmg": {"perLevel": 0.5, "when": "vsBoss"}}, hidden: [{"stat": "pctDmg", "lv10": 3}] },
     'hero2__soulbinder': { name: "선봉장", surface: {"desc": "플레이어가 선봉 깃발 소유. 플레이어를 제외한 깃발 주변의 모든 동료들의 피해 12% 증폭", "ops": [{"stat": "summonPctDmg", "perLevel": 1.2}]}, hidden: [{"stat": "summonPctDmg", "lv10": 4}] },
     'hero2__catalyst': { name: "퀵실버", surface: {"desc": "이동 속도 및 공격 속도 10% 증폭, 생명력 재생 10% 감폭 후 -5%p", "ops": [{"stat": "aspd", "perLevel": 1}, {"stat": "move", "perLevel": 1}, {"stat": "regen", "perLevel": -0.5}]}, hidden: [{"stat": "aspd", "lv10": 3}] },
-    'hero2__hunter': { name: "산맥추적자", surface: {"desc": "생명력이 최대인 적 첫 타격 시 적 최대 생명력의 8%를 피해에 추가 (보스는 4%)", "ops": [{"stat": "pctDmg", "perLevel": 0.8}]}, hidden: [{"stat": "physPctDmg", "lv10": 3}] },
+    'hero2__hunter': { name: "산맥추적자", surface: {"desc": "생명력이 최대인 적 첫 타격 시 적 최대 생명력의 8%를 피해에 추가 (보스는 4%)"}, hidden: [{"stat": "physPctDmg", "lv10": 3}] },
     'hero2__crusader': { name: "태양서약 기사", surface: {"desc": "생명력이 50% 이하로 내려가면 받는 피해 8% 감소", "ops": [{"stat": "dr", "perLevel": 0.8}]}, hidden: [{"stat": "dr", "lv10": 2}] },
     // hero3 (드루이드)
     'hero3__warrior': { name: "버팔로혼", surface: {"desc": "형태변환 (버팔로) :자신이 직접 공격할 때 방어도의 3%가 원소 피해 증가로도 적용됨. / 한번에 단 하나의 형태만 가질 수 있음.", "ops": [{"stat": "elementalPctDmg", "perLevel": 2}, {"stat": "armorPct", "perLevel": 2}]}, hidden: [{"stat": "armorPct", "lv10": 6}] },

@@ -387,6 +387,15 @@ function talentOnPlayerAttack(pStats, isCrit) {
     }
 }
 
+// 23 산맥추적자: 생명력이 최대인 적 첫 타격 시 적 최대 생명력 비례 추가 피해(보스 4%, 그 외 8%).
+function getTalentFullLifeBurst(enemy, wasFull) {
+    if (!wasFull || !enemy) return 0;
+    let lv = isTalentCardActive('hero2__hunter');
+    if (!lv) return 0;
+    let pct = (enemy.isBoss ? 0.04 : 0.08) * (lv / TALENT_CARD_MAX_LEVEL);
+    return Math.max(0, Math.floor((enemy.maxHp || enemy.hp || 0) * pct));
+}
+
 // 26 숲마당 투사: 플레이어 공격이 반드시 명중(적 회피 무시).
 function getTalentAlwaysHit() {
     return isTalentCardActive('hero3__gladiator') > 0;
