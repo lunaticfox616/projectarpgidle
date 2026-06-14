@@ -387,6 +387,14 @@ function talentOnPlayerAttack(pStats, isCrit) {
     }
 }
 
+// 재능 처형: 활성 카드 중 "낮은 체력 일반 몬스터 마무리" 임계값(체력 비율). 없으면 0.
+function getTalentExecuteThreshold() {
+    let t = 0;
+    if (isTalentCardActive('hero2__assassin')) t = Math.max(t, 0.30); // 15 도살자
+    if (isTalentCardActive('hero6__hunter')) t = Math.max(t, 0.25);   // 71 하운드
+    return t;
+}
+
 // 이번 공격에 적용할 재능 정밀 피해 배율(calcDamage에서 곱).
 function getTalentAttackDamageMul() {
     let rt = (game.talentRuntime && typeof game.talentRuntime === 'object') ? game.talentRuntime : {};

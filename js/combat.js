@@ -6303,6 +6303,13 @@ function performPlayerAttack(pStats) {
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let beforeHpForForced = targetEnemy.hp;
             let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
+            // 재능 처형(15 도살자/71 하운드): 낮은 체력 일반 몬스터 마무리
+            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof getTalentExecuteThreshold === 'function') {
+                let exThr = getTalentExecuteThreshold();
+                if (exThr > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= exThr) {
+                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+                }
+            }
             if (targetEnemy.hp <= 0) targetEnemy.lastOverkillDamage = Math.max(0, dmg - dealtToEnemy);
             if (pStats.uniqueMaxRollBonusHit && rollPct >= 130 && dealtToEnemy > 0 && targetEnemy.hp > 0) {
                 let bonus = Math.max(1, Math.floor(dealtToEnemy * 0.5));
