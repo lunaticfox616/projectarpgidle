@@ -95,7 +95,10 @@ const SKILL_TAG_LABELS = {
     aoe: '범위',
     dot: '지속',
     slam: '강타',
-    chain: '연쇄'
+    chain: '연쇄',
+    summon: '소환수',
+    summon_attack: '공격형 소환수',
+    summon_guard: '방어형 소환수'
 };
 const TAGGED_DAMAGE_STAT_BY_TAG = {
     melee: 'meleePctDmg',
@@ -122,8 +125,8 @@ const COMPARE_STAT_META = {
     evadeChance: { label: '회피 확률', format: value => `${value.toFixed(1)}%` },
     energyShield: { label: '에너지 보호막', format: value => `${Math.floor(value)}` },
     energyShieldRegenRate: { label: '에너지 보호막 재생', format: value => `${value.toFixed(1)}%` },
-    deflectChance: { label: '빗겨내기 확률', format: value => `${value.toFixed(1)}%` },
-    deflectDamageReduce: { label: '빗겨내기 피해 감소', format: value => `${value.toFixed(1)}%` },
+    deflectChance: { label: '비껴내기 확률', format: value => `${value.toFixed(1)}%` },
+    deflectDamageReduce: { label: '비껴내기 피해 감소', format: value => `${value.toFixed(1)}%` },
     blockChance: { label: '막기 확률', format: value => `${value.toFixed(1)}%` },
     blockChanceMax: { label: '막기 확률 상한', format: value => `${value.toFixed(1)}%` },
     moveSpeed: { label: '이동 속도', format: value => `${Math.floor(value)}%` },
@@ -264,8 +267,11 @@ function getStatName(statId) {
         energyShield: '에너지 보호막',
         armorPct: '방어도(%)',
         evasionPct: '회피(%)',
-        deflectChance: '빗겨내기 확률(%)',
-        deflectDamageReduce: '빗겨내기 피해 감소(%)',
+        deflectChance: '비껴내기 확률(%)',
+        deflectDamageReduce: '비껴내기 피해 감소(%)',
+        corpseExplodeChance: '시체폭발 확률(%)',
+        corpseExplodeLifePct: '시체폭발 피해(처치한 적 최대 생명력 %)',
+        resonancePower: '공명력',
         ailResIgnite: '점화 저항 확률(%)',
         ailResShock: '감전 저항 확률(%)',
         ailResFreeze: '냉기 저항 확률(%)',

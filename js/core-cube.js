@@ -343,9 +343,9 @@ function getCoreCubeOptionPool() {
     return [
         { group:'defense', id:'phys_dr', stat:'dr', label:'물리 피해 감소', unit:'%', min:2, max:6 },
         { group:'defense', id:'block', stat:'blockChance', label:'막기 확률', unit:'%', min:2, max:6 },
-        { group:'defense', id:'deflect', stat:'deflectChance', label:'빗겨내기 확률', unit:'%', min:2, max:7 },
+        { group:'defense', id:'deflect', stat:'deflectChance', label:'비껴내기 확률', unit:'%', min:2, max:7 },
         { group:'defense', id:'block_max', stat:'blockChanceMax', label:'막기 확률 최대치', unit:'%', min:2, max:6 },
-        { group:'defense', id:'deflect_reduce', stat:'deflectDamageReduce', label:'빗겨내기 피해 감소율', unit:'%', min:3, max:10 },
+        { group:'defense', id:'deflect_reduce', stat:'deflectDamageReduce', label:'비껴내기 피해 감소율', unit:'%', min:3, max:10 },
         { group:'defense', id:'armor_pct', stat:'armorPct', label:'방어도', unit:'%', min:12, max:36 },
         { group:'defense', id:'evasion_pct', stat:'evasionPct', label:'회피', unit:'%', min:12, max:36 },
         { group:'defense', id:'es_pct', stat:'energyShieldPct', label:'에너지보호막', unit:'%', min:12, max:36 },

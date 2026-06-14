@@ -3051,18 +3051,18 @@ function getPlayerStats() {
             final: `${finalBlockChanceCap.toFixed(1)}%`
         },
         deflectChance: {
-            title: '빗겨내기 확률',
+            title: '비껴내기 확률',
             lines: [
                 makeSourceLine('장비', gearBase.deflectChance + gearExplicit.deflectChance, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passive.deflectChance + season.deflectChance + ascend.deflectChance + reward.deflectChance, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('보조 젬', support.deflectChance, '%', value => `${value.toFixed(1)}%`),
-                `빗겨내기 성공 시 피해 감소: ${Math.min(85, 40 + finalDeflectDamageReduce).toFixed(1)}%`,
-                '기본 피해 감소 40%에 빗겨내기 피해 감소 옵션이 더해지며, 최대 85%까지 적용됩니다.'
+                `비껴내기 성공 시 피해 감소: ${Math.min(85, 40 + finalDeflectDamageReduce).toFixed(1)}%`,
+                '기본 피해 감소 40%에 비껴내기 피해 감소 옵션이 더해지며, 최대 85%까지 적용됩니다.'
             ].filter(Boolean),
             final: `${finalDeflectChance.toFixed(1)}%`
         },
         deflectDamageReduce: {
-            title: '빗겨내기 피해 감소',
+            title: '비껴내기 피해 감소',
             lines: [
                 makeSourceLine('장비', gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passive.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + reward.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
@@ -4281,6 +4281,15 @@ function getSkillConditionalDamageMultiplier(skill, enemy) {
     if (active && ailments.some(ail => ail && ail.type === active.type && (ail.time || 0) > 0)) {
         multiplier *= 1 + Math.max(0, Number(active.pct) || 0) / 100;
     }
+    let consumed = false;
+    (skill.consumeAilmentDamageMore || []).forEach(config => {
+        if (consumed) return;
+        let index = ailments.findIndex(ail => ail && ail.type === config.type && (ail.time || 0) > 0);
+        if (index < 0) return;
+        multiplier *= 1 + Math.max(0, Number(config.pct) || 0) / 100;
+        ailments.splice(index, 1);
+        consumed = true;
+    });
     let missingPct = 1 - Math.max(0, enemy.hp || 0) / Math.max(1, enemy.maxHp || 1);
     multiplier *= 1 + missingPct * Math.max(0, Number(skill.missingLifeDamagePct) || 0) / 100;
     return multiplier;
@@ -7249,7 +7258,7 @@ function performMonsterAttacks(pStats) {
                     .sort((a, b) => b.amount - a.amount)
                     .map(row => `${getDamageElementLabel(row.ele)} ${Math.floor(row.amount)}`)
                     .join(' / ');
-                let deflectText = deflected ? ` · 🪶빗겨냄 -${deflectReducePct}%` : '';
+                let deflectText = deflected ? ` · 🪶비껴냄 -${deflectReducePct}%` : '';
                 addLog(`🩸 [${getDamageElementLabel(topDamageEntry.ele)}] 피격 (${dmg} 피해 · ${breakdownText}${deflectText})`, "attack-monster");
             }
             if (game.playerHp <= 0) {
