@@ -1486,6 +1486,7 @@ const defaultGame = {
         notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true }
     },
     selectedHeroId: 'hero1',
+    appearanceHeroId: null,
     discoveredHeroIds: [],
     heroSelectionInitialized: false,
     heroFreeSwitchUnlocked: false,

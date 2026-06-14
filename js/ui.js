@@ -3172,6 +3172,7 @@ function syncHeroSelectionState(source, options = {}) {
     if (!Array.isArray(game.discoveredHeroIds)) game.discoveredHeroIds = [];
     game.discoveredHeroIds = game.discoveredHeroIds.filter(id => HERO_SELECTION_DEFS[id]);
     if (!HERO_SELECTION_DEFS[game.selectedHeroId]) game.selectedHeroId = 'hero1';
+    if (game.appearanceHeroId && !HERO_SELECTION_DEFS[game.appearanceHeroId]) game.appearanceHeroId = null;
     let shouldRecordSelected = !!options.recordSelected || !!game.heroSelectionInitialized || !!game.heroFreeSwitchUnlocked;
     if (shouldRecordSelected && !game.discoveredHeroIds.includes(game.selectedHeroId)) game.discoveredHeroIds.push(game.selectedHeroId);
     let unlockedBefore = !!game.heroFreeSwitchUnlocked;
@@ -3181,9 +3182,10 @@ function syncHeroSelectionState(source, options = {}) {
     let summaryEl = document.getElementById('ui-hero-talent-summary');
     if (summaryEl) {
         let def = getHeroSelectionDef(game.selectedHeroId);
+        let appearanceDef = getHeroSelectionDef(typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId);
         let discovered = Math.min(HERO_SELECTION_ORDER.length, game.discoveredHeroIds.length);
-        let unlockText = game.heroFreeSwitchUnlocked ? '자유 변경 해금됨' : `해금 진행 ${discovered}/${HERO_SELECTION_ORDER.length}`;
-        summaryEl.innerText = `${def.label} · 재능: ${def.talentsText} · ${unlockText}`;
+        let unlockText = game.heroFreeSwitchUnlocked ? `외형 변경 해금됨 · 외형: ${appearanceDef.label}` : `해금 진행 ${discovered}/${HERO_SELECTION_ORDER.length}`;
+        summaryEl.innerText = `${def.label} · 실제 재능: ${def.talentsText} · ${unlockText}`;
     }
 }
 
@@ -3194,7 +3196,7 @@ function renderHeroSelectionControls() {
         let def = HERO_SELECTION_DEFS[id];
         return `<option value="${id}">${def.label}</option>`;
     }).join('');
-    selectEl.value = game.selectedHeroId || 'hero1';
+    selectEl.value = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : (game.selectedHeroId || 'hero1');
     if (!game.heroFreeSwitchUnlocked) {
         selectEl.disabled = true;
         selectEl.title = '모든 캐릭터를 한 번씩 선택하면 자유 변경이 해금됩니다.';
@@ -3212,6 +3214,17 @@ function persistHeroSelectionChange(reason) {
 
 function applyHeroSelection(heroId, options = {}) {
     if (!HERO_SELECTION_DEFS[heroId]) return false;
+    if (options.cosmeticOnly) {
+        if (!game.heroFreeSwitchUnlocked) return false;
+        let prevAppearance = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : (game.appearanceHeroId || game.selectedHeroId || 'hero1');
+        game.appearanceHeroId = heroId;
+        syncHeroSelectionState();
+        if (prevAppearance !== heroId && battleAssets && battleAssets.ready) battleAssets.atlas = buildBattleAssetAtlas();
+        renderHeroSelectionControls();
+        if (!options.silent && prevAppearance !== heroId) addLog(`🧬 캐릭터 외형 변경: ${getHeroSelectionDef(heroId).label}`, 'season-up');
+        if (!options.skipSave) persistHeroSelectionChange('캐릭터 외형 변경');
+        return true;
+    }
     let prev = game.selectedHeroId;
     game.selectedHeroId = heroId;
     syncHeroSelectionState(null, { recordSelected: true });
@@ -3227,10 +3240,10 @@ function onHeroSelectionChanged() {
     if (!selectEl) return;
     if (!game.heroFreeSwitchUnlocked) {
         addLog('🔒 아직 자유 변경이 잠겨 있습니다. 루프를 돌며 모든 캐릭터를 확인하세요.', 'attack-monster');
-        selectEl.value = game.selectedHeroId || 'hero1';
+        selectEl.value = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : (game.selectedHeroId || 'hero1');
         return;
     }
-    applyHeroSelection(selectEl.value);
+    applyHeroSelection(selectEl.value, { cosmeticOnly: true });
     updateStaticUI();
 }
 
@@ -4164,7 +4177,8 @@ function getLocalBattleHeroVisualTuning() {
         hero3: { baseHeight: 66, minHeight: 58, maxHeight: 81, downShrink: 8, maxScaleBoost: 1.23, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
         hero4: { baseHeight: 67, minHeight: 59, maxHeight: 82, downShrink: 8.1, maxScaleBoost: 1.24, shadowWidth: 13, shadowHeight: 5.2, shadowAlpha: 0.18, offsetY: 2 }
     };
-    return { ...defaultTuning, ...(localTuningByHero[game.selectedHeroId] || localTuningByHero.hero1) };
+    let heroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId;
+    return { ...defaultTuning, ...(localTuningByHero[heroId] || localTuningByHero.hero1) };
 }
 
 function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now, motionState) {
@@ -4328,7 +4342,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             outlineAlpha: 0.86,
             outlineThickness: 1
         };
-        let attackXOffset = (downPhase === null && isAttacking && game.selectedHeroId === 'hero3') ? 6 : 0;
+        let attackXOffset = (downPhase === null && isAttacking && (typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId) === 'hero3') ? 6 : 0;
         drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset + attackXOffset, y + 7 + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
         if (flash && downPhase === null) {
             ctx.save();
@@ -8013,12 +8027,14 @@ function mergeDefaults(save) {
     merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
     merged.heroSelectionInitialized = !!merged.heroSelectionInitialized;
     merged.selectedHeroId = HERO_SELECTION_DEFS[merged.selectedHeroId] ? merged.selectedHeroId : 'hero1';
+    merged.appearanceHeroId = HERO_SELECTION_DEFS[merged.appearanceHeroId] ? merged.appearanceHeroId : null;
     merged.discoveredHeroIds = Array.isArray(merged.discoveredHeroIds) ? merged.discoveredHeroIds.filter(id => HERO_SELECTION_DEFS[id]) : [];
     if (!merged.heroSelectionInitialized && !merged.heroFreeSwitchUnlocked && merged.selectedHeroId === 'hero1' && merged.discoveredHeroIds.length === 1 && merged.discoveredHeroIds[0] === 'hero1') {
         merged.discoveredHeroIds = [];
     }
     if ((merged.heroSelectionInitialized || merged.heroFreeSwitchUnlocked) && !merged.discoveredHeroIds.includes(merged.selectedHeroId)) merged.discoveredHeroIds.push(merged.selectedHeroId);
     merged.heroFreeSwitchUnlocked = !!merged.heroFreeSwitchUnlocked || merged.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length;
+    if (!merged.heroFreeSwitchUnlocked) merged.appearanceHeroId = null;
     merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
     merged.abyssPassivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.abyssPassivePoints, defaultGame.abyssPassivePoints, 0)));
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
