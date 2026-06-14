@@ -69,8 +69,16 @@ const context = createBrowserContext();
 loadPassiveRuntime(context);
 const nodes = Object.values(context.PASSIVE_TREE.nodes);
 const clusterNodes = nodes.filter(node => node.clusterId);
+const crusaderTree = context.getClassTreeDef('crusader');
+
+function classNodeStats(node) {
+  return Array.isArray(node.stats) ? node.stats.map(line => line.stat) : [node.stat];
+}
 
 assert(nodes.length >= 1000, 'production passive generation must retain the full tree structure');
+assert.strictEqual(JSON.stringify(classNodeStats(crusaderTree.n1)), JSON.stringify(['physPctDmg', 'lightPctDmg']), 'crusader entry damage node must grant physical and lightning damage');
+assert.strictEqual(JSON.stringify(classNodeStats(crusaderTree.n4)), JSON.stringify(['physPctDmg', 'lightPctDmg']), 'crusader middle damage node must grant physical and lightning damage');
+assert.strictEqual(JSON.stringify(classNodeStats(crusaderTree.n7)), JSON.stringify(['physPctDmg', 'lightPctDmg']), 'crusader final damage node must grant physical and lightning damage');
 
 const summonNodes = nodes.filter(node => String(node.stat).startsWith('summon'));
 assert(summonNodes.length > 0, 'the relocated summon cluster must exist');

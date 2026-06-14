@@ -1755,7 +1755,12 @@ function getPlayerStats() {
         let tree = getClassTreeDef(game.ascendClass);
         safeAscendNodes.forEach(id => {
             let node = tree[id];
-            if (node) addStatToBucket(ascend, node.stat, node.val);
+            if (!node) return;
+            if (Array.isArray(node.stats)) {
+                node.stats.forEach(statLine => addStatToBucket(ascend, statLine.stat, statLine.val));
+                return;
+            }
+            addStatToBucket(ascend, node.stat, node.val);
         });
     }
     safeRewardBonuses.forEach(entry => {
