@@ -855,9 +855,10 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let finalMul = getLimitedSummonFinalDamageMultiplier(pStats);
     dmg = Math.floor(dmg * finalMul);
     ailmentSourceDmg = Math.floor(ailmentSourceDmg * finalMul);
-    // 재능 개화 표면 키스톤: 조건부 피해 배율
+    // 재능 개화 표면 키스톤: 조건부 피해 배율 + 정밀 메커니즘 공격 배율(예: 플레쳐 매 3타)
     if (typeof getTalentKeystoneDamageMul === 'function') {
         let ksMul = getTalentKeystoneDamageMul(target, ele, crit, pStats);
+        if (typeof getTalentAttackDamageMul === 'function') ksMul *= getTalentAttackDamageMul();
         if (ksMul !== 1) {
             dmg = Math.floor(dmg * ksMul);
             ailmentSourceDmg = Math.floor(ailmentSourceDmg * ksMul);
@@ -1878,6 +1879,10 @@ function getPlayerStats() {
     if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += (gearBase.targetSlam + gearExplicit.targetSlam + passive.targetSlam + season.targetSlam + ascend.targetSlam + reward.targetSlam);
     if (targetBonus > 0) skill.targets = Math.min(Array.isArray(skill.tags) && skill.tags.includes('projectile') ? 12 : 6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
     else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
+    // 재능: 1 아방가르드 — 물리/투사체 스킬 관통(대상 최대화)
+    if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__warrior') && (skill.ele === 'phys' || (Array.isArray(skill.tags) && skill.tags.includes('projectile')))) {
+        skill.targets = 6;
+    }
     // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
     let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
     if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses());
@@ -5893,6 +5898,7 @@ function performPlayerAttack(pStats) {
     let guaranteedCrit = (game.ascendClass === 'assassin' && hasKeystone('a5'))
         || (game.ascendClass === 'catalyst' && hasKeystone('ct7') && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('attack'));
     let isCrit = guaranteedCrit || Math.random() < (pStats.crit / 100);
+    if (typeof talentOnPlayerAttack === 'function') talentOnPlayerAttack(pStats, isCrit);
     if (game.ascendClass === 'warrior' && hasKeystone('w2') && isCrit) {
         let now = Date.now();
         let active = (game.warriorRhythmExpiresAt || 0) > now;

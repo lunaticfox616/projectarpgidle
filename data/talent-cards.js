@@ -3,7 +3,7 @@
 const TALENT_BLOOM_CARD_DEFS = {
     // hero1 (궁수)
     'hero1__warrior': { name: "아방가르드", surface: {"desc": "물리 또는 투사체 스킬이 항상 관통함 (처치 후 남은 피해를 다른 적에게 전이)", "uniq": [{"key": "overkillSplash"}, {"key": "projectileTargetBonus", "params": {"target": 3}}, {"key": "dsAndTargetAnyBonus", "params": {"ds": 0, "target": 3}}]}, hidden: [{"stat": "physPctDmg", "lv10": 4}, {"stat": "projectilePctDmg", "lv10": 4}] },
-    'hero1__gladiator': { name: "플레쳐", surface: {"desc": "3회째 공격 시마다 해당 공격 스킬 타겟 수 +3 및 피해 +33%", "uniq": [{"key": "projectileTargetBonus", "params": {"target": 3}}], "dmg": {"perLevel": 1.1, "when": "always"}}, hidden: [{"stat": "aspd", "lv10": 2}] },
+    'hero1__gladiator': { name: "플레쳐", surface: {"desc": "3회째 공격 시마다 해당 공격 스킬 타겟 수 +3 및 피해 +33%", "uniq": [{"key": "projectileTargetBonus", "params": {"target": 3}}]}, hidden: [{"stat": "aspd", "lv10": 2}] },
     'hero1__assassin': { name: "그늘살", surface: {"desc": "치명타 시 치명타 피해 배율이 기본값의 1배 ~ 1.2배까지 무작위로 정해짐", "ops": [{"stat": "critDmg", "perLevel": 1}]}, hidden: [{"stat": "critDmg", "lv10": 8}] },
     'hero1__ranger': { name: "미스트랄", surface: {"desc": "공격 시 바람의 힘을 획득. 바람의 힘은 중첩 당 이동속도와 공격속도 4% 부여. (최대 10중첩, 지속시간 2초)", "ops": [{"stat": "aspd", "perLevel": 2}, {"stat": "move", "perLevel": 2}]}, hidden: [{"stat": "move", "lv10": 2}] },
     'hero1__elementalist': { name: "프리즈믹 아처", surface: {"desc": "원소 피해가 해당 원소의 원래 상태 이상 대신 새로운 상태 이상 유발. / 냉기 - 허약(받는  치명타 확률 및 치명타 피해 증가), 번개 - 활력감소(주는 피해 감소), 점화 - 그을림(받는 화염 피해 증가)", "uniq": [{"key": "realmAllResDownOnHit", "params": {"perHit": 2, "max": 12, "duration": 4}}]}, hidden: [{"stat": "elementalPctDmg", "lv10": 2}] },

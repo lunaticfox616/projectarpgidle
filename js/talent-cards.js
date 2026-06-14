@@ -363,6 +363,38 @@ function getTalentKeystoneDamageMul(target, ele, crit, pStats) {
     return mul;
 }
 
+// 특정 조합 카드가 "열린 슬롯"에 장착돼 있으면 그 레벨을 반환(아니면 0). 정밀 메커니즘 게이트용.
+function isTalentCardActive(comboKey) {
+    let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
+    let loadout = Array.isArray(game.talentCardLoadout) ? game.talentCardLoadout : [];
+    let unlocked = getUnlockedTalentSlotCount();
+    for (let i = 0; i < Math.min(unlocked, loadout.length); i++) {
+        if (loadout[i] === comboKey && owned[comboKey]) return Math.max(1, Math.floor(owned[comboKey].level || 1));
+    }
+    return 0;
+}
+
+// 플레이어 공격 1회 발생 시 호출(combat.performPlayerAttack). 카운터/스택 등 정밀 메커니즘의 런타임 상태만 갱신(제어흐름 변경 없음).
+function talentOnPlayerAttack(pStats, isCrit) {
+    if (!game.talentRuntime || typeof game.talentRuntime !== 'object') game.talentRuntime = {};
+    let rt = game.talentRuntime;
+    // 2 플레쳐: 3회째 공격마다 피해 +33% (이번 공격에만 적용되는 부스트)
+    if (isTalentCardActive('hero1__gladiator')) {
+        rt.fletcherCount = (Math.floor(rt.fletcherCount || 0) % 3) + 1;
+        rt.fletcherBoost = (rt.fletcherCount >= 3) ? 1.33 : 1;
+    } else {
+        rt.fletcherBoost = 1;
+    }
+}
+
+// 이번 공격에 적용할 재능 정밀 피해 배율(calcDamage에서 곱).
+function getTalentAttackDamageMul() {
+    let rt = (game.talentRuntime && typeof game.talentRuntime === 'object') ? game.talentRuntime : {};
+    let mul = 1;
+    if (isTalentCardActive('hero1__gladiator') && rt.fletcherBoost) mul *= rt.fletcherBoost;
+    return mul;
+}
+
 // DPS 표시용: 장착 키스톤 조건부 배율 요약(상시분 곱 + 조건부 목록).
 function getTalentKeystoneDamageSummary() {
     let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
