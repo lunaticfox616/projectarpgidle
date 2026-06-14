@@ -186,6 +186,48 @@ function hasKeystone(id) {
     return Array.isArray(game.ascendKeystones) && game.ascendKeystones.includes(id);
 }
 
+function getAliveEnemyByRuntimeKey(enemyId) {
+    let numericId = Number(enemyId);
+    if (!Number.isFinite(numericId)) return null;
+    return (game.enemies || []).find(e => e && e.id === numericId && e.hp > 0) || null;
+}
+
+function getTalentPlayerHitDamageMultiplier(targetEnemy, hitElement, hitCrit, pStats) {
+    function coerceTalentMultiplier(value) {
+        let numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) return 1;
+        return Math.max(0, numericValue);
+    }
+    let mul = 1;
+    if (typeof getTalentKeystoneDamageMul === 'function') {
+        mul *= coerceTalentMultiplier(getTalentKeystoneDamageMul(targetEnemy, hitElement, hitCrit, pStats));
+    }
+    return mul;
+}
+
+function getTalentPlayerAttackDamageMultiplier() {
+    if (typeof getTalentAttackDamageMul !== 'function') return 1;
+    let mul = Number(getTalentAttackDamageMul());
+    if (!Number.isFinite(mul)) return 1;
+    return Math.max(0, mul);
+}
+
+function updateTalentButcherHitMark(enemy) {
+    if (typeof isTalentCardActive !== 'function' || !isTalentCardActive('hero2__assassin')) return;
+    if (!enemy || enemy.isBoss) return;
+    game.talentButcherMarks = game.talentButcherMarks || {};
+    let row = game.talentButcherMarks[enemy.id] || { hits: 0 };
+    row.hits = Math.max(0, Math.floor(row.hits || 0)) + 1;
+    game.talentButcherMarks[enemy.id] = row;
+}
+
+function canApplyTalentExecuteThreshold(enemy, threshold) {
+    if (!enemy || enemy.isBoss || threshold <= 0) return false;
+    if (typeof isTalentCardActive !== 'function' || !isTalentCardActive('hero2__assassin')) return true;
+    let row = game.talentButcherMarks && game.talentButcherMarks[enemy.id];
+    return Math.max(0, Math.floor((row && row.hits) || 0)) >= 4;
+}
+
 function getPlayerHpCap(pStats) {
     if (!pStats) return 0;
     let maxHp = Math.max(0, pStats.maxHp || 0);
@@ -206,7 +248,7 @@ function cleanupConditionGemStates(now) {
         let pending = game.enemyCurseExpirePayloads || {};
         let row = pending[enemyId];
         if (!row || !row.doomDamage) return;
-        let enemy = (game.enemies || []).find(e => e && e.id === enemyId && e.hp > 0);
+        let enemy = getAliveEnemyByRuntimeKey(enemyId);
         if (!enemy) return;
         let bonus = Math.max(0, Math.floor(row.doomDamage * 0.16));
         if (bonus <= 0) return;
@@ -255,6 +297,7 @@ function pruneEnemyRuntimeDebuffMaps() {
     game.enemyUniqueChaosResDown = pruneMap(game.enemyUniqueChaosResDown, 180);
     game.enemyUniqueElementalResDown = pruneMap(game.enemyUniqueElementalResDown, 180);
     game.enemyCurseExpirePayloads = pruneMap(game.enemyCurseExpirePayloads, 180);
+    game.talentButcherMarks = pruneMap(game.talentButcherMarks, 180);
 }
 
 function getConditionGemLevel(name) {
@@ -1490,6 +1533,11 @@ function getSolitaryHuntDoubleStrikeBonus(originalTargets) {
     return (Math.min(5, reducedTargets) * 100) + (Math.max(0, reducedTargets - 5) * 50);
 }
 
+function isDeferredTalentProjectileTargetEffect(effect) {
+    if (!effect || effect.key !== 'projectileTargetBonus') return false;
+    return effect.cardId === 'hero1__gladiator' || effect.talentCardId === 'hero1__gladiator';
+}
+
 function getPlayerStats() {
     const safePassives = Array.isArray(game.passives) ? game.passives : [];
     const safeSeasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
@@ -1704,7 +1752,10 @@ function getPlayerStats() {
         else if (effect.key === 'uniqueMinDmgRoll') addStatToBucket(reward, 'minDmgRoll', Number(ep.pct || 5));
         else if (effect.key === 'hitShockedEnemyDamageMorePct') addStatToBucket(reward, 'shockedEnemyHitDamageMorePct', Number(ep.pct || 50));
         else if (effect.key === 'noCollisionBlock') uniqueNoCollisionBlock = true;
-        else if (effect.key === 'projectileTargetBonus') addStatToBucket(reward, 'targetProjectile', Number(ep.target || 1));
+        else if (effect.key === 'projectileTargetBonus') {
+            if (isDeferredTalentProjectileTargetEffect(effect)) return;
+            addStatToBucket(reward, 'targetProjectile', Number(ep.target || 1));
+        }
         else if (effect.key === 'igniteDamageMorePct') addStatToBucket(reward, 'igniteDamageMultiplierPct', Number(ep.pct || 25));
         else if (effect.key === 'cosmosFinalDmg') addStatToBucket(reward, 'pctDmg', Number(ep.pct || 12));
         else if (effect.key === 'cosmosTakenLess') addStatToBucket(reward, 'dr', Number(ep.dr || 8));
@@ -6034,6 +6085,7 @@ function performPlayerAttack(pStats) {
     let swingElement = getHitElement();
     if (!['phys','fire','cold','light','chaos'].includes(swingElement)) swingElement = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
     game.lastSkillHitElement = swingElement;
+    let talentAttackMul = getTalentPlayerAttackDamageMultiplier();
     addBattleFx('playerSwing', {
         color: getElementColor(swingElement),
         element: swingElement,
@@ -6238,6 +6290,10 @@ function performPlayerAttack(pStats) {
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * 1.30);
                 game.gladiatorSwiftOpeningReady = false;
             }
+            let talentKeystoneMul = getTalentPlayerHitDamageMultiplier(targetEnemy, hitElement, hitCrit, pStats);
+            let talentHitMul = talentAttackMul * talentKeystoneMul;
+            hitBaseDamage = Math.floor(hitBaseDamage * talentHitMul);
+            ailmentBaseDamage = Math.floor(ailmentBaseDamage * talentHitMul);
             let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
             let ailmentSourceDamage = Math.floor(ailmentBaseDamage * (hit.mult || 1));
             let repeatDamageMultiplier = hitIdx < baseRepeats ? 1 : Math.max(0, Number(pStats.sSkill.extraProjectileDamagePct) || 100) / 100;
@@ -6452,7 +6508,8 @@ function performPlayerAttack(pStats) {
                 });
             }
             if ((pStats.damageScales || {}).talismanBossFinalDmgBonusPct && targetEnemy.hp > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) <= 0.05) targetEnemy.hp = 0;
-            if (pStats.sSkill.executeThreshold && !targetEnemy.isBoss && targetEnemy.hp > 0
+            updateTalentButcherHitMark(targetEnemy);
+            if (canApplyTalentExecuteThreshold(targetEnemy, pStats.sSkill.executeThreshold) && targetEnemy.hp > 0
                 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) < pStats.sSkill.executeThreshold) targetEnemy.hp = 0;
             if (game.ascendClass === 'gladiator' && hasKeystone('g6') && targetEnemy.hp > 0) {
                 let executeThreshold = targetEnemy.isBoss ? 0.10 : 0.20;
