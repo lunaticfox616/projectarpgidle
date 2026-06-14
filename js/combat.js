@@ -1368,6 +1368,9 @@ function processPendingSlamEchoHits() {
 
 // 8 심문궁: 누적된 표식 피해를 5초 후 폭발(누적의 12%, 쿨타임 6초).
 function processTalentInquisitorMarks() {
+    // 적별 재능 런타임 맵 정리(존 이동 등으로 사라진 적 — 메모리 누수 방지)
+    let aliveIds = new Set((game.enemies || []).map(e => e && e.id));
+    if (game.talentDawnHits) Object.keys(game.talentDawnHits).forEach(id => { if (!aliveIds.has(Number(id))) delete game.talentDawnHits[id]; });
     let store = game.talentInquisitorMarks;
     if (!store || typeof store !== 'object') return;
     let now = Date.now();
@@ -5277,6 +5280,9 @@ function handleEnemyDeath(enemy, pStats) {
         grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
     }
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
+    // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)
+    if (game.talentDawnHits) delete game.talentDawnHits[enemy.id];
+    if (game.talentInquisitorMarks) delete game.talentInquisitorMarks[enemy.id];
     // 14 콜로세움 브레이커: 처치마다 관중의 함성 1중첩, 5중첩 시 다음 공격이 투기장 일격
     if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero2__gladiator')) {
         game.talentRuntime = (game.talentRuntime && typeof game.talentRuntime === 'object') ? game.talentRuntime : {};
