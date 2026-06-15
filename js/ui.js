@@ -369,7 +369,8 @@ function isPauseSettingOverlayOpen() {
         '#spore-mode-overlay',
         '#mobile-craft-currency-overlay',
         '#craft-item-picker-overlay',
-        '#void-jewel-overlay'
+        '#void-jewel-overlay',
+        '#jewel-fusion-overlay'
     ];
     return modalSelectors.some(selector => isOverlayElementOpen(selector));
 }

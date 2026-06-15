@@ -5764,7 +5764,7 @@ function removeJewelFromAbyssSocket(socketIdx) { if (game.woodsmanBuildLock) ret
     updateStaticUI();
 }
 
-safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
+safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, openJewelFusionOverlay, closeJewelFusionOverlay, confirmJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
 
 function createItemFromBase(base, rarity, zoneTier) {
     itemIdCounter++;
@@ -6438,9 +6438,13 @@ function getVoidJewelFusionPreviewStats(indices) {
 }
 
 function formatJewelOverlayStatLines(stats, extraLineText) {
-    let lines = (stats || []).map(stat => `${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}`);
-    if (extraLineText) lines.push(extraLineText);
-    return lines.length > 0 ? lines.map(line => `<div>• ${escapeHTML(line)}</div>`).join('') : '<div style="color:#7f8c8d;">선택한 주얼의 유효 옵션이 없습니다.</div>';
+    let lines = (stats || []).map(stat => {
+        let tone = typeof getJewelStatToneColor === 'function' ? getJewelStatToneColor(stat.id) : '#d7e9ff';
+        let label = `${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}`;
+        return `<div>• <span style="color:${tone};">${escapeHTML(label)}</span></div>`;
+    });
+    if (extraLineText) lines.push(`<div>• ${escapeHTML(extraLineText)}</div>`);
+    return lines.length > 0 ? lines.join('') : '<div style="color:#7f8c8d;">선택한 주얼의 유효 옵션이 없습니다.</div>';
 }
 
 function getVoidJewelOverlaySelectedIndices(mode) {
@@ -6462,6 +6466,10 @@ function buildVoidJewelOverlayCards(mode) {
     }).join('') || '<div style="color:#7f8c8d;">보유 주얼이 없습니다.</div>';
 }
 
+function getJewelFusionOverlayShellHtml(title, bodyHtml, actionHtml, borderColor) {
+    return `<div style="width:min(980px,95vw);max-height:92vh;overflow:auto;background:#0f1520;border:1px solid ${borderColor};border-radius:12px;padding:12px;box-shadow:0 18px 60px rgba(0,0,0,.5);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;"><strong style="color:#cdb8ff;font-size:18px;">${title}</strong><button onclick="closeJewelFusionOverlay();closeVoidJewelOverlay()">닫기</button></div>${bodyHtml}<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;"><button class="tutorial-secondary" onclick="closeJewelFusionOverlay();closeVoidJewelOverlay()">취소</button>${actionHtml}</div></div>`;
+}
+
 function renderVoidJewelOverlay(mode) {
     let overlay = document.getElementById('void-jewel-overlay');
     if (!overlay) return;
@@ -6473,7 +6481,8 @@ function renderVoidJewelOverlay(mode) {
     let extra = isFusion ? '무작위 옵션 1줄' : '';
     let hasVoidMaterial = selected.some(idx => { let jewel = game.jewelInventory[idx]; return jewel && (jewel.isVoid || jewel.uniqueId === 'uj_void'); });
     let canCraft = selected.length === 2 && (game.currencies.voidChisel || 0) > 0 && (!isFusion || hasVoidMaterial);
-    overlay.innerHTML = `<div style="width:min(980px,95vw);max-height:92vh;overflow:auto;background:#0f1520;border:1px solid #6e57a8;border-radius:12px;padding:12px;box-shadow:0 18px 60px rgba(0,0,0,.5);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;"><strong style="color:#cdb8ff;font-size:18px;">${title}</strong><button onclick="closeVoidJewelOverlay()">닫기</button></div><div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">보유 공허의 끌: <strong>${game.currencies.voidChisel || 0}</strong> · 필요: <strong>1</strong><br>${rule}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">${buildVoidJewelOverlayCards(mode)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#d7e9ff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;"><button class="tutorial-secondary" onclick="closeVoidJewelOverlay()">취소</button><button onclick="${isFusion ? 'confirmVoidJewelFusion' : 'confirmVoidJewelCraft'}()" ${canCraft ? '' : 'disabled'}>제작</button></div></div>`;
+    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">보유 공허의 끌: <strong>${game.currencies.voidChisel || 0}</strong> · 필요: <strong>1</strong><br>${rule}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildVoidJewelOverlayCards(mode)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#d7e9ff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
+    overlay.innerHTML = getJewelFusionOverlayShellHtml(title, body, `<button onclick="${isFusion ? 'confirmVoidJewelFusion' : 'confirmVoidJewelCraft'}()" ${canCraft ? '' : 'disabled'}>제작</button>`, '#6e57a8');
 }
 
 function openVoidJewelOverlay(mode, indices) {
@@ -6525,6 +6534,45 @@ function toggleJewelFusionSelection(idx) {
     updateStaticUI();
 }
 
+function getSelectedJewelFusionIndices() {
+    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
+    return (jewelFusionSelection || [])
+        .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length)
+        .filter((idx, pos, arr) => arr.indexOf(idx) === pos)
+        .slice(0, 2);
+}
+
+function closeJewelFusionOverlay() {
+    let overlay = document.getElementById('jewel-fusion-overlay');
+    if (overlay) overlay.remove();
+}
+
+function buildJewelFusionOverlayCards(indices) {
+    return indices.map(idx => {
+        let jewel = game.jewelInventory[idx];
+        let stats = formatJewelOverlayStatLines(getJewelCoreStats(jewel));
+        return `<div class="item-card selected" style="text-align:left;min-height:92px;"><strong>${idx + 1}. ${escapeHTML(jewel.name || '주얼')}</strong><div style="font-size:.8em;line-height:1.35;margin-top:4px;">${stats}</div></div>`;
+    }).join('');
+}
+
+function renderJewelFusionOverlay(indices) {
+    let overlay = document.getElementById('jewel-fusion-overlay');
+    if (!overlay) return;
+    let amplifiedEl = document.getElementById('chk-jewel-amplified-fusion');
+    let useAmplified = !!(amplifiedEl && amplifiedEl.checked);
+    let stats = indices.flatMap(idx => getJewelCoreStats(game.jewelInventory[idx]).slice(0, 1)).map(cloneJewelStat).filter(Boolean);
+    let extra = useAmplified ? '랜덤 패널티 1줄 + 랜덤 추가옵션 1줄' : '';
+    let cost = useAmplified ? 14 : 6;
+    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">보유 주얼 결정: <strong>${game.currencies.jewelShard || 0}</strong> · 필요: <strong>${cost}</strong><br>일반 주얼 융합은 1줄 옵션 주얼 2개를 2줄 레어 주얼로 합성합니다. 공허 주얼이 포함되면 공허 융합 오버레이를 사용합니다.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildJewelFusionOverlayCards(indices)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#d7e9ff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
+    overlay.innerHTML = getJewelFusionOverlayShellHtml('선택한 주얼 융합', body, '<button onclick="confirmJewelFusion()">융합</button>', '#4b86bd');
+}
+
+function openJewelFusionOverlay(indices) {
+    if (!document.getElementById('jewel-fusion-overlay')) {
+        document.body.insertAdjacentHTML('beforeend', '<div id="jewel-fusion-overlay" style="position:fixed;inset:0;background:rgba(7,10,18,.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;"></div>');
+    }
+    renderJewelFusionOverlay(indices);
+}
 
 function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     game.jewelInventory = game.jewelInventory || [];
@@ -6545,6 +6593,15 @@ function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ �
 }
 
 function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let selected = getSelectedJewelFusionIndices();
+    if (selected.length !== 2) return addLog('융합할 주얼 2개를 선택하세요.', 'attack-monster');
+    let materials = selected.map(idx => game.jewelInventory[idx]);
+    if (rejectProtectedJewelCraftMaterial(materials, '주얼 합성')) return;
+    if (materials.some(jewel => jewel.isVoid || jewel.uniqueId === 'uj_void')) return openVoidJewelFusionOverlay();
+    return openJewelFusionOverlay(selected);
+}
+
+function confirmJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     game.jewelInventory = game.jewelInventory || [];
     jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
     if (jewelFusionSelection.length !== 2) return addLog('융합할 주얼 2개를 선택하세요.', 'attack-monster');
@@ -6592,6 +6649,7 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
     fused.hiddenTier = Math.max(1, ...fused.stats.map(stat => stat.tier || 1));
     game.jewelInventory.push(fused);
     jewelFusionSelection = [];
+    closeJewelFusionOverlay();
     addLog(`💠 주얼 융합 성공! [${fused.name}]`, 'loot-unique');
     updateStaticUI();
 }

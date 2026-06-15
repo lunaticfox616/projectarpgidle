@@ -79,7 +79,9 @@ function loadVoidJewelRuntime() {
         updates: 0,
         document: {
             body: { insertAdjacentHTML() { sandbox.overlayHost = overlayHost; } },
-            getElementById(id) { return id === 'void-jewel-overlay' ? sandbox.overlayHost : null; }
+            getElementById(id) {
+                return id === 'void-jewel-overlay' || id === 'jewel-fusion-overlay' ? sandbox.overlayHost : null;
+            }
         },
         overlayHost,
         addLog(message, type) { sandbox.logs.push({ message, type }); return message; },
@@ -87,11 +89,14 @@ function loadVoidJewelRuntime() {
         escapeHTML(value) { return String(value == null ? '' : value); },
         getStatName(id) { return id; },
         formatValue(id, value) { return String(value); },
+        getJewelStatToneColor(id) { return id === 'pctDmg' ? '#ffb86b' : '#d7e9ff'; },
         rndChoice(list) { return list[0]; }
     };
     vm.runInNewContext(`${passives.slice(start, end)}
 this.openVoidJewelOverlay = openVoidJewelOverlay;
 this.confirmVoidJewelCraft = confirmVoidJewelCraft;
+this.craftJewelFusion = craftJewelFusion;
+this.confirmJewelFusion = confirmJewelFusion;
 this.fuseVoidJewel = fuseVoidJewel;`, sandbox);
     return sandbox;
 }
@@ -170,6 +175,8 @@ voidRuntime.openVoidJewelOverlay('craft', [0, 1]);
 assert(voidRuntime.overlayHost.innerHTML.includes('보유 공허의 끌'), 'void jewel craft overlay must show owned chisels');
 assert(voidRuntime.overlayHost.innerHTML.includes('예상 결과'), 'void jewel craft overlay must show expected stats');
 assert(voidRuntime.overlayHost.innerHTML.includes('pctDmg +5'), 'void jewel craft overlay must preview inherited stats');
+assert(voidRuntime.overlayHost.innerHTML.includes('max-height:52vh;overflow:auto'), 'jewel overlay card grids must scroll inside the viewport');
+assert(voidRuntime.overlayHost.innerHTML.includes('color:#ffb86b'), 'jewel overlay stat options must use stat tone colors');
 voidRuntime.confirmVoidJewelCraft();
 assert.strictEqual(voidRuntime.game.currencies.voidChisel, 1, 'void jewel crafting must consume one chisel after confirmation');
 assert.strictEqual(voidRuntime.game.jewelInventory.length, 1, 'void jewel crafting must consume two selected material jewels and add one result');
@@ -189,6 +196,21 @@ assert.strictEqual(voidRuntime.game.currencies.voidChisel, 0, 'void fusion must 
 assert.strictEqual(fusedVoid.stats.length, 4, 'void fusion must create three inherited lines plus one random line');
 assert.strictEqual(fusedVoid.stats.slice(0, 3).map(stat => stat.id).join(','), 'pctDmg,flatHp,crit', 'void fusion must inherit only the first three unique core stats');
 assert.notStrictEqual(fusedVoid.stats[3].id, 'resAll', 'void fusion fourth line must be random rather than the fourth source line');
+
+voidRuntime.game.currencies.jewelShard = 6;
+voidRuntime.game.currencies.voidChisel = 1;
+voidRuntime.game.jewelInventory = [
+    { name: '일반 합성 A', stats: [{ id: 'pctDmg', val: 5 }] },
+    { name: '일반 합성 B', stats: [{ id: 'crit', val: 2 }] }
+];
+voidRuntime.jewelFusionSelection = [0, 1];
+voidRuntime.craftJewelFusion();
+assert(voidRuntime.overlayHost.innerHTML.includes('보유 주얼 결정'), 'selected jewel fusion must open the shard-based normal fusion overlay');
+assert(!voidRuntime.overlayHost.innerHTML.includes('보유 공허의 끌'), 'normal jewel fusion overlay must be functionally distinct from void fusion');
+assert(voidRuntime.overlayHost.innerHTML.includes('일반 주얼 융합은 1줄 옵션 주얼 2개'), 'normal jewel fusion overlay must explain normal one-line material rules');
+voidRuntime.confirmJewelFusion();
+assert.strictEqual(voidRuntime.game.currencies.jewelShard, 0, 'normal jewel fusion must consume jewel shards, not void chisels');
+assert.strictEqual(voidRuntime.game.currencies.voidChisel, 1, 'normal jewel fusion must not consume void chisels');
 
 const itemTooltipRuntime = loadItemTooltipRuntime();
 itemTooltipRuntime.game.inventory = [{
