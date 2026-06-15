@@ -5747,22 +5747,22 @@ function getSearchFilterState() {
     d.support = String(d.support || '');
     return d;
 }
-const INVENTORY_RARITY_FILTER_KEYS = ['normal', 'magic', 'rare', 'unique'];
-const INVENTORY_RARITY_FILTER_LABELS = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
+function getInventoryRarityFilterKeys() { return ['normal', 'magic', 'rare', 'unique']; }
+function getInventoryRarityFilterLabels() { return { normal: '일반', magic: '매직', rare: '레어', unique: '고유' }; }
 function getInventoryRarityFilter() {
     game.settings = game.settings || {};
     let f = game.settings.inventoryViewRarities;
     if (!f || typeof f !== 'object') f = game.settings.inventoryViewRarities = {};
-    INVENTORY_RARITY_FILTER_KEYS.forEach(r => { if (typeof f[r] !== 'boolean') f[r] = true; });
+    getInventoryRarityFilterKeys().forEach(r => { if (typeof f[r] !== 'boolean') f[r] = true; });
     return f;
 }
 function isItemRarityVisible(item) {
     let rarity = (item && item.rarity) || 'normal';
-    if (!INVENTORY_RARITY_FILTER_KEYS.includes(rarity)) return true;
+    if (!getInventoryRarityFilterKeys().includes(rarity)) return true;
     return !!getInventoryRarityFilter()[rarity];
 }
 function toggleInventoryRarityFilter(rarity) {
-    if (!INVENTORY_RARITY_FILTER_KEYS.includes(rarity)) return;
+    if (!getInventoryRarityFilterKeys().includes(rarity)) return;
     let f = getInventoryRarityFilter();
     f[rarity] = !f[rarity];
     if (typeof updateStaticUI === 'function') updateStaticUI();
@@ -5772,10 +5772,11 @@ function toggleInventoryRarityFilter(rarity) {
 }
 function renderRarityFilterChips(scope) {
     let f = getInventoryRarityFilter();
+    let labels = getInventoryRarityFilterLabels();
     let stop = scope === 'picker' ? 'event.stopPropagation(); ' : '';
-    return INVENTORY_RARITY_FILTER_KEYS.map(key => {
+    return getInventoryRarityFilterKeys().map(key => {
         let active = !!f[key];
-        return `<button type="button" class="rarity-filter-chip rarity-${key}${active ? ' active' : ''}" aria-pressed="${active}" onclick="${stop}toggleInventoryRarityFilter('${key}')">${INVENTORY_RARITY_FILTER_LABELS[key]}</button>`;
+        return `<button type="button" class="rarity-filter-chip rarity-${key}${active ? ' active' : ''}" aria-pressed="${active}" onclick="${stop}toggleInventoryRarityFilter('${key}')">${labels[key]}</button>`;
     }).join('');
 }
 function resetSearchFilter(key) { updateSearchFilter(key, ''); }
