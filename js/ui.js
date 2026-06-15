@@ -5761,23 +5761,39 @@ function isItemRarityVisible(item) {
     if (!getInventoryRarityFilterKeys().includes(rarity)) return true;
     return !!getInventoryRarityFilter()[rarity];
 }
-function toggleInventoryRarityFilter(rarity) {
-    if (!getInventoryRarityFilterKeys().includes(rarity)) return;
-    let f = getInventoryRarityFilter();
-    f[rarity] = !f[rarity];
+function applyInventoryRarityFilterChange() {
     if (typeof updateStaticUI === 'function') updateStaticUI();
     if (document.getElementById('craft-item-picker-overlay') && window.__craftPickerKind) {
         openCraftItemPickerOverlay(window.__craftPickerKind);
     }
 }
+function toggleInventoryRarityFilter(rarity) {
+    if (!getInventoryRarityFilterKeys().includes(rarity)) return;
+    let f = getInventoryRarityFilter();
+    f[rarity] = !f[rarity];
+    applyInventoryRarityFilterChange();
+}
+function isAllInventoryRarityFilterOn() {
+    let f = getInventoryRarityFilter();
+    return getInventoryRarityFilterKeys().every(k => !!f[k]);
+}
+function toggleAllInventoryRarityFilter() {
+    let f = getInventoryRarityFilter();
+    let next = !isAllInventoryRarityFilterOn();
+    getInventoryRarityFilterKeys().forEach(k => { f[k] = next; });
+    applyInventoryRarityFilterChange();
+}
 function renderRarityFilterChips(scope) {
     let f = getInventoryRarityFilter();
     let labels = getInventoryRarityFilterLabels();
     let stop = scope === 'picker' ? 'event.stopPropagation(); ' : '';
-    return getInventoryRarityFilterKeys().map(key => {
+    let allOn = isAllInventoryRarityFilterOn();
+    let allChip = `<button type="button" class="rarity-filter-chip rarity-all${allOn ? ' active' : ''}" aria-pressed="${allOn}" onclick="${stop}toggleAllInventoryRarityFilter()">전체</button>`;
+    let chips = getInventoryRarityFilterKeys().map(key => {
         let active = !!f[key];
         return `<button type="button" class="rarity-filter-chip rarity-${key}${active ? ' active' : ''}" aria-pressed="${active}" onclick="${stop}toggleInventoryRarityFilter('${key}')">${labels[key]}</button>`;
     }).join('');
+    return allChip + chips;
 }
 function resetSearchFilter(key) { updateSearchFilter(key, ''); }
 function updateSearchFilter(key, value) {
@@ -6290,6 +6306,7 @@ function exposeUiRenderHelpersOnce() {
         updateSearchFilter,
         resetSearchFilter,
         toggleInventoryRarityFilter,
+        toggleAllInventoryRarityFilter,
         renderRarityFilterChips,
         bulkSalvageEquipBySearch,
         bulkSalvageJewelsBySearch,
