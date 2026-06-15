@@ -5788,10 +5788,11 @@ function isItemRarityVisible(item) {
     return !!getInventoryRarityFilter()[rarity];
 }
 function applyInventoryRarityFilterChange() {
-    if (typeof updateStaticUI === 'function') updateStaticUI();
+    // Update the picker overlay in place (no close/reopen flash) when it is open.
     if (document.getElementById('craft-item-picker-overlay') && window.__craftPickerKind) {
-        openCraftItemPickerOverlay(window.__craftPickerKind);
+        refreshCraftItemPickerOverlay();
     }
+    if (typeof updateStaticUI === 'function') updateStaticUI();
 }
 function toggleInventoryRarityFilter(rarity) {
     if (!getInventoryRarityFilterKeys().includes(rarity)) return;
@@ -6284,20 +6285,13 @@ function getCraftPickerCardHtml(item, options) {
     </button>`;
 }
 
-function openCraftItemPickerOverlay(kind) {
-    closeCraftItemPickerOverlay();
+function getCraftPickerBodyHtml(kind) {
     let isEquip = kind === 'equip';
-    window.__craftPickerKind = kind;
-    let overlay = document.createElement('div');
-    overlay.id = 'craft-item-picker-overlay';
-    overlay.className = 'craft-picker-overlay';
-    overlay.onclick = event => { if (event.target === overlay) closeCraftItemPickerOverlay(); };
     let currentRef = getCraftSelectionRef();
     let currentIsEquip = isCraftSelectionEquip();
-    let bodyHtml = '';
     if (isEquip) {
         let slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
-        bodyHtml = `<div class="paperdoll craft-picker-equip-grid">${slots.map(slot => {
+        return `<div class="paperdoll craft-picker-equip-grid">${slots.map(slot => {
             let item = game.equipment && game.equipment[slot];
             let slotClass = `slot-box slot-${slot}`;
             if (!item) return `<button type="button" class="craft-picker-card ${slotClass} empty" disabled><div style="font-weight:800;">[${slot.replace(/[12]/, '')}]</div><div style="color:#7f8c8d; margin-top:5px;">비어있음</div></button>`;
@@ -6309,16 +6303,35 @@ function openCraftItemPickerOverlay(kind) {
                 tooltip: `onmouseenter="showItemTooltip(event, '${slot}', true)" onmousemove="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"`
             });
         }).join('')}</div>`;
-    } else {
-        let totalInv = (game.inventory || []).length;
-        let rows = (game.inventory || []).filter(item => item && isItemRarityVisible(item)).map(item => getCraftPickerCardHtml(item, {
-            selected: !currentIsEquip && currentRef === item.id,
-            onclick: `selectCraftPickerInventoryItem(${item.id})`
-        })).join('');
-        bodyHtml = rows
-            ? `<div class="craft-picker-grid">${rows}</div>`
-            : `<div class="deathlog-empty">${totalInv > 0 ? '선택한 등급 필터에 해당하는 장비가 없습니다.' : '인벤토리에 제작할 장비가 없습니다.'}</div>`;
     }
+    let totalInv = (game.inventory || []).length;
+    let rows = (game.inventory || []).filter(item => item && isItemRarityVisible(item)).map(item => getCraftPickerCardHtml(item, {
+        selected: !currentIsEquip && currentRef === item.id,
+        onclick: `selectCraftPickerInventoryItem(${item.id})`
+    })).join('');
+    return rows
+        ? `<div class="craft-picker-grid">${rows}</div>`
+        : `<div class="deathlog-empty">${totalInv > 0 ? '선택한 등급 필터에 해당하는 장비가 없습니다.' : '인벤토리에 제작할 장비가 없습니다.'}</div>`;
+}
+
+function refreshCraftItemPickerOverlay() {
+    let overlay = document.getElementById('craft-item-picker-overlay');
+    if (!overlay || !window.__craftPickerKind) return;
+    let filterEl = overlay.querySelector('.craft-picker-filter');
+    if (filterEl) filterEl.innerHTML = `<span class="inventory-view-filter-label">표시</span>${renderRarityFilterChips('picker')}`;
+    let bodyEl = overlay.querySelector('.craft-picker-body');
+    if (bodyEl) bodyEl.innerHTML = getCraftPickerBodyHtml(window.__craftPickerKind);
+}
+
+function openCraftItemPickerOverlay(kind) {
+    closeCraftItemPickerOverlay();
+    let isEquip = kind === 'equip';
+    window.__craftPickerKind = kind;
+    let overlay = document.createElement('div');
+    overlay.id = 'craft-item-picker-overlay';
+    overlay.className = 'craft-picker-overlay';
+    overlay.onclick = event => { if (event.target === overlay) closeCraftItemPickerOverlay(); };
+    let bodyHtml = getCraftPickerBodyHtml(kind);
     let filterRowHtml = isEquip ? '' : `<div class="craft-picker-filter"><span class="inventory-view-filter-label">표시</span>${renderRarityFilterChips('picker')}</div>`;
     overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title">${isEquip ? '장착 장비에서 제작 대상 선택' : '인벤토리에서 제작 대상 선택'}</div><div class="craft-picker-desc">카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.</div></div><button type="button" onclick="closeCraftItemPickerOverlay()">닫기</button></div>${filterRowHtml}<div class="craft-picker-body">${bodyHtml}</div></div>`;
     document.body.appendChild(overlay);
