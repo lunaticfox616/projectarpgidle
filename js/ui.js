@@ -513,6 +513,7 @@ function onTabHeaderPointerDown(event) {
     tabHeaderDragState = {
         button,
         pointerId: event.pointerId,
+        pointerType: event.pointerType,
         startX: event.clientX,
         startY: event.clientY,
         lastX: event.clientX,
@@ -531,8 +532,16 @@ function onTabHeaderPointerMove(event) {
     if (!state || event.pointerId !== state.pointerId) return;
     state.lastX = event.clientX;
     state.lastY = event.clientY;
-    let moved = Math.abs(event.clientX - state.startX) + Math.abs(event.clientY - state.startY);
-    if (!state.dragging && moved > TAB_DRAG_CANCEL_PX) {
+    let dx = Math.abs(event.clientX - state.startX);
+    let dy = Math.abs(event.clientY - state.startY);
+    // While waiting for the long-press, a clear vertical swipe means the user is
+    // scrolling the page (touch-action: pan-y) — let it through by cancelling the drag.
+    if (!state.dragging && state.pointerType === 'touch' && dy > dx && dy > TAB_DRAG_CANCEL_PX) {
+        clearTabHeaderDragState(false);
+        return;
+    }
+    let cancelPx = state.pointerType === 'touch' ? 16 : TAB_DRAG_CANCEL_PX;
+    if (!state.dragging && (dx + dy) > cancelPx) {
         clearTabHeaderDragState(false);
         return;
     }

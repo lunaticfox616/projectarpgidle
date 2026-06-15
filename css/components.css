@@ -122,6 +122,10 @@
         body.startup-active { overflow: hidden; }
         body.loading-active { overflow: hidden; }
         #tree-container, #tree-canvas { touch-action: none; }
+        /* Enable long-press drag reorder of top-level tabs on touch devices:
+           horizontal gestures go to the JS drag handler, vertical still scrolls the page. */
+        .tab-header .tab-btn { touch-action: pan-y; }
+        body.tab-drag-active .tab-header .tab-btn { touch-action: none; }
         @keyframes startupSpin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
