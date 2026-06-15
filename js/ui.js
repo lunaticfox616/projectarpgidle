@@ -6240,7 +6240,7 @@ function getCraftPickerItemLines(item) {
     (item.stats || []).slice(0, 2).forEach(stat => rows.push(`${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`));
     if (item.chaosInfusion) rows.push(`[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}`);
     if (item.encroached && !item.encroached.liberated) rows.push('[잠식] 해방 전');
-    return rows.map(row => `<div style="color:#9fb4d1; font-size:.78em; margin-top:2px;">${escapeHTML(row)}</div>`).join('');
+    return rows.map(row => `<div style="color:#9fb4d1; font-size:.7em; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(row)}</div>`).join('');
 }
 
 function getCraftPickerCardHtml(item, options) {
