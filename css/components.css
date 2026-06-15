@@ -506,6 +506,110 @@
   box-shadow: 0 0 0 1px rgba(217,184,93,0.22), 0 0 16px rgba(217,184,93,0.12);
 }
 
+/* Rarity view filter chips (inventory + craft picker) */
+.inventory-view-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.inventory-view-filter-label {
+  font-size: 0.8em;
+  color: #9fb4d1;
+  margin-right: 2px;
+}
+.rarity-filter-chip {
+  --rarity-color: #d0d5da;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid #34465c;
+  background: #131c28;
+  color: #7f93a8;
+  font-size: 0.82em;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity .12s ease, border-color .12s ease, background .12s ease;
+}
+.rarity-filter-chip:hover { opacity: 0.85; }
+.rarity-filter-chip.active {
+  opacity: 1;
+  color: var(--rarity-color);
+  border-color: var(--rarity-color);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 1px var(--rarity-color) inset, 0 0 10px rgba(0, 0, 0, 0.25);
+}
+.rarity-filter-chip.rarity-normal { --rarity-color: #d0d5da; }
+.rarity-filter-chip.rarity-magic { --rarity-color: #3498db; }
+.rarity-filter-chip.rarity-rare { --rarity-color: #f1c40f; }
+.rarity-filter-chip.rarity-unique { --rarity-color: #ff9f43; }
+
+/* Craft item picker overlay */
+.craft-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(3, 7, 13, 0.72);
+  box-sizing: border-box;
+}
+.craft-picker-panel {
+  width: min(760px, 100%);
+  max-height: min(86dvh, 780px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #426287;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #182538 0%, #0f1724 100%);
+  box-shadow: 0 18px 44px rgba(0,0,0,0.5), inset 0 1px 0 rgba(220,238,255,0.06);
+  padding: 14px;
+  box-sizing: border-box;
+}
+.craft-picker-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.craft-picker-title { font-weight: 800; color: #ffe6a3; font-size: 1.05em; }
+.craft-picker-desc { color: #9fb4d1; font-size: 0.8em; margin-top: 3px; }
+.craft-picker-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #25384c;
+}
+.craft-picker-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.craft-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+.craft-picker-grid .craft-picker-card {
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #304964;
+  background: linear-gradient(180deg, #1b2a3d 0%, #132033 100%);
+  color: #dcecff;
+  cursor: pointer;
+}
+.craft-picker-grid .craft-picker-card.selected {
+  border-color: #d9b85d;
+  box-shadow: 0 0 0 1px rgba(217,184,93,0.3);
+}
+
 @media (max-width: 1080px) {
   #item-tab-craft .mobile-craft-currency-picker,
   #item-tab-craft .craft-selected-summary-mobile {

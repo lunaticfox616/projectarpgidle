@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="css/base.css?v=20260611-tab-drag4">
     <link rel="stylesheet" href="css/layout.css?v=20260614-cosmos-es1">
     <link rel="stylesheet" href="css/theme.css">
-    <link rel="stylesheet" href="css/components.css?v=20260614-runtime-fixes1">
+    <link rel="stylesheet" href="css/components.css?v=20260615-inv-rarity-filter1">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260611-tooltip-alpha3">
     <link rel="stylesheet" href="css/ui-premium.css?v=20260611-patch-notes-popup2">
     <link rel="stylesheet" href="css/mobile.css">
@@ -559,6 +559,7 @@
                 </div>
                 <div style="display:flex; gap:8px;"><button class="bulk-salvage-action" style="background:#5d6d7e; border-color:#465664;" onclick="bulkSalvageAllInventory()">전체해체</button><button class="bulk-salvage-action" onclick="bulkSalvageSelected()">해체</button><button id="btn-auto-salvage" class="bulk-salvage-action" onclick="toggleAutoSalvage()">자동해체 OFF</button></div>
             </div>
+            <div class="inventory-view-filter" id="ui-inventory-rarity-filter"></div>
             <div class="inventory-grid" id="ui-inventory-list"></div>
 
         </div>
@@ -1065,7 +1066,7 @@
 <script defer src="data/bosses.js?v=20260513-gemfix1"></script>
 <script defer src="data/rewards.js?v=20260513-gemfix1"></script>
 <script defer src="js/utils.js?v=20260614-runtime-fixes1"></script>
-<script defer src="js/state.js?v=20260614-deep-chaos-map1"></script>
+<script defer src="js/state.js?v=20260615-inv-rarity-filter1"></script>
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
 <script defer src="js/items.js?v=20260614-runtime-fixes1"></script>
 <script defer src="js/skills.js?v=20260614-cosmos-es1"></script>
@@ -1074,7 +1075,7 @@
 <script defer src="js/combat.js?v=20260614-cosmos-es1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260614-cosmos-es1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260614-runtime-fixes1"></script>
-<script defer src="js/ui.js?v=20260614-cosmos-es1"></script>
+<script defer src="js/ui.js?v=20260615-inv-rarity-filter1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260527-spiral-galaxy4"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
 <script defer src="js/main.js?v=20260513-gemfix1"></script>
