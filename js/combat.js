@@ -344,7 +344,7 @@ function getConditionGemStatDelta(name, type) {
         '감전 문양': { enemyResLShred: 10, shockChanceAdd: 0.10, shockTakenMul: 1.10 },
         '부패 각인': { enemyResChaosShred: 10, poisonChanceAdd: 0.10, poisonTakenMul: 1.10 },
         '균열 저주': { enemyResShred: 15, enemyResChaosShred: 15 },
-        '취약의 낙인': { enemyTakenMul: 1.15 },
+        '취약의 낙인': { enemyTakenMul: 1.10, enemyCritDmgTakenMul: 1.12 },
         '파멸 징표': { doomMark: 1 },
         '쇠약의 기도': { enemyDmgMul: 0.90, enemyAspdSlow: 0.10 },
         '타오른 죄책': { enemyResFShred: 8, fireDotTakenMul: 1.06, igniteTakenMul: 1.06 },
@@ -361,7 +361,7 @@ function getConditionGemStatDelta(name, type) {
         '빙하의 포효': { pctDmg: 13, coldBonus: 0.12, dr: 8, energyShieldRegen: 2 },
         '폭풍의 고함': { aspd: 16, crit: 5 },
         '공허의 외침': { pctDmg: 17, chaosBonus: 0.15, resPen: 8, leech: 0.7 },
-        '결전 신호': { pctDmg: 24, dr: -4, critDmg: 30 },
+        '결전 신호': { pctDmg: 18, dr: -4, critDmg: 30, resPen: 6 },
         '지진의 함성': { slamEchoPct: 0.25, slamEchoDelaySec: 1.0 },
         // Guards
         '원소 장막': { dr: 22, resAll: 10, maxResAll: 4 },
@@ -387,7 +387,9 @@ function getConditionGemStatDelta(name, type) {
     Object.keys(base).forEach(key => {
         let val = base[key];
         if (typeof val !== 'number') { out[key] = val; return; }
-        if (key === 'enemyTakenMul') out[key] = 1 + ((val - 1) * scale);
+        if (['enemyTakenMul', 'igniteTakenMul', 'chillTakenMul', 'freezeTakenMul', 'shockTakenMul', 'poisonTakenMul', 'bleedTakenMul', 'fireDotTakenMul', 'enemyProjectileTakenMul', 'enemyLightTakenMul', 'enemyChaosTakenMul', 'enemyCritDmgTakenMul', 'enemyDmgMul', 'enemyRegenRateMul'].includes(key)) {
+            out[key] = val >= 1 ? 1 + ((val - 1) * scale) : 1 - ((1 - val) * scale);
+        }
         else out[key] = val * scale;
     });
     return out;
@@ -395,7 +397,7 @@ function getConditionGemStatDelta(name, type) {
 
 function getEnemyConditionDebuffFactor(enemy, pStats) {
     let list = (game.enemyConditionDebuffs && enemy) ? (game.enemyConditionDebuffs[enemy.id] || []) : [];
-    let fx = { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, projectileTakenMul: 1, lightTakenMul: 1, chaosTakenMul: 1, enemyDmgMul: 1, enemyRegenRateMul: 1, projectileExtraHits: 0, critDmgTakenMul: 1 };
+    let fx = { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, projectileTakenMul: 1, lightTakenMul: 1, chaosTakenMul: 1, enemyDmgMul: 1, enemyRegenRateMul: 1, projectileExtraHits: 0, critDmgTakenMul: 1, ailmentChanceAdd: {}, ailmentTakenMul: {} };
     list.forEach(deb => {
         let d = getConditionGemStatDelta(deb.name, 'curse');
         fx.mul *= (d.enemyTakenMul || 1);
@@ -412,6 +414,15 @@ function getEnemyConditionDebuffFactor(enemy, pStats) {
         fx.enemyRegenRateMul *= (d.enemyRegenRateMul || 1);
         fx.projectileExtraHits += (d.projectileExtraHits || 0);
         fx.critDmgTakenMul *= (d.enemyCritDmgTakenMul || 1);
+        if (d.igniteChanceAdd) fx.ailmentChanceAdd.ignite = (fx.ailmentChanceAdd.ignite || 0) + d.igniteChanceAdd;
+        if (d.chillChanceAdd) fx.ailmentChanceAdd.chill = (fx.ailmentChanceAdd.chill || 0) + d.chillChanceAdd;
+        if (d.freezeChanceAdd) fx.ailmentChanceAdd.freeze = (fx.ailmentChanceAdd.freeze || 0) + d.freezeChanceAdd;
+        if (d.shockChanceAdd) fx.ailmentChanceAdd.shock = (fx.ailmentChanceAdd.shock || 0) + d.shockChanceAdd;
+        if (d.poisonChanceAdd) fx.ailmentChanceAdd.poison = (fx.ailmentChanceAdd.poison || 0) + d.poisonChanceAdd;
+        if (d.bleedChanceAdd) fx.ailmentChanceAdd.bleed = (fx.ailmentChanceAdd.bleed || 0) + d.bleedChanceAdd;
+        if (d.igniteTakenMul || d.fireDotTakenMul) fx.ailmentTakenMul.ignite = (fx.ailmentTakenMul.ignite || 1) * (d.igniteTakenMul || 1) * (d.fireDotTakenMul || 1);
+        if (d.poisonTakenMul) fx.ailmentTakenMul.poison = (fx.ailmentTakenMul.poison || 1) * d.poisonTakenMul;
+        if (d.bleedTakenMul) fx.ailmentTakenMul.bleed = (fx.ailmentTakenMul.bleed || 1) * d.bleedTakenMul;
     });
     if (pStats && pStats.uniqueCursedTakenAndRefresh && list.length > 0) fx.mul *= Math.max(1, Number(pStats.uniqueCursedTakenAndRefresh.takenMul) || 1);
     fx.mul = Math.min(1.35, fx.mul);
@@ -4351,13 +4362,18 @@ function applyEnemyDotFromHit(enemy, hitDamage, pStats) {
     enemy.dotStacks = nextStacks;
 }
 
-function getSkillAilmentStats(pStats, hitElement) {
+function getSkillAilmentStats(pStats, hitElement, curseFx) {
     let skill = pStats.sSkill || {};
     let bonus = skill.ailmentChanceBonus || {};
+    let curseChance = curseFx && curseFx.ailmentChanceAdd ? curseFx.ailmentChanceAdd : {};
     return {
         ...pStats,
-        igniteChance: (pStats.igniteChance || 0) + (bonus.ignite || 0),
-        poisonChance: (pStats.poisonChance || 0) + (bonus.poison || 0),
+        igniteChance: (pStats.igniteChance || 0) + (bonus.ignite || 0) + ((curseChance.ignite || 0) * 100),
+        chillChance: (pStats.chillChance || 0) + (curseChance.chill || 0) * 100,
+        freezeChance: (pStats.freezeChance || 0) + (curseChance.freeze || 0) * 100,
+        shockChance: (pStats.shockChance || 0) + (curseChance.shock || 0) * 100,
+        poisonChance: (pStats.poisonChance || 0) + (bonus.poison || 0) + ((curseChance.poison || 0) * 100),
+        bleedChance: (pStats.bleedChance || 0) + (curseChance.bleed || 0) * 100,
         sSkill: { ...skill, ele: hitElement }
     };
 }
@@ -6629,8 +6645,10 @@ function performPlayerAttack(pStats) {
                 else targetEnemy.ailments.push({ type: 'assassinWeakness', time: 5, power: stacks });
             }
             if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
-            applyEnemyAilmentFromHit(targetEnemy, getSkillAilmentStats(pStats, hitElement), dmg, hitCrit, {
-                ailmentSourceDamage: ailmentDamageBeforeCritMitigation,
+            let ailmentType = getAilmentTypeFromElement(hitElement);
+            let conditionAilmentTakenMul = curseFx && curseFx.ailmentTakenMul ? (curseFx.ailmentTakenMul[ailmentType] || 1) : 1;
+            applyEnemyAilmentFromHit(targetEnemy, getSkillAilmentStats(pStats, hitElement, curseFx), dmg, hitCrit, {
+                ailmentSourceDamage: Math.floor(ailmentDamageBeforeCritMitigation * conditionAilmentTakenMul),
                 critDotBonusPct: hitCrit ? 50 : 0
             });
             spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill);
