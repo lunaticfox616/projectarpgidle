@@ -5577,19 +5577,23 @@ function performUpdateStaticUI() {
     if (document.getElementById('ui-infuser-equip-list')) renderPaperdoll('ui-infuser-equip-list', true);
     document.getElementById('ui-inv-count').innerText = game.inventory.length;
     document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
+    let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
+    if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
     const sf = getSearchFilterState();
     const equipInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
         let item = row.item || {};
+        if (!isItemRarityVisible(item)) return false;
         let underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
         let hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
         return matchSearchQuery(hay, sf.equip);
     });
     let equipSearchTools = `<button onclick="bulkSalvageEquipBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkSalvageEquipBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">미검색 항목 해체</button>`;
     renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join(''), '', equipSearchTools);
-    document.getElementById('ui-craft-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'craft')).join('');
-    document.getElementById('ui-fossil-inventory-list').innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'fossil')).join('');
+    const visibleInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isItemRarityVisible(row.item));
+    document.getElementById('ui-craft-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
+    document.getElementById('ui-fossil-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'fossil')).join('');
     let infuserInv = document.getElementById('ui-infuser-inventory-list');
-    if (infuserInv) infuserInv.innerHTML = game.inventory.map((item, idx) => renderInventoryCard(item, idx, 'infuser')).join('');
+    if (infuserInv) infuserInv.innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'infuser')).join('');
     let jewelUnlocked = !!game.unlocks.jewel;
     document.getElementById('ui-jewel-header').style.display = jewelUnlocked ? 'block' : 'none';
     document.getElementById('ui-jewel-panel').style.display = jewelUnlocked ? 'block' : 'none';
@@ -5742,6 +5746,37 @@ function getSearchFilterState() {
     d.skill = String(d.skill || '');
     d.support = String(d.support || '');
     return d;
+}
+const INVENTORY_RARITY_FILTER_KEYS = ['normal', 'magic', 'rare', 'unique'];
+const INVENTORY_RARITY_FILTER_LABELS = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
+function getInventoryRarityFilter() {
+    game.settings = game.settings || {};
+    let f = game.settings.inventoryViewRarities;
+    if (!f || typeof f !== 'object') f = game.settings.inventoryViewRarities = {};
+    INVENTORY_RARITY_FILTER_KEYS.forEach(r => { if (typeof f[r] !== 'boolean') f[r] = true; });
+    return f;
+}
+function isItemRarityVisible(item) {
+    let rarity = (item && item.rarity) || 'normal';
+    if (!INVENTORY_RARITY_FILTER_KEYS.includes(rarity)) return true;
+    return !!getInventoryRarityFilter()[rarity];
+}
+function toggleInventoryRarityFilter(rarity) {
+    if (!INVENTORY_RARITY_FILTER_KEYS.includes(rarity)) return;
+    let f = getInventoryRarityFilter();
+    f[rarity] = !f[rarity];
+    if (typeof updateStaticUI === 'function') updateStaticUI();
+    if (document.getElementById('craft-item-picker-overlay') && window.__craftPickerKind) {
+        openCraftItemPickerOverlay(window.__craftPickerKind);
+    }
+}
+function renderRarityFilterChips(scope) {
+    let f = getInventoryRarityFilter();
+    let stop = scope === 'picker' ? 'event.stopPropagation(); ' : '';
+    return INVENTORY_RARITY_FILTER_KEYS.map(key => {
+        let active = !!f[key];
+        return `<button type="button" class="rarity-filter-chip rarity-${key}${active ? ' active' : ''}" aria-pressed="${active}" onclick="${stop}toggleInventoryRarityFilter('${key}')">${INVENTORY_RARITY_FILTER_LABELS[key]}</button>`;
+    }).join('');
 }
 function resetSearchFilter(key) { updateSearchFilter(key, ''); }
 function updateSearchFilter(key, value) {
@@ -6209,6 +6244,7 @@ function getCraftPickerCardHtml(item, options) {
 function openCraftItemPickerOverlay(kind) {
     closeCraftItemPickerOverlay();
     let isEquip = kind === 'equip';
+    window.__craftPickerKind = kind;
     let overlay = document.createElement('div');
     overlay.id = 'craft-item-picker-overlay';
     overlay.className = 'craft-picker-overlay';
@@ -6231,13 +6267,17 @@ function openCraftItemPickerOverlay(kind) {
             });
         }).join('')}</div>`;
     } else {
-        let rows = (game.inventory || []).map(item => getCraftPickerCardHtml(item, {
+        let totalInv = (game.inventory || []).length;
+        let rows = (game.inventory || []).filter(item => item && isItemRarityVisible(item)).map(item => getCraftPickerCardHtml(item, {
             selected: !currentIsEquip && currentRef === item.id,
             onclick: `selectCraftPickerInventoryItem(${item.id})`
         })).join('');
-        bodyHtml = rows ? `<div class="craft-picker-grid">${rows}</div>` : `<div class="deathlog-empty">인벤토리에 제작할 장비가 없습니다.</div>`;
+        bodyHtml = rows
+            ? `<div class="craft-picker-grid">${rows}</div>`
+            : `<div class="deathlog-empty">${totalInv > 0 ? '선택한 등급 필터에 해당하는 장비가 없습니다.' : '인벤토리에 제작할 장비가 없습니다.'}</div>`;
     }
-    overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title">${isEquip ? '장착 장비에서 제작 대상 선택' : '인벤토리에서 제작 대상 선택'}</div><div class="craft-picker-desc">카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.</div></div><button type="button" onclick="closeCraftItemPickerOverlay()">닫기</button></div><div class="craft-picker-body">${bodyHtml}</div></div>`;
+    let filterRowHtml = isEquip ? '' : `<div class="craft-picker-filter"><span class="inventory-view-filter-label">표시</span>${renderRarityFilterChips('picker')}</div>`;
+    overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title">${isEquip ? '장착 장비에서 제작 대상 선택' : '인벤토리에서 제작 대상 선택'}</div><div class="craft-picker-desc">카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.</div></div><button type="button" onclick="closeCraftItemPickerOverlay()">닫기</button></div>${filterRowHtml}<div class="craft-picker-body">${bodyHtml}</div></div>`;
     document.body.appendChild(overlay);
 }
 
@@ -6248,6 +6288,8 @@ function exposeUiRenderHelpersOnce() {
         getItemStatToneColor,
         updateSearchFilter,
         resetSearchFilter,
+        toggleInventoryRarityFilter,
+        renderRarityFilterChips,
         bulkSalvageEquipBySearch,
         bulkSalvageJewelsBySearch,
         bulkSalvageTalismansBySearch,
@@ -8134,6 +8176,7 @@ function mergeDefaults(save) {
     merged.settings.combatLogCollapsed = !!merged.settings.combatLogCollapsed;
     merged.settings.autoSalvageEnabled = !!merged.settings.autoSalvageEnabled;
     merged.settings.autoSalvageRarities = { ...(defaultGame.settings.autoSalvageRarities || {}), ...(merged.settings.autoSalvageRarities || {}) };
+    merged.settings.inventoryViewRarities = { ...(defaultGame.settings.inventoryViewRarities || {}), ...(merged.settings.inventoryViewRarities || {}) };
     merged.settings.jewelAutoSalvageEnabled = !!merged.settings.jewelAutoSalvageEnabled;
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
