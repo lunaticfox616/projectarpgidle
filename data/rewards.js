@@ -34,11 +34,12 @@ const ACT_REWARD_DB = {
     },
     3: {
         title: '액트 4 클리어 보상',
-        body: '원소 저항 하나를 강화할 수 있습니다.',
+        body: '원소 저항을 선택해 강화할 수 있습니다.',
         choices: [
-            { kind: 'stat', stat: 'resF', value: 8, label: '화염 저항 +8%', desc: '영구적으로 화염 저항을 올립니다.' },
-            { kind: 'stat', stat: 'resC', value: 8, label: '냉기 저항 +8%', desc: '영구적으로 냉기 저항을 올립니다.' },
-            { kind: 'stat', stat: 'resL', value: 8, label: '번개 저항 +8%', desc: '영구적으로 번개 저항을 올립니다.' }
+            { kind: 'stat', stat: 'resF', value: 9, label: '화염 저항 +9%', desc: '영구적으로 화염 저항을 올립니다.' },
+            { kind: 'stat', stat: 'resC', value: 9, label: '냉기 저항 +9%', desc: '영구적으로 냉기 저항을 올립니다.' },
+            { kind: 'stat', stat: 'resL', value: 9, label: '번개 저항 +9%', desc: '영구적으로 번개 저항을 올립니다.' },
+            { kind: 'stat', stat: 'resAll', value: 3, label: '모든 원소 저항 +3%', desc: '영구적으로 화염/냉기/번개 저항을 모두 올립니다.' }
         ]
     },
     4: {
