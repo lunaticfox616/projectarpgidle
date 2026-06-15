@@ -370,7 +370,8 @@ function isPauseSettingOverlayOpen() {
         '#mobile-craft-currency-overlay',
         '#craft-item-picker-overlay',
         '#void-jewel-overlay',
-        '#jewel-fusion-overlay'
+        '#jewel-fusion-overlay',
+        '#void-socket-jewel-overlay'
     ];
     return modalSelectors.some(selector => isOverlayElementOpen(selector));
 }
@@ -6519,8 +6520,8 @@ function buildCraftActionButtons(item) {
             } else if (selectedItem.voidSocket.jewel) {
                 voidSocketHtml = `<div style="color:#9fd6ff;">소켓 주얼: <span class="${getJewelRarityClass(selectedItem.voidSocket.jewel.rarity || 'normal')}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'void',0)" onmousemove="showSocketedJewelTooltip(event,'void',0)" onmouseleave="hideInfoTooltip()">${selectedItem.voidSocket.jewel.name}</span></div><button onclick="removeJewelFromVoidSocket()" ${(game.currencies.voidChisel||0)<=0?'disabled':''}>주얼 제거(끌 1)</button>`;
             } else {
-                let jewelBtns = (game.jewelInventory || []).map((j, i) => `<button data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${i})" onmousemove="showSocketedJewelTooltip(event,'inventory',${i})" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoVoidSocket(${i})">${j.name} 장착</button>`).join('');
-                voidSocketHtml = `<div style="color:#9fd6ff;">빈 공허 소켓</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
+                let hasSocketJewelCandidates = (game.jewelInventory || []).some(Boolean);
+                voidSocketHtml = `<div style="color:#9fd6ff;">빈 공허 소켓</div><button onclick="openVoidSocketJewelOverlay()" ${hasSocketJewelCandidates ? '' : 'disabled'}>주얼 장착</button>${hasSocketJewelCandidates ? '' : '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
             }
         }
         let abyssCap = typeof getAbyssSocketCapacity === 'function' ? getAbyssSocketCapacity(selectedItem) : 0;

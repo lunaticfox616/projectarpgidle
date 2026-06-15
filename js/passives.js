@@ -5701,8 +5701,49 @@ function insertJewelIntoVoidSocket(invIdx) { if (game.woodsmanBuildLock) return 
     if (!jewel) return;
     item.voidSocket.jewel = jewel;
     game.jewelInventory.splice(invIdx, 1);
+    closeVoidSocketJewelOverlay();
     addLog(`💠 공허 소켓에 [${jewel.name}] 장착`, 'loot-magic');
     updateStaticUI();
+}
+
+function closeVoidSocketJewelOverlay() {
+    if (typeof document === 'undefined') return;
+    let overlay = document.getElementById('void-socket-jewel-overlay');
+    if (overlay) overlay.remove();
+}
+
+function formatVoidSocketJewelStatLines(jewel) {
+    let stats = typeof getJewelStats === 'function' ? getJewelStats(jewel) : ((jewel && jewel.stats) || []);
+    let lines = stats.map(stat => {
+        let tone = typeof getJewelStatToneColor === 'function' ? getJewelStatToneColor(stat.id) : '#d7e9ff';
+        let value = typeof formatJewelStatValue === 'function' ? formatJewelStatValue(stat.id, stat.val) : stat.val;
+        let name = typeof getStatName === 'function' ? getStatName(stat.id) : stat.id;
+        return `<div>• <span style="color:${tone};">${escapeHTML(`${name} +${value}`)}</span></div>`;
+    });
+    return lines.join('') || '<div style="color:#7f8c8d;">옵션 없음</div>';
+}
+
+function buildVoidSocketJewelOverlayCards() {
+    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
+    return game.jewelInventory.map((jewel, idx) => {
+        if (!jewel) return '';
+        let stats = formatVoidSocketJewelStatLines(jewel);
+        let title = escapeHTML(jewel.name || '주얼');
+        return `<button class="item-card" style="text-align:left;min-height:92px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoVoidSocket(${idx})"><strong>${idx + 1}. ${title}</strong><div style="font-size:.8em;line-height:1.35;margin-top:4px;">${stats}</div><div style="margin-top:6px;color:#9fd6ff;font-size:.78em;">장착</div></button>`;
+    }).join('') || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>';
+}
+
+function openVoidSocketJewelOverlay() {
+    let item = getSelectedCraftItem();
+    if (!item || !item.voidSocket || !item.voidSocket.open) return addLog('먼저 빈 공허 소켓이 있는 장비를 선택하세요.', 'attack-monster');
+    if (item.voidSocket.jewel) return addLog('이미 주얼이 장착되어 있습니다.', 'attack-monster');
+    let overlay = document.getElementById('void-socket-jewel-overlay');
+    if (!overlay) {
+        document.body.insertAdjacentHTML('beforeend', '<div id="void-socket-jewel-overlay" style="position:fixed;inset:0;background:rgba(7,10,18,.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;"></div>');
+        overlay = document.getElementById('void-socket-jewel-overlay');
+    }
+    let cards = buildVoidSocketJewelOverlayCards();
+    overlay.innerHTML = `<div style="width:min(980px,95vw);max-height:92vh;overflow:auto;background:#0f1520;border:1px solid #4b86bd;border-radius:12px;padding:12px;box-shadow:0 18px 60px rgba(0,0,0,.5);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;"><strong style="color:#9fd6ff;font-size:18px;">공허 소켓 주얼 장착</strong><button onclick="closeVoidSocketJewelOverlay()">닫기</button></div><div style="color:#d7e9ff;margin-bottom:8px;line-height:1.45;">빈 공허 소켓에 장착할 주얼을 선택하세요.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${cards}</div><div style="display:flex;justify-content:flex-end;margin-top:10px;"><button class="tutorial-secondary" onclick="closeVoidSocketJewelOverlay()">취소</button></div></div>`;
 }
 
 function removeJewelFromVoidSocket() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
@@ -5764,7 +5805,7 @@ function removeJewelFromAbyssSocket(socketIdx) { if (game.woodsmanBuildLock) ret
     updateStaticUI();
 }
 
-safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, openJewelFusionOverlay, closeJewelFusionOverlay, confirmJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
+safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, openVoidSocketJewelOverlay, closeVoidSocketJewelOverlay, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, openJewelFusionOverlay, closeJewelFusionOverlay, confirmJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
 
 function createItemFromBase(base, rarity, zoneTier) {
     itemIdCounter++;
