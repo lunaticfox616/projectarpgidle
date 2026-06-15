@@ -5822,6 +5822,67 @@ function renderRarityFilterChips(scope) {
     }).join('');
     return allChip + chips;
 }
+
+/* ── Auto-salvage config (independent from the view filter) ──────────── */
+function getAutoSalvageRarities() {
+    game.settings = game.settings || {};
+    let f = game.settings.autoSalvageRarities;
+    if (!f || typeof f !== 'object') f = game.settings.autoSalvageRarities = { normal: true, magic: true, rare: false, unique: false };
+    getInventoryRarityFilterKeys().forEach(r => { if (typeof f[r] !== 'boolean') f[r] = false; });
+    return f;
+}
+function toggleAutoSalvageRarity(rarity) {
+    if (!getInventoryRarityFilterKeys().includes(rarity)) return;
+    let f = getAutoSalvageRarities();
+    f[rarity] = !f[rarity];
+    refreshAutoSalvageConfigOverlay();
+    if (typeof syncSalvageControlsFromSettings === 'function') syncSalvageControlsFromSettings();
+    if (typeof queueImportantSave === 'function') queueImportantSave(400);
+}
+function renderAutoSalvageRarityChips() {
+    let f = getAutoSalvageRarities();
+    let labels = getInventoryRarityFilterLabels();
+    return getInventoryRarityFilterKeys().map(key => {
+        let active = !!f[key];
+        return `<button type="button" class="rarity-filter-chip rarity-${key}${active ? ' active' : ''}" aria-pressed="${active}" onclick="toggleAutoSalvageRarity('${key}')">${labels[key]}</button>`;
+    }).join('');
+}
+function renderAutoSalvageConfigPanel() {
+    let enabled = !!game.settings.autoSalvageEnabled;
+    return `<div class="craft-picker-panel" style="width:min(460px,100%);">
+        <div class="craft-picker-head"><div><div class="craft-picker-title">⚙️ 자동해체 설정</div><div class="craft-picker-desc">획득 시 선택한 등급을 자동으로 해체합니다.<br>인벤토리 표시 필터와는 별개로 동작합니다.</div></div><button type="button" onclick="closeAutoSalvageConfigOverlay()">닫기</button></div>
+        <div class="craft-picker-filter" style="border-bottom:none; margin-bottom:10px; padding-bottom:0;"><span class="inventory-view-filter-label">대상 등급</span><span id="auto-salvage-rarity-chips" style="display:flex; gap:6px; flex-wrap:wrap;">${renderAutoSalvageRarityChips()}</span></div>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <button type="button" id="auto-salvage-toggle-btn" class="bulk-salvage-action" onclick="toggleAutoSalvage(); refreshAutoSalvageConfigOverlay();">${enabled ? '자동해체 끄기' : '자동해체 켜기'}</button>
+            <span id="auto-salvage-status" style="font-weight:700; color:${enabled ? '#2ecc71' : '#9fb4d1'};">현재: ${enabled ? 'ON' : 'OFF'}</span>
+        </div>
+    </div>`;
+}
+function refreshAutoSalvageConfigOverlay() {
+    let overlay = document.getElementById('auto-salvage-config-overlay');
+    if (!overlay) return;
+    let chipHost = overlay.querySelector('#auto-salvage-rarity-chips');
+    if (chipHost) chipHost.innerHTML = renderAutoSalvageRarityChips();
+    let enabled = !!game.settings.autoSalvageEnabled;
+    let toggleBtn = overlay.querySelector('#auto-salvage-toggle-btn');
+    if (toggleBtn) toggleBtn.innerText = enabled ? '자동해체 끄기' : '자동해체 켜기';
+    let statusEl = overlay.querySelector('#auto-salvage-status');
+    if (statusEl) { statusEl.innerText = `현재: ${enabled ? 'ON' : 'OFF'}`; statusEl.style.color = enabled ? '#2ecc71' : '#9fb4d1'; }
+}
+function closeAutoSalvageConfigOverlay() {
+    let overlay = document.getElementById('auto-salvage-config-overlay');
+    if (overlay) overlay.remove();
+}
+function openAutoSalvageConfigOverlay() {
+    closeAutoSalvageConfigOverlay();
+    let overlay = document.createElement('div');
+    overlay.id = 'auto-salvage-config-overlay';
+    overlay.className = 'craft-picker-overlay';
+    overlay.onclick = event => { if (event.target === overlay) closeAutoSalvageConfigOverlay(); };
+    overlay.innerHTML = renderAutoSalvageConfigPanel();
+    document.body.appendChild(overlay);
+}
+
 function resetSearchFilter(key) { updateSearchFilter(key, ''); }
 function updateSearchFilter(key, value) {
     const d = getSearchFilterState();
@@ -6347,6 +6408,9 @@ function exposeUiRenderHelpersOnce() {
         toggleInventoryRarityFilter,
         toggleAllInventoryRarityFilter,
         renderRarityFilterChips,
+        openAutoSalvageConfigOverlay,
+        closeAutoSalvageConfigOverlay,
+        toggleAutoSalvageRarity,
         bulkSalvageEquipBySearch,
         bulkSalvageJewelsBySearch,
         bulkSalvageTalismansBySearch,

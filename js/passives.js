@@ -6133,10 +6133,7 @@ function addItemToInventory(item, options) {
         salvageItemObject(item, true);
         return false;
     }
-    let autoSalvageRarities = (typeof getInventoryRarityFilter === 'function')
-        ? getInventoryRarityFilter()
-        : (game.settings.inventoryViewRarities || game.settings.autoSalvageRarities);
-    if (game.settings.autoSalvageEnabled && autoSalvageRarities && autoSalvageRarities[item.rarity]) {
+    if (game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities && game.settings.autoSalvageRarities[item.rarity]) {
         salvageItemObject(item, true);
         if (game.settings.showLootLog) addLog(`🧪 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-normal');
         return false;
@@ -6836,12 +6833,10 @@ function syncSalvageControlsFromSettings() {
 }
 
 function toggleAutoSalvage() {
+    let f = game.settings.autoSalvageRarities || {};
     if (!game.settings.autoSalvageEnabled) {
-        let active = getActiveRarityFilterSet();
-        if (active.length === 0) return addLog('자동해체할 등급을 먼저 선택하세요. (등급 필터에서 선택)', 'attack-monster');
-        let rarityLabels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
-        let labelText = active.map(r => rarityLabels[r] || r).join('/');
-        if (!confirm(`자동해체를 켤까요?\n획득 시 [${labelText}] 등급 장비가 자동으로 해체됩니다.`)) return;
+        let active = ['normal', 'magic', 'rare', 'unique'].filter(r => f[r]);
+        if (active.length === 0) return addLog('자동해체할 등급을 먼저 선택하세요.', 'attack-monster');
     }
     game.settings.autoSalvageEnabled = !game.settings.autoSalvageEnabled;
     syncSalvageControlsFromSettings();
