@@ -708,6 +708,23 @@ function switchTab(tabId) {
     }
 }
 
+function craftSelectInventoryItemById(itemId) {
+    let id = Number(itemId);
+    if (!Number.isFinite(id) || !(game.inventory || []).some(item => item && item.id === id)) return;
+    if (typeof hideItemTooltip === 'function') hideItemTooltip();
+    if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
+    if (typeof switchTab === 'function') switchTab('tab-items');
+    if (typeof switchItemSubtab === 'function') switchItemSubtab('item-tab-craft');
+    if (typeof selectForCrafting === 'function') selectForCrafting(id, false);
+    setTimeout(() => {
+        let el = document.getElementById('forge-item-display');
+        if (el && el.scrollIntoView) {
+            try { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+            catch (error) { el.scrollIntoView(); }
+        }
+    }, 60);
+}
+
 function switchItemSubtab(subtabId) {
     if (subtabId === 'item-tab-market' && !isMarketUnlocked()) {
         addLog('액트 5를 먼저 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
@@ -6337,6 +6354,7 @@ function exposeUiRenderHelpersOnce() {
         toggleColonyWardLock,
         openCraftItemPickerOverlay,
         closeCraftItemPickerOverlay,
+        craftSelectInventoryItemById,
         selectCraftPickerEquipment,
         selectCraftPickerInventoryItem,
         showSocketedJewelTooltip,
