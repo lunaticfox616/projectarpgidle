@@ -800,14 +800,52 @@ function getConditionGemDetail(entry) {
     if (!entry) return '';
     let d = getUiConditionGemStatDelta(entry.name, entry.type);
     let out = [];
-    if (d.enemyTakenMul) out.push(`받는피해 +${Math.round((d.enemyTakenMul - 1) * 100)}%`);
-    if (d.enemyResShred) out.push(`저항관통 +${d.enemyResShred}`);
-    if (d.pctDmg) out.push(`피해 +${d.pctDmg}%`);
-    if (d.aspd) out.push(`공속 +${d.aspd}%`);
-    if (d.dr) out.push(`물피감 ${d.dr > 0 ? '+' : ''}${d.dr}%`);
+    let pct = value => Math.round(Math.abs(value) * 100);
+    let signed = value => `${value > 0 ? '+' : ''}${Math.round(value)}`;
+    [
+        ['enemyTakenMul', '받는피해', value => `+${pct(value - 1)}%`],
+        ['enemyLightTakenMul', '번개 받는피해', value => `+${pct(value - 1)}%`],
+        ['enemyChaosTakenMul', '카오스 받는피해', value => `+${pct(value - 1)}%`],
+        ['enemyProjectileTakenMul', '투사체 받는피해', value => `+${pct(value - 1)}%`],
+        ['enemyCritDmgTakenMul', '치명타 피해 취약', value => `+${pct(value - 1)}%`],
+        ['igniteTakenMul', '점화 받는피해', value => `+${pct(value - 1)}%`],
+        ['chillTakenMul', '냉각 대상 피해', value => `+${pct(value - 1)}%`],
+        ['freezeTakenMul', '동결 대상 피해', value => `+${pct(value - 1)}%`],
+        ['shockTakenMul', '감전 받는피해', value => `+${pct(value - 1)}%`],
+        ['poisonTakenMul', '중독 받는피해', value => `+${pct(value - 1)}%`],
+        ['bleedTakenMul', '출혈 받는피해', value => `+${pct(value - 1)}%`],
+        ['fireDotTakenMul', '화염 지속피해', value => `+${pct(value - 1)}%`],
+        ['enemyDmgMul', '적 피해', value => `-${pct(1 - value)}%`],
+        ['enemyRegenRateMul', '적 재생 효율', value => `-${pct(1 - value)}%`]
+    ].forEach(row => { if (Number.isFinite(Number(d[row[0]]))) out.push(`${row[1]} ${row[2](Number(d[row[0]]))}`); });
+    [
+        ['enemyResShred', '모든 저항 감소'], ['enemyResFShred', '화염 저항 감소'], ['enemyResCShred', '냉기 저항 감소'],
+        ['enemyResLShred', '번개 저항 감소'], ['enemyResChaosShred', '카오스 저항 감소'], ['enemyPhysDrShred', '물리 피해감소 감소'],
+        ['resPen', '저항 관통'], ['resAll', '원소 저항'], ['maxResAll', '최대 원소 저항'], ['resChaos', '카오스 저항'],
+        ['physIgnore', '물피감 무시'], ['crit', '치명타 확률'], ['critDmg', '치명타 피해'], ['targetAny', '스킬 대상'],
+        ['projectileExtraHits', '투사체 추가 적중'], ['energyShieldRegen', '보호막 회복속도']
+    ].forEach(row => { if (d[row[0]]) out.push(`${row[1]} +${Math.round(d[row[0]] * 10) / 10}`); });
+    if (d.pctDmg) out.push(`피해 +${Math.round(d.pctDmg)}%`);
+    if (d.aspd) out.push(`공속 ${signed(d.aspd)}%`);
+    if (d.dr) out.push(`물피감 ${signed(d.dr)}%`);
+    if (d.move) out.push(`이속 ${signed(d.move)}%`);
     if (d.regen) out.push(`재생 +${d.regen}%/s`);
     if (d.leech) out.push(`흡수 +${d.leech}%`);
-    return out.join(' · ') || '특수 효과';
+    if (d.fireBonus) out.push(`화염 스킬 증폭 +${pct(d.fireBonus)}%`);
+    if (d.coldBonus) out.push(`냉기 스킬 증폭 +${pct(d.coldBonus)}%`);
+    if (d.slamEchoPct) out.push(`강타 메아리 ${pct(d.slamEchoPct)}% 피해`);
+    if (d.thorns) out.push(`피격 반격 ${pct(d.thorns)}%`);
+    if (d.armorMul) out.push(`현재 물피감 추가 +${pct(d.armorMul)}%`);
+    if (d.delayedRegenFromTakenDamage) out.push(`피해 일부 지연회복 ${pct(d.delayedRegenFromTakenDamage)}%`);
+    if (d.hpSacrificePct) out.push(`시전 시 생명력 ${Math.round(d.hpSacrificePct)}% 소모`);
+    if (d.poisonToHeal) out.push('중독 피해를 회복으로 전환');
+    if (d.disableEnemyLeech) out.push('적 흡혈 차단');
+    if (d.doomMark) out.push('체력이 낮은 적에게 피해 증폭');
+    Object.entries({ Ignite: '점화', Shock: '감전', Chill: '냉각', Freeze: '동결', Poison: '중독', Bleed: '출혈' }).forEach(([key, label]) => {
+        if (d[`cleanse${key}`]) out.push(`${label} 해제`);
+        if (d[`immune${key}`]) out.push(`${label} 면역`);
+    });
+    return out.join(' · ') || (entry.desc || '조건부 전투 효과');
 }
 function getConditionGemTooltip(entry) {
     if (!entry) return '';
@@ -3633,9 +3671,9 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ff7f7f');
 }
 function showPlayerBuffTooltip(event, name, type, remainSec) {
-    let delta = getUiConditionGemStatDelta(name, type || 'buff');
-    let lines = Object.keys(delta || {}).map(key => `${getStatName(key)} ${delta[key] >= 0 ? '+' : ''}${formatValue(key, delta[key])}`);
-    let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${type || '버프'}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">${lines.join(' / ') || '효과 정보 없음'}</div>`;
+    let entry = getAllConditionGemEntries().find(row => row && row.name === name) || { name, type: type || 'buff' };
+    let typeLabel = { curse: '저주', warcry: '함성', guard: '가드', buff: '버프' }[type || entry.type] || (type || entry.type || '버프');
+    let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${typeLabel}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">효과: ${getConditionGemDetail(entry)}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
 }
 function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, specialDps, critDotBonusPct, stackCount, rawTickDamage, tickInterval, enemyRes, abyssPlayerMul, igniteTakenMultiplier) {
@@ -6034,7 +6072,13 @@ const createJewelRangeTooltipHtml = function createJewelRangeTooltipHtml(jewel) 
     }).join('');
     let tierLine = tierSummary ? `<div class="tooltip-line" style="color:#9fb4d1;">숨겨진 티어: T${tierSummary}</div>` : '';
     let uniqueLine = jewel.rarity === 'unique' && jewel.uniqueEffect ? `<div class="tooltip-line" style="color:#d7b8ff;">✨ 고유 효과: ${escapeHTML(jewel.uniqueEffect)}</div>` : '';
-    return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${uniqueLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
+    let voidChargesLine = '';
+    if (jewel.uniqueId === 'uj_void') {
+        let charges = Math.max(0, Math.floor(Number(jewel.voidFusionCharges) || 0));
+        let blocked = charges <= 0 ? ' · 합성/공허융합 불가' : '';
+        voidChargesLine = `<div class="tooltip-line" style="color:${charges <= 0 ? '#ff8a8a' : '#d7b8ff'};">공허 합성 가능 수: ${charges}회 남음${blocked}</div>`;
+    }
+    return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${uniqueLine}${voidChargesLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
 };
 
 

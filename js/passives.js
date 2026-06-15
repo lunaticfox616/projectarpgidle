@@ -6478,11 +6478,27 @@ function getVoidJewelFusionPreviewStats(indices) {
     return merged;
 }
 
+function getJewelOverlayStatToneColor(statId) {
+    if (['firePctDmg', 'resF', 'igniteChance', 'ailResIgnite'].includes(statId)) return '#ff9a76';
+    if (['coldPctDmg', 'resC', 'freezeChance', 'ailResFreeze'].includes(statId)) return '#8fd3ff';
+    if (['lightPctDmg', 'resL', 'shockChance', 'ailResShock'].includes(statId)) return '#ffe083';
+    if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance', 'ailResPoison', 'regenSuppress'].includes(statId)) return '#c7a6ff';
+    if (['flatHp', 'pctHp', 'regen', 'leech', 'summonHpPct'].includes(statId)) return '#ffb3b3';
+    if (['armor', 'armorPct', 'dr', 'physIgnore', 'physPctDmg', 'ailResBleed'].includes(statId)) return '#ffd2a6';
+    if (['evasion', 'evasionPct', 'deflectChance', 'deflectDamageReduce'].includes(statId)) return '#baffc2';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(statId)) return '#b9c6ff';
+    if (['crit', 'critDmg', 'summonCrit', 'summonCritDmg'].includes(statId)) return '#ffd6f2';
+    if (['aspd', 'move', 'summonAspd'].includes(statId)) return '#fff3a8';
+    if (['resAll', 'resPen', 'pctDmg', 'minDmgRoll', 'maxDmgRoll'].includes(statId)) return '#9fd6ff';
+    if (String(statId || '').startsWith('summon')) return '#d8b4ff';
+    return '#d7e9ff';
+}
+
 function formatJewelOverlayStatLines(stats, extraLineText) {
     let lines = (stats || []).map(stat => {
-        let tone = typeof getJewelStatToneColor === 'function' ? getJewelStatToneColor(stat.id) : '#d7e9ff';
+        let tone = getJewelOverlayStatToneColor(stat.id);
         let label = `${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}`;
-        return `<div>• <span style="color:${tone};">${escapeHTML(label)}</span></div>`;
+        return `<div>• <span class="jewel-overlay-stat-line" style="color:${tone} !important;">${escapeHTML(label)}</span></div>`;
     });
     if (extraLineText) lines.push(`<div>• ${escapeHTML(extraLineText)}</div>`);
     return lines.length > 0 ? lines.join('') : '<div style="color:#7f8c8d;">선택한 주얼의 유효 옵션이 없습니다.</div>';
@@ -6494,16 +6510,47 @@ function getVoidJewelOverlaySelectedIndices(mode) {
         .filter((idx, pos, arr) => arr.indexOf(idx) === pos).slice(0, 2);
 }
 
+function getVoidUniqueFusionCharges(jewel) {
+    if (!jewel || jewel.uniqueId !== 'uj_void') return 0;
+    return Math.max(0, Math.floor(Number(jewel.voidFusionCharges) || 0));
+}
+
+function canUseVoidUniqueFusion(jewel) {
+    return !!(jewel && jewel.uniqueId === 'uj_void' && getVoidUniqueFusionCharges(jewel) > 0);
+}
+
+function getVoidUniqueFusionPair(indices) {
+    if (!Array.isArray(indices) || indices.length !== 2) return null;
+    let first = game.jewelInventory[indices[0]];
+    let second = game.jewelInventory[indices[1]];
+    if (canUseVoidUniqueFusion(first) && second && second.uniqueId !== 'uj_void') return { voidIndex: indices[0], targetIndex: indices[1] };
+    if (canUseVoidUniqueFusion(second) && first && first.uniqueId !== 'uj_void') return { voidIndex: indices[1], targetIndex: indices[0] };
+    return null;
+}
+
+function buildVoidUniqueFusionPreviewStats(indices) {
+    let pair = getVoidUniqueFusionPair(indices);
+    if (!pair) return [];
+    let targetStats = getJewelCoreStats(game.jewelInventory[pair.targetIndex]).map(cloneJewelStat);
+    let usedIds = targetStats.map(stat => stat.id);
+    let pool = JEWEL_OPTION_POOL.filter(option => !usedIds.includes(option.id));
+    let randomStat = rollJewelStat(rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL));
+    return targetStats.concat(randomStat ? [randomStat] : []).filter(Boolean).slice(0, 4);
+}
+
 function buildVoidJewelOverlayCards(mode) {
     let selected = getVoidJewelOverlaySelectedIndices(mode);
     return (game.jewelInventory || []).map((jewel, idx) => {
         if (!jewel) return '';
-        let disabled = jewel.locked || jewel.waxedByBeeswax;
+        let zeroVoidUnique = mode === 'fusion' && jewel.uniqueId === 'uj_void' && getVoidUniqueFusionCharges(jewel) <= 0;
+        let disabled = jewel.locked || jewel.waxedByBeeswax || zeroVoidUnique;
         let selectedClass = selected.includes(idx) ? 'selected' : '';
         let stats = formatJewelOverlayStatLines(getJewelCoreStats(jewel));
+        let charges = jewel.uniqueId === 'uj_void' ? `<div style="color:${zeroVoidUnique ? '#e07b7b' : '#d7b8ff'};font-size:.78em;margin-top:4px;">공허 합성 가능 수: ${getVoidUniqueFusionCharges(jewel)}회${zeroVoidUnique ? ' · 합성/공허융합 불가' : ''}</div>` : '';
         let badge = jewel.isVoid ? '공허 · ' : '';
         let button = disabled ? 'disabled' : `onclick="toggleVoidJewelOverlaySelection('${mode}',${idx})"`;
-        return `<button class="item-card ${selectedClass}" ${button} style="text-align:left;min-height:92px;"><strong>${idx + 1}. ${badge}${escapeHTML(jewel.name || '주얼')}</strong><div style="font-size:.8em;color:#b9d7ff;line-height:1.35;margin-top:4px;">${stats}</div>${disabled ? '<div style="color:#e07b7b;font-size:.78em;">잠금/밀랍 재료 제외</div>' : ''}</button>`;
+        let disabledText = zeroVoidUnique ? '합성 가능 수가 없습니다' : '잠금/밀랍 재료 제외';
+        return `<button class="item-card ${selectedClass}" ${button} style="text-align:left;min-height:92px;"><strong>${idx + 1}. ${badge}${escapeHTML(jewel.name || '주얼')}</strong><div style="font-size:.8em;color:#b9d7ff;line-height:1.35;margin-top:4px;">${stats}</div>${charges}${disabled ? `<div style="color:#e07b7b;font-size:.78em;">${disabledText}</div>` : ''}</button>`;
     }).join('') || '<div style="color:#7f8c8d;">보유 주얼이 없습니다.</div>';
 }
 
@@ -6516,13 +6563,17 @@ function renderVoidJewelOverlay(mode) {
     if (!overlay) return;
     let selected = getVoidJewelOverlaySelectedIndices(mode);
     let isFusion = mode === 'fusion';
-    let stats = isFusion ? getVoidJewelFusionPreviewStats(selected) : getVoidJewelCraftPreviewStats(selected);
+    let uniquePair = isFusion ? getVoidUniqueFusionPair(selected) : null;
+    let stats = uniquePair ? buildVoidUniqueFusionPreviewStats(selected) : (isFusion ? getVoidJewelFusionPreviewStats(selected) : getVoidJewelCraftPreviewStats(selected));
     let title = isFusion ? '공허 주얼 융합' : '공허 주얼 제작';
-    let rule = isFusion ? '선택한 주얼들의 옵션은 최대 3줄만 계승되고, 4번째 줄은 무작위 옵션으로 생성됩니다.' : '선택한 주얼 2개의 유효 옵션을 앞에서부터 최대 4줄까지 계승합니다.';
+    let rule = uniquePair ? '고유 주얼 [공허]은 재료를 소비하지 않고 함께 선택한 주얼에 무작위 옵션 1줄을 부여하며, 합성 가능 수 1회를 소모합니다.' : (isFusion ? '선택한 주얼들의 옵션은 최대 3줄만 계승되고, 4번째 줄은 무작위 옵션으로 생성됩니다.' : '선택한 주얼 2개의 유효 옵션을 앞에서부터 최대 4줄까지 계승합니다.');
     let extra = isFusion ? '무작위 옵션 1줄' : '';
-    let hasVoidMaterial = selected.some(idx => { let jewel = game.jewelInventory[idx]; return jewel && (jewel.isVoid || jewel.uniqueId === 'uj_void'); });
-    let canCraft = selected.length === 2 && (game.currencies.voidChisel || 0) > 0 && (!isFusion || hasVoidMaterial);
-    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">보유 공허의 끌: <strong>${game.currencies.voidChisel || 0}</strong> · 필요: <strong>1</strong><br>${rule}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildVoidJewelOverlayCards(mode)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#d7e9ff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
+    let hasVoidMaterial = selected.some(idx => { let jewel = game.jewelInventory[idx]; return jewel && jewel.isVoid; }) || !!uniquePair;
+    let chiselReady = uniquePair || (game.currencies.voidChisel || 0) > 0;
+    let hasUniqueTargetSpace = !uniquePair || getJewelCoreStats(game.jewelInventory[uniquePair.targetIndex]).length < 4;
+    let canCraft = selected.length === 2 && chiselReady && hasUniqueTargetSpace && (!isFusion || hasVoidMaterial);
+    let costLine = uniquePair ? `공허 합성 가능 수: <strong>${getVoidUniqueFusionCharges(game.jewelInventory[uniquePair.voidIndex])}</strong>회 · 필요: <strong>1</strong>회` : `보유 공허의 끌: <strong>${game.currencies.voidChisel || 0}</strong> · 필요: <strong>1</strong>`;
+    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">${costLine}<br>${rule}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildVoidJewelOverlayCards(mode)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#d7e9ff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
     overlay.innerHTML = getJewelFusionOverlayShellHtml(title, body, `<button onclick="${isFusion ? 'confirmVoidJewelFusion' : 'confirmVoidJewelCraft'}()" ${canCraft ? '' : 'disabled'}>제작</button>`, '#6e57a8');
 }
 
@@ -6557,6 +6608,7 @@ function toggleVoidJewelOverlaySelection(mode, idx) {
     if (index < 0) return;
     let jewel = game.jewelInventory[index];
     if (rejectProtectedJewelCraftMaterial([jewel], mode === 'fusion' ? '공허 주얼 융합' : '공허 주얼 제작')) return;
+    if (mode === 'fusion' && jewel.uniqueId === 'uj_void' && getVoidUniqueFusionCharges(jewel) <= 0) return addLog('고유 주얼 [공허]의 합성 가능 수가 없습니다.', 'attack-monster');
     let selected = getVoidJewelOverlaySelectedIndices(mode);
     selected = selected.includes(index) ? selected.filter(v => v !== index) : selected.concat(index).slice(-2);
     voidJewelOverlayState = { mode, selected };
@@ -6638,6 +6690,7 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
     if (selected.length !== 2) return addLog('융합할 주얼 2개를 선택하세요.', 'attack-monster');
     let materials = selected.map(idx => game.jewelInventory[idx]);
     if (rejectProtectedJewelCraftMaterial(materials, '주얼 합성')) return;
+    if (materials.some(jewel => jewel.uniqueId === 'uj_void' && getVoidUniqueFusionCharges(jewel) <= 0)) return addLog('고유 주얼 [공허]의 합성 가능 수가 없어 합성할 수 없습니다.', 'attack-monster');
     if (materials.some(jewel => jewel.isVoid || jewel.uniqueId === 'uj_void')) return openVoidJewelFusionOverlay();
     return openJewelFusionOverlay(selected);
 }
@@ -6650,6 +6703,7 @@ function confirmJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠�
     let a = game.jewelInventory[sorted[0]];
     let b = game.jewelInventory[sorted[1]];
     if (rejectProtectedJewelCraftMaterial([a, b], '주얼 합성')) return;
+    if ([a, b].some(jewel => jewel.uniqueId === 'uj_void' && getVoidUniqueFusionCharges(jewel) <= 0)) return addLog('고유 주얼 [공허]의 합성 가능 수가 없어 합성할 수 없습니다.', 'attack-monster');
     if (a.isVoid || b.isVoid || a.uniqueId === 'uj_void' || b.uniqueId === 'uj_void') return openVoidJewelFusionOverlay();
     let fusionCost = 6;
     if ((game.currencies.jewelShard || 0) < fusionCost) return addLog(`주얼 결정이 부족합니다. (필요: ${fusionCost})`, 'attack-monster');
@@ -6744,12 +6798,35 @@ function buildVoidFusionJewel(idxA, idxB) {
     return { id: Date.now() + Math.floor(Math.random() * 10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, hiddenTier: Math.max(1, ...stats.map(stat => stat.tier || 1)), stats, maxLines: 4 };
 }
 
+function fuseWithVoidUniqueJewel(voidIndex, targetIndex) {
+    let voidJewel = game.jewelInventory[voidIndex];
+    let target = game.jewelInventory[targetIndex];
+    let charges = getVoidUniqueFusionCharges(voidJewel);
+    if (charges <= 0) { addLog('고유 주얼 [공허]의 합성 가능 수가 없습니다.', 'attack-monster'); return false; }
+    if (!target || target.uniqueId === 'uj_void') { addLog('고유 주얼 [공허]과 합성할 다른 주얼을 선택하세요.', 'attack-monster'); return false; }
+    let targetStats = getJewelCoreStats(target);
+    if (targetStats.length >= 4) { addLog('대상 주얼의 옵션이 가득 차 공허 합성을 할 수 없습니다.', 'attack-monster'); return false; }
+    let usedIds = targetStats.map(stat => stat.id);
+    let pool = JEWEL_OPTION_POOL.filter(option => !usedIds.includes(option.id));
+    let randomStat = rollJewelStat(rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL));
+    if (!randomStat) { addLog('공허 합성 옵션을 생성하지 못했습니다.', 'attack-monster'); return false; }
+    target.stats = Array.isArray(target.stats) ? target.stats.concat(randomStat) : [randomStat];
+    target.hiddenTier = Math.max(1, ...(target.stats || []).map(stat => stat.tier || 1));
+    voidJewel.voidFusionCharges = charges - 1;
+    jewelFusionSelection = [];
+    addLog(`🕳️ 고유 주얼 [공허] 합성 완료: [${target.name || '주얼'}]에 무작위 옵션 1줄 부여 (${voidJewel.voidFusionCharges}회 남음)`, 'loot-unique');
+    updateStaticUI();
+    return true;
+}
+
 function fuseVoidJewel(idxA, idxB) { if (game.woodsmanBuildLock) { addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster'); return false; }
     game.jewelInventory = game.jewelInventory || [];
     let a = game.jewelInventory[idxA], b = game.jewelInventory[idxB];
     if (!a || !b || idxA === idxB) return false;
-    if ((game.currencies.voidChisel || 0) <= 0) { addLog('공허의 끌이 부족합니다.', 'attack-monster'); return false; }
     if (rejectProtectedJewelCraftMaterial([a, b], '공허 주얼 융합')) return false;
+    if (a.uniqueId === 'uj_void') return fuseWithVoidUniqueJewel(idxA, idxB);
+    if (b.uniqueId === 'uj_void') return fuseWithVoidUniqueJewel(idxB, idxA);
+    if ((game.currencies.voidChisel || 0) <= 0) { addLog('공허의 끌이 부족합니다.', 'attack-monster'); return false; }
     if (!(a.isVoid || b.isVoid)) { addLog('공허 주얼 융합은 최소 1개의 공허 주얼이 필요합니다.', 'attack-monster'); return false; }
     let newJewel = buildVoidFusionJewel(idxA, idxB);
     let hi = Math.max(idxA, idxB), lo = Math.min(idxA, idxB);
