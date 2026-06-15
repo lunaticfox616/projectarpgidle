@@ -3839,6 +3839,32 @@ function getItemSlotDisplayLabel(item, fallbackLabel) {
     return String(label || '장비').replace(/[12]$/, '');
 }
 
+
+function getItemStatRollRange(stat, options) {
+    if (!stat) return null;
+    let min = Number.isFinite(Number(stat.valMin)) ? Number(stat.valMin) : Number(stat.baseRollMin);
+    let max = Number.isFinite(Number(stat.valMax)) ? Number(stat.valMax) : Number(stat.baseRollMax);
+    if ((!Number.isFinite(min) || !Number.isFinite(max)) && options && options.estimateFromValue) {
+        let cur = Number(stat.val || 0);
+        min = Number((cur * 0.8).toFixed(2));
+        max = Number((cur * 1.2).toFixed(2));
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+    if (max < min) {
+        let tmp = min;
+        min = max;
+        max = tmp;
+    }
+    return { min, max };
+}
+
+function getItemStatRollRangeHtml(stat, options) {
+    let statKey = stat && (stat.id || stat.stat);
+    let range = getItemStatRollRange(stat, options);
+    if (!range) return '';
+    return ` <span style="color:#888;">(${formatValue(statKey, range.min)}~${formatValue(statKey, range.max)})</span>`;
+}
+
 function showItemTooltip(event, idx, isEquip) {
     let item = isEquip ? game.equipment[idx] : game.inventory[idx];
     let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
@@ -3875,20 +3901,13 @@ function showItemTooltip(event, idx, isEquip) {
     let defenseView = getItemDefenseView(item);
     if ((item.baseStats || []).length > 0) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#f1c40f; font-weight:800;">베이스 옵션</div>`;
-        function getBaseRollRange(stat) {
-            let cur = Number(stat.val || 0);
-            let min = Number.isFinite(Number(stat.valMin)) ? Number(stat.valMin) : Number((cur * 0.8).toFixed(2));
-            let max = Number.isFinite(Number(stat.valMax)) ? Number(stat.valMax) : Number((cur * 1.2).toFixed(2));
-            if (max < min) { let t = min; min = max; max = t; }
-            return { min, max };
-        }
         item.baseStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             if (statKey === 'armor' || statKey === 'evasion' || statKey === 'energyShield') return;
             let cur = Number(stat.val || 0);
-            let { min, max } = getBaseRollRange(stat);
+            let rangeText = getItemStatRollRangeHtml(stat, { estimateFromValue: true });
             let label = stat.statName || getStatName(statKey) || statKey;
-            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, cur)}</span> <span style="color:#888;">(${formatValue(statKey, min)}~${formatValue(statKey, max)})</span></div>`;
+            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, cur)}</span>${rangeText}</div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
             let label = getStatName(id);
@@ -3898,8 +3917,7 @@ function showItemTooltip(event, idx, isEquip) {
             let src = (item.baseStats || []).find(stat => stat && stat.id === id);
             let rangeText = '';
             if (src) {
-                let { min, max } = getBaseRollRange(src);
-                rangeText = ` <span style="color:#888;">(${formatValue(id, min)}~${formatValue(id, max)})</span>`;
+                rangeText = getItemStatRollRangeHtml(src, { estimateFromValue: true });
             }
             if (Math.floor(finalVal) === Math.floor(baseVal)) {
                 html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(baseVal)}</span>${rangeText}</div>`;
@@ -3934,7 +3952,7 @@ function showItemTooltip(event, idx, isEquip) {
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
-            let rangeText = stat.valMin !== undefined && stat.valMax !== undefined ? ` <span style="color:#888;">(${formatValue(statKey, stat.valMin)}~${formatValue(statKey, stat.valMax)})</span>${tierText}` : tierText;
+            let rangeText = `${getItemStatRollRangeHtml(stat)}${tierText}`;
             let label = stat.statName || getStatName(statKey) || statKey;
             html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, stat.val)}</span>${rangeText}</div>`;
         });
@@ -6469,14 +6487,18 @@ function buildCraftActionButtons(item) {
     let craftSelectedBodyHtml = `<div style="color:#9fb4d1;">아이템을 클릭하여 선택</div>`;
     if (selectedItem) {
         let lines = [];
-        (selectedItem.baseStats || []).forEach(stat => lines.push(`<div class="tooltip-line craft-option-line craft-option-line--base" style="color:${getItemStatToneColor(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}</div>`));
+        (selectedItem.baseStats || []).forEach(stat => {
+            let rangeText = getItemStatRollRangeHtml(stat, { estimateFromValue: true });
+            lines.push(`<div class="tooltip-line craft-option-line craft-option-line--base" style="color:${getItemStatToneColor(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}${rangeText}</div>`);
+        });
         let selectedExplicitStats = (selectedItem.stats || []).slice();
         if (selectedItem.chaosInfusion) selectedExplicitStats.push({ ...selectedItem.chaosInfusion, statName: `[주입] ${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)}` });
         selectedExplicitStats.forEach(stat => {
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
             let honeyTag = stat.lockedByHoney ? ` <span style="color:#ffd166; font-weight:700;">[고정됨]</span>` : '';
             let stingerTag = stat.venomStingerBonus ? ` <span style="color:#9bff9e;">[독벌침]</span>` : '';
-            lines.push(`<div class="tooltip-line craft-option-line" style="color:${getItemStatToneColor(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}${tierText}${honeyTag}${stingerTag}</div>`);
+            let rangeText = getItemStatRollRangeHtml(stat);
+            lines.push(`<div class="tooltip-line craft-option-line" style="color:${getItemStatToneColor(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}${rangeText}${tierText}${honeyTag}${stingerTag}</div>`);
         });
         if (selectedExplicitStats.length === 0) lines.push(`<div class="tooltip-line" style="color:#7f8c8d">추가 옵션 없음</div>`);
         if (selectedItem.encroached) {
