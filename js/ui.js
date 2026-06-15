@@ -5578,7 +5578,7 @@ function performUpdateStaticUI() {
     document.getElementById('ui-inv-count').innerText = game.inventory.length;
     document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
-    if (invRarityFilterHost) invRarityFilterHost.innerHTML = `<span class="inventory-view-filter-label">표시</span>${renderRarityFilterChips('inventory')}`;
+    if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
     const sf = getSearchFilterState();
     const equipInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
         let item = row.item || {};

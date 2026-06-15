@@ -552,14 +552,11 @@
             </h2>
             <div class="bulk-salvage-bar">
                 <div class="bulk-salvage-filters">
-                    <label><input type="checkbox" id="chk-salvage-normal" checked onchange="updateSalvageSettingsFromUI()"> 일반</label>
-                    <label><input type="checkbox" id="chk-salvage-magic" checked onchange="updateSalvageSettingsFromUI()"> 매직</label>
-                    <label><input type="checkbox" id="chk-salvage-rare" onchange="updateSalvageSettingsFromUI()"> 레어</label>
-                    <label><input type="checkbox" id="chk-salvage-unique" onchange="updateSalvageSettingsFromUI()"> 고유</label>
+                    <span class="inventory-view-filter-label" title="켜진 등급만 인벤토리에 표시되며, 해체/자동해체의 대상이 됩니다.">등급</span>
+                    <div class="inventory-view-filter" id="ui-inventory-rarity-filter"></div>
                 </div>
-                <div style="display:flex; gap:8px;"><button class="bulk-salvage-action" style="background:#5d6d7e; border-color:#465664;" onclick="bulkSalvageAllInventory()">전체해체</button><button class="bulk-salvage-action" onclick="bulkSalvageSelected()">해체</button><button id="btn-auto-salvage" class="bulk-salvage-action" onclick="toggleAutoSalvage()">자동해체 OFF</button></div>
+                <div style="display:flex; gap:8px;"><button class="bulk-salvage-action" style="background:#5d6d7e; border-color:#465664;" onclick="bulkSalvageAllInventory()" title="잠금되지 않은 모든 장비를 해체합니다.">전체해체</button><button class="bulk-salvage-action" onclick="bulkSalvageSelected()" title="등급 필터에서 켜진(표시 중인) 등급의 장비를 해체합니다.">선택 등급 해체</button><button id="btn-auto-salvage" class="bulk-salvage-action" onclick="toggleAutoSalvage()" title="획득 시 켜진 등급의 장비를 자동으로 해체합니다.">자동해체 OFF</button></div>
             </div>
-            <div class="inventory-view-filter" id="ui-inventory-rarity-filter"></div>
             <div class="inventory-grid" id="ui-inventory-list"></div>
 
         </div>
@@ -1070,7 +1067,7 @@
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
 <script defer src="js/items.js?v=20260614-runtime-fixes1"></script>
 <script defer src="js/skills.js?v=20260614-cosmos-es1"></script>
-<script defer src="js/passives.js?v=20260614-cosmos-es1"></script>
+<script defer src="js/passives.js?v=20260615-inv-rarity-filter1"></script>
 <script defer src="js/core-cube.js?v=20260609-core-cube-bulk1"></script>
 <script defer src="js/combat.js?v=20260614-cosmos-es1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260614-cosmos-es1"></script>
