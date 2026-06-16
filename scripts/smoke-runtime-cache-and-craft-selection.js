@@ -13,10 +13,10 @@ const expectedCacheBusters = {
   'css/layout.css': '20260614-cosmos-es1',
   'data/items.js': '20260614-cosmos-es1',
   'js/skills.js': '20260614-cosmos-es1',
-  'js/passives.js': '20260615-autosalvage-split1',
-  'js/combat.js': '20260614-cosmos-es1',
+  'js/passives.js': '20260616-boss-assets1',
+  'js/combat.js': '20260616-boss-assets1',
   'js/canvas-battlefield.js': '20260614-cosmos-es1',
-  'js/ui.js': '20260615-craft-roll-ranges1',
+  'js/ui.js': '20260616-boss-assets1',
   'js/state.js': '20260615-inv-rarity-filter1'
 };
 Object.entries(expectedCacheBusters).forEach(([asset, version]) => {
