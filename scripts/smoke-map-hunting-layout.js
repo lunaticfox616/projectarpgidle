@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const uiSource = fs.readFileSync(path.join(root, 'js/ui.js'), 'utf8');
 const layoutCss = fs.readFileSync(path.join(root, 'css/layout.css'), 'utf8');
 const componentCss = fs.readFileSync(path.join(root, 'css/components.css'), 'utf8');
+const uiPolishCss = fs.readFileSync(path.join(root, 'css/ui-polish.css'), 'utf8');
 const stateSource = fs.readFileSync(path.join(root, 'js/state.js'), 'utf8');
 
 function extractFunctionBlock(source, name) {
@@ -73,6 +74,14 @@ assert(
 assert(
   componentCss.includes('#ui-map-list.map-grid--split .map-zone-grid--chaos { grid-template-columns: repeat(5, minmax(0, 1fr));'),
   'mobile chaos maps must render five cards per row'
+);
+assert(
+  uiSource.includes('map-item map-item--sky-tower') && uiPolishCss.includes('.map-item--sky-tower .map-item-main'),
+  'sky tower map card must use dedicated layout rules so long Korean labels do not wrap vertically'
+);
+assert(
+  uiPolishCss.includes('word-break: keep-all;') && uiPolishCss.includes('@media (max-width: 720px)') && uiPolishCss.includes('.map-item--sky-tower .map-item-actions'),
+  'sky tower card mobile CSS must keep text readable and move actions onto a full-width row'
 );
 
 

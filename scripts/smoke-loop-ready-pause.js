@@ -8,6 +8,8 @@ const vm = require('vm');
 
 const repoRoot = path.resolve(__dirname, '..');
 const combatSource = fs.readFileSync(path.join(repoRoot, 'js/combat.js'), 'utf8');
+const indexSource = fs.readFileSync(path.join(repoRoot, 'index.html'), 'utf8');
+const uiPolishSource = fs.readFileSync(path.join(repoRoot, 'css/ui-polish.css'), 'utf8');
 const exposed = {};
 const context = {
   console,
@@ -43,6 +45,19 @@ function assert(condition, message) {
 assertNode(combatSource.includes('let preservedTalismanUnlocked = !!game.talismanUnlocked || !!(game.unlocks && game.unlocks.talisman);'), 'loop reset must capture permanent talisman tab unlock state');
 assertNode(combatSource.includes('if (preservedTalismanUnlocked) game.unlocks.talisman = true;'), 'loop reset must restore the talisman tab unlock flag');
 assertNode(!combatSource.includes('game.talismanUnlocked = false;'), 'loop reset must not force the talisman tab back to locked');
+assertNode(
+  indexSource.indexOf('id="ui-enemy-list"') < indexSource.indexOf('id="loop-ready-banner"'),
+  'loop ready button must render below the enemy info area instead of the global overlay stack'
+);
+assertNode(
+  indexSource.includes('<button type="button" onclick="confirmLoopReady()">루프 진행 ▶</button>'),
+  'loop ready action must be a stable button inside the enemy area'
+);
+const loopReadyCssBlock = (uiPolishSource.match(/\.loop-ready-banner \{[\s\S]*?\n\}/) || [''])[0];
+assertNode(
+  loopReadyCssBlock && !loopReadyCssBlock.includes('position: fixed;') && loopReadyCssBlock.includes('width: 100%;'),
+  'loop ready banner must be inline and full-width so reflows do not steal clicks from the button'
+);
 
 let resetCalls = 0;
 context.triggerSeasonReset = () => {
