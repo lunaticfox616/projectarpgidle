@@ -4622,6 +4622,17 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
     ctx.restore();
 }
 
+
+function getBossAssetVariantEntry(enemy, enemyAtlas) {
+    if (!enemy || !enemy.isBoss || !enemy.bossAssetKey || !enemyAtlas) return null;
+    let bossImage = (enemyAtlas.bossImages || {})[enemy.bossAssetKey];
+    if (!bossImage) return null;
+    return {
+        image: bossImage,
+        frame: { x: 0, y: 0, width: bossImage.width, height: bossImage.height, basisHeight: bossImage.height }
+    };
+}
+
 function pickBattleEnemyVariant(enemy, enemyAtlas) {
     if (!enemyAtlas) return null;
     let pools = enemyAtlas.variants || {};
@@ -4663,13 +4674,13 @@ function pickBattleEnemyVariant(enemy, enemyAtlas) {
 function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
     if (battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
         let enemyAtlas = battleAssets.atlas.enemies;
-        let variantEntry = pickBattleEnemyVariant(enemy, enemyAtlas) || {};
+        let variantEntry = getBossAssetVariantEntry(enemy, enemyAtlas) || pickBattleEnemyVariant(enemy, enemyAtlas) || {};
         let frame = variantEntry.frame || enemyAtlas.frames.bandit || enemyAtlas.frames.slime;
         let frameImage = variantEntry.image || enemyAtlas.image;
         let drawSize = enemy.isBoss ? 70 : (enemy.isElite ? 50 : 38);
         drawSize *= scale / (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95));
         drawPixelShadow(ctx, x, y + (enemy.isBoss ? 16 : 13), enemy.isBoss ? 15 : 9, enemy.isBoss ? 5 : 4, 0.17);
-        drawBattleSprite(ctx, frameImage, frame, x, y + 5, drawSize, { smoothing: 'low' });
+        drawBattleSprite(ctx, frameImage, frame, x, y + 5, drawSize, { smoothing: enemy.bossAssetKey ? 'high' : 'low' });
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.16;
