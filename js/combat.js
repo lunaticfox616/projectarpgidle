@@ -4055,6 +4055,7 @@ function createEnemy(zone, marker, groupIndex) {
     }
     let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
     let variantSeed = ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
+    let bossAssetKey = isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed) : null;
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
     const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss);
     const cosmosExclusiveTrait = getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, variantSeed);
@@ -4092,6 +4093,7 @@ function createEnemy(zone, marker, groupIndex) {
         name: name,
         isElite: isElite,
         isBoss: isBoss,
+        bossAssetKey: bossAssetKey,
         attackTimer: (((zoneSeed + 1) * 13 + (marker.at || 0) * 3 + groupIndex * 7) % 10) / 20,
         spawnAt: marker.at,
         groupIndex: groupIndex,

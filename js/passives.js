@@ -3563,6 +3563,7 @@ function initBattleAssets() {
         bgAct9: 'assets/background/act9.png',
         bgAct10: 'assets/background/act10.png',
         summon1: 'assets/summon/summon1.png',
+        ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
     const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['effectsV2', 'weapons', 'tiles']));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
@@ -3577,7 +3578,7 @@ function initBattleAssets() {
         group.keys.push(key);
         if (criticalManifestKeys.has(key)) group.priority = Math.min(group.priority, 0);
         else if (key.startsWith('backdrop')) group.priority = Math.min(group.priority, 1);
-        else if (key === 'enemies2' || key === 'enemies3' || key === 'effectsV2') group.priority = Math.min(group.priority, 2);
+        else if (key.startsWith('bossAct') || key === 'enemies2' || key === 'enemies3' || key === 'effectsV2') group.priority = Math.min(group.priority, 2);
     });
     const manifestGroups = Array.from(manifestGroupsBySrc.values()).sort((a, b) => a.priority - b.priority || a.src.localeCompare(b.src));
     const maxParallelLoads = Math.max(4, Math.min(8, Number((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 6) || 6));
@@ -4989,6 +4990,12 @@ function buildBattleAssetAtlas() {
     // 필요 시 추후 개별 투명화 보정 후 재활성화 가능.
     // enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies2));
     // enemyVariantPools = mergeEnemyPools(enemyVariantPools, buildDetectedEnemyPools(battleAssets.images.enemies3));
+    const bossImages = {};
+    if (typeof BOSS_ASSET_MANIFEST !== 'undefined') {
+        Object.keys(BOSS_ASSET_MANIFEST).forEach(key => {
+            if (battleAssets.images[key]) bossImages[key] = battleAssets.images[key];
+        });
+    }
     const tileImage = battleAssets.images.tiles || null;
     const tileFrames = tileImage ? tileParts.map(part => trimRectToContent(tileImage, part, 2)) : [];
     return {
@@ -4999,6 +5006,7 @@ function buildBattleAssetAtlas() {
         enemies: {
             image: enemySpriteImage,
             variants: enemyVariantPools,
+            bossImages: bossImages,
             frames: {
                 slime: enemyFrames.slime,
                 wraith: enemyFrames.wraith,
