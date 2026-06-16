@@ -40,7 +40,7 @@ const BOSS_ASSET_VARIANTS_BY_ACT = {
 };
 
 function getBossAssetKeyForZone(zone, variantSeed) {
-    if (!zone || zone.type || !Number.isInteger(Number(zone.id))) return null;
+    if (!zone || (zone.type && zone.type !== 'act') || !Number.isInteger(Number(zone.id))) return null;
     const actNumber = Number(zone.id) + 1;
     const variants = BOSS_ASSET_VARIANTS_BY_ACT[actNumber];
     if (variants && variants.length > 0) {

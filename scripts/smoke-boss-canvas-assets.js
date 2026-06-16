@@ -20,10 +20,10 @@ Object.entries(manifest).forEach(([key, src]) => {
 });
 
 context.window.STORY_ACTS.forEach((zone, idx) => {
-    const key = context.window.getBossAssetKeyForZone({ ...zone, id: idx }, 0);
+    const key = context.window.getBossAssetKeyForZone({ ...zone, id: idx, type: 'act' }, 0);
     assert(key && manifest[key], `act ${idx + 1} must resolve to a manifest boss image`);
 });
-assert.strictEqual(context.window.getBossAssetKeyForZone({ id: 9 }, 4), 'bossAct10_5', 'act 10 must support all provided variant images');
+assert.strictEqual(context.window.getBossAssetKeyForZone({ id: 9, type: 'act' }, 4), 'bossAct10_5', 'act 10 must support all provided variant images');
 assert.strictEqual(context.window.getBossAssetKeyForZone({ id: 1, type: 'trial' }, 0), null, 'non-story bosses without assets must fall back to atlas sprites');
 
 assert(combatSource.includes('bossAssetKey: bossAssetKey'), 'created enemies must carry the resolved boss asset key');
