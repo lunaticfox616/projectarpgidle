@@ -6555,6 +6555,7 @@ function buildCraftActionButtons(item) {
                 lines.push(`<div class="tooltip-line" style="color:#8d7bb3;">[잠식] 해방 전 효과 없음 · 제작으로 변하지 않음</div>`);
             }
         }
+        let equipSelectedButtonHtml = isCraftSelectionEquip() ? '' : `<button onclick="equipSelectedCraftInventoryItem()">착용</button>`;
         let voidSocketHtml = '';
         let abyssSocketHtml = '';
         if (typeof isVoidSocketAccessoryItem === 'function' ? isVoidSocketAccessoryItem(selectedItem) : (String(selectedItem.slot || '').replace(/[12]$/, '') === '반지' || String(selectedItem.slot || '').replace(/[12]$/, '') === '목걸이')) {
@@ -6583,7 +6584,7 @@ function buildCraftActionButtons(item) {
             }).join('');
             abyssSocketHtml = `<div class="craft-section-title">심연 소켓</div>${makeBtn}${rows}`;
         }
-        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px;"><button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
+        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div class="craft-selected-body">${craftSelectedBodyHtml}</div>`;
     document.getElementById('fossil-item-display').innerHTML = craftSelectedBodyHtml;
