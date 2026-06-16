@@ -233,6 +233,13 @@ function equipItemById(itemId, preferredSlot) {
     return true;
 }
 
+function equipSelectedCraftInventoryItem() {
+    if (isCraftSelectionEquip()) return false;
+    let itemId = getCraftSelectionRef();
+    if (itemId === null) return false;
+    return equipItemById(itemId);
+}
+
 function unequipItem(slot) {
     let item = game.equipment[slot];
     if (!item || game.inventory.length >= getInventoryLimit()) return;
@@ -375,7 +382,7 @@ function changeZone(id) {
 }
 
 
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked });
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked });
 
 // Phase-3 extracted market/crafting service handlers.
 function marketResetPassiveTreeByDivine() {
