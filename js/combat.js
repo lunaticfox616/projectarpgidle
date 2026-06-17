@@ -855,6 +855,15 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let finalMul = getLimitedSummonFinalDamageMultiplier(pStats);
     dmg = Math.floor(dmg * finalMul);
     ailmentSourceDmg = Math.floor(ailmentSourceDmg * finalMul);
+    // 재능 개화 표면 키스톤: 조건부 피해 배율 + 정밀 메커니즘 공격 배율(예: 플레쳐 매 3타)
+    if (typeof getTalentKeystoneDamageMul === 'function') {
+        let ksMul = getTalentKeystoneDamageMul(target, ele, crit, pStats);
+        if (typeof getTalentAttackDamageMul === 'function') ksMul *= getTalentAttackDamageMul();
+        if (ksMul !== 1) {
+            dmg = Math.floor(dmg * ksMul);
+            ailmentSourceDmg = Math.floor(ailmentSourceDmg * ksMul);
+        }
+    }
     return { damage: Math.max(0, Math.floor(dmg)), ailmentSourceDamage: Math.max(0, Math.floor(ailmentSourceDmg)), crit: crit, critChance: critChance, element: ele };
 }
 
@@ -1055,6 +1064,7 @@ function coreLoop() {
         runConditionGemAutoRules(pStats);
     }
     processPendingSlamEchoHits();
+    processTalentInquisitorMarks();
     tickAilments(pStats, 0.1);
     let ailmentMap = {};
     let activePlayerShock = null;
@@ -1356,6 +1366,32 @@ function processPendingSlamEchoHits() {
     game.pendingSlamEchoHits = next;
 }
 
+// 8 심문궁: 누적된 표식 피해를 5초 후 폭발(누적의 12%, 쿨타임 6초).
+function processTalentInquisitorMarks() {
+    // 적별 재능 런타임 맵 정리(존 이동 등으로 사라진 적 — 메모리 누수 방지)
+    let aliveIds = new Set((game.enemies || []).map(e => e && e.id));
+    if (game.talentDawnHits) Object.keys(game.talentDawnHits).forEach(id => { if (!aliveIds.has(Number(id))) delete game.talentDawnHits[id]; });
+    let store = game.talentInquisitorMarks;
+    if (!store || typeof store !== 'object') return;
+    let now = Date.now();
+    let lv = (typeof isTalentCardActive === 'function') ? isTalentCardActive('hero1__inquisitor') : 0;
+    Object.keys(store).forEach(id => {
+        let mk = store[id];
+        if (!mk) { delete store[id]; return; }
+        let enemy = (game.enemies || []).find(e => e && e.id === id && e.hp > 0);
+        if (!enemy) { delete store[id]; return; }
+        if (mk.explodeAt && now >= mk.explodeAt) {
+            let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
+            enemy.hp = Math.max(0, enemy.hp - dmg);
+            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: dmg, duration: 240 });
+            if (game.settings && game.settings.showCombatLog !== false) addLog(`⚖️ 심판 표식 폭발: ${formatNumberKR(dmg)}`, 'attack-player', { noToast: true });
+            mk.accumulated = 0; mk.explodeAt = 0; mk.cooldownUntil = now + 6000;
+            if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
+        }
+    });
+}
+const TALENT_CARD_MAX_LEVEL_REF = 10;
+
 
 safeExposeGlobals({ coreLoop, isRegularAutoProgressZone, reconcileMapProgressRuntimeState });
 
@@ -1565,6 +1601,10 @@ function getPlayerStats() {
     if (activeUniqueIds.has('uj_condensed_curse')) uniqueCurseCrownPerCursePct = Math.max(uniqueCurseCrownPerCursePct, 10);
     let uniqueSummonDeathDamageBuff=null, uniqueSummonCritAspdStacks=null, uniqueSummonNonCritNoDamage=false;
     let uniqueBlockRecoverEnergyShieldPct=0, uniqueDeflectStealth=null, uniqueChaosTakenDamageReducePct=0, uniqueLifeRecoupTakenDamage=null;
+    // 재능 개화 표면 키스톤: 장착된 카드가 부여하는 고유 효과를 동일 파이프라인에 주입
+    if (typeof getActiveTalentKeystoneUniqueEffects === 'function') {
+        getActiveTalentKeystoneUniqueEffects().forEach(e => { if (e && e.key) equippedUniqueEffects.push(e); });
+    }
     equippedUniqueEffects.forEach(effect => {
         if (!effect || !effect.key) return;
         let ep = effect.params || {};
@@ -1866,6 +1906,15 @@ function getPlayerStats() {
     if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += (gearBase.targetSlam + gearExplicit.targetSlam + passive.targetSlam + season.targetSlam + ascend.targetSlam + reward.targetSlam);
     if (targetBonus > 0) skill.targets = Math.min(Array.isArray(skill.tags) && skill.tags.includes('projectile') ? 12 : 6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
     else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
+    // 재능: 1 아방가르드 — 물리/투사체 스킬 관통(대상 최대화)
+    if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__warrior') && (skill.ele === 'phys' || (Array.isArray(skill.tags) && skill.tags.includes('projectile')))) {
+        skill.targets = 6;
+    }
+    // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
+    let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
+    if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses());
+    let talentLine = function (stat, suffix) { let v = talentStatMap[stat]; return v ? `🌸 재능 개화 +${Math.round(v * 100) / 100}${suffix || '%'} (위 합계에 포함)` : null; };
+
     let gearTagged = getTaggedDamageBreakdown(gearBase, skill);
     let gearExplicitTagged = getTaggedDamageBreakdown(gearExplicit, skill);
     let passiveTagged = getTaggedDamageBreakdown(passive, skill);
@@ -2602,6 +2651,9 @@ function getPlayerStats() {
         damageScales.estimatedSkillDotDps = estimatedSkillDotDps;
     }
     let finalPlayerSkillDps = finalDpsWithProjectileShots + estimatedSkillDotDps;
+    // 재능 개화 키스톤: 상시 피해 배율을 표시 DPS에 반영(조건부는 툴팁에 별도 표기)
+    let talentDpsSummary = (typeof getTalentKeystoneDamageSummary === 'function') ? getTalentKeystoneDamageSummary() : { alwaysMul: 1, conditional: [] };
+    if (talentDpsSummary.alwaysMul !== 1) finalPlayerSkillDps *= talentDpsSummary.alwaysMul;
     let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? getFlameDecayIgniteTakenMultiplier({ maxHp: finalMaxHp, sSkill: skill }) : 1;
     let flameDecayDpsLines = [];
     if (skill.flameDecayDebuff) {
@@ -2784,6 +2836,7 @@ function getPlayerStats() {
                 makeSourceLine('성좌 각성', starBlessing.pctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('총 피해 증가', generalPctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('태그 보너스', baseTaggedTotal, '%', value => `${Math.floor(value)}%`),
+                talentLine('pctDmg'),
                 crusaderThunderDoctrinePct > 0 ? makeSourceLine('천뢰 교리(화염/냉기 → 번개)', crusaderThunderDoctrinePct, '%', value => `${Math.floor(value)}%`) : null,
                 crusaderThunderDoctrinePct > 0 ? makeSourceLine('피해 증가 합계', generalPctDmg + taggedTotal, '%', value => `${Math.floor(value)}%`) : null,
                 taggedSummary.length > 0 ? `적용 태그: ${taggedSummary.join(' / ')}` : null,
@@ -2810,6 +2863,7 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearAspd, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passiveAspd, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조 젬', support.aspd, '%', value => `${Math.floor(value)}%`),
+                talentLine('aspd'),
                 glovePairAspdBonus > 0 ? `동형 장갑 세트 보너스 +${glovePairAspdBonus.toFixed(2)} 기본 공속` : null,
                 `스킬 속도 배율 ${formatPercentMultiplier(skill.spd || 1)}`,
                 rawAspd > 5 ? `소프트캡 적용중 (원시 ${rawAspd.toFixed(2)} → 최종 ${finalAspd.toFixed(2)})` : null
@@ -2823,7 +2877,8 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearCrit, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passiveCrit, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('보조 젬', support.crit, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('스킬', skill.crit || 0, '%', value => `${value.toFixed(1)}%`)
+                makeSourceLine('스킬', skill.crit || 0, '%', value => `${value.toFixed(1)}%`),
+                talentLine('crit')
             ].filter(Boolean),
             final: `${finalCrit.toFixed(1)}%`
         },
@@ -2833,7 +2888,8 @@ function getPlayerStats() {
                 `기본 150%`,
                 makeSourceLine('장비', gearBase.critDmg + gearExplicit.critDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.critDmg + season.critDmg + ascend.critDmg + reward.critDmg, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.critDmg, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('보조 젬', support.critDmg, '%', value => `${Math.floor(value)}%`),
+                talentLine('critDmg')
             ].filter(Boolean),
             final: `${Math.floor(finalCritDmg)}%`
         },
@@ -2844,7 +2900,8 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearBase.move + gearExplicit.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.move + season.move + ascend.move + reward.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('성좌 각성', starBlessing.move, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.move, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('보조 젬', support.move, '%', value => `${Math.floor(value)}%`),
+                talentLine('move')
             ].filter(Boolean),
             final: `${Math.floor(finalMove)}%`
         },
@@ -2855,7 +2912,8 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearFlatHp),
                 makeSourceLine('패시브', passiveFlatHp),
                 makeSourceLine('성좌 각성', starBlessing.flatHp),
-                makeSourceLine('생명력 증가', totalPctHp, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('생명력 증가', totalPctHp, '%', value => `${Math.floor(value)}%`),
+                talentLine('pctHp')
             ].filter(Boolean),
             final: `${Math.floor(finalMaxHp)}`
         },
@@ -2864,7 +2922,8 @@ function getPlayerStats() {
             lines: [
                 makeSourceLine('장비', gearBase.regen + gearExplicit.regen, '%', value => `${formatValue('regen', value)}%`),
                 makeSourceLine('패시브', passive.regen + season.regen + ascend.regen + reward.regen, '%', value => `${formatValue('regen', value)}%`),
-                makeSourceLine('보조 젬', support.regen, '%', value => `${formatValue('regen', value)}%`)
+                makeSourceLine('보조 젬', support.regen, '%', value => `${formatValue('regen', value)}%`),
+                talentLine('regen')
             ].filter(Boolean),
             final: `${formatValue('regen', finalRegen)}%`
         },
@@ -3096,7 +3155,9 @@ function getPlayerStats() {
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
                 coreCubeAddedDamageTotalPct > 0 ? `코어 큐브 추가 피해 x${expectedAddedDamageMultiplier.toFixed(2)} (총 피해의 ${Math.floor(coreCubeAddedDamageTotalPct)}% → ${coreCubeAddedDamageParts.join(' / ')})` : null,
                 isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null,
-                estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null
+                estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null,
+                talentDpsSummary.alwaysMul !== 1 ? `🌸 재능 개화 키스톤(상시) x${talentDpsSummary.alwaysMul.toFixed(2)}` : null,
+                (talentDpsSummary.conditional && talentDpsSummary.conditional.length) ? `🌸 재능 개화 키스톤(조건부): ${talentDpsSummary.conditional.map(c => `${(typeof getTalentKeystoneConditionText === 'function' ? getTalentKeystoneConditionText(c.when, c.threshold) : '')}+${Math.floor(c.moreMul)}%`).join(', ')} (상황별 추가 적용)` : null
             ].concat(flameDecayDpsLines).filter(Boolean),
             final: `${Math.floor(finalPlayerSkillDps)}`
         },
@@ -4144,7 +4205,7 @@ function primeTrialHazardTimer(zone) {
     trialHazardTimer = 1.8 + Math.random() * 1.6;
 }
 
-// 재능 개화 시련 클리어 처리. (P1: 키 소모 + 조합 기록 / P2·P3: 5차 노드·재능 탭·개화 카드 보상 확장 예정)
+// 재능 개화 시련 클리어 처리. (키 소모 + 조합 기록 + 직업 5차 노드 해금 + 개화 카드 획득/강화)
 function handleTalentBloomClear(zone) {
     game.currencies.chaosKey = Math.max(0, Math.floor(game.currencies.chaosKey || 0) - 1);
     game.currencies.coreKey = Math.max(0, Math.floor(game.currencies.coreKey || 0) - 1);
@@ -4169,7 +4230,20 @@ function handleTalentBloomClear(zone) {
         addLog(`🌸 [${classLabel}] 5차 개화 노드 해금! 전직 포인트 +1 · 키스톤 포인트 +1`, 'loot-unique');
         if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_fifth_node', '5차 개화 노드 해금', '직업전직 탭에 5차 재능 개화 노드가 추가되었습니다.', 'tab-traits');
     }
-    // P3: 재능 탭 + 120 개화 카드 지급 — 이 지점에서 확장.
+    // 재능 개화 카드 획득/강화 + 재능 탭 해금
+    if (typeof recordTalentBloomCard === 'function') {
+        let result = recordTalentBloomCard(comboKey);
+        if (!game.unlocks) game.unlocks = {};
+        let firstUnlock = !game.unlocks.talent;
+        game.unlocks.talent = true;
+        game.noti.talent = true;
+        let cardLabel = `${heroLabel} × ${classLabel}`;
+        if (firstUnlock) {
+            if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_talent_tab', '재능 탭 해금', '재능 개화 카드를 획득했습니다! 재능 탭에서 보유 카드와 효과를 확인하세요.', 'tab-talent');
+        }
+        addLog(`🃏 개화 카드 [${cardLabel}] Lv.${result.card.level} (점수 ${result.score})${result.leveledUp ? ' · 레벨 상승!' : ''}`, 'loot-unique');
+        if (typeof renderTalentTab === 'function' && document.getElementById('tab-talent') && document.getElementById('tab-talent').classList.contains('active')) renderTalentTab();
+    }
     game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
     game.killsInZone = 0;
     game.inTicketBossFight = false;
@@ -5206,6 +5280,15 @@ function handleEnemyDeath(enemy, pStats) {
         grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
     }
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
+    // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)
+    if (game.talentDawnHits) delete game.talentDawnHits[enemy.id];
+    if (game.talentInquisitorMarks) delete game.talentInquisitorMarks[enemy.id];
+    // 14 콜로세움 브레이커: 처치마다 관중의 함성 1중첩, 5중첩 시 다음 공격이 투기장 일격
+    if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero2__gladiator')) {
+        game.talentRuntime = (game.talentRuntime && typeof game.talentRuntime === 'object') ? game.talentRuntime : {};
+        game.talentRuntime.colosseumKills = (game.talentRuntime.colosseumKills || 0) + 1;
+        if (game.talentRuntime.colosseumKills >= 5) { game.talentRuntime.colosseumKills = 0; game.talentRuntime.colosseumReady = true; }
+    }
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
     grantExpAndGem(enemy, pStats);
     rollLootForEnemy(enemy);
@@ -5843,7 +5926,17 @@ function performPlayerAttack(pStats) {
             applyDamageToEnemyResource(target, beeDmg);
         });
     }
+    // 14 콜로세움 브레이커: 5처치 충전 시 다음 공격을 투기장 일격(광역 5 + 피해 120% 증폭, 단일이면 +20%)으로
+    let colosseumStrikeMul = 1, colosseumSavedTargets = null;
+    if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero2__gladiator') && game.talentRuntime && game.talentRuntime.colosseumReady) {
+        game.talentRuntime.colosseumReady = false;
+        let aliveCount = (game.enemies || []).filter(e => e && e.hp > 0).length;
+        colosseumStrikeMul = 2.2 * (aliveCount <= 1 ? 1.2 : 1);
+        colosseumSavedTargets = pStats.sSkill.targets;
+        pStats.sSkill.targets = Math.max(5, pStats.sSkill.targets || 1);
+    }
     let targets = getSkillTargets(pStats);
+    if (colosseumSavedTargets !== null) pStats.sSkill.targets = colosseumSavedTargets;
     if (targets.length === 0) return;
     let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
 
@@ -5851,6 +5944,7 @@ function performPlayerAttack(pStats) {
     let guaranteedCrit = (game.ascendClass === 'assassin' && hasKeystone('a5'))
         || (game.ascendClass === 'catalyst' && hasKeystone('ct7') && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('attack'));
     let isCrit = guaranteedCrit || Math.random() < (pStats.crit / 100);
+    if (typeof talentOnPlayerAttack === 'function') talentOnPlayerAttack(pStats, isCrit);
     if (game.ascendClass === 'warrior' && hasKeystone('w2') && isCrit) {
         let now = Date.now();
         let active = (game.warriorRhythmExpiresAt || 0) > now;
@@ -6011,6 +6105,16 @@ function performPlayerAttack(pStats) {
             if (hitElement === 'phys') enemyRes -= (curseFx.physDrShred || 0);
             if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let rs = targetEnemy.ailments.find(a => a && a.type === 'realmAllResDown' && (a.time || 0) > 0); if (rs) enemyRes -= Math.max(0, Math.floor(rs.stacks || 0)) * Math.max(0, Number((pStats.uniqueAllResDownOnHit && pStats.uniqueAllResDownOnHit.perHit) || 0)); }
             let hitCrit = isCrit;
+            // 49 새벽의기사: 몬스터별 처음 3타는 치명 불가 + 번개 저항 반대로 간주
+            if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero5__warrior')) {
+                game.talentDawnHits = (game.talentDawnHits && typeof game.talentDawnHits === 'object') ? game.talentDawnHits : {};
+                let dh = game.talentDawnHits[targetEnemy.id] || 0;
+                if (dh < 3) {
+                    game.talentDawnHits[targetEnemy.id] = dh + 1;
+                    hitCrit = false;
+                    if (hitElement === 'light') enemyRes = -enemyRes;
+                }
+            }
             if (pStats.uniqueAllResDownOnHit && targetEnemy) {
                 let now = Date.now();
                 targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
@@ -6127,7 +6231,7 @@ function performPlayerAttack(pStats) {
             let ailmentDamageBeforeCritMitigation = Math.max(0, Math.floor(ailmentSourceDamage));
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
-            if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
+            if ((targetEnemy.evasionChance || 0) > 0 && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit()) && Math.random() * 100 < targetEnemy.evasionChance) {
                 addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(targetEnemy, false);
                 return;
@@ -6208,6 +6312,14 @@ function performPlayerAttack(pStats) {
             let keystoneTakenMul = getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement);
             dmg = Math.floor(dmg * keystoneTakenMul);
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * keystoneTakenMul);
+            // 재능 상태이상 시너지(5/29/99): 적 상태이상 기반 받는 피해 증가
+            if (typeof getTalentEnemyTakenMul === 'function') {
+                let talentTakenMul = getTalentEnemyTakenMul(targetEnemy, hitElement, hitCrit);
+                if (talentTakenMul !== 1) {
+                    dmg = Math.floor(dmg * talentTakenMul);
+                    ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * talentTakenMul);
+                }
+            }
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) {
                 let talismanBossMul = 1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100);
@@ -6217,6 +6329,14 @@ function performPlayerAttack(pStats) {
             let finalDamageMul = Math.max(0, Number(pStats.finalDamageMultiplier) || 1);
             dmg = Math.floor(dmg * finalDamageMul);
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * finalDamageMul);
+            // 재능 정밀 공격 배율(2 플레쳐 매3타, 14 콜로세움 투기장 일격) — 인라인 경로 적용
+            if (typeof getTalentAttackDamageMul === 'function') {
+                let tAtkMul = getTalentAttackDamageMul() * (colosseumStrikeMul || 1);
+                if (tAtkMul !== 1) {
+                    dmg = Math.floor(dmg * tAtkMul);
+                    ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * tAtkMul);
+                }
+            }
             if (!Number.isFinite(dmg) || dmg < 0) dmg = 0;
             if (game.ascendClass === 'hunter' && hasKeystone('h2') && targetEnemy) {
                 targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
@@ -6254,7 +6374,50 @@ function performPlayerAttack(pStats) {
             let zone = getZone(game.currentZoneId);
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let beforeHpForForced = targetEnemy.hp;
+            let talentWasFull = beforeHpForForced >= (targetEnemy.maxHp || beforeHpForForced || 1);
             let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
+            // 23 산맥추적자: 생명력 최대인 적 첫 타격 시 최대 생명력 비례 추가 피해
+            if (typeof getTalentFullLifeBurst === 'function' && targetEnemy.hp > 0) {
+                let fullBurst = getTalentFullLifeBurst(targetEnemy, talentWasFull);
+                if (fullBurst > 0) dealtToEnemy += applyDamageToEnemyResource(targetEnemy, fullBurst);
+            }
+            // 재능 처형(15 도살자/71 하운드): 낮은 체력 일반 몬스터 마무리
+            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof getTalentExecuteThreshold === 'function') {
+                let exThr = getTalentExecuteThreshold();
+                if (exThr > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= exThr) {
+                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+                }
+            }
+            // 10 스팅어: 지속 피해가 걸린 일반 몬스터가 저체력이면 마무리(지속피해 점유 처형)
+            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__catalyst')
+                && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && ['poison', 'ignite', 'bleed'].includes(a.type) && (a.time || 0) > 0)
+                && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= 0.20) {
+                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+            }
+            // 8 심문궁: 표식 누적(쿨타임 아닐 때), 5초 후 processTalentInquisitorMarks에서 폭발
+            if (dmg > 0 && targetEnemy.hp > 0 && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__inquisitor')) {
+                game.talentInquisitorMarks = (game.talentInquisitorMarks && typeof game.talentInquisitorMarks === 'object') ? game.talentInquisitorMarks : {};
+                let nowMk = Date.now();
+                let mk = game.talentInquisitorMarks[targetEnemy.id] || { accumulated: 0, explodeAt: 0, cooldownUntil: 0 };
+                if ((mk.cooldownUntil || 0) <= nowMk) {
+                    if (!mk.explodeAt) mk.explodeAt = nowMk + 5000;
+                    mk.accumulated = (mk.accumulated || 0) + dmg;
+                    game.talentInquisitorMarks[targetEnemy.id] = mk;
+                }
+            }
+            // 6 헥스보우: 저주 걸린 적 공격 시 저주 제거 + 0.2배 광역 폭발
+            if (dmg > 0 && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__warlock')
+                && game.enemyConditionDebuffs && Array.isArray(game.enemyConditionDebuffs[targetEnemy.id])
+                && game.enemyConditionDebuffs[targetEnemy.id].some(d => d && (d.expiresAt || 0) > Date.now())) {
+                game.enemyConditionDebuffs[targetEnemy.id] = [];
+                let splash = Math.max(1, Math.floor(dmg * 0.2));
+                (game.enemies || []).forEach(e => {
+                    if (!e || e.hp <= 0 || e.id === targetEnemy.id) return;
+                    e.hp = Math.max(0, e.hp - splash);
+                    addBattleFx('hit', { enemyId: e.id, color: getElementColor('chaos'), damage: splash, duration: 220 });
+                    if (e.hp <= 0) handleEnemyDeath(e, pStats);
+                });
+            }
             if (targetEnemy.hp <= 0) targetEnemy.lastOverkillDamage = Math.max(0, dmg - dealtToEnemy);
             if (pStats.uniqueMaxRollBonusHit && rollPct >= 130 && dealtToEnemy > 0 && targetEnemy.hp > 0) {
                 let bonus = Math.max(1, Math.floor(dealtToEnemy * 0.5));
@@ -6945,6 +7108,10 @@ function performMonsterAttacks(pStats) {
             if (aliveEnemies >= 2) dmg = Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (pStats.takenDamageReduceWhen2EnemiesPct || 0) / 100)))));
             else if (aliveEnemies === 1) dmg = Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (pStats.takenDamageReduceWhen1EnemyPct || 0) / 100)))));
             let evadeChance = Math.max(0, pStats.evadeChance || 0);
+            // 7 에이기스: 직전 막기 성공 시 이번 회피 10% 증폭
+            if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian') && game.talentRuntime && game.talentRuntime.aegisEvadeAmp) {
+                evadeChance *= 1.10; game.talentRuntime.aegisEvadeAmp = false;
+            }
             if (game.ascendClass === 'catalyst' && hasKeystone('ct4') && game.catalystEvadeBoostReady) {
                 evadeChance *= 1.3;
                 game.catalystEvadeBoostReady = false;
@@ -6955,11 +7122,18 @@ function performMonsterAttacks(pStats) {
                 addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(null, true);
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
+                // 7 에이기스: 회피 성공 → 다음 공격 막기 확률 +5%p
+                if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian')) { game.talentRuntime = game.talentRuntime || {}; game.talentRuntime.aegisBlockBonus = 5; }
                 continue;
             }
             let blockRollCap = Math.max(50, Math.min(75, Number(pStats.blockChanceMax || 50)));
-            let blockRollChance = Math.max(0, Math.min(blockRollCap, pStats.blockChance || pStats.guardianBlockChance || 0));
+            // 7 에이기스: 직전 회피 성공 시 이번 막기 확률 +5%p
+            let aegisBlockBonus = 0;
+            if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian') && game.talentRuntime && game.talentRuntime.aegisBlockBonus) { aegisBlockBonus = game.talentRuntime.aegisBlockBonus; game.talentRuntime.aegisBlockBonus = 0; }
+            let blockRollChance = Math.max(0, Math.min(blockRollCap, (pStats.blockChance || pStats.guardianBlockChance || 0) + aegisBlockBonus));
             if (Math.random() * 100 < blockRollChance) {
+                // 7 에이기스: 막기 성공 → 다음 회피 10% 증폭
+                if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian')) { game.talentRuntime = game.talentRuntime || {}; game.talentRuntime.aegisEvadeAmp = true; }
                 if ((pStats.uniqueBlockRecoverEnergyShieldPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
                     let recover = Math.max(1, Math.floor((pStats.energyShield || 0) * Math.max(0, Number(pStats.uniqueBlockRecoverEnergyShieldPct || 0)) / 100));
                     game.playerEnergyShield = Math.min((pStats.energyShield || 0), Math.max(0, Number(game.playerEnergyShield) || 0) + recover);

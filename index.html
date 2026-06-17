@@ -13,6 +13,26 @@
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="css/cosmos-atlas.css">
     <link rel="stylesheet" href="css/core-cube.css?v=20260604-core-cube-visual1">
+    <style>
+    .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+    .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
+    .talent-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .talent-card-title { font-weight: bold; color: #e7eefc; }
+    .talent-card-sub { font-size: 0.76em; color: #8aa0bd; margin: -4px 0 8px; }
+    .talent-card-level { color: #f1c40f; font-weight: bold; font-size: 0.9em; }
+    .talent-card-effects { font-size: 0.86em; line-height: 1.55; }
+    .talent-card-foot { margin-top: 8px; font-size: 0.78em; color: #8aa0bd; }
+    .talent-card { cursor: pointer; transition: border-color 0.12s; }
+    .talent-card:hover { border-color: #4f6f99; }
+    .talent-card.equipped { border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241,196,15,0.4) inset; }
+    .talent-slot-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+    .talent-slot { min-height: 56px; border-radius: 10px; border: 1px dashed #2e4361; background: #0f1825; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 0.8em; color: #c7d4e8; padding: 6px; }
+    .talent-slot span { color: #8aa0bd; font-size: 0.92em; }
+    .talent-slot.filled { border-style: solid; border-color: #f1c40f; background: #1a2433; cursor: pointer; }
+    .talent-slot.empty { border-style: dashed; }
+    .talent-slot.locked { color: #6b7c93; }
+    @media (max-width: 720px) { .talent-slot-row { grid-template-columns: repeat(3, 1fr); } }
+    </style>
 </head>
 <body>
 
@@ -271,6 +291,7 @@
         <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">루프 <span id="noti-season" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-expertise" onclick="switchTab('tab-expertise')">전문가 <span id="noti-expertise" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-traits" onclick="switchTab('tab-traits')">직업전직 <span id="noti-traits" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-talent" onclick="switchTab('tab-talent')" style="display:none;">재능 <span id="noti-talent" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-items" onclick="switchTab('tab-items')">장비/제작 <span id="noti-items" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-jewel" onclick="switchTab('tab-jewel')" style="display:none;">주얼</div>
         <div class="tab-btn" id="btn-tab-map" onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
@@ -482,6 +503,12 @@
             </div>
             <div id="ui-star-wedge-panel" style="background:#0f1018; border:1px solid #37274a; border-radius:10px; padding:10px;"></div>
         </div>
+    </div>
+
+    <div id="tab-talent" class="tab-content">
+        <h2>🌸 재능 개화 <span class="h2-right" id="ui-talent-summary" style="font-weight:normal; font-size:0.7em;"></span></h2>
+        <p style="color:#9fb4d1; font-size:0.85em; margin:4px 0 12px;">재능 × 직업 조합으로 개화 시련을 클리어하면 카드를 얻습니다. 카드 점수(계정 진행도)가 레벨을, 레벨이 표면(직업)·이면(재능) 효과 수치를 결정합니다. 카드는 루프로 초기화되지 않습니다.</p>
+        <div id="ui-talent-card-grid" class="talent-card-grid"></div>
     </div>
 
     <div id="tab-traits" class="tab-content">
@@ -1042,17 +1069,19 @@
 <script defer src="data/passives.js?v=20260607-summon-accessories1"></script>
 <script defer src="data/bosses.js?v=20260513-gemfix1"></script>
 <script defer src="data/rewards.js?v=20260513-gemfix1"></script>
+<script defer src="data/talent-cards.js?v=20260614-talent-bloom-p6m"></script>
 <script defer src="js/utils.js?v=20260607-summon-accessories1"></script>
-<script defer src="js/state.js?v=20260610-talent-bloom-p2"></script>
+<script defer src="js/state.js?v=20260610-talent-bloom-p4"></script>
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
 <script defer src="js/items.js?v=20260607-balance1"></script>
 <script defer src="js/skills.js?v=20260607-summon-growth1"></script>
-<script defer src="js/passives.js?v=20260610-talent-bloom-p2"></script>
+<script defer src="js/passives.js?v=20260610-talent-bloom-p3"></script>
 <script defer src="js/core-cube.js?v=20260609-core-cube-bulk1"></script>
-<script defer src="js/combat.js?v=20260610-talent-bloom-p2"></script>
+<script defer src="js/combat.js?v=20260614-talent-bloom-p6n"></script>
 <script defer src="js/canvas-battlefield.js?v=20260513-gemfix1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260608-passive-overlay2"></script>
-<script defer src="js/ui.js?v=20260610-talent-bloom-p2"></script>
+<script defer src="js/ui.js?v=20260610-talent-bloom-p3"></script>
+<script defer src="js/talent-cards.js?v=20260614-talent-bloom-p6m"></script>
 <script defer src="js/cosmos-atlas.js?v=20260527-spiral-galaxy4"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
 <script defer src="js/main.js?v=20260513-gemfix1"></script>
