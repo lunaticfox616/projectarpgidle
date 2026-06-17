@@ -1491,6 +1491,7 @@ const defaultGame = {
         itemFilterMinHiddenTier: 1,
         itemFilterOnlyNewCodexUnique: false,
         autoEnterMeteor: false,
+        autoEnterGrandBreach: false,
         jewelAutoSalvageEnabled: false,
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
         mapCompleteAction: 'nextZone',
