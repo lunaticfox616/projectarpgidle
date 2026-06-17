@@ -10584,12 +10584,12 @@ function showExpertNodeTooltip(event, nodeId) {
 function askUntrainExpertNode(nodeId) {
     let node = EXPERT_TREE_NODES.find(v => v.id === nodeId);
     if (!node) return;
-    if ((game.currencies.scour || 0) < 1) return addLog('전문가 노드 언트레인에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
-    if (!canUntrainExpertNode(nodeId)) return addLog('핵심 노드 조건을 유지해야 하므로 이 노드는 언트레인할 수 없습니다.', 'attack-monster');
-    if (!confirm(`[${node.name}] 노드를 1포인트 언트레인하시겠습니까? (정화의 오브 1 소모)`)) return;
+    if ((game.currencies.scour || 0) < 1) return addLog('전문가 노드 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
+    if (!canUntrainExpertNode(nodeId)) return addLog('핵심 노드 조건을 유지해야 하므로 이 노드는 반환할 수 없습니다.', 'attack-monster');
+    if (!confirm(`[${node.name}] 노드를 1포인트 반환하시겠습니까? (정화의 오브 1 소모)`)) return;
     if (!untrainExpertNode(nodeId)) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
-    addLog(`♻️ 전문가 노드 언트레인: ${node.name} (정화의 오브 1개 소모)`, 'season-up');
+    addLog(`♻️ 전문가 노드 반환: ${node.name} (정화의 오브 1개 소모)`, 'season-up');
     updateStaticUI();
 }
 function getExpertiseNodeButtonHtml(node) {
@@ -10607,7 +10607,7 @@ function getExpertiseNodeButtonHtml(node) {
     // Use a `locked` class instead of the disabled attribute so hover tooltips still fire
     // on nodes the player cannot yet allocate; the click handlers guard their own conditions.
     let hover = `data-info-tooltip-anchor="1" onmouseenter="showExpertNodeTooltip(event,'${node.id}')" onmousemove="showExpertNodeTooltip(event,'${node.id}')" onmouseleave="hideInfoTooltip()"`;
-    return `<div class="expertise-node-row" ${hover}><button class="expertise-node branch-${node.branch}${keystoneCls}${can ? '' : ' locked'}" onclick="allocateExpertNode('${node.id}')&&updateStaticUI()">${node.requireBranchPoints ? '★ ' : ''}${node.name} (${lv}/${node.max}) · ${node.cost}pt${reqHtml}</button><button class="expertise-node-untrain${canUn ? '' : ' locked'}" onclick="askUntrainExpertNode('${node.id}')" title="언트레인 (정화의 오브 1개 소모)">−</button></div>`;
+    return `<div class="expertise-node-row" ${hover}><button class="expertise-node branch-${node.branch}${keystoneCls}${can ? '' : ' locked'}" onclick="allocateExpertNode('${node.id}')&&updateStaticUI()">${node.requireBranchPoints ? '★ ' : ''}${node.name} (${lv}/${node.max}) · ${node.cost}pt${reqHtml}</button><button class="expertise-node-untrain${canUn ? '' : ' locked'}" onclick="askUntrainExpertNode('${node.id}')" title="반환 (정화의 오브 1개 소모)">−</button></div>`;
 }
 
 function renderExpertiseUI() {
