@@ -3481,6 +3481,123 @@ function onHeroSelectionChanged() {
     updateStaticUI();
 }
 
+// ── 몬스터 외형 수집 시스템 ──
+// 일반 잡몹/정예가 사용하는 스프라이트 시트 프레임(아틀라스 enemies.frames)과
+// 보스 전용 이미지(BOSS_ASSET_MANIFEST)를 플레이어 외형으로 수집/적용한다.
+const MONSTER_SKIN_FRAME_DEFS = [
+    { id: 'slime', label: '슬라임' },
+    { id: 'bandit', label: '도적' },
+    { id: 'shadow', label: '그림자' },
+    { id: 'wraith', label: '망령' },
+    { id: 'knight', label: '기사' },
+    { id: 'skeleton', label: '해골' },
+    { id: 'boss', label: '마수 군주' }
+];
+
+function getMonsterSkinLabel(id) {
+    let frameDef = MONSTER_SKIN_FRAME_DEFS.find(def => def.id === id);
+    if (frameDef) return frameDef.label;
+    let m = /^bossAct(\d+)(?:_(\d+))?$/.exec(id || '');
+    if (m) {
+        let act = Number(m[1]);
+        let base = (typeof ACT_BOSS_NAMES !== 'undefined' && ACT_BOSS_NAMES[act - 1]) ? ACT_BOSS_NAMES[act - 1] : `${act}막 보스`;
+        let variants = (typeof BOSS_ASSET_VARIANTS_BY_ACT !== 'undefined') ? BOSS_ASSET_VARIANTS_BY_ACT[act] : null;
+        if (m[2] && variants && variants.length > 1) {
+            let roman = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ'][Number(m[2]) - 1] || m[2];
+            return `${base} ${roman}`;
+        }
+        return base;
+    }
+    return id || '';
+}
+
+function getMonsterSkinDefs() {
+    let defs = MONSTER_SKIN_FRAME_DEFS.map(def => ({ id: def.id, label: def.label, type: 'frame' }));
+    if (typeof BOSS_ASSET_MANIFEST !== 'undefined') {
+        Object.keys(BOSS_ASSET_MANIFEST).forEach(key => defs.push({ id: key, label: getMonsterSkinLabel(key), type: 'boss' }));
+    }
+    return defs;
+}
+
+// 처치한 적이 화면에 표시한 외형의 스킨 id를 반환한다.
+// (렌더러 pickBattleEnemyVariant / getBossAssetVariantEntry 의 선택 로직과 동일하게 맞춘다.)
+function getEnemySkinId(enemy) {
+    if (!enemy) return null;
+    if (enemy.bossAssetKey) return enemy.bossAssetKey;
+    let normalPool = ['slime', 'bandit', 'shadow', 'wraith'];
+    let elitePool = ['knight', 'skeleton', 'shadow', 'wraith', 'bandit'];
+    let bossPool = ['boss'];
+    let pool = enemy.isBoss ? bossPool : (enemy.isElite ? elitePool : normalPool);
+    if (pool.length === 0) return null;
+    let variantSeed = Math.abs(enemy.variantSeed || enemy.id || 1);
+    let elementOffset = enemy.ele === 'fire' ? 1 : (enemy.ele === 'cold' ? 2 : (enemy.ele === 'light' ? 3 : (enemy.ele === 'chaos' ? 4 : 0)));
+    return pool[(variantSeed + elementOffset) % pool.length];
+}
+
+function resolveMonsterSkinSprite(id) {
+    if (!id || !battleAssets.ready || !battleAssets.atlas || !battleAssets.atlas.enemies) return null;
+    let enemyAtlas = battleAssets.atlas.enemies;
+    let bossImage = (enemyAtlas.bossImages || {})[id];
+    if (bossImage) {
+        return {
+            type: 'boss',
+            image: bossImage,
+            frame: { x: 0, y: 0, width: bossImage.width, height: bossImage.height, basisHeight: bossImage.height }
+        };
+    }
+    let frame = (enemyAtlas.frames || {})[id];
+    if (frame) return { type: 'frame', image: enemyAtlas.image, frame: frame };
+    return null;
+}
+
+function getSelectedMonsterSkinId() {
+    let id = game && game.selectedMonsterSkin;
+    if (!id) return null;
+    return (game.unlockedMonsterSkins && game.unlockedMonsterSkins[id]) ? id : null;
+}
+
+// 몬스터 처치 시 0.002% 확률 해금 (handleEnemyDeath 에서 확률 판정 후 호출)
+function tryUnlockMonsterSkinFromEnemy(enemy) {
+    let id = getEnemySkinId(enemy);
+    if (!id) return;
+    game.unlockedMonsterSkins = game.unlockedMonsterSkins || {};
+    if (game.unlockedMonsterSkins[id]) return;
+    game.unlockedMonsterSkins[id] = true;
+    addLog(`🎭 극희귀 발견! 몬스터 외형 [${getMonsterSkinLabel(id)}]을(를) 획득했습니다! (설정 > 몬스터 외형에서 적용)`, 'loot-unique');
+    if (typeof renderMonsterSkinControls === 'function') renderMonsterSkinControls();
+    if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
+}
+
+function renderMonsterSkinControls() {
+    let selectEl = document.getElementById('sel-monster-skin');
+    if (!selectEl) return;
+    let unlocked = (game && game.unlockedMonsterSkins) ? game.unlockedMonsterSkins : {};
+    let allDefs = getMonsterSkinDefs();
+    let ownedDefs = allDefs.filter(def => unlocked[def.id]);
+    let options = ['<option value="">사용 안 함 (기본 캐릭터)</option>'];
+    ownedDefs.forEach(def => options.push(`<option value="${def.id}">${def.label}</option>`));
+    selectEl.innerHTML = options.join('');
+    selectEl.value = (game && game.selectedMonsterSkin && unlocked[game.selectedMonsterSkin]) ? game.selectedMonsterSkin : '';
+    selectEl.disabled = ownedDefs.length === 0;
+    selectEl.title = ownedDefs.length === 0
+        ? '아직 획득한 몬스터 외형이 없습니다. 몬스터 처치 시 극히 낮은 확률로 외형을 얻습니다.'
+        : `획득한 몬스터 외형 ${ownedDefs.length}/${allDefs.length}`;
+}
+
+function onMonsterSkinChanged() {
+    let selectEl = document.getElementById('sel-monster-skin');
+    if (!selectEl) return;
+    let id = selectEl.value || null;
+    if (id && !(game.unlockedMonsterSkins && game.unlockedMonsterSkins[id])) {
+        renderMonsterSkinControls();
+        return;
+    }
+    game.selectedMonsterSkin = id;
+    addLog(`🎭 몬스터 외형 변경: ${id ? getMonsterSkinLabel(id) : '기본 캐릭터'}`, 'season-up');
+    if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
+    updateStaticUI();
+}
+
 function ensureInitialHeroSelection() {
     if (game.heroSelectionInitialized) return;
     openLoopHeroSelection((pickedId) => {
@@ -4435,6 +4552,26 @@ function getLocalBattleHeroVisualTuning() {
 
 function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now, motionState) {
     let activeSkillPlayback = getSkillPlaybackState(now);
+    let monsterSkinId = typeof getSelectedMonsterSkinId === 'function' ? getSelectedMonsterSkinId() : null;
+    if (monsterSkinId) {
+        let monsterSkinSprite = resolveMonsterSkinSprite(monsterSkinId);
+        if (monsterSkinSprite) {
+            let drawSize = (monsterSkinSprite.type === 'boss' ? 52 : 38) * clampNumber((Number(scale) || 1) / 1.9, 1, 2.4);
+            drawPixelShadow(ctx, x, y + 15, monsterSkinSprite.type === 'boss' ? 14 : 10, monsterSkinSprite.type === 'boss' ? 5 : 4, 0.18);
+            // 몬스터는 기본적으로 왼쪽(플레이어 방향)을 보므로 좌우반전해 오른쪽을 바라보게 한다.
+            drawBattleSprite(ctx, monsterSkinSprite.image, monsterSkinSprite.frame, x, y + 6, drawSize, { smoothing: monsterSkinSprite.type === 'boss' ? 'high' : 'low', flipX: true });
+            if (flash) {
+                ctx.save();
+                ctx.globalAlpha = 0.16;
+                ctx.fillStyle = '#fff3c5';
+                ctx.beginPath();
+                ctx.ellipse(x, y + 11, 14, 7, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            return;
+        }
+    }
     if (battleAssets.images.hero) {
         motionState = motionState || {};
         let motionName = 'idle';
@@ -10417,6 +10554,7 @@ function init() {
     applyThemeMode(game.settings.themeMode);
     ensureInitialHeroSelection();
     renderHeroSelectionControls();
+    renderMonsterSkinControls();
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     syncSalvageControlsFromSettings();
     syncJewelSalvageControlsFromSettings();

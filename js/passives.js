@@ -5128,6 +5128,12 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
         }
         ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
     } else {
+        if (options.flipX) {
+            let centerX = dx + drawWidth / 2;
+            ctx.translate(centerX, 0);
+            ctx.scale(-1, 1);
+            ctx.translate(-centerX, 0);
+        }
         if (options.outlineColor) {
             let thickness = Math.max(1, Math.round(options.outlineThickness || 1));
             ctx.globalAlpha = (options.alpha === undefined ? 1 : options.alpha) * (options.outlineAlpha || 0.78);
