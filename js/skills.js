@@ -336,7 +336,8 @@ function applyFossilChaosCraft(fossilKey) {
     while ((newStats.length + reservedInfusionCount) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
         let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id) && canUseDefenseStat(mod.statId || mod.id));
         if (pool.length === 0) break;
-        let roll = rollAffixValueInTierRange(pickWeightedMod(pool), tierRange.min || 1, maxTier);
+        // 화석이 보정하는 보장 옵션만 고티어 보정을 받고, 나머지 옵션은 일반 티어 분포(1티어부터)로 굴린다.
+        let roll = rollAffixValue(pickWeightedMod(pool), maxTier);
         newStats.push(roll);
         blockedIds.add(roll.id);
     }
