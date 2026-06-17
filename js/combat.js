@@ -5244,13 +5244,15 @@ function rollLootForEnemy(enemy) {
             if (game.settings.showLootLog) addLog('🌌 각성 잔향 +1', 'loot-unique');
         }
     }
-    if (Math.random() < (enemy.isBoss ? 0.15 : enemy.isElite ? 0.03 : 0.005)) {
+    let gemDropMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('gemGainPct')) : 0) / 100;
+    if (Math.random() < (enemy.isBoss ? 0.15 : enemy.isElite ? 0.03 : 0.005) * gemDropMul) {
         if (Math.random() < 0.5) {
             let available = Object.keys(SKILL_DB).filter(name => !hasSkillGemOwned(name) && SKILL_DB[name].isGem);
             if (available.length > 0) {
                 let skill = rndChoice(available);
                 game.skills.push(skill);
-                let awakenedDrop = gemExpertLvForLoot >= 13 && Math.random() < 0.035;
+                let awakenedDrop = gemExpertLvForLoot >= 13 && Math.random() < (typeof getAwakenedDropChance === 'function' ? getAwakenedDropChance(0.035) : 0.035);
+                if (gemExpertLvForLoot >= 13 && typeof bumpExpertAwakenedPity === 'function') bumpExpertAwakenedPity(awakenedDrop);
                 game.gemData[skill] = { level: 1, exp: 0, awakened: awakenedDrop };
                 game.noti.skills = true;
                 checkUnlocks();
@@ -5840,20 +5842,22 @@ function finishEncounterRun() {
             game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, game.labyrinthFloor || 1);
             if ((game.labyrinthUnlockedMaxFloor || 1) > prevLab && typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'labyrinth_new_floor');
         }
-        let gotBaseFossil = Math.random() < 0.5;
+        let fossilDropMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('fossilDropPct')) : 0) / 100;
+        let gotBaseFossil = Math.random() < 0.5 * fossilDropMul;
         if (gotBaseFossil) awardCurrency('fossil', 1);
         let fossilDropPool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly);
         let rolledFossil = rndChoice(fossilDropPool);
-        let gotTypedFossil = Math.random() < 0.5;
+        let gotTypedFossil = Math.random() < 0.5 * fossilDropMul;
         if (gotTypedFossil) awardCurrency(rolledFossil.key, 1);
         let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
-        let primalChance = Math.min(0.45, 0.10 + Math.floor(game.labyrinthFloor || 1) * 0.003);
-        let ancientChance = Math.min(0.14, 0.025 + Math.floor(game.labyrinthFloor || 1) * 0.001);
+        let primalChance = Math.min(0.45, (0.10 + Math.floor(game.labyrinthFloor || 1) * 0.003) * fossilDropMul);
+        let ancientChance = Math.min(0.14, (0.025 + Math.floor(game.labyrinthFloor || 1) * 0.001) * fossilDropMul);
         let gotPrimalFossil = mycologistLv >= 4 && Math.random() < primalChance;
         let gotAncientPrimalFossil = mycologistLv >= 5 && Math.random() < ancientChance;
         if (gotPrimalFossil) awardCurrency('fossilPrimal', 1);
         if (gotAncientPrimalFossil) awardCurrency('fossilAncientPrimal', 1);
-        if (Math.random() < 0.03) {
+        let fossilRareMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('expertRareChancePct')) : 0) / 100;
+        if (Math.random() < 0.03 * fossilRareMul) {
             awardCurrency('fossilAbyssal', 1);
             addLog('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
         }
