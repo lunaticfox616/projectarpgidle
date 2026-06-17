@@ -258,7 +258,11 @@ function applyFossilCraft() {
 }
 
 function getFossilExclusivePool(item) {
-    let existing = typeof getItemOccupiedExplicitModIds === 'function' ? getItemOccupiedExplicitModIds(item) : new Set((item.stats || []).map(stat => stat.id));
+    // 화석 전용 옵션끼리만 중복을 막고, 같은 효과의 기본 추가옵션과는 공존할 수 있도록 한다.
+    let existing = new Set((item && Array.isArray(item.stats) ? item.stats : [])
+        .filter(stat => stat && (stat.fossilExclusive || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore))
+        .map(stat => stat.id)
+        .filter(Boolean));
     return FOSSIL_EXCLUSIVE_MODS
         .filter(mod => mod.slots.includes(item.slot))
         .filter(mod => {

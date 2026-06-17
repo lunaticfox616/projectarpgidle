@@ -5348,6 +5348,7 @@ function rollAffixValue(mod, maxTier) {
     if (Array.isArray(mod.tierValues)) return rollTierValueAffix(mod, statId, tier);
     let min = mod.base + (tier * mod.step);
     let max = min + mod.step * 1.6;
+    if (statId === 'resPen') min = 0;
     let val = min + Math.random() * (max - min);
     if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
         val = Math.round(val * 10) / 10;
@@ -5387,6 +5388,7 @@ function rollAffixValueInTierRange(mod, minTier, maxTier) {
     if (Array.isArray(mod.tierValues)) return rollTierValueAffix(mod, statId, tier);
     let min = mod.base + (tier * mod.step);
     let max = min + mod.step * 1.6;
+    if (statId === 'resPen') min = 0;
     let val = min + Math.random() * (max - min);
     if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
         val = Math.round(val * 10) / 10;
