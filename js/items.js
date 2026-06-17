@@ -440,48 +440,63 @@ function marketExpandJewelInventoryByDivine() {
     updateStaticUI();
 }
 
+function getBaseDefenseProfile(base) {
+    let ids = new Set((base.baseStats || []).map(stat => stat.id));
+    return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
+}
+function getBaseSecondaryStatSignature(base, slot) {
+    let coreStatsBySlot = {
+        무기: new Set(['flatDmg']),
+        투구: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
+        갑옷: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
+        장갑: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'aspd']),
+        신발: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'move']),
+        목걸이: new Set([]),
+        반지: new Set([]),
+        허리띠: new Set(['flatHp']),
+        방패: new Set(['armor', 'evasion', 'energyShield', 'baseBlockChance'])
+    };
+    let coreSet = coreStatsBySlot[slot] || new Set();
+    return (base.baseStats || [])
+        .map(stat => stat.id)
+        .filter(statId => !coreSet.has(statId))
+        .sort();
+}
+// Weapons all share the '무기' slot but belong to distinct archetypes (summon/projectile/spell/melee).
+// Base upgrades must stay within the same archetype, otherwise e.g. a projectile weapon could
+// upgrade into a summoner weapon.
+function getWeaponBaseArchetype(base) {
+    let ids = (base.baseStats || []).map(stat => stat.id);
+    if (ids.some(id => id.startsWith('summon'))) return 'summon';
+    if (ids.some(id => id.startsWith('projectile'))) return 'projectile';
+    if (ids.some(id => id.startsWith('spell'))) return 'spell';
+    return 'melee';
+}
+function getBaseUpgradeCandidates(currentBase) {
+    let currentProfile = getBaseDefenseProfile(currentBase);
+    let currentSecondarySignature = getBaseSecondaryStatSignature(currentBase, currentBase.slot);
+    let candidates = BASE_ITEM_DB
+        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase)
+        .filter(base => ['투구','갑옷','장갑','신발','방패'].includes(base.slot) ? getBaseDefenseProfile(base) === currentProfile : true)
+        .filter(base => currentBase.slot === '무기' ? getWeaponBaseArchetype(base) === getWeaponBaseArchetype(currentBase) : true)
+        .sort((a,b)=>a.reqTier-b.reqTier);
+    if (currentSecondarySignature.length > 0) {
+        let exactSecondaryCandidates = candidates.filter(base => {
+            let signature = getBaseSecondaryStatSignature(base, base.slot);
+            if (signature.length !== currentSecondarySignature.length) return false;
+            return signature.every((id, index) => id === currentSecondarySignature[index]);
+        });
+        if (exactSecondaryCandidates.length > 0) candidates = exactSecondaryCandidates;
+    }
+    return candidates;
+}
 function upgradeSelectedItemBase() {
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || BASE_ITEM_DB.find(base => base && base.name === item.baseName && base.slot === item.slot);
     if (!currentBase) return addLog('현재 베이스 정보를 찾을 수 없습니다.', 'attack-monster');
     if (currentBase.realmBase) return addLog('계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.', 'attack-monster');
-    function getDefenseProfile(base) {
-        let ids = new Set((base.baseStats || []).map(stat => stat.id));
-        return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
-    }
-    function getSecondaryStatSignature(base, slot) {
-        let coreStatsBySlot = {
-            무기: new Set(['flatDmg']),
-            투구: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
-            갑옷: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
-            장갑: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'aspd']),
-            신발: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'move']),
-            목걸이: new Set([]),
-            반지: new Set([]),
-            허리띠: new Set(['flatHp']),
-            방패: new Set(['armor', 'evasion', 'energyShield', 'baseBlockChance'])
-        };
-        let coreSet = coreStatsBySlot[slot] || new Set();
-        return (base.baseStats || [])
-            .map(stat => stat.id)
-            .filter(statId => !coreSet.has(statId))
-            .sort();
-    }
-    let currentProfile = getDefenseProfile(currentBase);
-    let currentSecondarySignature = getSecondaryStatSignature(currentBase, currentBase.slot);
-    let candidates = BASE_ITEM_DB
-        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase)
-        .filter(base => ['투구','갑옷','장갑','신발','방패'].includes(base.slot) ? getDefenseProfile(base) === currentProfile : true)
-        .sort((a,b)=>a.reqTier-b.reqTier);
-    if (currentSecondarySignature.length > 0) {
-        let exactSecondaryCandidates = candidates.filter(base => {
-            let signature = getSecondaryStatSignature(base, base.slot);
-            if (signature.length !== currentSecondarySignature.length) return false;
-            return signature.every((id, index) => id === currentSecondarySignature[index]);
-        });
-        if (exactSecondaryCandidates.length > 0) candidates = exactSecondaryCandidates;
-    }
+    let candidates = getBaseUpgradeCandidates(currentBase);
     let nextBase = candidates[0];
     if (!nextBase) return addLog('해당 계열의 다음 베이스가 없습니다.', 'attack-monster');
     let isTopBase = candidates.length === 1;
