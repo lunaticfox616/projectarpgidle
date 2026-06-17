@@ -1462,8 +1462,9 @@ function coreLoop() {
                 }
                 addLog(`🕳️ 공허의 구멍 정리 완료! 공허의 끌 +${reward}`, 'loot-magic', { noToast: true });
                 if (unlockedGrand) {
-                    addLog('🚨 대균열이 열렸습니다! [대균열 진입] 버튼을 확인하세요.', 'loot-unique');
-                    if (!v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
+                    let enteredGrand = typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady();
+                    if (!enteredGrand) addLog('🚨 대균열이 열렸습니다! [대균열 진입] 버튼을 확인하세요.', 'loot-unique');
+                    if (!enteredGrand && !v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
                         v.grandNoticeShown = true;
                         queueTutorialNotice('void_grand_breach_ready_once', '대균열 개방', '대균열이 열렸습니다! 지도 탭에서 [대균열 진입] 버튼으로 도전할 수 있습니다.', 'tab-map');
                     }
