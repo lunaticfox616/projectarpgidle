@@ -1704,8 +1704,24 @@ function grantConstellationObservationReward() {
         { stat: 'crit', label: '치명타 확률', val: astroLv >= 15 ? 4 : 2 }
     ];
     let pick = rndChoice(pool);
+    // '핵심: 별자리 고정'(constellationLock): lock in the better candidate so a strong roll
+    // is never overwritten by a weaker observation.
+    let lockActive = typeof getExpertNodeEffectValue === 'function' && getExpertNodeEffectValue('constellationLock') > 0;
+    if (lockActive && st.constellationBuff && st.constellationBuff.stat
+        && getConstellationDesirability(st.constellationBuff) >= getConstellationDesirability(pick)) {
+        let kept = st.constellationBuff;
+        kept.observedAt = Date.now();
+        kept.permanent = astroLv >= 9;
+        addLog(`🌠 별자리 고정: ${kept.label} +${kept.val}${kept.stat === 'flatHp' ? '' : '%'} 유지`, 'loot-unique');
+        return;
+    }
     st.constellationBuff = { stat: pick.stat, label: pick.label, val: pick.val, observedAt: Date.now(), permanent: astroLv >= 9 };
     addLog(`🌠 별자리 관측: ${pick.label} +${pick.val}${pick.stat === 'flatHp' ? '' : '%'}${astroLv >= 9 ? ' (루프 후 유지)' : ''}`, 'loot-unique');
+}
+function getConstellationDesirability(buff) {
+    if (!buff || !buff.stat) return 0;
+    let weights = { pctDmg: 6, crit: 8, flatHp: 0.5, move: 3 };
+    return (weights[buff.stat] || 1) * Math.max(0, Number(buff.val || 0));
 }
 
 function gainSkyRiftGaugeFromCombat(zone, enemy) {
@@ -1813,7 +1829,7 @@ function rerollStarWedge(wedgeId, keepIndex) { if (game.woodsmanBuildLock) retur
     if (!wedge) return;
     let keepIndexes = [];
     let meteorCost = 23;
-    let rerollDiscount = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('starWedgeRerollCostReducePct') || 0) / 100 : 0;
+    let rerollDiscount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('starWedgeRerollCostReducePct') : 0;
     if (keepIndex === 'single' || keepIndex === 1) keepIndexes = [0];
     if (keepIndex === 'double' || keepIndex === 2) {
         keepIndexes = [0, 1];
@@ -6071,6 +6087,10 @@ function awardCurrency(currencyKey, amount) {
             let honeyPct = Math.max(0, getExpertNodeEffectValue('honeyGainPct'));
             if (honeyPct > 0) gain *= (1 + (honeyPct / 100));
         }
+        if (currencyKey === 'sporeFire' || currencyKey === 'sporeCold' || currencyKey === 'sporeLight') {
+            let sporePct = Math.max(0, getExpertNodeEffectValue('mycoSporeGainPct'));
+            if (sporePct > 0) gain *= (1 + (sporePct / 100));
+        }
         gain = Math.max(1, Math.floor(gain));
     }
     if (currencyKey === 'condensedSkyPower') {
@@ -7289,9 +7309,8 @@ function useCurrency(currencyKey) {
     function consumeSpore(mode) {
         if (mode === 'none') return true;
         let baseCost = 10;
-        if (typeof getExpertNodeEffectValue === 'function') {
-            let reducePct = Math.max(0, getExpertNodeEffectValue('sporeCostReducePct'));
-            baseCost = Math.max(1, Math.floor(baseCost * (1 - (reducePct / 100))));
+        if (typeof getExpertCombinedCostReduction === 'function') {
+            baseCost = Math.max(1, Math.floor(baseCost * (1 - getExpertCombinedCostReduction('sporeCostReducePct'))));
         }
         if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < baseCost) return false; game.currencies.sporeFire -= baseCost; return true; }
         if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < baseCost) return false; game.currencies.sporeCold -= baseCost; return true; }

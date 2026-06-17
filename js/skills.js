@@ -174,7 +174,7 @@ function upgradeActiveGemQuality() {
     let gem = game.gemData[active];
     if (!gem || !SKILL_DB[active] || !SKILL_DB[active].isGem) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
     if ((gem.quality || 0) >= 20) return addLog('젬 퀄리티는 최대 20%입니다.', 'attack-monster');
-    let discount = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('gemQualityCostReducePct') || 0) / 100 : 0;
+    let discount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('gemQualityCostReducePct') : 0;
     let need = Math.max(1, Math.floor((1 + Math.floor((gem.quality || 0) / 5)) * (1 - discount)));
     if ((game.currencies.bossCore || 0) < need) return addLog(`군주의 핵이 부족합니다. (필요: ${need})`, 'attack-monster');
     game.currencies.bossCore -= need;
@@ -196,7 +196,7 @@ function processSupportGemWithSkyEssence(name) {
     let rec = normalizeGemRecord(game.supportGemData[name] || { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 });
     let improvingTier = (rec.unlockedTier || 1) < 3;
     let need = improvingTier ? Math.max(1, Math.floor(rec.unlockedTier || 1) + 1) : Math.max(3, Math.ceil((rec.level || 1) / 5));
-    let discount = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('inscriptionCostReducePct') || 0) / 100 : 0;
+    let discount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('inscriptionCostReducePct') : 0;
     need = Math.max(1, Math.floor(need * (1 - discount)));
     if ((game.currencies.skyEssence || 0) < need) return addLog(`창공의 힘이 부족합니다. (필요: ${need})`, 'attack-monster');
     game.currencies.skyEssence -= need;

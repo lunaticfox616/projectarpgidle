@@ -1384,6 +1384,7 @@ function ensureExpertiseState(){
     });
   });
   st.expertPointBonus=Math.max(0,Math.floor(st.expertPointBonus||0));
+  st.awakenedPity=Math.max(0,Math.floor(st.awakenedPity||0));
   st.loopExpCaps=st.loopExpCaps||{};
   const currentSeason = Math.max(1, Math.floor(runtimeGame.season || 1));
   if (!Number.isFinite(st.loopExpCaps.season)) st.loopExpCaps.season = currentSeason;
@@ -1405,6 +1406,12 @@ function getExpertPointSpent(){ let st=ensureExpertiseState(); return Object.ent
 function getExpertPointFree(){ return Math.max(0, getExpertPointTotal()-getExpertPointSpent());}
 function getExpertBranchSpent(branch){ let st=ensureExpertiseState(); return Object.entries(st.nodes).reduce((s,[id,l])=>{ let n=EXPERT_TREE_NODES.find(v=>v.id===id); return s+(n&&n.branch===branch?Math.max(0,Math.floor(l||0))*n.cost:0)},0);}
 function getExpertNodeEffectValue(statKey){ let st=ensureExpertiseState(); if(!statKey) return 0; return Object.entries(st.nodes).reduce((sum,[id,l])=>{ let n=EXPERT_TREE_NODES.find(v=>v.id===id); if(!n) return sum; let lv=Math.max(0,Math.floor(l||0)); if(lv<=0) return sum; let perLv=Number(((n.effect||{})[statKey])||0); return sum+(perLv*lv); },0);}
+// Combined expert cost reduction = common '반복 작업'(expertCostReducePct) + a domain-specific node, capped at 75%. Returns a 0..0.75 fraction.
+function getExpertCombinedCostReduction(specificStatKey){ let common=Math.max(0,getExpertNodeEffectValue('expertCostReducePct')); let specific=specificStatKey?Math.max(0,getExpertNodeEffectValue(specificStatKey)):0; return Math.min(75, common+specific)/100; }
+// Awakened-gem pity: '핵심: 각성 추적'(awakenedPityBonusPct) adds chance per consecutive eligible drop that did not roll an awakened gem.
+function getExpertAwakenedPity(){ return Math.max(0, Math.floor(ensureExpertiseState().awakenedPity||0)); }
+function bumpExpertAwakenedPity(rolledAwakened){ let st=ensureExpertiseState(); st.awakenedPity = rolledAwakened ? 0 : (getExpertAwakenedPity()+1); return st.awakenedPity; }
+function getAwakenedDropChance(baseChance){ let base=Math.max(0,Number(baseChance||0)); let bonusPct=Math.max(0,getExpertNodeEffectValue('awakenedPityBonusPct')); if(bonusPct<=0) return base; return Math.min(0.25, base + getExpertAwakenedPity()*(bonusPct/100)*0.01); }
 function canAllocateExpertNode(nodeId){ let st=ensureExpertiseState(); let n=EXPERT_TREE_NODES.find(v=>v.id===nodeId); if(!n)return false; let cur=Math.max(0,Math.floor(st.nodes[nodeId]||0)); if(cur>=n.max) return false; if(getExpertPointFree()<n.cost) return false; if(n.requireBranchPoints && getExpertBranchSpent(n.branch)<n.requireBranchPoints) return false; return true;}
 function allocateExpertNode(nodeId){ if(!canAllocateExpertNode(nodeId)) return false; let st=ensureExpertiseState(); st.nodes[nodeId]=Math.max(0,Math.floor(st.nodes[nodeId]||0))+1; return true;}
 function isExpertKeystoneNode(n){ return !!(n && n.requireBranchPoints); }
@@ -1679,4 +1686,4 @@ function normalizeGemRecord(raw) {
 }
 
 
-safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord, EXPERT_DEFS, EXPERT_EXP_GUIDES, EXPERT_TREE_NODES, ensureExpertiseState, getExpertLevel, getExpertExp, addExpertExp, getExpertUnlocks, getExpertUnlockHistory, getCurrentExpertUnlock, getNextExpertUnlock, getExpertPointTotal, getExpertPointSpent, getExpertPointFree, getExpertBranchSpent, getExpertNodeEffectValue, canAllocateExpertNode, allocateExpertNode, canUntrainExpertNode, untrainExpertNode, resetExpertTree, hasExpertTreeUnlocked, resetExpertiseLoopCaps, EXPERT_EXP_RULES, grantExpertExpByAction, grantLoopBaseExpertExp, EXPERT_FAVOR_OPTIONS, getExpertFavorOptions, getSelectedExpertFavor, setSelectedExpertFavor, getExpertFavorEffectTotals });
+safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord, EXPERT_DEFS, EXPERT_EXP_GUIDES, EXPERT_TREE_NODES, ensureExpertiseState, getExpertLevel, getExpertExp, addExpertExp, getExpertUnlocks, getExpertUnlockHistory, getCurrentExpertUnlock, getNextExpertUnlock, getExpertPointTotal, getExpertPointSpent, getExpertPointFree, getExpertBranchSpent, getExpertNodeEffectValue, getExpertCombinedCostReduction, getAwakenedDropChance, bumpExpertAwakenedPity, canAllocateExpertNode, allocateExpertNode, canUntrainExpertNode, untrainExpertNode, resetExpertTree, hasExpertTreeUnlocked, resetExpertiseLoopCaps, EXPERT_EXP_RULES, grantExpertExpByAction, grantLoopBaseExpertExp, EXPERT_FAVOR_OPTIONS, getExpertFavorOptions, getSelectedExpertFavor, setSelectedExpertFavor, getExpertFavorEffectTotals });
