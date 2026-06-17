@@ -236,13 +236,24 @@ function awakenActiveGemCandidate() {
 
 function applyFossilCraft() {
     if ((game.season || 1) < 3) return addLog('미궁 제작은 루프3부터 사용할 수 있습니다.', 'attack-monster');
-    if ((game.currencies.fossil || 0) <= 0) return addLog('미궁 화석이 부족합니다.', 'attack-monster');
-    game.currencies.fossil--;
+    let have = Math.max(0, Math.floor(game.currencies.fossil || 0));
+    if (have <= 0) return addLog('미궁 화석이 부족합니다.', 'attack-monster');
+    let raw = prompt(`한 번에 정제할 기본 화석 개수를 입력하세요. (최대 ${have})`, String(have));
+    if (raw === null) return;
+    let count = Math.max(0, Math.min(have, Math.floor(Number(raw))));
+    if (!Number.isFinite(count) || count <= 0) return addLog('정제 개수가 올바르지 않습니다.', 'attack-monster');
     let underworldOnlyFossils = new Set(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']);
-    let randomFossil = rndChoice(FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly && !underworldOnlyFossils.has(fossil.key)));
-    game.currencies[randomFossil.key] = (game.currencies[randomFossil.key] || 0) + 1;
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_refine');
-    addLog(`🪨 기본 화석을 정제해 [${randomFossil.name}] 1개를 획득했습니다.`, 'loot-magic');
+    let refinablePool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly && !underworldOnlyFossils.has(fossil.key));
+    let gained = {};
+    for (let i = 0; i < count; i++) {
+        game.currencies.fossil--;
+        let randomFossil = rndChoice(refinablePool);
+        game.currencies[randomFossil.key] = (game.currencies[randomFossil.key] || 0) + 1;
+        gained[randomFossil.name] = (gained[randomFossil.name] || 0) + 1;
+        if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_refine');
+    }
+    let summary = Object.keys(gained).map(name => `[${name}] ${gained[name]}개`).join(', ');
+    addLog(`🪨 기본 화석 ${count}개를 정제해 ${summary}를 획득했습니다.`, 'loot-magic');
     updateStaticUI();
 }
 
