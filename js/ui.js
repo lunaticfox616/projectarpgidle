@@ -1048,8 +1048,13 @@ function normalizeColonyWardState() {
     c.wardEquipped = Array.isArray(c.wardEquipped) ? c.wardEquipped.slice(0, COLONY_WARD_MAX_SLOTS) : [null, null, null, null];
     while (c.wardEquipped.length < COLONY_WARD_MAX_SLOTS) c.wardEquipped.push(null);
     let fixWardName = ward => {
-        if (ward && ward.stat === 'resAll' && typeof ward.name === 'string' && ward.name.includes('모든 저항') && !ward.name.includes('모든 원소 저항')) {
-            ward.name = ward.name.replace('모든 저항', '모든 원소 저항');
+        // 과거 '모든 원소 저항' 액막이 옵션은 resAll(카오스 포함)을 사용했으나,
+        // 이름과 일치하도록 화염/냉기/번개만 올리는 resElem으로 마이그레이션한다.
+        if (ward && ward.stat === 'resAll') {
+            ward.stat = 'resElem';
+            if (typeof ward.name === 'string' && ward.name.includes('모든 저항') && !ward.name.includes('모든 원소 저항')) {
+                ward.name = ward.name.replace('모든 저항', '모든 원소 저항');
+            }
         }
         return ward;
     };
@@ -1063,7 +1068,7 @@ function normalizeColonyWardState() {
 
 function getColonyWardStatLabel(stat) {
     const labels = {
-        flatHp: '최대 생명력', armor: '방어도', evasion: '회피', energyShield: '에너지 보호막', resAll: '모든 원소 저항',
+        flatHp: '최대 생명력', armor: '방어도', evasion: '회피', energyShield: '에너지 보호막', resAll: '모든 저항', resElem: '모든 원소 저항',
         maxResF: '최대 화염 저항', maxResC: '최대 냉기 저항', maxResL: '최대 번개 저항', resChaos: '카오스 저항',
         ailResIgnite: '점화 저항', ailResFreeze: '냉각/동결 저항', ailResShock: '감전 저항', ailResPoison: '중독 저항', ailResBleed: '출혈 저항',
         regenFlat: '생명력 재생', energyShieldRegen: '에너지 보호막 회복속도', critResist: '치명타 저항', dr: '받는 물리 피해 감소',
@@ -1274,7 +1279,7 @@ function generateColonyWard(){
         { id:'armor', min:30, max:140, label:'방어도 +' },
         { id:'evasion', min:30, max:140, label:'회피 +' },
         { id:'energyShield', min:20, max:120, label:'에너지 보호막 +' },
-        { id:'resAll', min:4, max:12, label:'모든 원소 저항 +' },
+        { id:'resElem', min:4, max:12, label:'모든 원소 저항 +' }, // 화염/냉기/번개만 상승 (카오스 제외)
         { id:'maxResF', min:1, max:2, label:'최대 화염 저항 +' },
         { id:'maxResC', min:1, max:2, label:'최대 냉기 저항 +' },
         { id:'maxResL', min:1, max:2, label:'최대 번개 저항 +' },
@@ -3861,7 +3866,7 @@ function getItemStatToneColor(statId) {
     if (['flatDmg', 'pctDmg', 'physPctDmg', 'meleePctDmg', 'aoePctDmg', 'minDmgRoll', 'maxDmgRoll'].includes(id)) return '#ffcf9f';
     if (['spellFlatPct', 'spellFlatDmg'].includes(id)) return '#d4a8ff';
     if (['leech'].includes(id)) return '#ff8fa3';
-    if (['resPen', 'resAll', 'ds'].includes(id)) return '#ffcb8e';
+    if (['resPen', 'resAll', 'resElem', 'ds'].includes(id)) return '#ffcb8e';
     if (['gemLevel', 'suppCap'].includes(id)) return '#a8e6cf';
 
     if (low.includes('res') || low.includes('pen')) return '#ffcb8e';

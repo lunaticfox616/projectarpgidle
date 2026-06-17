@@ -17,7 +17,7 @@ assert(
   'resistance breakdowns must include the Alchemist maximum resistance blend bonus',
 );
 assert(
-  combatSource.includes("formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)"),
+  combatSource.includes("formatResistanceSourceLine('군락 수호구', (colonyWardBonus.resAll || 0) + (colonyWardBonus.resElem || 0))"),
   'elemental resistance breakdowns must include colony ward resistance',
 );
 assert(

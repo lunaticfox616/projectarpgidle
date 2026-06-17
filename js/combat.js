@@ -2845,9 +2845,9 @@ function getPlayerStats() {
     evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
     finalEnergyShield += (colonyWardBonus.energyShield || 0);
     finalDr = Math.min(75, finalDr + (colonyWardBonus.dr || 0));
-    finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
-    finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0));
-    finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0));
+    finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resElem || 0));
+    finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resElem || 0));
+    finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resElem || 0));
     finalResChaos = Math.min(finalMaxResChaos, finalResChaos + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0));
     finalRegen += (colonyWardBonus.regenFlat || 0);
     finalEnergyShieldRegenRate += (colonyWardBonus.energyShieldRegen || 0);
@@ -2859,9 +2859,9 @@ function getPlayerStats() {
     finalTakenDamageReduceWhen2EnemiesPct += (colonyWardBonus.takenDamageReduceWhen2EnemiesPct || 0);
     finalTakenDamageReduceWhen1EnemyPct += (colonyWardBonus.takenDamageReduceWhen1EnemyPct || 0);
 
-    let uncappedResF = rawResF + (colonyWardBonus.resAll || 0);
-    let uncappedResC = rawResC + (colonyWardBonus.resAll || 0);
-    let uncappedResL = rawResL + (colonyWardBonus.resAll || 0);
+    let uncappedResF = rawResF + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resElem || 0);
+    let uncappedResC = rawResC + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resElem || 0);
+    let uncappedResL = rawResL + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resElem || 0);
     let uncappedResChaos = rawResChaos + warlockElementalOvercapToChaos + elementalistChaosConversionBonus + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0);
     let medicineResistanceAilmentBonus = { ignite: 0, freeze: 0, shock: 0 };
     if (game.ascendClass === 'catalyst' && hasKeystone('ct2')) {
@@ -3195,7 +3195,7 @@ function getPlayerStats() {
         resF: makeResistanceBreakdown('화염 저항', 'resF', 'maxResF', finalResF, finalMaxResF, [
             formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
             formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resF),
-            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
+            formatResistanceSourceLine('군락 수호구', (colonyWardBonus.resAll || 0) + (colonyWardBonus.resElem || 0))
         ], [
             formatResistanceSourceLine('최대 저항 · 영역 고유 효과', uniqueAllMaxRes),
             formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
@@ -3205,7 +3205,7 @@ function getPlayerStats() {
         resC: makeResistanceBreakdown('냉기 저항', 'resC', 'maxResC', finalResC, finalMaxResC, [
             formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
             formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resC),
-            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
+            formatResistanceSourceLine('군락 수호구', (colonyWardBonus.resAll || 0) + (colonyWardBonus.resElem || 0))
         ], [
             formatResistanceSourceLine('최대 저항 · 영역 고유 효과', uniqueAllMaxRes),
             formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
@@ -3215,7 +3215,7 @@ function getPlayerStats() {
         resL: makeResistanceBreakdown('번개 저항', 'resL', 'maxResL', finalResL, finalMaxResL, [
             formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
             formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resL),
-            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
+            formatResistanceSourceLine('군락 수호구', (colonyWardBonus.resAll || 0) + (colonyWardBonus.resElem || 0))
         ], [
             formatResistanceSourceLine('최대 저항 · 영역 고유 효과', uniqueAllMaxRes),
             formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
