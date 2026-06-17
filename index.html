@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Projectidle</title>
-    <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/layout.css?v=20260608-passive-overlay2">
+    <link rel="stylesheet" href="css/base.css?v=20260611-tab-drag4">
+    <link rel="stylesheet" href="css/layout.css?v=20260614-cosmos-es1">
     <link rel="stylesheet" href="css/theme.css">
-    <link rel="stylesheet" href="css/components.css?v=20260609-underworld-rune-ui2">
-    <link rel="stylesheet" href="css/ui-polish.css">
-    <link rel="stylesheet" href="css/ui-premium.css?v=20260610-patch-notes1">
+    <link rel="stylesheet" href="css/components.css?v=20260615-tab-drag-touch1">
+    <link rel="stylesheet" href="css/ui-polish.css?v=20260611-tooltip-alpha3">
+    <link rel="stylesheet" href="css/ui-premium.css?v=20260611-patch-notes-popup2">
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="css/cosmos-atlas.css">
     <link rel="stylesheet" href="css/core-cube.css?v=20260604-core-cube-visual1">
@@ -63,7 +63,7 @@
                     </div>
                     <div class="startup-summary-card patch-note-card">
                         <div class="startup-summary-title">패치 노트</div>
-                        <div class="patch-note-body" id="startup-patch-notes"></div>
+                        <button type="button" class="patch-notes-open-btn" onclick="openPatchNotes()">패치 노트 보기</button>
                     </div>
                 </div>
             </div>
@@ -126,6 +126,15 @@
         </div>
     </div>
 </div>
+<div id="patch-notes-overlay" class="tutorial-overlay" onclick="if(event.target===this)closePatchNotes()">
+    <div class="tutorial-card patch-notes-card">
+        <div class="tutorial-title">패치 노트</div>
+        <div class="patch-note-body patch-notes-modal-body" id="patch-notes-overlay-body"></div>
+        <div class="tutorial-actions">
+            <button id="patch-notes-close-btn" onclick="closePatchNotes()">닫기</button>
+        </div>
+    </div>
+</div>
 <div id="beeswax-warning-overlay" class="tutorial-overlay">
     <div class="tutorial-card" style="max-width:520px; border-color:#d9a441; background:linear-gradient(170deg,#211a0f 0%,#111722 100%);">
         <div class="tutorial-kicker" id="beeswax-warning-kicker">밀랍 처리 경고</div>
@@ -178,12 +187,6 @@
             <button onclick="chooseLoopAdvance(false)" style="background:#415f83; border-color:#5f84ad;">이번 루프 유지</button>
         </div>
     </div>
-</div>
-<div id="loop-ready-banner" class="loop-ready-banner">
-    <div class="loop-ready-banner-text">
-        <strong>⏸️ 루프 조건 달성!</strong> 시간이 멈췄습니다. 아이템 정리·도감 등록을 마친 뒤 다음 루프로 진행하세요.
-    </div>
-    <button onclick="confirmLoopReady()">루프 진행 ▶</button>
 </div>
 <div id="death-overlay" class="tutorial-overlay">
     <div class="tutorial-card deathlog-card">
@@ -265,6 +268,12 @@
 
                 <div id="enemy-area" style="margin-top: 6px; margin-bottom: 0; flex-shrink: 0;">
                     <div id="ui-enemy-list" class="enemy-list"></div>
+                    <div id="loop-ready-banner" class="loop-ready-banner">
+                        <div class="loop-ready-banner-text">
+                            <strong>⏸️ 루프 조건 달성!</strong> 시간이 멈췄습니다. 아이템 정리·도감 등록을 마친 뒤 다음 루프로 진행하세요.
+                        </div>
+                        <button type="button" onclick="confirmLoopReady()">루프 진행 ▶</button>
+                    </div>
                 </div>
             </div>
 
@@ -372,7 +381,7 @@
                 <span class="stat-unit">%</span>
             </div>
             <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'deflectChance')" onmousemove="showStatTooltip(event,'deflectChance')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">🪶 빗겨내기 확률</span>
+                <span class="stat-label">🪶 비껴내기 확률</span>
                 <span class="stat-value" id="ui-deflect-chance">0</span>
                 <span class="stat-unit">%</span>
             </div>
@@ -570,12 +579,10 @@
             </h2>
             <div class="bulk-salvage-bar">
                 <div class="bulk-salvage-filters">
-                    <label><input type="checkbox" id="chk-salvage-normal" checked onchange="updateSalvageSettingsFromUI()"> 일반</label>
-                    <label><input type="checkbox" id="chk-salvage-magic" checked onchange="updateSalvageSettingsFromUI()"> 매직</label>
-                    <label><input type="checkbox" id="chk-salvage-rare" onchange="updateSalvageSettingsFromUI()"> 레어</label>
-                    <label><input type="checkbox" id="chk-salvage-unique" onchange="updateSalvageSettingsFromUI()"> 고유</label>
+                    <span class="inventory-view-filter-label" title="켜진 등급만 인벤토리에 표시되며, '선택 등급 해체'의 대상이 됩니다. (자동해체와는 별개)">등급</span>
+                    <div class="inventory-view-filter" id="ui-inventory-rarity-filter"></div>
                 </div>
-                <div style="display:flex; gap:8px;"><button class="bulk-salvage-action" style="background:#5d6d7e; border-color:#465664;" onclick="bulkSalvageAllInventory()">전체해체</button><button class="bulk-salvage-action" onclick="bulkSalvageSelected()">해체</button><button id="btn-auto-salvage" class="bulk-salvage-action" onclick="toggleAutoSalvage()">자동해체 OFF</button></div>
+                <div style="display:flex; gap:8px;"><button class="bulk-salvage-action" style="background:#5d6d7e; border-color:#465664;" onclick="bulkSalvageAllInventory()" title="잠금되지 않은 모든 장비를 해체합니다.">전체해체</button><button class="bulk-salvage-action" onclick="bulkSalvageSelected()" title="등급 필터에서 켜진(표시 중인) 등급의 장비를 해체합니다.">선택 등급 해체</button><button id="btn-auto-salvage" class="bulk-salvage-action" onclick="openAutoSalvageConfigOverlay()" title="자동해체 설정 (대상 등급은 표시 필터와 별개로 지정합니다.)">자동해체 OFF</button></div>
             </div>
             <div class="inventory-grid" id="ui-inventory-list"></div>
 
@@ -737,7 +744,7 @@
             <h2 style="margin-top: 20px; color: #9fe7b2; display: none;" id="ui-colony-header">🪲 군락지 방어전</h2>
             <div id="ui-colony-panel" style="display:none; background:#101812; border:1px solid #2d6f43; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
 
-            <h2 style="margin-top: 20px; color: #a9b4ff; display: none;" id="ui-voidrift-header">🕳️ 공허 균열</h2>
+            <h2 style="margin-top: 20px; color: #a9b4ff; display: none;" id="ui-voidrift-header">🕳️ 공허 균열 <button id="btn-grand-breach-auto-enter" onclick="toggleGrandBreachAutoEnter()" style="display:none; margin-left:8px; font-size:0.7em; padding:2px 6px;">대균열 자동입장 OFF</button></h2>
             <div id="ui-voidrift-panel" style="display:none; background:#111420; border:1px solid #3d4f8a; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
 
             <h2 style="margin-top: 30px; color: #f1c40f; display: none;" id="ui-trials-header">👑 전직 시련의 성소</h2>
@@ -913,7 +920,7 @@
                         <select id="sel-map-complete-action" onchange="updateSettings()" class="cfg-select">
                             <option value="nextZone">다음 지역으로 이동</option>
                             <option value="repeatZone">같은 지역 반복</option>
-                            <option value="nextLoopBestPlusOne">루프 최고 층 다음으로</option>
+                            <option value="nextLoopBestPlusOne">현재 루프 기준 다음 지역</option>
                             <option value="stop">전투 중단</option>
                         </select>
                     </div>
@@ -972,6 +979,10 @@
                         <span class="cfg-label">캐릭터 외형</span>
                         <select id="sel-active-hero" onchange="onHeroSelectionChanged()" class="cfg-select" style="min-width:140px;"></select>
                     </div>
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">몬스터 외형</span>
+                        <select id="sel-monster-skin" onchange="onMonsterSkinChanged()" class="cfg-select" style="min-width:140px;"></select>
+                    </div>
                     <div id="ui-hero-talent-summary" class="cfg-hero-talent"></div>
                 </div>
             </div>
@@ -985,7 +996,7 @@
             <!-- ── 패치 노트 ── -->
             <div class="cfg-group">
                 <div class="cfg-group-title">패치 노트</div>
-                <div class="patch-note-body" id="ui-patch-notes-settings"></div>
+                <button type="button" class="patch-notes-open-btn" onclick="openPatchNotes()">패치 노트 보기</button>
             </div>
 
             <div class="cfg-group cfg-group--danger cfg-group--danger-bottom">
@@ -1047,6 +1058,19 @@
     </div>
 </div>
 
+<div id="weapon-slot-overlay" class="tutorial-overlay">
+    <div class="tutorial-card" style="max-width:420px;">
+        <div class="tutorial-kicker">쌍수 훈련</div>
+        <div class="tutorial-title">무기를 장착할 슬롯 선택</div>
+        <div class="tutorial-body">주 무기 슬롯 또는 방패 슬롯 중 교체할 위치를 선택하세요.</div>
+        <div class="tutorial-actions">
+            <button onclick="selectWeaponSlotFromOverlay('무기')">주 무기 슬롯</button>
+            <button onclick="selectWeaponSlotFromOverlay('방패')">방패 슬롯</button>
+            <button class="tutorial-secondary" onclick="closeWeaponSlotOverlay()">취소</button>
+        </div>
+    </div>
+</div>
+
 <div id="base-upgrade-overlay" class="tutorial-overlay">
     <div class="tutorial-card" style="max-width:420px;">
         <div class="tutorial-kicker">베이스 업그레이드</div>
@@ -1065,22 +1089,22 @@
 <script defer src="data/constants.js?v=20260610-patch-notes1"></script>
 <script defer src="data/maps.js?v=20260610-talent-bloom-p1"></script>
 <script defer src="data/skills.js?v=20260608-flame-socket2"></script>
-<script defer src="data/items.js?v=20260610-talent-bloom-p1"></script>
-<script defer src="data/passives.js?v=20260607-summon-accessories1"></script>
-<script defer src="data/bosses.js?v=20260513-gemfix1"></script>
-<script defer src="data/rewards.js?v=20260513-gemfix1"></script>
+<script defer src="data/items.js?v=20260617-talent-bloom-p1-merge1"></script>
+<script defer src="data/passives.js?v=20260613-passive-clusters1"></script>
+<script defer src="data/bosses.js?v=20260616-boss-assets1"></script>
+<script defer src="data/rewards.js?v=20260615-act4-resist"></script>
 <script defer src="data/talent-cards.js?v=20260614-talent-bloom-p6m"></script>
-<script defer src="js/utils.js?v=20260607-summon-accessories1"></script>
-<script defer src="js/state.js?v=20260610-talent-bloom-p4"></script>
+<script defer src="js/utils.js?v=20260614-runtime-fixes1"></script>
+<script defer src="js/state.js?v=20260617-talent-bloom-p1-merge1"></script>
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
-<script defer src="js/items.js?v=20260607-balance1"></script>
-<script defer src="js/skills.js?v=20260607-summon-growth1"></script>
-<script defer src="js/passives.js?v=20260610-talent-bloom-p3"></script>
+<script defer src="js/items.js?v=20260614-runtime-fixes1"></script>
+<script defer src="js/skills.js?v=20260614-cosmos-es1"></script>
+<script defer src="js/passives.js?v=20260617-talent-bloom-p1-merge1"></script>
 <script defer src="js/core-cube.js?v=20260609-core-cube-bulk1"></script>
-<script defer src="js/combat.js?v=20260614-talent-bloom-p6n"></script>
-<script defer src="js/canvas-battlefield.js?v=20260513-gemfix1"></script>
-<script defer src="js/canvas-passive-tree.js?v=20260608-passive-overlay2"></script>
-<script defer src="js/ui.js?v=20260610-talent-bloom-p3"></script>
+<script defer src="js/combat.js?v=20260617-talent-bloom-p1-merge1"></script>
+<script defer src="js/canvas-battlefield.js?v=20260614-cosmos-es1"></script>
+<script defer src="js/canvas-passive-tree.js?v=20260615-inv-craft-btn1"></script>
+<script defer src="js/ui.js?v=20260617-talent-bloom-p1-merge1"></script>
 <script defer src="js/talent-cards.js?v=20260614-talent-bloom-p6m"></script>
 <script defer src="js/cosmos-atlas.js?v=20260527-spiral-galaxy4"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>

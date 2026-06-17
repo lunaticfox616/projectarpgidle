@@ -1,5 +1,13 @@
 // Phase-2 extracted passive tree canvas draw block.
 
+function isCraftSelectionEquipAvailableLocal() {
+    return typeof isCraftSelectionEquip === 'function' && isCraftSelectionEquip();
+}
+
+function getCraftSelectionRefLocal() {
+    return typeof getCraftSelectionRef === 'function' ? getCraftSelectionRef() : null;
+}
+
 function ensurePassiveTreeOverlay() {
     let overlay = document.getElementById('passive-tree-overlay');
     const container = document.getElementById('tree-container');
@@ -37,11 +45,9 @@ function syncPassiveTreeOverlay(displayWidth, displayHeight, visibleNodes, hover
         visibleNodes.forEach(node => {
             const visibility = getPassiveVisibility(node.id);
             if (visibility === 'hidden') return;
-            const active = (game.passives || []).includes(node.id);
-            const reachable = reachableNodes.has(node.id);
             const hoverCurrent = !!(hoverNode && hoverNode.id === node.id);
             const hoverLinked = !!(hoverNode && hoverNode.id !== node.id && (hoveredLinkedIds.has(node.id) || hoveredPathNodeIds.has(node.id)));
-            if ((!active && reachable) || hoverCurrent || hoverLinked) {
+            if (hoverCurrent || hoverLinked) {
                 const key = `node:${node.id}`;
                 wanted.add(key);
                 let el = world.querySelector(`[data-passive-overlay-key="${key}"]`);
@@ -143,7 +149,7 @@ function getPassiveNodeEffectShortLabel(node) {
         slamPctDmg: '강타피해(%)', slamEchoChance: '여진확률', projectileExtraShots: '투사체추가',
         crit: '치명타 확률', critDmg: '치명타 피해', aspd: '공격 속도', move: '이동 속도', ds: '연속타격',
         armor: '방어도', armorPct: '방어도(%)', evasion: '회피', evasionPct: '회피(%)', energyShield: '보호막', energyShieldPct: '보호막(%)', energyShieldRegen: '보호막재생',
-        deflectChance: '빗겨내기', deflectMajor: '빗겨내기', dr: '피감', blockChance: '막기', blockChancePct: '막기증폭',
+        deflectChance: '비껴내기', deflectMajor: '비껴내기', dr: '피감', blockChance: '막기', blockChancePct: '막기증폭',
         resF: '화염저항', resC: '냉기저항', resL: '번개저항', resAll: '모든원소저항', resChaos: '카오스저항', resPen: '저항관통',
         maxResF: '화염최대', maxResC: '냉기최대', maxResL: '번개최대', maxResChaos: '카오스최대', chaosResElemPenalty: '카오스저항+',
         igniteChance: '점화확률', chillChance: '냉각확률', freezeChance: '동결확률', shockChance: '감전확률', poisonChance: '중독확률', bleedChance: '출혈확률',
@@ -266,7 +272,6 @@ function drawPassiveTree() {
 
     const viewport = getPassiveWorldViewport(displayWidth, displayHeight);
     const visibleNodes = passiveRenderCache.nodes.filter(node => isNodeInViewport(node, viewport, 120));
-    const visibleGlowNodes = passiveRenderCache.glowNodes.filter(node => isNodeInViewport(node, viewport, 180));
     const visibleEdges = passiveRenderCache.activeEdges.filter(edge => isEdgeInViewport(edge, viewport, 120));
 
     // 화면 배경
@@ -296,36 +301,6 @@ function drawPassiveTree() {
     ctx.fill();
 
     if (!lightweightMode && !zoomedOutMode) drawPassiveEvolutionAura(ctx);
-
-    // 탐험 밝혀짐 후광
-    if (!zoomedOutMode) visibleGlowNodes.forEach(node => {
-        if (!isPassiveNodeAvailable(node)) return;
-        const visibility = getPassiveVisibility(node.id);
-        if (visibility === 'hidden') return;
-
-        const discovered = discoveredPassiveNodes.has(node.id) || (game.passives || []).includes(node.id);
-        const preview = visibility === 'preview';
-        const radius = getPassiveNodeVisualRadius(node);
-
-        if (!discovered && !preview) return;
-
-        const haloR = discovered ? (radius * 7.5) : (radius * 4.6);
-        if (lightweightMode) return;
-        const g = ctx.createRadialGradient(node.x, node.y, radius * 0.4, node.x, node.y, haloR);
-        if (discovered) {
-            g.addColorStop(0, 'rgba(227,194,124,0.16)');
-            g.addColorStop(0.18, 'rgba(114,151,204,0.12)');
-            g.addColorStop(1, 'rgba(0,0,0,0)');
-        } else {
-            g.addColorStop(0, 'rgba(105,133,160,0.08)');
-            g.addColorStop(1, 'rgba(0,0,0,0)');
-        }
-
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, haloR, 0, Math.PI * 2);
-        ctx.fill();
-    });
 
     // 리빌 펄스는 CSS overlay에서 animationend까지 GPU compositor로 처리한다.
 
@@ -546,7 +521,7 @@ function renderPaperdoll(targetId, forCrafting) {
     ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'].forEach(slot => {
         let item = game.equipment[slot];
         let displaySlot = slot.replace(/[12]/, '');
-        let selected = isCraftSelectionEquip() && getCraftSelectionRef() === slot;
+        let selected = isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === slot;
         if (item) {
             let displayStats = (item.baseStats || []).concat(item.stats || [], item.underEnchant ? [item.underEnchant] : []);
             if (item.chaosInfusion) displayStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
@@ -588,7 +563,7 @@ function renderPaperdoll(targetId, forCrafting) {
 }
 
 function renderInventoryCard(item, idx, mode) {
-    let selected = !isCraftSelectionEquip() && getCraftSelectionRef() === item.id;
+    let selected = !isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === item.id;
     let query = getEquipSearchQueryLocal();
     let hi = (text) => {
         try {
@@ -617,7 +592,7 @@ function renderInventoryCard(item, idx, mode) {
     if (item.encroached && !item.encroached.liberated) lines.push(`<span style="color:#8d7bb3">[잠식] 해방 전</span>`);
     if ((item.stats || []).length === 0 && !item.underEnchant && !item.chaosInfusion && !item.encroached) lines.push(`<span style="color:#7f8c8d">추가 옵션 없음</span>`);
     let actions = '';
-    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">${isDualSlotItem(item.slot) ? '장착(선택)' : '장착'}</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button>${item.rarity === 'unique' ? `<button style="background:#6b4d2f; border-color:#9a6f43;" onclick="event.stopPropagation(); storeUniqueToCodexByItemId(${item.id})">도감</button>` : ''}</div>`;
+    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">${isDualSlotItem(item.slot) ? '장착(선택)' : '장착'}</button><button style="background:#35506a; border-color:#3f6486;" onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button>${item.rarity === 'unique' ? `<button style="background:#6b4d2f; border-color:#9a6f43;" onclick="event.stopPropagation(); storeUniqueToCodexByItemId(${item.id})">도감</button>` : ''}</div>`;
     else if (mode === 'fossil') actions = `<div class="item-actions"><button style="flex:1; background:#35506a;" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
     else actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button style="background:#35506a;" onclick="event.stopPropagation(); equipItemById(${item.id})">${isDualSlotItem(item.slot) ? '장착(선택)' : '장착'}</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
     let doubleClick = mode === 'equip' ? ` ondblclick="event.stopPropagation(); handleInventoryCardDoubleClick(${item.id}, 'equip')"` : '';

@@ -646,3 +646,32 @@ body.light-mode .patch-note-list li {
 body.light-mode .patch-note-date {
   color: #5f7286;
 }
+.patch-notes-open-btn {
+  margin-top: 6px;
+  padding: 8px 14px;
+  font-size: 0.84em;
+  font-weight: 600;
+  color: #f3e6c4;
+  background: linear-gradient(180deg, rgba(232, 194, 106, 0.18), rgba(232, 194, 106, 0.08));
+  border: 1px solid rgba(232, 194, 106, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.patch-notes-open-btn:hover {
+  background: rgba(232, 194, 106, 0.26);
+}
+.tutorial-card.patch-notes-card {
+  width: min(560px, calc(100vw - 32px));
+}
+/* 시작 화면 오버레이(z-index 14000)/로딩 오버레이(14500)보다 위에 떠야 메인 화면에서도 보입니다. */
+#patch-notes-overlay {
+  z-index: 15000;
+}
+.patch-notes-modal-body {
+  max-height: 60vh;
+  margin-top: 10px;
+  text-align: left;
+}
+body.light-mode .patch-notes-open-btn {
+  color: #6a5212;
+}

@@ -345,8 +345,7 @@ function getZone(id) {
     }
     if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) {
         let depth = getAbyssDepthFromZoneId(id);
-        let legacyEndlessDepth = Math.floor((game && game.abyssEndlessDepth) || depth);
-        let displayDepth = (depth === 20 && legacyEndlessDepth > 20) ? legacyEndlessDepth : depth;
+        let displayDepth = depth;
         let baseZone = MAP_ZONES[Math.min(id, getAbyssZoneIdForDepth(20))];
         return {
             ...(baseZone || {}),
@@ -662,7 +661,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'sb4', name: '무리', desc: '소환수 한도 +1, 소환수 공격 속도 15% 증폭', req: 'sb1' },
         { id: 'sb5', name: '홀로서기', desc: '소환수의 기본 공격력과 공격적인 추가 스탯만 플레이어가 가짐, 소환수 생명력 등 방어적인 소환 옵션은 전이되지 않으며 소환수는 공격하지 않음', req: 'sb2' },
         { id: 'sb6', name: '꿰뚫는 이', desc: '저항 관통 +16%, 플레이어 저항 관통이 소환수 공격에도 100% 적용', req: 'sb3' },
-        { id: 'sb7', name: '상호 보완', desc: '플레이어 피해의 50%를 소환수에 추가, 소환수 피해의 50%를 플레이어에게 추가', reqAny: ['sb4', 'sb3'] },
+        { id: 'sb7', name: '상호 보완', desc: '플레이어 공격력(타격당 기본 피해)의 50%를 소환수 타격에 더하고, 소환수 공격력의 50%를 플레이어 타격에 더함', reqAny: ['sb4', 'sb3'] },
         { id: 'sb8', name: '군주', desc: '소환수 한도 +3', req: 'sb7' }
     ],
     catalyst: [
@@ -822,9 +821,9 @@ const P_STATS = {
     energyShield: { name: '에너지 보호막', tiers: [1, 2, 3], s: 10, m: 24, k: 48 },
     armorPct: { name: '방어도(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
     evasionPct: { name: '회피(%)', tiers: [2, 3], m: 5, k: 12, isPct: true },
-    deflectChance: { name: '빗겨내기 확률(%)', tiers: [1, 2, 3], s: 4, m: 6, k: 8, isPct: true },
-    deflectMajor: { name: '빗겨내기 확률 + 피해 감소', tiers: [3], k: 6, isPct: true },
-    deflectDamageReduce: { name: '빗겨내기 피해 감소(%)', tiers: [3], k: 3, isPct: true },
+    deflectChance: { name: '비껴내기 확률(%)', tiers: [1, 2, 3], s: 4, m: 6, k: 8, isPct: true },
+    deflectMajor: { name: '비껴내기 확률 + 피해 감소', tiers: [3], k: 6, isPct: true },
+    deflectDamageReduce: { name: '비껴내기 피해 감소(%)', tiers: [3], k: 3, isPct: true },
     ailResIgnite: { name: '점화 저항 확률(%)', tiers: [1, 2, 3], s: 2, m: 4, k: 6, isPct: true },
     ailResShock: { name: '감전 저항 확률(%)', tiers: [1, 2, 3], s: 2, m: 4, k: 6, isPct: true },
     ailResFreeze: { name: '냉기 저항 확률(%)', tiers: [1, 2, 3], s: 2, m: 4, k: 6, isPct: true },
@@ -947,7 +946,7 @@ const MOD_DB = [
     { id: 'energyShield', type: 'prefix', statName: '에너지 보호막', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 9, step: 8 },
     { id: 'armorPct', type: 'suffix', statName: '방어도 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 6, step: 4 },
     { id: 'evasionPct', type: 'suffix', statName: '회피 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 6, step: 4 },
-    { id: 'deflectChance', type: 'suffix', statName: '빗겨내기 확률(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 1, step: 1 },
+    { id: 'deflectChance', type: 'suffix', statName: '비껴내기 확률(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 1, step: 1 },
     { id: 'energyShieldPct', type: 'suffix', statName: '에너지 보호막 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 6, step: 4 },
     { id: 'pctHp', type: 'suffix', statName: '생명력 증가(%)', slots: ['갑옷', '허리띠'], base: 4, step: 3 },
     { id: 'aspd', type: 'suffix', statName: '공격 속도(%)', slots: ['무기', '반지', '목걸이', '허리띠', '장갑'], base: 2, step: 2 },
@@ -1385,6 +1384,7 @@ function ensureExpertiseState(){
     });
   });
   st.expertPointBonus=Math.max(0,Math.floor(st.expertPointBonus||0));
+  st.awakenedPity=Math.max(0,Math.floor(st.awakenedPity||0));
   st.loopExpCaps=st.loopExpCaps||{};
   const currentSeason = Math.max(1, Math.floor(runtimeGame.season || 1));
   if (!Number.isFinite(st.loopExpCaps.season)) st.loopExpCaps.season = currentSeason;
@@ -1406,8 +1406,19 @@ function getExpertPointSpent(){ let st=ensureExpertiseState(); return Object.ent
 function getExpertPointFree(){ return Math.max(0, getExpertPointTotal()-getExpertPointSpent());}
 function getExpertBranchSpent(branch){ let st=ensureExpertiseState(); return Object.entries(st.nodes).reduce((s,[id,l])=>{ let n=EXPERT_TREE_NODES.find(v=>v.id===id); return s+(n&&n.branch===branch?Math.max(0,Math.floor(l||0))*n.cost:0)},0);}
 function getExpertNodeEffectValue(statKey){ let st=ensureExpertiseState(); if(!statKey) return 0; return Object.entries(st.nodes).reduce((sum,[id,l])=>{ let n=EXPERT_TREE_NODES.find(v=>v.id===id); if(!n) return sum; let lv=Math.max(0,Math.floor(l||0)); if(lv<=0) return sum; let perLv=Number(((n.effect||{})[statKey])||0); return sum+(perLv*lv); },0);}
+// Combined expert cost reduction = common '반복 작업'(expertCostReducePct) + a domain-specific node, capped at 75%. Returns a 0..0.75 fraction.
+function getExpertCombinedCostReduction(specificStatKey){ let common=Math.max(0,getExpertNodeEffectValue('expertCostReducePct')); let specific=specificStatKey?Math.max(0,getExpertNodeEffectValue(specificStatKey)):0; return Math.min(75, common+specific)/100; }
+// Awakened-gem pity: '핵심: 각성 추적'(awakenedPityBonusPct) adds chance per consecutive eligible drop that did not roll an awakened gem.
+function getExpertAwakenedPity(){ return Math.max(0, Math.floor(ensureExpertiseState().awakenedPity||0)); }
+function bumpExpertAwakenedPity(rolledAwakened){ let st=ensureExpertiseState(); st.awakenedPity = rolledAwakened ? 0 : (getExpertAwakenedPity()+1); return st.awakenedPity; }
+function getAwakenedDropChance(baseChance){ let base=Math.max(0,Number(baseChance||0)); let bonusPct=Math.max(0,getExpertNodeEffectValue('awakenedPityBonusPct')); if(bonusPct<=0) return base; return Math.min(0.25, base + getExpertAwakenedPity()*(bonusPct/100)*0.01); }
 function canAllocateExpertNode(nodeId){ let st=ensureExpertiseState(); let n=EXPERT_TREE_NODES.find(v=>v.id===nodeId); if(!n)return false; let cur=Math.max(0,Math.floor(st.nodes[nodeId]||0)); if(cur>=n.max) return false; if(getExpertPointFree()<n.cost) return false; if(n.requireBranchPoints && getExpertBranchSpent(n.branch)<n.requireBranchPoints) return false; return true;}
 function allocateExpertNode(nodeId){ if(!canAllocateExpertNode(nodeId)) return false; let st=ensureExpertiseState(); st.nodes[nodeId]=Math.max(0,Math.floor(st.nodes[nodeId]||0))+1; return true;}
+function isExpertKeystoneNode(n){ return !!(n && n.requireBranchPoints); }
+function getExpertBranchNonKeystoneSpent(branch){ let st=ensureExpertiseState(); return Object.entries(st.nodes).reduce((s,[id,l])=>{ let n=EXPERT_TREE_NODES.find(v=>v.id===id); return s+(n&&n.branch===branch&&!isExpertKeystoneNode(n)?Math.max(0,Math.floor(l||0))*n.cost:0);},0);}
+function wouldExpertKeystoneBreak(branch, nonKeystoneSpentAfter){ let st=ensureExpertiseState(); return EXPERT_TREE_NODES.some(n=>n.branch===branch&&isExpertKeystoneNode(n)&&Math.max(0,Math.floor(st.nodes[n.id]||0))>0&&nonKeystoneSpentAfter<n.requireBranchPoints);}
+function canUntrainExpertNode(nodeId){ let st=ensureExpertiseState(); let n=EXPERT_TREE_NODES.find(v=>v.id===nodeId); if(!n) return false; if(Math.max(0,Math.floor(st.nodes[nodeId]||0))<=0) return false; if(!isExpertKeystoneNode(n) && wouldExpertKeystoneBreak(n.branch, getExpertBranchNonKeystoneSpent(n.branch)-n.cost)) return false; return true;}
+function untrainExpertNode(nodeId){ if(!canUntrainExpertNode(nodeId)) return false; let st=ensureExpertiseState(); let next=Math.max(0,Math.floor(st.nodes[nodeId]||0))-1; if(next<=0) delete st.nodes[nodeId]; else st.nodes[nodeId]=next; return true;}
 function resetExpertTree(){ ensureExpertiseState().nodes={}; }
 function setExpertiseLoopCapsForSeason(season){
   let st = (game.expertise&&typeof game.expertise==='object') ? game.expertise : (game.expertise = {});
@@ -1472,6 +1483,7 @@ const defaultGame = {
         combatLogCollapsed: false,
         autoSalvageEnabled: false,
         autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false },
+        inventoryViewRarities: { normal: true, magic: true, rare: true, unique: true },
         itemFilterEnabled: false,
         itemFilterRarities: { normal: true, magic: true, rare: true, unique: true },
         itemFilterTierThreshold: 10,
@@ -1479,6 +1491,7 @@ const defaultGame = {
         itemFilterMinHiddenTier: 1,
         itemFilterOnlyNewCodexUnique: false,
         autoEnterMeteor: false,
+        autoEnterGrandBreach: false,
         jewelAutoSalvageEnabled: false,
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
         mapCompleteAction: 'nextZone',
@@ -1486,6 +1499,7 @@ const defaultGame = {
         notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true }
     },
     selectedHeroId: 'hero1',
+    appearanceHeroId: null,
     discoveredHeroIds: [],
     heroSelectionInitialized: false,
     heroFreeSwitchUnlocked: false,
@@ -1496,6 +1510,8 @@ const defaultGame = {
     talentCardLoadout: [null, null, null, null, null, null],
     bloomTrialRegenSuppress: 0,
     pendingLoopHeroSelection: false,
+    unlockedMonsterSkins: {},
+    selectedMonsterSkin: null,
     passivePoints: 0,
     playerHp: 100,
     playerEnergyShield: 0,
@@ -1630,6 +1646,7 @@ const defaultGame = {
         skyRiftMinTier: null,
         skyRiftAllCosmos: false,
         activeMeteorTier: null,
+        meteorReturnZoneId: null,
         lastAnomalyAt: 0,
         skyRiftCarryGauge: 0,
         constellationBuff: null,
@@ -1678,4 +1695,4 @@ function normalizeGemRecord(raw) {
 }
 
 
-safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord, EXPERT_DEFS, EXPERT_EXP_GUIDES, EXPERT_TREE_NODES, ensureExpertiseState, getExpertLevel, getExpertExp, addExpertExp, getExpertUnlocks, getExpertUnlockHistory, getCurrentExpertUnlock, getNextExpertUnlock, getExpertPointTotal, getExpertPointSpent, getExpertPointFree, getExpertBranchSpent, getExpertNodeEffectValue, canAllocateExpertNode, allocateExpertNode, resetExpertTree, hasExpertTreeUnlocked, resetExpertiseLoopCaps, EXPERT_EXP_RULES, grantExpertExpByAction, grantLoopBaseExpertExp, EXPERT_FAVOR_OPTIONS, getExpertFavorOptions, getSelectedExpertFavor, setSelectedExpertFavor, getExpertFavorEffectTotals });
+safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord, EXPERT_DEFS, EXPERT_EXP_GUIDES, EXPERT_TREE_NODES, ensureExpertiseState, getExpertLevel, getExpertExp, addExpertExp, getExpertUnlocks, getExpertUnlockHistory, getCurrentExpertUnlock, getNextExpertUnlock, getExpertPointTotal, getExpertPointSpent, getExpertPointFree, getExpertBranchSpent, getExpertNodeEffectValue, getExpertCombinedCostReduction, getAwakenedDropChance, bumpExpertAwakenedPity, canAllocateExpertNode, allocateExpertNode, canUntrainExpertNode, untrainExpertNode, resetExpertTree, hasExpertTreeUnlocked, resetExpertiseLoopCaps, EXPERT_EXP_RULES, grantExpertExpByAction, grantLoopBaseExpertExp, EXPERT_FAVOR_OPTIONS, getExpertFavorOptions, getSelectedExpertFavor, setSelectedExpertFavor, getExpertFavorEffectTotals });

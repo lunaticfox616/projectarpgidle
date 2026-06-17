@@ -95,7 +95,10 @@ const SKILL_TAG_LABELS = {
     aoe: '범위',
     dot: '지속',
     slam: '강타',
-    chain: '연쇄'
+    chain: '연쇄',
+    summon: '소환수',
+    summon_attack: '공격형 소환수',
+    summon_guard: '방어형 소환수'
 };
 const TAGGED_DAMAGE_STAT_BY_TAG = {
     melee: 'meleePctDmg',
@@ -122,8 +125,8 @@ const COMPARE_STAT_META = {
     evadeChance: { label: '회피 확률', format: value => `${value.toFixed(1)}%` },
     energyShield: { label: '에너지 보호막', format: value => `${Math.floor(value)}` },
     energyShieldRegenRate: { label: '에너지 보호막 재생', format: value => `${value.toFixed(1)}%` },
-    deflectChance: { label: '빗겨내기 확률', format: value => `${value.toFixed(1)}%` },
-    deflectDamageReduce: { label: '빗겨내기 피해 감소', format: value => `${value.toFixed(1)}%` },
+    deflectChance: { label: '비껴내기 확률', format: value => `${value.toFixed(1)}%` },
+    deflectDamageReduce: { label: '비껴내기 피해 감소', format: value => `${value.toFixed(1)}%` },
     blockChance: { label: '막기 확률', format: value => `${value.toFixed(1)}%` },
     blockChanceMax: { label: '막기 확률 상한', format: value => `${value.toFixed(1)}%` },
     moveSpeed: { label: '이동 속도', format: value => `${Math.floor(value)}%` },
@@ -238,7 +241,7 @@ function getStatName(statId) {
         leechInstanceCap: '흡혈 타격당 회복량 캡(최대 생명력 %)',
         gemLevel: '모든 스킬 젬 레벨',
         summonGemLevel: '소환수 공격 스킬 젬 레벨',
-        dr: '받는 피해 감소(%)',
+        dr: '물리 피해 감소(%)',
         physIgnore: '물리 피해 감소 무시(%)',
         ds: '연속 타격(%)',
         suppCap: '보조 스킬 젬 한도',
@@ -264,8 +267,11 @@ function getStatName(statId) {
         energyShield: '에너지 보호막',
         armorPct: '방어도(%)',
         evasionPct: '회피(%)',
-        deflectChance: '빗겨내기 확률(%)',
-        deflectDamageReduce: '빗겨내기 피해 감소(%)',
+        deflectChance: '비껴내기 확률(%)',
+        deflectDamageReduce: '비껴내기 피해 감소(%)',
+        corpseExplodeChance: '시체폭발 확률(%)',
+        corpseExplodeLifePct: '시체폭발 피해(처치한 적 최대 생명력 %)',
+        resonancePower: '공명력',
         ailResIgnite: '점화 저항 확률(%)',
         ailResShock: '감전 저항 확률(%)',
         ailResFreeze: '냉기 저항 확률(%)',
@@ -609,7 +615,7 @@ if (typeof window.getPlayerStats === "undefined") {
             resF: 0, resC: 0, resL: 0, resChaos: 0, regen: 0, regenSuppress: 0, leech: 0, ds: 0,
             igniteChance: 0, chillChance: 0, freezeChance: 0, shockChance: 0, poisonChance: 0, bleedChance: 0,
             blockChance: 0, blockChanceMax: 50, deflectChance: 0, deflectDamageReduce: 0,
-            suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, breakdowns: {}, __uiFallbackStats: true
+            suppCap: 0, summonCap: 1, runeResonancePower: 0, uniqueResonanceFloor: 0, inquisitorResonanceBonus: 0, breakdowns: {}, __uiFallbackStats: true
         };
     };
     window.getPlayerStats.__placeholderGlobal = true;

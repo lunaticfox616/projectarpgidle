@@ -185,9 +185,24 @@ body:not(.light-mode) .item-title.unique { color: var(--ui-unique); text-shadow:
 body:not(.light-mode) #item-tooltip-box,
 body:not(.light-mode) #canvas-tooltip,
 body:not(.light-mode) #info-tooltip {
-  background: linear-gradient(180deg, #101827 0%, #0a1019 100%);
+  background: linear-gradient(180deg, rgba(16,24,39,.76) 0%, rgba(10,16,25,.76) 100%);
   border: 1px solid #3a5371;
   box-shadow: 0 14px 34px rgba(0,0,0,.55);
+  backdrop-filter: blur(2px);
+}
+body:not(.light-mode) #item-tooltip-box.item-compare-tooltip {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+body:not(.light-mode) .item-compare-tooltip .item-tooltip-main,
+body:not(.light-mode) .item-compare-tooltip .item-compare-single,
+body:not(.light-mode) .item-compare-tooltip .item-compare-grid {
+  background: linear-gradient(180deg, rgba(16,24,39,.76) 0%, rgba(10,16,25,.76) 100%);
+  border-color: #4d6584;
+  box-shadow: 0 14px 34px rgba(0,0,0,.55);
+  backdrop-filter: blur(2px);
 }
 body:not(.light-mode) #item-tooltip-box { border-color: #4d6584; }
 body:not(.light-mode) #canvas-tooltip { border-color: #6b578d; }
@@ -269,26 +284,25 @@ input[data-search-key]:focus {
 /* ── 루프 진행 대기 배너 (루프 10 이전 조건 달성 시 시간 정지 안내) ── */
 .loop-ready-banner {
   display: none;
-  position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  z-index: 1200;
   align-items: center;
-  gap: 14px;
-  max-width: min(680px, calc(100vw - 24px));
-  padding: 12px 16px;
-  border-radius: 12px;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
   background: linear-gradient(170deg, #1a1430 0%, #111525 100%);
   border: 1px solid #7f66d8;
-  box-shadow: 0 10px 30px rgba(2, 4, 10, 0.6), 0 0 18px rgba(127, 102, 216, 0.28);
+  box-shadow: 0 6px 18px rgba(2, 4, 10, 0.42), 0 0 14px rgba(127, 102, 216, 0.22);
   color: #e6e0ff;
 }
 .loop-ready-banner.active {
   display: flex;
 }
 .loop-ready-banner-text {
-  font-size: 0.9em;
+  min-width: 0;
+  font-size: 0.84em;
   line-height: 1.45;
 }
 .loop-ready-banner-text strong {
@@ -299,7 +313,16 @@ input[data-search-key]:focus {
   background: #5b4a9f;
   border-color: #8c79d9;
   font-weight: 700;
-  padding: 8px 14px;
+  padding: 8px 12px;
+}
+@media (max-width: 720px) {
+  .loop-ready-banner {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .loop-ready-banner button {
+    width: 100%;
+  }
 }
 
 /* ── 창공의 탑 패널 ── */
@@ -357,4 +380,34 @@ input[data-search-key]:focus {
   margin-top: 8px;
   font-size: 0.86em;
   line-height: 1.5;
+}
+
+/* Keep the Sky Tower entry readable when the action button shares a narrow row. */
+.map-item--sky-tower {
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+.map-item--sky-tower .map-item-main {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.map-item--sky-tower .map-item-main > span:last-child {
+  min-width: 0;
+  line-height: 1.45;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.map-item--sky-tower .map-item-actions {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+@media (max-width: 720px) {
+  .map-item--sky-tower .map-item-main,
+  .map-item--sky-tower .map-item-actions {
+    width: 100%;
+  }
+  .map-item--sky-tower .map-item-actions {
+    justify-content: flex-start;
+  }
 }

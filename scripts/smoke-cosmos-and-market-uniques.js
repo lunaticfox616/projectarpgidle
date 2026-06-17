@@ -47,16 +47,22 @@ assert.strictEqual(cosmosDrop.uniqueEffectKey, 'fateTwinRollSync', 'Fate Twin dr
 assert(passivesSource.includes('Math.random() < 0.0016'), 'field chase unique chance must be 0.16%');
 assert(itemsSource.includes('const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;'), 'black market chase unique pick chance must match 0.16%');
 assert(itemsSource.includes("return !!(unique.dropOnly && unique.dropOnly.type === 'cosmos');"), 'cosmos-only uniques must be black market eligible');
+assert(itemsSource.includes('function isBaseEligibleForBlackMarket(base)'), 'black market base eligibility helper must exist');
 assert(itemsSource.includes('price = rollBlackMarketChaseUniquePrice(req);'), 'chase unique market prices must use the divine-price roller');
 assert(itemsSource.includes('offer.chase ? \'체이싱\' : \'고유\''), 'chase uniques must render with a distinct black-market badge');
-assert(itemsSource.includes('[고유 효과] ${escapeHTML(uniq.uniqueEffect)}'), 'black market unique tooltip must include codex-style unique effect text');
+assert(itemsSource.includes('✨ 고유 효과: ${escapeHTML(effect)}'), 'black market unique tooltip must include unique effect text');
+assert(itemsSource.includes('고유 옵션 · ${escapeHTML(label)}'), 'black market unique tooltip must label unique stat options');
 
 const marketSandbox = {
   Math: Object.create(Math),
   UNIQUE_DB: uniqueDb,
   ORB_DB: dataSandbox.window.ORB_DB,
   SKILL_DB: {},
-  BASE_ITEM_DB: [],
+  BASE_ITEM_DB: [
+    { id: 'common_weapon', slot: '무기', name: '일반 검', reqTier: 1, baseStats: [{ id: 'flatDmg', base: 10 }] },
+    { id: 'cosmos_weapon', slot: '무기', name: '우주계 검', reqTier: 1, realmBase: 'cosmos', baseStats: [{ id: 'flatDmg', base: 99 }] }
+  ],
+  UNIQUE_FIXED_BASE_BY_NAME: {},
   BLACK_MARKET_CHASE_UNIQUE_CHANCE: 0.0016,
   game: { currentZoneId: 0, blackMarket: {}, currencies: {}, maxZoneId: 20 },
   getZone() { return { tier: 20 }; },
@@ -72,14 +78,19 @@ const marketSandbox = {
 vm.createContext(marketSandbox);
 vm.runInContext([
   extractFunction(itemsSource, 'isUniqueEligibleForBlackMarket'),
+  extractFunction(itemsSource, 'isBaseEligibleForBlackMarket'),
+  extractFunction(itemsSource, 'getBlackMarketUniqueBase'),
   extractFunction(itemsSource, 'rollBlackMarketChaseUniquePrice'),
   extractFunction(itemsSource, 'buildBlackMarketOffer'),
+  'this.isBaseEligibleForBlackMarket = isBaseEligibleForBlackMarket;',
   'this.buildBlackMarketOffer = buildBlackMarketOffer;'
 ].join('\n'), marketSandbox);
+assert.strictEqual(marketSandbox.isBaseEligibleForBlackMarket({ name: '우주계 검', realmBase: 'cosmos' }), false, 'cosmos-exclusive bases must not be eligible for black market base offers');
 const offer = marketSandbox.buildBlackMarketOffer(0);
 assert.strictEqual(offer.type, 'unique', 'forced market roll should create a unique offer');
 assert.strictEqual(offer.chase, true, 'black market can roll chase uniques');
 assert.strictEqual(offer.priceKey, 'divine', 'chase unique market price must be divine orbs');
 assert(offer.price >= 30 && offer.price <= 150, 'chase unique divine price must stay in the 30~150 range');
+assert.notStrictEqual(offer.baseId, 'cosmos_weapon', 'black market unique offers must not preview cosmos-exclusive bases');
 
 console.log('cosmos unique and black market chase smoke checks passed');

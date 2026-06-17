@@ -22,6 +22,44 @@ function isUniqueEligibleForBlackMarket(unique) {
     return !!(unique.dropOnly && unique.dropOnly.type === 'cosmos');
 }
 
+function isBaseEligibleForBlackMarket(base) {
+    return !!(base && !base.dropOnly && !base.realmBase);
+}
+
+function getBlackMarketBaseRollRange(stat) {
+    let minBase = Number.isFinite(stat && stat.baseMin) ? Number(stat.baseMin) : ((Number(stat && stat.base) || 0) * 0.8);
+    let maxBase = Number.isFinite(stat && stat.baseMax) ? Number(stat.baseMax) : ((Number(stat && stat.base) || 0) * 1.2);
+    let scale = stat && stat.id === 'energyShield' ? 1.5 : 1;
+    let min = minBase * scale;
+    let max = maxBase * scale;
+    if (max > 0) {
+        let decimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+        min = Math.max(decimal ? 0.1 : 1, min);
+        max = Math.max(min, max);
+    }
+    return { min, max };
+}
+
+function getBlackMarketBaseTooltipOptionLines(baseStats) {
+    let rows = Array.isArray(baseStats) ? baseStats : [];
+    if (rows.length <= 0) return '<div class="tooltip-line">베이스 옵션 없음</div>';
+    return rows.map(stat => {
+        let range = getBlackMarketBaseRollRange(stat);
+        let label = stat.statName || getStatName(stat.id);
+        return `<div class="tooltip-line" style="color:#9fd6ff;">베이스 옵션 · ${escapeHTML(label)} +${formatValue(stat.id, range.min)}~+${formatValue(stat.id, range.max)}</div>`;
+    }).join('');
+}
+
+function getBlackMarketUniqueBase(unique, hiddenTier) {
+    if (!unique || !Array.isArray(unique.slots) || unique.slots.length <= 0) return null;
+    let fixedBaseId = typeof UNIQUE_FIXED_BASE_BY_NAME === 'object' ? UNIQUE_FIXED_BASE_BY_NAME[unique.name] : null;
+    let fixedBase = fixedBaseId ? BASE_ITEM_DB.find(row => row && row.id === fixedBaseId) : null;
+    if (fixedBase && fixedBase.slot === unique.slots[0]) return fixedBase;
+    let tier = Math.max(1, Math.floor(Number(hiddenTier || unique.reqTier) || 1));
+    let candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === unique.slots[0] && (base.reqTier || 1) <= tier);
+    return candidates.length > 0 ? rndChoice(candidates) : null;
+}
+
 function rollBlackMarketChaseUniquePrice(reqTier) {
     let tier = Math.max(1, Math.floor(Number(reqTier) || 1));
     let minPrice = Math.max(30, Math.min(150, Math.floor(tier * 2)));
@@ -128,7 +166,8 @@ function pickEquipSlot(item, preferredSlot) {
 }
 
 function isDualSlotItem(slotName) {
-    return slotName === '반지' || slotName === '장갑';
+    if (slotName === '반지' || slotName === '장갑') return true;
+    return slotName === '무기' && game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
 }
 
 function getDualSlotDisplayLabel(targetSlot) {
@@ -136,6 +175,8 @@ function getDualSlotDisplayLabel(targetSlot) {
     if (targetSlot === '반지2') return '오른쪽 반지';
     if (targetSlot === '장갑1') return '왼쪽 장갑';
     if (targetSlot === '장갑2') return '오른쪽 장갑';
+    if (targetSlot === '무기') return '주 무기';
+    if (targetSlot === '방패') return '방패';
     return targetSlot;
 }
 
@@ -152,6 +193,11 @@ function findInventoryIndexById(itemId) {
 function equipItem(idx, preferredSlot) {
     let item = game.inventory[idx];
     if (!item) return;
+    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    if (item.slot === '무기' && warriorDualTrain && !preferredSlot && game.equipment['무기'] && game.equipment['방패']) {
+        openWeaponSlotOverlayByItemId(item.id);
+        return;
+    }
     if (item.slot === '반지' && !preferredSlot && dualSlotBothOccupied('반지')) {
         openRingSlotOverlayByItemId(item.id);
         return;
@@ -162,7 +208,6 @@ function equipItem(idx, preferredSlot) {
     }
     let targetSlot = pickEquipSlot(item, preferredSlot);
     if (!targetSlot) return;
-    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
     if (targetSlot === '방패' && item.slot === '무기' && !warriorDualTrain) {
         addLog('워리어 키스톤 [쌍수 훈련]이 있어야 방패 슬롯에 무기를 장착할 수 있습니다.', 'attack-monster');
         return;
@@ -186,6 +231,13 @@ function equipItemById(itemId, preferredSlot) {
     if (idx < 0) return false;
     equipItem(idx, preferredSlot);
     return true;
+}
+
+function equipSelectedCraftInventoryItem() {
+    if (isCraftSelectionEquip()) return false;
+    let itemId = getCraftSelectionRef();
+    if (itemId === null) return false;
+    return equipItemById(itemId);
 }
 
 function unequipItem(slot) {
@@ -276,6 +328,16 @@ function warnBeehiveMapTravelBlocked() {
     return true;
 }
 
+function prepareMeteorEncounterEntry(returnZoneId) {
+    let st = ensureStarWedgeState();
+    st.activeMeteorTier = Math.max(1, Math.floor(st.skyRiftMinTier || 1));
+    st.meteorReturnZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : null;
+    st.skyRiftReady = false;
+    st.skyRiftGauge = Math.max(0, Math.floor(st.skyRiftCarryGauge || 0));
+    st.skyRiftCarryGauge = 0;
+    st.skyRiftMinTier = null;
+}
+
 function changeZone(id) {
     if (game.pendingLoopReady) return addLog('⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.', 'attack-monster');
     if (isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
@@ -285,11 +347,7 @@ function changeZone(id) {
         let st = ensureStarWedgeState();
         if (!st.unlocked) return addLog('운석 낙하 지점은 아직 잠겨 있습니다.', 'attack-monster');
         if (!st.skyRiftReady) return addLog('하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.', 'attack-monster');
-        st.activeMeteorTier = Math.max(1, Math.floor(st.skyRiftMinTier || 1));
-        st.skyRiftReady = false;
-        st.skyRiftGauge = Math.max(0, Math.floor(st.skyRiftCarryGauge || 0));
-        st.skyRiftCarryGauge = 0;
-        st.skyRiftMinTier = null;
+        prepareMeteorEncounterEntry(null);
     }
     let zone = getZone(id);
     if (!zone) return addLog('이동할 수 없는 지역입니다.', 'attack-monster');
@@ -324,7 +382,7 @@ function changeZone(id) {
 }
 
 
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked });
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked });
 
 // Phase-3 extracted market/crafting service handlers.
 function marketResetPassiveTreeByDivine() {
@@ -382,48 +440,63 @@ function marketExpandJewelInventoryByDivine() {
     updateStaticUI();
 }
 
+function getBaseDefenseProfile(base) {
+    let ids = new Set((base.baseStats || []).map(stat => stat.id));
+    return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
+}
+function getBaseSecondaryStatSignature(base, slot) {
+    let coreStatsBySlot = {
+        무기: new Set(['flatDmg']),
+        투구: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
+        갑옷: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
+        장갑: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'aspd']),
+        신발: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'move']),
+        목걸이: new Set([]),
+        반지: new Set([]),
+        허리띠: new Set(['flatHp']),
+        방패: new Set(['armor', 'evasion', 'energyShield', 'baseBlockChance'])
+    };
+    let coreSet = coreStatsBySlot[slot] || new Set();
+    return (base.baseStats || [])
+        .map(stat => stat.id)
+        .filter(statId => !coreSet.has(statId))
+        .sort();
+}
+// Weapons all share the '무기' slot but belong to distinct archetypes (summon/projectile/spell/melee).
+// Base upgrades must stay within the same archetype, otherwise e.g. a projectile weapon could
+// upgrade into a summoner weapon.
+function getWeaponBaseArchetype(base) {
+    let ids = (base.baseStats || []).map(stat => stat.id);
+    if (ids.some(id => id.startsWith('summon'))) return 'summon';
+    if (ids.some(id => id.startsWith('projectile'))) return 'projectile';
+    if (ids.some(id => id.startsWith('spell'))) return 'spell';
+    return 'melee';
+}
+function getBaseUpgradeCandidates(currentBase) {
+    let currentProfile = getBaseDefenseProfile(currentBase);
+    let currentSecondarySignature = getBaseSecondaryStatSignature(currentBase, currentBase.slot);
+    let candidates = BASE_ITEM_DB
+        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase)
+        .filter(base => ['투구','갑옷','장갑','신발','방패'].includes(base.slot) ? getBaseDefenseProfile(base) === currentProfile : true)
+        .filter(base => currentBase.slot === '무기' ? getWeaponBaseArchetype(base) === getWeaponBaseArchetype(currentBase) : true)
+        .sort((a,b)=>a.reqTier-b.reqTier);
+    if (currentSecondarySignature.length > 0) {
+        let exactSecondaryCandidates = candidates.filter(base => {
+            let signature = getBaseSecondaryStatSignature(base, base.slot);
+            if (signature.length !== currentSecondarySignature.length) return false;
+            return signature.every((id, index) => id === currentSecondarySignature[index]);
+        });
+        if (exactSecondaryCandidates.length > 0) candidates = exactSecondaryCandidates;
+    }
+    return candidates;
+}
 function upgradeSelectedItemBase() {
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || BASE_ITEM_DB.find(base => base && base.name === item.baseName && base.slot === item.slot);
     if (!currentBase) return addLog('현재 베이스 정보를 찾을 수 없습니다.', 'attack-monster');
     if (currentBase.realmBase) return addLog('계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.', 'attack-monster');
-    function getDefenseProfile(base) {
-        let ids = new Set((base.baseStats || []).map(stat => stat.id));
-        return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
-    }
-    function getSecondaryStatSignature(base, slot) {
-        let coreStatsBySlot = {
-            무기: new Set(['flatDmg']),
-            투구: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
-            갑옷: new Set(['flatHp', 'armor', 'evasion', 'energyShield']),
-            장갑: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'aspd']),
-            신발: new Set(['flatHp', 'armor', 'evasion', 'energyShield', 'move']),
-            목걸이: new Set([]),
-            반지: new Set([]),
-            허리띠: new Set(['flatHp']),
-            방패: new Set(['armor', 'evasion', 'energyShield', 'baseBlockChance'])
-        };
-        let coreSet = coreStatsBySlot[slot] || new Set();
-        return (base.baseStats || [])
-            .map(stat => stat.id)
-            .filter(statId => !coreSet.has(statId))
-            .sort();
-    }
-    let currentProfile = getDefenseProfile(currentBase);
-    let currentSecondarySignature = getSecondaryStatSignature(currentBase, currentBase.slot);
-    let candidates = BASE_ITEM_DB
-        .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase)
-        .filter(base => ['투구','갑옷','장갑','신발','방패'].includes(base.slot) ? getDefenseProfile(base) === currentProfile : true)
-        .sort((a,b)=>a.reqTier-b.reqTier);
-    if (currentSecondarySignature.length > 0) {
-        let exactSecondaryCandidates = candidates.filter(base => {
-            let signature = getSecondaryStatSignature(base, base.slot);
-            if (signature.length !== currentSecondarySignature.length) return false;
-            return signature.every((id, index) => id === currentSecondarySignature[index]);
-        });
-        if (exactSecondaryCandidates.length > 0) candidates = exactSecondaryCandidates;
-    }
+    let candidates = getBaseUpgradeCandidates(currentBase);
     let nextBase = candidates[0];
     if (!nextBase) return addLog('해당 계열의 다음 베이스가 없습니다.', 'attack-monster');
     let isTopBase = candidates.length === 1;
@@ -487,10 +560,12 @@ function buildBlackMarketOffer(index) {
     }
     if (roll < 0.75) {
         let slot = rndChoice(['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패']);
-        let candidates = BASE_ITEM_DB.filter(base => base && base.slot === slot && !base.dropOnly && (base.reqTier || 1) <= (tier + 3));
+        let candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot && (base.reqTier || 1) <= (tier + 3));
+        if (candidates.length <= 0) candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot);
         let base = candidates.length ? rndChoice(candidates) : chooseItemBase(slot, tier);
+        let hiddenTier = Math.max(tier, base.reqTier || tier);
         let price = Math.max(2, Math.floor((base.reqTier || tier) / 2) + 2);
-        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, reqTier:Math.max(tier, base.reqTier || tier), priceKey:'chaos', price:price };
+        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, baseId: base.id, baseName: base.name, hiddenTier:hiddenTier, priceKey:'chaos', price:price, baseStats: Array.isArray(base.baseStats) ? base.baseStats.map(stat => ({ ...stat })) : [] };
     }
     if (roll < 0.9) {
         let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
@@ -505,6 +580,7 @@ function buildBlackMarketOffer(index) {
         ? rndChoice(chasePool)
         : rndChoice(normalPool.length ? normalPool : fallbackPool);
     let req = uniq.reqTier || tier;
+    let uniqueBase = getBlackMarketUniqueBase(uniq, req);
     let price = 1;
     if (uniq.ultraRare) {
         price = rollBlackMarketChaseUniquePrice(req);
@@ -513,7 +589,35 @@ function buildBlackMarketOffer(index) {
         let maxPrice = Math.max(minPrice + 1, Math.floor(req / 4) + 1);
         price = minPrice + Math.floor(Math.random() * (maxPrice - minPrice + 1));
     }
-    return { type:'unique', name:uniq.name, slot:uniq.slots[0], reqTier:req, priceKey:'divine', price:price, chase: !!uniq.ultraRare };
+    return {
+        type:'unique',
+        name:uniq.name,
+        slot:uniq.slots[0],
+        reqTier:req,
+        hiddenTier:req,
+        baseId: uniqueBase ? uniqueBase.id : '',
+        baseName: uniqueBase ? uniqueBase.name : '',
+        priceKey:'divine',
+        price:price,
+        chase: !!uniq.ultraRare,
+        uniqueEffect: uniq.uniqueEffect || '',
+        baseStats: uniqueBase && Array.isArray(uniqueBase.baseStats) ? uniqueBase.baseStats.map(stat => ({ ...stat })) : [],
+        uniqueStats: Array.isArray(uniq.stats) ? uniq.stats.map(stat => ({ ...stat })) : []
+    };
+}
+
+function getBlackMarketUniqueTooltipOptionLines(offer, uniq) {
+    let effect = (offer && offer.uniqueEffect) || (uniq && uniq.uniqueEffect) || '';
+    let sourceStats = Array.isArray(offer && offer.uniqueStats) ? offer.uniqueStats : (uniq && uniq.stats);
+    let effectLine = effect ? `<div class="tooltip-line" style="color:#d7b8ff;">✨ 고유 효과: ${escapeHTML(effect)}</div>` : '';
+    let statLines = (Array.isArray(sourceStats) ? sourceStats : []).map(stat => {
+        let statId = stat.id;
+        let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || stat.val || 0);
+        let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
+        let label = stat.statName || getStatName(statId);
+        return `<div class="tooltip-line" style="color:#ffd98a;">고유 옵션 · ${escapeHTML(label)} +${formatValue(statId, min)}~+${formatValue(statId, max)}</div>`;
+    });
+    return effectLine + (statLines.join('') || '<div class="tooltip-line">고유 옵션 보유</div>');
 }
 
 function getBlackMarketOfferTooltipHtml(offer) {
@@ -528,7 +632,9 @@ function getBlackMarketOfferTooltipHtml(offer) {
         return `<div class="tooltip-title">젬: ${offer.name}</div><div class="tooltip-line">${skill.desc || '미보유 공격 젬을 획득합니다.'}</div>`;
     }
     if (offer.type === 'baseItem') {
-        return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name} · 요구 티어 ${offer.reqTier}</div><div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
+        let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId) || (row.name === String(offer.name || '').replace(' 베이스','') && row.slot === offer.slot)));
+        let sourceStats = Array.isArray(offer.baseStats) && offer.baseStats.length > 0 ? offer.baseStats : (base && base.baseStats);
+        return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name} · 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>${getBlackMarketBaseTooltipOptionLines(sourceStats)}<div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
     }
     if (offer.type === 'unique') {
         let uniq = UNIQUE_DB.find(u => u && u.name === offer.name);
@@ -537,14 +643,11 @@ function getBlackMarketOfferTooltipHtml(offer) {
         let codex = (game && game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
         let registered = !!codex[codexKey];
         let codexLine = registered ? '<span style="color:#8dffb1;">등록됨</span>' : '<span style="color:#ffb0b0;">미등록</span>';
-        let effectLine = uniq && uniq.uniqueEffect ? `<div class="tooltip-line" style="color:#d7b8ff;">[고유 효과] ${escapeHTML(uniq.uniqueEffect)}</div>` : '';
-        let statLines = (uniq && Array.isArray(uniq.stats) ? uniq.stats.map(stat => {
-            let min = Number.isFinite(Number(stat.min)) ? Number(stat.min) : Number(stat.base || 0);
-            let max = Number.isFinite(Number(stat.max)) ? Number(stat.max) : min;
-            return `<div class="tooltip-line">${getStatName(stat.id)} +${formatValue(stat.id, min)}~+${formatValue(stat.id, max)}</div>`;
-        }) : []);
+        let optionLines = getBlackMarketUniqueTooltipOptionLines(offer, uniq);
+        let baseLines = getBlackMarketBaseTooltipOptionLines(offer.baseStats);
+        let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:#b9d7ff;">베이스: ${escapeHTML(offer.baseName)} · 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>` : '';
         let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">🌠 체이싱 유니크 암거래 품목</div>' : '';
-        return `<div class="tooltip-title">도감 고유 정보 · ${offer.name} (티어 ${offer.reqTier})</div>${chaseLine}${effectLine}${statLines.join('') || '<div class="tooltip-line">고유 옵션 보유</div>'}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
+        return `<div class="tooltip-title">도감 고유 정보 · ${escapeHTML(offer.name)} (숨겨진 티어 ${offer.hiddenTier || offer.reqTier})</div>${chaseLine}${baseTitle}${baseLines}${optionLines}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
     }
     return '<div class="tooltip-title">암거래 품목</div>';
 }
@@ -622,7 +725,7 @@ function buyBlackMarketOffer(idx){
     } else if (offer.type==='baseItem') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
         game.currencies[offer.priceKey]-=offer.price;
-        let base = BASE_ITEM_DB.find(row => row && row.name === offer.name.replace(' 베이스','') && row.slot === offer.slot) || chooseItemBase(offer.slot, offer.reqTier);
+        let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId) || (row.name === offer.name.replace(' 베이스','') && row.slot === offer.slot))) || chooseItemBase(offer.slot, offer.hiddenTier || offer.reqTier);
         let item = normalizeItem({
             id: ++itemIdCounter,
             slot: base.slot,
@@ -630,16 +733,23 @@ function buyBlackMarketOffer(idx){
             baseName: base.name,
             name: base.name,
             rarity: 'normal',
-            itemTier: offer.reqTier || base.reqTier || 1,
-            hiddenTier: offer.reqTier || base.reqTier || 1,
-            baseStats: rollBaseStats(base, offer.reqTier || base.reqTier || 1),
+            itemTier: offer.hiddenTier || offer.reqTier || base.reqTier || 1,
+            hiddenTier: offer.hiddenTier || offer.reqTier || base.reqTier || 1,
+            baseStats: rollBaseStats(base, offer.hiddenTier || offer.reqTier || base.reqTier || 1),
             stats: []
         });
         if (item) addItemToInventory(item);
     } else if (offer.type==='unique') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
         game.currencies[offer.priceKey]-=offer.price;
-        let item = generateUniqueItem(offer.reqTier, offer.slot, offer.name); if(item) addItemToInventory(item);
+        let item = generateUniqueItem(offer.hiddenTier || offer.reqTier, offer.slot, offer.name);
+        let base = BASE_ITEM_DB.find(row => row && offer.baseId && row.id === offer.baseId);
+        if (item && base) {
+            item.baseId = base.id;
+            item.baseName = base.name;
+            item.baseStats = rollBaseStats(base, offer.hiddenTier || offer.reqTier || base.reqTier || 1);
+        }
+        if(item) addItemToInventory(item);
     }
     game.blackMarket.offers[idx]=null;
     if (game.blackMarket && game.blackMarket.lockedOffers) delete game.blackMarket.lockedOffers[idx];

@@ -16,11 +16,11 @@ const UNIQUE_DB = [
     { name: "군주의 오른손 고리", slots: ["반지"], reqTier: 15, uniqueEffect: "오른쪽에 장착 시 소환수 최대 한도 +1", uniqueEffectKey: "rightRingSummonCap", uniqueEffectParams: { cap: 1 }, stats: [{ id: "summonPctDmg", min: 26, max: 40 }, { id: "summonEfficiency", min: 14, max: 22 }, { id: "summonCrit", min: 5, max: 8 }, { id: "summonCritDmg", min: 25, max: 45 }, { id: "crit", min: 4, max: 7 }, { id: "resAll", min: 8, max: 14 }] },
     { name: "찌그러진 생존 방패", slots: ["방패"], reqTier: 1, uniqueEffect: "받는 피해 감소 +2%", uniqueEffectKey: "genericTakenDamageReducePct", uniqueEffectParams: { pct: 2 }, stats: [{ id: "armor", min: 50, max: 80 }, { id: "flatHp", min: 25, max: 40 }, { id: "resAll", min: 3, max: 6 }, { id: 'energyShieldPct', min: 30.7, max: 34.9 }, { id: 'regen', min: 0.73, max: 0.84 }] },
     { name: "철벽의 심장판", slots: ["방패"], reqTier: 8, uniqueEffect: "막기 확률 +5%", uniqueEffectKey: "uniqueBlockChance", uniqueEffectParams: { chance: 5 }, stats: [{ id: "armor", min: 150, max: 220 }, { id: "armorPct", min: 20, max: 30 }, { id: "flatHp", min: 60, max: 90 }, { id: "dr", min: 5, max: 8 }, { id: 'evasionPct', min: 30.7, max: 34.9 }, { id: 'regen', min: 0.73, max: 0.84 }] },
-    { name: "접이식 방패", slots: ["방패"], reqTier: 8, uniqueEffect: "빗겨내기 피해 감소 +5%", uniqueEffectKey: "uniqueDeflectDamageReduce", uniqueEffectParams: { pct: 5 }, stats: [{ id: "evasion", min: 120, max: 200 }, { id: "evasionPct", min: 20, max: 30 }, { id: "deflectChance", min: 5, max: 10 }, { id: "move", min: 6, max: 10 }, { id: 'resAll', min: 15.3, max: 17.5 }, { id: 'flatHp', min: 76.7, max: 87.3 }] },
+    { name: "접이식 방패", slots: ["방패"], reqTier: 8, uniqueEffect: "비껴내기 피해 감소 +5%", uniqueEffectKey: "uniqueDeflectDamageReduce", uniqueEffectParams: { pct: 5 }, stats: [{ id: "evasion", min: 120, max: 200 }, { id: "evasionPct", min: 20, max: 30 }, { id: "deflectChance", min: 5, max: 10 }, { id: "move", min: 6, max: 10 }, { id: 'resAll', min: 15.3, max: 17.5 }, { id: 'flatHp', min: 76.7, max: 87.3 }] },
     { name: "별빛 응축기", slots: ["방패"], reqTier: 12, uniqueEffect: "막아낼 시 에너지 보호막의 2% 회복", uniqueEffectKey: "blockRecoverEnergyShieldPct", uniqueEffectParams: { pct: 2 }, stats: [{ id: "energyShield", min: 140, max: 220 }, { id: "energyShieldPct", min: 24, max: 36 }, { id: "energyShieldRegen", min: 12, max: 20 }, { id: "blockChanceMax", min: 3, max: 3 }, { id: "resAll", min: 8, max: 14 }] },
     { name: "용비늘 방패", slots: ["방패"], reqTier: 12, uniqueEffect: "적 2명 이상일 때 받는 피해 감소 +10%", uniqueEffectKey: "uniqueTakenReduceWhen2Enemies", uniqueEffectParams: { pct: 10 }, stats: [{ id: "armor", min: 120, max: 180 }, { id: "evasion", min: 110, max: 170 }, { id: "dr", min: 4, max: 7 }, { id: "ds", min: 5, max: 8 }, { id: "meleePctDmg", min: 18, max: 28 }] },
     { name: "성소의 맹세", slots: ["방패"], reqTier: 12, uniqueEffect: "최대 원소 저항 +2%", uniqueEffectKey: "uniqueMaxResAll", uniqueEffectParams: { pct: 2 }, stats: [{ id: "armor", min: 120, max: 180 }, { id: "energyShield", min: 100, max: 160 }, { id: "flatHp", min: 70, max: 110 }, { id: "resAll", min: 10, max: 16 }, { id: "regen", min: 1.0, max: 1.6 }] },
-    { name: "달그림자", slots: ["방패"], reqTier: 12, uniqueEffect: "빗겨내기 성공 시 3초 동안 은신 상태 부여, 은신 상태는 이동 속도 +20%, 회피 +20%, 치명타 피해 배율 +20%", uniqueEffectKey: "deflectGrantShadowStealth", uniqueEffectParams: { duration: 3, move: 20, evasionPct: 20, critDmg: 20 }, stats: [{ id: "evasion", min: 120, max: 180 }, { id: "energyShield", min: 100, max: 160 }, { id: "crit", min: 5, max: 8 }, { id: "resPen", min: 5, max: 8 }, { id: "deflectChance", min: 8, max: 14 }] },
+    { name: "달그림자", slots: ["방패"], reqTier: 12, uniqueEffect: "비껴내기 성공 시 3초 동안 은신 상태 부여, 은신 상태는 이동 속도 +20%, 회피 +20%, 치명타 피해 배율 +20%", uniqueEffectKey: "deflectGrantShadowStealth", uniqueEffectParams: { duration: 3, move: 20, evasionPct: 20, critDmg: 20 }, stats: [{ id: "evasion", min: 120, max: 180 }, { id: "energyShield", min: 100, max: 160 }, { id: "crit", min: 5, max: 8 }, { id: "resPen", min: 5, max: 8 }, { id: "deflectChance", min: 8, max: 14 }] },
     { name: "아스트랄 수호성", slots: ["방패"], reqTier: 16, uniqueEffect: "받는 카오스 피해 감소 +15%", uniqueEffectKey: "chaosTakenDamageReducePct", uniqueEffectParams: { pct: 15 }, stats: [{ id: "evasion", min: 180, max: 260 }, { id: "energyShield", min: 160, max: 240 }, { id: "evasionPct", min: 22, max: 34 }, { id: "energyShieldPct", min: 22, max: 34 }, { id: "resAll", min: 12, max: 18 }, { id: "dotTakenDamageReducePct", min: 8, max: 12 }] },
     { name: "새벽 현자 후드", slots: ["투구"], reqTier: 1, uniqueEffect: "모든 스킬 젬 레벨 +1", uniqueEffectKey: "uniqueGemLevelBonus", uniqueEffectParams: { level: 1 }, stats: [{ id: "energyShield", min: 45, max: 70 }, { id: "spellFlatPct", min: 8, max: 14 }, { id: "resAll", min: 4, max: 8 }, { id: 'dr', min: 14.7, max: 16.8 }, { id: 'energyShieldPct', min: 30.7, max: 34.9 }] },
     { name: "맹세의 바르부트", slots: ["투구"], reqTier: 4, uniqueEffect: "받는 피해 감소 +3%", uniqueEffectKey: "genericTakenDamageReducePct", uniqueEffectParams: { pct: 3 }, stats: [{ id: "armor", min: 70, max: 110 }, { id: "energyShield", min: 60, max: 100 }, { id: "flatHp", min: 35, max: 55 }, { id: "resAll", min: 6, max: 10 }, { id: 'evasionPct', min: 30.7, max: 34.9 }, { id: 'pctHp', min: 22.7, max: 25.9 }] },
@@ -299,24 +299,6 @@ pushRealmUniqueSet('chaos', CHAOS_REALM_ENTRIES, 12);
 pushRealmUniqueSet('underworld', UNDERWORLD_REALM_ENTRIES, 16);
 pushRealmUniqueSet('cosmos', COSMOS_REALM_ENTRIES, 18);
 
-const UNIQUE_STAT_MULTIPLIER = 1.5;
-
-UNIQUE_DB.forEach(unique => {
-    if (!unique || !Array.isArray(unique.stats)) return;
-    unique.stats.forEach(stat => {
-        if (!Number.isFinite(stat.min) || !Number.isFinite(stat.max)) return;
-        if (['projectileExtraShots', 'gemLevel', 'suppCap', 'targetCount'].includes(stat.id)) {
-            stat.min = Math.floor(stat.min);
-            stat.max = Math.floor(stat.max);
-            if (stat.max < stat.min) stat.max = stat.min;
-            return;
-        }
-        stat.min = Number((stat.min * UNIQUE_STAT_MULTIPLIER).toFixed(1));
-        stat.max = Number((stat.max * UNIQUE_STAT_MULTIPLIER).toFixed(1));
-        if (stat.max < stat.min) stat.max = stat.min;
-    });
-});
-
 const ORB_DB = {
     transmute: { name: '진화의 오브', desc: '노멀 아이템을 매직으로 바꿉니다.' },
     augment: { name: '확장의 오브', desc: '매직 아이템의 빈 옵션 칸을 하나 채웁니다.' },
@@ -326,6 +308,7 @@ const ORB_DB = {
     regal: { name: '제왕의 오브', desc: '매직 아이템에 옵션을 1줄 추가하고 희귀 아이템으로 만듭니다.' },
     chaos: { name: '카오스 오브', desc: '희귀 아이템의 옵션을 모두 다시 굴립니다.' },
     divine: { name: '신성한 오브', desc: '아이템 옵션 수치를 다시 굴립니다.' },
+    annulment: { name: '소멸의 오브', desc: '우주계 전용 희귀 재화. 제거할 수 없는 옵션을 제외한 추가 옵션 1개를 무작위로 제거합니다.' },
     scour: { name: '정화의 오브', desc: '유니크를 제외한 아이템을 노멀 상태로 되돌립니다.' },
     bossKeyFlame: { name: '열쇠: 화염 군주', desc: '루프2 뿌리 보스 [이그니스] 도전권입니다.' },
     bossKeyFrost: { name: '열쇠: 서리 여제', desc: '루프2 뿌리 보스 [글라시아] 도전권입니다.' },
@@ -375,7 +358,7 @@ const ORB_DB = {
     sporeFire: { name: '화염 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
     sporeCold: { name: '냉기 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
     sporeLight: { name: '번개 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
-    voidChisel: { name: '공허의 끌', desc: '반지/목걸이에 주얼 소켓을 뚫고 제거할 때 쓰입니다.' },
+    voidChisel: { name: '공허의 끌', desc: '반지/목걸이에 주얼 소켓을 뚫거나 공허 주얼 제작/융합에 쓰입니다.' },
     sealShard: { name: '봉인편린', desc: '루프6 부적 시스템 핵심 재료입니다. 봉인을 해제해 부적 후보를 확인합니다.' },
     strongSealShard: { name: '강력한 기운의 봉인편린', desc: '희귀한 고급 봉인편린입니다. 더 강한 부적 옵션을 노릴 수 있습니다.' },
     radiantSealShard: { name: '찬란한 봉인편린', desc: '극도로 희귀한 최상급 봉인편린입니다. 고유 부적 등장 확률이 높습니다.' },
