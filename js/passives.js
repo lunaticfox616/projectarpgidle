@@ -2174,6 +2174,25 @@ function getClassTreeDef(clsKey) {
         tree.n11 = { stat: cores[0].stat, val: cores[0].val, req: 'n10', exclusive: 'n12' };
         tree.n12 = { stat: cores[1].stat, val: cores[1].val, req: 'n10', exclusive: 'n11' };
     }
+    // 5차 재능 개화 노드: 해당 직업으로 재능 개화에 성공하면 해금된다. 4차 핵심 중 하나를 찍으면 진입 가능.
+    if ((game.bloomedClasses || []).includes(clsKey)) {
+        const fifthByClass = {
+            warrior: { stat: 'physPctDmg', val: 70 },
+            gladiator: { stat: 'meleePctDmg', val: 72 },
+            assassin: { stat: 'critDmg', val: 100 },
+            ranger: { stat: 'projectilePctDmg', val: 70 },
+            elementalist: { stat: 'elementalPctDmg', val: 72 },
+            warlock: { stat: 'chaosPctDmg', val: 64 },
+            guardian: { stat: 'pctHp', val: 26 },
+            inquisitor: { stat: 'elementalPctDmg', val: 70 },
+            soulbinder: { stat: 'dotPctDmg', val: 66 },
+            catalyst: { stat: 'elementalPctDmg', val: 70 },
+            hunter: { stat: 'critDmg', val: 96 },
+            crusader: { stat: 'lightPctDmg', val: 72 }
+        };
+        let fifth = fifthByClass[clsKey] || { stat: 'pctDmg', val: 60 };
+        tree.n13 = { stat: fifth.stat, val: fifth.val, req: ['n11', 'n12'] };
+    }
     return tree;
 }
 
@@ -2357,6 +2376,7 @@ const TAB_UNLOCK_GATES = {
     'tab-cube': 'cube',
     'tab-map': 'map',
     'tab-traits': 'traits',
+    'tab-talent': 'talent',
     'tab-expertise': 'expertise'
 };
 const MOBILE_BATTLE_BREAKPOINT = 1080;

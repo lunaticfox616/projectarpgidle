@@ -445,7 +445,8 @@ function switchTab(tabId) {
             activeBtn.scrollIntoView();
         }
     }
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    if (tabId === 'tab-talent' && typeof renderTalentTab === 'function') renderTalentTab();
     if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
     updateStaticUI();
@@ -5247,7 +5248,7 @@ function performUpdateStaticUI() {
     if (typeof renderCoreCubePanel === 'function') renderCoreCubePanel();
 
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
     let jewelTabBtn = document.getElementById('btn-tab-jewel');
     if (jewelTabBtn) jewelTabBtn.style.display = game.unlocks.jewel ? 'flex' : 'none';
     let cubeTabBtn = document.getElementById('btn-tab-cube');
@@ -6376,11 +6377,12 @@ function buildCraftActionButtons(item) {
             let reqMet = isAscendNodeRequirementMet(node);
             let statInfo = P_STATS[node.stat] || { name: getStatName(node.stat), isPct: false };
             let desc = node.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name || node.stat} +${node.val}${statInfo.isPct ? '%' : ''}`;
-            let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : (statInfo.name || node.stat));
+            let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : (id === 'n13' ? '🌸 5차 개화' : (statInfo.name || node.stat)));
             return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="refundAscendNode('${id}')"` : (!reqMet ? '' : `onclick="buyAscend('${id}')"`)}><div class="trait-title">${title}</div><div class="trait-desc">${desc}</div></div>`;
         };
         let coreRow = (tree.n11 || tree.n12) ? `<div class="trait-row">${renderAscend('n11')}${renderAscend('n12')}</div>` : '';
-        document.getElementById('ui-ascend-tree-container').innerHTML = `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}`;
+        let bloomRow = tree.n13 ? `<div class="trait-row">${renderAscend('n13')}</div>` : '';
+        document.getElementById('ui-ascend-tree-container').innerHTML = `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}${bloomRow}`;
         let kDefs = getClassKeystoneDefs(game.ascendClass);
         if (kDefs.length > 0) {
             game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
@@ -10426,6 +10428,7 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-cube') return '지하계 10층을 클리어하고 루프 20에 도달하면 큐브 탭이 열립니다.';
     if (tabId === 'tab-map') return '새 사냥터를 발견하면 지도 탭이 열립니다.';
     if (tabId === 'tab-traits') return '전직 시련을 통과하면 직업전직 탭이 열립니다.';
+    if (tabId === 'tab-talent') return '재능 개화 시련을 클리어하면 재능 탭이 열립니다.';
     return '아직 해금되지 않은 탭입니다.';
 }
 
