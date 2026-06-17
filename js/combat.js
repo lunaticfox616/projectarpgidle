@@ -3997,13 +3997,23 @@ function getCosmosEnemyModifiers(zone, isElite, isBoss) {
     return mod;
 }
 
+// 루프 20 이후 적 강화(특히 생명력) 곡선을 완만하게 만든다.
+// 20루프까지는 그대로 누적하고, 그 이후 추가되는 루프의 기울기를 절반으로 줄인다.
+// (season/loopCount 기준 depth 19 = 루프 20)
+function getSoftenedLoopDepth(depth) {
+    let d = Math.max(0, depth || 0);
+    const knee = 19;
+    if (d <= knee) return d;
+    return knee + (d - knee) * 0.5;
+}
+
 function createEnemy(zone, marker, groupIndex) {
-    let seasonDepth = Math.max(0, (game.season || 1) - 1);
+    let seasonDepth = getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
     let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
-    let loopHpScale = 1 + Math.max(0, (game.loopCount || 0) * 0.12);
+    let loopHpScale = 1 + Math.max(0, getSoftenedLoopDepth(game.loopCount || 0) * 0.12);
     hp = Math.floor(hp * loopHpScale);
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
@@ -4029,7 +4039,7 @@ function createEnemy(zone, marker, groupIndex) {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
         hp = Math.floor(hp * 5 * (1 + Math.max(0, underFloor - 1) * 0.045));
     }
-    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, (game.loopCount || 0) * 0.05)));
+    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(game.loopCount || 0) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
@@ -7016,7 +7026,7 @@ function performMonsterAttacks(pStats) {
         }
         enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
         if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);
-        let seasonDepth = Math.max(0, (game.season || 1) - 1);
+        let seasonDepth = getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
         let tierPressure = clampNumber(((zone.tier || 1) - 1) / 10, 0, 1);
         const monsterBaseAttackSpeedMul = 1.10;
         const monsterBaseDamageMul = 1.15;

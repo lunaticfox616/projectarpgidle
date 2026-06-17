@@ -10508,7 +10508,7 @@ function gameLoop() {
 
 function getExpertiseOverviewHtml(total, spent, free) {
     const branchSummary = `균사 ${getExpertBranchSpent('mycologist')} · 젬 ${getExpertBranchSpent('gemEngraver')} · 천문 ${getExpertBranchSpent('astronomer')} · 양봉 ${getExpertBranchSpent('beekeeper')}`;
-    return `<div class="expertise-panel">전문가 포인트 · 총 <b>${total}</b> / 사용 <b>${spent}</b> / 남은 <b style="color:#ffd36b;">${free}</b> <button style="margin-left:8px;" onclick="resetExpertTree();updateStaticUI();">트리 초기화</button><div class="expertise-summary">분기 투자: ${branchSummary}</div></div>`;
+    return `<div class="expertise-panel">전문가 포인트 · 총 <b>${total}</b> / 사용 <b>${spent}</b> / 남은 <b style="color:#ffd36b;">${free}</b> <button style="margin-left:8px;" onclick="askResetExpertTree()" title="전문가 트리 전체 초기화 (정화의 오브 ${spent}개 소모)">트리 초기화${spent > 0 ? ` (정화의 오브 ${spent})` : ''}</button><div class="expertise-summary">분기 투자: ${branchSummary}</div></div>`;
 }
 
 
@@ -10592,6 +10592,16 @@ function askUntrainExpertNode(nodeId) {
     if (!untrainExpertNode(nodeId)) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
     addLog(`♻️ 전문가 노드 반환: ${node.name} (정화의 오브 1개 소모)`, 'season-up');
+    updateStaticUI();
+}
+function askResetExpertTree() {
+    let cost = (typeof getExpertPointSpent === 'function') ? getExpertPointSpent() : 0;
+    if (cost <= 0) return;
+    if ((game.currencies.scour || 0) < cost) return addLog(`전문가 트리 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (!confirm(`전문가 트리 전체 초기화? (정화의 오브 ${cost} 소모)`)) return;
+    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
+    resetExpertTree();
+    addLog(`♻️ 전문가 트리 전체 초기화 (정화의 오브 ${cost}개 소모)`, 'season-up');
     updateStaticUI();
 }
 function getExpertiseNodeButtonHtml(node) {
