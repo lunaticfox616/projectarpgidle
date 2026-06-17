@@ -2848,7 +2848,7 @@ function getPlayerStats() {
     finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
     finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0));
     finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0));
-    finalResChaos = Math.min(finalMaxResChaos, finalResChaos + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0));
+    finalResChaos = Math.min(finalMaxResChaos, finalResChaos + (colonyWardBonus.resChaos || 0));
     finalRegen += (colonyWardBonus.regenFlat || 0);
     finalEnergyShieldRegenRate += (colonyWardBonus.energyShieldRegen || 0);
     finalCritResist = Math.min(80, finalCritResist + (colonyWardBonus.critResist || 0));
@@ -2862,7 +2862,7 @@ function getPlayerStats() {
     let uncappedResF = rawResF + (colonyWardBonus.resAll || 0);
     let uncappedResC = rawResC + (colonyWardBonus.resAll || 0);
     let uncappedResL = rawResL + (colonyWardBonus.resAll || 0);
-    let uncappedResChaos = rawResChaos + warlockElementalOvercapToChaos + elementalistChaosConversionBonus + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0);
+    let uncappedResChaos = rawResChaos + warlockElementalOvercapToChaos + elementalistChaosConversionBonus + (colonyWardBonus.resChaos || 0);
     let medicineResistanceAilmentBonus = { ignite: 0, freeze: 0, shock: 0 };
     if (game.ascendClass === 'catalyst' && hasKeystone('ct2')) {
         let highestUncappedElementalResistance = Math.max(uncappedResF, uncappedResC, uncappedResL);
@@ -3228,7 +3228,7 @@ function getPlayerStats() {
             formatResistanceSourceLine('암흑 치환', warlockElementalOvercapToChaos),
             formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resChaos),
             formatResistanceSourceLine('공허 결합', elementalistChaosConversionBonus),
-            formatResistanceSourceLine('군락 수호구', (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0))
+            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resChaos || 0)
         ], [
             formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
             formatResistanceSourceLine('최대 저항 · 군락 수호구', colonyWardBonus.maxResChaos || 0)
