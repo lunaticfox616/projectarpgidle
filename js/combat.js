@@ -5460,6 +5460,8 @@ function handleEnemyDeath(enemy, pStats) {
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
     grantExpAndGem(enemy, pStats);
     rollLootForEnemy(enemy);
+    // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
+    if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
     spreadCatalystAilmentsOnDeath(enemy);
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.

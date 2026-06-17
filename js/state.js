@@ -1503,6 +1503,8 @@ const defaultGame = {
     heroSelectionInitialized: false,
     heroFreeSwitchUnlocked: false,
     pendingLoopHeroSelection: false,
+    unlockedMonsterSkins: {},
+    selectedMonsterSkin: null,
     passivePoints: 0,
     playerHp: 100,
     playerEnergyShield: 0,
