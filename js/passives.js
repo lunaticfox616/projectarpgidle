@@ -5357,6 +5357,7 @@ function rollAffixValue(mod, maxTier) {
         val = Math.floor(val);
         min = Math.floor(min);
         max = Math.floor(max);
+        if (max > 0) { min = Math.max(1, min); val = Math.max(1, val); }
     }
     return { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
 }
@@ -5396,6 +5397,7 @@ function rollAffixValueInTierRange(mod, minTier, maxTier) {
         val = Math.floor(val);
         min = Math.floor(min);
         max = Math.floor(max);
+        if (max > 0) { min = Math.max(1, min); val = Math.max(1, val); }
     }
     return { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
 }

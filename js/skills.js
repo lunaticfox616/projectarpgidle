@@ -258,7 +258,11 @@ function applyFossilCraft() {
 }
 
 function getFossilExclusivePool(item) {
-    let existing = typeof getItemOccupiedExplicitModIds === 'function' ? getItemOccupiedExplicitModIds(item) : new Set((item.stats || []).map(stat => stat.id));
+    // 화석 전용 옵션끼리만 중복을 막고, 같은 효과의 기본 추가옵션과는 공존할 수 있도록 한다.
+    let existing = new Set((item && Array.isArray(item.stats) ? item.stats : [])
+        .filter(stat => stat && (stat.fossilExclusive || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore))
+        .map(stat => stat.id)
+        .filter(Boolean));
     return FOSSIL_EXCLUSIVE_MODS
         .filter(mod => mod.slots.includes(item.slot))
         .filter(mod => {
@@ -332,7 +336,8 @@ function applyFossilChaosCraft(fossilKey) {
     while ((newStats.length + reservedInfusionCount) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
         let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id) && canUseDefenseStat(mod.statId || mod.id));
         if (pool.length === 0) break;
-        let roll = rollAffixValueInTierRange(pickWeightedMod(pool), tierRange.min || 1, maxTier);
+        // 화석이 보정하는 보장 옵션만 고티어 보정을 받고, 나머지 옵션은 일반 티어 분포(1티어부터)로 굴린다.
+        let roll = rollAffixValue(pickWeightedMod(pool), maxTier);
         newStats.push(roll);
         blockedIds.add(roll.id);
     }
