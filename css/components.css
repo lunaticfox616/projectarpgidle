@@ -345,9 +345,49 @@
 .expertise-card h4{margin:0 0 6px 0;color:#e8f1ff;font-size:1.02em}
 .expertise-muted{color:#98afc8;font-size:.88em}
 .expertise-tree-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.expertise-node{display:block;width:100%;text-align:left;margin:4px 0;border:1px solid #415a79;border-radius:8px;padding:7px 8px;color:#e3efff;background:#213246}
-.expertise-node.common{background:#3a2f4d;border-color:#65507f}
-.expertise-node:disabled{opacity:.46;filter:grayscale(.25)}
+/* Hub layout: common in center, four expert branches radiating out */
+.expertise-tree-hub{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto auto auto;gap:22px;position:relative;align-items:stretch;width:100%}
+.expert-zone-cell{position:relative;display:flex}
+.expert-zone-cell>*{width:100%}
+.pos-top{grid-column:2;grid-row:1}
+.pos-left{grid-column:1;grid-row:2}
+.pos-center{grid-column:2;grid-row:2}
+.pos-right{grid-column:3;grid-row:2}
+.pos-bottom{grid-column:2;grid-row:3}
+.pos-top::after,.pos-bottom::after,.pos-left::after,.pos-right::after{content:"";position:absolute;z-index:0;box-shadow:0 0 6px rgba(255,211,107,.4)}
+.pos-top::after,.pos-bottom::after{left:50%;width:3px;height:22px;transform:translateX(-50%)}
+.pos-left::after,.pos-right::after{top:50%;height:3px;width:22px;transform:translateY(-50%)}
+.pos-top::after{bottom:-22px;background:linear-gradient(180deg,#a98bff,#ffd36b)}
+.pos-bottom::after{top:-22px;background:linear-gradient(0deg,#f5c451,#ffd36b)}
+.pos-left::after{right:-22px;background:linear-gradient(90deg,#6fcf72,#ffd36b)}
+.pos-right::after{left:-22px;background:linear-gradient(270deg,#5cc8ff,#ffd36b)}
+.expert-branch-zone{border-radius:12px;padding:10px;border:1px solid #2c3b52;background:linear-gradient(180deg,rgba(20,28,42,.65),rgba(12,18,28,.6));position:relative;z-index:1}
+.expert-branch-zone.branch-mycologist{border-color:#3f8f5a;background:linear-gradient(180deg,rgba(22,48,31,.6),rgba(10,22,16,.55))}
+.expert-branch-zone.branch-gemEngraver{border-color:#3f7fa8;background:linear-gradient(180deg,rgba(16,41,58,.6),rgba(8,20,30,.55))}
+.expert-branch-zone.branch-astronomer{border-color:#6a55a8;background:linear-gradient(180deg,rgba(35,26,61,.6),rgba(16,12,30,.55))}
+.expert-branch-zone.branch-beekeeper{border-color:#9a7b2e;background:linear-gradient(180deg,rgba(51,38,8,.55),rgba(26,20,6,.5))}
+.expert-hub-center{border-color:#7a5fa0;box-shadow:0 0 22px rgba(255,211,107,.2)}
+.expert-branch-head{font-weight:800;margin-bottom:6px;font-size:.95em}
+.expertise-node-row{display:flex;gap:5px;align-items:stretch;margin:5px 0}
+.expertise-node{display:block;width:100%;text-align:left;margin:0;flex:1;border:1px solid #415a79;border-radius:8px;padding:7px 8px;color:#e3efff;background:#213246;cursor:pointer}
+.expertise-node.branch-common{background:#3a2f4d;border-color:#7a5fa0}
+.expertise-node.branch-mycologist{background:#16301f;border-color:#3f8f5a}
+.expertise-node.branch-gemEngraver{background:#10293a;border-color:#3f7fa8}
+.expertise-node.branch-astronomer{background:#231a3d;border-color:#6a55a8}
+.expertise-node.branch-beekeeper{background:#332608;border-color:#9a7b2e}
+.expertise-node.keystone{border-width:2px;border-color:#ffd36b;box-shadow:inset 0 0 12px rgba(255,211,107,.12)}
+.expertise-node.locked{opacity:.46;filter:grayscale(.25);cursor:not-allowed}
+.expertise-node-req{font-size:.82em;font-weight:700}
+.expertise-node-req.met{color:#7fe0a0}
+.expertise-node-req.unmet{color:#ff9b9b}
+.expertise-node-untrain{flex:0 0 auto;width:32px;border:1px solid #6a3b3b;border-radius:8px;background:#2a1414;color:#ffb3b3;font-weight:900;font-size:1.1em;cursor:pointer;line-height:1}
+.expertise-node-untrain:hover:not(.locked){background:#3a1a1a;border-color:#a85050}
+.expertise-node-untrain.locked{opacity:.3;cursor:not-allowed}
+@media (max-width:720px){
+  .expertise-tree-hub{grid-template-columns:1fr;gap:10px}
+  .expert-zone-cell{grid-column:1 !important;grid-row:auto !important}
+  .pos-top::after,.pos-bottom::after,.pos-left::after,.pos-right::after{display:none}
+}
 
 /* Market UI refresh */
 .market-card{background:#101722;border:1px solid #2b3f59;border-radius:10px;padding:10px}

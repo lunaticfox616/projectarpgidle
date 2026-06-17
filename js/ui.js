@@ -10553,15 +10553,61 @@ function getExpertiseCardHtml(id) {
     return `<div class="expertise-card"><h4>${d.icon} ${d.name} <span class="expertise-muted">Lv.${lv}</span> ${lv>=16?`<span style='color:#ffd36b;'>+${pt}pt</span>`:''}</h4><div class="expertise-muted">EXP ${exp}/${req} · 이번 루프 ${used}/${loopCap}</div><div style="margin:6px 0 8px 0; height:8px; border-radius:999px; background:#1c2a3a; border:1px solid #344b66;"><div style="width:${pct.toFixed(1)}%; height:100%; border-radius:999px; background:linear-gradient(90deg,#3f84ff,#72d1ff);"></div></div><div class="expertise-muted">${currentUnlockLine}</div><div class="expertise-muted">${nextUnlockLine}</div>${guideHtml}${historyHtml}${favorHtml}</div>`;
 }
 
+const EXPERT_BRANCH_COLORS = { common:'#ffd36b', mycologist:'#6fcf72', gemEngraver:'#5cc8ff', astronomer:'#a98bff', beekeeper:'#f5c451' };
+function getExpertBranchTheme(branch) {
+    let color = EXPERT_BRANCH_COLORS[branch] || '#9fb4d1';
+    if (branch === 'common') return { label: '전문가 공통', icon: '🧠', color };
+    let d = EXPERT_DEFS[branch] || {};
+    return { label: d.name || branch, icon: d.icon || '🧠', color };
+}
+function buildExpertNodeTooltipHtml(node) {
+    let theme = getExpertBranchTheme(node.branch);
+    let cur = Math.max(0, Math.floor((game.expertise.nodes[node.id] || 0)));
+    let effectLines = Object.entries(node.effect || {}).map(([k, v]) => {
+        let unit = /Pct$/.test(k) ? '%' : '';
+        return `레벨당 +${v}${unit}${cur > 0 ? ` · 현재 합계 +${v * cur}${unit}` : ''}`;
+    }).join('<br>') || '효과 정보 없음';
+    let keystoneTag = node.requireBranchPoints ? `<div class="tooltip-line" style="color:#ffd36b;">★ 핵심 노드</div>` : '';
+    let reqLine = '';
+    if (node.requireBranchPoints) {
+        let spent = getExpertBranchSpent(node.branch);
+        let met = spent >= node.requireBranchPoints;
+        reqLine = `<div class="tooltip-line" style="color:${met ? '#7fe0a0' : '#ff9b9b'};">${met ? '✓ 할당 가능' : '✗ 할당 잠김'} · 조건: ${theme.label} 분기에 ${node.requireBranchPoints}포인트 투자 (현재 ${spent})</div>`;
+    }
+    return `<div class="tooltip-title" style="color:${theme.color};">${theme.icon} ${node.name}</div><div class="tooltip-line" style="color:${theme.color};">${theme.label} 영역</div>${keystoneTag}<div class="tooltip-line">${node.desc}</div><div class="tooltip-line" style="color:#cfe3ff;">${effectLines}</div><div class="tooltip-line">투자 ${cur}/${node.max} · 포인트 비용 ${node.cost}</div>${reqLine}`;
+}
+function showExpertNodeTooltip(event, nodeId) {
+    let node = EXPERT_TREE_NODES.find(v => v.id === nodeId);
+    if (!node || typeof showInfoTooltipHtml !== 'function') return;
+    showInfoTooltipHtml(event.clientX, event.clientY, buildExpertNodeTooltipHtml(node), getExpertBranchTheme(node.branch).color);
+}
+function askUntrainExpertNode(nodeId) {
+    let node = EXPERT_TREE_NODES.find(v => v.id === nodeId);
+    if (!node) return;
+    if ((game.currencies.scour || 0) < 1) return addLog('전문가 노드 언트레인에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
+    if (!canUntrainExpertNode(nodeId)) return addLog('핵심 노드 조건을 유지해야 하므로 이 노드는 언트레인할 수 없습니다.', 'attack-monster');
+    if (!confirm(`[${node.name}] 노드를 1포인트 언트레인하시겠습니까? (정화의 오브 1 소모)`)) return;
+    if (!untrainExpertNode(nodeId)) return;
+    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
+    addLog(`♻️ 전문가 노드 언트레인: ${node.name} (정화의 오브 1개 소모)`, 'season-up');
+    updateStaticUI();
+}
 function getExpertiseNodeButtonHtml(node) {
     let lv = (game.expertise.nodes[node.id] || 0);
     let can = canAllocateExpertNode(node.id);
-    let reqText = '';
+    let canUn = (typeof canUntrainExpertNode === 'function') && canUntrainExpertNode(node.id) && (game.currencies.scour || 0) >= 1;
+    let keystoneCls = node.requireBranchPoints ? ' keystone' : '';
+    let reqHtml = '';
     if (node.requireBranchPoints) {
+        let theme = getExpertBranchTheme(node.branch);
         let spent = getExpertBranchSpent(node.branch);
-        reqText = ` · 분기 ${spent}/${node.requireBranchPoints}`;
+        let met = spent >= node.requireBranchPoints;
+        reqHtml = `<br><span class="expertise-node-req ${met ? 'met' : 'unmet'}">${met ? '✓' : '🔒'} ${theme.label} 분기 ${spent}/${node.requireBranchPoints}</span>`;
     }
-    return `<button class="expertise-node ${node.branch==='common'?'common':''}" onclick="allocateExpertNode('${node.id}')&&updateStaticUI()" ${can?'':'disabled'}>${node.name} (${lv}/${node.max}) · cost ${node.cost}${reqText}</button>`;
+    // Use a `locked` class instead of the disabled attribute so hover tooltips still fire
+    // on nodes the player cannot yet allocate; the click handlers guard their own conditions.
+    let hover = `data-info-tooltip-anchor="1" onmouseenter="showExpertNodeTooltip(event,'${node.id}')" onmousemove="showExpertNodeTooltip(event,'${node.id}')" onmouseleave="hideInfoTooltip()"`;
+    return `<div class="expertise-node-row" ${hover}><button class="expertise-node branch-${node.branch}${keystoneCls}${can ? '' : ' locked'}" onclick="allocateExpertNode('${node.id}')&&updateStaticUI()">${node.requireBranchPoints ? '★ ' : ''}${node.name} (${lv}/${node.max}) · ${node.cost}pt${reqHtml}</button><button class="expertise-node-untrain${canUn ? '' : ' locked'}" onclick="askUntrainExpertNode('${node.id}')" title="언트레인 (정화의 오브 1개 소모)">−</button></div>`;
 }
 
 function renderExpertiseUI() {
@@ -10596,8 +10642,24 @@ function renderExpertiseUI() {
     let treeOverview = getExpertiseOverviewHtml(total, spent, free);
     if (!treeUnlocked) { tree.innerHTML = treeOverview + '<div class="expertise-panel" style="color:#c7b6d9;">전문가 노드 트리는 전문가 중 한 명이 Lv.16에 도달해 첫 전문가 포인트를 획득하면 해금됩니다.</div>'; return; }
     let groups = { common:[], mycologist:[], gemEngraver:[], astronomer:[], beekeeper:[] };
-    EXPERT_TREE_NODES.forEach(n => groups[n.branch].push(n));
-    tree.innerHTML = treeOverview + `<div class="expertise-tree-grid"><div><div class="expertise-muted">[균사학자]</div>${groups.mycologist.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[천문학자]</div>${groups.astronomer.map(getExpertiseNodeButtonHtml).join('')}<div class="expertise-panel" style="margin:8px 0;">[전문가 공통]${groups.common.map(getExpertiseNodeButtonHtml).join('')}</div><div class="expertise-muted">[양봉업자]</div>${groups.beekeeper.map(getExpertiseNodeButtonHtml).join('')}</div><div><div class="expertise-muted">[젬 각인사]</div>${groups.gemEngraver.map(getExpertiseNodeButtonHtml).join('')}</div></div>`;
+    EXPERT_TREE_NODES.forEach(n => { if (groups[n.branch]) groups[n.branch].push(n); });
+    tree.innerHTML = treeOverview + getExpertiseTreeHubHtml(groups);
+}
+
+function getExpertBranchZoneHtml(branch, groups, posClass) {
+    let theme = getExpertBranchTheme(branch);
+    let center = branch === 'common';
+    return `<div class="expert-zone-cell ${posClass}"><div class="expert-branch-zone branch-${branch}${center ? ' expert-hub-center' : ''}"><div class="expert-branch-head" style="color:${theme.color};">${theme.icon} ${theme.label}${center ? ' · 중앙 허브' : ''}</div>${(groups[branch] || []).map(getExpertiseNodeButtonHtml).join('')}</div></div>`;
+}
+
+function getExpertiseTreeHubHtml(groups) {
+    return `<div class="expertise-tree-hub">`
+        + getExpertBranchZoneHtml('astronomer', groups, 'pos-top')
+        + getExpertBranchZoneHtml('mycologist', groups, 'pos-left')
+        + getExpertBranchZoneHtml('common', groups, 'pos-center')
+        + getExpertBranchZoneHtml('gemEngraver', groups, 'pos-right')
+        + getExpertBranchZoneHtml('beekeeper', groups, 'pos-bottom')
+        + `</div>`;
 }
 
 function isJewelTabUnlockReady() {
