@@ -688,7 +688,8 @@ function switchTab(tabId) {
             activeBtn.scrollIntoView();
         }
     }
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    if (tabId === 'tab-talent' && typeof renderTalentTab === 'function') renderTalentTab();
     if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
     updateStaticUI();
@@ -2179,6 +2180,28 @@ function enterTrialWithTicket(trialId) {
     game.currencies.trialKey3 -= 1;
     addLog(`🗝️ 시련의 증표 1개 소모 (남은 ${game.currencies.trialKey3 || 0})`, 'season-up');
     changeZone(trialId);
+}
+
+// 나무꾼의 잔상(전투력 측정기) 해금 여부 = 혼돈 밖 나무꾼 100% 처치
+function isWoodsmanEchoUnlocked() {
+    if (typeof ensureChaosRealmState !== 'function') return false;
+    return (ensureChaosRealmState().woodsmanBestDamagePct || 0) >= 100;
+}
+// 시련 노출: 카오스/코어 키 중 1개 이상 보유
+function canSeeTalentBloomTrial() {
+    return (game.currencies.chaosKey || 0) >= 1 || (game.currencies.coreKey || 0) >= 1;
+}
+// 입장/개화 가능: 나무꾼의 잔상 해금 + 직업 보유 + 카오스/코어 키 각 1개 이상
+function canEnterTalentBloomTrial() {
+    return isWoodsmanEchoUnlocked() && !!game.ascendClass
+        && (game.currencies.chaosKey || 0) >= 1 && (game.currencies.coreKey || 0) >= 1;
+}
+function enterTalentBloomTrial() {
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    if (!isWoodsmanEchoUnlocked()) return addLog('🔒 나무꾼의 잔상이 아직 열리지 않았습니다. 혼돈 밖 나무꾼을 100% 처치하세요.', 'attack-monster');
+    if (!game.ascendClass) return addLog('🔒 재능 개화는 직업(전직) 선택 후 도전할 수 있습니다.', 'attack-monster');
+    if ((game.currencies.chaosKey || 0) < 1 || (game.currencies.coreKey || 0) < 1) return addLog('🔒 카오스 키와 코어 키가 각각 1개씩 필요합니다.', 'attack-monster');
+    changeZone('trial_5');
 }
 
 function enterDeepChaosPrompt(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let max=Math.max(20, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth||20)); let v=prompt(`진입할 심화 혼돈 층수를 입력하세요. (21 ~ ${max})`, String(max)); if(v===null)return; let depth=Math.floor(Number(v)||0); if(depth<21||depth>max) return addLog(`21~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); if (unlocked.length > 0 && !unlocked.includes(depth)) return addLog(`해금된 심화 혼돈 층수만 입장 가능합니다.`, 'attack-monster'); enterUnlockedEndlessDepth(depth); }
@@ -5847,7 +5870,7 @@ function performUpdateStaticUI() {
     if (typeof renderCoreCubePanel === 'function') renderCoreCubePanel();
 
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
+    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
     let jewelTabBtn = document.getElementById('btn-tab-jewel');
     if (jewelTabBtn) jewelTabBtn.style.display = game.unlocks.jewel ? 'flex' : 'none';
     let cubeTabBtn = document.getElementById('btn-tab-cube');
@@ -6986,11 +7009,27 @@ function buildCraftActionButtons(item) {
     renderSkyTowerMapPanel();
     renderUnderworldMapPanel();
 
-    let availTrials = TRIAL_ZONES.filter(trial => (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id));
+    let availTrials = TRIAL_ZONES.filter(trial => {
+        if (trial.bloomTrial) return canSeeTalentBloomTrial();
+        return (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id);
+    });
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
 
     renderLoop9VoidRiftPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
+        if (trial.bloomTrial) {
+            let isCurrent = game.currentZoneId === trial.id;
+            let chaosKeys = Math.floor(game.currencies.chaosKey || 0);
+            let coreKeys = Math.floor(game.currencies.coreKey || 0);
+            let ready = canEnterTalentBloomTrial();
+            let hint;
+            if (ready) hint = '개화 도전';
+            else if (chaosKeys < 1 || coreKeys < 1) hint = `카오스 ${chaosKeys}/1 · 코어 ${coreKeys}/1`;
+            else if (!isWoodsmanEchoUnlocked()) hint = '🔒 나무꾼의 잔상 필요';
+            else if (!game.ascendClass) hint = '🔒 직업(전직) 필요';
+            else hint = '🔒 조건 미충족';
+            return `<div class="map-item ${isCurrent ? 'current' : 'trial'}" ${ready ? `onclick="enterTalentBloomTrial()"` : ''}><span>🌸 ${trial.name}</span><span style="font-size:0.8em; font-weight:normal;">${hint}</span></div>`;
+        }
         let isCurrent = game.currentZoneId === trial.id;
         let isCompleted = game.completedTrials.includes(trial.id);
         let needsTicket = isCompleted && (trial.id === 'trial_3' || trial.id === 'trial_4');
@@ -7122,11 +7161,12 @@ function buildCraftActionButtons(item) {
                 return line.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name || line.stat} +${line.val}${statInfo.isPct ? '%' : ''}`;
             }).join('<br>');
             let titleText = statLines.map(line => (P_STATS[line.stat] || { name: getStatName(line.stat) }).name || line.stat).join(' / ');
-            let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : titleText);
+            let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : (id === 'n13' ? '🌸 5차 개화' : titleText));
             return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="refundAscendNode('${id}')"` : (!reqMet ? '' : `onclick="buyAscend('${id}')"`)}><div class="trait-title">${title}</div><div class="trait-desc">${desc}</div></div>`;
         };
         let coreRow = (tree.n11 || tree.n12) ? `<div class="trait-row">${renderAscend('n11')}${renderAscend('n12')}</div>` : '';
-        document.getElementById('ui-ascend-tree-container').innerHTML = `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}`;
+        let bloomRow = tree.n13 ? `<div class="trait-row">${renderAscend('n13')}</div>` : '';
+        document.getElementById('ui-ascend-tree-container').innerHTML = `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}${bloomRow}`;
         let kDefs = getClassKeystoneDefs(game.ascendClass);
         if (kDefs.length > 0) {
             game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
@@ -11259,6 +11299,7 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-cube') return '지하계 10층을 클리어하고 루프 20에 도달하면 큐브 탭이 열립니다.';
     if (tabId === 'tab-map') return '새 사냥터를 발견하면 지도 탭이 열립니다.';
     if (tabId === 'tab-traits') return '전직 시련을 통과하면 직업전직 탭이 열립니다.';
+    if (tabId === 'tab-talent') return '재능 개화 시련을 클리어하면 재능 탭이 열립니다.';
     return '아직 해금되지 않은 탭입니다.';
 }
 
