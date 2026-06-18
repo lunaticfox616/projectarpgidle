@@ -48,11 +48,23 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext([
+  extractFunction(uiSource, 'renderLoop9VoidRiftPanel'),
   extractFunction(uiSource, 'canAutoEnterGrandBreach'),
   extractFunction(uiSource, 'autoEnterGrandBreachIfReady'),
   extractFunction(uiSource, 'enterGrandBreach'),
   extractFunction(uiSource, 'toggleGrandBreachAutoEnter'),
 ].join('\n'), context);
+
+const elements = {
+  'ui-voidrift-header': { style: {} },
+  'ui-voidrift-panel': { style: {}, innerHTML: '' },
+  'btn-grand-breach-auto-enter': { style: {}, innerText: '' },
+};
+context.document = { getElementById: id => elements[id] || null };
+context.game.season = 9;
+context.renderLoop9VoidRiftPanel();
+assert(elements['ui-voidrift-panel'].innerHTML.includes('대균열 진입'), 'void rift renderer must update the panel element without referencing an undefined local');
+assert.strictEqual(elements['btn-grand-breach-auto-enter'].innerText, '대균열 자동입장 OFF', 'void rift renderer must show the current auto-entry state');
 
 assert.strictEqual(context.autoEnterGrandBreachIfReady(), false, 'auto-entry must not run while the setting is OFF');
 assert.strictEqual(context.game.currentZoneId, 12, 'OFF state must leave the current map unchanged');
@@ -70,3 +82,47 @@ assert.strictEqual(context.game.combatHalted, false, 'automatic entry must resum
 assert.strictEqual(context.game.voidRift.grandRun.returnZoneId, 12, 'automatic entry must preserve the interrupted return zone');
 assert(logs.some(message => message.includes('대균열 자동입장 ON')), 'toggle must log the new auto-entry state');
 assert(logs.some(message => message.includes('자동입장')), 'automatic entry must remain observable in the log');
+
+const combatLogs = [];
+const combatContext = {
+  METEOR_FALL_ZONE_ID: 'meteor_fall_site',
+  game: {
+    currentZoneId: 77,
+    settings: { autoEnterMeteor: true, autoEnterGrandBreach: true },
+    starWedge: { unlocked: true, skyRiftReady: true },
+    voidRift: { grandBreachUnlock: true },
+    beehive: { inRun: false },
+  },
+  addLog(message) { combatLogs.push(message); },
+  isBeehiveRunLockedForMapTravel: () => false,
+};
+combatContext.prepareMeteorEncounterEntry = returnZoneId => {
+  combatContext.game.starWedge.meteorReturnZoneId = returnZoneId;
+  combatContext.game.starWedge.skyRiftReady = false;
+};
+combatContext.autoEnterGrandBreachIfReady = () => {
+  combatContext.game.currentZoneId = 'grand_breach_run';
+  combatContext.game.voidRift.grandBreachUnlock = false;
+  return true;
+};
+vm.createContext(combatContext);
+vm.runInContext([
+  extractFunction(combatSource, 'enterAutomaticMeteorEncounter'),
+  extractFunction(combatSource, 'enterAutomaticMapInterruptionAfterClear'),
+].join('\n'), combatContext);
+
+assert.strictEqual(combatContext.enterAutomaticMapInterruptionAfterClear({ type: 'labyrinth' }), true, 'non-chaos clears must interrupt into a ready meteor encounter first');
+assert.strictEqual(combatContext.game.currentZoneId, 'meteor_fall_site', 'meteor auto-entry must work after non-chaos map clears');
+assert.strictEqual(combatContext.game.starWedge.meteorReturnZoneId, 77, 'meteor auto-entry must preserve the post-clear return map');
+assert(combatLogs.some(message => message.includes('하늘 균열')), 'meteor auto-entry after non-chaos clears must be observable');
+
+combatContext.game.currentZoneId = 88;
+combatContext.game.settings.autoEnterMeteor = false;
+combatContext.game.starWedge.skyRiftReady = false;
+combatContext.game.voidRift.grandBreachUnlock = true;
+assert.strictEqual(combatContext.enterAutomaticMapInterruptionAfterClear({ type: 'trial' }), true, 'non-chaos clears must also interrupt into a ready grand breach');
+assert.strictEqual(combatContext.game.currentZoneId, 'grand_breach_run', 'grand breach auto-entry must work after non-chaos map clears');
+assert.strictEqual(combatContext.game.voidRift.grandBreachUnlock, false, 'grand breach auto-entry must consume the ready breach after non-chaos clears');
+
+const interruptionCalls = (combatSource.match(/enterAutomaticMapInterruptionAfterClear\(zone\)/g) || []).length;
+assert(interruptionCalls >= 8, 'finishEncounterRun special return branches must share automatic interruption checks');

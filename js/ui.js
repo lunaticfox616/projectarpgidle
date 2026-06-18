@@ -2120,6 +2120,10 @@ function enterSkyTowerPrompt(){
     let st = ensureSkyTowerState();
     if (!st.unlocked) return addLog('창공의 탑은 루프 15 이후 이번 루프 혼돈 20층 클리어 시 해금됩니다.', 'attack-monster');
     if (!(typeof canEnterSkyTower === 'function' && canEnterSkyTower())) return addLog('창공의 탑은 영구 해금 후 해당 루프에서 혼돈에 입성하면 입장할 수 있습니다.', 'attack-monster');
+    if ((game.settings && game.settings.mapCompleteAction) === 'repeatZone') {
+        let ok = confirm("현재 설정이 맵 완료 시 '같은 지역 반복' 입니다. 정말 입장하시겠습니까?");
+        if (!ok) return;
+    }
     let max = Math.max(1, Math.floor(st.highestFloor || 1));
     let v = prompt(`진입할 창공의 탑 층수를 입력하세요. (1 ~ ${max})\n이번 루프 남은 클리어 가능 층수: ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, String(Math.max(1, Math.floor(st.currentFloor || max))));
     if (v === null) return;
