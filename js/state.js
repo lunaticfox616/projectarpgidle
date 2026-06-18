@@ -602,7 +602,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'w6', name: '거인의 힘', desc: '쌍수 상태에서, 각 무기의 효과 50% 증가', req: 'w3' },
         { id: 'w7', name: '불굴의 진군', desc: '생명력 50% 이하 시 받는 피해 15% 감폭, 주는 피해 15% 증폭', reqAny: ['w2', 'w4'] },
         { id: 'w8', name: '파괴 본능', desc: '생명력이 50% 이상으로 회복/흡수되지 않음, 치명타 확률/치명타 피해 배율/연속타격/공격 속도/이동 속도 +15%, 최종 피해 +15%', req: 'w7' },
-        { id: 'w9', name: '전쟁군주의 위엄', desc: '최종 피해 +18%, 받는 피해 8% 증가', req: 'w8' }
+        { id: 'w9', name: '전쟁광', desc: '모든 주는 피해 40% 증폭, 받는 피해 10% 증폭', req: 'w8' }
     ],
     gladiator: [
         { id: 'g1', name: '결투 태세', desc: '물리 피해 12% 증폭, 물리가 아닌 피해 20% 감폭', req: null },
@@ -613,7 +613,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'g6', name: '마무리 타격', desc: '공격 후 적 생명력 20% 미만 즉시 처치(보스 10%)', req: 'g3' },
         { id: 'g7', name: '투기 순환', desc: '회피 비례 연속 타격 증가, 방어도 비례 치명타 확률 증가', reqAny: ['g4', 'g5'] },
         { id: 'g8', name: '검투의 화신', desc: '연속 타격 +100%, 보스 대상 주고/받는 피해 18% 증폭, 재생 50% 감폭, ES 재생 없음', req: 'g7' },
-        { id: 'g9', name: '콜로세움의 패자', desc: '연속 타격 +30%, 최대 생명력 10% 감소', req: 'g8' }
+        { id: 'g9', name: '실전 특화', desc: '막기 확률 및 비껴내기 확률 판정에 행운 적용(2회 굴려 유리한 값 선택)', req: 'g8' }
     ],
     assassin: [
         { id: 'a1', name: '냉혹한 집중', desc: '치명타 피해 배율 +66%, 치명타 확률 -6%p', req: null },
@@ -624,7 +624,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'a6', name: '유리 심장', desc: '현재 생명력 66% 초과 시 치명타 피해 배율 20% 증폭, 이하 시 회피 20% 증폭', req: 'a2' },
         { id: 'a7', name: '살의 폭주', desc: '적이 1명일 경우 치명타가 연속 타격 1회 추가로 부여, 치명타 피해 배율 -200%', reqAny: ['a4', 'a5'] },
         { id: 'a8', name: '종말의 송곳니', desc: '치명타 피해 배율이 2배, 피해 25% 감폭', req: 'a7' },
-        { id: 'a9', name: '그림자 군주', desc: '치명타 피해 배율 +50%, 최대 생명력 15% 감소', req: 'a8' }
+        { id: 'a9', name: '암영 극의', desc: '치명타 피해 배율 20% 증폭 및 회피 20% 증폭', req: 'a8' }
     ],
     ranger: [
         { id: 'r1', name: '사냥꾼 보법', desc: '이동 속도 15% 증폭, 방어도/에너지 보호막 0', req: null },
@@ -635,7 +635,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'r6', name: '궤적 관통', desc: '관통 스킬 타겟 수 +1, 관통 스킬 피해 10% 감폭, 타겟마다 3% 증폭', req: 'r3' },
         { id: 'r7', name: '추적 본능', desc: '피격되지 않은 시간 1초마다 치명타 확률 +5%p (피격 시 초기화)', reqAny: ['r4', 'r5'] },
         { id: 'r8', name: '폭풍 사냥', desc: '공격 속도와 이동 속도 상호 7% 효율 보정, 최대 생명력 -15%', req: 'r7' },
-        { id: 'r9', name: '현상금 사냥꾼', desc: '투사체 피해 +25%, 이동 속도 +10%', req: 'r8' }
+        { id: 'r9', name: '극한의 속사', desc: '공격 속도 소프트캡 기준치 +2', req: 'r8' }
     ],
     elementalist: [
         { id: 'e1', name: '원소 공명', desc: '원소 최종 피해 15% 증폭, 물리 피해 없음', req: null },
@@ -646,7 +646,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'e6', name: '원소 침식', desc: '저항 관통 +20%, 치명타 피해 배율 -25%', req: 'e3' },
         { id: 'e7', name: '삼원 폭주', desc: '화/냉/번 동시 사용 시 최종 피해 5% 증폭, 상태이상 강도는 최종 피해의 2배에 비례', reqAny: ['e4', 'e5'] },
         { id: 'e8', name: '원소 과부하', desc: '치명타 공격마다 원소 과부하 중첩 획득: 중첩당 원소 최종 피해 +4%, 치명타 확률 -1%p (무한 중첩). 비-치명타 공격 시 모든 중첩을 잃음', req: 'e7' },
-        { id: 'e9', name: '원소 폭군', desc: '원소 최종 피해 +25%, 모든 원소 저항 10% 감소', req: 'e8' }
+        { id: 'e9', name: '절대 관통', desc: '원소 저항 관통 +100%, 원소 저항 관통이 -300%까지 확장됨', req: 'e8' }
     ],
     warlock: [
         { id: 'wlk1', name: '심연 각인', desc: '모든 피해가 카오스 피해가 됨', req: null },
@@ -657,7 +657,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'wlk6', name: '공허 관통', desc: '저항 관통 +43%, 치명타 불가, 중독 확률 +25%', req: 'wlk3' },
         { id: 'wlk7', name: '피의 계약', desc: '에너지 보호막 50% 이하에서 피해 20% 증폭, 받는 피해 12% 증폭', reqAny: ['wlk4', 'wlk6'] },
         { id: 'wlk8', name: '심연 군주', desc: '카오스 피해 25% 증폭, 생명력 회복 효과 50% 감폭, 중독 확률 +25%', req: 'wlk7' },
-        { id: 'wlk9', name: '심연의 화신', desc: '카오스 피해 +20%, 최대 에너지 보호막 20% 감소', req: 'wlk8' }
+        { id: 'wlk9', name: '시체 역병', desc: '저주 최대치 +1. 카오스 피해로 적 처치 시 50% 확률로 시체 폭발(적 최대 생명력의 20%를 카오스 피해로 주변에). 모든 카오스 피해 적중 시 적에게 위축 부여(최대 10중첩, 1중첩당 받는 카오스 피해 +8%)', req: 'wlk8' }
     ],
 
     soulbinder: [
@@ -669,7 +669,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'sb6', name: '꿰뚫는 이', desc: '저항 관통 +16%, 플레이어 저항 관통이 소환수 공격에도 100% 적용', req: 'sb3' },
         { id: 'sb7', name: '상호 보완', desc: '플레이어 공격력(타격당 기본 피해)의 50%를 소환수 타격에 더하고, 소환수 공격력의 50%를 플레이어 타격에 더함', reqAny: ['sb4', 'sb3'] },
         { id: 'sb8', name: '군주', desc: '소환수 한도 +3', req: 'sb7' },
-        { id: 'sb9', name: '군락의 지배자', desc: '소환수 피해 +35%, 소환수 공격 속도 +15%', req: 'sb8' }
+        { id: 'sb9', name: '대군 소환', desc: '소환수 한도가 1.5배가 됩니다(내림)', req: 'sb8' }
     ],
     catalyst: [
         { id: 'ct1', name: '과잉 촉매', desc: '상태이상 지속 피해 유발 기준 피해가 실제 타격의 2배로 계산', req: null },
@@ -680,7 +680,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'ct6', name: '중첩 독성', desc: '중독/점화/출혈 최대 중첩 +1, 상태이상 피해 100% 증폭, 상태이상 지속 시간 50% 감폭', req: 'ct3' },
         { id: 'ct7', name: '완벽한 배합', desc: '모든 공격이 항상 치명타, 치명타 확률의 100% 및 치명타 피해 배율의 20%가 지속 피해 배율로 전환, 치명타에 치명타 피해 배율 대신 지속 피해 배율의 20% 적용', reqAny: ['ct4', 'ct5'] },
         { id: 'ct8', name: '파열 용해', desc: '중독/점화/출혈 최대 중첩 +2, 최대 중첩 시 1초 쿨로 누적 피해 즉시 폭발', req: 'ct6' },
-        { id: 'ct9', name: '맹독 군주', desc: '상태이상 피해 +30%, 최대 생명력 10% 감소', req: 'ct8' }
+        { id: 'ct9', name: '급성 발현', desc: '점화/중독/출혈의 피해 간격 및 지속 시간 50% 감폭(같은 피해를 더 빠르게 폭발)', req: 'ct8' }
     ],
     hunter: [
         { id: 'h1', name: '단일 조준', desc: '투사체 피해 10% 증폭, 타겟이 하나면 25% 증폭', req: null },
@@ -691,7 +691,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'h6', name: '사거리 장악', desc: '투사체 스킬 타겟 수 +1, 투사체 추가 발사 +1', req: 'h3' },
         { id: 'h7', name: '고독 사냥', desc: '타겟 수 1로 고정, 줄어든 타겟 5개까지 각 연속 타격 +100%p, 이후 각 +50%p', reqAny: ['h4', 'h5'] },
         { id: 'h8', name: '절멸 사격', desc: '연속타격 불가, 연속타격 확률을 치명타 확률로 전환, 초과 치명타/다중 치명타 허용 (최대 1000%)', req: 'h7' },
-        { id: 'h9', name: '절대 사격', desc: '치명타 피해 배율 +40%, 치명타 확률 10%p 감소', req: 'h8' }
+        { id: 'h9', name: '일격필살', desc: '공격 속도가 1로 고정되며, 공격 속도 증가가 모두 피해량 증폭으로 전환됨', req: 'h8' }
     ],
     crusader: [
         { id: 'cr1', name: '신성화', desc: '신성화 효과: 생명력 재생 +1.5%, 생명력 재생 속도 +40%', req: null },
@@ -702,7 +702,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'cr6', name: '천벌 단죄', desc: '번개 피해의 최종 최대 피해 보정 1.5배', req: 'cr3' },
         { id: 'cr7', name: '상호 전환', desc: '총 방어도의 50%를 ES로, 총 ES의 50%를 방어도로 전환, ES 재충전 시작 50% 가속', reqAny: ['cr4', 'cr5'] },
         { id: 'cr8', name: '번개 불사', desc: 'ES 0 시 4초간 ES 100% 재생, 동안 번개 피해 +50% (쿨 4초, 중첩불가)', req: 'cr7' },
-        { id: 'cr9', name: '뇌신의 사도', desc: '번개 피해 +25%, 최대 에너지 보호막 15% 감소', req: 'cr8' }
+        { id: 'cr9', name: '축복받은 무구', desc: '신성한 검 상태에서도 무기의 효과가 무효화되지 않음', req: 'cr8' }
     ],
 
     guardian: [
@@ -714,7 +714,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'gd6', name: '인내 장전', desc: '피격 시 4초간 방어도 +11% (최대 5중첩, 곱연산), 5중첩 소모 반사 피해 후 2중첩 유지', req: 'gd3' },
         { id: 'gd7', name: '최후 저지선', desc: '생명력 40% 이하 시 받는 피해 20% 감폭/주는 피해 20% 증폭, 상태이상 제거(쿨 5초)', reqAny: ['gd4', 'gd5'] },
         { id: 'gd8', name: '절대 수호', desc: '피해를 막아내 무효로 할 확률 25%, 모든 상태 이상 저항 확률 +50%', req: 'gd7' },
-        { id: 'gd9', name: '불멸의 성벽', desc: '방어도 +18%, 공격 속도 8% 감소', req: 'gd8' }
+        { id: 'gd9', name: '거대화', desc: '최대 생명력 20% 증폭', req: 'gd8' }
     ],
     inquisitor: [
         { id: 'iq1', name: '교리 집행', desc: '원소 피해가 현재 사용 중인 총 공명력의 50%만큼 증폭', req: null },
@@ -725,23 +725,8 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'iq6', name: '신성한 희생', desc: '모든 원소/보조 젬 레벨 +1, 공명력 25당 보조 젬 한도 +1, 최대 생명력 -25%', req: 'iq3' },
         { id: 'iq7', name: '이단 심문', desc: '사용 중인 공명력에 따라 치명타 피해 배율 증가', reqAny: ['iq4', 'iq5'] },
         { id: 'iq8', name: '절대 교리', desc: '저항 관통이 원소 피해 증가에도 적용', req: 'iq7' },
-        { id: 'iq9', name: '심판자의 권능', desc: '저항 관통 +20%, 치명타 피해 배율 +30%', req: 'iq8' }
+        { id: 'iq9', name: '무한한 권능', desc: '보조 젬 한도 무제한. 보조 젬 한도 +1당 공명력 +15', req: 'iq8' }
     ]
-};
-
-const KEYSTONE_STAT_BONUS = {
-    w9: [{ stat: 'pctDmg', val: 18 }, { stat: 'dr', val: -8 }],
-    g9: [{ stat: 'ds', val: 30 }, { stat: 'pctHp', val: -10 }],
-    a9: [{ stat: 'critDmg', val: 50 }, { stat: 'pctHp', val: -15 }],
-    r9: [{ stat: 'projectilePctDmg', val: 25 }, { stat: 'move', val: 10 }],
-    e9: [{ stat: 'elementalPctDmg', val: 25 }, { stat: 'resAll', val: -10 }],
-    wlk9: [{ stat: 'chaosPctDmg', val: 20 }, { stat: 'energyShieldPct', val: -20 }],
-    sb9: [{ stat: 'summonPctDmg', val: 35 }, { stat: 'summonAspd', val: 15 }],
-    ct9: [{ stat: 'dotPctDmg', val: 30 }, { stat: 'pctHp', val: -10 }],
-    h9: [{ stat: 'critDmg', val: 40 }, { stat: 'crit', val: -10 }],
-    cr9: [{ stat: 'lightPctDmg', val: 25 }, { stat: 'energyShieldPct', val: -15 }],
-    gd9: [{ stat: 'armorPct', val: 18 }, { stat: 'aspd', val: -8 }],
-    iq9: [{ stat: 'resPen', val: 20 }, { stat: 'critDmg', val: 30 }]
 };
 
 const SEASON_NODES = {
