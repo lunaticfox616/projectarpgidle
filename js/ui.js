@@ -1421,7 +1421,7 @@ function renderLoop9VoidRiftPanel(){
     let phase = g.phase === 'survival' ? '생존전' : '보스전';
     let grandText = (g.inRun && game.currentZoneId === 'grand_breach_run') ? ` · 대균열: <strong>${phase}</strong> · 남은시간: <strong>${Math.max(0, Math.ceil(g.timeLeft || 0))}초</strong> · 처치: <strong>${Math.floor(g.kills || 0)}</strong>` : '';
     let canEnter = v.grandBreachUnlock && !g.inRun;
-    panel.innerHTML = `<div style="color:#c7d2ff;">활성 균열: <strong>${v.active ? '진행중' : '없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock ? '가능' : '잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter ? '' : 'disabled'}>대균열 진입</button></div>`;
+    p.innerHTML = `<div style="color:#c7d2ff;">활성 균열: <strong>${v.active ? '진행중' : '없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock ? '가능' : '잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter ? '' : 'disabled'}>대균열 진입</button></div>`;
 }
 
 function spawnBeehiveWave(isBoss){
@@ -2120,6 +2120,10 @@ function enterSkyTowerPrompt(){
     let st = ensureSkyTowerState();
     if (!st.unlocked) return addLog('창공의 탑은 루프 15 이후 이번 루프 혼돈 20층 클리어 시 해금됩니다.', 'attack-monster');
     if (!(typeof canEnterSkyTower === 'function' && canEnterSkyTower())) return addLog('창공의 탑은 영구 해금 후 해당 루프에서 혼돈에 입성하면 입장할 수 있습니다.', 'attack-monster');
+    if ((game.settings && game.settings.mapCompleteAction) === 'repeatZone') {
+        let ok = confirm("현재 설정이 맵 완료 시 '같은 지역 반복' 입니다. 정말 입장하시겠습니까?");
+        if (!ok) return;
+    }
     let max = Math.max(1, Math.floor(st.highestFloor || 1));
     let v = prompt(`진입할 창공의 탑 층수를 입력하세요. (1 ~ ${max})\n이번 루프 남은 클리어 가능 층수: ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, String(Math.max(1, Math.floor(st.currentFloor || max))));
     if (v === null) return;

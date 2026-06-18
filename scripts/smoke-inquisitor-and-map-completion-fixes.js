@@ -56,22 +56,37 @@ const completionContext = {
   UNDERWORLD_ZONE_ID: 'underworld_core',
   LABYRINTH_ZONE_ID: 'labyrinth',
   CHAOS_REALM_ZONE_ID: 'chaos_realm',
+  SKY_TOWER_ZONE_ID: 'sky_tower',
   FOSSIL_DB: [],
   getZone(id) {
     if (id === 'meteor_fall_site') return { id, type: 'meteor', tier: 12, name: '운석 낙하 지점' };
+    if (id === 'chaos_realm') {
+      let floor = completionContext.game.chaosRealm.currentFloor;
+      return { id, type: 'chaosRealm', floor, tier: 30, maxKills: 1, name: `혼돈계 ${floor}층` };
+    }
+    if (id === 'sky_tower') {
+      let floor = completionContext.game.skyTower.currentFloor;
+      return { id, type: 'skyTower', floor, tier: 30, maxKills: 1, name: `창공의 탑 ${floor}층` };
+    }
     if (id === 'underworld_core') {
       let floor = completionContext.game.underworldProgress.currentFloor;
-      return { id, type: 'underworld', floor, tier: 30, name: `지하계 ${floor}층` };
+      return { id, type: 'underworld', floor, tier: 30, maxKills: 1, name: `지하계 ${floor}층` };
     }
+    if (id === 'trial_3') return { id, type: 'trial', tier: 15, maxKills: 1, name: '3차 전직 시련 (여신)' };
+    if (id === 'trial_4') return { id, type: 'trial', tier: 20, maxKills: 1, name: '4차 전직 미궁 시련' };
     return { id, type: 'act', tier: 1, maxKills: 1, name: `지역 ${id}` };
   },
   getCurrentSeasonFinalZoneId: () => 20,
   getAbyssZoneIdForDepth: depth => depth,
   getStoryActByZoneId: () => null,
   getAutoProgressZoneId: id => id,
-  ensureChaosRealmState: () => ({ highestFloor: 1, currentFloor: 1 }),
+  ensureChaosRealmState: () => completionContext.game.chaosRealm || { highestFloor: 1, currentFloor: 1, permanentBonuses: {} },
   ensureStarWedgeState: () => completionContext.game.starWedge,
   grantMeteorEncounterRewards() {},
+  ensureSkyTowerState: () => completionContext.game.skyTower,
+  getSkyTowerRemainingClears: () => 25 - Math.max(0, Math.floor((completionContext.game.skyTower || {}).clearedThisLoop || 0)),
+  getSkyTowerLoopClearLimit: () => 25,
+  getSkyTowerRewardAmount: floor => Math.max(1, Math.floor(floor || 1)),
   clearWoodsmanBuildLock() {},
   triggerMapUnlockReveal() {},
   markActRewardReady() {},
@@ -81,6 +96,11 @@ const completionContext = {
   addLog(message) { completionLogs.push(message); },
   isBeehiveRunLockedForMapTravel: () => false,
   P_STATS: {}, PASSIVES: {}, SEASON_NODES: {}, ASCEND_NODES: {}, SUPPORT_GEMS: {},
+  SKILL_DB: {
+    '기본 공격': { id: 'basic', name: '기본 공격', ele: 'phys', dmg: 1, spd: 1, tags: ['attack'], targets: 1 },
+    '화염구': { id: 'fireball', name: '화염구', isGem: true, ele: 'fire', dmg: 1, spd: 1, tags: ['attack'], targets: 1 },
+    '서리창': { id: 'iceSpear', name: '서리창', isGem: true, ele: 'cold', dmg: 1, spd: 1, tags: ['attack'], targets: 1 },
+  },
   SKILLS: { slash: { id: 'slash', name: '기본 공격', ele: 'phys', dmg: 1, spd: 1, tags: ['attack'], targets: 1 } },
   UNIQUE_EFFECTS: {}, UNIQUE_JEWELS: {}, UNIQUE_JEWEL_EFFECTS: {}, UNDERWORLD_RUNE_DB: [], PASSIVE_STAR_BLESSING: {},
   DOT_TICK_INTERVAL: 1, DOT_EFFECT_DURATION: 4, DOT_STACK_MAX: 5,
@@ -154,6 +174,94 @@ assert.strictEqual(completionContext.game.underworldProgress.currentFloor, 7, 'r
 assert.strictEqual(completionContext.game.underworldProgress.highestFloor, 8, 'repeating an underworld floor must still unlock the next floor');
 assert.strictEqual(completionContext.game.currentZoneId, 'underworld_core', 'repeat-zone must remain in the underworld map');
 
+
+completionContext.game = {
+  ...makeDoctrineGame(),
+  currentZoneId: 'chaos_realm',
+  maxZoneId: 20,
+  killsInZone: 0,
+  settings: { mapCompleteAction: 'repeatZone', townReturnAction: 'retry' },
+  chaosRealm: { highestFloor: 4, currentFloor: 4, clearedFloors: [], permanentBonuses: { pctDmg: 0, hp: 0, resAll: 0 } },
+  skyTower: { highestFloor: 1, currentFloor: 1, clearedFloors: [], clearedThisLoop: 0 },
+  starWedge: {},
+  voidRift: {},
+  enemies: [],
+  encounterPlan: [],
+};
+vm.runInContext('game = window.game;', completionContext);
+completionContext.finishEncounterRun();
+assert.strictEqual(completionContext.game.chaosRealm.currentFloor, 4, 'repeat-zone must keep the cleared chaos realm floor selected');
+assert.strictEqual(completionContext.game.chaosRealm.highestFloor, 5, 'repeating a chaos realm floor must still unlock the next floor');
+assert.strictEqual(completionContext.game.currentZoneId, 'chaos_realm', 'repeat-zone must remain in the chaos realm map');
+
+completionContext.game = {
+  ...makeDoctrineGame(),
+  currentZoneId: 'sky_tower',
+  maxZoneId: 20,
+  killsInZone: 0,
+  settings: { mapCompleteAction: 'repeatZone', townReturnAction: 'retry' },
+  chaosRealm: { highestFloor: 1, currentFloor: 1, clearedFloors: [], permanentBonuses: { pctDmg: 0, hp: 0, resAll: 0 } },
+  skyTower: { highestFloor: 6, currentFloor: 6, clearedFloors: [], clearedThisLoop: 0 },
+  starWedge: {},
+  voidRift: {},
+  enemies: [],
+  encounterPlan: [],
+};
+vm.runInContext('game = window.game;', completionContext);
+completionContext.finishEncounterRun();
+assert.strictEqual(completionContext.game.skyTower.currentFloor, 6, 'repeat-zone must keep the cleared sky tower floor selected');
+assert.strictEqual(completionContext.game.skyTower.highestFloor, 7, 'repeating a sky tower floor must still unlock the next floor');
+assert.strictEqual(completionContext.game.currentZoneId, 'sky_tower', 'repeat-zone must remain in the sky tower map');
+
+
+completionContext.game = {
+  ...makeDoctrineGame(),
+  currentZoneId: 'trial_3',
+  maxZoneId: 20,
+  killsInZone: 0,
+  settings: { mapCompleteAction: 'nextZone', townReturnAction: 'retry' },
+  completedTrials: ['trial_3'],
+  unlockedTrials: ['trial_3', 'trial_4'],
+  ascendPoints: 0,
+  ascendKeystonePoints: 0,
+  skills: [],
+  gemData: {},
+  noti: {},
+  unlocks: {},
+  starWedge: {},
+  voidRift: {},
+  enemies: [],
+  encounterPlan: [],
+};
+vm.runInContext('game = window.game;', completionContext);
+completionContext.finishEncounterRun();
+assert.strictEqual(completionContext.game.skills.length, 1, '3rd trial clears must guarantee one new attack skill gem even on repeat clears');
+assert(completionContext.game.gemData[completionContext.game.skills[0]], '3rd trial guaranteed skill gem must create gem data');
+assert.strictEqual(completionContext.game.noti.skills, true, '3rd trial guaranteed skill gem must notify the skills tab');
+
+completionContext.game = {
+  ...makeDoctrineGame(),
+  currentZoneId: 'trial_4',
+  maxZoneId: 20,
+  killsInZone: 0,
+  settings: { mapCompleteAction: 'nextZone', townReturnAction: 'retry' },
+  completedTrials: ['trial_4'],
+  unlockedTrials: ['trial_3', 'trial_4'],
+  ascendPoints: 0,
+  ascendKeystonePoints: 0,
+  skills: ['화염구'],
+  gemData: { '화염구': { level: 1, exp: 0, awakened: false } },
+  noti: {},
+  unlocks: {},
+  starWedge: {},
+  voidRift: {},
+  enemies: [],
+  encounterPlan: [],
+};
+vm.runInContext('game = window.game;', completionContext);
+completionContext.finishEncounterRun();
+assert.deepStrictEqual(completionContext.game.skills.sort(), ['서리창', '화염구'].sort(), '4th trial clears must guarantee the next unowned attack skill gem');
+assert(completionContext.game.gemData['서리창'], '4th trial guaranteed skill gem must create gem data');
 
 completionContext.game = {
   ...makeDoctrineGame(),

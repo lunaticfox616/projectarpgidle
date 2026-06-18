@@ -5805,10 +5805,40 @@ function enterAutomaticMeteorEncounter() {
     game.currentZoneId = METEOR_FALL_ZONE_ID;
 }
 
+function enterAutomaticMapInterruptionAfterClear(clearedZone) {
+    let star = game.starWedge || {};
+    let beehiveRunning = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
+    let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
+    if (game.settings && game.settings.autoEnterMeteor && !beehiveRunning && !grandRunning && star.unlocked && star.skyRiftReady && (!clearedZone || clearedZone.type !== 'meteor')) {
+        enterAutomaticMeteorEncounter();
+        addLog('☄️ 자동입장: 하늘 균열 100% 충전으로 운석 낙하 지점에 진입합니다.', 'season-up');
+        return true;
+    }
+    if (typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady()) return true;
+    return false;
+}
+
 function unlockConditionGemsAfterRootBossClear() {
     if (game.conditionGemUnlocked || (game.season || 1) < 2) return false;
     game.conditionGemUnlocked = true;
     addLog('🧠 컨디션 젬 시스템이 해금되었습니다!', 'loot-unique');
+    return true;
+}
+
+function grantGuaranteedTrialSkillGem() {
+    game.skills = Array.isArray(game.skills) ? game.skills : [];
+    game.gemData = game.gemData || {};
+    game.noti = game.noti || {};
+    let available = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem && !game.skills.includes(name));
+    if (available.length === 0) {
+        addLog('✨ 전직 시련 보상: 획득 가능한 신규 스킬 젬이 없습니다.', 'attack-monster', { noToast: true });
+        return false;
+    }
+    let skill = rndChoice(available);
+    game.skills.push(skill);
+    game.gemData[skill] = { level: 1, exp: 0, awakened: false };
+    game.noti.skills = true;
+    addLog(`✨ 전직 시련 보상: 공격 젬 <span class='loot-magic'>[${skill}]</span> 획득!`, 'loot-magic');
     return true;
 }
 
@@ -5846,6 +5876,7 @@ function finishEncounterRun() {
         clearWoodsmanBuildLock();
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
@@ -5863,13 +5894,14 @@ function finishEncounterRun() {
             grantChaosRealmFloorBonus(floor);
         }
         st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
-        st.currentFloor = Math.min(st.highestFloor, floor + 1);
+        st.currentFloor = mapAction === 'repeatZone' ? floor : Math.min(st.highestFloor, floor + 1);
         addLog(`🌌 혼돈계 ${floor}층 돌파! ${st.currentFloor}층까지 입장 가능합니다.`, 'season-up');
         if (mapAction === 'nextLoopBestPlusOne') {
             let nextZone = resolveNextLoopBestPlusOneZone(zone);
             game.currentZoneId = nextZone !== null ? nextZone : CHAOS_REALM_ZONE_ID;
         } else game.currentZoneId = CHAOS_REALM_ZONE_ID;
         game.killsInZone = 0;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
@@ -5888,7 +5920,7 @@ function finishEncounterRun() {
                 st.clearedFloors.push(floor);
                 st.clearedFloors = Array.from(new Set(st.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b);
                 st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
-                st.currentFloor = Math.min(st.highestFloor, floor + 1);
+                st.currentFloor = mapAction === 'repeatZone' ? floor : Math.min(st.highestFloor, floor + 1);
             } else {
                 if (Math.random() < 0.16) reward = Math.max(1, Math.floor(getSkyTowerRewardAmount(floor) * 0.35));
                 st.currentFloor = Math.max(1, Math.min(Math.floor(st.highestFloor || 1), floor));
@@ -5904,6 +5936,7 @@ function finishEncounterRun() {
         }
         game.killsInZone = 0;
         game.currentZoneId = SKY_TOWER_ZONE_ID;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
@@ -5914,6 +5947,7 @@ function finishEncounterRun() {
         return;
     }
     if (zone.type === 'trial') {
+        grantGuaranteedTrialSkillGem();
         let isFirstClear = !game.completedTrials.includes(zone.id);
         if (isFirstClear) game.completedTrials.push(zone.id);
         if (isFirstClear) {
@@ -5943,6 +5977,7 @@ function finishEncounterRun() {
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         game.inTicketBossFight = false;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(200);
@@ -5974,6 +6009,7 @@ function finishEncounterRun() {
             game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
             game.killsInZone = 0;
             game.inTicketBossFight = false;
+            enterAutomaticMapInterruptionAfterClear(zone);
             startMoving(false);
         }
         updateStaticUI();
@@ -6023,6 +6059,7 @@ function finishEncounterRun() {
             if (nextZone !== null) game.currentZoneId = nextZone;
         }
         game.killsInZone = 0;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(200);
@@ -6063,6 +6100,7 @@ function finishEncounterRun() {
             queueImportantSave(180);
             return;
         } else game.currentZoneId = UNDERWORLD_ZONE_ID;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
@@ -6075,6 +6113,7 @@ function finishEncounterRun() {
         if (game.cosmosAtlas && typeof game.cosmosAtlas === 'object') game.cosmosAtlas.activeChallenge = null;
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(200);
@@ -6210,13 +6249,7 @@ function finishEncounterRun() {
             queueImportantSave(180);
             return;
         } else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
-        let star = game.starWedge || {};
-        let beehiveRunning = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
-        let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
-        if (game.settings && game.settings.autoEnterMeteor && !beehiveRunning && !grandRunning && star.unlocked && star.skyRiftReady && zone.type !== 'meteor') {
-            enterAutomaticMeteorEncounter();
-            addLog('☄️ 자동입장: 하늘 균열 100% 충전으로 운석 낙하 지점에 진입합니다.', 'season-up');
-        }
+        enterAutomaticMapInterruptionAfterClear(zone);
         checkUnlocks();
         if ((game.settings.townReturnAction || 'retry') === 'stop') {
             game.combatHalted = true;
