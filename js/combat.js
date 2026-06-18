@@ -1898,6 +1898,11 @@ function getPlayerStats() {
             }
             addStatToBucket(ascend, node.stat, node.val);
         });
+        (Array.isArray(game.ascendKeystones) ? game.ascendKeystones : []).forEach(id => {
+            let bonus = KEYSTONE_STAT_BONUS[id];
+            if (!Array.isArray(bonus)) return;
+            bonus.forEach(line => addStatToBucket(ascend, line.stat, line.val));
+        });
     }
     safeRewardBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
@@ -4432,10 +4437,10 @@ function handleTalentBloomClear(zone) {
     game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
     if (game.ascendClass && !game.bloomedClasses.includes(game.ascendClass)) {
         game.bloomedClasses.push(game.ascendClass);
-        game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + 1;
+        game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + 2;
         game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
         game.ascendRank = Math.max(game.ascendRank || 0, 5);
-        addLog(`🌸 [${classLabel}] 5차 개화 노드 해금! 전직 포인트 +1 · 키스톤 포인트 +1`, 'loot-unique');
+        addLog(`🌸 [${classLabel}] 5차 개화 노드 해금! 전직 포인트 +2 · 키스톤 포인트 +1`, 'loot-unique');
         if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_fifth_node', '5차 개화 노드 해금', '직업전직 탭에 5차 재능 개화 노드가 추가되었습니다.', 'tab-traits');
     }
     // 재능 개화 카드 획득/강화 + 재능 탭 해금
