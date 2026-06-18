@@ -1647,6 +1647,7 @@ const defaultGame = {
     gemEnhanceUnlocked: false,
     gemEnhanceTargetSkill: null,
     uniqueCodex: {},
+    codexNewlyRegistered: {},
     codexCollapsedSlots: {},
     codexSubtab: 'main',
     uniqueCodexCompletedRewardClaimed: false,

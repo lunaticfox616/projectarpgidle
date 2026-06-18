@@ -8034,6 +8034,7 @@ function triggerSeasonReset() {
     game.seasonChaseUniqueDropped = false;
     game.seasonChaseUniqueDrops = [];
     game.uniqueCodex = codexReveal;
+    game.codexNewlyRegistered = {};
     game.starWedge = JSON.parse(JSON.stringify(defaultGame.starWedge));
     game.starWedge.wedges = preservedEternalWedges;
     game.starWedge.constellationBuff = preservedConstellationBuff;

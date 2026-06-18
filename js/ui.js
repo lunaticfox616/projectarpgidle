@@ -411,6 +411,7 @@ const TAB_DRAG_CANCEL_PX = 8;
 let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
+let lastActiveTabId = null;
 const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'];
 
@@ -689,6 +690,9 @@ function switchTab(tabId) {
         }
     }
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    // 도감 탭에서 다른 탭으로 벗어날 때, 신규 등록 강조를 해제(처음 열었을 때만 강조).
+    if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
+    lastActiveTabId = tabId;
     if (tabId === 'tab-talent' && typeof renderTalentTab === 'function') renderTalentTab();
     if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
@@ -2987,6 +2991,7 @@ function renderUniqueCodexUI() {
     let listEl = document.getElementById('ui-codex-list');
     if (!summary || !listEl) return;
     game.uniqueCodex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
+    let newlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
     game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
     game.codexSubtab = (game.codexSubtab === 'realm') ? 'realm' : 'main';
     let realmOnly = game.codexSubtab === 'realm';
@@ -3011,7 +3016,11 @@ function renderUniqueCodexUI() {
             let stored = game.uniqueCodex[key];
             let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (루프 리셋됨)') : '미등록';
             let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
-            lines.push(`<div class="item-card"><div><div class="item-title unique">[${slot}] ${stored ? entry.name : '???'}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '옵션 정보 없음'}</div></div><div class="item-actions">${stored ? (stored.baseName ? `<button onclick="withdrawUniqueFromCodex('${key}')">꺼내기</button>` : `<button disabled>초기화됨</button>`) : `<button disabled>비어있음</button>`}</div></div>`);
+            let isNew = stored && newlyRegistered[key];
+            let cardStyle = isNew ? ' style="box-shadow:0 0 0 2px #ff4d4f, 0 0 12px rgba(255,77,79,0.7); border-color:#ff4d4f;"' : '';
+            let newBadge = isNew ? ` <span style="color:#ff4d4f; font-weight:800; font-size:0.82em;">● NEW</span>` : '';
+            let statusHtml = stored ? `<span style="color:#4cd964; font-weight:700;">등록됨</span>` : `<span style="color:#7f8c8d;">미등록</span>`;
+            lines.push(`<div class="item-card"${cardStyle}><div><div class="item-title unique">[${slot}] ${stored ? entry.name : '???'}${newBadge}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '옵션 정보 없음'}</div></div><div class="item-actions">${statusHtml}</div></div>`);
         });
     });
     listEl.innerHTML = lines.join('');
@@ -8568,6 +8577,7 @@ function mergeDefaults(save) {
     merged.gemEnhanceUnlocked = !!merged.gemEnhanceUnlocked;
     merged.gemEnhanceTargetSkill = (typeof merged.gemEnhanceTargetSkill === 'string' && SKILL_DB[merged.gemEnhanceTargetSkill] && SKILL_DB[merged.gemEnhanceTargetSkill].isGem && Array.isArray(merged.skills) && merged.skills.includes(merged.gemEnhanceTargetSkill)) ? merged.gemEnhanceTargetSkill : null;
     merged.uniqueCodex = (merged.uniqueCodex && typeof merged.uniqueCodex === 'object') ? merged.uniqueCodex : {};
+    merged.codexNewlyRegistered = (merged.codexNewlyRegistered && typeof merged.codexNewlyRegistered === 'object') ? merged.codexNewlyRegistered : {};
     merged.codexCollapsedSlots = (merged.codexCollapsedSlots && typeof merged.codexCollapsedSlots === 'object') ? merged.codexCollapsedSlots : {};
     merged.codexSubtab = (merged.codexSubtab === 'realm') ? 'realm' : 'main';
     merged.uniqueCodexCompletedRewardClaimed = !!merged.uniqueCodexCompletedRewardClaimed;
