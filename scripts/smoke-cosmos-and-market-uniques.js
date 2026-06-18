@@ -39,7 +39,7 @@ const dropSandbox = {
 };
 dropSandbox.Math.random = () => 0.9;
 vm.createContext(dropSandbox);
-vm.runInContext(`${extractFunction(passivesSource, 'generateUniqueItem')}; this.generateUniqueItem = generateUniqueItem;`, dropSandbox);
+vm.runInContext(`${extractFunction(passivesSource, 'chooseUniqueDropOption')}\n${extractFunction(passivesSource, 'generateUniqueItem')}; this.generateUniqueItem = generateUniqueItem;`, dropSandbox);
 const cosmosDrop = dropSandbox.generateUniqueItem(14, '목걸이');
 assert.strictEqual(cosmosDrop.name, '운명의 쌍현', 'Fate Twin must be selectable from cosmos unique drops');
 assert.strictEqual(cosmosDrop.uniqueEffectKey, 'fateTwinRollSync', 'Fate Twin drop must carry its unique effect');
