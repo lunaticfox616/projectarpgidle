@@ -86,7 +86,7 @@ assert(
 
 
 const stateRuntime = {
-  game: { season: 12, abyssEndlessDepth: 37 },
+  game: { season: 12, abyssEndlessDepth: 37, abyssUnlockedDepths: [20, 21, 37], loopProgressCurrent: { chaos20Cleared: true } },
   ACT_ZONE_COUNT: 10,
   ABYSS_START_ZONE_ID: 10,
   abyssTiers: [8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 19, 20],
@@ -105,12 +105,17 @@ vm.createContext(stateRuntime);
 vm.runInContext([
   extractFunctionBlock(stateSource, 'getAbyssDepthFromZoneId'),
   extractFunctionBlock(stateSource, 'getAbyssZoneIdForDepth'),
+  extractFunctionBlock(stateSource, 'hasCurrentLoopChaos20Clear'),
+  extractFunctionBlock(stateSource, 'getHighestUnlockedEndlessChaosDepth'),
+  extractFunctionBlock(stateSource, 'getAutoProgressZoneId'),
   extractFunctionBlock(stateSource, 'getAbyssZoneTier'),
   extractFunctionBlock(stateSource, 'getZone'),
-  'this.getZone = getZone; this.getAbyssZoneIdForDepth = getAbyssZoneIdForDepth;'
+  'this.getZone = getZone; this.getAbyssZoneIdForDepth = getAbyssZoneIdForDepth; this.getAutoProgressZoneId = getAutoProgressZoneId;'
 ].join('\n'), stateRuntime);
 const chaos20Zone = stateRuntime.getZone(stateRuntime.getAbyssZoneIdForDepth(20));
 assert.strictEqual(chaos20Zone.name, '혼돈 20', 'chaos 20 map card must not inherit the last visited deep-chaos depth');
 assert.strictEqual(chaos20Zone.depth, 20, 'chaos 20 map card must keep exact depth 20');
+assert.strictEqual(stateRuntime.getAutoProgressZoneId(stateRuntime.getAbyssZoneIdForDepth(20)), stateRuntime.getAbyssZoneIdForDepth(21), 'auto-progress after chaos 20 must start at deep chaos 21 instead of the highest recorded deep-chaos floor');
+assert.strictEqual(stateRuntime.game.abyssEndlessDepth, 21, 'auto-progress into deep chaos 21 must update the active endless depth so defeat retries do not use the old record');
 
 console.log('smoke-map-hunting-layout: ok');

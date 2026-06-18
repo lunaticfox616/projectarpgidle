@@ -10,6 +10,14 @@ const itemDataSource = fs.readFileSync('data/items.js', 'utf8');
   assert(itemDataSource.includes(`name: "${name}"`) && itemDataSource.includes('ultraRare: true'), `${name} must remain an ultra-rare chase unique`);
 });
 
+
+['심연 군주갑', '황제의 심연띠'].forEach(name => {
+  const line = itemDataSource.split('\n').find(row => row.includes(`name: "${name}"`)) || '';
+  assert(line, `${name} must exist`);
+  assert(!line.includes('ultraRare'), `${name} must be a normal unique, not an ultra-rare chase unique`);
+  assert(!line.includes('chaseWeight'), `${name} must not keep boosted chase weighting`);
+});
+
 assert(!passivesSource.includes('hasUnknownLegacyChaseDrop'), 'legacy boolean-only chase state must not disable every chase unique drop');
 assert(passivesSource.includes('let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare'), 'chase unique pool must be built from ultra-rare uniques');
 assert(passivesSource.includes('Math.random() < 0.0016'), 'chase unique field drop chance must be 0.16%');
