@@ -8035,6 +8035,8 @@ function triggerSeasonReset() {
     game.seasonChaseUniqueDrops = [];
     game.uniqueCodex = codexReveal;
     game.codexNewlyRegistered = {};
+    // 군락지 액막이 부적(보유/장착/슬롯)도 루프 시 초기화한다.
+    game.colony = JSON.parse(JSON.stringify(defaultGame.colony));
     game.starWedge = JSON.parse(JSON.stringify(defaultGame.starWedge));
     game.starWedge.wedges = preservedEternalWedges;
     game.starWedge.constellationBuff = preservedConstellationBuff;
