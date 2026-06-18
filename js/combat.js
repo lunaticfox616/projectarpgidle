@@ -5895,7 +5895,7 @@ function finishEncounterRun() {
         }
         st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
         st.currentFloor = mapAction === 'repeatZone' ? floor : Math.min(st.highestFloor, floor + 1);
-        addLog(`🌌 혼돈계 ${floor}층 돌파! ${st.currentFloor}층까지 입장 가능합니다.`, 'season-up');
+        addLog(`🌌 혼돈계 ${floor}층 돌파! ${st.highestFloor}층까지 입장 가능합니다.`, 'season-up');
         if (mapAction === 'nextLoopBestPlusOne') {
             let nextZone = resolveNextLoopBestPlusOneZone(zone);
             game.currentZoneId = nextZone !== null ? nextZone : CHAOS_REALM_ZONE_ID;
@@ -6185,24 +6185,16 @@ function finishEncounterRun() {
                 if (depth >= 20) game.loopProgressCurrent.bestAbyssDepth = Math.max(bestAbyssDepthBeforeClear, depth);
                 game.loopProgressCurrent.chaos20Cleared = true;
                 if (typeof maybeUnlockSkyTowerFromChaos20 === 'function') maybeUnlockSkyTowerFromChaos20();
+                if (mapAction !== 'repeatZone' && mapAction !== 'stop' && (mapAction === 'nextLoopBestPlusOne' || (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear))) {
+                    enterNextEndlessChaosDepth();
+                    return;
+                }
                 if (mapAction === 'repeatZone') {
                     game.currentZoneId = zone.id;
                     game.killsInZone = 0;
-                    enterAutomaticMapInterruptionAfterClear(zone);
-                    checkUnlocks();
-                    if ((game.settings.townReturnAction || 'retry') === 'stop') {
-                        game.combatHalted = true;
-                        game.enemies = [];
-                        game.encounterPlan = [];
-                        game.encounterIndex = 0;
-                        game.runProgress = 0;
-                    } else startMoving(false);
+                    startMoving(false);
                     updateStaticUI();
                     queueImportantSave(220);
-                    return;
-                }
-                if (mapAction === 'nextLoopBestPlusOne' || (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear)) {
-                    enterNextEndlessChaosDepth();
                     return;
                 }
                 game.pendingLoopDecision = true;
