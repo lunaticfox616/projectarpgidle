@@ -48,11 +48,23 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext([
+  extractFunction(uiSource, 'renderLoop9VoidRiftPanel'),
   extractFunction(uiSource, 'canAutoEnterGrandBreach'),
   extractFunction(uiSource, 'autoEnterGrandBreachIfReady'),
   extractFunction(uiSource, 'enterGrandBreach'),
   extractFunction(uiSource, 'toggleGrandBreachAutoEnter'),
 ].join('\n'), context);
+
+const elements = {
+  'ui-voidrift-header': { style: {} },
+  'ui-voidrift-panel': { style: {}, innerHTML: '' },
+  'btn-grand-breach-auto-enter': { style: {}, innerText: '' },
+};
+context.document = { getElementById: id => elements[id] || null };
+context.game.season = 9;
+context.renderLoop9VoidRiftPanel();
+assert(elements['ui-voidrift-panel'].innerHTML.includes('대균열 진입'), 'void rift renderer must update the panel element without referencing an undefined local');
+assert.strictEqual(elements['btn-grand-breach-auto-enter'].innerText, '대균열 자동입장 OFF', 'void rift renderer must show the current auto-entry state');
 
 assert.strictEqual(context.autoEnterGrandBreachIfReady(), false, 'auto-entry must not run while the setting is OFF');
 assert.strictEqual(context.game.currentZoneId, 12, 'OFF state must leave the current map unchanged');
