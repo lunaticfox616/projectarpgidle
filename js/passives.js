@@ -2219,24 +2219,28 @@ function getClassTreeDef(clsKey) {
         tree.n11 = { stat: cores[0].stat, val: cores[0].val, req: 'n10', exclusive: 'n12' };
         tree.n12 = { stat: cores[1].stat, val: cores[1].val, req: 'n10', exclusive: 'n11' };
     }
-    // 5차 재능 개화 노드: 해당 직업으로 재능 개화에 성공하면 해금된다. 4차 핵심 중 하나를 찍으면 진입 가능.
+    // 5차 재능 개화 노드: 해당 직업으로 재능 개화에 성공하면 해금된다. 4차 핵심을 모두 찍으면 진입 가능.
+    // 재능특화 노드 2개(n13a/n13b) 중 1개, 전직특화 노드 2개(n13c/n13d) 중 1개를 각각 선택할 수 있다.
     if ((game.bloomedClasses || []).includes(clsKey)) {
-        const fifthByClass = {
-            warrior: { stat: 'physPctDmg', val: 70 },
-            gladiator: { stat: 'meleePctDmg', val: 72 },
-            assassin: { stat: 'critDmg', val: 100 },
-            ranger: { stat: 'projectilePctDmg', val: 70 },
-            elementalist: { stat: 'elementalPctDmg', val: 72 },
-            warlock: { stat: 'chaosPctDmg', val: 64 },
-            guardian: { stat: 'pctHp', val: 26 },
-            inquisitor: { stat: 'elementalPctDmg', val: 70 },
-            soulbinder: { stat: 'dotPctDmg', val: 66 },
-            catalyst: { stat: 'elementalPctDmg', val: 70 },
-            hunter: { stat: 'critDmg', val: 96 },
-            crusader: { stat: 'lightPctDmg', val: 72 }
+        const jobByClass = {
+            warrior: [{ stat: 'aspd', val: 16 }, { stat: 'dr', val: 12 }],
+            gladiator: [{ stat: 'critDmg', val: 55 }, { stat: 'evasionPct', val: 18 }],
+            assassin: [{ stat: 'move', val: 18 }, { stat: 'evasionPct', val: 20 }],
+            ranger: [{ stat: 'aspd', val: 18 }, { stat: 'critDmg', val: 55 }],
+            elementalist: [{ stat: 'resPen', val: 14 }, { stat: 'critDmg', val: 50 }],
+            warlock: [{ stat: 'resPen', val: 14 }, { stat: 'pctHp', val: 22 }],
+            guardian: [{ stat: 'resAll', val: 14 }, { stat: 'regen', val: 2.0 }],
+            inquisitor: [{ stat: 'resPen', val: 14 }, { stat: 'critDmg', val: 55 }],
+            soulbinder: [{ stat: 'summonPctDmg', val: 55 }, { stat: 'summonHpPct', val: 30 }],
+            catalyst: [{ stat: 'dotPctDmg', val: 55 }, { stat: 'igniteDamageMultiplierPct', val: 35 }],
+            hunter: [{ stat: 'projectilePctDmg', val: 55 }, { stat: 'aspd', val: 16 }],
+            crusader: [{ stat: 'lightPctDmg', val: 50 }, { stat: 'armorPct', val: 20 }]
         };
-        let fifth = fifthByClass[clsKey] || { stat: 'pctDmg', val: 60 };
-        tree.n13 = { stat: fifth.stat, val: fifth.val, req: ['n11', 'n12'] };
+        let jobs = jobByClass[clsKey] || [{ stat: 'pctDmg', val: 40 }, { stat: 'pctHp', val: 20 }];
+        tree.n13a = { stat: 'pctDmg', val: 35, req: ['n11', 'n12'], exclusive: 'n13b' };
+        tree.n13b = { stat: 'pctHp', val: 35, req: ['n11', 'n12'], exclusive: 'n13a' };
+        tree.n13c = { stat: jobs[0].stat, val: jobs[0].val, req: ['n11', 'n12'], exclusive: 'n13d' };
+        tree.n13d = { stat: jobs[1].stat, val: jobs[1].val, req: ['n11', 'n12'], exclusive: 'n13c' };
     }
     return tree;
 }

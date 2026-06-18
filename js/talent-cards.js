@@ -502,7 +502,8 @@ function renderTalentTab() {
     let bd = getTalentBloomScoreBreakdown();
     let curScore = getTalentBloomScore();
     summaryEl.innerHTML = `보유 카드 <strong>${ownedKeys.length}</strong> / ${TALENT_BLOOM_TOTAL_CARDS} · 총 개화 ${Math.max(0, Math.floor(game.talentBloomClears || 0))}회`
-        + `<br><span style="font-size:0.85em; color:#9fb4d1;">현재 개화 점수 <strong>${curScore}</strong> = 혼돈심화 ${bd.deepChaos} + 미궁 ${bd.labyrinth} + 혼돈계 ${bd.chaosFloor} + 지하계 ${bd.underFloor} + 우주계 ${bd.cosmos} + 전투력 ${bd.dpsTerm}</span>`;
+        + `<br><span style="font-size:0.85em; color:#9fb4d1;">현재 개화 점수 <strong>${curScore}</strong> = 혼돈심화 ${bd.deepChaos} + 미궁 ${bd.labyrinth} + 혼돈계 ${bd.chaosFloor} + 지하계 ${bd.underFloor} + 우주계 ${bd.cosmos} + 전투력 ${bd.dpsTerm}</span>`
+        + `<br><span style="font-size:0.82em; color:#9fe2b1;">🌸 한 번 획득한 개화 카드는 루프가 진행되어도 사라지지 않고 영구히 보유 · 적용됩니다.</span>`;
 
     // 장착 슬롯 영역
     ensureTalentCardLoadout();

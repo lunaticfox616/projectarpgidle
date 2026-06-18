@@ -7165,11 +7165,11 @@ function buildCraftActionButtons(item) {
                 return line.stat === 'suppCap' ? '보조스킬 장착 한도 +1' : `${statInfo.name || line.stat} +${line.val}${statInfo.isPct ? '%' : ''}`;
             }).join('<br>');
             let titleText = statLines.map(line => (P_STATS[line.stat] || { name: getStatName(line.stat) }).name || line.stat).join(' / ');
-            let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : (id === 'n13' ? '🌸 5차 개화' : titleText));
+            let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : ((id === 'n13a' || id === 'n13b') ? '🌸 재능특화' : ((id === 'n13c' || id === 'n13d') ? '🌸 전직특화' : titleText)));
             return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="refundAscendNode('${id}')"` : (!reqMet ? '' : `onclick="buyAscend('${id}')"`)}><div class="trait-title">${title}</div><div class="trait-desc">${desc}</div></div>`;
         };
         let coreRow = (tree.n11 || tree.n12) ? `<div class="trait-row">${renderAscend('n11')}${renderAscend('n12')}</div>` : '';
-        let bloomRow = tree.n13 ? `<div class="trait-row">${renderAscend('n13')}</div>` : '';
+        let bloomRow = (tree.n13a || tree.n13c) ? `<div class="trait-row">${renderAscend('n13a')}${renderAscend('n13b')}</div><div class="trait-row">${renderAscend('n13c')}${renderAscend('n13d')}</div>` : '';
         document.getElementById('ui-ascend-tree-container').innerHTML = `<div class="trait-row">${renderAscend('n1')}</div><div class="trait-row">${renderAscend('n2')}${renderAscend('n3')}</div><div class="trait-row">${renderAscend('n4')}${renderAscend('n5')}${renderAscend('n6')}</div><div class="trait-row">${renderAscend('n7')}${renderAscend('n8')}${renderAscend('n9')}</div><div class="trait-row">${renderAscend('n10')}</div>${coreRow}${bloomRow}`;
         let kDefs = getClassKeystoneDefs(game.ascendClass);
         if (kDefs.length > 0) {
@@ -11284,7 +11284,7 @@ function buyAscend(id) {
     let tree = getClassTreeDef(game.ascendClass);
     let node = tree[id];
     let reqMet = isAscendNodeRequirementMet(node);
-    if (node && node.exclusive && game.ascendNodes.includes(node.exclusive)) return addLog('4차 핵심 노드는 2개 중 1개만 선택할 수 있습니다.', 'attack-monster');
+    if (node && node.exclusive && game.ascendNodes.includes(node.exclusive)) return addLog('같은 계열의 노드는 둘 중 하나만 선택할 수 있습니다.', 'attack-monster');
     if (!node || game.ascendPoints <= 0 || game.ascendNodes.includes(id) || !reqMet) return;
     game.ascendNodes.push(id);
     game.ascendPoints--;
