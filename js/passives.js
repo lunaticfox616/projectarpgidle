@@ -5958,17 +5958,6 @@ const UNIQUE_FIXED_BASE_BY_NAME = {
     '태양의 불길': 'sunstride_boots',
 };
 
-function chooseUniqueDropOption(options, useChaseWeights) {
-    if (!useChaseWeights) return rndChoice(options);
-    let totalWeight = options.reduce((sum, unique) => sum + Math.max(1, Number(unique.chaseWeight || 1)), 0);
-    let roll = Math.random() * totalWeight;
-    for (let i = 0; i < options.length; i++) {
-        roll -= Math.max(1, Number(options[i].chaseWeight || 1));
-        if (roll < 0) return options[i];
-    }
-    return options[options.length - 1];
-}
-
 function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     let zone = getZone(game.currentZoneId) || {};
     let canDropUniqueInZone = (unique) => {
@@ -5993,7 +5982,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     if (options.length === 0) options = poolSource.filter(unique => zoneTier >= (unique.reqTier || 1));
     if (options.length === 0) options = poolSource.length > 0 ? poolSource : UNIQUE_DB.filter(unique => canDropUniqueInZone(unique));
     if (options.length === 0) options = UNIQUE_DB.filter(unique => canDropUniqueInZone(unique));
-    let unique = forcedUnique || chooseUniqueDropOption(options, canRollChase);
+    let unique = forcedUnique || rndChoice(options);
     let uniqueTier = unique.reqTier || zoneTier;
     let fixedBaseId = UNIQUE_FIXED_BASE_BY_NAME[unique.name];
     let base = fixedBaseId ? BASE_ITEM_DB.find(row => row && row.id === fixedBaseId) : null;
