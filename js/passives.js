@@ -5284,6 +5284,26 @@ function getUniqueCodexKeyByItem(item) {
     return `${item.slot}|${item.name}`;
 }
 
+// 고유 아이템 획득 시 도감에 즉시 등록(아이템을 소모하지 않는 수집 기록 개념).
+function registerUniqueToCodexOnAcquire(item) {
+    let key = getUniqueCodexKeyByItem(item);
+    if (!key) return false;
+    game.uniqueCodex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
+    let existing = game.uniqueCodex[key];
+    // 이미 옵션까지 기록된 경우 첫 등록 기록을 유지한다(루프 리셋 후 정보만 남은 경우는 다시 채움).
+    if (existing && existing.baseName) return false;
+    game.uniqueCodex[key] = JSON.parse(JSON.stringify(item));
+    game.codexNewlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
+    let firstTime = !existing;
+    game.codexNewlyRegistered[key] = true;
+    if (game.noti) game.noti.codex = true;
+    if (firstTime) {
+        addLog(`📚 도감 신규 등록: <span class='loot-unique'>[${item.name}]</span>`, 'loot-unique');
+        if (typeof tryGrantCodexCompletionReward === 'function') tryGrantCodexCompletionReward();
+    }
+    return true;
+}
+
 const EQUIPMENT_DROP_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'];
 
 function chooseItemBase(slot, zoneTier) {
@@ -6236,6 +6256,7 @@ function addItemToInventory(item, options) {
         if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;
     }
+    if (item.rarity === 'unique') registerUniqueToCodexOnAcquire(item);
     if ((game.inventory || []).length >= getInventoryLimit()) {
         salvageItemObject(item, true);
         return false;
