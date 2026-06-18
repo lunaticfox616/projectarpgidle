@@ -6185,6 +6185,22 @@ function finishEncounterRun() {
                 if (depth >= 20) game.loopProgressCurrent.bestAbyssDepth = Math.max(bestAbyssDepthBeforeClear, depth);
                 game.loopProgressCurrent.chaos20Cleared = true;
                 if (typeof maybeUnlockSkyTowerFromChaos20 === 'function') maybeUnlockSkyTowerFromChaos20();
+                if (mapAction === 'repeatZone') {
+                    game.currentZoneId = zone.id;
+                    game.killsInZone = 0;
+                    enterAutomaticMapInterruptionAfterClear(zone);
+                    checkUnlocks();
+                    if ((game.settings.townReturnAction || 'retry') === 'stop') {
+                        game.combatHalted = true;
+                        game.enemies = [];
+                        game.encounterPlan = [];
+                        game.encounterIndex = 0;
+                        game.runProgress = 0;
+                    } else startMoving(false);
+                    updateStaticUI();
+                    queueImportantSave(220);
+                    return;
+                }
                 if (mapAction === 'nextLoopBestPlusOne' || (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear)) {
                     enterNextEndlessChaosDepth();
                     return;
