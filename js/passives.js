@@ -1755,6 +1755,154 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
     }
 }
 
+function advanceOceanDiveFromKill(zone, enemy) {
+    let st = ensureOceanState();
+    if (!st.unlocked || !st.diving) return;
+    let depthGain = enemy && enemy.isBoss ? 3 : (enemy && enemy.isElite ? 2 : 1);
+    st.depthM = Math.max(0, Math.floor(st.depthM || 0)) + depthGain;
+    let newCheckpoint = Math.floor(st.depthM / 100) * 100;
+    if (newCheckpoint > st.checkpointM) {
+        st.checkpointM = newCheckpoint;
+        addLog(`🛗 수중 리프트 ${st.checkpointM}m 지점이 개방되었습니다.`, 'loot-rare');
+    }
+    st.pressureLevel = getOceanDepthTier(st.depthM);
+    let pressureCrushAlive = (game.enemies || []).some(e => e && e.hp > 0 && e.trait && e.trait.oceanPressureGainMul);
+    if (pressureCrushAlive) st.pressureLevel = Math.ceil(st.pressureLevel * 1.1);
+    if (Math.random() < (enemy && enemy.isElite ? 0.12 : 0.04)) awardCurrency('reefFragment', 1);
+    if (Math.random() < (enemy && enemy.isBoss ? 0.5 : 0.01)) awardCurrency('oceanRerollShard', 1);
+    gainOceanFishingGaugeFromCombat(zone, enemy);
+}
+
+function gainOceanFishingGaugeFromCombat(zone, enemy) {
+    let st = ensureOceanState();
+    if (!st.unlocked || !st.diving) return;
+    let gain = (enemy && enemy.isBoss ? 6 : (enemy && enemy.isElite ? 2.5 : 0.6)) * getOceanFishingGaugeGainMul();
+    let nextGauge = (st.fishingGauge || 0) + gain;
+    st.fishingGauge = clampNumber(nextGauge, 0, 100);
+    if (st.fishingGauge >= 100) {
+        st.fishingGauge = 0;
+        catchOceanFish(st.pressureLevel || 0);
+    }
+}
+
+function catchOceanFish(depthTier) {
+    let safeTier = Math.max(0, Math.floor(depthTier || 0));
+    let eligible = Object.keys(OCEAN_FISH_DB).filter(key => (OCEAN_FISH_DB[key].depthTier || 0) <= safeTier);
+    if (eligible.length === 0) return;
+    let weights = eligible.map(key => 1 / (1 + (safeTier - (OCEAN_FISH_DB[key].depthTier || 0))));
+    let total = weights.reduce((a, b) => a + b, 0);
+    let roll = Math.random() * total;
+    let picked = eligible[0];
+    for (let i = 0; i < eligible.length; i++) {
+        roll -= weights[i];
+        if (roll <= 0) { picked = eligible[i]; break; }
+    }
+    let st = ensureOceanState();
+    st.fishStock[picked] = Math.max(0, Math.floor(st.fishStock[picked] || 0)) + 1;
+    addLog(`🐟 ${OCEAN_FISH_DB[picked].name}을(를) 낚았습니다!`, 'loot-magic');
+}
+
+function installOceanReefFragment() {
+    let st = ensureOceanState();
+    if (st.reefInstalled >= 10) return addLog('암초 조각을 더 설치할 수 없습니다 (최대치).', 'attack-monster');
+    if ((game.currencies.reefFragment || 0) < 1) return addLog('암초 조각이 부족합니다.', 'attack-monster');
+    game.currencies.reefFragment -= 1;
+    st.reefInstalled = Math.max(0, Math.floor(st.reefInstalled || 0)) + 1;
+    addLog(`🪸 암초 조각을 설치했습니다. (낚시 게이지 충전 +${(st.reefInstalled * 15)}%)`, 'loot-rare');
+}
+
+function enterOceanDive() {
+    let st = ensureOceanState();
+    if (!st.unlocked) return addLog('아직 심해로 진입할 수 없습니다.', 'attack-monster');
+    st.depthM = Math.max(0, Math.floor(st.checkpointM || 0));
+    st.oxygenMax = Math.max(1, Math.floor(getOceanOxygenMax()));
+    st.oxygenCur = st.oxygenMax;
+    st.diving = true;
+    st.lastTickAt = Date.now();
+    game.currentZoneId = OCEAN_ZONE_ID;
+    addLog(`🌊 심해 ${st.depthM}m 지점부터 잠수를 시작합니다.`, 'loot-rare');
+}
+
+function forceSurfaceOcean(reason) {
+    let st = ensureOceanState();
+    st.diving = false;
+    st.depthM = Math.max(0, Math.floor(st.checkpointM || 0));
+    st.oxygenCur = st.oxygenMax;
+    addLog(reason === 'oxygen' ? '🫧 산소가 모두 소진되어 강제로 수면 위로 올라왔습니다. 체크포인트 이후의 진행이 사라졌습니다.' : '🌊 잠수를 종료하고 수면으로 복귀했습니다.', 'attack-monster');
+}
+
+function tickOceanOxygen(nowMs) {
+    let st = ensureOceanState();
+    if (!st.unlocked || !st.diving) return;
+    let last = Math.max(0, Number(st.lastTickAt) || nowMs);
+    let dtSec = Math.max(0, Math.min(5, (nowMs - last) / 1000));
+    st.lastTickAt = nowMs;
+    if (dtSec <= 0) return;
+    let drainPerSec = getOceanOxygenDrainPerSec();
+    let leechAlive = (game.enemies || []).some(e => e && e.hp > 0 && e.trait && e.trait.oceanOxygenLeechOnHit);
+    if (leechAlive) drainPerSec *= 1.4;
+    st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, st.oxygenCur - drainPerSec * dtSec));
+    if (st.oxygenCur <= 0) forceSurfaceOcean('oxygen');
+}
+
+const SEA_GIFT_RECIPES = [
+    { id: 'reefBundle', name: '암초 꾸러미', desc: '얕은 바다 어종을 모아 암초 조각으로 가공합니다.', requires: { shallowSilverfin: 5 }, effect: { type: 'currency', key: 'reefFragment', amount: 2 } },
+    { id: 'tidalCharm', name: '조류의 호신구', desc: '조류 장어로 산소 정련 파편을 만듭니다.', requires: { tidalEel: 4 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 1 } },
+    { id: 'glowfinEssence', name: '발광의 정수', desc: '발광 송어로 베이스 옵션 재제련에 쓰는 심해의 파편을 정제합니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 2 } },
+    { id: 'abyssalGift', name: '심연의 선물', desc: '심연 등불고기를 제물로 바쳐 장비에 확정 옵션을 부여합니다.', requires: { abyssAngler: 3 }, effect: { type: 'guaranteedMod' } },
+    { id: 'leviathanBoon', name: '리바이어던의 축복', desc: '전설의 새끼 괴어로 최상급 확정 옵션을 부여합니다.', requires: { voidLeviathanSpawn: 2, abyssAngler: 2 }, effect: { type: 'guaranteedMod', tierBoost: 2 } }
+];
+
+function getSeaGiftRecipeStatus(recipeId) {
+    let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
+    if (!recipe) return null;
+    let st = ensureOceanState();
+    let ready = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
+    return { recipe, ready, owned: st.fishStock };
+}
+
+function craftSeaGift(recipeId, targetItem) {
+    let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
+    if (!recipe) return false;
+    let st = ensureOceanState();
+    let ready = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
+    if (!ready) { addLog('바다의 선물 재료가 부족합니다.', 'attack-monster'); return false; }
+    if (recipe.effect.type === 'guaranteedMod') {
+        let item = targetItem || (game.equipment && game.equipment['무기']);
+        if (!item) { addLog('대상 장비가 없습니다.', 'attack-monster'); return false; }
+        let mod = pickWeightedMod(getAvailableMods(item));
+        if (!mod) { addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
+        let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(recipe.effect.tierBoost || 0));
+        let idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
+        let rolled = rollAffixValue(mod, maxTier);
+        if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
+        updateItemName(item);
+    } else if (recipe.effect.type === 'currency') {
+        awardCurrency(recipe.effect.key, recipe.effect.amount || 1);
+    }
+    Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key]); });
+    addLog(`🎁 [바다의 선물] ${recipe.name}을(를) 제작했습니다.`, 'loot-rare');
+    return true;
+}
+
+function rerollSingleBaseOption(item, costCurrency, costAmount) {
+    if (!item || !Array.isArray(item.stats) || item.stats.length === 0) return false;
+    let key = costCurrency || 'oceanRerollShard';
+    let cost = Math.max(0, Math.floor(costAmount || 1));
+    if ((game.currencies[key] || 0) < cost) { addLog('재화가 부족합니다.', 'attack-monster'); return false; }
+    let editableIdx = item.stats.map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
+    if (editableIdx.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
+    let mods = pickRandomMods(getAvailableMods(item), 1);
+    if (!mods || mods.length === 0) { addLog('이 장비에서 새로 굴릴 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
+    let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
+    let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1));
+    game.currencies[key] = (game.currencies[key] || 0) - cost;
+    item.stats[idx] = rollAffixValue(mods[0], maxTier);
+    updateItemName(item);
+    addLog(`🌊 ${item.name || '장비'}의 베이스 옵션 한 줄을 다시 굴렸습니다.`, 'loot-rare');
+    return true;
+}
+
 function grantMeteorEncounterRewards() {
     let st = ensureStarWedgeState();
     let astroLv = getAstronomerLevelForUnlocks();

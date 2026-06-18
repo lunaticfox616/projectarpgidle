@@ -2218,6 +2218,8 @@ function getPlayerStats() {
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82;
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
+    game.oceanOxygenMaxBonus = Math.max(0, gearBase.oxygenMax + gearExplicit.oxygenMax + passive.oxygenMax + season.oxygenMax + ascend.oxygenMax + reward.oxygenMax);
+    game.oceanOxygenDrainReductionPct = Math.max(0, Math.min(80, gearBase.oxygenRegen + gearExplicit.oxygenRegen + passive.oxygenRegen + season.oxygenRegen + ascend.oxygenRegen + reward.oxygenRegen));
     let activeShadowStealth = uniqueDeflectStealth && (game.shadowStealthExpiresAt || 0) > Date.now();
     if (activeShadowStealth) finalMove += Math.max(0, Number(uniqueDeflectStealth.move || 20));
     if (uniqueKillMoveStacks && game.uniqueKillMoveStacksState && (game.uniqueKillMoveStacksState.expiresAt || 0) > Date.now()) finalMove += Math.max(0, Math.floor(game.uniqueKillMoveStacksState.stacks || 0)) * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
@@ -2230,6 +2232,15 @@ function getPlayerStats() {
         finalAspd *= (1 - gravitySlow);
         finalMove *= (1 - gravitySlow);
     }
+    let oceanPressureDamageMul = 1;
+    if (zonePenalty && zonePenalty.type === 'oceanDepth') {
+        let depthTier = Math.max(0, Math.floor(zonePenalty.depthTier || 0));
+        let pressureSlow = Math.min(0.65, depthTier * 0.05);
+        finalAspd *= (1 - pressureSlow);
+        oceanPressureDamageMul *= (1 - pressureSlow * 0.6);
+        // 이동속도는 수압의 영향을 압축해서 받아 100%에 가깝게 유지(체감 페널티 완만화)
+        finalMove *= (1 - pressureSlow * 0.2);
+    }
     if (zonePenalty && zonePenalty.bloomTrial && zonePenalty.underworldPenaltyFloor) {
         // 지하계 N층급 중력 패널티: 창공석으로 줄일 수 없음
         let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || 1));
@@ -2237,7 +2248,7 @@ function getPlayerStats() {
         finalAspd *= (1 - gravitySlow);
         finalMove *= (1 - gravitySlow);
     }
-    let finalDamageMultiplier = 1;
+    let finalDamageMultiplier = 1 * oceanPressureDamageMul;
     if (uniqueLabyrinthShackles) {
         finalDamageMultiplier *= getLabyrinthShacklesDamageMultiplier(finalMove);
         finalMove = 100;
@@ -4148,6 +4159,13 @@ function createEnemy(zone, marker, groupIndex) {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
         hp = Math.floor(hp * 5 * (1 + Math.max(0, underFloor - 1) * 0.045));
     }
+    if (zone.type === 'oceanDepth') {
+        let depthTier = Math.max(0, Math.floor(zone.depthTier || 0));
+        // 수심 0m 진입 시점 난이도를 혼돈심화 21층 부근(혼돈계 floor1 hp배율 5와 유사한 강도)에 맞추고, 100m(depthTier 1)마다 완만히 추가 상승.
+        let oceanBaseMul = 5;
+        let oceanTierMul = 1 + depthTier * 0.05;
+        hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
+    }
     if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(game.loopCount || 0) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
@@ -5628,6 +5646,7 @@ function handleEnemyDeath(enemy, pStats) {
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
+    if (zone && zone.type === 'oceanDepth') advanceOceanDiveFromKill(zone, enemy);
     spreadCatalystAilmentsOnDeath(enemy);
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {

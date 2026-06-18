@@ -714,6 +714,7 @@
             <button class="subtab-btn" id="btn-map-tab-chaos-realm" onclick="switchMapSubtab('map-tab-chaos-realm')">🌌 혼돈계</button>
             <button class="subtab-btn" id="btn-map-tab-sky" onclick="switchMapSubtab('map-tab-sky')">☁️ 창공</button>
             <button class="subtab-btn" id="btn-map-tab-underworld" onclick="switchMapSubtab('map-tab-underworld')">🕳️ 지하계</button>
+            <button class="subtab-btn" id="btn-map-tab-ocean" onclick="switchMapSubtab('map-tab-ocean')">🌊 심해</button>
         </div>
 
         <div id="map-tab-zones" class="subtab-content active">
@@ -767,6 +768,14 @@
             <h2>🕳️ 지하계</h2>
             <div id="ui-underworld-panel" style="background:#0f1120; border:1px solid #3f3569; border-radius:12px; padding:12px; margin-bottom:10px; color:#d6cdf6;"></div>
             <div class="map-grid" id="ui-underworld-list"></div>
+        </div>
+
+        <div id="map-tab-ocean" class="subtab-content">
+            <h2>🌊 심해</h2>
+            <div id="ui-ocean-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; margin-bottom:10px; color:#cdeefc;"></div>
+            <div class="map-grid" id="ui-ocean-list"></div>
+            <h3 style="margin-top:16px; color:#8fe3ff;">🎁 바다의 선물</h3>
+            <div id="ui-sea-gift-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; color:#cdeefc;"></div>
         </div>
 
         <div id="map-tab-abyss" class="subtab-content">
@@ -1087,24 +1096,24 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260610-patch-notes1"></script>
-<script defer src="data/maps.js?v=20260610-talent-bloom-p1"></script>
+<script defer src="data/maps.js?v=20260618-ocean1"></script>
 <script defer src="data/skills.js?v=20260608-flame-socket2"></script>
-<script defer src="data/items.js?v=20260617-talent-bloom-p1-merge1"></script>
+<script defer src="data/items.js?v=20260618-ocean1"></script>
 <script defer src="data/passives.js?v=20260613-passive-clusters1"></script>
-<script defer src="data/bosses.js?v=20260616-boss-assets1"></script>
+<script defer src="data/bosses.js?v=20260618-ocean1"></script>
 <script defer src="data/rewards.js?v=20260615-act4-resist"></script>
 <script defer src="data/talent-cards.js?v=20260614-talent-bloom-p6m"></script>
-<script defer src="js/utils.js?v=20260618-bloom5-revamp2"></script>
-<script defer src="js/state.js?v=20260618-codex-autoreg1"></script>
+<script defer src="js/utils.js?v=20260618-ocean1"></script>
+<script defer src="js/state.js?v=20260618-ocean1"></script>
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
 <script defer src="js/items.js?v=20260614-runtime-fixes1"></script>
 <script defer src="js/skills.js?v=20260614-cosmos-es1"></script>
-<script defer src="js/passives.js?v=20260618-codex-autoreg1"></script>
+<script defer src="js/passives.js?v=20260618-ocean1"></script>
 <script defer src="js/core-cube.js?v=20260609-core-cube-bulk1"></script>
-<script defer src="js/combat.js?v=20260618-colony-ward-reset1"></script>
+<script defer src="js/combat.js?v=20260618-ocean1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260614-cosmos-es1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260618-codex-autoreg1"></script>
-<script defer src="js/ui.js?v=20260618-codex-autoreg1"></script>
+<script defer src="js/ui.js?v=20260618-ocean1"></script>
 <script defer src="js/talent-cards.js?v=20260618-bloom5-revamp1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260527-spiral-galaxy4"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>

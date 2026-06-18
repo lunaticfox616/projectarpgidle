@@ -141,6 +141,76 @@ function isUnderworldUnlockedPermanent() {
 }
 
 
+const OCEAN_CURRENT_POOL = [
+    { id: 'cold_current', name: '냉수층', desc: '냉기 저항 감소' },
+    { id: 'warm_current', name: '온수층', desc: '화염 저항 감소' },
+    { id: 'riptide', name: '역류', desc: '이동속도 추가 감소' },
+    { id: 'bioluminescence', name: '발광 생물군', desc: '명중 디버프 강화' },
+    { id: 'still_water', name: '정체수', desc: '산소 소모 증가' },
+    { id: 'school_of_fish', name: '물고기 떼', desc: '낚시 게이지 충전 증가' }
+];
+function getOceanCurrentAffixes(depthTier) {
+    let safeTier = Math.max(0, Math.floor(depthTier || 0));
+    let count = Math.min(OCEAN_CURRENT_POOL.length, 1 + Math.floor(safeTier / 3));
+    let start = Math.abs(hashSeed('oceanCurrent:' + safeTier)) % OCEAN_CURRENT_POOL.length;
+    let out = [];
+    for (let i = 0; i < OCEAN_CURRENT_POOL.length && out.length < count; i++) {
+        let affix = OCEAN_CURRENT_POOL[(start + (i * 3)) % OCEAN_CURRENT_POOL.length];
+        if (!out.some(row => row.id === affix.id)) out.push({ ...affix });
+    }
+    return out;
+}
+function createDefaultOceanState() {
+    return {
+        unlocked: false,
+        depthM: 0,
+        checkpointM: 0,
+        oxygenMax: 100,
+        oxygenCur: 100,
+        pressureLevel: 0,
+        fishingGauge: 0,
+        reefInstalled: 0,
+        fishStock: {},
+        diving: false,
+        lastTickAt: 0
+    };
+}
+function ensureOceanState() {
+    let st = (game && game.ocean && typeof game.ocean === 'object') ? game.ocean : (game.ocean = createDefaultOceanState());
+    st.unlocked = !!st.unlocked;
+    st.depthM = Math.max(0, Math.floor(st.depthM || 0));
+    st.checkpointM = Math.max(0, Math.floor(st.checkpointM || 0));
+    st.oxygenMax = Math.max(1, Math.floor(getOceanOxygenMax()));
+    st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, Number.isFinite(st.oxygenCur) ? st.oxygenCur : st.oxygenMax));
+    st.pressureLevel = Math.max(0, Math.floor(st.pressureLevel || 0));
+    st.fishingGauge = Math.max(0, Math.min(100, Number(st.fishingGauge) || 0));
+    st.reefInstalled = Math.max(0, Math.min(10, Math.floor(st.reefInstalled || 0)));
+    st.fishStock = (st.fishStock && typeof st.fishStock === 'object') ? st.fishStock : {};
+    st.diving = !!st.diving;
+    if (!st.unlocked && (game.season || 1) >= OCEAN_UNLOCK_LOOP) st.unlocked = true;
+    return st;
+}
+function canEnterOceanDepth() {
+    return !!ensureOceanState().unlocked;
+}
+function getOceanOxygenMax() {
+    let base = 100;
+    let bonus = Math.max(0, Number(game && game.oceanOxygenMaxBonus) || 0);
+    return base + bonus;
+}
+function getOceanOxygenDrainPerSec() {
+    let base = 1;
+    let reduction = Math.max(0, Math.min(80, Number(game && game.oceanOxygenDrainReductionPct) || 0));
+    return Math.max(0.1, base * (1 - reduction / 100));
+}
+function getOceanDepthTier(depthM) {
+    return Math.floor(Math.max(0, Math.floor(depthM || 0)) / 100);
+}
+function getOceanFishingGaugeGainMul() {
+    let st = ensureOceanState();
+    return 1 + Math.max(0, Math.min(10, st.reefInstalled || 0)) * 0.15;
+}
+
 function createDefaultSkyTowerState() {
     return {
         unlocked: false,
@@ -334,6 +404,12 @@ function getZone(id) {
             maxKills: 1,
             ele: 'chaos'
         };
+    }
+    if (id === OCEAN_ZONE_ID) {
+        let ocean = ensureOceanState();
+        let depthM = Math.max(0, Math.floor(ocean.depthM || 0));
+        let depthTier = getOceanDepthTier(depthM);
+        return { id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) };
     }
     if (id === LABYRINTH_ZONE_ID) {
         let floor = Math.max(1, game.labyrinthFloor || 1);
@@ -1267,7 +1343,7 @@ let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenDrainPerSec, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.
 
@@ -1626,6 +1702,7 @@ const defaultGame = {
     skyTower: createDefaultSkyTowerState(),
     underworldRunes: { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {}, bonusLinesByNo: {} },
     underworldProgress: { highestFloor: 1, currentFloor: 1 },
+    ocean: createDefaultOceanState(),
     coreCube: { unlocked: false, everUnlocked: false, relockUntilDrop: false, unlockNoticeSeen: false, selectedFace: 0, blurred45: 0, powers: {}, faces: [null, null, null, null, null, null], completed: false, isCompleting: false, revealedOptions: [], optionMechanism: null, lastPower: null },
     pendingLoopDecision: false,
     pendingLoopReady: false,

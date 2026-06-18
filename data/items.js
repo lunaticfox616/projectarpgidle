@@ -364,7 +364,16 @@ const ORB_DB = {
     radiantSealShard: { name: '찬란한 봉인편린', desc: '극도로 희귀한 최상급 봉인편린입니다. 고유 부적 등장 확률이 높습니다.' },
     meteorShard: { name: '운석 파편', desc: '운석 낙하 지점에서 얻는 검은 별 파편. 별쐐기 제작/리롤에 사용됩니다.' },
     incompleteStarWedge: { name: '불완전한 별쐐기', desc: '미완성 별쐐기 코어. 운석 파편과 결합하면 완성할 수 있습니다.' },
-    starWedge: { name: '별쐐기', desc: '검은 별의 파편. 패시브 트리에 장착해 주변 노드 효과를 변성시킵니다.' }
+    starWedge: { name: '별쐐기', desc: '검은 별의 파편. 패시브 트리에 장착해 주변 노드 효과를 변성시킵니다.' },
+    reefFragment: { name: '암초 조각', desc: '심해에서 발견되는 암초 조각입니다. 심해 거점에 설치하면 낚시 게이지 충전 속도가 증가합니다.' },
+    oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' }
+};
+const OCEAN_FISH_DB = {
+    shallowSilverfin: { name: '은빛 비늘치', desc: '얕은 바다에서 흔히 잡히는 물고기입니다.', depthTier: 0 },
+    tidalEel: { name: '조류 장어', desc: '조류가 흐르는 100m 안팎에서 자주 보입니다.', depthTier: 1 },
+    glowfinTrout: { name: '발광 송어', desc: '빛이 옅어지는 중층에서 발견되는 물고기입니다.', depthTier: 2 },
+    abyssAngler: { name: '심연 등불고기', desc: '깊은 심해에서만 출현하는 희귀 어종입니다.', depthTier: 4 },
+    voidLeviathanSpawn: { name: '공허 리바이어던 새끼', desc: '극심한 수압 구간에서만 모습을 드러내는 전설의 새끼 괴어입니다.', depthTier: 7 }
 };
 const MARKET_EXCHANGES = [
     { id: 'm1', from: 'transmute', to: 'augment', need: 8, gain: 1 },
@@ -382,4 +391,4 @@ const MARKET_EXCHANGES = [
     ,{ id: 'm13', from: 'blessing', to: 'chaos', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, ORB_DB, MARKET_EXCHANGES });
+safeExposeData({ UNIQUE_DB, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB });
