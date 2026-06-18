@@ -116,5 +116,6 @@ const chaos20Zone = stateRuntime.getZone(stateRuntime.getAbyssZoneIdForDepth(20)
 assert.strictEqual(chaos20Zone.name, '혼돈 20', 'chaos 20 map card must not inherit the last visited deep-chaos depth');
 assert.strictEqual(chaos20Zone.depth, 20, 'chaos 20 map card must keep exact depth 20');
 assert.strictEqual(stateRuntime.getAutoProgressZoneId(stateRuntime.getAbyssZoneIdForDepth(20)), stateRuntime.getAbyssZoneIdForDepth(21), 'auto-progress after chaos 20 must start at deep chaos 21 instead of the highest recorded deep-chaos floor');
+assert.strictEqual(stateRuntime.game.abyssEndlessDepth, 21, 'auto-progress into deep chaos 21 must update the active endless depth so defeat retries do not use the old record');
 
 console.log('smoke-map-hunting-layout: ok');

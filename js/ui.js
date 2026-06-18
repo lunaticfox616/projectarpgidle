@@ -3445,6 +3445,7 @@ function syncHeroSelectionState(source, options = {}) {
     if (game.appearanceHeroId && !HERO_SELECTION_DEFS[game.appearanceHeroId]) game.appearanceHeroId = null;
     let shouldRecordSelected = !!options.recordSelected || !!game.heroSelectionInitialized || !!game.heroFreeSwitchUnlocked;
     if (shouldRecordSelected && !game.discoveredHeroIds.includes(game.selectedHeroId)) game.discoveredHeroIds.push(game.selectedHeroId);
+    if (game.heroSelectionInitialized && game.unlocks) game.unlocks.char = true;
     let unlockedBefore = !!game.heroFreeSwitchUnlocked;
     if (game.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length) game.heroFreeSwitchUnlocked = true;
     if (!unlockedBefore && game.heroFreeSwitchUnlocked) addLog('🧬 모든 캐릭터 재능을 확인했습니다. 설정에서 언제든 외형 변경이 가능합니다.', 'season-up');
@@ -3638,6 +3639,7 @@ function ensureInitialHeroSelection() {
     if (game.heroSelectionInitialized) return;
     openLoopHeroSelection((pickedId) => {
         game.heroSelectionInitialized = true;
+        if (game.unlocks) game.unlocks.char = true;
         addLog(`🧬 첫 루프 캐릭터가 정해졌습니다: ${HERO_SELECTION_DEFS[pickedId].blindLabel}`, 'season-up');
         persistHeroSelectionChange('첫 루프 캐릭터 선택');
     }, {
@@ -8654,6 +8656,7 @@ function mergeDefaults(save) {
     }
     if ((merged.heroSelectionInitialized || merged.heroFreeSwitchUnlocked) && !merged.discoveredHeroIds.includes(merged.selectedHeroId)) merged.discoveredHeroIds.push(merged.selectedHeroId);
     merged.heroFreeSwitchUnlocked = !!merged.heroFreeSwitchUnlocked || merged.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length;
+    if (merged.heroSelectionInitialized && merged.unlocks) merged.unlocks.char = true;
     if (!merged.heroFreeSwitchUnlocked) merged.appearanceHeroId = null;
     merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
     merged.abyssPassivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.abyssPassivePoints, defaultGame.abyssPassivePoints, 0)));

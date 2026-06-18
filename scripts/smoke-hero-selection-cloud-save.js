@@ -50,7 +50,8 @@ const sandbox = {
     appearanceHeroId: null,
     discoveredHeroIds: ['hero1'],
     heroSelectionInitialized: true,
-    heroFreeSwitchUnlocked: true
+    heroFreeSwitchUnlocked: true,
+    unlocks: { char: false }
   },
   battleAssets: { ready: false },
   logs,
@@ -76,6 +77,7 @@ vm.runInContext([
 assert.strictEqual(sandbox.applyHeroSelection('hero2', { cosmeticOnly: true }), true, 'settings hero selection should succeed as a cosmetic change');
 assert.strictEqual(sandbox.game.selectedHeroId, 'hero1', 'settings hero selection must not change the actual talent hero');
 assert.strictEqual(sandbox.game.appearanceHeroId, 'hero2', 'settings hero selection must change only the appearance hero');
+assert.strictEqual(sandbox.game.unlocks.char, true, 'initialized talent selection must keep the card/skill-tree tab unlocked');
 assert.strictEqual(JSON.stringify(sandbox.saves), JSON.stringify([{ skipCloudSync: true }]), 'cosmetic hero change must first persist local save without scheduling duplicate cloud sync');
 assert.strictEqual(JSON.stringify(sandbox.cloudReasons), JSON.stringify(['캐릭터 외형 변경']), 'cosmetic hero change must request immediate cloud upload with an appearance reason');
 

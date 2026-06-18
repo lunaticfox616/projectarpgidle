@@ -8068,6 +8068,7 @@ function triggerSeasonReset() {
         game.settings.jewelAutoSalvageEnabled = false;
         game.settings.itemFilterEnabled = false;
     }
+    if (game.heroSelectionInitialized && game.unlocks) game.unlocks.char = true;
     game.loopDeepPoints = Math.max(loopDeepBeforeReset, loopDeepExpectedAfterSettle);
     grantCodexLegacyStarterUniques();
     game.enemies = [];

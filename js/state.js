@@ -410,7 +410,10 @@ function getHighestUnlockedEndlessChaosDepth() {
 
 function getAutoProgressZoneId(fallbackZoneId) {
     if ((game.season || 1) >= 10 && hasCurrentLoopChaos20Clear()) {
-        if (getAbyssDepthFromZoneId(fallbackZoneId) === 20) return getAbyssZoneIdForDepth(21);
+        if (getAbyssDepthFromZoneId(fallbackZoneId) === 20) {
+            game.abyssEndlessDepth = 21;
+            return getAbyssZoneIdForDepth(21);
+        }
         let highestDepth = getHighestUnlockedEndlessChaosDepth();
         if (highestDepth >= 21) return getAbyssZoneIdForDepth(highestDepth);
     }
