@@ -1395,7 +1395,33 @@ function spawnColonyWave(){
     }
 }
 
-function renderLoop9VoidRiftPanel(){ let open=(game.season||1)>=9; let h=document.getElementById('ui-voidrift-header'); let p=document.getElementById('ui-voidrift-panel'); if(!h||!p)return; h.style.display=open?'block':'none'; p.style.display=open?'block':'none'; if(!open)return; let v=game.voidRift||(game.voidRift={meter:0,active:false,breachClears:0,grandBreachUnlock:false,activeKills:0,requiredKills:0}); let g=v.grandRun||{}; if(g.inRun && game.currentZoneId!=='grand_breach_run'){ g.inRun=false; g.phase='failed'; g.timeLeft=0; v.grandRun=g; } let progress=v.active?`${Math.max(0,Math.floor(v.activeKills||0))}/${Math.max(1,Math.floor(v.requiredKills||0))}`:'-'; let grandText=(g.inRun&&game.currentZoneId==='grand_breach_run')?` · 대균열: <strong>${g.phase==='survival'?'생존전':'보스전'}</strong> · 남은시간: <strong>${Math.max(0,Math.ceil(g.timeLeft||0))}초</strong> · 처치: <strong>${Math.floor(g.kills||0)}</strong>`:''; let canEnter=(v.grandBreachUnlock&&!g.inRun); p.innerHTML=`<div style="color:#c7d2ff;">활성 균열: <strong>${v.active?'진행중':'없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock?'가능':'잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter?'':'disabled'}>대균열 진입</button></div>`; }
+function renderLoop9VoidRiftPanel(){
+    let open = (game.season || 1) >= 9;
+    let header = document.getElementById('ui-voidrift-header');
+    let panel = document.getElementById('ui-voidrift-panel');
+    if (!header || !panel) return;
+    header.style.display = open ? 'block' : 'none';
+    panel.style.display = open ? 'block' : 'none';
+    let autoBtn = document.getElementById('btn-grand-breach-auto-enter');
+    if (autoBtn) {
+        autoBtn.style.display = open ? 'inline-block' : 'none';
+        autoBtn.innerText = `대균열 자동입장 ${game.settings && game.settings.autoEnterGrandBreach ? 'ON' : 'OFF'}`;
+    }
+    if (!open) return;
+    let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
+    let g = v.grandRun || {};
+    if (g.inRun && game.currentZoneId !== 'grand_breach_run') {
+        g.inRun = false;
+        g.phase = 'failed';
+        g.timeLeft = 0;
+        v.grandRun = g;
+    }
+    let progress = v.active ? `${Math.max(0, Math.floor(v.activeKills || 0))}/${Math.max(1, Math.floor(v.requiredKills || 0))}` : '-';
+    let phase = g.phase === 'survival' ? '생존전' : '보스전';
+    let grandText = (g.inRun && game.currentZoneId === 'grand_breach_run') ? ` · 대균열: <strong>${phase}</strong> · 남은시간: <strong>${Math.max(0, Math.ceil(g.timeLeft || 0))}초</strong> · 처치: <strong>${Math.floor(g.kills || 0)}</strong>` : '';
+    let canEnter = v.grandBreachUnlock && !g.inRun;
+    panel.innerHTML = `<div style="color:#c7d2ff;">활성 균열: <strong>${v.active ? '진행중' : '없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock ? '가능' : '잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter ? '' : 'disabled'}>대균열 진입</button></div>`;
+}
 
 function spawnBeehiveWave(isBoss){
     let b = game.beehive || {};
@@ -1744,10 +1770,44 @@ function onBeehiveWaveCleared(){
 function forfeitBeehiveRun(){ let b=game.beehive; if(!b.inRun) return; exitBeehiveRun('벌집 원정을 포기하고 탈출했습니다.', 'attack-monster'); }
 function craftBeehiveCurrency(type){ let beeLv=typeof getExpertLevel==='function'?Math.max(1,Math.floor(getExpertLevel('beekeeper')||1)):1; if(type==='wax'&&beeLv<8) return addLog('밀랍 제작은 양봉업자 Lv.8에 해금됩니다.', 'attack-monster'); if(type!=='key'&&type!=='wax'&&beeLv<6) return addLog('벌꿀/독벌침 교환은 양봉업자 Lv.6에 해금됩니다.', 'attack-monster'); let cost= type==='key'?200:type==='wax'?350:type==='stinger'?600:2000; let discount=typeof getExpertCombinedCostReduction==='function'?getExpertCombinedCostReduction(type==='wax'?'waxCostReducePct':null):0; cost=Math.max(1,Math.floor(cost*(1-discount))); if((game.currencies.pollen||0)<cost) return; game.currencies.pollen-=cost; if(type==='key') { game.currencies.hiveKey=(game.currencies.hiveKey||0)+1; } if(type==='stinger') game.currencies.venomStinger=(game.currencies.venomStinger||0)+1; if(type==='honey') game.currencies.enchantedHoney=(game.currencies.enchantedHoney||0)+1; if(type==='wax') game.currencies.beeswax=(game.currencies.beeswax||0)+1; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('beekeeper', 'bee_currency_craft'); updateStaticUI(); }
 function triggerVoidBreach(){ let v=game.voidRift; v.active=true; addLog('🕳️ 공허의 구멍이 열렸습니다! 몬스터가 쏟아집니다.', 'attack-monster'); updateStaticUI(); }
-function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if((v.breachClears||0) >= 1 || Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); updateStaticUI(); }
-function enterGrandBreach(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let v=game.voidRift; if(!v.grandBreachUnlock) return; if(v.grandRun&&v.grandRun.inRun&&game.currentZoneId!=='grand_breach_run'){ v.grandRun.inRun=false; v.grandRun.phase='failed'; v.grandRun.timeLeft=0; } if(v.grandRun&&v.grandRun.inRun) return; v.grandBreachUnlock=false; v.grandRun={ inRun:true, phase:'survival', timeLeft:35, kills:0, nextRefillAt:0, lastTickAt:Date.now(), returnZoneId:game.currentZoneId }; game.currentZoneId='grand_breach_run'; game.enemies=[]; game.encounterPlan=[]; game.encounterIndex=0; game.runProgress=0; game.moveTimer=0; game.combatHalted=false; addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up'); updateStaticUI(); }
+function clearVoidBreach(){ let v=game.voidRift; if(!v.active) return; v.active=false; v.breachClears=(v.breachClears||0)+1; if((v.breachClears||0) >= 1 || Math.random()<0.12) v.grandBreachUnlock=true; game.currencies.voidChisel=(game.currencies.voidChisel||0)+(Math.random()<0.03?1:0); addLog('공허 균열 정리 완료. 낮은 확률로 큰 구멍이 열립니다.', 'loot-magic'); autoEnterGrandBreachIfReady(); updateStaticUI(); }
+function canAutoEnterGrandBreach(){
+    let v = game.voidRift || {};
+    let g = v.grandRun || {};
+    let beehiveRunning = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
+    return !!(game.settings && game.settings.autoEnterGrandBreach && v.grandBreachUnlock && !g.inRun && !beehiveRunning && game.currentZoneId !== 'grand_breach_run');
+}
+function autoEnterGrandBreachIfReady(){
+    if (!canAutoEnterGrandBreach()) return false;
+    enterGrandBreach({ automatic: true });
+    addLog('🌌 자동입장: 대균열이 열려 즉시 진입합니다.', 'season-up');
+    return true;
+}
+function enterGrandBreach(options){
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    let v = game.voidRift;
+    if (!v.grandBreachUnlock) return;
+    if (v.grandRun && v.grandRun.inRun && game.currentZoneId !== 'grand_breach_run') {
+        v.grandRun.inRun = false;
+        v.grandRun.phase = 'failed';
+        v.grandRun.timeLeft = 0;
+    }
+    if (v.grandRun && v.grandRun.inRun) return;
+    v.grandBreachUnlock = false;
+    v.grandRun = { inRun: true, phase: 'survival', timeLeft: 35, kills: 0, nextRefillAt: 0, lastTickAt: Date.now(), returnZoneId: game.currentZoneId };
+    game.currentZoneId = 'grand_breach_run';
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+    game.moveTimer = 0;
+    game.combatHalted = false;
+    if (!options || !options.automatic) addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up');
+    updateStaticUI();
+}
 
 function toggleMeteorAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterMeteor = !game.settings.autoEnterMeteor; addLog(`☄️ 운석 낙하 자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}`, 'season-up'); updateStaticUI(); }
+function toggleGrandBreachAutoEnter(){ game.settings = game.settings || {}; game.settings.autoEnterGrandBreach = !game.settings.autoEnterGrandBreach; addLog(`🌌 대균열 자동입장 ${game.settings.autoEnterGrandBreach ? 'ON' : 'OFF'}`, 'season-up'); autoEnterGrandBreachIfReady(); updateStaticUI(); }
 
 function renderChaosRealmMapPanel() {
     let panel = document.getElementById('ui-chaos-realm-panel');
@@ -2059,6 +2119,10 @@ function enterSkyTowerPrompt(){
     let st = ensureSkyTowerState();
     if (!st.unlocked) return addLog('창공의 탑은 루프 15 이후 이번 루프 혼돈 20층 클리어 시 해금됩니다.', 'attack-monster');
     if (!(typeof canEnterSkyTower === 'function' && canEnterSkyTower())) return addLog('창공의 탑은 영구 해금 후 해당 루프에서 혼돈에 입성하면 입장할 수 있습니다.', 'attack-monster');
+    if ((game.settings && game.settings.mapCompleteAction) === 'repeatZone') {
+        let ok = confirm("현재 설정이 맵 완료 시 '같은 지역 반복' 입니다. 정말 입장하시겠습니까?");
+        if (!ok) return;
+    }
     let max = Math.max(1, Math.floor(st.highestFloor || 1));
     let v = prompt(`진입할 창공의 탑 층수를 입력하세요. (1 ~ ${max})\n이번 루프 남은 클리어 가능 층수: ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, String(Math.max(1, Math.floor(st.currentFloor || max))));
     if (v === null) return;
@@ -8387,6 +8451,7 @@ function mergeDefaults(save) {
     merged.settings.leftPaneCollapsed = !!merged.settings.leftPaneCollapsed;
     merged.settings.combatLogCollapsed = !!merged.settings.combatLogCollapsed;
     merged.settings.autoSalvageEnabled = !!merged.settings.autoSalvageEnabled;
+    merged.settings.autoEnterGrandBreach = !!merged.settings.autoEnterGrandBreach;
     merged.settings.autoSalvageRarities = { ...(defaultGame.settings.autoSalvageRarities || {}), ...(merged.settings.autoSalvageRarities || {}) };
     merged.settings.inventoryViewRarities = { ...(defaultGame.settings.inventoryViewRarities || {}), ...(merged.settings.inventoryViewRarities || {}) };
     merged.settings.jewelAutoSalvageEnabled = !!merged.settings.jewelAutoSalvageEnabled;
