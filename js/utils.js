@@ -343,7 +343,8 @@ function createEmptyStatBucket() {
         ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
         takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, genericTakenDamageReducePct: 0, shockedEnemyHitDamageMorePct: 0, igniteDamageMultiplierPct: 0, poisonDamageMultiplierPct: 0, accuracyBonusPct: 0, shockEffect: 0,
-        summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0, summonGemLevel: 0
+        summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0, summonGemLevel: 0,
+        curseCap: 0
     };
 }
 function addStatToBucket(bucket, statId, value) {
@@ -507,6 +508,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'summonGuardRedirectPct') bucket.summonGuardRedirectPct += value;
     else if (statId === 'summonResPen') bucket.summonResPen += value;
     else if (statId === 'summonGemLevel') bucket.summonGemLevel += value;
+    else if (statId === 'curseCap') bucket.curseCap += value;
 }
 
 function applyStatsToBucket(bucket, stats) {

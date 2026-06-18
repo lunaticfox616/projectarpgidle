@@ -2219,6 +2219,29 @@ function getClassTreeDef(clsKey) {
         tree.n11 = { stat: cores[0].stat, val: cores[0].val, req: 'n10', exclusive: 'n12' };
         tree.n12 = { stat: cores[1].stat, val: cores[1].val, req: 'n10', exclusive: 'n11' };
     }
+    // 5차 재능 개화 노드: 해당 직업으로 재능 개화에 성공하면 해금된다. 4차 핵심을 모두 찍으면 진입 가능.
+    // 재능특화 노드 2개(n13a/n13b) 중 1개, 전직특화 노드 2개(n13c/n13d) 중 1개를 각각 선택할 수 있다.
+    if ((game.bloomedClasses || []).includes(clsKey)) {
+        const jobByClass = {
+            warrior: [{ stat: 'aspd', val: 16 }, { stat: 'dr', val: 12 }],
+            gladiator: [{ stat: 'critDmg', val: 55 }, { stat: 'evasionPct', val: 18 }],
+            assassin: [{ stat: 'move', val: 18 }, { stat: 'evasionPct', val: 20 }],
+            ranger: [{ stat: 'aspd', val: 18 }, { stat: 'critDmg', val: 55 }],
+            elementalist: [{ stat: 'resPen', val: 14 }, { stat: 'critDmg', val: 50 }],
+            warlock: [{ stat: 'resPen', val: 14 }, { stat: 'pctHp', val: 22 }],
+            guardian: [{ stat: 'resAll', val: 14 }, { stat: 'regen', val: 2.0 }],
+            inquisitor: [{ stat: 'resPen', val: 14 }, { stat: 'critDmg', val: 55 }],
+            soulbinder: [{ stat: 'summonPctDmg', val: 55 }, { stat: 'summonHpPct', val: 30 }],
+            catalyst: [{ stat: 'dotPctDmg', val: 55 }, { stat: 'igniteDamageMultiplierPct', val: 35 }],
+            hunter: [{ stat: 'projectilePctDmg', val: 55 }, { stat: 'aspd', val: 16 }],
+            crusader: [{ stat: 'lightPctDmg', val: 50 }, { stat: 'armorPct', val: 20 }]
+        };
+        let jobs = jobByClass[clsKey] || [{ stat: 'pctDmg', val: 40 }, { stat: 'pctHp', val: 20 }];
+        tree.n13a = { stat: 'pctDmg', val: 35, req: ['n11', 'n12'], exclusive: 'n13b' };
+        tree.n13b = { stat: 'pctHp', val: 35, req: ['n11', 'n12'], exclusive: 'n13a' };
+        tree.n13c = { stat: jobs[0].stat, val: jobs[0].val, req: ['n11', 'n12'], exclusive: 'n13d' };
+        tree.n13d = { stat: jobs[1].stat, val: jobs[1].val, req: ['n11', 'n12'], exclusive: 'n13c' };
+    }
     return tree;
 }
 
@@ -2404,6 +2427,7 @@ const TAB_UNLOCK_GATES = {
     'tab-cube': 'cube',
     'tab-map': 'map',
     'tab-traits': 'traits',
+    'tab-talent': 'talent',
     'tab-expertise': 'expertise'
 };
 const MOBILE_BATTLE_BREAKPOINT = 1080;
@@ -5128,6 +5152,12 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
         }
         ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
     } else {
+        if (options.flipX) {
+            let centerX = dx + drawWidth / 2;
+            ctx.translate(centerX, 0);
+            ctx.scale(-1, 1);
+            ctx.translate(-centerX, 0);
+        }
         if (options.outlineColor) {
             let thickness = Math.max(1, Math.round(options.outlineThickness || 1));
             ctx.globalAlpha = (options.alpha === undefined ? 1 : options.alpha) * (options.outlineAlpha || 0.78);
@@ -5252,6 +5282,26 @@ function getTierBadgeHtml(tierValue, labelPrefix) {
 function getUniqueCodexKeyByItem(item) {
     if (!item || item.rarity !== 'unique') return null;
     return `${item.slot}|${item.name}`;
+}
+
+// 고유 아이템 획득 시 도감에 즉시 등록(아이템을 소모하지 않는 수집 기록 개념).
+function registerUniqueToCodexOnAcquire(item) {
+    let key = getUniqueCodexKeyByItem(item);
+    if (!key) return false;
+    game.uniqueCodex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
+    let existing = game.uniqueCodex[key];
+    // 이미 옵션까지 기록된 경우 첫 등록 기록을 유지한다(루프 리셋 후 정보만 남은 경우는 다시 채움).
+    if (existing && existing.baseName) return false;
+    game.uniqueCodex[key] = JSON.parse(JSON.stringify(item));
+    game.codexNewlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
+    let firstTime = !existing;
+    game.codexNewlyRegistered[key] = true;
+    if (game.noti) game.noti.codex = true;
+    if (firstTime) {
+        addLog(`📚 도감 신규 등록: <span class='loot-unique'>[${item.name}]</span>`, 'loot-unique');
+        if (typeof tryGrantCodexCompletionReward === 'function') tryGrantCodexCompletionReward();
+    }
+    return true;
 }
 
 const EQUIPMENT_DROP_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'];
@@ -6176,8 +6226,14 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.018) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.005) drops.push(['beastKeyCerberus', 1]);
+    if (zone.type === 'chaosRealm') {
+        let chaosKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
+        if (Math.random() < chaosKeyChance) drops.push(['chaosKey', 1]);
+    }
     if (zone.type === 'underworld') {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
+        let coreKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
+        if (Math.random() < coreKeyChance) drops.push(['coreKey', 1]);
         if (Math.random() < 0.05) drops.push(['fossil', 1]);
         if (Math.random() < 0.018) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
         if (Math.random() < 0.012) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
@@ -6200,6 +6256,7 @@ function addItemToInventory(item, options) {
         if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;
     }
+    if (item.rarity === 'unique') registerUniqueToCodexOnAcquire(item);
     if ((game.inventory || []).length >= getInventoryLimit()) {
         salvageItemObject(item, true);
         return false;
