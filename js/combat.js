@@ -2754,8 +2754,8 @@ function getPlayerStats() {
             inquisitorAbsoluteDoctrinePct = Math.max(0, finalResPen);
             finalBaseDmg = Math.floor(finalBaseDmg * (1 + inquisitorAbsoluteDoctrinePct / 100));
         }
-        // 무한한 권능: 보조 젬 한도 사실상 무제한(실질 상한까지 확장)
-        if (hasKeystone('iq9')) suppCap = Math.max(suppCap, 12);
+        // 무한한 권능: 보조 젬 한도 무제한
+        if (hasKeystone('iq9')) suppCap += 999;
     } else if (game.ascendClass === 'soulbinder') {
         if (hasKeystone('sb4')) { sbSummonAspdBonus += 15; sbSummonCapBonus += 1; }
         if (hasKeystone('sb8')) sbSummonCapBonus += 3;
@@ -4913,6 +4913,7 @@ function tickEnemyAilments(pStats, dt) {
                 }
             }
             if (ail.time > 0) next.push(ail);
+            if (type === 'poison' && enemy.hp <= 0) enemy.lastHitElement = 'chaos';
         });
         enemy.ailments = next;
         if (enemy.hp <= 0) handleEnemyDeath(enemy, pStats);
@@ -4962,6 +4963,7 @@ function tickEnemyDotEffects(pStats, dt) {
             let dealt = applyDamageToEnemyResource(enemy, dotDmg, { minimumHp: minimumHp });
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dealt, duration: 240, element: dotEle, noLine: true, dot: true });
             if (enemy.hp <= 0) {
+                if (dotEle === 'chaos') enemy.lastHitElement = 'chaos';
                 handleEnemyDeath(enemy, pStats);
                 break;
             }
