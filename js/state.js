@@ -410,6 +410,7 @@ function getHighestUnlockedEndlessChaosDepth() {
 
 function getAutoProgressZoneId(fallbackZoneId) {
     if ((game.season || 1) >= 10 && hasCurrentLoopChaos20Clear()) {
+        if (getAbyssDepthFromZoneId(fallbackZoneId) === 20) return getAbyssZoneIdForDepth(21);
         let highestDepth = getHighestUnlockedEndlessChaosDepth();
         if (highestDepth >= 21) return getAbyssZoneIdForDepth(highestDepth);
     }
@@ -1491,6 +1492,7 @@ const defaultGame = {
         itemFilterMinHiddenTier: 1,
         itemFilterOnlyNewCodexUnique: false,
         autoEnterMeteor: false,
+        autoEnterGrandBreach: false,
         jewelAutoSalvageEnabled: false,
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
         mapCompleteAction: 'nextZone',
