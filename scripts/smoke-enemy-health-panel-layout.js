@@ -28,6 +28,7 @@ assert(battlefieldRule[1].includes('height: 185px'), 'base battlefield height mu
 assert(componentsCss.includes('.battlefield-wrap { height: clamp(220px, 30vh, 300px); }'), 'wide layout battlefield height must stay compact enough for the panels below');
 assert(componentsCss.includes('.battlefield-wrap { height: 165px; }'), 'narrow desktop battlefield height must stay compact enough for the panels below');
 assert(componentsCss.includes('.combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 0; }'), 'stacked desktop battle layout must keep enemy HP and combat log tightly spaced');
+assert(componentsCss.includes('.combat-feed { margin-top: -12px; }'), 'stacked desktop combat log must extend upward toward the enemy HP panel');
 
 const compressedRule = themeCss.match(/\.battlefield-wrap\.compressed\s*\{([^}]+)\}/);
 assert(compressedRule && compressedRule[1].includes('height: 0'), 'hidden combat scene must release its battlefield height');

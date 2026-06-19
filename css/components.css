@@ -149,7 +149,7 @@
             .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto auto; }
             .battlefield-wrap { height: clamp(220px, 30vh, 300px); }
             .enemy-list { max-height: none; overflow: visible; }
-            .combat-feed { height: clamp(150px, 18vh, 210px); }
+            .combat-feed { height: clamp(150px, 18vh, 210px); margin-top: -12px; }
             .combat-dashboard.combat-scene-hidden { grid-template-rows: auto minmax(0, 1fr); }
             .combat-dashboard.combat-scene-hidden .combat-feed { height: 100%; max-height: none; }
         }
@@ -159,6 +159,7 @@
             .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 0; }
             .combat-dashboard.combat-scene-hidden .combat-feed { height: 100%; max-height: none; }
             .enemy-list { grid-template-columns: 1fr; max-height: none; overflow: visible; }
+            .combat-feed { margin-top: -12px; }
             #log { min-height: 200px; }
         }
 

@@ -3001,15 +3001,26 @@ function renderUniqueCodexUI() {
     let progress = { stored: storedCount, total: keySet.size };
     let bonus = getCodexBonusPctFromCount(progress.stored);
     let rewardState = progress.stored >= progress.total ? '완성' : '미완성';
-    summary.innerHTML = `[${realmOnly ? '계(Realm) 도감' : '기존 도감'}] 등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% <span style="color:#9fb4d1;">(50개까지 0.2%, 이후 0.1%)</span> · 완성 상태: <strong>${rewardState}</strong>`;
+    let newCodexLines = Object.keys(newlyRegistered)
+        .filter(key => keySet.has(key) && game.uniqueCodex[key])
+        .map(key => {
+            let parts = key.split('|');
+            return `${parts[0] || '기타'} > ${parts.slice(1).join('|') || '이름 없음'}`;
+        });
+    let newCodexSummary = newCodexLines.length > 0
+        ? `<div style="margin-top:6px; color:#ffdf80; font-weight:700;">신규 등록: ${newCodexLines.map(escapeHTML).join(' · ')}</div>`
+        : '';
+    summary.innerHTML = `[${realmOnly ? '계(Realm) 도감' : '기존 도감'}] 등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% <span style="color:#9fb4d1;">(50개까지 0.2%, 이후 0.1%)</span> · 완성 상태: <strong>${rewardState}</strong>${newCodexSummary}`;
     let bySlot = ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
     let lines = [];
     bySlot.forEach(slot => {
         let entries = pool.filter(entry => (entry.slots || [])[0] === slot);
         if (entries.length === 0) return;
         let slotStored = entries.filter(entry => !!game.uniqueCodex[`${slot}|${entry.name}`]).length;
+        let hasNewInSlot = entries.some(entry => !!newlyRegistered[`${slot}|${entry.name}`] && !!game.uniqueCodex[`${slot}|${entry.name}`]);
+        if (hasNewInSlot) game.codexCollapsedSlots[slot] = false;
         let collapsed = !!game.codexCollapsedSlots[slot];
-        lines.push(`<div style="grid-column:1/-1; margin-top:4px; display:flex; justify-content:space-between; align-items:center; gap:8px; background:#121822; border:1px solid #2f4f66; border-radius:8px; padding:8px 10px;"><strong style="color:#9bc2df;">${slot} <span style="color:#ffd38b; font-size:0.86em;">${slotStored}/${entries.length}</span></strong><button onclick="toggleCodexSlotCollapse('${slot}')" style="font-size:0.78em; padding:4px 8px;">${collapsed ? '펼치기' : '접기'}</button></div>`);
+        lines.push(`<div style="grid-column:1/-1; margin-top:4px; display:flex; justify-content:space-between; align-items:center; gap:8px; background:#121822; border:1px solid #2f4f66; border-radius:8px; padding:8px 10px;"><strong style="color:#9bc2df;">${slot} <span style="color:#ffd38b; font-size:0.86em;">${slotStored}/${entries.length}</span>${hasNewInSlot ? ` <span style="color:#ffdf80; font-size:0.82em;">신규</span>` : ''}</strong><button onclick="toggleCodexSlotCollapse('${slot}')" style="font-size:0.78em; padding:4px 8px;">${collapsed ? '펼치기' : '접기'}</button></div>`);
         if (collapsed) return;
         entries.forEach(entry => {
             let key = `${slot}|${entry.name}`;
