@@ -234,7 +234,10 @@
         </h2>
         <div class="combat-zone-row">
             <div class="combat-zone-row-title" id="ui-combat-zone-inline">Lv.1 재능명</div>
-            <button onclick="returnToTown()" style="background-color: #8e44ad; border:1px solid #b57ad4; color:#f3e8ff; font-size: 0.7em; padding: 4px 8px;">귀환</button>
+            <div class="combat-zone-actions">
+                <button id="btn-combat-loop-advance" class="combat-action-btn" onclick="handleCombatLoopAdvanceButton()">루프 진행</button>
+                <button class="combat-action-btn" onclick="returnToTown()">귀환</button>
+            </div>
         </div>
         <div class="combat-top-status">
             <div style="font-size: 0.9em; font-weight: bold; color: #d980fa; margin-top: 0;">경험치</div>
@@ -266,14 +269,13 @@
                     </div>
                 </div>
 
-                <div id="enemy-area" style="margin-top: 6px; margin-bottom: 0; flex-shrink: 0;">
-                    <div id="ui-enemy-list" class="enemy-list"></div>
+                <div id="enemy-area" style="margin-top: 2px; margin-bottom: 0; flex-shrink: 0;">
                     <div id="loop-ready-banner" class="loop-ready-banner">
                         <div class="loop-ready-banner-text">
                             <strong>⏸️ 루프 조건 달성!</strong> 시간이 멈췄습니다. 아이템 정리·도감 등록을 마친 뒤 다음 루프로 진행하세요.
                         </div>
-                        <button type="button" onclick="confirmLoopReady()">루프 진행 ▶</button>
                     </div>
+                    <div id="ui-enemy-list" class="enemy-list"></div>
                 </div>
             </div>
 
@@ -1040,6 +1042,7 @@
                 <div>계정 상태: <strong id="ui-cloud-user">로그인 안 됨</strong></div>
                 <div>로컬 마지막 저장: <strong id="ui-cloud-local-save">없음</strong></div>
                 <div>클라우드 마지막 확인: <strong id="ui-cloud-remote-save">없음</strong></div>
+                <div>마지막 업로드 시간: <strong id="ui-cloud-upload-profile">없음</strong></div>
                 <div>최근 메시지: <strong id="ui-cloud-message">아직 동기화하지 않았습니다.</strong></div>
             </div>
             <div class="cloud-note">
