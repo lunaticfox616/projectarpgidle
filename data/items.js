@@ -373,7 +373,10 @@ const OCEAN_FISH_DB = {
     tidalEel: { name: '조류 장어', desc: '조류가 흐르는 100m 안팎에서 자주 보입니다.', depthTier: 1 },
     glowfinTrout: { name: '발광 송어', desc: '빛이 옅어지는 중층에서 발견되는 물고기입니다.', depthTier: 2 },
     abyssAngler: { name: '심연 등불고기', desc: '깊은 심해에서만 출현하는 희귀 어종입니다.', depthTier: 4 },
-    voidLeviathanSpawn: { name: '공허 리바이어던 새끼', desc: '극심한 수압 구간에서만 모습을 드러내는 전설의 새끼 괴어입니다.', depthTier: 7 }
+    voidLeviathanSpawn: { name: '공허 리바이어던 새끼', desc: '극심한 수압 구간에서만 모습을 드러내는 전설의 새끼 괴어입니다.', depthTier: 7 },
+    tidelordKoi: { name: '해류군주 비단잉어', desc: '가장 깊은 해류가 휘몰아치는 구간에서만 모습을 드러내는 군주급 어종입니다.', depthTier: 10, rareWeight: 0.05 },
+    prismaticHorror: { name: '무지갯빛 공포', desc: '빛조차 닿지 않는 압사 구간 깊숙이서 발견되는 변종 심해어입니다.', depthTier: 13, rareWeight: 0.03 },
+    kingLeviathan: { name: '리바이어던 본체', desc: '새끼가 아닌 리바이어던의 본체. 가장 깊은 곳에서도 낚일 확률이 극히 낮은 최상위 어종입니다.', depthTier: 16, rareWeight: 0.012 }
 };
 const MARKET_EXCHANGES = [
     { id: 'm1', from: 'transmute', to: 'augment', need: 8, gain: 1 },

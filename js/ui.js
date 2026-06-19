@@ -1920,20 +1920,35 @@ function renderOceanDepthMapPanel() {
     list.innerHTML = `<div class="map-item ${game.currentZoneId === OCEAN_ZONE_ID ? 'current' : ''}" ${st.diving ? `onclick="changeZone(OCEAN_ZONE_ID)"` : ''} style="${st.diving ? '' : 'opacity:.65;'}"><div class="map-item-main"><span>🌊</span><span>심해 ${Math.floor(st.depthM)}m<br><span class="map-zone-status">${st.diving ? '잠수 중' : '잠수를 시작하세요'}</span></span></div></div>`;
 }
 
+const OCEAN_MOD_CATEGORY_OPTIONS = ['공격', '방어·생명', '속도·치명', '저항'];
+function renderSeaGiftRecipeCard(recipe, st) {
+    let ready = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
+    let reqText = Object.keys(recipe.requires).map(key => `${OCEAN_FISH_DB[key].name} ${st.fishStock[key] || 0}/${recipe.requires[key]}`).join(', ');
+    let needsCategory = recipe.effect.type === 'guaranteedTaggedMod' || recipe.effect.type === 'taggedReroll' || (recipe.effect.type === 'lockMod' && recipe.effect.bonusTaggedReroll);
+    let inlineId = `seaGiftCategory_${recipe.id}`;
+    let categorySelect = needsCategory ? `<select id="${inlineId}" style="margin-top:4px;">${OCEAN_MOD_CATEGORY_OPTIONS.map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select>` : '';
+    let onclick = needsCategory
+        ? `craftSeaGift('${recipe.id}', null, { category: document.getElementById('${inlineId}').value }); renderSeaGiftPanel();`
+        : `craftSeaGift('${recipe.id}'); renderSeaGiftPanel();`;
+    return `<div style="border-bottom:1px solid #1f5b73; padding:8px 0;">
+        <div><b>${recipe.name}</b> <span style="color:#8fe3ff;">${recipe.desc}</span></div>
+        <div style="font-size:0.85em; color:#9fcbe0;">필요: ${reqText}</div>
+        ${categorySelect}
+        <button onclick="${onclick}" ${ready ? '' : 'disabled'} style="margin-top:4px;">제작</button>
+    </div>`;
+}
 function renderSeaGiftPanel() {
     let panel = document.getElementById('ui-sea-gift-panel');
     if (!panel) return;
     let st = ensureOceanState();
     if (!st.unlocked) { panel.innerHTML = ''; return; }
-    panel.innerHTML = SEA_GIFT_RECIPES.map(recipe => {
-        let ready = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
-        let reqText = Object.keys(recipe.requires).map(key => `${OCEAN_FISH_DB[key].name} ${st.fishStock[key] || 0}/${recipe.requires[key]}`).join(', ');
-        return `<div style="border-bottom:1px solid #1f5b73; padding:8px 0;">
-            <div><b>${recipe.name}</b> <span style="color:#8fe3ff;">${recipe.desc}</span></div>
-            <div style="font-size:0.85em; color:#9fcbe0;">필요: ${reqText}</div>
-            <button onclick="craftSeaGift('${recipe.id}')" ${ready ? '' : 'disabled'} style="margin-top:4px;">제작</button>
-        </div>`;
-    }).join('');
+    let ultraRareIds = new Set(['tidelordKoi', 'prismaticHorror', 'kingLeviathan']);
+    let normalRecipes = SEA_GIFT_RECIPES.filter(r => !Object.keys(r.requires).some(key => ultraRareIds.has(key)));
+    let ultraRecipes = SEA_GIFT_RECIPES.filter(r => Object.keys(r.requires).some(key => ultraRareIds.has(key)));
+    panel.innerHTML = `<div style="color:#8fe3ff; font-weight:bold; margin:4px 0;">일반 레시피</div>`
+        + normalRecipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('')
+        + `<div style="color:#ffce6b; font-weight:bold; margin:10px 0 4px;">초강력 레시피 (초희귀 어종 필요)</div>`
+        + ultraRecipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('');
 }
 
 function renderUnderworldMapPanel() {

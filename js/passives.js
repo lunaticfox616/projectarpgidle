@@ -1789,7 +1789,7 @@ function catchOceanFish(depthTier) {
     let safeTier = Math.max(0, Math.floor(depthTier || 0));
     let eligible = Object.keys(OCEAN_FISH_DB).filter(key => (OCEAN_FISH_DB[key].depthTier || 0) <= safeTier);
     if (eligible.length === 0) return;
-    let weights = eligible.map(key => 1 / (1 + (safeTier - (OCEAN_FISH_DB[key].depthTier || 0))));
+    let weights = eligible.map(key => (1 / (1 + (safeTier - (OCEAN_FISH_DB[key].depthTier || 0)))) * (Number.isFinite(OCEAN_FISH_DB[key].rareWeight) ? OCEAN_FISH_DB[key].rareWeight : 1));
     let total = weights.reduce((a, b) => a + b, 0);
     let roll = Math.random() * total;
     let picked = eligible[0];
@@ -1845,12 +1845,46 @@ function tickOceanOxygen(nowMs) {
     if (st.oxygenCur <= 0) forceSurfaceOcean('oxygen');
 }
 
+const OCEAN_MOD_CATEGORY_RULES = [
+    { category: '공격', ids: ['flatDmg', 'weaponFlatDmgPct', 'pctDmg', 'meleePctDmg', 'projectilePctDmg', 'physPctDmg', 'elementalPctDmg', 'firePctDmg', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'aoePctDmg', 'dotPctDmg', 'crit', 'critDmg', 'physIgnore', 'resPen', 'summonFlatDmg', 'summonPctDmg', 'summonCrit', 'summonCritDmg', 'summonResPen'] },
+    { category: '방어·생명', ids: ['flatHp', 'pctHp', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'deflectChance', 'regen', 'regenFlat', 'regenSuppress', 'leech', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap', 'blockChancePct'] },
+    { category: '속도·치명', ids: ['aspd', 'move', 'summonAspd', 'summonEfficiency'] },
+    { category: '저항', ids: ['resF', 'resC', 'resL', 'resAll', 'resChaos'] }
+];
+function getModCategory(mod) {
+    let statId = (mod && (mod.statId || mod.id)) || '';
+    let found = OCEAN_MOD_CATEGORY_RULES.find(rule => rule.ids.includes(statId));
+    return found ? found.category : '특수';
+}
+const OCEAN_WORKBENCH_OPTIONS = [
+    { id: 'oceanOxygenWard', label: '심해 산소 내성', statId: 'flatHp', min: 60, max: 90 },
+    { id: 'oceanPressureWard', label: '심해 수압 내성', statId: 'armorPct', min: 20, max: 28 },
+    { id: 'oceanCurrentGrip', label: '심해 조류 저항', statId: 'evasionPct', min: 20, max: 28 },
+    { id: 'oceanAbyssalEdge', label: '심해 심연의 칼날', statId: 'pctDmg', min: 18, max: 26 },
+    { id: 'oceanTidalHaste', label: '심해 조류의 신속', statId: 'aspd', min: 8, max: 12 },
+    { id: 'oceanLeviathanCrown', label: '리바이어던의 권능', statId: 'pctDmg', min: 30, max: 40 }
+];
+function getOceanWorkbenchOption(optionId, topTierOnly) {
+    if (topTierOnly) return OCEAN_WORKBENCH_OPTIONS.find(opt => opt.id === 'oceanLeviathanCrown');
+    return OCEAN_WORKBENCH_OPTIONS.find(opt => opt.id === optionId) || OCEAN_WORKBENCH_OPTIONS[Math.floor(Math.random() * (OCEAN_WORKBENCH_OPTIONS.length - 1))];
+}
+
 const SEA_GIFT_RECIPES = [
     { id: 'reefBundle', name: '암초 꾸러미', desc: '얕은 바다 어종을 모아 암초 조각으로 가공합니다.', requires: { shallowSilverfin: 5 }, effect: { type: 'currency', key: 'reefFragment', amount: 2 } },
     { id: 'tidalCharm', name: '조류의 호신구', desc: '조류 장어로 산소 정련 파편을 만듭니다.', requires: { tidalEel: 4 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 1 } },
     { id: 'glowfinEssence', name: '발광의 정수', desc: '발광 송어로 베이스 옵션 재제련에 쓰는 심해의 파편을 정제합니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 2 } },
+    { id: 'purifyingOffering', name: '정화의 제물', desc: '발광 송어를 바쳐 장비의 옵션 한 줄을 제거합니다.', requires: { glowfinTrout: 4 }, effect: { type: 'removeMod' } },
+    { id: 'upgradeOffering', name: '승급의 제물', desc: '심연 등불고기로 장비의 희귀도를 한 단계 끌어올립니다.', requires: { abyssAngler: 3 }, effect: { type: 'upgradeRarity' } },
+    { id: 'sealOffering', name: '봉인의 제물', desc: '심연 등불고기와 조류 장어로 옵션 한 줄을 영구히 봉인합니다.', requires: { abyssAngler: 2, tidalEel: 3 }, effect: { type: 'lockMod', count: 1 } },
+    { id: 'taggedRefine', name: '태그 정제', desc: '발광 송어와 은빛 비늘치로 원하는 계열의 옵션을 확정 부여합니다.', requires: { glowfinTrout: 3, shallowSilverfin: 3 }, effect: { type: 'guaranteedTaggedMod' } },
     { id: 'abyssalGift', name: '심연의 선물', desc: '심연 등불고기를 제물로 바쳐 장비에 확정 옵션을 부여합니다.', requires: { abyssAngler: 3 }, effect: { type: 'guaranteedMod' } },
-    { id: 'leviathanBoon', name: '리바이어던의 축복', desc: '전설의 새끼 괴어로 최상급 확정 옵션을 부여합니다.', requires: { voidLeviathanSpawn: 2, abyssAngler: 2 }, effect: { type: 'guaranteedMod', tierBoost: 2 } }
+    { id: 'leviathanBoon', name: '리바이어던의 축복', desc: '전설의 새끼 괴어로 최상급 태그 옵션을 확정 부여합니다.', requires: { voidLeviathanSpawn: 2, abyssAngler: 2 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 2 } },
+    { id: 'tidelordRefine', name: '군주의 정밀 재단', desc: '해류군주 비단잉어로 원하는 계열의 기존 옵션만 다시 굴립니다(다른 줄 보존).', requires: { tidelordKoi: 2 }, effect: { type: 'taggedReroll', tierBoost: 1 } },
+    { id: 'crushDepthScar', name: '압사 구간의 흉터', desc: '무지갯빛 공포와 해류군주 비단잉어로 심해 전용 고정 옵션을 부착합니다.', requires: { prismaticHorror: 2, tidelordKoi: 1 }, effect: { type: 'fixedBenchOption' } },
+    { id: 'doubleSealForge', name: '이중 봉인 단조', desc: '무지갯빛 공포로 옵션 두 줄을 동시에 봉인하고, 남은 줄은 즉시 재단합니다.', requires: { prismaticHorror: 3 }, effect: { type: 'lockMod', count: 2, bonusTaggedReroll: true } },
+    { id: 'voidPureRefine', name: '공허의 완전한 정제', desc: '무지갯빛 공포와 공허 리바이어던 새끼로 장비를 강제로 희귀 등급으로 승급시킵니다.', requires: { prismaticHorror: 2, voidLeviathanSpawn: 1 }, effect: { type: 'upgradeRarity', force: true } },
+    { id: 'leviathanRemnant', name: '리바이어던 본체의 잔영', desc: '리바이어던 본체로 최상급 태그 옵션을 확정 부여하며, 동시에 나쁜 줄 하나를 무료로 제거합니다.', requires: { kingLeviathan: 1 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 3, bonusRemoveMod: true } },
+    { id: 'leviathanSigil', name: '본체의 권능 각인', desc: '리바이어던 본체와 해류군주 비단잉어로 오직 이 레시피로만 얻는 최상위 고정 옵션을 부착합니다.', requires: { kingLeviathan: 2, tidelordKoi: 2 }, effect: { type: 'fixedBenchOption', topTier: true } }
 ];
 
 function getSeaGiftRecipeStatus(recipeId) {
@@ -1861,27 +1895,78 @@ function getSeaGiftRecipeStatus(recipeId) {
     return { recipe, ready, owned: st.fishStock };
 }
 
-function craftSeaGift(recipeId, targetItem) {
+function removeOneModFromItem(item) {
+    if (!item || !Array.isArray(item.stats)) return false;
+    let idx = item.stats.findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
+    if (idx < 0) return false;
+    item.stats.splice(idx, 1);
+    return true;
+}
+
+function craftSeaGift(recipeId, targetItem, options) {
     let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
     if (!recipe) return false;
     let st = ensureOceanState();
     let ready = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
     if (!ready) { addLog('바다의 선물 재료가 부족합니다.', 'attack-monster'); return false; }
-    if (recipe.effect.type === 'guaranteedMod') {
-        let item = targetItem || (game.equipment && game.equipment['무기']);
-        if (!item) { addLog('대상 장비가 없습니다.', 'attack-monster'); return false; }
-        let mod = pickWeightedMod(getAvailableMods(item));
+    let item = targetItem || (typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null) || (game.equipment && game.equipment['무기']);
+    if (!item) { addLog('대상 장비가 없습니다.', 'attack-monster'); return false; }
+    let category = options && options.category;
+    let effect = recipe.effect;
+    if (effect.type === 'guaranteedMod' || effect.type === 'guaranteedTaggedMod') {
+        let pool = getAvailableMods(item);
+        if (effect.type === 'guaranteedTaggedMod' && category) pool = pool.filter(mod => getModCategory(mod) === category);
+        let mod = pickWeightedMod(pool);
         if (!mod) { addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
-        let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(recipe.effect.tierBoost || 0));
+        let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(effect.tierBoost || 0));
         let idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
         let rolled = rollAffixValue(mod, maxTier);
         if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
+        if (effect.bonusRemoveMod) removeOneModFromItem(item);
         updateItemName(item);
-    } else if (recipe.effect.type === 'currency') {
-        awardCurrency(recipe.effect.key, recipe.effect.amount || 1);
+    } else if (effect.type === 'removeMod') {
+        if (!removeOneModFromItem(item)) { addLog('제거할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
+        updateItemName(item);
+    } else if (effect.type === 'upgradeRarity') {
+        if (item.rarity === 'normal') item.rarity = 'magic';
+        else if (item.rarity === 'magic' || effect.force) item.rarity = 'rare';
+        updateItemName(item);
+    } else if (effect.type === 'lockMod') {
+        let editable = (item.stats || []).filter(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
+        let count = Math.max(1, Math.floor(effect.count || 1));
+        for (let i = 0; i < count && i < editable.length; i++) editable[i].lockedByHoney = true;
+        if (effect.bonusTaggedReroll) {
+            let pool = getAvailableMods(item).filter(mod => !category || getModCategory(mod) === category);
+            let idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
+            if (idx >= 0) {
+                let mods = pickRandomMods(pool, 1);
+                if (mods && mods[0]) item.stats[idx] = rollAffixValue(mods[0], getItemCraftTier(item));
+            }
+        }
+    } else if (effect.type === 'taggedReroll') {
+        let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift && (!category || getModCategory(s) === category)) ? i : -1).filter(i => i >= 0);
+        if (editableIdx.length === 0) { addLog('해당 계열의 재굴림 가능한 옵션 줄이 없습니다.', 'attack-monster'); return false; }
+        let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(effect.tierBoost || 0));
+        editableIdx.forEach(idx => {
+            let mods = pickRandomMods(getAvailableMods(item), 1);
+            if (mods && mods[0]) item.stats[idx] = rollAffixValue(mods[0], maxTier);
+        });
+        updateItemName(item);
+    } else if (effect.type === 'fixedBenchOption') {
+        let option = getOceanWorkbenchOption(options && options.optionId, !!effect.topTier);
+        if (!option) { addLog('적용할 수 있는 고정 옵션이 없습니다.', 'attack-monster'); return false; }
+        let val = Math.floor(option.min + Math.random() * Math.max(0, option.max - option.min));
+        let rolled = { id: option.statId, val: val, valMin: Math.floor(option.min), valMax: Math.floor(option.max), tier: 5, statName: getStatName(option.statId), oceanBenchOptionId: option.id };
+        let idx = (item.stats || []).findIndex(stat => stat && (stat.oceanBenchOptionId === option.id));
+        if (idx < 0) idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
+        if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
+        updateItemName(item);
+    } else if (effect.type === 'currency') {
+        awardCurrency(effect.key, effect.amount || 1);
     }
     Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key]); });
     addLog(`🎁 [바다의 선물] ${recipe.name}을(를) 제작했습니다.`, 'loot-rare');
+    if (typeof normalizeItem === 'function') normalizeItem(item);
     return true;
 }
 
