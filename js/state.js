@@ -172,7 +172,8 @@ function createDefaultOceanState() {
         reefInstalled: 0,
         fishStock: {},
         diving: false,
-        lastTickAt: 0
+        lastTickAt: 0,
+        bossClearM: 0
     };
 }
 function ensureOceanState() {
@@ -180,6 +181,7 @@ function ensureOceanState() {
     st.unlocked = !!st.unlocked;
     st.depthM = Math.max(0, Math.floor(st.depthM || 0));
     st.checkpointM = Math.max(0, Math.floor(st.checkpointM || 0));
+    st.bossClearM = Math.max(0, Math.floor(st.bossClearM || 0));
     st.oxygenMax = Math.max(1, Math.floor(getOceanOxygenMax()));
     st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, Number.isFinite(st.oxygenCur) ? st.oxygenCur : st.oxygenMax));
     st.pressureLevel = Math.max(0, Math.floor(st.pressureLevel || 0));
@@ -211,6 +213,21 @@ function getOceanOxygenPerAttackCost() {
 }
 function getOceanDepthTier(depthM) {
     return Math.floor(Math.max(0, Math.floor(depthM || 0)) / 100);
+}
+function getOceanPendingBossBoundary(st) {
+    // 500m 단위마다 보스가 막아서며, 그 보스를 잡아야 체크포인트가 그 지점으로 갱신됩니다.
+    let depthM = Math.max(0, Math.floor(st.depthM || 0));
+    let boundary = Math.floor(depthM / 500) * 500;
+    if (boundary <= 0) return 0;
+    if (boundary <= Math.max(0, Math.floor(st.bossClearM || 0))) return 0;
+    return boundary;
+}
+function getOceanMoveSpeedDepthBonus() {
+    // 이동 속도가 빠를수록 산소 소모는 늘지만, 그만큼 한 번에 더 깊이 전진할 수 있도록 보정합니다.
+    let moveSpeed = 100;
+    try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) {}
+    let bonusRatio = Math.max(0, (moveSpeed - 100) / 100);
+    return 1 + Math.min(1, bonusRatio * 0.5);
 }
 function getOceanFishingGaugeGainMul() {
     let st = ensureOceanState();
@@ -415,7 +432,9 @@ function getZone(id) {
         let ocean = ensureOceanState();
         let depthM = Math.max(0, Math.floor(ocean.depthM || 0));
         let depthTier = getOceanDepthTier(depthM);
-        return { id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) };
+        let bossBoundary = getOceanPendingBossBoundary(ocean);
+        let isBossWave = bossBoundary > 0;
+        return { id: OCEAN_ZONE_ID, name: isBossWave ? `심해 ${depthM}m (수압 경계 보스)` : `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier), oceanBossWave: isBossWave, oceanBossBoundary: bossBoundary };
     }
     if (id === LABYRINTH_ZONE_ID) {
         let floor = Math.max(1, game.labyrinthFloor || 1);

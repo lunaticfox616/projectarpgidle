@@ -1755,22 +1755,35 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
     }
 }
 
-function advanceOceanDiveFromKill(zone, enemy) {
+function advanceOceanDiveFromKill(zone) {
+    // 팩(웨이브) 전체를 클리어했을 때만 호출됩니다 (개별 몬스터 처치마다 호출되지 않음).
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
-    let depthGain = enemy && enemy.isBoss ? 3 : (enemy && enemy.isElite ? 2 : 1);
-    st.depthM = Math.max(0, Math.floor(st.depthM || 0)) + depthGain;
-    let newCheckpoint = Math.floor(st.depthM / 100) * 100;
-    if (newCheckpoint > st.checkpointM) {
-        st.checkpointM = newCheckpoint;
-        addLog(`🛗 수중 리프트 ${st.checkpointM}m 지점이 개방되었습니다.`, 'loot-rare');
+    if (zone.oceanBossWave) {
+        // 500m 경계 보스는 처치해야만 그 지점이 체크포인트(수중 리프트)로 저장됩니다.
+        let boundary = Math.max(0, Math.floor(zone.oceanBossBoundary || 0));
+        st.bossClearM = Math.max(Math.floor(st.bossClearM || 0), boundary);
+        st.checkpointM = Math.max(Math.floor(st.checkpointM || 0), boundary);
+        st.depthM = boundary + 1;
+        addLog(`🛗 수중 리프트 ${boundary}m 지점이 개방되었습니다. (수압 경계 보스 격파)`, 'loot-rare');
+        awardCurrency('oceanRerollShard', 1);
+    } else {
+        let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
+        let depthGain = Math.max(1, Math.round((3 + Math.random() * 4) * speedBonus));
+        let curDepth = Math.max(0, Math.floor(st.depthM || 0));
+        let nextBoundary = Math.floor(curDepth / 500) * 500 + 500;
+        st.depthM = Math.min(nextBoundary, curDepth + depthGain);
+        let newCheckpoint = Math.floor(st.depthM / 100) * 100;
+        if (newCheckpoint > st.checkpointM && newCheckpoint < nextBoundary) {
+            st.checkpointM = newCheckpoint;
+            addLog(`🛗 수중 리프트 ${st.checkpointM}m 지점이 개방되었습니다.`, 'loot-rare');
+        }
+        if (Math.random() < 0.06) awardCurrency('reefFragment', 1);
     }
     st.pressureLevel = getOceanDepthTier(st.depthM);
     let pressureCrushAlive = (game.enemies || []).some(e => e && e.hp > 0 && e.trait && e.trait.oceanPressureGainMul);
     if (pressureCrushAlive) st.pressureLevel = Math.ceil(st.pressureLevel * 1.1);
-    if (Math.random() < (enemy && enemy.isElite ? 0.12 : 0.04)) awardCurrency('reefFragment', 1);
-    if (Math.random() < (enemy && enemy.isBoss ? 0.5 : 0.01)) awardCurrency('oceanRerollShard', 1);
-    gainOceanFishingGaugeFromCombat(zone, enemy);
+    gainOceanFishingGaugeFromCombat(zone);
 }
 
 function consumeOceanOxygenOnAttack() {
@@ -1781,10 +1794,10 @@ function consumeOceanOxygenOnAttack() {
     if (st.oxygenCur <= 0) forceSurfaceOcean('oxygen');
 }
 
-function gainOceanFishingGaugeFromCombat(zone, enemy) {
+function gainOceanFishingGaugeFromCombat(zone) {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
-    let gain = (enemy && enemy.isBoss ? 6 : (enemy && enemy.isElite ? 2.5 : 0.6)) * getOceanFishingGaugeGainMul();
+    let gain = (zone && zone.oceanBossWave ? 6 : 1.4) * getOceanFishingGaugeGainMul();
     let nextGauge = (st.fishingGauge || 0) + gain;
     st.fishingGauge = clampNumber(nextGauge, 0, 100);
     if (st.fishingGauge >= 100) {

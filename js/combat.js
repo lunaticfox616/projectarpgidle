@@ -4361,8 +4361,22 @@ function getZoneEncounterProfile(zone) {
             label: `${minPack}-${maxPack}기`
         };
     }
+    if (zone.type === 'oceanDepth') {
+        let depthTier = Math.max(0, Math.floor(zone.depthTier || 0));
+        let minPack = Math.min(6, 2 + Math.floor(depthTier / 4));
+        let maxPack = Math.min(8, minPack + 2);
+        return {
+            markerCount: zone.oceanBossWave ? 1 : (4 + Math.floor(depthTier * 0.5)),
+            minPack: minPack,
+            maxPack: maxPack,
+            eliteChance: Math.min(0.4, 0.08 + depthTier * 0.01),
+            bossAdds: 0,
+            label: zone.name || '심해'
+        };
+    }
     let minPack = 1;
-    let maxPack = Math.min(3, 1 + Math.floor((zone.id + 2) / 3));
+    let zoneIdNum = Number.isFinite(zone.id) ? zone.id : (Number(zone.tier) || 1);
+    let maxPack = Math.min(3, 1 + Math.floor((zoneIdNum + 2) / 3));
     return {
         markerCount: 3 + Math.floor(zone.tier * 0.8),
         minPack: minPack,
@@ -4401,6 +4415,18 @@ function generateEncounterPlan(zone) {
     if (zone.type === 'chaosRealm') {
         let profile = getZoneEncounterProfile(zone);
         return [{ at: 28, count: profile.minPack + 1, elite: true }, { at: 62, count: profile.maxPack, elite: true }, { at: 100, count: 1 + profile.bossAdds, boss: true }];
+    }
+    if (zone.type === 'oceanDepth') {
+        if (zone.oceanBossWave) return [{ at: 100, count: 1, boss: true }];
+        let profile = getZoneEncounterProfile(zone);
+        let markers = [];
+        for (let i = 0; i < profile.markerCount; i++) {
+            let at = clampNumber(Math.floor(((i + 1) / (profile.markerCount + 1)) * 96), 6, 94);
+            let count = profile.minPack + Math.floor(Math.random() * Math.max(1, profile.maxPack - profile.minPack + 1));
+            markers.push({ at: at, count: count, elite: Math.random() < profile.eliteChance });
+        }
+        markers.sort((a, b) => a.at - b.at);
+        return markers;
     }
     let profile = getZoneEncounterProfile(zone);
     let rng = zone.type === 'act' ? createSeededRng(`act:${zone.id}`) : Math.random;
@@ -5646,7 +5672,6 @@ function handleEnemyDeath(enemy, pStats) {
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
-    if (zone && zone.type === 'oceanDepth') advanceOceanDiveFromKill(zone, enemy);
     spreadCatalystAilmentsOnDeath(enemy);
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
@@ -5949,6 +5974,18 @@ function finishEncounterRun() {
         startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
+        return;
+    }
+
+    if (zone.type === 'oceanDepth') {
+        // 잠수 중이 아니면(예: 강제 귀환 후 호출) 진행을 변경하지 않는다.
+        let oceanSt = ensureOceanState();
+        if (oceanSt.unlocked && oceanSt.diving) advanceOceanDiveFromKill(zone);
+        game.currentZoneId = OCEAN_ZONE_ID;
+        game.killsInZone = 0;
+        startMoving(false);
+        updateStaticUI();
+        queueImportantSave(200);
         return;
     }
 
