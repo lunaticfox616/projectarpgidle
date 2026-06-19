@@ -194,14 +194,20 @@ function canEnterOceanDepth() {
     return !!ensureOceanState().unlocked;
 }
 function getOceanOxygenMax() {
-    let base = 100;
-    let bonus = Math.max(0, Number(game && game.oceanOxygenMaxBonus) || 0);
-    return base + bonus;
+    // 산소 최대치는 플레이어 스펙과 무관한 고정 수치입니다.
+    return 100;
 }
 function getOceanOxygenDrainPerSec() {
+    // 기본 시간당 감소량은 고정이되, 이동 속도가 높을수록 더 빠르게 감소합니다.
     let base = 1;
-    let reduction = Math.max(0, Math.min(80, Number(game && game.oceanOxygenDrainReductionPct) || 0));
-    return Math.max(0.1, base * (1 - reduction / 100));
+    let moveSpeed = 100;
+    try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) {}
+    let moveRatio = Math.max(0.5, Math.min(4, moveSpeed / 100));
+    return Math.max(0.1, base * moveRatio);
+}
+function getOceanOxygenPerAttackCost() {
+    // 공격 1회마다 소모되는 고정 산소량입니다.
+    return 0.5;
 }
 function getOceanDepthTier(depthM) {
     return Math.floor(Math.max(0, Math.floor(depthM || 0)) / 100);

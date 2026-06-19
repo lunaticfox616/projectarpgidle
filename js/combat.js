@@ -6362,6 +6362,7 @@ function finishEncounterRun() {
 }
 
 function performPlayerAttack(pStats) {
+    if (typeof consumeOceanOxygenOnAttack === 'function') consumeOceanOxygenOnAttack();
     if (Array.isArray(game.queenBees) && game.queenBees.length > 0) {
         let now = Date.now();
         game.queenBees = game.queenBees.filter(bee => bee && (bee.expiresAt || 0) > now && (bee.attacksLeft || 0) > 0);

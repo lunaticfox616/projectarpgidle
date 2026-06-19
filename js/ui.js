@@ -1896,6 +1896,7 @@ function renderOceanDepthMapPanel() {
     }
     let oxygenPct = Math.round((st.oxygenCur / Math.max(1, st.oxygenMax)) * 100);
     let drainPerSec = getOceanOxygenDrainPerSec();
+    let perAttackCost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0;
     let secsLeft = drainPerSec > 0 ? Math.floor(st.oxygenCur / drainPerSec) : 0;
     let depthTier = getOceanDepthTier(st.depthM);
     panel.innerHTML = `<div class="sky-tower-head">
@@ -1909,7 +1910,7 @@ function renderOceanDepthMapPanel() {
         <span class="sky-tower-chip">현재 수심 <b>${Math.floor(st.depthM)}m</b></span>
         <span class="sky-tower-chip">체크포인트 <b>${st.checkpointM}m</b></span>
         <span class="sky-tower-chip">수압 단계 <b>${depthTier}</b></span>
-        <span class="sky-tower-chip" title="산소 소모 속도: ${drainPerSec.toFixed(2)}/초, 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
+        <span class="sky-tower-chip" title="산소 최대치는 고정(${st.oxygenMax}). 이동 속도가 높을수록 시간당 소모가 빨라지고(현재 ${drainPerSec.toFixed(2)}/초), 공격 1회마다 추가로 ${perAttackCost}씩 소모됩니다. 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
         <span class="sky-tower-chip">낚시 게이지 <b>${Math.floor(st.fishingGauge)}%</b></span>
         <span class="sky-tower-chip">설치된 암초 조각 <b>${st.reefInstalled}/10</b> (게이지 +${st.reefInstalled * 15}%)</span>
     </div>

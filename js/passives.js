@@ -1773,6 +1773,14 @@ function advanceOceanDiveFromKill(zone, enemy) {
     gainOceanFishingGaugeFromCombat(zone, enemy);
 }
 
+function consumeOceanOxygenOnAttack() {
+    let st = ensureOceanState();
+    if (!st.unlocked || !st.diving) return;
+    let cost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0.5;
+    st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, (st.oxygenCur || 0) - cost));
+    if (st.oxygenCur <= 0) forceSurfaceOcean('oxygen');
+}
+
 function gainOceanFishingGaugeFromCombat(zone, enemy) {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
