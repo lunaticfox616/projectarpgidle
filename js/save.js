@@ -59,6 +59,9 @@ function ensureSaveMeta() {
     if (!game.saveMeta || typeof game.saveMeta !== 'object') game.saveMeta = JSON.parse(JSON.stringify(defaultGame.saveMeta));
     if (!Number.isFinite(game.saveMeta.lastModifiedAt)) game.saveMeta.lastModifiedAt = 0;
     if (!Number.isFinite(game.saveMeta.lastCloudSyncAt)) game.saveMeta.lastCloudSyncAt = 0;
+    if (!game.saveMeta.lastCloudUploadProfile || typeof game.saveMeta.lastCloudUploadProfile !== 'object') {
+        game.saveMeta.lastCloudUploadProfile = null;
+    }
 }
 
 function refreshItemIdCounter() {
