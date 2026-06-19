@@ -2235,7 +2235,8 @@ function getPlayerStats() {
     let oceanPressureDamageMul = 1;
     if (zonePenalty && zonePenalty.type === 'oceanDepth') {
         let depthTier = Math.max(0, Math.floor(zonePenalty.depthTier || 0));
-        let pressureSlow = Math.min(0.65, depthTier * 0.05);
+        let pressureResistPct = Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist')));
+        let pressureSlow = Math.min(0.65, depthTier * 0.05) * (1 - pressureResistPct / 100);
         finalAspd *= (1 - pressureSlow);
         oceanPressureDamageMul *= (1 - pressureSlow * 0.6);
         // 이동속도는 수압의 영향을 압축해서 받아 100%에 가깝게 유지(체감 페널티 완만화)
@@ -3588,7 +3589,11 @@ function getPlayerStats() {
         summonGuardRedirectPct: Math.max(0, Math.min(100, (gearBase.summonGuardRedirectPct || 0) + (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (support.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0))),
         poisonDamageMultiplierPct: Math.max(0, finalPoisonDamageMultiplierPct),
         shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
-        sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower)
+        sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower),
+        oceanPressureResist: Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist'))),
+        oceanDepthGainPct: Math.max(0, sumStatAcrossBuckets('oceanDepthGainPct')),
+        oceanOxygenAttackSavingPct: Math.max(0, Math.min(90, sumStatAcrossBuckets('oceanOxygenAttackSavingPct'))),
+        oceanRareFishChancePct: Math.max(0, sumStatAcrossBuckets('oceanRareFishChancePct'))
     };
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);

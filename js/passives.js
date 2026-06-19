@@ -1769,7 +1769,9 @@ function advanceOceanDiveFromKill(zone) {
         awardCurrency('oceanRerollShard', 1);
     } else {
         let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
-        let depthGain = Math.max(1, Math.round((3 + Math.random() * 4) * speedBonus));
+        let gearDepthGainPct = 0;
+        try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) {}
+        let depthGain = Math.max(1, Math.round((3 + Math.random() * 4) * speedBonus * (1 + gearDepthGainPct / 100)));
         let curDepth = Math.max(0, Math.floor(st.depthM || 0));
         let nextBoundary = Math.floor(curDepth / 500) * 500 + 500;
         st.depthM = Math.min(nextBoundary, curDepth + depthGain);
@@ -1790,6 +1792,9 @@ function consumeOceanOxygenOnAttack() {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
     let cost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0.5;
+    let savingPct = 0;
+    try { if (typeof getPlayerStats === 'function') savingPct = Math.max(0, Math.min(90, Number(getPlayerStats().oceanOxygenAttackSavingPct) || 0)); } catch (e) {}
+    cost *= (1 - savingPct / 100);
     st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, (st.oxygenCur || 0) - cost));
     if (st.oxygenCur <= 0) forceSurfaceOcean('oxygen');
 }
@@ -1810,7 +1815,13 @@ function catchOceanFish(depthTier) {
     let safeTier = Math.max(0, Math.floor(depthTier || 0));
     let eligible = Object.keys(OCEAN_FISH_DB).filter(key => (OCEAN_FISH_DB[key].depthTier || 0) <= safeTier);
     if (eligible.length === 0) return;
-    let weights = eligible.map(key => (1 / (1 + (safeTier - (OCEAN_FISH_DB[key].depthTier || 0)))) * (Number.isFinite(OCEAN_FISH_DB[key].rareWeight) ? OCEAN_FISH_DB[key].rareWeight : 1));
+    let rareChanceBonusPct = 0;
+    try { if (typeof getPlayerStats === 'function') rareChanceBonusPct = Math.max(0, Number(getPlayerStats().oceanRareFishChancePct) || 0); } catch (e) {}
+    let weights = eligible.map(key => {
+        let rareWeight = Number.isFinite(OCEAN_FISH_DB[key].rareWeight) ? OCEAN_FISH_DB[key].rareWeight : 1;
+        if (rareWeight < 1) rareWeight *= (1 + rareChanceBonusPct / 100);
+        return (1 / (1 + (safeTier - (OCEAN_FISH_DB[key].depthTier || 0)))) * rareWeight;
+    });
     let total = weights.reduce((a, b) => a + b, 0);
     let roll = Math.random() * total;
     let picked = eligible[0];
@@ -1878,12 +1889,11 @@ function getModCategory(mod) {
     return found ? found.category : '특수';
 }
 const OCEAN_WORKBENCH_OPTIONS = [
-    { id: 'oceanOxygenWard', label: '심해 산소 내성', statId: 'flatHp', min: 60, max: 90 },
-    { id: 'oceanPressureWard', label: '심해 수압 내성', statId: 'armorPct', min: 20, max: 28 },
-    { id: 'oceanCurrentGrip', label: '심해 조류 저항', statId: 'evasionPct', min: 20, max: 28 },
-    { id: 'oceanAbyssalEdge', label: '심해 심연의 칼날', statId: 'pctDmg', min: 18, max: 26 },
-    { id: 'oceanTidalHaste', label: '심해 조류의 신속', statId: 'aspd', min: 8, max: 12 },
-    { id: 'oceanLeviathanCrown', label: '리바이어던의 권능', statId: 'pctDmg', min: 30, max: 40 }
+    { id: 'oceanPressureWard', label: '심해 수압 내성', desc: '수압으로 인한 공격속도/피해/이동속도 감폭을 완화합니다.', statId: 'oceanPressureResist', min: 12, max: 18 },
+    { id: 'oceanCurrentRush', label: '심해 조류 가속', desc: '팩을 클리어할 때마다 전진하는 수심이 늘어납니다.', statId: 'oceanDepthGainPct', min: 15, max: 22 },
+    { id: 'oceanLungCapacity', label: '심해 아가미 적응', desc: '공격할 때마다 소모되는 산소량이 줄어듭니다.', statId: 'oceanOxygenAttackSavingPct', min: 14, max: 20 },
+    { id: 'oceanAnglerInstinct', label: '심해 낚시꾼의 직감', desc: '낚시로 초희귀 어종이 나올 확률이 늘어납니다.', statId: 'oceanRareFishChancePct', min: 25, max: 40 },
+    { id: 'oceanLeviathanCrown', label: '리바이어던의 권능', desc: '수압 내성, 수심 전진, 산소 절감을 모두 한 줄에 압축한 최상위 옵션입니다.', statId: 'oceanPressureResist', min: 20, max: 26 }
 ];
 function getOceanWorkbenchOption(optionId, topTierOnly) {
     if (topTierOnly) return OCEAN_WORKBENCH_OPTIONS.find(opt => opt.id === 'oceanLeviathanCrown');
