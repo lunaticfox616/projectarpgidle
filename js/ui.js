@@ -5877,6 +5877,8 @@ function performUpdateStaticUI() {
     if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
     let loopReadyBanner = document.getElementById('loop-ready-banner');
     if (loopReadyBanner) loopReadyBanner.classList.toggle('active', !!game.pendingLoopReady);
+    let combatLoopBtn = document.getElementById('btn-combat-loop-advance');
+    if (combatLoopBtn) combatLoopBtn.style.display = canShowCombatLoopAdvanceButton() ? 'inline-flex' : 'none';
     let shrineBox = document.getElementById('ui-shrine-box');
     if (shrineBox) {
         let active = game.shrineState && game.shrineState.active;
@@ -6783,7 +6785,8 @@ function exposeUiRenderHelpersOnce() {
         closeUnderworldRuneOverlay,
         equipUnderworldRuneToSlot,
         unequipUnderworldRuneSlot,
-        showUnderworldRuneTooltip
+        showUnderworldRuneTooltip,
+        handleCombatLoopAdvanceButton
     };
     let pending = {};
     Object.keys(helpers).forEach(key => {
@@ -6794,6 +6797,31 @@ function exposeUiRenderHelpersOnce() {
     window.__uiRenderHelperGlobalsExposed = true;
 }
 exposeUiRenderHelpersOnce();
+
+
+function canShowCombatLoopAdvanceButton() {
+    if (game && (game.pendingLoopReady || game.pendingLoopDecision)) return true;
+    if (!game || (game.season || 1) < 10) return false;
+    return typeof hasCurrentLoopAbyssRequirementClear === 'function'
+        ? hasCurrentLoopAbyssRequirementClear(game.season || 1)
+        : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
+}
+
+function handleCombatLoopAdvanceButton() {
+    if (game && game.pendingLoopReady && typeof confirmLoopReady === 'function') {
+        confirmLoopReady();
+        return;
+    }
+    if (game && game.pendingLoopDecision && typeof chooseLoopAdvance === 'function') {
+        chooseLoopAdvance(true);
+        return;
+    }
+    if (canShowCombatLoopAdvanceButton() && typeof triggerSeasonReset === 'function') {
+        triggerSeasonReset();
+        return;
+    }
+    if (typeof addLog === 'function') addLog('아직 루프 진행 조건을 달성하지 못했습니다.', 'attack-monster');
+}
 
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
@@ -8393,6 +8421,7 @@ function mergeDefaults(save) {
         equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
+    merged.saveMeta.lastCloudUploadProfile = normalizeCloudUploadProfile(merged.saveMeta.lastCloudUploadProfile);
     merged.unlocks.jewel = !!merged.unlocks.jewel;
     merged.unlocks.cube = !!merged.unlocks.cube;
     if (!save.currencies && save.materials) {
@@ -9680,6 +9709,7 @@ function updateCloudSaveUI() {
     let userEl = document.getElementById('ui-cloud-user');
     let localEl = document.getElementById('ui-cloud-local-save');
     let remoteEl = document.getElementById('ui-cloud-remote-save');
+    let uploadProfileEl = document.getElementById('ui-cloud-upload-profile');
     let msgEl = document.getElementById('ui-cloud-message');
     let openGateBtn = document.getElementById('btn-cloud-open-gate');
     let switchGateBtn = document.getElementById('btn-cloud-return-startup');
@@ -9736,6 +9766,7 @@ function updateCloudSaveUI() {
     if (userEl) userEl.innerText = cloudState.user && cloudState.user.email ? cloudState.user.email : (cloudState.user && cloudState.user.id ? cloudState.user.id : (config.enabled ? '로그인 안 됨' : '설정 필요'));
     if (localEl) localEl.innerText = formatCloudTime(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0);
     if (remoteEl) remoteEl.innerText = formatCloudTime(cloudState.lastRemoteUpdatedAt || (game && game.saveMeta ? game.saveMeta.lastCloudSyncAt : 0));
+    if (uploadProfileEl) uploadProfileEl.innerText = formatCloudUploadProfile(game && game.saveMeta ? game.saveMeta.lastCloudUploadProfile : null);
     let identitiesEl = document.getElementById('ui-cloud-identities');
     if (identitiesEl) {
         let providers = Array.isArray(cloudState.linkedProviders) ? cloudState.linkedProviders : [];
@@ -9747,6 +9778,35 @@ function updateCloudSaveUI() {
     }
     if (msgEl) msgEl.innerText = cloudState.lastMessage || '대기 중';
     updateStartupScreenUI();
+}
+
+function normalizeCloudUploadProfile(profile) {
+    if (!profile || typeof profile !== 'object') return null;
+    return {
+        at: Math.max(0, Math.floor(Number(profile.at) || 0)),
+        fetchMs: Math.max(0, Math.floor(Number(profile.fetchMs) || 0)),
+        serializeMs: Math.max(0, Math.floor(Number(profile.serializeMs) || 0)),
+        uploadMs: Math.max(0, Math.floor(Number(profile.uploadMs) || 0)),
+        totalMs: Math.max(0, Math.floor(Number(profile.totalMs) || 0)),
+        payloadBytes: Math.max(0, Math.floor(Number(profile.payloadBytes) || 0))
+    };
+}
+
+function formatCloudUploadProfile(profile) {
+    let normalized = normalizeCloudUploadProfile(profile);
+    if (!normalized || normalized.totalMs <= 0) return '없음';
+    let sizeKb = (normalized.payloadBytes / 1024).toFixed(1);
+    return `${normalized.totalMs}ms (조회 ${normalized.fetchMs}ms · 직렬화 ${normalized.serializeMs}ms · 전송 ${normalized.uploadMs}ms · ${sizeKb}KB)`;
+}
+
+function rememberCloudUploadProfile(profile) {
+    let normalized = normalizeCloudUploadProfile(profile);
+    if (!normalized) return null;
+    ensureSaveMeta();
+    normalized.at = normalized.at || Date.now();
+    game.saveMeta.lastCloudUploadProfile = normalized;
+    cloudState.lastSyncProfile = normalized;
+    return normalized;
 }
 
 function applyExternalSave(snapshot, sourceStamp) {
@@ -9993,8 +10053,8 @@ async function pushCloudSave(options = {}) {
     let serializeMs = Math.max(0, tSerialize - tFetch);
     let uploadMs = Math.max(0, tUpload - tSerialize);
     let totalMs = Math.max(0, tUpload - t0);
-    cloudState.lastSyncProfile = { fetchMs, serializeMs, uploadMs, totalMs, payloadBytes: payloadSize };
-    if (typeof addLog === 'function' && !options.automatic) addLog(`☁️ 업로드 시간 ${totalMs}ms (조회 ${fetchMs}ms · 직렬화 ${serializeMs}ms · 전송 ${uploadMs}ms · ${(payloadSize/1024).toFixed(1)}KB)`, 'attack-monster', { noToast: true });
+    rememberCloudUploadProfile({ at: syncedAt, fetchMs, serializeMs, uploadMs, totalMs, payloadBytes: payloadSize });
+    persistLocalSave({ touchModifiedAt: false });
     updateCloudSaveUI();
     return row;
 }
@@ -10426,19 +10486,30 @@ async function cloudCompactAndPushNow() {
         ensureSaveMeta();
         game.saveMeta.lastModifiedAt = Date.now();
         persistLocalSave({ touchModifiedAt: false });
+        let t0 = Date.now();
         let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
         let payloadBytes = JSON.stringify(payload).length;
+        let tSerialize = Date.now();
         let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
             method: 'POST',
             headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
             body: { user_id: cloudState.user.id, save_data: payload }
         });
+        let tUpload = Date.now();
         let row = Array.isArray(rows) ? rows[0] : null;
         let syncedAt = row && row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
         game.saveMeta.lastCloudSyncAt = syncedAt;
         cloudState.lastRemoteUpdatedAt = syncedAt;
         cloudState.lastSyncAttemptAt = Date.now();
         cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
+        rememberCloudUploadProfile({
+            at: syncedAt,
+            fetchMs: 0,
+            serializeMs: Math.max(0, tSerialize - t0),
+            uploadMs: Math.max(0, tUpload - tSerialize),
+            totalMs: Math.max(0, tUpload - t0),
+            payloadBytes
+        });
         persistLocalSave({ touchModifiedAt: false });
         setCloudMessage(`경량화 업로드 완료 (${(payloadBytes / 1024).toFixed(1)}KB)`);
         addLog(`☁️ 경량화 클라우드 저장 완료 (${(payloadBytes / 1024).toFixed(1)}KB)`, 'loot-magic');
