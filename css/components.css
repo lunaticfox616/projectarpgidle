@@ -144,6 +144,14 @@
         .talisman-board-cell { transition: box-shadow 0.12s ease, transform 0.12s ease, filter 0.12s ease; }
         .talisman-board-cell.talisman-hover-group { box-shadow: 0 0 0 2px rgba(255,230,140,.9), 0 0 18px rgba(255,210,110,.65), inset 0 1px 0 rgba(255,255,255,.38) !important; filter: brightness(1.16); transform: translateY(-1px); }
 
+
+        @media (min-width: 1481px) {
+            .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto auto; }
+            .battlefield-wrap { height: clamp(300px, 44vh, 460px); }
+            .enemy-list { max-height: 132px; }
+            .combat-feed { height: clamp(150px, 18vh, 210px); }
+        }
+
         @media (max-width: 1480px) {
             #left-pane { width: 540px; min-width: 540px; }
             .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }

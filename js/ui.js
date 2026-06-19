@@ -1318,7 +1318,7 @@ function dismantleColonyWardById(id) {
     let gain = getColonyWardDismantleReward(ward);
     c.wardInventory.splice(idx, 1);
     game.currencies.colonyShard = Math.max(0, Math.floor(game.currencies.colonyShard || 0)) + gain;
-    addLog(`🛡️ 액막이 부적 해체: ${ward.name || '액막이'} · 군락지 편린 +${gain}`, 'loot-normal');
+    addLog(`🛡️ 액막이 부적 해체 완료 · 군락지 편린 +${gain}`, 'loot-normal');
     updateStaticUI();
 }
 
@@ -3696,6 +3696,10 @@ function updateSettings() {
     let damageFormatSelect = document.getElementById('sel-damage-number-format');
     let damageFormat = damageFormatSelect ? damageFormatSelect.value : game.settings.damageNumberFormat;
     game.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(damageFormat) ? damageFormat : 'comma';
+    game.settings.showExpComma = document.getElementById('chk-exp-comma').checked;
+    game.settings.showHpComma = document.getElementById('chk-hp-comma').checked;
+    game.settings.showEnemyHpComma = document.getElementById('chk-enemy-hp-comma').checked;
+    game.settings.showCharacterComma = document.getElementById('chk-character-comma').checked;
     game.settings.itemFilterEnabled = document.getElementById('chk-item-filter-enabled').checked;
     game.settings.itemFilterRarities = game.settings.itemFilterRarities || { normal: true, magic: true, rare: true, unique: true };
     game.settings.itemFilterRarities.normal = document.getElementById('chk-item-filter-normal').checked;
@@ -5344,6 +5348,25 @@ function pruneEnemyHpDamageGhostStates(activeEnemyIds) {
     });
 }
 
+
+function shouldUseCommaSetting(settingKey) {
+    return !(game && game.settings && game.settings[settingKey] === false);
+}
+
+function formatCommaNumber(value, options = {}) {
+    let amount = Number(value) || 0;
+    if (options.decimals !== undefined) return amount.toFixed(options.decimals);
+    return Math.floor(amount).toLocaleString('ko-KR');
+}
+
+function formatSettingNumber(value, settingKey, options = {}) {
+    if (!shouldUseCommaSetting(settingKey)) {
+        if (options.decimals !== undefined) return (Number(value) || 0).toFixed(options.decimals);
+        return String(Math.floor(Number(value) || 0));
+    }
+    return formatCommaNumber(value, options);
+}
+
 function formatCappedResistanceValue(appliedValue, uncappedValue) {
     let applied = Math.floor(Number(appliedValue) || 0);
     let uncapped = Number.isFinite(Number(uncappedValue)) ? Math.floor(Number(uncappedValue)) : applied;
@@ -5356,9 +5379,9 @@ function updateCombatUI(pStats) {
     if (pStats && pStats.breakdowns && !pStats.__uiFallbackStats) cachedTooltipStats = pStats;
     if (!pStats.__uiFallbackStats) game.playerHp = Math.min(game.playerHp, pStats.maxHp);
     let safeHp = Math.max(0, Number(game.playerHp) || 0);
-    setTextById('ui-hp', safeHp >= 100 ? Math.floor(safeHp) : safeHp.toFixed(1));
-    setTextById('ui-maxhp', pStats.maxHp);
-    setTextById('ui-maxhp-stat', pStats.maxHp);
+    setTextById('ui-hp', formatSettingNumber(safeHp, 'showHpComma', safeHp >= 100 ? {} : { decimals: 1 }));
+    setTextById('ui-maxhp', formatSettingNumber(pStats.maxHp, 'showHpComma'));
+    setTextById('ui-maxhp-stat', formatSettingNumber(pStats.maxHp, 'showCharacterComma'));
     let hpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
     let hpBar = document.getElementById('ui-hp-bar');
     hpBar.style.width = hpPct + '%';
@@ -5402,8 +5425,8 @@ function updateCombatUI(pStats) {
     esBar.style.zIndex = '5';
     esBar.style.width = esPct + '%';
     esBar.style.display = (pStats.energyShield || 0) > 0 ? 'block' : 'none';
-    setTextById('ui-exp', game.exp);
-    setTextById('ui-maxexp', getExpReq(game.level));
+    setTextById('ui-exp', formatSettingNumber(game.exp, 'showExpComma'));
+    setTextById('ui-maxexp', formatSettingNumber(getExpReq(game.level), 'showExpComma'));
     document.getElementById('ui-exp-bar').style.width = ((game.exp / getExpReq(game.level)) * 100) + '%';
     setTextById('ui-player-level', 'Lv.' + game.level);
     [['ui-hp', 'ui-hp-mobile'], ['ui-maxhp', 'ui-maxhp-mobile'], ['ui-exp', 'ui-exp-mobile'], ['ui-maxexp', 'ui-maxexp-mobile'], ['ui-player-level', 'ui-player-level-mobile']].forEach(([src, dst]) => {
@@ -5501,10 +5524,10 @@ function updateCombatUI(pStats) {
         document.getElementById('ui-move-bar').style.width = game.runProgress + '%';
     }
 
-    setTextById('ui-total-dps', Math.floor(pStats.totalDps || ((pStats.dps || 0) + (pStats.summonDps || 0))));
-    setTextById('ui-dps', Math.floor(pStats.directDps || pStats.dps || 0));
-    setTextById('ui-summon-dps', Math.floor(pStats.summonDps || 0));
-    document.getElementById('ui-atk').innerText = Math.floor(pStats.baseDmg);
+    setTextById('ui-total-dps', formatSettingNumber(pStats.totalDps || ((pStats.dps || 0) + (pStats.summonDps || 0)), 'showCharacterComma'));
+    setTextById('ui-dps', formatSettingNumber(pStats.directDps || pStats.dps || 0, 'showCharacterComma'));
+    setTextById('ui-summon-dps', formatSettingNumber(pStats.summonDps || 0, 'showCharacterComma'));
+    document.getElementById('ui-atk').innerText = formatSettingNumber(pStats.baseDmg, 'showCharacterComma');
     document.getElementById('ui-aps').innerText = pStats.aspd.toFixed(2);
     document.getElementById('ui-crit').innerText = pStats.crit.toFixed(1);
     document.getElementById('ui-crit-dmg').innerText = Math.floor(pStats.critDmg);
@@ -5515,9 +5538,9 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-bleed-chance').innerText = Math.max(0, pStats.bleedChance || 0).toFixed(1);
     document.getElementById('ui-move-spd').innerText = Math.floor(pStats.moveSpeed);
     document.getElementById('ui-dr').innerText = Math.floor(pStats.dr);
-    let armorEl = document.getElementById('ui-armor'); if (armorEl) armorEl.innerText = Math.floor(pStats.armor || 0);
-    let evasionEl = document.getElementById('ui-evasion'); if (evasionEl) evasionEl.innerText = Math.floor(pStats.evasion || 0);
-    let esEl = document.getElementById('ui-es'); if (esEl) esEl.innerText = Math.floor(pStats.energyShield || 0);
+    let armorEl = document.getElementById('ui-armor'); if (armorEl) armorEl.innerText = formatSettingNumber(pStats.armor || 0, 'showCharacterComma');
+    let evasionEl = document.getElementById('ui-evasion'); if (evasionEl) evasionEl.innerText = formatSettingNumber(pStats.evasion || 0, 'showCharacterComma');
+    let esEl = document.getElementById('ui-es'); if (esEl) esEl.innerText = formatSettingNumber(pStats.energyShield || 0, 'showCharacterComma');
     let blockEl = document.getElementById('ui-block-chance'); if (blockEl) blockEl.innerText = Math.max(0, Number(pStats.blockChance || 0)).toFixed(1);
     let deflectEl = document.getElementById('ui-deflect-chance'); if (deflectEl) deflectEl.innerText = Math.max(0, Number(pStats.deflectChance || 0)).toFixed(1);
     document.getElementById('ui-phys-ignore').innerText = Math.floor(pStats.physIgnore || 0);
@@ -5563,7 +5586,7 @@ function updateCombatUI(pStats) {
     if (pStats.regen > 0) document.getElementById('ui-regen').innerText = formatValue('regen', pStats.regen);
     if ((pStats.regenSuppress || 0) > 0) document.getElementById('ui-regen-suppress').innerText = formatValue('regenSuppress', pStats.regenSuppress);
     if (pStats.leech > 0) document.getElementById('ui-leech').innerText = formatValue('leech', pStats.leech);
-    if (pStats.ds > 0) document.getElementById('ui-ds').innerText = Math.floor(pStats.ds);
+    if (pStats.ds > 0) document.getElementById('ui-ds').innerText = formatSettingNumber(pStats.ds, 'showCharacterComma');
     if (pStats.gemLv > 0) document.getElementById('ui-gemlv').innerText = `+${pStats.gemLv}`;
     let specialSummaryEl = document.getElementById('ui-unique-special-summary');
     if (specialSummaryEl) {
@@ -5652,8 +5675,8 @@ function updateCombatUI(pStats) {
             let zoneNow = getZone(game.currentZoneId);
             if (zoneNow && zoneNow.type === 'woodsmanEcho') {
                 let totalDealt = Math.max(0, Math.floor((focusedEnemy.echoStartHp || focusedEnemy.maxHp || 0) - Math.max(0, focusedEnemy.hp || 0)));
-                hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${Math.floor(focusedEnemy.energyShield)} · ` : ''}${totalDealt.toLocaleString()} / ?`;
-            } else hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${Math.floor(focusedEnemy.energyShield)} · ` : ''}${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}`;
+                hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(totalDealt, 'showEnemyHpComma')} / ?`;
+            } else hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')}`;
         }
         if (ailmentEl) ailmentEl.innerHTML = ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음';
         if (traitEl) traitEl.innerText = `특성: ${tags.join(' · ') || '일반'}`;
@@ -8705,6 +8728,10 @@ function mergeDefaults(save) {
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
     merged.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(merged.settings.damageNumberFormat) ? merged.settings.damageNumberFormat : 'comma';
+    merged.settings.showExpComma = merged.settings.showExpComma !== false;
+    merged.settings.showHpComma = merged.settings.showHpComma !== false;
+    merged.settings.showEnemyHpComma = merged.settings.showEnemyHpComma !== false;
+    merged.settings.showCharacterComma = merged.settings.showCharacterComma !== false;
     merged.settings.notiFilters = { ...(defaultGame.settings.notiFilters || {}), ...(merged.settings.notiFilters || {}) };
     merged.playerHp = Math.max(0, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 0)));
     merged.playerEnergyShield = Math.max(0, Math.floor(clampFiniteNumber(merged.playerEnergyShield, defaultGame.playerEnergyShield, 0))); 
@@ -10595,6 +10622,10 @@ function init() {
     document.getElementById('chk-mobile-battle-pip').checked = game.settings.showMobileBattlePip !== false;
     document.getElementById('chk-pause-overlay').checked = !!game.settings.pauseGameOnOverlay;
     document.getElementById('sel-damage-number-format').value = ['comma', 'korean', 'korean_short', 'english'].includes(game.settings.damageNumberFormat) ? game.settings.damageNumberFormat : 'comma';
+    document.getElementById('chk-exp-comma').checked = game.settings.showExpComma !== false;
+    document.getElementById('chk-hp-comma').checked = game.settings.showHpComma !== false;
+    document.getElementById('chk-enemy-hp-comma').checked = game.settings.showEnemyHpComma !== false;
+    document.getElementById('chk-character-comma').checked = game.settings.showCharacterComma !== false;
     game.settings.itemFilterRarities = { normal: true, magic: true, rare: true, unique: true, ...(game.settings.itemFilterRarities || {}) };
     document.getElementById('chk-item-filter-enabled').checked = !!game.settings.itemFilterEnabled;
     document.getElementById('chk-item-filter-normal').checked = game.settings.itemFilterRarities.normal !== false;
