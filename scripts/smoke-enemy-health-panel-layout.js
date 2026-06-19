@@ -16,9 +16,9 @@ assert(!componentsCss.includes('.enemy-list { grid-template-columns: 1fr; max-he
 
 const battlefieldRule = themeCss.match(/\.battlefield-wrap\s*\{([^}]+)\}/);
 assert(battlefieldRule, 'base battlefield layout rule must exist');
-assert(battlefieldRule[1].includes('height: 200px'), 'base battlefield height must leave room for enemy HP and combat log panels');
-assert(componentsCss.includes('.battlefield-wrap { height: clamp(240px, 34vh, 340px); }'), 'wide layout battlefield height must stay compact enough for the panels below');
-assert(componentsCss.includes('.battlefield-wrap { height: 180px; }'), 'narrow desktop battlefield height must stay compact enough for the panels below');
+assert(battlefieldRule[1].includes('height: 185px'), 'base battlefield height must leave room for enemy HP and combat log panels');
+assert(componentsCss.includes('.battlefield-wrap { height: clamp(220px, 30vh, 300px); }'), 'wide layout battlefield height must stay compact enough for the panels below');
+assert(componentsCss.includes('.battlefield-wrap { height: 165px; }'), 'narrow desktop battlefield height must stay compact enough for the panels below');
 
 const loopBannerIndex = indexSource.indexOf('id="loop-ready-banner"');
 const enemyListIndex = indexSource.indexOf('id="ui-enemy-list"');
@@ -29,6 +29,12 @@ const combatLoopButtonIndex = indexSource.indexOf('id="btn-combat-loop-advance"'
 const returnButtonIndex = indexSource.indexOf('onclick="returnToTown()"');
 assert(combatLoopButtonIndex >= 0 && returnButtonIndex >= 0, 'combat loop button and return button must both exist');
 assert(combatLoopButtonIndex < returnButtonIndex, 'combat loop button must sit to the left of the return button');
+
+const actionRule = themeCss.match(/\.combat-zone-actions\s*\{([^}]+)\}/);
+assert(actionRule && actionRule[1].includes('margin-left: auto'), 'combat action buttons must stay pinned to the right of the level/class label');
+assert(indexSource.includes('class="combat-action-btn" onclick="returnToTown()"'), 'return button must use the shared combat action button style');
+assert(indexSource.includes('id="btn-combat-loop-advance" class="combat-action-btn"'), 'loop button must use the shared combat action button style');
+assert(themeCss.includes('#btn-combat-loop-advance') && themeCss.includes('border-color: #d7c36a'), 'loop button must keep an accent that makes it stand out');
 assert(!indexSource.slice(loopBannerIndex, enemyListIndex).includes('confirmLoopReady()'), 'loop-ready banner must not duplicate the moved loop button');
 assert(uiSource.includes('function canShowCombatLoopAdvanceButton()'), 'combat loop button visibility helper must exist');
 assert(uiSource.includes('if (game && (game.pendingLoopReady || game.pendingLoopDecision)) return true;'), 'pending loop states must show the combat loop button');
