@@ -154,7 +154,7 @@
 
         @media (max-width: 1480px) {
             #left-pane { width: 540px; min-width: 540px; }
-            .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 4px; }
+            .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 0; }
             .enemy-list { grid-template-columns: 1fr; max-height: none; overflow: visible; }
             #log { min-height: 200px; }
         }
