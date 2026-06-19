@@ -1889,11 +1889,11 @@ function getModCategory(mod) {
     return found ? found.category : '특수';
 }
 const OCEAN_WORKBENCH_OPTIONS = [
-    { id: 'oceanPressureWard', label: '심해 수압 내성', desc: '수압으로 인한 공격속도/피해/이동속도 감폭을 완화합니다.', statId: 'oceanPressureResist', min: 12, max: 18 },
-    { id: 'oceanCurrentRush', label: '심해 조류 가속', desc: '팩을 클리어할 때마다 전진하는 수심이 늘어납니다.', statId: 'oceanDepthGainPct', min: 15, max: 22 },
-    { id: 'oceanLungCapacity', label: '심해 아가미 적응', desc: '공격할 때마다 소모되는 산소량이 줄어듭니다.', statId: 'oceanOxygenAttackSavingPct', min: 14, max: 20 },
-    { id: 'oceanAnglerInstinct', label: '심해 낚시꾼의 직감', desc: '낚시로 초희귀 어종이 나올 확률이 늘어납니다.', statId: 'oceanRareFishChancePct', min: 25, max: 40 },
-    { id: 'oceanLeviathanCrown', label: '리바이어던의 권능', desc: '수압 내성, 수심 전진, 산소 절감을 모두 한 줄에 압축한 최상위 옵션입니다.', statId: 'oceanPressureResist', min: 20, max: 26 }
+    { id: 'oceanBossSlayer', label: '심연의 보스 학살', desc: '보스에게 가하는 피해가 증가합니다. (일반 옵션으로는 등장하지 않는 전용 스탯)', statId: 'bossDamagePct', min: 18, max: 28 },
+    { id: 'oceanEliteHunter', label: '심연의 정예 사냥', desc: '정예 몬스터에게 가하는 피해가 증가합니다.', statId: 'eliteDamagePct', min: 16, max: 24 },
+    { id: 'oceanFirstStrike', label: '심연의 선제 일격', desc: '생명력이 가득 찬 적에게 가하는 첫 타에 추가 피해를 줍니다.', statId: 'firstStrikeDamagePct', min: 20, max: 30 },
+    { id: 'oceanCuller', label: '심연의 처형자', desc: '생명력이 일정 % 이하인 보스가 아닌 적을 즉시 처치합니다.', statId: 'cullStrikePct', min: 6, max: 10 },
+    { id: 'oceanLeviathanCrown', label: '리바이어던의 권능', desc: '보스 처치 피해를 가장 높게 보장하는 최상위 전용 옵션입니다.', statId: 'bossDamagePct', min: 32, max: 42 }
 ];
 function getOceanWorkbenchOption(optionId, topTierOnly) {
     if (topTierOnly) return OCEAN_WORKBENCH_OPTIONS.find(opt => opt.id === 'oceanLeviathanCrown');

@@ -3593,7 +3593,11 @@ function getPlayerStats() {
         oceanPressureResist: Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist'))),
         oceanDepthGainPct: Math.max(0, sumStatAcrossBuckets('oceanDepthGainPct')),
         oceanOxygenAttackSavingPct: Math.max(0, Math.min(90, sumStatAcrossBuckets('oceanOxygenAttackSavingPct'))),
-        oceanRareFishChancePct: Math.max(0, sumStatAcrossBuckets('oceanRareFishChancePct'))
+        oceanRareFishChancePct: Math.max(0, sumStatAcrossBuckets('oceanRareFishChancePct')),
+        bossDamagePct: Math.max(0, sumStatAcrossBuckets('bossDamagePct')),
+        eliteDamagePct: Math.max(0, sumStatAcrossBuckets('eliteDamagePct')),
+        firstStrikeDamagePct: Math.max(0, sumStatAcrossBuckets('firstStrikeDamagePct')),
+        cullStrikePct: Math.max(0, Math.min(20, sumStatAcrossBuckets('cullStrikePct')))
     };
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
@@ -6677,8 +6681,13 @@ function performPlayerAttack(pStats) {
             }
             if (targetEnemy.isBoss) {
                 let bossMul = Math.max(0, Number(pStats.bossDamageDealtMultiplier) || 1);
+                bossMul *= (1 + Math.max(0, Number(pStats.bossDamagePct) || 0) / 100);
                 hitBaseDamage = Math.floor(hitBaseDamage * bossMul);
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * bossMul);
+            } else if (targetEnemy.isElite && (pStats.eliteDamagePct || 0) > 0) {
+                let eliteMul = 1 + Math.max(0, Number(pStats.eliteDamagePct) || 0) / 100;
+                hitBaseDamage = Math.floor(hitBaseDamage * eliteMul);
+                ailmentBaseDamage = Math.floor(ailmentBaseDamage * eliteMul);
             }
             if (game.ascendClass === 'gladiator' && hasKeystone('g5') && game.gladiatorSwiftOpeningReady) {
                 hitBaseDamage = Math.floor(hitBaseDamage * 1.30);
@@ -6884,12 +6893,25 @@ function performPlayerAttack(pStats) {
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let beforeHpForForced = targetEnemy.hp;
             let talentWasFull = beforeHpForForced >= (targetEnemy.maxHp || beforeHpForForced || 1);
+            // 선제 타격: 생명력이 가득 찬 적에게 가하는 첫 타에 추가 피해
+            if (talentWasFull && (pStats.firstStrikeDamagePct || 0) > 0) {
+                let firstStrikeMul = 1 + Math.max(0, Number(pStats.firstStrikeDamagePct) || 0) / 100;
+                dmg = Math.floor(dmg * firstStrikeMul);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * firstStrikeMul);
+            }
             targetEnemy.lastHitElement = hitElement;
             let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
             // 23 산맥추적자: 생명력 최대인 적 첫 타격 시 최대 생명력 비례 추가 피해
             if (typeof getTalentFullLifeBurst === 'function' && targetEnemy.hp > 0) {
                 let fullBurst = getTalentFullLifeBurst(targetEnemy, talentWasFull);
                 if (fullBurst > 0) dealtToEnemy += applyDamageToEnemyResource(targetEnemy, fullBurst);
+            }
+            // 처형 일격(장비 옵션): 생명력이 일정 % 이하인 일반/정예 몬스터 즉시 처치(보스 제외)
+            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && (pStats.cullStrikePct || 0) > 0) {
+                let cullThr = Math.max(0, Math.min(20, Number(pStats.cullStrikePct) || 0)) / 100;
+                if (cullThr > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= cullThr) {
+                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+                }
             }
             // 재능 처형(15 도살자/71 하운드): 낮은 체력 일반 몬스터 마무리
             if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof getTalentExecuteThreshold === 'function') {
