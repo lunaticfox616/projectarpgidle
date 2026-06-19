@@ -19,6 +19,7 @@ assert(battlefieldRule, 'base battlefield layout rule must exist');
 assert(battlefieldRule[1].includes('height: 185px'), 'base battlefield height must leave room for enemy HP and combat log panels');
 assert(componentsCss.includes('.battlefield-wrap { height: clamp(220px, 30vh, 300px); }'), 'wide layout battlefield height must stay compact enough for the panels below');
 assert(componentsCss.includes('.battlefield-wrap { height: 165px; }'), 'narrow desktop battlefield height must stay compact enough for the panels below');
+assert(componentsCss.includes('.combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 4px; }'), 'stacked desktop battle layout must keep enemy HP and combat log tightly spaced');
 
 const loopBannerIndex = indexSource.indexOf('id="loop-ready-banner"');
 const enemyListIndex = indexSource.indexOf('id="ui-enemy-list"');
