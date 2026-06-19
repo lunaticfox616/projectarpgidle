@@ -147,15 +147,15 @@
 
         @media (min-width: 1481px) {
             .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto auto; }
-            .battlefield-wrap { height: clamp(300px, 44vh, 460px); }
-            .enemy-list { max-height: 132px; }
+            .battlefield-wrap { height: clamp(240px, 34vh, 340px); }
+            .enemy-list { max-height: none; overflow: visible; }
             .combat-feed { height: clamp(150px, 18vh, 210px); }
         }
 
         @media (max-width: 1480px) {
             #left-pane { width: 540px; min-width: 540px; }
             .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
-            .enemy-list { grid-template-columns: 1fr; max-height: 88px; }
+            .enemy-list { grid-template-columns: 1fr; max-height: none; overflow: visible; }
             #log { min-height: 200px; }
         }
 
@@ -166,7 +166,7 @@
         @media (max-width: 1280px) {
             #left-pane { width: 460px; min-width: 460px; }
             .enemy-list { grid-template-columns: 1fr; }
-            .battlefield-wrap { height: 210px; }
+            .battlefield-wrap { height: 180px; }
         }
 
         @media (max-width: 900px) {
