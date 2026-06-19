@@ -5869,8 +5869,10 @@ function performUpdateStaticUI() {
     let canvas = document.getElementById('battlefield-canvas');
     let caption = document.getElementById('ui-battlefield-caption');
     let battlefieldWrap = document.getElementById('battlefield-wrap');
+    let combatDashboard = document.querySelector('.combat-dashboard');
     if (canvas) canvas.style.display = showCombatScene ? 'block' : 'none';
     if (battlefieldWrap) battlefieldWrap.classList.toggle('compressed', !showCombatScene);
+    if (combatDashboard) combatDashboard.classList.toggle('combat-scene-hidden', !showCombatScene);
     applyPanelLayoutSettings();
     if (!showCombatScene && caption) caption.innerText = '전투가 진행중입니다.';
     let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
