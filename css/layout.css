@@ -1,4 +1,4 @@
-        .log-msg { margin-bottom: 4px; padding-bottom: 2px; border-bottom: 1px solid #111; line-height: 1.3; }
+        .log-msg { margin-bottom: 4px; padding-bottom: 2px; border-bottom: 1px solid #111; line-height: 1.3; overflow-wrap: anywhere; word-break: break-word; }
         .loot-normal { color: #bdc3c7; }
         .loot-magic { color: #3498db; font-weight: bold; }
         .loot-rare { color: #f1c40f; font-weight: bold; }

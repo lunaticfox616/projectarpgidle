@@ -22,6 +22,11 @@ const hpBarRule = layoutCss.match(/\.hp-bar-bg\s*\{([^}]+)\}/);
 const logRule = [...baseCss.matchAll(/#log\s*\{([^}]+)\}/g)].find(match => match[1].includes('flex: 1'));
 assert(hpBarRule && hpBarRule[1].includes('box-sizing: border-box'), 'progress and health bars must include borders inside their assigned width');
 assert(logRule && logRule[1].includes('box-sizing: border-box'), 'combat log must include padding and borders inside the feed width');
+assert(logRule && logRule[1].includes('overflow-x: hidden'), 'combat log text must not draw outside the log viewport horizontally');
+assert(componentsCss.includes('#log { min-height: 0; height: auto; max-height: 100%; }'), 'mobile combat log must leave room for its title instead of exceeding the feed height');
+assert(componentsCss.includes('body.mobile-battle-tab #tab-battle .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 8px; flex: 1; min-height: 0; }'), 'mobile battle dashboard must reserve a separate remaining-space row for the combat log');
+assert(componentsCss.includes('body.mobile-battle-tab #tab-battle .combat-feed { margin-top: 0; height: auto; max-height: none; min-height: 0; }'), 'mobile combat log panel must not inherit the stacked desktop negative margin or fixed height cap');
+assert(componentsCss.includes('body.mobile-battle-tab #tab-battle #log { flex: 1 1 auto; min-height: 0; height: auto; max-height: none; }'), 'mobile combat log viewport must fill the remaining feed space');
 
 const combatDashboardRule = themeCss.match(/\.combat-dashboard\s*\{([^}]+)\}/);
 const combatStageRule = themeCss.match(/\.combat-stage\s*\{([^}]+)\}/);
@@ -29,6 +34,10 @@ const combatFeedRule = themeCss.match(/\.combat-feed\s*\{([^}]+)\}/);
 assert(combatDashboardRule && combatDashboardRule[1].includes('min-width: 0'), 'combat dashboard must allow stacked combat sections to shrink inside the left pane');
 assert(combatStageRule && combatStageRule[1].includes('min-width: 0'), 'combat stage must not force progress and battlefield content past the panel edge');
 assert(combatFeedRule && combatFeedRule[1].includes('box-sizing: border-box'), 'combat feed padding and borders must stay inside the panel width');
+assert(combatFeedRule && combatFeedRule[1].includes('overflow: hidden'), 'combat feed must clip the scrolling log viewport to its rounded border');
+
+const logMessageRule = layoutCss.match(/\.log-msg\s*\{([^}]+)\}/);
+assert(logMessageRule && logMessageRule[1].includes('overflow-wrap: anywhere'), 'long combat log lines must wrap inside the log viewport');
 
 const enemyCardRule = themeCss.match(/\.enemy-card\s*\{([^}]+)\}/);
 const enemyEmptyRule = themeCss.match(/\.enemy-empty\s*\{([^}]+)\}/);

@@ -8437,6 +8437,7 @@ function mergeDefaults(save) {
     merged.saveMeta.lastCloudUploadProfile = normalizeCloudUploadProfile(merged.saveMeta.lastCloudUploadProfile);
     merged.unlocks.jewel = !!merged.unlocks.jewel;
     merged.unlocks.cube = !!merged.unlocks.cube;
+    if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(merged);
     if (!save.currencies && save.materials) {
         merged.currencies.transmute += Math.floor(save.materials / 2);
         merged.currencies.augment += Math.floor(save.materials / 4);

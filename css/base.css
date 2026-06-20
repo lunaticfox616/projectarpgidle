@@ -92,5 +92,5 @@
         button, input, select, textarea { font: inherit; }
         button, .tab-btn, .subtab-btn, .item-card, .slot-box, .class-card, .map-item, .skill-gem, .trait-card { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
-        #log { flex: 1; min-width: 0; min-height: 180px; box-sizing: border-box; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background: linear-gradient(180deg, #06080d 0%, #040509 100%); padding: 8px 10px; border: 1px solid #1a1a24; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 0.84em; box-shadow: inset 0 0 18px rgba(0,0,0,0.35); }
+        #log { flex: 1 1 auto; min-width: 0; min-height: 180px; box-sizing: border-box; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background: linear-gradient(180deg, #06080d 0%, #040509 100%); padding: 8px 10px; border: 1px solid #1a1a24; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 0.84em; box-shadow: inset 0 0 18px rgba(0,0,0,0.35); }
         #log:empty::before { content: '전투 로그가 여기에 표시됩니다.'; display: block; color: #5f7387; padding-top: 4px; }
