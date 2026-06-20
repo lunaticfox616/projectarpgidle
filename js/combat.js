@@ -8044,6 +8044,7 @@ function triggerSeasonReset() {
     game.starWedge.constellationBuff = preservedConstellationBuff;
     game.unlocks = { ...defaultGame.unlocks };
     if (preservedTalismanUnlocked) game.unlocks.talisman = true;
+    if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(game);
     game.noti = { ...defaultGame.noti };
     if (typeof relockCoreCubeForLoop === 'function') relockCoreCubeForLoop();
     game.itemSubtab = 'item-tab-equip';
