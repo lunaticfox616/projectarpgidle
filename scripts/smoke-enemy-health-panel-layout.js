@@ -23,7 +23,7 @@ const logRule = [...baseCss.matchAll(/#log\s*\{([^}]+)\}/g)].find(match => match
 assert(hpBarRule && hpBarRule[1].includes('box-sizing: border-box'), 'progress and health bars must include borders inside their assigned width');
 assert(logRule && logRule[1].includes('box-sizing: border-box'), 'combat log must include padding and borders inside the feed width');
 assert(logRule && logRule[1].includes('overflow-x: hidden'), 'combat log text must not draw outside the log viewport horizontally');
-assert(componentsCss.includes('#log { min-height: 0; height: auto; max-height: 100%; }'), 'mobile combat log must leave room for its title instead of exceeding the feed height');
+assert(componentsCss.includes('#log { min-height: 0; height: auto; max-height: none; }'), 'stacked combat log must let flex sizing account for the title instead of clipping the scrollbar');
 assert(componentsCss.includes('body.mobile-battle-tab #tab-battle .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 8px; flex: 1; min-height: 0; }'), 'mobile battle dashboard must reserve a separate remaining-space row for the combat log');
 assert(componentsCss.includes('body.mobile-battle-tab #tab-battle .combat-feed { margin-top: 0; height: auto; max-height: none; min-height: 0; }'), 'mobile combat log panel must not inherit the stacked desktop negative margin or fixed height cap');
 assert(componentsCss.includes('body.mobile-battle-tab #tab-battle #log { flex: 1 1 auto; min-height: 0; height: auto; max-height: none; }'), 'mobile combat log viewport must fill the remaining feed space');

@@ -215,7 +215,7 @@
             body.mobile-battle-tab #tab-battle .combat-panel > h2 > span:first-child { display:none; }
             .combat-dashboard { grid-template-columns: 1fr; }
             .combat-feed { min-height: 0; height: clamp(220px, 34vh, 320px); max-height: 320px; overflow: hidden; }
-            #log { min-height: 0; height: auto; max-height: 100%; }
+            #log { min-height: 0; height: auto; max-height: none; }
             .combat-panel > h2 { flex-wrap: wrap; gap: 8px 12px; }
             .combat-panel > h2 > span:first-child { order: 1; }
             .combat-panel > h2 > button { order: 2; margin-left: auto; }
