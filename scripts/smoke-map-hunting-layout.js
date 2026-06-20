@@ -49,8 +49,9 @@ assert(
   'hunting map groups must be rendered through collapsible section controls'
 );
 assert(
-  uiSource.includes('getDeepChaosMapEntryHtml()') && uiSource.includes('rootBossListHtml += getDeepChaosMapEntryHtml();'),
-  'deep chaos entry must appear in both the chaos hunting list and root-boss challenge list'
+  uiSource.includes('if (deepChaosCardHtml) chaosMapCards.push({ isChaosMap: true, html: deepChaosCardHtml });') &&
+    !uiSource.includes('rootBossListHtml += getDeepChaosMapEntryHtml();'),
+  'deep chaos entry must appear only in the chaos exploration group, not in the root-boss challenge list'
 );
 assert(
   uiSource.includes('map-zone-grid--${groupKey}') && componentCss.includes('.map-zone-grid--hunting') && componentCss.includes('.map-zone-grid--chaos'),
