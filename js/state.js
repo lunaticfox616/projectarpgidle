@@ -1676,6 +1676,7 @@ const defaultGame = {
     codexNewlyRegistered: {},
     codexCollapsedSlots: {},
     codexSubtab: 'main',
+    codexSelectedSlot: '무기',
     uniqueCodexCompletedRewardClaimed: false,
     starWedge: {
         unlocked: false,

@@ -689,6 +689,7 @@ function switchTab(tabId) {
             activeBtn.scrollIntoView();
         }
     }
+    if (tabId === 'tab-codex' && game.noti && game.noti.codex) game.codexFocusNewOnOpen = true;
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     // 도감 탭에서 다른 탭으로 벗어날 때, 신규 등록 강조를 해제(처음 열었을 때만 강조).
     if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
@@ -2958,9 +2959,31 @@ function withdrawUniqueFromCodex(key) {
     updateStaticUI();
 }
 
+function getCodexSlotOrder() {
+    return ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
+}
+
+function getFirstNewCodexSlot(pool, newlyRegistered) {
+    let slots = getCodexSlotOrder();
+    for (let slot of slots) {
+        let found = pool.some(entry => {
+            let key = `${slot}|${entry.name}`;
+            return (entry.slots || [])[0] === slot && !!newlyRegistered[key] && !!game.uniqueCodex[key];
+        });
+        if (found) return slot;
+    }
+    return null;
+}
+
 function toggleCodexSlotCollapse(slot) {
     game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
     game.codexCollapsedSlots[slot] = !game.codexCollapsedSlots[slot];
+    updateStaticUI();
+}
+
+function setCodexSlotFilter(slot) {
+    if (!getCodexSlotOrder().includes(slot)) return;
+    game.codexSelectedSlot = slot;
     updateStaticUI();
 }
 
@@ -3011,30 +3034,34 @@ function renderUniqueCodexUI() {
         ? `<div style="margin-top:6px; color:#ffdf80; font-weight:700;">신규 등록: ${newCodexLines.map(escapeHTML).join(' · ')}</div>`
         : '';
     summary.innerHTML = `[${realmOnly ? '계(Realm) 도감' : '기존 도감'}] 등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% <span style="color:#9fb4d1;">(50개까지 0.2%, 이후 0.1%)</span> · 완성 상태: <strong>${rewardState}</strong>${newCodexSummary}`;
-    let bySlot = ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
-    let lines = [];
-    bySlot.forEach(slot => {
+    let bySlot = getCodexSlotOrder();
+    let firstNewSlot = getFirstNewCodexSlot(pool, newlyRegistered);
+    if (firstNewSlot && game.codexFocusNewOnOpen) {
+        game.codexSelectedSlot = firstNewSlot;
+        game.codexFocusNewOnOpen = false;
+    }
+    let selectedSlot = bySlot.includes(game.codexSelectedSlot) ? game.codexSelectedSlot : bySlot[0];
+    game.codexSelectedSlot = selectedSlot;
+    let slotTabsHtml = bySlot.map(slot => {
         let entries = pool.filter(entry => (entry.slots || [])[0] === slot);
-        if (entries.length === 0) return;
         let slotStored = entries.filter(entry => !!game.uniqueCodex[`${slot}|${entry.name}`]).length;
         let hasNewInSlot = entries.some(entry => !!newlyRegistered[`${slot}|${entry.name}`] && !!game.uniqueCodex[`${slot}|${entry.name}`]);
-        if (hasNewInSlot) game.codexCollapsedSlots[slot] = false;
-        let collapsed = !!game.codexCollapsedSlots[slot];
-        lines.push(`<div style="grid-column:1/-1; margin-top:4px; display:flex; justify-content:space-between; align-items:center; gap:8px; background:#121822; border:1px solid #2f4f66; border-radius:8px; padding:8px 10px;"><strong style="color:#9bc2df;">${slot} <span style="color:#ffd38b; font-size:0.86em;">${slotStored}/${entries.length}</span>${hasNewInSlot ? ` <span style="color:#ffdf80; font-size:0.82em;">신규</span>` : ''}</strong><button onclick="toggleCodexSlotCollapse('${slot}')" style="font-size:0.78em; padding:4px 8px;">${collapsed ? '펼치기' : '접기'}</button></div>`);
-        if (collapsed) return;
-        entries.forEach(entry => {
-            let key = `${slot}|${entry.name}`;
-            let stored = game.uniqueCodex[key];
-            let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (루프 리셋됨)') : '미등록';
-            let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
-            let isNew = stored && newlyRegistered[key];
-            let cardStyle = isNew ? ' style="box-shadow:0 0 0 2px #ff4d4f, 0 0 12px rgba(255,77,79,0.7); border-color:#ff4d4f;"' : '';
-            let newBadge = isNew ? ` <span style="color:#ff4d4f; font-weight:800; font-size:0.82em;">● NEW</span>` : '';
-            let statusHtml = stored ? `<span style="color:#4cd964; font-weight:700;">등록됨</span>` : `<span style="color:#7f8c8d;">미등록</span>`;
-            lines.push(`<div class="item-card"${cardStyle}><div><div class="item-title unique">[${slot}] ${stored ? entry.name : '???'}${newBadge}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '옵션 정보 없음'}</div></div><div class="item-actions">${statusHtml}</div></div>`);
-        });
-    });
-    listEl.innerHTML = lines.join('');
+        let activeClass = slot === selectedSlot ? ' active' : '';
+        let newBadge = hasNewInSlot ? '<span class="codex-slot-new">NEW</span>' : '';
+        return `<button class="codex-slot-tab${activeClass}" onclick="setCodexSlotFilter('${slot}')"><span>${slot}</span><small>${slotStored}/${entries.length}</small>${newBadge}</button>`;
+    }).join('');
+    let selectedEntries = pool.filter(entry => (entry.slots || [])[0] === selectedSlot);
+    let cardsHtml = selectedEntries.map(entry => {
+        let key = `${selectedSlot}|${entry.name}`;
+        let stored = game.uniqueCodex[key];
+        let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (루프 리셋됨)') : '미등록';
+        let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
+        let isNew = stored && newlyRegistered[key];
+        let newBadge = isNew ? ` <span style="color:#ff4d4f; font-weight:800; font-size:0.82em;">● NEW</span>` : '';
+        let statusHtml = stored ? `<span style="color:#4cd964; font-weight:700;">등록됨</span>` : `<span style="color:#7f8c8d;">미등록</span>`;
+        return `<div class="item-card codex-card${isNew ? ' codex-card-new' : ''}"><div><div class="item-title unique">[${selectedSlot}] ${stored ? entry.name : '???'}${newBadge}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '옵션 정보 없음'}</div></div><div class="item-actions">${statusHtml}</div></div>`;
+    }).join('');
+    listEl.innerHTML = `<div class="codex-layout"><div class="codex-slot-tabs">${slotTabsHtml}</div><div class="codex-slot-content"><div class="codex-slot-heading">${selectedSlot} <span>${selectedEntries.filter(entry => !!game.uniqueCodex[`${selectedSlot}|${entry.name}`]).length}/${selectedEntries.length}</span></div><div class="codex-card-grid">${cardsHtml}</div></div></div>`;
 }
 function setCodexSubtab(tab) {
     game.codexSubtab = (tab === 'realm') ? 'realm' : 'main';
@@ -8648,6 +8675,7 @@ function mergeDefaults(save) {
     merged.codexNewlyRegistered = (merged.codexNewlyRegistered && typeof merged.codexNewlyRegistered === 'object') ? merged.codexNewlyRegistered : {};
     merged.codexCollapsedSlots = (merged.codexCollapsedSlots && typeof merged.codexCollapsedSlots === 'object') ? merged.codexCollapsedSlots : {};
     merged.codexSubtab = (merged.codexSubtab === 'realm') ? 'realm' : 'main';
+    merged.codexSelectedSlot = getCodexSlotOrder().includes(merged.codexSelectedSlot) ? merged.codexSelectedSlot : '무기';
     merged.uniqueCodexCompletedRewardClaimed = !!merged.uniqueCodexCompletedRewardClaimed;
     if (!merged.gemEnhanceUnlocked && (((merged.currencies || {}).bossCore || 0) > 0 || ((merged.currencies || {}).skyEssence || 0) > 0)) merged.gemEnhanceUnlocked = true;
     merged.inTicketBossFight = !!merged.inTicketBossFight;
