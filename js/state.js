@@ -1444,6 +1444,24 @@ function setExpertiseLoopCapsForSeason(season){
 function resetExpertiseLoopCaps(){
   return setExpertiseLoopCapsForSeason(Math.max(1, Math.floor(game.season || 1)));
 }
+
+function hasPermanentTalentTabUnlock(state) {
+    if (!state || typeof state !== 'object') return false;
+    if (Math.max(0, Math.floor(Number(state.talentBloomClears) || 0)) > 0) return true;
+    if (Array.isArray(state.talentBloomCombos) && state.talentBloomCombos.length > 0) return true;
+    if (Array.isArray(state.bloomedClasses) && state.bloomedClasses.length > 0) return true;
+    if (state.talentCards && typeof state.talentCards === 'object' && Object.keys(state.talentCards).length > 0) return true;
+    return false;
+}
+
+function syncPermanentTalentTabUnlock(state) {
+    if (!state || typeof state !== 'object') return state;
+    if (!hasPermanentTalentTabUnlock(state)) return state;
+    state.unlocks = (state.unlocks && typeof state.unlocks === 'object') ? state.unlocks : {};
+    state.unlocks.talent = true;
+    return state;
+}
+
 function grantLoopBaseExpertExp(){
   ensureExpertiseState();
   let gained = [];
@@ -1658,6 +1676,7 @@ const defaultGame = {
     codexNewlyRegistered: {},
     codexCollapsedSlots: {},
     codexSubtab: 'main',
+    codexSelectedSlot: '무기',
     uniqueCodexCompletedRewardClaimed: false,
     starWedge: {
         unlocked: false,
@@ -1685,7 +1704,7 @@ const defaultGame = {
 };
 
 
-safeExposeGlobals({ defaultGame });
+safeExposeGlobals({ defaultGame, hasPermanentTalentTabUnlock, syncPermanentTalentTabUnlock });
 
 // Phase-4 extracted progression math helpers.
 function getExpReq(level) {
