@@ -372,9 +372,14 @@
 .expertise-muted{color:#98afc8;font-size:.88em}
 .codex-layout{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;width:100%;grid-column:1/-1}
 .codex-slot-tabs{display:flex;flex-direction:column;gap:7px;min-width:0}
-.codex-slot-tab{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:38px;padding:7px 9px;border:1px solid #2d4560;border-radius:9px;background:#111a26;color:#cfe2f5;text-align:left}
-.codex-slot-tab.active{border-color:#f1c40f;background:linear-gradient(180deg,#2a2412,#171d26);color:#ffe59a}
+/* 도감·탐험 좌측 세로 탭 공통 스킨 (고급 + 고가시성) */
+.codex-slot-tab,.explore-subtab{position:relative;display:flex;align-items:center;gap:7px;min-height:40px;padding:9px 12px 9px 13px;border:1px solid #33455d;border-radius:10px;background:linear-gradient(180deg,#18222f 0%,#0e1620 100%);color:#cdddee;text-align:left;font-size:.84em;font-weight:600;line-height:1.25;letter-spacing:.01em;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 1px 2px rgba(0,0,0,.35);transition:border-color .15s ease,background .15s ease,color .15s ease,box-shadow .15s ease}
+.codex-slot-tab{justify-content:space-between}
+.codex-slot-tab:hover,.explore-subtab:hover{border-color:#5a7798;background:linear-gradient(180deg,#1e2a3a 0%,#131d29 100%);color:#eaf3fd}
+.codex-slot-tab.active,.explore-subtab.active{border-color:#d9b75e;background:linear-gradient(180deg,#2f2814 0%,#1c1f2a 70%,#171b25 100%);color:#ffe6a3;box-shadow:inset 3px 0 0 #f4cf6a,inset 0 0 0 1px rgba(217,183,94,.3),0 0 16px rgba(217,183,94,.22),0 2px 6px rgba(0,0,0,.4)}
+.codex-slot-tab.active:hover,.explore-subtab.active:hover{color:#fff0c4}
 .codex-slot-tab small{color:#8aa4bf;font-size:.76em}
+.codex-slot-tab.active small{color:#dcc98f}
 .codex-slot-new{color:#ffdf80;font-size:.68em;font-weight:900}
 .codex-slot-content{min-width:0}
 .codex-slot-heading{margin-bottom:8px;color:#9bc2df;font-weight:800}
@@ -385,8 +390,6 @@
 /* 탐험 탭: 좌측 세부 탭 + 우측 패널 */
 .explore-layout{display:grid;grid-template-columns:168px minmax(0,1fr);gap:12px;width:100%;align-items:start}
 .explore-subtabs{display:flex;flex-direction:column;gap:6px;min-width:0}
-.explore-subtab{display:flex;align-items:center;gap:6px;min-height:38px;padding:7px 10px;border:1px solid #2d4560;border-radius:9px;background:#111a26;color:#cfe2f5;text-align:left;font-size:.82em;line-height:1.2;cursor:pointer}
-.explore-subtab.active{border-color:#f1c40f;background:linear-gradient(180deg,#2a2412,#171d26);color:#ffe59a}
 .explore-panels{min-width:0}
 .explore-panel{display:none}
 .explore-panel.active{display:block}
