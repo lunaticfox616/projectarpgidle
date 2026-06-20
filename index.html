@@ -256,7 +256,7 @@
 
         <div class="combat-dashboard">
             <div class="combat-stage">
-                <div id="move-area" style="text-align: center; margin-bottom: 10px;">
+                <div id="move-area" style="text-align: center; margin-bottom: 10px; display: flex; flex-direction: column; min-height: 0;">
                     <strong id="ui-progress-label" style="color: #3498db; font-size: 1.05em;">🧭 진행도</strong>
                     <div class="hp-bar-bg" style="height: 20px;">
                         <div id="ui-move-bar" class="hp-bar-fill move" style="width: 0%;"></div>
@@ -711,7 +711,7 @@
 
     <div id="tab-map" class="tab-content map-tab-panel">
         <div class="subtab-row">
-            <button class="subtab-btn active" id="btn-map-tab-zones" onclick="switchMapSubtab('map-tab-zones')">사냥터</button>
+            <button class="subtab-btn active" id="btn-map-tab-zones" onclick="switchMapSubtab('map-tab-zones')">탐험</button>
             <button class="subtab-btn" id="btn-map-tab-abyss" onclick="switchMapSubtab('map-tab-abyss')">혼돈 패시브</button>
             <button class="subtab-btn" id="btn-map-tab-chaos-realm" onclick="switchMapSubtab('map-tab-chaos-realm')">🌌 혼돈계</button>
             <button class="subtab-btn" id="btn-map-tab-sky" onclick="switchMapSubtab('map-tab-sky')">☁️ 창공</button>
@@ -738,6 +738,10 @@
             <h2 style="margin-top: 20px; color: #c79bff; display: none;" id="ui-meteor-header">운석 낙하 지점 <button id="btn-meteor-auto-enter" onclick="toggleMeteorAutoEnter()" style="display:none; margin-left:8px; font-size:0.7em; padding:2px 6px;">자동입장 OFF</button></h2>
             <div class="map-grid" id="ui-meteor-list" style="margin-top: 10px;"></div>
 
+                    <div id="explore-beehive" class="explore-panel">
+                        <h2 style="margin-top: 0; color: #ffde91; display: none;" id="ui-beehive-header">🐝 벌집 원정</h2>
+                        <div id="ui-beehive-panel" style="display:none; background:#15140f; border:1px solid #6f5a2b; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
+                    </div>
 
             <h2 style="margin-top: 20px; color: #ffde91; display: none;" id="ui-beehive-header">벌집 원정</h2>
             <div id="ui-beehive-panel" style="display:none; background:#15140f; border:1px solid #6f5a2b; border-radius:10px; padding:10px; margin-bottom:10px;"></div>

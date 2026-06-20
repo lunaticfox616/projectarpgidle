@@ -8050,6 +8050,7 @@ function triggerSeasonReset() {
     game.itemSubtab = 'item-tab-equip';
     game.skillSubtab = 'skill-tab-equip';
     game.mapSubtab = 'map-tab-zones';
+    game.exploreSubtab = 'explore-tree';
     game.chaosRealm = preservedChaosRealm;
     game.skyTower = preservedSkyTower;
     game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));
