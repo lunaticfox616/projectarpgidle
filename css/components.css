@@ -370,30 +370,24 @@
 .expertise-card{background:linear-gradient(180deg,#101827,#0e1420);border:1px solid #334761;border-radius:10px;padding:10px}
 .expertise-card h4{margin:0 0 6px 0;color:#e8f1ff;font-size:1.02em}
 .expertise-muted{color:#98afc8;font-size:.88em}
+#map-tab-zones h2{padding:9px 12px;border:1px solid #36536f;border-radius:12px;background:linear-gradient(180deg,#172536,#101a28);color:#d3e9ff;font-size:1.02em;font-weight:900;letter-spacing:.03em;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+#map-tab-zones .map-zone-group-header{padding:11px 13px;border-color:#36536f;border-radius:12px;background:linear-gradient(180deg,#172536,#101a28);color:#d3e9ff;font-weight:900;letter-spacing:.03em;text-shadow:0 1px 2px rgba(0,0,0,.45);box-shadow:inset 0 0 0 1px rgba(125,201,255,.08),0 8px 18px rgba(0,0,0,.22)}
+#map-tab-zones .map-zone-group:not(.collapsed) .map-zone-group-header{border-color:#ffd36b;background:linear-gradient(135deg,#67491a,#173451 70%);color:#fff0b2;box-shadow:0 0 0 1px rgba(255,211,107,.32) inset,0 0 16px rgba(107,184,255,.22)}
+#map-tab-zones .map-zone-group-icon{display:none}
+#map-tab-zones .map-zone-group-title{gap:0}
+#map-tab-zones .map-item-main>span:first-child:not(:last-child){display:none}
 .codex-layout{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;width:100%;grid-column:1/-1}
-.codex-slot-tabs{display:flex;flex-direction:column;gap:7px;min-width:0}
-/* 도감·탐험 좌측 세로 탭 공통 스킨 (고급 + 고가시성) */
-.codex-slot-tab,.explore-subtab{position:relative;display:flex;align-items:center;gap:7px;min-height:40px;padding:9px 12px 9px 13px;border:1px solid #33455d;border-radius:10px;background:linear-gradient(180deg,#18222f 0%,#0e1620 100%);color:#cdddee;text-align:left;font-size:.84em;font-weight:600;line-height:1.25;letter-spacing:.01em;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 1px 2px rgba(0,0,0,.35);transition:border-color .15s ease,background .15s ease,color .15s ease,box-shadow .15s ease}
-.codex-slot-tab{justify-content:space-between}
-.codex-slot-tab:hover,.explore-subtab:hover{border-color:#5a7798;background:linear-gradient(180deg,#1e2a3a 0%,#131d29 100%);color:#eaf3fd}
-.codex-slot-tab.active,.explore-subtab.active{border-color:#d9b75e;background:linear-gradient(180deg,#2f2814 0%,#1c1f2a 70%,#171b25 100%);color:#ffe6a3;box-shadow:inset 3px 0 0 #f4cf6a,inset 0 0 0 1px rgba(217,183,94,.3),0 0 16px rgba(217,183,94,.22),0 2px 6px rgba(0,0,0,.4)}
-.codex-slot-tab.active:hover,.explore-subtab.active:hover{color:#fff0c4}
-.codex-slot-tab small{color:#8aa4bf;font-size:.76em}
-.codex-slot-tab.active small{color:#dcc98f}
-.codex-slot-new{color:#ffdf80;font-size:.68em;font-weight:900}
+.codex-slot-tabs{display:flex;flex-direction:column;gap:8px;min-width:0;padding:10px;border:1px solid #2f4762;border-radius:14px;background:linear-gradient(180deg,rgba(18,29,43,.96),rgba(10,16,25,.96));box-shadow:inset 0 0 0 1px rgba(125,201,255,.08),0 10px 24px rgba(0,0,0,.24)}
+.codex-slot-tab{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:40px;padding:8px 10px;border:1px solid #36536f;border-radius:11px;background:linear-gradient(180deg,#172536,#101a28);color:#d3e9ff;text-align:left;font-weight:800;letter-spacing:.02em;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+.codex-slot-tab.active{border-color:#ffd36b;background:linear-gradient(135deg,#67491a,#173451 70%);color:#fff0b2;box-shadow:0 0 0 1px rgba(255,211,107,.32) inset,0 0 16px rgba(107,184,255,.22)}
+.codex-slot-tab small{color:#a9c9e7;font-size:.76em;font-weight:800}
+.codex-slot-new{padding:2px 5px;border-radius:999px;background:#7a1f2b;color:#ffe1a1;font-size:.68em;font-weight:900;box-shadow:0 0 10px rgba(255,77,79,.45)}
 .codex-slot-content{min-width:0}
 .codex-slot-heading{margin-bottom:8px;color:#9bc2df;font-weight:800}
 .codex-slot-heading span{color:#ffd38b;font-size:.86em}
 .codex-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
 .codex-card-new{box-shadow:0 0 0 2px #ff4d4f,0 0 12px rgba(255,77,79,.7);border-color:#ff4d4f}
-@media (max-width:900px){.codex-layout{grid-template-columns:1fr}.codex-slot-tabs{flex-direction:row;overflow-x:auto;padding-bottom:4px}.codex-slot-tab{flex:0 0 112px}}
-/* 탐험 탭: 좌측 세부 탭 + 우측 패널 */
-.explore-layout{display:grid;grid-template-columns:168px minmax(0,1fr);gap:12px;width:100%;align-items:start}
-.explore-subtabs{display:flex;flex-direction:column;gap:6px;min-width:0}
-.explore-panels{min-width:0}
-.explore-panel{display:none}
-.explore-panel.active{display:block}
-@media (max-width:900px){.explore-layout{grid-template-columns:1fr}.explore-subtabs{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.explore-subtab{flex:0 0 auto;white-space:nowrap}}
+@media (max-width:900px){.codex-layout{grid-template-columns:1fr}.codex-slot-tabs{flex-direction:row;overflow-x:auto;padding:8px}.codex-slot-tab{flex:0 0 112px}}
 .expertise-tree-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 /* Hub layout: common in center, four expert branches radiating out */
 .expertise-tree-hub{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto auto auto;gap:22px;position:relative;align-items:stretch;width:100%}

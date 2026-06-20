@@ -7108,7 +7108,6 @@ function buildCraftActionButtons(item) {
             <div class="map-item-actions"><span class="map-zone-status">${ORB_DB[zone.key].name}: ${keys}</span></div>
         </div>`;
     }).join('');
-    rootBossListHtml += getDeepChaosMapEntryHtml();
     document.getElementById('ui-season-boss-list').innerHTML = rootBossListHtml;
 
     let labyrinthOpen = (game.season || 1) >= 3;
