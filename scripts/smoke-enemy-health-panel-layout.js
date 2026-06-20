@@ -28,6 +28,7 @@ assert(componentsCss.includes('body.mobile-battle-tab #tab-battle .combat-dashbo
 assert(componentsCss.includes('body.mobile-battle-tab #tab-battle .combat-feed { margin-top: 0; height: auto; max-height: none; min-height: 220px; }'), 'mobile combat log panel must not inherit the stacked desktop negative margin or a short fixed height cap');
 assert(componentsCss.includes('body.mobile-battle-tab #tab-battle #log { flex: 1 1 auto; min-height: 0; height: auto; max-height: none; }'), 'mobile combat log viewport must fill the remaining feed space');
 assert(componentsCss.includes('.combat-feed { min-height: 0; height: clamp(260px, 42vh, 420px); max-height: 420px; overflow: hidden; }'), 'stacked combat log must be tall enough for the full scrollbar to remain visible');
+assert(componentsCss.includes('.combat-feed { height: clamp(320px, 52vh, 480px); max-height: 480px; padding: 10px; }'), 'small-screen combat log must not be shortened by the narrowest breakpoint');
 
 const combatDashboardRule = themeCss.match(/\.combat-dashboard\s*\{([^}]+)\}/);
 const combatStageRule = themeCss.match(/\.combat-stage\s*\{([^}]+)\}/);

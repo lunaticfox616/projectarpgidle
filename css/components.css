@@ -149,7 +149,7 @@
             .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto auto; }
             .battlefield-wrap { height: clamp(220px, 30vh, 300px); }
             .enemy-list { max-height: none; overflow: visible; }
-            .combat-feed { height: clamp(150px, 18vh, 210px); margin-top: -12px; }
+            .combat-feed { height: clamp(240px, 28vh, 420px); margin-top: -12px; }
             .combat-dashboard.combat-scene-hidden { grid-template-rows: auto minmax(0, 1fr); }
             .combat-dashboard.combat-scene-hidden .combat-feed { height: 100%; max-height: none; }
         }
@@ -279,7 +279,7 @@
             .paperdoll { gap: 6px; }
             .slot-box { min-height: 58px; }
             .battlefield-wrap { height: 155px; }
-            .combat-feed { height: clamp(200px, 32vh, 280px); max-height: 280px; padding: 10px; }
+            .combat-feed { height: clamp(320px, 52vh, 480px); max-height: 480px; padding: 10px; }
             #log { min-height: 0; }
             .cloud-actions, .cloud-actions.secondary, .gem-enhance-actions, .gem-engrave-grid { grid-template-columns: 1fr; }
             .bulk-salvage-bar, .jewel-salvage-bar, .tutorial-actions, .deathlog-line, .map-item { flex-direction: column; align-items: stretch; }
