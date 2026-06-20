@@ -176,9 +176,6 @@
         @media (max-width: 900px) {
             .cloud-header { flex-direction: column; align-items: stretch; }
             .cloud-actions { grid-template-columns: 1fr; }
-            .codex-layout { grid-template-columns: 1fr; }
-            .codex-slot-tabs { flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
-            .codex-slot-tab { flex: 0 0 112px; }
             .startup-shell { grid-template-columns: 1fr; width: min(700px, calc(100vw - 28px)); gap: 18px; padding: 18px; }
             .startup-panel.hero { padding-right: 0; padding-bottom: 8px; border-right: none; border-bottom: 1px solid rgba(50, 72, 96, 0.9); }
             .startup-summary-grid { grid-template-columns: 1fr; }
@@ -371,6 +368,7 @@
 .codex-slot-heading span{color:#ffd38b;font-size:.86em}
 .codex-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
 .codex-card-new{box-shadow:0 0 0 2px #ff4d4f,0 0 12px rgba(255,77,79,.7);border-color:#ff4d4f}
+@media (max-width:900px){.codex-layout{grid-template-columns:1fr}.codex-slot-tabs{flex-direction:row;overflow-x:auto;padding-bottom:4px}.codex-slot-tab{flex:0 0 112px}}
 .expertise-tree-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 /* Hub layout: common in center, four expert branches radiating out */
 .expertise-tree-hub{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto auto auto;gap:22px;position:relative;align-items:stretch;width:100%}
