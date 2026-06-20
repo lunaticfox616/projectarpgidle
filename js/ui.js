@@ -32,6 +32,7 @@ function toggleMapZoneGroup(groupKey) {
     if (!Object.prototype.hasOwnProperty.call(mapZoneGroupCollapseState, groupKey)) return;
     mapZoneGroupCollapseState[groupKey] = !mapZoneGroupCollapseState[groupKey];
     lastRenderedMapListHtml = '';
+    lastRenderedChaosMapListHtml = '';
     updateStaticUI();
 }
 
@@ -2117,6 +2118,23 @@ function switchMapSubtab(subtabId) {
     let btn = document.getElementById('btn-' + subtabId);
     if (panel) panel.classList.add('active');
     if (btn) btn.classList.add('active');
+}
+
+function switchExploreSubtab(subtabId) {
+    game.exploreSubtab = subtabId;
+    document.querySelectorAll('#map-tab-zones .explore-panel').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#map-tab-zones .explore-subtab').forEach(el => el.classList.remove('active'));
+    let panel = document.getElementById(subtabId);
+    let btn = document.getElementById('btn-' + subtabId);
+    if (panel) panel.classList.add('active');
+    if (btn) btn.classList.add('active');
+}
+
+// 탐험 좌측 세부 탭 버튼 노출 여부를 갱신한다. 잠긴 세부 탭이 현재 선택되어 있으면 나무 탭으로 되돌린다.
+function setExploreSubtabAvailable(subtabId, available) {
+    let btn = document.getElementById('btn-' + subtabId);
+    if (btn) btn.style.display = available ? '' : 'none';
+    if (!available && game.exploreSubtab === subtabId) switchExploreSubtab('explore-tree');
 }
 function enterLabyrinthFloor(floor){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
 
@@ -7050,17 +7068,29 @@ function buildCraftActionButtons(item) {
     let chaosMapCards = mapCards.filter(card => card.isChaosMap);
     let deepChaosCardHtml = getDeepChaosMapEntryHtml();
     if (deepChaosCardHtml) chaosMapCards.push({ isChaosMap: true, html: deepChaosCardHtml });
-    let mapListHtml = buildMapZoneGroupHtml('hunting', '일반 사냥터', huntingMapCards) +
-        buildMapZoneGroupHtml('chaos', '혼돈', chaosMapCards);
+    // 나무(일반 사냥터)와 혼돈을 탐험 좌측 세부 탭으로 분리해 각각의 컨테이너에 렌더링한다.
+    let mapListHtml = buildMapZoneGroupHtml('hunting', '일반 사냥터', huntingMapCards);
+    let chaosListHtml = buildMapZoneGroupHtml('chaos', '혼돈', chaosMapCards);
     if (lastRenderedMapListHtml !== mapListHtml) {
         let mapListEl = document.getElementById('ui-map-list');
         mapListEl.classList.add('map-grid--split');
         mapListEl.innerHTML = mapListHtml;
         lastRenderedMapListHtml = mapListHtml;
     }
+    let chaosMapListEl = document.getElementById('ui-chaos-map-list');
+    if (chaosMapListEl && lastRenderedChaosMapListHtml !== chaosListHtml) {
+        chaosMapListEl.classList.add('map-grid--split');
+        chaosMapListEl.innerHTML = chaosListHtml;
+        lastRenderedChaosMapListHtml = chaosListHtml;
+    }
+    setExploreSubtabAvailable('explore-chaos', chaosMapCards.length > 0);
+    setExploreSubtabAvailable('explore-beehive', (game.season || 1) >= 8);
+    setExploreSubtabAvailable('explore-voidrift', (game.season || 1) >= 9);
+    setExploreSubtabAvailable('explore-colony', (game.season || 1) >= 15);
 
     let seasonBosses = SEASON_BOSS_ZONES.filter(zone => (game.season || 1) >= (zone.reqSeason || 2));
     document.getElementById('ui-season-boss-header').style.display = seasonBosses.length > 0 ? 'block' : 'none';
+    setExploreSubtabAvailable('explore-rootboss', seasonBosses.length > 0);
     let seasonBossRepeatWrap = document.getElementById('ui-season-boss-repeat-wrap');
     let seasonBossRepeatBtn = document.getElementById('btn-season-boss-repeat');
     if (seasonBossRepeatWrap) seasonBossRepeatWrap.style.display = 'none';
@@ -7083,6 +7113,7 @@ function buildCraftActionButtons(item) {
 
     let labyrinthOpen = (game.season || 1) >= 3;
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
+    setExploreSubtabAvailable('explore-labyrinth', labyrinthOpen);
     if (labyrinthOpen) {
         let maxFloor = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
         document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}" onclick="enterLabyrinthPrompt()">
@@ -7100,7 +7131,8 @@ function buildCraftActionButtons(item) {
     let meteorReady = !!(game.starWedge && game.starWedge.skyRiftReady);
     let meteorGauge = Math.floor((game.starWedge && game.starWedge.skyRiftGauge) || 0);
     document.getElementById('ui-meteor-header').style.display = meteorUnlocked ? 'block' : 'none';
-    
+    setExploreSubtabAvailable('explore-meteor', meteorUnlocked);
+
     let meteorAutoBtn = document.getElementById('btn-meteor-auto-enter');
     if (meteorAutoBtn) {
         meteorAutoBtn.style.display = meteorUnlocked ? 'inline-block' : 'none';
@@ -7121,6 +7153,7 @@ function buildCraftActionButtons(item) {
         return (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id);
     });
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
+    setExploreSubtabAvailable('explore-trials', availTrials.length > 0);
 
     renderLoop9VoidRiftPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
@@ -7678,6 +7711,7 @@ function buildCraftActionButtons(item) {
     renderSkillAutoRulePanel();
     switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
     switchMapSubtab(game.mapSubtab || 'map-tab-zones');
+    switchExploreSubtab(game.exploreSubtab || 'explore-tree');
 }
 
 
