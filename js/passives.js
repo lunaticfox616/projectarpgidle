@@ -5308,14 +5308,13 @@ function registerUniqueToCodexOnAcquire(item) {
     // 이미 옵션까지 기록된 경우 첫 등록 기록을 유지한다(루프 리셋 후 정보만 남은 경우는 다시 채움).
     if (existing && existing.baseName) return false;
     game.uniqueCodex[key] = JSON.parse(JSON.stringify(item));
-    game.codexNewlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
     let firstTime = !existing;
+    if (!firstTime) return true;
+    game.codexNewlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
     game.codexNewlyRegistered[key] = true;
     if (game.noti) game.noti.codex = true;
-    if (firstTime) {
-        addLog(`📚 도감 신규 등록: <span class='loot-unique'>[${item.name}]</span>`, 'loot-unique');
-        if (typeof tryGrantCodexCompletionReward === 'function') tryGrantCodexCompletionReward();
-    }
+    addLog(`📚 도감 신규 등록: <span class='loot-unique'>[${item.name}]</span>`, 'loot-unique');
+    if (typeof tryGrantCodexCompletionReward === 'function') tryGrantCodexCompletionReward();
     return true;
 }
 
