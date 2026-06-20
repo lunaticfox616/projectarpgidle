@@ -11,7 +11,7 @@
         .attack-monster { color: #e74c3c; }
         .death { color: #c0392b; font-weight: bold; font-size: 1.1em; }
 
-        .hp-bar-bg { width: 100%; background-color: #222; height: 16px; border-radius: 4px; overflow: hidden; margin-top: 2px; border: 1px solid #111; position: relative; }
+        .hp-bar-bg { width: 100%; box-sizing: border-box; background-color: #222; height: 16px; border-radius: 4px; overflow: hidden; margin-top: 2px; border: 1px solid #111; position: relative; }
         .hp-bar-fill { background-color: #eb3b5a; height: 100%; transition: width 0.1s linear; }
         .hp-bar-fill.player { background-color: #20bf6b; position: relative; z-index: 3; }
         .hp-bar-fill.player-damage-ghost { position: absolute; left: 0; top: 0; height: 100%; z-index: 1; background: linear-gradient(90deg, rgba(255, 95, 86, 0.72), rgba(255, 168, 77, 0.62)); box-shadow: inset 0 0 7px rgba(255, 235, 160, 0.25); pointer-events: none; transition: width 0.18s linear; }
