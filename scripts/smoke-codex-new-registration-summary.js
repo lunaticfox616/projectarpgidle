@@ -58,10 +58,15 @@ assert(uiSource.includes('if (tabId === \'tab-codex\' && game.noti && game.noti.
 assert(uiSource.includes('if (firstNewSlot && game.codexFocusNewOnOpen)'), 'codex renderer must move to the slot containing a new item when opened from a notification');
 assert(uiSource.includes('function getCodexSlotOrder()'), 'codex slot order helper must exist');
 assert(uiSource.includes('function setCodexSlotFilter(slot)'), 'codex slot filter handler must exist');
+assert(uiSource.includes('let availableSlots = bySlot.filter(slot => pool.some'), 'codex renderer must omit slot tabs that have no entries in the active codex pool');
+assert(uiSource.includes('availableSlots.includes(game.codexSelectedSlot)'), 'codex renderer must validate the selected slot against the active codex pool');
 assert(uiSource.includes('codex-slot-tabs'), 'codex renderer must build left slot tabs');
 assert(uiSource.includes('codex-card-grid'), 'codex renderer must build a filtered card grid for the selected slot');
 assert(uiSource.includes('● NEW'), 'newly registered codex cards must keep their visible NEW badge');
 assert(componentsCss.includes('.codex-layout{display:grid;grid-template-columns:150px minmax(0,1fr);'), 'codex layout must reserve a left slot tab rail');
 assert(componentsCss.includes('.codex-slot-tab.active'), 'codex slot tabs must show the active slot');
+const codexBaseIndex = componentsCss.indexOf('.codex-layout{display:grid;grid-template-columns:150px minmax(0,1fr);');
+const codexMobileIndex = componentsCss.indexOf('@media (max-width:900px){.codex-layout{grid-template-columns:1fr}');
+assert(codexBaseIndex >= 0 && codexMobileIndex > codexBaseIndex, 'mobile codex slot-tab overrides must appear after the base codex rules');
 
 console.log('codex new registration summary smoke checks passed');

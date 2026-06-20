@@ -3035,14 +3035,15 @@ function renderUniqueCodexUI() {
         : '';
     summary.innerHTML = `[${realmOnly ? '계(Realm) 도감' : '기존 도감'}] 등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% <span style="color:#9fb4d1;">(50개까지 0.2%, 이후 0.1%)</span> · 완성 상태: <strong>${rewardState}</strong>${newCodexSummary}`;
     let bySlot = getCodexSlotOrder();
+    let availableSlots = bySlot.filter(slot => pool.some(entry => (entry.slots || [])[0] === slot));
     let firstNewSlot = getFirstNewCodexSlot(pool, newlyRegistered);
     if (firstNewSlot && game.codexFocusNewOnOpen) {
         game.codexSelectedSlot = firstNewSlot;
         game.codexFocusNewOnOpen = false;
     }
-    let selectedSlot = bySlot.includes(game.codexSelectedSlot) ? game.codexSelectedSlot : bySlot[0];
+    let selectedSlot = availableSlots.includes(game.codexSelectedSlot) ? game.codexSelectedSlot : (firstNewSlot || availableSlots[0] || bySlot[0]);
     game.codexSelectedSlot = selectedSlot;
-    let slotTabsHtml = bySlot.map(slot => {
+    let slotTabsHtml = availableSlots.map(slot => {
         let entries = pool.filter(entry => (entry.slots || [])[0] === slot);
         let slotStored = entries.filter(entry => !!game.uniqueCodex[`${slot}|${entry.name}`]).length;
         let hasNewInSlot = entries.some(entry => !!newlyRegistered[`${slot}|${entry.name}`] && !!game.uniqueCodex[`${slot}|${entry.name}`]);

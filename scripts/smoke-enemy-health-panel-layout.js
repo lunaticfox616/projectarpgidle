@@ -24,9 +24,10 @@ assert(hpBarRule && hpBarRule[1].includes('box-sizing: border-box'), 'progress a
 assert(logRule && logRule[1].includes('box-sizing: border-box'), 'combat log must include padding and borders inside the feed width');
 assert(logRule && logRule[1].includes('overflow-x: hidden'), 'combat log text must not draw outside the log viewport horizontally');
 assert(componentsCss.includes('#log { min-height: 0; height: auto; max-height: none; }'), 'stacked combat log must let flex sizing account for the title instead of clipping the scrollbar');
-assert(componentsCss.includes('body.mobile-battle-tab #tab-battle .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 8px; flex: 1; min-height: 0; }'), 'mobile battle dashboard must reserve a separate remaining-space row for the combat log');
-assert(componentsCss.includes('body.mobile-battle-tab #tab-battle .combat-feed { margin-top: 0; height: auto; max-height: none; min-height: 0; }'), 'mobile combat log panel must not inherit the stacked desktop negative margin or fixed height cap');
+assert(componentsCss.includes('body.mobile-battle-tab #tab-battle .combat-dashboard { grid-template-columns: 1fr; grid-template-rows: auto minmax(220px, 1fr); gap: 8px; flex: 1; min-height: 0; }'), 'mobile battle dashboard must reserve a taller remaining-space row for the combat log');
+assert(componentsCss.includes('body.mobile-battle-tab #tab-battle .combat-feed { margin-top: 0; height: auto; max-height: none; min-height: 220px; }'), 'mobile combat log panel must not inherit the stacked desktop negative margin or a short fixed height cap');
 assert(componentsCss.includes('body.mobile-battle-tab #tab-battle #log { flex: 1 1 auto; min-height: 0; height: auto; max-height: none; }'), 'mobile combat log viewport must fill the remaining feed space');
+assert(componentsCss.includes('.combat-feed { min-height: 0; height: clamp(260px, 42vh, 420px); max-height: 420px; overflow: hidden; }'), 'stacked combat log must be tall enough for the full scrollbar to remain visible');
 
 const combatDashboardRule = themeCss.match(/\.combat-dashboard\s*\{([^}]+)\}/);
 const combatStageRule = themeCss.match(/\.combat-stage\s*\{([^}]+)\}/);
