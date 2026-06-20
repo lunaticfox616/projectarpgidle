@@ -15,7 +15,7 @@ assert(html.includes('id="passive-search-clear">검색초기화</button>'), 'pas
   assert(ui.includes(`merged.settings.${key} = merged.settings.${key} !== false;`), `${key} save normalization must preserve default-on behavior`);
 });
 assert(components.includes('@media (min-width: 1481px)') && components.includes('.combat-dashboard { grid-template-columns: 1fr;'), 'large combat layout must move log below the combat stage');
-assert(components.includes('.battlefield-wrap { height: clamp(300px, 44vh, 460px); }'), 'large combat battlefield must be expanded');
+assert(components.includes('.battlefield-wrap { height: clamp(220px, 30vh, 300px); }'), 'large combat battlefield must stay compact enough for the stacked panels');
 assert(ui.includes("formatSettingNumber(game.exp, 'showExpComma')"), 'experience text must use the experience comma setting');
 assert(ui.includes("formatSettingNumber(pStats.maxHp, 'showHpComma')"), 'player health text must use the health comma setting');
 assert(ui.includes("formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')"), 'enemy health text must use the enemy health comma setting');
