@@ -2047,6 +2047,7 @@ function craftSeaGift(recipeId, targetItem, options) {
         if (mods && mods[0]) item.stats[idx] = rollAffixValue(mods[0], maxTier);
         updateItemName(item);
     } else if (effect.type === 'echoMod') {
+        if ((item.stats || []).some(s => s && s.isEchoMod)) { addLog('이미 메아리 옵션을 가진 장비에는 다시 사용할 수 없습니다.', 'attack-monster'); return false; }
         let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
         if (editableIdx.length < 2) { addLog('메아리에는 봉인되지 않은 옵션이 2줄 이상 필요합니다.', 'attack-monster'); return false; }
         let maxTier = editableIdx.reduce((m, i) => Math.max(m, Number(item.stats[i].tier) || 0), 0);
@@ -2060,6 +2061,7 @@ function craftSeaGift(recipeId, targetItem, options) {
         if (Number.isFinite(echo.valMin)) echo.valMin = Math.floor(echo.valMin * 0.5);
         if (Number.isFinite(echo.valMax)) echo.valMax = Math.floor(echo.valMax * 0.5);
         echo.echoOf = src.statName || getStatName(src.id);
+        echo.isEchoMod = true;
         item.stats[dstIdx] = echo;
         addLog(`🔊 ${echo.echoOf} 옵션이 50% 효과로 메아리쳤습니다.`, 'loot-rare');
         updateItemName(item);
