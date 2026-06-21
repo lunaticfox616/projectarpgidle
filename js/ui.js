@@ -5713,6 +5713,18 @@ function updateCombatUI(pStats) {
         setTextById('ui-progress-label', game.isTownReturning ? '🏕️ 재정비 중...' : '🚶 다음 구간 준비');
         setTextById('ui-move-time-text', `${Math.max(0, game.moveTimer).toFixed(1)}초`);
         document.getElementById('ui-move-bar').style.width = readyPct + '%';
+    } else if (zone && zone.type === 'oceanDepth') {
+        // 심해는 전투 진행도 대신 현재 수심(m)만 표기한다. 수심은 시간에 따라 꾸준히 증가한다.
+        let oceanSt = (typeof ensureOceanState === 'function') ? ensureOceanState() : null;
+        let depthM = oceanSt ? Math.floor(oceanSt.depthM || 0) : 0;
+        let bossClearM = oceanSt ? Math.max(0, Math.floor(oceanSt.bossClearM || 0)) : 0;
+        let nextBoundary = Math.floor(bossClearM / 500) * 500 + 500;
+        let segStart = nextBoundary - 500;
+        let segPct = Math.min(100, Math.max(0, ((depthM - segStart) / 500) * 100));
+        let pendingBoss = (typeof getOceanPendingBossBoundary === 'function' && oceanSt) ? getOceanPendingBossBoundary(oceanSt) : 0;
+        setTextById('ui-progress-label', pendingBoss > 0 ? '🌊 수압 경계 보스' : '🌊 수심');
+        setTextById('ui-move-time-text', pendingBoss > 0 ? `${depthM}m · 보스 격파 필요` : `${depthM}m`);
+        document.getElementById('ui-move-bar').style.width = segPct + '%';
     } else if (getUiCrowdProgressPaused()) {
         setTextById('ui-progress-label', '⛔ 전장 정리 중');
         setTextById('ui-move-time-text', `적 ${getUiCrowdPauseLimit()}기 이상`);

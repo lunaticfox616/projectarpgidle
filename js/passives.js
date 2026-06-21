@@ -1783,18 +1783,8 @@ function advanceOceanDiveFromKill(zone) {
         addLog(`🛗 수중 리프트 ${boundary}m 지점이 개방되었습니다. (수압 경계 보스 격파)`, 'loot-rare');
         awardCurrency('oceanRerollShard', 1);
     } else {
-        let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
-        let gearDepthGainPct = 0;
-        try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
-        let depthGain = Math.max(1, Math.round((3 + Math.random() * 4) * speedBonus * (1 + gearDepthGainPct / 100)));
-        let curDepth = Math.max(0, Math.floor(st.depthM || 0));
-        let nextBoundary = Math.floor(curDepth / 500) * 500 + 500;
-        st.depthM = Math.min(nextBoundary, curDepth + depthGain);
-        let newCheckpoint = Math.floor(st.depthM / 100) * 100;
-        if (newCheckpoint > st.checkpointM && newCheckpoint < nextBoundary) {
-            st.checkpointM = newCheckpoint;
-            addLog(`🛗 수중 리프트 ${st.checkpointM}m 지점이 개방되었습니다.`, 'loot-rare');
-        }
+        // 수심은 전투 진행도(웨이브 클리어)가 아니라 시간에 따라 꾸준히 증가한다(tickOceanDepth 참고).
+        // 웨이브 클리어 시에는 부수 보상(암초 조각)만 처리한다.
         if (Math.random() < 0.06) awardCurrency('reefFragment', 1);
     }
     st.pressureLevel = getOceanDepthTier(st.depthM);
@@ -1896,7 +1886,31 @@ function tickOceanOxygen(nowMs) {
     let leechAlive = (game.enemies || []).some(e => e && e.hp > 0 && e.trait && e.trait.oceanOxygenLeechOnHit);
     if (leechAlive) drainPerSec *= 1.4;
     st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, st.oxygenCur - drainPerSec * dtSec));
-    if (st.oxygenCur <= 0) forceSurfaceOcean('oxygen');
+    if (st.oxygenCur <= 0) { forceSurfaceOcean('oxygen'); return; }
+    tickOceanDepth(st, dtSec);
+}
+
+// 수심을 시간에 따라 꾸준히 증가시킨다. 500m 수압 경계 보스를 잡기 전까지는 그 경계에서 멈춘다.
+function tickOceanDepth(st, dtSec) {
+    if (!st || !(dtSec > 0)) return;
+    // 다음 수압 경계(보스) 전까지만 전진. 경계 보스를 잡으면 bossClearM 이 갱신되어 계속 내려간다.
+    let pendingBoss = (typeof getOceanPendingBossBoundary === 'function') ? getOceanPendingBossBoundary(st) : 0;
+    if (pendingBoss > 0) return; // 경계 보스 대기 중에는 수심이 멈춘다.
+    let nextBoundary = Math.floor(Math.max(0, Math.floor(st.bossClearM || 0)) / 500) * 500 + 500;
+    let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
+    let gearDepthGainPct = 0;
+    try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
+    let depthPerSec = 2 * speedBonus * (1 + gearDepthGainPct / 100);
+    let curDepth = Math.max(0, Number(st.depthM) || 0);
+    let newDepth = Math.min(nextBoundary, curDepth + depthPerSec * dtSec);
+    if (newDepth <= curDepth) return;
+    st.depthM = newDepth;
+    let newCheckpoint = Math.floor(st.depthM / 100) * 100;
+    if (newCheckpoint > (st.checkpointM || 0) && newCheckpoint < nextBoundary) {
+        st.checkpointM = newCheckpoint;
+        addLog(`🛗 수중 리프트 ${st.checkpointM}m 지점이 개방되었습니다.`, 'loot-rare');
+    }
+    st.pressureLevel = getOceanDepthTier(st.depthM);
 }
 
 const OCEAN_MOD_CATEGORY_RULES = [
@@ -6621,7 +6635,6 @@ function addItemToInventory(item, options) {
         if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;
     }
-    if (item.rarity === 'unique') registerUniqueToCodexOnAcquire(item);
     if ((game.inventory || []).length >= getInventoryLimit()) {
         salvageItemObject(item, true);
         return false;
@@ -6631,6 +6644,8 @@ function addItemToInventory(item, options) {
         if (game.settings.showLootLog) addLog(`🧪 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-normal');
         return false;
     }
+    // 도감은 실제로 인벤토리에 수집했을 때만 등록한다. (인벤토리가 가득 차 해체된 고유는 도감 미등록)
+    if (item.rarity === 'unique') registerUniqueToCodexOnAcquire(item);
     game.inventory.push(item);
     game.noti.items = true;
     checkUnlocks();
