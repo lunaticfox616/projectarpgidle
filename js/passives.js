@@ -1919,7 +1919,7 @@ const SEA_GIFT_RECIPES = [
     { id: 'twinCurrentReroll', desc: '【장비 강화: 무작위 옵션 2줄만 재굴림】 심연 등불고기와 조류 장어로 무작위로 고른 옵션 두 줄만 다시 굴립니다(나머지 줄은 보존, 카오스 오브와 달리 전체 재굴림이 아닙니다).', requires: { abyssAngler: 3, tidalEel: 4 }, effect: { type: 'twinReroll' } },
     { id: 'tierStepUp', desc: '【장비 강화: 옵션 1줄 등급 +1 영구 재굴림】 심연 등불고기와 발광 송어로 무작위 옵션 1줄을 한 단계 높은 등급으로 다시 굴립니다(영구 적용).', requires: { abyssAngler: 3, glowfinTrout: 3 }, effect: { type: 'tierStepUp' } },
     { id: 'categoryShift', desc: '【장비 강화: 무작위 옵션 1줄을 원하는 계열로 변환】 발광 송어와 조류 장어로 무작위 옵션 한 줄을 선택한 계열의 옵션으로 바꿉니다.', requires: { glowfinTrout: 3, tidalEel: 3 }, effect: { type: 'convertCategoryMod' } },
-    { id: 'narrowReroll', desc: '【장비 강화: 옵션 1줄을 상위 구간으로 재굴림】 전설의 새끼 괴어와 심연 등불고기로 무작위 옵션 1줄을 해당 옵션의 상위 50% 수치 구간에서만 다시 굴립니다(편차 감소, 평균적으로 더 높은 값).', requires: { voidLeviathanSpawn: 1, abyssAngler: 3 }, effect: { type: 'narrowReroll' } },
+    { id: 'echoMod', desc: '【장비 강화: 최고 티어 옵션을 50% 효과로 메아리】 전설의 새끼 괴어와 심연 등불고기로 가장 높은 티어의 옵션 중 한 줄을 무작위로 골라, 나머지 옵션 중 무작위 한 줄을 그 옵션의 50% 효과로 덮어씁니다.', requires: { voidLeviathanSpawn: 1, abyssAngler: 3 }, effect: { type: 'echoMod' } },
     // --- 초강력 레시피 (초희귀 어종 필요) ---
     { id: 'sealOffering', desc: '【장비 강화: 옵션 1줄 영구 봉인】 해류군주 비단잉어와 발광 송어로 옵션 한 줄을 영구히 봉인합니다.', requires: { tidelordKoi: 1, glowfinTrout: 3 }, effect: { type: 'lockMod', count: 1 } },
     { id: 'leviathanBoon', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +2)】 전설의 새끼 괴어와 심연 등불고기, 조류 장어로 최상급 태그 옵션을 확정 부여합니다.', requires: { voidLeviathanSpawn: 2, abyssAngler: 2, tidalEel: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 2 } },
@@ -1930,7 +1930,7 @@ const SEA_GIFT_RECIPES = [
     { id: 'leviathanRemnant', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +3) + 나쁜 옵션 1줄 무료 제거】 리바이어던 본체와 심연 등불고기로 최상급 태그 옵션을 확정 부여하며, 동시에 나쁜 줄 하나를 무료로 제거합니다.', requires: { kingLeviathan: 1, abyssAngler: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 3, bonusRemoveMod: true } },
     { id: 'leviathanSigil', desc: '【장비 강화: 이 레시피 전용 최상위 고정 옵션 부착】 리바이어던 본체와 해류군주 비단잉어, 공허 리바이어던 새끼로 오직 이 레시피로만 얻는 최상위 고정 옵션을 부착합니다.', requires: { kingLeviathan: 2, tidelordKoi: 2, voidLeviathanSpawn: 1 }, effect: { type: 'fixedBenchOption', topTier: true } }
 ];
-const SEA_GIFT_ITEM_EFFECT_TYPES = new Set(['guaranteedMod', 'guaranteedTaggedMod', 'removeMod', 'upgradeRarity', 'lockMod', 'taggedReroll', 'fixedBenchOption', 'safeReroll', 'twinReroll', 'tierStepUp', 'convertCategoryMod', 'narrowReroll']);
+const SEA_GIFT_ITEM_EFFECT_TYPES = new Set(['guaranteedMod', 'guaranteedTaggedMod', 'removeMod', 'upgradeRarity', 'lockMod', 'taggedReroll', 'fixedBenchOption', 'safeReroll', 'twinReroll', 'tierStepUp', 'convertCategoryMod', 'echoMod']);
 
 function getSeaGiftRecipeStatus(recipeId) {
     let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
@@ -2046,19 +2046,22 @@ function craftSeaGift(recipeId, targetItem, options) {
         let mods = pickRandomMods(getAvailableMods(item), 1);
         if (mods && mods[0]) item.stats[idx] = rollAffixValue(mods[0], maxTier);
         updateItemName(item);
-    } else if (effect.type === 'narrowReroll') {
+    } else if (effect.type === 'echoMod') {
         let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
-        if (editableIdx.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
-        let mods = pickRandomMods(getAvailableMods(item), 1);
-        if (mods && mods[0]) {
-            let rolled = rollAffixValue(mods[0], getItemCraftTier(item));
-            if (Number.isFinite(rolled.valMin) && Number.isFinite(rolled.valMax)) {
-                let mid = rolled.valMin + (rolled.valMax - rolled.valMin) * 0.5;
-                rolled.val = Math.floor(mid + Math.random() * Math.max(0, rolled.valMax - mid));
-            }
-            item.stats[idx] = rolled;
-        }
+        if (editableIdx.length < 2) { addLog('메아리에는 봉인되지 않은 옵션이 2줄 이상 필요합니다.', 'attack-monster'); return false; }
+        let maxTier = editableIdx.reduce((m, i) => Math.max(m, Number(item.stats[i].tier) || 0), 0);
+        let topIdx = editableIdx.filter(i => (Number(item.stats[i].tier) || 0) === maxTier);
+        let srcIdx = topIdx[Math.floor(Math.random() * topIdx.length)];
+        let targetPool = editableIdx.filter(i => i !== srcIdx);
+        let dstIdx = targetPool[Math.floor(Math.random() * targetPool.length)];
+        let src = item.stats[srcIdx];
+        let echo = JSON.parse(JSON.stringify(src));
+        echo.val = Math.floor((Number(src.val) || 0) * 0.5);
+        if (Number.isFinite(echo.valMin)) echo.valMin = Math.floor(echo.valMin * 0.5);
+        if (Number.isFinite(echo.valMax)) echo.valMax = Math.floor(echo.valMax * 0.5);
+        echo.echoOf = src.statName || getStatName(src.id);
+        item.stats[dstIdx] = echo;
+        addLog(`🔊 ${echo.echoOf} 옵션이 50% 효과로 메아리쳤습니다.`, 'loot-rare');
         updateItemName(item);
     } else if (effect.type === 'convertCategoryMod') {
         let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
