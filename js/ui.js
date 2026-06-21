@@ -1924,7 +1924,7 @@ function renderOceanDepthMapPanel() {
         <div>
             <div class="sky-tower-title">🌊 심해 잠수 <span style="color:#ffce6b; font-size:0.7em; border:1px solid #ffce6b; border-radius:4px; padding:1px 5px; vertical-align:middle;">⚠ 테스트 중</span></div>
             <div class="sky-tower-sub" style="color:#ffce6b;">⚠ 현재 테스트 중인 컨텐츠입니다. 밸런스·보상·기능이 예고 없이 변경되거나 초기화될 수 있습니다.</div>
-            <div class="sky-tower-sub">수심이 깊어질수록 수압 디버프(공속/피해/이동속도 감소)가 강해지고, 산소가 다 떨어지면 마지막 체크포인트로 강제 귀환합니다.</div>
+            <div class="sky-tower-sub">수심이 깊어질수록 수압 디버프(공속/피해/이동속도 감소)가 강해지고, 산소가 다 떨어지면 시간이 지날수록 커지는 익사 피해를 입습니다. 쓰러지기 직전에는 수면으로 복귀합니다.</div>
         </div>
         ${st.diving ? `<button onclick="forceSurfaceOcean('manual'); changeZone(Math.max(0, game.maxZoneId || 0)); updateStaticUI();">수면으로 복귀</button>` : `<button onclick="enterOceanDive(); changeZone(OCEAN_ZONE_ID); updateStaticUI();">잠수 시작 (${st.checkpointM}m부터)</button>`}
     </div>
@@ -5714,17 +5714,21 @@ function updateCombatUI(pStats) {
         setTextById('ui-move-time-text', `${Math.max(0, game.moveTimer).toFixed(1)}초`);
         document.getElementById('ui-move-bar').style.width = readyPct + '%';
     } else if (zone && zone.type === 'oceanDepth') {
-        // 심해는 전투 진행도 대신 현재 수심(m)만 표기한다. 수심은 시간에 따라 꾸준히 증가한다.
+        // 심해는 전투 진행도 대신 현재 수심(m)만 표기한다. 수심은 시간에 따라 1m 단위로 꾸준히 증가한다.
         let oceanSt = (typeof ensureOceanState === 'function') ? ensureOceanState() : null;
         let depthM = oceanSt ? Math.floor(oceanSt.depthM || 0) : 0;
-        let bossClearM = oceanSt ? Math.max(0, Math.floor(oceanSt.bossClearM || 0)) : 0;
-        let nextBoundary = Math.floor(bossClearM / 500) * 500 + 500;
-        let segStart = nextBoundary - 500;
-        let segPct = Math.min(100, Math.max(0, ((depthM - segStart) / 500) * 100));
+        // 진행 바는 현재 100m 구간 내 진행도를 표시해 수심 1m마다 약 1%씩 차오른다.
+        let segPct = Math.min(100, Math.max(0, depthM - Math.floor(depthM / 100) * 100));
+        let isDrowning = !!(oceanSt && oceanSt.drowning);
         let pendingBoss = (typeof getOceanPendingBossBoundary === 'function' && oceanSt) ? getOceanPendingBossBoundary(oceanSt) : 0;
-        setTextById('ui-progress-label', pendingBoss > 0 ? '🌊 수압 경계 보스' : '🌊 수심');
-        setTextById('ui-move-time-text', pendingBoss > 0 ? `${depthM}m · 보스 격파 필요` : `${depthM}m`);
-        document.getElementById('ui-move-bar').style.width = segPct + '%';
+        if (isDrowning) {
+            setTextById('ui-progress-label', '🫨 익사 위험');
+            setTextById('ui-move-time-text', `${depthM}m · 산소 고갈! 익사 피해 누적`);
+        } else {
+            setTextById('ui-progress-label', pendingBoss > 0 ? '🌊 수압 경계 보스' : '🌊 수심');
+            setTextById('ui-move-time-text', pendingBoss > 0 ? `${depthM}m · 보스 격파 필요` : `${depthM}m`);
+        }
+        document.getElementById('ui-move-bar').style.width = (isDrowning ? 100 : segPct) + '%';
     } else if (getUiCrowdProgressPaused()) {
         setTextById('ui-progress-label', '⛔ 전장 정리 중');
         setTextById('ui-move-time-text', `적 ${getUiCrowdPauseLimit()}기 이상`);
