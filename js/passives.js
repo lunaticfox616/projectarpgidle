@@ -1806,6 +1806,7 @@ function advanceOceanDiveFromKill(zone) {
 function consumeOceanOxygenOnAttack() {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
+    if (!isInOceanZone()) return;
     let cost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0.5;
     let savingPct = 0;
     try { if (typeof getPlayerStats === 'function') savingPct = Math.max(0, Math.min(90, Number(getPlayerStats().oceanOxygenAttackSavingPct) || 0)); } catch (e) { console.warn('failed to read ocean oxygen saving stat:', e); }
@@ -1878,9 +1879,15 @@ function forceSurfaceOcean(reason) {
     addLog(reason === 'oxygen' ? '🫧 산소가 모두 소진되어 강제로 수면 위로 올라왔습니다. 체크포인트 이후의 진행이 사라졌습니다.' : '🌊 잠수를 종료하고 수면으로 복귀했습니다.', 'attack-monster');
 }
 
+function isInOceanZone() {
+    return game.currentZoneId === OCEAN_ZONE_ID;
+}
+
 function tickOceanOxygen(nowMs) {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
+    // 산소는 실제로 심해 맵에 입장해 있을 때만 감소합니다. 다른 맵으로 이동하면 잠수가 일시 중지됩니다.
+    if (!isInOceanZone()) { st.lastTickAt = nowMs; return; }
     let last = Math.max(0, Number(st.lastTickAt) || nowMs);
     let dtSec = Math.max(0, Math.min(5, (nowMs - last) / 1000));
     st.lastTickAt = nowMs;

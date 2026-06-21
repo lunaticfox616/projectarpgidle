@@ -250,6 +250,13 @@
                 <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
                 <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span><span id="ui-es-inline"></span></div>
             </div>
+            <div id="ui-ocean-oxygen-box" style="display:none; margin-top:8px;">
+                <div style="font-size: 0.9em; font-weight: bold; color: #4fd1ff;">🫧 산소</div>
+                <div class="hp-bar-bg" style="height: 14px; margin-top: 2px;">
+                    <div id="ui-ocean-oxygen-bar" style="height:100%; width:100%; background:linear-gradient(90deg,#1f9bd6,#4fd1ff); border-radius:inherit; transition:width .2s;"></div>
+                    <div class="hp-text" style="line-height: 14px; font-size: 10px;" id="ui-ocean-oxygen-text">100 / 100</div>
+                </div>
+            </div>
             <div id="ui-player-ailments-under" style="font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
             <div id="ui-player-ailments-mobile" style="display:none; font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
         </div>
@@ -717,6 +724,7 @@
             <button class="subtab-btn" id="btn-map-tab-sky" onclick="switchMapSubtab('map-tab-sky')">☁️ 창공</button>
             <button class="subtab-btn" id="btn-map-tab-underworld" onclick="switchMapSubtab('map-tab-underworld')">🕳️ 지하계</button>
             <button class="subtab-btn" id="btn-map-tab-ocean" onclick="switchMapSubtab('map-tab-ocean')">🌊 심해</button>
+            <button class="subtab-btn" id="btn-map-tab-fishing" onclick="switchMapSubtab('map-tab-fishing')">🎣 낚시</button>
         </div>
 
         <div id="map-tab-zones" class="subtab-content active">
@@ -799,6 +807,11 @@
             <h2>🌊 심해</h2>
             <div id="ui-ocean-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; margin-bottom:10px; color:#cdeefc;"></div>
             <div class="map-grid" id="ui-ocean-list"></div>
+        </div>
+
+        <div id="map-tab-fishing" class="subtab-content">
+            <h2>🎣 낚시</h2>
+            <div id="ui-fishing-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; margin-bottom:10px; color:#cdeefc;"></div>
             <h3 style="margin-top:16px; color:#8fe3ff;">🎁 바다의 선물</h3>
             <div id="ui-sea-gift-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; color:#cdeefc;"></div>
         </div>
@@ -1142,12 +1155,12 @@
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
 <script defer src="js/items.js?v=20260614-runtime-fixes1"></script>
 <script defer src="js/skills.js?v=20260614-cosmos-es1"></script>
-<script defer src="js/passives.js?v=20260621-ocean14"></script>
+<script defer src="js/passives.js?v=20260621-ocean15"></script>
 <script defer src="js/core-cube.js?v=20260609-core-cube-bulk1"></script>
 <script defer src="js/combat.js?v=20260621-vertical-tabs1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260614-cosmos-es1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260618-codex-autoreg1"></script>
-<script defer src="js/ui.js?v=20260621-ocean14"></script>
+<script defer src="js/ui.js?v=20260621-ocean15"></script>
 <script defer src="js/talent-cards.js?v=20260618-bloom5-revamp1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260527-spiral-galaxy4"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>

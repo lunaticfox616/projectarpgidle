@@ -1886,6 +1886,25 @@ function renderSkyTowerMapPanel() {
     <div class="sky-tower-note" style="color:${ready ? '#7dffb2' : '#ffcf8a'};">${ready ? '입장 가능: 1층부터 최고 입장층까지 원하는 층을 선택할 수 있습니다.' : '이번 루프 혼돈 입성 후 입장할 수 있습니다.'}</div>`;
     list.innerHTML = `<div class="map-item map-item--sky-tower ${game.currentZoneId === SKY_TOWER_ZONE_ID ? 'current' : ''}" ${ready ? 'onclick="enterSkyTowerPrompt()"' : ''} style="${ready ? '' : 'opacity:.65; cursor:not-allowed;'}"><div class="map-item-main"><span>☁️</span><span>창공의 탑 ${currentFloor}층<br><span class="map-zone-status">입장 가능 층 1 ~ ${highest} · 영구 클리어 ${cleared}층</span></span></div><div class="map-item-actions"><span class="map-zone-status">${ready ? `잔여 클리어 ${remaining}/${limit}` : '혼돈 입성 필요'}</span><button ${ready ? '' : 'disabled'}>층 선택 입장</button></div></div>`;
 }
+function updateCombatOxygenBar() {
+    let box = document.getElementById('ui-ocean-oxygen-box');
+    if (!box) return;
+    let st = (typeof ensureOceanState === 'function') ? ensureOceanState() : null;
+    let active = st && st.unlocked && st.diving && game.currentZoneId === OCEAN_ZONE_ID;
+    if (!active) { if (box.style.display !== 'none') box.style.display = 'none'; return; }
+    box.style.display = '';
+    let max = Math.max(1, st.oxygenMax || 100);
+    let cur = Math.max(0, Math.min(max, st.oxygenCur || 0));
+    let pct = (cur / max) * 100;
+    let bar = document.getElementById('ui-ocean-oxygen-bar');
+    let text = document.getElementById('ui-ocean-oxygen-text');
+    if (bar) {
+        bar.style.width = pct + '%';
+        // 산소가 20% 이하로 떨어지면 경고색(붉은 그라데이션)으로 전환합니다.
+        bar.style.background = pct <= 20 ? 'linear-gradient(90deg,#d63031,#ff7675)' : 'linear-gradient(90deg,#1f9bd6,#4fd1ff)';
+    }
+    if (text) text.textContent = `${Math.ceil(cur)} / ${max}`;
+}
 function renderOceanDepthMapPanel() {
     let panel = document.getElementById('ui-ocean-panel');
     let list = document.getElementById('ui-ocean-list');
@@ -1914,14 +1933,39 @@ function renderOceanDepthMapPanel() {
         <span class="sky-tower-chip">체크포인트 <b>${st.checkpointM}m</b></span>
         <span class="sky-tower-chip">수압 단계 <b>${depthTier}</b></span>
         <span class="sky-tower-chip" title="산소 최대치는 고정(${st.oxygenMax}). 이동 속도가 높을수록 시간당 소모가 빨라지고(현재 ${drainPerSec.toFixed(2)}/초), 공격 1회마다 추가로 ${perAttackCost}씩 소모됩니다. 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
+    </div>
+    <div class="sky-tower-sub" style="margin-top:8px;">🎣 낚시·암초 조각·바다의 선물(제작)은 상단 <b>🎣 낚시</b> 탭에서 관리할 수 있습니다.</div>`;
+    list.innerHTML = `<div class="map-item ${game.currentZoneId === OCEAN_ZONE_ID ? 'current' : ''}" ${st.diving ? `onclick="changeZone(OCEAN_ZONE_ID)"` : ''} style="${st.diving ? '' : 'opacity:.65;'}"><div class="map-item-main"><span>🌊</span><span>심해 ${Math.floor(st.depthM)}m<br><span class="map-zone-status">${st.diving ? '잠수 중' : '잠수를 시작하세요'}</span></span></div></div>`;
+}
+
+function renderFishingPanel() {
+    let panel = document.getElementById('ui-fishing-panel');
+    if (!panel) return;
+    let st = ensureOceanState();
+    if (!st.unlocked) {
+        panel.innerHTML = `<div class="sky-tower-head"><div><div class="sky-tower-title">🎣 낚시</div><div class="sky-tower-sub">루프 ${OCEAN_UNLOCK_LOOP} 이후 심해가 해금되면 낚시를 할 수 있습니다.</div></div><span class="sky-tower-lock-chip">🔒 봉인됨</span></div>`;
+        return;
+    }
+    let fishRows = Object.keys(OCEAN_FISH_DB).map(key => {
+        let f = OCEAN_FISH_DB[key];
+        let n = st.fishStock[key] || 0;
+        return `<span class="sky-tower-chip" title="${f.desc || ''}">${f.name} <b>${n}</b></span>`;
+    }).join('');
+    panel.innerHTML = `<div class="sky-tower-head">
+        <div>
+            <div class="sky-tower-title">🎣 낚시</div>
+            <div class="sky-tower-sub">심해에서 잠수하며 전투로 낚시 게이지를 채우면 수심에 맞는 어종을 낚습니다. 낚은 어종은 아래 <b>🎁 바다의 선물</b> 제작에 사용됩니다.</div>
+        </div>
+    </div>
+    <div class="sky-tower-chips">
         <span class="sky-tower-chip">낚시 게이지 <b>${Math.floor(st.fishingGauge)}%</b></span>
         <span class="sky-tower-chip">설치된 암초 조각 <b>${st.reefInstalled}/10</b> (게이지 +${st.reefInstalled * 15}%)</span>
     </div>
     <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <button onclick="installOceanReefFragment(); renderOceanDepthMapPanel();">암초 조각 설치 (보유 ${game.currencies.reefFragment || 0})</button>
+        <button onclick="installOceanReefFragment(); renderFishingPanel();">암초 조각 설치 (보유 ${game.currencies.reefFragment || 0})</button>
     </div>
-    <div style="margin-top:10px; color:#8fe3ff;">보유 어종: ${Object.keys(OCEAN_FISH_DB).map(key => `${OCEAN_FISH_DB[key].name} ${st.fishStock[key] || 0}`).join(' · ')}</div>`;
-    list.innerHTML = `<div class="map-item ${game.currentZoneId === OCEAN_ZONE_ID ? 'current' : ''}" ${st.diving ? `onclick="changeZone(OCEAN_ZONE_ID)"` : ''} style="${st.diving ? '' : 'opacity:.65;'}"><div class="map-item-main"><span>🌊</span><span>심해 ${Math.floor(st.depthM)}m<br><span class="map-zone-status">${st.diving ? '잠수 중' : '잠수를 시작하세요'}</span></span></div></div>`;
+    <div style="margin-top:12px; color:#8fe3ff; font-weight:bold;">보유 어종</div>
+    <div class="sky-tower-chips" style="margin-top:4px;">${fishRows}</div>`;
 }
 
 const OCEAN_MOD_CATEGORY_OPTIONS = ['공격', '방어·생명', '속도·치명', '저항'];
@@ -1932,8 +1976,8 @@ function renderSeaGiftRecipeCard(recipe, st) {
     let inlineId = `seaGiftCategory_${recipe.id}`;
     let categorySelect = needsCategory ? `<select id="${inlineId}" style="margin-top:4px;">${OCEAN_MOD_CATEGORY_OPTIONS.map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select>` : '';
     let onclick = needsCategory
-        ? `craftSeaGift('${recipe.id}', null, { category: document.getElementById('${inlineId}').value }); renderSeaGiftPanel();`
-        : `craftSeaGift('${recipe.id}'); renderSeaGiftPanel();`;
+        ? `craftSeaGift('${recipe.id}', null, { category: document.getElementById('${inlineId}').value }); renderSeaGiftPanel(); renderFishingPanel();`
+        : `craftSeaGift('${recipe.id}'); renderSeaGiftPanel(); renderFishingPanel();`;
     return `<div style="border-bottom:1px solid #1f5b73; padding:8px 0;">
         <div style="color:#8fe3ff;">${recipe.desc}</div>
         <div style="font-size:0.85em; color:#9fcbe0;">필요: ${reqText}</div>
@@ -7245,6 +7289,7 @@ function buildCraftActionButtons(item) {
     renderSkyTowerMapPanel();
     renderUnderworldMapPanel();
     renderOceanDepthMapPanel();
+    renderFishingPanel();
     renderSeaGiftPanel();
 
     let availTrials = TRIAL_ZONES.filter(trial => {
@@ -10984,6 +11029,7 @@ function init() {
                 runUiCoreLoop();
                 ensureLoopChallengeState();
                 if (typeof tickOceanOxygen === 'function') tickOceanOxygen(Date.now());
+                if (typeof updateCombatOxygenBar === 'function') updateCombatOxygenBar();
                 if (pendingHeavyUiRefresh) {
                     let now = Date.now();
                     if (now - lastHeavyUiRefreshAt >= 1200) {
