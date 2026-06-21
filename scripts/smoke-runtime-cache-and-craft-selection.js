@@ -7,17 +7,19 @@ const canvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 
 const expectedCacheBusters = {
   'css/components.css': '20260615-tab-drag-touch1',
-  'js/utils.js': '20260614-runtime-fixes1',
+  'js/utils.js': '20260619-ocean6',
   'js/items.js': '20260614-runtime-fixes1',
-  'js/canvas-passive-tree.js': '20260615-inv-craft-btn1',
+  'js/canvas-passive-tree.js': '20260618-codex-autoreg1',
   'css/layout.css': '20260614-cosmos-es1',
-  'data/items.js': '20260614-cosmos-es1',
+  'css/ui-polish.css': '20260621-vertical-tabs1',
+  'css/ui-premium.css': '20260621-vertical-tabs1',
+  'data/items.js': '20260619-ocean2',
   'js/skills.js': '20260614-cosmos-es1',
-  'js/passives.js': '20260616-boss-assets1',
-  'js/combat.js': '20260616-boss-assets1',
+  'js/passives.js': '20260621-vertical-tabs1',
+  'js/combat.js': '20260621-vertical-tabs1',
   'js/canvas-battlefield.js': '20260614-cosmos-es1',
-  'js/ui.js': '20260616-boss-assets1',
-  'js/state.js': '20260615-inv-rarity-filter1'
+  'js/ui.js': '20260621-vertical-tabs1',
+  'js/state.js': '20260621-vertical-tabs1'
 };
 Object.entries(expectedCacheBusters).forEach(([asset, version]) => {
   assert(index.includes(`${asset}?v=${version}`), `${asset} cache buster must include ${version}`);

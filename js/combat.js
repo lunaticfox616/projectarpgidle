@@ -2218,6 +2218,8 @@ function getPlayerStats() {
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82;
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
+    game.oceanOxygenMaxBonus = Math.max(0, gearBase.oxygenMax + gearExplicit.oxygenMax + passive.oxygenMax + season.oxygenMax + ascend.oxygenMax + reward.oxygenMax);
+    game.oceanOxygenDrainReductionPct = Math.max(0, Math.min(80, gearBase.oxygenRegen + gearExplicit.oxygenRegen + passive.oxygenRegen + season.oxygenRegen + ascend.oxygenRegen + reward.oxygenRegen));
     let activeShadowStealth = uniqueDeflectStealth && (game.shadowStealthExpiresAt || 0) > Date.now();
     if (activeShadowStealth) finalMove += Math.max(0, Number(uniqueDeflectStealth.move || 20));
     if (uniqueKillMoveStacks && game.uniqueKillMoveStacksState && (game.uniqueKillMoveStacksState.expiresAt || 0) > Date.now()) finalMove += Math.max(0, Math.floor(game.uniqueKillMoveStacksState.stacks || 0)) * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
@@ -2230,6 +2232,16 @@ function getPlayerStats() {
         finalAspd *= (1 - gravitySlow);
         finalMove *= (1 - gravitySlow);
     }
+    let oceanPressureDamageMul = 1;
+    if (zonePenalty && zonePenalty.type === 'oceanDepth') {
+        let depthTier = Math.max(0, Math.floor(zonePenalty.depthTier || 0));
+        let pressureResistPct = Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist')));
+        let pressureSlow = Math.min(0.65, depthTier * 0.05) * (1 - pressureResistPct / 100);
+        finalAspd *= (1 - pressureSlow);
+        oceanPressureDamageMul *= (1 - pressureSlow * 0.6);
+        // 이동속도는 수압의 영향을 압축해서 받아 100%에 가깝게 유지(체감 페널티 완만화)
+        finalMove *= (1 - pressureSlow * 0.2);
+    }
     if (zonePenalty && zonePenalty.bloomTrial && zonePenalty.underworldPenaltyFloor) {
         // 지하계 N층급 중력 패널티: 창공석으로 줄일 수 없음
         let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || 1));
@@ -2237,7 +2249,7 @@ function getPlayerStats() {
         finalAspd *= (1 - gravitySlow);
         finalMove *= (1 - gravitySlow);
     }
-    let finalDamageMultiplier = 1;
+    let finalDamageMultiplier = 1 * oceanPressureDamageMul;
     if (uniqueLabyrinthShackles) {
         finalDamageMultiplier *= getLabyrinthShacklesDamageMultiplier(finalMove);
         finalMove = 100;
@@ -3577,7 +3589,15 @@ function getPlayerStats() {
         summonGuardRedirectPct: Math.max(0, Math.min(100, (gearBase.summonGuardRedirectPct || 0) + (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (support.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0))),
         poisonDamageMultiplierPct: Math.max(0, finalPoisonDamageMultiplierPct),
         shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
-        sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower)
+        sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower),
+        oceanPressureResist: Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist'))),
+        oceanDepthGainPct: Math.max(0, sumStatAcrossBuckets('oceanDepthGainPct')),
+        oceanOxygenAttackSavingPct: Math.max(0, Math.min(90, sumStatAcrossBuckets('oceanOxygenAttackSavingPct'))),
+        oceanRareFishChancePct: Math.max(0, sumStatAcrossBuckets('oceanRareFishChancePct')),
+        bossDamagePct: Math.max(0, sumStatAcrossBuckets('bossDamagePct')),
+        eliteDamagePct: Math.max(0, sumStatAcrossBuckets('eliteDamagePct')),
+        firstStrikeDamagePct: Math.max(0, sumStatAcrossBuckets('firstStrikeDamagePct')),
+        cullStrikePct: Math.max(0, Math.min(20, sumStatAcrossBuckets('cullStrikePct')))
     };
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
@@ -4148,6 +4168,13 @@ function createEnemy(zone, marker, groupIndex) {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
         hp = Math.floor(hp * 5 * (1 + Math.max(0, underFloor - 1) * 0.045));
     }
+    if (zone.type === 'oceanDepth') {
+        let depthTier = Math.max(0, Math.floor(zone.depthTier || 0));
+        // 수심 0m 진입 시점 난이도를 혼돈심화 21층 부근(혼돈계 floor1 hp배율 5와 유사한 강도)에 맞추고, 100m(depthTier 1)마다 완만히 추가 상승.
+        let oceanBaseMul = 5;
+        let oceanTierMul = 1 + depthTier * 0.05;
+        hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
+    }
     if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(game.loopCount || 0) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
@@ -4343,8 +4370,22 @@ function getZoneEncounterProfile(zone) {
             label: `${minPack}-${maxPack}기`
         };
     }
+    if (zone.type === 'oceanDepth') {
+        let depthTier = Math.max(0, Math.floor(zone.depthTier || 0));
+        let minPack = Math.min(6, 2 + Math.floor(depthTier / 4));
+        let maxPack = Math.min(8, minPack + 2);
+        return {
+            markerCount: zone.oceanBossWave ? 1 : (4 + Math.floor(depthTier * 0.5)),
+            minPack: minPack,
+            maxPack: maxPack,
+            eliteChance: Math.min(0.4, 0.08 + depthTier * 0.01),
+            bossAdds: 0,
+            label: zone.name || '심해'
+        };
+    }
     let minPack = 1;
-    let maxPack = Math.min(3, 1 + Math.floor((zone.id + 2) / 3));
+    let zoneIdNum = Number.isFinite(zone.id) ? zone.id : (Number(zone.tier) || 1);
+    let maxPack = Math.min(3, 1 + Math.floor((zoneIdNum + 2) / 3));
     return {
         markerCount: 3 + Math.floor(zone.tier * 0.8),
         minPack: minPack,
@@ -4383,6 +4424,18 @@ function generateEncounterPlan(zone) {
     if (zone.type === 'chaosRealm') {
         let profile = getZoneEncounterProfile(zone);
         return [{ at: 28, count: profile.minPack + 1, elite: true }, { at: 62, count: profile.maxPack, elite: true }, { at: 100, count: 1 + profile.bossAdds, boss: true }];
+    }
+    if (zone.type === 'oceanDepth') {
+        if (zone.oceanBossWave) return [{ at: 100, count: 1, boss: true }];
+        let profile = getZoneEncounterProfile(zone);
+        let markers = [];
+        for (let i = 0; i < profile.markerCount; i++) {
+            let at = clampNumber(Math.floor(((i + 1) / (profile.markerCount + 1)) * 96), 6, 94);
+            let count = profile.minPack + Math.floor(Math.random() * Math.max(1, profile.maxPack - profile.minPack + 1));
+            markers.push({ at: at, count: count, elite: Math.random() < profile.eliteChance });
+        }
+        markers.sort((a, b) => a.at - b.at);
+        return markers;
     }
     let profile = getZoneEncounterProfile(zone);
     let rng = zone.type === 'act' ? createSeededRng(`act:${zone.id}`) : Math.random;
@@ -4485,7 +4538,7 @@ function handleTalentBloomClear(zone) {
             if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_talent_tab', '재능 탭 해금', '재능 개화 카드를 획득했습니다! 재능 탭에서 보유 카드와 효과를 확인하세요.', 'tab-talent');
         }
         addLog(`🃏 개화 카드 [${cardLabel}] Lv.${result.card.level} (점수 ${result.score})${result.leveledUp ? ' · 레벨 상승!' : ''}`, 'loot-unique');
-        if (typeof renderTalentTab === 'function' && document.getElementById('tab-talent') && document.getElementById('tab-talent').classList.contains('active')) renderTalentTab();
+        dispatchRuntimeEvent('talent-tab-refresh-requested');
     }
     game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
     game.killsInZone = 0;
@@ -5933,6 +5986,18 @@ function finishEncounterRun() {
         return;
     }
 
+    if (zone.type === 'oceanDepth') {
+        // 잠수 중이 아니면(예: 강제 귀환 후 호출) 진행을 변경하지 않는다.
+        let oceanSt = ensureOceanState();
+        if (oceanSt.unlocked && oceanSt.diving) advanceOceanDiveFromKill(zone);
+        game.currentZoneId = OCEAN_ZONE_ID;
+        game.killsInZone = 0;
+        startMoving(false);
+        updateStaticUI();
+        queueImportantSave(200);
+        return;
+    }
+
     if (zone.type === 'chaosRealm') {
         let st = ensureChaosRealmState();
         let floor = Math.max(1, Math.floor(zone.floor || st.currentFloor || 1));
@@ -6345,6 +6410,7 @@ function finishEncounterRun() {
 }
 
 function performPlayerAttack(pStats) {
+    if (typeof consumeOceanOxygenOnAttack === 'function') consumeOceanOxygenOnAttack();
     if (Array.isArray(game.queenBees) && game.queenBees.length > 0) {
         let now = Date.now();
         game.queenBees = game.queenBees.filter(bee => bee && (bee.expiresAt || 0) > now && (bee.attacksLeft || 0) > 0);
@@ -6617,8 +6683,13 @@ function performPlayerAttack(pStats) {
             }
             if (targetEnemy.isBoss) {
                 let bossMul = Math.max(0, Number(pStats.bossDamageDealtMultiplier) || 1);
+                bossMul *= (1 + Math.max(0, Number(pStats.bossDamagePct) || 0) / 100);
                 hitBaseDamage = Math.floor(hitBaseDamage * bossMul);
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * bossMul);
+            } else if (targetEnemy.isElite && (pStats.eliteDamagePct || 0) > 0) {
+                let eliteMul = 1 + Math.max(0, Number(pStats.eliteDamagePct) || 0) / 100;
+                hitBaseDamage = Math.floor(hitBaseDamage * eliteMul);
+                ailmentBaseDamage = Math.floor(ailmentBaseDamage * eliteMul);
             }
             if (game.ascendClass === 'gladiator' && hasKeystone('g5') && game.gladiatorSwiftOpeningReady) {
                 hitBaseDamage = Math.floor(hitBaseDamage * 1.30);
@@ -6824,12 +6895,25 @@ function performPlayerAttack(pStats) {
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let beforeHpForForced = targetEnemy.hp;
             let talentWasFull = beforeHpForForced >= (targetEnemy.maxHp || beforeHpForForced || 1);
+            // 선제 타격: 생명력이 가득 찬 적에게 가하는 첫 타에 추가 피해
+            if (talentWasFull && (pStats.firstStrikeDamagePct || 0) > 0) {
+                let firstStrikeMul = 1 + Math.max(0, Number(pStats.firstStrikeDamagePct) || 0) / 100;
+                dmg = Math.floor(dmg * firstStrikeMul);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * firstStrikeMul);
+            }
             targetEnemy.lastHitElement = hitElement;
             let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
             // 23 산맥추적자: 생명력 최대인 적 첫 타격 시 최대 생명력 비례 추가 피해
             if (typeof getTalentFullLifeBurst === 'function' && targetEnemy.hp > 0) {
                 let fullBurst = getTalentFullLifeBurst(targetEnemy, talentWasFull);
                 if (fullBurst > 0) dealtToEnemy += applyDamageToEnemyResource(targetEnemy, fullBurst);
+            }
+            // 처형 일격(장비 옵션): 생명력이 일정 % 이하인 일반/정예 몬스터 즉시 처치(보스 제외)
+            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && (pStats.cullStrikePct || 0) > 0) {
+                let cullThr = Math.max(0, Math.min(20, Number(pStats.cullStrikePct) || 0)) / 100;
+                if (cullThr > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= cullThr) {
+                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+                }
             }
             // 재능 처형(15 도살자/71 하운드): 낮은 체력 일반 몬스터 마무리
             if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof getTalentExecuteThreshold === 'function') {

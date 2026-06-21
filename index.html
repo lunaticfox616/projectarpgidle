@@ -8,8 +8,8 @@
     <link rel="stylesheet" href="css/layout.css?v=20260614-cosmos-es1">
     <link rel="stylesheet" href="css/theme.css">
     <link rel="stylesheet" href="css/components.css?v=20260615-tab-drag-touch1">
-    <link rel="stylesheet" href="css/ui-polish.css?v=20260611-tooltip-alpha3">
-    <link rel="stylesheet" href="css/ui-premium.css?v=20260611-patch-notes-popup2">
+    <link rel="stylesheet" href="css/ui-polish.css?v=20260621-vertical-tabs1">
+    <link rel="stylesheet" href="css/ui-premium.css?v=20260621-vertical-tabs1">
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="css/cosmos-atlas.css">
     <link rel="stylesheet" href="css/core-cube.css?v=20260604-core-cube-visual1">
@@ -710,51 +710,71 @@
     </div>
 
     <div id="tab-map" class="tab-content map-tab-panel">
-        <div class="subtab-row">
+        <div class="subtab-row map-primary-tabs">
             <button class="subtab-btn active" id="btn-map-tab-zones" onclick="switchMapSubtab('map-tab-zones')">탐험</button>
             <button class="subtab-btn" id="btn-map-tab-abyss" onclick="switchMapSubtab('map-tab-abyss')">혼돈 패시브</button>
             <button class="subtab-btn" id="btn-map-tab-chaos-realm" onclick="switchMapSubtab('map-tab-chaos-realm')">🌌 혼돈계</button>
             <button class="subtab-btn" id="btn-map-tab-sky" onclick="switchMapSubtab('map-tab-sky')">☁️ 창공</button>
             <button class="subtab-btn" id="btn-map-tab-underworld" onclick="switchMapSubtab('map-tab-underworld')">🕳️ 지하계</button>
+            <button class="subtab-btn" id="btn-map-tab-ocean" onclick="switchMapSubtab('map-tab-ocean')">🌊 심해</button>
         </div>
 
         <div id="map-tab-zones" class="subtab-content active">
-            <h2>사냥터 선택</h2>
-            <div class="map-overview-card">
-                <img class="map-overview-image" src="assets/battlefield-map.png" alt="월드 지도">
-                <div class="map-hotspots" id="ui-map-hotspots"></div>
-            </div>
-            <div class="map-grid" id="ui-map-list"></div>
-
-            <h2 style="margin-top: 20px; color: #ffb347; display: none;" id="ui-season-boss-header">뿌리 보스 도전 <button id="btn-season-boss-repeat" onclick="toggleSeasonBossRepeat()" style="display:none; margin-left:8px; background:#5b4a2f; border-color:#7f6240; font-size:0.7em; padding:2px 6px;">반복 도전 OFF</button></h2>
-            <div class="map-grid" id="ui-season-boss-list" style="margin-top: 10px;"></div>
-
-            <h2 style="margin-top: 20px; color: #9ad1ff; display: none;" id="ui-labyrinth-header">고대 미궁</h2>
-            <div class="map-grid" id="ui-labyrinth-list" style="margin-top: 10px;"></div>
-
-            <h2 style="margin-top: 20px; color: #d0a8ff; display: none;" id="ui-deep-chaos-header">혼돈 심화층</h2>
-            <div class="map-grid" id="ui-deep-chaos-list" style="margin-top: 10px;"></div>
-
-            <h2 style="margin-top: 20px; color: #c79bff; display: none;" id="ui-meteor-header">운석 낙하 지점 <button id="btn-meteor-auto-enter" onclick="toggleMeteorAutoEnter()" style="display:none; margin-left:8px; font-size:0.7em; padding:2px 6px;">자동입장 OFF</button></h2>
-            <div class="map-grid" id="ui-meteor-list" style="margin-top: 10px;"></div>
-
-                    <div id="explore-beehive" class="explore-panel">
-                        <h2 style="margin-top: 0; color: #ffde91; display: none;" id="ui-beehive-header">🐝 벌집 원정</h2>
+            <div class="vertical-tab-layout map-explore-layout">
+                <div class="vertical-tab-sidebar" aria-label="탐험 항목">
+                    <button class="vertical-tab-btn active" id="btn-map-explore-hunting" onclick="switchMapExploreSubtab('map-explore-hunting')"><span>🗺️ 사냥터</span><small>일반/혼돈 진행</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-root-boss" onclick="switchMapExploreSubtab('map-explore-root-boss')"><span>🗝️ 뿌리 보스</span><small>시즌 보스 도전</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-labyrinth" onclick="switchMapExploreSubtab('map-explore-labyrinth')"><span>🏛️ 고대 미궁</span><small>화석과 층수 선택</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-deep-chaos" onclick="switchMapExploreSubtab('map-explore-deep-chaos')"><span>🌌 혼돈 심화층</span><small>심화 진입 정보</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-meteor" onclick="switchMapExploreSubtab('map-explore-meteor')"><span>☄️ 운석 낙하</span><small>하늘의 균열</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-beehive" onclick="switchMapExploreSubtab('map-explore-beehive')"><span>🐝 벌집 원정</span><small>양봉 원정</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-colony" onclick="switchMapExploreSubtab('map-explore-colony')"><span>🪲 군락지</span><small>방어전</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-voidrift" onclick="switchMapExploreSubtab('map-explore-voidrift')"><span>🕳️ 공허 균열</span><small>대균열 자동입장</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-trials" onclick="switchMapExploreSubtab('map-explore-trials')"><span>👑 전직 시련</span><small>시련의 성소</small></button>
+                </div>
+                <div class="vertical-tab-panels">
+                    <section id="map-explore-hunting" class="vertical-tab-panel active">
+                        <h2>🗺️ 사냥터 선택</h2>
+                        <div class="map-overview-card">
+                            <img class="map-overview-image" src="assets/battlefield-map.png" alt="월드 지도">
+                            <div class="map-hotspots" id="ui-map-hotspots"></div>
+                        </div>
+                        <div class="map-grid" id="ui-map-list"></div>
+                    </section>
+                    <section id="map-explore-root-boss" class="vertical-tab-panel">
+                        <h2 style="color: #ffb347; display: none;" id="ui-season-boss-header">🗝️ 뿌리 보스 도전 <button id="btn-season-boss-repeat" onclick="toggleSeasonBossRepeat()" style="display:none; margin-left:8px; background:#5b4a2f; border-color:#7f6240; font-size:0.7em; padding:2px 6px;">반복 도전 OFF</button></h2>
+                        <div class="map-grid" id="ui-season-boss-list" style="margin-top: 10px;"></div>
+                    </section>
+                    <section id="map-explore-labyrinth" class="vertical-tab-panel">
+                        <h2 style="color: #9ad1ff; display: none;" id="ui-labyrinth-header">🏛️ 고대 미궁</h2>
+                        <div class="map-grid" id="ui-labyrinth-list" style="margin-top: 10px;"></div>
+                    </section>
+                    <section id="map-explore-deep-chaos" class="vertical-tab-panel">
+                        <h2 style="color: #d0a8ff; display: none;" id="ui-deep-chaos-header">🌌 혼돈 심화층</h2>
+                        <div class="map-grid" id="ui-deep-chaos-list" style="margin-top: 10px;"></div>
+                    </section>
+                    <section id="map-explore-meteor" class="vertical-tab-panel">
+                        <h2 style="color: #c79bff; display: none;" id="ui-meteor-header">☄️ 운석 낙하 지점 <button id="btn-meteor-auto-enter" onclick="toggleMeteorAutoEnter()" style="display:none; margin-left:8px; font-size:0.7em; padding:2px 6px;">자동입장 OFF</button></h2>
+                        <div class="map-grid" id="ui-meteor-list" style="margin-top: 10px;"></div>
+                    </section>
+                    <section id="map-explore-beehive" class="vertical-tab-panel">
+                        <h2 style="color: #ffde91; display: none;" id="ui-beehive-header">🐝 벌집 원정</h2>
                         <div id="ui-beehive-panel" style="display:none; background:#15140f; border:1px solid #6f5a2b; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
-                    </div>
-
-            <h2 style="margin-top: 20px; color: #ffde91; display: none;" id="ui-beehive-header">벌집 원정</h2>
-            <div id="ui-beehive-panel" style="display:none; background:#15140f; border:1px solid #6f5a2b; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
-
-            
-            <h2 style="margin-top: 20px; color: #9fe7b2; display: none;" id="ui-colony-header">군락지 방어전</h2>
-            <div id="ui-colony-panel" style="display:none; background:#101812; border:1px solid #2d6f43; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
-
-            <h2 style="margin-top: 20px; color: #a9b4ff; display: none;" id="ui-voidrift-header">공허 균열 <button id="btn-grand-breach-auto-enter" onclick="toggleGrandBreachAutoEnter()" style="display:none; margin-left:8px; font-size:0.7em; padding:2px 6px;">대균열 자동입장 OFF</button></h2>
-            <div id="ui-voidrift-panel" style="display:none; background:#111420; border:1px solid #3d4f8a; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
-
-            <h2 style="margin-top: 30px; color: #f1c40f; display: none;" id="ui-trials-header">전직 시련의 성소</h2>
-            <div class="map-grid" id="ui-trial-list" style="margin-top: 10px;"></div>
+                    </section>
+                    <section id="map-explore-colony" class="vertical-tab-panel">
+                        <h2 style="color: #9fe7b2; display: none;" id="ui-colony-header">🪲 군락지 방어전</h2>
+                        <div id="ui-colony-panel" style="display:none; background:#101812; border:1px solid #2d6f43; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
+                    </section>
+                    <section id="map-explore-voidrift" class="vertical-tab-panel">
+                        <h2 style="color: #a9b4ff; display: none;" id="ui-voidrift-header">🕳️ 공허 균열 <button id="btn-grand-breach-auto-enter" onclick="toggleGrandBreachAutoEnter()" style="display:none; margin-left:8px; font-size:0.7em; padding:2px 6px;">대균열 자동입장 OFF</button></h2>
+                        <div id="ui-voidrift-panel" style="display:none; background:#111420; border:1px solid #3d4f8a; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
+                    </section>
+                    <section id="map-explore-trials" class="vertical-tab-panel">
+                        <h2 style="color: #f1c40f; display: none;" id="ui-trials-header">👑 전직 시련의 성소</h2>
+                        <div class="map-grid" id="ui-trial-list" style="margin-top: 10px;"></div>
+                    </section>
+                </div>
+            </div>
         </div>
 
         <div id="map-tab-chaos-realm" class="subtab-content">
@@ -773,6 +793,14 @@
             <h2>🕳️ 지하계</h2>
             <div id="ui-underworld-panel" style="background:#0f1120; border:1px solid #3f3569; border-radius:12px; padding:12px; margin-bottom:10px; color:#d6cdf6;"></div>
             <div class="map-grid" id="ui-underworld-list"></div>
+        </div>
+
+        <div id="map-tab-ocean" class="subtab-content">
+            <h2>🌊 심해</h2>
+            <div id="ui-ocean-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; margin-bottom:10px; color:#cdeefc;"></div>
+            <div class="map-grid" id="ui-ocean-list"></div>
+            <h3 style="margin-top:16px; color:#8fe3ff;">🎁 바다의 선물</h3>
+            <div id="ui-sea-gift-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; color:#cdeefc;"></div>
         </div>
 
         <div id="map-tab-abyss" class="subtab-content">
@@ -851,12 +879,16 @@
 
     <div id="tab-codex" class="tab-content">
         <h2>📚 고유 아이템 도감</h2>
-        <div style="display:flex; gap:8px; margin-bottom:10px;">
-            <button id="btn-codex-main" onclick="setCodexSubtab('main')">나무 도감</button>
-            <button id="btn-codex-realm" onclick="setCodexSubtab('realm')">계(Realm) 도감</button>
+        <div class="vertical-tab-layout codex-vertical-layout">
+            <div class="vertical-tab-sidebar" aria-label="도감 항목">
+                <button class="vertical-tab-btn active" id="btn-codex-main" onclick="setCodexSubtab('main')"><span>🌳 나무 도감</span><small>일반 고유 기록</small></button>
+                <button class="vertical-tab-btn" id="btn-codex-realm" onclick="setCodexSubtab('realm')"><span>🌌 계(Realm) 도감</span><small>계 전용 고유 기록</small></button>
+            </div>
+            <div class="vertical-tab-panels">
+                <div id="ui-codex-summary" style="margin-bottom:10px; color:#c3d9ef;"></div>
+                <div id="ui-codex-list" class="inventory-grid"></div>
+            </div>
         </div>
-        <div id="ui-codex-summary" style="margin-bottom:10px; color:#c3d9ef;"></div>
-        <div id="ui-codex-list" class="inventory-grid"></div>
     </div>
     <div id="tab-cube" class="tab-content">
         <h2>🧊 코어 큐브</h2>
@@ -1098,24 +1130,24 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260610-patch-notes1"></script>
-<script defer src="data/maps.js?v=20260610-talent-bloom-p1"></script>
-<script defer src="data/skills.js?v=20260608-flame-socket2"></script>
-<script defer src="data/items.js?v=20260617-talent-bloom-p1-merge1"></script>
+<script defer src="data/maps.js?v=20260618-ocean1"></script>
+<script defer src="data/skills.js?v=20260621-vertical-tabs1"></script>
+<script defer src="data/items.js?v=20260619-ocean2"></script>
 <script defer src="data/passives.js?v=20260613-passive-clusters1"></script>
-<script defer src="data/bosses.js?v=20260616-boss-assets1"></script>
+<script defer src="data/bosses.js?v=20260618-ocean1"></script>
 <script defer src="data/rewards.js?v=20260615-act4-resist"></script>
 <script defer src="data/talent-cards.js?v=20260614-talent-bloom-p6m"></script>
-<script defer src="js/utils.js?v=20260618-bloom5-revamp2"></script>
-<script defer src="js/state.js?v=20260618-codex-autoreg1"></script>
+<script defer src="js/utils.js?v=20260619-ocean6"></script>
+<script defer src="js/state.js?v=20260621-vertical-tabs1"></script>
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
 <script defer src="js/items.js?v=20260614-runtime-fixes1"></script>
 <script defer src="js/skills.js?v=20260614-cosmos-es1"></script>
-<script defer src="js/passives.js?v=20260618-codex-autoreg1"></script>
+<script defer src="js/passives.js?v=20260621-ocean14"></script>
 <script defer src="js/core-cube.js?v=20260609-core-cube-bulk1"></script>
-<script defer src="js/combat.js?v=20260618-colony-ward-reset1"></script>
+<script defer src="js/combat.js?v=20260621-vertical-tabs1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260614-cosmos-es1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260618-codex-autoreg1"></script>
-<script defer src="js/ui.js?v=20260618-codex-autoreg1"></script>
+<script defer src="js/ui.js?v=20260621-ocean14"></script>
 <script defer src="js/talent-cards.js?v=20260618-bloom5-revamp1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260527-spiral-galaxy4"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>

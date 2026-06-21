@@ -37,7 +37,7 @@ assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers({ resF: 75, ra
 assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers(overcappedFire, 'fire', { resistanceReduction: 40, penetration: 20 }), 55, 'resistance reduction must apply before the cap and penetration must apply afterward');
 assert.strictEqual(context.getPlayerResistanceAfterEnemyModifiers(overcappedFire, 'fire', { penetration: 400 }), -200, 'monster penetration must stop at -200% effective resistance');
 assert(combat.includes('const MIN_PENETRATED_RESISTANCE = -200;'), 'player and monster penetration must share the -200% resistance floor');
-assert(resistanceBranch.includes('Math.max(MIN_PENETRATED_RESISTANCE, effective)'), 'player penetration must stop at -200% effective enemy resistance');
+assert(resistanceBranch.includes('MIN_PENETRATED_RESISTANCE') && resistanceBranch.includes('return Math.max(minPen, effective)'), 'player penetration must stop at the configured effective enemy resistance floor');
 
 const playerMitigationContext = {
     MIN_PENETRATED_RESISTANCE: -200,

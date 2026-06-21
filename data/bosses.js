@@ -67,7 +67,11 @@ const ENEMY_TRAIT_POOL = [
     { id: 'coldWard', name: '서리 장막', resC: 28 },
     { id: 'lightWard', name: '뇌전 장막', resL: 28 },
     { id: 'chaosWard', name: '심연 장막', resChaos: 22 },
-    { id: 'physWard', name: '중갑 전개', dr: 14 }
+    { id: 'physWard', name: '중갑 전개', dr: 14 },
+    { id: 'pressureCrush', name: '수압 압살', oceanPressureGainMul: 1.6 },
+    { id: 'oxygenLeech', name: '산소 갈취', oceanOxygenLeechOnHit: 4 },
+    { id: 'accuracyWard', name: '탁한 물막', hitRateGuard: 0.18 },
+    { id: 'currentSwift', name: '급류 가속', atkMul: 1.2, attackSpeedVarMul: 1.16 }
 ];
 
 safeExposeData({ ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT, getBossAssetKeyForZone, ENEMY_TRAIT_POOL });

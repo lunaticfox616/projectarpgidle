@@ -1886,6 +1886,76 @@ function renderSkyTowerMapPanel() {
     <div class="sky-tower-note" style="color:${ready ? '#7dffb2' : '#ffcf8a'};">${ready ? '입장 가능: 1층부터 최고 입장층까지 원하는 층을 선택할 수 있습니다.' : '이번 루프 혼돈 입성 후 입장할 수 있습니다.'}</div>`;
     list.innerHTML = `<div class="map-item map-item--sky-tower ${game.currentZoneId === SKY_TOWER_ZONE_ID ? 'current' : ''}" ${ready ? 'onclick="enterSkyTowerPrompt()"' : ''} style="${ready ? '' : 'opacity:.65; cursor:not-allowed;'}"><div class="map-item-main"><span>☁️</span><span>창공의 탑 ${currentFloor}층<br><span class="map-zone-status">입장 가능 층 1 ~ ${highest} · 영구 클리어 ${cleared}층</span></span></div><div class="map-item-actions"><span class="map-zone-status">${ready ? `잔여 클리어 ${remaining}/${limit}` : '혼돈 입성 필요'}</span><button ${ready ? '' : 'disabled'}>층 선택 입장</button></div></div>`;
 }
+function renderOceanDepthMapPanel() {
+    let panel = document.getElementById('ui-ocean-panel');
+    let list = document.getElementById('ui-ocean-list');
+    if (!panel || !list) return;
+    let st = ensureOceanState();
+    if (!st.unlocked) {
+        panel.innerHTML = `<div class="sky-tower-head"><div><div class="sky-tower-title">🌊 심해</div><div class="sky-tower-sub">루프 ${OCEAN_UNLOCK_LOOP} 이후 해금됩니다.</div></div><span class="sky-tower-lock-chip">🔒 봉인됨</span></div>`;
+        list.innerHTML = '';
+        return;
+    }
+    let oxygenPct = Math.round((st.oxygenCur / Math.max(1, st.oxygenMax)) * 100);
+    let drainPerSec = getOceanOxygenDrainPerSec();
+    let perAttackCost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0;
+    let secsLeft = drainPerSec > 0 ? Math.floor(st.oxygenCur / drainPerSec) : 0;
+    let depthTier = getOceanDepthTier(st.depthM);
+    panel.innerHTML = `<div class="sky-tower-head">
+        <div>
+            <div class="sky-tower-title">🌊 심해 잠수 <span style="color:#ffce6b; font-size:0.7em; border:1px solid #ffce6b; border-radius:4px; padding:1px 5px; vertical-align:middle;">⚠ 테스트 중</span></div>
+            <div class="sky-tower-sub" style="color:#ffce6b;">⚠ 현재 테스트 중인 컨텐츠입니다. 밸런스·보상·기능이 예고 없이 변경되거나 초기화될 수 있습니다.</div>
+            <div class="sky-tower-sub">수심이 깊어질수록 수압 디버프(공속/피해/이동속도 감소)가 강해지고, 산소가 다 떨어지면 마지막 체크포인트로 강제 귀환합니다.</div>
+        </div>
+        ${st.diving ? `<button onclick="forceSurfaceOcean('manual'); changeZone(Math.max(0, game.maxZoneId || 0)); updateStaticUI();">수면으로 복귀</button>` : `<button onclick="enterOceanDive(); changeZone(OCEAN_ZONE_ID); updateStaticUI();">잠수 시작 (${st.checkpointM}m부터)</button>`}
+    </div>
+    <div class="sky-tower-chips">
+        <span class="sky-tower-chip">현재 수심 <b>${Math.floor(st.depthM)}m</b></span>
+        <span class="sky-tower-chip">체크포인트 <b>${st.checkpointM}m</b></span>
+        <span class="sky-tower-chip">수압 단계 <b>${depthTier}</b></span>
+        <span class="sky-tower-chip" title="산소 최대치는 고정(${st.oxygenMax}). 이동 속도가 높을수록 시간당 소모가 빨라지고(현재 ${drainPerSec.toFixed(2)}/초), 공격 1회마다 추가로 ${perAttackCost}씩 소모됩니다. 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
+        <span class="sky-tower-chip">낚시 게이지 <b>${Math.floor(st.fishingGauge)}%</b></span>
+        <span class="sky-tower-chip">설치된 암초 조각 <b>${st.reefInstalled}/10</b> (게이지 +${st.reefInstalled * 15}%)</span>
+    </div>
+    <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button onclick="installOceanReefFragment(); renderOceanDepthMapPanel();">암초 조각 설치 (보유 ${game.currencies.reefFragment || 0})</button>
+    </div>
+    <div style="margin-top:10px; color:#8fe3ff;">보유 어종: ${Object.keys(OCEAN_FISH_DB).map(key => `${OCEAN_FISH_DB[key].name} ${st.fishStock[key] || 0}`).join(' · ')}</div>`;
+    list.innerHTML = `<div class="map-item ${game.currentZoneId === OCEAN_ZONE_ID ? 'current' : ''}" ${st.diving ? `onclick="changeZone(OCEAN_ZONE_ID)"` : ''} style="${st.diving ? '' : 'opacity:.65;'}"><div class="map-item-main"><span>🌊</span><span>심해 ${Math.floor(st.depthM)}m<br><span class="map-zone-status">${st.diving ? '잠수 중' : '잠수를 시작하세요'}</span></span></div></div>`;
+}
+
+const OCEAN_MOD_CATEGORY_OPTIONS = ['공격', '방어·생명', '속도·치명', '저항'];
+function renderSeaGiftRecipeCard(recipe, st) {
+    let ready = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
+    let reqText = Object.keys(recipe.requires).map(key => `${OCEAN_FISH_DB[key].name} ${st.fishStock[key] || 0}/${recipe.requires[key]}`).join(', ');
+    let needsCategory = recipe.effect.type === 'guaranteedTaggedMod' || recipe.effect.type === 'taggedReroll' || recipe.effect.type === 'convertCategoryMod' || (recipe.effect.type === 'lockMod' && recipe.effect.bonusTaggedReroll);
+    let inlineId = `seaGiftCategory_${recipe.id}`;
+    let categorySelect = needsCategory ? `<select id="${inlineId}" style="margin-top:4px;">${OCEAN_MOD_CATEGORY_OPTIONS.map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select>` : '';
+    let onclick = needsCategory
+        ? `craftSeaGift('${recipe.id}', null, { category: document.getElementById('${inlineId}').value }); renderSeaGiftPanel();`
+        : `craftSeaGift('${recipe.id}'); renderSeaGiftPanel();`;
+    return `<div style="border-bottom:1px solid #1f5b73; padding:8px 0;">
+        <div style="color:#8fe3ff;">${recipe.desc}</div>
+        <div style="font-size:0.85em; color:#9fcbe0;">필요: ${reqText}</div>
+        ${categorySelect}
+        <button onclick="${onclick}" ${ready ? '' : 'disabled'} style="margin-top:4px;">제작</button>
+    </div>`;
+}
+function renderSeaGiftPanel() {
+    let panel = document.getElementById('ui-sea-gift-panel');
+    if (!panel) return;
+    let st = ensureOceanState();
+    if (!st.unlocked) { panel.innerHTML = ''; return; }
+    let ultraRareIds = new Set(['tidelordKoi', 'prismaticHorror', 'kingLeviathan']);
+    let normalRecipes = SEA_GIFT_RECIPES.filter(r => !Object.keys(r.requires).some(key => ultraRareIds.has(key)));
+    let ultraRecipes = SEA_GIFT_RECIPES.filter(r => Object.keys(r.requires).some(key => ultraRareIds.has(key)));
+    panel.innerHTML = `<div style="color:#ffce6b; font-size:0.85em; border:1px solid #ffce6b; border-radius:4px; padding:4px 8px; margin:4px 0;">⚠ 테스트 중인 컨텐츠입니다. 레시피 효과·재료·밸런스가 예고 없이 변경될 수 있습니다.</div>`
+        + `<div style="color:#8fe3ff; font-weight:bold; margin:4px 0;">일반 레시피</div>`
+        + normalRecipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('')
+        + `<div style="color:#ffce6b; font-weight:bold; margin:10px 0 4px;">초강력 레시피 (초희귀 어종 필요)</div>`
+        + ultraRecipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('');
+}
+
 function renderUnderworldMapPanel() {
     let panel = document.getElementById('ui-underworld-panel');
     let list = document.getElementById('ui-underworld-list');
@@ -2113,10 +2183,23 @@ function upgradeUnderworldRune(fromNo) {
 function switchMapSubtab(subtabId) {
     game.mapSubtab = subtabId;
     document.querySelectorAll('#tab-map .subtab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('#tab-map .subtab-btn').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#tab-map .map-primary-tabs .subtab-btn').forEach(el => el.classList.remove('active'));
     let panel = document.getElementById(subtabId);
     let btn = document.getElementById('btn-' + subtabId);
     if (panel) panel.classList.add('active');
+    if (btn) btn.classList.add('active');
+    if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+}
+
+function switchMapExploreSubtab(subtabId) {
+    const fallback = 'map-explore-hunting';
+    const panel = document.getElementById(subtabId) ? document.getElementById(subtabId) : document.getElementById(fallback);
+    const activeId = panel ? panel.id : fallback;
+    game.mapExploreSubtab = activeId;
+    document.querySelectorAll('#map-tab-zones .vertical-tab-panel').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#map-tab-zones .vertical-tab-btn').forEach(el => el.classList.remove('active'));
+    if (panel) panel.classList.add('active');
+    let btn = document.getElementById('btn-' + activeId);
     if (btn) btn.classList.add('active');
 }
 
@@ -3036,6 +3119,7 @@ function renderUniqueCodexUI() {
     game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
     game.codexSubtab = (game.codexSubtab === 'realm') ? 'realm' : 'main';
     let realmOnly = game.codexSubtab === 'realm';
+    syncCodexSubtabButtons();
     let pool = UNIQUE_DB.filter(entry => realmOnly ? !!entry.realmCodexOnly : !entry.realmCodexOnly);
     let keySet = new Set(pool.map(entry => `${entry.slots[0]}|${entry.name}`));
     let storedCount = Object.keys(game.uniqueCodex).filter(key => !!game.uniqueCodex[key] && keySet.has(key)).length;
@@ -3082,8 +3166,17 @@ function renderUniqueCodexUI() {
     }).join('');
     listEl.innerHTML = `<div class="codex-layout"><div class="codex-slot-tabs">${slotTabsHtml}</div><div class="codex-slot-content"><div class="codex-slot-heading">${selectedSlot} <span>${selectedEntries.filter(entry => !!game.uniqueCodex[`${selectedSlot}|${entry.name}`]).length}/${selectedEntries.length}</span></div><div class="codex-card-grid">${cardsHtml}</div></div></div>`;
 }
+function syncCodexSubtabButtons() {
+    const activeTab = game.codexSubtab === 'realm' ? 'realm' : 'main';
+    ['main', 'realm'].forEach(tab => {
+        let btn = document.getElementById('btn-codex-' + tab);
+        if (btn) btn.classList.toggle('active', tab === activeTab);
+    });
+}
+
 function setCodexSubtab(tab) {
     game.codexSubtab = (tab === 'realm') ? 'realm' : 'main';
+    syncCodexSubtabButtons();
     updateStaticUI();
 }
 
@@ -3736,6 +3829,11 @@ window.addEventListener('project-idle:loop-hero-selection-completed', event => {
 });
 
 window.addEventListener('project-idle:loop-rewrite-started', playLoopRewriteEffect);
+
+window.addEventListener('project-idle:talent-tab-refresh-requested', () => {
+    let talentTab = document.getElementById('tab-talent');
+    if (typeof renderTalentTab === 'function' && talentTab && talentTab.classList.contains('active')) renderTalentTab();
+});
 
 function updateSettings() {
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
@@ -6965,7 +7063,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-fossil-actions').innerHTML = fossilButtons.join('') || `<div style="color:#7f8c8d;">보유한 화석이 없습니다.</div>`;
     document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:#7f8c8d;">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:#8fb6d9;">기본 화석 정제는 항상 가능하며, 균사학자 Lv.4부터 원시 화석(복원 전용), Lv.5부터 원시 고대 화석(태고 화석 추가/고급 재화 확률 증가)이 미궁에서 드랍됩니다. 화석 전용 옵션은 Lv.6부터 제작이 아니라 장비 드랍 시 일정 확률로 붙습니다.</div>`;
 
-    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'colonyTrace', 'colonyShard', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'condensedSkyPower', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']);
+    let hiddenCurrencyKeys = new Set(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'bossCore', 'skyEssence', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'colonyTrace', 'colonyShard', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'condensedSkyPower', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos', 'reefFragment', 'oceanRerollShard']);
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
         if (hiddenCurrencyKeys.has(key)) return false;
         if (key === 'tainted') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
@@ -7146,6 +7244,8 @@ function buildCraftActionButtons(item) {
     renderChaosRealmMapPanel();
     renderSkyTowerMapPanel();
     renderUnderworldMapPanel();
+    renderOceanDepthMapPanel();
+    renderSeaGiftPanel();
 
     let availTrials = TRIAL_ZONES.filter(trial => {
         if (trial.bloomTrial) return canSeeTalentBloomTrial();
@@ -7710,7 +7810,7 @@ function buildCraftActionButtons(item) {
     renderSkillAutoRulePanel();
     switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
     switchMapSubtab(game.mapSubtab || 'map-tab-zones');
-    switchExploreSubtab(game.exploreSubtab || 'explore-tree');
+    switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
 }
 
 
@@ -8664,7 +8764,8 @@ function mergeDefaults(save) {
     merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
     merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
-    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
+    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
+    merged.mapExploreSubtab = ['map-explore-hunting', 'map-explore-root-boss', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-hunting';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
@@ -10882,6 +10983,7 @@ function init() {
                 if (blockingOverlayOpen || optionalOverlayOpen) return;
                 runUiCoreLoop();
                 ensureLoopChallengeState();
+                if (typeof tickOceanOxygen === 'function') tickOceanOxygen(Date.now());
                 if (pendingHeavyUiRefresh) {
                     let now = Date.now();
                     if (now - lastHeavyUiRefreshAt >= 1200) {

@@ -97,6 +97,7 @@ const stateRuntime = {
   SKY_TOWER_ZONE_ID: 'sky_tower',
   WOODSMAN_ECHO_ZONE_ID: 'woodsman_echo',
   UNDERWORLD_ZONE_ID: 'underworld',
+  OCEAN_ZONE_ID: 'ocean_depth',
   METEOR_FALL_ZONE_ID: 'meteor',
   LABYRINTH_ZONE_ID: 'labyrinth',
   TRIAL_ZONES: [],

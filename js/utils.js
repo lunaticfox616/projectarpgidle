@@ -204,6 +204,14 @@ function getSkillTagList(skill) {
 }
 function getStatName(statId) {
     const names = {
+        bossDamagePct: '보스 처치 피해(%)',
+        eliteDamagePct: '정예 처치 피해(%)',
+        firstStrikeDamagePct: '선제 타격 피해(%)',
+        cullStrikePct: '처형 일격(생명력 % 이하 즉사)',
+        oceanPressureResist: '심해 수압 내성(%)',
+        oceanDepthGainPct: '심해 수심 전진 속도(%)',
+        oceanOxygenAttackSavingPct: '심해 공격당 산소 소모 감소(%)',
+        oceanRareFishChancePct: '심해 초희귀 어종 확률(%)',
         flatHp: '최대 생명력',
         pctHp: '생명력 증가(%)',
         regen: '초당 생명력 재생(%)',
@@ -344,7 +352,9 @@ function createEmptyStatBucket() {
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
         takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, genericTakenDamageReducePct: 0, shockedEnemyHitDamageMorePct: 0, igniteDamageMultiplierPct: 0, poisonDamageMultiplierPct: 0, accuracyBonusPct: 0, shockEffect: 0,
         summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0, summonGemLevel: 0,
-        curseCap: 0
+        curseCap: 0, oxygenMax: 0, oxygenRegen: 0,
+        oceanPressureResist: 0, oceanDepthGainPct: 0, oceanOxygenAttackSavingPct: 0, oceanRareFishChancePct: 0,
+        bossDamagePct: 0, eliteDamagePct: 0, firstStrikeDamagePct: 0, cullStrikePct: 0
     };
 }
 function addStatToBucket(bucket, statId, value) {
@@ -509,6 +519,14 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'summonResPen') bucket.summonResPen += value;
     else if (statId === 'summonGemLevel') bucket.summonGemLevel += value;
     else if (statId === 'curseCap') bucket.curseCap += value;
+    else if (statId === 'oceanPressureResist') bucket.oceanPressureResist += value;
+    else if (statId === 'oceanDepthGainPct') bucket.oceanDepthGainPct += value;
+    else if (statId === 'oceanOxygenAttackSavingPct') bucket.oceanOxygenAttackSavingPct += value;
+    else if (statId === 'oceanRareFishChancePct') bucket.oceanRareFishChancePct += value;
+    else if (statId === 'bossDamagePct') bucket.bossDamagePct += value;
+    else if (statId === 'eliteDamagePct') bucket.eliteDamagePct += value;
+    else if (statId === 'firstStrikeDamagePct') bucket.firstStrikeDamagePct += value;
+    else if (statId === 'cullStrikePct') bucket.cullStrikePct += value;
 }
 
 function applyStatsToBucket(bucket, stats) {
