@@ -58,7 +58,7 @@ assert(
   'hunting map and chaos maps must render into separate grids for responsive mobile layouts'
 );
 assert(
-  uiSource.includes("buildMapZoneGroupHtml('hunting', '일반 사냥터'") &&
+  uiSource.includes("buildMapZoneGroupHtml('hunting', '일반 나무'") &&
     uiSource.includes("buildMapZoneGroupHtml('chaos', '혼돈'"),
   'hunting and chaos map sections must be grouped separately'
 );

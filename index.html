@@ -730,7 +730,8 @@
         <div id="map-tab-zones" class="subtab-content active">
             <div class="vertical-tab-layout map-explore-layout">
                 <div class="vertical-tab-sidebar" aria-label="탐험 항목">
-                    <button class="vertical-tab-btn active" id="btn-map-explore-hunting" onclick="switchMapExploreSubtab('map-explore-hunting')"><span>사냥터</span><small>일반/혼돈 진행</small></button>
+                    <button class="vertical-tab-btn active" id="btn-map-explore-hunting" onclick="switchMapExploreSubtab('map-explore-hunting')"><span>나무</span><small>일반 진행</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-chaos" onclick="switchMapExploreSubtab('map-explore-chaos')"><span>혼돈</span><small>혼돈 진행</small></button>
                     <button class="vertical-tab-btn" id="btn-map-explore-root-boss" onclick="switchMapExploreSubtab('map-explore-root-boss')"><span>뿌리 보스</span><small>시즌 보스 도전</small></button>
                     <button class="vertical-tab-btn" id="btn-map-explore-labyrinth" onclick="switchMapExploreSubtab('map-explore-labyrinth')"><span>고대 미궁</span><small>화석과 층수 선택</small></button>
                     <button class="vertical-tab-btn" id="btn-map-explore-deep-chaos" onclick="switchMapExploreSubtab('map-explore-deep-chaos')"><span>혼돈 심화층</span><small>심화 진입 정보</small></button>
@@ -742,13 +743,15 @@
                 </div>
                 <div class="vertical-tab-panels">
                     <section id="map-explore-hunting" class="vertical-tab-panel active">
-                        <h2>🗺️ 사냥터 선택</h2>
+                        <h2>🌳 나무 선택</h2>
                         <div class="map-overview-card">
                             <img class="map-overview-image" src="assets/battlefield-map.png" alt="월드 지도">
                             <div class="map-hotspots" id="ui-map-hotspots"></div>
                         </div>
                         <div class="map-grid" id="ui-map-list"></div>
-                        <h3 style="margin-top: 18px; color: #d0a8ff;">☠️ 혼돈</h3>
+                    </section>
+                    <section id="map-explore-chaos" class="vertical-tab-panel">
+                        <h2>☠️ 혼돈</h2>
                         <div class="map-grid" id="ui-chaos-map-list"></div>
                     </section>
                     <section id="map-explore-root-boss" class="vertical-tab-panel">
@@ -1162,7 +1165,7 @@
 <script defer src="js/combat.js?v=20260621-vertical-tabs1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260614-cosmos-es1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260618-codex-autoreg1"></script>
-<script defer src="js/ui.js?v=20260621-chaosfix1"></script>
+<script defer src="js/ui.js?v=20260621-chaosfix2"></script>
 <script defer src="js/talent-cards.js?v=20260618-bloom5-revamp1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260527-spiral-galaxy4"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
