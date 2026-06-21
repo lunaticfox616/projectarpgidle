@@ -511,6 +511,10 @@ function getHighestUnlockedEndlessChaosDepth() {
 
 function getAutoProgressZoneId(fallbackZoneId) {
     if ((game.season || 1) >= 10 && hasCurrentLoopChaos20Clear()) {
+        if (getAbyssDepthFromZoneId(fallbackZoneId) === 20) {
+            game.abyssEndlessDepth = 21;
+            return getAbyssZoneIdForDepth(21);
+        }
         let highestDepth = getHighestUnlockedEndlessChaosDepth();
         if (highestDepth >= 21) return getAbyssZoneIdForDepth(highestDepth);
     }
@@ -745,7 +749,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'e4', name: '융해 결합', desc: '모든 스킬이 화염/냉기/번개 33% 영향 스킬로 변화', req: 'e1' },
         { id: 'e5', name: '공허 결합', desc: '카오스 저항이 가장 높은 원소 저항의 50%만큼 상승, 카오스 저항만큼 원소 최종 피해 증가', req: 'e2' },
         { id: 'e6', name: '원소 침식', desc: '저항 관통 +20%, 치명타 피해 배율 -25%', req: 'e3' },
-        { id: 'e7', name: '삼원 폭주', desc: '화/냉/번 동시 사용 시 최종 피해 5% 증폭, 상태이상 강도는 최종 피해의 2배에 비례', reqAny: ['e4', 'e5'] },
+        { id: 'e7', name: '삼원 폭주', desc: '화/냉/번 동시 사용 시 최종 피해 5% 증폭, 상태이상 강도는 최종 피해의 2배에 비례', req: 'e4' },
         { id: 'e8', name: '원소 과부하', desc: '치명타 공격마다 원소 과부하 중첩 획득: 중첩당 원소 최종 피해 +4%, 치명타 확률 -1%p (무한 중첩). 비-치명타 공격 시 모든 중첩을 잃음', req: 'e7' },
         { id: 'e9', name: '절대 관통', desc: '원소 저항 관통 +100%, 원소 저항 관통이 -300%까지 확장됨', req: 'e8' }
     ],
@@ -1367,6 +1371,7 @@ let loadingOverlayProgress = 0;
 let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
+let lastRenderedChaosMapListHtml = '';
 
 safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenDrainPerSec, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
@@ -1541,6 +1546,24 @@ function setExpertiseLoopCapsForSeason(season){
 function resetExpertiseLoopCaps(){
   return setExpertiseLoopCapsForSeason(Math.max(1, Math.floor(game.season || 1)));
 }
+
+function hasPermanentTalentTabUnlock(state) {
+    if (!state || typeof state !== 'object') return false;
+    if (Math.max(0, Math.floor(Number(state.talentBloomClears) || 0)) > 0) return true;
+    if (Array.isArray(state.talentBloomCombos) && state.talentBloomCombos.length > 0) return true;
+    if (Array.isArray(state.bloomedClasses) && state.bloomedClasses.length > 0) return true;
+    if (state.talentCards && typeof state.talentCards === 'object' && Object.keys(state.talentCards).length > 0) return true;
+    return false;
+}
+
+function syncPermanentTalentTabUnlock(state) {
+    if (!state || typeof state !== 'object') return state;
+    if (!hasPermanentTalentTabUnlock(state)) return state;
+    state.unlocks = (state.unlocks && typeof state.unlocks === 'object') ? state.unlocks : {};
+    state.unlocks.talent = true;
+    return state;
+}
+
 function grantLoopBaseExpertExp(){
   ensureExpertiseState();
   let gained = [];
@@ -1591,6 +1614,10 @@ const defaultGame = {
         showMobileBattlePip: true,
         pauseGameOnOverlay: false,
         damageNumberFormat: 'comma',
+        showExpComma: true,
+        showHpComma: true,
+        showEnemyHpComma: true,
+        showCharacterComma: true,
         themeMode: 'dark',
         leftPaneCollapsed: false,
         combatLogCollapsed: false,
@@ -1753,6 +1780,7 @@ const defaultGame = {
     codexNewlyRegistered: {},
     codexCollapsedSlots: {},
     codexSubtab: 'main',
+    codexSelectedSlot: '무기',
     uniqueCodexCompletedRewardClaimed: false,
     starWedge: {
         unlocked: false,
@@ -1773,14 +1801,14 @@ const defaultGame = {
         nodeMutations: {},
         selectedWedgeId: null
     },
-    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0 },
+    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, expertise: false, jewel: false },
     noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false },
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }
 };
 
 
-safeExposeGlobals({ defaultGame });
+safeExposeGlobals({ defaultGame, hasPermanentTalentTabUnlock, syncPermanentTalentTabUnlock });
 
 // Phase-4 extracted progression math helpers.
 function getExpReq(level) {

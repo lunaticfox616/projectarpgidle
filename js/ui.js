@@ -32,6 +32,7 @@ function toggleMapZoneGroup(groupKey) {
     if (!Object.prototype.hasOwnProperty.call(mapZoneGroupCollapseState, groupKey)) return;
     mapZoneGroupCollapseState[groupKey] = !mapZoneGroupCollapseState[groupKey];
     lastRenderedMapListHtml = '';
+    lastRenderedChaosMapListHtml = '';
     updateStaticUI();
 }
 
@@ -689,6 +690,7 @@ function switchTab(tabId) {
             activeBtn.scrollIntoView();
         }
     }
+    if (tabId === 'tab-codex' && game.noti && game.noti.codex) game.codexFocusNewOnOpen = true;
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     // 도감 탭에서 다른 탭으로 벗어날 때, 신규 등록 강조를 해제(처음 열었을 때만 강조).
     if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
@@ -1318,7 +1320,7 @@ function dismantleColonyWardById(id) {
     let gain = getColonyWardDismantleReward(ward);
     c.wardInventory.splice(idx, 1);
     game.currencies.colonyShard = Math.max(0, Math.floor(game.currencies.colonyShard || 0)) + gain;
-    addLog(`🛡️ 액막이 부적 해체: ${ward.name || '액막이'} · 군락지 편린 +${gain}`, 'loot-normal');
+    addLog(`🛡️ 액막이 부적 해체 완료 · 군락지 편린 +${gain}`, 'loot-normal');
     updateStaticUI();
 }
 
@@ -2200,6 +2202,23 @@ function switchMapExploreSubtab(subtabId) {
     let btn = document.getElementById('btn-' + activeId);
     if (btn) btn.classList.add('active');
 }
+
+function switchExploreSubtab(subtabId) {
+    game.exploreSubtab = subtabId;
+    document.querySelectorAll('#map-tab-zones .explore-panel').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#map-tab-zones .explore-subtab').forEach(el => el.classList.remove('active'));
+    let panel = document.getElementById(subtabId);
+    let btn = document.getElementById('btn-' + subtabId);
+    if (panel) panel.classList.add('active');
+    if (btn) btn.classList.add('active');
+}
+
+// 탐험 좌측 세부 탭 버튼 노출 여부를 갱신한다. 잠긴 세부 탭이 현재 선택되어 있으면 나무 탭으로 되돌린다.
+function setExploreSubtabAvailable(subtabId, available) {
+    let btn = document.getElementById('btn-' + subtabId);
+    if (btn) btn.style.display = available ? '' : 'none';
+    if (!available && game.exploreSubtab === subtabId) switchExploreSubtab('explore-tree');
+}
 function enterLabyrinthFloor(floor){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
 
 function enterSkyTowerPrompt(){
@@ -3041,9 +3060,31 @@ function withdrawUniqueFromCodex(key) {
     updateStaticUI();
 }
 
+function getCodexSlotOrder() {
+    return ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
+}
+
+function getFirstNewCodexSlot(pool, newlyRegistered) {
+    let slots = getCodexSlotOrder();
+    for (let slot of slots) {
+        let found = pool.some(entry => {
+            let key = `${slot}|${entry.name}`;
+            return (entry.slots || [])[0] === slot && !!newlyRegistered[key] && !!game.uniqueCodex[key];
+        });
+        if (found) return slot;
+    }
+    return null;
+}
+
 function toggleCodexSlotCollapse(slot) {
     game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
     game.codexCollapsedSlots[slot] = !game.codexCollapsedSlots[slot];
+    updateStaticUI();
+}
+
+function setCodexSlotFilter(slot) {
+    if (!getCodexSlotOrder().includes(slot)) return;
+    game.codexSelectedSlot = slot;
     updateStaticUI();
 }
 
@@ -3085,29 +3126,45 @@ function renderUniqueCodexUI() {
     let progress = { stored: storedCount, total: keySet.size };
     let bonus = getCodexBonusPctFromCount(progress.stored);
     let rewardState = progress.stored >= progress.total ? '완성' : '미완성';
-    summary.innerHTML = `[${realmOnly ? '계(Realm) 도감' : '기존 도감'}] 등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% <span style="color:#9fb4d1;">(50개까지 0.2%, 이후 0.1%)</span> · 완성 상태: <strong>${rewardState}</strong>`;
-    let bySlot = ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
-    let lines = [];
-    bySlot.forEach(slot => {
-        let entries = pool.filter(entry => (entry.slots || [])[0] === slot);
-        if (entries.length === 0) return;
-        let slotStored = entries.filter(entry => !!game.uniqueCodex[`${slot}|${entry.name}`]).length;
-        let collapsed = !!game.codexCollapsedSlots[slot];
-        lines.push(`<div style="grid-column:1/-1; margin-top:4px; display:flex; justify-content:space-between; align-items:center; gap:8px; background:#121822; border:1px solid #2f4f66; border-radius:8px; padding:8px 10px;"><strong style="color:#9bc2df;">${slot} <span style="color:#ffd38b; font-size:0.86em;">${slotStored}/${entries.length}</span></strong><button onclick="toggleCodexSlotCollapse('${slot}')" style="font-size:0.78em; padding:4px 8px;">${collapsed ? '펼치기' : '접기'}</button></div>`);
-        if (collapsed) return;
-        entries.forEach(entry => {
-            let key = `${slot}|${entry.name}`;
-            let stored = game.uniqueCodex[key];
-            let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (루프 리셋됨)') : '미등록';
-            let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
-            let isNew = stored && newlyRegistered[key];
-            let cardStyle = isNew ? ' style="box-shadow:0 0 0 2px #ff4d4f, 0 0 12px rgba(255,77,79,0.7); border-color:#ff4d4f;"' : '';
-            let newBadge = isNew ? ` <span style="color:#ff4d4f; font-weight:800; font-size:0.82em;">● NEW</span>` : '';
-            let statusHtml = stored ? `<span style="color:#4cd964; font-weight:700;">등록됨</span>` : `<span style="color:#7f8c8d;">미등록</span>`;
-            lines.push(`<div class="item-card"${cardStyle}><div><div class="item-title unique">[${slot}] ${stored ? entry.name : '???'}${newBadge}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '옵션 정보 없음'}</div></div><div class="item-actions">${statusHtml}</div></div>`);
+    let newCodexLines = Object.keys(newlyRegistered)
+        .filter(key => keySet.has(key) && game.uniqueCodex[key])
+        .map(key => {
+            let parts = key.split('|');
+            return `${parts[0] || '기타'} > ${parts.slice(1).join('|') || '이름 없음'}`;
         });
-    });
-    listEl.innerHTML = lines.join('');
+    let newCodexSummary = newCodexLines.length > 0
+        ? `<div style="margin-top:6px; color:#ffdf80; font-weight:700;">신규 등록: ${newCodexLines.map(escapeHTML).join(' · ')}</div>`
+        : '';
+    summary.innerHTML = `[${realmOnly ? '계(Realm) 도감' : '기존 도감'}] 등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% <span style="color:#9fb4d1;">(50개까지 0.2%, 이후 0.1%)</span> · 완성 상태: <strong>${rewardState}</strong>${newCodexSummary}`;
+    let bySlot = getCodexSlotOrder();
+    let availableSlots = bySlot.filter(slot => pool.some(entry => (entry.slots || [])[0] === slot));
+    let firstNewSlot = getFirstNewCodexSlot(pool, newlyRegistered);
+    if (firstNewSlot && game.codexFocusNewOnOpen) {
+        game.codexSelectedSlot = firstNewSlot;
+        game.codexFocusNewOnOpen = false;
+    }
+    let selectedSlot = availableSlots.includes(game.codexSelectedSlot) ? game.codexSelectedSlot : (firstNewSlot || availableSlots[0] || bySlot[0]);
+    game.codexSelectedSlot = selectedSlot;
+    let slotTabsHtml = availableSlots.map(slot => {
+        let entries = pool.filter(entry => (entry.slots || [])[0] === slot);
+        let slotStored = entries.filter(entry => !!game.uniqueCodex[`${slot}|${entry.name}`]).length;
+        let hasNewInSlot = entries.some(entry => !!newlyRegistered[`${slot}|${entry.name}`] && !!game.uniqueCodex[`${slot}|${entry.name}`]);
+        let activeClass = slot === selectedSlot ? ' active' : '';
+        let newBadge = hasNewInSlot ? '<span class="codex-slot-new">NEW</span>' : '';
+        return `<button class="codex-slot-tab${activeClass}" onclick="setCodexSlotFilter('${slot}')"><span>${slot}</span><small>${slotStored}/${entries.length}</small>${newBadge}</button>`;
+    }).join('');
+    let selectedEntries = pool.filter(entry => (entry.slots || [])[0] === selectedSlot);
+    let cardsHtml = selectedEntries.map(entry => {
+        let key = `${selectedSlot}|${entry.name}`;
+        let stored = game.uniqueCodex[key];
+        let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (루프 리셋됨)') : '미등록';
+        let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
+        let isNew = stored && newlyRegistered[key];
+        let newBadge = isNew ? ` <span style="color:#ff4d4f; font-weight:800; font-size:0.82em;">● NEW</span>` : '';
+        let statusHtml = stored ? `<span style="color:#4cd964; font-weight:700;">등록됨</span>` : `<span style="color:#7f8c8d;">미등록</span>`;
+        return `<div class="item-card codex-card${isNew ? ' codex-card-new' : ''}"><div><div class="item-title unique">[${selectedSlot}] ${stored ? entry.name : '???'}${newBadge}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '옵션 정보 없음'}</div></div><div class="item-actions">${statusHtml}</div></div>`;
+    }).join('');
+    listEl.innerHTML = `<div class="codex-layout"><div class="codex-slot-tabs">${slotTabsHtml}</div><div class="codex-slot-content"><div class="codex-slot-heading">${selectedSlot} <span>${selectedEntries.filter(entry => !!game.uniqueCodex[`${selectedSlot}|${entry.name}`]).length}/${selectedEntries.length}</span></div><div class="codex-card-grid">${cardsHtml}</div></div></div>`;
 }
 function syncCodexSubtabButtons() {
     const activeTab = game.codexSubtab === 'realm' ? 'realm' : 'main';
@@ -3538,6 +3595,7 @@ function syncHeroSelectionState(source, options = {}) {
     if (game.appearanceHeroId && !HERO_SELECTION_DEFS[game.appearanceHeroId]) game.appearanceHeroId = null;
     let shouldRecordSelected = !!options.recordSelected || !!game.heroSelectionInitialized || !!game.heroFreeSwitchUnlocked;
     if (shouldRecordSelected && !game.discoveredHeroIds.includes(game.selectedHeroId)) game.discoveredHeroIds.push(game.selectedHeroId);
+    if (game.heroSelectionInitialized && game.unlocks) game.unlocks.char = true;
     let unlockedBefore = !!game.heroFreeSwitchUnlocked;
     if (game.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length) game.heroFreeSwitchUnlocked = true;
     if (!unlockedBefore && game.heroFreeSwitchUnlocked) addLog('🧬 모든 캐릭터 재능을 확인했습니다. 설정에서 언제든 외형 변경이 가능합니다.', 'season-up');
@@ -3731,6 +3789,7 @@ function ensureInitialHeroSelection() {
     if (game.heroSelectionInitialized) return;
     openLoopHeroSelection((pickedId) => {
         game.heroSelectionInitialized = true;
+        if (game.unlocks) game.unlocks.char = true;
         addLog(`🧬 첫 루프 캐릭터가 정해졌습니다: ${HERO_SELECTION_DEFS[pickedId].blindLabel}`, 'season-up');
         persistHeroSelectionChange('첫 루프 캐릭터 선택');
     }, {
@@ -3792,6 +3851,10 @@ function updateSettings() {
     let damageFormatSelect = document.getElementById('sel-damage-number-format');
     let damageFormat = damageFormatSelect ? damageFormatSelect.value : game.settings.damageNumberFormat;
     game.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(damageFormat) ? damageFormat : 'comma';
+    game.settings.showExpComma = document.getElementById('chk-exp-comma').checked;
+    game.settings.showHpComma = document.getElementById('chk-hp-comma').checked;
+    game.settings.showEnemyHpComma = document.getElementById('chk-enemy-hp-comma').checked;
+    game.settings.showCharacterComma = document.getElementById('chk-character-comma').checked;
     game.settings.itemFilterEnabled = document.getElementById('chk-item-filter-enabled').checked;
     game.settings.itemFilterRarities = game.settings.itemFilterRarities || { normal: true, magic: true, rare: true, unique: true };
     game.settings.itemFilterRarities.normal = document.getElementById('chk-item-filter-normal').checked;
@@ -5440,6 +5503,25 @@ function pruneEnemyHpDamageGhostStates(activeEnemyIds) {
     });
 }
 
+
+function shouldUseCommaSetting(settingKey) {
+    return !(game && game.settings && game.settings[settingKey] === false);
+}
+
+function formatCommaNumber(value, options = {}) {
+    let amount = Number(value) || 0;
+    if (options.decimals !== undefined) return amount.toFixed(options.decimals);
+    return Math.floor(amount).toLocaleString('ko-KR');
+}
+
+function formatSettingNumber(value, settingKey, options = {}) {
+    if (!shouldUseCommaSetting(settingKey)) {
+        if (options.decimals !== undefined) return (Number(value) || 0).toFixed(options.decimals);
+        return String(Math.floor(Number(value) || 0));
+    }
+    return formatCommaNumber(value, options);
+}
+
 function formatCappedResistanceValue(appliedValue, uncappedValue) {
     let applied = Math.floor(Number(appliedValue) || 0);
     let uncapped = Number.isFinite(Number(uncappedValue)) ? Math.floor(Number(uncappedValue)) : applied;
@@ -5452,9 +5534,9 @@ function updateCombatUI(pStats) {
     if (pStats && pStats.breakdowns && !pStats.__uiFallbackStats) cachedTooltipStats = pStats;
     if (!pStats.__uiFallbackStats) game.playerHp = Math.min(game.playerHp, pStats.maxHp);
     let safeHp = Math.max(0, Number(game.playerHp) || 0);
-    setTextById('ui-hp', safeHp >= 100 ? Math.floor(safeHp) : safeHp.toFixed(1));
-    setTextById('ui-maxhp', pStats.maxHp);
-    setTextById('ui-maxhp-stat', pStats.maxHp);
+    setTextById('ui-hp', formatSettingNumber(safeHp, 'showHpComma', safeHp >= 100 ? {} : { decimals: 1 }));
+    setTextById('ui-maxhp', formatSettingNumber(pStats.maxHp, 'showHpComma'));
+    setTextById('ui-maxhp-stat', formatSettingNumber(pStats.maxHp, 'showCharacterComma'));
     let hpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
     let hpBar = document.getElementById('ui-hp-bar');
     hpBar.style.width = hpPct + '%';
@@ -5498,8 +5580,8 @@ function updateCombatUI(pStats) {
     esBar.style.zIndex = '5';
     esBar.style.width = esPct + '%';
     esBar.style.display = (pStats.energyShield || 0) > 0 ? 'block' : 'none';
-    setTextById('ui-exp', game.exp);
-    setTextById('ui-maxexp', getExpReq(game.level));
+    setTextById('ui-exp', formatSettingNumber(game.exp, 'showExpComma'));
+    setTextById('ui-maxexp', formatSettingNumber(getExpReq(game.level), 'showExpComma'));
     document.getElementById('ui-exp-bar').style.width = ((game.exp / getExpReq(game.level)) * 100) + '%';
     setTextById('ui-player-level', 'Lv.' + game.level);
     [['ui-hp', 'ui-hp-mobile'], ['ui-maxhp', 'ui-maxhp-mobile'], ['ui-exp', 'ui-exp-mobile'], ['ui-maxexp', 'ui-maxexp-mobile'], ['ui-player-level', 'ui-player-level-mobile']].forEach(([src, dst]) => {
@@ -5597,10 +5679,10 @@ function updateCombatUI(pStats) {
         document.getElementById('ui-move-bar').style.width = game.runProgress + '%';
     }
 
-    setTextById('ui-total-dps', Math.floor(pStats.totalDps || ((pStats.dps || 0) + (pStats.summonDps || 0))));
-    setTextById('ui-dps', Math.floor(pStats.directDps || pStats.dps || 0));
-    setTextById('ui-summon-dps', Math.floor(pStats.summonDps || 0));
-    document.getElementById('ui-atk').innerText = Math.floor(pStats.baseDmg);
+    setTextById('ui-total-dps', formatSettingNumber(pStats.totalDps || ((pStats.dps || 0) + (pStats.summonDps || 0)), 'showCharacterComma'));
+    setTextById('ui-dps', formatSettingNumber(pStats.directDps || pStats.dps || 0, 'showCharacterComma'));
+    setTextById('ui-summon-dps', formatSettingNumber(pStats.summonDps || 0, 'showCharacterComma'));
+    document.getElementById('ui-atk').innerText = formatSettingNumber(pStats.baseDmg, 'showCharacterComma');
     document.getElementById('ui-aps').innerText = pStats.aspd.toFixed(2);
     document.getElementById('ui-crit').innerText = pStats.crit.toFixed(1);
     document.getElementById('ui-crit-dmg').innerText = Math.floor(pStats.critDmg);
@@ -5611,9 +5693,9 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-bleed-chance').innerText = Math.max(0, pStats.bleedChance || 0).toFixed(1);
     document.getElementById('ui-move-spd').innerText = Math.floor(pStats.moveSpeed);
     document.getElementById('ui-dr').innerText = Math.floor(pStats.dr);
-    let armorEl = document.getElementById('ui-armor'); if (armorEl) armorEl.innerText = Math.floor(pStats.armor || 0);
-    let evasionEl = document.getElementById('ui-evasion'); if (evasionEl) evasionEl.innerText = Math.floor(pStats.evasion || 0);
-    let esEl = document.getElementById('ui-es'); if (esEl) esEl.innerText = Math.floor(pStats.energyShield || 0);
+    let armorEl = document.getElementById('ui-armor'); if (armorEl) armorEl.innerText = formatSettingNumber(pStats.armor || 0, 'showCharacterComma');
+    let evasionEl = document.getElementById('ui-evasion'); if (evasionEl) evasionEl.innerText = formatSettingNumber(pStats.evasion || 0, 'showCharacterComma');
+    let esEl = document.getElementById('ui-es'); if (esEl) esEl.innerText = formatSettingNumber(pStats.energyShield || 0, 'showCharacterComma');
     let blockEl = document.getElementById('ui-block-chance'); if (blockEl) blockEl.innerText = Math.max(0, Number(pStats.blockChance || 0)).toFixed(1);
     let deflectEl = document.getElementById('ui-deflect-chance'); if (deflectEl) deflectEl.innerText = Math.max(0, Number(pStats.deflectChance || 0)).toFixed(1);
     document.getElementById('ui-phys-ignore').innerText = Math.floor(pStats.physIgnore || 0);
@@ -5659,7 +5741,7 @@ function updateCombatUI(pStats) {
     if (pStats.regen > 0) document.getElementById('ui-regen').innerText = formatValue('regen', pStats.regen);
     if ((pStats.regenSuppress || 0) > 0) document.getElementById('ui-regen-suppress').innerText = formatValue('regenSuppress', pStats.regenSuppress);
     if (pStats.leech > 0) document.getElementById('ui-leech').innerText = formatValue('leech', pStats.leech);
-    if (pStats.ds > 0) document.getElementById('ui-ds').innerText = Math.floor(pStats.ds);
+    if (pStats.ds > 0) document.getElementById('ui-ds').innerText = formatSettingNumber(pStats.ds, 'showCharacterComma');
     if (pStats.gemLv > 0) document.getElementById('ui-gemlv').innerText = `+${pStats.gemLv}`;
     let specialSummaryEl = document.getElementById('ui-unique-special-summary');
     if (specialSummaryEl) {
@@ -5748,8 +5830,8 @@ function updateCombatUI(pStats) {
             let zoneNow = getZone(game.currentZoneId);
             if (zoneNow && zoneNow.type === 'woodsmanEcho') {
                 let totalDealt = Math.max(0, Math.floor((focusedEnemy.echoStartHp || focusedEnemy.maxHp || 0) - Math.max(0, focusedEnemy.hp || 0)));
-                hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${Math.floor(focusedEnemy.energyShield)} · ` : ''}${totalDealt.toLocaleString()} / ?`;
-            } else hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${Math.floor(focusedEnemy.energyShield)} · ` : ''}${Math.max(0, Math.floor(focusedEnemy.hp))}/${focusedEnemy.maxHp}`;
+                hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(totalDealt, 'showEnemyHpComma')} / ?`;
+            } else hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')}`;
         }
         if (ailmentEl) ailmentEl.innerHTML = ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음';
         if (traitEl) traitEl.innerText = `특성: ${tags.join(' · ') || '일반'}`;
@@ -5942,14 +6024,18 @@ function performUpdateStaticUI() {
     let canvas = document.getElementById('battlefield-canvas');
     let caption = document.getElementById('ui-battlefield-caption');
     let battlefieldWrap = document.getElementById('battlefield-wrap');
+    let combatDashboard = document.querySelector('.combat-dashboard');
     if (canvas) canvas.style.display = showCombatScene ? 'block' : 'none';
     if (battlefieldWrap) battlefieldWrap.classList.toggle('compressed', !showCombatScene);
+    if (combatDashboard) combatDashboard.classList.toggle('combat-scene-hidden', !showCombatScene);
     applyPanelLayoutSettings();
     if (!showCombatScene && caption) caption.innerText = '전투가 진행중입니다.';
     let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
     if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
     let loopReadyBanner = document.getElementById('loop-ready-banner');
     if (loopReadyBanner) loopReadyBanner.classList.toggle('active', !!game.pendingLoopReady);
+    let combatLoopBtn = document.getElementById('btn-combat-loop-advance');
+    if (combatLoopBtn) combatLoopBtn.style.display = canShowCombatLoopAdvanceButton() ? 'inline-flex' : 'none';
     let shrineBox = document.getElementById('ui-shrine-box');
     if (shrineBox) {
         let active = game.shrineState && game.shrineState.active;
@@ -6856,7 +6942,8 @@ function exposeUiRenderHelpersOnce() {
         closeUnderworldRuneOverlay,
         equipUnderworldRuneToSlot,
         unequipUnderworldRuneSlot,
-        showUnderworldRuneTooltip
+        showUnderworldRuneTooltip,
+        handleCombatLoopAdvanceButton
     };
     let pending = {};
     Object.keys(helpers).forEach(key => {
@@ -6867,6 +6954,31 @@ function exposeUiRenderHelpersOnce() {
     window.__uiRenderHelperGlobalsExposed = true;
 }
 exposeUiRenderHelpersOnce();
+
+
+function canShowCombatLoopAdvanceButton() {
+    if (game && (game.pendingLoopReady || game.pendingLoopDecision)) return true;
+    if (!game || (game.season || 1) < 10) return false;
+    return typeof hasCurrentLoopAbyssRequirementClear === 'function'
+        ? hasCurrentLoopAbyssRequirementClear(game.season || 1)
+        : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
+}
+
+function handleCombatLoopAdvanceButton() {
+    if (game && game.pendingLoopReady && typeof confirmLoopReady === 'function') {
+        confirmLoopReady();
+        return;
+    }
+    if (game && game.pendingLoopDecision && typeof chooseLoopAdvance === 'function') {
+        chooseLoopAdvance(true);
+        return;
+    }
+    if (canShowCombatLoopAdvanceButton() && typeof triggerSeasonReset === 'function') {
+        triggerSeasonReset();
+        return;
+    }
+    if (typeof addLog === 'function') addLog('아직 루프 진행 조건을 달성하지 못했습니다.', 'attack-monster');
+}
 
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
@@ -7054,17 +7166,29 @@ function buildCraftActionButtons(item) {
     let chaosMapCards = mapCards.filter(card => card.isChaosMap);
     let deepChaosCardHtml = getDeepChaosMapEntryHtml();
     if (deepChaosCardHtml) chaosMapCards.push({ isChaosMap: true, html: deepChaosCardHtml });
-    let mapListHtml = buildMapZoneGroupHtml('hunting', '일반 사냥터', huntingMapCards) +
-        buildMapZoneGroupHtml('chaos', '혼돈', chaosMapCards);
+    // 나무(일반 사냥터)와 혼돈을 탐험 좌측 세부 탭으로 분리해 각각의 컨테이너에 렌더링한다.
+    let mapListHtml = buildMapZoneGroupHtml('hunting', '일반 사냥터', huntingMapCards);
+    let chaosListHtml = buildMapZoneGroupHtml('chaos', '혼돈', chaosMapCards);
     if (lastRenderedMapListHtml !== mapListHtml) {
         let mapListEl = document.getElementById('ui-map-list');
         mapListEl.classList.add('map-grid--split');
         mapListEl.innerHTML = mapListHtml;
         lastRenderedMapListHtml = mapListHtml;
     }
+    let chaosMapListEl = document.getElementById('ui-chaos-map-list');
+    if (chaosMapListEl && lastRenderedChaosMapListHtml !== chaosListHtml) {
+        chaosMapListEl.classList.add('map-grid--split');
+        chaosMapListEl.innerHTML = chaosListHtml;
+        lastRenderedChaosMapListHtml = chaosListHtml;
+    }
+    setExploreSubtabAvailable('explore-chaos', chaosMapCards.length > 0);
+    setExploreSubtabAvailable('explore-beehive', (game.season || 1) >= 8);
+    setExploreSubtabAvailable('explore-voidrift', (game.season || 1) >= 9);
+    setExploreSubtabAvailable('explore-colony', (game.season || 1) >= 15);
 
     let seasonBosses = SEASON_BOSS_ZONES.filter(zone => (game.season || 1) >= (zone.reqSeason || 2));
     document.getElementById('ui-season-boss-header').style.display = seasonBosses.length > 0 ? 'block' : 'none';
+    setExploreSubtabAvailable('explore-rootboss', seasonBosses.length > 0);
     let seasonBossRepeatWrap = document.getElementById('ui-season-boss-repeat-wrap');
     let seasonBossRepeatBtn = document.getElementById('btn-season-boss-repeat');
     if (seasonBossRepeatWrap) seasonBossRepeatWrap.style.display = 'none';
@@ -7082,11 +7206,11 @@ function buildCraftActionButtons(item) {
             <div class="map-item-actions"><span class="map-zone-status">${ORB_DB[zone.key].name}: ${keys}</span></div>
         </div>`;
     }).join('');
-    rootBossListHtml += getDeepChaosMapEntryHtml();
     document.getElementById('ui-season-boss-list').innerHTML = rootBossListHtml;
 
     let labyrinthOpen = (game.season || 1) >= 3;
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
+    setExploreSubtabAvailable('explore-labyrinth', labyrinthOpen);
     if (labyrinthOpen) {
         let maxFloor = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
         document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}" onclick="enterLabyrinthPrompt()">
@@ -7104,7 +7228,8 @@ function buildCraftActionButtons(item) {
     let meteorReady = !!(game.starWedge && game.starWedge.skyRiftReady);
     let meteorGauge = Math.floor((game.starWedge && game.starWedge.skyRiftGauge) || 0);
     document.getElementById('ui-meteor-header').style.display = meteorUnlocked ? 'block' : 'none';
-    
+    setExploreSubtabAvailable('explore-meteor', meteorUnlocked);
+
     let meteorAutoBtn = document.getElementById('btn-meteor-auto-enter');
     if (meteorAutoBtn) {
         meteorAutoBtn.style.display = meteorUnlocked ? 'inline-block' : 'none';
@@ -7127,6 +7252,7 @@ function buildCraftActionButtons(item) {
         return (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id);
     });
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
+    setExploreSubtabAvailable('explore-trials', availTrials.length > 0);
 
     renderLoop9VoidRiftPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
@@ -8469,8 +8595,10 @@ function mergeDefaults(save) {
         equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
+    merged.saveMeta.lastCloudUploadProfile = normalizeCloudUploadProfile(merged.saveMeta.lastCloudUploadProfile);
     merged.unlocks.jewel = !!merged.unlocks.jewel;
     merged.unlocks.cube = !!merged.unlocks.cube;
+    if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(merged);
     if (!save.currencies && save.materials) {
         merged.currencies.transmute += Math.floor(save.materials / 2);
         merged.currencies.augment += Math.floor(save.materials / 4);
@@ -8682,6 +8810,7 @@ function mergeDefaults(save) {
     merged.codexNewlyRegistered = (merged.codexNewlyRegistered && typeof merged.codexNewlyRegistered === 'object') ? merged.codexNewlyRegistered : {};
     merged.codexCollapsedSlots = (merged.codexCollapsedSlots && typeof merged.codexCollapsedSlots === 'object') ? merged.codexCollapsedSlots : {};
     merged.codexSubtab = (merged.codexSubtab === 'realm') ? 'realm' : 'main';
+    merged.codexSelectedSlot = getCodexSlotOrder().includes(merged.codexSelectedSlot) ? merged.codexSelectedSlot : '무기';
     merged.uniqueCodexCompletedRewardClaimed = !!merged.uniqueCodexCompletedRewardClaimed;
     if (!merged.gemEnhanceUnlocked && (((merged.currencies || {}).bossCore || 0) > 0 || ((merged.currencies || {}).skyEssence || 0) > 0)) merged.gemEnhanceUnlocked = true;
     merged.inTicketBossFight = !!merged.inTicketBossFight;
@@ -8756,6 +8885,7 @@ function mergeDefaults(save) {
     }
     if ((merged.heroSelectionInitialized || merged.heroFreeSwitchUnlocked) && !merged.discoveredHeroIds.includes(merged.selectedHeroId)) merged.discoveredHeroIds.push(merged.selectedHeroId);
     merged.heroFreeSwitchUnlocked = !!merged.heroFreeSwitchUnlocked || merged.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length;
+    if (merged.heroSelectionInitialized && merged.unlocks) merged.unlocks.char = true;
     if (!merged.heroFreeSwitchUnlocked) merged.appearanceHeroId = null;
     merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
     merged.abyssPassivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.abyssPassivePoints, defaultGame.abyssPassivePoints, 0)));
@@ -8804,6 +8934,10 @@ function mergeDefaults(save) {
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
     merged.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(merged.settings.damageNumberFormat) ? merged.settings.damageNumberFormat : 'comma';
+    merged.settings.showExpComma = merged.settings.showExpComma !== false;
+    merged.settings.showHpComma = merged.settings.showHpComma !== false;
+    merged.settings.showEnemyHpComma = merged.settings.showEnemyHpComma !== false;
+    merged.settings.showCharacterComma = merged.settings.showCharacterComma !== false;
     merged.settings.notiFilters = { ...(defaultGame.settings.notiFilters || {}), ...(merged.settings.notiFilters || {}) };
     merged.playerHp = Math.max(0, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 0)));
     merged.playerEnergyShield = Math.max(0, Math.floor(clampFiniteNumber(merged.playerEnergyShield, defaultGame.playerEnergyShield, 0))); 
@@ -9752,6 +9886,7 @@ function updateCloudSaveUI() {
     let userEl = document.getElementById('ui-cloud-user');
     let localEl = document.getElementById('ui-cloud-local-save');
     let remoteEl = document.getElementById('ui-cloud-remote-save');
+    let uploadProfileEl = document.getElementById('ui-cloud-upload-profile');
     let msgEl = document.getElementById('ui-cloud-message');
     let openGateBtn = document.getElementById('btn-cloud-open-gate');
     let switchGateBtn = document.getElementById('btn-cloud-return-startup');
@@ -9808,6 +9943,7 @@ function updateCloudSaveUI() {
     if (userEl) userEl.innerText = cloudState.user && cloudState.user.email ? cloudState.user.email : (cloudState.user && cloudState.user.id ? cloudState.user.id : (config.enabled ? '로그인 안 됨' : '설정 필요'));
     if (localEl) localEl.innerText = formatCloudTime(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0);
     if (remoteEl) remoteEl.innerText = formatCloudTime(cloudState.lastRemoteUpdatedAt || (game && game.saveMeta ? game.saveMeta.lastCloudSyncAt : 0));
+    if (uploadProfileEl) uploadProfileEl.innerText = formatCloudUploadProfile(game && game.saveMeta ? game.saveMeta.lastCloudUploadProfile : null);
     let identitiesEl = document.getElementById('ui-cloud-identities');
     if (identitiesEl) {
         let providers = Array.isArray(cloudState.linkedProviders) ? cloudState.linkedProviders : [];
@@ -9819,6 +9955,35 @@ function updateCloudSaveUI() {
     }
     if (msgEl) msgEl.innerText = cloudState.lastMessage || '대기 중';
     updateStartupScreenUI();
+}
+
+function normalizeCloudUploadProfile(profile) {
+    if (!profile || typeof profile !== 'object') return null;
+    return {
+        at: Math.max(0, Math.floor(Number(profile.at) || 0)),
+        fetchMs: Math.max(0, Math.floor(Number(profile.fetchMs) || 0)),
+        serializeMs: Math.max(0, Math.floor(Number(profile.serializeMs) || 0)),
+        uploadMs: Math.max(0, Math.floor(Number(profile.uploadMs) || 0)),
+        totalMs: Math.max(0, Math.floor(Number(profile.totalMs) || 0)),
+        payloadBytes: Math.max(0, Math.floor(Number(profile.payloadBytes) || 0))
+    };
+}
+
+function formatCloudUploadProfile(profile) {
+    let normalized = normalizeCloudUploadProfile(profile);
+    if (!normalized || normalized.totalMs <= 0) return '없음';
+    let sizeKb = (normalized.payloadBytes / 1024).toFixed(1);
+    return `${normalized.totalMs}ms (조회 ${normalized.fetchMs}ms · 직렬화 ${normalized.serializeMs}ms · 전송 ${normalized.uploadMs}ms · ${sizeKb}KB)`;
+}
+
+function rememberCloudUploadProfile(profile) {
+    let normalized = normalizeCloudUploadProfile(profile);
+    if (!normalized) return null;
+    ensureSaveMeta();
+    normalized.at = normalized.at || Date.now();
+    game.saveMeta.lastCloudUploadProfile = normalized;
+    cloudState.lastSyncProfile = normalized;
+    return normalized;
 }
 
 function applyExternalSave(snapshot, sourceStamp) {
@@ -10065,8 +10230,8 @@ async function pushCloudSave(options = {}) {
     let serializeMs = Math.max(0, tSerialize - tFetch);
     let uploadMs = Math.max(0, tUpload - tSerialize);
     let totalMs = Math.max(0, tUpload - t0);
-    cloudState.lastSyncProfile = { fetchMs, serializeMs, uploadMs, totalMs, payloadBytes: payloadSize };
-    if (typeof addLog === 'function' && !options.automatic) addLog(`☁️ 업로드 시간 ${totalMs}ms (조회 ${fetchMs}ms · 직렬화 ${serializeMs}ms · 전송 ${uploadMs}ms · ${(payloadSize/1024).toFixed(1)}KB)`, 'attack-monster', { noToast: true });
+    rememberCloudUploadProfile({ at: syncedAt, fetchMs, serializeMs, uploadMs, totalMs, payloadBytes: payloadSize });
+    persistLocalSave({ touchModifiedAt: false });
     updateCloudSaveUI();
     return row;
 }
@@ -10498,19 +10663,30 @@ async function cloudCompactAndPushNow() {
         ensureSaveMeta();
         game.saveMeta.lastModifiedAt = Date.now();
         persistLocalSave({ touchModifiedAt: false });
+        let t0 = Date.now();
         let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
         let payloadBytes = JSON.stringify(payload).length;
+        let tSerialize = Date.now();
         let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
             method: 'POST',
             headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
             body: { user_id: cloudState.user.id, save_data: payload }
         });
+        let tUpload = Date.now();
         let row = Array.isArray(rows) ? rows[0] : null;
         let syncedAt = row && row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
         game.saveMeta.lastCloudSyncAt = syncedAt;
         cloudState.lastRemoteUpdatedAt = syncedAt;
         cloudState.lastSyncAttemptAt = Date.now();
         cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
+        rememberCloudUploadProfile({
+            at: syncedAt,
+            fetchMs: 0,
+            serializeMs: Math.max(0, tSerialize - t0),
+            uploadMs: Math.max(0, tUpload - tSerialize),
+            totalMs: Math.max(0, tUpload - t0),
+            payloadBytes
+        });
         persistLocalSave({ touchModifiedAt: false });
         setCloudMessage(`경량화 업로드 완료 (${(payloadBytes / 1024).toFixed(1)}KB)`);
         addLog(`☁️ 경량화 클라우드 저장 완료 (${(payloadBytes / 1024).toFixed(1)}KB)`, 'loot-magic');
@@ -10694,6 +10870,10 @@ function init() {
     document.getElementById('chk-mobile-battle-pip').checked = game.settings.showMobileBattlePip !== false;
     document.getElementById('chk-pause-overlay').checked = !!game.settings.pauseGameOnOverlay;
     document.getElementById('sel-damage-number-format').value = ['comma', 'korean', 'korean_short', 'english'].includes(game.settings.damageNumberFormat) ? game.settings.damageNumberFormat : 'comma';
+    document.getElementById('chk-exp-comma').checked = game.settings.showExpComma !== false;
+    document.getElementById('chk-hp-comma').checked = game.settings.showHpComma !== false;
+    document.getElementById('chk-enemy-hp-comma').checked = game.settings.showEnemyHpComma !== false;
+    document.getElementById('chk-character-comma').checked = game.settings.showCharacterComma !== false;
     game.settings.itemFilterRarities = { normal: true, magic: true, rare: true, unique: true, ...(game.settings.itemFilterRarities || {}) };
     document.getElementById('chk-item-filter-enabled').checked = !!game.settings.itemFilterEnabled;
     document.getElementById('chk-item-filter-normal').checked = game.settings.itemFilterRarities.normal !== false;

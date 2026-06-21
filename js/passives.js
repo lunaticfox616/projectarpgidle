@@ -1724,6 +1724,23 @@ function getConstellationDesirability(buff) {
     return (weights[buff.stat] || 1) * Math.max(0, Number(buff.val || 0));
 }
 
+function getSkyRiftGaugeTierCap(st) {
+    return st && st.skyRiftAllCosmos ? 40 : 20;
+}
+
+function getSkyRiftGaugeEffectiveTier(zone, st) {
+    let tier = Math.max(1, Math.floor((zone && zone.tier) || 1));
+    return Math.min(getSkyRiftGaugeTierCap(st), tier);
+}
+
+function getSkyRiftGaugeGain(zone, enemy, st) {
+    let baseGain = enemy && enemy.isBoss ? 3.8 : (enemy && enemy.isElite ? 1.6 : 0.35);
+    let effectiveTier = getSkyRiftGaugeEffectiveTier(zone, st);
+    let gain = baseGain * Math.max(1, effectiveTier);
+    if (typeof getExpertNodeEffectValue === 'function') gain *= (1 + (Math.max(0, getExpertNodeEffectValue('meteorGaugeGainPct')) / 100));
+    return gain;
+}
+
 function gainSkyRiftGaugeFromCombat(zone, enemy) {
     let st = ensureStarWedgeState();
     let astroLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('astronomer') || 1)) : 1;
@@ -1736,15 +1753,13 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
         st.skyRiftMinTier = null;
     }
     if (zone.type !== 'cosmos') st.skyRiftAllCosmos = false;
-    let gain = enemy && enemy.isBoss ? 3.8 : (enemy && enemy.isElite ? 1.6 : 0.35);
-    if (typeof getExpertNodeEffectValue === 'function') gain *= (1 + (Math.max(0, getExpertNodeEffectValue('meteorGaugeGainPct')) / 100));
+    let gain = getSkyRiftGaugeGain(zone, enemy, st);
     if (astroLv >= 2 && Math.random() < (enemy && enemy.isElite ? 0.035 : 0.006)) awardCurrency('starDust', 1);
     triggerAstronomerAnomaly(zone, enemy);
     let nextGauge = (st.skyRiftGauge || 0) + gain;
     st.skyRiftGauge = clampNumber(nextGauge, 0, 100);
-    let tier = Math.max(1, Math.floor(zone.tier || 1));
+    let tier = getSkyRiftGaugeEffectiveTier(zone, st);
     st.skyRiftMinTier = Number.isFinite(st.skyRiftMinTier) ? Math.min(st.skyRiftMinTier, tier) : tier;
-    if (!st.skyRiftAllCosmos) st.skyRiftMinTier = Math.min(20, Math.floor(st.skyRiftMinTier || 20));
     if (st.skyRiftGauge >= 100 && !st.skyRiftReady) {
         let overflow = Math.max(0, nextGauge - 100);
         st.skyRiftGauge = 100;
@@ -5637,14 +5652,13 @@ function registerUniqueToCodexOnAcquire(item) {
     // 이미 옵션까지 기록된 경우 첫 등록 기록을 유지한다(루프 리셋 후 정보만 남은 경우는 다시 채움).
     if (existing && existing.baseName) return false;
     game.uniqueCodex[key] = JSON.parse(JSON.stringify(item));
-    game.codexNewlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
     let firstTime = !existing;
+    if (!firstTime) return true;
+    game.codexNewlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
     game.codexNewlyRegistered[key] = true;
     if (game.noti) game.noti.codex = true;
-    if (firstTime) {
-        addLog(`📚 도감 신규 등록: <span class='loot-unique'>[${item.name}]</span>`, 'loot-unique');
-        if (typeof tryGrantCodexCompletionReward === 'function') tryGrantCodexCompletionReward();
-    }
+    addLog(`📚 도감 신규 등록: <span class='loot-unique'>[${item.name}]</span>`, 'loot-unique');
+    if (typeof tryGrantCodexCompletionReward === 'function') tryGrantCodexCompletionReward();
     return true;
 }
 
