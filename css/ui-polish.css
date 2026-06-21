@@ -486,6 +486,20 @@ input[data-search-key]:focus {
   border-width: 2px;
 }
 
+/* 탐험 세로탭은 설명 없이 이름만 노출하므로 버튼을 작고 가운데 정렬로 정돈한다. */
+.vertical-tab-layout.map-explore-layout {
+  grid-template-columns: minmax(120px, 150px) minmax(0, 1fr);
+}
+.map-explore-layout .vertical-tab-btn {
+  min-height: 0;
+  padding: 8px 10px;
+  text-align: center;
+  justify-items: center;
+}
+.map-explore-layout .vertical-tab-btn span {
+  font-size: 1em;
+}
+
 .map-explore-layout .vertical-tab-btn.active,
 .codex-vertical-layout .vertical-tab-btn.active {
   border-color: #ffd36b;
