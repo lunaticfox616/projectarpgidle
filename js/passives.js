@@ -1774,19 +1774,9 @@ function advanceOceanDiveFromKill(zone) {
     // 팩(웨이브) 전체를 클리어했을 때만 호출됩니다 (개별 몬스터 처치마다 호출되지 않음).
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
-    if (zone.oceanBossWave) {
-        // 500m 경계 보스는 처치해야만 그 지점이 체크포인트(수중 리프트)로 저장됩니다.
-        let boundary = Math.max(0, Math.floor(zone.oceanBossBoundary || 0));
-        st.bossClearM = Math.max(Math.floor(st.bossClearM || 0), boundary);
-        st.checkpointM = Math.max(Math.floor(st.checkpointM || 0), boundary);
-        st.depthM = boundary + 1;
-        addLog(`🛗 수중 리프트 ${boundary}m 지점이 개방되었습니다. (수압 경계 보스 격파)`, 'loot-rare');
-        awardCurrency('oceanRerollShard', 1);
-    } else {
-        // 수심은 전투 진행도(웨이브 클리어)가 아니라 시간에 따라 꾸준히 증가한다(tickOceanDepth 참고).
-        // 웨이브 클리어 시에는 부수 보상(암초 조각)만 처리한다.
-        if (Math.random() < 0.06) awardCurrency('reefFragment', 1);
-    }
+    // 수심은 전투 진행도(웨이브 클리어)가 아니라 시간에 따라 꾸준히 증가한다(tickOceanDepth 참고).
+    // 웨이브 클리어 시에는 부수 보상(암초 조각)만 처리한다.
+    if (Math.random() < 0.06) awardCurrency('reefFragment', 1);
     st.pressureLevel = getOceanDepthTier(st.depthM);
     let pressureCrushAlive = (game.enemies || []).some(e => e && e.hp > 0 && e.trait && e.trait.oceanPressureGainMul);
     if (pressureCrushAlive) st.pressureLevel = Math.ceil(st.pressureLevel * 1.1);
@@ -1808,7 +1798,7 @@ function consumeOceanOxygenOnAttack() {
 function gainOceanFishingGaugeFromCombat(zone) {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
-    let gain = (zone && zone.oceanBossWave ? 6 : 1.4) * getOceanFishingGaugeGainMul();
+    let gain = 1.4 * getOceanFishingGaugeGainMul();
     let nextGauge = (st.fishingGauge || 0) + gain;
     st.fishingGauge = clampNumber(nextGauge, 0, 100);
     if (st.fishingGauge >= 100) {
@@ -1838,6 +1828,53 @@ function catchOceanFish(depthTier) {
     let st = ensureOceanState();
     st.fishStock[picked] = Math.max(0, Math.floor(st.fishStock[picked] || 0)) + 1;
     addLog(`🐟 ${OCEAN_FISH_DB[picked].name}을(를) 낚았습니다!`, 'loot-magic');
+}
+
+
+function getOceanPermanentUpgradeCost(key) {
+    let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
+    if (!def) return null;
+    let level = getOceanPermanentUpgradeLevel(key);
+    if (level >= def.maxLevel) return null;
+    let nextLevel = level + 1;
+    return {
+        skyEssence: 4 + nextLevel * 2,
+        oceanRerollShard: 1 + Math.floor(nextLevel / 3),
+        reefFragment: 2 + Math.floor(nextLevel / 2),
+        bossCore: nextLevel % 3 === 0 ? Math.max(1, Math.floor(nextLevel / 3)) : 0
+    };
+}
+function getOceanUpgradeCostText(cost) {
+    if (!cost) return '최대';
+    return Object.keys(cost)
+        .filter(key => (cost[key] || 0) > 0)
+        .map(key => `${ORB_DB[key] ? ORB_DB[key].name : key} ${cost[key]}`)
+        .join(' / ');
+}
+function canPayOceanUpgradeCost(cost) {
+    if (!cost) return false;
+    return Object.keys(cost).every(key => (game.currencies[key] || 0) >= (cost[key] || 0));
+}
+function payOceanUpgradeCost(cost) {
+    Object.keys(cost).forEach(key => {
+        game.currencies[key] = Math.max(0, (game.currencies[key] || 0) - (cost[key] || 0));
+    });
+}
+function upgradeOceanPermanent(key) {
+    let st = ensureOceanState();
+    let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
+    if (!def) return false;
+    let cost = getOceanPermanentUpgradeCost(key);
+    if (!cost) return addLog(`${def.label} 업그레이드는 이미 최대 단계입니다.`, 'attack-monster');
+    if (!canPayOceanUpgradeCost(cost)) return addLog(`${def.label} 업그레이드 재료가 부족합니다. (필요: ${getOceanUpgradeCostText(cost)})`, 'attack-monster');
+    payOceanUpgradeCost(cost);
+    st.permanentUpgrades[key] = getOceanPermanentUpgradeLevel(key) + 1;
+    st.oxygenMax = Math.max(1, Math.floor(getOceanOxygenMax()));
+    st.oxygenCur = Math.min(st.oxygenMax, (st.oxygenCur || 0) + (key === 'oxygenMax' ? def.valuePerLevel : 0));
+    addLog(`🌊 심해 영구 업그레이드: ${def.label} Lv.${st.permanentUpgrades[key]} 달성`, 'loot-rare');
+    updateStaticUI();
+    queueImportantSave(200);
+    return true;
 }
 
 function installOceanReefFragment() {
@@ -1926,17 +1963,14 @@ function tickOceanOxygen(nowMs) {
     tickOceanDepth(st, dtSec);
 }
 
-// 수심을 시간에 따라 꾸준히 증가시킨다. 500m 수압 경계 보스를 잡기 전까지는 그 경계에서 멈춘다.
+// 수심을 시간에 따라 꾸준히 증가시킨다.
 function tickOceanDepth(st, dtSec) {
     if (!st || !(dtSec > 0)) return;
-    // 다음 수압 경계(보스) 전까지만 전진. 경계 보스를 잡으면 bossClearM 이 갱신되어 계속 내려간다.
-    let pendingBoss = (typeof getOceanPendingBossBoundary === 'function') ? getOceanPendingBossBoundary(st) : 0;
-    if (pendingBoss > 0) return; // 경계 보스 대기 중에는 수심이 멈춘다.
-    let nextBoundary = Math.floor(Math.max(0, Math.floor(st.bossClearM || 0)) / 500) * 500 + 500;
+    let nextBoundary = Infinity;
     let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
     let gearDepthGainPct = 0;
     try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
-    let depthPerSec = 2 * speedBonus * (1 + gearDepthGainPct / 100);
+    let depthPerSec = 3 * speedBonus * (1 + gearDepthGainPct / 100);
     let curDepth = Math.max(0, Number(st.depthM) || 0);
     let newDepth = Math.min(nextBoundary, curDepth + depthPerSec * dtSec);
     if (newDepth <= curDepth) return;

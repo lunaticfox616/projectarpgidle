@@ -141,6 +141,13 @@ function isUnderworldUnlockedPermanent() {
 }
 
 
+const OCEAN_PERMANENT_UPGRADE_DEFS = {
+    oxygenMax: { label: '산소 최대치', maxLevel: 20, valuePerLevel: 10, unit: '', desc: '잠수 시작 산소와 최대 산소가 증가합니다.' },
+    oxygenSaving: { label: '산소 소모 감소', maxLevel: 20, valuePerLevel: 3, unit: '%', desc: '시간 경과와 공격으로 소모되는 산소가 감소합니다.' },
+    pressureResist: { label: '수압 패널티 감소', maxLevel: 20, valuePerLevel: 4, unit: '%', desc: '심해 수압으로 인한 공속/피해/이속 감소가 완화됩니다.' }
+};
+const OCEAN_PERMANENT_UPGRADE_KEYS = Object.keys(OCEAN_PERMANENT_UPGRADE_DEFS);
+
 const OCEAN_CURRENT_POOL = [
     { id: 'cold_current', name: '냉수층', desc: '냉기 저항 감소' },
     { id: 'warm_current', name: '온수층', desc: '화염 저항 감소' },
@@ -173,8 +180,26 @@ function createDefaultOceanState() {
         fishStock: {},
         diving: false,
         lastTickAt: 0,
-        bossClearM: 0
+        bossClearM: 0,
+        permanentUpgrades: { oxygenMax: 0, oxygenSaving: 0, pressureResist: 0 }
     };
+}
+function getOceanPermanentUpgradeLevel(key) {
+    let upgrades = (game && game.ocean && game.ocean.permanentUpgrades && typeof game.ocean.permanentUpgrades === 'object') ? game.ocean.permanentUpgrades : {};
+    let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
+    if (!def) return 0;
+    return Math.max(0, Math.min(def.maxLevel, Math.floor(upgrades[key] || 0)));
+}
+function getOceanPermanentUpgradeEffect(key) {
+    let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
+    if (!def) return 0;
+    return getOceanPermanentUpgradeLevel(key) * def.valuePerLevel;
+}
+function ensureOceanPermanentUpgrades(st) {
+    st.permanentUpgrades = (st.permanentUpgrades && typeof st.permanentUpgrades === 'object') ? st.permanentUpgrades : {};
+    OCEAN_PERMANENT_UPGRADE_KEYS.forEach(key => {
+        st.permanentUpgrades[key] = Math.max(0, Math.min(OCEAN_PERMANENT_UPGRADE_DEFS[key].maxLevel, Math.floor(st.permanentUpgrades[key] || 0)));
+    });
 }
 function ensureOceanState() {
     let st = (game && game.ocean && typeof game.ocean === 'object') ? game.ocean : (game.ocean = createDefaultOceanState());
@@ -182,6 +207,7 @@ function ensureOceanState() {
     st.depthM = Math.max(0, Math.floor(st.depthM || 0));
     st.checkpointM = Math.max(0, Math.floor(st.checkpointM || 0));
     st.bossClearM = Math.max(0, Math.floor(st.bossClearM || 0));
+    ensureOceanPermanentUpgrades(st);
     st.oxygenMax = Math.max(1, Math.floor(getOceanOxygenMax()));
     st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, Number.isFinite(st.oxygenCur) ? st.oxygenCur : st.oxygenMax));
     st.pressureLevel = Math.max(0, Math.floor(st.pressureLevel || 0));
@@ -198,12 +224,18 @@ function canEnterOceanDepth() {
     return !!ensureOceanState().unlocked;
 }
 function getOceanOxygenMax() {
-    // 산소 최대치는 플레이어 스펙과 무관한 고정 수치입니다.
-    return 100;
+    // 산소 최대치는 영구 심해 업그레이드로만 증가합니다.
+    return 100 + getOceanPermanentUpgradeEffect('oxygenMax');
+}
+function getOceanOxygenSavingPct() {
+    return Math.max(0, Math.min(60, getOceanPermanentUpgradeEffect('oxygenSaving')));
+}
+function getOceanPressureResistUpgradePct() {
+    return Math.max(0, Math.min(80, getOceanPermanentUpgradeEffect('pressureResist')));
 }
 function getOceanOxygenDrainPerSec() {
     // 기본 시간당 감소량은 고정이되, 이동 속도가 높을수록 더 빠르게 감소합니다.
-    let base = 1;
+    let base = 0.5 * (1 - getOceanOxygenSavingPct() / 100);
     let moveSpeed = 100;
     try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) { console.warn('failed to read movement speed for map progress:', e); }
     let moveRatio = Math.max(0.5, Math.min(4, moveSpeed / 100));
@@ -211,18 +243,14 @@ function getOceanOxygenDrainPerSec() {
 }
 function getOceanOxygenPerAttackCost() {
     // 공격 1회마다 소모되는 고정 산소량입니다.
-    return 0.5;
+    return 0.25 * (1 - getOceanOxygenSavingPct() / 100);
 }
 function getOceanDepthTier(depthM) {
     return Math.floor(Math.max(0, Math.floor(depthM || 0)) / 100);
 }
 function getOceanPendingBossBoundary(st) {
-    // 500m 단위마다 보스가 막아서며, 그 보스를 잡아야 체크포인트가 그 지점으로 갱신됩니다.
-    let depthM = Math.max(0, Math.floor(st.depthM || 0));
-    let boundary = Math.floor(depthM / 500) * 500;
-    if (boundary <= 0) return 0;
-    if (boundary <= Math.max(0, Math.floor(st.bossClearM || 0))) return 0;
-    return boundary;
+    // 심해는 특정 구역/경계 보스 없이 시간에 따라 계속 깊어지는 연속 수심 콘텐츠입니다.
+    return 0;
 }
 function getOceanMoveSpeedDepthBonus() {
     // 이동 속도가 빠를수록 산소 소모는 늘지만, 그만큼 한 번에 더 깊이 전진할 수 있도록 보정합니다.
@@ -434,9 +462,7 @@ function getZone(id) {
         let ocean = ensureOceanState();
         let depthM = Math.max(0, Math.floor(ocean.depthM || 0));
         let depthTier = getOceanDepthTier(depthM);
-        let bossBoundary = getOceanPendingBossBoundary(ocean);
-        let isBossWave = bossBoundary > 0;
-        return { id: OCEAN_ZONE_ID, name: isBossWave ? `심해 ${depthM}m (수압 경계 보스)` : `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier), oceanBossWave: isBossWave, oceanBossBoundary: bossBoundary };
+        return { id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) };
     }
     if (id === LABYRINTH_ZONE_ID) {
         let floor = Math.max(1, game.labyrinthFloor || 1);
@@ -1375,7 +1401,7 @@ let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 let lastRenderedChaosMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenDrainPerSec, getOceanDepthTier, getOceanFishingGaugeGainMul });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.
 
