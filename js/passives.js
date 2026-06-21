@@ -1770,7 +1770,7 @@ function advanceOceanDiveFromKill(zone) {
     } else {
         let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
         let gearDepthGainPct = 0;
-        try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) {}
+        try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
         let depthGain = Math.max(1, Math.round((3 + Math.random() * 4) * speedBonus * (1 + gearDepthGainPct / 100)));
         let curDepth = Math.max(0, Math.floor(st.depthM || 0));
         let nextBoundary = Math.floor(curDepth / 500) * 500 + 500;
@@ -1793,7 +1793,7 @@ function consumeOceanOxygenOnAttack() {
     if (!st.unlocked || !st.diving) return;
     let cost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0.5;
     let savingPct = 0;
-    try { if (typeof getPlayerStats === 'function') savingPct = Math.max(0, Math.min(90, Number(getPlayerStats().oceanOxygenAttackSavingPct) || 0)); } catch (e) {}
+    try { if (typeof getPlayerStats === 'function') savingPct = Math.max(0, Math.min(90, Number(getPlayerStats().oceanOxygenAttackSavingPct) || 0)); } catch (e) { console.warn('failed to read ocean oxygen saving stat:', e); }
     cost *= (1 - savingPct / 100);
     st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, (st.oxygenCur || 0) - cost));
     if (st.oxygenCur <= 0) forceSurfaceOcean('oxygen');
@@ -1816,7 +1816,7 @@ function catchOceanFish(depthTier) {
     let eligible = Object.keys(OCEAN_FISH_DB).filter(key => (OCEAN_FISH_DB[key].depthTier || 0) <= safeTier);
     if (eligible.length === 0) return;
     let rareChanceBonusPct = 0;
-    try { if (typeof getPlayerStats === 'function') rareChanceBonusPct = Math.max(0, Number(getPlayerStats().oceanRareFishChancePct) || 0); } catch (e) {}
+    try { if (typeof getPlayerStats === 'function') rareChanceBonusPct = Math.max(0, Number(getPlayerStats().oceanRareFishChancePct) || 0); } catch (e) { console.warn('failed to read ocean rare fish chance stat:', e); }
     let weights = eligible.map(key => {
         let rareWeight = Number.isFinite(OCEAN_FISH_DB[key].rareWeight) ? OCEAN_FISH_DB[key].rareWeight : 1;
         if (rareWeight < 1) rareWeight *= (1 + rareChanceBonusPct / 100);

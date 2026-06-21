@@ -40,7 +40,7 @@ assert(!ui.includes('safeExposeGlobals({ buildJewelRangeTooltipHtml'), 'legacy j
 assert(ui.includes('getVoidJewelCraftMaterialIndices().length < 2'), 'void jewel craft button must use eligible material count, not raw inventory size');
 assert(/js\/passives\.js\?v=[^"']+/.test(index), 'passives cache buster must be versioned for passive/runtime fixes');
 assert(/js\/ui\.js\?v=[^"']+/.test(index), 'ui cache buster must be versioned for UI fixes');
-assert(index.includes('data/skills.js?v=20260608-flame-socket2'), 'skill data cache buster must include latest flame decay data');
+assert(index.includes('data/skills.js?v=20260621-vertical-tabs1'), 'skill data cache buster must include latest skill data');
 assert(/js\/combat\.js\?v=[^"']+/.test(index), 'combat script must use a versioned cache buster');
 
 function loadSocketRuntime() {

@@ -2179,10 +2179,23 @@ function upgradeUnderworldRune(fromNo) {
 function switchMapSubtab(subtabId) {
     game.mapSubtab = subtabId;
     document.querySelectorAll('#tab-map .subtab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('#tab-map .subtab-btn').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#tab-map .map-primary-tabs .subtab-btn').forEach(el => el.classList.remove('active'));
     let panel = document.getElementById(subtabId);
     let btn = document.getElementById('btn-' + subtabId);
     if (panel) panel.classList.add('active');
+    if (btn) btn.classList.add('active');
+    if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+}
+
+function switchMapExploreSubtab(subtabId) {
+    const fallback = 'map-explore-hunting';
+    const panel = document.getElementById(subtabId) ? document.getElementById(subtabId) : document.getElementById(fallback);
+    const activeId = panel ? panel.id : fallback;
+    game.mapExploreSubtab = activeId;
+    document.querySelectorAll('#map-tab-zones .vertical-tab-panel').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#map-tab-zones .vertical-tab-btn').forEach(el => el.classList.remove('active'));
+    if (panel) panel.classList.add('active');
+    let btn = document.getElementById('btn-' + activeId);
     if (btn) btn.classList.add('active');
 }
 function enterLabyrinthFloor(floor){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
@@ -3063,6 +3076,7 @@ function renderUniqueCodexUI() {
     game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
     game.codexSubtab = (game.codexSubtab === 'realm') ? 'realm' : 'main';
     let realmOnly = game.codexSubtab === 'realm';
+    syncCodexSubtabButtons();
     let pool = UNIQUE_DB.filter(entry => realmOnly ? !!entry.realmCodexOnly : !entry.realmCodexOnly);
     let keySet = new Set(pool.map(entry => `${entry.slots[0]}|${entry.name}`));
     let storedCount = Object.keys(game.uniqueCodex).filter(key => !!game.uniqueCodex[key] && keySet.has(key)).length;
@@ -3093,8 +3107,17 @@ function renderUniqueCodexUI() {
     });
     listEl.innerHTML = lines.join('');
 }
+function syncCodexSubtabButtons() {
+    const activeTab = game.codexSubtab === 'realm' ? 'realm' : 'main';
+    ['main', 'realm'].forEach(tab => {
+        let btn = document.getElementById('btn-codex-' + tab);
+        if (btn) btn.classList.toggle('active', tab === activeTab);
+    });
+}
+
 function setCodexSubtab(tab) {
     game.codexSubtab = (tab === 'realm') ? 'realm' : 'main';
+    syncCodexSubtabButtons();
     updateStaticUI();
 }
 
@@ -3745,6 +3768,11 @@ window.addEventListener('project-idle:loop-hero-selection-completed', event => {
 });
 
 window.addEventListener('project-idle:loop-rewrite-started', playLoopRewriteEffect);
+
+window.addEventListener('project-idle:talent-tab-refresh-requested', () => {
+    let talentTab = document.getElementById('tab-talent');
+    if (typeof renderTalentTab === 'function' && talentTab && talentTab.classList.contains('active')) renderTalentTab();
+});
 
 function updateSettings() {
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
@@ -7654,6 +7682,7 @@ function buildCraftActionButtons(item) {
     renderSkillAutoRulePanel();
     switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
     switchMapSubtab(game.mapSubtab || 'map-tab-zones');
+    switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
 }
 
 
@@ -8605,7 +8634,8 @@ function mergeDefaults(save) {
     merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
     merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
-    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
+    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
+    merged.mapExploreSubtab = ['map-explore-hunting', 'map-explore-root-boss', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-hunting';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
