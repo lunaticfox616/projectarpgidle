@@ -1901,7 +1901,8 @@ function renderOceanDepthMapPanel() {
     let depthTier = getOceanDepthTier(st.depthM);
     panel.innerHTML = `<div class="sky-tower-head">
         <div>
-            <div class="sky-tower-title">🌊 심해 잠수</div>
+            <div class="sky-tower-title">🌊 심해 잠수 <span style="color:#ffce6b; font-size:0.7em; border:1px solid #ffce6b; border-radius:4px; padding:1px 5px; vertical-align:middle;">⚠ 테스트 중</span></div>
+            <div class="sky-tower-sub" style="color:#ffce6b;">⚠ 현재 테스트 중인 컨텐츠입니다. 밸런스·보상·기능이 예고 없이 변경되거나 초기화될 수 있습니다.</div>
             <div class="sky-tower-sub">수심이 깊어질수록 수압 디버프(공속/피해/이동속도 감소)가 강해지고, 산소가 다 떨어지면 마지막 체크포인트로 강제 귀환합니다.</div>
         </div>
         ${st.diving ? `<button onclick="forceSurfaceOcean('manual'); changeZone(Math.max(0, game.maxZoneId || 0)); updateStaticUI();">수면으로 복귀</button>` : `<button onclick="enterOceanDive(); changeZone(OCEAN_ZONE_ID); updateStaticUI();">잠수 시작 (${st.checkpointM}m부터)</button>`}
@@ -1946,7 +1947,8 @@ function renderSeaGiftPanel() {
     let ultraRareIds = new Set(['tidelordKoi', 'prismaticHorror', 'kingLeviathan']);
     let normalRecipes = SEA_GIFT_RECIPES.filter(r => !Object.keys(r.requires).some(key => ultraRareIds.has(key)));
     let ultraRecipes = SEA_GIFT_RECIPES.filter(r => Object.keys(r.requires).some(key => ultraRareIds.has(key)));
-    panel.innerHTML = `<div style="color:#8fe3ff; font-weight:bold; margin:4px 0;">일반 레시피</div>`
+    panel.innerHTML = `<div style="color:#ffce6b; font-size:0.85em; border:1px solid #ffce6b; border-radius:4px; padding:4px 8px; margin:4px 0;">⚠ 테스트 중인 컨텐츠입니다. 레시피 효과·재료·밸런스가 예고 없이 변경될 수 있습니다.</div>`
+        + `<div style="color:#8fe3ff; font-weight:bold; margin:4px 0;">일반 레시피</div>`
         + normalRecipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('')
         + `<div style="color:#ffce6b; font-weight:bold; margin:10px 0 4px;">초강력 레시피 (초희귀 어종 필요)</div>`
         + ultraRecipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('');
