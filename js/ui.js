@@ -7211,7 +7211,7 @@ function buildCraftActionButtons(item) {
     let deepChaosCardHtml = getDeepChaosMapEntryHtml();
     if (deepChaosCardHtml) chaosMapCards.push({ isChaosMap: true, html: deepChaosCardHtml });
     // 나무(일반 사냥터)와 혼돈을 탐험 좌측 세부 탭으로 분리해 각각의 컨테이너에 렌더링한다.
-    let mapListHtml = buildMapZoneGroupHtml('hunting', '일반 사냥터', huntingMapCards);
+    let mapListHtml = buildMapZoneGroupHtml('hunting', '일반 나무', huntingMapCards);
     let chaosListHtml = buildMapZoneGroupHtml('chaos', '혼돈', chaosMapCards);
     if (lastRenderedMapListHtml !== mapListHtml) {
         let mapListEl = document.getElementById('ui-map-list');
@@ -7263,7 +7263,7 @@ function buildCraftActionButtons(item) {
         </div><div class="map-item-actions"><span class="map-zone-status">해금 최고층: ${maxFloor}층 · 클릭하여 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-labyrinth-list').innerHTML = '';
 
-    // 혼돈 심화 입장은 사냥터 선택의 혼돈 카드 목록으로 노출한다.
+    // 혼돈 심화 입장은 혼돈 탭의 카드 목록으로 노출한다.
     // 기존 전용 섹션/사이드 탭은 중복 표시를 피하기 위해 비우고 숨긴다.
     document.getElementById('ui-deep-chaos-header').style.display = 'none';
     document.getElementById('ui-deep-chaos-list').innerHTML = '';
@@ -8813,7 +8813,7 @@ function mergeDefaults(save) {
     merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
     merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
-    merged.mapExploreSubtab = ['map-explore-hunting', 'map-explore-root-boss', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-hunting';
+    merged.mapExploreSubtab = ['map-explore-hunting', 'map-explore-chaos', 'map-explore-root-boss', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-hunting';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
