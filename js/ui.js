@@ -1925,7 +1925,7 @@ const OCEAN_MOD_CATEGORY_OPTIONS = ['공격', '방어·생명', '속도·치명'
 function renderSeaGiftRecipeCard(recipe, st) {
     let ready = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
     let reqText = Object.keys(recipe.requires).map(key => `${OCEAN_FISH_DB[key].name} ${st.fishStock[key] || 0}/${recipe.requires[key]}`).join(', ');
-    let needsCategory = recipe.effect.type === 'guaranteedTaggedMod' || recipe.effect.type === 'taggedReroll' || (recipe.effect.type === 'lockMod' && recipe.effect.bonusTaggedReroll);
+    let needsCategory = recipe.effect.type === 'guaranteedTaggedMod' || recipe.effect.type === 'taggedReroll' || recipe.effect.type === 'convertCategoryMod' || (recipe.effect.type === 'lockMod' && recipe.effect.bonusTaggedReroll);
     let inlineId = `seaGiftCategory_${recipe.id}`;
     let categorySelect = needsCategory ? `<select id="${inlineId}" style="margin-top:4px;">${OCEAN_MOD_CATEGORY_OPTIONS.map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select>` : '';
     let onclick = needsCategory
