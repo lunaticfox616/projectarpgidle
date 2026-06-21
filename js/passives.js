@@ -1817,6 +1817,8 @@ function catchOceanFish(depthTier) {
     if (eligible.length === 0) return;
     let rareChanceBonusPct = 0;
     try { if (typeof getPlayerStats === 'function') rareChanceBonusPct = Math.max(0, Number(getPlayerStats().oceanRareFishChancePct) || 0); } catch (e) { console.warn('failed to read ocean rare fish chance stat:', e); }
+    let st0 = ensureOceanState();
+    if (st0.rareLuckUntil && Date.now() < st0.rareLuckUntil) rareChanceBonusPct += 150;
     let weights = eligible.map(key => {
         let rareWeight = Number.isFinite(OCEAN_FISH_DB[key].rareWeight) ? OCEAN_FISH_DB[key].rareWeight : 1;
         if (rareWeight < 1) rareWeight *= (1 + rareChanceBonusPct / 100);
@@ -1857,6 +1859,12 @@ function enterOceanDive() {
 
 function forceSurfaceOcean(reason) {
     let st = ensureOceanState();
+    if (reason === 'oxygen' && st.oxygenShield) {
+        st.oxygenShield = false;
+        st.oxygenCur = st.oxygenMax;
+        addLog('🛡️ 수압 방벽이 산소 고갈을 무효화했습니다!', 'loot-rare');
+        return;
+    }
     st.diving = false;
     st.depthM = Math.max(0, Math.floor(st.checkpointM || 0));
     st.oxygenCur = st.oxygenMax;
@@ -1900,21 +1908,37 @@ function getOceanWorkbenchOption(optionId, topTierOnly) {
     return OCEAN_WORKBENCH_OPTIONS.find(opt => opt.id === optionId) || OCEAN_WORKBENCH_OPTIONS[Math.floor(Math.random() * (OCEAN_WORKBENCH_OPTIONS.length - 1))];
 }
 
+const SEA_GIFT_RANDOM_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'regal', 'chaos', 'divine', 'blessing', 'tainted', 'annulment'];
 const SEA_GIFT_RECIPES = [
-    { id: 'reefBundle', desc: '얕은 바다 어종을 모아 암초 조각으로 가공합니다.', requires: { shallowSilverfin: 5 }, effect: { type: 'currency', key: 'reefFragment', amount: 2 } },
-    { id: 'tidalCharm', desc: '조류 장어로 산소 정련 파편을 만듭니다.', requires: { tidalEel: 4 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 1 } },
-    { id: 'glowfinEssence', desc: '발광 송어로 베이스 옵션 재제련에 쓰는 심해의 파편을 정제합니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 2 } },
-    { id: 'purifyingOffering', desc: '발광 송어를 바쳐 원하는 계열의 기존 옵션 한 줄만 다시 굴립니다(다른 줄 보존, 등급 보정 없음).', requires: { glowfinTrout: 4 }, effect: { type: 'taggedReroll' } },
-    { id: 'sealOffering', desc: '해류군주 비단잉어로 옵션 한 줄을 영구히 봉인합니다.', requires: { tidelordKoi: 1 }, effect: { type: 'lockMod', count: 1 } },
-    { id: 'abyssalGift', desc: '심연 등불고기를 제물로 바쳐 장비에 확정 옵션을 부여합니다.', requires: { abyssAngler: 4 }, effect: { type: 'guaranteedMod' } },
-    { id: 'leviathanBoon', desc: '전설의 새끼 괴어로 최상급 태그 옵션을 확정 부여합니다.', requires: { voidLeviathanSpawn: 2, abyssAngler: 2 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 2 } },
-    { id: 'tidelordRefine', desc: '해류군주 비단잉어로 원하는 계열의 기존 옵션만 다시 굴립니다(다른 줄 보존).', requires: { tidelordKoi: 2 }, effect: { type: 'taggedReroll', tierBoost: 1 } },
-    { id: 'crushDepthScar', desc: '무지갯빛 공포와 해류군주 비단잉어로 심해 전용 고정 옵션을 부착합니다.', requires: { prismaticHorror: 2, tidelordKoi: 1 }, effect: { type: 'fixedBenchOption' } },
-    { id: 'doubleSealForge', desc: '무지갯빛 공포로 옵션 두 줄을 동시에 봉인하고, 남은 줄은 즉시 재단합니다.', requires: { prismaticHorror: 3 }, effect: { type: 'lockMod', count: 2, bonusTaggedReroll: true } },
-    { id: 'voidPureRefine', desc: '무지갯빛 공포와 공허 리바이어던 새끼로 장비를 강제로 희귀 등급으로 승급시킵니다.', requires: { prismaticHorror: 2, voidLeviathanSpawn: 1 }, effect: { type: 'upgradeRarity', force: true } },
-    { id: 'leviathanRemnant', desc: '리바이어던 본체로 최상급 태그 옵션을 확정 부여하며, 동시에 나쁜 줄 하나를 무료로 제거합니다.', requires: { kingLeviathan: 1 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 3, bonusRemoveMod: true } },
-    { id: 'leviathanSigil', desc: '리바이어던 본체와 해류군주 비단잉어로 오직 이 레시피로만 얻는 최상위 고정 옵션을 부착합니다.', requires: { kingLeviathan: 2, tidelordKoi: 2 }, effect: { type: 'fixedBenchOption', topTier: true } }
+    // --- 일반 레시피 ---
+    { id: 'reefBundle', desc: '【재화 획득: 암초 조각 ×2】 얕은 바다 어종을 모아 암초 조각으로 가공합니다.', requires: { shallowSilverfin: 5 }, effect: { type: 'currency', key: 'reefFragment', amount: 2 } },
+    { id: 'tidalCharm', desc: '【재화 획득: 심해 리롤 파편 ×1】 조류 장어로 산소 정련 파편을 만듭니다.', requires: { tidalEel: 4 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 1 } },
+    { id: 'glowfinEssence', desc: '【재화 획득: 심해 리롤 파편 ×2】 발광 송어로 베이스 옵션 재제련에 쓰는 심해의 파편을 정제합니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'currency', key: 'oceanRerollShard', amount: 2 } },
+    { id: 'purifyingOffering', desc: '【장비 강화: 계열 재굴림 1줄】 발광 송어를 바쳐 원하는 계열의 기존 옵션 한 줄만 다시 굴립니다(다른 줄 보존, 등급 보정 없음).', requires: { glowfinTrout: 4, shallowSilverfin: 3 }, effect: { type: 'taggedReroll' } },
+    { id: 'abyssalGift', desc: '【장비 강화: 확정 옵션 부여】 심연 등불고기를 제물로 바쳐 장비에 옵션 한 줄을 확정으로 부여합니다.', requires: { abyssAngler: 4, tidalEel: 3 }, effect: { type: 'guaranteedMod' } },
+    // --- 무작위 제작 재화 레시피 (진화/변화/확장/제왕/카오스/연금술/축복/신성/타락/소멸의 오브 중 1개) ---
+    { id: 'tidalFortune', desc: '【재화 획득: 무작위 제작 오브 ×1】 조류 장어와 은빛 비늘치 더미에서 흘러나온 마력을 정제해 무작위 제작 오브 1개를 얻습니다.', requires: { tidalEel: 3, shallowSilverfin: 3 }, effect: { type: 'randomCurrency', amount: 1 } },
+    { id: 'glowingFortune', desc: '【재화 획득: 무작위 제작 오브 ×1】 발광 송어의 빛을 응축해 무작위 제작 오브 1개를 얻습니다.', requires: { glowfinTrout: 3, tidalEel: 2 }, effect: { type: 'randomCurrency', amount: 1 } },
+    { id: 'abyssalCache', desc: '【재화 획득: 무작위 제작 오브 ×2】 심연 등불고기와 발광 송어로 봉인된 보물함을 열어 무작위 제작 오브 2개를 얻습니다.', requires: { abyssAngler: 2, glowfinTrout: 2 }, effect: { type: 'randomCurrency', amount: 2 } },
+    { id: 'tidelordCache', desc: '【재화 획득: 무작위 제작 오브 ×2】 해류군주 비단잉어의 비늘로 만든 함에서 무작위 제작 오브 2개를 얻습니다.', requires: { tidelordKoi: 1, abyssAngler: 2, shallowSilverfin: 4 }, effect: { type: 'randomCurrency', amount: 2 } },
+    { id: 'leviathanCache', desc: '【재화 획득: 무작위 제작 오브 ×3】 리바이어던 본체와 무지갯빛 공포의 잔재로 채워진 최상급 보물함에서 무작위 제작 오브 3개를 얻습니다.', requires: { kingLeviathan: 1, prismaticHorror: 1, abyssAngler: 2 }, effect: { type: 'randomCurrency', amount: 3 } },
+    // --- 잠수 보조 효과 (장비 제작이 아닌 탐사 보조 효과) ---
+    { id: 'depthSurge', desc: '【탐사: 체크포인트 +400m 즉시 전진】 조류 장어와 은빛 비늘치를 태워 체크포인트를 즉시 전진시킵니다.', requires: { tidalEel: 6, shallowSilverfin: 6 }, effect: { type: 'depthSurge', amount: 400 } },
+    { id: 'oxygenRefill', desc: '【탐사: 산소 즉시 완전 회복】 은빛 비늘치의 부레를 압축해 산소를 즉시 최대치로 채웁니다.', requires: { shallowSilverfin: 4 }, effect: { type: 'oxygenRefill' } },
+    { id: 'fishingFrenzy', desc: '【탐사: 물고기 3마리 즉시 획득】 미끼를 대량으로 풀어 물고기 3마리를 즉시 추가로 낚습니다.', requires: { glowfinTrout: 2, tidalEel: 3 }, effect: { type: 'fishingFrenzy', amount: 3 } },
+    { id: 'pressureWard', desc: '【탐사: 산소 고갈 무효화 1회】 심연 등불고기의 부레로 보호막을 둘러, 다음 산소 고갈로 인한 강제 귀환을 1회 무효화합니다.', requires: { abyssAngler: 2, tidalEel: 4 }, effect: { type: 'pressureWard' } },
+    { id: 'rareLuckSurge', desc: '【탐사: 5분간 희귀 어종 확률 대폭 상승】 전설의 새끼 괴어의 기운을 빌려 5분간 희귀 어종 출현율이 크게 오릅니다.', requires: { voidLeviathanSpawn: 1, abyssAngler: 2 }, effect: { type: 'rareLuckSurge', durationMs: 300000 } },
+    // --- 초강력 레시피 (초희귀 어종 필요) ---
+    { id: 'sealOffering', desc: '【장비 강화: 옵션 1줄 영구 봉인】 해류군주 비단잉어와 발광 송어로 옵션 한 줄을 영구히 봉인합니다.', requires: { tidelordKoi: 1, glowfinTrout: 3 }, effect: { type: 'lockMod', count: 1 } },
+    { id: 'leviathanBoon', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +2)】 전설의 새끼 괴어와 심연 등불고기, 조류 장어로 최상급 태그 옵션을 확정 부여합니다.', requires: { voidLeviathanSpawn: 2, abyssAngler: 2, tidalEel: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 2 } },
+    { id: 'tidelordRefine', desc: '【장비 강화: 계열 재굴림(등급 +1)】 해류군주 비단잉어와 발광 송어로 원하는 계열의 기존 옵션만 다시 굴립니다(다른 줄 보존).', requires: { tidelordKoi: 2, glowfinTrout: 3 }, effect: { type: 'taggedReroll', tierBoost: 1 } },
+    { id: 'crushDepthScar', desc: '【장비 강화: 심해 전용 고정 옵션 부착】 무지갯빛 공포와 해류군주 비단잉어, 심연 등불고기로 심해 전용 고정 옵션을 부착합니다.', requires: { prismaticHorror: 2, tidelordKoi: 1, abyssAngler: 2 }, effect: { type: 'fixedBenchOption' } },
+    { id: 'doubleSealForge', desc: '【장비 강화: 옵션 2줄 동시 영구 봉인 + 나머지 1줄 즉시 재단】 무지갯빛 공포와 발광 송어로 옵션 두 줄을 동시에 봉인하고, 남은 줄은 즉시 재단합니다.', requires: { prismaticHorror: 3, glowfinTrout: 4 }, effect: { type: 'lockMod', count: 2, bonusTaggedReroll: true } },
+    { id: 'voidPureRefine', desc: '【장비 강화: 강제 희귀 등급 승급】 무지갯빛 공포와 공허 리바이어던 새끼, 은빛 비늘치로 장비를 강제로 희귀 등급으로 승급시킵니다.', requires: { prismaticHorror: 2, voidLeviathanSpawn: 1, shallowSilverfin: 5 }, effect: { type: 'upgradeRarity', force: true } },
+    { id: 'leviathanRemnant', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +3) + 나쁜 옵션 1줄 무료 제거】 리바이어던 본체와 심연 등불고기로 최상급 태그 옵션을 확정 부여하며, 동시에 나쁜 줄 하나를 무료로 제거합니다.', requires: { kingLeviathan: 1, abyssAngler: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 3, bonusRemoveMod: true } },
+    { id: 'leviathanSigil', desc: '【장비 강화: 이 레시피 전용 최상위 고정 옵션 부착】 리바이어던 본체와 해류군주 비단잉어, 공허 리바이어던 새끼로 오직 이 레시피로만 얻는 최상위 고정 옵션을 부착합니다.', requires: { kingLeviathan: 2, tidelordKoi: 2, voidLeviathanSpawn: 1 }, effect: { type: 'fixedBenchOption', topTier: true } }
 ];
+const SEA_GIFT_ITEM_EFFECT_TYPES = new Set(['guaranteedMod', 'guaranteedTaggedMod', 'removeMod', 'upgradeRarity', 'lockMod', 'taggedReroll', 'fixedBenchOption']);
 
 function getSeaGiftRecipeStatus(recipeId) {
     let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
@@ -1938,10 +1962,11 @@ function craftSeaGift(recipeId, targetItem, options) {
     let st = ensureOceanState();
     let ready = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
     if (!ready) { addLog('바다의 선물 재료가 부족합니다.', 'attack-monster'); return false; }
-    let item = targetItem || (typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null) || (game.equipment && game.equipment['무기']);
-    if (!item) { addLog('대상 장비가 없습니다.', 'attack-monster'); return false; }
-    let category = options && options.category;
     let effect = recipe.effect;
+    let needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(effect.type);
+    let item = needsItem ? (targetItem || (typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null) || (game.equipment && game.equipment['무기'])) : null;
+    if (needsItem && !item) { addLog('대상 장비가 없습니다.', 'attack-monster'); return false; }
+    let category = options && options.category;
     if (effect.type === 'guaranteedMod' || effect.type === 'guaranteedTaggedMod') {
         let pool = getAvailableMods(item);
         if (effect.type === 'guaranteedTaggedMod' && category) pool = pool.filter(mod => getModCategory(mod) === category);
@@ -1992,10 +2017,33 @@ function craftSeaGift(recipeId, targetItem, options) {
         updateItemName(item);
     } else if (effect.type === 'currency') {
         awardCurrency(effect.key, effect.amount || 1);
+    } else if (effect.type === 'randomCurrency') {
+        let count = Math.max(1, Math.floor(effect.amount || 1));
+        for (let i = 0; i < count; i++) {
+            let key = SEA_GIFT_RANDOM_ORB_KEYS[Math.floor(Math.random() * SEA_GIFT_RANDOM_ORB_KEYS.length)];
+            awardCurrency(key, 1);
+            addLog(`🎲 무작위 제작 오브: ${(ORB_DB[key] || {}).name || key} +1`, 'loot-rare');
+        }
+    } else if (effect.type === 'depthSurge') {
+        st.checkpointM = Math.max(0, Math.floor(st.checkpointM || 0)) + Math.max(0, Math.floor(effect.amount || 0));
+        if (st.diving) st.depthM = Math.max(st.depthM || 0, st.checkpointM);
+        addLog(`🌀 체크포인트가 ${st.checkpointM}m로 전진했습니다.`, 'loot-rare');
+    } else if (effect.type === 'oxygenRefill') {
+        st.oxygenCur = st.oxygenMax;
+        addLog('🫧 산소가 즉시 최대치로 회복되었습니다.', 'loot-rare');
+    } else if (effect.type === 'fishingFrenzy') {
+        let count = Math.max(1, Math.floor(effect.amount || 1));
+        for (let i = 0; i < count; i++) catchOceanFish(st.pressureLevel || 0);
+    } else if (effect.type === 'pressureWard') {
+        st.oxygenShield = true;
+        addLog('🛡️ 산소 고갈 보호막이 부여되었습니다 (다음 1회 무효화).', 'loot-rare');
+    } else if (effect.type === 'rareLuckSurge') {
+        st.rareLuckUntil = Date.now() + Math.max(0, Math.floor(effect.durationMs || 0));
+        addLog('🍀 5분간 희귀 어종 확률이 크게 상승합니다.', 'loot-rare');
     }
     Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key]); });
     addLog(`🎁 [바다의 선물] 제작이 완료되었습니다.`, 'loot-rare');
-    if (typeof normalizeItem === 'function') normalizeItem(item);
+    if (item && typeof normalizeItem === 'function') normalizeItem(item);
     return true;
 }
 
