@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/layout.css?v=20260614-cosmos-es1">
     <link rel="stylesheet" href="css/theme.css">
     <link rel="stylesheet" href="css/components.css?v=20260615-tab-drag-touch1">
-    <link rel="stylesheet" href="css/ui-polish.css?v=20260621-vertical-tabs1">
+    <link rel="stylesheet" href="css/ui-polish.css?v=20260621-vertical-tabs2">
     <link rel="stylesheet" href="css/ui-premium.css?v=20260621-vertical-tabs1">
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="css/cosmos-atlas.css">
@@ -249,6 +249,13 @@
             <div class="hp-bar-bg">
                 <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
                 <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span><span id="ui-es-inline"></span></div>
+            </div>
+            <div id="ui-ocean-oxygen-box" style="display:none; margin-top:8px;">
+                <div style="font-size: 0.9em; font-weight: bold; color: #4fd1ff;">🫧 산소</div>
+                <div class="hp-bar-bg" style="height: 14px; margin-top: 2px;">
+                    <div id="ui-ocean-oxygen-bar" style="height:100%; width:100%; background:linear-gradient(90deg,#1f9bd6,#4fd1ff); border-radius:inherit; transition:width .2s;"></div>
+                    <div class="hp-text" style="line-height: 14px; font-size: 10px;" id="ui-ocean-oxygen-text">100 / 100</div>
+                </div>
             </div>
             <div id="ui-player-ailments-under" style="font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
             <div id="ui-player-ailments-mobile" style="display:none; font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
@@ -717,20 +724,21 @@
             <button class="subtab-btn" id="btn-map-tab-sky" onclick="switchMapSubtab('map-tab-sky')">☁️ 창공</button>
             <button class="subtab-btn" id="btn-map-tab-underworld" onclick="switchMapSubtab('map-tab-underworld')">🕳️ 지하계</button>
             <button class="subtab-btn" id="btn-map-tab-ocean" onclick="switchMapSubtab('map-tab-ocean')">🌊 심해</button>
+            <button class="subtab-btn" id="btn-map-tab-fishing" onclick="switchMapSubtab('map-tab-fishing')">🎣 낚시</button>
         </div>
 
         <div id="map-tab-zones" class="subtab-content active">
             <div class="vertical-tab-layout map-explore-layout">
                 <div class="vertical-tab-sidebar" aria-label="탐험 항목">
-                    <button class="vertical-tab-btn active" id="btn-map-explore-hunting" onclick="switchMapExploreSubtab('map-explore-hunting')"><span>🗺️ 사냥터</span><small>일반/혼돈 진행</small></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-root-boss" onclick="switchMapExploreSubtab('map-explore-root-boss')"><span>🗝️ 뿌리 보스</span><small>시즌 보스 도전</small></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-labyrinth" onclick="switchMapExploreSubtab('map-explore-labyrinth')"><span>🏛️ 고대 미궁</span><small>화석과 층수 선택</small></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-deep-chaos" onclick="switchMapExploreSubtab('map-explore-deep-chaos')"><span>🌌 혼돈 심화층</span><small>심화 진입 정보</small></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-meteor" onclick="switchMapExploreSubtab('map-explore-meteor')"><span>☄️ 운석 낙하</span><small>하늘의 균열</small></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-beehive" onclick="switchMapExploreSubtab('map-explore-beehive')"><span>🐝 벌집 원정</span><small>양봉 원정</small></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-colony" onclick="switchMapExploreSubtab('map-explore-colony')"><span>🪲 군락지</span><small>방어전</small></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-voidrift" onclick="switchMapExploreSubtab('map-explore-voidrift')"><span>🕳️ 공허 균열</span><small>대균열 자동입장</small></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-trials" onclick="switchMapExploreSubtab('map-explore-trials')"><span>👑 전직 시련</span><small>시련의 성소</small></button>
+                    <button class="vertical-tab-btn active" id="btn-map-explore-hunting" onclick="switchMapExploreSubtab('map-explore-hunting')"><span>사냥터</span><small>일반/혼돈 진행</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-root-boss" onclick="switchMapExploreSubtab('map-explore-root-boss')"><span>뿌리 보스</span><small>시즌 보스 도전</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-labyrinth" onclick="switchMapExploreSubtab('map-explore-labyrinth')"><span>고대 미궁</span><small>화석과 층수 선택</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-deep-chaos" onclick="switchMapExploreSubtab('map-explore-deep-chaos')"><span>혼돈 심화층</span><small>심화 진입 정보</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-meteor" onclick="switchMapExploreSubtab('map-explore-meteor')"><span>운석 낙하</span><small>하늘의 균열</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-beehive" onclick="switchMapExploreSubtab('map-explore-beehive')"><span>벌집 원정</span><small>양봉 원정</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-colony" onclick="switchMapExploreSubtab('map-explore-colony')"><span>군락지</span><small>방어전</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-voidrift" onclick="switchMapExploreSubtab('map-explore-voidrift')"><span>공허 균열</span><small>대균열 자동입장</small></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-trials" onclick="switchMapExploreSubtab('map-explore-trials')"><span>전직 시련</span><small>시련의 성소</small></button>
                 </div>
                 <div class="vertical-tab-panels">
                     <section id="map-explore-hunting" class="vertical-tab-panel active">
@@ -740,6 +748,8 @@
                             <div class="map-hotspots" id="ui-map-hotspots"></div>
                         </div>
                         <div class="map-grid" id="ui-map-list"></div>
+                        <h3 style="margin-top: 18px; color: #d0a8ff;">☠️ 혼돈</h3>
+                        <div class="map-grid" id="ui-chaos-map-list"></div>
                     </section>
                     <section id="map-explore-root-boss" class="vertical-tab-panel">
                         <h2 style="color: #ffb347; display: none;" id="ui-season-boss-header">🗝️ 뿌리 보스 도전 <button id="btn-season-boss-repeat" onclick="toggleSeasonBossRepeat()" style="display:none; margin-left:8px; background:#5b4a2f; border-color:#7f6240; font-size:0.7em; padding:2px 6px;">반복 도전 OFF</button></h2>
@@ -799,6 +809,11 @@
             <h2>🌊 심해</h2>
             <div id="ui-ocean-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; margin-bottom:10px; color:#cdeefc;"></div>
             <div class="map-grid" id="ui-ocean-list"></div>
+        </div>
+
+        <div id="map-tab-fishing" class="subtab-content">
+            <h2>🎣 낚시</h2>
+            <div id="ui-fishing-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; margin-bottom:10px; color:#cdeefc;"></div>
             <h3 style="margin-top:16px; color:#8fe3ff;">🎁 바다의 선물</h3>
             <div id="ui-sea-gift-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; color:#cdeefc;"></div>
         </div>
@@ -881,8 +896,8 @@
         <h2>📚 고유 아이템 도감</h2>
         <div class="vertical-tab-layout codex-vertical-layout">
             <div class="vertical-tab-sidebar" aria-label="도감 항목">
-                <button class="vertical-tab-btn active" id="btn-codex-main" onclick="setCodexSubtab('main')"><span>🌳 나무 도감</span><small>일반 고유 기록</small></button>
-                <button class="vertical-tab-btn" id="btn-codex-realm" onclick="setCodexSubtab('realm')"><span>🌌 계(Realm) 도감</span><small>계 전용 고유 기록</small></button>
+                <button class="vertical-tab-btn active" id="btn-codex-main" onclick="setCodexSubtab('main')"><span>나무 도감</span><small>일반 고유 기록</small></button>
+                <button class="vertical-tab-btn" id="btn-codex-realm" onclick="setCodexSubtab('realm')"><span>계(Realm) 도감</span><small>계 전용 고유 기록</small></button>
             </div>
             <div class="vertical-tab-panels">
                 <div id="ui-codex-summary" style="margin-bottom:10px; color:#c3d9ef;"></div>
@@ -1142,12 +1157,12 @@
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
 <script defer src="js/items.js?v=20260614-runtime-fixes1"></script>
 <script defer src="js/skills.js?v=20260614-cosmos-es1"></script>
-<script defer src="js/passives.js?v=20260621-ocean14"></script>
+<script defer src="js/passives.js?v=20260621-ocean15"></script>
 <script defer src="js/core-cube.js?v=20260609-core-cube-bulk1"></script>
 <script defer src="js/combat.js?v=20260621-vertical-tabs1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260614-cosmos-es1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260618-codex-autoreg1"></script>
-<script defer src="js/ui.js?v=20260621-ocean14"></script>
+<script defer src="js/ui.js?v=20260621-chaosfix1"></script>
 <script defer src="js/talent-cards.js?v=20260618-bloom5-revamp1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260527-spiral-galaxy4"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
