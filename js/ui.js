@@ -1932,7 +1932,7 @@ function renderSeaGiftRecipeCard(recipe, st) {
         ? `craftSeaGift('${recipe.id}', null, { category: document.getElementById('${inlineId}').value }); renderSeaGiftPanel();`
         : `craftSeaGift('${recipe.id}'); renderSeaGiftPanel();`;
     return `<div style="border-bottom:1px solid #1f5b73; padding:8px 0;">
-        <div><b>${recipe.name}</b> <span style="color:#8fe3ff;">${recipe.desc}</span></div>
+        <div style="color:#8fe3ff;">${recipe.desc}</div>
         <div style="font-size:0.85em; color:#9fcbe0;">필요: ${reqText}</div>
         ${categorySelect}
         <button onclick="${onclick}" ${ready ? '' : 'disabled'} style="margin-top:4px;">제작</button>
