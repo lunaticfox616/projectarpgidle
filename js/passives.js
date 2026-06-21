@@ -6636,7 +6636,7 @@ function addItemToInventory(item, options) {
         return false;
     }
     if ((game.inventory || []).length >= getInventoryLimit()) {
-        salvageItemObject(item, true);
+        salvageItemObject(item, true, { noDivine: true });
         return false;
     }
     if (game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities && game.settings.autoSalvageRarities[item.rarity]) {
@@ -7430,13 +7430,14 @@ function unequipJewel(slotIndex) { if (game.woodsmanBuildLock) return addLog('�
     updateStaticUI();
 }
 
-function salvageItemObject(item, silent) {
+function salvageItemObject(item, silent, options) {
     if (!item) return;
+    let noDivine = !!(options && options.noDivine);
     if (item.rarity === 'normal') awardCurrency('transmute', 1);
     else if (item.rarity === 'magic') awardCurrency('augment', 1);
     else if (item.rarity === 'rare') awardCurrency('chaos', 1);
     else if (item.rarity === 'unique') {
-        if (Math.random() < 0.12) awardCurrency('divine', 1);
+        if (!noDivine && Math.random() < 0.12) awardCurrency('divine', 1);
         if (Math.random() < 0.55) awardCurrency('exalted', 1);
     }
     if (!silent) addLog(`🧪 [${item.name}] 해체`, "loot-normal");
