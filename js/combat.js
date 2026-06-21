@@ -4538,7 +4538,7 @@ function handleTalentBloomClear(zone) {
             if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_talent_tab', '재능 탭 해금', '재능 개화 카드를 획득했습니다! 재능 탭에서 보유 카드와 효과를 확인하세요.', 'tab-talent');
         }
         addLog(`🃏 개화 카드 [${cardLabel}] Lv.${result.card.level} (점수 ${result.score})${result.leveledUp ? ' · 레벨 상승!' : ''}`, 'loot-unique');
-        if (typeof renderTalentTab === 'function' && document.getElementById('tab-talent') && document.getElementById('tab-talent').classList.contains('active')) renderTalentTab();
+        dispatchRuntimeEvent('talent-tab-refresh-requested');
     }
     game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
     game.killsInZone = 0;

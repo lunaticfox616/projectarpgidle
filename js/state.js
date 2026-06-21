@@ -203,7 +203,7 @@ function getOceanOxygenDrainPerSec() {
     // 기본 시간당 감소량은 고정이되, 이동 속도가 높을수록 더 빠르게 감소합니다.
     let base = 1;
     let moveSpeed = 100;
-    try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) {}
+    try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) { console.warn('failed to read movement speed for map progress:', e); }
     let moveRatio = Math.max(0.5, Math.min(4, moveSpeed / 100));
     return Math.max(0.1, base * moveRatio);
 }
@@ -225,7 +225,7 @@ function getOceanPendingBossBoundary(st) {
 function getOceanMoveSpeedDepthBonus() {
     // 이동 속도가 빠를수록 산소 소모는 늘지만, 그만큼 한 번에 더 깊이 전진할 수 있도록 보정합니다.
     let moveSpeed = 100;
-    try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) {}
+    try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) { console.warn('failed to read movement speed for map progress:', e); }
     let bonusRatio = Math.max(0, (moveSpeed - 100) / 100);
     return 1 + Math.min(1, bonusRatio * 0.5);
 }
@@ -1667,6 +1667,7 @@ const defaultGame = {
     pendingConditionGemChoices: null,
     clearedRootBosses: [],
     mapSubtab: 'map-tab-zones',
+    mapExploreSubtab: 'map-explore-hunting',
     gemFoldInactiveAttack: false,
     gemFoldInactiveSupport: false,
     autoRepeatSeasonBoss: false,
