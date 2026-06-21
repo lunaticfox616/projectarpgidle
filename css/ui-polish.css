@@ -475,6 +475,31 @@ input[data-search-key]:focus {
   color: #ffe29a;
 }
 
+.map-explore-layout .vertical-tab-btn span,
+.codex-vertical-layout .vertical-tab-btn span {
+  font-size: 1.05em;
+  letter-spacing: 0.2px;
+}
+
+.map-explore-layout .vertical-tab-btn,
+.codex-vertical-layout .vertical-tab-btn {
+  border-width: 2px;
+}
+
+.map-explore-layout .vertical-tab-btn.active,
+.codex-vertical-layout .vertical-tab-btn.active {
+  border-color: #ffd36b;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 218, 126, 0.26), transparent 40%),
+    linear-gradient(180deg, #352809 0%, #1c1407 100%);
+}
+
+.map-explore-layout .vertical-tab-btn.active span,
+.codex-vertical-layout .vertical-tab-btn.active span {
+  color: #ffe9a8;
+  text-shadow: 0 0 8px rgba(255, 211, 107, 0.35);
+}
+
 .vertical-tab-btn.active small {
   color: #d9bd77;
 }
