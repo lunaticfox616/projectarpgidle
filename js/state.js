@@ -189,6 +189,8 @@ function ensureOceanState() {
     st.reefInstalled = Math.max(0, Math.min(10, Math.floor(st.reefInstalled || 0)));
     st.fishStock = (st.fishStock && typeof st.fishStock === 'object') ? st.fishStock : {};
     st.diving = !!st.diving;
+    st.drowning = !!st.drowning;
+    st.drownSec = Math.max(0, Number(st.drownSec) || 0);
     if (!st.unlocked && (game.season || 1) >= OCEAN_UNLOCK_LOOP) st.unlocked = true;
     return st;
 }

@@ -1802,7 +1802,7 @@ function consumeOceanOxygenOnAttack() {
     try { if (typeof getPlayerStats === 'function') savingPct = Math.max(0, Math.min(90, Number(getPlayerStats().oceanOxygenAttackSavingPct) || 0)); } catch (e) { console.warn('failed to read ocean oxygen saving stat:', e); }
     cost *= (1 - savingPct / 100);
     st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, (st.oxygenCur || 0) - cost));
-    if (st.oxygenCur <= 0) forceSurfaceOcean('oxygen');
+    // 산소가 0이 되어도 즉시 귀환하지 않는다. 익사 피해는 tickOceanOxygen 에서 시간에 따라 누적된다.
 }
 
 function gainOceanFishingGaugeFromCombat(zone) {
@@ -1866,7 +1866,40 @@ function forceSurfaceOcean(reason) {
     st.diving = false;
     st.depthM = Math.max(0, Math.floor(st.checkpointM || 0));
     st.oxygenCur = st.oxygenMax;
-    addLog(reason === 'oxygen' ? '🫧 산소가 모두 소진되어 강제로 수면 위로 올라왔습니다. 체크포인트 이후의 진행이 사라졌습니다.' : '🌊 잠수를 종료하고 수면으로 복귀했습니다.', 'attack-monster');
+    st.drowning = false;
+    st.drownSec = 0;
+    addLog(reason === 'oxygen' ? '🫧 산소가 모두 소진되어 익사 직전에 수면으로 끌어올려졌습니다. 체크포인트 이후의 진행이 사라졌습니다.' : '🌊 잠수를 종료하고 수면으로 복귀했습니다.', 'attack-monster');
+    // 실패(산소 고갈) 시에도 '수면으로 복귀' 버튼과 동일하게 심해 맵을 벗어나 수면(일반 맵)으로 이동한다.
+    if (reason !== 'manual') {
+        try {
+            if (typeof changeZone === 'function') changeZone(Math.max(0, game.maxZoneId || 0));
+            if (typeof updateStaticUI === 'function') updateStaticUI();
+        } catch (e) { console.warn('failed to auto-surface from ocean:', e); }
+    }
+}
+
+// 산소가 0이 된 뒤에는 시간이 지날수록 점점 큰 익사 피해를 입는다. 쓰러지기 직전이 되면 사망이 아니라 수면으로 복귀한다.
+function applyOceanDrowningDamage(st, dtSec) {
+    if (!st || !(dtSec > 0)) return;
+    if (!st.drowning) {
+        st.drowning = true;
+        st.drownSec = 0;
+        addLog('🫨 산소가 바닥났습니다! 익사 피해가 점점 커지니 즉시 수면으로 복귀하세요.', 'attack-monster');
+    }
+    st.drownSec = (Number(st.drownSec) || 0) + dtSec;
+    let pStats = (typeof getPlayerStats === 'function') ? getPlayerStats() : null;
+    let maxHp = Math.max(1, Math.floor((pStats && pStats.maxHp) || game.playerHp || 1));
+    // 익사 피해: 초당 최대체력의 (3% + 익사 누적 시간 × 3%). 시간이 지날수록 가속된다.
+    let dmgPct = 3 + (st.drownSec * 3);
+    let dmg = maxHp * (dmgPct / 100) * dtSec;
+    let curHp = Math.max(0, Number(game.playerHp) || 0);
+    if (dmg >= curHp - 1) {
+        // 쓰러지기 직전이면 사망 처리(전멸) 대신 수면 복귀 버튼과 동일한 효과로 강제 귀환한다.
+        game.playerHp = Math.max(1, curHp);
+        forceSurfaceOcean('oxygen');
+        return;
+    }
+    game.playerHp = curHp - dmg;
 }
 
 function isInOceanZone() {
@@ -1886,7 +1919,10 @@ function tickOceanOxygen(nowMs) {
     let leechAlive = (game.enemies || []).some(e => e && e.hp > 0 && e.trait && e.trait.oceanOxygenLeechOnHit);
     if (leechAlive) drainPerSec *= 1.4;
     st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, st.oxygenCur - drainPerSec * dtSec));
-    if (st.oxygenCur <= 0) { forceSurfaceOcean('oxygen'); return; }
+    if (st.oxygenCur <= 0) { applyOceanDrowningDamage(st, dtSec); return; }
+    // 산소가 다시 차오르면 익사 상태를 해제한다(잠수 중에는 보통 회복되지 않지만 안전 장치).
+    st.drowning = false;
+    st.drownSec = 0;
     tickOceanDepth(st, dtSec);
 }
 
