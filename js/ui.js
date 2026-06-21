@@ -1905,6 +1905,26 @@ function updateCombatOxygenBar() {
     }
     if (text) text.textContent = `${Math.ceil(cur)} / ${max}`;
 }
+
+function renderOceanPermanentUpgradeRows(st) {
+    if (typeof OCEAN_PERMANENT_UPGRADE_KEYS === 'undefined') return '';
+    return OCEAN_PERMANENT_UPGRADE_KEYS.map(key => {
+        let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
+        let level = getOceanPermanentUpgradeLevel(key);
+        let value = getOceanPermanentUpgradeEffect(key);
+        let cost = typeof getOceanPermanentUpgradeCost === 'function' ? getOceanPermanentUpgradeCost(key) : null;
+        let costText = typeof getOceanUpgradeCostText === 'function' ? getOceanUpgradeCostText(cost) : '';
+        let disabled = !cost || (typeof canPayOceanUpgradeCost === 'function' && !canPayOceanUpgradeCost(cost));
+        return `<div style="border:1px solid rgba(79,209,255,.22); border-radius:8px; padding:8px; background:rgba(6,18,32,.45);">
+            <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap;">
+                <div><b style="color:#8fe3ff;">${def.label}</b> Lv.${level}/${def.maxLevel} <span style="color:#cdefff;">(+${value}${def.unit})</span><br><span style="color:#9fb4d1; font-size:.86em;">${def.desc}</span></div>
+                <button onclick="upgradeOceanPermanent('${key}'); renderOceanDepthMapPanel(); renderFishingPanel();" ${disabled ? 'disabled' : ''}>강화</button>
+            </div>
+            <div style="margin-top:4px; color:#b7c9de; font-size:.84em;">필요: ${costText || '최대 단계'}</div>
+        </div>`;
+    }).join('');
+}
+
 function renderOceanDepthMapPanel() {
     let panel = document.getElementById('ui-ocean-panel');
     let list = document.getElementById('ui-ocean-list');
@@ -1920,6 +1940,7 @@ function renderOceanDepthMapPanel() {
     let perAttackCost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0;
     let secsLeft = drainPerSec > 0 ? Math.floor(st.oxygenCur / drainPerSec) : 0;
     let depthTier = getOceanDepthTier(st.depthM);
+    let upgradeRows = renderOceanPermanentUpgradeRows(st);
     panel.innerHTML = `<div class="sky-tower-head">
         <div>
             <div class="sky-tower-title">🌊 심해 잠수 <span style="color:#ffce6b; font-size:0.7em; border:1px solid #ffce6b; border-radius:4px; padding:1px 5px; vertical-align:middle;">⚠ 테스트 중</span></div>
@@ -1932,7 +1953,12 @@ function renderOceanDepthMapPanel() {
         <span class="sky-tower-chip">현재 수심 <b>${Math.floor(st.depthM)}m</b></span>
         <span class="sky-tower-chip">체크포인트 <b>${st.checkpointM}m</b></span>
         <span class="sky-tower-chip">수압 단계 <b>${depthTier}</b></span>
-        <span class="sky-tower-chip" title="산소 최대치는 고정(${st.oxygenMax}). 이동 속도가 높을수록 시간당 소모가 빨라지고(현재 ${drainPerSec.toFixed(2)}/초), 공격 1회마다 추가로 ${perAttackCost}씩 소모됩니다. 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
+        <span class="sky-tower-chip" title="산소 최대치 ${st.oxygenMax}. 이동 속도가 높을수록 시간당 소모가 빨라지고(현재 ${drainPerSec.toFixed(2)}/초), 공격 1회마다 추가로 ${perAttackCost}씩 소모됩니다. 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
+    </div>
+    <div style="margin-top:10px; display:grid; gap:8px;">
+        <div style="color:#8fe3ff; font-weight:bold;">🌊 심해 영구 업그레이드</div>
+        <div class="sky-tower-sub">창공의 힘을 주재료로, 군주의 핵은 3단계마다, 심해 재화는 매 단계 소모합니다. 루프가 진행되어도 유지됩니다.</div>
+        ${upgradeRows}
     </div>
     <div class="sky-tower-sub" style="margin-top:8px;">🎣 낚시·암초 조각·바다의 선물(제작)은 상단 <b>🎣 낚시</b> 탭에서 관리할 수 있습니다.</div>`;
     list.innerHTML = `<div class="map-item ${game.currentZoneId === OCEAN_ZONE_ID ? 'current' : ''}" ${st.diving ? `onclick="changeZone(OCEAN_ZONE_ID)"` : ''} style="${st.diving ? '' : 'opacity:.65;'}"><div class="map-item-main"><span>🌊</span><span>심해 ${Math.floor(st.depthM)}m<br><span class="map-zone-status">${st.diving ? '잠수 중' : '잠수를 시작하세요'}</span></span></div></div>`;
@@ -5720,14 +5746,8 @@ function updateCombatUI(pStats) {
         // 진행 바는 현재 100m 구간 내 진행도를 표시해 수심 1m마다 약 1%씩 차오른다.
         let segPct = Math.min(100, Math.max(0, depthM - Math.floor(depthM / 100) * 100));
         let isDrowning = !!(oceanSt && oceanSt.drowning);
-        let pendingBoss = (typeof getOceanPendingBossBoundary === 'function' && oceanSt) ? getOceanPendingBossBoundary(oceanSt) : 0;
-        if (isDrowning) {
-            setTextById('ui-progress-label', '🫨 익사 위험');
-            setTextById('ui-move-time-text', `${depthM}m · 산소 고갈! 익사 피해 누적`);
-        } else {
-            setTextById('ui-progress-label', pendingBoss > 0 ? '🌊 수압 경계 보스' : '🌊 수심');
-            setTextById('ui-move-time-text', pendingBoss > 0 ? `${depthM}m · 보스 격파 필요` : `${depthM}m`);
-        }
+        setTextById('ui-progress-label', isDrowning ? '🫨 익사 위험' : '🌊 수심');
+        setTextById('ui-move-time-text', isDrowning ? `${depthM}m · 산소 고갈! 익사 피해 누적` : `${depthM}m`);
         document.getElementById('ui-move-bar').style.width = (isDrowning ? 100 : segPct) + '%';
     } else if (getUiCrowdProgressPaused()) {
         setTextById('ui-progress-label', '⛔ 전장 정리 중');
@@ -8660,6 +8680,12 @@ function mergeDefaults(save) {
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
     merged.saveMeta.lastCloudUploadProfile = normalizeCloudUploadProfile(merged.saveMeta.lastCloudUploadProfile);
+    merged.ocean = (merged.ocean && typeof merged.ocean === 'object') ? { ...createDefaultOceanState(), ...merged.ocean } : createDefaultOceanState();
+    merged.ocean.permanentUpgrades = { ...(createDefaultOceanState().permanentUpgrades || {}), ...(merged.ocean.permanentUpgrades || {}) };
+    Object.keys(merged.ocean.permanentUpgrades).forEach(key => {
+        let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
+        merged.ocean.permanentUpgrades[key] = def ? Math.max(0, Math.min(def.maxLevel, Math.floor(merged.ocean.permanentUpgrades[key] || 0))) : 0;
+    });
     merged.unlocks.jewel = !!merged.unlocks.jewel;
     merged.unlocks.cube = !!merged.unlocks.cube;
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(merged);
