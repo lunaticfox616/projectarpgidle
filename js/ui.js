@@ -7263,10 +7263,13 @@ function buildCraftActionButtons(item) {
         </div><div class="map-item-actions"><span class="map-zone-status">해금 최고층: ${maxFloor}층 · 클릭하여 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-labyrinth-list').innerHTML = '';
 
-    // 혼돈 심화 입장은 사냥터 선택/뿌리 보스 도전 카드로 노출한다.
-    // 기존 전용 섹션은 중복 표시를 피하기 위해 비운다.
+    // 혼돈 심화 입장은 사냥터 선택의 혼돈 카드 목록으로 노출한다.
+    // 기존 전용 섹션/사이드 탭은 중복 표시를 피하기 위해 비우고 숨긴다.
     document.getElementById('ui-deep-chaos-header').style.display = 'none';
     document.getElementById('ui-deep-chaos-list').innerHTML = '';
+    let deepChaosTabBtn = document.getElementById('btn-map-explore-deep-chaos');
+    if (deepChaosTabBtn) deepChaosTabBtn.style.display = 'none';
+    if (game.mapExploreSubtab === 'map-explore-deep-chaos') switchMapExploreSubtab('map-explore-hunting');
 
     let meteorUnlocked = !!(game.starWedge && game.starWedge.unlocked);
     let meteorReady = !!(game.starWedge && game.starWedge.skyRiftReady);
