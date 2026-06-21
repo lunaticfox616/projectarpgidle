@@ -1915,11 +1915,11 @@ const SEA_GIFT_RECIPES = [
     { id: 'tidelordCache', desc: '【재화 획득: 무작위 제작 오브 ×2】 해류군주 비단잉어의 비늘로 만든 함에서 무작위 제작 오브 2개를 얻습니다.', requires: { tidelordKoi: 1, abyssAngler: 2, shallowSilverfin: 4 }, effect: { type: 'randomCurrency', amount: 2 } },
     { id: 'leviathanCache', desc: '【재화 획득: 무작위 제작 오브 ×3】 리바이어던 본체와 무지갯빛 공포의 잔재로 채워진 최상급 보물함에서 무작위 제작 오브 3개를 얻습니다.', requires: { kingLeviathan: 1, prismaticHorror: 1, abyssAngler: 2 }, effect: { type: 'randomCurrency', amount: 3 } },
     // --- 장비 옵션 가공 효과 (제련/옵션 조작 계열) ---
-    { id: 'perfectPolish', desc: '【장비 강화: 옵션 1줄을 최고값으로 고정】 발광 송어와 은빛 비늘치로 무작위 옵션 한 줄의 수치를 해당 옵션의 최고값으로 끌어올립니다.', requires: { glowfinTrout: 3, shallowSilverfin: 4 }, effect: { type: 'perfectRoll' } },
-    { id: 'exaltedTide', desc: '【장비 강화: 옵션 칸 초과로 1줄 추가 부여】 심연 등불고기와 조류 장어로 옵션 칸이 가득 차 있어도 옵션 한 줄을 초과 부여합니다.', requires: { abyssAngler: 3, tidalEel: 4 }, effect: { type: 'addExtraMod' } },
-    { id: 'chaosCurrent', desc: '【장비 강화: 모든 옵션 동시 재굴림】 심연 등불고기와 발광 송어로 봉인되지 않은 모든 옵션을 한꺼번에 다시 굴립니다.', requires: { abyssAngler: 3, glowfinTrout: 3 }, effect: { type: 'rerollAllMods' } },
+    { id: 'safeReroll', desc: '【장비 강화: 하락 없는 안전 재굴림】 발광 송어와 은빛 비늘치로 옵션 1줄을 다시 굴립니다. 결과가 기존보다 낮으면 적용되지 않고 원래 값이 유지됩니다.', requires: { glowfinTrout: 3, shallowSilverfin: 4 }, effect: { type: 'safeReroll' } },
+    { id: 'twinCurrentReroll', desc: '【장비 강화: 무작위 옵션 2줄만 재굴림】 심연 등불고기와 조류 장어로 무작위로 고른 옵션 두 줄만 다시 굴립니다(나머지 줄은 보존, 카오스 오브와 달리 전체 재굴림이 아닙니다).', requires: { abyssAngler: 3, tidalEel: 4 }, effect: { type: 'twinReroll' } },
+    { id: 'tierStepUp', desc: '【장비 강화: 옵션 1줄 등급 +1 영구 재굴림】 심연 등불고기와 발광 송어로 무작위 옵션 1줄을 한 단계 높은 등급으로 다시 굴립니다(영구 적용).', requires: { abyssAngler: 3, glowfinTrout: 3 }, effect: { type: 'tierStepUp' } },
     { id: 'categoryShift', desc: '【장비 강화: 무작위 옵션 1줄을 원하는 계열로 변환】 발광 송어와 조류 장어로 무작위 옵션 한 줄을 선택한 계열의 옵션으로 바꿉니다.', requires: { glowfinTrout: 3, tidalEel: 3 }, effect: { type: 'convertCategoryMod' } },
-    { id: 'echoMod', desc: '【장비 강화: 가장 높은 옵션 1줄 복제】 전설의 새끼 괴어와 심연 등불고기로 가장 수치가 높은 옵션 한 줄을 복제해 추가 부여합니다.', requires: { voidLeviathanSpawn: 1, abyssAngler: 3 }, effect: { type: 'duplicateMod' } },
+    { id: 'narrowReroll', desc: '【장비 강화: 옵션 1줄을 상위 구간으로 재굴림】 전설의 새끼 괴어와 심연 등불고기로 무작위 옵션 1줄을 해당 옵션의 상위 50% 수치 구간에서만 다시 굴립니다(편차 감소, 평균적으로 더 높은 값).', requires: { voidLeviathanSpawn: 1, abyssAngler: 3 }, effect: { type: 'narrowReroll' } },
     // --- 초강력 레시피 (초희귀 어종 필요) ---
     { id: 'sealOffering', desc: '【장비 강화: 옵션 1줄 영구 봉인】 해류군주 비단잉어와 발광 송어로 옵션 한 줄을 영구히 봉인합니다.', requires: { tidelordKoi: 1, glowfinTrout: 3 }, effect: { type: 'lockMod', count: 1 } },
     { id: 'leviathanBoon', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +2)】 전설의 새끼 괴어와 심연 등불고기, 조류 장어로 최상급 태그 옵션을 확정 부여합니다.', requires: { voidLeviathanSpawn: 2, abyssAngler: 2, tidalEel: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 2 } },
@@ -1930,7 +1930,7 @@ const SEA_GIFT_RECIPES = [
     { id: 'leviathanRemnant', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +3) + 나쁜 옵션 1줄 무료 제거】 리바이어던 본체와 심연 등불고기로 최상급 태그 옵션을 확정 부여하며, 동시에 나쁜 줄 하나를 무료로 제거합니다.', requires: { kingLeviathan: 1, abyssAngler: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 3, bonusRemoveMod: true } },
     { id: 'leviathanSigil', desc: '【장비 강화: 이 레시피 전용 최상위 고정 옵션 부착】 리바이어던 본체와 해류군주 비단잉어, 공허 리바이어던 새끼로 오직 이 레시피로만 얻는 최상위 고정 옵션을 부착합니다.', requires: { kingLeviathan: 2, tidelordKoi: 2, voidLeviathanSpawn: 1 }, effect: { type: 'fixedBenchOption', topTier: true } }
 ];
-const SEA_GIFT_ITEM_EFFECT_TYPES = new Set(['guaranteedMod', 'guaranteedTaggedMod', 'removeMod', 'upgradeRarity', 'lockMod', 'taggedReroll', 'fixedBenchOption', 'perfectRoll', 'addExtraMod', 'rerollAllMods', 'convertCategoryMod', 'duplicateMod']);
+const SEA_GIFT_ITEM_EFFECT_TYPES = new Set(['guaranteedMod', 'guaranteedTaggedMod', 'removeMod', 'upgradeRarity', 'lockMod', 'taggedReroll', 'fixedBenchOption', 'safeReroll', 'twinReroll', 'tierStepUp', 'convertCategoryMod', 'narrowReroll']);
 
 function getSeaGiftRecipeStatus(recipeId) {
     let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
@@ -2016,26 +2016,49 @@ function craftSeaGift(recipeId, targetItem, options) {
             awardCurrency(key, 1);
             addLog(`🎲 무작위 제작 오브: ${(ORB_DB[key] || {}).name || key} +1`, 'loot-rare');
         }
-    } else if (effect.type === 'perfectRoll') {
+    } else if (effect.type === 'safeReroll') {
         let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
-        if (editableIdx.length === 0) { addLog('최고값으로 고정할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
+        if (editableIdx.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
         let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
-        let stat = item.stats[idx];
-        if (Number.isFinite(stat.valMax)) stat.val = stat.valMax;
+        let before = item.stats[idx];
+        let mods = pickRandomMods(getAvailableMods(item), 1);
+        if (mods && mods[0]) {
+            let rolled = rollAffixValue(mods[0], getItemCraftTier(item));
+            if ((Number(rolled.val) || 0) >= (Number(before.val) || 0)) item.stats[idx] = rolled;
+            else addLog('🌊 재굴림 결과가 기존보다 낮아 적용을 취소했습니다.', 'loot-magic');
+        }
         updateItemName(item);
-    } else if (effect.type === 'addExtraMod') {
-        let mod = pickWeightedMod(getAvailableMods(item));
-        if (!mod) { addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
-        item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
-        updateItemName(item);
-    } else if (effect.type === 'rerollAllMods') {
+    } else if (effect.type === 'twinReroll') {
         let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
         if (editableIdx.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
         let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1));
-        editableIdx.forEach(idx => {
+        let shuffled = editableIdx.slice().sort(() => Math.random() - 0.5).slice(0, 2);
+        shuffled.forEach(idx => {
             let mods = pickRandomMods(getAvailableMods(item), 1);
             if (mods && mods[0]) item.stats[idx] = rollAffixValue(mods[0], maxTier);
         });
+        updateItemName(item);
+    } else if (effect.type === 'tierStepUp') {
+        let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
+        if (editableIdx.length === 0) { addLog('등급을 올릴 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
+        let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
+        let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + 1;
+        let mods = pickRandomMods(getAvailableMods(item), 1);
+        if (mods && mods[0]) item.stats[idx] = rollAffixValue(mods[0], maxTier);
+        updateItemName(item);
+    } else if (effect.type === 'narrowReroll') {
+        let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
+        if (editableIdx.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
+        let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
+        let mods = pickRandomMods(getAvailableMods(item), 1);
+        if (mods && mods[0]) {
+            let rolled = rollAffixValue(mods[0], getItemCraftTier(item));
+            if (Number.isFinite(rolled.valMin) && Number.isFinite(rolled.valMax)) {
+                let mid = rolled.valMin + (rolled.valMax - rolled.valMin) * 0.5;
+                rolled.val = Math.floor(mid + Math.random() * Math.max(0, rolled.valMax - mid));
+            }
+            item.stats[idx] = rolled;
+        }
         updateItemName(item);
     } else if (effect.type === 'convertCategoryMod') {
         let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
@@ -2045,12 +2068,6 @@ function craftSeaGift(recipeId, targetItem, options) {
         if (!mod) { addLog('해당 계열로 변환할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
         let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
         item.stats[idx] = rollAffixValue(mod, getItemCraftTier(item));
-        updateItemName(item);
-    } else if (effect.type === 'duplicateMod') {
-        let editable = (item.stats || []).filter(s => s && !s.lockedByHoney && !s.lockedByRift);
-        if (editable.length === 0) { addLog('복제할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let best = editable.reduce((a, b) => ((Number(b.val) || 0) > (Number(a.val) || 0) ? b : a));
-        item.stats.push(JSON.parse(JSON.stringify(best)));
         updateItemName(item);
     }
     Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key]); });
