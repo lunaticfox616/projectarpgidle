@@ -7488,7 +7488,7 @@ function buildCraftActionButtons(item) {
             kDefs.forEach(k => { kById[k.id] = k; });
             let reqIdsOf = k => { let a = []; if (k.req) a.push(k.req); if (Array.isArray(k.reqAny)) a.push.apply(a, k.reqAny); return a.filter(id => kById[id]); };
             let depthCache = {};
-            let depthOf = id => { if (depthCache[id] != null) return depthCache[id]; depthCache[id] = 0; let k = kById[id]; if (!k) return 0; let rs = reqIdsOf(k); let d = rs.length ? 1 + Math.max.apply(null, rs.map(depthOf)) : 0; return depthCache[id] = d; };
+            let depthOf = id => { if (depthCache[id] != null) return depthCache[id]; depthCache[id] = 0; let k = kById[id]; if (!k) return 0; if (k.fifthJobOnly) return depthCache[id] = kDefs.length; let rs = reqIdsOf(k); let d = rs.length ? 1 + Math.max.apply(null, rs.map(depthOf)) : 0; return depthCache[id] = d; };
             let kTiers = [];
             kDefs.forEach(k => { let d = depthOf(k.id); (kTiers[d] = kTiers[d] || []).push(k); });
             let kPts = Math.max(0, Math.floor(game.ascendKeystonePoints || 0));
@@ -7497,7 +7497,9 @@ function buildCraftActionButtons(item) {
                 let reqMet = isAscendKeystoneRequirementMet(k);
                 let reqIds = reqIdsOf(k);
                 let reqLabel = '';
-                if (reqIds.length > 0) {
+                if (k.fifthJobOnly) {
+                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 선행: 5차 전직(재능 개화)</div>`;
+                } else if (reqIds.length > 0) {
                     let names = reqIds.map(id => (kById[id] || {}).name || id);
                     let joiner = Array.isArray(k.reqAny) ? ' 또는 ' : ', ';
                     reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 선행: ${names.join(joiner)}</div>`;
@@ -11545,6 +11547,11 @@ function getClassKeystoneDefs(clsKey) {
 function isAscendKeystoneRequirementMet(node) {
     if (!node) return false;
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
+    // 5차 전직(재능 개화) 키스톤은 다른 선행 키스톤 조건 없이 해당 직업의 5차 노드 해금 여부만 본다.
+    if (node.fifthJobOnly) {
+        game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
+        return game.bloomedClasses.includes(game.ascendClass);
+    }
     if (node.req) return game.ascendKeystones.includes(node.req);
     if (Array.isArray(node.reqAny) && node.reqAny.length > 0) return node.reqAny.some(id => game.ascendKeystones.includes(id));
     return true;

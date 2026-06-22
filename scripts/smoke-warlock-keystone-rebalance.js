@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Verifies the 워록(Warlock) keystone rebalance: 심연 각인(+20% chaos), 부패 증식(DOT 20%/instant -10%),
-// 전염 가속(tick +50%/duration -50%), 공허 관통(resPen +21 + crit→resPen, crit=0),
-// 심연 군주(jewel slots +2, chaos *1.25, leech/regen *0.5), 피의 계약(ES≥50% → +25% dmg,
-// per-attack life 4% cost → 1.5x). Source-of-truth checks against js/state.js + js/combat.js.
+// 전염 가속(tick +50%/duration -50%), 공허 특이점(resPen +21 + crit→resPen, crit=0, + per-attack
+// random damage band [100%, 100+resPen+critDmg]%), 심연 군주(jewel slots +2, chaos *1.25,
+// leech/regen *0.5), 피의 계약(ES≥50% → +25% dmg, per-attack life 4% cost → 1.5x), and the
+// fifthJobOnly convention for every class's 9th keystone. Source-of-truth checks against
+// js/state.js + js/combat.js.
 const fs = require('fs');
 const assert = require('assert');
 
@@ -13,7 +15,7 @@ const combat = fs.readFileSync('js/combat.js', 'utf8');
 assert(state.includes("name: '심연 각인', desc: '모든 피해가 카오스 피해가 됨. 카오스 피해 20% 증폭'"), '심연 각인 desc');
 assert(state.includes("name: '부패 증식', desc: '지속 피해 배율 20% 증폭, 즉발 피해 10% 감폭'"), '부패 증식 desc');
 assert(state.includes("name: '전염 가속', desc: 'DOT 틱 속도 +50%, 지속시간 -50%'"), '전염 가속 desc');
-assert(state.includes("name: '공허 관통', desc: '저항 관통 +21%, 치명타 불가, 치명타 확률이 저항 관통으로 전환'"), '공허 관통 desc');
+assert(state.includes("name: '공허 특이점', desc: '저항 관통 +21%, 치명타 불가, 치명타 확률이 저항 관통으로 전환. 공격 피해가 100%~(100+저항 관통+치명타 피해 배율)% 사이에서 무작위로 결정됨'"), '공허 특이점 desc');
 assert(/name: '피의 계약', desc: '에너지 보호막 50% 이상에서 피해 25% 증폭\. 공격 시 가능하면 생명력 4%를 소모해 해당 공격의 피해 1\.5배'/.test(state), '피의 계약 desc');
 assert(state.includes("name: '심연 군주', desc: '주얼 슬롯 2칸 추가, 카오스 피해 25% 증폭, 생명력 회복 효과 50% 감폭'"), '심연 군주 desc');
 
@@ -32,6 +34,8 @@ assert(/hasKeystone\('wlk2'\)\) \{\s*totalDotDamageMultiplier \*= 1\.20;\s*insta
 assert(/hasKeystone\('wlk5'\)\) \{\s*dotTickIntervalMultiplier \/= 1\.50;\s*dotDurationMultiplier \*= 0\.5;/.test(wlBranch), 'wlk5 tick/duration');
 // wlk6: resPen += 21 + crit, crit = 0 (crit chance → resPen, no crit)
 assert(/hasKeystone\('wlk6'\)\) \{\s*finalResPen \+= 21 \+ Math\.max\(0, finalCrit\);\s*finalCrit = 0;/.test(wlBranch), 'wlk6 resPen/crit conversion');
+// wlk6 (공허 특이점): per-attack damage multiplier uniformly random in [100%, 100+resPen+critDmg]%
+assert(/hasKeystone\('wlk6'\)\) \{\s*let singularityMaxPct = 100 \+ Math\.max\(0, pStats\.resPen \|\| 0\) \+ Math\.max\(0, pStats\.critDmg \|\| 0\);\s*let singularityPct = 100 \+ Math\.random\(\) \* Math\.max\(0, singularityMaxPct - 100\);\s*baseDamage = Math\.floor\(baseDamage \* \(singularityPct \/ 100\)\);/.test(combat), 'wlk6 공허 특이점 per-attack random damage band');
 // wlk8: chaos *1.25, leech *0.5, regen *0.5
 assert(/hasKeystone\('wlk8'\)\) \{\s*chaosDamageMultiplier \*= 1\.25;\s*finalLeech \*= 0\.5;\s*finalRegen \*= 0\.5;/.test(wlBranch), 'wlk8 chaos/heal');
 // wlk7: ES >= 50% → +25% base dmg
@@ -62,5 +66,23 @@ assert.strictEqual(a.baseDamage, 150, 'deals 1.5x when affordable');
 let b = bloodPact(30, 1000, 100); // cost 40 > current hp 30 → cannot afford
 assert.strictEqual(b.playerHp, 30, 'no life spent when unaffordable');
 assert.strictEqual(b.baseDamage, 100, 'no damage boost when unaffordable');
+
+// --- Numeric sanity: 공허 특이점(wlk6) damage band is uniform on [100%, 100+resPen+critDmg]% ---
+function singularityDamage(baseDamage, resPen, critDmg, rand) {
+  let singularityMaxPct = 100 + Math.max(0, resPen || 0) + Math.max(0, critDmg || 0);
+  let singularityPct = 100 + rand() * Math.max(0, singularityMaxPct - 100);
+  return Math.floor(baseDamage * (singularityPct / 100));
+}
+assert.strictEqual(singularityDamage(100, 21, 140, () => 0), 100, 'floor of band is exactly base damage (100%)');
+assert.strictEqual(singularityDamage(100, 21, 140, () => 1), 261, 'ceiling of band is 100+resPen+critDmg %');
+assert.strictEqual(singularityDamage(100, 0, 0, () => 0.5), 100, 'no resPen/critDmg collapses the band to 100%');
+
+// --- 5차 전직(wlk9) keystone: gated only by bloomedClasses, no other prerequisite chain ---
+assert(/id: 'wlk9'[\s\S]*?fifthJobOnly: true/.test(state), 'wlk9 must use fifthJobOnly instead of a keystone req chain');
+assert(!/id: 'wlk9'[^}]*req:\s*'\w+'/.test(state), 'wlk9 must not require a previous keystone');
+// every class's 9th (5차 전직) keystone follows the same fifthJobOnly convention
+['w9', 'g9', 'a9', 'r9', 'e9', 'wlk9', 'sb9', 'ct9', 'h9', 'cr9', 'gd9', 'iq9'].forEach(id => {
+  assert(new RegExp("id: '" + id + "'[\\s\\S]*?fifthJobOnly: true").test(state), id + ' must be fifthJobOnly');
+});
 
 console.log('warlock keystone rebalance smoke checks passed');

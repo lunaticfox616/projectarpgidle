@@ -6482,6 +6482,12 @@ function performPlayerAttack(pStats) {
             baseDamage = Math.floor(baseDamage * 1.5);
         }
     }
+    // 공허 특이점(워록 wlk6): 공격 피해가 100%~(100+저항관통+치명타 피해 배율)% 사이에서 균등 분포로 결정된다.
+    if (game.ascendClass === 'warlock' && hasKeystone('wlk6')) {
+        let singularityMaxPct = 100 + Math.max(0, pStats.resPen || 0) + Math.max(0, pStats.critDmg || 0);
+        let singularityPct = 100 + Math.random() * Math.max(0, singularityMaxPct - 100);
+        baseDamage = Math.floor(baseDamage * (singularityPct / 100));
+    }
     let getHitElement = () => {
         let pool = Array.isArray(pStats.sSkill.randomElementPool) ? pStats.sSkill.randomElementPool.filter(Boolean) : null;
         if (pool && pool.length > 0) return pool[Math.floor(Math.random() * pool.length)];
