@@ -4162,13 +4162,32 @@ function getSoftenedLoopDepth(depth) {
     return knee + (d - knee) * 0.5;
 }
 
+function getLoopHpScale(loopCount) {
+    let loop = Math.max(0, loopCount || 0);
+    const bands = [
+        { upTo: 1, rate: 0.12 },
+        { upTo: 10, rate: 0.10 },
+        { upTo: 20, rate: 0.08 },
+        { upTo: 40, rate: 0.04 },
+        { upTo: 100, rate: 0.018 },
+        { upTo: Infinity, rate: 0.006 }
+    ];
+    let scale = 1, prevBound = 0;
+    for (let band of bands) {
+        scale += Math.max(0, Math.min(loop, band.upTo) - prevBound) * band.rate;
+        prevBound = band.upTo;
+        if (loop <= band.upTo) break;
+    }
+    return scale;
+}
+
 function createEnemy(zone, marker, groupIndex) {
     let seasonDepth = getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
     let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
-    let loopHpScale = 1 + Math.max(0, getSoftenedLoopDepth(game.loopCount || 0) * 0.12);
+    let loopHpScale = getLoopHpScale(game.loopCount || 0);
     hp = Math.floor(hp * loopHpScale);
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
@@ -4202,7 +4221,7 @@ function createEnemy(zone, marker, groupIndex) {
         hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
     }
     if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(game.loopCount || 0) * 0.05)));
-    if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
+    if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.floor(hp * 0.92);
