@@ -8168,8 +8168,7 @@ function triggerSeasonReset() {
     game.supports = [];
     game.equippedSupports = [];
     game.supportGemData = {};
-    game.conditionGemUnlocked = false;
-    game.conditionGemPool = [];
+    // 컨디션 젬은 한 번 해금되면 영구 해금이며, 보유 풀도 루프 간 유지된다(재해금 버그 방지).
     game.pendingConditionGemChoices = null;
     game.skillAutoRules = [];
     game.conditionGemCooldowns = {};
