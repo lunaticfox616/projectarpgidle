@@ -6732,9 +6732,6 @@ function getCurrencyDrops(enemy) {
         if (bonusRoll(0.31)) drops.push(['alchemy', 1]);
         if (bonusRoll(0.08)) drops.push(['regal', 1]);
         if (bonusRoll(0.17)) drops.push(['chaos', 1]);
-        if (bonusRoll(0.025)) drops.push(['divine', 1]);
-        // 나무꾼의 손길: 신성한 오브가 나올 확률의 1/1200(극악)로 드랍.
-        if (bonusRoll(0.025 / 1200)) drops.push(['woodsmanTouch', 1]);
         if (bonusRoll(0.05)) drops.push(['exalted', 1]);
     } else if (enemy.isElite) {
         if (bonusRoll(0.18)) {
@@ -6746,6 +6743,10 @@ function getCurrencyDrops(enemy) {
     } else if (bonusRoll(0.02)) {
         drops.push([[ 'transmute', 'transmute', 'augment', 'alteration', 'scour' ][Math.floor(Math.random() * 5)], 1]);
     }
+    // 신성한 오브: 일반 0.055% / 정예 0.11% / 보스 1.25%. 나무꾼의 손길은 각 출처 신성 확률의 1/1200(극악).
+    let divineChance = enemy.isBoss ? 0.0125 : (enemy.isElite ? 0.0011 : 0.00055);
+    if (bonusRoll(divineChance)) drops.push(['divine', 1]);
+    if (bonusRoll(divineChance / 1200)) drops.push(['woodsmanTouch', 1]);
     let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     drops.push(...getMappingTicketDrops(enemy, zone, mappingOpened));
     if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['annulment', 1]);
