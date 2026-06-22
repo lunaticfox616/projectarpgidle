@@ -2697,7 +2697,6 @@ function getPlayerStats() {
             instantDamageMultiplier *= 0.90;
         }
         if (hasKeystone('wlk3')) {
-            finalRegen = 0;
             finalEnergyShieldRegenRate = 0;
         }
         if (hasKeystone('wlk6')) {

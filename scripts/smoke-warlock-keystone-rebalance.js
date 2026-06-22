@@ -23,6 +23,9 @@ const wlBranch = branch.slice(0, branch.indexOf("} else if (game.ascendClass ===
 
 // wlk1: chaos *1.20
 assert(/hasKeystone\('wlk1'\)\) \{\s*chaosDamageMultiplier \*= 1\.20;/.test(wlBranch), 'wlk1 chaos 1.20');
+// wlk3: only ES regen disabled, life regen must NOT be zeroed (금단 대가 desc is ES-only)
+assert(/hasKeystone\('wlk3'\)\) \{\s*finalEnergyShieldRegenRate = 0;/.test(wlBranch), 'wlk3 disables ES regen only');
+assert(!/hasKeystone\('wlk3'\)\) \{\s*finalRegen = 0;/.test(wlBranch), 'wlk3 must not zero life regen');
 // wlk2: DOT *1.20, instant *0.90
 assert(/hasKeystone\('wlk2'\)\) \{\s*totalDotDamageMultiplier \*= 1\.20;\s*instantDamageMultiplier \*= 0\.90;/.test(wlBranch), 'wlk2 dot/instant');
 // wlk5: tick interval /1.50 (=+50% speed), duration *0.5
