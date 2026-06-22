@@ -4368,7 +4368,7 @@ function showItemTooltip(event, idx, isEquip) {
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${item.name}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>`;
     let baseChainInfo = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
     let baseChainBadge = (baseChainInfo && baseChainInfo.total > 1)
-        ? ` <span style="color:#7fd1a8;" title="업그레이드 체인 단계 (낮을수록 하위, 높을수록 상위 베이스)">[체인 ${baseChainInfo.step}/${baseChainInfo.total}]</span>`
+        ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${baseChainInfo.step}/${baseChainInfo.total}]</span>`
         : '';
     html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}${baseChainBadge}</div>`;
     html += `<div class="tooltip-line" style="color:#a8c0da;">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
