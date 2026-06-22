@@ -234,12 +234,14 @@ function getOceanPressureResistUpgradePct() {
     return Math.max(0, Math.min(80, getOceanPermanentUpgradeEffect('pressureResist')));
 }
 function getOceanOxygenDrainPerSec() {
-    // 기본 시간당 감소량은 고정이되, 이동 속도가 높을수록 더 빠르게 감소합니다.
+    // 산소 소모는 시간 기반입니다. 이동 속도는 더 이상 산소 소모를 늘리지 않습니다
+    // (이속이 높을수록 도달 수심이 오히려 줄어들던 역설을 제거).
     let base = 0.5 * (1 - getOceanOxygenSavingPct() / 100);
-    let moveSpeed = 100;
-    try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) { console.warn('failed to read movement speed for map progress:', e); }
-    let moveRatio = Math.max(0.5, Math.min(4, moveSpeed / 100));
-    return Math.max(0.1, base * moveRatio);
+    // 수압 과부하: 깊이 내려갈수록 산소 소모가 가속됩니다(최대 +100%). 수압 저항 영구 업그레이드로 완화됩니다.
+    let depthTier = getOceanDepthTier((game && game.ocean && game.ocean.depthM) || 0);
+    let pressureResistPct = Math.max(0, Math.min(80, getOceanPressureResistUpgradePct()));
+    let pressureDrainMul = 1 + Math.min(1.0, depthTier * 0.07) * (1 - pressureResistPct / 100);
+    return Math.max(0.1, base * pressureDrainMul);
 }
 function getOceanOxygenPerAttackCost() {
     // 공격 1회마다 소모되는 고정 산소량입니다.
@@ -253,7 +255,7 @@ function getOceanPendingBossBoundary(st) {
     return 0;
 }
 function getOceanMoveSpeedDepthBonus() {
-    // 이동 속도가 빠를수록 산소 소모는 늘지만, 그만큼 한 번에 더 깊이 전진할 수 있도록 보정합니다.
+    // 이동 속도가 빠를수록 한 번에 더 깊이 전진합니다(산소 소모와는 무관, 최대 +50%).
     let moveSpeed = 100;
     try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) { console.warn('failed to read movement speed for map progress:', e); }
     let bonusRatio = Math.max(0, (moveSpeed - 100) / 100);

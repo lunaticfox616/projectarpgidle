@@ -1774,10 +1774,13 @@ function advanceOceanDiveFromKill(zone) {
     // 팩(웨이브) 전체를 클리어했을 때만 호출됩니다 (개별 몬스터 처치마다 호출되지 않음).
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
-    // 수심은 전투 진행도(웨이브 클리어)가 아니라 시간에 따라 꾸준히 증가한다(tickOceanDepth 참고).
-    // 웨이브 클리어 시에는 부수 보상(암초 조각)만 처리한다.
     if (Math.random() < 0.06) awardCurrency('reefFragment', 1);
-    st.pressureLevel = getOceanDepthTier(st.depthM);
+    // 전투 진행도 보상: 웨이브를 클리어할 때마다 수심이 추가로 전진한다.
+    // 시간 기반 진행(tickOceanDepth)은 방치용 바닥값으로 남고, 빠르게/강하게 클리어할수록 더 깊이 내려간다.
+    let gearDepthGainPct = 0;
+    try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
+    let clearBurst = (14 + getOceanDepthTier(st.depthM)) * (1 + gearDepthGainPct / 100);
+    applyOceanDepthGain(st, clearBurst);
     let pressureCrushAlive = (game.enemies || []).some(e => e && e.hp > 0 && e.trait && e.trait.oceanPressureGainMul);
     if (pressureCrushAlive) st.pressureLevel = Math.ceil(st.pressureLevel * 1.1);
     gainOceanFishingGaugeFromCombat(zone);
@@ -1798,7 +1801,9 @@ function consumeOceanOxygenOnAttack() {
 function gainOceanFishingGaugeFromCombat(zone) {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
-    let gain = 1.4 * getOceanFishingGaugeGainMul();
+    // 낚시 게이지는 구역 강도(수심 단계)에 따라 세분화: 얕은(약한) 곳에선 조금, 깊은(강한) 곳에선 조금 더 오른다.
+    let depthTier = Math.max(0, Math.floor((zone && zone.depthTier) || getOceanDepthTier(st.depthM)));
+    let gain = (1.0 + depthTier * 0.18) * getOceanFishingGaugeGainMul();
     let nextGauge = (st.fishingGauge || 0) + gain;
     st.fishingGauge = clampNumber(nextGauge, 0, 100);
     if (st.fishingGauge >= 100) {
@@ -1963,24 +1968,27 @@ function tickOceanOxygen(nowMs) {
     tickOceanDepth(st, dtSec);
 }
 
-// 수심을 시간에 따라 꾸준히 증가시킨다.
-function tickOceanDepth(st, dtSec) {
-    if (!st || !(dtSec > 0)) return;
-    let nextBoundary = Infinity;
-    let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
-    let gearDepthGainPct = 0;
-    try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
-    let depthPerSec = 3 * speedBonus * (1 + gearDepthGainPct / 100);
+// 수심을 meters 만큼 증가시키고 체크포인트/수압을 갱신하는 공통 처리.
+function applyOceanDepthGain(st, meters) {
+    if (!st || !(meters > 0)) return;
     let curDepth = Math.max(0, Number(st.depthM) || 0);
-    let newDepth = Math.min(nextBoundary, curDepth + depthPerSec * dtSec);
-    if (newDepth <= curDepth) return;
-    st.depthM = newDepth;
+    st.depthM = curDepth + meters;
     let newCheckpoint = Math.floor(st.depthM / 100) * 100;
-    if (newCheckpoint > (st.checkpointM || 0) && newCheckpoint < nextBoundary) {
+    if (newCheckpoint > (st.checkpointM || 0)) {
         st.checkpointM = newCheckpoint;
         addLog(`🛗 수중 리프트 ${st.checkpointM}m 지점이 개방되었습니다.`, 'loot-rare');
     }
     st.pressureLevel = getOceanDepthTier(st.depthM);
+}
+
+// 수심을 시간에 따라 꾸준히 증가시킨다(방치 진행의 바닥값).
+function tickOceanDepth(st, dtSec) {
+    if (!st || !(dtSec > 0)) return;
+    let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
+    let gearDepthGainPct = 0;
+    try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
+    let depthPerSec = 3 * speedBonus * (1 + gearDepthGainPct / 100);
+    applyOceanDepthGain(st, depthPerSec * dtSec);
 }
 
 const OCEAN_MOD_CATEGORY_RULES = [
