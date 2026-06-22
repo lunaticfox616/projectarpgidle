@@ -31,11 +31,12 @@ const context = {
   handleEnemyDeath(enemy) { game.enemies = game.enemies.filter(row => row.id !== enemy.id); },
 };
 vm.createContext(context);
+vm.runInContext('const SKILL_PERIODIC_CHAIN_CAP = 12; this.SKILL_PERIODIC_CHAIN_CAP = SKILL_PERIODIC_CHAIN_CAP;', context);
 [
   'getDotStackMultiplier', 'applyEnemyDotFromHit', 'getSkillAilmentStats',
   'getSkillConditionalDamageMultiplier', 'isDamageAilmentType', 'getEnemyDamageAilmentMaxStacks',
   'getStoredAilmentHitDamage', 'cloneEnemyAilmentForSpread', 'mergeEnemyAilment',
-  'spreadSkillAilmentOnHit', 'applySkillPeriodicOnHit', 'tickEnemySkillPeriodicEffects',
+  'spreadSkillAilmentOnHit', 'queueSkillPeriodicHit', 'applySkillPeriodicOnHit', 'tickEnemySkillPeriodicEffects',
   'transferSkillDotOnDeath', 'getSkillTargets'
 ].forEach(name => vm.runInContext(`${extractFunction(name)}; this.${name} = ${name};`, context));
 
@@ -105,7 +106,7 @@ game.enemies = [stormTarget];
 withRandom(0, () => context.applySkillPeriodicOnHit(stormTarget, storm, 100));
 for (let index = 0; index < storm.periodicOnHit.hits; index++) context.tickEnemySkillPeriodicEffects({}, storm.periodicOnHit.interval);
 assert.strictEqual(stormTarget.hp, 1000 - storm.periodicOnHit.hits * 22, 'Thundercloud must deal exactly four configured periodic hits');
-assert.strictEqual(stormTarget.skillPeriodic, null, 'Thundercloud must clear after its final repeat');
+assert.strictEqual((stormTarget.skillPeriodics || []).length, 0, 'Thundercloud must clear after its final repeat');
 context.tickEnemySkillPeriodicEffects({}, 10);
 assert.strictEqual(stormTarget.hp, 912, 'Thundercloud must not leave residual hits after completion');
 

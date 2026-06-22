@@ -2058,8 +2058,20 @@ function getPlayerStats() {
         let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
         let supportGemSources = getTargetGemBonusSources(name);
         let effectiveLevel = Math.max(1, gem.level + supportGemSources.total);
-        let val = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
+        let val;
+        if (db.scaleWithOwnStat) {
+            let ownStatTotal = gearBase[db.scaleWithOwnStat] + gearExplicit[db.scaleWithOwnStat] + passive[db.scaleWithOwnStat]
+                + season[db.scaleWithOwnStat] + ascend[db.scaleWithOwnStat] + reward[db.scaleWithOwnStat] + (starBlessing[db.scaleWithOwnStat] || 0);
+            let ratioPct = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
+            val = Math.max(0, ownStatTotal) * (ratioPct / 100);
+        } else {
+            val = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
+        }
         addStatToBucket(support, db.stat, val);
+        if (db.capStat) {
+            let capVal = (db.capBase || 0) + Math.max(0, effectiveLevel - (db.capGrowAfterLevel || 0)) * (db.capPerLevel || 0);
+            addStatToBucket(support, db.capStat, capVal);
+        }
     });
 
     if (game.shrineBuff && Date.now() > (game.shrineBuff.expiresAt || 0)) game.shrineBuff = null;
@@ -3605,7 +3617,10 @@ function getPlayerStats() {
         bossDamagePct: Math.max(0, sumStatAcrossBuckets('bossDamagePct')),
         eliteDamagePct: Math.max(0, sumStatAcrossBuckets('eliteDamagePct')),
         firstStrikeDamagePct: Math.max(0, sumStatAcrossBuckets('firstStrikeDamagePct')),
-        cullStrikePct: Math.max(0, Math.min(20, sumStatAcrossBuckets('cullStrikePct')))
+        cullStrikePct: Math.max(0, Math.min(20, sumStatAcrossBuckets('cullStrikePct'))),
+        echoPower: Math.max(0, sumStatAcrossBuckets('echoPower')),
+        chaosErosion: Math.max(0, sumStatAcrossBuckets('chaosErosion')),
+        chaosErosionCap: Math.max(0, sumStatAcrossBuckets('chaosErosionCap'))
     };
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
@@ -3838,6 +3853,9 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     if (skillEle === 'chaos' && enemy && enemy.id && game.enemyUniqueChaosResDown && game.enemyUniqueChaosResDown[enemy.id]) {
         let deb = game.enemyUniqueChaosResDown[enemy.id];
         rawMitigation -= Math.max(0, (deb.perHit || 0) * (deb.stacks || 0));
+    }
+    if (skillEle === 'chaos' && enemy && enemy.chaosErosionShred) {
+        rawMitigation -= enemy.chaosErosionShred;
     }
     if (skillEle === 'phys') {
         let cappedReduction = Math.max(0, Math.min(80, rawMitigation));
@@ -4144,13 +4162,32 @@ function getSoftenedLoopDepth(depth) {
     return knee + (d - knee) * 0.5;
 }
 
+function getLoopHpScale(loopCount) {
+    let loop = Math.max(0, loopCount || 0);
+    const bands = [
+        { upTo: 1, rate: 0.12 },
+        { upTo: 10, rate: 0.10 },
+        { upTo: 20, rate: 0.08 },
+        { upTo: 40, rate: 0.04 },
+        { upTo: 100, rate: 0.018 },
+        { upTo: Infinity, rate: 0.006 }
+    ];
+    let scale = 1, prevBound = 0;
+    for (let band of bands) {
+        scale += Math.max(0, Math.min(loop, band.upTo) - prevBound) * band.rate;
+        prevBound = band.upTo;
+        if (loop <= band.upTo) break;
+    }
+    return scale;
+}
+
 function createEnemy(zone, marker, groupIndex) {
     let seasonDepth = getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
     let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
-    let loopHpScale = 1 + Math.max(0, getSoftenedLoopDepth(game.loopCount || 0) * 0.12);
+    let loopHpScale = getLoopHpScale(game.loopCount || 0);
     hp = Math.floor(hp * loopHpScale);
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
@@ -4184,7 +4221,7 @@ function createEnemy(zone, marker, groupIndex) {
         hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
     }
     if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(game.loopCount || 0) * 0.05)));
-    if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
+    if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.floor(hp * 0.92);
@@ -4639,16 +4676,45 @@ function spreadSkillAilmentOnHit(source, skill) {
     targets.slice(0, Math.max(1, Math.floor(config.targets || 1))).forEach(target => mergeEnemyAilment(target, copy));
 }
 
-function applySkillPeriodicOnHit(enemy, skill, damage) {
-    let config = skill.periodicOnHit;
+const SKILL_PERIODIC_CHAIN_CAP = 12;
+function queueSkillPeriodicHit(enemy, config, damage, ele) {
     if (!config || enemy.hp <= 0 || Math.random() >= Math.max(0, Math.min(1, Number(config.chance) || 0))) return;
-    enemy.skillPeriodic = {
-        hitsLeft: Math.max(1, Math.floor(config.hits || 1)),
-        interval: Math.max(0.05, Number(config.interval) || 1),
-        timer: Math.max(0.05, Number(config.interval) || 1),
+    enemy.skillPeriodics = Array.isArray(enemy.skillPeriodics) ? enemy.skillPeriodics : [];
+    let queuedHits = enemy.skillPeriodics.reduce((sum, fx) => sum + Math.max(0, fx.hitsLeft || 0), 0);
+    let allowedHits = Math.max(0, SKILL_PERIODIC_CHAIN_CAP - queuedHits);
+    if (allowedHits <= 0) return;
+    let hits = Math.min(Math.max(1, Math.floor(config.hits || 1)), allowedHits);
+    let interval = Math.max(0.05, Number(config.interval) || 1);
+    enemy.skillPeriodics.push({
+        hitsLeft: hits,
+        interval: interval,
+        timer: interval,
         damage: Math.max(1, Math.floor(damage * Math.max(0, Number(config.damagePct) || 0) / 100)),
-        ele: config.ele || skill.ele || 'phys'
+        ele: config.ele || ele || 'phys'
+    });
+}
+
+function applySkillPeriodicOnHit(enemy, skill, damage) {
+    queueSkillPeriodicHit(enemy, skill.periodicOnHit, damage, skill.ele);
+}
+
+function applySupportEchoOnHit(enemy, pStats, damage) {
+    let echoPower = pStats.echoPower || 0;
+    if (echoPower <= 0) return;
+    let config = {
+        chance: Math.min(0.6, 0.2 + echoPower / 100),
+        hits: 2 + Math.floor(echoPower / 20),
+        interval: 0.45,
+        damagePct: 15 + echoPower * 0.6
     };
+    queueSkillPeriodicHit(enemy, config, damage, pStats.sSkill && pStats.sSkill.ele);
+}
+
+function applySupportChaosErosionOnHit(enemy, pStats, hitElement) {
+    let erosionPerHit = pStats.chaosErosion || 0;
+    if (erosionPerHit <= 0 || hitElement !== 'chaos' || !enemy || enemy.hp <= 0) return;
+    let cap = pStats.chaosErosionCap || 20;
+    enemy.chaosErosionShred = Math.min(cap, (enemy.chaosErosionShred || 0) + erosionPerHit);
 }
 
 function getAilmentTypeFromElement(ele) {
@@ -4985,16 +5051,19 @@ function tickEnemySkillPeriodicEffects(pStats, dt) {
     let zone = getZone(game.currentZoneId);
     let zoneTier = (zone && zone.tier) || 1;
     (game.enemies || []).forEach(enemy => {
-        let effect = enemy && enemy.hp > 0 ? enemy.skillPeriodic : null;
-        if (!effect || effect.hitsLeft <= 0) return;
-        effect.timer -= dt;
-        while (effect.timer <= 0 && effect.hitsLeft > 0 && enemy.hp > 0) {
-            effect.timer += effect.interval;
-            effect.hitsLeft--;
-            let mitigation = getEffectiveEnemyMitigation(effect.ele, zoneTier, enemy, pStats);
-            applyDamageToEnemyResource(enemy, Math.max(1, Math.floor(effect.damage * (1 - mitigation / 100))));
-        }
-        if (effect.hitsLeft <= 0 || enemy.hp <= 0) enemy.skillPeriodic = null;
+        let effects = enemy && enemy.hp > 0 && Array.isArray(enemy.skillPeriodics) ? enemy.skillPeriodics : null;
+        if (!effects || effects.length <= 0) return;
+        effects.forEach(effect => {
+            if (effect.hitsLeft <= 0 || enemy.hp <= 0) return;
+            effect.timer -= dt;
+            while (effect.timer <= 0 && effect.hitsLeft > 0 && enemy.hp > 0) {
+                effect.timer += effect.interval;
+                effect.hitsLeft--;
+                let mitigation = getEffectiveEnemyMitigation(effect.ele, zoneTier, enemy, pStats);
+                applyDamageToEnemyResource(enemy, Math.max(1, Math.floor(effect.damage * (1 - mitigation / 100))));
+            }
+        });
+        enemy.skillPeriodics = effects.filter(fx => fx.hitsLeft > 0 && enemy.hp > 0);
         if (enemy.hp <= 0) handleEnemyDeath(enemy, pStats);
     });
 }
@@ -6590,7 +6659,7 @@ function performPlayerAttack(pStats) {
             });
             if (chainTarget.hp <= 0) {
                 let prevRemainingDamage = remainingDamage;
-                remainingDamage = Math.max(0, remainingDamage - dealtToChain);
+                remainingDamage = Math.max(0, Math.floor((remainingDamage - dealtToChain) * 0.8));
                 let carryRatio = prevRemainingDamage > 0 ? (remainingDamage / prevRemainingDamage) : 0;
                 remainingAilmentSourceDamage = Math.max(0, Math.floor(remainingAilmentSourceDamage * carryRatio));
             } else {
@@ -7109,6 +7178,8 @@ function performPlayerAttack(pStats) {
             });
             spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill);
             applySkillPeriodicOnHit(targetEnemy, pStats.sSkill, dealtToEnemy);
+            applySupportEchoOnHit(targetEnemy, pStats, dealtToEnemy);
+            applySupportChaosErosionOnHit(targetEnemy, pStats, hitElement);
             if (pStats.uniqueAlwaysShock) {
                 let shockStats = { ...pStats, sSkill: { ...pStats.sSkill, ele: 'light' } };
                 let shockHit = Math.max(1, Math.floor(dmg * 0.25 * (1 + Math.max(0, Number(pStats.shockEffectBonusPct)||0)/100)));
