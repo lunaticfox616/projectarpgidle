@@ -56,11 +56,13 @@ function pierceCarryDecay(remainingDamage, dealtToChain) {
 assert.strictEqual(pierceCarryDecay(1000, 400), 480, 'overkill remainder decays to 80% after a chain hop');
 assert.strictEqual(pierceCarryDecay(1000, 1000), 0, 'fully consumed damage leaves nothing to decay');
 
-// --- 3) elemental support gems scale off the player's own elemental % damage (no flat baseVal/scale stat grind, no RNG) ---
-['화염 주입', '냉기 증폭', '번개 전도', '혼돈 전환'].forEach(name => {
+// --- 3) NEW resonance support gems scale off the player's own elemental % damage (no flat baseVal/scale stat grind, no RNG) ---
+['화염 공명', '냉기 공명', '번개 공명', '혼돈 공명'].forEach(name => {
   assert(new RegExp(`'${name}': \\{[^}]*scaleWithOwnStat: '\\w+PctDmg'`).test(state), `${name} must scale with the player's own matching pct-dmg stat`);
 });
-assert(!/'화염 주입': \{ baseVal: 5, scale: 2\.0/.test(state), 'old flat 화염 주입 definition must be removed (no duplicate key)');
+// original flat elemental gems remain untouched alongside the new resonance gems
+assert(/'화염 주입': \{ baseVal: 5, scale: 2\.0[^}]*\}/.test(state), 'original flat 화염 주입 definition must remain');
+assert(!/'화염 주입': \{[^}]*scaleWithOwnStat/.test(state), '화염 주입 must not carry the scaleWithOwnStat mechanic');
 
 assert(/if \(db\.scaleWithOwnStat\) \{/.test(combat), 'support aggregation loop must special-case scaleWithOwnStat gems');
 assert(/let ownStatTotal = gearBase\[db\.scaleWithOwnStat\] \+ gearExplicit\[db\.scaleWithOwnStat\]/.test(combat), 'own-stat total must be summed from non-support buckets only (no self-reference loop)');
