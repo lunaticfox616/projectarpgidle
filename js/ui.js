@@ -4366,7 +4366,11 @@ function showItemTooltip(event, idx, isEquip) {
     activeItemTooltipToken = isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`;
     let tt = document.getElementById('item-tooltip-box');
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${item.name}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>`;
-    html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}</div>`;
+    let baseChainInfo = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
+    let baseChainBadge = (baseChainInfo && baseChainInfo.total > 1)
+        ? ` <span style="color:#7fd1a8;" title="업그레이드 체인 단계 (낮을수록 하위, 높을수록 상위 베이스)">[체인 ${baseChainInfo.step}/${baseChainInfo.total}]</span>`
+        : '';
+    html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}${baseChainBadge}</div>`;
     html += `<div class="tooltip-line" style="color:#a8c0da;">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
     if (item.rarity === 'unique' && item.uniqueEffect) {
         let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';

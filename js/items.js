@@ -490,6 +490,55 @@ function getBaseUpgradeCandidates(currentBase) {
     }
     return candidates;
 }
+// 업그레이드로 이어진 베이스들을 하나의 체인으로 보고, 각 베이스가 그 체인에서 몇 단계인지 계산한다.
+// step = 아래(저티어)에서부터의 위치(1부터), total = 그 베이스를 지나는 가장 긴 체인의 길이.
+// 분기 합류(여러 하위가 같은 상위로 업그레이드되는 경우)는 가장 긴 경로를 기준으로 한다.
+let _baseChainInfoCache = null;
+function buildBaseChainInfoCache() {
+    _baseChainInfoCache = {};
+    let pool = BASE_ITEM_DB.filter(b => b && b.id && !b.dropOnly && !b.realmBase);
+    let succ = {};
+    let preds = {};
+    pool.forEach(b => { preds[b.id] = []; });
+    pool.forEach(b => {
+        let cands = getBaseUpgradeCandidates(b);
+        let next = (cands && cands.length > 0) ? cands[0] : null;
+        succ[b.id] = next ? next.id : null;
+        if (next && preds[next.id]) preds[next.id].push(b.id);
+    });
+    let upMemo = {};
+    function up(id) {
+        if (upMemo[id] != null) return upMemo[id];
+        upMemo[id] = 1; // 사이클 가드(실제로는 reqTier가 엄격히 증가해 사이클 없음)
+        let s = succ[id];
+        return (upMemo[id] = s ? 1 + up(s) : 1);
+    }
+    let downMemo = {};
+    function down(id) {
+        if (downMemo[id] != null) return downMemo[id];
+        downMemo[id] = 1;
+        let best = 0;
+        (preds[id] || []).forEach(p => { best = Math.max(best, down(p)); });
+        return (downMemo[id] = best + 1);
+    }
+    pool.forEach(b => {
+        let d = down(b.id);
+        let u = up(b.id);
+        _baseChainInfoCache[b.id] = { step: d, total: d + u - 1 };
+    });
+}
+function getBaseChainInfo(base) {
+    if (!base || !base.id) return null;
+    if (!_baseChainInfoCache) buildBaseChainInfoCache();
+    return _baseChainInfoCache[base.id] || null;
+}
+function getItemBaseChainInfo(item) {
+    if (!item) return null;
+    let base = BASE_ITEM_DB.find(b => b && item.baseId && b.id === item.baseId)
+        || BASE_ITEM_DB.find(b => b && b.name === item.baseName && b.slot === item.slot);
+    if (!base) return null;
+    return getBaseChainInfo(base);
+}
 function upgradeSelectedItemBase() {
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
