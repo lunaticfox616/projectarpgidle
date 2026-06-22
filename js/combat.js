@@ -2195,6 +2195,8 @@ function getPlayerStats() {
         let spellFlatPct = gearBase.spellFlatPct + gearExplicit.spellFlatPct + passive.spellFlatPct + season.spellFlatPct + ascend.spellFlatPct + reward.spellFlatPct + support.spellFlatPct;
         spellFlatDmg = Math.max(1, ((spellBase * 3) + Math.max(0, skillLevel - 1) * spellScale + (spellBase * 0.8 * logBoost * logBoost) + spellFlatBonus) * (1 + spellFlatPct / 100));
         spellFlatDmg *= (1 + Math.max(0, Number(skill.spellFlatMulBonus) || 0) / 100);
+        // 부패 증식(워록 wlk2): 지속 피해 배율 20% 증폭과 동일하게 주문 내장 피해도 20% 증가시킨다.
+        if (game.ascendClass === 'warlock' && hasKeystone('wlk2')) spellFlatDmg *= 1.20;
     }
     let totalFlatDmg = (isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg)) + coreCubeFlatElementDamageTotal;
     let codexBonusRatio = 1 + (getCodexBonusPct() / 100);
@@ -2697,7 +2699,6 @@ function getPlayerStats() {
             instantDamageMultiplier *= 0.90;
         }
         if (hasKeystone('wlk3')) {
-            finalRegen = 0;
             finalEnergyShieldRegenRate = 0;
         }
         if (hasKeystone('wlk6')) {
@@ -6481,6 +6482,12 @@ function performPlayerAttack(pStats) {
             game.playerHp -= bloodPactCost;
             baseDamage = Math.floor(baseDamage * 1.5);
         }
+    }
+    // 공허 특이점(워록 wlk6): 공격 피해가 100%~(100+저항관통+치명타 피해 배율)% 사이에서 균등 분포로 결정된다.
+    if (game.ascendClass === 'warlock' && hasKeystone('wlk6')) {
+        let singularityMaxPct = 100 + Math.max(0, pStats.resPen || 0) + Math.max(0, pStats.critDmg || 0);
+        let singularityPct = 100 + Math.random() * Math.max(0, singularityMaxPct - 100);
+        baseDamage = Math.floor(baseDamage * (singularityPct / 100));
     }
     let getHitElement = () => {
         let pool = Array.isArray(pStats.sSkill.randomElementPool) ? pStats.sSkill.randomElementPool.filter(Boolean) : null;

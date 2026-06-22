@@ -157,6 +157,16 @@
         .trait-title { font-weight: bold; font-size: 0.9em; color: #f1c40f; }
         .trait-desc { font-size: 0.75em; color: #95a5a6; }
 
+        /* 키스톤 선행 관계 시각화: 티어별 행 + 연결선 + 선행 라벨 + 호버 체인 강조 */
+        .trait-row.ks-tier-linked { margin-top: 28px; }
+        .trait-row.ks-tier-linked::before { content: ''; position: absolute; top: -24px; left: 50%; width: 2px; height: 22px; background: linear-gradient(#3d3d5c, #7a7ab0); transform: translateX(-50%); z-index: 1; }
+        .trait-row.ks-tier-linked::after { content: '▼'; position: absolute; top: -8px; left: 50%; transform: translateX(-50%); color: #7a7ab0; font-size: 0.6em; z-index: 1; }
+        .ks-prereq { font-size: 0.66em; border-radius: 6px; padding: 1px 5px; margin: -2px auto 1px; display: inline-block; border: 1px solid transparent; }
+        .ks-prereq.met { color: #7ddf9f; border-color: rgba(125,223,159,0.4); }
+        .ks-prereq.unmet { color: #e6a96b; border-color: rgba(230,169,107,0.4); }
+        .trait-card.ks-prereq-hi { border-color: #4fc3f7 !important; box-shadow: 0 0 14px rgba(79,195,247,0.7) !important; }
+        .trait-card.ks-self-hi:not(.locked) { border-color: #f1c40f !important; box-shadow: 0 0 12px rgba(241,196,15,0.55) !important; }
+
         .class-card { background: #1a1a24; border: 2px solid #8e44ad; padding: 15px; border-radius: 6px; text-align: center; cursor: pointer; transition: 0.2s; }
         .class-card:hover { background: #2a1035; border-color: #9b59b6; transform: scale(1.05); }
 
