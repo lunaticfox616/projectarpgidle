@@ -13,7 +13,7 @@ const combat = fs.readFileSync('js/combat.js', 'utf8');
 
 // --- Keystone descriptions reflect the new spec ---
 assert(state.includes("name: '심연 각인', desc: '모든 피해가 카오스 피해가 됨. 카오스 피해 20% 증폭'"), '심연 각인 desc');
-assert(state.includes("name: '부패 증식', desc: '지속 피해 배율 20% 증폭, 즉발 피해 10% 감폭'"), '부패 증식 desc');
+assert(state.includes("name: '부패 증식', desc: '지속 피해 배율 20% 증폭, 주문 내장 피해 20% 증가, 즉발 피해 10% 감폭'"), '부패 증식 desc');
 assert(state.includes("name: '전염 가속', desc: 'DOT 틱 속도 +50%, 지속시간 -50%'"), '전염 가속 desc');
 assert(state.includes("name: '공허 특이점', desc: '저항 관통 +21%, 치명타 불가, 치명타 확률이 저항 관통으로 전환. 공격 피해가 100%~(100+저항 관통+치명타 피해 배율)% 사이에서 무작위로 결정됨'"), '공허 특이점 desc');
 assert(/name: '피의 계약', desc: '에너지 보호막 50% 이상에서 피해 25% 증폭\. 공격 시 가능하면 생명력 4%를 소모해 해당 공격의 피해 1\.5배'/.test(state), '피의 계약 desc');
@@ -30,6 +30,8 @@ assert(/hasKeystone\('wlk3'\)\) \{\s*finalEnergyShieldRegenRate = 0;/.test(wlBra
 assert(!/hasKeystone\('wlk3'\)\) \{\s*finalRegen = 0;/.test(wlBranch), 'wlk3 must not zero life regen');
 // wlk2: DOT *1.20, instant *0.90
 assert(/hasKeystone\('wlk2'\)\) \{\s*totalDotDamageMultiplier \*= 1\.20;\s*instantDamageMultiplier \*= 0\.90;/.test(wlBranch), 'wlk2 dot/instant');
+// wlk2: 주문 내장 피해도 동일하게 20% 증가 (지속 피해 배율 증폭과 같은 수치)
+assert(/game\.ascendClass === 'warlock' && hasKeystone\('wlk2'\)\) spellFlatDmg \*= 1\.20;/.test(combat), 'wlk2 spell innate damage +20%');
 // wlk5: tick interval /1.50 (=+50% speed), duration *0.5
 assert(/hasKeystone\('wlk5'\)\) \{\s*dotTickIntervalMultiplier \/= 1\.50;\s*dotDurationMultiplier \*= 0\.5;/.test(wlBranch), 'wlk5 tick/duration');
 // wlk6: resPen += 21 + crit, crit = 0 (crit chance → resPen, no crit)
@@ -84,5 +86,10 @@ assert(!/id: 'wlk9'[^}]*req:\s*'\w+'/.test(state), 'wlk9 must not require a prev
 ['w9', 'g9', 'a9', 'r9', 'e9', 'wlk9', 'sb9', 'ct9', 'h9', 'cr9', 'gd9', 'iq9'].forEach(id => {
   assert(new RegExp("id: '" + id + "'[\\s\\S]*?fifthJobOnly: true").test(state), id + ' must be fifthJobOnly');
 });
+
+// --- 워록 전직 노드(n2/n5)의 지속 피해 배율(%) 옆에 동일 수치 주문 내장 피해 증가(%) 동봉 ---
+const passives = fs.readFileSync('js/passives.js', 'utf8');
+assert(/tree\.n2 = \{ stats: \[\{ stat: 'dotPctDmg', val: entry2 \}, \{ stat: 'spellFlatPct', val: entry2 \}\], req: 'n1' \};/.test(passives), 'warlock n2 pairs dotPctDmg with equal spellFlatPct');
+assert(/tree\.n5 = \{ stats: \[\{ stat: 'dotPctDmg', val: major2 \}, \{ stat: 'spellFlatPct', val: major2 \}\], req: \['n2', 'n3'\] \};/.test(passives), 'warlock n5 pairs dotPctDmg with equal spellFlatPct');
 
 console.log('warlock keystone rebalance smoke checks passed');

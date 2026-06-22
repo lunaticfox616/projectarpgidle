@@ -757,7 +757,7 @@ const CLASS_KEYSTONE_DEFS = {
     ],
     warlock: [
         { id: 'wlk1', name: '심연 각인', desc: '모든 피해가 카오스 피해가 됨. 카오스 피해 20% 증폭', req: null },
-        { id: 'wlk2', name: '부패 증식', desc: '지속 피해 배율 20% 증폭, 즉발 피해 10% 감폭', req: null },
+        { id: 'wlk2', name: '부패 증식', desc: '지속 피해 배율 20% 증폭, 주문 내장 피해 20% 증가, 즉발 피해 10% 감폭', req: null },
         { id: 'wlk3', name: '금단 대가', desc: '에너지 보호막 재생 불가, 흡수가 에너지 보호막에 대신 적용', req: null },
         { id: 'wlk4', name: '암흑 치환', desc: '각 원소 저항 최대치 초과분의 25%만큼 카오스 저항 증가', req: 'wlk1' },
         { id: 'wlk5', name: '전염 가속', desc: 'DOT 틱 속도 +50%, 지속시간 -50%', req: 'wlk2' },

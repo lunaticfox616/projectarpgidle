@@ -2569,6 +2569,9 @@ function getClassTreeDef(clsKey) {
         tree.n6 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.2), req: 'n3' };
         tree.n10 = { stat: 'resPen', val: 16, req: ['n7', 'n8', 'n9'] };
     } else if (clsKey === 'warlock') {
+        // 워록의 지속 피해 배율(%) 노드(n2 진입 · n5 주요)에는 동일 수치의 주문 내장 피해 증가(%)를 함께 부여한다.
+        tree.n2 = { stats: [{ stat: 'dotPctDmg', val: entry2 }, { stat: 'spellFlatPct', val: entry2 }], req: 'n1' };
+        tree.n5 = { stats: [{ stat: 'dotPctDmg', val: major2 }, { stat: 'spellFlatPct', val: major2 }], req: ['n2', 'n3'] };
         tree.n8 = { stat: 'resPen', val: scaleClassStat('resPen', getMajorStatBase('resPen'), 1.15), req: 'n5' };
     } else if (clsKey === 'guardian') {
         tree.n5 = { stat: 'armorPct', val: scaleClassStat('armorPct', getMajorStatBase('armorPct'), 1.6), req: ['n2', 'n3'] };
