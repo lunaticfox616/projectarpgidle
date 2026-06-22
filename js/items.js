@@ -548,9 +548,11 @@ function upgradeSelectedItemBase() {
     let candidates = getBaseUpgradeCandidates(currentBase);
     let nextBase = candidates[0];
     if (!nextBase) return addLog('해당 계열의 다음 베이스가 없습니다.', 'attack-monster');
-    let isTopBase = candidates.length === 1;
+    let nextChainInfo = typeof getBaseChainInfo === 'function' ? getBaseChainInfo(nextBase) : null;
+    let nextStep = nextChainInfo ? nextChainInfo.step : 1;
     let costChaos = Math.max(5, 3 + Math.floor((nextBase.reqTier - currentBase.reqTier) * 2.5));
-    let costDivine = isTopBase ? 1 : 0;
+    // 신성 비용은 도착 단계 기준: 6단계(최종) 5개, 5단계 1개, 그 외 0개.
+    let costDivine = nextStep >= 6 ? 5 : (nextStep === 5 ? 1 : 0);
     game.pendingBaseUpgrade = { itemId: item.id, nextBaseId: nextBase.id, costChaos: costChaos, costDivine: costDivine };
     let titleEl = document.getElementById('base-upgrade-title');
     let bodyEl = document.getElementById('base-upgrade-body');

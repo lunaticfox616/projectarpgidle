@@ -4371,6 +4371,7 @@ function showItemTooltip(event, idx, isEquip) {
         ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${baseChainInfo.step}/${baseChainInfo.total}]</span>`
         : '';
     html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}${baseChainBadge}</div>`;
+    if (item.exceptionalBase) html += `<div class="tooltip-line" style="color:#ffb454; font-weight:700;">✦ 특출난 베이스 — ${escapeHTML(item.exceptionalStatName || getStatName(item.exceptionalStatId) || '')} 옵션이 최대치 +20%</div>`;
     html += `<div class="tooltip-line" style="color:#a8c0da;">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
     if (item.rarity === 'unique' && item.uniqueEffect) {
         let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';
@@ -4405,7 +4406,8 @@ function showItemTooltip(event, idx, isEquip) {
             let cur = Number(stat.val || 0);
             let rangeText = getItemStatRollRangeHtml(stat, { estimateFromValue: true });
             let label = stat.statName || getStatName(statKey) || statKey;
-            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, cur)}</span>${rangeText}</div>`;
+            let exMark = stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦특출 +20%</span>' : '';
+            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, cur)}</span>${rangeText}${exMark}</div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
             let label = getStatName(id);
@@ -4417,10 +4419,11 @@ function showItemTooltip(event, idx, isEquip) {
             if (src) {
                 rangeText = getItemStatRollRangeHtml(src, { estimateFromValue: true });
             }
+            let exMark = (src && src.exceptional) ? ' <span style="color:#ffb454; font-weight:700;">✦특출 +20%</span>' : '';
             if (Math.floor(finalVal) === Math.floor(baseVal)) {
-                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(baseVal)}</span>${rangeText}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(baseVal)}</span>${rangeText}${exMark}</div>`;
             } else {
-                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(finalVal)}</span> <span style="color:#9fb4d1;">(${Math.floor(baseVal)})</span>${rangeText}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(finalVal)}</span> <span style="color:#9fb4d1;">(${Math.floor(baseVal)})</span>${rangeText}${exMark}</div>`;
             }
         });
     }
