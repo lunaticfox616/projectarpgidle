@@ -51,6 +51,7 @@ const ctx = {
   },
   getZone: () => ({ id: 0, tier: 5 }),
   hasKeystone: (k) => ctx.__ks.includes(k),
+  getMaxJewelSlotCount: () => 2,
   getGemBonusSources: () => ({ gear: 0, passive: 0, reward: 0, total: 0 }),
   getGemLevelTargetTags: () => ['summon_attack'],
   getJewelStats: () => [],
