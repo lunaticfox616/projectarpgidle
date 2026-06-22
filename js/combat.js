@@ -8159,6 +8159,15 @@ function triggerSeasonReset() {
     let preservedOcean = JSON.parse(JSON.stringify(ensureOceanState()));
     let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
     let preservedTalismanUnlocked = !!game.talismanUnlocked || !!(game.unlocks && game.unlocks.talisman);
+    // 나무꾼의 손길로 봉인된 장비(장착/인벤)와 나무꾼의 손길 보유분은 루프가 지나도 유지한다.
+    let preservedSealedEquipment = {};
+    Object.keys(game.equipment || {}).forEach(slot => {
+        let it = game.equipment[slot];
+        if (it && it.loopSealed) preservedSealedEquipment[slot] = JSON.parse(JSON.stringify(it));
+    });
+    let preservedSealedInventory = (game.inventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
+    let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.woodsmanTouch) || 0));
+    let preservedWoodsmanTouchSeen = !!game.woodsmanTouchSeen;
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -8210,6 +8219,11 @@ function triggerSeasonReset() {
     game.inventory = [];
     game.equipment = { ...defaultGame.equipment };
     game.currencies = { ...defaultGame.currencies };
+    // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
+    Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = preservedSealedEquipment[slot]; });
+    if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory);
+    if (preservedWoodsmanTouch > 0) game.currencies.woodsmanTouch = preservedWoodsmanTouch;
+    game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
     game.labyrinthFloor = 1;
     game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax || 1));
     game.jewelInventory = [];

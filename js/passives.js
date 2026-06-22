@@ -6249,6 +6249,18 @@ function applyVoidChiselToSelectedItem() { if (game.woodsmanBuildLock) return ad
     updateStaticUI();
 }
 
+function applyWoodsmanTouchToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    if (!item) return addLog('먼저 봉인할 장비를 선택하세요.', 'attack-monster');
+    if ((game.currencies.woodsmanTouch || 0) < 1) return addLog('나무꾼의 손길이 부족합니다.', 'attack-monster');
+    if (item.loopSealed) return addLog('이미 봉인된 장비입니다.', 'attack-monster');
+    game.currencies.woodsmanTouch--;
+    item.loopSealed = true;
+    addLog(`🌿 [${item.name}]을(를) 나무꾼의 손길로 봉인했습니다. 루프(환생)가 진행되어도 사라지지 않습니다.`, 'loot-unique');
+    updateStaticUI();
+    queueImportantSave(200);
+}
+
 function insertJewelIntoVoidSocket(invIdx) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item || !item.voidSocket || !item.voidSocket.open) return;
@@ -6664,6 +6676,16 @@ function awardCurrency(currencyKey, amount) {
         showDivineDropBanner(gain);
         addLog(`✨✨ <strong>신성한 오브 +${gain}</strong> 획득!`, 'loot-unique');
     }
+    if ((currencyKey === 'chaosKey' || currencyKey === 'coreKey') && gain > 0) {
+        // 둘 중 하나라도 습득하면 지도 알람을 띄운다(5차 미궁 시련/재능 개화 도전 알림).
+        if (game.noti) game.noti.map = true;
+        let keyName = (ORB_DB[currencyKey] && ORB_DB[currencyKey].name) || currencyKey;
+        addLog(`🗝️ <strong>${keyName} +${gain}</strong> 획득! 5차 미궁 시련(재능 개화)을 지도에서 확인하세요.`, 'loot-unique');
+    }
+    if (currencyKey === 'woodsmanTouch' && gain > 0) {
+        game.woodsmanTouchSeen = true;
+        addLog(`🌿✨ <strong>나무꾼의 손길 +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`, 'loot-unique');
+    }
     if (!game.gemEnhanceUnlocked && (currencyKey === 'bossCore' || currencyKey === 'skyEssence')) {
         game.gemEnhanceUnlocked = true;
         game.noti.skills = true;
@@ -6711,6 +6733,8 @@ function getCurrencyDrops(enemy) {
         if (bonusRoll(0.08)) drops.push(['regal', 1]);
         if (bonusRoll(0.17)) drops.push(['chaos', 1]);
         if (bonusRoll(0.025)) drops.push(['divine', 1]);
+        // 나무꾼의 손길: 신성한 오브가 나올 확률의 1/1200(극악)로 드랍.
+        if (bonusRoll(0.025 / 1200)) drops.push(['woodsmanTouch', 1]);
         if (bonusRoll(0.05)) drops.push(['exalted', 1]);
     } else if (enemy.isElite) {
         if (bonusRoll(0.18)) {
