@@ -7482,10 +7482,29 @@ function buildCraftActionButtons(item) {
         let kDefs = getClassKeystoneDefs(game.ascendClass);
         if (kDefs.length > 0) {
             game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
-            let kRows = [];
-            for (let i = 0; i < kDefs.length; i += 2) kRows.push(kDefs.slice(i, i + 2));
+            // 선행 관계를 직관적으로 보여주기 위해 키스톤을 의존 깊이(티어)별 행으로 배치하고
+            // 각 카드에 선행 키스톤 라벨 + 호버 시 선행 체인 강조를 부여한다.
+            let kById = {};
+            kDefs.forEach(k => { kById[k.id] = k; });
+            let reqIdsOf = k => { let a = []; if (k.req) a.push(k.req); if (Array.isArray(k.reqAny)) a.push.apply(a, k.reqAny); return a.filter(id => kById[id]); };
+            let depthCache = {};
+            let depthOf = id => { if (depthCache[id] != null) return depthCache[id]; depthCache[id] = 0; let k = kById[id]; if (!k) return 0; let rs = reqIdsOf(k); let d = rs.length ? 1 + Math.max.apply(null, rs.map(depthOf)) : 0; return depthCache[id] = d; };
+            let kTiers = [];
+            kDefs.forEach(k => { let d = depthOf(k.id); (kTiers[d] = kTiers[d] || []).push(k); });
             let kPts = Math.max(0, Math.floor(game.ascendKeystonePoints || 0));
-            let kHtml = `<div style="margin-top:12px; color:#f0d7a6; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span>키스톤 선택 (${game.ascendKeystones.length}/${CLASS_KEYSTONE_PICK_LIMIT}) · 보유 포인트 ${kPts}</span><button onclick="resetAscendKeystones()" style="padding:3px 8px; font-size:0.75em;">키스톤 초기화</button></div><div style="font-size:0.78em; color:#a7bdd9; margin-top:4px;">해제 비용: 정화의 오브 1개 · 전체 초기화 비용: 선택 개수만큼</div>` + kRows.map(row => `<div class="trait-row">${row.map(k => { let active = game.ascendKeystones.includes(k.id); let reqMet = isAscendKeystoneRequirementMet(k); return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="refundAscendKeystone('${k.id}')"` : (!reqMet || game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT || kPts <= 0 ? '' : `onclick="buyAscendKeystone('${k.id}')"`)}><div class="trait-title">★ ${k.name}${active ? ' ✓' : ''}</div><div class="trait-desc">${k.desc}${active ? '<br><span style="color:#9bc7ff;">(클릭 시 해제)</span>' : ''}</div></div>`; }).join('')}</div>`).join('');
+            let kHtml = `<div style="margin-top:12px; color:#f0d7a6; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span>키스톤 선택 (${game.ascendKeystones.length}/${CLASS_KEYSTONE_PICK_LIMIT}) · 보유 포인트 ${kPts}</span><button onclick="resetAscendKeystones()" style="padding:3px 8px; font-size:0.75em;">키스톤 초기화</button></div><div style="font-size:0.78em; color:#a7bdd9; margin-top:4px;">해제 비용: 정화의 오브 1개 · 전체 초기화 비용: 선택 개수만큼 · <span style="color:#9bc7ff;">카드에 마우스를 올리면 선행 키스톤이 연결되어 강조됩니다.</span></div>` + kTiers.filter(Boolean).map((tier, ti) => `<div class="trait-row${ti > 0 ? ' ks-tier-linked' : ''}">${tier.map(k => {
+                let active = game.ascendKeystones.includes(k.id);
+                let reqMet = isAscendKeystoneRequirementMet(k);
+                let reqIds = reqIdsOf(k);
+                let reqLabel = '';
+                if (reqIds.length > 0) {
+                    let names = reqIds.map(id => (kById[id] || {}).name || id);
+                    let joiner = Array.isArray(k.reqAny) ? ' 또는 ' : ', ';
+                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 선행: ${names.join(joiner)}</div>`;
+                }
+                let clickAttr = active ? `onclick="refundAscendKeystone('${k.id}')"` : (!reqMet || game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT || kPts <= 0 ? '' : `onclick="buyAscendKeystone('${k.id}')"`);
+                return `<div id="ks-card-${k.id}" data-ks-req="${reqIds.join(',')}" class="trait-card ks-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" onmouseenter="highlightKeystoneChain('${k.id}', true)" onmouseleave="highlightKeystoneChain('${k.id}', false)" ${clickAttr}>${reqLabel}<div class="trait-title">★ ${k.name}${active ? ' ✓' : ''}</div><div class="trait-desc">${k.desc}${active ? '<br><span style="color:#9bc7ff;">(클릭 시 해제)</span>' : ''}</div></div>`;
+            }).join('')}</div>`).join('');
             document.getElementById('ui-ascend-tree-container').innerHTML += kHtml;
         }
     } else if (game.ascendPoints > 0) {
@@ -11575,6 +11594,23 @@ function buyAscendKeystone(id) {
     game.ascendKeystones.push(id);
     game.ascendKeystonePoints -= 1;
     updateStaticUI();
+}
+
+// 키스톤 카드 호버 시 해당 키스톤의 선행 체인(루트까지)을 파란 테두리로 연결 강조한다.
+function highlightKeystoneChain(id, on) {
+    let visited = {};
+    let stack = [id];
+    let first = true;
+    while (stack.length > 0) {
+        let cur = stack.pop();
+        if (visited[cur]) continue;
+        visited[cur] = true;
+        let card = document.getElementById('ks-card-' + cur);
+        if (!card) continue;
+        if (first) { card.classList.toggle('ks-self-hi', on); first = false; }
+        else card.classList.toggle('ks-prereq-hi', on);
+        (card.getAttribute('data-ks-req') || '').split(',').filter(Boolean).forEach(r => stack.push(r));
+    }
 }
 
 function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
