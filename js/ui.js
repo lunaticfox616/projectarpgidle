@@ -6200,25 +6200,33 @@ function performUpdateStaticUI() {
     document.getElementById('ui-jewel-header').style.display = jewelUnlocked ? 'block' : 'none';
     document.getElementById('ui-jewel-panel').style.display = jewelUnlocked ? 'block' : 'none';
     if (jewelUnlocked) {
-        game.jewelSlots = Array.isArray(game.jewelSlots) ? game.jewelSlots : [null, null];
+        let maxJewelSlots = typeof getMaxJewelSlotCount === 'function' ? getMaxJewelSlotCount() : 2;
+        game.jewelSlots = Array.isArray(game.jewelSlots) ? game.jewelSlots : [];
+        while (game.jewelSlots.length < maxJewelSlots) game.jewelSlots.push(null);
         game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
         jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
         document.getElementById('ui-jewel-cap').innerHTML = `주얼 인벤토리: <strong>${game.jewelInventory.length}</strong> / ${getJewelInventoryLimit()} · 선택 융합: <strong>${(jewelFusionSelection||[]).length}</strong>`;
         syncJewelSalvageControlsFromSettings();
-        game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0];
+        game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [];
+        while (game.jewelSlotAmplify.length < maxJewelSlots) game.jewelSlotAmplify.push(0);
         document.getElementById('ui-jewel-core-craft').innerHTML = `<div style="color:#f1c67d; margin-bottom:4px;">주얼 제작 재화 (주얼 결정: ${game.currencies.jewelShard || 0})</div>
         <div style="font-size:0.8em; color:#8fb6d9; margin-bottom:6px;">일반 융합: 1줄 주얼 2개 + 주얼 결정 6개 → 2줄 주얼</div>
         <label style="display:block; font-size:0.78em; color:#e2c9a4; margin-bottom:4px;"><input type="checkbox" id="chk-jewel-amplified-fusion"> 증폭합성 사용 (주얼 결정 8 추가 소모, 랜덤 패널티 + 랜덤 추가옵션)</label>
         <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="craftJewelFusion()" ${(game.currencies.jewelShard || 0) < 6 ? 'disabled' : ''}>선택한 주얼 융합</button><button onclick="drawJewelRefine()" ${(game.currencies.jewelShard || 0) < 12 || (game.jewelInventory||[]).length >= getJewelInventoryLimit() ? 'disabled' : ''}>주얼 가공 (주얼 결정 12)</button></div>
         <div style="margin-top:8px; font-size:0.8em; color:#8fb6d9;">슬롯 증폭: 슬롯 효과 소폭 상승 (최대 20강, 실패 가능)</div>
-        <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="tryAmplifyJewelSlot(0)">슬롯1 증폭 (${game.jewelSlotAmplify[0] || 0}/20 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[0] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[0] || 0) * 100)}%)</button><button onclick="tryAmplifyJewelSlot(1)">슬롯2 증폭 (${game.jewelSlotAmplify[1] || 0}/20 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[1] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[1] || 0) * 100)}%)</button></div>
+        <div style="display:flex; gap:6px; margin-top:4px; flex-wrap:wrap;">${Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => `<button onclick="tryAmplifyJewelSlot(${slotIdx})">슬롯${slotIdx + 1} 증폭 (${game.jewelSlotAmplify[slotIdx] || 0}/20 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[slotIdx] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[slotIdx] || 0) * 100)}%)</button>`).join('')}</div>
         <div style="margin-top:8px; color:#b4c9e2; font-size:0.8em;">공허 주얼: 최대 4줄까지 지원</div>
         <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="openVoidJewelCraftOverlay()" ${(game.currencies.voidChisel || 0) <= 0 || (typeof getVoidJewelCraftMaterialIndices === 'function' ? getVoidJewelCraftMaterialIndices().length < 2 : (game.jewelInventory||[]).filter(j => j && !j.locked && !j.waxedByBeeswax).length < 2) ? 'disabled' : ''}>공허 주얼 제작 (끌 1 + 주얼2)</button><button onclick="openVoidJewelFusionOverlay()">선택 공허융합</button></div>`;
-        document.getElementById('ui-jewel-slots').innerHTML = [0, 1].map(slotIdx => {
+        document.getElementById('ui-jewel-slots').innerHTML = Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => {
             let jewel = game.jewelSlots[slotIdx];
             let ampLv = (game.jewelSlotAmplify && game.jewelSlotAmplify[slotIdx]) || 0;
             let ampBonus = ampLv * 2;
-            if (!jewel) return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; cursor:default; border:1px solid #4a5f87; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span style="color:#7f8c8d;">비어있음</span><br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span></div>`;
+            // 심연 군주(워록 wlk8)로 추가된 키스톤 슬롯(2번 인덱스 이상)은 보라색 테두리/배지로 구분 표시한다.
+            let isKeystoneSlot = slotIdx >= 2;
+            let keystoneEmptyBorder = isKeystoneSlot ? 'border:1px dashed #9b59b6; box-shadow:0 0 12px rgba(155,89,182,.28) inset;' : 'border:1px solid #4a5f87; box-shadow:0 0 12px rgba(90,130,200,.18) inset;';
+            let keystoneFilledShadow = isKeystoneSlot ? 'box-shadow:0 0 10px rgba(155,89,182,.45);' : 'box-shadow:0 0 12px rgba(90,130,200,.18) inset;';
+            let keystoneBadge = isKeystoneSlot ? ` <span style="font-size:0.68em;color:#c39bff;border:1px solid #9b59b6;border-radius:6px;padding:0 4px;vertical-align:middle;">심연 군주</span>` : '';
+            if (!jewel) return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:70px; cursor:default; ${keystoneEmptyBorder} background:linear-gradient(170deg,#101722,#152238);">💠 주얼 슬롯 ${slotIdx + 1}${keystoneBadge} <span style="color:#f1c40f;">(+${ampLv})</span><br><span style="color:#7f8c8d;">비어있음</span><br><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span></div>`;
             let desc = getJewelStats(jewel).map(stat => {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';
                 let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
@@ -6226,7 +6234,7 @@ function performUpdateStaticUI() {
                 let tone = getJewelStatToneColor(stat.id);
                 return `<span style="color:${tone};">${petite}${highlightSearchText(getStatName(stat.id), sf.jewel)} +${formatJewelStatValue(stat.id, stat.val)}</span>${range}${tier}`;
             }).join('<br>');
-            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:86px; border:2px solid ${getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); box-shadow:0 0 12px rgba(90,130,200,.18) inset;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmousemove="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:#d7e9ff;">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
+            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:86px; border:2px solid ${isKeystoneSlot ? '#9b59b6' : getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); ${keystoneFilledShadow}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmousemove="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1}${keystoneBadge} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:#d7e9ff;">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
         }).join('');
         const jewelRows = game.jewelInventory.map((jewel, idx) => ({ jewel, idx })).filter(row => {
             const jewel = row.jewel || {};
@@ -6245,7 +6253,8 @@ function performUpdateStaticUI() {
             }).join('<br>');
             let uniqueCardClass = jewel.rarity === 'unique' ? 'item-card--unique-special' : '';
             let uniqueBadge = jewel.rarity === 'unique' ? '<span class="unique-inventory-badge">✨ 고유</span>' : '';
-            return `<div class="item-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions"><button onclick="equipJewel(${idx}, 0)">슬롯1</button><button onclick="equipJewel(${idx}, 1)">슬롯2</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button disabled>밀랍</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="toggleJewelLock(${idx})">${jewel.locked ? '🔒 잠금' : '🔓 잠금'}</button><button onclick="salvageJewel(${idx})" ${jewel.locked ? 'disabled' : ''}>해체</button></div></div>`;
+            let equipSlotBtns = Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => `<button onclick="equipJewel(${idx}, ${slotIdx})">슬롯${slotIdx + 1}</button>`).join('');
+            return `<div class="item-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions">${equipSlotBtns}<button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button disabled>밀랍</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="toggleJewelLock(${idx})">${jewel.locked ? '🔒 잠금' : '🔓 잠금'}</button><button onclick="salvageJewel(${idx})" ${jewel.locked ? 'disabled' : ''}>해체</button></div></div>`;
         }).join('');
         let jewelTools = `<button onclick="bulkSalvageJewelsBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkSalvageJewelsBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">미검색 항목 해체</button>`;
         renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`, jewelTools);
@@ -8801,9 +8810,10 @@ function mergeDefaults(save) {
     merged.jewelInventory = Array.isArray(merged.jewelInventory) ? merged.jewelInventory.map(normalizeJewelRecord).filter(Boolean) : [];
     let jewelInventoryCap = JEWEL_INVENTORY_LIMIT + (Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0))) * 5);
     merged.jewelInventory = merged.jewelInventory.slice(0, jewelInventoryCap);
-    merged.jewelSlots = Array.isArray(merged.jewelSlots) ? merged.jewelSlots.slice(0, 2).map(normalizeJewelRecord) : [null, null];
+    // 심연 군주(워록 wlk8)가 주얼 슬롯을 2칸 추가로 제공하므로 최대 4슬롯까지 보존한다.
+    merged.jewelSlots = Array.isArray(merged.jewelSlots) ? merged.jewelSlots.slice(0, 4).map(normalizeJewelRecord) : [null, null];
     while (merged.jewelSlots.length < 2) merged.jewelSlots.push(null);
-    merged.jewelSlotAmplify = Array.isArray(merged.jewelSlotAmplify) ? merged.jewelSlotAmplify.slice(0, 2).map(v => Math.max(0, Math.min(20, Math.floor(v || 0)))) : [0, 0];
+    merged.jewelSlotAmplify = Array.isArray(merged.jewelSlotAmplify) ? merged.jewelSlotAmplify.slice(0, 4).map(v => Math.max(0, Math.min(20, Math.floor(v || 0)))) : [0, 0];
     while (merged.jewelSlotAmplify.length < 2) merged.jewelSlotAmplify.push(0);
     merged.skyGemEnhancements = (merged.skyGemEnhancements && typeof merged.skyGemEnhancements === 'object') ? merged.skyGemEnhancements : {};
     Object.keys(merged.skyGemEnhancements).forEach(skill => {
@@ -11612,6 +11622,7 @@ function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
     game.ascendKeystones = game.ascendKeystones.filter(key => key !== id);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
+    if (id === 'wlk8' && typeof reclaimKeystoneJewelSlots === 'function') reclaimKeystoneJewelSlots();
     updateStaticUI();
 }
 
@@ -11623,7 +11634,9 @@ function resetAscendKeystones() {
     if (game.ascendKeystones.includes('w3') && !enforceWarriorDualTrainingEquipment(false)) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + game.ascendKeystones.length;
+    let hadAbyssLord = game.ascendKeystones.includes('wlk8');
     game.ascendKeystones = [];
+    if (hadAbyssLord && typeof reclaimKeystoneJewelSlots === 'function') reclaimKeystoneJewelSlots();
     updateStaticUI();
 }
 

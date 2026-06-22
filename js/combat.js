@@ -186,6 +186,11 @@ function hasKeystone(id) {
     return Array.isArray(game.ascendKeystones) && game.ascendKeystones.includes(id);
 }
 
+// 심연 군주(워록 wlk8)는 주얼 슬롯을 2칸 추가로 제공한다.
+function getMaxJewelSlotCount() {
+    return 2 + ((game.ascendClass === 'warlock' && hasKeystone('wlk8')) ? 2 : 0);
+}
+
 function getAliveEnemyByRuntimeKey(enemyId) {
     let numericId = Number(enemyId);
     if (!Number.isFinite(numericId)) return null;
@@ -715,13 +720,14 @@ function getEquippedJewelGemLevelBonusSources(target) {
         }
         (Array.isArray(item.abyssSockets) ? item.abyssSockets : []).forEach(socket => addJewelGemLevels(socket && socket.jewel, abyssAmp));
     });
-    (game.jewelSlots || []).forEach((jewel, idx) => {
+    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
         let amplify = Math.max(0, Math.floor(((game.jewelSlotAmplify || [])[idx]) || 0));
         addJewelGemLevels(jewel, 1 + (amplify * 0.03));
     });
-    (game.jewelSlots || []).forEach((jewel, idx) => {
+    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
         if (!jewel || jewel.uniqueId !== 'uj_mirror_heart') return;
-        addJewelGemLevels((game.jewelSlots || [])[idx === 0 ? 1 : 0], 1);
+        let pairedIdx = idx % 2 === 0 ? idx + 1 : idx - 1;
+        addJewelGemLevels((game.jewelSlots || [])[pairedIdx], 1);
     });
     return gear;
 }
@@ -1585,7 +1591,7 @@ function getUniqueEffectImplementationReport() {
 
 function getEquippedUniqueJewels() {
     let equipped = [];
-    (game.jewelSlots || []).forEach((jewel, idx) => {
+    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
         if (jewel && jewel.rarity === 'unique' && jewel.uniqueId) equipped.push({ jewel, slot: idx, source: 'slot' });
     });
     Object.values(game.equipment || {}).forEach(item => {
@@ -1717,8 +1723,8 @@ function getPlayerStats() {
         }
     });
     getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
-    game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0];
-    (game.jewelSlots || []).forEach((jewel, idx) => {
+    game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0, 0, 0];
+    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
         let amp = Math.max(0, Math.floor((game.jewelSlotAmplify[idx] || 0)));
         let ampMul = 1 + (amp * 0.03);
         getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, Number((Number(stat.val || 0) * ampMul).toFixed(2))));
@@ -1726,9 +1732,10 @@ function getPlayerStats() {
     let equippedUniqueJewels = getEquippedUniqueJewels();
     let activeUniqueIds = new Set(equippedUniqueJewels.map(entry => entry.jewel.uniqueId));
     if (activeUniqueIds.has('uj_mirror_heart')) {
-        (game.jewelSlots || []).forEach((jewel, idx) => {
+        (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
             if (!jewel || jewel.uniqueId !== 'uj_mirror_heart') return;
-            let other = (game.jewelSlots || [])[idx === 0 ? 1 : 0];
+            let pairedIdx = idx % 2 === 0 ? idx + 1 : idx - 1;
+            let other = (game.jewelSlots || [])[pairedIdx];
             if (!other) return;
             getJewelStats(other).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val));
         });
@@ -2682,8 +2689,11 @@ function getPlayerStats() {
             }
         }
     } else if (game.ascendClass === 'warlock') {
+        if (hasKeystone('wlk1')) {
+            chaosDamageMultiplier *= 1.20;
+        }
         if (hasKeystone('wlk2')) {
-            totalDotDamageMultiplier *= 1.10;
+            totalDotDamageMultiplier *= 1.20;
             instantDamageMultiplier *= 0.90;
         }
         if (hasKeystone('wlk3')) {
@@ -2691,23 +2701,20 @@ function getPlayerStats() {
             finalEnergyShieldRegenRate = 0;
         }
         if (hasKeystone('wlk6')) {
-            finalResPen += 43;
+            finalResPen += 21 + Math.max(0, finalCrit);
             finalCrit = 0;
-            finalPoisonChance += 25;
         }
         if (hasKeystone('wlk8')) {
             chaosDamageMultiplier *= 1.25;
             finalLeech *= 0.5;
             finalRegen *= 0.5;
-            finalPoisonChance += 25;
         }
         if (hasKeystone('wlk5')) {
-            dotTickIntervalMultiplier /= 1.33;
+            dotTickIntervalMultiplier /= 1.50;
             dotDurationMultiplier *= 0.5;
         }
         if (hasKeystone('wlk7')) {
-            if ((game.playerEnergyShield || 0) <= (finalEnergyShield * 0.5)) finalBaseDmg = Math.floor(finalBaseDmg * 1.2);
-            finalDr = Math.max(-40, finalDr - 12);
+            if ((game.playerEnergyShield || 0) >= (finalEnergyShield * 0.5)) finalBaseDmg = Math.floor(finalBaseDmg * 1.25);
         }
     } else if (game.ascendClass === 'guardian') {
         if (hasKeystone('gd1')) {
@@ -6466,6 +6473,14 @@ function performPlayerAttack(pStats) {
     if (isCrit) {
         baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
         if (game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) baseDamage *= 2;
+    }
+    // 피의 계약(워록 wlk7): 공격마다 생명력의 4%를 소모 가능하면 소모하여 해당 공격의 피해를 1.5배로 만든다.
+    if (game.ascendClass === 'warlock' && hasKeystone('wlk7')) {
+        let bloodPactCost = Math.floor((pStats.maxHp || game.playerHp || 1) * 0.04);
+        if (bloodPactCost > 0 && (game.playerHp || 0) > bloodPactCost) {
+            game.playerHp -= bloodPactCost;
+            baseDamage = Math.floor(baseDamage * 1.5);
+        }
     }
     let getHitElement = () => {
         let pool = Array.isArray(pStats.sSkill.randomElementPool) ? pStats.sSkill.randomElementPool.filter(Boolean) : null;
