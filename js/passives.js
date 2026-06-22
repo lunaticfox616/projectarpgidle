@@ -1972,13 +1972,22 @@ function tickOceanOxygen(nowMs) {
 function applyOceanDepthGain(st, meters) {
     if (!st || !(meters > 0)) return;
     let curDepth = Math.max(0, Number(st.depthM) || 0);
-    st.depthM = curDepth + meters;
+    // 500m 보스 경계: 다음 경계의 심해 가디언을 처치하기 전에는 그 경계까지만 전진한다.
+    let interval = typeof getOceanBossBoundaryInterval === 'function' ? getOceanBossBoundaryInterval() : 500;
+    let cleared = Math.max(0, Math.floor(st.bossClearM || 0));
+    let nextBoundary = Math.floor(cleared / interval) * interval + interval;
+    if (curDepth >= nextBoundary) return; // 이미 경계에 도달해 보스 처치를 기다리는 중
+    st.depthM = Math.min(nextBoundary, curDepth + meters);
     let newCheckpoint = Math.floor(st.depthM / 100) * 100;
     if (newCheckpoint > (st.checkpointM || 0)) {
         st.checkpointM = newCheckpoint;
         addLog(`🛗 수중 리프트 ${st.checkpointM}m 지점이 개방되었습니다.`, 'loot-rare');
     }
     st.pressureLevel = getOceanDepthTier(st.depthM);
+    // 경계에 막 도달한 순간(이전엔 미달, 지금 도달) 가디언 등장을 알린다.
+    if (curDepth < nextBoundary && st.depthM >= nextBoundary) {
+        addLog(`🌊 수심 ${nextBoundary}m — 심해 가디언이 길을 막습니다. 처치해야 더 깊이 내려갈 수 있습니다.`, 'loot-unique');
+    }
 }
 
 // 수심을 시간에 따라 꾸준히 증가시킨다(방치 진행의 바닥값).

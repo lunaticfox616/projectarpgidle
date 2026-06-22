@@ -250,9 +250,17 @@ function getOceanOxygenPerAttackCost() {
 function getOceanDepthTier(depthM) {
     return Math.floor(Math.max(0, Math.floor(depthM || 0)) / 100);
 }
+function getOceanBossBoundaryInterval() {
+    // 심해 가디언(보스)이 등장하는 수심 간격(m).
+    return 500;
+}
 function getOceanPendingBossBoundary(st) {
-    // 심해는 특정 구역/경계 보스 없이 시간에 따라 계속 깊어지는 연속 수심 콘텐츠입니다.
-    return 0;
+    // 다음 보스 경계에 도달했고 아직 처치하지 않았다면 그 경계 수심을 반환한다(없으면 0).
+    if (!st) return 0;
+    let interval = getOceanBossBoundaryInterval();
+    let cleared = Math.max(0, Math.floor(st.bossClearM || 0));
+    let nextBoundary = Math.floor(cleared / interval) * interval + interval;
+    return (Math.floor(Math.max(0, Number(st.depthM) || 0)) >= nextBoundary) ? nextBoundary : 0;
 }
 function getOceanMoveSpeedDepthBonus() {
     // 이동 속도가 빠를수록 한 번에 더 깊이 전진합니다(산소 소모와는 무관, 최대 +50%).

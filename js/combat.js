@@ -4241,7 +4241,7 @@ function createEnemy(zone, marker, groupIndex) {
         hp = Math.floor(hp * 120);
     }
     if (isBoss) {
-        let bossName = zone.type === 'outsideChaos' ? '혼돈 밖의 나무꾼' : (zone.type === 'trial' ? `${zone.name} 수호자` : (zone.type === 'seasonBoss' ? zone.name : (zone.type === 'meteor' ? '검은 별의 심장' : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`))));
+        let bossName = zone.type === 'outsideChaos' ? '혼돈 밖의 나무꾼' : (zone.type === 'trial' ? `${zone.name} 수호자` : (zone.type === 'seasonBoss' ? zone.name : (zone.type === 'meteor' ? '검은 별의 심장' : (zone.type === 'oceanDepth' ? `심해 가디언 ${Math.floor(zone.depthM || 0)}m` : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`)))));
         name = `👿 ${bossName}`;
     }
     let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
@@ -4471,6 +4471,13 @@ function generateEncounterPlan(zone) {
         return [{ at: 28, count: profile.minPack + 1, elite: true }, { at: 62, count: profile.maxPack, elite: true }, { at: 100, count: 1 + profile.bossAdds, boss: true }];
     }
     if (zone.type === 'oceanDepth') {
+        let oceanSt = ensureOceanState();
+        // 500m 경계에 도달해 보스가 대기 중이면 이번 런은 심해 가디언 단일 전투로 구성한다.
+        if (typeof getOceanPendingBossBoundary === 'function' && getOceanPendingBossBoundary(oceanSt) > 0) {
+            game.oceanBossRunPending = true;
+            return [{ at: 100, count: 1, boss: true }];
+        }
+        game.oceanBossRunPending = false;
         let profile = getZoneEncounterProfile(zone);
         let markers = [];
         for (let i = 0; i < profile.markerCount; i++) {
@@ -6065,7 +6072,21 @@ function finishEncounterRun() {
     if (zone.type === 'oceanDepth') {
         // 잠수 중이 아니면(예: 강제 귀환 후 호출) 진행을 변경하지 않는다.
         let oceanSt = ensureOceanState();
-        if (oceanSt.unlocked && oceanSt.diving) advanceOceanDiveFromKill(zone);
+        if (oceanSt.unlocked && oceanSt.diving) {
+            if (game.oceanBossRunPending) {
+                // 방금 클리어한 런은 500m 경계의 심해 가디언 전투였다 → 경계 통과 처리.
+                let pendingBoundary = getOceanPendingBossBoundary(oceanSt);
+                if (pendingBoundary > 0) {
+                    oceanSt.bossClearM = pendingBoundary;
+                    oceanSt.pressureLevel = getOceanDepthTier(oceanSt.depthM);
+                    awardCurrency('reefFragment', 3);
+                    addLog(`🌊 수심 ${pendingBoundary}m의 심해 가디언을 처치했습니다! 더 깊은 곳으로 길이 열립니다. (암초 조각 +3)`, 'loot-unique');
+                }
+                game.oceanBossRunPending = false;
+            } else {
+                advanceOceanDiveFromKill(zone);
+            }
+        }
         game.currentZoneId = OCEAN_ZONE_ID;
         game.killsInZone = 0;
         startMoving(false);
