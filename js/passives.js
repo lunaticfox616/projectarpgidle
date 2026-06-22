@@ -5791,7 +5791,19 @@ function chooseItemBase(slot, zoneTier) {
         return true;
     });
     if (candidates.length === 0) candidates = BASE_ITEM_DB.filter(base => base.slot === slot && !base.realmBase);
-    return rndChoice(candidates);
+    // 6단계(최종) 베이스는 드랍 가중치를 크게 낮춘다(일반 베이스의 1/25 수준).
+    let weights = candidates.map(base => {
+        let info = typeof getBaseChainInfo === 'function' ? getBaseChainInfo(base) : null;
+        return (info && info.step >= 6) ? 0.04 : 1;
+    });
+    let totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    if (totalWeight <= 0) return rndChoice(candidates);
+    let roll = Math.random() * totalWeight;
+    for (let i = 0; i < candidates.length; i++) {
+        roll -= weights[i];
+        if (roll <= 0) return candidates[i];
+    }
+    return candidates[candidates.length - 1];
 }
 
 function rollBaseStats(base, zoneTier) {
@@ -6591,8 +6603,29 @@ function generateEquipmentDrop(enemy) {
         rarity = roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
     }
     let item = createItemFromBase(base, rarity, hiddenTierCap);
+    maybeApplyExceptionalBase(item);
     item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, hiddenTierCap);
     return maybeApplyChaosRealmEncroachment(item, enemy, getZone(game.currentZoneId));
+}
+
+// 장비 드랍 시 1% 확률로 '특출난 베이스'가 된다: 베이스 옵션 하나가 최대 롤보다 20% 더 높게 굴려진다.
+function maybeApplyExceptionalBase(item) {
+    if (!item || !Array.isArray(item.baseStats) || item.baseStats.length === 0) return item;
+    if (Math.random() >= 0.01) return item;
+    let stat = item.baseStats[Math.floor(Math.random() * item.baseStats.length)];
+    let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
+        : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
+    let boosted = max * 1.2;
+    let usesDecimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+    if (usesDecimal) boosted = Math.round(boosted * 10) / 10;
+    else if (stat.id === 'projectileExtraShots') boosted = Math.max(1, Math.round(boosted));
+    else boosted = Math.max(1, Math.floor(boosted));
+    stat.val = boosted;
+    stat.exceptional = true;
+    item.exceptionalBase = true;
+    item.exceptionalStatId = stat.id;
+    item.exceptionalStatName = stat.statName || getStatName(stat.id);
+    return item;
 }
 
 function awardCurrency(currencyKey, amount) {
