@@ -2256,7 +2256,7 @@ function getPlayerStats() {
     let oceanPressureDamageMul = 1;
     if (zonePenalty && zonePenalty.type === 'oceanDepth') {
         let depthTier = Math.max(0, Math.floor(zonePenalty.depthTier || 0));
-        let pressureResistPct = Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist')));
+        let pressureResistPct = Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist') + (typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0)));
         let pressureSlow = Math.min(0.65, depthTier * 0.05) * (1 - pressureResistPct / 100);
         finalAspd *= (1 - pressureSlow);
         oceanPressureDamageMul *= (1 - pressureSlow * 0.6);
@@ -3610,7 +3610,7 @@ function getPlayerStats() {
         poisonDamageMultiplierPct: Math.max(0, finalPoisonDamageMultiplierPct),
         shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
         sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower),
-        oceanPressureResist: Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist'))),
+        oceanPressureResist: Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist') + (typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0))),
         oceanDepthGainPct: Math.max(0, sumStatAcrossBuckets('oceanDepthGainPct')),
         oceanOxygenAttackSavingPct: Math.max(0, Math.min(90, sumStatAcrossBuckets('oceanOxygenAttackSavingPct'))),
         oceanRareFishChancePct: Math.max(0, sumStatAcrossBuckets('oceanRareFishChancePct')),
@@ -4420,7 +4420,7 @@ function getZoneEncounterProfile(zone) {
         let minPack = Math.min(6, 2 + Math.floor(depthTier / 4));
         let maxPack = Math.min(8, minPack + 2);
         return {
-            markerCount: zone.oceanBossWave ? 1 : (4 + Math.floor(depthTier * 0.5)),
+            markerCount: 4 + Math.floor(depthTier * 0.5),
             minPack: minPack,
             maxPack: maxPack,
             eliteChance: Math.min(0.4, 0.08 + depthTier * 0.01),
@@ -4471,7 +4471,6 @@ function generateEncounterPlan(zone) {
         return [{ at: 28, count: profile.minPack + 1, elite: true }, { at: 62, count: profile.maxPack, elite: true }, { at: 100, count: 1 + profile.bossAdds, boss: true }];
     }
     if (zone.type === 'oceanDepth') {
-        if (zone.oceanBossWave) return [{ at: 100, count: 1, boss: true }];
         let profile = getZoneEncounterProfile(zone);
         let markers = [];
         for (let i = 0; i < profile.markerCount; i++) {
@@ -8136,6 +8135,7 @@ function triggerSeasonReset() {
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
     let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
+    let preservedOcean = JSON.parse(JSON.stringify(ensureOceanState()));
     let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
     let preservedTalismanUnlocked = !!game.talismanUnlocked || !!(game.unlocks && game.unlocks.talisman);
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -8230,6 +8230,7 @@ function triggerSeasonReset() {
     game.exploreSubtab = 'explore-tree';
     game.chaosRealm = preservedChaosRealm;
     game.skyTower = preservedSkyTower;
+    game.ocean = preservedOcean;
     game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));
     game.skyTower.clearedThisLoop = 0;
     game.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
