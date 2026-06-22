@@ -41,12 +41,14 @@ const runtime = [
   extractFunction(stateSource, 'getOceanOxygenDrainPerSec'),
   extractFunction(stateSource, 'getOceanOxygenPerAttackCost'),
   extractFunction(stateSource, 'getOceanDepthTier'),
+  extractFunction(stateSource, 'getOceanBossBoundaryInterval'),
   extractFunction(stateSource, 'getOceanPendingBossBoundary'),
   extractFunction(stateSource, 'getOceanMoveSpeedDepthBonus'),
   extractFunction(passivesSource, 'getOceanPermanentUpgradeCost'),
   extractFunction(passivesSource, 'canPayOceanUpgradeCost'),
   extractFunction(passivesSource, 'payOceanUpgradeCost'),
   extractFunction(passivesSource, 'upgradeOceanPermanent'),
+  extractFunction(passivesSource, 'applyOceanDepthGain'),
   extractFunction(passivesSource, 'tickOceanDepth')
 ].join('\n');
 
@@ -66,13 +68,22 @@ vm.runInContext(runtime, context);
 
 assert.strictEqual(context.getOceanOxygenDrainPerSec(), 0.5, 'time oxygen drain must be half of the former 1 oxygen per second base');
 assert.strictEqual(context.getOceanOxygenPerAttackCost(), 0.25, 'attack oxygen drain must be half of the former 0.5 oxygen per attack base');
-assert.strictEqual(context.getOceanPendingBossBoundary({ depthM: 500, bossClearM: 0 }), 0, 'ocean depth must not create special boss boundaries');
+assert.strictEqual(context.getOceanPendingBossBoundary({ depthM: 499, bossClearM: 0 }), 0, 'no guardian is pending before reaching the 500m boundary');
+assert.strictEqual(context.getOceanPendingBossBoundary({ depthM: 500, bossClearM: 0 }), 500, 'reaching 500m spawns a guardian boss gate');
+assert.strictEqual(context.getOceanPendingBossBoundary({ depthM: 700, bossClearM: 500 }), 0, 'after clearing 500m, no guardian is pending until the next 1000m gate is reached');
+assert.strictEqual(context.getOceanPendingBossBoundary({ depthM: 1000, bossClearM: 500 }), 1000, 'reaching the next 1000m gate spawns the following guardian');
 
 context.game.ocean.permanentUpgrades = { oxygenMax: 1, oxygenSaving: 1, pressureResist: 1 };
 assert.strictEqual(context.getOceanOxygenMax(), 110, 'oxygen max upgrade should add real max oxygen');
 assert.strictEqual(context.getOceanOxygenDrainPerSec(), 0.485, 'oxygen saving upgrade should reduce real per-second oxygen drain');
 assert.strictEqual(context.getOceanOxygenPerAttackCost(), 0.2425, 'oxygen saving upgrade should reduce real per-attack oxygen drain');
 assert.strictEqual(context.getOceanPressureResistUpgradePct(), 4, 'pressure upgrade should provide persistent pressure penalty reduction');
+
+// ⑦ 수압 과부하: 깊을수록 산소 소모가 가속(최대 +100%)된다.
+context.game.ocean.permanentUpgrades = { oxygenMax: 0, oxygenSaving: 0, pressureResist: 0 };
+context.game.ocean.depthM = 1500; // depthTier 15 → 가속 상한(+100%)
+assert.strictEqual(context.getOceanOxygenDrainPerSec(), 1.0, 'deep-water pressure should accelerate oxygen drain up to +100%');
+context.game.ocean.depthM = 0;
 
 context.game.ocean.permanentUpgrades = { oxygenMax: 0, oxygenSaving: 0, pressureResist: 0 };
 context.game.ocean.oxygenMax = 100;
@@ -82,10 +93,22 @@ assert.strictEqual(context.upgradeOceanPermanent('oxygenMax'), true, 'paid ocean
 assert.strictEqual(context.game.ocean.permanentUpgrades.oxygenMax, 1, 'paid ocean upgrade should increment selected level');
 assert.deepStrictEqual(context.game.currencies, { skyEssence: 0, oceanRerollShard: 0, reefFragment: 0, bossCore: 0 }, 'paid ocean upgrade should consume exact real currency costs');
 
+// 500m 보스 게이트: 가디언을 처치하기 전에는 경계에서 하강이 멈춘다.
 const oceanState = { depthM: 499, checkpointM: 400, bossClearM: 0 };
 context.tickOceanDepth(oceanState, 2);
-assert.strictEqual(oceanState.depthM, 505, 'depth must continue past the former 500m boundary without a boss clear');
-assert.strictEqual(oceanState.checkpointM, 500, 'continuous depth should still record 100m checkpoint milestones');
-assert.strictEqual(oceanState.pressureLevel, 5, 'pressure tier must follow the continuously increasing depth');
+assert.strictEqual(oceanState.depthM, 500, 'depth must stop at the 500m boss boundary until the guardian is cleared');
+assert.strictEqual(oceanState.checkpointM, 500, 'reaching the boundary still records the 100m checkpoint milestone');
+assert.strictEqual(oceanState.pressureLevel, 5, 'pressure tier follows depth at the boundary');
+assert.strictEqual(context.getOceanPendingBossBoundary(oceanState), 500, 'a guardian boss is pending at the boundary');
 
-console.log('ocean continuous depth smoke checks passed');
+// 시간이 더 흘러도 보스 처치 전에는 경계를 넘지 못한다.
+context.tickOceanDepth(oceanState, 5);
+assert.strictEqual(oceanState.depthM, 500, 'time alone cannot pass the boss boundary');
+
+// 가디언 처치(bossClearM 갱신) 후에는 다시 하강할 수 있다.
+oceanState.bossClearM = 500;
+context.tickOceanDepth(oceanState, 2);
+assert.strictEqual(oceanState.depthM, 506, 'after clearing the guardian, depth resumes past 500m');
+assert.strictEqual(context.getOceanPendingBossBoundary(oceanState), 0, 'the next guardian is not pending until 1000m');
+
+console.log('ocean depth + 500m boss gate smoke checks passed');

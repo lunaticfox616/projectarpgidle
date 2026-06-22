@@ -1774,10 +1774,13 @@ function advanceOceanDiveFromKill(zone) {
     // 팩(웨이브) 전체를 클리어했을 때만 호출됩니다 (개별 몬스터 처치마다 호출되지 않음).
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
-    // 수심은 전투 진행도(웨이브 클리어)가 아니라 시간에 따라 꾸준히 증가한다(tickOceanDepth 참고).
-    // 웨이브 클리어 시에는 부수 보상(암초 조각)만 처리한다.
     if (Math.random() < 0.06) awardCurrency('reefFragment', 1);
-    st.pressureLevel = getOceanDepthTier(st.depthM);
+    // 전투 진행도 보상: 웨이브를 클리어할 때마다 수심이 추가로 전진한다.
+    // 시간 기반 진행(tickOceanDepth)은 방치용 바닥값으로 남고, 빠르게/강하게 클리어할수록 더 깊이 내려간다.
+    let gearDepthGainPct = 0;
+    try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
+    let clearBurst = (14 + getOceanDepthTier(st.depthM)) * (1 + gearDepthGainPct / 100);
+    applyOceanDepthGain(st, clearBurst);
     let pressureCrushAlive = (game.enemies || []).some(e => e && e.hp > 0 && e.trait && e.trait.oceanPressureGainMul);
     if (pressureCrushAlive) st.pressureLevel = Math.ceil(st.pressureLevel * 1.1);
     gainOceanFishingGaugeFromCombat(zone);
@@ -1798,7 +1801,9 @@ function consumeOceanOxygenOnAttack() {
 function gainOceanFishingGaugeFromCombat(zone) {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
-    let gain = 1.4 * getOceanFishingGaugeGainMul();
+    // 낚시 게이지는 구역 강도(수심 단계)에 따라 세분화: 얕은(약한) 곳에선 조금, 깊은(강한) 곳에선 조금 더 오른다.
+    let depthTier = Math.max(0, Math.floor((zone && zone.depthTier) || getOceanDepthTier(st.depthM)));
+    let gain = (1.0 + depthTier * 0.18) * getOceanFishingGaugeGainMul();
     let nextGauge = (st.fishingGauge || 0) + gain;
     st.fishingGauge = clampNumber(nextGauge, 0, 100);
     if (st.fishingGauge >= 100) {
@@ -1963,24 +1968,36 @@ function tickOceanOxygen(nowMs) {
     tickOceanDepth(st, dtSec);
 }
 
-// 수심을 시간에 따라 꾸준히 증가시킨다.
-function tickOceanDepth(st, dtSec) {
-    if (!st || !(dtSec > 0)) return;
-    let nextBoundary = Infinity;
-    let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
-    let gearDepthGainPct = 0;
-    try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
-    let depthPerSec = 3 * speedBonus * (1 + gearDepthGainPct / 100);
+// 수심을 meters 만큼 증가시키고 체크포인트/수압을 갱신하는 공통 처리.
+function applyOceanDepthGain(st, meters) {
+    if (!st || !(meters > 0)) return;
     let curDepth = Math.max(0, Number(st.depthM) || 0);
-    let newDepth = Math.min(nextBoundary, curDepth + depthPerSec * dtSec);
-    if (newDepth <= curDepth) return;
-    st.depthM = newDepth;
+    // 500m 보스 경계: 다음 경계의 심해 가디언을 처치하기 전에는 그 경계까지만 전진한다.
+    let interval = typeof getOceanBossBoundaryInterval === 'function' ? getOceanBossBoundaryInterval() : 500;
+    let cleared = Math.max(0, Math.floor(st.bossClearM || 0));
+    let nextBoundary = Math.floor(cleared / interval) * interval + interval;
+    if (curDepth >= nextBoundary) return; // 이미 경계에 도달해 보스 처치를 기다리는 중
+    st.depthM = Math.min(nextBoundary, curDepth + meters);
     let newCheckpoint = Math.floor(st.depthM / 100) * 100;
-    if (newCheckpoint > (st.checkpointM || 0) && newCheckpoint < nextBoundary) {
+    if (newCheckpoint > (st.checkpointM || 0)) {
         st.checkpointM = newCheckpoint;
         addLog(`🛗 수중 리프트 ${st.checkpointM}m 지점이 개방되었습니다.`, 'loot-rare');
     }
     st.pressureLevel = getOceanDepthTier(st.depthM);
+    // 경계에 막 도달한 순간(이전엔 미달, 지금 도달) 가디언 등장을 알린다.
+    if (curDepth < nextBoundary && st.depthM >= nextBoundary) {
+        addLog(`🌊 수심 ${nextBoundary}m — 심해 가디언이 길을 막습니다. 처치해야 더 깊이 내려갈 수 있습니다.`, 'loot-unique');
+    }
+}
+
+// 수심을 시간에 따라 꾸준히 증가시킨다(방치 진행의 바닥값).
+function tickOceanDepth(st, dtSec) {
+    if (!st || !(dtSec > 0)) return;
+    let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
+    let gearDepthGainPct = 0;
+    try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
+    let depthPerSec = 3 * speedBonus * (1 + gearDepthGainPct / 100);
+    applyOceanDepthGain(st, depthPerSec * dtSec);
 }
 
 const OCEAN_MOD_CATEGORY_RULES = [
@@ -5774,7 +5791,19 @@ function chooseItemBase(slot, zoneTier) {
         return true;
     });
     if (candidates.length === 0) candidates = BASE_ITEM_DB.filter(base => base.slot === slot && !base.realmBase);
-    return rndChoice(candidates);
+    // 6단계(최종) 베이스는 드랍 가중치를 크게 낮춘다(일반 베이스의 1/25 수준).
+    let weights = candidates.map(base => {
+        let info = typeof getBaseChainInfo === 'function' ? getBaseChainInfo(base) : null;
+        return (info && info.step >= 6) ? 0.04 : 1;
+    });
+    let totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    if (totalWeight <= 0) return rndChoice(candidates);
+    let roll = Math.random() * totalWeight;
+    for (let i = 0; i < candidates.length; i++) {
+        roll -= weights[i];
+        if (roll <= 0) return candidates[i];
+    }
+    return candidates[candidates.length - 1];
 }
 
 function rollBaseStats(base, zoneTier) {
@@ -6220,6 +6249,18 @@ function applyVoidChiselToSelectedItem() { if (game.woodsmanBuildLock) return ad
     updateStaticUI();
 }
 
+function applyWoodsmanTouchToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    if (!item) return addLog('먼저 봉인할 장비를 선택하세요.', 'attack-monster');
+    if ((game.currencies.woodsmanTouch || 0) < 1) return addLog('나무꾼의 손길이 부족합니다.', 'attack-monster');
+    if (item.loopSealed) return addLog('이미 봉인된 장비입니다.', 'attack-monster');
+    game.currencies.woodsmanTouch--;
+    item.loopSealed = true;
+    addLog(`🌿 [${item.name}]을(를) 나무꾼의 손길로 봉인했습니다. 루프(환생)가 진행되어도 사라지지 않습니다.`, 'loot-unique');
+    updateStaticUI();
+    queueImportantSave(200);
+}
+
 function insertJewelIntoVoidSocket(invIdx) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item || !item.voidSocket || !item.voidSocket.open) return;
@@ -6574,8 +6615,36 @@ function generateEquipmentDrop(enemy) {
         rarity = roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
     }
     let item = createItemFromBase(base, rarity, hiddenTierCap);
+    maybeApplyExceptionalBase(item);
     item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, hiddenTierCap);
     return maybeApplyChaosRealmEncroachment(item, enemy, getZone(game.currentZoneId));
+}
+
+// 장비 드랍 시, 각 베이스 옵션 줄마다 독립적으로 1% 확률로 '특출'해진다(최대 롤 +20%).
+// 줄마다 따로 굴리므로 모든 줄이 동시에 특출날 확률은 1%^(줄 수)로 극악이다.
+function maybeApplyExceptionalBase(item) {
+    if (!item || !Array.isArray(item.baseStats) || item.baseStats.length === 0) return item;
+    let names = [];
+    item.baseStats.forEach(stat => {
+        if (!stat || Math.random() >= 0.01) return;
+        let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
+            : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
+        let boosted = max * 1.2;
+        let usesDecimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+        if (usesDecimal) boosted = Math.round(boosted * 10) / 10;
+        else if (stat.id === 'projectileExtraShots') boosted = Math.max(1, Math.round(boosted));
+        else boosted = Math.max(1, Math.floor(boosted));
+        stat.val = boosted;
+        stat.exceptional = true;
+        names.push(stat.statName || getStatName(stat.id));
+    });
+    if (names.length > 0) {
+        item.exceptionalBase = true;
+        item.exceptionalStatNames = names;
+        item.exceptionalStatName = names.join(', ');
+        item.exceptionalAllLines = names.length === item.baseStats.length;
+    }
+    return item;
 }
 
 function awardCurrency(currencyKey, amount) {
@@ -6606,6 +6675,16 @@ function awardCurrency(currencyKey, amount) {
     if (currencyKey === 'divine' && gain > 0) {
         showDivineDropBanner(gain);
         addLog(`✨✨ <strong>신성한 오브 +${gain}</strong> 획득!`, 'loot-unique');
+    }
+    if ((currencyKey === 'chaosKey' || currencyKey === 'coreKey') && gain > 0) {
+        // 둘 중 하나라도 습득하면 지도 알람을 띄운다(5차 미궁 시련/재능 개화 도전 알림).
+        if (game.noti) game.noti.map = true;
+        let keyName = (ORB_DB[currencyKey] && ORB_DB[currencyKey].name) || currencyKey;
+        addLog(`🗝️ <strong>${keyName} +${gain}</strong> 획득! 5차 미궁 시련(재능 개화)을 지도에서 확인하세요.`, 'loot-unique');
+    }
+    if (currencyKey === 'woodsmanTouch' && gain > 0) {
+        game.woodsmanTouchSeen = true;
+        addLog(`🌿✨ <strong>나무꾼의 손길 +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`, 'loot-unique');
     }
     if (!game.gemEnhanceUnlocked && (currencyKey === 'bossCore' || currencyKey === 'skyEssence')) {
         game.gemEnhanceUnlocked = true;
@@ -6653,8 +6732,6 @@ function getCurrencyDrops(enemy) {
         if (bonusRoll(0.31)) drops.push(['alchemy', 1]);
         if (bonusRoll(0.08)) drops.push(['regal', 1]);
         if (bonusRoll(0.17)) drops.push(['chaos', 1]);
-        if (bonusRoll(0.025)) drops.push(['divine', 1]);
-        if (bonusRoll(0.05)) drops.push(['exalted', 1]);
     } else if (enemy.isElite) {
         if (bonusRoll(0.18)) {
             let roll = Math.random();
@@ -6665,6 +6742,11 @@ function getCurrencyDrops(enemy) {
     } else if (bonusRoll(0.02)) {
         drops.push([[ 'transmute', 'transmute', 'augment', 'alteration', 'scour' ][Math.floor(Math.random() * 5)], 1]);
     }
+    // 신성한 오브: 일반 0.055% / 정예 0.11% / 보스 1.25%. 엑잘티드는 신성의 2배. 나무꾼의 손길은 신성 확률의 1/1200(극악).
+    let divineChance = enemy.isBoss ? 0.0125 : (enemy.isElite ? 0.0011 : 0.00055);
+    if (bonusRoll(divineChance)) drops.push(['divine', 1]);
+    if (bonusRoll(divineChance * 2)) drops.push(['exalted', 1]);
+    if (bonusRoll(divineChance / 1200)) drops.push(['woodsmanTouch', 1]);
     let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     drops.push(...getMappingTicketDrops(enemy, zone, mappingOpened));
     if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['annulment', 1]);
@@ -6698,6 +6780,9 @@ function getCurrencyDrops(enemy) {
     }
     if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
     if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
+    // 진화(transmute)/변화(alteration)/확장(augment) 오브 드랍 확률 절반(출처 무관).
+    let halveOrbs = new Set(['transmute', 'alteration', 'augment']);
+    drops = drops.filter(d => !(d && halveOrbs.has(d[0]) && Math.random() < 0.5));
     return drops;
 }
 

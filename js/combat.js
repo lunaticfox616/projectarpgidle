@@ -4241,7 +4241,7 @@ function createEnemy(zone, marker, groupIndex) {
         hp = Math.floor(hp * 120);
     }
     if (isBoss) {
-        let bossName = zone.type === 'outsideChaos' ? '혼돈 밖의 나무꾼' : (zone.type === 'trial' ? `${zone.name} 수호자` : (zone.type === 'seasonBoss' ? zone.name : (zone.type === 'meteor' ? '검은 별의 심장' : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`))));
+        let bossName = zone.type === 'outsideChaos' ? '혼돈 밖의 나무꾼' : (zone.type === 'trial' ? `${zone.name} 수호자` : (zone.type === 'seasonBoss' ? zone.name : (zone.type === 'meteor' ? '검은 별의 심장' : (zone.type === 'oceanDepth' ? `심해 가디언 ${Math.floor(zone.depthM || 0)}m` : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`)))));
         name = `👿 ${bossName}`;
     }
     let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
@@ -4471,6 +4471,13 @@ function generateEncounterPlan(zone) {
         return [{ at: 28, count: profile.minPack + 1, elite: true }, { at: 62, count: profile.maxPack, elite: true }, { at: 100, count: 1 + profile.bossAdds, boss: true }];
     }
     if (zone.type === 'oceanDepth') {
+        let oceanSt = ensureOceanState();
+        // 500m 경계에 도달해 보스가 대기 중이면 이번 런은 심해 가디언 단일 전투로 구성한다.
+        if (typeof getOceanPendingBossBoundary === 'function' && getOceanPendingBossBoundary(oceanSt) > 0) {
+            game.oceanBossRunPending = true;
+            return [{ at: 100, count: 1, boss: true }];
+        }
+        game.oceanBossRunPending = false;
         let profile = getZoneEncounterProfile(zone);
         let markers = [];
         for (let i = 0; i < profile.markerCount; i++) {
@@ -5628,6 +5635,7 @@ function rollLootForEnemy(enemy) {
     });
 
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
+    itemChance *= 0.7; // 장비 드랍 확률 30% 감소
     itemChance *= (1 + (getCodexBonusPct() / 100));
     itemChance *= Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
     if (zone.type === 'labyrinth') {
@@ -5647,7 +5655,7 @@ function rollLootForEnemy(enemy) {
         if (addItemToInventory(item) && game.settings.showLootLog) {
             addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#9ed6ff', duration: 780 });
             if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ff9f43', duration: 1200 });
-            addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''} 획득!`);
+            addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
         }
     }
     if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.056) {
@@ -5675,15 +5683,15 @@ function rollLootForEnemy(enemy) {
             awardCurrency('pollen', pollenAmount);
             beeLootLogs.push(`꽃가루 +${pollenAmount}`);
         }
-        if (beeLv >= 4 && enemy.isElite && Math.random() < 0.024) {
+        if (beeLv >= 4 && enemy.isElite && Math.random() < 0.0048) {
             awardCurrency('venomStinger', 1);
             beeLootLogs.push('독벌침 +1');
         }
-        if (beeLv >= 2 && enemy.isElite && Math.random() < 0.0032) {
+        if (beeLv >= 2 && enemy.isElite && Math.random() < 0.00064) {
             awardCurrency('enchantedHoney', 1);
             beeLootLogs.push('마력 깃든 벌꿀 +1');
         }
-        if (beeLv >= 8 && enemy.isElite && Math.random() < 0.016) {
+        if (beeLv >= 8 && enemy.isElite && Math.random() < 0.0032) {
             awardCurrency('beeswax', 1);
             beeLootLogs.push('밀랍 +1');
         }
@@ -6065,7 +6073,21 @@ function finishEncounterRun() {
     if (zone.type === 'oceanDepth') {
         // 잠수 중이 아니면(예: 강제 귀환 후 호출) 진행을 변경하지 않는다.
         let oceanSt = ensureOceanState();
-        if (oceanSt.unlocked && oceanSt.diving) advanceOceanDiveFromKill(zone);
+        if (oceanSt.unlocked && oceanSt.diving) {
+            if (game.oceanBossRunPending) {
+                // 방금 클리어한 런은 500m 경계의 심해 가디언 전투였다 → 경계 통과 처리.
+                let pendingBoundary = getOceanPendingBossBoundary(oceanSt);
+                if (pendingBoundary > 0) {
+                    oceanSt.bossClearM = pendingBoundary;
+                    oceanSt.pressureLevel = getOceanDepthTier(oceanSt.depthM);
+                    awardCurrency('reefFragment', 3);
+                    addLog(`🌊 수심 ${pendingBoundary}m의 심해 가디언을 처치했습니다! 더 깊은 곳으로 길이 열립니다. (암초 조각 +3)`, 'loot-unique');
+                }
+                game.oceanBossRunPending = false;
+            } else {
+                advanceOceanDiveFromKill(zone);
+            }
+        }
         game.currentZoneId = OCEAN_ZONE_ID;
         game.killsInZone = 0;
         startMoving(false);
@@ -8138,6 +8160,15 @@ function triggerSeasonReset() {
     let preservedOcean = JSON.parse(JSON.stringify(ensureOceanState()));
     let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
     let preservedTalismanUnlocked = !!game.talismanUnlocked || !!(game.unlocks && game.unlocks.talisman);
+    // 나무꾼의 손길로 봉인된 장비(장착/인벤)와 나무꾼의 손길 보유분은 루프가 지나도 유지한다.
+    let preservedSealedEquipment = {};
+    Object.keys(game.equipment || {}).forEach(slot => {
+        let it = game.equipment[slot];
+        if (it && it.loopSealed) preservedSealedEquipment[slot] = JSON.parse(JSON.stringify(it));
+    });
+    let preservedSealedInventory = (game.inventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
+    let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.woodsmanTouch) || 0));
+    let preservedWoodsmanTouchSeen = !!game.woodsmanTouchSeen;
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -8189,6 +8220,11 @@ function triggerSeasonReset() {
     game.inventory = [];
     game.equipment = { ...defaultGame.equipment };
     game.currencies = { ...defaultGame.currencies };
+    // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
+    Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = preservedSealedEquipment[slot]; });
+    if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory);
+    if (preservedWoodsmanTouch > 0) game.currencies.woodsmanTouch = preservedWoodsmanTouch;
+    game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
     game.labyrinthFloor = 1;
     game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax || 1));
     game.jewelInventory = [];

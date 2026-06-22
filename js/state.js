@@ -234,12 +234,14 @@ function getOceanPressureResistUpgradePct() {
     return Math.max(0, Math.min(80, getOceanPermanentUpgradeEffect('pressureResist')));
 }
 function getOceanOxygenDrainPerSec() {
-    // 기본 시간당 감소량은 고정이되, 이동 속도가 높을수록 더 빠르게 감소합니다.
+    // 산소 소모는 시간 기반입니다. 이동 속도는 더 이상 산소 소모를 늘리지 않습니다
+    // (이속이 높을수록 도달 수심이 오히려 줄어들던 역설을 제거).
     let base = 0.5 * (1 - getOceanOxygenSavingPct() / 100);
-    let moveSpeed = 100;
-    try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) { console.warn('failed to read movement speed for map progress:', e); }
-    let moveRatio = Math.max(0.5, Math.min(4, moveSpeed / 100));
-    return Math.max(0.1, base * moveRatio);
+    // 수압 과부하: 깊이 내려갈수록 산소 소모가 가속됩니다(최대 +100%). 수압 저항 영구 업그레이드로 완화됩니다.
+    let depthTier = getOceanDepthTier((game && game.ocean && game.ocean.depthM) || 0);
+    let pressureResistPct = Math.max(0, Math.min(80, getOceanPressureResistUpgradePct()));
+    let pressureDrainMul = 1 + Math.min(1.0, depthTier * 0.07) * (1 - pressureResistPct / 100);
+    return Math.max(0.1, base * pressureDrainMul);
 }
 function getOceanOxygenPerAttackCost() {
     // 공격 1회마다 소모되는 고정 산소량입니다.
@@ -248,12 +250,20 @@ function getOceanOxygenPerAttackCost() {
 function getOceanDepthTier(depthM) {
     return Math.floor(Math.max(0, Math.floor(depthM || 0)) / 100);
 }
+function getOceanBossBoundaryInterval() {
+    // 심해 가디언(보스)이 등장하는 수심 간격(m).
+    return 500;
+}
 function getOceanPendingBossBoundary(st) {
-    // 심해는 특정 구역/경계 보스 없이 시간에 따라 계속 깊어지는 연속 수심 콘텐츠입니다.
-    return 0;
+    // 다음 보스 경계에 도달했고 아직 처치하지 않았다면 그 경계 수심을 반환한다(없으면 0).
+    if (!st) return 0;
+    let interval = getOceanBossBoundaryInterval();
+    let cleared = Math.max(0, Math.floor(st.bossClearM || 0));
+    let nextBoundary = Math.floor(cleared / interval) * interval + interval;
+    return (Math.floor(Math.max(0, Number(st.depthM) || 0)) >= nextBoundary) ? nextBoundary : 0;
 }
 function getOceanMoveSpeedDepthBonus() {
-    // 이동 속도가 빠를수록 산소 소모는 늘지만, 그만큼 한 번에 더 깊이 전진할 수 있도록 보정합니다.
+    // 이동 속도가 빠를수록 한 번에 더 깊이 전진합니다(산소 소모와는 무관, 최대 +50%).
     let moveSpeed = 100;
     try { if (typeof getPlayerStats === 'function') moveSpeed = Number(getPlayerStats().moveSpeed) || 100; } catch (e) { console.warn('failed to read movement speed for map progress:', e); }
     let bonusRatio = Math.max(0, (moveSpeed - 100) / 100);
@@ -1202,28 +1212,34 @@ const UNDERWORLD_RUNE_DB = [
 const BASE_ITEM_DB = [
     { id: 'rusted_blade', slot: '무기', name: '녹슨 검', reqTier: 1, baseStats: [{ id: 'flatDmg', base: 4 }] },
     { id: 'apprentice_familiar_wand', slot: '무기', name: '견습 사역봉', reqTier: 1, baseStats: [{ id: 'flatDmg', base: 5 }, { id: 'summonPctDmg', base: 10 }, { id: 'summonEfficiency', base: 4 }] },
-    { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 도끼', reqTier: 3, baseStats: [{ id: 'flatDmg', base: 8 }, { id: 'crit', base: 3 }] },
-    { id: 'pact_familiar_wand', slot: '무기', name: '계약 사역봉', reqTier: 4, baseStats: [{ id: 'flatDmg', base: 8 }, { id: 'summonPctDmg', base: 14 }, { id: 'summonEfficiency', base: 6 }] },
+    { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 도끼', reqTier: 3, baseStats: [{ id: 'flatDmg', base: 9 }, { id: 'crit', base: 3 }] },
+    { id: 'pact_familiar_wand', slot: '무기', name: '계약 사역봉', reqTier: 4, baseStats: [{ id: 'flatDmg', base: 9 }, { id: 'summonPctDmg', base: 14 }, { id: 'summonEfficiency', base: 6 }] },
     { id: 'abyss_spear', slot: '무기', name: '심연의 창', reqTier: 7, baseStats: [{ id: 'flatDmg', base: 14 }, { id: 'aspd', base: 6 }] },
-    { id: 'bloodletter_blade', slot: '무기', name: '혈각 검', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 21 }, { id: 'crit', base: 5 }] },
-    { id: 'gale_fang_spear', slot: '무기', name: '질풍 송곳창', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 22 }, { id: 'aspd', base: 8 }] },
-    { id: 'executioner_blade', slot: '무기', name: '처형자의 검', reqTier: 14, baseStats: [{ id: 'flatDmg', base: 31 }, { id: 'crit', base: 8 }] },
-    { id: 'tempest_pike', slot: '무기', name: '폭풍 장창', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 34 }, { id: 'aspd', base: 10 }] },
+    { id: 'bloodletter_blade', slot: '무기', name: '혈각 검', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'crit', base: 5 }] },
+    { id: 'gale_fang_spear', slot: '무기', name: '질풍 송곳창', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'aspd', base: 8 }] },
+    { id: 'executioner_blade', slot: '무기', name: '처형자의 검', reqTier: 14, baseStats: [{ id: 'flatDmg', base: 38 }, { id: 'crit', base: 8 }] },
+    { id: 'tempest_pike', slot: '무기', name: '폭풍 장창', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 42 }, { id: 'aspd', base: 10 }] },
     { id: 'windlash_bow', slot: '무기', name: '돌풍 장궁', reqTier: 5, baseStats: [{ id: 'flatDmg', base: 11 }, { id: 'projectilePctDmg', base: 10 }] },
     { id: 'stormbolt_launcher', slot: '무기', name: '폭전 발사기', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 22 }, { id: 'projectilePctDmg', base: 18 }, { id: 'projectileExtraShots', base: 1 }] },
-    { id: 'starfall_ballista', slot: '무기', name: '유성 발리스타', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 32 }, { id: 'projectilePctDmg', base: 26 }, { id: 'projectileExtraShots', base: 2 }] },
-    { id: 'needle_recurve', slot: '무기', name: '바늘 리커브', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 17 }, { id: 'projectilePctDmg', base: 14 }] },
-    { id: 'spiritbound_wand', slot: '무기', name: '영혼 결속봉', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 13 }, { id: 'summonPctDmg', base: 22 }, { id: 'summonEfficiency', base: 10 }] },
-    { id: 'seeker_railgun', slot: '무기', name: '추적 레일건', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 26 }, { id: 'projectilePctDmg', base: 22 }, { id: 'projectileExtraShots', base: 2 }] },
+    { id: 'starfall_ballista', slot: '무기', name: '유성 발리스타', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 37 }, { id: 'projectilePctDmg', base: 26 }, { id: 'projectileExtraShots', base: 2 }] },
+    { id: 'needle_recurve', slot: '무기', name: '바늘 리커브', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 18 }, { id: 'projectilePctDmg', base: 14 }] },
+    { id: 'spiritbound_wand', slot: '무기', name: '영혼 결속봉', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 16 }, { id: 'summonPctDmg', base: 22 }, { id: 'summonEfficiency', base: 10 }] },
+    { id: 'seeker_railgun', slot: '무기', name: '추적 레일건', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 28 }, { id: 'projectilePctDmg', base: 22 }, { id: 'projectileExtraShots', base: 2 }] },
     { id: 'tempest_volley', slot: '무기', name: '폭풍 연사궁', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 35 }, { id: 'projectilePctDmg', base: 30 }, { id: 'projectileExtraShots', base: 3 }] },
     { id: 'nova_rod', slot: '무기', name: '노바 로드', reqTier: 5, baseStats: [{ id: 'flatDmg', base: 7 }, { id: 'spellFlatDmg', base: 20 }] },
-    { id: 'rift_scepter', slot: '무기', name: '균열 홀', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 12 }, { id: 'spellFlatDmg', base: 38 }, { id: 'spellFlatPct', base: 12 }] },
-    { id: 'void_archon_staff', slot: '무기', name: '공허 대현자 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 18 }, { id: 'spellFlatDmg', base: 58 }, { id: 'spellFlatPct', base: 22 }] },
-    { id: 'ember_wand', slot: '무기', name: '잿불 완드', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 10 }, { id: 'spellFlatDmg', base: 30 }] },
-    { id: 'echo_focus', slot: '무기', name: '메아리 초점봉', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 14 }, { id: 'spellFlatDmg', base: 46 }, { id: 'spellFlatPct', base: 16 }] },
-    { id: 'ritual_familiar_staff', slot: '무기', name: '의식 사역마 지팡이', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 18 }, { id: 'summonPctDmg', base: 30 }, { id: 'summonEfficiency', base: 14 }] },
+    { id: 'rift_scepter', slot: '무기', name: '균열 홀', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 14 }, { id: 'spellFlatDmg', base: 38 }, { id: 'spellFlatPct', base: 12 }] },
+    { id: 'void_archon_staff', slot: '무기', name: '공허 대현자 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'spellFlatDmg', base: 58 }, { id: 'spellFlatPct', base: 22 }] },
+    { id: 'ember_wand', slot: '무기', name: '잿불 완드', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 11 }, { id: 'spellFlatDmg', base: 30 }] },
+    { id: 'echo_focus', slot: '무기', name: '메아리 초점봉', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 17 }, { id: 'spellFlatDmg', base: 46 }, { id: 'spellFlatPct', base: 16 }] },
+    { id: 'ritual_familiar_staff', slot: '무기', name: '의식 사역마 지팡이', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'summonPctDmg', base: 30 }, { id: 'summonEfficiency', base: 14 }] },
     { id: 'abyss_chant_staff', slot: '무기', name: '심연 창가 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 20 }, { id: 'spellFlatDmg', base: 64 }, { id: 'spellFlatPct', base: 26 }] },
-    { id: 'archon_familiar_staff', slot: '무기', name: '아콘 사역마 지팡이', reqTier: 16, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'summonPctDmg', base: 40 }, { id: 'summonEfficiency', base: 18 }] },
+    { id: 'archon_familiar_staff', slot: '무기', name: '아콘 사역마 지팡이', reqTier: 20, baseStats: [{ id: 'flatDmg', base: 42 }, { id: 'summonPctDmg', base: 40 }, { id: 'summonEfficiency', base: 18 }] },
+    { id: 'doomcleaver_blade', slot: '무기', name: '파멸 대검', reqTier: 17, baseStats: [{ id: 'flatDmg', base: 53 }, { id: 'crit', base: 11 }] },
+    { id: 'apocalypse_greatblade', slot: '무기', name: '멸세 대검', reqTier: 20, baseStats: [{ id: 'flatDmg', base: 64 }, { id: 'crit', base: 14 }] },
+    { id: 'cyclone_glaive', slot: '무기', name: '회오리 글레이브', reqTier: 17, baseStats: [{ id: 'flatDmg', base: 55 }, { id: 'aspd', base: 13 }] },
+    { id: 'tempestlord_lance', slot: '무기', name: '태풍군주 창', reqTier: 20, baseStats: [{ id: 'flatDmg', base: 66 }, { id: 'aspd', base: 16 }] },
+    { id: 'meteor_repeater', slot: '무기', name: '유성 연사 발리스타', reqTier: 20, baseStats: [{ id: 'flatDmg', base: 55 }, { id: 'projectilePctDmg', base: 34 }, { id: 'projectileExtraShots', base: 3 }] },
+    { id: 'genesis_void_staff', slot: '무기', name: '창세 공허 지팡이', reqTier: 20, baseStats: [{ id: 'flatDmg', base: 34 }, { id: 'spellFlatDmg', base: 78 }, { id: 'spellFlatPct', base: 30 }] },
     { id: 'cloth_hood', slot: '투구', name: '천 후드', reqTier: 1, baseStats: [{ id: 'flatHp', base: 12 }, { id: 'energyShield', base: 36 }] },
     { id: 'war_helm', slot: '투구', name: '전투 투구', reqTier: 4, baseStats: [{ id: 'flatHp', base: 28 }, { id: 'armor', base: 105 }, { id: 'dr', base: 2 }] },
     { id: 'bastion_helm', slot: '투구', name: '보루 투구', reqTier: 8, baseStats: [{ id: 'flatHp', base: 44 }, { id: 'armor', base: 170 }, { id: 'dr', base: 3 }] },
@@ -1338,8 +1354,8 @@ const BASE_ITEM_DB = [
     { id: 'beastcall_band', slot: '반지', name: '야수 부름 반지', reqTier: 11, baseStats: [{ id: 'summonEfficiency', base: 12 }, { id: 'summonCrit', base: 4 }] },
     { id: 'overlord_ring', slot: '반지', name: '군주 반지', reqTier: 15, baseStats: [{ id: 'summonPctDmg', base: 18 }, { id: 'summonCap', base: 1 }] },
     { id: 'graveknot_belt', slot: '허리띠', name: '묘결 속박대', reqTier: 10, baseStats: [{ id: 'flatHp', base: 60 }, { id: 'resChaos', base: 9 }] },
-    { id: 'echo_lance', slot: '무기', name: '메아리 창', reqTier: 11, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'aspd', base: 7 }] },
-    { id: 'spirit_call_wand', slot: '무기', name: '정령 소환봉', reqTier: 6, baseStats: [{ id: 'flatDmg', base: 10 }, { id: 'summonPctDmg', base: 18 }, { id: 'summonEfficiency', base: 8 }] },
+    { id: 'echo_lance', slot: '무기', name: '메아리 창', reqTier: 11, baseStats: [{ id: 'flatDmg', base: 28 }, { id: 'aspd', base: 7 }] },
+    { id: 'spirit_call_wand', slot: '무기', name: '정령 소환봉', reqTier: 6, baseStats: [{ id: 'flatDmg', base: 12 }, { id: 'summonPctDmg', base: 18 }, { id: 'summonEfficiency', base: 8 }] },
     { id: 'gravebind_scepter', slot: '무기', name: '묘지 결속 홀', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 16 }, { id: 'summonPctDmg', base: 26 }, { id: 'summonHpPct', base: 18 }] },
     { id: 'astral_familiar_staff', slot: '무기', name: '성운 사역마 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 22 }, { id: 'summonPctDmg', base: 36 }, { id: 'summonCritDmg', base: 24 }] },
     { id: 'ember_circlet', slot: '투구', name: '잿불 서클릿', reqTier: 11, baseStats: [{ id: 'energyShield', base: 126 }, { id: 'resF', base: 10 }] },
