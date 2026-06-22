@@ -793,7 +793,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'h1', name: '단일 조준', desc: '투사체 피해 10% 증폭, 타겟이 하나면 25% 증폭', req: null },
         { id: 'h2', name: '약점 노출', desc: '공격 시 적에게 약점 노출 부여, 노출된 적이 받는 피해 20% 증가', req: null },
         { id: 'h3', name: '행운 발걸음', desc: '이동 속도의 20%를 회피로 전환, 회피 판정에 행운, 피격/상태이상 판정에 불운', req: null },
-        { id: 'h4', name: '연쇄 관통', desc: '타겟이 하나면 공격이 100% 관통(초과 피해 100% 연쇄 관통)', req: 'h1' },
+        { id: 'h4', name: '연쇄 관통', desc: '타겟이 하나면 공격이 100% 관통(초과 피해가 연쇄 관통, 전이마다 80%로 감쇄)', req: 'h1' },
         { id: 'h5', name: '급소 격발', desc: '치명타 피해 배율 +250%, 치명타 확률 -25', req: 'h2' },
         { id: 'h6', name: '사거리 장악', desc: '투사체 스킬 타겟 수 +1, 투사체 추가 발사 +1', req: 'h3' },
         { id: 'h7', name: '고독 사냥', desc: '타겟 수 1로 고정, 줄어든 타겟 5개까지 각 연속 타격 +100%p, 이후 각 +50%p', reqAny: ['h4', 'h5'] },
@@ -999,10 +999,6 @@ const SUPPORT_GEM_DB = {
     '근접 물리 피해': { baseVal: 5, scale: 2.0, stat: 'meleePctDmg', name: '근접 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '근접 태그가 달린 스킬의 피해를 높입니다.' },
     '투사체 강화': { baseVal: 5, scale: 2.0, stat: 'projectilePctDmg', name: '투사체 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '투사체 태그 스킬을 강화합니다.' },
     '원소 집중': { baseVal: 5, scale: 2.0, stat: 'elementalPctDmg', name: '원소 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '원소 태그 스킬을 강화합니다.' },
-    '화염 주입': { baseVal: 5, scale: 2.0, stat: 'firePctDmg', name: '화염 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '화염 스킬의 피해를 높입니다.' },
-    '냉기 증폭': { baseVal: 5, scale: 2.0, stat: 'coldPctDmg', name: '냉기 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '냉기 스킬의 피해를 높입니다.' },
-    '번개 전도': { baseVal: 5, scale: 2.0, stat: 'lightPctDmg', name: '번개 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '번개 스킬의 피해를 높입니다.' },
-    '혼돈 전환': { baseVal: 5, scale: 2.0, stat: 'chaosPctDmg', name: '카오스 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '카오스 스킬의 피해를 높입니다.' },
     '범위 확장': { baseVal: 5, scale: 2.0, stat: 'aoePctDmg', name: '범위 피해', isPct: true, resonanceCosts: [3, 9, 18], desc: '범위 태그 스킬의 피해를 높입니다.' },
     '지속 확산': { baseVal: 6, scale: 2.2, stat: 'dotPctDmg', name: '지속 피해 배율', isPct: true, resonanceCosts: [6, 12, 21], desc: 'dot 태그 스킬의 지속 피해 배율을 올립니다.' },
     '무자비': { baseVal: 10, scale: 3.0, stat: 'critDmg', name: '치명타 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '치명타 배율을 높입니다.' },
@@ -1029,7 +1025,12 @@ const SUPPORT_GEM_DB = {
     '사역 예리함': { baseVal: 1, scale: 0.45, stat: 'summonCrit', name: '소환수 치명타 확률', isPct: true, resonanceCosts: [6, 12, 21], desc: '소환수의 치명타 확률을 올립니다.' },
     '사역 무자비': { baseVal: 12, scale: 4.0, stat: 'summonCritDmg', name: '소환수 치명타 피해 배율', isPct: true, resonanceCosts: [9, 21, 33], desc: '소환수의 치명타 피해 배율을 올립니다.' },
     '사역 생명력': { baseVal: 8, scale: 2.8, stat: 'summonHpPct', name: '소환수 생명력', isPct: true, resonanceCosts: [3, 9, 18], desc: '소환수의 최대 생명력을 높입니다.' },
-    '수액 골렘 소환': { baseVal: 25, scale: 0, stat: 'summonGuardRedirectPct', name: '방어형 소환수 피해 대리', isPct: true, noTiers: true, tierMul: 1.4, resonanceCosts: [9], desc: '방어형 소환수 보조 젬. 하급/중급/상급 구분이 없는 통합형 보조 젬입니다. 장착 시 수액 골렘을 소환하고, 살아있는 동안 플레이어가 받을 최종 히트 피해의 일부를 대신 받습니다. 지속 피해는 기본적으로 대리하지 않습니다.', tags: ['summon', 'summon_guard', 'physical'] }
+    '수액 골렘 소환': { baseVal: 25, scale: 0, stat: 'summonGuardRedirectPct', name: '방어형 소환수 피해 대리', isPct: true, noTiers: true, tierMul: 1.4, resonanceCosts: [9], desc: '방어형 소환수 보조 젬. 하급/중급/상급 구분이 없는 통합형 보조 젬입니다. 장착 시 수액 골렘을 소환하고, 살아있는 동안 플레이어가 받을 최종 히트 피해의 일부를 대신 받습니다. 지속 피해는 기본적으로 대리하지 않습니다.', tags: ['summon', 'summon_guard', 'physical'] },
+    '잔향': { baseVal: 8, scale: 3.0, stat: 'echoPower', name: '잔향', isPct: false, resonanceCosts: [9, 21, 33], desc: '적중 시 일정 확률로 잔향을 남겨 추가 피해를 입힙니다. 같은 적에게 여러 번 중첩될 수 있지만, 적 1기에 걸린 잔향의 남은 타격 수 합계는 최대 12회로 제한됩니다.' },
+    '화염 주입': { baseVal: 8, scale: 1.5, stat: 'firePctDmg', name: '화염 피해', isPct: true, resonanceCosts: [3, 9, 18], scaleWithOwnStat: 'firePctDmg', desc: '자신의 화염 피해 증가 수치에 비례해 화염 피해를 추가로 증폭합니다.' },
+    '냉기 증폭': { baseVal: 8, scale: 1.5, stat: 'coldPctDmg', name: '냉기 피해', isPct: true, resonanceCosts: [3, 9, 18], scaleWithOwnStat: 'coldPctDmg', desc: '자신의 냉기 피해 증가 수치에 비례해 냉기 피해를 추가로 증폭합니다.' },
+    '번개 전도': { baseVal: 8, scale: 1.5, stat: 'lightPctDmg', name: '번개 피해', isPct: true, resonanceCosts: [3, 9, 18], scaleWithOwnStat: 'lightPctDmg', desc: '자신의 번개 피해 증가 수치에 비례해 번개 피해를 추가로 증폭합니다.' },
+    '혼돈 전환': { baseVal: 8, scale: 1.5, stat: 'chaosPctDmg', name: '카오스 피해', isPct: true, resonanceCosts: [3, 9, 18], scaleWithOwnStat: 'chaosPctDmg', desc: '자신의 카오스 피해 증가 수치에 비례해 카오스 피해를 추가로 증폭합니다.' }
 };
 
 const MOD_DB = [

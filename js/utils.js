@@ -354,7 +354,7 @@ function createEmptyStatBucket() {
         summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0, summonGemLevel: 0,
         curseCap: 0, oxygenMax: 0, oxygenRegen: 0,
         oceanPressureResist: 0, oceanDepthGainPct: 0, oceanOxygenAttackSavingPct: 0, oceanRareFishChancePct: 0,
-        bossDamagePct: 0, eliteDamagePct: 0, firstStrikeDamagePct: 0, cullStrikePct: 0
+        bossDamagePct: 0, eliteDamagePct: 0, firstStrikeDamagePct: 0, cullStrikePct: 0, echoPower: 0
     };
 }
 function addStatToBucket(bucket, statId, value) {
@@ -527,6 +527,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'eliteDamagePct') bucket.eliteDamagePct += value;
     else if (statId === 'firstStrikeDamagePct') bucket.firstStrikeDamagePct += value;
     else if (statId === 'cullStrikePct') bucket.cullStrikePct += value;
+    else if (statId === 'echoPower') bucket.echoPower += value;
 }
 
 function applyStatsToBucket(bucket, stats) {
