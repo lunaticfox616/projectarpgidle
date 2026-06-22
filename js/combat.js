@@ -3614,7 +3614,8 @@ function getPlayerStats() {
         eliteDamagePct: Math.max(0, sumStatAcrossBuckets('eliteDamagePct')),
         firstStrikeDamagePct: Math.max(0, sumStatAcrossBuckets('firstStrikeDamagePct')),
         cullStrikePct: Math.max(0, Math.min(20, sumStatAcrossBuckets('cullStrikePct'))),
-        echoPower: Math.max(0, sumStatAcrossBuckets('echoPower'))
+        echoPower: Math.max(0, sumStatAcrossBuckets('echoPower')),
+        chaosErosion: Math.max(0, sumStatAcrossBuckets('chaosErosion'))
     };
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
@@ -3847,6 +3848,9 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
     if (skillEle === 'chaos' && enemy && enemy.id && game.enemyUniqueChaosResDown && game.enemyUniqueChaosResDown[enemy.id]) {
         let deb = game.enemyUniqueChaosResDown[enemy.id];
         rawMitigation -= Math.max(0, (deb.perHit || 0) * (deb.stacks || 0));
+    }
+    if (skillEle === 'chaos' && enemy && enemy.chaosErosionShred) {
+        rawMitigation -= enemy.chaosErosionShred;
     }
     if (skillEle === 'phys') {
         let cappedReduction = Math.max(0, Math.min(80, rawMitigation));
@@ -4681,6 +4685,12 @@ function applySupportEchoOnHit(enemy, pStats, damage) {
         damagePct: 15 + echoPower * 0.6
     };
     queueSkillPeriodicHit(enemy, config, damage, pStats.sSkill && pStats.sSkill.ele);
+}
+
+function applySupportChaosErosionOnHit(enemy, pStats, hitElement) {
+    let erosionPerHit = pStats.chaosErosion || 0;
+    if (erosionPerHit <= 0 || hitElement !== 'chaos' || !enemy || enemy.hp <= 0) return;
+    enemy.chaosErosionShred = Math.min(40, (enemy.chaosErosionShred || 0) + erosionPerHit);
 }
 
 function getAilmentTypeFromElement(ele) {
@@ -7145,6 +7155,7 @@ function performPlayerAttack(pStats) {
             spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill);
             applySkillPeriodicOnHit(targetEnemy, pStats.sSkill, dealtToEnemy);
             applySupportEchoOnHit(targetEnemy, pStats, dealtToEnemy);
+            applySupportChaosErosionOnHit(targetEnemy, pStats, hitElement);
             if (pStats.uniqueAlwaysShock) {
                 let shockStats = { ...pStats, sSkill: { ...pStats.sSkill, ele: 'light' } };
                 let shockHit = Math.max(1, Math.floor(dmg * 0.25 * (1 + Math.max(0, Number(pStats.shockEffectBonusPct)||0)/100)));
