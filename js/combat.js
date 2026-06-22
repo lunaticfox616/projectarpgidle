@@ -5635,6 +5635,7 @@ function rollLootForEnemy(enemy) {
     });
 
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
+    itemChance *= 0.7; // 장비 드랍 확률 30% 감소
     itemChance *= (1 + (getCodexBonusPct() / 100));
     itemChance *= Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
     if (zone.type === 'labyrinth') {

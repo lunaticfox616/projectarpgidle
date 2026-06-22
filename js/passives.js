@@ -6780,6 +6780,9 @@ function getCurrencyDrops(enemy) {
     }
     if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
     if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
+    // 진화(transmute)/변화(alteration)/확장(augment) 오브 드랍 확률 절반(출처 무관).
+    let halveOrbs = new Set(['transmute', 'alteration', 'augment']);
+    drops = drops.filter(d => !(d && halveOrbs.has(d[0]) && Math.random() < 0.5));
     return drops;
 }
 
