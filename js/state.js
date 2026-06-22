@@ -1035,7 +1035,7 @@ const SUPPORT_GEM_DB = {
     '냉기 공명': { baseVal: 8, scale: 1.5, stat: 'coldPctDmg', name: '냉기 피해', isPct: true, resonanceCosts: [4, 11, 21], scaleWithOwnStat: 'coldPctDmg', desc: '자신의 냉기 피해 증가 수치에 비례해 냉기 피해를 추가로 증폭합니다.' },
     '번개 공명': { baseVal: 8, scale: 1.5, stat: 'lightPctDmg', name: '번개 피해', isPct: true, resonanceCosts: [4, 11, 21], scaleWithOwnStat: 'lightPctDmg', desc: '자신의 번개 피해 증가 수치에 비례해 번개 피해를 추가로 증폭합니다.' },
     '혼돈 공명': { baseVal: 8, scale: 1.5, stat: 'chaosPctDmg', name: '카오스 피해', isPct: true, resonanceCosts: [4, 11, 21], scaleWithOwnStat: 'chaosPctDmg', desc: '자신의 카오스 피해 증가 수치에 비례해 카오스 피해를 추가로 증폭합니다.' },
-    '카오스 잠식': { baseVal: 2, scale: 0.6, stat: 'chaosErosion', name: '카오스 잠식', isPct: false, resonanceCosts: [9, 21, 33], desc: '카오스 피해로 적중할 때마다 적의 카오스 저항을 깎아 잠식시킵니다(중첩, 최대 40 감소). 적이 죽거나 교체되면 잠식은 초기화됩니다.' },
+    '카오스 잠식': { baseVal: 1, scale: 0.05, stat: 'chaosErosion', name: '카오스 잠식', isPct: false, resonanceCosts: [9, 21, 33], capStat: 'chaosErosionCap', capBase: 20, capGrowAfterLevel: 20, capPerLevel: 1, desc: '카오스 피해로 적중할 때마다 적의 카오스 저항을 깎아 잠식시킵니다(중첩). 잠식 한도는 기본 20이며, 20레벨을 넘기면 레벨당 1씩 한도가 늘어납니다. 적이 죽거나 교체되면 잠식은 초기화됩니다.' },
     '분쇄의 일격': { baseVal: 9, scale: 2.8, stat: 'slamPctDmg', name: '강타 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '강타 태그 스킬의 피해를 강하게 증폭하는 상급 보조 젬입니다.' },
     '비전 증폭': { baseVal: 9, scale: 2.6, stat: 'spellFlatPct', name: '주문 내장 피해 증가', isPct: true, resonanceCosts: [9, 21, 33], desc: '주문 태그 스킬의 내장 피해 증가를 강하게 끌어올리는 상급 보조 젬입니다.' }
 };

@@ -2068,6 +2068,10 @@ function getPlayerStats() {
             val = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
         }
         addStatToBucket(support, db.stat, val);
+        if (db.capStat) {
+            let capVal = (db.capBase || 0) + Math.max(0, effectiveLevel - (db.capGrowAfterLevel || 0)) * (db.capPerLevel || 0);
+            addStatToBucket(support, db.capStat, capVal);
+        }
     });
 
     if (game.shrineBuff && Date.now() > (game.shrineBuff.expiresAt || 0)) game.shrineBuff = null;
@@ -3615,7 +3619,8 @@ function getPlayerStats() {
         firstStrikeDamagePct: Math.max(0, sumStatAcrossBuckets('firstStrikeDamagePct')),
         cullStrikePct: Math.max(0, Math.min(20, sumStatAcrossBuckets('cullStrikePct'))),
         echoPower: Math.max(0, sumStatAcrossBuckets('echoPower')),
-        chaosErosion: Math.max(0, sumStatAcrossBuckets('chaosErosion'))
+        chaosErosion: Math.max(0, sumStatAcrossBuckets('chaosErosion')),
+        chaosErosionCap: Math.max(0, sumStatAcrossBuckets('chaosErosionCap'))
     };
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
@@ -4690,7 +4695,8 @@ function applySupportEchoOnHit(enemy, pStats, damage) {
 function applySupportChaosErosionOnHit(enemy, pStats, hitElement) {
     let erosionPerHit = pStats.chaosErosion || 0;
     if (erosionPerHit <= 0 || hitElement !== 'chaos' || !enemy || enemy.hp <= 0) return;
-    enemy.chaosErosionShred = Math.min(40, (enemy.chaosErosionShred || 0) + erosionPerHit);
+    let cap = pStats.chaosErosionCap || 20;
+    enemy.chaosErosionShred = Math.min(cap, (enemy.chaosErosionShred || 0) + erosionPerHit);
 }
 
 function getAilmentTypeFromElement(ele) {
