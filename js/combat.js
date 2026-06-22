@@ -5675,15 +5675,15 @@ function rollLootForEnemy(enemy) {
             awardCurrency('pollen', pollenAmount);
             beeLootLogs.push(`꽃가루 +${pollenAmount}`);
         }
-        if (beeLv >= 4 && enemy.isElite && Math.random() < 0.024) {
+        if (beeLv >= 4 && enemy.isElite && Math.random() < 0.0048) {
             awardCurrency('venomStinger', 1);
             beeLootLogs.push('독벌침 +1');
         }
-        if (beeLv >= 2 && enemy.isElite && Math.random() < 0.0032) {
+        if (beeLv >= 2 && enemy.isElite && Math.random() < 0.00064) {
             awardCurrency('enchantedHoney', 1);
             beeLootLogs.push('마력 깃든 벌꿀 +1');
         }
-        if (beeLv >= 8 && enemy.isElite && Math.random() < 0.016) {
+        if (beeLv >= 8 && enemy.isElite && Math.random() < 0.0032) {
             awardCurrency('beeswax', 1);
             beeLootLogs.push('밀랍 +1');
         }
