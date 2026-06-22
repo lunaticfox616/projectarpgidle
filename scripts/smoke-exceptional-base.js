@@ -22,20 +22,27 @@ function makeContext(randomValue) {
   return ctx;
 }
 
-// random = 0 → under 1% gate → becomes exceptional, first base stat boosted to floor(max * 1.2).
+// random = 0 → every line passes its independent 1% gate → ALL lines become exceptional (+20%).
 const hit = makeContext(0);
-const item1 = { baseStats: [{ id: 'flatDmg', val: 10, baseRollMax: 20, statName: '기본 피해' }] };
+const item1 = { baseStats: [
+  { id: 'flatDmg', val: 10, baseRollMax: 20, statName: '기본 피해' },
+  { id: 'crit', val: 5, baseRollMax: 10, statName: '치명타' },
+] };
 hit.maybeApplyExceptionalBase(item1);
 assert.strictEqual(item1.exceptionalBase, true, 'item should be flagged as exceptional');
-assert.strictEqual(item1.baseStats[0].exceptional, true, 'the boosted stat should be flagged');
-assert.strictEqual(item1.baseStats[0].val, 24, 'boosted value must be floor(maxRoll * 1.2) = floor(20*1.2)=24');
-assert.strictEqual(item1.exceptionalStatId, 'flatDmg', 'exceptional stat id should be recorded for display');
+assert.strictEqual(item1.baseStats[0].exceptional, true, 'line 1 should be flagged');
+assert.strictEqual(item1.baseStats[1].exceptional, true, 'line 2 should be flagged');
+assert.strictEqual(item1.baseStats[0].val, 24, 'line 1 boosted to floor(20*1.2)=24');
+assert.strictEqual(item1.baseStats[1].val, 12, 'line 2 boosted to floor(10*1.2)=12');
+assert.strictEqual(item1.exceptionalStatNames.length, 2, 'both lines recorded for display');
+assert.strictEqual(item1.exceptionalAllLines, true, 'all lines exceptional flag set');
 
-// random = 0.5 → above 1% gate → unchanged.
+// random = 0.5 → every line fails its gate → unchanged, not exceptional.
 const miss = makeContext(0.5);
-const item2 = { baseStats: [{ id: 'flatDmg', val: 10, baseRollMax: 20 }] };
+const item2 = { baseStats: [{ id: 'flatDmg', val: 10, baseRollMax: 20 }, { id: 'crit', val: 5, baseRollMax: 10 }] };
 miss.maybeApplyExceptionalBase(item2);
 assert(!item2.exceptionalBase, 'most drops must not be exceptional');
-assert.strictEqual(item2.baseStats[0].val, 10, 'non-exceptional stat value unchanged');
+assert.strictEqual(item2.baseStats[0].val, 10, 'non-exceptional line 1 unchanged');
+assert.strictEqual(item2.baseStats[1].val, 5, 'non-exceptional line 2 unchanged');
 
 console.log('exceptional base smoke checks passed');

@@ -6608,23 +6608,30 @@ function generateEquipmentDrop(enemy) {
     return maybeApplyChaosRealmEncroachment(item, enemy, getZone(game.currentZoneId));
 }
 
-// 장비 드랍 시 1% 확률로 '특출난 베이스'가 된다: 베이스 옵션 하나가 최대 롤보다 20% 더 높게 굴려진다.
+// 장비 드랍 시, 각 베이스 옵션 줄마다 독립적으로 1% 확률로 '특출'해진다(최대 롤 +20%).
+// 줄마다 따로 굴리므로 모든 줄이 동시에 특출날 확률은 1%^(줄 수)로 극악이다.
 function maybeApplyExceptionalBase(item) {
     if (!item || !Array.isArray(item.baseStats) || item.baseStats.length === 0) return item;
-    if (Math.random() >= 0.01) return item;
-    let stat = item.baseStats[Math.floor(Math.random() * item.baseStats.length)];
-    let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
-        : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
-    let boosted = max * 1.2;
-    let usesDecimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
-    if (usesDecimal) boosted = Math.round(boosted * 10) / 10;
-    else if (stat.id === 'projectileExtraShots') boosted = Math.max(1, Math.round(boosted));
-    else boosted = Math.max(1, Math.floor(boosted));
-    stat.val = boosted;
-    stat.exceptional = true;
-    item.exceptionalBase = true;
-    item.exceptionalStatId = stat.id;
-    item.exceptionalStatName = stat.statName || getStatName(stat.id);
+    let names = [];
+    item.baseStats.forEach(stat => {
+        if (!stat || Math.random() >= 0.01) return;
+        let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
+            : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
+        let boosted = max * 1.2;
+        let usesDecimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+        if (usesDecimal) boosted = Math.round(boosted * 10) / 10;
+        else if (stat.id === 'projectileExtraShots') boosted = Math.max(1, Math.round(boosted));
+        else boosted = Math.max(1, Math.floor(boosted));
+        stat.val = boosted;
+        stat.exceptional = true;
+        names.push(stat.statName || getStatName(stat.id));
+    });
+    if (names.length > 0) {
+        item.exceptionalBase = true;
+        item.exceptionalStatNames = names;
+        item.exceptionalStatName = names.join(', ');
+        item.exceptionalAllLines = names.length === item.baseStats.length;
+    }
     return item;
 }
 
