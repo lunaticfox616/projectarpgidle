@@ -30,6 +30,7 @@ assert(uiSource.includes("entry.bonus.stat === 'passivePoint'"), 'save normaliza
 assert(uiSource.includes("entry.entryId === 'immortal' && entry.stat === 'flatHp'"), 'save normalization must migrate the legacy immortal HP journal bonus');
 assert(uiSource.includes("return entry.stat !== 'passivePoint'"), 'save normalization must migrate wrongly serialized passive-point journal bonuses');
 assert(uiSource.includes("key === 'woodsmanTouch' ? ' woodsman-touch-currency'"), 'woodsman touch currency card must receive the rare currency class');
+assert(uiSource.includes("if (merged.passiveStarEvolution && !merged.journalEntries.includes('passive_star_evolution')) merged.journalEntries.push('passive_star_evolution');"), 'legacy star-awakened saves must have the hidden journal completed during normalization');
 
 const passivesSource = fs.readFileSync('js/passives.js', 'utf8');
 assert(passivesSource.includes('function getClaimedJournalPassivePointTotal(state)'), 'claimed passive-point journal rewards must be centrally totaled');
@@ -51,6 +52,7 @@ assert(passivesSource.includes("unlockJournalEntry('passive_star_evolution')"), 
 
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert(combatSource.includes('getClaimedJournalPassivePointTotal(game)'), 'loop reset must restore claimed permanent journal passive points');
+assert(combatSource.includes("game.passiveStarEvolution && Array.isArray(game.journalEntries) && game.journalEntries.includes('passive_star_evolution')"), 'star awakening stats must require the matching hidden journal completion');
 
 const indexHtml = fs.readFileSync('index.html', 'utf8');
 assert(indexHtml.includes('id="ui-colony-header">군락지 방어전</h2>'), 'colony defense header must not include the broken insect icon');
