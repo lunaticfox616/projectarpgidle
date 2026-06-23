@@ -5520,7 +5520,7 @@ function maybeTriggerBeeMappingEvent(beeLv, enemy) {
     let roll = Math.random();
     if (beeLv >= 14 && roll < 0.08) {
         let bonusPct = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('queenBeeRewardBonusPct') || 0) / 100 : 0;
-        let pollen = Math.max(1, Math.floor(75 * (1 + bonusPct)));
+        let pollen = Math.max(1, Math.floor(25 * (1 + bonusPct)));
         awardCurrency('pollen', pollen);
         awardCurrency('enchantedHoney', 1);
         awardCurrency('beeswax', 2);
@@ -5530,12 +5530,12 @@ function maybeTriggerBeeMappingEvent(beeLv, enemy) {
         if (Math.random() < 0.35) awardCurrency('beeswax', 1);
         addLog('🐝 독침벌 무리 이벤트! 독벌침 +1', 'loot-rare');
     } else if (beeLv >= 11 && roll < 0.55) {
-        awardCurrency('pollen', 45);
+        awardCurrency('pollen', 15);
         awardCurrency('beeswax', 1);
-        addLog('🐝 호박벌 이벤트! 꽃가루 +45, 밀랍 +1', 'loot-rare');
+        addLog('🐝 호박벌 이벤트! 꽃가루 +15, 밀랍 +1', 'loot-rare');
     } else {
-        awardCurrency('pollen', 24);
-        addLog('🐝 벌 이벤트! 꽃가루 +24', 'loot-magic');
+        awardCurrency('pollen', 8);
+        addLog('🐝 벌 이벤트! 꽃가루 +8', 'loot-magic');
     }
 }
 
@@ -5679,7 +5679,7 @@ function rollLootForEnemy(enemy) {
         let beeLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
         let beeLootLogs = [];
         if (beeLv >= 1 && Math.random() < 0.05) {
-            let pollenAmount = enemy.isElite ? 5 : 2;
+            let pollenAmount = enemy.isElite ? 2 : 1;
             awardCurrency('pollen', pollenAmount);
             beeLootLogs.push(`꽃가루 +${pollenAmount}`);
         }
@@ -5698,14 +5698,14 @@ function rollLootForEnemy(enemy) {
         maybeTriggerBeeMappingEvent(beeLv, enemy);
         if (game.settings.showLootLog && beeLootLogs.length > 0) beeLootLogs.forEach(msg => addLog(`🐝 ${msg}`, 'loot-normal'));
     }
-    if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.01 : enemy.isElite ? 0.003 : 0.0004)) {
+    if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.005 : enemy.isElite ? 0.0015 : 0.0002)) {
         awardCurrency('hiveKey', 1);
         if (game.settings.showLootLog) addLog('🗝️ 벌집 입장권 열쇠를 발견했습니다.', 'loot-rare');
     }
     let sporeUnlocked = Math.max(0, Math.floor(game.loopCount || 0)) >= 2;
     let isDeepChaosZone = zone && zone.type === 'abyss' && Math.max(0, Math.floor(zone.depth || 0)) >= 21;
     if ((game.season || 1) >= 15 && (isDeepChaosZone || game.currentZoneId === 'beehive_run' || game.currentZoneId === 'grand_breach_run')) {
-        let traceChance = isDeepChaosZone ? 0.006 : (game.currentZoneId === 'grand_breach_run' ? 0.009 : 0.004);
+        let traceChance = isDeepChaosZone ? 0.00075 : (game.currentZoneId === 'grand_breach_run' ? 0.001125 : 0.0005);
         if (Math.random() < traceChance) {
             awardCurrency('colonyTrace', 1);
             addLog('🧭 군락지 흔적을 발견했습니다.', 'loot-magic', { noToast: true });
@@ -5770,7 +5770,7 @@ function handleEnemyDeath(enemy, pStats) {
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         if (v.active && enemy.fromVoidRift) v.defeatedCount = Math.max(0, Math.floor(v.defeatedCount || 0)) + 1;
-        if (!v.active && Math.random() < (enemy.isElite ? 0.008 : 0.0018)) {
+        if (!v.active && Math.random() < (enemy.isElite ? 0.000667 : 0.00015)) {
             v.active = true;
             v.activeKills = 0;
             v.requiredKills = 0;
