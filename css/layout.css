@@ -153,7 +153,7 @@
         .trait-card { background: #16161d; border: 2px solid #3d3d5c; color: #ccc; padding: 10px; border-radius: 8px; cursor: pointer; width: 140px; text-align: center; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 5px; }
         .trait-card:hover:not(.locked) { border-color: #f1c40f; transform: translateY(-3px); }
         .trait-card.active { background: #2c1a0e; border-color: #e67e22; color: #fff; box-shadow: 0 0 10px rgba(230,126,34,0.4); }
-        .trait-card.locked { opacity: 0.3; filter: grayscale(100%); pointer-events: none; border-color: #222; }
+        .trait-card.locked { opacity: 0.3; filter: grayscale(100%); cursor: not-allowed; border-color: #222; }
         .trait-title { font-weight: bold; font-size: 0.9em; color: #f1c40f; }
         .trait-desc { font-size: 0.75em; color: #95a5a6; }
 
@@ -165,7 +165,7 @@
         .ks-prereq.met { color: #7ddf9f; border-color: rgba(125,223,159,0.4); }
         .ks-prereq.unmet { color: #e6a96b; border-color: rgba(230,169,107,0.4); }
         .trait-card.ks-prereq-hi { border-color: #4fc3f7 !important; box-shadow: 0 0 14px rgba(79,195,247,0.7) !important; }
-        .trait-card.ks-self-hi:not(.locked) { border-color: #f1c40f !important; box-shadow: 0 0 12px rgba(241,196,15,0.55) !important; }
+        .trait-card.ks-self-hi { border-color: #f1c40f !important; box-shadow: 0 0 12px rgba(241,196,15,0.55) !important; }
 
         .class-card { background: #1a1a24; border: 2px solid #8e44ad; padding: 15px; border-radius: 6px; text-align: center; cursor: pointer; transition: 0.2s; }
         .class-card:hover { background: #2a1035; border-color: #9b59b6; transform: scale(1.05); }

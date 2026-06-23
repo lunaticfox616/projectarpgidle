@@ -7532,7 +7532,7 @@ function buildCraftActionButtons(item) {
                 let reqIds = reqIdsOf(k);
                 let reqLabel = '';
                 if (k.fifthJobOnly) {
-                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 선행: 5차 전직(재능 개화)</div>`;
+                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 해금: 5차 전직(재능 개화)</div>`;
                 } else if (reqIds.length > 0) {
                     let names = reqIds.map(id => (kById[id] || {}).name || id);
                     let joiner = Array.isArray(k.reqAny) ? ' 또는 ' : ', ';
@@ -11605,7 +11605,7 @@ function getClassKeystoneDefs(clsKey) {
 function isAscendKeystoneRequirementMet(node) {
     if (!node) return false;
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
-    // 5차 전직(재능 개화) 키스톤은 다른 선행 키스톤 조건 없이 해당 직업의 5차 노드 해금 여부만 본다.
+    // 9번째(5차) 키스톤은 선행 키스톤 없이 해당 직업의 5차 전직(재능 개화)만 요구한다.
     if (node.fifthJobOnly) {
         game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
         return game.bloomedClasses.includes(game.ascendClass);
