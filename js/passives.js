@@ -1327,6 +1327,7 @@ function unlockPassiveStarEvolution(options) {
     if (!apexIds.every(id => owned.has(id))) return false;
 
     game.passiveStarEvolution = true;
+    unlockJournalEntry('passive_star_evolution');
     apexIds.forEach(id => revealAroundNode(id, {
         forcePulse: !options.silent,
         noBurst: !!options.silent,
@@ -3738,6 +3739,17 @@ function getActRewardChoices(zoneId) {
         }
         return enriched;
     });
+}
+function getClaimedJournalPassivePointTotal(state) {
+    let runtimeState = state && typeof state === 'object' ? state : game;
+    let entries = new Set(Array.isArray(runtimeState.journalEntries) ? runtimeState.journalEntries : []);
+    let claims = runtimeState.journalBonusClaims && typeof runtimeState.journalBonusClaims === 'object' ? runtimeState.journalBonusClaims : {};
+    return Object.keys(JOURNAL_DB).reduce((sum, id) => {
+        let entry = JOURNAL_DB[id];
+        if (!entry || !entry.bonus || entry.bonus.stat !== 'passivePoint') return sum;
+        if (!entries.has(id) || !claims[id]) return sum;
+        return sum + Math.max(0, Math.floor(entry.bonus.value || 0));
+    }, 0);
 }
 function grantJournalBonus(entryId) {
     let entry = JOURNAL_DB[entryId];
