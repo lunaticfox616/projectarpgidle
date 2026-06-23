@@ -16,9 +16,15 @@ vm.createContext(ctx);
 vm.runInContext(`${modDb[0]}\n${fossilDb[0]}\nthis.MOD_DB = MOD_DB; this.FOSSIL_DB = FOSSIL_DB;`, ctx);
 
 // applyFossilChaosCraft에서 쓰는 보장 풀 필터(수정본)를 그대로 재현한다.
+// 방패 화석은 모든 방어구(투구/갑옷/장갑/신발/방패)에서 최대 저항 확정 옵션을 부여하도록 슬롯 제한을 완화한다.
+const ARMOR_DEFENSE_SLOTS = new Set(['투구', '갑옷', '장갑', '신발', '방패']);
 function guaranteedPoolFor(fossilKey, slot) {
   const fossil = ctx.FOSSIL_DB.find(f => f.key === fossilKey);
-  return ctx.MOD_DB.filter(mod => mod.slots.includes(slot) && fossil.guaranteedStats.includes(mod.statId || mod.id));
+  let pool = ctx.MOD_DB.filter(mod => mod.slots.includes(slot) && fossil.guaranteedStats.includes(mod.statId || mod.id));
+  if (fossilKey === 'fossilBulwark' && pool.length === 0 && ARMOR_DEFENSE_SLOTS.has(slot)) {
+    pool = ctx.MOD_DB.filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id));
+  }
+  return pool;
 }
 
 // 수정 전 동작(버그) 재현용: mod.id로 비교.
@@ -36,8 +42,16 @@ assert(fixed.length >= 3, 'shield fossil must resolve guaranteed max-resist mods
 const statIds = new Set(fixed.map(m => m.statId || m.id));
 ['maxResF', 'maxResC', 'maxResL'].forEach(s => assert(statIds.has(s), `shield fossil guaranteed pool must include ${s}`));
 
-// 방패가 아닌 슬롯(예: 갑옷)에는 최대 저항 모드가 없으므로 방패 화석 보장 풀이 비어야 한다(설계상 방패 전용).
-assert.strictEqual(guaranteedPoolFor('fossilBulwark', '갑옷').length, 0, 'shield fossil should not apply to non-shield armor (no max-res mods there)');
+// 방패 화석은 이제 다른 방어구(투구/갑옷/장갑/신발)에도 최대 저항 확정 옵션을 부여할 수 있어야 한다.
+['투구', '갑옷', '장갑', '신발'].forEach(slot => {
+  let pool = guaranteedPoolFor('fossilBulwark', slot);
+  assert(pool.length >= 3, `shield fossil must grant max-resist guarantee on ${slot}`);
+  let ids = new Set(pool.map(m => m.statId || m.id));
+  ['maxResF', 'maxResC', 'maxResL'].forEach(s => assert(ids.has(s), `${slot} shield-fossil pool must include ${s}`));
+});
+
+// 방어구가 아닌 슬롯(예: 무기)에는 방패 화석이 적용되지 않아야 한다(보장 풀 비어 있음).
+assert.strictEqual(guaranteedPoolFor('fossilBulwark', '무기').length, 0, 'shield fossil must not apply to non-armor slots (weapon)');
 
 // 일반 화석(예: 톱니 화석)은 기존처럼 해당 슬롯에서 정상 매칭되어야 한다(회귀 없음).
 assert(guaranteedPoolFor('fossilJagged', '무기').length > 0, 'jagged fossil must still resolve on weapons');

@@ -287,6 +287,12 @@ function applyFossilChaosCraft(fossilKey) {
     // guaranteedStats는 실제 스탯 id(예: maxResF)로 적혀 있으므로 모드의 statId(없으면 id)로 비교해야 한다.
     // 방패 화석의 최대 저항 모드는 id가 'shieldMaxResF'이고 statId가 'maxResF'라서, mod.id로 비교하면 방패에서도 매칭되지 않던 버그가 있었다.
     let guaranteedPool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && fossil.guaranteedStats.includes(mod.statId || mod.id) && !immutableIds.has(mod.statId || mod.id));
+    // 🛡️ 방패 화석의 최대 저항(최대 화염/냉기/번개) 확정 옵션은 원래 방패 전용 모드라 다른 방어구에는 슬롯상 매칭되지 않는다.
+    // 방패뿐 아니라 모든 방어구(투구/갑옷/장갑/신발/방패)에 부여할 수 있도록 슬롯 제한을 완화한다.
+    let ARMOR_DEFENSE_SLOTS = new Set(['투구', '갑옷', '장갑', '신발', '방패']);
+    if (fossilKey === 'fossilBulwark' && guaranteedPool.length === 0 && ARMOR_DEFENSE_SLOTS.has(item.slot)) {
+        guaranteedPool = MOD_DB.filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id) && !immutableIds.has(mod.statId || mod.id));
+    }
     let specialFossil = ['fossilOld', 'fossilRift'].includes(fossilKey);
     if (!specialFossil && guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
 
