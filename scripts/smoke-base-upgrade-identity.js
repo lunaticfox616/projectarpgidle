@@ -135,19 +135,26 @@ for (const id of ['moonveil_hood', 'astral_robe', 'iron_tread', 'nightmare_bind'
   assert(getBaseChainInfo(base).total >= 2, `${base.name} must belong to a multi-step chain`);
 }
 
-// Every armour base type (slot × defense profile) forms a clean 6-step upgrade chain.
-const PROFILES = ['armor', 'evasion', 'energyShield', 'armor+evasion', 'armor+energyShield', 'evasion+energyShield'];
+// Every armour base type (slot × defense profile) forms a clean upgrade chain along the
+// canonical tier ladder. Single-defense types span the full 6 steps (T1..T20); dual-defense
+// (hybrid) types only appear from T8, so they span 4 steps (T8..T20).
+const SINGLE_PROFILES = ['armor', 'evasion', 'energyShield'];
+const DUAL_PROFILES = ['armor+evasion', 'armor+energyShield', 'evasion+energyShield'];
 for (const slot of ARMOR_SLOTS) {
   const bySlot = pool.filter(b => b.slot === slot);
-  for (const prof of PROFILES) {
-    const group = bySlot.filter(b => getBaseDefenseProfile(b) === prof);
-    assert(group.length > 0, `${slot} [${prof}] should have bases`);
-    const maxTotal = Math.max(...group.map(b => getBaseChainInfo(b).total));
-    assert.strictEqual(maxTotal, 6, `${slot} [${prof}] chain must be exactly 6 deep, got ${maxTotal}`);
-    // The chain must span the canonical tier ladder.
-    const tiers = new Set(group.map(b => b.reqTier));
-    for (const t of [1, 4, 8, 12, 16, 20]) {
-      assert(tiers.has(t), `${slot} [${prof}] missing a base at tier ${t}`);
+  for (const [profiles, ladder] of [[SINGLE_PROFILES, [1, 4, 8, 12, 16, 20]], [DUAL_PROFILES, [8, 12, 16, 20]]]) {
+    for (const prof of profiles) {
+      const group = bySlot.filter(b => getBaseDefenseProfile(b) === prof);
+      assert(group.length > 0, `${slot} [${prof}] should have bases`);
+      const maxTotal = Math.max(...group.map(b => getBaseChainInfo(b).total));
+      assert.strictEqual(maxTotal, ladder.length, `${slot} [${prof}] chain must be exactly ${ladder.length} deep, got ${maxTotal}`);
+      const tiers = new Set(group.map(b => b.reqTier));
+      for (const t of ladder) assert(tiers.has(t), `${slot} [${prof}] missing a base at tier ${t}`);
+      // Dual (hybrid) defense bases must not appear before T8.
+      if (ladder[0] === 8) {
+        const early = group.filter(b => b.reqTier < 8);
+        assert.strictEqual(early.length, 0, `${slot} [${prof}] dual bases must not exist below T8: ${early.map(b => b.name).join(', ')}`);
+      }
     }
   }
 }

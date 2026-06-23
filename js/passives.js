@@ -5791,10 +5791,12 @@ function chooseItemBase(slot, zoneTier) {
         return true;
     });
     if (candidates.length === 0) candidates = BASE_ITEM_DB.filter(base => base.slot === slot && !base.realmBase);
-    // 6단계(최종) 베이스는 드랍 가중치를 크게 낮춘다(일반 베이스의 1/25 수준).
+    // 최종 단계 베이스는 드랍 가중치를 크게 낮춘다(일반 베이스의 1/25 수준).
+    // 6단계 싱글 체인의 6단계, 또는 최상위 T20 베이스(듀얼 방어구의 4단계 등)가 대상.
     let weights = candidates.map(base => {
         let info = typeof getBaseChainInfo === 'function' ? getBaseChainInfo(base) : null;
-        return (info && info.step >= 6) ? 0.04 : 1;
+        let isFinal = (info && info.step >= 6) || (base.reqTier || 0) >= 20;
+        return isFinal ? 0.04 : 1;
     });
     let totalWeight = weights.reduce((sum, w) => sum + w, 0);
     if (totalWeight <= 0) return rndChoice(candidates);
