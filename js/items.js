@@ -486,21 +486,30 @@ function getBaseUpgradeCandidates(currentBase) {
     let currentProfile = getBaseDefenseProfile(currentBase);
     let currentSecondarySignature = getBaseSecondaryStatSignature(currentBase, currentBase.slot);
     let currentArchetype = getBaseBuildArchetype(currentBase);
+    let isArmorSlot = ['투구','갑옷','장갑','신발','방패'].includes(currentBase.slot);
     let candidates = BASE_ITEM_DB
         .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase)
-        .filter(base => ['투구','갑옷','장갑','신발','방패'].includes(base.slot) ? getBaseDefenseProfile(base) === currentProfile : true)
+        .filter(base => isArmorSlot ? getBaseDefenseProfile(base) === currentProfile : true)
         .filter(base => getBaseBuildArchetype(base) === currentArchetype)
         .sort((a,b)=>a.reqTier-b.reqTier);
-    // 업그레이드는 현재 베이스의 부가 옵션 정체성을 보존해야 한다.
-    // (예: 물리 피해 감소 허리띠가 카오스 저항 허리띠로 바뀌면 안 된다.)
-    // 현재 부가 스탯을 모두 유지하는(상위 집합) 후보를 우선하고, 그런 후보가
-    // 없을 때만 같은 계열 안에서 가장 낮은 티어로 폴백한다.
     if (currentSecondarySignature.length > 0) {
+        // 1) 부가 옵션 정체성 보존: 현재 부가 옵션을 모두 유지하는(상위 집합) 후보를 우선.
+        //    (예: 물리 피해 감소 허리띠가 카오스 저항 허리띠로 바뀌면 안 된다.)
         let preserving = candidates.filter(base => {
             let signature = new Set(getBaseSecondaryStatSignature(base, base.slot));
             return currentSecondarySignature.every(id => signature.has(id));
         });
         if (preserving.length > 0) return preserving;
+        // 2) 방어구는 방어 프로파일(방어도/회피/보호막)이 정체성이므로,
+        //    저항 옵션이 달라도 같은 프로파일끼리 이어 준다.
+        if (isArmorSlot) return candidates;
+        // 3) 그 외 슬롯(무기/목걸이/반지/허리띠)은 부가 옵션 자체가 정체성이다.
+        //    완전히 다른 부옵션을 가진 베이스끼리는 한 체인으로 묶지 않는다 —
+        //    최소한 하나의 부가 옵션을 공유하는 후보만 허용한다.
+        return candidates.filter(base => {
+            let signature = new Set(getBaseSecondaryStatSignature(base, base.slot));
+            return currentSecondarySignature.some(id => signature.has(id));
+        });
     }
     return candidates;
 }

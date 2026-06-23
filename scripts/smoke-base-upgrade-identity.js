@@ -108,6 +108,19 @@ for (const base of pool) {
   }
 }
 
+// 완전히 다른 부옵션을 가진 베이스끼리는 한 체인으로 묶지 않는다.
+// (방어구는 방어 프로파일이 정체성이므로 저항만 다른 경우는 예외로 둔다.)
+for (const base of pool) {
+  if (ARMOR_SLOTS.includes(base.slot)) continue;
+  const sec = secondaryOf(base);
+  if (sec.size === 0) continue;
+  const next = getBaseUpgradeCandidates(base)[0];
+  if (!next) continue;
+  const ns = secondaryOf(next);
+  assert([...sec].some(id => ns.has(id)),
+    `${base.name} [${[...sec]}] -> ${next.name} [${[...ns]}] share no sub-option (completely different bases must not chain)`);
+}
+
 // Bug 2: no upgradeable base is isolated — every base belongs to a chain of length >= 2.
 const isolated = pool.filter(b => getBaseChainInfo(b).total === 1);
 assert.strictEqual(isolated.length, 0, `isolated bases (no chain): ${isolated.map(b => b.name).join(', ')}`);
