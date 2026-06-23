@@ -2125,8 +2125,10 @@ function craftSeaGift(recipeId, targetItem, options) {
     } else if (effect.type === 'fixedBenchOption') {
         let option = getOceanWorkbenchOption(options && options.optionId, !!effect.topTier);
         if (!option) { addLog('적용할 수 있는 고정 옵션이 없습니다.', 'attack-monster'); return false; }
-        let val = Math.floor(option.min + Math.random() * Math.max(0, option.max - option.min));
-        let rolled = { id: option.statId, val: val, valMin: Math.floor(option.min), valMax: Math.floor(option.max), tier: 5, statName: getStatName(option.statId), oceanBenchOptionId: option.id };
+        let minInt = Math.floor(option.min);
+        let maxInt = Math.floor(option.max);
+        let val = minInt + Math.floor(Math.random() * (maxInt - minInt + 1));
+        let rolled = { id: option.statId, val: val, valMin: minInt, valMax: maxInt, tier: 5, statName: getStatName(option.statId), oceanBenchOptionId: option.id };
         let idx = (item.stats || []).findIndex(stat => stat && (stat.oceanBenchOptionId === option.id));
         if (idx < 0) idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
         if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
@@ -5839,12 +5841,18 @@ function rollBaseStats(base, zoneTier) {
             scaledMin = Math.max(positiveMinimum, scaledMin);
             scaledMax = Math.max(scaledMin, scaledMax);
         }
-        let val = scaledMin + Math.random() * Math.max(0, (scaledMax - scaledMin));
-        if (usesDecimalRoll) val = Math.round(val * 10) / 10;
-        else if (stat.id === 'projectileExtraShots') val = Math.max(1, Math.round(val));
-        else {
-            val = Math.floor(val);
-            if (scaledMax > 0) val = Math.max(1, val);
+        let val;
+        if (usesDecimalRoll) {
+            let minStep = Math.round(scaledMin * 10);
+            let maxStep = Math.round(scaledMax * 10);
+            val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
+            scaledMin = minStep / 10;
+            scaledMax = maxStep / 10;
+        } else {
+            scaledMin = Math.floor(scaledMin);
+            scaledMax = Math.floor(scaledMax);
+            if (scaledMax > 0) scaledMin = Math.max(1, scaledMin);
+            val = scaledMin + Math.floor(Math.random() * (scaledMax - scaledMin + 1));
         }
         if (stat.id === 'flatDmg') {
             scaledMin = Math.max(1, scaledMin);
@@ -5882,8 +5890,9 @@ function rerollStoredAffixValue(stat) {
     if (!Number.isFinite(min) || !Number.isFinite(max)) return;
     if (max < min) { let tmp = min; min = max; max = tmp; }
     if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
-        let val = min + Math.random() * (max - min);
-        stat.val = Math.round(val * 10) / 10;
+        let minStep = Math.round(min * 10);
+        let maxStep = Math.round(max * 10);
+        stat.val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
         return;
     }
     let minInt = Math.round(min);
@@ -5899,17 +5908,19 @@ function rollCompoundExtraStats(mod, tier, roundInteger) {
         if (Array.isArray(sub.tierValues)) return rollTierValueAffix(sub, subId, tier);
         let min = sub.base + (tier * sub.step);
         let max = min + sub.step * 1.6;
-        let val = min + Math.random() * (max - min);
+        let val;
         if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(subId)) {
-            val = Math.round(val * 10) / 10;
-            min = Math.round(min * 10) / 10;
-            max = Math.round(max * 10) / 10;
+            let minStep = Math.round(min * 10);
+            let maxStep = Math.round(max * 10);
+            val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
+            min = minStep / 10;
+            max = maxStep / 10;
         } else {
             let toInt = roundInteger ? Math.round : Math.floor;
-            val = toInt(val);
             min = toInt(min);
             max = toInt(max);
-            if (max > 0) { min = Math.max(1, min); val = Math.max(1, val); }
+            if (max > 0) min = Math.max(1, min);
+            val = min + Math.floor(Math.random() * (max - min + 1));
         }
         return { id: subId, val: val, valMin: min, valMax: max, tier: tier, statName: sub.statName || getStatName(subId) };
     });
@@ -5927,17 +5938,19 @@ function rollAffixValue(mod, maxTier, opts) {
     } else {
         let min = mod.base + (tier * mod.step);
         let max = min + mod.step * 1.6;
-        let val = min + Math.random() * (max - min);
+        let val;
         if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
-            val = Math.round(val * 10) / 10;
-            min = Math.round(min * 10) / 10;
-            max = Math.round(max * 10) / 10;
+            let minStep = Math.round(min * 10);
+            let maxStep = Math.round(max * 10);
+            val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
+            min = minStep / 10;
+            max = maxStep / 10;
         } else {
             let toInt = roundInteger ? Math.round : Math.floor;
-            val = toInt(val);
             min = toInt(min);
             max = toInt(max);
-            if (max > 0) { min = Math.max(1, min); val = Math.max(1, val); }
+            if (max > 0) min = Math.max(1, min);
+            val = min + Math.floor(Math.random() * (max - min + 1));
         }
         result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
     }
@@ -5975,16 +5988,18 @@ function rollAffixValueInTierRange(mod, minTier, maxTier) {
     } else {
         let min = mod.base + (tier * mod.step);
         let max = min + mod.step * 1.6;
-        let val = min + Math.random() * (max - min);
+        let val;
         if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
-            val = Math.round(val * 10) / 10;
-            min = Math.round(min * 10) / 10;
-            max = Math.round(max * 10) / 10;
+            let minStep = Math.round(min * 10);
+            let maxStep = Math.round(max * 10);
+            val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
+            min = minStep / 10;
+            max = maxStep / 10;
         } else {
-            val = Math.floor(val);
             min = Math.floor(min);
             max = Math.floor(max);
-            if (max > 0) { min = Math.max(1, min); val = Math.max(1, val); }
+            if (max > 0) min = Math.max(1, min);
+            val = min + Math.floor(Math.random() * (max - min + 1));
         }
         result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
     }
@@ -6246,15 +6261,17 @@ function rollChaosInfusionOption(option) {
     if (!Number.isFinite(min)) min = Number(option && option.value) || 0;
     if (!Number.isFinite(max)) max = min;
     if (max < min) { let tmp = min; min = max; max = tmp; }
-    let val = min + Math.random() * Math.max(0, max - min);
+    let val;
     if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(option.id)) {
-        val = Math.round(val * 10) / 10;
-        min = Math.round(min * 10) / 10;
-        max = Math.round(max * 10) / 10;
+        let minStep = Math.round(min * 10);
+        let maxStep = Math.round(max * 10);
+        val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
+        min = minStep / 10;
+        max = maxStep / 10;
     } else {
-        val = Math.floor(val);
         min = Math.floor(min);
         max = Math.floor(max);
+        val = min + Math.floor(Math.random() * (max - min + 1));
     }
     return { id: option.id, val: val, valMin: min, valMax: max, tier: 5, statName: getStatName(option.id), temporary: true, source: 'chaosInfuser', sourceOptionId: option.optionId || option.id };
 }
@@ -6761,7 +6778,6 @@ function maybeApplyExceptionalBase(item) {
         let boosted = max * 1.2;
         let usesDecimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
         if (usesDecimal) boosted = Math.round(boosted * 10) / 10;
-        else if (stat.id === 'projectileExtraShots') boosted = Math.max(1, Math.round(boosted));
         else boosted = Math.max(1, Math.floor(boosted));
         stat.val = boosted;
         stat.exceptional = true;
@@ -8246,12 +8262,20 @@ function useCurrency(currencyKey) {
                 baseMin = baseMax;
                 baseMax = tmp;
             }
+            if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
+                let minStep = Math.round(baseMin * 10);
+                let maxStep = Math.round(baseMax * 10);
+                stat.val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
+                baseMin = minStep / 10;
+                baseMax = maxStep / 10;
+            } else {
+                baseMin = Math.floor(baseMin);
+                baseMax = Math.floor(baseMax);
+                if (baseMax > 0) baseMin = Math.max(1, baseMin);
+                stat.val = baseMin + Math.floor(Math.random() * (baseMax - baseMin + 1));
+            }
             stat.baseRollMin = baseMin;
             stat.baseRollMax = baseMax;
-            let rolled = baseMin + Math.random() * (baseMax - baseMin);
-            if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) stat.val = Math.round(rolled * 10) / 10;
-            else if (stat.id === 'projectileExtraShots') stat.val = Math.max(1, Math.round(rolled));
-            else stat.val = Math.round(rolled);
             stat.valMin = baseMin;
             stat.valMax = baseMax;
         });
