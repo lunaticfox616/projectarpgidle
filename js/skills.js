@@ -297,21 +297,13 @@ function applyFossilChaosCraft(fossilKey) {
     let guaranteedMinTier = Math.max(tierRange.min || 1, hiddenTier >= 11 ? tierRange.min : hiddenTier - 3);
     let guaranteedMaxTier = Math.max(guaranteedMinTier, hiddenTier);
     let guaranteed = specialFossil ? null : pickWeightedMod(guaranteedPool);
-    let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
-    let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
-    let baseDefenseTypes = new Set((item.baseStats || [])
-        .map(stat => stat && stat.id)
-        .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
+    let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !new Set(['투구', '갑옷', '장갑', '신발', '방패']).has(item.slot));
+    let baseDefenseTypes = getItemBaseDefenseTypes(item);
     function canUseDefenseStat(statId) {
         statId = String(statId || '');
         if (bypassDefenseTypeRule) return true;
-        if (statId === 'deflectChance') return baseDefenseTypes.has('evasion');
-        if (!['armor', 'evasion', 'energyShield', 'armorPct', 'evasionPct', 'energyShieldPct'].includes(statId)) return true;
-        if (baseDefenseTypes.size <= 0) return true;
-        if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
-        if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
-        if (statId.startsWith('energyShield') && !baseDefenseTypes.has('energyShield')) return false;
-        return true;
+        if (statId === 'deflectChance') return baseDefenseTypes.size <= 0 || baseDefenseTypes.has('evasion');
+        return isDefenseTypeStatAllowed(item, statId);
     }
 
     let lockedStats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));

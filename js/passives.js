@@ -6018,6 +6018,27 @@ function liberateSelectedEncroachedItem() {
     updateStaticUI();
 }
 
+function getItemBaseDefenseTypes(item) {
+    return new Set((item && Array.isArray(item.baseStats) ? item.baseStats : [])
+        .map(stat => stat && stat.id)
+        .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
+}
+// 방어구는 베이스가 가진 방어 타입(방어도/회피/보호막)에 해당하는 옵션만 허용한다.
+// 예) 회피 베이스에 방어도(%)가, 방어도 베이스에 회피(%)가 붙지 않도록 막는다.
+// 고유 아이템과 방어구가 아닌 슬롯(장신구 등)은 제한 대상에서 제외한다.
+function isDefenseTypeStatAllowed(item, statId) {
+    let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발', '방패']);
+    if (!item || item.rarity === 'unique' || !defenseSlots.has(item.slot)) return true;
+    statId = String(statId || '');
+    if (!['armor', 'evasion', 'energyShield', 'armorPct', 'evasionPct', 'energyShieldPct'].includes(statId)) return true;
+    let baseDefenseTypes = getItemBaseDefenseTypes(item);
+    if (baseDefenseTypes.size <= 0) return true;
+    if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
+    if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
+    if (statId.startsWith('energyShield') && !baseDefenseTypes.has('energyShield')) return false;
+    return true;
+}
+
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
     let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
@@ -6026,21 +6047,10 @@ function getAvailableMods(item) {
         && item.baseStats.some(stat => stat && summonBaseStatIds.has(stat.id));
     let isSummonBaseWeapon = item && item.slot === '무기' && hasSummonBaseStat;
     let isSummonBaseRing = item && item.slot === '반지' && hasSummonBaseStat;
-    let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발', '방패']);
-    // 고유 아이템/장신구는 방어 타입 제한 대상에서 제외
-    let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
-    let baseDefenseTypes = new Set((item.baseStats || [])
-        .map(stat => stat && stat.id)
-        .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
+    let baseDefenseTypes = getItemBaseDefenseTypes(item);
     return MOD_DB.filter(mod => {
         let statId = mod.statId || mod.id;
-        if (!bypassDefenseTypeRule && ['armor','evasion','energyShield','armorPct','evasionPct','energyShieldPct'].includes(statId)) {
-            if (baseDefenseTypes.size > 0) {
-                if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
-                if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
-                if (statId.startsWith('energyShield') && !baseDefenseTypes.has('energyShield')) return false;
-            }
-        }
+        if (!isDefenseTypeStatAllowed(item, statId)) return false;
         if (statId === 'deflectChance' && !baseDefenseTypes.has('evasion')) return false;
         if (item.slot === '방패' && statId === 'spellGemLevel' && !baseDefenseTypes.has('energyShield')) return false;
         if (item.slot === '무기' && summonOnlyModIds.has(statId) && !isSummonBaseWeapon) return false;
@@ -6114,7 +6124,7 @@ const CHAOS_INFUSER_OPTIONS = [
 function getChaosInfuserOptionsForItem(item) {
     let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
     let occupied = getItemOccupiedExplicitModIds(item);
-    return CHAOS_INFUSER_OPTIONS.filter(opt => (!opt.slots || opt.slots.includes(slot)) && (!occupied.has(opt.id) || (item && item.chaosInfusion && item.chaosInfusion.id === opt.id)));
+    return CHAOS_INFUSER_OPTIONS.filter(opt => (!opt.slots || opt.slots.includes(slot)) && isDefenseTypeStatAllowed(item, opt.id) && (!occupied.has(opt.id) || (item && item.chaosInfusion && item.chaosInfusion.id === opt.id)));
 }
 function isChaosInfusionEligibleItem(item) {
     if (!item) return { ok: false, reason: '아이템 미선택' };
