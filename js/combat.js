@@ -1463,6 +1463,7 @@ function coreLoop() {
                     let marker = { at: Math.max(5, Math.min(95, 10 + idx * 8)), elite: Math.random() < 0.18, boss: false };
                     let riftEnemy = createEnemy(zoneNow, marker, idx + 1);
                     riftEnemy.fromVoidRift = true;
+                    applyVoidRiftMobTuning(riftEnemy);
                     game.enemies.push(riftEnemy);
                     v.spawnedCount++;
                     if (game.settings.showSpawnLog !== false) addLog(`🕳️ 균열 출현 ${v.spawnedCount}/${v.totalToSpawn}`, 'attack-monster', { noToast: true });
@@ -5518,6 +5519,15 @@ function applyGrandBreachMobTuning(zone, enemy) {
     enemy.atkMul = (enemy.atkMul || 1) * 1.25;
 }
 
+// 공허의 구멍에서 출현하는 몹 보정: 경험치 2배, 생명력 2배, 피해량 1.5배.
+function applyVoidRiftMobTuning(enemy) {
+    if (!enemy || enemy.isBoss) return;
+    enemy.maxHp = Math.max(1, Math.floor((enemy.maxHp || 1) * 2));
+    enemy.hp = enemy.maxHp;
+    enemy.atkMul = (enemy.atkMul || 1) * 1.5;
+    enemy.expMul = (enemy.expMul || 1) * 2;
+}
+
 
 function maybeTriggerBeeMappingEvent(beeLv, enemy) {
     if (beeLv < 10 || !enemy || enemy.isBoss) return;
@@ -5778,7 +5788,7 @@ function handleEnemyDeath(enemy, pStats) {
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         if (v.active && enemy.fromVoidRift) v.defeatedCount = Math.max(0, Math.floor(v.defeatedCount || 0)) + 1;
-        if (!v.active && Math.random() < (enemy.isElite ? 0.000667 : 0.00015)) {
+        if (!v.active && Math.random() < (enemy.isElite ? 0.0003335 : 0.000075)) {
             v.active = true;
             v.activeKills = 0;
             v.requiredKills = 0;
