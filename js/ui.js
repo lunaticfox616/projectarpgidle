@@ -4465,14 +4465,20 @@ function showItemTooltip(event, idx, isEquip) {
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
             let rangeText = `${getItemStatRollRangeHtml(stat)}${tierText}`;
             let label = stat.statName || getStatName(statKey) || statKey;
-            // 복합 옵션은 한 줄에 두 스탯을 함께 표기한다.
+            // 복합 옵션은 한 줄에 두 스탯까지 표기하고, 듀얼+복합처럼 길어지는 경우 다음 줄로 넘긴다.
             if (Array.isArray(stat.extraStats) && stat.extraStats.length > 0) {
                 let parts = [`<span style="color:${resolveItemStatTone(statKey)};">${getStatName(statKey)} +${formatValue(statKey, stat.val)}</span>`];
                 stat.extraStats.forEach(extra => {
                     let exKey = extra && (extra.id || extra.stat);
                     parts.push(`<span style="color:${resolveItemStatTone(exKey)};">${getStatName(exKey)} +${formatValue(exKey, extra.val)}</span>`);
                 });
-                html += `<div class="tooltip-line">${parts.join(' <span style="color:#7f8c8d;">·</span> ')}${rangeText}</div>`;
+                for (let i = 0; i < parts.length; i += 2) {
+                    let chunk = parts.slice(i, i + 2).join(' <span style="color:#7f8c8d;">·</span> ');
+                    let continuation = i > 0 ? ' compound-option-continuation' : '';
+                    let indent = i > 0 ? 'padding-left:14px;' : '';
+                    let suffix = i === 0 ? rangeText : '';
+                    html += `<div class="tooltip-line${continuation}" style="${indent}">${chunk}${suffix}</div>`;
+                }
                 return;
             }
             html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, stat.val)}</span>${rangeText}</div>`;
@@ -9006,6 +9012,7 @@ function mergeDefaults(save) {
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     if (!merged.journalEntries.includes('prologue')) merged.journalEntries.unshift('prologue');
+    if (merged.passiveStarEvolution && !merged.journalEntries.includes('passive_star_evolution')) merged.journalEntries.push('passive_star_evolution');
     if (Math.max(Math.floor(merged.season || 1), Math.floor(merged.loopCount || 0)) >= 2) {
         Object.keys(JOURNAL_DB).forEach(id => {
             if (/^act_/.test(id) && !merged.journalEntries.includes(id)) merged.journalEntries.push(id);

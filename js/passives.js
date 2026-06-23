@@ -6067,10 +6067,63 @@ function liberateSelectedEncroachedItem() {
     updateStaticUI();
 }
 
+const DEFENSE_TYPE_PCT_STAT = { armor: 'armorPct', evasion: 'evasionPct', energyShield: 'energyShieldPct' };
+const DEFENSE_PCT_TYPE_STAT = { armorPct: 'armor', evasionPct: 'evasion', energyShieldPct: 'energyShield' };
+const DUAL_DEFENSE_AFFIX_RATIO = 0.6;
+
 function getItemBaseDefenseTypes(item) {
     return new Set((item && Array.isArray(item.baseStats) ? item.baseStats : [])
         .map(stat => stat && stat.id)
         .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
+}
+
+function getPrimaryBaseDefenseType(item) {
+    let row = (item && Array.isArray(item.baseStats) ? item.baseStats : [])
+        .find(stat => stat && (stat.id === 'armor' || stat.id === 'evasion' || stat.id === 'energyShield'));
+    return row ? row.id : null;
+}
+
+function getDefenseTypeForAffixStat(statId) {
+    statId = String(statId || '');
+    if (DEFENSE_TYPE_PCT_STAT[statId]) return statId;
+    return DEFENSE_PCT_TYPE_STAT[statId] || null;
+}
+
+function scaleDefenseCompoundStat(source, statId) {
+    return {
+        statId: statId,
+        statName: getStatName(statId),
+        base: (Number(source && source.base) || 0) * DUAL_DEFENSE_AFFIX_RATIO,
+        step: (Number(source && source.step) || 0) * DUAL_DEFENSE_AFFIX_RATIO
+    };
+}
+
+function isPrimaryDualDefenseAffixMod(item, mod) {
+    let sourceDefenseType = getDefenseTypeForAffixStat(mod && (mod.statId || mod.id));
+    let defenseTypes = getItemBaseDefenseTypes(item);
+    if (!sourceDefenseType || defenseTypes.size < 2) return true;
+    return sourceDefenseType === getPrimaryBaseDefenseType(item);
+}
+
+function makeDualDefenseAffixMod(item, mod) {
+    let statId = mod && (mod.statId || mod.id);
+    let sourceDefenseType = getDefenseTypeForAffixStat(statId);
+    let defenseTypes = Array.from(getItemBaseDefenseTypes(item));
+    if (!sourceDefenseType || defenseTypes.length < 2 || !defenseTypes.includes(sourceDefenseType)) return mod;
+    let extras = Array.isArray(mod.compound) ? mod.compound.slice() : [];
+    defenseTypes.forEach(type => {
+        if (type === sourceDefenseType) return;
+        if (Array.isArray(mod.compound)) {
+            extras.push(scaleDefenseCompoundStat(mod, type));
+            let ownPct = mod.compound.find(sub => getDefenseTypeForAffixStat(sub && (sub.statId || sub.id)) === sourceDefenseType);
+            if (ownPct) extras.push(scaleDefenseCompoundStat(ownPct, DEFENSE_TYPE_PCT_STAT[type]));
+            return;
+        }
+        if (statId === sourceDefenseType) extras.push(scaleDefenseCompoundStat(mod, type));
+        if (statId === DEFENSE_TYPE_PCT_STAT[sourceDefenseType]) extras.push(scaleDefenseCompoundStat(mod, DEFENSE_TYPE_PCT_STAT[type]));
+    });
+    if (extras.length === 0) return mod;
+    return { ...mod, compound: extras };
 }
 // 방어구는 베이스가 가진 방어 타입(방어도/회피/보호막)에 해당하는 옵션만 허용한다.
 // 예) 회피 베이스에 방어도(%)가, 방어도 베이스에 회피(%)가 붙지 않도록 막는다.
@@ -6104,8 +6157,9 @@ function getAvailableMods(item) {
         if (item.slot === '방패' && statId === 'spellGemLevel' && !baseDefenseTypes.has('energyShield')) return false;
         if (item.slot === '무기' && summonOnlyModIds.has(statId) && !isSummonBaseWeapon) return false;
         if (item.slot === '반지' && summonOnlyModIds.has(statId) && !isSummonBaseRing) return false;
+        if (!isPrimaryDualDefenseAffixMod(item, mod)) return false;
         return mod.slots.includes(item.slot) && !existing.has(statId);
-    });
+    }).map(mod => makeDualDefenseAffixMod(item, mod));
 }
 
 function updateItemName(item) {

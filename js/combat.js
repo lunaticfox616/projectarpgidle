@@ -1964,7 +1964,7 @@ function getPlayerStats() {
     (heroDef.stats || []).forEach(row => {
         if (row && row.stat) addStatToBucket(reward, row.stat, row.value);
     });
-    if (game.passiveStarEvolution) {
+    if (game.passiveStarEvolution && Array.isArray(game.journalEntries) && game.journalEntries.includes('passive_star_evolution')) {
         Object.keys(PASSIVE_STAR_BLESSING).forEach(statId => addStatToBucket(starBlessing, statId, PASSIVE_STAR_BLESSING[statId]));
     }
     let talismanEntries = Object.values(game.talismanPlacements || {}).filter(entry => entry && entry.talisman);
