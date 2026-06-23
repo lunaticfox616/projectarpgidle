@@ -1327,6 +1327,7 @@ function unlockPassiveStarEvolution(options) {
     if (!apexIds.every(id => owned.has(id))) return false;
 
     game.passiveStarEvolution = true;
+    unlockJournalEntry('passive_star_evolution');
     apexIds.forEach(id => revealAroundNode(id, {
         forcePulse: !options.silent,
         noBurst: !!options.silent,
@@ -3738,6 +3739,17 @@ function getActRewardChoices(zoneId) {
         }
         return enriched;
     });
+}
+function getClaimedJournalPassivePointTotal(state) {
+    let runtimeState = state && typeof state === 'object' ? state : game;
+    let entries = new Set(Array.isArray(runtimeState.journalEntries) ? runtimeState.journalEntries : []);
+    let claims = runtimeState.journalBonusClaims && typeof runtimeState.journalBonusClaims === 'object' ? runtimeState.journalBonusClaims : {};
+    return Object.keys(JOURNAL_DB).reduce((sum, id) => {
+        let entry = JOURNAL_DB[id];
+        if (!entry || !entry.bonus || entry.bonus.stat !== 'passivePoint') return sum;
+        if (!entries.has(id) || !claims[id]) return sum;
+        return sum + Math.max(0, Math.floor(entry.bonus.value || 0));
+    }, 0);
 }
 function grantJournalBonus(entryId) {
     let entry = JOURNAL_DB[entryId];
@@ -6744,8 +6756,8 @@ function getCurrencyDrops(enemy) {
     } else if (bonusRoll(0.02)) {
         drops.push([[ 'transmute', 'transmute', 'augment', 'alteration', 'scour' ][Math.floor(Math.random() * 5)], 1]);
     }
-    // 신성한 오브: 일반 0.055% / 정예 0.11% / 보스 1.25%. 엑잘티드는 신성의 2배. 나무꾼의 손길은 신성 확률의 1/1200(극악).
-    let divineChance = enemy.isBoss ? 0.0125 : (enemy.isElite ? 0.0011 : 0.00055);
+    // 신성한 오브: 일반 0.01375% / 정예 0.0825% / 보스 1.25%. 엑잘티드는 신성의 2배. 나무꾼의 손길은 신성 확률의 1/1200(극악).
+    let divineChance = enemy.isBoss ? 0.0125 : (enemy.isElite ? 0.000825 : 0.0001375);
     if (bonusRoll(divineChance)) drops.push(['divine', 1]);
     if (bonusRoll(divineChance * 2)) drops.push(['exalted', 1]);
     if (bonusRoll(divineChance / 1200)) drops.push(['woodsmanTouch', 1]);
@@ -7611,6 +7623,18 @@ function reclaimKeystoneJewelSlots() {
     if (reclaimed.length > 0) addLog(`💠 심연 군주 반환: 추가 슬롯의 주얼 ${reclaimed.length}개를 인벤토리로 회수했습니다. (${reclaimed.join(', ')})`, 'loot-normal');
 }
 
+function isChaseUniqueItem(item) {
+    if (!item || item.rarity !== 'unique') return false;
+    if (item.ultraRare || item.chaseUnique) return true;
+    let uniqueDef = UNIQUE_DB.find(unique => unique && unique.name === item.name);
+    return !!(uniqueDef && uniqueDef.ultraRare);
+}
+function getUniqueDismantleDivineChance(item) {
+    if (!item || item.rarity !== 'unique') return 0;
+    if (isChaseUniqueItem(item)) return 1;
+    let tier = getItemCraftTier(item);
+    return Math.min(0.12, 0.01 + ((tier - 1) / 14) * 0.11);
+}
 function salvageItemObject(item, silent, options) {
     if (!item) return;
     let noDivine = !!(options && options.noDivine);
@@ -7618,7 +7642,7 @@ function salvageItemObject(item, silent, options) {
     else if (item.rarity === 'magic') awardCurrency('augment', 1);
     else if (item.rarity === 'rare') awardCurrency('chaos', 1);
     else if (item.rarity === 'unique') {
-        if (!noDivine && Math.random() < 0.12) awardCurrency('divine', 1);
+        if (!noDivine && Math.random() < getUniqueDismantleDivineChance(item)) awardCurrency('divine', 1);
         if (Math.random() < 0.55) awardCurrency('exalted', 1);
     }
     if (!silent) addLog(`🧪 [${item.name}] 해체`, "loot-normal");
