@@ -82,4 +82,9 @@ const singleItem = { slot: '갑옷', rarity: 'rare', baseStats: [{ id: 'armor' }
 const singleArmor = ctx.getAvailableMods(singleItem).find(mod => mod.id === 'armor');
 assert(!singleArmor.compound, 'single-defense bases must keep single-stat defense affixes');
 
+
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+assert(uiSource.includes('for (let i = 0; i < parts.length; i += 2)'), 'compound option tooltip must wrap long dual-compound lines in pairs');
+assert(uiSource.includes('compound-option-continuation'), 'wrapped compound option lines must have a continuation marker');
+
 console.log('smoke-dual-defense-affixes: OK');
