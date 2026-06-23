@@ -1769,6 +1769,7 @@ const defaultGame = {
     talentBloomClears: 0,
     talentBloomCombos: [],
     bloomedClasses: [],
+    bloomLoopSpecGranted: null,
     talentCards: {},
     talentCardLoadout: [null, null, null, null, null, null],
     bloomTrialRegenSuppress: 0,
