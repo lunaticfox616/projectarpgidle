@@ -6,6 +6,9 @@ const vm = require('vm');
 const assert = require('assert');
 
 const passivesSource = fs.readFileSync('js/passives.js', 'utf8');
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const utilsSource = fs.readFileSync('js/utils.js', 'utf8');
+const canvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 function extractFunction(source, name) {
   const match = source.match(new RegExp(`function ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n\\}`));
   assert(match, `${name} must exist`);
@@ -44,5 +47,21 @@ miss.maybeApplyExceptionalBase(item2);
 assert(!item2.exceptionalBase, 'most drops must not be exceptional');
 assert.strictEqual(item2.baseStats[0].val, 10, 'non-exceptional line 1 unchanged');
 assert.strictEqual(item2.baseStats[1].val, 5, 'non-exceptional line 2 unchanged');
+
+assert(!uiSource.includes('특출난 베이스'), 'tooltip must not render a separate exceptional-base summary line');
+assert(!uiSource.includes('✦특출'), 'tooltip must not print the word 특출 next to exceptional option values');
+assert(uiSource.includes('font-weight:700;">✦+20%</span>'), 'tooltip should keep a compact star +20% marker for exceptional option lines');
+assert(uiSource.includes("let valueColor = stat.exceptional ? '#ffb454'"), 'exceptional non-defense option values should be orange');
+assert(uiSource.includes("let valueColor = (src && src.exceptional) ? '#ffb454'"), 'exceptional defense option values should be orange');
+const starCtx = {};
+vm.createContext(starCtx);
+vm.runInContext(
+  `${extractFunction(utilsSource, 'getExceptionalBaseStarCount')}\n${extractFunction(utilsSource, 'getExceptionalBaseStars')}\nthis.getExceptionalBaseStars = getExceptionalBaseStars;`,
+  starCtx
+);
+assert.strictEqual(starCtx.getExceptionalBaseStars(item1), '✦✦', 'item name star suffix must repeat once per exceptional base line');
+assert(uiSource.includes('${item.name}${exceptionalStars}'), 'item tooltip title should append exceptional stars to the item name');
+assert(canvasSource.includes('${hi(item.name)}${exceptionalStars}'), 'inventory cards should append exceptional stars to the item name');
+assert(canvasSource.includes('${item.name}${exceptionalStars}'), 'equipped item cards should append exceptional stars to the item name');
 
 console.log('exceptional base smoke checks passed');

@@ -4178,6 +4178,12 @@ function showGemTooltip(event, type, name) {
         let tierText = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, info.activeTier) : (info.activeTier === 3 ? '상급' : info.activeTier === 2 ? '중급' : '하급');
         let valueText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.value) : Number(info.value || 0).toFixed(1);
         html += `<div class="tooltip-line" style="margin-top:6px;">효과(${tierText}): ${info.statName} +${valueText}${SUPPORT_GEM_DB[name].isPct ? '%' : ''}</div>`;
+        if (info.scaleWithOwnStat) {
+            let baseText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleBase) : Number(info.scaleBase || 0).toFixed(1);
+            let ratioText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleRatioPct) : Number(info.scaleRatioPct || 0).toFixed(1);
+            html += `<div class="tooltip-line" style="color:#9fd4ff;">계산: 보조 젬 제외 ${info.statName} ${baseText}% × 공명 계수 ${ratioText}% = +${valueText}%</div>`;
+            html += `<div class="tooltip-line" style="color:#b8a6ff;">제외: 이 보조 젬 및 다른 보조 젬으로 얻은 ${info.statName} 증가</div>`;
+        }
         if (Number.isFinite(SUPPORT_GEM_DB[name].heraldExplodeBase)) {
             let chancePct = Math.min(85, ((SUPPORT_GEM_DB[name].heraldExplodeBase + ((info.totalLevel - 1) * (SUPPORT_GEM_DB[name].heraldExplodeScale || 0))) * 100));
             html += `<div class="tooltip-line">시체폭발: 처치 시 ${chancePct.toFixed(1)}% 확률 발동</div>`;
@@ -4365,16 +4371,13 @@ function showItemTooltip(event, idx, isEquip) {
     if (!item) return;
     activeItemTooltipToken = isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`;
     let tt = document.getElementById('item-tooltip-box');
-    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${item.name}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
+    let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
+    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${item.name}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
     let baseChainInfo = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
     let baseChainBadge = (baseChainInfo && baseChainInfo.total > 1)
         ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${baseChainInfo.step}/${baseChainInfo.total}]</span>`
         : '';
     html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}${baseChainBadge}</div>`;
-    if (item.exceptionalBase) {
-        let exLabel = item.exceptionalAllLines ? '모든 옵션' : (escapeHTML(item.exceptionalStatName || '') + ' 옵션');
-        html += `<div class="tooltip-line" style="color:#ffb454; font-weight:700;">✦ 특출난 베이스 — ${exLabel} 최대치 +20%</div>`;
-    }
     html += `<div class="tooltip-line" style="color:#a8c0da;">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
     if (item.rarity === 'unique' && item.uniqueEffect) {
         let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';
@@ -4409,8 +4412,9 @@ function showItemTooltip(event, idx, isEquip) {
             let cur = Number(stat.val || 0);
             let rangeText = getItemStatRollRangeHtml(stat, { estimateFromValue: true });
             let label = stat.statName || getStatName(statKey) || statKey;
-            let exMark = stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦특출 +20%</span>' : '';
-            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, cur)}</span>${rangeText}${exMark}</div>`;
+            let valueColor = stat.exceptional ? '#ffb454' : resolveItemStatTone(statKey);
+            let exMark = stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦+20%</span>' : '';
+            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} </span><span style="color:${valueColor};">+${formatValue(statKey, cur)}</span>${rangeText}${exMark}</div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
             let label = getStatName(id);
@@ -4422,11 +4426,12 @@ function showItemTooltip(event, idx, isEquip) {
             if (src) {
                 rangeText = getItemStatRollRangeHtml(src, { estimateFromValue: true });
             }
-            let exMark = (src && src.exceptional) ? ' <span style="color:#ffb454; font-weight:700;">✦특출 +20%</span>' : '';
+            let valueColor = (src && src.exceptional) ? '#ffb454' : resolveItemStatTone(id);
+            let exMark = (src && src.exceptional) ? ' <span style="color:#ffb454; font-weight:700;">✦+20%</span>' : '';
             if (Math.floor(finalVal) === Math.floor(baseVal)) {
-                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(baseVal)}</span>${rangeText}${exMark}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${valueColor};">${Math.floor(baseVal)}</span>${rangeText}${exMark}</div>`;
             } else {
-                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(finalVal)}</span> <span style="color:#9fb4d1;">(${Math.floor(baseVal)})</span>${rangeText}${exMark}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${valueColor};">${Math.floor(finalVal)}</span> <span style="color:#9fb4d1;">(${Math.floor(baseVal)})</span>${rangeText}${exMark}</div>`;
             }
         });
     }
@@ -6679,7 +6684,8 @@ function renderCraftSelectedSummary(item) {
         return;
     }
     let statCount = getItemExplicitOptionCount(item);
-    host.innerHTML = `<div><strong>[${getItemSlotDisplayLabel(item)}] ${item.name}</strong> · ${item.rarity.toUpperCase()} · 추가 옵션 ${statCount}/6</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
+    let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
+    host.innerHTML = `<div><strong>[${getItemSlotDisplayLabel(item)}] ${item.name}${exceptionalStars}</strong> · ${item.rarity.toUpperCase()} · 추가 옵션 ${statCount}/6</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
 }
 
 
@@ -6940,8 +6946,9 @@ function getCraftPickerCardHtml(item, options) {
     let sourceMeta = item && typeof getDropOnlyItemSourceMeta === 'function' ? getDropOnlyItemSourceMeta(item) : null;
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
     let extraClass = options.extraClass || '';
+    let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     return `<button type="button" class="craft-picker-card ${extraClass} ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
-        <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(getItemSlotDisplayLabel(item, slotLabel))}] ${escapeHTML(item.name || '장비')}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
+        <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(getItemSlotDisplayLabel(item, slotLabel))}] ${escapeHTML(item.name || '장비')}${exceptionalStars}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
         <div class="item-base-line" style="font-size:.78em;">${escapeHTML(item.baseName || '')}</div>
         ${getCraftPickerItemLines(item)}
     </button>`;
@@ -7147,7 +7154,8 @@ function buildCraftActionButtons(item) {
             }).join('');
             abyssSocketHtml = `<div class="craft-section-title">심연 소켓</div>${makeBtn}${rows}`;
         }
-        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
+        let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(selectedItem) : '';
+        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${exceptionalStars}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div class="craft-selected-body">${craftSelectedBodyHtml}</div>`;
     document.getElementById('fossil-item-display').innerHTML = craftSelectedBodyHtml;
@@ -7191,7 +7199,8 @@ function buildCraftActionButtons(item) {
             useBtn += `<div style="display:flex; justify-content:flex-end; margin-top:4px;"><div style="display:flex; flex-wrap:nowrap; align-items:center; gap:4px;">${rightButtons}</div></div>`;
         }
         let premiumGray = (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish') ? 'style="background:linear-gradient(180deg,#656d78,#4f5660); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 6px rgba(220,225,235,.2);"' : '';
-        return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name" ${premiumGray}>${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
+        let rareCurrencyClass = key === 'woodsmanTouch' ? ' woodsman-touch-currency' : '';
+        return `<div class="currency-card${rareCurrencyClass}" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name" ${premiumGray}>${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
     }).join('');
     let sporeHtml = buildSporeSummaryHtml();
     ['ui-spore-summary', 'ui-spore-summary-mobile'].forEach(id => {
@@ -7531,7 +7540,7 @@ function buildCraftActionButtons(item) {
                 let reqIds = reqIdsOf(k);
                 let reqLabel = '';
                 if (k.fifthJobOnly) {
-                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 선행: 5차 전직(재능 개화)</div>`;
+                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 해금: 5차 전직(재능 개화)</div>`;
                 } else if (reqIds.length > 0) {
                     let names = reqIds.map(id => (kById[id] || {}).name || id);
                     let joiner = Array.isArray(k.reqAny) ? ' 또는 ' : ', ';
@@ -7929,7 +7938,7 @@ function buildCraftActionButtons(item) {
         journalList.innerHTML = entries.map(({ id, def }) => `<div style="background:#1a1a24; border:1px solid #3d3d5c; border-radius:8px; padding:10px;">
             <div style="font-weight:bold; color:#ffd36b; margin-bottom:6px;">${unlocked.has(id) ? def.title : '히든 저널 - ???'}</div>
             <div style="color:#c5d6e8; font-size:0.86em; line-height:1.6;">${unlocked.has(id) ? (def.lines || []).map(line => `• ${line}`).join('<br>') : `• 힌트: ${def.hint || '조건 미상'}`}</div>
-            ${unlocked.has(id) && def.bonus ? `<div style="margin-top:8px; color:#9fe2b1; font-size:0.82em;">영구 보너스: ${def.bonus.label}</div>` : ''}
+            ${unlocked.has(id) && (def.bonus || def.displayEffect) ? `<div style="margin-top:8px; color:#9fe2b1; font-size:0.82em;">${def.bonus ? `영구 보너스: ${def.bonus.label}` : def.displayEffect}</div>` : ''}
         </div>`).join('') || `<div style="color:#7f8c8d;">아직 해금된 기록이 없습니다.</div>`;
     }
 
@@ -8990,14 +8999,28 @@ function mergeDefaults(save) {
             if (/^act_/.test(id) && !merged.journalEntries.includes(id)) merged.journalEntries.push(id);
         });
     }
+    let pendingJournalPassivePoints = 0;
     merged.journalBonuses = Array.isArray(merged.journalBonuses) ? merged.journalBonuses.filter(entry => entry && typeof entry.stat === 'string' && Number.isFinite(entry.value)) : [];
+    let hadLegacyImmortalHpBonus = merged.journalBonuses.some(entry => entry.entryId === 'immortal' && entry.stat === 'flatHp');
+    let legacyPassivePointBonusIds = merged.journalBonuses
+        .filter(entry => entry.stat === 'passivePoint' && typeof entry.entryId === 'string')
+        .map(entry => entry.entryId);
+    if (hadLegacyImmortalHpBonus || legacyPassivePointBonusIds.length > 0) {
+        merged.journalBonuses = merged.journalBonuses.filter(entry => {
+            if (entry.entryId === 'immortal' && entry.stat === 'flatHp') return false;
+            return entry.stat !== 'passivePoint';
+        });
+    }
     merged.journalBonusClaims = (merged.journalBonusClaims && typeof merged.journalBonusClaims === 'object') ? merged.journalBonusClaims : {};
+    if (hadLegacyImmortalHpBonus) merged.journalBonusClaims.immortal = false;
+    legacyPassivePointBonusIds.forEach(id => { merged.journalBonusClaims[id] = false; });
     merged.journalEntries.forEach(id => {
         let entry = JOURNAL_DB[id];
         if (!entry || !entry.bonus) return;
         if (!merged.journalBonusClaims[id]) {
             merged.journalBonusClaims[id] = true;
-            merged.journalBonuses.push({ entryId: id, stat: entry.bonus.stat, value: entry.bonus.value });
+            if (entry.bonus.stat === 'passivePoint') pendingJournalPassivePoints += Math.max(0, Math.floor(entry.bonus.value || 0));
+            else merged.journalBonuses.push({ entryId: id, stat: entry.bonus.stat, value: entry.bonus.value });
         }
     });
     merged.passiveStarEvolution = !!merged.passiveStarEvolution;
@@ -9066,7 +9089,7 @@ function mergeDefaults(save) {
     merged.woodsmanCurseNextLogStack = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanCurseNextLogStack, defaultGame.woodsmanCurseNextLogStack || 0, 0)));
     merged.chaosInfuserUnlocked = !!merged.chaosInfuserUnlocked || merged.woodsmanSimulatorSeenLoop || Math.max(0, Math.floor(merged.woodsmanDefeatAttempts || 0)) > 0 || (Array.isArray(merged.journalEntries) && merged.journalEntries.includes('woodsman'));
     merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
-    merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0));
+    merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0)) + pendingJournalPassivePoints;
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
@@ -11447,6 +11470,7 @@ function checkUnlocks() {
         let def = EXPERT_DEFS[id] || { name: id, desc: '전문가를 조우했습니다.' };
         queueTutorialNotice(key, `${def.icon || '🧠'} ${def.name} 조우`, `${def.desc}\n전문가 탭에서 레벨과 해금, 노드 트리를 확인해보세요.`, 'tab-expertise');
     });
+    if (game.level >= 200) unlockJournalEntry('level_200');
     if (game.level >= 100 && (game.completedTrials || []).includes('trial_3') && !(game.unlockedTrials || []).includes('trial_4')) {
         game.unlockedTrials.push('trial_4');
         game.noti.map = true;
@@ -11589,7 +11613,7 @@ function getClassKeystoneDefs(clsKey) {
 function isAscendKeystoneRequirementMet(node) {
     if (!node) return false;
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
-    // 5차 전직(재능 개화) 키스톤은 다른 선행 키스톤 조건 없이 해당 직업의 5차 노드 해금 여부만 본다.
+    // 9번째(5차) 키스톤은 선행 키스톤 없이 해당 직업의 5차 전직(재능 개화)만 요구한다.
     if (node.fifthJobOnly) {
         game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
         return game.bloomedClasses.includes(game.ascendClass);

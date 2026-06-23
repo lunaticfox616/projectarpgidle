@@ -584,3 +584,33 @@ input[data-search-key]:focus {
   .vertical-tab-sidebar::-webkit-scrollbar { display: none; }
   .vertical-tab-btn { min-height: 58px; }
 }
+
+.currency-card.woodsman-touch-currency {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(126, 255, 185, 0.78);
+  box-shadow: 0 0 14px rgba(72, 255, 157, 0.22), inset 0 0 18px rgba(72, 255, 157, 0.08);
+}
+.currency-card.woodsman-touch-currency::before {
+  content: "";
+  position: absolute;
+  inset: -45%;
+  background: conic-gradient(from 0deg, transparent 0 18%, rgba(112,255,184,.95) 24%, rgba(255,234,151,.95) 30%, transparent 38% 100%);
+  animation: woodsman-touch-border-spin 8s linear infinite;
+  pointer-events: none;
+}
+.currency-card.woodsman-touch-currency::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(21,39,32,.96), rgba(13,27,25,.96));
+  pointer-events: none;
+}
+.currency-card.woodsman-touch-currency > * {
+  position: relative;
+  z-index: 1;
+}
+@keyframes woodsman-touch-border-spin {
+  to { transform: rotate(360deg); }
+}

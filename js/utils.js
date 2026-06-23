@@ -55,6 +55,16 @@ function clampNumber(value, min, max) { return Math.max(min, Math.min(max, value
 function getInventoryLimit() { return 30 + (Math.max(0, Math.floor(game.inventoryExpandLevel || 0)) * 5); }
 function getJewelInventoryLimit() { return JEWEL_INVENTORY_LIMIT + (Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)) * 5); }
 function getJewelMarketExpandCost() { return 1 + Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)); }
+function getExceptionalBaseStarCount(item) {
+    return ((item && item.baseStats) || []).filter(stat => stat && stat.exceptional).length;
+}
+function getExceptionalBaseStars(item) {
+    return '✦'.repeat(getExceptionalBaseStarCount(item));
+}
+function getExceptionalBaseStarsHtml(item) {
+    let stars = getExceptionalBaseStars(item);
+    return stars ? ` <span style="color:#ffb454; font-weight:700;">${stars}</span>` : '';
+}
 function lerpNumber(start, end, t) { return start + (end - start) * t; }
 function approachNumber(current, target, rate, dt) {
     if (!Number.isFinite(current)) return target;
