@@ -6785,7 +6785,7 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30 && Math.random() < 0.00052) drops.push(['radiantSealShard', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.018) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004) drops.push(['blessing', 1]);
-    if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.0075) drops.push(['beastKeyCerberus', 1]);
+    if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.0125) drops.push(['beastKeyCerberus', 1]);
     if (zone.type === 'chaosRealm') {
         let chaosKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
         if (Math.random() < chaosKeyChance) drops.push(['chaosKey', 1]);
