@@ -1690,7 +1690,7 @@ function getPlayerStats() {
             if (stat.id === 'energyShield') itemBaseEs += Number(stat.val || 0);
             if (stat.id === 'baseBlockChance') shieldBaseBlockChance += Number(stat.val || 0);
         });
-        explicitItemStats.forEach(stat => {
+        let accumulateExplicitDefense = stat => {
             if (!stat) return;
             if (stat.id === 'armor') itemFlatArmor += Number(stat.val || 0);
             if (stat.id === 'evasion') itemFlatEvasion += Number(stat.val || 0);
@@ -1701,6 +1701,12 @@ function getPlayerStats() {
             if (stat.id === 'baseBlockChance') shieldBaseBlockChance += Number(stat.val || 0);
             if (stat.id === 'blockChancePct') shieldBlockChancePct += Number(stat.val || 0);
             if (stat.id === 'blockChance') shieldBlockChanceFlat += Number(stat.val || 0);
+        };
+        explicitItemStats.forEach(stat => {
+            if (!stat) return;
+            accumulateExplicitDefense(stat);
+            // 복합 옵션(한 줄에 방어flat + 방어%)의 추가 스탯도 방어 합산에 반영.
+            if (Array.isArray(stat.extraStats)) stat.extraStats.forEach(accumulateExplicitDefense);
         });
         localDefenseTotals.armor += (itemBaseArmor + itemFlatArmor) * (1 + itemPctArmor / 100);
         localDefenseTotals.evasion += (itemBaseEvasion + itemFlatEvasion) * (1 + itemPctEvasion / 100);
@@ -2215,8 +2221,36 @@ function getPlayerStats() {
         // 부패 증식(워록 wlk2): 지속 피해 배율 20% 증폭과 동일하게 주문 내장 피해도 20% 증가시킨다.
         if (game.ascendClass === 'warlock' && hasKeystone('wlk2')) spellFlatDmg *= 1.20;
     }
-    let totalFlatDmg = (isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg)) + coreCubeFlatElementDamageTotal;
+    // 속성별 기본 피해(flat)는 일반 피해 풀에 섞지 않고, 아래에서 속성 타입을 유지한 별도 타격으로 적용한다.
+    let totalFlatDmg = (isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg));
     let codexBonusRatio = 1 + (getCodexBonusPct() / 100);
+
+    // 속성별 기본 피해(flat): 무기/반지/장갑의 속성 flat 옵션 + 코어 큐브 속성 flat을 합산하여,
+    // 각 속성의 피해% 증가(원소는 원소 피해% 포함)와 전체 피해 증가를 반영한 1타 기준 피해로 환산한다.
+    // 실제 타격 시에는 해당 속성 저항으로 경감되고 치명타/굴림 보정을 함께 받는다.
+    let flatElementSources = {
+        phys: sumStatAcrossBuckets('physFlatDmg'),
+        fire: sumStatAcrossBuckets('fireFlatDmg'),
+        cold: sumStatAcrossBuckets('coldFlatDmg'),
+        light: sumStatAcrossBuckets('lightFlatDmg'),
+        chaos: sumStatAcrossBuckets('chaosFlatDmg')
+    };
+    let flatElementElementalPct = sumStatAcrossBuckets('elementalPctDmg');
+    let flatElementPctByEle = {
+        phys: sumStatAcrossBuckets('physPctDmg'),
+        fire: sumStatAcrossBuckets('firePctDmg') + flatElementElementalPct,
+        cold: sumStatAcrossBuckets('coldPctDmg') + flatElementElementalPct,
+        light: sumStatAcrossBuckets('lightPctDmg') + flatElementElementalPct,
+        chaos: sumStatAcrossBuckets('chaosPctDmg')
+    };
+    let flatElementSkillMul = (skill.dmg || skill.baseDmg || 1) * codexBonusRatio;
+    let flatElementHitDamage = { phys: 0, fire: 0, cold: 0, light: 0, chaos: 0 };
+    ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(ele => {
+        let amt = Math.max(0, Number(flatElementSources[ele]) || 0);
+        if (amt <= 0) return;
+        let inc = 1 + (generalPctDmg + Math.max(0, flatElementPctByEle[ele])) / 100;
+        flatElementHitDamage[ele] = amt * inc * flatElementSkillMul;
+    });
 
     let gearFlatHp = gearBase.flatHp + gearExplicit.flatHp;
     let passiveFlatHp = passive.flatHp + season.flatHp + ascend.flatHp + reward.flatHp;
@@ -3549,6 +3583,7 @@ function getPlayerStats() {
         randomElementDamagePct: randomElementDamagePct,
         addedDamagePctByElement: coreCubeAddedDamagePct,
         flatElementDamage: coreCubeFlatElementDamage,
+        flatElementHitDamage: flatElementHitDamage,
         takenFlatReduce: coreCubeTakenFlatReduce,
         physTakenAs: coreCubePhysTakenAs,
         talismanBossFinalDmgBonusPct: talismanBossFinalDmgBonusPct,
@@ -6903,6 +6938,25 @@ function performPlayerAttack(pStats) {
                 if (addEle === 'light') mitigatedAdded = Math.floor(mitigatedAdded * (curseFx.lightTakenMul || 1));
                 if (addEle === 'chaos') mitigatedAdded = Math.floor(mitigatedAdded * (curseFx.chaosTakenMul || 1));
                 if (mitigatedAdded > 0) dmg += mitigatedAdded;
+            });
+            // 속성별 기본 피해(flat): 각 속성을 실제 타입으로 적용한다. 치명타/굴림/반복 보정을 함께 받고
+            // 해당 속성의 적 저항으로 경감된다.
+            let flatElementHitDamage = (pStats && pStats.flatElementHitDamage) || {};
+            ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(addEle => {
+                let flatBase = Math.max(0, Number(flatElementHitDamage[addEle]) || 0);
+                if (flatBase <= 0) return;
+                let flatPortion = flatBase * (hitCrit ? Math.max(1, (Number(pStats.critDmg) || 100) / 100) : 1) * (rollPct / 100) * (hit.mult || 1) * repeatDamageMultiplier;
+                let addRes = getEffectiveEnemyMitigation(addEle, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
+                if (addEle === 'fire') addRes -= (curseFx.resFShred || 0);
+                if (addEle === 'cold') addRes -= (curseFx.resCShred || 0);
+                if (addEle === 'light') addRes -= (curseFx.resLShred || 0);
+                if (addEle === 'chaos') addRes -= (curseFx.resChaosShred || 0);
+                if (addEle === 'phys') addRes -= (curseFx.physDrShred || 0);
+                let mitigatedFlat = Math.floor(flatPortion * (1 - (addRes / 100)));
+                if (addEle === 'phys') mitigatedFlat = Math.floor(mitigatedFlat * (targetEnemy.physicalDamageTakenMul || 1));
+                if (addEle === 'light') mitigatedFlat = Math.floor(mitigatedFlat * (curseFx.lightTakenMul || 1));
+                if (addEle === 'chaos') mitigatedFlat = Math.floor(mitigatedFlat * (curseFx.chaosTakenMul || 1));
+                if (mitigatedFlat > 0) dmg += mitigatedFlat;
             });
             dmg = Math.floor(dmg * (curseFx.mul || 1));
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * (curseFx.mul || 1));

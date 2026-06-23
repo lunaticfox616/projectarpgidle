@@ -2002,7 +2002,7 @@ function tickOceanDepth(st, dtSec) {
 }
 
 const OCEAN_MOD_CATEGORY_RULES = [
-    { category: '공격', ids: ['flatDmg', 'weaponFlatDmgPct', 'pctDmg', 'meleePctDmg', 'projectilePctDmg', 'physPctDmg', 'elementalPctDmg', 'firePctDmg', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'aoePctDmg', 'dotPctDmg', 'crit', 'critDmg', 'physIgnore', 'resPen', 'summonFlatDmg', 'summonPctDmg', 'summonCrit', 'summonCritDmg', 'summonResPen'] },
+    { category: '공격', ids: ['flatDmg', 'weaponFlatDmgPct', 'pctDmg', 'meleePctDmg', 'projectilePctDmg', 'physPctDmg', 'elementalPctDmg', 'firePctDmg', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'aoePctDmg', 'dotPctDmg', 'crit', 'critDmg', 'physIgnore', 'resPen', 'physFlatDmg', 'fireFlatDmg', 'coldFlatDmg', 'lightFlatDmg', 'chaosFlatDmg', 'summonFlatDmg', 'summonPctDmg', 'summonCrit', 'summonCritDmg', 'summonResPen'] },
     { category: '방어·생명', ids: ['flatHp', 'pctHp', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'deflectChance', 'regen', 'regenFlat', 'regenSuppress', 'leech', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap', 'blockChancePct'] },
     { category: '속도·치명', ids: ['aspd', 'move', 'summonAspd', 'summonEfficiency'] },
     { category: '저항', ids: ['resF', 'resC', 'resL', 'resAll', 'resChaos'] }
@@ -5688,7 +5688,7 @@ function normalizeItem(item) {
         if (!Number.isFinite(max)) max = coerceFiniteNumber(stat.max, NaN);
         if (!Number.isFinite(max)) max = coerceFiniteNumber(stat.base, val);
         if (max < min) max = min;
-        return {
+        let normalized = {
             ...stat,
             val: val,
             valMin: min,
@@ -5697,6 +5697,12 @@ function normalizeItem(item) {
             statName: stat.statName || getStatName(stat.id),
             originalVal: Number.isFinite(Number(stat.originalVal)) ? Number(stat.originalVal) : null
         };
+        // 복합 옵션의 추가 스탯도 정규화한다.
+        if (Array.isArray(stat.extraStats)) {
+            normalized.extraStats = stat.extraStats.map(normalizeStatRecord).filter(Boolean);
+            if (normalized.extraStats.length === 0) delete normalized.extraStats;
+        }
+        return normalized;
     }
     item.baseStats = Array.isArray(item.baseStats) ? item.baseStats.map(normalizeStatRecord).filter(Boolean) : [];
     item.stats = Array.isArray(item.stats) ? item.stats.map(normalizeStatRecord).filter(Boolean) : [];
@@ -5885,28 +5891,59 @@ function rerollStoredAffixValue(stat) {
     stat.val = minInt + Math.floor(Math.random() * (maxInt - minInt + 1));
 }
 
+// 복합 옵션(한 줄에 두 스탯)을 위해, 주 스탯과 동일한 티어로 추가 스탯들을 굴린다.
+function rollCompoundExtraStats(mod, tier, roundInteger) {
+    if (!mod || !Array.isArray(mod.compound) || mod.compound.length === 0) return null;
+    return mod.compound.map(sub => {
+        let subId = sub.statId || sub.id;
+        if (Array.isArray(sub.tierValues)) return rollTierValueAffix(sub, subId, tier);
+        let min = sub.base + (tier * sub.step);
+        let max = min + sub.step * 1.6;
+        let val = min + Math.random() * (max - min);
+        if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(subId)) {
+            val = Math.round(val * 10) / 10;
+            min = Math.round(min * 10) / 10;
+            max = Math.round(max * 10) / 10;
+        } else {
+            let toInt = roundInteger ? Math.round : Math.floor;
+            val = toInt(val);
+            min = toInt(min);
+            max = toInt(max);
+            if (max > 0) { min = Math.max(1, min); val = Math.max(1, val); }
+        }
+        return { id: subId, val: val, valMin: min, valMax: max, tier: tier, statName: sub.statName || getStatName(subId) };
+    });
+}
+
 function rollAffixValue(mod, maxTier, opts) {
     let roundInteger = !!(opts && opts.roundInteger);
     let statId = mod.statId || mod.id;
     let tier = 1;
     maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 15);
     while (tier < maxTier && Math.random() < 0.58) tier++;
-    if (Array.isArray(mod.tierValues)) return rollTierValueAffix(mod, statId, tier);
-    let min = mod.base + (tier * mod.step);
-    let max = min + mod.step * 1.6;
-    let val = min + Math.random() * (max - min);
-    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
-        val = Math.round(val * 10) / 10;
-        min = Math.round(min * 10) / 10;
-        max = Math.round(max * 10) / 10;
+    let result;
+    if (Array.isArray(mod.tierValues)) {
+        result = rollTierValueAffix(mod, statId, tier);
     } else {
-        let toInt = roundInteger ? Math.round : Math.floor;
-        val = toInt(val);
-        min = toInt(min);
-        max = toInt(max);
-        if (max > 0) { min = Math.max(1, min); val = Math.max(1, val); }
+        let min = mod.base + (tier * mod.step);
+        let max = min + mod.step * 1.6;
+        let val = min + Math.random() * (max - min);
+        if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+            val = Math.round(val * 10) / 10;
+            min = Math.round(min * 10) / 10;
+            max = Math.round(max * 10) / 10;
+        } else {
+            let toInt = roundInteger ? Math.round : Math.floor;
+            val = toInt(val);
+            min = toInt(min);
+            max = toInt(max);
+            if (max > 0) { min = Math.max(1, min); val = Math.max(1, val); }
+        }
+        result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
     }
-    return { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
+    let extras = rollCompoundExtraStats(mod, result.tier, roundInteger);
+    if (extras) result.extraStats = extras;
+    return result;
 }
 
 function pickTierInRangeWeighted(minTier, maxTier) {
@@ -5932,21 +5969,28 @@ function rollAffixValueInTierRange(mod, minTier, maxTier) {
     minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 15);
     maxTier = clampNumber(Math.floor(Number(maxTier) || minTier), minTier, 15);
     let tier = pickTierInRangeWeighted(minTier, maxTier);
-    if (Array.isArray(mod.tierValues)) return rollTierValueAffix(mod, statId, tier);
-    let min = mod.base + (tier * mod.step);
-    let max = min + mod.step * 1.6;
-    let val = min + Math.random() * (max - min);
-    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
-        val = Math.round(val * 10) / 10;
-        min = Math.round(min * 10) / 10;
-        max = Math.round(max * 10) / 10;
+    let result;
+    if (Array.isArray(mod.tierValues)) {
+        result = rollTierValueAffix(mod, statId, tier);
     } else {
-        val = Math.floor(val);
-        min = Math.floor(min);
-        max = Math.floor(max);
-        if (max > 0) { min = Math.max(1, min); val = Math.max(1, val); }
+        let min = mod.base + (tier * mod.step);
+        let max = min + mod.step * 1.6;
+        let val = min + Math.random() * (max - min);
+        if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+            val = Math.round(val * 10) / 10;
+            min = Math.round(min * 10) / 10;
+            max = Math.round(max * 10) / 10;
+        } else {
+            val = Math.floor(val);
+            min = Math.floor(min);
+            max = Math.floor(max);
+            if (max > 0) { min = Math.max(1, min); val = Math.max(1, val); }
+        }
+        result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
     }
-    return { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
+    let extras = rollCompoundExtraStats(mod, result.tier, false);
+    if (extras) result.extraStats = extras;
+    return result;
 }
 
 
@@ -5960,7 +6004,12 @@ function getItemExplicitOptionCount(item) {
     return (Array.isArray(item.stats) ? item.stats.length : 0) + (item.chaosInfusion ? 1 : 0);
 }
 function getItemOccupiedExplicitModIds(item) {
-    let ids = new Set((item && Array.isArray(item.stats) ? item.stats : []).map(stat => stat && stat.id).filter(Boolean));
+    let ids = new Set();
+    (item && Array.isArray(item.stats) ? item.stats : []).forEach(stat => {
+        if (!stat) return;
+        if (stat.id) ids.add(stat.id);
+        if (Array.isArray(stat.extraStats)) stat.extraStats.forEach(extra => { if (extra && extra.id) ids.add(extra.id); });
+    });
     if (item && item.chaosInfusion && item.chaosInfusion.id) ids.add(item.chaosInfusion.id);
     getImmutableItemSpecialStats(item).forEach(stat => {
         if (stat && stat.id) ids.add(stat.id);

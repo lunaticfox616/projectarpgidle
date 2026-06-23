@@ -4390,6 +4390,8 @@ function showItemTooltip(event, idx, isEquip) {
         (target.baseStats || []).forEach(stat => { if (base[stat.id] !== undefined) base[stat.id] += Number(stat.val || 0); });
         let explicitForDefense = (target.stats || []).slice();
         if (target.chaosInfusion) explicitForDefense.push(target.chaosInfusion);
+        // 복합 옵션(한 줄에 두 스탯)의 추가 스탯도 방어 계산에 포함한다.
+        (target.stats || []).forEach(stat => { if (stat && Array.isArray(stat.extraStats)) explicitForDefense.push(...stat.extraStats); });
         explicitForDefense.forEach(stat => {
             if (flat[stat.id] !== undefined) flat[stat.id] += Number(stat.val || 0);
             if (stat.id === 'armorPct') pct.armor += Number(stat.val || 0);
@@ -4463,6 +4465,16 @@ function showItemTooltip(event, idx, isEquip) {
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
             let rangeText = `${getItemStatRollRangeHtml(stat)}${tierText}`;
             let label = stat.statName || getStatName(statKey) || statKey;
+            // 복합 옵션은 한 줄에 두 스탯을 함께 표기한다.
+            if (Array.isArray(stat.extraStats) && stat.extraStats.length > 0) {
+                let parts = [`<span style="color:${resolveItemStatTone(statKey)};">${getStatName(statKey)} +${formatValue(statKey, stat.val)}</span>`];
+                stat.extraStats.forEach(extra => {
+                    let exKey = extra && (extra.id || extra.stat);
+                    parts.push(`<span style="color:${resolveItemStatTone(exKey)};">${getStatName(exKey)} +${formatValue(exKey, extra.val)}</span>`);
+                });
+                html += `<div class="tooltip-line">${parts.join(' <span style="color:#7f8c8d;">·</span> ')}${rangeText}</div>`;
+                return;
+            }
             html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, stat.val)}</span>${rangeText}</div>`;
         });
     } else {
