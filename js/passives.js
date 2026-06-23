@@ -2217,7 +2217,7 @@ function rerollSingleBaseOption(item, costCurrency, costAmount) {
     let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
     let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1));
     game.currencies[key] = (game.currencies[key] || 0) - cost;
-    item.stats[idx] = rollAffixValue(mods[0], maxTier);
+    item.stats[idx] = rollAffixValue(mods[0], maxTier, { roundInteger: true });
     updateItemName(item);
     addLog(`🌊 ${item.name || '장비'}의 베이스 옵션 한 줄을 다시 굴렸습니다.`, 'loot-rare');
     return true;
@@ -5880,12 +5880,13 @@ function rerollStoredAffixValue(stat) {
         stat.val = Math.round(val * 10) / 10;
         return;
     }
-    let minInt = Math.floor(min);
-    let maxInt = Math.floor(max);
+    let minInt = Math.round(min);
+    let maxInt = Math.round(max);
     stat.val = minInt + Math.floor(Math.random() * (maxInt - minInt + 1));
 }
 
-function rollAffixValue(mod, maxTier) {
+function rollAffixValue(mod, maxTier, opts) {
+    let roundInteger = !!(opts && opts.roundInteger);
     let statId = mod.statId || mod.id;
     let tier = 1;
     maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 15);
@@ -5899,9 +5900,10 @@ function rollAffixValue(mod, maxTier) {
         min = Math.round(min * 10) / 10;
         max = Math.round(max * 10) / 10;
     } else {
-        val = Math.floor(val);
-        min = Math.floor(min);
-        max = Math.floor(max);
+        let toInt = roundInteger ? Math.round : Math.floor;
+        val = toInt(val);
+        min = toInt(min);
+        max = toInt(max);
         if (max > 0) { min = Math.max(1, min); val = Math.max(1, val); }
     }
     return { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
@@ -8136,7 +8138,7 @@ function useCurrency(currencyKey) {
             let rolled = baseMin + Math.random() * (baseMax - baseMin);
             if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) stat.val = Math.round(rolled * 10) / 10;
             else if (stat.id === 'projectileExtraShots') stat.val = Math.max(1, Math.round(rolled));
-            else stat.val = Math.floor(rolled);
+            else stat.val = Math.round(rolled);
             stat.valMin = baseMin;
             stat.valMax = baseMax;
         });
