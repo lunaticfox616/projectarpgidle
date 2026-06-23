@@ -4576,15 +4576,22 @@ function handleTalentBloomClear(zone) {
     let heroLabel = (typeof getHeroSelectionDef === 'function') ? getHeroSelectionDef(heroId).label : heroId;
     let classLabel = (typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[classKey]) ? CLASS_TEMPLATES[classKey].name : '무직';
     addLog(`🌸 재능 개화 성공! [${heroLabel} × ${classLabel}]${isNewCombo ? ' (신규 조합!)' : ''}`, 'loot-unique');
-    // 해당 직업으로 첫 개화 시: 5차 노드 해금 + 전직 포인트 + 키스톤 포인트 지급 (직업당 1회)
+    // 해당 직업으로 첫 개화 시: 5차 노드 영구 해금 (직업당 1회)
     game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
     if (game.ascendClass && !game.bloomedClasses.includes(game.ascendClass)) {
         game.bloomedClasses.push(game.ascendClass);
+        addLog(`🌸 [${classLabel}] 5차 개화 노드 해금!`, 'loot-unique');
+        if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_fifth_node', '5차 개화 노드 해금', '직업전직 탭에 5차 재능 개화 노드가 추가되었습니다.', 'tab-traits');
+    }
+    // 5차 특화 포인트(전직 +2 · 키스톤 +1)는 루프마다 개화 시련을 클리어할 때 지급한다.
+    // 전직/키스톤 포인트는 루프 정산 때 함께 초기화되므로(시련 포인트와 동일), 직업 최초 개화 1회만 지급하면
+    // 다음 루프부터는 재능특화/전직특화 노드를 찍을 포인트가 없어 버그가 됐다. 루프당 1회로 재지급한다.
+    if (game.ascendClass && game.bloomedClasses.includes(game.ascendClass) && game.bloomLoopSpecGranted !== game.ascendClass) {
+        game.bloomLoopSpecGranted = game.ascendClass;
         game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + 2;
         game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
         game.ascendRank = Math.max(game.ascendRank || 0, 5);
-        addLog(`🌸 [${classLabel}] 5차 개화 노드 해금! 전직 포인트 +2 · 키스톤 포인트 +1`, 'loot-unique');
-        if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_fifth_node', '5차 개화 노드 해금', '직업전직 탭에 5차 재능 개화 노드가 추가되었습니다.', 'tab-traits');
+        addLog(`🌸 [${classLabel}] 5차 특화 포인트 지급! 전직 포인트 +2 · 키스톤 포인트 +1`, 'loot-unique');
     }
     // 재능 개화 카드 획득/강화 + 재능 탭 해금
     if (typeof recordTalentBloomCard === 'function') {
@@ -8235,6 +8242,7 @@ function triggerSeasonReset() {
     game.ascendPoints = 0;
     game.ascendRank = 0;
     game.ascendClass = null;
+    game.bloomLoopSpecGranted = null;
     game.inventory = [];
     game.equipment = { ...defaultGame.equipment };
     game.currencies = { ...defaultGame.currencies };
