@@ -1149,7 +1149,31 @@ const MOD_DB = [
     { id: 'shieldMaxResL', statId: 'maxResL', type: 'special', statName: '최대 번개 저항(%)', slots: ['방패'], base: 1, step: 0.3, weight: 0.35 },
     { id: 'shieldMaxResChaos', statId: 'maxResChaos', type: 'special', statName: '최대 카오스 저항(%)', slots: ['방패'], base: 1, step: 0.15, weight: 0.25 },
     { id: 'shieldMaxResAll', statId: 'maxResAll', type: 'special', statName: '모든 원소 최대 저항(%)', slots: ['방패'], tierValues: [[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,2]], weight: 0.15 },
-    { id: 'shieldSpellGemLevel', statId: 'spellGemLevel', type: 'special', statName: '모든 주문 스킬 젬 레벨', slots: ['방패'], base: 1, step: 0.7, weight: 0.3 }
+    { id: 'shieldSpellGemLevel', statId: 'spellGemLevel', type: 'special', statName: '모든 주문 스킬 젬 레벨', slots: ['방패'], base: 1, step: 0.7, weight: 0.3 },
+    // --- 무기 속성별 기본 피해(flat). 속성 타입이 실제로 적용되어 해당 저항으로 경감되고 해당 속성 피해% 증가의 영향을 받는다. ---
+    { id: 'weaponPhysFlatDmg', statId: 'physFlatDmg', type: 'prefix', statName: '물리 기본 피해', slots: ['무기'], base: 3, step: 3 },
+    { id: 'weaponFireFlatDmg', statId: 'fireFlatDmg', type: 'prefix', statName: '화염 기본 피해', slots: ['무기'], base: 3, step: 3 },
+    { id: 'weaponColdFlatDmg', statId: 'coldFlatDmg', type: 'prefix', statName: '냉기 기본 피해', slots: ['무기'], base: 3, step: 3 },
+    { id: 'weaponLightFlatDmg', statId: 'lightFlatDmg', type: 'prefix', statName: '번개 기본 피해', slots: ['무기'], base: 3, step: 3 },
+    { id: 'weaponChaosFlatDmg', statId: 'chaosFlatDmg', type: 'prefix', statName: '카오스 기본 피해', slots: ['무기'], base: 3, step: 3 },
+    // --- 반지 속성별 기본 피해(flat). 무기 수치의 약 20% 수준. ---
+    { id: 'ringPhysFlatDmg', statId: 'physFlatDmg', type: 'prefix', statName: '물리 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
+    { id: 'ringFireFlatDmg', statId: 'fireFlatDmg', type: 'prefix', statName: '화염 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
+    { id: 'ringColdFlatDmg', statId: 'coldFlatDmg', type: 'prefix', statName: '냉기 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
+    { id: 'ringLightFlatDmg', statId: 'lightFlatDmg', type: 'prefix', statName: '번개 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
+    { id: 'ringChaosFlatDmg', statId: 'chaosFlatDmg', type: 'prefix', statName: '카오스 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
+    // --- 장갑 속성별 기본 피해(flat). 무기 수치의 약 20% 수준. ---
+    { id: 'glovePhysFlatDmg', statId: 'physFlatDmg', type: 'prefix', statName: '물리 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
+    { id: 'gloveFireFlatDmg', statId: 'fireFlatDmg', type: 'prefix', statName: '화염 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
+    { id: 'gloveColdFlatDmg', statId: 'coldFlatDmg', type: 'prefix', statName: '냉기 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
+    { id: 'gloveLightFlatDmg', statId: 'lightFlatDmg', type: 'prefix', statName: '번개 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
+    { id: 'gloveChaosFlatDmg', statId: 'chaosFlatDmg', type: 'prefix', statName: '카오스 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
+    // --- 한 줄에 방어(flat) + 방어 증가(%)를 동시에 가지는 복합 옵션. 각 수치는 단일 옵션의 30% 수준. 베이스 방어 타입에 맞는 것만 등장. ---
+    { id: 'compoundArmor', statId: 'armor', type: 'prefix', statName: '방어도 + 방어도 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 3.6, step: 3, compound: [{ statId: 'armorPct', statName: '방어도 증가(%)', base: 1.8, step: 1.2 }] },
+    { id: 'compoundEvasion', statId: 'evasion', type: 'prefix', statName: '회피 + 회피 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 3.6, step: 3, compound: [{ statId: 'evasionPct', statName: '회피 증가(%)', base: 1.8, step: 1.2 }] },
+    { id: 'compoundEnergyShield', statId: 'energyShield', type: 'prefix', statName: '에너지 보호막 + 보호막 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 2.7, step: 2.4, compound: [{ statId: 'energyShieldPct', statName: '에너지 보호막 증가(%)', base: 1.8, step: 1.2 }] },
+    // --- 한 줄에 무기 기본 피해(flat) + 무기 피해(%)를 동시에 가지는 복합 옵션. 각 수치는 단일 옵션의 30% 수준. ---
+    { id: 'compoundWeaponDmg', statId: 'flatDmg', type: 'prefix', statName: '기본 피해 + 무기의 기본 피해 증가(%)', slots: ['무기'], base: 0.9, step: 0.9, compound: [{ statId: 'weaponFlatDmgPct', statName: '무기의 기본 피해 증가(%)', base: 1.8, step: 1.2 }] }
 ];
 
 const FOSSIL_DB = [
