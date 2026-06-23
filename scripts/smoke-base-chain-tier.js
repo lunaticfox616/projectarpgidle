@@ -29,6 +29,7 @@ vm.runInContext([
   extractFunction(itemsSource, 'getBaseDefenseProfile'),
   extractFunction(itemsSource, 'getBaseSecondaryStatSignature'),
   extractFunction(itemsSource, 'getWeaponBaseArchetype'),
+  extractFunction(itemsSource, 'getBaseBuildArchetype'),
   extractFunction(itemsSource, 'getBaseUpgradeCandidates'),
   'let _baseChainInfoCache = null;',
   extractFunction(itemsSource, 'buildBaseChainInfoCache'),

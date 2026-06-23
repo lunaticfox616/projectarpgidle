@@ -472,21 +472,35 @@ function getWeaponBaseArchetype(base) {
     if (ids.some(id => id.startsWith('spell'))) return 'spell';
     return 'melee';
 }
+// 모든 슬롯에 적용되는 빌드 계열. 무기는 기존 무기 아키타입을 따르고,
+// 그 외 슬롯은 소환 스탯을 가진 베이스를 'summon' 계열로 분리한다.
+// 이렇게 해야 소환사 반지가 일반 반지 체인에 섞이지 않는다.
+function getBaseBuildArchetype(base) {
+    if (!base) return 'generic';
+    if (base.slot === '무기') return getWeaponBaseArchetype(base);
+    let ids = (base.baseStats || []).map(stat => stat.id);
+    if (ids.some(id => id.startsWith('summon'))) return 'summon';
+    return 'generic';
+}
 function getBaseUpgradeCandidates(currentBase) {
     let currentProfile = getBaseDefenseProfile(currentBase);
     let currentSecondarySignature = getBaseSecondaryStatSignature(currentBase, currentBase.slot);
+    let currentArchetype = getBaseBuildArchetype(currentBase);
     let candidates = BASE_ITEM_DB
         .filter(base => base.slot === currentBase.slot && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase)
         .filter(base => ['투구','갑옷','장갑','신발','방패'].includes(base.slot) ? getBaseDefenseProfile(base) === currentProfile : true)
-        .filter(base => currentBase.slot === '무기' ? getWeaponBaseArchetype(base) === getWeaponBaseArchetype(currentBase) : true)
+        .filter(base => getBaseBuildArchetype(base) === currentArchetype)
         .sort((a,b)=>a.reqTier-b.reqTier);
+    // 업그레이드는 현재 베이스의 부가 옵션 정체성을 보존해야 한다.
+    // (예: 물리 피해 감소 허리띠가 카오스 저항 허리띠로 바뀌면 안 된다.)
+    // 현재 부가 스탯을 모두 유지하는(상위 집합) 후보를 우선하고, 그런 후보가
+    // 없을 때만 같은 계열 안에서 가장 낮은 티어로 폴백한다.
     if (currentSecondarySignature.length > 0) {
-        let exactSecondaryCandidates = candidates.filter(base => {
-            let signature = getBaseSecondaryStatSignature(base, base.slot);
-            if (signature.length !== currentSecondarySignature.length) return false;
-            return signature.every((id, index) => id === currentSecondarySignature[index]);
+        let preserving = candidates.filter(base => {
+            let signature = new Set(getBaseSecondaryStatSignature(base, base.slot));
+            return currentSecondarySignature.every(id => signature.has(id));
         });
-        if (exactSecondaryCandidates.length > 0) candidates = exactSecondaryCandidates;
+        if (preserving.length > 0) return preserving;
     }
     return candidates;
 }

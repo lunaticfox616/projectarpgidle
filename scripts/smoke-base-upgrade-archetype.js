@@ -29,6 +29,7 @@ vm.runInContext([
   extractFunction(itemsSource, 'getBaseDefenseProfile'),
   extractFunction(itemsSource, 'getBaseSecondaryStatSignature'),
   extractFunction(itemsSource, 'getWeaponBaseArchetype'),
+  extractFunction(itemsSource, 'getBaseBuildArchetype'),
   extractFunction(itemsSource, 'getBaseUpgradeCandidates'),
   'this.BASE_ITEM_DB = BASE_ITEM_DB;',
   'this.getWeaponBaseArchetype = getWeaponBaseArchetype;',

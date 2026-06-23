@@ -1350,6 +1350,11 @@ const BASE_ITEM_DB = [
     { id: 'stormbind_mitts', slot: '장갑', name: '뇌격 결속 장갑', reqTier: 10, baseStats: [{ id: 'aspd', base: 7 }, { id: 'resL', base: 9 }, { id: 'energyShield', base: 112 }] },
     { id: 'sunstride_boots', slot: '신발', name: '태양 질주화', reqTier: 10, baseStats: [{ id: 'move', base: 15 }, { id: 'resF', base: 9 }, { id: 'evasion', base: 120 }] },
     { id: 'moonbound_ring', slot: '반지', name: '월인 반지', reqTier: 10, baseStats: [{ id: 'resC', base: 9 }, { id: 'crit', base: 4 }] },
+    // 고립 베이스(상위/하위 연결이 없던 베이스)에 업그레이드 체인을 만들어 주는 하위 베이스들.
+    { id: 'nightveil_hood', slot: '투구', name: '야행 두건', reqTier: 8, baseStats: [{ id: 'flatHp', base: 42 }, { id: 'evasion', base: 132 }] },
+    { id: 'spirit_weave_robe', slot: '갑옷', name: '정수 직조 로브', reqTier: 11, baseStats: [{ id: 'flatHp', base: 64 }, { id: 'energyShield', base: 300 }] },
+    { id: 'ironclad_treads', slot: '신발', name: '강철 보행화', reqTier: 11, baseStats: [{ id: 'move', base: 15 }, { id: 'armor', base: 150 }, { id: 'flatHp', base: 26 }] },
+    { id: 'warding_sash', slot: '허리띠', name: '수호의 띠', reqTier: 11, baseStats: [{ id: 'flatHp', base: 62 }, { id: 'resAll', base: 6 }] },
     { id: 'familiar_loop', slot: '반지', name: '사역마 고리', reqTier: 6, baseStats: [{ id: 'summonPctDmg', base: 12 }, { id: 'summonHpPct', base: 10 }] },
     { id: 'beastcall_band', slot: '반지', name: '야수 부름 반지', reqTier: 11, baseStats: [{ id: 'summonEfficiency', base: 12 }, { id: 'summonCrit', base: 4 }] },
     { id: 'overlord_ring', slot: '반지', name: '군주 반지', reqTier: 15, baseStats: [{ id: 'summonPctDmg', base: 18 }, { id: 'summonCap', base: 1 }] },
