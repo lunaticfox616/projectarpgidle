@@ -7191,7 +7191,8 @@ function buildCraftActionButtons(item) {
             useBtn += `<div style="display:flex; justify-content:flex-end; margin-top:4px;"><div style="display:flex; flex-wrap:nowrap; align-items:center; gap:4px;">${rightButtons}</div></div>`;
         }
         let premiumGray = (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish') ? 'style="background:linear-gradient(180deg,#656d78,#4f5660); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 6px rgba(220,225,235,.2);"' : '';
-        return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name" ${premiumGray}>${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
+        let rareCurrencyClass = key === 'woodsmanTouch' ? ' woodsman-touch-currency' : '';
+        return `<div class="currency-card${rareCurrencyClass}" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name" ${premiumGray}>${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
     }).join('');
     let sporeHtml = buildSporeSummaryHtml();
     ['ui-spore-summary', 'ui-spore-summary-mobile'].forEach(id => {
@@ -7531,7 +7532,7 @@ function buildCraftActionButtons(item) {
                 let reqIds = reqIdsOf(k);
                 let reqLabel = '';
                 if (k.fifthJobOnly) {
-                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 선행: 5차 전직(재능 개화)</div>`;
+                    reqLabel = `<div class="ks-prereq ${reqMet ? 'met' : 'unmet'}">⤴ 해금: 5차 전직(재능 개화)</div>`;
                 } else if (reqIds.length > 0) {
                     let names = reqIds.map(id => (kById[id] || {}).name || id);
                     let joiner = Array.isArray(k.reqAny) ? ' 또는 ' : ', ';
@@ -7929,7 +7930,7 @@ function buildCraftActionButtons(item) {
         journalList.innerHTML = entries.map(({ id, def }) => `<div style="background:#1a1a24; border:1px solid #3d3d5c; border-radius:8px; padding:10px;">
             <div style="font-weight:bold; color:#ffd36b; margin-bottom:6px;">${unlocked.has(id) ? def.title : '히든 저널 - ???'}</div>
             <div style="color:#c5d6e8; font-size:0.86em; line-height:1.6;">${unlocked.has(id) ? (def.lines || []).map(line => `• ${line}`).join('<br>') : `• 힌트: ${def.hint || '조건 미상'}`}</div>
-            ${unlocked.has(id) && def.bonus ? `<div style="margin-top:8px; color:#9fe2b1; font-size:0.82em;">영구 보너스: ${def.bonus.label}</div>` : ''}
+            ${unlocked.has(id) && (def.bonus || def.displayEffect) ? `<div style="margin-top:8px; color:#9fe2b1; font-size:0.82em;">${def.bonus ? `영구 보너스: ${def.bonus.label}` : def.displayEffect}</div>` : ''}
         </div>`).join('') || `<div style="color:#7f8c8d;">아직 해금된 기록이 없습니다.</div>`;
     }
 
@@ -8990,14 +8991,28 @@ function mergeDefaults(save) {
             if (/^act_/.test(id) && !merged.journalEntries.includes(id)) merged.journalEntries.push(id);
         });
     }
+    let pendingJournalPassivePoints = 0;
     merged.journalBonuses = Array.isArray(merged.journalBonuses) ? merged.journalBonuses.filter(entry => entry && typeof entry.stat === 'string' && Number.isFinite(entry.value)) : [];
+    let hadLegacyImmortalHpBonus = merged.journalBonuses.some(entry => entry.entryId === 'immortal' && entry.stat === 'flatHp');
+    let legacyPassivePointBonusIds = merged.journalBonuses
+        .filter(entry => entry.stat === 'passivePoint' && typeof entry.entryId === 'string')
+        .map(entry => entry.entryId);
+    if (hadLegacyImmortalHpBonus || legacyPassivePointBonusIds.length > 0) {
+        merged.journalBonuses = merged.journalBonuses.filter(entry => {
+            if (entry.entryId === 'immortal' && entry.stat === 'flatHp') return false;
+            return entry.stat !== 'passivePoint';
+        });
+    }
     merged.journalBonusClaims = (merged.journalBonusClaims && typeof merged.journalBonusClaims === 'object') ? merged.journalBonusClaims : {};
+    if (hadLegacyImmortalHpBonus) merged.journalBonusClaims.immortal = false;
+    legacyPassivePointBonusIds.forEach(id => { merged.journalBonusClaims[id] = false; });
     merged.journalEntries.forEach(id => {
         let entry = JOURNAL_DB[id];
         if (!entry || !entry.bonus) return;
         if (!merged.journalBonusClaims[id]) {
             merged.journalBonusClaims[id] = true;
-            merged.journalBonuses.push({ entryId: id, stat: entry.bonus.stat, value: entry.bonus.value });
+            if (entry.bonus.stat === 'passivePoint') pendingJournalPassivePoints += Math.max(0, Math.floor(entry.bonus.value || 0));
+            else merged.journalBonuses.push({ entryId: id, stat: entry.bonus.stat, value: entry.bonus.value });
         }
     });
     merged.passiveStarEvolution = !!merged.passiveStarEvolution;
@@ -9066,7 +9081,7 @@ function mergeDefaults(save) {
     merged.woodsmanCurseNextLogStack = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanCurseNextLogStack, defaultGame.woodsmanCurseNextLogStack || 0, 0)));
     merged.chaosInfuserUnlocked = !!merged.chaosInfuserUnlocked || merged.woodsmanSimulatorSeenLoop || Math.max(0, Math.floor(merged.woodsmanDefeatAttempts || 0)) > 0 || (Array.isArray(merged.journalEntries) && merged.journalEntries.includes('woodsman'));
     merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
-    merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0));
+    merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0)) + pendingJournalPassivePoints;
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
@@ -11447,6 +11462,7 @@ function checkUnlocks() {
         let def = EXPERT_DEFS[id] || { name: id, desc: '전문가를 조우했습니다.' };
         queueTutorialNotice(key, `${def.icon || '🧠'} ${def.name} 조우`, `${def.desc}\n전문가 탭에서 레벨과 해금, 노드 트리를 확인해보세요.`, 'tab-expertise');
     });
+    if (game.level >= 200) unlockJournalEntry('level_200');
     if (game.level >= 100 && (game.completedTrials || []).includes('trial_3') && !(game.unlockedTrials || []).includes('trial_4')) {
         game.unlockedTrials.push('trial_4');
         game.noti.map = true;
@@ -11589,7 +11605,7 @@ function getClassKeystoneDefs(clsKey) {
 function isAscendKeystoneRequirementMet(node) {
     if (!node) return false;
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
-    // 5차 전직(재능 개화) 키스톤은 다른 선행 키스톤 조건 없이 해당 직업의 5차 노드 해금 여부만 본다.
+    // 9번째(5차) 키스톤은 선행 키스톤 없이 해당 직업의 5차 전직(재능 개화)만 요구한다.
     if (node.fifthJobOnly) {
         game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
         return game.bloomedClasses.includes(game.ascendClass);

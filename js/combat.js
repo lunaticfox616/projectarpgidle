@@ -8190,7 +8190,7 @@ function triggerSeasonReset() {
     game.currentZoneId = 0;
     game.maxZoneId = 0;
     game.combatHalted = false;
-    game.passivePoints = 0;
+    game.passivePoints = typeof getClaimedJournalPassivePointTotal === 'function' ? getClaimedJournalPassivePointTotal(game) : 0;
     game.passives = ['n0'];
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';

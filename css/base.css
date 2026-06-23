@@ -1,5 +1,5 @@
-        html { height: 100%; }
-        body { font-family: 'Malgun Gothic', sans-serif; background-color: #08080b; color: #ddd; padding: 15px; padding-top: max(15px, env(safe-area-inset-top)); padding-right: max(15px, env(safe-area-inset-right)); padding-bottom: max(15px, env(safe-area-inset-bottom)); padding-left: max(15px, env(safe-area-inset-left)); font-size: 14px; margin: 0; display: flex; gap: 15px; min-height: 100vh; min-height: 100dvh; width: 100%; box-sizing: border-box; overflow-x: hidden; overflow-y: auto; -webkit-text-size-adjust: 100%; }
+        html { height: 100%; overflow: hidden; }
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #08080b; color: #ddd; padding: 15px; padding-top: max(15px, env(safe-area-inset-top)); padding-right: max(15px, env(safe-area-inset-right)); padding-bottom: max(15px, env(safe-area-inset-bottom)); padding-left: max(15px, env(safe-area-inset-left)); font-size: 14px; margin: 0; display: flex; gap: 15px; height: 100vh; height: 100dvh; min-height: 100vh; min-height: 100dvh; width: 100%; box-sizing: border-box; overflow: hidden; -webkit-text-size-adjust: 100%; }
         body.light-mode { background-color: #eef2f8; color: #1f2a3a; }
         body.light-mode #right-pane { background-color: #f8fbff; border-color: #cfd9e6; }
         body.light-mode .panel { background-color: #ffffff; border-color: #d5deea; color: #1f2a3a; }
