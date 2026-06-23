@@ -5223,6 +5223,8 @@ function startEncounterRun() {
     progressStallTicks = 0;
     game.runProgress = 0;
     game.encounterIndex = 0;
+    // 재능 개화 미궁 보스 실제 처치 여부(이번 런 기준). 보스 처치 없이 런이 완료 처리되는 경우 개화를 막는다.
+    game.bloomBossDefeated = false;
     let zone = getZone(game.currentZoneId) || getZone(0);
     resetBattleRuntimeVisuals();
     primeTrialHazardTimer(zone);
@@ -5812,6 +5814,8 @@ function handleEnemyDeath(enemy, pStats) {
     enemy = liveRef;
     transferSkillDotOnDeath(enemy);
     let zone = getZone(game.currentZoneId);
+    // 재능 개화 미궁의 보스를 실제로 처치한 경우에만 개화 완료를 허용하기 위해 기록한다.
+    if (enemy.isBoss && zone && zone.type === 'trial' && zone.bloomTrial) game.bloomBossDefeated = true;
     let grand = (game.voidRift || {}).grandRun;
     if (zone && zone.id === 'grand_breach_run' && grand && grand.inRun && grand.phase === 'survival' && !enemy.isBoss) {
         grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
@@ -6223,6 +6227,13 @@ function finishEncounterRun() {
         return;
     }
     if (zone.type === 'trial' && zone.bloomTrial) {
+        // 보스를 실제로 처치하지 않았는데 런이 완료 처리된 경우(예: 보스 미스폰/즉시 제거 등)에는
+        // 개화를 인정하지 않고 전투를 다시 구성한다. 보스를 잡아야만 재능 개화가 완료된다.
+        if (!game.bloomBossDefeated) {
+            addLog('❄️ 개화 미궁의 수호자를 아직 쓰러뜨리지 못했습니다. 전투를 다시 구성합니다.', 'attack-monster', { noToast: true });
+            startEncounterRun();
+            return;
+        }
         handleTalentBloomClear(zone);
         return;
     }
