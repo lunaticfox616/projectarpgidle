@@ -518,6 +518,44 @@ input[data-search-key]:focus {
   color: #d9bd77;
 }
 
+/* 탐험 세로탭: 각 영역 테마 색으로 좌측 액센트 바 + 글자 색을 입혀 어떤 영역인지 한눈에 보이게 한다.
+   선택 표시(금색)는 활성 탭에 그대로 유지하고, 액센트 바는 활성/비활성 모두에 표시한다. */
+.map-explore-layout .vertical-tab-btn {
+  position: relative;
+  overflow: hidden;
+}
+.map-explore-layout .vertical-tab-btn::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--tab-accent, #4f7193);
+  box-shadow: 0 0 8px var(--tab-accent, transparent);
+}
+#btn-map-explore-hunting    { --tab-accent: #5fb86a; }
+#btn-map-explore-chaos      { --tab-accent: #b65ad0; }
+#btn-map-explore-root-boss  { --tab-accent: #d36b4e; }
+#btn-map-explore-labyrinth  { --tab-accent: #d8b24a; }
+#btn-map-explore-deep-chaos { --tab-accent: #8a5fe0; }
+#btn-map-explore-meteor     { --tab-accent: #e8743a; }
+#btn-map-explore-beehive    { --tab-accent: #ecd23c; }
+#btn-map-explore-colony     { --tab-accent: #3fc28a; }
+#btn-map-explore-voidrift   { --tab-accent: #4aa6d6; }
+#btn-map-explore-trials     { --tab-accent: #6c8fe6; }
+
+.map-explore-layout #btn-map-explore-hunting:not(.active) span    { color: #8fdf95; }
+.map-explore-layout #btn-map-explore-chaos:not(.active) span      { color: #e09cf0; }
+.map-explore-layout #btn-map-explore-root-boss:not(.active) span  { color: #f0987a; }
+.map-explore-layout #btn-map-explore-labyrinth:not(.active) span  { color: #f0d06a; }
+.map-explore-layout #btn-map-explore-deep-chaos:not(.active) span { color: #b394f0; }
+.map-explore-layout #btn-map-explore-meteor:not(.active) span     { color: #f0a868; }
+.map-explore-layout #btn-map-explore-beehive:not(.active) span    { color: #f0d85e; }
+.map-explore-layout #btn-map-explore-colony:not(.active) span     { color: #5fd9a4; }
+.map-explore-layout #btn-map-explore-voidrift:not(.active) span   { color: #74c2ec; }
+.map-explore-layout #btn-map-explore-trials:not(.active) span     { color: #92aef0; }
+
 .vertical-tab-panels {
   min-width: 0;
   padding: 12px;
