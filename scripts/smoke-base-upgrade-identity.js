@@ -90,7 +90,10 @@ assert(warBeltNext, '전사의 허리띠 should have an upgrade');
 assert(secondaryOf(warBeltNext).has('dr'), `전사의 허리띠(dr) upgrade must keep dr, got ${warBeltNext.name} [${[...secondaryOf(warBeltNext)]}]`);
 
 // General invariant for bug 3: whenever a same-identity higher base exists, the upgrade keeps it.
+// Armour is excluded — its identity is the defense profile, so it ladders by tier regardless
+// of which resistance a base happens to carry.
 for (const base of pool) {
+  if (ARMOR_SLOTS.includes(base.slot)) continue;
   const sec = secondaryOf(base);
   if (sec.size === 0) continue;
   const next = getBaseUpgradeCandidates(base)[0];
@@ -130,6 +133,23 @@ for (const id of ['moonveil_hood', 'astral_robe', 'iron_tread', 'nightmare_bind'
   const base = BASE_ITEM_DB.find(b => b.id === id);
   assert(base, `${id} should exist`);
   assert(getBaseChainInfo(base).total >= 2, `${base.name} must belong to a multi-step chain`);
+}
+
+// Every armour base type (slot × defense profile) forms a clean 6-step upgrade chain.
+const PROFILES = ['armor', 'evasion', 'energyShield', 'armor+evasion', 'armor+energyShield', 'evasion+energyShield'];
+for (const slot of ARMOR_SLOTS) {
+  const bySlot = pool.filter(b => b.slot === slot);
+  for (const prof of PROFILES) {
+    const group = bySlot.filter(b => getBaseDefenseProfile(b) === prof);
+    assert(group.length > 0, `${slot} [${prof}] should have bases`);
+    const maxTotal = Math.max(...group.map(b => getBaseChainInfo(b).total));
+    assert.strictEqual(maxTotal, 6, `${slot} [${prof}] chain must be exactly 6 deep, got ${maxTotal}`);
+    // The chain must span the canonical tier ladder.
+    const tiers = new Set(group.map(b => b.reqTier));
+    for (const t of [1, 4, 8, 12, 16, 20]) {
+      assert(tiers.has(t), `${slot} [${prof}] missing a base at tier ${t}`);
+    }
+  }
 }
 
 console.log('base upgrade identity smoke checks passed');
