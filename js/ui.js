@@ -11625,10 +11625,9 @@ function getClassKeystoneDefs(clsKey) {
 function isAscendKeystoneRequirementMet(node) {
     if (!node) return false;
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
-    // 9번째(5차) 키스톤은 선행 키스톤 없이 해당 직업의 5차 전직(재능 개화)만 요구한다.
+    // 9번째(5차) 키스톤은 선행 키스톤 없이 "이번 루프에 해당 직업으로 재능 개화"만 요구한다(영구 아님).
     if (node.fifthJobOnly) {
-        game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
-        return game.bloomedClasses.includes(game.ascendClass);
+        return !!game.ascendClass && game.bloomedClassThisLoop === game.ascendClass;
     }
     if (node.req) return game.ascendKeystones.includes(node.req);
     if (Array.isArray(node.reqAny) && node.reqAny.length > 0) return node.reqAny.some(id => game.ascendKeystones.includes(id));

@@ -12,7 +12,8 @@ const context = {
   game: {
     ascendClass: 'warrior',
     ascendKeystones: [],
-    bloomedClasses: []
+    bloomedClasses: [],
+    bloomedClassThisLoop: null
   }
 };
 vm.createContext(context);
@@ -21,13 +22,20 @@ vm.runInContext(`${fnMatch[0]}; this.isAscendKeystoneRequirementMet = isAscendKe
 assert.strictEqual(
   context.isAscendKeystoneRequirementMet({ id: 'w9', fifthJobOnly: true }),
   false,
-  '9th/fifth keystone must require the current class to be bloomed'
+  '9th/fifth keystone must require the current class to be bloomed THIS loop'
 );
+// 영구 기록(bloomedClasses)만으로는 더 이상 5차 키스톤이 열리지 않는다 — 이번 루프 개화가 필요.
 context.game.bloomedClasses = ['warrior'];
 assert.strictEqual(
   context.isAscendKeystoneRequirementMet({ id: 'w9', fifthJobOnly: true }),
+  false,
+  '5th keystone must NOT unlock from the permanent record alone (node resets each loop)'
+);
+context.game.bloomedClassThisLoop = 'warrior';
+assert.strictEqual(
+  context.isAscendKeystoneRequirementMet({ id: 'w9', fifthJobOnly: true }),
   true,
-  '9th/fifth keystone should unlock after the current class is bloomed without previous keystones'
+  '5th keystone should unlock once the current class is bloomed this loop'
 );
 
 assert.strictEqual(

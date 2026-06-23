@@ -1,7 +1,7 @@
-// 5차 재능 개화 시련 클리어 시 재능특화/전직특화 노드용 포인트(전직 +2 · 키스톤 +1)가
-// 루프마다 다시 지급되는지 검증한다.
-// 회귀 방지 대상 버그: 포인트 지급이 영구 기록(bloomedClasses)에 묶여 있어 직업 최초 개화 1회만 지급되고,
-// 루프 정산으로 ascendPoints가 0으로 초기화된 이후에는 특화 노드를 찍을 포인트가 없던 문제.
+// 5차 재능 개화 시련 클리어 시의 지급/개방 규칙 검증.
+//  - 5차 노드는 영구가 아니라 "이번 루프 개화한 직업"에만 열린다(bloomedClassThisLoop). 루프 정산 시 초기화.
+//  - 재능 개화 카드(조합 기록)만 영구.
+//  - 전직 포인트(+2)·키스톤 포인트(+1)는 (새 조합) 또는 (루프당 1회) 지급. 같은 루프·같은 조합 반복은 미지급.
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
@@ -16,6 +16,7 @@ function makeContext() {
       ascendClass: 'warrior',
       bloomedClasses: [],
       bloomLoopSpecGranted: null,
+      bloomedClassThisLoop: null,
       ascendPoints: 0,
       ascendKeystonePoints: 0,
       ascendRank: 4,
@@ -27,7 +28,6 @@ function makeContext() {
       unlocks: {},
       noti: {}
     },
-    // 의존성 스텁: 포인트 지급 외 부수 효과는 검증 대상이 아니므로 무해하게 처리한다.
     addLog() {},
     queueTutorialNotice() {},
     recordTalentBloomCard() { return { card: { level: 1 }, score: 0, leveledUp: false }; },
@@ -36,7 +36,7 @@ function makeContext() {
     startMoving() {},
     updateStaticUI() {},
     queueImportantSave() {},
-    getHeroSelectionDef() { return { label: 'hero1' }; },
+    getHeroSelectionDef() { return { label: 'hero' }; },
     CLASS_TEMPLATES: { warrior: { name: '전사' } }
   };
   vm.createContext(context);
@@ -44,38 +44,48 @@ function makeContext() {
   return context;
 }
 
-// 루프 정산이 ascend 포인트/직업/특화 지급 플래그를 초기화하는 동작을 재현한다.
-function simulateLoopReset(game) {
+// 루프 정산: ascend 포인트/직업/이번 루프 개방·지급 플래그를 초기화한다. (키스톤 포인트는 유지)
+function simulateLoopReset(game, opts) {
   game.ascendPoints = 0;
-  game.ascendKeystonePoints = 0;
   game.ascendRank = 0;
   game.bloomLoopSpecGranted = null;
-  // 직업/시련은 루프마다 다시 선택·재클리어한다.
-  game.ascendClass = 'warrior';
+  game.bloomedClassThisLoop = null;
+  game.ascendClass = (opts && opts.heroId !== undefined) ? game.ascendClass : 'warrior';
+  if (opts && opts.heroId) game.selectedHeroId = opts.heroId;
 }
 
 const ctx = makeContext();
 const game = ctx.game;
 const bloomZone = { id: 'trial_5', bloomTrial: true };
 
-// 1) 직업 최초 개화: 노드 영구 해금 + 특화 포인트 지급
+// 1) 직업 최초 개화(hero×warrior 신규 조합): 이번 루프 노드 개방 + 포인트 지급, 카드 영구 기록.
 ctx.handleTalentBloomClear(bloomZone);
-assert.deepStrictEqual(game.bloomedClasses, ['warrior'], 'first bloom must permanently unlock the class fifth nodes');
-assert.strictEqual(game.ascendPoints, 2, 'first bloom must grant +2 ascend points for talent/job specialization');
-assert.strictEqual(game.ascendKeystonePoints, 1, 'first bloom must grant +1 keystone point');
-assert.strictEqual(game.bloomLoopSpecGranted, 'warrior', 'first bloom must mark spec points granted this loop');
+assert.strictEqual(game.bloomedClassThisLoop, 'warrior', '5th node must open for the class bloomed THIS loop');
+assert.deepStrictEqual(game.talentBloomCombos, ['hero1__warrior'], 'bloom card combo must be recorded (permanent)');
+assert.strictEqual(game.ascendPoints, 2, 'new combo bloom must grant +2 transfer points');
+assert.strictEqual(game.ascendKeystonePoints, 1, 'new combo bloom must grant +1 keystone point');
 
-// 2) 같은 루프에서 다시 개화 시련을 클리어해도 포인트는 중복 지급되지 않는다(파밍 방지).
+// 2) 같은 루프·같은 조합 반복 개화: 중복 지급 없음(파밍 방지).
 ctx.handleTalentBloomClear(bloomZone);
-assert.strictEqual(game.ascendPoints, 2, 'repeat bloom within the same loop must NOT grant extra ascend points');
-assert.strictEqual(game.ascendKeystonePoints, 1, 'repeat bloom within the same loop must NOT grant extra keystone points');
+assert.strictEqual(game.ascendPoints, 2, 'repeat same-combo bloom in same loop must NOT grant extra transfer points');
+assert.strictEqual(game.ascendKeystonePoints, 1, 'repeat same-combo bloom in same loop must NOT grant extra keystone points');
 
-// 3) 루프 정산 후 다시 개화 시련을 클리어하면 포인트가 재지급된다(핵심 회귀 케이스).
+// 3) 루프 정산: 5차 노드 개방 플래그가 초기화된다(영구 아님).
 simulateLoopReset(game);
+assert.strictEqual(game.bloomedClassThisLoop, null, '5th node access must reset on loop settle (not permanent)');
+
+// 4) 새 루프에서 이미 개화했던 조합(hero1×warrior)을 다시 개화: 루프당 1회 규칙으로 포인트 재지급 + 노드 재개방.
 ctx.handleTalentBloomClear(bloomZone);
-assert.strictEqual(game.ascendPoints, 2, 'after a loop reset, clearing the bloom trial must re-grant +2 ascend points');
-assert.strictEqual(game.ascendKeystonePoints, 1, 'after a loop reset, clearing the bloom trial must re-grant +1 keystone point');
-assert.strictEqual(game.ascendRank, 5, 'clearing the bloom trial must restore the fifth ascend rank');
-assert.deepStrictEqual(game.bloomedClasses, ['warrior'], 'the permanent bloom record must not be duplicated on later loops');
+assert.strictEqual(game.bloomedClassThisLoop, 'warrior', '5th node must re-open after re-blooming in the new loop');
+assert.strictEqual(game.ascendPoints, 2, 'a known combo re-bloomed in a fresh loop must re-grant transfer points');
+assert.strictEqual(game.ascendKeystonePoints, 2, 'keystone points persist across loops and accumulate (now 2)');
+assert.strictEqual(game.ascendRank, 5, 'clearing the bloom trial restores the fifth ascend rank for this loop');
+
+// 5) 같은 루프에서 새로운 조합(hero2×warrior)을 개화하면, 새 조합 보너스로 추가 지급된다(120세트 누적 지급).
+game.selectedHeroId = 'hero2';
+ctx.handleTalentBloomClear(bloomZone);
+assert.deepStrictEqual(game.talentBloomCombos, ['hero1__warrior', 'hero2__warrior'], 'second combo recorded');
+assert.strictEqual(game.ascendPoints, 4, 'a brand-new combo must grant points even within the same loop');
+assert.strictEqual(game.ascendKeystonePoints, 3, 'a brand-new combo must grant a keystone point even within the same loop');
 
 console.log('smoke-bloom-loop-spec-points: OK');
