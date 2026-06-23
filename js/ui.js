@@ -9006,6 +9006,7 @@ function mergeDefaults(save) {
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     if (!merged.journalEntries.includes('prologue')) merged.journalEntries.unshift('prologue');
+    if (merged.passiveStarEvolution && !merged.journalEntries.includes('passive_star_evolution')) merged.journalEntries.push('passive_star_evolution');
     if (Math.max(Math.floor(merged.season || 1), Math.floor(merged.loopCount || 0)) >= 2) {
         Object.keys(JOURNAL_DB).forEach(id => {
             if (/^act_/.test(id) && !merged.journalEntries.includes(id)) merged.journalEntries.push(id);
