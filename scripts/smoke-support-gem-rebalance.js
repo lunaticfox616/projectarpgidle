@@ -65,7 +65,14 @@ assert(/'화염 주입': \{ baseVal: 5, scale: 2\.0[^}]*\}/.test(state), 'origin
 assert(!/'화염 주입': \{[^}]*scaleWithOwnStat/.test(state), '화염 주입 must not carry the scaleWithOwnStat mechanic');
 
 assert(/if \(db\.scaleWithOwnStat\) \{/.test(combat), 'support aggregation loop must special-case scaleWithOwnStat gems');
-assert(/let ownStatTotal = gearBase\[db\.scaleWithOwnStat\] \+ gearExplicit\[db\.scaleWithOwnStat\]/.test(combat), 'own-stat total must be summed from non-support buckets only (no self-reference loop)');
+assert(/function sumNonSupportStat\(statId\) \{/.test(combat), 'own-stat total must use a shared non-support stat helper');
+assert(/let ownStatTotal = sumNonSupportStat\(db\.scaleWithOwnStat\);/.test(combat), 'own-stat total must exclude all support gems to avoid self-reference loops');
+assert(/supportScaleBases: Object\.fromEntries/.test(combat), 'player stats must expose non-support scale bases for resonance support tooltips');
+assert(/scaleBase \* \(ratioPct \/ 100\)/.test(combat), 'support gem presentation must show the actual computed resonance bonus, not only the ratio');
+
+const ui = fs.readFileSync('js/ui.js', 'utf8');
+assert(ui.includes('계산: 보조 젬 제외'), 'resonance support tooltip must show the non-support base used in the calculation');
+assert(ui.includes('이 보조 젬 및 다른 보조 젬으로 얻은'), 'resonance support tooltip must explain excluded support-gem damage increases');
 
 // --- numeric sanity: scaleWithOwnStat support contributes a % of the *other* buckets' total, not a flat stack ---
 function scaleWithOwnStatVal(ownStatTotal, baseVal, scale, level, tierMul) {

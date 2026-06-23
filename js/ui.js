@@ -4178,6 +4178,12 @@ function showGemTooltip(event, type, name) {
         let tierText = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, info.activeTier) : (info.activeTier === 3 ? '상급' : info.activeTier === 2 ? '중급' : '하급');
         let valueText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.value) : Number(info.value || 0).toFixed(1);
         html += `<div class="tooltip-line" style="margin-top:6px;">효과(${tierText}): ${info.statName} +${valueText}${SUPPORT_GEM_DB[name].isPct ? '%' : ''}</div>`;
+        if (info.scaleWithOwnStat) {
+            let baseText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleBase) : Number(info.scaleBase || 0).toFixed(1);
+            let ratioText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleRatioPct) : Number(info.scaleRatioPct || 0).toFixed(1);
+            html += `<div class="tooltip-line" style="color:#9fd4ff;">계산: 보조 젬 제외 ${info.statName} ${baseText}% × 공명 계수 ${ratioText}% = +${valueText}%</div>`;
+            html += `<div class="tooltip-line" style="color:#b8a6ff;">제외: 이 보조 젬 및 다른 보조 젬으로 얻은 ${info.statName} 증가</div>`;
+        }
         if (Number.isFinite(SUPPORT_GEM_DB[name].heraldExplodeBase)) {
             let chancePct = Math.min(85, ((SUPPORT_GEM_DB[name].heraldExplodeBase + ((info.totalLevel - 1) * (SUPPORT_GEM_DB[name].heraldExplodeScale || 0))) * 100));
             html += `<div class="tooltip-line">시체폭발: 처치 시 ${chancePct.toFixed(1)}% 확률 발동</div>`;
@@ -4365,16 +4371,13 @@ function showItemTooltip(event, idx, isEquip) {
     if (!item) return;
     activeItemTooltipToken = isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`;
     let tt = document.getElementById('item-tooltip-box');
-    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${item.name}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
+    let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
+    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${item.name}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
     let baseChainInfo = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
     let baseChainBadge = (baseChainInfo && baseChainInfo.total > 1)
         ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${baseChainInfo.step}/${baseChainInfo.total}]</span>`
         : '';
     html += `<div class="tooltip-line" style="color:#95a5a6;">베이스: ${item.baseName}${baseChainBadge}</div>`;
-    if (item.exceptionalBase) {
-        let exLabel = item.exceptionalAllLines ? '모든 옵션' : (escapeHTML(item.exceptionalStatName || '') + ' 옵션');
-        html += `<div class="tooltip-line" style="color:#ffb454; font-weight:700;">✦ 특출난 베이스 — ${exLabel} 최대치 +20%</div>`;
-    }
     html += `<div class="tooltip-line" style="color:#a8c0da;">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
     if (item.rarity === 'unique' && item.uniqueEffect) {
         let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';
@@ -4409,8 +4412,9 @@ function showItemTooltip(event, idx, isEquip) {
             let cur = Number(stat.val || 0);
             let rangeText = getItemStatRollRangeHtml(stat, { estimateFromValue: true });
             let label = stat.statName || getStatName(statKey) || statKey;
-            let exMark = stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦특출 +20%</span>' : '';
-            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, cur)}</span>${rangeText}${exMark}</div>`;
+            let valueColor = stat.exceptional ? '#ffb454' : resolveItemStatTone(statKey);
+            let exMark = stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦+20%</span>' : '';
+            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} </span><span style="color:${valueColor};">+${formatValue(statKey, cur)}</span>${rangeText}${exMark}</div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
             let label = getStatName(id);
@@ -4422,11 +4426,12 @@ function showItemTooltip(event, idx, isEquip) {
             if (src) {
                 rangeText = getItemStatRollRangeHtml(src, { estimateFromValue: true });
             }
-            let exMark = (src && src.exceptional) ? ' <span style="color:#ffb454; font-weight:700;">✦특출 +20%</span>' : '';
+            let valueColor = (src && src.exceptional) ? '#ffb454' : resolveItemStatTone(id);
+            let exMark = (src && src.exceptional) ? ' <span style="color:#ffb454; font-weight:700;">✦+20%</span>' : '';
             if (Math.floor(finalVal) === Math.floor(baseVal)) {
-                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(baseVal)}</span>${rangeText}${exMark}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${valueColor};">${Math.floor(baseVal)}</span>${rangeText}${exMark}</div>`;
             } else {
-                html += `<div class="tooltip-line">${label}: <span style="color:${resolveItemStatTone(id)};">${Math.floor(finalVal)}</span> <span style="color:#9fb4d1;">(${Math.floor(baseVal)})</span>${rangeText}${exMark}</div>`;
+                html += `<div class="tooltip-line">${label}: <span style="color:${valueColor};">${Math.floor(finalVal)}</span> <span style="color:#9fb4d1;">(${Math.floor(baseVal)})</span>${rangeText}${exMark}</div>`;
             }
         });
     }
@@ -6679,7 +6684,8 @@ function renderCraftSelectedSummary(item) {
         return;
     }
     let statCount = getItemExplicitOptionCount(item);
-    host.innerHTML = `<div><strong>[${getItemSlotDisplayLabel(item)}] ${item.name}</strong> · ${item.rarity.toUpperCase()} · 추가 옵션 ${statCount}/6</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
+    let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
+    host.innerHTML = `<div><strong>[${getItemSlotDisplayLabel(item)}] ${item.name}${exceptionalStars}</strong> · ${item.rarity.toUpperCase()} · 추가 옵션 ${statCount}/6</div><div style="color:#a9bfd6; font-size:0.83em;">${item.baseName || ''}</div>`;
 }
 
 
@@ -6940,8 +6946,9 @@ function getCraftPickerCardHtml(item, options) {
     let sourceMeta = item && typeof getDropOnlyItemSourceMeta === 'function' ? getDropOnlyItemSourceMeta(item) : null;
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
     let extraClass = options.extraClass || '';
+    let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     return `<button type="button" class="craft-picker-card ${extraClass} ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
-        <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(getItemSlotDisplayLabel(item, slotLabel))}] ${escapeHTML(item.name || '장비')}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
+        <div class="item-title ${rarity}" style="font-size:.9em;">[${escapeHTML(getItemSlotDisplayLabel(item, slotLabel))}] ${escapeHTML(item.name || '장비')}${exceptionalStars}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
         <div class="item-base-line" style="font-size:.78em;">${escapeHTML(item.baseName || '')}</div>
         ${getCraftPickerItemLines(item)}
     </button>`;
@@ -7147,7 +7154,8 @@ function buildCraftActionButtons(item) {
             }).join('');
             abyssSocketHtml = `<div class="craft-section-title">심연 소켓</div>${makeBtn}${rows}`;
         }
-        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
+        let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(selectedItem) : '';
+        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${exceptionalStars}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div class="craft-selected-body">${craftSelectedBodyHtml}</div>`;
     document.getElementById('fossil-item-display').innerHTML = craftSelectedBodyHtml;

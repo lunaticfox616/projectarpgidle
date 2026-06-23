@@ -2049,6 +2049,11 @@ function getPlayerStats() {
         }
     });
 
+    function sumNonSupportStat(statId) {
+        return gearBase[statId] + gearExplicit[statId] + passive[statId]
+            + season[statId] + ascend[statId] + reward[statId] + (starBlessing[statId] || 0);
+    }
+
     let gemSources = getTargetGemBonusSources(game.activeSkill);
     safeEquippedSupports.forEach(name => {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
@@ -2060,8 +2065,7 @@ function getPlayerStats() {
         let effectiveLevel = Math.max(1, gem.level + supportGemSources.total);
         let val;
         if (db.scaleWithOwnStat) {
-            let ownStatTotal = gearBase[db.scaleWithOwnStat] + gearExplicit[db.scaleWithOwnStat] + passive[db.scaleWithOwnStat]
-                + season[db.scaleWithOwnStat] + ascend[db.scaleWithOwnStat] + reward[db.scaleWithOwnStat] + (starBlessing[db.scaleWithOwnStat] || 0);
+            let ownStatTotal = sumNonSupportStat(db.scaleWithOwnStat);
             let ratioPct = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
             val = Math.max(0, ownStatTotal) * (ratioPct / 100);
         } else {
@@ -3594,6 +3598,7 @@ function getPlayerStats() {
         runeCorpseExplodeChance: runeCorpseExplodeChance,
         runeCorpseExplodeLifePct: runeCorpseExplodeLifePct,
         runeResonancePower: runeResonancePower,
+        supportScaleBases: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumNonSupportStat(statId))])),
         summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
         summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0) + (((game.summonDeathDamageBuffExpiresAt || 0) > Date.now()) ? Math.max(0, Number(game.summonDeathDamageBuffPct || 0)) : 0)),
         summonSharedPctDmg: Math.max(0, generalPctDmg),
@@ -3675,7 +3680,10 @@ function getGemPresentation(name, isSupport) {
         let val = db.baseVal + ((totalLevel - 1) * db.scale);
         let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
         let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
-        return { baseLevel: gem.level, totalLevel: totalLevel, value: val * tierMul, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources };
+        let ratioPct = val * tierMul;
+        let scaleBase = db.scaleWithOwnStat ? Math.max(0, Number(stats.supportScaleBases && stats.supportScaleBases[db.scaleWithOwnStat]) || 0) : 0;
+        let value = db.scaleWithOwnStat ? scaleBase * (ratioPct / 100) : ratioPct;
+        return { baseLevel: gem.level, totalLevel: totalLevel, value: value, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources, scaleWithOwnStat: db.scaleWithOwnStat || null, scaleBase: scaleBase, scaleRatioPct: ratioPct };
     }
     let db = SKILL_DB[name];
     if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
