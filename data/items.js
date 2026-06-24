@@ -313,12 +313,12 @@ const COSMOS_BOSS_REWARD_DB = {
     },
     'planet-48': {
         equipment: ['완벽한 균형', '주베누비아의 천칭', '쌍성'],
-        jewel: { id: 'cbj_zubenubia_balance', name: '주베누비아의 균형', uniqueEffect: '장비 소켓에 사용불가, 주벤샤말의 심판 주얼과 같은 키스톤이면 해당 키스톤 할당', stats: [{ id: 'resAll', val: 12 }, { id: 'dr', val: 4 }] },
+        jewel: { id: 'cbj_zubenubia_balance', name: '주베누비아의 균형', uniqueEffect: '장비 소켓에 사용불가, 주벤샤말의 심판 주얼과 같은 키스톤이면 해당 키스톤 할당', noEquipSocket: true, cosmosKeystoneJewel: true, stats: [{ id: 'resAll', val: 12 }, { id: 'dr', val: 4 }] },
         talisman: { id: 'cbt_zubenubia_choice', name: '주베누비아의 선택', shape: 'DASH2', special: 'cosmosChoice', uniqueEffect: '가로 배치: 모든 스킬 젬 레벨 +2 / 세로 배치: 모든 스킬 젬 레벨 -2, 보조 젬 한도 +2', stats: [] }
     },
     'planet-49': {
         equipment: ['주벤샤말의 심판하는 창', '최종 관문', '판결문'],
-        jewel: { id: 'cbj_zubenshamali_judgment', name: '주벤샤말의 심판', uniqueEffect: '장비 소켓에 사용불가, 주베누비아의 균형 주얼과 같은 키스톤이면 해당 키스톤 할당', stats: [{ id: 'lightPctDmg', val: 18 }, { id: 'resPen', val: 6 }] },
+        jewel: { id: 'cbj_zubenshamali_judgment', name: '주벤샤말의 심판', uniqueEffect: '장비 소켓에 사용불가, 주베누비아의 균형 주얼과 같은 키스톤이면 해당 키스톤 할당', noEquipSocket: true, cosmosKeystoneJewel: true, stats: [{ id: 'lightPctDmg', val: 18 }, { id: 'resPen', val: 6 }] },
         talisman: { id: 'cbt_zubenshamali_verdict', name: '주벤샤말의 판결', shape: 'O', special: 'cosmosLightningVariance', uniqueEffect: '번개 피해의 최종 피해가 0.8배~1.5배 사이에서 무작위로 결정됨', stats: [] }
     },
     'planet-45': {

@@ -1019,7 +1019,14 @@
             tier: 1,
             statName: typeof window.getStatName === 'function' ? window.getStatName(stat.id) : stat.id
         }));
-        return { id: Date.now() + Math.floor(Math.random() * 100000), uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', source: 'cosmosBoss', stats };
+        const jewel = { id: Date.now() + Math.floor(Math.random() * 100000), uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', source: 'cosmosBoss', stats };
+        if (row.noEquipSocket) jewel.noEquipSocket = true;
+        if (row.cosmosKeystoneJewel) {
+            jewel.cosmosKeystoneJewel = true;
+            // 드랍 시 무작위 승천 키스톤을 고정 배정한다. (균형/심판 주얼이 같은 키스톤이면 할당)
+            jewel.cosmosKeystone = (typeof window.pickRandomAscendKeystoneId === 'function') ? window.pickRandomAscendKeystoneId() : null;
+        }
+        return jewel;
     }
 
     function createCosmosBossTalisman(row) {

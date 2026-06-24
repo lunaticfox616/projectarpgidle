@@ -6414,6 +6414,7 @@ function insertJewelIntoVoidSocket(invIdx) { if (game.woodsmanBuildLock) return 
     game.jewelInventory = game.jewelInventory || [];
     let jewel = game.jewelInventory[invIdx];
     if (!jewel) return;
+    if (jewel.noEquipSocket) return addLog(`[${jewel.name}]은(는) 장비 소켓에 사용할 수 없습니다. 주얼 슬롯에만 장착 가능합니다.`, 'attack-monster');
     item.voidSocket.jewel = jewel;
     game.jewelInventory.splice(invIdx, 1);
     closeVoidSocketJewelOverlay();
@@ -6500,6 +6501,7 @@ function insertJewelIntoAbyssSocket(invIdx, socketIdx) { if (game.woodsmanBuildL
     game.jewelInventory = game.jewelInventory || [];
     let jewel = game.jewelInventory[invIdx];
     if (!jewel) return;
+    if (jewel.noEquipSocket) return addLog(`[${jewel.name}]은(는) 장비 소켓에 사용할 수 없습니다. 주얼 슬롯에만 장착 가능합니다.`, 'attack-monster');
     item.abyssSockets[socketIdx].jewel = jewel;
     game.jewelInventory.splice(invIdx, 1);
     addLog(`💠 심연 소켓 #${socketIdx + 1}에 [${jewel.name}] 장착`, 'loot-magic');

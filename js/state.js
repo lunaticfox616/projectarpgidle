@@ -872,6 +872,27 @@ const CLASS_KEYSTONE_DEFS = {
     ]
 };
 
+// 우주계 쌍둥이 주얼(주베누비아의 균형 / 주벤샤말의 심판)이 부여할 수 있는
+// 승천 키스톤 풀: 직업과 무관하게 모든 승천 키스톤을 대상으로 한다.
+function getAllAscendKeystoneDefs() {
+    let out = [];
+    Object.keys(CLASS_KEYSTONE_DEFS || {}).forEach(cls => {
+        (CLASS_KEYSTONE_DEFS[cls] || []).forEach(node => { if (node && node.id) out.push(node); });
+    });
+    return out;
+}
+function pickRandomAscendKeystoneId() {
+    let defs = getAllAscendKeystoneDefs();
+    if (!defs.length) return null;
+    return defs[Math.floor(Math.random() * defs.length)].id;
+}
+function getAscendKeystoneName(id) {
+    if (!id) return '';
+    let node = getAllAscendKeystoneDefs().find(n => n && n.id === id);
+    return node ? node.name : id;
+}
+safeExposeGlobals({ getAllAscendKeystoneDefs, pickRandomAscendKeystoneId, getAscendKeystoneName });
+
 const SEASON_NODES = {
     s_root: { name: '시작의 축복', desc: '경험치 +20%', stat: 'expGain', val: 20, req: null },
     s_dmg: { name: '전사의 혼', desc: '피해 +30%', stat: 'pctDmg', val: 30, req: 's_root' },
