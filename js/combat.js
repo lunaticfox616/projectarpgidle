@@ -191,6 +191,11 @@ function hasKeystone(id) {
     return Array.isArray(game.ascendKeystones) && game.ascendKeystones.includes(id);
 }
 
+// 심연 군주(워록 wlk8)는 주얼 슬롯을 2칸 추가로 제공한다.
+function getMaxJewelSlotCount() {
+    return 2 + ((game.ascendClass === 'warlock' && hasKeystone('wlk8')) ? 2 : 0);
+}
+
 function getAliveEnemyByRuntimeKey(enemyId) {
     let numericId = Number(enemyId);
     if (!Number.isFinite(numericId)) return null;
@@ -349,7 +354,7 @@ function getConditionGemStatDelta(name, type) {
         '감전 문양': { enemyResLShred: 10, shockChanceAdd: 0.10, shockTakenMul: 1.10 },
         '부패 각인': { enemyResChaosShred: 10, poisonChanceAdd: 0.10, poisonTakenMul: 1.10 },
         '균열 저주': { enemyResShred: 15, enemyResChaosShred: 15 },
-        '취약의 낙인': { enemyTakenMul: 1.15 },
+        '취약의 낙인': { enemyTakenMul: 1.10, enemyCritDmgTakenMul: 1.12 },
         '파멸 징표': { doomMark: 1 },
         '쇠약의 기도': { enemyDmgMul: 0.90, enemyAspdSlow: 0.10 },
         '타오른 죄책': { enemyResFShred: 8, fireDotTakenMul: 1.06, igniteTakenMul: 1.06 },
@@ -366,7 +371,7 @@ function getConditionGemStatDelta(name, type) {
         '빙하의 포효': { pctDmg: 13, coldBonus: 0.12, dr: 8, energyShieldRegen: 2 },
         '폭풍의 고함': { aspd: 16, crit: 5 },
         '공허의 외침': { pctDmg: 17, chaosBonus: 0.15, resPen: 8, leech: 0.7 },
-        '결전 신호': { pctDmg: 24, dr: -4, critDmg: 30 },
+        '결전 신호': { pctDmg: 18, dr: -4, critDmg: 30, resPen: 6 },
         '지진의 함성': { slamEchoPct: 0.25, slamEchoDelaySec: 1.0 },
         // Guards
         '원소 장막': { dr: 22, resAll: 10, maxResAll: 4 },
@@ -392,7 +397,9 @@ function getConditionGemStatDelta(name, type) {
     Object.keys(base).forEach(key => {
         let val = base[key];
         if (typeof val !== 'number') { out[key] = val; return; }
-        if (key === 'enemyTakenMul') out[key] = 1 + ((val - 1) * scale);
+        if (['enemyTakenMul', 'igniteTakenMul', 'chillTakenMul', 'freezeTakenMul', 'shockTakenMul', 'poisonTakenMul', 'bleedTakenMul', 'fireDotTakenMul', 'enemyProjectileTakenMul', 'enemyLightTakenMul', 'enemyChaosTakenMul', 'enemyCritDmgTakenMul', 'enemyDmgMul', 'enemyRegenRateMul'].includes(key)) {
+            out[key] = val >= 1 ? 1 + ((val - 1) * scale) : 1 - ((1 - val) * scale);
+        }
         else out[key] = val * scale;
     });
     return out;
@@ -400,7 +407,7 @@ function getConditionGemStatDelta(name, type) {
 
 function getEnemyConditionDebuffFactor(enemy, pStats) {
     let list = (game.enemyConditionDebuffs && enemy) ? (game.enemyConditionDebuffs[enemy.id] || []) : [];
-    let fx = { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, projectileTakenMul: 1, lightTakenMul: 1, chaosTakenMul: 1, enemyDmgMul: 1, enemyRegenRateMul: 1, projectileExtraHits: 0, critDmgTakenMul: 1 };
+    let fx = { mul: 1, resShred: 0, resFShred: 0, resCShred: 0, resLShred: 0, resChaosShred: 0, physDrShred: 0, projectileTakenMul: 1, lightTakenMul: 1, chaosTakenMul: 1, enemyDmgMul: 1, enemyRegenRateMul: 1, projectileExtraHits: 0, critDmgTakenMul: 1, ailmentChanceAdd: {}, ailmentTakenMul: {} };
     list.forEach(deb => {
         let d = getConditionGemStatDelta(deb.name, 'curse');
         fx.mul *= (d.enemyTakenMul || 1);
@@ -417,6 +424,15 @@ function getEnemyConditionDebuffFactor(enemy, pStats) {
         fx.enemyRegenRateMul *= (d.enemyRegenRateMul || 1);
         fx.projectileExtraHits += (d.projectileExtraHits || 0);
         fx.critDmgTakenMul *= (d.enemyCritDmgTakenMul || 1);
+        if (d.igniteChanceAdd) fx.ailmentChanceAdd.ignite = (fx.ailmentChanceAdd.ignite || 0) + d.igniteChanceAdd;
+        if (d.chillChanceAdd) fx.ailmentChanceAdd.chill = (fx.ailmentChanceAdd.chill || 0) + d.chillChanceAdd;
+        if (d.freezeChanceAdd) fx.ailmentChanceAdd.freeze = (fx.ailmentChanceAdd.freeze || 0) + d.freezeChanceAdd;
+        if (d.shockChanceAdd) fx.ailmentChanceAdd.shock = (fx.ailmentChanceAdd.shock || 0) + d.shockChanceAdd;
+        if (d.poisonChanceAdd) fx.ailmentChanceAdd.poison = (fx.ailmentChanceAdd.poison || 0) + d.poisonChanceAdd;
+        if (d.bleedChanceAdd) fx.ailmentChanceAdd.bleed = (fx.ailmentChanceAdd.bleed || 0) + d.bleedChanceAdd;
+        if (d.igniteTakenMul || d.fireDotTakenMul) fx.ailmentTakenMul.ignite = (fx.ailmentTakenMul.ignite || 1) * (d.igniteTakenMul || 1) * (d.fireDotTakenMul || 1);
+        if (d.poisonTakenMul) fx.ailmentTakenMul.poison = (fx.ailmentTakenMul.poison || 1) * d.poisonTakenMul;
+        if (d.bleedTakenMul) fx.ailmentTakenMul.bleed = (fx.ailmentTakenMul.bleed || 1) * d.bleedTakenMul;
     });
     if (pStats && pStats.uniqueCursedTakenAndRefresh && list.length > 0) fx.mul *= Math.max(1, Number(pStats.uniqueCursedTakenAndRefresh.takenMul) || 1);
     fx.mul = Math.min(1.35, fx.mul);
@@ -673,7 +689,9 @@ function getSummonProfile(gemName) {
 }
 
 function getSummonRuntimeCap(pStats) {
-    return Math.max(1, Math.min(8, Math.floor((pStats && pStats.summonCap) || 1)));
+    // 대군 소환(소울바인더 sb9): 소환수 한도 1.5배를 수용하기 위해 상한을 12까지 확장
+    let hardCap = (game.ascendClass === 'soulbinder' && hasKeystone('sb9')) ? 12 : 8;
+    return Math.max(1, Math.min(hardCap, Math.floor((pStats && pStats.summonCap) || 1)));
 }
 
 function buildActiveSummonRuntimeDefs(pStats) {
@@ -707,13 +725,14 @@ function getEquippedJewelGemLevelBonusSources(target) {
         }
         (Array.isArray(item.abyssSockets) ? item.abyssSockets : []).forEach(socket => addJewelGemLevels(socket && socket.jewel, abyssAmp));
     });
-    (game.jewelSlots || []).forEach((jewel, idx) => {
+    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
         let amplify = Math.max(0, Math.floor(((game.jewelSlotAmplify || [])[idx]) || 0));
         addJewelGemLevels(jewel, 1 + (amplify * 0.03));
     });
-    (game.jewelSlots || []).forEach((jewel, idx) => {
+    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
         if (!jewel || jewel.uniqueId !== 'uj_mirror_heart') return;
-        addJewelGemLevels((game.jewelSlots || [])[idx === 0 ? 1 : 0], 1);
+        let pairedIdx = idx % 2 === 0 ? idx + 1 : idx - 1;
+        addJewelGemLevels((game.jewelSlots || [])[pairedIdx], 1);
     });
     return gear;
 }
@@ -972,6 +991,15 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let finalMul = getLimitedSummonFinalDamageMultiplier(pStats);
     dmg = Math.floor(dmg * finalMul);
     ailmentSourceDmg = Math.floor(ailmentSourceDmg * finalMul);
+    // 재능 개화 표면 키스톤: 조건부 피해 배율 + 정밀 메커니즘 공격 배율(예: 플레쳐 매 3타)
+    if (typeof getTalentKeystoneDamageMul === 'function') {
+        let ksMul = getTalentKeystoneDamageMul(target, ele, crit, pStats);
+        if (typeof getTalentAttackDamageMul === 'function') ksMul *= getTalentAttackDamageMul();
+        if (ksMul !== 1) {
+            dmg = Math.floor(dmg * ksMul);
+            ailmentSourceDmg = Math.floor(ailmentSourceDmg * ksMul);
+        }
+    }
     return { damage: Math.max(0, Math.floor(dmg)), ailmentSourceDamage: Math.max(0, Math.floor(ailmentSourceDmg)), crit: crit, critChance: critChance, element: ele };
 }
 
@@ -1199,6 +1227,7 @@ function coreLoop() {
         runConditionGemAutoRules(pStats);
     }
     processPendingSlamEchoHits();
+    processTalentInquisitorMarks();
     tickAilments(pStats, 0.1);
     let ailmentMap = {};
     let activePlayerShock = null;
@@ -1293,7 +1322,8 @@ function coreLoop() {
     }
     if (game.playerHp > 0 && game.playerHp < pStats.maxHp) {
         let hpCap = getPlayerHpCap(pStats);
-        game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1);
+        let bloomRegenMul = Math.max(0.05, 1 - Math.max(0, Math.min(0.95, game.bloomTrialRegenSuppress || 0)));
+        game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1 * bloomRegenMul);
     }
     if ((game.delayedGuardHealPool || 0) > 0) {
         let tickHeal = Math.max(0, (game.delayedGuardHealPool / 4) * 0.1);
@@ -1438,6 +1468,7 @@ function coreLoop() {
                     let marker = { at: Math.max(5, Math.min(95, 10 + idx * 8)), elite: Math.random() < 0.18, boss: false };
                     let riftEnemy = createEnemy(zoneNow, marker, idx + 1);
                     riftEnemy.fromVoidRift = true;
+                    applyVoidRiftMobTuning(riftEnemy);
                     game.enemies.push(riftEnemy);
                     v.spawnedCount++;
                     if (game.settings.showSpawnLog !== false) addLog(`🕳️ 균열 출현 ${v.spawnedCount}/${v.totalToSpawn}`, 'attack-monster', { noToast: true });
@@ -1456,8 +1487,9 @@ function coreLoop() {
                 }
                 addLog(`🕳️ 공허의 구멍 정리 완료! 공허의 끌 +${reward}`, 'loot-magic', { noToast: true });
                 if (unlockedGrand) {
-                    addLog('🚨 대균열이 열렸습니다! [대균열 진입] 버튼을 확인하세요.', 'loot-unique');
-                    if (!v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
+                    let enteredGrand = typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady();
+                    if (!enteredGrand) addLog('🚨 대균열이 열렸습니다! [대균열 진입] 버튼을 확인하세요.', 'loot-unique');
+                    if (!enteredGrand && !v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
                         v.grandNoticeShown = true;
                         queueTutorialNotice('void_grand_breach_ready_once', '대균열 개방', '대균열이 열렸습니다! 지도 탭에서 [대균열 진입] 버튼으로 도전할 수 있습니다.', 'tab-map');
                     }
@@ -1499,6 +1531,32 @@ function processPendingSlamEchoHits() {
     game.pendingSlamEchoHits = next;
 }
 
+// 8 심문궁: 누적된 표식 피해를 5초 후 폭발(누적의 12%, 쿨타임 6초).
+function processTalentInquisitorMarks() {
+    // 적별 재능 런타임 맵 정리(존 이동 등으로 사라진 적 — 메모리 누수 방지)
+    let aliveIds = new Set((game.enemies || []).map(e => e && e.id));
+    if (game.talentDawnHits) Object.keys(game.talentDawnHits).forEach(id => { if (!aliveIds.has(Number(id))) delete game.talentDawnHits[id]; });
+    let store = game.talentInquisitorMarks;
+    if (!store || typeof store !== 'object') return;
+    let now = Date.now();
+    let lv = (typeof isTalentCardActive === 'function') ? isTalentCardActive('hero1__inquisitor') : 0;
+    Object.keys(store).forEach(id => {
+        let mk = store[id];
+        if (!mk) { delete store[id]; return; }
+        let enemy = (game.enemies || []).find(e => e && e.id === id && e.hp > 0);
+        if (!enemy) { delete store[id]; return; }
+        if (mk.explodeAt && now >= mk.explodeAt) {
+            let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
+            enemy.hp = Math.max(0, enemy.hp - dmg);
+            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: dmg, duration: 240 });
+            if (game.settings && game.settings.showCombatLog !== false) addLog(`⚖️ 심판 표식 폭발: ${formatNumberKR(dmg)}`, 'attack-player', { noToast: true });
+            mk.accumulated = 0; mk.explodeAt = 0; mk.cooldownUntil = now + 6000;
+            if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
+        }
+    });
+}
+const TALENT_CARD_MAX_LEVEL_REF = 10;
+
 
 safeExposeGlobals({ coreLoop, isRegularAutoProgressZone, reconcileMapProgressRuntimeState });
 
@@ -1539,7 +1597,7 @@ function getUniqueEffectImplementationReport() {
 
 function getEquippedUniqueJewels() {
     let equipped = [];
-    (game.jewelSlots || []).forEach((jewel, idx) => {
+    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
         if (jewel && jewel.rarity === 'unique' && jewel.uniqueId) equipped.push({ jewel, slot: idx, source: 'slot' });
     });
     Object.values(game.equipment || {}).forEach(item => {
@@ -1608,7 +1666,7 @@ function getPlayerStats() {
     let scaleStatList = (stats, multiplier) => multiplier === 1 ? (stats || []) : (stats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number(stat.val) * multiplier } : stat);
     Object.entries(game.equipment || {}).forEach(([equipSlotKey, item]) => {
         if (!item) return;
-        if (game.ascendClass === 'crusader' && hasKeystone('cr3') && item.slot === '무기') return;
+        if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9') && item.slot === '무기') return;
         if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '', sourceSlot: equipSlotKey });
         let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
         let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
@@ -1640,7 +1698,7 @@ function getPlayerStats() {
             if (stat.id === 'energyShield') itemBaseEs += Number(stat.val || 0);
             if (stat.id === 'baseBlockChance') shieldBaseBlockChance += Number(stat.val || 0);
         });
-        explicitItemStats.forEach(stat => {
+        let accumulateExplicitDefense = stat => {
             if (!stat) return;
             if (stat.id === 'armor') itemFlatArmor += Number(stat.val || 0);
             if (stat.id === 'evasion') itemFlatEvasion += Number(stat.val || 0);
@@ -1651,6 +1709,12 @@ function getPlayerStats() {
             if (stat.id === 'baseBlockChance') shieldBaseBlockChance += Number(stat.val || 0);
             if (stat.id === 'blockChancePct') shieldBlockChancePct += Number(stat.val || 0);
             if (stat.id === 'blockChance') shieldBlockChanceFlat += Number(stat.val || 0);
+        };
+        explicitItemStats.forEach(stat => {
+            if (!stat) return;
+            accumulateExplicitDefense(stat);
+            // 복합 옵션(한 줄에 방어flat + 방어%)의 추가 스탯도 방어 합산에 반영.
+            if (Array.isArray(stat.extraStats)) stat.extraStats.forEach(accumulateExplicitDefense);
         });
         localDefenseTotals.armor += (itemBaseArmor + itemFlatArmor) * (1 + itemPctArmor / 100);
         localDefenseTotals.evasion += (itemBaseEvasion + itemFlatEvasion) * (1 + itemPctEvasion / 100);
@@ -1674,8 +1738,8 @@ function getPlayerStats() {
         }
     });
     getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
-    game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0];
-    (game.jewelSlots || []).forEach((jewel, idx) => {
+    game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0, 0, 0];
+    (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
         let amp = Math.max(0, Math.floor((game.jewelSlotAmplify[idx] || 0)));
         let ampMul = 1 + (amp * 0.03);
         getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, Number((Number(stat.val || 0) * ampMul).toFixed(2))));
@@ -1683,9 +1747,10 @@ function getPlayerStats() {
     let equippedUniqueJewels = getEquippedUniqueJewels();
     let activeUniqueIds = new Set(equippedUniqueJewels.map(entry => entry.jewel.uniqueId));
     if (activeUniqueIds.has('uj_mirror_heart')) {
-        (game.jewelSlots || []).forEach((jewel, idx) => {
+        (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
             if (!jewel || jewel.uniqueId !== 'uj_mirror_heart') return;
-            let other = (game.jewelSlots || [])[idx === 0 ? 1 : 0];
+            let pairedIdx = idx % 2 === 0 ? idx + 1 : idx - 1;
+            let other = (game.jewelSlots || [])[pairedIdx];
             if (!other) return;
             getJewelStats(other).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val));
         });
@@ -1718,6 +1783,10 @@ function getPlayerStats() {
     if (activeUniqueIds.has('uj_condensed_curse')) uniqueCurseCrownPerCursePct = Math.max(uniqueCurseCrownPerCursePct, 10);
     let uniqueSummonDeathDamageBuff=null, uniqueSummonCritAspdStacks=null, uniqueSummonNonCritNoDamage=false;
     let uniqueBlockRecoverEnergyShieldPct=0, uniqueDeflectStealth=null, uniqueChaosTakenDamageReducePct=0, uniqueLifeRecoupTakenDamage=null;
+    // 재능 개화 표면 키스톤: 장착된 카드가 부여하는 고유 효과를 동일 파이프라인에 주입
+    if (typeof getActiveTalentKeystoneUniqueEffects === 'function') {
+        getActiveTalentKeystoneUniqueEffects().forEach(e => { if (e && e.key) equippedUniqueEffects.push(e); });
+    }
     equippedUniqueEffects.forEach(effect => {
         if (!effect || !effect.key) return;
         let ep = effect.params || {};
@@ -1922,7 +1991,7 @@ function getPlayerStats() {
     (heroDef.stats || []).forEach(row => {
         if (row && row.stat) addStatToBucket(reward, row.stat, row.value);
     });
-    if (game.passiveStarEvolution) {
+    if (game.passiveStarEvolution && Array.isArray(game.journalEntries) && game.journalEntries.includes('passive_star_evolution')) {
         Object.keys(PASSIVE_STAR_BLESSING).forEach(statId => addStatToBucket(starBlessing, statId, PASSIVE_STAR_BLESSING[statId]));
     }
     let talismanEntries = Object.values(game.talismanPlacements || {}).filter(entry => entry && entry.talisman);
@@ -2037,6 +2106,11 @@ function getPlayerStats() {
         }
     });
 
+    function sumNonSupportStat(statId) {
+        return gearBase[statId] + gearExplicit[statId] + passive[statId]
+            + season[statId] + ascend[statId] + reward[statId] + (starBlessing[statId] || 0);
+    }
+
     let gemSources = getTargetGemBonusSources(game.activeSkill);
     safeEquippedSupports.forEach(name => {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
@@ -2046,8 +2120,19 @@ function getPlayerStats() {
         let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
         let supportGemSources = getTargetGemBonusSources(name);
         let effectiveLevel = Math.max(1, gem.level + supportGemSources.total);
-        let val = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
+        let val;
+        if (db.scaleWithOwnStat) {
+            let ownStatTotal = sumNonSupportStat(db.scaleWithOwnStat);
+            let ratioPct = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
+            val = Math.max(0, ownStatTotal) * (ratioPct / 100);
+        } else {
+            val = (db.baseVal + ((effectiveLevel - 1) * db.scale)) * tierMul;
+        }
         addStatToBucket(support, db.stat, val);
+        if (db.capStat) {
+            let capVal = (db.capBase || 0) + Math.max(0, effectiveLevel - (db.capGrowAfterLevel || 0)) * (db.capPerLevel || 0);
+            addStatToBucket(support, db.capStat, capVal);
+        }
     });
 
     if (game.shrineBuff && Date.now() > (game.shrineBuff.expiresAt || 0)) game.shrineBuff = null;
@@ -2068,6 +2153,15 @@ function getPlayerStats() {
     if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += (gearBase.targetSlam + gearExplicit.targetSlam + passive.targetSlam + season.targetSlam + ascend.targetSlam + reward.targetSlam);
     if (targetBonus > 0) skill.targets = Math.min(Array.isArray(skill.tags) && skill.tags.includes('projectile') ? 12 : 6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
     else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
+    // 재능: 1 아방가르드 — 물리/투사체 스킬 관통(대상 최대화)
+    if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__warrior') && (skill.ele === 'phys' || (Array.isArray(skill.tags) && skill.tags.includes('projectile')))) {
+        skill.targets = 6;
+    }
+    // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
+    let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
+    if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses());
+    let talentLine = function (stat, suffix) { let v = talentStatMap[stat]; return v ? `🌸 재능 개화 +${Math.round(v * 100) / 100}${suffix || '%'} (위 합계에 포함)` : null; };
+
     let gearTagged = getTaggedDamageBreakdown(gearBase, skill);
     let gearExplicitTagged = getTaggedDamageBreakdown(gearExplicit, skill);
     let passiveTagged = getTaggedDamageBreakdown(passive, skill);
@@ -2174,9 +2268,39 @@ function getPlayerStats() {
         let spellFlatPct = gearBase.spellFlatPct + gearExplicit.spellFlatPct + passive.spellFlatPct + season.spellFlatPct + ascend.spellFlatPct + reward.spellFlatPct + support.spellFlatPct;
         spellFlatDmg = Math.max(1, ((spellBase * 3) + Math.max(0, skillLevel - 1) * spellScale + (spellBase * 0.8 * logBoost * logBoost) + spellFlatBonus) * (1 + spellFlatPct / 100));
         spellFlatDmg *= (1 + Math.max(0, Number(skill.spellFlatMulBonus) || 0) / 100);
+        // 부패 증식(워록 wlk2): 지속 피해 배율 20% 증폭과 동일하게 주문 내장 피해도 20% 증가시킨다.
+        if (game.ascendClass === 'warlock' && hasKeystone('wlk2')) spellFlatDmg *= 1.20;
     }
-    let totalFlatDmg = (isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg)) + coreCubeFlatElementDamageTotal;
+    // 속성별 기본 피해(flat)는 일반 피해 풀에 섞지 않고, 아래에서 속성 타입을 유지한 별도 타격으로 적용한다.
+    let totalFlatDmg = (isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg));
     let codexBonusRatio = 1 + (getCodexBonusPct() / 100);
+
+    // 속성별 기본 피해(flat): 무기/반지/장갑의 속성 flat 옵션 + 코어 큐브 속성 flat을 합산하여,
+    // 각 속성의 피해% 증가(원소는 원소 피해% 포함)와 전체 피해 증가를 반영한 1타 기준 피해로 환산한다.
+    // 실제 타격 시에는 해당 속성 저항으로 경감되고 치명타/굴림 보정을 함께 받는다.
+    let flatElementSources = {
+        phys: sumStatAcrossBuckets('physFlatDmg'),
+        fire: sumStatAcrossBuckets('fireFlatDmg'),
+        cold: sumStatAcrossBuckets('coldFlatDmg'),
+        light: sumStatAcrossBuckets('lightFlatDmg'),
+        chaos: sumStatAcrossBuckets('chaosFlatDmg')
+    };
+    let flatElementElementalPct = sumStatAcrossBuckets('elementalPctDmg');
+    let flatElementPctByEle = {
+        phys: sumStatAcrossBuckets('physPctDmg'),
+        fire: sumStatAcrossBuckets('firePctDmg') + flatElementElementalPct,
+        cold: sumStatAcrossBuckets('coldPctDmg') + flatElementElementalPct,
+        light: sumStatAcrossBuckets('lightPctDmg') + flatElementElementalPct,
+        chaos: sumStatAcrossBuckets('chaosPctDmg')
+    };
+    let flatElementSkillMul = (skill.dmg || skill.baseDmg || 1) * codexBonusRatio;
+    let flatElementHitDamage = { phys: 0, fire: 0, cold: 0, light: 0, chaos: 0 };
+    ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(ele => {
+        let amt = Math.max(0, Number(flatElementSources[ele]) || 0);
+        if (amt <= 0) return;
+        let inc = 1 + (generalPctDmg + Math.max(0, flatElementPctByEle[ele])) / 100;
+        flatElementHitDamage[ele] = amt * inc * flatElementSkillMul;
+    });
 
     let gearFlatHp = gearBase.flatHp + gearExplicit.flatHp;
     let passiveFlatHp = passive.flatHp + season.flatHp + ascend.flatHp + reward.flatHp;
@@ -2195,13 +2319,17 @@ function getPlayerStats() {
     let passiveAspd = passive.aspd + season.aspd + ascend.aspd + reward.aspd;
     let totalAspdPct = gearAspd + passiveAspd + support.aspd;
     let rawAspd = (1.0 + glovePairAspdBonus) * (1 + totalAspdPct / 100) * (skill.spd || skill.baseSpd || 1) * 0.88;
-    let finalAspd = rawAspd <= 5 ? rawAspd : (5 + Math.pow(Math.max(0, rawAspd - 5), 0.72));
+    // 극한의 속사(레인저 r9): 공격 속도 소프트캡 기준치 +2
+    let aspdSoftCapKnee = (game.ascendClass === 'ranger' && hasKeystone('r9')) ? 7 : 5;
+    let finalAspd = rawAspd <= aspdSoftCapKnee ? rawAspd : (aspdSoftCapKnee + Math.pow(Math.max(0, rawAspd - aspdSoftCapKnee), 0.72));
     finalAspd = Math.min(12, finalAspd);
 
     let gearCrit = gearBase.crit + gearExplicit.crit;
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82;
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
+    game.oceanOxygenMaxBonus = Math.max(0, gearBase.oxygenMax + gearExplicit.oxygenMax + passive.oxygenMax + season.oxygenMax + ascend.oxygenMax + reward.oxygenMax);
+    game.oceanOxygenDrainReductionPct = Math.max(0, Math.min(80, gearBase.oxygenRegen + gearExplicit.oxygenRegen + passive.oxygenRegen + season.oxygenRegen + ascend.oxygenRegen + reward.oxygenRegen));
     let activeShadowStealth = uniqueDeflectStealth && (game.shadowStealthExpiresAt || 0) > Date.now();
     if (activeShadowStealth) finalMove += Math.max(0, Number(uniqueDeflectStealth.move || 20));
     if (uniqueKillMoveStacks && game.uniqueKillMoveStacksState && (game.uniqueKillMoveStacksState.expiresAt || 0) > Date.now()) finalMove += Math.max(0, Math.floor(game.uniqueKillMoveStacksState.stacks || 0)) * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
@@ -2214,7 +2342,24 @@ function getPlayerStats() {
         finalAspd *= (1 - gravitySlow);
         finalMove *= (1 - gravitySlow);
     }
-    let finalDamageMultiplier = 1;
+    let oceanPressureDamageMul = 1;
+    if (zonePenalty && zonePenalty.type === 'oceanDepth') {
+        let depthTier = Math.max(0, Math.floor(zonePenalty.depthTier || 0));
+        let pressureResistPct = Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist') + (typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0)));
+        let pressureSlow = Math.min(0.65, depthTier * 0.05) * (1 - pressureResistPct / 100);
+        finalAspd *= (1 - pressureSlow);
+        oceanPressureDamageMul *= (1 - pressureSlow * 0.6);
+        // 이동속도는 수압의 영향을 압축해서 받아 100%에 가깝게 유지(체감 페널티 완만화)
+        finalMove *= (1 - pressureSlow * 0.2);
+    }
+    if (zonePenalty && zonePenalty.bloomTrial && zonePenalty.underworldPenaltyFloor) {
+        // 지하계 N층급 중력 패널티: 창공석으로 줄일 수 없음
+        let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || 1));
+        let gravitySlow = Math.min(0.75, 0.12 + Math.max(0, uf - 1) * 0.018);
+        finalAspd *= (1 - gravitySlow);
+        finalMove *= (1 - gravitySlow);
+    }
+    let finalDamageMultiplier = 1 * oceanPressureDamageMul;
     if (uniqueLabyrinthShackles) {
         finalDamageMultiplier *= getLabyrinthShacklesDamageMultiplier(finalMove);
         finalMove = 100;
@@ -2367,12 +2512,20 @@ function getPlayerStats() {
         ? (Math.max(0, rawResF - finalMaxResF) + Math.max(0, rawResC - finalMaxResC) + Math.max(0, rawResL - finalMaxResL)) * 0.25
         : 0;
     let finalResChaos = Math.min(finalMaxResChaos, rawResChaos + warlockElementalOvercapToChaos);
+    // 액막이 부적(군락 수호구)의 원소 저항/최대 화염 저항도 초과 화염 저항 계수에 반영되도록
+    // 화염 저항 오버캡 계산 전에 군락 수호구 보너스를 먼저 합산한다.
+    let cw = (game && game.colony && Array.isArray(game.colony.wardEquipped)) ? game.colony.wardEquipped : [];
+    let cwSlots = Math.max(1, Math.min(4, Math.floor((game && game.colony && game.colony.wardSlots) || 1)));
+    if (game && game.colony) game.colony.wardSlots = cwSlots;
+    cw.slice(0, cwSlots).forEach(w => { if (w && w.stat) colonyWardBonus[w.stat] = (colonyWardBonus[w.stat] || 0) + Number(w.val || 0); });
+    let fireResForOvercap = rawResF + (colonyWardBonus.resAll || 0);
+    let maxResFForOvercap = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
     if (activeUniqueIds.has('uj_burning_will')) {
-        let overcapFire = Math.max(0, rawResF - finalMaxResF);
+        let overcapFire = Math.max(0, fireResForOvercap - maxResFForOvercap);
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(0.35, overcapFire * 0.005)));
     }
     let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
-    let fireResOvercap = Math.max(0, rawResF - finalMaxResF);
+    let fireResOvercap = Math.max(0, fireResForOvercap - maxResFForOvercap);
     let fireResOvercapCap = Number.isFinite(Number(skill.fireResOvercapCap)) ? Math.max(0, Number(skill.fireResOvercapCap)) : Infinity;
     let effectiveFireResOvercap = Math.min(fireResOvercap, fireResOvercapCap);
     let fireResOvercapAdditiveMultiplier = Math.max(0, skill.fireResOvercapMulPerPct || 0);
@@ -2409,7 +2562,7 @@ function getPlayerStats() {
         fireResOvercap: fireResOvercap,
         effectiveFireResOvercap: effectiveFireResOvercap,
         fireResOvercapCap: fireResOvercapCap,
-        rawResF: rawResF,
+        rawResF: fireResForOvercap,
         fireResOvercapAdditiveMultiplier: fireResOvercapAdditiveMultiplier,
         dot: dotMultiplier,
         dotStat: dotStatMultiplier,
@@ -2459,6 +2612,11 @@ function getPlayerStats() {
             finalMove *= 1.15;
             finalDamageMultiplier *= 1.15;
             finalDs += 15;
+        }
+        // 9) 전쟁광: 주는 피해 40% 증폭, 받는 피해 10% 증폭
+        if (hasKeystone('w9')) {
+            finalDamageMultiplier *= 1.40;
+            warriorTakenDamageMultiplier *= 1.10;
         }
     } else if (game.ascendClass === 'gladiator') {
         if (hasKeystone('g1')) {
@@ -2520,6 +2678,11 @@ function getPlayerStats() {
             finalCritDmg *= 2;
             finalBaseDmg = Math.floor(finalBaseDmg * 0.75);
         }
+        // 9) 암영 극의: 치명타 피해 배율 20% 증폭 및 회피 20% 증폭
+        if (hasKeystone('a9')) {
+            finalCritDmg = Math.floor(finalCritDmg * 1.2);
+            finalEvasion = Math.floor(finalEvasion * 1.2);
+        }
     } else if (game.ascendClass === 'ranger') {
         if (hasKeystone('r1')) {
             finalMove *= 1.15;
@@ -2566,6 +2729,11 @@ function getPlayerStats() {
             let dsAsCrit = Math.max(0, finalDs);
             finalDs = 0;
             finalCrit = Math.min(1000, finalCrit + dsAsCrit);
+        }
+        // 9) 일격필살: 공격 속도 1 고정, 공격 속도 증가분을 피해량 증폭으로 전환
+        if (hasKeystone('h9')) {
+            finalDamageMultiplier *= (1 + Math.max(0, totalAspdPct) / 100);
+            finalAspd = 1;
         }
     } else if (game.ascendClass === 'crusader') {
         if (hasKeystone('cr1')) { finalRegen += 1.5; finalRegen *= 1.4; }
@@ -2619,6 +2787,8 @@ function getPlayerStats() {
             finalResPen += 20;
             finalCritDmg -= 25;
         }
+        // 9) 절대 관통: 원소 저항 관통 +100% (관통 하한은 -300%까지, 적용은 mitigation 계산부)
+        if (hasKeystone('e9')) finalResPen += 100;
         if (hasKeystone('e8')) {
             let stacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0));
             finalDamageMultiplier *= (1 + stacks * 0.04);
@@ -2632,32 +2802,31 @@ function getPlayerStats() {
             }
         }
     } else if (game.ascendClass === 'warlock') {
+        if (hasKeystone('wlk1')) {
+            chaosDamageMultiplier *= 1.20;
+        }
         if (hasKeystone('wlk2')) {
-            totalDotDamageMultiplier *= 1.10;
+            totalDotDamageMultiplier *= 1.20;
             instantDamageMultiplier *= 0.90;
         }
         if (hasKeystone('wlk3')) {
-            finalRegen = 0;
             finalEnergyShieldRegenRate = 0;
         }
         if (hasKeystone('wlk6')) {
-            finalResPen += 43;
+            finalResPen += 21 + Math.max(0, finalCrit);
             finalCrit = 0;
-            finalPoisonChance += 25;
         }
         if (hasKeystone('wlk8')) {
             chaosDamageMultiplier *= 1.25;
             finalLeech *= 0.5;
             finalRegen *= 0.5;
-            finalPoisonChance += 25;
         }
         if (hasKeystone('wlk5')) {
-            dotTickIntervalMultiplier /= 1.33;
+            dotTickIntervalMultiplier /= 1.50;
             dotDurationMultiplier *= 0.5;
         }
         if (hasKeystone('wlk7')) {
-            if ((game.playerEnergyShield || 0) <= (finalEnergyShield * 0.5)) finalBaseDmg = Math.floor(finalBaseDmg * 1.2);
-            finalDr = Math.max(-40, finalDr - 12);
+            if ((game.playerEnergyShield || 0) >= (finalEnergyShield * 0.5)) finalBaseDmg = Math.floor(finalBaseDmg * 1.25);
         }
     } else if (game.ascendClass === 'guardian') {
         if (hasKeystone('gd1')) {
@@ -2688,6 +2857,8 @@ function getPlayerStats() {
                 game.guardianLastStandCleanseAt = now;
             }
         }
+        // 9) 거대화: 최대 생명력 20% 증폭
+        if (hasKeystone('gd9')) finalMaxHp = Math.floor(finalMaxHp * 1.2);
     } else if (game.ascendClass === 'inquisitor') {
         if (hasKeystone('iq3')) {
             let sealedGemCount = (game.sealedSkills || []).length + (game.sealedSupports || []).length;
@@ -2695,6 +2866,8 @@ function getPlayerStats() {
             suppCap += 1;
             finalAspd = Math.max(0.1, finalAspd * 0.94);
         }
+        // 9) 무한한 권능: 확보한 보조 젬 한도 1당 공명력 +15 (공명력 폭주 방지를 위해 무제한 확장 전의 '획득' 한도 기준)
+        if (hasKeystone('iq9')) inquisitorResonanceBonus += 15 * Math.max(0, suppCap);
         let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + runeResonancePower + (reward.runeResonancePower || 0) + inquisitorResonanceBonus));
         if (cosmosTwinStarResonance) inquisitorResonancePower = Math.floor(inquisitorResonancePower * Math.max(0, cosmosTwinStarResonance.resonanceMul || 1.5));
         let inquisitorElementalSkill = ['fire', 'cold', 'light'].includes(skill.ele) || (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0);
@@ -2713,6 +2886,8 @@ function getPlayerStats() {
             inquisitorAbsoluteDoctrinePct = Math.max(0, finalResPen);
             finalBaseDmg = Math.floor(finalBaseDmg * (1 + inquisitorAbsoluteDoctrinePct / 100));
         }
+        // 무한한 권능: 보조 젬 한도 무제한
+        if (hasKeystone('iq9')) suppCap += 999;
     } else if (game.ascendClass === 'soulbinder') {
         if (hasKeystone('sb4')) { sbSummonAspdBonus += 15; sbSummonCapBonus += 1; }
         if (hasKeystone('sb8')) sbSummonCapBonus += 3;
@@ -2764,6 +2939,11 @@ function getPlayerStats() {
             totalDotDamageMultiplier *= (1 + (convertedCritChance + convertedCritDamage) / 100);
             if (Array.isArray(skill.tags) && skill.tags.includes('attack')) finalCrit = 100;
             finalCritDmg = 100 + Math.max(0, (totalDotDamageMultiplier - 1) * 100 * 0.2);
+        }
+        // 9) 급성 발현: 점화/중독/출혈 피해 간격 및 지속 시간 50% 감폭(총 피해 유지, 더 빠르게 폭발)
+        if (hasKeystone('ct9')) {
+            dotTickIntervalMultiplier *= 0.5;
+            dotDurationMultiplier *= 0.5;
         }
     }
 
@@ -2831,6 +3011,9 @@ function getPlayerStats() {
         damageScales.estimatedSkillDotDps = estimatedSkillDotDps;
     }
     let finalPlayerSkillDps = finalDpsWithProjectileShots + estimatedSkillDotDps;
+    // 재능 개화 키스톤: 상시 피해 배율을 표시 DPS에 반영(조건부는 툴팁에 별도 표기)
+    let talentDpsSummary = (typeof getTalentKeystoneDamageSummary === 'function') ? getTalentKeystoneDamageSummary() : { alwaysMul: 1, conditional: [] };
+    if (talentDpsSummary.alwaysMul !== 1) finalPlayerSkillDps *= talentDpsSummary.alwaysMul;
     let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? getFlameDecayIgniteTakenMultiplier({ maxHp: finalMaxHp, sSkill: skill }) : 1;
     let flameDecayDpsLines = [];
     if (skill.flameDecayDebuff) {
@@ -2838,7 +3021,7 @@ function getPlayerStats() {
             `화염 부패 기대 지속 DPS ${Math.floor(estimatedSkillDotDps)} (생명력/초과 화염 저항/지속 피해 배율 적용, 적 저항 적용 전)`,
             `생명력 계수: 최대 생명력 ${Math.floor(finalMaxHp)} → 내장 피해 +${Math.floor(hpFlatBonus)}`,
             (skill.regenDmgScale || 0) > 0 ? `생명력 재생 계수: ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
-            `초과 화염 저항 계수: ${fireResScaledBonus.toFixed(2)}x (미적용 화염 저항 ${Math.floor(rawResF)}% / 최대 ${Math.floor(finalMaxResF)}%, 초과 ${fireResOvercap.toFixed(1)}% 중 적용 ${effectiveFireResOvercap.toFixed(1)}%)`,
+            `초과 화염 저항 계수: ${fireResScaledBonus.toFixed(2)}x (미적용 화염 저항 ${Math.floor(fireResForOvercap)}% / 최대 ${Math.floor(maxResFForOvercap)}%, 초과 ${fireResOvercap.toFixed(1)}% 중 적용 ${effectiveFireResOvercap.toFixed(1)}%)`,
             `지속 피해 총 배율: ${totalDotDamageMultiplier.toFixed(2)}x (스킬 ${dotMultiplier.toFixed(2)}x · 스탯 ${dotStatMultiplier.toFixed(2)}x)`,
             `화염 부패 대상 점화 피해 증폭: ${flameDecayIgniteTakenMultiplierPreview.toFixed(2)}x (생명력 100당 ${(Math.max(0, Number(skill.igniteTakenHpScalePer100 || 0)) * 100).toFixed(1)}%, 최대 ${(Math.max(1, Number(skill.igniteTakenMaxMultiplier || 0)) || 1).toFixed(1)}x)`,
             `실제 적별 화염 부패 DPS는 적 상태이상 툴팁에서 저항/심연 배율까지 반영해 표시됩니다.`
@@ -2878,10 +3061,6 @@ function getPlayerStats() {
     }
 
 
-    let cw = (game && game.colony && Array.isArray(game.colony.wardEquipped)) ? game.colony.wardEquipped : [];
-    let cwSlots = Math.max(1, Math.min(4, Math.floor((game && game.colony && game.colony.wardSlots) || 1)));
-    if (game && game.colony) game.colony.wardSlots = cwSlots;
-    cw.slice(0, cwSlots).forEach(w => { if (w && w.stat) colonyWardBonus[w.stat] = (colonyWardBonus[w.stat] || 0) + Number(w.val || 0); });
     finalMaxResF = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
     finalMaxResC = Math.min(90, finalMaxResC + (colonyWardBonus.maxResC || 0));
     finalMaxResL = Math.min(90, finalMaxResL + (colonyWardBonus.maxResL || 0));
@@ -2898,7 +3077,7 @@ function getPlayerStats() {
     finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
     finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0));
     finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0));
-    finalResChaos = Math.min(finalMaxResChaos, finalResChaos + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0));
+    finalResChaos = Math.min(finalMaxResChaos, finalResChaos + (colonyWardBonus.resChaos || 0));
     finalRegen += (colonyWardBonus.regenFlat || 0);
     finalEnergyShieldRegenRate += (colonyWardBonus.energyShieldRegen || 0);
     finalCritResist = Math.min(80, finalCritResist + (colonyWardBonus.critResist || 0));
@@ -2912,7 +3091,7 @@ function getPlayerStats() {
     let uncappedResF = rawResF + (colonyWardBonus.resAll || 0);
     let uncappedResC = rawResC + (colonyWardBonus.resAll || 0);
     let uncappedResL = rawResL + (colonyWardBonus.resAll || 0);
-    let uncappedResChaos = rawResChaos + warlockElementalOvercapToChaos + elementalistChaosConversionBonus + (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0);
+    let uncappedResChaos = rawResChaos + warlockElementalOvercapToChaos + elementalistChaosConversionBonus + (colonyWardBonus.resChaos || 0);
     let medicineResistanceAilmentBonus = { ignite: 0, freeze: 0, shock: 0 };
     if (game.ascendClass === 'catalyst' && hasKeystone('ct2')) {
         let highestUncappedElementalResistance = Math.max(uncappedResF, uncappedResC, uncappedResL);
@@ -3013,6 +3192,7 @@ function getPlayerStats() {
                 makeSourceLine('성좌 각성', starBlessing.pctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('총 피해 증가', generalPctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('태그 보너스', baseTaggedTotal, '%', value => `${Math.floor(value)}%`),
+                talentLine('pctDmg'),
                 crusaderThunderDoctrinePct > 0 ? makeSourceLine('천뢰 교리(화염/냉기 → 번개)', crusaderThunderDoctrinePct, '%', value => `${Math.floor(value)}%`) : null,
                 crusaderThunderDoctrinePct > 0 ? makeSourceLine('피해 증가 합계', generalPctDmg + taggedTotal, '%', value => `${Math.floor(value)}%`) : null,
                 taggedSummary.length > 0 ? `적용 태그: ${taggedSummary.join(' / ')}` : null,
@@ -3021,7 +3201,7 @@ function getPlayerStats() {
                 crusaderHolyFlatDmg > 0 ? `신성한 검 번개 기본 피해 +${Math.floor(crusaderHolyFlatDmg)} → ${Math.floor(crusaderHolyScaledDmg)} (피해 증가 적용)` : null,
                 (skill.regenDmgScale || 0) > 0 ? `재생 계수 배율 ${regenScaledBonus.toFixed(2)}x (재생 ${formatValue('regen', finalRegen)}%)` : null,
                 (skill.fireResDmgScale || 0) > 0 ? `화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (화염 저항 ${Math.floor(finalResF)}%)` : null,
-                (skill.fireResOvercapMulPerPct || 0) > 0 ? `초과 화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (미적용 화염 저항 ${Math.floor(rawResF)}%/${Math.floor(finalMaxResF)}%, 초과 ${fireResOvercap.toFixed(1)}% 중 적용 ${effectiveFireResOvercap.toFixed(1)}%)` : null,
+                (skill.fireResOvercapMulPerPct || 0) > 0 ? `초과 화염 저항 계수 배율 ${fireResScaledBonus.toFixed(2)}x (미적용 화염 저항 ${Math.floor(fireResForOvercap)}%/${Math.floor(maxResFForOvercap)}%, 초과 ${fireResOvercap.toFixed(1)}% 중 적용 ${effectiveFireResOvercap.toFixed(1)}%)` : null,
                 (skill.dotMultiplier || 1) !== 1 ? `스킬 지속 피해 배율 ${dotMultiplier.toFixed(2)}x` : null,
                 dotPctDmg > 0 ? `지속 피해 배율 스탯 ${Math.floor(dotPctDmg)}% (${dotStatMultiplier.toFixed(2)}x)` : null,
                 instantDamageMultiplier !== 1 ? `즉발 피해 배율 ${instantDamageMultiplier.toFixed(2)}x` : null,
@@ -3041,6 +3221,7 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearAspd, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passiveAspd, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조 젬', support.aspd, '%', value => `${Math.floor(value)}%`),
+                talentLine('aspd'),
                 glovePairAspdBonus > 0 ? `동형 장갑 세트 보너스 +${glovePairAspdBonus.toFixed(2)} 기본 공속` : null,
                 `스킬 속도 배율 ${formatPercentMultiplier(skill.spd || 1)}`,
                 rawAspd > 5 ? `소프트캡 적용중 (원시 ${rawAspd.toFixed(2)} → 최종 ${finalAspd.toFixed(2)})` : null
@@ -3054,7 +3235,8 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearCrit, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passiveCrit, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('보조 젬', support.crit, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('스킬', skill.crit || 0, '%', value => `${value.toFixed(1)}%`)
+                makeSourceLine('스킬', skill.crit || 0, '%', value => `${value.toFixed(1)}%`),
+                talentLine('crit')
             ].filter(Boolean),
             final: `${finalCrit.toFixed(1)}%`
         },
@@ -3064,7 +3246,8 @@ function getPlayerStats() {
                 `기본 150%`,
                 makeSourceLine('장비', gearBase.critDmg + gearExplicit.critDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.critDmg + season.critDmg + ascend.critDmg + reward.critDmg, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.critDmg, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('보조 젬', support.critDmg, '%', value => `${Math.floor(value)}%`),
+                talentLine('critDmg')
             ].filter(Boolean),
             final: `${Math.floor(finalCritDmg)}%`
         },
@@ -3075,7 +3258,8 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearBase.move + gearExplicit.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.move + season.move + ascend.move + reward.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('성좌 각성', starBlessing.move, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조 젬', support.move, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('보조 젬', support.move, '%', value => `${Math.floor(value)}%`),
+                talentLine('move')
             ].filter(Boolean),
             final: `${Math.floor(finalMove)}%`
         },
@@ -3086,7 +3270,8 @@ function getPlayerStats() {
                 makeSourceLine('장비', gearFlatHp),
                 makeSourceLine('패시브', passiveFlatHp),
                 makeSourceLine('성좌 각성', starBlessing.flatHp),
-                makeSourceLine('생명력 증가', totalPctHp, '%', value => `${Math.floor(value)}%`)
+                makeSourceLine('생명력 증가', totalPctHp, '%', value => `${Math.floor(value)}%`),
+                talentLine('pctHp')
             ].filter(Boolean),
             final: `${Math.floor(finalMaxHp)}`
         },
@@ -3095,7 +3280,8 @@ function getPlayerStats() {
             lines: [
                 makeSourceLine('장비', gearBase.regen + gearExplicit.regen, '%', value => `${formatValue('regen', value)}%`),
                 makeSourceLine('패시브', passive.regen + season.regen + ascend.regen + reward.regen, '%', value => `${formatValue('regen', value)}%`),
-                makeSourceLine('보조 젬', support.regen, '%', value => `${formatValue('regen', value)}%`)
+                makeSourceLine('보조 젬', support.regen, '%', value => `${formatValue('regen', value)}%`),
+                talentLine('regen')
             ].filter(Boolean),
             final: `${formatValue('regen', finalRegen)}%`
         },
@@ -3278,7 +3464,7 @@ function getPlayerStats() {
             formatResistanceSourceLine('암흑 치환', warlockElementalOvercapToChaos),
             formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resChaos),
             formatResistanceSourceLine('공허 결합', elementalistChaosConversionBonus),
-            formatResistanceSourceLine('군락 수호구', (colonyWardBonus.resAll || 0) + (colonyWardBonus.resChaos || 0))
+            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resChaos || 0)
         ], [
             formatResistanceSourceLine('최대 저항 · 약품 내성', resistanceBlendMaxBonus),
             formatResistanceSourceLine('최대 저항 · 군락 수호구', colonyWardBonus.maxResChaos || 0)
@@ -3329,6 +3515,8 @@ function getPlayerStats() {
                 coreCubeAddedDamageTotalPct > 0 ? `코어 큐브 추가 피해 x${expectedAddedDamageMultiplier.toFixed(2)} (총 피해의 ${Math.floor(coreCubeAddedDamageTotalPct)}% → ${coreCubeAddedDamageParts.join(' / ')})` : null,
                 isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null,
                 estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null,
+                talentDpsSummary.alwaysMul !== 1 ? `🌸 재능 개화 키스톤(상시) x${talentDpsSummary.alwaysMul.toFixed(2)}` : null,
+                (talentDpsSummary.conditional && talentDpsSummary.conditional.length) ? `🌸 재능 개화 키스톤(조건부): ${talentDpsSummary.conditional.map(c => `${(typeof getTalentKeystoneConditionText === 'function' ? getTalentKeystoneConditionText(c.when, c.threshold) : '')}+${Math.floor(c.moreMul)}%`).join(', ')} (상황별 추가 적용)` : null,
                 (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? `상호 보완: 소환수 공격력 공유로 기본 피해 +${Math.floor(sbSummonShareToPlayer)} 반영 (DPS 포함)` : null
             ].concat(flameDecayDpsLines).filter(Boolean),
             final: `${Math.floor(finalPlayerSkillDps)}`
@@ -3457,6 +3645,7 @@ function getPlayerStats() {
         randomElementDamagePct: randomElementDamagePct,
         addedDamagePctByElement: coreCubeAddedDamagePct,
         flatElementDamage: coreCubeFlatElementDamage,
+        flatElementHitDamage: flatElementHitDamage,
         takenFlatReduce: coreCubeTakenFlatReduce,
         physTakenAs: coreCubePhysTakenAs,
         talismanBossFinalDmgBonusPct: talismanBossFinalDmgBonusPct,
@@ -3519,6 +3708,7 @@ function getPlayerStats() {
         runeCorpseExplodeChance: runeCorpseExplodeChance,
         runeCorpseExplodeLifePct: runeCorpseExplodeLifePct,
         runeResonancePower: runeResonancePower,
+        supportScaleBases: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumNonSupportStat(statId))])),
         summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
         summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0) + (((game.summonDeathDamageBuffExpiresAt || 0) > Date.now()) ? Math.max(0, Number(game.summonDeathDamageBuffPct || 0)) : 0)),
         summonSharedPctDmg: Math.max(0, generalPctDmg),
@@ -3527,13 +3717,25 @@ function getPlayerStats() {
         summonHpPct: Math.max(0, (gearBase.summonHpPct || 0) + (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (support.summonHpPct || 0) + (reward.summonHpPct || 0)),
         summonCrit: Math.max(0, (gearBase.summonCrit || 0) + (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (support.summonCrit || 0) + (reward.summonCrit || 0)),
         summonCritDmg: Math.max(0, (gearBase.summonCritDmg || 0) + (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (support.summonCritDmg || 0) + (reward.summonCritDmg || 0)),
-        summonCap: Math.max(1, 1 + Math.floor((gearBase.summonCap || 0) + (gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (support.summonCap || 0) + (reward.summonCap || 0) + sbSummonCapBonus)),
+        summonCap: Math.max(1, Math.floor((1 + Math.floor((gearBase.summonCap || 0) + (gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (support.summonCap || 0) + (reward.summonCap || 0) + sbSummonCapBonus)) * ((game.ascendClass === 'soulbinder' && hasKeystone('sb9')) ? 1.5 : 1))),
+        curseCap: 1 + sumStatAcrossBuckets('curseCap') + ((game.ascendClass === 'warlock' && hasKeystone('wlk9')) ? 1 : 0),
         summonEfficiency: Math.max(0, (gearBase.summonEfficiency || 0) + (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (support.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
         summonResPen: Math.max(0, (gearBase.summonResPen || 0) + (gearExplicit.summonResPen || 0) + (passive.summonResPen || 0) + (season.summonResPen || 0) + (ascend.summonResPen || 0) + (support.summonResPen || 0) + (reward.summonResPen || 0)),
         summonGuardRedirectPct: Math.max(0, Math.min(100, (gearBase.summonGuardRedirectPct || 0) + (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (support.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0))),
         poisonDamageMultiplierPct: Math.max(0, finalPoisonDamageMultiplierPct),
         shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
-        sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower)
+        sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower),
+        oceanPressureResist: Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist') + (typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0))),
+        oceanDepthGainPct: Math.max(0, sumStatAcrossBuckets('oceanDepthGainPct')),
+        oceanOxygenAttackSavingPct: Math.max(0, Math.min(90, sumStatAcrossBuckets('oceanOxygenAttackSavingPct'))),
+        oceanRareFishChancePct: Math.max(0, sumStatAcrossBuckets('oceanRareFishChancePct')),
+        bossDamagePct: Math.max(0, sumStatAcrossBuckets('bossDamagePct')),
+        eliteDamagePct: Math.max(0, sumStatAcrossBuckets('eliteDamagePct')),
+        firstStrikeDamagePct: Math.max(0, sumStatAcrossBuckets('firstStrikeDamagePct')),
+        cullStrikePct: Math.max(0, Math.min(20, sumStatAcrossBuckets('cullStrikePct'))),
+        echoPower: Math.max(0, sumStatAcrossBuckets('echoPower')),
+        chaosErosion: Math.max(0, sumStatAcrossBuckets('chaosErosion')),
+        chaosErosionCap: Math.max(0, sumStatAcrossBuckets('chaosErosionCap'))
     };
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
@@ -3588,7 +3790,10 @@ function getGemPresentation(name, isSupport) {
         let val = db.baseVal + ((totalLevel - 1) * db.scale);
         let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
         let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
-        return { baseLevel: gem.level, totalLevel: totalLevel, value: val * tierMul, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources };
+        let ratioPct = val * tierMul;
+        let scaleBase = db.scaleWithOwnStat ? Math.max(0, Number(stats.supportScaleBases && stats.supportScaleBases[db.scaleWithOwnStat]) || 0) : 0;
+        let value = db.scaleWithOwnStat ? scaleBase * (ratioPct / 100) : ratioPct;
+        return { baseLevel: gem.level, totalLevel: totalLevel, value: value, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources, scaleWithOwnStat: db.scaleWithOwnStat || null, scaleBase: scaleBase, scaleRatioPct: ratioPct };
     }
     let db = SKILL_DB[name];
     if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: '정의되지 않은 스킬', skill: SKILL_DB['기본 공격'], tags: ['attack'] };
@@ -3689,8 +3894,8 @@ function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
     }
 }
 function applyChaosRealmAffixesToEnemy(enemy, zone) {
-    if (!enemy || !zone || zone.type !== 'chaosRealm') return enemy;
-    let floor = Math.max(1, Math.floor(zone.floor || 1));
+    if (!enemy || !zone || (zone.type !== 'chaosRealm' && !zone.bloomTrialAffixFloor)) return enemy;
+    let floor = Math.max(1, Math.floor(zone.bloomTrialAffixFloor || zone.floor || 1));
     let scale = getChaosRealmAffixScale(floor);
     let affixes = getChaosRealmAffixes(floor);
     enemy.chaosRealmFloor = floor;
@@ -3767,6 +3972,9 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
         let deb = game.enemyUniqueChaosResDown[enemy.id];
         rawMitigation -= Math.max(0, (deb.perHit || 0) * (deb.stacks || 0));
     }
+    if (skillEle === 'chaos' && enemy && enemy.chaosErosionShred) {
+        rawMitigation -= enemy.chaosErosionShred;
+    }
     if (skillEle === 'phys') {
         let cappedReduction = Math.max(0, Math.min(80, rawMitigation));
         let ignoreAmount = Math.max(0, Number(pStats.physIgnore) || 0);
@@ -3784,7 +3992,9 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
         let effective = rawMitigation - ((skillEle === 'light' && pStats && pStats.crusaderNoResPenOnLightning) ? 0 : Math.max(0, pStats.resPen || 0));
         let cap = Math.max(0, Number(enemy && enemy.maxResCap) || 80);
         if (effective > 0) effective = Math.min(cap, effective);
-        return Math.max(MIN_PENETRATED_RESISTANCE, effective);
+        // 절대 관통(엘리멘탈리스트 e9): 원소 저항 관통 하한을 -300%까지 확장
+        let minPen = ((skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') && game.ascendClass === 'elementalist' && hasKeystone('e9')) ? -300 : MIN_PENETRATED_RESISTANCE;
+        return Math.max(minPen, effective);
     }
     return Math.min(80, rawMitigation);
 }
@@ -4060,13 +4270,42 @@ function getCosmosEnemyModifiers(zone, isElite, isBoss) {
     return mod;
 }
 
+// 루프 20 이후 적 강화(특히 생명력) 곡선을 완만하게 만든다.
+// 20루프까지는 그대로 누적하고, 그 이후 추가되는 루프의 기울기를 절반으로 줄인다.
+// (season/loopCount 기준 depth 19 = 루프 20)
+function getSoftenedLoopDepth(depth) {
+    let d = Math.max(0, depth || 0);
+    const knee = 19;
+    if (d <= knee) return d;
+    return knee + (d - knee) * 0.5;
+}
+
+function getLoopHpScale(loopCount) {
+    let loop = Math.max(0, loopCount || 0);
+    const bands = [
+        { upTo: 1, rate: 0.12 },
+        { upTo: 10, rate: 0.10 },
+        { upTo: 20, rate: 0.08 },
+        { upTo: 40, rate: 0.04 },
+        { upTo: 100, rate: 0.018 },
+        { upTo: Infinity, rate: 0.006 }
+    ];
+    let scale = 1, prevBound = 0;
+    for (let band of bands) {
+        scale += Math.max(0, Math.min(loop, band.upTo) - prevBound) * band.rate;
+        prevBound = band.upTo;
+        if (loop <= band.upTo) break;
+    }
+    return scale;
+}
+
 function createEnemy(zone, marker, groupIndex) {
-    let seasonDepth = Math.max(0, (game.season || 1) - 1);
+    let seasonDepth = getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
     let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
-    let loopHpScale = 1 + Math.max(0, (game.loopCount || 0) * 0.12);
+    let loopHpScale = getLoopHpScale(game.loopCount || 0);
     hp = Math.floor(hp * loopHpScale);
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
@@ -4092,8 +4331,15 @@ function createEnemy(zone, marker, groupIndex) {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
         hp = Math.floor(hp * 5 * (1 + Math.max(0, underFloor - 1) * 0.045));
     }
-    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, (game.loopCount || 0) * 0.05)));
-    if (isBoss) hp = Math.floor(hp * (2.4 + zone.tier * 0.6));
+    if (zone.type === 'oceanDepth') {
+        let depthTier = Math.max(0, Math.floor(zone.depthTier || 0));
+        // 수심 0m 진입 시점 난이도를 혼돈심화 21층 부근(혼돈계 floor1 hp배율 5와 유사한 강도)에 맞추고, 100m(depthTier 1)마다 완만히 추가 상승.
+        let oceanBaseMul = 5;
+        let oceanTierMul = 1 + depthTier * 0.05;
+        hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
+    }
+    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(game.loopCount || 0) * 0.05)));
+    if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.floor(hp * 0.92);
@@ -4113,11 +4359,12 @@ function createEnemy(zone, marker, groupIndex) {
         hp = Math.floor(hp * 120);
     }
     if (isBoss) {
-        let bossName = zone.type === 'outsideChaos' ? '혼돈 밖의 나무꾼' : (zone.type === 'trial' ? `${zone.name} 수호자` : (zone.type === 'seasonBoss' ? zone.name : (zone.type === 'meteor' ? '검은 별의 심장' : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`))));
+        let bossName = zone.type === 'outsideChaos' ? '혼돈 밖의 나무꾼' : (zone.type === 'trial' ? `${zone.name} 수호자` : (zone.type === 'seasonBoss' ? zone.name : (zone.type === 'meteor' ? '검은 별의 심장' : (zone.type === 'oceanDepth' ? `심해 가디언 ${Math.floor(zone.depthM || 0)}m` : (ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`)))));
         name = `👿 ${bossName}`;
     }
     let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
     let variantSeed = ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
+    let bossAssetKey = isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed) : null;
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
     const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss);
     const cosmosExclusiveTrait = getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, variantSeed);
@@ -4155,6 +4402,7 @@ function createEnemy(zone, marker, groupIndex) {
         name: name,
         isElite: isElite,
         isBoss: isBoss,
+        bossAssetKey: bossAssetKey,
         attackTimer: (((zoneSeed + 1) * 13 + (marker.at || 0) * 3 + groupIndex * 7) % 10) / 20,
         spawnAt: marker.at,
         groupIndex: groupIndex,
@@ -4285,8 +4533,22 @@ function getZoneEncounterProfile(zone) {
             label: `${minPack}-${maxPack}기`
         };
     }
+    if (zone.type === 'oceanDepth') {
+        let depthTier = Math.max(0, Math.floor(zone.depthTier || 0));
+        let minPack = Math.min(6, 2 + Math.floor(depthTier / 4));
+        let maxPack = Math.min(8, minPack + 2);
+        return {
+            markerCount: 4 + Math.floor(depthTier * 0.5),
+            minPack: minPack,
+            maxPack: maxPack,
+            eliteChance: Math.min(0.4, 0.08 + depthTier * 0.01),
+            bossAdds: 0,
+            label: zone.name || '심해'
+        };
+    }
     let minPack = 1;
-    let maxPack = Math.min(3, 1 + Math.floor((zone.id + 2) / 3));
+    let zoneIdNum = Number.isFinite(zone.id) ? zone.id : (Number(zone.tier) || 1);
+    let maxPack = Math.min(3, 1 + Math.floor((zoneIdNum + 2) / 3));
     return {
         markerCount: 3 + Math.floor(zone.tier * 0.8),
         minPack: minPack,
@@ -4325,6 +4587,24 @@ function generateEncounterPlan(zone) {
     if (zone.type === 'chaosRealm') {
         let profile = getZoneEncounterProfile(zone);
         return [{ at: 28, count: profile.minPack + 1, elite: true }, { at: 62, count: profile.maxPack, elite: true }, { at: 100, count: 1 + profile.bossAdds, boss: true }];
+    }
+    if (zone.type === 'oceanDepth') {
+        let oceanSt = ensureOceanState();
+        // 500m 경계에 도달해 보스가 대기 중이면 이번 런은 심해 가디언 단일 전투로 구성한다.
+        if (typeof getOceanPendingBossBoundary === 'function' && getOceanPendingBossBoundary(oceanSt) > 0) {
+            game.oceanBossRunPending = true;
+            return [{ at: 100, count: 1, boss: true }];
+        }
+        game.oceanBossRunPending = false;
+        let profile = getZoneEncounterProfile(zone);
+        let markers = [];
+        for (let i = 0; i < profile.markerCount; i++) {
+            let at = clampNumber(Math.floor(((i + 1) / (profile.markerCount + 1)) * 96), 6, 94);
+            let count = profile.minPack + Math.floor(Math.random() * Math.max(1, profile.maxPack - profile.minPack + 1));
+            markers.push({ at: at, count: count, elite: Math.random() < profile.eliteChance });
+        }
+        markers.sort((a, b) => a.at - b.at);
+        return markers;
     }
     let profile = getZoneEncounterProfile(zone);
     let rng = zone.type === 'act' ? createSeededRng(`act:${zone.id}`) : Math.random;
@@ -4381,11 +4661,74 @@ function reserveBattleSlot(usedSlots) {
 }
 
 function primeTrialHazardTimer(zone) {
+    // 개화 시련 밖으로 나가면 누적된 재생 억제를 해제한다.
+    if (!zone || !zone.bloomTrial) game.bloomTrialRegenSuppress = 0;
     if (!zone || zone.type !== 'trial') {
         trialHazardTimer = 0;
         return;
     }
     trialHazardTimer = 1.8 + Math.random() * 1.6;
+}
+
+// 재능 개화 시련 클리어 처리. (키 소모 + 조합 기록 + 직업 5차 노드 해금 + 개화 카드 획득/강화)
+function handleTalentBloomClear(zone) {
+    game.currencies.chaosKey = Math.max(0, Math.floor(game.currencies.chaosKey || 0) - 1);
+    game.currencies.coreKey = Math.max(0, Math.floor(game.currencies.coreKey || 0) - 1);
+    game.bloomTrialRegenSuppress = 0;
+    let heroId = game.selectedHeroId || 'hero1';
+    let classKey = game.ascendClass || 'none';
+    let comboKey = `${heroId}__${classKey}`;
+    game.talentBloomClears = Math.max(0, Math.floor(game.talentBloomClears || 0)) + 1;
+    game.talentBloomCombos = Array.isArray(game.talentBloomCombos) ? game.talentBloomCombos : [];
+    let isNewCombo = !game.talentBloomCombos.includes(comboKey);
+    if (isNewCombo) game.talentBloomCombos.push(comboKey);
+    let heroLabel = (typeof getHeroSelectionDef === 'function') ? getHeroSelectionDef(heroId).label : heroId;
+    let classLabel = (typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[classKey]) ? CLASS_TEMPLATES[classKey].name : '무직';
+    addLog(`🌸 재능 개화 성공! [${heroLabel} × ${classLabel}]${isNewCombo ? ' (신규 조합!)' : ''}`, 'loot-unique');
+    // 5차 개화 노드는 영구가 아니라 "이번 루프에 개화한 직업"에 한해 열린다(루프 정산 시 초기화).
+    // 영구로 남는 것은 재능 개화 카드뿐이며, bloomedClasses는 재능 탭 영구 해금 기록 용도로만 유지한다.
+    game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
+    let firstEverBloomOfClass = game.ascendClass && !game.bloomedClasses.includes(game.ascendClass);
+    if (firstEverBloomOfClass) game.bloomedClasses.push(game.ascendClass);
+    if (game.ascendClass) {
+        game.bloomedClassThisLoop = game.ascendClass;
+        if (firstEverBloomOfClass && typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_fifth_node', '5차 개화 노드 개방', '이번 루프 직업전직 탭에 5차 재능 개화 노드가 추가되었습니다. (재능 개화 노드는 루프마다 재능 개화로 다시 열립니다.)', 'tab-traits');
+        addLog(`🌸 [${classLabel}] 5차 개화 노드 개방! (이번 루프)`, 'loot-unique');
+    }
+    // 5차 특화 포인트(전직 +2 · 키스톤 +1) 지급 규칙:
+    //  - 재능×직업 조합(개화 1세트)을 새로 개화하면 항상 지급한다(조합당 1회 → 총 120세트까지 계속 지급).
+    //    직업당 1회만 주던 과거 버그(8직업만 지급)와, 루프당 1회만 주던 직전 동작을 모두 보완한다.
+    //  - 또한 루프당 1회(개화 시련 재클리어) 지급한다. 전직 포인트는 루프 정산 때 0으로 초기화되므로,
+    //    이미 개화한 조합이라도 새 루프에서 다시 개화하면 재능특화/전직특화 노드를 찍을 포인트를 다시 받는다.
+    //    (같은 루프에서 이미 개화한 조합을 또 깨는 경우만 중복 지급되지 않아 무한 파밍을 막는다.)
+    let grantsFirstBloomThisLoop = game.bloomLoopSpecGranted !== game.ascendClass;
+    if (game.ascendClass && (isNewCombo || grantsFirstBloomThisLoop)) {
+        game.bloomLoopSpecGranted = game.ascendClass;
+        game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + 2;
+        game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
+        game.ascendRank = Math.max(game.ascendRank || 0, 5);
+        addLog(`🌸 [${classLabel}] 5차 특화 포인트 지급! 전직 포인트 +2 · 키스톤 포인트 +1`, 'loot-unique');
+    }
+    // 재능 개화 카드 획득/강화 + 재능 탭 해금
+    if (typeof recordTalentBloomCard === 'function') {
+        let result = recordTalentBloomCard(comboKey);
+        if (!game.unlocks) game.unlocks = {};
+        let firstUnlock = !game.unlocks.talent;
+        game.unlocks.talent = true;
+        game.noti.talent = true;
+        let cardLabel = `${heroLabel} × ${classLabel}`;
+        if (firstUnlock) {
+            if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_talent_tab', '재능 탭 해금', '재능 개화 카드를 획득했습니다! 재능 탭에서 보유 카드와 효과를 확인하세요.', 'tab-talent');
+        }
+        addLog(`🃏 개화 카드 [${cardLabel}] Lv.${result.card.level} (점수 ${result.score})${result.leveledUp ? ' · 레벨 상승!' : ''}`, 'loot-unique');
+        dispatchRuntimeEvent('talent-tab-refresh-requested');
+    }
+    game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+    game.killsInZone = 0;
+    game.inTicketBossFight = false;
+    startMoving(false);
+    updateStaticUI();
+    queueImportantSave(200);
 }
 
 function isCrowdProgressPaused() {
@@ -4425,13 +4768,18 @@ function applyEnemyDotFromHit(enemy, hitDamage, pStats) {
     enemy.dotStacks = nextStacks;
 }
 
-function getSkillAilmentStats(pStats, hitElement) {
+function getSkillAilmentStats(pStats, hitElement, curseFx) {
     let skill = pStats.sSkill || {};
     let bonus = skill.ailmentChanceBonus || {};
+    let curseChance = curseFx && curseFx.ailmentChanceAdd ? curseFx.ailmentChanceAdd : {};
     return {
         ...pStats,
-        igniteChance: (pStats.igniteChance || 0) + (bonus.ignite || 0),
-        poisonChance: (pStats.poisonChance || 0) + (bonus.poison || 0),
+        igniteChance: (pStats.igniteChance || 0) + (bonus.ignite || 0) + ((curseChance.ignite || 0) * 100),
+        chillChance: (pStats.chillChance || 0) + (curseChance.chill || 0) * 100,
+        freezeChance: (pStats.freezeChance || 0) + (curseChance.freeze || 0) * 100,
+        shockChance: (pStats.shockChance || 0) + (curseChance.shock || 0) * 100,
+        poisonChance: (pStats.poisonChance || 0) + (bonus.poison || 0) + ((curseChance.poison || 0) * 100),
+        bleedChance: (pStats.bleedChance || 0) + (curseChance.bleed || 0) * 100,
         sSkill: { ...skill, ele: hitElement }
     };
 }
@@ -4467,16 +4815,45 @@ function spreadSkillAilmentOnHit(source, skill) {
     targets.slice(0, Math.max(1, Math.floor(config.targets || 1))).forEach(target => mergeEnemyAilment(target, copy));
 }
 
-function applySkillPeriodicOnHit(enemy, skill, damage) {
-    let config = skill.periodicOnHit;
+const SKILL_PERIODIC_CHAIN_CAP = 12;
+function queueSkillPeriodicHit(enemy, config, damage, ele) {
     if (!config || enemy.hp <= 0 || Math.random() >= Math.max(0, Math.min(1, Number(config.chance) || 0))) return;
-    enemy.skillPeriodic = {
-        hitsLeft: Math.max(1, Math.floor(config.hits || 1)),
-        interval: Math.max(0.05, Number(config.interval) || 1),
-        timer: Math.max(0.05, Number(config.interval) || 1),
+    enemy.skillPeriodics = Array.isArray(enemy.skillPeriodics) ? enemy.skillPeriodics : [];
+    let queuedHits = enemy.skillPeriodics.reduce((sum, fx) => sum + Math.max(0, fx.hitsLeft || 0), 0);
+    let allowedHits = Math.max(0, SKILL_PERIODIC_CHAIN_CAP - queuedHits);
+    if (allowedHits <= 0) return;
+    let hits = Math.min(Math.max(1, Math.floor(config.hits || 1)), allowedHits);
+    let interval = Math.max(0.05, Number(config.interval) || 1);
+    enemy.skillPeriodics.push({
+        hitsLeft: hits,
+        interval: interval,
+        timer: interval,
         damage: Math.max(1, Math.floor(damage * Math.max(0, Number(config.damagePct) || 0) / 100)),
-        ele: config.ele || skill.ele || 'phys'
+        ele: config.ele || ele || 'phys'
+    });
+}
+
+function applySkillPeriodicOnHit(enemy, skill, damage) {
+    queueSkillPeriodicHit(enemy, skill.periodicOnHit, damage, skill.ele);
+}
+
+function applySupportEchoOnHit(enemy, pStats, damage) {
+    let echoPower = pStats.echoPower || 0;
+    if (echoPower <= 0) return;
+    let config = {
+        chance: Math.min(0.6, 0.2 + echoPower / 100),
+        hits: 2 + Math.floor(echoPower / 20),
+        interval: 0.45,
+        damagePct: 15 + echoPower * 0.6
     };
+    queueSkillPeriodicHit(enemy, config, damage, pStats.sSkill && pStats.sSkill.ele);
+}
+
+function applySupportChaosErosionOnHit(enemy, pStats, hitElement) {
+    let erosionPerHit = pStats.chaosErosion || 0;
+    if (erosionPerHit <= 0 || hitElement !== 'chaos' || !enemy || enemy.hp <= 0) return;
+    let cap = pStats.chaosErosionCap || 20;
+    enemy.chaosErosionShred = Math.min(cap, (enemy.chaosErosionShred || 0) + erosionPerHit);
 }
 
 function getAilmentTypeFromElement(ele) {
@@ -4801,6 +5178,7 @@ function tickEnemyAilments(pStats, dt) {
                 }
             }
             if (ail.time > 0) next.push(ail);
+            if (type === 'poison' && enemy.hp <= 0) enemy.lastHitElement = 'chaos';
         });
         enemy.ailments = next;
         if (enemy.hp <= 0) handleEnemyDeath(enemy, pStats);
@@ -4812,16 +5190,19 @@ function tickEnemySkillPeriodicEffects(pStats, dt) {
     let zone = getZone(game.currentZoneId);
     let zoneTier = (zone && zone.tier) || 1;
     (game.enemies || []).forEach(enemy => {
-        let effect = enemy && enemy.hp > 0 ? enemy.skillPeriodic : null;
-        if (!effect || effect.hitsLeft <= 0) return;
-        effect.timer -= dt;
-        while (effect.timer <= 0 && effect.hitsLeft > 0 && enemy.hp > 0) {
-            effect.timer += effect.interval;
-            effect.hitsLeft--;
-            let mitigation = getEffectiveEnemyMitigation(effect.ele, zoneTier, enemy, pStats);
-            applyDamageToEnemyResource(enemy, Math.max(1, Math.floor(effect.damage * (1 - mitigation / 100))));
-        }
-        if (effect.hitsLeft <= 0 || enemy.hp <= 0) enemy.skillPeriodic = null;
+        let effects = enemy && enemy.hp > 0 && Array.isArray(enemy.skillPeriodics) ? enemy.skillPeriodics : null;
+        if (!effects || effects.length <= 0) return;
+        effects.forEach(effect => {
+            if (effect.hitsLeft <= 0 || enemy.hp <= 0) return;
+            effect.timer -= dt;
+            while (effect.timer <= 0 && effect.hitsLeft > 0 && enemy.hp > 0) {
+                effect.timer += effect.interval;
+                effect.hitsLeft--;
+                let mitigation = getEffectiveEnemyMitigation(effect.ele, zoneTier, enemy, pStats);
+                applyDamageToEnemyResource(enemy, Math.max(1, Math.floor(effect.damage * (1 - mitigation / 100))));
+            }
+        });
+        enemy.skillPeriodics = effects.filter(fx => fx.hitsLeft > 0 && enemy.hp > 0);
         if (enemy.hp <= 0) handleEnemyDeath(enemy, pStats);
     });
 }
@@ -4850,6 +5231,7 @@ function tickEnemyDotEffects(pStats, dt) {
             let dealt = applyDamageToEnemyResource(enemy, dotDmg, { minimumHp: minimumHp });
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(dotEle), damage: dealt, duration: 240, element: dotEle, noLine: true, dot: true });
             if (enemy.hp <= 0) {
+                if (dotEle === 'chaos') enemy.lastHitElement = 'chaos';
                 handleEnemyDeath(enemy, pStats);
                 break;
             }
@@ -4915,6 +5297,8 @@ function startEncounterRun() {
     progressStallTicks = 0;
     game.runProgress = 0;
     game.encounterIndex = 0;
+    // 재능 개화 미궁 보스 실제 처치 여부(이번 런 기준). 보스 처치 없이 런이 완료 처리되는 경우 개화를 막는다.
+    game.bloomBossDefeated = false;
     let zone = getZone(game.currentZoneId) || getZone(0);
     resetBattleRuntimeVisuals();
     primeTrialHazardTimer(zone);
@@ -5260,6 +5644,15 @@ function applyGrandBreachMobTuning(zone, enemy) {
     enemy.atkMul = (enemy.atkMul || 1) * 1.25;
 }
 
+// 공허의 구멍에서 출현하는 몹 보정: 경험치 2배, 생명력 2배, 피해량 1.5배.
+function applyVoidRiftMobTuning(enemy) {
+    if (!enemy || enemy.isBoss) return;
+    enemy.maxHp = Math.max(1, Math.floor((enemy.maxHp || 1) * 2));
+    enemy.hp = enemy.maxHp;
+    enemy.atkMul = (enemy.atkMul || 1) * 1.5;
+    enemy.expMul = (enemy.expMul || 1) * 2;
+}
+
 
 function maybeTriggerBeeMappingEvent(beeLv, enemy) {
     if (beeLv < 10 || !enemy || enemy.isBoss) return;
@@ -5270,7 +5663,7 @@ function maybeTriggerBeeMappingEvent(beeLv, enemy) {
     let roll = Math.random();
     if (beeLv >= 14 && roll < 0.08) {
         let bonusPct = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('queenBeeRewardBonusPct') || 0) / 100 : 0;
-        let pollen = Math.max(1, Math.floor(75 * (1 + bonusPct)));
+        let pollen = Math.max(1, Math.floor(25 * (1 + bonusPct)));
         awardCurrency('pollen', pollen);
         awardCurrency('enchantedHoney', 1);
         awardCurrency('beeswax', 2);
@@ -5280,12 +5673,12 @@ function maybeTriggerBeeMappingEvent(beeLv, enemy) {
         if (Math.random() < 0.35) awardCurrency('beeswax', 1);
         addLog('🐝 독침벌 무리 이벤트! 독벌침 +1', 'loot-rare');
     } else if (beeLv >= 11 && roll < 0.55) {
-        awardCurrency('pollen', 45);
+        awardCurrency('pollen', 15);
         awardCurrency('beeswax', 1);
-        addLog('🐝 호박벌 이벤트! 꽃가루 +45, 밀랍 +1', 'loot-rare');
+        addLog('🐝 호박벌 이벤트! 꽃가루 +15, 밀랍 +1', 'loot-rare');
     } else {
-        awardCurrency('pollen', 24);
-        addLog('🐝 벌 이벤트! 꽃가루 +24', 'loot-magic');
+        awardCurrency('pollen', 8);
+        addLog('🐝 벌 이벤트! 꽃가루 +8', 'loot-magic');
     }
 }
 
@@ -5300,13 +5693,15 @@ function rollLootForEnemy(enemy) {
             if (game.settings.showLootLog) addLog('🌌 각성 잔향 +1', 'loot-unique');
         }
     }
-    if (Math.random() < (enemy.isBoss ? 0.15 : enemy.isElite ? 0.03 : 0.005)) {
+    let gemDropMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('gemGainPct')) : 0) / 100;
+    if (Math.random() < (enemy.isBoss ? 0.15 : enemy.isElite ? 0.03 : 0.005) * gemDropMul) {
         if (Math.random() < 0.5) {
             let available = Object.keys(SKILL_DB).filter(name => !hasSkillGemOwned(name) && SKILL_DB[name].isGem);
             if (available.length > 0) {
                 let skill = rndChoice(available);
                 game.skills.push(skill);
-                let awakenedDrop = gemExpertLvForLoot >= 13 && Math.random() < 0.035;
+                let awakenedDrop = gemExpertLvForLoot >= 13 && Math.random() < (typeof getAwakenedDropChance === 'function' ? getAwakenedDropChance(0.035) : 0.035);
+                if (gemExpertLvForLoot >= 13 && typeof bumpExpertAwakenedPity === 'function') bumpExpertAwakenedPity(awakenedDrop);
                 game.gemData[skill] = { level: 1, exp: 0, awakened: awakenedDrop };
                 game.noti.skills = true;
                 checkUnlocks();
@@ -5383,6 +5778,7 @@ function rollLootForEnemy(enemy) {
     });
 
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
+    itemChance *= 0.7; // 장비 드랍 확률 30% 감소
     itemChance *= (1 + (getCodexBonusPct() / 100));
     itemChance *= Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
     if (zone.type === 'labyrinth') {
@@ -5402,7 +5798,7 @@ function rollLootForEnemy(enemy) {
         if (addItemToInventory(item) && game.settings.showLootLog) {
             addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#9ed6ff', duration: 780 });
             if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ff9f43', duration: 1200 });
-            addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''} 획득!`);
+            addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
         }
     }
     if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.056) {
@@ -5426,33 +5822,33 @@ function rollLootForEnemy(enemy) {
         let beeLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
         let beeLootLogs = [];
         if (beeLv >= 1 && Math.random() < 0.05) {
-            let pollenAmount = enemy.isElite ? 5 : 2;
+            let pollenAmount = enemy.isElite ? 2 : 1;
             awardCurrency('pollen', pollenAmount);
             beeLootLogs.push(`꽃가루 +${pollenAmount}`);
         }
-        if (beeLv >= 4 && enemy.isElite && Math.random() < 0.024) {
+        if (beeLv >= 4 && enemy.isElite && Math.random() < 0.0048) {
             awardCurrency('venomStinger', 1);
             beeLootLogs.push('독벌침 +1');
         }
-        if (beeLv >= 2 && enemy.isElite && Math.random() < 0.0032) {
+        if (beeLv >= 2 && enemy.isElite && Math.random() < 0.00064) {
             awardCurrency('enchantedHoney', 1);
             beeLootLogs.push('마력 깃든 벌꿀 +1');
         }
-        if (beeLv >= 8 && enemy.isElite && Math.random() < 0.016) {
+        if (beeLv >= 8 && enemy.isElite && Math.random() < 0.0032) {
             awardCurrency('beeswax', 1);
             beeLootLogs.push('밀랍 +1');
         }
         maybeTriggerBeeMappingEvent(beeLv, enemy);
         if (game.settings.showLootLog && beeLootLogs.length > 0) beeLootLogs.forEach(msg => addLog(`🐝 ${msg}`, 'loot-normal'));
     }
-    if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.01 : enemy.isElite ? 0.003 : 0.0004)) {
+    if ((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.005 : enemy.isElite ? 0.0015 : 0.0002)) {
         awardCurrency('hiveKey', 1);
         if (game.settings.showLootLog) addLog('🗝️ 벌집 입장권 열쇠를 발견했습니다.', 'loot-rare');
     }
     let sporeUnlocked = Math.max(0, Math.floor(game.loopCount || 0)) >= 2;
     let isDeepChaosZone = zone && zone.type === 'abyss' && Math.max(0, Math.floor(zone.depth || 0)) >= 21;
     if ((game.season || 1) >= 15 && (isDeepChaosZone || game.currentZoneId === 'beehive_run' || game.currentZoneId === 'grand_breach_run')) {
-        let traceChance = isDeepChaosZone ? 0.006 : (game.currentZoneId === 'grand_breach_run' ? 0.009 : 0.004);
+        let traceChance = isDeepChaosZone ? 0.00075 : (game.currentZoneId === 'grand_breach_run' ? 0.001125 : 0.0005);
         if (Math.random() < traceChance) {
             awardCurrency('colonyTrace', 1);
             addLog('🧭 군락지 흔적을 발견했습니다.', 'loot-magic', { noToast: true });
@@ -5492,21 +5888,34 @@ function handleEnemyDeath(enemy, pStats) {
     enemy = liveRef;
     transferSkillDotOnDeath(enemy);
     let zone = getZone(game.currentZoneId);
+    // 재능 개화 미궁의 보스를 실제로 처치한 경우에만 개화 완료를 허용하기 위해 기록한다.
+    if (enemy.isBoss && zone && zone.type === 'trial' && zone.bloomTrial) game.bloomBossDefeated = true;
     let grand = (game.voidRift || {}).grandRun;
     if (zone && zone.id === 'grand_breach_run' && grand && grand.inRun && grand.phase === 'survival' && !enemy.isBoss) {
         grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
     }
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
+    // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)
+    if (game.talentDawnHits) delete game.talentDawnHits[enemy.id];
+    if (game.talentInquisitorMarks) delete game.talentInquisitorMarks[enemy.id];
+    // 14 콜로세움 브레이커: 처치마다 관중의 함성 1중첩, 5중첩 시 다음 공격이 투기장 일격
+    if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero2__gladiator')) {
+        game.talentRuntime = (game.talentRuntime && typeof game.talentRuntime === 'object') ? game.talentRuntime : {};
+        game.talentRuntime.colosseumKills = (game.talentRuntime.colosseumKills || 0) + 1;
+        if (game.talentRuntime.colosseumKills >= 5) { game.talentRuntime.colosseumKills = 0; game.talentRuntime.colosseumReady = true; }
+    }
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
     grantExpAndGem(enemy, pStats);
     rollLootForEnemy(enemy);
+    // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
+    if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
     spreadCatalystAilmentsOnDeath(enemy);
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
         if (v.active && enemy.fromVoidRift) v.defeatedCount = Math.max(0, Math.floor(v.defeatedCount || 0)) + 1;
-        if (!v.active && Math.random() < (enemy.isElite ? 0.008 : 0.0018)) {
+        if (!v.active && Math.random() < (enemy.isElite ? 0.0003335 : 0.000075)) {
             v.active = true;
             v.activeKills = 0;
             v.requiredKills = 0;
@@ -5558,6 +5967,18 @@ function handleEnemyDeath(enemy, pStats) {
         addBattleFx('hit', { enemyId: enemy.id, color: '#c56cff', damage: splash, duration: 360, element: 'chaos' });
         if (game.settings.showCombatLog) addLog(`💥 [종말의 논리] 시체 폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
     }
+    // 시체 역병(워록 wlk9): 카오스 피해로 처치 시 50% 확률로 시체 폭발(적 최대 생명력의 20%를 주변에 카오스 피해)
+    // 심연 각인(wlk1)으로 모든 피해가 카오스인 경우 처치 원소와 무관하게 카오스 처치로 간주
+    if (game.ascendClass === 'warlock' && hasKeystone('wlk9') && (enemy.lastHitElement === 'chaos' || hasKeystone('wlk1')) && Math.random() < 0.5) {
+        let splash = Math.max(1, Math.floor((enemy.maxHp || enemy.hp || 0) * 0.20));
+        (game.enemies || []).forEach(target => {
+            if (!target || target.id === enemy.id || target.hp <= 0) return;
+            target.hp = Math.max(0, target.hp - splash);
+            if (target.hp <= 0) handleEnemyDeath(target, pStats);
+        });
+        addBattleFx('hit', { enemyId: enemy.id, color: '#9b59ff', damage: splash, duration: 360, element: 'chaos' });
+        if (game.settings.showCombatLog) addLog(`💥 시체 역병 발동! 주변 몬스터에게 ${splash} 카오스 피해`, 'attack-player');
+    }
     if (pStats && pStats.uniqueKillMoveStacks) {
         let now = Date.now();
         let state = game.uniqueKillMoveStacksState || { stacks: 0, expiresAt: 0, lastProcAt: 0 };
@@ -5581,6 +6002,7 @@ function handleEnemyDeath(enemy, pStats) {
         });
     }
     game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
+    if (game.enemyWitherStacks && typeof game.enemyWitherStacks === 'object') delete game.enemyWitherStacks[enemy.id];
     clearDotFxThrottleForEnemy(enemy.id);
     if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun && (game.enemies || []).filter(entry => entry && entry.hp > 0).length === 0) {
         if (typeof onBeehiveWaveCleared === 'function') onBeehiveWaveCleared();
@@ -5715,10 +6137,40 @@ function enterAutomaticMeteorEncounter() {
     game.currentZoneId = METEOR_FALL_ZONE_ID;
 }
 
+function enterAutomaticMapInterruptionAfterClear(clearedZone) {
+    let star = game.starWedge || {};
+    let beehiveRunning = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
+    let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
+    if (game.settings && game.settings.autoEnterMeteor && !beehiveRunning && !grandRunning && star.unlocked && star.skyRiftReady && (!clearedZone || clearedZone.type !== 'meteor')) {
+        enterAutomaticMeteorEncounter();
+        addLog('☄️ 자동입장: 하늘 균열 100% 충전으로 운석 낙하 지점에 진입합니다.', 'season-up');
+        return true;
+    }
+    if (typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady()) return true;
+    return false;
+}
+
 function unlockConditionGemsAfterRootBossClear() {
     if (game.conditionGemUnlocked || (game.season || 1) < 2) return false;
     game.conditionGemUnlocked = true;
     addLog('🧠 컨디션 젬 시스템이 해금되었습니다!', 'loot-unique');
+    return true;
+}
+
+function grantGuaranteedTrialSkillGem() {
+    game.skills = Array.isArray(game.skills) ? game.skills : [];
+    game.gemData = game.gemData || {};
+    game.noti = game.noti || {};
+    let available = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem && !game.skills.includes(name));
+    if (available.length === 0) {
+        addLog('✨ 전직 시련 보상: 획득 가능한 신규 스킬 젬이 없습니다.', 'attack-monster', { noToast: true });
+        return false;
+    }
+    let skill = rndChoice(available);
+    game.skills.push(skill);
+    game.gemData[skill] = { level: 1, exp: 0, awakened: false };
+    game.noti.skills = true;
+    addLog(`✨ 전직 시련 보상: 공격 젬 <span class='loot-magic'>[${skill}]</span> 획득!`, 'loot-magic');
     return true;
 }
 
@@ -5756,9 +6208,36 @@ function finishEncounterRun() {
         clearWoodsmanBuildLock();
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
+        return;
+    }
+
+    if (zone.type === 'oceanDepth') {
+        // 잠수 중이 아니면(예: 강제 귀환 후 호출) 진행을 변경하지 않는다.
+        let oceanSt = ensureOceanState();
+        if (oceanSt.unlocked && oceanSt.diving) {
+            if (game.oceanBossRunPending) {
+                // 방금 클리어한 런은 500m 경계의 심해 가디언 전투였다 → 경계 통과 처리.
+                let pendingBoundary = getOceanPendingBossBoundary(oceanSt);
+                if (pendingBoundary > 0) {
+                    oceanSt.bossClearM = pendingBoundary;
+                    oceanSt.pressureLevel = getOceanDepthTier(oceanSt.depthM);
+                    awardCurrency('reefFragment', 3);
+                    addLog(`🌊 수심 ${pendingBoundary}m의 심해 가디언을 처치했습니다! 더 깊은 곳으로 길이 열립니다. (암초 조각 +3)`, 'loot-unique');
+                }
+                game.oceanBossRunPending = false;
+            } else {
+                advanceOceanDiveFromKill(zone);
+            }
+        }
+        game.currentZoneId = OCEAN_ZONE_ID;
+        game.killsInZone = 0;
+        startMoving(false);
+        updateStaticUI();
+        queueImportantSave(200);
         return;
     }
 
@@ -5773,13 +6252,14 @@ function finishEncounterRun() {
             grantChaosRealmFloorBonus(floor);
         }
         st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
-        st.currentFloor = Math.min(st.highestFloor, floor + 1);
+        st.currentFloor = mapAction === 'repeatZone' ? floor : Math.min(st.highestFloor, floor + 1);
         addLog(`🌌 혼돈계 ${floor}층 돌파! ${st.currentFloor}층까지 입장 가능합니다.`, 'season-up');
         if (mapAction === 'nextLoopBestPlusOne') {
             let nextZone = resolveNextLoopBestPlusOneZone(zone);
             game.currentZoneId = nextZone !== null ? nextZone : CHAOS_REALM_ZONE_ID;
         } else game.currentZoneId = CHAOS_REALM_ZONE_ID;
         game.killsInZone = 0;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
@@ -5798,7 +6278,7 @@ function finishEncounterRun() {
                 st.clearedFloors.push(floor);
                 st.clearedFloors = Array.from(new Set(st.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b);
                 st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
-                st.currentFloor = Math.min(st.highestFloor, floor + 1);
+                st.currentFloor = mapAction === 'repeatZone' ? floor : Math.min(st.highestFloor, floor + 1);
             } else {
                 if (Math.random() < 0.16) reward = Math.max(1, Math.floor(getSkyTowerRewardAmount(floor) * 0.35));
                 st.currentFloor = Math.max(1, Math.min(Math.floor(st.highestFloor || 1), floor));
@@ -5814,12 +6294,25 @@ function finishEncounterRun() {
         }
         game.killsInZone = 0;
         game.currentZoneId = SKY_TOWER_ZONE_ID;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
         return;
     }
+    if (zone.type === 'trial' && zone.bloomTrial) {
+        // 보스를 실제로 처치하지 않았는데 런이 완료 처리된 경우(예: 보스 미스폰/즉시 제거 등)에는
+        // 개화를 인정하지 않고 전투를 다시 구성한다. 보스를 잡아야만 재능 개화가 완료된다.
+        if (!game.bloomBossDefeated) {
+            addLog('❄️ 개화 미궁의 수호자를 아직 쓰러뜨리지 못했습니다. 전투를 다시 구성합니다.', 'attack-monster', { noToast: true });
+            startEncounterRun();
+            return;
+        }
+        handleTalentBloomClear(zone);
+        return;
+    }
     if (zone.type === 'trial') {
+        grantGuaranteedTrialSkillGem();
         let isFirstClear = !game.completedTrials.includes(zone.id);
         if (isFirstClear) game.completedTrials.push(zone.id);
         if (isFirstClear) {
@@ -5849,6 +6342,7 @@ function finishEncounterRun() {
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         game.inTicketBossFight = false;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(200);
@@ -5880,6 +6374,7 @@ function finishEncounterRun() {
             game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
             game.killsInZone = 0;
             game.inTicketBossFight = false;
+            enterAutomaticMapInterruptionAfterClear(zone);
             startMoving(false);
         }
         updateStaticUI();
@@ -5896,20 +6391,22 @@ function finishEncounterRun() {
             game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, game.labyrinthFloor || 1);
             if ((game.labyrinthUnlockedMaxFloor || 1) > prevLab && typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'labyrinth_new_floor');
         }
-        let gotBaseFossil = Math.random() < 0.5;
+        let fossilDropMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('fossilDropPct')) : 0) / 100;
+        let gotBaseFossil = Math.random() < 0.5 * fossilDropMul;
         if (gotBaseFossil) awardCurrency('fossil', 1);
         let fossilDropPool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly);
         let rolledFossil = rndChoice(fossilDropPool);
-        let gotTypedFossil = Math.random() < 0.5;
+        let gotTypedFossil = Math.random() < 0.5 * fossilDropMul;
         if (gotTypedFossil) awardCurrency(rolledFossil.key, 1);
         let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
-        let primalChance = Math.min(0.45, 0.10 + Math.floor(game.labyrinthFloor || 1) * 0.003);
-        let ancientChance = Math.min(0.14, 0.025 + Math.floor(game.labyrinthFloor || 1) * 0.001);
+        let primalChance = Math.min(0.45, (0.10 + Math.floor(game.labyrinthFloor || 1) * 0.003) * fossilDropMul);
+        let ancientChance = Math.min(0.14, (0.025 + Math.floor(game.labyrinthFloor || 1) * 0.001) * fossilDropMul);
         let gotPrimalFossil = mycologistLv >= 4 && Math.random() < primalChance;
         let gotAncientPrimalFossil = mycologistLv >= 5 && Math.random() < ancientChance;
         if (gotPrimalFossil) awardCurrency('fossilPrimal', 1);
         if (gotAncientPrimalFossil) awardCurrency('fossilAncientPrimal', 1);
-        if (Math.random() < 0.03) {
+        let fossilRareMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('expertRareChancePct')) : 0) / 100;
+        if (Math.random() < 0.03 * fossilRareMul) {
             awardCurrency('fossilAbyssal', 1);
             addLog('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
         }
@@ -5927,6 +6424,7 @@ function finishEncounterRun() {
             if (nextZone !== null) game.currentZoneId = nextZone;
         }
         game.killsInZone = 0;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(200);
@@ -5967,6 +6465,7 @@ function finishEncounterRun() {
             queueImportantSave(180);
             return;
         } else game.currentZoneId = UNDERWORLD_ZONE_ID;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(220);
@@ -5979,6 +6478,7 @@ function finishEncounterRun() {
         if (game.cosmosAtlas && typeof game.cosmosAtlas === 'object') game.cosmosAtlas.activeChallenge = null;
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
+        enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
         queueImportantSave(200);
@@ -6036,9 +6536,11 @@ function finishEncounterRun() {
             if ((game.season || 1) >= 10 && zone.type === 'abyss') {
                 let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
-                let nowEndless = Math.max(20, depth, Math.floor(game.abyssEndlessDepth || depth));
+                let recordedEndlessDepth = Math.floor(game.abyssEndlessDepth || depth);
+                let nowEndless = depth === 20 ? 20 : Math.max(20, depth, recordedEndlessDepth);
                 ensureNextEndlessChaosDepthUnlocked(nowEndless);
-                // Preserve a higher recorded endless depth when clearing a lower loop cap; continuing advances from here.
+                // Chaos 20 is the entrance to deep chaos, so continuing after that clear must start at 21
+                // even if the save has a higher recorded deep-chaos floor from a previous loop.
                 // Setting this to the unlocked next depth would double-advance and skip a floor (e.g. 20 -> 22).
                 game.abyssEndlessDepth = nowEndless;
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
@@ -6050,8 +6552,32 @@ function finishEncounterRun() {
                 if (depth >= 20) game.loopProgressCurrent.bestAbyssDepth = Math.max(bestAbyssDepthBeforeClear, depth);
                 game.loopProgressCurrent.chaos20Cleared = true;
                 if (typeof maybeUnlockSkyTowerFromChaos20 === 'function') maybeUnlockSkyTowerFromChaos20();
+                if (mapAction === 'repeatZone') {
+                    game.currentZoneId = zone.id;
+                    game.killsInZone = 0;
+                    enterAutomaticMapInterruptionAfterClear(zone);
+                    checkUnlocks();
+                    if ((game.settings.townReturnAction || 'retry') === 'stop') {
+                        game.combatHalted = true;
+                        game.enemies = [];
+                        game.encounterPlan = [];
+                        game.encounterIndex = 0;
+                        game.runProgress = 0;
+                    } else startMoving(false);
+                    updateStaticUI();
+                    queueImportantSave(220);
+                    return;
+                }
                 if (mapAction === 'nextLoopBestPlusOne' || (depth >= 21 && hadCurrentSeasonLoopRequirementBeforeClear)) {
                     enterNextEndlessChaosDepth();
+                    return;
+                }
+                if (mapAction === 'repeatZone') {
+                    game.currentZoneId = zone.id;
+                    game.killsInZone = 0;
+                    startMoving(false);
+                    updateStaticUI();
+                    queueImportantSave(220);
                     return;
                 }
                 game.pendingLoopDecision = true;
@@ -6114,13 +6640,7 @@ function finishEncounterRun() {
             queueImportantSave(180);
             return;
         } else game.currentZoneId = getAutoProgressZoneId(Math.max(game.currentZoneId, game.maxZoneId));
-        let star = game.starWedge || {};
-        let beehiveRunning = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
-        let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
-        if (game.settings && game.settings.autoEnterMeteor && !beehiveRunning && !grandRunning && star.unlocked && star.skyRiftReady && zone.type !== 'meteor') {
-            enterAutomaticMeteorEncounter();
-            addLog('☄️ 자동입장: 하늘 균열 100% 충전으로 운석 낙하 지점에 진입합니다.', 'season-up');
-        }
+        enterAutomaticMapInterruptionAfterClear(zone);
         checkUnlocks();
         if ((game.settings.townReturnAction || 'retry') === 'stop') {
             game.combatHalted = true;
@@ -6140,6 +6660,7 @@ function finishEncounterRun() {
 }
 
 function performPlayerAttack(pStats) {
+    if (typeof consumeOceanOxygenOnAttack === 'function') consumeOceanOxygenOnAttack();
     if (Array.isArray(game.queenBees) && game.queenBees.length > 0) {
         let now = Date.now();
         game.queenBees = game.queenBees.filter(bee => bee && (bee.expiresAt || 0) > now && (bee.attacksLeft || 0) > 0);
@@ -6154,7 +6675,17 @@ function performPlayerAttack(pStats) {
         });
     }
     prepareTalentPlayerAttackContext(pStats);
+    // 14 콜로세움 브레이커: 5처치 충전 시 다음 공격을 투기장 일격(광역 5 + 피해 120% 증폭, 단일이면 +20%)으로
+    let colosseumStrikeMul = 1, colosseumSavedTargets = null;
+    if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero2__gladiator') && game.talentRuntime && game.talentRuntime.colosseumReady) {
+        game.talentRuntime.colosseumReady = false;
+        let aliveCount = (game.enemies || []).filter(e => e && e.hp > 0).length;
+        colosseumStrikeMul = 2.2 * (aliveCount <= 1 ? 1.2 : 1);
+        colosseumSavedTargets = pStats.sSkill.targets;
+        pStats.sSkill.targets = Math.max(5, pStats.sSkill.targets || 1);
+    }
     let targets = getSkillTargets(pStats);
+    if (colosseumSavedTargets !== null) pStats.sSkill.targets = colosseumSavedTargets;
     if (targets.length === 0) return;
     let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
 
@@ -6162,6 +6693,7 @@ function performPlayerAttack(pStats) {
     let guaranteedCrit = (game.ascendClass === 'assassin' && hasKeystone('a5'))
         || (game.ascendClass === 'catalyst' && hasKeystone('ct7') && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('attack'));
     let isCrit = guaranteedCrit || Math.random() < (pStats.crit / 100);
+    if (typeof talentOnPlayerAttack === 'function') talentOnPlayerAttack(pStats, isCrit);
     if (game.ascendClass === 'warrior' && hasKeystone('w2') && isCrit) {
         let now = Date.now();
         let active = (game.warriorRhythmExpiresAt || 0) > now;
@@ -6185,6 +6717,20 @@ function performPlayerAttack(pStats) {
     if (isCrit) {
         baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
         if (game.activeSkill === '묵직한 강타' && pStats.sSkill.finalLevel >= 20) baseDamage *= 2;
+    }
+    // 피의 계약(워록 wlk7): 공격마다 생명력의 4%를 소모 가능하면 소모하여 해당 공격의 피해를 1.5배로 만든다.
+    if (game.ascendClass === 'warlock' && hasKeystone('wlk7')) {
+        let bloodPactCost = Math.floor((pStats.maxHp || game.playerHp || 1) * 0.04);
+        if (bloodPactCost > 0 && (game.playerHp || 0) > bloodPactCost) {
+            game.playerHp -= bloodPactCost;
+            baseDamage = Math.floor(baseDamage * 1.5);
+        }
+    }
+    // 공허 특이점(워록 wlk6): 공격 피해가 100%~(100+저항관통+치명타 피해 배율)% 사이에서 균등 분포로 결정된다.
+    if (game.ascendClass === 'warlock' && hasKeystone('wlk6')) {
+        let singularityMaxPct = 100 + Math.max(0, pStats.resPen || 0) + Math.max(0, pStats.critDmg || 0);
+        let singularityPct = 100 + Math.random() * Math.max(0, singularityMaxPct - 100);
+        baseDamage = Math.floor(baseDamage * (singularityPct / 100));
     }
     let getHitElement = () => {
         let pool = Array.isArray(pStats.sSkill.randomElementPool) ? pStats.sSkill.randomElementPool.filter(Boolean) : null;
@@ -6287,7 +6833,7 @@ function performPlayerAttack(pStats) {
             });
             if (chainTarget.hp <= 0) {
                 let prevRemainingDamage = remainingDamage;
-                remainingDamage = Math.max(0, remainingDamage - dealtToChain);
+                remainingDamage = Math.max(0, Math.floor((remainingDamage - dealtToChain) * 0.8));
                 let carryRatio = prevRemainingDamage > 0 ? (remainingDamage / prevRemainingDamage) : 0;
                 remainingAilmentSourceDamage = Math.max(0, Math.floor(remainingAilmentSourceDamage * carryRatio));
             } else {
@@ -6325,6 +6871,16 @@ function performPlayerAttack(pStats) {
             if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let cj = targetEnemy.ailments.find(a => a && a.type === 'cosmosJudgment' && (a.time || 0) > 0); if (cj) enemyRes -= Math.max(0, Number(cj.power || 0)); }
             if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let rs = targetEnemy.ailments.find(a => a && a.type === 'realmAllResDown' && (a.time || 0) > 0); if (rs) enemyRes -= Math.max(0, Math.floor(rs.stacks || 0)) * Math.max(0, Number((pStats.uniqueAllResDownOnHit && pStats.uniqueAllResDownOnHit.perHit) || 0)); }
             let hitCrit = isCrit;
+            // 49 새벽의기사: 몬스터별 처음 3타는 치명 불가 + 번개 저항 반대로 간주
+            if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero5__warrior')) {
+                game.talentDawnHits = (game.talentDawnHits && typeof game.talentDawnHits === 'object') ? game.talentDawnHits : {};
+                let dh = game.talentDawnHits[targetEnemy.id] || 0;
+                if (dh < 3) {
+                    game.talentDawnHits[targetEnemy.id] = dh + 1;
+                    hitCrit = false;
+                    if (hitElement === 'light') enemyRes = -enemyRes;
+                }
+            }
             if (pStats.uniqueAllResDownOnHit && targetEnemy) {
                 let now = Date.now();
                 targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
@@ -6392,8 +6948,14 @@ function performPlayerAttack(pStats) {
             }
             if (targetEnemy.isBoss) {
                 let bossMul = Math.max(0, Number(pStats.bossDamageDealtMultiplier) || 1);
-                hitBaseDamage = Math.floor(hitBaseDamage * bossMul * (1 + Math.max(0, pStats.cosmosBossDamageMorePct || 0) / 100));
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * bossMul * (1 + Math.max(0, pStats.cosmosBossDamageMorePct || 0) / 100));
+                 bossMul *= (1 + Math.max(0, Number(pStats.bossDamagePct) || 0) / 100);
+                 hitBaseDamage = Math.floor(hitBaseDamage * bossMul * (1 + Math.max(0, pStats.cosmosBossDamageMorePct || 0) / 100));
+                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * bossMul * (1 + Math.max(0, pStats.cosmosBossDamageMorePct || 0) / 100));
+            } else if (targetEnemy.isElite && (pStats.eliteDamagePct || 0) > 0) {
+                let eliteMul = 1 + Math.max(0, Number(pStats.eliteDamagePct) || 0) / 100;
+                  hitBaseDamage = Math.floor(hitBaseDamage * eliteMul);
+                  ailmentBaseDamage = Math.floor(ailmentBaseDamage * eliteMul);
+            }
             }
             if (game.ascendClass === 'gladiator' && hasKeystone('g5') && game.gladiatorSwiftOpeningReady) {
                 hitBaseDamage = Math.floor(hitBaseDamage * 1.30);
@@ -6467,7 +7029,7 @@ function performPlayerAttack(pStats) {
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((pStats.cosmosLightningVariance || 0) > 0 && hitElement === 'light') dmg = Math.floor(dmg * (0.8 + Math.random() * 0.7));
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
-            if ((targetEnemy.evasionChance || 0) > 0 && Math.random() * 100 < targetEnemy.evasionChance) {
+            if ((targetEnemy.evasionChance || 0) > 0 && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit()) && Math.random() * 100 < targetEnemy.evasionChance) {
                 addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(targetEnemy, false);
                 return;
@@ -6489,6 +7051,25 @@ function performPlayerAttack(pStats) {
                 if (addEle === 'light') mitigatedAdded = Math.floor(mitigatedAdded * (curseFx.lightTakenMul || 1));
                 if (addEle === 'chaos') mitigatedAdded = Math.floor(mitigatedAdded * (curseFx.chaosTakenMul || 1));
                 if (mitigatedAdded > 0) dmg += mitigatedAdded;
+            });
+            // 속성별 기본 피해(flat): 각 속성을 실제 타입으로 적용한다. 치명타/굴림/반복 보정을 함께 받고
+            // 해당 속성의 적 저항으로 경감된다.
+            let flatElementHitDamage = (pStats && pStats.flatElementHitDamage) || {};
+            ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(addEle => {
+                let flatBase = Math.max(0, Number(flatElementHitDamage[addEle]) || 0);
+                if (flatBase <= 0) return;
+                let flatPortion = flatBase * (hitCrit ? Math.max(1, (Number(pStats.critDmg) || 100) / 100) : 1) * (rollPct / 100) * (hit.mult || 1) * repeatDamageMultiplier;
+                let addRes = getEffectiveEnemyMitigation(addEle, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
+                if (addEle === 'fire') addRes -= (curseFx.resFShred || 0);
+                if (addEle === 'cold') addRes -= (curseFx.resCShred || 0);
+                if (addEle === 'light') addRes -= (curseFx.resLShred || 0);
+                if (addEle === 'chaos') addRes -= (curseFx.resChaosShred || 0);
+                if (addEle === 'phys') addRes -= (curseFx.physDrShred || 0);
+                let mitigatedFlat = Math.floor(flatPortion * (1 - (addRes / 100)));
+                if (addEle === 'phys') mitigatedFlat = Math.floor(mitigatedFlat * (targetEnemy.physicalDamageTakenMul || 1));
+                if (addEle === 'light') mitigatedFlat = Math.floor(mitigatedFlat * (curseFx.lightTakenMul || 1));
+                if (addEle === 'chaos') mitigatedFlat = Math.floor(mitigatedFlat * (curseFx.chaosTakenMul || 1));
+                if (mitigatedFlat > 0) dmg += mitigatedFlat;
             });
             dmg = Math.floor(dmg * (curseFx.mul || 1));
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * (curseFx.mul || 1));
@@ -6519,6 +7100,13 @@ function performPlayerAttack(pStats) {
             }
             if (hitElement === 'chaos') {
                 let chaosTakenMul = curseFx.chaosTakenMul || 1;
+                // 시체 역병(워록 wlk9): 위축 중첩만큼 받는 카오스 피해 증가, 적중 시 1중첩 추가(최대 10)
+                if (game.ascendClass === 'warlock' && hasKeystone('wlk9') && targetEnemy && targetEnemy.hp > 0) {
+                    game.enemyWitherStacks = (game.enemyWitherStacks && typeof game.enemyWitherStacks === 'object') ? game.enemyWitherStacks : {};
+                    let wStacks = Math.max(0, Math.min(10, Math.floor(game.enemyWitherStacks[targetEnemy.id] || 0)));
+                    chaosTakenMul *= (1 + wStacks * 0.08);
+                    game.enemyWitherStacks[targetEnemy.id] = Math.min(10, wStacks + 1);
+                }
                 dmg = Math.floor(dmg * chaosTakenMul);
                 ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * chaosTakenMul);
             }
@@ -6548,6 +7136,14 @@ function performPlayerAttack(pStats) {
             let keystoneTakenMul = getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement);
             dmg = Math.floor(dmg * keystoneTakenMul);
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * keystoneTakenMul);
+            // 재능 상태이상 시너지(5/29/99): 적 상태이상 기반 받는 피해 증가
+            if (typeof getTalentEnemyTakenMul === 'function') {
+                let talentTakenMul = getTalentEnemyTakenMul(targetEnemy, hitElement, hitCrit);
+                if (talentTakenMul !== 1) {
+                    dmg = Math.floor(dmg * talentTakenMul);
+                    ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * talentTakenMul);
+                }
+            }
             dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
             if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) {
                 let talismanBossMul = 1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100);
@@ -6557,6 +7153,14 @@ function performPlayerAttack(pStats) {
             let finalDamageMul = Math.max(0, Number(pStats.finalDamageMultiplier) || 1);
             dmg = Math.floor(dmg * finalDamageMul);
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * finalDamageMul);
+            // 재능 정밀 공격 배율(2 플레쳐 매3타, 14 콜로세움 투기장 일격) — 인라인 경로 적용
+            if (typeof getTalentAttackDamageMul === 'function') {
+                let tAtkMul = getTalentAttackDamageMul() * (colosseumStrikeMul || 1);
+                if (tAtkMul !== 1) {
+                    dmg = Math.floor(dmg * tAtkMul);
+                    ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * tAtkMul);
+                }
+            }
             if (!Number.isFinite(dmg) || dmg < 0) dmg = 0;
             if (game.ascendClass === 'hunter' && hasKeystone('h2') && targetEnemy) {
                 targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
@@ -6594,7 +7198,64 @@ function performPlayerAttack(pStats) {
             let zone = getZone(game.currentZoneId);
             let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
             let beforeHpForForced = targetEnemy.hp;
+            let talentWasFull = beforeHpForForced >= (targetEnemy.maxHp || beforeHpForForced || 1);
+            // 선제 타격: 생명력이 가득 찬 적에게 가하는 첫 타에 추가 피해
+            if (talentWasFull && (pStats.firstStrikeDamagePct || 0) > 0) {
+                let firstStrikeMul = 1 + Math.max(0, Number(pStats.firstStrikeDamagePct) || 0) / 100;
+                dmg = Math.floor(dmg * firstStrikeMul);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * firstStrikeMul);
+            }
+            targetEnemy.lastHitElement = hitElement;
             let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
+            // 23 산맥추적자: 생명력 최대인 적 첫 타격 시 최대 생명력 비례 추가 피해
+            if (typeof getTalentFullLifeBurst === 'function' && targetEnemy.hp > 0) {
+                let fullBurst = getTalentFullLifeBurst(targetEnemy, talentWasFull);
+                if (fullBurst > 0) dealtToEnemy += applyDamageToEnemyResource(targetEnemy, fullBurst);
+            }
+            // 처형 일격(장비 옵션): 생명력이 일정 % 이하인 일반/정예 몬스터 즉시 처치(보스 제외)
+            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && (pStats.cullStrikePct || 0) > 0) {
+                let cullThr = Math.max(0, Math.min(20, Number(pStats.cullStrikePct) || 0)) / 100;
+                if (cullThr > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= cullThr) {
+                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+                }
+            }
+            // 재능 처형(15 도살자/71 하운드): 낮은 체력 일반 몬스터 마무리
+            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof getTalentExecuteThreshold === 'function') {
+                let exThr = getTalentExecuteThreshold();
+                if (exThr > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= exThr) {
+                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+                }
+            }
+            // 10 스팅어: 지속 피해가 걸린 일반 몬스터가 저체력이면 마무리(지속피해 점유 처형)
+            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__catalyst')
+                && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && ['poison', 'ignite', 'bleed'].includes(a.type) && (a.time || 0) > 0)
+                && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= 0.20) {
+                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+            }
+            // 8 심문궁: 표식 누적(쿨타임 아닐 때), 5초 후 processTalentInquisitorMarks에서 폭발
+            if (dmg > 0 && targetEnemy.hp > 0 && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__inquisitor')) {
+                game.talentInquisitorMarks = (game.talentInquisitorMarks && typeof game.talentInquisitorMarks === 'object') ? game.talentInquisitorMarks : {};
+                let nowMk = Date.now();
+                let mk = game.talentInquisitorMarks[targetEnemy.id] || { accumulated: 0, explodeAt: 0, cooldownUntil: 0 };
+                if ((mk.cooldownUntil || 0) <= nowMk) {
+                    if (!mk.explodeAt) mk.explodeAt = nowMk + 5000;
+                    mk.accumulated = (mk.accumulated || 0) + dmg;
+                    game.talentInquisitorMarks[targetEnemy.id] = mk;
+                }
+            }
+            // 6 헥스보우: 저주 걸린 적 공격 시 저주 제거 + 0.2배 광역 폭발
+            if (dmg > 0 && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__warlock')
+                && game.enemyConditionDebuffs && Array.isArray(game.enemyConditionDebuffs[targetEnemy.id])
+                && game.enemyConditionDebuffs[targetEnemy.id].some(d => d && (d.expiresAt || 0) > Date.now())) {
+                game.enemyConditionDebuffs[targetEnemy.id] = [];
+                let splash = Math.max(1, Math.floor(dmg * 0.2));
+                (game.enemies || []).forEach(e => {
+                    if (!e || e.hp <= 0 || e.id === targetEnemy.id) return;
+                    e.hp = Math.max(0, e.hp - splash);
+                    addBattleFx('hit', { enemyId: e.id, color: getElementColor('chaos'), damage: splash, duration: 220 });
+                    if (e.hp <= 0) handleEnemyDeath(e, pStats);
+                });
+            }
             if (targetEnemy.hp <= 0) targetEnemy.lastOverkillDamage = Math.max(0, dmg - dealtToEnemy);
             if (pStats.uniqueMaxRollBonusHit && rollPct >= 130 && dealtToEnemy > 0 && targetEnemy.hp > 0) {
                 let bonus = Math.max(1, Math.floor(dealtToEnemy * 0.5));
@@ -6723,12 +7384,16 @@ function performPlayerAttack(pStats) {
                 else targetEnemy.ailments.push({ type: 'assassinWeakness', time: 5, power: stacks });
             }
             if (isDotSkill) applyEnemyDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
-            applyEnemyAilmentFromHit(targetEnemy, getSkillAilmentStats(pStats, hitElement), dmg, hitCrit, {
-                ailmentSourceDamage: ailmentDamageBeforeCritMitigation,
+            let ailmentType = getAilmentTypeFromElement(hitElement);
+            let conditionAilmentTakenMul = curseFx && curseFx.ailmentTakenMul ? (curseFx.ailmentTakenMul[ailmentType] || 1) : 1;
+            applyEnemyAilmentFromHit(targetEnemy, getSkillAilmentStats(pStats, hitElement, curseFx), dmg, hitCrit, {
+                ailmentSourceDamage: Math.floor(ailmentDamageBeforeCritMitigation * conditionAilmentTakenMul),
                 critDotBonusPct: hitCrit ? 50 : 0
             });
             spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill);
             applySkillPeriodicOnHit(targetEnemy, pStats.sSkill, dealtToEnemy);
+            applySupportEchoOnHit(targetEnemy, pStats, dealtToEnemy);
+            applySupportChaosErosionOnHit(targetEnemy, pStats, hitElement);
             if (pStats.cosmosJudgmentLightning && hitElement === 'light') {
                 targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
                 let mark = targetEnemy.ailments.find(ail => ail && ail.type === 'cosmosJudgment');
@@ -7114,7 +7779,7 @@ function performMonsterAttacks(pStats) {
         }
         enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
         if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);
-        let seasonDepth = Math.max(0, (game.season || 1) - 1);
+        let seasonDepth = getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
         let tierPressure = clampNumber(((zone.tier || 1) - 1) / 10, 0, 1);
         const monsterBaseAttackSpeedMul = 1.10;
         const monsterBaseDamageMul = 1.15;
@@ -7330,6 +7995,10 @@ function performMonsterAttacks(pStats) {
             if (aliveEnemies >= 2) dmg = Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (pStats.takenDamageReduceWhen2EnemiesPct || 0) / 100)))));
             else if (aliveEnemies === 1) dmg = Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (pStats.takenDamageReduceWhen1EnemyPct || 0) / 100)))));
             let evadeChance = Math.max(0, pStats.evadeChance || 0);
+            // 7 에이기스: 직전 막기 성공 시 이번 회피 10% 증폭
+            if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian') && game.talentRuntime && game.talentRuntime.aegisEvadeAmp) {
+                evadeChance *= 1.10; game.talentRuntime.aegisEvadeAmp = false;
+            }
             if (game.ascendClass === 'catalyst' && hasKeystone('ct4') && game.catalystEvadeBoostReady) {
                 evadeChance *= 1.3;
                 game.catalystEvadeBoostReady = false;
@@ -7340,11 +8009,22 @@ function performMonsterAttacks(pStats) {
                 addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(null, true);
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
+                // 7 에이기스: 회피 성공 → 다음 공격 막기 확률 +5%p
+                if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian')) { game.talentRuntime = game.talentRuntime || {}; game.talentRuntime.aegisBlockBonus = 5; }
                 continue;
             }
             let blockRollCap = Math.max(50, Math.min(75, Number(pStats.blockChanceMax || 50)));
-            let blockRollChance = Math.max(0, Math.min(blockRollCap, pStats.blockChance || pStats.guardianBlockChance || 0));
-            if (Math.random() * 100 < blockRollChance) {
+            // 7 에이기스: 직전 회피 성공 시 이번 막기 확률 +5%p
+            let aegisBlockBonus = 0;
+            if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian') && game.talentRuntime && game.talentRuntime.aegisBlockBonus) { aegisBlockBonus = game.talentRuntime.aegisBlockBonus; game.talentRuntime.aegisBlockBonus = 0; }
+            let blockRollChance = Math.max(0, Math.min(blockRollCap, (pStats.blockChance || pStats.guardianBlockChance || 0) + aegisBlockBonus));
+            // 실전 특화: 막기 판정에 행운 적용(2회 굴려 유리한 값 사용)
+            let gladiatorBattleLuck = game.ascendClass === 'gladiator' && hasKeystone('g9');
+            let blockRoll = Math.random() * 100;
+            if (gladiatorBattleLuck) blockRoll = Math.min(blockRoll, Math.random() * 100);
+            if (blockRoll < blockRollChance) {
+                // 7 에이기스: 막기 성공 → 다음 회피 10% 증폭
+                if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian')) { game.talentRuntime = game.talentRuntime || {}; game.talentRuntime.aegisEvadeAmp = true; }
                 if ((pStats.uniqueBlockRecoverEnergyShieldPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
                     let recover = Math.max(1, Math.floor((pStats.energyShield || 0) * Math.max(0, Number(pStats.uniqueBlockRecoverEnergyShieldPct || 0)) / 100));
                     game.playerEnergyShield = Math.min((pStats.energyShield || 0), Math.max(0, Number(game.playerEnergyShield) || 0) + recover);
@@ -7355,7 +8035,9 @@ function performMonsterAttacks(pStats) {
             }
             let deflected = false;
             let deflectReducePct = 0;
-            if (Math.random() * 100 < Math.max(0, Math.min(75, pStats.deflectChance || 0))) {
+            let deflectRoll = Math.random() * 100;
+            if (gladiatorBattleLuck) deflectRoll = Math.min(deflectRoll, Math.random() * 100);
+            if (deflectRoll < Math.max(0, Math.min(75, pStats.deflectChance || 0))) {
                 let deflectReduce = Math.max(0, Math.min(85, 40 + Number(pStats.deflectDamageReduce || 0)));
                 dmg = scaleBreakdownToTotal(Math.max(1, Math.floor(dmg * (1 - deflectReduce / 100))));
                 if (pStats.uniqueDeflectStealth) {
@@ -7525,6 +8207,10 @@ function applyTrialTrapTick(pStats) {
     game.playerEsLastHitAt = Date.now();
     recordIncomingDamage('phys', trapDamage, '시련 함정');
     addBattleFx('trialTrap', { color: '#ffd36b', duration: 460 });
+    if (zone.bloomTrial && (zone.trapRegenSuppressPct || 0) > 0) {
+        game.bloomTrialRegenSuppress = Math.min(0.95, (game.bloomTrialRegenSuppress || 0) + (zone.trapRegenSuppressPct || 0) / 100);
+        addLog(`❄️ 혹독한 한기: 생명력 재생 억제 ${Math.round((game.bloomTrialRegenSuppress || 0) * 100)}%`, 'attack-monster', { noToast: true });
+    }
     addLog(`⚠️ 시련 함정 발동 [${getDamageElementLabel('phys')}] (${trapDamage} 피해)`, 'attack-monster', { noToast: true });
     if (game.playerHp <= 0) {
         handlePlayerDefeat(zone, pStats, "☠️ 시련 함정에 쓰러졌습니다. 마을로 귀환합니다.", { fatalElement: 'phys', sourceName: '시련 함정', noToast: true });
@@ -7708,8 +8394,18 @@ function triggerSeasonReset() {
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
     let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
+    let preservedOcean = JSON.parse(JSON.stringify(ensureOceanState()));
     let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
     let preservedTalismanUnlocked = !!game.talismanUnlocked || !!(game.unlocks && game.unlocks.talisman);
+    // 나무꾼의 손길로 봉인된 장비(장착/인벤)와 나무꾼의 손길 보유분은 루프가 지나도 유지한다.
+    let preservedSealedEquipment = {};
+    Object.keys(game.equipment || {}).forEach(slot => {
+        let it = game.equipment[slot];
+        if (it && it.loopSealed) preservedSealedEquipment[slot] = JSON.parse(JSON.stringify(it));
+    });
+    let preservedSealedInventory = (game.inventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
+    let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.woodsmanTouch) || 0));
+    let preservedWoodsmanTouchSeen = !!game.woodsmanTouchSeen;
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -7740,7 +8436,7 @@ function triggerSeasonReset() {
         game.cosmosAtlas.equippedStones = {};
     }
     game.combatHalted = false;
-    game.passivePoints = 0;
+    game.passivePoints = typeof getClaimedJournalPassivePointTotal === 'function' ? getClaimedJournalPassivePointTotal(game) : 0;
     game.passives = ['n0'];
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
@@ -7749,8 +8445,7 @@ function triggerSeasonReset() {
     game.supports = [];
     game.equippedSupports = [];
     game.supportGemData = {};
-    game.conditionGemUnlocked = false;
-    game.conditionGemPool = [];
+    // 컨디션 젬은 한 번 해금되면 영구 해금이며, 보유 풀도 루프 간 유지된다(재해금 버그 방지).
     game.pendingConditionGemChoices = null;
     game.skillAutoRules = [];
     game.conditionGemCooldowns = {};
@@ -7768,9 +8463,16 @@ function triggerSeasonReset() {
     game.ascendPoints = 0;
     game.ascendRank = 0;
     game.ascendClass = null;
+    game.bloomLoopSpecGranted = null;
+    game.bloomedClassThisLoop = null;
     game.inventory = [];
     game.equipment = { ...defaultGame.equipment };
     game.currencies = { ...defaultGame.currencies };
+    // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
+    Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = preservedSealedEquipment[slot]; });
+    if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory);
+    if (preservedWoodsmanTouch > 0) game.currencies.woodsmanTouch = preservedWoodsmanTouch;
+    game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
     game.labyrinthFloor = 1;
     game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax || 1));
     game.jewelInventory = [];
@@ -7794,18 +8496,24 @@ function triggerSeasonReset() {
     game.seasonChaseUniqueDropped = false;
     game.seasonChaseUniqueDrops = [];
     game.uniqueCodex = codexReveal;
+    game.codexNewlyRegistered = {};
+    // 군락지 액막이 부적(보유/장착/슬롯)도 루프 시 초기화한다.
+    game.colony = JSON.parse(JSON.stringify(defaultGame.colony));
     game.starWedge = JSON.parse(JSON.stringify(defaultGame.starWedge));
     game.starWedge.wedges = preservedEternalWedges;
     game.starWedge.constellationBuff = preservedConstellationBuff;
     game.unlocks = { ...defaultGame.unlocks };
     if (preservedTalismanUnlocked) game.unlocks.talisman = true;
+    if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(game);
     game.noti = { ...defaultGame.noti };
     if (typeof relockCoreCubeForLoop === 'function') relockCoreCubeForLoop();
     game.itemSubtab = 'item-tab-equip';
     game.skillSubtab = 'skill-tab-equip';
     game.mapSubtab = 'map-tab-zones';
+    game.exploreSubtab = 'explore-tree';
     game.chaosRealm = preservedChaosRealm;
     game.skyTower = preservedSkyTower;
+    game.ocean = preservedOcean;
     game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));
     game.skyTower.clearedThisLoop = 0;
     game.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
@@ -7823,6 +8531,7 @@ function triggerSeasonReset() {
         game.settings.jewelAutoSalvageEnabled = false;
         game.settings.itemFilterEnabled = false;
     }
+    if (game.heroSelectionInitialized && game.unlocks) game.unlocks.char = true;
     game.loopDeepPoints = Math.max(loopDeepBeforeReset, loopDeepExpectedAfterSettle);
     grantCodexLegacyStarterUniques();
     game.enemies = [];

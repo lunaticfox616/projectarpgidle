@@ -284,26 +284,25 @@ input[data-search-key]:focus {
 /* ── 루프 진행 대기 배너 (루프 10 이전 조건 달성 시 시간 정지 안내) ── */
 .loop-ready-banner {
   display: none;
-  position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  z-index: 1200;
   align-items: center;
-  gap: 14px;
-  max-width: min(680px, calc(100vw - 24px));
-  padding: 12px 16px;
-  border-radius: 12px;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
   background: linear-gradient(170deg, #1a1430 0%, #111525 100%);
   border: 1px solid #7f66d8;
-  box-shadow: 0 10px 30px rgba(2, 4, 10, 0.6), 0 0 18px rgba(127, 102, 216, 0.28);
+  box-shadow: 0 6px 18px rgba(2, 4, 10, 0.42), 0 0 14px rgba(127, 102, 216, 0.22);
   color: #e6e0ff;
 }
 .loop-ready-banner.active {
   display: flex;
 }
 .loop-ready-banner-text {
-  font-size: 0.9em;
+  min-width: 0;
+  font-size: 0.84em;
   line-height: 1.45;
 }
 .loop-ready-banner-text strong {
@@ -314,7 +313,16 @@ input[data-search-key]:focus {
   background: #5b4a9f;
   border-color: #8c79d9;
   font-weight: 700;
-  padding: 8px 14px;
+  padding: 8px 12px;
+}
+@media (max-width: 720px) {
+  .loop-ready-banner {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .loop-ready-banner button {
+    width: 100%;
+  }
 }
 
 /* ── 창공의 탑 패널 ── */
@@ -372,4 +380,237 @@ input[data-search-key]:focus {
   margin-top: 8px;
   font-size: 0.86em;
   line-height: 1.5;
+}
+
+/* Keep the Sky Tower entry readable when the action button shares a narrow row. */
+.map-item--sky-tower {
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+.map-item--sky-tower .map-item-main {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.map-item--sky-tower .map-item-main > span:last-child {
+  min-width: 0;
+  line-height: 1.45;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.map-item--sky-tower .map-item-actions {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+@media (max-width: 720px) {
+  .map-item--sky-tower .map-item-main,
+  .map-item--sky-tower .map-item-actions {
+    width: 100%;
+  }
+  .map-item--sky-tower .map-item-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* Vertical subtab shells shared by the codex and map exploration panels. */
+.vertical-tab-layout {
+  display: grid;
+  grid-template-columns: minmax(170px, 220px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.vertical-tab-sidebar {
+  position: sticky;
+  top: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #22364c;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(13, 23, 35, 0.96), rgba(9, 15, 24, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22);
+}
+
+.vertical-tab-btn {
+  width: 100%;
+  min-height: 54px;
+  padding: 9px 10px;
+  border: 1px solid #2a4058;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #142033 0%, #0f1827 100%);
+  color: #9db4cc;
+  text-align: left;
+  display: grid;
+  gap: 3px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.vertical-tab-btn span {
+  font-weight: 800;
+  color: #c9d9ea;
+  line-height: 1.2;
+}
+
+.vertical-tab-btn small {
+  color: #7790a9;
+  font-size: 0.75em;
+  line-height: 1.25;
+}
+
+.vertical-tab-btn:hover {
+  border-color: #4f7193;
+  background: linear-gradient(180deg, #1a2b42 0%, #142136 100%);
+}
+
+.vertical-tab-btn.active {
+  border-color: #d2a94f;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 218, 126, 0.18), transparent 36%),
+    linear-gradient(180deg, #2b210f 0%, #191306 100%);
+  box-shadow: 0 0 0 1px rgba(210, 169, 79, 0.28), 0 0 16px rgba(210, 169, 79, 0.16), inset 0 1px 0 rgba(255,232,153,0.12);
+}
+
+.vertical-tab-btn.active span {
+  color: #ffe29a;
+}
+
+.map-explore-layout .vertical-tab-btn span,
+.codex-vertical-layout .vertical-tab-btn span {
+  font-size: 1.05em;
+  letter-spacing: 0.2px;
+}
+
+.map-explore-layout .vertical-tab-btn,
+.codex-vertical-layout .vertical-tab-btn {
+  border-width: 2px;
+}
+
+/* 탐험 세로탭은 설명 없이 이름만 노출하므로 버튼을 작고 가운데 정렬로 정돈한다. */
+.vertical-tab-layout.map-explore-layout {
+  grid-template-columns: minmax(120px, 150px) minmax(0, 1fr);
+}
+.map-explore-layout .vertical-tab-btn {
+  min-height: 0;
+  padding: 8px 10px;
+  text-align: center;
+  justify-items: center;
+}
+.map-explore-layout .vertical-tab-btn span {
+  font-size: 1em;
+}
+
+.map-explore-layout .vertical-tab-btn.active,
+.codex-vertical-layout .vertical-tab-btn.active {
+  border-color: #ffd36b;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 218, 126, 0.26), transparent 40%),
+    linear-gradient(180deg, #352809 0%, #1c1407 100%);
+}
+
+.map-explore-layout .vertical-tab-btn.active span,
+.codex-vertical-layout .vertical-tab-btn.active span {
+  color: #ffe9a8;
+  text-shadow: 0 0 8px rgba(255, 211, 107, 0.35);
+}
+
+.vertical-tab-btn.active small {
+  color: #d9bd77;
+}
+
+/* 탐험 세로탭: 각 영역 테마 색으로 좌측 액센트 바 + 글자 색을 입혀 어떤 영역인지 한눈에 보이게 한다.
+   선택 표시(금색)는 활성 탭에 그대로 유지하고, 액센트 바는 활성/비활성 모두에 표시한다. */
+.map-explore-layout .vertical-tab-btn {
+  position: relative;
+  overflow: hidden;
+}
+.map-explore-layout .vertical-tab-btn::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--tab-accent, #4f7193);
+  box-shadow: 0 0 8px var(--tab-accent, transparent);
+}
+#btn-map-explore-hunting    { --tab-accent: #5fb86a; }
+#btn-map-explore-chaos      { --tab-accent: #b65ad0; }
+#btn-map-explore-root-boss  { --tab-accent: #d36b4e; }
+#btn-map-explore-labyrinth  { --tab-accent: #d8b24a; }
+#btn-map-explore-deep-chaos { --tab-accent: #8a5fe0; }
+#btn-map-explore-meteor     { --tab-accent: #e8743a; }
+#btn-map-explore-beehive    { --tab-accent: #ecd23c; }
+#btn-map-explore-colony     { --tab-accent: #3fc28a; }
+#btn-map-explore-voidrift   { --tab-accent: #4aa6d6; }
+#btn-map-explore-trials     { --tab-accent: #6c8fe6; }
+
+.map-explore-layout #btn-map-explore-hunting:not(.active) span    { color: #8fdf95; }
+.map-explore-layout #btn-map-explore-chaos:not(.active) span      { color: #e09cf0; }
+.map-explore-layout #btn-map-explore-root-boss:not(.active) span  { color: #f0987a; }
+.map-explore-layout #btn-map-explore-labyrinth:not(.active) span  { color: #f0d06a; }
+.map-explore-layout #btn-map-explore-deep-chaos:not(.active) span { color: #b394f0; }
+.map-explore-layout #btn-map-explore-meteor:not(.active) span     { color: #f0a868; }
+.map-explore-layout #btn-map-explore-beehive:not(.active) span    { color: #f0d85e; }
+.map-explore-layout #btn-map-explore-colony:not(.active) span     { color: #5fd9a4; }
+.map-explore-layout #btn-map-explore-voidrift:not(.active) span   { color: #74c2ec; }
+.map-explore-layout #btn-map-explore-trials:not(.active) span     { color: #92aef0; }
+
+.vertical-tab-panels {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #22364c;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(13, 20, 31, 0.72), rgba(8, 13, 21, 0.72));
+}
+
+.vertical-tab-panel { display: none; }
+.vertical-tab-panel.active { display: block; }
+
+.map-explore-layout .vertical-tab-panels h2,
+.codex-vertical-layout .vertical-tab-panels h2 {
+  margin-top: 0;
+}
+
+@media (max-width: 820px) {
+  .vertical-tab-layout { grid-template-columns: 1fr; }
+  .vertical-tab-sidebar {
+    position: static;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(150px, 1fr);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .vertical-tab-sidebar::-webkit-scrollbar { display: none; }
+  .vertical-tab-btn { min-height: 58px; }
+}
+
+.currency-card.woodsman-touch-currency {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(126, 255, 185, 0.78);
+  box-shadow: 0 0 14px rgba(72, 255, 157, 0.22), inset 0 0 18px rgba(72, 255, 157, 0.08);
+}
+.currency-card.woodsman-touch-currency::before {
+  content: "";
+  position: absolute;
+  inset: -45%;
+  background: conic-gradient(from 0deg, transparent 0 18%, rgba(112,255,184,.95) 24%, rgba(255,234,151,.95) 30%, transparent 38% 100%);
+  animation: woodsman-touch-border-spin 8s linear infinite;
+  pointer-events: none;
+}
+.currency-card.woodsman-touch-currency::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(21,39,32,.96), rgba(13,27,25,.96));
+  pointer-events: none;
+}
+.currency-card.woodsman-touch-currency > * {
+  position: relative;
+  z-index: 1;
+}
+@keyframes woodsman-touch-border-spin {
+  to { transform: rotate(360deg); }
 }

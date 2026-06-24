@@ -7,6 +7,49 @@ function safeExposeData(map) {
 // Phase-1 extracted data block.
 const ACT_BOSS_NAMES = Object.fromEntries(STORY_ACTS.map((act, idx) => [idx, act.bossName]));
 
+
+const ACT_BOSS_ASSET_KEYS = [
+    'bossAct1', 'bossAct2', 'bossAct3', 'bossAct4_1', 'bossAct5',
+    'bossAct6', 'bossAct7', 'bossAct8_1', 'bossAct9', 'bossAct10_1'
+];
+
+const BOSS_ASSET_MANIFEST = {
+    bossAct1: 'assets/boss/Act1.png',
+    bossAct2: 'assets/boss/Act2.png',
+    bossAct3: 'assets/boss/Act3.png',
+    bossAct4_1: 'assets/boss/Act4-1.png',
+    bossAct4_2: 'assets/boss/Act4-2.png',
+    bossAct5: 'assets/boss/Act5.png',
+    bossAct6: 'assets/boss/Act6.png',
+    bossAct7: 'assets/boss/Act7.png',
+    bossAct8_1: 'assets/boss/Act8-1.png',
+    bossAct8_2: 'assets/boss/Act8-2.png',
+    bossAct8_3: 'assets/boss/Act8-3.png',
+    bossAct9: 'assets/boss/Act9.png',
+    bossAct10_1: 'assets/boss/Act10(1).png',
+    bossAct10_2: 'assets/boss/Act10(2).png',
+    bossAct10_3: 'assets/boss/Act10(3).png',
+    bossAct10_4: 'assets/boss/Act10(4).png',
+    bossAct10_5: 'assets/boss/Act10(5).png'
+};
+
+const BOSS_ASSET_VARIANTS_BY_ACT = {
+    4: ['bossAct4_1', 'bossAct4_2'],
+    8: ['bossAct8_1', 'bossAct8_2', 'bossAct8_3'],
+    10: ['bossAct10_1', 'bossAct10_2', 'bossAct10_3', 'bossAct10_4', 'bossAct10_5']
+};
+
+function getBossAssetKeyForZone(zone, variantSeed) {
+    if (!zone || (zone.type && zone.type !== 'act') || !Number.isInteger(Number(zone.id))) return null;
+    const actNumber = Number(zone.id) + 1;
+    const variants = BOSS_ASSET_VARIANTS_BY_ACT[actNumber];
+    if (variants && variants.length > 0) {
+        const index = Math.abs(Math.floor(Number(variantSeed) || 0)) % variants.length;
+        return variants[index];
+    }
+    return ACT_BOSS_ASSET_KEYS[actNumber - 1] || null;
+}
+
 const ENEMY_TRAIT_POOL = [
     { id: 'rapid', name: '광폭 연타', atkMul: 1.35 },
     { id: 'fortified', name: '강철 피부', hpMul: 1.35, dr: 8 },
@@ -24,7 +67,11 @@ const ENEMY_TRAIT_POOL = [
     { id: 'coldWard', name: '서리 장막', resC: 28 },
     { id: 'lightWard', name: '뇌전 장막', resL: 28 },
     { id: 'chaosWard', name: '심연 장막', resChaos: 22 },
-    { id: 'physWard', name: '중갑 전개', dr: 14 }
+    { id: 'physWard', name: '중갑 전개', dr: 14 },
+    { id: 'pressureCrush', name: '수압 압살', oceanPressureGainMul: 1.6 },
+    { id: 'oxygenLeech', name: '산소 갈취', oceanOxygenLeechOnHit: 4 },
+    { id: 'accuracyWard', name: '탁한 물막', hitRateGuard: 0.18 },
+    { id: 'currentSwift', name: '급류 가속', atkMul: 1.2, attackSpeedVarMul: 1.16 }
 ];
 
-safeExposeData({ ACT_BOSS_NAMES, ENEMY_TRAIT_POOL });
+safeExposeData({ ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT, getBossAssetKeyForZone, ENEMY_TRAIT_POOL });

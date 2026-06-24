@@ -5,13 +5,25 @@ const vm = require('vm');
 const index = fs.readFileSync('index.html', 'utf8');
 const canvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 
-['css/components.css', 'js/utils.js', 'js/items.js', 'js/canvas-passive-tree.js'].forEach(asset => {
-  assert(index.includes(`${asset}?v=20260614-runtime-fixes1`), `${asset} cache buster must include the runtime fixes version`);
+const expectedCacheBusters = {
+  'css/components.css': '20260615-tab-drag-touch1',
+  'js/utils.js': '20260619-ocean6',
+  'js/items.js': '20260614-runtime-fixes1',
+  'js/canvas-passive-tree.js': '20260618-codex-autoreg1',
+  'css/layout.css': '20260614-cosmos-es1',
+  'css/ui-polish.css': '20260621-vertical-tabs1',
+  'css/ui-premium.css': '20260621-vertical-tabs1',
+  'data/items.js': '20260619-ocean2',
+  'js/skills.js': '20260614-cosmos-es1',
+  'js/passives.js': '20260621-vertical-tabs1',
+  'js/combat.js': '20260621-vertical-tabs1',
+  'js/canvas-battlefield.js': '20260614-cosmos-es1',
+  'js/ui.js': '20260621-vertical-tabs1',
+  'js/state.js': '20260621-vertical-tabs1'
+};
+Object.entries(expectedCacheBusters).forEach(([asset, version]) => {
+  assert(index.includes(`${asset}?v=${version}`), `${asset} cache buster must include ${version}`);
 });
-['css/layout.css', 'data/items.js', 'js/skills.js', 'js/passives.js', 'js/combat.js', 'js/canvas-battlefield.js', 'js/ui.js'].forEach(asset => {
-  assert(index.includes(`${asset}?v=20260614-cosmos-es1`), `${asset} cache buster must include the cosmos/es version`);
-});
-assert(index.includes('js/state.js?v=20260614-deep-chaos-map1'), 'js/state.js cache buster must include the deep-chaos map version');
 assert(canvasSource.includes('function isCraftSelectionEquipAvailableLocal()'), 'canvas paperdoll must guard missing craft-selection equip helper');
 assert(canvasSource.includes('function getCraftSelectionRefLocal()'), 'canvas paperdoll must guard missing craft-selection ref helper');
 

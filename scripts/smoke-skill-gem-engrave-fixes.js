@@ -33,6 +33,7 @@ const context = {
   getJewelStats: () => [],
   getEquippedUniqueJewels: () => [],
   hasKeystone: () => false,
+  getMaxJewelSlotCount: () => 2,
   getGemEnhanceTargetSkill: () => '서리늑대 소환',
   updateStaticUI: () => {},
   addLog: () => {}

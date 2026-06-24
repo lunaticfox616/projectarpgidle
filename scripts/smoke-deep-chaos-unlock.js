@@ -23,8 +23,13 @@ assert.deepStrictEqual(Array.from(context.game.abyssUnlockedDepths), before, 'pr
 
 const branchContext = { game: { season: 11, abyssEndlessDepth: 31, abyssUnlockedDepths: [20, 21, 31] } };
 vm.createContext(branchContext);
-vm.runInContext(`${match[0]}; const depth = 21; let nowEndless = Math.max(20, depth, Math.floor(game.abyssEndlessDepth || depth)); ensureNextEndlessChaosDepthUnlocked(nowEndless); game.abyssEndlessDepth = nowEndless;`, branchContext);
-assert.strictEqual(branchContext.game.abyssEndlessDepth, 31, 'clearing a lower loop cap should preserve the higher recorded endless depth');
+vm.runInContext(`${match[0]}; let depth = 20; let recordedEndlessDepth = Math.floor(game.abyssEndlessDepth || depth); let nowEndless = depth === 20 ? 20 : Math.max(20, depth, recordedEndlessDepth); ensureNextEndlessChaosDepthUnlocked(nowEndless); game.abyssEndlessDepth = nowEndless;`, branchContext);
+assert.strictEqual(branchContext.game.abyssEndlessDepth, 20, 'clearing chaos 20 must reset the next deep-chaos entry to floor 21 even when a higher record exists');
+assert(branchContext.game.abyssUnlockedDepths.includes(21), 'clearing chaos 20 must unlock deep chaos 21');
+
+branchContext.game.abyssEndlessDepth = 31;
+vm.runInContext(`depth = 21; recordedEndlessDepth = Math.floor(game.abyssEndlessDepth || depth); nowEndless = depth === 20 ? 20 : Math.max(20, depth, recordedEndlessDepth); ensureNextEndlessChaosDepthUnlocked(nowEndless); game.abyssEndlessDepth = nowEndless;`, branchContext);
+assert.strictEqual(branchContext.game.abyssEndlessDepth, 31, 'clearing deep chaos below the saved record should still preserve the higher recorded endless depth');
 assert(branchContext.game.abyssUnlockedDepths.includes(32), 'continuing from a preserved higher depth should have the next higher floor unlocked');
 
 console.log('deep chaos unlock smoke checks passed');

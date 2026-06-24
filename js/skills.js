@@ -174,7 +174,7 @@ function upgradeActiveGemQuality() {
     let gem = game.gemData[active];
     if (!gem || !SKILL_DB[active] || !SKILL_DB[active].isGem) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
     if ((gem.quality || 0) >= 20) return addLog('젬 퀄리티는 최대 20%입니다.', 'attack-monster');
-    let discount = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('gemQualityCostReducePct') || 0) / 100 : 0;
+    let discount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('gemQualityCostReducePct') : 0;
     let need = Math.max(1, Math.floor((1 + Math.floor((gem.quality || 0) / 5)) * (1 - discount)));
     if ((game.currencies.bossCore || 0) < need) return addLog(`군주의 핵이 부족합니다. (필요: ${need})`, 'attack-monster');
     game.currencies.bossCore -= need;
@@ -196,7 +196,7 @@ function processSupportGemWithSkyEssence(name) {
     let rec = normalizeGemRecord(game.supportGemData[name] || { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 });
     let improvingTier = (rec.unlockedTier || 1) < 3;
     let need = improvingTier ? Math.max(1, Math.floor(rec.unlockedTier || 1) + 1) : Math.max(3, Math.ceil((rec.level || 1) / 5));
-    let discount = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('inscriptionCostReducePct') || 0) / 100 : 0;
+    let discount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('inscriptionCostReducePct') : 0;
     need = Math.max(1, Math.floor(need * (1 - discount)));
     if ((game.currencies.skyEssence || 0) < need) return addLog(`창공의 힘이 부족합니다. (필요: ${need})`, 'attack-monster');
     game.currencies.skyEssence -= need;
@@ -236,18 +236,33 @@ function awakenActiveGemCandidate() {
 
 function applyFossilCraft() {
     if ((game.season || 1) < 3) return addLog('미궁 제작은 루프3부터 사용할 수 있습니다.', 'attack-monster');
-    if ((game.currencies.fossil || 0) <= 0) return addLog('미궁 화석이 부족합니다.', 'attack-monster');
-    game.currencies.fossil--;
+    let have = Math.max(0, Math.floor(game.currencies.fossil || 0));
+    if (have <= 0) return addLog('미궁 화석이 부족합니다.', 'attack-monster');
+    let raw = prompt(`한 번에 정제할 기본 화석 개수를 입력하세요. (최대 ${have})`, String(have));
+    if (raw === null) return;
+    let count = Math.max(0, Math.min(have, Math.floor(Number(raw))));
+    if (!Number.isFinite(count) || count <= 0) return addLog('정제 개수가 올바르지 않습니다.', 'attack-monster');
     let underworldOnlyFossils = new Set(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']);
-    let randomFossil = rndChoice(FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly && !underworldOnlyFossils.has(fossil.key)));
-    game.currencies[randomFossil.key] = (game.currencies[randomFossil.key] || 0) + 1;
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_refine');
-    addLog(`🪨 기본 화석을 정제해 [${randomFossil.name}] 1개를 획득했습니다.`, 'loot-magic');
+    let refinablePool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly && !underworldOnlyFossils.has(fossil.key));
+    let gained = {};
+    for (let i = 0; i < count; i++) {
+        game.currencies.fossil--;
+        let randomFossil = rndChoice(refinablePool);
+        game.currencies[randomFossil.key] = (game.currencies[randomFossil.key] || 0) + 1;
+        gained[randomFossil.name] = (gained[randomFossil.name] || 0) + 1;
+        if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_refine');
+    }
+    let summary = Object.keys(gained).map(name => `[${name}] ${gained[name]}개`).join(', ');
+    addLog(`🪨 기본 화석 ${count}개를 정제해 ${summary}를 획득했습니다.`, 'loot-magic');
     updateStaticUI();
 }
 
 function getFossilExclusivePool(item) {
-    let existing = typeof getItemOccupiedExplicitModIds === 'function' ? getItemOccupiedExplicitModIds(item) : new Set((item.stats || []).map(stat => stat.id));
+    // 화석 전용 옵션끼리만 중복을 막고, 같은 효과의 기본 추가옵션과는 공존할 수 있도록 한다.
+    let existing = new Set((item && Array.isArray(item.stats) ? item.stats : [])
+        .filter(stat => stat && (stat.fossilExclusive || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore))
+        .map(stat => stat.id)
+        .filter(Boolean));
     return FOSSIL_EXCLUSIVE_MODS
         .filter(mod => mod.slots.includes(item.slot))
         .filter(mod => {
@@ -269,7 +284,15 @@ function applyFossilChaosCraft(fossilKey) {
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (item.corrupted) return addLog('타락한 아이템은 제작할 수 없습니다.', 'attack-monster');
     let immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
-    let guaranteedPool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && fossil.guaranteedStats.includes(mod.id) && !immutableIds.has(mod.statId || mod.id));
+    // guaranteedStats는 실제 스탯 id(예: maxResF)로 적혀 있으므로 모드의 statId(없으면 id)로 비교해야 한다.
+    // 방패 화석의 최대 저항 모드는 id가 'shieldMaxResF'이고 statId가 'maxResF'라서, mod.id로 비교하면 방패에서도 매칭되지 않던 버그가 있었다.
+    let guaranteedPool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && fossil.guaranteedStats.includes(mod.statId || mod.id) && !immutableIds.has(mod.statId || mod.id));
+    // 🛡️ 방패 화석의 최대 저항(최대 화염/냉기/번개) 확정 옵션은 원래 방패 전용 모드라 다른 방어구에는 슬롯상 매칭되지 않는다.
+    // 방패뿐 아니라 모든 방어구(투구/갑옷/장갑/신발/방패)에 부여할 수 있도록 슬롯 제한을 완화한다.
+    let ARMOR_DEFENSE_SLOTS = new Set(['투구', '갑옷', '장갑', '신발', '방패']);
+    if (fossilKey === 'fossilBulwark' && guaranteedPool.length === 0 && ARMOR_DEFENSE_SLOTS.has(item.slot)) {
+        guaranteedPool = MOD_DB.filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id) && !immutableIds.has(mod.statId || mod.id));
+    }
     let specialFossil = ['fossilOld', 'fossilRift'].includes(fossilKey);
     if (!specialFossil && guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
 
@@ -282,21 +305,13 @@ function applyFossilChaosCraft(fossilKey) {
     let guaranteedMinTier = Math.max(tierRange.min || 1, hiddenTier >= 11 ? tierRange.min : hiddenTier - 3);
     let guaranteedMaxTier = Math.max(guaranteedMinTier, hiddenTier);
     let guaranteed = specialFossil ? null : pickWeightedMod(guaranteedPool);
-    let defenseSlots = new Set(['투구', '갑옷', '장갑', '신발']);
-    let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !defenseSlots.has(item.slot));
-    let baseDefenseTypes = new Set((item.baseStats || [])
-        .map(stat => stat && stat.id)
-        .filter(id => id === 'armor' || id === 'evasion' || id === 'energyShield'));
+    let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !new Set(['투구', '갑옷', '장갑', '신발', '방패']).has(item.slot));
+    let baseDefenseTypes = getItemBaseDefenseTypes(item);
     function canUseDefenseStat(statId) {
         statId = String(statId || '');
         if (bypassDefenseTypeRule) return true;
-        if (statId === 'deflectChance') return baseDefenseTypes.has('evasion');
-        if (!['armor', 'evasion', 'energyShield', 'armorPct', 'evasionPct', 'energyShieldPct'].includes(statId)) return true;
-        if (baseDefenseTypes.size <= 0) return true;
-        if (statId.startsWith('armor') && !baseDefenseTypes.has('armor')) return false;
-        if (statId.startsWith('evasion') && !baseDefenseTypes.has('evasion')) return false;
-        if (statId.startsWith('energyShield') && !baseDefenseTypes.has('energyShield')) return false;
-        return true;
+        if (statId === 'deflectChance') return baseDefenseTypes.size <= 0 || baseDefenseTypes.has('evasion');
+        return isDefenseTypeStatAllowed(item, statId);
     }
 
     let lockedStats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
@@ -321,7 +336,8 @@ function applyFossilChaosCraft(fossilKey) {
     while ((newStats.length + reservedInfusionCount) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
         let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id) && canUseDefenseStat(mod.statId || mod.id));
         if (pool.length === 0) break;
-        let roll = rollAffixValueInTierRange(pickWeightedMod(pool), tierRange.min || 1, maxTier);
+        // 화석이 보정하는 보장 옵션만 고티어 보정을 받고, 나머지 옵션은 일반 티어 분포(1티어부터)로 굴린다.
+        let roll = rollAffixValue(pickWeightedMod(pool), maxTier);
         newStats.push(roll);
         blockedIds.add(roll.id);
     }

@@ -66,11 +66,11 @@ const UNIQUE_DB = [
     { name: "타락한 심장석", slots: ["갑옷"], reqTier: 15, stats: [{ id: "pctHp", min: 20, max: 30 }, { id: "chaosPctDmg", min: 28, max: 40 }, { id: "resChaos", min: 18, max: 26 }, { id: "flatHp", min: 90, max: 130 }, { id: 'resPen', min: 7.1, max: 7.9 }, { id: 'resAll', min: 18, max: 20.1 }] },
     { name: "초월자 파쇄검", slots: ["무기"], reqTier: 1, ultraRare: true, uniqueEffect: "플레이어 레벨 1당 기본 피해 +10", uniqueEffectKey: "flatDmgPerLevel", uniqueEffectParams: { perLevel: 10 }, stats: [{ id: "flatDmg", min: 32, max: 42 }, { id: "critDmg", min: 55, max: 75 }, { id: "aspd", min: 11, max: 15 }, { id: 'maxDmgRoll', min: 16, max: 18.1 }, { id: 'minDmgRoll', min: 16, max: 18.1 }] },
     { name: "새벽의 약속", slots: ["투구"], reqTier: 6, ultraRare: true, uniqueEffect: "경험치 획득량 +10%", uniqueEffectKey: "xpGainPct", uniqueEffectParams: { pct: 10 }, stats: [{ id: "flatHp", min: 90, max: 120 }, { id: "resAll", min: 12, max: 17 }, { id: "resChaos", min: 12, max: 17 }, { id: "regen", min: 1.0, max: 1.5 }, { id: 'critDmg', min: 46.7, max: 53.1 }, { id: 'evasionPct', min: 30.7, max: 34.9 }] },
-    { name: "심연 군주갑", slots: ["갑옷"], reqTier: 6, ultraRare: true, uniqueEffect: "심연 주얼 슬롯 (1~2)개", uniqueEffectKey: "abyssSocketOnItem", uniqueEffectParams: { min: 1, max: 2 }, stats: [{ id: "flatHp", min: 260, max: 340 }, { id: "dr", min: 12, max: 18 }, { id: "resChaos", min: 20, max: 28 }, { id: 'dotPctDmg', min: 22.7, max: 25.9 }, { id: 'armorPct', min: 30.7, max: 34.9 }] },
+    { name: "심연 군주갑", slots: ["갑옷"], reqTier: 6, uniqueEffect: "심연 주얼 슬롯 (1~2)개", uniqueEffectKey: "abyssSocketOnItem", uniqueEffectParams: { min: 1, max: 2 }, stats: [{ id: "flatHp", min: 260, max: 340 }, { id: "dr", min: 12, max: 18 }, { id: "resChaos", min: 20, max: 28 }, { id: 'dotPctDmg', min: 22.7, max: 25.9 }, { id: 'armorPct', min: 30.7, max: 34.9 }] },
     { name: "폭풍 추적자", slots: ["신발"], reqTier: 6, ultraRare: true, uniqueEffect: "플레이어가 받는 감전 효과 반전 (피해 증가 → 피해 감소)", uniqueEffectKey: "invertShockTaken", stats: [{ id: "move", min: 17, max: 22 }, { id: "aspd", min: 9, max: 12 }, { id: "resL", min: 14, max: 19 }, { id: 'evasionPct', min: 30.7, max: 34.9 }, { id: 'coldPctDmg', min: 22.7, max: 25.9 }] },
     { name: "종말의 논리", slots: ["목걸이"], reqTier: 10, ultraRare: true, uniqueEffect: "적 처치 시 15% 확률로 생명력 25% 시체 폭발", uniqueEffectKey: "corpseExplodeOnKill", uniqueEffectParams: { chance: 15, lifePct: 25 }, stats: [{ id: "gemLevel", min: 3, max: 3 }, { id: "suppCap", min: 2, max: 2 }, { id: "elementalPctDmg", min: 50, max: 70 }, { id: "resPen", min: 12, max: 20 }, { id: "crit", min: 10, max: 16 }] },
     { name: "공허 제국의 인장", slots: ["반지"], reqTier: 10, ultraRare: true, uniqueEffect: "타격 시 적 카오스 저항 -3% (최대 10중첩)", uniqueEffectKey: "hitApplyChaosResDown", uniqueEffectParams: { perHit: 3, maxStacks: 10 }, stats: [{ id: "resAll", min: 8, max: 11 }, { id: "crit", min: 4, max: 6 }, { id: "chaosPctDmg", min: 22, max: 32 }, { id: "leech", min: 0.45, max: 0.7 }, { id: "resPen", min: 4, max: 7 }] },
-    { name: "황제의 심연띠", slots: ["허리띠"], reqTier: 10, ultraRare: true, uniqueEffect: "심연 주얼 슬롯 (1~2)개, 장착 심연 주얼 효과 (1~100)% 증가", uniqueEffectKey: "abyssSocketAndJewelAmp", uniqueEffectParams: { socketsMin: 1, socketsMax: 2, ampMin: 1, ampMax: 100 }, stats: [{ id: "flatHp", min: 130, max: 175 }, { id: "pctHp", min: 14, max: 19 }, { id: "dr", min: 6, max: 9 }, { id: "resAll", min: 7, max: 10 }, { id: 'elementalPctDmg', min: 30, max: 34.3 }, { id: 'dotPctDmg', min: 22.7, max: 25.9 }] },
+    { name: "황제의 심연띠", slots: ["허리띠"], reqTier: 10, uniqueEffect: "심연 주얼 슬롯 (1~2)개, 장착 심연 주얼 효과 (1~100)% 증가", uniqueEffectKey: "abyssSocketAndJewelAmp", uniqueEffectParams: { socketsMin: 1, socketsMax: 2, ampMin: 1, ampMax: 100 }, stats: [{ id: "flatHp", min: 130, max: 175 }, { id: "pctHp", min: 14, max: 19 }, { id: "dr", min: 6, max: 9 }, { id: "resAll", min: 7, max: 10 }, { id: 'elementalPctDmg', min: 30, max: 34.3 }, { id: 'dotPctDmg', min: 22.7, max: 25.9 }] },
     { name: "세계파쇄자", slots: ["무기"], reqTier: 10, ultraRare: true, stats: [{ id: "physIgnore", min: 9, max: 13 }, { id: "flatDmg", min: 45, max: 60 }, { id: "critDmg", min: 45, max: 65 }, { id: "targetCount", min: 1, max: 1 }, { id: "aspd", min: 7, max: 7 }] },
     { name: "만상 관통석", slots: ["목걸이"], reqTier: 10, ultraRare: true, stats: [{ id: "resPen", min: 9, max: 13 }, { id: "elementalPctDmg", min: 20, max: 29 }, { id: "resAll", min: 10, max: 10 }, { id: "gemLevel", min: 1, max: 2 }, { id: 'critDmg', min: 46.7, max: 53.1 }, { id: 'chaosPctDmg', min: 22.7, max: 25.9 }] },
     { name: "천공 붕괴자", slots: ["무기"], reqTier: 10, ultraRare: true, uniqueEffect: "이 무기는 항상 감전 부여", uniqueEffectKey: "alwaysShock", stats: [{ id: "flatDmg", min: 55, max: 72 }, { id: "lightPctDmg", min: 24, max: 33 }, { id: "critDmg", min: 60, max: 80 }, { id: "shockEffect", min: 50, max: 50 }, { id: 'elementalPctDmg', min: 30, max: 34.3 }, { id: 'resAll', min: 15.3, max: 17.5 }] },
@@ -505,6 +505,9 @@ const ORB_DB = {
     bossKeyStorm: { name: '열쇠: 폭풍 군단장', desc: '루프2 뿌리 보스 [볼타] 도전권입니다.' },
     beastKeyCerberus: { name: '열쇠: 케르베로스', desc: '루프6 야수 뿌리 보스 [케르베로스] 도전권입니다.' },
     trialKey3: { name: '시련의 증표', desc: '3차/4차 전직 시련 재도전권입니다.' },
+    chaosKey: { name: '카오스 키', desc: '혼돈계에서 드물게 드랍됩니다. 코어 키와 함께 재능 개화 시련을 여는 열쇠입니다.' },
+    coreKey: { name: '코어 키', desc: '지하계에서 드물게 드랍됩니다. 카오스 키와 함께 재능 개화 시련을 여는 열쇠입니다.' },
+    woodsmanTouch: { name: '나무꾼의 손길', desc: '극히 드물게 발견되는 신비한 재화입니다. 장비 하나를 봉인하여 루프(환생)가 진행되어도 초기화되지 않게 합니다.' },
     blessing: { name: '축복의 오브', desc: '장비의 베이스 옵션 값을 80%~120% 구간에서 다시 굴립니다.' },
     bossCore: { name: '군주의 핵', desc: '루프2 뿌리 보스를 처치하면 얻는 젬 강화 재료입니다.' },
     fossil: { name: '미궁 화석', desc: '기본 화석 조각입니다. 미궁에서 다양한 타입의 화석으로 정제됩니다.' },
@@ -553,7 +556,19 @@ const ORB_DB = {
     radiantSealShard: { name: '찬란한 봉인편린', desc: '극도로 희귀한 최상급 봉인편린입니다. 고유 부적 등장 확률이 높습니다.' },
     meteorShard: { name: '운석 파편', desc: '운석 낙하 지점에서 얻는 검은 별 파편. 별쐐기 제작/리롤에 사용됩니다.' },
     incompleteStarWedge: { name: '불완전한 별쐐기', desc: '미완성 별쐐기 코어. 운석 파편과 결합하면 완성할 수 있습니다.' },
-    starWedge: { name: '별쐐기', desc: '검은 별의 파편. 패시브 트리에 장착해 주변 노드 효과를 변성시킵니다.' }
+    starWedge: { name: '별쐐기', desc: '검은 별의 파편. 패시브 트리에 장착해 주변 노드 효과를 변성시킵니다.' },
+    reefFragment: { name: '암초 조각', desc: '심해에서 발견되는 암초 조각입니다. 심해 거점에 설치하면 낚시 게이지 충전 속도가 증가합니다.' },
+    oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' }
+};
+const OCEAN_FISH_DB = {
+    shallowSilverfin: { name: '은빛 비늘치', desc: '얕은 바다에서 흔히 잡히는 물고기입니다.', depthTier: 0 },
+    tidalEel: { name: '조류 장어', desc: '조류가 흐르는 100m 안팎에서 자주 보입니다.', depthTier: 1 },
+    glowfinTrout: { name: '발광 송어', desc: '빛이 옅어지는 중층에서 발견되는 물고기입니다.', depthTier: 2 },
+    abyssAngler: { name: '심연 등불고기', desc: '깊은 심해에서만 출현하는 희귀 어종입니다.', depthTier: 4 },
+    voidLeviathanSpawn: { name: '공허 리바이어던 새끼', desc: '극심한 수압 구간에서만 모습을 드러내는 전설의 새끼 괴어입니다.', depthTier: 7 },
+    tidelordKoi: { name: '해류군주 비단잉어', desc: '가장 깊은 해류가 휘몰아치는 구간에서만 모습을 드러내는 군주급 어종입니다.', depthTier: 10, rareWeight: 0.05 },
+    prismaticHorror: { name: '무지갯빛 공포', desc: '빛조차 닿지 않는 압사 구간 깊숙이서 발견되는 변종 심해어입니다.', depthTier: 13, rareWeight: 0.03 },
+    kingLeviathan: { name: '리바이어던 본체', desc: '새끼가 아닌 리바이어던의 본체. 가장 깊은 곳에서도 낚일 확률이 극히 낮은 최상위 어종입니다.', depthTier: 16, rareWeight: 0.012 }
 };
 const MARKET_EXCHANGES = [
     { id: 'm1', from: 'transmute', to: 'augment', need: 8, gain: 1 },
@@ -571,4 +586,4 @@ const MARKET_EXCHANGES = [
     ,{ id: 'm13', from: 'blessing', to: 'chaos', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, ORB_DB, MARKET_EXCHANGES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });
+safeExposeData({ UNIQUE_DB, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });
