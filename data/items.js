@@ -135,114 +135,66 @@ const UNDERWORLD_REALM_ENTRIES = [
     { name: '골렘 허리띠', effect: '최대 생명력 +35%' },
     { name: '중핵 결속대', effect: '모든 최대 저항 +3%' }
 ];
-const COSMOS_EFFECT_LINES = [
-    '성도의 발화점: 같은 대상 7회 연속 타격 시 별화염 폭발(공격력의 420%)',
-    '광추의 파편: 투사체가 적을 관통할 때마다 최종 피해 +6% (최대 5중첩)',
-    '성운 봉인: 생명력 35% 이하일 때 받는 피해 28% 감소',
-    '은하의 각인: 치명타 적중 시 1.5초간 시간균열(적 이동/공격속도 30% 감소)',
-    '공전의 귀환: 회피 성공 시 다음 타격 2회가 반드시 치명타',
-    '초신성 직조: 보스에게 적중 시 10초마다 초신성 파동(공격력의 700%)',
-    '별자리 금속: 장비의 방어도/회피/보호막 중 가장 높은 수치의 22%를 추가 적용',
-    '월광 항법: 밤의 표식 3중첩 시 즉시 생명력 12% 회복',
-    '항성 낙인: 적에게 준 원소 상태이상 1개당 관통 +4% (최대 4개)',
-    '성단의 결: 연결된 노드 1개당 피해 +2%, 받는 피해 -1% (최대 12개 계산)',
-    '서광 공명기: 스킬 사용 5회마다 다음 스킬의 범위 +60%, 피해 +30%',
-    '자전 폭심: 근접 타격 시 15% 확률로 회전충격파 2회 발사',
-    '빛무리 경첩: 최소 피해 보정이 최대 피해 보정의 80% 이상으로 고정',
-    '천구의 열쇠: 잠긴 우주계 노드 도전 시 성공률 보정 +12%',
-    '유성 궤도핵: 8초마다 유성핵 1개 획득, 최대 3개(타격 시 1개 소모/추가타격)',
-    '오로라 박동: 냉각 적 타격 시 점화도 함께 부여(피해 55%)',
-    '천문 추침: 원거리 적 첫 타격 피해 +45%',
-    '성운 분기: 다중 대상 타격 시 분기번개 발생(최대 4체)',
-    '행성외권: 근접/원거리 태그가 동시에 있는 스킬 피해 +38%',
-    '영점 편광: 원소 저항이 동일할 때 모든 최대저항 +1%',
-    '은하 심도: 지하계 패널티 18% 완화',
-    '항성 절편: 물리 피해의 18%를 추가 카오스 피해로 획득',
-    '성류 고리: 흡혈 인스턴스당 회복 속도 +35%',
-    '별무덤 인장: 처치 시 8% 확률로 시체폭발(생명력 18%)',
-    '자력 낙화: 감전된 적이 사망하면 주변 6m 전이감전',
-    '성층 반향: 사용한 스킬을 20% 확률로 메아리 시전',
-    '혜성 구속: 이동속도 180% 이상일 때 받는 피해 -16%',
-    '태양풍 초점: 점화 피해가 치명타 배율의 40%를 추가 반영',
-    '월식 잔광: 암흑 상태(피격 3초 무피격 유지)에서 첫 타격 2배 피해',
-    '항성 원환: 투사체 추가 발사 +1, 대신 투사체 피해 -10%',
-    '중력 접힘: 보스 스킬 피격 시 2초간 중력붕괴 버프(피해 +25%)',
-    '성운 승화: 보호막이 0이 되면 3초간 피해면역(전투당 1회)',
-    '공전 쐐기: 방향 전환 직후 1초간 관통/연쇄 +1',
-    '자전 공명: 공격속도의 30%를 추가 치명타 확률로 전환',
-    '천체 해석기: 적의 남은 생명력 70% 이상 구간에 주는 피해 +22%',
-    '광년 축전기: 과충전 상태에서 스킬 피해 +40%, 마나소모 +25%',
-    '성핵 타래: 카오스 저항 1%당 카오스 피해 +0.9%',
-    '여명 자침: 첫 진입 10초간 모든 저항 +25%',
-    '천공 스피너: 범위 스킬 사용 시 주변에 궤도칼날 3개 생성',
-    '우주맥 봉인: 군중제어 면역 지속시간 +100%',
-    '은하연 다발: 소환/설치물 피해 +35%',
-    '성흔 제어핵: 스킬 젬 레벨 +1, 보조 젬 한도 +1',
-    '항성 편극: 화염/냉기/번개 피해 중 가장 높은 값만 1.7배 적용',
-    '감마 포개짐: 4초마다 감마장(적 받는 피해 +12%) 생성',
-    '광권 반전: 원소 반사 피해 면역, 카오스 반사 피해 50% 감소',
-    '극야 성환: 지속 피해 20% 감소, 중독/출혈 피해 25% 감소',
-    '유성 정렬자: 운석 낙하지점 게이지 획득량 +30%',
-    '성도 지시계: 우주계 도전 요구치 -10%, 우주계 보상 +15%',
-    '궤도 정박기: 은하 보스 격파 시 우주석 추가 1개 확률 +20%',
-    '창공 미분기: 우주계 노드 클리어 시 다음 노드 첫 타격 피해 +60%'
+// 우주계 전용 도감 고유 — 단일 소스(이름 ↔ 실제 구현된 고유효과 ↔ 설명이 항상 일치)
+// 모든 key 는 getPlayerStats 의 고유효과 파이프라인에 실제 구현된 효과만 사용한다.
+const COSMOS_CODEX = [
+    { name: '성도의 발화점', key: 'igniteDamageMorePct', params: { pct: 30 }, desc: '점화 피해 +30%' },
+    { name: '광추의 파편', key: 'projectileDoubleStrikePct', params: { pct: 40 }, desc: '투사체가 40% 확률로 한 번 더 적중' },
+    { name: '성운 봉인', key: 'genericTakenDamageReducePct', params: { pct: 10 }, desc: '받는 모든 피해 10% 추가 감소' },
+    { name: '은하의 각인', key: 'fateTwinRollSync', params: { critToRollPct: 18 }, desc: '피해 보정을 높은 값으로 통일하고, 치명타 확률의 18%만큼 추가 상승' },
+    { name: '공전의 귀환', key: 'deflectGrantShadowStealth', params: { duration: 3, move: 20, evasionPct: 20, critDmg: 20 }, desc: '쳐내기 성공 시 3초간 그림자 은신(이동속도·회피·치명타 피해 +20%)' },
+    { name: '초신성 직조', key: 'cosmosBossSlayer', params: { pct: 16, critDmg: 24 }, desc: '피해 +16%, 치명타 피해 +24%' },
+    { name: '별자리 금속', key: 'lifePctAsEnergyShield', params: { pct: 15 }, desc: '최대 생명력의 15%만큼 에너지 보호막을 추가로 부여' },
+    { name: '월광 항법', key: 'lifeRecoupTakenDamage', params: { pct: 25, duration: 4 }, desc: '받은 피해의 25%를 4초에 걸쳐 생명력으로 재차 회복' },
+    { name: '항성 낙인', key: 'stackingElementalResDownOnHit', params: { perHit: 2, max: 22 }, desc: '원소 타격마다 적의 원소 저항 −2%(최대 −22%)' },
+    { name: '성단의 결', key: 'curseCrown', params: { extraCurseCap: 1, finalDmgPerCursePct: 5 }, desc: '저주 한도 +1, 적용된 저주 1개당 최종 피해 +5%' },
+    { name: '서광 공명기', key: 'warcryResonanceBelt', params: { perWarcryAmpPct: 16 }, desc: '전투의 함성을 시전할 때마다 공명력 증폭 +16%' },
+    { name: '자전 폭심', key: 'overkillSplash', params: {}, desc: '적 처치 시 초과 피해가 주변에 폭발' },
+    { name: '빛무리 경첩', key: 'minRollEqualsMaxRoll', params: {}, desc: '최소 피해 보정이 최대 피해 보정과 같아짐' },
+    { name: '천구의 열쇠', key: 'riderCompass', params: {}, desc: '각 몬스터에게 가하는 첫 타격의 피해가 크게 증폭됨' },
+    { name: '유성 궤도핵', key: 'meteorFootsteps', params: { chance: 18, damagePct: 180 }, desc: '이동 중 18% 확률로 유성이 낙하(공격력의 180%)' },
+    { name: '오로라 박동', key: 'frostSentinelBoots', params: {}, desc: '냉각 효과 +40%' },
+    { name: '천문 추침', key: 'dsAndTargetAnyBonus', params: { ds: 8, target: 1 }, desc: '이중 타격 확률 +8%, 모든 스킬의 타겟 수 +1' },
+    { name: '성운 분기', key: 'shockTracerGreaves', params: { shockEffectPct: 20, strikeDamagePct: 420, icdSec: 0.6 }, desc: '감전 효과 +20%, 0.6초마다 추적 번개 발사(공격력의 420%)' },
+    { name: '행성외권', key: 'maxRollBonusHit', params: {}, desc: '최대 피해로 굴릴 때 보너스 타격이 추가됨' },
+    { name: '영점 편광', key: 'uniqueMaxResAll', params: { pct: 4 }, desc: '모든 최대 저항 +4%' },
+    { name: '은하 심도', key: 'chaosTakenDamageReducePct', params: { pct: 15 }, desc: '받는 카오스 피해 15% 감소' },
+    { name: '항성 절편', key: 'hitApplyChaosResDown', params: { perHit: 2, maxStacks: 12 }, desc: '타격마다 적의 카오스 저항 −2%(최대 12중첩)' },
+    { name: '성류 고리', key: 'leechEfficiencyOnKill', params: { duration: 8, efficiencyPct: 90 }, desc: '적 처치 후 8초간 흡혈 효율 +90%' },
+    { name: '별무덤 인장', key: 'corpseExplodeOnKill', params: { chance: 16, lifePct: 22 }, desc: '처치 시 16% 확률로 시체 폭발(최대 생명력의 22%)' },
+    { name: '자력 낙화', key: 'alwaysShock', params: {}, desc: '모든 타격이 감전을 유발' },
+    { name: '성층 반향', key: 'conditionManual', params: { durationPct: 80, cdrPct: 16 }, desc: '컨디션 젬 지속시간 +80%, 재사용 대기시간 −16%' },
+    { name: '혜성 구속', key: 'cosmosSpeedBurst', params: { move: 14, aspd: 12 }, desc: '이동 속도 +14%, 공격 속도 +12%' },
+    { name: '태양풍 초점', key: 'esAmpAndRecoverOnCrit', params: { ampPct: 50, recoverPctOnCrit: 2 }, desc: '에너지 보호막 50% 증폭, 치명타 적중 시 보호막 2% 회복' },
+    { name: '월식 잔광', key: 'uniqueTakenReduceWhen1Enemy', params: { pct: 18 }, desc: '적이 1명일 때 받는 피해 18% 감소' },
+    { name: '항성 원환', key: 'cosmosPenetration', params: { pen: 10 }, desc: '저항 관통 +10%' },
+    { name: '중력 접힘', key: 'uniqueTakenReduceWhen2Enemies', params: { pct: 15 }, desc: '주변 적이 2명 이상일 때 받는 피해 15% 감소' },
+    { name: '성운 승화', key: 'dragonVeinGuard', params: { chance: 22, duration: 2, hpPct: 8 }, desc: '피격 시 22% 확률로 2초간 보호막 생성(최대 생명력의 8%)' },
+    { name: '공전 쐐기', key: 'cosmosFinalDmg', params: { pct: 14 }, desc: '최종 피해 +14%' },
+    { name: '자전 공명', key: 'flatDmgPerLevel', params: { perLevel: 2 }, desc: '레벨당 추가 공격 피해 +2' },
+    { name: '천체 해석기', key: 'guardianArmor', params: { takenLessPct: 8, bossTakenLessPct: 12 }, desc: '받는 피해 8% 감소(보스에게는 12%)' },
+    { name: '광년 축전기', key: 'xpGainPct', params: { pct: 25 }, desc: '경험치 획득량 +25%' },
+    { name: '성핵 타래', key: 'instantLeechAndDoubleDamage', params: { instantLeechPct: 20, doubleDamageChance: 15 }, desc: '흡혈의 20%가 즉시 적용되고, 15% 확률로 2배 피해' },
+    { name: '여명 자침', key: 'uniqueGemLevelBonus', params: { level: 1 }, desc: '모든 스킬 젬 레벨 +1' },
+    { name: '천공 스피너', key: 'cosmosSustain', params: { regen: 1.4, leech: 1.0 }, desc: '생명력 재생 +1.4%, 흡혈 +1.0%' },
+    { name: '우주맥 봉인', key: 'immuneFreeze', params: {}, desc: '동결 면역' },
+    { name: '은하연 다발', key: 'uniqueDeflectDamageReduce', params: { pct: 20 }, desc: '쳐내기 시 받는 피해 20% 추가 감소' },
+    { name: '성흔 제어핵', key: 'venomStride', params: {}, desc: '중독 피해 +25%, 중독 중첩 +1' },
+    { name: '항성 편극', key: 'cosmosTakenLess', params: { dr: 10 }, desc: '피해 감소(DR) +10%p' },
+    { name: '감마 포개짐', key: 'immuneBleed', params: {}, desc: '출혈 면역' },
+    { name: '광권 반전', key: 'poisonDamageMorePct', params: { pct: 25 }, desc: '중독 피해 +25%' },
+    { name: '극야 성환', key: 'uniqueMinDmgRoll', params: { pct: 8 }, desc: '최소 피해 보정 +8%' },
+    { name: '유성 정렬자', key: 'hitShockedEnemyDamageMorePct', params: { pct: 50 }, desc: '감전된 적에게 주는 피해 +50%' },
+    { name: '성도 지시계', key: 'uniqueBlockChance', params: { chance: 15 }, desc: '막기 확률 +15%' },
+    { name: '궤도 정박기', key: 'blockRecoverEnergyShieldPct', params: { pct: 3 }, desc: '막기 성공 시 에너지 보호막 3% 회복' },
+    { name: '창공 미분기', key: 'immuneIgnite', params: {}, desc: '점화 면역' }
 ];
-const COSMOS_EFFECT_KEYS = [
-    { key: 'corpseExplodeOnKill', params: { chance: 16, lifePct: 22 } },
-    { key: 'hitApplyChaosResDown', params: { perHit: 2, maxStacks: 12 } },
-    { key: 'guardianArmor', params: { takenLessPct: 7, bossTakenLessPct: 10 } },
-    { key: 'riderCompass', params: {} },
-    { key: 'maxRollBonusHit', params: {} },
-    { key: 'ceilingSmashDouble', params: {} },
-    { key: 'fateTwinRollSync', params: { critToRollPct: 18 } },
-    { key: 'dragonVeinGuard', params: { chance: 22, duration: 2, hpPct: 8 } },
-    { key: 'stackingElementalResDownOnHit', params: { perHit: 2, max: 22 } },
-    { key: 'leechEfficiencyOnKill', params: { duration: 8, efficiencyPct: 90 } },
-    { key: 'conditionManual', params: { durationPct: 80, cdrPct: 16 } },
-    { key: 'shockTracerGreaves', params: { shockEffectPct: 20, strikeDamagePct: 420, icdSec: 0.6 } },
-    { key: 'venomStride', params: { poisonMorePct: 25, poisonExtraStack: 1 } },
-    { key: 'frostSentinelBoots', params: { chillEffectPct: 40 } },
-    { key: 'bleedBlockHelm', params: { physToChaosTakenPct: 12 } },
-    { key: 'curseCrown', params: { extraCurseCap: 1, finalDmgPerCursePct: 5 } },
-    { key: 'warcryResonanceBelt', params: { perWarcryAmpPct: 16 } },
-    { key: 'meteorFootsteps', params: { chance: 18, damagePct: 160 } },
-    { key: 'alwaysShock', params: {} },
-    { key: 'invertShockTaken', params: {} },
-    { key: 'cosmosFinalDmg', params: { pct: 14 } },
-    { key: 'cosmosTakenLess', params: { dr: 10 } },
-    { key: 'cosmosSpeedBurst', params: { move: 14, aspd: 12 } },
-    { key: 'cosmosPenetration', params: { pen: 10 } },
-    { key: 'cosmosSustain', params: { regen: 1.4, leech: 1.0 } },
-    { key: 'cosmosBossSlayer', params: { pct: 16, critDmg: 24 } }
-];
-while (COSMOS_EFFECT_KEYS.length < 50) {
-    let idx = COSMOS_EFFECT_KEYS.length;
-    COSMOS_EFFECT_KEYS.push({
-        key: 'cosmosStatBundle',
-        params: {
-            pctDmg: 6 + (idx % 5) * 2,
-            dr: (idx % 3 === 0) ? 4 : 0,
-            move: (idx % 4 === 0) ? 8 : 0,
-            aspd: (idx % 4 === 1) ? 8 : 0,
-            resPen: (idx % 5 === 2) ? 6 : 0,
-            critDmg: (idx % 6 === 0) ? 12 : 0,
-            regen: (idx % 7 === 0) ? 0.8 : 0,
-            leech: (idx % 7 === 1) ? 0.6 : 0
-        }
-    });
-}
-const COSMOS_REALM_ENTRIES = [
-    '성도의 발화점','광추의 파편','성운 봉인','은하의 각인','공전의 귀환',
-    '초신성 직조','별자리 금속','월광 항법','항성 낙인','성단의 결',
-    '서광 공명기','자전 폭심','빛무리 경첩','천구의 열쇠','유성 궤도핵',
-    '오로라 박동','천문 추침','성운 분기','행성외권','영점 편광',
-    '은하 심도','항성 절편','성류 고리','별무덤 인장','자력 낙화',
-    '성층 반향','혜성 구속','태양풍 초점','월식 잔광','항성 원환',
-    '중력 접힘','성운 승화','공전 쐐기','자전 공명','천체 해석기',
-    '광년 축전기','성핵 타래','여명 자침','천공 스피너','우주맥 봉인',
-    '은하연 다발','성흔 제어핵','항성 편극','감마 포개짐','광권 반전',
-    '극야 성환','유성 정렬자','성도 지시계','궤도 정박기','창공 미분기'
-].map((name, idx) => ({ name, effect: `우주계 전용 효과 #${idx + 1}: ${COSMOS_EFFECT_LINES[idx] || '행성 클리어 시 전투 보너스 획득'}` }));
+const COSMOS_REALM_ENTRIES = COSMOS_CODEX.map((entry, idx) => ({
+    name: entry.name,
+    effect: `우주계 전용 효과 #${idx + 1}: ${entry.desc}`,
+    uniqueEffectKey: entry.key,
+    uniqueEffectParams: entry.params
+}));
 const REALM_STAT_PACKS = {
     chaos: [
         [{ id: 'chaosPctDmg', min: 26, max: 44 }, { id: 'resChaos', min: 15, max: 24 }, { id: 'leech', min: 1.0, max: 1.8 }, { id: 'dotPctDmg', min: 22.7, max: 25.9 }, { id: 'resPen', min: 7.3, max: 8.2 }],
@@ -265,7 +217,7 @@ function pushRealmUniqueSet(realm, entries, tierStart) {
     let packs = REALM_STAT_PACKS[realm] || REALM_STAT_PACKS.cosmos;
     let dropTypeByRealm = { chaos: 'chaosRealm', underworld: 'underworld', cosmos: 'cosmos' };
     entries.forEach((entry, i) => {
-        let cosmosEffect = realm === 'cosmos' ? COSMOS_EFFECT_KEYS[i % COSMOS_EFFECT_KEYS.length] : null;
+        let cosmosEffect = (realm === 'cosmos' && entry.uniqueEffectKey) ? { key: entry.uniqueEffectKey, params: entry.uniqueEffectParams } : null;
         let realmEffectMap = {
             '침식 장갑': { key: 'realmAllResDownOnHit', params: { perHit: 5, max: 4, duration: 5 } },
             '망각 추적화': { key: 'realmKillMoveStacks', params: { movePerStack: 10, maxStacks: 20, duration: 20, cooldownSec: 1 } },
