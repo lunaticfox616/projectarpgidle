@@ -6699,7 +6699,7 @@ function getCraftOrbUseState(key, item) {
     else if (key === 'divine') ok = item.rarity !== 'normal';
     else if (key === 'annulment') ok = Array.isArray(item.stats) && item.stats.some(stat => stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
     else if (key === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (key === 'tainted') ok = !item.corrupted;
+    else if (key === 'tainted') ok = !item.corrupted || (typeof isKaleidoscopeShieldItem === 'function' && isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
     else if (key === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     else if (key === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
     return { enabled: ok, reason: ok ? '사용 가능' : '현재 아이템 조건 불일치' };
