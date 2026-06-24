@@ -6156,8 +6156,19 @@ function isDefenseTypeStatAllowed(item, statId) {
     return true;
 }
 
+function isKaleidoscopeShieldItem(item) {
+    return !!(item && item.rarity === 'unique' && item.uniqueEffectKey === 'kaleidoscopeShield');
+}
+
+function getAvailableModSlotsForItem(item) {
+    if (isKaleidoscopeShieldItem(item)) return EQUIPMENT_DROP_SLOTS.slice();
+    return [item && item.slot].filter(Boolean);
+}
+
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
+    let isKaleidoscopeShield = !!(item && item.rarity === 'unique' && item.uniqueEffectKey === 'kaleidoscopeShield');
+    let allowedSlots = isKaleidoscopeShield ? EQUIPMENT_DROP_SLOTS.slice() : [item && item.slot].filter(Boolean);
     let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
     let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonHpPct', 'summonAspd', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonCap', 'summonResPen', 'summonGemLevel']);
     let hasSummonBaseStat = item && Array.isArray(item.baseStats)
@@ -6169,11 +6180,11 @@ function getAvailableMods(item) {
         let statId = mod.statId || mod.id;
         if (!isDefenseTypeStatAllowed(item, statId)) return false;
         if (statId === 'deflectChance' && !baseDefenseTypes.has('evasion')) return false;
-        if (item.slot === '방패' && statId === 'spellGemLevel' && !baseDefenseTypes.has('energyShield')) return false;
+        if (!isKaleidoscopeShield && item.slot === '방패' && statId === 'spellGemLevel' && !baseDefenseTypes.has('energyShield')) return false;
         if (item.slot === '무기' && summonOnlyModIds.has(statId) && !isSummonBaseWeapon) return false;
         if (item.slot === '반지' && summonOnlyModIds.has(statId) && !isSummonBaseRing) return false;
         if (!isPrimaryDualDefenseAffixMod(item, mod)) return false;
-        return mod.slots.includes(item.slot) && !existing.has(statId);
+        return allowedSlots.some(slot => mod.slots.includes(slot)) && !existing.has(statId);
     }).map(mod => makeDualDefenseAffixMod(item, mod));
 }
 
@@ -6602,6 +6613,7 @@ const UNIQUE_FIXED_BASE_BY_NAME = {
     '성좌의 주문핵': 'void_archon_staff',
     '영겁의 마도서': 'abyss_chant_staff',
     '황혼의 왕관': 'oracle_circlet',
+    '폭풍의 눈': 'starlit_mask',
     '빙결파수 장화': 'phase_boots',
     '대균열의 왕관': 'grand_breach_shard_helm',
     '가호의 갑피': 'fortress_plate',
@@ -6614,6 +6626,10 @@ const UNIQUE_FIXED_BASE_BY_NAME = {
     '지평선 분할자': 'tempest_pike',
     '영원': 'tempest_pike',
     '카옴의 심장': 'dread_plate',
+    '대지의 태동': 'underworld_bastion',
+    '만화경': 'astral_barrier',
+    '무한한 허기': 'underworld_chain',
+    '거울 반지': 'mirror_ring',
     '첫 계약': 'apprentice_familiar_wand',
     '무리의 서약': 'spirit_call_wand',
     '묘지종 사령홀': 'gravebind_scepter',
@@ -6677,7 +6693,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     let uniqueTier = unique.reqTier || zoneTier;
     let fixedBaseId = UNIQUE_FIXED_BASE_BY_NAME[unique.name];
     let base = fixedBaseId ? BASE_ITEM_DB.find(row => row && row.id === fixedBaseId) : null;
-    if (base && (base.slot !== unique.slots[0] || !Array.isArray(base.baseStats) || base.baseStats.length === 0)) base = null;
+    if (base && (base.slot !== unique.slots[0] || !Array.isArray(base.baseStats) || (base.baseStats.length === 0 && unique.name !== '거울 반지'))) base = null;
     if (!base) base = chooseItemBase(unique.slots[0], uniqueTier);
     itemIdCounter++;
     let item = {
@@ -8125,7 +8141,7 @@ function useCurrency(currencyKey) {
     else if (currencyKey === 'chaos') ok = item.rarity === 'rare';
     else if (currencyKey === 'divine') ok = item.rarity !== 'normal';
     else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (currencyKey === 'tainted') ok = !item.corrupted;
+    else if (currencyKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
     else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     else if (currencyKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
     else if (currencyKey === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;

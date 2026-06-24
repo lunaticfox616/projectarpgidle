@@ -1606,7 +1606,7 @@ function getUniqueEffectImplementationReport() {
         'projectileDoubleStrikePct','hitApplyChaosResDown','corpseExplodeOnKill','instantLeechAndDoubleDamage',
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
         'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmNoCollisionBlock','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
-        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze'
+        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing'
     ]);
     return {
         total: uniqueKeys.length,
@@ -1652,6 +1652,54 @@ function isDeferredTalentProjectileTargetEffect(effect) {
     return effect.cardId === 'hero1__gladiator' || effect.talentCardId === 'hero1__gladiator';
 }
 
+
+function getOppositeRingSlotKey(slotKey) {
+    if (slotKey === '반지1') return '반지2';
+    if (slotKey === '반지2') return '반지1';
+    return null;
+}
+
+function getMirrorRingSourceItem(equipSlotKey, item) {
+    if (!item || item.uniqueEffectKey !== 'mirrorOppositeRing') return null;
+    let otherSlot = getOppositeRingSlotKey(equipSlotKey);
+    let other = otherSlot && game.equipment ? game.equipment[otherSlot] : null;
+    if (!other || other.uniqueEffectKey === 'mirrorOppositeRing') return null;
+    return other;
+}
+
+function cloneItemStatList(stats) {
+    return (Array.isArray(stats) ? stats : []).filter(Boolean).map(stat => ({ ...stat }));
+}
+
+function getKaleidoscopeExplicitMultiplier(item) {
+    if (!item || item.uniqueEffectKey !== 'kaleidoscopeShield') return 1;
+    let params = item.uniqueEffectParams || {};
+    return Math.max(1, Number(params.explicitStatMultiplier || 2));
+}
+
+function applyEliteTraitBuffStats(buff, bucket) {
+    if (!buff || (buff.expiresAt || 0) <= Date.now()) return;
+    let trait = buff.trait || {};
+    if (trait.atkMul) addStatToBucket(bucket, 'pctDmg', Math.max(0, (Number(trait.atkMul) - 1) * 100));
+    if (trait.attackSpeedVarMul) addStatToBucket(bucket, 'aspd', Math.max(0, (Number(trait.attackSpeedVarMul) - 1) * 100));
+    if (trait.hpMul) addStatToBucket(bucket, 'pctHp', Math.max(0, (Number(trait.hpMul) - 1) * 100));
+    if (trait.critChanceBonus) addStatToBucket(bucket, 'crit', Number(trait.critChanceBonus || 0));
+    if (trait.dr) addStatToBucket(bucket, 'dr', Number(trait.dr || 0));
+    ['resF', 'resC', 'resL', 'resChaos'].forEach(stat => {
+        if (trait[stat]) addStatToBucket(bucket, stat, Number(trait[stat] || 0));
+    });
+    if (trait.hitRateGuard) addStatToBucket(bucket, 'evasionPct', Math.max(0, Number(trait.hitRateGuard || 0) * 100));
+}
+
+function grantEliteTraitBuffFromEnemy(enemy, pStats) {
+    if (!enemy || !enemy.isElite || !pStats || !pStats.uniqueStealEliteTrait) return;
+    let trait = enemy.trait || null;
+    if (!trait) return;
+    let durationMs = Math.max(1000, Math.floor(Number(pStats.uniqueStealEliteTrait.duration || 30) * 1000));
+    game.uniqueEliteTraitBuff = { trait: { ...trait }, expiresAt: Date.now() + durationMs };
+    if (game.settings && game.settings.showCombatLog !== false) addLog(`🩸 무한한 허기: ${trait.name || '정예 특성'} 획득`, 'loot-unique', { noToast: true });
+}
+
 function getPlayerStats() {
     recomputeCosmosTwinKeystones();
     const safePassives = Array.isArray(game.passives) ? game.passives : [];
@@ -1688,26 +1736,32 @@ function getPlayerStats() {
     Object.entries(game.equipment || {}).forEach(([equipSlotKey, item]) => {
         if (!item) return;
         if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9') && item.slot === '무기') return;
+        let mirrorSourceItem = getMirrorRingSourceItem(equipSlotKey, item);
         if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '', sourceSlot: equipSlotKey });
+        if (mirrorSourceItem && mirrorSourceItem.rarity === 'unique' && mirrorSourceItem.uniqueEffectKey) equippedUniqueEffects.push({ key: mirrorSourceItem.uniqueEffectKey, params: mirrorSourceItem.uniqueEffectParams || null, itemName: mirrorSourceItem.name || '', sourceSlot: equipSlotKey });
         let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
         let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
         let qualityValue = Math.max(0, Math.min(qualityCap, Math.floor(item.quality || 0)));
         let qualityMul = 1 + (qualityValue / 100);
         let qualityMode = typeof getItemQualityAttributeMode === 'function' ? getItemQualityAttributeMode(item) : 'base';
         let baseQualityMul = qualityMode === 'base' ? qualityMul : 1;
-        let itemBaseStats = scaleStatList((item.baseStats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * baseQualityMul).toFixed(2)) } : stat), itemStatMultiplier);
+        let baseSourceStats = cloneItemStatList(item.baseStats).concat(mirrorSourceItem ? cloneItemStatList(mirrorSourceItem.baseStats) : []);
+        let itemBaseStats = scaleStatList(baseSourceStats.map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * baseQualityMul).toFixed(2)) } : stat), itemStatMultiplier);
         applyStatsToBucket(gearBase, itemBaseStats);
         let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
         let riftAmpRow = (item.stats || []).find(stat => stat && stat.id === 'fossilRiftAmp');
         let riftAmpMul = 1 + (Math.max(0, Number(riftAmpRow && riftAmpRow.val) || 0) / 100);
-        let adjustedExplicitStats = (item.stats || []).map(stat => {
+        let explicitMultiplier = getKaleidoscopeExplicitMultiplier(item);
+        let explicitSourceStats = cloneItemStatList(item.stats).concat(mirrorSourceItem ? cloneItemStatList(mirrorSourceItem.stats) : []);
+        let adjustedExplicitStats = explicitSourceStats.map(stat => {
             if (!stat) return stat;
             if (stat.id === 'fossilRiftBlank' || stat.id === 'fossilRiftAmp') return stat;
             if (!Number.isFinite(Number(stat.val))) return stat;
             let explicitQualityMul = qualityMode !== 'base' && typeof isQualityAttributeStat === 'function' && isQualityAttributeStat(qualityMode, stat.id) ? qualityMul : 1;
-            return { ...stat, val: Number((Number(stat.val) * riftAmpMul * explicitQualityMul).toFixed(2)) };
+            return { ...stat, val: Number((Number(stat.val) * riftAmpMul * explicitQualityMul * explicitMultiplier).toFixed(2)) };
         });
-        let explicitItemStats = scaleStatList(adjustedExplicitStats.concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
+        let copiedSpecialStats = mirrorSourceItem ? cloneItemStatList([mirrorSourceItem.underEnchant, mirrorSourceItem.chaosInfusion]) : [];
+        let explicitItemStats = scaleStatList(adjustedExplicitStats.concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], copiedSpecialStats, immutableSpecialStats), itemStatMultiplier);
         applyStatsToBucket(gearExplicit, explicitItemStats);
         let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
         let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;
@@ -1791,7 +1845,7 @@ function getPlayerStats() {
     let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false, uniqueImmuneIgnite = false;
     let uniqueFateTwinRollSync=false, uniqueFrostSentinel=false, uniqueShockTracer=null, uniqueVenomStride=false, uniqueBleedBlockHelm=false, uniqueImmuneBleed=false, uniqueImmuneFreeze=false, uniqueCurseCrownPerCursePct=0, uniqueWarcryResonancePct=0, uniqueConditionManual=null, uniqueStackingElementalResDownOnHit=null;
     let uniqueAllResDownOnHit=null, uniqueKillMoveStacks=null, uniqueCursedTakenAndRefresh=null, uniqueEnemyRegenCutAndMinRoll=null, uniquePhysDrHalfTakenAsMore=null, uniqueArmorAppliesToDot=false, uniqueMeleeArmorAmp=null, uniqueNoCollisionBlock=false, uniqueResonanceAndSuppCap=null, uniqueRegenRateAndRegen=null, uniqueMaxHpPct=0, uniqueAllMaxRes=0;
-    let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null;
+    let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null, uniqueStealEliteTrait=null, fixedAllMaxRes=null;
     let cosmosAlwaysFirstHit=false, cosmosEnergyShieldBypassPct=0, cosmosOrbitCycle=null, cosmosDeepSeaLeechCaps=null, cosmosTideEsRegenToLife=false, cosmosEqualDamageSplit=false, cosmosBalanceMitigation=false, cosmosTwinStarResonance=null, cosmosJudgmentLightning=null, cosmosDeathResistPct=0, cosmosVerdictSupportDamagePct=0, cosmosGuardianConditionInstant=false, cosmosBossDamageMorePct=0, cosmosCometChillNoFreeze=false;
     let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
     if (activeUniqueIds.has('uj_crown_empty')) {
@@ -1908,6 +1962,9 @@ function getPlayerStats() {
         else if (effect.key === 'cosmosGuardianConditionInstant') cosmosGuardianConditionInstant = true;
         else if (effect.key === 'cosmosBossDamageMore') cosmosBossDamageMorePct = Math.max(cosmosBossDamageMorePct, Number(ep.morePct || 25));
         else if (effect.key === 'cosmosCometChillNoFreeze') cosmosCometChillNoFreeze = true;
+        else if (effect.key === 'fixedAllMaxRes') fixedAllMaxRes = Math.max(1, Math.min(90, Number(ep.max || 82)));
+        else if (effect.key === 'stealEliteTrait') uniqueStealEliteTrait = { duration: Number(ep.duration || 30) };
+        else if (effect.key === 'kaleidoscopeShield' || effect.key === 'mirrorOppositeRing') { /* item stat path handles these */ }
         else if (effect.key === 'cosmosStatBundle') {
             addStatToBucket(reward, 'pctDmg', Number(ep.pctDmg || 0));
             addStatToBucket(reward, 'dr', Number(ep.dr || 0));
@@ -1998,6 +2055,7 @@ function getPlayerStats() {
             bonusLines.forEach(line => { if (line && line.stat) addStatToBucket(reward, line.stat, Number(line.val || 0)); });
         });
     }
+    applyEliteTraitBuffStats(game.uniqueEliteTraitBuff, reward);
     if (typeof getCoreCubeActiveStats === 'function') {
         getCoreCubeActiveStats().forEach(stat => { if (stat && stat.id) addStatToBucket(reward, stat.id, stat.val); });
     }
@@ -2525,6 +2583,12 @@ function getPlayerStats() {
         finalMaxResC = Math.min(90, finalMaxResC + resistanceBlendMaxBonus);
         finalMaxResL = Math.min(90, finalMaxResL + resistanceBlendMaxBonus);
         finalMaxResChaos = Math.min(90, finalMaxResChaos + resistanceBlendMaxBonus);
+    }
+    if (fixedAllMaxRes !== null) {
+        finalMaxResF = fixedAllMaxRes;
+        finalMaxResC = fixedAllMaxRes;
+        finalMaxResL = fixedAllMaxRes;
+        finalMaxResChaos = fixedAllMaxRes;
     }
     let finalResF = Math.min(finalMaxResF, rawResF);
     let finalResC = Math.min(finalMaxResC, rawResC);
@@ -3086,6 +3150,12 @@ function getPlayerStats() {
     finalMaxResC = Math.min(90, finalMaxResC + (colonyWardBonus.maxResC || 0));
     finalMaxResL = Math.min(90, finalMaxResL + (colonyWardBonus.maxResL || 0));
     finalMaxResChaos = Math.min(90, finalMaxResChaos + (colonyWardBonus.maxResChaos || 0));
+    if (fixedAllMaxRes !== null) {
+        finalMaxResF = fixedAllMaxRes;
+        finalMaxResC = fixedAllMaxRes;
+        finalMaxResL = fixedAllMaxRes;
+        finalMaxResChaos = fixedAllMaxRes;
+    }
     finalMaxHp += (colonyWardBonus.flatHp || 0);
     finalArmor += (colonyWardBonus.armor || 0);
     finalEvasion += (colonyWardBonus.evasion || 0);
@@ -3700,6 +3770,7 @@ function getPlayerStats() {
         uniqueOverkillSplash: uniqueOverkillSplash,
         uniqueDragonVeinGuard: uniqueDragonVeinGuard,
         uniqueGuardianArmor: uniqueGuardianArmor,
+        uniqueStealEliteTrait: uniqueStealEliteTrait,
         uniqueQueenBeeSummon: uniqueQueenBeeSummon,
         uniqueSummonDeathDamageBuff: uniqueSummonDeathDamageBuff,
         uniqueSummonCritAspdStacks: uniqueSummonCritAspdStacks,
@@ -5926,6 +5997,7 @@ function handleEnemyDeath(enemy, pStats) {
         if (game.talentRuntime.colosseumKills >= 5) { game.talentRuntime.colosseumKills = 0; game.talentRuntime.colosseumReady = true; }
     }
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
+    grantEliteTraitBuffFromEnemy(enemy, pStats);
     grantExpAndGem(enemy, pStats);
     rollLootForEnemy(enemy);
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
