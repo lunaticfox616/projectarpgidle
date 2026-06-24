@@ -15,6 +15,7 @@ const BLACK_MARKET_BASE_SLOT_COUNT = 6;
 const BLACK_MARKET_MAX_SLOT_COUNT = 50;
 const BLACK_MARKET_MAX_EXTRA_SLOTS = Math.max(0, BLACK_MARKET_MAX_SLOT_COUNT - BLACK_MARKET_BASE_SLOT_COUNT);
 const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;
+const BLACK_MARKET_T20_RARE_BASE_CHANCE = 0.001;
 
 function isUniqueEligibleForBlackMarket(unique) {
     if (!unique || unique.contentOnly || unique.bossOnly || unique.realmCodexOnly) return false;
@@ -67,7 +68,8 @@ function maybeApplyBlackMarketExceptionalBaseStats(baseStats) {
 }
 
 function chooseBlackMarketBase(slot, tier) {
-    let rareBaseRoll = Math.random() < 0.08;
+    // 일반 드랍의 최종 단계 베이스 가중치(일반 베이스의 1/25)보다 더 낮게 둔다.
+    let rareBaseRoll = Math.random() < BLACK_MARKET_T20_RARE_BASE_CHANCE;
     let candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot && (base.reqTier || 1) <= (tier + 3));
     if (rareBaseRoll) {
         let rareCandidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot && (base.reqTier || 1) >= 20);

@@ -4,6 +4,10 @@ const fs = require('fs');
 const vm = require('vm');
 
 const source = fs.readFileSync('js/items.js', 'utf8');
+assert(
+  source.includes('const BLACK_MARKET_T20_RARE_BASE_CHANCE = 0.001;'),
+  'black-market T20 rare base chance must stay below natural final-base drop weighting'
+);
 
 function extractFunctionBlock(text, name) {
   const start = text.indexOf(`function ${name}`);
@@ -67,6 +71,7 @@ function createSandbox(mathObject) {
 function installFunctions(sandbox) {
   vm.createContext(sandbox);
   vm.runInContext([
+    'const BLACK_MARKET_T20_RARE_BASE_CHANCE = 0.001;',
     extractFunctionBlock(source, 'isBaseEligibleForBlackMarket'),
     extractFunctionBlock(source, 'rollBlackMarketExchangeOffer'),
     extractFunctionBlock(source, 'getBlackMarketBaseChainInfo'),
