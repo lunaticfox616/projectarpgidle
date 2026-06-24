@@ -368,6 +368,10 @@
         4: 49,
         5: 45
     };
+    const COSMOS_BOSS_EQUIPMENT_DROP_CHANCE = 0.012;
+    const COSMOS_BOSS_JEWEL_DROP_CHANCE = 0.005;
+    const COSMOS_BOSS_TALISMAN_DROP_CHANCE = 0.005;
+    const COSMOS_STONE_TIER_FLOORS = [1, 6, 11, 16, 21, 25];
 
     const ATLAS = {
         nodes: [],
@@ -713,7 +717,10 @@
         state.bossKills = state.bossKills && typeof state.bossKills === 'object' ? state.bossKills : {};
         state.bossRelics = Array.isArray(state.bossRelics) ? state.bossRelics : [];
         state.bossStones = state.bossStones && typeof state.bossStones === 'object' ? state.bossStones : {};
-        state.equippedStoneGalaxy = Number.isFinite(state.equippedStoneGalaxy) ? Math.max(0, Math.min(5, Math.floor(state.equippedStoneGalaxy))) : 0;
+        state.bossStoneOptions = state.bossStoneOptions && typeof state.bossStoneOptions === 'object' ? state.bossStoneOptions : {};
+        state.equippedStones = state.equippedStones && typeof state.equippedStones === 'object' ? state.equippedStones : {};
+        if (!hasSixthCosmosStoneUnlock()) delete state.equippedStones['6'];
+        state.equippedStoneGalaxy = Number.isFinite(state.equippedStoneGalaxy) ? Math.max(0, Math.min(6, Math.floor(state.equippedStoneGalaxy))) : 0;
         state.masteryPointsSpent = Math.max(0, Math.floor(state.masteryPointsSpent || 0));
         state.mastery = state.mastery && typeof state.mastery === 'object' ? state.mastery : {};
         COSMOS_MASTERY_NODES.forEach(node => {
@@ -803,10 +810,156 @@
         return 1;
     }
 
+    function getEquippedCosmosStoneCount(state) {
+        const equipped = state && state.equippedStones && typeof state.equippedStones === 'object' ? state.equippedStones : {};
+        return Object.keys(equipped).filter(key => !!equipped[key]).length;
+    }
+
+    function hasSixthCosmosStoneUnlock() {
+        const jewels = Array.isArray(window.game && window.game.jewelSlots) ? window.game.jewelSlots : [];
+        return jewels.some(jewel => jewel && (jewel.uniqueId === 'cbj_enifron_faded_stone' || jewel.id === 'cbj_enifron_faded_stone' || jewel.name === '바래진 우주석'));
+    }
+
+    function isCosmosStoneAcquired(state, galaxy) {
+        const g = Math.max(1, Math.min(6, Math.floor(galaxy || 1)));
+        if (g === 6) return hasSixthCosmosStoneUnlock();
+        return !!(state && state.bossStones && state.bossStones[String(g)]);
+    }
+
     function getCosmosTierFloor() {
         const state = getState();
-        const g = Math.max(0, Math.min(5, Math.floor(state.equippedStoneGalaxy || 0)));
-        return Math.min(21, 1 + g * 5);
+        const count = Math.max(0, Math.min(5, getEquippedCosmosStoneCount(state)));
+        return COSMOS_STONE_TIER_FLOORS[count] || 1;
+    }
+
+
+    function getCosmosStonePool(galaxy) {
+        const pools = window.COSMOS_BOSS_STONE_OPTION_POOLS || {};
+        return pools[String(Math.max(1, Math.min(6, Math.floor(galaxy || 1))))] || null;
+    }
+
+    function rollCosmosStoneOption(galaxy, bossOption) {
+        const pool = getCosmosStonePool(galaxy);
+        const source = pool ? (bossOption ? pool.bossOptions : pool.options) : [];
+        if (!Array.isArray(source) || source.length <= 0) return null;
+        const row = source[Math.floor(Math.random() * source.length)];
+        const min = Number(row.min || 0);
+        const max = Number(row.max || min);
+        const value = min === max ? min : Number((min + Math.random() * (max - min)).toFixed(2));
+        return { stat: row.stat, value, min, max, label: row.label || row.stat, boss: !!bossOption };
+    }
+
+    function ensureCosmosStoneOptions(state, galaxy) {
+        const g = String(Math.max(1, Math.min(6, Math.floor(galaxy || 1))));
+        state.bossStoneOptions = state.bossStoneOptions && typeof state.bossStoneOptions === 'object' ? state.bossStoneOptions : {};
+        if (!Array.isArray(state.bossStoneOptions[g])) {
+            state.bossStoneOptions[g] = [rollCosmosStoneOption(g, false), rollCosmosStoneOption(g, false), rollCosmosStoneOption(g, false)].filter(Boolean);
+        }
+        while (state.bossStoneOptions[g].length < 3) {
+            const option = rollCosmosStoneOption(g, false);
+            if (option) state.bossStoneOptions[g].push(option);
+            else break;
+        }
+        state.bossStoneOptions[g] = state.bossStoneOptions[g].slice(0, 3);
+        return state.bossStoneOptions[g];
+    }
+
+    function getCosmosStoneOptionText(option) {
+        if (!option) return '빈 옵션';
+        const value = Number(option.value || 0);
+        const sign = value > 0 ? '+' : '';
+        return `${option.boss ? '👑 ' : ''}${option.label || option.stat} ${sign}${value} (범위 ${option.min}~${option.max})`;
+    }
+
+
+    function getCosmosTierFloorTooltipHtml() {
+        const current = getCosmosTierFloor();
+        const baseFloors = COSMOS_STONE_TIER_FLOORS.slice(1, 6);
+        const floorText = baseFloors.map(tier => {
+            const style = tier === current ? 'color:#ffd98a;font-weight:800;text-shadow:0 0 8px rgba(255,217,138,.65);' : 'color:#b9c7dd;';
+            return `<span style="${style}">${tier}</span>`;
+        }).join(' / ');
+        return `<div class="tooltip-line">우주계 최소 티어 보정 ${floorText}</div>`;
+    }
+
+    function startCosmosStoneEquipPulse(galaxy) {
+        ATLAS.stonePulse = { galaxy: Math.max(1, Math.min(6, Math.floor(galaxy || 1))), startedAt: Date.now(), duration: 1300 };
+        requestAtlasFrame();
+    }
+
+    function drawCosmosStonePulse(ctx) {
+        const pulse = ATLAS.stonePulse;
+        if (!pulse) return;
+        const elapsed = Date.now() - pulse.startedAt;
+        const progress = Math.max(0, Math.min(1, elapsed / pulse.duration));
+        const spec = GALAXY_SPECS[Math.min(5, pulse.galaxy)] || GALAXY_SPECS[1];
+        const center = worldToScreen({ x: spec.x, y: spec.y });
+        const baseR = spec.r * ATLAS.camera.scale;
+        const radius = baseR * (0.28 + progress * 0.92);
+        const alpha = Math.max(0, 1 - progress);
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.arc(center.x, center.y, radius + i * 28 * ATLAS.camera.scale, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(127, 220, 255, ${alpha * (0.34 - i * 0.08)})`;
+            ctx.lineWidth = Math.max(1, (5 - i) * ATLAS.camera.scale);
+            ctx.stroke();
+        }
+        const glow = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, radius);
+        glow.addColorStop(0, `rgba(127,220,255,${alpha * 0.18})`);
+        glow.addColorStop(1, 'rgba(127,220,255,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        if (progress >= 1) ATLAS.stonePulse = null;
+        else requestAtlasFrame();
+    }
+
+    function getCosmosStoneNameByGalaxy(galaxy) {
+        const pool = getCosmosStonePool(galaxy);
+        return pool && pool.name ? pool.name : `G${galaxy} 우주석`;
+    }
+
+    function buildCosmosStoneTooltipHtml(galaxy) {
+        const state = getState();
+        const g = Math.max(1, Math.min(6, Math.floor(galaxy || 1)));
+        const acquired = isCosmosStoneAcquired(state, g);
+        const options = acquired ? ensureCosmosStoneOptions(state, g) : [];
+        const lines = options.map(option => `<div class="tooltip-line">${escapeHtml(getCosmosStoneOptionText(option))}</div>`).join('') || '<div class="tooltip-line">아직 획득하지 않았습니다.</div>';
+        return `<div class="tooltip-title">${escapeHtml(getCosmosStoneNameByGalaxy(g))}</div>${getCosmosTierFloorTooltipHtml()}<div class="tooltip-line" style="color:#9fb4d1;">보스 유물 사용: 무작위 1줄을 해당 우주석의 보스 옵션으로 리롤</div>${lines}`;
+    }
+
+    function showCosmosStoneTooltip(event, galaxy) {
+        if (!event || typeof window.showInfoTooltipHtml !== 'function') return;
+        window.showInfoTooltipHtml(event.clientX, event.clientY, buildCosmosStoneTooltipHtml(galaxy), '#b9e6ff');
+    }
+
+
+    function findCosmosBossRelicIndexForStone(relics, galaxy) {
+        const g = Math.max(1, Math.min(6, Math.floor(galaxy || 1)));
+        if (g === 6) return relics.findIndex(relic => relic && relic.rerollStoneOption);
+        return relics.findIndex(relic => relic && relic.rerollStoneOption && Math.floor(Number(relic.galaxy) || 0) === g);
+    }
+
+    function applyCosmosBossRelicToStone(galaxy) {
+        const state = getState();
+        const g = Math.max(1, Math.min(6, Math.floor(galaxy || 1)));
+        if (!isCosmosStoneAcquired(state, g)) return window.addLog && window.addLog('먼저 해당 우주석을 획득해야 합니다.', 'attack-monster');
+        if (!Array.isArray(state.bossRelics) || state.bossRelics.length <= 0) return window.addLog && window.addLog('사용할 보스 유물이 없습니다.', 'attack-monster');
+        const relicIndex = findCosmosBossRelicIndexForStone(state.bossRelics, g);
+        if (relicIndex < 0) return window.addLog && window.addLog('해당 우주석에 사용할 보스 유물이 없습니다.', 'attack-monster');
+        const options = ensureCosmosStoneOptions(state, g);
+        const idx = Math.max(0, Math.min(2, Math.floor(Math.random() * 3)));
+        const next = rollCosmosStoneOption(g, true);
+        if (!next) return;
+        state.bossRelics.splice(relicIndex, 1);
+        options[idx] = next;
+        if (typeof window.addLog === 'function') window.addLog(`💠 ${getCosmosStoneNameByGalaxy(g)} 보스 옵션 리롤: ${getCosmosStoneOptionText(next)}`, 'loot-unique');
+        if (typeof window.updateStaticUI === 'function') window.updateStaticUI();
+        renderCosmosAtlas();
     }
 
     function getDisplayedNodeTier(node) {
@@ -850,30 +1003,141 @@
         return '우주석';
     }
 
-    function tryRollBossRelic(node) {
-        const state = getState();
+    function getCosmosBossRewardSpec(node) {
         if (!node || node.tag !== 'boss') return null;
-        const table = ['보스 전용 고유 장비', '보스 전용 주얼', '보스 전용 부적', '유물 파편', '심연 촉매'];
-        const luck = Math.random();
+        const db = window.COSMOS_BOSS_REWARD_DB || {};
+        return db[node.id] || null;
+    }
+
+    function createCosmosBossJewel(row) {
+        if (!row) return null;
+        const stats = (row.stats || []).map(stat => ({
+            id: stat.id,
+            val: Number(stat.val || 0),
+            valMin: Number(stat.val || 0),
+            valMax: Number(stat.val || 0),
+            tier: 1,
+            statName: typeof window.getStatName === 'function' ? window.getStatName(stat.id) : stat.id
+        }));
+        return { id: Date.now() + Math.floor(Math.random() * 100000), uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', source: 'cosmosBoss', stats };
+    }
+
+    function createCosmosBossTalisman(row) {
+        if (!row || !window.TALISMAN_SHAPES || !window.TALISMAN_SHAPES[row.shape]) return null;
+        const stats = (row.stats || []).map(stat => ({ ...stat }));
+        return {
+            id: Date.now() + Math.floor(Math.random() * 100000),
+            shape: row.shape,
+            cells: window.TALISMAN_SHAPES[row.shape].map(([x, y]) => ({ x, y })),
+            rarity: '고유',
+            source: 'cosmosBoss',
+            isUnique: true,
+            uniqueId: row.id,
+            name: row.name,
+            special: row.special || null,
+            uniqueEffect: row.uniqueEffect || '',
+            stats,
+            stat: stats[0] ? stats[0].stat : null,
+            statName: row.name,
+            value: stats[0] ? stats[0].value : 0,
+            markDir: 'up'
+        };
+    }
+
+    function grantCosmosBossEquipment(spec, tier) {
+        if (!spec || !Array.isArray(spec.equipment) || Math.random() >= COSMOS_BOSS_EQUIPMENT_DROP_CHANCE) return false;
+        const limit = typeof window.getInventoryLimit === 'function' ? window.getInventoryLimit() : 30;
+        if (!window.game || !Array.isArray(window.game.inventory) || window.game.inventory.length >= limit) return false;
+        if (typeof window.generateUniqueItem !== 'function') return false;
+        const item = window.generateUniqueItem(Math.max(1, Math.floor(tier || 1)), null, spec.equipment[Math.floor(Math.random() * spec.equipment.length)]);
+        if (!item) return false;
+        window.game.inventory.push(item);
+        if (typeof window.addLog === 'function') window.addLog(`🌌 우주계 보스 전용 고유 장비 획득: ${item.name}`, 'loot-unique');
+        return true;
+    }
+
+    function grantCosmosBossJewel(spec) {
+        if (!spec || !spec.jewel || Math.random() >= COSMOS_BOSS_JEWEL_DROP_CHANCE) return false;
+        const limit = typeof window.getJewelInventoryLimit === 'function' ? window.getJewelInventoryLimit() : 60;
+        if (!window.game || !Array.isArray(window.game.jewelInventory) || window.game.jewelInventory.length >= limit) return false;
+        const jewel = createCosmosBossJewel(spec.jewel);
+        if (!jewel) return false;
+        window.game.jewelInventory.push(jewel);
+        if (typeof window.addLog === 'function') window.addLog(`💠 우주계 보스 전용 주얼 획득: ${jewel.name}`, 'loot-unique');
+        return true;
+    }
+
+    function grantCosmosBossTalisman(spec) {
+        if (!spec || !spec.talisman || Math.random() >= COSMOS_BOSS_TALISMAN_DROP_CHANCE) return false;
+        if (!window.game) return false;
+        window.game.talismanInventory = Array.isArray(window.game.talismanInventory) ? window.game.talismanInventory : [];
+        const talisman = createCosmosBossTalisman(spec.talisman);
+        if (!talisman) return false;
+        window.game.talismanInventory.push(talisman);
+        if (typeof window.addLog === 'function') window.addLog(`🧿 우주계 보스 전용 부적 획득: ${talisman.name}`, 'loot-unique');
+        return true;
+    }
+
+    function grantCosmosBossExclusiveDrops(node) {
+        const spec = getCosmosBossRewardSpec(node);
+        if (!spec) return false;
+        const tier = getDisplayedNodeTier(node);
+        const granted = [
+            grantCosmosBossEquipment(spec, tier),
+            grantCosmosBossJewel(spec),
+            grantCosmosBossTalisman(spec)
+        ].some(Boolean);
+        if (granted && typeof window.updateStaticUI === 'function') window.updateStaticUI();
+        return granted;
+    }
+
+    function cloneCosmosBossRelic(spec, node) {
+        const galaxy = Math.max(1, Math.min(5, Math.floor(node.orbit || 1)));
+        return {
+            id: `${spec.id}-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+            relicId: spec.id,
+            bossId: node.id,
+            galaxy: galaxy,
+            name: spec.name,
+            rerollStoneOption: true
+        };
+    }
+
+    function tryRollBossRelic(node) {
+        if (!node || node.tag !== 'boss') return null;
+        const specDb = window.COSMOS_BOSS_RELIC_DB || {};
+        const spec = specDb[node.id];
+        if (!spec) return null;
+        const state = getState();
         const relicBonus = getCosmosMasteryValue('eliteHunt') * 0.007;
-        if (luck < 0.22 + relicBonus) {
-            const drop = table[Math.floor(Math.random() * table.length)];
-            state.bossRelics.push(`${node.id}:${Date.now()}:${drop}`);
-            return drop;
-        }
-        return null;
+        if (Math.random() >= 0.22 + relicBonus) return null;
+        const relic = cloneCosmosBossRelic(spec, node);
+        state.bossRelics.push(relic);
+        return relic;
     }
 
     function equipBossStoneByGalaxy(galaxy) {
         const state = getState();
-        const g = Math.max(1, Math.min(5, Math.floor(galaxy || 1)));
-        const stone = state.bossStones[String(g)];
-        if (!stone) {
+        const g = Math.max(1, Math.min(6, Math.floor(galaxy || 1)));
+        const stone = getCosmosStoneNameByGalaxy(g);
+        if (!isCosmosStoneAcquired(state, g)) {
             if (typeof window.addLog === 'function') window.addLog(`은하 ${g} 우주석이 없습니다.`, 'attack-monster');
             return;
         }
-        state.equippedStoneGalaxy = Math.max(Math.floor(state.equippedStoneGalaxy || 0), g);
-        if (typeof window.addLog === 'function') window.addLog(`💠 ${stone} 장착: 우주계 난이도 바닥 Tier ${getCosmosTierFloor()} 적용`, 'season-up');
+        ensureCosmosStoneOptions(state, g);
+        state.equippedStones[String(g)] = true;
+        state.equippedStoneGalaxy = getEquippedCosmosStoneCount(state);
+        if (typeof window.addLog === 'function') window.addLog(`💠 ${stone} 장착: 우주계 최소 Tier ${getCosmosTierFloor()} 적용`, 'season-up');
+        startCosmosStoneEquipPulse(g);
+        renderCosmosAtlas();
+    }
+
+    function unequipBossStoneByGalaxy(galaxy) {
+        const state = getState();
+        const g = Math.max(1, Math.min(6, Math.floor(galaxy || 1)));
+        delete state.equippedStones[String(g)];
+        state.equippedStoneGalaxy = getEquippedCosmosStoneCount(state);
+        if (typeof window.addLog === 'function') window.addLog(`💠 ${getCosmosStoneNameByGalaxy(g)} 해제`, 'season-up');
         renderCosmosAtlas();
     }
 
@@ -1196,6 +1460,7 @@
         const h = canvas.height;
         ctx.clearRect(0, 0, w, h);
         drawBackground(ctx, w, h);
+        drawCosmosStonePulse(ctx);
         drawEdges(ctx);
         drawNodes(ctx);
     }
@@ -1389,6 +1654,20 @@
         ctx.restore();
     }
 
+
+    function renderCosmosStonePanel(state) {
+        const relicCount = Array.isArray(state.bossRelics) ? state.bossRelics.length : 0;
+        const cardGalaxies = hasSixthCosmosStoneUnlock() ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
+        const cards = cardGalaxies.map(g => {
+            const acquired = isCosmosStoneAcquired(state, g);
+            const equipped = !!(state.equippedStones && state.equippedStones[String(g)]);
+            const options = acquired ? ensureCosmosStoneOptions(state, g) : [];
+            const optionHtml = options.map(option => `<div style="font-size:11px;color:${option.boss ? '#ffd98a' : '#b9c7dd'};">${escapeHtml(getCosmosStoneOptionText(option))}</div>`).join('') || '<div style="font-size:11px;color:#6f8094;">미획득</div>';
+            return `<div class="cosmos-stone-card" data-info-tooltip-anchor="1" onmouseenter="showCosmosStoneTooltip(event,${g})" onmousemove="showCosmosStoneTooltip(event,${g})" onmouseleave="hideInfoTooltip()" style="border:1px solid ${equipped ? '#8fd4ff' : '#31445c'};border-radius:8px;padding:8px;background:${acquired ? 'rgba(23,38,58,.78)' : 'rgba(18,24,34,.62)'};"><div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><b>${escapeHtml(getCosmosStoneNameByGalaxy(g))}</b><span>${equipped ? '장착' : (acquired ? '보유' : '미획득')}</span></div><div style="font-size:11px;color:#9fd6ff;">우주계 최소 티어 보정: ${getCosmosTierFloor()}</div>${optionHtml}<div style="display:flex;gap:4px;margin-top:6px;"><button onclick="equipBossStoneByGalaxy(${g})" ${acquired && !equipped ? '' : 'disabled'}>장착</button><button onclick="unequipBossStoneByGalaxy(${g})" ${equipped ? '' : 'disabled'}>해제</button><button onclick="applyCosmosBossRelicToStone(${g})" ${acquired && relicCount > 0 ? '' : 'disabled'}>보스 유물 사용</button></div></div>`;
+        }).join('');
+        return `<div style="grid-column:1/-1;margin-top:8px;"><div style="font-weight:700;color:#d7ebff;margin-bottom:6px;">우주석 장착 UI · 보스 유물 ${relicCount}개</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;">${cards}</div></div>`;
+    }
+
     function renderSummary() {
         if (!ATLAS.summary) return;
         const state = getState();
@@ -1407,8 +1686,9 @@
             <div>탐사 가능 노드: <b>${unlocked ? available : 0}</b></div>
             <div>성도술 포인트: <b>${getCosmosMasteryFreePoints()}</b> / ${getCosmosMasteryTotalPoints()}</div>
             <div>별가루: <b>${state.starDust}</b></div>
-            <div>은하 유물(랜덤): <b>${(state.bossRelics || []).length}</b></div>
-            <div>우주석 슬롯: <b>${Math.max(0, Math.floor(state.equippedStoneGalaxy || 0))}</b> / 5</div>`;
+            <div>보스 유물: <b>${(state.bossRelics || []).length}</b></div>
+            <div>장착 우주석: <b>${getEquippedCosmosStoneCount(state)}</b> / ${hasSixthCosmosStoneUnlock() ? 6 : 5}</div>
+            ${renderCosmosStonePanel(state)}`;
     }
 
     function renderDetail() {
@@ -1487,7 +1767,10 @@
             const nextKill = Math.max(0, Math.floor((state.bossKills && state.bossKills[node.id]) || 0)) + 1;
             state.bossKills[node.id] = nextKill;
             const g = String(Math.max(1, Math.min(5, Math.floor(node.orbit || 1))));
-            if (!state.bossStones[g]) state.bossStones[g] = getBossStoneName(node);
+            if (!state.bossStones[g]) {
+                state.bossStones[g] = getBossStoneName(node);
+                ensureCosmosStoneOptions(state, Number(g));
+            }
         }
         const rewardBase = node.tag === 'boss' ? (30 + node.orbit * 10 + getBossStage(node) * 10) : (node.kind === 'planet' ? 5 + node.orbit * 2 : 2 + node.orbit);
         const focusMul = node.kind === 'planet'
@@ -1517,9 +1800,10 @@
                 if (kills === 1) window.addLog(`💠 ${node.name} 첫 격파: ${getBossStoneName(node)} 획득`, 'loot-unique');
                 if (kills === 1) window.addLog(`🧩 우주석 슬롯에 장착하면 우주계 난이도 바닥이 상승합니다.`, 'season-up');
                 const relicDrop = tryRollBossRelic(node);
-                if (relicDrop) window.addLog(`🎲 보스 랜덤 드랍: ${relicDrop}`, 'loot-unique');
+                if (relicDrop) window.addLog(`💠 보스 유물 획득: ${relicDrop.name} (우주석 보스 옵션 리롤 재화)`, 'loot-unique');
             }
         }
+        if (node.tag === 'boss') grantCosmosBossExclusiveDrops(node);
         if (typeof window.saveGame === 'function') {
             try { window.saveGame({ auto: true, silent: true }); } catch (error) { console.error('cosmos atlas save failed:', error); }
         }
@@ -1613,6 +1897,9 @@
     window.challengeSelectedCosmosNode = challengeSelectedCosmosNode;
     window.allocateCosmosMastery = allocateCosmosMastery;
     window.equipBossStoneByGalaxy = equipBossStoneByGalaxy;
+    window.unequipBossStoneByGalaxy = unequipBossStoneByGalaxy;
+    window.applyCosmosBossRelicToStone = applyCosmosBossRelicToStone;
+    window.showCosmosStoneTooltip = showCosmosStoneTooltip;
     window.switchCosmosInnerTab = switchCosmosInnerTab;
     window.focusCosmosAtlasOnSelected = focusCosmosAtlasOnSelected;
     window.resetCosmosAtlasCamera = resetCosmosAtlasCamera;

@@ -3526,6 +3526,9 @@ function getTalismanSpecialDescription(talisman) {
         let roll = typeof getTalismanMomentRoll === 'function' ? getTalismanMomentRoll(talisman) : (talisman.bossFinalDmgRoll || min);
         return `보스 최종 피해 +${roll}% (롤 범위 +${min}~${max}%) 및 보스 체력 5% 이하 즉시 처형.`;
     }
+    if (talisman.special === 'cosmosChoice') return '가로 배치 시 모든 스킬 젬 레벨 +2. 세로 배치 시 모든 스킬 젬 레벨 -2, 보조 젬 한도 +2.';
+    if (talisman.special === 'cosmosLightningVariance') return '번개 피해의 최종 피해가 타격마다 0.8배~1.5배 사이에서 무작위로 결정됩니다.';
+    if (talisman.special === 'cosmosRepulsion') return '인접한 부적의 효과를 무효화하고, 인접하지 않은 모든 부적 효과를 25% 증가시키는 전용 부적입니다.';
     if (talisman.special === 'elementFocus') {
         let list = Array.isArray(talisman.stats) ? talisman.stats : [];
         if (list.length >= 3) return `${getStatName(list[0].stat)} +${formatValue(list[0].stat, list[0].value)}, ${getStatName(list[1].stat)} +${formatValue(list[1].stat, list[1].value)}, ${getStatName(list[2].stat)} +${formatValue(list[2].stat, list[2].value)}`;
@@ -5927,6 +5930,8 @@ function getCraftOrbUseState(key, item) {
     else if (key === 'annulment') ok = Array.isArray(item.stats) && item.stats.some(stat => stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
     else if (key === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
     else if (key === 'tainted') ok = !item.corrupted;
+    else if (key === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
+    else if (key === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
     return { enabled: ok, reason: ok ? '사용 가능' : '현재 아이템 조건 불일치' };
 }
 
@@ -6043,8 +6048,8 @@ window.showCurrencyCardTooltip = showCurrencyCardTooltip;
 window.showOrbTooltip = showCurrencyCardTooltip;
 
 
-const MOBILE_CRAFT_CURRENCY_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'enchantedHoney', 'venomStinger', 'voidChisel'];
-const MOBILE_CRAFT_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish'];
+const MOBILE_CRAFT_CURRENCY_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst', 'enchantedHoney', 'venomStinger', 'voidChisel'];
+const MOBILE_CRAFT_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst'];
 
 function getMobileCraftCurrencyOptions() {
     return MOBILE_CRAFT_CURRENCY_KEYS.filter(key => {
@@ -6082,6 +6087,10 @@ function getMobileCraftCurrencyUseState(key, item) {
             let slotOk = (key === 'deepWhetstone' && isWeapon) || (key === 'rootIron' && isArmor) || (key === 'jewelPolish' && isAccessory);
             let qualityOk = Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
             return { enabled: slotOk && qualityOk, reason: slotOk && qualityOk ? '사용 가능' : '현재 아이템 조건 불일치' };
+        }
+        if (key === 'abyssCatalyst') {
+            let enabled = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
+            return { enabled: enabled, reason: enabled ? '사용 가능' : '퀄리티와 추가 옵션이 있는 장비에만 사용 가능' };
         }
         return getCraftOrbUseState(key, item);
     }
@@ -6371,7 +6380,7 @@ function buildCraftActionButtons(item) {
         if (hiddenCurrencyKeys.has(key)) return false;
         if (key === 'tainted') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
         if (key === 'enchantedHoney' || key === 'venomStinger' || key === 'voidChisel') return (game.currencies[key] || 0) > 0;
-        if (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish') return (game.currencies[key] || 0) > 0;
+        if (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish' || key === 'abyssCatalyst') return (game.currencies[key] || 0) > 0;
         if (key === 'sporeFire' || key === 'sporeCold' || key === 'sporeLight') return false;
         return true;
     }).map(key => {
@@ -6381,7 +6390,7 @@ function buildCraftActionButtons(item) {
         if (key === 'voidChisel') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVoidChiselToSelectedItem()">사용</button></div>`;
         let sporeModes = game.sporeCraftModes || {};
         let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
-        let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','annulment','scour','tainted','blessing'].includes(key);
+        let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','annulment','scour','tainted','blessing','abyssCatalyst'].includes(key);
         let canUseSporeMode = ['transmute','augment','alteration','alchemy','exalted','regal','chaos'].includes(key);
         let mode = sporeModes[key] || 'none';
         let reason = key === 'voidChisel' ? getMobileCraftCurrencyUseState(key, getSelectedCraftItem()).reason : getCraftOrbUseState(key, getSelectedCraftItem()).reason;
@@ -6391,7 +6400,7 @@ function buildCraftActionButtons(item) {
             rightButtons += `<button style="padding:6px 10px; font-size:0.9em; line-height:1; white-space:nowrap;" onclick="useCurrency('${key}')">사용</button>`;
             useBtn += `<div style="display:flex; justify-content:flex-end; margin-top:4px;"><div style="display:flex; flex-wrap:nowrap; align-items:center; gap:4px;">${rightButtons}</div></div>`;
         }
-        let premiumGray = (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish') ? 'style="background:linear-gradient(180deg,#656d78,#4f5660); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 6px rgba(220,225,235,.2);"' : '';
+        let premiumGray = (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish' || key === 'abyssCatalyst') ? 'style="background:linear-gradient(180deg,#656d78,#4f5660); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 6px rgba(220,225,235,.2);"' : '';
         return `<div class="currency-card" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name" ${premiumGray}>${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
     }).join('');
     let sporeHtml = buildSporeSummaryHtml();

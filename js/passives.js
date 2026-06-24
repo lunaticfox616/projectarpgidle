@@ -6095,6 +6095,7 @@ function getCurrencyDrops(enemy) {
     let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     drops.push(...getMappingTicketDrops(enemy, zone, mappingOpened));
     if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['annulment', 1]);
+    if (zone.type === 'cosmos' && enemy.isBoss && bonusRoll(0.012)) drops.push(['abyssCatalyst', 1]);
     if ((game.season || 1) >= 4 && enemy.isSky && Math.random() < 0.35) drops.push(['skyEssence', 1]);
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16) drops.push(['tainted', 1]);
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.03) drops.push(['jewelShard', 3]);
@@ -7048,6 +7049,64 @@ function isRemovableExplicitStat(stat) {
     return !!(stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
 }
 
+
+const QUALITY_ATTRIBUTE_MODES = ['base', 'fire', 'cold', 'light', 'chaos', 'physical', 'defense', 'speed'];
+const QUALITY_ATTRIBUTE_LABELS = { base: '기본', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', physical: '물리', defense: '방어', speed: '속도' };
+const QUALITY_ATTRIBUTE_STAT_GROUPS = {
+    fire: ['firePctDmg', 'resF', 'igniteChance', 'igniteDamageMultiplierPct'],
+    cold: ['coldPctDmg', 'resC', 'freezeChance', 'chillEffect'],
+    light: ['lightPctDmg', 'resL', 'shockChance', 'shockEffect'],
+    chaos: ['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance', 'poisonDamageMultiplierPct'],
+    physical: ['physPctDmg', 'flatDmg', 'bleedChance', 'physIgnore', 'maxDmgRoll', 'minDmgRoll'],
+    defense: ['flatHp', 'pctHp', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'resAll', 'dr'],
+    speed: ['aspd', 'move', 'ds']
+};
+
+function getItemQualityAttributeMode(item) {
+    let mode = item && typeof item.qualityAttribute === 'string' ? item.qualityAttribute : 'base';
+    return QUALITY_ATTRIBUTE_MODES.includes(mode) ? mode : 'base';
+}
+
+function getItemQualityAttributeLabel(mode) {
+    return QUALITY_ATTRIBUTE_LABELS[QUALITY_ATTRIBUTE_MODES.includes(mode) ? mode : 'base'] || QUALITY_ATTRIBUTE_LABELS.base;
+}
+
+function getNextItemQualityAttributeMode(mode) {
+    let current = QUALITY_ATTRIBUTE_MODES.indexOf(QUALITY_ATTRIBUTE_MODES.includes(mode) ? mode : 'base');
+    return QUALITY_ATTRIBUTE_MODES[(current + 1) % QUALITY_ATTRIBUTE_MODES.length];
+}
+
+function isQualityAttributeStat(mode, statId) {
+    let group = QUALITY_ATTRIBUTE_STAT_GROUPS[mode] || [];
+    return group.includes(statId);
+}
+
+function applyAbyssCatalystToItemQuality(item) {
+    let nextMode = getNextItemQualityAttributeMode(getItemQualityAttributeMode(item));
+    item.qualityAttribute = nextMode;
+    return getItemQualityAttributeLabel(nextMode);
+}
+
+function getCosmosBossRelicStatTotals() {
+    let atlas = (game && game.cosmosAtlas) || {};
+    let equipped = (atlas.equippedStones && typeof atlas.equippedStones === 'object') ? atlas.equippedStones : {};
+    let legacyEquippedGalaxy = Math.max(0, Math.min(6, Math.floor(atlas.equippedStoneGalaxy || 0)));
+    let optionsByGalaxy = (atlas.bossStoneOptions && typeof atlas.bossStoneOptions === 'object') ? atlas.bossStoneOptions : {};
+    let totals = {};
+    Object.keys(optionsByGalaxy).forEach(galaxyKey => {
+        let galaxy = Math.max(1, Math.min(6, Math.floor(Number(galaxyKey) || 0)));
+        let isEquipped = !!equipped[galaxyKey] || (Object.keys(equipped).length === 0 && legacyEquippedGalaxy >= galaxy);
+        if (!isEquipped) return;
+        (Array.isArray(optionsByGalaxy[galaxyKey]) ? optionsByGalaxy[galaxyKey] : []).forEach(option => {
+            if (!option || !option.stat) return;
+            totals[option.stat] = (totals[option.stat] || 0) + Number(option.value || 0);
+        });
+    });
+    return totals;
+}
+
+safeExposeGlobals({ getItemQualityAttributeMode, getItemQualityAttributeLabel, isQualityAttributeStat, getCosmosBossRelicStatTotals });
+
 function getAnnulmentRemovableStats(item) {
     return (item && Array.isArray(item.stats) ? item.stats : [])
         .map((stat, index) => ({ stat, index }))
@@ -7073,6 +7132,7 @@ function useCurrency(currencyKey) {
     else if (currencyKey === 'tainted') ok = !item.corrupted;
     else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     else if (currencyKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
+    else if (currencyKey === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
     else if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
         let slot = String(item.slot || '');
         let isWeapon = slot === '무기';
@@ -7255,6 +7315,9 @@ function useCurrency(currencyKey) {
         } else {
             addLog("🩸 타락 : 아이템에 변화가 생기지 않았습니다.", "attack-monster");
         }
+    } else if (currencyKey === 'abyssCatalyst') {
+        let qualityLabel = applyAbyssCatalystToItemQuality(item);
+        addLog(`🧪 심연 촉매: [${item.name}] 퀄리티 속성 → ${qualityLabel}`, 'loot-unique');
     } else if (currencyKey === 'blessing') {
         (item.baseStats || []).forEach(stat => {
             let baseMin = Number.isFinite(Number(stat.baseRollMin)) ? Number(stat.baseRollMin) : Number(stat.valMin);
