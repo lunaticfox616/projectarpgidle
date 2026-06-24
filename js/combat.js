@@ -129,18 +129,23 @@ function tickPlayerLeech(pStats, dt) {
     instances.forEach(inst => {
         let tick = Math.min(inst.remaining, inst.rate * dt);
         if (tick <= 0) return;
+        let consumed = tick;
         if (inst.target === 'energyShield') {
             if (esCap > 0) {
                 let before = Math.max(0, Number(game.playerEnergyShield) || 0);
                 game.playerEnergyShield = Math.min(esCap, before + tick);
-                healed += Math.max(0, game.playerEnergyShield - before);
+                let gained = Math.max(0, game.playerEnergyShield - before);
+                healed += gained;
+                consumed = gained > 0 || !(pStats && pStats.leechKeepFullLife) ? tick : 0;
             }
         } else {
             let before = Math.max(0, Number(game.playerHp) || 0);
             game.playerHp = Math.min(hpCap, before + tick);
-            healed += Math.max(0, game.playerHp - before);
+            let gained = Math.max(0, game.playerHp - before);
+            healed += gained;
+            consumed = gained > 0 || !(pStats && pStats.leechKeepFullLife) ? tick : 0;
         }
-        inst.remaining = Math.max(0, inst.remaining - tick);
+        inst.remaining = Math.max(0, inst.remaining - consumed);
         if (inst.remaining > 0) next.push(inst);
     });
     game.playerLeechInstances = next;
@@ -1581,7 +1586,7 @@ function getUniqueEffectImplementationReport() {
         'projectileDoubleStrikePct','hitApplyChaosResDown','corpseExplodeOnKill','instantLeechAndDoubleDamage',
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
         'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmNoCollisionBlock','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
-        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct'
+        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze'
     ]);
     return {
         total: uniqueKeys.length,
@@ -1665,8 +1670,11 @@ function getPlayerStats() {
         if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '', sourceSlot: equipSlotKey });
         let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
         let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
-        let qualityMul = 1 + (Math.max(0, Math.min(qualityCap, Math.floor(item.quality || 0))) / 100);
-        let itemBaseStats = scaleStatList((item.baseStats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * qualityMul).toFixed(2)) } : stat), itemStatMultiplier);
+        let qualityValue = Math.max(0, Math.min(qualityCap, Math.floor(item.quality || 0)));
+        let qualityMul = 1 + (qualityValue / 100);
+        let qualityMode = typeof getItemQualityAttributeMode === 'function' ? getItemQualityAttributeMode(item) : 'base';
+        let baseQualityMul = qualityMode === 'base' ? qualityMul : 1;
+        let itemBaseStats = scaleStatList((item.baseStats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * baseQualityMul).toFixed(2)) } : stat), itemStatMultiplier);
         applyStatsToBucket(gearBase, itemBaseStats);
         let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
         let riftAmpRow = (item.stats || []).find(stat => stat && stat.id === 'fossilRiftAmp');
@@ -1675,8 +1683,8 @@ function getPlayerStats() {
             if (!stat) return stat;
             if (stat.id === 'fossilRiftBlank' || stat.id === 'fossilRiftAmp') return stat;
             if (!Number.isFinite(Number(stat.val))) return stat;
-        
-    return { ...stat, val: Number((Number(stat.val) * riftAmpMul).toFixed(2)) };
+            let explicitQualityMul = qualityMode !== 'base' && typeof isQualityAttributeStat === 'function' && isQualityAttributeStat(qualityMode, stat.id) ? qualityMul : 1;
+            return { ...stat, val: Number((Number(stat.val) * riftAmpMul * explicitQualityMul).toFixed(2)) };
         });
         let explicitItemStats = scaleStatList(adjustedExplicitStats.concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
         applyStatsToBucket(gearExplicit, explicitItemStats);
@@ -1763,6 +1771,7 @@ function getPlayerStats() {
     let uniqueFateTwinRollSync=false, uniqueFrostSentinel=false, uniqueShockTracer=null, uniqueVenomStride=false, uniqueBleedBlockHelm=false, uniqueImmuneBleed=false, uniqueImmuneFreeze=false, uniqueCurseCrownPerCursePct=0, uniqueWarcryResonancePct=0, uniqueConditionManual=null, uniqueStackingElementalResDownOnHit=null;
     let uniqueAllResDownOnHit=null, uniqueKillMoveStacks=null, uniqueCursedTakenAndRefresh=null, uniqueEnemyRegenCutAndMinRoll=null, uniquePhysDrHalfTakenAsMore=null, uniqueArmorAppliesToDot=false, uniqueMeleeArmorAmp=null, uniqueNoCollisionBlock=false, uniqueResonanceAndSuppCap=null, uniqueRegenRateAndRegen=null, uniqueMaxHpPct=0, uniqueAllMaxRes=0;
     let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null;
+    let cosmosAlwaysFirstHit=false, cosmosEnergyShieldBypassPct=0, cosmosOrbitCycle=null, cosmosDeepSeaLeechCaps=null, cosmosTideEsRegenToLife=false, cosmosEqualDamageSplit=false, cosmosBalanceMitigation=false, cosmosTwinStarResonance=null, cosmosJudgmentLightning=null, cosmosDeathResistPct=0, cosmosVerdictSupportDamagePct=0, cosmosGuardianConditionInstant=false, cosmosBossDamageMorePct=0, cosmosCometChillNoFreeze=false;
     let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
     if (activeUniqueIds.has('uj_crown_empty')) {
         let otherUniqueCount = equippedUniqueJewels.filter(entry => entry && entry.jewel && entry.jewel.uniqueId !== 'uj_crown_empty').length;
@@ -1864,6 +1873,20 @@ function getPlayerStats() {
         else if (effect.key === 'cosmosPenetration') addStatToBucket(reward, 'resPen', Number(ep.pen || 8));
         else if (effect.key === 'cosmosSustain') { addStatToBucket(reward, 'regen', Number(ep.regen || 1.2)); addStatToBucket(reward, 'leech', Number(ep.leech || 0.8)); }
         else if (effect.key === 'cosmosBossSlayer') { addStatToBucket(reward, 'pctDmg', Number(ep.pct || 14)); addStatToBucket(reward, 'critDmg', Number(ep.critDmg || 20)); }
+        else if (effect.key === 'cosmosAlwaysFirstHit') cosmosAlwaysFirstHit = true;
+        else if (effect.key === 'cosmosEnergyShieldAmpBypass') { uniqueEsAmpPct = Math.max(uniqueEsAmpPct, Number(ep.ampPct || 25)); cosmosEnergyShieldBypassPct = Math.max(cosmosEnergyShieldBypassPct, Number(ep.bypassPct || 25)); }
+        else if (effect.key === 'cosmosOrbitCycle') cosmosOrbitCycle = { high: Number(ep.high || 1.3), low: Number(ep.low || 0.7), step: Number(ep.step || 0.2) };
+        else if (effect.key === 'cosmosDeepSeaLeechCaps') cosmosDeepSeaLeechCaps = { rateLessPct: Number(ep.rateLessPct || 20), capMul: Number(ep.capMul || 2) };
+        else if (effect.key === 'cosmosTideEsRegenToLife') cosmosTideEsRegenToLife = true;
+        else if (effect.key === 'cosmosEqualDamageSplit') cosmosEqualDamageSplit = true;
+        else if (effect.key === 'cosmosBalanceMitigation') cosmosBalanceMitigation = true;
+        else if (effect.key === 'cosmosTwinStarResonance') cosmosTwinStarResonance = { resonanceMul: Number(ep.resonanceMul || 1.5), supportCapMul: Number(ep.supportCapMul || 0.5) };
+        else if (effect.key === 'cosmosJudgmentLightning') cosmosJudgmentLightning = { resDown: Number(ep.resDown || 15), duration: Number(ep.duration || 4) };
+        else if (effect.key === 'cosmosDeathResist') cosmosDeathResistPct = Math.max(cosmosDeathResistPct, Number(ep.chance || 12));
+        else if (effect.key === 'cosmosVerdictSupportDamage') cosmosVerdictSupportDamagePct += Number(ep.morePerSupportPct || 2);
+        else if (effect.key === 'cosmosGuardianConditionInstant') cosmosGuardianConditionInstant = true;
+        else if (effect.key === 'cosmosBossDamageMore') cosmosBossDamageMorePct = Math.max(cosmosBossDamageMorePct, Number(ep.morePct || 25));
+        else if (effect.key === 'cosmosCometChillNoFreeze') cosmosCometChillNoFreeze = true;
         else if (effect.key === 'cosmosStatBundle') {
             addStatToBucket(reward, 'pctDmg', Number(ep.pctDmg || 0));
             addStatToBucket(reward, 'dr', Number(ep.dr || 0));
@@ -1957,6 +1980,10 @@ function getPlayerStats() {
     if (typeof getCoreCubeActiveStats === 'function') {
         getCoreCubeActiveStats().forEach(stat => { if (stat && stat.id) addStatToBucket(reward, stat.id, stat.val); });
     }
+    if (typeof getCosmosBossRelicStatTotals === 'function') {
+        let relicStats = getCosmosBossRelicStatTotals();
+        Object.keys(relicStats).forEach(statKey => addStatToBucket(reward, statKey, relicStats[statKey]));
+    }
     safeJournalBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
@@ -1968,11 +1995,6 @@ function getPlayerStats() {
         Object.keys(PASSIVE_STAR_BLESSING).forEach(statId => addStatToBucket(starBlessing, statId, PASSIVE_STAR_BLESSING[statId]));
     }
     let talismanEntries = Object.values(game.talismanPlacements || {}).filter(entry => entry && entry.talisman);
-    talismanEntries.forEach(entry => {
-        let t = entry.talisman;
-        if (Array.isArray(t.stats) && t.stats.length > 0) t.stats.forEach(st => { if (st && st.stat) addStatToBucket(reward, st.stat, st.value || 0); });
-        else if (t.stat) addStatToBucket(reward, t.stat, t.value || 0);
-    });
     let idPos = {};
     talismanEntries.forEach(entry => { if (entry.talisman && entry.talisman.id) idPos[entry.talisman.id] = entry; });
     function adjCount(tid) {
@@ -1994,6 +2016,27 @@ function getPlayerStats() {
         });
         return Array.from(set);
     }
+    function hasAdjacentRepulsion(entry) {
+        let t = entry && entry.talisman;
+        if (!t || t.special === 'cosmosRepulsion') return false;
+        return adjIds(t.id).some(id => idPos[id] && idPos[id].talisman && idPos[id].talisman.special === 'cosmosRepulsion');
+    }
+
+    function getRepulsionMultiplier(entry) {
+        let t = entry && entry.talisman;
+        if (!t || t.special === 'cosmosRepulsion' || hasAdjacentRepulsion(entry)) return 1;
+        let hasRepulsion = talismanEntries.some(other => other && other.talisman && other.talisman.special === 'cosmosRepulsion');
+        return hasRepulsion ? 1.25 : 1;
+    }
+
+    talismanEntries.forEach(entry => {
+        let t = entry.talisman;
+        if (hasAdjacentRepulsion(entry)) return;
+        let multiplier = getRepulsionMultiplier(entry);
+        if (Array.isArray(t.stats) && t.stats.length > 0) t.stats.forEach(st => { if (st && st.stat) addStatToBucket(reward, st.stat, (st.value || 0) * multiplier); });
+        else if (t.stat) addStatToBucket(reward, t.stat, (t.value || 0) * multiplier);
+    });
+
     function findMarkedNeighborId(entry) {
         if (!entry || !entry.talisman || !entry.talisman.markDir) return null;
         let cells = (entry.talisman.cells || []).map(cell => ({ x: cell.x || 0, y: cell.y || 0 }));
@@ -2047,7 +2090,14 @@ function getPlayerStats() {
     });
     talismanEntries.forEach(entry => {
         let t = entry.talisman; if (!t || !t.special) return;
-        if (t.special === 'pride') {
+        if (t.special === 'cosmosChoice') {
+                let cells = (Array.isArray(t.cells) ? t.cells : []).map(cell => ({ x: cell.x || 0, y: cell.y || 0 }));
+                let horizontal = cells.length >= 2 && cells.every(cell => cell.y === cells[0].y);
+                if (horizontal) addStatToBucket(reward, 'gemLevel', 2);
+                else { addStatToBucket(reward, 'gemLevel', -2); addStatToBucket(reward, 'suppCap', 2); }
+            }
+            if (t.special === 'cosmosLightningVariance') addStatToBucket(reward, 'cosmosLightningVariance', 1);
+            if (t.special === 'pride') {
             let n = adjCount(t.id);
             if (n === 0) { addStatToBucket(reward,'gemLevel',1); addStatToBucket(reward,'suppCap',1); }
             else if (n === 1) addStatToBucket(reward,'suppCap',1);
@@ -2347,6 +2397,13 @@ function getPlayerStats() {
     let finalLeechRateCap = gearBase.leechRateCap + gearExplicit.leechRateCap + passive.leechRateCap + season.leechRateCap + ascend.leechRateCap + support.leechRateCap + reward.leechRateCap;
     let finalLeechTotalCap = gearBase.leechTotalCap + gearExplicit.leechTotalCap + passive.leechTotalCap + season.leechTotalCap + ascend.leechTotalCap + support.leechTotalCap + reward.leechTotalCap;
     let finalLeechInstanceCap = gearBase.leechInstanceCap + gearExplicit.leechInstanceCap + passive.leechInstanceCap + season.leechInstanceCap + ascend.leechInstanceCap + support.leechInstanceCap + reward.leechInstanceCap;
+    let finalLeechKeepFullLife = gearBase.leechKeepFullLife + gearExplicit.leechKeepFullLife + passive.leechKeepFullLife + season.leechKeepFullLife + ascend.leechKeepFullLife + support.leechKeepFullLife + reward.leechKeepFullLife;
+    if (cosmosDeepSeaLeechCaps) {
+        finalLeech *= Math.max(0, 1 - Math.max(0, cosmosDeepSeaLeechCaps.rateLessPct || 20) / 100);
+        finalLeechRateCap += LEECH_BASE_RATE_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
+        finalLeechTotalCap += LEECH_BASE_TOTAL_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
+        finalLeechInstanceCap += LEECH_BASE_INSTANCE_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
+    }
     let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
     let allowNegativePhysIgnore = false;
@@ -2382,6 +2439,7 @@ function getPlayerStats() {
     let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen + (skill.regenBonus || 0);
     let flatRegen = gearBase.regenFlat + gearExplicit.regenFlat + passive.regenFlat + season.regenFlat + ascend.regenFlat + support.regenFlat + reward.regenFlat;
     finalRegen += (flatRegen / Math.max(1, finalMaxHp)) * 100;
+    if (cosmosTideEsRegenToLife) { finalRegen += Math.max(0, finalEnergyShieldRegenRate); finalEnergyShieldRegenRate = 0; }
     if (activeUniqueIds.has('uj_hurried_mind')) {
         let alive = (game.enemies || []).filter(e => e && e.hp > 0).length;
         if (alive === 0) finalMove *= 1.5;
@@ -2486,6 +2544,7 @@ function getPlayerStats() {
     if (uniqueVenomStride) finalDamageMultiplier *= 1.30;
     if (uniqueWarcryResonancePct>0){ let now=Date.now(); let c=(Array.isArray(game.playerConditionBuffs)?game.playerConditionBuffs:[]).filter(b=>b&&b.type==='warcry'&&(b.expiresAt||0)>now).length; if(c>0) finalDamageMultiplier*=(1+(c*uniqueWarcryResonancePct)/100);}
     if (uniqueCurseCrownPerCursePct>0){ let e=(game.enemies||[]).find(x=>x&&x.hp>0); let n=0; if(e&&game.enemyConditionDebuffs&&Array.isArray(game.enemyConditionDebuffs[e.id])) n=game.enemyConditionDebuffs[e.id].length; if(n>0) finalDamageMultiplier*=(1+(n*uniqueCurseCrownPerCursePct)/100);}
+    if (cosmosVerdictSupportDamagePct > 0) finalDamageMultiplier *= (1 + (safeEquippedSupports.length * cosmosVerdictSupportDamagePct) / 100);
     finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus);
     if (uniqueFlatDmgPerLevel > 0) finalBaseDmg += Math.floor(Math.max(1, game.level || 1) * uniqueFlatDmgPerLevel);
     talismanEntries.forEach(entry => {
@@ -2512,6 +2571,7 @@ function getPlayerStats() {
         talismanBossFinalDmgBonusPct: talismanBossFinalDmgBonusPct
     };
     let suppCap = 2 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap;
+    if (cosmosTwinStarResonance) suppCap = Math.max(0, Math.floor(suppCap * Math.max(0, cosmosTwinStarResonance.supportCapMul || 0.5)));
     if (uniqueResonanceAndSuppCap) suppCap += Math.floor(uniqueResonanceAndSuppCap.suppCap || 0);
 
     let critChance = finalCrit / 100;
@@ -2808,7 +2868,8 @@ function getPlayerStats() {
         }
         // 9) 무한한 권능: 확보한 보조 젬 한도 1당 공명력 +15 (공명력 폭주 방지를 위해 무제한 확장 전의 '획득' 한도 기준)
         if (hasKeystone('iq9')) inquisitorResonanceBonus += 15 * Math.max(0, suppCap);
-        let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + runeResonancePower + inquisitorResonanceBonus));
+        let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + runeResonancePower + (reward.runeResonancePower || 0) + inquisitorResonanceBonus));
+        if (cosmosTwinStarResonance) inquisitorResonancePower = Math.floor(inquisitorResonancePower * Math.max(0, cosmosTwinStarResonance.resonanceMul || 1.5));
         let inquisitorElementalSkill = ['fire', 'cold', 'light'].includes(skill.ele) || (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0);
         if (hasKeystone('iq1') && inquisitorElementalSkill) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (inquisitorResonancePower * 0.5) / 100));
         if (hasKeystone('iq2')) {
@@ -3502,6 +3563,7 @@ function getPlayerStats() {
         leechRateCap: finalLeechRateCap,
         leechTotalCap: finalLeechTotalCap,
         leechInstanceCap: finalLeechInstanceCap,
+        leechKeepFullLife: finalLeechKeepFullLife,
         dr: finalDr,
         physIgnore: finalPhysIgnore,
         allowNegativePhysIgnore: allowNegativePhysIgnore,
@@ -3602,7 +3664,7 @@ function getPlayerStats() {
         uniqueProjectileDoubleStrikePct: uniqueProjectileDoubleStrikePct,
         uniqueChaosResDownOnHit: uniqueChaosResDownOnHit,
         uniqueCorpseExplode: uniqueCorpseExplode,
-        uniqueInstantLeechPct: uniqueInstantLeechPct,
+        uniqueInstantLeechPct: uniqueInstantLeechPct + Math.max(0, reward.uniqueInstantLeechPct || 0),
         uniqueDoubleDamageChancePct: uniqueDoubleDamageChancePct + Math.max(0, coreCubeDoubleDamageChance || 0),
         uniqueEsRecoverOnCritPct: uniqueEsRecoverOnCritPct,
         uniqueRiderCompass: uniqueRiderCompass,
@@ -3625,6 +3687,18 @@ function getPlayerStats() {
         uniqueDeflectStealth: uniqueDeflectStealth,
         uniqueChaosTakenDamageReducePct: uniqueChaosTakenDamageReducePct,
         uniqueLifeRecoupTakenDamage: uniqueLifeRecoupTakenDamage,
+        cosmosAlwaysFirstHit: cosmosAlwaysFirstHit,
+        cosmosEnergyShieldBypassPct: cosmosEnergyShieldBypassPct,
+        cosmosOrbitCycle: cosmosOrbitCycle,
+        cosmosEqualDamageSplit: cosmosEqualDamageSplit,
+        cosmosBalanceMitigation: cosmosBalanceMitigation,
+        cosmosJudgmentLightning: cosmosJudgmentLightning,
+        cosmosDeathResistPct: Math.max(cosmosDeathResistPct, reward.cosmosDeathResistPct || 0),
+        cosmosBossDamageMorePct: Math.max(cosmosBossDamageMorePct, reward.cosmosBossDamageMorePct || 0),
+        cosmosCometChillNoFreeze: cosmosCometChillNoFreeze,
+        cosmosLightningVariance: reward.cosmosLightningVariance || 0,
+        firstHitDamageMorePct: reward.firstHitDamageMorePct || 0,
+        cosmosAlwaysFirstHitChancePct: reward.cosmosAlwaysFirstHitChancePct || 0,
         uniqueBleedWeightOnBleedingHit: uniqueBleedWeightOnBleedingHit,
         uniqueImmuneBleed: uniqueImmuneBleed,
         uniqueImmuneFreeze: uniqueImmuneFreeze,
@@ -6794,6 +6868,7 @@ function performPlayerAttack(pStats) {
             if (hitElement === 'light') enemyRes -= (curseFx.resLShred || 0);
             if (hitElement === 'chaos') enemyRes -= (curseFx.resChaosShred || 0);
             if (hitElement === 'phys') enemyRes -= (curseFx.physDrShred || 0);
+            if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let cj = targetEnemy.ailments.find(a => a && a.type === 'cosmosJudgment' && (a.time || 0) > 0); if (cj) enemyRes -= Math.max(0, Number(cj.power || 0)); }
             if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let rs = targetEnemy.ailments.find(a => a && a.type === 'realmAllResDown' && (a.time || 0) > 0); if (rs) enemyRes -= Math.max(0, Math.floor(rs.stacks || 0)) * Math.max(0, Number((pStats.uniqueAllResDownOnHit && pStats.uniqueAllResDownOnHit.perHit) || 0)); }
             let hitCrit = isCrit;
             // 49 새벽의기사: 몬스터별 처음 3타는 치명 불가 + 번개 저항 반대로 간주
@@ -6873,13 +6948,14 @@ function performPlayerAttack(pStats) {
             }
             if (targetEnemy.isBoss) {
                 let bossMul = Math.max(0, Number(pStats.bossDamageDealtMultiplier) || 1);
-                bossMul *= (1 + Math.max(0, Number(pStats.bossDamagePct) || 0) / 100);
-                hitBaseDamage = Math.floor(hitBaseDamage * bossMul);
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * bossMul);
+                 bossMul *= (1 + Math.max(0, Number(pStats.bossDamagePct) || 0) / 100);
+                 hitBaseDamage = Math.floor(hitBaseDamage * bossMul * (1 + Math.max(0, pStats.cosmosBossDamageMorePct || 0) / 100));
+                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * bossMul * (1 + Math.max(0, pStats.cosmosBossDamageMorePct || 0) / 100));
             } else if (targetEnemy.isElite && (pStats.eliteDamagePct || 0) > 0) {
                 let eliteMul = 1 + Math.max(0, Number(pStats.eliteDamagePct) || 0) / 100;
-                hitBaseDamage = Math.floor(hitBaseDamage * eliteMul);
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * eliteMul);
+                  hitBaseDamage = Math.floor(hitBaseDamage * eliteMul);
+                  ailmentBaseDamage = Math.floor(ailmentBaseDamage * eliteMul);
+            }
             }
             if (game.ascendClass === 'gladiator' && hasKeystone('g5') && game.gladiatorSwiftOpeningReady) {
                 hitBaseDamage = Math.floor(hitBaseDamage * 1.30);
@@ -6890,6 +6966,18 @@ function performPlayerAttack(pStats) {
             let talentHitMul = talentAttackMul * talentKeystoneMul;
             hitBaseDamage = Math.floor(hitBaseDamage * talentHitMul);
             ailmentBaseDamage = Math.floor(ailmentBaseDamage * talentHitMul);
+            if (pStats.cosmosOrbitCycle && targetEnemy) {
+                let cycle = pStats.cosmosOrbitCycle;
+                let current = Number.isFinite(targetEnemy.cosmosOrbitMul) ? targetEnemy.cosmosOrbitMul : Number(cycle.high || 1.3);
+                hitBaseDamage = Math.floor(hitBaseDamage * current);
+                ailmentBaseDamage = Math.floor(ailmentBaseDamage * current);
+                let dir = Number.isFinite(targetEnemy.cosmosOrbitDir) ? targetEnemy.cosmosOrbitDir : -1;
+                let next = current + (dir * Math.max(0.01, Number(cycle.step || 0.2)));
+                if (next <= Number(cycle.low || 0.7)) { next = Number(cycle.low || 0.7); dir = 1; }
+                if (next >= Number(cycle.high || 1.3)) { next = Number(cycle.high || 1.3); dir = -1; }
+                targetEnemy.cosmosOrbitMul = Number(next.toFixed(2));
+                targetEnemy.cosmosOrbitDir = dir;
+            }
             let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
             let ailmentSourceDamage = Math.floor(ailmentBaseDamage * (hit.mult || 1));
             let repeatDamageMultiplier = hitIdx < baseRepeats ? 1 : Math.max(0, Number(pStats.sSkill.extraProjectileDamagePct) || 100) / 100;
@@ -6910,10 +6998,16 @@ function performPlayerAttack(pStats) {
                 dmg = Math.floor(dmg * chaosMultiplier);
                 ailmentSourceDamage = Math.floor(ailmentSourceDamage * chaosMultiplier);
             }
-            if ((targetEnemy.firstHitGuard || 0) > 0 && !targetEnemy.firstHitConsumed) {
+            let cosmosFirstHitRoll = pStats.cosmosAlwaysFirstHit || ((pStats.cosmosAlwaysFirstHitChancePct || 0) > 0 && Math.random() * 100 < (pStats.cosmosAlwaysFirstHitChancePct || 0));
+            if ((pStats.firstHitDamageMorePct || 0) > 0 && (cosmosFirstHitRoll || !targetEnemy.firstHitConsumed)) {
+                let firstMul = 1 + Math.max(0, Number(pStats.firstHitDamageMorePct || 0)) / 100;
+                dmg = Math.floor(dmg * firstMul);
+                ailmentSourceDamage = Math.floor(ailmentSourceDamage * firstMul);
+            }
+            if ((targetEnemy.firstHitGuard || 0) > 0 && (cosmosFirstHitRoll || !targetEnemy.firstHitConsumed)) {
                 dmg = Math.floor(dmg * (1 - targetEnemy.firstHitGuard));
                 ailmentSourceDamage = Math.floor(ailmentSourceDamage * (1 - targetEnemy.firstHitGuard));
-                targetEnemy.firstHitConsumed = true;
+                if (!cosmosFirstHitRoll) targetEnemy.firstHitConsumed = true;
             }
             let burstHits = Math.max(0, (targetEnemy.recentHitsTaken || 0) - 2);
             let hitGuard = (targetEnemy.hitRateGuard || 0) * Math.min(5, burstHits);
@@ -6933,6 +7027,7 @@ function performPlayerAttack(pStats) {
             dmg = Math.floor(dmg * skillConditionalMultiplier);
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * skillConditionalMultiplier);
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
+            if ((pStats.cosmosLightningVariance || 0) > 0 && hitElement === 'light') dmg = Math.floor(dmg * (0.8 + Math.random() * 0.7));
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
             if ((targetEnemy.evasionChance || 0) > 0 && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit()) && Math.random() * 100 < targetEnemy.evasionChance) {
                 addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#9fb4c8', duration: 260 });
@@ -7299,7 +7394,13 @@ function performPlayerAttack(pStats) {
             applySkillPeriodicOnHit(targetEnemy, pStats.sSkill, dealtToEnemy);
             applySupportEchoOnHit(targetEnemy, pStats, dealtToEnemy);
             applySupportChaosErosionOnHit(targetEnemy, pStats, hitElement);
-            if (pStats.uniqueAlwaysShock) {
+            if (pStats.cosmosJudgmentLightning && hitElement === 'light') {
+                targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
+                let mark = targetEnemy.ailments.find(ail => ail && ail.type === 'cosmosJudgment');
+                if (mark) mark.time = Math.max(mark.time || 0, Number(pStats.cosmosJudgmentLightning.duration || 4));
+                else targetEnemy.ailments.push({ type: 'cosmosJudgment', time: Number(pStats.cosmosJudgmentLightning.duration || 4), power: Number(pStats.cosmosJudgmentLightning.resDown || 15) });
+            }
+            if (pStats.uniqueAlwaysShock && !pStats.cosmosCometChillNoFreeze) {
                 let shockStats = { ...pStats, sSkill: { ...pStats.sSkill, ele: 'light' } };
                 let shockHit = Math.max(1, Math.floor(dmg * 0.25 * (1 + Math.max(0, Number(pStats.shockEffectBonusPct)||0)/100)));
                 applyEnemyAilmentFromHit(targetEnemy, shockStats, shockHit, true);
@@ -7605,6 +7706,28 @@ function getPlayerResistanceAfterEnemyModifiers(pStats, element, enemy, effectMu
     return Math.max(MIN_PENETRATED_RESISTANCE, reducedResistance - penetration);
 }
 
+
+function getCosmosBalancedMitigationPct(pStats, enemy, physRes) {
+    let resValues = ['fire', 'cold', 'light', 'chaos'].map(ele => getPlayerResistanceAfterEnemyModifiers(pStats, ele, enemy));
+    let total = Math.max(-60, Number(physRes) || 0) + resValues.reduce((sum, value) => sum + (Number(value) || 0), 0);
+    return Math.max(-60, Math.min(90, total / 5));
+}
+
+function getCosmosEqualSplitDamageBreakdown(rawDamage, pStats, enemy) {
+    let total = Math.max(1, Math.floor(Number(rawDamage) || 1));
+    let elements = ['phys', 'fire', 'cold', 'light', 'chaos'];
+    let remaining = total;
+    return elements.map((ele, idx) => {
+        let portion = idx === elements.length - 1 ? remaining : Math.floor(total / elements.length);
+        remaining = Math.max(0, remaining - portion);
+        let mitigation = ele === 'phys'
+            ? Math.max(-60, (pStats.dr || 0) + getArmorPhysicalReductionPct(pStats.armor || 0, portion))
+            : getPlayerResistanceAfterEnemyModifiers(pStats, ele, enemy);
+        if (pStats.cosmosBalanceMitigation) mitigation = getCosmosBalancedMitigationPct(pStats, enemy, mitigation);
+        return { ele, amount: Math.max(0, Math.floor(portion * (1 - mitigation / 100))) };
+    }).filter(row => row.amount > 0);
+}
+
 function performMonsterAttacks(pStats) {
     updateColonyDefenseApproach();
     let zone = getZone(game.currentZoneId);
@@ -7738,12 +7861,21 @@ function performMonsterAttacks(pStats) {
             let elementalRes = ['fire', 'cold', 'light', 'chaos'].includes(enemy.ele)
                 ? getPlayerResistanceAfterEnemyModifiers(pStats, enemy.ele, enemy)
                 : 0;
-            let mitigatedElemental = Math.max(0, Math.floor(elementalPortion * (1 - (elementalRes / 100))));
             let physRes = Math.max(-60, pStats.dr + getArmorPhysicalReductionPct(pStats.armor, physicalPortion));
+            if (pStats.cosmosBalanceMitigation) {
+                let balanced = getCosmosBalancedMitigationPct(pStats, enemy, physRes);
+                physRes = balanced;
+                elementalRes = balanced;
+            }
+            let mitigatedElemental = Math.max(0, Math.floor(elementalPortion * (1 - (elementalRes / 100))));
             let mitigatedPhysical = Math.max(0, Math.floor(physicalPortion * (1 - (physRes / 100))));
             let damageBreakdown = [];
-            if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
-            if (mitigatedElemental > 0) damageBreakdown.push({ ele: enemy.ele, amount: mitigatedElemental });
+            if (pStats.cosmosEqualDamageSplit) {
+                damageBreakdown = getCosmosEqualSplitDamageBreakdown(dmg, pStats, enemy);
+            } else {
+                if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
+                if (mitigatedElemental > 0) damageBreakdown.push({ ele: enemy.ele, amount: mitigatedElemental });
+            }
             if (convertedTakenAsBreakdown.length > 0) damageBreakdown = damageBreakdown.concat(convertedTakenAsBreakdown);
             damageBreakdown = damageBreakdown.map(row => {
                 let less = 0;
@@ -7975,16 +8107,24 @@ function performMonsterAttacks(pStats) {
             game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
             let beforeEsForCr8 = game.playerEnergyShield;
             if (remaining > 0 && game.playerEnergyShield > 0) {
-                let absorbed = Math.min(game.playerEnergyShield, remaining);
+                let bypass = Math.floor(remaining * Math.max(0, Math.min(100, pStats.cosmosEnergyShieldBypassPct || 0)) / 100);
+                let shieldPart = Math.max(0, remaining - bypass);
+                let absorbed = Math.min(game.playerEnergyShield, shieldPart);
                 game.playerEnergyShield -= absorbed;
-                remaining -= absorbed;
+                remaining = bypass + Math.max(0, shieldPart - absorbed);
             }
             if (remaining > 0 && game.playerUniqueGuard && Date.now() < (game.playerUniqueGuard.expiresAt || 0) && (game.playerUniqueGuard.amount || 0) > 0) {
                 let absorbed = Math.min(remaining, Math.floor(game.playerUniqueGuard.amount || 0));
                 game.playerUniqueGuard.amount = Math.max(0, Math.floor((game.playerUniqueGuard.amount || 0) - absorbed));
                 remaining -= absorbed;
             }
-            game.playerHp = Math.floor(game.playerHp - remaining);
+            let nextPlayerHp = Math.floor(game.playerHp - remaining);
+            if (nextPlayerHp <= 0 && (pStats.cosmosDeathResistPct || 0) > 0 && Math.random() * 100 < Math.max(0, pStats.cosmosDeathResistPct || 0)) {
+                remaining = 0;
+                nextPlayerHp = Math.max(1, Math.floor(game.playerHp || 1));
+                addBattleFx('statusText', { text: '죽음 저항!', color: '#d7b8ff', duration: 420 });
+            }
+            game.playerHp = nextPlayerHp;
             if (remaining > 0 && pStats.uniqueLifeRecoupTakenDamage) {
                 let cfg = pStats.uniqueLifeRecoupTakenDamage || {};
                 addPlayerRecoupInstance(remaining * Math.max(0, Number(cfg.pct || 25)) / 100, Math.max(1, Number(cfg.duration || 4)));
@@ -8286,6 +8426,15 @@ function triggerSeasonReset() {
     game.woodsmanSimulatorSeenLoop = false;
     game.currentZoneId = 0;
     game.maxZoneId = 0;
+    if (game.cosmosAtlas && typeof game.cosmosAtlas === 'object') {
+        game.cosmosAtlas.bossStones = {};
+        game.cosmosAtlas.bossStoneOptions = {};
+        game.cosmosAtlas.bossRelics = [];
+        game.cosmosAtlas.bossKills = {};
+        game.cosmosAtlas.bossClears = [];
+        game.cosmosAtlas.equippedStoneGalaxy = 0;
+        game.cosmosAtlas.equippedStones = {};
+    }
     game.combatHalted = false;
     game.passivePoints = typeof getClaimedJournalPassivePointTotal === 'function' ? getClaimedJournalPassivePointTotal(game) : 0;
     game.passives = ['n0'];

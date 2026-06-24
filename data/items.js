@@ -299,6 +299,196 @@ pushRealmUniqueSet('chaos', CHAOS_REALM_ENTRIES, 12);
 pushRealmUniqueSet('underworld', UNDERWORLD_REALM_ENTRIES, 16);
 pushRealmUniqueSet('cosmos', COSMOS_REALM_ENTRIES, 18);
 
+
+const COSMOS_BOSS_REWARD_DB = {
+    'planet-46': {
+        equipment: ['우연한 충돌', '하말리스의 균열', '궤도'],
+        jewel: { id: 'cbj_hamalis_meteor_shard', name: '운석 파편', uniqueEffect: '스킬 타겟 수 +(1~3), 투사체 피해 +20%', stats: [{ id: 'targetAny', val: 2 }, { id: 'projectilePctDmg', val: 20 }] },
+        talisman: { id: 'cbt_hamalis_collision', name: '하말리스의 충돌', shape: 'T', uniqueEffect: '투사체 추가 발사 +(1~3), 몬스터에게 가하는 첫 공격의 피해 1.1배', stats: [{ stat: 'projectileExtraShots', value: 2, label: '투사체 추가 발사' }, { stat: 'firstHitDamageMorePct', value: 10, label: '첫 공격 피해 증폭(%)' }] }
+    },
+    'planet-47': {
+        equipment: ['디프다르의 낫', '심해', '조수'],
+        jewel: { id: 'cbj_diphdar_bloodstone', name: '디프다르의 혈석', uniqueEffect: '흡수가 생명력이 최대가 되어도 사라지지 않음', stats: [{ id: 'leech', val: 1.2 }, { id: 'leechKeepFullLife', val: 1 }] },
+        talisman: { id: 'cbt_diphdar_current', name: '디프다르의 조류', shape: 'L', uniqueEffect: '생명력 흡수 캡 없음', stats: [{ stat: 'leechRateCap', value: 1000, label: '흡수 속도 캡 추가' }, { stat: 'leechTotalCap', value: 1000, label: '흡수 전체 캡 추가' }, { stat: 'leechInstanceCap', value: 1000, label: '흡수 타격당 캡 추가' }] }
+    },
+    'planet-48': {
+        equipment: ['완벽한 균형', '주베누비아의 천칭', '쌍성'],
+        jewel: { id: 'cbj_zubenubia_balance', name: '주베누비아의 균형', uniqueEffect: '장비 소켓에 사용불가, 주벤샤말의 심판 주얼과 같은 키스톤이면 해당 키스톤 할당', stats: [{ id: 'resAll', val: 12 }, { id: 'dr', val: 4 }] },
+        talisman: { id: 'cbt_zubenubia_choice', name: '주베누비아의 선택', shape: 'DASH2', special: 'cosmosChoice', uniqueEffect: '가로 배치: 모든 스킬 젬 레벨 +2 / 세로 배치: 모든 스킬 젬 레벨 -2, 보조 젬 한도 +2', stats: [] }
+    },
+    'planet-49': {
+        equipment: ['주벤샤말의 심판하는 창', '최종 관문', '판결문'],
+        jewel: { id: 'cbj_zubenshamali_judgment', name: '주벤샤말의 심판', uniqueEffect: '장비 소켓에 사용불가, 주베누비아의 균형 주얼과 같은 키스톤이면 해당 키스톤 할당', stats: [{ id: 'lightPctDmg', val: 18 }, { id: 'resPen', val: 6 }] },
+        talisman: { id: 'cbt_zubenshamali_verdict', name: '주벤샤말의 판결', shape: 'O', special: 'cosmosLightningVariance', uniqueEffect: '번개 피해의 최종 피해가 0.8배~1.5배 사이에서 무작위로 결정됨', stats: [] }
+    },
+    'planet-45': {
+        equipment: ['인력', '태초의 대폭발', '에니프론의 혜성'],
+        jewel: { id: 'cbj_enifron_faded_stone', name: '바래진 우주석', uniqueEffect: '우주석 공격 옵션의 보수적인 증폭을 보조함', stats: [{ id: 'pctDmg', val: 8 }, { id: 'coldPctDmg', val: 6 }] },
+        talisman: { id: 'cbt_enifron_repulsion', name: '척력', shape: 'DOT', special: 'cosmosRepulsion', uniqueEffect: '인접한 부적의 효과 무효화, 인접하지 않은 모든 부적들의 효과 25% 증가', stats: [] }
+    }
+};
+
+const COSMOS_BOSS_RELIC_DB = {
+    'planet-46': { id: 'cbr_hamalis_impact', bossId: 'planet-46', name: '하말리스의 충돌 유물', desc: '하말리스 우주석의 무작위 옵션 1줄을 보스 옵션으로 리롤합니다.' },
+    'planet-47': { id: 'cbr_diphdar_tide', bossId: 'planet-47', name: '디프다르의 조수 유물', desc: '디프다르 우주석의 무작위 옵션 1줄을 보스 옵션으로 리롤합니다.' },
+    'planet-48': { id: 'cbr_zubenubia_balance', bossId: 'planet-48', name: '주베누비아의 균형 유물', desc: '주베누비아 우주석의 무작위 옵션 1줄을 보스 옵션으로 리롤합니다.' },
+    'planet-49': { id: 'cbr_zubenshamali_judgment', bossId: 'planet-49', name: '주벤샤말의 심판 유물', desc: '주벤샤말 우주석의 무작위 옵션 1줄을 보스 옵션으로 리롤합니다.' },
+    'planet-45': { id: 'cbr_enifron_charge', bossId: 'planet-45', name: '에니프론의 돌진 유물', desc: '에니프론 우주석의 무작위 옵션 1줄을 보스 옵션으로 리롤합니다.' }
+};
+
+
+const COSMOS_BOSS_STONE_COMMON_OPTIONS = [
+    { stat: 'pctDmg', min: 2, max: 6, label: '피해 증가(%)' },
+    { stat: 'flatDmg', min: 4, max: 12, label: '공격 피해 추가' },
+    { stat: 'crit', min: 1, max: 3, label: '치명타 확률(%)' },
+    { stat: 'critDmg', min: 5, max: 12, label: '치명타 피해(%)' },
+    { stat: 'aspd', min: 1, max: 4, label: '공격 속도(%)' },
+    { stat: 'resPen', min: 1, max: 4, label: '저항 관통(%)' },
+    { stat: 'minDmgRoll', min: 1, max: 4, label: '최소 피해 보정(%)' },
+    { stat: 'maxDmgRoll', min: 1, max: 4, label: '최대 피해 보정(%)' }
+];
+
+const COSMOS_BOSS_STONE_DUD_OPTIONS = [
+    { stat: 'flatHp', min: 12, max: 28, label: '최대 생명력' },
+    { stat: 'pctHp', min: 1, max: 3, label: '최대 생명력 증가(%)' },
+    { stat: 'regen', min: 0.1, max: 0.4, label: '생명력 재생(%)' },
+    { stat: 'move', min: 1, max: 3, label: '이동 속도(%)' },
+    { stat: 'resAll', min: 1, max: 3, label: '모든 저항(%)' },
+    { stat: 'armorPct', min: 2, max: 5, label: '방어도 증가(%)' },
+    { stat: 'evasionPct', min: 2, max: 5, label: '회피 증가(%)' },
+    { stat: 'energyShieldPct', min: 2, max: 5, label: '에너지 보호막 증가(%)' }
+];
+
+const COSMOS_BOSS_STONE_OPTION_POOLS = {
+    '1': {
+        name: '하말리스 우주석',
+        options: [
+            { stat: 'physPctDmg', min: 3, max: 8, label: '물리 피해 증가(%)' },
+            { stat: 'projectilePctDmg', min: 4, max: 10, label: '투사체 피해 증가(%)' },
+            { stat: 'firstHitDamageMorePct', min: 2, max: 6, label: '첫 공격 피해 증폭(%)' },
+            { stat: 'flatDmg', min: 6, max: 16, label: '공격 피해 추가' },
+            { stat: 'slamPctDmg', min: 3, max: 8, label: '강타 피해 증가(%)' },
+            { stat: 'slamEchoChance', min: 1, max: 4, label: '강타 여진 확률(%)' },
+            ...COSMOS_BOSS_STONE_COMMON_OPTIONS,
+            ...COSMOS_BOSS_STONE_DUD_OPTIONS
+        ],
+        bossOptions: [
+            { stat: 'cosmosAlwaysFirstHitChancePct', min: 5, max: 12, label: '첫 공격 취급 확률(%)' },
+            { stat: 'projectileExtraShots', min: 1, max: 1, label: '투사체 추가 발사' },
+            { stat: 'maxDmgRoll', min: 3, max: 8, label: '최대 피해 보정(%)' }
+        ]
+    },
+    '2': {
+        name: '디프다르 우주석',
+        options: [
+            { stat: 'chaosPctDmg', min: 3, max: 8, label: '카오스 피해 증가(%)' },
+            { stat: 'poisonChance', min: 4, max: 10, label: '중독 확률(%)' },
+            { stat: 'critDmg', min: 6, max: 14, label: '치명타 피해(%)' },
+            { stat: 'leech', min: 0.2, max: 0.6, label: '생명력 흡수(%)' },
+            { stat: 'dotPctDmg', min: 3, max: 8, label: '지속 피해 배율(%)' },
+            { stat: 'summonResPen', min: 1, max: 3, label: '소환수 저항 관통(%)' },
+            ...COSMOS_BOSS_STONE_COMMON_OPTIONS,
+            ...COSMOS_BOSS_STONE_DUD_OPTIONS
+        ],
+        bossOptions: [
+            { stat: 'uniqueInstantLeechPct', min: 3, max: 8, label: '즉시 흡수 비율(%)' },
+            { stat: 'chaosPctDmg', min: 7, max: 14, label: '카오스 피해 증가(%)' },
+            { stat: 'crit', min: 1, max: 3, label: '치명타 확률(%)' }
+        ]
+    },
+    '3': {
+        name: '주베누비아 우주석',
+        options: [
+            { stat: 'firePctDmg', min: 3, max: 7, label: '화염 피해 증가(%)' },
+            { stat: 'coldPctDmg', min: 3, max: 7, label: '냉기 피해 증가(%)' },
+            { stat: 'lightPctDmg', min: 3, max: 7, label: '번개 피해 증가(%)' },
+            { stat: 'elementalPctDmg', min: 3, max: 8, label: '원소 피해 증가(%)' },
+            { stat: 'summonPctDmg', min: 3, max: 8, label: '소환수 피해 증가(%)' },
+            { stat: 'summonFlatDmg', min: 3, max: 9, label: '소환수 추가 피해' },
+            ...COSMOS_BOSS_STONE_COMMON_OPTIONS,
+            ...COSMOS_BOSS_STONE_DUD_OPTIONS
+        ],
+        bossOptions: [
+            { stat: 'gemLevel', min: 1, max: 1, label: '모든 스킬 젬 레벨' },
+            { stat: 'runeResonancePower', min: 3, max: 8, label: '공명력' },
+            { stat: 'pctDmg', min: 6, max: 12, label: '피해 증가(%)' }
+        ]
+    },
+    '4': {
+        name: '주벤샤말 우주석',
+        options: [
+            { stat: 'lightPctDmg', min: 3, max: 8, label: '번개 피해 증가(%)' },
+            { stat: 'crit', min: 1, max: 4, label: '치명타 확률(%)' },
+            { stat: 'critDmg', min: 6, max: 16, label: '치명타 피해(%)' },
+            { stat: 'shockEffect', min: 5, max: 12, label: '감전 효과(%)' },
+            { stat: 'dotPctDmg', min: 3, max: 8, label: '지속 피해 배율(%)' },
+            { stat: 'slamPctDmg', min: 3, max: 8, label: '강타 피해 증가(%)' },
+            ...COSMOS_BOSS_STONE_COMMON_OPTIONS,
+            ...COSMOS_BOSS_STONE_DUD_OPTIONS
+        ],
+        bossOptions: [
+            { stat: 'resPen', min: 3, max: 8, label: '저항 관통(%)' },
+            { stat: 'cosmosLightningVariance', min: 1, max: 1, label: '번개 최종 피해 변동 활성' },
+            { stat: 'lightPctDmg', min: 7, max: 14, label: '번개 피해 증가(%)' }
+        ]
+    },
+    '5': {
+        name: '에니프론 우주석',
+        options: [
+            { stat: 'coldPctDmg', min: 3, max: 8, label: '냉기 피해 증가(%)' },
+            { stat: 'chillChance', min: 5, max: 12, label: '냉각 확률(%)' },
+            { stat: 'freezeChance', min: 2, max: 6, label: '동결 확률(%)' },
+            { stat: 'minDmgRoll', min: 2, max: 6, label: '최소 피해 보정(%)' },
+            { stat: 'summonAspd', min: 1, max: 4, label: '소환수 공격 속도(%)' },
+            { stat: 'summonCritDmg', min: 5, max: 12, label: '소환수 치명타 피해(%)' },
+            ...COSMOS_BOSS_STONE_COMMON_OPTIONS,
+            ...COSMOS_BOSS_STONE_DUD_OPTIONS
+        ],
+        bossOptions: [
+            { stat: 'cosmosBossDamageMorePct', min: 5, max: 12, label: '보스 피해 증폭(%)' },
+            { stat: 'coldPctDmg', min: 7, max: 14, label: '냉기 피해 증가(%)' },
+            { stat: 'aspd', min: 5, max: 10, label: '공격 속도(%)' }
+        ]
+    },
+    '6': {
+        name: '바래진 우주석',
+        options: [
+            { stat: 'pctDmg', min: 5, max: 12, label: '피해 증가(%)' },
+            { stat: 'flatDmg', min: 10, max: 22, label: '공격 피해 추가' },
+            { stat: 'elementalPctDmg', min: 5, max: 12, label: '원소 피해 증가(%)' },
+            { stat: 'firePctDmg', min: 5, max: 12, label: '화염 피해 증가(%)' },
+            { stat: 'coldPctDmg', min: 5, max: 12, label: '냉기 피해 증가(%)' },
+            { stat: 'lightPctDmg', min: 5, max: 12, label: '번개 피해 증가(%)' },
+            { stat: 'critDmg', min: 10, max: 22, label: '치명타 피해(%)' },
+            { stat: 'resPen', min: 2, max: 6, label: '저항 관통(%)' }
+        ],
+        bossOptions: [
+            { stat: 'cosmosBossDamageMorePct', min: 7, max: 15, label: '보스 피해 증폭(%)' },
+            { stat: 'gemLevel', min: 1, max: 1, label: '모든 스킬 젬 레벨' },
+            { stat: 'runeResonancePower', min: 5, max: 10, label: '공명력' }
+        ]
+    }
+};
+
+const COSMOS_BOSS_UNIQUE_EQUIPMENT = [
+    { name: '우연한 충돌', slots: ['무기'], reqTier: 10, dropOnly: { type: 'cosmosBoss', bossId: 'planet-46' }, uniqueEffect: '모든 공격이 항상 해당 몬스터에게 가하는 첫 공격으로 간주됨', uniqueEffectKey: 'cosmosAlwaysFirstHit', stats: [{ id: 'flatDmg', min: 48, max: 72 }, { id: 'physPctDmg', min: 34, max: 48 }, { id: 'resPen', min: 8, max: 12 }, { id: 'maxDmgRoll', min: 8, max: 13 }, { id: 'critDmg', min: 35, max: 52 }] },
+    { name: '하말리스의 균열', slots: ['갑옷'], reqTier: 10, dropOnly: { type: 'cosmosBoss', bossId: 'planet-46' }, uniqueEffect: '에너지보호막 25% 증폭, 적의 공격피해 중 25%가 에너지 보호막을 무시하고 생명력에 직접적인 피해를 줌', uniqueEffectKey: 'cosmosEnergyShieldAmpBypass', uniqueEffectParams: { ampPct: 25, bypassPct: 25 }, stats: [{ id: 'energyShield', min: 180, max: 260 }, { id: 'energyShieldPct', min: 28, max: 42 }, { id: 'flatHp', min: 110, max: 160 }, { id: 'dr', min: 8, max: 12 }, { id: 'resAll', min: 12, max: 18 }] },
+    { name: '궤도', slots: ['반지'], reqTier: 10, dropOnly: { type: 'cosmosBoss', bossId: 'planet-46' }, uniqueEffect: '공격 피해 배율이 몬스터별로 1.3배↔0.7배 사이를 왕복', uniqueEffectKey: 'cosmosOrbitCycle', uniqueEffectParams: { high: 1.3, low: 0.7, step: 0.2 }, stats: [{ id: 'crit', min: 6, max: 10 }, { id: 'critDmg', min: 34, max: 52 }, { id: 'physPctDmg', min: 24, max: 38 }, { id: 'resPen', min: 6, max: 10 }, { id: 'resAll', min: 10, max: 16 }] },
+    { name: '디프다르의 낫', slots: ['무기'], reqTier: 10, dropOnly: { type: 'cosmosBoss', bossId: 'planet-47' }, uniqueEffect: '흡수의 20%가 즉시 적용됨', uniqueEffectKey: 'instantLeechAndDoubleDamage', uniqueEffectParams: { instantLeechPct: 20, doubleDamageChance: 0 }, stats: [{ id: 'flatDmg', min: 42, max: 66 }, { id: 'chaosPctDmg', min: 28, max: 44 }, { id: 'leech', min: 1.2, max: 1.8 }, { id: 'dotPctDmg', min: 24, max: 36 }, { id: 'resChaos', min: 14, max: 22 }] },
+    { name: '심해', slots: ['갑옷'], reqTier: 10, dropOnly: { type: 'cosmosBoss', bossId: 'planet-47' }, uniqueEffect: '흡수 속도가 20% 감폭하는 대신 모든 흡수 캡 2배', uniqueEffectKey: 'cosmosDeepSeaLeechCaps', uniqueEffectParams: { rateLessPct: 20, capMul: 2 }, stats: [{ id: 'energyShield', min: 150, max: 230 }, { id: 'flatHp', min: 95, max: 145 }, { id: 'regen', min: 1.1, max: 1.7 }, { id: 'resChaos', min: 16, max: 24 }, { id: 'dotTakenDamageReducePct', min: 8, max: 12 }] },
+    { name: '조수', slots: ['목걸이'], reqTier: 10, dropOnly: { type: 'cosmosBoss', bossId: 'planet-47' }, uniqueEffect: '에너지 보호막 회복속도 증가가 에너지 보호막 대신 생명력 재생에 적용됨', uniqueEffectKey: 'cosmosTideEsRegenToLife', stats: [{ id: 'gemLevel', min: 1, max: 1 }, { id: 'chaosPctDmg', min: 26, max: 40 }, { id: 'leech', min: 1.0, max: 1.6 }, { id: 'resPen', min: 7, max: 11 }, { id: 'energyShieldRegen', min: 12, max: 20 }] },
+    { name: '완벽한 균형', slots: ['무기'], reqTier: 20, dropOnly: { type: 'cosmosBoss', bossId: 'planet-48' }, uniqueEffect: '받는 피해가 항상 물리, 화염, 냉기, 번개, 카오스로 동등하게 나눠짐', uniqueEffectKey: 'cosmosEqualDamageSplit', stats: [{ id: 'flatDmg', min: 54, max: 78 }, { id: 'minDmgRoll', min: 8, max: 12 }, { id: 'maxDmgRoll', min: 8, max: 12 }, { id: 'resAll', min: 14, max: 22 }, { id: 'dr', min: 5, max: 8 }] },
+    { name: '주베누비아의 천칭', slots: ['방패'], reqTier: 20, dropOnly: { type: 'cosmosBoss', bossId: 'planet-48' }, uniqueEffect: '화염, 냉기, 번개, 카오스 저항과 물리 피해 감소를 모두 더한 뒤 적절히 분배', uniqueEffectKey: 'cosmosBalanceMitigation', stats: [{ id: 'armor', min: 170, max: 250 }, { id: 'energyShield', min: 150, max: 230 }, { id: 'resAll', min: 16, max: 24 }, { id: 'blockChanceMax', min: 3, max: 3 }, { id: 'dr', min: 7, max: 11 }] },
+    { name: '쌍성', slots: ['허리띠'], reqTier: 20, dropOnly: { type: 'cosmosBoss', bossId: 'planet-48' }, uniqueEffect: '공명력 1.5배, 보조 젬 한도 절반', uniqueEffectKey: 'cosmosTwinStarResonance', uniqueEffectParams: { resonanceMul: 1.5, supportCapMul: 0.5 }, stats: [{ id: 'pctHp', min: 18, max: 28 }, { id: 'flatHp', min: 110, max: 170 }, { id: 'resAll', min: 14, max: 22 }, { id: 'minDmgRoll', min: 6, max: 10 }, { id: 'maxDmgRoll', min: 6, max: 10 }] },
+    { name: '주벤샤말의 심판하는 창', slots: ['무기'], reqTier: 20, dropOnly: { type: 'cosmosBoss', bossId: 'planet-49' }, uniqueEffect: '번개 피해가 감전 대신 심판 상태를 부여하여 적의 모든 저항을 감소시킴', uniqueEffectKey: 'cosmosJudgmentLightning', uniqueEffectParams: { resDown: 15, duration: 4 }, stats: [{ id: 'flatDmg', min: 58, max: 84 }, { id: 'lightPctDmg', min: 32, max: 48 }, { id: 'crit', min: 8, max: 12 }, { id: 'critDmg', min: 56, max: 78 }, { id: 'resPen', min: 9, max: 13 }] },
+    { name: '최종 관문', slots: ['방패'], reqTier: 20, dropOnly: { type: 'cosmosBoss', bossId: 'planet-49' }, uniqueEffect: '죽음에 이르는 공격을 받을 시 12% 확률로 죽음에 저항하여 그 피해를 무효화', uniqueEffectKey: 'cosmosDeathResist', uniqueEffectParams: { chance: 12 }, stats: [{ id: 'energyShield', min: 180, max: 280 }, { id: 'energyShieldPct', min: 28, max: 42 }, { id: 'resAll', min: 16, max: 25 }, { id: 'blockChanceMax', min: 3, max: 3 }, { id: 'dotTakenDamageReducePct', min: 10, max: 14 }] },
+    { name: '판결문', slots: ['투구'], reqTier: 20, dropOnly: { type: 'cosmosBoss', bossId: 'planet-49' }, uniqueEffect: '장착한 보조 젬 하나당 적에게 주는 피해 2% 증폭', uniqueEffectKey: 'cosmosVerdictSupportDamage', uniqueEffectParams: { morePerSupportPct: 2 }, stats: [{ id: 'crit', min: 7, max: 11 }, { id: 'critDmg', min: 48, max: 70 }, { id: 'resPen', min: 8, max: 12 }, { id: 'energyShield', min: 120, max: 190 }, { id: 'resAll', min: 14, max: 22 }] },
+    { name: '인력', slots: ['신발'], reqTier: 28, dropOnly: { type: 'cosmosBoss', bossId: 'planet-45' }, uniqueEffect: '수호 컨디션 젬의 시전시간 없음', uniqueEffectKey: 'cosmosGuardianConditionInstant', stats: [{ id: 'move', min: 22, max: 30 }, { id: 'aspd', min: 16, max: 24 }, { id: 'evasion', min: 160, max: 240 }, { id: 'resPen', min: 8, max: 12 }, { id: 'critDmg', min: 36, max: 56 }] },
+    { name: '태초의 대폭발', slots: ['장갑'], reqTier: 28, dropOnly: { type: 'cosmosBoss', bossId: 'planet-45' }, uniqueEffect: '보스에게 주는 피해 25% 증폭', uniqueEffectKey: 'cosmosBossDamageMore', uniqueEffectParams: { morePct: 25 }, stats: [{ id: 'aspd', min: 16, max: 24 }, { id: 'crit', min: 7, max: 11 }, { id: 'critDmg', min: 54, max: 76 }, { id: 'physPctDmg', min: 32, max: 46 }, { id: 'resPen', min: 9, max: 13 }] },
+    { name: '에니프론의 혜성', slots: ['반지'], reqTier: 28, dropOnly: { type: 'cosmosBoss', bossId: 'planet-45' }, uniqueEffect: '모든 피해가 냉각 유발, 플레이어는 적에게 동결을 유발할 수 없음', uniqueEffectKey: 'cosmosCometChillNoFreeze', stats: [{ id: 'coldPctDmg', min: 26, max: 40 }, { id: 'chillChance', min: 100, max: 100 }, { id: 'move', min: 12, max: 18 }, { id: 'aspd', min: 12, max: 18 }, { id: 'resAll', min: 14, max: 22 }] }
+]
+COSMOS_BOSS_UNIQUE_EQUIPMENT.forEach(unique => UNIQUE_DB.push(unique));
+
 const ORB_DB = {
     transmute: { name: '진화의 오브', desc: '노멀 아이템을 매직으로 바꿉니다.' },
     augment: { name: '확장의 오브', desc: '매직 아이템의 빈 옵션 칸을 하나 채웁니다.' },
@@ -336,6 +526,7 @@ const ORB_DB = {
     deepWhetstone: { name: '심층 숫돌', desc: '무기 전용 퀄리티 재화. 장비 퀄리티 1%당 베이스 옵션 효과가 1% 증가합니다.' },
     rootIron: { name: '뿌리철', desc: '방어구 전용 퀄리티 재화. 장비 퀄리티 1%당 베이스 옵션 효과가 1% 증가합니다.' },
     jewelPolish: { name: '보석연마제', desc: '장신구 전용 퀄리티 재화. 장비 퀄리티 1%당 베이스 옵션 효과가 1% 증가합니다.' },
+    abyssCatalyst: { name: '심연 촉매', desc: '장비 퀄리티 속성을 순환 변경합니다. 기본 퀄리티는 베이스 옵션을, 속성 퀄리티는 해당 추가 옵션 수치를 증가시킵니다.' },
     uberRootTicketFlame: { name: '우버 뿌리 입장권: 화염', desc: '지하계 전용 매우 희귀 보상. 우버 화염 뿌리 보스 도전권입니다.' },
     uberRootTicketFrost: { name: '우버 뿌리 입장권: 냉기', desc: '지하계 전용 매우 희귀 보상. 우버 냉기 뿌리 보스 도전권입니다.' },
     uberRootTicketStorm: { name: '우버 뿌리 입장권: 번개', desc: '지하계 전용 매우 희귀 보상. 우버 번개 뿌리 보스 도전권입니다.' },
@@ -395,4 +586,4 @@ const MARKET_EXCHANGES = [
     ,{ id: 'm13', from: 'blessing', to: 'chaos', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB });
+safeExposeData({ UNIQUE_DB, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });
