@@ -1023,7 +1023,7 @@
         if (row.noEquipSocket) jewel.noEquipSocket = true;
         if (row.cosmosKeystoneJewel) {
             jewel.cosmosKeystoneJewel = true;
-            // 드랍 시 무작위 승천 키스톤을 고정 배정한다. (균형/심판 주얼이 같은 키스톤이면 할당)
+            // 드랍 시 무작위 전직 키스톤을 고정 배정한다. (균형/심판 주얼이 같은 키스톤이면 할당)
             jewel.cosmosKeystone = (typeof window.pickRandomAscendKeystoneId === 'function') ? window.pickRandomAscendKeystoneId() : null;
         }
         return jewel;

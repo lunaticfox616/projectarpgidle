@@ -873,7 +873,7 @@ const CLASS_KEYSTONE_DEFS = {
 };
 
 // 우주계 쌍둥이 주얼(주베누비아의 균형 / 주벤샤말의 심판)이 부여할 수 있는
-// 승천 키스톤 풀: 직업과 무관하게 모든 승천 키스톤을 대상으로 한다.
+// 전직 키스톤 풀: 직업과 무관하게 모든 전직 키스톤을 대상으로 한다.
 function getAllAscendKeystoneDefs() {
     let out = [];
     Object.keys(CLASS_KEYSTONE_DEFS || {}).forEach(cls => {

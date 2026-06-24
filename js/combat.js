@@ -199,7 +199,7 @@ function getMaxJewelSlotCount() {
 }
 
 // 우주계 쌍둥이 주얼: 주베누비아의 균형 + 주벤샤말의 심판을 주얼 슬롯에 함께 장착하고
-// 두 주얼에 고정 배정된 승천 키스톤이 일치하면 해당 키스톤을 무료로 할당한다.
+// 두 주얼에 고정 배정된 전직 키스톤이 일치하면 해당 키스톤을 무료로 할당한다.
 // (두 주얼 모두 '장비 소켓 사용불가'이므로 주얼 슬롯만 검사한다.)
 function recomputeCosmosTwinKeystones() {
     let granted = [];
