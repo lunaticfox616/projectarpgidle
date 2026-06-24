@@ -62,6 +62,15 @@ const baseHtml = sandbox.getBlackMarketOfferTooltipHtml({
 assert(baseHtml.includes('숨겨진 티어 3'), 'black-market base tooltip must display hidden tier instead of required tier');
 assert(baseHtml.includes('베이스 옵션 · 모든 저항 +4~+6'), 'black-market base tooltip must show base option ranges');
 
+const rolledBaseHtml = sandbox.getBlackMarketOfferTooltipHtml({
+  type: 'baseItem',
+  name: '테스트 반지 베이스',
+  slot: '반지',
+  hiddenTier: 3,
+  baseStats: [{ id: 'resAll', val: 10, valMin: 8, valMax: 12, baseRollMin: 7, baseRollMax: 13 }]
+});
+assert(rolledBaseHtml.includes('베이스 옵션 · 모든 저항 +7~+13'), 'black-market base tooltip must show rolled base stat ranges');
+
 const html = sandbox.getBlackMarketOfferTooltipHtml({
   type: 'unique',
   name: '테스트 고유',
