@@ -6635,13 +6635,19 @@ const createJewelRangeTooltipHtml = function createJewelRangeTooltipHtml(jewel) 
     }).join('');
     let tierLine = tierSummary ? `<div class="tooltip-line" style="color:#9fb4d1;">숨겨진 티어: T${tierSummary}</div>` : '';
     let uniqueLine = jewel.rarity === 'unique' && jewel.uniqueEffect ? `<div class="tooltip-line" style="color:#d7b8ff;">✨ 고유 효과: ${escapeHTML(jewel.uniqueEffect)}</div>` : '';
+    let keystoneLine = '';
+    if (jewel.cosmosKeystoneJewel && jewel.cosmosKeystone) {
+        let ksName = typeof getAscendKeystoneName === 'function' ? getAscendKeystoneName(jewel.cosmosKeystone) : jewel.cosmosKeystone;
+        let active = Array.isArray(game.cosmosTwinKeystones) && game.cosmosTwinKeystones.includes(jewel.cosmosKeystone);
+        keystoneLine = `<div class="tooltip-line" style="color:${active ? '#8fe7b0' : '#ffd68a'};">🔯 배정 키스톤: ${escapeHTML(ksName)}${active ? ' (할당 중)' : ' · 쌍둥이 주얼과 일치 시 할당'}</div>`;
+    }
     let voidChargesLine = '';
     if (jewel.uniqueId === 'uj_void') {
         let charges = Math.max(0, Math.floor(Number(jewel.voidFusionCharges) || 0));
         let blocked = charges <= 0 ? ' · 합성/공허융합 불가' : '';
         voidChargesLine = `<div class="tooltip-line" style="color:${charges <= 0 ? '#ff8a8a' : '#d7b8ff'};">공허 합성 가능 수: ${charges}회 남음${blocked}</div>`;
     }
-    return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${uniqueLine}${voidChargesLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
+    return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${uniqueLine}${keystoneLine}${voidChargesLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
 };
 
 

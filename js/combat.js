@@ -188,12 +188,32 @@ function tickPlayerRecoup(pStats, dt) {
 }
 
 function hasKeystone(id) {
-    return Array.isArray(game.ascendKeystones) && game.ascendKeystones.includes(id);
+    if (Array.isArray(game.ascendKeystones) && game.ascendKeystones.includes(id)) return true;
+    if (Array.isArray(game.cosmosTwinKeystones) && game.cosmosTwinKeystones.includes(id)) return true;
+    return false;
 }
 
 // 심연 군주(워록 wlk8)는 주얼 슬롯을 2칸 추가로 제공한다.
 function getMaxJewelSlotCount() {
     return 2 + ((game.ascendClass === 'warlock' && hasKeystone('wlk8')) ? 2 : 0);
+}
+
+// 우주계 쌍둥이 주얼: 주베누비아의 균형 + 주벤샤말의 심판을 주얼 슬롯에 함께 장착하고
+// 두 주얼에 고정 배정된 전직 키스톤이 일치하면 해당 키스톤을 무료로 할당한다.
+// (두 주얼 모두 '장비 소켓 사용불가'이므로 주얼 슬롯만 검사한다.)
+function recomputeCosmosTwinKeystones() {
+    let granted = [];
+    let slots = Array.isArray(game.jewelSlots) ? game.jewelSlots.slice(0, getMaxJewelSlotCount()) : [];
+    let ensureKeystone = (jewel) => {
+        if (!jewel || !jewel.cosmosKeystoneJewel) return;
+        if (!jewel.cosmosKeystone && typeof pickRandomAscendKeystoneId === 'function') jewel.cosmosKeystone = pickRandomAscendKeystoneId();
+    };
+    slots.forEach(ensureKeystone);
+    let balance = slots.find(j => j && j.uniqueId === 'cbj_zubenubia_balance' && j.cosmosKeystone);
+    let judgment = slots.find(j => j && j.uniqueId === 'cbj_zubenshamali_judgment' && j.cosmosKeystone);
+    if (balance && judgment && balance.cosmosKeystone === judgment.cosmosKeystone) granted.push(balance.cosmosKeystone);
+    game.cosmosTwinKeystones = granted;
+    return granted;
 }
 
 function getAliveEnemyByRuntimeKey(enemyId) {
@@ -1633,6 +1653,7 @@ function isDeferredTalentProjectileTargetEffect(effect) {
 }
 
 function getPlayerStats() {
+    recomputeCosmosTwinKeystones();
     const safePassives = Array.isArray(game.passives) ? game.passives : [];
     const safeSeasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
     const safeAscendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
