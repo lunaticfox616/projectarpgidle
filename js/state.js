@@ -1374,6 +1374,7 @@ const BASE_ITEM_DB = [
     { id: 'sapphire_band', slot: '반지', name: '푸른 띠 반지', reqTier: 9, baseStats: [{ id: 'resAll', base: 6 }, { id: 'crit', base: 3 }] },
     { id: 'void_loop_ring', slot: '반지', name: '공허 고리', reqTier: 12, baseStats: [{ id: 'resChaos', base: 4 }, { id: 'chaosPctDmg', base: 7 }] },
     { id: 'eclipse_ring', slot: '반지', name: '식월 반지', reqTier: 15, baseStats: [{ id: 'resAll', base: 8 }, { id: 'resChaos', base: 5 }, { id: 'crit', base: 5 }] },
+    { id: 'mirror_ring', slot: '반지', name: '거울 반지', reqTier: 20, dropOnly: { id: 'mirror_ring_unique' }, baseStats: [] },
     { id: 'engraved_ring', slot: '반지', name: '각인 반지', reqTier: 7, baseStats: [{ id: 'flatDmg', base: 3 }, { id: 'pctDmg', base: 9 }] },
     { id: 'judgment_signet', slot: '반지', name: '심판 인장 반지', reqTier: 13, baseStats: [{ id: 'flatDmg', base: 5 }, { id: 'pctDmg', base: 13 }, { id: 'critDmg', base: 12 }] },
     { id: 'beastlord_ring', slot: '반지', name: '야수왕 반지', reqTier: 15, baseStats: [{ id: 'summonEfficiency', base: 16 }, { id: 'summonCrit', base: 6 }, { id: 'summonCap', base: 1 }] },
