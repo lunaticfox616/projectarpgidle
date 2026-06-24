@@ -6956,7 +6956,6 @@ function performPlayerAttack(pStats) {
                   hitBaseDamage = Math.floor(hitBaseDamage * eliteMul);
                   ailmentBaseDamage = Math.floor(ailmentBaseDamage * eliteMul);
             }
-            }
             if (game.ascendClass === 'gladiator' && hasKeystone('g5') && game.gladiatorSwiftOpeningReady) {
                 hitBaseDamage = Math.floor(hitBaseDamage * 1.30);
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * 1.30);
