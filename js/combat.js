@@ -1660,11 +1660,16 @@ function getOppositeRingSlotKey(slotKey) {
 }
 
 function getMirrorRingSourceItem(equipSlotKey, item) {
+    let otherSlot = getMirrorRingSourceSlot(equipSlotKey, item);
+    return otherSlot ? game.equipment[otherSlot] : null;
+}
+
+function getMirrorRingSourceSlot(equipSlotKey, item) {
     if (!item || item.uniqueEffectKey !== 'mirrorOppositeRing') return null;
     let otherSlot = getOppositeRingSlotKey(equipSlotKey);
     let other = otherSlot && game.equipment ? game.equipment[otherSlot] : null;
     if (!other || other.uniqueEffectKey === 'mirrorOppositeRing') return null;
-    return other;
+    return otherSlot;
 }
 
 function cloneItemStatList(stats) {
@@ -1738,7 +1743,7 @@ function getPlayerStats() {
         if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9') && item.slot === '무기') return;
         let mirrorSourceItem = getMirrorRingSourceItem(equipSlotKey, item);
         if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '', sourceSlot: equipSlotKey });
-        if (mirrorSourceItem && mirrorSourceItem.rarity === 'unique' && mirrorSourceItem.uniqueEffectKey) equippedUniqueEffects.push({ key: mirrorSourceItem.uniqueEffectKey, params: mirrorSourceItem.uniqueEffectParams || null, itemName: mirrorSourceItem.name || '', sourceSlot: equipSlotKey });
+        if (mirrorSourceItem && mirrorSourceItem.rarity === 'unique' && mirrorSourceItem.uniqueEffectKey) equippedUniqueEffects.push({ key: mirrorSourceItem.uniqueEffectKey, params: mirrorSourceItem.uniqueEffectParams || null, itemName: mirrorSourceItem.name || '', sourceSlot: getOppositeRingSlotKey(equipSlotKey) });
         let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
         let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
         let qualityValue = Math.max(0, Math.min(qualityCap, Math.floor(item.quality || 0)));

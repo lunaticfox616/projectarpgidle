@@ -80,8 +80,13 @@ function chooseBlackMarketBase(slot, tier) {
 }
 
 function getBlackMarketBaseRollRange(stat) {
-    let minBase = Number.isFinite(stat && stat.baseMin) ? Number(stat.baseMin) : ((Number(stat && stat.base) || 0) * 0.8);
-    let maxBase = Number.isFinite(stat && stat.baseMax) ? Number(stat.baseMax) : ((Number(stat && stat.base) || 0) * 1.2);
+    let statBase = Number(stat && stat.base) || 0;
+    let minBase = Number.isFinite(Number(stat && stat.baseMin)) ? Number(stat.baseMin)
+        : (Number.isFinite(Number(stat && stat.baseRollMin)) ? Number(stat.baseRollMin)
+        : (Number.isFinite(Number(stat && stat.valMin)) ? Number(stat.valMin) : statBase * 0.8));
+    let maxBase = Number.isFinite(Number(stat && stat.baseMax)) ? Number(stat.baseMax)
+        : (Number.isFinite(Number(stat && stat.baseRollMax)) ? Number(stat.baseRollMax)
+        : (Number.isFinite(Number(stat && stat.valMax)) ? Number(stat.valMax) : statBase * 1.2));
     let scale = stat && stat.id === 'energyShield' ? 1.5 : 1;
     let min = minBase * scale;
     let max = maxBase * scale;
