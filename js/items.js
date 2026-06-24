@@ -19,7 +19,7 @@ const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;
 function isUniqueEligibleForBlackMarket(unique) {
     if (!unique || unique.contentOnly || unique.bossOnly || unique.realmCodexOnly) return false;
     if (!unique.dropOnly) return true;
-    return !!(unique.dropOnly && unique.dropOnly.type === 'cosmos');
+    return false;
 }
 
 function isBaseEligibleForBlackMarket(base) {

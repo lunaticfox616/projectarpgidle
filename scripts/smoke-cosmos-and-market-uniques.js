@@ -46,7 +46,7 @@ assert.strictEqual(cosmosDrop.uniqueEffectKey, 'fateTwinRollSync', 'Fate Twin dr
 
 assert(passivesSource.includes('Math.random() < 0.0016'), 'field chase unique chance must be 0.16%');
 assert(itemsSource.includes('const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;'), 'black market chase unique pick chance must match 0.16%');
-assert(itemsSource.includes("return !!(unique.dropOnly && unique.dropOnly.type === 'cosmos');"), 'cosmos-only uniques must be black market eligible');
+assert(itemsSource.includes('if (!unique.dropOnly) return true;') && itemsSource.includes('return false;'), 'realm/drop-only uniques must not be black market eligible');
 assert(itemsSource.includes('function isBaseEligibleForBlackMarket(base)'), 'black market base eligibility helper must exist');
 assert(itemsSource.includes('price = rollBlackMarketChaseUniquePrice(req);'), 'chase unique market prices must use the divine-price roller');
 assert(itemsSource.includes('offer.chase ? \'체이싱\' : \'고유\''), 'chase uniques must render with a distinct black-market badge');
@@ -88,7 +88,7 @@ vm.runInContext([
 assert.strictEqual(marketSandbox.isBaseEligibleForBlackMarket({ name: '우주계 검', realmBase: 'cosmos' }), false, 'cosmos-exclusive bases must not be eligible for black market base offers');
 const offer = marketSandbox.buildBlackMarketOffer(0);
 assert.strictEqual(offer.type, 'unique', 'forced market roll should create a unique offer');
-assert.strictEqual(offer.chase, true, 'black market can roll chase uniques');
+assert.strictEqual(offer.chase, true, 'black market can roll non-realm chase uniques');
 assert.strictEqual(offer.priceKey, 'divine', 'chase unique market price must be divine orbs');
 assert(offer.price >= 30 && offer.price <= 150, 'chase unique divine price must stay in the 30~150 range');
 assert.notStrictEqual(offer.baseId, 'cosmos_weapon', 'black market unique offers must not preview cosmos-exclusive bases');
