@@ -631,6 +631,16 @@ input[data-search-key]:focus {
   position: relative;
   z-index: 1;
 }
+.woodsman-touch-name,
+.currency-card.woodsman-touch-currency .currency-name {
+  color: #9dffc8;
+  font-weight: 900;
+  text-shadow: 0 0 8px rgba(104, 255, 177, 0.58), 0 0 16px rgba(255, 232, 148, 0.28);
+}
+.currency-card.woodsman-touch-currency .currency-count {
+  color: #fff0a6;
+  text-shadow: 0 0 8px rgba(255, 220, 112, 0.34);
+}
 @keyframes woodsman-touch-border-spin {
   to { transform: rotate(360deg); }
 }

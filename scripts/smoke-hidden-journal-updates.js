@@ -30,6 +30,7 @@ assert(uiSource.includes("entry.bonus.stat === 'passivePoint'"), 'save normaliza
 assert(uiSource.includes("entry.entryId === 'immortal' && entry.stat === 'flatHp'"), 'save normalization must migrate the legacy immortal HP journal bonus');
 assert(uiSource.includes("return entry.stat !== 'passivePoint'"), 'save normalization must migrate wrongly serialized passive-point journal bonuses');
 assert(uiSource.includes("key === 'woodsmanTouch' ? ' woodsman-touch-currency'"), 'woodsman touch currency card must receive the rare currency class');
+assert(uiSource.includes("orbKey === 'woodsmanTouch'") && uiSource.includes('class="woodsman-touch-name"'), 'woodsman touch name must use the rare styled font class');
 assert(uiSource.includes("if (merged.passiveStarEvolution && !merged.journalEntries.includes('passive_star_evolution')) merged.journalEntries.push('passive_star_evolution');"), 'legacy star-awakened saves must have the hidden journal completed during normalization');
 
 const passivesSource = fs.readFileSync('js/passives.js', 'utf8');
@@ -60,5 +61,6 @@ assert(indexHtml.includes('id="ui-colony-header">군락지 방어전</h2>'), 'co
 const polishCss = fs.readFileSync('css/ui-polish.css', 'utf8');
 assert(polishCss.includes('.currency-card.woodsman-touch-currency::before'), 'woodsman touch glow border pseudo-element must be defined');
 assert(polishCss.includes('animation: woodsman-touch-border-spin 8s linear infinite'), 'woodsman touch glow border must rotate slowly');
+assert(polishCss.includes('.woodsman-touch-name') && polishCss.includes('color: #9dffc8'), 'woodsman touch font color must be distinct from ordinary currency names');
 
 console.log('hidden journal and woodsman touch UI smoke checks passed');

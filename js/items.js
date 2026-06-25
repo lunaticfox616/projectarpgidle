@@ -67,6 +67,18 @@ function maybeApplyBlackMarketExceptionalBaseStats(baseStats) {
     return { baseStats, exceptionalBase: names.length > 0, names };
 }
 
+function clearExceptionalBaseState(item) {
+    if (!item) return item;
+    delete item.exceptionalBase;
+    delete item.exceptionalStatNames;
+    delete item.exceptionalStatName;
+    delete item.exceptionalAllLines;
+    (Array.isArray(item.baseStats) ? item.baseStats : []).forEach(stat => {
+        if (stat) delete stat.exceptional;
+    });
+    return item;
+}
+
 function chooseBlackMarketBase(slot, tier) {
     // 일반 드랍의 최종 단계 베이스 가중치(일반 베이스의 1/25)보다 더 낮게 둔다.
     let rareBaseRoll = Math.random() < BLACK_MARKET_T20_RARE_BASE_CHANCE;
@@ -886,6 +898,8 @@ function buyBlackMarketOffer(idx){
             item.baseId = base.id;
             item.baseName = base.name;
             item.baseStats = rollBaseStats(base, offer.hiddenTier || offer.reqTier || base.reqTier || 1);
+            clearExceptionalBaseState(item);
+            if (typeof maybeApplyExceptionalBase === 'function') maybeApplyExceptionalBase(item);
         }
         if(item) addItemToInventory(item);
     }

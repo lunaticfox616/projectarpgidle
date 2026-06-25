@@ -9,6 +9,9 @@ assert(
   'black-market T20 rare base chance must stay below natural final-base drop weighting'
 );
 
+assert(source.includes('function clearExceptionalBaseState(item)'), 'black-market unique base replacement must have a helper to clear stale exceptional flags');
+assert(source.includes('clearExceptionalBaseState(item);') && source.includes("if (typeof maybeApplyExceptionalBase === 'function') maybeApplyExceptionalBase(item);"), 'black-market unique base replacement must reroll exceptional state after replacing base stats');
+
 function extractFunctionBlock(text, name) {
   const start = text.indexOf(`function ${name}`);
   assert(start >= 0, `${name} must exist`);

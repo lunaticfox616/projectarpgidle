@@ -6739,6 +6739,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
         game.seasonChaseUniqueDropped = game.seasonChaseUniqueDrops.length > 0;
         addLog(`🌠 체이싱 유니크 발견! [${unique.name}]`, 'loot-unique');
     }
+    maybeApplyExceptionalBase(item);
     return item;
 }
 

@@ -35,6 +35,7 @@ const dropSandbox = {
   chooseItemBase() { return { id: 'test_neck', slot: '목걸이', name: '테스트 목걸이', reqTier: 14, baseStats: [] }; },
   rollBaseStats() { return []; },
   rollUniqueStatValue(stat) { return { val: stat.min, min: stat.min, max: stat.max }; },
+  maybeApplyExceptionalBase(item) { return item; },
   getStatName(id) { return id; }
 };
 dropSandbox.Math.random = () => 0.9;
