@@ -47,6 +47,7 @@ function renderBattlefield(forceWhenHidden) {
     const deltaSec = deltaMs / 1000;
     battleVisualState.lastNow = now;
     cleanupBattleFx(now);
+    if (typeof attackFxUpdate === 'function') attackFxUpdate(deltaMs);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
@@ -167,6 +168,9 @@ function renderBattlefield(forceWhenHidden) {
                     dotType: fx.element || ''
                 });
             }
+            if (!fx.dot && typeof attackFxSpawn === 'function') {
+                attackFxSpawn(fx.element || 'phys', enemyPos.x, enemyPos.y - 6, { crit: !!fx.crit });
+            }
             handled = true;
         } else if (fx.type === 'playerHit') {
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId];
@@ -217,6 +221,8 @@ function renderBattlefield(forceWhenHidden) {
         drawEnemySprite(ctx, enemy, entry.x, entry.y, crowdScale, hitFlash, now);
         ctx.restore();
     });
+
+    if (typeof attackFxDraw === 'function') attackFxDraw(ctx);
 
     let pStatsNow = getCanvasPlayerStats();
     let playerHpPct = clampNumber((game.playerHp || 0) / Math.max(1, pStatsNow.maxHp || 1), 0, 1);

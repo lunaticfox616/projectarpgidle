@@ -5426,94 +5426,16 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
 }
 
 
-function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
-    const e = normalizeBattleElement(element || 'phys');
-    const burst = crit ? 1.2 : 1;
-    const fxLoad = Math.max(0, Math.floor((Array.isArray(battleFx) ? battleFx.length : 0)));
-    const lod = fxLoad >= 40 ? 0.45 : (fxLoad >= 22 ? 0.65 : 1);
-    if (e === 'fire') {
-        ctx.globalAlpha = (1 - t) * 0.78;
-        for (let i = 0; i < Math.max(10, Math.floor(24 * lod)); i++) {
-            const a = (-Math.PI * 0.95) + (Math.PI * 0.9) * (i / 23);
-            const r = 5 + t * (24 + (i % 4) * 2.8);
-            ctx.fillStyle = i % 4 === 0 ? '#ffe39a' : (i % 2 ? '#ff8a3d' : '#ff3d1f');
-            ctx.beginPath();
-            ctx.ellipse(tx + Math.cos(a) * r * 0.72, ty + Math.sin(a) * r, (1.1 + (1 - t) * 1.8) * burst, (2.1 + (1 - t) * 2.4) * burst, a, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.globalAlpha = (1 - t) * 0.35;
-        ctx.fillStyle = 'rgba(255,120,40,0.7)';
-        ctx.beginPath();
-        ctx.arc(tx, ty + 2, 6 + t * 8, 0, Math.PI * 2);
-        ctx.fill();
-    } else if (e === 'cold') {
-        ctx.globalAlpha = (1 - t) * 0.88;
-        ctx.strokeStyle = 'rgba(198,244,255,0.98)';
-        ctx.lineWidth = 1.9;
-        for (let i = 0; i < Math.max(4, Math.floor(8 * lod)); i++) {
-            const a = (Math.PI * 2 * i) / 8 + t * 0.35;
-            ctx.beginPath();
-            ctx.moveTo(tx, ty);
-            ctx.lineTo(tx + Math.cos(a) * (8 + t * 20), ty + Math.sin(a) * (8 + t * 20));
-            ctx.stroke();
-        }
-        ctx.globalAlpha = (1 - t) * 0.55;
-        ctx.fillStyle = 'rgba(220,248,255,0.75)';
-        for (let i = 0; i < Math.max(3, Math.floor(6 * lod)); i++) {
-            const a = (Math.PI * 2 * i) / 6;
-            const r = 6 + t * 10;
-            ctx.beginPath();
-            ctx.moveTo(tx + Math.cos(a) * r, ty + Math.sin(a) * r);
-            ctx.lineTo(tx + Math.cos(a + 0.16) * (r + 5), ty + Math.sin(a + 0.16) * (r + 5));
-            ctx.lineTo(tx + Math.cos(a - 0.16) * (r + 5), ty + Math.sin(a - 0.16) * (r + 5));
-            ctx.closePath();
-            ctx.fill();
-        }
-    } else if (e === 'light') {
-        ctx.globalAlpha = (1 - t) * 0.88;
-        ctx.strokeStyle = 'rgba(255,243,150,0.95)';
-        ctx.lineWidth = 2.2;
-        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
-            const ox = (i - 1) * 5;
-            drawBattleZigZag(ctx, tx - 16 + ox, ty - 14, tx + 8 + ox, ty + 6, 4 + i, 6);
-            ctx.stroke();
-        }
-    } else if (e === 'chaos') {
-        ctx.globalAlpha = (1 - t) * 0.7;
-        ctx.strokeStyle = 'rgba(210,120,255,0.9)';
-        ctx.lineWidth = 2;
-        for (let i = 0; i < Math.max(1, Math.floor(2 * lod)); i++) {
-            ctx.beginPath();
-            ctx.ellipse(tx, ty, 8 + t * (10 + i * 5), 5 + t * (8 + i * 4), t * 3.2 + i * 0.8, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-    } else {
-        ctx.globalAlpha = (1 - t) * 0.68;
-        ctx.strokeStyle = 'rgba(247,224,177,0.9)';
-        ctx.lineWidth = 2.4;
-        for (let i = 0; i < 5; i++) {
-            const a = -Math.PI * 0.8 + i * (Math.PI * 0.4);
-            ctx.beginPath();
-            ctx.moveTo(tx, ty + 4);
-            ctx.lineTo(tx + Math.cos(a) * (8 + t * 12), ty + 4 + Math.sin(a) * (8 + t * 12));
-            ctx.stroke();
-        }
-    }
-}
-
 function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
+    // The elemental impact body/particles are owned by the attack-fx engine
+    // (js/canvas-attack-fx.js), spawned once per hit. This keeps only the
+    // generic critical-hit flourish layered above that effect.
     let enemyEntry = enemyPosMap[fx.enemyId];
-    if (!enemyEntry) return;
+    if (!enemyEntry || fx.dot || !fx.crit) return;
     let tx = enemyEntry.x;
     let ty = enemyEntry.y - 6;
     ctx.save();
-    let impactElement = normalizeBattleElement(fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
-    if (fx.dot) {
-        ctx.restore();
-        return;
-    }
-    drawGemImpactFx(ctx, impactElement, tx, ty, t, fx.crit);
-    if (fx.crit) {
+    {
         ctx.globalAlpha = (1 - t) * 0.75;
         ctx.strokeStyle = '#fff4a8';
         ctx.lineWidth = 2.2;
