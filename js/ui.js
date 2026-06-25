@@ -6613,6 +6613,7 @@ function getStyledOrbName(orbKey) {
     if (orbKey === 'alchemy' || orbKey === 'regal' || orbKey === 'scour' || orbKey === 'blessing') return `<span style="color:#ffe07a;">${name}</span>`;
     if (orbKey === 'chaos' || orbKey === 'exalted') return `<span style="color:#ffbc8a;">${name}</span>`;
     if (orbKey === 'divine') return `<span style="color:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;">${name}</span>`;
+    if (orbKey === 'woodsmanTouch') return `<span class="woodsman-touch-name">${name}</span>`;
     if (orbKey === 'tainted') return `<span style="color:#8a2f3f;">${name}</span>`;
     return name;
 }
