@@ -692,6 +692,7 @@ function switchTab(tabId) {
     }
     if (tabId === 'tab-codex' && game.noti && game.noti.codex) game.codexFocusNewOnOpen = true;
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    if (tabId === 'tab-map') acknowledgeMapMainAlarm();
     // 도감 탭에서 다른 탭으로 벗어날 때, 신규 등록 강조를 해제(처음 열었을 때만 강조).
     if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
     lastActiveTabId = tabId;
@@ -2271,6 +2272,73 @@ function switchMapExploreSubtab(subtabId) {
     if (panel) panel.classList.add('active');
     let btn = document.getElementById('btn-' + activeId);
     if (btn) btn.classList.add('active');
+    clearMapExploreAlarm(activeId);
+    renderMapExploreNotiDots();
+}
+
+// 새 지도 해금 알람 대상 세부 탭(혼돈/심화/벌집/대균열/운석/고대미궁은 제외).
+const MAP_EXPLORE_ALARM_SUBTABS = ['map-explore-hunting', 'map-explore-root-boss', 'map-explore-colony', 'map-explore-trials'];
+
+// 알람 대상 세부 탭별 "해금된 지도 수" 시그니처. 값이 증가하면 새 지도가 열린 것이다.
+function getMapExploreUnlockSignatures() {
+    const seasonMapCap = typeof getVisibleHuntingMapCapZoneId === 'function'
+        ? getVisibleHuntingMapCapZoneId() : Math.max(0, Math.floor(game.maxZoneId || 0));
+    const season = game.season || 1;
+    const rootBossZones = typeof SEASON_BOSS_ZONES !== 'undefined' ? SEASON_BOSS_ZONES : [];
+    const trialZones = typeof TRIAL_ZONES !== 'undefined' ? TRIAL_ZONES : [];
+    const isTrialAvailable = trial => trial.bloomTrial
+        ? canSeeTalentBloomTrial()
+        : ((trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || (game.unlockedTrials || []).includes(trial.id));
+    return {
+        'map-explore-hunting': Math.min(Math.max(0, Math.floor(game.maxZoneId || 0)), seasonMapCap),
+        'map-explore-root-boss': rootBossZones.filter(zone => season >= (zone.reqSeason || 2)).length,
+        'map-explore-colony': season >= 15 ? 1 : 0,
+        'map-explore-trials': trialZones.filter(isTrialAvailable).length
+    };
+}
+
+function ensureMapAlarmState() {
+    if (!game.mapAlarmSeen || typeof game.mapAlarmSeen !== 'object') game.mapAlarmSeen = {};
+    if (!game.mapAlarmMainSeen || typeof game.mapAlarmMainSeen !== 'object') game.mapAlarmMainSeen = {};
+}
+
+// 새 지도 해금 감지. 두 기준선을 둔다: 세부 탭 배지(mapAlarmSeen)는 해당 세부 탭을 열 때,
+// 지도 메인 탭 알람(mapAlarmMainSeen)은 지도 탭을 열 때 각각 확인 처리된다. 최초 1회는
+// 기준선만 설정해 기존 해금분에는 알람을 띄우지 않는다.
+function detectNewMapUnlockAlarms() {
+    ensureMapAlarmState();
+    const sigs = getMapExploreUnlockSignatures();
+    MAP_EXPLORE_ALARM_SUBTABS.forEach(key => {
+        if (game.mapAlarmSeen[key] === undefined) game.mapAlarmSeen[key] = sigs[key];
+        if (game.mapAlarmMainSeen[key] === undefined) { game.mapAlarmMainSeen[key] = sigs[key]; return; }
+        if (sigs[key] > game.mapAlarmMainSeen[key]) game.noti.map = true;
+    });
+}
+
+// 해당 세부 탭을 열어 확인하면 그 탭의 배지를 끈다(마지막 확인 시그니처를 현재값으로 갱신).
+function clearMapExploreAlarm(subtabId) {
+    if (!MAP_EXPLORE_ALARM_SUBTABS.includes(subtabId)) return;
+    ensureMapAlarmState();
+    game.mapAlarmSeen[subtabId] = getMapExploreUnlockSignatures()[subtabId];
+}
+
+// 지도 메인 탭을 열면 메인 알람 기준선을 현재값으로 맞춰 메인 빨간점을 끈다.
+// (세부 탭 배지는 각 세부 탭을 열 때까지 유지된다.)
+function acknowledgeMapMainAlarm() {
+    ensureMapAlarmState();
+    const sigs = getMapExploreUnlockSignatures();
+    MAP_EXPLORE_ALARM_SUBTABS.forEach(key => { game.mapAlarmMainSeen[key] = sigs[key]; });
+}
+
+function renderMapExploreNotiDots() {
+    if (!game.mapAlarmSeen || typeof game.mapAlarmSeen !== 'object') return;
+    const sigs = getMapExploreUnlockSignatures();
+    MAP_EXPLORE_ALARM_SUBTABS.forEach(key => {
+        const dot = document.getElementById('noti-' + key);
+        if (!dot) return;
+        const seen = game.mapAlarmSeen[key];
+        dot.style.display = (seen !== undefined && sigs[key] > seen) ? 'block' : 'none';
+    });
 }
 
 // 탐험 좌측 세부 탭 버튼 노출 여부를 갱신한다. subtabId는 패널/버튼 id의 공통 키
@@ -7315,6 +7383,7 @@ function buildCraftActionButtons(item) {
     });
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
     setExploreSubtabAvailable('map-explore-trials', availTrials.length > 0);
+    renderMapExploreNotiDots();
 
     renderLoop9VoidRiftPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
@@ -11424,6 +11493,7 @@ function checkUnlocks() {
         game.noti.map = true;
         addLog('🏛️ Lv.100 달성으로 4차 전직 미궁 시련이 개방되었습니다!', 'loot-unique');
     }
+    detectNewMapUnlockAlarms();
 }
 
 function isSeasonNodeRequirementMet(node) {
