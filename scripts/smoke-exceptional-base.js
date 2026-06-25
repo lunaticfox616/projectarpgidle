@@ -61,6 +61,10 @@ vm.runInContext(
 );
 assert.strictEqual(starCtx.getExceptionalBaseStars(item1), '✦✦', 'item name star suffix must repeat once per exceptional base line');
 assert(uiSource.includes('${item.name}${exceptionalStars}'), 'item tooltip title should append exceptional stars to the item name');
+const uniqueFunctionStart = passivesSource.indexOf('function generateUniqueItem');
+const uniqueExceptionalCall = passivesSource.indexOf('maybeApplyExceptionalBase(item);', uniqueFunctionStart);
+const uniqueFunctionReturn = passivesSource.indexOf('return item;', uniqueFunctionStart);
+assert(uniqueFunctionStart >= 0 && uniqueExceptionalCall > uniqueFunctionStart && uniqueExceptionalCall < uniqueFunctionReturn, 'unique equipment drops must use the same exceptional-base roll before returning');
 assert(canvasSource.includes('${hi(item.name)}${exceptionalStars}'), 'inventory cards should append exceptional stars to the item name');
 assert(canvasSource.includes('${item.name}${exceptionalStars}'), 'equipped item cards should append exceptional stars to the item name');
 
