@@ -8607,7 +8607,7 @@ function triggerSeasonReset() {
     game.itemSubtab = 'item-tab-equip';
     game.skillSubtab = 'skill-tab-equip';
     game.mapSubtab = 'map-tab-zones';
-    game.exploreSubtab = 'explore-tree';
+    game.mapExploreSubtab = 'map-explore-hunting';
     game.chaosRealm = preservedChaosRealm;
     game.skyTower = preservedSkyTower;
     game.ocean = preservedOcean;

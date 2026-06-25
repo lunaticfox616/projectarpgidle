@@ -433,6 +433,7 @@ input[data-search-key]:focus {
 }
 
 .vertical-tab-btn {
+  position: relative;
   width: 100%;
   min-height: 54px;
   padding: 9px 10px;

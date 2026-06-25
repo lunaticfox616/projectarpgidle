@@ -692,6 +692,7 @@ function switchTab(tabId) {
     }
     if (tabId === 'tab-codex' && game.noti && game.noti.codex) game.codexFocusNewOnOpen = true;
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    if (tabId === 'tab-map') acknowledgeMapMainAlarm();
     // 도감 탭에서 다른 탭으로 벗어날 때, 신규 등록 강조를 해제(처음 열었을 때만 강조).
     if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
     lastActiveTabId = tabId;
@@ -2271,23 +2272,81 @@ function switchMapExploreSubtab(subtabId) {
     if (panel) panel.classList.add('active');
     let btn = document.getElementById('btn-' + activeId);
     if (btn) btn.classList.add('active');
+    clearMapExploreAlarm(activeId);
+    renderMapExploreNotiDots();
 }
 
-function switchExploreSubtab(subtabId) {
-    game.exploreSubtab = subtabId;
-    document.querySelectorAll('#map-tab-zones .explore-panel').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('#map-tab-zones .explore-subtab').forEach(el => el.classList.remove('active'));
-    let panel = document.getElementById(subtabId);
-    let btn = document.getElementById('btn-' + subtabId);
-    if (panel) panel.classList.add('active');
-    if (btn) btn.classList.add('active');
+// 새 지도 해금 알람 대상 세부 탭(혼돈/심화/벌집/대균열/운석/고대미궁은 제외).
+const MAP_EXPLORE_ALARM_SUBTABS = ['map-explore-hunting', 'map-explore-root-boss', 'map-explore-colony', 'map-explore-trials'];
+
+// 알람 대상 세부 탭별 "해금된 지도 수" 시그니처. 값이 증가하면 새 지도가 열린 것이다.
+function getMapExploreUnlockSignatures() {
+    const seasonMapCap = typeof getVisibleHuntingMapCapZoneId === 'function'
+        ? getVisibleHuntingMapCapZoneId() : Math.max(0, Math.floor(game.maxZoneId || 0));
+    const season = game.season || 1;
+    const rootBossZones = typeof SEASON_BOSS_ZONES !== 'undefined' ? SEASON_BOSS_ZONES : [];
+    const trialZones = typeof TRIAL_ZONES !== 'undefined' ? TRIAL_ZONES : [];
+    const isTrialAvailable = trial => trial.bloomTrial
+        ? canSeeTalentBloomTrial()
+        : ((trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || (game.unlockedTrials || []).includes(trial.id));
+    return {
+        'map-explore-hunting': Math.min(Math.max(0, Math.floor(game.maxZoneId || 0)), seasonMapCap),
+        'map-explore-root-boss': rootBossZones.filter(zone => season >= (zone.reqSeason || 2)).length,
+        'map-explore-colony': season >= 15 ? 1 : 0,
+        'map-explore-trials': trialZones.filter(isTrialAvailable).length
+    };
 }
 
-// 탐험 좌측 세부 탭 버튼 노출 여부를 갱신한다. 잠긴 세부 탭이 현재 선택되어 있으면 나무 탭으로 되돌린다.
+function ensureMapAlarmState() {
+    if (!game.mapAlarmSeen || typeof game.mapAlarmSeen !== 'object') game.mapAlarmSeen = {};
+    if (!game.mapAlarmMainSeen || typeof game.mapAlarmMainSeen !== 'object') game.mapAlarmMainSeen = {};
+}
+
+// 새 지도 해금 감지. 두 기준선을 둔다: 세부 탭 배지(mapAlarmSeen)는 해당 세부 탭을 열 때,
+// 지도 메인 탭 알람(mapAlarmMainSeen)은 지도 탭을 열 때 각각 확인 처리된다. 최초 1회는
+// 기준선만 설정해 기존 해금분에는 알람을 띄우지 않는다.
+function detectNewMapUnlockAlarms() {
+    ensureMapAlarmState();
+    const sigs = getMapExploreUnlockSignatures();
+    MAP_EXPLORE_ALARM_SUBTABS.forEach(key => {
+        if (game.mapAlarmSeen[key] === undefined) game.mapAlarmSeen[key] = sigs[key];
+        if (game.mapAlarmMainSeen[key] === undefined) { game.mapAlarmMainSeen[key] = sigs[key]; return; }
+        if (sigs[key] > game.mapAlarmMainSeen[key]) game.noti.map = true;
+    });
+}
+
+// 해당 세부 탭을 열어 확인하면 그 탭의 배지를 끈다(마지막 확인 시그니처를 현재값으로 갱신).
+function clearMapExploreAlarm(subtabId) {
+    if (!MAP_EXPLORE_ALARM_SUBTABS.includes(subtabId)) return;
+    ensureMapAlarmState();
+    game.mapAlarmSeen[subtabId] = getMapExploreUnlockSignatures()[subtabId];
+}
+
+// 지도 메인 탭을 열면 메인 알람 기준선을 현재값으로 맞춰 메인 빨간점을 끈다.
+// (세부 탭 배지는 각 세부 탭을 열 때까지 유지된다.)
+function acknowledgeMapMainAlarm() {
+    ensureMapAlarmState();
+    const sigs = getMapExploreUnlockSignatures();
+    MAP_EXPLORE_ALARM_SUBTABS.forEach(key => { game.mapAlarmMainSeen[key] = sigs[key]; });
+}
+
+function renderMapExploreNotiDots() {
+    if (!game.mapAlarmSeen || typeof game.mapAlarmSeen !== 'object') return;
+    const sigs = getMapExploreUnlockSignatures();
+    MAP_EXPLORE_ALARM_SUBTABS.forEach(key => {
+        const dot = document.getElementById('noti-' + key);
+        if (!dot) return;
+        const seen = game.mapAlarmSeen[key];
+        dot.style.display = (seen !== undefined && sigs[key] > seen) ? 'block' : 'none';
+    });
+}
+
+// 탐험 좌측 세부 탭 버튼 노출 여부를 갱신한다. subtabId는 패널/버튼 id의 공통 키
+// (예: 'map-explore-chaos')다. 잠긴 세부 탭이 현재 선택되어 있으면 나무 탭으로 되돌린다.
 function setExploreSubtabAvailable(subtabId, available) {
     let btn = document.getElementById('btn-' + subtabId);
     if (btn) btn.style.display = available ? '' : 'none';
-    if (!available && game.exploreSubtab === subtabId) switchExploreSubtab('explore-tree');
+    if (!available && game.mapExploreSubtab === subtabId) switchMapExploreSubtab('map-explore-hunting');
 }
 function enterLabyrinthFloor(floor){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
 
@@ -5426,94 +5485,16 @@ function drawElementalHitAccent(ctx, element, tx, ty, t, crit) {
 }
 
 
-function drawGemImpactFx(ctx, element, tx, ty, t, crit) {
-    const e = normalizeBattleElement(element || 'phys');
-    const burst = crit ? 1.2 : 1;
-    const fxLoad = Math.max(0, Math.floor((Array.isArray(battleFx) ? battleFx.length : 0)));
-    const lod = fxLoad >= 40 ? 0.45 : (fxLoad >= 22 ? 0.65 : 1);
-    if (e === 'fire') {
-        ctx.globalAlpha = (1 - t) * 0.78;
-        for (let i = 0; i < Math.max(10, Math.floor(24 * lod)); i++) {
-            const a = (-Math.PI * 0.95) + (Math.PI * 0.9) * (i / 23);
-            const r = 5 + t * (24 + (i % 4) * 2.8);
-            ctx.fillStyle = i % 4 === 0 ? '#ffe39a' : (i % 2 ? '#ff8a3d' : '#ff3d1f');
-            ctx.beginPath();
-            ctx.ellipse(tx + Math.cos(a) * r * 0.72, ty + Math.sin(a) * r, (1.1 + (1 - t) * 1.8) * burst, (2.1 + (1 - t) * 2.4) * burst, a, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.globalAlpha = (1 - t) * 0.35;
-        ctx.fillStyle = 'rgba(255,120,40,0.7)';
-        ctx.beginPath();
-        ctx.arc(tx, ty + 2, 6 + t * 8, 0, Math.PI * 2);
-        ctx.fill();
-    } else if (e === 'cold') {
-        ctx.globalAlpha = (1 - t) * 0.88;
-        ctx.strokeStyle = 'rgba(198,244,255,0.98)';
-        ctx.lineWidth = 1.9;
-        for (let i = 0; i < Math.max(4, Math.floor(8 * lod)); i++) {
-            const a = (Math.PI * 2 * i) / 8 + t * 0.35;
-            ctx.beginPath();
-            ctx.moveTo(tx, ty);
-            ctx.lineTo(tx + Math.cos(a) * (8 + t * 20), ty + Math.sin(a) * (8 + t * 20));
-            ctx.stroke();
-        }
-        ctx.globalAlpha = (1 - t) * 0.55;
-        ctx.fillStyle = 'rgba(220,248,255,0.75)';
-        for (let i = 0; i < Math.max(3, Math.floor(6 * lod)); i++) {
-            const a = (Math.PI * 2 * i) / 6;
-            const r = 6 + t * 10;
-            ctx.beginPath();
-            ctx.moveTo(tx + Math.cos(a) * r, ty + Math.sin(a) * r);
-            ctx.lineTo(tx + Math.cos(a + 0.16) * (r + 5), ty + Math.sin(a + 0.16) * (r + 5));
-            ctx.lineTo(tx + Math.cos(a - 0.16) * (r + 5), ty + Math.sin(a - 0.16) * (r + 5));
-            ctx.closePath();
-            ctx.fill();
-        }
-    } else if (e === 'light') {
-        ctx.globalAlpha = (1 - t) * 0.88;
-        ctx.strokeStyle = 'rgba(255,243,150,0.95)';
-        ctx.lineWidth = 2.2;
-        for (let i = 0; i < Math.max(2, Math.floor(3 * lod)); i++) {
-            const ox = (i - 1) * 5;
-            drawBattleZigZag(ctx, tx - 16 + ox, ty - 14, tx + 8 + ox, ty + 6, 4 + i, 6);
-            ctx.stroke();
-        }
-    } else if (e === 'chaos') {
-        ctx.globalAlpha = (1 - t) * 0.7;
-        ctx.strokeStyle = 'rgba(210,120,255,0.9)';
-        ctx.lineWidth = 2;
-        for (let i = 0; i < Math.max(1, Math.floor(2 * lod)); i++) {
-            ctx.beginPath();
-            ctx.ellipse(tx, ty, 8 + t * (10 + i * 5), 5 + t * (8 + i * 4), t * 3.2 + i * 0.8, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-    } else {
-        ctx.globalAlpha = (1 - t) * 0.68;
-        ctx.strokeStyle = 'rgba(247,224,177,0.9)';
-        ctx.lineWidth = 2.4;
-        for (let i = 0; i < 5; i++) {
-            const a = -Math.PI * 0.8 + i * (Math.PI * 0.4);
-            ctx.beginPath();
-            ctx.moveTo(tx, ty + 4);
-            ctx.lineTo(tx + Math.cos(a) * (8 + t * 12), ty + 4 + Math.sin(a) * (8 + t * 12));
-            ctx.stroke();
-        }
-    }
-}
-
 function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
+    // The elemental impact body/particles are owned by the attack-fx engine
+    // (js/canvas-attack-fx.js), spawned once per hit. This keeps only the
+    // generic critical-hit flourish layered above that effect.
     let enemyEntry = enemyPosMap[fx.enemyId];
-    if (!enemyEntry) return;
+    if (!enemyEntry || fx.dot || !fx.crit) return;
     let tx = enemyEntry.x;
     let ty = enemyEntry.y - 6;
     ctx.save();
-    let impactElement = normalizeBattleElement(fx.element || (SKILL_DB[fx.skillName] || {}).ele || 'phys');
-    if (fx.dot) {
-        ctx.restore();
-        return;
-    }
-    drawGemImpactFx(ctx, impactElement, tx, ty, t, fx.crit);
-    if (fx.crit) {
+    {
         ctx.globalAlpha = (1 - t) * 0.75;
         ctx.strokeStyle = '#fff4a8';
         ctx.lineWidth = 2.2;
@@ -7326,14 +7307,14 @@ function buildCraftActionButtons(item) {
         chaosMapListEl.innerHTML = chaosListHtml;
         lastRenderedChaosMapListHtml = chaosListHtml;
     }
-    setExploreSubtabAvailable('explore-chaos', chaosMapCards.length > 0);
-    setExploreSubtabAvailable('explore-beehive', (game.season || 1) >= 8);
-    setExploreSubtabAvailable('explore-voidrift', (game.season || 1) >= 9);
-    setExploreSubtabAvailable('explore-colony', (game.season || 1) >= 15);
+    setExploreSubtabAvailable('map-explore-chaos', chaosMapCards.length > 0);
+    setExploreSubtabAvailable('map-explore-beehive', (game.season || 1) >= 8);
+    setExploreSubtabAvailable('map-explore-voidrift', (game.season || 1) >= 9);
+    setExploreSubtabAvailable('map-explore-colony', (game.season || 1) >= 15);
 
     let seasonBosses = SEASON_BOSS_ZONES.filter(zone => (game.season || 1) >= (zone.reqSeason || 2));
     document.getElementById('ui-season-boss-header').style.display = seasonBosses.length > 0 ? 'block' : 'none';
-    setExploreSubtabAvailable('explore-rootboss', seasonBosses.length > 0);
+    setExploreSubtabAvailable('map-explore-root-boss', seasonBosses.length > 0);
     let seasonBossRepeatWrap = document.getElementById('ui-season-boss-repeat-wrap');
     let seasonBossRepeatBtn = document.getElementById('btn-season-boss-repeat');
     if (seasonBossRepeatWrap) seasonBossRepeatWrap.style.display = 'none';
@@ -7355,7 +7336,7 @@ function buildCraftActionButtons(item) {
 
     let labyrinthOpen = (game.season || 1) >= 3;
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
-    setExploreSubtabAvailable('explore-labyrinth', labyrinthOpen);
+    setExploreSubtabAvailable('map-explore-labyrinth', labyrinthOpen);
     if (labyrinthOpen) {
         let maxFloor = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
         document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}" onclick="enterLabyrinthPrompt()">
@@ -7376,7 +7357,7 @@ function buildCraftActionButtons(item) {
     let meteorReady = !!(game.starWedge && game.starWedge.skyRiftReady);
     let meteorGauge = Math.floor((game.starWedge && game.starWedge.skyRiftGauge) || 0);
     document.getElementById('ui-meteor-header').style.display = meteorUnlocked ? 'block' : 'none';
-    setExploreSubtabAvailable('explore-meteor', meteorUnlocked);
+    setExploreSubtabAvailable('map-explore-meteor', meteorUnlocked);
 
     let meteorAutoBtn = document.getElementById('btn-meteor-auto-enter');
     if (meteorAutoBtn) {
@@ -7401,7 +7382,8 @@ function buildCraftActionButtons(item) {
         return (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id);
     });
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
-    setExploreSubtabAvailable('explore-trials', availTrials.length > 0);
+    setExploreSubtabAvailable('map-explore-trials', availTrials.length > 0);
+    renderMapExploreNotiDots();
 
     renderLoop9VoidRiftPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
@@ -11511,6 +11493,7 @@ function checkUnlocks() {
         game.noti.map = true;
         addLog('🏛️ Lv.100 달성으로 4차 전직 미궁 시련이 개방되었습니다!', 'loot-unique');
     }
+    detectNewMapUnlockAlarms();
 }
 
 function isSeasonNodeRequirementMet(node) {
