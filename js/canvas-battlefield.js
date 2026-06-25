@@ -26,6 +26,19 @@ function getCanvasCrowdPauseLimit() {
     return 20;
 }
 
+// Attack impact effects expand to a circular reach. Physical keeps its full
+// shockwave; every other element is capped to roughly the monster's footprint
+// so the rings/glow do not balloon past the target. When the enemy object is
+// unavailable (ghost/fallback position) we fall back to a much smaller scale.
+function getAttackFxSpawnOpts(fx, enemy) {
+    const opts = { crit: !!fx.crit };
+    const element = String(fx.element || 'phys').toLowerCase();
+    if (element === 'phys' || element === 'physical') return opts;
+    if (enemy) opts.scale = enemy.isBoss ? 0.82 : (enemy.isElite ? 0.6 : 0.44);
+    else opts.scale = 0.4;
+    return opts;
+}
+
 // Phase-2 extracted battlefield canvas renderer block.
 function renderBattlefield(forceWhenHidden) {
     const canvas = document.getElementById('battlefield-canvas');
@@ -169,7 +182,7 @@ function renderBattlefield(forceWhenHidden) {
                 });
             }
             if (!fx.dot && typeof attackFxSpawn === 'function') {
-                attackFxSpawn(fx.element || 'phys', enemyPos.x, enemyPos.y - 6, { crit: !!fx.crit });
+                attackFxSpawn(fx.element || 'phys', enemyPos.x, enemyPos.y - 6, getAttackFxSpawnOpts(fx, enemyPos.enemy));
             }
             handled = true;
         } else if (fx.type === 'playerHit') {

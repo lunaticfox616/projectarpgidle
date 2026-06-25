@@ -2273,21 +2273,12 @@ function switchMapExploreSubtab(subtabId) {
     if (btn) btn.classList.add('active');
 }
 
-function switchExploreSubtab(subtabId) {
-    game.exploreSubtab = subtabId;
-    document.querySelectorAll('#map-tab-zones .explore-panel').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('#map-tab-zones .explore-subtab').forEach(el => el.classList.remove('active'));
-    let panel = document.getElementById(subtabId);
-    let btn = document.getElementById('btn-' + subtabId);
-    if (panel) panel.classList.add('active');
-    if (btn) btn.classList.add('active');
-}
-
-// 탐험 좌측 세부 탭 버튼 노출 여부를 갱신한다. 잠긴 세부 탭이 현재 선택되어 있으면 나무 탭으로 되돌린다.
+// 탐험 좌측 세부 탭 버튼 노출 여부를 갱신한다. subtabId는 패널/버튼 id의 공통 키
+// (예: 'map-explore-chaos')다. 잠긴 세부 탭이 현재 선택되어 있으면 나무 탭으로 되돌린다.
 function setExploreSubtabAvailable(subtabId, available) {
     let btn = document.getElementById('btn-' + subtabId);
     if (btn) btn.style.display = available ? '' : 'none';
-    if (!available && game.exploreSubtab === subtabId) switchExploreSubtab('explore-tree');
+    if (!available && game.mapExploreSubtab === subtabId) switchMapExploreSubtab('map-explore-hunting');
 }
 function enterLabyrinthFloor(floor){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
 
@@ -7248,14 +7239,14 @@ function buildCraftActionButtons(item) {
         chaosMapListEl.innerHTML = chaosListHtml;
         lastRenderedChaosMapListHtml = chaosListHtml;
     }
-    setExploreSubtabAvailable('explore-chaos', chaosMapCards.length > 0);
-    setExploreSubtabAvailable('explore-beehive', (game.season || 1) >= 8);
-    setExploreSubtabAvailable('explore-voidrift', (game.season || 1) >= 9);
-    setExploreSubtabAvailable('explore-colony', (game.season || 1) >= 15);
+    setExploreSubtabAvailable('map-explore-chaos', chaosMapCards.length > 0);
+    setExploreSubtabAvailable('map-explore-beehive', (game.season || 1) >= 8);
+    setExploreSubtabAvailable('map-explore-voidrift', (game.season || 1) >= 9);
+    setExploreSubtabAvailable('map-explore-colony', (game.season || 1) >= 15);
 
     let seasonBosses = SEASON_BOSS_ZONES.filter(zone => (game.season || 1) >= (zone.reqSeason || 2));
     document.getElementById('ui-season-boss-header').style.display = seasonBosses.length > 0 ? 'block' : 'none';
-    setExploreSubtabAvailable('explore-rootboss', seasonBosses.length > 0);
+    setExploreSubtabAvailable('map-explore-root-boss', seasonBosses.length > 0);
     let seasonBossRepeatWrap = document.getElementById('ui-season-boss-repeat-wrap');
     let seasonBossRepeatBtn = document.getElementById('btn-season-boss-repeat');
     if (seasonBossRepeatWrap) seasonBossRepeatWrap.style.display = 'none';
@@ -7277,7 +7268,7 @@ function buildCraftActionButtons(item) {
 
     let labyrinthOpen = (game.season || 1) >= 3;
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
-    setExploreSubtabAvailable('explore-labyrinth', labyrinthOpen);
+    setExploreSubtabAvailable('map-explore-labyrinth', labyrinthOpen);
     if (labyrinthOpen) {
         let maxFloor = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
         document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}" onclick="enterLabyrinthPrompt()">
@@ -7298,7 +7289,7 @@ function buildCraftActionButtons(item) {
     let meteorReady = !!(game.starWedge && game.starWedge.skyRiftReady);
     let meteorGauge = Math.floor((game.starWedge && game.starWedge.skyRiftGauge) || 0);
     document.getElementById('ui-meteor-header').style.display = meteorUnlocked ? 'block' : 'none';
-    setExploreSubtabAvailable('explore-meteor', meteorUnlocked);
+    setExploreSubtabAvailable('map-explore-meteor', meteorUnlocked);
 
     let meteorAutoBtn = document.getElementById('btn-meteor-auto-enter');
     if (meteorAutoBtn) {
@@ -7323,7 +7314,7 @@ function buildCraftActionButtons(item) {
         return (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id);
     });
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
-    setExploreSubtabAvailable('explore-trials', availTrials.length > 0);
+    setExploreSubtabAvailable('map-explore-trials', availTrials.length > 0);
 
     renderLoop9VoidRiftPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
