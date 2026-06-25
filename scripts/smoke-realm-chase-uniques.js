@@ -41,6 +41,7 @@ function createDropRuntime(zone, targetName) {
     chooseItemBase() { return { id: 'test_base', slot: target.slots[0], name: '테스트 베이스', reqTier: target.reqTier || 1, baseStats: [{ id: 'flatHp', base: 1 }] }; },
     rollBaseStats() { return []; },
     rollUniqueStatValue(stat) { return { val: stat.min, min: stat.min, max: stat.max }; },
+    maybeApplyExceptionalBase(item) { return item; },
     getStatName(id) { return id; },
     addLog() {}
   };
