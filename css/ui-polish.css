@@ -531,31 +531,54 @@ input[data-search-key]:focus {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 4px;
-  background: var(--tab-accent, #4f7193);
-  box-shadow: 0 0 8px var(--tab-accent, transparent);
+  width: 3px;
+  background: linear-gradient(180deg, transparent, var(--tab-accent, #6f8aa0) 20%, var(--tab-accent, #6f8aa0) 80%, transparent);
+  box-shadow: 0 0 5px var(--tab-accent, transparent);
+  opacity: 0.8;
 }
-#btn-map-explore-hunting    { --tab-accent: #5fb86a; }
-#btn-map-explore-chaos      { --tab-accent: #b65ad0; }
-#btn-map-explore-root-boss  { --tab-accent: #d36b4e; }
-#btn-map-explore-labyrinth  { --tab-accent: #d8b24a; }
-#btn-map-explore-deep-chaos { --tab-accent: #8a5fe0; }
-#btn-map-explore-meteor     { --tab-accent: #e8743a; }
-#btn-map-explore-beehive    { --tab-accent: #ecd23c; }
-#btn-map-explore-colony     { --tab-accent: #3fc28a; }
-#btn-map-explore-voidrift   { --tab-accent: #4aa6d6; }
-#btn-map-explore-trials     { --tab-accent: #6c8fe6; }
+/* 영역 식별용 액센트/글자색은 채도를 낮춘 고급스러운 무광 톤으로 통일한다(원색 지양). */
+#btn-map-explore-hunting    { --tab-accent: #6f9e78; }
+#btn-map-explore-chaos      { --tab-accent: #9b76ad; }
+#btn-map-explore-root-boss  { --tab-accent: #b27e67; }
+#btn-map-explore-labyrinth  { --tab-accent: #c0a866; }
+#btn-map-explore-deep-chaos { --tab-accent: #836fa6; }
+#btn-map-explore-meteor     { --tab-accent: #bf8860; }
+#btn-map-explore-beehive    { --tab-accent: #c2b06a; }
+#btn-map-explore-colony     { --tab-accent: #5fa389; }
+#btn-map-explore-voidrift   { --tab-accent: #7099b2; }
+#btn-map-explore-trials     { --tab-accent: #8194bd; }
 
-.map-explore-layout #btn-map-explore-hunting:not(.active) span    { color: #8fdf95; }
-.map-explore-layout #btn-map-explore-chaos:not(.active) span      { color: #e09cf0; }
-.map-explore-layout #btn-map-explore-root-boss:not(.active) span  { color: #f0987a; }
-.map-explore-layout #btn-map-explore-labyrinth:not(.active) span  { color: #f0d06a; }
-.map-explore-layout #btn-map-explore-deep-chaos:not(.active) span { color: #b394f0; }
-.map-explore-layout #btn-map-explore-meteor:not(.active) span     { color: #f0a868; }
-.map-explore-layout #btn-map-explore-beehive:not(.active) span    { color: #f0d85e; }
-.map-explore-layout #btn-map-explore-colony:not(.active) span     { color: #5fd9a4; }
-.map-explore-layout #btn-map-explore-voidrift:not(.active) span   { color: #74c2ec; }
-.map-explore-layout #btn-map-explore-trials:not(.active) span     { color: #92aef0; }
+.map-explore-layout #btn-map-explore-hunting:not(.active) span    { color: #aecbb3; }
+.map-explore-layout #btn-map-explore-chaos:not(.active) span      { color: #c8b1d2; }
+.map-explore-layout #btn-map-explore-root-boss:not(.active) span  { color: #d8b3a2; }
+.map-explore-layout #btn-map-explore-labyrinth:not(.active) span  { color: #dcca98; }
+.map-explore-layout #btn-map-explore-deep-chaos:not(.active) span { color: #bcafd4; }
+.map-explore-layout #btn-map-explore-meteor:not(.active) span     { color: #d9b89e; }
+.map-explore-layout #btn-map-explore-beehive:not(.active) span    { color: #ddd3a2; }
+.map-explore-layout #btn-map-explore-colony:not(.active) span     { color: #a6cfbb; }
+.map-explore-layout #btn-map-explore-voidrift:not(.active) span   { color: #b1cad9; }
+.map-explore-layout #btn-map-explore-trials:not(.active) span     { color: #bcc6e0; }
+
+/* 비활성 탭은 채도 높은 청색 대신 중성 그래파이트 톤으로 정돈해 금색 활성 탭과 조화시킨다. */
+.map-explore-layout .vertical-tab-btn:not(.active) {
+  border-color: rgba(122, 134, 152, 0.22);
+  background: linear-gradient(180deg, #161b24 0%, #0e121a 100%);
+}
+.map-explore-layout .vertical-tab-btn:not(.active):hover {
+  border-color: rgba(210, 188, 130, 0.42);
+  background: linear-gradient(180deg, #1c2330 0%, #141a25 100%);
+}
+
+/* 알람 점도 원색 빨강 대신 금테를 두른 루비 톤으로 다듬는다. */
+.map-explore-layout .vertical-tab-btn .noti-dot {
+  width: 9px;
+  height: 9px;
+  top: 8px;
+  right: 8px;
+  background: radial-gradient(circle at 35% 30%, #ff9a93, #d9433c 58%, #93251f);
+  border: 1px solid rgba(255, 226, 154, 0.85);
+  box-shadow: 0 0 6px rgba(217, 67, 60, 0.65), 0 0 2px rgba(255, 226, 154, 0.55);
+}
 
 .vertical-tab-panels {
   min-width: 0;
