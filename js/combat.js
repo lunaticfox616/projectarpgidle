@@ -2511,6 +2511,7 @@ function getPlayerStats() {
     let swiftOpeningTakenMultiplier = 1;
     let guardianReflectDamage = 0;
     let guardianBlockChance = 0;
+    let guardianDamageNullifyChance = 0;
     let guardianArmorDamageBonus = false;
     let sbSummonAspdBonus = 0;
     let sbSummonCapBonus = 0;
@@ -2944,8 +2945,10 @@ function getPlayerStats() {
         }
         if (hasKeystone('gd6')) { let now = Date.now(); let stacks = (game.guardianEnduranceExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) : 0; if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.11)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.6)); }
         if (guardianArmorDamageBonus) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalArmor) * 0.001));
-        if (hasKeystone('gd8')) { guardianBlockChance += 25; ailmentResistBonusPct += 50; }
-        if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.4) {
+        if (hasKeystone('gd8')) { guardianDamageNullifyChance += 25; ailmentResistBonusPct += 50; }
+        // 9) 거대화: 최대 생명력 20% 증폭
+        if (hasKeystone('gd9')) finalMaxHp = Math.floor(finalMaxHp * 1.2);
+        if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
             genericTakenDamageMultiplier *= 0.8;
             finalBaseDmg = Math.floor(finalBaseDmg * 1.2);
             let now = Date.now();
@@ -2954,8 +2957,6 @@ function getPlayerStats() {
                 game.guardianLastStandCleanseAt = now;
             }
         }
-        // 9) 거대화: 최대 생명력 20% 증폭
-        if (hasKeystone('gd9')) finalMaxHp = Math.floor(finalMaxHp * 1.2);
     } else if (game.ascendClass === 'inquisitor') {
         if (hasKeystone('iq3')) {
             let sealedGemCount = (game.sealedSkills || []).length + (game.sealedSupports || []).length;
@@ -3678,6 +3679,7 @@ function getPlayerStats() {
         swiftOpeningTakenMultiplier: swiftOpeningTakenMultiplier,
         guardianReflectDamage: guardianReflectDamage,
         guardianBlockChance: guardianBlockChance,
+        guardianDamageNullifyChance: guardianDamageNullifyChance,
         shieldBaseBlockChance: shieldBaseBlockChance,
         effectiveShieldBaseBlockChance: effectiveShieldBaseBlockChance,
         shieldBlockChancePct: shieldBlockChancePct,
@@ -8154,6 +8156,12 @@ function performMonsterAttacks(pStats) {
                 }
                 addBattleFx('statusText', { text: '막아냄!', color: '#a7a7a7', duration: 260 });
                 if (game.settings.showCombatLog) addLog(`🛡️ 막아냄!`, "loot-magic");
+                continue;
+            }
+            let guardianNullifyChance = Math.max(0, Math.min(100, Number(pStats.guardianDamageNullifyChance) || 0));
+            if (guardianNullifyChance > 0 && Math.random() * 100 < guardianNullifyChance) {
+                addBattleFx('statusText', { text: '무효!', color: '#bdf7ff', duration: 300 });
+                if (game.settings.showCombatLog) addLog('🛡️ 절대 수호: 피해 무효!', 'loot-magic');
                 continue;
             }
             let deflected = false;
