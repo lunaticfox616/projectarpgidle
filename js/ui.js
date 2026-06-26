@@ -2565,7 +2565,7 @@ function renderStarWedgePanel() {
             <div style="color:#8ea5c1;">장착 슬롯: ${(st.sockets || []).length}/${maxEquippedStarWedges} · ${socketNodeText} · 별자리: ${constellationText}</div>
         </div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"><button onclick="craftIncompleteStarWedge()">파편 49 → 불완전한 별쐐기</button><button onclick="craftCompleteStarWedge()">불완전 1 + 파편 77 → 별쐐기</button></div>
-        <div style="color:#93a4bb; font-size:0.8em; margin-bottom:8px;">1/2/3경로 노드를 1~3번째 줄로 변성하고, 4번째 [핵심노드] 줄은 슬롯 자신(허브 노드)에 적용됩니다. 장착은 [장착할 슬롯 선택] 후 패시브 트리에서 슬롯을 클릭하세요.</div>
+        <div style="color:#93a4bb; font-size:0.8em; margin-bottom:8px;">1/2/3경로 노드를 1~3번째 줄로 변성하고, 4번째 [핵심노드] 줄은 슬롯 자신에 적용됩니다. 장착은 [장착할 슬롯 선택] 후 패시브 트리에서 슬롯을 클릭하세요.</div>
         <div style="display:grid; gap:8px;">${wedgeCards || '<div style="color:#7f89a0;">별쐐기가 없습니다. 운석 낙하 지점을 공략하거나 제작하세요.</div>'}</div>
     `;
 }
@@ -7996,6 +7996,7 @@ function getPassiveTreeNodeSearchText(node) {
 
 function getPassiveTreeNodeCategory(node) {
     let stat = node && node.stat;
+    if (node && node.kind === 'void') return 'utility';
     if (['flatDmg', 'pctDmg', 'meleePctDmg', 'physPctDmg', 'aoePctDmg', 'projectilePctDmg', 'crit', 'critDmg', 'ds', 'physIgnore', 'igniteChance', 'chillChance', 'freezeChance', 'shockChance', 'poisonChance', 'bleedChance'].includes(stat)) return 'offense';
     if (['flatHp', 'pctHp', 'regen', 'leech', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'energyShieldRegen', 'deflectChance', 'dr', 'blockChance', 'blockChancePct', 'resF', 'resC', 'resL', 'resAll', 'resChaos', 'ailResIgnite', 'ailResShock', 'ailResFreeze', 'ailResPoison', 'ailResBleed'].includes(stat)) return 'defense';
     if (['firePctDmg', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'elementalPctDmg', 'dotPctDmg', 'resPen'].includes(stat)) return 'element';
@@ -8088,6 +8089,76 @@ function setupPassiveTreeSearchControls() {
 }
 
 Object.assign(window, { getPassiveTreeSearchState, getPassiveNodeSearchMatch, setupPassiveTreeSearchControls, setPassiveTreeSearchState });
+
+
+function closeVoidPassiveCraftOverlay() {
+    let overlay = document.getElementById('void-passive-craft-overlay');
+    if (overlay) overlay.remove();
+}
+
+function getVoidPassiveRefundState(nodeId) {
+    let active = (game.passives || []).includes(nodeId);
+    let hasScour = (game.currencies.scour || 0) >= 1;
+    let connected = typeof canRefundPassiveNode === 'function' && canRefundPassiveNode(nodeId);
+    return {
+        enabled: active && hasScour && connected,
+        reason: !active ? '활성화된 공허 패시브만 반환할 수 있습니다.'
+            : (!connected ? '연결 유지에 필요한 노드는 반환할 수 없습니다.'
+                : (!hasScour ? '정화의 오브가 부족합니다.' : '정화의 오브 1개를 소모해 반환합니다.'))
+    };
+}
+
+function craftVoidPassiveFromOverlay(nodeId, currencyKey) {
+    if (typeof applyVoidPassiveCurrency === 'function') applyVoidPassiveCurrency(nodeId, currencyKey);
+    openVoidPassiveCraftOverlay(nodeId);
+}
+
+function refundVoidPassiveFromOverlay(nodeId) {
+    let state = getVoidPassiveRefundState(nodeId);
+    if (!state.enabled) return addLog(state.reason, 'attack-monster');
+    closeVoidPassiveCraftOverlay();
+    refundPassiveNode(nodeId);
+}
+
+function askRefundPassiveNode(id) {
+    if (!confirm('해당 패시브 노드를 반환하시겠습니까? (정화의 오브 1개 소모)')) return;
+    refundPassiveNode(id);
+}
+
+function openVoidPassiveCraftOverlay(nodeId) {
+    closeVoidPassiveCraftOverlay();
+    let node = PASSIVE_TREE.nodes[nodeId];
+    if (!node || node.kind !== 'void') return addLog('공허 패시브만 제작할 수 있습니다.', 'attack-monster');
+    let active = (game.passives || []).includes(node.id);
+    let entry = typeof getVoidPassiveCraft === 'function' ? getVoidPassiveCraft(node.id) : { stats: [] };
+    let stats = entry && Array.isArray(entry.stats) ? entry.stats : [];
+    let hasStats = stats.length > 0;
+    let canAugment = hasStats && stats.length < 2;
+    let refundState = getVoidPassiveRefundState(node.id);
+    let effectLabel = typeof getVoidPassiveEffectLabel === 'function' ? getVoidPassiveEffectLabel(node.id) : getPassiveEffectLabel(node);
+    let overlay = document.createElement('div');
+    overlay.id = 'void-passive-craft-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10040;background:rgba(3,8,14,0.72);display:flex;align-items:center;justify-content:center;padding:18px;';
+    overlay.onclick = event => { if (event.target === overlay) closeVoidPassiveCraftOverlay(); };
+    overlay.innerHTML = `<div style="width:min(560px,94vw);max-height:90vh;overflow:auto;background:#0f1724;border:1px solid #3f9fbd;border-radius:14px;padding:14px;box-shadow:0 20px 70px rgba(0,0,0,.55);">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px;">
+            <div><div style="font-weight:900;color:#c7f7ff;font-size:18px;">🕳️ ${escapeHTML(getPassiveNodeDisplayName(node))}</div><div style="color:#8fb7ca;margin-top:3px;">공허 패시브 제작</div></div>
+            <button type="button" onclick="closeVoidPassiveCraftOverlay()">닫기</button>
+        </div>
+        <div style="border:1px solid rgba(114,184,208,0.45);background:rgba(8,18,28,0.72);border-radius:10px;padding:10px;margin-bottom:10px;color:#d7f8ff;line-height:1.45;">${effectLabel}</div>
+        <div style="color:${active ? '#b9d7e8' : '#ffcf8a'};margin-bottom:10px;">${active ? '진화/확장/변화의 오브로 최대 2줄까지 옵션을 조율합니다.' : '먼저 패시브 트리에서 이 공허 패시브를 활성화해야 제작할 수 있습니다.'}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px;">
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','transmute')" ${active && !hasStats && (game.currencies.transmute || 0) > 0 ? '' : 'disabled'}>진화의 오브<br><span style="font-size:12px;color:#aebed4;">보유 ${game.currencies.transmute || 0}</span></button>
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','augment')" ${active && canAugment && (game.currencies.augment || 0) > 0 ? '' : 'disabled'}>확장의 오브<br><span style="font-size:12px;color:#aebed4;">보유 ${game.currencies.augment || 0}</span></button>
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','alteration')" ${active && hasStats && (game.currencies.alteration || 0) > 0 ? '' : 'disabled'}>변화의 오브<br><span style="font-size:12px;color:#aebed4;">보유 ${game.currencies.alteration || 0}</span></button>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid rgba(143,183,202,0.25);padding-top:10px;">
+            <div style="color:${refundState.enabled ? '#c8f7d5' : '#8fa0ad'};font-size:13px;">${refundState.reason}</div>
+            <button type="button" onclick="refundVoidPassiveFromOverlay('${node.id}')" ${refundState.enabled ? '' : 'disabled'}>공허 패시브 반환 (정화의 오브 1)</button>
+        </div>
+    </div>`;
+    document.body.appendChild(overlay);
+}
 
 function setupCanvasEvents() {
     setupPassiveTreeSearchControls();
@@ -8198,12 +8269,17 @@ function setupCanvasEvents() {
             let currentLabel = `${getStatName(mutation.currentStat)} +${formatValue(mutation.currentStat, mutation.currentVal)}${P_STATS[mutation.currentStat] && P_STATS[mutation.currentStat].isPct ? '%' : ''}`;
             effectHtml = `<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:stretch;">${effectBadge(originalLabel, originalAccent, '기존 효과')}${effectBadge(currentLabel, currentAccent, '변성 효과')}</div>`;
         }
+        let voidCraftHtml = '';
+        if (node.kind === 'void' && (game.passives || []).includes(node.id)) {
+            voidCraftHtml = `<div class="tooltip-line" style="margin-top:8px; color:#bfefff;">🕳️ 클릭하면 공허 제작 창이 열립니다.</div>`;
+        }
 
         canvasTooltip.innerHTML =
             `<div class="tooltip-title" style="color:${node.tier >= 3 || node.kind === 'apex' || node.kind === 'transcendent' ? '#e7bf73' : '#b9d0df'}">${getPassiveNodeDisplayName(node)}</div>
              <div class="tooltip-line">${getPassiveKindLabel(node)}</div>
              ${effectHtml}
              ${node.desc ? `<div class="tooltip-line" style="margin-top:6px; color:#c6d4e2;">${node.desc}</div>` : ''}
+             ${voidCraftHtml}
              <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;
 
         canvasTooltip.style.display = 'block';
@@ -8256,13 +8332,18 @@ function setupCanvasEvents() {
                 starState.selectedWedgeId = null;
                 updateStaticUI();
             } else {
-                addLog('별쐐기 슬롯(허브 노드)을 클릭해 장착하세요.', 'attack-monster');
+                addLog('별쐐기 슬롯을 클릭해 장착하세요.', 'attack-monster');
             }
             return;
         }
         let canActivate = !(game.passives || []).includes(hoverNode.id) && reachableNodes.has(hoverNode.id);
         if (!canActivate) {
             if ((game.passives || []).includes(hoverNode.id)) {
+                if (hoverNode.kind === 'void') {
+                    pendingTouchPassiveId = null;
+                    pendingTouchPassiveRefundId = null;
+                    return openVoidPassiveCraftOverlay(hoverNode.id);
+                }
                 if (options.fromTouch) {
                     let now = Date.now();
                     if (pendingTouchPassiveRefundId !== hoverNode.id || (now - pendingTouchPassiveRefundAt) > 1200) {
@@ -8273,12 +8354,9 @@ function setupCanvasEvents() {
                         return;
                     }
                 }
-                let label = getPassiveNodeDisplayName(hoverNode);
-                if (!confirm(`[${label}] 노드를 반환할까요?
-정화의 오브 1개가 소모됩니다.`)) return;
                 pendingTouchPassiveId = null;
                 pendingTouchPassiveRefundId = null;
-                return refundPassiveNode(hoverNode.id);
+                return askRefundPassiveNode(hoverNode.id);
             }
             if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
             return addLog("연결된 노드가 아니라 활성화할 수 없습니다.", "attack-monster");
@@ -8914,6 +8992,23 @@ function mergeDefaults(save) {
     let starWedgeSocketCap = typeof getMaxEquippedStarWedgesForLevel === 'function' ? getMaxEquippedStarWedgesForLevel(mergedAstronomerLevel) : MAX_STAR_WEDGES;
     merged.starWedge.sockets = Array.isArray(merged.starWedge.sockets) ? merged.starWedge.sockets.filter(s => s && typeof s.nodeId === 'string' && Number.isFinite(s.wedgeId)).slice(0, starWedgeSocketCap) : [];
     merged.starWedge.nodeMutations = (merged.starWedge.nodeMutations && typeof merged.starWedge.nodeMutations === 'object') ? merged.starWedge.nodeMutations : {};
+    let validVoidPassiveIds = new Set(typeof getVoidPassiveNodeIds === 'function' ? getVoidPassiveNodeIds() : []);
+    let rawVoidPassives = (merged.voidPassives && typeof merged.voidPassives === 'object') ? merged.voidPassives : {};
+    merged.voidPassives = {};
+    let legacyVoidMigration = !(save.voidPassives && typeof save.voidPassives === 'object');
+    let allocatedVoidIds = legacyVoidMigration ? new Set((merged.passives || []).map(id => String(id))) : new Set();
+    validVoidPassiveIds.forEach(nodeId => {
+        let rawEntry = rawVoidPassives[nodeId] && typeof rawVoidPassives[nodeId] === 'object' ? rawVoidPassives[nodeId] : {};
+        let stats = Array.isArray(rawEntry.stats) ? rawEntry.stats : [];
+        if (legacyVoidMigration && allocatedVoidIds.has(String(nodeId)) && stats.length <= 0) {
+            let node = PASSIVE_TREE.nodes[nodeId];
+            if (node && P_STATS[node.legacyVoidStat] && Number.isFinite(Number(node.legacyVoidVal))) {
+                stats = [{ id: node.legacyVoidStat, val: Number(node.legacyVoidVal) }];
+            }
+        }
+        stats = stats.filter(line => line && P_STATS[line.id] && Number.isFinite(Number(line.val))).slice(0, 2).map(line => ({ id: line.id, val: Number(line.val) }));
+        if (stats.length > 0 || rawVoidPassives[nodeId] || allocatedVoidIds.has(String(nodeId))) merged.voidPassives[nodeId] = { rarity: stats.length > 0 ? 'magic' : 'normal', stats };
+    });
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
     merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
@@ -11543,7 +11638,6 @@ function refundPassiveNode(id) { if (!assertBuildEditable()) return;
     if (!game.passives.includes(id) || id === 'n0') return;
     if ((game.currencies.scour || 0) < 1) return addLog('패시브 노드 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
     if (!canRefundPassiveNode(id)) return addLog('연결 유지에 필요한 노드는 반환할 수 없습니다.', 'attack-monster');
-    if (!confirm('전직 패시브를 반환하시겠습니까? (정화의 오브 1 소모)')) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
     game.passives = game.passives.filter(nodeId => nodeId !== id);
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + 1;

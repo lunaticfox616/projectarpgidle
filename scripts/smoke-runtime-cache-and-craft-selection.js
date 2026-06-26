@@ -6,20 +6,20 @@ const index = fs.readFileSync('index.html', 'utf8');
 const canvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 
 const expectedCacheBusters = {
-  'css/components.css': '20260615-tab-drag-touch1',
-  'js/utils.js': '20260619-ocean6',
-  'js/items.js': '20260614-runtime-fixes1',
+  'css/components.css': '20260626-void-cache1',
+  'js/utils.js': '20260623-flatele1',
+  'js/items.js': '20260623-base-chain4',
   'js/canvas-passive-tree.js': '20260618-codex-autoreg1',
-  'css/layout.css': '20260614-cosmos-es1',
-  'css/ui-polish.css': '20260621-vertical-tabs1',
+  'css/layout.css': '20260626-void-cache1',
+  'css/ui-polish.css': '20260625-premium-tabs1',
   'css/ui-premium.css': '20260621-vertical-tabs1',
-  'data/items.js': '20260619-ocean2',
-  'js/skills.js': '20260614-cosmos-es1',
-  'js/passives.js': '20260621-vertical-tabs1',
-  'js/combat.js': '20260621-vertical-tabs1',
-  'js/canvas-battlefield.js': '20260614-cosmos-es1',
-  'js/ui.js': '20260621-vertical-tabs1',
-  'js/state.js': '20260621-vertical-tabs1'
+  'data/items.js': '20260624-cosmoscodex1',
+  'js/skills.js': '20260623-shieldfossil2',
+  'js/passives.js': '20260626-void-cache1',
+  'js/combat.js': '20260626-void-cache1',
+  'js/canvas-battlefield.js': '20260625-attackfx2',
+  'js/ui.js': '20260626-void-cache1',
+  'js/state.js': '20260626-void-cache1'
 };
 Object.entries(expectedCacheBusters).forEach(([asset, version]) => {
   assert(index.includes(`${asset}?v=${version}`), `${asset} cache buster must include ${version}`);
