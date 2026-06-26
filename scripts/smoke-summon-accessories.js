@@ -23,6 +23,13 @@ assert(combat.includes("stat.id === 'summonGemLevel' && activeTags.includes('sum
 assert(utils.includes('summonGemLevel: 0'), 'stat buckets must retain summon gem levels');
 assert(state.includes('소환수 생명력 등 방어적인 소환 옵션은 전이되지 않으며'), 'Lone Stand tooltip must disclose its defensive transfer restriction');
 
+assert(passives.includes('const JEWEL_SUMMON_OPTION_GROUP'), 'jewel summon affixes must be represented by one roll-pool group');
+assert(passives.includes('function rollRandomJewelStat(excludeIds)'), 'jewel rolls must resolve grouped summon options only after the summon group is selected');
+assert(passives.includes('getJewelRollOptionPool(excludeIds)'), 'jewel option pool must collapse summon affixes before random selection');
+assert(ui.includes('const TALISMAN_SUMMON_OPTION_GROUP'), 'talisman summon affixes must be represented by one roll-pool group');
+assert(ui.includes('function rollTalismanOption()'), 'talisman rolls must resolve grouped summon options only after the summon group is selected');
+assert(ui.includes('rollTalismanStatLine(multiplier)'), 'talisman candidate generation must use the grouped roll helper');
+
 const sb5Block = combat.slice(combat.indexOf("if (hasKeystone('sb5')) {", combat.indexOf("game.ascendClass === 'soulbinder'")), combat.indexOf("if (hasKeystone('sb7'))", combat.indexOf("game.ascendClass === 'soulbinder'")));
 assert(sb5Block.includes('sumFlat') && sb5Block.includes('sumPct') && sb5Block.includes('sumCrit') && sb5Block.includes('sumAspd'), 'Lone Stand must retain offensive summon transfers');
 assert(!sb5Block.includes('sumHp'), 'Lone Stand must not transfer summon life to the player');

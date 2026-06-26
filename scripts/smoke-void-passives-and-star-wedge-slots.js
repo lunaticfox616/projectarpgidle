@@ -30,6 +30,7 @@ function createBrowserContext() {
     Image: function Image() {},
     Audio: function Audio() {},
     addLog(message) { context.lastLog = message; },
+    confirm() { context.confirmCalls = (context.confirmCalls || 0) + 1; return context.confirmResult; },
     updateStaticUI() {},
     markPassiveRenderCacheDirty() {},
     queueTutorialNotice() {},
@@ -85,10 +86,14 @@ function loadRuntime(context) {
 }
 
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert(uiSource.includes('function openVoidPassiveCraftOverlay(nodeId)'), 'void passive crafting must be opened from a dedicated overlay');
 assert(uiSource.includes('refundVoidPassiveFromOverlay'), 'void passive overlay must own the refund action');
+assert(uiSource.includes('function askRefundPassiveNode(id)'), 'regular passive refunds must keep a confirmation wrapper');
+assert(uiSource.includes('return askRefundPassiveNode(hoverNode.id);'), 'regular passive clicks must use the confirmation wrapper');
 assert(!uiSource.includes('전직 패시브를 반환하시겠습니까?'), 'normal passive refunds must not show the ascend-passive confirmation text');
 assert(!uiSource.includes('onclick="applyVoidPassiveCurrency'), 'void passive orb buttons must not be embedded directly in the canvas tooltip');
+assert(combatSource.includes('game.voidPassives = {};'), 'loop reset must clear crafted void passive options with the passive tree');
 
 const context = createBrowserContext();
 loadRuntime(context);
@@ -106,6 +111,19 @@ assert(voidNodes.every(node => context.isStarWedgeNodeMutable(node) === false), 
 assert(voidNodes.every(node => context.getPassiveEffectLabel(node).includes('공허 옵션 없음')), 'uncrafted void passives must start with no effect');
 
 const node = voidNodes[0];
+
+const refundableNodeId = context.PASSIVE_TREE.edges.find(edge => edge.from === 'n0' || edge.to === 'n0');
+const regularNodeId = refundableNodeId.from === 'n0' ? refundableNodeId.to : refundableNodeId.from;
+context.game.passives = ['n0', regularNodeId];
+context.game.currencies.scour = 2;
+context.confirmResult = false;
+context.askRefundPassiveNode(regularNodeId);
+assert(context.game.passives.includes(regularNodeId), 'declining the regular passive refund confirmation must keep the node allocated');
+assert.strictEqual(context.game.currencies.scour, 2, 'declining the regular passive refund confirmation must not spend scour');
+context.confirmResult = true;
+context.askRefundPassiveNode(regularNodeId);
+assert(!context.game.passives.includes(regularNodeId), 'accepting the regular passive refund confirmation must refund the node');
+assert.strictEqual(context.game.currencies.scour, 1, 'accepting the regular passive refund confirmation must spend one scour');
 
 function getPathToNode(nodeId) {
   const previous = { n0: null };
