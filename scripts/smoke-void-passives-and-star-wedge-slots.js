@@ -86,12 +86,14 @@ function loadRuntime(context) {
 }
 
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert(uiSource.includes('function openVoidPassiveCraftOverlay(nodeId)'), 'void passive crafting must be opened from a dedicated overlay');
 assert(uiSource.includes('refundVoidPassiveFromOverlay'), 'void passive overlay must own the refund action');
 assert(uiSource.includes('function askRefundPassiveNode(id)'), 'regular passive refunds must keep a confirmation wrapper');
 assert(uiSource.includes('return askRefundPassiveNode(hoverNode.id);'), 'regular passive clicks must use the confirmation wrapper');
 assert(!uiSource.includes('전직 패시브를 반환하시겠습니까?'), 'normal passive refunds must not show the ascend-passive confirmation text');
 assert(!uiSource.includes('onclick="applyVoidPassiveCurrency'), 'void passive orb buttons must not be embedded directly in the canvas tooltip');
+assert(combatSource.includes('game.voidPassives = {};'), 'loop reset must clear crafted void passive options with the passive tree');
 
 const context = createBrowserContext();
 loadRuntime(context);

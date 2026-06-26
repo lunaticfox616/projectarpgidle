@@ -16,7 +16,7 @@ const expectedCacheBusters = {
   'data/items.js': '20260624-cosmoscodex1',
   'js/skills.js': '20260623-shieldfossil2',
   'js/passives.js': '20260626-summon-group1',
-  'js/combat.js': '20260626-void-cache1',
+  'js/combat.js': '20260626-void-reset1',
   'js/canvas-battlefield.js': '20260625-attackfx2',
   'js/ui.js': '20260626-summon-group1',
   'js/state.js': '20260626-void-cache1'
