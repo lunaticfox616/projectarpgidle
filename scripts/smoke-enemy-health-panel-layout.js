@@ -19,8 +19,11 @@ assert(!componentsCss.includes('.enemy-list { max-height: 132px; }'), 'wide resp
 assert(!componentsCss.includes('.enemy-list { grid-template-columns: 1fr; max-height: 88px; }'), 'narrow desktop layout must not reintroduce enemy HP panel clipping');
 
 const hpBarRule = layoutCss.match(/\.hp-bar-bg\s*\{([^}]+)\}/);
+const mapProgressRule = layoutCss.match(/\.map-progress-row\s*\{([^}]+)\}/);
 const logRule = [...baseCss.matchAll(/#log\s*\{([^}]+)\}/g)].find(match => match[1].includes('flex: 1'));
 assert(hpBarRule && hpBarRule[1].includes('box-sizing: border-box'), 'progress and health bars must include borders inside their assigned width');
+assert(indexSource.includes('<div class="map-progress-row">'), 'map progress label and gauge must share one row wrapper');
+assert(mapProgressRule && mapProgressRule[1].includes('display: flex') && mapProgressRule[1].includes('align-items: center'), 'map progress row must align the label and gauge on one line');
 assert(logRule && logRule[1].includes('box-sizing: border-box'), 'combat log must include padding and borders inside the feed width');
 assert(logRule && logRule[1].includes('overflow-x: hidden'), 'combat log text must not draw outside the log viewport horizontally');
 assert(componentsCss.includes('#log { min-height: 0; height: auto; max-height: none; }'), 'stacked combat log must let flex sizing account for the title instead of clipping the scrollbar');
