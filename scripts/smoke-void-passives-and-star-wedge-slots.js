@@ -84,6 +84,12 @@ function loadRuntime(context) {
   ].forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file }));
 }
 
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+assert(uiSource.includes('function openVoidPassiveCraftOverlay(nodeId)'), 'void passive crafting must be opened from a dedicated overlay');
+assert(uiSource.includes('refundVoidPassiveFromOverlay'), 'void passive overlay must own the refund action');
+assert(!uiSource.includes('전직 패시브를 반환하시겠습니까?'), 'normal passive refunds must not show the ascend-passive confirmation text');
+assert(!uiSource.includes('onclick="applyVoidPassiveCurrency'), 'void passive orb buttons must not be embedded directly in the canvas tooltip');
+
 const context = createBrowserContext();
 loadRuntime(context);
 vm.runInContext('game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;', context);
@@ -132,6 +138,7 @@ assert.strictEqual(migrated.voidPassives[node.id].stats[0].val, node.legacyVoidV
 context.applyVoidPassiveCurrency(node.id, 'transmute');
 assert.strictEqual(context.game.currencies.transmute, 1, 'unallocated void passive must reject currency use');
 context.game.passives.push(node.id);
+assert.strictEqual(typeof context.openVoidPassiveCraftOverlay, 'function', 'void passive craft overlay opener must be globally callable');
 context.applyVoidPassiveCurrency(node.id, 'transmute');
 assert.strictEqual(context.game.currencies.transmute, 0, 'transmute must be consumed by an allocated void passive');
 assert.strictEqual(context.getVoidPassiveCraft(node.id).stats.length, 1, 'transmute must add one void passive option');
