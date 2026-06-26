@@ -1989,6 +1989,13 @@ function getPlayerStats() {
     safePassives.forEach(id => {
         let node = PASSIVE_TREE.nodes[id];
         if (!node) return;
+        if (node.kind === 'void') {
+            let entry = typeof getVoidPassiveCraft === 'function' ? getVoidPassiveCraft(id) : null;
+            (entry && Array.isArray(entry.stats) ? entry.stats : []).forEach(line => {
+                if (line && line.id) addStatToBucket(passive, line.id, line.val);
+            });
+            return;
+        }
         let mut = mutationMap[id];
         if (mut && mut.currentStat) addStatToBucket(passive, mut.currentStat, mut.currentVal);
         else addStatToBucket(passive, node.stat, node.val);
@@ -2504,6 +2511,7 @@ function getPlayerStats() {
     let swiftOpeningTakenMultiplier = 1;
     let guardianReflectDamage = 0;
     let guardianBlockChance = 0;
+    let guardianDamageNullifyChance = 0;
     let guardianArmorDamageBonus = false;
     let sbSummonAspdBonus = 0;
     let sbSummonCapBonus = 0;
@@ -2937,8 +2945,10 @@ function getPlayerStats() {
         }
         if (hasKeystone('gd6')) { let now = Date.now(); let stacks = (game.guardianEnduranceExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) : 0; if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.11)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.6)); }
         if (guardianArmorDamageBonus) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalArmor) * 0.001));
-        if (hasKeystone('gd8')) { guardianBlockChance += 25; ailmentResistBonusPct += 50; }
-        if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.4) {
+        if (hasKeystone('gd8')) { guardianDamageNullifyChance += 25; ailmentResistBonusPct += 50; }
+        // 9) 거대화: 최대 생명력 20% 증폭
+        if (hasKeystone('gd9')) finalMaxHp = Math.floor(finalMaxHp * 1.2);
+        if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
             genericTakenDamageMultiplier *= 0.8;
             finalBaseDmg = Math.floor(finalBaseDmg * 1.2);
             let now = Date.now();
@@ -2947,8 +2957,6 @@ function getPlayerStats() {
                 game.guardianLastStandCleanseAt = now;
             }
         }
-        // 9) 거대화: 최대 생명력 20% 증폭
-        if (hasKeystone('gd9')) finalMaxHp = Math.floor(finalMaxHp * 1.2);
     } else if (game.ascendClass === 'inquisitor') {
         if (hasKeystone('iq3')) {
             let sealedGemCount = (game.sealedSkills || []).length + (game.sealedSupports || []).length;
@@ -3671,6 +3679,7 @@ function getPlayerStats() {
         swiftOpeningTakenMultiplier: swiftOpeningTakenMultiplier,
         guardianReflectDamage: guardianReflectDamage,
         guardianBlockChance: guardianBlockChance,
+        guardianDamageNullifyChance: guardianDamageNullifyChance,
         shieldBaseBlockChance: shieldBaseBlockChance,
         effectiveShieldBaseBlockChance: effectiveShieldBaseBlockChance,
         shieldBlockChancePct: shieldBlockChancePct,
@@ -4902,14 +4911,14 @@ function getSkillConditionalDamageMultiplier(skill, enemy) {
     return multiplier;
 }
 
-function spreadSkillAilmentOnHit(source, skill) {
+function spreadSkillAilmentOnHit(source, skill, pStats) {
     let config = skill.ailmentSpreadOnHit;
     if (!config || Math.random() >= Math.max(0, Math.min(1, Number(config.chance) || 0))) return;
     let ailment = (source.ailments || []).find(ail => ail && ail.type === config.type && (ail.time || 0) > 0);
-    let copy = cloneEnemyAilmentForSpread(ailment);
+    let copy = cloneEnemyAilmentForSpread(ailment, pStats);
     if (!copy) return;
     let targets = (game.enemies || []).filter(enemy => enemy && enemy.id !== source.id && enemy.hp > 0);
-    targets.slice(0, Math.max(1, Math.floor(config.targets || 1))).forEach(target => mergeEnemyAilment(target, copy));
+    targets.slice(0, Math.max(1, Math.floor(config.targets || 1))).forEach(target => mergeEnemyAilment(target, copy, pStats));
 }
 
 const SKILL_PERIODIC_CHAIN_CAP = 12;
@@ -5035,20 +5044,23 @@ function getEnemyDamageAilmentDps(ail, pStats) {
     return dps;
 }
 
-function getEnemyDamageAilmentMaxStacks() {
+function getEnemyDamageAilmentMaxStacks(type, pStats) {
     let cap = 1;
     if (game.ascendClass === 'catalyst' && hasKeystone('ct6')) cap += 1;
     if (game.ascendClass === 'catalyst' && hasKeystone('ct8')) cap += 2;
+    if (type === 'poison') cap += Math.max(0, Math.floor(Number(pStats && pStats.uniquePoisonExtraStacks) || 0));
     return Math.max(1, cap);
 }
 
-function cloneEnemyAilmentForSpread(ail) {
+function cloneEnemyAilmentForSpread(ail, pStats) {
     if (!ail || (ail.time || 0) <= 0) return null;
     const spreadableTypes = ['ignite', 'poison', 'bleed', 'chill', 'shock', 'freeze'];
     if (!spreadableTypes.includes(ail.type)) return null;
     let copy = { type: ail.type, time: Math.max(0, Number(ail.time) || 0), power: Math.max(0, Number(ail.power) || 0) };
     if (isDamageAilmentType(ail.type)) {
-        copy.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(), Math.floor(ail.stacks || 1)));
+        let maxStacks = getEnemyDamageAilmentMaxStacks(ail.type, pStats);
+        if (!pStats) maxStacks = Math.max(maxStacks, Math.floor(ail.stacks || 1));
+        copy.stacks = Math.max(1, Math.min(maxStacks, Math.floor(ail.stacks || 1)));
         copy.sourceHitDamage = getStoredAilmentHitDamage(ail);
         copy.critDotBonusPct = Math.max(0, Number(ail.critDotBonusPct) || 0);
         copy.ailmentDotScore = Math.max(0, Number(ail.ailmentDotScore) || 0);
@@ -5056,7 +5068,7 @@ function cloneEnemyAilmentForSpread(ail) {
     return copy;
 }
 
-function mergeEnemyAilment(target, incoming) {
+function mergeEnemyAilment(target, incoming, pStats) {
     if (!target || !incoming || (incoming.time || 0) <= 0) return false;
     target.ailments = Array.isArray(target.ailments) ? target.ailments : [];
     let row = target.ailments.find(ail => ail && ail.type === incoming.type);
@@ -5067,7 +5079,9 @@ function mergeEnemyAilment(target, incoming) {
     row.time = Math.max(row.time || 0, incoming.time || 0);
     row.power = Math.max(row.power || 0, incoming.power || 0);
     if (isDamageAilmentType(incoming.type)) {
-        row.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(), Math.max(Math.floor(row.stacks || 1), Math.floor(incoming.stacks || 1))));
+        let maxStacks = getEnemyDamageAilmentMaxStacks(incoming.type, pStats);
+        if (!pStats) maxStacks = Math.max(maxStacks, Math.floor(row.stacks || 1), Math.floor(incoming.stacks || 1));
+        row.stacks = Math.max(1, Math.min(maxStacks, Math.max(Math.floor(row.stacks || 1), Math.floor(incoming.stacks || 1))));
         let rowScore = Math.max(0, Number(row.ailmentDotScore) || getStoredAilmentHitDamage(row));
         let incomingScore = Math.max(0, Number(incoming.ailmentDotScore) || getStoredAilmentHitDamage(incoming));
         if (incomingScore >= rowScore) {
@@ -5079,10 +5093,10 @@ function mergeEnemyAilment(target, incoming) {
     return true;
 }
 
-function spreadCatalystAilmentsOnDeath(enemy) {
+function spreadCatalystAilmentsOnDeath(enemy, pStats) {
     if (game.ascendClass !== 'catalyst' || !hasKeystone('ct3')) return;
     if (!enemy || !Array.isArray(enemy.ailments)) return;
-    let ailments = enemy.ailments.map(cloneEnemyAilmentForSpread).filter(Boolean);
+    let ailments = enemy.ailments.map(ail => cloneEnemyAilmentForSpread(ail, pStats)).filter(Boolean);
     if (ailments.length <= 0) return;
     let sourceGroup = Number.isFinite(enemy.groupIndex) ? enemy.groupIndex : 0;
     let sourceDist = Number.isFinite(enemy.colonyDist) ? enemy.colonyDist : null;
@@ -5100,7 +5114,7 @@ function spreadCatalystAilmentsOnDeath(enemy) {
             return (a.id || 0) - (b.id || 0);
         });
     if (targets.length <= 0) return;
-    targets.forEach(target => ailments.forEach(ail => mergeEnemyAilment(target, ail)));
+    targets.forEach(target => ailments.forEach(ail => mergeEnemyAilment(target, ail, pStats)));
     if (game.settings && game.settings.showCombatLog) addLog(`🧪 확산 반응: 남은 상태이상이 주변 적 ${targets.length}마리에게 퍼졌습니다.`, 'attack-player', { rateKey: 'catalyst:spread', minIntervalMs: 500 });
 }
 
@@ -5209,7 +5223,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
                 }
             }
             if (damageAilment) {
-                let maxStacks = getEnemyDamageAilmentMaxStacks();
+                let maxStacks = getEnemyDamageAilmentMaxStacks(type, pStats);
                 row.stacks = Math.max(1, Math.min(maxStacks, Math.floor((row.stacks || 1) + 1)));
             }
         } else enemy.ailments.push(payload);
@@ -5220,8 +5234,11 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     if (game.ascendClass === 'catalyst' && hasKeystone('ct8')) {
         let now = Date.now();
         if ((game.catalystBurstReadyAt || 0) <= now) {
-            let maxDamageAilmentStacks = getEnemyDamageAilmentMaxStacks();
-            let burstReady = (enemy.ailments || []).some(a => a && ['ignite','poison','bleed'].includes(a.type) && (a.stacks || 1) >= maxDamageAilmentStacks && (a.time || 0) > 0);
+            let burstReady = (enemy.ailments || []).some(a => {
+                if (!a || !['ignite','poison','bleed'].includes(a.type) || (a.time || 0) <= 0) return false;
+                let maxDamageAilmentStacks = getEnemyDamageAilmentMaxStacks(a.type, pStats);
+                return (a.stacks || 1) >= maxDamageAilmentStacks;
+            });
             if (burstReady) {
                 let burst = 0;
                 (enemy.ailments || []).forEach(a => {
@@ -5387,6 +5404,20 @@ function getWoodsmanCurseDamageTakenMul() {
     let zone = getZone(game.currentZoneId);
     if (!zone || zone.type !== 'outsideChaos' || !game.woodsmanCurseActive) return 1;
     return 1 + Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.0001;
+}
+
+const WOODSMAN_PHASE_OLD_FINAL_PROGRESS = 0.75;
+const WOODSMAN_PHASE_NEW_FINAL_PROGRESS = 0.95;
+
+function getWoodsmanPhaseProgress(enemy) {
+    if (!enemy || !(enemy.maxHp > 0)) return 0;
+    let rawProgress = clampNumber(1 - ((enemy.hp || 0) / enemy.maxHp), 0, 1);
+    if (rawProgress <= WOODSMAN_PHASE_NEW_FINAL_PROGRESS) {
+        return rawProgress * (WOODSMAN_PHASE_OLD_FINAL_PROGRESS / WOODSMAN_PHASE_NEW_FINAL_PROGRESS);
+    }
+    let finalWindow = 1 - WOODSMAN_PHASE_NEW_FINAL_PROGRESS;
+    let finalProgress = (rawProgress - WOODSMAN_PHASE_NEW_FINAL_PROGRESS) / finalWindow;
+    return clampNumber(WOODSMAN_PHASE_OLD_FINAL_PROGRESS + finalProgress * (1 - WOODSMAN_PHASE_OLD_FINAL_PROGRESS), 0, 1);
 }
 
 function startEncounterRun() {
@@ -6008,7 +6039,7 @@ function handleEnemyDeath(enemy, pStats) {
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
-    spreadCatalystAilmentsOnDeath(enemy);
+    spreadCatalystAilmentsOnDeath(enemy, pStats);
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
@@ -7487,7 +7518,7 @@ function performPlayerAttack(pStats) {
                 ailmentSourceDamage: Math.floor(ailmentDamageBeforeCritMitigation * conditionAilmentTakenMul),
                 critDotBonusPct: hitCrit ? 50 : 0
             });
-            spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill);
+            spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill, pStats);
             applySkillPeriodicOnHit(targetEnemy, pStats.sSkill, dealtToEnemy);
             applySupportEchoOnHit(targetEnemy, pStats, dealtToEnemy);
             applySupportChaosErosionOnHit(targetEnemy, pStats, hitElement);
@@ -7694,7 +7725,8 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, opti
     let ailmentDotScore = getDamageAilmentScore(hitSource, critDotBonusPct, 1, 1);
     let existing = game.playerAilments.find(row => row.type === type);
     if (type === 'poison') {
-        let maxStacks = Math.max(1, 1 + Math.max(0, Math.floor((pStats && pStats.uniquePoisonExtraStacks) || 0)));
+        // Offensive poison stack bonuses affect enemy ailments only; incoming player poison stays at 1 stack.
+        let maxStacks = 1;
         let poisonRows = game.playerAilments.filter(row => row && row.type === 'poison');
         if (poisonRows.length >= maxStacks) {
             existing = poisonRows.reduce((a, b) => ((a.time || 0) <= (b.time || 0) ? a : b), poisonRows[0]);
@@ -7923,14 +7955,14 @@ function performMonsterAttacks(pStats) {
             let physicalPortion = Math.floor(dmg * 0.5);
             let elementalPortion = Math.max(0, dmg - physicalPortion);
             if (zone.type === 'outsideChaos' && enemy.maxHp > 0) {
-                let hpRatio = enemy.hp / enemy.maxHp;
-                let phase = Math.max(0, Math.floor((1 - hpRatio) / 0.05));
+                let phaseProgress = getWoodsmanPhaseProgress(enemy);
+                let phase = Math.max(0, Math.floor(phaseProgress / 0.05));
                 let cycle = ['phys','fire','cold','light','chaos'];
                 enemy.ele = cycle[phase % cycle.length];
-                enemy.atkMul = 1 + Math.pow(1 - hpRatio, 1.4) * 3.2;
-                enemy.attackSpeedVar = (1 + Math.pow(1 - hpRatio, 1.2) * 1.8) * 1.5;
-                enemy.penetration = 8 + Math.floor((1 - hpRatio) * 28);
-                enemy.dr = 10 + Math.floor((1 - hpRatio) * 40);
+                enemy.atkMul = 1 + Math.pow(phaseProgress, 1.4) * 3.2;
+                enemy.attackSpeedVar = (1 + Math.pow(phaseProgress, 1.2) * 1.8) * 1.5;
+                enemy.penetration = 8 + Math.floor(phaseProgress * 28);
+                enemy.dr = 10 + Math.floor(phaseProgress * 40);
             }
             if (enemy.ele === 'phys') {
                 physicalPortion = dmg;
@@ -8128,6 +8160,12 @@ function performMonsterAttacks(pStats) {
                 }
                 addBattleFx('statusText', { text: '막아냄!', color: '#a7a7a7', duration: 260 });
                 if (game.settings.showCombatLog) addLog(`🛡️ 막아냄!`, "loot-magic");
+                continue;
+            }
+            let guardianNullifyChance = Math.max(0, Math.min(100, Number(pStats.guardianDamageNullifyChance) || 0));
+            if (guardianNullifyChance > 0 && Math.random() * 100 < guardianNullifyChance) {
+                addBattleFx('statusText', { text: '무효!', color: '#bdf7ff', duration: 300 });
+                if (game.settings.showCombatLog) addLog('🛡️ 절대 수호: 피해 무효!', 'loot-magic');
                 continue;
             }
             let deflected = false;
