@@ -2673,6 +2673,34 @@ function rollTalismanRevealCount() {
 }
 
 
+const TALISMAN_SUMMON_OPTION_STATS = new Set(['summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonResPen']);
+const TALISMAN_SUMMON_OPTION_GROUP = { stat: '__summonOptionGroup', label: '소환수 옵션군' };
+
+function getTalismanRollOptionPool() {
+    let hasSummon = TALISMAN_OPTION_POOL.some(option => TALISMAN_SUMMON_OPTION_STATS.has(option.stat));
+    let pool = TALISMAN_OPTION_POOL.filter(option => !TALISMAN_SUMMON_OPTION_STATS.has(option.stat));
+    if (hasSummon) pool.push(TALISMAN_SUMMON_OPTION_GROUP);
+    return pool.length > 0 ? pool : TALISMAN_OPTION_POOL;
+}
+
+function resolveTalismanRollOption(option) {
+    if (!option || option.stat !== TALISMAN_SUMMON_OPTION_GROUP.stat) return option || null;
+    let pool = TALISMAN_OPTION_POOL.filter(row => TALISMAN_SUMMON_OPTION_STATS.has(row.stat));
+    return rndChoice(pool.length > 0 ? pool : TALISMAN_OPTION_POOL);
+}
+
+function rollTalismanOption() {
+    return resolveTalismanRollOption(rndChoice(getTalismanRollOptionPool()));
+}
+
+function rollTalismanStatLine(multiplier) {
+    let option = rollTalismanOption();
+    let mul = Number.isFinite(Number(multiplier)) ? Number(multiplier) : 1;
+    let step = Number(option.step || 1);
+    let value = (option.min * mul) + Math.random() * ((option.max * mul) - (option.min * mul));
+    return { stat: option.stat, label: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)) };
+}
+
 const TALISMAN_UNIQUE_POOL = [
     { id:'ut_z_1', name:'굽이치는 전류', shape:'Z', stats:[{stat:'aspd',value:9,label:'공격 속도(%)'},{stat:'lightPctDmg',value:16,label:'번개 피해(%)'}] },
     { id:'ut_z_2', name:'균열의 발걸음', shape:'Z', stats:[{stat:'move',value:11,label:'이동 속도(%)'},{stat:'resPen',value:8,label:'저항 관통(%)'}] },
@@ -2716,7 +2744,7 @@ function rollTalismanCandidate(currencyKey) {
             tal.value = tal.bossFinalDmgRoll;
         }
         if (row.special === 'temperance') {
-            tal.stats = Array.from({length:3}, ()=>{ let o=rndChoice(TALISMAN_OPTION_POOL); let v=o.min + Math.random()*(o.max-o.min); return { stat:o.stat, label:o.label, value:Number(v.toFixed((o.step||1)<1?1:0))};});
+            tal.stats = Array.from({ length: 3 }, () => rollTalismanStatLine(1));
         } else if (row.special === 'elementFocus') {
             let gemLv = 1 + Math.floor(Math.random()*3);
             let inc = 5 + Math.floor(Math.random()*11);
@@ -2731,12 +2759,11 @@ function rollTalismanCandidate(currencyKey) {
         return tal;
     }
     let shapeKey = rndChoice(Object.keys(TALISMAN_SHAPES).filter(k => ['I','O','T','S','Z','J','L'].includes(k)));
-    let option = rndChoice(TALISMAN_OPTION_POOL);
     let multiplier = isRadiant ? 1.6 : (isStrong ? 1.35 : 1.0);
-    let rolled = option.min + Math.random() * (option.max - option.min);
-    let step = option.step || 1;
-    let value = Math.round((rolled * multiplier) / step) * step;
-    return { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })), stat: option.stat, statName: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)), valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)), valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)), rarity: isRadiant ? '찬란한 기운' : (isStrong ? '강력한 기운' : '일반'), source: isRadiant ? 'radiantSealShard' : (isStrong ? 'strongSealShard' : 'sealShard') };
+    let statLine = rollTalismanStatLine(multiplier);
+    let option = TALISMAN_OPTION_POOL.find(row => row.stat === statLine.stat) || { min: statLine.value, max: statLine.value, step: 1 };
+    let step = Number(option.step || 1);
+    return { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })), stat: statLine.stat, statName: statLine.label, value: statLine.value, valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)), valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)), rarity: isRadiant ? '찬란한 기운' : (isStrong ? '강력한 기운' : '일반'), source: isRadiant ? 'radiantSealShard' : (isStrong ? 'strongSealShard' : 'sealShard') };
 }
 
 function startTalismanUnseal(currencyKey) {

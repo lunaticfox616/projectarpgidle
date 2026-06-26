@@ -7114,6 +7114,9 @@ const UNIQUE_JEWEL_DB = [
     { id:'uj_dawn_chip', name:'새벽 조각', stats:[{id:'pctDmg',val:12},{id:'takenDamageReduceWhen1EnemyPct',val:4}] }
 ];
 
+const JEWEL_SUMMON_OPTION_IDS = new Set(['summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonResPen']);
+const JEWEL_SUMMON_OPTION_GROUP = { id: '__summonOptionGroup', name: '소환수 옵션군' };
+
 const JEWEL_OPTION_POOL = [
     { id: 'pctDmg', name: '피해 증폭', min: 4, max: 10 },
     { id: 'physPctDmg', name: '물리 증폭', min: 6, max: 15 },
@@ -7166,6 +7169,26 @@ const JEWEL_PETITE_OPTION_POOL = [
 
 function getJewelOptionDef(statId) {
     return JEWEL_OPTION_POOL.find(option => option.id === statId) || null;
+}
+
+function getJewelRollOptionPool(excludeIds) {
+    let excluded = new Set(Array.isArray(excludeIds) ? excludeIds : []);
+    let hasSummon = JEWEL_OPTION_POOL.some(option => JEWEL_SUMMON_OPTION_IDS.has(option.id) && !excluded.has(option.id));
+    let pool = JEWEL_OPTION_POOL.filter(option => !JEWEL_SUMMON_OPTION_IDS.has(option.id) && !excluded.has(option.id));
+    if (hasSummon) pool.push(JEWEL_SUMMON_OPTION_GROUP);
+    return pool.length > 0 ? pool : JEWEL_OPTION_POOL;
+}
+
+function resolveJewelRollOption(option, excludeIds) {
+    if (!option || option.id !== JEWEL_SUMMON_OPTION_GROUP.id) return option || null;
+    let excluded = new Set(Array.isArray(excludeIds) ? excludeIds : []);
+    let pool = JEWEL_OPTION_POOL.filter(row => JEWEL_SUMMON_OPTION_IDS.has(row.id) && !excluded.has(row.id));
+    return rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL.filter(row => JEWEL_SUMMON_OPTION_IDS.has(row.id)));
+}
+
+function rollRandomJewelStat(excludeIds) {
+    let pool = getJewelRollOptionPool(excludeIds);
+    return rollJewelStat(resolveJewelRollOption(rndChoice(pool), excludeIds));
 }
 
 function isJewelPetiteStat(stat) {
@@ -7267,7 +7290,7 @@ function generateJewelDrop(zoneTier) {
         if (petite) stats.push(petite);
         return { id: Date.now() + Math.floor(Math.random() * 100000), uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', uniqueLockedFusion: row.id !== 'uj_void', voidFusionCharges: Number.isFinite(row.voidFusionCharges) ? row.voidFusionCharges : 0, hiddenTier: Math.max(1, ...stats.map(st => st.tier || 1)), stats: stats };
     }
-    let pick = rndChoice(JEWEL_OPTION_POOL);
+    let pick = resolveJewelRollOption(rndChoice(getJewelRollOptionPool()), []);
     let stat = rollJewelStat(pick);
     let rarityRoll = Math.random();
     let rarity = 'normal';
@@ -7414,8 +7437,7 @@ function buildVoidUniqueFusionPreviewStats(indices) {
     if (!pair) return [];
     let targetStats = getJewelCoreStats(game.jewelInventory[pair.targetIndex]).map(cloneJewelStat);
     let usedIds = targetStats.map(stat => stat.id);
-    let pool = JEWEL_OPTION_POOL.filter(option => !usedIds.includes(option.id));
-    let randomStat = rollJewelStat(rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL));
+    let randomStat = rollRandomJewelStat(usedIds);
     return targetStats.concat(randomStat ? [randomStat] : []).filter(Boolean).slice(0, 4);
 }
 
@@ -7673,8 +7695,7 @@ function craftVoidJewel() {
 function buildVoidFusionJewel(idxA, idxB) {
     let inherited = getVoidJewelFusionPreviewStats([idxA, idxB]);
     let usedIds = inherited.map(stat => stat.id);
-    let pool = JEWEL_OPTION_POOL.filter(option => !usedIds.includes(option.id));
-    let randomStat = rollJewelStat(rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL));
+    let randomStat = rollRandomJewelStat(usedIds);
     let stats = inherited.concat(randomStat ? [randomStat] : []).filter(Boolean).slice(0, 4);
     return { id: Date.now() + Math.floor(Math.random() * 10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, hiddenTier: Math.max(1, ...stats.map(stat => stat.tier || 1)), stats, maxLines: 4 };
 }
@@ -7688,8 +7709,7 @@ function fuseWithVoidUniqueJewel(voidIndex, targetIndex) {
     let targetStats = getJewelCoreStats(target);
     if (targetStats.length >= 4) { addLog('대상 주얼의 옵션이 가득 차 공허 합성을 할 수 없습니다.', 'attack-monster'); return false; }
     let usedIds = targetStats.map(stat => stat.id);
-    let pool = JEWEL_OPTION_POOL.filter(option => !usedIds.includes(option.id));
-    let randomStat = rollJewelStat(rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL));
+    let randomStat = rollRandomJewelStat(usedIds);
     if (!randomStat) { addLog('공허 합성 옵션을 생성하지 못했습니다.', 'attack-monster'); return false; }
     target.stats = Array.isArray(target.stats) ? target.stats.concat(randomStat) : [randomStat];
     target.hiddenTier = Math.max(1, ...(target.stats || []).map(stat => stat.tier || 1));

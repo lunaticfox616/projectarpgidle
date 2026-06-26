@@ -77,7 +77,7 @@ function loadSocketRuntime() {
 
 
 function loadVoidJewelRuntime() {
-    const start = passives.indexOf('const JEWEL_OPTION_POOL = [');
+    const start = passives.indexOf('const JEWEL_SUMMON_OPTION_IDS = new Set');
     const end = passives.indexOf('function getJewelAmplifyCost', start);
     assert(start >= 0 && end > start, 'void jewel runtime block must be discoverable');
     const overlayHost = { innerHTML: '', remove() { this.removed = true; } };
