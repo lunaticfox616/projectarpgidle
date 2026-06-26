@@ -7694,7 +7694,8 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, opti
     let ailmentDotScore = getDamageAilmentScore(hitSource, critDotBonusPct, 1, 1);
     let existing = game.playerAilments.find(row => row.type === type);
     if (type === 'poison') {
-        let maxStacks = Math.max(1, 1 + Math.max(0, Math.floor((pStats && pStats.uniquePoisonExtraStacks) || 0)));
+        // Offensive poison stack bonuses affect enemy ailments only; incoming player poison stays at 1 stack.
+        let maxStacks = 1;
         let poisonRows = game.playerAilments.filter(row => row && row.type === 'poison');
         if (poisonRows.length >= maxStacks) {
             existing = poisonRows.reduce((a, b) => ((a.time || 0) <= (b.time || 0) ? a : b), poisonRows[0]);
