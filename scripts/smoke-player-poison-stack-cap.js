@@ -37,5 +37,10 @@ assert.strictEqual(poisonRows[0].time, 5, 'refreshing player poison should updat
 assert.strictEqual(poisonRows[0].sourceHitDamage, 200, 'stronger incoming poison should replace the stored damage on the existing row');
 assert.strictEqual(context.getEnemyDamageAilmentMaxStacks('poison', pStats), 2, 'offensive poison stack bonuses must still increase enemy poison cap');
 assert.strictEqual(context.getEnemyDamageAilmentMaxStacks('ignite', pStats), 1, 'poison-specific stack bonuses must not increase other damage ailment caps');
+const spreadPoison = { type: 'poison', time: 3, power: 0.9, stacks: 2, sourceHitDamage: 100, critDotBonusPct: 0, ailmentDotScore: 100 };
+assert.strictEqual(context.cloneEnemyAilmentForSpread(spreadPoison, pStats).stacks, 2, 'poison spread clone must preserve offensive extra stacks with player stats');
+const target = { ailments: [{ type: 'poison', time: 1, power: 0.5, stacks: 1 }] };
+context.mergeEnemyAilment(target, spreadPoison, pStats);
+assert.strictEqual(target.ailments[0].stacks, 2, 'poison spread merge must preserve offensive extra stacks with player stats');
 
 console.log('player poison stack cap smoke checks passed');

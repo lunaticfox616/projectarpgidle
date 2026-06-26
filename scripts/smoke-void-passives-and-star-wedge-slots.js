@@ -102,6 +102,7 @@ assert.strictEqual(new Set(voidNodes.map(node => node.webSpoke)).size, 16, 'void
 assert(voidNodes.every(node => node.webRing >= 3), 'void passives must be at least two nodes away from the center');
 assert(voidNodes.every(node => !node.clusterId), 'void passives must reuse straight-path nodes instead of changing cluster structure');
 assert(voidNodes.every(node => node.legacyVoidStat && Number.isFinite(Number(node.legacyVoidVal))), 'void passives must retain their legacy stat for save migration');
+assert(voidNodes.every(node => context.isStarWedgeNodeMutable(node) === false), 'void passives must not be mutable by star wedges');
 assert(voidNodes.every(node => context.getPassiveEffectLabel(node).includes('공허 옵션 없음')), 'uncrafted void passives must start with no effect');
 
 const node = voidNodes[0];

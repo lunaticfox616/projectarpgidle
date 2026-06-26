@@ -1522,7 +1522,7 @@ function isStarWedgeNodeMutable(node) {
     if (!node) return false;
     if (node.id === 'n0') return false;
     if (node.socketType === 'star_wedge') return false;
-    if (['apex', 'evolved', 'transcendent', 'core', 'hub', 'keystone'].includes(node.kind)) return false;
+    if (['apex', 'evolved', 'transcendent', 'core', 'hub', 'keystone', 'void'].includes(node.kind)) return false;
     return true;
 }
 
@@ -1666,7 +1666,7 @@ function recalculateStarWedgeMutations() {
             const r2 = wedge.uniqueType === 'asteroid_belt' ? 300 : (wedge.uniqueType === 'satellite' ? 260 : 220);
             radialNodes.forEach(n => {
                 const d = radialDist(n);
-                if (d < r1 || d > r2 || String(n.id)===String(center.id)) return;
+                if (d < r1 || d > r2 || String(n.id)===String(center.id) || n.kind === 'void') return;
                 const nodeKind = String(n.kind || '');
                 if (wedge.uniqueType === 'satellite' && nodeKind === 'core') {
                     st.disabledNodeEffects = st.disabledNodeEffects || {};
