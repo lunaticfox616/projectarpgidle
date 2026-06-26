@@ -1842,6 +1842,7 @@ const defaultGame = {
     summons: [],
     summonSeq: 1,
     passives: [],
+    voidPassives: {},
     discoveredPassives: [],
     passiveLayoutVersion: PASSIVE_LAYOUT_VERSION,
     passiveStarEvolution: false,

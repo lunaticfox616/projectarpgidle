@@ -1989,6 +1989,13 @@ function getPlayerStats() {
     safePassives.forEach(id => {
         let node = PASSIVE_TREE.nodes[id];
         if (!node) return;
+        if (node.kind === 'void') {
+            let entry = typeof getVoidPassiveCraft === 'function' ? getVoidPassiveCraft(id) : null;
+            (entry && Array.isArray(entry.stats) ? entry.stats : []).forEach(line => {
+                if (line && line.id) addStatToBucket(passive, line.id, line.val);
+            });
+            return;
+        }
         let mut = mutationMap[id];
         if (mut && mut.currentStat) addStatToBucket(passive, mut.currentStat, mut.currentVal);
         else addStatToBucket(passive, node.stat, node.val);
@@ -5389,6 +5396,20 @@ function getWoodsmanCurseDamageTakenMul() {
     return 1 + Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.0001;
 }
 
+const WOODSMAN_PHASE_OLD_FINAL_PROGRESS = 0.75;
+const WOODSMAN_PHASE_NEW_FINAL_PROGRESS = 0.95;
+
+function getWoodsmanPhaseProgress(enemy) {
+    if (!enemy || !(enemy.maxHp > 0)) return 0;
+    let rawProgress = clampNumber(1 - ((enemy.hp || 0) / enemy.maxHp), 0, 1);
+    if (rawProgress <= WOODSMAN_PHASE_NEW_FINAL_PROGRESS) {
+        return rawProgress * (WOODSMAN_PHASE_OLD_FINAL_PROGRESS / WOODSMAN_PHASE_NEW_FINAL_PROGRESS);
+    }
+    let finalWindow = 1 - WOODSMAN_PHASE_NEW_FINAL_PROGRESS;
+    let finalProgress = (rawProgress - WOODSMAN_PHASE_NEW_FINAL_PROGRESS) / finalWindow;
+    return clampNumber(WOODSMAN_PHASE_OLD_FINAL_PROGRESS + finalProgress * (1 - WOODSMAN_PHASE_OLD_FINAL_PROGRESS), 0, 1);
+}
+
 function startEncounterRun() {
     pTimer = 0;
     progressStallTicks = 0;
@@ -7694,7 +7715,8 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, opti
     let ailmentDotScore = getDamageAilmentScore(hitSource, critDotBonusPct, 1, 1);
     let existing = game.playerAilments.find(row => row.type === type);
     if (type === 'poison') {
-        let maxStacks = Math.max(1, 1 + Math.max(0, Math.floor((pStats && pStats.uniquePoisonExtraStacks) || 0)));
+        // Offensive poison stack bonuses affect enemy ailments only; incoming player poison stays at 1 stack.
+        let maxStacks = 1;
         let poisonRows = game.playerAilments.filter(row => row && row.type === 'poison');
         if (poisonRows.length >= maxStacks) {
             existing = poisonRows.reduce((a, b) => ((a.time || 0) <= (b.time || 0) ? a : b), poisonRows[0]);
@@ -7923,14 +7945,14 @@ function performMonsterAttacks(pStats) {
             let physicalPortion = Math.floor(dmg * 0.5);
             let elementalPortion = Math.max(0, dmg - physicalPortion);
             if (zone.type === 'outsideChaos' && enemy.maxHp > 0) {
-                let hpRatio = enemy.hp / enemy.maxHp;
-                let phase = Math.max(0, Math.floor((1 - hpRatio) / 0.05));
+                let phaseProgress = getWoodsmanPhaseProgress(enemy);
+                let phase = Math.max(0, Math.floor(phaseProgress / 0.05));
                 let cycle = ['phys','fire','cold','light','chaos'];
                 enemy.ele = cycle[phase % cycle.length];
-                enemy.atkMul = 1 + Math.pow(1 - hpRatio, 1.4) * 3.2;
-                enemy.attackSpeedVar = (1 + Math.pow(1 - hpRatio, 1.2) * 1.8) * 1.5;
-                enemy.penetration = 8 + Math.floor((1 - hpRatio) * 28);
-                enemy.dr = 10 + Math.floor((1 - hpRatio) * 40);
+                enemy.atkMul = 1 + Math.pow(phaseProgress, 1.4) * 3.2;
+                enemy.attackSpeedVar = (1 + Math.pow(phaseProgress, 1.2) * 1.8) * 1.5;
+                enemy.penetration = 8 + Math.floor(phaseProgress * 28);
+                enemy.dr = 10 + Math.floor(phaseProgress * 40);
             }
             if (enemy.ele === 'phys') {
                 physicalPortion = dmg;

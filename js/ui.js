@@ -2565,7 +2565,7 @@ function renderStarWedgePanel() {
             <div style="color:#8ea5c1;">장착 슬롯: ${(st.sockets || []).length}/${maxEquippedStarWedges} · ${socketNodeText} · 별자리: ${constellationText}</div>
         </div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"><button onclick="craftIncompleteStarWedge()">파편 49 → 불완전한 별쐐기</button><button onclick="craftCompleteStarWedge()">불완전 1 + 파편 77 → 별쐐기</button></div>
-        <div style="color:#93a4bb; font-size:0.8em; margin-bottom:8px;">1/2/3경로 노드를 1~3번째 줄로 변성하고, 4번째 [핵심노드] 줄은 슬롯 자신(허브 노드)에 적용됩니다. 장착은 [장착할 슬롯 선택] 후 패시브 트리에서 슬롯을 클릭하세요.</div>
+        <div style="color:#93a4bb; font-size:0.8em; margin-bottom:8px;">1/2/3경로 노드를 1~3번째 줄로 변성하고, 4번째 [핵심노드] 줄은 슬롯 자신에 적용됩니다. 장착은 [장착할 슬롯 선택] 후 패시브 트리에서 슬롯을 클릭하세요.</div>
         <div style="display:grid; gap:8px;">${wedgeCards || '<div style="color:#7f89a0;">별쐐기가 없습니다. 운석 낙하 지점을 공략하거나 제작하세요.</div>'}</div>
     `;
 }
@@ -7996,6 +7996,7 @@ function getPassiveTreeNodeSearchText(node) {
 
 function getPassiveTreeNodeCategory(node) {
     let stat = node && node.stat;
+    if (node && node.kind === 'void') return 'utility';
     if (['flatDmg', 'pctDmg', 'meleePctDmg', 'physPctDmg', 'aoePctDmg', 'projectilePctDmg', 'crit', 'critDmg', 'ds', 'physIgnore', 'igniteChance', 'chillChance', 'freezeChance', 'shockChance', 'poisonChance', 'bleedChance'].includes(stat)) return 'offense';
     if (['flatHp', 'pctHp', 'regen', 'leech', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct', 'energyShieldRegen', 'deflectChance', 'dr', 'blockChance', 'blockChancePct', 'resF', 'resC', 'resL', 'resAll', 'resChaos', 'ailResIgnite', 'ailResShock', 'ailResFreeze', 'ailResPoison', 'ailResBleed'].includes(stat)) return 'defense';
     if (['firePctDmg', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'elementalPctDmg', 'dotPctDmg', 'resPen'].includes(stat)) return 'element';
@@ -8198,12 +8199,24 @@ function setupCanvasEvents() {
             let currentLabel = `${getStatName(mutation.currentStat)} +${formatValue(mutation.currentStat, mutation.currentVal)}${P_STATS[mutation.currentStat] && P_STATS[mutation.currentStat].isPct ? '%' : ''}`;
             effectHtml = `<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:stretch;">${effectBadge(originalLabel, originalAccent, '기존 효과')}${effectBadge(currentLabel, currentAccent, '변성 효과')}</div>`;
         }
+        let voidCraftHtml = '';
+        if (node.kind === 'void' && (game.passives || []).includes(node.id)) {
+            let entry = typeof getVoidPassiveCraft === 'function' ? getVoidPassiveCraft(node.id) : { stats: [] };
+            let hasStats = entry && Array.isArray(entry.stats) && entry.stats.length > 0;
+            let canAugment = hasStats && entry.stats.length < 2;
+            voidCraftHtml = `<div class="tooltip-line" style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
+                <button onclick="applyVoidPassiveCurrency('${node.id}','transmute')" ${hasStats ? 'disabled' : ''}>진화의 오브 (${game.currencies.transmute || 0})</button>
+                <button onclick="applyVoidPassiveCurrency('${node.id}','augment')" ${canAugment ? '' : 'disabled'}>확장의 오브 (${game.currencies.augment || 0})</button>
+                <button onclick="applyVoidPassiveCurrency('${node.id}','alteration')" ${hasStats ? '' : 'disabled'}>변화의 오브 (${game.currencies.alteration || 0})</button>
+            </div>`;
+        }
 
         canvasTooltip.innerHTML =
             `<div class="tooltip-title" style="color:${node.tier >= 3 || node.kind === 'apex' || node.kind === 'transcendent' ? '#e7bf73' : '#b9d0df'}">${getPassiveNodeDisplayName(node)}</div>
              <div class="tooltip-line">${getPassiveKindLabel(node)}</div>
              ${effectHtml}
              ${node.desc ? `<div class="tooltip-line" style="margin-top:6px; color:#c6d4e2;">${node.desc}</div>` : ''}
+             ${voidCraftHtml}
              <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;
 
         canvasTooltip.style.display = 'block';
@@ -8256,7 +8269,7 @@ function setupCanvasEvents() {
                 starState.selectedWedgeId = null;
                 updateStaticUI();
             } else {
-                addLog('별쐐기 슬롯(허브 노드)을 클릭해 장착하세요.', 'attack-monster');
+                addLog('별쐐기 슬롯을 클릭해 장착하세요.', 'attack-monster');
             }
             return;
         }
@@ -8914,6 +8927,16 @@ function mergeDefaults(save) {
     let starWedgeSocketCap = typeof getMaxEquippedStarWedgesForLevel === 'function' ? getMaxEquippedStarWedgesForLevel(mergedAstronomerLevel) : MAX_STAR_WEDGES;
     merged.starWedge.sockets = Array.isArray(merged.starWedge.sockets) ? merged.starWedge.sockets.filter(s => s && typeof s.nodeId === 'string' && Number.isFinite(s.wedgeId)).slice(0, starWedgeSocketCap) : [];
     merged.starWedge.nodeMutations = (merged.starWedge.nodeMutations && typeof merged.starWedge.nodeMutations === 'object') ? merged.starWedge.nodeMutations : {};
+    let validVoidPassiveIds = new Set(typeof getVoidPassiveNodeIds === 'function' ? getVoidPassiveNodeIds() : []);
+    let rawVoidPassives = (merged.voidPassives && typeof merged.voidPassives === 'object') ? merged.voidPassives : {};
+    merged.voidPassives = {};
+    Object.keys(rawVoidPassives).forEach(nodeId => {
+        if (!validVoidPassiveIds.has(String(nodeId))) return;
+        let rawEntry = rawVoidPassives[nodeId] && typeof rawVoidPassives[nodeId] === 'object' ? rawVoidPassives[nodeId] : {};
+        let stats = Array.isArray(rawEntry.stats) ? rawEntry.stats : [];
+        stats = stats.filter(line => line && P_STATS[line.id] && Number.isFinite(Number(line.val))).slice(0, 2).map(line => ({ id: line.id, val: Number(line.val) }));
+        merged.voidPassives[nodeId] = { rarity: stats.length > 0 ? 'magic' : 'normal', stats };
+    });
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
     merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
