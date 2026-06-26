@@ -35,5 +35,7 @@ const poisonRows = context.game.playerAilments.filter(row => row && row.type ===
 assert.strictEqual(poisonRows.length, 1, 'player poison must stay at one stack without a dedicated player poison cap stat');
 assert.strictEqual(poisonRows[0].time, 5, 'refreshing player poison should update the existing row duration');
 assert.strictEqual(poisonRows[0].sourceHitDamage, 200, 'stronger incoming poison should replace the stored damage on the existing row');
+assert.strictEqual(context.getEnemyDamageAilmentMaxStacks('poison', pStats), 2, 'offensive poison stack bonuses must still increase enemy poison cap');
+assert.strictEqual(context.getEnemyDamageAilmentMaxStacks('ignite', pStats), 1, 'poison-specific stack bonuses must not increase other damage ailment caps');
 
 console.log('player poison stack cap smoke checks passed');

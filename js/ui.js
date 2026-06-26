@@ -8930,12 +8930,19 @@ function mergeDefaults(save) {
     let validVoidPassiveIds = new Set(typeof getVoidPassiveNodeIds === 'function' ? getVoidPassiveNodeIds() : []);
     let rawVoidPassives = (merged.voidPassives && typeof merged.voidPassives === 'object') ? merged.voidPassives : {};
     merged.voidPassives = {};
-    Object.keys(rawVoidPassives).forEach(nodeId => {
-        if (!validVoidPassiveIds.has(String(nodeId))) return;
+    let legacyVoidMigration = !(save.voidPassives && typeof save.voidPassives === 'object');
+    let allocatedVoidIds = legacyVoidMigration ? new Set((merged.passives || []).map(id => String(id))) : new Set();
+    validVoidPassiveIds.forEach(nodeId => {
         let rawEntry = rawVoidPassives[nodeId] && typeof rawVoidPassives[nodeId] === 'object' ? rawVoidPassives[nodeId] : {};
         let stats = Array.isArray(rawEntry.stats) ? rawEntry.stats : [];
+        if (legacyVoidMigration && allocatedVoidIds.has(String(nodeId)) && stats.length <= 0) {
+            let node = PASSIVE_TREE.nodes[nodeId];
+            if (node && P_STATS[node.legacyVoidStat] && Number.isFinite(Number(node.legacyVoidVal))) {
+                stats = [{ id: node.legacyVoidStat, val: Number(node.legacyVoidVal) }];
+            }
+        }
         stats = stats.filter(line => line && P_STATS[line.id] && Number.isFinite(Number(line.val))).slice(0, 2).map(line => ({ id: line.id, val: Number(line.val) }));
-        merged.voidPassives[nodeId] = { rarity: stats.length > 0 ? 'magic' : 'normal', stats };
+        if (stats.length > 0 || rawVoidPassives[nodeId] || allocatedVoidIds.has(String(nodeId))) merged.voidPassives[nodeId] = { rarity: stats.length > 0 ? 'magic' : 'normal', stats };
     });
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];

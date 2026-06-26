@@ -21,6 +21,8 @@ function createBrowserContext() {
     RegExp,
     Promise,
     performance: { now: () => 0 },
+    requestAnimationFrame: () => 0,
+    cancelAnimationFrame() {},
     setTimeout: () => 0,
     clearTimeout() {},
     setInterval: () => 0,
@@ -32,7 +34,9 @@ function createBrowserContext() {
     markPassiveRenderCacheDirty() {},
     queueTutorialNotice() {},
     unlockJournalEntry() {},
-    getExpertLevel() { return 15; }
+    getExpertLevel() { return 15; },
+    addEventListener() {},
+    removeEventListener() {}
   };
   context.Math.random = () => 0.42;
   context.window = context;
@@ -49,10 +53,17 @@ function createBrowserContext() {
       style: {},
       classList: { add() {}, remove() {}, toggle() {} },
       appendChild() {},
+      remove() {},
       addEventListener() {},
+      removeEventListener() {},
+      setAttribute() {},
+      getAttribute: () => null,
+      querySelector: () => null,
+      querySelectorAll: () => [],
       getContext: () => null
     }),
-    body: { appendChild() {}, classList: { add() {}, remove() {}, toggle() {} } }
+    body: { appendChild() {}, classList: { add() {}, remove() {}, toggle() {} } },
+    documentElement: { style: {}, classList: { add() {}, remove() {}, toggle() {} } }
   };
   return vm.createContext(context);
 }
@@ -68,7 +79,8 @@ function loadRuntime(context) {
     'data/rewards.js',
     'js/utils.js',
     'js/state.js',
-    'js/passives.js'
+    'js/passives.js',
+    'js/ui.js'
   ].forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file }));
 }
 
@@ -83,9 +95,40 @@ assert.strictEqual(voidNodes.length, 16, 'one void passive must exist on each ce
 assert.strictEqual(new Set(voidNodes.map(node => node.webSpoke)).size, 16, 'void passives must occupy distinct straight spokes');
 assert(voidNodes.every(node => node.webRing >= 3), 'void passives must be at least two nodes away from the center');
 assert(voidNodes.every(node => !node.clusterId), 'void passives must reuse straight-path nodes instead of changing cluster structure');
+assert(voidNodes.every(node => node.legacyVoidStat && Number.isFinite(Number(node.legacyVoidVal))), 'void passives must retain their legacy stat for save migration');
 assert(voidNodes.every(node => context.getPassiveEffectLabel(node).includes('공허 옵션 없음')), 'uncrafted void passives must start with no effect');
 
 const node = voidNodes[0];
+
+function getPathToNode(nodeId) {
+  const previous = { n0: null };
+  const queue = ['n0'];
+  while (queue.length > 0 && !Object.prototype.hasOwnProperty.call(previous, nodeId)) {
+    const current = queue.shift();
+    context.PASSIVE_TREE.edges.forEach(edge => {
+      const next = edge.from === current ? edge.to : (edge.to === current ? edge.from : null);
+      if (next && !Object.prototype.hasOwnProperty.call(previous, next)) {
+        previous[next] = current;
+        queue.push(next);
+      }
+    });
+  }
+  const path = [];
+  let current = nodeId;
+  while (current) {
+    path.push(current);
+    current = previous[current];
+  }
+  return path.reverse();
+}
+
+const passiveLayoutVersion = vm.runInContext('PASSIVE_LAYOUT_VERSION', context);
+const legacyPath = getPathToNode(node.id);
+const migrated = context.mergeDefaults({ saveVersion: 16, passiveLayoutVersion, passives: legacyPath });
+assert(migrated.passives.includes(node.id), 'legacy allocated void passive should remain allocated after save normalization');
+assert.strictEqual(migrated.voidPassives[node.id].stats[0].id, node.legacyVoidStat, 'legacy allocated void passive must keep its previous stat as a crafted line');
+assert.strictEqual(migrated.voidPassives[node.id].stats[0].val, node.legacyVoidVal, 'legacy allocated void passive must keep its previous value as a crafted line');
+
 context.applyVoidPassiveCurrency(node.id, 'transmute');
 assert.strictEqual(context.game.currencies.transmute, 1, 'unallocated void passive must reject currency use');
 context.game.passives.push(node.id);

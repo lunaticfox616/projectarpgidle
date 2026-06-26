@@ -5042,10 +5042,11 @@ function getEnemyDamageAilmentDps(ail, pStats) {
     return dps;
 }
 
-function getEnemyDamageAilmentMaxStacks() {
+function getEnemyDamageAilmentMaxStacks(type, pStats) {
     let cap = 1;
     if (game.ascendClass === 'catalyst' && hasKeystone('ct6')) cap += 1;
     if (game.ascendClass === 'catalyst' && hasKeystone('ct8')) cap += 2;
+    if (type === 'poison') cap += Math.max(0, Math.floor(Number(pStats && pStats.uniquePoisonExtraStacks) || 0));
     return Math.max(1, cap);
 }
 
@@ -5055,7 +5056,7 @@ function cloneEnemyAilmentForSpread(ail) {
     if (!spreadableTypes.includes(ail.type)) return null;
     let copy = { type: ail.type, time: Math.max(0, Number(ail.time) || 0), power: Math.max(0, Number(ail.power) || 0) };
     if (isDamageAilmentType(ail.type)) {
-        copy.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(), Math.floor(ail.stacks || 1)));
+        copy.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(ail.type), Math.floor(ail.stacks || 1)));
         copy.sourceHitDamage = getStoredAilmentHitDamage(ail);
         copy.critDotBonusPct = Math.max(0, Number(ail.critDotBonusPct) || 0);
         copy.ailmentDotScore = Math.max(0, Number(ail.ailmentDotScore) || 0);
@@ -5074,7 +5075,7 @@ function mergeEnemyAilment(target, incoming) {
     row.time = Math.max(row.time || 0, incoming.time || 0);
     row.power = Math.max(row.power || 0, incoming.power || 0);
     if (isDamageAilmentType(incoming.type)) {
-        row.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(), Math.max(Math.floor(row.stacks || 1), Math.floor(incoming.stacks || 1))));
+        row.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(incoming.type), Math.max(Math.floor(row.stacks || 1), Math.floor(incoming.stacks || 1))));
         let rowScore = Math.max(0, Number(row.ailmentDotScore) || getStoredAilmentHitDamage(row));
         let incomingScore = Math.max(0, Number(incoming.ailmentDotScore) || getStoredAilmentHitDamage(incoming));
         if (incomingScore >= rowScore) {
@@ -5216,7 +5217,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
                 }
             }
             if (damageAilment) {
-                let maxStacks = getEnemyDamageAilmentMaxStacks();
+                let maxStacks = getEnemyDamageAilmentMaxStacks(type, pStats);
                 row.stacks = Math.max(1, Math.min(maxStacks, Math.floor((row.stacks || 1) + 1)));
             }
         } else enemy.ailments.push(payload);
@@ -5227,8 +5228,11 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     if (game.ascendClass === 'catalyst' && hasKeystone('ct8')) {
         let now = Date.now();
         if ((game.catalystBurstReadyAt || 0) <= now) {
-            let maxDamageAilmentStacks = getEnemyDamageAilmentMaxStacks();
-            let burstReady = (enemy.ailments || []).some(a => a && ['ignite','poison','bleed'].includes(a.type) && (a.stacks || 1) >= maxDamageAilmentStacks && (a.time || 0) > 0);
+            let burstReady = (enemy.ailments || []).some(a => {
+                if (!a || !['ignite','poison','bleed'].includes(a.type) || (a.time || 0) <= 0) return false;
+                let maxDamageAilmentStacks = getEnemyDamageAilmentMaxStacks(a.type, pStats);
+                return (a.stacks || 1) >= maxDamageAilmentStacks;
+            });
             if (burstReady) {
                 let burst = 0;
                 (enemy.ailments || []).forEach(a => {

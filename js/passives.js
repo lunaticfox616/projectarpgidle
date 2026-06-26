@@ -799,6 +799,8 @@ function generateOrganicTree() {
                 .filter(node => node.kind === 'path' || node.kind === 'major');
             if (candidates.length <= 0) continue;
             let pick = candidates[(spoke * 7 + 3) % candidates.length];
+            pick.legacyVoidStat = pick.stat;
+            pick.legacyVoidVal = pick.val;
             pick.kind = 'void';
             pick.stat = 'pctDmg';
             pick.val = 0;
