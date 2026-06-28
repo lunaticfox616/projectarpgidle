@@ -13,7 +13,7 @@ assert(passives.includes('function isVoidSocketAccessoryItem(item)'), 'void sock
 assert(passives.includes('if (!isVoidSocketAccessoryItem(item)) return addLog'), 'void chisel creation must use normalized accessory eligibility');
 assert(passives.includes('function removeJewelFromAbyssSocket(socketIdx)'), 'abyss socket jewel removal helper must exist');
 assert(passives.includes('item.abyssSockets[idx].jewel = null;'), 'abyss socket removal must clear the socket');
-assert(passives.includes('safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, openVoidSocketJewelOverlay, closeVoidSocketJewelOverlay, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection'), 'socket and jewel helpers must be explicitly exposed for inline UI handlers');
+assert(passives.includes('safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, getSelectedJewelCraftTarget, selectJewelCraftTarget, useCurrencyOnJewel, getJewelCurrencyUseState, openVoidSocketJewelOverlay, closeVoidSocketJewelOverlay, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection'), 'socket and jewel helpers must be explicitly exposed for inline UI handlers');
 assert(passives.includes('openVoidJewelCraftOverlay') && passives.includes('confirmVoidJewelFusion'), 'void jewel overlay craft/fusion handlers must be exposed');
 assert(!passives.includes('game.jewelInventory.splice(invIdx, 1);\n    game.jewelInventory.splice(invIdx, 1);'), 'abyss socket insertion must not remove two inventory jewels');
 assert(passives.includes('function getVoidJewelCraftMaterialIndices()'), 'void jewel crafting should choose valid material jewels');
@@ -38,6 +38,7 @@ assert(!ui.includes('safeExposeGlobals({ checkUnlocks'), 'UI unlock/action handl
 assert(!ui.includes('safeExposeGlobals({ showJewelRangeTooltip'), 'jewel tooltip hover must not add a new explicit global that can collide at runtime');
 assert(!ui.includes('safeExposeGlobals({ buildJewelRangeTooltipHtml'), 'legacy jewel tooltip builder must not be globally re-exposed');
 assert(ui.includes('getVoidJewelCraftMaterialIndices().length < 2'), 'void jewel craft button must use eligible material count, not raw inventory size');
+assert(ui.includes("let jewelCraftKeys = ['transmute', 'augment', 'alteration', 'regal', 'exalted', 'chaos', 'divine', 'annulment'];"), 'jewel orb panel must exclude alchemy, scour, and honey');
 assert(/js\/passives\.js\?v=[^"']+/.test(index), 'passives cache buster must be versioned for passive/runtime fixes');
 assert(/js\/ui\.js\?v=[^"']+/.test(index), 'ui cache buster must be versioned for UI fixes');
 assert(index.includes('data/skills.js?v=20260621-vertical-tabs1'), 'skill data cache buster must include latest skill data');
@@ -86,6 +87,8 @@ function loadVoidJewelRuntime() {
         Math,
         jewelFusionSelection: [],
         voidJewelOverlayState: { mode: null, selected: [] },
+        selectedJewelCraftIndex: null,
+        ORB_DB: { alteration: { name: '변화의 오브' }, augment: { name: '확장의 오브' }, chaos: { name: '카오스 오브' } },
         game: { woodsmanBuildLock: false, currencies: { voidChisel: 2 }, jewelInventory: [] },
         logs: [],
         updates: 0,
@@ -109,7 +112,10 @@ this.openVoidJewelOverlay = openVoidJewelOverlay;
 this.confirmVoidJewelCraft = confirmVoidJewelCraft;
 this.craftJewelFusion = craftJewelFusion;
 this.confirmJewelFusion = confirmJewelFusion;
-this.fuseVoidJewel = fuseVoidJewel;`, sandbox);
+this.fuseVoidJewel = fuseVoidJewel;
+this.useCurrencyOnJewel = useCurrencyOnJewel;
+this.getJewelCurrencyUseState = getJewelCurrencyUseState;
+this.selectJewelCraftTarget = selectJewelCraftTarget;`, sandbox);
     return sandbox;
 }
 
@@ -259,6 +265,24 @@ assert(voidRuntime.overlayHost.innerHTML.includes('일반 주얼 융합은 1줄 
 voidRuntime.confirmJewelFusion();
 assert.strictEqual(voidRuntime.game.currencies.jewelShard, 0, 'normal jewel fusion must consume jewel shards, not void chisels');
 assert.strictEqual(voidRuntime.game.currencies.voidChisel, 1, 'normal jewel fusion must not consume void chisels');
+
+voidRuntime.game.currencies.alteration = 1;
+voidRuntime.game.currencies.augment = 1;
+voidRuntime.game.jewelInventory = [
+    { name: '제작 매직 주얼', rarity: 'magic', stats: [{ id: 'pctDmg', val: 5, valMin: 4, valMax: 10, tier: 1 }] }
+];
+voidRuntime.selectJewelCraftTarget(0);
+assert.strictEqual(voidRuntime.getJewelCurrencyUseState('alteration', voidRuntime.game.jewelInventory[0]).enabled, true, 'alteration orb must be usable on selected magic jewels');
+assert.strictEqual(voidRuntime.getJewelCurrencyUseState('alchemy', voidRuntime.game.jewelInventory[0]).enabled, false, 'alchemy orb must not be usable on jewels');
+assert.strictEqual(voidRuntime.getJewelCurrencyUseState('scour', voidRuntime.game.jewelInventory[0]).enabled, false, 'scour orb must not be usable on jewels');
+assert.strictEqual(voidRuntime.getJewelCurrencyUseState('enchantedHoney', voidRuntime.game.jewelInventory[0]).enabled, false, 'enchanted honey must not be usable on jewels');
+voidRuntime.useCurrencyOnJewel('alteration');
+assert.strictEqual(voidRuntime.game.currencies.alteration, 0, 'jewel alteration crafting must consume alteration, not jewel shards');
+assert.strictEqual(voidRuntime.game.jewelInventory[0].rarity, 'magic', 'alteration must keep the crafted jewel magic');
+voidRuntime.game.jewelInventory[0].stats = [{ id: 'pctDmg', val: 5, valMin: 4, valMax: 10, tier: 1 }];
+voidRuntime.useCurrencyOnJewel('augment');
+assert.strictEqual(voidRuntime.game.currencies.augment, 0, 'jewel augment crafting must consume augment, not jewel shards');
+assert(voidRuntime.game.jewelInventory[0].stats.length >= 2, 'augment must add an observable jewel option line');
 
 const jewelTooltipRuntime = loadJewelTooltipRuntime();
 let voidTooltip = jewelTooltipRuntime.createJewelRangeTooltipHtml({ name: '공허', uniqueId: 'uj_void', rarity: 'unique', uniqueEffect: '융합 가능 수 6', voidFusionCharges: 2, stats: [{ id: 'pctDmg', val: -10, tier: 1 }] });
