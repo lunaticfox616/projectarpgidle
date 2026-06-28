@@ -2799,6 +2799,23 @@ function startTalismanUnseal(currencyKey) {
     updateStaticUI();
 }
 
+// 봉인편린을 한 번에 여러 개(최대 10) 사용해 부적을 일괄 획득한다.
+function bulkTalismanUnseal(currencyKey) {
+    if (game.talismanUnseal) return addLog('이미 봉인 해제 중입니다. 먼저 선택/파괴를 완료하세요.', 'attack-monster');
+    let owned = Math.max(0, Math.floor(game.currencies[currencyKey] || 0));
+    if (owned <= 0) return addLog('봉인편린이 부족합니다.', 'attack-monster');
+    let count = Math.min(10, owned);
+    game.talismanInventory = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
+    let gained = 0;
+    for (let i = 0; i < count; i++) {
+        game.currencies[currencyKey] = Math.max(0, (game.currencies[currencyKey] || 0) - 1);
+        let tal = rollTalismanCandidate(currencyKey);
+        if (tal) { game.talismanInventory.push(tal); gained++; }
+    }
+    addLog(`🧿 봉인편린 ${count}개 일괄 해제 · 부적 ${gained}개 획득 (인벤토리에 바로 추가)`, 'loot-rare');
+    updateStaticUI();
+}
+
 function previewNextTalismanShape() {
     let state = game.talismanUnseal;
     if (!state || state.rollsLeft <= 1) return;
@@ -7846,6 +7863,11 @@ function buildCraftActionButtons(item) {
                 <button onclick="startTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>봉인편린 해제</button>
                 <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
                 <button onclick="startTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란한 기운] 봉인편린 해제</button>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+                <button onclick="bulkTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>일괄 해제 (최대 10)</button>
+                <button onclick="bulkTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력] 일괄 (최대 10)</button>
+                <button onclick="bulkTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란] 일괄 (최대 10)</button>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px solid #29415a;">
                 <button onclick="exchangeTalismanShards('strong')" ${(game.currencies.sealShard || 0) < 80 ? 'disabled' : ''}>편린 80 → 강력 편린 1</button>

@@ -224,14 +224,16 @@ voidRuntime.game.jewelInventory = [
     { name: '보조 재료', stats: [{ id: 'aspd', val: 4 }, { id: 'move', val: 7 }] }
 ];
 voidRuntime.openVoidJewelOverlay('fusion', [0, 1]);
-assert(voidRuntime.overlayHost.innerHTML.includes('최대 3줄만 계승'), 'void fusion overlay must explain the three inherited line limit');
-assert(voidRuntime.overlayHost.innerHTML.includes('무작위 옵션 1줄'), 'void fusion overlay must explain the random fourth line');
+assert(voidRuntime.overlayHost.innerHTML.includes('무작위 1~4줄'), 'void fusion overlay must explain the 1~4 inherited lines per jewel');
+assert(voidRuntime.overlayHost.innerHTML.includes('최대 6줄'), 'void fusion overlay must explain the six line cap');
 voidRuntime.fuseVoidJewel(0, 1);
 const fusedVoid = voidRuntime.game.jewelInventory[0];
 assert.strictEqual(voidRuntime.game.currencies.voidChisel, 0, 'void fusion must consume one chisel');
-assert.strictEqual(fusedVoid.stats.length, 4, 'void fusion must create three inherited lines plus one random line');
-assert.strictEqual(fusedVoid.stats.slice(0, 3).map(stat => stat.id).join(','), 'pctDmg,flatHp,crit', 'void fusion must inherit only the first three unique core stats');
-assert.notStrictEqual(fusedVoid.stats[3].id, 'resAll', 'void fusion fourth line must be random rather than the fourth source line');
+assert(fusedVoid.stats.length >= 1 && fusedVoid.stats.length <= 6, 'void fusion result must hold 1~6 lines');
+const fusedIds = fusedVoid.stats.map(stat => stat.id);
+assert.strictEqual(new Set(fusedIds).size, fusedIds.length, 'void fusion lines must be de-duplicated');
+const sourceIds = new Set(['pctDmg', 'flatHp', 'crit', 'resAll', 'aspd', 'move']);
+assert(fusedIds.every(id => sourceIds.has(id)), 'void fusion lines must be inherited from the two source jewels');
 
 voidRuntime.game.currencies.voidChisel = 0;
 voidRuntime.game.jewelInventory = [

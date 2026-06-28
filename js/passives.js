@@ -7311,7 +7311,7 @@ const JEWEL_OPTION_POOL = [
     { id: 'dr', name: '강인 파편', min: 3, max: 8 },
     { id: 'resPen', name: '관통 수정', min: 2, max: 6 },
     { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 },
-    { id: 'regenSuppress', name: '봉쇄 파편', min: 0.05, max: 0.12, step: 0.01 },
+    { id: 'regenSuppress', name: '봉쇄 파편', min: 0.5, max: 0.5, step: 0.1 },
     { id: 'minDmgRoll', name: '하한 수정', min: 1, max: 3 },
     { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 },
     { id: 'armorPct', name: '강화 외피', min: 4, max: 10 },
@@ -7511,21 +7511,27 @@ function generateJewelDrop(zoneTier) {
         let canRollUltra = ultraPool.length > 0;
         let baseRow = pool.length > 0 ? rndChoice(pool) : rndChoice(UNIQUE_JEWEL_DB);
         let row = (canRollUltra && Math.random() < 0.08) ? rndChoice(ultraPool) : baseRow;
-        let stats = (row.stats || []).map(st => makeFixedJewelStat(st.id, st.val));
+        // 고유 주얼: 구성은 그대로 두고 파워만 약간(+10%) 상승
+        let uniquePower = 1.1;
+        let decimalIds = new Set(['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap']);
+        let stats = (row.stats || []).map(st => {
+            let boosted = decimalIds.has(st.id) ? Math.round(st.val * uniquePower * 10) / 10 : Math.round(st.val * uniquePower);
+            return makeFixedJewelStat(st.id, boosted);
+        });
         let petite = rollJewelPetiteStat('rare', stats.map(st => st.id));
         if (petite) stats.push(petite);
         return { id: Date.now() + Math.floor(Math.random() * 100000), uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', uniqueLockedFusion: row.id !== 'uj_void', voidFusionCharges: Number.isFinite(row.voidFusionCharges) ? row.voidFusionCharges : 0, hiddenTier: Math.max(1, ...stats.map(st => st.tier || 1)), stats: stats };
     }
-    let pick = resolveJewelRollOption(rndChoice(getJewelRollOptionPool()), []);
-    let stat = rollJewelStat(pick);
     let rarityRoll = Math.random();
     let rarity = 'normal';
     if (rarityRoll > 0.9) rarity = 'rare';
     else if (rarityRoll > 0.55) rarity = 'magic';
-    let stats = [stat];
-    let petite = rollJewelPetiteStat(rarity, [stat.id]);
-    if (petite) stats.push(petite);
-    return { id: Date.now() + Math.floor(Math.random() * 100000), name: pick.name, tier: 1, hiddenTier: stat.tier, rarity: rarity, stats: stats };
+    // 등급별 옵션 줄 수: 일반 0줄(진화의 오브로 제작), 매직 1~2줄, 레어 2~4줄
+    let lineCount = rarity === 'rare' ? (2 + Math.floor(Math.random() * 3)) : (rarity === 'magic' ? (1 + Math.floor(Math.random() * 2)) : 0);
+    let stats = rollJewelCraftStats(lineCount);
+    let hiddenTier = stats.length ? Math.max(1, ...stats.map(st => st.tier || 1)) : 1;
+    let name = stats.length ? `${getStatName(stats[0].id)} 주얼` : '미가공 주얼';
+    return { id: Date.now() + Math.floor(Math.random() * 100000), name: name, tier: 1, hiddenTier: hiddenTier, rarity: rarity, stats: stats };
 }
 
 function getJewelStats(jewel) {
@@ -7591,6 +7597,12 @@ function getJewelCurrencyUseState(currencyKey, jewel) {
     if (jewel.locked) return { enabled: false, reason: '잠금 주얼' };
     if (jewel.waxedByBeeswax) return { enabled: false, reason: '밀랍 주얼' };
     if (jewel.rarity === 'unique') return { enabled: false, reason: '고유 주얼 제작 불가' };
+    if (jewel.isVoid) {
+        let vc = getJewelCoreStats(jewel).length;
+        if (currencyKey === 'divine') return { enabled: vc > 0, reason: vc > 0 ? '사용 가능' : '옵션 없음' };
+        if (currencyKey === 'exalted') return { enabled: vc < 6, reason: vc < 6 ? '사용 가능' : '공허 주얼 최대 6줄' };
+        return { enabled: false, reason: '공허 주얼에는 신성/엑잘티드만 사용 가능' };
+    }
     let count = getJewelCoreStats(jewel).length;
     let rarity = jewel.rarity || 'normal';
     if (currencyKey === 'transmute') return { enabled: rarity === 'normal', reason: rarity === 'normal' ? '사용 가능' : '일반 주얼 필요' };
@@ -7626,7 +7638,16 @@ function applyCurrencyToJewel(currencyKey, jewel) {
     if (currencyKey === 'chaos') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.random() < 0.35 ? 3 : 2));
     if (currencyKey === 'augment') return setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(Math.min(2, stats.length + 1), stats));
     if (currencyKey === 'regal') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
-    if (currencyKey === 'exalted') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
+    if (currencyKey === 'exalted') {
+        let exCap = jewel.isVoid ? 6 : 4;
+        let newStats = rollJewelCraftStats(Math.min(exCap, stats.length + 1), stats);
+        if (jewel.isVoid) {
+            jewel.stats = newStats.map(cloneJewelStat).filter(Boolean);
+            jewel.hiddenTier = Math.max(1, ...jewel.stats.map(s => s.tier || 1));
+            return;
+        }
+        return setJewelStatsAndRarity(jewel, 'rare', newStats);
+    }
     if (currencyKey === 'divine') return rerollJewelStatValues(jewel);
     if (currencyKey === 'annulment') {
         let removeIdx = Math.floor(Math.random() * Math.max(1, stats.length));
@@ -7651,7 +7672,7 @@ function getValidJewelInventoryIndex(idx) {
 
 function getVoidJewelCraftPreviewStats(indices) {
     let selected = (indices || []).map(idx => game.jewelInventory[idx]).filter(Boolean);
-    return selected.flatMap(jewel => getJewelCoreStats(jewel)).slice(0, 4).map(cloneJewelStat).filter(Boolean);
+    return selected.flatMap(jewel => getJewelCoreStats(jewel)).slice(0, 6).map(cloneJewelStat).filter(Boolean);
 }
 
 function getVoidJewelFusionPreviewStats(indices) {
@@ -7659,7 +7680,7 @@ function getVoidJewelFusionPreviewStats(indices) {
     let seen = new Set();
     let merged = [];
     selected.flatMap(jewel => getJewelCoreStats(jewel)).forEach(stat => {
-        if (merged.length >= 3 || seen.has(stat.id)) return;
+        if (merged.length >= 6 || seen.has(stat.id)) return;
         seen.add(stat.id);
         let cloned = cloneJewelStat(stat);
         if (cloned) merged.push(cloned);
@@ -7754,8 +7775,8 @@ function renderVoidJewelOverlay(mode) {
     let uniquePair = isFusion ? getVoidUniqueFusionPair(selected) : null;
     let stats = uniquePair ? buildVoidUniqueFusionPreviewStats(selected) : (isFusion ? getVoidJewelFusionPreviewStats(selected) : getVoidJewelCraftPreviewStats(selected));
     let title = isFusion ? '공허 주얼 융합' : '공허 주얼 제작';
-    let rule = uniquePair ? '고유 주얼 [공허]은 재료를 소비하지 않고 함께 선택한 주얼에 무작위 옵션 1줄을 부여하며, 합성 가능 수 1회를 소모합니다.' : (isFusion ? '선택한 주얼들의 옵션은 최대 3줄만 계승되고, 4번째 줄은 무작위 옵션으로 생성됩니다.' : '선택한 주얼 2개의 유효 옵션을 앞에서부터 최대 4줄까지 계승합니다.');
-    let extra = isFusion ? '무작위 옵션 1줄' : '';
+    let rule = uniquePair ? '고유 주얼 [공허]은 재료를 소비하지 않고 함께 선택한 주얼에 무작위 옵션 1줄을 부여하며, 합성 가능 수 1회를 소모합니다.' : '선택한 두 주얼에서 각각 무작위 1~4줄을 계승해 합치고, 중복 제거 후 최대 6줄까지 보유합니다.';
+    let extra = '';
     let hasVoidMaterial = selected.some(idx => { let jewel = game.jewelInventory[idx]; return jewel && jewel.isVoid; }) || !!uniquePair;
     let chiselReady = uniquePair || (game.currencies.voidChisel || 0) > 0;
     let hasUniqueTargetSpace = !uniquePair || getJewelCoreStats(game.jewelInventory[uniquePair.targetIndex]).length < 4;
@@ -7950,11 +7971,32 @@ function getVoidJewelCraftMaterialIndices() {
         .map(entry => entry.idx);
 }
 
+// 공허 합성: 두 주얼에서 각각 무작위 1~4줄을 계승해 합치고, 중복 제거 후 최대 6줄까지 보유
+function pickRandomVoidFusionStats(jewel) {
+    let core = getJewelCoreStats(jewel);
+    if (core.length <= 0) return [];
+    let count = Math.min(core.length, 1 + Math.floor(Math.random() * 4));
+    let shuffled = core.slice().sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, count);
+}
+function mergeVoidFusionStats(jewelA, jewelB) {
+    let picks = pickRandomVoidFusionStats(jewelA).concat(pickRandomVoidFusionStats(jewelB));
+    let seen = new Set();
+    let stats = [];
+    picks.forEach(stat => {
+        if (stats.length >= 6 || seen.has(stat.id)) return;
+        seen.add(stat.id);
+        let cloned = cloneJewelStat(stat);
+        if (cloned) stats.push(cloned);
+    });
+    if (stats.length === 0) { let st = rollRandomJewelStat([]); if (st) stats.push(st); }
+    return stats;
+}
 function createVoidJewelFromMaterials(materialIndices) {
     let sorted = materialIndices.slice().sort((a, b) => b - a);
     let removed = sorted.map(idx => game.jewelInventory.splice(idx, 1)[0]).reverse();
-    let stats = removed.flatMap(jewel => getJewelCoreStats(jewel)).slice(0, 4).map(cloneJewelStat).filter(Boolean);
-    return { id: Date.now() + Math.floor(Math.random() * 10000), name: '공허 주얼', rarity: 'magic', isVoid: true, hiddenTier: Math.max(1, ...stats.map(stat => stat.tier || 1)), stats, maxLines: 4 };
+    let stats = mergeVoidFusionStats(removed[0], removed[1]);
+    return { id: Date.now() + Math.floor(Math.random() * 10000), name: '공허 주얼', rarity: 'rare', isVoid: true, hiddenTier: Math.max(1, ...stats.map(stat => stat.tier || 1)), stats, maxLines: 6 };
 }
 
 function confirmVoidJewelCraft() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
@@ -7969,7 +8011,7 @@ function confirmVoidJewelCraft() { if (game.woodsmanBuildLock) return addLog('�
     game.jewelInventory.push(jewel);
     jewelFusionSelection = [];
     closeVoidJewelOverlay();
-    addLog('🕳️ 공허 주얼 제작 완료 (최대 4줄)', 'loot-rare');
+    addLog('🕳️ 공허 주얼 제작 완료 (각 주얼에서 무작위 1~4줄 계승, 최대 6줄)', 'loot-rare');
     updateStaticUI();
 }
 
@@ -7978,11 +8020,8 @@ function craftVoidJewel() {
 }
 
 function buildVoidFusionJewel(idxA, idxB) {
-    let inherited = getVoidJewelFusionPreviewStats([idxA, idxB]);
-    let usedIds = inherited.map(stat => stat.id);
-    let randomStat = rollRandomJewelStat(usedIds);
-    let stats = inherited.concat(randomStat ? [randomStat] : []).filter(Boolean).slice(0, 4);
-    return { id: Date.now() + Math.floor(Math.random() * 10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, hiddenTier: Math.max(1, ...stats.map(stat => stat.tier || 1)), stats, maxLines: 4 };
+    let stats = mergeVoidFusionStats(game.jewelInventory[idxA], game.jewelInventory[idxB]);
+    return { id: Date.now() + Math.floor(Math.random() * 10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, hiddenTier: Math.max(1, ...stats.map(stat => stat.tier || 1)), stats, maxLines: 6 };
 }
 
 function fuseWithVoidUniqueJewel(voidIndex, targetIndex) {
@@ -8021,7 +8060,7 @@ function fuseVoidJewel(idxA, idxB) { if (game.woodsmanBuildLock) { addLog('☠�
     game.currencies.voidChisel--;
     game.jewelInventory.push(newJewel);
     jewelFusionSelection = [];
-    addLog('🕳️ 공허 주얼 융합 완료 (계승 3줄 + 무작위 1줄)', 'loot-unique');
+    addLog('🕳️ 공허 주얼 융합 완료 (각 주얼에서 무작위 1~4줄 계승, 최대 6줄)', 'loot-unique');
     updateStaticUI();
     return true;
 }
