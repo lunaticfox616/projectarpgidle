@@ -7597,12 +7597,6 @@ function getJewelCurrencyUseState(currencyKey, jewel) {
     if (jewel.locked) return { enabled: false, reason: '잠금 주얼' };
     if (jewel.waxedByBeeswax) return { enabled: false, reason: '밀랍 주얼' };
     if (jewel.rarity === 'unique') return { enabled: false, reason: '고유 주얼 제작 불가' };
-    if (jewel.isVoid) {
-        let vc = getJewelCoreStats(jewel).length;
-        if (currencyKey === 'divine') return { enabled: vc > 0, reason: vc > 0 ? '사용 가능' : '옵션 없음' };
-        if (currencyKey === 'exalted') return { enabled: vc < 6, reason: vc < 6 ? '사용 가능' : '공허 주얼 최대 6줄' };
-        return { enabled: false, reason: '공허 주얼에는 신성/엑잘티드만 사용 가능' };
-    }
     let count = getJewelCoreStats(jewel).length;
     let rarity = jewel.rarity || 'normal';
     if (currencyKey === 'transmute') return { enabled: rarity === 'normal', reason: rarity === 'normal' ? '사용 가능' : '일반 주얼 필요' };
@@ -7638,16 +7632,7 @@ function applyCurrencyToJewel(currencyKey, jewel) {
     if (currencyKey === 'chaos') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.random() < 0.35 ? 3 : 2));
     if (currencyKey === 'augment') return setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(Math.min(2, stats.length + 1), stats));
     if (currencyKey === 'regal') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
-    if (currencyKey === 'exalted') {
-        let exCap = jewel.isVoid ? 6 : 4;
-        let newStats = rollJewelCraftStats(Math.min(exCap, stats.length + 1), stats);
-        if (jewel.isVoid) {
-            jewel.stats = newStats.map(cloneJewelStat).filter(Boolean);
-            jewel.hiddenTier = Math.max(1, ...jewel.stats.map(s => s.tier || 1));
-            return;
-        }
-        return setJewelStatsAndRarity(jewel, 'rare', newStats);
-    }
+    if (currencyKey === 'exalted') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
     if (currencyKey === 'divine') return rerollJewelStatValues(jewel);
     if (currencyKey === 'annulment') {
         let removeIdx = Math.floor(Math.random() * Math.max(1, stats.length));
