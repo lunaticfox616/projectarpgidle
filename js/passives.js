@@ -6160,18 +6160,71 @@ function liberateSelectedEncroachedItem() {
     if (item.encroached.liberated) return addLog('이미 잠식 해방이 완료된 아이템입니다.', 'attack-monster');
     let options = rollEncroachmentLiberationOptions(item);
     if (!options || options.length <= 0) return addLog('해방 가능한 최고 티어 옵션 후보가 없습니다.', 'attack-monster');
-    let text = options.map((stat, idx) => `${idx + 1}. ${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)} [T${stat.tier || 10}]`).join('\n');
-    let answer = prompt(`잠식 해방: 최고 티어 옵션 3개 중 1개를 선택하세요.\n${text}`, '1');
-    if (answer === null) { updateStaticUI(); return; }
-    let pickIdx = Math.floor(Number(answer) || 0) - 1;
-    if (pickIdx < 0 || pickIdx >= options.length) return addLog(`1~${options.length} 사이의 번호를 입력하세요.`, 'attack-monster');
-    let chosen = { ...options[pickIdx], encroachedFinal: true, encroachedCandidate: false };
+    openEncroachmentLiberationOverlay(item, options);
+}
+
+// 잠식 해방: 셋 중 하나를 반드시 골라야 하는 오버레이. 취소 없음.
+// 옵션은 한 줄에 하나씩 서서히 공개된다.
+function openEncroachmentLiberationOverlay(item, options) {
+    game.pendingEncroachmentLiberation = { itemId: item.id };
+    let overlay = document.getElementById('encroachment-liberation-overlay');
+    if (!overlay) {
+        document.body.insertAdjacentHTML('beforeend', '<div id="encroachment-liberation-overlay" style="position:fixed;inset:0;background:rgba(6,4,14,.82);z-index:10000;display:flex;align-items:center;justify-content:center;padding:14px;"></div>');
+        overlay = document.getElementById('encroachment-liberation-overlay');
+    }
+    let rows = options.map((stat, idx) => {
+        let label = `${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`;
+        return `<button id="encroach-opt-${idx}" onclick="confirmEncroachmentLiberation(${idx})" disabled style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;pointer-events:none;display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 14px;border:1px solid #5a3f8f;border-radius:10px;background:linear-gradient(90deg,rgba(40,24,64,.92),rgba(24,16,40,.92));color:#e7d8ff;font-size:15px;cursor:pointer;"><span>${label}</span><span style="color:#b79bff;font-size:12px;">[T${stat.tier || 10}]</span></button>`;
+    }).join('');
+    overlay.innerHTML = `<div style="width:min(520px,95vw);background:#120c1e;border:1px solid #6a47b3;border-radius:14px;padding:18px;box-shadow:0 18px 60px rgba(0,0,0,.6);">`
+        + `<div style="color:#caa6ff;font-size:19px;font-weight:700;margin-bottom:4px;">🕳️ 잠식 해방</div>`
+        + `<div style="color:#b9a7d8;font-size:13px;margin-bottom:14px;line-height:1.5;">[${item.name}] · 최고 티어 옵션 셋 중 <strong style="color:#e7d8ff;">반드시 하나</strong>를 선택해야 합니다.</div>`
+        + `<div style="display:grid;gap:10px;">${rows}</div>`
+        + `<div id="encroach-hint" style="opacity:0;transition:opacity .5s ease;margin-top:12px;color:#9b86c4;font-size:12px;text-align:center;">옵션이 모두 드러나면 하나를 선택하세요.</div>`
+        + `</div>`;
+    options.forEach((_, idx) => {
+        setTimeout(() => {
+            let el = document.getElementById(`encroach-opt-${idx}`);
+            if (!el) return;
+            el.style.opacity = '1';
+            el.style.transform = 'none';
+            el.disabled = false;
+            el.style.pointerEvents = 'auto';
+            if (idx === options.length - 1) {
+                let hint = document.getElementById('encroach-hint');
+                if (hint) hint.style.opacity = '1';
+            }
+        }, 280 + idx * 620);
+    });
+}
+
+function confirmEncroachmentLiberation(pickIdx) {
+    let pending = game.pendingEncroachmentLiberation;
+    if (!pending) return;
+    let item = (game.inventory || []).find(v => v && v.id === pending.itemId);
+    if (!item) {
+        let equipMatch = Object.entries(game.equipment || {}).find(([, eq]) => eq && eq.id === pending.itemId);
+        if (equipMatch) item = equipMatch[1];
+    }
+    if (!item || !item.encroached || item.encroached.liberated) { closeEncroachmentLiberationOverlay(); return; }
+    let options = Array.isArray(item.encroached.pendingOptions) ? item.encroached.pendingOptions : [];
+    let idx = Math.floor(Number(pickIdx) || 0);
+    if (idx < 0 || idx >= options.length) return;
+    let chosen = { ...options[idx], encroachedFinal: true, encroachedCandidate: false };
     item.encroached.liberated = true;
     item.encroached.chosen = chosen;
     item.encroached.pendingOptions = [];
+    closeEncroachmentLiberationOverlay();
     addLog(`🕳️ 잠식 해방 완료: ${chosen.statName || getStatName(chosen.id)} +${formatValue(chosen.id, chosen.val)} 확정`, 'loot-unique');
     updateStaticUI();
 }
+
+function closeEncroachmentLiberationOverlay() {
+    game.pendingEncroachmentLiberation = null;
+    let overlay = document.getElementById('encroachment-liberation-overlay');
+    if (overlay) overlay.remove();
+}
+safeExposeGlobals({ liberateSelectedEncroachedItem, openEncroachmentLiberationOverlay, confirmEncroachmentLiberation, closeEncroachmentLiberationOverlay });
 
 const DEFENSE_TYPE_PCT_STAT = { armor: 'armorPct', evasion: 'evasionPct', energyShield: 'energyShieldPct' };
 const DEFENSE_PCT_TYPE_STAT = { armorPct: 'armor', evasionPct: 'evasion', energyShieldPct: 'energyShield' };
