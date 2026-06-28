@@ -89,6 +89,7 @@ const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert(uiSource.includes('function openVoidPassiveCraftOverlay(nodeId)'), 'void passive crafting must be opened from a dedicated overlay');
 assert(uiSource.includes('refundVoidPassiveFromOverlay'), 'void passive overlay must own the refund action');
+assert(uiSource.includes("craftVoidPassiveFromOverlay('${node.id}','chance')"), 'void passive overlay must expose chance orb crafting');
 assert(uiSource.includes('function askRefundPassiveNode(id)'), 'regular passive refunds must keep a confirmation wrapper');
 assert(uiSource.includes('return askRefundPassiveNode(hoverNode.id);'), 'regular passive clicks must use the confirmation wrapper');
 assert(!uiSource.includes('전직 패시브를 반환하시겠습니까?'), 'normal passive refunds must not show the ascend-passive confirmation text');
@@ -99,7 +100,7 @@ const context = createBrowserContext();
 loadRuntime(context);
 vm.runInContext('game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;', context);
 context.game.passives = ['n0'];
-context.game.currencies = { ...context.game.currencies, transmute: 1, augment: 1, alteration: 1 };
+context.game.currencies = { ...context.game.currencies, transmute: 1, augment: 1, alteration: 1, chance: 2, divine: 1 };
 
 const voidNodes = Object.values(context.PASSIVE_TREE.nodes).filter(node => node.kind === 'void');
 assert.strictEqual(voidNodes.length, 16, 'one void passive must exist on each central spoke');
@@ -170,6 +171,39 @@ assert.strictEqual(context.game.currencies.alteration, 0, 'alteration must be co
 assert.strictEqual(context.getVoidPassiveCraft(node.id).stats.length, 2, 'alteration must preserve the magic line count up to two lines');
 assert(vm.runInContext(`getVoidPassiveCraft('${node.id}').stats.every(line => P_STATS[line.id])`, context), 'void passive options must use valid passive stats');
 assert(beforeAlteration.length > 0, 'pre-alteration crafted state must be observable');
+
+context.Math.random = () => 0.8;
+context.applyVoidPassiveCurrency(node.id, 'chance');
+assert.strictEqual(context.game.currencies.chance, 1, 'chance orb must be consumed by an allocated void passive');
+const transcendent = context.getVoidPassiveCraft(node.id).transcendent;
+assert(transcendent && transcendent.id, 'chance orb must evolve a void passive into a transcendent passive when it does not destroy it');
+assert.strictEqual(context.getVoidPassiveCraft(node.id).stats.length, 0, 'transcendent void passive must replace normal crafted lines');
+if (vm.runInContext(`TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === '${transcendent.id}' && Number.isFinite(Number(def.min)))`, context)) {
+  context.applyVoidPassiveCurrency(node.id, 'divine');
+  assert.strictEqual(context.game.currencies.divine, 0, 'divine must reroll rollable transcendent void passives');
+}
+context.Math.random = () => 0.5;
+context.game.currencies.chance = 2;
+context.applyVoidPassiveCurrency(node.id, 'chance');
+assert.strictEqual(context.getVoidPassiveCraft(node.id).transcendent, null, 'chance orb must fail and clear a void passive below the 75% failure threshold');
+context.applyVoidPassiveCurrency(voidNodes[1].id, 'chance');
+assert.strictEqual(context.game.currencies.chance, 1, 'unallocated void passive must reject chance orb use');
+
+const immortalEntry = { id: 'immortalHero', value: 3000, value2: 0 };
+context.game.voidPassives[node.id].transcendent = immortalEntry;
+assert.strictEqual(context.formatTranscendentVoidPassive(immortalEntry).includes('불멸의 영웅'), true, 'immortal hero transcendent passive must be present in formatting');
+assert.strictEqual(context.recordImmortalHeroDeathPenalty(), true, 'immortal hero must record a death penalty after acquisition');
+assert.strictEqual(context.getVoidPassiveCraft(node.id).transcendent.value, 2970, 'immortal hero life bonus must lose 30 per death');
+assert(vm.runInContext("TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === 'seasoned' && def.min === 4 && def.max === 5)", context), 'seasoned transcendent passive must roll 4~5 crit damage per loop');
+
+const normalWeapon = vm.runInContext("createItemFromBase(BASE_ITEM_DB.find(base => base.slot === '무기'), 'normal', 10)", context);
+context.game.inventory = [normalWeapon];
+context.game.currencies.chance = 1;
+context.getSelectedCraftItem = () => normalWeapon;
+vm.runInContext("useCurrency('chance');", context);
+assert.strictEqual(context.game.currencies.chance, 0, 'chance orb must be consumed by normal equipment');
+assert.strictEqual(context.game.inventory[0].rarity, 'unique', 'chance orb must evolve surviving normal equipment into a slot-matching unique');
+assert.strictEqual(context.game.inventory[0].slot, '무기', 'chance orb unique result must keep the target equipment slot');
 
 context.game.starWedge.unlocked = true;
 context.assignStarWedgeSockets();
