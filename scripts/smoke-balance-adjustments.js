@@ -48,7 +48,7 @@ assert(itemDataSource.includes("name: \"운명의 쌍현\", slots: [\"목걸이\
 const marketContext = {};
 vm.createContext(marketContext);
 vm.runInContext(`${extractFunction(itemsSource, 'isUniqueEligibleForBlackMarket')}; this.isUniqueEligibleForBlackMarket = isUniqueEligibleForBlackMarket;`, marketContext);
-assert.strictEqual(marketContext.isUniqueEligibleForBlackMarket({ name: '운명의 쌍현', dropOnly: { type: 'cosmos' } }), true, 'cosmos-only uniques must be eligible for the black market');
+assert.strictEqual(marketContext.isUniqueEligibleForBlackMarket({ name: '운명의 쌍현', dropOnly: { type: 'cosmos' } }), false, 'realm-only uniques must not be eligible for the black market');
 assert.strictEqual(marketContext.isUniqueEligibleForBlackMarket({ name: '일반 고유' }), true, 'ordinary uniques must remain eligible for the black market');
 assert(itemsSource.includes('isUniqueEligibleForBlackMarket'), 'black market unique eligibility helper must exist');
 assert(itemsSource.includes('return isUniqueEligibleForBlackMarket(unique) ? offer : null;'), 'stale restricted unique offers must be removed');

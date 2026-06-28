@@ -38,6 +38,7 @@ function getPassiveEffectLabel(node) {
         return `${statMut.name || mutation.currentStat} +${formatValue(mutation.currentStat, mutation.currentVal)}${statMut.isPct ? '%' : ''} <span style="color:#b8a7c7;">(변성)</span>`;
     }
     if (node.effectLabel) return node.effectLabel;
+    if (node.kind === 'void') return getVoidPassiveEffectLabel(node.id);
     if (node.stat === 'chaosResElemPenalty') {
         let value = formatValue(node.stat, node.val);
         return `카오스 저항 +${value}% 및 모든 원소 저항 -${value}%`;
@@ -54,7 +55,8 @@ function getPassiveKindLabel(node) {
     if (node.kind === 'transcendent') return '초월 성좌';
     if (node.kind === 'core') return '핵심 성좌';
     if (node.kind === 'deadend') return '막다른 길 거점';
-    if (node.kind === 'hub') return '허브 노드';
+    if (node.kind === 'void') return '공허 패시브';
+    if (node.kind === 'hub') return node.socketType === 'star_wedge' ? '별쐐기 슬롯' : '별쐐기 슬롯 후보';
     if (node.tier >= 3 || node.kind === 'major') return '중심 노드';
     if (node.kind === 'path') return '경로 노드';
     return '보조 노드';
@@ -86,6 +88,7 @@ function getPassiveNodeVisualRadius(node) {
     if (node.kind === 'apex') return 18;
     if (node.kind === 'evolved') return 13;
     if (node.kind === 'core') return 18;
+    if (node.kind === 'void') return 14;
     if (node.kind === 'deadend') return 16;
     if (node.kind === 'hub') return 20;
     if (node.tier === 3 || node.kind === 'major') return 15;
@@ -147,6 +150,11 @@ function getPassiveStatAccent(statId) {
 
 function getPassiveNodePalette(node, active, reachable, visibility) {
     let hasMutation = !!(game && game.starWedge && game.starWedge.nodeMutations && game.starWedge.nodeMutations[node && node.id]);
+    if (node && node.kind === 'void') {
+        return active
+            ? { outer: '#c7f7ff', mid: '#22566b', inner: '#06151d', glow: 'rgba(79,209,255,0.45)', text: '#dcfbff' }
+            : { outer: '#72b8d0', mid: '#173345', inner: '#081019', glow: 'rgba(79,209,255,0.20)', text: '#c5efff' };
+    }
     if (node && node.socketType === 'star_wedge') {
         return active
             ? { outer: '#f3ddff', mid: '#4d2d68', inner: '#13091d', glow: 'rgba(185,112,255,0.52)', text: '#f8eaff' }
@@ -577,8 +585,8 @@ function generateOrganicTree() {
             node.val = getTierValue(stat, node.tier);
             if (shape.kind === 'major' || shape.kind === 'keystone') node.val = Math.max(node.val, getTierValue(stat, 2));
             if (shape.kind === 'hub') {
-                node.title = '별쐐기 허브';
-                node.desc = '별쐐기를 박기 좋은 길목입니다. 주변의 전문 노드 뭉치와 범용 경로를 함께 조율합니다.';
+                node.title = '별쐐기 슬롯';
+                node.desc = '별쐐기 해금 후 별쐐기를 장착할 수 있는 슬롯입니다. 주변의 전문 노드 뭉치와 범용 경로를 함께 조율합니다.';
             }
         }
     }
@@ -783,6 +791,27 @@ function generateOrganicTree() {
             prev = node;
         }
     }
+
+    function markVoidPassiveNodes() {
+        for (let spoke = 0; spoke < webSpokeCount; spoke++) {
+            let candidates = (webNodes[spoke] || [])
+                .filter(node => node && (node.webRing || 0) >= 3)
+                .filter(node => node.kind === 'path' || node.kind === 'major');
+            if (candidates.length <= 0) continue;
+            let pick = candidates[(spoke * 7 + 3) % candidates.length];
+            pick.legacyVoidStat = pick.stat;
+            pick.legacyVoidVal = pick.val;
+            pick.kind = 'void';
+            pick.stat = 'pctDmg';
+            pick.val = 0;
+            pick.title = '공허 패시브';
+            pick.desc = '처음 활성화할 때는 아무 효과도 없습니다. 진화의 오브, 확장의 오브, 변화의 오브로 최대 2줄의 공허 옵션을 부여할 수 있습니다.';
+            pick.effectLabel = null;
+            pick.voidPassive = true;
+        }
+    }
+
+    markVoidPassiveNodes();
 
     for (let depth = 1; depth <= maxDepth; depth++) {
         for (let spoke = 0; spoke < webSpokeCount; spoke++) {
@@ -1390,11 +1419,110 @@ function ensureStarWedgeState() {
     return game.starWedge;
 }
 
+const VOID_PASSIVE_OPTION_POOL = [
+    { id: 'pctDmg', min: 2, max: 4 },
+    { id: 'flatHp', min: 8, max: 16 },
+    { id: 'flatDmg', min: 1, max: 3 },
+    { id: 'resAll', min: 2, max: 4 },
+    { id: 'resChaos', min: 3, max: 5 },
+    { id: 'crit', min: 1, max: 2 },
+    { id: 'critDmg', min: 4, max: 8 },
+    { id: 'aspd', min: 1, max: 3 },
+    { id: 'move', min: 1, max: 3 },
+    { id: 'armorPct', min: 4, max: 8 },
+    { id: 'evasionPct', min: 4, max: 8 },
+    { id: 'energyShieldPct', min: 4, max: 8 },
+    { id: 'dotPctDmg', min: 3, max: 6 },
+    { id: 'resPen', min: 1, max: 2 }
+];
+
+function getVoidPassiveNodeIds() {
+    return Object.values(PASSIVE_TREE.nodes || {})
+        .filter(node => node && node.kind === 'void')
+        .map(node => String(node.id));
+}
+
+function ensureVoidPassiveState() {
+    game.voidPassives = (game.voidPassives && typeof game.voidPassives === 'object') ? game.voidPassives : {};
+    let validIds = new Set(getVoidPassiveNodeIds());
+    Object.keys(game.voidPassives).forEach(nodeId => {
+        if (!validIds.has(String(nodeId))) {
+            delete game.voidPassives[nodeId];
+            return;
+        }
+        let entry = game.voidPassives[nodeId] && typeof game.voidPassives[nodeId] === 'object' ? game.voidPassives[nodeId] : {};
+        let stats = Array.isArray(entry.stats) ? entry.stats : [];
+        entry.stats = stats
+            .filter(line => line && P_STATS[line.id] && Number.isFinite(Number(line.val)))
+            .slice(0, 2)
+            .map(line => ({ id: line.id, val: Number(line.val) }));
+        entry.rarity = entry.stats.length > 0 ? 'magic' : 'normal';
+        game.voidPassives[nodeId] = entry;
+    });
+    return game.voidPassives;
+}
+
+function getVoidPassiveCraft(nodeId) {
+    let state = ensureVoidPassiveState();
+    let key = String(nodeId || '');
+    if (!state[key]) state[key] = { rarity: 'normal', stats: [] };
+    return state[key];
+}
+
+function formatVoidPassiveStatLine(line) {
+    if (!line || !P_STATS[line.id]) return '';
+    return `${getStatName(line.id)} +${formatValue(line.id, line.val)}${P_STATS[line.id].isPct ? '%' : ''}`;
+}
+
+function getVoidPassiveEffectLabel(nodeId) {
+    let entry = getVoidPassiveCraft(nodeId);
+    if (!entry.stats.length) return '공허 옵션 없음 <span style="color:#8ca6b8;">(오브로 최대 2줄 부여)</span>';
+    return entry.stats.map(formatVoidPassiveStatLine).filter(Boolean).join(' / ');
+}
+
+function rollVoidPassiveOption(existingStats) {
+    let used = new Set((existingStats || []).map(line => line && line.id));
+    let pool = VOID_PASSIVE_OPTION_POOL.filter(opt => P_STATS[opt.id] && !used.has(opt.id));
+    if (!pool.length) return null;
+    let pick = rndChoice(pool);
+    let val = Math.floor(pick.min + Math.random() * (pick.max - pick.min + 1));
+    return { id: pick.id, val };
+}
+
+function applyVoidPassiveCurrency(nodeId, currencyKey) {
+    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let node = PASSIVE_TREE.nodes[nodeId];
+    if (!node || node.kind !== 'void') return addLog('공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
+    if (!(game.passives || []).includes(node.id)) return addLog('먼저 공허 패시브를 활성화해야 합니다.', 'attack-monster');
+    if (!['transmute', 'augment', 'alteration'].includes(currencyKey)) return addLog('공허 패시브에는 진화/확장/변화의 오브만 사용할 수 있습니다.', 'attack-monster');
+    if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
+    let entry = getVoidPassiveCraft(node.id);
+    if (currencyKey === 'transmute' && entry.stats.length > 0) return addLog('이미 매직 공허 패시브입니다.', 'attack-monster');
+    if (currencyKey === 'augment' && (entry.stats.length <= 0 || entry.stats.length >= 2)) return addLog('확장의 오브는 1줄 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
+    if (currencyKey === 'alteration' && entry.stats.length <= 0) return addLog('변화의 오브는 매직 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
+    game.currencies[currencyKey]--;
+    if (currencyKey === 'transmute') entry.stats = [rollVoidPassiveOption([])].filter(Boolean);
+    else if (currencyKey === 'augment') {
+        let next = rollVoidPassiveOption(entry.stats);
+        if (next) entry.stats.push(next);
+    } else if (currencyKey === 'alteration') {
+        let lineCount = Math.max(1, Math.min(2, entry.stats.length));
+        entry.stats = [];
+        for (let i = 0; i < lineCount; i++) {
+            let next = rollVoidPassiveOption(entry.stats);
+            if (next) entry.stats.push(next);
+        }
+    }
+    entry.rarity = entry.stats.length > 0 ? 'magic' : 'normal';
+    addLog(`🕳️ 공허 패시브에 ${ORB_DB[currencyKey].name} 사용: ${getVoidPassiveEffectLabel(node.id).replace(/<[^>]*>/g, '')}`, 'loot-magic');
+    updateStaticUI();
+}
+
 function isStarWedgeNodeMutable(node) {
     if (!node) return false;
     if (node.id === 'n0') return false;
     if (node.socketType === 'star_wedge') return false;
-    if (['apex', 'evolved', 'transcendent', 'core', 'hub', 'keystone'].includes(node.kind)) return false;
+    if (['apex', 'evolved', 'transcendent', 'core', 'hub', 'keystone', 'void'].includes(node.kind)) return false;
     return true;
 }
 
@@ -1425,53 +1553,16 @@ function assignStarWedgeSockets() {
     let st = (game && game.starWedge) || {};
     let unlocked = !!st.unlocked;
     let hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'hub');
-    let minHubDistance = 6;
-    let edgeMap = {};
-    (PASSIVE_TREE.edges || []).forEach(edge => {
-        edgeMap[edge.from] = edgeMap[edge.from] || [];
-        edgeMap[edge.to] = edgeMap[edge.to] || [];
-        edgeMap[edge.from].push(edge.to);
-        edgeMap[edge.to].push(edge.from);
-    });
-    function getHubDistance(a, b) {
-        if (a === b) return 0;
-        let q = [{ id: a, d: 0 }];
-        let seen = new Set([a]);
-        while (q.length) {
-            let cur = q.shift();
-            let nexts = edgeMap[cur.id] || [];
-            for (let i = 0; i < nexts.length; i++) {
-                let nid = nexts[i];
-                if (seen.has(nid)) continue;
-                let nd = cur.d + 1;
-                if (nid === b) return nd;
-                if (nd <= minHubDistance) q.push({ id: nid, d: nd });
-                seen.add(nid);
-            }
-        }
-        return Number.POSITIVE_INFINITY;
-    }
-    let selectedHubIds = [];
-    hubs.sort((a, b) => String(a.id).localeCompare(String(b.id))).forEach(node => {
-        let tooClose = selectedHubIds.some(otherId => getHubDistance(node.id, otherId) < minHubDistance);
-        if (!tooClose) selectedHubIds.push(node.id);
-    });
     hubs.forEach(node => {
-        node.socketType = null;
+        node.title = '별쐐기 슬롯';
+        node.desc = unlocked
+            ? '별쐐기를 장착할 수 있는 슬롯입니다. 장착 시 주변 노드(1~3경로)와 슬롯 자신을 변성시킬 수 있습니다.'
+            : '별쐐기 해금 후 별쐐기를 장착할 수 있는 슬롯입니다.';
+        node.socketType = unlocked ? 'star_wedge' : null;
     });
-    hubs.forEach(node => {
-        if (unlocked && selectedHubIds.includes(node.id)) {
-            node.socketType = 'star_wedge';
-            node.title = '별쐐기 슬롯';
-            node.desc = '별쐐기 장착 전용 슬롯입니다. 장착 시 주변 노드(1~3경로)와 슬롯 자신을 변성시킬 수 있습니다.';
-        } else {
-            node.socketType = null;
-            node.desc = node.desc || '';
-        }
-    });
-    let selectedHubIdSet = new Set(selectedHubIds.map(id => String(id)));
+    let hubIdSet = new Set(hubs.map(node => String(node.id)));
     st.sockets = (st.sockets || [])
-        .filter(entry => selectedHubIdSet.has(String(entry && entry.nodeId)))
+        .filter(entry => hubIdSet.has(String(entry && entry.nodeId)))
         .slice(0, typeof getMaxEquippedStarWedges === 'function' ? getMaxEquippedStarWedges() : 3);
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
 }
@@ -1575,7 +1666,7 @@ function recalculateStarWedgeMutations() {
             const r2 = wedge.uniqueType === 'asteroid_belt' ? 300 : (wedge.uniqueType === 'satellite' ? 260 : 220);
             radialNodes.forEach(n => {
                 const d = radialDist(n);
-                if (d < r1 || d > r2 || String(n.id)===String(center.id)) return;
+                if (d < r1 || d > r2 || String(n.id)===String(center.id) || n.kind === 'void') return;
                 const nodeKind = String(n.kind || '');
                 if (wedge.uniqueType === 'satellite' && nodeKind === 'core') {
                     st.disabledNodeEffects = st.disabledNodeEffects || {};
@@ -6156,8 +6247,19 @@ function isDefenseTypeStatAllowed(item, statId) {
     return true;
 }
 
+function isKaleidoscopeShieldItem(item) {
+    return !!(item && item.rarity === 'unique' && item.uniqueEffectKey === 'kaleidoscopeShield');
+}
+
+function getAvailableModSlotsForItem(item) {
+    if (isKaleidoscopeShieldItem(item)) return EQUIPMENT_DROP_SLOTS.slice();
+    return [item && item.slot].filter(Boolean);
+}
+
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
+    let isKaleidoscopeShield = !!(item && item.rarity === 'unique' && item.uniqueEffectKey === 'kaleidoscopeShield');
+    let allowedSlots = isKaleidoscopeShield ? EQUIPMENT_DROP_SLOTS.slice() : [item && item.slot].filter(Boolean);
     let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
     let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonHpPct', 'summonAspd', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonCap', 'summonResPen', 'summonGemLevel']);
     let hasSummonBaseStat = item && Array.isArray(item.baseStats)
@@ -6169,11 +6271,11 @@ function getAvailableMods(item) {
         let statId = mod.statId || mod.id;
         if (!isDefenseTypeStatAllowed(item, statId)) return false;
         if (statId === 'deflectChance' && !baseDefenseTypes.has('evasion')) return false;
-        if (item.slot === '방패' && statId === 'spellGemLevel' && !baseDefenseTypes.has('energyShield')) return false;
+        if (!isKaleidoscopeShield && item.slot === '방패' && statId === 'spellGemLevel' && !baseDefenseTypes.has('energyShield')) return false;
         if (item.slot === '무기' && summonOnlyModIds.has(statId) && !isSummonBaseWeapon) return false;
         if (item.slot === '반지' && summonOnlyModIds.has(statId) && !isSummonBaseRing) return false;
         if (!isPrimaryDualDefenseAffixMod(item, mod)) return false;
-        return mod.slots.includes(item.slot) && !existing.has(statId);
+        return allowedSlots.some(slot => mod.slots.includes(slot)) && !existing.has(statId);
     }).map(mod => makeDualDefenseAffixMod(item, mod));
 }
 
@@ -6602,6 +6704,7 @@ const UNIQUE_FIXED_BASE_BY_NAME = {
     '성좌의 주문핵': 'void_archon_staff',
     '영겁의 마도서': 'abyss_chant_staff',
     '황혼의 왕관': 'oracle_circlet',
+    '폭풍의 눈': 'starlit_mask',
     '빙결파수 장화': 'phase_boots',
     '대균열의 왕관': 'grand_breach_shard_helm',
     '가호의 갑피': 'fortress_plate',
@@ -6614,6 +6717,10 @@ const UNIQUE_FIXED_BASE_BY_NAME = {
     '지평선 분할자': 'tempest_pike',
     '영원': 'tempest_pike',
     '카옴의 심장': 'dread_plate',
+    '대지의 태동': 'underworld_bastion',
+    '만화경': 'astral_barrier',
+    '무한한 허기': 'underworld_chain',
+    '거울 반지': 'mirror_ring',
     '첫 계약': 'apprentice_familiar_wand',
     '무리의 서약': 'spirit_call_wand',
     '묘지종 사령홀': 'gravebind_scepter',
@@ -6677,7 +6784,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     let uniqueTier = unique.reqTier || zoneTier;
     let fixedBaseId = UNIQUE_FIXED_BASE_BY_NAME[unique.name];
     let base = fixedBaseId ? BASE_ITEM_DB.find(row => row && row.id === fixedBaseId) : null;
-    if (base && (base.slot !== unique.slots[0] || !Array.isArray(base.baseStats) || base.baseStats.length === 0)) base = null;
+    if (base && (base.slot !== unique.slots[0] || !Array.isArray(base.baseStats) || (base.baseStats.length === 0 && unique.name !== '거울 반지'))) base = null;
     if (!base) base = chooseItemBase(unique.slots[0], uniqueTier);
     itemIdCounter++;
     let item = {
@@ -6723,6 +6830,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
         game.seasonChaseUniqueDropped = game.seasonChaseUniqueDrops.length > 0;
         addLog(`🌠 체이싱 유니크 발견! [${unique.name}]`, 'loot-unique');
     }
+    maybeApplyExceptionalBase(item);
     return item;
 }
 
@@ -7006,6 +7114,9 @@ const UNIQUE_JEWEL_DB = [
     { id:'uj_dawn_chip', name:'새벽 조각', stats:[{id:'pctDmg',val:12},{id:'takenDamageReduceWhen1EnemyPct',val:4}] }
 ];
 
+const JEWEL_SUMMON_OPTION_IDS = new Set(['summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonResPen']);
+const JEWEL_SUMMON_OPTION_GROUP = { id: '__summonOptionGroup', name: '소환수 옵션군' };
+
 const JEWEL_OPTION_POOL = [
     { id: 'pctDmg', name: '피해 증폭', min: 4, max: 10 },
     { id: 'physPctDmg', name: '물리 증폭', min: 6, max: 15 },
@@ -7058,6 +7169,26 @@ const JEWEL_PETITE_OPTION_POOL = [
 
 function getJewelOptionDef(statId) {
     return JEWEL_OPTION_POOL.find(option => option.id === statId) || null;
+}
+
+function getJewelRollOptionPool(excludeIds) {
+    let excluded = new Set(Array.isArray(excludeIds) ? excludeIds : []);
+    let hasSummon = JEWEL_OPTION_POOL.some(option => JEWEL_SUMMON_OPTION_IDS.has(option.id) && !excluded.has(option.id));
+    let pool = JEWEL_OPTION_POOL.filter(option => !JEWEL_SUMMON_OPTION_IDS.has(option.id) && !excluded.has(option.id));
+    if (hasSummon) pool.push(JEWEL_SUMMON_OPTION_GROUP);
+    return pool.length > 0 ? pool : JEWEL_OPTION_POOL;
+}
+
+function resolveJewelRollOption(option, excludeIds) {
+    if (!option || option.id !== JEWEL_SUMMON_OPTION_GROUP.id) return option || null;
+    let excluded = new Set(Array.isArray(excludeIds) ? excludeIds : []);
+    let pool = JEWEL_OPTION_POOL.filter(row => JEWEL_SUMMON_OPTION_IDS.has(row.id) && !excluded.has(row.id));
+    return rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL.filter(row => JEWEL_SUMMON_OPTION_IDS.has(row.id)));
+}
+
+function rollRandomJewelStat(excludeIds) {
+    let pool = getJewelRollOptionPool(excludeIds);
+    return rollJewelStat(resolveJewelRollOption(rndChoice(pool), excludeIds));
 }
 
 function isJewelPetiteStat(stat) {
@@ -7159,7 +7290,7 @@ function generateJewelDrop(zoneTier) {
         if (petite) stats.push(petite);
         return { id: Date.now() + Math.floor(Math.random() * 100000), uniqueId: row.id, name: row.name, rarity: 'unique', uniqueEffect: row.uniqueEffect || '', uniqueLockedFusion: row.id !== 'uj_void', voidFusionCharges: Number.isFinite(row.voidFusionCharges) ? row.voidFusionCharges : 0, hiddenTier: Math.max(1, ...stats.map(st => st.tier || 1)), stats: stats };
     }
-    let pick = rndChoice(JEWEL_OPTION_POOL);
+    let pick = resolveJewelRollOption(rndChoice(getJewelRollOptionPool()), []);
     let stat = rollJewelStat(pick);
     let rarityRoll = Math.random();
     let rarity = 'normal';
@@ -7306,8 +7437,7 @@ function buildVoidUniqueFusionPreviewStats(indices) {
     if (!pair) return [];
     let targetStats = getJewelCoreStats(game.jewelInventory[pair.targetIndex]).map(cloneJewelStat);
     let usedIds = targetStats.map(stat => stat.id);
-    let pool = JEWEL_OPTION_POOL.filter(option => !usedIds.includes(option.id));
-    let randomStat = rollJewelStat(rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL));
+    let randomStat = rollRandomJewelStat(usedIds);
     return targetStats.concat(randomStat ? [randomStat] : []).filter(Boolean).slice(0, 4);
 }
 
@@ -7565,8 +7695,7 @@ function craftVoidJewel() {
 function buildVoidFusionJewel(idxA, idxB) {
     let inherited = getVoidJewelFusionPreviewStats([idxA, idxB]);
     let usedIds = inherited.map(stat => stat.id);
-    let pool = JEWEL_OPTION_POOL.filter(option => !usedIds.includes(option.id));
-    let randomStat = rollJewelStat(rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL));
+    let randomStat = rollRandomJewelStat(usedIds);
     let stats = inherited.concat(randomStat ? [randomStat] : []).filter(Boolean).slice(0, 4);
     return { id: Date.now() + Math.floor(Math.random() * 10000), name: '융합 공허 주얼', rarity: 'rare', isVoid: true, hiddenTier: Math.max(1, ...stats.map(stat => stat.tier || 1)), stats, maxLines: 4 };
 }
@@ -7580,8 +7709,7 @@ function fuseWithVoidUniqueJewel(voidIndex, targetIndex) {
     let targetStats = getJewelCoreStats(target);
     if (targetStats.length >= 4) { addLog('대상 주얼의 옵션이 가득 차 공허 합성을 할 수 없습니다.', 'attack-monster'); return false; }
     let usedIds = targetStats.map(stat => stat.id);
-    let pool = JEWEL_OPTION_POOL.filter(option => !usedIds.includes(option.id));
-    let randomStat = rollJewelStat(rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL));
+    let randomStat = rollRandomJewelStat(usedIds);
     if (!randomStat) { addLog('공허 합성 옵션을 생성하지 못했습니다.', 'attack-monster'); return false; }
     target.stats = Array.isArray(target.stats) ? target.stats.concat(randomStat) : [randomStat];
     target.hiddenTier = Math.max(1, ...(target.stats || []).map(stat => stat.tier || 1));
@@ -8125,7 +8253,7 @@ function useCurrency(currencyKey) {
     else if (currencyKey === 'chaos') ok = item.rarity === 'rare';
     else if (currencyKey === 'divine') ok = item.rarity !== 'normal';
     else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (currencyKey === 'tainted') ok = !item.corrupted;
+    else if (currencyKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
     else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     else if (currencyKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
     else if (currencyKey === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;

@@ -1607,7 +1607,7 @@ function getUniqueEffectImplementationReport() {
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
         'rollGapDamagePct','rollGapCritAndDs','crowdEvasionMore','esToLightPct','underdogNonMaxRollMorePct','instakillNormalOnHitPct','projectileExtraShotChance',
         'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmNoCollisionBlock','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
-        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze'
+        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing'
     ]);
     return {
         total: uniqueKeys.length,
@@ -1653,6 +1653,59 @@ function isDeferredTalentProjectileTargetEffect(effect) {
     return effect.cardId === 'hero1__gladiator' || effect.talentCardId === 'hero1__gladiator';
 }
 
+
+function getOppositeRingSlotKey(slotKey) {
+    if (slotKey === '반지1') return '반지2';
+    if (slotKey === '반지2') return '반지1';
+    return null;
+}
+
+function getMirrorRingSourceItem(equipSlotKey, item) {
+    let otherSlot = getMirrorRingSourceSlot(equipSlotKey, item);
+    return otherSlot ? game.equipment[otherSlot] : null;
+}
+
+function getMirrorRingSourceSlot(equipSlotKey, item) {
+    if (!item || item.uniqueEffectKey !== 'mirrorOppositeRing') return null;
+    let otherSlot = getOppositeRingSlotKey(equipSlotKey);
+    let other = otherSlot && game.equipment ? game.equipment[otherSlot] : null;
+    if (!other || other.uniqueEffectKey === 'mirrorOppositeRing') return null;
+    return otherSlot;
+}
+
+function cloneItemStatList(stats) {
+    return (Array.isArray(stats) ? stats : []).filter(Boolean).map(stat => ({ ...stat }));
+}
+
+function getKaleidoscopeExplicitMultiplier(item) {
+    if (!item || item.uniqueEffectKey !== 'kaleidoscopeShield') return 1;
+    let params = item.uniqueEffectParams || {};
+    return Math.max(1, Number(params.explicitStatMultiplier || 2));
+}
+
+function applyEliteTraitBuffStats(buff, bucket) {
+    if (!buff || (buff.expiresAt || 0) <= Date.now()) return;
+    let trait = buff.trait || {};
+    if (trait.atkMul) addStatToBucket(bucket, 'pctDmg', Math.max(0, (Number(trait.atkMul) - 1) * 100));
+    if (trait.attackSpeedVarMul) addStatToBucket(bucket, 'aspd', Math.max(0, (Number(trait.attackSpeedVarMul) - 1) * 100));
+    if (trait.hpMul) addStatToBucket(bucket, 'pctHp', Math.max(0, (Number(trait.hpMul) - 1) * 100));
+    if (trait.critChanceBonus) addStatToBucket(bucket, 'crit', Number(trait.critChanceBonus || 0));
+    if (trait.dr) addStatToBucket(bucket, 'dr', Number(trait.dr || 0));
+    ['resF', 'resC', 'resL', 'resChaos'].forEach(stat => {
+        if (trait[stat]) addStatToBucket(bucket, stat, Number(trait[stat] || 0));
+    });
+    if (trait.hitRateGuard) addStatToBucket(bucket, 'evasionPct', Math.max(0, Number(trait.hitRateGuard || 0) * 100));
+}
+
+function grantEliteTraitBuffFromEnemy(enemy, pStats) {
+    if (!enemy || !enemy.isElite || !pStats || !pStats.uniqueStealEliteTrait) return;
+    let trait = enemy.trait || null;
+    if (!trait) return;
+    let durationMs = Math.max(1000, Math.floor(Number(pStats.uniqueStealEliteTrait.duration || 30) * 1000));
+    game.uniqueEliteTraitBuff = { trait: { ...trait }, expiresAt: Date.now() + durationMs };
+    if (game.settings && game.settings.showCombatLog !== false) addLog(`🩸 무한한 허기: ${trait.name || '정예 특성'} 획득`, 'loot-unique', { noToast: true });
+}
+
 function getPlayerStats() {
     recomputeCosmosTwinKeystones();
     const safePassives = Array.isArray(game.passives) ? game.passives : [];
@@ -1689,26 +1742,32 @@ function getPlayerStats() {
     Object.entries(game.equipment || {}).forEach(([equipSlotKey, item]) => {
         if (!item) return;
         if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9') && item.slot === '무기') return;
+        let mirrorSourceItem = getMirrorRingSourceItem(equipSlotKey, item);
         if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '', sourceSlot: equipSlotKey });
+        if (mirrorSourceItem && mirrorSourceItem.rarity === 'unique' && mirrorSourceItem.uniqueEffectKey) equippedUniqueEffects.push({ key: mirrorSourceItem.uniqueEffectKey, params: mirrorSourceItem.uniqueEffectParams || null, itemName: mirrorSourceItem.name || '', sourceSlot: getOppositeRingSlotKey(equipSlotKey) });
         let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
         let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
         let qualityValue = Math.max(0, Math.min(qualityCap, Math.floor(item.quality || 0)));
         let qualityMul = 1 + (qualityValue / 100);
         let qualityMode = typeof getItemQualityAttributeMode === 'function' ? getItemQualityAttributeMode(item) : 'base';
         let baseQualityMul = qualityMode === 'base' ? qualityMul : 1;
-        let itemBaseStats = scaleStatList((item.baseStats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * baseQualityMul).toFixed(2)) } : stat), itemStatMultiplier);
+        let baseSourceStats = cloneItemStatList(item.baseStats).concat(mirrorSourceItem ? cloneItemStatList(mirrorSourceItem.baseStats) : []);
+        let itemBaseStats = scaleStatList(baseSourceStats.map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * baseQualityMul).toFixed(2)) } : stat), itemStatMultiplier);
         applyStatsToBucket(gearBase, itemBaseStats);
         let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
         let riftAmpRow = (item.stats || []).find(stat => stat && stat.id === 'fossilRiftAmp');
         let riftAmpMul = 1 + (Math.max(0, Number(riftAmpRow && riftAmpRow.val) || 0) / 100);
-        let adjustedExplicitStats = (item.stats || []).map(stat => {
+        let explicitMultiplier = getKaleidoscopeExplicitMultiplier(item);
+        let explicitSourceStats = cloneItemStatList(item.stats).concat(mirrorSourceItem ? cloneItemStatList(mirrorSourceItem.stats) : []);
+        let adjustedExplicitStats = explicitSourceStats.map(stat => {
             if (!stat) return stat;
             if (stat.id === 'fossilRiftBlank' || stat.id === 'fossilRiftAmp') return stat;
             if (!Number.isFinite(Number(stat.val))) return stat;
             let explicitQualityMul = qualityMode !== 'base' && typeof isQualityAttributeStat === 'function' && isQualityAttributeStat(qualityMode, stat.id) ? qualityMul : 1;
-            return { ...stat, val: Number((Number(stat.val) * riftAmpMul * explicitQualityMul).toFixed(2)) };
+            return { ...stat, val: Number((Number(stat.val) * riftAmpMul * explicitQualityMul * explicitMultiplier).toFixed(2)) };
         });
-        let explicitItemStats = scaleStatList(adjustedExplicitStats.concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], immutableSpecialStats), itemStatMultiplier);
+        let copiedSpecialStats = mirrorSourceItem ? cloneItemStatList([mirrorSourceItem.underEnchant, mirrorSourceItem.chaosInfusion]) : [];
+        let explicitItemStats = scaleStatList(adjustedExplicitStats.concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], copiedSpecialStats, immutableSpecialStats), itemStatMultiplier);
         applyStatsToBucket(gearExplicit, explicitItemStats);
         let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
         let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;
@@ -1792,7 +1851,7 @@ function getPlayerStats() {
     let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false, uniqueImmuneIgnite = false;
     let uniqueFateTwinRollSync=false, uniqueFrostSentinel=false, uniqueShockTracer=null, uniqueVenomStride=false, uniqueBleedBlockHelm=false, uniqueImmuneBleed=false, uniqueImmuneFreeze=false, uniqueCurseCrownPerCursePct=0, uniqueWarcryResonancePct=0, uniqueConditionManual=null, uniqueStackingElementalResDownOnHit=null;
     let uniqueAllResDownOnHit=null, uniqueKillMoveStacks=null, uniqueCursedTakenAndRefresh=null, uniqueEnemyRegenCutAndMinRoll=null, uniquePhysDrHalfTakenAsMore=null, uniqueArmorAppliesToDot=false, uniqueMeleeArmorAmp=null, uniqueNoCollisionBlock=false, uniqueResonanceAndSuppCap=null, uniqueRegenRateAndRegen=null, uniqueMaxHpPct=0, uniqueAllMaxRes=0;
-    let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null;
+    let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null, uniqueStealEliteTrait=null, fixedAllMaxRes=null;
     let cosmosAlwaysFirstHit=false, cosmosEnergyShieldBypassPct=0, cosmosOrbitCycle=null, cosmosDeepSeaLeechCaps=null, cosmosTideEsRegenToLife=false, cosmosEqualDamageSplit=false, cosmosBalanceMitigation=false, cosmosTwinStarResonance=null, cosmosJudgmentLightning=null, cosmosDeathResistPct=0, cosmosVerdictSupportDamagePct=0, cosmosGuardianConditionInstant=false, cosmosBossDamageMorePct=0, cosmosCometChillNoFreeze=false;
     let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
     let uniqueRollGapDamage=false, uniqueRollGapCritDs=false, uniqueCrowdEvasionMore=null, uniqueEsToLightPct=false, uniqueUnderdogMorePct=0, uniqueInstakillNormalPct=0, uniqueProjExtraShotChance=null;
@@ -1917,6 +1976,9 @@ function getPlayerStats() {
         else if (effect.key === 'cosmosGuardianConditionInstant') cosmosGuardianConditionInstant = true;
         else if (effect.key === 'cosmosBossDamageMore') cosmosBossDamageMorePct = Math.max(cosmosBossDamageMorePct, Number(ep.morePct || 25));
         else if (effect.key === 'cosmosCometChillNoFreeze') cosmosCometChillNoFreeze = true;
+        else if (effect.key === 'fixedAllMaxRes') fixedAllMaxRes = Math.max(1, Math.min(90, Number(ep.max || 82)));
+        else if (effect.key === 'stealEliteTrait') uniqueStealEliteTrait = { duration: Number(ep.duration || 30) };
+        else if (effect.key === 'kaleidoscopeShield' || effect.key === 'mirrorOppositeRing') { /* item stat path handles these */ }
         else if (effect.key === 'cosmosStatBundle') {
             addStatToBucket(reward, 'pctDmg', Number(ep.pctDmg || 0));
             addStatToBucket(reward, 'dr', Number(ep.dr || 0));
@@ -1936,6 +1998,13 @@ function getPlayerStats() {
     safePassives.forEach(id => {
         let node = PASSIVE_TREE.nodes[id];
         if (!node) return;
+        if (node.kind === 'void') {
+            let entry = typeof getVoidPassiveCraft === 'function' ? getVoidPassiveCraft(id) : null;
+            (entry && Array.isArray(entry.stats) ? entry.stats : []).forEach(line => {
+                if (line && line.id) addStatToBucket(passive, line.id, line.val);
+            });
+            return;
+        }
         let mut = mutationMap[id];
         if (mut && mut.currentStat) addStatToBucket(passive, mut.currentStat, mut.currentVal);
         else addStatToBucket(passive, node.stat, node.val);
@@ -2007,6 +2076,7 @@ function getPlayerStats() {
             bonusLines.forEach(line => { if (line && line.stat) addStatToBucket(reward, line.stat, Number(line.val || 0)); });
         });
     }
+    applyEliteTraitBuffStats(game.uniqueEliteTraitBuff, reward);
     if (typeof getCoreCubeActiveStats === 'function') {
         getCoreCubeActiveStats().forEach(stat => { if (stat && stat.id) addStatToBucket(reward, stat.id, stat.val); });
     }
@@ -2450,6 +2520,7 @@ function getPlayerStats() {
     let swiftOpeningTakenMultiplier = 1;
     let guardianReflectDamage = 0;
     let guardianBlockChance = 0;
+    let guardianDamageNullifyChance = 0;
     let guardianArmorDamageBonus = false;
     let sbSummonAspdBonus = 0;
     let sbSummonCapBonus = 0;
@@ -2534,6 +2605,12 @@ function getPlayerStats() {
         finalMaxResC = Math.min(90, finalMaxResC + resistanceBlendMaxBonus);
         finalMaxResL = Math.min(90, finalMaxResL + resistanceBlendMaxBonus);
         finalMaxResChaos = Math.min(90, finalMaxResChaos + resistanceBlendMaxBonus);
+    }
+    if (fixedAllMaxRes !== null) {
+        finalMaxResF = fixedAllMaxRes;
+        finalMaxResC = fixedAllMaxRes;
+        finalMaxResL = fixedAllMaxRes;
+        finalMaxResChaos = fixedAllMaxRes;
     }
     let finalResF = Math.min(finalMaxResF, rawResF);
     let finalResC = Math.min(finalMaxResC, rawResC);
@@ -2877,8 +2954,10 @@ function getPlayerStats() {
         }
         if (hasKeystone('gd6')) { let now = Date.now(); let stacks = (game.guardianEnduranceExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) : 0; if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.11)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.6)); }
         if (guardianArmorDamageBonus) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalArmor) * 0.001));
-        if (hasKeystone('gd8')) { guardianBlockChance += 25; ailmentResistBonusPct += 50; }
-        if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.4) {
+        if (hasKeystone('gd8')) { guardianDamageNullifyChance += 25; ailmentResistBonusPct += 50; }
+        // 9) 거대화: 최대 생명력 20% 증폭
+        if (hasKeystone('gd9')) finalMaxHp = Math.floor(finalMaxHp * 1.2);
+        if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
             genericTakenDamageMultiplier *= 0.8;
             finalBaseDmg = Math.floor(finalBaseDmg * 1.2);
             let now = Date.now();
@@ -2887,8 +2966,6 @@ function getPlayerStats() {
                 game.guardianLastStandCleanseAt = now;
             }
         }
-        // 9) 거대화: 최대 생명력 20% 증폭
-        if (hasKeystone('gd9')) finalMaxHp = Math.floor(finalMaxHp * 1.2);
     } else if (game.ascendClass === 'inquisitor') {
         if (hasKeystone('iq3')) {
             let sealedGemCount = (game.sealedSkills || []).length + (game.sealedSupports || []).length;
@@ -3106,6 +3183,12 @@ function getPlayerStats() {
     finalMaxResC = Math.min(90, finalMaxResC + (colonyWardBonus.maxResC || 0));
     finalMaxResL = Math.min(90, finalMaxResL + (colonyWardBonus.maxResL || 0));
     finalMaxResChaos = Math.min(90, finalMaxResChaos + (colonyWardBonus.maxResChaos || 0));
+    if (fixedAllMaxRes !== null) {
+        finalMaxResF = fixedAllMaxRes;
+        finalMaxResC = fixedAllMaxRes;
+        finalMaxResL = fixedAllMaxRes;
+        finalMaxResChaos = fixedAllMaxRes;
+    }
     finalMaxHp += (colonyWardBonus.flatHp || 0);
     finalArmor += (colonyWardBonus.armor || 0);
     finalEvasion += (colonyWardBonus.evasion || 0);
@@ -3616,6 +3699,7 @@ function getPlayerStats() {
         swiftOpeningTakenMultiplier: swiftOpeningTakenMultiplier,
         guardianReflectDamage: guardianReflectDamage,
         guardianBlockChance: guardianBlockChance,
+        guardianDamageNullifyChance: guardianDamageNullifyChance,
         shieldBaseBlockChance: shieldBaseBlockChance,
         effectiveShieldBaseBlockChance: effectiveShieldBaseBlockChance,
         shieldBlockChancePct: shieldBlockChancePct,
@@ -3723,6 +3807,7 @@ function getPlayerStats() {
         uniqueOverkillSplash: uniqueOverkillSplash,
         uniqueDragonVeinGuard: uniqueDragonVeinGuard,
         uniqueGuardianArmor: uniqueGuardianArmor,
+        uniqueStealEliteTrait: uniqueStealEliteTrait,
         uniqueQueenBeeSummon: uniqueQueenBeeSummon,
         uniqueSummonDeathDamageBuff: uniqueSummonDeathDamageBuff,
         uniqueSummonCritAspdStacks: uniqueSummonCritAspdStacks,
@@ -4849,14 +4934,14 @@ function getSkillConditionalDamageMultiplier(skill, enemy) {
     return multiplier;
 }
 
-function spreadSkillAilmentOnHit(source, skill) {
+function spreadSkillAilmentOnHit(source, skill, pStats) {
     let config = skill.ailmentSpreadOnHit;
     if (!config || Math.random() >= Math.max(0, Math.min(1, Number(config.chance) || 0))) return;
     let ailment = (source.ailments || []).find(ail => ail && ail.type === config.type && (ail.time || 0) > 0);
-    let copy = cloneEnemyAilmentForSpread(ailment);
+    let copy = cloneEnemyAilmentForSpread(ailment, pStats);
     if (!copy) return;
     let targets = (game.enemies || []).filter(enemy => enemy && enemy.id !== source.id && enemy.hp > 0);
-    targets.slice(0, Math.max(1, Math.floor(config.targets || 1))).forEach(target => mergeEnemyAilment(target, copy));
+    targets.slice(0, Math.max(1, Math.floor(config.targets || 1))).forEach(target => mergeEnemyAilment(target, copy, pStats));
 }
 
 const SKILL_PERIODIC_CHAIN_CAP = 12;
@@ -4982,20 +5067,23 @@ function getEnemyDamageAilmentDps(ail, pStats) {
     return dps;
 }
 
-function getEnemyDamageAilmentMaxStacks() {
+function getEnemyDamageAilmentMaxStacks(type, pStats) {
     let cap = 1;
     if (game.ascendClass === 'catalyst' && hasKeystone('ct6')) cap += 1;
     if (game.ascendClass === 'catalyst' && hasKeystone('ct8')) cap += 2;
+    if (type === 'poison') cap += Math.max(0, Math.floor(Number(pStats && pStats.uniquePoisonExtraStacks) || 0));
     return Math.max(1, cap);
 }
 
-function cloneEnemyAilmentForSpread(ail) {
+function cloneEnemyAilmentForSpread(ail, pStats) {
     if (!ail || (ail.time || 0) <= 0) return null;
     const spreadableTypes = ['ignite', 'poison', 'bleed', 'chill', 'shock', 'freeze'];
     if (!spreadableTypes.includes(ail.type)) return null;
     let copy = { type: ail.type, time: Math.max(0, Number(ail.time) || 0), power: Math.max(0, Number(ail.power) || 0) };
     if (isDamageAilmentType(ail.type)) {
-        copy.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(), Math.floor(ail.stacks || 1)));
+        let maxStacks = getEnemyDamageAilmentMaxStacks(ail.type, pStats);
+        if (!pStats) maxStacks = Math.max(maxStacks, Math.floor(ail.stacks || 1));
+        copy.stacks = Math.max(1, Math.min(maxStacks, Math.floor(ail.stacks || 1)));
         copy.sourceHitDamage = getStoredAilmentHitDamage(ail);
         copy.critDotBonusPct = Math.max(0, Number(ail.critDotBonusPct) || 0);
         copy.ailmentDotScore = Math.max(0, Number(ail.ailmentDotScore) || 0);
@@ -5003,7 +5091,7 @@ function cloneEnemyAilmentForSpread(ail) {
     return copy;
 }
 
-function mergeEnemyAilment(target, incoming) {
+function mergeEnemyAilment(target, incoming, pStats) {
     if (!target || !incoming || (incoming.time || 0) <= 0) return false;
     target.ailments = Array.isArray(target.ailments) ? target.ailments : [];
     let row = target.ailments.find(ail => ail && ail.type === incoming.type);
@@ -5014,7 +5102,9 @@ function mergeEnemyAilment(target, incoming) {
     row.time = Math.max(row.time || 0, incoming.time || 0);
     row.power = Math.max(row.power || 0, incoming.power || 0);
     if (isDamageAilmentType(incoming.type)) {
-        row.stacks = Math.max(1, Math.min(getEnemyDamageAilmentMaxStacks(), Math.max(Math.floor(row.stacks || 1), Math.floor(incoming.stacks || 1))));
+        let maxStacks = getEnemyDamageAilmentMaxStacks(incoming.type, pStats);
+        if (!pStats) maxStacks = Math.max(maxStacks, Math.floor(row.stacks || 1), Math.floor(incoming.stacks || 1));
+        row.stacks = Math.max(1, Math.min(maxStacks, Math.max(Math.floor(row.stacks || 1), Math.floor(incoming.stacks || 1))));
         let rowScore = Math.max(0, Number(row.ailmentDotScore) || getStoredAilmentHitDamage(row));
         let incomingScore = Math.max(0, Number(incoming.ailmentDotScore) || getStoredAilmentHitDamage(incoming));
         if (incomingScore >= rowScore) {
@@ -5026,10 +5116,10 @@ function mergeEnemyAilment(target, incoming) {
     return true;
 }
 
-function spreadCatalystAilmentsOnDeath(enemy) {
+function spreadCatalystAilmentsOnDeath(enemy, pStats) {
     if (game.ascendClass !== 'catalyst' || !hasKeystone('ct3')) return;
     if (!enemy || !Array.isArray(enemy.ailments)) return;
-    let ailments = enemy.ailments.map(cloneEnemyAilmentForSpread).filter(Boolean);
+    let ailments = enemy.ailments.map(ail => cloneEnemyAilmentForSpread(ail, pStats)).filter(Boolean);
     if (ailments.length <= 0) return;
     let sourceGroup = Number.isFinite(enemy.groupIndex) ? enemy.groupIndex : 0;
     let sourceDist = Number.isFinite(enemy.colonyDist) ? enemy.colonyDist : null;
@@ -5047,7 +5137,7 @@ function spreadCatalystAilmentsOnDeath(enemy) {
             return (a.id || 0) - (b.id || 0);
         });
     if (targets.length <= 0) return;
-    targets.forEach(target => ailments.forEach(ail => mergeEnemyAilment(target, ail)));
+    targets.forEach(target => ailments.forEach(ail => mergeEnemyAilment(target, ail, pStats)));
     if (game.settings && game.settings.showCombatLog) addLog(`🧪 확산 반응: 남은 상태이상이 주변 적 ${targets.length}마리에게 퍼졌습니다.`, 'attack-player', { rateKey: 'catalyst:spread', minIntervalMs: 500 });
 }
 
@@ -5156,7 +5246,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
                 }
             }
             if (damageAilment) {
-                let maxStacks = getEnemyDamageAilmentMaxStacks();
+                let maxStacks = getEnemyDamageAilmentMaxStacks(type, pStats);
                 row.stacks = Math.max(1, Math.min(maxStacks, Math.floor((row.stacks || 1) + 1)));
             }
         } else enemy.ailments.push(payload);
@@ -5167,8 +5257,11 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     if (game.ascendClass === 'catalyst' && hasKeystone('ct8')) {
         let now = Date.now();
         if ((game.catalystBurstReadyAt || 0) <= now) {
-            let maxDamageAilmentStacks = getEnemyDamageAilmentMaxStacks();
-            let burstReady = (enemy.ailments || []).some(a => a && ['ignite','poison','bleed'].includes(a.type) && (a.stacks || 1) >= maxDamageAilmentStacks && (a.time || 0) > 0);
+            let burstReady = (enemy.ailments || []).some(a => {
+                if (!a || !['ignite','poison','bleed'].includes(a.type) || (a.time || 0) <= 0) return false;
+                let maxDamageAilmentStacks = getEnemyDamageAilmentMaxStacks(a.type, pStats);
+                return (a.stacks || 1) >= maxDamageAilmentStacks;
+            });
             if (burstReady) {
                 let burst = 0;
                 (enemy.ailments || []).forEach(a => {
@@ -5334,6 +5427,20 @@ function getWoodsmanCurseDamageTakenMul() {
     let zone = getZone(game.currentZoneId);
     if (!zone || zone.type !== 'outsideChaos' || !game.woodsmanCurseActive) return 1;
     return 1 + Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.0001;
+}
+
+const WOODSMAN_PHASE_OLD_FINAL_PROGRESS = 0.75;
+const WOODSMAN_PHASE_NEW_FINAL_PROGRESS = 0.95;
+
+function getWoodsmanPhaseProgress(enemy) {
+    if (!enemy || !(enemy.maxHp > 0)) return 0;
+    let rawProgress = clampNumber(1 - ((enemy.hp || 0) / enemy.maxHp), 0, 1);
+    if (rawProgress <= WOODSMAN_PHASE_NEW_FINAL_PROGRESS) {
+        return rawProgress * (WOODSMAN_PHASE_OLD_FINAL_PROGRESS / WOODSMAN_PHASE_NEW_FINAL_PROGRESS);
+    }
+    let finalWindow = 1 - WOODSMAN_PHASE_NEW_FINAL_PROGRESS;
+    let finalProgress = (rawProgress - WOODSMAN_PHASE_NEW_FINAL_PROGRESS) / finalWindow;
+    return clampNumber(WOODSMAN_PHASE_OLD_FINAL_PROGRESS + finalProgress * (1 - WOODSMAN_PHASE_OLD_FINAL_PROGRESS), 0, 1);
 }
 
 function startEncounterRun() {
@@ -5949,12 +6056,13 @@ function handleEnemyDeath(enemy, pStats) {
         if (game.talentRuntime.colosseumKills >= 5) { game.talentRuntime.colosseumKills = 0; game.talentRuntime.colosseumReady = true; }
     }
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
+    grantEliteTraitBuffFromEnemy(enemy, pStats);
     grantExpAndGem(enemy, pStats);
     rollLootForEnemy(enemy);
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
-    spreadCatalystAilmentsOnDeath(enemy);
+    spreadCatalystAilmentsOnDeath(enemy, pStats);
     // 루프 특수 보스 집계에는 일반 액트/혼돈 보스를 포함하지 않음.
     if ((game.season || 1) >= 9 && zone && zone.type === 'abyss') {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
@@ -7445,7 +7553,7 @@ function performPlayerAttack(pStats) {
                 ailmentSourceDamage: Math.floor(ailmentDamageBeforeCritMitigation * conditionAilmentTakenMul),
                 critDotBonusPct: hitCrit ? 50 : 0
             });
-            spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill);
+            spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill, pStats);
             applySkillPeriodicOnHit(targetEnemy, pStats.sSkill, dealtToEnemy);
             applySupportEchoOnHit(targetEnemy, pStats, dealtToEnemy);
             applySupportChaosErosionOnHit(targetEnemy, pStats, hitElement);
@@ -7652,7 +7760,8 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, opti
     let ailmentDotScore = getDamageAilmentScore(hitSource, critDotBonusPct, 1, 1);
     let existing = game.playerAilments.find(row => row.type === type);
     if (type === 'poison') {
-        let maxStacks = Math.max(1, 1 + Math.max(0, Math.floor((pStats && pStats.uniquePoisonExtraStacks) || 0)));
+        // Offensive poison stack bonuses affect enemy ailments only; incoming player poison stays at 1 stack.
+        let maxStacks = 1;
         let poisonRows = game.playerAilments.filter(row => row && row.type === 'poison');
         if (poisonRows.length >= maxStacks) {
             existing = poisonRows.reduce((a, b) => ((a.time || 0) <= (b.time || 0) ? a : b), poisonRows[0]);
@@ -7881,14 +7990,14 @@ function performMonsterAttacks(pStats) {
             let physicalPortion = Math.floor(dmg * 0.5);
             let elementalPortion = Math.max(0, dmg - physicalPortion);
             if (zone.type === 'outsideChaos' && enemy.maxHp > 0) {
-                let hpRatio = enemy.hp / enemy.maxHp;
-                let phase = Math.max(0, Math.floor((1 - hpRatio) / 0.05));
+                let phaseProgress = getWoodsmanPhaseProgress(enemy);
+                let phase = Math.max(0, Math.floor(phaseProgress / 0.05));
                 let cycle = ['phys','fire','cold','light','chaos'];
                 enemy.ele = cycle[phase % cycle.length];
-                enemy.atkMul = 1 + Math.pow(1 - hpRatio, 1.4) * 3.2;
-                enemy.attackSpeedVar = (1 + Math.pow(1 - hpRatio, 1.2) * 1.8) * 1.5;
-                enemy.penetration = 8 + Math.floor((1 - hpRatio) * 28);
-                enemy.dr = 10 + Math.floor((1 - hpRatio) * 40);
+                enemy.atkMul = 1 + Math.pow(phaseProgress, 1.4) * 3.2;
+                enemy.attackSpeedVar = (1 + Math.pow(phaseProgress, 1.2) * 1.8) * 1.5;
+                enemy.penetration = 8 + Math.floor(phaseProgress * 28);
+                enemy.dr = 10 + Math.floor(phaseProgress * 40);
             }
             if (enemy.ele === 'phys') {
                 physicalPortion = dmg;
@@ -8086,6 +8195,12 @@ function performMonsterAttacks(pStats) {
                 }
                 addBattleFx('statusText', { text: '막아냄!', color: '#a7a7a7', duration: 260 });
                 if (game.settings.showCombatLog) addLog(`🛡️ 막아냄!`, "loot-magic");
+                continue;
+            }
+            let guardianNullifyChance = Math.max(0, Math.min(100, Number(pStats.guardianDamageNullifyChance) || 0));
+            if (guardianNullifyChance > 0 && Math.random() * 100 < guardianNullifyChance) {
+                addBattleFx('statusText', { text: '무효!', color: '#bdf7ff', duration: 300 });
+                if (game.settings.showCombatLog) addLog('🛡️ 절대 수호: 피해 무효!', 'loot-magic');
                 continue;
             }
             let deflected = false;
@@ -8493,6 +8608,7 @@ function triggerSeasonReset() {
     game.combatHalted = false;
     game.passivePoints = typeof getClaimedJournalPassivePointTotal === 'function' ? getClaimedJournalPassivePointTotal(game) : 0;
     game.passives = ['n0'];
+    game.voidPassives = {};
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
@@ -8565,7 +8681,7 @@ function triggerSeasonReset() {
     game.itemSubtab = 'item-tab-equip';
     game.skillSubtab = 'skill-tab-equip';
     game.mapSubtab = 'map-tab-zones';
-    game.exploreSubtab = 'explore-tree';
+    game.mapExploreSubtab = 'map-explore-hunting';
     game.chaosRealm = preservedChaosRealm;
     game.skyTower = preservedSkyTower;
     game.ocean = preservedOcean;

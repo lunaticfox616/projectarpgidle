@@ -15,20 +15,90 @@ const BLACK_MARKET_BASE_SLOT_COUNT = 6;
 const BLACK_MARKET_MAX_SLOT_COUNT = 50;
 const BLACK_MARKET_MAX_EXTRA_SLOTS = Math.max(0, BLACK_MARKET_MAX_SLOT_COUNT - BLACK_MARKET_BASE_SLOT_COUNT);
 const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;
+const BLACK_MARKET_T20_RARE_BASE_CHANCE = 0.001;
 
 function isUniqueEligibleForBlackMarket(unique) {
     if (!unique || unique.contentOnly || unique.bossOnly || unique.realmCodexOnly) return false;
     if (!unique.dropOnly) return true;
-    return !!(unique.dropOnly && unique.dropOnly.type === 'cosmos');
+    return false;
 }
 
 function isBaseEligibleForBlackMarket(base) {
     return !!(base && !base.dropOnly && !base.realmBase);
 }
 
+function rollBlackMarketExchangeOffer(recipe, index) {
+    let multiplierRoll = Math.random();
+    let bulkMultiplier = 1;
+    if (multiplierRoll < 0.0002) bulkMultiplier = 100;
+    else if (multiplierRoll < 0.0022) bulkMultiplier = 10;
+    else if (multiplierRoll < 0.0222) bulkMultiplier = 2 + Math.floor(Math.random() * 4);
+    let needVariance = 0.9 + Math.random() * 0.2;
+    let gainVariance = 0.9 + Math.random() * 0.2;
+    let baseGain = recipe.gain;
+    if (recipe.id === 'm11' && recipe.from === 'divine' && recipe.to === 'chaos') baseGain = 70;
+    let need = Math.max(1, Math.floor(recipe.need * 0.8 * needVariance * bulkMultiplier));
+    let gain = Math.max(1, Math.floor(baseGain * gainVariance * bulkMultiplier));
+    return { type:'exchange', name:`암거래 교환 #${index+1}`, from:recipe.from, to:recipe.to, need, gain, bulkMultiplier };
+}
+
+function getBlackMarketBaseChainInfo(base) {
+    return typeof getBaseChainInfo === 'function' ? getBaseChainInfo(base) : null;
+}
+
+function rollBlackMarketBaseStats(base, hiddenTier) {
+    if (typeof rollBaseStats === 'function') return rollBaseStats(base, hiddenTier || base.reqTier || 1);
+    return Array.isArray(base.baseStats) ? base.baseStats.map(stat => ({ ...stat })) : [];
+}
+
+function maybeApplyBlackMarketExceptionalBaseStats(baseStats) {
+    if (!Array.isArray(baseStats) || baseStats.length <= 0 || Math.random() >= 0.12) return { baseStats, exceptionalBase: false, names: [] };
+    let names = [];
+    baseStats.forEach(stat => {
+        if (!stat) return;
+        let max = Number.isFinite(Number(stat.baseRollMax)) ? Number(stat.baseRollMax)
+            : (Number.isFinite(Number(stat.valMax)) ? Number(stat.valMax) : Number(stat.val || stat.base || 0));
+        let boosted = max * 1.2;
+        let usesDecimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+        stat.val = usesDecimal ? Math.round(boosted * 10) / 10 : Math.max(1, Math.floor(boosted));
+        stat.exceptional = true;
+        names.push(stat.statName || getStatName(stat.id));
+    });
+    return { baseStats, exceptionalBase: names.length > 0, names };
+}
+
+function clearExceptionalBaseState(item) {
+    if (!item) return item;
+    delete item.exceptionalBase;
+    delete item.exceptionalStatNames;
+    delete item.exceptionalStatName;
+    delete item.exceptionalAllLines;
+    (Array.isArray(item.baseStats) ? item.baseStats : []).forEach(stat => {
+        if (stat) delete stat.exceptional;
+    });
+    return item;
+}
+
+function chooseBlackMarketBase(slot, tier) {
+    // 일반 드랍의 최종 단계 베이스 가중치(일반 베이스의 1/25)보다 더 낮게 둔다.
+    let rareBaseRoll = Math.random() < BLACK_MARKET_T20_RARE_BASE_CHANCE;
+    let candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot && (base.reqTier || 1) <= (tier + 3));
+    if (rareBaseRoll) {
+        let rareCandidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot && (base.reqTier || 1) >= 20);
+        if (rareCandidates.length > 0) candidates = rareCandidates;
+    }
+    if (candidates.length <= 0) candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot);
+    return candidates.length ? rndChoice(candidates) : chooseItemBase(slot, tier);
+}
+
 function getBlackMarketBaseRollRange(stat) {
-    let minBase = Number.isFinite(stat && stat.baseMin) ? Number(stat.baseMin) : ((Number(stat && stat.base) || 0) * 0.8);
-    let maxBase = Number.isFinite(stat && stat.baseMax) ? Number(stat.baseMax) : ((Number(stat && stat.base) || 0) * 1.2);
+    let statBase = Number(stat && stat.base) || 0;
+    let minBase = Number.isFinite(Number(stat && stat.baseMin)) ? Number(stat.baseMin)
+        : (Number.isFinite(Number(stat && stat.baseRollMin)) ? Number(stat.baseRollMin)
+        : (Number.isFinite(Number(stat && stat.valMin)) ? Number(stat.valMin) : statBase * 0.8));
+    let maxBase = Number.isFinite(Number(stat && stat.baseMax)) ? Number(stat.baseMax)
+        : (Number.isFinite(Number(stat && stat.baseRollMax)) ? Number(stat.baseRollMax)
+        : (Number.isFinite(Number(stat && stat.valMax)) ? Number(stat.valMax) : statBase * 1.2));
     let scale = stat && stat.id === 'energyShield' ? 1.5 : 1;
     let min = minBase * scale;
     let max = maxBase * scale;
@@ -627,19 +697,16 @@ function buildBlackMarketOffer(index) {
     let tier = (getZone(game.currentZoneId) || { tier: 1 }).tier || 1;
     let roll = Math.random();
     if (roll < 0.45) {
-        let recipe = rndChoice(MARKET_EXCHANGES);
-        let gain = recipe.gain;
-        if (recipe.id === 'm11' && recipe.from === 'divine' && recipe.to === 'chaos') gain = 70;
-        return { type:'exchange', name:`암거래 교환 #${index+1}`, from:recipe.from, to:recipe.to, need:Math.max(1, Math.floor(recipe.need*0.8)), gain:gain };
+        return rollBlackMarketExchangeOffer(rndChoice(MARKET_EXCHANGES), index);
     }
     if (roll < 0.75) {
         let slot = rndChoice(['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패']);
-        let candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot && (base.reqTier || 1) <= (tier + 3));
-        if (candidates.length <= 0) candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot);
-        let base = candidates.length ? rndChoice(candidates) : chooseItemBase(slot, tier);
+        let base = chooseBlackMarketBase(slot, tier);
         let hiddenTier = Math.max(tier, base.reqTier || tier);
-        let price = Math.max(2, Math.floor((base.reqTier || tier) / 2) + 2);
-        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, baseId: base.id, baseName: base.name, hiddenTier:hiddenTier, priceKey:'chaos', price:price, baseStats: Array.isArray(base.baseStats) ? base.baseStats.map(stat => ({ ...stat })) : [] };
+        let chainInfo = getBlackMarketBaseChainInfo(base);
+        let rolledBase = maybeApplyBlackMarketExceptionalBaseStats(rollBlackMarketBaseStats(base, hiddenTier));
+        let price = Math.max(2, Math.floor((base.reqTier || tier) / 2) + 2 + (rolledBase.exceptionalBase ? 3 : 0));
+        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, baseId: base.id, baseName: base.name, hiddenTier:hiddenTier, priceKey:'chaos', price:price, baseStats: rolledBase.baseStats, exceptionalBase: rolledBase.exceptionalBase, exceptionalStatNames: rolledBase.names, rareT20Base: (base.reqTier || 1) >= 20, baseChainStep: chainInfo && chainInfo.step, baseChainTotal: chainInfo && chainInfo.total };
     }
     if (roll < 0.9) {
         let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
@@ -699,7 +766,8 @@ function getBlackMarketOfferTooltipHtml(offer) {
     if (offer.type === 'exchange') {
         let fromName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : ORB_DB[offer.from].name;
         let toName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : ORB_DB[offer.to].name;
-        return `<div class="tooltip-title">재화 교환</div><div class="tooltip-line">${fromName} ${offer.need}개를 ${toName} ${offer.gain}개로 교환합니다.</div>`;
+        let bulkLine = offer.bulkMultiplier && offer.bulkMultiplier > 1 ? `<div class="tooltip-line" style="color:#ffd36a;">대량 교환 x${offer.bulkMultiplier}</div>` : '';
+        return `<div class="tooltip-title">재화 교환</div><div class="tooltip-line">${fromName} ${offer.need}개를 ${toName} ${offer.gain}개로 교환합니다.</div>${bulkLine}`;
     }
     if (offer.type === 'skillGem') {
         let skill = SKILL_DB[offer.name] || {};
@@ -708,7 +776,11 @@ function getBlackMarketOfferTooltipHtml(offer) {
     if (offer.type === 'baseItem') {
         let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId) || (row.name === String(offer.name || '').replace(' 베이스','') && row.slot === offer.slot)));
         let sourceStats = Array.isArray(offer.baseStats) && offer.baseStats.length > 0 ? offer.baseStats : (base && base.baseStats);
-        return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name} · 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>${getBlackMarketBaseTooltipOptionLines(sourceStats)}<div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
+        let chainLabel = offer && offer.baseChainStep && offer.baseChainTotal ? `${Math.floor(offer.baseChainStep)}/${Math.floor(offer.baseChainTotal)}` : '';
+        let chainLine = chainLabel ? `<div class="tooltip-line" style="color:#9fd6ff;">베이스 체인 ${chainLabel}</div>` : '';
+        let rareLine = offer.rareT20Base ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">T20 희귀 베이스</div>' : '';
+        let exLine = offer.exceptionalBase ? '<div class="tooltip-line" style="color:#ffb454; font-weight:800;">특출난 베이스</div>' : '';
+        return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name} · 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>${chainLine}${rareLine}${exLine}${getBlackMarketBaseTooltipOptionLines(sourceStats)}<div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
     }
     if (offer.type === 'unique') {
         let uniq = UNIQUE_DB.find(u => u && u.name === offer.name);
@@ -809,8 +881,12 @@ function buyBlackMarketOffer(idx){
             rarity: 'normal',
             itemTier: offer.hiddenTier || offer.reqTier || base.reqTier || 1,
             hiddenTier: offer.hiddenTier || offer.reqTier || base.reqTier || 1,
-            baseStats: rollBaseStats(base, offer.hiddenTier || offer.reqTier || base.reqTier || 1),
-            stats: []
+            baseStats: Array.isArray(offer.baseStats) && offer.baseStats.length > 0 ? offer.baseStats.map(stat => ({ ...stat })) : rollBaseStats(base, offer.hiddenTier || offer.reqTier || base.reqTier || 1),
+            stats: [],
+            exceptionalBase: !!offer.exceptionalBase,
+            exceptionalStatNames: Array.isArray(offer.exceptionalStatNames) ? offer.exceptionalStatNames.slice() : [],
+            exceptionalStatName: Array.isArray(offer.exceptionalStatNames) ? offer.exceptionalStatNames.join(', ') : '',
+            exceptionalAllLines: !!(offer.exceptionalBase && Array.isArray(offer.baseStats) && offer.baseStats.length > 0 && offer.baseStats.every(stat => stat && stat.exceptional))
         });
         if (item) addItemToInventory(item);
     } else if (offer.type==='unique') {
@@ -822,6 +898,8 @@ function buyBlackMarketOffer(idx){
             item.baseId = base.id;
             item.baseName = base.name;
             item.baseStats = rollBaseStats(base, offer.hiddenTier || offer.reqTier || base.reqTier || 1);
+            clearExceptionalBaseState(item);
+            if (typeof maybeApplyExceptionalBase === 'function') maybeApplyExceptionalBase(item);
         }
         if(item) addItemToInventory(item);
     }
@@ -928,9 +1006,10 @@ function renderMarketUI() {
         let offers = rawOffers.map(({ offer, idx }) => {
             if (!offer) return `<div style="opacity:.5;">품절</div>`;
             let safeOfferName = typeof escapeHTML === 'function' ? escapeHTML(String(offer.name || '')) : String(offer.name || '');
+            let baseChainLabel = offer.type === 'baseItem' && offer.baseChainStep && offer.baseChainTotal ? `${Math.floor(offer.baseChainStep)}/${Math.floor(offer.baseChainTotal)}` : '';
             let desc = offer.type==='exchange'
-                ? `${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : ORB_DB[offer.from].name} ${offer.need} → ${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : ORB_DB[offer.to].name} ${offer.gain}`
-                : (offer.type==='skillGem' ? `미보유 젬 [${safeOfferName}]` : safeOfferName);
+                ? `${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : ORB_DB[offer.from].name} ${offer.need} → ${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : ORB_DB[offer.to].name} ${offer.gain}${offer.bulkMultiplier && offer.bulkMultiplier > 1 ? ` · x${offer.bulkMultiplier}` : ''}`
+                : (offer.type==='skillGem' ? `미보유 젬 [${safeOfferName}]` : `${safeOfferName}${baseChainLabel ? ` · 체인 ${baseChainLabel}` : ''}${offer.rareT20Base ? ' · T20' : ''}${offer.exceptionalBase ? ' · 특출' : ''}`);
             let price = offer.type==='exchange' ? '' : ` (${typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.priceKey) : ORB_DB[offer.priceKey].name} ${offer.price})`;
             let cls = offer.type === 'exchange' ? 'currency' : offer.type === 'skillGem' ? 'gem' : offer.type === 'baseItem' ? 'gear' : (offer.chase ? 'unique chase' : 'unique');
             let badge = cls === 'currency' ? '재화' : cls === 'gem' ? '젬' : cls === 'gear' ? '장비' : (offer.chase ? '체이싱' : '고유');

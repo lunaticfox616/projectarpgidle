@@ -855,8 +855,8 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'gd4', name: '철벽 전환', desc: '회피/에너지 보호막 0, 그 합의 60%를 방어도로 전환', req: 'gd1' },
         { id: 'gd5', name: '불침 보루', desc: '받는 최종 피해 15% 감폭, 주는 피해 12% 감폭', req: 'gd2' },
         { id: 'gd6', name: '인내 장전', desc: '피격 시 4초간 방어도 +11% (최대 5중첩, 곱연산), 5중첩 소모 반사 피해 후 2중첩 유지', req: 'gd3' },
-        { id: 'gd7', name: '최후 저지선', desc: '생명력 40% 이하 시 받는 피해 20% 감폭/주는 피해 20% 증폭, 상태이상 제거(쿨 5초)', reqAny: ['gd4', 'gd5'] },
-        { id: 'gd8', name: '절대 수호', desc: '피해를 막아내 무효로 할 확률 25%, 모든 상태 이상 저항 확률 +50%', req: 'gd7' },
+        { id: 'gd7', name: '최후 저지선', desc: '생명력 50% 이하 시 받는 피해 20% 감폭/주는 피해 20% 증폭, 상태이상 제거(쿨 5초)', reqAny: ['gd4', 'gd5'] },
+        { id: 'gd8', name: '절대 수호', desc: '막기 확률과 별개로 피해를 무효화할 확률 25%, 모든 상태 이상 저항 확률 +50%', req: 'gd7' },
         { id: 'gd9', name: '거대화', desc: '최대 생명력 20% 증폭', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
     ],
     inquisitor: [
@@ -1374,6 +1374,7 @@ const BASE_ITEM_DB = [
     { id: 'sapphire_band', slot: '반지', name: '푸른 띠 반지', reqTier: 9, baseStats: [{ id: 'resAll', base: 6 }, { id: 'crit', base: 3 }] },
     { id: 'void_loop_ring', slot: '반지', name: '공허 고리', reqTier: 12, baseStats: [{ id: 'resChaos', base: 4 }, { id: 'chaosPctDmg', base: 7 }] },
     { id: 'eclipse_ring', slot: '반지', name: '식월 반지', reqTier: 15, baseStats: [{ id: 'resAll', base: 8 }, { id: 'resChaos', base: 5 }, { id: 'crit', base: 5 }] },
+    { id: 'mirror_ring', slot: '반지', name: '거울 반지', reqTier: 20, dropOnly: { id: 'mirror_ring_unique' }, baseStats: [] },
     { id: 'engraved_ring', slot: '반지', name: '각인 반지', reqTier: 7, baseStats: [{ id: 'flatDmg', base: 3 }, { id: 'pctDmg', base: 9 }] },
     { id: 'judgment_signet', slot: '반지', name: '심판 인장 반지', reqTier: 13, baseStats: [{ id: 'flatDmg', base: 5 }, { id: 'pctDmg', base: 13 }, { id: 'critDmg', base: 12 }] },
     { id: 'beastlord_ring', slot: '반지', name: '야수왕 반지', reqTier: 15, baseStats: [{ id: 'summonEfficiency', base: 16 }, { id: 'summonCrit', base: 6 }, { id: 'summonCap', base: 1 }] },
@@ -1841,6 +1842,7 @@ const defaultGame = {
     summons: [],
     summonSeq: 1,
     passives: [],
+    voidPassives: {},
     discoveredPassives: [],
     passiveLayoutVersion: PASSIVE_LAYOUT_VERSION,
     passiveStarEvolution: false,
@@ -1975,6 +1977,8 @@ const defaultGame = {
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, expertise: false, jewel: false },
     noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false },
+    mapAlarmSeen: {},
+    mapAlarmMainSeen: {},
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }
 };
 
