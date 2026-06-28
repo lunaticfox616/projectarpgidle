@@ -159,7 +159,12 @@
     /* ===================== BUILDERS ===================== */
     // q = quality/density factor (0.4..1.3). Loop counts scale with it so a busy
     // battlefield spawns fewer particles per impact.
-    const qn = (base, q) => Math.max(1, Math.round(base * q));
+    // FX_PARTICLE_SCALE 은 입자 개수 전반을 한 번에 줄여 다중 타겟/고공속 빌드에서의
+    // 입자 렌더(특히 방사형 그라디언트) 부하를 낮춘다. window 전역으로 조정 가능.
+    const FX_PARTICLE_SCALE = (typeof window !== 'undefined' && Number.isFinite(Number(window.__attackFxParticleScale)))
+        ? Math.max(0.3, Math.min(1, Number(window.__attackFxParticleScale)))
+        : 0.72;
+    const qn = (base, q) => Math.max(1, Math.round(base * q * FX_PARTICLE_SCALE));
 
     function buildPhysical(fx, q) {
         const { x, y } = fx;
@@ -584,7 +589,9 @@
     }
 
     /* ===================== engine ===================== */
-    const engine = { list: [], maxEffects: 22 };
+    // 동시 임팩트 이펙트 상한. 각 이펙트가 수십 개의 입자(상당수가 매 프레임
+    // createRadialGradient를 호출)를 그리므로, 상한을 낮춰 최악의 경우 부하를 제한한다.
+    const engine = { list: [], maxEffects: 14 };
 
     function attackFxSpawn(element, x, y, opts) {
         if (typeof window !== 'undefined' && window.__attackFxEnabled === false) return;
