@@ -10,6 +10,22 @@ const LEECH_BASE_RATE_CAP_PCT = 4;
 const ARMOR_MITIGATION_SCALE = 24;
 const EVASION_ACCURACY_SCALE = 2.25;
 const MIN_PENETRATED_RESISTANCE = -200;
+const CRIT_DAMAGE_BASE_MULTIPLIER = 125;
+
+function applyCritDamageSoftcap(rawCritDamage) {
+    let raw = Math.max(0, Number(rawCritDamage) || 0);
+    let capped = Math.min(raw, 200);
+    if (raw > 200) capped += (Math.min(raw, 400) - 200) * 0.95;
+    if (raw > 400) capped += (Math.min(raw, 800) - 400) * 0.90;
+    if (raw > 800) capped += (Math.min(raw, 1200) - 800) * 0.80;
+    if (raw > 1200) capped += (raw - 1200) * 0.67;
+    return capped;
+}
+
+function getCritDamageSoftcapReduction(rawCritDamage) {
+    let raw = Math.max(0, Number(rawCritDamage) || 0);
+    return Math.max(0, raw - applyCritDamageSoftcap(raw));
+}
 
 function getArmorPhysicalReductionPct(armor, incomingPhysical) {
     let armorValue = Math.max(0, Number(armor) || 0);
@@ -195,7 +211,8 @@ function hasKeystone(id) {
 
 // 심연 군주(워록 wlk8)는 주얼 슬롯을 2칸 추가로 제공한다.
 function getMaxJewelSlotCount() {
-    return 2 + ((game.ascendClass === 'warlock' && hasKeystone('wlk8')) ? 2 : 0);
+    let greedSlots = typeof getTranscendentVoidPassiveCount === 'function' ? getTranscendentVoidPassiveCount('greed') : 0;
+    return 2 + ((game.ascendClass === 'warlock' && hasKeystone('wlk8')) ? 2 : 0) + Math.min(1, greedSlots);
 }
 
 // 우주계 쌍둥이 주얼: 주베누비아의 균형 + 주벤샤말의 심판을 주얼 슬롯에 함께 장착하고
@@ -1995,6 +2012,11 @@ function getPlayerStats() {
 
     recalculateStarWedgeMutations();
     let mutationMap = (game.starWedge && game.starWedge.nodeMutations) || {};
+    let allocatedVoidCount = safePassives.filter(id => {
+        let node = PASSIVE_TREE.nodes[id];
+        return node && node.kind === 'void';
+    }).length;
+    let virtualVoidCount = allocatedVoidCount + (typeof getTranscendentVoidPassiveBonusValue === 'function' ? getTranscendentVoidPassiveBonusValue('trauma') : 0);
     safePassives.forEach(id => {
         let node = PASSIVE_TREE.nodes[id];
         if (!node) return;
@@ -2003,6 +2025,17 @@ function getPlayerStats() {
             (entry && Array.isArray(entry.stats) ? entry.stats : []).forEach(line => {
                 if (line && line.id) addStatToBucket(passive, line.id, line.val);
             });
+            let tr = entry && entry.transcendent;
+            if (tr && tr.id === 'paleBlueDot') addStatToBucket(passive, 'passivePoint', Number(tr.value || 10));
+            if (tr && tr.id === 'overflowingVigor') addStatToBucket(passive, 'pctHp', Number(tr.value || 0) * virtualVoidCount);
+            if (tr && tr.id === 'toughSoul') addStatToBucket(passive, 'energyShieldPct', Number(tr.value || 0) * virtualVoidCount);
+            if (tr && tr.id === 'defenseMechanism') { addStatToBucket(passive, 'blockChance', Number(tr.value || 0)); addStatToBucket(passive, 'blockChanceMax', Number(tr.value || 0)); }
+            if (tr && tr.id === 'blurredPresence') { addStatToBucket(passive, 'deflectChance', Number(tr.value || 0)); addStatToBucket(passive, 'deflectDamageReduce', Number(tr.value2 || 0)); }
+            if (tr && tr.id === 'innateTalent') { addStatToBucket(passive, 'doubleDamageChance', Number(tr.value || 0)); addStatToBucket(passive, 'doubleDamageMultiplierPct', Math.max(0, (Number(tr.value2 || 1.5) - 1) * 100)); }
+            if (tr && tr.id === 'wholehearted') addStatToBucket(passive, 'pctDmg', Number(tr.value || 0) * virtualVoidCount);
+            if (tr && tr.id === 'impatience') addStatToBucket(passive, 'move', Number(tr.value || 0) * virtualVoidCount);
+            if (tr && tr.id === 'immortalHero') addStatToBucket(passive, 'flatHp', Math.max(0, Number(tr.value || 0)));
+            if (tr && tr.id === 'seasoned') addStatToBucket(passive, 'critDmg', Number(tr.value || 0) * Math.max(0, Math.floor(game.loopCount || 0)));
             return;
         }
         let mut = mutationMap[id];
@@ -2488,7 +2521,7 @@ function getPlayerStats() {
     let finalDeflectChance = Math.max(0, gearBase.deflectChance + gearExplicit.deflectChance + passive.deflectChance + season.deflectChance + ascend.deflectChance + support.deflectChance + reward.deflectChance);
     let finalDeflectDamageReduce = Math.max(0, gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce + passive.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + support.deflectDamageReduce + reward.deflectDamageReduce);
 
-    let finalCritDmg = 150 + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0) + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.critDmg || 20)) : 0);
+    let finalCritDmg = CRIT_DAMAGE_BASE_MULTIPLIER + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0) + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.critDmg || 20)) : 0);
     let rawLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech;
     let finalLeech = applyLeechSoftcap(rawLeech);
     if (uniqueLeechEfficiencyOnKill && game.uniqueLeechEfficiencyUntil && Date.now() < game.uniqueLeechEfficiencyUntil) {
@@ -3088,6 +3121,9 @@ function getPlayerStats() {
         finalMinDmgRoll = v;
         finalMaxDmgRoll = v;
     }
+    let rawFinalCritDmg = Math.max(0, finalCritDmg);
+    finalCritDmg = applyCritDamageSoftcap(rawFinalCritDmg);
+    let critDmgSoftcapReduction = getCritDamageSoftcapReduction(rawFinalCritDmg);
     critChance = Math.max(0, Math.min(1, finalCrit / 100));
     critMulti = finalCritDmg / 100;
     if (game.ascendClass === 'hunter' && hasKeystone('h8')) {
@@ -3367,10 +3403,12 @@ function getPlayerStats() {
         critDmg: {
             title: '치명타 피해',
             lines: [
-                `기본 150%`,
+                `기본 ${CRIT_DAMAGE_BASE_MULTIPLIER}%`,
                 makeSourceLine('장비', gearBase.critDmg + gearExplicit.critDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('패시브', passive.critDmg + season.critDmg + ascend.critDmg + reward.critDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조 젬', support.critDmg, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('스킬/특수 효과', (skill.critDmgBonus || 0) + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.critDmg || 20)) : 0), '%', value => `${Math.floor(value)}%`),
+                ...(critDmgSoftcapReduction > 0 ? [makeSourceLine('소프트캡(200/400/800/1200)', -critDmgSoftcapReduction, '%', value => `${Math.floor(value)}%`)] : []),
                 talentLine('critDmg')
             ].filter(Boolean),
             final: `${Math.floor(finalCritDmg)}%`
@@ -3791,6 +3829,7 @@ function getPlayerStats() {
         uniqueCorpseExplode: uniqueCorpseExplode,
         uniqueInstantLeechPct: uniqueInstantLeechPct + Math.max(0, reward.uniqueInstantLeechPct || 0),
         uniqueDoubleDamageChancePct: uniqueDoubleDamageChancePct + Math.max(0, coreCubeDoubleDamageChance || 0),
+        uniqueDoubleDamageMultiplier: 2 + Math.max(0, sumStatAcrossBuckets('doubleDamageMultiplierPct') || 0) / 100,
         uniqueEsRecoverOnCritPct: uniqueEsRecoverOnCritPct,
         uniqueRiderCompass: uniqueRiderCompass,
         uniqueMaxRollBonusHit: uniqueMaxRollBonusHit,
@@ -7186,7 +7225,7 @@ function performPlayerAttack(pStats) {
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * skillConditionalMultiplier);
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((pStats.cosmosLightningVariance || 0) > 0 && hitElement === 'light') dmg = Math.floor(dmg * (0.8 + Math.random() * 0.7));
-            if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg *= 2;
+            if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg = Math.floor(dmg * Math.max(1, pStats.uniqueDoubleDamageMultiplier || 2));
             if ((targetEnemy.evasionChance || 0) > 0 && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit()) && Math.random() * 100 < targetEnemy.evasionChance) {
                 addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(targetEnemy, false);
@@ -7644,6 +7683,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         return;
     }
     game.loopDeaths = Math.max(0, Math.floor(game.loopDeaths || 0)) + 1;
+    if (typeof recordImmortalHeroDeathPenalty === 'function') recordImmortalHeroDeathPenalty();
     if (zone && zone.id === OUTSIDE_CHAOS_ZONE_ID) {
         let woodsman = (game.enemies || []).find(e => e && e.isBoss);
         if (woodsman && woodsman.maxHp > 0) {

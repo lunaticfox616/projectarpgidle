@@ -200,7 +200,7 @@ function selectForCrafting(ref, isEquip) {
 
 function getEquipCandidateSlots(item) {
     if (!item) return [];
-    if (item.slot === '반지') return ['반지1', '반지2'];
+    if (item.slot === '반지') return (typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger') > 0) ? ['반지1', '반지2', '반지3'] : ['반지1', '반지2'];
     if (item.slot === '장갑') return ['장갑1', '장갑2'];
     let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
     if (item.slot === '무기') return warriorDualTrain ? ['무기', '방패'] : ['무기'];
@@ -214,6 +214,7 @@ function pickEquipSlot(item, preferredSlot) {
     if (item.slot === '반지') {
         if (!game.equipment['반지1']) return '반지1';
         if (!game.equipment['반지2']) return '반지2';
+        if ((typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger') > 0) && !game.equipment['반지3']) return '반지3';
         return null;
     }
     if (item.slot === '장갑') {
@@ -251,7 +252,7 @@ function getDualSlotDisplayLabel(targetSlot) {
 }
 
 function dualSlotBothOccupied(slotName) {
-    if (slotName === '반지') return !!(game.equipment['반지1'] && game.equipment['반지2']);
+    if (slotName === '반지') return !!(game.equipment['반지1'] && game.equipment['반지2'] && (!(typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger') > 0) || game.equipment['반지3']));
     if (slotName === '장갑') return !!(game.equipment['장갑1'] && game.equipment['장갑2']);
     return false;
 }
