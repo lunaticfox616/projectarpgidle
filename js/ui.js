@@ -2799,6 +2799,18 @@ function startTalismanUnseal(currencyKey) {
     updateStaticUI();
 }
 
+function startBulkTalismanUnseal(currencyKey) {
+    let count = Math.min(10, Math.max(0, Math.floor(game.currencies[currencyKey] || 0)));
+    if (count <= 0) return addLog('봉인편린이 부족합니다.', 'attack-monster');
+    if (game.talismanUnseal) return addLog('이미 봉인 해제 중입니다. 먼저 선택/파괴를 완료하세요.', 'attack-monster');
+    game.currencies[currencyKey] -= count;
+    game.talismanInventory = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
+    let talismans = Array.from({ length: count }, () => rollTalismanCandidate(currencyKey)).filter(Boolean);
+    game.talismanInventory.push(...talismans);
+    addLog(`🧿 봉인편린 일괄 해제: 부적 ${talismans.length}개 획득`, 'loot-rare');
+    updateStaticUI();
+}
+
 function previewNextTalismanShape() {
     let state = game.talismanUnseal;
     if (!state || state.rollsLeft <= 1) return;
@@ -6267,6 +6279,21 @@ function performUpdateStaticUI() {
         while (game.jewelSlots.length < maxJewelSlots) game.jewelSlots.push(null);
         game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
         jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
+        let jewelCraftTarget = typeof getSelectedJewelCraftTarget === 'function' ? getSelectedJewelCraftTarget() : null;
+        let jewelCraftKeys = ['transmute', 'augment', 'alteration', 'regal', 'exalted', 'chaos', 'divine', 'annulment'];
+        let jewelCraftButtons = jewelCraftKeys.map(key => {
+            let state = typeof getJewelCurrencyUseState === 'function' ? getJewelCurrencyUseState(key, jewelCraftTarget) : { enabled: false, reason: '사용 불가' };
+            let count = (game.currencies || {})[key] || 0;
+            return `<button data-info-tooltip-anchor="1" onmouseenter="showCurrencyCardTooltip(event,'${key}','${escapeHTML(state.reason)}')" onmousemove="showCurrencyCardTooltip(event,'${key}','${escapeHTML(state.reason)}')" onmouseleave="hideInfoTooltip()" onclick="useCurrencyOnJewel('${key}')" ${state.enabled && count > 0 ? '' : 'disabled'}>${getStyledOrbName(key)} (${count})</button>`;
+        }).join('');
+        let jewelCraftStats = jewelCraftTarget ? getJewelStats(jewelCraftTarget).map(stat => {
+            let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
+            let petite = isJewelPetiteStat(stat) ? '쁘띠 ' : '';
+            return `${petite}${escapeHTML(getStatName(stat.id))} +${formatJewelStatValue(stat.id, stat.val)}${tier}`;
+        }).join('<br>') : '';
+        let jewelCraftOptionHtml = jewelCraftTarget
+            ? `<div class="item-stats" style="margin:5px 0 7px; line-height:1.45; color:#d7e9ff;">${jewelCraftStats || '<span style="color:#7f8c8d;">옵션 없음</span>'}</div>`
+            : `<div style="margin:5px 0 7px; color:#7f8c8d; font-size:0.8em;">제작대상 주얼을 선택하면 현재 옵션이 표시됩니다.</div>`;
         document.getElementById('ui-jewel-cap').innerHTML = `주얼 인벤토리: <strong>${game.jewelInventory.length}</strong> / ${getJewelInventoryLimit()} · 선택 융합: <strong>${(jewelFusionSelection||[]).length}</strong>`;
         syncJewelSalvageControlsFromSettings();
         game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [];
@@ -6278,7 +6305,8 @@ function performUpdateStaticUI() {
         <div style="margin-top:8px; font-size:0.8em; color:#8fb6d9;">슬롯 증폭: 슬롯 효과 소폭 상승 (최대 20강, 실패 가능)</div>
         <div style="display:flex; gap:6px; margin-top:4px; flex-wrap:wrap;">${Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => `<button onclick="tryAmplifyJewelSlot(${slotIdx})">슬롯${slotIdx + 1} 증폭 (${game.jewelSlotAmplify[slotIdx] || 0}/20 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[slotIdx] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[slotIdx] || 0) * 100)}%)</button>`).join('')}</div>
         <div style="margin-top:8px; color:#b4c9e2; font-size:0.8em;">공허 주얼: 최대 4줄까지 지원</div>
-        <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="openVoidJewelCraftOverlay()" ${(game.currencies.voidChisel || 0) <= 0 || (typeof getVoidJewelCraftMaterialIndices === 'function' ? getVoidJewelCraftMaterialIndices().length < 2 : (game.jewelInventory||[]).filter(j => j && !j.locked && !j.waxedByBeeswax).length < 2) ? 'disabled' : ''}>공허 주얼 제작 (끌 1 + 주얼2)</button><button onclick="openVoidJewelFusionOverlay()">선택 공허융합</button></div>`;
+        <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="openVoidJewelCraftOverlay()" ${(game.currencies.voidChisel || 0) <= 0 || (typeof getVoidJewelCraftMaterialIndices === 'function' ? getVoidJewelCraftMaterialIndices().length < 2 : (game.jewelInventory||[]).filter(j => j && !j.locked && !j.waxedByBeeswax).length < 2) ? 'disabled' : ''}>공허 주얼 제작 (끌 1 + 주얼2)</button><button onclick="openVoidJewelFusionOverlay()">선택 공허융합</button></div>
+        <div style="margin-top:10px; border-top:1px solid #2b3a4d; padding-top:8px;"><div style="color:#d7e9ff; font-size:0.84em; margin-bottom:5px;">선택 주얼 오브 제작: <strong>${jewelCraftTarget ? escapeHTML(jewelCraftTarget.name || '주얼') : '없음'}</strong></div>${jewelCraftOptionHtml}<div style="display:flex; gap:6px; flex-wrap:wrap;">${jewelCraftButtons}</div></div>`;
         document.getElementById('ui-jewel-slots').innerHTML = Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => {
             let jewel = game.jewelSlots[slotIdx];
             let ampLv = (game.jewelSlotAmplify && game.jewelSlotAmplify[slotIdx]) || 0;
@@ -6304,7 +6332,7 @@ function performUpdateStaticUI() {
             return matchSearchQuery(`${jewel.name || ''} ${jewel.rarity || ''} ${statText}`, sf.jewel);
         });
         let jewelRowsHtml = jewelRows.map(({jewel, idx}) => {
-            let selected = (jewelFusionSelection || []).includes(idx) ? 'selected' : '';
+            let selected = (jewelFusionSelection || []).includes(idx) || (jewelCraftTarget && jewelCraftTarget === jewel) ? 'selected' : '';
             let q = sf.jewel;
             let desc = getJewelStats(jewel).map(stat => {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';
@@ -6316,7 +6344,7 @@ function performUpdateStaticUI() {
             let uniqueCardClass = jewel.rarity === 'unique' ? 'item-card--unique-special' : '';
             let uniqueBadge = jewel.rarity === 'unique' ? '<span class="unique-inventory-badge">✨ 고유</span>' : '';
             let equipSlotBtns = Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => `<button onclick="equipJewel(${idx}, ${slotIdx})">슬롯${slotIdx + 1}</button>`).join('');
-            return `<div class="item-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions">${equipSlotBtns}<button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button disabled>밀랍</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="toggleJewelLock(${idx})">${jewel.locked ? '🔒 잠금' : '🔓 잠금'}</button><button onclick="salvageJewel(${idx})" ${jewel.locked ? 'disabled' : ''}>해체</button></div></div>`;
+            return `<div class="item-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="item-stats" style="line-height:1.45;color:#d7e9ff;">• ${desc}</div><div class="item-actions">${equipSlotBtns}<button onclick="selectJewelCraftTarget(${idx})">제작대상</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button disabled>밀랍</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="toggleJewelLock(${idx})">${jewel.locked ? '🔒 잠금' : '🔓 잠금'}</button><button onclick="salvageJewel(${idx})" ${jewel.locked ? 'disabled' : ''}>해체</button></div></div>`;
         }).join('');
         let jewelTools = `<button onclick="bulkSalvageJewelsBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkSalvageJewelsBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">미검색 항목 해체</button>`;
         renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:#7f8c8d;">주얼 인벤토리가 비었습니다.</div>`, jewelTools);
@@ -6724,6 +6752,7 @@ function getCraftOrbUseState(key, item) {
     else if (key === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
     else if (key === 'chaos') ok = item.rarity === 'rare';
     else if (key === 'divine') ok = item.rarity !== 'normal';
+    else if (key === 'chance') ok = item.rarity === 'normal';
     else if (key === 'annulment') ok = Array.isArray(item.stats) && item.stats.some(stat => stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
     else if (key === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
     else if (key === 'tainted') ok = !item.corrupted || (typeof isKaleidoscopeShieldItem === 'function' && isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
@@ -6846,8 +6875,8 @@ window.showCurrencyCardTooltip = showCurrencyCardTooltip;
 window.showOrbTooltip = showCurrencyCardTooltip;
 
 
-const MOBILE_CRAFT_CURRENCY_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst', 'enchantedHoney', 'venomStinger', 'voidChisel'];
-const MOBILE_CRAFT_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst'];
+const MOBILE_CRAFT_CURRENCY_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'chance', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst', 'enchantedHoney', 'venomStinger', 'voidChisel'];
+const MOBILE_CRAFT_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'chance', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst'];
 
 function getMobileCraftCurrencyOptions() {
     return MOBILE_CRAFT_CURRENCY_KEYS.filter(key => {
@@ -7248,7 +7277,7 @@ function buildCraftActionButtons(item) {
         if (key === 'voidChisel') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVoidChiselToSelectedItem()">사용</button></div>`;
         let sporeModes = game.sporeCraftModes || {};
         let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
-        let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','annulment','scour','tainted','blessing','abyssCatalyst'].includes(key);
+        let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','chance','annulment','scour','tainted','blessing','deepWhetstone','rootIron','jewelPolish','abyssCatalyst'].includes(key);
         let canUseSporeMode = ['transmute','augment','alteration','alchemy','exalted','regal','chaos'].includes(key);
         let mode = sporeModes[key] || 'none';
         let reason = key === 'voidChisel' ? getMobileCraftCurrencyUseState(key, getSelectedCraftItem()).reason : getCraftOrbUseState(key, getSelectedCraftItem()).reason;
@@ -7835,8 +7864,11 @@ function buildCraftActionButtons(item) {
         document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:8px; color:#9fc4ea;">봉인편린을 해제해 부적 후보를 확인하세요.</div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button onclick="startTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>봉인편린 해제</button>
+                <button onclick="startBulkTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>봉인편린 일괄 해제 (최대 10)</button>
                 <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
+                <button onclick="startBulkTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력] 일괄 해제 (최대 10)</button>
                 <button onclick="startTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란한 기운] 봉인편린 해제</button>
+                <button onclick="startBulkTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란] 일괄 해제 (최대 10)</button>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px solid #29415a;">
                 <button onclick="exchangeTalismanShards('strong')" ${(game.currencies.sealShard || 0) < 80 ? 'disabled' : ''}>편린 80 → 강력 편린 1</button>
@@ -8196,6 +8228,8 @@ function openVoidPassiveCraftOverlay(nodeId) {
             <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','transmute')" ${active && !hasStats && (game.currencies.transmute || 0) > 0 ? '' : 'disabled'}>진화의 오브<br><span style="font-size:12px;color:#aebed4;">보유 ${game.currencies.transmute || 0}</span></button>
             <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','augment')" ${active && canAugment && (game.currencies.augment || 0) > 0 ? '' : 'disabled'}>확장의 오브<br><span style="font-size:12px;color:#aebed4;">보유 ${game.currencies.augment || 0}</span></button>
             <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','alteration')" ${active && hasStats && (game.currencies.alteration || 0) > 0 ? '' : 'disabled'}>변화의 오브<br><span style="font-size:12px;color:#aebed4;">보유 ${game.currencies.alteration || 0}</span></button>
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','chance')" ${active && (game.currencies.chance || 0) > 0 ? '' : 'disabled'}>기회의 오브<br><span style="font-size:12px;color:#aebed4;">보유 ${game.currencies.chance || 0}</span></button>
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','divine')" ${active && entry.transcendent && typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' && TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min))) && (game.currencies.divine || 0) > 0 ? '' : 'disabled'}>신성한 오브<br><span style="font-size:12px;color:#aebed4;">보유 ${game.currencies.divine || 0}</span></button>
         </div>
         <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid rgba(143,183,202,0.25);padding-top:10px;">
             <div style="color:${refundState.enabled ? '#c8f7d5' : '#8fa0ad'};font-size:13px;">${refundState.reason}</div>
@@ -9052,7 +9086,8 @@ function mergeDefaults(save) {
             }
         }
         stats = stats.filter(line => line && P_STATS[line.id] && Number.isFinite(Number(line.val))).slice(0, 2).map(line => ({ id: line.id, val: Number(line.val) }));
-        if (stats.length > 0 || rawVoidPassives[nodeId] || allocatedVoidIds.has(String(nodeId))) merged.voidPassives[nodeId] = { rarity: stats.length > 0 ? 'magic' : 'normal', stats };
+        let transcendent = (typeof normalizeTranscendentVoidPassive === 'function') ? normalizeTranscendentVoidPassive(rawEntry.transcendent) : null;
+        if (stats.length > 0 || transcendent || rawVoidPassives[nodeId] || allocatedVoidIds.has(String(nodeId))) merged.voidPassives[nodeId] = { rarity: transcendent ? 'transcendent' : (stats.length > 0 ? 'magic' : 'normal'), stats, transcendent };
     });
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];

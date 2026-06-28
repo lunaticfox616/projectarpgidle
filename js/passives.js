@@ -1456,7 +1456,8 @@ function ensureVoidPassiveState() {
             .filter(line => line && P_STATS[line.id] && Number.isFinite(Number(line.val)))
             .slice(0, 2)
             .map(line => ({ id: line.id, val: Number(line.val) }));
-        entry.rarity = entry.stats.length > 0 ? 'magic' : 'normal';
+        entry.transcendent = normalizeTranscendentVoidPassive(entry.transcendent);
+        entry.rarity = entry.transcendent ? 'transcendent' : (entry.stats.length > 0 ? 'magic' : 'normal');
         game.voidPassives[nodeId] = entry;
     });
     return game.voidPassives;
@@ -1476,8 +1477,41 @@ function formatVoidPassiveStatLine(line) {
 
 function getVoidPassiveEffectLabel(nodeId) {
     let entry = getVoidPassiveCraft(nodeId);
+    if (entry.transcendent) return formatTranscendentVoidPassive(entry.transcendent);
     if (!entry.stats.length) return '공허 옵션 없음 <span style="color:#8ca6b8;">(오브로 최대 2줄 부여)</span>';
     return entry.stats.map(formatVoidPassiveStatLine).filter(Boolean).join(' / ');
+}
+
+const TRANSCENDENT_VOID_PASSIVE_DB = [
+    { id: 'trauma', name: '트라우마', min: 5, max: 10, desc: v => `이 공허 패시브는 공허를 ${v}회 할당한 것으로 간주` },
+    { id: 'paleBlueDot', name: '창백한 푸른 점', fixed: 10, desc: v => `${v} 포인트의 패시브 포인트를 추가로 얻습니다.` },
+    { id: 'overflowingVigor', name: '넘치는 활기', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 생명력 최대치 +${v}%` },
+    { id: 'toughSoul', name: '강인한 영혼', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 에너지 보호막 최대치 +${v}%` },
+    { id: 'defenseMechanism', name: '방어기제', min: 5, max: 10, desc: v => `막기 확률 최대치 +${v}% 및 막기 확률 +${v}%` },
+    { id: 'blurredPresence', name: '흐릿한 존재감', min: 10, max: 20, min2: 3, max2: 5, desc: (v, v2) => `비껴내기 +${v}% 및 비껴내기 피해 감소 +${v2}%` },
+    { id: 'chameleon', name: '카멜레온', desc: () => '모든 초월 패시브 중 하나로 변환 가능' },
+    { id: 'thirdFinger', name: '세 번째 손가락', desc: () => '반지를 하나 더 장착 가능' },
+    { id: 'greed', name: '재물욕', desc: () => '주얼을 하나 더 장착 가능' },
+    { id: 'innateTalent', name: '타고난 재능', min: 5, max: 15, min2: 1.5, max2: 2, step2: 0.1, desc: (v, v2) => `${v}% 확률로 ${v2}배 피해` },
+    { id: 'wholehearted', name: '전심전력', min: 5, max: 15, desc: v => `할당한 공허 패시브 하나당 모든 피해 +${v}%` },
+    { id: 'impatience', name: '조급함', min: 8, max: 16, desc: v => `할당한 공허 패시브 하나당 이동 속도 +${v}%` },
+    { id: 'immortalHero', name: '불멸의 영웅', fixed: 3000, desc: v => `생명력 +${Math.max(0, Math.floor(Number(v) || 0))} (획득 이후 사망 시마다 -30)` },
+    { id: 'seasoned', name: '노련함', min: 4, max: 5, desc: v => `경험한 루프 1회마다 치명타 피해 배율 +${v}%` }
+];
+
+function normalizeTranscendentVoidPassive(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    let def = TRANSCENDENT_VOID_PASSIVE_DB.find(row => row.id === raw.id);
+    if (!def) return null;
+    let value = Number.isFinite(Number(raw.value)) ? Number(raw.value) : (def.fixed || def.min || 0);
+    let value2 = Number.isFinite(Number(raw.value2)) ? Number(raw.value2) : (def.min2 || 0);
+    return { id: def.id, value, value2 };
+}
+
+function formatTranscendentVoidPassive(entry) {
+    let def = TRANSCENDENT_VOID_PASSIVE_DB.find(row => row.id === (entry && entry.id));
+    if (!def) return '공허 옵션 없음';
+    return `<span style="color:#d8b4ff;">초월 · ${def.name}</span> — ${def.desc(entry.value, entry.value2)}`;
 }
 
 function rollVoidPassiveOption(existingStats) {
@@ -1489,14 +1523,100 @@ function rollVoidPassiveOption(existingStats) {
     return { id: pick.id, val };
 }
 
+function getOwnedTranscendentVoidPassiveIds(exceptNodeId) {
+    let state = ensureVoidPassiveState();
+    return new Set(Object.keys(state).filter(nodeId => String(nodeId) !== String(exceptNodeId))
+        .map(nodeId => state[nodeId] && state[nodeId].transcendent && state[nodeId].transcendent.id).filter(Boolean));
+}
+
+function rollTranscendentVoidPassive(nodeId) {
+    let owned = getOwnedTranscendentVoidPassiveIds(nodeId);
+    let pool = TRANSCENDENT_VOID_PASSIVE_DB.filter(def => !owned.has(def.id));
+    if (!pool.length) return null;
+    let def = rndChoice(pool);
+    let roll = (min, max, step) => {
+        if (!Number.isFinite(Number(min)) || !Number.isFinite(Number(max))) return 0;
+        let s = Number.isFinite(Number(step)) ? Number(step) : 1;
+        let slots = Math.max(0, Math.floor((Number(max) - Number(min)) / s + 0.00001));
+        let value = Number(min) + Math.floor(Math.random() * (slots + 1)) * s;
+        return s < 1 ? Number(value.toFixed(2)) : Math.floor(value);
+    };
+    return { id: def.id, value: def.fixed || roll(def.min, def.max), value2: roll(def.min2, def.max2, def.step2) };
+}
+
+function rerollTranscendentVoidPassive(entry) {
+    let def = TRANSCENDENT_VOID_PASSIVE_DB.find(row => row.id === (entry && entry.id));
+    if (!def || def.fixed || !Number.isFinite(Number(def.min))) return entry;
+    let roll = (min, max, step) => {
+        let s = Number.isFinite(Number(step)) ? Number(step) : 1;
+        let slots = Math.max(0, Math.floor((Number(max) - Number(min)) / s + 0.00001));
+        let value = Number(min) + Math.floor(Math.random() * (slots + 1)) * s;
+        return s < 1 ? Number(value.toFixed(2)) : Math.floor(value);
+    };
+    return { id: def.id, value: roll(def.min, def.max), value2: roll(def.min2, def.max2, def.step2) };
+}
+
+function getTranscendentVoidPassiveCount(id) {
+    let state = ensureVoidPassiveState();
+    return Object.values(state).filter(entry => entry && entry.transcendent && entry.transcendent.id === id).length;
+}
+
+function getTranscendentVoidPassiveBonusValue(id) {
+    let state = ensureVoidPassiveState();
+    return Object.values(state).reduce((sum, entry) => sum + ((entry && entry.transcendent && entry.transcendent.id === id) ? Number(entry.transcendent.value || 0) : 0), 0);
+}
+
+function recordImmortalHeroDeathPenalty() {
+    let state = ensureVoidPassiveState();
+    let changed = false;
+    Object.values(state).forEach(entry => {
+        let tr = entry && entry.transcendent;
+        if (!tr || tr.id !== 'immortalHero') return;
+        let before = Math.max(0, Math.floor(Number(tr.value) || 0));
+        tr.value = Math.max(0, before - 30);
+        changed = changed || tr.value !== before;
+    });
+    if (changed && typeof addLog === 'function') addLog('🛡️ 불멸의 영웅 효과가 사망으로 생명력 -30 감소했습니다.', 'death');
+    return changed;
+}
+
+function syncPaleBlueDotPassivePoints(previousEntry, nextEntry) {
+    let previous = previousEntry && previousEntry.id === 'paleBlueDot' ? Number(previousEntry.value || 0) : 0;
+    let next = nextEntry && nextEntry.id === 'paleBlueDot' ? Number(nextEntry.value || 0) : 0;
+    if (previous === next) return;
+    game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) - previous + next);
+}
+
 function applyVoidPassiveCurrency(nodeId, currencyKey) {
     if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let node = PASSIVE_TREE.nodes[nodeId];
     if (!node || node.kind !== 'void') return addLog('공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
     if (!(game.passives || []).includes(node.id)) return addLog('먼저 공허 패시브를 활성화해야 합니다.', 'attack-monster');
-    if (!['transmute', 'augment', 'alteration'].includes(currencyKey)) return addLog('공허 패시브에는 진화/확장/변화의 오브만 사용할 수 있습니다.', 'attack-monster');
+    if (!['transmute', 'augment', 'alteration', 'chance', 'divine'].includes(currencyKey)) return addLog('공허 패시브에는 진화/확장/변화/기회/신성의 오브만 사용할 수 있습니다.', 'attack-monster');
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
     let entry = getVoidPassiveCraft(node.id);
+    if (currencyKey === 'chance') {
+        game.currencies.chance--;
+        let previousTranscendent = entry.transcendent;
+        entry.stats = [];
+        entry.transcendent = Math.random() < 0.75 ? null : rollTranscendentVoidPassive(node.id);
+        syncPaleBlueDotPassivePoints(previousTranscendent, entry.transcendent);
+        entry.rarity = entry.transcendent ? 'transcendent' : 'normal';
+        addLog(entry.transcendent ? `🌌 공허 패시브 초월: ${formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '')}` : '💥 기회의 오브: 공허 패시브가 아무 옵션도 없는 노드로 변했습니다.', entry.transcendent ? 'loot-unique' : 'attack-monster');
+        updateStaticUI();
+        return;
+    }
+    if (currencyKey === 'divine') {
+        if (!entry.transcendent || !TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min)))) return addLog('신성한 오브는 수치가 있는 초월 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
+        game.currencies.divine--;
+        let previousTranscendent = entry.transcendent;
+        entry.transcendent = rerollTranscendentVoidPassive(entry.transcendent);
+        syncPaleBlueDotPassivePoints(previousTranscendent, entry.transcendent);
+        addLog(`✨ 초월 공허 패시브 수치 재굴림: ${formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '')}`, 'loot-unique');
+        updateStaticUI();
+        return;
+    }
+    if (entry.transcendent) return addLog('초월 공허 패시브에는 진화/확장/변화의 오브를 사용할 수 없습니다.', 'attack-monster');
     if (currencyKey === 'transmute' && entry.stats.length > 0) return addLog('이미 매직 공허 패시브입니다.', 'attack-monster');
     if (currencyKey === 'augment' && (entry.stats.length <= 0 || entry.stats.length >= 2)) return addLog('확장의 오브는 1줄 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
     if (currencyKey === 'alteration' && entry.stats.length <= 0) return addLog('변화의 오브는 매직 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
@@ -2950,6 +3070,7 @@ let activeTutorial = null;
 let activeRewardZoneId = null;
 let divineBannerTimer = null;
 let jewelFusionSelection = [];
+let selectedJewelCraftIndex = null;
 let voidJewelOverlayState = { mode: null, selected: [] };
 let pendingRingEquipItemId = null;
 let pendingGloveEquipItemId = null;
@@ -6677,7 +6798,7 @@ function removeJewelFromAbyssSocket(socketIdx) { if (game.woodsmanBuildLock) ret
     updateStaticUI();
 }
 
-safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, openVoidSocketJewelOverlay, closeVoidSocketJewelOverlay, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, openJewelFusionOverlay, closeJewelFusionOverlay, confirmJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
+safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, getSelectedJewelCraftTarget, selectJewelCraftTarget, useCurrencyOnJewel, getJewelCurrencyUseState, openVoidSocketJewelOverlay, closeVoidSocketJewelOverlay, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, openJewelFusionOverlay, closeJewelFusionOverlay, confirmJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
 
 function createItemFromBase(base, rarity, zoneTier) {
     itemIdCounter++;
@@ -7053,6 +7174,7 @@ function getCurrencyDrops(enemy) {
     // 신성한 오브: 일반 0.01375% / 정예 0.0825% / 보스 1.25%. 엑잘티드는 신성의 2배. 나무꾼의 손길은 신성 확률의 1/1200(극악).
     let divineChance = enemy.isBoss ? 0.0125 : (enemy.isElite ? 0.000825 : 0.0001375);
     if (bonusRoll(divineChance)) drops.push(['divine', 1]);
+    if (bonusRoll(divineChance / 20)) drops.push(['chance', 1]);
     if (bonusRoll(divineChance * 2)) drops.push(['exalted', 1]);
     if (bonusRoll(divineChance / 1200)) drops.push(['woodsmanTouch', 1]);
     let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
@@ -7244,6 +7366,57 @@ function rollRandomJewelStat(excludeIds) {
     return rollJewelStat(resolveJewelRollOption(rndChoice(pool), excludeIds));
 }
 
+const JEWEL_CRAFT_ORB_KEYS = ['transmute', 'augment', 'alteration', 'regal', 'exalted', 'chaos', 'divine', 'annulment'];
+
+function getSelectedJewelCraftIndex() {
+    let index = Math.floor(Number(selectedJewelCraftIndex));
+    return Number.isInteger(index) && index >= 0 && index < (game.jewelInventory || []).length ? index : -1;
+}
+
+function getSelectedJewelCraftTarget() {
+    let index = getSelectedJewelCraftIndex();
+    return index >= 0 ? game.jewelInventory[index] : null;
+}
+
+function selectJewelCraftTarget(idx) {
+    let index = getValidJewelInventoryIndex(idx);
+    if (index < 0) return;
+    selectedJewelCraftIndex = index;
+    updateStaticUI();
+}
+
+function setJewelStatsAndRarity(jewel, rarity, stats) {
+    jewel.rarity = rarity;
+    jewel.stats = (stats || []).map(cloneJewelStat).filter(Boolean);
+    jewel.hiddenTier = Math.max(1, ...jewel.stats.map(stat => stat.tier || 1));
+    jewel.name = `${getJewelRarityLabel(rarity)} 주얼`;
+}
+
+function rollJewelCraftStats(count, keepStats) {
+    let stats = (keepStats || []).map(cloneJewelStat).filter(Boolean);
+    let usedIds = stats.map(stat => stat.id);
+    while (stats.length < count) {
+        let stat = rollRandomJewelStat(usedIds);
+        if (!stat) break;
+        stats.push(stat);
+        usedIds.push(stat.id);
+    }
+    return stats;
+}
+
+function rerollJewelStatValues(jewel) {
+    getJewelStats(jewel).forEach(stat => {
+        let option = getJewelOptionDef(stat.id);
+        if (!option) return;
+        let rerolled = rollJewelStat(option);
+        if (!rerolled) return;
+        stat.val = rerolled.val;
+        stat.valMin = rerolled.valMin;
+        stat.valMax = rerolled.valMax;
+        stat.tier = rerolled.tier;
+    });
+}
+
 function isJewelPetiteStat(stat) {
     return !!(stat && stat.petite && !stat.waxBonus);
 }
@@ -7410,6 +7583,65 @@ function rejectProtectedJewelCraftMaterial(jewels, actionLabel) {
     if (protectedMaterial.reason === 'locked') showLockedJewelCraftRestriction(protectedMaterial.jewel, actionLabel);
     else showWaxedJewelCraftRestriction(protectedMaterial.jewel, actionLabel);
     return true;
+}
+
+function getJewelCurrencyUseState(currencyKey, jewel) {
+    if (!JEWEL_CRAFT_ORB_KEYS.includes(currencyKey)) return { enabled: false, reason: '주얼 제작에 지원하지 않는 재화' };
+    if (!jewel) return { enabled: false, reason: '주얼을 선택하세요' };
+    if (jewel.locked) return { enabled: false, reason: '잠금 주얼' };
+    if (jewel.waxedByBeeswax) return { enabled: false, reason: '밀랍 주얼' };
+    if (jewel.rarity === 'unique') return { enabled: false, reason: '고유 주얼 제작 불가' };
+    let count = getJewelCoreStats(jewel).length;
+    let rarity = jewel.rarity || 'normal';
+    if (currencyKey === 'transmute') return { enabled: rarity === 'normal', reason: rarity === 'normal' ? '사용 가능' : '일반 주얼 필요' };
+    if (currencyKey === 'augment') return { enabled: rarity === 'magic' && count < 2, reason: rarity === 'magic' && count < 2 ? '사용 가능' : '매직 1줄 주얼 필요' };
+    if (currencyKey === 'alteration') return { enabled: rarity === 'magic', reason: rarity === 'magic' ? '사용 가능' : '매직 주얼 필요' };
+    if (currencyKey === 'regal') return { enabled: rarity === 'magic' && count < 4, reason: rarity === 'magic' && count < 4 ? '사용 가능' : '매직 주얼 필요' };
+    if (currencyKey === 'exalted') return { enabled: rarity === 'rare' && count < 4, reason: rarity === 'rare' && count < 4 ? '사용 가능' : '레어 빈 옵션 필요' };
+    if (currencyKey === 'chaos') return { enabled: rarity === 'rare', reason: rarity === 'rare' ? '사용 가능' : '레어 주얼 필요' };
+    if (currencyKey === 'divine') return { enabled: count > 0, reason: count > 0 ? '사용 가능' : '옵션 없음' };
+    if (currencyKey === 'annulment') return { enabled: count > 0, reason: count > 0 ? '사용 가능' : '제거할 옵션 없음' };
+    return { enabled: rarity !== 'normal', reason: rarity !== 'normal' ? '사용 가능' : '일반 주얼에는 사용 불가' };
+}
+
+function useCurrencyOnJewel(currencyKey, idx) {
+    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
+    let index = idx === undefined ? getSelectedJewelCraftIndex() : getValidJewelInventoryIndex(idx);
+    let jewel = index >= 0 ? game.jewelInventory[index] : null;
+    if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
+    let state = getJewelCurrencyUseState(currencyKey, jewel);
+    if (!state.enabled) return addLog(state.reason, 'attack-monster');
+    if (currencyKey === 'divine' && !confirm('정말 신성한 오브를 사용하시겠습니까?')) return;
+    game.currencies[currencyKey]--;
+    applyCurrencyToJewel(currencyKey, jewel);
+    selectedJewelCraftIndex = index;
+    addLog(`💠 주얼에 ${ORB_DB[currencyKey].name} 사용: [${jewel.name || '주얼'}]`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
+    updateStaticUI();
+}
+
+function applyCurrencyToJewel(currencyKey, jewel) {
+    let stats = getJewelCoreStats(jewel).map(cloneJewelStat).filter(Boolean);
+    if (currencyKey === 'transmute') return setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(1));
+    if (currencyKey === 'alteration') return setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(Math.random() < 0.5 ? 1 : 2));
+    if (currencyKey === 'chaos') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.random() < 0.35 ? 3 : 2));
+    if (currencyKey === 'augment') return setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(Math.min(2, stats.length + 1), stats));
+    if (currencyKey === 'regal') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
+    if (currencyKey === 'exalted') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
+    if (currencyKey === 'divine') return rerollJewelStatValues(jewel);
+    if (currencyKey === 'annulment') {
+        let removeIdx = Math.floor(Math.random() * Math.max(1, stats.length));
+        stats.splice(removeIdx, 1);
+        return setJewelStatsAndRarity(jewel, stats.length > 0 ? jewel.rarity : 'normal', stats);
+    }
+    setJewelStatsAndRarity(jewel, 'normal', []);
+}
+
+function destroySelectedCraftItem(item) {
+    if (typeof getCraftSelectionRef !== 'function' || typeof isCraftSelectionEquip !== 'function') return;
+    let ref = getCraftSelectionRef();
+    if (isCraftSelectionEquip()) game.equipment[ref] = null;
+    else game.inventory = (game.inventory || []).filter(entry => entry !== item);
+    if (typeof clearCraftSelection === 'function') clearCraftSelection();
 }
 
 function getValidJewelInventoryIndex(idx) {
@@ -8305,6 +8537,7 @@ function useCurrency(currencyKey) {
     else if (currencyKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
     else if (currencyKey === 'chaos') ok = item.rarity === 'rare';
     else if (currencyKey === 'divine') ok = item.rarity !== 'normal';
+    else if (currencyKey === 'chance') ok = item.rarity === 'normal';
     else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
     else if (currencyKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
     else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
@@ -8465,6 +8698,16 @@ function useCurrency(currencyKey) {
             item.uniqueEffectParams = p;
             let socketCount = Array.isArray(item.abyssSockets) ? item.abyssSockets.length : Math.max(1, Math.floor(Number(p.socketsMin || 1)));
             item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
+        }
+    } else if (currencyKey === 'chance') {
+        if (Math.random() < 0.25) {
+            destroySelectedCraftItem(item);
+            addLog('💥 기회의 오브: 장비가 파괴되었습니다.', 'attack-monster');
+        } else {
+            let unique = generateUniqueItem(Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1)), item.slot);
+            Object.keys(item).forEach(key => delete item[key]);
+            Object.assign(item, unique);
+            addLog(`🌟 기회의 오브: [${item.name}] 고유 장비로 진화했습니다.`, 'loot-unique');
         }
     } else if (currencyKey === 'annulment') {
         let removable = getAnnulmentRemovableStats(item);
