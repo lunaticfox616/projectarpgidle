@@ -73,7 +73,7 @@ const TALISMAN_OPTION_POOL = [
     { stat: 'pctHp', label: '생명력 증가(%)', min: 4, max: 12, step: 1 },
     { stat: 'move', label: '이동 속도(%)', min: 2, max: 8, step: 1 },
     { stat: 'dotPctDmg', label: '지속 피해 배율(%)', min: 4, max: 14, step: 1 },
-    { stat: 'regenSuppress', label: '재생 억제(%)', min: 0.1, max: 0.1, step: 0.1 },
+    { stat: 'regenSuppress', label: '재생 억제(%)', min: 0.5, max: 0.5, step: 0.1 },
     { stat: 'minDmgRoll', label: '최소 피해 보정(%)', min: 1, max: 3, step: 1 },
     { stat: 'maxDmgRoll', label: '최대 피해 보정(%)', min: 1, max: 3, step: 1 },
     { stat: 'armorPct', label: '방어도 증가(%)', min: 4, max: 12, step: 1 },

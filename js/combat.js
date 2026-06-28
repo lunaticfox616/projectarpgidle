@@ -5991,7 +5991,7 @@ function rollLootForEnemy(enemy) {
             addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
         }
     }
-    if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.056) {
+    if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056) {
         let jewel = generateJewelDrop((getZone(game.currentZoneId) || { tier: 1 }).tier || 1);
         game.jewelInventory = game.jewelInventory || [];
         if (game.jewelInventory.length >= getJewelInventoryLimit()) {
