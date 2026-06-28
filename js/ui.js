@@ -1,6 +1,10 @@
 // Phase-2 extracted UI/tab/render helper block.
 let lastHeavyUiRefreshAt = 0;
 let lastPassiveTreeDrawAt = 0;
+// 전장 캔버스 렌더 주기를 제한해 고주사율 모니터에서의 과도한 재계산/렉을 완화한다.
+// (idle ARPG 특성상 30fps 부근이면 충분히 부드럽고, 메인 스레드 여유를 확보해 끊김을 줄인다.)
+let lastBattlefieldRenderAt = 0;
+const BATTLEFIELD_MIN_FRAME_MS = 22;
 let lastPassiveTreeSignature = '';
 let passiveTreeSearch = '';
 let passiveTreeFilter = 'all';
@@ -11368,9 +11372,23 @@ function init() {
     }
 }
 
+function renderBattlefieldThrottled(frameNow) {
+    // 직전 렌더 이후 최소 간격이 지나지 않았으면 이번 프레임은 건너뛴다.
+    // 60Hz에서는 약 30fps로 균등하게, 고주사율 화면에서는 더 큰 폭으로 부하를 줄인다.
+    if (frameNow - lastBattlefieldRenderAt < BATTLEFIELD_MIN_FRAME_MS) return;
+    lastBattlefieldRenderAt = frameNow;
+    updateMobileBattlePipVisibility();
+    // 전투 탭에서 캔버스가 실제로 보일 때만 풀 렌더한다.
+    // 다른 탭의 모바일 PiP는 별도의 저주기(120ms) 루프가 갱신하므로
+    // 여기서 강제 렌더하면 같은 화면을 중복으로 그리게 된다.
+    renderBattlefield(false);
+    renderMobileBattlePipFrame();
+}
+
 function gameLoop() {
     try {
         if (document.hidden) return;
+        let frameNow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
         if (isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active')) {
                 let passiveNow = Date.now();
@@ -11380,9 +11398,7 @@ function gameLoop() {
                     lastPassiveTreeDrawAt = passiveNow;
                 }
             }
-            updateMobileBattlePipVisibility();
-            renderBattlefield(isMobileBattlePipVisible());
-            renderMobileBattlePipFrame();
+            renderBattlefieldThrottled(frameNow);
             return;
         }
         if (document.getElementById('tab-char').classList.contains('active')) {
@@ -11393,9 +11409,7 @@ function gameLoop() {
                 lastPassiveTreeDrawAt = passiveNow;
             }
         }
-        updateMobileBattlePipVisibility();
-        renderBattlefield(isMobileBattlePipVisible());
-        renderMobileBattlePipFrame();
+        renderBattlefieldThrottled(frameNow);
     } catch (error) {
         console.error('gameLoop error:', error);
         recoverRuntimeState();

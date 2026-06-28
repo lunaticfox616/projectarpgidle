@@ -148,10 +148,13 @@ function renderBattlefield(forceWhenHidden) {
         battleVisualState.enemyGhostPos[entry.enemy.id] = { x: entry.x, y: entry.y, stamp: now };
     });
 
+    // getPlayerStats()는 장비/패시브 전체를 재계산하는 무거운 함수다.
+    // 한 프레임 안에서는 결과가 동일하므로 프레임당 1회만 계산해 재사용한다.
+    let framePlayerStats = getCanvasPlayerStats();
     if (swingFx && swingFx.id !== battleVisualState.lastAutoSwingId && now >= (battleVisualState.lastAutoSkillAt || 0)) {
         playSkillFromActiveGem(game.activeSkill || '기본 공격');
         battleVisualState.lastAutoSwingId = swingFx.id;
-        const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, getCanvasPlayerStats().aspd)) * 100));
+        const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, framePlayerStats.aspd)) * 100));
         battleVisualState.lastAutoSkillAt = now + _atkInterval;
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
@@ -237,7 +240,7 @@ function renderBattlefield(forceWhenHidden) {
 
     if (typeof attackFxDraw === 'function') attackFxDraw(ctx);
 
-    let pStatsNow = getCanvasPlayerStats();
+    let pStatsNow = framePlayerStats;
     let playerHpPct = clampNumber((game.playerHp || 0) / Math.max(1, pStatsNow.maxHp || 1), 0, 1);
     if (!Number.isFinite(battleVisualState.playerHpGhostPct)) battleVisualState.playerHpGhostPct = playerHpPct;
     if (!Number.isFinite(battleVisualState.playerHpLastPct)) battleVisualState.playerHpLastPct = playerHpPct;
@@ -308,7 +311,7 @@ function renderBattlefield(forceWhenHidden) {
         }
         ctx.restore();
     }
-    let currentTargets = getCanvasSkillTargets(getCanvasPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
+    let currentTargets = getCanvasSkillTargets(framePlayerStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
