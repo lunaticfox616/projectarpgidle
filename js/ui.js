@@ -601,8 +601,26 @@ function applyTabHeaderOrder(shouldRenderSettings){
         target.appendChild(map[id]);
     });
     ids.forEach(id=>{ if(!order.includes(id) && map[id]) topHeader.appendChild(map[id]); });
-    if (bottomHeader) bottomHeader.style.display = bottomHeader.children.length ? 'flex' : 'none';
+    if (bottomHeader) {
+        let hasBottomTabs = bottomHeader.children.length > 0;
+        bottomHeader.style.display = hasBottomTabs ? 'flex' : 'none';
+        document.body.classList.toggle('has-bottom-tabs', hasBottomTabs);
+        updateBottomTabSpacing();
+    }
     if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
+}
+// Reserve scroll space at the bottom of the page so the fixed bottom tab bar
+// does not overlap (and block taps on) the last buttons in the content.
+function updateBottomTabSpacing(){
+    let bottomHeader = document.getElementById('tab-header-bottom');
+    let visible = bottomHeader && document.body.classList.contains('has-bottom-tabs') &&
+        window.getComputedStyle(bottomHeader).display !== 'none';
+    let height = visible ? Math.ceil(bottomHeader.getBoundingClientRect().height) : 0;
+    document.body.style.setProperty('--bottom-tab-height', height + 'px');
+}
+if (typeof window !== 'undefined') {
+    window.addEventListener('resize', () => updateBottomTabSpacing());
+    window.addEventListener('orientationchange', () => updateBottomTabSpacing());
 }
 function setTabPlacement(tabId, placement){
     game.settings = game.settings || {};
