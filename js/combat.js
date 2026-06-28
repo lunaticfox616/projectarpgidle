@@ -1605,6 +1605,7 @@ function getUniqueEffectImplementationReport() {
         'xpGainPct','flatDmgPerLevel','esAmpAndRecoverOnCrit','invertShockTaken','alwaysShock',
         'projectileDoubleStrikePct','hitApplyChaosResDown','corpseExplodeOnKill','instantLeechAndDoubleDamage',
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
+        'rollGapDamagePct','rollGapCritAndDs','crowdEvasionMore','esToLightPct','underdogNonMaxRollMorePct','instakillNormalOnHitPct','projectileExtraShotChance',
         'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmNoCollisionBlock','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
         ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing'
     ]);
@@ -1853,6 +1854,7 @@ function getPlayerStats() {
     let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null, uniqueStealEliteTrait=null, fixedAllMaxRes=null;
     let cosmosAlwaysFirstHit=false, cosmosEnergyShieldBypassPct=0, cosmosOrbitCycle=null, cosmosDeepSeaLeechCaps=null, cosmosTideEsRegenToLife=false, cosmosEqualDamageSplit=false, cosmosBalanceMitigation=false, cosmosTwinStarResonance=null, cosmosJudgmentLightning=null, cosmosDeathResistPct=0, cosmosVerdictSupportDamagePct=0, cosmosGuardianConditionInstant=false, cosmosBossDamageMorePct=0, cosmosCometChillNoFreeze=false;
     let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
+    let uniqueRollGapDamage=false, uniqueRollGapCritDs=false, uniqueCrowdEvasionMore=null, uniqueEsToLightPct=false, uniqueUnderdogMorePct=0, uniqueInstakillNormalPct=0, uniqueProjExtraShotChance=null;
     if (activeUniqueIds.has('uj_crown_empty')) {
         let otherUniqueCount = equippedUniqueJewels.filter(entry => entry && entry.jewel && entry.jewel.uniqueId !== 'uj_crown_empty').length;
         if (otherUniqueCount === 0) {
@@ -1872,7 +1874,7 @@ function getPlayerStats() {
         let ep = effect.params || {};
         if (effect.key === 'xpGainPct') uniqueXpGainPct += Number(ep.pct || 0);
         else if (effect.key === 'flatDmgPerLevel') uniqueFlatDmgPerLevel += Number(ep.perLevel || 0);
-        else if (effect.key === 'esAmpAndRecoverOnCrit') { uniqueEsAmpPct = Math.max(uniqueEsAmpPct, Number(ep.ampPct || 50)); uniqueEsRecoverOnCritPct = Math.max(uniqueEsRecoverOnCritPct, Number(ep.recoverPctOnCrit || 2)); }
+        else if (effect.key === 'esAmpAndRecoverOnCrit') { uniqueEsAmpPct = Math.max(uniqueEsAmpPct, Number(ep.ampPct ?? 50)); uniqueEsRecoverOnCritPct = Math.max(uniqueEsRecoverOnCritPct, Number(ep.recoverPctOnCrit || 2)); }
         else if (effect.key === 'invertShockTaken') uniqueShockInvertTaken = true;
         else if (effect.key === 'alwaysShock') uniqueAlwaysShock = true;
         else if (effect.key === 'projectileDoubleStrikePct') uniqueProjectileDoubleStrikePct += Number(ep.pct || 100);
@@ -1903,6 +1905,13 @@ function getPlayerStats() {
         else if (effect.key === 'bleedWeightOnBleedingHit') uniqueBleedWeightOnBleedingHit = true;
         else if (effect.key === 'grandBreachCrown') uniqueGrandBreachCrown = { spellFromEsPct: Number(ep.spellFromEsPct || 10), esPct: Number(ep.esPct || 30) };
         else if (effect.key === 'labyrinthShackles') uniqueLabyrinthShackles = true;
+        else if (effect.key === 'rollGapDamagePct') uniqueRollGapDamage = true;
+        else if (effect.key === 'rollGapCritAndDs') uniqueRollGapCritDs = true;
+        else if (effect.key === 'crowdEvasionMore') uniqueCrowdEvasionMore = { minEnemies: Number(ep.minEnemies || 10), morePct: Number(ep.morePct || 100) };
+        else if (effect.key === 'esToLightPct') uniqueEsToLightPct = true;
+        else if (effect.key === 'underdogNonMaxRollMorePct') uniqueUnderdogMorePct = Math.max(uniqueUnderdogMorePct, Number(ep.pct || 20));
+        else if (effect.key === 'instakillNormalOnHitPct') uniqueInstakillNormalPct = Math.max(uniqueInstakillNormalPct, Number(ep.pct || 5));
+        else if (effect.key === 'projectileExtraShotChance') uniqueProjExtraShotChance = { chance: Number(ep.chance || 10), shots: Number(ep.shots || 2) };
 
         else if (effect.key === 'realmAllResDownOnHit') uniqueAllResDownOnHit = { perHit: Number(ep.perHit || 5), max: Number(ep.max || 4), duration: Number(ep.duration || 5) };
         else if (effect.key === 'realmKillMoveStacks') uniqueKillMoveStacks = { movePerStack: Number(ep.movePerStack || 10), maxStacks: Number(ep.maxStacks || 20), duration: Number(ep.duration || 20), cooldownSec: Number(ep.cooldownSec || 1) };
@@ -3062,6 +3071,17 @@ function getPlayerStats() {
     if (game.ascendClass === 'hunter' && hasKeystone('h8')) finalCrit = Math.min(1000, finalCrit);
     else finalCrit = Math.min(100, finalCrit);
     if (skill.cannotCrit && !(game.ascendClass === 'catalyst' && hasKeystone('ct7') && Array.isArray(skill.tags) && skill.tags.includes('attack'))) finalCrit = 0;
+    // 신성한 맹세: 번개 스킬의 기본 피해가 최대 에너지 보호막 100당 +1%
+    if (uniqueEsToLightPct && skill.ele === 'light') finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalEnergyShield / 100) / 100));
+    // 뒤바뀐 운명 / 최대 이윤: 최소~최대 피해 보정 차이를 피해·치명타 피해·연속 타격으로 환산
+    let cosmosRollGap = Math.max(0, finalMaxDmgRoll - finalMinDmgRoll);
+    if (uniqueRollGapDamage) finalBaseDmg = Math.floor(finalBaseDmg * (1 + cosmosRollGap / 100));
+    if (uniqueRollGapCritDs) { finalCritDmg += cosmosRollGap; finalDs += cosmosRollGap; }
+    // 스쳐가는 그림자: 주변 적이 일정 수 이상이면 회피 대폭 증폭
+    if (uniqueCrowdEvasionMore) {
+        let aliveCnt = (game.enemies || []).filter(e => e && e.hp > 0).length;
+        if (aliveCnt >= uniqueCrowdEvasionMore.minEnemies) finalEvasion = Math.floor(finalEvasion * (1 + uniqueCrowdEvasionMore.morePct / 100));
+    }
     if (uniqueFateTwinRollSync) {
         let critForTwin = Math.max(0, finalCrit);
         let v = Math.max(finalMinDmgRoll, finalMaxDmgRoll) + (critForTwin * 0.2);
@@ -3775,6 +3795,9 @@ function getPlayerStats() {
         uniqueRiderCompass: uniqueRiderCompass,
         uniqueMaxRollBonusHit: uniqueMaxRollBonusHit,
         uniqueCeilingSmashDouble: uniqueCeilingSmashDouble,
+        uniqueUnderdogMorePct: uniqueUnderdogMorePct,
+        uniqueInstakillNormalPct: uniqueInstakillNormalPct,
+        uniqueProjExtraShotChance: uniqueProjExtraShotChance,
         uniqueConditionManual: uniqueConditionManual,
         uniqueStackingElementalResDownOnHit: uniqueStackingElementalResDownOnHit,
         uniqueLeechEfficiencyOnKill: uniqueLeechEfficiencyOnKill,
@@ -6904,7 +6927,8 @@ function performPlayerAttack(pStats) {
         }
     }
     let uniqueProjectileExtraHits = isProjectileSkill ? Math.max(0, Math.floor((pStats.uniqueProjectileDoubleStrikePct || 0) / 100)) : 0;
-    let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + curseProjectileExtraHits + uniqueProjectileExtraHits));
+    let chanceProjExtraShots = (isProjectileSkill && pStats.uniqueProjExtraShotChance && Math.random() * 100 < Number(pStats.uniqueProjExtraShotChance.chance || 0)) ? Math.max(0, Math.floor(pStats.uniqueProjExtraShotChance.shots || 0)) : 0;
+    let repeats = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.multiHit || 1) + projectileBonusShots + chanceProjExtraShots + curseProjectileExtraHits + uniqueProjectileExtraHits));
     let baseRepeats = Math.max(1, Math.floor(pStats.sSkill.multiHit || 1));
     if (game.ascendClass === 'hunter' && hasKeystone('h7')) {
         pStats.sSkill.targets = 1;
@@ -7118,6 +7142,12 @@ function performPlayerAttack(pStats) {
             if (pStats.uniqueCeilingSmashDouble && rollPct >= 140 && Math.random() < 0.15) {
                 dmg *= 2;
                 ailmentSourceDamage *= 2;
+            }
+            // 언더독: 이번 타격이 최대 피해 보정으로 굴리지 못했다면 피해 증폭
+            if ((pStats.uniqueUnderdogMorePct || 0) > 0 && rollPct < maxRoll) {
+                let underdogMul = 1 + Math.max(0, pStats.uniqueUnderdogMorePct) / 100;
+                dmg = Math.floor(dmg * underdogMul);
+                ailmentSourceDamage = Math.floor(ailmentSourceDamage * underdogMul);
             }
             dmg = Math.floor(dmg * (rollPct / 100));
             ailmentSourceDamage = Math.floor(ailmentSourceDamage * (rollPct / 100));
@@ -7346,6 +7376,11 @@ function performPlayerAttack(pStats) {
                 if (cullThr > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= cullThr) {
                     dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
                 }
+            }
+            // 우주 먼지: 공격 시 일정 확률로 일반(비정예/비보스) 적 즉시 처치
+            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.isElite && !targetEnemy.elite
+                && (pStats.uniqueInstakillNormalPct || 0) > 0 && Math.random() * 100 < pStats.uniqueInstakillNormalPct) {
+                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
             }
             // 재능 처형(15 도살자/71 하운드): 낮은 체력 일반 몬스터 마무리
             if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof getTalentExecuteThreshold === 'function') {
