@@ -18,9 +18,17 @@
     // 공격 이펙트 전체 불투명도 배수(1=원본, 낮을수록 더 투명). window.__attackFxOpacity로 조정 가능.
     const FX_GLOBAL_ALPHA = (typeof window !== 'undefined' && Number.isFinite(Number(window.__attackFxOpacity)))
         ? Math.max(0.2, Math.min(1, Number(window.__attackFxOpacity)))
-        : 0.85;
+        : 0.78;
     // 종류별 크기 배수(번개 이펙트는 절반 크기).
     const FX_KIND_SIZE_MUL = { lightning: 0.5 };
+    // 한 프레임에 새로 만드는 임팩트 이펙트 수 상한. 몹이 다량 등장해 한 틱에 여러 타격이
+    // 동시에 발생하면 buildXxx(입자 수십 개 할당)가 한 프레임에 몰려 이펙트가 나오기 직전
+    // 렉이 생긴다. 프레임당 스폰 수를 제한해 할당 스파이크를 막는다(초과 타격은 데미지
+    // 숫자만 표시). window.__attackFxMaxSpawnsPerFrame로 조정 가능.
+    const MAX_SPAWNS_PER_FRAME = (typeof window !== 'undefined' && Number.isFinite(Number(window.__attackFxMaxSpawnsPerFrame)))
+        ? Math.max(1, Math.floor(Number(window.__attackFxMaxSpawnsPerFrame)))
+        : 5;
+    let __spawnsThisFrame = 0;
 
     const rand = (a, b) => Math.random() * (b - a) + a;
     const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -639,6 +647,9 @@
         const kindId = normalizeKind(element);
         const kind = KIND[kindId];
         if (!kind) return;
+        // 프레임당 신규 스폰 상한(다중 타격 동시 발생 시 할당 스파이크 방지).
+        if (__spawnsThisFrame >= MAX_SPAWNS_PER_FRAME) return;
+        __spawnsThisFrame++;
         const options = opts || {};
         const scale = Number.isFinite(options.scale) ? options.scale : 0.78;
         const crit = !!options.crit;
@@ -651,6 +662,8 @@
     }
 
     function attackFxUpdate(dtMs) {
+        // 렌더 프레임마다 1회 호출되며 'hit' 처리(스폰)보다 먼저 돈다 → 프레임 스폰 카운터 리셋.
+        __spawnsThisFrame = 0;
         const dt = Math.min(Number(dtMs) || 0, 50) / 1000;
         if (dt <= 0) return;
         for (let i = engine.list.length - 1; i >= 0; i--) {
