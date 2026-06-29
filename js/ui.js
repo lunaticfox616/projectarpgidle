@@ -6175,6 +6175,11 @@ function shouldRedrawPassiveTree(now) {
 }
 
 function performUpdateStaticUI() {
+    // 진단용 단계별 타이밍. 한 번의 갱신이 150ms를 넘으면(또는 window.__perfLog가 켜져
+    // 있으면) 어느 단계가 느린지 콘솔에 한 줄 남긴다. 정상 갱신에는 거의 영향이 없다.
+    const __perfNow = (typeof performance !== 'undefined' && performance.now) ? () => performance.now() : () => Date.now();
+    const __pm = [['start', __perfNow()]];
+    const __mark = (n) => __pm.push([n, __perfNow()]);
 
     ensureStarWedgeState();
     tryUnlockMeteorContentByProgress();
@@ -6198,8 +6203,10 @@ function performUpdateStaticUI() {
     normalizeSupportLoadout(true);
     let pStats = getUiPlayerStats();
     if (typeof normalizeSummonLoadout === 'function' && normalizeSummonLoadout(true, pStats)) pStats = getUiPlayerStats();
+    __mark('stats');
     cachedTooltipStats = pStats;
     updateCombatUI(pStats);
+    __mark('combatUI');
     let showCombatScene = game.settings.showCombatScene !== false;
     let canvas = document.getElementById('battlefield-canvas');
     let caption = document.getElementById('ui-battlefield-caption');
@@ -6242,6 +6249,7 @@ function performUpdateStaticUI() {
             lastPassiveTreeDrawAt = drawNow;
         }
     }
+    __mark('tree');
     renderStarWedgePanel();
     if (typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
     if (typeof renderCoreCubePanel === 'function') renderCoreCubePanel();
@@ -7351,8 +7359,10 @@ function buildCraftActionButtons(item) {
     let underworldUnlocked = (typeof isUnderworldUnlockedPermanent === 'function') && isUnderworldUnlockedPermanent();
     if (underworldBtn) underworldBtn.style.display = underworldUnlocked ? 'block' : 'none';
     if (game.mapSubtab === 'map-tab-underworld' && !underworldUnlocked) switchMapSubtab('map-tab-zones');
+    __mark('midRender');
     renderMarketUI();
     renderExpertiseUI();
+    __mark('market+expertise');
 
     // 벌집 진행 상태 갱신은 UI 표시와 무관하게 항상 돌아야 한다.
     // (awaitingClear -> pendingChoice 전환이 여기서 처리됨)
@@ -8086,6 +8096,13 @@ function buildCraftActionButtons(item) {
     switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
     switchMapSubtab(game.mapSubtab || 'map-tab-zones');
     switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+    __mark('end');
+    let __ptot = __perfNow() - __pm[0][1];
+    if (__ptot > 150 || (typeof window !== 'undefined' && window.__perfLog)) {
+        let __parts = [];
+        for (let i = 1; i < __pm.length; i++) __parts.push(`${__pm[i][0]}:${Math.round(__pm[i][1] - __pm[i - 1][1])}`);
+        console.warn(`[perf] updateStaticUI ${Math.round(__ptot)}ms | ${__parts.join(' ')}`);
+    }
 }
 
 
