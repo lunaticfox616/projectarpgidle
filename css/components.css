@@ -1042,8 +1042,9 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
   background: linear-gradient(180deg, #1a2236, #111827);
 }
 
-/* Keep scrolling inside panes/tabs only; avoid the page-level right scrollbar. */
+/* Keep desktop scrolling inside panes/tabs only; mobile uses page scrolling. */
 html, body { overflow: hidden; }
 @media (max-width: 1080px) {
-  body:not(.startup-active):not(.loading-active) { overflow: hidden; }
+  html { overflow-x: hidden; overflow-y: auto; }
+  body:not(.startup-active):not(.loading-active) { overflow-x: hidden; overflow-y: auto; }
 }

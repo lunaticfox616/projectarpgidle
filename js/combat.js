@@ -5752,6 +5752,7 @@ function tickGrandBreachRun(zone) {
 }
 
 function grantExpAndGem(enemy, pStats) {
+    let gemLeveled = false;
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
     let abyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
@@ -5777,6 +5778,7 @@ function grantExpAndGem(enemy, pStats) {
             if (gem.exp >= getGemReqExp(gem.level)) {
                 gem.level++;
                 gem.exp = 0;
+                gemLeveled = true;
                 addLog(`✨ ${pStats.sSkill.isGem ? '젬' : '스킬'} [${game.activeSkill}] 레벨업!`, "loot-unique");
             }
         }
@@ -5793,6 +5795,7 @@ function grantExpAndGem(enemy, pStats) {
             if (gem.exp >= getGemReqExp(gem.level)) {
                 gem.level++;
                 gem.exp = 0;
+                gemLeveled = true;
                 addLog(`🐾 소환수 젬 [${name}] 레벨업!`, "loot-unique");
             }
         }
@@ -5804,6 +5807,7 @@ function grantExpAndGem(enemy, pStats) {
             if (gem.exp >= getGemReqExp(gem.level)) {
                 gem.level++;
                 gem.exp = 0;
+                gemLeveled = true;
                 if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'support_gem_upgrade');
                 addLog(`🟢 젬 [${name}] 레벨업!`, "loot-rare");
             }
@@ -5827,6 +5831,7 @@ function grantExpAndGem(enemy, pStats) {
     }
     if (game.level >= MAX_PLAYER_LEVEL) game.exp = 0;
     if (leveledUp) queueImportantSave(250);
+    return gemLeveled;
 }
 
 function applyGrandBreachMobTuning(zone, enemy) {
@@ -6098,7 +6103,7 @@ function handleEnemyDeath(enemy, pStats) {
     }
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
     grantEliteTraitBuffFromEnemy(enemy, pStats);
-    grantExpAndGem(enemy, pStats);
+    let gemLeveled = grantExpAndGem(enemy, pStats);
     let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
     rollLootForEnemy(enemy);
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
@@ -6255,7 +6260,7 @@ function handleEnemyDeath(enemy, pStats) {
     }
     let currencyChanged = Math.max(0, Math.floor(game.currencyDropVersion || 0)) !== currencyDropVersionBefore;
     let colonyStateChanged = zone && zone.id === 'colony_run' && game.colony && game.colony.inRun;
-    if (enemy.isBoss || enemy.isElite || currencyChanged || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map) {
+    if (enemy.isBoss || enemy.isElite || currencyChanged || gemLeveled || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map) {
         pendingHeavyUiRefresh = true;
     }
 }
