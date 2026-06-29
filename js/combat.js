@@ -6254,7 +6254,8 @@ function handleEnemyDeath(enemy, pStats) {
         chainedDefeats.forEach(defeated => handleEnemyDeath(defeated, pStats));
     }
     let currencyChanged = Math.max(0, Math.floor(game.currencyDropVersion || 0)) !== currencyDropVersionBefore;
-    if (enemy.isBoss || enemy.isElite || currencyChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map) {
+    let colonyStateChanged = zone && zone.id === 'colony_run' && game.colony && game.colony.inRun;
+    if (enemy.isBoss || enemy.isElite || currencyChanged || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map) {
         pendingHeavyUiRefresh = true;
     }
 }

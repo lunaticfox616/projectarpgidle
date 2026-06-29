@@ -7757,6 +7757,7 @@ function buildCraftActionButtons(item) {
     if (foldAttackBtn) foldAttackBtn.style.background = foldAttackInactive ? '#2f6a42' : '#2c3e50';
     if (foldSupportBtn) foldSupportBtn.style.background = foldSupportInactive ? '#2f6a42' : '#2c3e50';
     let effectiveResonanceCap = getEffectiveResonanceCap();
+    let skyTowerSignatureState = (typeof ensureSkyTowerState === 'function') ? ensureSkyTowerState() : null;
     let skillPanelRenderSignature = JSON.stringify({
         activeSkill: game.activeSkill || '',
         skills: game.skills || [],
@@ -7773,6 +7774,10 @@ function buildCraftActionButtons(item) {
             bossCore: game.currencies.bossCore || 0,
             skyEssence: game.currencies.skyEssence || 0,
             awakenedEcho: game.currencies.awakenedEcho || 0
+        },
+        skyTower: {
+            condensedPower: Math.max(0, Math.floor((skyTowerSignatureState && skyTowerSignatureState.condensedPower) || 0)),
+            gemBoosts: (skyTowerSignatureState && skyTowerSignatureState.gemBoosts) || {}
         },
         filters: { skill: sf.skill || '', support: sf.support || '' },
         foldAttackInactive: foldAttackInactive,

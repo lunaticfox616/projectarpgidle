@@ -18,16 +18,16 @@
     // 공격 이펙트 전체 불투명도 배수(1=원본, 낮을수록 더 투명). window.__attackFxOpacity로 조정 가능.
     const FX_GLOBAL_ALPHA = (typeof window !== 'undefined' && Number.isFinite(Number(window.__attackFxOpacity)))
         ? Math.max(0.2, Math.min(1, Number(window.__attackFxOpacity)))
-        : 0.78;
+        : 0.62;
     // 종류별 크기 배수(번개 이펙트는 절반 크기).
-    const FX_KIND_SIZE_MUL = { lightning: 0.5 };
+    const FX_KIND_SIZE_MUL = { physical: 0.86, fire: 0.9, ice: 0.9, lightning: 0.45, chaos: 0.9 };
     // 한 프레임에 새로 만드는 임팩트 이펙트 수 상한. 몹이 다량 등장해 한 틱에 여러 타격이
     // 동시에 발생하면 buildXxx(입자 수십 개 할당)가 한 프레임에 몰려 이펙트가 나오기 직전
     // 렉이 생긴다. 프레임당 스폰 수를 제한해 할당 스파이크를 막는다(초과 타격은 데미지
     // 숫자만 표시). window.__attackFxMaxSpawnsPerFrame로 조정 가능.
     const MAX_SPAWNS_PER_FRAME = (typeof window !== 'undefined' && Number.isFinite(Number(window.__attackFxMaxSpawnsPerFrame)))
         ? Math.max(1, Math.floor(Number(window.__attackFxMaxSpawnsPerFrame)))
-        : 5;
+        : 3;
     let __spawnsThisFrame = 0;
 
     const rand = (a, b) => Math.random() * (b - a) + a;
@@ -211,22 +211,22 @@
     // 입자 렌더(특히 방사형 그라디언트) 부하를 낮춘다. window 전역으로 조정 가능.
     const FX_PARTICLE_SCALE = (typeof window !== 'undefined' && Number.isFinite(Number(window.__attackFxParticleScale)))
         ? Math.max(0.3, Math.min(1, Number(window.__attackFxParticleScale)))
-        : 0.72;
+        : 0.55;
     const qn = (base, q) => Math.max(1, Math.round(base * q * FX_PARTICLE_SCALE));
 
     function buildPhysical(fx, q) {
         const { x, y } = fx;
         fx.st.crack = [];
-        for (let i = 0; i < 6; i++) fx.st.crack.push({ a: rand(0, TAU), len: rand(26, 52), seg: rand(0.4, 0.7) });
-        for (let i = 0; i < qn(10, q); i++) {
+        for (let i = 0; i < 4; i++) fx.st.crack.push({ a: rand(0, TAU), len: rand(22, 44), seg: rand(0.4, 0.7) });
+        for (let i = 0; i < qn(6, q); i++) {
             const a = rand(0, TAU); const sp = rand(40, 130);
             fx.pBack.push(makeParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rand(10, 40), grav: 120, drag: 3.2, size: rand(10, 20), grow: 1.6, life: rand(0.45, 0.7), shape: 'smoke', c0: [120, 112, 100], c1: [70, 66, 60] }));
         }
-        for (let i = 0; i < qn(9, q); i++) {
+        for (let i = 0; i < qn(5, q); i++) {
             const a = rand(-Math.PI, 0.2); const sp = rand(160, 320);
             fx.pBack.push(makeParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, grav: 700, drag: 0.6, size: rand(2.5, 5), rot: rand(0, TAU), vrot: rand(-12, 12), life: rand(0.4, 0.65), shape: 'debris', c0: [150, 146, 138], c1: [70, 66, 60] }));
         }
-        for (let i = 0; i < qn(13, q); i++) {
+        for (let i = 0; i < qn(8, q); i++) {
             const a = rand(0, TAU); const sp = rand(260, 520);
             fx.pFront.push(makeParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, grav: 300, drag: 1.0, size: rand(1.4, 2.6), life: rand(0.18, 0.34), shape: 'spark', trail: 5, c0: [255, 246, 210], c1: [255, 150, 60] }));
         }
@@ -347,19 +347,19 @@
     }
 
     function drawPhysicalFlash(g, x, y, fa) {
-        const grd = g.createRadialGradient(x, y, 0, x, y, 34);
-        grd.addColorStop(0, `rgba(255,255,255,${fa})`);
-        grd.addColorStop(0.5, `rgba(220,220,220,${fa * 0.5})`);
+        const grd = g.createRadialGradient(x, y, 0, x, y, 26);
+        grd.addColorStop(0, `rgba(255,255,255,${fa * 0.55})`);
+        grd.addColorStop(0.5, `rgba(220,220,220,${fa * 0.25})`);
         grd.addColorStop(1, 'rgba(160,160,160,0)');
         g.fillStyle = grd;
-        g.beginPath(); g.arc(x, y, 34, 0, TAU); g.fill();
+        g.beginPath(); g.arc(x, y, 26, 0, TAU); g.fill();
         g.save();
         g.globalCompositeOperation = 'lighter';
-        g.strokeStyle = `rgba(255,255,255,${fa})`;
-        g.lineWidth = 3;
+        g.strokeStyle = `rgba(255,255,255,${fa * 0.24})`;
+        g.lineWidth = 1.4;
         g.lineCap = 'round';
-        const r = 26 + 30 * (1 - fa);
-        for (let i = 0; i < 4; i++) {
+        const r = 16 + 18 * (1 - fa);
+        for (let i = 0; i < 2; i++) {
             const ang = i * Math.PI / 2 + Math.PI / 4;
             g.beginPath();
             g.moveTo(x - Math.cos(ang) * r, y - Math.sin(ang) * r);
@@ -375,11 +375,11 @@
         const p = easeOutQuart(t);
         const fa = flash3(t);
         if (fa > 0) drawPhysicalFlash(g, x, y, fa);
-        g.strokeStyle = `rgba(245,245,245,${a * 0.7})`;
-        g.lineWidth = 3 * (1 - t * 0.6);
+        g.strokeStyle = `rgba(245,245,245,${a * 0.45})`;
+        g.lineWidth = 2 * (1 - t * 0.6);
         g.beginPath(); g.arc(x, y, 14 + 58 * p, 0, TAU); g.stroke();
-        g.strokeStyle = `rgba(110,110,118,${a * 0.4})`;
-        g.lineWidth = 8 * (1 - t);
+        g.strokeStyle = `rgba(110,110,118,${a * 0.25})`;
+        g.lineWidth = 5 * (1 - t);
         g.beginPath(); g.arc(x, y, 10 + 38 * p, 0, TAU); g.stroke();
     }
 
@@ -639,7 +639,7 @@
     /* ===================== engine ===================== */
     // 동시 임팩트 이펙트 상한. 각 이펙트가 수십 개의 입자(상당수가 매 프레임
     // createRadialGradient를 호출)를 그리므로, 상한을 낮춰 최악의 경우 부하를 제한한다.
-    const engine = { list: [], maxEffects: 14 };
+    const engine = { list: [], maxEffects: 10 };
 
     function attackFxSpawn(element, x, y, opts) {
         if (typeof window !== 'undefined' && window.__attackFxEnabled === false) return;
@@ -651,12 +651,12 @@
         if (__spawnsThisFrame >= MAX_SPAWNS_PER_FRAME) return;
         __spawnsThisFrame++;
         const options = opts || {};
-        const scale = Number.isFinite(options.scale) ? options.scale : 0.78;
+        const scale = Number.isFinite(options.scale) ? options.scale : 0.68;
         const crit = !!options.crit;
         // Lower particle density as the field gets busy; crit nudges it up.
-        const density = clamp01(1 - engine.list.length / engine.maxEffects * 0.55) * (crit ? 1.2 : 0.92);
+        const density = clamp01(1 - engine.list.length / engine.maxEffects * 0.55) * (crit ? 1.05 : 0.78);
         if (engine.list.length >= engine.maxEffects) engine.list.shift();
-        const fx = { kind, kindId, x, y, age: 0, dur: kind.dur, scale: crit ? scale * 1.18 : scale, pBack: [], pFront: [], st: {} };
+        const fx = { kind, kindId, x, y, age: 0, dur: kind.dur, scale: crit ? scale * 1.08 : scale, pBack: [], pFront: [], st: {} };
         kind.build(fx, Math.max(0.4, density));
         engine.list.push(fx);
     }
