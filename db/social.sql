@@ -54,6 +54,32 @@ alter table public.player_profiles
 create index if not exists player_profiles_last_seen_idx
     on public.player_profiles (last_seen desc);
 
+-- 닉네임 마지막 변경 시각(하루 1회 제한용). 최초 생성 시에는 null.
+alter table public.player_profiles
+    add column if not exists nickname_updated_at timestamptz;
+
+-- 닉네임은 하루(24시간)에 한 번만 변경할 수 있다.
+create or replace function public.player_profiles_nickname_guard()
+returns trigger
+language plpgsql
+as $$
+begin
+    if new.nickname is distinct from old.nickname then
+        if old.nickname_updated_at is not null
+           and old.nickname_updated_at > now() - interval '24 hours' then
+            raise exception 'NICK_COOLDOWN: 닉네임은 하루에 한 번만 변경할 수 있습니다.';
+        end if;
+        new.nickname_updated_at := now();
+    end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists trg_player_profiles_nickname_guard on public.player_profiles;
+create trigger trg_player_profiles_nickname_guard
+    before update on public.player_profiles
+    for each row execute function public.player_profiles_nickname_guard();
+
 drop trigger if exists trg_player_profiles_updated_at on public.player_profiles;
 create trigger trg_player_profiles_updated_at
     before update on public.player_profiles
@@ -111,6 +137,14 @@ drop policy if exists "chat_messages_insert_own" on public.chat_messages;
 create policy "chat_messages_insert_own"
     on public.chat_messages for insert
     to authenticated
+    with check (auth.uid() = user_id);
+
+-- 자기 메시지는 수정 가능(닉네임 변경 시 과거 채팅 닉네임 일괄 갱신용).
+drop policy if exists "chat_messages_update_own" on public.chat_messages;
+create policy "chat_messages_update_own"
+    on public.chat_messages for update
+    to authenticated
+    using (auth.uid() = user_id)
     with check (auth.uid() = user_id);
 
 -- (선택) 자기 메시지는 본인이 삭제 가능.

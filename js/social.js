@@ -1,26 +1,26 @@
 // ============================================================================
-// 소셜 기능: 채팅 + 접속자 목록 + 다른 플레이어 프로필(장비/주얼/부적/스탯) 구경
+// 소셜 기능: 채팅 + 접속자 목록 + 다른 플레이어 프로필(장비창/주얼/부적 배치도/스탯)
 // ----------------------------------------------------------------------------
 // 백엔드는 Supabase(player_profiles / chat_messages). 스키마는 db/social.sql.
 // ui.js 이후 로드되며 cloudState / cloudJsonRequest / getPlayerStats / getJewelStats
-// / getTalismanDisplayName 등 전역 함수를 재사용한다.
+// / getItemStatToneColor / getTierBadgeHtml / getTalismanShapeStyle 등 전역을 재사용.
+// 보안: 사용자/상대가 보낸 모든 문자열은 socialEscape 로 이스케이프한다.
 // ============================================================================
 
 const SOCIAL_NICK_KEY = 'arpg_social_nickname';
 const SOCIAL_CHAT_LIMIT = 50;
 const SOCIAL_CHAT_POLL_MS = 4000;
-const SOCIAL_MSG_MAX = 300;            // 채팅 본문 최대 글자수
+const SOCIAL_MSG_MAX = 300;
 const SOCIAL_NICK_MIN = 2;
 const SOCIAL_NICK_MAX = 16;
-const SOCIAL_SEND_MIN_INTERVAL_MS = 1500;  // 연속 전송 최소 간격(스팸방지)
-const SOCIAL_SEND_MAX_PER_MIN = 12;        // 분당 최대 전송 수(스팸방지)
-const SOCIAL_MAX_ITEMS_PER_MSG = 3;        // 메시지당 아이템 링크 최대 개수
-const SOCIAL_HEARTBEAT_MS = 30000;         // 접속 표시 하트비트 주기
-const SOCIAL_ONLINE_WINDOW_S = 75;         // 이 시간(초) 안에 활동하면 "접속 중"
-// 아이템 링크 토큰: 본문에 ⟦0⟧ 형태로 삽입되고 payload.items[N] 스냅샷과 매칭된다.
+const SOCIAL_SEND_MIN_INTERVAL_MS = 1500;
+const SOCIAL_SEND_MAX_PER_MIN = 12;
+const SOCIAL_MAX_ITEMS_PER_MSG = 3;
+const SOCIAL_HEARTBEAT_MS = 30000;
+const SOCIAL_ONLINE_WINDOW_S = 75;
 const SOCIAL_ITEM_TOKEN_RE = /⟦(\d+)⟧/g;
-// 닉네임 허용 문자: 한글/영문/숫자/일부 기호. 공백·제어문자 차단.
 const SOCIAL_NICK_RE = /^[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_\-]+$/;
+const SOCIAL_EQUIP_SLOTS = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
 
 let socialState = {
     nickname: '',
@@ -32,58 +32,57 @@ let socialState = {
     lastOnlineRenderKey: '',
     profileUploadInFlight: false,
     lastProfileUploadAt: 0,
-    onlineSupported: true,       // last_seen 컬럼 미적용 시 false로 내려 패널 숨김
-    pendingChatItems: [],        // 입력에 첨부 대기 중인 아이템 스냅샷
-    sendTimestamps: [],          // 최근 전송 시각(클라이언트 속도 제한)
-    lastSentBody: '',            // 직전 전송 본문(중복 방지)
-    chatTips: {},                // 채팅 아이템 링크 툴팁 HTML 맵
-    profileTips: {},             // 프로필 카드 툴팁 HTML 맵
-    currentProfile: null,        // 현재 열람 중인 프로필
-    profileTab: 'equipment'      // 프로필 내 탭(equipment/jewels/talismans)
+    onlineSupported: true,
+    pendingChatItems: [],
+    sendTimestamps: [],
+    lastSentBody: '',
+    chatTips: {},
+    profileTips: {},
+    pickTips: {},
+    currentProfile: null,
+    profileTab: 'equipment'
 };
 
 // --- 공통 유틸 -------------------------------------------------------------
 function socialLoggedInUserId() {
     return (typeof cloudState !== 'undefined' && cloudState && cloudState.user && cloudState.user.id) ? cloudState.user.id : null;
 }
-
 function socialCloudReady() {
     return !!socialLoggedInUserId() && typeof cloudJsonRequest === 'function';
 }
-
 function socialEscape(text) {
     if (typeof escapeHTML === 'function') return escapeHTML(String(text == null ? '' : text));
     return String(text == null ? '' : text).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
-
-// 천 단위 쉼표
-function socialComma(n) {
-    let v = Math.floor(Number(n) || 0);
-    return v.toLocaleString('en-US');
-}
-
+function socialComma(n) { return (Math.floor(Number(n) || 0)).toLocaleString('en-US'); }
 function getMyNickname() {
     if (socialState.nickname) return socialState.nickname;
-    try {
-        let stored = localStorage.getItem(SOCIAL_NICK_KEY);
-        if (stored) socialState.nickname = stored;
-    } catch (e) { /* localStorage 차단 환경 무시 */ }
+    try { let s = localStorage.getItem(SOCIAL_NICK_KEY); if (s) socialState.nickname = s; } catch (e) { /* 무시 */ }
     return socialState.nickname || '';
 }
-
 function setMyNicknameLocal(name) {
     socialState.nickname = name || '';
     try { localStorage.setItem(SOCIAL_NICK_KEY, socialState.nickname); } catch (e) { /* 무시 */ }
 }
-
 function socialClassLabel(ascendClass) {
     if (ascendClass && typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[ascendClass]) return CLASS_TEMPLATES[ascendClass].name;
     return '무직';
 }
+// 색상값이 안전한 hex/rgb 인지 확인(스타일 속성 주입 방지). 아니면 기본색.
+function socialSafeColor(c, fallback) {
+    fallback = fallback || '#cfe0f5';
+    return (typeof c === 'string' && /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9.,\s]+\))$/.test(c)) ? c : fallback;
+}
+function socialRarityColor(rarity) {
+    return socialSafeColor(typeof getRarityColor === 'function' ? getRarityColor(rarity) : null, '#cfe0f5');
+}
 
 // ============================================================================
-// 스냅샷 빌드(장비/주얼/부적)
+// 스냅샷 빌드(장비/주얼/부적) — 옵션에 티어·롤범위 포함
 // ============================================================================
+function snapStat(st) {
+    return { id: st.id || st.stat, val: st.val, statName: st.statName, tier: st.tier, valMin: st.valMin, valMax: st.valMax };
+}
 function buildItemSnapshot(item, slotOverride) {
     if (!item) return null;
     return {
@@ -93,44 +92,41 @@ function buildItemSnapshot(item, slotOverride) {
         baseName: item.baseName || '',
         uniqueEffect: item.uniqueEffect || '',
         corrupted: !!item.corrupted,
-        baseStats: (item.baseStats || []).map(st => ({ id: st.id || st.stat, val: st.val, statName: st.statName })),
-        stats: (item.stats || []).map(st => ({
-            id: st.id || st.stat, val: st.val, statName: st.statName,
-            extraStats: Array.isArray(st.extraStats) ? st.extraStats.map(ex => ({ id: ex.id || ex.stat, val: ex.val, statName: ex.statName })) : undefined
-        }))
+        baseStats: (item.baseStats || []).slice(0, 8).map(snapStat),
+        stats: (item.stats || []).slice(0, 8).map(st => {
+            let o = snapStat(st);
+            if (Array.isArray(st.extraStats)) o.extraStats = st.extraStats.slice(0, 4).map(snapStat);
+            return o;
+        })
     };
 }
-
 function buildJewelSnapshot(jewel) {
     if (!jewel) return null;
-    let lines = [];
+    let stats = [];
     try {
-        if (typeof getJewelStats === 'function') {
-            getJewelStats(jewel).forEach(st => {
-                let name = (typeof getStatName === 'function' ? getStatName(st.id) : st.id) || st.id;
-                let val = (typeof formatJewelStatValue === 'function') ? formatJewelStatValue(st.id, st.val) : st.val;
-                lines.push(`${name} +${val}`);
-            });
-        }
+        if (typeof getJewelStats === 'function') getJewelStats(jewel).forEach(st => stats.push(snapStat(st)));
     } catch (e) { /* 무시 */ }
-    return { kind: 'simple', name: jewel.name || '주얼', rarity: jewel.rarity || 'normal', lines };
+    return { kind: 'jewel', name: jewel.name || '주얼', rarity: jewel.rarity || 'normal', stats: stats.slice(0, 8) };
 }
-
 function buildTalismanSnapshot(t) {
     if (!t) return null;
-    let lines = [];
-    if (t.stat) {
-        let name = t.statName || (typeof getStatName === 'function' ? getStatName(t.stat) : t.stat);
-        let val = (typeof formatValue === 'function') ? formatValue(t.stat, t.value) : t.value;
-        lines.push(`${name} +${val}`);
-    }
+    let stats = [];
+    if (t.stat) stats.push({ id: t.stat, val: t.value, statName: t.statName });
+    let effects = [];
     if (t.special && typeof getTalismanSpecialDescription === 'function') {
-        let d = getTalismanSpecialDescription(t);
-        if (d) lines.push(`효과: ${d}`);
+        let d = getTalismanSpecialDescription(t); if (d) effects.push(d);
     }
     let name = (typeof getTalismanDisplayName === 'function') ? getTalismanDisplayName(t) : (t.name || '부적');
-    return { kind: 'simple', name, rarity: t.rarity || 'normal', lines };
+    let cells = Array.isArray(t.cells) ? t.cells.map(c => ({ x: c.x || 0, y: c.y || 0 })) : [];
+    return { kind: 'talisman', name, rarity: t.rarity || 'normal', shape: t.shape || null, cells, stats, effects };
 }
+
+// 캐릭터 스탯 색상(타입별)
+const SOCIAL_STAT_COLORS = {
+    loop: '#c9a8ff', hp: '#7fd99a', regen: '#7fd99a', dps: '#ff8f6b', dmg: '#ff8f6b',
+    crit: '#ffb36b', aspd: '#ffd27a', def: '#7fb5ff', resF: '#ff7a5c', resC: '#6fc6ff',
+    resL: '#ffd24a', resChaos: '#c08bff'
+};
 
 function buildProfileSnapshot() {
     let stats = [];
@@ -140,62 +136,66 @@ function buildProfileSnapshot() {
         let s = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
         if (s) {
             power = Math.floor(Number(s.dps) || Number(s.hitDps) || 0);
+            let C = SOCIAL_STAT_COLORS;
             let pct = v => `${(Number(v) || 0).toFixed(1)}%`;
             stats = [
-                { label: '🔁 루프 횟수', value: socialComma(loop) },
-                { label: '❤️ 최대 생명력', value: socialComma(s.maxHp) },
-                { label: '⚔️ DPS', value: socialComma(s.dps || s.hitDps) },
-                { label: '💥 기본 공격력', value: socialComma(s.baseDmg) },
-                { label: '🎯 치명타 확률', value: pct(s.crit) },
-                { label: '🔥 치명타 피해', value: `${socialComma(s.critDmg)}%` },
-                { label: '⚡ 공격 속도', value: `${(Number(s.aspd) || 0).toFixed(2)}` },
-                { label: '🛡️ 방어도', value: socialComma(s.armor) },
-                { label: '💨 회피', value: socialComma(s.evasion) },
-                { label: '🔵 에너지 보호막', value: socialComma(s.energyShield) },
-                { label: '🩹 재생', value: `${(Number(s.regen) || 0).toFixed(1)}%` },
-                { label: '🧱 받는 피해 감소', value: pct(s.dr) },
-                { label: '🛑 막기', value: pct(s.blockChance) },
-                { label: '🔥 화염 저항', value: `${socialComma(s.resF)}%` },
-                { label: '❄️ 냉기 저항', value: `${socialComma(s.resC)}%` },
-                { label: '⚡ 번개 저항', value: `${socialComma(s.resL)}%` },
-                { label: '☠️ 카오스 저항', value: `${socialComma(s.resChaos)}%` }
+                { label: '🔁 루프 횟수', value: socialComma(loop), color: C.loop },
+                { label: '❤️ 최대 생명력', value: socialComma(s.maxHp), color: C.hp },
+                { label: '⚔️ DPS', value: socialComma(s.dps || s.hitDps), color: C.dps },
+                { label: '💥 기본 공격력', value: socialComma(s.baseDmg), color: C.dmg },
+                { label: '🎯 치명타 확률', value: pct(s.crit), color: C.crit },
+                { label: '🔥 치명타 피해', value: `${socialComma(s.critDmg)}%`, color: C.crit },
+                { label: '⚡ 공격 속도', value: `${(Number(s.aspd) || 0).toFixed(2)}`, color: C.aspd },
+                { label: '🛡️ 방어도', value: socialComma(s.armor), color: C.def },
+                { label: '💨 회피', value: socialComma(s.evasion), color: C.def },
+                { label: '🔵 에너지 보호막', value: socialComma(s.energyShield), color: C.def },
+                { label: '🩹 재생', value: `${(Number(s.regen) || 0).toFixed(1)}%`, color: C.regen },
+                { label: '🧱 받는 피해 감소', value: pct(s.dr), color: C.def },
+                { label: '🛑 막기', value: pct(s.blockChance), color: C.def },
+                { label: '🔥 화염 저항', value: `${socialComma(s.resF)}%`, color: C.resF },
+                { label: '❄️ 냉기 저항', value: `${socialComma(s.resC)}%`, color: C.resC },
+                { label: '⚡ 번개 저항', value: `${socialComma(s.resL)}%`, color: C.resL },
+                { label: '☠️ 카오스 저항', value: `${socialComma(s.resChaos)}%`, color: C.resChaos }
             ];
         }
-    } catch (e) {
-        console.warn('프로필 스탯 계산 실패:', e);
-    }
+    } catch (e) { console.warn('프로필 스탯 계산 실패:', e); }
 
     let equipment = [];
     let eq = (typeof game !== 'undefined' && game.equipment) ? game.equipment : {};
-    Object.keys(eq).forEach(slot => {
-        let snap = buildItemSnapshot(eq[slot], slot);
-        if (snap) equipment.push(snap);
-    });
+    Object.keys(eq).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
 
     let jewels = [];
     let jslots = (typeof game !== 'undefined' && Array.isArray(game.jewelSlots)) ? game.jewelSlots : [];
     jslots.forEach(j => { let s = buildJewelSnapshot(j); if (s) jewels.push(s); });
 
+    // 부적: 배치도 형태로 보이도록 보드 셀→부적 인덱스 매핑까지 저장.
     let talismans = [];
+    let talBoard = [];
     let placements = (typeof game !== 'undefined' && game.talismanPlacements) ? game.talismanPlacements : {};
+    let board = (typeof game !== 'undefined' && Array.isArray(game.talismanBoard)) ? game.talismanBoard : [];
+    let W = (typeof TALISMAN_BOARD_W !== 'undefined') ? TALISMAN_BOARD_W : 8;
+    let H = (typeof TALISMAN_BOARD_H !== 'undefined') ? TALISMAN_BOARD_H : 8;
+    let idToIndex = {};
     Object.keys(placements).forEach(id => {
         let t = placements[id] && placements[id].talisman;
         let s = buildTalismanSnapshot(t);
-        if (s) talismans.push(s);
+        if (s) { idToIndex[id] = talismans.length; talismans.push(s); }
     });
+    talBoard = new Array(W * H).fill(-1);
+    for (let i = 0; i < W * H; i++) { let id = board[i]; if (id != null && idToIndex[id] != null) talBoard[i] = idToIndex[id]; }
 
     return {
-        version: 2,
+        version: 3,
         nickname: getMyNickname(),
         level: (typeof game !== 'undefined' && game.level) ? game.level : 1,
         ascendClass: (typeof game !== 'undefined') ? (game.ascendClass || '') : '',
         className: socialClassLabel(typeof game !== 'undefined' ? game.ascendClass : ''),
-        loop,
-        power,
-        stats,
-        equipment,
-        jewels,
-        talismans,
+        loop, power, stats,
+        equipment: equipment.slice(0, 16),
+        jewels: jewels.slice(0, 8),
+        talismans: talismans.slice(0, 60),
+        talBoard,
+        boardW: W, boardH: H,
         updatedAt: Date.now()
     };
 }
@@ -204,23 +204,24 @@ async function uploadPlayerProfile(options = {}) {
     if (!socialCloudReady()) return false;
     let nickname = getMyNickname();
     if (!nickname) return false;
-    if (socialState.profileUploadInFlight) return false;
+    if (socialState.profileUploadInFlight && !options.fromNicknameChange) return false;
     socialState.profileUploadInFlight = true;
     try {
         let snapshot = buildProfileSnapshot();
         await cloudJsonRequest('/rest/v1/player_profiles', {
             method: 'POST',
             headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-            // last_seen 은 DB 기본값/하트비트(PATCH)가 관리한다. 여기서 보내면
-            // 컬럼 미적용(구 스키마) 사용자의 업로드가 깨지므로 포함하지 않는다.
+            // last_seen / nickname_updated_at 은 DB 기본값·트리거·하트비트가 관리한다.
             body: { user_id: socialLoggedInUserId(), nickname, profile_data: snapshot }
         });
         socialState.lastProfileUploadAt = Date.now();
         return true;
     } catch (e) {
         let msg = String(e && e.message || e);
-        if (/duplicate|unique|nickname/i.test(msg) && options.fromNicknameChange) {
-            throw new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.');
+        if (options.fromNicknameChange) {
+            if (/NICK_COOLDOWN/.test(msg)) throw new Error('닉네임은 하루에 한 번만 변경할 수 있습니다.');
+            if (/duplicate|unique|nickname/i.test(msg)) throw new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.');
+            throw e;
         }
         if (!options.silent) console.warn('프로필 업로드 실패:', e);
         return false;
@@ -228,48 +229,49 @@ async function uploadPlayerProfile(options = {}) {
         socialState.profileUploadInFlight = false;
     }
 }
-
 function syncPlayerProfileQuiet() {
     if (!socialCloudReady() || !getMyNickname()) return;
     Promise.resolve(uploadPlayerProfile({ silent: true })).catch(() => {});
 }
 
 // ============================================================================
-// 닉네임
+// 닉네임 (하루 1회 변경 + 과거 채팅 닉네임 일괄 갱신)
 // ============================================================================
+async function updatePastChatNicknames(name) {
+    try {
+        await cloudJsonRequest(`/rest/v1/chat_messages?user_id=eq.${encodeURIComponent(socialLoggedInUserId())}`, {
+            method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { nickname: name }
+        });
+    } catch (e) { console.warn('과거 채팅 닉네임 갱신 실패:', e); }
+}
+
 async function promptAndSetNickname() {
-    if (!socialCloudReady()) {
-        alert('채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)');
-        return;
-    }
+    if (!socialCloudReady()) { alert('채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)'); return; }
     let current = getMyNickname();
-    let input = prompt(`사용할 닉네임을 입력하세요 (${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자, 한글/영문/숫자/-/_).`, current || '');
+    let input = prompt(`사용할 닉네임을 입력하세요 (${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자, 한글/영문/숫자/-/_).\n※ 닉네임은 하루에 한 번만 변경할 수 있습니다.`, current || '');
     if (input == null) return;
     let name = String(input).trim();
-    if (name.length < SOCIAL_NICK_MIN || name.length > SOCIAL_NICK_MAX) {
-        alert(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자여야 합니다.`);
-        return;
-    }
-    if (!SOCIAL_NICK_RE.test(name)) {
-        alert('닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.');
-        return;
-    }
+    if (name === current) return;
+    if (name.length < SOCIAL_NICK_MIN || name.length > SOCIAL_NICK_MAX) { alert(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자여야 합니다.`); return; }
+    if (!SOCIAL_NICK_RE.test(name)) { alert('닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.'); return; }
+
     let prev = getMyNickname();
     setMyNicknameLocal(name);
     try {
         await uploadPlayerProfile({ fromNicknameChange: true });
+        await updatePastChatNicknames(name);     // 과거 채팅도 새 닉네임으로
         if (typeof addLog === 'function') addLog(`🪪 닉네임이 "${name}"(으)로 설정되었습니다.`, 'season-up');
+        socialState.lastChatRenderKey = '';
         renderSocialTab();
+        refreshChatPanel(false);
     } catch (e) {
         setMyNicknameLocal(prev);
         alert(String(e && e.message || e));
         renderSocialTab();
     }
 }
-
 async function restoreNicknameFromServer() {
-    if (!socialCloudReady()) return;
-    if (getMyNickname()) return;
+    if (!socialCloudReady() || getMyNickname()) return;
     try {
         let rows = await cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(socialLoggedInUserId())}&select=nickname`, {});
         if (Array.isArray(rows) && rows[0] && rows[0].nickname) setMyNicknameLocal(rows[0].nickname);
@@ -277,43 +279,32 @@ async function restoreNicknameFromServer() {
 }
 
 // ============================================================================
-// 접속자(프레즌스) — last_seen 하트비트 + 접속 중 목록
+// 접속자(프레즌스)
 // ============================================================================
 async function sendPresenceHeartbeat() {
     if (!socialCloudReady() || !getMyNickname() || !socialState.onlineSupported) return;
     try {
         await cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(socialLoggedInUserId())}`, {
-            method: 'PATCH', headers: { Prefer: 'return=minimal' },
-            body: { last_seen: new Date().toISOString() }
+            method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { last_seen: new Date().toISOString() }
         });
-    } catch (e) {
-        if (/last_seen/i.test(String(e && e.message || e))) socialState.onlineSupported = false;
-    }
+    } catch (e) { if (/last_seen/i.test(String(e && e.message || e))) socialState.onlineSupported = false; }
 }
-
 function ensureHeartbeat() {
     if (socialState.heartbeatTimer) return;
-    socialState.heartbeatTimer = setInterval(() => {
-        if (socialCloudReady() && getMyNickname()) sendPresenceHeartbeat();
-    }, SOCIAL_HEARTBEAT_MS);
+    socialState.heartbeatTimer = setInterval(() => { if (socialCloudReady() && getMyNickname()) sendPresenceHeartbeat(); }, SOCIAL_HEARTBEAT_MS);
     sendPresenceHeartbeat();
 }
-
 async function loadOnlineUsers() {
     if (!socialCloudReady() || !socialState.onlineSupported) return [];
     let cutoff = new Date(Date.now() - SOCIAL_ONLINE_WINDOW_S * 1000).toISOString();
     try {
-        let rows = await cloudJsonRequest(
-            `/rest/v1/player_profiles?select=user_id,nickname,last_seen&last_seen=gte.${encodeURIComponent(cutoff)}&order=last_seen.desc&limit=80`,
-            {}
-        );
+        let rows = await cloudJsonRequest(`/rest/v1/player_profiles?select=user_id,nickname,last_seen&last_seen=gte.${encodeURIComponent(cutoff)}&order=last_seen.desc&limit=80`, {});
         return Array.isArray(rows) ? rows : [];
     } catch (e) {
         if (/last_seen/i.test(String(e && e.message || e))) socialState.onlineSupported = false;
         return [];
     }
 }
-
 function renderOnlineUsers(users) {
     let host = document.getElementById('social-online');
     if (!host) return;
@@ -331,15 +322,10 @@ function renderOnlineUsers(users) {
         : `<span class="social-online-empty">접속 중인 플레이어가 없습니다.</span>`;
     host.innerHTML = `<div class="social-online-title">🟢 접속 중 (${users.length})</div><div class="social-online-list">${chips}</div>`;
 }
-
 async function refreshOnlineUsers() {
     if (socialState.onlineLoading || !socialState.onlineSupported) return;
     socialState.onlineLoading = true;
-    try {
-        renderOnlineUsers(await loadOnlineUsers());
-    } catch (e) { /* 무시 */ } finally {
-        socialState.onlineLoading = false;
-    }
+    try { renderOnlineUsers(await loadOnlineUsers()); } catch (e) { /* 무시 */ } finally { socialState.onlineLoading = false; }
 }
 
 // ============================================================================
@@ -347,13 +333,9 @@ async function refreshOnlineUsers() {
 // ============================================================================
 async function loadChatMessages() {
     if (!socialCloudReady()) return [];
-    let rows = await cloudJsonRequest(
-        `/rest/v1/chat_messages?select=id,user_id,nickname,body,payload,created_at&order=created_at.desc&limit=${SOCIAL_CHAT_LIMIT}`,
-        {}
-    );
+    let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,user_id,nickname,body,payload,created_at&order=created_at.desc&limit=${SOCIAL_CHAT_LIMIT}`, {});
     return Array.isArray(rows) ? rows.slice().reverse() : [];
 }
-
 function checkSendRateLimit() {
     let now = Date.now();
     socialState.sendTimestamps = socialState.sendTimestamps.filter(t => now - t < 60000);
@@ -362,7 +344,6 @@ function checkSendRateLimit() {
     if (socialState.sendTimestamps.length >= SOCIAL_SEND_MAX_PER_MIN) return `1분에 최대 ${SOCIAL_SEND_MAX_PER_MIN}개까지 보낼 수 있습니다. 잠시 후 다시 시도해주세요.`;
     return true;
 }
-
 function translateSpamError(msg) {
     if (/SPAM_TOO_FAST/.test(msg)) return '메시지를 너무 빠르게 보냈습니다.';
     if (/SPAM_RATE_LIMIT/.test(msg)) return '너무 많이 보냈습니다. 잠시 후 다시 시도해주세요.';
@@ -370,7 +351,6 @@ function translateSpamError(msg) {
     if (/char_length|_body_check|violates check/.test(msg)) return `메시지는 1~${SOCIAL_MSG_MAX}자여야 합니다.`;
     return msg;
 }
-
 async function sendChatMessage() {
     if (!socialCloudReady()) { alert('먼저 클라우드 로그인이 필요합니다.'); return; }
     let nickname = getMyNickname();
@@ -381,7 +361,6 @@ async function sendChatMessage() {
     let items = socialState.pendingChatItems.slice(0, SOCIAL_MAX_ITEMS_PER_MSG);
     if (!body && !items.length) return;
     if (body.length > SOCIAL_MSG_MAX) { alert(`메시지는 최대 ${SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.`); return; }
-
     if (body && body === socialState.lastSentBody && !items.length) { alert('같은 메시지를 연속으로 보낼 수 없습니다.'); return; }
     let rate = checkSendRateLimit();
     if (rate !== true) { alert(rate); return; }
@@ -395,8 +374,7 @@ async function sendChatMessage() {
     try {
         syncPlayerProfileQuiet();
         await cloudJsonRequest('/rest/v1/chat_messages', {
-            method: 'POST',
-            headers: { Prefer: 'return=minimal' },
+            method: 'POST', headers: { Prefer: 'return=minimal' },
             body: { user_id: socialLoggedInUserId(), nickname, body: body || '🔗', payload }
         });
         socialState.sendTimestamps.push(Date.now());
@@ -414,19 +392,11 @@ async function sendChatMessage() {
 // --- 아이템 링크 첨부 ------------------------------------------------------
 function attachChatItem(source, idx) {
     let item = null;
-    if (source === 'equip') {
-        let eq = (typeof game !== 'undefined' && game.equipment) ? game.equipment : {};
-        item = eq[idx];
-    } else {
-        let inv = (typeof game !== 'undefined' && Array.isArray(game.inventory)) ? game.inventory : [];
-        item = inv[idx];
-    }
+    if (source === 'equip') { let eq = (typeof game !== 'undefined' && game.equipment) ? game.equipment : {}; item = eq[idx]; }
+    else { let inv = (typeof game !== 'undefined' && Array.isArray(game.inventory)) ? game.inventory : []; item = inv[idx]; }
     let snap = buildItemSnapshot(item, source === 'equip' ? idx : (item && item.slot));
     if (!snap) return;
-    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) {
-        alert(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`);
-        return;
-    }
+    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { alert(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`); return; }
     let tokenIndex = socialState.pendingChatItems.length;
     socialState.pendingChatItems.push(snap);
     let inputEl = document.getElementById('social-chat-input');
@@ -435,7 +405,6 @@ function attachChatItem(source, idx) {
     updateChatCounter();
     closeItemPicker();
 }
-
 function removePendingChatItem(idx) {
     socialState.pendingChatItems.splice(idx, 1);
     let inputEl = document.getElementById('social-chat-input');
@@ -447,18 +416,16 @@ function removePendingChatItem(idx) {
     renderPendingChatItems();
     updateChatCounter();
 }
-
 function renderPendingChatItems() {
     let host = document.getElementById('social-pending-items');
     if (!host) return;
     if (!socialState.pendingChatItems.length) { host.innerHTML = ''; host.style.display = 'none'; return; }
     host.style.display = 'flex';
     host.innerHTML = socialState.pendingChatItems.map((it, i) => {
-        let color = (typeof getRarityColor === 'function') ? getRarityColor(it.rarity) : '#ddd';
+        let color = socialRarityColor(it.rarity);
         return `<span class="social-pending-chip" style="border-color:${color};color:${color};">⟦${i}⟧ ${socialEscape(it.name)}<button onclick="removePendingChatItem(${i})" title="첨부 취소">✕</button></span>`;
     }).join('');
 }
-
 function updateChatCounter() {
     let inputEl = document.getElementById('social-chat-input');
     let counterEl = document.getElementById('social-chat-counter');
@@ -467,7 +434,6 @@ function updateChatCounter() {
     counterEl.textContent = `${len}/${SOCIAL_MSG_MAX}`;
     counterEl.style.color = len > SOCIAL_MSG_MAX ? '#e88' : '#67809c';
 }
-
 function openItemPicker() {
     if (!socialCloudReady()) { alert('먼저 클라우드 로그인이 필요합니다.'); return; }
     let modal = document.getElementById('social-item-picker-modal');
@@ -478,41 +444,39 @@ function openItemPicker() {
         modal.onclick = function (e) { if (e.target === modal) closeItemPicker(); };
         document.body.appendChild(modal);
     }
+    socialState.pickTips = {};
     let slotLabel = (typeof getItemSlotDisplayLabel === 'function') ? (it => getItemSlotDisplayLabel(it)) : (it => (it && it.slot) || '');
+    let tipAttrs = key => `onmouseenter="showSocialTip(event,'pick','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()"`;
     let eq = (typeof game !== 'undefined' && game.equipment) ? game.equipment : {};
     let equipCards = Object.keys(eq).filter(s => eq[s]).map(slot => {
-        let it = eq[slot];
-        let color = (typeof getRarityColor === 'function') ? getRarityColor(it.rarity) : '#ddd';
-        return `<div class="social-pick-item" style="border-color:${color};" onclick="attachChatItem('equip','${socialEscape(slot)}')"><span style="color:${color};">[${socialEscape(slot)}] ${socialEscape(it.name)}</span></div>`;
+        let it = eq[slot]; let color = socialRarityColor(it.rarity);
+        let key = `eq:${socialEscape(slot)}`;
+        socialState.pickTips[key] = renderProfileItemCard(buildItemSnapshot(it, slot));
+        return `<div class="social-pick-item" style="border-color:${color};" onclick="attachChatItem('equip','${socialEscape(slot)}')" ${tipAttrs(key)}><span style="color:${color};">[${socialEscape(slot)}] ${socialEscape(it.name)}</span></div>`;
     }).join('') || `<div class="social-profile-empty">장착한 장비 없음</div>`;
     let inv = (typeof game !== 'undefined' && Array.isArray(game.inventory)) ? game.inventory : [];
     let invCards = inv.slice(0, 300).map((it, i) => {
         if (!it) return '';
-        let color = (typeof getRarityColor === 'function') ? getRarityColor(it.rarity) : '#ddd';
-        return `<div class="social-pick-item" style="border-color:${color};" onclick="attachChatItem('inv',${i})"><span style="color:${color};">[${socialEscape(slotLabel(it))}] ${socialEscape(it.name)}</span></div>`;
+        let color = socialRarityColor(it.rarity);
+        let key = `inv:${i}`;
+        socialState.pickTips[key] = renderProfileItemCard(buildItemSnapshot(it, it.slot));
+        return `<div class="social-pick-item" style="border-color:${color};" onclick="attachChatItem('inv',${i})" ${tipAttrs(key)}><span style="color:${color};">[${socialEscape(slotLabel(it))}] ${socialEscape(it.name)}</span></div>`;
     }).join('') || `<div class="social-profile-empty">인벤토리 비어 있음</div>`;
-    modal.innerHTML = `<div class="social-modal-box">
-        <div class="social-modal-header"><button class="social-modal-close" onclick="closeItemPicker()" aria-label="닫기">✕</button></div>
+    modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closeItemPicker()" aria-label="닫기">✕</button>
         <div class="social-modal-content">
-        <h3 style="color:#cfe0f5;margin-top:0;">🔗 첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개)</h3>
+        <h3 style="color:#cfe0f5;margin-top:0;">🔗 첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개) · 마우스를 올리면 옵션 표시</h3>
         <h4 class="social-pick-sub">장착 중</h4><div class="social-pick-grid">${equipCards}</div>
         <h4 class="social-pick-sub">인벤토리${inv.length > 300 ? ' (상위 300개)' : ''}</h4><div class="social-pick-grid">${invCards}</div>
         </div></div>`;
     modal.style.display = 'flex';
 }
+function closeItemPicker() { hideSocialTip(); let m = document.getElementById('social-item-picker-modal'); if (m) m.style.display = 'none'; }
 
-function closeItemPicker() {
-    let modal = document.getElementById('social-item-picker-modal');
-    if (modal) modal.style.display = 'none';
-}
-
-// 본문의 ⟦N⟧ 토큰을 아이템 칩으로 치환(호버 툴팁 + 클릭 모달). 텍스트는 이스케이프.
 function renderChatBody(m) {
     let body = String(m.body || '');
-    let items = (m.payload && Array.isArray(m.payload.items)) ? m.payload.items : [];
+    let items = (m.payload && Array.isArray(m.payload.items)) ? m.payload.items.slice(0, SOCIAL_MAX_ITEMS_PER_MSG) : [];
     if (!items.length || body.indexOf('⟦') === -1) return socialEscape(body);
-    let out = '';
-    let lastIndex = 0;
+    let out = '', lastIndex = 0;
     let re = new RegExp(SOCIAL_ITEM_TOKEN_RE.source, 'g');
     let match;
     while ((match = re.exec(body)) !== null) {
@@ -522,70 +486,49 @@ function renderChatBody(m) {
         if (snap) {
             let key = `${m.id}:${n}`;
             socialState.chatTips[key] = renderProfileItemCard(snap);
-            let color = (typeof getRarityColor === 'function') ? getRarityColor(snap.rarity) : '#ddd';
+            let color = socialRarityColor(snap.rarity);
             out += `<span class="social-item-link" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'chat','${socialEscape(key)}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('chat','${socialEscape(key)}')" title="아이템 상세">🔗 ${socialEscape(snap.name)}</span>`;
-        } else {
-            out += socialEscape(match[0]);
-        }
+        } else { out += socialEscape(match[0]); }
         lastIndex = match.index + match[0].length;
     }
     out += socialEscape(body.slice(lastIndex));
     return out;
 }
-
 function formatChatTime(iso) {
     try {
         let d = new Date(iso);
-        let mm = String(d.getMonth() + 1).padStart(2, '0');
-        let dd = String(d.getDate()).padStart(2, '0');
-        let hh = String(d.getHours()).padStart(2, '0');
-        let mi = String(d.getMinutes()).padStart(2, '0');
+        let mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+        let hh = String(d.getHours()).padStart(2, '0'), mi = String(d.getMinutes()).padStart(2, '0');
         return `${mm}/${dd} ${hh}:${mi}`;
     } catch (e) { return ''; }
 }
-
 function renderChatMessages(messages) {
     let listEl = document.getElementById('social-chat-list');
     if (!listEl) return;
     let myId = socialLoggedInUserId();
-    let key = messages.map(m => m.id).join(',');
+    let key = messages.map(m => `${m.id}:${m.nickname}`).join(',');
     if (key === socialState.lastChatRenderKey) return;
     socialState.lastChatRenderKey = key;
-
-    if (!messages.length) {
-        listEl.innerHTML = `<div class="social-chat-empty">아직 메시지가 없습니다. 첫 메시지를 남겨보세요!</div>`;
-        return;
-    }
+    if (!messages.length) { listEl.innerHTML = `<div class="social-chat-empty">아직 메시지가 없습니다. 첫 메시지를 남겨보세요!</div>`; return; }
     let nearBottom = (listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight) < 60;
     socialState.chatTips = {};
     listEl.innerHTML = messages.map(m => {
         let mine = m.user_id === myId;
-        let nick = socialEscape(m.nickname || '익명');
         return `<div class="social-chat-msg${mine ? ' mine' : ''}">`
-            + `<span class="social-chat-nick" onclick="openPlayerProfile('${socialEscape(m.user_id)}')" title="프로필 보기">${nick}</span>`
+            + `<span class="social-chat-nick" onclick="openPlayerProfile('${socialEscape(m.user_id)}')" title="프로필 보기">${socialEscape(m.nickname || '익명')}</span>`
             + `<span class="social-chat-time">${formatChatTime(m.created_at)}</span>`
-            + `<div class="social-chat-body">${renderChatBody(m)}</div>`
-            + `</div>`;
+            + `<div class="social-chat-body">${renderChatBody(m)}</div></div>`;
     }).join('');
     if (nearBottom) listEl.scrollTop = listEl.scrollHeight;
 }
-
 async function refreshChatPanel(forceScroll) {
     if (socialState.chatLoading) return;
     socialState.chatLoading = true;
     try {
         renderChatMessages(await loadChatMessages());
-        if (forceScroll) {
-            let listEl = document.getElementById('social-chat-list');
-            if (listEl) listEl.scrollTop = listEl.scrollHeight;
-        }
-    } catch (e) {
-        console.warn('채팅 로드 실패:', e);
-    } finally {
-        socialState.chatLoading = false;
-    }
+        if (forceScroll) { let l = document.getElementById('social-chat-list'); if (l) l.scrollTop = l.scrollHeight; }
+    } catch (e) { console.warn('채팅 로드 실패:', e); } finally { socialState.chatLoading = false; }
 }
-
 function startChatPolling() {
     stopChatPolling();
     if (!socialCloudReady()) return;
@@ -598,62 +541,44 @@ function startChatPolling() {
         refreshOnlineUsers();
     }, SOCIAL_CHAT_POLL_MS);
 }
-
-function stopChatPolling() {
-    if (socialState.chatPollTimer) { clearInterval(socialState.chatPollTimer); socialState.chatPollTimer = null; }
-}
-
-function onSocialChatKeydown(event) {
-    if (event && event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); }
-}
+function stopChatPolling() { if (socialState.chatPollTimer) { clearInterval(socialState.chatPollTimer); socialState.chatPollTimer = null; } }
+function onSocialChatKeydown(event) { if (event && event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); } }
 
 // ============================================================================
-// 커스텀 툴팁(아이템/주얼/부적 옵션)
+// 커스텀 툴팁
 // ============================================================================
 function ensureSocialTooltip() {
     let tip = document.getElementById('social-tooltip');
     if (tip) return tip;
     tip = document.createElement('div');
-    tip.id = 'social-tooltip';
-    tip.className = 'social-tooltip';
-    tip.style.display = 'none';
+    tip.id = 'social-tooltip'; tip.className = 'social-tooltip'; tip.style.display = 'none';
     document.body.appendChild(tip);
     return tip;
 }
-
+function tipMapByScope(scope) {
+    return scope === 'chat' ? socialState.chatTips : (scope === 'pick' ? socialState.pickTips : socialState.profileTips);
+}
 function showSocialTip(event, scope, key) {
-    let map = scope === 'chat' ? socialState.chatTips : socialState.profileTips;
-    let html = map && map[key];
+    let html = tipMapByScope(scope)[key];
     if (!html) return;
     let tip = ensureSocialTooltip();
-    tip.innerHTML = html;
-    tip.style.display = 'block';
+    tip.innerHTML = html; tip.style.display = 'block';
     moveSocialTip(event);
 }
-
 function moveSocialTip(event) {
     let tip = document.getElementById('social-tooltip');
     if (!tip || tip.style.display === 'none') return;
-    let pad = 16;
-    let w = tip.offsetWidth, h = tip.offsetHeight;
+    let pad = 16, w = tip.offsetWidth, h = tip.offsetHeight;
     let x = event.clientX + pad, y = event.clientY + pad;
     if (x + w > window.innerWidth - 8) x = event.clientX - w - pad;
     if (x < 8) x = 8;
     if (y + h > window.innerHeight - 8) y = window.innerHeight - h - 8;
     if (y < 8) y = 8;
-    tip.style.left = x + 'px';
-    tip.style.top = y + 'px';
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
 }
-
-function hideSocialTip() {
-    let tip = document.getElementById('social-tooltip');
-    if (tip) tip.style.display = 'none';
-}
-
-// 모바일/클릭용: 툴팁 내용을 모달로 표시
+function hideSocialTip() { let t = document.getElementById('social-tooltip'); if (t) t.style.display = 'none'; }
 function openTipModal(scope, key) {
-    let map = scope === 'chat' ? socialState.chatTips : socialState.profileTips;
-    let html = map && map[key];
+    let html = tipMapByScope(scope)[key];
     if (!html) return;
     let modal = ensureProfileModal();
     modal.style.display = 'flex';
@@ -662,42 +587,56 @@ function openTipModal(scope, key) {
 }
 
 // ============================================================================
-// 카드 렌더러
+// 카드 렌더러(티어·롤범위·색상 포함)
 // ============================================================================
+function socialStatLineHtml(st, opts) {
+    opts = opts || {};
+    if (!st || st.id == null) return '';
+    let id = st.id;
+    let name = st.statName || (typeof getStatName === 'function' ? getStatName(id) : id) || id;
+    let val = (typeof formatValue === 'function') ? formatValue(id, st.val) : st.val;
+    let toneFn = opts.jewel && typeof getJewelStatToneColor === 'function' ? getJewelStatToneColor : (typeof getItemStatToneColor === 'function' ? getItemStatToneColor : null);
+    let tone = socialSafeColor(toneFn ? toneFn(id) : null, '#cfe0f5');
+    let tierHtml = (st.tier != null && typeof getTierBadgeHtml === 'function') ? ' ' + getTierBadgeHtml(Math.floor(st.tier), 'T') : '';
+    let range = '';
+    if (opts.range !== false) {
+        let mn = st.valMin, mx = st.valMax;
+        if ((mn == null || mx == null) && opts.estimate) { let c = Number(st.val || 0); mn = Number((c * 0.8).toFixed(2)); mx = Number((c * 1.2).toFixed(2)); }
+        if (mn != null && mx != null) {
+            let fmn = (typeof formatValue === 'function') ? formatValue(id, mn) : mn;
+            let fmx = (typeof formatValue === 'function') ? formatValue(id, mx) : mx;
+            range = ` <span class="social-roll">(${socialEscape(fmn)}~${socialEscape(fmx)})</span>`;
+        }
+    }
+    let cls = opts.base ? 'social-item-stat base' : 'social-item-stat';
+    let colorStyle = opts.base ? '' : `style="color:${tone};"`;
+    return `<div class="${cls}" ${colorStyle}>${socialEscape(name)} +${socialEscape(val)}${tierHtml}${range}</div>`;
+}
 function renderProfileItemCard(item) {
-    if (item && item.kind === 'simple') return renderSimpleCard(item);
-    let color = (typeof getRarityColor === 'function') ? getRarityColor(item.rarity) : '#ddd';
-    let statName = id => (typeof getStatName === 'function' ? (getStatName(id) || id) : id);
-    let fmt = (id, val) => (typeof formatValue === 'function' ? formatValue(id, val) : val);
+    if (!item) return '';
+    if (item.kind) return renderSimpleCard(item);
+    let color = socialRarityColor(item.rarity);
     let lines = '';
-    (item.baseStats || []).forEach(st => {
-        if (!st || st.id == null) return;
-        lines += `<div class="social-item-stat base">${socialEscape(st.statName || statName(st.id))} +${socialEscape(fmt(st.id, st.val))}</div>`;
-    });
+    (item.baseStats || []).forEach(st => { lines += socialStatLineHtml(st, { base: true, estimate: true }); });
     (item.stats || []).forEach(st => {
-        if (!st || st.id == null) return;
-        lines += `<div class="social-item-stat">${socialEscape(st.statName || statName(st.id))} +${socialEscape(fmt(st.id, st.val))}</div>`;
-        (st.extraStats || []).forEach(ex => {
-            if (!ex || ex.id == null) return;
-            lines += `<div class="social-item-stat">${socialEscape(ex.statName || statName(ex.id))} +${socialEscape(fmt(ex.id, ex.val))}</div>`;
-        });
+        lines += socialStatLineHtml(st, {});
+        (st.extraStats || []).forEach(ex => { lines += socialStatLineHtml(ex, {}); });
     });
     let unique = item.uniqueEffect ? `<div class="social-item-unique">✨ ${socialEscape(item.uniqueEffect)}</div>` : '';
     let corrupt = item.corrupted ? ` <span style="color:#e74c3c;">(타락)</span>` : '';
     return `<div class="social-item-card" style="border-color:${color};">`
         + `<div class="social-item-title" style="color:${color};">${item.slot ? `[${socialEscape(item.slot)}] ` : ''}${socialEscape(item.name)}${corrupt}</div>`
         + (item.baseName ? `<div class="social-item-base">${socialEscape(item.baseName)}</div>` : '')
-        + unique + lines
-        + `</div>`;
+        + unique + lines + `</div>`;
 }
-
 function renderSimpleCard(snap) {
-    let color = (typeof getRarityColor === 'function') ? getRarityColor(snap.rarity) : '#ddd';
-    let lines = (snap.lines || []).map(l => `<div class="social-item-stat">${socialEscape(l)}</div>`).join('');
+    let color = socialRarityColor(snap.rarity);
+    let lines = '';
+    (snap.stats || []).forEach(st => { lines += socialStatLineHtml(st, { jewel: snap.kind === 'jewel', range: snap.kind === 'jewel' }); });
+    (snap.effects || []).forEach(e => { lines += `<div class="social-item-stat" style="color:#d7b8ff;">${socialEscape(e)}</div>`; });
     return `<div class="social-item-card" style="border-color:${color};">`
         + `<div class="social-item-title" style="color:${color};">${socialEscape(snap.name)}</div>`
-        + (lines || `<div class="social-item-stat" style="color:#7c90ab;">옵션 없음</div>`)
-        + `</div>`;
+        + (lines || `<div class="social-item-stat" style="color:#7c90ab;">옵션 없음</div>`) + `</div>`;
 }
 
 // ============================================================================
@@ -707,48 +646,80 @@ function ensureProfileModal() {
     let modal = document.getElementById('social-profile-modal');
     if (modal) return modal;
     modal = document.createElement('div');
-    modal.id = 'social-profile-modal';
-    modal.className = 'social-modal-overlay';
-    modal.style.display = 'none';
+    modal.id = 'social-profile-modal'; modal.className = 'social-modal-overlay'; modal.style.display = 'none';
     modal.onclick = function (e) { if (e.target === modal) closePlayerProfile(); };
-    modal.innerHTML = `<div class="social-modal-box">`
-        + `<div class="social-modal-header"><button class="social-modal-close" onclick="closePlayerProfile()" aria-label="닫기">✕</button></div>`
-        + `<div class="social-modal-content"><div id="social-profile-body"></div></div></div>`;
+    modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closePlayerProfile()" aria-label="닫기">✕</button><div class="social-modal-content"><div id="social-profile-body"></div></div></div>`;
     document.body.appendChild(modal);
     return modal;
 }
+function closePlayerProfile() { hideSocialTip(); let m = document.getElementById('social-profile-modal'); if (m) m.style.display = 'none'; }
 
-function closePlayerProfile() {
-    hideSocialTip();
-    let modal = document.getElementById('social-profile-modal');
-    if (modal) modal.style.display = 'none';
+// 장비: 실제 장비창(페이퍼돌) 형태
+function renderProfileEquipPaperdoll(equipment) {
+    let bySlot = {};
+    (equipment || []).forEach(it => { if (it && it.slot) bySlot[it.slot] = it; });
+    let slots = SOCIAL_EQUIP_SLOTS.slice();
+    if (bySlot['반지3'] && slots.indexOf('반지3') === -1) slots.push('반지3');
+    return `<div class="paperdoll social-paperdoll">` + slots.map(slot => {
+        let it = bySlot[slot];
+        let baseLabel = slot.replace(/[123]$/, '');
+        if (!it) return `<div class="slot-box slot-${slot} social-slot empty"><div class="social-slot-tag">[${socialEscape(baseLabel)}]</div><div class="social-slot-name" style="color:#7f8c8d;">비어있음</div></div>`;
+        let color = socialRarityColor(it.rarity);
+        let key = `eq:${slot}`;
+        socialState.profileTips[key] = renderProfileItemCard(it);
+        return `<div class="slot-box slot-${slot} social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(baseLabel)}]</div><div class="social-slot-name" style="color:${color};">${socialEscape(it.name)}</div></div>`;
+    }).join('') + `</div>`;
 }
-
-// 카테고리별 미니 카드(이름만 + 호버 툴팁)
+// 부적: 실제 배치도(8x8 보드) 형태
+function renderProfileTalismanBoard(profile) {
+    let talismans = profile.talismans || [];
+    let board = Array.isArray(profile.talBoard) ? profile.talBoard : [];
+    let W = profile.boardW || (typeof TALISMAN_BOARD_W !== 'undefined' ? TALISMAN_BOARD_W : 8);
+    let H = profile.boardH || (typeof TALISMAN_BOARD_H !== 'undefined' ? TALISMAN_BOARD_H : 8);
+    let mask = (typeof TALISMAN_BOARD_MASK !== 'undefined') ? TALISMAN_BOARD_MASK : null;
+    if (!board.length) {
+        if (!talismans.length) return `<div class="social-profile-empty">장착한 부적 없음</div>`;
+        // 구버전 스냅샷: 목록으로 대체
+        return `<div class="social-mini-grid">` + talismans.map((t, i) => {
+            let key = `tl:${i}`; socialState.profileTips[key] = renderSimpleCard(t);
+            let color = socialRarityColor(t.rarity);
+            return `<div class="social-mini-card" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">${socialEscape(t.name)}</div>`;
+        }).join('') + `</div>`;
+    }
+    let cells = '';
+    for (let i = 0; i < W * H; i++) {
+        let x = i % W, y = Math.floor(i / W);
+        let valid = mask ? mask.has(`${x},${y}`) : true;
+        if (!valid) { cells += `<span class="social-tal-cell void"></span>`; continue; }
+        let idx = board[i];
+        if (idx != null && idx >= 0 && talismans[idx]) {
+            let t = talismans[idx];
+            let color = socialSafeColor(typeof getTalismanShapeStyle === 'function' ? getTalismanShapeStyle(t.shape).color : null, '#9fb3c7');
+            let key = `tb:${i}`;
+            socialState.profileTips[key] = renderSimpleCard(t);
+            cells += `<span class="social-tal-cell filled" style="background:linear-gradient(145deg, rgba(255,255,255,0.28) 0%, ${color} 45%, rgba(8,12,18,0.25) 100%); border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"></span>`;
+        } else {
+            cells += `<span class="social-tal-cell empty"></span>`;
+        }
+    }
+    return `<div class="social-tal-board" style="grid-template-columns:repeat(${W}, 1fr);">${cells}</div>`;
+}
 function renderProfileItemsArea() {
     let p = socialState.currentProfile;
     if (!p) return '';
-    let cat = socialState.profileTab;
-    let entries = [];
-    if (cat === 'equipment') entries = (p.equipment || []).map(it => ({ snap: it, label: `${it.slot ? `[${it.slot}] ` : ''}${it.name}` }));
-    else if (cat === 'jewels') entries = (p.jewels || []).map(it => ({ snap: it, label: it.name }));
-    else if (cat === 'talismans') entries = (p.talismans || []).map(it => ({ snap: it, label: it.name }));
-
     socialState.profileTips = {};
-    if (!entries.length) {
-        let emptyLabel = cat === 'jewels' ? '장착한 주얼 없음' : (cat === 'talismans' ? '장착한 부적 없음' : '장착한 장비 없음');
-        return `<div class="social-profile-empty">${emptyLabel}</div>`;
-    }
-    return `<div class="social-mini-grid">` + entries.map((e, i) => {
-        let key = `${cat}:${i}`;
-        socialState.profileTips[key] = renderProfileItemCard(e.snap);
-        let color = (typeof getRarityColor === 'function') ? getRarityColor(e.snap.rarity) : '#ddd';
-        return `<div class="social-mini-card" style="border-color:${color};color:${color};" `
-            + `onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" `
-            + `onclick="openTipModal('profile','${key}')" title="옵션 보기">${socialEscape(e.label)}</div>`;
+    let cat = socialState.profileTab;
+    if (cat === 'equipment') return renderProfileEquipPaperdoll(p.equipment);
+    if (cat === 'talismans') return renderProfileTalismanBoard(p);
+    // jewels
+    let jewels = p.jewels || [];
+    if (!jewels.length) return `<div class="social-profile-empty">장착한 주얼 없음</div>`;
+    return `<div class="social-mini-grid">` + jewels.map((it, i) => {
+        let key = `jw:${i}`; socialState.profileTips[key] = renderSimpleCard(it);
+        let color = socialRarityColor(it.rarity);
+        return `<div class="social-mini-card" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">${socialEscape(it.name)}</div>`;
     }).join('') + `</div>`;
 }
-
 function switchProfileTab(cat) {
     socialState.profileTab = cat;
     hideSocialTip();
@@ -757,24 +728,19 @@ function switchProfileTab(cat) {
     let areaEl = document.getElementById('social-profile-items');
     if (areaEl) areaEl.innerHTML = renderProfileItemsArea();
 }
-
 function renderProfileData(profile) {
     let body = document.getElementById('social-profile-body');
     if (!body) return;
-    if (!profile) {
-        body.innerHTML = `<div class="social-profile-empty">프로필을 찾을 수 없습니다.<br>상대가 아직 게임을 클라우드에 저장하지 않았을 수 있어요.</div>`;
-        return;
-    }
+    if (!profile) { body.innerHTML = `<div class="social-profile-empty">프로필을 찾을 수 없습니다.<br>상대가 아직 게임을 클라우드에 저장하지 않았을 수 있어요.</div>`; return; }
     socialState.currentProfile = profile;
     socialState.profileTab = 'equipment';
     let p = profile;
     let stats = Array.isArray(p.stats) ? p.stats : [];
     let statsHtml = stats.length
-        ? stats.map(s => `<div class="social-stat-item"><span class="social-stat-label">${socialEscape(s.label)}</span><span class="social-stat-value">${socialEscape(s.value)}</span></div>`).join('')
+        ? stats.map(s => `<div class="social-stat-item"><span class="social-stat-label">${socialEscape(s.label)}</span><span class="social-stat-value" style="color:${socialSafeColor(s.color, '#eaf2ff')};">${socialEscape(s.value)}</span></div>`).join('')
         : `<div class="social-profile-empty">스탯 정보 없음</div>`;
     let updated = '';
     try { if (p.updatedAt) updated = new Date(p.updatedAt).toLocaleString('ko-KR'); } catch (e) { /* 무시 */ }
-
     body.innerHTML = `
         <div class="social-profile-header">
             <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
@@ -797,7 +763,6 @@ function renderProfileData(profile) {
             </div>
         </div>`;
 }
-
 async function openPlayerProfile(userId) {
     if (!userId) return;
     if (!socialCloudReady()) { alert('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'); return; }
@@ -825,14 +790,11 @@ function renderSocialTab() {
     if (!host) return;
     let loggedIn = socialCloudReady();
     let nickname = getMyNickname();
-
     if (!loggedIn) {
-        host.innerHTML = `<h2>💬 커뮤니티</h2>
-            <div class="social-notice">채팅·접속자·프로필 구경 기능은 <strong>클라우드 로그인</strong>이 필요합니다.<br>설정 탭에서 로그인 후 다시 열어주세요.</div>`;
+        host.innerHTML = `<h2>💬 커뮤니티</h2><div class="social-notice">채팅·접속자·프로필 구경 기능은 <strong>클라우드 로그인</strong>이 필요합니다.<br>설정 탭에서 로그인 후 다시 열어주세요.</div>`;
         stopChatPolling();
         return;
     }
-
     host.innerHTML = `
         <h2>💬 커뮤니티</h2>
         <div class="social-toolbar">
@@ -851,9 +813,8 @@ function renderSocialTab() {
                 <span id="social-chat-counter" class="social-chat-counter">0/${SOCIAL_MSG_MAX}</span>
                 <button onclick="sendChatMessage()" ${nickname ? '' : 'disabled'}>전송</button>
             </div>
-            <div class="social-hint">닉네임 클릭 → 그 플레이어의 장비/주얼/부적·스탯, 🔗 링크에 마우스를 올리면 아이템 옵션을 볼 수 있습니다.</div>
+            <div class="social-hint">닉네임 클릭 → 장비/주얼/부적·스탯, 🔗 링크/아이템에 마우스를 올리면 옵션을 볼 수 있습니다. (닉네임은 하루 1회 변경)</div>
         </div>`;
-
     socialState.lastChatRenderKey = '';
     socialState.lastOnlineRenderKey = '';
     renderPendingChatItems();
@@ -902,12 +863,11 @@ function injectSocialStyles() {
     .social-item-link:hover{filter:brightness(1.2);}
     .social-modal-overlay{position:fixed;inset:0;background:rgba(4,8,14,0.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
     .social-modal-box{position:relative;width:min(760px,96vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(170deg,#101a2a,#0c1421);border:1px solid #2c4063;border-radius:14px;}
-    .social-modal-header{flex:0 0 auto;display:flex;justify-content:flex-end;align-items:center;padding:8px 10px;border-bottom:1px solid #233a59;background:rgba(13,23,38,0.95);}
-    .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:16px 20px 20px;}
-    .social-modal-close{background:#1c2c44;border:1px solid #34507a;color:#cfe0f5;border-radius:8px;padding:5px 13px;cursor:pointer;font-size:0.95em;line-height:1;}
-    .social-modal-close:hover{background:#26395a;}
+    .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:18px 20px 20px;}
+    .social-modal-close{position:absolute;top:9px;right:9px;z-index:3;width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:rgba(28,44,68,0.55);border:1px solid rgba(90,120,160,0.4);color:#cfe0f5;border-radius:50%;cursor:pointer;font-size:0.9em;line-height:1;}
+    .social-modal-close:hover{background:rgba(44,64,96,0.9);}
     .social-profile-empty{color:#8094ad;text-align:center;padding:24px;}
-    .social-profile-header{border-bottom:1px solid #233a59;padding-bottom:12px;margin-bottom:14px;}
+    .social-profile-header{border-bottom:1px solid #233a59;padding-bottom:12px;margin-bottom:14px;padding-right:34px;}
     .social-profile-name{font-size:1.4em;font-weight:800;color:#f0d7a6;}
     .social-profile-sub{color:#a8c0da;margin-top:4px;}
     .social-profile-updated{color:#67809c;font-size:0.78em;margin-top:4px;}
@@ -920,10 +880,21 @@ function injectSocialStyles() {
     .social-stat-grid{display:grid;grid-template-columns:1fr;gap:4px;}
     .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:#13202f;border:1px solid #20324b;border-radius:6px;padding:5px 9px;}
     .social-stat-label{color:#9fb4d1;font-size:0.86em;}
-    .social-stat-value{color:#eaf2ff;font-weight:700;font-size:0.9em;}
+    .social-stat-value{font-weight:700;font-size:0.9em;}
     .social-mini-grid{display:flex;flex-direction:column;gap:6px;}
     .social-mini-card{background:#0f1a28;border:1px solid;border-left-width:3px;border-radius:7px;padding:8px 10px;font-size:0.86em;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .social-mini-card:hover{background:#16243a;}
+    .social-paperdoll{margin:0;}
+    .social-paperdoll .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;cursor:pointer;background:linear-gradient(170deg,#101722,#152238);}
+    .social-paperdoll .social-slot.empty{cursor:default;border:1px dashed #3a4d6e;}
+    .social-paperdoll .social-slot-tag{font-size:0.66em;color:#8aa0bd;font-weight:700;}
+    .social-paperdoll .social-slot-name{font-size:0.74em;font-weight:700;line-height:1.15;word-break:break-all;}
+    .social-tal-board{display:grid;gap:2px;justify-content:center;max-width:280px;margin:0 auto;}
+    .social-tal-cell{width:100%;aspect-ratio:1/1;border-radius:3px;border:1px solid rgba(120,140,160,0.18);background:#0a0e14;}
+    .social-tal-cell.void{border-color:transparent;background:transparent;}
+    .social-tal-cell.empty{background:radial-gradient(circle at 30% 25%, #2a313c 0%, #1a1f27 70%);border-color:rgba(120,140,160,0.28);}
+    .social-tal-cell.filled{cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,0.25);}
+    .social-tal-cell.filled:hover{filter:brightness(1.2);}
     .social-equip-grid{display:flex;flex-direction:column;gap:8px;}
     .social-item-card{background:#0f1a28;border:1px solid #2c4063;border-left-width:3px;border-radius:8px;padding:8px 10px;}
     .social-item-title{font-weight:700;font-size:0.92em;}
@@ -931,6 +902,11 @@ function injectSocialStyles() {
     .social-item-unique{color:#d7b8ff;font-size:0.82em;margin:3px 0;}
     .social-item-stat{color:#cfe0f5;font-size:0.82em;line-height:1.4;}
     .social-item-stat.base{color:#f1c40f;}
+    .social-roll{color:#7f93ad;font-size:0.92em;}
+    .social-pick-sub{color:#9fb4d1;margin:14px 0 6px;font-size:0.9em;}
+    .social-pick-grid{display:flex;flex-direction:column;gap:6px;max-height:30vh;overflow-y:auto;}
+    .social-pick-item{background:#0f1a28;border:1px solid;border-left-width:3px;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:0.86em;}
+    .social-pick-item:hover{background:#16243a;}
     .social-tooltip{position:fixed;z-index:10001;max-width:320px;pointer-events:none;display:none;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.6));}
     .social-tooltip .social-item-card{background:#0c1421;border-width:1px;border-left-width:3px;}
     `;
@@ -940,7 +916,6 @@ function injectSocialStyles() {
 if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { injectSocialStyles(); ensureSocialTooltip(); });
     else { injectSocialStyles(); ensureSocialTooltip(); }
-    // 소셜 탭을 열지 않아도 접속 표시가 되도록 전역 하트비트를 가동.
     setInterval(() => { if (socialCloudReady() && getMyNickname()) ensureHeartbeat(); }, SOCIAL_HEARTBEAT_MS);
 }
 
