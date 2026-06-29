@@ -3527,7 +3527,11 @@ function updateSkillPlayback(now, playerPos, width, enemyPosMap) {
     if (!state) return;
     let skillCfg = state.skillCfg;
     let targetEnemy = null;
-    let targetIds = getSkillTargets(getPlayerStats()).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
+    // 이 함수는 스킬 재생 중 매 프레임 호출된다. getPlayerStats()는 장비/패시브
+    // 전체를 재계산하는 무거운 함수이므로, 렌더 전용 단기 캐시를 사용해 공격 중
+    // 매 프레임 전체 스탯을 재계산하던 렉(특히 상시 공격하는 물리)을 제거한다.
+    let playbackStats = (typeof getCanvasPlayerStats === 'function') ? getCanvasPlayerStats() : getPlayerStats();
+    let targetIds = getSkillTargets(playbackStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     if (targetIds.length > 0 && enemyPosMap) {
         targetEnemy = enemyPosMap[targetIds[0]] || null;
     }
