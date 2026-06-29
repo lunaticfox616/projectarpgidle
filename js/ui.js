@@ -733,6 +733,8 @@ function switchTab(tabId) {
     // 도감 탭에서 다른 탭으로 벗어날 때, 신규 등록 강조를 해제(처음 열었을 때만 강조).
     if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
     lastActiveTabId = tabId;
+    if (tabId === 'tab-social' && typeof renderSocialTab === 'function') renderSocialTab();
+    else if (typeof stopChatPolling === 'function') stopChatPolling();
     if (tabId === 'tab-talent' && typeof renderTalentTab === 'function') renderTalentTab();
     if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
@@ -10734,6 +10736,7 @@ async function pushCloudSave(options = {}) {
     rememberCloudUploadProfile({ at: syncedAt, fetchMs, serializeMs, uploadMs, totalMs, payloadBytes: payloadSize });
     persistLocalSave({ touchModifiedAt: false });
     updateCloudSaveUI();
+    if (typeof syncPlayerProfileQuiet === 'function') syncPlayerProfileQuiet();
     return row;
 }
 
