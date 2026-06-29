@@ -5980,6 +5980,10 @@ function getTierClassName(tierValue) {
 }
 
 function getTierBadgeHtml(tierValue, labelPrefix) {
+    // 고유 아이템 확정(고정) 옵션은 tier 0 으로 생성된다. 이 경우 T1 대신 U로 표기.
+    if (Math.floor(Number(tierValue)) === 0) {
+        return `<span class="tier-badge tier-badge-unique" style="color:#ff9f43;">[U]</span>`;
+    }
     let tier = getTierVisualLevel(tierValue);
     let label = labelPrefix || 'T';
     return `<span class="tier-badge ${getTierClassName(tier)}">[${label}${tier}]</span>`;
