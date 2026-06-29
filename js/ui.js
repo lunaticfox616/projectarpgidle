@@ -11484,11 +11484,15 @@ function init() {
                         updateStaticUI();
                     }
                 }
-                updateCombatUI(getUiPlayerStats());
+                let recentStats = game.lastCombatStats && (Date.now() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
+                updateCombatUI(recentStats);
             } catch (error) {
                 console.error('gameTick error:', error);
                 recoverRuntimeState();
-                try { updateCombatUI(getUiPlayerStats()); } catch (uiError) { console.error('tick UI recovery failed:', uiError); }
+                try {
+                    let recentStats = game.lastCombatStats && (Date.now() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
+                    updateCombatUI(recentStats);
+                } catch (uiError) { console.error('tick UI recovery failed:', uiError); }
             }
         }, 100);
         requestAnimationFrame(gameLoop);

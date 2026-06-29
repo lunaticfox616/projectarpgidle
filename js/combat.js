@@ -1247,6 +1247,8 @@ function coreLoop() {
     tickWoodsmanCurse();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
+    game.lastCombatStats = pStats;
+    game.lastCombatStatsAt = Date.now();
     ensureSummonRuntime(pStats);
     // Guard against malformed stat payloads from legacy saves/runtime merges.
     // If ASPD becomes NaN/<=0, pTimer never advances and combat appears frozen.
