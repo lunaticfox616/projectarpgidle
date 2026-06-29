@@ -5,9 +5,22 @@ function getCanvasRuntimeFunction(name) {
     return provider;
 }
 
+// 렌더 전용 짧은 캐시. getPlayerStats()는 장비/패시브 전체를 재계산하는 무거운
+// 함수인데, 렌더 경로는 결과를 읽기만 하고(HP/ES 바, 스킬 타겟, 공속 타이밍) 이
+// 값들은 천천히 변하므로 ~150ms 캐시해도 시각적으로 무해하다. 전투 틱(coreLoop)과
+// updateCombatUI는 별도로 getPlayerStats()를 직접 호출하므로 이 캐시의 영향을 받지 않는다.
+let __canvasStatsCache = null;
+let __canvasStatsCacheAt = 0;
+const CANVAS_STATS_CACHE_MS = 150;
 function getCanvasPlayerStats(fallback = {}) {
     let provider = getCanvasRuntimeFunction('getPlayerStats');
-    return provider ? (provider() || fallback) : fallback;
+    if (!provider) return fallback;
+    let now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (__canvasStatsCache && (now - __canvasStatsCacheAt) < CANVAS_STATS_CACHE_MS) return __canvasStatsCache;
+    let result = provider() || fallback;
+    __canvasStatsCache = result;
+    __canvasStatsCacheAt = now;
+    return result;
 }
 
 function getCanvasSkillTargets(stats) {
