@@ -7102,9 +7102,11 @@ function awardCurrency(currencyKey, amount) {
     if (currencyKey === 'condensedSkyPower') {
         let st = ensureSkyTowerState();
         st.condensedPower = Math.max(0, Math.floor(st.condensedPower || 0)) + gain;
+        game.currencyDropVersion = Math.max(0, Math.floor(game.currencyDropVersion || 0)) + 1;
         return gain;
     }
     game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + gain;
+    game.currencyDropVersion = Math.max(0, Math.floor(game.currencyDropVersion || 0)) + 1;
     if (currencyKey === 'divine' && gain > 0) {
         showDivineDropBanner(gain);
         addLog(`✨✨ <strong>신성한 오브 +${gain}</strong> 획득!`, 'loot-unique');

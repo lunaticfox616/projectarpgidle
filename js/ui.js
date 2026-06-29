@@ -13,6 +13,8 @@ let lastReachableSignature = '';
 let passiveTreeSearch = '';
 let passiveTreeFilter = 'all';
 let cachedTooltipStats = null;
+let lastSkillPanelRenderSignature = '';
+let battleSkillVisualCache = { key: '', value: null };
 let gemTooltipCache = null;
 let mapZoneGroupCollapseState = { hunting: false, chaos: false };
 
@@ -321,7 +323,11 @@ function updateMobileBattlePipVisibility() {
     host.style.bottom = (host.dataset.bottom || '94') + 'px';
     if (host.style.display !== 'none') {
         let src = document.getElementById('battlefield-canvas');
-        if (src && (src.width < 32 || src.height < 32)) {
+        if (src && !activeBattle && mobilePipCanvas) {
+            src.width = mobilePipCanvas.width;
+            src.height = mobilePipCanvas.height;
+            src.dataset.renderScale = '1';
+        } else if (src && (src.width < 32 || src.height < 32)) {
             src.width = 960;
             src.height = 540;
         }
@@ -339,7 +345,7 @@ function renderMobileBattlePipFrame() {
     if (!host || host.style.display === 'none') return;
     let src = document.getElementById('battlefield-canvas');
     if (!src) return;
-    if (src.width < 32 || src.height < 32) { src.width = 960; src.height = 540; }
+    if (src.width < 32 || src.height < 32) { src.width = mobilePipCanvas.width; src.height = mobilePipCanvas.height; }
     mobilePipCtx.clearRect(0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
     mobilePipCtx.drawImage(src, 0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
 }
@@ -767,6 +773,11 @@ function craftSelectInventoryItemById(itemId) {
 }
 
 function switchItemSubtab(subtabId) {
+    if (subtabId === game.itemSubtab) {
+        let currentPanel = document.getElementById(subtabId);
+        let currentBtn = document.getElementById('btn-' + subtabId);
+        if (currentPanel && currentPanel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) return;
+    }
     if (subtabId === 'item-tab-market' && !isMarketUnlocked()) {
         addLog('액트 5를 먼저 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
         subtabId = 'item-tab-equip';
@@ -999,6 +1010,11 @@ function renderSkillAutoRulePanel() {
 }
 
 function switchSkillSubtab(subtabId) {
+    if (subtabId === game.skillSubtab) {
+        let currentPanel = document.getElementById(subtabId);
+        let currentBtn = document.getElementById('btn-' + subtabId);
+        if (currentPanel && currentPanel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) return;
+    }
     game.skillSubtab = subtabId;
     document.querySelectorAll('#tab-skills .subtab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#tab-skills .subtab-btn').forEach(el => el.classList.remove('active'));
@@ -1039,13 +1055,12 @@ function openBeehiveChoiceOverlay(reasonText) {
     document.body.insertAdjacentHTML('beforeend', html);
 }
 
-function renderLoop8BeehivePanel() {
+function renderLoop8BeehivePanel(shouldRenderPanel = true) {
     let open = (game.season || 1) >= 8;
     let header = document.getElementById('ui-beehive-header');
     let panel = document.getElementById('ui-beehive-panel');
-    if (!header || !panel) return;
-    header.style.display = open ? 'block' : 'none';
-    panel.style.display = open ? 'block' : 'none';
+    if (header) header.style.display = open && shouldRenderPanel ? 'block' : 'none';
+    if (panel) panel.style.display = open && shouldRenderPanel ? 'block' : 'none';
     if (!open) return;
     let b = game.beehive || (game.beehive = { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 });
     if (b.inRun && !b.pendingChoice && !b.awaitingClear && !b.queenActive) prepareBeehiveBranchChoices(b);
@@ -1066,6 +1081,7 @@ function renderLoop8BeehivePanel() {
     } else if (b.inRun && b.awaitingClear) {
         choiceHtml = `<div style="margin-top:8px; color:#f3d28a;">${b.queenActive ? '여왕벌 전투 진행 중' : `벌떼 웨이브 진행 중 (${Math.max(0, Math.floor(b.branchStep || 0))}/10)`} · 남은 적 <strong>${aliveBeeEnemies}</strong>마리를 모두 처치해야 진행할 수 있습니다.</div>`;
     }
+    if (!shouldRenderPanel || !panel) return;
     let beekeeperLv = getBeekeeperLevelForHive();
     let hiveUnlockText = `양봉업자 Lv.${beekeeperLv} · 카오스 ${beekeeperLv >= 3 ? '해금' : 'Lv.3'} · 신성한오브 ${beekeeperLv >= 5 ? '해금' : 'Lv.5'}`;
     panel.innerHTML = `<div style="color:#f6d68e; margin-bottom:6px;">벌집 열쇠: <strong>${game.currencies.hiveKey||0}</strong> · 꽃가루: <strong>${game.currencies.pollen||0}</strong> · 독벌침: <strong>${game.currencies.venomStinger||0}</strong> · 벌꿀: <strong>${game.currencies.enchantedHoney||0}</strong> · 밀랍: <strong>${game.currencies.beeswax||0}</strong></div>
@@ -1296,7 +1312,6 @@ function renderLoop15ColonyPanel() {
     if (!header || !panel) return;
     header.style.display = open ? 'block' : 'none';
     panel.style.display = open ? 'block' : 'none';
-    renderColonyWardPanel('ui-colony-ward-talisman-panel');
     if (!open) return;
     let c = normalizeColonyWardState();
     let status = c.inRun ? `진행중 · 웨이브 ${Math.max(1,Math.floor(c.wave||1))} · 처치 ${Math.max(0,Math.floor(c.kills||0))}/${Math.max(1,Math.floor(c.requiredKills||1))}` : '대기중';
@@ -2283,6 +2298,14 @@ function upgradeUnderworldRune(fromNo) {
 }
 
 function switchMapSubtab(subtabId) {
+    if (subtabId === game.mapSubtab) {
+        let currentPanel = document.getElementById(subtabId);
+        let currentBtn = document.getElementById('btn-' + subtabId);
+        if (currentPanel && currentPanel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) {
+            if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+            return;
+        }
+    }
     game.mapSubtab = subtabId;
     document.querySelectorAll('#tab-map .subtab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#tab-map .map-primary-tabs .subtab-btn').forEach(el => el.classList.remove('active'));
@@ -2297,6 +2320,8 @@ function switchMapExploreSubtab(subtabId) {
     const fallback = 'map-explore-hunting';
     const panel = document.getElementById(subtabId) ? document.getElementById(subtabId) : document.getElementById(fallback);
     const activeId = panel ? panel.id : fallback;
+    let currentBtn = document.getElementById('btn-' + activeId);
+    if (activeId === game.mapExploreSubtab && panel && panel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) return;
     game.mapExploreSubtab = activeId;
     document.querySelectorAll('#map-tab-zones .vertical-tab-panel').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#map-tab-zones .vertical-tab-btn').forEach(el => el.classList.remove('active'));
@@ -2305,6 +2330,8 @@ function switchMapExploreSubtab(subtabId) {
     if (btn) btn.classList.add('active');
     clearMapExploreAlarm(activeId);
     renderMapExploreNotiDots();
+    if (activeId === 'map-explore-beehive') renderLoop8BeehivePanel(true);
+    if (activeId === 'map-explore-colony') renderLoop15ColonyPanel();
 }
 
 // 새 지도 해금 알람 대상 세부 탭(혼돈/심화/벌집/대균열/운석/고대미궁은 제외).
@@ -4791,8 +4818,11 @@ function getBattleZoneTheme(zone) {
 
 function getBattleSkillVisual(skillName, skillData) {
     skillData = skillData || SKILL_DB[skillName] || SKILL_DB['기본 공격'];
-    let tags = (skillData.tags || []).map(tag => String(tag).toLowerCase());
+    let rawTags = Array.isArray(skillData.tags) ? skillData.tags : [];
     let ele = String(skillData.ele || '').toLowerCase();
+    let cacheKey = `${skillName || ''}|${ele}|${rawTags.join('/')}`;
+    if (battleSkillVisualCache.key === cacheKey && battleSkillVisualCache.value) return battleSkillVisualCache.value;
+    let tags = rawTags.map(tag => String(tag).toLowerCase());
     let group = 'physical';
     let primary = '#d7dde6';
     let secondary = '#ffffff';
@@ -4822,7 +4852,7 @@ function getBattleSkillVisual(skillName, skillData) {
         primary = '#c7a27b';
         secondary = '#f3e1cf';
     }
-    return {
+    let visual = {
         pose: tags.includes('projectile') ? 'bow' : 'sword',
         group: group,
         effect: group,
@@ -4831,6 +4861,8 @@ function getBattleSkillVisual(skillName, skillData) {
         aura: aura,
         isSlam: group === 'physical_slam'
     };
+    battleSkillVisualCache = { key: cacheKey, value: visual };
+    return visual;
 }
 
 function getBattleEffectFrame(effectName, phase) {
@@ -6241,18 +6273,20 @@ function performUpdateStaticUI() {
             shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
         }
     }
-    if (document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active')) {
+    let charTabActive = document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active');
+    if (charTabActive) {
         let drawNow = Date.now();
         if (shouldRedrawPassiveTree(drawNow)) {
             resizePassiveTreeCanvas(false);
             drawPassiveTree();
             lastPassiveTreeDrawAt = drawNow;
         }
+        renderStarWedgePanel();
     }
     __mark('tree');
-    renderStarWedgePanel();
     if (typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
-    if (typeof renderCoreCubePanel === 'function') renderCoreCubePanel();
+    let cubeTabActive = document.getElementById('tab-cube') && document.getElementById('tab-cube').classList.contains('active');
+    if (cubeTabActive && typeof renderCoreCubePanel === 'function') renderCoreCubePanel();
 
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
@@ -7364,11 +7398,12 @@ function buildCraftActionButtons(item) {
     renderExpertiseUI();
     __mark('market+expertise');
 
+    let mapTabActive = (document.getElementById('tab-map') || {}).classList.contains('active');
+    let activeMapExploreId = game.mapExploreSubtab || 'map-explore-hunting';
     // 벌집 진행 상태 갱신은 UI 표시와 무관하게 항상 돌아야 한다.
     // (awaitingClear -> pendingChoice 전환이 여기서 처리됨)
-    renderLoop8BeehivePanel();
-    renderLoop15ColonyPanel();
-    let mapTabActive = (document.getElementById('tab-map') || {}).classList.contains('active');
+    renderLoop8BeehivePanel(mapTabActive && activeMapExploreId === 'map-explore-beehive');
+    if (mapTabActive && activeMapExploreId === 'map-explore-colony') renderLoop15ColonyPanel();
     if (mapTabActive) {
     let legacyMapOverview = document.querySelector('#tab-map .map-overview-card');
     if (legacyMapOverview) legacyMapOverview.remove();
@@ -7532,14 +7567,17 @@ function buildCraftActionButtons(item) {
         return `<div class="map-item ${cls}" ${(isCompleted && needsTicket && !hasTicket) ? '' : `onclick="${(isCompleted && needsTicket) ? `enterTrialWithTicket('${trial.id}')` : `changeZone('${trial.id}')`}"`}><span>${trial.name} ${isCompleted ? '(완료)' : ''}</span><span style="font-size:0.8em; font-weight:normal;">${isCompleted ? (needsTicket ? `재도전권 ${game.currencies.trialKey3||0}` : '✔️') : '도전하기'}</span></div>`;
     }).join('');
     }
+    __mark('mapPanels');
 
-    let seasonVisible = game.season > 1 || game.seasonPoints > 0;
-    document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
-    document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
     let mapAbyssUnlocked = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     let mapAbyssBtn = document.getElementById('btn-map-tab-abyss');
     if (mapAbyssBtn) mapAbyssBtn.style.display = mapAbyssUnlocked ? 'block' : 'none';
     if (!mapAbyssUnlocked && game.mapSubtab === 'map-tab-abyss') game.mapSubtab = 'map-tab-zones';
+
+    if (activeTabId === 'tab-season' || (activeTabId === 'tab-map' && game.mapSubtab === 'map-tab-abyss')) {
+    let seasonVisible = game.season > 1 || game.seasonPoints > 0;
+    document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
+    document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
     if (mapAbyssUnlocked) {
         let abyssState = getAbyssPassiveState();
         let total = Math.max(0, Math.floor(game.abyssPassivePoints || 0));
@@ -7637,6 +7675,9 @@ function buildCraftActionButtons(item) {
     let visibleSeasonRows = SEASON_NODE_ROWS.filter((row, idx) => idx < 4 || (game.season || 1) >= 5);
     document.getElementById('ui-season-tree').innerHTML = visibleSeasonRows.map(row => `<div class="trait-row">${row.map(renderSeasonNode).join('')}</div>`).join('');
 
+    }
+
+    if (activeTabId === 'tab-traits') {
     if (game.ascendClass) {
         document.getElementById('ui-class-select').style.display = 'none';
         document.getElementById('ui-class-locked').style.display = 'none';
@@ -7701,6 +7742,12 @@ function buildCraftActionButtons(item) {
         document.getElementById('ui-class-tree').style.display = 'none';
     }
 
+    }
+
+    __mark('progressionTabs');
+    if (activeTabId === 'tab-codex') renderUniqueCodexUI();
+
+    if (activeTabId === 'tab-skills') {
     let foldAttackInactive = !!game.gemFoldInactiveAttack;
     let foldSupportInactive = !!game.gemFoldInactiveSupport;
     let foldActiveBtn = document.getElementById('btn-skill-fold-active');
@@ -7709,7 +7756,40 @@ function buildCraftActionButtons(item) {
     if (foldActiveBtn) foldActiveBtn.style.background = (!foldAttackInactive && !foldSupportInactive) ? '#2f6a42' : '#2c3e50';
     if (foldAttackBtn) foldAttackBtn.style.background = foldAttackInactive ? '#2f6a42' : '#2c3e50';
     if (foldSupportBtn) foldSupportBtn.style.background = foldSupportInactive ? '#2f6a42' : '#2c3e50';
-    let resonancePower = getEffectiveResonanceCap();
+    let effectiveResonanceCap = getEffectiveResonanceCap();
+    let skyTowerSignatureState = (typeof ensureSkyTowerState === 'function') ? ensureSkyTowerState() : null;
+    let skillPanelRenderSignature = JSON.stringify({
+        activeSkill: game.activeSkill || '',
+        skills: game.skills || [],
+        supports: game.supports || [],
+        equippedSupports: game.equippedSupports || [],
+        equippedSummonSkills: game.equippedSummonSkills || [],
+        summonSkillCounts: game.summonSkillCounts || {},
+        sealedSkills: game.sealedSkills || [],
+        sealedSupports: game.sealedSupports || [],
+        gemData: game.gemData || {},
+        supportGemData: game.supportGemData || {},
+        gemEnhanceTargetSkill: game.gemEnhanceTargetSkill || '',
+        currencies: {
+            bossCore: game.currencies.bossCore || 0,
+            skyEssence: game.currencies.skyEssence || 0,
+            awakenedEcho: game.currencies.awakenedEcho || 0
+        },
+        skyTower: {
+            condensedPower: Math.max(0, Math.floor((skyTowerSignatureState && skyTowerSignatureState.condensedPower) || 0)),
+            gemBoosts: (skyTowerSignatureState && skyTowerSignatureState.gemBoosts) || {}
+        },
+        filters: { skill: sf.skill || '', support: sf.support || '' },
+        foldAttackInactive: foldAttackInactive,
+        foldSupportInactive: foldSupportInactive,
+        suppCap: pStats.suppCap || 0,
+        resonanceCap: effectiveResonanceCap,
+        gemEnhanceUnlocked: !!game.gemEnhanceUnlocked,
+        season: game.season || 1
+    });
+    if (skillPanelRenderSignature !== lastSkillPanelRenderSignature) {
+        lastSkillPanelRenderSignature = skillPanelRenderSignature;
+    let resonancePower = effectiveResonanceCap;
     let sealedSkills = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
     let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
     let skillsRows = game.skills.filter(name => {
@@ -7830,9 +7910,8 @@ function buildCraftActionButtons(item) {
     }
 
     let suppHeader = document.querySelector('#tab-skills #skill-tab-equip h2');
-    if (suppHeader) suppHeader.title = `공명력 ${resonancePower}`;
+    if (suppHeader) suppHeader.title = `공명력 ${effectiveResonanceCap}`;
 
-    renderUniqueCodexUI();
     let gemEnhanceOpen = !!game.gemEnhanceUnlocked;
     let gemEnhanceHeader = document.getElementById('ui-gem-enhance-header');
     let gemEnhancePanel = document.getElementById('ui-gem-enhance-panel');
@@ -7900,6 +7979,11 @@ function buildCraftActionButtons(item) {
         }
     }
 
+    }
+
+    }
+
+    __mark('codex+skills');
     game.talismanBoard = Array.isArray(game.talismanBoard) ? game.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
     while (game.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) game.talismanBoard.push(null);
     game.talismanInventory = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
@@ -7992,7 +8076,7 @@ function buildCraftActionButtons(item) {
         return `<button class="talisman-board-cell" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     }
-    let talismanTotalEl = document.getElementById('ui-talisman-total');
+    let talismanTotalEl = talismanTabActive ? document.getElementById('ui-talisman-total') : null;
     if (talismanTotalEl) {
         let placements = Object.values(game.talismanPlacements || {}).filter(row => row && row.talisman);
         let idPos = {};
@@ -8072,10 +8156,10 @@ function buildCraftActionButtons(item) {
             ? `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="display:grid; gap:3px;">${allRows.map(row => `<div>• <strong>${row}</strong></div>`).join('')}</div>`
             : `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="color:#9fb4cb;">없음</div>`;
     }
-    if (document.getElementById('talisman-sub-colony-ward')) {
+    if (talismanTabActive && document.getElementById('talisman-sub-colony-ward')) {
         switchTalismanSubtab(game.talismanSubtab === 'talisman-sub-colony-ward' ? 'talisman-sub-colony-ward' : 'talisman-sub-board');
     }
-    let journalList = document.getElementById('ui-journal-list');
+    let journalList = activeTabId === 'tab-journal' ? document.getElementById('ui-journal-list') : null;
     if (journalList) {
         let unlocked = new Set((game.journalEntries || []).filter(id => JOURNAL_DB[id]));
         let orderedIds = JOURNAL_ENTRY_ORDER.filter(id => {
@@ -8091,11 +8175,13 @@ function buildCraftActionButtons(item) {
         </div>`).join('') || `<div style="color:#7f8c8d;">아직 해금된 기록이 없습니다.</div>`;
     }
 
-    switchItemSubtab(game.itemSubtab || 'item-tab-equip');
-    renderSkillAutoRulePanel();
-    switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
-    switchMapSubtab(game.mapSubtab || 'map-tab-zones');
-    switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+    __mark('talisman+journal');
+    if (itemsTabActive) switchItemSubtab(game.itemSubtab || 'item-tab-equip');
+    if (activeTabId === 'tab-skills') {
+        renderSkillAutoRulePanel();
+        switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
+    }
+    if (activeTabId === 'tab-map') switchMapSubtab(game.mapSubtab || 'map-tab-zones');
     __mark('end');
     let __ptot = __perfNow() - __pm[0][1];
     if (__ptot > 150 || (typeof window !== 'undefined' && window.__perfLog)) {
@@ -11410,11 +11496,15 @@ function init() {
                         updateStaticUI();
                     }
                 }
-                updateCombatUI(getUiPlayerStats());
+                let recentStats = game.lastCombatStats && (Date.now() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
+                updateCombatUI(recentStats);
             } catch (error) {
                 console.error('gameTick error:', error);
                 recoverRuntimeState();
-                try { updateCombatUI(getUiPlayerStats()); } catch (uiError) { console.error('tick UI recovery failed:', uiError); }
+                try {
+                    let recentStats = game.lastCombatStats && (Date.now() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
+                    updateCombatUI(recentStats);
+                } catch (uiError) { console.error('tick UI recovery failed:', uiError); }
             }
         }, 100);
         requestAnimationFrame(gameLoop);
