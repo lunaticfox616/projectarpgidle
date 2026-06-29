@@ -705,6 +705,11 @@ function switchTab(tabId) {
         addLog(getLockedTabMessage(tabId), 'attack-monster');
         return;
     }
+    // 이미 활성인 탭을 다시 누르면 전체 UI 재구성(+ 캐릭터 탭의 패시브 트리 재드로우)을
+    // 반복해 게임이 멈춘 것처럼 느껴진다. 같은 탭 재클릭은 무거운 재렌더를 생략한다.
+    // (탭 내용 갱신은 게임 동작/주기 갱신이 별도로 처리한다.)
+    let tabEl = document.getElementById(tabId);
+    if (lastActiveTabId === tabId && tabEl && tabEl.classList.contains('active')) return;
     document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     let activeBtn = document.getElementById('btn-' + tabId);
@@ -6464,7 +6469,9 @@ function renderSearchSection(containerId, key, placeholder, rowsHtml, emptyHtml,
         });
     }
     if (input && input.value !== String(sf[key] || '')) input.value = String(sf[key] || '');
-    if (list) list.innerHTML = rowsHtml || emptyHtml || '';
+    // 내용이 같으면 innerHTML 재작성(파싱+리플로우)을 생략한다. 탭 전환·주기 갱신마다
+    // 동일한 목록을 다시 그리는 비용을 없애 끊김을 줄인다.
+    if (list) { let v = rowsHtml || emptyHtml || ''; if (list.__lastHtml !== v) { list.innerHTML = v; list.__lastHtml = v; } }
 }
 function getSearchFilterState() {
     game.settings = game.settings || {};
