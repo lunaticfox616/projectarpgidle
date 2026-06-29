@@ -6260,7 +6260,7 @@ function handleEnemyDeath(enemy, pStats) {
     }
     let currencyChanged = Math.max(0, Math.floor(game.currencyDropVersion || 0)) !== currencyDropVersionBefore;
     let colonyStateChanged = zone && zone.id === 'colony_run' && game.colony && game.colony.inRun;
-    if (enemy.isBoss || enemy.isElite || currencyChanged || gemLeveled || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map) {
+    if (enemy.isBoss || enemy.isElite || currencyChanged || gemLeveled || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map || game.noti.cube) {
         pendingHeavyUiRefresh = true;
     }
 }
