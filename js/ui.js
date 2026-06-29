@@ -2324,6 +2324,8 @@ function switchMapExploreSubtab(subtabId) {
     if (btn) btn.classList.add('active');
     clearMapExploreAlarm(activeId);
     renderMapExploreNotiDots();
+    if (activeId === 'map-explore-beehive') renderLoop8BeehivePanel(true);
+    if (activeId === 'map-explore-colony') renderLoop15ColonyPanel();
 }
 
 // 새 지도 해금 알람 대상 세부 탭(혼돈/심화/벌집/대균열/운석/고대미궁은 제외).
@@ -7554,7 +7556,9 @@ function buildCraftActionButtons(item) {
         return `<div class="map-item ${cls}" ${(isCompleted && needsTicket && !hasTicket) ? '' : `onclick="${(isCompleted && needsTicket) ? `enterTrialWithTicket('${trial.id}')` : `changeZone('${trial.id}')`}"`}><span>${trial.name} ${isCompleted ? '(완료)' : ''}</span><span style="font-size:0.8em; font-weight:normal;">${isCompleted ? (needsTicket ? `재도전권 ${game.currencies.trialKey3||0}` : '✔️') : '도전하기'}</span></div>`;
     }).join('');
     }
+    __mark('mapPanels');
 
+    if (activeTabId === 'tab-season' || (activeTabId === 'tab-map' && game.mapSubtab === 'map-tab-abyss')) {
     let seasonVisible = game.season > 1 || game.seasonPoints > 0;
     document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
     document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
@@ -7659,6 +7663,9 @@ function buildCraftActionButtons(item) {
     let visibleSeasonRows = SEASON_NODE_ROWS.filter((row, idx) => idx < 4 || (game.season || 1) >= 5);
     document.getElementById('ui-season-tree').innerHTML = visibleSeasonRows.map(row => `<div class="trait-row">${row.map(renderSeasonNode).join('')}</div>`).join('');
 
+    }
+
+    if (activeTabId === 'tab-traits') {
     if (game.ascendClass) {
         document.getElementById('ui-class-select').style.display = 'none';
         document.getElementById('ui-class-locked').style.display = 'none';
@@ -7723,6 +7730,12 @@ function buildCraftActionButtons(item) {
         document.getElementById('ui-class-tree').style.display = 'none';
     }
 
+    }
+
+    __mark('progressionTabs');
+    if (activeTabId === 'tab-codex') renderUniqueCodexUI();
+
+    if (activeTabId === 'tab-skills') {
     let foldAttackInactive = !!game.gemFoldInactiveAttack;
     let foldSupportInactive = !!game.gemFoldInactiveSupport;
     let foldActiveBtn = document.getElementById('btn-skill-fold-active');
@@ -7854,7 +7867,6 @@ function buildCraftActionButtons(item) {
     let suppHeader = document.querySelector('#tab-skills #skill-tab-equip h2');
     if (suppHeader) suppHeader.title = `공명력 ${resonancePower}`;
 
-    renderUniqueCodexUI();
     let gemEnhanceOpen = !!game.gemEnhanceUnlocked;
     let gemEnhanceHeader = document.getElementById('ui-gem-enhance-header');
     let gemEnhancePanel = document.getElementById('ui-gem-enhance-panel');
@@ -7922,6 +7934,9 @@ function buildCraftActionButtons(item) {
         }
     }
 
+    }
+
+    __mark('codex+skills');
     game.talismanBoard = Array.isArray(game.talismanBoard) ? game.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
     while (game.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) game.talismanBoard.push(null);
     game.talismanInventory = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
@@ -8113,6 +8128,7 @@ function buildCraftActionButtons(item) {
         </div>`).join('') || `<div style="color:#7f8c8d;">아직 해금된 기록이 없습니다.</div>`;
     }
 
+    __mark('talisman+journal');
     if (itemsTabActive) switchItemSubtab(game.itemSubtab || 'item-tab-equip');
     if (activeTabId === 'tab-skills') {
         renderSkillAutoRulePanel();
