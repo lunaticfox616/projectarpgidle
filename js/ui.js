@@ -13,6 +13,8 @@ let lastReachableSignature = '';
 let passiveTreeSearch = '';
 let passiveTreeFilter = 'all';
 let cachedTooltipStats = null;
+let lastSkillPanelRenderSignature = '';
+let battleSkillVisualCache = { key: '', value: null };
 let gemTooltipCache = null;
 let mapZoneGroupCollapseState = { hunting: false, chaos: false };
 
@@ -4812,8 +4814,11 @@ function getBattleZoneTheme(zone) {
 
 function getBattleSkillVisual(skillName, skillData) {
     skillData = skillData || SKILL_DB[skillName] || SKILL_DB['기본 공격'];
-    let tags = (skillData.tags || []).map(tag => String(tag).toLowerCase());
+    let rawTags = Array.isArray(skillData.tags) ? skillData.tags : [];
     let ele = String(skillData.ele || '').toLowerCase();
+    let cacheKey = `${skillName || ''}|${ele}|${rawTags.join('/')}`;
+    if (battleSkillVisualCache.key === cacheKey && battleSkillVisualCache.value) return battleSkillVisualCache.value;
+    let tags = rawTags.map(tag => String(tag).toLowerCase());
     let group = 'physical';
     let primary = '#d7dde6';
     let secondary = '#ffffff';
@@ -4843,7 +4848,7 @@ function getBattleSkillVisual(skillName, skillData) {
         primary = '#c7a27b';
         secondary = '#f3e1cf';
     }
-    return {
+    let visual = {
         pose: tags.includes('projectile') ? 'bow' : 'sword',
         group: group,
         effect: group,
@@ -4852,6 +4857,8 @@ function getBattleSkillVisual(skillName, skillData) {
         aura: aura,
         isSlam: group === 'physical_slam'
     };
+    battleSkillVisualCache = { key: cacheKey, value: visual };
+    return visual;
 }
 
 function getBattleEffectFrame(effectName, phase) {
@@ -7744,6 +7751,32 @@ function buildCraftActionButtons(item) {
     if (foldActiveBtn) foldActiveBtn.style.background = (!foldAttackInactive && !foldSupportInactive) ? '#2f6a42' : '#2c3e50';
     if (foldAttackBtn) foldAttackBtn.style.background = foldAttackInactive ? '#2f6a42' : '#2c3e50';
     if (foldSupportBtn) foldSupportBtn.style.background = foldSupportInactive ? '#2f6a42' : '#2c3e50';
+    let skillPanelRenderSignature = JSON.stringify({
+        activeSkill: game.activeSkill || '',
+        skills: game.skills || [],
+        supports: game.supports || [],
+        equippedSupports: game.equippedSupports || [],
+        equippedSummonSkills: game.equippedSummonSkills || [],
+        summonSkillCounts: game.summonSkillCounts || {},
+        sealedSkills: game.sealedSkills || [],
+        sealedSupports: game.sealedSupports || [],
+        gemData: game.gemData || {},
+        supportGemData: game.supportGemData || {},
+        gemEnhanceTargetSkill: game.gemEnhanceTargetSkill || '',
+        currencies: {
+            bossCore: game.currencies.bossCore || 0,
+            skyEssence: game.currencies.skyEssence || 0,
+            awakenedEcho: game.currencies.awakenedEcho || 0
+        },
+        filters: { skill: sf.skill || '', support: sf.support || '' },
+        foldAttackInactive: foldAttackInactive,
+        foldSupportInactive: foldSupportInactive,
+        suppCap: pStats.suppCap || 0,
+        gemEnhanceUnlocked: !!game.gemEnhanceUnlocked,
+        season: game.season || 1
+    });
+    if (skillPanelRenderSignature !== lastSkillPanelRenderSignature) {
+        lastSkillPanelRenderSignature = skillPanelRenderSignature;
     let resonancePower = getEffectiveResonanceCap();
     let sealedSkills = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
     let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
@@ -7865,7 +7898,7 @@ function buildCraftActionButtons(item) {
     }
 
     let suppHeader = document.querySelector('#tab-skills #skill-tab-equip h2');
-    if (suppHeader) suppHeader.title = `공명력 ${resonancePower}`;
+    if (suppHeader) suppHeader.title = `공명력 ${getEffectiveResonanceCap()}`;
 
     let gemEnhanceOpen = !!game.gemEnhanceUnlocked;
     let gemEnhanceHeader = document.getElementById('ui-gem-enhance-header');
@@ -7932,6 +7965,8 @@ function buildCraftActionButtons(item) {
                 document.getElementById('ui-gem-enhance-options').innerHTML = engraveCapButton + `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 루프 4부터 해금됩니다.</div>`;
             }
         }
+    }
+
     }
 
     }
