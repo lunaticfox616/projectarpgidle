@@ -767,6 +767,11 @@ function craftSelectInventoryItemById(itemId) {
 }
 
 function switchItemSubtab(subtabId) {
+    if (subtabId === game.itemSubtab) {
+        let currentPanel = document.getElementById(subtabId);
+        let currentBtn = document.getElementById('btn-' + subtabId);
+        if (currentPanel && currentPanel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) return;
+    }
     if (subtabId === 'item-tab-market' && !isMarketUnlocked()) {
         addLog('액트 5를 먼저 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
         subtabId = 'item-tab-equip';
@@ -999,6 +1004,11 @@ function renderSkillAutoRulePanel() {
 }
 
 function switchSkillSubtab(subtabId) {
+    if (subtabId === game.skillSubtab) {
+        let currentPanel = document.getElementById(subtabId);
+        let currentBtn = document.getElementById('btn-' + subtabId);
+        if (currentPanel && currentPanel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) return;
+    }
     game.skillSubtab = subtabId;
     document.querySelectorAll('#tab-skills .subtab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#tab-skills .subtab-btn').forEach(el => el.classList.remove('active'));
@@ -1039,13 +1049,12 @@ function openBeehiveChoiceOverlay(reasonText) {
     document.body.insertAdjacentHTML('beforeend', html);
 }
 
-function renderLoop8BeehivePanel() {
+function renderLoop8BeehivePanel(shouldRenderPanel = true) {
     let open = (game.season || 1) >= 8;
     let header = document.getElementById('ui-beehive-header');
     let panel = document.getElementById('ui-beehive-panel');
-    if (!header || !panel) return;
-    header.style.display = open ? 'block' : 'none';
-    panel.style.display = open ? 'block' : 'none';
+    if (header) header.style.display = open && shouldRenderPanel ? 'block' : 'none';
+    if (panel) panel.style.display = open && shouldRenderPanel ? 'block' : 'none';
     if (!open) return;
     let b = game.beehive || (game.beehive = { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 });
     if (b.inRun && !b.pendingChoice && !b.awaitingClear && !b.queenActive) prepareBeehiveBranchChoices(b);
@@ -1066,6 +1075,7 @@ function renderLoop8BeehivePanel() {
     } else if (b.inRun && b.awaitingClear) {
         choiceHtml = `<div style="margin-top:8px; color:#f3d28a;">${b.queenActive ? '여왕벌 전투 진행 중' : `벌떼 웨이브 진행 중 (${Math.max(0, Math.floor(b.branchStep || 0))}/10)`} · 남은 적 <strong>${aliveBeeEnemies}</strong>마리를 모두 처치해야 진행할 수 있습니다.</div>`;
     }
+    if (!shouldRenderPanel || !panel) return;
     let beekeeperLv = getBeekeeperLevelForHive();
     let hiveUnlockText = `양봉업자 Lv.${beekeeperLv} · 카오스 ${beekeeperLv >= 3 ? '해금' : 'Lv.3'} · 신성한오브 ${beekeeperLv >= 5 ? '해금' : 'Lv.5'}`;
     panel.innerHTML = `<div style="color:#f6d68e; margin-bottom:6px;">벌집 열쇠: <strong>${game.currencies.hiveKey||0}</strong> · 꽃가루: <strong>${game.currencies.pollen||0}</strong> · 독벌침: <strong>${game.currencies.venomStinger||0}</strong> · 벌꿀: <strong>${game.currencies.enchantedHoney||0}</strong> · 밀랍: <strong>${game.currencies.beeswax||0}</strong></div>
@@ -1296,7 +1306,6 @@ function renderLoop15ColonyPanel() {
     if (!header || !panel) return;
     header.style.display = open ? 'block' : 'none';
     panel.style.display = open ? 'block' : 'none';
-    renderColonyWardPanel('ui-colony-ward-talisman-panel');
     if (!open) return;
     let c = normalizeColonyWardState();
     let status = c.inRun ? `진행중 · 웨이브 ${Math.max(1,Math.floor(c.wave||1))} · 처치 ${Math.max(0,Math.floor(c.kills||0))}/${Math.max(1,Math.floor(c.requiredKills||1))}` : '대기중';
@@ -2283,6 +2292,14 @@ function upgradeUnderworldRune(fromNo) {
 }
 
 function switchMapSubtab(subtabId) {
+    if (subtabId === game.mapSubtab) {
+        let currentPanel = document.getElementById(subtabId);
+        let currentBtn = document.getElementById('btn-' + subtabId);
+        if (currentPanel && currentPanel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) {
+            if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+            return;
+        }
+    }
     game.mapSubtab = subtabId;
     document.querySelectorAll('#tab-map .subtab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#tab-map .map-primary-tabs .subtab-btn').forEach(el => el.classList.remove('active'));
@@ -2297,6 +2314,8 @@ function switchMapExploreSubtab(subtabId) {
     const fallback = 'map-explore-hunting';
     const panel = document.getElementById(subtabId) ? document.getElementById(subtabId) : document.getElementById(fallback);
     const activeId = panel ? panel.id : fallback;
+    let currentBtn = document.getElementById('btn-' + activeId);
+    if (activeId === game.mapExploreSubtab && panel && panel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) return;
     game.mapExploreSubtab = activeId;
     document.querySelectorAll('#map-tab-zones .vertical-tab-panel').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#map-tab-zones .vertical-tab-btn').forEach(el => el.classList.remove('active'));
@@ -6241,18 +6260,20 @@ function performUpdateStaticUI() {
             shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
         }
     }
-    if (document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active')) {
+    let charTabActive = document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active');
+    if (charTabActive) {
         let drawNow = Date.now();
         if (shouldRedrawPassiveTree(drawNow)) {
             resizePassiveTreeCanvas(false);
             drawPassiveTree();
             lastPassiveTreeDrawAt = drawNow;
         }
+        renderStarWedgePanel();
     }
     __mark('tree');
-    renderStarWedgePanel();
     if (typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
-    if (typeof renderCoreCubePanel === 'function') renderCoreCubePanel();
+    let cubeTabActive = document.getElementById('tab-cube') && document.getElementById('tab-cube').classList.contains('active');
+    if (cubeTabActive && typeof renderCoreCubePanel === 'function') renderCoreCubePanel();
 
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits','jewel','journal','currency','fossil','ascend','loop'].forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
@@ -7364,11 +7385,12 @@ function buildCraftActionButtons(item) {
     renderExpertiseUI();
     __mark('market+expertise');
 
+    let mapTabActive = (document.getElementById('tab-map') || {}).classList.contains('active');
+    let activeMapExploreId = game.mapExploreSubtab || 'map-explore-hunting';
     // 벌집 진행 상태 갱신은 UI 표시와 무관하게 항상 돌아야 한다.
     // (awaitingClear -> pendingChoice 전환이 여기서 처리됨)
-    renderLoop8BeehivePanel();
-    renderLoop15ColonyPanel();
-    let mapTabActive = (document.getElementById('tab-map') || {}).classList.contains('active');
+    renderLoop8BeehivePanel(mapTabActive && activeMapExploreId === 'map-explore-beehive');
+    if (mapTabActive && activeMapExploreId === 'map-explore-colony') renderLoop15ColonyPanel();
     if (mapTabActive) {
     let legacyMapOverview = document.querySelector('#tab-map .map-overview-card');
     if (legacyMapOverview) legacyMapOverview.remove();
@@ -7992,7 +8014,7 @@ function buildCraftActionButtons(item) {
         return `<button class="talisman-board-cell" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     }
-    let talismanTotalEl = document.getElementById('ui-talisman-total');
+    let talismanTotalEl = talismanTabActive ? document.getElementById('ui-talisman-total') : null;
     if (talismanTotalEl) {
         let placements = Object.values(game.talismanPlacements || {}).filter(row => row && row.talisman);
         let idPos = {};
@@ -8072,10 +8094,10 @@ function buildCraftActionButtons(item) {
             ? `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="display:grid; gap:3px;">${allRows.map(row => `<div>• <strong>${row}</strong></div>`).join('')}</div>`
             : `<div style="font-weight:800; color:#eaf3ff; border-bottom:1px solid #35506b; padding-bottom:6px; margin-bottom:6px;">부적으로 얻은 능력치 총합</div><div style="color:#9fb4cb;">없음</div>`;
     }
-    if (document.getElementById('talisman-sub-colony-ward')) {
+    if (talismanTabActive && document.getElementById('talisman-sub-colony-ward')) {
         switchTalismanSubtab(game.talismanSubtab === 'talisman-sub-colony-ward' ? 'talisman-sub-colony-ward' : 'talisman-sub-board');
     }
-    let journalList = document.getElementById('ui-journal-list');
+    let journalList = activeTabId === 'tab-journal' ? document.getElementById('ui-journal-list') : null;
     if (journalList) {
         let unlocked = new Set((game.journalEntries || []).filter(id => JOURNAL_DB[id]));
         let orderedIds = JOURNAL_ENTRY_ORDER.filter(id => {
@@ -8091,11 +8113,12 @@ function buildCraftActionButtons(item) {
         </div>`).join('') || `<div style="color:#7f8c8d;">아직 해금된 기록이 없습니다.</div>`;
     }
 
-    switchItemSubtab(game.itemSubtab || 'item-tab-equip');
-    renderSkillAutoRulePanel();
-    switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
-    switchMapSubtab(game.mapSubtab || 'map-tab-zones');
-    switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+    if (itemsTabActive) switchItemSubtab(game.itemSubtab || 'item-tab-equip');
+    if (activeTabId === 'tab-skills') {
+        renderSkillAutoRulePanel();
+        switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
+    }
+    if (activeTabId === 'tab-map') switchMapSubtab(game.mapSubtab || 'map-tab-zones');
     __mark('end');
     let __ptot = __perfNow() - __pm[0][1];
     if (__ptot > 150 || (typeof window !== 'undefined' && window.__perfLog)) {
