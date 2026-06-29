@@ -577,6 +577,12 @@ function moveSocialTip(event) {
     tip.style.left = x + 'px'; tip.style.top = y + 'px';
 }
 function hideSocialTip() { let t = document.getElementById('social-tooltip'); if (t) t.style.display = 'none'; }
+// 부적 보드: 같은 부적의 모든 칸을 동시에 강조
+function socialTalHighlight(idx, on) {
+    document.querySelectorAll(`.social-tal-cell[data-tal="${idx}"]`).forEach(c => c.classList.toggle('hl', !!on));
+}
+function socialTalEnter(event, idx, key) { socialTalHighlight(idx, true); showSocialTip(event, 'profile', key); }
+function socialTalLeave(idx) { socialTalHighlight(idx, false); hideSocialTip(); }
 function openTipModal(scope, key) {
     let html = tipMapByScope(scope)[key];
     if (!html) return;
@@ -597,7 +603,8 @@ function socialStatLineHtml(st, opts) {
     let val = (typeof formatValue === 'function') ? formatValue(id, st.val) : st.val;
     let toneFn = opts.jewel && typeof getJewelStatToneColor === 'function' ? getJewelStatToneColor : (typeof getItemStatToneColor === 'function' ? getItemStatToneColor : null);
     let tone = socialSafeColor(toneFn ? toneFn(id) : null, '#cfe0f5');
-    let tierHtml = (st.tier != null && typeof getTierBadgeHtml === 'function') ? ' ' + getTierBadgeHtml(Math.floor(st.tier), 'T') : '';
+    // 베이스 옵션에는 티어를 표시하지 않는다(베이스도 tier:0 이라 [U]로 잘못 표기되는 것 방지).
+    let tierHtml = (!opts.base && st.tier != null && typeof getTierBadgeHtml === 'function') ? ' ' + getTierBadgeHtml(Math.floor(st.tier), 'T') : '';
     let range = '';
     if (opts.range !== false) {
         let mn = st.valMin, mx = st.valMax;
@@ -697,7 +704,7 @@ function renderProfileTalismanBoard(profile) {
             let color = socialSafeColor(typeof getTalismanShapeStyle === 'function' ? getTalismanShapeStyle(t.shape).color : null, '#9fb3c7');
             let key = `tb:${i}`;
             socialState.profileTips[key] = renderSimpleCard(t);
-            cells += `<span class="social-tal-cell filled" style="background:linear-gradient(145deg, rgba(255,255,255,0.28) 0%, ${color} 45%, rgba(8,12,18,0.25) 100%); border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"></span>`;
+            cells += `<span class="social-tal-cell filled" data-tal="${idx}" style="background:linear-gradient(145deg, rgba(255,255,255,0.28) 0%, ${color} 45%, rgba(8,12,18,0.25) 100%); border-color:${color};" onmouseenter="socialTalEnter(event, ${idx}, '${key}')" onmousemove="moveSocialTip(event)" onmouseleave="socialTalLeave(${idx})" onclick="openTipModal('profile','${key}')"></span>`;
         } else {
             cells += `<span class="social-tal-cell empty"></span>`;
         }
@@ -893,8 +900,8 @@ function injectSocialStyles() {
     .social-tal-cell{width:100%;aspect-ratio:1/1;border-radius:3px;border:1px solid rgba(120,140,160,0.18);background:#0a0e14;}
     .social-tal-cell.void{border-color:transparent;background:transparent;}
     .social-tal-cell.empty{background:radial-gradient(circle at 30% 25%, #2a313c 0%, #1a1f27 70%);border-color:rgba(120,140,160,0.28);}
-    .social-tal-cell.filled{cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,0.25);}
-    .social-tal-cell.filled:hover{filter:brightness(1.2);}
+    .social-tal-cell.filled{cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,0.25);transition:filter .08s, box-shadow .08s;}
+    .social-tal-cell.filled.hl{filter:brightness(1.35) saturate(1.2);box-shadow:0 0 0 2px rgba(255,230,140,.85), 0 0 10px rgba(255,210,110,.55), inset 0 1px 0 rgba(255,255,255,0.3);z-index:1;}
     .social-equip-grid{display:flex;flex-direction:column;gap:8px;}
     .social-item-card{background:#0f1a28;border:1px solid #2c4063;border-left-width:3px;border-radius:8px;padding:8px 10px;}
     .social-item-title{font-weight:700;font-size:0.92em;}
@@ -925,6 +932,7 @@ if (typeof safeExposeGlobals === 'function') {
         sendChatMessage, onSocialChatKeydown, refreshChatPanel, startChatPolling, stopChatPolling,
         openPlayerProfile, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
-        showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers
+        showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
+        socialTalEnter, socialTalLeave, socialTalHighlight
     });
 }
