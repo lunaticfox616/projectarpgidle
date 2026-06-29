@@ -1247,6 +1247,8 @@ function coreLoop() {
     tickWoodsmanCurse();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
+    game.lastCombatStats = pStats;
+    game.lastCombatStatsAt = Date.now();
     ensureSummonRuntime(pStats);
     // Guard against malformed stat payloads from legacy saves/runtime merges.
     // If ASPD becomes NaN/<=0, pTimer never advances and combat appears frozen.
@@ -6097,6 +6099,7 @@ function handleEnemyDeath(enemy, pStats) {
     addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
     grantEliteTraitBuffFromEnemy(enemy, pStats);
     grantExpAndGem(enemy, pStats);
+    let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
     rollLootForEnemy(enemy);
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
@@ -6250,7 +6253,10 @@ function handleEnemyDeath(enemy, pStats) {
     if (chainedDefeats.length > 0) {
         chainedDefeats.forEach(defeated => handleEnemyDeath(defeated, pStats));
     }
-    pendingHeavyUiRefresh = true;
+    let currencyChanged = Math.max(0, Math.floor(game.currencyDropVersion || 0)) !== currencyDropVersionBefore;
+    if (enemy.isBoss || enemy.isElite || currencyChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map) {
+        pendingHeavyUiRefresh = true;
+    }
 }
 
 function transferSkillDotOnDeath(enemy) {
