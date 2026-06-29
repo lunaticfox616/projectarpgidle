@@ -491,10 +491,13 @@ function openItemPicker() {
         let color = (typeof getRarityColor === 'function') ? getRarityColor(it.rarity) : '#ddd';
         return `<div class="social-pick-item" style="border-color:${color};" onclick="attachChatItem('inv',${i})"><span style="color:${color};">[${socialEscape(slotLabel(it))}] ${socialEscape(it.name)}</span></div>`;
     }).join('') || `<div class="social-profile-empty">인벤토리 비어 있음</div>`;
-    modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closeItemPicker()">✕</button>
+    modal.innerHTML = `<div class="social-modal-box">
+        <div class="social-modal-header"><button class="social-modal-close" onclick="closeItemPicker()" aria-label="닫기">✕</button></div>
+        <div class="social-modal-content">
         <h3 style="color:#cfe0f5;margin-top:0;">🔗 첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개)</h3>
         <h4 class="social-pick-sub">장착 중</h4><div class="social-pick-grid">${equipCards}</div>
-        <h4 class="social-pick-sub">인벤토리${inv.length > 300 ? ' (상위 300개)' : ''}</h4><div class="social-pick-grid">${invCards}</div></div>`;
+        <h4 class="social-pick-sub">인벤토리${inv.length > 300 ? ' (상위 300개)' : ''}</h4><div class="social-pick-grid">${invCards}</div>
+        </div></div>`;
     modal.style.display = 'flex';
 }
 
@@ -708,7 +711,9 @@ function ensureProfileModal() {
     modal.className = 'social-modal-overlay';
     modal.style.display = 'none';
     modal.onclick = function (e) { if (e.target === modal) closePlayerProfile(); };
-    modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closePlayerProfile()">✕</button><div id="social-profile-body"></div></div>`;
+    modal.innerHTML = `<div class="social-modal-box">`
+        + `<div class="social-modal-header"><button class="social-modal-close" onclick="closePlayerProfile()" aria-label="닫기">✕</button></div>`
+        + `<div class="social-modal-content"><div id="social-profile-body"></div></div></div>`;
     document.body.appendChild(modal);
     return modal;
 }
@@ -896,8 +901,11 @@ function injectSocialStyles() {
     .social-item-link{display:inline-block;font-size:0.86em;font-weight:700;border:1px solid;border-radius:6px;padding:0 6px;margin:0 1px;cursor:pointer;}
     .social-item-link:hover{filter:brightness(1.2);}
     .social-modal-overlay{position:fixed;inset:0;background:rgba(4,8,14,0.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
-    .social-modal-box{position:relative;width:min(760px,96vw);max-height:90vh;overflow-y:auto;background:linear-gradient(170deg,#101a2a,#0c1421);border:1px solid #2c4063;border-radius:14px;padding:20px;}
-    .social-modal-close{position:absolute;top:10px;right:12px;background:#1c2c44;border:1px solid #34507a;color:#cfe0f5;border-radius:8px;padding:4px 10px;cursor:pointer;}
+    .social-modal-box{position:relative;width:min(760px,96vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(170deg,#101a2a,#0c1421);border:1px solid #2c4063;border-radius:14px;}
+    .social-modal-header{flex:0 0 auto;display:flex;justify-content:flex-end;align-items:center;padding:8px 10px;border-bottom:1px solid #233a59;background:rgba(13,23,38,0.95);}
+    .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:16px 20px 20px;}
+    .social-modal-close{background:#1c2c44;border:1px solid #34507a;color:#cfe0f5;border-radius:8px;padding:5px 13px;cursor:pointer;font-size:0.95em;line-height:1;}
+    .social-modal-close:hover{background:#26395a;}
     .social-profile-empty{color:#8094ad;text-align:center;padding:24px;}
     .social-profile-header{border-bottom:1px solid #233a59;padding-bottom:12px;margin-bottom:14px;}
     .social-profile-name{font-size:1.4em;font-weight:800;color:#f0d7a6;}
