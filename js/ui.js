@@ -6,6 +6,10 @@ let lastPassiveTreeDrawAt = 0;
 let lastBattlefieldRenderAt = 0;
 const BATTLEFIELD_MIN_FRAME_MS = 22;
 let lastPassiveTreeSignature = '';
+// 패시브 도달/가시 노드 재계산은 패시브 상태가 바뀔 때만 필요하다. 실제 변경 시에는
+// 할당/환불/장착/로드 등 전용 호출부가 직접 재계산하므로, 매 UI 갱신마다 도는
+// 방어적 재계산은 상태 시그니처가 바뀐 경우에만 수행해 탭 전환 비용을 줄인다.
+let lastReachableSignature = '';
 let passiveTreeSearch = '';
 let passiveTreeFilter = 'all';
 let cachedTooltipStats = null;
@@ -6173,8 +6177,19 @@ function performUpdateStaticUI() {
     applySeasonContentProgression({ silent: false });
     tickShrineState();
     refreshTabHeaderUiIfNeeded();
-    calculateReachableNodes();
-    refreshPassiveVisibility();
+    let passiveStateSig = [
+        game.passivePoints || 0,
+        (game.passives || []).length,
+        (game.discoveredPassives || []).length,
+        game.startNode || '',
+        game.ascendClass || '',
+        game.season || 1
+    ].join('|');
+    if (passiveStateSig !== lastReachableSignature) {
+        lastReachableSignature = passiveStateSig;
+        calculateReachableNodes();
+        refreshPassiveVisibility();
+    }
     normalizeSupportLoadout(true);
     let pStats = getUiPlayerStats();
     if (typeof normalizeSummonLoadout === 'function' && normalizeSummonLoadout(true, pStats)) pStats = getUiPlayerStats();
