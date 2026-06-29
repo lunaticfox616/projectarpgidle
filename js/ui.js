@@ -11663,13 +11663,17 @@ function checkUnlocks() {
         game.noti.skills = true;
         queueTutorialNotice('unlock_skills', '스킬 젬 개방', '새로운 젬을 얻었습니다.\n공격 스킬을 교체하거나 보조 젬을 연결해 전투 스타일을 바꿔보세요.', 'tab-skills');
     }
-    let hasUniqueForCodex = (game.inventory || []).some(item => item && item.rarity === 'unique')
-        || Object.values(game.equipment || {}).some(item => item && item.rarity === 'unique')
-        || Object.keys(game.uniqueCodex || {}).length > 0;
-    if (hasUniqueForCodex && !u.codex) {
-        u.codex = true;
-        game.noti.codex = true;
-        queueTutorialNotice('unlock_codex', '도감 탭 개방', '첫 고유 아이템을 획득해 도감이 열렸습니다.\n고유 아이템을 등록/보관하고 도감 보너스를 받을 수 있습니다.', 'tab-codex');
+    // 도감이 잠겨 있을 때만 인벤토리 전체를 훑는다. (이미 해금된 뒤에도 매 드랍마다
+    // O(인벤토리) 스캔을 돌면 대량 처치/드랍 시 스파이크가 생긴다.)
+    if (!u.codex) {
+        let hasUniqueForCodex = (game.inventory || []).some(item => item && item.rarity === 'unique')
+            || Object.values(game.equipment || {}).some(item => item && item.rarity === 'unique')
+            || Object.keys(game.uniqueCodex || {}).length > 0;
+        if (hasUniqueForCodex) {
+            u.codex = true;
+            game.noti.codex = true;
+            queueTutorialNotice('unlock_codex', '도감 탭 개방', '첫 고유 아이템을 획득해 도감이 열렸습니다.\n고유 아이템을 등록/보관하고 도감 보너스를 받을 수 있습니다.', 'tab-codex');
+        }
     }
     if (game.maxZoneId >= 1 && !u.map) {
         u.map = true;
