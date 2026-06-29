@@ -16,6 +16,12 @@ function getCanvasPlayerStats(fallback = {}) {
     let provider = getCanvasRuntimeFunction('getPlayerStats');
     if (!provider) return fallback;
     let now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    let wallNow = Date.now();
+    if (typeof game !== 'undefined' && game.lastCombatStats && (wallNow - (game.lastCombatStatsAt || 0) < 250)) {
+        __canvasStatsCache = game.lastCombatStats;
+        __canvasStatsCacheAt = now;
+        return __canvasStatsCache;
+    }
     if (__canvasStatsCache && (now - __canvasStatsCacheAt) < CANVAS_STATS_CACHE_MS) return __canvasStatsCache;
     let result = provider() || fallback;
     __canvasStatsCache = result;

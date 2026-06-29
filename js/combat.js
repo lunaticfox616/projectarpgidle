@@ -1247,6 +1247,8 @@ function coreLoop() {
     tickWoodsmanCurse();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     const pStats = getPlayerStats();
+    game.lastCombatStats = pStats;
+    game.lastCombatStatsAt = Date.now();
     ensureSummonRuntime(pStats);
     // Guard against malformed stat payloads from legacy saves/runtime merges.
     // If ASPD becomes NaN/<=0, pTimer never advances and combat appears frozen.
@@ -6250,7 +6252,9 @@ function handleEnemyDeath(enemy, pStats) {
     if (chainedDefeats.length > 0) {
         chainedDefeats.forEach(defeated => handleEnemyDeath(defeated, pStats));
     }
-    pendingHeavyUiRefresh = true;
+    if (enemy.isBoss || enemy.isElite || game.noti.char || game.noti.skills || game.noti.items || game.noti.map) {
+        pendingHeavyUiRefresh = true;
+    }
 }
 
 function transferSkillDotOnDeath(enemy) {
