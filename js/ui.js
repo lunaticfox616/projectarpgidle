@@ -7569,14 +7569,15 @@ function buildCraftActionButtons(item) {
     }
     __mark('mapPanels');
 
-    if (activeTabId === 'tab-season' || (activeTabId === 'tab-map' && game.mapSubtab === 'map-tab-abyss')) {
-    let seasonVisible = game.season > 1 || game.seasonPoints > 0;
-    document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
-    document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
     let mapAbyssUnlocked = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     let mapAbyssBtn = document.getElementById('btn-map-tab-abyss');
     if (mapAbyssBtn) mapAbyssBtn.style.display = mapAbyssUnlocked ? 'block' : 'none';
     if (!mapAbyssUnlocked && game.mapSubtab === 'map-tab-abyss') game.mapSubtab = 'map-tab-zones';
+
+    if (activeTabId === 'tab-season' || (activeTabId === 'tab-map' && game.mapSubtab === 'map-tab-abyss')) {
+    let seasonVisible = game.season > 1 || game.seasonPoints > 0;
+    document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
+    document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
     if (mapAbyssUnlocked) {
         let abyssState = getAbyssPassiveState();
         let total = Math.max(0, Math.floor(game.abyssPassivePoints || 0));
@@ -7755,6 +7756,7 @@ function buildCraftActionButtons(item) {
     if (foldActiveBtn) foldActiveBtn.style.background = (!foldAttackInactive && !foldSupportInactive) ? '#2f6a42' : '#2c3e50';
     if (foldAttackBtn) foldAttackBtn.style.background = foldAttackInactive ? '#2f6a42' : '#2c3e50';
     if (foldSupportBtn) foldSupportBtn.style.background = foldSupportInactive ? '#2f6a42' : '#2c3e50';
+    let effectiveResonanceCap = getEffectiveResonanceCap();
     let skillPanelRenderSignature = JSON.stringify({
         activeSkill: game.activeSkill || '',
         skills: game.skills || [],
@@ -7776,12 +7778,13 @@ function buildCraftActionButtons(item) {
         foldAttackInactive: foldAttackInactive,
         foldSupportInactive: foldSupportInactive,
         suppCap: pStats.suppCap || 0,
+        resonanceCap: effectiveResonanceCap,
         gemEnhanceUnlocked: !!game.gemEnhanceUnlocked,
         season: game.season || 1
     });
     if (skillPanelRenderSignature !== lastSkillPanelRenderSignature) {
         lastSkillPanelRenderSignature = skillPanelRenderSignature;
-    let resonancePower = getEffectiveResonanceCap();
+    let resonancePower = effectiveResonanceCap;
     let sealedSkills = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
     let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
     let skillsRows = game.skills.filter(name => {
@@ -7902,7 +7905,7 @@ function buildCraftActionButtons(item) {
     }
 
     let suppHeader = document.querySelector('#tab-skills #skill-tab-equip h2');
-    if (suppHeader) suppHeader.title = `공명력 ${getEffectiveResonanceCap()}`;
+    if (suppHeader) suppHeader.title = `공명력 ${effectiveResonanceCap}`;
 
     let gemEnhanceOpen = !!game.gemEnhanceUnlocked;
     let gemEnhanceHeader = document.getElementById('ui-gem-enhance-header');
