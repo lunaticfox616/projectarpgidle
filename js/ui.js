@@ -5760,11 +5760,13 @@ function updateCombatUI(pStats) {
         let fallbackText = '<span style="color:#8da1b8;">효과 없음</span>';
         let desktopText = ailmentText || fallbackText;
         // 데스크톱에서는 생명력 바 "아래"에 효과를 고정 노출한다.
-        ailmentEl.innerHTML = '';
+        if (ailmentEl.__lastHtml !== '') { ailmentEl.innerHTML = ''; ailmentEl.__lastHtml = ''; }
+        // 이 블록은 100ms마다 호출되므로, 내용이 같으면 innerHTML 재작성(리플로우)을 생략해
+        // 상시 스터터링을 줄인다.
         let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
-        if (ailmentUnderEl) ailmentUnderEl.innerHTML = isMobile ? '' : desktopText;
+        if (ailmentUnderEl) { let v = isMobile ? '' : desktopText; if (ailmentUnderEl.__lastHtml !== v) { ailmentUnderEl.innerHTML = v; ailmentUnderEl.__lastHtml = v; } }
         let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
-        if (mobileAilmentEl) mobileAilmentEl.innerHTML = isMobile ? desktopText : '';
+        if (mobileAilmentEl) { let v = isMobile ? desktopText : ''; if (mobileAilmentEl.__lastHtml !== v) { mobileAilmentEl.innerHTML = v; mobileAilmentEl.__lastHtml = v; } }
         let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             if (!isUiDamageAilmentType(ail.type)) return sum;
