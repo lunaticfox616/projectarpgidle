@@ -47,6 +47,13 @@ begin
     end if;
 end$$;
 
+-- 접속 표시용 마지막 활동 시각(하트비트). 이미 있으면 무시.
+alter table public.player_profiles
+    add column if not exists last_seen timestamptz not null default now();
+
+create index if not exists player_profiles_last_seen_idx
+    on public.player_profiles (last_seen desc);
+
 drop trigger if exists trg_player_profiles_updated_at on public.player_profiles;
 create trigger trg_player_profiles_updated_at
     before update on public.player_profiles
@@ -167,6 +174,37 @@ create trigger trg_chat_messages_rate_limit
     before insert on public.chat_messages
     for each row execute function public.chat_messages_rate_limit();
 
+-- 저장 공간 보호: 채팅 로그 자동 정리 -----------------------------------------
+-- 무료 티어에서 데이터가 무한히 쌓이지 않도록, 새 메시지가 들어올 때마다
+-- 최신 CHAT_KEEP개만 남기고 오래된 메시지를 삭제한다.
+create or replace function public.chat_messages_prune()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    keep_count constant int := 500;  -- 보관할 최신 메시지 수
+    cutoff_id bigint;
+begin
+    select id into cutoff_id
+      from public.chat_messages
+     order by id desc
+    offset keep_count
+     limit 1;
+
+    if cutoff_id is not null then
+        delete from public.chat_messages where id <= cutoff_id;
+    end if;
+    return null;
+end;
+$$;
+
+drop trigger if exists trg_chat_messages_prune on public.chat_messages;
+create trigger trg_chat_messages_prune
+    after insert on public.chat_messages
+    for each row execute function public.chat_messages_prune();
+
 -- ============================================================================
--- 끝. player_profiles / chat_messages 두 테이블과 RLS·스팸방지 트리거가 준비되었습니다.
+-- 끝. player_profiles / chat_messages 두 테이블과 RLS·스팸방지·자동정리가 준비되었습니다.
 -- ============================================================================
