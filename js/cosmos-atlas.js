@@ -488,6 +488,12 @@
         return GALAXY_SEQUENCE[Math.max(0, Math.min(GALAXY_SEQUENCE.length - 1, Math.floor(idx / ASTEROIDS_PER_GALAXY)))];
     }
 
+    // 은하별 티어 밴드 시작값: 시작(은하0)=1, G1=1, G2=6, G3=11, G4=16, G5=21.
+    // 같은 은하 안에서는 시작점에서 멀어질수록(로컬 슬롯이 클수록) 밴드 내 +0~+4.
+    function getGalaxyTierBandBase(galaxy) {
+        return galaxy <= 0 ? 1 : ((Math.max(1, Math.min(5, Math.floor(galaxy))) - 1) * 5) + 1;
+    }
+
     function getColorWithAlpha(hex, alpha) {
         const raw = String(hex || '#7fc9ff').replace('#', '');
         const full = raw.length === 3 ? raw.split('').map(ch => ch + ch).join('') : raw.padEnd(6, 'f').slice(0, 6);
@@ -561,7 +567,9 @@
                 originalOrbit: Math.max(0, Math.floor(p.orbit || 0)),
                 localIndex: localSlot,
                 localSlot,
-                tier: Math.min(25, idx === 0 ? 1 : 1 + Math.floor((idx - 1) / 2)),
+                tier: idx === 0 ? 1 : Math.max(1, Math.min(25, isGalaxyBoss
+                    ? getGalaxyTierBandBase(galaxy) + 4
+                    : getGalaxyTierBandBase(galaxy) + Math.min(4, Math.floor(planetSlot / 2)))),
                 x: pos.x,
                 y: pos.y,
                 radius: idx === 0 ? 18 : Math.max(9, 15.5 - galaxy * 0.45 + sizeClass * 0.35),
@@ -591,7 +599,7 @@
                 originalOrbit: galaxy,
                 localIndex: localSlot,
                 localSlot,
-                tier: Math.min(25, 6 + Math.floor(idx / 4)),
+                tier: Math.max(1, Math.min(25, getGalaxyTierBandBase(galaxy) + Math.min(4, Math.floor(asteroidSlot / 3)))),
                 x: pos.x,
                 y: pos.y,
                 radius: Math.max(7.5, 11.5 - galaxy * 0.25 + sizeClass * 0.2),
@@ -795,9 +803,8 @@
     function getCosmosBossTier(node) {
         if (!node || node.tag !== 'boss') return null;
         const g = Math.max(1, Math.min(5, Math.floor(node.orbit || 1)));
-        if (g <= 2) return 10;
-        if (g <= 4) return 20;
-        return 28;
+        // 은하 보스는 해당 은하 밴드의 최고 티어 (G1→5, G2→10, G3→15, G4→20, G5→25)
+        return Math.min(25, g * 5);
     }
 
 
@@ -982,14 +989,20 @@
         return 30 + (tier - 1);
     }
     function getCosmosChallengeTier(node) {
-        const tier = Math.max(1, Math.floor(getDisplayedNodeTier(node) || 1));
+        // 우주계 전투 난이도는 "지하계 30층 이상"을 기준으로 한다.
+        // 우주계 tier 1 → 지하계 30층, tier 25 → 지하계 54층.
+        // 이를 지하계와 동일한 적 스케일링 tier(getChaosRealmTier)로 환산해 적용한다.
+        const equivFloor = getCosmosEquivalentUnderworldFloor(node); // 30 + (표시 tier - 1)
+        const baseCombatTier = (typeof window.getChaosRealmTier === 'function')
+            ? window.getChaosRealmTier(equivFloor)
+            : (30 + Math.floor((equivFloor - 1) * 0.85) + Math.floor(Math.max(0, equivFloor - 10) * 0.18));
         const ease = getCosmosMasteryValue('challengeEase') * 0.015 + getCosmosMasteryValue('riftGuard') * 0.007;
         const risk = getCosmosMasteryValue('highRisk') * 0.02 - getCosmosMasteryValue('gravityHarness') * 0.002;
         const relief = node && node.kind === 'planet'
             ? getCosmosMasteryValue('planetRelief') * 0.012
             : getCosmosMasteryValue('voidSurvey') * 0.008;
         const finalMul = Math.max(0.65, 1 + risk - ease - relief);
-        return Math.max(1, Math.floor(tier * finalMul));
+        return Math.max(1, Math.floor(baseCombatTier * finalMul));
     }
 
 
