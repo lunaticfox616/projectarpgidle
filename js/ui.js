@@ -6245,11 +6245,20 @@ function performUpdateStaticUI() {
         return;
     }
 
+    // 보이지 않는 탭의 무거운 패널(인벤토리/주얼/부적)을 매 갱신마다 innerHTML로
+    // 재구성하면 탭 전환·주기적 갱신마다 큰 렉이 발생한다. 활성 탭의 패널만 재구성한다.
+    // (탭 전환 시 switchTab이 updateStaticUI를 다시 호출하므로 진입 시 정상 갱신된다.)
+    let activeTabId = activeContent ? activeContent.id : '';
+    let itemsTabActive = activeTabId === 'tab-items';
+    let jewelTabActive = activeTabId === 'tab-jewel';
+    let talismanTabActive = activeTabId === 'tab-talisman';
+    const sf = getSearchFilterState();
     document.getElementById('ui-passive-points').innerText = game.passivePoints;
     document.getElementById('ui-season-text-tab').innerText = game.season;
     document.getElementById('ui-season-pts').innerText = game.seasonPoints;
     document.getElementById('ui-ascend-pts').innerText = game.ascendPoints;
 
+    if (itemsTabActive) {
     syncSalvageControlsFromSettings();
     renderPaperdoll('ui-equip-list', false);
     renderPaperdoll('ui-craft-equip-list', true);
@@ -6259,7 +6268,6 @@ function performUpdateStaticUI() {
     document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
     if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
-    const sf = getSearchFilterState();
     const equipInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
         let item = row.item || {};
         if (!isItemRarityVisible(item)) return false;
@@ -6274,10 +6282,11 @@ function performUpdateStaticUI() {
     document.getElementById('ui-fossil-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'fossil')).join('');
     let infuserInv = document.getElementById('ui-infuser-inventory-list');
     if (infuserInv) infuserInv.innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'infuser')).join('');
+    }
     let jewelUnlocked = !!game.unlocks.jewel;
     document.getElementById('ui-jewel-header').style.display = jewelUnlocked ? 'block' : 'none';
     document.getElementById('ui-jewel-panel').style.display = jewelUnlocked ? 'block' : 'none';
-    if (jewelUnlocked) {
+    if (jewelUnlocked && jewelTabActive) {
         let maxJewelSlots = typeof getMaxJewelSlotCount === 'function' ? getMaxJewelSlotCount() : 2;
         game.jewelSlots = Array.isArray(game.jewelSlots) ? game.jewelSlots : [];
         while (game.jewelSlots.length < maxJewelSlots) game.jewelSlots.push(null);
@@ -7859,6 +7868,7 @@ function buildCraftActionButtons(item) {
     while (game.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) game.talismanBoard.push(null);
     game.talismanInventory = Array.isArray(game.talismanInventory) ? game.talismanInventory : [];
     game.talismanPlacements = (game.talismanPlacements && typeof game.talismanPlacements === 'object') ? game.talismanPlacements : {};
+    if (talismanTabActive) {
     let talismanUnlockedSet = getTalismanUnlockedCellsSet();
     document.getElementById('ui-talisman-board-size').innerText = talismanUnlockedSet.size;
     document.getElementById('ui-talisman-board-size2').innerText = TALISMAN_BOARD_MASK.size;
@@ -7945,6 +7955,7 @@ function buildCraftActionButtons(item) {
             : (!unlocked ? ` data-info-tooltip-anchor="1" onmouseenter="showTalismanUnlockTooltip(event, ${x}, ${y})" onmousemove="showTalismanUnlockTooltip(event, ${x}, ${y})" onmouseleave="hideInfoTooltip()"` : '');
         return `<button class="talisman-board-cell" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
+    }
     let talismanTotalEl = document.getElementById('ui-talisman-total');
     if (talismanTotalEl) {
         let placements = Object.values(game.talismanPlacements || {}).filter(row => row && row.talisman);
