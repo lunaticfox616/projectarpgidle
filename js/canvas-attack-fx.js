@@ -121,14 +121,47 @@
         g.stroke();
     }
 
-    function drawRadialParticle(g, p, col, a, size, stops) {
+    // 입자용 방사형 그라디언트 캐시.
+    // 기존에는 입자마다 매 프레임 createRadialGradient를 호출했는데(특히 화염
+    // glowdot 다수), 이것이 전장 렌더의 가장 큰 프레임 비용이자 공격 순간 렉의
+    // 주원인이었다. 원점·단위 반지름으로 만든 그라디언트는 위치/크기와 무관하므로
+    // (변환으로 재배치) 색/투명도 버킷 단위로 캐시해 재사용한다.
+    const GLOW_UNIT = 64;
+    const RADIAL_STOPS = {
+        glowdot: { radiusMul: 2.4, list: [[0, 1], [0.4, 0.6], [1, 0]] },
+        smoke: { radiusMul: 1, list: [[0, 0.5], [0.6, 0.22], [1, 0]] }
+    };
+    const __radialGradCache = new Map();
+    let __radialGradCtx = null;
+    function getCachedRadialGradient(g, stopsId, stops, col, a) {
+        // 컨텍스트(캔버스)가 교체되면 캐시한 그라디언트는 더 이상 유효하지 않을 수 있다.
+        if (g !== __radialGradCtx) { __radialGradCache.clear(); __radialGradCtx = g; }
+        let ab = Math.round(clamp01(a) * 24);
+        let cr = col[0] & ~7, cg = col[1] & ~7, cb = col[2] & ~7;
+        let key = stopsId + (((cr << 16) | (cg << 8) | cb) * 32 + ab);
+        let cached = __radialGradCache.get(key);
+        if (cached) return cached;
+        let aa = ab / 24;
+        let grd = g.createRadialGradient(0, 0, 0, 0, 0, GLOW_UNIT);
+        for (let i = 0; i < stops.length; i++) grd.addColorStop(stops[i][0], `rgba(${cr},${cg},${cb},${(aa * stops[i][1]).toFixed(3)})`);
+        if (__radialGradCache.size > 4096) __radialGradCache.clear();
+        __radialGradCache.set(key, grd);
+        return grd;
+    }
+
+    function drawRadialParticle(g, p, col, a, size, stops, stopsId) {
         const r = size * stops.radiusMul;
-        const grd = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-        stops.list.forEach(s => grd.addColorStop(s[0], rgba(col, a * s[1])));
+        if (r <= 0) return;
+        const grd = getCachedRadialGradient(g, stopsId, stops.list, col, a);
+        const s = r / GLOW_UNIT;
+        g.save();
+        g.translate(p.x, p.y);
+        g.scale(s, s);
         g.fillStyle = grd;
         g.beginPath();
-        g.arc(p.x, p.y, r, 0, TAU);
+        g.arc(0, 0, GLOW_UNIT, 0, TAU);
         g.fill();
+        g.restore();
     }
 
     function drawPolyParticle(g, p, col, a, pts, fillMul) {
@@ -151,8 +184,8 @@
         const col = p.c1 ? mix(p.c0, p.c1, k) : p.c0;
         switch (p.shape) {
             case 'spark': drawSparkParticle(g, p, col, a, size); break;
-            case 'glowdot': drawRadialParticle(g, p, col, a, size, { radiusMul: 2.4, list: [[0, 1], [0.4, 0.6], [1, 0]] }); break;
-            case 'smoke': drawRadialParticle(g, p, col, a, size, { radiusMul: 1, list: [[0, 0.5], [0.6, 0.22], [1, 0]] }); break;
+            case 'glowdot': drawRadialParticle(g, p, col, a, size, RADIAL_STOPS.glowdot, 'glowdot'); break;
+            case 'smoke': drawRadialParticle(g, p, col, a, size, RADIAL_STOPS.smoke, 'smoke'); break;
             case 'shard': drawPolyParticle(g, p, col, a, [[0, -size * 1.6], [size * 0.7, 0], [0, size * 1.2], [-size * 0.7, 0]], 0.9); break;
             case 'debris': drawPolyParticle(g, p, col, a, [[-size, -size * 0.6], [size, -size], [size * 0.7, size], [-size * 0.8, size * 0.7]], 1); break;
             default:
