@@ -15,6 +15,13 @@
 (function () {
     const TAU = Math.PI * 2;
 
+    // 공격 이펙트 전체 불투명도 배수(1=원본, 낮을수록 더 투명). window.__attackFxOpacity로 조정 가능.
+    const FX_GLOBAL_ALPHA = (typeof window !== 'undefined' && Number.isFinite(Number(window.__attackFxOpacity)))
+        ? Math.max(0.2, Math.min(1, Number(window.__attackFxOpacity)))
+        : 0.85;
+    // 종류별 크기 배수(번개 이펙트는 절반 크기).
+    const FX_KIND_SIZE_MUL = { lightning: 0.5 };
+
     const rand = (a, b) => Math.random() * (b - a) + a;
     const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
     const lerp = (a, b, t) => a + (b - a) * t;
@@ -36,7 +43,7 @@
     function softGlow(g, x, y, r, inner, outer, alpha) {
         if (alpha <= 0 || r <= 0) return;
         g.save();
-        g.globalAlpha = alpha;
+        g.globalAlpha = alpha * FX_GLOBAL_ALPHA;
         const grd = g.createRadialGradient(x, y, 0, x, y, r);
         grd.addColorStop(0, inner);
         grd.addColorStop(1, outer);
@@ -596,7 +603,8 @@
     function attackFxSpawn(element, x, y, opts) {
         if (typeof window !== 'undefined' && window.__attackFxEnabled === false) return;
         if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-        const kind = KIND[normalizeKind(element)];
+        const kindId = normalizeKind(element);
+        const kind = KIND[kindId];
         if (!kind) return;
         const options = opts || {};
         const scale = Number.isFinite(options.scale) ? options.scale : 0.78;
@@ -604,7 +612,7 @@
         // Lower particle density as the field gets busy; crit nudges it up.
         const density = clamp01(1 - engine.list.length / engine.maxEffects * 0.55) * (crit ? 1.2 : 0.92);
         if (engine.list.length >= engine.maxEffects) engine.list.shift();
-        const fx = { kind, x, y, age: 0, dur: kind.dur, scale: crit ? scale * 1.18 : scale, pBack: [], pFront: [], st: {} };
+        const fx = { kind, kindId, x, y, age: 0, dur: kind.dur, scale: crit ? scale * 1.18 : scale, pBack: [], pFront: [], st: {} };
         kind.build(fx, Math.max(0.4, density));
         engine.list.push(fx);
     }
@@ -624,8 +632,13 @@
     function drawEffect(g, fx) {
         const t = clamp01(fx.age / fx.dur);
         g.save();
+        // 전체 불투명도를 한 단계 낮춘다. globalAlpha는 fillStyle/strokeStyle의 알파와
+        // 곱해지므로 이펙트 전반이 비례적으로 살짝 투명해진다.
+        g.globalAlpha = FX_GLOBAL_ALPHA;
+        const sizeMul = FX_KIND_SIZE_MUL[fx.kindId] || 1;
+        const drawScale = fx.scale * sizeMul;
         g.translate(fx.x, fx.y);
-        g.scale(fx.scale, fx.scale);
+        g.scale(drawScale, drawScale);
         g.translate(-fx.x, -fx.y);
         fx.kind.under(g, fx, t);
         for (const p of fx.pBack) drawParticle(g, p);

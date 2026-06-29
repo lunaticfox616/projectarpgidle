@@ -7198,6 +7198,7 @@ function buildCraftActionButtons(item) {
     return defs.map(d => `<button onclick="${d.onclick}" ${v[d.key] ? '' : 'disabled'}>${d.label}</button>`).join('');
 }
 
+    if (itemsTabActive) {
     let selectedItem = getSelectedCraftItem();
     renderCraftSelectedSummary(selectedItem);
     renderMobileCraftCurrencyPicker(selectedItem);
@@ -7312,6 +7313,7 @@ function buildCraftActionButtons(item) {
 
     renderChaosInfuserPanel(selectedItem);
     renderCraftOrbActions(selectedItem);
+    }
     let fossilTabBtn = document.getElementById('btn-item-tab-fossil');
     if (fossilTabBtn) fossilTabBtn.style.display = (game.season || 1) >= 3 ? 'block' : 'none';
     let marketTabBtn = document.getElementById('btn-item-tab-market');
