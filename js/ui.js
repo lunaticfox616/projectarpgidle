@@ -323,7 +323,11 @@ function updateMobileBattlePipVisibility() {
     host.style.bottom = (host.dataset.bottom || '94') + 'px';
     if (host.style.display !== 'none') {
         let src = document.getElementById('battlefield-canvas');
-        if (src && (src.width < 32 || src.height < 32)) {
+        if (src && !activeBattle && mobilePipCanvas) {
+            src.width = mobilePipCanvas.width;
+            src.height = mobilePipCanvas.height;
+            src.dataset.renderScale = '1';
+        } else if (src && (src.width < 32 || src.height < 32)) {
             src.width = 960;
             src.height = 540;
         }
@@ -341,7 +345,7 @@ function renderMobileBattlePipFrame() {
     if (!host || host.style.display === 'none') return;
     let src = document.getElementById('battlefield-canvas');
     if (!src) return;
-    if (src.width < 32 || src.height < 32) { src.width = 960; src.height = 540; }
+    if (src.width < 32 || src.height < 32) { src.width = mobilePipCanvas.width; src.height = mobilePipCanvas.height; }
     mobilePipCtx.clearRect(0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
     mobilePipCtx.drawImage(src, 0, 0, mobilePipCanvas.width, mobilePipCanvas.height);
 }

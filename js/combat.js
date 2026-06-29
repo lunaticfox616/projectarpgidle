@@ -6252,7 +6252,9 @@ function handleEnemyDeath(enemy, pStats) {
     if (chainedDefeats.length > 0) {
         chainedDefeats.forEach(defeated => handleEnemyDeath(defeated, pStats));
     }
-    pendingHeavyUiRefresh = true;
+    if (enemy.isBoss || enemy.isElite || game.noti.char || game.noti.skills || game.noti.items || game.noti.map) {
+        pendingHeavyUiRefresh = true;
+    }
 }
 
 function transferSkillDotOnDeath(enemy) {
