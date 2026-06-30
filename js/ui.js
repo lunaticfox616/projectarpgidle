@@ -324,9 +324,14 @@ function updateMobileBattlePipVisibility() {
     if (host.style.display !== 'none') {
         let src = document.getElementById('battlefield-canvas');
         if (src && !activeBattle && mobilePipCanvas) {
-            src.width = mobilePipCanvas.width;
-            src.height = mobilePipCanvas.height;
-            src.dataset.renderScale = '1';
+            // 캔버스 width/height에 값을 대입하면 (같은 값이어도) 드로잉 버퍼가
+            // 투명 검정으로 초기화된다. 이 함수는 메인 게임 루프와 PiP 갱신 루프
+            // 양쪽에서 매 프레임 호출되므로, 매번 초기화하면 다른 루프가 그려 둔
+            // 프레임이 지워져 모바일 PiP가 검게 깜빡인다. 크기가 실제로 달라질
+            // 때만 재설정한다.
+            if (src.width !== mobilePipCanvas.width) src.width = mobilePipCanvas.width;
+            if (src.height !== mobilePipCanvas.height) src.height = mobilePipCanvas.height;
+            if (src.dataset.renderScale !== '1') src.dataset.renderScale = '1';
         } else if (src && (src.width < 32 || src.height < 32)) {
             src.width = 960;
             src.height = 540;
