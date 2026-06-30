@@ -388,7 +388,12 @@
         camera: { x: 0, y: 0, scale: DEFAULT_COSMOS_CAMERA_SCALE },
         drag: { active: false, moved: false, startX: 0, startY: 0, baseX: 0, baseY: 0 },
         installed: false,
-        needsFrame: false
+        needsFrame: false,
+        dpr: 1,
+        uiButtons: [],
+        stoneSlot: null,
+        uiArmed: null,
+        stoneOverlayOpen: false
     };
 
     const COSMOS_MASTERY_NODES = [
@@ -925,6 +930,197 @@
         else requestAtlasFrame();
     }
 
+    // ===== 캔버스 내부 우주석 슬롯 & 지도 컨트롤 =====
+    function getCosmosUiScale() {
+        return Math.max(1, ATLAS.dpr || 1);
+    }
+
+    function hasEquippableCosmosStone(state) {
+        const galaxies = hasSixthCosmosStoneUnlock() ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
+        return galaxies.some(g => isCosmosStoneAcquired(state, g) && !(state.equippedStones && state.equippedStones[String(g)]));
+    }
+
+    function isCosmosTabActive() {
+        const tab = document.getElementById('map-tab-cosmos');
+        return !!(tab && tab.classList.contains('active')) && !document.hidden;
+    }
+
+    function shouldAnimateCosmos() {
+        if (!isCosmosTabActive()) return false;
+        if (ATLAS.stonePulse) return true;
+        try { return hasEquippableCosmosStone(getState()); } catch (error) { return false; }
+    }
+
+    function tracePentagon(ctx, cx, cy, r, rotation) {
+        const rot = rotation == null ? -Math.PI / 2 : rotation;
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+            const a = rot + i * (Math.PI * 2 / 5);
+            const x = cx + Math.cos(a) * r;
+            const y = cy + Math.sin(a) * r;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+    }
+
+    function traceRoundRect(ctx, x, y, w, h, r) {
+        const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+        ctx.beginPath();
+        ctx.moveTo(x + rr, y);
+        ctx.arcTo(x + w, y, x + w, y + h, rr);
+        ctx.arcTo(x + w, y + h, x, y + h, rr);
+        ctx.arcTo(x, y + h, x, y, rr);
+        ctx.arcTo(x, y, x + w, y, rr);
+        ctx.closePath();
+    }
+
+    function drawCosmosControls(ctx) {
+        const canvas = ATLAS.canvas;
+        if (!canvas) return;
+        const ui = getCosmosUiScale();
+        const size = 34 * ui;
+        const gap = 8 * ui;
+        const margin = 14 * ui;
+        const buttons = [
+            { action: 'zoomIn', label: '＋' },
+            { action: 'zoomOut', label: '－' },
+            { action: 'reset', label: '⟲' }
+        ];
+        ATLAS.uiButtons = [];
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `${Math.round(18 * ui)}px Malgun Gothic, sans-serif`;
+        buttons.forEach((btn, i) => {
+            const x = canvas.width - margin - size;
+            const y = margin + i * (size + gap);
+            const hovered = ATLAS.uiHover === btn.action;
+            traceRoundRect(ctx, x, y, size, size, 8 * ui);
+            ctx.fillStyle = hovered ? 'rgba(36,58,84,0.96)' : 'rgba(14,22,34,0.86)';
+            ctx.fill();
+            ctx.lineWidth = 1.2 * ui;
+            ctx.strokeStyle = 'rgba(127,201,255,0.55)';
+            ctx.stroke();
+            ctx.fillStyle = '#cfe6ff';
+            ctx.fillText(btn.label, x + size / 2, y + size / 2 + ui);
+            ATLAS.uiButtons.push({ action: btn.action, x, y, w: size, h: size });
+        });
+        ctx.restore();
+    }
+
+    function drawCosmosStoneSlot(ctx) {
+        const state = getState();
+        const ui = getCosmosUiScale();
+        // 시리온(planet-0, world 0,0) 바로 아래에 슬롯을 배치한다.
+        const sirion = ATLAS.byId.get('planet-0');
+        const worldY = (sirion ? sirion.y + (sirion.radius || 18) : 18) + 64;
+        const center = worldToScreen({ x: sirion ? sirion.x : 0, y: worldY });
+        const r = (30 + 8 * Math.max(0.5, Math.min(1.6, ATLAS.camera.scale))) * ui;
+        const equippedCount = getEquippedCosmosStoneCount(state);
+        const maxStones = hasSixthCosmosStoneUnlock() ? 6 : 5;
+        const equippable = hasEquippableCosmosStone(state);
+        const hovered = ATLAS.uiHover === 'slot';
+        const pulse = equippable ? (0.5 + 0.5 * Math.sin(Date.now() / 360)) : 0;
+
+        ctx.save();
+        // 장착 가능한 우주석이 있으면 빛나는 강조 효과
+        if (equippable) {
+            const glowR = r * (1.7 + pulse * 0.5);
+            const glow = ctx.createRadialGradient(center.x, center.y, r * 0.4, center.x, center.y, glowR);
+            glow.addColorStop(0, `rgba(255,221,138,${0.40 + pulse * 0.3})`);
+            glow.addColorStop(1, 'rgba(255,221,138,0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(center.x, center.y, glowR, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 오각형 슬롯 본체
+        tracePentagon(ctx, center.x, center.y, r);
+        const body = ctx.createLinearGradient(center.x, center.y - r, center.x, center.y + r);
+        body.addColorStop(0, 'rgba(26,42,64,0.96)');
+        body.addColorStop(1, 'rgba(10,17,28,0.96)');
+        ctx.fillStyle = body;
+        ctx.fill();
+        ctx.lineWidth = (equippable ? 2.6 : 1.8) * ui;
+        ctx.strokeStyle = equippable ? `rgba(255,221,138,${0.7 + pulse * 0.3})` : hovered ? 'rgba(143,212,255,0.95)' : 'rgba(127,201,255,0.55)';
+        if (equippable) { ctx.shadowColor = 'rgba(255,221,138,0.85)'; ctx.shadowBlur = (10 + pulse * 12) * ui; }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // 라벨
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#d7ebff';
+        ctx.font = `${Math.round(11 * ui)}px Malgun Gothic, sans-serif`;
+        ctx.fillText('우주석', center.x, center.y - r * 0.34);
+        ctx.fillStyle = equippable ? '#ffd98a' : '#9fb4d1';
+        ctx.font = `bold ${Math.round(16 * ui)}px Malgun Gothic, sans-serif`;
+        ctx.fillText(`${equippedCount}/${maxStones}`, center.x, center.y + r * 0.24);
+        ctx.restore();
+
+        ATLAS.stoneSlot = { x: center.x, y: center.y, r: r };
+    }
+
+    function eventToCanvasXY(event) {
+        const rect = ATLAS.canvas.getBoundingClientRect();
+        return {
+            x: (event.clientX - rect.left) * (ATLAS.canvas.width / Math.max(1, rect.width)),
+            y: (event.clientY - rect.top) * (ATLAS.canvas.height / Math.max(1, rect.height))
+        };
+    }
+
+    function hitCosmosUiAt(cx, cy) {
+        const btn = (ATLAS.uiButtons || []).find(b => cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h);
+        if (btn) return btn.action;
+        const slot = ATLAS.stoneSlot;
+        if (slot && Math.hypot(cx - slot.x, cy - slot.y) <= slot.r * 1.05) return 'slot';
+        return null;
+    }
+
+    function runCosmosUiAction(action) {
+        if (action === 'zoomIn') zoomCosmosAtlas(1.14);
+        else if (action === 'zoomOut') zoomCosmosAtlas(0.88);
+        else if (action === 'reset') resetCosmosAtlasCamera();
+        else if (action === 'slot') toggleCosmosStoneOverlay();
+    }
+
+    function buildCosmosStoneOverlayHtml(state) {
+        return `<div class="cosmos-stone-overlay-inner">
+            <div class="cosmos-stone-overlay-head">
+                <span>💠 우주석 장착</span>
+                <button type="button" class="cosmos-stone-overlay-close" onclick="closeCosmosStoneOverlay()">✕</button>
+            </div>
+            ${renderCosmosStonePanel(state)}
+        </div>`;
+    }
+
+    function refreshCosmosStoneOverlay() {
+        const el = document.getElementById('cosmos-stone-overlay');
+        if (!el || !ATLAS.stoneOverlayOpen) return;
+        el.innerHTML = buildCosmosStoneOverlayHtml(getState());
+    }
+
+    function openCosmosStoneOverlay() {
+        const el = document.getElementById('cosmos-stone-overlay');
+        if (!el) return;
+        ATLAS.stoneOverlayOpen = true;
+        el.style.display = 'block';
+        refreshCosmosStoneOverlay();
+        if (ATLAS.tooltip) ATLAS.tooltip.style.display = 'none';
+    }
+
+    function closeCosmosStoneOverlay() {
+        const el = document.getElementById('cosmos-stone-overlay');
+        ATLAS.stoneOverlayOpen = false;
+        if (el) el.style.display = 'none';
+    }
+
+    function toggleCosmosStoneOverlay() {
+        if (ATLAS.stoneOverlayOpen) closeCosmosStoneOverlay();
+        else openCosmosStoneOverlay();
+    }
+
     function getCosmosStoneNameByGalaxy(galaxy) {
         const pool = getCosmosStonePool(galaxy);
         return pool && pool.name ? pool.name : `G${galaxy} 우주석`;
@@ -1203,8 +1399,7 @@
                         <div>
                             <div class="cosmos-kicker">Cosmic Atlas</div>
                             <div class="cosmos-title">별을 잇는 우주계 탐험 지도</div>
-                            <div class="cosmos-desc">마우스 드래그: 이동 · 휠/버튼: 확대·축소 · 노드 클릭: 행성/소행성 선택 · 탐사 완료 시 연결된 별길이 열린다.</div>
-                            <div class="cosmos-zoom-controls"><button class="subtab-btn" type="button" onclick="zoomCosmosAtlas(1.14)">＋</button><button class="subtab-btn" type="button" onclick="zoomCosmosAtlas(0.88)">－</button><button class="subtab-btn" type="button" onclick="resetCosmosAtlasCamera()">중앙</button></div>
+                            <div class="cosmos-desc">마우스 드래그: 이동 · 휠/지도 버튼: 확대·축소 · 노드 클릭: 행성/소행성 선택 · 시리온 아래 오각형 슬롯: 우주석 장착 · 탐사 완료 시 연결된 별길이 열린다.</div>
                         </div>
                         <div class="cosmos-summary" id="ui-cosmos-summary"></div>
                     </div>
@@ -1212,6 +1407,7 @@
                         <div class="cosmos-canvas-wrap">
                             <canvas id="cosmos-atlas-canvas" width="2400" height="1520"></canvas>
                             <div id="cosmos-atlas-tooltip" class="cosmos-atlas-tooltip"></div>
+                            <div id="cosmos-stone-overlay" class="cosmos-stone-overlay" style="display:none;"></div>
                         </div>
                         <div class="cosmos-detail" id="ui-cosmos-detail"></div>
                     </div><div id="cosmos-inner-mastery" class="cosmos-detail" style="display:none; margin-top:8px;"></div>
@@ -1227,6 +1423,15 @@
         ATLAS.detail = document.getElementById('ui-cosmos-detail');
         ATLAS.summary = document.getElementById('ui-cosmos-summary');
         ATLAS.tooltip = document.getElementById('cosmos-atlas-tooltip');
+
+        const overlayEl = document.getElementById('cosmos-stone-overlay');
+        if (overlayEl && !overlayEl.__cosmosBound) {
+            overlayEl.__cosmosBound = true;
+            // 배경(슬롯 카드 바깥)을 누르면 오버레이를 닫는다.
+            overlayEl.addEventListener('click', (event) => {
+                if (event.target === overlayEl) closeCosmosStoneOverlay();
+            });
+        }
 
         bindCanvasEvents();
         patchSwitchMapSubtab();
@@ -1278,6 +1483,17 @@
         canvas.__cosmosBound = true;
 
         canvas.addEventListener('pointerdown', (event) => {
+            const hit = eventToCanvasXY(event);
+            const ui = hitCosmosUiAt(hit.x, hit.y);
+            if (ui) {
+                // 캔버스 내부 컨트롤/슬롯을 눌렀을 때는 지도 드래그를 시작하지 않는다.
+                ATLAS.uiArmed = ui;
+                ATLAS.drag.active = false;
+                ATLAS.drag.moved = false;
+                if (ATLAS.tooltip) ATLAS.tooltip.style.display = 'none';
+                return;
+            }
+            ATLAS.uiArmed = null;
             ATLAS.drag.active = true;
             ATLAS.drag.moved = false;
             ATLAS.drag.startX = event.clientX;
@@ -1298,6 +1514,18 @@
                 requestAtlasFrame();
                 return;
             }
+            const hit = eventToCanvasXY(event);
+            const ui = hitCosmosUiAt(hit.x, hit.y);
+            const prevUiHover = ATLAS.uiHover;
+            ATLAS.uiHover = ui;
+            if (ui) {
+                ATLAS.hoverId = null;
+                if (ATLAS.tooltip) ATLAS.tooltip.style.display = 'none';
+                canvas.style.cursor = 'pointer';
+                if (prevUiHover !== ui) requestAtlasFrame();
+                return;
+            }
+            canvas.style.cursor = '';
             const node = pickNode(event);
             ATLAS.hoverId = node ? node.id : null;
             updateTooltip(event, node);
@@ -1307,7 +1535,14 @@
         canvas.addEventListener('pointerup', (event) => {
             canvas.releasePointerCapture && canvas.releasePointerCapture(event.pointerId);
             const moved = ATLAS.drag.moved;
+            const armed = ATLAS.uiArmed;
             ATLAS.drag.active = false;
+            ATLAS.uiArmed = null;
+            if (armed) {
+                const hit = eventToCanvasXY(event);
+                if (hitCosmosUiAt(hit.x, hit.y) === armed) runCosmosUiAction(armed);
+                return;
+            }
             if (!moved) {
                 const node = pickNode(event);
                 if (node) selectCosmosNode(node.id);
@@ -1316,7 +1551,10 @@
 
         canvas.addEventListener('pointerleave', () => {
             ATLAS.drag.active = false;
+            ATLAS.uiArmed = null;
+            ATLAS.uiHover = null;
             ATLAS.hoverId = null;
+            canvas.style.cursor = '';
             if (ATLAS.tooltip) ATLAS.tooltip.style.display = 'none';
             requestAtlasFrame();
         });
@@ -1457,6 +1695,7 @@
         renderDetail();
         renderSummary();
         renderMasteryPanel();
+        refreshCosmosStoneOverlay();
     }
 
     function resizeCanvasToHost() {
@@ -1464,6 +1703,7 @@
         if (!canvas || !ATLAS.host) return;
         const rect = ATLAS.host.getBoundingClientRect();
         const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        ATLAS.dpr = dpr;
         const w = Math.max(600, Math.floor(rect.width * dpr));
         const h = Math.max(420, Math.floor(rect.height * dpr));
         if (canvas.width !== w || canvas.height !== h) {
@@ -1483,6 +1723,9 @@
         drawCosmosStonePulse(ctx);
         drawEdges(ctx);
         drawNodes(ctx);
+        drawCosmosStoneSlot(ctx);
+        drawCosmosControls(ctx);
+        if (shouldAnimateCosmos()) requestAtlasFrame();
     }
 
     function drawBackground(ctx, w, h) {
@@ -1708,7 +1951,7 @@
             <div>별가루: <b>${state.starDust}</b></div>
             <div>보스 유물: <b>${(state.bossRelics || []).length}</b></div>
             <div>장착 우주석: <b>${getEquippedCosmosStoneCount(state)}</b> / ${hasSixthCosmosStoneUnlock() ? 6 : 5}</div>
-            ${renderCosmosStonePanel(state)}`;
+            <div style="grid-column:1/-1;color:#9fd6ff;font-size:11px;">시리온 아래 오각형 슬롯을 눌러 우주석을 장착하세요.</div>`;
     }
 
     function renderDetail() {
@@ -1925,6 +2168,9 @@
     window.resetCosmosAtlasCamera = resetCosmosAtlasCamera;
     window.zoomCosmosAtlas = zoomCosmosAtlas;
     window.installCosmosAtlas = installCosmosAtlas;
+    window.openCosmosStoneOverlay = openCosmosStoneOverlay;
+    window.closeCosmosStoneOverlay = closeCosmosStoneOverlay;
+    window.toggleCosmosStoneOverlay = toggleCosmosStoneOverlay;
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
