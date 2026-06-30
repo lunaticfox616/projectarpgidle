@@ -356,20 +356,41 @@ function renderMobileBattlePipFrame() {
 }
 
 
-function startMobilePipRefreshLoop() {
-    if (mobilePipRefreshHandle) clearInterval(mobilePipRefreshHandle);
-    mobilePipRefreshHandle = setInterval(() => {
-        try {
-            if (document.hidden) return;
+// PiP는 다른 탭을 보고 있을 때 전장을 작게 미리 보여준다. 풀 전장 렌더는
+// 비싸므로, 고정 주기 대신 렌더 비용에 따라 다음 주기를 조절(adaptive)해
+// 전경 탭의 프레임 예산을 빼앗지 않도록 한다.
+const MOBILE_PIP_BASE_INTERVAL_MS = 150;
+function runMobilePipRefreshTick() {
+    let nextDelay = MOBILE_PIP_BASE_INTERVAL_MS;
+    try {
+        if (document.hidden) {
+            nextDelay = 500;
+        } else {
             updateMobileBattlePipVisibility();
-            if (isMobileBattlePipVisible()) renderBattlefield(true);
-            renderMobileBattlePipFrame();
+            if (isMobileBattlePipVisible()) {
+                let t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+                renderBattlefield(true);
+                renderMobileBattlePipFrame();
+                let cost = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0;
+                // 렌더가 무거우면(기기가 버거우면) 다음 주기를 늘려 전경 탭 끊김을 줄인다.
+                if (cost > 16) nextDelay = Math.min(420, Math.round(MOBILE_PIP_BASE_INTERVAL_MS + cost * 8));
+                else if (cost > 9) nextDelay = MOBILE_PIP_BASE_INTERVAL_MS + 70;
+            } else {
+                // PiP가 보이지 않으면 노출 전환만 감지하면 되므로 느리게 폴링한다.
+                nextDelay = 420;
+            }
             mobilePipRefreshErrorReported = false;
-        } catch (error) {
-            if (!mobilePipRefreshErrorReported) console.error('mobile battle PIP refresh failed:', error);
-            mobilePipRefreshErrorReported = true;
         }
-    }, 120);
+    } catch (error) {
+        if (!mobilePipRefreshErrorReported) console.error('mobile battle PIP refresh failed:', error);
+        mobilePipRefreshErrorReported = true;
+    }
+    mobilePipRefreshHandle = setTimeout(runMobilePipRefreshTick, nextDelay);
+}
+
+function startMobilePipRefreshLoop() {
+    if (mobilePipRefreshHandle) clearTimeout(mobilePipRefreshHandle);
+    mobilePipRefreshHandle = setTimeout(runMobilePipRefreshTick, MOBILE_PIP_BASE_INTERVAL_MS);
 }
 
 
@@ -769,6 +790,9 @@ function switchTab(tabId) {
     if (tabId === 'tab-talent' && typeof renderTalentTab === 'function') renderTalentTab();
     if (tabId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
+    // 탭 전환 직후 PiP가 보이면 한 번 즉시 갱신해, 적응형 루프 다음 주기를
+    // 기다리는 동안 직전 프레임이 잠깐 남아 보이는 것을 막는다.
+    if (isMobileBattlePipVisible()) { renderBattlefield(true); renderMobileBattlePipFrame(); }
     updateStaticUI();
     if (tabId === 'tab-char') {
         setTimeout(function() {
@@ -11557,10 +11581,10 @@ function renderBattlefieldThrottled(frameNow) {
     lastBattlefieldRenderAt = frameNow;
     updateMobileBattlePipVisibility();
     // 전투 탭에서 캔버스가 실제로 보일 때만 풀 렌더한다.
-    // 다른 탭의 모바일 PiP는 별도의 저주기(120ms) 루프가 갱신하므로
-    // 여기서 강제 렌더하면 같은 화면을 중복으로 그리게 된다.
+    // 다른 탭의 모바일 PiP는 별도의 적응형 루프가 렌더 직후 곧바로 복사하므로,
+    // 여기서 매 프레임 다시 복사하면 같은 화면을 30~45fps로 중복 복사하게 된다.
+    // (전투 탭일 때 PiP는 숨겨져 어차피 복사가 일어나지 않는다.)
     renderBattlefield(false);
-    renderMobileBattlePipFrame();
 }
 
 function gameLoop() {
