@@ -533,18 +533,22 @@ function onTabHeaderPointerDown(event) {
     if (tabHeaderDragState) return;
     let button = getTabButtonFromTarget(event.target);
     if (!button || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    let header = button.closest ? button.closest('.tab-header') : null;
     tabHeaderDragState = {
         button,
+        header,
         pointerId: event.pointerId,
         pointerType: event.pointerType,
         startX: event.clientX,
         startY: event.clientY,
         lastX: event.clientX,
         lastY: event.clientY,
+        startScrollLeft: header ? header.scrollLeft : 0,
         grabOffsetX: 0,
         grabOffsetY: 0,
         ghost: null,
         dragging: false,
+        scrolling: false,
         longPressTimer: setTimeout(() => beginTabHeaderDrag(tabHeaderDragState), TAB_DRAG_LONG_PRESS_MS)
     };
     if (button.setPointerCapture) button.setPointerCapture(event.pointerId);
@@ -557,10 +561,26 @@ function onTabHeaderPointerMove(event) {
     state.lastY = event.clientY;
     let dx = Math.abs(event.clientX - state.startX);
     let dy = Math.abs(event.clientY - state.startY);
+    // 가로 스와이프로 탭 헤더를 좌우 스크롤한다(모바일). touch-action:pan-y 때문에
+    // 브라우저가 가로 스크롤을 처리하지 않으므로 scrollLeft을 직접 갱신한다.
+    if (state.scrolling) {
+        if (state.header) state.header.scrollLeft = state.startScrollLeft - (event.clientX - state.startX);
+        event.preventDefault();
+        return;
+    }
     // While waiting for the long-press, a clear vertical swipe means the user is
     // scrolling the page (touch-action: pan-y) — let it through by cancelling the drag.
     if (!state.dragging && state.pointerType === 'touch' && dy > dx && dy > TAB_DRAG_CANCEL_PX) {
         clearTabHeaderDragState(false);
+        return;
+    }
+    // 아직 재정렬 드래그 전에 가로 이동이 우세하면 스크롤 모드로 전환한다.
+    if (!state.dragging && state.pointerType === 'touch' && dx > dy && dx > TAB_DRAG_CANCEL_PX
+        && state.header && state.header.scrollWidth > state.header.clientWidth + 1) {
+        state.scrolling = true;
+        clearTimeout(state.longPressTimer);
+        state.header.scrollLeft = state.startScrollLeft - (event.clientX - state.startX);
+        event.preventDefault();
         return;
     }
     let cancelPx = state.pointerType === 'touch' ? 16 : TAB_DRAG_CANCEL_PX;
@@ -577,6 +597,12 @@ function onTabHeaderPointerMove(event) {
 function onTabHeaderPointerEnd(event) {
     let state = tabHeaderDragState;
     if (!state || event.pointerId !== state.pointerId) return;
+    if (state.scrolling) {
+        // 스와이프 스크롤 직후의 탭 전환(클릭)을 막는다.
+        if (Math.abs(state.lastX - state.startX) > 6) tabHeaderSuppressClickUntil = Date.now() + 350;
+        clearTabHeaderDragState(false);
+        return;
+    }
     clearTabHeaderDragState(true);
 }
 
