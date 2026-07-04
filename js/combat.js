@@ -4372,6 +4372,13 @@ function applyCosmosPlayerDebuffsToStats(pStats) {
     });
 }
 
+// 데이터(zone.bossMods)로 선언한 고정 보스 수정자. cosmosMods와 같은 shape를 반환해
+// createEnemy의 기존 소비처를 그대로 재사용한다. (버려진 날붙이 등 시즌 보스 개성 부여용)
+function getZoneStaticBossMods(zone, isBoss) {
+    if (!isBoss || !zone || !zone.bossMods || typeof zone.bossMods !== 'object') return null;
+    return zone.bossMods;
+}
+
 function getCosmosEnemyModifiers(zone, isElite, isBoss) {
     if (!zone || zone.type !== 'cosmos') return null;
     let tag = String(zone.cosmosTag || '').trim();
@@ -4451,12 +4458,13 @@ function getSoftenedLoopDepth(depth) {
 }
 
 // 존 성격별 루프 난이도 입력값(시즌·루프 카운트)을 결정한다. HP·방어·공격 스케일이 공통으로 사용.
-//  - trial/outsideChaos: 특정 조합/빌드의 실력을 시험하는 고정 관문 — 루프 인플레이션을 받지 않고
+//  - trial/outsideChaos 또는 zone.loopScaleExempt(데이터 플래그, 예: 버려진 날붙이 결투):
+//    특정 조합/빌드의 실력을 시험하는 고정 관문 — 루프 인플레이션을 받지 않고
 //    zone.fixedDifficultyMul(데이터)로만 난이도를 조절한다.
 //  - act: 매 루프 레벨 1부터 다시 지나는 재성장 구간 — ACT_LOOP_SCALE_CAP까지만 세지고 이후 고정.
 //  - 그 외(엔드리스 파밍 콘텐츠): 제한 없이 루프 스케일을 따른다.
 function getLoopDifficultyInputs(zone) {
-    let exempt = !!zone && (zone.type === 'trial' || zone.type === 'outsideChaos');
+    let exempt = !!zone && (zone.type === 'trial' || zone.type === 'outsideChaos' || !!zone.loopScaleExempt);
     if (exempt) return { exempt: true, seasonLoops: 0, loopCount: 0 };
     let cap = zone && zone.type === 'act' ? ACT_LOOP_SCALE_CAP : Infinity;
     return {
@@ -4555,7 +4563,7 @@ function createEnemy(zone, marker, groupIndex) {
     let variantSeed = ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
     let bossAssetKey = isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed) : null;
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
-    const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss);
+    const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss) || getZoneStaticBossMods(zone, isBoss);
     const cosmosExclusiveTrait = getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, variantSeed);
     const woodsmanRegenMul = 0.1;
     const regenMul = ((zone.type === 'outsideChaos' && isBoss) ? woodsmanRegenMul : 1) * (cosmosMods && cosmosMods.regenMul ? cosmosMods.regenMul : 1);
@@ -6574,6 +6582,17 @@ function finishEncounterRun() {
         game.clearedRootBosses = Array.isArray(game.clearedRootBosses) ? game.clearedRootBosses : [];
         if (firstRootBossClear) game.clearedRootBosses.push(zone.id);
         unlockConditionGemsAfterRootBossClear();
+        if (zone.rivalBlade) {
+            markLoopSpecialBossKill(zone.id);
+            if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
+            if (zone.capstoneRival) addLog('🗡️ 완성작이 무릎 꿇었습니다. 버려진 날이 벼려진 날을 이겼습니다.', 'loot-unique');
+            else {
+                let killedRivals = (game.loopProgressCurrent && Array.isArray(game.loopProgressCurrent.specialBosses)) ? game.loopProgressCurrent.specialBosses : [];
+                let remaining = SEASON_BOSS_ZONES.filter(rival => rival.rivalBlade && !rival.capstoneRival && !killedRivals.includes(rival.id)).length;
+                if (remaining > 0) addLog(`🗡️ 버려진 날 격파! 이번 루프에 남은 날: ${remaining}개 (모두 꺾으면 「완성작」이 나타납니다)`, 'season-up');
+                else addLog('🗡️ 다섯 날이 모두 꺾였습니다. 「일곱 번째 날 - 완성작」이 결투를 기다립니다.', 'loot-unique');
+            }
+        }
         if (Math.random() < 0.5) awardCurrency(zone.reward || 'bossCore', 1);
         if (Math.random() < 0.4) {
             let bossUnique = generateUniqueItem(zone.tier || 12);
@@ -8656,6 +8675,9 @@ function triggerSeasonReset() {
     game.seasonPoints++;
     if (game.loopCount === 2 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_spore_crafting', '홀씨 제작 해금', '루프 2 달성! 이제 액트/혼돈 몬스터가 화염/냉기/번개 홀씨를 떨어뜨립니다.\n제작 탭에서 오브 사용 시 홀씨 태그를 지정할 수 있습니다.', 'tab-items');
+    }
+    if (game.season === 31 && typeof queueTutorialNotice === 'function') {
+        queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n지도의 뿌리 보스 목록에서 결투에 도전하세요. (도전권: 심층 보스가 드랍하는 [표식: 버려진 날])\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');
     }
     addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
     game.level = 1;

@@ -7201,6 +7201,10 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.018) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.0125) drops.push(['beastKeyCerberus', 1]);
+    // 버려진 날붙이 도전권 (루프 31+): 심층 콘텐츠 보스가 드랍한다. 루프당 결투 6회(다섯 날 + 완성작)를 노린 넉넉한 확률.
+    if ((game.season || 1) >= 31 && enemy.isBoss
+        && (zone.type === 'chaosRealm' || zone.type === 'underworld' || zone.type === 'skyTower' || (zone.type === 'abyss' && Math.floor(getAbyssDepthFromZoneId(Number(zone.id)) || 0) >= 21))
+        && Math.random() < 0.10) drops.push(['rivalKey', 1]);
     if (zone.type === 'chaosRealm') {
         let chaosKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
         if (Math.random() < chaosKeyChance) drops.push(['chaosKey', 1]);

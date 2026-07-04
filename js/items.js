@@ -423,7 +423,12 @@ function changeZone(id) {
     let zone = getZone(id);
     if (!zone) return addLog('이동할 수 없는 지역입니다.', 'attack-monster');
     if (zone.type === 'seasonBoss') {
-        if ((game.season || 1) < (zone.reqSeason || 2)) return addLog('아직 뿌리 보스가 잠겨 있습니다.', 'attack-monster');
+        if ((game.season || 1) < (zone.reqSeason || 2)) return addLog(zone.rivalBlade ? '버려진 날붙이들은 루프 31부터 당신을 찾아옵니다.' : '아직 뿌리 보스가 잠겨 있습니다.', 'attack-monster');
+        if (Array.isArray(zone.requiresRivals)) {
+            let killedRivals = (game.loopProgressCurrent && Array.isArray(game.loopProgressCurrent.specialBosses)) ? game.loopProgressCurrent.specialBosses : [];
+            let remainingRivals = zone.requiresRivals.filter(rivalId => !killedRivals.includes(rivalId)).length;
+            if (remainingRivals > 0) return addLog(`완성작은 이번 루프에 다섯 날을 모두 꺾어야 모습을 드러냅니다. (남은 날: ${remainingRivals}개)`, 'attack-monster');
+        }
         if ((game.currencies[zone.key] || 0) <= 0) return addLog(`입장 열쇠(${ORB_DB[zone.key].name})가 필요합니다.`, 'attack-monster');
         game.currencies[zone.key]--;
         game.inTicketBossFight = true;
