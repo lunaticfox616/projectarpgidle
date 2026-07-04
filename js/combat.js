@@ -4470,13 +4470,17 @@ function getLoopHpScale(loopCount) {
 }
 
 function createEnemy(zone, marker, groupIndex) {
-    let seasonDepth = getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
+    // 특정 조합/빌드의 실력을 시험하는 고정 관문(전직·재능개화 시련, 나무꾼)은
+    // 루프 인플레이션의 영향을 받지 않는다 — 대신 zone.fixedDifficultyMul로 직접 조절한다.
+    let loopScaleExempt = zone.type === 'trial' || zone.type === 'outsideChaos';
+    let seasonDepth = loopScaleExempt ? 0 : getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
     let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
-    let loopHpScale = getLoopHpScale(game.loopCount || 0);
+    let loopHpScale = loopScaleExempt ? 1 : getLoopHpScale(game.loopCount || 0);
     hp = Math.floor(hp * loopHpScale);
+    if (loopScaleExempt) hp = Math.floor(hp * (Number(zone.fixedDifficultyMul) || 1));
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
     let isElite = !!marker.elite && !isBoss;
