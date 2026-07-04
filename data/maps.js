@@ -56,6 +56,19 @@ const OCEAN_UNLOCK_LOOP = 11;
 
 const OCEAN_ZONE_ID = 'ocean_depth';
 
+// 루프 조건 상한·세분화 (state.js: getSeasonAbyssDepthCap / hasCurrentLoopAbyssRequirementClear):
+//  - 요구 혼돈 심도는 루프 30(심화 40)에서 고정된다. 층당 난이도는 지수로 오르는데
+//    요구 심도까지 무한히 깊어지면 어느 시점부터 루프 자체가 수학적으로 불가능해진다.
+//  - 루프 31+에서는 고정 심도 대신 아래 대체 경로 중 하나만 달성해도 루프할 수 있다.
+const LOOP_GATE_ABYSS_DEPTH_CAP = 40;
+const LOOP_GATE_ALT_START_SEASON = 31;
+const LOOP_GATE_ALT_LABYRINTH_FLOOR = 40;
+const LOOP_GATE_ALT_CHAOS_REALM_FLOOR = 25;
+
+// 스토리 액트(매 루프 레벨 1부터 다시 지나는 재성장 구간)의 루프 스케일 상한.
+// 이 루프 수까지만 세지고 이후 고정된다 (combat.js: getLoopDifficultyInputs).
+const ACT_LOOP_SCALE_CAP = 20;
+
 const STAR_WEDGE_OPTION_POOL = [
     { stat: 'pctDmg', min: 10, max: 16 },
     { stat: 'flatHp', min: 56, max: 96 },

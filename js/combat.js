@@ -4450,6 +4450,22 @@ function getSoftenedLoopDepth(depth) {
     return knee + (d - knee) * 0.5;
 }
 
+// 존 성격별 루프 난이도 입력값(시즌·루프 카운트)을 결정한다. HP·방어·공격 스케일이 공통으로 사용.
+//  - trial/outsideChaos: 특정 조합/빌드의 실력을 시험하는 고정 관문 — 루프 인플레이션을 받지 않고
+//    zone.fixedDifficultyMul(데이터)로만 난이도를 조절한다.
+//  - act: 매 루프 레벨 1부터 다시 지나는 재성장 구간 — ACT_LOOP_SCALE_CAP까지만 세지고 이후 고정.
+//  - 그 외(엔드리스 파밍 콘텐츠): 제한 없이 루프 스케일을 따른다.
+function getLoopDifficultyInputs(zone) {
+    let exempt = !!zone && (zone.type === 'trial' || zone.type === 'outsideChaos');
+    if (exempt) return { exempt: true, seasonLoops: 0, loopCount: 0 };
+    let cap = zone && zone.type === 'act' ? ACT_LOOP_SCALE_CAP : Infinity;
+    return {
+        exempt: false,
+        seasonLoops: Math.min(cap, Math.max(0, (game.season || 1) - 1)),
+        loopCount: Math.min(cap, Math.max(0, Math.floor(game.loopCount || 0)))
+    };
+}
+
 function getLoopHpScale(loopCount) {
     let loop = Math.max(0, loopCount || 0);
     const bands = [
@@ -4470,15 +4486,14 @@ function getLoopHpScale(loopCount) {
 }
 
 function createEnemy(zone, marker, groupIndex) {
-    // 특정 조합/빌드의 실력을 시험하는 고정 관문(전직·재능개화 시련, 나무꾼)은
-    // 루프 인플레이션의 영향을 받지 않는다 — 대신 zone.fixedDifficultyMul로 직접 조절한다.
-    let loopScaleExempt = zone.type === 'trial' || zone.type === 'outsideChaos';
-    let seasonDepth = loopScaleExempt ? 0 : getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
+    let loopInputs = getLoopDifficultyInputs(zone);
+    let loopScaleExempt = loopInputs.exempt;
+    let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
     let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
-    let loopHpScale = loopScaleExempt ? 1 : getLoopHpScale(game.loopCount || 0);
+    let loopHpScale = getLoopHpScale(loopInputs.loopCount);
     hp = Math.floor(hp * loopHpScale);
     if (loopScaleExempt) hp = Math.floor(hp * (Number(zone.fixedDifficultyMul) || 1));
     let abyssScale = getAbyssMonsterScales(zone);
@@ -4512,7 +4527,7 @@ function createEnemy(zone, marker, groupIndex) {
         let oceanTierMul = 1 + depthTier * 0.05;
         hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
     }
-    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(game.loopCount || 0) * 0.05)));
+    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(loopInputs.loopCount) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
@@ -4564,7 +4579,7 @@ function createEnemy(zone, marker, groupIndex) {
     let chaosResBase = resistBase;
 
     let defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
-    let defenseLoopScale = Math.min(2.2, 1 + Math.max(0, (game.loopCount || 0)) * 0.05);
+    let defenseLoopScale = Math.min(2.2, 1 + loopInputs.loopCount * 0.05);
     let baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * (isBoss ? 2.2 : (isElite ? 1.6 : 1)));
     let baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * (isBoss ? 2.1 : (isElite ? 1.5 : 1)));
     let baselineResistancePressure = (game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0;
@@ -7998,7 +8013,7 @@ function performMonsterAttacks(pStats) {
         }
         enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
         if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);
-        let seasonDepth = getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
+        let seasonDepth = getSoftenedLoopDepth(getLoopDifficultyInputs(zone).seasonLoops);
         let tierPressure = clampNumber(((zone.tier || 1) - 1) / 10, 0, 1);
         const monsterBaseAttackSpeedMul = 1.10;
         const monsterBaseDamageMul = 1.15;

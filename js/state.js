@@ -510,19 +510,28 @@ function getZone(id) {
 
 function getSeasonAbyssDepthCap(seasonValue) {
     let season = Math.max(1, Math.floor(seasonValue || 1));
-    return season <= 9 ? (10 + (season - 1)) : (20 + (season - 10));
+    let uncapped = season <= 9 ? (10 + (season - 1)) : (20 + (season - 10));
+    return Math.min(LOOP_GATE_ABYSS_DEPTH_CAP, uncapped);
 }
 
 function getLoopAbyssRequirementText(seasonValue) {
     let cap = getSeasonAbyssDepthCap(seasonValue);
-    return `루프 조건: ${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap} 클리어`;
+    let base = `루프 조건: ${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap} 클리어`;
+    if (Math.max(1, Math.floor(seasonValue || 1)) < LOOP_GATE_ALT_START_SEASON) return base;
+    return `${base} · 대체 경로: 미궁 ${LOOP_GATE_ALT_LABYRINTH_FLOOR}층 또는 혼돈계 ${LOOP_GATE_ALT_CHAOS_REALM_FLOOR}층 (이번 루프 도달 기준)`;
 }
 
 function hasCurrentLoopAbyssRequirementClear(seasonValue) {
-    let cap = getSeasonAbyssDepthCap(seasonValue || (game && game.season) || 1);
-    if (cap <= 20) return hasCurrentLoopChaos20Clear();
-    let bestDepth = Math.max(0, Math.floor((game && game.loopProgressCurrent && game.loopProgressCurrent.bestAbyssDepth) || 0));
-    return bestDepth >= cap;
+    let season = Math.max(1, Math.floor(seasonValue || (game && game.season) || 1));
+    let cap = getSeasonAbyssDepthCap(season);
+    let progress = (game && game.loopProgressCurrent) || {};
+    let abyssOk = cap <= 20
+        ? hasCurrentLoopChaos20Clear()
+        : Math.max(0, Math.floor(progress.bestAbyssDepth || 0)) >= cap;
+    if (abyssOk) return true;
+    if (season < LOOP_GATE_ALT_START_SEASON) return false;
+    if (Math.max(0, Math.floor(progress.bestLabyrinthFloor || 0)) >= LOOP_GATE_ALT_LABYRINTH_FLOOR) return true;
+    return Math.max(0, Math.floor(progress.bestChaosRealmFloor || 0)) >= LOOP_GATE_ALT_CHAOS_REALM_FLOOR;
 }
 
 function getSeasonFinalZoneId(seasonValue) {
@@ -605,7 +614,9 @@ function getAbyssMonsterScales(zone) {
         let smoothBand = Math.max(0, endlessOver - 10);
         endlessMul = Math.pow(ABYSS_ENDLESS_STEEP_FLOOR_HP_MUL, steepBand) * Math.pow(1.06, smoothBand);
     }
-    let postLoopOver = Math.max(0, Math.floor((game.season || 1) - 10));
+    // 루프 30 이후에는 원시 스탯 인플레이션을 동결한다 — 이후의 도전은 스탯 상승이 아니라
+    // 루프 조건 세분화(대체 경로, data/maps.js LOOP_GATE_*)로 제공한다.
+    let postLoopOver = Math.min(20, Math.max(0, Math.floor((game.season || 1) - 10)));
     let postLoopDifficultyMul = postLoopOver > 0 ? (1 + postLoopOver * 0.05 + endlessOver * 0.022) : 1;
     return {
         dmgMul: (1 + (state.power || 0) * 0.02) * postLoopDifficultyMul,
