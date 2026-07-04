@@ -6622,6 +6622,7 @@ window.formatCurrencyCosts = formatCurrencyCosts;
 function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
+    if (item.fusedRelic) return addLog('융합 유물은 시간에 굳어, 신성한/타락/축복의 오브만 받아들입니다.', 'attack-monster');
     if ((game.currencies.enchantedHoney || 0) <= 0) return addLog('마력 깃든 벌꿀이 부족합니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     if (item.stats.length < 4) return addLog('벌꿀 고정은 추가 옵션이 4개 이상일 때만 사용할 수 있습니다.', 'attack-monster');
@@ -6649,6 +6650,7 @@ function isVoidSocketAccessoryItem(item) {
 function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
+    if (item.fusedRelic) return addLog('융합 유물은 시간에 굳어, 신성한/타락/축복의 오브만 받아들입니다.', 'attack-monster');
     if ((game.currencies.venomStinger || 0) <= 0) return addLog('독벌침이 부족합니다.', 'attack-monster');
     if (item.slot !== '무기') return addLog('독벌침은 무기에만 사용할 수 있습니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
@@ -6669,6 +6671,7 @@ function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return 
 function applyVoidChiselToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
+    if (item.fusedRelic) return addLog('융합 유물은 시간에 굳어, 신성한/타락/축복의 오브만 받아들입니다.', 'attack-monster');
     if (!isVoidSocketAccessoryItem(item)) return addLog('공허의 끌은 반지/목걸이에만 사용할 수 있습니다.', 'attack-monster');
     if ((game.currencies.voidChisel || 0) <= 0) return addLog('공허의 끌이 부족합니다.', 'attack-monster');
     item.voidSocket = item.voidSocket || { open: false, jewel: null };
@@ -8565,6 +8568,7 @@ function useCurrency(currencyKey) {
     if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog("오브가 부족합니다.", "attack-monster");
     if (item.corrupted && currencyKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
+    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(currencyKey)) return addLog("융합 유물은 시간에 굳어, 신성한/타락/축복의 오브만 받아들입니다.", "attack-monster");
 
     let ok = false;
     if (currencyKey === 'transmute') ok = item.rarity === 'normal';

@@ -4708,6 +4708,10 @@ function getZoneEncounterProfile(zone) {
     }
     if (zone.type === 'meteor') return { markerCount: 2, minPack: 2, maxPack: 3, eliteChance: 1, bossAdds: 2, label: '운석' };
     if (zone.type === 'trial') return { markerCount: 3, minPack: 1, maxPack: 2, eliteChance: 1, bossAdds: 2, label: '시련' };
+    if (zone.type === 'timeRift') {
+        let pressure = Math.max(1, Math.floor(zone.pressure || 1));
+        return { markerCount: 3 + Math.floor(pressure / 3), minPack: 2, maxPack: Math.min(6, 3 + Math.floor(pressure / 4)), eliteChance: Math.min(0.8, 0.3 + pressure * 0.05), bossAdds: 1 + Math.floor(pressure / 5), label: `시간의 균열 (시간압 ${pressure})` };
+    }
     if (zone.type === 'seasonBoss') return { markerCount: 1, minPack: 1, maxPack: 1, eliteChance: 1, bossAdds: 0, label: '보스' };
     if (zone.type === 'labyrinth') {
         let floor = Math.max(1, zone.floor || 1);
@@ -6523,6 +6527,26 @@ function finishEncounterRun() {
         }
         game.killsInZone = 0;
         game.currentZoneId = SKY_TOWER_ZONE_ID;
+        enterAutomaticMapInterruptionAfterClear(zone);
+        startMoving(false);
+        updateStaticUI();
+        queueImportantSave(220);
+        return;
+    }
+    if (zone.type === 'timeRift') {
+        let rift = ensureTimeRiftState();
+        if (zone.riftPhase === 'past') {
+            rift.altarOpen = true;
+            addLog(`⏳ 과거의 제단이 열렸습니다. (시간압 ${rift.pressure}) 인벤토리에서 아이템을 선택해 같은 부위의 고유 1개·희귀 1개를 올리세요.`, 'loot-unique');
+        } else {
+            let fusion = typeof resolveTimeRiftFusion === 'function' ? resolveTimeRiftFusion() : null;
+            if (fusion) {
+                let gradeLabel = fusion.grade === 'perfect' ? '완벽한 융합' : (fusion.grade === 'normal' ? '보통 융합' : '불안정한 융합');
+                addLog(`⌛ ${gradeLabel}! [${fusion.fused.name}]이(가) 억겁의 시간을 건너 돌아왔습니다. (계승한 추가 옵션 ${fusion.inherited}개${fusion.lost > 0 ? ` · ${fusion.lost}개 유실` : ' · 유실 없음'})`, 'loot-unique');
+            }
+        }
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+        game.killsInZone = 0;
         enterAutomaticMapInterruptionAfterClear(zone);
         startMoving(false);
         updateStaticUI();
@@ -8652,6 +8676,8 @@ function triggerSeasonReset() {
         : null;
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
+    // 시간의 균열 제단은 루프를 건너 보존된다 — 과거에 심은 것은 몇 루프가 지나도 미래에서 거둘 수 있다.
+    let preservedTimeRift = JSON.parse(JSON.stringify(ensureTimeRiftState()));
     let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
     let preservedOcean = JSON.parse(JSON.stringify(ensureOceanState()));
     let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
@@ -8675,6 +8701,9 @@ function triggerSeasonReset() {
     game.seasonPoints++;
     if (game.loopCount === 2 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_spore_crafting', '홀씨 제작 해금', '루프 2 달성! 이제 액트/혼돈 몬스터가 화염/냉기/번개 홀씨를 떨어뜨립니다.\n제작 탭에서 오브 사용 시 홀씨 태그를 지정할 수 있습니다.', 'tab-items');
+    }
+    if (game.season === 13 && typeof queueTutorialNotice === 'function') {
+        queueTutorialNotice('unlock_time_rift', '시간의 균열', '루프 13 달성! 지도 → 탐험에 시간의 균열이 열렸습니다.\n과거를 클리어해 제단을 열고 같은 부위의 고유 1개·희귀 1개를 올린 뒤, 미래를 클리어하면 두 아이템이 융합된 유물이 됩니다.\n시간압이 높을수록 어렵지만 완벽한 융합(추가 옵션 전부 계승) 확률이 오릅니다.', 'tab-map');
     }
     if (game.season === 31 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n지도의 뿌리 보스 목록에서 결투에 도전하세요. (도전권: 심층 보스가 드랍하는 [표식: 버려진 날])\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');
@@ -8775,6 +8804,7 @@ function triggerSeasonReset() {
     game.mapSubtab = 'map-tab-zones';
     game.mapExploreSubtab = 'map-explore-hunting';
     game.chaosRealm = preservedChaosRealm;
+    game.timeRift = preservedTimeRift;
     game.skyTower = preservedSkyTower;
     game.ocean = preservedOcean;
     game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));
