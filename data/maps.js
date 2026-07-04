@@ -33,11 +33,11 @@ const WORLD_MAP_HOTSPOTS = [
 ];
 
 const TRIAL_ZONES = [
-    { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 3 },
-    { id: 'trial_2', name: "2차 전직 시련", type: "trial", tier: 6, maxKills: 1, reqZone: 8 },
-    { id: 'trial_3', name: "3차 전직 시련 (여신)", type: "trial", tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3' },
-    { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3' },
-    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", tier: 30, maxKills: 1, reqZone: -1, bloomTrial: true, bloomTrialAffixFloor: 10, underworldPenaltyFloor: 10, trapRegenSuppressPct: 3 }
+    { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 3, fixedDifficultyMul: 1 },
+    { id: 'trial_2', name: "2차 전직 시련", type: "trial", tier: 6, maxKills: 1, reqZone: 8, fixedDifficultyMul: 1 },
+    { id: 'trial_3', name: "3차 전직 시련 (여신)", type: "trial", tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3', fixedDifficultyMul: 1 },
+    { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3', fixedDifficultyMul: 1 },
+    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", tier: 30, maxKills: 1, reqZone: -1, bloomTrial: true, bloomTrialAffixFloor: 10, underworldPenaltyFloor: 10, trapRegenSuppressPct: 3, fixedDifficultyMul: 1 }
 ];
 
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
@@ -55,6 +55,31 @@ const STAR_WEDGE_UNLOCK_ACT = 7;
 const OCEAN_UNLOCK_LOOP = 11;
 
 const OCEAN_ZONE_ID = 'ocean_depth';
+
+// 루프 조건 상한·세분화 (state.js: getSeasonAbyssDepthCap / hasCurrentLoopAbyssRequirementClear):
+//  - 요구 혼돈 심도는 루프 30(심화 40)에서 고정된다. 층당 난이도는 지수로 오르는데
+//    요구 심도까지 무한히 깊어지면 어느 시점부터 루프 자체가 수학적으로 불가능해진다.
+//  - 루프 31+에서는 고정 심도 대신 아래 대체 경로 중 하나만 달성해도 루프할 수 있다.
+const LOOP_GATE_ABYSS_DEPTH_CAP = 40;
+const LOOP_GATE_ALT_START_SEASON = 31;
+const LOOP_GATE_ALT_LABYRINTH_FLOOR = 40;
+const LOOP_GATE_ALT_CHAOS_REALM_FLOOR = 25;
+
+// 스토리 액트(매 루프 레벨 1부터 다시 지나는 재성장 구간)의 루프 스케일 상한.
+// 이 루프 수까지만 세지고 이후 고정된다 (combat.js: getLoopDifficultyInputs).
+const ACT_LOOP_SCALE_CAP = 20;
+
+// 시간의 균열 (루프 13+): 과거에 심고, 미래에 거둔다 — 고유+희귀 융합 던전.
+//  - 과거 클리어 → 제단 개방 → 같은 부위의 고유 1개·희귀 1개를 올림 → 미래 클리어 → 융합 유물 획득.
+//  - 시간압(1~10)이 난이도이자 보상 손잡이: 높을수록 몬스터가 강해지고 '완벽한 융합' 확률이 오른다.
+//  - 융합 유물은 신성한/타락/축복의 오브 외의 제작 재화를 받지 않는다.
+const TIME_RIFT_UNLOCK_LOOP = 13;
+const TIME_RIFT_PAST_ZONE_ID = 'time_rift_past';
+const TIME_RIFT_FUTURE_ZONE_ID = 'time_rift_future';
+const TIME_RIFT_MAX_PRESSURE = 10;
+// 완벽(유실 0) = perfectBase + perfectPerPressure×(시간압-1) — 기본은 매우 낮게.
+// 불안정(유실 2) = max(unstableMin, unstableBase - unstablePerPressure×(시간압-1)). 나머지는 보통(유실 1).
+const TIME_RIFT_FUSION_ODDS = { perfectBase: 0.03, perfectPerPressure: 0.045, unstableBase: 0.42, unstablePerPressure: 0.035, unstableMin: 0.08 };
 
 const STAR_WEDGE_OPTION_POOL = [
     { stat: 'pctDmg', min: 10, max: 16 },
@@ -110,7 +135,7 @@ const SEASON_CONTENT_ROADMAP = {
     10: { title: '루프 10', features: ['해금: 심화 혼돈'] },
     11: { title: '루프 11', features: ['심화: 혼돈 단계 상승'] },
     12: { title: '루프 12', features: ['심화: 혼돈 단계 상승'] },
-    13: { title: '루프 13', features: ['심화: 혼돈 단계 상승'] },
+    13: { title: '루프 13', features: ['해금: 시간의 균열 (융합 제단)', '심화: 혼돈 단계 상승'] },
     14: { title: '루프 14', features: ['심화: 혼돈 단계 상승'] },
     15: { title: '루프 15', features: ['심화: 혼돈 단계 상승'] },
     16: { title: '루프 16', features: ['심화: 혼돈 단계 상승'] },
@@ -124,7 +149,24 @@ const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore' },
     { id: 's2_boss_frost', name: '서리 여제 글라시아', type: 'seasonBoss', tier: 12, key: 'bossKeyFrost', reqSeason: 2, ele: 'cold', reward: 'bossCore' },
     { id: 's2_boss_storm', name: '폭풍 군단장 볼타', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore' },
-    { id: 's6_beast_cerberus', name: '야수왕 케르베로스', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore' }
+    { id: 's6_beast_cerberus', name: '야수왕 케르베로스', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore' },
+    // 버려진 날붙이들 (루프 31+): 나무꾼이 벼리다 버린 다른 날들. 플레이어(첫 번째 날붙이)를 시험하러 온다.
+    //  - 매 루프 다시 도전하는 고정 난이도 결투(loopScaleExempt) — 난이도는 fixedDifficultyMul·bossMods로만 조절한다.
+    //  - bossMods shape는 createEnemy의 cosmosMods와 동일: *Mul(hp/damage/attackSpeed/armor/evasion/regen)은 배율, 나머지는 가산.
+    //  - 다섯 날을 한 루프 안에 모두 꺾으면 「완성작」이 모습을 드러낸다 (requiresRivals).
+    { id: 'rival_overheat', name: '버려진 두 번째 날 「과열」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'fire', reward: 'divine', journalId: 'rival_overheat', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
+      bossMods: { hpMul: 0.75, damageMul: 1.3, attackSpeedMul: 1.3, critChanceBonus: 14, patternMode: 'burst', traitName: '과열 — 먼저 베지 못하면 먼저 베인다' } },
+    { id: 'rival_dull', name: '버려진 세 번째 날 「무딤」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'cold', reward: 'divine', journalId: 'rival_dull', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
+      bossMods: { hpMul: 1.5, damageMul: 1.1, attackSpeedMul: 0.78, dr: 12, resAll: 12, armorMul: 1.6, firstHitGuard: 0.3, patternMode: 'slam', traitName: '무딤 — 부러지지 않는 것이 전부였던 날' } },
+    { id: 'rival_glutton', name: '버려진 네 번째 날 「탐식」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'divine', journalId: 'rival_glutton', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
+      bossMods: { hpMul: 1.25, regenMul: 8, resChaos: 20, ailmentChanceBonus: 0.1, patternMode: 'ramp', traitName: '탐식 — 상처를 먹고 아무는 날' } },
+    { id: 'rival_afterimage', name: '버려진 다섯 번째 날 「잔영」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'light', reward: 'divine', journalId: 'rival_afterimage', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
+      bossMods: { hpMul: 0.85, attackSpeedMul: 1.18, evasionMul: 1.7, critChanceBonus: 8, firstHitGuard: 0.15, patternMode: 'burst', traitName: '잔영 — 스치는 것조차 허락하지 않는 날' } },
+    { id: 'rival_backedge', name: '버려진 여섯 번째 날 「역린」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'phys', reward: 'divine', journalId: 'rival_backedge', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
+      bossMods: { hpMul: 1.1, damageMul: 1.2, penetration: 12, dr: 8, resAll: 8, armorMul: 1.25, patternMode: 'slam', traitName: '역린 — 방어를 거꾸로 베는 날' } },
+    { id: 'rival_masterwork', name: '일곱 번째 날 「완성작」', type: 'seasonBoss', tier: 32, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'woodsmanTouch', journalId: 'rival_masterwork', rivalBlade: true, capstoneRival: true, loopScaleExempt: true, fixedDifficultyMul: 3.2,
+      requiresRivals: ['rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge'],
+      bossMods: { hpMul: 1.9, damageMul: 1.35, attackSpeedMul: 1.12, critChanceBonus: 10, dr: 10, resAll: 10, regenMul: 3, penetration: 8, firstHitGuard: 0.25, patternMode: 'ramp', traitName: '완성작 — 여섯 날의 모든 것' } }
 ];
 
 const LABYRINTH_ZONE_ID = 'labyrinth_endless';
@@ -148,10 +190,16 @@ const JOURNAL_DB = {
     beehive_queen: { title: '루프8 - 벌집 여왕', lines: ['“길은 셋으로 갈라졌지만, 독은 하나로 모였다.”', '“여왕의 날개 아래서 선택은 대가를 부른다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
     void_grand_breach: { title: '루프9 - 큰 구멍', lines: ['“공허는 틈으로 시작해 심장으로 끝난다.”', '“쏟아지는 무리를 지나면, 공백도 얼굴을 드러낸다.”'], bonus: { stat: 'chaosPctDmg', value: 3, label: '카오스 피해 +3%' } },
     level_200: { title: '히든저널 - 초월의 가지', lines: ['“성장이 숫자를 넘어 이름이 되는 순간.”', '“두 번째 백의 고리를 넘은 칼날은, 더 빠르게 다음 계절을 배운다.”'], bonus: { stat: 'expGain', value: 2, label: '경험치 획득 +2%' }, hidden: true, hint: '레벨 200 달성' },
-    passive_star_evolution: { title: '히든저널 - 성좌 각성', lines: ['“별끝 다섯 자리가 하나의 문양으로 맞물렸다.”', '“각성한 성좌는 피해, 생명력, 발걸음에 영구적인 공명을 남긴다.”'], displayEffect: '성좌 각성 효과: 피해 +24%, 최대 생명력 +140, 이동 속도 +10%', hidden: true, hint: '별끝 특수 노드 5개를 모두 활성화' }
+    passive_star_evolution: { title: '히든저널 - 성좌 각성', lines: ['“별끝 다섯 자리가 하나의 문양으로 맞물렸다.”', '“각성한 성좌는 피해, 생명력, 발걸음에 영구적인 공명을 남긴다.”'], displayEffect: '성좌 각성 효과: 피해 +24%, 최대 생명력 +140, 이동 속도 +10%', hidden: true, hint: '별끝 특수 노드 5개를 모두 활성화' },
+    rival_overheat: { title: '버려진 날 - 과열', lines: ['“나는 가장 빨리 베었다. 그래서 가장 먼저 버려졌다.”', '“속도만 남은 날은, 결국 제 손잡이를 태운다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
+    rival_dull: { title: '버려진 날 - 무딤', lines: ['“부러지지 않는 것이 나의 전부였다.”', '“그러나 베지 못하는 날을, 누가 날이라 부르지.”'], bonus: { stat: 'dr', value: 1, label: '물리 피해 감소 +1%' } },
+    rival_glutton: { title: '버려진 날 - 탐식', lines: ['“상처는 전부 내 몫이었다. 그래서 전부 삼켰다.”', '“아무는 날은 갈리지 않는다. 그는 그것을 결함이라 불렀다.”'], bonus: { stat: 'flatHp', value: 10, label: '최대 생명력 +10' } },
+    rival_afterimage: { title: '버려진 날 - 잔영', lines: ['“맞지 않으면 지지 않는다고 믿었다.”', '“닿지 않는 날은, 아무것도 바꾸지 못했다.”'], bonus: { stat: 'crit', value: 1, label: '치명타 확률 +1%' } },
+    rival_backedge: { title: '버려진 날 - 역린', lines: ['“나는 갑옷 안쪽부터 베었다.”', '“그는 말했다. 방식이 아니라 방향이 틀렸다고.”'], bonus: { stat: 'pctDmg', value: 1, label: '피해 +1%' } },
+    rival_masterwork: { title: '일곱 번째 날 - 완성작', lines: ['“내가 완성이라면, 너는 무엇이지.”', '“그가 끝내 손에서 놓지 않은 날이, 처음으로 물었다.”', '“…어째서 버려진 쪽이 더 날카로운가.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' } }
 };
 
-const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'star_wedge', 'beehive_queen', 'void_grand_breach', 'immortal', 'level_200', 'passive_star_evolution'];
+const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'star_wedge', 'beehive_queen', 'void_grand_breach', 'immortal', 'level_200', 'passive_star_evolution', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork'];
 
 const ABYSS_PASSIVE_NODES = [
     { key: 'power', name: '강력함', max: 20, desc: '몬스터 피해 +2%, 재화 드랍률 +1%/pt' },

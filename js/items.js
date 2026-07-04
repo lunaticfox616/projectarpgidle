@@ -399,6 +399,71 @@ function warnBeehiveMapTravelBlocked() {
     return true;
 }
 
+// ── 시간의 균열: 제단 배치/회수 + 융합 정산 ──────────────────────────────
+// 흐름: 과거 클리어(altarOpen) → 같은 부위 고유 1개·희귀 1개 배치 → 미래 클리어 → resolveTimeRiftFusion.
+function setTimeRiftPressure(delta) {
+    let rift = ensureTimeRiftState();
+    rift.pressure = Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, rift.pressure + Math.floor(delta || 0)));
+    updateStaticUI();
+}
+
+function placeItemOnTimeAltar() {
+    let rift = ensureTimeRiftState();
+    if (!rift.altarOpen) return addLog('먼저 시간의 균열(과거)을 클리어해 제단을 열어야 합니다.', 'attack-monster');
+    let item = getSelectedCraftItem();
+    if (!item) return addLog('제단에 올릴 아이템을 인벤토리에서 먼저 선택하세요.', 'attack-monster');
+    if (isCraftSelectionEquip()) return addLog('장착 중인 장비는 제단에 올릴 수 없습니다. 해제 후 올려주세요.', 'attack-monster');
+    if (item.fusedRelic) return addLog('이미 융합된 유물은 다시 시간을 건널 수 없습니다.', 'attack-monster');
+    if (item.corrupted) return addLog('타락한 아이템은 시간의 흐름을 거부합니다.', 'attack-monster');
+    if (item.loopSealed) return addLog('봉인된 장비는 제단에 올릴 수 없습니다.', 'attack-monster');
+    if (item.rarity !== 'unique' && item.rarity !== 'rare') return addLog('고유 또는 희귀 아이템만 제단에 올릴 수 있습니다.', 'attack-monster');
+    let slotKey = item.rarity === 'unique' ? 'altarUnique' : 'altarRare';
+    if (rift[slotKey]) return addLog(`제단의 ${item.rarity === 'unique' ? '고유' : '희귀'} 자리가 이미 차 있습니다. 회수 후 다시 올려주세요.`, 'attack-monster');
+    let other = item.rarity === 'unique' ? rift.altarRare : rift.altarUnique;
+    if (other && String(other.slot || '') !== String(item.slot || '')) return addLog(`두 아이템은 같은 부위여야 융합됩니다. (제단: ${other.slot} / 선택: ${item.slot})`, 'attack-monster');
+    game.inventory = (game.inventory || []).filter(row => row && row.id !== item.id);
+    rift[slotKey] = item;
+    clearCraftSelection();
+    addLog(`⏳ [${item.name}]을(를) 과거의 제단에 올렸습니다.${rift.altarUnique && rift.altarRare ? ' 두 자리가 모두 찼습니다 — 미래로 건너가세요.' : ''}`, 'season-up');
+    updateStaticUI();
+    queueImportantSave(200);
+}
+
+function retrieveTimeAltarItems() {
+    let rift = ensureTimeRiftState();
+    if (!rift.altarUnique && !rift.altarRare) return addLog('제단이 비어 있습니다.', 'attack-monster');
+    if (rift.altarUnique) { addItemToInventory(rift.altarUnique); rift.altarUnique = null; }
+    if (rift.altarRare) { addItemToInventory(rift.altarRare); rift.altarRare = null; }
+    addLog('⏳ 제단의 아이템을 회수했습니다.', 'season-up');
+    updateStaticUI();
+    queueImportantSave(200);
+}
+
+// 미래 클리어 시 호출: 등급 판정 → 희귀의 추가 옵션을 (유실분 제외하고) 고유에 이식.
+function resolveTimeRiftFusion() {
+    let rift = ensureTimeRiftState();
+    if (!rift.altarUnique || !rift.altarRare) return null;
+    let odds = getTimeRiftFusionOdds(rift.pressure);
+    let roll = Math.random();
+    let grade = roll < odds.perfect ? 'perfect' : (roll < odds.perfect + odds.normal ? 'normal' : 'unstable');
+    let lost = grade === 'perfect' ? 0 : (grade === 'normal' ? 1 : 2);
+    let fused = JSON.parse(JSON.stringify(rift.altarUnique));
+    itemIdCounter++;
+    fused.id = itemIdCounter;
+    let rareStats = Array.isArray(rift.altarRare.stats) ? JSON.parse(JSON.stringify(rift.altarRare.stats)) : [];
+    for (let i = 0; i < lost && rareStats.length > 0; i++) rareStats.splice(Math.floor(Math.random() * rareStats.length), 1);
+    fused.stats = Array.isArray(fused.stats) ? fused.stats : [];
+    rareStats.forEach(stat => { if (stat) { stat.fusedFromRare = true; fused.stats.push(stat); } });
+    fused.fusedRelic = true;
+    fused.fusionGrade = grade;
+    fused.fusedRareName = rift.altarRare.name || '';
+    rift.altarUnique = null;
+    rift.altarRare = null;
+    rift.altarOpen = false;
+    addItemToInventory(fused);
+    return { fused: fused, grade: grade, lost: lost, inherited: rareStats.length };
+}
+
 function prepareMeteorEncounterEntry(returnZoneId) {
     let st = ensureStarWedgeState();
     st.activeMeteorTier = Math.max(1, Math.floor(st.skyRiftMinTier || 1));
@@ -423,10 +488,20 @@ function changeZone(id) {
     let zone = getZone(id);
     if (!zone) return addLog('이동할 수 없는 지역입니다.', 'attack-monster');
     if (zone.type === 'seasonBoss') {
-        if ((game.season || 1) < (zone.reqSeason || 2)) return addLog('아직 뿌리 보스가 잠겨 있습니다.', 'attack-monster');
+        if ((game.season || 1) < (zone.reqSeason || 2)) return addLog(zone.rivalBlade ? '버려진 날붙이들은 루프 31부터 당신을 찾아옵니다.' : '아직 뿌리 보스가 잠겨 있습니다.', 'attack-monster');
+        if (Array.isArray(zone.requiresRivals)) {
+            let killedRivals = (game.loopProgressCurrent && Array.isArray(game.loopProgressCurrent.specialBosses)) ? game.loopProgressCurrent.specialBosses : [];
+            let remainingRivals = zone.requiresRivals.filter(rivalId => !killedRivals.includes(rivalId)).length;
+            if (remainingRivals > 0) return addLog(`완성작은 이번 루프에 다섯 날을 모두 꺾어야 모습을 드러냅니다. (남은 날: ${remainingRivals}개)`, 'attack-monster');
+        }
         if ((game.currencies[zone.key] || 0) <= 0) return addLog(`입장 열쇠(${ORB_DB[zone.key].name})가 필요합니다.`, 'attack-monster');
         game.currencies[zone.key]--;
         game.inTicketBossFight = true;
+    }
+    if (zone.type === 'timeRift') {
+        let rift = ensureTimeRiftState();
+        if ((game.season || 1) < TIME_RIFT_UNLOCK_LOOP) return addLog(`시간의 균열은 루프 ${TIME_RIFT_UNLOCK_LOOP}부터 열립니다.`, 'attack-monster');
+        if (zone.riftPhase === 'future' && (!rift.altarUnique || !rift.altarRare)) return addLog('미래로 건너가려면 먼저 과거의 제단에 고유 1개·희귀 1개를 올려야 합니다.', 'attack-monster');
     }
     if (id === CHAOS_REALM_ZONE_ID) {
         let realm = ensureChaosRealmState();

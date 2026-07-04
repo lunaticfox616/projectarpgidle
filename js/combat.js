@@ -4372,6 +4372,13 @@ function applyCosmosPlayerDebuffsToStats(pStats) {
     });
 }
 
+// 데이터(zone.bossMods)로 선언한 고정 보스 수정자. cosmosMods와 같은 shape를 반환해
+// createEnemy의 기존 소비처를 그대로 재사용한다. (버려진 날붙이 등 시즌 보스 개성 부여용)
+function getZoneStaticBossMods(zone, isBoss) {
+    if (!isBoss || !zone || !zone.bossMods || typeof zone.bossMods !== 'object') return null;
+    return zone.bossMods;
+}
+
 function getCosmosEnemyModifiers(zone, isElite, isBoss) {
     if (!zone || zone.type !== 'cosmos') return null;
     let tag = String(zone.cosmosTag || '').trim();
@@ -4450,6 +4457,23 @@ function getSoftenedLoopDepth(depth) {
     return knee + (d - knee) * 0.5;
 }
 
+// 존 성격별 루프 난이도 입력값(시즌·루프 카운트)을 결정한다. HP·방어·공격 스케일이 공통으로 사용.
+//  - trial/outsideChaos 또는 zone.loopScaleExempt(데이터 플래그, 예: 버려진 날붙이 결투):
+//    특정 조합/빌드의 실력을 시험하는 고정 관문 — 루프 인플레이션을 받지 않고
+//    zone.fixedDifficultyMul(데이터)로만 난이도를 조절한다.
+//  - act: 매 루프 레벨 1부터 다시 지나는 재성장 구간 — ACT_LOOP_SCALE_CAP까지만 세지고 이후 고정.
+//  - 그 외(엔드리스 파밍 콘텐츠): 제한 없이 루프 스케일을 따른다.
+function getLoopDifficultyInputs(zone) {
+    let exempt = !!zone && (zone.type === 'trial' || zone.type === 'outsideChaos' || !!zone.loopScaleExempt);
+    if (exempt) return { exempt: true, seasonLoops: 0, loopCount: 0 };
+    let cap = zone && zone.type === 'act' ? ACT_LOOP_SCALE_CAP : Infinity;
+    return {
+        exempt: false,
+        seasonLoops: Math.min(cap, Math.max(0, (game.season || 1) - 1)),
+        loopCount: Math.min(cap, Math.max(0, Math.floor(game.loopCount || 0)))
+    };
+}
+
 function getLoopHpScale(loopCount) {
     let loop = Math.max(0, loopCount || 0);
     const bands = [
@@ -4470,13 +4494,16 @@ function getLoopHpScale(loopCount) {
 }
 
 function createEnemy(zone, marker, groupIndex) {
-    let seasonDepth = getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
+    let loopInputs = getLoopDifficultyInputs(zone);
+    let loopScaleExempt = loopInputs.exempt;
+    let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber(((zone.tier || 1) - 1) / 18, 0, 1);
     let seasonHpScale = 1 + seasonDepth * (0.08 + (tierProgress * 0.52));
     let lateGameHpScale = 1 + (tierProgress * 9);
     let hp = Math.floor(((56 + zone.tier * 30) * 1.15) * seasonHpScale * lateGameHpScale);
-    let loopHpScale = getLoopHpScale(game.loopCount || 0);
+    let loopHpScale = getLoopHpScale(loopInputs.loopCount);
     hp = Math.floor(hp * loopHpScale);
+    if (loopScaleExempt) hp = Math.floor(hp * (Number(zone.fixedDifficultyMul) || 1));
     let abyssScale = getAbyssMonsterScales(zone);
     let isBoss = !!marker.boss;
     let isElite = !!marker.elite && !isBoss;
@@ -4508,7 +4535,7 @@ function createEnemy(zone, marker, groupIndex) {
         let oceanTierMul = 1 + depthTier * 0.05;
         hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
     }
-    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(game.loopCount || 0) * 0.05)));
+    if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(loopInputs.loopCount) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
@@ -4536,7 +4563,7 @@ function createEnemy(zone, marker, groupIndex) {
     let variantSeed = ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
     let bossAssetKey = isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed) : null;
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
-    const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss);
+    const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss) || getZoneStaticBossMods(zone, isBoss);
     const cosmosExclusiveTrait = getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, variantSeed);
     const woodsmanRegenMul = 0.1;
     const regenMul = ((zone.type === 'outsideChaos' && isBoss) ? woodsmanRegenMul : 1) * (cosmosMods && cosmosMods.regenMul ? cosmosMods.regenMul : 1);
@@ -4560,7 +4587,7 @@ function createEnemy(zone, marker, groupIndex) {
     let chaosResBase = resistBase;
 
     let defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
-    let defenseLoopScale = Math.min(2.2, 1 + Math.max(0, (game.loopCount || 0)) * 0.05);
+    let defenseLoopScale = Math.min(2.2, 1 + loopInputs.loopCount * 0.05);
     let baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * (isBoss ? 2.2 : (isElite ? 1.6 : 1)));
     let baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * (isBoss ? 2.1 : (isElite ? 1.5 : 1)));
     let baselineResistancePressure = (game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0;
@@ -4681,6 +4708,10 @@ function getZoneEncounterProfile(zone) {
     }
     if (zone.type === 'meteor') return { markerCount: 2, minPack: 2, maxPack: 3, eliteChance: 1, bossAdds: 2, label: '운석' };
     if (zone.type === 'trial') return { markerCount: 3, minPack: 1, maxPack: 2, eliteChance: 1, bossAdds: 2, label: '시련' };
+    if (zone.type === 'timeRift') {
+        let pressure = Math.max(1, Math.floor(zone.pressure || 1));
+        return { markerCount: 3 + Math.floor(pressure / 3), minPack: 2, maxPack: Math.min(6, 3 + Math.floor(pressure / 4)), eliteChance: Math.min(0.8, 0.3 + pressure * 0.05), bossAdds: 1 + Math.floor(pressure / 5), label: `시간의 균열 (시간압 ${pressure})` };
+    }
     if (zone.type === 'seasonBoss') return { markerCount: 1, minPack: 1, maxPack: 1, eliteChance: 1, bossAdds: 0, label: '보스' };
     if (zone.type === 'labyrinth') {
         let floor = Math.max(1, zone.floor || 1);
@@ -6288,9 +6319,8 @@ function handleStoryActSpecialDefeat(zone, pStats) {
     if (storyAct.specialType === 'loop_gate') {
         if (canBreakWoodsmanLoop()) return false;
         game.woodsmanDefeatAttempts = Math.max(0, Math.floor(game.woodsmanDefeatAttempts || 0)) + 1;
-        game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
         addLog(`🪓 ${storyAct.clearText}`, 'death');
-        addLog(`❄️ 나무꾼의 창조 권능이 세계를 되감았습니다. (루프 ${game.loopCount}/${WOODSMAN_BREAK_LOOP_REQUIRED})`, 'attack-monster');
+        addLog(`❄️ 나무꾼의 창조 권능이 세계를 되감았습니다. (루프 ${game.woodsmanDefeatAttempts}/${WOODSMAN_BREAK_LOOP_REQUIRED})`, 'attack-monster');
         game.currentZoneId = 0;
         game.maxZoneId = 0;
         game.killsInZone = 0;
@@ -6503,6 +6533,26 @@ function finishEncounterRun() {
         queueImportantSave(220);
         return;
     }
+    if (zone.type === 'timeRift') {
+        let rift = ensureTimeRiftState();
+        if (zone.riftPhase === 'past') {
+            rift.altarOpen = true;
+            addLog(`⏳ 과거의 제단이 열렸습니다. (시간압 ${rift.pressure}) 인벤토리에서 아이템을 선택해 같은 부위의 고유 1개·희귀 1개를 올리세요.`, 'loot-unique');
+        } else {
+            let fusion = typeof resolveTimeRiftFusion === 'function' ? resolveTimeRiftFusion() : null;
+            if (fusion) {
+                let gradeLabel = fusion.grade === 'perfect' ? '완벽한 융합' : (fusion.grade === 'normal' ? '보통 융합' : '불안정한 융합');
+                addLog(`⌛ ${gradeLabel}! [${fusion.fused.name}]이(가) 억겁의 시간을 건너 돌아왔습니다. (계승한 추가 옵션 ${fusion.inherited}개${fusion.lost > 0 ? ` · ${fusion.lost}개 유실` : ' · 유실 없음'})`, 'loot-unique');
+            }
+        }
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+        game.killsInZone = 0;
+        enterAutomaticMapInterruptionAfterClear(zone);
+        startMoving(false);
+        updateStaticUI();
+        queueImportantSave(220);
+        return;
+    }
     if (zone.type === 'trial' && zone.bloomTrial) {
         // 보스를 실제로 처치하지 않았는데 런이 완료 처리된 경우(예: 보스 미스폰/즉시 제거 등)에는
         // 개화를 인정하지 않고 전투를 다시 구성한다. 보스를 잡아야만 재능 개화가 완료된다.
@@ -6556,6 +6606,17 @@ function finishEncounterRun() {
         game.clearedRootBosses = Array.isArray(game.clearedRootBosses) ? game.clearedRootBosses : [];
         if (firstRootBossClear) game.clearedRootBosses.push(zone.id);
         unlockConditionGemsAfterRootBossClear();
+        if (zone.rivalBlade) {
+            markLoopSpecialBossKill(zone.id);
+            if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
+            if (zone.capstoneRival) addLog('🗡️ 완성작이 무릎 꿇었습니다. 버려진 날이 벼려진 날을 이겼습니다.', 'loot-unique');
+            else {
+                let killedRivals = (game.loopProgressCurrent && Array.isArray(game.loopProgressCurrent.specialBosses)) ? game.loopProgressCurrent.specialBosses : [];
+                let remaining = SEASON_BOSS_ZONES.filter(rival => rival.rivalBlade && !rival.capstoneRival && !killedRivals.includes(rival.id)).length;
+                if (remaining > 0) addLog(`🗡️ 버려진 날 격파! 이번 루프에 남은 날: ${remaining}개 (모두 꺾으면 「완성작」이 나타납니다)`, 'season-up');
+                else addLog('🗡️ 다섯 날이 모두 꺾였습니다. 「일곱 번째 날 - 완성작」이 결투를 기다립니다.', 'loot-unique');
+            }
+        }
         if (Math.random() < 0.5) awardCurrency(zone.reward || 'bossCore', 1);
         if (Math.random() < 0.4) {
             let bossUnique = generateUniqueItem(zone.tier || 12);
@@ -7995,7 +8056,7 @@ function performMonsterAttacks(pStats) {
         }
         enemy.recentHitsTimer = Math.max(0, (enemy.recentHitsTimer || 0) - 0.1);
         if (enemy.recentHitsTimer <= 0) enemy.recentHitsTaken = Math.max(0, (enemy.recentHitsTaken || 0) - 1);
-        let seasonDepth = getSoftenedLoopDepth(Math.max(0, (game.season || 1) - 1));
+        let seasonDepth = getSoftenedLoopDepth(getLoopDifficultyInputs(zone).seasonLoops);
         let tierPressure = clampNumber(((zone.tier || 1) - 1) / 10, 0, 1);
         const monsterBaseAttackSpeedMul = 1.10;
         const monsterBaseDamageMul = 1.15;
@@ -8615,6 +8676,8 @@ function triggerSeasonReset() {
         : null;
     let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
     let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
+    // 시간의 균열 제단은 루프를 건너 보존된다 — 과거에 심은 것은 몇 루프가 지나도 미래에서 거둘 수 있다.
+    let preservedTimeRift = JSON.parse(JSON.stringify(ensureTimeRiftState()));
     let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
     let preservedOcean = JSON.parse(JSON.stringify(ensureOceanState()));
     let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
@@ -8638,6 +8701,12 @@ function triggerSeasonReset() {
     game.seasonPoints++;
     if (game.loopCount === 2 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_spore_crafting', '홀씨 제작 해금', '루프 2 달성! 이제 액트/혼돈 몬스터가 화염/냉기/번개 홀씨를 떨어뜨립니다.\n제작 탭에서 오브 사용 시 홀씨 태그를 지정할 수 있습니다.', 'tab-items');
+    }
+    if (game.season === 13 && typeof queueTutorialNotice === 'function') {
+        queueTutorialNotice('unlock_time_rift', '시간의 균열', '루프 13 달성! 지도 → 탐험에 시간의 균열이 열렸습니다.\n과거를 클리어해 제단을 열고 같은 부위의 고유 1개·희귀 1개를 올린 뒤, 미래를 클리어하면 두 아이템이 융합된 유물이 됩니다.\n시간압이 높을수록 어렵지만 완벽한 융합(추가 옵션 전부 계승) 확률이 오릅니다.', 'tab-map');
+    }
+    if (game.season === 31 && typeof queueTutorialNotice === 'function') {
+        queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n지도의 뿌리 보스 목록에서 결투에 도전하세요. (도전권: 심층 보스가 드랍하는 [표식: 버려진 날])\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');
     }
     addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
     game.level = 1;
@@ -8735,6 +8804,7 @@ function triggerSeasonReset() {
     game.mapSubtab = 'map-tab-zones';
     game.mapExploreSubtab = 'map-explore-hunting';
     game.chaosRealm = preservedChaosRealm;
+    game.timeRift = preservedTimeRift;
     game.skyTower = preservedSkyTower;
     game.ocean = preservedOcean;
     game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));

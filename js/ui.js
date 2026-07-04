@@ -4599,6 +4599,10 @@ function showItemTooltip(event, idx, isEquip) {
         let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';
         html += `<div class="tooltip-line" style="margin-top:6px;"><span style="${uniqueGlow}">✨ 고유 효과: ${escapeHTML(item.uniqueEffect)}</span></div>`;
     }
+    if (item.fusedRelic) {
+        let fusionGradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
+        html += `<div class="tooltip-line" style="color:#8fd8ff;">⌛ ${fusionGradeLabel}${item.fusedRareName ? ` · [${escapeHTML(item.fusedRareName)}]의 기억` : ''} — 신성한/타락/축복의 오브만 사용 가능</div>`;
+    }
     function getItemDefenseView(target) {
         let base = { armor: 0, evasion: 0, energyShield: 0 };
         let flat = { armor: 0, evasion: 0, energyShield: 0 };
@@ -6879,6 +6883,7 @@ function getCraftOrbUseState(key, item) {
     if (!item) return { enabled: false, reason: '아이템 미선택' };
     if ((game.currencies[key] || 0) <= 0) return { enabled: false, reason: '재화 부족' };
     if (item.corrupted && key !== 'tainted') return { enabled: false, reason: '타락 아이템은 일반 제작 불가' };
+    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(key)) return { enabled: false, reason: '융합 유물: 신성한/타락/축복만 사용 가능' };
     let ok = false;
     if (key === 'transmute') ok = item.rarity === 'normal';
     else if (key === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
@@ -6895,6 +6900,50 @@ function getCraftOrbUseState(key, item) {
     else if (key === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     else if (key === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
     return { enabled: ok, reason: ok ? '사용 가능' : '현재 아이템 조건 불일치' };
+}
+
+// 시간의 균열 패널: 시간압 선택 → 과거 진입 → 제단 배치 → 미래 진입.
+function renderTimeRiftPanel() {
+    let host = document.getElementById('ui-timerift-panel');
+    let header = document.getElementById('ui-timerift-header');
+    if (!host) return;
+    if (header) header.style.display = 'block';
+    host.style.display = 'block';
+    let rift = ensureTimeRiftState();
+    let odds = getTimeRiftFusionOdds(rift.pressure);
+    let pct = v => `${Math.round(v * 100)}%`;
+    let altarFull = !!(rift.altarUnique && rift.altarRare);
+    let altarLine = slotItem => slotItem ? `<strong>${slotItem.name}</strong> <span style="color:#9fb4d1;">[${slotItem.slot}]</span>` : '<span style="color:#7f8c8d;">비어 있음</span>';
+    let selected = typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null;
+    let selectedLine = selected ? `선택됨: [${selected.slot}] ${selected.name} (${selected.rarity})` : '인벤토리에서 아이템을 선택하세요';
+    host.innerHTML = `
+        <div style="margin-bottom:8px; color:#bfd3ea; font-size:0.85em;">과거를 클리어해 제단을 열고, 같은 부위의 <strong>고유 1개·희귀 1개</strong>를 올린 뒤 미래를 클리어하면 희귀의 추가 옵션을 계승한 <strong>융합 유물</strong>이 됩니다. 융합 유물은 신성한/타락/축복의 오브만 사용할 수 있습니다. 제단은 루프를 건너도 보존됩니다.</div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <span>시간압</span>
+            <button onclick="setTimeRiftPressure(-1)" ${rift.pressure <= 1 ? 'disabled' : ''}>-</button>
+            <strong>${rift.pressure}</strong>
+            <button onclick="setTimeRiftPressure(1)" ${rift.pressure >= TIME_RIFT_MAX_PRESSURE ? 'disabled' : ''}>+</button>
+            <span style="color:#9fb4d1; font-size:0.83em;">완벽 ${pct(odds.perfect)} · 보통 ${pct(odds.normal)} · 불안정 ${pct(odds.unstable)}</span>
+        </div>
+        <div class="map-grid" style="margin-bottom:8px;">
+            <div class="map-item ${game.currentZoneId === TIME_RIFT_PAST_ZONE_ID ? 'current' : ''}" onclick="changeZone('time_rift_past')">
+                <div class="map-item-main"><span>⏳</span><span>과거 (제단 개방)</span></div>
+                <div class="map-item-actions"><span class="map-zone-status">${rift.altarOpen ? '제단 열림' : '클리어 필요'}</span></div>
+            </div>
+            <div class="map-item ${game.currentZoneId === TIME_RIFT_FUTURE_ZONE_ID ? 'current' : ''}" onclick="changeZone('time_rift_future')">
+                <div class="map-item-main"><span>⌛</span><span>미래 (융합 정산)</span></div>
+                <div class="map-item-actions"><span class="map-zone-status">${altarFull ? '융합 준비 완료' : '제단 2자리 필요'}</span></div>
+            </div>
+        </div>
+        <div style="background:#0f1420; border:1px solid #35507a; border-radius:8px; padding:8px;">
+            <div style="margin-bottom:4px;">제단 · 고유: ${altarLine(rift.altarUnique)}</div>
+            <div style="margin-bottom:6px;">제단 · 희귀: ${altarLine(rift.altarRare)}</div>
+            <div style="color:#9fb4d1; font-size:0.8em; margin-bottom:6px;">${selectedLine}</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button onclick="placeItemOnTimeAltar()" ${rift.altarOpen ? '' : 'disabled'}>선택 아이템 올리기</button>
+                <button onclick="retrieveTimeAltarItems()" ${(rift.altarUnique || rift.altarRare) ? '' : 'disabled'}>제단 회수</button>
+            </div>
+        </div>`;
 }
 
 function renderCraftSelectedSummary(item) {
@@ -7027,6 +7076,7 @@ function getMobileCraftCurrencyUseState(key, item) {
     if (!key || !ORB_DB[key]) return { enabled: false, reason: '재화를 선택하세요.' };
     if ((game.currencies[key] || 0) <= 0) return { enabled: false, reason: '보유량 없음' };
     if (!item) return { enabled: false, reason: '아이템을 선택하세요.' };
+    if (item && item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(key)) return { enabled: false, reason: '융합 유물: 신성한/타락/축복만 사용 가능' };
     if (key === 'enchantedHoney') {
         let v = getCraftActionValidators(item);
         return { enabled: !!v.honey, reason: v.honey ? '사용 가능' : '현재 아이템 조건 불일치' };
@@ -7548,6 +7598,10 @@ function buildCraftActionButtons(item) {
         </div>`;
     }).join('');
     document.getElementById('ui-season-boss-list').innerHTML = rootBossListHtml;
+
+    let timeRiftOpen = (game.season || 1) >= TIME_RIFT_UNLOCK_LOOP;
+    setExploreSubtabAvailable('map-explore-timerift', timeRiftOpen);
+    if (timeRiftOpen) renderTimeRiftPanel();
 
     let labyrinthOpen = (game.season || 1) >= 3;
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
@@ -9308,7 +9362,7 @@ function mergeDefaults(save) {
     // 뿌리 보스를 한 번이라도 클리어한 적이 있다면 영구 해금 처리한다.
     if (!merged.conditionGemUnlocked && merged.clearedRootBosses.length > 0) merged.conditionGemUnlocked = true;
     merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
-    merged.mapExploreSubtab = ['map-explore-hunting', 'map-explore-chaos', 'map-explore-root-boss', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-hunting';
+    merged.mapExploreSubtab = ['map-explore-hunting', 'map-explore-chaos', 'map-explore-root-boss', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-timerift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-hunting';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
