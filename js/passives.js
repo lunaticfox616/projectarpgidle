@@ -7236,16 +7236,22 @@ function getCurrencyDrops(enemy) {
 
 function addItemToInventory(item, options) {
     normalizeItem(item);
-    let ignoreFilter = !!(options && options.ignoreFilter);
+    // guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등).
+    // 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다.
+    let guaranteedKeep = !!(options && options.guaranteedKeep);
+    let ignoreFilter = guaranteedKeep || !!(options && options.ignoreFilter);
     if (!ignoreFilter && !passesItemPickupFilter(item)) {
         if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;
     }
     if ((game.inventory || []).length >= getInventoryLimit()) {
-        salvageItemObject(item, true, { noDivine: true });
-        return false;
+        if (!guaranteedKeep) {
+            salvageItemObject(item, true, { noDivine: true });
+            return false;
+        }
+        addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
     }
-    if (game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities && game.settings.autoSalvageRarities[item.rarity]) {
+    if (!guaranteedKeep && game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities && game.settings.autoSalvageRarities[item.rarity]) {
         salvageItemObject(item, true);
         if (game.settings.showLootLog) addLog(`🧪 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-normal');
         return false;
