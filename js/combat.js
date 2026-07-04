@@ -6292,9 +6292,8 @@ function handleStoryActSpecialDefeat(zone, pStats) {
     if (storyAct.specialType === 'loop_gate') {
         if (canBreakWoodsmanLoop()) return false;
         game.woodsmanDefeatAttempts = Math.max(0, Math.floor(game.woodsmanDefeatAttempts || 0)) + 1;
-        game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
         addLog(`🪓 ${storyAct.clearText}`, 'death');
-        addLog(`❄️ 나무꾼의 창조 권능이 세계를 되감았습니다. (루프 ${game.loopCount}/${WOODSMAN_BREAK_LOOP_REQUIRED})`, 'attack-monster');
+        addLog(`❄️ 나무꾼의 창조 권능이 세계를 되감았습니다. (루프 ${game.woodsmanDefeatAttempts}/${WOODSMAN_BREAK_LOOP_REQUIRED})`, 'attack-monster');
         game.currentZoneId = 0;
         game.maxZoneId = 0;
         game.killsInZone = 0;
