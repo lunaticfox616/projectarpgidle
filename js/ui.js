@@ -460,6 +460,7 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 't
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
 // 넓은 화면(데스크톱)에서만 활성화되고, 좁은 화면에서는 기존 방식(전체 탭 + 스와이프)을 유지한다.
+const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season'] },
@@ -570,7 +571,7 @@ function renderTabCategoryBar() {
     if (!bar) return;
     ensureTabCategoryBarPlacement(bar);
     if (!isTabGroupingActive()) { bar.style.display = 'none'; return; }
-    bar.style.display = 'flex';
+    bar.style.display = 'inline-flex';
     let active = getActiveTabGroup();
     let unlocks = game.unlocks || {};
     bar.innerHTML = getOrderedTabGroups().map(group => {
