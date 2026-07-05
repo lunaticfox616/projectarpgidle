@@ -1853,6 +1853,7 @@ const defaultGame = {
         showDeathNotice: true,
         showMobileBattlePip: true,
         pauseGameOnOverlay: false,
+        twoRowTabs: false,
         damageNumberFormat: 'comma',
         showExpComma: true,
         showHpComma: true,

@@ -462,7 +462,8 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 't
 // 넓은 화면(데스크톱)에서만 활성화되고, 좁은 화면에서는 기존 방식(전체 탭 + 스와이프)을 유지한다.
 const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
-    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-character', 'tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season'] },
+    { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
+    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-skills', 'tab-codex', 'tab-journal'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-talisman', 'tab-cube'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
@@ -535,7 +536,7 @@ function isTabGroupingActive() {
 function getActiveTabGroup() {
     game.settings = game.settings || {};
     let cur = game.settings.activeTabGroup;
-    if (!TAB_GROUPS.some(g => g.key === cur)) cur = 'growth';
+    if (!TAB_GROUPS.some(g => g.key === cur)) cur = 'character';
     return cur;
 }
 function selectTabGroup(groupKey) {
@@ -575,7 +576,7 @@ function renderTabCategoryBar() {
     let unlocks = game.unlocks || {};
     bar.innerHTML = getOrderedTabGroups().map(group => {
         // 그룹 내 알림 점 집계.
-        let hasNoti = group.tabs.some(id => {
+        let hasNoti = group.key !== active && group.tabs.some(id => {
             let key = id.replace('tab-', '');
             return game.noti && game.noti[key] && isNotiEnabled(key);
         });
@@ -779,7 +780,7 @@ function applyTabHeaderOrder(shouldRenderSettings){
     let bottomHeader = document.getElementById('tab-header-bottom');
     game.settings=game.settings||{};
     game.settings.tabPlacement = game.settings.tabPlacement || {};
-    if (!game.settings.tabPlacementInitialized && window.matchMedia('(max-width: 1080px)').matches) {
+    if (game.settings.twoRowTabs && !game.settings.tabPlacementInitialized && window.matchMedia('(max-width: 1080px)').matches) {
         game.settings.tabPlacementInitialized = true;
         let autoIds = Array.from(topHeader.querySelectorAll('.tab-btn')).map(el => el.id);
         autoIds.forEach((id, idx) => { game.settings.tabPlacement[id] = idx === 0 ? 'top' : 'bottom'; });
@@ -790,7 +791,7 @@ function applyTabHeaderOrder(shouldRenderSettings){
     let map={}; allTabButtons.forEach(el=>map[el.id]=el);
     order.forEach(id=>{
         if(!map[id]) return;
-        let target = (game.settings.tabPlacement[id] === 'bottom' && bottomHeader) ? bottomHeader : topHeader;
+        let target = (game.settings.twoRowTabs && game.settings.tabPlacement[id] === 'bottom' && bottomHeader) ? bottomHeader : topHeader;
         target.appendChild(map[id]);
     });
     ids.forEach(id=>{ if(!order.includes(id) && map[id]) topHeader.appendChild(map[id]); });
@@ -4297,6 +4298,9 @@ function updateSettings() {
     game.settings.showCrowdPauseLog = document.getElementById('chk-log-crowd').checked;
     game.settings.showDeathNotice = document.getElementById('chk-death-notice').checked;
     game.settings.showMobileBattlePip = document.getElementById('chk-mobile-battle-pip').checked;
+    let twoRowTabsCheckbox = document.getElementById('chk-two-row-tabs');
+    game.settings.twoRowTabs = !!(twoRowTabsCheckbox && twoRowTabsCheckbox.checked);
+    lastTabHeaderUiSignature = null;
     let pauseOverlayCheckbox = document.getElementById('chk-pause-overlay');
     game.settings.pauseGameOnOverlay = !!(pauseOverlayCheckbox && pauseOverlayCheckbox.checked);
     let damageFormatSelect = document.getElementById('sel-damage-number-format');
@@ -9737,6 +9741,7 @@ function mergeDefaults(save) {
     merged.passiveStarEvolution = !!merged.passiveStarEvolution;
     merged.settings.showDeathNotice = merged.settings.showDeathNotice !== false;
     merged.settings.themeMode = merged.settings.themeMode === 'light' ? 'light' : 'dark';
+    merged.settings.twoRowTabs = !!merged.settings.twoRowTabs;
     merged.settings.leftPaneCollapsed = !!merged.settings.leftPaneCollapsed;
     merged.settings.combatLogCollapsed = !!merged.settings.combatLogCollapsed;
     merged.settings.autoSalvageEnabled = !!merged.settings.autoSalvageEnabled;
@@ -11744,6 +11749,7 @@ function init() {
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
     document.getElementById('chk-mobile-battle-pip').checked = game.settings.showMobileBattlePip !== false;
     document.getElementById('chk-pause-overlay').checked = !!game.settings.pauseGameOnOverlay;
+    document.getElementById('chk-two-row-tabs').checked = !!game.settings.twoRowTabs;
     document.getElementById('sel-damage-number-format').value = ['comma', 'korean', 'korean_short', 'english'].includes(game.settings.damageNumberFormat) ? game.settings.damageNumberFormat : 'comma';
     document.getElementById('chk-exp-comma').checked = game.settings.showExpComma !== false;
     document.getElementById('chk-hp-comma').checked = game.settings.showHpComma !== false;
