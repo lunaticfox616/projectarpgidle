@@ -950,7 +950,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let zoneTier = (zone && zone.tier) || 1;
     let base = Math.max(1, Math.floor(s.baseDamage || 20));
-    if (game.ascendClass === 'soulbinder' && hasKeystone('sb1')) base = Math.max(1, Math.floor(base * 1.15));
+    if (game.ascendClass === 'soulbinder' && hasKeystone('sb1')) base = Math.max(1, Math.floor(base * 1.30));
     let sharedIncreasePct = getSummonSharedDamageIncreasePct(s, pStats);
     // 소환수 효율은 피해 증가(소환수 피해/공유)와 합산이 아니라 별도 곱연산으로 적용합니다.
     let dmgMul = (1 + ((pStats.summonPctDmg || 0) / 100) + (sharedIncreasePct / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
@@ -959,9 +959,9 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let crit = false;
     let dmg = Math.max(1, base * dmgMul);
     let ailmentSourceDmg = Math.max(1, base * dmgMul);
-    // 상호 보완(sb7): 플레이어 공격력(타격당 기본 피해)의 50%를 소환수 타격에 가산(치명타 적용 전).
+    // 상호 보완(sb7): 플레이어 공격력(타격당 기본 피해)의 75%를 소환수 타격에 가산(치명타 적용 전).
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
-        let sbPlayerShare = 0.5 * Math.max(0, Number((pStats && pStats.sbPlayerAttackPower) || 0));
+        let sbPlayerShare = 0.75 * Math.max(0, Number((pStats && pStats.sbPlayerAttackPower) || 0));
         if (sbPlayerShare > 0) {
             dmg += sbPlayerShare;
             ailmentSourceDmg += sbPlayerShare;
@@ -2762,7 +2762,7 @@ function getPlayerStats() {
         }
     } else if (game.ascendClass === 'gladiator') {
         if (hasKeystone('g1')) {
-            if (skill.ele === 'phys') finalBaseDmg = Math.floor(finalBaseDmg * 1.12);
+            if (skill.ele === 'phys') finalBaseDmg = Math.floor(finalBaseDmg * 1.20);
             else finalBaseDmg = Math.floor(finalBaseDmg * 0.80);
         }
         if (hasKeystone('g2')) {
@@ -2777,21 +2777,21 @@ function getPlayerStats() {
         if (hasKeystone('g4')) {
             let crowdCount = (game.enemies || []).filter(e => e && e.hp > 0).length;
             if (crowdCount >= 3) {
-                finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
-                finalDr = Math.min(75, finalDr + 15);
+                finalBaseDmg = Math.floor(finalBaseDmg * 1.20);
+                finalDr = Math.min(75, finalDr + 20);
             }
         }
         if (hasKeystone('g5')) {
             if (game.gladiatorSwiftGuardReady) swiftOpeningTakenMultiplier = 0.70;
         }
         if (hasKeystone('g7')) {
-            finalDs += Math.floor(Math.max(0, finalEvasion) / 50);
-            finalCrit += Math.floor(Math.max(0, finalArmor) / 400);
+            finalDs += Math.floor(Math.max(0, finalEvasion) / 35);
+            finalCrit += Math.floor(Math.max(0, finalArmor) / 250);
         }
         if (hasKeystone('g8')) {
             finalDs += 100;
-            finalBaseDmg = Math.floor(finalBaseDmg * 1.18);
-            bossDamageDealtMultiplier *= 1.18;
+            finalBaseDmg = Math.floor(finalBaseDmg * 1.25);
+            bossDamageDealtMultiplier *= 1.30;
             bossTakenDamageMultiplier *= 1.18;
             finalRegen *= 0.5;
             finalEnergyShieldRegenRate = 0;
@@ -2832,20 +2832,19 @@ function getPlayerStats() {
             finalEnergyShield = 0;
         }
         if (hasKeystone('r2')) {
-            finalAspd = Math.min(12, finalAspd * 1.1);
-            finalBaseDmg = Math.floor(finalBaseDmg * 0.9);
+            finalAspd = Math.min(12, finalAspd * 1.2);
         }
         if (hasKeystone('r3')) {
             finalMinDmgRoll = Math.max(5, finalMinDmgRoll - 10);
         }
-        if (hasKeystone('r4')) finalAspd = Math.min(12, finalAspd * (1 + Math.max(0, finalMove) * 0.001));
+        if (hasKeystone('r4')) finalAspd = Math.min(12, finalAspd * (1 + Math.max(0, finalMove) * 0.002));
         if (hasKeystone('r6') && Array.isArray(skill.tags) && skill.tags.includes('projectile')) {
             skill.targets = Math.min(12, Math.max(1, (skill.targets || 1) + 1));
-            finalBaseDmg = Math.floor(finalBaseDmg * 0.90 * (1 + Math.max(1, Math.floor(skill.targets || 1)) * 0.03));
+            finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(1, Math.floor(skill.targets || 1)) * 0.08));
         }
         if (hasKeystone('r8')) {
-            let aspdBonus = Math.max(0, finalAspd - 1) * 0.07;
-            let moveBonus = Math.max(0, finalMove) * 0.0007;
+            let aspdBonus = Math.max(0, finalAspd - 1) * 0.12;
+            let moveBonus = Math.max(0, finalMove) * 0.0012;
             finalAspd = Math.min(12, finalAspd * (1 + moveBonus));
             finalMove *= (1 + aspdBonus);
             finalMaxHp = Math.floor(finalMaxHp * 0.85);
@@ -2857,10 +2856,12 @@ function getPlayerStats() {
         }
     } else if (game.ascendClass === 'hunter') {
         if (hasKeystone('h3')) finalEvasion = Math.floor(finalEvasion * (1 + Math.max(0, finalMove) * 0.002));
-        if (hasKeystone('h5')) { finalCritDmg += 250; finalCrit = Math.max(0, finalCrit - 25); }
+        if (hasKeystone('h5')) { finalCritDmg += 350; finalCrit = Math.max(0, finalCrit - 20); }
         if (hasKeystone('h6') && Array.isArray(skill.tags) && skill.tags.includes('projectile')) {
             skill.targets = Math.min(12, Math.max(1, (skill.targets || 1) + 1));
             totalProjectileExtraShots += 1;
+            // 헌터의 추가 발사는 훈련된 사격 — 스킬이 자체 비율을 정의하지 않았다면 보너스 샷 피해를 70%로 강화.
+            if (!Number.isFinite(Number(skill.extraProjectileDamagePct)) || Number(skill.extraProjectileDamagePct) <= 0) skill.extraProjectileDamagePct = 70;
         }
         if (hasKeystone('h7')) {
             let solitaryOriginalTargets = Math.max(1, Math.floor(skill.targets || 1));
@@ -2890,11 +2891,11 @@ function getPlayerStats() {
         }
         if (hasKeystone('cr5')) {
             finalRegen += 3;
-            finalMaxHp = Math.floor(finalMaxHp * 1.1);
-            finalArmor = Math.floor(finalArmor * 1.3);
-            finalEnergyShield = Math.floor(finalEnergyShield * 1.3);
+            finalMaxHp = Math.floor(finalMaxHp * 1.15);
+            finalArmor = Math.floor(finalArmor * 1.4);
+            finalEnergyShield = Math.floor(finalEnergyShield * 1.4);
         }
-        if (hasKeystone('cr6') && skill.ele === 'light') finalMaxDmgRoll = Math.floor(finalMaxDmgRoll * 1.5);
+        if (hasKeystone('cr6') && skill.ele === 'light') finalMaxDmgRoll = Math.floor(finalMaxDmgRoll * 2.0);
         if (hasKeystone('cr7')) {
             let addEs = Math.floor(finalArmor * 0.5);
             let addArmor = Math.floor(finalEnergyShield * 0.5);
@@ -2903,11 +2904,11 @@ function getPlayerStats() {
             finalEnergyShieldRechargeDelay = Math.max(0.1, finalEnergyShieldRechargeDelay * 0.5);
         }
         if (hasKeystone('cr3') && skill.ele === 'light') {
-            crusaderHolyFlatDmg = Math.floor((Math.max(0, finalEnergyShield) / 100) * Math.max(1, Math.floor(game.level || 1)));
+            crusaderHolyFlatDmg = Math.floor((Math.max(0, finalEnergyShield) / 100) * Math.max(1, Math.floor(game.level || 1)) * 2);
             crusaderHolyScaledDmg = Math.floor(crusaderHolyFlatDmg * baseDamageIncreaseMultiplier);
             finalBaseDmg = Math.max(1, finalBaseDmg + crusaderHolyScaledDmg);
         }
-        if (hasKeystone('cr8') && (game.crusaderLightningAegisUntil || 0) > Date.now()) finalBaseDmg = Math.floor(finalBaseDmg * (skill.ele === 'light' ? 1.5 : 1));
+        if (hasKeystone('cr8') && (game.crusaderLightningAegisUntil || 0) > Date.now()) finalBaseDmg = Math.floor(finalBaseDmg * (skill.ele === 'light' ? 1.75 : 1));
     } else if (game.ascendClass === 'elementalist') {
         if (hasKeystone('e1')) {
             if (skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = 0;
@@ -2972,7 +2973,7 @@ function getPlayerStats() {
         }
     } else if (game.ascendClass === 'guardian') {
         if (hasKeystone('gd1')) {
-            finalArmor = Math.floor(finalArmor * 1.1);
+            finalArmor = Math.floor(finalArmor * 1.15);
             guardianArmorDamageBonus = true;
         }
         if (hasKeystone('gd2')) finalMaxHp = Math.floor(finalMaxHp * 1.2);
@@ -2984,17 +2985,16 @@ function getPlayerStats() {
             finalEnergyShield = 0;
         }
         if (hasKeystone('gd5')) {
-            finalBaseDmg = Math.floor(finalBaseDmg * 0.88);
             genericTakenDamageMultiplier *= 0.85;
         }
         if (hasKeystone('gd6')) { let now = Date.now(); let stacks = (game.guardianEnduranceExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) : 0; if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.11)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.6)); }
         if (guardianArmorDamageBonus) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalArmor) * 0.001));
-        if (hasKeystone('gd8')) { guardianDamageNullifyChance += 25; ailmentResistBonusPct += 50; }
+        if (hasKeystone('gd8')) { guardianDamageNullifyChance += 30; ailmentResistBonusPct += 50; }
         // 9) 거대화: 최대 생명력 20% 증폭
         if (hasKeystone('gd9')) finalMaxHp = Math.floor(finalMaxHp * 1.2);
         if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
             genericTakenDamageMultiplier *= 0.8;
-            finalBaseDmg = Math.floor(finalBaseDmg * 1.2);
+            finalBaseDmg = Math.floor(finalBaseDmg * 1.3);
             let now = Date.now();
             if ((game.guardianLastStandCleanseAt || 0) + 5000 <= now) {
                 game.playerAilments = [];
@@ -3031,9 +3031,9 @@ function getPlayerStats() {
         // 무한한 권능: 보조 젬 한도 무제한
         if (hasKeystone('iq9')) suppCap += 999;
     } else if (game.ascendClass === 'soulbinder') {
-        if (hasKeystone('sb4')) { sbSummonAspdBonus += 15; sbSummonCapBonus += 1; }
+        if (hasKeystone('sb4')) { sbSummonAspdBonus += 25; sbSummonCapBonus += 1; }
         if (hasKeystone('sb8')) sbSummonCapBonus += 3;
-        if (hasKeystone('sb6')) finalResPen += 16;
+        if (hasKeystone('sb6')) finalResPen += 25;
         if (hasKeystone('sb5')) {
             let sumFlat = Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0));
             let sumPct = Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0));
@@ -3047,7 +3047,7 @@ function getPlayerStats() {
             finalAspd = Math.max(0.1, finalAspd * (1 + sumAspd / 100));
         }
         if (hasKeystone('sb7')) {
-            // 상호 보완: 플레이어/소환수가 서로의 '공격력'(타격당 기본 피해)의 50%를 나눠 가집니다.
+            // 상호 보완: 플레이어/소환수가 서로의 '공격력'(타격당 기본 피해)의 75%를 나눠 가집니다.
             // 각 측의 공격력은 상대의 보너스를 제외한 자기 스탯만으로 계산하므로 무한 피드백이 없습니다.
             // 플레이어 공격력(보너스 적용 전)을 소환수에게 전달.
             sbPlayerAttackPower = Math.max(0, finalBaseDmg);
@@ -3061,7 +3061,7 @@ function getPlayerStats() {
             };
             sbSummonAttackPower = getRepresentativeSummonAttackPower(summonStatsForShare);
             if (!hasKeystone('sb5')) {
-                sbSummonShareToPlayer = Math.floor(0.5 * sbSummonAttackPower);
+                sbSummonShareToPlayer = Math.floor(0.75 * sbSummonAttackPower);
                 finalBaseDmg += sbSummonShareToPlayer;
             }
         }
@@ -3374,8 +3374,8 @@ function getPlayerStats() {
                 finalDamageMultiplier !== 1 ? `최종 피해 배율 ${finalDamageMultiplier.toFixed(2)}x` : null,
                 chaosDamageMultiplier !== 1 ? `카오스 피해 배율 ${chaosDamageMultiplier.toFixed(2)}x` : null,
                 skill.convertedToChaos ? '워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용' : null,
-                (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? `상호 보완: 소환수 공격력 ${Math.floor(sbSummonAttackPower)}의 50% → 기본 피해 +${Math.floor(sbSummonShareToPlayer)}` : null,
-                (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && !hasKeystone('sb5') && sbPlayerAttackPower > 0) ? `상호 보완: 내 공격력 ${Math.floor(sbPlayerAttackPower)}의 50%(+${Math.floor(0.5 * sbPlayerAttackPower)})를 각 소환수 타격에 전달` : null,
+                (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? `상호 보완: 소환수 공격력 ${Math.floor(sbSummonAttackPower)}의 75% → 기본 피해 +${Math.floor(sbSummonShareToPlayer)}` : null,
+                (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && !hasKeystone('sb5') && sbPlayerAttackPower > 0) ? `상호 보완: 내 공격력 ${Math.floor(sbPlayerAttackPower)}의 75%(+${Math.floor(0.75 * sbPlayerAttackPower)})를 각 소환수 타격에 전달` : null,
                 `피해 범위 ${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
             ].filter(Boolean),
             final: `${Math.floor(finalBaseDmg)}`
@@ -7205,7 +7205,7 @@ function performPlayerAttack(pStats) {
             }
             if (game.ascendClass === 'hunter' && hasKeystone('h1')) {
                 let aliveCnt = (game.enemies || []).filter(e => e && e.hp > 0).length;
-                let hunterMul = aliveCnt === 1 ? 1.25 : 1.10;
+                let hunterMul = aliveCnt === 1 ? 1.40 : 1.15;
                 hitBaseDamage = Math.floor(hitBaseDamage * hunterMul);
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * hunterMul);
             }
@@ -7546,7 +7546,7 @@ function performPlayerAttack(pStats) {
                 mark.hits = Math.max(0, Math.floor(mark.hits || 0)) + 1;
                 if (mark.hits >= 3) {
                     mark.hits = 0;
-                    let bonus = Math.max(1, Math.floor((targetEnemy.maxHp || targetEnemy.hp || 1) * 0.01));
+                    let bonus = Math.max(1, Math.floor((targetEnemy.maxHp || targetEnemy.hp || 1) * 0.03));
                     dealtToEnemy += applyDamageToEnemyResource(targetEnemy, bonus);
                     addBattleFx('hit', { enemyId: targetEnemy.id, color: getElementColor('phys'), damage: bonus, duration: 280, element: 'phys' });
                 }

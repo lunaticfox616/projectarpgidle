@@ -2802,7 +2802,7 @@ function getClassTreeDef(clsKey) {
         templar: { stat: 'resAll', val: 18 },
         witch: { stat: 'aoePctDmg', val: 38 },
         shadow: { stat: 'chaosPctDmg', val: 52 },
-        ranger: { stat: 'projectilePctDmg', val: 58 },
+        ranger: { stat: 'projectilePctDmg', val: 80 },
         duelist: { stat: 'ds', val: 24 },
         marauder: { stat: 'dr', val: 22 },
         elementalist: { stat: 'elementalPctDmg', val: 56 },
@@ -2891,7 +2891,7 @@ function getClassTreeDef(clsKey) {
     if ((game.completedTrials || []).includes('trial_4')) {
         const coreByClass = {
             warrior: [{ stat: 'physPctDmg', val: 52 }, { stat: 'critDmg', val: 62 }],
-            gladiator: [{ stat: 'aspd', val: 22 }, { stat: 'ds', val: 26 }],
+            gladiator: [{ stat: 'aspd', val: 22 }, { stat: 'ds', val: 40 }],
             assassin: [{ stat: 'critDmg', val: 80 }, { stat: 'crit', val: 18 }],
             ranger: [{ stat: 'projectilePctDmg', val: 50 }, { stat: 'move', val: 20 }],
             elementalist: [{ stat: 'elementalPctDmg', val: 52 }, { stat: 'resPen', val: 16 }],
