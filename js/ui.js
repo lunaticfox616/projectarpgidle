@@ -442,10 +442,12 @@ function renderTabOrderSettings() {
     if (!tabOrderEl) return;
     if (!(document.getElementById('tab-settings') || {}).classList.contains('active')) return;
     let tabs = Array.from(document.querySelectorAll('.tab-header .tab-btn'));
-    tabOrderEl.innerHTML = tabs.map(el => {
+    let groupRows = getOrderedTabGroups().map(group => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${group.label}</span><span style="display:flex;gap:4px;"><button onclick="moveTabGroup('${group.key}',-1)">▲</button><button onclick="moveTabGroup('${group.key}',1)">▼</button></span></div>`).join('');
+    let tabRows = tabs.map(el => {
         let place = (game.settings.tabPlacement[el.id] === 'bottom') ? 'bottom' : 'top';
         return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
     }).join('');
+    tabOrderEl.innerHTML = `<div style="font-weight:800;color:#f1c40f;margin-bottom:2px;">상위 그룹 탭</div>${groupRows}<div style="font-weight:800;color:#f1c40f;margin:8px 0 2px;">일반 탭</div>${tabRows}`;
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
 const TAB_DRAG_CANCEL_PX = 8;
@@ -460,10 +462,66 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 't
 // 넓은 화면(데스크톱)에서만 활성화되고, 좁은 화면에서는 기존 방식(전체 탭 + 스와이프)을 유지한다.
 const TAB_GROUPS = [
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-character', 'tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season'] },
-    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-talisman', 'tab-cube'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-skills', 'tab-codex', 'tab-journal'] },
+    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-talisman', 'tab-cube'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
+function getOrderedTabGroups() {
+    game.settings = game.settings || {};
+    let order = Array.isArray(game.settings.tabGroupOrder) ? game.settings.tabGroupOrder : [];
+    let byKey = {};
+    TAB_GROUPS.forEach(group => { byKey[group.key] = group; });
+    return order.concat(TAB_GROUPS.map(group => group.key))
+        .filter((key, idx, arr) => byKey[key] && arr.indexOf(key) === idx)
+        .map(key => byKey[key]);
+}
+function moveTabGroup(groupKey, dir) {
+    let groups = getOrderedTabGroups();
+    let idx = groups.findIndex(group => group.key === groupKey);
+    if (idx < 0) return;
+    let nextIdx = Math.max(0, Math.min(groups.length - 1, idx + dir));
+    if (nextIdx === idx) return;
+    let moved = groups.slice();
+    let tmp = moved[idx];
+    moved[idx] = moved[nextIdx];
+    moved[nextIdx] = tmp;
+    game.settings = game.settings || {};
+    game.settings.tabGroupOrder = moved.map(group => group.key);
+    lastTabHeaderUiSignature = null;
+    renderTabCategoryBar();
+    renderTabOrderSettings();
+    queueImportantSave(300);
+}
+function moveTabGroupBefore(sourceKey, targetKey) {
+    if (!sourceKey || !targetKey || sourceKey === targetKey) return;
+    let groups = getOrderedTabGroups();
+    let sourceIdx = groups.findIndex(group => group.key === sourceKey);
+    let targetIdx = groups.findIndex(group => group.key === targetKey);
+    if (sourceIdx < 0 || targetIdx < 0) return;
+    let moved = groups.slice();
+    let source = moved.splice(sourceIdx, 1)[0];
+    let insertIdx = moved.findIndex(group => group.key === targetKey);
+    moved.splice(Math.max(0, insertIdx), 0, source);
+    game.settings = game.settings || {};
+    game.settings.tabGroupOrder = moved.map(group => group.key);
+    lastTabHeaderUiSignature = null;
+    renderTabCategoryBar();
+    renderTabOrderSettings();
+    queueImportantSave(300);
+}
+function onTabGroupDragStart(event, groupKey) {
+    if (!event || !event.dataTransfer) return;
+    event.dataTransfer.setData('text/plain', groupKey);
+    event.dataTransfer.effectAllowed = 'move';
+}
+function onTabGroupDrop(event, targetKey) {
+    if (!event || !event.dataTransfer) return;
+    event.preventDefault();
+    moveTabGroupBefore(event.dataTransfer.getData('text/plain'), targetKey);
+}
+function isFixedTabGroupButton() {
+    return false;
+}
 function getTabGroupForId(tabId) {
     // 버튼 id('btn-tab-x')와 탭 id('tab-x')를 모두 허용한다.
     let id = String(tabId || '').replace(/^btn-/, '');
@@ -487,7 +545,7 @@ function selectTabGroup(groupKey) {
     let activeInGroup = lastActiveTabId && getTabGroupForId(lastActiveTabId) === groupKey;
     applyTabGroupFilter();
     if (!activeInGroup) {
-        let group = TAB_GROUPS.find(g => g.key === groupKey);
+        let group = getOrderedTabGroups().find(g => g.key === groupKey);
         let firstVisible = group.tabs.find(id => {
             let btn = document.getElementById('btn-' + id);
             return btn && btn.style.display !== 'none' && !btn.dataset.groupHidden;
@@ -500,20 +558,27 @@ function selectTabGroup(groupKey) {
 function applyTabGroupFilter() {
     updateTabUnlockButtons();
 }
+function ensureTabCategoryBarPlacement(bar) {
+    let header = document.querySelector('.tab-header');
+    if (bar && header && header.parentElement && bar.nextElementSibling !== header) {
+        header.parentElement.insertBefore(bar, header);
+    }
+}
 function renderTabCategoryBar() {
     let bar = document.getElementById('tab-category-bar');
     if (!bar) return;
+    ensureTabCategoryBarPlacement(bar);
     if (!isTabGroupingActive()) { bar.style.display = 'none'; return; }
     bar.style.display = 'flex';
     let active = getActiveTabGroup();
     let unlocks = game.unlocks || {};
-    bar.innerHTML = TAB_GROUPS.map(group => {
+    bar.innerHTML = getOrderedTabGroups().map(group => {
         // 그룹 내 알림 점 집계.
         let hasNoti = group.tabs.some(id => {
             let key = id.replace('tab-', '');
             return game.noti && game.noti[key] && isNotiEnabled(key);
         });
-        return `<button class="tab-category-btn${group.key === active ? ' active' : ''}" onclick="selectTabGroup('${group.key}')">${group.icon} ${group.label}${hasNoti ? ' <span class="noti-dot" style="display:inline-block; position:static; margin-left:2px;"></span>' : ''}</button>`;
+        return `<button class="tab-category-btn${group.key === active ? ' active' : ''}" draggable="true" ondragstart="onTabGroupDragStart(event,'${group.key}')" ondragover="event.preventDefault()" ondrop="onTabGroupDrop(event,'${group.key}')" onclick="selectTabGroup('${group.key}')">${group.label}${hasNoti ? ' <span class="noti-dot" style="display:inline-block; position:static; margin-left:2px;"></span>' : ''}</button>`;
     }).join('');
 }
 
@@ -778,6 +843,7 @@ function getTabHeaderUiSignature() {
         TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}:${noti[key] && filters[key] !== false ? 1 : 0}`).join('|'),
         Array.isArray(game.settings && game.settings.tabOrder) ? game.settings.tabOrder.join(',') : '',
         JSON.stringify((game.settings && game.settings.tabPlacement) || {}),
+        Array.isArray(game.settings && game.settings.tabGroupOrder) ? game.settings.tabGroupOrder.join(',') : '',
         isTabGroupingActive() ? ('grp:' + getActiveTabGroup()) : 'nogrp'
     ].join('::');
 }
@@ -804,14 +870,26 @@ function updateTabUnlockButtons() {
     hideOutOfGroupTabButtons();
 }
 
+function isUngatedPersistentTabButton(btn) {
+    return btn && (btn.id === 'btn-tab-social' || btn.id === 'btn-tab-settings');
+}
 // updateTabUnlockButtons 뒤에서 호출되는 그룹 가시성 적용부. 재진입 없이 display만 조정한다.
 function hideOutOfGroupTabButtons() {
     let grouping = isTabGroupingActive();
     let active = getActiveTabGroup();
     Array.from(document.querySelectorAll('.tab-header .tab-btn')).forEach(btn => {
-        if (!grouping) { delete btn.dataset.groupHidden; return; }
-        if (getTabGroupForId(btn.id) !== active) { btn.dataset.groupHidden = '1'; btn.style.display = 'none'; }
-        else delete btn.dataset.groupHidden;
+        if (!grouping) {
+            delete btn.dataset.groupHidden;
+            if (isUngatedPersistentTabButton(btn)) btn.style.display = 'flex';
+            return;
+        }
+        if (getTabGroupForId(btn.id) !== active) {
+            btn.dataset.groupHidden = '1';
+            btn.style.display = 'none';
+            return;
+        }
+        delete btn.dataset.groupHidden;
+        if (isUngatedPersistentTabButton(btn)) btn.style.display = 'flex';
     });
 }
 
@@ -843,8 +921,12 @@ function switchTab(tabId) {
     // 이미 활성인 탭을 다시 누르면 전체 UI 재구성(+ 캐릭터 탭의 패시브 트리 재드로우)을
     // 반복해 게임이 멈춘 것처럼 느껴진다. 같은 탭 재클릭은 무거운 재렌더를 생략한다.
     // (탭 내용 갱신은 게임 동작/주기 갱신이 별도로 처리한다.)
+    if (tabId === 'tab-items' && game.noti) game.noti.items = false;
     let tabEl = document.getElementById(tabId);
-    if (lastActiveTabId === tabId && tabEl && tabEl.classList.contains('active')) return;
+    if (lastActiveTabId === tabId && tabEl && tabEl.classList.contains('active')) {
+        updateTabNotificationDots();
+        return;
+    }
     document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     let activeBtn = document.getElementById('btn-' + tabId);
@@ -914,6 +996,7 @@ function craftSelectInventoryItemById(itemId) {
 }
 
 function switchItemSubtab(subtabId) {
+    if (subtabId === 'item-tab-equip' && game.noti) game.noti.items = false;
     if (subtabId === game.itemSubtab) {
         let currentPanel = document.getElementById(subtabId);
         let currentBtn = document.getElementById('btn-' + subtabId);
@@ -7016,20 +7099,24 @@ function renderFlaskPanel() {
         }).join('');
         let def = cur ? FLASK_UTILITY_POOL[cur.key] : null;
         let active = cur && (cur.until || 0) > now;
-        let status = cur ? `충전 ${cur.charges}/${def.maxCharges}${active ? ` · 발동(${Math.ceil((cur.until - now) / 1000)}초)` : ''}` : '';
-        return `<div style="display:flex; flex-direction:column; gap:2px;">
-            <select onchange="equipUtilityFlask(${idx}, this.value)" style="font-size:0.8em;" title="${def ? def.desc : '유틸리티 플라스크 선택'}">${opts}</select>
-            <span style="color:#8fa7be; font-size:0.74em;">${status}</span>
+        let status = cur ? `충전 ${cur.charges}/${def.maxCharges}${active ? ` · 발동 ${Math.ceil((cur.until - now) / 1000)}초` : ''}` : '비어 있음';
+        return `<div class="flask-slot-box utility ${active ? 'active' : ''}">
+            <div class="flask-slot-label">유틸리티 ${idx + 1}</div>
+            <div class="flask-slot-name">${def ? def.name : '빈 플라스크 슬롯'}</div>
+            <div class="flask-slot-status">${status}</div>
+            <select class="flask-slot-select" onchange="equipUtilityFlask(${idx}, this.value)" title="${def ? def.desc : '유틸리티 플라스크 선택'}">${opts}</select>
         </div>`;
     }).join('');
-    host.innerHTML = `<div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;">
-        <div style="display:flex; flex-direction:column; gap:2px;">
-            <span style="font-size:0.82em;">🧪 회복 <strong>충전 ${st.healCharges}/${healDef.maxCharges}</strong>${healActive ? ` · 회복 중(${Math.ceil((st.healOverTimeUntil - now) / 1000)}초)` : ''}</span>
-            <select onchange="selectHealFlaskTier(this.value)" style="font-size:0.8em;">${healOptions}</select>
+    host.innerHTML = `<div class="flask-paperdoll">
+        <div class="flask-slot-box heal ${healActive ? 'active' : ''}">
+            <div class="flask-slot-label">회복</div>
+            <div class="flask-slot-name">${healDef.name}</div>
+            <div class="flask-slot-status">충전 ${st.healCharges}/${healDef.maxCharges}${healActive ? ` · 회복 ${Math.ceil((st.healOverTimeUntil - now) / 1000)}초` : ''}</div>
+            <select class="flask-slot-select" onchange="selectHealFlaskTier(this.value)">${healOptions}</select>
         </div>
-        <div style="display:flex; gap:10px; align-items:flex-start;">${utilSlots}</div>
+        ${utilSlots}
     </div>
-    <div style="color:#8fa7be; font-size:0.76em; margin-top:6px;">적 처치로 충전됩니다. 회복 플라스크는 생명력 ${healDef.autoBelowHpPct}% 이하 시 ${Math.round(healDef.durationMs / 1000)}초간 지속 회복, 유틸리티 2종은 전투 중 자동 발동. 회복 티어는 레벨 1/5/10/15/20/25/30/35마다 해금됩니다.</div>`;
+    <div class="flask-help-text">적 처치로 충전됩니다. 회복 플라스크는 생명력 ${healDef.autoBelowHpPct}% 이하 시 ${Math.round(healDef.durationMs / 1000)}초간 지속 회복, 유틸리티 2종은 전투 중 자동 발동합니다.</div>`;
 }
 
 // 시간의 균열 패널: 시간압 선택 → 과거 진입 → 제단 배치 → 미래 진입.
