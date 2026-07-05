@@ -4,6 +4,12 @@ function safeExposeData(map) {
   });
 }
 
+// 투사체 '추가 발사'(장비/패시브/유니크/부적으로 얻는 보너스 샷)의 기본 피해 비율(%).
+// 과거에는 보너스 샷이 100% 피해로 반복되어 추가 발사 +5 = DPS ×6이라는 천장 뚫는 곱연산이 됐다.
+// 이제 보너스 샷은 기본적으로 기본 타격의 이 비율만큼만 피해를 준다(추가 발사 +5 = ×3.0).
+// 스킬이 extraProjectileDamagePct를 직접 정의하면(예: 연발 사격 45) 그 값이 우선한다.
+const PROJECTILE_BONUS_SHOT_DAMAGE_PCT = 40;
+
 // Phase-1 extracted data (global compatibility).
 const SKILL_DB = {
     '기본 공격': { isGem: false, levelable: true, baseDmg: 1.0, baseSpd: 1.0, dmgScale: 0.05, spdScale: 0.01, leech: 0, crit: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '가장 가까운 적 하나를 가격합니다. 레벨업당 피해 배율 +5%, 공격 속도 +1%가 적용됩니다.', tags: ['attack', 'melee', 'physical'] },

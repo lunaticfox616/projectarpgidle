@@ -3112,6 +3112,9 @@ function getPlayerStats() {
     let cosmosRollGap = Math.max(0, finalMaxDmgRoll - finalMinDmgRoll);
     if (uniqueRollGapDamage) finalBaseDmg = Math.floor(finalBaseDmg * (1 + cosmosRollGap / 100));
     if (uniqueRollGapCritDs) { finalCritDmg += cosmosRollGap; finalDs += cosmosRollGap; }
+    // 연속 타격(ds) 소프트캡: 100%p까지는 그대로, 초과분은 절반만 반영, 최종 상한 250%p.
+    // ds는 공격 횟수 자체를 늘리는 곱연산 축이라(100%p당 확정 +1회 풀타격) 무제한 스택 시 DPS 천장이 사라진다.
+    finalDs = Math.min(250, finalDs <= 100 ? finalDs : 100 + (finalDs - 100) * 0.5);
     // 스쳐가는 그림자: 주변 적이 일정 수 이상이면 회피 대폭 증폭
     if (uniqueCrowdEvasionMore) {
         let aliveCnt = (game.enemies || []).filter(e => e && e.hp > 0).length;
@@ -3150,7 +3153,8 @@ function getPlayerStats() {
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier * expectedAddedDamageMultiplier;
     let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
     let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.min(5, Math.floor(totalProjectileExtraShots || 0))) : 0;
-    let projectileExtraShotDpsMul = 1 + projectileExtraShotsForDps;
+    let projectileBonusShotDamagePct = Math.max(0, Number(skill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT);
+    let projectileExtraShotDpsMul = 1 + projectileExtraShotsForDps * projectileBonusShotDamagePct / 100;
     let finalDpsWithProjectileShots = finalDpsAdjusted * projectileExtraShotDpsMul;
     let estimatedSkillDotDps = 0;
     if (isDotSkill) {
@@ -3677,7 +3681,7 @@ function getPlayerStats() {
                 `피해 보정 기대값 x${avgRollMultiplier.toFixed(2)} (${Math.floor(finalMinDmgRoll)}~${Math.floor(finalMaxDmgRoll)}%)`,
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
                 coreCubeAddedDamageTotalPct > 0 ? `코어 큐브 추가 피해 x${expectedAddedDamageMultiplier.toFixed(2)} (총 피해의 ${Math.floor(coreCubeAddedDamageTotalPct)}% → ${coreCubeAddedDamageParts.join(' / ')})` : null,
-                isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps})` : null,
+                isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps}, 발당 ${Math.round(projectileBonusShotDamagePct)}% 피해)` : null,
                 estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null,
                 talentDpsSummary.alwaysMul !== 1 ? `🌸 재능 개화 키스톤(상시) x${talentDpsSummary.alwaysMul.toFixed(2)}` : null,
                 (talentDpsSummary.conditional && talentDpsSummary.conditional.length) ? `🌸 재능 개화 키스톤(조건부): ${talentDpsSummary.conditional.map(c => `${(typeof getTalentKeystoneConditionText === 'function' ? getTalentKeystoneConditionText(c.when, c.threshold) : '')}+${Math.floor(c.moreMul)}%`).join(', ')} (상황별 추가 적용)` : null,
@@ -7244,7 +7248,7 @@ function performPlayerAttack(pStats) {
             }
             let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
             let ailmentSourceDamage = Math.floor(ailmentBaseDamage * (hit.mult || 1));
-            let repeatDamageMultiplier = hitIdx < baseRepeats ? 1 : Math.max(0, Number(pStats.sSkill.extraProjectileDamagePct) || 100) / 100;
+            let repeatDamageMultiplier = hitIdx < baseRepeats ? 1 : Math.max(0, Number(pStats.sSkill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT) / 100;
             dmg = Math.floor(dmg * repeatDamageMultiplier);
             ailmentSourceDamage = Math.floor(ailmentSourceDamage * repeatDamageMultiplier);
             if (!Number.isFinite(dmg)) dmg = 0;
