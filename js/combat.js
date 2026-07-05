@@ -2282,6 +2282,16 @@ function getPlayerStats() {
     }
     let favorFx = (typeof getExpertFavorEffectTotals === 'function') ? getExpertFavorEffectTotals() : {};
     Object.keys(favorFx).forEach(statKey => addStatToBucket(reward, statKey, favorFx[statKey] || 0));
+    // 범용 스탯 전환 — 힘: 1당 생명력 +2, 10당 물리 피해 +1% / 민첩: 1당 회피 +3, 1당 정확도 +2
+    // / 지능: 1당 ES +2, 10당 원소 피해 +1%. 어떤 출처(장비/패시브/보상)의 스탯이든 합산 후 전환된다.
+    let totalStrength = Math.max(0, sumStatAcrossBuckets('strength'));
+    let totalDexterity = Math.max(0, sumStatAcrossBuckets('dexterity'));
+    let totalIntelligence = Math.max(0, sumStatAcrossBuckets('intelligence'));
+    if (totalStrength > 0) { addStatToBucket(reward, 'flatHp', totalStrength * 2); addStatToBucket(reward, 'physPctDmg', Math.floor(totalStrength / 10)); }
+    if (totalDexterity > 0) addStatToBucket(reward, 'evasion', totalDexterity * 3);
+    if (totalIntelligence > 0) { addStatToBucket(reward, 'energyShield', totalIntelligence * 2); addStatToBucket(reward, 'elementalPctDmg', Math.floor(totalIntelligence / 10)); }
+    // 정확도: 기본치 + 레벨 성장 + 민첩 파생 + 장비/패시브의 정확도 옵션. 적 회피 '수치'를 상쇄한다.
+    let playerAccuracy = 200 + Math.max(1, Math.floor(game.level || 1)) * 10 + totalDexterity * 2 + Math.max(0, sumStatAcrossBuckets('accuracy'));
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
     let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots;
     if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
@@ -3516,7 +3526,8 @@ function getPlayerStats() {
                 makeSourceLine('패시브', passive.evasion + season.evasion + ascend.evasion + reward.evasion),
                 makeSourceLine('회피 증가', totalEvasionPct, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('기수의 나침반 증폭', riderCompassEvasionMorePct, '%', value => `${Math.floor(value)}%`),
-                `예상 회피 확률(동일 레벨 적 기준): ${evadeChance.toFixed(1)}%`
+                `예상 회피 확률(동일 레벨 적 기준): ${evadeChance.toFixed(1)}%`,
+                `정확도: ${Math.floor(playerAccuracy)} (힘 ${Math.floor(totalStrength)} · 민첩 ${Math.floor(totalDexterity)} · 지능 ${Math.floor(totalIntelligence)})`
             ].filter(Boolean),
             final: `${Math.floor(finalEvasion)}`
         },
@@ -3823,6 +3834,10 @@ function getPlayerStats() {
         energyShield: finalEnergyShield,
         armorReduction: armorReduction,
         evadeChance: evadeChance,
+        accuracy: playerAccuracy,
+        strength: totalStrength,
+        dexterity: totalDexterity,
+        intelligence: totalIntelligence,
         energyShieldRegenRate: finalEnergyShieldRegenRate,
         energyShieldRechargeDelay: finalEnergyShieldRechargeDelay,
         projectileExtraShots: Math.max(0, Math.floor(totalProjectileExtraShots)),
@@ -7303,7 +7318,10 @@ function performPlayerAttack(pStats) {
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((pStats.cosmosLightningVariance || 0) > 0 && hitElement === 'light') dmg = Math.floor(dmg * (0.8 + Math.random() * 0.7));
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg = Math.floor(dmg * Math.max(1, pStats.uniqueDoubleDamageMultiplier || 2));
-            if ((targetEnemy.evasionChance || 0) > 0 && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit()) && Math.random() * 100 < targetEnemy.evasionChance) {
+            // 명중 판정: 적의 flat 회피 확률 + (적 회피 수치 vs 플레이어 정확도) 완만 계수. 합계 상한 60%.
+            let enemyTotalEvadeChance = Math.max(0, targetEnemy.evasionChance || 0)
+                + Math.min(30, getEvasionChancePct(Math.max(0, targetEnemy.evasion || 0), Math.max(1, pStats.accuracy || 1)) * 0.35);
+            if (enemyTotalEvadeChance > 0 && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit()) && Math.random() * 100 < Math.min(60, enemyTotalEvadeChance)) {
                 addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(targetEnemy, false);
                 return;

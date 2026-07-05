@@ -977,6 +977,11 @@ const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare', 'unique'];
 
 
 const P_STATS = {
+    // 범용 스탯: 힘(생명력/물리), 민첩(회피/정확도), 지능(ES/원소), 정확도(적 회피 수치 상쇄).
+    strength: { name: '힘', tiers: [1, 2, 3], s: 6, m: 14, k: 26 },
+    dexterity: { name: '민첩', tiers: [1, 2, 3], s: 6, m: 14, k: 26 },
+    intelligence: { name: '지능', tiers: [1, 2, 3], s: 6, m: 14, k: 26 },
+    accuracy: { name: '정확도', tiers: [1, 2, 3], s: 40, m: 90, k: 180 },
     flatHp: { name: '최대 생명력', tiers: [1, 2], s: 15, m: 45 },
     pctHp: { name: '생명력(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
     regen: { name: '초당 재생(%)', tiers: [1, 2], s: 0.1, m: 0.3, isPct: true },
@@ -1163,6 +1168,10 @@ const MOD_DB = [
     { id: 'spellFlatDmg', type: 'prefix', statName: '주문 내장 피해', slots: ['무기', '목걸이'], base: 8, step: 6 },
     { id: 'spellFlatPct', type: 'suffix', statName: '주문 내장 피해 증가(%)', slots: ['무기', '목걸이', '방패'], base: 6, step: 4 },
     { id: 'flatHp', type: 'prefix', statName: '최대 생명력', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 15, step: 10 },
+    { id: 'strength', type: 'suffix', statName: '힘', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
+    { id: 'dexterity', type: 'suffix', statName: '민첩', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
+    { id: 'intelligence', type: 'suffix', statName: '지능', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
+    { id: 'accuracy', type: 'suffix', statName: '정확도', slots: ['무기', '장갑', '반지', '목걸이'], base: 60, step: 40 },
     { id: 'armor', type: 'prefix', statName: '방어도', slots: ['투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 12, step: 10 },
     { id: 'evasion', type: 'prefix', statName: '회피', slots: ['투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 12, step: 10 },
     { id: 'energyShield', type: 'prefix', statName: '에너지 보호막', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 9, step: 8 },
