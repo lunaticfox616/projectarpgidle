@@ -6399,6 +6399,7 @@ function performUpdateStaticUI() {
     if (!showCombatScene && caption) caption.innerText = '전투가 진행중입니다.';
     let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
     if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
+    updateLoopDecisionOverlayUi();
     let loopReadyBanner = document.getElementById('loop-ready-banner');
     if (loopReadyBanner) loopReadyBanner.classList.toggle('active', !!game.pendingLoopReady);
     let combatLoopBtn = document.getElementById('btn-combat-loop-advance');
@@ -7472,6 +7473,33 @@ function canShowCombatLoopAdvanceButton() {
     return typeof hasCurrentLoopAbyssRequirementClear === 'function'
         ? hasCurrentLoopAbyssRequirementClear(game.season || 1)
         : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
+}
+
+function updateLoopDecisionOverlayUi() {
+    let season = game ? (game.season || 1) : 1;
+    let chaosReady = typeof hasCurrentLoopChaosRequirementClear === 'function'
+        ? hasCurrentLoopChaosRequirementClear(season)
+        : (typeof hasCurrentLoopAbyssRequirementClear === 'function' && hasCurrentLoopAbyssRequirementClear(season));
+    let cosmosReady = typeof hasCurrentLoopCosmosRequirementClear === 'function'
+        ? hasCurrentLoopCosmosRequirementClear(season)
+        : false;
+    let showPathChoices = season >= 31 && cosmosReady;
+    let body = document.getElementById('loop-decision-body');
+    if (body) body.innerText = showPathChoices
+        ? '다음 루프로 사용할 경로를 선택하거나, 이번 루프를 유지하고 심화 등반을 계속하세요.'
+        : '다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.';
+    let genericBtn = document.getElementById('loop-decision-generic-btn');
+    let chaosBtn = document.getElementById('loop-decision-chaos-btn');
+    let cosmosBtn = document.getElementById('loop-decision-cosmos-btn');
+    if (genericBtn) genericBtn.style.display = showPathChoices ? 'none' : '';
+    if (chaosBtn) {
+        chaosBtn.style.display = showPathChoices ? '' : 'none';
+        chaosBtn.disabled = !chaosReady;
+    }
+    if (cosmosBtn) {
+        cosmosBtn.style.display = showPathChoices ? '' : 'none';
+        cosmosBtn.disabled = !cosmosReady;
+    }
 }
 
 function handleCombatLoopAdvanceButton() {
