@@ -3242,9 +3242,7 @@ function getPlayerStats() {
     let cosmosRollGap = Math.max(0, finalMaxDmgRoll - finalMinDmgRoll);
     if (uniqueRollGapDamage) finalBaseDmg = Math.floor(finalBaseDmg * (1 + cosmosRollGap / 100));
     if (uniqueRollGapCritDs) { finalCritDmg += cosmosRollGap; finalDs += cosmosRollGap; }
-    // 연속 타격(ds) 소프트캡: 100%p까지는 그대로, 초과분은 절반만 반영, 최종 상한 250%p.
-    // ds는 공격 횟수 자체를 늘리는 곱연산 축이라(100%p당 확정 +1회 풀타격) 무제한 스택 시 DPS 천장이 사라진다.
-    finalDs = Math.min(250, finalDs <= 100 ? finalDs : 100 + (finalDs - 100) * 0.5);
+    finalDs = Math.max(0, finalDs);
     // 스쳐가는 그림자: 주변 적이 일정 수 이상이면 회피 대폭 증폭
     if (uniqueCrowdEvasionMore) {
         let aliveCnt = (game.enemies || []).filter(e => e && e.hp > 0).length;
@@ -6508,7 +6506,7 @@ function ensureNextEndlessChaosDepthUnlocked(depth) {
 }
 
 function resolveNextLoopBestPlusOneZone(zone) {
-    game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
+    game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
     let resolveAnyClimb = zone && zone.type === 'meteor';
     let currentAbyssDepth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
     let currentLoopAbyssDepth = Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), currentAbyssDepth);
@@ -6932,7 +6930,7 @@ function finishEncounterRun() {
             }
             ensureNextEndlessChaosDepthUnlocked(depth);
             if (depth >= 20) {
-                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
+                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
                 game.loopProgressCurrent.chaos20Cleared = true;
                 if (typeof maybeUnlockSkyTowerFromChaos20 === 'function') maybeUnlockSkyTowerFromChaos20();
             }
@@ -6972,7 +6970,7 @@ function finishEncounterRun() {
                 // even if the save has a higher recorded deep-chaos floor from a previous loop.
                 // Setting this to the unlocked next depth would double-advance and skip a floor (e.g. 20 -> 22).
                 game.abyssEndlessDepth = nowEndless;
-                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
+                game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
                 let seasonAbyssCap = getSeasonAbyssDepthCap(game.season || 1);
                 let bestAbyssDepthBeforeClear = Math.max(0, Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0));
                 let hadCurrentSeasonLoopRequirementBeforeClear = seasonAbyssCap <= 20
@@ -7046,7 +7044,7 @@ function finishEncounterRun() {
             addLog(`🗺️ 신규 사냥터 [${unlockedZone ? unlockedZone.name : ('구역 ' + game.maxZoneId)}] 개방!`, "season-up");
         }
         game.killsInZone = 0;
-        game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
+        game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
         if (zone.type === 'abyss') {
             let d = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
             if (d >= 20) game.loopProgressCurrent.bestAbyssDepth = Math.max(Math.floor(game.loopProgressCurrent.bestAbyssDepth || 0), d);
@@ -8814,18 +8812,40 @@ function awardLoopProgressPoints() {
     bonus += woodsmanGain;
     if (bonus > 0) game.loopDeepPoints = Math.max(0, Math.floor(game.loopDeepPoints || 0)) + bonus;
     game.loopProgressBase = { abyssEndlessDepth: nowDepth, labyrinthUnlockedMaxFloor: nowLab, specialBosses: Array.from(new Set([...(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []), ...newBosses])) };
-    game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 };
+    game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] };
     game.woodsmanSettledScore = Math.max(woodsmanSettled, woodsmanScore);
     game.woodsmanPendingScore = game.woodsmanSettledScore;
     return { bonus, depthGain, labGain, bossGain: newBosses.length, woodsmanGain: woodsmanGain, woodsmanScore: woodsmanScore, woodsmanDelta: woodsmanDelta };
 }
 
-function triggerSeasonReset() {
+
+function resolveLoopAdvancePath(requestedPath) {
+    let requested = requestedPath === 'cosmos' ? 'cosmos' : (requestedPath === 'chaos' ? 'chaos' : null);
+    let available = typeof getAvailableLoopAdvancePaths === 'function'
+        ? getAvailableLoopAdvancePaths(game.season || 1)
+        : (typeof hasCurrentLoopAbyssRequirementClear === 'function' && hasCurrentLoopAbyssRequirementClear(game.season || 1) ? ['chaos'] : []);
+    if (requested && available.includes(requested)) return requested;
+    if (available.includes('chaos')) return 'chaos';
+    if (available.includes('cosmos')) return 'cosmos';
+    return null;
+}
+
+function getLoopAdvancePathLabel(path) {
+    return path === 'cosmos' ? '우주계 루프' : '혼돈 루프';
+}
+
+function triggerSeasonReset(options) {
     if (isRewardOpen()) closeRewardOverlay();
     if (game.woodsmanBuildLock) {
         clearWoodsmanBuildLock();
         addLog('☠️ 혼돈 밖 전투를 중단하고 루프를 진행합니다. 세팅 잠금이 해제되었습니다.', 'season-up');
     }
+    let loopPath = resolveLoopAdvancePath(typeof options === 'string' ? options : (options && options.path));
+    if ((game.season || 1) >= 31 && !loopPath) {
+        addLog(getLoopAbyssRequirementText(game.season || 1) + ' 조건을 먼저 달성해야 합니다.', 'attack-monster');
+        return false;
+    }
+    if (!loopPath) loopPath = 'chaos';
     game.pendingLoopDecision = false;
     game.pendingLoopReady = false;
     let codexReveal = {};
@@ -8862,11 +8882,14 @@ function triggerSeasonReset() {
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
     let loopDeepExpectedAfterSettle = Math.max(0, Math.floor(game.loopDeepPoints || 0));
+    if (loopPath === 'cosmos') game.cosmosLoopCount = Math.max(0, Math.floor(game.cosmosLoopCount || 0)) + 1;
+    game.lastLoopAdvancePath = loopPath;
     game.season++;
     if (typeof resetExpertiseLoopCaps === 'function') resetExpertiseLoopCaps();
     if (typeof grantLoopBaseExpertExp === 'function') grantLoopBaseExpertExp();
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
+    addLog(`🔁 ${getLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === 'cosmos' ? ` (우주계 난이도 +${Math.max(0, Math.floor(game.cosmosLoopCount || 0))}단계)` : ''}`, 'season-up');
     if (game.loopCount === 2 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_spore_crafting', '홀씨 제작 해금', '루프 2 달성! 이제 액트/혼돈 몬스터가 화염/냉기/번개 홀씨를 떨어뜨립니다.\n제작 탭에서 오브 사용 시 홀씨 태그를 지정할 수 있습니다.', 'tab-items');
     }
@@ -9023,7 +9046,7 @@ function triggerSeasonReset() {
  */
 function handleSeasonLoopConditionMet() {
     if ((game.season || 1) >= 10) {
-        triggerSeasonReset();
+        triggerSeasonReset({ path: 'chaos' });
         return;
     }
     game.pendingLoopReady = true;
@@ -9042,11 +9065,18 @@ function confirmLoopReady() {
     triggerSeasonReset();
 }
 
+function chooseLoopAdvancePath(path) {
+    let loopPath = resolveLoopAdvancePath(path);
+    if (!loopPath) return addLog(getLoopAbyssRequirementText(game.season || 1) + ' 조건을 먼저 달성해야 합니다.', 'attack-monster');
+    if (game.pendingLoopDecision) game.pendingLoopDecision = false;
+    triggerSeasonReset({ path: loopPath });
+}
+
 function chooseLoopAdvance(shouldLoop) {
     if (!game.pendingLoopDecision) return;
     if (shouldLoop) {
         game.pendingLoopDecision = false;
-        triggerSeasonReset();
+        triggerSeasonReset({ path: 'chaos' });
         return;
     }
     game.pendingLoopDecision = false;
@@ -9055,4 +9085,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport });
+safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport });
