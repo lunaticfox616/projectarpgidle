@@ -669,37 +669,61 @@ input[data-search-key]:focus {
   to { transform: rotate(360deg); }
 }
 
-/* Top-level grouping should read as part of the tab strip, not as separate raised buttons. */
-.tab-category-bar {
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
+/* Top-level grouping lives in the same horizontal strip as normal tabs. */
+.tab-header .tab-category-bar {
+  display: contents;
 }
-.tab-category-bar::-webkit-scrollbar { display: none; }
-body:not(.light-mode) .tab-category-bar {
-  background: linear-gradient(180deg, #0f1520 0%, #0b1018 100%);
-  border-bottom: 1px solid #1c2a3a;
-  gap: 2px;
-  padding: 0 4px;
-  min-height: 34px;
+.tab-category-btn {
+  position: relative;
+  flex: 1 0 auto;
+  padding: 12px 10px;
+  text-align: center;
+  cursor: pointer;
+  border: 0;
+  border-right: 1px solid #2a2a35;
+  border-radius: 0;
+  background: transparent;
+  color: #888;
+  font-weight: bold;
+  transition: 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 body:not(.light-mode) .tab-category-btn {
-  position: relative;
-  flex: 0 0 auto;
-  border: 0;
+  border: none;
   border-radius: 0;
   background: transparent;
   color: #9eb6cb;
   font-weight: 800;
-  font-size: 0.82em;
+  font-size: 0.86em;
   letter-spacing: 0.04em;
-  padding: 0 14px;
-  min-height: 34px;
+  padding: 0 10px;
+  min-height: 44px;
+  border-right: 1px solid rgba(255,255,255,0.04);
   box-shadow: none;
+  transition: color .15s ease, background .15s ease;
+}
+body:not(.light-mode) .tab-category-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  background: transparent;
+  border-radius: 2px 2px 0 0;
+  transition: background .18s ease, left .18s ease, right .18s ease;
 }
 body:not(.light-mode) .tab-category-btn:hover {
   background: rgba(180,200,230,0.05);
   color: #e0ecf7;
+}
+body:not(.light-mode) .tab-category-btn:hover::after {
+  background: rgba(180,200,230,0.2);
 }
 body:not(.light-mode) .tab-category-btn.active {
   background: linear-gradient(180deg, rgba(200,160,60,0.07) 0%, transparent 100%);
@@ -707,20 +731,9 @@ body:not(.light-mode) .tab-category-btn.active {
   text-shadow: 0 0 12px rgba(232,194,106,0.35);
 }
 body:not(.light-mode) .tab-category-btn.active::after {
-  content: '';
-  position: absolute;
-  left: 12%;
-  right: 12%;
-  bottom: 0;
-  height: 2px;
+  left: 10%;
+  right: 10%;
   background: linear-gradient(90deg, transparent, #c9a040, #e8c26a, #c9a040, transparent);
+  height: 2px;
   box-shadow: 0 0 8px rgba(232,194,106,0.6);
 }
-.subtab-row {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-.subtab-row::-webkit-scrollbar { display: none; }
-.subtab-row .subtab-btn { flex: 0 0 auto; min-width: max-content; }
