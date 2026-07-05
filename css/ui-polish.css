@@ -676,7 +676,7 @@ input[data-search-key]:focus {
   align-items: stretch;
   gap: 2px;
   margin-right: 6px;
-  padding-right: 6px;
+  padding: 0 6px 0 0;
   border-right: 1px solid rgba(255,255,255,0.08);
 }
 .tab-category-btn {
