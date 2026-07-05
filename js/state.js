@@ -537,6 +537,7 @@ function getTimeRiftFusionOdds(pressure) {
 
 function getSeasonAbyssDepthCap(seasonValue) {
     let season = Math.max(1, Math.floor(seasonValue || 1));
+    if (season > 30) return LOOP_GATE_ABYSS_DEPTH_CAP + ((season - 30) * 5);
     let uncapped = season <= 9 ? (10 + (season - 1)) : (20 + (season - 10));
     return Math.min(LOOP_GATE_ABYSS_DEPTH_CAP, uncapped);
 }
@@ -545,20 +546,43 @@ function getLoopAbyssRequirementText(seasonValue) {
     let cap = getSeasonAbyssDepthCap(seasonValue);
     let base = `루프 조건: ${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap} 클리어`;
     if (Math.max(1, Math.floor(seasonValue || 1)) < LOOP_GATE_ALT_START_SEASON) return base;
-    return `${base} · 대체 경로: 미궁 ${LOOP_GATE_ALT_LABYRINTH_FLOOR}층 또는 혼돈계 ${LOOP_GATE_ALT_CHAOS_REALM_FLOOR}층 (이번 루프 도달 기준)`;
+    return `${base} · 선택 루프: 혼돈 루프 또는 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파 후 우주계 루프 (이번 루프 기준)`;
 }
 
-function hasCurrentLoopAbyssRequirementClear(seasonValue) {
+function hasCurrentLoopChaosRequirementClear(seasonValue) {
     let season = Math.max(1, Math.floor(seasonValue || (game && game.season) || 1));
     let cap = getSeasonAbyssDepthCap(season);
     let progress = (game && game.loopProgressCurrent) || {};
-    let abyssOk = cap <= 20
+    return cap <= 20
         ? hasCurrentLoopChaos20Clear()
         : Math.max(0, Math.floor(progress.bestAbyssDepth || 0)) >= cap;
-    if (abyssOk) return true;
+}
+
+function hasCurrentLoopCosmosRequirementClear(seasonValue) {
+    let season = Math.max(1, Math.floor(seasonValue || (game && game.season) || 1));
     if (season < LOOP_GATE_ALT_START_SEASON) return false;
-    if (Math.max(0, Math.floor(progress.bestLabyrinthFloor || 0)) >= LOOP_GATE_ALT_LABYRINTH_FLOOR) return true;
-    return Math.max(0, Math.floor(progress.bestChaosRealmFloor || 0)) >= LOOP_GATE_ALT_CHAOS_REALM_FLOOR;
+    let progress = (game && game.loopProgressCurrent) || {};
+    return Array.isArray(progress.cosmosPlanets) && progress.cosmosPlanets.includes(LOOP_GATE_ALT_COSMOS_PLANET_ID);
+}
+
+function hasCurrentLoopAbyssRequirementClear(seasonValue) {
+    return hasCurrentLoopChaosRequirementClear(seasonValue) || hasCurrentLoopCosmosRequirementClear(seasonValue);
+}
+
+function getAvailableLoopAdvancePaths(seasonValue) {
+    let paths = [];
+    if (hasCurrentLoopChaosRequirementClear(seasonValue)) paths.push('chaos');
+    if (hasCurrentLoopCosmosRequirementClear(seasonValue)) paths.push('cosmos');
+    return paths;
+}
+
+function markLoopCosmosPlanetClear(nodeId) {
+    if (!nodeId || !game || (game.season || 1) < LOOP_GATE_ALT_START_SEASON) return false;
+    game.loopProgressCurrent = game.loopProgressCurrent || {};
+    let planets = Array.isArray(game.loopProgressCurrent.cosmosPlanets) ? game.loopProgressCurrent.cosmosPlanets : [];
+    if (!planets.includes(nodeId)) planets.push(nodeId);
+    game.loopProgressCurrent.cosmosPlanets = planets;
+    return nodeId === LOOP_GATE_ALT_COSMOS_PLANET_ID;
 }
 
 function getSeasonFinalZoneId(seasonValue) {
@@ -1589,7 +1613,7 @@ let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 let lastRenderedChaosMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.
 
@@ -1972,7 +1996,9 @@ const defaultGame = {
     abyssUnlockedDepths: [20],
     loopDeepStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 },
     loopProgressBase: { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] },
-    loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0 },
+    loopProgressCurrent: { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, cosmosPlanets: [] },
+    cosmosLoopCount: 0,
+    lastLoopAdvancePath: null,
     chaosRealm: createDefaultChaosRealmState(),
     skyTower: createDefaultSkyTowerState(),
     underworldRunes: { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {}, bonusLinesByNo: {} },
