@@ -495,12 +495,11 @@ function renderChatBody(m) {
     return out;
 }
 function formatChatTime(iso) {
-    try {
-        let d = new Date(iso);
-        let mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
-        let hh = String(d.getHours()).padStart(2, '0'), mi = String(d.getMinutes()).padStart(2, '0');
-        return `${mm}/${dd} ${hh}:${mi}`;
-    } catch (e) { return ''; }
+    let d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return '';
+    let mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+    let hh = String(d.getHours()).padStart(2, '0'), mi = String(d.getMinutes()).padStart(2, '0');
+    return `${mm}/${dd} ${hh}:${mi}`;
 }
 function renderChatMessages(messages) {
     let listEl = document.getElementById('social-chat-list');
@@ -746,8 +745,8 @@ function renderProfileData(profile) {
     let statsHtml = stats.length
         ? stats.map(s => `<div class="social-stat-item"><span class="social-stat-label">${socialEscape(s.label)}</span><span class="social-stat-value" style="color:${socialSafeColor(s.color, '#eaf2ff')};">${socialEscape(s.value)}</span></div>`).join('')
         : `<div class="social-profile-empty">스탯 정보 없음</div>`;
-    let updated = '';
-    try { if (p.updatedAt) updated = new Date(p.updatedAt).toLocaleString('ko-KR'); } catch (e) { /* 무시 */ }
+    let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
+    let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
     body.innerHTML = `
         <div class="social-profile-header">
             <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
