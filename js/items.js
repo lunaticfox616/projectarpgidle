@@ -432,8 +432,11 @@ function placeItemOnTimeAltar() {
 function retrieveTimeAltarItems() {
     let rift = ensureTimeRiftState();
     if (!rift.altarUnique && !rift.altarRare) return addLog('제단이 비어 있습니다.', 'attack-monster');
-    if (rift.altarUnique) { addItemToInventory(rift.altarUnique); rift.altarUnique = null; }
-    if (rift.altarRare) { addItemToInventory(rift.altarRare); rift.altarRare = null; }
+    let needSlots = (rift.altarUnique ? 1 : 0) + (rift.altarRare ? 1 : 0);
+    if ((game.inventory || []).length + needSlots > getInventoryLimit()) return addLog(`인벤토리 공간이 부족합니다. (필요: ${needSlots}칸)`, 'attack-monster');
+    // guaranteedKeep: 회수 아이템이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
+    if (rift.altarUnique) { addItemToInventory(rift.altarUnique, { guaranteedKeep: true }); rift.altarUnique = null; }
+    if (rift.altarRare) { addItemToInventory(rift.altarRare, { guaranteedKeep: true }); rift.altarRare = null; }
     addLog('⏳ 제단의 아이템을 회수했습니다.', 'season-up');
     updateStaticUI();
     queueImportantSave(200);
@@ -443,6 +446,12 @@ function retrieveTimeAltarItems() {
 function resolveTimeRiftFusion() {
     let rift = ensureTimeRiftState();
     if (!rift.altarUnique || !rift.altarRare) return null;
+    // 제단을 비우기 전에 결과물이 들어갈 공간부터 확보한다 — 실패 시 제단을 그대로 유지하고
+    // 재도전(공간 확보 후 미래 재클리어)할 수 있게 한다.
+    if ((game.inventory || []).length >= getInventoryLimit()) {
+        addLog('⌛ 융합이 보류되었습니다: 인벤토리 공간이 필요합니다. (제단은 유지됩니다 — 공간 확보 후 미래를 다시 클리어하세요)', 'attack-monster');
+        return null;
+    }
     let odds = getTimeRiftFusionOdds(rift.pressure);
     let roll = Math.random();
     let grade = roll < odds.perfect ? 'perfect' : (roll < odds.perfect + odds.normal ? 'normal' : 'unstable');
@@ -460,7 +469,8 @@ function resolveTimeRiftFusion() {
     rift.altarUnique = null;
     rift.altarRare = null;
     rift.altarOpen = false;
-    addItemToInventory(fused);
+    // guaranteedKeep: 융합 결과물이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
+    addItemToInventory(fused, { guaranteedKeep: true });
     return { fused: fused, grade: grade, lost: lost, inherited: rareStats.length };
 }
 

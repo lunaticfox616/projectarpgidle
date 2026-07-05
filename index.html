@@ -329,6 +329,7 @@
     <div id="tab-character" class="tab-content">
         <h2>🧬 캐릭터 정보</h2>
         <div style="color:#8fa7be; margin-bottom:10px;">현재 전투 성능과 방어 수치를 한눈에 확인할 수 있습니다.</div>
+        <div id="ui-flask-panel" style="background:#101826; border:1px solid #33507c; border-radius:10px; padding:8px 10px; margin-bottom:10px;"></div>
         <div class="stat-grid">
             <div class="stat-item tip full" onmouseenter="showStatTooltip(event,'dps')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">⚔️ 총 DPS</span>
@@ -356,6 +357,14 @@
                 <span class="stat-label">🎯 치명타</span>
                 <span class="stat-value" id="ui-crit">5.0</span>
                 <span class="stat-unit">%</span>
+            </div>
+            <div class="stat-item" title="힘: 1당 생명력 +2, 10당 물리 피해 +1% · 민첩: 1당 회피 +3, 정확도 +2 · 지능: 1당 ES +2, 10당 원소 피해 +1%">
+                <span class="stat-label">💪 힘 / 민첩 / 지능</span>
+                <span class="stat-value" id="ui-core-attrs">0 / 0 / 0</span>
+            </div>
+            <div class="stat-item" title="적의 회피 수치와 대결하는 명중 능력치입니다. 기본 200 + 레벨×10 + 민첩×2 + 장비 옵션.">
+                <span class="stat-label">🧭 정확도</span>
+                <span class="stat-value" id="ui-accuracy">0</span>
             </div>
             <div class="stat-item tip" onmouseenter="showStatTooltip(event,'critDmg')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">💥 치명타 피해 배율</span>

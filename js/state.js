@@ -786,14 +786,14 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'w9', name: '전쟁광', desc: '모든 주는 피해 40% 증폭, 받는 피해 10% 증폭', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
     ],
     gladiator: [
-        { id: 'g1', name: '결투 태세', desc: '물리 피해 12% 증폭, 물리가 아닌 피해 20% 감폭', req: null },
+        { id: 'g1', name: '결투 태세', desc: '물리 피해 20% 증폭, 물리가 아닌 피해 20% 감폭', req: null },
         { id: 'g2', name: '연참 호흡', desc: '연속 타격 발생 시 3초간 공격 속도 +3%, 회피 +3% (최대 12중첩)', req: null },
         { id: 'g3', name: '노련함', desc: '치명타가 아닌 타격 시 다음 타격 치명타 확률 +5%p, 치명타 발동 시 초기화', req: null },
-        { id: 'g4', name: '난투 본능', desc: '적이 3기 이상 주변에 있으면 받는 피해 15% 감폭, 주는 피해 15% 증폭', req: 'g1' },
+        { id: 'g4', name: '난투 본능', desc: '적이 3기 이상 주변에 있으면 받는 피해 20% 감폭, 주는 피해 20% 증폭', req: 'g1' },
         { id: 'g5', name: '속공 전개', desc: '이동 후 첫 타격 피해 30% 증폭 및 첫 받는 피해 30% 감폭', req: 'g2' },
         { id: 'g6', name: '마무리 타격', desc: '공격 후 적 생명력 20% 미만 즉시 처치(보스 10%)', req: 'g3' },
-        { id: 'g7', name: '투기 순환', desc: '회피 비례 연속 타격 증가, 방어도 비례 치명타 확률 증가', reqAny: ['g4', 'g5'] },
-        { id: 'g8', name: '검투의 화신', desc: '연속 타격 +100%, 보스 대상 주고/받는 피해 18% 증폭, 재생 50% 감폭, ES 재생 없음', req: 'g7' },
+        { id: 'g7', name: '투기 순환', desc: '회피 비례 연속 타격 증가(회피 35당 +1%p), 방어도 비례 치명타 확률 증가(방어도 250당 +1%p)', reqAny: ['g4', 'g5'] },
+        { id: 'g8', name: '검투의 화신', desc: '연속 타격 +100%, 피해 25% 증폭, 보스에게 주는 피해 30%/받는 피해 18% 증폭, 재생 50% 감폭, ES 재생 없음', req: 'g7' },
         { id: 'g9', name: '실전 특화', desc: '막기 확률 및 비껴내기 확률 판정에 행운 적용(2회 굴려 유리한 값 선택)', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
     ],
     assassin: [
@@ -809,13 +809,13 @@ const CLASS_KEYSTONE_DEFS = {
     ],
     ranger: [
         { id: 'r1', name: '사냥꾼 보법', desc: '이동 속도 15% 증폭, 방어도/에너지 보호막 0', req: null },
-        { id: 'r2', name: '가속 시위', desc: '공격 속도 10% 증폭, 투사체 스킬 피해 10% 감폭', req: null },
+        { id: 'r2', name: '가속 시위', desc: '공격 속도 20% 증폭', req: null },
         { id: 'r3', name: '탄도 감각', desc: '투사체 스킬 타겟 수 +2, 투사체 스킬 최소 피해 보정 -10%', req: null },
-        { id: 'r4', name: '질풍 동조', desc: '이동 속도 10%당 공격 속도 +1%', req: 'r1' },
-        { id: 'r5', name: '급소 표식', desc: '같은 적 3회 연속 적중마다 적 최대 체력의 1% 추가 물리 피해', req: 'r2' },
-        { id: 'r6', name: '궤적 관통', desc: '관통 스킬 타겟 수 +1, 관통 스킬 피해 10% 감폭, 타겟마다 3% 증폭', req: 'r3' },
+        { id: 'r4', name: '질풍 동조', desc: '이동 속도 5%당 공격 속도 +1%', req: 'r1' },
+        { id: 'r5', name: '급소 표식', desc: '같은 적 3회 연속 적중마다 적 최대 체력의 3% 추가 물리 피해', req: 'r2' },
+        { id: 'r6', name: '궤적 관통', desc: '관통 스킬 타겟 수 +1, 타겟마다 피해 8% 증폭', req: 'r3' },
         { id: 'r7', name: '추적 본능', desc: '피격되지 않은 시간 1초마다 치명타 확률 +5%p (피격 시 초기화)', reqAny: ['r4', 'r5'] },
-        { id: 'r8', name: '폭풍 사냥', desc: '공격 속도와 이동 속도 상호 7% 효율 보정, 최대 생명력 -15%', req: 'r7' },
+        { id: 'r8', name: '폭풍 사냥', desc: '공격 속도와 이동 속도 상호 12% 효율 보정, 최대 생명력 -15%', req: 'r7' },
         { id: 'r9', name: '극한의 속사', desc: '공격 속도 소프트캡 기준치 +2', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
     ],
     elementalist: [
@@ -842,13 +842,13 @@ const CLASS_KEYSTONE_DEFS = {
     ],
 
     soulbinder: [
-        { id: 'sb1', name: '영혼 결속', desc: '소환수 기본 피해 15% 증폭', req: null },
+        { id: 'sb1', name: '영혼 결속', desc: '소환수 기본 피해 30% 증폭', req: null },
         { id: 'sb2', name: '나눠갖기', desc: '소환수가 플레이어가 받는 피해의 50%를 대신 받음', req: null },
         { id: 'sb3', name: '야생성', desc: '소환수 흡혈 +3%', req: null },
-        { id: 'sb4', name: '무리', desc: '소환수 한도 +1, 소환수 공격 속도 15% 증폭', req: 'sb1' },
+        { id: 'sb4', name: '무리', desc: '소환수 한도 +1, 소환수 공격 속도 25% 증폭', req: 'sb1' },
         { id: 'sb5', name: '홀로서기', desc: '소환수의 기본 공격력과 공격적인 추가 스탯만 플레이어가 가짐, 소환수 생명력 등 방어적인 소환 옵션은 전이되지 않으며 소환수는 공격하지 않음', req: 'sb2' },
-        { id: 'sb6', name: '꿰뚫는 이', desc: '저항 관통 +16%, 플레이어 저항 관통이 소환수 공격에도 100% 적용', req: 'sb3' },
-        { id: 'sb7', name: '상호 보완', desc: '플레이어 공격력(타격당 기본 피해)의 50%를 소환수 타격에 더하고, 소환수 공격력의 50%를 플레이어 타격에 더함', reqAny: ['sb4', 'sb3'] },
+        { id: 'sb6', name: '꿰뚫는 이', desc: '저항 관통 +25%, 플레이어 저항 관통이 소환수 공격에도 100% 적용', req: 'sb3' },
+        { id: 'sb7', name: '상호 보완', desc: '플레이어 공격력(타격당 기본 피해)의 75%를 소환수 타격에 더하고, 소환수 공격력의 75%를 플레이어 타격에 더함', reqAny: ['sb4', 'sb3'] },
         { id: 'sb8', name: '군주', desc: '소환수 한도 +3', req: 'sb7' },
         { id: 'sb9', name: '대군 소환', desc: '소환수 한도가 1.5배가 됩니다(내림)', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
     ],
@@ -864,12 +864,12 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'ct9', name: '급성 발현', desc: '점화/중독/출혈의 피해 간격 및 지속 시간 50% 감폭(같은 피해를 더 빠르게 폭발)', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
     ],
     hunter: [
-        { id: 'h1', name: '단일 조준', desc: '투사체 피해 10% 증폭, 타겟이 하나면 25% 증폭', req: null },
+        { id: 'h1', name: '단일 조준', desc: '투사체 피해 15% 증폭, 타겟이 하나면 40% 증폭', req: null },
         { id: 'h2', name: '약점 노출', desc: '공격 시 적에게 약점 노출 부여, 노출된 적이 받는 피해 20% 증가', req: null },
         { id: 'h3', name: '행운 발걸음', desc: '이동 속도의 20%를 회피로 전환, 회피 판정에 행운, 피격/상태이상 판정에 불운', req: null },
         { id: 'h4', name: '연쇄 관통', desc: '타겟이 하나면 공격이 100% 관통(초과 피해가 연쇄 관통, 전이마다 80%로 감쇄)', req: 'h1' },
-        { id: 'h5', name: '급소 격발', desc: '치명타 피해 배율 +250%, 치명타 확률 -25', req: 'h2' },
-        { id: 'h6', name: '사거리 장악', desc: '투사체 스킬 타겟 수 +1, 투사체 추가 발사 +1', req: 'h3' },
+        { id: 'h5', name: '급소 격발', desc: '치명타 피해 배율 +350%, 치명타 확률 -20', req: 'h2' },
+        { id: 'h6', name: '사거리 장악', desc: '투사체 스킬 타겟 수 +1, 투사체 추가 발사 +1 (보너스 샷 피해 70%로 강화)', req: 'h3' },
         { id: 'h7', name: '고독 사냥', desc: '타겟 수 1로 고정, 줄어든 타겟 5개까지 각 연속 타격 +100%p, 이후 각 +50%p', reqAny: ['h4', 'h5'] },
         { id: 'h8', name: '절멸 사격', desc: '연속타격 불가, 연속타격 확률을 치명타 확률로 전환, 초과 치명타/다중 치명타 허용 (최대 1000%)', req: 'h7' },
         { id: 'h9', name: '일격필살', desc: '공격 속도가 1로 고정되며, 공격 속도 증가가 모두 피해량 증폭으로 전환됨', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
@@ -877,24 +877,24 @@ const CLASS_KEYSTONE_DEFS = {
     crusader: [
         { id: 'cr1', name: '신성화', desc: '신성화 효과: 생명력 재생 +1.5%, 생명력 재생 속도 +40%', req: null },
         { id: 'cr2', name: '천뢰 교리', desc: '화염/냉기 피해 증가를 번개에도 100% 적용, 번개 피해가 번개 저항 무시, 번개에는 저항 관통 미적용', req: null },
-        { id: 'cr3', name: '신성한 검', desc: '무기를 신성한 검으로 간주(무기 옵션 무효), ES 100당 번개 기본 피해 +(플레이어 레벨 x1)', req: null },
+        { id: 'cr3', name: '신성한 검', desc: '무기를 신성한 검으로 간주(무기 옵션 무효), ES 100당 번개 기본 피해 +(플레이어 레벨 x2)', req: null },
         { id: 'cr4', name: '전하 보루', desc: '받는 화염/냉기/카오스 피해의 30%를 번개로 전환, 최대 번개 저항 +3%', req: 'cr1' },
-        { id: 'cr5', name: '이중 재생', desc: '생명력 재생이 ES에도 적용, 생명력 재생 +3%, 최대 생명력 +10%, 방어도/ES +30%', req: 'cr2' },
-        { id: 'cr6', name: '천벌 단죄', desc: '번개 피해의 최종 최대 피해 보정 1.5배', req: 'cr3' },
+        { id: 'cr5', name: '이중 재생', desc: '생명력 재생이 ES에도 적용, 생명력 재생 +3%, 최대 생명력 +15%, 방어도/ES +40%', req: 'cr2' },
+        { id: 'cr6', name: '천벌 단죄', desc: '번개 피해의 최종 최대 피해 보정 2배', req: 'cr3' },
         { id: 'cr7', name: '상호 전환', desc: '총 방어도의 50%를 ES로, 총 ES의 50%를 방어도로 전환, ES 재충전 시작 50% 가속', reqAny: ['cr4', 'cr5'] },
-        { id: 'cr8', name: '번개 불사', desc: 'ES 0 시 4초간 ES 100% 재생, 동안 번개 피해 +50% (쿨 4초, 중첩불가)', req: 'cr7' },
+        { id: 'cr8', name: '번개 불사', desc: 'ES 0 시 4초간 ES 100% 재생, 동안 번개 피해 +75% (쿨 4초, 중첩불가)', req: 'cr7' },
         { id: 'cr9', name: '축복받은 무구', desc: '신성한 검 상태에서도 무기의 효과가 무효화되지 않음', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
     ],
 
     guardian: [
-        { id: 'gd1', name: '요새의 맹세', desc: '방어도 10% 증폭, 방어도의 10%만큼 일반 피해 증가', req: null },
+        { id: 'gd1', name: '요새의 맹세', desc: '방어도 15% 증폭, 방어도의 10%만큼 일반 피해 증가', req: null },
         { id: 'gd2', name: '생명 성채', desc: '최대 생명력 20% 증폭', req: null },
         { id: 'gd3', name: '수호 재생', desc: '생명력 재생 회복 속도 20% 증가, 에너지 보호막 재생 속도 20% 감폭', req: null },
         { id: 'gd4', name: '철벽 전환', desc: '회피/에너지 보호막 0, 그 합의 60%를 방어도로 전환', req: 'gd1' },
-        { id: 'gd5', name: '불침 보루', desc: '받는 최종 피해 15% 감폭, 주는 피해 12% 감폭', req: 'gd2' },
+        { id: 'gd5', name: '불침 보루', desc: '받는 최종 피해 15% 감폭', req: 'gd2' },
         { id: 'gd6', name: '인내 장전', desc: '피격 시 4초간 방어도 +11% (최대 5중첩, 곱연산), 5중첩 소모 반사 피해 후 2중첩 유지', req: 'gd3' },
-        { id: 'gd7', name: '최후 저지선', desc: '생명력 50% 이하 시 받는 피해 20% 감폭/주는 피해 20% 증폭, 상태이상 제거(쿨 5초)', reqAny: ['gd4', 'gd5'] },
-        { id: 'gd8', name: '절대 수호', desc: '막기 확률과 별개로 피해를 무효화할 확률 25%, 모든 상태 이상 저항 확률 +50%', req: 'gd7' },
+        { id: 'gd7', name: '최후 저지선', desc: '생명력 50% 이하 시 받는 피해 20% 감폭/주는 피해 30% 증폭, 상태이상 제거(쿨 5초)', reqAny: ['gd4', 'gd5'] },
+        { id: 'gd8', name: '절대 수호', desc: '막기 확률과 별개로 피해를 무효화할 확률 30%, 모든 상태 이상 저항 확률 +50%', req: 'gd7' },
         { id: 'gd9', name: '거대화', desc: '최대 생명력 20% 증폭', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
     ],
     inquisitor: [
@@ -977,6 +977,11 @@ const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare', 'unique'];
 
 
 const P_STATS = {
+    // 범용 스탯: 힘(생명력/물리), 민첩(회피/정확도), 지능(ES/원소), 정확도(적 회피 수치 상쇄).
+    strength: { name: '힘', tiers: [1, 2, 3], s: 6, m: 14, k: 26 },
+    dexterity: { name: '민첩', tiers: [1, 2, 3], s: 6, m: 14, k: 26 },
+    intelligence: { name: '지능', tiers: [1, 2, 3], s: 6, m: 14, k: 26 },
+    accuracy: { name: '정확도', tiers: [1, 2, 3], s: 40, m: 90, k: 180 },
     flatHp: { name: '최대 생명력', tiers: [1, 2], s: 15, m: 45 },
     pctHp: { name: '생명력(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
     regen: { name: '초당 재생(%)', tiers: [1, 2], s: 0.1, m: 0.3, isPct: true },
@@ -1163,6 +1168,10 @@ const MOD_DB = [
     { id: 'spellFlatDmg', type: 'prefix', statName: '주문 내장 피해', slots: ['무기', '목걸이'], base: 8, step: 6 },
     { id: 'spellFlatPct', type: 'suffix', statName: '주문 내장 피해 증가(%)', slots: ['무기', '목걸이', '방패'], base: 6, step: 4 },
     { id: 'flatHp', type: 'prefix', statName: '최대 생명력', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 15, step: 10 },
+    { id: 'strength', type: 'suffix', statName: '힘', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
+    { id: 'dexterity', type: 'suffix', statName: '민첩', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
+    { id: 'intelligence', type: 'suffix', statName: '지능', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
+    { id: 'accuracy', type: 'suffix', statName: '정확도', slots: ['무기', '장갑', '반지', '목걸이'], base: 60, step: 40 },
     { id: 'armor', type: 'prefix', statName: '방어도', slots: ['투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 12, step: 10 },
     { id: 'evasion', type: 'prefix', statName: '회피', slots: ['투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 12, step: 10 },
     { id: 'energyShield', type: 'prefix', statName: '에너지 보호막', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 9, step: 8 },
@@ -1905,6 +1914,7 @@ const defaultGame = {
     pendingConditionGemChoices: null,
     clearedRootBosses: [],
     timeRift: { pressure: 1, altarOpen: false, altarUnique: null, altarRare: null },
+    flasks: { lifeCharges: 3, utilKey: 'granite', utilCharges: 3, killCounter: 0, utilBuffUntil: 0 },
     mapSubtab: 'map-tab-zones',
     mapExploreSubtab: 'map-explore-hunting',
     gemFoldInactiveAttack: false,
