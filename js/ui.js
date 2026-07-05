@@ -520,6 +520,9 @@ function onTabGroupDrop(event, targetKey) {
     event.preventDefault();
     moveTabGroupBefore(event.dataTransfer.getData('text/plain'), targetKey);
 }
+function isFixedTabGroupButton() {
+    return false;
+}
 function getTabGroupForId(tabId) {
     // 버튼 id('btn-tab-x')와 탭 id('tab-x')를 모두 허용한다.
     let id = String(tabId || '').replace(/^btn-/, '');
@@ -565,7 +568,7 @@ function renderTabCategoryBar() {
     if (!bar) return;
     ensureTabCategoryBarPlacement(bar);
     if (!isTabGroupingActive()) { bar.style.display = 'none'; return; }
-    bar.style.display = 'contents';
+    bar.style.display = 'inline-flex';
     let active = getActiveTabGroup();
     let unlocks = game.unlocks || {};
     bar.innerHTML = getOrderedTabGroups().map(group => {
@@ -906,8 +909,12 @@ function switchTab(tabId) {
     // 이미 활성인 탭을 다시 누르면 전체 UI 재구성(+ 캐릭터 탭의 패시브 트리 재드로우)을
     // 반복해 게임이 멈춘 것처럼 느껴진다. 같은 탭 재클릭은 무거운 재렌더를 생략한다.
     // (탭 내용 갱신은 게임 동작/주기 갱신이 별도로 처리한다.)
+    if (tabId === 'tab-items' && game.noti) game.noti.items = false;
     let tabEl = document.getElementById(tabId);
-    if (lastActiveTabId === tabId && tabEl && tabEl.classList.contains('active')) return;
+    if (lastActiveTabId === tabId && tabEl && tabEl.classList.contains('active')) {
+        updateTabNotificationDots();
+        return;
+    }
     document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     let activeBtn = document.getElementById('btn-' + tabId);
@@ -977,6 +984,7 @@ function craftSelectInventoryItemById(itemId) {
 }
 
 function switchItemSubtab(subtabId) {
+    if (subtabId === 'item-tab-equip' && game.noti) game.noti.items = false;
     if (subtabId === game.itemSubtab) {
         let currentPanel = document.getElementById(subtabId);
         let currentBtn = document.getElementById('btn-' + subtabId);
@@ -7079,20 +7087,24 @@ function renderFlaskPanel() {
         }).join('');
         let def = cur ? FLASK_UTILITY_POOL[cur.key] : null;
         let active = cur && (cur.until || 0) > now;
-        let status = cur ? `충전 ${cur.charges}/${def.maxCharges}${active ? ` · 발동(${Math.ceil((cur.until - now) / 1000)}초)` : ''}` : '';
-        return `<div style="display:flex; flex-direction:column; gap:2px;">
-            <select onchange="equipUtilityFlask(${idx}, this.value)" style="font-size:0.8em;" title="${def ? def.desc : '유틸리티 플라스크 선택'}">${opts}</select>
-            <span style="color:#8fa7be; font-size:0.74em;">${status}</span>
+        let status = cur ? `충전 ${cur.charges}/${def.maxCharges}${active ? ` · 발동 ${Math.ceil((cur.until - now) / 1000)}초` : ''}` : '비어 있음';
+        return `<div class="flask-slot-box utility ${active ? 'active' : ''}">
+            <div class="flask-slot-label">유틸리티 ${idx + 1}</div>
+            <div class="flask-slot-name">${def ? def.name : '빈 플라스크 슬롯'}</div>
+            <div class="flask-slot-status">${status}</div>
+            <select class="flask-slot-select" onchange="equipUtilityFlask(${idx}, this.value)" title="${def ? def.desc : '유틸리티 플라스크 선택'}">${opts}</select>
         </div>`;
     }).join('');
-    host.innerHTML = `<div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;">
-        <div style="display:flex; flex-direction:column; gap:2px;">
-            <span style="font-size:0.82em;">🧪 회복 <strong>충전 ${st.healCharges}/${healDef.maxCharges}</strong>${healActive ? ` · 회복 중(${Math.ceil((st.healOverTimeUntil - now) / 1000)}초)` : ''}</span>
-            <select onchange="selectHealFlaskTier(this.value)" style="font-size:0.8em;">${healOptions}</select>
+    host.innerHTML = `<div class="flask-paperdoll">
+        <div class="flask-slot-box heal ${healActive ? 'active' : ''}">
+            <div class="flask-slot-label">회복</div>
+            <div class="flask-slot-name">${healDef.name}</div>
+            <div class="flask-slot-status">충전 ${st.healCharges}/${healDef.maxCharges}${healActive ? ` · 회복 ${Math.ceil((st.healOverTimeUntil - now) / 1000)}초` : ''}</div>
+            <select class="flask-slot-select" onchange="selectHealFlaskTier(this.value)">${healOptions}</select>
         </div>
-        <div style="display:flex; gap:10px; align-items:flex-start;">${utilSlots}</div>
+        ${utilSlots}
     </div>
-    <div style="color:#8fa7be; font-size:0.76em; margin-top:6px;">적 처치로 충전됩니다. 회복 플라스크는 생명력 ${healDef.autoBelowHpPct}% 이하 시 ${Math.round(healDef.durationMs / 1000)}초간 지속 회복, 유틸리티 2종은 전투 중 자동 발동. 회복 티어는 레벨 1/5/10/15/20/25/30/35마다 해금됩니다.</div>`;
+    <div class="flask-help-text">적 처치로 충전됩니다. 회복 플라스크는 생명력 ${healDef.autoBelowHpPct}% 이하 시 ${Math.round(healDef.durationMs / 1000)}초간 지속 회복, 유틸리티 2종은 전투 중 자동 발동합니다.</div>`;
 }
 
 // 시간의 균열 패널: 시간압 선택 → 과거 진입 → 제단 배치 → 미래 진입.
