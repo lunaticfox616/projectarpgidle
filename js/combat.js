@@ -9076,7 +9076,7 @@ function chooseLoopAdvance(shouldLoop) {
     if (!game.pendingLoopDecision) return;
     if (shouldLoop) {
         game.pendingLoopDecision = false;
-        triggerSeasonReset();
+        triggerSeasonReset({ path: 'chaos' });
         return;
     }
     game.pendingLoopDecision = false;
