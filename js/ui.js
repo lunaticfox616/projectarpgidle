@@ -442,10 +442,12 @@ function renderTabOrderSettings() {
     if (!tabOrderEl) return;
     if (!(document.getElementById('tab-settings') || {}).classList.contains('active')) return;
     let tabs = Array.from(document.querySelectorAll('.tab-header .tab-btn'));
-    tabOrderEl.innerHTML = tabs.map(el => {
+    let groupRows = getOrderedTabGroups().map(group => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${group.icon} ${group.label}</span><span style="display:flex;gap:4px;"><button onclick="moveTabGroup('${group.key}',-1)">▲</button><button onclick="moveTabGroup('${group.key}',1)">▼</button></span></div>`).join('');
+    let tabRows = tabs.map(el => {
         let place = (game.settings.tabPlacement[el.id] === 'bottom') ? 'bottom' : 'top';
         return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
     }).join('');
+    tabOrderEl.innerHTML = `<div style="font-weight:800;color:#f1c40f;margin-bottom:2px;">상위 그룹 탭</div>${groupRows}<div style="font-weight:800;color:#f1c40f;margin:8px 0 2px;">일반 탭</div>${tabRows}`;
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
 const TAB_DRAG_CANCEL_PX = 8;
@@ -458,12 +460,43 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 't
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
 // 넓은 화면(데스크톱)에서만 활성화되고, 좁은 화면에서는 기존 방식(전체 탭 + 스와이프)을 유지한다.
+const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-character', 'tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-talisman', 'tab-cube'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-skills', 'tab-codex', 'tab-journal'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
+function getOrderedTabGroups() {
+    game.settings = game.settings || {};
+    let order = Array.isArray(game.settings.tabGroupOrder) ? game.settings.tabGroupOrder : [];
+    let byKey = {};
+    TAB_GROUPS.forEach(group => { byKey[group.key] = group; });
+    return order.concat(TAB_GROUPS.map(group => group.key))
+        .filter((key, idx, arr) => byKey[key] && arr.indexOf(key) === idx)
+        .map(key => byKey[key]);
+}
+function moveTabGroup(groupKey, dir) {
+    let groups = getOrderedTabGroups();
+    let idx = groups.findIndex(group => group.key === groupKey);
+    if (idx < 0) return;
+    let nextIdx = Math.max(0, Math.min(groups.length - 1, idx + dir));
+    if (nextIdx === idx) return;
+    let moved = groups.slice();
+    let tmp = moved[idx];
+    moved[idx] = moved[nextIdx];
+    moved[nextIdx] = tmp;
+    game.settings = game.settings || {};
+    game.settings.tabGroupOrder = moved.map(group => group.key);
+    lastTabHeaderUiSignature = null;
+    renderTabCategoryBar();
+    renderTabOrderSettings();
+    queueImportantSave(300);
+}
+function isFixedTabGroupButton(tabId) {
+    let id = String(tabId || '').replace(/^btn-/, '');
+    return TAB_GROUP_FIXED_TAB_IDS.includes(id);
+}
 function getTabGroupForId(tabId) {
     // 버튼 id('btn-tab-x')와 탭 id('tab-x')를 모두 허용한다.
     let id = String(tabId || '').replace(/^btn-/, '');
@@ -487,7 +520,7 @@ function selectTabGroup(groupKey) {
     let activeInGroup = lastActiveTabId && getTabGroupForId(lastActiveTabId) === groupKey;
     applyTabGroupFilter();
     if (!activeInGroup) {
-        let group = TAB_GROUPS.find(g => g.key === groupKey);
+        let group = getOrderedTabGroups().find(g => g.key === groupKey);
         let firstVisible = group.tabs.find(id => {
             let btn = document.getElementById('btn-' + id);
             return btn && btn.style.display !== 'none' && !btn.dataset.groupHidden;
@@ -507,7 +540,7 @@ function renderTabCategoryBar() {
     bar.style.display = 'flex';
     let active = getActiveTabGroup();
     let unlocks = game.unlocks || {};
-    bar.innerHTML = TAB_GROUPS.map(group => {
+    bar.innerHTML = getOrderedTabGroups().map(group => {
         // 그룹 내 알림 점 집계.
         let hasNoti = group.tabs.some(id => {
             let key = id.replace('tab-', '');
@@ -778,6 +811,7 @@ function getTabHeaderUiSignature() {
         TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}:${noti[key] && filters[key] !== false ? 1 : 0}`).join('|'),
         Array.isArray(game.settings && game.settings.tabOrder) ? game.settings.tabOrder.join(',') : '',
         JSON.stringify((game.settings && game.settings.tabPlacement) || {}),
+        Array.isArray(game.settings && game.settings.tabGroupOrder) ? game.settings.tabGroupOrder.join(',') : '',
         isTabGroupingActive() ? ('grp:' + getActiveTabGroup()) : 'nogrp'
     ].join('::');
 }
@@ -810,6 +844,7 @@ function hideOutOfGroupTabButtons() {
     let active = getActiveTabGroup();
     Array.from(document.querySelectorAll('.tab-header .tab-btn')).forEach(btn => {
         if (!grouping) { delete btn.dataset.groupHidden; return; }
+        if (isFixedTabGroupButton(btn.id)) { delete btn.dataset.groupHidden; btn.style.display = 'flex'; return; }
         if (getTabGroupForId(btn.id) !== active) { btn.dataset.groupHidden = '1'; btn.style.display = 'none'; }
         else delete btn.dataset.groupHidden;
     });
