@@ -463,8 +463,8 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 't
 const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-character', 'tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season'] },
-    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-talisman', 'tab-cube'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-skills', 'tab-codex', 'tab-journal'] },
+    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-talisman', 'tab-cube'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
 function getOrderedTabGroups() {
@@ -561,7 +561,9 @@ function applyTabGroupFilter() {
 }
 function ensureTabCategoryBarPlacement(bar) {
     let header = document.querySelector('.tab-header');
-    if (bar && header && bar.parentElement !== header) header.insertBefore(bar, header.firstChild);
+    if (bar && header && header.parentElement && bar.nextElementSibling !== header) {
+        header.parentElement.insertBefore(bar, header);
+    }
 }
 function renderTabCategoryBar() {
     let bar = document.getElementById('tab-category-bar');
@@ -869,15 +871,26 @@ function updateTabUnlockButtons() {
     hideOutOfGroupTabButtons();
 }
 
+function isUngatedPersistentTabButton(btn) {
+    return btn && (btn.id === 'btn-tab-social' || btn.id === 'btn-tab-settings');
+}
 // updateTabUnlockButtons 뒤에서 호출되는 그룹 가시성 적용부. 재진입 없이 display만 조정한다.
 function hideOutOfGroupTabButtons() {
     let grouping = isTabGroupingActive();
     let active = getActiveTabGroup();
     Array.from(document.querySelectorAll('.tab-header .tab-btn')).forEach(btn => {
-        if (!grouping) { delete btn.dataset.groupHidden; return; }
-        if (isFixedTabGroupButton(btn.id)) { delete btn.dataset.groupHidden; btn.style.display = 'flex'; return; }
-        if (getTabGroupForId(btn.id) !== active) { btn.dataset.groupHidden = '1'; btn.style.display = 'none'; }
-        else delete btn.dataset.groupHidden;
+        if (!grouping) {
+            delete btn.dataset.groupHidden;
+            if (isUngatedPersistentTabButton(btn)) btn.style.display = 'flex';
+            return;
+        }
+        if (getTabGroupForId(btn.id) !== active) {
+            btn.dataset.groupHidden = '1';
+            btn.style.display = 'none';
+            return;
+        }
+        delete btn.dataset.groupHidden;
+        if (isUngatedPersistentTabButton(btn)) btn.style.display = 'flex';
     });
 }
 

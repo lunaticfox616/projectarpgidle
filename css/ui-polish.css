@@ -669,20 +669,25 @@ input[data-search-key]:focus {
   to { transform: rotate(360deg); }
 }
 
-/* Top-level grouping lives in the same horizontal strip as normal tabs. */
-.tab-header .tab-category-bar {
-  display: inline-flex;
+/* Top-level grouping is the first tab row; the selected group's tabs stay in the second row. */
+.tab-category-bar {
+  display: flex;
   flex: 0 0 auto;
   align-items: stretch;
   gap: 2px;
-  margin-right: 6px;
-  padding: 0 6px 0 0;
-  border-right: 1px solid rgba(255,255,255,0.08);
+  padding: 0 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  background: #14141d;
+  border-bottom: 1px solid #2a2a35;
 }
+.tab-category-bar::-webkit-scrollbar { display: none; }
 .tab-category-btn {
   position: relative;
   flex: 0 0 auto;
-  padding: 12px 10px;
+  min-width: max-content;
+  padding: 10px 14px;
   text-align: center;
   cursor: pointer;
   border: 0;
@@ -699,6 +704,11 @@ input[data-search-key]:focus {
   white-space: nowrap;
   word-break: keep-all;
 }
+body:not(.light-mode) .tab-category-bar {
+  background: linear-gradient(180deg, #121a26 0%, #0d141f 100%);
+  border-bottom: 1px solid #1c2a3a;
+  box-shadow: inset 0 -1px 0 rgba(180,140,60,0.08);
+}
 body:not(.light-mode) .tab-category-btn {
   border: none;
   border-radius: 0;
@@ -707,8 +717,8 @@ body:not(.light-mode) .tab-category-btn {
   font-weight: 800;
   font-size: 0.86em;
   letter-spacing: 0.04em;
-  padding: 0 10px;
-  min-height: 44px;
+  padding: 0 14px;
+  min-height: 34px;
   border-right: 1px solid rgba(255,255,255,0.04);
   box-shadow: none;
   transition: color .15s ease, background .15s ease;
@@ -743,7 +753,18 @@ body:not(.light-mode) .tab-category-btn.active::after {
   height: 2px;
   box-shadow: 0 0 8px rgba(232,194,106,0.6);
 }
-
+body.light-mode .tab-category-bar {
+  background-color: #eef2f8;
+  border-bottom-color: #d3deec;
+}
+body.light-mode .tab-category-btn {
+  color: #4b5f78;
+  border-right-color: #d3deec;
+}
+body.light-mode .tab-category-btn.active {
+  background: #ffffff;
+  color: #1e5aa5;
+}
 /* Flask equipment cards mirror the compact equipment-slot presentation. */
 .flask-paperdoll {
   display: grid;
