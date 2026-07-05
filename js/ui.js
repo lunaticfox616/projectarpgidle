@@ -6902,6 +6902,24 @@ function getCraftOrbUseState(key, item) {
     return { enabled: ok, reason: ok ? '사용 가능' : '현재 아이템 조건 불일치' };
 }
 
+// 플라스크 패널 (캐릭터 탭): 충전 상태 표시 + 유틸리티 플라스크 교체.
+function renderFlaskPanel() {
+    let host = document.getElementById('ui-flask-panel');
+    if (!host || typeof ensureFlaskState !== 'function' || typeof FLASK_DB === 'undefined') return;
+    let st = ensureFlaskState();
+    let lifeDef = FLASK_DB.life;
+    let utilDef = FLASK_DB[st.utilKey];
+    let activeLeft = Math.max(0, (st.utilBuffUntil || 0) - Date.now());
+    let utilButtons = Object.keys(FLASK_DB).filter(key => key !== 'life').map(key =>
+        `<button onclick="selectUtilityFlask('${key}')" ${st.utilKey === key ? 'disabled' : ''} style="font-size:0.78em;">${FLASK_DB[key].name.replace(' 플라스크', '')}${st.utilKey === key ? ' ✓' : ''}</button>`).join('');
+    host.innerHTML = `<div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center;">
+        <span title="${lifeDef.desc}">🧪 <strong>${lifeDef.name}</strong> 충전 ${st.lifeCharges}/${lifeDef.maxCharges}</span>
+        <span title="${utilDef.desc}">⚗️ <strong>${utilDef.name}</strong> 충전 ${st.utilCharges}/${utilDef.maxCharges}${activeLeft > 0 ? ` · 발동 중(${Math.ceil(activeLeft / 1000)}초)` : ''}</span>
+        <span style="display:flex; gap:4px;">${utilButtons}</span>
+    </div>
+    <div style="color:#8fa7be; font-size:0.78em; margin-top:4px;">적 처치로 충전됩니다 (생명력 8킬 · 유틸리티 10킬당 1충전). 생명력 55% 이하 시 자동 회복, 유틸리티는 전투 중 자동 발동.</div>`;
+}
+
 // 시간의 균열 패널: 시간압 선택 → 과거 진입 → 제단 배치 → 미래 진입.
 function renderTimeRiftPanel() {
     let host = document.getElementById('ui-timerift-panel');
@@ -7602,6 +7620,7 @@ function buildCraftActionButtons(item) {
     let timeRiftOpen = (game.season || 1) >= TIME_RIFT_UNLOCK_LOOP;
     setExploreSubtabAvailable('map-explore-timerift', timeRiftOpen);
     if (timeRiftOpen) renderTimeRiftPanel();
+    renderFlaskPanel();
 
     let labyrinthOpen = (game.season || 1) >= 3;
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
