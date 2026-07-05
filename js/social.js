@@ -870,8 +870,8 @@ function injectSocialStyles() {
     .social-item-link:hover{filter:brightness(1.2);}
     .social-modal-overlay{position:fixed;inset:0;background:rgba(4,8,14,0.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
     .social-modal-box{position:relative;width:min(760px,96vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(170deg,#101a2a,#0c1421);border:1px solid #2c4063;border-radius:14px;}
-    .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:18px 20px 20px;}
-    .social-modal-close{position:absolute;top:9px;right:9px;z-index:3;width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:rgba(28,44,68,0.55);border:1px solid rgba(90,120,160,0.4);color:#cfe0f5;border-radius:50%;cursor:pointer;font-size:0.9em;line-height:1;}
+    .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:18px 56px 20px 20px;}
+    .social-modal-close{position:absolute;top:10px;right:12px;z-index:3;box-sizing:border-box;width:30px;height:30px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;background:rgba(28,44,68,0.55);border:1px solid rgba(90,120,160,0.4);color:#cfe0f5;border-radius:50%;cursor:pointer;font-size:0.9em;line-height:1;}
     .social-modal-close:hover{background:rgba(44,64,96,0.9);}
     .social-profile-empty{color:#8094ad;text-align:center;padding:24px;}
     .social-profile-header{border-bottom:1px solid #233a59;padding-bottom:12px;margin-bottom:14px;padding-right:34px;}
