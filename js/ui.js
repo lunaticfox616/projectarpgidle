@@ -460,6 +460,7 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 't
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
 // 넓은 화면(데스크톱)에서만 활성화되고, 좁은 화면에서는 기존 방식(전체 탭 + 스와이프)을 유지한다.
+const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-character', 'tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-talisman', 'tab-cube'] },
@@ -871,6 +872,7 @@ function hideOutOfGroupTabButtons() {
     let active = getActiveTabGroup();
     Array.from(document.querySelectorAll('.tab-header .tab-btn')).forEach(btn => {
         if (!grouping) { delete btn.dataset.groupHidden; return; }
+        if (isFixedTabGroupButton(btn.id)) { delete btn.dataset.groupHidden; btn.style.display = 'flex'; return; }
         if (getTabGroupForId(btn.id) !== active) { btn.dataset.groupHidden = '1'; btn.style.display = 'none'; }
         else delete btn.dataset.groupHidden;
     });
