@@ -95,4 +95,12 @@ context.game.equipment = {
 };
 
 assert.strictEqual(context.getPlayerStats().ds, 400, '연속 타격 확률은 250%로 소프트캡되지 않아야 한다');
+
+context.addLog = () => {};
+context.game.season = 31;
+context.game.loopProgressCurrent = { bestAbyssDepth: 45, cosmosPlanets: ['planet-45'] };
+context.game.cosmosLoopCount = 0;
+assert.strictEqual(context.triggerSeasonReset(), false, 'both loop routes should require an explicit path');
+assert.strictEqual(context.game.season, 31, 'generic loop reset must not consume the run when multiple routes are ready');
+assert.strictEqual(context.game.cosmosLoopCount, 0, 'generic loop reset must not skip the cosmos-loop counter choice');
 console.log('smoke-double-strike-uncapped passed');

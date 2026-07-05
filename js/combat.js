@@ -8824,9 +8824,8 @@ function resolveLoopAdvancePath(requestedPath) {
     let available = typeof getAvailableLoopAdvancePaths === 'function'
         ? getAvailableLoopAdvancePaths(game.season || 1)
         : (typeof hasCurrentLoopAbyssRequirementClear === 'function' && hasCurrentLoopAbyssRequirementClear(game.season || 1) ? ['chaos'] : []);
-    if (requested && available.includes(requested)) return requested;
-    if (available.includes('chaos')) return 'chaos';
-    if (available.includes('cosmos')) return 'cosmos';
+    if (requested) return available.includes(requested) ? requested : null;
+    if (available.length === 1) return available[0];
     return null;
 }
 
@@ -8842,7 +8841,11 @@ function triggerSeasonReset(options) {
     }
     let loopPath = resolveLoopAdvancePath(typeof options === 'string' ? options : (options && options.path));
     if ((game.season || 1) >= 31 && !loopPath) {
-        addLog(getLoopAbyssRequirementText(game.season || 1) + ' 조건을 먼저 달성해야 합니다.', 'attack-monster');
+        let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(game.season || 1) : [];
+        let msg = available.length > 1
+            ? '혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요.'
+            : getLoopAbyssRequirementText(game.season || 1) + ' 조건을 먼저 달성해야 합니다.';
+        addLog(msg, 'attack-monster');
         return false;
     }
     if (!loopPath) loopPath = 'chaos';
@@ -9061,6 +9064,14 @@ function handleSeasonLoopConditionMet() {
 
 function confirmLoopReady() {
     if (!game.pendingLoopReady) return;
+    let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(game.season || 1) : [];
+    if (available.length > 1) {
+        game.pendingLoopReady = false;
+        game.pendingLoopDecision = true;
+        addLog('혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요.', 'season-up');
+        updateStaticUI();
+        return;
+    }
     game.pendingLoopReady = false;
     triggerSeasonReset();
 }

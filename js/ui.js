@@ -7512,6 +7512,15 @@ function handleCombatLoopAdvanceButton() {
         return;
     }
     if (canShowCombatLoopAdvanceButton() && typeof triggerSeasonReset === 'function') {
+        let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(game.season || 1) : [];
+        if (available.length > 1) {
+            game.pendingLoopDecision = true;
+            let overlay = document.getElementById('loop-decision-overlay');
+            if (overlay) overlay.classList.toggle('active', true);
+            updateLoopDecisionOverlayUi();
+            if (typeof addLog === 'function') addLog('진행할 루프 경로를 선택하세요.', 'season-up');
+            return;
+        }
         triggerSeasonReset();
         return;
     }
