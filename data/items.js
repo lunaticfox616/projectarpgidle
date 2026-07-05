@@ -450,12 +450,33 @@ COSMOS_BOSS_UNIQUE_EQUIPMENT.forEach(unique => UNIQUE_DB.push(unique));
 // 플라스크: 적 처치로 충전되고 전투 중 자동 사용되는 소모품. (생명력 1개 + 유틸리티 1개 슬롯)
 //  - life: 생명력이 autoBelowHpPct 이하로 떨어지면 자동으로 마셔 healPct% 즉시 회복.
 //  - 유틸리티: 전투 중 충전이 있으면 자동 발동, durationMs 동안 스탯 버프(버킷 반영).
-const FLASK_DB = {
-    life: { key: 'life', name: '생명력 플라스크', desc: '생명력 35% 즉시 회복 (생명력 55% 이하 자동 사용)', healPct: 35, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 55 },
-    granite: { key: 'granite', name: '화강암 플라스크', desc: '5초간 방어도 +50%', armorPct: 50, durationMs: 5000, maxCharges: 3, chargesPerKills: 10 },
-    quicksilver: { key: 'quicksilver', name: '수은 플라스크', desc: '5초간 공격 속도 +12%, 이동 속도 +20%', aspd: 12, move: 20, durationMs: 5000, maxCharges: 3, chargesPerKills: 10 },
-    amethyst: { key: 'amethyst', name: '자수정 플라스크', desc: '5초간 모든 저항 +20%', resAll: 20, durationMs: 5000, maxCharges: 3, chargesPerKills: 10 }
+// 플라스크: 회복 플라스크 1슬롯(티어 선택) + 유틸리티 플라스크 2슬롯(풀에서 2개 장착).
+//  - 회복 플라스크는 티어 1/5/10/15/20/25/30/35마다 하나씩, 성능(회복량·지속)만 다르다.
+//    발동 시 즉시 회복이 아니라 durationMs 동안 총 healPct%를 나눠서 지속 회복한다.
+//    각 티어는 캐릭터 레벨이 reqLevel 이상이면 선택할 수 있다.
+//  - 유틸리티 플라스크는 durationMs 동안 스탯 버프(버킷 반영). 최대 2개 장착.
+//  - 모두 적 처치로 충전되고 전투 중 자동 사용된다.
+const FLASK_HEAL_TIERS = [
+    { key: 'h1', name: '생명력 플라스크 I', reqLevel: 1, healPct: 40, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
+    { key: 'h2', name: '생명력 플라스크 II', reqLevel: 5, healPct: 55, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
+    { key: 'h3', name: '생명력 플라스크 III', reqLevel: 10, healPct: 70, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
+    { key: 'h4', name: '생명력 플라스크 IV', reqLevel: 15, healPct: 85, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 62 },
+    { key: 'h5', name: '생명력 플라스크 V', reqLevel: 20, healPct: 100, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 62 },
+    { key: 'h6', name: '생명력 플라스크 VI', reqLevel: 25, healPct: 120, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 65 },
+    { key: 'h7', name: '생명력 플라스크 VII', reqLevel: 30, healPct: 140, durationMs: 5500, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 65 },
+    { key: 'h8', name: '생명력 플라스크 VIII', reqLevel: 35, healPct: 165, durationMs: 6000, maxCharges: 5, chargesPerKills: 8, autoBelowHpPct: 65 }
+];
+
+const FLASK_UTILITY_POOL = {
+    granite: { key: 'granite', name: '화강암 플라스크', desc: '6초간 방어도 +60%', armorPct: 60, durationMs: 6000, maxCharges: 3, chargesPerKills: 10 },
+    quicksilver: { key: 'quicksilver', name: '수은 플라스크', desc: '6초간 공격 속도 +14%, 이동 속도 +22%', aspd: 14, move: 22, durationMs: 6000, maxCharges: 3, chargesPerKills: 10 },
+    amethyst: { key: 'amethyst', name: '자수정 플라스크', desc: '6초간 모든 저항 +22%', resAll: 22, durationMs: 6000, maxCharges: 3, chargesPerKills: 10 },
+    bismuth: { key: 'bismuth', name: '창연 플라스크', desc: '6초간 받는 피해 12% 감소', genericTakenReducePct: 12, durationMs: 6000, maxCharges: 3, chargesPerKills: 12 },
+    sulphur: { key: 'sulphur', name: '유황 플라스크', desc: '6초간 피해 +18%', pctDmg: 18, durationMs: 6000, maxCharges: 3, chargesPerKills: 12 }
 };
+
+// 하위호환: 과거 저장의 utilKey 등에서 참조할 수 있도록 통합 조회 맵.
+const FLASK_DB = Object.assign({}, FLASK_UTILITY_POOL, Object.fromEntries(FLASK_HEAL_TIERS.map(t => [t.key, t])));
 
 const ORB_DB = {
     transmute: { name: '진화의 오브', desc: '노멀 아이템을 매직으로 바꿉니다.' },
@@ -556,4 +577,4 @@ const MARKET_EXCHANGES = [
     ,{ id: 'm13', from: 'blessing', to: 'chaos', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, FLASK_DB, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });
+safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });

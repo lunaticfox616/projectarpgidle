@@ -6908,19 +6908,41 @@ function getCraftOrbUseState(key, item) {
 // 플라스크 패널 (캐릭터 탭): 충전 상태 표시 + 유틸리티 플라스크 교체.
 function renderFlaskPanel() {
     let host = document.getElementById('ui-flask-panel');
-    if (!host || typeof ensureFlaskState !== 'function' || typeof FLASK_DB === 'undefined') return;
+    if (!host || typeof ensureFlaskState !== 'function' || typeof FLASK_HEAL_TIERS === 'undefined') return;
     let st = ensureFlaskState();
-    let lifeDef = FLASK_DB.life;
-    let utilDef = FLASK_DB[st.utilKey];
-    let activeLeft = Math.max(0, (st.utilBuffUntil || 0) - Date.now());
-    let utilButtons = Object.keys(FLASK_DB).filter(key => key !== 'life').map(key =>
-        `<button onclick="selectUtilityFlask('${key}')" ${st.utilKey === key ? 'disabled' : ''} style="font-size:0.78em;">${FLASK_DB[key].name.replace(' 플라스크', '')}${st.utilKey === key ? ' ✓' : ''}</button>`).join('');
-    host.innerHTML = `<div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center;">
-        <span title="${lifeDef.desc}">🧪 <strong>${lifeDef.name}</strong> 충전 ${st.lifeCharges}/${lifeDef.maxCharges}</span>
-        <span title="${utilDef.desc}">⚗️ <strong>${utilDef.name}</strong> 충전 ${st.utilCharges}/${utilDef.maxCharges}${activeLeft > 0 ? ` · 발동 중(${Math.ceil(activeLeft / 1000)}초)` : ''}</span>
-        <span style="display:flex; gap:4px;">${utilButtons}</span>
+    let now = Date.now();
+    let lvl = Math.max(1, Math.floor(game.level || 1));
+    let healDef = getFlaskHealDef(st.healTier);
+    let healActive = (st.healOverTimeUntil || 0) > now;
+    // 회복 티어 선택 드롭다운(레벨 미달 티어는 잠금 표시).
+    let healOptions = FLASK_HEAL_TIERS.map(t => {
+        let locked = lvl < t.reqLevel;
+        return `<option value="${t.key}" ${t.key === st.healTier ? 'selected' : ''} ${locked ? 'disabled' : ''}>${t.name} · ${t.healPct}%/${Math.round(t.durationMs / 1000)}초${locked ? ` (Lv.${t.reqLevel})` : ''}</option>`;
+    }).join('');
+    // 유틸리티 2슬롯: 각 슬롯 드롭다운으로 풀에서 선택(다른 슬롯과 중복 방지).
+    let utilSlots = [0, 1].map(idx => {
+        let cur = st.utils[idx];
+        let opts = `<option value="">(비어 있음)</option>` + Object.keys(FLASK_UTILITY_POOL).map(key => {
+            let usedElsewhere = st.utils.some((u, i) => u && u.key === key && i !== idx);
+            let sel = cur && cur.key === key ? 'selected' : '';
+            return `<option value="${key}" ${sel} ${usedElsewhere ? 'disabled' : ''}>${FLASK_UTILITY_POOL[key].name.replace(' 플라스크', '')}${usedElsewhere ? ' (사용 중)' : ''}</option>`;
+        }).join('');
+        let def = cur ? FLASK_UTILITY_POOL[cur.key] : null;
+        let active = cur && (cur.until || 0) > now;
+        let status = cur ? `충전 ${cur.charges}/${def.maxCharges}${active ? ` · 발동(${Math.ceil((cur.until - now) / 1000)}초)` : ''}` : '';
+        return `<div style="display:flex; flex-direction:column; gap:2px;">
+            <select onchange="equipUtilityFlask(${idx}, this.value)" style="font-size:0.8em;" title="${def ? def.desc : '유틸리티 플라스크 선택'}">${opts}</select>
+            <span style="color:#8fa7be; font-size:0.74em;">${status}</span>
+        </div>`;
+    }).join('');
+    host.innerHTML = `<div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;">
+        <div style="display:flex; flex-direction:column; gap:2px;">
+            <span style="font-size:0.82em;">🧪 회복 <strong>충전 ${st.healCharges}/${healDef.maxCharges}</strong>${healActive ? ` · 회복 중(${Math.ceil((st.healOverTimeUntil - now) / 1000)}초)` : ''}</span>
+            <select onchange="selectHealFlaskTier(this.value)" style="font-size:0.8em;">${healOptions}</select>
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-start;">${utilSlots}</div>
     </div>
-    <div style="color:#8fa7be; font-size:0.78em; margin-top:4px;">적 처치로 충전됩니다 (생명력 8킬 · 유틸리티 10킬당 1충전). 생명력 55% 이하 시 자동 회복, 유틸리티는 전투 중 자동 발동.</div>`;
+    <div style="color:#8fa7be; font-size:0.76em; margin-top:6px;">적 처치로 충전됩니다. 회복 플라스크는 생명력 ${healDef.autoBelowHpPct}% 이하 시 ${Math.round(healDef.durationMs / 1000)}초간 지속 회복, 유틸리티 2종은 전투 중 자동 발동. 회복 티어는 레벨 1/5/10/15/20/25/30/35마다 해금됩니다.</div>`;
 }
 
 // 시간의 균열 패널: 시간압 선택 → 과거 진입 → 제단 배치 → 미래 진입.

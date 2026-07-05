@@ -88,7 +88,7 @@ function getPassiveNodeVisualRadius(node) {
     if (node.kind === 'apex') return 18;
     if (node.kind === 'evolved') return 13;
     if (node.kind === 'core') return 18;
-    if (node.kind === 'void') return 14;
+    if (node.kind === 'void') return 20;
     if (node.kind === 'deadend') return 16;
     if (node.kind === 'hub') return 20;
     if (node.tier === 3 || node.kind === 'major') return 15;
@@ -348,6 +348,32 @@ function drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode) {
     if (node.tier === 0) {
         ctx.restore();
         return;
+    } else if (node.kind === 'void') {
+        // 공허 노드: 이중 회전 링 + 보라색 맥동 후광으로 크고 눈에 띄게 강조한다.
+        let t = performance.now();
+        let pulse = 0.5 + 0.5 * Math.sin(t * 0.0022);
+        ctx.beginPath();
+        ctx.arc(0, 0, radius + 7 + pulse * 3, 0, Math.PI * 2);
+        let halo = ctx.createRadialGradient(0, 0, radius * 0.4, 0, 0, radius + 12 + pulse * 3);
+        halo.addColorStop(0, active ? 'rgba(196,132,255,0.55)' : 'rgba(150,100,220,0.32)');
+        halo.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = halo;
+        ctx.fill();
+        ctx.rotate(t * 0.0004);
+        ctx.beginPath();
+        ctx.arc(0, 0, radius + 5, 0, Math.PI * 2);
+        ctx.strokeStyle = active ? 'rgba(224,178,255,0.95)' : 'rgba(176,132,255,0.7)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([radius * 0.9, radius * 0.55]);
+        ctx.stroke();
+        ctx.rotate(-t * 0.0009);
+        ctx.beginPath();
+        ctx.arc(0, 0, radius + 9, 0, Math.PI * 2);
+        ctx.strokeStyle = active ? 'rgba(255,214,255,0.8)' : 'rgba(146,108,214,0.55)';
+        ctx.lineWidth = 1.25;
+        ctx.setLineDash([radius * 0.5, radius * 0.75]);
+        ctx.stroke();
+        ctx.setLineDash([]);
     } else if (node.kind === 'apex' || node.kind === 'transcendent') {
         ctx.rotate(performance.now() * (node.kind === 'transcendent' ? 0.00012 : 0.00008));
         ctx.beginPath();
