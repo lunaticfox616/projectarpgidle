@@ -456,6 +456,67 @@ let lastActiveTabId = null;
 const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'];
 
+// 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
+// 넓은 화면(데스크톱)에서만 활성화되고, 좁은 화면에서는 기존 방식(전체 탭 + 스와이프)을 유지한다.
+const TAB_GROUPS = [
+    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-character', 'tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season'] },
+    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-talisman', 'tab-cube'] },
+    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-skills', 'tab-codex', 'tab-journal'] },
+    { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
+];
+function getTabGroupForId(tabId) {
+    // 버튼 id('btn-tab-x')와 탭 id('tab-x')를 모두 허용한다.
+    let id = String(tabId || '').replace(/^btn-/, '');
+    let g = TAB_GROUPS.find(group => group.tabs.includes(id));
+    return g ? g.key : 'etc';
+}
+function isTabGroupingActive() {
+    return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(min-width: 1081px)').matches;
+}
+function getActiveTabGroup() {
+    game.settings = game.settings || {};
+    let cur = game.settings.activeTabGroup;
+    if (!TAB_GROUPS.some(g => g.key === cur)) cur = 'growth';
+    return cur;
+}
+function selectTabGroup(groupKey) {
+    if (!TAB_GROUPS.some(g => g.key === groupKey)) return;
+    game.settings = game.settings || {};
+    game.settings.activeTabGroup = groupKey;
+    // 현재 활성 탭이 이 그룹에 없으면 그룹의 첫 번째 사용 가능한 탭으로 이동.
+    let activeInGroup = lastActiveTabId && getTabGroupForId(lastActiveTabId) === groupKey;
+    applyTabGroupFilter();
+    if (!activeInGroup) {
+        let group = TAB_GROUPS.find(g => g.key === groupKey);
+        let firstVisible = group.tabs.find(id => {
+            let btn = document.getElementById('btn-' + id);
+            return btn && btn.style.display !== 'none' && !btn.dataset.groupHidden;
+        });
+        if (firstVisible) switchTab(firstVisible);
+    }
+    renderTabCategoryBar();
+}
+// 해금 판정 + 그룹 필터를 한 번에 적용한다(권위 지점은 updateTabUnlockButtons).
+function applyTabGroupFilter() {
+    updateTabUnlockButtons();
+}
+function renderTabCategoryBar() {
+    let bar = document.getElementById('tab-category-bar');
+    if (!bar) return;
+    if (!isTabGroupingActive()) { bar.style.display = 'none'; return; }
+    bar.style.display = 'flex';
+    let active = getActiveTabGroup();
+    let unlocks = game.unlocks || {};
+    bar.innerHTML = TAB_GROUPS.map(group => {
+        // 그룹 내 알림 점 집계.
+        let hasNoti = group.tabs.some(id => {
+            let key = id.replace('tab-', '');
+            return game.noti && game.noti[key] && isNotiEnabled(key);
+        });
+        return `<button class="tab-category-btn${group.key === active ? ' active' : ''}" onclick="selectTabGroup('${group.key}')">${group.icon} ${group.label}${hasNoti ? ' <span class="noti-dot" style="display:inline-block; position:static; margin-left:2px;"></span>' : ''}</button>`;
+    }).join('');
+}
+
 function getTabButtonFromTarget(target) {
     return target && target.closest ? target.closest('.tab-header .tab-btn') : null;
 }
@@ -685,8 +746,8 @@ function updateBottomTabSpacing(){
     document.body.style.setProperty('--bottom-tab-height', height + 'px');
 }
 if (typeof window !== 'undefined') {
-    window.addEventListener('resize', () => updateBottomTabSpacing());
-    window.addEventListener('orientationchange', () => updateBottomTabSpacing());
+    window.addEventListener('resize', () => { updateBottomTabSpacing(); lastTabHeaderUiSignature = null; refreshTabHeaderUiIfNeeded(); });
+    window.addEventListener('orientationchange', () => { updateBottomTabSpacing(); lastTabHeaderUiSignature = null; refreshTabHeaderUiIfNeeded(); });
 }
 function setTabPlacement(tabId, placement){
     game.settings = game.settings || {};
@@ -716,7 +777,8 @@ function getTabHeaderUiSignature() {
         mobileBattle,
         TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}:${noti[key] && filters[key] !== false ? 1 : 0}`).join('|'),
         Array.isArray(game.settings && game.settings.tabOrder) ? game.settings.tabOrder.join(',') : '',
-        JSON.stringify((game.settings && game.settings.tabPlacement) || {})
+        JSON.stringify((game.settings && game.settings.tabPlacement) || {}),
+        isTabGroupingActive() ? ('grp:' + getActiveTabGroup()) : 'nogrp'
     ].join('::');
 }
 
@@ -738,6 +800,19 @@ function updateTabUnlockButtons() {
     if (cubeTabBtn) cubeTabBtn.style.display = cubeOpen ? 'flex' : 'none';
     let battleBtn = document.getElementById('btn-tab-battle');
     if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'flex' : 'none';
+    // 2단 그룹핑이 활성이면 해금 판정 직후 활성 그룹 외 탭을 숨긴다(단일 권위 지점).
+    hideOutOfGroupTabButtons();
+}
+
+// updateTabUnlockButtons 뒤에서 호출되는 그룹 가시성 적용부. 재진입 없이 display만 조정한다.
+function hideOutOfGroupTabButtons() {
+    let grouping = isTabGroupingActive();
+    let active = getActiveTabGroup();
+    Array.from(document.querySelectorAll('.tab-header .tab-btn')).forEach(btn => {
+        if (!grouping) { delete btn.dataset.groupHidden; return; }
+        if (getTabGroupForId(btn.id) !== active) { btn.dataset.groupHidden = '1'; btn.style.display = 'none'; }
+        else delete btn.dataset.groupHidden;
+    });
 }
 
 function refreshTabHeaderUiIfNeeded() {
@@ -747,6 +822,8 @@ function refreshTabHeaderUiIfNeeded() {
     applyTabHeaderOrder();
     updateTabNotificationDots();
     updateTabUnlockButtons();
+    applyTabGroupFilter();
+    renderTabCategoryBar();
     return true;
 }
 
@@ -778,6 +855,13 @@ function switchTab(tabId) {
         } catch (error) {
             activeBtn.scrollIntoView();
         }
+    }
+    // 2단 그룹핑: 이동한 탭이 속한 그룹을 활성화하고 카테고리 바를 갱신.
+    if (isTabGroupingActive()) {
+        game.settings = game.settings || {};
+        let grp = getTabGroupForId(tabId);
+        if (game.settings.activeTabGroup !== grp) { game.settings.activeTabGroup = grp; applyTabGroupFilter(); }
+        renderTabCategoryBar();
     }
     if (tabId === 'tab-codex' && game.noti && game.noti.codex) game.codexFocusNewOnOpen = true;
     ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
@@ -6360,6 +6444,8 @@ function performUpdateStaticUI() {
     if (cubeTabBtn) cubeTabBtn.style.display = (game.unlocks && game.unlocks.cube) || (typeof isCoreCubeUnlocked === 'function' && isCoreCubeUnlocked()) ? 'flex' : 'none';
     let battleBtn = document.getElementById('btn-tab-battle');
     if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'flex' : 'none';
+    // 매 프레임 해금 판정으로 재노출된 탭에 2단 그룹 필터를 다시 적용한다.
+    if (typeof hideOutOfGroupTabButtons === 'function') hideOutOfGroupTabButtons();
     let summarySkillTreeBtn = document.getElementById('btn-summary-tab-char');
     if (summarySkillTreeBtn) {
         summarySkillTreeBtn.disabled = !game.unlocks.char;
