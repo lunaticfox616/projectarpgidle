@@ -1242,6 +1242,54 @@ function markPlayerMovementCompleted() {
     game.uniqueRiderCompassConsumed = false;
 }
 
+// ── 플라스크: 적 처치로 충전하고 전투 중 자동 사용되는 소모품 (data/items.js FLASK_DB) ──
+function ensureFlaskState() {
+    if (!game.flasks || typeof game.flasks !== 'object') game.flasks = {};
+    let st = game.flasks;
+    if (!FLASK_DB[st.utilKey] || st.utilKey === 'life') st.utilKey = 'granite';
+    st.lifeCharges = Math.max(0, Math.min(FLASK_DB.life.maxCharges, Number.isFinite(st.lifeCharges) ? Math.floor(st.lifeCharges) : FLASK_DB.life.maxCharges));
+    st.utilCharges = Math.max(0, Math.min(FLASK_DB[st.utilKey].maxCharges, Number.isFinite(st.utilCharges) ? Math.floor(st.utilCharges) : FLASK_DB[st.utilKey].maxCharges));
+    st.killCounter = Math.max(0, Math.floor(st.killCounter || 0));
+    st.utilBuffUntil = Math.max(0, Math.floor(st.utilBuffUntil || 0));
+    return st;
+}
+
+function selectUtilityFlask(flaskKey) {
+    let st = ensureFlaskState();
+    if (!FLASK_DB[flaskKey] || flaskKey === 'life' || st.utilKey === flaskKey) return;
+    st.utilKey = flaskKey;
+    st.utilCharges = Math.min(st.utilCharges, FLASK_DB[flaskKey].maxCharges);
+    st.utilBuffUntil = 0;
+    addLog(`🧪 유틸리티 플라스크 교체: ${FLASK_DB[flaskKey].name}`, 'loot-magic');
+    updateStaticUI();
+}
+
+function tickFlaskChargesOnKill() {
+    let st = ensureFlaskState();
+    st.killCounter++;
+    if (st.killCounter % FLASK_DB.life.chargesPerKills === 0 && st.lifeCharges < FLASK_DB.life.maxCharges) st.lifeCharges++;
+    let utilDef = FLASK_DB[st.utilKey];
+    if (st.killCounter % utilDef.chargesPerKills === 0 && st.utilCharges < utilDef.maxCharges) st.utilCharges++;
+}
+
+function tickFlaskAutoUse(pStats) {
+    let st = ensureFlaskState();
+    let hpCap = Math.max(1, Math.floor(pStats.maxHp || 1));
+    if (st.lifeCharges > 0 && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= FLASK_DB.life.autoBelowHpPct) {
+        st.lifeCharges--;
+        let heal = Math.max(1, Math.floor(hpCap * FLASK_DB.life.healPct / 100));
+        game.playerHp = Math.min(hpCap, game.playerHp + heal);
+        addLog(`🧪 ${FLASK_DB.life.name}: 생명력 +${heal.toLocaleString()} (남은 충전 ${st.lifeCharges})`, 'loot-magic', { rateKey: 'flask:life', minIntervalMs: 900 });
+    }
+    let utilDef = FLASK_DB[st.utilKey];
+    let now = Date.now();
+    if (st.utilCharges > 0 && st.utilBuffUntil <= now && (game.enemies || []).some(e => e && e.hp > 0)) {
+        st.utilCharges--;
+        st.utilBuffUntil = now + Math.max(1000, Math.floor(utilDef.durationMs || 5000));
+        addLog(`🧪 ${utilDef.name} 발동! (${Math.round((utilDef.durationMs || 5000) / 1000)}초, 남은 충전 ${st.utilCharges})`, 'loot-magic', { rateKey: 'flask:util', minIntervalMs: 900 });
+    }
+}
+
 function coreLoop() {
     if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
     tickWoodsmanCurse();
@@ -1250,6 +1298,7 @@ function coreLoop() {
     game.lastCombatStats = pStats;
     game.lastCombatStatsAt = Date.now();
     ensureSummonRuntime(pStats);
+    tickFlaskAutoUse(pStats);
     // Guard against malformed stat payloads from legacy saves/runtime merges.
     // If ASPD becomes NaN/<=0, pTimer never advances and combat appears frozen.
     if (!Number.isFinite(pStats.aspd) || pStats.aspd <= 0) pStats.aspd = 1;
@@ -2292,6 +2341,15 @@ function getPlayerStats() {
     if (totalIntelligence > 0) { addStatToBucket(reward, 'energyShield', totalIntelligence * 2); addStatToBucket(reward, 'elementalPctDmg', Math.floor(totalIntelligence / 10)); }
     // 정확도: 기본치 + 레벨 성장 + 민첩 파생 + 장비/패시브의 정확도 옵션. 적 회피 '수치'를 상쇄한다.
     let playerAccuracy = 200 + Math.max(1, Math.floor(game.level || 1)) * 10 + totalDexterity * 2 + Math.max(0, sumStatAcrossBuckets('accuracy'));
+    // 플라스크 지속 효과(유틸리티): 활성 시간 동안 버킷에 반영 — 스탯 툴팁에도 자연스럽게 잡힌다.
+    let flaskState = (typeof ensureFlaskState === 'function') ? ensureFlaskState() : null;
+    if (flaskState && flaskState.utilBuffUntil > Date.now()) {
+        let flaskDef = FLASK_DB[flaskState.utilKey] || {};
+        if (flaskDef.armorPct) addStatToBucket(reward, 'armorPct', flaskDef.armorPct);
+        if (flaskDef.aspd) addStatToBucket(reward, 'aspd', flaskDef.aspd);
+        if (flaskDef.move) addStatToBucket(reward, 'move', flaskDef.move);
+        if (flaskDef.resAll) addStatToBucket(reward, 'resAll', flaskDef.resAll);
+    }
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
     let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots;
     if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
@@ -6142,6 +6200,7 @@ function handleEnemyDeath(enemy, pStats) {
         grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
     }
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
+    tickFlaskChargesOnKill();
     // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)
     if (game.talentDawnHits) delete game.talentDawnHits[enemy.id];
     if (game.talentInquisitorMarks) delete game.talentInquisitorMarks[enemy.id];

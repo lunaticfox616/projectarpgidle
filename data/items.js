@@ -447,6 +447,16 @@ const COSMOS_BOSS_UNIQUE_EQUIPMENT = [
 ]
 COSMOS_BOSS_UNIQUE_EQUIPMENT.forEach(unique => UNIQUE_DB.push(unique));
 
+// 플라스크: 적 처치로 충전되고 전투 중 자동 사용되는 소모품. (생명력 1개 + 유틸리티 1개 슬롯)
+//  - life: 생명력이 autoBelowHpPct 이하로 떨어지면 자동으로 마셔 healPct% 즉시 회복.
+//  - 유틸리티: 전투 중 충전이 있으면 자동 발동, durationMs 동안 스탯 버프(버킷 반영).
+const FLASK_DB = {
+    life: { key: 'life', name: '생명력 플라스크', desc: '생명력 35% 즉시 회복 (생명력 55% 이하 자동 사용)', healPct: 35, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 55 },
+    granite: { key: 'granite', name: '화강암 플라스크', desc: '5초간 방어도 +50%', armorPct: 50, durationMs: 5000, maxCharges: 3, chargesPerKills: 10 },
+    quicksilver: { key: 'quicksilver', name: '수은 플라스크', desc: '5초간 공격 속도 +12%, 이동 속도 +20%', aspd: 12, move: 20, durationMs: 5000, maxCharges: 3, chargesPerKills: 10 },
+    amethyst: { key: 'amethyst', name: '자수정 플라스크', desc: '5초간 모든 저항 +20%', resAll: 20, durationMs: 5000, maxCharges: 3, chargesPerKills: 10 }
+};
+
 const ORB_DB = {
     transmute: { name: '진화의 오브', desc: '노멀 아이템을 매직으로 바꿉니다.' },
     augment: { name: '확장의 오브', desc: '매직 아이템의 빈 옵션 칸을 하나 채웁니다.' },
@@ -546,4 +556,4 @@ const MARKET_EXCHANGES = [
     ,{ id: 'm13', from: 'blessing', to: 'chaos', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });
+safeExposeData({ UNIQUE_DB, FLASK_DB, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });

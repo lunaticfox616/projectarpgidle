@@ -1914,6 +1914,7 @@ const defaultGame = {
     pendingConditionGemChoices: null,
     clearedRootBosses: [],
     timeRift: { pressure: 1, altarOpen: false, altarUnique: null, altarRare: null },
+    flasks: { lifeCharges: 3, utilKey: 'granite', utilCharges: 3, killCounter: 0, utilBuffUntil: 0 },
     mapSubtab: 'map-tab-zones',
     mapExploreSubtab: 'map-explore-hunting',
     gemFoldInactiveAttack: false,
