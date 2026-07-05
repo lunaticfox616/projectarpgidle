@@ -358,6 +358,7 @@ function createEmptyStatBucket() {
         fireFlatDmg: 0, coldFlatDmg: 0, lightFlatDmg: 0, chaosFlatDmg: 0, physFlatDmg: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
+        strength: 0, dexterity: 0, intelligence: 0, accuracy: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0, deflectChance: 0, deflectDamageReduce: 0, blockChance: 0, blockChancePct: 0,
         ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,

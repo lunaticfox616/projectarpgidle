@@ -5947,6 +5947,8 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-atk').innerText = formatSettingNumber(pStats.baseDmg, 'showCharacterComma');
     document.getElementById('ui-aps').innerText = pStats.aspd.toFixed(2);
     document.getElementById('ui-crit').innerText = pStats.crit.toFixed(1);
+    setTextById('ui-core-attrs', `${Math.floor(pStats.strength || 0)} / ${Math.floor(pStats.dexterity || 0)} / ${Math.floor(pStats.intelligence || 0)}`);
+    setTextById('ui-accuracy', formatSettingNumber(Math.floor(pStats.accuracy || 0), 'showCharacterComma'));
     document.getElementById('ui-crit-dmg').innerText = Math.floor(pStats.critDmg);
     document.getElementById('ui-ignite-chance').innerText = Math.max(0, pStats.igniteChance || 0).toFixed(1);
     document.getElementById('ui-chill-chance').innerText = Math.max(0, pStats.chillChance || 0).toFixed(1);
@@ -6276,6 +6278,7 @@ function performUpdateStaticUI() {
 
     ensureStarWedgeState();
     tryUnlockMeteorContentByProgress();
+    renderFlaskPanel();
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });
     tickShrineState();
@@ -7620,7 +7623,6 @@ function buildCraftActionButtons(item) {
     let timeRiftOpen = (game.season || 1) >= TIME_RIFT_UNLOCK_LOOP;
     setExploreSubtabAvailable('map-explore-timerift', timeRiftOpen);
     if (timeRiftOpen) renderTimeRiftPanel();
-    renderFlaskPanel();
 
     let labyrinthOpen = (game.season || 1) >= 3;
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';

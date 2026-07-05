@@ -75,7 +75,8 @@
         h3 { margin: 0 0 10px 0; color: #e67e22; }
         .tab-header { display: flex; background-color: #1a1a24; border-bottom: 1px solid #2a2a35; flex-shrink: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
         .tab-header::-webkit-scrollbar { display: none; }
-        .tab-btn { position: relative; flex: 1; padding: 12px 0; text-align: center; cursor: pointer; border-right: 1px solid #2a2a35; color: #888; font-weight: bold; transition: 0.2s; display: none; align-items: center; justify-content: center; line-height: 1; }
+        /* flex:1 0 auto + nowrap: 탭이 많아도 라벨 단어 중간이 꺾이지 않고, 넘치면 가로 스크롤(스와이프)로 처리 */
+        .tab-btn { position: relative; flex: 1 0 auto; padding: 12px 10px; text-align: center; cursor: pointer; border-right: 1px solid #2a2a35; color: #888; font-weight: bold; transition: 0.2s; display: none; align-items: center; justify-content: center; line-height: 1; white-space: nowrap; word-break: keep-all; }
         .tab-btn .tab-label { display:inline-flex; align-items:center; line-height:1; min-height:1em; }
         .tab-btn:hover { background: #222230; color: #fff; }
         .tab-btn.active { background: #121216; color: #e8c26a; }
