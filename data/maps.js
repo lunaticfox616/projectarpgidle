@@ -57,13 +57,13 @@ const OCEAN_UNLOCK_LOOP = 11;
 const OCEAN_ZONE_ID = 'ocean_depth';
 
 // 루프 조건 상한·세분화 (state.js: getSeasonAbyssDepthCap / hasCurrentLoopAbyssRequirementClear):
-//  - 요구 혼돈 심도는 루프 30(심화 40)에서 고정된다. 층당 난이도는 지수로 오르는데
-//    요구 심도까지 무한히 깊어지면 어느 시점부터 루프 자체가 수학적으로 불가능해진다.
-//  - 루프 31+에서는 고정 심도 대신 아래 대체 경로 중 하나만 달성해도 루프할 수 있다.
+//  - 요구 혼돈 심도는 루프 30(심화 40)까지는 기존 곡선을 따르고, 루프 31+부터는
+//    기존 혼돈 루프를 고르면 루프당 심화 요구가 5씩 증가한다.
+//  - 루프 31+에서는 에니프론 행성을 이번 루프에 돌파하면 우주계 루프를 선택할 수 있다.
 const LOOP_GATE_ABYSS_DEPTH_CAP = 40;
 const LOOP_GATE_ALT_START_SEASON = 31;
-const LOOP_GATE_ALT_LABYRINTH_FLOOR = 40;
-const LOOP_GATE_ALT_CHAOS_REALM_FLOOR = 25;
+const LOOP_GATE_ALT_COSMOS_PLANET_ID = 'planet-45';
+const LOOP_GATE_ALT_COSMOS_PLANET_NAME = '에니프론';
 
 // 스토리 액트(매 루프 레벨 1부터 다시 지나는 재성장 구간)의 루프 스케일 상한.
 // 이 루프 수까지만 세지고 이후 고정된다 (combat.js: getLoopDifficultyInputs).
@@ -214,4 +214,4 @@ const ABYSS_PASSIVE_NODES = [
     { key: 'magnifier', name: '핵심: 확대경', max: 1, cost: 5, desc: '맵 길이 2배(진행속도 절반), 무리규모 +20%' }
 ];
 
-safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID });
+safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID });

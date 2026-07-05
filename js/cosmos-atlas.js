@@ -1198,7 +1198,8 @@
             ? getCosmosMasteryValue('planetRelief') * 0.012
             : getCosmosMasteryValue('voidSurvey') * 0.008;
         const finalMul = Math.max(0.65, 1 + risk - ease - relief);
-        return Math.max(1, Math.floor(baseCombatTier * finalMul));
+        const cosmosLoopBonus = Math.max(0, Math.floor((window.game && window.game.cosmosLoopCount) || 0)) * 2;
+        return Math.max(1, Math.floor(baseCombatTier * finalMul) + cosmosLoopBonus);
     }
 
 
@@ -1967,7 +1968,7 @@
                 : `소행성 보상: 별가루 +${2 + node.orbit} · 제작 재료 소량`);
         ATLAS.detail.innerHTML = `
             <div class="cosmos-detail-title">${node.kind === 'planet' ? '🪐' : '☄️'} ${escapeHtml(node.name)}</div>
-            <div class="cosmos-detail-source">원본: ${escapeHtml(node.source)} · 은하 G${node.orbit} · Tier ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · 은하 보스' : ''}</div>
+            <div class="cosmos-detail-source">원본: ${escapeHtml(node.source)} · 은하 G${node.orbit} · Tier ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · 은하 보스' : ''}${window.game && window.game.cosmosLoopCount ? ` · 우주계 루프 난이도 +${Math.max(0, Math.floor(window.game.cosmosLoopCount || 0)) * 2}` : ''}</div>
             <div class="cosmos-status ${status}">${getStatusLabel(status)}</div>
             <div class="cosmos-detail-section">
                 <div class="cosmos-section-label">Theme</div>
@@ -2025,6 +2026,10 @@
             return;
         }
         if (status === 'available' && !state.cleared.includes(node.id)) state.cleared.push(node.id);
+        if (node.kind === 'planet' && typeof window.markLoopCosmosPlanetClear === 'function') {
+            const completedLoopGate = window.markLoopCosmosPlanetClear(node.id);
+            if (completedLoopGate && typeof window.addLog === 'function') window.addLog('🪐 루프 대체 경로 달성: 우주계 에니프론 행성 돌파', 'season-up');
+        }
         if (node.tag === 'boss' && !state.bossClears.includes(node.id)) state.bossClears.push(node.id);
         if (node.tag === 'boss') {
             const nextKill = Math.max(0, Math.floor((state.bossKills && state.bossKills[node.id]) || 0)) + 1;
