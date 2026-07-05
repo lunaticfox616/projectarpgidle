@@ -8834,11 +8834,6 @@ function getLoopAdvancePathLabel(path) {
 }
 
 function triggerSeasonReset(options) {
-    if (isRewardOpen()) closeRewardOverlay();
-    if (game.woodsmanBuildLock) {
-        clearWoodsmanBuildLock();
-        addLog('☠️ 혼돈 밖 전투를 중단하고 루프를 진행합니다. 세팅 잠금이 해제되었습니다.', 'season-up');
-    }
     let loopPath = resolveLoopAdvancePath(typeof options === 'string' ? options : (options && options.path));
     if ((game.season || 1) >= 31 && !loopPath) {
         let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(game.season || 1) : [];
@@ -8849,6 +8844,11 @@ function triggerSeasonReset(options) {
         return false;
     }
     if (!loopPath) loopPath = 'chaos';
+    if (isRewardOpen()) closeRewardOverlay();
+    if (game.woodsmanBuildLock) {
+        clearWoodsmanBuildLock();
+        addLog('☠️ 혼돈 밖 전투를 중단하고 루프를 진행합니다. 세팅 잠금이 해제되었습니다.', 'season-up');
+    }
     game.pendingLoopDecision = false;
     game.pendingLoopReady = false;
     let codexReveal = {};
