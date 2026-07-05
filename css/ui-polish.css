@@ -668,3 +668,59 @@ input[data-search-key]:focus {
 @keyframes woodsman-touch-border-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Top-level grouping should read as part of the tab strip, not as separate raised buttons. */
+.tab-category-bar {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.tab-category-bar::-webkit-scrollbar { display: none; }
+body:not(.light-mode) .tab-category-bar {
+  background: linear-gradient(180deg, #0f1520 0%, #0b1018 100%);
+  border-bottom: 1px solid #1c2a3a;
+  gap: 2px;
+  padding: 0 4px;
+  min-height: 34px;
+}
+body:not(.light-mode) .tab-category-btn {
+  position: relative;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #9eb6cb;
+  font-weight: 800;
+  font-size: 0.82em;
+  letter-spacing: 0.04em;
+  padding: 0 14px;
+  min-height: 34px;
+  box-shadow: none;
+}
+body:not(.light-mode) .tab-category-btn:hover {
+  background: rgba(180,200,230,0.05);
+  color: #e0ecf7;
+}
+body:not(.light-mode) .tab-category-btn.active {
+  background: linear-gradient(180deg, rgba(200,160,60,0.07) 0%, transparent 100%);
+  color: #ffd783;
+  text-shadow: 0 0 12px rgba(232,194,106,0.35);
+}
+body:not(.light-mode) .tab-category-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #c9a040, #e8c26a, #c9a040, transparent);
+  box-shadow: 0 0 8px rgba(232,194,106,0.6);
+}
+.subtab-row {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.subtab-row::-webkit-scrollbar { display: none; }
+.subtab-row .subtab-btn { flex: 0 0 auto; min-width: max-content; }
