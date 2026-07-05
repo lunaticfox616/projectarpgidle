@@ -442,10 +442,12 @@ function renderTabOrderSettings() {
     if (!tabOrderEl) return;
     if (!(document.getElementById('tab-settings') || {}).classList.contains('active')) return;
     let tabs = Array.from(document.querySelectorAll('.tab-header .tab-btn'));
-    tabOrderEl.innerHTML = tabs.map(el => {
+    let groupRows = getOrderedTabGroups().map(group => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${group.label}</span><span style="display:flex;gap:4px;"><button onclick="moveTabGroup('${group.key}',-1)">▲</button><button onclick="moveTabGroup('${group.key}',1)">▼</button></span></div>`).join('');
+    let tabRows = tabs.map(el => {
         let place = (game.settings.tabPlacement[el.id] === 'bottom') ? 'bottom' : 'top';
         return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
     }).join('');
+    tabOrderEl.innerHTML = `<div style="font-weight:800;color:#f1c40f;margin-bottom:2px;">상위 그룹 탭</div>${groupRows}<div style="font-weight:800;color:#f1c40f;margin:8px 0 2px;">일반 탭</div>${tabRows}`;
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
 const TAB_DRAG_CANCEL_PX = 8;
@@ -464,6 +466,59 @@ const TAB_GROUPS = [
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-skills', 'tab-codex', 'tab-journal'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
+function getOrderedTabGroups() {
+    game.settings = game.settings || {};
+    let order = Array.isArray(game.settings.tabGroupOrder) ? game.settings.tabGroupOrder : [];
+    let byKey = {};
+    TAB_GROUPS.forEach(group => { byKey[group.key] = group; });
+    return order.concat(TAB_GROUPS.map(group => group.key))
+        .filter((key, idx, arr) => byKey[key] && arr.indexOf(key) === idx)
+        .map(key => byKey[key]);
+}
+function moveTabGroup(groupKey, dir) {
+    let groups = getOrderedTabGroups();
+    let idx = groups.findIndex(group => group.key === groupKey);
+    if (idx < 0) return;
+    let nextIdx = Math.max(0, Math.min(groups.length - 1, idx + dir));
+    if (nextIdx === idx) return;
+    let moved = groups.slice();
+    let tmp = moved[idx];
+    moved[idx] = moved[nextIdx];
+    moved[nextIdx] = tmp;
+    game.settings = game.settings || {};
+    game.settings.tabGroupOrder = moved.map(group => group.key);
+    lastTabHeaderUiSignature = null;
+    renderTabCategoryBar();
+    renderTabOrderSettings();
+    queueImportantSave(300);
+}
+function moveTabGroupBefore(sourceKey, targetKey) {
+    if (!sourceKey || !targetKey || sourceKey === targetKey) return;
+    let groups = getOrderedTabGroups();
+    let sourceIdx = groups.findIndex(group => group.key === sourceKey);
+    let targetIdx = groups.findIndex(group => group.key === targetKey);
+    if (sourceIdx < 0 || targetIdx < 0) return;
+    let moved = groups.slice();
+    let source = moved.splice(sourceIdx, 1)[0];
+    let insertIdx = moved.findIndex(group => group.key === targetKey);
+    moved.splice(Math.max(0, insertIdx), 0, source);
+    game.settings = game.settings || {};
+    game.settings.tabGroupOrder = moved.map(group => group.key);
+    lastTabHeaderUiSignature = null;
+    renderTabCategoryBar();
+    renderTabOrderSettings();
+    queueImportantSave(300);
+}
+function onTabGroupDragStart(event, groupKey) {
+    if (!event || !event.dataTransfer) return;
+    event.dataTransfer.setData('text/plain', groupKey);
+    event.dataTransfer.effectAllowed = 'move';
+}
+function onTabGroupDrop(event, targetKey) {
+    if (!event || !event.dataTransfer) return;
+    event.preventDefault();
+    moveTabGroupBefore(event.dataTransfer.getData('text/plain'), targetKey);
+}
 function getTabGroupForId(tabId) {
     // 버튼 id('btn-tab-x')와 탭 id('tab-x')를 모두 허용한다.
     let id = String(tabId || '').replace(/^btn-/, '');
@@ -487,7 +542,7 @@ function selectTabGroup(groupKey) {
     let activeInGroup = lastActiveTabId && getTabGroupForId(lastActiveTabId) === groupKey;
     applyTabGroupFilter();
     if (!activeInGroup) {
-        let group = TAB_GROUPS.find(g => g.key === groupKey);
+        let group = getOrderedTabGroups().find(g => g.key === groupKey);
         let firstVisible = group.tabs.find(id => {
             let btn = document.getElementById('btn-' + id);
             return btn && btn.style.display !== 'none' && !btn.dataset.groupHidden;
@@ -500,20 +555,25 @@ function selectTabGroup(groupKey) {
 function applyTabGroupFilter() {
     updateTabUnlockButtons();
 }
+function ensureTabCategoryBarPlacement(bar) {
+    let header = document.querySelector('.tab-header');
+    if (bar && header && bar.parentElement !== header) header.insertBefore(bar, header.firstChild);
+}
 function renderTabCategoryBar() {
     let bar = document.getElementById('tab-category-bar');
     if (!bar) return;
+    ensureTabCategoryBarPlacement(bar);
     if (!isTabGroupingActive()) { bar.style.display = 'none'; return; }
-    bar.style.display = 'flex';
+    bar.style.display = 'contents';
     let active = getActiveTabGroup();
     let unlocks = game.unlocks || {};
-    bar.innerHTML = TAB_GROUPS.map(group => {
+    bar.innerHTML = getOrderedTabGroups().map(group => {
         // 그룹 내 알림 점 집계.
         let hasNoti = group.tabs.some(id => {
             let key = id.replace('tab-', '');
             return game.noti && game.noti[key] && isNotiEnabled(key);
         });
-        return `<button class="tab-category-btn${group.key === active ? ' active' : ''}" onclick="selectTabGroup('${group.key}')">${group.icon} ${group.label}${hasNoti ? ' <span class="noti-dot" style="display:inline-block; position:static; margin-left:2px;"></span>' : ''}</button>`;
+        return `<button class="tab-category-btn${group.key === active ? ' active' : ''}" draggable="true" ondragstart="onTabGroupDragStart(event,'${group.key}')" ondragover="event.preventDefault()" ondrop="onTabGroupDrop(event,'${group.key}')" onclick="selectTabGroup('${group.key}')">${group.label}${hasNoti ? ' <span class="noti-dot" style="display:inline-block; position:static; margin-left:2px;"></span>' : ''}</button>`;
     }).join('');
 }
 
@@ -778,6 +838,7 @@ function getTabHeaderUiSignature() {
         TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}:${noti[key] && filters[key] !== false ? 1 : 0}`).join('|'),
         Array.isArray(game.settings && game.settings.tabOrder) ? game.settings.tabOrder.join(',') : '',
         JSON.stringify((game.settings && game.settings.tabPlacement) || {}),
+        Array.isArray(game.settings && game.settings.tabGroupOrder) ? game.settings.tabGroupOrder.join(',') : '',
         isTabGroupingActive() ? ('grp:' + getActiveTabGroup()) : 'nogrp'
     ].join('::');
 }

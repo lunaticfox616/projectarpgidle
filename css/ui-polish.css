@@ -668,3 +668,72 @@ input[data-search-key]:focus {
 @keyframes woodsman-touch-border-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Top-level grouping lives in the same horizontal strip as normal tabs. */
+.tab-header .tab-category-bar {
+  display: contents;
+}
+.tab-category-btn {
+  position: relative;
+  flex: 1 0 auto;
+  padding: 12px 10px;
+  text-align: center;
+  cursor: pointer;
+  border: 0;
+  border-right: 1px solid #2a2a35;
+  border-radius: 0;
+  background: transparent;
+  color: #888;
+  font-weight: bold;
+  transition: 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+body:not(.light-mode) .tab-category-btn {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #9eb6cb;
+  font-weight: 800;
+  font-size: 0.86em;
+  letter-spacing: 0.04em;
+  padding: 0 10px;
+  min-height: 44px;
+  border-right: 1px solid rgba(255,255,255,0.04);
+  box-shadow: none;
+  transition: color .15s ease, background .15s ease;
+}
+body:not(.light-mode) .tab-category-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  background: transparent;
+  border-radius: 2px 2px 0 0;
+  transition: background .18s ease, left .18s ease, right .18s ease;
+}
+body:not(.light-mode) .tab-category-btn:hover {
+  background: rgba(180,200,230,0.05);
+  color: #e0ecf7;
+}
+body:not(.light-mode) .tab-category-btn:hover::after {
+  background: rgba(180,200,230,0.2);
+}
+body:not(.light-mode) .tab-category-btn.active {
+  background: linear-gradient(180deg, rgba(200,160,60,0.07) 0%, transparent 100%);
+  color: #ffd783;
+  text-shadow: 0 0 12px rgba(232,194,106,0.35);
+}
+body:not(.light-mode) .tab-category-btn.active::after {
+  left: 10%;
+  right: 10%;
+  background: linear-gradient(90deg, transparent, #c9a040, #e8c26a, #c9a040, transparent);
+  height: 2px;
+  box-shadow: 0 0 8px rgba(232,194,106,0.6);
+}
