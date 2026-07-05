@@ -6399,6 +6399,7 @@ function performUpdateStaticUI() {
     if (!showCombatScene && caption) caption.innerText = '전투가 진행중입니다.';
     let loopDecisionOverlay = document.getElementById('loop-decision-overlay');
     if (loopDecisionOverlay) loopDecisionOverlay.classList.toggle('active', !!game.pendingLoopDecision);
+    updateLoopDecisionOverlayUi();
     let loopReadyBanner = document.getElementById('loop-ready-banner');
     if (loopReadyBanner) loopReadyBanner.classList.toggle('active', !!game.pendingLoopReady);
     let combatLoopBtn = document.getElementById('btn-combat-loop-advance');
@@ -7474,6 +7475,33 @@ function canShowCombatLoopAdvanceButton() {
         : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
 }
 
+function updateLoopDecisionOverlayUi() {
+    let season = game ? (game.season || 1) : 1;
+    let chaosReady = typeof hasCurrentLoopChaosRequirementClear === 'function'
+        ? hasCurrentLoopChaosRequirementClear(season)
+        : (typeof hasCurrentLoopAbyssRequirementClear === 'function' && hasCurrentLoopAbyssRequirementClear(season));
+    let cosmosReady = typeof hasCurrentLoopCosmosRequirementClear === 'function'
+        ? hasCurrentLoopCosmosRequirementClear(season)
+        : false;
+    let showPathChoices = season >= 31 && cosmosReady;
+    let body = document.getElementById('loop-decision-body');
+    if (body) body.innerText = showPathChoices
+        ? '다음 루프로 사용할 경로를 선택하거나, 이번 루프를 유지하고 심화 등반을 계속하세요.'
+        : '다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.';
+    let genericBtn = document.getElementById('loop-decision-generic-btn');
+    let chaosBtn = document.getElementById('loop-decision-chaos-btn');
+    let cosmosBtn = document.getElementById('loop-decision-cosmos-btn');
+    if (genericBtn) genericBtn.style.display = showPathChoices ? 'none' : '';
+    if (chaosBtn) {
+        chaosBtn.style.display = showPathChoices ? '' : 'none';
+        chaosBtn.disabled = !chaosReady;
+    }
+    if (cosmosBtn) {
+        cosmosBtn.style.display = showPathChoices ? '' : 'none';
+        cosmosBtn.disabled = !cosmosReady;
+    }
+}
+
 function handleCombatLoopAdvanceButton() {
     if (game && game.pendingLoopReady && typeof confirmLoopReady === 'function') {
         confirmLoopReady();
@@ -7847,7 +7875,12 @@ function buildCraftActionButtons(item) {
                 game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [], chaos20Cleared: false };
                 let deepChaosUnlocked = (typeof hasCurrentLoopChaos20Clear === 'function') ? hasCurrentLoopChaos20Clear() : !!game.loopProgressCurrent.chaos20Cleared;
                 let loopRequirementMet = (typeof hasCurrentLoopAbyssRequirementClear === 'function') ? hasCurrentLoopAbyssRequirementClear(game.season || 1) : deepChaosUnlocked;
+                let chaosLoopReady = (typeof hasCurrentLoopChaosRequirementClear === 'function') ? hasCurrentLoopChaosRequirementClear(game.season || 1) : loopRequirementMet;
+                let cosmosLoopReady = (typeof hasCurrentLoopCosmosRequirementClear === 'function') ? hasCurrentLoopCosmosRequirementClear(game.season || 1) : false;
                 let loopRequirementText = getLoopAbyssRequirementText(game.season || 1);
+                let loopButtonsHtml = (game.season || 1) >= 31
+                    ? `<button onclick="chooseLoopAdvancePath('chaos')" ${chaosLoopReady ? '' : 'disabled'}>혼돈 루프</button><button onclick="chooseLoopAdvancePath('cosmos')" ${cosmosLoopReady ? '' : 'disabled'}>우주계 루프</button>`
+                    : `<button onclick="triggerSeasonReset()" ${loopRequirementMet ? '' : 'disabled'}>지금 즉시 루프</button>`;
                 let unlockedDepthsForReward = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let highestUnlockedForReward = unlockedDepthsForReward.length > 0 ? Math.max(...unlockedDepthsForReward) : Math.floor(game.abyssEndlessDepth || 20); let clearedDepthForReward = Math.max(20, highestUnlockedForReward >= 21 ? (highestUnlockedForReward - 1) : highestUnlockedForReward); let expectedDepthGain = Math.max(0, Math.floor(clearedDepthForReward - (game.loopProgressBase.abyssEndlessDepth || 20)));
                 let expectedLabGain = Math.max(0, Math.floor((game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1) - (game.loopProgressBase.labyrinthUnlockedMaxFloor || 1)));
                 let expectedBossGain = (game.loopProgressCurrent.specialBosses || []).filter(id => !(game.loopProgressBase.specialBosses || []).includes(id)).length;
@@ -7858,7 +7891,7 @@ function buildCraftActionButtons(item) {
                 let deepTotalLine = `총합 보너스: 생명력 +${Math.floor((deepStats.flatHp||0)*10)}, 피해 +${Math.floor((deepStats.flatDmg||0)*2)}, 공속 +${((deepStats.aspd||0)*1.2).toFixed(1)}%, 이속 +${((deepStats.move||0)*0.8).toFixed(1)}%, 물피감 +${((deepStats.dr||0)*0.5).toFixed(1)}%, 치명 +${((deepStats.crit||0)*0.6).toFixed(1)}%`;
                 loop10Panel.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;"><div><div style="color:#eedbff; font-weight:700; font-size:1.05em;">∞ 혼돈 심화 등반</div><div style="color:#aebde0; font-size:0.82em;">${loopRequirementText} 이후 무한 등반 · 현재 심화층 <strong style="color:#ffd68a;">${Math.floor(game.abyssEndlessDepth || 20)}</strong></div></div><div style="color:#e8dcff;">심화 루프 포인트: <strong style="color:#ffd68a;">${game.loopDeepPoints || 0}</strong></div></div>
                 <div style="background:linear-gradient(160deg, rgba(84,59,136,0.22), rgba(26,31,56,0.35)); border:1px solid #5f4a93; border-radius:10px; padding:10px; margin-bottom:8px;">
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="triggerSeasonReset()" ${loopRequirementMet ? '' : 'disabled'}>지금 즉시 루프</button><button class="ominous-entry-btn" onclick="enterOutsideChaos()" ${(game.season||1)>=10 && loopRequirementMet?'':'disabled'}>☠️ 혼돈 밖 진입</button></div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">${loopButtonsHtml}<button class="ominous-entry-btn" onclick="enterOutsideChaos()" ${(game.season||1)>=10 && loopRequirementMet?'':'disabled'}>☠️ 혼돈 밖 진입</button></div>
                     <div style="margin-top:6px; color:#9fb4d1;">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()" ${deepChaosUnlocked ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:#9fb4d1;">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${deepChaosUnlocked ? '' : ` (혼돈 20 클리어 필요)`}</span></div>
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
@@ -9746,6 +9779,9 @@ function mergeDefaults(save) {
     merged.loopProgressCurrent = { ...(defaultGame.loopProgressCurrent || {}), ...(merged.loopProgressCurrent || {}) };
     merged.loopProgressBase.specialBosses = Array.isArray(merged.loopProgressBase.specialBosses) ? merged.loopProgressBase.specialBosses : [];
     merged.loopProgressCurrent.specialBosses = Array.isArray(merged.loopProgressCurrent.specialBosses) ? merged.loopProgressCurrent.specialBosses : [];
+    merged.loopProgressCurrent.cosmosPlanets = Array.isArray(merged.loopProgressCurrent.cosmosPlanets) ? Array.from(new Set(merged.loopProgressCurrent.cosmosPlanets.filter(Boolean))) : [];
+    merged.cosmosLoopCount = Math.max(0, Math.floor(clampFiniteNumber(merged.cosmosLoopCount, defaultGame.cosmosLoopCount || 0, 0)));
+    merged.lastLoopAdvancePath = ['chaos', 'cosmos'].includes(merged.lastLoopAdvancePath) ? merged.lastLoopAdvancePath : null;
     merged.loopProgressCurrent.chaos20Cleared = !!merged.loopProgressCurrent.chaos20Cleared || (Array.isArray(merged.abyssClearedDepths) && merged.abyssClearedDepths.map(v => Math.floor(v || 0)).includes(20));
     if (!merged.skyTower.unlocked && (merged.season || 1) >= 15 && merged.loopProgressCurrent.chaos20Cleared) merged.skyTower.unlocked = true;
     merged.pendingLoopDecision = !!merged.pendingLoopDecision;

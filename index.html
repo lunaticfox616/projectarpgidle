@@ -181,10 +181,12 @@
     <div class="tutorial-card" style="max-width:520px; background:linear-gradient(170deg,#1a1430 0%, #111525 100%); border:1px solid #7f66d8;">
         <div class="tutorial-kicker">Loop Choice</div>
         <div class="tutorial-title">루프 조건 달성</div>
-        <div class="tutorial-body">다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.</div>
-        <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px;">
-            <button onclick="chooseLoopAdvance(true)">루프 진행</button>
-            <button onclick="chooseLoopAdvance(false)" style="background:#415f83; border-color:#5f84ad;">이번 루프 유지</button>
+        <div class="tutorial-body" id="loop-decision-body">다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.</div>
+        <div id="loop-decision-actions" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px;">
+            <button id="loop-decision-generic-btn" onclick="chooseLoopAdvance(true)">루프 진행</button>
+            <button id="loop-decision-chaos-btn" onclick="chooseLoopAdvancePath('chaos')" style="display:none;">혼돈 루프</button>
+            <button id="loop-decision-cosmos-btn" onclick="chooseLoopAdvancePath('cosmos')" style="display:none;">우주계 루프</button>
+            <button id="loop-decision-continue-btn" onclick="chooseLoopAdvance(false)" style="background:#415f83; border-color:#5f84ad;">이번 루프 유지</button>
         </div>
     </div>
 </div>
