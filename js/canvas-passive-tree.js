@@ -576,22 +576,18 @@ function renderInventoryCard(item, idx, mode) {
     };
     let lockIcon = item.locked ? ' 🔒' : '';
     let lockBtnLabel = item.locked ? '잠금해제' : '잠금';
-    let lines = [];
-    let toneFn = (typeof window !== 'undefined' && typeof window.getItemStatToneColor === 'function') ? window.getItemStatToneColor : null;
-    let tone = (statId) => toneFn ? toneFn(statId) : '#d7e9ff';
-    (item.baseStats || []).forEach(stat => {
-        let label = stat && (stat.statName || getStatName(stat.id));
-        lines.push(`<span style="color:${tone(stat.id)}">${hi(label)} +${formatValue(stat.id, stat.val)}</span>`);
-    });
-    (item.stats || []).slice(0, 3).forEach(stat => {
-        let label = stat && (stat.statName || getStatName(stat.id));
-        lines.push(`<span style="color:${tone(stat.id)}">${hi(label)} +${formatValue(stat.id, stat.val)}</span>`);
-    });
-    if (item.underEnchant) lines.push(`<span style="color:#ffd28a">[인챈트] ${hi(item.underEnchant.statName || getStatName(item.underEnchant.id))} +${formatValue(item.underEnchant.id, item.underEnchant.val)}</span>`);
-    if (item.chaosInfusion) lines.push(`<span style="color:#d7a8ff">[주입] ${hi(item.chaosInfusion.statName || getStatName(item.chaosInfusion.id))} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}</span>`);
-    if (typeof getImmutableItemSpecialStats === 'function') getImmutableItemSpecialStats(item).slice(0, 1).forEach(stat => lines.push(`<span style="color:#d7b8ff">${hi(stat.statName)} +${formatValue(stat.id, stat.val)}</span>`));
-    if (item.encroached && !item.encroached.liberated) lines.push(`<span style="color:#8d7bb3">[잠식] 해방 전</span>`);
-    if ((item.stats || []).length === 0 && !item.underEnchant && !item.chaosInfusion && !item.encroached) lines.push(`<span style="color:#7f8c8d">추가 옵션 없음</span>`);
+    // 장비 칸 단순화: 카드에는 옵션을 나열하지 않고 이름/베이스/등급만 보여준다.
+    // 전체 옵션은 호버 시 커스텀 툴팁(showItemTooltip)에서 확인한다.
+    let explicitCount = typeof getItemExplicitOptionCount === 'function'
+        ? getItemExplicitOptionCount(item)
+        : ((item.stats || []).length + (item.chaosInfusion ? 1 : 0));
+    let metaBits = [];
+    if (explicitCount > 0) metaBits.push(`추가 옵션 ${explicitCount}`);
+    if (item.underEnchant) metaBits.push('인챈트');
+    if (item.chaosInfusion) metaBits.push('혼돈 주입');
+    if (item.encroached && !item.encroached.liberated) metaBits.push('잠식 · 해방 전');
+    if (item.fusedRelic) metaBits.push('융합 유물');
+    let metaLine = `<span style="color:#8fa7be;">${metaBits.length ? metaBits.join(' · ') : '추가 옵션 없음'} · <span style="color:#7f96ad;">호버 시 상세</span></span>`;
     let actions = '';
     if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button style="background:#35506a; border-color:#3f6486;" onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
     else if (mode === 'fossil') actions = `<div class="item-actions"><button style="flex:1; background:#35506a;" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
@@ -607,7 +603,7 @@ function renderInventoryCard(item, idx, mode) {
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
     let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    return `<div class="item-card ${selected ? 'selected' : ''} ${sourceTone}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${hi(item.slot)}] ${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${lockIcon}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${hi(item.baseName)}</div><div class="item-stats">${lines.join('<br>')}</div></div>${actions}</div>`;
+    return `<div class="item-card ${selected ? 'selected' : ''} ${sourceTone}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${hi(item.slot)}] ${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${lockIcon}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${hi(item.baseName)}</div><div class="item-stats">${metaLine}</div></div>${actions}</div>`;
 }
 
 function triggerMapUnlockReveal(zoneId) {

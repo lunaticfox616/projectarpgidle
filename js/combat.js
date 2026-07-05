@@ -1242,52 +1242,108 @@ function markPlayerMovementCompleted() {
     game.uniqueRiderCompassConsumed = false;
 }
 
-// ── 플라스크: 적 처치로 충전하고 전투 중 자동 사용되는 소모품 (data/items.js FLASK_DB) ──
+// ── 플라스크: 회복 1슬롯(티어) + 유틸리티 2슬롯, 적 처치로 충전·전투 중 자동 사용 ──
+function getFlaskHealDef(tierKey) {
+    return FLASK_HEAL_TIERS.find(t => t.key === tierKey) || FLASK_HEAL_TIERS[0];
+}
+function getHighestUnlockedHealTier() {
+    let lvl = Math.max(1, Math.floor(game.level || 1));
+    let best = FLASK_HEAL_TIERS[0];
+    FLASK_HEAL_TIERS.forEach(t => { if (lvl >= t.reqLevel) best = t; });
+    return best;
+}
 function ensureFlaskState() {
     if (!game.flasks || typeof game.flasks !== 'object') game.flasks = {};
     let st = game.flasks;
-    if (!FLASK_DB[st.utilKey] || st.utilKey === 'life') st.utilKey = 'granite';
-    st.lifeCharges = Math.max(0, Math.min(FLASK_DB.life.maxCharges, Number.isFinite(st.lifeCharges) ? Math.floor(st.lifeCharges) : FLASK_DB.life.maxCharges));
-    st.utilCharges = Math.max(0, Math.min(FLASK_DB[st.utilKey].maxCharges, Number.isFinite(st.utilCharges) ? Math.floor(st.utilCharges) : FLASK_DB[st.utilKey].maxCharges));
+    // 회복 슬롯: 선택 티어가 없거나 레벨 미달이면 해금된 최고 티어로 보정.
+    if (!getFlaskHealDef(st.healTier) || getFlaskHealDef(st.healTier).reqLevel > Math.max(1, Math.floor(game.level || 1))) {
+        st.healTier = getHighestUnlockedHealTier().key;
+    }
+    let healDef = getFlaskHealDef(st.healTier);
+    st.healCharges = Math.max(0, Math.min(healDef.maxCharges, Number.isFinite(st.healCharges) ? Math.floor(st.healCharges) : healDef.maxCharges));
+    st.healOverTimeUntil = Math.max(0, Math.floor(st.healOverTimeUntil || 0));
+    st.healOverTimePerSec = Math.max(0, Math.floor(st.healOverTimePerSec || 0));
+    // 유틸리티 슬롯: 최대 2개, 풀 안의 유효 키만 유지(중복 제거).
+    if (!Array.isArray(st.utils)) {
+        // 과거 단일 utilKey 저장 마이그레이션.
+        let legacy = FLASK_UTILITY_POOL[st.utilKey] ? [st.utilKey] : ['granite', 'quicksilver'];
+        st.utils = legacy.slice(0, 2).map(key => ({ key, charges: FLASK_UTILITY_POOL[key].maxCharges, until: 0 }));
+    }
+    st.utils = st.utils.filter(u => u && FLASK_UTILITY_POOL[u.key]).slice(0, 2);
+    let seen = new Set();
+    st.utils = st.utils.filter(u => (seen.has(u.key) ? false : (seen.add(u.key), true)));
+    st.utils.forEach(u => {
+        let def = FLASK_UTILITY_POOL[u.key];
+        u.charges = Math.max(0, Math.min(def.maxCharges, Number.isFinite(u.charges) ? Math.floor(u.charges) : def.maxCharges));
+        u.until = Math.max(0, Math.floor(u.until || 0));
+    });
     st.killCounter = Math.max(0, Math.floor(st.killCounter || 0));
-    st.utilBuffUntil = Math.max(0, Math.floor(st.utilBuffUntil || 0));
     return st;
 }
 
-function selectUtilityFlask(flaskKey) {
+function selectHealFlaskTier(tierKey) {
     let st = ensureFlaskState();
-    if (!FLASK_DB[flaskKey] || flaskKey === 'life' || st.utilKey === flaskKey) return;
-    st.utilKey = flaskKey;
-    st.utilCharges = Math.min(st.utilCharges, FLASK_DB[flaskKey].maxCharges);
-    st.utilBuffUntil = 0;
-    addLog(`🧪 유틸리티 플라스크 교체: ${FLASK_DB[flaskKey].name}`, 'loot-magic');
+    let def = getFlaskHealDef(tierKey);
+    if (!def || def.reqLevel > Math.max(1, Math.floor(game.level || 1)) || st.healTier === tierKey) return;
+    st.healTier = tierKey;
+    st.healCharges = Math.min(st.healCharges, def.maxCharges);
+    addLog(`🧪 회복 플라스크 교체: ${def.name}`, 'loot-magic');
+    updateStaticUI();
+}
+
+// 유틸리티 슬롯(0 또는 1)에 플라스크를 장착/교체한다. 이미 다른 슬롯에 있으면 무시.
+function equipUtilityFlask(slotIndex, flaskKey) {
+    let st = ensureFlaskState();
+    let idx = Math.max(0, Math.min(1, Math.floor(slotIndex || 0)));
+    if (!FLASK_UTILITY_POOL[flaskKey]) return;
+    if (st.utils.some((u, i) => u.key === flaskKey && i !== idx)) return addLog('이미 다른 슬롯에 장착된 플라스크입니다.', 'attack-monster');
+    let def = FLASK_UTILITY_POOL[flaskKey];
+    st.utils[idx] = { key: flaskKey, charges: def.maxCharges, until: 0 };
+    st.utils = st.utils.slice(0, 2);
+    addLog(`🧪 유틸리티 플라스크 슬롯 ${idx + 1}: ${def.name}`, 'loot-magic');
     updateStaticUI();
 }
 
 function tickFlaskChargesOnKill() {
     let st = ensureFlaskState();
     st.killCounter++;
-    if (st.killCounter % FLASK_DB.life.chargesPerKills === 0 && st.lifeCharges < FLASK_DB.life.maxCharges) st.lifeCharges++;
-    let utilDef = FLASK_DB[st.utilKey];
-    if (st.killCounter % utilDef.chargesPerKills === 0 && st.utilCharges < utilDef.maxCharges) st.utilCharges++;
+    let healDef = getFlaskHealDef(st.healTier);
+    if (st.killCounter % healDef.chargesPerKills === 0 && st.healCharges < healDef.maxCharges) st.healCharges++;
+    st.utils.forEach(u => {
+        let def = FLASK_UTILITY_POOL[u.key];
+        if (st.killCounter % def.chargesPerKills === 0 && u.charges < def.maxCharges) u.charges++;
+    });
 }
 
 function tickFlaskAutoUse(pStats) {
     let st = ensureFlaskState();
     let hpCap = Math.max(1, Math.floor(pStats.maxHp || 1));
-    if (st.lifeCharges > 0 && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= FLASK_DB.life.autoBelowHpPct) {
-        st.lifeCharges--;
-        let heal = Math.max(1, Math.floor(hpCap * FLASK_DB.life.healPct / 100));
-        game.playerHp = Math.min(hpCap, game.playerHp + heal);
-        addLog(`🧪 ${FLASK_DB.life.name}: 생명력 +${heal.toLocaleString()} (남은 충전 ${st.lifeCharges})`, 'loot-magic', { rateKey: 'flask:life', minIntervalMs: 900 });
-    }
-    let utilDef = FLASK_DB[st.utilKey];
     let now = Date.now();
-    if (st.utilCharges > 0 && st.utilBuffUntil <= now && (game.enemies || []).some(e => e && e.hp > 0)) {
-        st.utilCharges--;
-        st.utilBuffUntil = now + Math.max(1000, Math.floor(utilDef.durationMs || 5000));
-        addLog(`🧪 ${utilDef.name} 발동! (${Math.round((utilDef.durationMs || 5000) / 1000)}초, 남은 충전 ${st.utilCharges})`, 'loot-magic', { rateKey: 'flask:util', minIntervalMs: 900 });
+    let healDef = getFlaskHealDef(st.healTier);
+    // 회복 발동: HP가 임계 이하이고 현재 지속 회복이 없을 때, durationMs 동안 총 healPct%를 나눠 회복.
+    if (st.healCharges > 0 && st.healOverTimeUntil <= now && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= healDef.autoBelowHpPct) {
+        st.healCharges--;
+        let durSec = Math.max(0.5, (healDef.durationMs || 4000) / 1000);
+        let totalHeal = Math.max(1, Math.floor(hpCap * healDef.healPct / 100));
+        st.healOverTimePerSec = Math.max(1, Math.floor(totalHeal / durSec));
+        st.healOverTimeUntil = now + Math.floor(healDef.durationMs || 4000);
+        addLog(`🧪 ${healDef.name} 발동! ${Math.round(durSec)}초간 생명력 ${totalHeal.toLocaleString()} 회복 (남은 충전 ${st.healCharges})`, 'loot-magic', { rateKey: 'flask:heal', minIntervalMs: 900 });
     }
+    // 지속 회복 적용(0.1초 틱).
+    if (st.healOverTimeUntil > now && st.healOverTimePerSec > 0 && game.playerHp > 0) {
+        let tick = Math.max(1, Math.floor(st.healOverTimePerSec * 0.1));
+        game.playerHp = Math.min(hpCap, game.playerHp + tick);
+    }
+    // 유틸리티 자동 발동: 충전이 있고 버프가 꺼져 있으며 전투 중이면.
+    let inCombat = (game.enemies || []).some(e => e && e.hp > 0);
+    st.utils.forEach(u => {
+        let def = FLASK_UTILITY_POOL[u.key];
+        if (u.charges > 0 && u.until <= now && inCombat) {
+            u.charges--;
+            u.until = now + Math.max(1000, Math.floor(def.durationMs || 6000));
+            addLog(`🧪 ${def.name} 발동! (${Math.round((def.durationMs || 6000) / 1000)}초, 남은 충전 ${u.charges})`, 'loot-magic', { rateKey: `flask:util:${u.key}`, minIntervalMs: 900 });
+        }
+    });
 }
 
 function coreLoop() {
@@ -2341,14 +2397,20 @@ function getPlayerStats() {
     if (totalIntelligence > 0) { addStatToBucket(reward, 'energyShield', totalIntelligence * 2); addStatToBucket(reward, 'elementalPctDmg', Math.floor(totalIntelligence / 10)); }
     // 정확도: 기본치 + 레벨 성장 + 민첩 파생 + 장비/패시브의 정확도 옵션. 적 회피 '수치'를 상쇄한다.
     let playerAccuracy = 200 + Math.max(1, Math.floor(game.level || 1)) * 10 + totalDexterity * 2 + Math.max(0, sumStatAcrossBuckets('accuracy'));
-    // 플라스크 지속 효과(유틸리티): 활성 시간 동안 버킷에 반영 — 스탯 툴팁에도 자연스럽게 잡힌다.
+    // 플라스크 지속 효과(유틸리티 2슬롯): 활성 시간 동안 각 버프를 버킷에 반영 — 스탯 툴팁에도 잡힌다.
     let flaskState = (typeof ensureFlaskState === 'function') ? ensureFlaskState() : null;
-    if (flaskState && flaskState.utilBuffUntil > Date.now()) {
-        let flaskDef = FLASK_DB[flaskState.utilKey] || {};
-        if (flaskDef.armorPct) addStatToBucket(reward, 'armorPct', flaskDef.armorPct);
-        if (flaskDef.aspd) addStatToBucket(reward, 'aspd', flaskDef.aspd);
-        if (flaskDef.move) addStatToBucket(reward, 'move', flaskDef.move);
-        if (flaskDef.resAll) addStatToBucket(reward, 'resAll', flaskDef.resAll);
+    if (flaskState && Array.isArray(flaskState.utils)) {
+        let nowFlask = Date.now();
+        flaskState.utils.forEach(u => {
+            if (!u || (u.until || 0) <= nowFlask) return;
+            let flaskDef = (typeof FLASK_UTILITY_POOL !== 'undefined' && FLASK_UTILITY_POOL[u.key]) || {};
+            if (flaskDef.armorPct) addStatToBucket(reward, 'armorPct', flaskDef.armorPct);
+            if (flaskDef.aspd) addStatToBucket(reward, 'aspd', flaskDef.aspd);
+            if (flaskDef.move) addStatToBucket(reward, 'move', flaskDef.move);
+            if (flaskDef.resAll) addStatToBucket(reward, 'resAll', flaskDef.resAll);
+            if (flaskDef.pctDmg) addStatToBucket(reward, 'pctDmg', flaskDef.pctDmg);
+            if (flaskDef.genericTakenReducePct) addStatToBucket(reward, 'genericTakenDamageReducePct', flaskDef.genericTakenReducePct);
+        });
     }
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
     let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots;
@@ -3599,6 +3661,31 @@ function getPlayerStats() {
                 `에너지 보호막 재생량: 초당 ${Math.floor(finalEnergyShield * (finalEnergyShieldRegenRate / 100))} (${finalEnergyShieldRegenRate.toFixed(1)}%)`
             ].filter(Boolean),
             final: `${Math.floor(finalEnergyShield)}`
+        },
+        accuracy: {
+            title: '정확도',
+            lines: [
+                `기본 200 + 레벨 성장(레벨 ${Math.max(1, Math.floor(game.level || 1))} × 10 = ${Math.max(1, Math.floor(game.level || 1)) * 10})`,
+                makeSourceLine('민첩 파생(민첩 × 2)', totalDexterity * 2),
+                makeSourceLine('장비/기타 정확도', Math.max(0, sumStatAcrossBuckets('accuracy'))),
+                `효과: 적의 회피 수치와 대결해 명중을 판정합니다. 정확도가 높을수록 고회피 적에게 덜 빗나갑니다.`,
+                `예: 회피 500 적 상대 예상 명중률 ${Math.floor(100 - Math.min(60, getEvasionChancePct(500, Math.max(1, playerAccuracy)) * 0.35))}% · 회피 2000 적 상대 ${Math.floor(100 - Math.min(60, getEvasionChancePct(2000, Math.max(1, playerAccuracy)) * 0.35))}%`,
+                `적 회피 대비 빗나감은 최대 30%p, 적의 별도 회피 확률 옵션과 합쳐 총 60%가 상한입니다.`
+            ].filter(Boolean),
+            final: `${Math.floor(playerAccuracy)}`
+        },
+        strength: {
+            title: '힘 · 민첩 · 지능',
+            lines: [
+                `💪 힘 ${Math.floor(totalStrength)} — 1당 최대 생명력 +2, 10당 물리 피해 +1%`,
+                `　→ 최대 생명력 +${Math.floor(totalStrength * 2)} · 물리 피해 +${Math.floor(totalStrength / 10)}%`,
+                `🏹 민첩 ${Math.floor(totalDexterity)} — 1당 회피 +3, 1당 정확도 +2`,
+                `　→ 회피 +${Math.floor(totalDexterity * 3)} · 정확도 +${Math.floor(totalDexterity * 2)}`,
+                `📘 지능 ${Math.floor(totalIntelligence)} — 1당 에너지 보호막 +2, 10당 원소 피해 +1%`,
+                `　→ 에너지 보호막 +${Math.floor(totalIntelligence * 2)} · 원소 피해 +${Math.floor(totalIntelligence / 10)}%`,
+                `범용 스탯은 전 부위 장비 추가 옵션으로 등장합니다.`
+            ].filter(Boolean),
+            final: `${Math.floor(totalStrength)} / ${Math.floor(totalDexterity)} / ${Math.floor(totalIntelligence)}`
         },
         blockChance: {
             title: '막기 확률',

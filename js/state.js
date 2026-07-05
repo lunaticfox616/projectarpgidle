@@ -1914,7 +1914,7 @@ const defaultGame = {
     pendingConditionGemChoices: null,
     clearedRootBosses: [],
     timeRift: { pressure: 1, altarOpen: false, altarUnique: null, altarRare: null },
-    flasks: { lifeCharges: 3, utilKey: 'granite', utilCharges: 3, killCounter: 0, utilBuffUntil: 0 },
+    flasks: { healTier: 'h1', healCharges: 3, healOverTimeUntil: 0, healOverTimePerSec: 0, utils: [{ key: 'granite', charges: 3, until: 0 }, { key: 'quicksilver', charges: 3, until: 0 }], killCounter: 0 },
     mapSubtab: 'map-tab-zones',
     mapExploreSubtab: 'map-explore-hunting',
     gemFoldInactiveAttack: false,
