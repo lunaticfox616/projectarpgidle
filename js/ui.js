@@ -7101,15 +7101,22 @@ function renderFlaskPanel() {
         let lockLabel = levelLocked ? ` (Lv.${t.reqLevel})` : (undiscovered ? ' (미발견)' : '');
         return `<option value="${t.key}" ${t.key === st.healTier ? 'selected' : ''} ${locked ? 'disabled' : ''}>${t.name} · ${t.healPct}%/${Math.round(t.durationMs / 1000)}초${lockLabel}</option>`;
     }).join('');
-    // 유틸리티 2슬롯: 각 슬롯 드롭다운으로 발견한 플라스크 중에서 선택(다른 슬롯과 중복 방지).
+    // 유틸리티 2슬롯: 종류별로 묶어 단계(레벨/미발견 잠금)를 선택. 같은 종류는 다른 슬롯과 중복 장착 불가.
     let utilSlots = [0, 1].map(idx => {
         let cur = st.utils[idx];
-        let opts = `<option value="">(비어 있음)</option>` + Object.keys(FLASK_UTILITY_POOL).map(key => {
-            let usedElsewhere = st.utils.some((u, i) => u && u.key === key && i !== idx);
-            let undiscovered = !found.includes(key);
-            let sel = cur && cur.key === key ? 'selected' : '';
-            let label = FLASK_UTILITY_POOL[key].name.replace(' 플라스크', '') + (usedElsewhere ? ' (사용 중)' : (undiscovered ? ' (미발견)' : ''));
-            return `<option value="${key}" ${sel} ${(usedElsewhere || undiscovered) ? 'disabled' : ''}>${label}</option>`;
+        let opts = `<option value="">(비어 있음)</option>` + FLASK_UTILITY_CATEGORIES.map(cat => {
+            let usedElsewhere = st.utils.some((u, i) => u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === cat.category && i !== idx);
+            let tierOptions = FLASK_UTILITY_TIER_REQ_LEVELS.map((reqLevel, tierIdx) => {
+                let key = `${cat.category}${tierIdx + 1}`;
+                let def = FLASK_UTILITY_POOL[key];
+                let levelLocked = lvl < reqLevel;
+                let undiscovered = !levelLocked && !found.includes(key);
+                let locked = usedElsewhere || levelLocked || undiscovered;
+                let lockLabel = levelLocked ? ` (Lv.${reqLevel})` : (undiscovered ? ' (미발견)' : (usedElsewhere ? ' (사용 중)' : ''));
+                let sel = cur && cur.key === key ? 'selected' : '';
+                return `<option value="${key}" ${sel} ${locked ? 'disabled' : ''}>${def.name}${lockLabel}</option>`;
+            }).join('');
+            return `<optgroup label="${cat.label}">${tierOptions}</optgroup>`;
         }).join('');
         let def = cur ? FLASK_UTILITY_POOL[cur.key] : null;
         let active = cur && (cur.until || 0) > now;

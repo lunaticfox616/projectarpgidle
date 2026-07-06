@@ -467,13 +467,42 @@ const FLASK_HEAL_TIERS = [
     { key: 'h8', name: '생명력 플라스크 VIII', reqLevel: 35, healPct: 165, durationMs: 6000, maxCharges: 5, chargesPerKills: 8, autoBelowHpPct: 65 }
 ];
 
-const FLASK_UTILITY_POOL = {
-    granite: { key: 'granite', name: '화강암 플라스크', desc: '6초간 방어도 +60%', armorPct: 60, durationMs: 6000, maxCharges: 3, chargesPerKills: 10 },
-    quicksilver: { key: 'quicksilver', name: '수은 플라스크', desc: '6초간 공격 속도 +14%, 이동 속도 +22%', aspd: 14, move: 22, durationMs: 6000, maxCharges: 3, chargesPerKills: 10 },
-    amethyst: { key: 'amethyst', name: '자수정 플라스크', desc: '6초간 모든 저항 +22%', resAll: 22, durationMs: 6000, maxCharges: 3, chargesPerKills: 10 },
-    bismuth: { key: 'bismuth', name: '창연 플라스크', desc: '6초간 받는 피해 12% 감소', genericTakenReducePct: 12, durationMs: 6000, maxCharges: 3, chargesPerKills: 12 },
-    sulphur: { key: 'sulphur', name: '유황 플라스크', desc: '6초간 피해 +18%', pctDmg: 18, durationMs: 6000, maxCharges: 3, chargesPerKills: 12 }
-};
+// 유틸리티 플라스크도 회복 플라스크처럼 종류별 5단계(레벨 1/5/10/15/20)로 나뉘며,
+// 단계가 오를수록 효과와 충전 속도가 함께 좋아진다. 같은 종류의 플라스크는 슬롯 2개에 동시 장착할 수 없다.
+const FLASK_UTILITY_TIER_REQ_LEVELS = [1, 5, 10, 15, 20];
+const FLASK_UTILITY_CATEGORIES = [
+    { category: 'granite', label: '화강암', statKey: 'armorPct', statValues: [60, 75, 90, 105, 120], statSuffix: '방어도', chargesPerKillsBase: 10 },
+    { category: 'quicksilver', label: '수은', statValues: [14, 17, 20, 23, 26], statSuffix: '공격 속도', statKey: 'aspd', extraStatKey: 'move', extraStatValues: [22, 26, 30, 34, 38], extraStatSuffix: '이동 속도', chargesPerKillsBase: 10 },
+    { category: 'amethyst', label: '자수정', statKey: 'resAll', statValues: [22, 28, 34, 40, 46], statSuffix: '모든 저항', chargesPerKillsBase: 10 },
+    { category: 'bismuth', label: '창연', statKey: 'genericTakenReducePct', statValues: [12, 15, 18, 21, 24], statSuffix: '받는 피해 감소', chargesPerKillsBase: 12 },
+    { category: 'sulphur', label: '유황', statKey: 'pctDmg', statValues: [18, 23, 28, 33, 38], statSuffix: '피해', chargesPerKillsBase: 12 }
+];
+const FLASK_UTILITY_POOL = {};
+FLASK_UTILITY_CATEGORIES.forEach(cat => {
+    FLASK_UTILITY_TIER_REQ_LEVELS.forEach((reqLevel, idx) => {
+        let tier = idx + 1;
+        let key = `${cat.category}${tier}`;
+        let statValue = cat.statValues[idx];
+        let descParts = [`${cat.statSuffix} +${statValue}%`];
+        let def = {
+            key,
+            category: cat.category,
+            tier,
+            name: `${cat.label} 플라스크 ${['I', 'II', 'III', 'IV', 'V'][idx]}`,
+            reqLevel,
+            durationMs: 6000,
+            maxCharges: 3 + Math.floor(idx / 2),
+            chargesPerKills: Math.max(6, cat.chargesPerKillsBase - idx)
+        };
+        def[cat.statKey] = statValue;
+        if (cat.extraStatKey) {
+            def[cat.extraStatKey] = cat.extraStatValues[idx];
+            descParts.push(`${cat.extraStatSuffix} +${cat.extraStatValues[idx]}%`);
+        }
+        def.desc = `${Math.round(def.durationMs / 1000)}초간 ${descParts.join(', ')}`;
+        FLASK_UTILITY_POOL[key] = def;
+    });
+});
 
 // 하위호환: 과거 저장의 utilKey 등에서 참조할 수 있도록 통합 조회 맵.
 const FLASK_DB = Object.assign({}, FLASK_UTILITY_POOL, Object.fromEntries(FLASK_HEAL_TIERS.map(t => [t.key, t])));

@@ -1257,8 +1257,8 @@ function getHighestUnlockedHealTier() {
 function ensureFlaskFoundKeys() {
     if (!game.flasks || typeof game.flasks !== 'object') game.flasks = {};
     let st = game.flasks;
-    if (!Array.isArray(st.foundKeys)) st.foundKeys = ['h1', 'granite', 'quicksilver'];
-    st.foundKeys = st.foundKeys.filter(key => FLASK_DB[key]);
+    if (!Array.isArray(st.foundKeys)) st.foundKeys = ['h1', 'granite1', 'quicksilver1'];
+    st.foundKeys = st.foundKeys.map(remapLegacyFlaskKey).filter(key => FLASK_DB[key]);
     // 시작 기본 지급 플라스크와 현재 장착 중인 플라스크는 항상 발견한 것으로 취급한다.
     ['h1'].concat(st.healTier ? [st.healTier] : [], (st.utils || []).map(u => u && u.key).filter(Boolean)).forEach(key => {
         if (key && FLASK_DB[key] && !st.foundKeys.includes(key)) st.foundKeys.push(key);
@@ -1273,13 +1273,12 @@ function discoverFlask(flaskKey) {
     found.push(flaskKey);
     return true;
 }
-// 몬스터 처치 시 아직 발견하지 못한 플라스크(현재 레벨에서 회복 플라스크는 요구 레벨 이하인 것만)를
-// 낮은 확률로 하나 발견시킨다. 발견한 플라스크는 장비 탭의 플라스크 슬롯에서 장착할 수 있다.
+// 몬스터 처치 시 아직 발견하지 못한 플라스크(요구 레벨 이하인 것만)를 낮은 확률로 하나
+// 발견시킨다. 발견한 플라스크는 장비 탭의 플라스크 슬롯에서 장착할 수 있다.
 function rollFlaskDiscoveryDrop(enemy) {
     let lvl = Math.max(1, Math.floor(game.level || 1));
     let found = ensureFlaskFoundKeys();
-    let candidates = FLASK_HEAL_TIERS.filter(t => t.reqLevel <= lvl && !found.includes(t.key)).map(t => t.key)
-        .concat(Object.keys(FLASK_UTILITY_POOL).filter(key => !found.includes(key)));
+    let candidates = Object.keys(FLASK_DB).filter(key => (FLASK_DB[key].reqLevel || 1) <= lvl && !found.includes(key));
     if (candidates.length === 0) return;
     let chance = enemy.isBoss ? 0.12 : (enemy.isElite ? 0.035 : 0.006);
     if (Math.random() >= chance) return;
@@ -1288,6 +1287,11 @@ function rollFlaskDiscoveryDrop(enemy) {
     let def = FLASK_DB[key];
     addBattleFx('lootPickup', { enemyId: enemy.id, color: '#9ed6ff', duration: 780 });
     if (game.settings.showLootLog) addLog(`🧪 새로운 플라스크 발견: <span class='loot-rare'>[${def.name}]</span>! 장비 탭의 플라스크 슬롯에서 장착할 수 있습니다.`, 'loot-rare');
+}
+// 유틸리티 플라스크가 단계 구분 없이 종류당 1개였던 예전 저장의 고정 키를 그 종류의 1단계로 옮긴다.
+const LEGACY_FLASK_UTILITY_KEYS = ['granite', 'quicksilver', 'amethyst', 'bismuth', 'sulphur'];
+function remapLegacyFlaskKey(key) {
+    return LEGACY_FLASK_UTILITY_KEYS.includes(key) ? `${key}1` : key;
 }
 function ensureFlaskState() {
     if (!game.flasks || typeof game.flasks !== 'object') game.flasks = {};
@@ -1301,15 +1305,23 @@ function ensureFlaskState() {
     st.healCharges = Math.max(0, Math.min(healDef.maxCharges, Number.isFinite(st.healCharges) ? Math.floor(st.healCharges) : healDef.maxCharges));
     st.healOverTimeUntil = Math.max(0, Math.floor(st.healOverTimeUntil || 0));
     st.healOverTimePerSec = Math.max(0, Math.floor(st.healOverTimePerSec || 0));
-    // 유틸리티 슬롯: 최대 2개, 풀 안의 유효 키만 유지(중복 제거).
+    // 유틸리티 슬롯: 최대 2개, 풀 안의 유효 키만 유지(같은 종류 중복 제거).
     if (!Array.isArray(st.utils)) {
         // 과거 단일 utilKey 저장 마이그레이션.
-        let legacy = FLASK_UTILITY_POOL[st.utilKey] ? [st.utilKey] : ['granite', 'quicksilver'];
+        let legacyKey = remapLegacyFlaskKey(st.utilKey);
+        let legacy = FLASK_UTILITY_POOL[legacyKey] ? [legacyKey] : ['granite1', 'quicksilver1'];
         st.utils = legacy.slice(0, 2).map(key => ({ key, charges: FLASK_UTILITY_POOL[key].maxCharges, until: 0 }));
     }
+    // 예전 저장(단계 구분 전)의 고정 키를 그 종류의 1단계로 옮겨 이어서 쓸 수 있게 한다.
+    st.utils = st.utils.map(u => (u && !FLASK_UTILITY_POOL[u.key] ? { ...u, key: remapLegacyFlaskKey(u.key) } : u));
     st.utils = st.utils.filter(u => u && FLASK_UTILITY_POOL[u.key]).slice(0, 2);
-    let seen = new Set();
-    st.utils = st.utils.filter(u => (seen.has(u.key) ? false : (seen.add(u.key), true)));
+    let seenCategories = new Set();
+    st.utils = st.utils.filter(u => {
+        let category = FLASK_UTILITY_POOL[u.key].category;
+        if (seenCategories.has(category)) return false;
+        seenCategories.add(category);
+        return true;
+    });
     st.utils.forEach(u => {
         let def = FLASK_UTILITY_POOL[u.key];
         u.charges = Math.max(0, Math.min(def.maxCharges, Number.isFinite(u.charges) ? Math.floor(u.charges) : def.maxCharges));
@@ -1335,9 +1347,10 @@ function equipUtilityFlask(slotIndex, flaskKey) {
     let st = ensureFlaskState();
     let idx = Math.max(0, Math.min(1, Math.floor(slotIndex || 0)));
     if (!FLASK_UTILITY_POOL[flaskKey]) return;
-    if (!ensureFlaskFoundKeys().includes(flaskKey)) return addLog('아직 발견하지 못한 플라스크입니다. 전투 중 드랍으로 찾아야 장착할 수 있습니다.', 'attack-monster');
-    if (st.utils.some((u, i) => u.key === flaskKey && i !== idx)) return addLog('이미 다른 슬롯에 장착된 플라스크입니다.', 'attack-monster');
     let def = FLASK_UTILITY_POOL[flaskKey];
+    if (def.reqLevel > Math.max(1, Math.floor(game.level || 1))) return addLog(`레벨 ${def.reqLevel} 이상이어야 장착할 수 있습니다.`, 'attack-monster');
+    if (!ensureFlaskFoundKeys().includes(flaskKey)) return addLog('아직 발견하지 못한 플라스크입니다. 전투 중 드랍으로 찾아야 장착할 수 있습니다.', 'attack-monster');
+    if (st.utils.some((u, i) => u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === def.category && i !== idx)) return addLog('같은 종류의 플라스크는 이미 다른 슬롯에 장착되어 있습니다.', 'attack-monster');
     st.utils[idx] = { key: flaskKey, charges: def.maxCharges, until: 0 };
     st.utils = st.utils.slice(0, 2);
     addLog(`🧪 유틸리티 플라스크 슬롯 ${idx + 1}: ${def.name}`, 'loot-magic');
