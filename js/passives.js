@@ -7285,7 +7285,8 @@ function addItemToInventory(item, options) {
     // 도감은 실제로 인벤토리에 수집했을 때만 등록한다. (인벤토리가 가득 차 해체된 고유는 도감 미등록)
     if (item.rarity === 'unique') registerUniqueToCodexOnAcquire(item);
     game.inventory.push(item);
-    game.noti.items = true;
+    // 일반 습득마다 알림을 켜면 전투 중 끊임없는 드랍 때문에 장비 알림이 항상 켜진 것처럼
+    // 보인다. 장비 탭 알림은 해금 같은 실제 주목할 이벤트(checkUnlocks)에서만 켠다.
     checkUnlocks();
     return true;
 }

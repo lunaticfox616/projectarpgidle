@@ -1248,13 +1248,51 @@ function getFlaskHealDef(tierKey) {
 }
 function getHighestUnlockedHealTier() {
     let lvl = Math.max(1, Math.floor(game.level || 1));
+    let found = ensureFlaskFoundKeys();
     let best = FLASK_HEAL_TIERS[0];
-    FLASK_HEAL_TIERS.forEach(t => { if (lvl >= t.reqLevel) best = t; });
+    FLASK_HEAL_TIERS.forEach(t => { if (lvl >= t.reqLevel && found.includes(t.key)) best = t; });
     return best;
+}
+// 지금까지 발견(드랍)한 플라스크 종류. 발견하지 못한 플라스크는 장착할 수 없다.
+function ensureFlaskFoundKeys() {
+    if (!game.flasks || typeof game.flasks !== 'object') game.flasks = {};
+    let st = game.flasks;
+    if (!Array.isArray(st.foundKeys)) st.foundKeys = ['h1', 'granite', 'quicksilver'];
+    st.foundKeys = st.foundKeys.filter(key => FLASK_DB[key]);
+    // 시작 기본 지급 플라스크와 현재 장착 중인 플라스크는 항상 발견한 것으로 취급한다.
+    ['h1'].concat(st.healTier ? [st.healTier] : [], (st.utils || []).map(u => u && u.key).filter(Boolean)).forEach(key => {
+        if (key && FLASK_DB[key] && !st.foundKeys.includes(key)) st.foundKeys.push(key);
+    });
+    return st.foundKeys;
+}
+// 전투 드랍으로 새 플라스크를 발견시킨다. 이미 발견한 플라스크면 아무 일도 일어나지 않는다.
+function discoverFlask(flaskKey) {
+    if (!FLASK_DB[flaskKey]) return false;
+    let found = ensureFlaskFoundKeys();
+    if (found.includes(flaskKey)) return false;
+    found.push(flaskKey);
+    return true;
+}
+// 몬스터 처치 시 아직 발견하지 못한 플라스크(현재 레벨에서 회복 플라스크는 요구 레벨 이하인 것만)를
+// 낮은 확률로 하나 발견시킨다. 발견한 플라스크는 장비 탭의 플라스크 슬롯에서 장착할 수 있다.
+function rollFlaskDiscoveryDrop(enemy) {
+    let lvl = Math.max(1, Math.floor(game.level || 1));
+    let found = ensureFlaskFoundKeys();
+    let candidates = FLASK_HEAL_TIERS.filter(t => t.reqLevel <= lvl && !found.includes(t.key)).map(t => t.key)
+        .concat(Object.keys(FLASK_UTILITY_POOL).filter(key => !found.includes(key)));
+    if (candidates.length === 0) return;
+    let chance = enemy.isBoss ? 0.12 : (enemy.isElite ? 0.035 : 0.006);
+    if (Math.random() >= chance) return;
+    let key = candidates[Math.floor(Math.random() * candidates.length)];
+    if (!discoverFlask(key)) return;
+    let def = FLASK_DB[key];
+    addBattleFx('lootPickup', { enemyId: enemy.id, color: '#9ed6ff', duration: 780 });
+    if (game.settings.showLootLog) addLog(`🧪 새로운 플라스크 발견: <span class='loot-rare'>[${def.name}]</span>! 장비 탭의 플라스크 슬롯에서 장착할 수 있습니다.`, 'loot-rare');
 }
 function ensureFlaskState() {
     if (!game.flasks || typeof game.flasks !== 'object') game.flasks = {};
     let st = game.flasks;
+    ensureFlaskFoundKeys();
     // 회복 슬롯: 선택 티어가 없거나 레벨 미달이면 해금된 최고 티어로 보정.
     if (!getFlaskHealDef(st.healTier) || getFlaskHealDef(st.healTier).reqLevel > Math.max(1, Math.floor(game.level || 1))) {
         st.healTier = getHighestUnlockedHealTier().key;
@@ -1285,6 +1323,7 @@ function selectHealFlaskTier(tierKey) {
     let st = ensureFlaskState();
     let def = getFlaskHealDef(tierKey);
     if (!def || def.reqLevel > Math.max(1, Math.floor(game.level || 1)) || st.healTier === tierKey) return;
+    if (!ensureFlaskFoundKeys().includes(tierKey)) return addLog('아직 발견하지 못한 플라스크입니다. 전투 중 드랍으로 찾아야 장착할 수 있습니다.', 'attack-monster');
     st.healTier = tierKey;
     st.healCharges = Math.min(st.healCharges, def.maxCharges);
     addLog(`🧪 회복 플라스크 교체: ${def.name}`, 'loot-magic');
@@ -1296,6 +1335,7 @@ function equipUtilityFlask(slotIndex, flaskKey) {
     let st = ensureFlaskState();
     let idx = Math.max(0, Math.min(1, Math.floor(slotIndex || 0)));
     if (!FLASK_UTILITY_POOL[flaskKey]) return;
+    if (!ensureFlaskFoundKeys().includes(flaskKey)) return addLog('아직 발견하지 못한 플라스크입니다. 전투 중 드랍으로 찾아야 장착할 수 있습니다.', 'attack-monster');
     if (st.utils.some((u, i) => u.key === flaskKey && i !== idx)) return addLog('이미 다른 슬롯에 장착된 플라스크입니다.', 'attack-monster');
     let def = FLASK_UTILITY_POOL[flaskKey];
     st.utils[idx] = { key: flaskKey, charges: def.maxCharges, until: 0 };
@@ -6166,6 +6206,8 @@ function rollLootForEnemy(enemy) {
         let currencyName = typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ((ORB_DB[drop[0]] && ORB_DB[drop[0]].name) || drop[0]);
         if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
     });
+
+    rollFlaskDiscoveryDrop(enemy);
 
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
     itemChance *= 0.7; // 장비 드랍 확률 30% 감소

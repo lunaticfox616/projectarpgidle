@@ -7083,27 +7083,33 @@ function getCraftOrbUseState(key, item) {
     return { enabled: ok, reason: ok ? '사용 가능' : '현재 아이템 조건 불일치' };
 }
 
-// 플라스크 패널 (캐릭터 탭): 충전 상태 표시 + 유틸리티 플라스크 교체.
+// 플라스크 패널 (장비 탭의 플라스크 서브탭): 충전 상태 표시 + 발견한 플라스크 중 교체.
 function renderFlaskPanel() {
     let host = document.getElementById('ui-flask-panel');
     if (!host || typeof ensureFlaskState !== 'function' || typeof FLASK_HEAL_TIERS === 'undefined') return;
     let st = ensureFlaskState();
     let now = Date.now();
     let lvl = Math.max(1, Math.floor(game.level || 1));
+    let found = typeof ensureFlaskFoundKeys === 'function' ? ensureFlaskFoundKeys() : (st.foundKeys || []);
     let healDef = getFlaskHealDef(st.healTier);
     let healActive = (st.healOverTimeUntil || 0) > now;
-    // 회복 티어 선택 드롭다운(레벨 미달 티어는 잠금 표시).
+    // 회복 티어 선택 드롭다운(레벨 미달 또는 아직 발견하지 못한 티어는 잠금 표시).
     let healOptions = FLASK_HEAL_TIERS.map(t => {
-        let locked = lvl < t.reqLevel;
-        return `<option value="${t.key}" ${t.key === st.healTier ? 'selected' : ''} ${locked ? 'disabled' : ''}>${t.name} · ${t.healPct}%/${Math.round(t.durationMs / 1000)}초${locked ? ` (Lv.${t.reqLevel})` : ''}</option>`;
+        let levelLocked = lvl < t.reqLevel;
+        let undiscovered = !levelLocked && !found.includes(t.key);
+        let locked = levelLocked || undiscovered;
+        let lockLabel = levelLocked ? ` (Lv.${t.reqLevel})` : (undiscovered ? ' (미발견)' : '');
+        return `<option value="${t.key}" ${t.key === st.healTier ? 'selected' : ''} ${locked ? 'disabled' : ''}>${t.name} · ${t.healPct}%/${Math.round(t.durationMs / 1000)}초${lockLabel}</option>`;
     }).join('');
-    // 유틸리티 2슬롯: 각 슬롯 드롭다운으로 풀에서 선택(다른 슬롯과 중복 방지).
+    // 유틸리티 2슬롯: 각 슬롯 드롭다운으로 발견한 플라스크 중에서 선택(다른 슬롯과 중복 방지).
     let utilSlots = [0, 1].map(idx => {
         let cur = st.utils[idx];
         let opts = `<option value="">(비어 있음)</option>` + Object.keys(FLASK_UTILITY_POOL).map(key => {
             let usedElsewhere = st.utils.some((u, i) => u && u.key === key && i !== idx);
+            let undiscovered = !found.includes(key);
             let sel = cur && cur.key === key ? 'selected' : '';
-            return `<option value="${key}" ${sel} ${usedElsewhere ? 'disabled' : ''}>${FLASK_UTILITY_POOL[key].name.replace(' 플라스크', '')}${usedElsewhere ? ' (사용 중)' : ''}</option>`;
+            let label = FLASK_UTILITY_POOL[key].name.replace(' 플라스크', '') + (usedElsewhere ? ' (사용 중)' : (undiscovered ? ' (미발견)' : ''));
+            return `<option value="${key}" ${sel} ${(usedElsewhere || undiscovered) ? 'disabled' : ''}>${label}</option>`;
         }).join('');
         let def = cur ? FLASK_UTILITY_POOL[cur.key] : null;
         let active = cur && (cur.until || 0) > now;
@@ -7115,6 +7121,7 @@ function renderFlaskPanel() {
             <select class="flask-slot-select" onchange="equipUtilityFlask(${idx}, this.value)" title="${def ? def.desc : '유틸리티 플라스크 선택'}">${opts}</select>
         </div>`;
     }).join('');
+    let undiscoveredCount = FLASK_HEAL_TIERS.filter(t => !found.includes(t.key)).length + Object.keys(FLASK_UTILITY_POOL).filter(key => !found.includes(key)).length;
     host.innerHTML = `<div class="flask-paperdoll">
         <div class="flask-slot-box heal ${healActive ? 'active' : ''}">
             <div class="flask-slot-label">회복</div>
@@ -7124,7 +7131,7 @@ function renderFlaskPanel() {
         </div>
         ${utilSlots}
     </div>
-    <div class="flask-help-text">적 처치로 충전됩니다. 회복 플라스크는 생명력 ${healDef.autoBelowHpPct}% 이하 시 ${Math.round(healDef.durationMs / 1000)}초간 지속 회복, 유틸리티 2종은 전투 중 자동 발동합니다.</div>`;
+    <div class="flask-help-text">전투 중 몬스터를 처치하면 낮은 확률로 새 플라스크를 발견합니다. 발견한 플라스크만 슬롯에 장착할 수 있습니다(남은 미발견 플라스크 ${undiscoveredCount}종). 장착한 플라스크는 처치로 충전됩니다. 회복 플라스크는 생명력 ${healDef.autoBelowHpPct}% 이하 시 ${Math.round(healDef.durationMs / 1000)}초간 지속 회복, 유틸리티 2종은 전투 중 자동 발동합니다.</div>`;
 }
 
 // 시간의 균열 패널: 시간압 선택 → 과거 진입 → 제단 배치 → 미래 진입.
