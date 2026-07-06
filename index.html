@@ -332,7 +332,6 @@
     <div id="tab-character" class="tab-content">
         <h2>🧬 캐릭터 정보</h2>
         <div style="color:#8fa7be; margin-bottom:10px;">현재 전투 성능과 방어 수치를 한눈에 확인할 수 있습니다.</div>
-        <div id="ui-flask-panel" style="background:#101826; border:1px solid #33507c; border-radius:10px; padding:8px 10px; margin-bottom:10px;"></div>
         <div class="stat-grid">
             <div class="stat-item tip full" onmouseenter="showStatTooltip(event,'dps')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">⚔️ 총 DPS</span>
@@ -588,6 +587,7 @@
     <div id="tab-items" class="tab-content">
         <div class="subtab-row">
             <button class="subtab-btn active" id="btn-item-tab-equip" onclick="switchItemSubtab('item-tab-equip')">장비 창</button>
+            <button class="subtab-btn" id="btn-item-tab-flask" onclick="switchItemSubtab('item-tab-flask')">플라스크</button>
             <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')">제작실</button>
             <button class="subtab-btn" id="btn-item-tab-fossil" onclick="switchItemSubtab('item-tab-fossil')">화석 제작대</button>
             <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;">거래소</button>
@@ -610,6 +610,12 @@
             </div>
             <div class="inventory-grid" id="ui-inventory-list"></div>
 
+        </div>
+
+        <div id="item-tab-flask" class="subtab-content">
+            <h2>🧪 플라스크</h2>
+            <div style="color:#8fa7be; margin-bottom:10px;">전투 중 몬스터를 처치하면 낮은 확률로 새 플라스크를 발견합니다. 발견한 플라스크만 슬롯에 장착할 수 있습니다.</div>
+            <div id="ui-flask-panel" style="background:#101826; border:1px solid #33507c; border-radius:10px; padding:8px 10px; margin-bottom:10px;"></div>
         </div>
 
         <div id="item-tab-craft" class="subtab-content">
