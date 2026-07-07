@@ -8,8 +8,11 @@
 // ============================================================================
 
 const SOCIAL_NICK_KEY = 'arpg_social_nickname';
+const SOCIAL_LAST_SEEN_CHAT_KEY = 'arpg_social_last_seen_chat_id';
 const SOCIAL_CHAT_LIMIT = 50;
 const SOCIAL_CHAT_POLL_MS = 4000;
+// 커뮤니티 탭이 비활성일 때 새 채팅 여부만 가볍게 확인하는 주기(활성 탭 폴링보다 훨씬 느리게).
+const SOCIAL_BG_NOTI_POLL_MS = 60000;
 const SOCIAL_MSG_MAX = 300;
 const SOCIAL_NICK_MIN = 2;
 const SOCIAL_NICK_MAX = 16;
@@ -40,7 +43,8 @@ let socialState = {
     profileTips: {},
     pickTips: {},
     currentProfile: null,
-    profileTab: 'equipment'
+    profileTab: 'equipment',
+    bgNotiLoading: false
 };
 
 // --- 공통 유틸 -------------------------------------------------------------
@@ -331,6 +335,49 @@ async function refreshOnlineUsers() {
 // ============================================================================
 // 채팅
 // ============================================================================
+// --- 새 채팅 알림(커뮤니티 탭 빨간 점) --------------------------------------
+// 마지막으로 확인한 채팅 id(bigint 증가형)를 기기별로 기억해, 그보다 큰 id의
+// 남이 보낸 메시지가 있으면 game.noti.social 을 켠다. 탭을 열어 채팅이 렌더되면 갱신된다.
+function getLastSeenChatId() {
+    try {
+        let v = localStorage.getItem(SOCIAL_LAST_SEEN_CHAT_KEY);
+        if (v == null || v === '') return null;
+        let n = Number(v);
+        return Number.isFinite(n) ? n : null;
+    } catch (e) { return null; }
+}
+function setLastSeenChatId(id) {
+    let n = Number(id);
+    if (!Number.isFinite(n)) return;
+    let cur = getLastSeenChatId();
+    if (cur != null && n <= cur) return;
+    try { localStorage.setItem(SOCIAL_LAST_SEEN_CHAT_KEY, String(n)); } catch (e) { /* 무시 */ }
+}
+function isSocialTabActive() {
+    let tabEl = document.getElementById('tab-social');
+    return !!(tabEl && tabEl.classList.contains('active'));
+}
+async function checkSocialChatNotification() {
+    if (!socialCloudReady() || socialState.bgNotiLoading) return;
+    // 탭을 보고 있으면 활성 폴링이 채팅을 렌더하며 확인 처리하므로 알림이 필요 없다.
+    if (isSocialTabActive()) return;
+    if (typeof game === 'undefined' || !game || !game.noti) return;
+    socialState.bgNotiLoading = true;
+    try {
+        let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,user_id&order=id.desc&limit=1`, {});
+        let row = Array.isArray(rows) ? rows[0] : null;
+        if (!row || row.id == null) return;
+        let latest = Number(row.id);
+        if (!Number.isFinite(latest)) return;
+        let seen = getLastSeenChatId();
+        // 첫 확인(이 기기에서 채팅을 한 번도 안 봄)에는 과거 메시지로 알림하지 않고 기준점만 잡는다.
+        if (seen == null) { setLastSeenChatId(latest); return; }
+        if (latest > seen && row.user_id !== socialLoggedInUserId()) game.noti.social = true;
+    } catch (e) { /* 무시: 네트워크 실패 시 다음 주기에 재시도 */ } finally {
+        socialState.bgNotiLoading = false;
+    }
+}
+
 async function loadChatMessages() {
     if (!socialCloudReady()) return [];
     let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,user_id,nickname,body,payload,created_at&order=created_at.desc&limit=${SOCIAL_CHAT_LIMIT}`, {});
@@ -505,6 +552,11 @@ function renderChatMessages(messages) {
     let listEl = document.getElementById('social-chat-list');
     if (!listEl) return;
     let myId = socialLoggedInUserId();
+    // 채팅 목록이 실제로 보이는 시점 = 확인한 것으로 간주. 마지막 확인 id를 갱신해
+    // 백그라운드 새 채팅 알림의 기준점을 옮기고, 커뮤니티 탭 알림 점을 끈다.
+    let maxId = messages.reduce((acc, m) => Math.max(acc, Number(m.id) || 0), 0);
+    if (maxId > 0) setLastSeenChatId(maxId);
+    if (typeof game !== 'undefined' && game && game.noti) game.noti.social = false;
     let key = messages.map(m => `${m.id}:${m.nickname}`).join(',');
     if (key === socialState.lastChatRenderKey) return;
     socialState.lastChatRenderKey = key;
@@ -925,6 +977,10 @@ if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { injectSocialStyles(); ensureSocialTooltip(); });
     else { injectSocialStyles(); ensureSocialTooltip(); }
     setInterval(() => { if (socialCloudReady() && getMyNickname()) ensureHeartbeat(); }, SOCIAL_HEARTBEAT_MS);
+    // 커뮤니티 탭이 비활성일 때도 새 채팅을 감지해 탭 알림 점을 켠다.
+    setInterval(checkSocialChatNotification, SOCIAL_BG_NOTI_POLL_MS);
+    // 접속 직후 한 번(클라우드 로그인 복원을 기다린 뒤). setTimeout 가드는 스모크 테스트 샌드박스용.
+    if (typeof setTimeout === 'function') setTimeout(checkSocialChatNotification, 15000);
 }
 
 if (typeof safeExposeGlobals === 'function') {
@@ -934,6 +990,6 @@ if (typeof safeExposeGlobals === 'function') {
         openPlayerProfile, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
-        socialTalEnter, socialTalLeave, socialTalHighlight
+        socialTalEnter, socialTalLeave, socialTalHighlight, checkSocialChatNotification
     });
 }

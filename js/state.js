@@ -1877,7 +1877,8 @@ const defaultGame = {
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
         mapCompleteAction: 'nextZone',
         townReturnAction: 'retry',
-        notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true }
+        tabNotiEnabled: true,
+        notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
     },
     selectedHeroId: 'hero1',
     appearanceHeroId: null,
@@ -2052,7 +2053,7 @@ const defaultGame = {
     },
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, expertise: false, jewel: false },
-    noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false },
+    noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }
