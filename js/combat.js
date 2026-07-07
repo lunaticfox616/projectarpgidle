@@ -1336,10 +1336,12 @@ function ensureFlaskState() {
     st.healCharges = Math.max(0, Math.min(healDef.maxCharges, Number.isFinite(st.healCharges) ? Math.floor(st.healCharges) : healDef.maxCharges));
     st.healOverTimeUntil = Math.max(0, Math.floor(st.healOverTimeUntil || 0));
     st.healOverTimePerSec = Math.max(0, Math.floor(st.healOverTimePerSec || 0));
-    // 유틸리티 슬롯: 장착한 허리띠가 결정하는 개수까지, 풀 안의 유효 키만 유지(같은 종류 중복 제거).
-    // 허리띠가 없거나 숨겨진 티어가 낮으면 초과분은 자동으로 장착 해제된다(발견 기록은 유지되어
-    // 나중에 알맞은 허리띠를 장착하면 다시 장착할 수 있다).
-    let maxUtilSlots = getMaxFlaskUtilitySlotCount();
+    // 유틸리티 슬롯 데이터는 여기서 "현재 장착한 허리띠가 지원하는 개수"로 잘라내지 않는다.
+    // ensureFlaskState는 스탯 미리보기(showItemTooltip 등)처럼 game.equipment[슬롯]을 일시적으로
+    // 다른 아이템으로 바꾼 뒤 getPlayerStats를 호출하는 경로에서도 함께 불린다 — 여기서 잘라내면
+    // 미리보기가 끝나고 원래 허리띠로 복원돼도 이미 배열에서 사라진 유틸리티 플라스크는 영구히
+    // 사라진다. 실제 사용 가능 슬롯 수 제한(허리띠 미지원분 비활성화)은 장착 시점(equipUtilityFlask)과
+    // 소비 시점(충전/자동발동/스탯 적용 — getMaxFlaskUtilitySlotCount로 앞쪽 N개만 사용)에서만 적용한다.
     if (!Array.isArray(st.utils)) {
         // 과거 단일 utilKey 저장 마이그레이션.
         let legacyKey = remapLegacyFlaskKey(st.utilKey);
@@ -1348,7 +1350,7 @@ function ensureFlaskState() {
     }
     // 예전 저장(단계 구분 전)의 고정 키를 그 종류의 1단계로 옮겨 이어서 쓸 수 있게 한다.
     st.utils = st.utils.map(u => (u && !FLASK_UTILITY_POOL[u.key] ? { ...u, key: remapLegacyFlaskKey(u.key) } : u));
-    st.utils = st.utils.filter(u => u && FLASK_UTILITY_POOL[u.key]).slice(0, maxUtilSlots);
+    st.utils = st.utils.filter(u => u && FLASK_UTILITY_POOL[u.key]);
     let seenCategories = new Set();
     st.utils = st.utils.filter(u => {
         let category = FLASK_UTILITY_POOL[u.key].category;
@@ -1388,7 +1390,6 @@ function equipUtilityFlask(slotIndex, flaskKey) {
     if (!ensureFlaskFoundKeys().includes(flaskKey)) return addLog('아직 발견하지 못한 플라스크입니다. 전투 중 드랍으로 찾아야 장착할 수 있습니다.', 'attack-monster');
     if (st.utils.some((u, i) => u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === def.category && i !== idx)) return addLog('같은 종류의 플라스크는 이미 다른 슬롯에 장착되어 있습니다.', 'attack-monster');
     st.utils[idx] = { key: flaskKey, charges: def.maxCharges, until: 0 };
-    st.utils = st.utils.slice(0, maxUtilSlots);
     addLog(`🧪 유틸리티 플라스크 슬롯 ${idx + 1}: ${def.name}`, 'loot-magic');
     updateStaticUI();
 }
@@ -1399,7 +1400,8 @@ function tickFlaskChargesOnKill() {
     let healDef = getFlaskHealDef(st.healTier);
     let healChargesPerKills = getFlaskEffectiveChargesPerKills(healDef.chargesPerKills);
     if (st.killCounter % healChargesPerKills === 0 && st.healCharges < healDef.maxCharges) st.healCharges++;
-    st.utils.forEach(u => {
+    // 현재 허리띠가 지원하는 슬롯 수만큼만 충전한다(초과분은 배열엔 남아있지만 비활성).
+    st.utils.slice(0, getMaxFlaskUtilitySlotCount()).forEach(u => {
         let def = FLASK_UTILITY_POOL[u.key];
         let chargesPerKills = getFlaskEffectiveChargesPerKills(def.chargesPerKills);
         if (st.killCounter % chargesPerKills === 0 && u.charges < def.maxCharges) u.charges++;
@@ -1434,7 +1436,8 @@ function tickFlaskAutoUse(pStats) {
         game.playerHp = Math.min(hpCap, game.playerHp + tick);
     }
     // 유틸리티 자동 발동: 충전이 있고 버프가 꺼져 있으며 전투 중이면. (마찬가지로 로그 대신 효과 줄에 표시)
-    st.utils.forEach(u => {
+    // 현재 허리띠가 지원하는 슬롯 수만큼만 발동한다(초과분은 배열엔 남아있지만 비활성).
+    st.utils.slice(0, getMaxFlaskUtilitySlotCount()).forEach(u => {
         let def = FLASK_UTILITY_POOL[u.key];
         if (u.charges > 0 && u.until <= now && inCombat) {
             u.charges--;
@@ -2495,11 +2498,12 @@ function getPlayerStats() {
     if (totalIntelligence > 0) { addStatToBucket(reward, 'energyShield', totalIntelligence * 2); addStatToBucket(reward, 'elementalPctDmg', Math.floor(totalIntelligence / 10)); }
     // 정확도: 기본치 + 레벨 성장 + 민첩 파생 + 장비/패시브의 정확도 옵션. 적 회피 '수치'를 상쇄한다.
     let playerAccuracy = 200 + Math.max(1, Math.floor(game.level || 1)) * 10 + totalDexterity * 2 + Math.max(0, sumStatAcrossBuckets('accuracy'));
-    // 플라스크 지속 효과(유틸리티 2슬롯): 활성 시간 동안 각 버프를 버킷에 반영 — 스탯 툴팁에도 잡힌다.
+    // 플라스크 지속 효과(유틸리티 슬롯): 활성 시간 동안 각 버프를 버킷에 반영 — 스탯 툴팁에도 잡힌다.
+    // 현재 허리띠(스탯 미리보기 중이면 미리보기 대상 허리띠)가 지원하는 슬롯 수만큼만 반영한다.
     let flaskState = (typeof ensureFlaskState === 'function') ? ensureFlaskState() : null;
     if (flaskState && Array.isArray(flaskState.utils)) {
         let nowFlask = Date.now();
-        flaskState.utils.forEach(u => {
+        flaskState.utils.slice(0, getMaxFlaskUtilitySlotCount()).forEach(u => {
             if (!u || (u.until || 0) <= nowFlask) return;
             let flaskDef = (typeof FLASK_UTILITY_POOL !== 'undefined' && FLASK_UTILITY_POOL[u.key]) || {};
             if (flaskDef.armorPct) addStatToBucket(reward, 'armorPct', flaskDef.armorPct);

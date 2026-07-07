@@ -6080,7 +6080,9 @@ function updateCombatUI(pStats) {
                 let shortName = healDef.name.replace(' 플라스크', '');
                 flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#7fd99a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'heal','${healDef.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${shortName} ${remain}s</span>`);
             }
-            (flaskSt.utils || []).forEach(u => {
+            // 현재 허리띠가 지원하는 슬롯 수만큼만 표시(초과분은 배열엔 남아있지만 비활성).
+            let maxUtilSlotsForDisplay = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : (flaskSt.utils || []).length;
+            (flaskSt.utils || []).slice(0, maxUtilSlotsForDisplay).forEach(u => {
                 if (!u || (u.until || 0) <= flaskNow) return;
                 let def = FLASK_UTILITY_POOL[u.key];
                 if (!def) return;
