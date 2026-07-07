@@ -575,9 +575,12 @@ function renderTabCategoryBar() {
     let active = getActiveTabGroup();
     let unlocks = game.unlocks || {};
     bar.innerHTML = getOrderedTabGroups().map(group => {
-        // 그룹 내 알림 점 집계.
+        // 그룹 내 알림 점 집계. 잠긴(미해금) 탭은 열어서 알림을 끌 방법이 없으므로,
+        // 저장 데이터에 남은 stale 알림이 그룹 점을 영구히 켜지 않도록 집계에서 제외한다.
         let hasNoti = group.key !== active && group.tabs.some(id => {
             let key = id.replace('tab-', '');
+            let gate = (typeof TAB_UNLOCK_GATES !== 'undefined') ? TAB_UNLOCK_GATES[id] : null;
+            if (gate && !(game.unlocks && game.unlocks[gate])) return false;
             return game.noti && game.noti[key] && isNotiEnabled(key);
         });
         return `<button class="tab-category-btn${group.key === active ? ' active' : ''}" draggable="true" ondragstart="onTabGroupDragStart(event,'${group.key}')" ondragover="event.preventDefault()" ondrop="onTabGroupDrop(event,'${group.key}')" onclick="selectTabGroup('${group.key}')">${group.label}${hasNoti ? ' <span class="noti-dot" style="display:inline-block; position:static; margin-left:2px;"></span>' : ''}</button>`;
@@ -951,7 +954,10 @@ function switchTab(tabId) {
         renderTabCategoryBar();
     }
     if (tabId === 'tab-codex' && game.noti && game.noti.codex) game.codexFocusNewOnOpen = true;
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    // 알림 키 전체(TAB_HEADER_NOTI_KEYS)를 대상으로 해제한다. 과거에 하드코딩 목록에서
+    // 'jewel'이 빠져 있어 주얼 탭을 방문해도 알림이 꺼지지 않았고, 저장 데이터에 true로
+    // 남아 장비 상위탭 그룹 점이 영구히 켜져 있는 문제가 있었다.
+    TAB_HEADER_NOTI_KEYS.concat(['talent']).forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     if (tabId === 'tab-map') acknowledgeMapMainAlarm();
     // 도감 탭에서 다른 탭으로 벗어날 때, 신규 등록 강조를 해제(처음 열었을 때만 강조).
     if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
