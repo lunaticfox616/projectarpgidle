@@ -2635,6 +2635,57 @@ function beginStarWedgeSocketSelection(wedgeId) {
     updateStaticUI();
 }
 
+
+/**
+ * Returns inactive node ids required to connect and activate the target by the shortest available route.
+ * @param {string} targetNodeId
+ * @returns {string[]}
+ */
+function getPassiveActivationPath(targetNodeId) {
+    if (!game || !targetNodeId || !isPassiveNodeAvailable(targetNodeId)) return [];
+    let owned = new Set((game.passives || []).filter(id => isPassiveNodeAvailable(id)));
+    if (owned.has(targetNodeId)) return [];
+    if (!owned.has('n0') && isPassiveNodeAvailable('n0')) owned.add('n0');
+
+    let queue = Array.from(owned);
+    let previous = new Map(queue.map(id => [id, null]));
+    let passiveEdges = Array.isArray(PASSIVE_TREE.edges) ? PASSIVE_TREE.edges : [];
+    while (queue.length > 0 && !previous.has(targetNodeId)) {
+        let current = queue.shift();
+        passiveEdges.forEach(edge => {
+            let next = null;
+            if (edge.from === current) next = edge.to;
+            else if (edge.to === current) next = edge.from;
+            if (!next || previous.has(next) || !isPassiveNodeAvailable(next)) return;
+            previous.set(next, current);
+            queue.push(next);
+        });
+    }
+    if (!previous.has(targetNodeId)) return [];
+
+    let path = [];
+    let current = targetNodeId;
+    while (current && !owned.has(current)) {
+        path.push(current);
+        current = previous.get(current);
+    }
+    return path.reverse();
+}
+
+function activatePassivePath(targetNodeId, options) {
+    let path = getPassiveActivationPath(targetNodeId);
+    if (path.length === 0) return { activated: false, cost: 0, path: [] };
+    if (Math.max(0, Math.floor(game.passivePoints || 0)) < path.length) {
+        return { activated: false, cost: path.length, path: path.slice(), reason: 'points' };
+    }
+    path.forEach(nodeId => {
+        if (!(game.passives || []).includes(nodeId)) game.passives.push(nodeId);
+        revealAroundNode(nodeId, { forcePulse: !options || options.forcePulseNodeId === nodeId });
+    });
+    game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) - path.length);
+    return { activated: true, cost: path.length, path: path.slice() };
+}
+
 function calculateReachableNodes() {
     reachableNodes.clear();
     if (isPassiveNodeAvailable('n0')) reachableNodes.add('n0');

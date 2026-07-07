@@ -9030,8 +9030,10 @@ function setupCanvasEvents() {
             }
             return;
         }
-        let canActivate = !(game.passives || []).includes(hoverNode.id) && reachableNodes.has(hoverNode.id);
-        if (!canActivate) {
+        let activationPath = getPassiveActivationPath(hoverNode.id);
+        let canActivate = activationPath.length === 1 && reachableNodes.has(hoverNode.id);
+        let canPathActivate = activationPath.length > 1;
+        if (!canActivate && !canPathActivate) {
             if ((game.passives || []).includes(hoverNode.id)) {
                 if (hoverNode.kind === 'void') {
                     pendingTouchPassiveId = null;
@@ -9055,11 +9057,12 @@ function setupCanvasEvents() {
             if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
             return addLog("연결된 노드가 아니라 활성화할 수 없습니다.", "attack-monster");
         }
-        if (game.passivePoints <= 0) {
+        let pointCost = activationPath.length;
+        if (game.passivePoints < pointCost) {
             if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) renderPassiveTooltip(hoverNode, options.clientX, options.clientY);
-            return addLog("패시브 포인트가 부족합니다.", "attack-monster");
+            return addLog(`패시브 포인트가 부족합니다. (필요: ${pointCost})`, "attack-monster");
         }
-        if (options.fromTouch && canActivate) {
+        if (options.fromTouch && (canActivate || canPathActivate)) {
             let now = Date.now();
             if (pendingTouchPassiveId !== hoverNode.id || (now - pendingTouchPassiveAt) > 1200) {
                 pendingTouchPassiveId = hoverNode.id;
@@ -9069,15 +9072,17 @@ function setupCanvasEvents() {
                 return;
             }
         }
-        if (canActivate) {
+        if (canActivate || canPathActivate) {
+            if (canPathActivate && !confirm(`최단 경로로 패시브 포인트 ${pointCost}점을 소모하여 활성화하시겠습니까?`)) return;
             pendingTouchPassiveId = null;
-            game.passives.push(hoverNode.id);
-            game.passivePoints--;
-            revealAroundNode(hoverNode.id, { forcePulse: true });
+            let activationResult = activatePassivePath(hoverNode.id, { forcePulseNodeId: hoverNode.id });
+            if (!activationResult.activated) return;
             unlockPassiveStarEvolution();
             tickShrineState();
             calculateReachableNodes();
-            addLog(`🌟 ${getPassiveNodeDisplayName(hoverNode)} 활성화!`, "loot-magic");
+            let nodeName = getPassiveNodeDisplayName(hoverNode);
+            let routeText = canPathActivate ? ` (최단 경로 ${pointCost}개 노드)` : '';
+            addLog(`🌟 ${nodeName} 활성화!${routeText}`, "loot-magic");
             updateStaticUI();
         }
     }
