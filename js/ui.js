@@ -6072,22 +6072,25 @@ function updateCombatUI(pStats) {
             let flaskNow = Date.now();
             let flaskSt = ensureFlaskState();
             let flaskParts = [];
+            // 효과 줄은 공간이 좁으므로 '플라스크' 단어를 빼고 짧게 표시한다(예: '생명력 플라스크 I' → '생명력 I').
             let healDef = getFlaskHealDef(flaskSt.healTier);
             if ((flaskSt.healOverTimeUntil || 0) > flaskNow) {
                 let remain = Math.ceil((flaskSt.healOverTimeUntil - flaskNow) / 1000);
-                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#7fd99a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'heal','${healDef.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${healDef.name} ${remain}s</span>`);
+                let shortName = healDef.name.replace(' 플라스크', '');
+                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#7fd99a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'heal','${healDef.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${shortName} ${remain}s</span>`);
             }
             (flaskSt.utils || []).forEach(u => {
                 if (!u || (u.until || 0) <= flaskNow) return;
                 let def = FLASK_UTILITY_POOL[u.key];
                 if (!def) return;
                 let remain = Math.ceil((u.until - flaskNow) / 1000);
-                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#ffd27a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'util','${u.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${def.name} ${remain}s</span>`);
+                let shortName = def.name.replace(' 플라스크', '');
+                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#ffd27a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'util','${u.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${shortName} ${remain}s</span>`);
             });
             flaskBuffText = flaskParts.join(' · ');
         }
         let effectGroupText = [guardWarcryText, flaskBuffText].filter(Boolean).join(' · ');
-        let ailmentText = [text, effectGroupText ? `효과: ${effectGroupText}` : ''].filter(Boolean).join(' · ');
+        let ailmentText = [text, effectGroupText].filter(Boolean).join(' · ');
         // 데스크톱에서 터치 디바이스 플래그가 잡히더라도 상태 표시를 숨기지 않도록
         // 화면 너비 기준으로만 모바일 UI 분기를 판단한다.
         let isMobile = !!(window.matchMedia && window.matchMedia('(max-width: 1080px)').matches);

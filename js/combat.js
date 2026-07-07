@@ -1373,10 +1373,17 @@ function tickFlaskAutoUse(pStats) {
     let hpCap = Math.max(1, Math.floor(pStats.maxHp || 1));
     let now = Date.now();
     let healDef = getFlaskHealDef(st.healTier);
-    // 회복 발동: HP가 임계 이하이고 현재 지속 회복이 없을 때, durationMs 동안 총 healPct%를 나눠 회복.
+    let inCombat = (game.enemies || []).some(e => e && e.hp > 0);
+    // 전투가 끝나면(살아있는 적이 없으면) 발동 중인 플라스크 효과를 즉시 종료한다.
+    // 자연 만료를 기다리게 두면 다음 조우로 넘어갈 때까지 버프가 남아있게 되어 버린다.
+    if (!inCombat) {
+        if (st.healOverTimeUntil > now) { st.healOverTimeUntil = now; st.healOverTimePerSec = 0; }
+        st.utils.forEach(u => { if (u && (u.until || 0) > now) u.until = now; });
+    }
+    // 회복 발동: 전투 중이고 HP가 임계 이하이고 현재 지속 회복이 없을 때, durationMs 동안 총 healPct%를 나눠 회복.
     // 전투 중 자주 반복되어 로그로 띄우면 스팸이 되므로, 발동 여부는 캐릭터 효과 줄(HP 바 아래)에
     // 아이콘으로 표시하고 상세 정보는 그 커스텀 툴팁(showPlayerFlaskTooltip)에서 보여준다.
-    if (st.healCharges > 0 && st.healOverTimeUntil <= now && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= healDef.autoBelowHpPct) {
+    if (inCombat && st.healCharges > 0 && st.healOverTimeUntil <= now && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= healDef.autoBelowHpPct) {
         st.healCharges--;
         let durSec = Math.max(0.5, (healDef.durationMs || 4000) / 1000);
         let totalHeal = Math.max(1, Math.floor(hpCap * healDef.healPct / 100));
@@ -1389,7 +1396,6 @@ function tickFlaskAutoUse(pStats) {
         game.playerHp = Math.min(hpCap, game.playerHp + tick);
     }
     // 유틸리티 자동 발동: 충전이 있고 버프가 꺼져 있으며 전투 중이면. (마찬가지로 로그 대신 효과 줄에 표시)
-    let inCombat = (game.enemies || []).some(e => e && e.hp > 0);
     st.utils.forEach(u => {
         let def = FLASK_UTILITY_POOL[u.key];
         if (u.charges > 0 && u.until <= now && inCombat) {
