@@ -85,11 +85,16 @@ function socialRarityColor(rarity) {
 // 스냅샷 빌드(장비/주얼/부적) — 옵션에 티어·롤범위 포함
 // ============================================================================
 function snapStat(st) {
-    return { id: st.id || st.stat, val: st.val, statName: st.statName, tier: st.tier, valMin: st.valMin, valMax: st.valMax };
+    let o = { id: st.id || st.stat, val: st.val, statName: st.statName, tier: st.tier, valMin: st.valMin, valMax: st.valMax };
+    // 특수 표기 플래그도 보존한다: 특출 베이스(✦), 고정 옵션(벌꿀/균열 — 제작에서 제거 불가), 융합 계승 옵션.
+    if (st.exceptional) o.exceptional = true;
+    if (st.lockedByHoney || st.lockedByRift) o.locked = true;
+    if (st.fusedFromRare) o.fusedFromRare = true;
+    return o;
 }
 function buildItemSnapshot(item, slotOverride) {
     if (!item) return null;
-    return {
+    let snap = {
         slot: slotOverride || item.slot || '',
         name: item.name || '',
         rarity: item.rarity || 'normal',
@@ -103,6 +108,21 @@ function buildItemSnapshot(item, slotOverride) {
             return o;
         })
     };
+    // 특수 상태: 봉인(나무꾼의 손길), 고유 융합 유물, 혼돈 주입, 잠식 — 실제 툴팁과 동일하게 노출.
+    if (item.loopSealed) snap.loopSealed = true;
+    if (item.fusedRelic) {
+        snap.fusedRelic = true;
+        snap.fusionGrade = item.fusionGrade || '';
+        snap.fusedRareName = item.fusedRareName || '';
+    }
+    if (item.chaosInfusion) snap.chaosInfusion = snapStat(item.chaosInfusion);
+    if (item.encroached) {
+        snap.encroached = {
+            liberated: !!item.encroached.liberated,
+            chosen: (item.encroached.liberated && item.encroached.chosen) ? snapStat(item.encroached.chosen) : null
+        };
+    }
+    return snap;
 }
 function buildJewelSnapshot(jewel) {
     if (!jewel) return null;
@@ -189,7 +209,7 @@ function buildProfileSnapshot() {
     for (let i = 0; i < W * H; i++) { let id = board[i]; if (id != null && idToIndex[id] != null) talBoard[i] = idToIndex[id]; }
 
     return {
-        version: 3,
+        version: 4,
         nickname: getMyNickname(),
         level: (typeof game !== 'undefined' && game.level) ? game.level : 1,
         ascendClass: (typeof game !== 'undefined') ? (game.ascendClass || '') : '',
@@ -668,7 +688,11 @@ function socialStatLineHtml(st, opts) {
     }
     let cls = opts.base ? 'social-item-stat base' : 'social-item-stat';
     let colorStyle = opts.base ? '' : `style="color:${tone};"`;
-    return `<div class="${cls}" ${colorStyle}>${socialEscape(name)} +${socialEscape(val)}${tierHtml}${range}</div>`;
+    // 특수 표기: 고정 옵션(제작 제거 불가), 융합 계승 옵션, 특출 베이스(✦+20%).
+    let lockMark = st.locked ? `<span style="color:#ffd166;font-weight:700;">[고정] </span>` : '';
+    let fusedMark = st.fusedFromRare ? `<span style="color:#8fd8ff;">⌛</span> ` : '';
+    let exMark = st.exceptional ? ` <span style="color:#ffb454;font-weight:700;">✦+20%</span>` : '';
+    return `<div class="${cls}" ${colorStyle}>${lockMark}${fusedMark}${socialEscape(name)} +${socialEscape(val)}${tierHtml}${range}${exMark}</div>`;
 }
 function renderProfileItemCard(item) {
     if (!item) return '';
@@ -680,12 +704,31 @@ function renderProfileItemCard(item) {
         lines += socialStatLineHtml(st, {});
         (st.extraStats || []).forEach(ex => { lines += socialStatLineHtml(ex, {}); });
     });
+    // 혼돈 주입 옵션(별도 필드) — 실제 툴팁처럼 [주입] 접두사로 표시.
+    let statLabel = st => st.statName || (typeof getStatName === 'function' ? getStatName(st.id) : st.id) || st.id;
+    if (item.chaosInfusion) {
+        lines += socialStatLineHtml({ ...item.chaosInfusion, statName: `[주입] ${statLabel(item.chaosInfusion)}` }, {});
+    }
+    // 잠식 특수 옵션 — 해방 후에만 실제 옵션이 붙는다.
+    if (item.encroached) {
+        lines += item.encroached.chosen
+            ? socialStatLineHtml({ ...item.encroached.chosen, statName: `[잠식] ${statLabel(item.encroached.chosen)}` }, {})
+            : `<div class="social-item-stat" style="color:#8d7bb3;">[잠식] 해방 전 — 효과 없음</div>`;
+    }
     let unique = item.uniqueEffect ? `<div class="social-item-unique">✨ ${socialEscape(item.uniqueEffect)}</div>` : '';
     let corrupt = item.corrupted ? ` <span style="color:#e74c3c;">(타락)</span>` : '';
+    let encroachBadge = item.encroached ? ` <span style="color:#b084ff;">(잠식)</span>` : '';
+    let sealBadge = item.loopSealed ? ` <span style="color:#7fd99a;">🌿봉인</span>` : '';
+    // 고유 융합 유물(시간의 균열): 융합 등급 + 계승 원본 표시.
+    let fusion = '';
+    if (item.fusedRelic) {
+        let gradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
+        fusion = `<div class="social-item-stat" style="color:#8fd8ff;">⌛ ${gradeLabel}${item.fusedRareName ? ` · [${socialEscape(item.fusedRareName)}]의 기억` : ''}</div>`;
+    }
     return `<div class="social-item-card" style="border-color:${color};">`
-        + `<div class="social-item-title" style="color:${color};">${item.slot ? `[${socialEscape(item.slot)}] ` : ''}${socialEscape(item.name)}${corrupt}</div>`
+        + `<div class="social-item-title" style="color:${color};">${item.slot ? `[${socialEscape(item.slot)}] ` : ''}${socialEscape(item.name)}${encroachBadge}${corrupt}${sealBadge}</div>`
         + (item.baseName ? `<div class="social-item-base">${socialEscape(item.baseName)}</div>` : '')
-        + unique + lines + `</div>`;
+        + fusion + unique + lines + `</div>`;
 }
 function renderSimpleCard(snap) {
     let color = socialRarityColor(snap.rarity);
