@@ -504,6 +504,11 @@ function changeZone(id) {
             let remainingRivals = zone.requiresRivals.filter(rivalId => !killedRivals.includes(rivalId)).length;
             if (remainingRivals > 0) return addLog(`완성작은 이번 루프에 다섯 날을 모두 꺾어야 모습을 드러냅니다. (남은 날: ${remainingRivals}개)`, 'attack-monster');
         }
+        if (Array.isArray(zone.requiresCosmosBosses)) {
+            let clearedBosses = (game.cosmosAtlas && Array.isArray(game.cosmosAtlas.bossClears)) ? game.cosmosAtlas.bossClears : [];
+            let remainingBosses = zone.requiresCosmosBosses.filter(bossId => !clearedBosses.includes(bossId)).length;
+            if (remainingBosses > 0) return addLog(`오성 잔향체는 이번 루프에 다섯 은하 보스를 모두 꺾어야 모습을 드러냅니다. (남은 은하 보스: ${remainingBosses}개)`, 'attack-monster');
+        }
         if ((game.currencies[zone.key] || 0) <= 0) return addLog(`입장 열쇠(${ORB_DB[zone.key].name})가 필요합니다.`, 'attack-monster');
         game.currencies[zone.key]--;
         game.inTicketBossFight = true;

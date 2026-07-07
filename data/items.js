@@ -113,7 +113,8 @@ const UNIQUE_DB = [
     { name: "사건의 지평선", slots: ["목걸이"], reqTier: 20, ultraRare: true, dropOnly: { type: 'cosmos' }, uniqueEffect: "모든 젬 레벨 +5", uniqueEffectKey: "uniqueGemLevelBonus", uniqueEffectParams: { level: 5 }, stats: [{ id: "gemLevel", min: 5, max: 5 }, { id: "suppCap", min: 2, max: 2 }, { id: "resPen", min: 14, max: 22 }, { id: "critDmg", min: 80, max: 110 }, { id: "resAll", min: 18, max: 28 }, { id: "energyShield", min: 180, max: 260 }] },
     { name: "만화경", slots: ["방패"], reqTier: 20, ultraRare: true, dropOnly: { type: 'chaosRealm' }, uniqueEffect: "추가 옵션 0개로 드랍, 모든 부위 옵션 등장 가능, 추가 옵션 6개 이하이면 타락의 오브 계속 사용 가능, 모든 추가 옵션 효과 2배", uniqueEffectKey: "kaleidoscopeShield", uniqueEffectParams: { explicitStatMultiplier: 2, allowAllSlotMods: true, taintedMaxOptions: 6 }, stats: [] },
     { name: "무한한 허기", slots: ["허리띠"], reqTier: 20, ultraRare: true, dropOnly: { type: 'underworld' }, uniqueEffect: "정예 몬스터 처치 시 해당 적의 특성 중 하나를 30초간 획득", uniqueEffectKey: "stealEliteTrait", uniqueEffectParams: { duration: 30 }, stats: [{ id: "flatHp", min: 140, max: 210 }, { id: "pctHp", min: 24, max: 36 }, { id: "dr", min: 10, max: 16 }, { id: "resAll", min: 16, max: 24 }, { id: "move", min: 10, max: 16 }, { id: "aspd", min: 12, max: 18 }] },
-    { name: "거울 반지", slots: ["반지"], reqTier: 20, ultraRare: true, dropOnly: { type: 'cosmos' }, uniqueEffect: "반대편 반지의 모든 효과를 복사", uniqueEffectKey: "mirrorOppositeRing", stats: [] }
+    { name: "거울 반지", slots: ["반지"], reqTier: 20, ultraRare: true, dropOnly: { type: 'cosmos' }, uniqueEffect: "반대편 반지의 모든 효과를 복사", uniqueEffectKey: "mirrorOppositeRing", stats: [] },
+    { name: "아스트라의 파편", slots: ["목걸이"], reqTier: 30, ultraRare: true, dropOnly: { type: 'seasonBoss', id: 'cosmos_astra' }, uniqueEffect: "장착한 다른 고유(유니크) 장비 1개당 모든 피해 +5% (최대 8개)", uniqueEffectKey: "astraUniqueConvergence", uniqueEffectParams: { pctPerUnique: 5, capCount: 8 }, stats: [{ id: "flatHp", min: 150, max: 220 }, { id: "resAll", min: 16, max: 24 }, { id: "critDmg", min: 50, max: 75 }, { id: "resPen", min: 10, max: 16 }, { id: "energyShield", min: 100, max: 160 }] }
 ];
 
 const REALM_UNIQUE_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
@@ -528,6 +529,7 @@ const ORB_DB = {
     coreKey: { name: '코어 키', desc: '지하계에서 드물게 드랍됩니다. 카오스 키와 함께 재능 개화 시련을 여는 열쇠입니다.' },
     woodsmanTouch: { name: '나무꾼의 손길', desc: '극히 드물게 발견되는 신비한 재화입니다. 장비 하나를 봉인하여 루프(환생)가 진행되어도 초기화되지 않게 합니다.' },
     rivalKey: { name: '표식: 버려진 날', desc: '루프31+ 심층(혼돈 심화 21+·혼돈계·지하계·창공의 탑) 보스가 드랍합니다. 버려진 날붙이 결투 도전권입니다.' },
+    cosmosSovereignKey: { name: '표식: 오성 잔향', desc: '루프31+ 우주계 은하 보스가 드물게 드랍합니다. 오성 잔향체 아스트라 도전권입니다.' },
     blessing: { name: '축복의 오브', desc: '장비의 베이스 옵션 값을 80%~120% 구간에서 다시 굴립니다.' },
     bossCore: { name: '군주의 핵', desc: '루프2 뿌리 보스를 처치하면 얻는 젬 강화 재료입니다.' },
     fossil: { name: '미궁 화석', desc: '기본 화석 조각입니다. 미궁에서 다양한 타입의 화석으로 정제됩니다.' },

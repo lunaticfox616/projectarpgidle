@@ -166,7 +166,12 @@ const SEASON_BOSS_ZONES = [
       bossMods: { hpMul: 1.1, damageMul: 1.2, penetration: 12, dr: 8, resAll: 8, armorMul: 1.25, patternMode: 'slam', traitName: '역린 — 방어를 거꾸로 베는 날' } },
     { id: 'rival_masterwork', name: '일곱 번째 날 「완성작」', type: 'seasonBoss', tier: 32, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'woodsmanTouch', journalId: 'rival_masterwork', rivalBlade: true, capstoneRival: true, loopScaleExempt: true, fixedDifficultyMul: 3.2,
       requiresRivals: ['rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge'],
-      bossMods: { hpMul: 1.9, damageMul: 1.35, attackSpeedMul: 1.12, critChanceBonus: 10, dr: 10, resAll: 10, regenMul: 3, penetration: 8, firstHitGuard: 0.25, patternMode: 'ramp', traitName: '완성작 — 여섯 날의 모든 것' } }
+      bossMods: { hpMul: 1.9, damageMul: 1.35, attackSpeedMul: 1.12, critChanceBonus: 10, dr: 10, resAll: 10, regenMul: 3, penetration: 8, firstHitGuard: 0.25, patternMode: 'ramp', traitName: '완성작 — 여섯 날의 모든 것' } },
+    // 오성 잔향체 아스트라 (루프 31+): 우주계 5개 은하의 보스(하말리스/디프다르/주베누비아/주벤샤말/에니프론)를
+    // 같은 루프 안에 모두 격파해야 모습을 드러내는 우주계의 최종 관문. 다섯 보스의 정체성을 번갈아 두르며 싸운다.
+    { id: 'cosmos_astra', name: '오성 잔향체 아스트라', type: 'seasonBoss', tier: 34, key: 'cosmosSovereignKey', reqSeason: 31, ele: 'chaos', reward: 'divine', journalId: 'cosmos_astra', cosmosCapstone: true, loopScaleExempt: true, fixedDifficultyMul: 3.6,
+      requiresCosmosBosses: ['planet-45', 'planet-46', 'planet-47', 'planet-48', 'planet-49'],
+      bossMods: { hpMul: 1.6, damageMul: 1.3, attackSpeedMul: 1.1, dr: 10, resAll: 12, armorMul: 1.35, evasionMul: 1.25, regenMul: 2, penetration: 10, critChanceBonus: 12, firstHitGuard: 0.28, patternMode: 'ramp', traitName: '오성 잔향 — 다섯 별의 마지막 메아리' } }
 ];
 
 const LABYRINTH_ZONE_ID = 'labyrinth_endless';
@@ -196,10 +201,11 @@ const JOURNAL_DB = {
     rival_glutton: { title: '버려진 날 - 탐식', lines: ['“상처는 전부 내 몫이었다. 그래서 전부 삼켰다.”', '“아무는 날은 갈리지 않는다. 그는 그것을 결함이라 불렀다.”'], bonus: { stat: 'flatHp', value: 10, label: '최대 생명력 +10' } },
     rival_afterimage: { title: '버려진 날 - 잔영', lines: ['“맞지 않으면 지지 않는다고 믿었다.”', '“닿지 않는 날은, 아무것도 바꾸지 못했다.”'], bonus: { stat: 'crit', value: 1, label: '치명타 확률 +1%' } },
     rival_backedge: { title: '버려진 날 - 역린', lines: ['“나는 갑옷 안쪽부터 베었다.”', '“그는 말했다. 방식이 아니라 방향이 틀렸다고.”'], bonus: { stat: 'pctDmg', value: 1, label: '피해 +1%' } },
-    rival_masterwork: { title: '일곱 번째 날 - 완성작', lines: ['“내가 완성이라면, 너는 무엇이지.”', '“그가 끝내 손에서 놓지 않은 날이, 처음으로 물었다.”', '“…어째서 버려진 쪽이 더 날카로운가.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' } }
+    rival_masterwork: { title: '일곱 번째 날 - 완성작', lines: ['“내가 완성이라면, 너는 무엇이지.”', '“그가 끝내 손에서 놓지 않은 날이, 처음으로 물었다.”', '“…어째서 버려진 쪽이 더 날카로운가.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' } },
+    cosmos_astra: { title: '오성 잔향체 - 아스트라', lines: ['“다섯 개의 별이 사라진 자리에, 하나의 메아리가 남았다.”', '“하말리스의 굳음, 디프다르의 굶주림, 주베누비아의 저울, 주벤샤말의 심판, 에니프론의 충격.”', '“모든 것을 삼킨 별은 마지막으로 하나의 질문을 남긴다 — 너는 그 다섯 조각들보다 온전한가.”'], bonus: { stat: 'passivePoint', value: 2, label: '영구 패시브 포인트 +2' } }
 };
 
-const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'star_wedge', 'beehive_queen', 'void_grand_breach', 'immortal', 'level_200', 'passive_star_evolution', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork'];
+const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'star_wedge', 'beehive_queen', 'void_grand_breach', 'immortal', 'level_200', 'passive_star_evolution', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra'];
 
 const ABYSS_PASSIVE_NODES = [
     { key: 'power', name: '강력함', max: 20, desc: '몬스터 피해 +2%, 재화 드랍률 +1%/pt' },

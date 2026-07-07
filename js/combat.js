@@ -1784,7 +1784,7 @@ function getUniqueEffectImplementationReport() {
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
         'rollGapDamagePct','rollGapCritAndDs','crowdEvasionMore','esToLightPct','underdogNonMaxRollMorePct','instakillNormalOnHitPct','projectileExtraShotChance',
         'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmNoCollisionBlock','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
-        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing'
+        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','astraUniqueConvergence'
     ]);
     return {
         total: uniqueKeys.length,
@@ -2168,6 +2168,11 @@ function getPlayerStats() {
         }
 
         else if (effect.key === 'abyssSocketOnItem' || effect.key === 'abyssSocketAndJewelAmp') { /* handled by item generation/socket stat merge path */ }
+        else if (effect.key === 'astraUniqueConvergence') {
+            let uniqueCount = Object.values(game.equipment || {}).filter(it => it && it.rarity === 'unique').length;
+            let otherUniques = Math.min(Number(ep.capCount || 8), Math.max(0, uniqueCount - 1));
+            addStatToBucket(reward, 'pctDmg', otherUniques * Number(ep.pctPerUnique || 5));
+        }
     });
 
     recalculateStarWedgeMutations();
@@ -4689,6 +4694,26 @@ function getLoopDifficultyInputs(zone) {
     };
 }
 
+// 방어(장갑/회피) 루프 배율: 루프24까지는 기존과 동일하게 커지고(2.2 상한 도달),
+// 그 이후로도 getLoopHpScale처럼 완만하게 계속 증가한다(하드 상한 없음).
+// 기존에는 루프24 이후 완전히 동결되어, 무한히 성장하는 플레이어 관통/저항무시 스탯에
+// 보스 방어가 전혀 대응하지 못하고 "고루프 보스가 너무 쉬워지는" 원인이 되었다.
+function getLoopDefenseScale(loopCount) {
+    let loop = Math.max(0, loopCount || 0);
+    const bands = [
+        { upTo: 24, rate: 0.05 },
+        { upTo: 60, rate: 0.02 },
+        { upTo: Infinity, rate: 0.008 }
+    ];
+    let scale = 1, prevBound = 0;
+    for (let band of bands) {
+        scale += Math.max(0, Math.min(loop, band.upTo) - prevBound) * band.rate;
+        prevBound = band.upTo;
+        if (loop <= band.upTo) break;
+    }
+    return scale;
+}
+
 function getLoopHpScale(loopCount) {
     let loop = Math.max(0, loopCount || 0);
     const bands = [
@@ -4802,7 +4827,7 @@ function createEnemy(zone, marker, groupIndex) {
     let chaosResBase = resistBase;
 
     let defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
-    let defenseLoopScale = Math.min(2.2, 1 + loopInputs.loopCount * 0.05);
+    let defenseLoopScale = getLoopDefenseScale(loopInputs.loopCount);
     let baseArmor = Math.floor((18 + zone.tier * 26) * defenseTierScale * defenseLoopScale * (isBoss ? 2.2 : (isElite ? 1.6 : 1)));
     let baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * (isBoss ? 2.1 : (isElite ? 1.5 : 1)));
     let baselineResistancePressure = (game.season || 1) >= 4 ? (isBoss ? 14 : (isElite ? 8 : 3)) : 0;
@@ -4842,8 +4867,8 @@ function createEnemy(zone, marker, groupIndex) {
         recentHitsTaken: 0,
         recentHitsTimer: 0,
         patternMode: (cosmosMods && cosmosMods.patternMode) || ((game.season || 1) >= 6 && isBoss ? rndChoice(['burst', 'ramp', 'slam']) : null),
-        disableExecute: zone.type === 'outsideChaos',
-        disableHpScaleDamage: zone.type === 'outsideChaos',
+        disableExecute: zone.type === 'outsideChaos' || zone.id === 'cosmos_astra',
+        disableHpScaleDamage: zone.type === 'outsideChaos' || zone.id === 'cosmos_astra',
         traitName: trait ? trait.name : null,
         leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
         expMul: (trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1) * (cosmosExclusiveTrait && Number.isFinite(cosmosExclusiveTrait.expMul) ? Math.max(1, cosmosExclusiveTrait.expMul) : 1),
@@ -4855,6 +4880,14 @@ function createEnemy(zone, marker, groupIndex) {
         if (zoneWard.elem === 'fire') enemy.resF = Math.min(95, enemy.resF + zoneWard.strength);
         else if (zoneWard.elem === 'cold') enemy.resC = Math.min(95, enemy.resC + zoneWard.strength);
         else if (zoneWard.elem === 'light') enemy.resL = Math.min(95, enemy.resL + zoneWard.strength);
+    }
+    if (zone.id === 'cosmos_astra' && isBoss) {
+        enemy.astraBase = {
+            dr: enemy.dr, armor: enemy.armor, evasion: enemy.evasion,
+            resF: enemy.resF, resC: enemy.resC, resL: enemy.resL, resChaos: enemy.resChaos,
+            penetration: enemy.penetration, critChance: enemy.critChance,
+            atkMul: enemy.atkMul, attackSpeedVar: enemy.attackSpeedVar, regenRate: enemy.regenRate
+        };
     }
     if (cosmosMods) {
         enemy.dr = Math.min(90, Math.max(0, enemy.dr + (cosmosMods.dr || 0)));
@@ -5728,6 +5761,42 @@ function getWoodsmanPhaseProgress(enemy) {
     let finalWindow = 1 - WOODSMAN_PHASE_NEW_FINAL_PROGRESS;
     let finalProgress = (rawProgress - WOODSMAN_PHASE_NEW_FINAL_PROGRESS) / finalWindow;
     return clampNumber(WOODSMAN_PHASE_OLD_FINAL_PROGRESS + finalProgress * (1 - WOODSMAN_PHASE_OLD_FINAL_PROGRESS), 0, 1);
+}
+
+// 오성 잔향체 아스트라(cosmos_astra): 우주 5개 은하 보스를 모두 격파해야 도전할 수 있는 최종 보스.
+// 그 다섯 보스의 정체성(견고/흡수/균형/심판/충격)을 4.5초 주기로 순환하며 방어·공격 프로필이 계속 바뀐다.
+const COSMOS_ASTRA_STANCES = [
+    { name: '하말리스의 메아리 — 견고', ele: 'phys', drAdd: 20, armorMul: 1.7 },
+    { name: '디프다르의 메아리 — 흡수', ele: 'chaos', regenMul: 8, resChaosAdd: 22 },
+    { name: '주베누비아의 메아리 — 균형', ele: 'phys', resAllAdd: 18, drAdd: 8 },
+    { name: '주벤샤말의 메아리 — 심판', ele: 'light', penetrationAdd: 26, critChanceAdd: 18, atkMulMul: 1.15 },
+    { name: '에니프론의 메아리 — 충격', ele: 'fire', atkMulMul: 1.75, attackSpeedVarMul: 1.4 }
+];
+const COSMOS_ASTRA_STANCE_CYCLE_MS = 4500;
+
+function applyCosmosAstraStance(enemy) {
+    if (!enemy || !enemy.astraBase) return;
+    let base = enemy.astraBase;
+    let idx = Math.floor(Date.now() / COSMOS_ASTRA_STANCE_CYCLE_MS) % COSMOS_ASTRA_STANCES.length;
+    let stance = COSMOS_ASTRA_STANCES[idx];
+    if (enemy.astraStanceIdx !== idx) {
+        enemy.astraStanceIdx = idx;
+        addLog(`🌌 아스트라의 표식이 바뀝니다: ${stance.name}`, 'attack-monster', { noToast: true });
+    }
+    enemy.ele = stance.ele || enemy.ele;
+    enemy.dr = Math.min(90, base.dr + (stance.drAdd || 0));
+    enemy.armor = Math.floor(base.armor * (stance.armorMul || 1));
+    enemy.evasion = Math.floor(base.evasion * (stance.evasionMul || 1));
+    let resAdd = stance.resAllAdd || 0;
+    enemy.resF = Math.min(95, base.resF + resAdd);
+    enemy.resC = Math.min(95, base.resC + resAdd);
+    enemy.resL = Math.min(95, base.resL + resAdd);
+    enemy.resChaos = Math.min(95, base.resChaos + resAdd + (stance.resChaosAdd || 0));
+    enemy.penetration = base.penetration + (stance.penetrationAdd || 0);
+    enemy.critChance = base.critChance + (stance.critChanceAdd || 0);
+    enemy.atkMul = base.atkMul * (stance.atkMulMul || 1);
+    enemy.attackSpeedVar = base.attackSpeedVar * (stance.attackSpeedVarMul || 1);
+    enemy.regenRate = base.regenRate * (stance.regenMul || 1);
 }
 
 function startEncounterRun() {
@@ -6835,11 +6904,20 @@ function finishEncounterRun() {
                 else addLog('🗡️ 다섯 날이 모두 꺾였습니다. 「일곱 번째 날 - 완성작」이 결투를 기다립니다.', 'loot-unique');
             }
         }
-        if (Math.random() < 0.5) awardCurrency(zone.reward || 'bossCore', 1);
-        if (Math.random() < 0.4) {
-            let bossUnique = generateUniqueItem(zone.tier || 12);
-            addItemToInventory(bossUnique);
-            addLog(`👑 [${bossUnique.name}] 획득!`, 'loot-unique');
+        if (zone.cosmosCapstone) {
+            if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
+            addLog('🌌 오성 잔향체가 흩어졌습니다. 다섯 별의 메아리가 마침내 잠잠해집니다.', 'loot-unique');
+            awardCurrency(zone.reward || 'divine', 2);
+            let astraUnique = generateUniqueItem(zone.tier || 34, null, '아스트라의 파편');
+            addItemToInventory(astraUnique);
+            addLog(`👑 [${astraUnique.name}] 획득!`, 'loot-unique');
+        } else {
+            if (Math.random() < 0.5) awardCurrency(zone.reward || 'bossCore', 1);
+            if (Math.random() < 0.4) {
+                let bossUnique = generateUniqueItem(zone.tier || 12);
+                addItemToInventory(bossUnique);
+                addLog(`👑 [${bossUnique.name}] 획득!`, 'loot-unique');
+            }
         }
         addLog(`🗝️ [${zone.name}] 토벌 완료!`, 'loot-unique');
         let shouldRepeat = !!game.autoRepeatSeasonBoss;
@@ -8299,6 +8377,7 @@ function performMonsterAttacks(pStats) {
         enemy.attackTimer += 0.1 * atkRate;
         while (enemy.attackTimer >= 1) {
             if (zone && zone.type === 'cosmos') applyCosmosBossPlayerDebuff(enemy);
+            if (zone && zone.id === 'cosmos_astra' && enemy.isBoss) applyCosmosAstraStance(enemy);
             if (zone.type === 'outsideChaos') {
                 enemy.nextCurseAt = Number.isFinite(enemy.nextCurseAt) ? enemy.nextCurseAt : 0;
                 if (Date.now() >= enemy.nextCurseAt) {
