@@ -765,12 +765,15 @@ body.light-mode .tab-category-btn.active {
   background: #ffffff;
   color: #1e5aa5;
 }
-/* Flask equipment cards mirror the compact equipment-slot presentation. */
+/* Flask equipment cards mirror the compact equipment-slot presentation.
+   Slot count varies with the equipped belt (1 heal + 0~4 utility), so the grid
+   auto-fits instead of assuming a fixed column count. */
 .flask-paperdoll {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
 }
+.flask-slot-box.empty-hint { border-style: dashed; opacity: 0.85; }
 .flask-slot-box {
   min-height: 96px;
   border: 1px solid #2f4560;
