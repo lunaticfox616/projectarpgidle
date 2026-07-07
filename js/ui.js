@@ -7098,35 +7098,12 @@ function renderFlaskPanel() {
     if (!host || typeof ensureFlaskState !== 'function' || typeof FLASK_HEAL_TIERS === 'undefined') return;
     let st = ensureFlaskState();
     let now = Date.now();
-    let lvl = Math.max(1, Math.floor(game.level || 1));
     let found = typeof ensureFlaskFoundKeys === 'function' ? ensureFlaskFoundKeys() : (st.foundKeys || []);
     let healDef = getFlaskHealDef(st.healTier);
     let healActive = (st.healOverTimeUntil || 0) > now;
-    // 회복 티어 선택 드롭다운(레벨 미달 또는 아직 발견하지 못한 티어는 잠금 표시).
-    let healOptions = FLASK_HEAL_TIERS.map(t => {
-        let levelLocked = lvl < t.reqLevel;
-        let undiscovered = !levelLocked && !found.includes(t.key);
-        let locked = levelLocked || undiscovered;
-        let lockLabel = levelLocked ? ` (Lv.${t.reqLevel})` : (undiscovered ? ' (미발견)' : '');
-        return `<option value="${t.key}" ${t.key === st.healTier ? 'selected' : ''} ${locked ? 'disabled' : ''}>${t.name} · ${t.healPct}%/${Math.round(t.durationMs / 1000)}초${lockLabel}</option>`;
-    }).join('');
-    // 유틸리티 2슬롯: 종류별로 묶어 단계(레벨/미발견 잠금)를 선택. 같은 종류는 다른 슬롯과 중복 장착 불가.
+    // 유틸리티 2슬롯 표시(선택은 오버레이 — openFlaskPickerOverlay).
     let utilSlots = [0, 1].map(idx => {
         let cur = st.utils[idx];
-        let opts = `<option value="">(비어 있음)</option>` + FLASK_UTILITY_CATEGORIES.map(cat => {
-            let usedElsewhere = st.utils.some((u, i) => u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === cat.category && i !== idx);
-            let tierOptions = FLASK_UTILITY_TIER_REQ_LEVELS.map((reqLevel, tierIdx) => {
-                let key = `${cat.category}${tierIdx + 1}`;
-                let def = FLASK_UTILITY_POOL[key];
-                let levelLocked = lvl < reqLevel;
-                let undiscovered = !levelLocked && !found.includes(key);
-                let locked = usedElsewhere || levelLocked || undiscovered;
-                let lockLabel = levelLocked ? ` (Lv.${reqLevel})` : (undiscovered ? ' (미발견)' : (usedElsewhere ? ' (사용 중)' : ''));
-                let sel = cur && cur.key === key ? 'selected' : '';
-                return `<option value="${key}" ${sel} ${locked ? 'disabled' : ''}>${def.name}${lockLabel}</option>`;
-            }).join('');
-            return `<optgroup label="${cat.label}">${tierOptions}</optgroup>`;
-        }).join('');
         let def = cur ? FLASK_UTILITY_POOL[cur.key] : null;
         let active = cur && (cur.until || 0) > now;
         let status = cur ? `충전 ${cur.charges}/${def.maxCharges}${active ? ` · 발동 ${Math.ceil((cur.until - now) / 1000)}초` : ''}` : '비어 있음';
@@ -7134,7 +7111,7 @@ function renderFlaskPanel() {
             <div class="flask-slot-label">유틸리티 ${idx + 1}</div>
             <div class="flask-slot-name">${def ? def.name : '빈 플라스크 슬롯'}</div>
             <div class="flask-slot-status">${status}</div>
-            <select class="flask-slot-select" onchange="equipUtilityFlask(${idx}, this.value)" title="${def ? def.desc : '유틸리티 플라스크 선택'}">${opts}</select>
+            <button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('utility', ${idx})" title="${def ? def.desc : '유틸리티 플라스크 선택'}">변경</button>
         </div>`;
     }).join('');
     let undiscoveredCount = FLASK_HEAL_TIERS.filter(t => !found.includes(t.key)).length + Object.keys(FLASK_UTILITY_POOL).filter(key => !found.includes(key)).length;
@@ -7143,12 +7120,101 @@ function renderFlaskPanel() {
             <div class="flask-slot-label">회복</div>
             <div class="flask-slot-name">${healDef.name}</div>
             <div class="flask-slot-status">충전 ${st.healCharges}/${healDef.maxCharges}${healActive ? ` · 회복 ${Math.ceil((st.healOverTimeUntil - now) / 1000)}초` : ''}</div>
-            <select class="flask-slot-select" onchange="selectHealFlaskTier(this.value)">${healOptions}</select>
+            <button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('heal')">변경</button>
         </div>
         ${utilSlots}
     </div>
     <div class="flask-help-text">전투 중 몬스터를 처치하면 낮은 확률로 새 플라스크를 발견합니다. 발견한 플라스크만 슬롯에 장착할 수 있습니다(남은 미발견 플라스크 ${undiscoveredCount}종). 장착한 플라스크는 처치로 충전됩니다. 회복 플라스크는 생명력 ${healDef.autoBelowHpPct}% 이하 시 ${Math.round(healDef.durationMs / 1000)}초간 지속 회복, 유틸리티 2종은 전투 중 자동 발동합니다.</div>`;
 }
+
+// 플라스크 선택 오버레이: 스크롤 드롭다운 대신 카드 그리드로 고른다. 발견하지 못했거나
+// 레벨 미달인 플라스크, 다른 슬롯에 이미 장착된 같은 종류의 유틸리티 플라스크는
+// 비활성(disabled) 처리되어 선택할 수 없다 — 오직 발견한 플라스크만 활성화된다.
+function openFlaskPickerOverlay(kind, slotIndex) {
+    if (typeof ensureFlaskState !== 'function') return;
+    let st = ensureFlaskState();
+    let lvl = Math.max(1, Math.floor(game.level || 1));
+    let found = typeof ensureFlaskFoundKeys === 'function' ? ensureFlaskFoundKeys() : (st.foundKeys || []);
+    let idx = Math.max(0, Math.min(1, Math.floor(slotIndex || 0)));
+    let old = document.getElementById('flask-picker-overlay');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+
+    let overlay = document.createElement('div');
+    overlay.id = 'flask-picker-overlay';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(5,8,14,0.74); display:flex; align-items:center; justify-content:center; z-index:9999; padding:16px;';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    let panel = document.createElement('div');
+    panel.style.cssText = 'width:min(560px, 94vw); max-height:86vh; overflow-y:auto; border:1px solid #405a8f; border-radius:12px; background:linear-gradient(160deg, #182544, #0f1629); padding:14px; box-shadow:0 12px 28px rgba(0,0,0,0.45);';
+
+    let title = kind === 'heal' ? '🧪 회복 플라스크 선택' : `🧪 유틸리티 플라스크 선택 (슬롯 ${idx + 1})`;
+    let header = document.createElement('div');
+    header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;';
+    header.innerHTML = `<div style="font-size:17px; font-weight:700; color:#e5efff;">${title}</div><button type="button" id="flask-picker-close" style="background:#22365e; color:#d6e4ff; border:1px solid #4669a9; border-radius:8px; padding:4px 9px; cursor:pointer;">닫기</button>`;
+    panel.appendChild(header);
+    panel.insertAdjacentHTML('beforeend', `<div style="color:#9fb4d1; font-size:12.5px; margin-bottom:10px;">발견한 플라스크만 선택할 수 있습니다. 잠긴 카드는 전투 중 처치로 발견해야 합니다.</div>`);
+
+    function makeOptionButton(opts) {
+        let btn = document.createElement('button');
+        btn.type = 'button';
+        btn.disabled = opts.locked;
+        let borderColor = opts.selected ? '#89a7ff' : '#3f547f';
+        let bgColor = opts.selected ? '#304f91' : '#1d2e4f';
+        let textColor = opts.locked ? '#5d6d86' : (opts.selected ? '#ffffff' : '#d6e3ff');
+        btn.style.cssText = `text-align:left; padding:10px; border-radius:9px; border:1px solid ${borderColor}; background:${opts.locked ? '#141d2c' : bgColor}; color:${textColor}; cursor:${opts.locked ? 'not-allowed' : 'pointer'}; font-weight:700;`;
+        let subColor = opts.locked ? '#5d6d86' : '#b7c6df';
+        btn.innerHTML = `${opts.name}${opts.selected ? ' ✓' : ''}<br><span style="font-weight:400; font-size:0.78em; color:${subColor};">${opts.desc}${opts.lockLabel ? ` · ${opts.lockLabel}` : ''}</span>`;
+        if (!opts.locked) btn.onclick = () => { opts.onSelect(); overlay.remove(); };
+        return btn;
+    }
+
+    let body = document.createElement('div');
+    if (kind === 'heal') {
+        let grid = document.createElement('div');
+        grid.style.cssText = 'display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px;';
+        FLASK_HEAL_TIERS.forEach(t => {
+            let levelLocked = lvl < t.reqLevel;
+            let undiscovered = !levelLocked && !found.includes(t.key);
+            grid.appendChild(makeOptionButton({
+                name: t.name,
+                desc: `${t.healPct}%/${Math.round(t.durationMs / 1000)}초`,
+                locked: levelLocked || undiscovered,
+                lockLabel: levelLocked ? `Lv.${t.reqLevel} 필요` : (undiscovered ? '미발견' : ''),
+                selected: st.healTier === t.key,
+                onSelect: () => selectHealFlaskTier(t.key)
+            }));
+        });
+        body.appendChild(grid);
+    } else {
+        FLASK_UTILITY_CATEGORIES.forEach(cat => {
+            body.insertAdjacentHTML('beforeend', `<div style="color:#9fb4d1; font-size:0.86em; font-weight:700; margin:10px 0 6px;">${cat.label}</div>`);
+            let grid = document.createElement('div');
+            grid.style.cssText = 'display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px;';
+            FLASK_UTILITY_TIER_REQ_LEVELS.forEach((reqLevel, tierIdx) => {
+                let key = `${cat.category}${tierIdx + 1}`;
+                let def = FLASK_UTILITY_POOL[key];
+                let usedElsewhere = st.utils.some((u, i) => u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === cat.category && i !== idx);
+                let levelLocked = lvl < reqLevel;
+                let undiscovered = !levelLocked && !found.includes(key);
+                grid.appendChild(makeOptionButton({
+                    name: def.name,
+                    desc: def.desc,
+                    locked: usedElsewhere || levelLocked || undiscovered,
+                    lockLabel: levelLocked ? `Lv.${reqLevel} 필요` : (undiscovered ? '미발견' : (usedElsewhere ? '다른 슬롯 장착 중' : '')),
+                    selected: !!(st.utils[idx] && st.utils[idx].key === key),
+                    onSelect: () => equipUtilityFlask(idx, key)
+                }));
+            });
+            body.appendChild(grid);
+        });
+    }
+    panel.appendChild(body);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    let closeBtn = panel.querySelector('#flask-picker-close');
+    if (closeBtn) closeBtn.onclick = () => overlay.remove();
+}
+window.openFlaskPickerOverlay = openFlaskPickerOverlay;
 
 // 시간의 균열 패널: 시간압 선택 → 과거 진입 → 제단 배치 → 미래 진입.
 function renderTimeRiftPanel() {
