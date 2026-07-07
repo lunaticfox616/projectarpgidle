@@ -2645,9 +2645,15 @@ function getPassiveActivationPath(targetNodeId) {
     if (!game || !targetNodeId || !isPassiveNodeAvailable(targetNodeId)) return [];
     let owned = new Set((game.passives || []).filter(id => isPassiveNodeAvailable(id)));
     if (owned.has(targetNodeId)) return [];
-    if (!owned.has('n0') && isPassiveNodeAvailable('n0')) owned.add('n0');
+    // BFS는 n0에서부터 시작해야 하지만(트리의 유일한 진입점), n0을 아직 실제로 소유하지
+    // 않았다면 그 1포인트 비용도 경로에 포함되어야 한다. 그래서 "탐색 시작점"과 "이미 소유해
+    // 비용이 없는 경계(owned)"를 분리한다 — n0을 owned에 넣지 않고 시작 노드로만 쓴다.
+    // (owned에 넣으면 n1~타깃까지는 정상 과금되지만 n0 자체가 무료로 활성화 없이 건너뛰어져,
+    // 소유하지 않은 n0에 인접한 노드들이 소유된 상태가 되는 트리 정합성 버그가 생긴다.)
+    let startNodes = owned.size > 0 ? Array.from(owned) : (isPassiveNodeAvailable('n0') ? ['n0'] : []);
+    if (startNodes.length === 0) return [];
 
-    let queue = Array.from(owned);
+    let queue = startNodes.slice();
     let previous = new Map(queue.map(id => [id, null]));
     let passiveEdges = Array.isArray(PASSIVE_TREE.edges) ? PASSIVE_TREE.edges : [];
     while (queue.length > 0 && !previous.has(targetNodeId)) {
