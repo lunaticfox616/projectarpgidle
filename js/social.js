@@ -711,6 +711,16 @@ function ensureProfileModal() {
     return modal;
 }
 function closePlayerProfile() { hideSocialTip(); let m = document.getElementById('social-profile-modal'); if (m) m.style.display = 'none'; }
+// 내 프로필 미리보기: 프로필은 서버에 마지막으로 업로드된 스냅샷이므로, 그대로 열면
+// 방금 장착한 주얼/부적/장비가 빠진 옛 데이터가 보인다. 미리보기 전에 현재 상태를
+// 업로드해 남들이 보게 될 것과 동일한 최신 프로필을 보여준다.
+async function openMyProfilePreview() {
+    if (!socialCloudReady()) { alert('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'); return; }
+    if (getMyNickname()) {
+        try { await uploadPlayerProfile({ silent: true }); } catch (e) { /* 실패해도 기존 프로필로 열기 */ }
+    }
+    openPlayerProfile(socialLoggedInUserId());
+}
 
 // 장비: 실제 장비창(페이퍼돌) 형태
 function renderProfileEquipPaperdoll(equipment) {
@@ -858,7 +868,7 @@ function renderSocialTab() {
         <div class="social-toolbar">
             <span class="social-mynick">내 닉네임: <strong>${nickname ? socialEscape(nickname) : '<span style="color:#e88;">미설정</span>'}</strong></span>
             <button onclick="promptAndSetNickname()">${nickname ? '닉네임 변경' : '닉네임 설정'}</button>
-            <button onclick="openPlayerProfile(socialLoggedInUserId())">내 프로필 미리보기</button>
+            <button onclick="openMyProfilePreview()">내 프로필 미리보기</button>
             <button onclick="syncPlayerProfileQuiet()" title="현재 장비/스탯을 공개 프로필에 반영">프로필 갱신</button>
         </div>
         <div id="social-online" class="social-online" style="display:none;"></div>
@@ -987,7 +997,7 @@ if (typeof safeExposeGlobals === 'function') {
     safeExposeGlobals({
         socialState, getMyNickname, promptAndSetNickname, uploadPlayerProfile, syncPlayerProfileQuiet,
         sendChatMessage, onSocialChatKeydown, refreshChatPanel, startChatPolling, stopChatPolling,
-        openPlayerProfile, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
+        openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
         socialTalEnter, socialTalLeave, socialTalHighlight, checkSocialChatNotification
