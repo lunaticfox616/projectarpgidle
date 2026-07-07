@@ -6131,8 +6131,19 @@ function chooseItemBase(slot, zoneTier) {
     return candidates[candidates.length - 1];
 }
 
+// 허리띠 전용: 숨겨진 티어에 따라 유틸리티 플라스크 슬롯 베이스 옵션을 굴린다.
+// 회복 플라스크 슬롯은 항상 1개 고정(별도 계산, ensureFlaskState 참고). 이 옵션은
+// 일반 베이스 옵션이라 축복의 오브로 valMin~valMax 범위 내에서 다시 굴릴 수 있다.
+// T5 미만: 없음(유틸 0개) / T5~9: 0~1개 / T10 이상: 0~2개.
+function getBeltFlaskUtilSlotRollRange(zoneTier) {
+    let tier = Math.max(1, Math.floor(Number(zoneTier) || 1));
+    if (tier >= 10) return { min: 0, max: 2 };
+    if (tier >= 5) return { min: 0, max: 1 };
+    return null;
+}
+
 function rollBaseStats(base, zoneTier) {
-    return base.baseStats.map(stat => {
+    let rolled = base.baseStats.map(stat => {
         let minBase = Number.isFinite(stat.baseMin) ? stat.baseMin : ((stat.base || 0) * 0.8);
         let maxBase = Number.isFinite(stat.baseMax) ? stat.baseMax : ((stat.base || 0) * 1.2);
         let scale = (stat.id === 'energyShield') ? 1.5 : 1;
@@ -6173,6 +6184,23 @@ function rollBaseStats(base, zoneTier) {
             statName: getStatName(stat.id)
         };
     });
+    if (base.slot === '허리띠') {
+        let range = getBeltFlaskUtilSlotRollRange(zoneTier);
+        if (range) {
+            let val = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
+            rolled.push({
+                id: 'flaskUtilSlots',
+                val: val,
+                valMin: range.min,
+                valMax: range.max,
+                baseRollMin: range.min,
+                baseRollMax: range.max,
+                tier: 0,
+                statName: getStatName('flaskUtilSlots')
+            });
+        }
+    }
+    return rolled;
 }
 
 

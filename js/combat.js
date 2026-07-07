@@ -1242,7 +1242,38 @@ function markPlayerMovementCompleted() {
     game.uniqueRiderCompassConsumed = false;
 }
 
-// ── 플라스크: 회복 1슬롯(티어) + 유틸리티 2슬롯, 적 처치로 충전·전투 중 자동 사용 ──
+// ── 플라스크: 회복 1슬롯(항상) + 허리띠가 결정하는 유틸리티 슬롯, 적 처치로 충전·전투 중 자동 사용 ──
+// 유틸리티 슬롯 수는 장착한 허리띠로 결정된다: 기본(또는 숨겨진 티어 5 미만) 0개 / T5~9 0~1개(허리띠의
+// flaskUtilSlots 베이스 옵션 롤) / T10 이상 0~2개 / '천 개의 유리병'(고유) 장착 시 +3(고정, 다른 보너스와 합산).
+// 전역 상한은 유틸리티 4개(=총 5슬롯: 회복 1 + 유틸 4)로, 향후 다른 출처가 추가되어도 폭주하지 않게 막는다.
+const FLASK_UTILITY_SLOT_HARD_CAP = 4;
+function getMaxFlaskUtilitySlotCount() {
+    let belt = (game && game.equipment) ? game.equipment['허리띠'] : null;
+    if (!belt) return 0;
+    let bonus = 0;
+    let stat = (belt.baseStats || []).find(s => s && s.id === 'flaskUtilSlots');
+    if (stat) bonus += Math.max(0, Math.floor(Number(stat.val) || 0));
+    if (belt.rarity === 'unique' && belt.uniqueEffectKey === 'extraFlaskUtilitySlots') {
+        let ep = belt.uniqueEffectParams || {};
+        bonus += Math.max(0, Math.floor(Number(ep.slots) || 0));
+    }
+    return Math.max(0, Math.min(FLASK_UTILITY_SLOT_HARD_CAP, bonus));
+}
+function getMaxFlaskSlotCount() {
+    return 1 + getMaxFlaskUtilitySlotCount();
+}
+// 허리띠의 특수 효과(예: '천 개의 유리병')로 얻는 플라스크 충전 속도 보너스(%).
+function getFlaskChargeRateBonusPct() {
+    let belt = (game && game.equipment) ? game.equipment['허리띠'] : null;
+    if (!belt || belt.rarity !== 'unique' || belt.uniqueEffectKey !== 'extraFlaskUtilitySlots') return 0;
+    let ep = belt.uniqueEffectParams || {};
+    return Math.max(0, Number(ep.chargeRatePct) || 0);
+}
+function getFlaskEffectiveChargesPerKills(baseChargesPerKills) {
+    let bonusPct = getFlaskChargeRateBonusPct();
+    if (bonusPct <= 0) return Math.max(1, Math.floor(baseChargesPerKills || 1));
+    return Math.max(1, Math.round((baseChargesPerKills || 1) / (1 + bonusPct / 100)));
+}
 function getFlaskHealDef(tierKey) {
     return FLASK_HEAL_TIERS.find(t => t.key === tierKey) || FLASK_HEAL_TIERS[0];
 }
@@ -1305,16 +1336,19 @@ function ensureFlaskState() {
     st.healCharges = Math.max(0, Math.min(healDef.maxCharges, Number.isFinite(st.healCharges) ? Math.floor(st.healCharges) : healDef.maxCharges));
     st.healOverTimeUntil = Math.max(0, Math.floor(st.healOverTimeUntil || 0));
     st.healOverTimePerSec = Math.max(0, Math.floor(st.healOverTimePerSec || 0));
-    // 유틸리티 슬롯: 최대 2개, 풀 안의 유효 키만 유지(같은 종류 중복 제거).
+    // 유틸리티 슬롯: 장착한 허리띠가 결정하는 개수까지, 풀 안의 유효 키만 유지(같은 종류 중복 제거).
+    // 허리띠가 없거나 숨겨진 티어가 낮으면 초과분은 자동으로 장착 해제된다(발견 기록은 유지되어
+    // 나중에 알맞은 허리띠를 장착하면 다시 장착할 수 있다).
+    let maxUtilSlots = getMaxFlaskUtilitySlotCount();
     if (!Array.isArray(st.utils)) {
         // 과거 단일 utilKey 저장 마이그레이션.
         let legacyKey = remapLegacyFlaskKey(st.utilKey);
-        let legacy = FLASK_UTILITY_POOL[legacyKey] ? [legacyKey] : ['granite1', 'quicksilver1'];
-        st.utils = legacy.slice(0, 2).map(key => ({ key, charges: FLASK_UTILITY_POOL[key].maxCharges, until: 0 }));
+        let legacy = FLASK_UTILITY_POOL[legacyKey] ? [legacyKey] : [];
+        st.utils = legacy.map(key => ({ key, charges: FLASK_UTILITY_POOL[key].maxCharges, until: 0 }));
     }
     // 예전 저장(단계 구분 전)의 고정 키를 그 종류의 1단계로 옮겨 이어서 쓸 수 있게 한다.
     st.utils = st.utils.map(u => (u && !FLASK_UTILITY_POOL[u.key] ? { ...u, key: remapLegacyFlaskKey(u.key) } : u));
-    st.utils = st.utils.filter(u => u && FLASK_UTILITY_POOL[u.key]).slice(0, 2);
+    st.utils = st.utils.filter(u => u && FLASK_UTILITY_POOL[u.key]).slice(0, maxUtilSlots);
     let seenCategories = new Set();
     st.utils = st.utils.filter(u => {
         let category = FLASK_UTILITY_POOL[u.key].category;
@@ -1342,17 +1376,19 @@ function selectHealFlaskTier(tierKey) {
     updateStaticUI();
 }
 
-// 유틸리티 슬롯(0 또는 1)에 플라스크를 장착/교체한다. 이미 다른 슬롯에 있으면 무시.
+// 유틸리티 슬롯(허리띠가 부여한 개수만큼)에 플라스크를 장착/교체한다. 이미 다른 슬롯에 있으면 무시.
 function equipUtilityFlask(slotIndex, flaskKey) {
     let st = ensureFlaskState();
-    let idx = Math.max(0, Math.min(1, Math.floor(slotIndex || 0)));
+    let maxUtilSlots = getMaxFlaskUtilitySlotCount();
+    if (maxUtilSlots <= 0) return addLog('유틸리티 플라스크 슬롯이 없습니다. 숨겨진 티어 5 이상의 허리띠를 장착하세요.', 'attack-monster');
+    let idx = Math.max(0, Math.min(maxUtilSlots - 1, Math.floor(slotIndex || 0)));
     if (!FLASK_UTILITY_POOL[flaskKey]) return;
     let def = FLASK_UTILITY_POOL[flaskKey];
     if (def.reqLevel > Math.max(1, Math.floor(game.level || 1))) return addLog(`레벨 ${def.reqLevel} 이상이어야 장착할 수 있습니다.`, 'attack-monster');
     if (!ensureFlaskFoundKeys().includes(flaskKey)) return addLog('아직 발견하지 못한 플라스크입니다. 전투 중 드랍으로 찾아야 장착할 수 있습니다.', 'attack-monster');
     if (st.utils.some((u, i) => u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === def.category && i !== idx)) return addLog('같은 종류의 플라스크는 이미 다른 슬롯에 장착되어 있습니다.', 'attack-monster');
     st.utils[idx] = { key: flaskKey, charges: def.maxCharges, until: 0 };
-    st.utils = st.utils.slice(0, 2);
+    st.utils = st.utils.slice(0, maxUtilSlots);
     addLog(`🧪 유틸리티 플라스크 슬롯 ${idx + 1}: ${def.name}`, 'loot-magic');
     updateStaticUI();
 }
@@ -1361,10 +1397,12 @@ function tickFlaskChargesOnKill() {
     let st = ensureFlaskState();
     st.killCounter++;
     let healDef = getFlaskHealDef(st.healTier);
-    if (st.killCounter % healDef.chargesPerKills === 0 && st.healCharges < healDef.maxCharges) st.healCharges++;
+    let healChargesPerKills = getFlaskEffectiveChargesPerKills(healDef.chargesPerKills);
+    if (st.killCounter % healChargesPerKills === 0 && st.healCharges < healDef.maxCharges) st.healCharges++;
     st.utils.forEach(u => {
         let def = FLASK_UTILITY_POOL[u.key];
-        if (st.killCounter % def.chargesPerKills === 0 && u.charges < def.maxCharges) u.charges++;
+        let chargesPerKills = getFlaskEffectiveChargesPerKills(def.chargesPerKills);
+        if (st.killCounter % chargesPerKills === 0 && u.charges < def.maxCharges) u.charges++;
     });
 }
 
@@ -1790,7 +1828,7 @@ function getUniqueEffectImplementationReport() {
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
         'rollGapDamagePct','rollGapCritAndDs','crowdEvasionMore','esToLightPct','underdogNonMaxRollMorePct','instakillNormalOnHitPct','projectileExtraShotChance',
         'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmNoCollisionBlock','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
-        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing'
+        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','extraFlaskUtilitySlots'
     ]);
     return {
         total: uniqueKeys.length,
@@ -2162,6 +2200,7 @@ function getPlayerStats() {
         else if (effect.key === 'fixedAllMaxRes') fixedAllMaxRes = Math.max(1, Math.min(90, Number(ep.max || 82)));
         else if (effect.key === 'stealEliteTrait') uniqueStealEliteTrait = { duration: Number(ep.duration || 30) };
         else if (effect.key === 'kaleidoscopeShield' || effect.key === 'mirrorOppositeRing') { /* item stat path handles these */ }
+        else if (effect.key === 'extraFlaskUtilitySlots') { /* getMaxFlaskUtilitySlotCount/getFlaskChargeRateBonusPct read game.equipment['허리띠'] directly */ }
         else if (effect.key === 'cosmosStatBundle') {
             addStatToBucket(reward, 'pctDmg', Number(ep.pctDmg || 0));
             addStatToBucket(reward, 'dr', Number(ep.dr || 0));
