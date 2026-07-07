@@ -171,11 +171,12 @@ function addCoreCubeBlurred45(amount = 1) {
         st.unlocked = true;
         st.relockUntilDrop = false;
         if (game && game.unlocks) game.unlocks.cube = true;
-        if (typeof addLog === 'function') addLog('🧊 흐릿한 45면체를 획득해 큐브 탭이 다시 열렸습니다.', 'loot-unique');
+        // 알림은 탭이 다시 열리는 이 시점에만 켠다. 예전처럼 45면체 드랍마다 켜면
+        // 지하계 파밍 중 장비 상위탭 그룹 점이 계속 되살아나 항상 켜진 것처럼 보인다.
+        if (game && game.noti) game.noti.cube = true;
     } else {
         maybeUnlockCoreCube({ silent: true });
     }
-    if (game && game.noti) game.noti.cube = true;
     return gain;
 }
 

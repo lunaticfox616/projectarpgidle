@@ -317,7 +317,7 @@ function renderOnlineUsers(users) {
     let chips = users.length
         ? users.map(u => {
             let me = u.user_id === myId;
-            return `<span class="social-online-chip${me ? ' me' : ''}" onclick="openPlayerProfile('${socialEscape(u.user_id)}')" title="프로필 보기">🟢 ${socialEscape(u.nickname || '익명')}${me ? ' (나)' : ''}</span>`;
+            return `<span class="social-online-chip${me ? ' me' : ''}" onclick="openPlayerProfile('${socialEscape(u.user_id)}')">🟢 ${socialEscape(u.nickname || '익명')}${me ? ' (나)' : ''}</span>`;
         }).join('')
         : `<span class="social-online-empty">접속 중인 플레이어가 없습니다.</span>`;
     host.innerHTML = `<div class="social-online-title">🟢 접속 중 (${users.length})</div><div class="social-online-list">${chips}</div>`;
@@ -487,7 +487,7 @@ function renderChatBody(m) {
             let key = `${m.id}:${n}`;
             socialState.chatTips[key] = renderProfileItemCard(snap);
             let color = socialRarityColor(snap.rarity);
-            out += `<span class="social-item-link" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'chat','${socialEscape(key)}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('chat','${socialEscape(key)}')" title="아이템 상세">🔗 ${socialEscape(snap.name)}</span>`;
+            out += `<span class="social-item-link" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'chat','${socialEscape(key)}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('chat','${socialEscape(key)}')">🔗 ${socialEscape(snap.name)}</span>`;
         } else { out += socialEscape(match[0]); }
         lastIndex = match.index + match[0].length;
     }
@@ -514,7 +514,7 @@ function renderChatMessages(messages) {
     listEl.innerHTML = messages.map(m => {
         let mine = m.user_id === myId;
         return `<div class="social-chat-msg${mine ? ' mine' : ''}">`
-            + `<span class="social-chat-nick" onclick="openPlayerProfile('${socialEscape(m.user_id)}')" title="프로필 보기">${socialEscape(m.nickname || '익명')}</span>`
+            + `<span class="social-chat-nick" onclick="openPlayerProfile('${socialEscape(m.user_id)}')">${socialEscape(m.nickname || '익명')}</span>`
             + `<span class="social-chat-time">${formatChatTime(m.created_at)}</span>`
             + `<div class="social-chat-body">${renderChatBody(m)}</div></div>`;
     }).join('');
@@ -870,7 +870,9 @@ function injectSocialStyles() {
     .social-modal-overlay{position:fixed;inset:0;background:rgba(4,8,14,0.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
     .social-modal-box{position:relative;width:min(760px,96vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(170deg,#101a2a,#0c1421);border:1px solid #2c4063;border-radius:14px;}
     .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:18px 56px 20px 20px;}
-    .social-modal-close{position:absolute;top:10px;right:12px;z-index:3;box-sizing:border-box;width:30px;height:30px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;background:rgba(28,44,68,0.55);border:1px solid rgba(90,120,160,0.4);color:#cfe0f5;border-radius:50%;cursor:pointer;font-size:0.9em;line-height:1;}
+    /* position 계열에 !important: ui-premium.css 의 고특이도 전역 버튼 규칙(position:relative)이
+       덮어쓰면 X버튼이 왼쪽 위 일반 흐름으로 배치되어 한 줄을 차지하는 문제가 재발한다. */
+    .social-modal-close{position:absolute !important;top:10px !important;right:12px !important;left:auto !important;z-index:3;box-sizing:border-box;width:30px;height:30px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;background:rgba(28,44,68,0.55);border:1px solid rgba(90,120,160,0.4);color:#cfe0f5;border-radius:50%;cursor:pointer;font-size:0.9em;line-height:1;}
     .social-modal-close:hover{background:rgba(44,64,96,0.9);}
     .social-profile-empty{color:#8094ad;text-align:center;padding:24px;}
     .social-profile-header{border-bottom:1px solid #233a59;padding-bottom:12px;margin-bottom:14px;padding-right:34px;}
