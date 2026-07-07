@@ -8,8 +8,11 @@
 // ============================================================================
 
 const SOCIAL_NICK_KEY = 'arpg_social_nickname';
+const SOCIAL_LAST_SEEN_CHAT_KEY = 'arpg_social_last_seen_chat_id';
 const SOCIAL_CHAT_LIMIT = 50;
 const SOCIAL_CHAT_POLL_MS = 4000;
+// 커뮤니티 탭이 비활성일 때 새 채팅 여부만 가볍게 확인하는 주기(활성 탭 폴링보다 훨씬 느리게).
+const SOCIAL_BG_NOTI_POLL_MS = 60000;
 const SOCIAL_MSG_MAX = 300;
 const SOCIAL_NICK_MIN = 2;
 const SOCIAL_NICK_MAX = 16;
@@ -40,7 +43,8 @@ let socialState = {
     profileTips: {},
     pickTips: {},
     currentProfile: null,
-    profileTab: 'equipment'
+    profileTab: 'equipment',
+    bgNotiLoading: false
 };
 
 // --- 공통 유틸 -------------------------------------------------------------
@@ -81,11 +85,16 @@ function socialRarityColor(rarity) {
 // 스냅샷 빌드(장비/주얼/부적) — 옵션에 티어·롤범위 포함
 // ============================================================================
 function snapStat(st) {
-    return { id: st.id || st.stat, val: st.val, statName: st.statName, tier: st.tier, valMin: st.valMin, valMax: st.valMax };
+    let o = { id: st.id || st.stat, val: st.val, statName: st.statName, tier: st.tier, valMin: st.valMin, valMax: st.valMax };
+    // 특수 표기 플래그도 보존한다: 특출 베이스(✦), 고정 옵션(벌꿀/균열 — 제작에서 제거 불가), 융합 계승 옵션.
+    if (st.exceptional) o.exceptional = true;
+    if (st.lockedByHoney || st.lockedByRift) o.locked = true;
+    if (st.fusedFromRare) o.fusedFromRare = true;
+    return o;
 }
 function buildItemSnapshot(item, slotOverride) {
     if (!item) return null;
-    return {
+    let snap = {
         slot: slotOverride || item.slot || '',
         name: item.name || '',
         rarity: item.rarity || 'normal',
@@ -99,6 +108,21 @@ function buildItemSnapshot(item, slotOverride) {
             return o;
         })
     };
+    // 특수 상태: 봉인(나무꾼의 손길), 고유 융합 유물, 혼돈 주입, 잠식 — 실제 툴팁과 동일하게 노출.
+    if (item.loopSealed) snap.loopSealed = true;
+    if (item.fusedRelic) {
+        snap.fusedRelic = true;
+        snap.fusionGrade = item.fusionGrade || '';
+        snap.fusedRareName = item.fusedRareName || '';
+    }
+    if (item.chaosInfusion) snap.chaosInfusion = snapStat(item.chaosInfusion);
+    if (item.encroached) {
+        snap.encroached = {
+            liberated: !!item.encroached.liberated,
+            chosen: (item.encroached.liberated && item.encroached.chosen) ? snapStat(item.encroached.chosen) : null
+        };
+    }
+    return snap;
 }
 function buildJewelSnapshot(jewel) {
     if (!jewel) return null;
@@ -185,7 +209,7 @@ function buildProfileSnapshot() {
     for (let i = 0; i < W * H; i++) { let id = board[i]; if (id != null && idToIndex[id] != null) talBoard[i] = idToIndex[id]; }
 
     return {
-        version: 3,
+        version: 4,
         nickname: getMyNickname(),
         level: (typeof game !== 'undefined' && game.level) ? game.level : 1,
         ascendClass: (typeof game !== 'undefined') ? (game.ascendClass || '') : '',
@@ -331,6 +355,49 @@ async function refreshOnlineUsers() {
 // ============================================================================
 // 채팅
 // ============================================================================
+// --- 새 채팅 알림(커뮤니티 탭 빨간 점) --------------------------------------
+// 마지막으로 확인한 채팅 id(bigint 증가형)를 기기별로 기억해, 그보다 큰 id의
+// 남이 보낸 메시지가 있으면 game.noti.social 을 켠다. 탭을 열어 채팅이 렌더되면 갱신된다.
+function getLastSeenChatId() {
+    try {
+        let v = localStorage.getItem(SOCIAL_LAST_SEEN_CHAT_KEY);
+        if (v == null || v === '') return null;
+        let n = Number(v);
+        return Number.isFinite(n) ? n : null;
+    } catch (e) { return null; }
+}
+function setLastSeenChatId(id) {
+    let n = Number(id);
+    if (!Number.isFinite(n)) return;
+    let cur = getLastSeenChatId();
+    if (cur != null && n <= cur) return;
+    try { localStorage.setItem(SOCIAL_LAST_SEEN_CHAT_KEY, String(n)); } catch (e) { /* 무시 */ }
+}
+function isSocialTabActive() {
+    let tabEl = document.getElementById('tab-social');
+    return !!(tabEl && tabEl.classList.contains('active'));
+}
+async function checkSocialChatNotification() {
+    if (!socialCloudReady() || socialState.bgNotiLoading) return;
+    // 탭을 보고 있으면 활성 폴링이 채팅을 렌더하며 확인 처리하므로 알림이 필요 없다.
+    if (isSocialTabActive()) return;
+    if (typeof game === 'undefined' || !game || !game.noti) return;
+    socialState.bgNotiLoading = true;
+    try {
+        let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,user_id&order=id.desc&limit=1`, {});
+        let row = Array.isArray(rows) ? rows[0] : null;
+        if (!row || row.id == null) return;
+        let latest = Number(row.id);
+        if (!Number.isFinite(latest)) return;
+        let seen = getLastSeenChatId();
+        // 첫 확인(이 기기에서 채팅을 한 번도 안 봄)에는 과거 메시지로 알림하지 않고 기준점만 잡는다.
+        if (seen == null) { setLastSeenChatId(latest); return; }
+        if (latest > seen && row.user_id !== socialLoggedInUserId()) game.noti.social = true;
+    } catch (e) { /* 무시: 네트워크 실패 시 다음 주기에 재시도 */ } finally {
+        socialState.bgNotiLoading = false;
+    }
+}
+
 async function loadChatMessages() {
     if (!socialCloudReady()) return [];
     let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,user_id,nickname,body,payload,created_at&order=created_at.desc&limit=${SOCIAL_CHAT_LIMIT}`, {});
@@ -505,6 +572,11 @@ function renderChatMessages(messages) {
     let listEl = document.getElementById('social-chat-list');
     if (!listEl) return;
     let myId = socialLoggedInUserId();
+    // 채팅 목록이 실제로 보이는 시점 = 확인한 것으로 간주. 마지막 확인 id를 갱신해
+    // 백그라운드 새 채팅 알림의 기준점을 옮기고, 커뮤니티 탭 알림 점을 끈다.
+    let maxId = messages.reduce((acc, m) => Math.max(acc, Number(m.id) || 0), 0);
+    if (maxId > 0) setLastSeenChatId(maxId);
+    if (typeof game !== 'undefined' && game && game.noti) game.noti.social = false;
     let key = messages.map(m => `${m.id}:${m.nickname}`).join(',');
     if (key === socialState.lastChatRenderKey) return;
     socialState.lastChatRenderKey = key;
@@ -616,7 +688,11 @@ function socialStatLineHtml(st, opts) {
     }
     let cls = opts.base ? 'social-item-stat base' : 'social-item-stat';
     let colorStyle = opts.base ? '' : `style="color:${tone};"`;
-    return `<div class="${cls}" ${colorStyle}>${socialEscape(name)} +${socialEscape(val)}${tierHtml}${range}</div>`;
+    // 특수 표기: 고정 옵션(제작 제거 불가), 융합 계승 옵션, 특출 베이스(✦+20%).
+    let lockMark = st.locked ? `<span style="color:#ffd166;font-weight:700;">[고정] </span>` : '';
+    let fusedMark = st.fusedFromRare ? `<span style="color:#8fd8ff;">⌛</span> ` : '';
+    let exMark = st.exceptional ? ` <span style="color:#ffb454;font-weight:700;">✦+20%</span>` : '';
+    return `<div class="${cls}" ${colorStyle}>${lockMark}${fusedMark}${socialEscape(name)} +${socialEscape(val)}${tierHtml}${range}${exMark}</div>`;
 }
 function renderProfileItemCard(item) {
     if (!item) return '';
@@ -628,12 +704,31 @@ function renderProfileItemCard(item) {
         lines += socialStatLineHtml(st, {});
         (st.extraStats || []).forEach(ex => { lines += socialStatLineHtml(ex, {}); });
     });
+    // 혼돈 주입 옵션(별도 필드) — 실제 툴팁처럼 [주입] 접두사로 표시.
+    let statLabel = st => st.statName || (typeof getStatName === 'function' ? getStatName(st.id) : st.id) || st.id;
+    if (item.chaosInfusion) {
+        lines += socialStatLineHtml({ ...item.chaosInfusion, statName: `[주입] ${statLabel(item.chaosInfusion)}` }, {});
+    }
+    // 잠식 특수 옵션 — 해방 후에만 실제 옵션이 붙는다.
+    if (item.encroached) {
+        lines += item.encroached.chosen
+            ? socialStatLineHtml({ ...item.encroached.chosen, statName: `[잠식] ${statLabel(item.encroached.chosen)}` }, {})
+            : `<div class="social-item-stat" style="color:#8d7bb3;">[잠식] 해방 전 — 효과 없음</div>`;
+    }
     let unique = item.uniqueEffect ? `<div class="social-item-unique">✨ ${socialEscape(item.uniqueEffect)}</div>` : '';
     let corrupt = item.corrupted ? ` <span style="color:#e74c3c;">(타락)</span>` : '';
+    let encroachBadge = item.encroached ? ` <span style="color:#b084ff;">(잠식)</span>` : '';
+    let sealBadge = item.loopSealed ? ` <span style="color:#7fd99a;">🌿봉인</span>` : '';
+    // 고유 융합 유물(시간의 균열): 융합 등급 + 계승 원본 표시.
+    let fusion = '';
+    if (item.fusedRelic) {
+        let gradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
+        fusion = `<div class="social-item-stat" style="color:#8fd8ff;">⌛ ${gradeLabel}${item.fusedRareName ? ` · [${socialEscape(item.fusedRareName)}]의 기억` : ''}</div>`;
+    }
     return `<div class="social-item-card" style="border-color:${color};">`
-        + `<div class="social-item-title" style="color:${color};">${item.slot ? `[${socialEscape(item.slot)}] ` : ''}${socialEscape(item.name)}${corrupt}</div>`
+        + `<div class="social-item-title" style="color:${color};">${item.slot ? `[${socialEscape(item.slot)}] ` : ''}${socialEscape(item.name)}${encroachBadge}${corrupt}${sealBadge}</div>`
         + (item.baseName ? `<div class="social-item-base">${socialEscape(item.baseName)}</div>` : '')
-        + unique + lines + `</div>`;
+        + fusion + unique + lines + `</div>`;
 }
 function renderSimpleCard(snap) {
     let color = socialRarityColor(snap.rarity);
@@ -659,6 +754,16 @@ function ensureProfileModal() {
     return modal;
 }
 function closePlayerProfile() { hideSocialTip(); let m = document.getElementById('social-profile-modal'); if (m) m.style.display = 'none'; }
+// 내 프로필 미리보기: 프로필은 서버에 마지막으로 업로드된 스냅샷이므로, 그대로 열면
+// 방금 장착한 주얼/부적/장비가 빠진 옛 데이터가 보인다. 미리보기 전에 현재 상태를
+// 업로드해 남들이 보게 될 것과 동일한 최신 프로필을 보여준다.
+async function openMyProfilePreview() {
+    if (!socialCloudReady()) { alert('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'); return; }
+    if (getMyNickname()) {
+        try { await uploadPlayerProfile({ silent: true }); } catch (e) { /* 실패해도 기존 프로필로 열기 */ }
+    }
+    openPlayerProfile(socialLoggedInUserId());
+}
 
 // 장비: 실제 장비창(페이퍼돌) 형태
 function renderProfileEquipPaperdoll(equipment) {
@@ -806,7 +911,7 @@ function renderSocialTab() {
         <div class="social-toolbar">
             <span class="social-mynick">내 닉네임: <strong>${nickname ? socialEscape(nickname) : '<span style="color:#e88;">미설정</span>'}</strong></span>
             <button onclick="promptAndSetNickname()">${nickname ? '닉네임 변경' : '닉네임 설정'}</button>
-            <button onclick="openPlayerProfile(socialLoggedInUserId())">내 프로필 미리보기</button>
+            <button onclick="openMyProfilePreview()">내 프로필 미리보기</button>
             <button onclick="syncPlayerProfileQuiet()" title="현재 장비/스탯을 공개 프로필에 반영">프로필 갱신</button>
         </div>
         <div id="social-online" class="social-online" style="display:none;"></div>
@@ -925,15 +1030,19 @@ if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { injectSocialStyles(); ensureSocialTooltip(); });
     else { injectSocialStyles(); ensureSocialTooltip(); }
     setInterval(() => { if (socialCloudReady() && getMyNickname()) ensureHeartbeat(); }, SOCIAL_HEARTBEAT_MS);
+    // 커뮤니티 탭이 비활성일 때도 새 채팅을 감지해 탭 알림 점을 켠다.
+    setInterval(checkSocialChatNotification, SOCIAL_BG_NOTI_POLL_MS);
+    // 접속 직후 한 번(클라우드 로그인 복원을 기다린 뒤). setTimeout 가드는 스모크 테스트 샌드박스용.
+    if (typeof setTimeout === 'function') setTimeout(checkSocialChatNotification, 15000);
 }
 
 if (typeof safeExposeGlobals === 'function') {
     safeExposeGlobals({
         socialState, getMyNickname, promptAndSetNickname, uploadPlayerProfile, syncPlayerProfileQuiet,
         sendChatMessage, onSocialChatKeydown, refreshChatPanel, startChatPolling, stopChatPolling,
-        openPlayerProfile, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
+        openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
-        socialTalEnter, socialTalLeave, socialTalHighlight
+        socialTalEnter, socialTalLeave, socialTalHighlight, checkSocialChatNotification
     });
 }
