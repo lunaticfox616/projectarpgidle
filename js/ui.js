@@ -4530,6 +4530,33 @@ function showPlayerBuffTooltip(event, name, type, remainSec) {
     let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${typeLabel}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">효과: ${getConditionGemDetail(entry)}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
 }
+// 플라스크 발동은 전투 중 자주 반복되어 전투 로그에 띄우면 스팸이 되므로, 캐릭터 효과
+// 줄(생명력 바 아래)에 아이콘으로만 표시하고 상세 정보는 이 커스텀 툴팁으로 보여준다.
+function showPlayerFlaskTooltip(event, kind, key) {
+    if (typeof ensureFlaskState !== 'function') return;
+    let st = ensureFlaskState();
+    let now = Date.now();
+    let html = '';
+    if (kind === 'heal') {
+        let def = getFlaskHealDef(key);
+        let remain = Math.max(0, Math.ceil(((st.healOverTimeUntil || 0) - now) / 1000));
+        html = `<div class="tooltip-title">🧪 ${def.name}</div>`
+            + `<div class="tooltip-line">남은 시간: ${remain}초</div>`
+            + `<div class="tooltip-line">지속 회복: 초당 약 ${(st.healOverTimePerSec || 0).toLocaleString()}</div>`
+            + `<div class="tooltip-line" style="color:#9fb4d1;">생명력 ${def.autoBelowHpPct}% 이하 시 자동 발동 · ${Math.round((def.durationMs || 4000) / 1000)}초간 총 ${def.healPct}% 회복</div>`
+            + `<div class="tooltip-line" style="color:#9fb4d1;">남은 충전: ${st.healCharges}/${def.maxCharges}</div>`;
+    } else {
+        let def = FLASK_UTILITY_POOL[key];
+        if (!def) return;
+        let entry = (st.utils || []).find(u => u && u.key === key);
+        let remain = entry ? Math.max(0, Math.ceil(((entry.until || 0) - now) / 1000)) : 0;
+        html = `<div class="tooltip-title">🧪 ${def.name}</div>`
+            + `<div class="tooltip-line">남은 시간: ${remain}초</div>`
+            + `<div class="tooltip-line">효과: ${def.desc}</div>`
+            + `<div class="tooltip-line" style="color:#9fb4d1;">남은 충전: ${entry ? entry.charges : 0}/${def.maxCharges}</div>`;
+    }
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#9ed6ff');
+}
 function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, specialDps, critDotBonusPct, stackCount, rawTickDamage, tickInterval, enemyRes, abyssPlayerMul, igniteTakenMultiplier) {
     let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈', flameDecay: '화염 부패' };
     let p = Math.max(0, Number(power || 0));
@@ -6039,7 +6066,28 @@ function updateCombatUI(pStats) {
         }
         let activeBuffs = (game.playerConditionBuffs || []).filter(buff => (buff.expiresAt || 0) > Date.now());
         let guardWarcryText = activeBuffs.filter(buff => ['guard', 'warcry'].includes(buff.type)).map(buff => `<span data-info-tooltip-anchor=\"1\" style=\"color:#9be7ff;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${buff.name}','${buff.type || ''}',${Math.ceil(Math.max(0,((buff.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">${buff.name} ${Math.ceil(Math.max(0, ((buff.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
-        let ailmentText = [text, guardWarcryText ? `효과: ${guardWarcryText}` : ''].filter(Boolean).join(' · ');
+        // 플라스크 발동은 전투 로그에 띄우지 않고(자주 반복돼 스팸이 됨) 이 효과 줄에만 표시한다.
+        let flaskBuffText = '';
+        if (typeof ensureFlaskState === 'function') {
+            let flaskNow = Date.now();
+            let flaskSt = ensureFlaskState();
+            let flaskParts = [];
+            let healDef = getFlaskHealDef(flaskSt.healTier);
+            if ((flaskSt.healOverTimeUntil || 0) > flaskNow) {
+                let remain = Math.ceil((flaskSt.healOverTimeUntil - flaskNow) / 1000);
+                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#7fd99a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'heal','${healDef.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${healDef.name} ${remain}s</span>`);
+            }
+            (flaskSt.utils || []).forEach(u => {
+                if (!u || (u.until || 0) <= flaskNow) return;
+                let def = FLASK_UTILITY_POOL[u.key];
+                if (!def) return;
+                let remain = Math.ceil((u.until - flaskNow) / 1000);
+                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#ffd27a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'util','${u.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${def.name} ${remain}s</span>`);
+            });
+            flaskBuffText = flaskParts.join(' · ');
+        }
+        let effectGroupText = [guardWarcryText, flaskBuffText].filter(Boolean).join(' · ');
+        let ailmentText = [text, effectGroupText ? `효과: ${effectGroupText}` : ''].filter(Boolean).join(' · ');
         // 데스크톱에서 터치 디바이스 플래그가 잡히더라도 상태 표시를 숨기지 않도록
         // 화면 너비 기준으로만 모바일 UI 분기를 판단한다.
         let isMobile = !!(window.matchMedia && window.matchMedia('(max-width: 1080px)').matches);

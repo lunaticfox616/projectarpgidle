@@ -1374,27 +1374,27 @@ function tickFlaskAutoUse(pStats) {
     let now = Date.now();
     let healDef = getFlaskHealDef(st.healTier);
     // 회복 발동: HP가 임계 이하이고 현재 지속 회복이 없을 때, durationMs 동안 총 healPct%를 나눠 회복.
+    // 전투 중 자주 반복되어 로그로 띄우면 스팸이 되므로, 발동 여부는 캐릭터 효과 줄(HP 바 아래)에
+    // 아이콘으로 표시하고 상세 정보는 그 커스텀 툴팁(showPlayerFlaskTooltip)에서 보여준다.
     if (st.healCharges > 0 && st.healOverTimeUntil <= now && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= healDef.autoBelowHpPct) {
         st.healCharges--;
         let durSec = Math.max(0.5, (healDef.durationMs || 4000) / 1000);
         let totalHeal = Math.max(1, Math.floor(hpCap * healDef.healPct / 100));
         st.healOverTimePerSec = Math.max(1, Math.floor(totalHeal / durSec));
         st.healOverTimeUntil = now + Math.floor(healDef.durationMs || 4000);
-        addLog(`🧪 ${healDef.name} 발동! ${Math.round(durSec)}초간 생명력 ${totalHeal.toLocaleString()} 회복 (남은 충전 ${st.healCharges})`, 'loot-magic', { rateKey: 'flask:heal', minIntervalMs: 900 });
     }
     // 지속 회복 적용(0.1초 틱).
     if (st.healOverTimeUntil > now && st.healOverTimePerSec > 0 && game.playerHp > 0) {
         let tick = Math.max(1, Math.floor(st.healOverTimePerSec * 0.1));
         game.playerHp = Math.min(hpCap, game.playerHp + tick);
     }
-    // 유틸리티 자동 발동: 충전이 있고 버프가 꺼져 있으며 전투 중이면.
+    // 유틸리티 자동 발동: 충전이 있고 버프가 꺼져 있으며 전투 중이면. (마찬가지로 로그 대신 효과 줄에 표시)
     let inCombat = (game.enemies || []).some(e => e && e.hp > 0);
     st.utils.forEach(u => {
         let def = FLASK_UTILITY_POOL[u.key];
         if (u.charges > 0 && u.until <= now && inCombat) {
             u.charges--;
             u.until = now + Math.max(1000, Math.floor(def.durationMs || 6000));
-            addLog(`🧪 ${def.name} 발동! (${Math.round((def.durationMs || 6000) / 1000)}초, 남은 충전 ${u.charges})`, 'loot-magic', { rateKey: `flask:util:${u.key}`, minIntervalMs: 900 });
         }
     });
 }
