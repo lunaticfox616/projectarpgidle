@@ -465,7 +465,7 @@ const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season', 'tab-skills'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal'] },
-    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-talisman', 'tab-cube'] },
+    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-flask', 'tab-talisman', 'tab-cube'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
 function getOrderedTabGroups() {
@@ -880,7 +880,7 @@ function updateTabUnlockButtons() {
 }
 
 function isUngatedPersistentTabButton(btn) {
-    return btn && (btn.id === 'btn-tab-social' || btn.id === 'btn-tab-settings' || btn.id === 'btn-tab-character' || btn.id === 'btn-tab-journal');
+    return btn && (btn.id === 'btn-tab-social' || btn.id === 'btn-tab-settings' || btn.id === 'btn-tab-character' || btn.id === 'btn-tab-journal' || btn.id === 'btn-tab-flask');
 }
 // updateTabUnlockButtons 뒤에서 호출되는 그룹 가시성 적용부. 재진입 없이 display만 조정한다.
 function hideOutOfGroupTabButtons() {
