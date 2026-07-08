@@ -7319,6 +7319,8 @@ function getCurrencyDrops(enemy) {
     if ((game.season || 1) >= 31 && enemy.isBoss
         && (zone.type === 'chaosRealm' || zone.type === 'underworld' || zone.type === 'skyTower' || (zone.type === 'abyss' && Math.floor(getAbyssDepthFromZoneId(Number(zone.id)) || 0) >= 21))
         && Math.random() < 0.10) drops.push(['rivalKey', 1]);
+    // 오성 잔향체 아스트라 도전권 (루프 31+): 우주계 은하 보스(planet-45~49)가 드랍한다.
+    if ((game.season || 1) >= 31 && enemy.isBoss && zone.type === 'cosmos' && Math.random() < 0.15) drops.push(['cosmosSovereignKey', 1]);
     if (zone.type === 'chaosRealm') {
         let chaosKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
         if (Math.random() < chaosKeyChance) drops.push(['chaosKey', 1]);
