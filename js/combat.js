@@ -1388,7 +1388,7 @@ function equipUtilityFlask(slotIndex, flaskKey) {
     let def = FLASK_UTILITY_POOL[flaskKey];
     if (def.reqLevel > Math.max(1, Math.floor(game.level || 1))) return addLog(`레벨 ${def.reqLevel} 이상이어야 장착할 수 있습니다.`, 'attack-monster');
     if (!ensureFlaskFoundKeys().includes(flaskKey)) return addLog('아직 발견하지 못한 플라스크입니다. 전투 중 드랍으로 찾아야 장착할 수 있습니다.', 'attack-monster');
-    if (st.utils.some((u, i) => u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === def.category && i !== idx)) return addLog('같은 종류의 플라스크는 이미 다른 슬롯에 장착되어 있습니다.', 'attack-monster');
+    if (st.utils.some((u, i) => i < maxUtilSlots && u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === def.category && i !== idx)) return addLog('같은 종류의 플라스크는 이미 다른 슬롯에 장착되어 있습니다.', 'attack-monster');
     st.utils[idx] = { key: flaskKey, charges: def.maxCharges, until: 0 };
     addLog(`🧪 유틸리티 플라스크 슬롯 ${idx + 1}: ${def.name}`, 'loot-magic');
     updateStaticUI();
