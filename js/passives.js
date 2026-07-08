@@ -6028,6 +6028,26 @@ function normalizeItem(item) {
     } else item.encroached = null;
     item.rarity = item.rarity || 'magic';
     item.hiddenTier = Math.max(1, Math.floor(coerceFiniteNumber(item.hiddenTier, coerceFiniteNumber(item.itemTier, 1), 1)));
+    // 마이그레이션: 유틸리티 플라스크 슬롯 시스템(flaskUtilSlots) 도입 이전에 저장된 허리띠는
+    // rollBaseStats()가 해당 옵션을 굴린 적이 없어 baseStats에 없다. 그대로 두면 숨겨진 티어
+    // 5+/10+ 허리띠였어도 유틸리티 슬롯이 0개로 취급돼 저장된 유틸리티 플라스크가 멈춘다.
+    // 여기서 아이템 로드/정규화 시 단 한 번, 신규 생성 시와 동일한 확률 범위로 굴려 채워 넣는다.
+    if (item.slot === '허리띠' && !item.baseStats.some(s => s && s.id === 'flaskUtilSlots')) {
+        let range = typeof getBeltFlaskUtilSlotRollRange === 'function' ? getBeltFlaskUtilSlotRollRange(item.hiddenTier) : null;
+        if (range) {
+            let val = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
+            item.baseStats.push({
+                id: 'flaskUtilSlots',
+                val: val,
+                valMin: range.min,
+                valMax: range.max,
+                baseRollMin: range.min,
+                baseRollMax: range.max,
+                tier: 0,
+                statName: getStatName('flaskUtilSlots')
+            });
+        }
+    }
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
     item.name = item.name || item.baseName;
     item.locked = !!item.locked;

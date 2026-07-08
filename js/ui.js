@@ -7252,7 +7252,7 @@ function openFlaskPickerOverlay(kind, slotIndex) {
             FLASK_UTILITY_TIER_REQ_LEVELS.forEach((reqLevel, tierIdx) => {
                 let key = `${cat.category}${tierIdx + 1}`;
                 let def = FLASK_UTILITY_POOL[key];
-                let usedElsewhere = st.utils.some((u, i) => u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === cat.category && i !== idx);
+                let usedElsewhere = st.utils.some((u, i) => i < maxUtilSlots && u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === cat.category && i !== idx);
                 let levelLocked = lvl < reqLevel;
                 let undiscovered = !levelLocked && !found.includes(key);
                 grid.appendChild(makeOptionButton({
