@@ -4740,6 +4740,7 @@ function getItemStatToneColor(statId) {
     if (['leech'].includes(id)) return '#ff8fa3';
     if (['resPen', 'resAll', 'ds'].includes(id)) return '#ffcb8e';
     if (['gemLevel', 'suppCap'].includes(id)) return '#a8e6cf';
+    if (id === 'flaskUtilSlots') return '#9ed6ff';
 
     if (low.includes('res') || low.includes('pen')) return '#ffcb8e';
     if (low.includes('chaos') || low.includes('dot') || low.includes('poison') || low.includes('bleed')) return '#c7a6ff';
@@ -6072,22 +6073,27 @@ function updateCombatUI(pStats) {
             let flaskNow = Date.now();
             let flaskSt = ensureFlaskState();
             let flaskParts = [];
+            // 효과 줄은 공간이 좁으므로 '플라스크' 단어를 빼고 짧게 표시한다(예: '생명력 플라스크 I' → '생명력 I').
             let healDef = getFlaskHealDef(flaskSt.healTier);
             if ((flaskSt.healOverTimeUntil || 0) > flaskNow) {
                 let remain = Math.ceil((flaskSt.healOverTimeUntil - flaskNow) / 1000);
-                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#7fd99a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'heal','${healDef.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${healDef.name} ${remain}s</span>`);
+                let shortName = healDef.name.replace(' 플라스크', '');
+                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#7fd99a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'heal','${healDef.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${shortName} ${remain}s</span>`);
             }
-            (flaskSt.utils || []).forEach(u => {
+            // 현재 허리띠가 지원하는 슬롯 수만큼만 표시(초과분은 배열엔 남아있지만 비활성).
+            let maxUtilSlotsForDisplay = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : (flaskSt.utils || []).length;
+            (flaskSt.utils || []).slice(0, maxUtilSlotsForDisplay).forEach(u => {
                 if (!u || (u.until || 0) <= flaskNow) return;
                 let def = FLASK_UTILITY_POOL[u.key];
                 if (!def) return;
                 let remain = Math.ceil((u.until - flaskNow) / 1000);
-                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#ffd27a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'util','${u.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${def.name} ${remain}s</span>`);
+                let shortName = def.name.replace(' 플라스크', '');
+                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#ffd27a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'util','${u.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${shortName} ${remain}s</span>`);
             });
             flaskBuffText = flaskParts.join(' · ');
         }
         let effectGroupText = [guardWarcryText, flaskBuffText].filter(Boolean).join(' · ');
-        let ailmentText = [text, effectGroupText ? `효과: ${effectGroupText}` : ''].filter(Boolean).join(' · ');
+        let ailmentText = [text, effectGroupText].filter(Boolean).join(' · ');
         // 데스크톱에서 터치 디바이스 플래그가 잡히더라도 상태 표시를 숨기지 않도록
         // 화면 너비 기준으로만 모바일 UI 분기를 판단한다.
         let isMobile = !!(window.matchMedia && window.matchMedia('(max-width: 1080px)').matches);
@@ -7149,8 +7155,9 @@ function renderFlaskPanel() {
     let found = typeof ensureFlaskFoundKeys === 'function' ? ensureFlaskFoundKeys() : (st.foundKeys || []);
     let healDef = getFlaskHealDef(st.healTier);
     let healActive = (st.healOverTimeUntil || 0) > now;
-    // 유틸리티 2슬롯 표시(선택은 오버레이 — openFlaskPickerOverlay).
-    let utilSlots = [0, 1].map(idx => {
+    // 유틸리티 슬롯 표시(개수는 장착한 허리띠가 결정 — getMaxFlaskUtilitySlotCount). 선택은 오버레이.
+    let maxUtilSlots = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
+    let utilSlots = Array.from({ length: maxUtilSlots }, (_, idx) => {
         let cur = st.utils[idx];
         let def = cur ? FLASK_UTILITY_POOL[cur.key] : null;
         let active = cur && (cur.until || 0) > now;
@@ -7162,6 +7169,9 @@ function renderFlaskPanel() {
             <button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('utility', ${idx})" title="${def ? def.desc : '유틸리티 플라스크 선택'}">변경</button>
         </div>`;
     }).join('');
+    let beltHint = maxUtilSlots <= 0
+        ? `<div class="flask-slot-box utility empty-hint"><div class="flask-slot-label">유틸리티</div><div class="flask-slot-name" style="color:#7f8c8d;">허리띠 필요</div><div class="flask-slot-status">숨겨진 티어 5 이상의 허리띠를 장착하면 유틸리티 슬롯이 열립니다.</div></div>`
+        : '';
     let undiscoveredCount = FLASK_HEAL_TIERS.filter(t => !found.includes(t.key)).length + Object.keys(FLASK_UTILITY_POOL).filter(key => !found.includes(key)).length;
     host.innerHTML = `<div class="flask-paperdoll">
         <div class="flask-slot-box heal ${healActive ? 'active' : ''}">
@@ -7170,9 +7180,9 @@ function renderFlaskPanel() {
             <div class="flask-slot-status">충전 ${st.healCharges}/${healDef.maxCharges}${healActive ? ` · 회복 ${Math.ceil((st.healOverTimeUntil - now) / 1000)}초` : ''}</div>
             <button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('heal')">변경</button>
         </div>
-        ${utilSlots}
+        ${utilSlots}${beltHint}
     </div>
-    <div class="flask-help-text">전투 중 몬스터를 처치하면 낮은 확률로 새 플라스크를 발견합니다. 발견한 플라스크만 슬롯에 장착할 수 있습니다(남은 미발견 플라스크 ${undiscoveredCount}종). 장착한 플라스크는 처치로 충전됩니다. 회복 플라스크는 생명력 ${healDef.autoBelowHpPct}% 이하 시 ${Math.round(healDef.durationMs / 1000)}초간 지속 회복, 유틸리티 2종은 전투 중 자동 발동합니다.</div>`;
+    <div class="flask-help-text">전투 중 몬스터를 처치하면 낮은 확률로 새 플라스크를 발견합니다. 발견한 플라스크만 슬롯에 장착할 수 있습니다(남은 미발견 플라스크 ${undiscoveredCount}종). 장착한 플라스크는 처치로 충전됩니다. 회복 플라스크는 생명력 ${healDef.autoBelowHpPct}% 이하 시 ${Math.round(healDef.durationMs / 1000)}초간 지속 회복, 유틸리티는 전투 중 자동 발동합니다. 유틸리티 슬롯 개수는 장착한 허리띠(숨겨진 티어·고유 효과)로 결정됩니다.</div>`;
 }
 
 // 플라스크 선택 오버레이: 스크롤 드롭다운 대신 카드 그리드로 고른다. 발견하지 못했거나
@@ -7183,7 +7193,8 @@ function openFlaskPickerOverlay(kind, slotIndex) {
     let st = ensureFlaskState();
     let lvl = Math.max(1, Math.floor(game.level || 1));
     let found = typeof ensureFlaskFoundKeys === 'function' ? ensureFlaskFoundKeys() : (st.foundKeys || []);
-    let idx = Math.max(0, Math.min(1, Math.floor(slotIndex || 0)));
+    let maxUtilSlots = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
+    let idx = Math.max(0, Math.min(Math.max(0, maxUtilSlots - 1), Math.floor(slotIndex || 0)));
     let old = document.getElementById('flask-picker-overlay');
     if (old && old.parentNode) old.parentNode.removeChild(old);
 
@@ -7655,6 +7666,7 @@ function exposeUiRenderHelpersOnce() {
         renderRarityFilterChips,
         openAutoSalvageConfigOverlay,
         closeAutoSalvageConfigOverlay,
+        refreshAutoSalvageConfigOverlay,
         toggleAutoSalvageRarity,
         bulkSalvageEquipBySearch,
         bulkSalvageJewelsBySearch,

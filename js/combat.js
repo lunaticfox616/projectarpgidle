@@ -1242,7 +1242,38 @@ function markPlayerMovementCompleted() {
     game.uniqueRiderCompassConsumed = false;
 }
 
-// ── 플라스크: 회복 1슬롯(티어) + 유틸리티 2슬롯, 적 처치로 충전·전투 중 자동 사용 ──
+// ── 플라스크: 회복 1슬롯(항상) + 허리띠가 결정하는 유틸리티 슬롯, 적 처치로 충전·전투 중 자동 사용 ──
+// 유틸리티 슬롯 수는 장착한 허리띠로 결정된다: 기본(또는 숨겨진 티어 5 미만) 0개 / T5~9 0~1개(허리띠의
+// flaskUtilSlots 베이스 옵션 롤) / T10 이상 0~2개 / '천 개의 유리병'(고유) 장착 시 +3(고정, 다른 보너스와 합산).
+// 전역 상한은 유틸리티 4개(=총 5슬롯: 회복 1 + 유틸 4)로, 향후 다른 출처가 추가되어도 폭주하지 않게 막는다.
+const FLASK_UTILITY_SLOT_HARD_CAP = 4;
+function getMaxFlaskUtilitySlotCount() {
+    let belt = (game && game.equipment) ? game.equipment['허리띠'] : null;
+    if (!belt) return 0;
+    let bonus = 0;
+    let stat = (belt.baseStats || []).find(s => s && s.id === 'flaskUtilSlots');
+    if (stat) bonus += Math.max(0, Math.floor(Number(stat.val) || 0));
+    if (belt.rarity === 'unique' && belt.uniqueEffectKey === 'extraFlaskUtilitySlots') {
+        let ep = belt.uniqueEffectParams || {};
+        bonus += Math.max(0, Math.floor(Number(ep.slots) || 0));
+    }
+    return Math.max(0, Math.min(FLASK_UTILITY_SLOT_HARD_CAP, bonus));
+}
+function getMaxFlaskSlotCount() {
+    return 1 + getMaxFlaskUtilitySlotCount();
+}
+// 허리띠의 특수 효과(예: '천 개의 유리병')로 얻는 플라스크 충전 속도 보너스(%).
+function getFlaskChargeRateBonusPct() {
+    let belt = (game && game.equipment) ? game.equipment['허리띠'] : null;
+    if (!belt || belt.rarity !== 'unique' || belt.uniqueEffectKey !== 'extraFlaskUtilitySlots') return 0;
+    let ep = belt.uniqueEffectParams || {};
+    return Math.max(0, Number(ep.chargeRatePct) || 0);
+}
+function getFlaskEffectiveChargesPerKills(baseChargesPerKills) {
+    let bonusPct = getFlaskChargeRateBonusPct();
+    if (bonusPct <= 0) return Math.max(1, Math.floor(baseChargesPerKills || 1));
+    return Math.max(1, Math.round((baseChargesPerKills || 1) / (1 + bonusPct / 100)));
+}
 function getFlaskHealDef(tierKey) {
     return FLASK_HEAL_TIERS.find(t => t.key === tierKey) || FLASK_HEAL_TIERS[0];
 }
@@ -1305,16 +1336,21 @@ function ensureFlaskState() {
     st.healCharges = Math.max(0, Math.min(healDef.maxCharges, Number.isFinite(st.healCharges) ? Math.floor(st.healCharges) : healDef.maxCharges));
     st.healOverTimeUntil = Math.max(0, Math.floor(st.healOverTimeUntil || 0));
     st.healOverTimePerSec = Math.max(0, Math.floor(st.healOverTimePerSec || 0));
-    // 유틸리티 슬롯: 최대 2개, 풀 안의 유효 키만 유지(같은 종류 중복 제거).
+    // 유틸리티 슬롯 데이터는 여기서 "현재 장착한 허리띠가 지원하는 개수"로 잘라내지 않는다.
+    // ensureFlaskState는 스탯 미리보기(showItemTooltip 등)처럼 game.equipment[슬롯]을 일시적으로
+    // 다른 아이템으로 바꾼 뒤 getPlayerStats를 호출하는 경로에서도 함께 불린다 — 여기서 잘라내면
+    // 미리보기가 끝나고 원래 허리띠로 복원돼도 이미 배열에서 사라진 유틸리티 플라스크는 영구히
+    // 사라진다. 실제 사용 가능 슬롯 수 제한(허리띠 미지원분 비활성화)은 장착 시점(equipUtilityFlask)과
+    // 소비 시점(충전/자동발동/스탯 적용 — getMaxFlaskUtilitySlotCount로 앞쪽 N개만 사용)에서만 적용한다.
     if (!Array.isArray(st.utils)) {
         // 과거 단일 utilKey 저장 마이그레이션.
         let legacyKey = remapLegacyFlaskKey(st.utilKey);
-        let legacy = FLASK_UTILITY_POOL[legacyKey] ? [legacyKey] : ['granite1', 'quicksilver1'];
-        st.utils = legacy.slice(0, 2).map(key => ({ key, charges: FLASK_UTILITY_POOL[key].maxCharges, until: 0 }));
+        let legacy = FLASK_UTILITY_POOL[legacyKey] ? [legacyKey] : [];
+        st.utils = legacy.map(key => ({ key, charges: FLASK_UTILITY_POOL[key].maxCharges, until: 0 }));
     }
     // 예전 저장(단계 구분 전)의 고정 키를 그 종류의 1단계로 옮겨 이어서 쓸 수 있게 한다.
     st.utils = st.utils.map(u => (u && !FLASK_UTILITY_POOL[u.key] ? { ...u, key: remapLegacyFlaskKey(u.key) } : u));
-    st.utils = st.utils.filter(u => u && FLASK_UTILITY_POOL[u.key]).slice(0, 2);
+    st.utils = st.utils.filter(u => u && FLASK_UTILITY_POOL[u.key]);
     let seenCategories = new Set();
     st.utils = st.utils.filter(u => {
         let category = FLASK_UTILITY_POOL[u.key].category;
@@ -1342,17 +1378,18 @@ function selectHealFlaskTier(tierKey) {
     updateStaticUI();
 }
 
-// 유틸리티 슬롯(0 또는 1)에 플라스크를 장착/교체한다. 이미 다른 슬롯에 있으면 무시.
+// 유틸리티 슬롯(허리띠가 부여한 개수만큼)에 플라스크를 장착/교체한다. 이미 다른 슬롯에 있으면 무시.
 function equipUtilityFlask(slotIndex, flaskKey) {
     let st = ensureFlaskState();
-    let idx = Math.max(0, Math.min(1, Math.floor(slotIndex || 0)));
+    let maxUtilSlots = getMaxFlaskUtilitySlotCount();
+    if (maxUtilSlots <= 0) return addLog('유틸리티 플라스크 슬롯이 없습니다. 숨겨진 티어 5 이상의 허리띠를 장착하세요.', 'attack-monster');
+    let idx = Math.max(0, Math.min(maxUtilSlots - 1, Math.floor(slotIndex || 0)));
     if (!FLASK_UTILITY_POOL[flaskKey]) return;
     let def = FLASK_UTILITY_POOL[flaskKey];
     if (def.reqLevel > Math.max(1, Math.floor(game.level || 1))) return addLog(`레벨 ${def.reqLevel} 이상이어야 장착할 수 있습니다.`, 'attack-monster');
     if (!ensureFlaskFoundKeys().includes(flaskKey)) return addLog('아직 발견하지 못한 플라스크입니다. 전투 중 드랍으로 찾아야 장착할 수 있습니다.', 'attack-monster');
     if (st.utils.some((u, i) => u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === def.category && i !== idx)) return addLog('같은 종류의 플라스크는 이미 다른 슬롯에 장착되어 있습니다.', 'attack-monster');
     st.utils[idx] = { key: flaskKey, charges: def.maxCharges, until: 0 };
-    st.utils = st.utils.slice(0, 2);
     addLog(`🧪 유틸리티 플라스크 슬롯 ${idx + 1}: ${def.name}`, 'loot-magic');
     updateStaticUI();
 }
@@ -1361,10 +1398,13 @@ function tickFlaskChargesOnKill() {
     let st = ensureFlaskState();
     st.killCounter++;
     let healDef = getFlaskHealDef(st.healTier);
-    if (st.killCounter % healDef.chargesPerKills === 0 && st.healCharges < healDef.maxCharges) st.healCharges++;
-    st.utils.forEach(u => {
+    let healChargesPerKills = getFlaskEffectiveChargesPerKills(healDef.chargesPerKills);
+    if (st.killCounter % healChargesPerKills === 0 && st.healCharges < healDef.maxCharges) st.healCharges++;
+    // 현재 허리띠가 지원하는 슬롯 수만큼만 충전한다(초과분은 배열엔 남아있지만 비활성).
+    st.utils.slice(0, getMaxFlaskUtilitySlotCount()).forEach(u => {
         let def = FLASK_UTILITY_POOL[u.key];
-        if (st.killCounter % def.chargesPerKills === 0 && u.charges < def.maxCharges) u.charges++;
+        let chargesPerKills = getFlaskEffectiveChargesPerKills(def.chargesPerKills);
+        if (st.killCounter % chargesPerKills === 0 && u.charges < def.maxCharges) u.charges++;
     });
 }
 
@@ -1373,10 +1413,17 @@ function tickFlaskAutoUse(pStats) {
     let hpCap = Math.max(1, Math.floor(pStats.maxHp || 1));
     let now = Date.now();
     let healDef = getFlaskHealDef(st.healTier);
-    // 회복 발동: HP가 임계 이하이고 현재 지속 회복이 없을 때, durationMs 동안 총 healPct%를 나눠 회복.
+    let inCombat = (game.enemies || []).some(e => e && e.hp > 0);
+    // 전투가 끝나면(살아있는 적이 없으면) 발동 중인 플라스크 효과를 즉시 종료한다.
+    // 자연 만료를 기다리게 두면 다음 조우로 넘어갈 때까지 버프가 남아있게 되어 버린다.
+    if (!inCombat) {
+        if (st.healOverTimeUntil > now) { st.healOverTimeUntil = now; st.healOverTimePerSec = 0; }
+        st.utils.forEach(u => { if (u && (u.until || 0) > now) u.until = now; });
+    }
+    // 회복 발동: 전투 중이고 HP가 임계 이하이고 현재 지속 회복이 없을 때, durationMs 동안 총 healPct%를 나눠 회복.
     // 전투 중 자주 반복되어 로그로 띄우면 스팸이 되므로, 발동 여부는 캐릭터 효과 줄(HP 바 아래)에
     // 아이콘으로 표시하고 상세 정보는 그 커스텀 툴팁(showPlayerFlaskTooltip)에서 보여준다.
-    if (st.healCharges > 0 && st.healOverTimeUntil <= now && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= healDef.autoBelowHpPct) {
+    if (inCombat && st.healCharges > 0 && st.healOverTimeUntil <= now && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= healDef.autoBelowHpPct) {
         st.healCharges--;
         let durSec = Math.max(0.5, (healDef.durationMs || 4000) / 1000);
         let totalHeal = Math.max(1, Math.floor(hpCap * healDef.healPct / 100));
@@ -1389,8 +1436,8 @@ function tickFlaskAutoUse(pStats) {
         game.playerHp = Math.min(hpCap, game.playerHp + tick);
     }
     // 유틸리티 자동 발동: 충전이 있고 버프가 꺼져 있으며 전투 중이면. (마찬가지로 로그 대신 효과 줄에 표시)
-    let inCombat = (game.enemies || []).some(e => e && e.hp > 0);
-    st.utils.forEach(u => {
+    // 현재 허리띠가 지원하는 슬롯 수만큼만 발동한다(초과분은 배열엔 남아있지만 비활성).
+    st.utils.slice(0, getMaxFlaskUtilitySlotCount()).forEach(u => {
         let def = FLASK_UTILITY_POOL[u.key];
         if (u.charges > 0 && u.until <= now && inCombat) {
             u.charges--;
@@ -2156,6 +2203,7 @@ function getPlayerStats() {
         else if (effect.key === 'fixedAllMaxRes') fixedAllMaxRes = Math.max(1, Math.min(90, Number(ep.max || 82)));
         else if (effect.key === 'stealEliteTrait') uniqueStealEliteTrait = { duration: Number(ep.duration || 30) };
         else if (effect.key === 'kaleidoscopeShield' || effect.key === 'mirrorOppositeRing') { /* item stat path handles these */ }
+        else if (effect.key === 'extraFlaskUtilitySlots') { /* getMaxFlaskUtilitySlotCount/getFlaskChargeRateBonusPct read game.equipment['허리띠'] directly */ }
         else if (effect.key === 'cosmosStatBundle') {
             addStatToBucket(reward, 'pctDmg', Number(ep.pctDmg || 0));
             addStatToBucket(reward, 'dr', Number(ep.dr || 0));
@@ -2455,11 +2503,12 @@ function getPlayerStats() {
     if (totalIntelligence > 0) { addStatToBucket(reward, 'energyShield', totalIntelligence * 2); addStatToBucket(reward, 'elementalPctDmg', Math.floor(totalIntelligence / 10)); }
     // 정확도: 기본치 + 레벨 성장 + 민첩 파생 + 장비/패시브의 정확도 옵션. 적 회피 '수치'를 상쇄한다.
     let playerAccuracy = 200 + Math.max(1, Math.floor(game.level || 1)) * 10 + totalDexterity * 2 + Math.max(0, sumStatAcrossBuckets('accuracy'));
-    // 플라스크 지속 효과(유틸리티 2슬롯): 활성 시간 동안 각 버프를 버킷에 반영 — 스탯 툴팁에도 잡힌다.
+    // 플라스크 지속 효과(유틸리티 슬롯): 활성 시간 동안 각 버프를 버킷에 반영 — 스탯 툴팁에도 잡힌다.
+    // 현재 허리띠(스탯 미리보기 중이면 미리보기 대상 허리띠)가 지원하는 슬롯 수만큼만 반영한다.
     let flaskState = (typeof ensureFlaskState === 'function') ? ensureFlaskState() : null;
     if (flaskState && Array.isArray(flaskState.utils)) {
         let nowFlask = Date.now();
-        flaskState.utils.forEach(u => {
+        flaskState.utils.slice(0, getMaxFlaskUtilitySlotCount()).forEach(u => {
             if (!u || (u.until || 0) <= nowFlask) return;
             let flaskDef = (typeof FLASK_UTILITY_POOL !== 'undefined' && FLASK_UTILITY_POOL[u.key]) || {};
             if (flaskDef.armorPct) addStatToBucket(reward, 'armorPct', flaskDef.armorPct);
