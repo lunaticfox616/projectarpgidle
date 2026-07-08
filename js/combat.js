@@ -5812,7 +5812,7 @@ function getWoodsmanPhaseProgress(enemy) {
     return clampNumber(WOODSMAN_PHASE_OLD_FINAL_PROGRESS + finalProgress * (1 - WOODSMAN_PHASE_OLD_FINAL_PROGRESS), 0, 1);
 }
 
-// 오성 잔향체 아스트라(cosmos_astra): 우주 5개 은하 보스를 모두 격파해야 도전할 수 있는 최종 보스.
+// 잔향체 아스트라(cosmos_astra): 우주 5개 은하 보스를 모두 격파해야 도전할 수 있는 최종 보스.
 // 그 다섯 보스의 정체성(견고/흡수/균형/심판/충격)을 4.5초 주기로 순환하며 방어·공격 프로필이 계속 바뀐다.
 const COSMOS_ASTRA_STANCES = [
     { name: '하말리스의 메아리 — 견고', ele: 'phys', drAdd: 20, armorMul: 1.7 },
@@ -6955,7 +6955,7 @@ function finishEncounterRun() {
         }
         if (zone.cosmosCapstone) {
             if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
-            addLog('🌌 오성 잔향체가 흩어졌습니다. 다섯 별의 메아리가 마침내 잠잠해집니다.', 'loot-unique');
+            addLog('🌌 잔향체가 흩어졌습니다. 다섯 별의 메아리가 마침내 잠잠해집니다.', 'loot-unique');
             awardCurrency(zone.reward || 'divine', 2);
             let astraUnique = generateUniqueItem(zone.tier || 34, null, '아스트라의 파편');
             addItemToInventory(astraUnique);
