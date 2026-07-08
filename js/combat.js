@@ -2493,14 +2493,14 @@ function getPlayerStats() {
     }
     let favorFx = (typeof getExpertFavorEffectTotals === 'function') ? getExpertFavorEffectTotals() : {};
     Object.keys(favorFx).forEach(statKey => addStatToBucket(reward, statKey, favorFx[statKey] || 0));
-    // 범용 스탯 전환 — 힘: 1당 생명력 +2, 10당 물리 피해 +1% / 민첩: 1당 회피 +3, 1당 정확도 +2
-    // / 지능: 1당 ES +2, 10당 원소 피해 +1%. 어떤 출처(장비/패시브/보상)의 스탯이든 합산 후 전환된다.
+    // 범용 스탯 전환 — 힘: 1당 생명력 +2, 5당 물리 피해 +1% / 민첩: 1당 회피 +3, 1당 정확도 +2, 5당 투사체 피해 +1%
+    // / 지능: 1당 ES +2, 5당 주문 피해 +1%. 어떤 출처(장비/패시브/보상)의 스탯이든 합산 후 전환된다.
     let totalStrength = Math.max(0, sumStatAcrossBuckets('strength'));
     let totalDexterity = Math.max(0, sumStatAcrossBuckets('dexterity'));
     let totalIntelligence = Math.max(0, sumStatAcrossBuckets('intelligence'));
-    if (totalStrength > 0) { addStatToBucket(reward, 'flatHp', totalStrength * 2); addStatToBucket(reward, 'physPctDmg', Math.floor(totalStrength / 10)); }
-    if (totalDexterity > 0) addStatToBucket(reward, 'evasion', totalDexterity * 3);
-    if (totalIntelligence > 0) { addStatToBucket(reward, 'energyShield', totalIntelligence * 2); addStatToBucket(reward, 'elementalPctDmg', Math.floor(totalIntelligence / 10)); }
+    if (totalStrength > 0) { addStatToBucket(reward, 'flatHp', totalStrength * 2); addStatToBucket(reward, 'physPctDmg', Math.floor(totalStrength / 5)); }
+    if (totalDexterity > 0) { addStatToBucket(reward, 'evasion', totalDexterity * 3); addStatToBucket(reward, 'projectilePctDmg', Math.floor(totalDexterity / 5)); }
+    if (totalIntelligence > 0) { addStatToBucket(reward, 'energyShield', totalIntelligence * 2); addStatToBucket(reward, 'spellPctDmg', Math.floor(totalIntelligence / 5)); }
     // 정확도: 기본치 + 레벨 성장 + 민첩 파생 + 장비/패시브의 정확도 옵션. 적 회피 '수치'를 상쇄한다.
     let playerAccuracy = 200 + Math.max(1, Math.floor(game.level || 1)) * 10 + totalDexterity * 2 + Math.max(0, sumStatAcrossBuckets('accuracy'));
     // 플라스크 지속 효과(유틸리티 슬롯): 활성 시간 동안 각 버프를 버킷에 반영 — 스탯 툴팁에도 잡힌다.
@@ -3782,12 +3782,12 @@ function getPlayerStats() {
         strength: {
             title: '힘 · 민첩 · 지능',
             lines: [
-                `💪 힘 ${Math.floor(totalStrength)} — 1당 최대 생명력 +2, 10당 물리 피해 +1%`,
-                `　→ 최대 생명력 +${Math.floor(totalStrength * 2)} · 물리 피해 +${Math.floor(totalStrength / 10)}%`,
-                `🏹 민첩 ${Math.floor(totalDexterity)} — 1당 회피 +3, 1당 정확도 +2`,
-                `　→ 회피 +${Math.floor(totalDexterity * 3)} · 정확도 +${Math.floor(totalDexterity * 2)}`,
-                `📘 지능 ${Math.floor(totalIntelligence)} — 1당 에너지 보호막 +2, 10당 원소 피해 +1%`,
-                `　→ 에너지 보호막 +${Math.floor(totalIntelligence * 2)} · 원소 피해 +${Math.floor(totalIntelligence / 10)}%`,
+                `💪 힘 ${Math.floor(totalStrength)} — 1당 최대 생명력 +2, 5당 물리 피해 +1%`,
+                `　→ 최대 생명력 +${Math.floor(totalStrength * 2)} · 물리 피해 +${Math.floor(totalStrength / 5)}%`,
+                `🏹 민첩 ${Math.floor(totalDexterity)} — 1당 회피 +3, 1당 정확도 +2, 5당 투사체 피해 +1%`,
+                `　→ 회피 +${Math.floor(totalDexterity * 3)} · 정확도 +${Math.floor(totalDexterity * 2)} · 투사체 피해 +${Math.floor(totalDexterity / 5)}%`,
+                `📘 지능 ${Math.floor(totalIntelligence)} — 1당 에너지 보호막 +2, 5당 주문 피해 +1%`,
+                `　→ 에너지 보호막 +${Math.floor(totalIntelligence * 2)} · 주문 피해 +${Math.floor(totalIntelligence / 5)}%`,
                 `범용 스탯은 전 부위 장비 추가 옵션으로 등장합니다.`
             ].filter(Boolean),
             final: `${Math.floor(totalStrength)} / ${Math.floor(totalDexterity)} / ${Math.floor(totalIntelligence)}`
