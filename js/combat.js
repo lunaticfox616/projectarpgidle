@@ -6880,8 +6880,8 @@ function finishEncounterRun() {
             else {
                 let killedRivals = (game.loopProgressCurrent && Array.isArray(game.loopProgressCurrent.specialBosses)) ? game.loopProgressCurrent.specialBosses : [];
                 let remaining = SEASON_BOSS_ZONES.filter(rival => rival.rivalBlade && !rival.capstoneRival && !killedRivals.includes(rival.id)).length;
-                if (remaining > 0) addLog(`🗡️ 버려진 날 격파! 이번 루프에 남은 날: ${remaining}개 (모두 꺾으면 「완성작」이 나타납니다)`, 'season-up');
-                else addLog('🗡️ 다섯 날이 모두 꺾였습니다. 「일곱 번째 날 - 완성작」이 결투를 기다립니다.', 'loot-unique');
+                if (remaining > 0) addLog(`🗡️ 버려진 날 격파! 이번 루프에 남은 날: ${remaining}개 (모두 꺾으면 완성작이 나타납니다)`, 'season-up');
+                else addLog('🗡️ 다섯 날이 모두 꺾였습니다. 일곱 번째 날 - 완성작이 결투를 기다립니다.', 'loot-unique');
             }
         }
         if (Math.random() < 0.5) awardCurrency(zone.reward || 'bossCore', 1);
@@ -9004,7 +9004,7 @@ function triggerSeasonReset(options) {
         queueTutorialNotice('unlock_time_rift', '시간의 균열', '루프 13 달성! 지도 → 탐험에 시간의 균열이 열렸습니다.\n과거를 클리어해 제단을 열고 같은 부위의 고유 1개·희귀 1개를 올린 뒤, 미래를 클리어하면 두 아이템이 융합된 유물이 됩니다.\n시간압이 높을수록 어렵지만 완벽한 융합(추가 옵션 전부 계승) 확률이 오릅니다.', 'tab-map');
     }
     if (game.season === 31 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n지도의 뿌리 보스 목록에서 결투에 도전하세요. (도전권: 심층 보스가 드랍하는 [표식: 버려진 날])\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');
+        queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n지도의 뿌리 보스 목록에서 결투에 도전하세요. (도전권: 심층 보스가 드랍하는 [표식: 버려진 날])\n한 루프 안에 다섯 날을 모두 꺾으면 완성작이 모습을 드러냅니다.', 'tab-map');
     }
     addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
     game.level = 1;

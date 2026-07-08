@@ -153,18 +153,18 @@ const SEASON_BOSS_ZONES = [
     // 버려진 날붙이들 (루프 31+): 나무꾼이 벼리다 버린 다른 날들. 플레이어(첫 번째 날붙이)를 시험하러 온다.
     //  - 매 루프 다시 도전하는 고정 난이도 결투(loopScaleExempt) — 난이도는 fixedDifficultyMul·bossMods로만 조절한다.
     //  - bossMods shape는 createEnemy의 cosmosMods와 동일: *Mul(hp/damage/attackSpeed/armor/evasion/regen)은 배율, 나머지는 가산.
-    //  - 다섯 날을 한 루프 안에 모두 꺾으면 「완성작」이 모습을 드러낸다 (requiresRivals).
-    { id: 'rival_overheat', name: '버려진 두 번째 날 「과열」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'fire', reward: 'divine', journalId: 'rival_overheat', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
+    //  - 다섯 날을 한 루프 안에 모두 꺾으면 완성작이 모습을 드러낸다 (requiresRivals).
+    { id: 'rival_overheat', name: '버려진 두 번째 날 과열', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'fire', reward: 'divine', journalId: 'rival_overheat', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
       bossMods: { hpMul: 0.75, damageMul: 1.3, attackSpeedMul: 1.3, critChanceBonus: 14, patternMode: 'burst', traitName: '과열 — 먼저 베지 못하면 먼저 베인다' } },
-    { id: 'rival_dull', name: '버려진 세 번째 날 「무딤」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'cold', reward: 'divine', journalId: 'rival_dull', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
+    { id: 'rival_dull', name: '버려진 세 번째 날 무딤', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'cold', reward: 'divine', journalId: 'rival_dull', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
       bossMods: { hpMul: 1.5, damageMul: 1.1, attackSpeedMul: 0.78, dr: 12, resAll: 12, armorMul: 1.6, firstHitGuard: 0.3, patternMode: 'slam', traitName: '무딤 — 부러지지 않는 것이 전부였던 날' } },
-    { id: 'rival_glutton', name: '버려진 네 번째 날 「탐식」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'divine', journalId: 'rival_glutton', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
+    { id: 'rival_glutton', name: '버려진 네 번째 날 탐식', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'divine', journalId: 'rival_glutton', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
       bossMods: { hpMul: 1.25, regenMul: 8, resChaos: 20, ailmentChanceBonus: 0.1, patternMode: 'ramp', traitName: '탐식 — 상처를 먹고 아무는 날' } },
-    { id: 'rival_afterimage', name: '버려진 다섯 번째 날 「잔영」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'light', reward: 'divine', journalId: 'rival_afterimage', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
+    { id: 'rival_afterimage', name: '버려진 다섯 번째 날 잔영', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'light', reward: 'divine', journalId: 'rival_afterimage', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
       bossMods: { hpMul: 0.85, attackSpeedMul: 1.18, evasionMul: 1.7, critChanceBonus: 8, firstHitGuard: 0.15, patternMode: 'burst', traitName: '잔영 — 스치는 것조차 허락하지 않는 날' } },
-    { id: 'rival_backedge', name: '버려진 여섯 번째 날 「역린」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'phys', reward: 'divine', journalId: 'rival_backedge', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
+    { id: 'rival_backedge', name: '버려진 여섯 번째 날 역린', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'phys', reward: 'divine', journalId: 'rival_backedge', rivalBlade: true, loopScaleExempt: true, fixedDifficultyMul: 2.2,
       bossMods: { hpMul: 1.1, damageMul: 1.2, penetration: 12, dr: 8, resAll: 8, armorMul: 1.25, patternMode: 'slam', traitName: '역린 — 방어를 거꾸로 베는 날' } },
-    { id: 'rival_masterwork', name: '일곱 번째 날 「완성작」', type: 'seasonBoss', tier: 32, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'woodsmanTouch', journalId: 'rival_masterwork', rivalBlade: true, capstoneRival: true, loopScaleExempt: true, fixedDifficultyMul: 3.2,
+    { id: 'rival_masterwork', name: '일곱 번째 날 완성작', type: 'seasonBoss', tier: 32, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'woodsmanTouch', journalId: 'rival_masterwork', rivalBlade: true, capstoneRival: true, loopScaleExempt: true, fixedDifficultyMul: 3.2,
       requiresRivals: ['rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge'],
       bossMods: { hpMul: 1.9, damageMul: 1.35, attackSpeedMul: 1.12, critChanceBonus: 10, dr: 10, resAll: 10, regenMul: 3, penetration: 8, firstHitGuard: 0.25, patternMode: 'ramp', traitName: '완성작 — 여섯 날의 모든 것' } }
 ];
