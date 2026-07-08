@@ -10,6 +10,9 @@ function safeExposeData(map) {
 // 스킬이 extraProjectileDamagePct를 직접 정의하면(예: 연발 사격 45) 그 값이 우선한다.
 const PROJECTILE_BONUS_SHOT_DAMAGE_PCT = 40;
 
+// 투사체 '추가 발사' 총합의 상한(장비/패시브/유니크/부적 합산치에 적용).
+const PROJECTILE_EXTRA_SHOT_CAP = 10;
+
 // Phase-1 extracted data (global compatibility).
 const SKILL_DB = {
     '기본 공격': { isGem: false, levelable: true, baseDmg: 1.0, baseSpd: 1.0, dmgScale: 0.05, spdScale: 0.01, leech: 0, crit: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '가장 가까운 적 하나를 가격합니다. 레벨업당 피해 배율 +5%, 공격 속도 +1%가 적용됩니다.', tags: ['attack', 'melee', 'physical'] },
