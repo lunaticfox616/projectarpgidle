@@ -2179,6 +2179,7 @@ function getPlayerStats() {
             if (isDeferredTalentProjectileTargetEffect(effect)) return;
             addStatToBucket(reward, 'targetProjectile', Number(ep.target || 1));
         }
+        else if (effect.key === 'projectileExtraShotBonus') addStatToBucket(reward, 'projectileExtraShots', Number(ep.shots || 1));
         else if (effect.key === 'igniteDamageMorePct') addStatToBucket(reward, 'igniteDamageMultiplierPct', Number(ep.pct || 25));
         else if (effect.key === 'cosmosFinalDmg') addStatToBucket(reward, 'pctDmg', Number(ep.pct || 12));
         else if (effect.key === 'cosmosTakenLess') addStatToBucket(reward, 'dr', Number(ep.dr || 8));
@@ -3387,7 +3388,7 @@ function getPlayerStats() {
     let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier * expectedAddedDamageMultiplier;
     let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
-    let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.min(PROJECTILE_EXTRA_SHOT_CAP, Math.floor(totalProjectileExtraShots || 0))) : 0;
+    let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.floor(totalProjectileExtraShots || 0)) : 0;
     let projectileBonusShotDamagePct = Math.max(0, Number(skill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT);
     let projectileExtraShotDpsMul = 1 + projectileExtraShotsForDps * projectileBonusShotDamagePct / 100;
     let finalDpsWithProjectileShots = finalDpsAdjusted * projectileExtraShotDpsMul;
@@ -7374,7 +7375,7 @@ function performPlayerAttack(pStats) {
     let totalDamage = 0;
     let totalLeechableDamage = 0;
     let isProjectileSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('projectile');
-    let projectileBonusShots = isProjectileSkill ? Math.max(0, Math.min(PROJECTILE_EXTRA_SHOT_CAP, Math.floor(pStats.projectileExtraShots || 0))) : 0;
+    let projectileBonusShots = isProjectileSkill ? Math.max(0, Math.floor(pStats.projectileExtraShots || 0)) : 0;
     let curseProjectileExtraHits = 0;
     if (isProjectileSkill) {
         let aliveEnemies = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
