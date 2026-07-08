@@ -2574,9 +2574,12 @@ function switchMapExploreSubtab(subtabId) {
 const MAP_EXPLORE_ALARM_SUBTABS = ['map-explore-hunting', 'map-explore-root-boss', 'map-explore-colony', 'map-explore-trials'];
 
 // 알람 대상 세부 탭별 "해금된 지도 수" 시그니처. 값이 증가하면 새 지도가 열린 것이다.
+// 나무(일반 사냥터) 탭은 스토리 액트 존만 표시하므로(혼돈 1~20층은 별도의 혼돈 탭에 렌더링됨),
+// 그 시그니처도 스토리 존 범위(LAST_STORY_ZONE_ID)까지만 세야 한다. getVisibleHuntingMapCapZoneId()는
+// 혼돈 20층까지 포함하는 범위라 그대로 쓰면 혼돈 층수 개방만으로도 나무 탭에 알람이 잘못 뜬다.
 function getMapExploreUnlockSignatures() {
-    const seasonMapCap = typeof getVisibleHuntingMapCapZoneId === 'function'
-        ? getVisibleHuntingMapCapZoneId() : Math.max(0, Math.floor(game.maxZoneId || 0));
+    const huntingMapCap = typeof LAST_STORY_ZONE_ID === 'number'
+        ? LAST_STORY_ZONE_ID : Math.max(0, Math.floor(game.maxZoneId || 0));
     const season = game.season || 1;
     const rootBossZones = typeof SEASON_BOSS_ZONES !== 'undefined' ? SEASON_BOSS_ZONES : [];
     const trialZones = typeof TRIAL_ZONES !== 'undefined' ? TRIAL_ZONES : [];
@@ -2584,7 +2587,7 @@ function getMapExploreUnlockSignatures() {
         ? canSeeTalentBloomTrial()
         : ((trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || (game.unlockedTrials || []).includes(trial.id));
     return {
-        'map-explore-hunting': Math.min(Math.max(0, Math.floor(game.maxZoneId || 0)), seasonMapCap),
+        'map-explore-hunting': Math.min(Math.max(0, Math.floor(game.maxZoneId || 0)), huntingMapCap),
         'map-explore-root-boss': rootBossZones.filter(zone => season >= (zone.reqSeason || 2)).length,
         'map-explore-colony': season >= 15 ? 1 : 0,
         'map-explore-trials': trialZones.filter(isTrialAvailable).length
