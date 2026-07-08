@@ -104,6 +104,7 @@ const SKILL_TAG_LABELS = {
     chaos: '카오스',
     aoe: '범위',
     dot: '지속',
+    spell: '주문',
     slam: '강타',
     chain: '연쇄',
     summon: '소환수',
@@ -120,7 +121,8 @@ const TAGGED_DAMAGE_STAT_BY_TAG = {
     lightning: 'lightPctDmg',
     chaos: 'chaosPctDmg',
     aoe: 'aoePctDmg',
-    slam: 'slamPctDmg'
+    slam: 'slamPctDmg',
+    spell: 'spellPctDmg'
 };
 const COMPARE_STAT_META = {
     dps: { label: 'DPS', format: value => `${Math.floor(value)}` },
@@ -235,6 +237,7 @@ function getStatName(statId) {
         projectileExtraShots: '투사체 추가 발사',
         spellFlatDmg: '주문 내장 피해',
         spellFlatPct: '주문 내장 피해 증가(%)',
+        spellPctDmg: '주문 피해(%)',
         physPctDmg: '물리 피해(%)',
         elementalPctDmg: '원소 피해(%)',
         firePctDmg: '화염 피해(%)',
@@ -357,7 +360,7 @@ function createEmptyStatBucket() {
         physTakenAsFire: 0, physTakenAsCold: 0, physTakenAsLight: 0, physTakenAsChaos: 0,
         addedFireDamagePct: 0, addedColdDamagePct: 0, addedLightDamagePct: 0, addedChaosDamagePct: 0, addedPhysDamagePct: 0,
         fireFlatDmg: 0, coldFlatDmg: 0, lightFlatDmg: 0, chaosFlatDmg: 0, physFlatDmg: 0,
-        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
+        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, spellPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
         strength: 0, dexterity: 0, intelligence: 0, accuracy: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0, deflectChance: 0, deflectDamageReduce: 0, blockChance: 0, blockChancePct: 0,
@@ -387,6 +390,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'chaosPctDmg') bucket.chaosPctDmg += value;
     else if (statId === 'aoePctDmg') bucket.aoePctDmg += value;
     else if (statId === 'dotPctDmg') bucket.dotPctDmg += value;
+    else if (statId === 'spellPctDmg') bucket.spellPctDmg += value;
     else if (statId === 'igniteChance') bucket.igniteChance += value;
     else if (statId === 'chillChance') bucket.chillChance += value;
     else if (statId === 'freezeChance') bucket.freezeChance += value;
@@ -395,6 +399,10 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'bleedChance') bucket.bleedChance += value;
     else if (statId === 'spellFlatDmg') bucket.spellFlatDmg += value;
     else if (statId === 'spellFlatPct') bucket.spellFlatPct += value;
+    else if (statId === 'strength') bucket.strength += value;
+    else if (statId === 'dexterity') bucket.dexterity += value;
+    else if (statId === 'intelligence') bucket.intelligence += value;
+    else if (statId === 'accuracy') bucket.accuracy += value;
     else if (statId === 'flatHp') bucket.flatHp += value;
     else if (statId === 'pctHp') bucket.pctHp += value;
     else if (statId === 'aspd') bucket.aspd += value;
