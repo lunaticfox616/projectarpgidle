@@ -7666,6 +7666,7 @@ function exposeUiRenderHelpersOnce() {
         renderRarityFilterChips,
         openAutoSalvageConfigOverlay,
         closeAutoSalvageConfigOverlay,
+        refreshAutoSalvageConfigOverlay,
         toggleAutoSalvageRarity,
         bulkSalvageEquipBySearch,
         bulkSalvageJewelsBySearch,
