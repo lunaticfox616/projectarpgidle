@@ -5014,22 +5014,32 @@ function resizeBattlefieldCanvas() {
     lastBattlefieldCanvasSize = { width: cssWidth, height: cssHeight, dpr };
 }
 
+// 8x8 전장 그리드 → 아이소메트릭 화면 좌표 투영. 전장 캔버스 렌더러가 공용으로 사용한다.
+function getBattleGridProjection(width, height) {
+    const size = COMBAT_GRID_CONFIG.size;
+    const tileW = Math.min(width * 0.115, height * 0.185);
+    const tileH = tileW * 0.5;
+    const originX = width * 0.5;
+    const originY = height * 0.56 - ((size - 1) * tileH) / 2;
+    return {
+        tileW: tileW,
+        tileH: tileH,
+        cellToScreen(gx, gy) {
+            return { x: originX + (gx - gy) * (tileW / 2), y: originY + (gx + gy) * (tileH / 2) };
+        }
+    };
+}
+
 function getBattleLayout(enemies, width, height) {
     let list = enemies || [];
     if (list.length === 0) return [];
-    let columnAnchors = [0.54, 0.64, 0.74, 0.84, 0.92];
-    let rowAnchors = [0.48, 0.58, 0.69, 0.79, 0.86, 0.92];
+    let proj = getBattleGridProjection(width, height);
+    let fallbackCell = COMBAT_GRID_CONFIG.bossSpawn;
     return list.map(enemy => {
-        let slot = Number.isFinite(enemy.battleSlot) ? enemy.battleSlot : 0;
-        let col = clampNumber(slot % 5, 0, columnAnchors.length - 1);
-        let row = Math.max(0, Math.floor(slot / 5));
-        let rowAnchor = row < rowAnchors.length ? rowAnchors[row] : (rowAnchors[rowAnchors.length - 1] + ((row - rowAnchors.length + 1) * 0.04));
-        return {
-            enemy: enemy,
-            x: width * columnAnchors[col] + (((enemy.variantSeed || enemy.id) * 17) % 5 - 2),
-            y: height * Math.min(0.94, rowAnchor) + (((enemy.variantSeed || enemy.id) * 29) % 5 - 2)
-        };
-    }).sort((a, b) => a.y - b.y || ((a.enemy.battleSlot || 0) - (b.enemy.battleSlot || 0)));
+        let cell = hasGridCell(enemy) ? enemy : fallbackCell;
+        let pos = proj.cellToScreen(cell.gx, cell.gy);
+        return { enemy: enemy, x: pos.x, y: pos.y };
+    }).sort((a, b) => a.y - b.y || (a.enemy.id - b.enemy.id));
 }
 
 function drawPixelShadow(ctx, x, y, w, h, alpha) {
@@ -9465,7 +9475,7 @@ function mergeDefaults(save) {
         let hp = clampFiniteNumber(enemy.hp, NaN, 0);
         let maxHp = clampFiniteNumber(enemy.maxHp, hp, 1);
         if (!Number.isFinite(hp)) hp = maxHp;
-        return {
+        return normalizeEnemyGridFields({
             ...enemy,
             id: Math.max(1, Math.floor(clampFiniteNumber(enemy.id, 1, 1))),
             hp: Math.min(maxHp, hp),
@@ -9475,7 +9485,6 @@ function mergeDefaults(save) {
             spawnAt: clampFiniteNumber(enemy.spawnAt, 0, 0, 100),
             spawnStamp: 0,
             groupIndex: Math.max(0, Math.floor(clampFiniteNumber(enemy.groupIndex, 0, 0))),
-            battleSlot: Math.max(0, Math.floor(clampFiniteNumber(enemy.battleSlot, Math.max(0, enemy.id - 1), 0))),
             variantSeed: Math.floor(clampFiniteNumber(enemy.variantSeed, 1)),
             ele: enemy.ele || 'phys',
             name: enemy.name || '이름 없는 적',
@@ -9487,7 +9496,30 @@ function mergeDefaults(save) {
             resChaos: clampFiniteNumber(enemy.resChaos, 0),
             isElite: !!enemy.isElite,
             isBoss: !!enemy.isBoss
-        };
+        });
+    }
+
+    // 그리드 필드 정리: 잘못된 좌표/유형은 버려서 다음 전투 틱의 그리드 복구가 다시 배치하게 한다.
+    function normalizeEnemyGridFields(record) {
+        delete record.battleSlot;
+        let maxCell = COMBAT_GRID_CONFIG.size - 1;
+        let gx = Math.floor(clampFiniteNumber(record.gx, NaN, 0, maxCell));
+        let gy = Math.floor(clampFiniteNumber(record.gy, NaN, 0, maxCell));
+        if (Number.isFinite(gx) && Number.isFinite(gy)) {
+            record.gx = gx;
+            record.gy = gy;
+        } else {
+            delete record.gx;
+            delete record.gy;
+        }
+        record.gridMoveTimer = 0;
+        if (record.attackKind !== 'melee' && record.attackKind !== 'ranged') {
+            delete record.attackKind;
+            delete record.attackRange;
+        } else {
+            record.attackRange = Math.max(1, Math.floor(clampFiniteNumber(record.attackRange, 1, 1, 99)));
+        }
+        return record;
     }
     function normalizeRecentDamageEvent(entry) {
         if (!entry || typeof entry !== 'object') return null;

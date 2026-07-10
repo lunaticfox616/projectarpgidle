@@ -89,6 +89,8 @@ function renderBattlefield(forceWhenHidden) {
     let currentZone = getZone(game.currentZoneId);
     let zoneTheme = getBattleZoneTheme(currentZone);
     drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone);
+    let gridProj = getBattleGridProjection(width, height);
+    drawBattleGridFloor(ctx, gridProj, zoneTheme);
     if (!battleAssets.ready && battleAssets.loading) {
         ctx.save();
         ctx.fillStyle = 'rgba(6,10,16,0.55)';
@@ -129,22 +131,34 @@ function renderBattlefield(forceWhenHidden) {
     let attackBlend = battleVisualState.playerAttackBlend || 0;
     let hurtBlend = battleVisualState.playerHurtBlend || 0;
     let downBlend = battleVisualState.playerDownBlend || 0;
-    let attackInset = 84;
+    let playerCell = hasGridCell(game.gridPlayer) ? game.gridPlayer : COMBAT_GRID_CONFIG.playerSpawn;
+    let playerCellPos = gridProj.cellToScreen(playerCell.gx, playerCell.gy);
     let targetPlayerPos = {
-        x: Math.max(width * 0.2, attackInset),
-        y: height * 0.72 + downBlend * 0.6
+        x: playerCellPos.x + advanceBlend * gridProj.tileW * 0.35,
+        y: playerCellPos.y + downBlend * 0.6
     };
     if (!battleVisualState.playerPos) {
         battleVisualState.playerPos = { x: targetPlayerPos.x, y: targetPlayerPos.y };
     } else {
-        battleVisualState.playerPos.x = approachNumber(battleVisualState.playerPos.x, targetPlayerPos.x, 2.6, deltaSec);
-        battleVisualState.playerPos.y = approachNumber(battleVisualState.playerPos.y, targetPlayerPos.y, 2.6, deltaSec);
+        battleVisualState.playerPos.x = approachNumber(battleVisualState.playerPos.x, targetPlayerPos.x, 6.0, deltaSec);
+        battleVisualState.playerPos.y = approachNumber(battleVisualState.playerPos.y, targetPlayerPos.y, 6.0, deltaSec);
     }
     let playerPos = {
         x: battleVisualState.playerPos.x,
         y: battleVisualState.playerPos.y
     };
+    if (!battleVisualState.enemySmoothPos) battleVisualState.enemySmoothPos = {};
     let dynamicLayout = layout.map(entry => {
+        // 칸 단위 이동이 순간이동으로 보이지 않게 화면 좌표를 목표 칸으로 보간한다.
+        let smooth = battleVisualState.enemySmoothPos[entry.enemy.id];
+        if (!smooth) {
+            smooth = { x: entry.x, y: entry.y };
+            battleVisualState.enemySmoothPos[entry.enemy.id] = smooth;
+        } else {
+            smooth.x = approachNumber(smooth.x, entry.x, 6.0, deltaSec);
+            smooth.y = approachNumber(smooth.y, entry.y, 6.0, deltaSec);
+        }
+        entry = { enemy: entry.enemy, x: smooth.x, y: smooth.y };
         let rawSeed = entry.enemy.variantSeed;
         if (!Number.isFinite(rawSeed)) rawSeed = entry.enemy.id;
         let seed = Number(rawSeed);
@@ -178,7 +192,7 @@ function renderBattlefield(forceWhenHidden) {
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
     drawSkillWeaponLayer(ctx, playerPos, now, 'back');
-    drawActiveSummons(ctx, playerPos, now);
+    drawActiveSummons(ctx, playerPos, now, gridProj);
     drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15, playerFlash, swingPower, currentSkillVisual, now, {
         advanceBlend: advanceBlend,
         attackBlend: attackBlend,
@@ -545,15 +559,54 @@ function getSummonSpriteFrameRectByName(name, image) {
     return frames[safeIndex];
 }
 
-function drawActiveSummons(ctx, playerPos, now) {
+// 8x8 아이소메트릭 그리드 바닥. 스폰 칸(플레이어=파랑, 보스=빨강)을 옅게 표시한다.
+function drawBattleGridFloor(ctx, proj, theme) {
+    const size = COMBAT_GRID_CONFIG.size;
+    const halfW = proj.tileW / 2;
+    const halfH = proj.tileH / 2;
+    const tilePath = (gx, gy) => {
+        const c = proj.cellToScreen(gx, gy);
+        ctx.beginPath();
+        ctx.moveTo(c.x, c.y - halfH);
+        ctx.lineTo(c.x + halfW, c.y);
+        ctx.lineTo(c.x, c.y + halfH);
+        ctx.lineTo(c.x - halfW, c.y);
+        ctx.closePath();
+    };
+    ctx.save();
+    for (let gx = 0; gx < size; gx++) {
+        for (let gy = 0; gy < size; gy++) {
+            tilePath(gx, gy);
+            ctx.globalAlpha = 0.4;
+            ctx.fillStyle = (gx + gy) % 2 === 0 ? theme.pathA : theme.pathB;
+            ctx.fill();
+            ctx.globalAlpha = 0.62;
+            ctx.strokeStyle = 'rgba(8, 12, 18, 0.6)';
+            ctx.lineWidth = 1.3;
+            ctx.stroke();
+        }
+    }
+    ctx.globalAlpha = 0.4;
+    tilePath(COMBAT_GRID_CONFIG.playerSpawn.gx, COMBAT_GRID_CONFIG.playerSpawn.gy);
+    ctx.fillStyle = 'rgba(120, 202, 255, 0.4)';
+    ctx.fill();
+    tilePath(COMBAT_GRID_CONFIG.bossSpawn.gx, COMBAT_GRID_CONFIG.bossSpawn.gy);
+    ctx.fillStyle = 'rgba(255, 92, 92, 0.4)';
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawActiveSummons(ctx, playerPos, now, proj) {
     const summons = (game.summons || []).filter(s => s && s.alive && (s.hp || 0) > 0);
     if (summons.length <= 0) return;
     const image = battleAssets && battleAssets.images ? battleAssets.images.summon1 : null;
     const radius = 24 + Math.min(40, summons.length * 4);
     summons.forEach((summon, idx) => {
+        // 그리드 유닛: 자기 칸에 그린다. 칸이 아직 없으면(스폰 직후) 플레이어 주변 궤도로 표시한다.
         const angle = (now / 1000) * 0.9 + (idx / Math.max(1, summons.length)) * Math.PI * 2;
-        const x = playerPos.x + Math.cos(angle) * radius;
-        const y = playerPos.y - 18 + Math.sin(angle) * 12;
+        const cellPos = (proj && hasGridCell(summon)) ? proj.cellToScreen(summon.gx, summon.gy) : null;
+        const x = cellPos ? cellPos.x : playerPos.x + Math.cos(angle) * radius;
+        const y = cellPos ? cellPos.y - 6 : playerPos.y - 18 + Math.sin(angle) * 12;
         if (image) {
             const frame = getSummonSpriteFrameRectByName(summon.gemName, image);
             if (frame) {

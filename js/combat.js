@@ -669,6 +669,7 @@ function sanitizeCombatRuntimeState() {
         });
         game.enemies = (game.enemies || []).filter(enemy => enemy && Number.isFinite(enemy.hp) && enemy.hp > 0);
     }
+    ensureCombatGridRuntime();
 }
 
 
@@ -714,15 +715,15 @@ function getActiveSummonGemDefs() {
 
 function getSummonProfile(gemName) {
     let table = {
-        '서리늑대 소환': { role: 'attack', ele: 'cold', trait: '빠른 공속', baseHp: 330, baseArmor: 36, baseEvasion: 63, baseRes: { fire: 10, cold: 24, light: 10, chaos: 0 }, baseDamage: 54, attackSpeedMul: 1.35, baseCrit: 8, baseCritDmg: 150, resPenBonus: 4, respawnMs: 2000, hpScaleBase: 0.038, hpScaleExp: 1.12, dmgPerLevelPct: 0.105, armorScaleBase: 0.018, armorScaleExp: 1.1, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
-        '불곰 소환': { role: 'attack', ele: 'fire', trait: '강한 1타', baseHp: 473, baseArmor: 66, baseEvasion: 24, baseRes: { fire: 28, cold: 8, light: 10, chaos: 0 }, baseDamage: 86, attackSpeedMul: 0.78, baseCrit: 5, baseCritDmg: 145, resPenBonus: 2, respawnMs: 2000, hpScaleBase: 0.045, hpScaleExp: 1.14, dmgPerLevelPct: 0.135, armorScaleBase: 0.026, armorScaleExp: 1.12, evasionScaleBase: 0.012, evasionScaleExp: 1.08 },
-        '벼락멧돼지 소환': { role: 'attack', ele: 'light', trait: '높은 저항 관통', baseHp: 368, baseArmor: 36, baseEvasion: 45, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 62, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
-        '칼날까마귀 소환': { role: 'attack', ele: 'phys', trait: '치명타 특화', baseHp: 315, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 50, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 2000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
-        '공허 유충 소환': { role: 'attack', ele: 'chaos', trait: '카오스 관통', baseHp: 405, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 63, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 2000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
-        '벌떼 소환': { role: 'attack', ele: 'chaos', trait: '매우 빠른 공속', baseHp: 285, baseArmor: 24, baseEvasion: 75, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 36, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 2000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
-        '수액 골렘 소환': { role: 'guard', ele: 'phys', trait: '피해 대리', baseHp: 630, baseArmor: 90, baseEvasion: 18, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 15, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 4000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
+        '서리늑대 소환': { role: 'attack', ele: 'cold', gridRange: 1, trait: '빠른 공속', baseHp: 330, baseArmor: 36, baseEvasion: 63, baseRes: { fire: 10, cold: 24, light: 10, chaos: 0 }, baseDamage: 54, attackSpeedMul: 1.35, baseCrit: 8, baseCritDmg: 150, resPenBonus: 4, respawnMs: 2000, hpScaleBase: 0.038, hpScaleExp: 1.12, dmgPerLevelPct: 0.105, armorScaleBase: 0.018, armorScaleExp: 1.1, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '불곰 소환': { role: 'attack', ele: 'fire', gridRange: 1, trait: '강한 1타', baseHp: 473, baseArmor: 66, baseEvasion: 24, baseRes: { fire: 28, cold: 8, light: 10, chaos: 0 }, baseDamage: 86, attackSpeedMul: 0.78, baseCrit: 5, baseCritDmg: 145, resPenBonus: 2, respawnMs: 2000, hpScaleBase: 0.045, hpScaleExp: 1.14, dmgPerLevelPct: 0.135, armorScaleBase: 0.026, armorScaleExp: 1.12, evasionScaleBase: 0.012, evasionScaleExp: 1.08 },
+        '벼락멧돼지 소환': { role: 'attack', ele: 'light', gridRange: 1, trait: '높은 저항 관통', baseHp: 368, baseArmor: 36, baseEvasion: 45, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 62, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
+        '칼날까마귀 소환': { role: 'attack', ele: 'phys', gridRange: 2, trait: '치명타 특화', baseHp: 315, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 50, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 2000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
+        '공허 유충 소환': { role: 'attack', ele: 'chaos', gridRange: 3, trait: '카오스 관통', baseHp: 405, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 63, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 2000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
+        '벌떼 소환': { role: 'attack', ele: 'chaos', gridRange: 2, trait: '매우 빠른 공속', baseHp: 285, baseArmor: 24, baseEvasion: 75, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 36, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 2000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '수액 골렘 소환': { role: 'guard', ele: 'phys', gridRange: 1, trait: '피해 대리', baseHp: 630, baseArmor: 90, baseEvasion: 18, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 15, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 4000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
     };
-    return table[gemName] || { role: 'attack', ele: 'phys', trait: '균형형', baseHp: 330, baseArmor: 30, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 45, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
+    return table[gemName] || { role: 'attack', ele: 'phys', gridRange: 1, trait: '균형형', baseHp: 330, baseArmor: 30, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 45, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
 }
 
 function getSummonRuntimeCap(pStats) {
@@ -896,6 +897,7 @@ function buildSummonRuntimeStats(row, pStats, now) {
         physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
         crit: Math.max(0, profile.baseCrit || 0),
         critDmg: Math.max(100, profile.baseCritDmg || 140),
+        gridRange: Math.max(1, Math.floor(profile.gridRange || 1)),
         alive: true,
         respawnAt: 0,
         nextAttackAt: now + 300
@@ -1207,10 +1209,15 @@ function runSummonAttackTick(pStats) {
     (game.summons || []).forEach(s => {
         if (!s || !s.alive) return;
         if (s.role !== 'attack') return;
+        // 그리드 유닛: 자기 사거리 안의 가장 가까운 적을 치고, 없으면 접근한다.
+        let target = findNearestGridEnemy(s, aliveEnemies, Math.max(1, Math.floor(s.gridRange || 1)));
+        if (!target) {
+            let nearest = findNearestGridEnemy(s, aliveEnemies);
+            if (nearest) advanceGridUnitMovement(s, nearest, 0.1, COMBAT_GRID_CONFIG.summonMoveIntervalSec);
+            return;
+        }
         if (now < (s.nextAttackAt || 0)) return;
         s.nextAttackAt = now + getSummonAttackIntervalMs(pStats, s);
-        let target = (game.enemies || []).find(e => e && e.hp > 0);
-        if (!target) return;
         let hit = getSummonHitDamageInfo(s, pStats, target);
         let dmg = Math.max(0, hit.damage || 0);
         let dealt = applyDamageToEnemyResource(target, dmg);
@@ -1665,8 +1672,13 @@ function coreLoop() {
         if (!Number.isFinite(castUntil) || castUntil < 0) castUntil = 0;
         if (castUntil > nowCast + 5000) { castUntil = nowCast + 500; game.playerCastDelayUntil = castUntil; }
         let castBlocked = nowCast < castUntil;
-        if (!castBlocked) pTimer += 0.1 * pStats.aspd;
-        while (!castBlocked && pTimer >= 1.0 && game.enemies.length > 0) {
+        let inSkillRange = updatePlayerGridEngagement(pStats);
+        if (!castBlocked) {
+            pTimer += 0.1 * pStats.aspd;
+            // 사거리 밖이면 스윙 게이지를 1회분까지만 모아 두고, 붙는 즉시 공격한다.
+            if (!inSkillRange) pTimer = Math.min(pTimer, 1.0);
+        }
+        while (!castBlocked && inSkillRange && pTimer >= 1.0 && game.enemies.length > 0) {
             pTimer -= 1.0;
             performPlayerAttack(pStats);
             let dsChance = Math.max(0, pStats.ds || 0);
@@ -4259,20 +4271,26 @@ function getGemPresentation(name, isSupport) {
 function getSkillTargets(pStats) {
     let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
     if (alive.length === 0) return [];
-    let skill = pStats.sSkill;
-    let targetCount = Math.max(1, skill.targets || 1);
-    if (skill.targetMode === 'all') return alive.slice(0, Math.min(8, Math.max(6, skill.targets || 6))).map(enemy => ({ enemy: enemy, mult: 1 }));
-    if (skill.targetMode === 'whirl') {
-        return alive.slice(0, targetCount).map((enemy, idx) => ({
-            enemy: enemy,
-            mult: idx === 0 ? 1 : (idx < 3 ? 0.82 : (idx < 5 ? 0.68 : 0.56))
-        }));
-    }
-    if (skill.targetMode === 'cleave') return alive.slice(0, targetCount).map((enemy, idx) => ({ enemy: enemy, mult: idx === 0 ? 1 : 0.72 }));
-    if (skill.targetMode === 'chain') return alive.slice(0, targetCount).map((enemy, idx) => ({ enemy: enemy, mult: Math.max(0.45, 1 - idx * 0.2) }));
-    if (skill.targetMode === 'pierce') return alive.slice(0, targetCount).map((enemy, idx) => ({ enemy: enemy, mult: idx === 0 ? 1 : 0.65 }));
-    if (targetCount > 1) return alive.slice(0, targetCount).map((enemy, idx) => ({ enemy: enemy, mult: idx === 0 ? 1 : 0.7 }));
-    return [{ enemy: alive[0], mult: 1 }];
+    ensureCombatGridRuntime();
+    return selectGridSkillTargets(game.activeSkill, pStats.sSkill, game.gridPlayer, alive);
+}
+
+/**
+ * 그리드 교전 상태를 갱신한다. 현재 스킬 사거리 안에 대상이 있으면 true,
+ * 없으면 가장 가까운 적을 향해 플레이어를 한 칸씩 이동시키고 false를 반환한다.
+ * @param {Readonly<object>} pStats getPlayerStats 결과
+ * @returns {boolean} 이번 틱에 공격이 가능한지
+ */
+function updatePlayerGridEngagement(pStats) {
+    let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
+    if (alive.length === 0) return false;
+    if (getSkillTargets(pStats).length > 0) return true;
+    let nearest = findNearestGridEnemy(game.gridPlayer, alive);
+    if (!nearest) return false;
+    let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
+    let interval = COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
+    advanceGridUnitMovement(game.gridPlayer, nearest, 0.1, interval);
+    return false;
 }
 
 
@@ -4970,6 +4988,7 @@ function createEnemy(zone, marker, groupIndex) {
     }
     applyChaosRealmAffixesToEnemy(enemy, zone);
     applyGrandBreachMobTuning(zone, enemy);
+    assignEnemyGridCombatProfile(enemy);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
     return enemy;
 }
@@ -5136,6 +5155,7 @@ function resetBattleRuntimeVisuals() {
         lastAutoSkillAt: 0,
         processedFxIds: new Set(),
         enemyGhostPos: {},
+        enemySmoothPos: {},
         playerPos: null,
         playerAdvanceBlend: 0,
         playerAttackBlend: 0,
@@ -5147,16 +5167,6 @@ function resetBattleRuntimeVisuals() {
     };
     crowdPauseActive = false;
     trialHazardTimer = 0;
-}
-
-function reserveBattleSlot(usedSlots) {
-    let slotSet = usedSlots instanceof Set ? usedSlots : new Set();
-    for (let i = 0; i < BATTLE_SLOT_ORDER.length; i++) {
-        if (!slotSet.has(BATTLE_SLOT_ORDER[i])) return BATTLE_SLOT_ORDER[i];
-    }
-    let fallback = 0;
-    while (slotSet.has(fallback)) fallback++;
-    return fallback;
 }
 
 function primeTrialHazardTimer(zone) {
@@ -5858,6 +5868,7 @@ function startEncounterRun() {
     game.bloomBossDefeated = false;
     let zone = getZone(game.currentZoneId) || getZone(0);
     resetBattleRuntimeVisuals();
+    resetPlayerGridPosition();
     primeTrialHazardTimer(zone);
     game.encounterPlan = generateEncounterPlan(zone);
     game.enemies = [];
@@ -5957,7 +5968,8 @@ function spawnEncounterMarker(marker) {
     let zone = getZone(game.currentZoneId);
     let count = marker.count || 1;
     let isCerberus = zone && zone.id === 's6_beast_cerberus';
-    let usedSlots = new Set((game.enemies || []).map(enemy => enemy.battleSlot).filter(slot => Number.isFinite(slot)));
+    if (!hasGridCell(game.gridPlayer)) resetPlayerGridPosition();
+    let blockedCells = getGridBlockedCells();
     if (marker.boss) {
         for (let i = 0; i < Math.max(0, count - 1); i++) {
             let enemy = createEnemy(zone, { ...marker, boss: false, elite: true }, i);
@@ -5969,8 +5981,7 @@ function spawnEncounterMarker(marker) {
                 enemy.penetration += 12;
                 enemy.critChance += marker.phase >= 2 ? 10 : 0;
             }
-            enemy.battleSlot = reserveBattleSlot(usedSlots);
-            usedSlots.add(enemy.battleSlot);
+            assignEnemyGridSpawn(enemy, blockedCells);
             enemy.spawnStamp = performance.now();
             game.enemies.push(enemy);
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 360, boss: false });
@@ -5991,8 +6002,7 @@ function spawnEncounterMarker(marker) {
             bossEnemy.critChance += marker.phase >= 2 ? 14 : 0;
             bossEnemy.hybridElement = marker.phase === 3 ? 'chaos' : bossEnemy.hybridElement;
         }
-        bossEnemy.battleSlot = reserveBattleSlot(usedSlots);
-        usedSlots.add(bossEnemy.battleSlot);
+        assignEnemyGridSpawn(bossEnemy, blockedCells);
         bossEnemy.spawnStamp = performance.now();
         game.enemies.push(bossEnemy);
         addBattleFx('enemySpawn', { enemyId: bossEnemy.id, color: getElementColor(bossEnemy.ele), duration: 460, boss: true });
@@ -6005,8 +6015,7 @@ function spawnEncounterMarker(marker) {
     } else {
         for (let i = 0; i < count; i++) {
             let enemy = createEnemy(zone, marker, i);
-            enemy.battleSlot = reserveBattleSlot(usedSlots);
-            usedSlots.add(enemy.battleSlot);
+            assignEnemyGridSpawn(enemy, blockedCells);
             enemy.spawnStamp = performance.now();
             game.enemies.push(enemy);
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 320, boss: false });
@@ -8354,6 +8363,23 @@ function getCosmosEqualSplitDamageBreakdown(rawDamage, pStats, enemy) {
     }).filter(row => row.amount > 0);
 }
 
+/** 적이 자기 사거리(근접 1칸/원거리 3~5칸/보스 무제한) 안에 플레이어를 두고 있는지 판정한다. */
+function isEnemyInGridAttackRange(enemy) {
+    // 식민지 방어전은 자체 접근 거리(colonyDist) 모델을 쓰므로 그리드 사거리를 적용하지 않는다.
+    if (Number.isFinite(enemy.colonyDist)) return true;
+    // 칸 미배정 상태(레거시 저장 복원 직후 등)에서는 다음 틱의 그리드 복구 전까지 기존 동작을 유지한다.
+    if (!hasGridCell(enemy) || !hasGridCell(game.gridPlayer)) return true;
+    let range = Number.isFinite(enemy.attackRange) ? enemy.attackRange : COMBAT_GRID_CONFIG.bossAttackRange;
+    return gridChebyshevDist(enemy.gx, enemy.gy, game.gridPlayer.gx, game.gridPlayer.gy) <= range;
+}
+
+/** 사거리 밖의 적을 플레이어 쪽으로 한 칸씩 접근시킨다. slowPct(0~1)만큼 이동 주기가 길어진다. */
+function advanceEnemyGridApproach(enemy, slowPct) {
+    let slow = Math.max(0, Math.min(0.9, slowPct || 0));
+    let interval = COMBAT_GRID_CONFIG.enemyMoveIntervalSec / (1 - slow);
+    advanceGridUnitMovement(enemy, game.gridPlayer, 0.1, interval);
+}
+
 function performMonsterAttacks(pStats) {
     updateColonyDefenseApproach();
     let zone = getZone(game.currentZoneId);
@@ -8417,8 +8443,15 @@ function performMonsterAttacks(pStats) {
         curseDebuffs.forEach(deb => { enemyDmgMul *= (getConditionGemStatDelta(deb.name, 'curse').enemyDmgMul || 1); });
         let chillSlow = ailMap.chill ? Math.min(0.45, 0.12 + ailMap.chill * 0.14) : 0;
         chillSlow += Math.max(0, Math.min(0.5, Number(enemy.skillSlowPct || 0) / 100));
-        chillSlow *= Math.max(0, 1 - Math.max(0, Math.min(0.95, (pStats.chillEffectReducePct || 0) / 100))); 
+        chillSlow *= Math.max(0, 1 - Math.max(0, Math.min(0.95, (pStats.chillEffectReducePct || 0) / 100)));
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
+        // 그리드 사거리 밖이면 공격 대신 플레이어에게 접근한다(냉각/둔화는 이동도 늦춘다).
+        // 공격 게이지는 1회분까지만 유지해 도착 직후 바로 공격하게 한다.
+        if (!isEnemyInGridAttackRange(enemy)) {
+            advanceEnemyGridApproach(enemy, chillSlow);
+            enemy.attackTimer = Math.min(Number(enemy.attackTimer) || 0, 1);
+            continue;
+        }
         let atkRate = (0.26 + zone.tier * 0.013) * monsterBaseAttackSpeedMul * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
         if (zone.type === 'underworld') atkRate *= 0.76;
         if (zone.type === 'skyTower') atkRate *= 1.05;

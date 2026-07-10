@@ -60,6 +60,63 @@ const SKILL_DB = {
 
 safeExposeData({ SKILL_DB });
 
+// 스킬 젬별 8x8 그리드 공격 범위 프로필.
+// kind:
+//  - melee: 플레이어 인접(range) 칸의 단일 대상만 타격
+//  - arc:   플레이어 기준 대상 방향 전방 부채꼴(대상 칸 + 플레이어·대상 모두에 인접한 칸)
+//  - nova:  플레이어 자신 중심 radius칸 이내 전부
+//  - line:  플레이어에서 대상 방향 직선을 range칸까지 관통
+//  - chain: range칸 이내 첫 대상 적중 후 jump칸 이내 다른 적으로 연쇄
+//  - blast: range칸 이내 대상 칸 중심 radius칸 폭발(0이면 원거리 단일)
+// range/radius/jump 단위는 모두 체비셰프 거리(대각 1칸 포함)다.
+const SKILL_GRID_DB = {
+    '기본 공격':     { kind: 'melee', range: 1 },
+    '연속 베기':     { kind: 'arc',   range: 1 },
+    '묵직한 강타':   { kind: 'melee', range: 1 },
+    '흡혈 타격':     { kind: 'melee', range: 1 },
+    '암살자의 일격': { kind: 'melee', range: 1 },
+    '회오리바람':    { kind: 'nova',  range: 1, radius: 1 },
+    '번개 타격':     { kind: 'chain', range: 1, jump: 2 },
+    '얼음 창':       { kind: 'line',  range: 7 },
+    '화염 참격':     { kind: 'arc',   range: 1 },
+    '독창 투척':     { kind: 'chain', range: 5, jump: 2 },
+    '서리 폭발':     { kind: 'blast', range: 5, radius: 2 },
+    '번개 창':       { kind: 'line',  range: 7 },
+    '지진 파쇄':     { kind: 'nova',  range: 2, radius: 2 },
+    '용암 강타':     { kind: 'arc',   range: 1 },
+    '관통 사격':     { kind: 'line',  range: 7 },
+    '연쇄 폭풍':     { kind: 'chain', range: 5, jump: 2 },
+    '공허 베기':     { kind: 'arc',   range: 1 },
+    '혈기 폭쇄':     { kind: 'melee', range: 1 },
+    '불멸의 진동':   { kind: 'nova',  range: 1, radius: 1 },
+    '화염 부패':     { kind: 'blast', range: 6, radius: 2 },
+    '빙결 침식':     { kind: 'blast', range: 6, radius: 2 },
+    '서리 파동':     { kind: 'blast', range: 3, radius: 1 },
+    '뇌운 낙뢰':     { kind: 'chain', range: 5, jump: 2 },
+    '심연 전염':     { kind: 'blast', range: 6, radius: 2 },
+    '독니 사출':     { kind: 'line',  range: 7 },
+    '연발 사격':     { kind: 'blast', range: 6, radius: 0 },
+    '폭열 창탄':     { kind: 'line',  range: 7 },
+    '암흑 파열':     { kind: 'blast', range: 6, radius: 0 },
+    '중력 붕괴':     { kind: 'blast', range: 5, radius: 1 },
+    '화염 폭풍핵':   { kind: 'blast', range: 5, radius: 1 },
+    '빙결 파열창':   { kind: 'line',  range: 6 },
+    '천뢰 분기':     { kind: 'chain', range: 5, jump: 2 },
+    '삼원 파동':     { kind: 'blast', range: 4, radius: 1 },
+    '뇌격 삼연타':   { kind: 'melee', range: 1 },
+    '유성 낙화':     { kind: 'blast', range: 6, radius: 2 },
+    '난타 눈보라':   { kind: 'blast', range: 5, radius: 2 },
+    // 소환수 젬을 액티브 스킬로 든 경우 본체는 원거리 견제(단일)로 취급한다.
+    '서리늑대 소환':   { kind: 'blast', range: 6, radius: 0 },
+    '불곰 소환':       { kind: 'blast', range: 6, radius: 0 },
+    '벼락멧돼지 소환': { kind: 'blast', range: 6, radius: 0 },
+    '칼날까마귀 소환': { kind: 'blast', range: 6, radius: 0 },
+    '공허 유충 소환':  { kind: 'blast', range: 6, radius: 0 },
+    '벌떼 소환':       { kind: 'blast', range: 6, radius: 0 }
+};
+
+safeExposeData({ SKILL_GRID_DB });
+
 
 const CONDITION_GEM_DB = {
   curse: [
