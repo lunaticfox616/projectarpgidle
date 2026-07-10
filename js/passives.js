@@ -3206,7 +3206,6 @@ const DOT_STACK_GROWTH_PER_STACK = 0.10;
 const DOT_TICK_INTERVAL = 0.2;
 const DOT_EFFECT_DURATION = 2.4;
 const DOT_TICK_FROM_HIT_RATIO = 0.06;
-const BATTLE_SLOT_ORDER = [7, 6, 8, 2, 1, 3, 12, 11, 13, 17, 16, 18, 0, 4, 5, 9, 10, 14, 15, 19];
 
 function syncBattleTabLayout(forceTabSwitch) {
     let tabBattle = document.getElementById('tab-battle');
@@ -3339,6 +3338,10 @@ function cleanupBattleVisualState(now) {
     battleVisualState.damageTexts = (battleVisualState.damageTexts || []).filter(text => now - text.start <= text.duration);
     Object.keys(battleVisualState.enemyGhostPos || {}).forEach(enemyId => {
         if (now - (battleVisualState.enemyGhostPos[enemyId].stamp || 0) > 1200) delete battleVisualState.enemyGhostPos[enemyId];
+    });
+    Object.keys(battleVisualState.enemySmoothPos || {}).forEach(enemyId => {
+        // 유령 위치가 만료된(전장에서 사라진 지 오래된) 적의 보간 좌표도 함께 정리한다.
+        if (!battleVisualState.enemyGhostPos || !battleVisualState.enemyGhostPos[enemyId]) delete battleVisualState.enemySmoothPos[enemyId];
     });
     if (!battleVisualState.processedFxIds) battleVisualState.processedFxIds = new Set();
     if (battleFx.length === 0) {
