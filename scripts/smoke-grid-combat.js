@@ -223,7 +223,7 @@ assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKI
   try {
     Math.random = () => 0.5;
     const lowPlan = context.generateEncounterPlan({ id: 3, tier: 3, type: 'act' });
-    const highPlan = context.generateEncounterPlan({ id: 32, tier: 32, type: 'act' });
+    const highPlan = context.generateEncounterPlan({ id: 12, tier: 12, type: 'act' });
     const lowMobMarkers = lowPlan.filter(marker => !marker.boss);
     const highMobMarkers = highPlan.filter(marker => !marker.boss);
     const highMaxCount = Math.max(...highMobMarkers.map(marker => marker.count));
@@ -233,6 +233,7 @@ assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKI
     assert.ok(highMaxCount <= 2, '고난도 일반 스폰은 한 번에 나오는 수가 줄어야 한다');
     assert.ok(highMobMarkers.some(marker => marker.at <= 6), '고난도 첫 스폰은 약 5% 진행도부터 시작해야 한다');
     assert.strictEqual(skyTowerMobMarkers.length, 50, '이미 촘촘한 고난도 구역은 스폰 지점이 더 늘어나면 안 된다');
+    assert.ok(skyTowerMobMarkers.every(marker => marker.count === 7), '이미 촘촘한 구역은 스폰 수를 줄이면 안 된다');
   } finally {
     Math.random = originalRandom;
   }
