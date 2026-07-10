@@ -215,7 +215,28 @@ Object.keys(context.SKILL_DB).forEach(name => {
   }
 }
 
-// ── 6. 이동: 목표 접근, 점유 칸 회피, 이동 주기 ──
+// ── 6. 고난도 조우 계획: 스폰은 잦아지고 한 번에 나오는 수는 줄어든다 ──
+{
+  const originalRandom = Math.random;
+  try {
+    Math.random = () => 0.5;
+    const lowPlan = context.generateEncounterPlan({ id: 3, tier: 3, type: 'act' });
+    const highPlan = context.generateEncounterPlan({ id: 32, tier: 32, type: 'act' });
+    const lowMobMarkers = lowPlan.filter(marker => !marker.boss);
+    const highMobMarkers = highPlan.filter(marker => !marker.boss);
+    const highMaxCount = Math.max(...highMobMarkers.map(marker => marker.count));
+    const skyTowerPlan = context.generateEncounterPlan({ type: 'skyTower', floor: 30, tier: 30 });
+    const skyTowerMobMarkers = skyTowerPlan.filter(marker => !marker.boss);
+    assert.ok(highMobMarkers.length > lowMobMarkers.length * 2, '고난도에서는 더 잦은 스폰 지점이 필요하다');
+    assert.ok(highMaxCount <= 2, '고난도 일반 스폰은 한 번에 나오는 수가 줄어야 한다');
+    assert.ok(highMobMarkers.some(marker => marker.at <= 6), '고난도 첫 스폰은 약 5% 진행도부터 시작해야 한다');
+    assert.strictEqual(skyTowerMobMarkers.length, 50, '이미 촘촘한 고난도 구역은 스폰 지점이 더 늘어나면 안 된다');
+  } finally {
+    Math.random = originalRandom;
+  }
+}
+
+// ── 7. 이동: 목표 접근, 점유 칸 회피, 이동 주기 ──
 {
   resetGame();
   context.game.enemies = [];
