@@ -5077,6 +5077,27 @@ function getZoneEncounterProfile(zone) {
     };
 }
 
+function getEncounterDifficultyValue(zone) {
+    if (!zone) return 1;
+    if (Number.isFinite(zone.floor)) return Math.max(1, Math.floor(zone.floor));
+    if (Number.isFinite(zone.depthTier)) return Math.max(1, Math.floor(zone.depthTier));
+    if (Number.isFinite(zone.pressure)) return Math.max(1, Math.floor(zone.pressure));
+    return Math.max(1, Math.floor(Number(zone.tier) || Number(zone.id) || 1));
+}
+
+function getFrequentSpawnEncounterProfile(zone) {
+    let profile = { ...getZoneEncounterProfile(zone) };
+    let difficulty = getEncounterDifficultyValue(zone);
+    if (difficulty < 8 || profile.markerCount <= 0) return profile;
+    let ramp = clampNumber((difficulty - 8) / 24, 0, 1);
+    let targetMarkers = Math.round(profile.markerCount * (1.35 + ramp * 1.35));
+    profile.markerCount = clampNumber(targetMarkers, profile.markerCount + 1, 19);
+    let packMul = 1 - ramp * 0.45;
+    profile.minPack = Math.max(1, Math.floor(profile.minPack * packMul));
+    profile.maxPack = Math.max(profile.minPack, Math.floor(profile.maxPack * packMul));
+    return profile;
+}
+
 function generateEncounterPlan(zone) {
     if (zone.type === 'cosmos') {
         let p = getZoneEncounterProfile(zone);
@@ -5124,7 +5145,7 @@ function generateEncounterPlan(zone) {
         markers.sort((a, b) => a.at - b.at);
         return markers;
     }
-    let profile = getZoneEncounterProfile(zone);
+    let profile = getFrequentSpawnEncounterProfile(zone);
     let rng = zone.type === 'act' ? createSeededRng(`act:${zone.id}`) : Math.random;
     let markers = [];
     for (let i = 0; i < profile.markerCount; i++) {
