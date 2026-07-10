@@ -42,7 +42,7 @@ const COMBAT_GRID_CONFIG = {
     rangedEnemyMaxRange: 5,         // 원거리형 최대 사거리(칸)
     bossAttackRange: 99,            // 보스는 특수 케이스 제외 항상 원거리(사실상 무제한)
     enemyMoveIntervalSec: 0.5,      // 적이 1칸 이동하는 데 걸리는 기본 시간(초)
-    playerMoveIntervalSec: 0.35,    // 플레이어 기본 1칸 이동 시간(초, 이동 속도 100 기준)
+    playerMoveIntervalSec: 0.6,     // 플레이어 기본 1칸 이동 시간(초, 이동 속도 100 기준 — 이속 스탯에 반비례)
     summonMoveIntervalSec: 0.4,     // 소환수 1칸 이동 시간(초)
     chainJumpRange: 2               // 연쇄 계열 스킬이 다음 적으로 튈 수 있는 최대 거리(칸)
 };

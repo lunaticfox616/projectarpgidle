@@ -193,9 +193,15 @@ function renderBattlefield(forceWhenHidden) {
         battleVisualState.lastAutoSkillAt = now + _atkInterval;
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
-    drawSkillWeaponLayer(ctx, playerPos, now, 'back');
     drawActiveSummons(ctx, playerPos, now, gridProj);
     let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.62, 1.3);
+    let playerFacingLeft = resolvePlayerFacingLeft(playerPos, targetPlayerPos, currentTargets, enemyPosMap);
+    if (playerFacingLeft) {
+        ctx.save();
+        ctx.translate(playerPos.x * 2, 0);
+        ctx.scale(-1, 1);
+    }
+    drawSkillWeaponLayer(ctx, playerPos, now, 'back');
     drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15 * gridUnitScale, playerFlash, swingPower, currentSkillVisual, now, {
         advanceBlend: advanceBlend,
         attackBlend: attackBlend,
@@ -204,6 +210,7 @@ function renderBattlefield(forceWhenHidden) {
         downBlend: downBlend
     });
     drawSkillWeaponLayer(ctx, playerPos, now, 'front');
+    if (playerFacingLeft) ctx.restore();
 
     battleFx.forEach(fx => {
         if (battleVisualState.processedFxIds.has(fx.id)) return;
@@ -454,12 +461,6 @@ function renderBattlefield(forceWhenHidden) {
             ctx.arc(cx, cy, 16 + t * 28, 0, Math.PI * 2);
             ctx.stroke();
             ctx.restore();
-        } else if (fx.type === 'spawnWave') {
-            ctx.save();
-            ctx.globalAlpha = 0.2 * (1 - t);
-            ctx.fillStyle = fx.boss ? '#c993ff' : '#8fd0ff';
-            ctx.fillRect(0, 0, width, height);
-            ctx.restore();
         } else if (fx.type === 'playerDown') {
             ctx.save();
             ctx.globalAlpha = 0.25 * (1 - t);
@@ -560,6 +561,20 @@ function getSummonSpriteFrameRectByName(name, image) {
     const index = Math.max(0, SUMMON_SPRITE_ORDER.findIndex(label => label === normalizeName));
     const safeIndex = Math.min(index, frames.length - 1);
     return frames[safeIndex];
+}
+
+// 캐릭터가 바라볼 좌우 방향을 정한다. 공격 대상이 왼쪽이면 왼쪽을 보고,
+// 대상이 없으면 이동 방향을 따르며, 판단 근거가 없으면 직전 방향을 유지한다(기본 오른쪽).
+function resolvePlayerFacingLeft(playerPos, targetPlayerPos, currentTargets, enemyPosMap) {
+    let primary = currentTargets && currentTargets[0] ? currentTargets[0].enemy : null;
+    let anchor = primary ? enemyPosMap[primary.id] : null;
+    if (anchor) {
+        battleVisualState.playerFacingLeft = anchor.x < playerPos.x - 0.5;
+    } else {
+        let dx = targetPlayerPos.x - playerPos.x;
+        if (Math.abs(dx) > 0.8) battleVisualState.playerFacingLeft = dx < 0;
+    }
+    return !!battleVisualState.playerFacingLeft;
 }
 
 // 8x8 아이소메트릭 그리드 바닥. 유닛 점유 칸과 플레이어의 현재 공격 칸을 함께 표시한다.

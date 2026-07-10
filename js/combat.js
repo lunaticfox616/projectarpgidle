@@ -1421,12 +1421,6 @@ function tickFlaskAutoUse(pStats) {
     let now = Date.now();
     let healDef = getFlaskHealDef(st.healTier);
     let inCombat = (game.enemies || []).some(e => e && e.hp > 0);
-    // 전투가 끝나면(살아있는 적이 없으면) 발동 중인 플라스크 효과를 즉시 종료한다.
-    // 자연 만료를 기다리게 두면 다음 조우로 넘어갈 때까지 버프가 남아있게 되어 버린다.
-    if (!inCombat) {
-        if (st.healOverTimeUntil > now) { st.healOverTimeUntil = now; st.healOverTimePerSec = 0; }
-        st.utils.forEach(u => { if (u && (u.until || 0) > now) u.until = now; });
-    }
     // 회복 발동: 전투 중이고 HP가 임계 이하이고 현재 지속 회복이 없을 때, durationMs 동안 총 healPct%를 나눠 회복.
     // 전투 중 자주 반복되어 로그로 띄우면 스팸이 되므로, 발동 여부는 캐릭터 효과 줄(HP 바 아래)에
     // 아이콘으로 표시하고 상세 정보는 그 커스텀 툴팁(showPlayerFlaskTooltip)에서 보여준다.
@@ -1451,6 +1445,15 @@ function tickFlaskAutoUse(pStats) {
             u.until = now + Math.max(1000, Math.floor(def.durationMs || 6000));
         }
     });
+}
+
+// 발동 중인 플라스크 효과를 즉시 종료한다. 조우 사이(다음 팩 대기)에는 유지되어야 하므로
+// 지역(런) 완료와 지역 이동 경계에서만 호출한다.
+function expireActiveFlaskEffects() {
+    let st = ensureFlaskState();
+    let now = Date.now();
+    if (st.healOverTimeUntil > now) { st.healOverTimeUntil = now; st.healOverTimePerSec = 0; }
+    st.utils.forEach(u => { if (u && (u.until || 0) > now) u.until = now; });
 }
 
 function coreLoop() {
@@ -1497,7 +1500,7 @@ function coreLoop() {
         if (delta.crit) pStats.crit += delta.crit;
         if (delta.critDmg) pStats.critDmg += delta.critDmg;
         if (delta.resPen) pStats.resPen += delta.resPen;
-        if (delta.targetAny) pStats.sSkill.targets = Math.min(8, (pStats.sSkill.targets || 1) + delta.targetAny);
+        if (delta.targetAny) pStats.sSkill.targets = Math.min(12, (pStats.sSkill.targets || 1) + delta.targetAny);
         if (delta.leech) pStats.leech += delta.leech;
         if (delta.move) pStats.move += delta.move;
         if (delta.resAll) {
@@ -5183,6 +5186,7 @@ function resetBattleRuntimeVisuals() {
         processedFxIds: new Set(),
         enemyGhostPos: {},
         enemySmoothPos: {},
+        playerFacingLeft: false,
         playerPos: null,
         playerAdvanceBlend: 0,
         playerAttackBlend: 0,
@@ -5906,6 +5910,7 @@ function startEncounterRun() {
 function startMoving(isTown) {
     pTimer = 0;
     progressStallTicks = 0;
+    expireActiveFlaskEffects();
     resetBattleRuntimeVisuals();
     if (!isTown && game.ascendClass === 'assassin' && hasKeystone('a2')) game.assassinBlurred = true;
     let ms = getPlayerStats().moveSpeed;
@@ -6049,7 +6054,6 @@ function spawnEncounterMarker(marker) {
         }
         if (game.settings.showSpawnLog !== false) addLog(`⚠️ 적 ${count}마리 참전`, marker.elite ? "loot-rare" : "attack-monster");
     }
-    addBattleFx('spawnWave', { count: count, boss: !!marker.boss, duration: 420 });
 }
 
 function advanceMapProgress(pStats) {
@@ -6781,6 +6785,7 @@ function grantGuaranteedTrialSkillGem() {
 }
 
 function finishEncounterRun() {
+    expireActiveFlaskEffects();
     let zone = getZone(game.currentZoneId);
     let mapAction = (game.settings && game.settings.mapCompleteAction) || 'nextZone';
     game.killsInZone++;
@@ -9170,6 +9175,7 @@ function triggerSeasonReset(options) {
     game.voidPassives = {};
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
+    game.flasks = {};
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
     game.skyGemEnhancements = {};
     game.supports = [];
