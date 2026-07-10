@@ -4637,6 +4637,9 @@ function showGemTooltip(event, type, name) {
         let rawSkillTags = Array.isArray(skill.tags) ? skill.tags : [];
         let isSummonAttackTooltip = rawSkillTags.includes('summon_attack');
         html += `<div class="tooltip-line">${info.desc}</div>`;
+        if (!isSummonAttackTooltip && typeof describeSkillGridProfile === 'function') {
+            html += `<div class="tooltip-line" style="margin-top:6px;color:#7fffd4;">${describeSkillGridProfile(name, skill)}</div>`;
+        }
         if (!isSummonAttackTooltip) {
             html += `<div class="tooltip-line" style="margin-top:6px;">피해 배율 ${formatPercentMultiplier(skill.dmg || skill.baseDmg || 1)}</div>`;
             html += `<div class="tooltip-line">공속 배율 ${formatPercentMultiplier(skill.spd || skill.baseSpd || 1)}</div>`;
@@ -5307,15 +5310,15 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let monsterSkinSprite = resolveMonsterSkinSprite(monsterSkinId);
         if (monsterSkinSprite) {
             let drawSize = (monsterSkinSprite.type === 'boss' ? 52 : 38) * clampNumber((Number(scale) || 1) / 1.9, 1, 2.4);
-            drawPixelShadow(ctx, x, y + 15, monsterSkinSprite.type === 'boss' ? 14 : 10, monsterSkinSprite.type === 'boss' ? 5 : 4, 0.18);
+            drawPixelShadow(ctx, x, y + 5, monsterSkinSprite.type === 'boss' ? 14 : 10, monsterSkinSprite.type === 'boss' ? 5 : 4, 0.18);
             // 몬스터는 기본적으로 왼쪽(플레이어 방향)을 보므로 좌우반전해 오른쪽을 바라보게 한다.
-            drawBattleSprite(ctx, monsterSkinSprite.image, monsterSkinSprite.frame, x, y + 6, drawSize, { smoothing: monsterSkinSprite.type === 'boss' ? 'high' : 'low', flipX: true });
+            drawBattleSprite(ctx, monsterSkinSprite.image, monsterSkinSprite.frame, x, y, drawSize, { smoothing: monsterSkinSprite.type === 'boss' ? 'high' : 'low', flipX: true });
             if (flash) {
                 ctx.save();
                 ctx.globalAlpha = 0.16;
                 ctx.fillStyle = '#fff3c5';
                 ctx.beginPath();
-                ctx.ellipse(x, y + 11, 14, 7, 0, 0, Math.PI * 2);
+                ctx.ellipse(x, y + 4, 14, 7, 0, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
             }
@@ -5361,7 +5364,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         if (heroFrame) {
             let frameMeta = getHeroFrameMeta(frameIndex);
             let metrics = getHeroDrawMetrics(x, y, heroFrame, frameMeta);
-            drawPixelShadow(ctx, x, y + 15, 11, 4, 0.18);
+            drawPixelShadow(ctx, x, y + 5, 11, 4, 0.18);
             ctx.save();
             ctx.filter = 'brightness(1.15) contrast(1.08) saturate(1.05)';
             ctx.drawImage(
@@ -5473,7 +5476,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let heroScaleBoost = clampNumber((Number(scale) || 1) / 1.85, 1, localHeroTuning.maxScaleBoost);
         let normalizedHeroSize = (localHeroTuning.baseHeight * heroScaleBoost) - downBlend * localHeroTuning.downShrink;
         normalizedHeroSize = clampNumber(normalizedHeroSize, localHeroTuning.minHeight, localHeroTuning.maxHeight);
-        drawPixelShadow(ctx, x, y + 15, localHeroTuning.shadowWidth * heroScaleBoost, localHeroTuning.shadowHeight * heroScaleBoost, localHeroTuning.shadowAlpha);
+        drawPixelShadow(ctx, x, y + 5, localHeroTuning.shadowWidth * heroScaleBoost, localHeroTuning.shadowHeight * heroScaleBoost, localHeroTuning.shadowAlpha);
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
             smoothing: 'high',
@@ -5482,7 +5485,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             outlineThickness: 1
         };
         let attackXOffset = (downPhase === null && isAttacking && (typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId) === 'hero3') ? 6 : 0;
-        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset + attackXOffset, y + 7 + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
+        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset + attackXOffset, y + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
         if (flash && downPhase === null) {
             ctx.save();
             ctx.globalAlpha = 0.42;

@@ -314,6 +314,27 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies) {
     return hits.map((enemy, idx) => ({ enemy, mult: getGridSkillTargetMult(mode, idx) }));
 }
 
+
+function getSkillGridProfileKindLabel(kind) {
+    if (kind === 'melee') return '인접 단일';
+    if (kind === 'arc') return '전방 부채꼴';
+    if (kind === 'nova') return '자신 중심 광역';
+    if (kind === 'line') return '직선 관통';
+    if (kind === 'chain') return '연쇄';
+    if (kind === 'blast') return '대상 지점 폭발';
+    return '그리드 공격';
+}
+
+function describeSkillGridProfile(skillName, skillDef) {
+    let profile = getSkillGridProfile(skillName, skillDef || {});
+    let parts = [`공격 범위: ${getSkillGridProfileKindLabel(profile.kind)}`];
+    parts.push(`사거리 ${Math.max(1, profile.range || 1)}칸`);
+    if (profile.kind === 'blast' && (profile.radius || 0) > 0) parts.push(`반경 ${profile.radius}칸`);
+    if (profile.kind === 'nova') parts.push(`반경 ${Math.max(1, profile.radius || 1)}칸`);
+    if (profile.kind === 'chain') parts.push(`연쇄 ${Math.max(1, profile.jump || COMBAT_GRID_CONFIG.chainJumpRange)}칸`);
+    return parts.join(' · ');
+}
+
 /** 사거리 안 가장 가까운 살아 있는 적(그리드 칸 보유)을 찾는다. range 생략 시 전장 전체. */
 function findNearestGridEnemy(fromCell, enemies, range) {
     if (!fromCell) return null;
@@ -330,6 +351,7 @@ safeExposeGlobals({
     isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
     getGridBlockedCells, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,
-    gridStepToward, advanceGridUnitMovement, getSkillGridProfile, getGridSkillTargetMult,
-    getGridAttackAreaCells, selectGridSkillTargets, findNearestGridEnemy
+    gridStepToward, advanceGridUnitMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
+    describeSkillGridProfile, getGridSkillTargetMult, getGridAttackAreaCells,
+    selectGridSkillTargets, findNearestGridEnemy
 });
