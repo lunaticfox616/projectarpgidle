@@ -5090,8 +5090,11 @@ function getFrequentSpawnEncounterProfile(zone) {
     let difficulty = getEncounterDifficultyValue(zone);
     if (difficulty < 8 || profile.markerCount <= 0) return profile;
     let ramp = clampNumber((difficulty - 8) / 24, 0, 1);
-    let targetMarkers = Math.round(profile.markerCount * (1.35 + ramp * 1.35));
-    profile.markerCount = clampNumber(targetMarkers, profile.markerCount + 1, 19);
+    let markerCap = 19;
+    if (profile.markerCount < markerCap) {
+        let targetMarkers = Math.round(profile.markerCount * (1.35 + ramp * 1.35));
+        profile.markerCount = clampNumber(targetMarkers, profile.markerCount + 1, markerCap);
+    }
     let packMul = 1 - ramp * 0.45;
     profile.minPack = Math.max(1, Math.floor(profile.minPack * packMul));
     profile.maxPack = Math.max(profile.minPack, Math.floor(profile.maxPack * packMul));
