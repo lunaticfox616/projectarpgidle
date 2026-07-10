@@ -113,6 +113,8 @@ Object.keys(context.SKILL_DB).forEach(name => {
   assert.ok(validKinds.has(profile.kind), `스킬 '${name}'의 kind가 유효하지 않다: ${profile.kind}`);
   assert.ok(Number.isFinite(profile.range) && profile.range >= 1, `스킬 '${name}'의 range가 유효하지 않다`);
 });
+assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발 · 사거리 5칸 · 반경 2칸');
+assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 2칸');
 
 // ── 2. 직선 칸 계산(브레젠험) ──
 {
@@ -215,7 +217,29 @@ Object.keys(context.SKILL_DB).forEach(name => {
   }
 }
 
-// ── 6. 이동: 목표 접근, 점유 칸 회피, 이동 주기 ──
+// ── 6. 고난도 조우 계획: 스폰은 잦아지고 한 번에 나오는 수는 줄어든다 ──
+{
+  const originalRandom = Math.random;
+  try {
+    Math.random = () => 0.5;
+    const lowPlan = context.generateEncounterPlan({ id: 3, tier: 3, type: 'act' });
+    const highPlan = context.generateEncounterPlan({ id: 12, tier: 12, type: 'act' });
+    const lowMobMarkers = lowPlan.filter(marker => !marker.boss);
+    const highMobMarkers = highPlan.filter(marker => !marker.boss);
+    const highMaxCount = Math.max(...highMobMarkers.map(marker => marker.count));
+    const skyTowerPlan = context.generateEncounterPlan({ type: 'skyTower', floor: 30, tier: 30 });
+    const skyTowerMobMarkers = skyTowerPlan.filter(marker => !marker.boss);
+    assert.ok(highMobMarkers.length > lowMobMarkers.length * 2, '고난도에서는 더 잦은 스폰 지점이 필요하다');
+    assert.ok(highMaxCount <= 2, '고난도 일반 스폰은 한 번에 나오는 수가 줄어야 한다');
+    assert.ok(highMobMarkers.some(marker => marker.at <= 6), '고난도 첫 스폰은 약 5% 진행도부터 시작해야 한다');
+    assert.strictEqual(skyTowerMobMarkers.length, 50, '이미 촘촘한 고난도 구역은 스폰 지점이 더 늘어나면 안 된다');
+    assert.ok(skyTowerMobMarkers.every(marker => marker.count === 7), '이미 촘촘한 구역은 스폰 수를 줄이면 안 된다');
+  } finally {
+    Math.random = originalRandom;
+  }
+}
+
+// ── 7. 이동: 목표 접근, 점유 칸 회피, 이동 주기 ──
 {
   resetGame();
   context.game.enemies = [];

@@ -90,7 +90,12 @@ function renderBattlefield(forceWhenHidden) {
     let zoneTheme = getBattleZoneTheme(currentZone);
     drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone);
     let gridProj = getBattleGridProjection(width, height);
-    drawBattleGridFloor(ctx, gridProj, zoneTheme);
+    let framePlayerStats = getCanvasPlayerStats();
+    let currentTargets = getCanvasSkillTargets(framePlayerStats);
+    let swingFx = battleFx.filter(fx => fx.type === 'playerSwing').slice(-1)[0];
+    let currentSkill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
+    let skillAreaCells = swingFx ? getCanvasSkillAreaCells(game.activeSkill || '기본 공격', currentSkill, currentTargets) : [];
+    drawBattleGridFloor(ctx, gridProj, zoneTheme, currentTargets, skillAreaCells);
     if (!battleAssets.ready && battleAssets.loading) {
         ctx.save();
         ctx.fillStyle = 'rgba(6,10,16,0.55)';
@@ -105,11 +110,9 @@ function renderBattlefield(forceWhenHidden) {
     }
 
     let enemies = (game.enemies || []).filter(enemy => enemy.hp > 0);
-    let swingFx = battleFx.filter(fx => fx.type === 'playerSwing').slice(-1)[0];
     let swingPower = swingFx ? Math.sin(((now - swingFx.start) / swingFx.duration) * Math.PI) : 0;
     let playerFlash = battleFx.some(fx => fx.type === 'playerHit' && now - fx.start <= fx.duration);
     let playerDownActive = battleFx.some(fx => fx.type === 'playerDown' && now - fx.start <= fx.duration);
-    let currentSkill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
     let currentSkillVisual = getBattleSkillVisual(game.activeSkill, currentSkill);
     let desiredAdvancing = enemies.length === 0 && game.moveTimer <= 0 && game.runProgress < 100;
     if (battleVisualState.advanceDesired !== desiredAdvancing) {
@@ -134,7 +137,7 @@ function renderBattlefield(forceWhenHidden) {
     let playerCell = hasGridCell(game.gridPlayer) ? game.gridPlayer : COMBAT_GRID_CONFIG.playerSpawn;
     let playerCellPos = gridProj.cellToScreen(playerCell.gx, playerCell.gy);
     let targetPlayerPos = {
-        x: playerCellPos.x + advanceBlend * gridProj.tileW * 0.35,
+        x: playerCellPos.x,
         y: playerCellPos.y + downBlend * 0.6
     };
     if (!battleVisualState.playerPos) {
@@ -183,7 +186,6 @@ function renderBattlefield(forceWhenHidden) {
 
     // getPlayerStats()는 장비/패시브 전체를 재계산하는 무거운 함수다.
     // 한 프레임 안에서는 결과가 동일하므로 프레임당 1회만 계산해 재사용한다.
-    let framePlayerStats = getCanvasPlayerStats();
     if (swingFx && swingFx.id !== battleVisualState.lastAutoSwingId && now >= (battleVisualState.lastAutoSkillAt || 0)) {
         playSkillFromActiveGem(game.activeSkill || '기본 공격');
         battleVisualState.lastAutoSwingId = swingFx.id;
@@ -344,7 +346,7 @@ function renderBattlefield(forceWhenHidden) {
         }
         ctx.restore();
     }
-    let currentTargets = getCanvasSkillTargets(framePlayerStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
+    currentTargets = currentTargets.map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
     dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
@@ -559,8 +561,8 @@ function getSummonSpriteFrameRectByName(name, image) {
     return frames[safeIndex];
 }
 
-// 8x8 아이소메트릭 그리드 바닥. 스폰 칸(플레이어=파랑, 보스=빨강)을 옅게 표시한다.
-function drawBattleGridFloor(ctx, proj, theme) {
+// 8x8 아이소메트릭 그리드 바닥. 유닛 점유 칸과 플레이어의 현재 공격 칸을 함께 표시한다.
+function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells) {
     const size = COMBAT_GRID_CONFIG.size;
     const halfW = proj.tileW / 2;
     const halfH = proj.tileH / 2;
@@ -572,6 +574,17 @@ function drawBattleGridFloor(ctx, proj, theme) {
         ctx.lineTo(c.x, c.y + halfH);
         ctx.lineTo(c.x - halfW, c.y);
         ctx.closePath();
+    };
+    const fillCell = (unit, fillStyle, strokeStyle, alpha) => {
+        if (!hasGridCell(unit)) return;
+        tilePath(unit.gx, unit.gy);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+        ctx.globalAlpha = Math.min(0.95, alpha + 0.25);
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = 2.4;
+        ctx.stroke();
     };
     ctx.save();
     for (let gx = 0; gx < size; gx++) {
@@ -593,7 +606,32 @@ function drawBattleGridFloor(ctx, proj, theme) {
     tilePath(COMBAT_GRID_CONFIG.bossSpawn.gx, COMBAT_GRID_CONFIG.bossSpawn.gy);
     ctx.fillStyle = 'rgba(255, 92, 92, 0.4)';
     ctx.fill();
+    (game.enemies || []).forEach(enemy => {
+        if (enemy && enemy.hp > 0) fillCell(enemy, 'rgba(255, 87, 87, 0.28)', 'rgba(255, 140, 120, 0.8)', 0.34);
+    });
+    (game.summons || []).forEach(summon => {
+        if (summon && summon.alive && (summon.hp || 0) > 0) fillCell(summon, 'rgba(126, 255, 173, 0.26)', 'rgba(154, 255, 192, 0.76)', 0.32);
+    });
+    (skillAreaCells || []).forEach(cell => fillCell(cell, 'rgba(124, 255, 214, 0.2)', 'rgba(124, 255, 214, 0.72)', 0.26));
+    (skillTargets || []).forEach(hit => fillCell(hit && hit.enemy, 'rgba(255, 211, 91, 0.5)', 'rgba(255, 238, 153, 0.95)', 0.54));
+    fillCell(game.gridPlayer, 'rgba(107, 190, 255, 0.5)', 'rgba(168, 226, 255, 0.98)', 0.56);
     ctx.restore();
+}
+
+function getCanvasSkillAreaCells(skillName, skillDef, skillTargets) {
+    let playerCell = hasGridCell(game.gridPlayer) ? game.gridPlayer : null;
+    let targetHits = (skillTargets || []).filter(hit => hit && hasGridCell(hit.enemy));
+    if (!playerCell || targetHits.length <= 0) return [];
+    let profile = getSkillGridProfile(skillName, skillDef);
+    if (profile.kind === 'chain') return targetHits.map(hit => ({ gx: hit.enemy.gx, gy: hit.enemy.gy }));
+    let cells = getGridAttackAreaCells(profile, playerCell, targetHits[0].enemy);
+    let seen = new Set();
+    return cells.filter(cell => {
+        let key = gridCellKey(cell.gx, cell.gy);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 }
 
 function drawActiveSummons(ctx, playerPos, now, proj) {
