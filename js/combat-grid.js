@@ -311,6 +311,7 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies) {
             if (areaKeys.has(gridCellKey(row.enemy.gx, row.enemy.gy))) hits.push(row.enemy);
         });
     }
+    extendGridTargetsBySpill(hits, targetCount, candidates.map(row => row.enemy));
     return hits.map((enemy, idx) => ({ enemy, mult: getGridSkillTargetMult(mode, idx) }));
 }
 
@@ -335,6 +336,29 @@ function describeSkillGridProfile(skillName, skillDef) {
     return parts.join(' · ');
 }
 
+/**
+ * 남는 타겟 수를 '전이 타격'으로 소모한다: 이미 타격된 적의 주변 1칸에 있는 적에게
+ * 타격이 번져 나간다. 범위가 좁은 스킬(근접 단일/부채꼴 등)에서도 타겟 수
+ * 옵션·각인이 실제 추가 타격으로 이어지게 하는 규칙이다.
+ * @param {Array<object>} hits 이미 타격이 확정된 적 목록(제자리 수정)
+ * @param {number} targetCount 스킬의 최종 타겟 수
+ * @param {Array<object>} candidates 후보 적(공격자 기준 거리 오름차순 정렬)
+ */
+function extendGridTargetsBySpill(hits, targetCount, candidates) {
+    let added = true;
+    while (hits.length < targetCount && added) {
+        added = false;
+        for (let i = 0; i < candidates.length; i++) {
+            let enemy = candidates[i];
+            if (hits.includes(enemy)) continue;
+            if (!hits.some(hit => gridChebyshevDist(hit.gx, hit.gy, enemy.gx, enemy.gy) <= 1)) continue;
+            hits.push(enemy);
+            added = true;
+            break;
+        }
+    }
+}
+
 /** 사거리 안 가장 가까운 살아 있는 적(그리드 칸 보유)을 찾는다. range 생략 시 전장 전체. */
 function findNearestGridEnemy(fromCell, enemies, range) {
     if (!fromCell) return null;
@@ -353,5 +377,5 @@ safeExposeGlobals({
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,
     gridStepToward, advanceGridUnitMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
     describeSkillGridProfile, getGridSkillTargetMult, getGridAttackAreaCells,
-    selectGridSkillTargets, findNearestGridEnemy
+    selectGridSkillTargets, findNearestGridEnemy, extendGridTargetsBySpill
 });

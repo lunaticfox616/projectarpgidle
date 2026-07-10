@@ -168,6 +168,48 @@ assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKI
   const n1 = makeEnemy(12, 2, 6), n2 = makeEnemy(13, 2, 5), n3 = makeEnemy(14, 1, 5);
   hits = context.selectGridSkillTargets('회오리바람', { targets: 2, targetMode: 'whirl' }, attacker, [n1, n2, n3]);
   assert.strictEqual(hits.length, 2, 'targets 상한을 지켜야 한다');
+
+  // 전이 타격: 남는 타겟 수만큼 이미 맞은 적의 인접 1칸 적에게 번진다(근접 단일 + 타겟 수 옵션)
+  const sp1 = makeEnemy(20, 2, 6);  // 공격자 인접
+  const sp2 = makeEnemy(21, 3, 6);  // sp1 인접
+  const sp3 = makeEnemy(22, 4, 6);  // sp2 인접
+  const spFar = makeEnemy(23, 7, 0); // 고립
+  hits = context.selectGridSkillTargets('기본 공격', { targets: 3, targetMode: 'single' }, attacker, [sp1, sp2, sp3, spFar]);
+  assert.strictEqual(hits.map(h => h.enemy.id).join(','), '20,21,22', '남는 타겟 수는 인접 적으로 순차 전이되어야 한다');
+  hits = context.selectGridSkillTargets('기본 공격', { targets: 1, targetMode: 'single' }, attacker, [sp1, sp2, sp3]);
+  assert.strictEqual(hits.length, 1, '타겟 수 1이면 전이되지 않아야 한다');
+  hits = context.selectGridSkillTargets('기본 공격', { targets: 4, targetMode: 'single' }, attacker, [sp1, spFar]);
+  assert.strictEqual(hits.length, 1, '인접하지 않은 적으로는 전이되지 않아야 한다');
+}
+
+// ── 3-1. 플라스크 수명주기: 조우 사이 유지, 지역 완료/이동 시 종료, 루프 시 획득 리셋 ──
+{
+  resetGame();
+  const st = context.ensureFlaskState();
+  const future = Date.now() + 5000;
+  st.healOverTimeUntil = future;
+  st.healOverTimePerSec = 10;
+  st.utils = [{ key: 'granite1', charges: 1, until: future }];
+  context.game.enemies = []; // 조우 사이(살아있는 적 없음)
+  context.game.playerHp = 50;
+  context.tickFlaskAutoUse({ maxHp: 100 });
+  assert.ok(st.healOverTimeUntil > Date.now(), '조우 사이에는 회복 지속 효과가 유지되어야 한다');
+  assert.ok(st.utils[0].until > Date.now(), '조우 사이에는 유틸 플라스크 효과가 유지되어야 한다');
+  context.expireActiveFlaskEffects();
+  assert.ok(st.healOverTimeUntil <= Date.now(), '지역 완료/이동 시 회복 지속 효과가 종료되어야 한다');
+  assert.ok(st.utils[0].until <= Date.now(), '지역 완료/이동 시 유틸 플라스크 효과가 종료되어야 한다');
+
+  // 루프(환생) 시 플라스크 발견/충전 리셋
+  context.game.flasks.foundKeys = ['h1', 'h2', 'h3', 'granite1', 'quicksilver1'];
+  context.game.season = 1;
+  const beforeFound = context.game.flasks.foundKeys.length;
+  // 루프 리셋이 부르는 UI/코스모스 경계 함수는 Node 하네스에 없으므로 무해한 스텁으로 대체
+  ['grantCodexLegacyStarterUniques', 'renderCosmosAtlas', 'updateStaticUI', 'renderPassiveTree', 'checkUnlocks', 'renderSkills', 'renderInventory', 'renderEquipment', 'updateCombatUI', 'renderMapList', 'syncBattleTabLayout', 'renderTalentCards', 'closeRewardOverlay', 'renderFlaskPanel', 'updateCloudSaveUI', 'renderConditionGems', 'renderSupports', 'updateHeroSelectionUI', 'renderCoreCube'].forEach(name => {
+    if (typeof context[name] !== 'function') context[name] = () => {};
+  });
+  context.triggerSeasonReset();
+  const afterFound = context.ensureFlaskFoundKeys();
+  assert.ok(afterFound.length < beforeFound, '루프 시 발견한 플라스크가 기본 지급분으로 리셋되어야 한다');
 }
 
 // ── 4. 스폰 배치: 보스 고정 칸, 중복 없는 무작위 배치 ──

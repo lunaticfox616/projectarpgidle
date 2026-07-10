@@ -94,7 +94,7 @@ function renderBattlefield(forceWhenHidden) {
     let currentTargets = getCanvasSkillTargets(framePlayerStats);
     let swingFx = battleFx.filter(fx => fx.type === 'playerSwing').slice(-1)[0];
     let currentSkill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
-    let skillAreaCells = swingFx ? getCanvasSkillAreaCells(game.activeSkill || '기본 공격', currentSkill, currentTargets) : [];
+    let skillAreaCells = getCanvasSkillAreaCells(game.activeSkill || '기본 공격', currentSkill, currentTargets);
     drawBattleGridFloor(ctx, gridProj, zoneTheme, currentTargets, skillAreaCells);
     if (!battleAssets.ready && battleAssets.loading) {
         ctx.save();
@@ -193,9 +193,16 @@ function renderBattlefield(forceWhenHidden) {
         battleVisualState.lastAutoSkillAt = now + _atkInterval;
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
-    drawSkillWeaponLayer(ctx, playerPos, now, 'back');
     drawActiveSummons(ctx, playerPos, now, gridProj);
-    drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15, playerFlash, swingPower, currentSkillVisual, now, {
+    let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.62, 1.3);
+    let playerFacingLeft = resolvePlayerFacingLeft(playerPos, targetPlayerPos, currentTargets, enemyPosMap);
+    if (playerFacingLeft) {
+        ctx.save();
+        ctx.translate(playerPos.x * 2, 0);
+        ctx.scale(-1, 1);
+    }
+    drawSkillWeaponLayer(ctx, playerPos, now, 'back');
+    drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15 * gridUnitScale, playerFlash, swingPower, currentSkillVisual, now, {
         advanceBlend: advanceBlend,
         attackBlend: attackBlend,
         attackProgress: swingFx ? clampNumber((now - swingFx.start) / Math.max(1, swingFx.duration), 0, 0.999) : 0,
@@ -203,6 +210,7 @@ function renderBattlefield(forceWhenHidden) {
         downBlend: downBlend
     });
     drawSkillWeaponLayer(ctx, playerPos, now, 'front');
+    if (playerFacingLeft) ctx.restore();
 
     battleFx.forEach(fx => {
         if (battleVisualState.processedFxIds.has(fx.id)) return;
@@ -269,7 +277,7 @@ function renderBattlefield(forceWhenHidden) {
         ctx.save();
         ctx.globalAlpha = age;
         let crowdScale = dynamicLayout.length >= 9 ? (enemy.isBoss ? 2.15 : (enemy.isElite ? 1.72 : 1.46)) : (dynamicLayout.length >= 6 ? (enemy.isBoss ? 2.3 : (enemy.isElite ? 1.9 : 1.62)) : (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95)));
-        drawEnemySprite(ctx, enemy, entry.x, entry.y, crowdScale, hitFlash, now);
+        drawEnemySprite(ctx, enemy, entry.x, entry.y, crowdScale * gridUnitScale, hitFlash, now);
         ctx.restore();
     });
 
@@ -453,12 +461,6 @@ function renderBattlefield(forceWhenHidden) {
             ctx.arc(cx, cy, 16 + t * 28, 0, Math.PI * 2);
             ctx.stroke();
             ctx.restore();
-        } else if (fx.type === 'spawnWave') {
-            ctx.save();
-            ctx.globalAlpha = 0.2 * (1 - t);
-            ctx.fillStyle = fx.boss ? '#c993ff' : '#8fd0ff';
-            ctx.fillRect(0, 0, width, height);
-            ctx.restore();
         } else if (fx.type === 'playerDown') {
             ctx.save();
             ctx.globalAlpha = 0.25 * (1 - t);
@@ -561,6 +563,20 @@ function getSummonSpriteFrameRectByName(name, image) {
     return frames[safeIndex];
 }
 
+// 캐릭터가 바라볼 좌우 방향을 정한다. 공격 대상이 왼쪽이면 왼쪽을 보고,
+// 대상이 없으면 이동 방향을 따르며, 판단 근거가 없으면 직전 방향을 유지한다(기본 오른쪽).
+function resolvePlayerFacingLeft(playerPos, targetPlayerPos, currentTargets, enemyPosMap) {
+    let primary = currentTargets && currentTargets[0] ? currentTargets[0].enemy : null;
+    let anchor = primary ? enemyPosMap[primary.id] : null;
+    if (anchor) {
+        battleVisualState.playerFacingLeft = anchor.x < playerPos.x - 0.5;
+    } else {
+        let dx = targetPlayerPos.x - playerPos.x;
+        if (Math.abs(dx) > 0.8) battleVisualState.playerFacingLeft = dx < 0;
+    }
+    return !!battleVisualState.playerFacingLeft;
+}
+
 // 8x8 아이소메트릭 그리드 바닥. 유닛 점유 칸과 플레이어의 현재 공격 칸을 함께 표시한다.
 function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells) {
     const size = COMBAT_GRID_CONFIG.size;
@@ -644,14 +660,14 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
         const angle = (now / 1000) * 0.9 + (idx / Math.max(1, summons.length)) * Math.PI * 2;
         const cellPos = (proj && hasGridCell(summon)) ? proj.cellToScreen(summon.gx, summon.gy) : null;
         const x = cellPos ? cellPos.x : playerPos.x + Math.cos(angle) * radius;
-        const y = cellPos ? cellPos.y - 6 : playerPos.y - 18 + Math.sin(angle) * 12;
+        const y = cellPos ? cellPos.y : playerPos.y - 18 + Math.sin(angle) * 12;
         if (image) {
             const frame = getSummonSpriteFrameRectByName(summon.gemName, image);
             if (frame) {
                 const size = summon.role === 'guard' ? 42 : 34;
                 const drawW = size;
                 const drawH = Math.max(18, Math.round(size * (frame.sh / Math.max(1, frame.sw))));
-                ctx.drawImage(image, frame.sx, frame.sy, frame.sw, frame.sh, Math.round(x - drawW / 2), Math.round(y - drawH / 2), drawW, drawH);
+                ctx.drawImage(image, frame.sx, frame.sy, frame.sw, frame.sh, Math.round(x - drawW / 2), Math.round(y - drawH + 3), drawW, drawH);
                 return;
             }
         }
