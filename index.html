@@ -225,7 +225,7 @@
 <div id="left-pane">
     <div id="battle-column">
     <div class="panel player-panel" style="position: relative;">
-        <button id="left-pane-toggle" onclick="toggleLeftPaneCollapse()" title="전투 패널 접기" aria-label="전투 패널 접기">◀</button>
+        <button id="left-pane-collapse-toggle" onclick="toggleLeftPaneCollapse()" title="전투 패널 접기" aria-label="전투 패널 접기">◀</button>
         <h2 style="display:none;">플레이어</h2>
         <div id="ui-player-ailments" style="font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:2px;"></div>
     </div>
@@ -302,7 +302,7 @@
     </div>
     </div>
 </div>
-<button id="left-pane-toggle" onclick="toggleLeftPaneCollapse()" title="전투 패널 접기/펼치기" aria-label="전투 패널 접기/펼치기">◀</button>
+<button id="left-pane-floating-toggle" onclick="toggleLeftPaneCollapse()" title="전투 패널 접기/펼치기" aria-label="전투 패널 접기/펼치기">◀</button>
 
 <div id="right-pane">
     <button id="left-pane-expand-fab" onclick="toggleLeftPaneCollapse()" title="전투 패널 펼치기" aria-label="전투 패널 펼치기">▶</button>
@@ -567,12 +567,12 @@
             <h2>🔄 디버깅 포인트 트리 <span style="margin-left:10px; color:#ffd36b; font-size:0.88em;">(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:0.75em;" onclick="resetSeasonNodes()">디버깅 트리 전체 초기화</button></span></h2>
             <div class="trait-tree" id="ui-season-tree"></div>
         </div>
-        <div id="ui-loop10-panel" style="display:none; margin-bottom:20px; background:#151226; border:1px solid #4d3c7a; border-radius:12px; padding:12px;"></div>
+        <div id="ui-loop10-panel" data-loop10-panel="1" style="display:none; margin-bottom:20px; background:#151226; border:1px solid #4d3c7a; border-radius:12px; padding:12px;"></div>
         <div id="season-content-section" style="display: none; margin-bottom: 20px;">
             <h2>📦 루프 이정표</h2>
             <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
         </div>
-        <div id="ui-loop10-panel" style="display:none; margin-top:12px; background:#151226; border:1px solid #4d3c7a; border-radius:10px; padding:10px;"></div>
+        <div id="ui-loop10-season-panel" data-loop10-panel="1" style="display:none; margin-top:12px; background:#151226; border:1px solid #4d3c7a; border-radius:10px; padding:10px;"></div>
     </div>
 
     
