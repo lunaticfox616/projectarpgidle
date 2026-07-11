@@ -1,0 +1,24 @@
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+
+const source = fs.readFileSync('js/ui.js', 'utf8');
+const start = source.indexOf('const COMBAT_STEP_MS = 100;');
+const end = source.indexOf('function getUiConditionGemStatDelta', start);
+assert(start >= 0 && end > start, 'catch-up clock block not found');
+let ticks = 0;
+const context = { Date: { now: () => 0 }, runUiCoreLoop: () => { ticks++; } };
+vm.createContext(context);
+vm.runInContext(source.slice(start, end), context);
+vm.runInContext('resetCombatCatchupClock(1000)', context);
+assert.strictEqual(vm.runInContext('consumeCombatCatchupSteps(1100, false)', context), 1);
+assert.strictEqual(vm.runInContext('runCombatCatchupSteps(1)', context), 1);
+assert.strictEqual(ticks, 1);
+assert.strictEqual(vm.runInContext('consumeCombatCatchupSteps(1110, true)', context), 0);
+assert.strictEqual(vm.runInContext('consumeCombatCatchupSteps(2110, false)', context), 10);
+assert.strictEqual(vm.runInContext('consumeCombatCatchupSteps(2000, false)', context), 0);
+vm.runInContext('resetCombatCatchupClock(0)', context);
+assert.strictEqual(vm.runInContext('consumeCombatCatchupSteps(10000, false)', context), 0);
+assert.strictEqual(vm.runInContext('consumeCombatCatchupSteps(20000, false)', context), 50);
+assert.strictEqual(vm.runInContext('consumeCombatCatchupSteps(20000, false)', context), 50);
+console.log('smoke-combat-catchup-clock passed');
