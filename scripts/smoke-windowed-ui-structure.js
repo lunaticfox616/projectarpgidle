@@ -23,6 +23,8 @@ assert(html.indexOf('js/ui-window-manager.js') < html.indexOf('js/main.js'), 'wi
 assert(manager.includes('UI_LAYOUT_STORAGE_KEY'), 'UI layout must use separate local storage');
 assert(manager.includes('originalSwitchTab'), 'switchTab compatibility adapter must be installed');
 assert(manager.includes('setPointerCapture'), 'window dragging/resizing must use pointer capture');
+assert(manager.includes('restoreWindowMarkupForMobile'), 'window manager should restore tab markup when leaving desktop mode');
+assert(manager.includes("if (!desktop) {"), 'responsive mode should explicitly handle mobile fallback');
 assert(css.includes('body.desktop-windowed-ui #right-pane'), 'right pane should become window layer');
 assert(css.includes('#tab-social.ui-community-dock'), 'social tab should be a dock panel');
 assert(css.includes('.ui-goal-drawer'), 'goal drawer CSS should exist');

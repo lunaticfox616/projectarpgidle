@@ -365,9 +365,41 @@
         return !!(window.matchMedia && window.matchMedia(DESKTOP_MEDIA).matches);
     }
 
+
+    function restoreWindowMarkupForMobile() {
+        Object.keys(WINDOW_DEFS).forEach(tabId => {
+            let el = document.getElementById(tabId);
+            if (!el || el.dataset.windowPrepared !== '1') return;
+            let body = el.querySelector(':scope > .ui-window-body');
+            let titlebar = el.querySelector(':scope > .ui-window-titlebar');
+            let resize = el.querySelector(':scope > .ui-window-resize');
+            if (body) {
+                while (body.firstChild) el.insertBefore(body.firstChild, body);
+                body.remove();
+            }
+            if (titlebar) titlebar.remove();
+            if (resize) resize.remove();
+            el.classList.remove('ui-window', 'ui-window-open', 'ui-window-minimized');
+            el.removeAttribute('data-window-prepared');
+            ['left', 'top', 'width', 'height', 'zIndex'].forEach(prop => { el.style[prop] = ''; });
+        });
+        let social = document.getElementById('tab-social');
+        if (social) {
+            social.classList.remove('ui-community-dock');
+            social.style.width = '';
+            let handle = social.querySelector(':scope > .ui-community-resize');
+            if (handle) handle.remove();
+        }
+        document.body.classList.remove('community-dock-open');
+    }
+
     function applyResponsiveMode() {
-        document.body.classList.toggle('desktop-windowed-ui', isDesktopWindowed());
-        if (!isDesktopWindowed()) return;
+        let desktop = isDesktopWindowed();
+        document.body.classList.toggle('desktop-windowed-ui', desktop);
+        if (!desktop) {
+            restoreWindowMarkupForMobile();
+            return;
+        }
         Object.keys(WINDOW_DEFS).forEach(id => { prepareWindow(id); applyWindowState(id); });
         installCommunityToggle();
         installGoalDrawer();
