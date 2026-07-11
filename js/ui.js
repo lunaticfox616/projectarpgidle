@@ -5268,20 +5268,43 @@ function getBattleBackdropForZone(zone) {
     return { image: image, variant: variant };
 }
 
-function drawBattleBackdrop(ctx, width, height, theme, now, zone) {
+// 액트 배경(512x512 아이소 디오라마)의 바닥 다이아몬드 보정값.
+// centerX/centerY는 바닥 다이아몬드 중심의 이미지 내 위치(비율), halfWidthFrac는
+// 바닥 다이아몬드 반폭이 이미지 폭에서 차지하는 비율이다. 배경 세트가 동일한 구도로
+// 제작되어 공통 보정값을 쓰며, 전장 그리드가 이 다이아몬드 중앙에 얹히도록 정렬한다.
+const BATTLE_BACKDROP_FLOOR = { centerX: 0.5, centerY: 0.5, halfWidthFrac: 0.39 };
+
+// 배경 이미지를 두 겹으로 그린다: (1) 캔버스 전체를 채우는 어두운 cover 언더레이,
+// (2) 바닥 다이아몬드가 8x8 그리드와 일치하도록 그리드 투영에 정렬한 본 이미지.
+function drawGridAlignedBackdrop(ctx, width, height, image, gridProj) {
+    let srcW = image.width || width;
+    let srcH = image.height || height;
+    let coverScale = Math.max(width / srcW, height / srcH) * 1.2;
+    let underW = srcW * coverScale;
+    let underH = srcH * coverScale;
+    ctx.fillStyle = '#070b12';
+    ctx.fillRect(0, 0, width, height);
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(image, (width - underW) / 2, (height - underH) / 2, underW, underH);
+    ctx.restore();
+    ctx.fillStyle = 'rgba(4, 8, 14, 0.6)';
+    ctx.fillRect(0, 0, width, height);
+    if (!gridProj) return;
+    let cellFirst = gridProj.cellToScreen(0, 0);
+    let cellLast = gridProj.cellToScreen(COMBAT_GRID_CONFIG.size - 1, COMBAT_GRID_CONFIG.size - 1);
+    let gridCenterY = (cellFirst.y + cellLast.y) / 2;
+    let gridHalfW = gridProj.tileW * (COMBAT_GRID_CONFIG.size / 2);
+    let drawW = gridHalfW / BATTLE_BACKDROP_FLOOR.halfWidthFrac;
+    let drawH = drawW * (srcH / srcW);
+    ctx.drawImage(image, width / 2 - drawW * BATTLE_BACKDROP_FLOOR.centerX, gridCenterY - drawH * BATTLE_BACKDROP_FLOOR.centerY, drawW, drawH);
+}
+
+function drawBattleBackdrop(ctx, width, height, theme, now, zone, gridProj) {
     let backdropEntry = getBattleBackdropForZone(zone);
     if (backdropEntry && backdropEntry.image) {
-        let backdropImage = backdropEntry.image;
-        let variant = backdropEntry.variant || BATTLE_BACKDROP_VARIANTS[0];
-        let srcW = backdropImage.width || width;
-        let srcH = backdropImage.height || height;
-        let scale = Math.max(width / srcW, height / srcH);
-        let drawW = Math.ceil(srcW * scale);
-        let drawH = Math.ceil(srcH * scale);
-        let dx = Math.floor((width - drawW) / 2);
-        let dy = Math.floor((height - drawH) / 2);
-        ctx.drawImage(backdropImage, dx, dy, drawW, drawH);
-        return;
+        drawGridAlignedBackdrop(ctx, width, height, backdropEntry.image, gridProj);
+        return true;
     }
 
     let sky = ctx.createLinearGradient(0, 0, 0, height);
@@ -5327,6 +5350,7 @@ function drawBattleBackdrop(ctx, width, height, theme, now, zone) {
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
+    return false;
 }
 
 function getLocalBattleHeroVisualTuning() {
