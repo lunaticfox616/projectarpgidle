@@ -3879,7 +3879,9 @@ function toggleDeathNoticeSetting(checked) {
 
 function applyPanelLayoutSettings() {
     let leftPane = document.getElementById('left-pane');
-    let leftToggleBtn = document.getElementById('left-pane-toggle');
+    let leftToggleButtons = ['left-pane-collapse-toggle', 'left-pane-floating-toggle']
+        .map(id => document.getElementById(id))
+        .filter(Boolean);
     let leftExpandFab = document.getElementById('left-pane-expand-fab');
     let combatFeed = document.querySelector('.combat-feed');
     let combatLogToggleBtn = document.getElementById('btn-combat-log-toggle');
@@ -3887,11 +3889,11 @@ function applyPanelLayoutSettings() {
     let isLogCollapsed = !!(game && game.settings && game.settings.combatLogCollapsed);
     if (leftPane) leftPane.classList.toggle('collapsed', isLeftCollapsed);
     document.body.classList.toggle('left-pane-collapsed', isLeftCollapsed);
-    if (leftToggleBtn) {
+    leftToggleButtons.forEach(leftToggleBtn => {
         leftToggleBtn.innerText = isLeftCollapsed ? '▶' : '◀';
         leftToggleBtn.title = isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기';
         leftToggleBtn.setAttribute('aria-label', isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기');
-    }
+    });
     if (leftExpandFab) leftExpandFab.innerText = '▶';
     if (combatFeed) combatFeed.classList.toggle('collapsed', isLogCollapsed);
     if (combatLogToggleBtn) combatLogToggleBtn.innerText = isLogCollapsed ? '펼치기' : '접기';
@@ -7376,6 +7378,7 @@ function addItemToInventory(item, options) {
     // 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다.
     let guaranteedKeep = !!(options && options.guaranteedKeep);
     let ignoreFilter = guaranteedKeep || !!(options && options.ignoreFilter);
+    let ignoreAutoSalvage = guaranteedKeep || !!(options && options.ignoreAutoSalvage);
     if (!ignoreFilter && !passesItemPickupFilter(item)) {
         if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;
@@ -7387,7 +7390,7 @@ function addItemToInventory(item, options) {
         }
         addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
     }
-    if (!guaranteedKeep && game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities && game.settings.autoSalvageRarities[item.rarity]) {
+    if (!ignoreAutoSalvage && game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities && game.settings.autoSalvageRarities[item.rarity]) {
         salvageItemObject(item, true);
         if (game.settings.showLootLog) addLog(`🧪 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-normal');
         return false;

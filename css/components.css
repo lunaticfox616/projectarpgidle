@@ -193,7 +193,7 @@
             #right-pane { position: relative; padding-bottom: calc(58px + env(safe-area-inset-bottom)); }
             #left-pane, #right-pane, .tab-content { overflow: visible; }
             body.mobile-battle-tab #left-pane { display: none; }
-            #left-pane-toggle, #left-pane-expand-fab { display: none !important; }
+            #left-pane-collapse-toggle, #left-pane-floating-toggle, #left-pane-expand-fab { display: none !important; }
             body.mobile-battle-tab #tab-battle { padding: 6px; overflow-x: hidden; overflow-y: auto; height: auto; min-height: calc(100svh - 104px); max-height: none; }
             body.mobile-battle-tab #tab-battle.active { display: flex; flex-direction: column; }
             body.mobile-battle-tab #tab-battle #battle-column { gap: 4px; min-height: 0; height: auto; max-height: none; }
