@@ -191,43 +191,155 @@ function runUiCoreLoop() {
 }
 
 
-const COMBAT_STEP_MS = 100;
-const MAX_COMBAT_CATCHUP_STEPS_PER_TICK = 50;
-let combatCatchupClock = { lastMs: 0, carryMs: 0, running: false };
 
-function resetCombatCatchupClock(nowMs) {
-    combatCatchupClock.lastMs = Number.isFinite(nowMs) ? nowMs : Date.now();
-    combatCatchupClock.carryMs = 0;
-    combatCatchupClock.running = false;
+const BACKGROUND_PROGRESS_RATE = 0.1;
+const MAX_BACKGROUND_PROGRESS_MS = 30 * 60 * 1000;
+const BACKGROUND_COMBAT_STEP_MS = 100;
+const BACKGROUND_COMBAT_CHUNK_STEPS = 500;
+let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false };
+
+function calculateBackgroundProgressMs(actualElapsedMs, rate, maxProgressMs) {
+    let elapsed = Math.max(0, Number.isFinite(actualElapsedMs) ? actualElapsedMs : 0);
+    let progress = elapsed * Math.max(0, Number.isFinite(rate) ? rate : 0);
+    let capped = Math.min(progress, Math.max(0, Number.isFinite(maxProgressMs) ? maxProgressMs : 0));
+    return Math.max(0, Math.floor(capped));
 }
 
-function consumeCombatCatchupSteps(nowMs, isPaused) {
+function getBackgroundCombatSignature(state) {
+    if (!state || typeof state !== 'object') return '';
+    return [state.currentZoneId, state.inTicketBossFight ? 1 : 0, state.pendingLoopDecision ? 1 : 0, state.pendingLoopReady ? 1 : 0].join('|');
+}
+
+function isBackgroundCombatEligible(state) {
+    if (!state || typeof state !== 'object') return false;
+    if (state.pendingLoopDecision || state.pendingLoopReady || state.combatHalted) return false;
+    if ((Number(state.playerHp) || 0) <= 0) return false;
+    if (Array.isArray(state.enemies) && state.enemies.some(enemy => enemy && enemy.hp > 0)) return true;
+    if (Number(state.moveTimer) > 0) return true;
+    return Array.isArray(state.encounterPlan) && state.encounterPlan.length > 0;
+}
+
+function cloneBackgroundCombatState(state) {
+    return JSON.parse(JSON.stringify(state));
+}
+
+function recordBackgroundCombatEntry(nowMs) {
     let now = Number.isFinite(nowMs) ? nowMs : Date.now();
-    if (isPaused || combatCatchupClock.lastMs <= 0 || now < combatCatchupClock.lastMs) {
-        resetCombatCatchupClock(now);
-        return 0;
-    }
-    if (combatCatchupClock.running) return 0;
-    combatCatchupClock.carryMs += now - combatCatchupClock.lastMs;
-    combatCatchupClock.lastMs = now;
-    let dueSteps = Math.floor(combatCatchupClock.carryMs / COMBAT_STEP_MS);
-    let steps = Math.min(MAX_COMBAT_CATCHUP_STEPS_PER_TICK, Math.max(0, dueSteps));
-    combatCatchupClock.carryMs -= steps * COMBAT_STEP_MS;
-    return steps;
+    backgroundCombatRuntime.hiddenAtMs = now;
+    backgroundCombatRuntime.signature = getBackgroundCombatSignature(game);
+    backgroundCombatRuntime.snapshot = isBackgroundCombatEligible(game) ? cloneBackgroundCombatState(game) : null;
 }
 
-function runCombatCatchupSteps(stepCount) {
-    let steps = Math.max(0, Math.floor(stepCount || 0));
-    if (steps <= 0) return 0;
-    combatCatchupClock.running = true;
+function consumeBackgroundElapsedTime(nowMs) {
+    let now = Number.isFinite(nowMs) ? nowMs : Date.now();
+    let hiddenAt = Number(backgroundCombatRuntime.hiddenAtMs || 0);
+    backgroundCombatRuntime.hiddenAtMs = 0;
+    if (!Number.isFinite(hiddenAt) || hiddenAt <= 0 || now < hiddenAt) return 0;
+    return Math.max(0, Math.floor(now - hiddenAt));
+}
+
+function getBackgroundRewardSummary(beforeState, afterState) {
+    let currencies = [];
+    let beforeCurrencies = (beforeState && beforeState.currencies) || {};
+    let afterCurrencies = (afterState && afterState.currencies) || {};
+    Object.keys(afterCurrencies).forEach(key => {
+        let gain = Math.floor((afterCurrencies[key] || 0) - (beforeCurrencies[key] || 0));
+        if (gain > 0) currencies.push(`${key} +${gain}`);
+    });
+    let beforeInv = Array.isArray(beforeState && beforeState.inventory) ? beforeState.inventory.length : 0;
+    let afterInv = Array.isArray(afterState && afterState.inventory) ? afterState.inventory.length : 0;
+    return {
+        kills: Math.max(0, Math.floor((afterState.killsInZone || 0) - (beforeState.killsInZone || 0))),
+        exp: Math.max(0, Math.floor((afterState.exp || 0) - (beforeState.exp || 0))),
+        currencies,
+        items: Math.max(0, afterInv - beforeInv)
+    };
+}
+
+function formatBackgroundDuration(ms) {
+    let totalSeconds = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+    let hours = Math.floor(totalSeconds / 3600);
+    let minutes = Math.floor((totalSeconds % 3600) / 60);
+    let seconds = totalSeconds % 60;
+    if (hours > 0) return `${hours}시간 ${minutes}분`;
+    if (minutes > 0) return `${minutes}분 ${seconds}초`;
+    return `${seconds}초`;
+}
+
+function showBackgroundCombatResult(result) {
+    if (typeof document === 'undefined' || !document.body) return;
+    let old = document.getElementById('background-combat-result-overlay');
+    if (old) old.remove();
+    let overlay = document.createElement('div');
+    overlay.id = 'background-combat-result-overlay';
+    overlay.style.cssText = 'position:fixed; inset:0; z-index:12050; background:rgba(4,7,12,0.72); display:flex; align-items:center; justify-content:center; padding:16px;';
+    let rewards = [
+        `처치 수: ${result.summary.kills}`,
+        `획득 경험치: ${result.summary.exp}`,
+        `아이템: ${result.summary.items}개`,
+        `재화: ${result.summary.currencies.slice(0, 6).join(', ') || '없음'}`
+    ].join('<br>');
+    overlay.innerHTML = `<div class="tutorial-card" style="display:block;"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>적용된 전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p><p>백그라운드에서는 ${Math.round(BACKGROUND_PROGRESS_RATE * 100)}% 속도로 전투가 진행됩니다.</p><p>${rewards}</p>${result.capped ? '<p style="color:#ffcf8a;">백그라운드 진행 최대치에 도달했습니다.</p>' : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">닫기</button></div>`;
+    document.body.appendChild(overlay);
+}
+
+function shouldApplyBackgroundCombatResult(signature) {
+    if (getBackgroundCombatSignature(game) !== signature) return false;
+    return !(game.pendingLoopDecision || game.pendingLoopReady || game.inTicketBossFight);
+}
+
+function simulateBackgroundCombat(options) {
+    let elapsedMs = Math.max(0, Math.floor(Number(options && options.elapsedMs) || 0));
+    let stepCount = Math.floor(elapsedMs / BACKGROUND_COMBAT_STEP_MS);
+    let simGame = cloneBackgroundCombatState(options.snapshot);
+    let stepFn = options.stepFn || runUiCoreLoop;
+    let previousGame = game;
     try {
-        for (let i = 0; i < steps; i++) runUiCoreLoop();
+        game = simGame;
+        let processed = 0;
+        while (processed < stepCount) {
+            let chunkEnd = Math.min(stepCount, processed + BACKGROUND_COMBAT_CHUNK_STEPS);
+            for (; processed < chunkEnd; processed++) {
+                if (game.pendingLoopDecision || game.pendingLoopReady) break;
+                stepFn();
+            }
+            if (game.pendingLoopDecision || game.pendingLoopReady) break;
+        }
+        simGame = game;
     } finally {
-        combatCatchupClock.running = false;
+        game = previousGame;
     }
-    return steps;
+    return { game: simGame, steps: stepCount };
 }
 
+function handleBackgroundCombatReturn(nowMs) {
+    if (backgroundCombatRuntime.processing) return false;
+    let snapshot = backgroundCombatRuntime.snapshot;
+    let signature = backgroundCombatRuntime.signature;
+    let actualElapsedMs = consumeBackgroundElapsedTime(nowMs);
+    backgroundCombatRuntime.snapshot = null;
+    backgroundCombatRuntime.signature = '';
+    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_RATE, MAX_BACKGROUND_PROGRESS_MS);
+    if (!snapshot || effectiveProgressMs <= 0) return false;
+    backgroundCombatRuntime.processing = true;
+    try {
+        let result = simulateBackgroundCombat({ elapsedMs: effectiveProgressMs, snapshot });
+        if (!shouldApplyBackgroundCombatResult(signature)) return false;
+        let summary = getBackgroundRewardSummary(snapshot, result.game);
+        game = mergeDefaults(result.game || game);
+        showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs, summary, capped: effectiveProgressMs >= MAX_BACKGROUND_PROGRESS_MS });
+        updateStaticUI();
+        return true;
+    } finally {
+        backgroundCombatRuntime.processing = false;
+    }
+}
+
+function handleBackgroundVisibilityChange() {
+    if (typeof document === 'undefined') return;
+    if (document.hidden) recordBackgroundCombatEntry(Date.now());
+    else handleBackgroundCombatReturn(Date.now());
+}
 
 function syncLoop10PanelCopies() {
     let panels = Array.from(document.querySelectorAll('[data-loop10-panel]'));
@@ -10552,7 +10664,7 @@ function recoverBusyStateAfterOAuthBack() {
     updateCloudSaveUI();
 }
 
-window.addEventListener('pageshow', recoverBusyStateAfterOAuthBack);
+window.addEventListener('pageshow', function(event) { recoverBusyStateAfterOAuthBack(event); handleBackgroundCombatReturn(Date.now()); });
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) recoverBusyStateAfterOAuthBack();
 });
@@ -12075,6 +12187,7 @@ function init() {
     if (!window.__cloudVisibilitySaveBound) {
         window.__cloudVisibilitySaveBound = true;
         document.addEventListener('visibilitychange', function() {
+            handleBackgroundVisibilityChange();
             if (document.hidden) {
                 if (window.__skipUnloadSaveOnce) return;
                 saveGame({ skipCloudSync: true });
@@ -12082,11 +12195,13 @@ function init() {
             }
         });
         window.addEventListener('pagehide', function() {
+            recordBackgroundCombatEntry(Date.now());
             if (window.__skipUnloadSaveOnce) return;
             saveGame({ skipCloudSync: true });
             pushCloudSaveOnPageExit('pagehide');
         });
         window.addEventListener('beforeunload', function() {
+            recordBackgroundCombatEntry(Date.now());
             if (window.__skipUnloadSaveOnce) return;
             saveGame({ skipCloudSync: true });
             pushCloudSaveOnPageExit('beforeunload');
@@ -12139,6 +12254,7 @@ function init() {
                 if (paused) return;
                 runCombatCatchupSteps(combatSteps);
                 ensureLoopChallengeState();
+                let now = Date.now();
                 if (typeof tickOceanOxygen === 'function') tickOceanOxygen(now);
                 if (typeof updateCombatOxygenBar === 'function') updateCombatOxygenBar();
                 if (pendingHeavyUiRefresh) {
