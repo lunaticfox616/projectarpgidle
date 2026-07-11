@@ -948,20 +948,27 @@ function getBlackMarketSlotExpandCost() {
     return 1 + bought;
 }
 
+function canStoreBlackMarketEquipmentOffer() {
+    if ((game.inventory || []).length < getInventoryLimit()) return true;
+    addLog('인벤토리 공간이 부족해 암거래 장비를 구매할 수 없습니다.', 'attack-monster');
+    return false;
+}
+
 function buyBlackMarketOffer(idx){
     normalizeBlackMarketState();
     refreshBlackMarket(false);
     let offer = (game.blackMarket && game.blackMarket.offers || [])[idx]; if(!offer) return;
+    let purchased = false;
     if (offer.type==='exchange') {
         if ((game.currencies[offer.from]||0) < offer.need) return addLog('재화가 부족합니다.', 'attack-monster');
-        game.currencies[offer.from]-=offer.need; awardCurrency(offer.to, offer.gain);
+        game.currencies[offer.from]-=offer.need; awardCurrency(offer.to, offer.gain); purchased = true;
     } else if (offer.type==='skillGem') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
         if (hasSkillGemOwned(offer.name)) return addLog('이미 보유한 젬입니다.', 'attack-monster');
-        game.currencies[offer.priceKey]-=offer.price; game.skills.push(offer.name); game.gemData[offer.name]={level:1,exp:0};
+        game.currencies[offer.priceKey]-=offer.price; game.skills.push(offer.name); game.gemData[offer.name]={level:1,exp:0}; purchased = true;
     } else if (offer.type==='baseItem') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
-        game.currencies[offer.priceKey]-=offer.price;
+        if (!canStoreBlackMarketEquipmentOffer()) return;
         let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId) || (row.name === offer.name.replace(' 베이스','') && row.slot === offer.slot))) || chooseItemBase(offer.slot, offer.hiddenTier || offer.reqTier);
         let item = normalizeItem({
             id: ++itemIdCounter,
@@ -979,10 +986,10 @@ function buyBlackMarketOffer(idx){
             exceptionalStatName: Array.isArray(offer.exceptionalStatNames) ? offer.exceptionalStatNames.join(', ') : '',
             exceptionalAllLines: !!(offer.exceptionalBase && Array.isArray(offer.baseStats) && offer.baseStats.length > 0 && offer.baseStats.every(stat => stat && stat.exceptional))
         });
-        if (item) addItemToInventory(item);
+        if (item && addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true })) { game.currencies[offer.priceKey]-=offer.price; purchased = true; }
     } else if (offer.type==='unique') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
-        game.currencies[offer.priceKey]-=offer.price;
+        if (!canStoreBlackMarketEquipmentOffer()) return;
         let item = generateUniqueItem(offer.hiddenTier || offer.reqTier, offer.slot, offer.name);
         let base = BASE_ITEM_DB.find(row => row && offer.baseId && row.id === offer.baseId);
         if (item && base) {
@@ -992,8 +999,9 @@ function buyBlackMarketOffer(idx){
             clearExceptionalBaseState(item);
             if (typeof maybeApplyExceptionalBase === 'function') maybeApplyExceptionalBase(item);
         }
-        if(item) addItemToInventory(item);
+        if (item && addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true })) { game.currencies[offer.priceKey]-=offer.price; purchased = true; }
     }
+    if (!purchased) return;
     game.blackMarket.offers[idx]=null;
     if (game.blackMarket && game.blackMarket.lockedOffers) delete game.blackMarket.lockedOffers[idx];
     addLog('🕶️ 암거래 구매 완료', 'loot-magic');
@@ -1117,4 +1125,4 @@ function renderMarketUI() {
 }
 
 
-safeExposeGlobals({ showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
