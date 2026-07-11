@@ -88,14 +88,14 @@ function renderBattlefield(forceWhenHidden) {
 
     let currentZone = getZone(game.currentZoneId);
     let zoneTheme = getBattleZoneTheme(currentZone);
-    drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone);
     let gridProj = getBattleGridProjection(width, height);
+    let backdropActive = drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone, gridProj);
     let framePlayerStats = getCanvasPlayerStats();
     let currentTargets = getCanvasSkillTargets(framePlayerStats);
     let swingFx = battleFx.filter(fx => fx.type === 'playerSwing').slice(-1)[0];
     let currentSkill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
     let skillAreaCells = getCanvasSkillAreaCells(game.activeSkill || '기본 공격', currentSkill, currentTargets);
-    drawBattleGridFloor(ctx, gridProj, zoneTheme, currentTargets, skillAreaCells);
+    drawBattleGridFloor(ctx, gridProj, zoneTheme, currentTargets, skillAreaCells, backdropActive);
     if (!battleAssets.ready && battleAssets.loading) {
         ctx.save();
         ctx.fillStyle = 'rgba(6,10,16,0.55)';
@@ -578,7 +578,7 @@ function resolvePlayerFacingLeft(playerPos, targetPlayerPos, currentTargets, ene
 }
 
 // 8x8 아이소메트릭 그리드 바닥. 유닛 점유 칸과 플레이어의 현재 공격 칸을 함께 표시한다.
-function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells) {
+function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, backdropActive) {
     const size = COMBAT_GRID_CONFIG.size;
     const halfW = proj.tileW / 2;
     const halfH = proj.tileH / 2;
@@ -606,16 +606,19 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells) {
     for (let gx = 0; gx < size; gx++) {
         for (let gy = 0; gy < size; gy++) {
             tilePath(gx, gy);
-            ctx.globalAlpha = 0.4;
-            ctx.fillStyle = (gx + gy) % 2 === 0 ? theme.pathA : theme.pathB;
-            ctx.fill();
-            ctx.globalAlpha = 0.62;
-            ctx.strokeStyle = 'rgba(8, 12, 18, 0.6)';
-            ctx.lineWidth = 1.3;
+            // 배경 디오라마가 깔린 경우 바닥 아트를 가리지 않게 체커 칠 없이 선만 긋는다.
+            if (!backdropActive) {
+                ctx.globalAlpha = 0.4;
+                ctx.fillStyle = (gx + gy) % 2 === 0 ? theme.pathA : theme.pathB;
+                ctx.fill();
+            }
+            ctx.globalAlpha = backdropActive ? 0.3 : 0.62;
+            ctx.strokeStyle = backdropActive ? 'rgba(214, 230, 246, 0.5)' : 'rgba(8, 12, 18, 0.6)';
+            ctx.lineWidth = backdropActive ? 1 : 1.3;
             ctx.stroke();
         }
     }
-    ctx.globalAlpha = 0.4;
+    ctx.globalAlpha = backdropActive ? 0.24 : 0.4;
     tilePath(COMBAT_GRID_CONFIG.playerSpawn.gx, COMBAT_GRID_CONFIG.playerSpawn.gy);
     ctx.fillStyle = 'rgba(120, 202, 255, 0.4)';
     ctx.fill();
