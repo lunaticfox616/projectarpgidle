@@ -1,0 +1,38 @@
+@media (min-width: 1081px) {
+  body.desktop-windowed-ui { padding: 0; gap: 0; overflow: hidden; }
+  body.desktop-windowed-ui #left-pane { flex: 1 1 auto; width: auto; min-width: 0; height: 100dvh; padding: 10px 10px 10px 58px; box-sizing: border-box; }
+  body.desktop-windowed-ui #battle-column { height: 100%; gap: 8px; }
+  body.desktop-windowed-ui .player-panel { position: absolute; left: 68px; top: 12px; width: min(360px, 34vw); z-index: 5; background: rgba(16, 22, 32, 0.78); backdrop-filter: blur(8px); }
+  body.desktop-windowed-ui .combat-panel { flex: 1; min-height: 0; padding: 10px; background: rgba(10, 14, 20, 0.68); }
+  body.desktop-windowed-ui .combat-dashboard { grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); flex: 1; min-height: 0; }
+  body.desktop-windowed-ui .combat-stage { min-height: 0; display: flex; flex-direction: column; }
+  body.desktop-windowed-ui #move-area { flex: 1 1 auto; min-height: 0; }
+  body.desktop-windowed-ui .battlefield-wrap { height: 100% !important; min-height: 420px; margin-top: 6px; }
+  body.desktop-windowed-ui #right-pane { position: fixed; inset: 0; z-index: 1000; pointer-events: none; border: 0; background: transparent; overflow: visible; }
+  body.desktop-windowed-ui .tab-header { position: fixed; left: 10px; top: 10px; bottom: 10px; z-index: 1100; width: 42px; flex-direction: column; gap: 6px; padding: 6px; border: 1px solid rgba(80, 107, 139, 0.58); border-radius: 14px; background: rgba(13, 19, 29, 0.82); pointer-events: auto; overflow: hidden auto; }
+  body.desktop-windowed-ui .tab-header-bottom, body.desktop-windowed-ui #tab-category-bar { display: none !important; }
+  body.desktop-windowed-ui .tab-btn { flex: 0 0 34px; width: 34px; min-width: 34px; padding: 0; border-radius: 10px; font-size: 0; justify-content: center; }
+  body.desktop-windowed-ui .tab-btn::first-letter { font-size: 18px; }
+  body.desktop-windowed-ui .tab-btn.ui-window-open { outline: 1px solid #e8c26a; }
+  body.desktop-windowed-ui .noti-dot { top: 4px; right: 4px; }
+  body.desktop-windowed-ui #tab-battle { display: none !important; }
+  body.desktop-windowed-ui .tab-content { display: none; }
+  body.desktop-windowed-ui .tab-content.ui-window { position: fixed; flex-direction: column; padding: 0; background: rgba(15, 20, 30, 0.96); border: 1px solid rgba(118, 148, 190, 0.72); border-radius: 14px; box-shadow: 0 22px 70px rgba(0,0,0,.52); pointer-events: auto; overflow: hidden; min-width: 280px; min-height: 220px; }
+  body.desktop-windowed-ui .tab-content.ui-window.ui-window-open { display: flex; }
+  body.desktop-windowed-ui .ui-window-titlebar { flex: 0 0 34px; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 12px; background: linear-gradient(180deg, #21334a, #162233); border-bottom: 1px solid rgba(118,148,190,.48); cursor: grab; user-select: none; touch-action: none; }
+  body.desktop-windowed-ui .ui-window-title { flex: 1; min-width: 0; font-weight: 900; color: #e7f1ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.desktop-windowed-ui .ui-window-actions { display: flex; gap: 4px; }
+  body.desktop-windowed-ui .ui-window-actions button { min-width: 26px; min-height: 24px; padding: 0; border-radius: 7px; }
+  body.desktop-windowed-ui .ui-window-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 14px; }
+  body.desktop-windowed-ui .ui-window-resize { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; }
+  body.desktop-windowed-ui .ui-window-resize::after { content: ''; position: absolute; right: 4px; bottom: 4px; width: 9px; height: 9px; border-right: 2px solid #8fb2d7; border-bottom: 2px solid #8fb2d7; }
+  body.desktop-windowed-ui .ui-window-minimized { display: none !important; }
+  body.desktop-windowed-ui #tab-social.ui-community-dock { display: flex; position: fixed; top: 0; right: 0; bottom: 0; z-index: 1050; padding: 0; border-left: 1px solid rgba(90,120,156,.68); border-radius: 0; background: rgba(12,18,28,.98); pointer-events: auto; overflow: auto; }
+  body.desktop-windowed-ui:not(.community-dock-open) #tab-social.ui-community-dock { display: none; }
+  body.desktop-windowed-ui .ui-community-resize { position:absolute; left:-5px; top:0; bottom:0; width:8px; cursor:ew-resize; }
+  body.desktop-windowed-ui .ui-community-toggle { position: fixed; right: 10px; top: 10px; z-index: 1150; pointer-events: auto; }
+  body.desktop-windowed-ui.community-dock-open .ui-community-toggle { right: calc(var(--community-dock-width, 360px) + 10px); }
+  body.desktop-windowed-ui .ui-goal-drawer { position: fixed; left: 64px; bottom: 14px; z-index: 1160; pointer-events: auto; }
+  body.desktop-windowed-ui .ui-goal-panel { width: 320px; max-width: calc(100vw - 90px); padding: 12px; border: 1px solid #3c5c80; border-radius: 12px; background: rgba(13,20,31,.92); transform: translateY(calc(100% - 38px)); transition: transform .18s ease; }
+  body.desktop-windowed-ui .ui-goal-drawer.expanded .ui-goal-panel { transform: translateY(0); }
+}

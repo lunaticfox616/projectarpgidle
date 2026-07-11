@@ -210,8 +210,20 @@ function getBackgroundCombatSignature(state) {
     return [state.currentZoneId, state.inTicketBossFight ? 1 : 0, state.pendingLoopDecision ? 1 : 0, state.pendingLoopReady ? 1 : 0].join('|');
 }
 
+function isForegroundGameplayPausedForBackground() {
+    if (typeof gameplayStarted !== 'undefined' && !gameplayStarted) return true;
+    if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return true;
+    if (typeof isLoadingOverlayOpen === 'function' && isLoadingOverlayOpen()) return true;
+    if (typeof isRewardOpen === 'function' && isRewardOpen()) return true;
+    if (typeof isDeathOverlayOpen === 'function' && isDeathOverlayOpen()) return true;
+    if (typeof isLoopHeroSelectOpen === 'function' && isLoopHeroSelectOpen()) return true;
+    let overlayPause = !!(game && game.settings && game.settings.pauseGameOnOverlay);
+    return !!(overlayPause && typeof isPauseSettingOverlayOpen === 'function' && isPauseSettingOverlayOpen());
+}
+
 function isBackgroundCombatEligible(state) {
     if (!state || typeof state !== 'object') return false;
+    if (isForegroundGameplayPausedForBackground()) return false;
     if (state.pendingLoopDecision || state.pendingLoopReady || state.combatHalted) return false;
     if ((Number(state.playerHp) || 0) <= 0) return false;
     if (Array.isArray(state.enemies) && state.enemies.some(enemy => enemy && enemy.hp > 0)) return true;
@@ -294,7 +306,10 @@ function simulateBackgroundCombat(options) {
     let simGame = cloneBackgroundCombatState(options.snapshot);
     let stepFn = options.stepFn || runUiCoreLoop;
     let previousGame = game;
+    let originalDateNow = Date.now;
+    let simulatedNow = Math.max(0, Math.floor(Number(options && options.startNowMs) || originalDateNow()));
     try {
+        Date.now = () => simulatedNow;
         game = simGame;
         let processed = 0;
         while (processed < stepCount) {
@@ -302,20 +317,23 @@ function simulateBackgroundCombat(options) {
             for (; processed < chunkEnd; processed++) {
                 if (game.pendingLoopDecision || game.pendingLoopReady) break;
                 stepFn();
+                simulatedNow += BACKGROUND_COMBAT_STEP_MS;
             }
             if (game.pendingLoopDecision || game.pendingLoopReady) break;
         }
         simGame = game;
     } finally {
+        Date.now = originalDateNow;
         game = previousGame;
     }
-    return { game: simGame, steps: stepCount };
+    return { game: simGame, steps: stepCount, simulatedNow };
 }
 
 function handleBackgroundCombatReturn(nowMs) {
     if (backgroundCombatRuntime.processing) return false;
     let snapshot = backgroundCombatRuntime.snapshot;
     let signature = backgroundCombatRuntime.signature;
+    let startedAtMs = Number(backgroundCombatRuntime.hiddenAtMs || 0);
     let actualElapsedMs = consumeBackgroundElapsedTime(nowMs);
     backgroundCombatRuntime.snapshot = null;
     backgroundCombatRuntime.signature = '';
@@ -323,7 +341,7 @@ function handleBackgroundCombatReturn(nowMs) {
     if (!snapshot || effectiveProgressMs <= 0) return false;
     backgroundCombatRuntime.processing = true;
     try {
-        let result = simulateBackgroundCombat({ elapsedMs: effectiveProgressMs, snapshot });
+        let result = simulateBackgroundCombat({ elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs });
         if (!shouldApplyBackgroundCombatResult(signature)) return false;
         let summary = getBackgroundRewardSummary(snapshot, result.game);
         game = mergeDefaults(result.game || game);
@@ -12258,7 +12276,6 @@ function init() {
                 if (typeof tickOceanOxygen === 'function') tickOceanOxygen(now);
                 if (typeof updateCombatOxygenBar === 'function') updateCombatOxygenBar();
                 if (pendingHeavyUiRefresh) {
-                    let now = Date.now();
                     if (now - lastHeavyUiRefreshAt >= 1200) {
                         pendingHeavyUiRefresh = false;
                         lastHeavyUiRefreshAt = now;

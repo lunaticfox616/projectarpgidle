@@ -14,10 +14,12 @@ const context = {
   mergeDefaults: state => state,
   updateStaticUI: () => { context.updated = (context.updated || 0) + 1; },
   runUiCoreLoop: () => {
+    context.observedNow.push(context.Date.now());
     context.game.exp += 1;
     context.game.killsInZone += 1;
     context.game.currencies.chaos = (context.game.currencies.chaos || 0) + 1;
-  }
+  },
+  observedNow: []
 };
 vm.createContext(context);
 vm.runInContext(source.slice(start, end), context);
@@ -46,6 +48,8 @@ assert.strictEqual(context.game.exp, 0);
 context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: { chaos: 0 }, inventory: [], exp: 0, killsInZone: 0 };
 vm.runInContext('recordBackgroundCombatEntry(1000)', context);
 assert.strictEqual(vm.runInContext('handleBackgroundCombatReturn(11 * 60 * 1000)', context), true);
+assert.deepStrictEqual(context.observedNow.slice(0, 3), [1000, 1100, 1200], 'background replay should advance Date.now per combat step');
+assert.strictEqual(context.Date.now(), 0, 'Date.now should be restored after background replay');
 const onceExp = context.game.exp;
 assert(onceExp > 0, 'background combat should award simulated exp once');
 assert.strictEqual(vm.runInContext('handleBackgroundCombatReturn(12 * 60 * 1000)', context), false);
@@ -55,4 +59,7 @@ assert.strictEqual(vm.runInContext('backgroundCombatRuntime.processing', context
 context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], exp: 0, killsInZone: 0, pendingLoopReady: true };
 vm.runInContext('recordBackgroundCombatEntry(1000)', context);
 assert.strictEqual(vm.runInContext('handleBackgroundCombatReturn(11 * 60 * 1000)', context), false);
+context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], exp: 0, killsInZone: 0 };
+vm.runInContext('gameplayStarted = false; recordBackgroundCombatEntry(1000)', context);
+assert.strictEqual(vm.runInContext('backgroundCombatRuntime.snapshot', context), null, 'startup/login gate should not record a background combat snapshot');
 console.log('smoke-background-progress passed');
