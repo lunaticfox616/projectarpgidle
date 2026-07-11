@@ -190,6 +190,55 @@ function runUiCoreLoop() {
     return runUiGlobalFunction('coreLoop');
 }
 
+
+const COMBAT_STEP_MS = 100;
+const MAX_COMBAT_CATCHUP_STEPS_PER_TICK = 50;
+let combatCatchupClock = { lastMs: 0, carryMs: 0, running: false };
+
+function resetCombatCatchupClock(nowMs) {
+    combatCatchupClock.lastMs = Number.isFinite(nowMs) ? nowMs : Date.now();
+    combatCatchupClock.carryMs = 0;
+    combatCatchupClock.running = false;
+}
+
+function consumeCombatCatchupSteps(nowMs, isPaused) {
+    let now = Number.isFinite(nowMs) ? nowMs : Date.now();
+    if (isPaused || combatCatchupClock.lastMs <= 0 || now < combatCatchupClock.lastMs) {
+        resetCombatCatchupClock(now);
+        return 0;
+    }
+    if (combatCatchupClock.running) return 0;
+    combatCatchupClock.carryMs += now - combatCatchupClock.lastMs;
+    combatCatchupClock.lastMs = now;
+    let dueSteps = Math.floor(combatCatchupClock.carryMs / COMBAT_STEP_MS);
+    let steps = Math.min(MAX_COMBAT_CATCHUP_STEPS_PER_TICK, Math.max(0, dueSteps));
+    combatCatchupClock.carryMs -= steps * COMBAT_STEP_MS;
+    return steps;
+}
+
+function runCombatCatchupSteps(stepCount) {
+    let steps = Math.max(0, Math.floor(stepCount || 0));
+    if (steps <= 0) return 0;
+    combatCatchupClock.running = true;
+    try {
+        for (let i = 0; i < steps; i++) runUiCoreLoop();
+    } finally {
+        combatCatchupClock.running = false;
+    }
+    return steps;
+}
+
+
+function syncLoop10PanelCopies() {
+    let panels = Array.from(document.querySelectorAll('[data-loop10-panel]'));
+    if (panels.length <= 1) return;
+    let source = panels[0];
+    panels.slice(1).forEach(panel => {
+        panel.style.display = source.style.display;
+        panel.innerHTML = source.innerHTML;
+    });
+}
+
 function getUiConditionGemStatDelta(name, type) {
     let provider = getUiGlobalFunction('getConditionGemStatDelta');
     return provider ? (callUiProvider('getConditionGemStatDelta', provider, [name, type]) || {}) : {};
@@ -8182,6 +8231,7 @@ function buildCraftActionButtons(item) {
             }
         }
     }
+    syncLoop10PanelCopies();
     let seasonRoadmapKeys = (game.unlockedSeasonContents || []).map(id => parseInt(String(id).replace('season_', ''), 10)).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
     document.getElementById('ui-season-content-roadmap').innerHTML = seasonRoadmapKeys.map(seasonNum => {
         let def = SEASON_CONTENT_ROADMAP[seasonNum];
@@ -12053,15 +12103,19 @@ function init() {
         console.error('initial battlefield render failed:', error);
     } finally {
         if (gameTickHandle) clearInterval(gameTickHandle);
+        resetCombatCatchupClock(Date.now());
         gameTickHandle = setInterval(() => {
             try {
                 let overlayPause = !!(game.settings && game.settings.pauseGameOnOverlay);
                 let blockingOverlayOpen = isStartupOverlayOpen() || isLoadingOverlayOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen();
                 let optionalOverlayOpen = overlayPause && isPauseSettingOverlayOpen();
-                if (blockingOverlayOpen || optionalOverlayOpen) return;
-                runUiCoreLoop();
+                let paused = blockingOverlayOpen || optionalOverlayOpen;
+                let now = Date.now();
+                let combatSteps = consumeCombatCatchupSteps(now, paused);
+                if (paused) return;
+                runCombatCatchupSteps(combatSteps);
                 ensureLoopChallengeState();
-                if (typeof tickOceanOxygen === 'function') tickOceanOxygen(Date.now());
+                if (typeof tickOceanOxygen === 'function') tickOceanOxygen(now);
                 if (typeof updateCombatOxygenBar === 'function') updateCombatOxygenBar();
                 if (pendingHeavyUiRefresh) {
                     let now = Date.now();
