@@ -6874,37 +6874,6 @@ function shouldRedrawPassiveTree(now) {
     return changed || due;
 }
 
-// 목표 서랍에 실제 게임 상태에서 파생한 '다음 목표'를 전달한다.
-// 루프 진행 대기(필수 선택)가 최우선이고, 평시에는 현재 지역 돌파 진행도를 보여준다.
-// 더 정교한 목표 선정 로직이 생기면 이 함수만 교체하면 된다.
-function refreshGoalDrawerFromGameState() {
-    if (typeof presentGoalDrawer !== 'function') return;
-    if (game.pendingLoopDecision || game.pendingLoopReady) {
-        presentGoalDrawer({
-            id: 'loop-advance',
-            title: '루프 진행을 결정하세요',
-            description: '루프 조건을 달성했습니다. 전투 화면 상단의 루프 진행 버튼으로 다음 루프 여부를 선택하세요.',
-            mandatory: true,
-            stage: 'decide'
-        });
-        return;
-    }
-    let zone = typeof getZone === 'function' ? getZone(game.currentZoneId) : null;
-    if (!zone || !zone.name) {
-        presentGoalDrawer(null);
-        return;
-    }
-    presentGoalDrawer({
-        id: `zone-${zone.id}`,
-        title: `${zone.name} 돌파하기`,
-        description: '진행도가 100%가 되면 다음 구간으로 이동합니다.',
-        current: Math.max(0, Math.min(100, Math.floor(game.runProgress || 0))),
-        target: 100,
-        actionLabel: '지도 열기',
-        actionTabId: 'tab-map'
-    });
-}
-
 function performUpdateStaticUI() {
     // 진단용 단계별 타이밍. 한 번의 갱신이 150ms를 넘으면(또는 window.__perfLog가 켜져
     // 있으면) 어느 단계가 느린지 콘솔에 한 줄 남긴다. 정상 갱신에는 거의 영향이 없다.
@@ -6914,7 +6883,8 @@ function performUpdateStaticUI() {
 
     ensureStarWedgeState();
     tryUnlockMeteorContentByProgress();
-    refreshGoalDrawerFromGameState();
+    // 목표 선정은 js/goal-system.js가 담당한다(디바운스 포함).
+    if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
     renderFlaskPanel();
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });

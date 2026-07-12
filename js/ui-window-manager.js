@@ -469,7 +469,7 @@
     }
 
     const GOAL_AUTO_COLLAPSE_MS = 7000;
-    let goalRuntime = { signature: '', collapseTimer: null, currentGoal: null };
+    let goalRuntime = { signature: '', collapseTimer: null, currentGoal: null, pendingAutoExpand: false };
 
     function installGoalDrawer() {
         if (document.getElementById('ui-goal-drawer')) return;
@@ -479,15 +479,24 @@
         // 목표 데이터가 presentGoalDrawer로 전달되기 전에는 손잡이도 노출하지 않는다.
         drawer.style.display = 'none';
         drawer.innerHTML = '<div class="ui-goal-panel">'
-            + '<button type="button" id="ui-goal-toggle" aria-expanded="false" aria-label="다음 목표 열기/닫기">다음 목표</button>'
             + '<div id="ui-goal-body">'
+            + '<div class="ui-goal-head-row">'
+            + '<span id="ui-goal-badge" class="ui-goal-badge"></span>'
+            + '<button type="button" id="ui-goal-pin" aria-pressed="false" title="고정" aria-label="목표 서랍 고정">📌</button>'
+            + '</div>'
             + '<div id="ui-goal-title" class="ui-goal-title"></div>'
-            + '<div id="ui-goal-progress" class="ui-goal-progress"></div>'
             + '<div id="ui-goal-desc" class="ui-goal-desc"></div>'
+            + '<div id="ui-goal-bar" class="ui-goal-bar"><span id="ui-goal-bar-fill" class="ui-goal-bar-fill"></span></div>'
+            + '<div id="ui-goal-progress" class="ui-goal-progress"></div>'
             + '<button type="button" id="ui-goal-action" class="ui-goal-action"></button>'
             + '<div id="ui-goal-notices" class="ui-goal-notices"></div>'
             + '</div>'
-            + '<button type="button" id="ui-goal-pin" aria-pressed="false">고정</button>'
+            + '<button type="button" id="ui-goal-toggle" aria-expanded="false" aria-label="다음 목표 열기/닫기">'
+            + '<span id="ui-goal-handle-icon" class="ui-goal-handle-icon"></span>'
+            + '<span id="ui-goal-handle-title" class="ui-goal-handle-title">다음 목표</span>'
+            + '<span id="ui-goal-handle-progress" class="ui-goal-handle-progress"></span>'
+            + '</button>'
+            + '<div id="ui-goal-handle-bar" class="ui-goal-handle-bar"><span id="ui-goal-handle-fill" class="ui-goal-handle-fill"></span></div>'
             + '</div>';
         document.body.appendChild(drawer);
         drawer.querySelector('#ui-goal-toggle').addEventListener('click', () => toggleGoalDrawer());
@@ -520,9 +529,18 @@
         if (!layoutState.goals.pinned) scheduleGoalAutoCollapse();
     }
 
+    // 자동 수납은 사용자가 '고정'했을 때만 영구히 막는다.
+    // mandatory는 시각 강조와 우선순위 용도이며 수납을 막지 않는다(필수 상태는
+    // 목표 선정 계층이 계속 같은 목표를 유지하므로 손잡이 한 줄로 충분히 안내된다).
     function isGoalAutoCollapseBlocked() {
         let goal = goalRuntime.currentGoal;
-        return !goal || !!goal.mandatory || !!layoutState.goals.pinned;
+        return !goal || !!layoutState.goals.pinned;
+    }
+
+    // 차단형 오버레이(선택 모달, 백그라운드 복귀 진행)가 떠 있는 동안에는
+    // 같은 내용을 중복 안내하지 않도록 서랍을 자동으로 펼치지 않는다.
+    function isBlockingOverlayVisible() {
+        return !!document.querySelector('.tutorial-overlay.active, .background-combat-progress-overlay');
     }
 
     function scheduleGoalAutoCollapse() {
@@ -563,11 +581,31 @@
         el.style.display = text ? '' : 'none';
     }
 
+    function getGoalProgressPct(goal) {
+        if (Number.isFinite(goal.progressPct)) return Math.max(0, Math.min(100, Math.round(goal.progressPct)));
+        if (Number.isFinite(goal.current) && Number.isFinite(goal.target) && goal.target > 0) {
+            return Math.max(0, Math.min(100, Math.round((goal.current / goal.target) * 100)));
+        }
+        return null;
+    }
+
+    function setGoalDrawerBar(barId, fillId, pct) {
+        let bar = document.getElementById(barId);
+        let fill = document.getElementById(fillId);
+        if (!bar || !fill) return;
+        bar.style.display = pct === null ? 'none' : '';
+        if (pct !== null) fill.style.width = `${pct}%`;
+    }
+
     function renderGoalDrawerContent(goal) {
-        setGoalDrawerText('ui-goal-title', goal.title);
         let hasProgress = Number.isFinite(goal.current) && Number.isFinite(goal.target);
-        setGoalDrawerText('ui-goal-progress', hasProgress ? `현재 ${goal.current} / ${goal.target}` : '');
+        let pct = getGoalProgressPct(goal);
+        // 펼친 상태: 배지 → 제목 → 설명 → 진행도 바 → 수치 → 버튼 → 보조 안내.
+        setGoalDrawerText('ui-goal-badge', goal.categoryLabel ? `${goal.icon ? goal.icon + ' ' : ''}${goal.categoryLabel}` : (goal.icon || ''));
+        setGoalDrawerText('ui-goal-title', goal.title);
         setGoalDrawerText('ui-goal-desc', goal.description);
+        setGoalDrawerBar('ui-goal-bar', 'ui-goal-bar-fill', pct);
+        setGoalDrawerText('ui-goal-progress', goal.progressText || (hasProgress ? `현재 ${goal.current} / ${goal.target}` : ''));
         let action = document.getElementById('ui-goal-action');
         if (action) {
             let usable = !!(goal.actionLabel && goal.actionTabId);
@@ -576,11 +614,16 @@
         }
         let notices = document.getElementById('ui-goal-notices');
         if (notices) {
-            notices.textContent = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 3).join(' · ');
+            notices.textContent = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 2).join('\n');
             notices.style.display = notices.textContent ? '' : 'none';
         }
-        let toggle = document.getElementById('ui-goal-toggle');
-        if (toggle) toggle.textContent = hasProgress ? `${goal.title} (${goal.current}/${goal.target})` : goal.title;
+        // 접힌 상태 손잡이: 아이콘 + 제목 + 현재/목표 한 줄과 하단 미니 진행도 바.
+        setGoalDrawerText('ui-goal-handle-icon', goal.icon || '🎯');
+        setGoalDrawerText('ui-goal-handle-title', goal.title);
+        setGoalDrawerText('ui-goal-handle-progress', hasProgress ? `${goal.current}/${goal.target}` : '');
+        setGoalDrawerBar('ui-goal-handle-bar', 'ui-goal-handle-fill', pct);
+        let drawer = document.getElementById('ui-goal-drawer');
+        if (drawer) drawer.classList.toggle('ui-goal-mandatory', !!goal.mandatory);
     }
 
     /**
@@ -603,8 +646,15 @@
         renderGoalDrawerContent(goal);
         // 진행 숫자 변화가 아니라 목표 자체(id)/단계(stage)/필수 여부가 바뀔 때만 자동으로 펼친다.
         let signature = [goal.id, goal.stage || '', goal.mandatory ? 1 : 0].join('|');
-        if (signature === goalRuntime.signature) return;
-        goalRuntime.signature = signature;
+        if (signature !== goalRuntime.signature) {
+            goalRuntime.signature = signature;
+            goalRuntime.pendingAutoExpand = true;
+        }
+        if (!goalRuntime.pendingAutoExpand) return;
+        // 선택 모달 등 차단형 오버레이가 같은 내용을 안내 중이면 펼침을 보류했다가,
+        // 오버레이가 닫힌 뒤의 다음 갱신에서 실행한다.
+        if (isBlockingOverlayVisible()) return;
+        goalRuntime.pendingAutoExpand = false;
         toggleGoalDrawer(true);
         scheduleGoalAutoCollapse();
     }
@@ -661,6 +711,11 @@
             if (tabId === 'tab-social') {
                 openCommunityDock();
                 return;
+            }
+            // 잠긴 탭은 원본 switchTab의 잠금 안내만 실행하고 창을 열지 않는다.
+            let gateKey = (typeof TAB_UNLOCK_GATES !== 'undefined' && TAB_UNLOCK_GATES) ? TAB_UNLOCK_GATES[tabId] : null;
+            if (gateKey && typeof game !== 'undefined' && game && game.unlocks && !game.unlocks[gateKey]) {
+                return originalSwitchTab(tabId);
             }
             // 이미 열려 있고 최상단(포커스)인 창의 탭을 다시 누르면 창을 닫는다(토글).
             // 열려 있지만 포커스가 없으면 기존처럼 최상단으로 가져온다.
@@ -729,6 +784,8 @@
         document.body.classList.toggle('desktop-windowed-ui', desktop);
         if (!desktop) {
             restoreWindowMarkupForMobile();
+            // 목표 서랍은 모바일에서도 같은 선정 로직을 공유하고 표시(배너/하단 시트)만 다르다.
+            installGoalDrawer();
             return;
         }
         Object.keys(WINDOW_DEFS).forEach(id => { prepareWindow(id); applyWindowState(id); });

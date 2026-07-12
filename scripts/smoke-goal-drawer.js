@@ -139,13 +139,17 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
     assert(!drawer.classList.contains('expanded'), '숫자 변화만으로 자동 펼침 금지');
 }
 
-// 4) 필수 목표는 자동 수납 타이머를 걸지 않는다.
+// 4) 필수 목표도 시간이 지나면 자동 수납된다(고정만 수납을 막는다).
 {
     const m = bootManager();
     const drawer = m.dom.registry['ui-goal-drawer'];
     m.exposed.presentGoalDrawer({ ...goal('g2'), mandatory: true });
     assert(drawer.classList.contains('expanded'));
-    assert.strictEqual(m.timers.filter(t => !t.cleared && t.ms === 7000).length, 0, '필수 목표는 자동 수납 없음');
+    const pending = m.timers.filter(t => !t.cleared && t.ms === 7000);
+    assert.strictEqual(pending.length, 1, '필수 목표에도 자동 수납 타이머가 걸려야 함');
+    pending[0].fn();
+    assert(!drawer.classList.contains('expanded'), '필수 목표도 시간이 지나면 수납');
+    assert(drawer.classList.contains('ui-goal-mandatory'), '필수 목표는 시각 강조 클래스 유지');
 }
 
 // 5) 고정 상태에서는 자동 수납하지 않는다.
