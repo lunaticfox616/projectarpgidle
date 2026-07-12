@@ -3,7 +3,7 @@ const vm = require('vm');
 const assert = require('assert');
 
 const source = fs.readFileSync('js/ui.js', 'utf8');
-const start = source.indexOf('const BACKGROUND_PROGRESS_RATE = 0.1;');
+const start = source.indexOf('const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;');
 const end = source.indexOf('function syncLoop10PanelCopies', start);
 assert(start >= 0 && end > start, 'background progress block not found');
 const context = {
@@ -23,16 +23,17 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(source.slice(start, end), context);
-const calc = ms => vm.runInContext(`calculateBackgroundProgressMs(${ms}, BACKGROUND_PROGRESS_RATE, MAX_BACKGROUND_PROGRESS_MS)`, context);
+const calc = ms => vm.runInContext(`calculateBackgroundProgressMs(${ms}, BACKGROUND_PROGRESS_MIN_REAL_MS, BACKGROUND_PROGRESS_RATE, BACKGROUND_PROGRESS_MAX_SIMULATED_MS)`, context);
+assert.strictEqual(calc(0), 0);
+assert.strictEqual(calc(10 * 1000), 0);
+assert.strictEqual(calc(59999), 0);
+assert.strictEqual(calc(60 * 1000), 6 * 1000);
+assert.strictEqual(calc(60001), 6000);
 assert.strictEqual(calc(10 * 60 * 1000), 60 * 1000);
-assert.strictEqual(calc(30 * 60 * 1000), 3 * 60 * 1000);
 assert.strictEqual(calc(60 * 60 * 1000), 6 * 60 * 1000);
 assert.strictEqual(calc(5 * 60 * 60 * 1000), 30 * 60 * 1000);
-assert.strictEqual(calc(10 * 60 * 60 * 1000), 30 * 60 * 1000);
+assert.strictEqual(calc(24 * 60 * 60 * 1000), 30 * 60 * 1000);
 assert.strictEqual(calc(-1000), 0);
-assert.strictEqual(calc((4 * 60 + 59) * 60 * 1000), 1794000);
-assert.strictEqual(calc(5 * 60 * 60 * 1000), 1800000);
-assert.strictEqual(calc((5 * 60 + 1) * 60 * 1000), 1800000);
 
 context.game = { currentZoneId: 1, playerHp: 100, combatHalted: true, enemies: [], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], exp: 0, killsInZone: 0 };
 vm.runInContext('recordBackgroundCombatEntry(1000)', context);
