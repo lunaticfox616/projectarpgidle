@@ -12260,17 +12260,13 @@ function init() {
         console.error('initial battlefield render failed:', error);
     } finally {
         if (gameTickHandle) clearInterval(gameTickHandle);
-        resetCombatCatchupClock(Date.now());
         gameTickHandle = setInterval(() => {
             try {
                 let overlayPause = !!(game.settings && game.settings.pauseGameOnOverlay);
                 let blockingOverlayOpen = isStartupOverlayOpen() || isLoadingOverlayOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen();
                 let optionalOverlayOpen = overlayPause && isPauseSettingOverlayOpen();
-                let paused = blockingOverlayOpen || optionalOverlayOpen;
-                let now = Date.now();
-                let combatSteps = consumeCombatCatchupSteps(now, paused);
-                if (paused) return;
-                runCombatCatchupSteps(combatSteps);
+                if (blockingOverlayOpen || optionalOverlayOpen) return;
+                runUiCoreLoop();
                 ensureLoopChallengeState();
                 let now = Date.now();
                 if (typeof tickOceanOxygen === 'function') tickOceanOxygen(now);
