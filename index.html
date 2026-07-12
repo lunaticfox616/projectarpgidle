@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="css/components.css?v=20260628-craft-fixes1">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260707-belt-flask-slots1">
     <link rel="stylesheet" href="css/ui-premium.css?v=20260707-community-ui1">
-    <link rel="stylesheet" href="css/ui-windows.css?v=20260712-windowed-ui2">
+    <link rel="stylesheet" href="css/ui-windows.css?v=20260712-windowed-ui3">
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="css/cosmos-atlas.css">
     <link rel="stylesheet" href="css/core-cube.css?v=20260604-core-cube-visual1">
@@ -941,9 +941,9 @@
         <div id="ui-core-cube-panel"></div>
     </div>
 
-    <div id="tab-social" class="tab-content">
-        <h2>💬 커뮤니티</h2>
-    </div>
+    <!-- 소셜 콘텐츠는 renderSocialTab이 .social-root 하위에 렌더링하고,
+         도킹 모드 크롬(헤더/리사이저)은 창 관리자가 직접 붙인다. -->
+    <div id="tab-social" class="tab-content"></div>
 
     <div id="tab-journal" class="tab-content">
         <h2>📓 저널</h2>
@@ -1207,9 +1207,9 @@
 <script defer src="js/canvas-battlefield.js?v=20260711-bg-diorama1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260625-attackfx1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260618-codex-autoreg1"></script>
-<script defer src="js/ui.js?v=20260712-boot-fix1"></script>
-<script defer src="js/social.js?v=20260707-community-noti3"></script>
-<script defer src="js/ui-window-manager.js?v=20260712-windowed-ui2"></script>
+<script defer src="js/ui.js?v=20260712-windowed-ui3"></script>
+<script defer src="js/social.js?v=20260712-community-dock1"></script>
+<script defer src="js/ui-window-manager.js?v=20260712-windowed-ui3"></script>
 <script defer src="js/talent-cards.js?v=20260708-projectile-uncap1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260705-cosmosloop1"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>

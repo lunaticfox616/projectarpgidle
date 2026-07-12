@@ -896,17 +896,30 @@ async function openPlayerProfile(userId) {
 // ============================================================================
 // 소셜 탭
 // ============================================================================
+// #tab-social에는 도킹 모드에서 창 관리자가 붙이는 크롬(헤더/리사이즈 핸들)이 공존하므로,
+// 소셜 콘텐츠는 전용 하위 컨테이너(.social-root)에만 렌더링해 서로를 파괴하지 않는다.
+function getSocialRenderRoot(host) {
+    let root = host.querySelector(':scope > .social-root');
+    if (!root) {
+        root = document.createElement('div');
+        root.className = 'social-root';
+        host.appendChild(root);
+    }
+    return root;
+}
+
 function renderSocialTab() {
     let host = document.getElementById('tab-social');
     if (!host) return;
+    let root = getSocialRenderRoot(host);
     let loggedIn = socialCloudReady();
     let nickname = getMyNickname();
     if (!loggedIn) {
-        host.innerHTML = `<h2>💬 커뮤니티</h2><div class="social-notice">채팅·접속자·프로필 구경 기능은 <strong>클라우드 로그인</strong>이 필요합니다.<br>설정 탭에서 로그인 후 다시 열어주세요.</div>`;
+        root.innerHTML = `<h2>💬 커뮤니티</h2><div class="social-notice">채팅·접속자·프로필 구경 기능은 <strong>클라우드 로그인</strong>이 필요합니다.<br>설정 탭에서 로그인 후 다시 열어주세요.</div>`;
         stopChatPolling();
         return;
     }
-    host.innerHTML = `
+    root.innerHTML = `
         <h2>💬 커뮤니티</h2>
         <div class="social-toolbar">
             <span class="social-mynick">내 닉네임: <strong>${nickname ? socialEscape(nickname) : '<span style="color:#e88;">미설정</span>'}</strong></span>
