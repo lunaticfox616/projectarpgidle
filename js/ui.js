@@ -470,6 +470,40 @@ async function startBackgroundCombatReturn(nowMs) {
     }
 }
 
+async function startBackgroundCombatReturn(nowMs) {
+    if (backgroundCombatRuntime.processing) return false;
+    let snapshot = backgroundCombatRuntime.snapshot;
+    let signature = backgroundCombatRuntime.signature;
+    let startedAtMs = Number(backgroundCombatRuntime.hiddenAtMs || 0);
+    let actualElapsedMs = consumeBackgroundElapsedTime(nowMs);
+    backgroundCombatRuntime.snapshot = null;
+    backgroundCombatRuntime.signature = '';
+    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_RATE, MAX_BACKGROUND_PROGRESS_MS);
+    if (!snapshot || effectiveProgressMs <= 0) return false;
+    backgroundCombatRuntime.processing = true;
+    restoreBattlefieldBeforeBackgroundReplay();
+    updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
+    await waitBackgroundReplayFrame();
+    try {
+        let result = await simulateBackgroundCombatChunked({
+            elapsedMs: effectiveProgressMs,
+            snapshot,
+            startNowMs: startedAtMs,
+            onProgress: (done, total) => updateBackgroundProgressOverlay(done, total, actualElapsedMs)
+        });
+        if (!shouldApplyBackgroundCombatResult(signature)) return false;
+        let summary = getBackgroundRewardSummary(snapshot, result.game);
+        game = mergeDefaults(result.game || game);
+        showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs, summary, capped: effectiveProgressMs >= MAX_BACKGROUND_PROGRESS_MS });
+        updateStaticUI();
+        restoreBattlefieldBeforeBackgroundReplay();
+        return true;
+    } finally {
+        backgroundCombatRuntime.processing = false;
+        hideBackgroundProgressOverlay();
+    }
+}
+
 function handleBackgroundVisibilityChange() {
     if (typeof document === 'undefined') return;
     if (document.hidden) recordBackgroundCombatEntry(Date.now());
