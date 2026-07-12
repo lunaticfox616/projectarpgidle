@@ -195,7 +195,8 @@ function runUiCoreLoop() {
 const BACKGROUND_PROGRESS_RATE = 0.1;
 const MAX_BACKGROUND_PROGRESS_MS = 30 * 60 * 1000;
 const BACKGROUND_COMBAT_STEP_MS = 100;
-const BACKGROUND_COMBAT_CHUNK_STEPS = 500;
+const BACKGROUND_COMBAT_CHUNK_BUDGET_MS = 10;
+const BACKGROUND_COMBAT_SYNC_CHUNK_STEPS = 500;
 let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false };
 
 function calculateBackgroundProgressMs(actualElapsedMs, rate, maxProgressMs) {
@@ -278,20 +279,47 @@ function formatBackgroundDuration(ms) {
     return `${seconds}초`;
 }
 
+function getBackgroundProgressOverlay() {
+    if (typeof document === 'undefined' || !document.body) return null;
+    let overlay = document.getElementById('background-combat-progress-overlay');
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.id = 'background-combat-progress-overlay';
+    overlay.className = 'background-combat-progress-overlay';
+    overlay.innerHTML = '<div class="background-combat-progress-card"><strong>백그라운드 전투 계산 중</strong><div id="background-combat-progress-percent">진행도 0%</div><div id="background-combat-progress-duration"></div></div>';
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs) {
+    let overlay = getBackgroundProgressOverlay();
+    if (!overlay) return;
+    let pct = totalMs > 0 ? Math.min(100, Math.floor(doneMs / totalMs * 100)) : 100;
+    let percent = document.getElementById('background-combat-progress-percent');
+    let duration = document.getElementById('background-combat-progress-duration');
+    if (percent) percent.textContent = `진행도 ${pct}%`;
+    if (duration) duration.textContent = `${formatBackgroundDuration(actualElapsedMs)}의 진행을 반영하고 있습니다`;
+}
+
+function hideBackgroundProgressOverlay() {
+    let overlay = typeof document !== 'undefined' ? document.getElementById('background-combat-progress-overlay') : null;
+    if (overlay) overlay.remove();
+}
+
 function showBackgroundCombatResult(result) {
     if (typeof document === 'undefined' || !document.body) return;
     let old = document.getElementById('background-combat-result-overlay');
     if (old) old.remove();
     let overlay = document.createElement('div');
     overlay.id = 'background-combat-result-overlay';
-    overlay.style.cssText = 'position:fixed; inset:0; z-index:12050; background:rgba(4,7,12,0.72); display:flex; align-items:center; justify-content:center; padding:16px;';
+    overlay.className = 'background-combat-result-overlay';
     let rewards = [
         `처치 수: ${result.summary.kills}`,
         `획득 경험치: ${result.summary.exp}`,
         `아이템: ${result.summary.items}개`,
         `재화: ${result.summary.currencies.slice(0, 6).join(', ') || '없음'}`
     ].join('<br>');
-    overlay.innerHTML = `<div class="tutorial-card" style="display:block;"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>적용된 전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p><p>백그라운드에서는 ${Math.round(BACKGROUND_PROGRESS_RATE * 100)}% 속도로 전투가 진행됩니다.</p><p>${rewards}</p>${result.capped ? '<p style="color:#ffcf8a;">백그라운드 진행 최대치에 도달했습니다.</p>' : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">닫기</button></div>`;
+    overlay.innerHTML = `<div class="tutorial-card background-combat-result-card"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>적용된 전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p><p>백그라운드에서는 ${Math.round(BACKGROUND_PROGRESS_RATE * 100)}% 속도로 전투가 진행됩니다.</p><p>${rewards}</p>${result.capped ? '<p class="background-combat-capped">백그라운드 진행 최대치에 도달했습니다.</p>' : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">닫기</button></div>`;
     document.body.appendChild(overlay);
 }
 
@@ -313,7 +341,7 @@ function simulateBackgroundCombat(options) {
         game = simGame;
         let processed = 0;
         while (processed < stepCount) {
-            let chunkEnd = Math.min(stepCount, processed + BACKGROUND_COMBAT_CHUNK_STEPS);
+            let chunkEnd = Math.min(stepCount, processed + BACKGROUND_COMBAT_SYNC_CHUNK_STEPS);
             for (; processed < chunkEnd; processed++) {
                 if (game.pendingLoopDecision || game.pendingLoopReady) break;
                 stepFn();
@@ -327,6 +355,55 @@ function simulateBackgroundCombat(options) {
         game = previousGame;
     }
     return { game: simGame, steps: stepCount, simulatedNow };
+}
+
+function shouldStopBackgroundReplay(state) {
+    return !state || (Number(state.playerHp) || 0) <= 0 || !!state.pendingLoopDecision || !!state.pendingLoopReady;
+}
+
+function restoreBattlefieldBeforeBackgroundReplay() {
+    if (typeof syncBattleTabLayout === 'function') syncBattleTabLayout(false);
+    if (typeof scheduleStableResize === 'function') scheduleStableResize();
+    else if (typeof resizeCanvas === 'function') resizeCanvas();
+    if (typeof updateStaticUI === 'function') updateStaticUI();
+    if (typeof renderBattlefield === 'function') renderBattlefield(true);
+}
+
+function waitBackgroundReplayFrame() {
+    return new Promise(resolve => {
+        let raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : fn => setTimeout(fn, 0);
+        raf(() => setTimeout(resolve, 0));
+    });
+}
+
+async function simulateBackgroundCombatChunked(options) {
+    let elapsedMs = Math.max(0, Math.floor(Number(options && options.elapsedMs) || 0));
+    let stepCount = Math.floor(elapsedMs / BACKGROUND_COMBAT_STEP_MS);
+    let simGame = cloneBackgroundCombatState(options.snapshot);
+    let stepFn = options.stepFn || runUiCoreLoop;
+    let previousGame = game;
+    let originalDateNow = Date.now;
+    let simulatedNow = Math.max(0, Math.floor(Number(options && options.startNowMs) || originalDateNow()));
+    let processed = 0;
+    try {
+        Date.now = () => simulatedNow;
+        game = simGame;
+        while (processed < stepCount && !shouldStopBackgroundReplay(game)) {
+            let chunkStart = (typeof performance !== 'undefined' && performance.now) ? performance.now() : originalDateNow();
+            do {
+                stepFn();
+                simulatedNow += BACKGROUND_COMBAT_STEP_MS;
+                processed++;
+            } while (processed < stepCount && !shouldStopBackgroundReplay(game) && (((typeof performance !== 'undefined' && performance.now) ? performance.now() : originalDateNow()) - chunkStart) < BACKGROUND_COMBAT_CHUNK_BUDGET_MS);
+            if (typeof options.onProgress === 'function') options.onProgress(processed * BACKGROUND_COMBAT_STEP_MS, elapsedMs);
+            if (processed < stepCount && !shouldStopBackgroundReplay(game)) await waitBackgroundReplayFrame();
+        }
+        simGame = game;
+    } finally {
+        Date.now = originalDateNow;
+        game = previousGame;
+    }
+    return { game: simGame, steps: processed, simulatedNow, stopped: processed < stepCount };
 }
 
 function handleBackgroundCombatReturn(nowMs) {
@@ -353,10 +430,44 @@ function handleBackgroundCombatReturn(nowMs) {
     }
 }
 
+async function startBackgroundCombatReturn(nowMs) {
+    if (backgroundCombatRuntime.processing) return false;
+    let snapshot = backgroundCombatRuntime.snapshot;
+    let signature = backgroundCombatRuntime.signature;
+    let startedAtMs = Number(backgroundCombatRuntime.hiddenAtMs || 0);
+    let actualElapsedMs = consumeBackgroundElapsedTime(nowMs);
+    backgroundCombatRuntime.snapshot = null;
+    backgroundCombatRuntime.signature = '';
+    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_RATE, MAX_BACKGROUND_PROGRESS_MS);
+    if (!snapshot || effectiveProgressMs <= 0) return false;
+    backgroundCombatRuntime.processing = true;
+    restoreBattlefieldBeforeBackgroundReplay();
+    updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
+    await waitBackgroundReplayFrame();
+    try {
+        let result = await simulateBackgroundCombatChunked({
+            elapsedMs: effectiveProgressMs,
+            snapshot,
+            startNowMs: startedAtMs,
+            onProgress: (done, total) => updateBackgroundProgressOverlay(done, total, actualElapsedMs)
+        });
+        if (!shouldApplyBackgroundCombatResult(signature)) return false;
+        let summary = getBackgroundRewardSummary(snapshot, result.game);
+        game = mergeDefaults(result.game || game);
+        showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs, summary, capped: effectiveProgressMs >= MAX_BACKGROUND_PROGRESS_MS });
+        updateStaticUI();
+        restoreBattlefieldBeforeBackgroundReplay();
+        return true;
+    } finally {
+        backgroundCombatRuntime.processing = false;
+        hideBackgroundProgressOverlay();
+    }
+}
+
 function handleBackgroundVisibilityChange() {
     if (typeof document === 'undefined') return;
     if (document.hidden) recordBackgroundCombatEntry(Date.now());
-    else handleBackgroundCombatReturn(Date.now());
+    else startBackgroundCombatReturn(Date.now());
 }
 
 function syncLoop10PanelCopies() {
@@ -6231,6 +6342,7 @@ function updateCombatUI(pStats) {
     let hpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
     let hpBar = document.getElementById('ui-hp-bar');
     hpBar.style.width = hpPct + '%';
+    hpBar.classList.toggle('player-danger', hpPct > 0 && hpPct <= 25);
     let hpWrap = hpBar.parentElement;
     let hpGhostBar = document.getElementById('ui-hp-damage-ghost-bar');
     if (!hpGhostBar && hpWrap) {
@@ -6522,11 +6634,11 @@ function updateCombatUI(pStats) {
         let pendingStartPct = Math.max(0, pct - pendingPct);
         let ghostPct = updateEnemyHpDamageGhost(focusedEnemy.id, pct);
         let ghostDisplay = ghostPct > pct + 0.2 ? 'block' : 'none';
-        let focusedKey = String(focusedEnemy.id);
+        let focusedKey = String(focusedEnemy.id) + '|' + enemies.length;
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             enemyListEl.dataset.enemyId = focusedKey;
             enemyListEl.innerHTML = `
-                <div class="enemy-card targeted">
+                <div class="enemy-card targeted${focusedEnemy.isBoss || focusedEnemy.bossPhase ? ' enemy-boss' : ''}">
                     <div class="enemy-name"></div>
                     <div class="hp-bar-bg">
                         <div class="hp-bar-fill enemy-damage-ghost"></div>
@@ -6538,6 +6650,8 @@ function updateCombatUI(pStats) {
                     <div class="enemy-tags muted enemy-ailments"></div>
                     <div class="enemy-tags muted enemy-traits"></div>
                 </div>
+                <div class="enemy-target-strip"><button type="button" class="enemy-target-toggle" onclick="toggleEnemyTargetList()" aria-expanded="false">적 ${enemies.length}</button></div>
+                <div class="enemy-target-menu">${enemies.map((enemy, index) => `<button type="button" class="enemy-target-chip">적 ${index + 1}</button>`).join('')}</div>
             `;
         }
         let nameEl = enemyListEl.querySelector('.enemy-name');
@@ -6567,6 +6681,15 @@ function updateCombatUI(pStats) {
         if (ailmentEl) ailmentEl.innerHTML = ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음';
         if (traitEl) traitEl.innerText = `특성: ${tags.join(' · ') || '일반'}`;
     }
+}
+
+function toggleEnemyTargetList(force) {
+    let list = document.getElementById('ui-enemy-list');
+    if (!list) return;
+    let open = force === undefined ? !list.classList.contains('enemy-targets-open') : !!force;
+    list.classList.toggle('enemy-targets-open', open);
+    let button = list.querySelector('.enemy-target-toggle');
+    if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 // passive render cache dirty helper: 구조 변경/노드 상태 변경 시 호출
@@ -10692,7 +10815,7 @@ function recoverBusyStateAfterOAuthBack() {
     updateCloudSaveUI();
 }
 
-window.addEventListener('pageshow', function(event) { recoverBusyStateAfterOAuthBack(event); handleBackgroundCombatReturn(Date.now()); });
+window.addEventListener('pageshow', function(event) { recoverBusyStateAfterOAuthBack(event); startBackgroundCombatReturn(Date.now()); });
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) recoverBusyStateAfterOAuthBack();
 });
