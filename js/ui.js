@@ -192,15 +192,18 @@ function runUiCoreLoop() {
 
 
 
+const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;
 const BACKGROUND_PROGRESS_RATE = 0.1;
-const MAX_BACKGROUND_PROGRESS_MS = 30 * 60 * 1000;
+const BACKGROUND_PROGRESS_MAX_SIMULATED_MS = 30 * 60 * 1000;
 const BACKGROUND_COMBAT_STEP_MS = 100;
 const BACKGROUND_COMBAT_CHUNK_BUDGET_MS = 10;
 const BACKGROUND_COMBAT_SYNC_CHUNK_STEPS = 500;
 let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false };
 
-function calculateBackgroundProgressMs(actualElapsedMs, rate, maxProgressMs) {
+function calculateBackgroundProgressMs(actualElapsedMs, minRealMs, rate, maxProgressMs) {
     let elapsed = Math.max(0, Number.isFinite(actualElapsedMs) ? actualElapsedMs : 0);
+    let minElapsed = Math.max(0, Number.isFinite(minRealMs) ? minRealMs : 0);
+    if (elapsed < minElapsed) return 0;
     let progress = elapsed * Math.max(0, Number.isFinite(rate) ? rate : 0);
     let capped = Math.min(progress, Math.max(0, Number.isFinite(maxProgressMs) ? maxProgressMs : 0));
     return Math.max(0, Math.floor(capped));
@@ -414,7 +417,7 @@ function handleBackgroundCombatReturn(nowMs) {
     let actualElapsedMs = consumeBackgroundElapsedTime(nowMs);
     backgroundCombatRuntime.snapshot = null;
     backgroundCombatRuntime.signature = '';
-    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_RATE, MAX_BACKGROUND_PROGRESS_MS);
+    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_MIN_REAL_MS, BACKGROUND_PROGRESS_RATE, BACKGROUND_PROGRESS_MAX_SIMULATED_MS);
     if (!snapshot || effectiveProgressMs <= 0) return false;
     backgroundCombatRuntime.processing = true;
     try {
@@ -422,11 +425,48 @@ function handleBackgroundCombatReturn(nowMs) {
         if (!shouldApplyBackgroundCombatResult(signature)) return false;
         let summary = getBackgroundRewardSummary(snapshot, result.game);
         game = mergeDefaults(result.game || game);
-        showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs, summary, capped: effectiveProgressMs >= MAX_BACKGROUND_PROGRESS_MS });
+        showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs, summary, capped: effectiveProgressMs >= BACKGROUND_PROGRESS_MAX_SIMULATED_MS });
         updateStaticUI();
         return true;
     } finally {
         backgroundCombatRuntime.processing = false;
+    }
+}
+
+async function startBackgroundCombatReturn(nowMs) {
+    if (backgroundCombatRuntime.processing) return false;
+    let snapshot = backgroundCombatRuntime.snapshot;
+    let signature = backgroundCombatRuntime.signature;
+    let startedAtMs = Number(backgroundCombatRuntime.hiddenAtMs || 0);
+    let actualElapsedMs = consumeBackgroundElapsedTime(nowMs);
+    backgroundCombatRuntime.snapshot = null;
+    backgroundCombatRuntime.signature = '';
+    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_MIN_REAL_MS, BACKGROUND_PROGRESS_RATE, BACKGROUND_PROGRESS_MAX_SIMULATED_MS);
+    if (!snapshot || effectiveProgressMs <= 0) {
+        if (actualElapsedMs > 0) restoreBattlefieldBeforeBackgroundReplay();
+        return false;
+    }
+    backgroundCombatRuntime.processing = true;
+    restoreBattlefieldBeforeBackgroundReplay();
+    updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
+    await waitBackgroundReplayFrame();
+    try {
+        let result = await simulateBackgroundCombatChunked({
+            elapsedMs: effectiveProgressMs,
+            snapshot,
+            startNowMs: startedAtMs,
+            onProgress: (done, total) => updateBackgroundProgressOverlay(done, total, actualElapsedMs)
+        });
+        if (!shouldApplyBackgroundCombatResult(signature)) return false;
+        let summary = getBackgroundRewardSummary(snapshot, result.game);
+        game = mergeDefaults(result.game || game);
+        showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs, summary, capped: effectiveProgressMs >= BACKGROUND_PROGRESS_MAX_SIMULATED_MS });
+        updateStaticUI();
+        restoreBattlefieldBeforeBackgroundReplay();
+        return true;
+    } finally {
+        backgroundCombatRuntime.processing = false;
+        hideBackgroundProgressOverlay();
     }
 }
 

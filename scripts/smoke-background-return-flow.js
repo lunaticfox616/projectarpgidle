@@ -3,7 +3,7 @@ const assert = require('assert');
 const vm = require('vm');
 
 const source = fs.readFileSync('js/ui.js', 'utf8');
-const start = source.indexOf('const BACKGROUND_PROGRESS_RATE = 0.1;');
+const start = source.indexOf('const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;');
 const end = source.indexOf('function syncLoop10PanelCopies', start);
 assert(start >= 0 && end > start, 'background progress block not found');
 let timeouts = [];
@@ -70,6 +70,16 @@ async function flushTimers() {
   }
 }
 (async () => {
+
+  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], exp: 0, killsInZone: 0 };
+  vm.runInContext('recordBackgroundCombatEntry(1000)', context);
+  const shortResult = await vm.runInContext('startBackgroundCombatReturn(1000 + 59999)', context);
+  assert.strictEqual(shortResult, false, 'short return should not run background combat');
+  assert.strictEqual(context.game.exp, 0, 'short return should not grant combat progress');
+  assert.strictEqual(nodes['background-combat-progress-overlay'], undefined, 'short return should not show progress overlay');
+  assert(context.rendered.includes(true), 'short return should still force-render the battlefield');
+  context.rendered = [];
+
   context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], exp: 0, killsInZone: 0 };
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const promise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
