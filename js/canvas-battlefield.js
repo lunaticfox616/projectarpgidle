@@ -12,31 +12,6 @@ function getCanvasRuntimeFunction(name) {
 let __canvasStatsCache = null;
 let __canvasStatsCacheAt = 0;
 const CANVAS_STATS_CACHE_MS = 150;
-
-function getBattlePlayerVisualMetrics(scale, downBlend) {
-    const tuning = {
-        baseHeight: 62,
-        minHeight: 56,
-        maxHeight: 70,
-        downShrink: 7,
-        maxScaleBoost: 1.12,
-        shadowWidth: 11,
-        shadowHeight: 4.4,
-        shadowAlpha: 0.17,
-        offsetY: 2,
-        healthBarGap: 7
-    };
-    let scaleBoost = clampNumber((Number(scale) || 1) / 1.85, 1, tuning.maxScaleBoost);
-    let height = (tuning.baseHeight * scaleBoost) - clampNumber(Number(downBlend) || 0, 0, 1) * tuning.downShrink;
-    height = clampNumber(height, tuning.minHeight, tuning.maxHeight);
-    return {
-        tuning: tuning,
-        scaleBoost: scaleBoost,
-        height: height,
-        healthBarOffsetY: Math.ceil(height + tuning.healthBarGap)
-    };
-}
-
 function getCanvasPlayerStats(fallback = {}) {
     let provider = getCanvasRuntimeFunction('getPlayerStats');
     if (!provider) return fallback;
@@ -220,7 +195,6 @@ function renderBattlefield(forceWhenHidden) {
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
     drawActiveSummons(ctx, playerPos, now, gridProj);
     let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.62, 1.3);
-    let playerVisualMetrics = getBattlePlayerVisualMetrics(2.15 * gridUnitScale, downBlend);
     let playerFacingLeft = resolvePlayerFacingLeft(playerPos, targetPlayerPos, currentTargets, enemyPosMap);
     if (playerFacingLeft) {
         ctx.save();
@@ -233,8 +207,7 @@ function renderBattlefield(forceWhenHidden) {
         attackBlend: attackBlend,
         attackProgress: swingFx ? clampNumber((now - swingFx.start) / Math.max(1, swingFx.duration), 0, 0.999) : 0,
         hurtBlend: hurtBlend,
-        downBlend: downBlend,
-        visualMetrics: playerVisualMetrics
+        downBlend: downBlend
     });
     drawSkillWeaponLayer(ctx, playerPos, now, 'front');
     if (playerFacingLeft) ctx.restore();
@@ -329,7 +302,7 @@ function renderBattlefield(forceWhenHidden) {
     let playerEsPct = (pStatsNow.energyShield || 0) > 0 ? clampNumber((game.playerEnergyShield || 0) / Math.max(1, pStatsNow.energyShield), 0, 1) : 0;
     let pBarWidth = 64;
     let pBarX = Math.round(playerPos.x - pBarWidth / 2);
-    let pBarY = Math.round(playerPos.y - playerVisualMetrics.healthBarOffsetY);
+    let pBarY = Math.round(playerPos.y - 58);
     ctx.save();
     ctx.globalAlpha = 0.97;
     ctx.fillStyle = 'rgba(7, 10, 16, 0.9)';
