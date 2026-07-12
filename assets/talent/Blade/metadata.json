@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "d399e8f3-08af-4d54-8935-973e7a75606b",
+        "name": "\ube14\ub808\uc774\ub4dc",
+        "prompt": "Create one game-ready female blade pixel sprite using the two reference images with strictly separated purposes.\n\nUse the first reference image only for sprite proportions, character scale, front-facing idle pose, pixel density, silhouette readability, and classic Korean MMORPG sprite presentation. Do not use the first reference image for class identity, robe design, floating spirits, magical companion motifs, or color palette.\n\nUse the second reference image only for the blade\u2019s class identity, facial mood, hairstyle, outfit design, weapon type, dark-fantasy mood, and overall character silhouette.\n\nCreate a single handcrafted pixel sprite in a classic Korean MMORPG style with strong Ragnarok Online-inspired readability. Exact canvas size is 64\u00d788 pixels. Transparent background only. One character only. Full body visible from the top of the hair to the bottom of the boots. Character height should be approximately 80 to 84 pixels, centered with a small transparent margin. No floor, no background, no shadow, no text, no UI, no frame, and no extra objects.\n\nThe character is a slim, elegant female blade with a calm, sharp, and dangerous presence. She should feel like a fast dark-fantasy assassin or dual-blade swordswoman, clearly distinct from a warrior, archer, mage, priest, or crusader. Her proportions should match a classic Korean MMORPG sprite: approximately 3.5 heads tall, with a large but balanced head, slim compact torso, narrow shoulders, slender arms and legs, small hands, and small boots. Keep the body feminine, tall-looking, narrow, and agile rather than bulky or wide.\n\nUse a front-facing idle pose with a very slight three-quarter nuance. One leg should rest slightly forward in a natural stance. Her posture should feel light, balanced, and ready to move, but still calm and readable rather than exaggerated. One arm should hold a compact curved blade downward at one side, and the other arm should hold a second compact curved blade in a relaxed but ready position. The pose must remain clean and readable, not in a full attack motion, and not overly dynamic.\n\nHer hair must follow the second concept art. Use very dark black hair or black-brown hair, tied in a high ponytail or high gathered style, with a few loose front strands framing the face. The hair should read clearly as black at sprite scale, using near-black, charcoal-black, dark neutral brown, and very muted cool gray highlights. Do not reinterpret the hair as purple, violet, lavender, blue, silver, or any fantasy color. The outfit may contain dark violet tones, but the hair itself must remain clearly black and should not inherit purple tinting from the clothing.\n\nHer face should feel sharp and composed. A dark face covering or lower-face mask should be included in a simplified readable form, preserving the assassin identity from the concept art. Keep the face covering compact and readable at small sprite scale.\n\nHer outfit should be inspired by the second reference image: a fitted dark-fantasy assassin garment with layered dark cloth, wrapped sections, a hooded or scarf-like neck silhouette, long torn trailing fabric pieces, subtle filigree-like trim, and a sleek agile silhouette. Use dark violet, deep plum, black, charcoal, and muted crimson accent details. The clothing should feel elegant, dangerous, and refined rather than heavy armored or overly revealing. Keep the silhouette compact and readable for 64\u00d788 pixels. Avoid excessive cloth volume, giant capes, oversized shoulder armor, or too many tiny decorative details that become noisy at sprite size.\n\nUse a limited palette with near-black hair, charcoal, black-violet cloth, deep muted purple, dark plum, muted crimson accents, dark leather, and small restrained silver metal highlights. The palette should feel dark, stylish, and controlled. Keep the purple tones focused on the outfit rather than the hair. Avoid bright saturated colors, neon effects, or excessive magical glow.\n\nThe weapons should be two practical one-handed curved swords or short sabers inspired by the second reference image. They should be elegant, slender, and readable, with dark handles and compact silver blades. A faint crimson accent near the blade or hilt may be included in a restrained way, but avoid glowing effects, giant weapons, or oversized blades. Both weapons must fit cleanly inside the 64\u00d788 canvas and remain easy to read at small sprite scale.\n\nThe boots should be slim, dark, and elegant, matching the agile assassin identity. Gloves or wrapped forearms may be included in a simplified readable form. Long trailing ribbons, scarf tails, or torn cloth strips may be suggested in a compact way, but keep them controlled and not so long that they clutter the silhouette.\n\nThe final result should be a clean, sprite-ready, high-readability female blade pixel character for a classic Korean MMORPG, clearly distinct from a warrior, archer, crusader, summoner, mage, or priest. She must look like a refined dark-fantasy dual-blade assassin with black hair, a masked lower face, dark violet layered clothing, subtle crimson accents, and two compact curved swords, rendered as a compact 64\u00d788 transparent-background pixel sprite with crisp hard pixel edges, controlled pixel clusters, and no smooth painted rendering.",
+        "size": {
+          "width": 184,
+          "height": 184
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-07-10T17:30:15.236835+00:00"
+      },
+      "folder": "d399e8f3",
+      "frames": {
+        "rotations": {
+          "south": "d399e8f3/rotations/south.png",
+          "south-east": "d399e8f3/rotations/south-east.png",
+          "east": "d399e8f3/rotations/east.png",
+          "north-east": "d399e8f3/rotations/north-east.png",
+          "north": "d399e8f3/rotations/north.png",
+          "north-west": "d399e8f3/rotations/north-west.png",
+          "west": "d399e8f3/rotations/west.png",
+          "south-west": "d399e8f3/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-07-11T16:40:36.035693"
+}
