@@ -99,101 +99,81 @@ const HERO_SELECTION_DEFS = {
         id: 'hero1',
         label: '궁수',
         blindLabel: '궁수',
-        spriteSrc: 'assets/talent/Archer/5b329290/rotations/east.png',
-        spriteFrameCount: 1,
         talentsText: '투사체 피해 +18%, 공격 속도 +12%, 최소 대미지 보정 +10%',
         stats: [{ stat: 'projectilePctDmg', value: 18 }, { stat: 'aspd', value: 12 }, { stat: 'minDmgRoll', value: 10 }],
-        strips: { idle: 'hero1Sprite', walk: 'hero1Sprite', attack: 'hero1Sprite', hurt: 'hero1Sprite', death: 'hero1Sprite' }
+        strips: { idle: 'hero1Idle', walk: 'hero1Walk', attack: 'hero1Attack', hurt: 'hero1Hurt', death: 'hero1Death' }
     },
     hero2: {
         id: 'hero2',
         label: '전사',
         blindLabel: '전사',
-        spriteSrc: 'assets/talent/Warrior/6b9aba00/rotations/east.png',
-        spriteFrameCount: 1,
         talentsText: '근접 피해 +20%, 최대 생명력 +10%, 최대 대미지 보정 +10%, 강타 피해 +18%',
         stats: [{ stat: 'meleePctDmg', value: 20 }, { stat: 'pctHp', value: 10 }, { stat: 'maxDmgRoll', value: 10 }, { stat: 'slamPctDmg', value: 18 }],
-        strips: { idle: 'hero2Sprite', walk: 'hero2Sprite', attack: 'hero2Sprite', hurt: 'hero2Sprite', death: 'hero2Sprite' }
+        strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
     },
     hero3: {
         id: 'hero3',
         label: '드루이드',
         blindLabel: '드루이드',
-        spriteSrc: 'assets/talent/Druid/Create_one_game-ready_female_druid_pixel_sprite_us/rotations/east.png',
-        spriteFrameCount: 1,
         talentsText: '원소 피해 +22%, 생명력 재생 +1.2%, 모든 저항 +5%',
         stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'regen', value: 1.2 }, { stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }, { stat: 'resChaos', value: 5 }],
-        strips: { idle: 'hero3Sprite', walk: 'hero3Sprite', attack: 'hero3Sprite', hurt: 'hero3Sprite', death: 'hero3Sprite' }
+        strips: { idle: 'hero3Idle', walk: 'hero3Walk', attack: 'hero3Attack', hurt: 'hero3Hurt', death: 'hero3Death' }
     },
     hero4: {
         id: 'hero4',
         label: '블레이드',
         blindLabel: '블레이드',
-        spriteSrc: 'assets/talent/Blade/d399e8f3/rotations/east.png',
-        spriteFrameCount: 1,
         talentsText: '카오스 피해 +20%, 흡혈 +0.2%, 이동 속도 +12%, 치명타 피해 +20%, 치명타 확률 +2.5%',
         stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 0.2 }, { stat: 'move', value: 12 }, { stat: 'critDmg', value: 20 }, { stat: 'crit', value: 2.5 }],
-        strips: { idle: 'hero4Sprite', walk: 'hero4Sprite', attack: 'hero4Sprite', hurt: 'hero4Sprite', death: 'hero4Sprite' }
+        strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
     },
     hero5: {
         id: 'hero5',
         label: '성기사',
         blindLabel: '성기사',
-        spriteSrc: 'assets/talent/Crusader/9604a727/rotations/east.png',
-        spriteFrameCount: 1,
         talentsText: '물리/번개 피해 +20%, 방어도/에너지 보호막 +15%, 연속 타격 +5%, 카오스 저항 +8%, 최대 카오스 저항 +1%',
         stats: [{ stat: 'physPctDmg', value: 20 }, { stat: 'lightPctDmg', value: 20 }, { stat: 'armorPct', value: 15 }, { stat: 'energyShieldPct', value: 15 }, { stat: 'ds', value: 5 }, { stat: 'resChaos', value: 8 }, { stat: 'maxResChaos', value: 1 }],
-        strips: { idle: 'hero5Sprite', walk: 'hero5Sprite', attack: 'hero5Sprite', hurt: 'hero5Sprite', death: 'hero5Sprite' }
+        strips: { idle: 'hero5Idle', walk: 'hero5Walk', attack: 'hero5Attack', hurt: 'hero5Hurt', death: 'hero5Death' }
     },
     hero6: {
         id: 'hero6',
         label: '저격수',
         blindLabel: '저격수',
-        spriteSrc: 'assets/talent/sniper/Create_one_game-ready_female_sniper_pixel_sprite_u/rotations/east.png',
-        spriteFrameCount: 1,
         talentsText: '투사체 피해 +20%, 치명타 확률 +5%, 치명타 피해 +25%, 공격 속도 -5%, 최대 대미지 보정 +10%',
         stats: [{ stat: 'projectilePctDmg', value: 20 }, { stat: 'crit', value: 5 }, { stat: 'critDmg', value: 25 }, { stat: 'aspd', value: -5 }, { stat: 'maxDmgRoll', value: 10 }],
-        strips: { idle: 'hero6Sprite', walk: 'hero6Sprite', attack: 'hero6Sprite', hurt: 'hero6Sprite', death: 'hero6Sprite' }
+        strips: { idle: 'hero6Idle', walk: 'hero6Walk', attack: 'hero6Attack', hurt: 'hero6Hurt', death: 'hero6Death' }
     },
     hero7: {
         id: 'hero7',
         label: '소환사',
         blindLabel: '소환사',
-        spriteSrc: 'assets/talent/Summoner/486fca28/rotations/east.png',
-        spriteFrameCount: 1,
         talentsText: '소환수 피해 +20%, 소환수 한도 +1, 소환수 효율 +20%',
         stats: [{ stat: 'summonPctDmg', value: 20 }, { stat: 'summonCap', value: 1 }, { stat: 'summonEfficiency', value: 20 }],
-        strips: { idle: 'hero7Sprite', walk: 'hero7Sprite', attack: 'hero7Sprite', hurt: 'hero7Sprite', death: 'hero7Sprite' }
+        strips: { idle: 'hero3Idle', walk: 'hero3Walk', attack: 'hero3Attack', hurt: 'hero3Hurt', death: 'hero3Death' }
     },
     hero8: {
         id: 'hero8',
         label: '수호자',
         blindLabel: '수호자',
-        spriteSrc: 'assets/talent/Guardian/Create_one_game-ready_female_guardian_pixel_sprite/rotations/east.png',
-        spriteFrameCount: 1,
         talentsText: '최대 생명력 +15%, 받는 피해 -5%, 생명력 재생 +1%, 방어도 +20%',
         stats: [{ stat: 'pctHp', value: 15 }, { stat: 'genericTakenDamageReducePct', value: 5 }, { stat: 'regen', value: 1 }, { stat: 'armorPct', value: 20 }],
-        strips: { idle: 'hero8Sprite', walk: 'hero8Sprite', attack: 'hero8Sprite', hurt: 'hero8Sprite', death: 'hero8Sprite' }
+        strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
     },
     hero9: {
         id: 'hero9',
         label: '원소술사',
         blindLabel: '원소술사',
-        spriteSrc: 'assets/talent/Sorcerer/Create_one_game-ready_female_elemental_sorceress_p/rotations/east.png',
-        spriteFrameCount: 1,
         talentsText: '원소 피해 +22%, 원소 저항 관통 +10%, 모든 원소 저항 +5%',
         stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'resPen', value: 10 }, { stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }],
-        strips: { idle: 'hero9Sprite', walk: 'hero9Sprite', attack: 'hero9Sprite', hurt: 'hero9Sprite', death: 'hero9Sprite' }
+        strips: { idle: 'hero9Idle', walk: 'hero9Walk', attack: 'hero9Attack', hurt: 'hero9Hurt', death: 'hero9Death' }
     },
     hero10: {
         id: 'hero10',
         label: '연금술사',
         blindLabel: '연금술사',
-        spriteSrc: 'assets/talent/alchemist/Create_one_true_raster-based_female_alchemist_pixe/rotations/east.png',
-        spriteFrameCount: 1,
         talentsText: '지속 피해 배율 +20%, 이동 속도 +10%, 회피 +15%, 출혈/점화/중독 확률 +15%',
         stats: [{ stat: 'dotPctDmg', value: 20 }, { stat: 'move', value: 10 }, { stat: 'evasionPct', value: 15 }, { stat: 'bleedChance', value: 15 }, { stat: 'igniteChance', value: 15 }, { stat: 'poisonChance', value: 15 }],
-        strips: { idle: 'hero10Sprite', walk: 'hero10Sprite', attack: 'hero10Sprite', hurt: 'hero10Sprite', death: 'hero10Sprite' }
+        strips: { idle: 'hero10Idle', walk: 'hero10Walk', attack: 'hero10Attack', hurt: 'hero10Hurt', death: 'hero10Death' }
     }
 };
 

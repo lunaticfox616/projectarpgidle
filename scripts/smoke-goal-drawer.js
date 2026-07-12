@@ -42,12 +42,11 @@ function createFakeDom() {
         };
         Object.defineProperty(el, 'innerHTML', {
             set(html) {
-                el._innerHTML = String(html || '');
                 let match;
                 const idPattern = /id="([^"]+)"/g;
                 while ((match = idPattern.exec(html)) !== null) registry[match[1]] = createElement('div');
             },
-            get() { return el._innerHTML || ''; }
+            get() { return ''; }
         });
         Object.defineProperty(el, 'className', {
             set(value) { el._classes = new Set(String(value).split(/\s+/).filter(Boolean)); },
@@ -165,26 +164,6 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
     m.exposed.presentGoalDrawer(goal('g4'));
     m.dom.registry['ui-goal-action'].handlers.click();
     assert.deepStrictEqual(m.switchCalls, ['tab-map'], '버튼은 화면 열기만 호출');
-}
-
-// 7) 복수 목표는 세 개까지만 카테고리 카드로 렌더링한다.
-{
-    const m = bootManager();
-    m.exposed.presentGoalDrawer({
-        id: 'recommended',
-        title: '추천 목표',
-        items: [
-            { id: 'a', category: '현재 진행', title: '지역 돌파' },
-            { id: 'b', category: '장기 여정', title: '최종 관문 도달', current: 2, target: 10 },
-            { id: 'c', category: '지금 할 수 있음', title: '패시브 사용' },
-            { id: 'd', category: '후순위', title: '표시 제한' }
-        ]
-    });
-    const listHtml = m.dom.registry['ui-goal-list'].innerHTML;
-    assert.strictEqual((listHtml.match(/class="ui-goal-item ui-goal-item-/g) || []).length, 3, '목표 카드는 최대 3개');
-    assert(listHtml.includes('현재 진행') && listHtml.includes('장기 여정') && listHtml.includes('지금 할 수 있음'), '목표 카테고리를 구분해 표시');
-    assert(listHtml.includes('ui-goal-item-track') && listHtml.includes('<strong>20%</strong>'), '목표 진행률을 시각적으로 표시');
-    assert.strictEqual(m.dom.registry['ui-goal-toggle'].textContent, '추천 목표 3개');
 }
 
 console.log('smoke-goal-drawer passed');

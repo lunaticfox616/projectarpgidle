@@ -5618,6 +5618,29 @@ function drawBattleBackdrop(ctx, width, height, theme, now, zone, gridProj) {
     return false;
 }
 
+function getLocalBattleHeroVisualTuning() {
+    const defaultTuning = {
+        baseHeight: 55.2,
+        minHeight: 50,
+        maxHeight: 55.2,
+        downShrink: 6.5,
+        maxScaleBoost: 1,
+        shadowWidth: 10,
+        shadowHeight: 4,
+        shadowAlpha: 0.16,
+        offsetY: 0
+    };
+    if (typeof isLocalRuntimeHost !== 'function' || !isLocalRuntimeHost()) return defaultTuning;
+    const localTuningByHero = {
+        hero1: { baseHeight: 68, minHeight: 60, maxHeight: 84, downShrink: 8.2, maxScaleBoost: 1.24, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
+        hero2: { baseHeight: 66, minHeight: 58, maxHeight: 81, downShrink: 8, maxScaleBoost: 1.23, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
+        hero3: { baseHeight: 66, minHeight: 58, maxHeight: 81, downShrink: 8, maxScaleBoost: 1.23, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
+        hero4: { baseHeight: 67, minHeight: 59, maxHeight: 82, downShrink: 8.1, maxScaleBoost: 1.24, shadowWidth: 13, shadowHeight: 5.2, shadowAlpha: 0.18, offsetY: 2 }
+    };
+    let heroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId;
+    return { ...defaultTuning, ...(localTuningByHero[heroId] || localTuningByHero.hero1) };
+}
+
 function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now, motionState) {
     let activeSkillPlayback = getSkillPlaybackState(now);
     let monsterSkinId = typeof getSelectedMonsterSkinId === 'function' ? getSelectedMonsterSkinId() : null;
@@ -5787,10 +5810,10 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let stepOffset = (downPhase === null && advanceBlend > 0.08)
             ? Math.sin(now / _walkBobPeriod) * lerpNumber(0.08, 0.24, advanceBlend)
             : 0;
-        let heroVisualMetrics = motionState.visualMetrics;
-        let localHeroTuning = heroVisualMetrics.tuning;
-        let heroScaleBoost = heroVisualMetrics.scaleBoost;
-        let normalizedHeroSize = heroVisualMetrics.height;
+        let localHeroTuning = getLocalBattleHeroVisualTuning();
+        let heroScaleBoost = clampNumber((Number(scale) || 1) / 1.85, 1, localHeroTuning.maxScaleBoost);
+        let normalizedHeroSize = (localHeroTuning.baseHeight * heroScaleBoost) - downBlend * localHeroTuning.downShrink;
+        normalizedHeroSize = clampNumber(normalizedHeroSize, localHeroTuning.minHeight, localHeroTuning.maxHeight);
         drawPixelShadow(ctx, x, y + 5, localHeroTuning.shadowWidth * heroScaleBoost, localHeroTuning.shadowHeight * heroScaleBoost, localHeroTuning.shadowAlpha);
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
@@ -5799,7 +5822,8 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             outlineAlpha: 0.86,
             outlineThickness: 1
         };
-        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
+        let attackXOffset = (downPhase === null && isAttacking && (typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId) === 'hero3') ? 6 : 0;
+        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset + attackXOffset, y + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
         if (flash && downPhase === null) {
             ctx.save();
             ctx.globalAlpha = 0.42;
@@ -6320,39 +6344,6 @@ function formatCappedResistanceValue(appliedValue, uncappedValue) {
     return applied === uncapped ? `${applied}` : `${applied} (${uncapped})`;
 }
 
-function getCombatHudIdentity() {
-    let classLabel = (game.ascendClass && CLASS_TEMPLATES[game.ascendClass]) ? CLASS_TEMPLATES[game.ascendClass].name : '';
-    let heroDef = getHeroSelectionDef(game.selectedHeroId);
-    let roleLabel = classLabel || (heroDef ? heroDef.label : '모험가');
-    return `Lv.${Math.max(1, Math.floor(game.level || 1))} · ${roleLabel}`;
-}
-
-function getExperienceHudState(level, exp) {
-    let required = Math.max(1, Math.floor(getExpReq(Math.max(1, Math.floor(level || 1))) || 1));
-    let current = Math.max(0, Math.min(required, Math.floor(Number(exp) || 0)));
-    return {
-        current: current,
-        required: required,
-        remaining: Math.max(0, required - current),
-        percent: Math.max(0, Math.min(100, (current / required) * 100))
-    };
-}
-
-function showExperienceTooltip(event) {
-    let state = getExperienceHudState(game.level, game.exp);
-    let current = formatSettingNumber(state.current, 'showExpComma');
-    let required = formatSettingNumber(state.required, 'showExpComma');
-    let remaining = formatSettingNumber(state.remaining, 'showExpComma');
-    let html = `<div class="tooltip-title">경험치 · Lv.${Math.max(1, Math.floor(game.level || 1))}</div>`
-        + `<div class="tooltip-line">현재 경험치: <strong>${current} / ${required}</strong> (${state.percent.toFixed(1)}%)</div>`
-        + `<div class="tooltip-line">다음 레벨까지: <strong>${remaining}</strong></div>`;
-    let anchor = event.currentTarget || event.target;
-    let rect = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
-    let x = Number.isFinite(event.clientX) && event.clientX > 0 ? event.clientX : (rect ? rect.left + rect.width / 2 : 12);
-    let y = Number.isFinite(event.clientY) && event.clientY > 0 ? event.clientY : (rect ? rect.top : 12);
-    showInfoTooltipHtml(x, y, html, '#a77bd4');
-}
-
 function updateCombatUI(pStats) {
     pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
     if (pStats.__uiFallbackStats) pStats.maxHp = Math.max(pStats.maxHp, Math.max(1, Number(game.playerHp) || 1));
@@ -6406,15 +6397,10 @@ function updateCombatUI(pStats) {
     esBar.style.zIndex = '5';
     esBar.style.width = esPct + '%';
     esBar.style.display = (pStats.energyShield || 0) > 0 ? 'block' : 'none';
-    let expState = getExperienceHudState(game.level, game.exp);
-    setTextById('ui-exp', formatSettingNumber(expState.current, 'showExpComma'));
-    setTextById('ui-maxexp', formatSettingNumber(expState.required, 'showExpComma'));
-    setTextById('ui-exp-percent', `${expState.percent.toFixed(1)}%`);
-    document.getElementById('ui-exp-bar').style.width = expState.percent + '%';
+    setTextById('ui-exp', formatSettingNumber(game.exp, 'showExpComma'));
+    setTextById('ui-maxexp', formatSettingNumber(getExpReq(game.level), 'showExpComma'));
+    document.getElementById('ui-exp-bar').style.width = ((game.exp / getExpReq(game.level)) * 100) + '%';
     setTextById('ui-player-level', 'Lv.' + game.level);
-    let hudIdentity = getCombatHudIdentity();
-    setTextById('ui-player-identity-exp', hudIdentity);
-    setTextById('ui-player-identity-hp', hudIdentity);
     [['ui-hp', 'ui-hp-mobile'], ['ui-maxhp', 'ui-maxhp-mobile'], ['ui-exp', 'ui-exp-mobile'], ['ui-maxexp', 'ui-maxexp-mobile'], ['ui-player-level', 'ui-player-level-mobile']].forEach(([src, dst]) => {
         let sourceEl = document.getElementById(src);
         let targetEl = document.getElementById(dst);
@@ -6522,12 +6508,12 @@ function updateCombatUI(pStats) {
         let totalTime = Math.max(0.1, Number(game.moveTotalTime) || 3);
         let readyPct = Math.min(100, Math.max(0, (1 - Math.max(0, game.moveTimer || 0) / totalTime) * 100));
         setTextById('ui-progress-label', '☠️ 나무꾼 등장 대기');
-        setTextById('ui-move-time-text', `${readyPct.toFixed(0)}% · ${game.moveTimer > 0 ? `${Math.max(0, game.moveTimer).toFixed(1)}초` : '등장 임박'}`);
+        setTextById('ui-move-time-text', game.moveTimer > 0 ? `${Math.max(0, game.moveTimer).toFixed(1)}초` : '등장 임박');
         document.getElementById('ui-move-bar').style.width = readyPct + '%';
     } else if (game.moveTimer > 0) {
         let readyPct = Math.min(100, (1 - game.moveTimer / game.moveTotalTime) * 100);
         setTextById('ui-progress-label', game.isTownReturning ? '🏕️ 재정비 중...' : '🚶 다음 구간 준비');
-        setTextById('ui-move-time-text', `${readyPct.toFixed(0)}% · ${Math.max(0, game.moveTimer).toFixed(1)}초`);
+        setTextById('ui-move-time-text', `${Math.max(0, game.moveTimer).toFixed(1)}초`);
         document.getElementById('ui-move-bar').style.width = readyPct + '%';
     } else if (zone && zone.type === 'oceanDepth') {
         // 심해는 전투 진행도 대신 현재 수심(m)만 표기한다. 수심은 시간에 따라 1m 단위로 꾸준히 증가한다.
@@ -6537,11 +6523,11 @@ function updateCombatUI(pStats) {
         let segPct = Math.min(100, Math.max(0, depthM - Math.floor(depthM / 100) * 100));
         let isDrowning = !!(oceanSt && oceanSt.drowning);
         setTextById('ui-progress-label', isDrowning ? '🫨 익사 위험' : '🌊 수심');
-        setTextById('ui-move-time-text', isDrowning ? `100% · ${depthM}m · 산소 고갈` : `${segPct.toFixed(0)}% · ${depthM}m`);
+        setTextById('ui-move-time-text', isDrowning ? `${depthM}m · 산소 고갈! 익사 피해 누적` : `${depthM}m`);
         document.getElementById('ui-move-bar').style.width = (isDrowning ? 100 : segPct) + '%';
     } else if (getUiCrowdProgressPaused()) {
         setTextById('ui-progress-label', '⛔ 전장 정리 중');
-        setTextById('ui-move-time-text', `${Math.max(0, Math.min(100, game.runProgress || 0)).toFixed(0)}% · 적 ${getUiCrowdPauseLimit()}기 이상`);
+        setTextById('ui-move-time-text', `적 ${getUiCrowdPauseLimit()}기 이상`);
         document.getElementById('ui-move-bar').style.width = game.runProgress + '%';
     } else {
         setTextById('ui-progress-label', '🧭 진행도');
@@ -6888,51 +6874,34 @@ function shouldRedrawPassiveTree(now) {
     return changed || due;
 }
 
-function getAvailableGoalItem() {
-    let passivePoints = Math.max(0, Math.floor(game.passivePoints || 0));
-    if (passivePoints > 0) {
-        return { id: 'spend-passives', category: '지금 할 수 있음', title: `패시브 포인트 ${passivePoints}개 사용`, description: '패시브 트리에서 현재 빌드에 필요한 능력치를 선택할 수 있습니다.', actionLabel: '스킬트리 열기', actionTabId: 'tab-char' };
-    }
-    let inventoryCount = Array.isArray(game.inventory) ? game.inventory.length : 0;
-    if (inventoryCount > 0) {
-        return { id: 'review-equipment', category: '지금 할 수 있음', title: `보유 장비 ${inventoryCount}개 확인`, description: '새 장비를 비교·장착하거나 필요 없는 장비를 해체할 수 있습니다.', actionLabel: '장비 열기', actionTabId: 'tab-items' };
-    }
-    return { id: 'prepare-build', category: '빌드 준비', title: '장비와 스킬 구성 점검', description: '획득한 장비와 스킬 젬을 조합해 다음 전투를 준비하세요.', actionLabel: '스킬 열기', actionTabId: 'tab-skills' };
-}
-
-function buildRecommendedGoalItems() {
-    let zone = typeof getZone === 'function' ? getZone(game.currentZoneId) : null;
-    let storyAct = typeof getStoryActByZoneId === 'function' ? getStoryActByZoneId(game.currentZoneId) : null;
-    let items = [];
-    if (game.pendingLoopDecision || game.pendingLoopReady) {
-        items.push({ id: 'loop-advance', category: '필수 진행', title: '다음 루프 진행 결정', description: '달성한 루프 조건을 확인하고 다음 진행 경로를 선택하세요.' });
-    } else if (zone && zone.name) {
-        items.push({ id: `zone-${zone.id}`, category: '현재 진행', title: `${zone.name} 돌파`, description: '지역 진행도 100%를 달성하면 다음 구간으로 이동합니다.', current: Math.max(0, Math.min(100, Math.floor(game.runProgress || 0))), target: 100, actionLabel: '지도 열기', actionTabId: 'tab-map' });
-    }
-    items.push(getAvailableGoalItem());
-    if (storyAct && Array.isArray(STORY_ACTS) && STORY_ACTS.length > 0) {
-        let finalAct = STORY_ACTS[STORY_ACTS.length - 1];
-        items.push({ id: 'complete-story', category: '장기 여정', title: `액트 ${finalAct.displayAct} · ${finalAct.title} 도달`, description: `현재 액트 ${storyAct.displayAct}. 각 지역을 돌파해 첫 여정의 최종 관문으로 향하세요.`, current: storyAct.order, target: STORY_ACTS.length, actionLabel: '지도 열기', actionTabId: 'tab-map' });
-    } else {
-        items.push({ id: 'complete-loop', category: '장기 여정', title: '현재 루프의 최종 조건 달성', description: '지도와 핵심 콘텐츠를 진행해 다음 루프를 준비하세요.', actionLabel: '지도 열기', actionTabId: 'tab-map' });
-    }
-    return items.slice(0, 3);
-}
-
+// 목표 서랍에 실제 게임 상태에서 파생한 '다음 목표'를 전달한다.
+// 루프 진행 대기(필수 선택)가 최우선이고, 평시에는 현재 지역 돌파 진행도를 보여준다.
+// 더 정교한 목표 선정 로직이 생기면 이 함수만 교체하면 된다.
 function refreshGoalDrawerFromGameState() {
     if (typeof presentGoalDrawer !== 'function') return;
-    let items = buildRecommendedGoalItems();
-    if (items.length === 0) return presentGoalDrawer(null);
-    let primary = items[0];
+    if (game.pendingLoopDecision || game.pendingLoopReady) {
+        presentGoalDrawer({
+            id: 'loop-advance',
+            title: '루프 진행을 결정하세요',
+            description: '루프 조건을 달성했습니다. 전투 화면 상단의 루프 진행 버튼으로 다음 루프 여부를 선택하세요.',
+            mandatory: true,
+            stage: 'decide'
+        });
+        return;
+    }
+    let zone = typeof getZone === 'function' ? getZone(game.currentZoneId) : null;
+    if (!zone || !zone.name) {
+        presentGoalDrawer(null);
+        return;
+    }
     presentGoalDrawer({
-        id: 'recommended-goals',
-        title: '추천 목표',
-        description: '현재 진행, 가능한 행동, 전체 여정을 기준으로 선택했습니다.',
-        items: items,
-        mandatory: primary.id === 'loop-advance',
-        stage: items.map(item => item.id).join('|'),
-        actionLabel: primary.actionLabel,
-        actionTabId: primary.actionTabId
+        id: `zone-${zone.id}`,
+        title: `${zone.name} 돌파하기`,
+        description: '진행도가 100%가 되면 다음 구간으로 이동합니다.',
+        current: Math.max(0, Math.min(100, Math.floor(game.runProgress || 0))),
+        target: 100,
+        actionLabel: '지도 열기',
+        actionTabId: 'tab-map'
     });
 }
 

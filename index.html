@@ -249,16 +249,16 @@
                 <button class="combat-action-btn" onclick="returnToTown()">귀환</button>
             </div>
         </div>
-            <div class="combat-top-status player-hud">
+        <div class="combat-top-status player-hud">
             <div class="combat-hud-row combat-hud-row-exp player-hud-exp">
-            <div class="combat-hud-label combat-hud-label-exp" id="ui-player-identity-exp">Lv.1 · 궁수</div>
-            <div class="hp-bar-bg combat-exp-bar" tabindex="0" aria-label="경험치 상세" data-info-tooltip-anchor="1" onmouseenter="showExperienceTooltip(event)" onmousemove="showExperienceTooltip(event)" onfocus="showExperienceTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="hideInfoTooltip()">
+            <div class="combat-hud-label combat-hud-label-exp">경험치</div>
+            <div class="hp-bar-bg combat-exp-bar">
                 <div id="ui-exp-bar" class="hp-bar-fill exp" style="width: 0%;"></div>
-                <div class="hp-text"><strong>경험치</strong> <span id="ui-exp-percent">0%</span><span class="combat-exp-exact"><span id="ui-exp">0</span> / <span id="ui-maxexp">100</span></span></div>
+                <div class="hp-text"><span id="ui-exp">0</span> / <span id="ui-maxexp">100</span></div>
             </div>
             </div>
             <div class="combat-hud-row combat-hud-row-hp player-hud-vitals">
-            <div class="combat-hud-label combat-hud-label-hp" id="ui-player-identity-hp">Lv.1 · 궁수</div>
+            <div class="combat-hud-label combat-hud-label-hp">생명력</div>
             <div class="hp-bar-bg combat-hp-bar">
                 <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
                 <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span><span id="ui-es-inline"></span></div>
