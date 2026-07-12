@@ -237,43 +237,47 @@
         </h2>
         <div class="combat-zone-row">
             <div class="combat-zone-row-title" id="ui-combat-zone-inline">Lv.1 재능명</div>
+            <div class="map-progress-row">
+                <strong id="ui-progress-label" style="color: #3498db; font-size: 1.05em;">🧭 진행도</strong>
+                <div class="hp-bar-bg" style="height: 20px;">
+                    <div id="ui-move-bar" class="hp-bar-fill move" style="width: 0%;"></div>
+                    <div class="hp-text" id="ui-move-time-text">0%</div>
+                </div>
+            </div>
             <div class="combat-zone-actions">
                 <button id="btn-combat-loop-advance" class="combat-action-btn" onclick="handleCombatLoopAdvanceButton()">루프 진행</button>
                 <button class="combat-action-btn" onclick="returnToTown()">귀환</button>
             </div>
         </div>
-        <div class="combat-top-status">
-            <div style="font-size: 0.9em; font-weight: bold; color: #d980fa; margin-top: 0;">경험치</div>
-            <div class="hp-bar-bg" style="height: 12px; margin-top: 2px;">
+        <div class="combat-top-status player-hud">
+            <div class="combat-hud-row combat-hud-row-exp player-hud-exp">
+            <div class="combat-hud-label combat-hud-label-exp">경험치</div>
+            <div class="hp-bar-bg combat-exp-bar">
                 <div id="ui-exp-bar" class="hp-bar-fill exp" style="width: 0%;"></div>
-                <div class="hp-text" style="line-height: 12px; font-size: 10px;"><span id="ui-exp">0</span> / <span id="ui-maxexp">100</span></div>
+                <div class="hp-text"><span id="ui-exp">0</span> / <span id="ui-maxexp">100</span></div>
             </div>
-            <div style="font-size: 0.9em; font-weight: bold; color: #20bf6b; margin-top: 8px;">생명력</div>
-            <div class="hp-bar-bg">
+            </div>
+            <div class="combat-hud-row combat-hud-row-hp player-hud-vitals">
+            <div class="combat-hud-label combat-hud-label-hp">생명력</div>
+            <div class="hp-bar-bg combat-hp-bar">
                 <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
                 <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span><span id="ui-es-inline"></span></div>
             </div>
-            <div id="ui-ocean-oxygen-box" style="display:none; margin-top:8px;">
-                <div style="font-size: 0.9em; font-weight: bold; color: #4fd1ff;">🫧 산소</div>
-                <div class="hp-bar-bg" style="height: 14px; margin-top: 2px;">
+            </div>
+            <div id="ui-ocean-oxygen-box" class="combat-hud-row combat-hud-row-oxygen player-hud-oxygen" style="display:none;">
+                <div class="combat-hud-label combat-hud-label-oxygen">🫧 산소</div>
+                <div class="hp-bar-bg combat-oxygen-bar">
                     <div id="ui-ocean-oxygen-bar" style="height:100%; width:100%; background:linear-gradient(90deg,#1f9bd6,#4fd1ff); border-radius:inherit; transition:width .2s;"></div>
-                    <div class="hp-text" style="line-height: 14px; font-size: 10px;" id="ui-ocean-oxygen-text">100 / 100</div>
+                    <div class="hp-text" id="ui-ocean-oxygen-text">100 / 100</div>
                 </div>
             </div>
-            <div id="ui-player-ailments-under" style="font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
+            <div id="ui-player-ailments-under" class="player-hud-ailments" style="font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
             <div id="ui-player-ailments-mobile" style="display:none; font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
         </div>
 
         <div class="combat-dashboard">
             <div class="combat-stage">
                 <div id="move-area" style="text-align: center; margin-bottom: 10px; display: flex; flex-direction: column; min-height: 0;">
-                    <div class="map-progress-row">
-                        <strong id="ui-progress-label" style="color: #3498db; font-size: 1.05em;">🧭 진행도</strong>
-                        <div class="hp-bar-bg" style="height: 20px;">
-                            <div id="ui-move-bar" class="hp-bar-fill move" style="width: 0%;"></div>
-                            <div class="hp-text" id="ui-move-time-text">0%</div>
-                        </div>
-                    </div>
                     <div id="battlefield-wrap" class="battlefield-wrap">
                         <canvas id="battlefield-canvas"></canvas>
                         <div class="battlefield-caption" id="ui-battlefield-caption">전장을 스캔 중...</div>
