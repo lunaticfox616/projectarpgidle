@@ -29,7 +29,10 @@ assert(manager.includes('moreMenuOutsideListenerInstalled'), 'more menu outside 
 assert(manager.includes('COMMUNITY_OVERLAY_THRESHOLD'), 'community mode should use workspace threshold');
 assert(manager.includes("document.body.style.removeProperty('--community-dock-width')"), 'closing community should clear dock width variable');
 assert(manager.includes("el.style.width = ''"), 'closing community should clear inline panel width');
-assert(!manager.includes("button.id = 'ui-community-toggle'"), 'desktop community should not create a duplicate floating button');
+// 채팅 토글은 레일 커뮤니티 탭이 아니라 전용 말풍선 버튼이 담당한다(사용자 요구 변경).
+assert(manager.includes("button.id = 'ui-community-toggle'"), 'desktop chat should have a dedicated floating toggle button');
+assert(css.includes('#btn-tab-social { display: none !important; }'), 'rail community tab should be hidden while the floating toggle owns chat');
+assert(manager.includes('closeAllWindows'), 'close-all-windows action must exist');
 assert(manager.includes('PRIMARY_TAB_IDS'), 'desktop menu should define primary pinned tabs');
 assert(manager.includes('MORE_TAB_IDS'), 'desktop menu should define more-menu tabs');
 assert(manager.includes("if (!desktop) {"), 'responsive mode should explicitly handle mobile fallback');

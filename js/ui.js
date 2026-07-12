@@ -470,40 +470,6 @@ async function startBackgroundCombatReturn(nowMs) {
     }
 }
 
-async function startBackgroundCombatReturn(nowMs) {
-    if (backgroundCombatRuntime.processing) return false;
-    let snapshot = backgroundCombatRuntime.snapshot;
-    let signature = backgroundCombatRuntime.signature;
-    let startedAtMs = Number(backgroundCombatRuntime.hiddenAtMs || 0);
-    let actualElapsedMs = consumeBackgroundElapsedTime(nowMs);
-    backgroundCombatRuntime.snapshot = null;
-    backgroundCombatRuntime.signature = '';
-    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_RATE, MAX_BACKGROUND_PROGRESS_MS);
-    if (!snapshot || effectiveProgressMs <= 0) return false;
-    backgroundCombatRuntime.processing = true;
-    restoreBattlefieldBeforeBackgroundReplay();
-    updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
-    await waitBackgroundReplayFrame();
-    try {
-        let result = await simulateBackgroundCombatChunked({
-            elapsedMs: effectiveProgressMs,
-            snapshot,
-            startNowMs: startedAtMs,
-            onProgress: (done, total) => updateBackgroundProgressOverlay(done, total, actualElapsedMs)
-        });
-        if (!shouldApplyBackgroundCombatResult(signature)) return false;
-        let summary = getBackgroundRewardSummary(snapshot, result.game);
-        game = mergeDefaults(result.game || game);
-        showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs, summary, capped: effectiveProgressMs >= MAX_BACKGROUND_PROGRESS_MS });
-        updateStaticUI();
-        restoreBattlefieldBeforeBackgroundReplay();
-        return true;
-    } finally {
-        backgroundCombatRuntime.processing = false;
-        hideBackgroundProgressOverlay();
-    }
-}
-
 function handleBackgroundVisibilityChange() {
     if (typeof document === 'undefined') return;
     if (document.hidden) recordBackgroundCombatEntry(Date.now());
@@ -1110,13 +1076,19 @@ function installTabHeaderDragReorder() {
 }
 
 function applyTabHeaderOrder(shouldRenderSettings){
+    game.settings=game.settings||{};
+    game.settings.tabPlacement = game.settings.tabPlacement || {};
+    // 데스크톱 창형 레일의 버튼 배치(고정 탭 + 더보기 메뉴)는 창 관리자가 소유한다.
+    // 여기서 버튼을 다시 헤더 루트로 옮기면 더보기 메뉴가 비워져 레일이 깨진다.
+    if (document.body.classList.contains('desktop-windowed-ui')) {
+        if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
+        return;
+    }
     installTabHeaderDragReorder();
     let headers = Array.from(document.querySelectorAll('.tab-header'));
     let topHeader = headers[0];
     if(!topHeader) return;
     let bottomHeader = document.getElementById('tab-header-bottom');
-    game.settings=game.settings||{};
-    game.settings.tabPlacement = game.settings.tabPlacement || {};
     if (game.settings.twoRowTabs && !game.settings.tabPlacementInitialized && window.matchMedia('(max-width: 1080px)').matches) {
         game.settings.tabPlacementInitialized = true;
         let autoIds = Array.from(topHeader.querySelectorAll('.tab-btn')).map(el => el.id);
@@ -6525,7 +6497,8 @@ function updateCombatUI(pStats) {
         let classLabel = (game.ascendClass && CLASS_TEMPLATES[game.ascendClass]) ? CLASS_TEMPLATES[game.ascendClass].name : '';
         let heroDef = getHeroSelectionDef(game.selectedHeroId);
         let talentLabel = heroDef ? heroDef.label : '재능';
-        inlineZoneEl.innerText = `Lv.${game.level} ${classLabel || talentLabel}`;
+        // 데스크톱 HUD에서는 상단 h2가 숨겨지므로 지역 이름을 이 타이틀에 함께 표기한다.
+        inlineZoneEl.innerText = `${compactZoneText} · Lv.${game.level} ${classLabel || talentLabel}`;
     }
 
     let pendingWoodsmanEntrance = !!game.woodsmanEntrancePending && zone && zone.type === 'outsideChaos';
