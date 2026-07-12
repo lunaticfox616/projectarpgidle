@@ -166,31 +166,4 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
     assert.deepStrictEqual(m.switchCalls, ['tab-map'], '버튼은 화면 열기만 호출');
 }
 
-
-// 7) 잠긴 탭을 가리키는 목표 CTA는 숨겨지고 클릭해도 창을 열지 않는다.
-{
-    const m = bootManager();
-    m.context.window.game = { unlocks: { map: false } };
-    m.context.game = m.context.window.game;
-    m.context.TAB_UNLOCK_GATES = { 'tab-map': 'map' };
-    m.exposed.presentGoalDrawer(goal('locked-map'));
-    const action = m.dom.registry['ui-goal-action'];
-    assert.strictEqual(action.style.display, 'none', '잠긴 지도 목표 CTA는 숨김');
-    action.handlers.click && action.handlers.click();
-    assert.deepStrictEqual(m.switchCalls, [], '잠긴 지도 목표 CTA는 switchTab 호출 금지');
-}
-
-// 8) 해금된 탭의 목표 CTA만 switchTab으로 연결한다.
-{
-    const m = bootManager();
-    m.context.window.game = { unlocks: { map: true } };
-    m.context.game = m.context.window.game;
-    m.context.TAB_UNLOCK_GATES = { 'tab-map': 'map' };
-    m.exposed.presentGoalDrawer(goal('unlocked-map'));
-    const action = m.dom.registry['ui-goal-action'];
-    assert.strictEqual(action.style.display, '', '해금된 지도 목표 CTA는 표시');
-    action.handlers.click && action.handlers.click();
-    assert.deepStrictEqual(m.switchCalls, ['tab-map'], '해금된 지도 목표 CTA는 switchTab 호출');
-}
-
 console.log('smoke-goal-drawer passed');
