@@ -135,7 +135,10 @@
   body.desktop-windowed-ui .player-hud-exp { order: 4; }
   body.desktop-windowed-ui .combat-hud-row { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 5px; }
   body.desktop-windowed-ui .combat-hud-label { margin: 0; font-size: 10px; line-height: 1; font-weight: 800; text-align: right; text-shadow: 0 1px 2px #000; }
-  body.desktop-windowed-ui .combat-hud-label-exp { font-size: 0; }
+  /* 경험치 줄: [Lv.레벨 직업] [진행 바] [퍼센트 · 남은 경험치] */
+  body.desktop-windowed-ui .combat-hud-row-exp { grid-template-columns: auto minmax(0, 1fr) auto; }
+  body.desktop-windowed-ui .combat-hud-label-exp { font-size: 11px; color: #d9c2ff; white-space: nowrap; }
+  body.desktop-windowed-ui .combat-hud-note { font-size: 10px; font-weight: 800; color: #bda9e0; white-space: nowrap; text-shadow: 0 1px 2px #000; }
   body.desktop-windowed-ui .combat-hud-label-hp { color: #71e6a0; }
   body.desktop-windowed-ui .combat-hud-label-oxygen { color: #73ddff; }
   body.desktop-windowed-ui .combat-hp-bar { height: 32px; margin: 0; background: #101722; border-color: rgba(68, 105, 84, 0.72); }
@@ -159,20 +162,31 @@
   body.desktop-windowed-ui .combat-feed.collapsed #log > div:nth-last-child(n+3) { display: none; }
   body.desktop-windowed-ui .combat-feed.collapsed #btn-combat-log-toggle::after { content: ' 로그'; }
 
-  /* 목표 서랍은 창 기본 생성 위치(좌상단)와 겹치지 않도록 비어 있는 좌하단에 둔다. */
+  /* 목표 서랍: 좌측 레일 오른쪽 하단. 접힌 상태는 한 줄 손잡이 + 하단 미니 진행도 바,
+     펼치면 아래(손잡이) 기준으로 위 방향으로 내용이 열린다. */
   body.desktop-windowed-ui .ui-goal-drawer { display: block; position: fixed; left: 142px; top: auto; bottom: 14px; z-index: 1160; pointer-events: auto; }
-  body.desktop-windowed-ui .ui-goal-panel { width: 300px; max-width: calc(100vw - 90px); padding: 6px 8px; border: 1px solid rgba(60, 92, 128, 0.78); border-radius: 10px; background: #101722; transform: none; transition: none; }
-  body.desktop-windowed-ui #ui-goal-toggle { width: 100%; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  body.desktop-windowed-ui .ui-goal-drawer:not(.expanded) #ui-goal-body,
-  body.desktop-windowed-ui .ui-goal-drawer:not(.expanded) #ui-goal-pin { display: none; }
-  body.desktop-windowed-ui #ui-goal-body { margin-top: 8px; color: #b9c7d8; }
-  body.desktop-windowed-ui .ui-goal-title { font-weight: 800; color: #e8f2ff; font-size: 1.02em; }
-  body.desktop-windowed-ui .ui-goal-progress { margin-top: 4px; color: #ffd36b; font-weight: 700; }
-  body.desktop-windowed-ui .ui-goal-desc { margin-top: 4px; font-size: 0.86em; color: #a9bdd4; }
+  body.desktop-windowed-ui .ui-goal-panel { display: flex; flex-direction: column; width: 320px; max-width: calc(100vw - 160px); padding: 0; border: 1px solid rgba(60, 92, 128, 0.78); border-radius: 10px; background: rgba(13, 20, 31, 0.94); overflow: hidden; transform: none; transition: none; }
+  body.desktop-windowed-ui .ui-goal-drawer.ui-goal-mandatory .ui-goal-panel { border-color: rgba(232, 194, 106, 0.85); box-shadow: 0 0 0 1px rgba(232, 194, 106, 0.22); }
+  body.desktop-windowed-ui #ui-goal-toggle { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 38px; padding: 0 10px; border: 0; border-radius: 0; background: transparent; text-align: left; }
+  body.desktop-windowed-ui .ui-goal-handle-icon { flex: 0 0 auto; font-size: 15px; }
+  body.desktop-windowed-ui .ui-goal-handle-title { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 800; font-size: 12px; color: #dcebfb; }
+  body.desktop-windowed-ui .ui-goal-handle-progress { flex: 0 0 auto; font-size: 11px; font-weight: 800; color: #ffd36b; }
+  body.desktop-windowed-ui .ui-goal-handle-bar { height: 3px; background: rgba(58, 82, 112, 0.5); }
+  body.desktop-windowed-ui .ui-goal-handle-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #4f8fd0, #7fd0ff); transition: width 0.25s ease; }
+  body.desktop-windowed-ui .ui-goal-drawer:not(.expanded) #ui-goal-body { display: none; }
+  body.desktop-windowed-ui #ui-goal-body { order: -1; padding: 10px 10px 8px; color: #b9c7d8; border-bottom: 1px solid rgba(60, 92, 128, 0.4); }
+  body.desktop-windowed-ui .ui-goal-head-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 5px; }
+  body.desktop-windowed-ui .ui-goal-badge { font-size: 10px; font-weight: 800; letter-spacing: 0.04em; color: #8fb7d8; border: 1px solid rgba(96, 128, 168, 0.5); border-radius: 999px; padding: 2px 8px; }
+  body.desktop-windowed-ui .ui-goal-drawer.ui-goal-mandatory .ui-goal-badge { color: #ffe9b8; border-color: rgba(232, 194, 106, 0.6); }
+  body.desktop-windowed-ui #ui-goal-pin { min-width: 26px; min-height: 24px; padding: 0; font-size: 12px; border-radius: 7px; opacity: 0.75; }
+  body.desktop-windowed-ui #ui-goal-pin[aria-pressed="true"] { opacity: 1; outline: 1px solid #e8c26a; }
+  body.desktop-windowed-ui .ui-goal-title { font-weight: 800; color: #e8f2ff; font-size: 13px; line-height: 1.3; max-height: 2.6em; overflow: hidden; }
+  body.desktop-windowed-ui .ui-goal-desc { margin-top: 4px; font-size: 11px; line-height: 1.4; color: #a9bdd4; max-height: 2.8em; overflow: hidden; }
+  body.desktop-windowed-ui .ui-goal-bar { height: 6px; margin-top: 8px; border-radius: 999px; background: rgba(58, 82, 112, 0.5); overflow: hidden; }
+  body.desktop-windowed-ui .ui-goal-bar-fill { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #4f8fd0, #7fd0ff); transition: width 0.25s ease; }
+  body.desktop-windowed-ui .ui-goal-progress { margin-top: 4px; font-size: 11px; color: #ffd36b; font-weight: 700; }
   body.desktop-windowed-ui .ui-goal-action { margin-top: 8px; width: 100%; }
-  body.desktop-windowed-ui .ui-goal-notices { margin-top: 8px; font-size: 0.8em; color: #8fb7d8; }
-  body.desktop-windowed-ui #ui-goal-pin { margin-top: 8px; }
-  body.desktop-windowed-ui #ui-goal-pin[aria-pressed="true"] { outline: 1px solid #e8c26a; }
+  body.desktop-windowed-ui .ui-goal-notices { margin-top: 8px; font-size: 10.5px; line-height: 1.5; color: #8fb7d8; white-space: pre-line; }
 
   body.desktop-windowed-ui .tab-content { display: none; }
   body.desktop-windowed-ui .tab-content.ui-window { position: fixed; flex-direction: column; padding: 0; background: rgba(15, 20, 30, 0.96); border: 1px solid rgba(118, 148, 190, 0.72); border-radius: 14px; box-shadow: 0 22px 70px rgba(0,0,0,.52); pointer-events: auto; overflow: hidden; min-width: 280px; min-height: 220px; }
@@ -221,6 +235,31 @@
 .background-combat-capped { color: #ffcf8a; }
 
 @media (max-width: 1080px) {
+  /* 모바일 목표 안내: 접힌 상태는 상단 전투 정보 아래 한 줄 배너, 탭하면 하단 시트. */
+  .ui-goal-drawer { display: block; position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top, 0px) + 60px); z-index: 940; pointer-events: auto; }
+  .ui-goal-panel { display: flex; flex-direction: column; border: 1px solid rgba(60, 92, 128, 0.78); border-radius: 10px; background: rgba(13, 20, 31, 0.95); overflow: hidden; }
+  .ui-goal-drawer #ui-goal-toggle { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-radius: 0; background: transparent; text-align: left; }
+  .ui-goal-handle-icon { flex: 0 0 auto; font-size: 16px; }
+  .ui-goal-handle-title { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 800; font-size: 13px; color: #dcebfb; }
+  .ui-goal-handle-progress { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: #ffd36b; }
+  .ui-goal-handle-bar { height: 3px; background: rgba(58, 82, 112, 0.5); }
+  .ui-goal-handle-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #4f8fd0, #7fd0ff); }
+  .ui-goal-drawer:not(.expanded) #ui-goal-body { display: none; }
+  .ui-goal-drawer.expanded { top: auto; left: 0; right: 0; bottom: 0; z-index: 1210; }
+  .ui-goal-drawer.expanded .ui-goal-panel { border-radius: 14px 14px 0 0; border-bottom: 0; max-height: 70vh; }
+  .ui-goal-drawer #ui-goal-body { order: -1; padding: 14px 14px calc(env(safe-area-inset-bottom, 0px) + 10px); overflow-y: auto; color: #b9c7d8; }
+  .ui-goal-head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .ui-goal-badge { font-size: 11px; font-weight: 800; color: #8fb7d8; border: 1px solid rgba(96, 128, 168, 0.5); border-radius: 999px; padding: 2px 9px; }
+  .ui-goal-drawer #ui-goal-pin { min-width: 44px; min-height: 44px; padding: 0; font-size: 15px; border-radius: 9px; }
+  .ui-goal-drawer #ui-goal-pin[aria-pressed="true"] { outline: 1px solid #e8c26a; }
+  .ui-goal-title { font-weight: 800; color: #e8f2ff; font-size: 15px; line-height: 1.3; }
+  .ui-goal-desc { margin-top: 5px; font-size: 12.5px; line-height: 1.45; color: #a9bdd4; }
+  .ui-goal-bar { height: 7px; margin-top: 10px; border-radius: 999px; background: rgba(58, 82, 112, 0.5); overflow: hidden; }
+  .ui-goal-bar-fill { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #4f8fd0, #7fd0ff); }
+  .ui-goal-progress { margin-top: 5px; font-size: 12px; color: #ffd36b; font-weight: 700; }
+  .ui-goal-drawer .ui-goal-action { margin-top: 10px; width: 100%; min-height: 44px; }
+  .ui-goal-notices { margin-top: 10px; font-size: 11.5px; line-height: 1.55; color: #8fb7d8; white-space: pre-line; }
+
   #enemy-area .enemy-card.targeted { width: calc(100% - 20px); min-width: 320px; margin-inline: auto; }
   #enemy-area .enemy-card.targeted .hp-bar-bg { min-height: 22px; }
   .player-hud { width: calc(100% - 20px); }

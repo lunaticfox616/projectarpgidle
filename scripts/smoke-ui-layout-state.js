@@ -35,7 +35,12 @@ function bootManager(storedRaw, options = {}) {
             getElementById: () => null,
             querySelector: () => null,
             querySelectorAll: () => [],
-            createElement: () => ({ classList: { add() {}, toggle() {} }, style: {}, dataset: {}, setAttribute() {}, addEventListener() {}, appendChild() {}, prepend() {}, querySelector: () => null }),
+            createElement: () => ({
+                classList: { add() {}, toggle() {}, remove() {}, contains: () => false },
+                style: {}, dataset: {}, setAttribute() {}, addEventListener() {}, appendChild() {}, prepend() {},
+                // 모바일 경로에서도 목표 서랍이 설치되므로, 하위 요소 접근이 no-op 요소를 받도록 한다.
+                querySelector: () => ({ addEventListener() {}, setAttribute() {}, classList: { add() {}, toggle() {}, remove() {}, contains: () => false }, style: {} })
+            }),
             addEventListener() {}
         },
         requestAnimationFrame: () => 0,
