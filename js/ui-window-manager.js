@@ -351,8 +351,6 @@
         document.body.classList.remove('community-dock-open', 'community-overlay-open');
         document.body.style.removeProperty('--community-dock-width');
         if (el) {
-            el.classList.remove('ui-community-dock', 'ui-community-overlay');
-            el.style.width = '';
             let handle = el.querySelector(':scope > .ui-community-resize');
             if (handle) handle.remove();
         }
@@ -481,6 +479,7 @@
         drawer.innerHTML = '<div class="ui-goal-panel">'
             + '<button type="button" id="ui-goal-toggle" aria-expanded="false" aria-label="다음 목표 열기/닫기">다음 목표</button>'
             + '<div id="ui-goal-body">'
+            + '<div id="ui-goal-list" class="ui-goal-list"></div>'
             + '<div id="ui-goal-title" class="ui-goal-title"></div>'
             + '<div id="ui-goal-progress" class="ui-goal-progress"></div>'
             + '<div id="ui-goal-desc" class="ui-goal-desc"></div>'
@@ -563,10 +562,44 @@
         el.style.display = text ? '' : 'none';
     }
 
+    function escapeGoalDrawerText(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function getGoalDrawerTone(item) {
+        if (item.id === 'loop-advance') return 'critical';
+        if (item.category === '현재 진행') return 'current';
+        if (item.category === '지금 할 수 있음' || item.category === '빌드 준비') return 'ready';
+        return 'journey';
+    }
+
+    function renderGoalDrawerProgress(item) {
+        if (!Number.isFinite(item.current) || !Number.isFinite(item.target)) return '';
+        let target = Math.max(1, item.target);
+        let percent = Math.max(0, Math.min(100, Math.floor((item.current / target) * 100)));
+        return `<div class="ui-goal-item-progress"><span>${escapeGoalDrawerText(item.current)} / ${escapeGoalDrawerText(item.target)}</span><strong>${percent}%</strong></div><div class="ui-goal-item-track" aria-hidden="true"><span style="width:${percent}%"></span></div>`;
+    }
+
+    function renderGoalDrawerItems(items) {
+        let list = document.getElementById('ui-goal-list');
+        if (!list) return false;
+        let goals = Array.isArray(items) ? items.slice(0, 3) : [];
+        list.style.display = goals.length > 0 ? '' : 'none';
+        list.innerHTML = goals.map(item => {
+            let tone = getGoalDrawerTone(item);
+            let progress = renderGoalDrawerProgress(item);
+            return `<div class="ui-goal-item ui-goal-item-${tone}" data-goal-id="${escapeGoalDrawerText(item.id)}"><div class="ui-goal-item-category">${escapeGoalDrawerText(item.category || '추천 목표')}</div><div class="ui-goal-item-title">${escapeGoalDrawerText(item.title)}</div>${progress}<div class="ui-goal-item-desc">${escapeGoalDrawerText(item.description || '')}</div></div>`;
+        }).join('');
+        return goals.length > 0;
+    }
+
     function renderGoalDrawerContent(goal) {
-        setGoalDrawerText('ui-goal-title', goal.title);
+        let hasItems = renderGoalDrawerItems(goal.items);
+        setGoalDrawerText('ui-goal-title', hasItems ? '' : goal.title);
         let hasProgress = Number.isFinite(goal.current) && Number.isFinite(goal.target);
-        setGoalDrawerText('ui-goal-progress', hasProgress ? `현재 ${goal.current} / ${goal.target}` : '');
+        setGoalDrawerText('ui-goal-progress', !hasItems && hasProgress ? `현재 ${goal.current} / ${goal.target}` : '');
         setGoalDrawerText('ui-goal-desc', goal.description);
         let action = document.getElementById('ui-goal-action');
         if (action) {
@@ -580,14 +613,15 @@
             notices.style.display = notices.textContent ? '' : 'none';
         }
         let toggle = document.getElementById('ui-goal-toggle');
-        if (toggle) toggle.textContent = hasProgress ? `${goal.title} (${goal.current}/${goal.target})` : goal.title;
+        if (toggle) toggle.textContent = hasItems ? `${goal.title} ${goal.items.slice(0, 3).length}개` : (hasProgress ? `${goal.title} (${goal.current}/${goal.target})` : goal.title);
     }
 
     /**
      * 목표 안내 서랍의 단일 진입점. 목표 선정 로직(후속 PR)이 결과를 전달하는 마운트 지점이다.
      * @param {?{id: string, title: string, description?: string, current?: number, target?: number,
      *           actionLabel?: string, actionTabId?: string, mandatory?: boolean, stage?: string,
-     *           notices?: string[]}} goal null/불완전 값이면 서랍 전체를 숨긴다.
+     *           notices?: string[], items?: Array<{id: string, category?: string, title: string,
+     *           description?: string, current?: number, target?: number}>}} goal null/불완전 값이면 서랍 전체를 숨긴다.
      */
     function presentGoalDrawer(goal) {
         let drawer = document.getElementById('ui-goal-drawer');
@@ -735,7 +769,16 @@
         installCommunityToggle();
         installGoalDrawer();
         installSettingsReset();
-        if (layoutState.community.open) openCommunityDock();
+        if (layoutState.community.open) {
+            openCommunityDock();
+        } else {
+            let communityPanel = document.getElementById('tab-social');
+            if (communityPanel) {
+                communityPanel.style.width = `${layoutState.community.width}px`;
+                installCommunityDockChrome(communityPanel);
+                applyCommunityMode(communityPanel);
+            }
+        }
         installDesktopRailGroups();
         installCloseAllButton();
         if (layoutState.goals.expanded) toggleGoalDrawer(true);

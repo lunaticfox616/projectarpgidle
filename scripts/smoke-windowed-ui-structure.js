@@ -31,7 +31,7 @@ assert(manager.includes('syncDesktopRailGroups'), 'empty rail groups must be hid
 assert(manager.includes('TAB_GROUPS'), 'rail groups must reuse the ui.js TAB_GROUPS SSOT');
 assert(manager.includes('COMMUNITY_OVERLAY_THRESHOLD'), 'community mode should use workspace threshold');
 assert(manager.includes("document.body.style.removeProperty('--community-dock-width')"), 'closing community should clear dock width variable');
-assert(manager.includes("el.style.width = ''"), 'closing community should clear inline panel width');
+assert(!manager.includes("el.style.width = ''"), 'closing community should retain panel width for the slide-out transition');
 // 채팅 토글은 레일 커뮤니티 탭이 아니라 전용 말풍선 버튼이 담당한다(사용자 요구 변경).
 assert(manager.includes("button.id = 'ui-community-toggle'"), 'desktop chat should have a dedicated floating toggle button');
 assert(css.includes('#btn-tab-social { display: none !important; }'), 'rail community tab should be hidden while the floating toggle owns chat');
@@ -44,6 +44,10 @@ assert(css.includes('.ui-rail-group'), 'grouped rail CSS should exist');
 assert(css.includes('container-type: inline-size'), 'window body should enable container-based responsive layout');
 assert(css.includes('#enemy-area'), 'enemy HUD overlay rules should exist');
 assert(css.includes('.ui-goal-drawer'), 'goal drawer CSS should exist');
+assert(css.includes('transition: transform .3s ease'), 'community drawer should slide instead of appearing abruptly');
+assert(css.includes('transition: max-height .32s ease'), 'goal drawer body should expand and collapse smoothly');
+assert(!css.includes('.ui-goal-drawer:not(.expanded) #ui-goal-body,\n  body.desktop-windowed-ui .ui-goal-drawer:not(.expanded) #ui-goal-pin { display: none; }'), 'goal drawer must not use abrupt display toggling');
+assert(manager.includes('communityPanel.style.width'), 'closed community panel should be prepared off-screen before its first open');
 assert(css.includes('pointer-events: none'), 'transparent window layer should not block battlefield input');
 assert(!css.includes('nth-child'), 'desktop HUD ordering should use semantic wrapper classes instead of nth-child');
 assert(css.includes('.player-hud-vitals'), 'player HUD should use semantic row classes');
@@ -55,7 +59,7 @@ assert(css.includes('width: clamp(420px, 48vw, 680px)'), 'normal enemy HUD shoul
 assert(css.includes('width: clamp(560px, 65vw, 900px)'), 'boss HUD should keep requested readable width');
 assert(css.includes('height: 26px'), 'normal enemy HP bar should not be too small');
 assert(css.includes('height: 34px'), 'boss and player HP bars should remain readable');
-assert(css.includes('width: clamp(460px, 45vw, 640px)'), 'player HUD should keep requested readable width');
-assert(css.includes('height: 7px'), 'desktop EXP bar should be 6-8px tall');
+assert(css.includes('width: clamp(500px, 49vw, 690px)'), 'player HUD should leave room for level and class labels');
+assert(css.includes('height: 18px'), 'desktop EXP bar should display its label and percentage');
 assert(css.includes('min-width: 320px'), 'mobile enemy HUD should not shrink below 320px');
 console.log('smoke-windowed-ui-structure passed');
