@@ -27,6 +27,9 @@ assert(manager.includes('restoreWindowMarkupForMobile'), 'window manager should 
 assert(manager.includes('restoreDesktopMenuForMobile'), 'window manager should restore menu markup when leaving desktop mode');
 assert(manager.includes('moreMenuOutsideListenerInstalled'), 'more menu outside listener should be installed once');
 assert(manager.includes('COMMUNITY_OVERLAY_THRESHOLD'), 'community mode should use workspace threshold');
+assert(manager.includes("document.body.style.removeProperty('--community-dock-width')"), 'closing community should clear dock width variable');
+assert(manager.includes("el.style.width = ''"), 'closing community should clear inline panel width');
+assert(!manager.includes("button.id = 'ui-community-toggle'"), 'desktop community should not create a duplicate floating button');
 assert(manager.includes('PRIMARY_TAB_IDS'), 'desktop menu should define primary pinned tabs');
 assert(manager.includes('MORE_TAB_IDS'), 'desktop menu should define more-menu tabs');
 assert(manager.includes("if (!desktop) {"), 'responsive mode should explicitly handle mobile fallback');
@@ -38,4 +41,10 @@ assert(css.includes('container-type: inline-size'), 'window body should enable c
 assert(css.includes('#enemy-area'), 'enemy HUD overlay rules should exist');
 assert(css.includes('.ui-goal-drawer'), 'goal drawer CSS should exist');
 assert(css.includes('pointer-events: none'), 'transparent window layer should not block battlefield input');
+assert(!css.includes('nth-child'), 'desktop HUD ordering should use semantic wrapper classes instead of nth-child');
+assert(css.includes('.player-hud-vitals'), 'player HUD should use semantic row classes');
+assert(css.includes('.background-combat-progress-overlay'), 'background replay should have a non-inline progress overlay style');
+assert(html.indexOf('<div class="combat-zone-row">') < html.indexOf('<div class="combat-dashboard">'), 'combat header should be before battlefield dashboard');
+assert(html.indexOf('<div class="map-progress-row">') < html.indexOf('<div class="combat-zone-actions">'), 'progress should live in the single combat header row');
+assert(html.includes('class="combat-top-status player-hud"'), 'player HUD should have a semantic player-hud wrapper');
 console.log('smoke-windowed-ui-structure passed');

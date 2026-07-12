@@ -7,7 +7,7 @@
     const COMMUNITY_MIN_WIDTH = 280;
     const COMMUNITY_MAX_WIDTH = 520;
     const DEFAULT_COMMUNITY_WIDTH = 360;
-    const DESKTOP_RAIL_WIDTH = 92;
+    const DESKTOP_RAIL_WIDTH = 64;
     const WORKSPACE_GAP = 10;
     const COMMUNITY_OVERLAY_THRESHOLD = 700;
     const PRIMARY_TAB_IDS = ['tab-character', 'tab-items', 'tab-char', 'tab-skills', 'tab-map', 'tab-social', 'tab-settings'];
@@ -327,23 +327,23 @@
     }
 
     function closeCommunityDock() {
+        let el = document.getElementById('tab-social');
         layoutState.community.open = false;
         saveLayoutState();
         document.body.classList.remove('community-dock-open', 'community-overlay-open');
+        document.body.style.removeProperty('--community-dock-width');
+        if (el) {
+            el.classList.remove('ui-community-dock', 'ui-community-overlay');
+            el.style.width = '';
+            let handle = el.querySelector(':scope > .ui-community-resize');
+            if (handle) handle.remove();
+        }
         requestCanvasResize();
     }
 
     function installCommunityToggle() {
-        if (document.getElementById('ui-community-toggle')) return;
-        let button = document.createElement('button');
-        button.id = 'ui-community-toggle';
-        button.className = 'ui-community-toggle';
-        button.type = 'button';
-        // 미읽음 점은 ui.js의 updateTabNotificationDots가 #noti-social과 함께 동기화한다.
-        button.innerHTML = '💬<span id="noti-social-dock" class="noti-dot"></span>';
-        button.setAttribute('aria-label', '커뮤니티 열기/닫기');
-        button.addEventListener('click', () => layoutState.community.open ? closeCommunityDock() : openCommunityDock());
-        document.body.appendChild(button);
+        let old = document.getElementById('ui-community-toggle');
+        if (old) old.remove();
     }
 
 
@@ -728,8 +728,7 @@
     function closeCommunityOverlayOnOutsidePointer(event) {
         if (!document.body.classList.contains('community-overlay-open')) return;
         let panel = document.getElementById('tab-social');
-        let toggle = document.getElementById('ui-community-toggle');
-        if ((panel && panel.contains(event.target)) || (toggle && toggle.contains(event.target))) return;
+        if (panel && panel.contains(event.target)) return;
         closeCommunityDock();
     }
 
