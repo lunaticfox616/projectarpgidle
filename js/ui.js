@@ -1038,6 +1038,9 @@ function getTabHeaderUiSignature() {
 }
 
 function updateTabNotificationDots() {
+    // 데스크톱 창형 모드에서 커뮤니티는 탭 전환 없이 도킹 패널로 열리므로,
+    // 패널이 열려 있는 동안은 채팅을 읽고 있는 것으로 간주해 알림을 꺼 둔다.
+    if (document.body.classList.contains('community-dock-open')) game.noti.social = false;
     TAB_HEADER_NOTI_KEYS.forEach(key => {
         // 이미 보고 있는 탭에서 계속 발생하는 이벤트(전투 중 드랍 등)가 알림을 되살리지 않도록,
         // 활성 탭에 해당하는 알림은 매 갱신마다 계속 꺼둔다.
@@ -1045,6 +1048,9 @@ function updateTabNotificationDots() {
         let el = document.getElementById('noti-' + key);
         if (el) el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none';
     });
+    // 도킹 토글 버튼(💬)의 미읽음 점은 커뮤니티 탭 알림과 동일한 상태를 미러링한다.
+    let dockDot = document.getElementById('noti-social-dock');
+    if (dockDot) dockDot.style.display = (game.noti.social && isNotiEnabled('social')) ? 'block' : 'none';
 }
 
 function updateTabUnlockButtons() {

@@ -70,11 +70,13 @@
         return Math.max(min, Math.min(max, Math.round(num)));
     }
 
+    // 좌측 실행 레일(74px + 여백)과 우측 도킹 폭을 제외한, 창이 배치될 수 있는 영역.
+    // css/ui-windows.css의 .tab-header / #left-pane 오프셋과 함께 맞춰야 한다.
     function getWorkspaceRect() {
         let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
         let height = Math.max(260, window.innerHeight || document.documentElement.clientHeight || 720);
         let dockWidth = document.body.classList.contains('community-dock-open') ? (layoutState.community.width || DEFAULT_COMMUNITY_WIDTH) : 0;
-        return { left: 58, top: 8, width: Math.max(320, width - 68 - dockWidth), height: Math.max(260, height - 16) };
+        return { left: 92, top: 8, width: Math.max(320, width - 102 - dockWidth), height: Math.max(260, height - 16) };
     }
 
     function getWindowState(tabId) {
@@ -250,9 +252,28 @@
         document.body.classList.add('community-dock-open');
         document.body.style.setProperty('--community-dock-width', `${layoutState.community.width}px`);
         el.style.width = `${layoutState.community.width}px`;
+        installCommunityDockChrome(el);
         installCommunityResizer(el);
         if (typeof renderSocialTab === 'function') renderSocialTab();
         requestCanvasResize();
+    }
+
+    function installCommunityDockChrome(panel) {
+        if (!panel || panel.querySelector(':scope > .ui-community-dock-header')) return;
+        let header = document.createElement('div');
+        header.className = 'ui-community-dock-header';
+        let title = document.createElement('div');
+        title.className = 'ui-community-dock-title';
+        title.textContent = '💬 커뮤니티';
+        let close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'ui-community-dock-close';
+        close.textContent = '✕';
+        close.setAttribute('aria-label', '커뮤니티 패널 닫기');
+        close.addEventListener('click', closeCommunityDock);
+        header.appendChild(title);
+        header.appendChild(close);
+        panel.prepend(header);
     }
 
     function closeCommunityDock() {
@@ -268,7 +289,8 @@
         button.id = 'ui-community-toggle';
         button.className = 'ui-community-toggle';
         button.type = 'button';
-        button.textContent = '💬';
+        // 미읽음 점은 ui.js의 updateTabNotificationDots가 #noti-social과 함께 동기화한다.
+        button.innerHTML = '💬<span id="noti-social-dock" class="noti-dot"></span>';
         button.setAttribute('aria-label', '커뮤니티 열기/닫기');
         button.addEventListener('click', () => layoutState.community.open ? closeCommunityDock() : openCommunityDock());
         document.body.appendChild(button);
@@ -520,6 +542,8 @@
             social.style.width = '';
             let handle = social.querySelector(':scope > .ui-community-resize');
             if (handle) handle.remove();
+            let dockHeader = social.querySelector(':scope > .ui-community-dock-header');
+            if (dockHeader) dockHeader.remove();
         }
         document.body.classList.remove('community-dock-open');
     }
