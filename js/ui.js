@@ -710,7 +710,11 @@ function getTabGroupForId(tabId) {
     return g ? g.key : 'etc';
 }
 function isTabGroupingActive() {
-    return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(min-width: 1081px)').matches;
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    // 데스크톱 창형 UI에서는 좌측 레일이 모든 창 실행 버튼을 보여야 하므로
+    // 2단 그룹핑(활성 그룹 외 버튼 숨김)을 적용하지 않는다.
+    if (typeof document !== 'undefined' && document.body && document.body.classList.contains('desktop-windowed-ui')) return false;
+    return window.matchMedia('(min-width: 1081px)').matches;
 }
 function getActiveTabGroup() {
     game.settings = game.settings || {};
