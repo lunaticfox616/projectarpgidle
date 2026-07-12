@@ -7,7 +7,7 @@
     const COMMUNITY_MIN_WIDTH = 280;
     const COMMUNITY_MAX_WIDTH = 520;
     const DEFAULT_COMMUNITY_WIDTH = 360;
-    const DESKTOP_RAIL_WIDTH = 64;
+    const DESKTOP_RAIL_WIDTH = 72;
     const WORKSPACE_GAP = 10;
     const COMMUNITY_OVERLAY_THRESHOLD = 700;
     const PRIMARY_TAB_IDS = ['tab-character', 'tab-items', 'tab-char', 'tab-skills', 'tab-map', 'tab-social', 'tab-settings'];
@@ -178,6 +178,28 @@
     function closeWindow(tabId) {
         persistWindowState(tabId, { open: false, minimized: false });
         applyWindowState(tabId);
+        let el = document.getElementById(tabId);
+        if (el) el.classList.remove('ui-window-active');
+        // 닫힌 뒤에는 남아 있는 창 중 최상단 창으로 포커스를 넘긴다.
+        let nextTop = zOrder.slice().reverse().find(id => {
+            let st = layoutState.windows[id];
+            return id !== tabId && st && st.open && !st.minimized;
+        });
+        if (nextTop) focusWindow(nextTop);
+        requestCanvasResize();
+    }
+
+    function closeAllWindows() {
+        Object.keys(WINDOW_DEFS).forEach(tabId => {
+            let st = layoutState.windows[tabId];
+            if (!st || (!st.open && !st.minimized)) return;
+            layoutState.windows[tabId] = { ...st, open: false, minimized: false };
+            applyWindowState(tabId);
+            let el = document.getElementById(tabId);
+            if (el) el.classList.remove('ui-window-active');
+        });
+        saveLayoutState();
+        closeMoreMenu();
         requestCanvasResize();
     }
 
@@ -341,9 +363,18 @@
         requestCanvasResize();
     }
 
+    // 채팅은 레일의 커뮤니티 탭이 아니라 전용 말풍선 버튼으로 켜고 끈다.
     function installCommunityToggle() {
-        let old = document.getElementById('ui-community-toggle');
-        if (old) old.remove();
+        if (document.getElementById('ui-community-toggle')) return;
+        let button = document.createElement('button');
+        button.id = 'ui-community-toggle';
+        button.className = 'ui-community-toggle';
+        button.type = 'button';
+        // 미읽음 점은 ui.js의 updateTabNotificationDots가 #noti-social과 함께 동기화한다.
+        button.innerHTML = '💬<span id="noti-social-dock" class="noti-dot"></span>';
+        button.setAttribute('aria-label', '채팅 열기/닫기');
+        button.addEventListener('click', () => layoutState.community.open ? closeCommunityDock() : openCommunityDock());
+        document.body.appendChild(button);
     }
 
 
@@ -405,6 +436,19 @@
             toggleMoreMenu();
         });
         installMoreMenuOutsideListener();
+    }
+
+    function installCloseAllButton() {
+        let header = document.querySelector('.tab-header');
+        if (!header || document.getElementById('btn-close-all-windows')) return;
+        let btn = document.createElement('button');
+        btn.id = 'btn-close-all-windows';
+        btn.type = 'button';
+        btn.className = 'tab-btn ui-close-all-btn';
+        btn.textContent = '창정리';
+        btn.setAttribute('aria-label', '열린 창 모두 닫기');
+        btn.addEventListener('click', closeAllWindows);
+        header.appendChild(btn);
     }
 
     function installMoreMenuOutsideListener() {
@@ -652,6 +696,14 @@
                 openCommunityDock();
                 return;
             }
+            // 이미 열려 있고 최상단(포커스)인 창의 탭을 다시 누르면 창을 닫는다(토글).
+            // 열려 있지만 포커스가 없으면 기존처럼 최상단으로 가져온다.
+            let el = document.getElementById(tabId);
+            let st = layoutState.windows[tabId];
+            if (WINDOW_DEFS[tabId] && st && st.open && !st.minimized && el && el.classList.contains('ui-window-active')) {
+                closeWindow(tabId);
+                return;
+            }
             let result = originalSwitchTab(tabId);
             openWindow(tabId);
             return result;
@@ -675,6 +727,10 @@
         });
         if (moreBtn) moreBtn.remove();
         if (menu) menu.remove();
+        let closeAllBtn = document.getElementById('btn-close-all-windows');
+        if (closeAllBtn) closeAllBtn.remove();
+        let toggle = document.getElementById('ui-community-toggle');
+        if (toggle) toggle.remove();
     }
 
     function restoreWindowMarkupForMobile() {
@@ -720,6 +776,7 @@
         installSettingsReset();
         if (layoutState.community.open) openCommunityDock();
         installDesktopMenuMore();
+        installCloseAllButton();
         if (layoutState.goals.expanded) toggleGoalDrawer(true);
         requestCanvasResize();
     }
@@ -727,6 +784,8 @@
 
     function closeCommunityOverlayOnOutsidePointer(event) {
         if (!document.body.classList.contains('community-overlay-open')) return;
+        // 토글 버튼 자체는 click 핸들러가 닫기를 처리하므로, 여기서 먼저 닫으면 재열림 토글이 꼬인다.
+        if (event.target.closest && event.target.closest('#ui-community-toggle')) return;
         let panel = document.getElementById('tab-social');
         if (panel && panel.contains(event.target)) return;
         closeCommunityDock();
@@ -759,5 +818,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
     else initWindowManager();
 
-    safeExposeGlobals({ openWindow, closeWindow, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer });
+    safeExposeGlobals({ openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer });
 }());
