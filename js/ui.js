@@ -1076,13 +1076,19 @@ function installTabHeaderDragReorder() {
 }
 
 function applyTabHeaderOrder(shouldRenderSettings){
+    game.settings=game.settings||{};
+    game.settings.tabPlacement = game.settings.tabPlacement || {};
+    // 데스크톱 창형 레일의 버튼 배치(고정 탭 + 더보기 메뉴)는 창 관리자가 소유한다.
+    // 여기서 버튼을 다시 헤더 루트로 옮기면 더보기 메뉴가 비워져 레일이 깨진다.
+    if (document.body.classList.contains('desktop-windowed-ui')) {
+        if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
+        return;
+    }
     installTabHeaderDragReorder();
     let headers = Array.from(document.querySelectorAll('.tab-header'));
     let topHeader = headers[0];
     if(!topHeader) return;
     let bottomHeader = document.getElementById('tab-header-bottom');
-    game.settings=game.settings||{};
-    game.settings.tabPlacement = game.settings.tabPlacement || {};
     if (game.settings.twoRowTabs && !game.settings.tabPlacementInitialized && window.matchMedia('(max-width: 1080px)').matches) {
         game.settings.tabPlacementInitialized = true;
         let autoIds = Array.from(topHeader.querySelectorAll('.tab-btn')).map(el => el.id);
@@ -1183,6 +1189,8 @@ function updateTabUnlockButtons() {
     if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'flex' : 'none';
     // 2단 그룹핑이 활성이면 해금 판정 직후 활성 그룹 외 탭을 숨긴다(단일 권위 지점).
     hideOutOfGroupTabButtons();
+    // 데스크톱 창형 레일은 그룹 섹션 단위로 표시되므로, 해금 변경 시 빈 그룹을 함께 숨긴다.
+    if (typeof syncDesktopRailGroups === 'function' && document.body.classList.contains('desktop-windowed-ui')) syncDesktopRailGroups();
 }
 
 function isUngatedPersistentTabButton(btn) {
@@ -6491,7 +6499,8 @@ function updateCombatUI(pStats) {
         let classLabel = (game.ascendClass && CLASS_TEMPLATES[game.ascendClass]) ? CLASS_TEMPLATES[game.ascendClass].name : '';
         let heroDef = getHeroSelectionDef(game.selectedHeroId);
         let talentLabel = heroDef ? heroDef.label : '재능';
-        inlineZoneEl.innerText = `Lv.${game.level} ${classLabel || talentLabel}`;
+        // 데스크톱 HUD에서는 상단 h2가 숨겨지므로 지역 이름을 이 타이틀에 함께 표기한다.
+        inlineZoneEl.innerText = `${compactZoneText} · Lv.${game.level} ${classLabel || talentLabel}`;
     }
 
     let pendingWoodsmanEntrance = !!game.woodsmanEntrancePending && zone && zone.type === 'outsideChaos';
@@ -6865,6 +6874,37 @@ function shouldRedrawPassiveTree(now) {
     return changed || due;
 }
 
+// 목표 서랍에 실제 게임 상태에서 파생한 '다음 목표'를 전달한다.
+// 루프 진행 대기(필수 선택)가 최우선이고, 평시에는 현재 지역 돌파 진행도를 보여준다.
+// 더 정교한 목표 선정 로직이 생기면 이 함수만 교체하면 된다.
+function refreshGoalDrawerFromGameState() {
+    if (typeof presentGoalDrawer !== 'function') return;
+    if (game.pendingLoopDecision || game.pendingLoopReady) {
+        presentGoalDrawer({
+            id: 'loop-advance',
+            title: '루프 진행을 결정하세요',
+            description: '루프 조건을 달성했습니다. 전투 화면 상단의 루프 진행 버튼으로 다음 루프 여부를 선택하세요.',
+            mandatory: true,
+            stage: 'decide'
+        });
+        return;
+    }
+    let zone = typeof getZone === 'function' ? getZone(game.currentZoneId) : null;
+    if (!zone || !zone.name) {
+        presentGoalDrawer(null);
+        return;
+    }
+    presentGoalDrawer({
+        id: `zone-${zone.id}`,
+        title: `${zone.name} 돌파하기`,
+        description: '진행도가 100%가 되면 다음 구간으로 이동합니다.',
+        current: Math.max(0, Math.min(100, Math.floor(game.runProgress || 0))),
+        target: 100,
+        actionLabel: '지도 열기',
+        actionTabId: 'tab-map'
+    });
+}
+
 function performUpdateStaticUI() {
     // 진단용 단계별 타이밍. 한 번의 갱신이 150ms를 넘으면(또는 window.__perfLog가 켜져
     // 있으면) 어느 단계가 느린지 콘솔에 한 줄 남긴다. 정상 갱신에는 거의 영향이 없다.
@@ -6874,6 +6914,7 @@ function performUpdateStaticUI() {
 
     ensureStarWedgeState();
     tryUnlockMeteorContentByProgress();
+    refreshGoalDrawerFromGameState();
     renderFlaskPanel();
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });

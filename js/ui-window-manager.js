@@ -77,7 +77,7 @@
         return Math.max(min, Math.min(max, Math.round(num)));
     }
 
-    // 좌측 실행 레일(74px + 여백)과 우측 도킹 폭을 제외한, 창이 배치될 수 있는 영역.
+    // 좌측 그룹 레일(128px + 여백)과 우측 도킹 폭을 제외한, 창이 배치될 수 있는 영역.
     // css/ui-windows.css의 .tab-header / #left-pane 오프셋과 함께 맞춰야 한다.
     function getWorkspaceRect() {
         let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
@@ -178,6 +178,27 @@
     function closeWindow(tabId) {
         persistWindowState(tabId, { open: false, minimized: false });
         applyWindowState(tabId);
+        let el = document.getElementById(tabId);
+        if (el) el.classList.remove('ui-window-active');
+        // 닫힌 뒤에는 남아 있는 창 중 최상단 창으로 포커스를 넘긴다.
+        let nextTop = zOrder.slice().reverse().find(id => {
+            let st = layoutState.windows[id];
+            return id !== tabId && st && st.open && !st.minimized;
+        });
+        if (nextTop) focusWindow(nextTop);
+        requestCanvasResize();
+    }
+
+    function closeAllWindows() {
+        Object.keys(WINDOW_DEFS).forEach(tabId => {
+            let st = layoutState.windows[tabId];
+            if (!st || (!st.open && !st.minimized)) return;
+            layoutState.windows[tabId] = { ...st, open: false, minimized: false };
+            applyWindowState(tabId);
+            let el = document.getElementById(tabId);
+            if (el) el.classList.remove('ui-window-active');
+        });
+        saveLayoutState();
         requestCanvasResize();
     }
 
@@ -341,6 +362,7 @@
         requestCanvasResize();
     }
 
+    // 채팅은 레일의 커뮤니티 탭이 아니라 전용 말풍선 버튼으로 켜고 끈다.
     function installCommunityToggle() {
         let old = document.getElementById('ui-community-toggle');
         if (old) old.remove();
