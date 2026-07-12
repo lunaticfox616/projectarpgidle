@@ -7,11 +7,9 @@
     const COMMUNITY_MIN_WIDTH = 280;
     const COMMUNITY_MAX_WIDTH = 520;
     const DEFAULT_COMMUNITY_WIDTH = 360;
-    const DESKTOP_RAIL_WIDTH = 72;
+    const DESKTOP_RAIL_WIDTH = 140;
     const WORKSPACE_GAP = 10;
     const COMMUNITY_OVERLAY_THRESHOLD = 700;
-    const PRIMARY_TAB_IDS = ['tab-character', 'tab-items', 'tab-char', 'tab-skills', 'tab-map', 'tab-social', 'tab-settings'];
-    const MORE_TAB_IDS = ['tab-season', 'tab-expertise', 'tab-traits', 'tab-talent', 'tab-jewel', 'tab-flask', 'tab-journal', 'tab-codex', 'tab-talisman', 'tab-cube'];
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 70, width: 520, height: 620, minWidth: 380, minHeight: 360 },
         'tab-items': { title: '장비 및 인벤토리', x: 130, y: 90, width: 720, height: 700, minWidth: 480, minHeight: 420 },
@@ -35,7 +33,6 @@
     let originalSwitchTab = null;
     let zOrder = Object.keys(WINDOW_DEFS);
     let initialized = false;
-    let moreMenuOutsideListenerInstalled = false;
 
     function getDefaultLayoutState() {
         return { version: UI_LAYOUT_VERSION, windows: {}, community: { open: false, width: DEFAULT_COMMUNITY_WIDTH }, goals: { expanded: false, pinned: false }, combatLog: { expanded: false } };
@@ -77,7 +74,7 @@
         return Math.max(min, Math.min(max, Math.round(num)));
     }
 
-    // 좌측 실행 레일(74px + 여백)과 우측 도킹 폭을 제외한, 창이 배치될 수 있는 영역.
+    // 좌측 그룹 레일(128px + 여백)과 우측 도킹 폭을 제외한, 창이 배치될 수 있는 영역.
     // css/ui-windows.css의 .tab-header / #left-pane 오프셋과 함께 맞춰야 한다.
     function getWorkspaceRect() {
         let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
@@ -199,7 +196,6 @@
             if (el) el.classList.remove('ui-window-active');
         });
         saveLayoutState();
-        closeMoreMenu();
         requestCanvasResize();
     }
 
@@ -414,28 +410,49 @@
     }
 
 
-    function installDesktopMenuMore() {
+    // 상위탭(그룹) 섹션 아래에 모든 탭 버튼을 항상 노출하는 레일 구성.
+    // 그룹 정의(TAB_GROUPS)는 ui.js가 소유한 SSOT를 그대로 사용한다.
+    function getRailGroups() {
+        let groups = (typeof TAB_GROUPS !== 'undefined' && Array.isArray(TAB_GROUPS)) ? TAB_GROUPS : [];
+        // 전투 탭은 데스크톱에서 상시 표시되고, 커뮤니티는 전용 토글 버튼이 담당한다.
+        return groups.map(group => ({
+            key: group.key,
+            label: group.label,
+            tabs: group.tabs.filter(id => id !== 'tab-battle' && id !== 'tab-social')
+        })).filter(group => group.tabs.length > 0);
+    }
+
+    function installDesktopRailGroups() {
         let header = document.querySelector('.tab-header');
-        if (!header || document.getElementById('btn-tab-more')) return;
-        let moreBtn = document.createElement('button');
-        moreBtn.id = 'btn-tab-more';
-        moreBtn.type = 'button';
-        moreBtn.className = 'tab-btn ui-more-tab-btn';
-        moreBtn.innerHTML = '더보기<span id="noti-more" class="noti-dot"></span>';
-        moreBtn.setAttribute('aria-haspopup', 'menu');
-        moreBtn.setAttribute('aria-expanded', 'false');
-        let menu = document.createElement('div');
-        menu.id = 'ui-more-menu';
-        menu.className = 'ui-more-menu';
-        menu.setAttribute('role', 'menu');
-        header.appendChild(moreBtn);
-        header.appendChild(menu);
-        reorderDesktopMenu(header, moreBtn);
-        moreBtn.addEventListener('click', event => {
-            event.stopPropagation();
-            toggleMoreMenu();
+        if (!header || header.querySelector(':scope > .ui-rail-group')) return;
+        getRailGroups().forEach(group => {
+            let section = document.createElement('div');
+            section.className = 'ui-rail-group';
+            section.dataset.railGroup = group.key;
+            let label = document.createElement('div');
+            label.className = 'ui-rail-group-label';
+            label.textContent = group.label;
+            let grid = document.createElement('div');
+            grid.className = 'ui-rail-group-grid';
+            group.tabs.forEach(id => {
+                let btn = document.getElementById('btn-' + id);
+                if (btn) grid.appendChild(btn);
+            });
+            section.appendChild(label);
+            section.appendChild(grid);
+            header.appendChild(section);
         });
-        installMoreMenuOutsideListener();
+        syncDesktopRailGroups();
+    }
+
+    // 해금 상태가 바뀔 때(ui.js updateTabUnlockButtons) 함께 호출되어,
+    // 표시할 탭이 하나도 없는 그룹 섹션을 통째로 숨긴다.
+    function syncDesktopRailGroups() {
+        document.querySelectorAll('.tab-header > .ui-rail-group').forEach(section => {
+            let hasVisible = Array.from(section.querySelectorAll('.tab-btn'))
+                .some(btn => btn.style.display !== 'none');
+            section.style.display = hasVisible ? '' : 'none';
+        });
     }
 
     function installCloseAllButton() {
@@ -449,57 +466,6 @@
         btn.setAttribute('aria-label', '열린 창 모두 닫기');
         btn.addEventListener('click', closeAllWindows);
         header.appendChild(btn);
-    }
-
-    function installMoreMenuOutsideListener() {
-        if (moreMenuOutsideListenerInstalled) return;
-        moreMenuOutsideListenerInstalled = true;
-        document.addEventListener('pointerdown', event => {
-            let menu = document.getElementById('ui-more-menu');
-            let moreBtn = document.getElementById('btn-tab-more');
-            if (!menu || !moreBtn) return;
-            if (!menu.contains(event.target) && event.target !== moreBtn) closeMoreMenu();
-        });
-    }
-
-    function reorderDesktopMenu(header, moreBtn) {
-        PRIMARY_TAB_IDS.forEach(id => {
-            let btn = document.getElementById('btn-' + id);
-            if (btn) header.insertBefore(btn, moreBtn);
-        });
-        header.insertBefore(moreBtn, document.getElementById('btn-tab-settings'));
-        MORE_TAB_IDS.forEach(id => {
-            let btn = document.getElementById('btn-' + id);
-            let menu = document.getElementById('ui-more-menu');
-            if (btn && menu) menu.appendChild(btn);
-        });
-    }
-
-    function toggleMoreMenu() {
-        let menu = document.getElementById('ui-more-menu');
-        let btn = document.getElementById('btn-tab-more');
-        if (!menu || !btn) return;
-        let open = !menu.classList.contains('open');
-        menu.classList.toggle('open', open);
-        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-        syncMoreNotification();
-    }
-
-    function closeMoreMenu() {
-        let menu = document.getElementById('ui-more-menu');
-        let btn = document.getElementById('btn-tab-more');
-        if (menu) menu.classList.remove('open');
-        if (btn) btn.setAttribute('aria-expanded', 'false');
-    }
-
-    function syncMoreNotification() {
-        let dot = document.getElementById('noti-more');
-        if (!dot) return;
-        let hasNotice = MORE_TAB_IDS.some(id => {
-            let btn = document.getElementById('btn-' + id);
-            return btn && btn.offsetParent !== null && btn.querySelector('.noti-dot:not(:empty), .noti-dot[style*="block"]');
-        });
-        dot.style.display = hasNotice ? 'block' : 'none';
     }
 
     const GOAL_AUTO_COLLAPSE_MS = 7000;
@@ -718,15 +684,10 @@
 
     function restoreDesktopMenuForMobile() {
         let header = document.querySelector('.tab-header');
-        let moreBtn = document.getElementById('btn-tab-more');
-        let menu = document.getElementById('ui-more-menu');
         if (!header) return;
-        ['tab-battle'].concat(PRIMARY_TAB_IDS, MORE_TAB_IDS).forEach(id => {
-            let btn = document.getElementById('btn-' + id);
-            if (btn) header.appendChild(btn);
-        });
-        if (moreBtn) moreBtn.remove();
-        if (menu) menu.remove();
+        // 그룹 섹션 안의 탭 버튼들을 헤더 루트로 되돌리고 섹션 래퍼를 제거한다.
+        header.querySelectorAll(':scope > .ui-rail-group .tab-btn').forEach(btn => header.appendChild(btn));
+        header.querySelectorAll(':scope > .ui-rail-group').forEach(section => section.remove());
         let closeAllBtn = document.getElementById('btn-close-all-windows');
         if (closeAllBtn) closeAllBtn.remove();
         let toggle = document.getElementById('ui-community-toggle');
@@ -775,7 +736,7 @@
         installGoalDrawer();
         installSettingsReset();
         if (layoutState.community.open) openCommunityDock();
-        installDesktopMenuMore();
+        installDesktopRailGroups();
         installCloseAllButton();
         if (layoutState.goals.expanded) toggleGoalDrawer(true);
         requestCanvasResize();
@@ -795,7 +756,6 @@
         if (event.key !== 'Escape' || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
         if (document.querySelector('.tutorial-overlay.active,.social-modal-overlay[style*="display: block"]')) return;
         if (document.body.classList.contains('community-overlay-open')) { closeCommunityDock(); return; }
-        closeMoreMenu();
         let open = zOrder.slice().reverse().find(id => {
             let st = layoutState.windows[id];
             return st && st.open && !st.minimized;
@@ -818,5 +778,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
     else initWindowManager();
 
-    safeExposeGlobals({ openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer });
+    safeExposeGlobals({ openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, syncDesktopRailGroups });
 }());
