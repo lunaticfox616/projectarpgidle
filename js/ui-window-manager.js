@@ -181,12 +181,14 @@
     function beginWindowDrag(event, tabId) {
         if (event.button !== undefined && event.button !== 0) return;
         if (event.target.closest('button,input,select,textarea,a')) return;
+        // 이벤트 디스패치가 끝나면 currentTarget이 null이 되므로, 클로저에서 쓸 대상을 먼저 잡아둔다.
+        let titlebar = event.currentTarget;
         let el = document.getElementById(tabId);
         let st = getWindowState(tabId);
         let startX = event.clientX;
         let startY = event.clientY;
         focusWindow(tabId);
-        event.currentTarget.setPointerCapture(event.pointerId);
+        titlebar.setPointerCapture(event.pointerId);
         let move = moveEvent => {
             let rect = getWorkspaceRect();
             let x = clampNumberLocal(st.x + moveEvent.clientX - startX, rect.left, rect.left + rect.width - st.width, st.x);
@@ -197,23 +199,27 @@
             el.dataset.pendingY = String(y);
         };
         let up = upEvent => {
-            event.currentTarget.releasePointerCapture(upEvent.pointerId);
-            event.currentTarget.removeEventListener('pointermove', move);
-            event.currentTarget.removeEventListener('pointerup', up);
+            if (titlebar.hasPointerCapture && titlebar.hasPointerCapture(upEvent.pointerId)) titlebar.releasePointerCapture(upEvent.pointerId);
+            titlebar.removeEventListener('pointermove', move);
+            titlebar.removeEventListener('pointerup', up);
+            titlebar.removeEventListener('pointercancel', up);
             persistWindowState(tabId, { x: Number(el.dataset.pendingX || st.x), y: Number(el.dataset.pendingY || st.y) });
         };
-        event.currentTarget.addEventListener('pointermove', move);
-        event.currentTarget.addEventListener('pointerup', up);
+        titlebar.addEventListener('pointermove', move);
+        titlebar.addEventListener('pointerup', up);
+        titlebar.addEventListener('pointercancel', up);
     }
 
     function beginWindowResize(event, tabId) {
         if (event.button !== undefined && event.button !== 0) return;
+        // beginWindowDrag와 동일하게 디스패치 종료 후 currentTarget이 null이 되는 것을 방지한다.
+        let handle = event.currentTarget;
         let el = document.getElementById(tabId);
         let def = WINDOW_DEFS[tabId];
         let st = getWindowState(tabId);
         let startX = event.clientX;
         let startY = event.clientY;
-        event.currentTarget.setPointerCapture(event.pointerId);
+        handle.setPointerCapture(event.pointerId);
         let move = moveEvent => {
             let rect = getWorkspaceRect();
             let width = clampNumberLocal(st.width + moveEvent.clientX - startX, def.minWidth, rect.left + rect.width - st.x, st.width);
@@ -224,13 +230,15 @@
             el.dataset.pendingHeight = String(height);
         };
         let up = upEvent => {
-            event.currentTarget.releasePointerCapture(upEvent.pointerId);
-            event.currentTarget.removeEventListener('pointermove', move);
-            event.currentTarget.removeEventListener('pointerup', up);
+            if (handle.hasPointerCapture && handle.hasPointerCapture(upEvent.pointerId)) handle.releasePointerCapture(upEvent.pointerId);
+            handle.removeEventListener('pointermove', move);
+            handle.removeEventListener('pointerup', up);
+            handle.removeEventListener('pointercancel', up);
             persistWindowState(tabId, { width: Number(el.dataset.pendingWidth || st.width), height: Number(el.dataset.pendingHeight || st.height) });
         };
-        event.currentTarget.addEventListener('pointermove', move);
-        event.currentTarget.addEventListener('pointerup', up);
+        handle.addEventListener('pointermove', move);
+        handle.addEventListener('pointerup', up);
+        handle.addEventListener('pointercancel', up);
     }
 
     function openCommunityDock() {
@@ -289,24 +297,44 @@
             requestCanvasResize();
         };
         let up = upEvent => {
-            handle.releasePointerCapture(upEvent.pointerId);
+            if (handle.hasPointerCapture && handle.hasPointerCapture(upEvent.pointerId)) handle.releasePointerCapture(upEvent.pointerId);
             handle.removeEventListener('pointermove', move);
             handle.removeEventListener('pointerup', up);
+            handle.removeEventListener('pointercancel', up);
             saveLayoutState();
         };
         handle.addEventListener('pointermove', move);
         handle.addEventListener('pointerup', up);
+        handle.addEventListener('pointercancel', up);
     }
+
+    const GOAL_AUTO_COLLAPSE_MS = 7000;
+    let goalRuntime = { signature: '', collapseTimer: null, currentGoal: null };
 
     function installGoalDrawer() {
         if (document.getElementById('ui-goal-drawer')) return;
         let drawer = document.createElement('div');
         drawer.id = 'ui-goal-drawer';
         drawer.className = 'ui-goal-drawer';
-        drawer.innerHTML = '<div class="ui-goal-panel"><button type="button" id="ui-goal-toggle" aria-label="다음 목표 열기">다음 목표</button><div id="ui-goal-body" style="margin-top:8px;color:#b9c7d8;">표시할 목표가 없습니다.</div><button type="button" id="ui-goal-pin">고정</button></div>';
+        // 목표 데이터가 presentGoalDrawer로 전달되기 전에는 손잡이도 노출하지 않는다.
+        drawer.style.display = 'none';
+        drawer.innerHTML = '<div class="ui-goal-panel">'
+            + '<button type="button" id="ui-goal-toggle" aria-expanded="false" aria-label="다음 목표 열기/닫기">다음 목표</button>'
+            + '<div id="ui-goal-body">'
+            + '<div id="ui-goal-title" class="ui-goal-title"></div>'
+            + '<div id="ui-goal-progress" class="ui-goal-progress"></div>'
+            + '<div id="ui-goal-desc" class="ui-goal-desc"></div>'
+            + '<button type="button" id="ui-goal-action" class="ui-goal-action"></button>'
+            + '<div id="ui-goal-notices" class="ui-goal-notices"></div>'
+            + '</div>'
+            + '<button type="button" id="ui-goal-pin" aria-pressed="false">고정</button>'
+            + '</div>';
         document.body.appendChild(drawer);
         drawer.querySelector('#ui-goal-toggle').addEventListener('click', () => toggleGoalDrawer());
-        drawer.querySelector('#ui-goal-pin').addEventListener('click', () => { layoutState.goals.pinned = !layoutState.goals.pinned; saveLayoutState(); });
+        drawer.querySelector('#ui-goal-pin').addEventListener('click', toggleGoalPin);
+        drawer.querySelector('#ui-goal-pin').setAttribute('aria-pressed', layoutState.goals.pinned ? 'true' : 'false');
+        drawer.querySelector('#ui-goal-action').addEventListener('click', openGoalDrawerTarget);
+        document.addEventListener('pointerdown', collapseGoalDrawerOnOutsidePointer);
     }
 
     function toggleGoalDrawer(force) {
@@ -314,8 +342,111 @@
         if (!drawer) return;
         let expanded = force === undefined ? !drawer.classList.contains('expanded') : !!force;
         drawer.classList.toggle('expanded', expanded);
+        let toggle = drawer.querySelector('#ui-goal-toggle');
+        if (toggle) toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         layoutState.goals.expanded = expanded;
         saveLayoutState();
+    }
+
+    function toggleGoalPin() {
+        layoutState.goals.pinned = !layoutState.goals.pinned;
+        saveLayoutState();
+        let pin = document.getElementById('ui-goal-pin');
+        if (pin) pin.setAttribute('aria-pressed', layoutState.goals.pinned ? 'true' : 'false');
+        if (layoutState.goals.pinned && goalRuntime.collapseTimer) {
+            clearTimeout(goalRuntime.collapseTimer);
+            goalRuntime.collapseTimer = null;
+        }
+        if (!layoutState.goals.pinned) scheduleGoalAutoCollapse();
+    }
+
+    function isGoalAutoCollapseBlocked() {
+        let goal = goalRuntime.currentGoal;
+        return !goal || !!goal.mandatory || !!layoutState.goals.pinned;
+    }
+
+    function scheduleGoalAutoCollapse() {
+        if (goalRuntime.collapseTimer) clearTimeout(goalRuntime.collapseTimer);
+        goalRuntime.collapseTimer = null;
+        if (isGoalAutoCollapseBlocked()) return;
+        goalRuntime.collapseTimer = setTimeout(() => {
+            goalRuntime.collapseTimer = null;
+            let drawer = document.getElementById('ui-goal-drawer');
+            if (!drawer || !drawer.classList.contains('expanded') || isGoalAutoCollapseBlocked()) return;
+            // 사용자가 서랍을 보고 있는 동안에는 수납을 미룬다.
+            if (drawer.matches(':hover') || drawer.contains(document.activeElement)) {
+                scheduleGoalAutoCollapse();
+                return;
+            }
+            toggleGoalDrawer(false);
+        }, GOAL_AUTO_COLLAPSE_MS);
+    }
+
+    function collapseGoalDrawerOnOutsidePointer(event) {
+        let drawer = document.getElementById('ui-goal-drawer');
+        if (!drawer || !drawer.classList.contains('expanded')) return;
+        if (drawer.contains(event.target) || isGoalAutoCollapseBlocked()) return;
+        toggleGoalDrawer(false);
+    }
+
+    function openGoalDrawerTarget() {
+        let goal = goalRuntime.currentGoal;
+        if (!goal || !goal.actionTabId || typeof window.switchTab !== 'function') return;
+        // 목표 버튼은 관련 화면을 열기만 한다. 재화 소비/입장/실행은 하지 않는다.
+        window.switchTab(goal.actionTabId);
+    }
+
+    function setGoalDrawerText(id, text) {
+        let el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = text || '';
+        el.style.display = text ? '' : 'none';
+    }
+
+    function renderGoalDrawerContent(goal) {
+        setGoalDrawerText('ui-goal-title', goal.title);
+        let hasProgress = Number.isFinite(goal.current) && Number.isFinite(goal.target);
+        setGoalDrawerText('ui-goal-progress', hasProgress ? `현재 ${goal.current} / ${goal.target}` : '');
+        setGoalDrawerText('ui-goal-desc', goal.description);
+        let action = document.getElementById('ui-goal-action');
+        if (action) {
+            let usable = !!(goal.actionLabel && goal.actionTabId);
+            action.textContent = usable ? goal.actionLabel : '';
+            action.style.display = usable ? '' : 'none';
+        }
+        let notices = document.getElementById('ui-goal-notices');
+        if (notices) {
+            notices.textContent = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 3).join(' · ');
+            notices.style.display = notices.textContent ? '' : 'none';
+        }
+        let toggle = document.getElementById('ui-goal-toggle');
+        if (toggle) toggle.textContent = hasProgress ? `${goal.title} (${goal.current}/${goal.target})` : goal.title;
+    }
+
+    /**
+     * 목표 안내 서랍의 단일 진입점. 목표 선정 로직(후속 PR)이 결과를 전달하는 마운트 지점이다.
+     * @param {?{id: string, title: string, description?: string, current?: number, target?: number,
+     *           actionLabel?: string, actionTabId?: string, mandatory?: boolean, stage?: string,
+     *           notices?: string[]}} goal null/불완전 값이면 서랍 전체를 숨긴다.
+     */
+    function presentGoalDrawer(goal) {
+        let drawer = document.getElementById('ui-goal-drawer');
+        if (!drawer) return;
+        if (!goal || typeof goal !== 'object' || !goal.id || !goal.title) {
+            goalRuntime.currentGoal = null;
+            goalRuntime.signature = '';
+            drawer.style.display = 'none';
+            return;
+        }
+        goalRuntime.currentGoal = goal;
+        drawer.style.display = '';
+        renderGoalDrawerContent(goal);
+        // 진행 숫자 변화가 아니라 목표 자체(id)/단계(stage)/필수 여부가 바뀔 때만 자동으로 펼친다.
+        let signature = [goal.id, goal.stage || '', goal.mandatory ? 1 : 0].join('|');
+        if (signature === goalRuntime.signature) return;
+        goalRuntime.signature = signature;
+        toggleGoalDrawer(true);
+        scheduleGoalAutoCollapse();
     }
 
     function installSettingsReset() {
@@ -432,5 +563,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
     else initWindowManager();
 
-    safeExposeGlobals({ openWindow, closeWindow, minimizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer });
+    safeExposeGlobals({ openWindow, closeWindow, minimizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer });
 }());

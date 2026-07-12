@@ -1,6 +1,13 @@
+/* 데스크톱 창형 모드 밖(모바일)에서는 창형 전용 부속 UI를 렌더링하지 않는다. */
+.ui-goal-drawer, .ui-community-toggle { display: none; }
+
 @media (min-width: 1081px) {
+  body.desktop-windowed-ui .ui-goal-drawer { display: block; }
+  body.desktop-windowed-ui .ui-community-toggle { display: inline-flex; }
   body.desktop-windowed-ui { padding: 0; gap: 0; overflow: hidden; }
   body.desktop-windowed-ui #left-pane { flex: 1 1 auto; width: auto; min-width: 0; height: 100dvh; padding: 10px 10px 10px 58px; box-sizing: border-box; }
+  /* 커뮤니티 도킹이 열리면 전투 작업 공간이 패널 폭만큼 줄어들어 서로 겹치지 않는다. */
+  body.desktop-windowed-ui.community-dock-open #left-pane { padding-right: calc(var(--community-dock-width, 360px) + 10px); }
   body.desktop-windowed-ui #battle-column { height: 100%; gap: 8px; }
   body.desktop-windowed-ui .player-panel { position: absolute; left: 68px; top: 12px; width: min(360px, 34vw); z-index: 5; background: rgba(16, 22, 32, 0.78); backdrop-filter: blur(8px); }
   body.desktop-windowed-ui .combat-panel { flex: 1; min-height: 0; padding: 10px; background: rgba(10, 14, 20, 0.68); }
@@ -35,4 +42,13 @@
   body.desktop-windowed-ui .ui-goal-drawer { position: fixed; left: 64px; bottom: 14px; z-index: 1160; pointer-events: auto; }
   body.desktop-windowed-ui .ui-goal-panel { width: 320px; max-width: calc(100vw - 90px); padding: 12px; border: 1px solid #3c5c80; border-radius: 12px; background: rgba(13,20,31,.92); transform: translateY(calc(100% - 38px)); transition: transform .18s ease; }
   body.desktop-windowed-ui .ui-goal-drawer.expanded .ui-goal-panel { transform: translateY(0); }
+  body.desktop-windowed-ui #ui-goal-toggle { width: 100%; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.desktop-windowed-ui #ui-goal-body { margin-top: 8px; color: #b9c7d8; }
+  body.desktop-windowed-ui .ui-goal-title { font-weight: 800; color: #e8f2ff; font-size: 1.02em; }
+  body.desktop-windowed-ui .ui-goal-progress { margin-top: 4px; color: #ffd36b; font-weight: 700; }
+  body.desktop-windowed-ui .ui-goal-desc { margin-top: 4px; font-size: 0.86em; color: #a9bdd4; }
+  body.desktop-windowed-ui .ui-goal-action { margin-top: 8px; width: 100%; }
+  body.desktop-windowed-ui .ui-goal-notices { margin-top: 8px; font-size: 0.8em; color: #8fb7d8; }
+  body.desktop-windowed-ui #ui-goal-pin { margin-top: 8px; }
+  body.desktop-windowed-ui #ui-goal-pin[aria-pressed="true"] { outline: 1px solid #e8c26a; }
 }
