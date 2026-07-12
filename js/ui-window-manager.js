@@ -7,6 +7,11 @@
     const COMMUNITY_MIN_WIDTH = 280;
     const COMMUNITY_MAX_WIDTH = 520;
     const DEFAULT_COMMUNITY_WIDTH = 360;
+    const DESKTOP_RAIL_WIDTH = 92;
+    const WORKSPACE_GAP = 10;
+    const COMMUNITY_OVERLAY_THRESHOLD = 700;
+    const PRIMARY_TAB_IDS = ['tab-character', 'tab-items', 'tab-char', 'tab-skills', 'tab-map', 'tab-social', 'tab-settings'];
+    const MORE_TAB_IDS = ['tab-season', 'tab-expertise', 'tab-traits', 'tab-talent', 'tab-jewel', 'tab-flask', 'tab-journal', 'tab-codex', 'tab-talisman', 'tab-cube'];
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 70, width: 520, height: 620, minWidth: 380, minHeight: 360 },
         'tab-items': { title: '장비 및 인벤토리', x: 130, y: 90, width: 720, height: 700, minWidth: 480, minHeight: 420 },
@@ -32,7 +37,7 @@
     let initialized = false;
 
     function getDefaultLayoutState() {
-        return { version: UI_LAYOUT_VERSION, windows: {}, community: { open: false, width: DEFAULT_COMMUNITY_WIDTH }, goals: { expanded: false, pinned: false } };
+        return { version: UI_LAYOUT_VERSION, windows: {}, community: { open: false, width: DEFAULT_COMMUNITY_WIDTH }, goals: { expanded: false, pinned: false }, combatLog: { expanded: false } };
     }
 
     function readStoredLayout() {
@@ -53,6 +58,7 @@
         state.community = { ...base.community, ...((next.community && typeof next.community === 'object') ? next.community : {}) };
         state.community.width = clampNumberLocal(state.community.width, COMMUNITY_MIN_WIDTH, COMMUNITY_MAX_WIDTH, DEFAULT_COMMUNITY_WIDTH);
         state.goals = { ...base.goals, ...((next.goals && typeof next.goals === 'object') ? next.goals : {}) };
+        state.combatLog = { ...base.combatLog, ...((next.combatLog && typeof next.combatLog === 'object') ? next.combatLog : {}) };
         return state;
     }
 
@@ -76,18 +82,20 @@
         let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
         let height = Math.max(260, window.innerHeight || document.documentElement.clientHeight || 720);
         let dockWidth = document.body.classList.contains('community-dock-open') ? (layoutState.community.width || DEFAULT_COMMUNITY_WIDTH) : 0;
-        return { left: 92, top: 8, width: Math.max(320, width - 102 - dockWidth), height: Math.max(260, height - 16) };
+        return { left: DESKTOP_RAIL_WIDTH, top: 8, width: Math.max(240, width - DESKTOP_RAIL_WIDTH - WORKSPACE_GAP - dockWidth), height: Math.max(260, height - 16) };
     }
 
     function getWindowState(tabId) {
         let def = WINDOW_DEFS[tabId];
         let stored = layoutState.windows[tabId] || {};
         let rect = getWorkspaceRect();
-        let width = clampNumberLocal(stored.width, def.minWidth, rect.width, Math.min(def.width, rect.width));
-        let height = clampNumberLocal(stored.height, def.minHeight, rect.height, Math.min(def.height, rect.height));
+        let minWidth = Math.min(def.minWidth, rect.width);
+        let minHeight = Math.min(def.minHeight, rect.height);
+        let width = clampNumberLocal(stored.width, minWidth, rect.width, Math.min(def.width, rect.width));
+        let height = clampNumberLocal(stored.height, minHeight, rect.height, Math.min(def.height, rect.height));
         let x = clampNumberLocal(stored.x, rect.left, rect.left + rect.width - width, Math.min(def.x, rect.left + rect.width - width));
         let y = clampNumberLocal(stored.y, rect.top, rect.top + rect.height - Math.min(34, height), Math.min(def.y, rect.top + rect.height - height));
-        return { open: !!stored.open, minimized: !!stored.minimized, x, y, width, height };
+        return { open: !!stored.open, minimized: !!stored.minimized, maximized: !!stored.maximized, restoreRect: stored.restoreRect || null, x, y, width, height };
     }
 
     function persistWindowState(tabId, patch) {
@@ -105,15 +113,19 @@
         while (el.firstChild) body.appendChild(el.firstChild);
         let titlebar = document.createElement('div');
         titlebar.className = 'ui-window-titlebar';
-        titlebar.innerHTML = `<div class="ui-window-title">${def.title}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="기본 위치로 초기화">↺</button><button type="button" data-window-action="minimize" aria-label="최소화">—</button><button type="button" data-window-action="close" aria-label="닫기">✕</button></div>`;
+        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}">${def.title}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="기본 위치로 초기화">↺</button><button type="button" data-window-action="minimize" aria-label="최소화">—</button><button type="button" data-window-action="maximize" aria-label="최대화 또는 복원">□</button><button type="button" data-window-action="close" aria-label="닫기">✕</button></div>`;
         let resize = document.createElement('div');
         resize.className = 'ui-window-resize';
         el.classList.add('ui-window');
+        el.setAttribute('role', 'dialog');
+        el.setAttribute('aria-labelledby', `ui-window-title-${tabId}`);
+        el.tabIndex = -1;
         el.dataset.windowPrepared = '1';
         el.prepend(titlebar);
         el.appendChild(body);
         el.appendChild(resize);
         titlebar.addEventListener('pointerdown', event => beginWindowDrag(event, tabId));
+        titlebar.addEventListener('dblclick', () => toggleMaximizeWindow(tabId));
         resize.addEventListener('pointerdown', event => beginWindowResize(event, tabId));
         el.addEventListener('pointerdown', () => focusWindow(tabId));
         el.addEventListener('click', event => handleWindowActionClick(event, tabId));
@@ -129,8 +141,13 @@
         el.style.height = `${st.height}px`;
         el.classList.toggle('ui-window-open', st.open && !st.minimized);
         el.classList.toggle('ui-window-minimized', st.minimized);
+        el.classList.toggle('ui-window-maximized', st.maximized);
         let btn = document.getElementById('btn-' + tabId);
-        if (btn) btn.classList.toggle('ui-window-open', st.open);
+        if (btn) {
+            btn.classList.toggle('ui-window-open', st.open);
+            btn.classList.toggle('ui-window-minimized-btn', st.minimized);
+            btn.setAttribute('aria-pressed', st.open && !st.minimized ? 'true' : 'false');
+        }
     }
 
     function focusWindow(tabId) {
@@ -140,7 +157,11 @@
             if (el) el.style.zIndex = String(1200 + index);
         });
         let el = document.getElementById(tabId);
-        if (el) el.focus && el.focus({ preventScroll: true });
+        document.querySelectorAll('.ui-window-active').forEach(node => node.classList.remove('ui-window-active'));
+        if (el) {
+            el.classList.add('ui-window-active');
+            el.focus && el.focus({ preventScroll: true });
+        }
     }
 
     function openWindow(tabId) {
@@ -164,6 +185,18 @@
         applyWindowState(tabId);
     }
 
+    function toggleMaximizeWindow(tabId) {
+        let st = getWindowState(tabId);
+        let rect = getWorkspaceRect();
+        if (st.maximized) {
+            persistWindowState(tabId, { ...(st.restoreRect || {}), maximized: false, restoreRect: null });
+        } else {
+            persistWindowState(tabId, { x: rect.left, y: rect.top, width: rect.width, height: rect.height, maximized: true, restoreRect: { x: st.x, y: st.y, width: st.width, height: st.height } });
+        }
+        applyWindowState(tabId);
+        focusWindow(tabId);
+    }
+
     function resetWindow(tabId) {
         delete layoutState.windows[tabId];
         saveLayoutState();
@@ -177,6 +210,7 @@
         let action = button.dataset.windowAction;
         if (action === 'close') closeWindow(tabId);
         if (action === 'minimize') minimizeWindow(tabId);
+        if (action === 'maximize') toggleMaximizeWindow(tabId);
         if (action === 'reset') resetWindow(tabId);
     }
 
@@ -187,6 +221,7 @@
         let titlebar = event.currentTarget;
         let el = document.getElementById(tabId);
         let st = getWindowState(tabId);
+        if (st.maximized) return;
         let startX = event.clientX;
         let startY = event.clientY;
         focusWindow(tabId);
@@ -219,13 +254,14 @@
         let el = document.getElementById(tabId);
         let def = WINDOW_DEFS[tabId];
         let st = getWindowState(tabId);
+        if (st.maximized) return;
         let startX = event.clientX;
         let startY = event.clientY;
         handle.setPointerCapture(event.pointerId);
         let move = moveEvent => {
             let rect = getWorkspaceRect();
-            let width = clampNumberLocal(st.width + moveEvent.clientX - startX, def.minWidth, rect.left + rect.width - st.x, st.width);
-            let height = clampNumberLocal(st.height + moveEvent.clientY - startY, def.minHeight, rect.top + rect.height - st.y, st.height);
+            let width = clampNumberLocal(st.width + moveEvent.clientX - startX, Math.min(def.minWidth, rect.width), rect.left + rect.width - st.x, st.width);
+            let height = clampNumberLocal(st.height + moveEvent.clientY - startY, Math.min(def.minHeight, rect.height), rect.top + rect.height - st.y, st.height);
             el.style.width = `${width}px`;
             el.style.height = `${height}px`;
             el.dataset.pendingWidth = String(width);
@@ -243,17 +279,30 @@
         handle.addEventListener('pointercancel', up);
     }
 
+    function shouldUseCommunityOverlay() {
+        let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
+        let available = width - DESKTOP_RAIL_WIDTH - WORKSPACE_GAP - (layoutState.community.width || DEFAULT_COMMUNITY_WIDTH);
+        return available < COMMUNITY_OVERLAY_THRESHOLD;
+    }
+
+    function applyCommunityMode(panel) {
+        let overlay = shouldUseCommunityOverlay();
+        document.body.classList.toggle('community-dock-open', !overlay && layoutState.community.open);
+        document.body.classList.toggle('community-overlay-open', overlay && layoutState.community.open);
+        panel.classList.toggle('ui-community-overlay', overlay);
+        panel.classList.toggle('ui-community-dock', !overlay);
+    }
+
     function openCommunityDock() {
         let el = document.getElementById('tab-social');
         if (!el) return;
-        el.classList.add('ui-community-dock');
         layoutState.community.open = true;
         saveLayoutState();
-        document.body.classList.add('community-dock-open');
         document.body.style.setProperty('--community-dock-width', `${layoutState.community.width}px`);
         el.style.width = `${layoutState.community.width}px`;
         installCommunityDockChrome(el);
         installCommunityResizer(el);
+        applyCommunityMode(el);
         if (typeof renderSocialTab === 'function') renderSocialTab();
         requestCanvasResize();
     }
@@ -279,7 +328,7 @@
     function closeCommunityDock() {
         layoutState.community.open = false;
         saveLayoutState();
-        document.body.classList.remove('community-dock-open');
+        document.body.classList.remove('community-dock-open', 'community-overlay-open');
         requestCanvasResize();
     }
 
@@ -316,6 +365,8 @@
             layoutState.community.width = width;
             panel.style.width = `${width}px`;
             document.body.style.setProperty('--community-dock-width', `${width}px`);
+            applyCommunityMode(panel);
+            Object.keys(WINDOW_DEFS).forEach(id => applyWindowState(id));
             requestCanvasResize();
         };
         let up = upEvent => {
@@ -328,6 +379,73 @@
         handle.addEventListener('pointermove', move);
         handle.addEventListener('pointerup', up);
         handle.addEventListener('pointercancel', up);
+    }
+
+
+    function installDesktopMenuMore() {
+        let header = document.querySelector('.tab-header');
+        if (!header || document.getElementById('btn-tab-more')) return;
+        let moreBtn = document.createElement('button');
+        moreBtn.id = 'btn-tab-more';
+        moreBtn.type = 'button';
+        moreBtn.className = 'tab-btn ui-more-tab-btn';
+        moreBtn.innerHTML = '더보기<span id="noti-more" class="noti-dot"></span>';
+        moreBtn.setAttribute('aria-haspopup', 'menu');
+        moreBtn.setAttribute('aria-expanded', 'false');
+        let menu = document.createElement('div');
+        menu.id = 'ui-more-menu';
+        menu.className = 'ui-more-menu';
+        menu.setAttribute('role', 'menu');
+        header.appendChild(moreBtn);
+        header.appendChild(menu);
+        reorderDesktopMenu(header, moreBtn);
+        moreBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            toggleMoreMenu();
+        });
+        document.addEventListener('pointerdown', event => {
+            if (!menu.contains(event.target) && event.target !== moreBtn) closeMoreMenu();
+        });
+    }
+
+    function reorderDesktopMenu(header, moreBtn) {
+        PRIMARY_TAB_IDS.forEach(id => {
+            let btn = document.getElementById('btn-' + id);
+            if (btn) header.insertBefore(btn, moreBtn);
+        });
+        header.insertBefore(moreBtn, document.getElementById('btn-tab-settings'));
+        MORE_TAB_IDS.forEach(id => {
+            let btn = document.getElementById('btn-' + id);
+            let menu = document.getElementById('ui-more-menu');
+            if (btn && menu) menu.appendChild(btn);
+        });
+    }
+
+    function toggleMoreMenu() {
+        let menu = document.getElementById('ui-more-menu');
+        let btn = document.getElementById('btn-tab-more');
+        if (!menu || !btn) return;
+        let open = !menu.classList.contains('open');
+        menu.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        syncMoreNotification();
+    }
+
+    function closeMoreMenu() {
+        let menu = document.getElementById('ui-more-menu');
+        let btn = document.getElementById('btn-tab-more');
+        if (menu) menu.classList.remove('open');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+    }
+
+    function syncMoreNotification() {
+        let dot = document.getElementById('noti-more');
+        if (!dot) return;
+        let hasNotice = MORE_TAB_IDS.some(id => {
+            let btn = document.getElementById('btn-' + id);
+            return btn && btn.offsetParent !== null && btn.querySelector('.noti-dot:not(:empty), .noti-dot[style*="block"]');
+        });
+        dot.style.display = hasNotice ? 'block' : 'none';
     }
 
     const GOAL_AUTO_COLLAPSE_MS = 7000;
@@ -499,6 +617,22 @@
         });
     }
 
+
+    function patchCombatLogToggle() {
+        if (typeof window.toggleCombatLogCollapse !== 'function' || window.toggleCombatLogCollapse.__uiLayoutPatched) return;
+        let originalToggle = window.toggleCombatLogCollapse;
+        window.toggleCombatLogCollapse = function uiLayoutCombatLogToggle() {
+            originalToggle();
+            layoutState.combatLog.expanded = !(window.game && window.game.settings && window.game.settings.combatLogCollapsed);
+            saveLayoutState();
+        };
+        window.toggleCombatLogCollapse.__uiLayoutPatched = true;
+        if (window.game && window.game.settings) {
+            window.game.settings.combatLogCollapsed = !layoutState.combatLog.expanded;
+            if (typeof window.applyPanelLayoutSettings === 'function') window.applyPanelLayoutSettings();
+        }
+    }
+
     function patchSwitchTab() {
         if (originalSwitchTab || typeof window.switchTab !== 'function') return;
         originalSwitchTab = window.switchTab;
@@ -519,7 +653,22 @@
     }
 
 
+
+    function restoreDesktopMenuForMobile() {
+        let header = document.querySelector('.tab-header');
+        let moreBtn = document.getElementById('btn-tab-more');
+        let menu = document.getElementById('ui-more-menu');
+        if (!header) return;
+        ['tab-battle'].concat(PRIMARY_TAB_IDS, MORE_TAB_IDS).forEach(id => {
+            let btn = document.getElementById('btn-' + id);
+            if (btn) header.appendChild(btn);
+        });
+        if (moreBtn) moreBtn.remove();
+        if (menu) menu.remove();
+    }
+
     function restoreWindowMarkupForMobile() {
+        restoreDesktopMenuForMobile();
         Object.keys(WINDOW_DEFS).forEach(tabId => {
             let el = document.getElementById(tabId);
             if (!el || el.dataset.windowPrepared !== '1') return;
@@ -538,14 +687,14 @@
         });
         let social = document.getElementById('tab-social');
         if (social) {
-            social.classList.remove('ui-community-dock');
+            social.classList.remove('ui-community-dock', 'ui-community-overlay');
             social.style.width = '';
             let handle = social.querySelector(':scope > .ui-community-resize');
             if (handle) handle.remove();
             let dockHeader = social.querySelector(':scope > .ui-community-dock-header');
             if (dockHeader) dockHeader.remove();
         }
-        document.body.classList.remove('community-dock-open');
+        document.body.classList.remove('community-dock-open', 'community-overlay-open');
     }
 
     function applyResponsiveMode() {
@@ -560,13 +709,25 @@
         installGoalDrawer();
         installSettingsReset();
         if (layoutState.community.open) openCommunityDock();
+        installDesktopMenuMore();
         if (layoutState.goals.expanded) toggleGoalDrawer(true);
         requestCanvasResize();
+    }
+
+
+    function closeCommunityOverlayOnOutsidePointer(event) {
+        if (!document.body.classList.contains('community-overlay-open')) return;
+        let panel = document.getElementById('tab-social');
+        let toggle = document.getElementById('ui-community-toggle');
+        if ((panel && panel.contains(event.target)) || (toggle && toggle.contains(event.target))) return;
+        closeCommunityDock();
     }
 
     function closeTopWindowOnEscape(event) {
         if (event.key !== 'Escape' || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
         if (document.querySelector('.tutorial-overlay.active,.social-modal-overlay[style*="display: block"]')) return;
+        if (document.body.classList.contains('community-overlay-open')) { closeCommunityDock(); return; }
+        closeMoreMenu();
         let open = zOrder.slice().reverse().find(id => {
             let st = layoutState.windows[id];
             return st && st.open && !st.minimized;
@@ -579,13 +740,15 @@
         initialized = true;
         layoutState = normalizeLayoutState(readStoredLayout());
         patchSwitchTab();
+        patchCombatLogToggle();
         applyResponsiveMode();
         window.addEventListener('resize', applyResponsiveMode);
         document.addEventListener('keydown', closeTopWindowOnEscape);
+        document.addEventListener('pointerdown', closeCommunityOverlayOnOutsidePointer);
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
     else initWindowManager();
 
-    safeExposeGlobals({ openWindow, closeWindow, minimizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer });
+    safeExposeGlobals({ openWindow, closeWindow, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer });
 }());
