@@ -6231,6 +6231,7 @@ function updateCombatUI(pStats) {
     let hpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
     let hpBar = document.getElementById('ui-hp-bar');
     hpBar.style.width = hpPct + '%';
+    hpBar.classList.toggle('player-danger', hpPct > 0 && hpPct <= 25);
     let hpWrap = hpBar.parentElement;
     let hpGhostBar = document.getElementById('ui-hp-damage-ghost-bar');
     if (!hpGhostBar && hpWrap) {
@@ -6526,7 +6527,7 @@ function updateCombatUI(pStats) {
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             enemyListEl.dataset.enemyId = focusedKey;
             enemyListEl.innerHTML = `
-                <div class="enemy-card targeted">
+                <div class="enemy-card targeted${focusedEnemy.isBoss || focusedEnemy.bossPhase ? ' enemy-boss' : ''}">
                     <div class="enemy-name"></div>
                     <div class="hp-bar-bg">
                         <div class="hp-bar-fill enemy-damage-ghost"></div>
