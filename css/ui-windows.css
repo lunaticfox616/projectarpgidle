@@ -135,7 +135,10 @@
   body.desktop-windowed-ui .player-hud-exp { order: 4; }
   body.desktop-windowed-ui .combat-hud-row { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 5px; }
   body.desktop-windowed-ui .combat-hud-label { margin: 0; font-size: 10px; line-height: 1; font-weight: 800; text-align: right; text-shadow: 0 1px 2px #000; }
-  body.desktop-windowed-ui .combat-hud-label-exp { font-size: 0; }
+  /* 경험치 줄: [Lv.레벨 직업] [진행 바] [퍼센트 · 남은 경험치] */
+  body.desktop-windowed-ui .combat-hud-row-exp { grid-template-columns: auto minmax(0, 1fr) auto; }
+  body.desktop-windowed-ui .combat-hud-label-exp { font-size: 11px; color: #d9c2ff; white-space: nowrap; }
+  body.desktop-windowed-ui .combat-hud-note { font-size: 10px; font-weight: 800; color: #bda9e0; white-space: nowrap; text-shadow: 0 1px 2px #000; }
   body.desktop-windowed-ui .combat-hud-label-hp { color: #71e6a0; }
   body.desktop-windowed-ui .combat-hud-label-oxygen { color: #73ddff; }
   body.desktop-windowed-ui .combat-hp-bar { height: 32px; margin: 0; background: #101722; border-color: rgba(68, 105, 84, 0.72); }

@@ -190,6 +190,14 @@ function runUiCoreLoop() {
     return runUiGlobalFunction('coreLoop');
 }
 
+// HUD에 표시할 플레이어 직업(전직 후) 또는 재능 라벨.
+function getUiPlayerClassLabel() {
+    let classLabel = (game.ascendClass && typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[game.ascendClass]) ? CLASS_TEMPLATES[game.ascendClass].name : '';
+    if (classLabel) return classLabel;
+    let heroDef = typeof getHeroSelectionDef === 'function' ? getHeroSelectionDef(game.selectedHeroId) : null;
+    return heroDef ? heroDef.label : '재능';
+}
+
 
 
 const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;
@@ -254,21 +262,55 @@ function consumeBackgroundElapsedTime(nowMs) {
     return Math.max(0, Math.floor(now - hiddenAt));
 }
 
+function getBackgroundCurrencyLabel(key) {
+    let def = (typeof ORB_DB !== 'undefined' && ORB_DB) ? ORB_DB[key] : null;
+    return (def && def.name) ? def.name : key;
+}
+
+function countInventoryByRarity(list) {
+    let counts = {};
+    (Array.isArray(list) ? list : []).forEach(item => {
+        if (!item || !item.rarity) return;
+        counts[item.rarity] = (counts[item.rarity] || 0) + 1;
+    });
+    return counts;
+}
+
 function getBackgroundRewardSummary(beforeState, afterState) {
     let currencies = [];
     let beforeCurrencies = (beforeState && beforeState.currencies) || {};
     let afterCurrencies = (afterState && afterState.currencies) || {};
     Object.keys(afterCurrencies).forEach(key => {
         let gain = Math.floor((afterCurrencies[key] || 0) - (beforeCurrencies[key] || 0));
-        if (gain > 0) currencies.push(`${key} +${gain}`);
+        if (gain > 0) currencies.push({ key, name: getBackgroundCurrencyLabel(key), gain });
     });
     let beforeInv = Array.isArray(beforeState && beforeState.inventory) ? beforeState.inventory.length : 0;
     let afterInv = Array.isArray(afterState && afterState.inventory) ? afterState.inventory.length : 0;
+    // 등급별 획득 수와 새로 얻은 고유 아이템 이름(전후 등급 개수 차이 기준).
+    let beforeRarity = countInventoryByRarity(beforeState && beforeState.inventory);
+    let afterRarity = countInventoryByRarity(afterState && afterState.inventory);
+    let rarityGains = {};
+    Object.keys(afterRarity).forEach(rarity => {
+        let gain = afterRarity[rarity] - (beforeRarity[rarity] || 0);
+        if (gain > 0) rarityGains[rarity] = gain;
+    });
+    let beforeUniqueNames = (Array.isArray(beforeState && beforeState.inventory) ? beforeState.inventory : [])
+        .filter(item => item && item.rarity === 'unique').map(item => item.name);
+    let uniqueNames = (Array.isArray(afterState && afterState.inventory) ? afterState.inventory : [])
+        .filter(item => item && item.rarity === 'unique').map(item => item.name)
+        .filter(name => {
+            let idx = beforeUniqueNames.indexOf(name);
+            if (idx < 0) return true;
+            beforeUniqueNames.splice(idx, 1);
+            return false;
+        });
     return {
         kills: Math.max(0, Math.floor((afterState.killsInZone || 0) - (beforeState.killsInZone || 0))),
         exp: Math.max(0, Math.floor((afterState.exp || 0) - (beforeState.exp || 0))),
         currencies,
-        items: Math.max(0, afterInv - beforeInv)
+        items: Math.max(0, afterInv - beforeInv),
+        rarityGains,
+        uniqueNames
     };
 }
 
@@ -316,11 +358,27 @@ function showBackgroundCombatResult(result) {
     let overlay = document.createElement('div');
     overlay.id = 'background-combat-result-overlay';
     overlay.className = 'background-combat-result-overlay';
+    let summary = result.summary || {};
+    let rarityLabels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
+    let rarityColor = rarity => (typeof getRarityColor === 'function' ? getRarityColor(rarity) : '#e4eefb');
+    let currencyHtml = (summary.currencies || []).slice(0, 6)
+        .map(entry => (entry && typeof entry === 'object')
+            ? `<span style="color:#ffd36b;">${entry.name}</span> <strong>+${entry.gain}</strong>`
+            : String(entry))
+        .join(', ') || '없음';
+    let rarityGains = summary.rarityGains || {};
+    let itemHtml = ['normal', 'magic', 'rare', 'unique']
+        .filter(rarity => rarityGains[rarity] > 0)
+        .map(rarity => `<span style="color:${rarityColor(rarity)};">${rarityLabels[rarity]} ${rarityGains[rarity]}개</span>`)
+        .join(' · ') || (summary.items > 0 ? `${summary.items}개` : '없음');
+    let uniqueLine = (summary.uniqueNames || []).length > 0
+        ? `<br>고유 획득: <span style="color:${rarityColor('unique')};font-weight:700;">${summary.uniqueNames.slice(0, 5).join(', ')}</span>`
+        : '';
     let rewards = [
-        `처치 수: ${result.summary.kills}`,
-        `획득 경험치: ${result.summary.exp}`,
-        `아이템: ${result.summary.items}개`,
-        `재화: ${result.summary.currencies.slice(0, 6).join(', ') || '없음'}`
+        `처치 수: ${summary.kills}`,
+        `획득 경험치: ${summary.exp}`,
+        `아이템: ${itemHtml}${uniqueLine}`,
+        `재화: ${currencyHtml}`
     ].join('<br>');
     overlay.innerHTML = `<div class="tutorial-card background-combat-result-card"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>적용된 전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p><p>백그라운드에서는 ${Math.round(BACKGROUND_PROGRESS_RATE * 100)}% 속도로 전투가 진행됩니다.</p><p>${rewards}</p>${result.capped ? '<p class="background-combat-capped">백그라운드 진행 최대치에 도달했습니다.</p>' : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">닫기</button></div>`;
     document.body.appendChild(overlay);
@@ -6401,6 +6459,20 @@ function updateCombatUI(pStats) {
     setTextById('ui-maxexp', formatSettingNumber(getExpReq(game.level), 'showExpComma'));
     document.getElementById('ui-exp-bar').style.width = ((game.exp / getExpReq(game.level)) * 100) + '%';
     setTextById('ui-player-level', 'Lv.' + game.level);
+    // 경험치바 왼쪽에 레벨·직업(또는 재능)을, 오른쪽에 진행률과 남은 경험치를 표기한다.
+    let expLevelEl = document.getElementById('ui-exp-level-label');
+    if (expLevelEl) {
+        let levelText = `Lv.${game.level} ${getUiPlayerClassLabel()}`;
+        if (expLevelEl.innerText !== levelText) expLevelEl.innerText = levelText;
+    }
+    let expNoteEl = document.getElementById('ui-exp-note');
+    if (expNoteEl) {
+        let expReq = Math.max(1, getExpReq(game.level));
+        let expPct = Math.max(0, Math.min(100, (game.exp / expReq) * 100));
+        let expRemain = Math.max(0, Math.floor(expReq - game.exp));
+        let noteText = `${expPct.toFixed(1)}% · 남은 ${formatSettingNumber(expRemain, 'showExpComma')}`;
+        if (expNoteEl.innerText !== noteText) expNoteEl.innerText = noteText;
+    }
     [['ui-hp', 'ui-hp-mobile'], ['ui-maxhp', 'ui-maxhp-mobile'], ['ui-exp', 'ui-exp-mobile'], ['ui-maxexp', 'ui-maxexp-mobile'], ['ui-player-level', 'ui-player-level-mobile']].forEach(([src, dst]) => {
         let sourceEl = document.getElementById(src);
         let targetEl = document.getElementById(dst);
@@ -6495,13 +6567,8 @@ function updateCombatUI(pStats) {
     let compactZoneText = zoneText.replace(/^⚔️\s*전투\s*/,'');
     setTextById('ui-combat-zone', compactZoneText);
     let inlineZoneEl = document.getElementById('ui-combat-zone-inline');
-    if (inlineZoneEl) {
-        let classLabel = (game.ascendClass && CLASS_TEMPLATES[game.ascendClass]) ? CLASS_TEMPLATES[game.ascendClass].name : '';
-        let heroDef = getHeroSelectionDef(game.selectedHeroId);
-        let talentLabel = heroDef ? heroDef.label : '재능';
-        // 데스크톱 HUD에서는 상단 h2가 숨겨지므로 지역 이름을 이 타이틀에 함께 표기한다.
-        inlineZoneEl.innerText = `${compactZoneText} · Lv.${game.level} ${classLabel || talentLabel}`;
-    }
+    // 레벨·직업은 경험치바 왼쪽(ui-exp-level-label)으로 이동했으므로 여기는 지역 이름만 표기한다.
+    if (inlineZoneEl && inlineZoneEl.innerText !== compactZoneText) inlineZoneEl.innerText = compactZoneText;
 
     let pendingWoodsmanEntrance = !!game.woodsmanEntrancePending && zone && zone.type === 'outsideChaos';
     if (pendingWoodsmanEntrance) {

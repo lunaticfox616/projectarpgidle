@@ -11,7 +11,7 @@
     const WORKSPACE_GAP = 10;
     const COMMUNITY_OVERLAY_THRESHOLD = 700;
     const WINDOW_DEFS = {
-        'tab-character': { title: '캐릭터 능력치', x: 90, y: 70, width: 520, height: 620, minWidth: 380, minHeight: 360 },
+        'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
         'tab-items': { title: '장비 및 인벤토리', x: 130, y: 90, width: 720, height: 700, minWidth: 480, minHeight: 420 },
         'tab-skills': { title: '스킬 및 스킬 젬', x: 170, y: 110, width: 680, height: 640, minWidth: 460, minHeight: 380 },
         'tab-char': { title: '패시브 트리', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460 },
