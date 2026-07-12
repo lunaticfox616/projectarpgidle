@@ -35,6 +35,7 @@
     let originalSwitchTab = null;
     let zOrder = Object.keys(WINDOW_DEFS);
     let initialized = false;
+    let moreMenuOutsideListenerInstalled = false;
 
     function getDefaultLayoutState() {
         return { version: UI_LAYOUT_VERSION, windows: {}, community: { open: false, width: DEFAULT_COMMUNITY_WIDTH }, goals: { expanded: false, pinned: false }, combatLog: { expanded: false } };
@@ -403,7 +404,16 @@
             event.stopPropagation();
             toggleMoreMenu();
         });
+        installMoreMenuOutsideListener();
+    }
+
+    function installMoreMenuOutsideListener() {
+        if (moreMenuOutsideListenerInstalled) return;
+        moreMenuOutsideListenerInstalled = true;
         document.addEventListener('pointerdown', event => {
+            let menu = document.getElementById('ui-more-menu');
+            let moreBtn = document.getElementById('btn-tab-more');
+            if (!menu || !moreBtn) return;
             if (!menu.contains(event.target) && event.target !== moreBtn) closeMoreMenu();
         });
     }

@@ -24,6 +24,8 @@ assert(manager.includes('UI_LAYOUT_STORAGE_KEY'), 'UI layout must use separate l
 assert(manager.includes('originalSwitchTab'), 'switchTab compatibility adapter must be installed');
 assert(manager.includes('setPointerCapture'), 'window dragging/resizing must use pointer capture');
 assert(manager.includes('restoreWindowMarkupForMobile'), 'window manager should restore tab markup when leaving desktop mode');
+assert(manager.includes('restoreDesktopMenuForMobile'), 'window manager should restore menu markup when leaving desktop mode');
+assert(manager.includes('moreMenuOutsideListenerInstalled'), 'more menu outside listener should be installed once');
 assert(manager.includes('COMMUNITY_OVERLAY_THRESHOLD'), 'community mode should use workspace threshold');
 assert(manager.includes('PRIMARY_TAB_IDS'), 'desktop menu should define primary pinned tabs');
 assert(manager.includes('MORE_TAB_IDS'), 'desktop menu should define more-menu tabs');
