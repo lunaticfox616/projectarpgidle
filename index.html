@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="css/cosmos-atlas.css">
     <link rel="stylesheet" href="css/core-cube.css?v=20260604-core-cube-visual1">
+    <link rel="stylesheet" href="css/growth-board.css?v=20260713-growth-board1">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -601,21 +602,7 @@
         </div>
 
         <div id="item-tab-equip" class="subtab-content active">
-            <h2>🛡️ 장착 중인 장비</h2>
-            <div class="paperdoll" id="ui-equip-list"></div>
-
-            <h2 style="margin-top: 20px;">
-                <span>🎒 인벤토리 (<span id="ui-inv-count">0</span> / <span id="ui-inv-limit">30</span>)</span>
-            </h2>
-            <div class="bulk-salvage-bar">
-                <div class="bulk-salvage-filters">
-                    <span class="inventory-view-filter-label" title="켜진 등급만 인벤토리에 표시되며, '선택 등급 해체'의 대상이 됩니다. (자동해체와는 별개)">등급</span>
-                    <div class="inventory-view-filter" id="ui-inventory-rarity-filter"></div>
-                </div>
-                <div style="display:flex; gap:8px;"><button class="bulk-salvage-action" style="background:#5d6d7e; border-color:#465664;" onclick="bulkSalvageAllInventory()" title="잠금되지 않은 모든 장비를 해체합니다.">전체해체</button><button class="bulk-salvage-action" onclick="bulkSalvageSelected()" title="등급 필터에서 켜진(표시 중인) 등급의 장비를 해체합니다.">선택 등급 해체</button><button id="btn-auto-salvage" class="bulk-salvage-action" onclick="openAutoSalvageConfigOverlay()" title="자동해체 설정 (대상 등급은 표시 필터와 별개로 지정합니다.)">자동해체 OFF</button></div>
-            </div>
-            <div class="inventory-grid" id="ui-inventory-list"></div>
-
+            <div id="ui-growth-board-root"></div>
         </div>
 
         <div id="item-tab-craft" class="subtab-content">
@@ -641,11 +628,11 @@
             <h2>🛠️ 제작 대상 선택</h2>
             <div class="responsive-split-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
-                    <h3>장착 장비</h3>
+                    <h3>배치된 생장 아이템</h3>
                     <div class="paperdoll" id="ui-craft-equip-list"></div>
                 </div>
                 <div>
-                    <h3>인벤토리</h3>
+                    <h3>생장 보관함</h3>
                     <div class="inventory-grid" id="ui-craft-inventory-list"></div>
                 </div>
             </div>
@@ -667,11 +654,11 @@
             <h2>🛠️ 화석 제작 대상 선택</h2>
             <div class="responsive-split-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
-                    <h3>장착 장비</h3>
+                    <h3>배치된 생장 아이템</h3>
                     <div class="paperdoll" id="ui-fossil-equip-list"></div>
                 </div>
                 <div>
-                    <h3>인벤토리</h3>
+                    <h3>생장 보관함</h3>
                     <div class="inventory-grid" id="ui-fossil-inventory-list"></div>
                 </div>
             </div>
@@ -1196,22 +1183,31 @@
 <script defer src="data/maps.js?v=20260708-astra-rename1"></script>
 <script defer src="data/skills.js?v=20260710-grid-combat1"></script>
 <script defer src="data/items.js?v=20260708-astra-rename1"></script>
+<script defer src="data/growth-board-items.js?v=20260713-growth-board1"></script>
+<script defer src="data/growth-board-affixes.js?v=20260713-growth-board1"></script>
+<script defer src="data/growth-board-synergies.js?v=20260713-growth-board1"></script>
 <script defer src="data/passives.js?v=20260628-jewelcraft2"></script>
 <script defer src="data/bosses.js?v=20260618-ocean1"></script>
 <script defer src="data/rewards.js?v=20260615-act4-resist"></script>
 <script defer src="data/talent-cards.js?v=20260708-projectile-uncap1"></script>
 <script defer src="js/utils.js?v=20260708-attr-dmg-scaling1"></script>
+<script defer src="js/growth-board-placement.js?v=20260713-growth-board1"></script>
+<script defer src="js/growth-board-state.js?v=20260713-growth-board1"></script>
 <script defer src="js/state.js?v=20260707-belt-flask-slots1"></script>
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
 <script defer src="js/items.js?v=20260708-astra-rename1"></script>
 <script defer src="js/skills.js?v=20260623-shieldfossil2"></script>
 <script defer src="js/passives.js?v=20260710-grid-combat1"></script>
+<script defer src="js/growth-board-crafting.js?v=20260713-growth-board1"></script>
+<script defer src="js/growth-board-effects.js?v=20260713-growth-board1"></script>
+<script defer src="js/growth-board-migration.js?v=20260713-growth-board1"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1"></script>
 <script defer src="js/combat-grid.js?v=20260710-grid-feedback3"></script>
 <script defer src="js/combat.js?v=20260710-grid-feedback3"></script>
 <script defer src="js/canvas-battlefield.js?v=20260711-bg-diorama1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260625-attackfx1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260618-codex-autoreg1"></script>
+<script defer src="js/growth-board-ui.js?v=20260713-growth-board1"></script>
 <script defer src="js/ui.js?v=20260712-hud-exp1"></script>
 <script defer src="js/social.js?v=20260712-community-dock1"></script>
 <script defer src="js/ui-window-manager.js?v=20260712-hud-exp1"></script>

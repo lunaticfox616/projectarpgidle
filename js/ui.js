@@ -7064,29 +7064,8 @@ function performUpdateStaticUI() {
     document.getElementById('ui-ascend-pts').innerText = game.ascendPoints;
 
     if (itemsTabActive) {
-    syncSalvageControlsFromSettings();
-    renderPaperdoll('ui-equip-list', false);
-    renderPaperdoll('ui-craft-equip-list', true);
-    renderPaperdoll('ui-fossil-equip-list', true);
-    if (document.getElementById('ui-infuser-equip-list')) renderPaperdoll('ui-infuser-equip-list', true);
-    document.getElementById('ui-inv-count').innerText = game.inventory.length;
-    document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
-    let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
-    if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
-    const equipInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
-        let item = row.item || {};
-        if (!isItemRarityVisible(item)) return false;
-        let underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
-        let hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
-        return matchSearchQuery(hay, sf.equip);
-    });
-    let equipSearchTools = `<button onclick="bulkSalvageEquipBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkSalvageEquipBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">미검색 항목 해체</button>`;
-    renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join(''), '', equipSearchTools);
-    const visibleInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isItemRarityVisible(row.item));
-    document.getElementById('ui-craft-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
-    document.getElementById('ui-fossil-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'fossil')).join('');
-    let infuserInv = document.getElementById('ui-infuser-inventory-list');
-    if (infuserInv) infuserInv.innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'infuser')).join('');
+        if (typeof renderGrowthBoardUI === 'function') renderGrowthBoardUI();
+        if (typeof renderGrowthCraftingLists === 'function') renderGrowthCraftingLists();
     }
     let jewelUnlocked = !!game.unlocks.jewel;
     document.getElementById('ui-jewel-header').style.display = jewelUnlocked ? 'block' : 'none';

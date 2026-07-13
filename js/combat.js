@@ -1946,6 +1946,7 @@ function grantEliteTraitBuffFromEnemy(enemy, pStats) {
 }
 
 function getPlayerStats() {
+    if (typeof GROWTH_SYSTEM_VERSION !== 'undefined' && game.growthSystemVersion >= GROWTH_SYSTEM_VERSION && typeof ensureGrowthBoardEffectsCache === 'function') ensureGrowthBoardEffectsCache();
     recomputeCosmosTwinKeystones();
     const safePassives = Array.isArray(game.passives) ? game.passives : [];
     const safeSeasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
@@ -1963,6 +1964,9 @@ function getPlayerStats() {
 
     let gearBase = createEmptyStatBucket();
     let gearExplicit = createEmptyStatBucket();
+    if (typeof GROWTH_SYSTEM_VERSION !== 'undefined' && game.growthSystemVersion >= GROWTH_SYSTEM_VERSION && game.growthBoardEffectsCache) {
+        applyStatsToBucket(gearExplicit, game.growthBoardEffectsCache.stats || []);
+    }
     let passive = createEmptyStatBucket();
     let support = createEmptyStatBucket();
     let season = createEmptyStatBucket();
@@ -6398,8 +6402,13 @@ function rollLootForEnemy(enemy) {
         }
     }
     if (Math.random() < itemChance) {
-        let item = generateEquipmentDrop(enemy);
-        if (addItemToInventory(item) && game.settings.showLootLog) {
+        let item = typeof GROWTH_SYSTEM_VERSION !== 'undefined' && game.growthSystemVersion >= GROWTH_SYSTEM_VERSION && typeof generateGrowthItemDrop === 'function'
+            ? generateGrowthItemDrop(enemy)
+            : generateEquipmentDrop(enemy);
+        let stored = item && item.isGrowthItem && typeof addGrowthRecentDrop === 'function'
+            ? addGrowthRecentDrop(item)
+            : addItemToInventory(item);
+        if (stored && game.settings.showLootLog) {
             addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#9ed6ff', duration: 780 });
             if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ff9f43', duration: 1200 });
             addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);

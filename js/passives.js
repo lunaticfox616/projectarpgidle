@@ -7373,6 +7373,9 @@ function getCurrencyDrops(enemy) {
 }
 
 function addItemToInventory(item, options) {
+    if (typeof GROWTH_SYSTEM_VERSION !== 'undefined' && game.growthSystemVersion >= GROWTH_SYSTEM_VERSION && typeof addGrowthItemToStorage === 'function' && !(options && options.legacyBypass)) {
+        return addGrowthItemToStorage(item, options);
+    }
     normalizeItem(item);
     // guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등).
     // 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다.
@@ -7808,7 +7811,11 @@ function applyCurrencyToJewel(currencyKey, jewel) {
 function destroySelectedCraftItem(item) {
     if (typeof getCraftSelectionRef !== 'function' || typeof isCraftSelectionEquip !== 'function') return;
     let ref = getCraftSelectionRef();
-    if (isCraftSelectionEquip()) game.equipment[ref] = null;
+    if (item && item.isGrowthItem) {
+        if (isCraftSelectionEquip() && typeof removeGrowthItem === 'function') removeGrowthItem(item.id);
+        game.growthInventory = (game.growthInventory || []).filter(entry => entry !== item);
+        if (typeof invalidateGrowthBoard === 'function') invalidateGrowthBoard('craft-destroy');
+    } else if (isCraftSelectionEquip()) game.equipment[ref] = null;
     else game.inventory = (game.inventory || []).filter(entry => entry !== item);
     if (typeof clearCraftSelection === 'function') clearCraftSelection();
 }
@@ -8716,13 +8723,14 @@ function useCurrency(currencyKey) {
     if (item.corrupted && currencyKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(currencyKey)) return addLog("융합 유물은 시간에 굳어, 신성한/타락/축복의 오브만 받아들입니다.", "attack-monster");
 
+    let craftAffixLimit = item.isGrowthItem && typeof getGrowthCraftAffixLimit === 'function' ? getGrowthCraftAffixLimit(item) : 6;
     let ok = false;
     if (currencyKey === 'transmute') ok = item.rarity === 'normal';
     else if (currencyKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
     else if (currencyKey === 'alteration') ok = item.rarity === 'magic';
     else if (currencyKey === 'alchemy') ok = item.rarity === 'normal';
-    else if (currencyKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
-    else if (currencyKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
+    else if (currencyKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < craftAffixLimit;
+    else if (currencyKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < craftAffixLimit;
     else if (currencyKey === 'chaos') ok = item.rarity === 'rare';
     else if (currencyKey === 'divine') ok = item.rarity !== 'normal';
     else if (currencyKey === 'chance') ok = item.rarity === 'normal';
@@ -8892,7 +8900,22 @@ function useCurrency(currencyKey) {
             destroySelectedCraftItem(item);
             addLog('💥 기회의 오브: 장비가 파괴되었습니다.', 'attack-monster');
         } else {
+            let growthGeometry = item.isGrowthItem ? {
+                id: item.id,
+                isGrowthItem: true,
+                baseId: item.baseId,
+                growthBaseId: item.growthBaseId,
+                category: item.category,
+                shape: Array.isArray(item.shape) ? item.shape.map(cell => ({ ...cell })) : [],
+                rotation: item.rotation || 0,
+                position: item.position ? { ...item.position } : null,
+                loadoutId: item.loadoutId || null,
+                locked: !!item.locked
+            } : null;
             let unique = generateUniqueItem(Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1)), item.slot);
+            if (growthGeometry && typeof convertLegacyItemToGrowth === 'function') {
+                unique = Object.assign(convertLegacyItemToGrowth(unique) || {}, unique, growthGeometry);
+            }
             Object.keys(item).forEach(key => delete item[key]);
             Object.assign(item, unique);
             addLog(`🌟 기회의 오브: [${item.name}] 고유 장비로 진화했습니다.`, 'loot-unique');
@@ -8957,6 +8980,8 @@ function useCurrency(currencyKey) {
             stat.valMax = baseMax;
         });
     }
+    if (item.isGrowthItem && typeof enforceGrowthAffixLimit === 'function') enforceGrowthAffixLimit(item);
+    if (item.isGrowthItem && typeof invalidateGrowthBoard === 'function') invalidateGrowthBoard('craft');
     let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
     addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();

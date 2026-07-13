@@ -1822,7 +1822,7 @@ function grantLoopBaseExpertExp(){
 function hasExpertTreeUnlocked(){ return getExpertPointTotal() > 0; }
 
 const defaultGame = {
-    saveVersion: 16,
+    saveVersion: 17,
     loopChallenge: null,
     loopChallengeHistory: [],
     level: 1,
@@ -1960,6 +1960,27 @@ const defaultGame = {
     equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
     inventory: [],
     inventoryExpandLevel: 0,
+    growthBoard: typeof createDefaultGrowthBoard === 'function' ? createDefaultGrowthBoard() : {
+        width: 12,
+        height: 5,
+        unlockedCells: [15,16,17,18,19,20,27,28,29,30,31,32],
+        placements: [],
+        loadouts: [
+            { name: '세팅 1', placements: [] },
+            { name: '세팅 2', placements: [] },
+            { name: '세팅 3', placements: [] }
+        ],
+        activeLoadout: 0
+    },
+    growthInventory: [],
+    recentGrowthDrops: [],
+    growthInventoryExpandLevel: 0,
+    growthKnownBaseIds: [],
+    growthSystemVersion: 0,
+    growthMigrationBackup: null,
+    growthMigrationTokens: 0,
+    growthBoardEffectsCache: null,
+    growthBoardDirty: true,
     jewelInventoryExpandLevel: 0,
     chaosInfuserUnlocked: false,
     abyssPassivePoints: 0,
