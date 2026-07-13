@@ -64,7 +64,7 @@
         #item-tooltip-box, #canvas-tooltip, #info-tooltip { display: none; position: fixed; z-index: 9999; background: rgba(10,10,15,0.70); border: 1px solid #777; padding: 12px; border-radius: 6px; pointer-events: none; color: #eee; box-shadow: 0 5px 15px rgba(0,0,0,0.8); min-width: 200px; font-size: 0.9em; line-height: 1.5; backdrop-filter: blur(2px); }
         #item-tooltip-box { max-width: min(720px, calc(100vw - 20px)); max-height: calc(100vh - 20px); overflow: hidden auto; overscroll-behavior: contain; }
         #item-tooltip-box.item-compare-tooltip { width: fit-content; max-width: min(680px, calc(100vw - 20px)); min-width: 0; padding: 0; border: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
-        #canvas-tooltip { z-index: 1000; border-color: #f39c12; min-width: 180px; }
+        #canvas-tooltip { z-index: 9999; border-color: #f39c12; min-width: 180px; }
         #info-tooltip { z-index: 13050; max-width: 340px; }
         .item-compare-tooltip .item-tooltip-main { width: fit-content; max-width: min(420px, calc(100vw - 20px)); margin: 0 auto; padding: 12px; border: 1px solid #4d6584; border-radius: 6px; background: rgba(10,10,15,0.70); box-shadow: 0 5px 15px rgba(0,0,0,0.8); backdrop-filter: blur(2px); }
         .item-compare-single, .item-compare-grid { width: fit-content; max-width: 100%; margin: 5px auto 0; padding: 8px; border: 1px solid #4d6584; border-radius: 6px; background: rgba(10,10,15,0.70); box-shadow: 0 5px 15px rgba(0,0,0,0.8); backdrop-filter: blur(2px); }
