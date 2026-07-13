@@ -101,4 +101,30 @@ context.addGrowthRecentDrop(context.createGrowthItemFromBase(context.GROWTH_BOAR
 assert.strictEqual(context.game.recentGrowthDrops.length, 24, 'recent drops must stay capped');
 assert.strictEqual(context.salvaged, 1, 'overflow must auto-salvage an unprotected item');
 
+context.document = {
+    growthBoardPointerBindings: false,
+    addEventListener: () => {},
+    getElementById: () => null,
+    querySelector: () => null
+};
+context.updateStaticUI = () => {};
+load('js/growth-board-ui.js');
+context.game = freshGame();
+context.ensureGrowthBoardState(context.game).unlockedCells = Array.from({ length: 60 }, (_, index) => index);
+const carried = context.createGrowthItemFromBase(context.GROWTH_BOARD_ITEMS.find(base => base.baseId === 'gb_branch_seedshield'), 'normal', 15);
+context.game.growthInventory.push(carried);
+assert(context.beginGrowthMove(carried.id, 'storage'), 'clicking a stored growth item should pick it up');
+assert(context.placeHeldGrowthAt(4, 2), 'clicking a valid board cell should place the held item');
+assert(context.getGrowthPlacement(carried.id), 'direct click placement should create a board placement');
+assert.strictEqual(context.getGrowthDisplayName({ ...carried, legacyBaseId: 'old-shield' }), '씨앗껍질 · 계승체', 'legacy slot names must not leak into the growth UI');
+let growthRoot = { innerHTML: '' };
+context.document.getElementById = id => id === 'ui-growth-board-root' ? growthRoot : null;
+context.renderGrowthBoardUI();
+assert(growthRoot.innerHTML.includes('growth-board-item'), 'placed shapes should render as unified board overlays');
+assert(growthRoot.innerHTML.includes('발현체') && growthRoot.innerHTML.includes('수호체') && growthRoot.innerHTML.includes('공명체'), 'growth terminology should be visible in Korean');
+assert(!/>[^<]+<\/span>/.test((growthRoot.innerHTML.match(/growth-item-tile[^>]*><\/span>/g) || []).join('')), 'shape tiles must not contain text');
+let uiSource = fs.readFileSync(path.join(root, 'js/growth-board-ui.js'), 'utf8');
+assert(!uiSource.includes('item.name.slice'), 'board blocks must not render item text');
+assert(uiSource.includes('growth-item-tile'), 'board items should render as shape-only tiles');
+
 console.log('smoke-growth-board passed');

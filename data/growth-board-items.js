@@ -64,7 +64,7 @@ const GROWTH_BOARD_ITEMS = [
     growthBase('gb_flower_spark','번갯불 씨꽃','flower','single',14,'무기',[{id:'flatDmg',base:8},{id:'lightPctDmg',base:9}],[ 'flower','lightning','small' ],{type:'tagExact',tag:'lightning',count:3,stat:'aspd',value:6}),
     growthBase('gb_flower_fang','쌍니꽃','flower','domino',12,'무기',[{id:'flatDmg',base:13},{id:'crit',base:2}],[ 'flower','physical','melee','small' ],{type:'isolated',stat:'critDmg',value:18}),
     growthBase('gb_flower_splitshot','갈라진 사수꽃','flower','split3',13,'무기',[{id:'flatDmg',base:12},{id:'projectilePctDmg',base:10}],[ 'flower','projectile','split','small' ],{type:'gapOccupied',stat:'targetProjectile',value:1}),
-    growthBase('gb_branch_seedshield','씨앗방패','branch','single',14,'방패',[{id:'flatHp',base:32},{id:'energyShield',base:25}],[ 'branch','shield','small' ],{type:'surrounded',stat:'blockChance',value:6}),
+    growthBase('gb_branch_seedshield','씨앗껍질','branch','single',14,'방패',[{id:'flatHp',base:32},{id:'energyShield',base:25}],[ 'branch','shield','small' ],{type:'surrounded',stat:'blockChance',value:6}),
     growthBase('gb_branch_twigtwin','쌍둥이 잔가지','branch','domino',12,'장갑',[{id:'armor',base:50},{id:'evasion',base:50}],[ 'branch','counter','small' ],{type:'sameColumnCategory',category:'branch',stat:'dr',value:3}),
     growthBase('gb_branch_cornerseed','모서리 씨가지','branch','corner3',13,'갑옷',[{id:'flatHp',base:48},{id:'resAll',base:5}],[ 'branch','life','small' ],{type:'corner',stat:'pctHp',value:8}),
     growthBase('gb_leaf_linkseed','연결씨잎','leaf','single',14,'반지',[{id:'aspd',base:4}],[ 'leaf','link','small' ],{type:'adjacentCount',stat:'aspd',value:2}),
