@@ -179,12 +179,23 @@ function clearCraftSelection() { craftingSelectionState.ref = null; craftingSele
 
 function getSelectedCraftItem() {
     if (craftingSelectionState.ref === null) return null;
+    if (typeof GROWTH_SYSTEM_VERSION !== 'undefined' && game.growthSystemVersion >= GROWTH_SYSTEM_VERSION && typeof findGrowthItemById === 'function') {
+        let growthItem = findGrowthItemById(craftingSelectionState.ref);
+        if (growthItem) return growthItem;
+    }
     if (craftingSelectionState.isEquip) return game.equipment[craftingSelectionState.ref] || null;
     return (game.inventory || []).find(item => item.id === craftingSelectionState.ref) || null;
 }
 
 function ensureCraftSelectionValid() {
     if (craftingSelectionState.ref === null) return;
+    if (typeof GROWTH_SYSTEM_VERSION !== 'undefined' && game.growthSystemVersion >= GROWTH_SYSTEM_VERSION && typeof findGrowthItemById === 'function') {
+        let growthItem = findGrowthItemById(craftingSelectionState.ref);
+        if (growthItem && (!craftingSelectionState.isEquip || getGrowthPlacement(growthItem.id))) return;
+        if (growthItem && !craftingSelectionState.isEquip) return;
+        clearCraftSelection();
+        return;
+    }
     if (craftingSelectionState.isEquip) {
         if (!game.equipment[craftingSelectionState.ref]) clearCraftSelection();
         return;

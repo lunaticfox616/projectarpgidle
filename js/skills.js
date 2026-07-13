@@ -364,6 +364,8 @@ function applyFossilChaosCraft(fossilKey) {
     item.stats = newStats;
     item.rarity = 'rare';
     if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
+    if (item.isGrowthItem && typeof enforceGrowthAffixLimit === 'function') enforceGrowthAffixLimit(item);
+    if (item.isGrowthItem && typeof invalidateGrowthBoard === 'function') invalidateGrowthBoard('fossil-craft');
     game.currencies[fossilKey]--; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_craft');
     updateItemName(item);
     let line = guaranteed ? `확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})` : (fossilKey === 'fossilOld' ? '확정 옵션: [화석 전용 옵션]' : '확정 옵션 2줄: [균열 표식] + [추가 옵션 효과 50% 증폭]');

@@ -69,12 +69,19 @@ function refreshItemIdCounter() {
     // 제단 아이템이 돌아왔을 때 id 기반 인벤토리 조작이 다른 아이템을 가리킬 수 있다.
     let rift = (game && game.timeRift && typeof game.timeRift === 'object') ? game.timeRift : {};
     let altarIds = [rift.altarUnique, rift.altarRare].filter(Boolean).map(item => item.id || 0);
-    itemIdCounter = Math.max(0, ...(game.inventory || []).map(item => item.id || 0), ...Object.values(game.equipment || {}).filter(Boolean).map(item => item.id || 0), ...altarIds);
+    let growthIds = (game.growthInventory || []).concat(game.recentGrowthDrops || [])
+        .map(item => Number(item && item.legacyItemId) || Number(item && item.id) || 0);
+    itemIdCounter = Math.max(0, ...(game.inventory || []).map(item => Number(item.id) || 0), ...Object.values(game.equipment || {}).filter(Boolean).map(item => Number(item.id) || 0), ...altarIds, ...growthIds);
 }
 
 function createSaveSnapshot(sourceGame) {
     let snapshot = JSON.parse(JSON.stringify(sourceGame || game || {}));
     if (!snapshot.saveMeta || typeof snapshot.saveMeta !== 'object') snapshot.saveMeta = {};
+    // game.equipment is a runtime compatibility projection of placed growth items.
+    // Persisting it would duplicate the same items and could retrigger legacy migration.
+    if (typeof GROWTH_SYSTEM_VERSION !== 'undefined' && snapshot.growthSystemVersion >= GROWTH_SYSTEM_VERSION) snapshot.equipment = {};
+    delete snapshot.growthBoardEffectsCache;
+    delete snapshot.growthBoardDirtyReason;
     return snapshot;
 }
 
@@ -161,6 +168,8 @@ function normalizeLocalRuntimeAfterLoad() {
     if (!Array.isArray(game.encounterPlan)) game.encounterPlan = [];
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
     if (game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
+    if (typeof migrateLegacyEquipmentToGrowth === 'function') migrateLegacyEquipmentToGrowth(game);
+    if (typeof ensureGrowthBoardEffectsCache === 'function') ensureGrowthBoardEffectsCache();
 }
 
 function loadGame() {
