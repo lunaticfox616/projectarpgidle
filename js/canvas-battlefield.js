@@ -49,12 +49,16 @@ function getCanvasCrowdPauseLimit() {
 // shockwave; every other element is capped to roughly the monster's footprint
 // so the rings/glow do not balloon past the target. When the enemy object is
 // unavailable (ghost/fallback position) we fall back to a much smaller scale.
-function getAttackFxSpawnOpts(fx, enemy) {
-    const opts = { crit: !!fx.crit };
+function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
+    const opts = {
+        crit: !!fx.crit,
+        variant: (skillVisual && skillVisual.variant) || 'melee'
+    };
     const element = String(fx.element || 'phys').toLowerCase();
-    if (element === 'phys' || element === 'physical') return opts;
-    if (enemy) opts.scale = enemy.isBoss ? 0.82 : (enemy.isElite ? 0.6 : 0.44);
-    else opts.scale = 0.4;
+    const screenMul = clampNumber(Number(viewportScale) || 1, 0.68, 1.18);
+    if (element === 'phys' || element === 'physical') opts.scale = 0.68 * screenMul;
+    else if (enemy) opts.scale = (enemy.isBoss ? 0.82 : (enemy.isElite ? 0.6 : 0.44)) * screenMul;
+    else opts.scale = 0.4 * screenMul;
     return opts;
 }
 
@@ -85,6 +89,9 @@ function renderBattlefield(forceWhenHidden) {
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+
+    const cameraShake = getBattleCameraShake(now);
+    ctx.translate(cameraShake.x, cameraShake.y);
 
     let currentZone = getZone(game.currentZoneId);
     let zoneTheme = getBattleZoneTheme(currentZone);
@@ -228,7 +235,8 @@ function renderBattlefield(forceWhenHidden) {
                 });
             }
             if (!fx.dot && typeof attackFxSpawn === 'function') {
-                attackFxSpawn(fx.element || 'phys', enemyPos.x, enemyPos.y - 6, getAttackFxSpawnOpts(fx, enemyPos.enemy));
+                const viewportFxScale = Math.min(width / 960, height / 540);
+                attackFxSpawn(fx.element || 'phys', enemyPos.x, enemyPos.y - 6, getAttackFxSpawnOpts(fx, enemyPos.enemy, currentSkillVisual, viewportFxScale));
             }
             handled = true;
         } else if (fx.type === 'playerHit') {
@@ -470,6 +478,8 @@ function renderBattlefield(forceWhenHidden) {
         }
     });
     drawDamageTexts(ctx, now);
+    ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+    drawBattleScreenGrade(ctx, width, height, now);
 
     let caption = '전장을 스캔 중...';
     if (battleAssets.failed && !battleAssets.ready) caption = '전장 에셋 일부 로드 실패 (기본 렌더링으로 전투 진행)';
@@ -480,6 +490,56 @@ function renderBattlefield(forceWhenHidden) {
     else if (enemies.length > 0) caption = `${enemies.length}기와 교전 중`;
     else if ((game.encounterPlan || []).length > 0) caption = '다음 매복 지점을 탐색 중...';
     document.getElementById('ui-battlefield-caption').innerText = caption;
+}
+
+function getBattleCameraShake(now) {
+    if (typeof game !== 'undefined' && game.settings && game.settings.cameraShake === false) return { x: 0, y: 0 };
+    let amplitude = 0;
+    (battleFx || []).forEach(fx => {
+        if (!fx || fx.dot || !['hit', 'playerHit', 'enemyDeath'].includes(fx.type)) return;
+        let duration = fx.crit ? 180 : 120;
+        let age = now - fx.start;
+        if (age < 0 || age > duration) return;
+        let strength = fx.type === 'enemyDeath' ? 4.8 : (fx.crit ? 4.1 : 1.8);
+        amplitude = Math.max(amplitude, strength * (1 - age / duration));
+    });
+    return {
+        x: Math.sin(now * 0.72) * amplitude,
+        y: Math.cos(now * 0.94) * amplitude * 0.56
+    };
+}
+
+function drawBattleScreenGrade(ctx, width, height, now) {
+    ctx.save();
+    let edgeSizeX = Math.max(72, width * 0.2);
+    let edgeSizeY = Math.max(58, height * 0.18);
+    let leftEdge = ctx.createLinearGradient(0, 0, edgeSizeX, 0);
+    leftEdge.addColorStop(0, 'rgba(1,3,7,0.44)');
+    leftEdge.addColorStop(1, 'rgba(1,3,7,0)');
+    ctx.fillStyle = leftEdge;
+    ctx.fillRect(0, 0, edgeSizeX, height);
+    let rightEdge = ctx.createLinearGradient(width, 0, width - edgeSizeX, 0);
+    rightEdge.addColorStop(0, 'rgba(1,3,7,0.44)');
+    rightEdge.addColorStop(1, 'rgba(1,3,7,0)');
+    ctx.fillStyle = rightEdge;
+    ctx.fillRect(width - edgeSizeX, 0, edgeSizeX, height);
+    let topEdge = ctx.createLinearGradient(0, 0, 0, edgeSizeY);
+    topEdge.addColorStop(0, 'rgba(1,3,7,0.34)');
+    topEdge.addColorStop(1, 'rgba(1,3,7,0)');
+    ctx.fillStyle = topEdge;
+    ctx.fillRect(0, 0, width, edgeSizeY);
+    let bottomEdge = ctx.createLinearGradient(0, height, 0, height - edgeSizeY);
+    bottomEdge.addColorStop(0, 'rgba(1,3,7,0.5)');
+    bottomEdge.addColorStop(1, 'rgba(1,3,7,0)');
+    ctx.fillStyle = bottomEdge;
+    ctx.fillRect(0, height - edgeSizeY, width, edgeSizeY);
+    let critActive = (battleFx || []).some(fx => fx && fx.crit && now - fx.start >= 0 && now - fx.start < 90);
+    if (critActive) {
+        ctx.globalAlpha = 0.1;
+        ctx.fillStyle = '#ffe7a3';
+        ctx.fillRect(0, 0, width, height);
+    }
+    ctx.restore();
 }
 
 function getBattleMarkerLabel(marker) {

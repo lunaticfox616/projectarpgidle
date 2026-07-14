@@ -189,15 +189,18 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     const fontSize = Math.max(9, Math.min(15, 10.5 / Math.max(0.55, camZoom)));
     const padX = 4.5 / Math.max(0.6, camZoom);
     const padY = 2.5 / Math.max(0.6, camZoom);
-    const x = node.x + radius + 6 / Math.max(0.7, camZoom);
+    const placeLeft = node.x < -80;
+    const gap = 6 / Math.max(0.7, camZoom);
+    const anchorX = node.x + (placeLeft ? -(radius + gap) : (radius + gap));
     const y = node.y + fontSize * 0.38;
 
     ctx.save();
     ctx.font = `700 ${fontSize}px sans-serif`;
-    ctx.textAlign = 'left';
+    ctx.textAlign = placeLeft ? 'right' : 'left';
     ctx.textBaseline = 'middle';
     const w = ctx.measureText(label).width + padX * 2;
     const h = fontSize + padY * 2;
+    const x = placeLeft ? anchorX - w : anchorX;
     ctx.globalAlpha = active ? 0.98 : (reachable ? 0.9 : 0.76);
     ctx.fillStyle = 'rgba(5,9,15,0.78)';
     ctx.strokeStyle = active ? accent.activeOuter : (reachable ? accent.reachOuter : 'rgba(150,175,200,0.5)');
@@ -208,7 +211,7 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = accent.text || '#dce6f2';
-    ctx.fillText(label, x + padX, y);
+    ctx.fillText(label, placeLeft ? x + w - padX : x + padX, y);
     ctx.restore();
 }
 
@@ -291,13 +294,14 @@ function drawPassiveTree() {
     if (!lightweightMode && !zoomedOutMode) drawPassiveStarfield(ctx, PASSIVE_BOUNDS);
 
     // 중심 오라
-    const rootGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 520);
+    const passiveRoot = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };
+    const rootGlow = ctx.createRadialGradient(passiveRoot.x, passiveRoot.y, 0, passiveRoot.x, passiveRoot.y, 520);
     rootGlow.addColorStop(0, 'rgba(182,148,83,0.12)');
     rootGlow.addColorStop(0.35, 'rgba(67,89,126,0.08)');
     rootGlow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = rootGlow;
     ctx.beginPath();
-    ctx.arc(0, 0, 560, 0, Math.PI * 2);
+    ctx.arc(passiveRoot.x, passiveRoot.y, 560, 0, Math.PI * 2);
     ctx.fill();
 
     if (!lightweightMode && !zoomedOutMode) drawPassiveEvolutionAura(ctx);
@@ -315,6 +319,8 @@ function drawPassiveTree() {
     }
 
     // 링크
+    if (!lightweightMode) drawPassiveBranchUnderlay(ctx, visibleEdges);
+
     visibleEdges.forEach(edge => {
         const a = edge.a;
         const b = edge.b;

@@ -18,7 +18,7 @@
     // 공격 이펙트 전체 불투명도 배수(1=원본, 낮을수록 더 투명). window.__attackFxOpacity로 조정 가능.
     const FX_GLOBAL_ALPHA = (typeof window !== 'undefined' && Number.isFinite(Number(window.__attackFxOpacity)))
         ? Math.max(0.2, Math.min(1, Number(window.__attackFxOpacity)))
-        : 0.62;
+        : 0.72;
     // 종류별 크기 배수(번개 이펙트는 절반 크기).
     const FX_KIND_SIZE_MUL = { physical: 0.86, fire: 0.9, ice: 0.9, lightning: 0.45, chaos: 0.9 };
     // 한 프레임에 새로 만드는 임팩트 이펙트 수 상한. 몹이 다량 등장해 한 틱에 여러 타격이
@@ -211,7 +211,7 @@
     // 입자 렌더(특히 방사형 그라디언트) 부하를 낮춘다. window 전역으로 조정 가능.
     const FX_PARTICLE_SCALE = (typeof window !== 'undefined' && Number.isFinite(Number(window.__attackFxParticleScale)))
         ? Math.max(0.3, Math.min(1, Number(window.__attackFxParticleScale)))
-        : 0.55;
+        : 0.64;
     const qn = (base, q) => Math.max(1, Math.round(base * q * FX_PARTICLE_SCALE));
 
     function buildPhysical(fx, q) {
@@ -636,6 +636,143 @@
         return 'physical';
     }
 
+    const VARIANT_DURATION = {
+        slam: 1.14,
+        pierce: 0.82,
+        chain: 0.9,
+        corpse_burst: 1.18,
+        nova: 1.08,
+        dot: 1.12,
+        summon: 1.1,
+        projectile: 0.84,
+        melee: 0.92
+    };
+
+    const VARIANT_COLOR = {
+        physical: [226, 210, 178],
+        fire: [255, 151, 72],
+        ice: [143, 226, 255],
+        lightning: [255, 229, 103],
+        chaos: [204, 126, 255]
+    };
+
+    function drawSlamAccent(g, fx, t, color, fade, p, seed) {
+        g.strokeStyle = rgba(color, fade * 0.72);
+        g.lineWidth = 3.5 * (1 - t) + 0.8;
+        g.beginPath(); g.ellipse(fx.x, fx.y + 10, 26 + 70 * p, 8 + 24 * p, 0, 0, TAU); g.stroke();
+        for (let i = 0; i < 7; i++) {
+            const a = seed + i * TAU / 7;
+            const r0 = 16 + 10 * p;
+            const r1 = 38 + 58 * p;
+            g.beginPath();
+            g.moveTo(fx.x + Math.cos(a) * r0, fx.y + 10 + Math.sin(a) * r0 * 0.34);
+            g.lineTo(fx.x + Math.cos(a + 0.08) * r1, fx.y + 10 + Math.sin(a + 0.08) * r1 * 0.34);
+            g.stroke();
+        }
+    }
+
+    function drawPierceAccent(g, fx, t, color, fade, seed) {
+        const angle = -0.16 + Math.sin(seed) * 0.1;
+        const length = fx.variant === 'pierce' ? 150 : 105;
+        const dx = Math.cos(angle) * length;
+        const dy = Math.sin(angle) * length;
+        g.strokeStyle = rgba(color, fade * 0.84);
+        g.lineWidth = fx.variant === 'pierce' ? 4.2 : 2.8;
+        g.beginPath(); g.moveTo(fx.x - dx * (0.7 - t * 0.25), fx.y - dy * (0.7 - t * 0.25)); g.lineTo(fx.x + dx * 0.55, fx.y + dy * 0.55); g.stroke();
+        g.lineWidth = 1.2;
+        g.strokeStyle = rgba([255,255,255], fade * 0.78);
+        g.beginPath(); g.moveTo(fx.x - dx * 0.36, fx.y - dy * 0.36); g.lineTo(fx.x + dx * 0.52, fx.y + dy * 0.52); g.stroke();
+    }
+
+    function drawChainAccent(g, fx, color, fade, p, seed) {
+        g.strokeStyle = rgba(color, fade * 0.9);
+        g.lineWidth = 2.6;
+        for (let branch = 0; branch < 3; branch++) {
+            const a = seed + branch * TAU / 3;
+            g.beginPath(); g.moveTo(fx.x, fx.y);
+            for (let step = 1; step <= 4; step++) {
+                const r = (18 + 18 * step) * p;
+                const jitter = Math.sin(seed * 2 + branch * 7 + step * 3) * 8;
+                g.lineTo(fx.x + Math.cos(a) * r + Math.cos(a + Math.PI / 2) * jitter, fx.y + Math.sin(a) * r * 0.62 + Math.sin(a + Math.PI / 2) * jitter);
+            }
+            g.stroke();
+        }
+    }
+
+    function drawCorpseBurstAccent(g, fx, color, fade, p, seed) {
+        g.strokeStyle = rgba(color, fade * 0.8);
+        g.fillStyle = rgba(color, fade * 0.18);
+        g.lineWidth = 2.2;
+        for (let i = 0; i < 9; i++) {
+            const a = seed + i * TAU / 9;
+            const inner = 14 + 10 * p;
+            const outer = 34 + 56 * p;
+            g.beginPath();
+            g.moveTo(fx.x + Math.cos(a - 0.11) * inner, fx.y + Math.sin(a - 0.11) * inner);
+            g.lineTo(fx.x + Math.cos(a) * outer, fx.y + Math.sin(a) * outer * 0.78);
+            g.lineTo(fx.x + Math.cos(a + 0.11) * inner, fx.y + Math.sin(a + 0.11) * inner);
+            g.closePath(); g.fill(); g.stroke();
+        }
+    }
+
+    function drawNovaAccent(g, fx, t, color, fade) {
+        for (let ring = 0; ring < 3; ring++) {
+            const rp = clamp01(t * 1.4 - ring * 0.12);
+            g.strokeStyle = rgba(color, fade * (0.72 - ring * 0.16));
+            g.lineWidth = 3 - ring * 0.6;
+            g.beginPath(); g.ellipse(fx.x, fx.y, 28 + rp * (68 + ring * 12), 15 + rp * (34 + ring * 8), 0, 0, TAU); g.stroke();
+        }
+    }
+
+    function drawDotAccent(g, fx, t, color, fade, p, seed) {
+        g.fillStyle = rgba(color, fade * 0.82);
+        for (let i = 0; i < 8; i++) {
+            const a = seed + i * TAU / 8 + t * (i % 2 ? -2.4 : 2.4);
+            const r = 24 + (i % 3) * 9 + 15 * p;
+            g.beginPath(); g.arc(fx.x + Math.cos(a) * r, fx.y + Math.sin(a) * r * 0.65, 2.2 + (i % 2), 0, TAU); g.fill();
+        }
+    }
+
+    function drawSummonAccent(g, fx, color, fade, p, seed) {
+        const r = 32 + 38 * p;
+        g.strokeStyle = rgba(color, fade * 0.78);
+        g.lineWidth = 2.2;
+        g.beginPath(); g.arc(fx.x, fx.y, r, seed, seed + TAU * 0.82); g.stroke();
+        g.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = seed + i * TAU / 6;
+            const px = fx.x + Math.cos(a) * r;
+            const py = fx.y + Math.sin(a) * r * 0.62;
+            if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+        }
+        g.closePath(); g.stroke();
+    }
+
+    function drawVariantAccent(g, fx, t) {
+        const variant = fx.variant || 'melee';
+        const color = variant === 'corpse_burst' ? [224, 66, 99] : (VARIANT_COLOR[fx.kindId] || VARIANT_COLOR.physical);
+        const fade = Math.pow(1 - t, 1.55);
+        const p = easeOutCubic(t);
+        const seed = fx.st.variantSeed || 0;
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.lineCap = 'round';
+        g.lineJoin = 'round';
+        if (variant === 'slam') drawSlamAccent(g, fx, t, color, fade, p, seed);
+        else if (variant === 'pierce' || variant === 'projectile') drawPierceAccent(g, fx, t, color, fade, seed);
+        else if (variant === 'chain') drawChainAccent(g, fx, color, fade, p, seed);
+        else if (variant === 'corpse_burst') drawCorpseBurstAccent(g, fx, color, fade, p, seed);
+        else if (variant === 'nova') drawNovaAccent(g, fx, t, color, fade);
+        else if (variant === 'dot') drawDotAccent(g, fx, t, color, fade, p, seed);
+        else if (variant === 'summon') drawSummonAccent(g, fx, color, fade, p, seed);
+        else {
+            g.strokeStyle = rgba(color, fade * 0.82);
+            g.lineWidth = 5 * (1 - t) + 1.2;
+            g.beginPath(); g.arc(fx.x - 6, fx.y + 5, 34 + 48 * p, -2.2 + seed * 0.03, 0.28 + seed * 0.03); g.stroke();
+        }
+        g.restore();
+    }
+
     /* ===================== engine ===================== */
     // 동시 임팩트 이펙트 상한. 각 이펙트가 수십 개의 입자(상당수가 매 프레임
     // createRadialGradient를 호출)를 그리므로, 상한을 낮춰 최악의 경우 부하를 제한한다.
@@ -656,7 +793,8 @@
         // Lower particle density as the field gets busy; crit nudges it up.
         const density = clamp01(1 - engine.list.length / engine.maxEffects * 0.55) * (crit ? 1.05 : 0.78);
         if (engine.list.length >= engine.maxEffects) engine.list.shift();
-        const fx = { kind, kindId, x, y, age: 0, dur: kind.dur, scale: crit ? scale * 1.08 : scale, pBack: [], pFront: [], st: {} };
+        const variant = String(options.variant || 'melee');
+        const fx = { kind, kindId, variant, x, y, age: 0, dur: kind.dur * (VARIANT_DURATION[variant] || 1), scale: crit ? scale * 1.08 : scale, pBack: [], pFront: [], st: { variantSeed: rand(0, TAU) } };
         kind.build(fx, Math.max(0.4, density));
         engine.list.push(fx);
     }
@@ -689,6 +827,7 @@
         fx.kind.under(g, fx, t);
         for (const p of fx.pBack) drawParticle(g, p);
         fx.kind.body(g, fx, t);
+        drawVariantAccent(g, fx, t);
         g.save();
         g.globalCompositeOperation = 'lighter';
         for (const p of fx.pFront) drawParticle(g, p);

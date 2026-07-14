@@ -263,12 +263,13 @@ function drawPassiveEvolutionAura(ctx) {
     let tips = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'transcendent');
     if (tips.length === 0) return;
 
+    const root = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };
     ctx.save();
     ctx.globalAlpha = 0.88;
     tips.forEach(node => {
         ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(node.x * 0.42, node.y * 0.42, node.x, node.y);
+        ctx.moveTo(root.x, root.y);
+        ctx.quadraticCurveTo(root.x + (node.x - root.x) * 0.42, root.y + (node.y - root.y) * 0.42, node.x, node.y);
         ctx.strokeStyle = 'rgba(120,151,205,0.08)';
         ctx.lineWidth = 11;
         ctx.shadowColor = 'rgba(238,222,172,0.15)';
@@ -338,6 +339,54 @@ function drawPassiveLink(ctx, a, b, style) {
         ctx.shadowBlur = 0;
         ctx.stroke();
     }
+}
+
+function drawPassiveBranchUnderlay(ctx, edges) {
+    if (!Array.isArray(edges) || edges.length === 0) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    edges.forEach(edge => {
+        const a = edge.a;
+        const b = edge.b;
+        if (!a || !b || !isPassiveNodeAvailable(a) || !isPassiveNodeAvailable(b)) return;
+        const visibleA = getPassiveVisibility(a.id);
+        const visibleB = getPassiveVisibility(b.id);
+        const hiddenBranch = visibleA === 'hidden' || visibleB === 'hidden';
+        const depth = Math.max(0, Math.min(Number(a.depth) || 0, Number(b.depth) || 0));
+        const width = Math.max(2.1, 9.4 - depth * 0.42) * (hiddenBranch ? 0.62 : 1);
+        drawPassiveLink(ctx, a, b, {
+            stroke: hiddenBranch ? 'rgba(19,17,16,0.3)' : 'rgba(22,16,13,0.9)',
+            innerStroke: hiddenBranch ? 'rgba(91,68,46,0.13)' : (depth < 7 ? 'rgba(117,76,42,0.52)' : 'rgba(92,63,42,0.34)'),
+            width: width,
+            shadow: !hiddenBranch && depth < 5 ? 'rgba(213,151,72,0.12)' : 'transparent',
+            blur: !hiddenBranch && depth < 5 ? 8 : 0
+        });
+    });
+    ctx.restore();
+}
+
+function tracePassiveNodeFramePath(ctx, node, radius) {
+    const x = node.x;
+    const y = node.y;
+    let sides = 0;
+    let rotation = -Math.PI / 2;
+    if (node.kind === 'hub') { sides = 4; rotation = Math.PI / 4; }
+    else if (node.kind === 'apex' || node.kind === 'transcendent' || node.kind === 'void') sides = 8;
+    else if (node.kind === 'major' || node.kind === 'core' || node.kind === 'keystone' || node.tier >= 3) sides = 6;
+    ctx.beginPath();
+    if (!sides) {
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        return;
+    }
+    for (let i = 0; i < sides; i++) {
+        const angle = rotation + i * Math.PI * 2 / sides;
+        const px = x + Math.cos(angle) * radius;
+        const py = y + Math.sin(angle) * radius;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
 }
 
 function drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode) {
@@ -439,21 +488,18 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
     const midR = Math.max(2, radius - 2.8);
     const innerR = Math.max(1.5, radius - 5.4);
 
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, outerR, 0, Math.PI * 2);
+    tracePassiveNodeFramePath(ctx, node, outerR);
     ctx.fillStyle = palette.outer;
     ctx.fill();
 
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, midR, 0, Math.PI * 2);
+    tracePassiveNodeFramePath(ctx, node, midR);
     ctx.fillStyle = palette.mid;
     ctx.fill();
 
     const core = ctx.createRadialGradient(node.x - radius * 0.28, node.y - radius * 0.35, 1, node.x, node.y, innerR + 1);
     core.addColorStop(0, active ? '#fff6de' : (reachable ? '#344454' : '#1f2730'));
     core.addColorStop(1, palette.inner);
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, innerR, 0, Math.PI * 2);
+    tracePassiveNodeFramePath(ctx, node, innerR);
     ctx.fillStyle = core;
     ctx.fill();
 
@@ -1325,6 +1371,56 @@ function polishPassiveLayout() {
         node.y -= centerY;
     });
 }
+
+function shapePassiveTreeAsLifeTree() {
+    const nodes = Object.values(PASSIVE_TREE.nodes || {});
+    const root = PASSIVE_TREE.nodes.n0;
+    if (!root || nodes.length < 2) return;
+    const radialExtent = Math.max(1, ...nodes.map(node => Math.hypot(node.x, node.y)));
+    const rootY = radialExtent * 0.86;
+
+    nodes.forEach(node => {
+        if (node.id === root.id) {
+            node.x = 0;
+            node.y = rootY;
+            return;
+        }
+        const originalX = node.x;
+        const originalY = node.y;
+        const radius = Math.hypot(originalX, originalY);
+        const canopyProgress = radius / radialExtent;
+        node.x = originalX * (0.86 + canopyProgress * 0.12);
+        node.y = rootY - radius * (0.72 + canopyProgress * 0.08) + originalY * 0.2;
+    });
+
+    for (let pass = 0; pass < 10; pass++) {
+        for (let i = 0; i < nodes.length; i++) {
+            const a = nodes[i];
+            for (let j = i + 1; j < nodes.length; j++) {
+                const b = nodes[j];
+                let dx = b.x - a.x;
+                let dy = b.y - a.y;
+                let distance = Math.hypot(dx, dy);
+                const minDistance = getPassiveNodeVisualRadius(a) + getPassiveNodeVisualRadius(b) + 11;
+                if (distance >= minDistance) continue;
+                if (distance < 0.001) { dx = ((i + j) % 2 ? 1 : -1); dy = -0.4; distance = Math.hypot(dx, dy); }
+                const push = (minDistance - distance) * 0.34;
+                const nx = dx / distance;
+                const ny = dy / distance;
+                if (a.id !== root.id) { a.x -= nx * push; a.y -= ny * push; }
+                if (b.id !== root.id) { b.x += nx * push; b.y += ny * push; }
+            }
+        }
+        root.x = 0;
+        root.y = rootY;
+    }
+
+    PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.maxX = Math.max(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.minY = Math.min(...nodes.map(node => node.y));
+    PASSIVE_BOUNDS.maxY = Math.max(...nodes.map(node => node.y));
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('life-tree-layout');
+}
 function applyPassiveSpecializations() {
     const used = new Set();
     const kindPriority = { keystone: 0, deadend: 1, major: 2, hub: 3, core: 4, path: 5 };
@@ -1356,6 +1452,7 @@ function bootstrapPassiveTreeOnceReady() {
     applyPassiveSpecializations();
     assignStarWedgeSockets();
     polishPassiveLayout();
+    shapePassiveTreeAsLifeTree();
     computePassiveDepths();
     return true;
 }
@@ -3238,10 +3335,14 @@ function fitPassiveCameraToBounds(force) {
     if (!container || container.offsetParent === null) return;
     let width = Math.max(1, container.clientWidth);
     let height = Math.max(1, container.clientHeight);
-    let defaultZoom = Math.min(width, height) / 780;
-    camZoom = clampNumber(defaultZoom, 0.42, 0.72);
-    camX = 0;
-    camY = 0;
+    const spanX = Math.max(1, PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX);
+    const spanY = Math.max(1, PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY);
+    const defaultZoom = Math.min((width - 64) / spanX, (height - 72) / spanY);
+    camZoom = clampNumber(defaultZoom, 0.14, 0.72);
+    const boundsCenterX = (PASSIVE_BOUNDS.minX + PASSIVE_BOUNDS.maxX) * 0.5;
+    const boundsCenterY = (PASSIVE_BOUNDS.minY + PASSIVE_BOUNDS.maxY) * 0.5;
+    camX = -boundsCenterX * camZoom;
+    camY = -boundsCenterY * camZoom;
     passiveCameraInitialized = true;
 }
 
@@ -4390,10 +4491,29 @@ function initBattleAssets() {
         bgAct8: 'assets/background/act8.png',
         bgAct9: 'assets/background/act9.png',
         bgAct10: 'assets/background/act10.png',
+        bgChaos0: 'assets/background/chaos/endgame-0.png',
+        bgChaos1: 'assets/background/chaos/endgame-1.png',
+        bgChaos2: 'assets/background/chaos/endgame-2.png',
+        bgChaos3: 'assets/background/chaos/endgame-3.png',
+        bgChaos4: 'assets/background/chaos/endgame-4.png',
+        bgChaos5: 'assets/background/chaos/endgame-5.png',
+        bgChaos6: 'assets/background/chaos/endgame-6.png',
+        bgChaos7: 'assets/background/chaos/endgame-7.png',
+        bgChaos8: 'assets/background/chaos/endgame-8.png',
+        bgChaos9: 'assets/background/chaos/endgame-9.png',
+        bgChaos10: 'assets/background/chaos/endgame-10.png',
+        bgChaos11: 'assets/background/chaos/endgame-11.png',
+        bgChaos12: 'assets/background/chaos/endgame-12.png',
+        bgChaos13: 'assets/background/chaos/endgame-13.png',
+        bgChaos14: 'assets/background/chaos/endgame-14.png',
+        bgChaos15: 'assets/background/chaos/endgame-15.png',
+        bgChaos16: 'assets/background/chaos/endgame-16.png',
+        bgChaos17: 'assets/background/chaos/endgame-17.png',
+        bgChaos18: 'assets/background/chaos/loop-final.png',
         summon1: 'assets/summon/summon1.png',
         ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['effectsV2', 'weapons', 'tiles']));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct') || key.startsWith('bgChaos')).concat(['effectsV2', 'weapons', 'tiles']));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1');
@@ -4469,7 +4589,7 @@ function initBattleAssets() {
 
     function storeLoadedBattleImage(key, image) {
         try {
-            if (key.startsWith('backdrop') || key.startsWith('bgAct')) {
+            if (key.startsWith('backdrop') || key.startsWith('bgAct') || key.startsWith('bgChaos')) {
                 battleAssets.backdrops[key] = image;
             } else {
                 let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
