@@ -209,11 +209,11 @@ function getSkillGridProfile(skillName, skillDef) {
     let mode = skillDef && skillDef.targetMode;
     let isMeleeTag = !!(skillDef && Array.isArray(skillDef.tags) && skillDef.tags.includes('melee'));
     if (mode === 'whirl') return { kind: 'nova', range: 1, radius: 1 };
-    if (mode === 'cleave') return isMeleeTag ? { kind: 'arc', range: 1 } : { kind: 'blast', range: 5, radius: 1 };
-    if (mode === 'pierce') return { kind: 'line', range: 7 };
-    if (mode === 'chain') return { kind: 'chain', range: 5, jump: COMBAT_GRID_CONFIG.chainJumpRange };
-    if (mode === 'all') return { kind: 'blast', range: 6, radius: 2 };
-    return isMeleeTag ? { kind: 'melee', range: 1 } : { kind: 'blast', range: 6, radius: 0 };
+    if (mode === 'cleave') return isMeleeTag ? { kind: 'arc', range: 1 } : { kind: 'blast', range: 4, radius: 1 };
+    if (mode === 'pierce') return { kind: 'line', range: 6 };
+    if (mode === 'chain') return { kind: 'chain', range: 4, jump: COMBAT_GRID_CONFIG.chainJumpRange };
+    if (mode === 'all') return { kind: 'blast', range: 5, radius: 2 };
+    return isMeleeTag ? { kind: 'melee', range: 1 } : { kind: 'blast', range: 5, radius: 0 };
 }
 
 /** 기존 targetMode별 부가 타격 감쇄 배율(1타는 항상 1.0). */
@@ -241,6 +241,7 @@ function getGridAttackAreaCells(profile, attacker, target) {
             for (let dy = -radius; dy <= radius; dy++) {
                 let gx = center.gx + dx, gy = center.gy + dy;
                 if (excludeSelf && gx === center.gx && gy === center.gy) continue;
+                if (radius > 1 && Math.abs(dx) + Math.abs(dy) > radius + 1) continue;
                 if (gx === target.gx && gy === target.gy) continue;
                 if (isGridCellInBounds(gx, gy)) cells.push({ gx, gy });
             }

@@ -12773,6 +12773,9 @@ function syncDerivedTabUnlock(tabId) {
 
 function checkUnlocks() {
     let u = game.unlocks;
+    if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
+        queueTutorialNotice('tutorial_battle_basics', '전투 기본 가이드', '전투 화면, 피해 숫자, 스킬 범위와 성장 순서를 차례로 알아봅니다.', 'tab-character');
+    }
     if (game.level >= 2 && !u.char) {
         u.char = true;
         game.noti.char = true;

@@ -1,5 +1,7 @@
 // Phase-2 extracted passive tree canvas draw block.
 
+let passiveEffectLabelRects = [];
+
 function isCraftSelectionEquipAvailableLocal() {
     return typeof isCraftSelectionEquip === 'function' && isCraftSelectionEquip();
 }
@@ -180,8 +182,7 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     if (!node || visibility === 'hidden' || zoomedOutMode || camZoom < 0.46) return;
     const important = node.kind === 'major' || node.kind === 'hub' || node.kind === 'apex' || node.kind === 'transcendent';
     const hovered = !!(hoverNode && hoverNode.id === node.id);
-    if (active && !important) return;
-    if (!important && !reachable && !hovered) return;
+    if (!hovered && !reachable && !(active && important)) return;
 
     const label = getPassiveNodeEffectShortLabel(node);
     if (!label) return;
@@ -201,6 +202,16 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     const w = ctx.measureText(label).width + padX * 2;
     const h = fontSize + padY * 2;
     const x = placeLeft ? anchorX - w : anchorX;
+    const rect = { x: x - 2, y: y - h / 2 - 2, w: w + 4, h: h + 4 };
+    const collides = passiveEffectLabelRects.some(other => !(
+        rect.x + rect.w < other.x || other.x + other.w < rect.x
+        || rect.y + rect.h < other.y || other.y + other.h < rect.y
+    ));
+    if (collides && !hovered) {
+        ctx.restore();
+        return;
+    }
+    passiveEffectLabelRects.push(rect);
     ctx.globalAlpha = active ? 0.98 : (reachable ? 0.9 : 0.76);
     ctx.fillStyle = 'rgba(5,9,15,0.78)';
     ctx.strokeStyle = active ? accent.activeOuter : (reachable ? accent.reachOuter : 'rgba(150,175,200,0.5)');
@@ -391,6 +402,8 @@ function drawPassiveTree() {
         ctx.restore();
     });
 
+    // 노드 효과 라벨은 화면 좌표상 서로 겹치지 않는 것만 그린다.
+    passiveEffectLabelRects = [];
     // 노드
     visibleNodes.forEach(node => {
         const visibility = getPassiveVisibility(node.id);

@@ -48,12 +48,21 @@ const layout = vm.runInContext(`(() => {
       if (Math.hypot(a.x - b.x, a.y - b.y) < minimum) overlaps++;
     }
   }
-  return { count: nodes.length, rootY: root.y, aboveRoot: nodes.filter(node => node.id !== root.id && node.y < root.y).length, overlaps };
+  const starters = nodes.filter(node => node.depth === 1);
+  const uniqueStartingStats = new Set(starters.map(node => node.stat));
+  const rowAverages = [...new Set(nodes.filter(node => Number.isFinite(node.depth)).map(node => node.depth))]
+    .sort((a, b) => a - b)
+    .map(depth => ({ depth, y: nodes.filter(node => node.depth === depth).reduce((sum, node) => sum + node.y, 0) / nodes.filter(node => node.depth === depth).length }));
+  return { count: nodes.length, rootY: root.y, aboveRoot: nodes.filter(node => node.id !== root.id && node.y < root.y).length, overlaps, starterCount: starters.length, uniqueStartingStats: uniqueStartingStats.size, rowAverages };
 })()`, context);
 
 assert.ok(layout.count > 100, 'passive graph should preserve the full node set');
 assert.strictEqual(layout.aboveRoot, layout.count - 1, 'every branch should grow upward from the root');
 assert.strictEqual(layout.overlaps, 0, 'life-tree remapping should not overlap node hit areas');
+assert.strictEqual(layout.uniqueStartingStats, layout.starterCount, 'every root-adjacent starting node should provide a distinct stat');
+for (let index = 1; index < layout.rowAverages.length; index++) {
+  assert.ok(layout.rowAverages[index].y < layout.rowAverages[index - 1].y, 'deeper graph rows should grow upward through the canopy');
+}
 
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
 const shake = vm.runInContext(`(() => { game.settings.cameraShake = false; battleFx = [{ type: 'hit', start: 900, crit: true }]; return getBattleCameraShake(1000); })()`, context);
@@ -64,5 +73,9 @@ for (let index = 0; index < 18; index++) {
 }
 assert.ok(fs.existsSync('assets/background/chaos/loop-final.png'), 'chaos loop-final backdrop should exist');
 assert.ok(fs.readFileSync('index.html', 'utf8').includes('id="chk-camera-shake"'), 'settings should expose the camera shake checkbox');
+assert.ok(fs.existsSync('assets/ui/passive-node-major-v1.png'), 'generated major passive frame should exist');
+assert.ok(fs.existsSync('assets/ui/window-frame-luxe-v1.png'), 'generated window frame should exist');
+assert.ok(fs.readFileSync('index.html', 'utf8').includes('id="tutorial-progress-fill"'), 'tutorial modal should expose multi-step progress');
+assert.ok(fs.readFileSync('js/passives.js', 'utf8').includes('const TUTORIAL_GUIDES ='), 'content tutorials should be backed by structured guides');
 
 console.log('smoke-game-visual-overhaul passed');

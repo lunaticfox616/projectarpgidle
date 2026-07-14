@@ -472,6 +472,22 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
   box-shadow: 0 38px 110px rgba(0,0,0,.72), 0 0 0 2px rgba(2,5,9,.78), 0 0 48px rgba(69,151,207,.08), inset 0 1px rgba(255,255,255,.06);
 }
 
+body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: .58;
+  background: url('../assets/ui/window-frame-luxe-v1.png') center / 100% 100% no-repeat;
+  filter: saturate(.9) contrast(1.03);
+}
+
+body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > * {
+  position: relative;
+  z-index: 5;
+}
+
 body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar {
   flex-basis: 46px;
   padding-inline: 16px 10px;
