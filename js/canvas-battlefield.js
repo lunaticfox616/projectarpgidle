@@ -51,7 +51,7 @@ function getCanvasCrowdPauseLimit() {
 // unavailable (ghost/fallback position) we fall back to a much smaller scale.
 function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
     const opts = {
-        crit: !!fx.crit,
+        crit: !!fx.crit || fx.impactTier === 'heavy' || fx.impactTier === 'annihilate',
         variant: (skillVisual && skillVisual.variant) || 'melee'
     };
     const element = String(fx.element || 'phys').toLowerCase();
@@ -59,7 +59,81 @@ function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
     if (element === 'phys' || element === 'physical') opts.scale = 0.68 * screenMul;
     else if (enemy) opts.scale = (enemy.isBoss ? 0.82 : (enemy.isElite ? 0.6 : 0.44)) * screenMul;
     else opts.scale = 0.4 * screenMul;
+    if (fx.impactTier === 'heavy') opts.scale *= 1.22;
+    else if (fx.impactTier === 'annihilate') opts.scale *= 1.52;
     return opts;
+}
+
+function drawDamageImpactAccent(ctx, fx, t, enemyPosMap) {
+    if (!fx || !['heavy', 'annihilate'].includes(fx.impactTier)) return;
+    let target = enemyPosMap[fx.enemyId];
+    if (!target) return;
+    let annihilate = fx.impactTier === 'annihilate';
+    let fade = Math.pow(1 - t, 1.35);
+    let cx = target.x;
+    let cy = target.y - 9;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = annihilate ? '#fff0a8' : (fx.color || '#ffd36b');
+    ctx.lineWidth = annihilate ? 4.5 : 3;
+    ctx.globalAlpha = fade * (annihilate ? 0.92 : 0.7);
+    let rings = annihilate ? 4 : 2;
+    for (let index = 0; index < rings; index++) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 12 + index * 7 + t * (annihilate ? 72 : 43), 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    let rays = annihilate ? 12 : 6;
+    for (let index = 0; index < rays; index++) {
+        let angle = index * Math.PI * 2 / rays + t * 0.35;
+        let inner = 18 + t * 24;
+        let outer = inner + (annihilate ? 42 : 24) * fade;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
+        ctx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
+        ctx.stroke();
+    }
+    if (annihilate) {
+        let glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 92 * (0.35 + t));
+        glow.addColorStop(0, `rgba(255,244,196,${0.38 * fade})`);
+        glow.addColorStop(0.35, `rgba(255,112,42,${0.2 * fade})`);
+        glow.addColorStop(1, 'rgba(255,62,20,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(cx - 110, cy - 110, 220, 220);
+    }
+    ctx.restore();
+}
+
+function drawLevelUpFx(ctx, fx, t, playerPos) {
+    let fade = t < 0.68 ? 1 : (1 - t) / 0.32;
+    let radius = 22 + t * 76;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0, fade);
+    ctx.strokeStyle = '#ffe59a';
+    ctx.lineWidth = 4 * (1 - t) + 1.5;
+    for (let ring = 0; ring < 3; ring++) {
+        ctx.beginPath();
+        ctx.arc(playerPos.x, playerPos.y - 15, radius + ring * 10, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    for (let ray = 0; ray < 12; ray++) {
+        let angle = ray * Math.PI / 6 - Math.PI / 2;
+        let inner = 22 + t * 18;
+        let outer = inner + 34 * (1 - t);
+        ctx.beginPath();
+        ctx.moveTo(playerPos.x + Math.cos(angle) * inner, playerPos.y - 15 + Math.sin(angle) * inner);
+        ctx.lineTo(playerPos.x + Math.cos(angle) * outer, playerPos.y - 15 + Math.sin(angle) * outer);
+        ctx.stroke();
+    }
+    ctx.font = '900 17px "Malgun Gothic", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = 'rgba(25,9,0,.9)';
+    ctx.strokeText(`LEVEL ${fx.level || ''} UP`, playerPos.x, playerPos.y - 70 - t * 18);
+    ctx.fillStyle = '#fff2b4';
+    ctx.fillText(`LEVEL ${fx.level || ''} UP`, playerPos.x, playerPos.y - 70 - t * 18);
+    ctx.restore();
 }
 
 // Phase-2 extracted battlefield canvas renderer block.
@@ -99,7 +173,22 @@ function renderBattlefield(forceWhenHidden) {
     let backdropActive = drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone, gridProj);
     let framePlayerStats = getCanvasPlayerStats();
     let currentTargets = getCanvasSkillTargets(framePlayerStats);
-    let swingFx = battleFx.filter(fx => fx.type === 'playerSwing').slice(-1)[0];
+    let swingFx = null;
+    let playerFlash = false;
+    let playerDownActive = false;
+    let flashingEnemyIds = new Set();
+    for (let i = battleFx.length - 1; i >= 0; i--) {
+        let fx = battleFx[i];
+        if (!fx) continue;
+        let age = now - fx.start;
+        if (!swingFx && fx.type === 'playerSwing') swingFx = fx;
+        if (age < 0 || age > fx.duration) continue;
+        if (fx.type === 'playerHit') playerFlash = true;
+        else if (fx.type === 'playerDown') playerDownActive = true;
+        if (fx.enemyId != null && (fx.type === 'hit' || fx.type === 'enemyDeath') && age <= fx.duration * 0.45) {
+            flashingEnemyIds.add(fx.enemyId);
+        }
+    }
     let currentSkill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
     let skillAreaCells = getCanvasSkillAreaCells(game.activeSkill || '기본 공격', currentSkill, currentTargets);
     drawBattleGridFloor(ctx, gridProj, zoneTheme, currentTargets, skillAreaCells, backdropActive);
@@ -118,8 +207,6 @@ function renderBattlefield(forceWhenHidden) {
 
     let enemies = (game.enemies || []).filter(enemy => enemy.hp > 0);
     let swingPower = swingFx ? Math.sin(((now - swingFx.start) / swingFx.duration) * Math.PI) : 0;
-    let playerFlash = battleFx.some(fx => fx.type === 'playerHit' && now - fx.start <= fx.duration);
-    let playerDownActive = battleFx.some(fx => fx.type === 'playerDown' && now - fx.start <= fx.duration);
     let currentSkillVisual = getBattleSkillVisual(game.activeSkill, currentSkill);
     let desiredAdvancing = enemies.length === 0 && game.moveTimer <= 0 && game.runProgress < 100;
     if (battleVisualState.advanceDesired !== desiredAdvancing) {
@@ -229,6 +316,7 @@ function renderBattlefield(forceWhenHidden) {
 
     battleFx.forEach(fx => {
         if (battleVisualState.processedFxIds.has(fx.id)) return;
+        if (now < fx.start) return;
         let handled = false;
         if (fx.type === 'hit') {
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
@@ -239,7 +327,9 @@ function renderBattlefield(forceWhenHidden) {
                     value: fx.damage,
                     crit: !!fx.crit,
                     dot: !!fx.dot,
-                    dotType: fx.element || ''
+                    dotType: fx.element || '',
+                    impactTier: fx.impactTier || 'normal',
+                    damageRatio: fx.damageRatio || 0
                 });
             }
             if (!fx.dot && typeof attackFxSpawn === 'function') {
@@ -293,12 +383,21 @@ function renderBattlefield(forceWhenHidden) {
         let easedAge = 1 - Math.pow(1 - age, 3);
         let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + easedAge * (enemy.isBoss ? 0.54 : 0.32);
         if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
-        let hitFlash = battleFx.some(fx => fx.enemyId === enemy.id && (fx.type === 'hit' || fx.type === 'enemyDeath') && now - fx.start <= fx.duration * 0.45);
+        let hitFlash = flashingEnemyIds.has(enemy.id);
         ctx.save();
         ctx.globalAlpha = easedAge;
         let crowdScale = dynamicLayout.length >= 9 ? (enemy.isBoss ? 2.15 : (enemy.isElite ? 1.72 : 1.46)) : (dynamicLayout.length >= 6 ? (enemy.isBoss ? 2.3 : (enemy.isElite ? 1.9 : 1.62)) : (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95)));
         drawEnemySprite(ctx, enemy, entry.x, entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), crowdScale * gridUnitScale * spawnScale, hitFlash, now);
         ctx.restore();
+    });
+
+    let pendingGhostIds = new Set();
+    battleFx.forEach(fx => {
+        if (!fx || fx.type !== 'hit' || now >= fx.start || enemyPosMap[fx.enemyId] || pendingGhostIds.has(fx.enemyId)) return;
+        let ghost = battleVisualState.enemyGhostPos[fx.enemyId];
+        if (!ghost || !ghost.enemy) return;
+        pendingGhostIds.add(fx.enemyId);
+        drawEnemySprite(ctx, ghost.enemy, ghost.x, ghost.y, (ghost.enemy.isBoss ? 2.55 : (ghost.enemy.isElite ? 2.2 : 1.95)) * gridUnitScale, false, now);
     });
 
     if (typeof attackFxDraw === 'function') attackFxDraw(ctx);
@@ -406,6 +505,7 @@ function renderBattlefield(forceWhenHidden) {
     });
 
     battleFx.forEach(fx => {
+        if (now < fx.start) return;
         let t = clampNumber((now - fx.start) / fx.duration, 0, 1);
         let ghostEnemy = (fx.enemyId && !enemyPosMap[fx.enemyId]) ? battleVisualState.enemyGhostPos[fx.enemyId] : null;
         if (ghostEnemy && !enemyPosMap[fx.enemyId]) {
@@ -415,6 +515,9 @@ function renderBattlefield(forceWhenHidden) {
             drawBattleSwingFx(ctx, fx, t, playerPos);
         } else if (fx.type === 'hit') {
             drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap);
+            drawDamageImpactAccent(ctx, fx, t, enemyPosMap);
+        } else if (fx.type === 'levelUp') {
+            drawLevelUpFx(ctx, fx, t, playerPos);
         } else if (fx.type === 'playerHit') {
             return;
         } else if (fx.type === 'enemySpawn') {
@@ -570,10 +673,11 @@ function getBattleCameraShake(now) {
     let amplitude = 0;
     (battleFx || []).forEach(fx => {
         if (!fx || fx.dot || !['hit', 'playerHit', 'enemyDeath', 'enemySpawn'].includes(fx.type)) return;
-        let duration = fx.crit ? 180 : 120;
+        let duration = fx.impactTier === 'annihilate' ? 260 : (fx.impactTier === 'heavy' ? 210 : (fx.crit ? 180 : 120));
         let age = now - fx.start;
         if (age < 0 || age > duration) return;
-        let strength = fx.type === 'enemyDeath' ? (fx.boss ? 8.4 : 4.8) : (fx.type === 'enemySpawn' ? (fx.boss ? 3.4 : 0) : (fx.crit ? 4.1 : 1.8));
+        let hitStrength = fx.impactTier === 'annihilate' ? 10.5 : (fx.impactTier === 'heavy' ? 6.6 : (fx.crit ? 4.1 : 1.8));
+        let strength = fx.type === 'enemyDeath' ? (fx.boss ? 8.4 : 4.8) : (fx.type === 'enemySpawn' ? (fx.boss ? 3.4 : 0) : hitStrength);
         amplitude = Math.max(amplitude, strength * (1 - age / duration));
     });
     return {
@@ -606,10 +710,11 @@ function drawBattleScreenGrade(ctx, width, height, now) {
     bottomEdge.addColorStop(1, 'rgba(1,3,7,0)');
     ctx.fillStyle = bottomEdge;
     ctx.fillRect(0, height - edgeSizeY, width, edgeSizeY);
-    let critActive = (battleFx || []).some(fx => fx && fx.crit && now - fx.start >= 0 && now - fx.start < 90);
-    if (critActive) {
-        ctx.globalAlpha = 0.1;
-        ctx.fillStyle = '#ffe7a3';
+    let flashFx = (battleFx || []).find(fx => fx && now - fx.start >= 0 && now - fx.start < 100
+        && (fx.impactTier === 'annihilate' || fx.impactTier === 'heavy' || fx.crit));
+    if (flashFx) {
+        ctx.globalAlpha = flashFx.impactTier === 'annihilate' ? 0.24 : (flashFx.impactTier === 'heavy' ? 0.14 : 0.1);
+        ctx.fillStyle = flashFx.impactTier === 'annihilate' ? '#fff0cf' : '#ffe7a3';
         ctx.fillRect(0, 0, width, height);
     }
     ctx.restore();

@@ -1,8 +1,4 @@
-function safeExposeData(map) {
-  Object.keys(map || {}).forEach(function (key) {
-    if (typeof window[key] === "undefined") window[key] = map[key];
-  });
-}
+if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/skills.js');
 
 // 투사체 '추가 발사'(장비/패시브/유니크/부적으로 얻는 보너스 샷)의 기본 피해 비율(%).
 // 과거에는 보너스 샷이 100% 피해로 반복되어 추가 발사 +5 = DPS ×6이라는 천장 뚫는 곱연산이 됐다.

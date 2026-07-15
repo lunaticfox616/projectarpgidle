@@ -244,12 +244,14 @@ function getActiveTalentCardId() {
     return `${game.selectedHeroId}__${game.ascendClass}`;
 }
 
-function isTalentCardActive(cardId) {
-    return getActiveTalentCardId() === cardId;
+function getCombatTalentCardLevel(cardId) {
+    if (typeof window.isTalentCardActive !== 'function') return 0;
+    let level = Number(window.isTalentCardActive(cardId));
+    return Number.isFinite(level) ? Math.max(0, level) : 0;
 }
 
 function getActiveTalentUniqueEffects() {
-    if (isTalentCardActive('hero1__gladiator')) {
+    if (getCombatTalentCardLevel('hero1__gladiator') > 0) {
         return [{ key: 'projectileTargetBonus', params: { target: 3 }, talentCardId: 'hero1__gladiator' }];
     }
     return [];
@@ -257,20 +259,12 @@ function getActiveTalentUniqueEffects() {
 
 function prepareTalentPlayerAttackContext(pStats) {
     game.talentFletcherAttackBoostActive = false;
-    if (!isTalentCardActive('hero1__gladiator')) return;
+    if (getCombatTalentCardLevel('hero1__gladiator') <= 0) return;
     if (!pStats || !pStats.sSkill || !Array.isArray(pStats.sSkill.tags) || !pStats.sSkill.tags.includes('projectile')) return;
     game.talentFletcherCount = Math.max(0, Math.floor(game.talentFletcherCount || 0)) + 1;
     if (game.talentFletcherCount % 3 !== 0) return;
     game.talentFletcherAttackBoostActive = true;
     pStats.sSkill.targets = Math.min(12, Math.max(1, Math.floor(pStats.sSkill.targets || 1)) + 3);
-}
-
-function getTalentAttackDamageMul() {
-    return game.talentFletcherAttackBoostActive ? 1.33 : 1;
-}
-
-function getTalentKeystoneDamageMul(targetEnemy, hitElement, hitCrit, pStats) {
-    return 1;
 }
 
 function getTalentPlayerHitDamageMultiplier(targetEnemy, hitElement, hitCrit, pStats) {
@@ -280,18 +274,20 @@ function getTalentPlayerHitDamageMultiplier(targetEnemy, hitElement, hitCrit, pS
         return Math.max(0, numericValue);
     }
     let mul = 1;
-    mul *= coerceTalentMultiplier(getTalentKeystoneDamageMul(targetEnemy, hitElement, hitCrit, pStats));
+    if (typeof window.getTalentKeystoneDamageMul === 'function') {
+        mul *= coerceTalentMultiplier(window.getTalentKeystoneDamageMul(targetEnemy, hitElement, hitCrit, pStats));
+    }
     return mul;
 }
 
 function getTalentPlayerAttackDamageMultiplier() {
-    let mul = Number(getTalentAttackDamageMul());
+    let mul = typeof window.getTalentAttackDamageMul === 'function' ? Number(window.getTalentAttackDamageMul()) : 1;
     if (!Number.isFinite(mul)) return 1;
     return Math.max(0, mul);
 }
 
 function updateTalentButcherHitMark(enemy) {
-    if (!isTalentCardActive('hero2__assassin')) return;
+    if (getCombatTalentCardLevel('hero2__assassin') <= 0) return;
     if (!enemy || enemy.isBoss) return;
     game.talentButcherMarks = game.talentButcherMarks || {};
     let row = game.talentButcherMarks[enemy.id] || { hits: 0 };
@@ -301,7 +297,7 @@ function updateTalentButcherHitMark(enemy) {
 
 function canApplyTalentExecuteThreshold(enemy, threshold) {
     if (!enemy || enemy.isBoss || threshold <= 0) return false;
-    if (!isTalentCardActive('hero2__assassin')) return true;
+    if (getCombatTalentCardLevel('hero2__assassin') <= 0) return true;
     let row = game.talentButcherMarks && game.talentButcherMarks[enemy.id];
     return Math.max(0, Math.floor((row && row.hits) || 0)) >= 4;
 }
@@ -1030,10 +1026,10 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let finalMul = getLimitedSummonFinalDamageMultiplier(pStats);
     dmg = Math.floor(dmg * finalMul);
     ailmentSourceDmg = Math.floor(ailmentSourceDmg * finalMul);
-    // 재능 개화 표면 키스톤: 조건부 피해 배율 + 정밀 메커니즘 공격 배율(예: 플레쳐 매 3타)
+    // 재능 개화 표면 키스톤은 소환수에도 적용하되, 플레이어의 일회성 공격 배율은 넘기지 않는다.
+    // 그렇지 않으면 플레쳐의 3번째 공격 직후 소환수 실피해와 DPS 표시가 함께 33% 뛰고 다음 공격까지 유지된다.
     if (typeof getTalentKeystoneDamageMul === 'function') {
         let ksMul = getTalentKeystoneDamageMul(target, ele, crit, pStats);
-        if (typeof getTalentAttackDamageMul === 'function') ksMul *= getTalentAttackDamageMul();
         if (ksMul !== 1) {
             dmg = Math.floor(dmg * ksMul);
             ailmentSourceDmg = Math.floor(ailmentSourceDmg * ksMul);
@@ -1239,7 +1235,7 @@ function runSummonAttackTick(pStats) {
                 game.playerHp = Math.min(maxHp, Math.max(0, Math.floor((game.playerHp || 0) + heal)));
             }
         }
-        addBattleFx('hit', { enemyId: target.id, color: getElementColor(hit.element), damage: dmg, crit: hit.crit, duration: 220, element: hit.element });
+        addBattleFx('hit', { enemyId: target.id, color: getElementColor(hit.element), damage: dmg, crit: hit.crit, duration: 220, element: hit.element, syncToSwing: false });
         if (target.hp <= 0) handleEnemyDeath(target, pStats);
     });
 }
@@ -1784,7 +1780,7 @@ function processPendingSlamEchoHits() {
         if (!enemy) return;
         let bonus = Math.max(1, Math.floor(row.damage || 0));
         enemy.hp = Math.max(0, enemy.hp - bonus);
-        addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220 });
+        addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220, syncToSwing: false });
         if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 지진의 함성: ${formatNumberKR(bonus)} 추가 타격`, 'attack-player', { noToast: true });
         if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
     });
@@ -1808,7 +1804,7 @@ function processTalentInquisitorMarks() {
         if (mk.explodeAt && now >= mk.explodeAt) {
             let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
             enemy.hp = Math.max(0, enemy.hp - dmg);
-            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: dmg, duration: 240 });
+            addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: dmg, duration: 240, syncToSwing: false });
             if (game.settings && game.settings.showCombatLog !== false) addLog(`⚖️ 심판 표식 폭발: ${formatNumberKR(dmg)}`, 'attack-player', { noToast: true });
             mk.accumulated = 0; mk.explodeAt = 0; mk.cooldownUntil = now + 6000;
             if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
@@ -5176,6 +5172,7 @@ function generateEncounterPlan(zone) {
 function resetBattleRuntimeVisuals() {
     battleFx = [];
     battleFxId = 0;
+    latestPlayerSwingImpactAt = 0;
     battleVisualState = {
         projectiles: [],
         damageTexts: [],
@@ -6236,7 +6233,10 @@ function grantExpAndGem(enemy, pStats) {
         checkUnlocks();
     }
     if (game.level >= MAX_PLAYER_LEVEL) game.exp = 0;
-    if (leveledUp) queueImportantSave(250);
+    if (leveledUp) {
+        addBattleFx('levelUp', { level: game.level, duration: 1500, color: '#ffe59a' });
+        queueImportantSave(250);
+    }
     return gemLeveled;
 }
 
@@ -6585,7 +6585,7 @@ function handleEnemyDeath(enemy, pStats) {
             target.hp = Math.max(0, target.hp - splash);
             if (target.hp <= 0) handleEnemyDeath(target, pStats);
         });
-        addBattleFx('hit', { enemyId: enemy.id, color: '#c56cff', damage: splash, duration: 360, element: 'chaos' });
+        addBattleFx('hit', { enemyId: enemy.id, color: '#c56cff', damage: splash, duration: 360, element: 'chaos', syncToSwing: true });
         if (game.settings.showCombatLog) addLog(`💥 [종말의 논리] 시체 폭발 발동! 주변 몬스터에게 ${splash} 피해`, 'attack-player');
     }
     // 시체 역병(워록 wlk9): 카오스 피해로 처치 시 50% 확률로 시체 폭발(적 최대 생명력의 20%를 주변에 카오스 피해)
@@ -6597,7 +6597,7 @@ function handleEnemyDeath(enemy, pStats) {
             target.hp = Math.max(0, target.hp - splash);
             if (target.hp <= 0) handleEnemyDeath(target, pStats);
         });
-        addBattleFx('hit', { enemyId: enemy.id, color: '#9b59ff', damage: splash, duration: 360, element: 'chaos' });
+        addBattleFx('hit', { enemyId: enemy.id, color: '#9b59ff', damage: splash, duration: 360, element: 'chaos', syncToSwing: true });
         if (game.settings.showCombatLog) addLog(`💥 시체 역병 발동! 주변 몬스터에게 ${splash} 카오스 피해`, 'attack-player');
     }
     if (pStats && pStats.uniqueKillMoveStacks) {
@@ -7491,7 +7491,8 @@ function performPlayerAttack(pStats) {
                 skillName: game.activeSkill,
                 damage: dealtToChain,
                 duration: 320,
-                element: hitElement
+                element: hitElement,
+                syncToSwing: true
             });
             applyEnemyAilmentFromHit(chainTarget, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, remainingDamage, hitCrit, {
                 ailmentSourceDamage: remainingAilmentSourceDamage,
@@ -7931,7 +7932,7 @@ function performPlayerAttack(pStats) {
                 (game.enemies || []).forEach(e => {
                     if (!e || e.hp <= 0 || e.id === targetEnemy.id) return;
                     e.hp = Math.max(0, e.hp - splash);
-                    addBattleFx('hit', { enemyId: e.id, color: getElementColor('chaos'), damage: splash, duration: 220 });
+                    addBattleFx('hit', { enemyId: e.id, color: getElementColor('chaos'), damage: splash, duration: 220, syncToSwing: true });
                     if (e.hp <= 0) handleEnemyDeath(e, pStats);
                 });
             }
@@ -7948,7 +7949,7 @@ function performPlayerAttack(pStats) {
                     mark.hits = 0;
                     let bonus = Math.max(1, Math.floor((targetEnemy.maxHp || targetEnemy.hp || 1) * 0.03));
                     dealtToEnemy += applyDamageToEnemyResource(targetEnemy, bonus);
-                    addBattleFx('hit', { enemyId: targetEnemy.id, color: getElementColor('phys'), damage: bonus, duration: 280, element: 'phys' });
+                    addBattleFx('hit', { enemyId: targetEnemy.id, color: getElementColor('phys'), damage: bonus, duration: 280, element: 'phys', syncToSwing: true });
                 }
                 game.rangerWeakpointMarks[targetEnemy.id] = mark;
             }
@@ -8047,7 +8048,8 @@ function performPlayerAttack(pStats) {
                 skillName: game.activeSkill,
                 damage: dealtToEnemy,
                 duration: 320,
-                element: hitElement
+                element: hitElement,
+                syncToSwing: true
             });
             if (hitCrit && game.ascendClass === 'assassin' && hasKeystone('a3')) {
                 let now = Date.now();
@@ -8852,7 +8854,7 @@ function performMonsterAttacks(pStats) {
                 if (stacks >= 5) {
                     let reflect = Math.max(1, Math.floor((pStats.guardianReflectDamage || 1) + remaining));
                     applyDamageToEnemyResource(enemy, reflect);
-                    addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: reflect, duration: 260, element: 'phys' });
+                    addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: reflect, duration: 260, element: 'phys', syncToSwing: false });
                     stacks = 2;
                 }
                 game.guardianEnduranceStacks = Math.max(0, Math.min(5, stacks));

@@ -29,6 +29,7 @@ let socialState = {
     nickname: '',
     chatPollTimer: null,
     heartbeatTimer: null,
+    bgNotificationTimer: null,
     chatLoading: false,
     onlineLoading: false,
     lastChatRenderKey: '',
@@ -314,9 +315,15 @@ async function sendPresenceHeartbeat() {
     } catch (e) { if (/last_seen/i.test(String(e && e.message || e))) socialState.onlineSupported = false; }
 }
 function ensureHeartbeat() {
+    if (!socialCloudReady() || !getMyNickname()) return;
     if (socialState.heartbeatTimer) return;
     socialState.heartbeatTimer = setInterval(() => { if (socialCloudReady() && getMyNickname()) sendPresenceHeartbeat(); }, SOCIAL_HEARTBEAT_MS);
     sendPresenceHeartbeat();
+}
+function stopHeartbeat() {
+    if (!socialState.heartbeatTimer) return;
+    clearInterval(socialState.heartbeatTimer);
+    socialState.heartbeatTimer = null;
 }
 async function loadOnlineUsers() {
     if (!socialCloudReady() || !socialState.onlineSupported) return [];
@@ -396,6 +403,30 @@ async function checkSocialChatNotification() {
     } catch (e) { /* 무시: 네트워크 실패 시 다음 주기에 재시도 */ } finally {
         socialState.bgNotiLoading = false;
     }
+}
+
+function ensureSocialNotificationPolling() {
+    if (!socialCloudReady() || socialState.bgNotificationTimer) return;
+    socialState.bgNotificationTimer = setInterval(checkSocialChatNotification, SOCIAL_BG_NOTI_POLL_MS);
+    Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification refresh failed:', error));
+}
+
+function stopSocialNotificationPolling() {
+    if (!socialState.bgNotificationTimer) return;
+    clearInterval(socialState.bgNotificationTimer);
+    socialState.bgNotificationTimer = null;
+}
+
+function syncSocialBackgroundTasks() {
+    if (!socialCloudReady()) {
+        stopHeartbeat();
+        stopSocialNotificationPolling();
+        stopChatPolling();
+        return;
+    }
+    ensureSocialNotificationPolling();
+    if (getMyNickname()) ensureHeartbeat();
+    else stopHeartbeat();
 }
 
 async function loadChatMessages() {
@@ -914,8 +945,13 @@ function renderSocialTab() {
     let root = getSocialRenderRoot(host);
     let loggedIn = socialCloudReady();
     let nickname = getMyNickname();
+    syncSocialBackgroundTasks();
     if (!loggedIn) {
-        root.innerHTML = `<h2>💬 커뮤니티</h2><div class="social-notice">채팅·접속자·프로필 구경 기능은 <strong>클라우드 로그인</strong>이 필요합니다.<br>설정 탭에서 로그인 후 다시 열어주세요.</div>`;
+        let checkingCloud = typeof cloudState !== 'undefined' && cloudState && cloudState.configured
+            && (cloudState.busy || cloudState.initialized === false);
+        root.innerHTML = checkingCloud
+            ? `<h2>💬 커뮤니티</h2><div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
+            : `<h2>💬 커뮤니티</h2><div class="social-notice">채팅·접속자·프로필 구경 기능은 <strong>클라우드 로그인</strong>이 필요합니다.<br>설정 탭에서 로그인하면 이 화면이 자동으로 갱신됩니다.</div>`;
         stopChatPolling();
         return;
     }
@@ -958,6 +994,7 @@ function injectSocialStyles() {
     style.textContent = `
     .social-notice,.social-hint{color:#9fb4d1;font-size:0.86em;line-height:1.5;}
     .social-notice{background:rgba(20,34,56,0.6);border:1px solid #24344f;border-radius:8px;padding:12px;margin-top:8px;}
+    .social-notice-loading{border-color:#386383;background:linear-gradient(110deg,rgba(20,46,67,.72),rgba(17,29,48,.72));box-shadow:inset 3px 0 #64b5e5;}
     .social-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0;}
     .social-toolbar .social-mynick{margin-right:auto;color:#cfe0f5;}
     .social-online{background:rgba(16,28,46,0.6);border:1px solid #24344f;border-radius:8px;padding:8px 10px;margin-bottom:8px;}
@@ -1042,11 +1079,8 @@ function injectSocialStyles() {
 if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { injectSocialStyles(); ensureSocialTooltip(); });
     else { injectSocialStyles(); ensureSocialTooltip(); }
-    setInterval(() => { if (socialCloudReady() && getMyNickname()) ensureHeartbeat(); }, SOCIAL_HEARTBEAT_MS);
-    // 커뮤니티 탭이 비활성일 때도 새 채팅을 감지해 탭 알림 점을 켠다.
-    setInterval(checkSocialChatNotification, SOCIAL_BG_NOTI_POLL_MS);
-    // 접속 직후 한 번(클라우드 로그인 복원을 기다린 뒤). setTimeout 가드는 스모크 테스트 샌드박스용.
-    if (typeof setTimeout === 'function') setTimeout(checkSocialChatNotification, 15000);
+    // 클라우드 복원이 늦어지는 환경을 위한 1회성 보조 동기화. 이후 수명주기는 세션 변경 이벤트가 관리한다.
+    if (typeof setTimeout === 'function') setTimeout(syncSocialBackgroundTasks, 15000);
 }
 
 if (typeof safeExposeGlobals === 'function') {
@@ -1056,6 +1090,6 @@ if (typeof safeExposeGlobals === 'function') {
         openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
-        socialTalEnter, socialTalLeave, socialTalHighlight, checkSocialChatNotification
+        socialTalEnter, socialTalLeave, socialTalHighlight, checkSocialChatNotification, syncSocialBackgroundTasks
     });
 }

@@ -3467,6 +3467,7 @@ let divineBannerTimer = null;
 let jewelFusionSelection = [];
 let selectedJewelCraftIndex = null;
 let voidJewelOverlayState = { mode: null, selected: [] };
+let latestPlayerSwingImpactAt = 0;
 let pendingRingEquipItemId = null;
 let pendingGloveEquipItemId = null;
 let pendingWeaponEquipItemId = null;
@@ -3580,13 +3581,49 @@ document.addEventListener('keydown', function(event) {
     playSkill(skillId);
 });
 
+function getBattleHitFeedback(data) {
+    if (!data || data.dot || !Number.isFinite(Number(data.damage))) return {};
+    let enemy = (game.enemies || []).find(row => row && row.id === data.enemyId);
+    let maxHp = Math.max(0, Number(data.targetMaxHp) || Number(enemy && enemy.maxHp) || 0);
+    if (maxHp <= 0) return {};
+    let overkill = enemy && enemy.hp <= 0 ? Math.max(0, Number(enemy.lastOverkillDamage) || 0) : 0;
+    let feedbackDamage = Math.max(0, Number(data.rawDamage) || (Number(data.damage) + overkill));
+    let damageRatio = feedbackDamage / maxHp;
+    let impactTier = damageRatio >= 1 ? 'annihilate' : (damageRatio >= 0.3 ? 'heavy' : 'normal');
+    return { damageRatio, impactTier, targetMaxHp: maxHp };
+}
+
+function getBattleFxStart(type, data, now) {
+    if (!data) return now;
+    if (type === 'hit' && data.syncToSwing === true && !data.dot && latestPlayerSwingImpactAt >= now && latestPlayerSwingImpactAt - now <= 340) {
+        return latestPlayerSwingImpactAt;
+    }
+    if (['enemyDeath', 'lootPickup', 'lootCelebration'].includes(type) && data.enemyId) {
+        let pendingHit = [...battleFx].reverse().find(fx => fx && fx.type === 'hit' && fx.enemyId === data.enemyId && fx.start >= now);
+        if (pendingHit) return pendingHit.start;
+    }
+    if (type === 'levelUp' && latestPlayerSwingImpactAt >= now && latestPlayerSwingImpactAt - now <= 340) {
+        return latestPlayerSwingImpactAt;
+    }
+    return now;
+}
+
 function addBattleFx(type, data) {
+    let payload = data || {};
+    let now = performance.now();
+    if (type === 'playerSwing') {
+        let delay = payload.impactDelayMs || (payload.projectile ? 260 : 205);
+        latestPlayerSwingImpactAt = now + delay;
+        payload = { ...payload, impactAt: latestPlayerSwingImpactAt };
+    }
     battleFx.push({
         id: ++battleFxId,
         type: type,
-        start: performance.now(),
-        duration: (data && data.duration) || 260,
-        ...(data || {})
+        start: getBattleFxStart(type, payload, now),
+        queuedAt: now,
+        duration: payload.duration || 260,
+        ...getBattleHitFeedback(payload),
+        ...payload
     });
 }
 
@@ -3754,7 +3791,7 @@ function formatDamageNumberForDisplay(value, format) {
 function spawnDamageText(config) {
     battleVisualState.damageTexts.push({
         start: performance.now(),
-        duration: config.duration || (config.enemyHit ? 900 : (config.crit ? 920 : 780)),
+        duration: config.duration || (config.impactTier === 'annihilate' ? 1180 : (config.impactTier === 'heavy' ? 980 : (config.enemyHit ? 900 : (config.crit ? 920 : 820)))),
         x: config.x || 0,
         y: config.y || 0,
         value: config.value || 0,
@@ -3764,7 +3801,9 @@ function spawnDamageText(config) {
         dotType: config.dotType || '',
         miss: !!config.miss,
         color: config.color || '',
-        deflected: !!config.deflected
+        deflected: !!config.deflected,
+        impactTier: config.impactTier || 'normal',
+        damageRatio: Math.max(0, Number(config.damageRatio) || 0)
     });
 }
 function drawVisualProjectile(ctx, projectile, now) {
@@ -3791,27 +3830,34 @@ function drawDamageTexts(ctx, now) {
         let x = text.x + Math.sin((text.start % 1000) * 0.01) * 4;
         let y = text.y - rise * t;
         ctx.save();
-        ctx.globalAlpha = 1 - t;
-        const fontSize = text.miss ? 15 : (text.dot ? 14 : (text.crit ? 22 : (text.enemyHit ? 19 : 17)));
+        ctx.globalAlpha = t < 0.72 ? 1 : Math.max(0, (1 - t) / 0.28);
+        const tierSize = text.impactTier === 'annihilate' ? 34 : (text.impactTier === 'heavy' ? 27 : 0);
+        const fontSize = tierSize || (text.miss ? 16 : (text.dot ? 15 : (text.crit ? 24 : (text.enemyHit ? 21 : 20))));
         ctx.font = `900 ${fontSize}px "Malgun Gothic", "Noto Sans KR", sans-serif`;
         ctx.textAlign = 'center';
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
         const measure = ctx.measureText(textValue);
-        const boxW = measure.width + 12;
-        const boxH = fontSize + 7;
-        ctx.fillStyle = text.enemyHit ? 'rgba(55,7,12,0.72)' : (text.crit ? 'rgba(54,35,4,0.74)' : 'rgba(3,8,14,0.7)');
+        const boxW = measure.width + (text.impactTier === 'annihilate' ? 24 : 16);
+        const boxH = fontSize + 9;
+        ctx.fillStyle = text.enemyHit ? 'rgba(55,7,12,0.78)' : (text.impactTier === 'annihilate' ? 'rgba(60,16,3,.86)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(54,35,4,0.8)' : 'rgba(3,8,14,0.78)'));
         ctx.beginPath();
         if (typeof ctx.roundRect === 'function') ctx.roundRect(x - boxW / 2, y - boxH * 0.78, boxW, boxH, 5);
         else ctx.rect(x - boxW / 2, y - boxH * 0.78, boxW, boxH);
         ctx.fill();
-        ctx.lineWidth = text.crit ? 5.5 : 4.5;
+        ctx.lineWidth = text.impactTier === 'annihilate' ? 7 : (text.crit || text.impactTier === 'heavy' ? 5.8 : 5);
         ctx.strokeStyle = 'rgba(0,0,0,0.92)';
-        ctx.shadowColor = text.enemyHit ? 'rgba(255,56,70,0.72)' : (text.crit ? 'rgba(255,190,62,0.8)' : 'rgba(255,255,255,0.24)');
-        ctx.shadowBlur = text.crit || text.enemyHit ? 9 : 4;
+        ctx.shadowColor = text.enemyHit ? 'rgba(255,56,70,0.8)' : (text.impactTier === 'annihilate' ? 'rgba(255,92,25,.95)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(255,190,62,0.88)' : 'rgba(255,255,255,0.36)'));
+        ctx.shadowBlur = text.impactTier === 'annihilate' ? 18 : (text.crit || text.enemyHit || text.impactTier === 'heavy' ? 11 : 6);
         ctx.strokeText(textValue, x, y);
         let dotColor = text.dotType === 'fire' ? '#ff9f43' : (text.dotType === 'chaos' ? '#c56cff' : (text.dotType === 'phys' ? '#ff6b6b' : '#b57cff'));
-        ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.deflected ? '#8fe3b0' : (text.enemyHit ? '#ff8e8e' : (text.crit ? '#ffd36f' : '#f3f6ff'))));
+        ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.deflected ? '#8fe3b0' : (text.enemyHit ? '#ff9a9a' : (text.impactTier === 'annihilate' ? '#fff1b0' : (text.crit || text.impactTier === 'heavy' ? '#ffdc75' : '#ffffff')))));
         ctx.fillText(textValue, x, y);
+        if (text.impactTier === 'annihilate' && !text.enemyHit && !text.miss) {
+            ctx.font = '900 10px "Malgun Gothic", sans-serif';
+            ctx.letterSpacing = '2px';
+            ctx.fillStyle = '#ff9c54';
+            ctx.fillText('ANNIHILATION', x, y + 14);
+        }
         ctx.restore();
     });
 }
@@ -4078,6 +4124,55 @@ function getTutorialGuide(notice) {
     return [{ title: notice.title, body: notice.body, bullets: [], tip: '마지막 단계에서 관련 화면을 바로 열 수 있습니다.' }];
 }
 
+function getTutorialVisualKind(key, stepIndex) {
+    if (key === 'tutorial_battle_basics') return ['battle', 'damage', 'skills', 'growth'][stepIndex] || 'battle';
+    if (key === 'unlock_char') return 'passive';
+    if (['unlock_items', 'unlock_jewel', 'unlock_codex', 'unlock_market'].includes(key)) return 'items';
+    if (key === 'unlock_skills') return 'skills-panel';
+    if (['unlock_map', 'unlock_season_tab'].includes(key)) return 'map';
+    if (['unlock_traits', 'unlock_expertise'].includes(key) || String(key).startsWith('unlock_expert_')) return 'class';
+    if (String(key).startsWith('unlock_talent')) return 'class';
+    return 'system';
+}
+
+function buildTutorialBattlePreview(kind) {
+    let grid = new Array(18).fill('<i></i>').join('');
+    let status = kind === 'growth' ? '방어가 부족합니다' : (kind === 'skills' ? '스킬 범위 확인' : '교전 중 · 3기');
+    return `<div class="tutorial-game-preview is-${kind}">
+        <div class="tutorial-mini-status"><span>${status}</span><span class="tutorial-mini-hp"><i></i></span></div>
+        <div class="tutorial-mini-field"><div class="tutorial-mini-grid">${grid}</div><div class="tutorial-mini-hero">🏹</div><div class="tutorial-mini-enemy">👹</div><div class="tutorial-mini-target"></div><div class="tutorial-mini-damage">12,480</div></div>
+        <div class="tutorial-mini-skillbar"><span>사용 중</span><i class="tutorial-mini-skill">1</i><i class="tutorial-mini-skill">2</i><i class="tutorial-mini-skill">3</i><span>${kind === 'skills' ? '청록 칸 = 유효 범위' : '자동 공격'}</span></div>
+    </div>`;
+}
+
+function getTutorialPanelModel(kind) {
+    const models = {
+        passive: { icon: '🌳', tabs: ['캐릭터', '패시브'], rows: ['생명력 가지', '공격 속도 노드', '다음 연결 노드'] },
+        items: { icon: '🛡️', tabs: ['장비 창', '제작실'], rows: ['장착 장비 비교', '아이템 등급과 옵션', '필요 재화 확인'] },
+        'skills-panel': { icon: '💎', tabs: ['공격 젬', '보조 젬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그 · 범위 확인'] },
+        map: { icon: '🗺️', tabs: ['현재 지역', '다음 지역'], rows: ['몬스터 속성', '주요 보상', '보스 위험도'] },
+        class: { icon: '🌸', tabs: ['전직', '재능'], rows: ['빌드 방향 선택', '핵심 노드 경로', '개화 효과 확인'] },
+        system: { icon: '✦', tabs: ['새 콘텐츠', '가이드'], rows: ['해금 조건 확인', '관련 화면 열기', '진행 목표 추적'] }
+    };
+    return models[kind] || models.system;
+}
+
+function buildTutorialPanelPreview(kind, stepIndex) {
+    let model = getTutorialPanelModel(kind);
+    let tabs = model.tabs.map((label, index) => `<span class="${index === Math.min(1, stepIndex) ? 'active' : ''}">${label}</span>`).join('');
+    let rows = model.rows.map((label, index) => `<div class="tutorial-panel-row ${index === Math.min(2, stepIndex) ? 'active' : ''}"><span>${label}</span><b>${index === Math.min(2, stepIndex) ? '◀ 지금 확인' : '·'}</b></div>`).join('');
+    return `<div class="tutorial-panel-preview"><div class="tutorial-panel-tabs">${tabs}</div><div class="tutorial-panel-body"><div class="tutorial-panel-focus">${model.icon}</div><div class="tutorial-panel-list">${rows}</div></div></div>`;
+}
+
+function renderTutorialVisual() {
+    let visual = document.getElementById('tutorial-visual');
+    if (!visual || !activeTutorial) return;
+    let kind = getTutorialVisualKind(activeTutorial.key, activeTutorialStep);
+    visual.innerHTML = ['battle', 'damage', 'skills', 'growth'].includes(kind)
+        ? buildTutorialBattlePreview(kind)
+        : buildTutorialPanelPreview(kind, activeTutorialStep);
+}
+
 function renderTutorialStep() {
     if (!activeTutorial) return;
     const steps = activeTutorial.steps || [];
@@ -4089,6 +4184,7 @@ function renderTutorialStep() {
         ? `<ul class="tutorial-checklist">${step.bullets.map(line => `<li>${escapeTutorialText(line)}</li>`).join('')}</ul>` : '';
     const tip = step.tip ? `<div class="tutorial-tip">TIP · ${escapeTutorialText(step.tip)}</div>` : '';
     document.getElementById('tutorial-body').innerHTML = `<p class="tutorial-summary">${escapeTutorialText(step.body || activeTutorial.body)}</p>${bullets}${tip}`;
+    renderTutorialVisual();
     document.getElementById('tutorial-progress-label').innerText = `${activeTutorialStep + 1} / ${count}`;
     document.getElementById('tutorial-progress-fill').style.width = `${((activeTutorialStep + 1) / count) * 100}%`;
     document.getElementById('tutorial-back-btn').style.display = activeTutorialStep > 0 ? 'inline-block' : 'none';
@@ -4206,7 +4302,9 @@ function openLoopHeroSelection(onSelect, options = {}) {
     grid.innerHTML = HERO_SELECTION_ORDER.map(id => {
         let def = HERO_SELECTION_DEFS[id];
         let experienced = experiencedSet.has(id);
-        return `<button class="reward-choice hero-choice" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="chooseLoopHero('${id}')"><strong>${escapeHTML(def.label)}</strong></button>`;
+        let summary = String(def.talentsText || '').split(',').slice(0, 2).join(' ·');
+        let badge = experienced ? '<span class="hero-choice-badge">경험함</span>' : '';
+        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-hero-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="chooseLoopHero('${id}')">${badge}<strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
     }).join('');
     overlay.classList.add('active');
 }

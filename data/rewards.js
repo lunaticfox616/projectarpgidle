@@ -1,8 +1,4 @@
-function safeExposeData(map) {
-  Object.keys(map || {}).forEach(function (key) {
-    if (typeof window[key] === "undefined") window[key] = map[key];
-  });
-}
+if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/rewards.js');
 
 // Phase-1 extracted data (global compatibility).
 const ACT_REWARD_DB = {
