@@ -540,7 +540,7 @@
     // 차단형 오버레이(선택 모달, 백그라운드 복귀 진행)가 떠 있는 동안에는
     // 같은 내용을 중복 안내하지 않도록 서랍을 자동으로 펼치지 않는다.
     function isBlockingOverlayVisible() {
-        return !!document.querySelector('.tutorial-overlay.active, .background-combat-progress-overlay');
+        return !!document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay), .background-combat-progress-overlay');
     }
 
     function scheduleGoalAutoCollapse() {
@@ -811,7 +811,7 @@
 
     function closeTopWindowOnEscape(event) {
         if (event.key !== 'Escape' || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
-        if (document.querySelector('.tutorial-overlay.active,.social-modal-overlay[style*="display: block"]')) return;
+        if (document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay),.social-modal-overlay[style*="display: block"]')) return;
         if (document.body.classList.contains('community-overlay-open')) { closeCommunityDock(); return; }
         let open = zOrder.slice().reverse().find(id => {
             let st = layoutState.windows[id];

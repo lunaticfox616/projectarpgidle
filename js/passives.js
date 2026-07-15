@@ -3992,16 +3992,8 @@ function drawDamageTexts(ctx, now) {
         ctx.font = `900 ${fontSize}px "Malgun Gothic", "Noto Sans KR", sans-serif`;
         ctx.textAlign = 'center';
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
-        const measure = ctx.measureText(textValue);
-        const boxW = measure.width + (text.impactTier === 'annihilate' ? 24 : 16);
-        const boxH = fontSize + 9;
-        ctx.fillStyle = text.enemyHit ? 'rgba(55,7,12,0.78)' : (text.impactTier === 'annihilate' ? 'rgba(60,16,3,.86)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(54,35,4,0.8)' : 'rgba(3,8,14,0.78)'));
-        ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') ctx.roundRect(x - boxW / 2, y - boxH * 0.78, boxW, boxH, 5);
-        else ctx.rect(x - boxW / 2, y - boxH * 0.78, boxW, boxH);
-        ctx.fill();
-        ctx.lineWidth = text.impactTier === 'annihilate' ? 7 : (text.crit || text.impactTier === 'heavy' ? 5.8 : 5);
-        ctx.strokeStyle = 'rgba(0,0,0,0.92)';
+        ctx.lineWidth = text.impactTier === 'annihilate' ? 4 : (text.crit || text.impactTier === 'heavy' ? 3.4 : 2.8);
+        ctx.strokeStyle = 'rgba(0,0,0,0.88)';
         ctx.shadowColor = text.enemyHit ? 'rgba(255,56,70,0.8)' : (text.impactTier === 'annihilate' ? 'rgba(255,92,25,.95)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(255,190,62,0.88)' : 'rgba(255,255,255,0.36)'));
         ctx.shadowBlur = text.impactTier === 'annihilate' ? 18 : (text.crit || text.enemyHit || text.impactTier === 'heavy' ? 11 : 6);
         ctx.strokeText(textValue, x, y);
@@ -4331,22 +4323,15 @@ function renderTutorialVisual() {
 
 function renderTutorialStep() {
     if (!activeTutorial) return;
-    const steps = activeTutorial.steps || [];
-    const step = steps[activeTutorialStep] || steps[0] || { title: activeTutorial.title, body: activeTutorial.body };
-    const count = Math.max(1, steps.length);
-    document.getElementById('tutorial-kicker').innerText = count > 1 ? '콘텐츠 가이드' : '새 콘텐츠 발견!';
-    document.getElementById('tutorial-title').innerText = step.title || activeTutorial.title;
-    const bullets = Array.isArray(step.bullets) && step.bullets.length
-        ? `<ul class="tutorial-checklist">${step.bullets.map(line => `<li>${escapeTutorialText(line)}</li>`).join('')}</ul>` : '';
-    const tip = step.tip ? `<div class="tutorial-tip">TIP · ${escapeTutorialText(step.tip)}</div>` : '';
-    document.getElementById('tutorial-body').innerHTML = `<p class="tutorial-summary">${escapeTutorialText(step.body || activeTutorial.body)}</p>${bullets}${tip}`;
-    renderTutorialVisual();
-    document.getElementById('tutorial-progress-label').innerText = `${activeTutorialStep + 1} / ${count}`;
-    document.getElementById('tutorial-progress-fill').style.width = `${((activeTutorialStep + 1) / count) * 100}%`;
-    document.getElementById('tutorial-back-btn').style.display = activeTutorialStep > 0 ? 'inline-block' : 'none';
-    const isLast = activeTutorialStep >= count - 1;
+    document.getElementById('tutorial-kicker').innerText = '새 콘텐츠';
+    document.getElementById('tutorial-title').innerText = activeTutorial.title;
+    document.getElementById('tutorial-body').innerHTML = `<p class="tutorial-summary">${escapeTutorialText(activeTutorial.body)}</p>`;
     const hasShortcut = !!activeTutorial.tabId || !!activeTutorial.itemSubtabId;
-    document.getElementById('tutorial-open-btn').innerText = isLast ? (hasShortcut ? '해당 화면 열기' : '완료') : '다음';
+    const openButton = document.getElementById('tutorial-open-btn');
+    const dismissButton = document.getElementById('tutorial-dismiss-btn');
+    openButton.style.display = hasShortcut ? 'inline-block' : 'none';
+    openButton.innerText = '화면 열기';
+    dismissButton.innerText = '확인';
 }
 
 function queueTutorialNotice(key, title, body, tabId, itemSubtabId) {
@@ -4359,21 +4344,13 @@ function queueTutorialNotice(key, title, body, tabId, itemSubtabId) {
 function showNextTutorial() {
     if (activeTutorial || tutorialQueue.length === 0) return;
     activeTutorial = tutorialQueue.shift();
-    activeTutorial.steps = getTutorialGuide(activeTutorial);
     activeTutorialStep = 0;
     renderTutorialStep();
-    document.getElementById('tutorial-open-btn').style.display = 'inline-block';
     document.getElementById('tutorial-overlay').classList.add('active');
     lastTime = Date.now();
 }
 function advanceTutorial() {
     if (!activeTutorial) return;
-    const count = Math.max(1, (activeTutorial.steps || []).length);
-    if (activeTutorialStep < count - 1) {
-        activeTutorialStep += 1;
-        renderTutorialStep();
-        return;
-    }
     dismissTutorial(true);
 }
 function goBackTutorialStep() {

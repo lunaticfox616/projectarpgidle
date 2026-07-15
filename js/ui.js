@@ -758,7 +758,7 @@ function isOverlayElementOpen(selector) {
 
 function isPauseSettingOverlayOpen() {
     let modalSelectors = [
-        '.tutorial-overlay.active',
+        '.tutorial-overlay.active:not(#tutorial-overlay)',
         '#condition-gem-overlay',
         '#beehive-choice-overlay',
         '#spore-mode-overlay',
@@ -12575,7 +12575,7 @@ function gameLoop() {
     try {
         if (document.hidden) return;
         let frameNow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-        if (isTutorialOpen() || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
+        if (isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active')) {
                 let passiveNow = Date.now();
                 if (shouldRedrawPassiveTree(passiveNow)) {

@@ -645,12 +645,6 @@ function renderBattlefield(forceWhenHidden) {
                 ctx.stroke();
             }
             ctx.restore();
-        } else if (fx.type === 'playerDown') {
-            ctx.save();
-            ctx.globalAlpha = 0.25 * (1 - t);
-            ctx.fillStyle = fx.color || '#ff6b6b';
-            ctx.fillRect(0, 0, width, height);
-            ctx.restore();
         }
     });
     drawDamageTexts(ctx, now);
@@ -710,13 +704,6 @@ function drawBattleScreenGrade(ctx, width, height, now) {
     bottomEdge.addColorStop(1, 'rgba(1,3,7,0)');
     ctx.fillStyle = bottomEdge;
     ctx.fillRect(0, height - edgeSizeY, width, edgeSizeY);
-    let flashFx = (battleFx || []).find(fx => fx && now - fx.start >= 0 && now - fx.start < 100
-        && (fx.impactTier === 'annihilate' || fx.impactTier === 'heavy' || fx.crit));
-    if (flashFx) {
-        ctx.globalAlpha = flashFx.impactTier === 'annihilate' ? 0.24 : (flashFx.impactTier === 'heavy' ? 0.14 : 0.1);
-        ctx.fillStyle = flashFx.impactTier === 'annihilate' ? '#fff0cf' : '#ffe7a3';
-        ctx.fillRect(0, 0, width, height);
-    }
     ctx.restore();
 }
 
