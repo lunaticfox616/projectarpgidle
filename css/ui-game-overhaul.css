@@ -241,16 +241,16 @@ body:not(.light-mode) .hero-choice::after {
   animation: heroSpritePreview 1.05s steps(5) infinite;
 }
 
-body:not(.light-mode) .hero-choice:nth-child(1)::after { background-image: url('../assets/hero1/ElfIdle001Sheet-export.png'); background-size: 600% 100%; }
-body:not(.light-mode) .hero-choice:nth-child(2)::after { background-image: url('../assets/hero2/DemonKinIdle001-Sheet.png'); background-size: 600% 100%; }
-body:not(.light-mode) .hero-choice:nth-child(3)::after { background-image: url('../assets/hero3/hero3_walk.png'); background-size: 900% 100%; animation-timing-function: steps(8); }
-body:not(.light-mode) .hero-choice:nth-child(4)::after { background-image: url('../assets/hero4/SeveredFangIdle001-Sheet.png'); background-size: 600% 100%; }
-body:not(.light-mode) .hero-choice:nth-child(5)::after { background-image: url('../assets/hero5/hero5_walk.png'); background-size: 1100% 100%; animation-timing-function: steps(10); }
-body:not(.light-mode) .hero-choice:nth-child(6)::after { background-image: url('../assets/hero6/hero6_walk.png'); background-size: 1300% 100%; animation-timing-function: steps(12); }
-body:not(.light-mode) .hero-choice:nth-child(7)::after { background-image: url('../assets/hero10/hero10_walk.png'); background-size: 1200% 100%; animation-timing-function: steps(11); filter: hue-rotate(260deg) saturate(1.25) drop-shadow(0 12px 8px rgba(0,0,0,.72)) drop-shadow(0 0 14px rgba(165,106,255,.32)); }
-body:not(.light-mode) .hero-choice:nth-child(8)::after { background-image: url('../assets/hero5/hero5_walk.png'); background-size: 1100% 100%; animation-timing-function: steps(10); filter: hue-rotate(120deg) drop-shadow(0 12px 8px rgba(0,0,0,.72)); }
-body:not(.light-mode) .hero-choice:nth-child(9)::after { background-image: url('../assets/hero9/hero9_walk.png'); background-size: 900% 100%; animation-timing-function: steps(8); }
-body:not(.light-mode) .hero-choice:nth-child(10)::after { background-image: url('../assets/hero10/hero10_walk.png'); background-size: 1200% 100%; animation-timing-function: steps(11); }
+body:not(.light-mode) .hero-choice[data-hero-id="hero1"]::after { background-image: url('../assets/hero1/ElfIdle001Sheet-export.png'); background-size: 600% 100%; }
+body:not(.light-mode) .hero-choice[data-hero-id="hero2"]::after { background-image: url('../assets/hero2/hero2_walk.png'); background-size: 1300% 100%; animation-timing-function: steps(12); }
+body:not(.light-mode) .hero-choice[data-hero-id="hero3"]::after { background-image: url('../assets/hero3/hero3_walk.png'); background-size: 900% 100%; animation-timing-function: steps(8); }
+body:not(.light-mode) .hero-choice[data-hero-id="hero4"]::after { background-image: url('../assets/hero4/SeveredFangIdle001-Sheet.png'); background-size: 600% 100%; }
+body:not(.light-mode) .hero-choice[data-hero-id="hero5"]::after { background-image: url('../assets/hero5/hero5_walk.png'); background-size: 1100% 100%; animation-timing-function: steps(10); }
+body:not(.light-mode) .hero-choice[data-hero-id="hero6"]::after { background-image: url('../assets/hero6/hero6_walk.png'); background-size: 1300% 100%; animation-timing-function: steps(12); }
+body:not(.light-mode) .hero-choice[data-hero-id="hero7"]::after { background-image: url('../assets/hero3/hero3_walk.png'); background-size: 900% 100%; animation-timing-function: steps(8); }
+body:not(.light-mode) .hero-choice[data-hero-id="hero8"]::after { background-image: url('../assets/hero2/hero2_walk.png'); background-size: 1300% 100%; animation-timing-function: steps(12); }
+body:not(.light-mode) .hero-choice[data-hero-id="hero9"]::after { background-image: url('../assets/hero9/hero9_walk.png'); background-size: 900% 100%; animation-timing-function: steps(8); }
+body:not(.light-mode) .hero-choice[data-hero-id="hero10"]::after { background-image: url('../assets/hero10/hero10_walk.png'); background-size: 1200% 100%; animation-timing-function: steps(11); }
 
 body:not(.light-mode) .hero-choice strong {
   z-index: 2;
@@ -262,6 +262,31 @@ body:not(.light-mode) .hero-choice strong {
   background: linear-gradient(90deg, transparent, rgba(6, 12, 20, 0.9), transparent);
   text-align: center;
   letter-spacing: 0.08em;
+}
+
+body:not(.light-mode) .hero-choice strong small {
+  display:block;
+  margin-top:4px;
+  overflow:hidden;
+  color:#9fb8cc;
+  font-size:.61rem;
+  font-weight:600;
+  letter-spacing:0;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+body:not(.light-mode) .hero-choice-badge {
+  position:absolute;
+  z-index:3;
+  top:10px;
+  right:10px;
+  padding:2px 6px;
+  border:1px solid rgba(103,196,239,.5);
+  border-radius:999px;
+  color:#aee5ff;
+  background:rgba(8,29,44,.8);
+  font-size:.62rem;
 }
 
 body:not(.light-mode) .hero-choice:hover:not(:disabled) {

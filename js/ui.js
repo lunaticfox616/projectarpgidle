@@ -11052,13 +11052,25 @@ function loadStoredCloudSession() {
     }
 }
 
+function refreshSocialAfterCloudStateChange() {
+    if (typeof syncSocialBackgroundTasks === 'function') syncSocialBackgroundTasks();
+    if (typeof renderSocialTab !== 'function') return;
+    let socialTab = document.getElementById('tab-social');
+    if (socialTab && socialTab.classList.contains('active')) renderSocialTab();
+    if (cloudState.user && typeof checkSocialChatNotification === 'function') {
+        Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification refresh failed:', error));
+    }
+}
+
 function applyCloudSession(session) {
+    let previousUserId = cloudState.user && cloudState.user.id;
     if (!session || !session.access_token) {
         cloudState.session = null;
         cloudState.user = null;
         cloudState.isLoaded = false;
         clearCloudSessionStorage();
         updateCloudSaveUI();
+        if (previousUserId) refreshSocialAfterCloudStateChange();
         return;
     }
     let expiresAt = Number(session.expires_at) || 0;
@@ -11075,6 +11087,7 @@ function applyCloudSession(session) {
     cloudState.tokenExpiryWarned = false;
     persistCloudSession(cloudState.session);
     updateCloudSaveUI();
+    if (previousUserId !== (cloudState.user && cloudState.user.id)) refreshSocialAfterCloudStateChange();
 }
 
 function getCloudSessionExpiresAtMs() {
@@ -11241,6 +11254,7 @@ async function continueWithCloudSession() {
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
+        refreshSocialAfterCloudStateChange();
     }
 }
 
@@ -11842,6 +11856,7 @@ async function reconcileCloudSaveState(options = {}) {
 }
 
 let cloudSyncTimer = null;
+let lastPageExitCloudPushAt = 0;
 function isCloudSaveDirty() {
     let localStamp = game && game.saveMeta ? Math.max(0, Number(game.saveMeta.lastModifiedAt || 0)) : 0;
     // IMPORTANT: only use confirmed sync watermark.
@@ -11964,6 +11979,7 @@ async function initializeCloudSave() {
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
+        refreshSocialAfterCloudStateChange();
     }
 }
 
@@ -12117,6 +12133,8 @@ function pushCloudSaveOnPageExit(reason) {
         setCloudMessage('로컬 세이브가 새로 생성된 기본 상태라 종료 전 클라우드 업로드를 차단했습니다.');
         return false;
     }
+    let exitPushStartedAt = Date.now();
+    if (exitPushStartedAt - lastPageExitCloudPushAt < 1500) return false;
     try {
         if (!persistLocalSave({ touchModifiedAt: true })) return false;
         ensureSaveMeta();
@@ -12151,6 +12169,7 @@ function pushCloudSaveOnPageExit(reason) {
                 console.warn(`cloud save on ${reason || 'page exit'} failed:`, error);
             }
         });
+        lastPageExitCloudPushAt = exitPushStartedAt;
         cloudState.lastSyncAttemptAt = optimisticSyncAt;
         setCloudMessage('페이지 종료 전 클라우드 저장을 시도했습니다.');
         return true;

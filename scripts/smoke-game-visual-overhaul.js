@@ -90,6 +90,19 @@ for (let index = 1; index < layout.rootRows.length; index++) {
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
 const shake = vm.runInContext(`(() => { game.settings.cameraShake = false; battleFx = [{ type: 'hit', start: 900, crit: true }]; return getBattleCameraShake(1000); })()`, context);
 assert.strictEqual(Math.abs(shake.x) + Math.abs(shake.y), 0, 'camera shake toggle should fully disable translation');
+const impactFeedback = vm.runInContext(`(() => {
+  game.enemies = [{ id: 'feedback-target', hp: 0, maxHp: 100, lastOverkillDamage: 35 }];
+  battleFx = [];
+  addBattleFx('playerSwing', { projectile: false, duration: 600 });
+  addBattleFx('hit', { enemyId: 'feedback-target', damage: 100, duration: 320, syncToSwing: true });
+  addBattleFx('enemyDeath', { enemyId: 'feedback-target', duration: 600 });
+  addBattleFx('hit', { enemyId: 'independent-target', damage: 10, duration: 220, syncToSwing: false });
+  return { swing: battleFx[0], hit: battleFx[1], death: battleFx[2], independent: battleFx[3] };
+})()`, context);
+assert.ok(impactFeedback.hit.start > impactFeedback.swing.start, 'hit feedback should wait for the attack impact frame');
+assert.strictEqual(impactFeedback.hit.impactTier, 'annihilate', '100%+ raw damage should use annihilation feedback');
+assert.strictEqual(impactFeedback.death.start, impactFeedback.hit.start, 'death feedback should stay on the same impact frame');
+assert.strictEqual(impactFeedback.independent.start, impactFeedback.independent.queuedAt, 'summon, reflect, and delayed hits should not attach to the player swing');
 
 for (let index = 0; index < 18; index++) {
   assert.ok(fs.existsSync(`assets/background/chaos/endgame-${index}.png`), `chaos backdrop ${index} should exist`);
@@ -108,6 +121,22 @@ const windowCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 assert.ok(windowCss.includes('border-image-source:'), 'window frame should use nine-slice-style border rendering');
 assert.ok(windowCss.includes('> .ui-window-resize'), 'window resize handle should retain an explicit absolute layer');
 assert.ok(fs.readFileSync('index.html', 'utf8').includes('id="tutorial-progress-fill"'), 'tutorial modal should expose multi-step progress');
+assert.ok(fs.readFileSync('index.html', 'utf8').includes('id="tutorial-visual"'), 'tutorial modal should expose a game-like visual stage');
 assert.ok(passiveSource.includes('const TUTORIAL_GUIDES ='), 'content tutorials should be backed by structured guides');
+assert.ok(passiveSource.includes('buildTutorialBattlePreview'), 'battle tutorials should render battlefield HUD elements');
+assert.ok(passiveSource.includes("impactTier = damageRatio >= 1 ? 'annihilate'"), 'combat feedback should classify heavy and annihilating hits');
+const combatSource = fs.readFileSync('js/combat.js', 'utf8');
+assert.ok(combatSource.includes("addBattleFx('levelUp'"), 'player level-ups should create a battlefield effect');
+const socialSource = fs.readFileSync('js/social.js', 'utf8');
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+assert.ok(socialSource.includes('연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.'), 'chat should show a cloud-session pending state');
+assert.ok(uiSource.includes('refreshSocialAfterCloudStateChange'), 'cloud session changes should refresh an already-open chat tab');
+assert.ok(uiSource.includes('exitPushStartedAt - lastPageExitCloudPushAt < 1500'), 'page-exit cloud uploads should be deduplicated across lifecycle events');
+assert.ok(socialSource.includes('function syncSocialBackgroundTasks()'), 'social timers should follow cloud-session lifetime');
+assert.ok(!socialSource.includes('setInterval(() => { if (socialCloudReady() && getMyNickname()) ensureHeartbeat(); }, SOCIAL_HEARTBEAT_MS);\n    // 커뮤니티'), 'social module should not run an eager cloud-ready watcher forever');
+assert.ok(passiveSource.includes('data-hero-id="${escapeHTML(id)}"'), 'hero preview cards should expose stable hero ids');
+assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero2\"]::after { background-image: url('../assets/hero2/hero2_walk.png')"), 'warrior preview should match its battle sprite');
+assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero7\"]::after { background-image: url('../assets/hero3/hero3_walk.png')"), 'summoner preview should match its reused battle sprite');
+assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero8\"]::after { background-image: url('../assets/hero2/hero2_walk.png')"), 'guardian preview should match its reused battle sprite');
 
 console.log('smoke-game-visual-overhaul passed');

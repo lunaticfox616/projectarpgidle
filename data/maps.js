@@ -1,8 +1,4 @@
-function safeExposeData(map) {
-  Object.keys(map || {}).forEach(function (key) {
-    if (typeof window[key] === "undefined") window[key] = map[key];
-  });
-}
+if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/maps.js');
 
 // Phase-1 extracted map/season/journal data.
 const STORY_ACTS = [

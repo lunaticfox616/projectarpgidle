@@ -40,4 +40,19 @@ try {
     assert.fail(`전역 스코프 선언 충돌: ${error.message}`);
 }
 
+// (3) function 선언도 같은 window 프로퍼티를 공유한다. let/const와 달리 문법 오류 없이
+// 뒤 파일이 앞 구현을 덮어쓰므로, 모듈 소유권이 깨진 채 계산식만 조용히 바뀌는 회귀를 막는다.
+const functionOwners = new Map();
+for (const src of sources) {
+    const code = fs.readFileSync(src, 'utf8');
+    const topLevelFunction = /^function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
+    let functionMatch;
+    while ((functionMatch = topLevelFunction.exec(code)) !== null) {
+        const name = functionMatch[1];
+        const previousOwner = functionOwners.get(name);
+        assert(!previousOwner, `전역 함수 '${name}' 중복 선언: ${previousOwner}, ${src}`);
+        functionOwners.set(name, src);
+    }
+}
+
 console.log(`smoke-boot-script-contract passed (${sources.length} scripts)`);
