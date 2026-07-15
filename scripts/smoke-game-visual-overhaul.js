@@ -40,12 +40,28 @@ passiveFiles.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), cont
 const layout = vm.runInContext(`(() => {
   const nodes = Object.values(PASSIVE_TREE.nodes);
   const root = PASSIVE_TREE.nodes.n0;
+  const placementFields = new Set(['x', 'y', 'angle', 'treeDepth', 'treeDirection', 'treeBranchRoot', 'treeBranchOrder']);
+  function contentSnapshot() {
+    return JSON.stringify(Object.values(PASSIVE_TREE.nodes)
+      .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))
+      .map(node => Object.fromEntries(Object.keys(node)
+        .filter(key => !placementFields.has(key))
+        .sort()
+        .map(key => [key, node[key]]))));
+  }
+  const contentBefore = contentSnapshot();
+  const edgesBefore = JSON.stringify(PASSIVE_TREE.edges);
+  shapePassiveTreeAsLifeTree();
+  const contentPreserved = contentBefore === contentSnapshot() && edgesBefore === JSON.stringify(PASSIVE_TREE.edges);
   let overlaps = 0;
+  let minimumClearance = Infinity;
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       const a = nodes[i], b = nodes[j];
-      const minimum = getPassiveNodeVisualRadius(a) + getPassiveNodeVisualRadius(b) + 3;
-      if (Math.hypot(a.x - b.x, a.y - b.y) < minimum) overlaps++;
+      const radiusSum = getPassiveNodeVisualRadius(a) + getPassiveNodeVisualRadius(b);
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      minimumClearance = Math.min(minimumClearance, distance - radiusSum);
+      if (distance < radiusSum + 3) overlaps++;
     }
   }
   const starters = nodes.filter(node => node.depth === 1);
@@ -59,12 +75,19 @@ const layout = vm.runInContext(`(() => {
   }
   return {
     count: nodes.length,
+    edgeCount: PASSIVE_TREE.edges.length,
+    contentPreserved,
     rootY: root.y,
     canopyCount: canopyNodes.length,
     rootCount: rootNodes.length,
     canopyWrongSide: canopyNodes.filter(node => node.y >= root.y).length,
     rootWrongSide: rootNodes.filter(node => node.y <= root.y).length,
     overlaps,
+    minimumClearance,
+    canopyBranchCount: new Set(canopyNodes.map(node => node.treeBranchRoot)).size,
+    rootBranchCount: new Set(rootNodes.map(node => node.treeBranchRoot)).size,
+    aspectRatio: (PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX) / (PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY),
+    trunkSplit: (root.y - PASSIVE_BOUNDS.minY) / (PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY),
     starterCount: starters.length,
     uniqueStartingStats: uniqueStartingStats.size,
     canopyRows: directionalRowAverages(canopyNodes),
@@ -72,13 +95,20 @@ const layout = vm.runInContext(`(() => {
   };
 })()`, context);
 
-assert.ok(layout.count > 100, 'passive graph should preserve the full node set');
+assert.strictEqual(layout.count, 1101, 'life-tree remapping should preserve all passive nodes from main');
+assert.strictEqual(layout.edgeCount, 1353, 'life-tree remapping should preserve every passive connection from main');
+assert.strictEqual(layout.contentPreserved, true, 'life-tree remapping must not alter node effects or graph data');
 assert.strictEqual(layout.canopyCount + layout.rootCount, layout.count - 1, 'every non-root node should belong to a canopy or root branch');
 assert.ok(layout.canopyCount > layout.count * 0.25, 'the upper canopy should retain substantial branches');
 assert.ok(layout.rootCount > layout.count * 0.25, 'the lower root system should carry substantial branches');
 assert.strictEqual(layout.canopyWrongSide, 0, 'canopy branches should remain above the trunk root');
 assert.strictEqual(layout.rootWrongSide, 0, 'root branches should continue below the trunk root');
 assert.strictEqual(layout.overlaps, 0, 'life-tree remapping should not overlap node hit areas');
+assert.ok(layout.minimumClearance >= 18, 'passive nodes should retain comfortable visual spacing');
+assert.strictEqual(layout.canopyBranchCount, 5, 'the canopy should preserve five readable major branches');
+assert.strictEqual(layout.rootBranchCount, 3, 'the lower tree should preserve three readable root paths');
+assert.ok(layout.aspectRatio >= 0.42 && layout.aspectRatio <= 0.65, 'the full passive tree should keep a tall reference-like silhouette');
+assert.ok(layout.trunkSplit >= 0.38 && layout.trunkSplit <= 0.56, 'the trunk junction should remain near the visual center');
 assert.strictEqual(layout.uniqueStartingStats, layout.starterCount, 'every root-adjacent starting node should provide a distinct stat');
 for (let index = 1; index < layout.canopyRows.length; index++) {
   assert.ok(layout.canopyRows[index].y < layout.canopyRows[index - 1].y, 'deeper canopy rows should grow upward');
@@ -120,15 +150,26 @@ assert.ok(!passiveSource.includes('if (!lightweightMode && useMajorFrame'), 'dra
 const windowCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 assert.ok(windowCss.includes('border-image-source:'), 'window frame should use nine-slice-style border rendering');
 assert.ok(windowCss.includes('> .ui-window-resize'), 'window resize handle should retain an explicit absolute layer');
-assert.ok(fs.readFileSync('index.html', 'utf8').includes('id="tutorial-progress-fill"'), 'tutorial modal should expose multi-step progress');
-assert.ok(fs.readFileSync('index.html', 'utf8').includes('id="tutorial-visual"'), 'tutorial modal should expose a game-like visual stage');
-assert.ok(passiveSource.includes('const TUTORIAL_GUIDES ='), 'content tutorials should be backed by structured guides');
-assert.ok(passiveSource.includes('buildTutorialBattlePreview'), 'battle tutorials should render battlefield HUD elements');
+assert.ok(windowCss.includes('z-index: 6;'), 'window frame should render above the window surface');
+assert.ok(windowCss.includes('padding: clamp(20px, 1.5vw, 24px);'), 'window content should reserve a text-safe frame inset');
+const indexSource = fs.readFileSync('index.html', 'utf8');
+assert.ok(indexSource.includes('id="tutorial-dismiss-btn"'), 'tutorial notice should expose a single acknowledgement action');
+assert.ok(!indexSource.includes('id="tutorial-progress-fill"'), 'tutorial notice should not use multi-step progress');
+assert.ok(!indexSource.includes('id="tutorial-visual"'), 'tutorial notice should keep the actual game screen visible');
+assert.ok(!passiveSource.includes('activeTutorial.steps = getTutorialGuide(activeTutorial)'), 'tutorial notices should not expand into illustrated multi-step lessons');
+assert.ok(windowCss.includes('#tutorial-overlay.active'), 'tutorial notice should use a compact live-screen presentation');
+const battlefieldSource = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
+assert.ok(!battlefieldSource.includes('let flashFx = (battleFx || []).find'), 'battlefield rendering should not flash the full screen on impact');
+assert.ok(!passiveSource.includes('ctx.roundRect(x - boxW / 2'), 'damage labels should not draw opaque backing boxes');
 assert.ok(passiveSource.includes("impactTier = damageRatio >= 1 ? 'annihilate'"), 'combat feedback should classify heavy and annihilating hits');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert.ok(combatSource.includes("addBattleFx('levelUp'"), 'player level-ups should create a battlefield effect');
 const socialSource = fs.readFileSync('js/social.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const windowManagerSource = fs.readFileSync('js/ui-window-manager.js', 'utf8');
+assert.ok(uiSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not pause the live battle screen');
+assert.ok(!uiSource.includes('if (isTutorialOpen() || isRewardOpen()'), 'compact tutorial notices should keep the game loop running');
+assert.ok(windowManagerSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not block desktop window interactions');
 assert.ok(socialSource.includes('연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.'), 'chat should show a cloud-session pending state');
 assert.ok(uiSource.includes('refreshSocialAfterCloudStateChange'), 'cloud session changes should refresh an already-open chat tab');
 assert.ok(uiSource.includes('exitPushStartedAt - lastPageExitCloudPushAt < 1500'), 'page-exit cloud uploads should be deduplicated across lifecycle events');

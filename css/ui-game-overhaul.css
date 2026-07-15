@@ -501,14 +501,14 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window::after {
   content: '';
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 6;
   pointer-events: none;
   box-sizing: border-box;
-  opacity: .7;
-  border: 14px solid transparent;
+  opacity: .82;
+  border: 16px solid transparent;
   border-image-source: url('../assets/ui/window-frame-luxe-v1.png');
   border-image-slice: 108;
-  border-image-width: 14px;
+  border-image-width: 16px;
   border-image-outset: 0;
   border-image-repeat: stretch;
   filter: saturate(.9) contrast(1.03);
@@ -521,24 +521,63 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-bo
 }
 
 body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar {
-  flex: 0 0 40px;
+  flex: 0 0 42px;
   min-width: 0;
   overflow: hidden;
-  padding-inline: 16px 10px;
+  padding-inline: 24px 18px;
   background: linear-gradient(180deg, rgba(39, 61, 85, .99), rgba(14, 25, 39, .99));
 }
 
 body:not(.light-mode).desktop-windowed-ui .ui-window-title::before { content: '◇'; margin-right: 9px; color: var(--game-gold); }
 body:not(.light-mode).desktop-windowed-ui .ui-window-actions { flex: 0 0 auto; flex-wrap: nowrap; }
 body:not(.light-mode).desktop-windowed-ui .ui-window-actions button { min-width: 28px; min-height: 26px; border-radius: 2px 8px 2px 8px; }
-body:not(.light-mode).desktop-windowed-ui .ui-window-body { padding: clamp(12px, 1.2vw, 18px); }
+body:not(.light-mode).desktop-windowed-ui .ui-window-body { padding: clamp(20px, 1.5vw, 24px); }
 body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-resize {
   position: absolute;
   right: 2px;
   bottom: 2px;
-  z-index: 7;
+  z-index: 8;
   width: 22px;
   height: 22px;
+  border-radius: 8px 0 0;
+  background: rgba(7, 12, 18, .76);
+}
+
+/* A one-shot guide sits over the live game instead of replacing it with a modal lesson. */
+body:not(.light-mode) #tutorial-overlay {
+  inset: auto 18px 18px auto;
+  width: min(420px, calc(100vw - 24px));
+  background: transparent;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+body:not(.light-mode) #tutorial-overlay.active {
+  display: block;
+}
+
+body:not(.light-mode) #tutorial-overlay .tutorial-card {
+  width: 100%;
+  padding: 16px 18px;
+  overflow: visible;
+  pointer-events: auto;
+  border-color: rgba(199, 158, 79, .72);
+  box-shadow: 0 16px 46px rgba(0,0,0,.58), 0 0 0 1px rgba(255,225,159,.08);
+}
+
+body:not(.light-mode) #tutorial-overlay .tutorial-kicker { margin-bottom: 5px; }
+body:not(.light-mode) #tutorial-overlay .tutorial-title { margin-bottom: 6px; font-size: 1.12rem; }
+body:not(.light-mode) #tutorial-overlay .tutorial-body { font-size: .9rem; line-height: 1.48; }
+body:not(.light-mode) #tutorial-overlay .tutorial-summary { margin: 0; font-weight: 500; }
+body:not(.light-mode) #tutorial-overlay .tutorial-actions { margin-top: 12px; gap: 7px; }
+body:not(.light-mode) #tutorial-overlay .tutorial-actions button { min-width: 84px; min-height: 34px; }
+
+@media (max-width: 760px) {
+  body:not(.light-mode) #tutorial-overlay {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+  }
 }
 
 body:not(.light-mode) .subtab-row {
