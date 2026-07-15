@@ -386,13 +386,25 @@ function drawPassiveBranchUnderlay(ctx, edges, lightweightMode) {
         const visibleB = getPassiveVisibility(b.id);
         const hiddenBranch = visibleA === 'hidden' || visibleB === 'hidden';
         const depth = Math.max(0, Math.min(Number(a.depth) || 0, Number(b.depth) || 0));
-        const width = Math.max(2.1, 9.4 - depth * 0.42) * (hiddenBranch ? 0.62 : 1);
+        const crossBranch = Boolean(a.treeBranchRoot && b.treeBranchRoot && a.treeBranchRoot !== b.treeBranchRoot);
+        const sameDepth = Number(a.depth) === Number(b.depth);
+        const structuralWeight = crossBranch ? 0.3 : (sameDepth ? 0.58 : 1);
+        const width = Math.max(1.2, Math.max(2.1, 9.4 - depth * 0.42) * structuralWeight)
+            * (hiddenBranch ? 0.62 : 1);
         drawPassiveLink(ctx, a, b, {
-            stroke: hiddenBranch ? 'rgba(19,17,16,0.3)' : 'rgba(22,16,13,0.9)',
-            innerStroke: hiddenBranch ? 'rgba(91,68,46,0.13)' : (depth < 7 ? 'rgba(117,76,42,0.52)' : 'rgba(92,63,42,0.34)'),
+            stroke: hiddenBranch
+                ? 'rgba(19,17,16,0.22)'
+                : (crossBranch ? 'rgba(31,27,24,0.28)' : (sameDepth ? 'rgba(27,21,17,0.56)' : 'rgba(22,16,13,0.9)')),
+            innerStroke: hiddenBranch
+                ? 'rgba(91,68,46,0.09)'
+                : (crossBranch
+                    ? 'rgba(117,87,58,0.08)'
+                    : (sameDepth ? 'rgba(110,76,49,0.2)' : (depth < 7 ? 'rgba(117,76,42,0.52)' : 'rgba(92,63,42,0.34)'))),
             width: width,
-            shadow: !lightweightMode && !hiddenBranch && depth < 5 ? 'rgba(213,151,72,0.12)' : 'transparent',
-            blur: !lightweightMode && !hiddenBranch && depth < 5 ? 8 : 0
+            shadow: !lightweightMode && !hiddenBranch && !crossBranch && !sameDepth && depth < 5
+                ? 'rgba(213,151,72,0.12)'
+                : 'transparent',
+            blur: !lightweightMode && !hiddenBranch && !crossBranch && !sameDepth && depth < 5 ? 8 : 0
         });
     });
     ctx.restore();
@@ -1426,9 +1438,6 @@ function shapePassiveTreeAsLifeTree() {
     if (!root || nodes.length < 2) return;
     const finiteDepths = nodes.map(node => Number(node.depth)).filter(Number.isFinite);
     const maxDepth = Math.max(1, ...finiteDepths);
-    const canopyRowGap = 136;
-    const rootRowGap = 112;
-    const rootY = 0;
     const sectorOrder = {
         marauder: 0,
         duelist: 1,
@@ -1441,7 +1450,6 @@ function shapePassiveTreeAsLifeTree() {
         templar: 5
     };
     const originalPosition = new Map(nodes.map(node => [node.id, { x: node.x, y: node.y }]));
-    const rows = new Map();
     const adjacency = new Map(nodes.map(node => [node.id, []]));
     PASSIVE_TREE.edges.forEach(edge => {
         if (adjacency.has(edge.from) && adjacency.has(edge.to)) {
@@ -1465,12 +1473,27 @@ function shapePassiveTreeAsLifeTree() {
     }
 
     const starters = nodes.filter(node => node.id !== root.id && node.depth === 1)
-        .sort((a, b) => (getTreeSectorOrder(a) - getTreeSectorOrder(b)) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+        .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+    const canopyPriority = { ranger: 0, shadow: 1, witch: 2, templar: 3, duelist: 4 };
+    const branches = starters.map(starter => ({
+        id: starter.id,
+        sector: starter.sector,
+        direction: starter.sector === 'marauder' ? 'root' : 'canopy',
+        order: 0,
+        targetX: 0,
+        maxBlockWidth: 0
+    }));
+    const directionBranches = {
+        canopy: branches.filter(branch => branch.direction === 'canopy')
+            .sort((a, b) => (canopyPriority[a.sector] ?? 99) - (canopyPriority[b.sector] ?? 99)),
+        root: branches.filter(branch => branch.direction === 'root')
+            .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))
+    };
+    directionBranches.canopy.forEach((branch, index) => { branch.order = index; });
+    directionBranches.root.forEach((branch, index) => { branch.order = index; });
+
     const branchByNodeId = new Map();
-    starters.forEach((starter, index) => {
-        const direction = starter.sector === 'marauder' || starter.sector === 'duelist' ? 'root' : 'canopy';
-        branchByNodeId.set(starter.id, { id: starter.id, direction, order: index, sector: starter.sector });
-    });
+    branches.forEach(branch => branchByNodeId.set(branch.id, branch));
 
     for (let depth = 2; depth <= maxDepth; depth++) {
         nodes.filter(node => node.depth === depth).forEach(node => {
@@ -1486,36 +1509,36 @@ function shapePassiveTreeAsLifeTree() {
                     const sectorDeltaA = Math.abs(getTreeSectorOrder(node) - getTreeSectorOrder(a));
                     const sectorDeltaB = Math.abs(getTreeSectorOrder(node) - getTreeSectorOrder(b));
                     if (sectorDeltaA !== sectorDeltaB) return sectorDeltaA - sectorDeltaB;
+                    const originalA = originalPosition.get(a.id) || { x: 0, y: 0 };
+                    const originalB = originalPosition.get(b.id) || { x: 0, y: 0 };
+                    const nodeOriginal = originalPosition.get(node.id) || { x: 0, y: 0 };
+                    const distanceA = Math.hypot(originalA.x - nodeOriginal.x, originalA.y - nodeOriginal.y);
+                    const distanceB = Math.hypot(originalB.x - nodeOriginal.x, originalB.y - nodeOriginal.y);
+                    if (distanceA !== distanceB) return distanceA - distanceB;
                     return branchA.order - branchB.order;
                 });
             if (candidates.length) branchByNodeId.set(node.id, branchByNodeId.get(candidates[0].id));
         });
     }
 
+    const rows = new Map();
     nodes.forEach(node => {
         if (node.id === root.id) return;
         const depth = Number.isFinite(node.depth) ? Math.max(1, Math.floor(node.depth)) : maxDepth;
         let branch = branchByNodeId.get(node.id);
         if (!branch) {
-            const direction = node.sector === 'marauder' || node.sector === 'duelist' ? 'root' : 'canopy';
-            branch = { id: node.id, direction, order: getTreeSectorOrder(node), sector: node.sector };
+            const direction = node.sector === 'marauder' ? 'root' : 'canopy';
+            const candidates = directionBranches[direction];
+            branch = candidates[Math.abs(Math.floor(getTreeSectorOrder(node))) % Math.max(1, candidates.length)] || branches[0];
             branchByNodeId.set(node.id, branch);
         }
-        const rowKey = `${branch.direction}:${depth}`;
+        const rowKey = `${branch.id}:${depth}`;
         if (!rows.has(rowKey)) rows.set(rowKey, []);
-        node.treeDirection = branch.direction;
-        node.treeBranchRoot = branch.id;
         rows.get(rowKey).push(node);
     });
 
-    rows.forEach((row, rowKey) => {
-        const [direction, depthText] = rowKey.split(':');
-        const depth = Number(depthText);
+    function sortBranchRow(row) {
         row.sort((a, b) => {
-            const branchDelta = (branchByNodeId.get(a.id).order || 0) - (branchByNodeId.get(b.id).order || 0);
-            if (branchDelta !== 0) return branchDelta;
-            const sectorDelta = getTreeSectorOrder(a) - getTreeSectorOrder(b);
-            if (sectorDelta !== 0) return sectorDelta;
             const spokeDelta = getTreeSpoke(a) - getTreeSpoke(b);
             if (spokeDelta !== 0) return spokeDelta;
             const clusterDelta = String(a.clusterId || '').localeCompare(String(b.clusterId || ''));
@@ -1524,33 +1547,166 @@ function shapePassiveTreeAsLifeTree() {
             if (originalDelta !== 0) return originalDelta;
             return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
         });
+        return row;
+    }
 
-        let cursor = 0;
-        let previousBranch = null;
-        row.forEach((node, index) => {
-            const currentBranch = branchByNodeId.get(node.id).id;
-            if (index > 0 && currentBranch !== previousBranch) cursor += direction === 'root' ? 42 : 30;
-            const radius = getPassiveNodeVisualRadius(node);
-            cursor += radius;
-            node.x = cursor;
-            cursor += radius + (direction === 'root' ? 24 : 20);
-            previousBranch = currentBranch;
+    function buildRowBlock(row, direction) {
+        const ordered = sortBranchRow(row.slice());
+        const maxColumns = direction === 'canopy' ? 11 : 5;
+        const horizontalGap = direction === 'canopy' ? 28 : 30;
+        const verticalGap = direction === 'canopy' ? 28 : 34;
+        const lines = [];
+        for (let index = 0; index < ordered.length; index += maxColumns) {
+            let line = ordered.slice(index, index + maxColumns);
+            if (lines.length % 2 === 1) line = line.reverse();
+            let cursor = 0;
+            let maxRadius = 0;
+            const entries = line.map((node, nodeIndex) => {
+                const radius = getPassiveNodeVisualRadius(node);
+                if (nodeIndex > 0) cursor += horizontalGap;
+                cursor += radius;
+                const entry = { node, x: cursor, radius };
+                cursor += radius;
+                maxRadius = Math.max(maxRadius, radius);
+                return entry;
+            });
+            lines.push({ entries, width: cursor, height: maxRadius * 2 });
+        }
+
+        let heightCursor = 0;
+        const placements = [];
+        let blockWidth = 0;
+        lines.forEach((line, lineIndex) => {
+            if (lineIndex > 0) heightCursor += verticalGap;
+            const centerY = heightCursor + line.height * 0.5;
+            const stagger = lines.length > 1
+                ? (lineIndex % 2 === 0 ? -1 : 1) * horizontalGap * 0.38
+                : 0;
+            line.entries.forEach(entry => {
+                const localX = entry.x - line.width * 0.5 + stagger;
+                const normalizedX = line.width > 0 ? Math.min(1, Math.abs(localX) / (line.width * 0.5)) : 0;
+                const arc = Math.pow(normalizedX, 1.45) * (direction === 'canopy' ? 12 : -8);
+                placements.push({
+                    node: entry.node,
+                    x: localX,
+                    y: centerY + arc
+                });
+            });
+            heightCursor += line.height;
+            blockWidth = Math.max(blockWidth, line.width + Math.abs(stagger) * 2);
         });
-        const center = cursor * 0.5;
-        const halfSpan = Math.max(1, center);
-        row.forEach(node => {
-            node.x -= center;
-            const edgeCurve = Math.pow(Math.abs(node.x) / halfSpan, 1.7);
-            node.y = direction === 'root'
-                ? rootY + depth * rootRowGap - 34 * edgeCurve
-                : rootY - depth * canopyRowGap + 42 * edgeCurve;
-            node.treeDepth = depth;
-            node.treeBranchOrder = getTreeSectorOrder(node);
-        });
+        const blockHeight = Math.max(1, heightCursor);
+        placements.forEach(placement => { placement.y -= blockHeight * 0.5; });
+        return { width: Math.max(1, blockWidth), height: blockHeight, placements };
+    }
+
+    const blocks = new Map();
+    rows.forEach((row, key) => {
+        const branchId = key.split(':')[0];
+        const branch = branchByNodeId.get(branchId) || branches.find(item => item.id === branchId);
+        if (!branch) return;
+        const block = buildRowBlock(row, branch.direction);
+        blocks.set(key, block);
+        branch.maxBlockWidth = Math.max(branch.maxBlockWidth, block.width);
     });
 
+    function assignBranchTargets(direction) {
+        const list = directionBranches[direction];
+        const branchGap = direction === 'canopy' ? 72 : 88;
+        let cursor = 0;
+        list.forEach((branch, index) => {
+            if (index > 0) cursor += branchGap;
+            cursor += branch.maxBlockWidth * 0.5;
+            branch.targetX = cursor;
+            cursor += branch.maxBlockWidth * 0.5;
+        });
+        const center = cursor * 0.5;
+        list.forEach(branch => { branch.targetX -= center; });
+    }
+    assignBranchTargets('canopy');
+    assignBranchTargets('root');
+
+    function smoothStep(value) {
+        const t = Math.max(0, Math.min(1, value));
+        return t * t * (3 - 2 * t);
+    }
+
+    function layoutDirection(direction) {
+        const list = directionBranches[direction];
+        const verticalBandGap = direction === 'canopy' ? 72 : 82;
+        const liveBranchGap = direction === 'canopy' ? 42 : 50;
+        let verticalCursor = getPassiveNodeVisualRadius(root) + 58;
+
+        for (let depth = 1; depth <= maxDepth; depth++) {
+            const depthBlocks = list
+                .map(branch => ({ branch, block: blocks.get(`${branch.id}:${depth}`) }))
+                .filter(entry => entry.block);
+            if (!depthBlocks.length) continue;
+            const bandHeight = Math.max(...depthBlocks.map(entry => entry.block.height));
+            verticalCursor += bandHeight * 0.5;
+            const bandCenter = direction === 'canopy' ? -verticalCursor : verticalCursor;
+            const progress = depth / maxDepth;
+            const canopyFan = 0.16 + 0.84 * smoothStep(progress);
+            const rootOutward = 0.18 + 0.82 * smoothStep(Math.min(1, progress / 0.58));
+            const rootReturn = 1 - 0.5 * smoothStep((progress - 0.58) / 0.42);
+            const fan = direction === 'canopy' ? canopyFan : rootOutward * rootReturn;
+            const placedBlocks = depthBlocks.map(({ branch, block }) => {
+                const waveAmplitude = direction === 'canopy'
+                    ? 32 + 68 * progress
+                    : 60 + 110 * progress;
+                const wave = Math.sin(depth * (direction === 'canopy' ? 0.64 : 0.82) + branch.order * 1.9)
+                    * waveAmplitude * Math.pow(progress, 0.72);
+                return { branch, block, centerX: branch.targetX * fan + wave };
+            });
+
+            for (let index = 1; index < placedBlocks.length; index++) {
+                const previous = placedBlocks[index - 1];
+                const current = placedBlocks[index];
+                const minimumCenter = previous.centerX + previous.block.width * 0.5 + current.block.width * 0.5 + liveBranchGap;
+                current.centerX = Math.max(current.centerX, minimumCenter);
+            }
+            if (placedBlocks.length) {
+                const leftEdge = placedBlocks[0].centerX - placedBlocks[0].block.width * 0.5;
+                const last = placedBlocks[placedBlocks.length - 1];
+                const rightEdge = last.centerX + last.block.width * 0.5;
+                const centerShift = (leftEdge + rightEdge) * 0.5;
+                placedBlocks.forEach(entry => { entry.centerX -= centerShift; });
+            }
+
+            placedBlocks.forEach(({ branch, block, centerX }) => {
+                const halfSlots = Math.max(1, (list.length - 1) * 0.5);
+                const slotDistance = Math.abs(branch.order - (list.length - 1) * 0.5) / halfSlots;
+                const crownCurve = Math.pow(slotDistance, 1.55) * (direction === 'canopy' ? 88 : 64) * Math.pow(progress, 1.2);
+                const verticalCoil = direction === 'root'
+                    ? Math.cos(depth * 0.78 + branch.order * 2.15) * 14 * progress
+                    : Math.sin(depth * 0.42 + branch.order * 1.35) * 6 * progress;
+                const centerY = direction === 'canopy'
+                    ? bandCenter + crownCurve + verticalCoil
+                    : bandCenter - crownCurve * 0.72 + verticalCoil;
+
+                block.placements.forEach(placement => {
+                    const node = placement.node;
+                    node.x = centerX + placement.x;
+                    node.y = centerY + placement.y;
+                    node.treeDepth = depth;
+                    node.treeDirection = direction;
+                    node.treeBranchRoot = branch.id;
+                    node.treeBranchOrder = branch.order;
+                });
+            });
+            verticalCursor += bandHeight * 0.5 + verticalBandGap;
+        }
+    }
+
+    layoutDirection('canopy');
+    layoutDirection('root');
+
     root.x = 0;
-    root.y = rootY;
+    root.y = 0;
+    root.treeDepth = 0;
+    root.treeDirection = 'trunk';
+    root.treeBranchRoot = root.id;
+    root.treeBranchOrder = 0;
 
     PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
     PASSIVE_BOUNDS.maxX = Math.max(...nodes.map(node => node.x));

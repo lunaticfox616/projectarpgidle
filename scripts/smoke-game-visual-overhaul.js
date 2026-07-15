@@ -40,12 +40,28 @@ passiveFiles.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), cont
 const layout = vm.runInContext(`(() => {
   const nodes = Object.values(PASSIVE_TREE.nodes);
   const root = PASSIVE_TREE.nodes.n0;
+  const placementFields = new Set(['x', 'y', 'angle', 'treeDepth', 'treeDirection', 'treeBranchRoot', 'treeBranchOrder']);
+  function contentSnapshot() {
+    return JSON.stringify(Object.values(PASSIVE_TREE.nodes)
+      .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))
+      .map(node => Object.fromEntries(Object.keys(node)
+        .filter(key => !placementFields.has(key))
+        .sort()
+        .map(key => [key, node[key]]))));
+  }
+  const contentBefore = contentSnapshot();
+  const edgesBefore = JSON.stringify(PASSIVE_TREE.edges);
+  shapePassiveTreeAsLifeTree();
+  const contentPreserved = contentBefore === contentSnapshot() && edgesBefore === JSON.stringify(PASSIVE_TREE.edges);
   let overlaps = 0;
+  let minimumClearance = Infinity;
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       const a = nodes[i], b = nodes[j];
-      const minimum = getPassiveNodeVisualRadius(a) + getPassiveNodeVisualRadius(b) + 3;
-      if (Math.hypot(a.x - b.x, a.y - b.y) < minimum) overlaps++;
+      const radiusSum = getPassiveNodeVisualRadius(a) + getPassiveNodeVisualRadius(b);
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      minimumClearance = Math.min(minimumClearance, distance - radiusSum);
+      if (distance < radiusSum + 3) overlaps++;
     }
   }
   const starters = nodes.filter(node => node.depth === 1);
@@ -59,12 +75,19 @@ const layout = vm.runInContext(`(() => {
   }
   return {
     count: nodes.length,
+    edgeCount: PASSIVE_TREE.edges.length,
+    contentPreserved,
     rootY: root.y,
     canopyCount: canopyNodes.length,
     rootCount: rootNodes.length,
     canopyWrongSide: canopyNodes.filter(node => node.y >= root.y).length,
     rootWrongSide: rootNodes.filter(node => node.y <= root.y).length,
     overlaps,
+    minimumClearance,
+    canopyBranchCount: new Set(canopyNodes.map(node => node.treeBranchRoot)).size,
+    rootBranchCount: new Set(rootNodes.map(node => node.treeBranchRoot)).size,
+    aspectRatio: (PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX) / (PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY),
+    trunkSplit: (root.y - PASSIVE_BOUNDS.minY) / (PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY),
     starterCount: starters.length,
     uniqueStartingStats: uniqueStartingStats.size,
     canopyRows: directionalRowAverages(canopyNodes),
@@ -72,13 +95,20 @@ const layout = vm.runInContext(`(() => {
   };
 })()`, context);
 
-assert.ok(layout.count > 100, 'passive graph should preserve the full node set');
+assert.strictEqual(layout.count, 1101, 'life-tree remapping should preserve all passive nodes from main');
+assert.strictEqual(layout.edgeCount, 1353, 'life-tree remapping should preserve every passive connection from main');
+assert.strictEqual(layout.contentPreserved, true, 'life-tree remapping must not alter node effects or graph data');
 assert.strictEqual(layout.canopyCount + layout.rootCount, layout.count - 1, 'every non-root node should belong to a canopy or root branch');
 assert.ok(layout.canopyCount > layout.count * 0.25, 'the upper canopy should retain substantial branches');
 assert.ok(layout.rootCount > layout.count * 0.25, 'the lower root system should carry substantial branches');
 assert.strictEqual(layout.canopyWrongSide, 0, 'canopy branches should remain above the trunk root');
 assert.strictEqual(layout.rootWrongSide, 0, 'root branches should continue below the trunk root');
 assert.strictEqual(layout.overlaps, 0, 'life-tree remapping should not overlap node hit areas');
+assert.ok(layout.minimumClearance >= 18, 'passive nodes should retain comfortable visual spacing');
+assert.strictEqual(layout.canopyBranchCount, 5, 'the canopy should preserve five readable major branches');
+assert.strictEqual(layout.rootBranchCount, 3, 'the lower tree should preserve three readable root paths');
+assert.ok(layout.aspectRatio >= 0.42 && layout.aspectRatio <= 0.65, 'the full passive tree should keep a tall reference-like silhouette');
+assert.ok(layout.trunkSplit >= 0.38 && layout.trunkSplit <= 0.56, 'the trunk junction should remain near the visual center');
 assert.strictEqual(layout.uniqueStartingStats, layout.starterCount, 'every root-adjacent starting node should provide a distinct stat');
 for (let index = 1; index < layout.canopyRows.length; index++) {
   assert.ok(layout.canopyRows[index].y < layout.canopyRows[index - 1].y, 'deeper canopy rows should grow upward');

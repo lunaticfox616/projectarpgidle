@@ -351,15 +351,17 @@ function drawPassiveTree() {
         const activeLink = activeA && activeB;
         const reachableLink = reachableNodes.has(a.id) || reachableNodes.has(b.id);
         const previewLink = visibleA === 'preview' || visibleB === 'preview';
+        const crossBranchLink = Boolean(a.treeBranchRoot && b.treeBranchRoot && a.treeBranchRoot !== b.treeBranchRoot);
+        const sameDepthLink = Number(a.depth) === Number(b.depth);
 
         ctx.save();
         ctx.globalAlpha = alpha;
 
         if (ultraZoomedOutMode) {
             drawPassiveLink(ctx, a, b, {
-                stroke: activeLink ? 'rgba(160,130,82,0.78)' : 'rgba(80,98,115,0.5)',
-                innerStroke: activeLink ? 'rgba(240,220,170,0.32)' : 'rgba(130,150,168,0.12)',
-                width: activeLink ? 3.2 : 1.6
+                stroke: activeLink ? 'rgba(160,130,82,0.78)' : (crossBranchLink ? 'rgba(80,98,115,0.2)' : 'rgba(80,98,115,0.5)'),
+                innerStroke: activeLink ? 'rgba(240,220,170,0.32)' : (crossBranchLink ? 'rgba(130,150,168,0.05)' : 'rgba(130,150,168,0.12)'),
+                width: activeLink ? 3.2 : (crossBranchLink ? 1 : (sameDepthLink ? 1.25 : 1.6))
             });
         } else if (hoveredLink || linkedHoverChain || onHoveredPath) {
             drawPassiveLink(ctx, a, b, {
@@ -379,23 +381,23 @@ function drawPassiveTree() {
             });
         } else if (reachableLink) {
             drawPassiveLink(ctx, a, b, {
-                stroke: 'rgba(79,109,130,0.72)',
-                innerStroke: 'rgba(145,186,214,0.28)',
-                width: 2.4,
+                stroke: crossBranchLink ? 'rgba(79,109,130,0.38)' : 'rgba(79,109,130,0.72)',
+                innerStroke: crossBranchLink ? 'rgba(145,186,214,0.12)' : 'rgba(145,186,214,0.28)',
+                width: crossBranchLink ? 1.5 : (sameDepthLink ? 1.9 : 2.4),
                 shadow: lightweightMode ? 'transparent' : 'rgba(118,165,194,0.12)',
                 blur: lightweightMode ? 0 : 7
             });
         } else if (previewLink) {
             drawPassiveLink(ctx, a, b, {
-                stroke: 'rgba(67,85,98,0.24)',
-                innerStroke: 'rgba(108,130,145,0.10)',
-                width: 1.5
+                stroke: crossBranchLink ? 'rgba(67,85,98,0.1)' : 'rgba(67,85,98,0.24)',
+                innerStroke: crossBranchLink ? 'rgba(108,130,145,0.04)' : 'rgba(108,130,145,0.10)',
+                width: crossBranchLink ? 0.9 : (sameDepthLink ? 1.15 : 1.5)
             });
         } else {
             drawPassiveLink(ctx, a, b, {
-                stroke: 'rgba(43,53,63,0.55)',
-                innerStroke: 'rgba(92,107,120,0.10)',
-                width: 1.6
+                stroke: crossBranchLink ? 'rgba(43,53,63,0.2)' : (sameDepthLink ? 'rgba(43,53,63,0.36)' : 'rgba(43,53,63,0.55)'),
+                innerStroke: crossBranchLink ? 'rgba(92,107,120,0.03)' : (sameDepthLink ? 'rgba(92,107,120,0.06)' : 'rgba(92,107,120,0.10)'),
+                width: crossBranchLink ? 0.9 : (sameDepthLink ? 1.2 : 1.6)
             });
         }
 
