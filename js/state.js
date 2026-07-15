@@ -1843,6 +1843,7 @@ const defaultGame = {
     loopKills: 0,
     settings: {
         showCombatScene: true,
+        cameraShake: true,
         showCombatLog: true,
         combatLogAggregate: true,
         combatLogRateLimit: true,

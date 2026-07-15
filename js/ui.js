@@ -4674,6 +4674,8 @@ window.addEventListener('project-idle:talent-tab-refresh-requested', () => {
 
 function updateSettings() {
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
+    let cameraShakeCheckbox = document.getElementById('chk-camera-shake');
+    game.settings.cameraShake = !cameraShakeCheckbox || cameraShakeCheckbox.checked;
     game.settings.showCombatLog = document.getElementById('chk-log-combat').checked;
     game.settings.combatLogAggregate = document.getElementById('chk-log-aggregate').checked;
     game.settings.combatLogRateLimit = document.getElementById('chk-log-rate-limit').checked;
@@ -5481,7 +5483,8 @@ function getBattleSkillVisual(skillName, skillData) {
     skillData = skillData || SKILL_DB[skillName] || SKILL_DB['기본 공격'];
     let rawTags = Array.isArray(skillData.tags) ? skillData.tags : [];
     let ele = String(skillData.ele || '').toLowerCase();
-    let cacheKey = `${skillName || ''}|${ele}|${rawTags.join('/')}`;
+    let targetMode = String(skillData.targetMode || '').toLowerCase();
+    let cacheKey = `${skillName || ''}|${ele}|${targetMode}|${rawTags.join('/')}`;
     if (battleSkillVisualCache.key === cacheKey && battleSkillVisualCache.value) return battleSkillVisualCache.value;
     let tags = rawTags.map(tag => String(tag).toLowerCase());
     let group = 'physical';
@@ -5513,6 +5516,16 @@ function getBattleSkillVisual(skillName, skillData) {
         primary = '#c7a27b';
         secondary = '#f3e1cf';
     }
+    const normalizedName = String(skillName || '').toLowerCase();
+    let variant = 'melee';
+    if (tags.includes('corpse') || tags.includes('corpse_explosion') || normalizedName.includes('시체')) variant = 'corpse_burst';
+    else if (tags.includes('slam')) variant = 'slam';
+    else if (tags.includes('chain') || targetMode === 'chain') variant = 'chain';
+    else if (tags.includes('pierce') || targetMode === 'pierce') variant = 'pierce';
+    else if (tags.includes('summon') || targetMode === 'summon') variant = 'summon';
+    else if (tags.includes('dot')) variant = 'dot';
+    else if (tags.includes('aoe') || targetMode === 'all' || targetMode === 'whirl') variant = 'nova';
+    else if (tags.includes('projectile') || targetMode === 'projectile') variant = 'projectile';
     let visual = {
         pose: tags.includes('projectile') ? 'bow' : 'sword',
         group: group,
@@ -5520,7 +5533,10 @@ function getBattleSkillVisual(skillName, skillData) {
         primary: primary,
         secondary: secondary,
         aura: aura,
-        isSlam: group === 'physical_slam'
+        isSlam: variant === 'slam',
+        variant: variant,
+        targetMode: targetMode,
+        tags: tags
     };
     battleSkillVisualCache = { key: cacheKey, value: visual };
     return visual;
@@ -5566,6 +5582,10 @@ function getBattleGroundFrames(zone) {
 
 function getBattleBackdropKeyForZone(zone) {
     if (!zone) return 'bgAct1';
+    if (zone.type === 'chaosRealm') {
+        let floor = Math.max(1, Number(zone.floor || zone.stage || zone.id || 1) || 1);
+        return floor % 20 === 0 ? 'bgChaos18' : `bgChaos${(floor - 1) % 18}`;
+    }
     if (zone.type === 'act') {
         let actNo = Math.max(1, Math.min(10, (Number(zone.id) || 0) + 1));
         return `bgAct${actNo}`;
@@ -12353,6 +12373,8 @@ function init() {
     refreshTabHeaderUiIfNeeded();
     calculateReachableNodes();
     document.getElementById('chk-combat-scene').checked = game.settings.showCombatScene !== false;
+    let cameraShakeCheckboxInit = document.getElementById('chk-camera-shake');
+    if (cameraShakeCheckboxInit) cameraShakeCheckboxInit.checked = game.settings.cameraShake !== false;
     document.getElementById('chk-log-combat').checked = game.settings.showCombatLog !== false;
     document.getElementById('chk-log-aggregate').checked = game.settings.combatLogAggregate !== false;
     document.getElementById('chk-log-rate-limit').checked = game.settings.combatLogRateLimit !== false;
@@ -12751,6 +12773,9 @@ function syncDerivedTabUnlock(tabId) {
 
 function checkUnlocks() {
     let u = game.unlocks;
+    if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
+        queueTutorialNotice('tutorial_battle_basics', '전투 기본 가이드', '전투 화면, 피해 숫자, 스킬 범위와 성장 순서를 차례로 알아봅니다.', 'tab-character');
+    }
     if (game.level >= 2 && !u.char) {
         u.char = true;
         game.noti.char = true;

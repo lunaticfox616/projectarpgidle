@@ -15,6 +15,37 @@ window.GameModules.passives = {
 // Phase-3 extracted passive runtime block.
 let passiveRevealBursts = [];
 
+const PASSIVE_NODE_FRAME_SOURCES = Object.freeze({
+    major: 'assets/ui/passive-node-major-v1.png',
+    void: 'assets/ui/passive-node-void-v1.png',
+    starWedge: 'assets/ui/passive-node-star-wedge-v1.png',
+    path: 'assets/ui/passive-node-path-v1.png'
+});
+const passiveNodeFrameImages = {};
+const passiveNodeFrameReady = {};
+if (typeof Image !== 'undefined') {
+    Object.entries(PASSIVE_NODE_FRAME_SOURCES).forEach(([key, src]) => {
+        const image = new Image();
+        passiveNodeFrameImages[key] = image;
+        passiveNodeFrameReady[key] = false;
+        image.onload = function() {
+            passiveNodeFrameReady[key] = true;
+            if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty(`${key}-frame-ready`);
+        };
+        image.src = src;
+    });
+}
+
+function getPassiveNodeFrameKey(node) {
+    if (!node) return null;
+    if (node.kind === 'void') return 'void';
+    if (node.socketType === 'star_wedge') return 'starWedge';
+    if (node.kind === 'path') return 'path';
+    if (node.kind === 'core' || node.kind === 'hub' || node.kind === 'apex'
+        || node.kind === 'transcendent' || node.kind === 'keystone' || node.kind === 'major' || node.tier >= 3) return 'major';
+    return null;
+}
+
 
 
 
@@ -88,11 +119,12 @@ function getPassiveNodeVisualRadius(node) {
     if (node.kind === 'apex') return 18;
     if (node.kind === 'evolved') return 13;
     if (node.kind === 'core') return 18;
-    if (node.kind === 'void') return 20;
+    if (node.kind === 'void') return 22;
     if (node.kind === 'deadend') return 16;
-    if (node.kind === 'hub') return 20;
+    if (node.kind === 'hub') return node.socketType === 'star_wedge' ? 22 : 20;
     if (node.tier === 3 || node.kind === 'major') return 15;
     if (node.tier === 2 || node.kind === 'ring' || node.kind === 'inner') return 10;
+    if (node.kind === 'path') return 8.5;
     return 7;
 }
 
@@ -263,12 +295,13 @@ function drawPassiveEvolutionAura(ctx) {
     let tips = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'transcendent');
     if (tips.length === 0) return;
 
+    const root = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };
     ctx.save();
     ctx.globalAlpha = 0.88;
     tips.forEach(node => {
         ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(node.x * 0.42, node.y * 0.42, node.x, node.y);
+        ctx.moveTo(root.x, root.y);
+        ctx.quadraticCurveTo(root.x + (node.x - root.x) * 0.42, root.y + (node.y - root.y) * 0.42, node.x, node.y);
         ctx.strokeStyle = 'rgba(120,151,205,0.08)';
         ctx.lineWidth = 11;
         ctx.shadowColor = 'rgba(238,222,172,0.15)';
@@ -340,8 +373,58 @@ function drawPassiveLink(ctx, a, b, style) {
     }
 }
 
+function drawPassiveBranchUnderlay(ctx, edges, lightweightMode) {
+    if (!Array.isArray(edges) || edges.length === 0) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    edges.forEach(edge => {
+        const a = edge.a;
+        const b = edge.b;
+        if (!a || !b || !isPassiveNodeAvailable(a) || !isPassiveNodeAvailable(b)) return;
+        const visibleA = getPassiveVisibility(a.id);
+        const visibleB = getPassiveVisibility(b.id);
+        const hiddenBranch = visibleA === 'hidden' || visibleB === 'hidden';
+        const depth = Math.max(0, Math.min(Number(a.depth) || 0, Number(b.depth) || 0));
+        const width = Math.max(2.1, 9.4 - depth * 0.42) * (hiddenBranch ? 0.62 : 1);
+        drawPassiveLink(ctx, a, b, {
+            stroke: hiddenBranch ? 'rgba(19,17,16,0.3)' : 'rgba(22,16,13,0.9)',
+            innerStroke: hiddenBranch ? 'rgba(91,68,46,0.13)' : (depth < 7 ? 'rgba(117,76,42,0.52)' : 'rgba(92,63,42,0.34)'),
+            width: width,
+            shadow: !lightweightMode && !hiddenBranch && depth < 5 ? 'rgba(213,151,72,0.12)' : 'transparent',
+            blur: !lightweightMode && !hiddenBranch && depth < 5 ? 8 : 0
+        });
+    });
+    ctx.restore();
+}
+
+function tracePassiveNodeFramePath(ctx, node, radius) {
+    const x = node.x;
+    const y = node.y;
+    let sides = 0;
+    let rotation = -Math.PI / 2;
+    if (node.kind === 'hub') { sides = 4; rotation = Math.PI / 4; }
+    else if (node.kind === 'apex' || node.kind === 'transcendent' || node.kind === 'void') sides = 8;
+    else if (node.kind === 'major' || node.kind === 'core' || node.kind === 'keystone' || node.tier >= 3) sides = 6;
+    ctx.beginPath();
+    if (!sides) {
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        return;
+    }
+    for (let i = 0; i < sides; i++) {
+        const angle = rotation + i * Math.PI * 2 / sides;
+        const px = x + Math.cos(angle) * radius;
+        const py = y + Math.sin(angle) * radius;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+}
+
 function drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode) {
     if (lightweightMode) return;
+    const dedicatedFrame = getPassiveNodeFrameKey(node);
+    if (dedicatedFrame && dedicatedFrame !== 'major' && passiveNodeFrameReady[dedicatedFrame]) return;
     ctx.save();
     ctx.translate(node.x, node.y);
 
@@ -439,21 +522,18 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
     const midR = Math.max(2, radius - 2.8);
     const innerR = Math.max(1.5, radius - 5.4);
 
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, outerR, 0, Math.PI * 2);
+    tracePassiveNodeFramePath(ctx, node, outerR);
     ctx.fillStyle = palette.outer;
     ctx.fill();
 
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, midR, 0, Math.PI * 2);
+    tracePassiveNodeFramePath(ctx, node, midR);
     ctx.fillStyle = palette.mid;
     ctx.fill();
 
     const core = ctx.createRadialGradient(node.x - radius * 0.28, node.y - radius * 0.35, 1, node.x, node.y, innerR + 1);
     core.addColorStop(0, active ? '#fff6de' : (reachable ? '#344454' : '#1f2730'));
     core.addColorStop(1, palette.inner);
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, innerR, 0, Math.PI * 2);
+    tracePassiveNodeFramePath(ctx, node, innerR);
     ctx.fillStyle = core;
     ctx.fill();
 
@@ -465,6 +545,20 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
     }
 
     drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode);
+
+    const frameKey = getPassiveNodeFrameKey(node);
+    const frameImage = frameKey ? passiveNodeFrameImages[frameKey] : null;
+    if (frameKey && passiveNodeFrameReady[frameKey] && frameImage) {
+        const frameScale = frameKey === 'path' ? 1.48
+            : (frameKey === 'void' ? 1.58
+                : (frameKey === 'starWedge' ? 1.62
+                    : (node.kind === 'apex' || node.kind === 'transcendent' ? 1.72 : 1.55)));
+        const frameRadius = radius * frameScale;
+        ctx.save();
+        ctx.globalAlpha = revealAlpha * (active ? 0.98 : (reachable ? 0.9 : (frameKey === 'path' ? 0.82 : 0.76)));
+        ctx.drawImage(frameImage, node.x - frameRadius, node.y - frameRadius, frameRadius * 2, frameRadius * 2);
+        ctx.restore();
+    }
 
     if (hoverNode && hoverNode.id === node.id) {
         ctx.beginPath();
@@ -1325,6 +1419,221 @@ function polishPassiveLayout() {
         node.y -= centerY;
     });
 }
+
+function shapePassiveTreeAsLifeTree() {
+    const nodes = Object.values(PASSIVE_TREE.nodes || {});
+    const root = PASSIVE_TREE.nodes.n0;
+    if (!root || nodes.length < 2) return;
+    const finiteDepths = nodes.map(node => Number(node.depth)).filter(Number.isFinite);
+    const maxDepth = Math.max(1, ...finiteDepths);
+    const canopyRowGap = 136;
+    const rootRowGap = 112;
+    const rootY = 0;
+    const sectorOrder = {
+        marauder: 0,
+        duelist: 1,
+        block: 1.35,
+        ranger: 2,
+        deflect: 2.35,
+        center: 2.5,
+        shadow: 3,
+        witch: 4,
+        templar: 5
+    };
+    const originalPosition = new Map(nodes.map(node => [node.id, { x: node.x, y: node.y }]));
+    const rows = new Map();
+    const adjacency = new Map(nodes.map(node => [node.id, []]));
+    PASSIVE_TREE.edges.forEach(edge => {
+        if (adjacency.has(edge.from) && adjacency.has(edge.to)) {
+            adjacency.get(edge.from).push(edge.to);
+            adjacency.get(edge.to).push(edge.from);
+        }
+    });
+
+    function getTreeSectorOrder(node) {
+        if (Number.isFinite(sectorOrder[node.sector])) return sectorOrder[node.sector];
+        if (String(node.sector || '').startsWith('star_')) {
+            const starIndex = Number(String(node.sector).split('_')[1]);
+            return Number.isFinite(starIndex) ? starIndex * (5 / Math.max(1, PASSIVE_APEX_CONFIGS.length - 1)) : 2.5;
+        }
+        return 2.5;
+    }
+    function getTreeSpoke(node) {
+        if (Number.isFinite(node.webSpoke)) return node.webSpoke;
+        if (Number.isFinite(node.webCellSpoke)) return node.webCellSpoke;
+        return Number.isFinite(node.lane) ? node.lane : 0;
+    }
+
+    const starters = nodes.filter(node => node.id !== root.id && node.depth === 1)
+        .sort((a, b) => (getTreeSectorOrder(a) - getTreeSectorOrder(b)) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+    const branchByNodeId = new Map();
+    starters.forEach((starter, index) => {
+        const direction = starter.sector === 'marauder' || starter.sector === 'duelist' ? 'root' : 'canopy';
+        branchByNodeId.set(starter.id, { id: starter.id, direction, order: index, sector: starter.sector });
+    });
+
+    for (let depth = 2; depth <= maxDepth; depth++) {
+        nodes.filter(node => node.depth === depth).forEach(node => {
+            const candidates = (adjacency.get(node.id) || [])
+                .map(id => PASSIVE_TREE.nodes[id])
+                .filter(parent => parent && parent.depth === depth - 1 && branchByNodeId.has(parent.id))
+                .sort((a, b) => {
+                    const branchA = branchByNodeId.get(a.id);
+                    const branchB = branchByNodeId.get(b.id);
+                    const sectorMatchA = branchA.sector === node.sector ? 0 : 1;
+                    const sectorMatchB = branchB.sector === node.sector ? 0 : 1;
+                    if (sectorMatchA !== sectorMatchB) return sectorMatchA - sectorMatchB;
+                    const sectorDeltaA = Math.abs(getTreeSectorOrder(node) - getTreeSectorOrder(a));
+                    const sectorDeltaB = Math.abs(getTreeSectorOrder(node) - getTreeSectorOrder(b));
+                    if (sectorDeltaA !== sectorDeltaB) return sectorDeltaA - sectorDeltaB;
+                    return branchA.order - branchB.order;
+                });
+            if (candidates.length) branchByNodeId.set(node.id, branchByNodeId.get(candidates[0].id));
+        });
+    }
+
+    nodes.forEach(node => {
+        if (node.id === root.id) return;
+        const depth = Number.isFinite(node.depth) ? Math.max(1, Math.floor(node.depth)) : maxDepth;
+        let branch = branchByNodeId.get(node.id);
+        if (!branch) {
+            const direction = node.sector === 'marauder' || node.sector === 'duelist' ? 'root' : 'canopy';
+            branch = { id: node.id, direction, order: getTreeSectorOrder(node), sector: node.sector };
+            branchByNodeId.set(node.id, branch);
+        }
+        const rowKey = `${branch.direction}:${depth}`;
+        if (!rows.has(rowKey)) rows.set(rowKey, []);
+        node.treeDirection = branch.direction;
+        node.treeBranchRoot = branch.id;
+        rows.get(rowKey).push(node);
+    });
+
+    rows.forEach((row, rowKey) => {
+        const [direction, depthText] = rowKey.split(':');
+        const depth = Number(depthText);
+        row.sort((a, b) => {
+            const branchDelta = (branchByNodeId.get(a.id).order || 0) - (branchByNodeId.get(b.id).order || 0);
+            if (branchDelta !== 0) return branchDelta;
+            const sectorDelta = getTreeSectorOrder(a) - getTreeSectorOrder(b);
+            if (sectorDelta !== 0) return sectorDelta;
+            const spokeDelta = getTreeSpoke(a) - getTreeSpoke(b);
+            if (spokeDelta !== 0) return spokeDelta;
+            const clusterDelta = String(a.clusterId || '').localeCompare(String(b.clusterId || ''));
+            if (clusterDelta !== 0) return clusterDelta;
+            const originalDelta = (originalPosition.get(a.id).x || 0) - (originalPosition.get(b.id).x || 0);
+            if (originalDelta !== 0) return originalDelta;
+            return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+        });
+
+        let cursor = 0;
+        let previousBranch = null;
+        row.forEach((node, index) => {
+            const currentBranch = branchByNodeId.get(node.id).id;
+            if (index > 0 && currentBranch !== previousBranch) cursor += direction === 'root' ? 42 : 30;
+            const radius = getPassiveNodeVisualRadius(node);
+            cursor += radius;
+            node.x = cursor;
+            cursor += radius + (direction === 'root' ? 24 : 20);
+            previousBranch = currentBranch;
+        });
+        const center = cursor * 0.5;
+        const halfSpan = Math.max(1, center);
+        row.forEach(node => {
+            node.x -= center;
+            const edgeCurve = Math.pow(Math.abs(node.x) / halfSpan, 1.7);
+            node.y = direction === 'root'
+                ? rootY + depth * rootRowGap - 34 * edgeCurve
+                : rootY - depth * canopyRowGap + 42 * edgeCurve;
+            node.treeDepth = depth;
+            node.treeBranchOrder = getTreeSectorOrder(node);
+        });
+    });
+
+    root.x = 0;
+    root.y = rootY;
+
+    PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.maxX = Math.max(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.minY = Math.min(...nodes.map(node => node.y));
+    PASSIVE_BOUNDS.maxY = Math.max(...nodes.map(node => node.y));
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('life-tree-layout');
+}
+
+function getPassiveTierValueForLayout(statKey, tier) {
+    const statDef = P_STATS[statKey];
+    if (!statDef) return tier >= 3 ? 8 : (tier === 2 ? 4 : 2);
+    if (tier === 0) return 10;
+    if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
+    if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
+    return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
+}
+
+function rebalancePassiveStartingStats() {
+    const root = PASSIVE_TREE.nodes.n0;
+    if (!root) return;
+    const startPlans = {
+        templar: ['energyShieldPct'],
+        witch: ['chaosPctDmg'],
+        shadow: ['evasionPct'],
+        ranger: ['projectilePctDmg'],
+        duelist: ['armorPct'],
+        marauder: ['physPctDmg', 'pctHp', 'slamPctDmg']
+    };
+    const sectorUseCount = {};
+    const usedStartStats = new Set([root.stat]);
+    const starters = Object.values(PASSIVE_TREE.nodes)
+        .filter(node => node && node.depth === 1)
+        .sort((a, b) => (sectorOrderForStartingNode(a) - sectorOrderForStartingNode(b)) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+
+    function sectorOrderForStartingNode(node) {
+        const order = { templar: 0, witch: 1, shadow: 2, ranger: 3, duelist: 4, marauder: 5 };
+        return order[node.sector] ?? 99;
+    }
+    function setStat(node, statKey) {
+        if (!node || !P_STATS[statKey]) return;
+        node.stat = statKey;
+        node.val = getPassiveTierValueForLayout(statKey, node.tier);
+        node.effectLabel = null;
+    }
+
+    starters.forEach(node => {
+        const useIndex = sectorUseCount[node.sector] || 0;
+        sectorUseCount[node.sector] = useIndex + 1;
+        let candidates = (startPlans[node.sector] || []).concat(PASSIVE_THEME_POOLS[node.sector] || [], PASSIVE_THEME_POOLS.center || []);
+        let preferred = candidates[useIndex] || candidates.find(stat => !usedStartStats.has(stat));
+        if (!preferred || usedStartStats.has(preferred)) preferred = candidates.find(stat => P_STATS[stat] && !usedStartStats.has(stat));
+        if (preferred) {
+            setStat(node, preferred);
+            usedStartStats.add(preferred);
+        }
+        node.title = `${PASSIVE_SECTOR_TITLES[node.sector] || '성좌'} 시작점`;
+        node.desc = '루트에서 처음 선택하는 성장 축입니다. 다른 시작점과 겹치지 않는 고유한 기초 효과를 제공합니다.';
+    });
+
+    const adjacency = new Map();
+    PASSIVE_TREE.edges.forEach(edge => {
+        if (!adjacency.has(edge.from)) adjacency.set(edge.from, []);
+        if (!adjacency.has(edge.to)) adjacency.set(edge.to, []);
+        adjacency.get(edge.from).push(edge.to);
+        adjacency.get(edge.to).push(edge.from);
+    });
+    starters.forEach(starter => {
+        const used = new Set([starter.stat]);
+        const children = (adjacency.get(starter.id) || [])
+            .map(id => PASSIVE_TREE.nodes[id])
+            .filter(node => node && node.depth === 2 && (node.kind === 'path' || node.kind === 'node'))
+            .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+        children.forEach((node, index) => {
+            if (!used.has(node.stat)) { used.add(node.stat); return; }
+            const pool = (PASSIVE_THEME_POOLS[node.sector] || PASSIVE_THEME_POOLS.center || []).filter(stat => P_STATS[stat]);
+            const replacement = pool.slice(index).concat(pool.slice(0, index)).find(stat => !used.has(stat));
+            if (replacement) {
+                setStat(node, replacement);
+                used.add(replacement);
+            }
+        });
+    });
+}
 function applyPassiveSpecializations() {
     const used = new Set();
     const kindPriority = { keystone: 0, deadend: 1, major: 2, hub: 3, core: 4, path: 5 };
@@ -1355,8 +1664,10 @@ function bootstrapPassiveTreeOnceReady() {
     generateOrganicTree();
     applyPassiveSpecializations();
     assignStarWedgeSockets();
-    polishPassiveLayout();
     computePassiveDepths();
+    rebalancePassiveStartingStats();
+    polishPassiveLayout();
+    shapePassiveTreeAsLifeTree();
     return true;
 }
 
@@ -3150,6 +3461,7 @@ let crowdPauseActive = false;
 let trialHazardTimer = 0;
 let tutorialQueue = [];
 let activeTutorial = null;
+let activeTutorialStep = 0;
 let activeRewardZoneId = null;
 let divineBannerTimer = null;
 let jewelFusionSelection = [];
@@ -3238,10 +3550,14 @@ function fitPassiveCameraToBounds(force) {
     if (!container || container.offsetParent === null) return;
     let width = Math.max(1, container.clientWidth);
     let height = Math.max(1, container.clientHeight);
-    let defaultZoom = Math.min(width, height) / 780;
-    camZoom = clampNumber(defaultZoom, 0.42, 0.72);
-    camX = 0;
-    camY = 0;
+    const spanX = Math.max(1, PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX);
+    const spanY = Math.max(1, PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY);
+    const defaultZoom = Math.min((width - 64) / spanX, (height - 72) / spanY);
+    camZoom = clampNumber(defaultZoom, 0.14, 0.72);
+    const boundsCenterX = (PASSIVE_BOUNDS.minX + PASSIVE_BOUNDS.maxX) * 0.5;
+    const boundsCenterY = (PASSIVE_BOUNDS.minY + PASSIVE_BOUNDS.maxY) * 0.5;
+    camX = -boundsCenterX * camZoom;
+    camY = -boundsCenterY * camZoom;
     passiveCameraInitialized = true;
 }
 
@@ -3438,7 +3754,7 @@ function formatDamageNumberForDisplay(value, format) {
 function spawnDamageText(config) {
     battleVisualState.damageTexts.push({
         start: performance.now(),
-        duration: config.duration || 650,
+        duration: config.duration || (config.enemyHit ? 900 : (config.crit ? 920 : 780)),
         x: config.x || 0,
         y: config.y || 0,
         value: config.value || 0,
@@ -3476,11 +3792,22 @@ function drawDamageTexts(ctx, now) {
         let y = text.y - rise * t;
         ctx.save();
         ctx.globalAlpha = 1 - t;
-        ctx.font = text.miss ? 'bold 13px Consolas' : (text.dot ? 'bold 10px Consolas' : (text.crit ? 'bold 14px Consolas' : 'bold 12px Consolas'));
+        const fontSize = text.miss ? 15 : (text.dot ? 14 : (text.crit ? 22 : (text.enemyHit ? 19 : 17)));
+        ctx.font = `900 ${fontSize}px "Malgun Gothic", "Noto Sans KR", sans-serif`;
         ctx.textAlign = 'center';
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-        let textValue = text.miss ? String(text.value) : formatDamageNumberForDisplay(text.value);
+        let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
+        const measure = ctx.measureText(textValue);
+        const boxW = measure.width + 12;
+        const boxH = fontSize + 7;
+        ctx.fillStyle = text.enemyHit ? 'rgba(55,7,12,0.72)' : (text.crit ? 'rgba(54,35,4,0.74)' : 'rgba(3,8,14,0.7)');
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') ctx.roundRect(x - boxW / 2, y - boxH * 0.78, boxW, boxH, 5);
+        else ctx.rect(x - boxW / 2, y - boxH * 0.78, boxW, boxH);
+        ctx.fill();
+        ctx.lineWidth = text.crit ? 5.5 : 4.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.92)';
+        ctx.shadowColor = text.enemyHit ? 'rgba(255,56,70,0.72)' : (text.crit ? 'rgba(255,190,62,0.8)' : 'rgba(255,255,255,0.24)');
+        ctx.shadowBlur = text.crit || text.enemyHit ? 9 : 4;
         ctx.strokeText(textValue, x, y);
         let dotColor = text.dotType === 'fire' ? '#ff9f43' : (text.dotType === 'chaos' ? '#c56cff' : (text.dotType === 'phys' ? '#ff6b6b' : '#b57cff'));
         ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.deflected ? '#8fe3b0' : (text.enemyHit ? '#ff8e8e' : (text.crit ? '#ffd36f' : '#f3f6ff'))));
@@ -3678,6 +4005,98 @@ function isTutorialOpen() {
     let overlay = document.getElementById('tutorial-overlay');
     return !!activeTutorial && !!overlay && overlay.classList.contains('active');
 }
+const TUTORIAL_GUIDES = {
+    tutorial_battle_basics: [
+        { title: '전투 화면 읽기', body: '전투는 자동으로 진행되지만, 화면은 현재 전투가 왜 막히는지 판단할 수 있도록 구성되어 있습니다.', bullets: ['파란 칸은 내 위치, 붉은 칸은 적 위치입니다.', '노란 강조는 현재 공격 대상, 청록 강조는 스킬이 닿는 범위입니다.', '적이 사거리 밖이면 캐릭터가 먼저 이동한 뒤 공격합니다.'], tip: '처음에는 피해량보다 생명력 막대와 적의 밀집도를 먼저 보세요.' },
+        { title: '공격과 피해 구분', body: '밝은 흰색·금색 숫자는 내가 준 피해, 붉은 숫자는 내가 받은 피해입니다.', bullets: ['금색 숫자는 치명타입니다.', '작게 반복되는 원소색 숫자는 지속 피해입니다.', '체력 막대 뒤에 남는 주황색은 방금 잃은 피해량입니다.'], tip: '붉은 숫자가 연속으로 크게 뜨면 장비 방어와 저항을 점검할 때입니다.' },
+        { title: '스킬 범위와 태그', body: '젬의 태그에 따라 공격 방식과 연출, 유효 범위가 달라집니다.', bullets: ['강타는 가까운 범위에 큰 충격을 줍니다.', '관통은 직선, 연쇄는 적 사이, 시체 폭발은 처치 지점을 활용합니다.', '공격 범위는 스킬 툴팁의 격자 설명에서 확인할 수 있습니다.'], tip: '넓은 범위가 항상 강한 것은 아닙니다. 단일 보스에는 집중형 스킬이 유리합니다.' },
+        { title: '다음 성장 순서', body: '막히면 패시브, 장비, 스킬 젬을 순서대로 확인하면 원인을 찾기 쉽습니다.', bullets: ['패시브: 부족한 생존·화력 축을 보완', '장비: 방어도·회피·보호막과 저항 점검', '스킬: 공격 태그와 보조 젬 연결 확인'], tip: '새 콘텐츠가 열릴 때마다 이와 같은 단계형 설명이 표시됩니다.' }
+    ],
+    unlock_char: [
+        { title: '패시브 나무란?', body: '패시브 포인트를 사용해 루트에서 가지를 타고 성장 방향을 선택하는 장기 빌드 시스템입니다.', bullets: ['루트 주변의 시작점은 서로 다른 기초 효과를 가집니다.', '활성화한 노드와 연결된 노드만 다음에 선택할 수 있습니다.', '작은 노드는 경로, 큰 장식 노드는 핵심 효과입니다.'], tip: '처음부터 모든 방향을 섞기보다 한 가지 공격 축과 한 가지 방어 축을 정하세요.' },
+        { title: '나무 구조 읽기', body: '아래의 루트에서 위쪽 수관으로 갈수록 전문 효과와 큰 보상이 등장합니다.', bullets: ['가지별 색과 배치는 테마를 구분합니다.', '노드에 마우스를 올리면 현재 경로가 강조됩니다.', '검색을 사용하면 원하는 스탯이 있는 가지를 찾을 수 있습니다.'], tip: '화면을 확대하면 선택 가능한 노드의 짧은 효과만 표시되어 글이 겹치지 않습니다.' },
+        { title: '첫 포인트 사용', body: '원하는 시작점을 고르고 연결된 경로 노드를 차례로 활성화하세요.', bullets: ['현재 부족한 생존 수단을 먼저 확인합니다.', '사용 중인 스킬 태그와 맞는 공격 효과를 고릅니다.', '큰 노드까지 필요한 포인트 수를 경로로 계산합니다.'], tip: '마지막 단계에서 패시브 화면을 바로 열 수 있습니다.' }
+    ],
+    unlock_items: [
+        { title: '장비와 제작', body: '획득한 장비를 비교·장착하고, 제작 재화로 옵션을 단계적으로 다듬는 콘텐츠입니다.', bullets: ['장비 등급: 일반 → 마법 → 희귀 → 고유', '기본 옵션과 추가 옵션은 서로 다른 역할을 합니다.', '아이템 필터와 자동 해체는 원치 않는 드랍을 정리합니다.'], tip: '처음에는 공격력 한 줄보다 생명력·방어·저항의 균형이 중요합니다.' },
+        { title: '오브 사용 순서', body: '오브마다 사용할 수 있는 장비 등급과 역할이 다릅니다.', bullets: ['진화/확장 계열로 일반·마법 장비를 성장시킵니다.', '변화 계열은 옵션을 다시 굴립니다.', '희귀 장비는 빈 옵션과 현재 티어를 확인한 뒤 투자합니다.'], tip: '좋은 베이스가 아닌 장비에 희귀 재화를 너무 일찍 쓰지 마세요.' },
+        { title: '드랍 연출 읽기', body: '좋은 아이템일수록 전장에서 더 강한 색과 빛기둥으로 표시됩니다.', bullets: ['파랑: 일반적인 획득', '금색·보라색 기둥: 희귀 재화 또는 희귀 장비', '굵고 긴 빛기둥: 고유 장비나 최상급 재화'], tip: '로그를 꺼도 중요한 드랍 연출은 계속 표시됩니다.' }
+    ],
+    unlock_skills: [
+        { title: '스킬 젬 구성', body: '공격 젬 하나를 중심으로 보조 젬을 연결해 공격 방식과 성능을 바꿉니다.', bullets: ['공격 젬은 기본 행동과 피해 태그를 정합니다.', '보조 젬은 연결 한도 안에서 효과를 추가합니다.', '젬 레벨과 강화 단계가 기본 성능을 높입니다.'], tip: '보조 젬 설명에 현재 공격 젬과 맞지 않는 태그가 없는지 확인하세요.' },
+        { title: '태그와 전투 방식', body: '강타·관통·연쇄·범위·지속 피해 같은 태그는 실제 격자 범위와 이펙트에 반영됩니다.', bullets: ['관통: 한 방향의 여러 적을 노림', '연쇄: 떨어진 적 사이를 순서대로 타격', '범위: 대상 주변 또는 자신 주변을 공격'], tip: '스킬 툴팁의 사거리와 반경을 함께 보세요.' },
+        { title: '교체 전 확인', body: '새 스킬을 장착하면 보조 젬 호환과 공격 범위도 함께 달라집니다.', bullets: ['현재 장비가 새 태그를 강화하는지 확인', '단일 대상과 다수 대상 중 필요한 역할 선택', '실전에서 대미지 숫자와 이동 빈도 비교'], tip: '사거리가 짧으면 공격 전 이동이 많아질 수 있습니다.' }
+    ],
+    unlock_map: [
+        { title: '지도는 무엇인가?', body: '현재 갈 수 있는 지역, 예상 난이도, 주요 드랍을 보고 다음 사냥터를 선택하는 콘텐츠입니다.', bullets: ['지역마다 몬스터 속성과 보상이 다릅니다.', '보스 지역은 일반 지역보다 위험하지만 보상이 큽니다.', '해금 조건이 표시된 지역은 요구 콘텐츠를 먼저 완료해야 합니다.'], tip: '막힌 지역을 반복하기보다 필요한 장비가 나오는 이전 지역을 활용하세요.' },
+        { title: '지역 선택 기준', body: '내 빌드가 버틸 수 있는 난이도와 필요한 보상을 함께 비교합니다.', bullets: ['받는 피해가 급증하면 한 단계 낮춤', '원하는 재화·장비·열쇠의 드랍 지역 확인', '보스 전에 저항과 회복 수단 점검'], tip: '클리어 속도가 너무 느리면 높은 지역이 항상 효율적인 것은 아닙니다.' },
+        { title: '후반 지도 콘텐츠', body: '루프가 진행되면 균열, 혼돈계, 심층 보스 같은 별도 등반 콘텐츠가 지도에 추가됩니다.', bullets: ['각 콘텐츠는 고유 입장 조건과 진행도를 가집니다.', '루프에 귀속되는 보상과 영구 보상을 구분하세요.', '특수 열쇠는 해당 보스 목록에서 사용합니다.'], tip: '새 콘텐츠가 열리면 지도 탭의 알림 표시를 먼저 확인하세요.' }
+    ],
+    unlock_jewel: [
+        { title: '주얼의 역할', body: '주얼은 장비와 별도로 세밀한 스탯을 보완하고 특수 조합을 만드는 성장 수단입니다.', bullets: ['등급과 옵션 줄 수를 확인합니다.', '주얼 결정은 가공과 강화에 사용합니다.', '고유 주얼은 일반 주얼과 다른 전용 효과를 가집니다.'], tip: '현재 빌드에 없는 방어·저항 한 줄을 채우는 용도로도 좋습니다.' },
+        { title: '가공과 장착', body: '주얼을 가공한 뒤 사용 가능한 슬롯에 장착하고 최종 스탯 변화를 비교하세요.', bullets: ['잠금된 주얼은 자동 해체에서 보호됩니다.', '희귀도별 자동 해체 설정을 확인합니다.', '공허 소켓과 융합은 후반 전용 기능입니다.'], tip: '비싼 가공 전에 주얼을 잠가 실수로 해체하지 않도록 하세요.' }
+    ],
+    unlock_codex: [
+        { title: '고유 아이템 도감', body: '획득한 고유 아이템을 기록하고 수집 진행도에 따른 보너스를 받는 콘텐츠입니다.', bullets: ['새 고유는 처음 획득할 때 도감에 등록됩니다.', '등록 여부와 보유 여부는 서로 다를 수 있습니다.', '수집 보너스는 전체 성장에 누적됩니다.'], tip: '새 도감 전용 필터를 켜면 이미 등록한 고유를 걸러낼 수 있습니다.' },
+        { title: '무엇을 확인하나?', body: '도감에서 미등록 항목, 고유 효과, 획득 경로를 확인하세요.', bullets: ['빌드 핵심 고유의 획득 지역 확인', '중복 고유의 보관·해체 판단', '도감 보너스 달성 구간 확인'], tip: '고유 등급이라고 항상 현재 빌드에 강한 것은 아닙니다.' }
+    ],
+    unlock_market: [
+        { title: '거래소의 역할', body: '남는 재화를 필요한 재화로 교환하거나 특수 서비스를 이용하는 보조 성장 콘텐츠입니다.', bullets: ['교환 비율과 보유량을 먼저 확인합니다.', '제작 계획에 필요한 수량만 교환합니다.', '시장 기능은 장비/제작 탭의 하위 메뉴에 있습니다.'], tip: '주력 제작 재화를 전부 다른 재화로 바꾸지 마세요.' },
+        { title: '안전한 사용 순서', body: '목표 장비와 필요한 제작 단계를 정한 뒤 부족한 재화만 보충하세요.', bullets: ['목표 옵션과 베이스 결정', '현재 재고 확인', '부족분만 교환 후 제작'], tip: '마지막 버튼으로 거래소 화면을 바로 엽니다.' }
+    ],
+    unlock_season_tab: [
+        { title: '루프와 영구 성장', body: '루프는 일부 진행을 다시 시작하는 대신 새로운 보너스와 콘텐츠를 여는 장기 진행 시스템입니다.', bullets: ['초기화되는 요소와 유지되는 요소가 다릅니다.', '루프 이정표에서 다음 해금 조건을 확인합니다.', '영구 노드는 이후 모든 루프에 영향을 줍니다.'], tip: '루프 직전에는 유지되는 장비·재화를 반드시 확인하세요.' },
+        { title: '다음 루프 준비', body: '현재 루프에서 얻을 수 있는 핵심 보상을 챙긴 뒤 전환하는 것이 좋습니다.', bullets: ['미완료 시련과 보스 확인', '보존 가능한 장비와 자원 정리', '다음 루프 목표 빌드 결정'], tip: '무조건 빠른 루프보다 필요한 영구 보상을 챙기는 편이 유리할 수 있습니다.' }
+    ],
+    unlock_traits: [
+        { title: '직업전직', body: '시련으로 얻은 포인트를 사용해 캐릭터의 전문 직업과 고유 규칙을 선택하는 시스템입니다.', bullets: ['전직 클래스는 빌드 방향을 크게 바꿉니다.', '일반 전직 노드와 핵심 노드의 포인트가 다릅니다.', '요구 노드를 만족해야 다음 단계가 열립니다.'], tip: '현재 스킬 태그와 전직 핵심 효과가 맞는지 먼저 확인하세요.' },
+        { title: '노드 선택 순서', body: '핵심 효과를 먼저 정하고 그 효과까지 이어지는 필수 경로를 계산합니다.', bullets: ['주력 공격과 맞는 클래스 선택', '생존 보완 노드 확인', '남은 포인트로 보조 효과 확보'], tip: '되돌리기 비용이 있다면 미리 전체 경로를 확인하세요.' }
+    ],
+    unlock_expertise: [
+        { title: '전문가 시스템', body: '특정 콘텐츠에서 만난 전문가를 성장시켜 제작·수집·전투 보조 기능을 여는 시스템입니다.', bullets: ['전문가마다 경험치를 얻는 콘텐츠가 다릅니다.', '중앙 공용 노드와 전문가 전용 가지가 있습니다.', '해금 효과는 관련 콘텐츠 화면에도 반영됩니다.'], tip: '현재 가장 자주 플레이하는 콘텐츠의 전문가부터 성장시키세요.' },
+        { title: '전문가 노드 읽기', body: '각 가지의 요구 레벨과 선행 노드를 확인하고 포인트를 배분합니다.', bullets: ['상단: 천문·별쐐기', '좌우: 균류 제작·젬 각인', '하단: 양봉과 지도 보조'], tip: '여러 전문가를 얕게 올리기보다 필요한 기능까지 한 가지를 먼저 여는 편이 명확합니다.' }
+    ],
+    unlock_core_cube: [
+        { title: '코어 큐브', body: '지하계에서 얻는 면체 재료를 조합해 장기 보너스를 만드는 후반 성장 시스템입니다.', bullets: ['흐릿한 면체는 지하계 드랍으로 획득합니다.', '면과 연결 규칙에 따라 효과가 달라집니다.', '완성 전 미리보기로 결과를 확인할 수 있습니다.'], tip: '희귀 재료는 목표 조합을 정한 뒤 사용하세요.' },
+        { title: '첫 조합', body: '보유 면체와 활성 가능한 면을 확인한 뒤 작은 조합부터 시작하세요.', bullets: ['재료 수량 확인', '연결 조건 확인', '적용 전 최종 효과 비교'], tip: '마지막 단계에서 큐브 탭을 바로 엽니다.' }
+    ],
+    unlock_chaos_realm: [
+        { title: '혼돈계', body: '루프 밖에서 계속 이어지는 별도 등반 지역으로, 층이 오를수록 적과 보상이 함께 강해집니다.', bullets: ['혼돈 구간은 전용 배경과 진행도를 사용합니다.', '일반 액트와 다른 특수 재화가 드랍됩니다.', '현재 빌드의 생존 한계를 넘으면 이전 층을 반복할 수 있습니다.'], tip: '빛기둥이 뜨는 희귀 드랍은 혼돈계 후반 성장의 핵심 재료일 수 있습니다.' },
+        { title: '등반 기준', body: '처치 속도와 받는 피해를 함께 보며 안정적으로 반복 가능한 구간을 찾으세요.', bullets: ['보스에서 급사하면 방어·저항 보강', '일반 적 처치가 느리면 공격 태그 점검', '필요 재화의 드랍 층 확인'], tip: '최고층보다 안정적인 반복층이 실제 성장 속도는 더 빠를 수 있습니다.' }
+    ]
+};
+
+function escapeTutorialText(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+}
+
+function getTutorialGuide(notice) {
+    if (!notice) return [];
+    if (TUTORIAL_GUIDES[notice.key]) return TUTORIAL_GUIDES[notice.key];
+    if (String(notice.key).startsWith('unlock_expert_')) return TUTORIAL_GUIDES.unlock_expertise;
+    if (String(notice.key).startsWith('unlock_talent')) return TUTORIAL_GUIDES.unlock_traits;
+    return [{ title: notice.title, body: notice.body, bullets: [], tip: '마지막 단계에서 관련 화면을 바로 열 수 있습니다.' }];
+}
+
+function renderTutorialStep() {
+    if (!activeTutorial) return;
+    const steps = activeTutorial.steps || [];
+    const step = steps[activeTutorialStep] || steps[0] || { title: activeTutorial.title, body: activeTutorial.body };
+    const count = Math.max(1, steps.length);
+    document.getElementById('tutorial-kicker').innerText = count > 1 ? '콘텐츠 가이드' : '새 콘텐츠 발견!';
+    document.getElementById('tutorial-title').innerText = step.title || activeTutorial.title;
+    const bullets = Array.isArray(step.bullets) && step.bullets.length
+        ? `<ul class="tutorial-checklist">${step.bullets.map(line => `<li>${escapeTutorialText(line)}</li>`).join('')}</ul>` : '';
+    const tip = step.tip ? `<div class="tutorial-tip">TIP · ${escapeTutorialText(step.tip)}</div>` : '';
+    document.getElementById('tutorial-body').innerHTML = `<p class="tutorial-summary">${escapeTutorialText(step.body || activeTutorial.body)}</p>${bullets}${tip}`;
+    document.getElementById('tutorial-progress-label').innerText = `${activeTutorialStep + 1} / ${count}`;
+    document.getElementById('tutorial-progress-fill').style.width = `${((activeTutorialStep + 1) / count) * 100}%`;
+    document.getElementById('tutorial-back-btn').style.display = activeTutorialStep > 0 ? 'inline-block' : 'none';
+    const isLast = activeTutorialStep >= count - 1;
+    const hasShortcut = !!activeTutorial.tabId || !!activeTutorial.itemSubtabId;
+    document.getElementById('tutorial-open-btn').innerText = isLast ? (hasShortcut ? '해당 화면 열기' : '완료') : '다음';
+}
+
 function queueTutorialNotice(key, title, body, tabId, itemSubtabId) {
     game.seenTutorials = game.seenTutorials || [];
     if (game.seenTutorials.includes(key)) return;
@@ -3688,13 +4107,27 @@ function queueTutorialNotice(key, title, body, tabId, itemSubtabId) {
 function showNextTutorial() {
     if (activeTutorial || tutorialQueue.length === 0) return;
     activeTutorial = tutorialQueue.shift();
-    document.getElementById('tutorial-title').innerText = activeTutorial.title;
-    document.getElementById('tutorial-body').innerText = activeTutorial.body;
-    let hasShortcut = !!activeTutorial.tabId || !!activeTutorial.itemSubtabId;
-    document.getElementById('tutorial-open-btn').innerText = hasShortcut ? '열어보기' : '확인';
+    activeTutorial.steps = getTutorialGuide(activeTutorial);
+    activeTutorialStep = 0;
+    renderTutorialStep();
     document.getElementById('tutorial-open-btn').style.display = 'inline-block';
     document.getElementById('tutorial-overlay').classList.add('active');
     lastTime = Date.now();
+}
+function advanceTutorial() {
+    if (!activeTutorial) return;
+    const count = Math.max(1, (activeTutorial.steps || []).length);
+    if (activeTutorialStep < count - 1) {
+        activeTutorialStep += 1;
+        renderTutorialStep();
+        return;
+    }
+    dismissTutorial(true);
+}
+function goBackTutorialStep() {
+    if (!activeTutorial || activeTutorialStep <= 0) return;
+    activeTutorialStep -= 1;
+    renderTutorialStep();
 }
 function dismissTutorial(openTarget) {
     if (!activeTutorial) return;
@@ -3702,6 +4135,7 @@ function dismissTutorial(openTarget) {
     let itemSubtabId = openTarget ? activeTutorial.itemSubtabId : null;
     document.getElementById('tutorial-overlay').classList.remove('active');
     activeTutorial = null;
+    activeTutorialStep = 0;
     lastTime = Date.now();
     if (tabId) switchTab(tabId);
     if (itemSubtabId && tabId === 'tab-items') switchItemSubtab(itemSubtabId);
@@ -4390,10 +4824,29 @@ function initBattleAssets() {
         bgAct8: 'assets/background/act8.png',
         bgAct9: 'assets/background/act9.png',
         bgAct10: 'assets/background/act10.png',
+        bgChaos0: 'assets/background/chaos/endgame-0.png',
+        bgChaos1: 'assets/background/chaos/endgame-1.png',
+        bgChaos2: 'assets/background/chaos/endgame-2.png',
+        bgChaos3: 'assets/background/chaos/endgame-3.png',
+        bgChaos4: 'assets/background/chaos/endgame-4.png',
+        bgChaos5: 'assets/background/chaos/endgame-5.png',
+        bgChaos6: 'assets/background/chaos/endgame-6.png',
+        bgChaos7: 'assets/background/chaos/endgame-7.png',
+        bgChaos8: 'assets/background/chaos/endgame-8.png',
+        bgChaos9: 'assets/background/chaos/endgame-9.png',
+        bgChaos10: 'assets/background/chaos/endgame-10.png',
+        bgChaos11: 'assets/background/chaos/endgame-11.png',
+        bgChaos12: 'assets/background/chaos/endgame-12.png',
+        bgChaos13: 'assets/background/chaos/endgame-13.png',
+        bgChaos14: 'assets/background/chaos/endgame-14.png',
+        bgChaos15: 'assets/background/chaos/endgame-15.png',
+        bgChaos16: 'assets/background/chaos/endgame-16.png',
+        bgChaos17: 'assets/background/chaos/endgame-17.png',
+        bgChaos18: 'assets/background/chaos/loop-final.png',
         summon1: 'assets/summon/summon1.png',
         ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['effectsV2', 'weapons', 'tiles']));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct') || key.startsWith('bgChaos')).concat(['effectsV2', 'weapons', 'tiles']));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1');
@@ -4469,7 +4922,7 @@ function initBattleAssets() {
 
     function storeLoadedBattleImage(key, image) {
         try {
-            if (key.startsWith('backdrop') || key.startsWith('bgAct')) {
+            if (key.startsWith('backdrop') || key.startsWith('bgAct') || key.startsWith('bgChaos')) {
                 battleAssets.backdrops[key] = image;
             } else {
                 let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || (key === 'heroLegacy' && heroSheetHasTransparency(image));

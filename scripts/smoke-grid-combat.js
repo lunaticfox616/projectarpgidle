@@ -113,8 +113,10 @@ Object.keys(context.SKILL_DB).forEach(name => {
   assert.ok(validKinds.has(profile.kind), `스킬 '${name}'의 kind가 유효하지 않다: ${profile.kind}`);
   assert.ok(Number.isFinite(profile.range) && profile.range >= 1, `스킬 '${name}'의 range가 유효하지 않다`);
 });
-assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발 · 사거리 5칸 · 반경 2칸');
-assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 2칸');
+assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발 · 사거리 4칸 · 반경 2칸');
+assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄 · 사거리 4칸 · 연쇄 2칸');
+assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= 6, '보수적으로 조정된 스킬 최대 사거리는 6칸을 넘지 않아야 한다');
+assert.ok(context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 2 }, { gx: 0, gy: 0 }, { gx: 4, gy: 4 }).length < 25, '반경 2 폭발은 정사각형 25칸 전체를 덮지 않아야 한다');
 
 // ── 2. 직선 칸 계산(브레젠험) ──
 {

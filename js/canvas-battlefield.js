@@ -49,12 +49,16 @@ function getCanvasCrowdPauseLimit() {
 // shockwave; every other element is capped to roughly the monster's footprint
 // so the rings/glow do not balloon past the target. When the enemy object is
 // unavailable (ghost/fallback position) we fall back to a much smaller scale.
-function getAttackFxSpawnOpts(fx, enemy) {
-    const opts = { crit: !!fx.crit };
+function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
+    const opts = {
+        crit: !!fx.crit,
+        variant: (skillVisual && skillVisual.variant) || 'melee'
+    };
     const element = String(fx.element || 'phys').toLowerCase();
-    if (element === 'phys' || element === 'physical') return opts;
-    if (enemy) opts.scale = enemy.isBoss ? 0.82 : (enemy.isElite ? 0.6 : 0.44);
-    else opts.scale = 0.4;
+    const screenMul = clampNumber(Number(viewportScale) || 1, 0.68, 1.18);
+    if (element === 'phys' || element === 'physical') opts.scale = 0.68 * screenMul;
+    else if (enemy) opts.scale = (enemy.isBoss ? 0.82 : (enemy.isElite ? 0.6 : 0.44)) * screenMul;
+    else opts.scale = 0.4 * screenMul;
     return opts;
 }
 
@@ -85,6 +89,9 @@ function renderBattlefield(forceWhenHidden) {
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+
+    const cameraShake = getBattleCameraShake(now);
+    ctx.translate(cameraShake.x, cameraShake.y);
 
     let currentZone = getZone(game.currentZoneId);
     let zoneTheme = getBattleZoneTheme(currentZone);
@@ -143,8 +150,8 @@ function renderBattlefield(forceWhenHidden) {
     if (!battleVisualState.playerPos) {
         battleVisualState.playerPos = { x: targetPlayerPos.x, y: targetPlayerPos.y };
     } else {
-        battleVisualState.playerPos.x = approachNumber(battleVisualState.playerPos.x, targetPlayerPos.x, 6.0, deltaSec);
-        battleVisualState.playerPos.y = approachNumber(battleVisualState.playerPos.y, targetPlayerPos.y, 6.0, deltaSec);
+        battleVisualState.playerPos.x = approachNumber(battleVisualState.playerPos.x, targetPlayerPos.x, 20.0, deltaSec);
+        battleVisualState.playerPos.y = approachNumber(battleVisualState.playerPos.y, targetPlayerPos.y, 20.0, deltaSec);
     }
     let playerPos = {
         x: battleVisualState.playerPos.x,
@@ -158,10 +165,12 @@ function renderBattlefield(forceWhenHidden) {
             smooth = { x: entry.x, y: entry.y };
             battleVisualState.enemySmoothPos[entry.enemy.id] = smooth;
         } else {
-            smooth.x = approachNumber(smooth.x, entry.x, 6.0, deltaSec);
-            smooth.y = approachNumber(smooth.y, entry.y, 6.0, deltaSec);
+            smooth.x = approachNumber(smooth.x, entry.x, 20.0, deltaSec);
+            smooth.y = approachNumber(smooth.y, entry.y, 20.0, deltaSec);
         }
-        entry = { enemy: entry.enemy, x: smooth.x, y: smooth.y };
+        const movingDistance = Math.hypot(entry.x - smooth.x, entry.y - smooth.y);
+        if (movingDistance < 0.65) { smooth.x = entry.x; smooth.y = entry.y; }
+        entry = { enemy: entry.enemy, x: smooth.x, y: smooth.y, moving: movingDistance >= 0.65 };
         let rawSeed = entry.enemy.variantSeed;
         if (!Number.isFinite(rawSeed)) rawSeed = entry.enemy.id;
         let seed = Number(rawSeed);
@@ -170,8 +179,9 @@ function renderBattlefield(forceWhenHidden) {
             seed = 0;
             for (let i = 0; i < textSeed.length; i++) seed = (seed * 31 + textSeed.charCodeAt(i)) % 100000;
         }
-        let driftX = Math.sin((now / 240) + seed * 0.9) * (entry.enemy.isBoss ? 1.8 : 2.4);
-        let driftY = Math.cos((now / 300) + seed * 1.2) * (entry.enemy.isBoss ? 1.1 : 1.4);
+        let driftMul = entry.moving ? 0.12 : 1;
+        let driftX = Math.sin((now / 240) + seed * 0.9) * (entry.enemy.isBoss ? 1.8 : 2.4) * driftMul;
+        let driftY = Math.cos((now / 300) + seed * 1.2) * (entry.enemy.isBoss ? 1.1 : 1.4) * driftMul;
         return {
             enemy: entry.enemy,
             x: entry.x + driftX,
@@ -181,7 +191,12 @@ function renderBattlefield(forceWhenHidden) {
     let enemyPosMap = {};
     dynamicLayout.forEach(entry => {
         enemyPosMap[entry.enemy.id] = entry;
-        battleVisualState.enemyGhostPos[entry.enemy.id] = { x: entry.x, y: entry.y, stamp: now };
+        battleVisualState.enemyGhostPos[entry.enemy.id] = {
+            x: entry.x,
+            y: entry.y,
+            stamp: now,
+            enemy: { ...entry.enemy }
+        };
     });
 
     // getPlayerStats()는 장비/패시브 전체를 재계산하는 무거운 함수다.
@@ -228,7 +243,8 @@ function renderBattlefield(forceWhenHidden) {
                 });
             }
             if (!fx.dot && typeof attackFxSpawn === 'function') {
-                attackFxSpawn(fx.element || 'phys', enemyPos.x, enemyPos.y - 6, getAttackFxSpawnOpts(fx, enemyPos.enemy));
+                const viewportFxScale = Math.min(width / 960, height / 540);
+                attackFxSpawn(fx.element || 'phys', enemyPos.x, enemyPos.y - 6, getAttackFxSpawnOpts(fx, enemyPos.enemy, currentSkillVisual, viewportFxScale));
             }
             handled = true;
         } else if (fx.type === 'playerHit') {
@@ -272,12 +288,16 @@ function renderBattlefield(forceWhenHidden) {
 
     dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;
-        let age = enemy.spawnStamp ? clampNumber((now - enemy.spawnStamp) / 260, 0, 1) : 1;
+        let spawnDuration = enemy.isBoss ? 640 : (enemy.isElite ? 460 : 360);
+        let age = enemy.spawnStamp ? clampNumber((now - enemy.spawnStamp) / spawnDuration, 0, 1) : 1;
+        let easedAge = 1 - Math.pow(1 - age, 3);
+        let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + easedAge * (enemy.isBoss ? 0.54 : 0.32);
+        if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
         let hitFlash = battleFx.some(fx => fx.enemyId === enemy.id && (fx.type === 'hit' || fx.type === 'enemyDeath') && now - fx.start <= fx.duration * 0.45);
         ctx.save();
-        ctx.globalAlpha = age;
+        ctx.globalAlpha = easedAge;
         let crowdScale = dynamicLayout.length >= 9 ? (enemy.isBoss ? 2.15 : (enemy.isElite ? 1.72 : 1.46)) : (dynamicLayout.length >= 6 ? (enemy.isBoss ? 2.3 : (enemy.isElite ? 1.9 : 1.62)) : (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95)));
-        drawEnemySprite(ctx, enemy, entry.x, entry.y, crowdScale * gridUnitScale, hitFlash, now);
+        drawEnemySprite(ctx, enemy, entry.x, entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), crowdScale * gridUnitScale * spawnScale, hitFlash, now);
         ctx.restore();
     });
 
@@ -389,7 +409,7 @@ function renderBattlefield(forceWhenHidden) {
         let t = clampNumber((now - fx.start) / fx.duration, 0, 1);
         let ghostEnemy = (fx.enemyId && !enemyPosMap[fx.enemyId]) ? battleVisualState.enemyGhostPos[fx.enemyId] : null;
         if (ghostEnemy && !enemyPosMap[fx.enemyId]) {
-            enemyPosMap[fx.enemyId] = { enemy: { id: fx.enemyId, hp: 0, maxHp: 1 }, x: ghostEnemy.x, y: ghostEnemy.y };
+            enemyPosMap[fx.enemyId] = { enemy: ghostEnemy.enemy || { id: fx.enemyId, hp: 0, maxHp: 1 }, x: ghostEnemy.x, y: ghostEnemy.y };
         }
         if (fx.type === 'playerSwing') {
             drawBattleSwingFx(ctx, fx, t, playerPos);
@@ -401,22 +421,55 @@ function renderBattlefield(forceWhenHidden) {
             let enemy = enemyPosMap[fx.enemyId];
             if (!enemy) return;
             ctx.save();
-            ctx.globalAlpha = (1 - t) * (fx.boss ? 0.58 : 0.42);
+            ctx.globalAlpha = (1 - t) * (fx.boss ? 0.72 : 0.5);
             ctx.strokeStyle = fx.color || '#9ed6ff';
             ctx.lineWidth = fx.boss ? 4 : 3;
-            ctx.beginPath();
-            ctx.arc(enemy.x, enemy.y - 4, (fx.boss ? 18 : 11) + t * (fx.boss ? 26 : 18), 0, Math.PI * 2);
-            ctx.stroke();
+            const ringCount = fx.boss ? 3 : 2;
+            for (let ring = 0; ring < ringCount; ring++) {
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y - 4, (fx.boss ? 15 : 10) + t * (fx.boss ? 34 : 22) + ring * 6, 0, Math.PI * 2);
+                ctx.stroke();
+            }
             ctx.fillStyle = fx.color || '#9ed6ff';
-            ctx.globalAlpha = (1 - t) * 0.18;
+            ctx.globalAlpha = (1 - t) * (fx.boss ? 0.28 : 0.18);
             ctx.beginPath();
             ctx.ellipse(enemy.x, enemy.y + 8, fx.boss ? 28 : 18, fx.boss ? 12 : 8, 0, 0, Math.PI * 2);
             ctx.fill();
+            if (fx.boss) {
+                ctx.globalAlpha = (1 - t) * 0.5;
+                for (let ray = 0; ray < 8; ray++) {
+                    const angle = ray * Math.PI / 4 + t * 0.6;
+                    ctx.beginPath();
+                    ctx.moveTo(enemy.x + Math.cos(angle) * 24, enemy.y - 5 + Math.sin(angle) * 12);
+                    ctx.lineTo(enemy.x + Math.cos(angle) * (46 + t * 18), enemy.y - 5 + Math.sin(angle) * (24 + t * 10));
+                    ctx.stroke();
+                }
+            }
             ctx.restore();
         } else if (fx.type === 'enemyDeath') {
             let enemy = enemyPosMap[fx.enemyId];
             if (!enemy) return;
+            const deathEnemy = enemy.enemy || {};
+            const isBossDeath = !!(fx.boss || deathEnemy.isBoss);
+            ctx.save();
+            ctx.globalAlpha = Math.pow(1 - t, 1.4) * (isBossDeath ? 0.92 : 0.75);
+            ctx.translate(enemy.x, enemy.y - t * (isBossDeath ? 24 : 14));
+            ctx.rotate((isBossDeath ? -0.12 : 0.16) * t);
+            drawEnemySprite(ctx, deathEnemy, 0, 0, (isBossDeath ? 2.65 : (fx.elite ? 2.1 : 1.9)) * (1 + t * 0.16), true, now);
+            ctx.restore();
             drawBattleImpactBurst(ctx, enemy.x, enemy.y - 6, fx.color || '#ffb0b0', '#ffffff', t);
+            if (isBossDeath) {
+                ctx.save();
+                ctx.globalAlpha = (1 - t) * 0.75;
+                ctx.strokeStyle = fx.color || '#ffd58a';
+                ctx.lineWidth = 4;
+                for (let ring = 0; ring < 3; ring++) {
+                    ctx.beginPath();
+                    ctx.arc(enemy.x, enemy.y - 8, 24 + ring * 12 + t * 58, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
         } else if (fx.type === 'trialTrap') {
             ctx.save();
             ctx.globalAlpha = 0.24 * (1 - t);
@@ -445,21 +498,49 @@ function renderBattlefield(forceWhenHidden) {
             ctx.save();
             ctx.globalAlpha = 1 - t * 0.2;
             ctx.fillStyle = fx.color || '#9ed6ff';
-            ctx.beginPath();
-            ctx.arc(x, y, 3.2, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.shadowColor = fx.color || '#9ed6ff';
+            ctx.shadowBlur = fx.tier === 'unique' ? 18 : 10;
+            for (let mote = 0; mote < 4; mote++) {
+                const delay = mote * 0.045;
+                const mt = clampNumber((t - delay) / Math.max(0.1, 1 - delay), 0, 1);
+                const mx = startX + (endX - startX) * mt + Math.sin(mt * 12 + mote) * (4 - mote * 0.6);
+                const my = startY + (endY - startY) * mt - Math.sin(mt * Math.PI) * (18 + mote * 3);
+                ctx.globalAlpha = (1 - mt * 0.45) * (1 - mote * 0.14);
+                ctx.beginPath();
+                ctx.arc(mx, my, 3.5 - mote * 0.45, 0, Math.PI * 2);
+                ctx.fill();
+            }
             ctx.restore();
         } else if (fx.type === 'lootCelebration') {
             let enemy = enemyPosMap[fx.enemyId];
             let cx = enemy ? enemy.x : width * 0.72;
             let cy = enemy ? enemy.y - 10 : height * 0.62;
             ctx.save();
-            ctx.globalAlpha = 0.45 * (1 - t);
+            const intensity = fx.tier === 'unique' ? 1 : (fx.tier === 'rare' ? 0.72 : 0.5);
+            const beamHeight = (fx.tier === 'unique' ? 220 : 145) * (0.82 + 0.18 * Math.sin(t * Math.PI));
+            const beam = ctx.createLinearGradient(cx, cy, cx, cy - beamHeight);
+            beam.addColorStop(0, fx.color || '#ffcf6b');
+            beam.addColorStop(0.28, fx.color || '#ffcf6b');
+            beam.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.globalAlpha = intensity * (1 - t) * 0.72;
+            ctx.fillStyle = beam;
+            ctx.fillRect(cx - (fx.tier === 'unique' ? 7 : 4), cy - beamHeight, fx.tier === 'unique' ? 14 : 8, beamHeight);
+            ctx.globalAlpha = intensity * 0.58 * (1 - t);
             ctx.strokeStyle = fx.color || '#ffcf6b';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(cx, cy, 16 + t * 28, 0, Math.PI * 2);
-            ctx.stroke();
+            ctx.lineWidth = fx.tier === 'unique' ? 4 : 3;
+            for (let ring = 0; ring < (fx.tier === 'unique' ? 3 : 2); ring++) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, 13 + ring * 8 + t * (fx.tier === 'unique' ? 44 : 30), 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            for (let spark = 0; spark < (fx.tier === 'unique' ? 10 : 6); spark++) {
+                const angle = spark * (Math.PI * 2 / (fx.tier === 'unique' ? 10 : 6)) + t;
+                const reach = 18 + t * 48;
+                ctx.beginPath();
+                ctx.moveTo(cx + Math.cos(angle) * reach, cy + Math.sin(angle) * reach * 0.42);
+                ctx.lineTo(cx + Math.cos(angle) * (reach + 8), cy + Math.sin(angle) * (reach + 8) * 0.42);
+                ctx.stroke();
+            }
             ctx.restore();
         } else if (fx.type === 'playerDown') {
             ctx.save();
@@ -470,6 +551,8 @@ function renderBattlefield(forceWhenHidden) {
         }
     });
     drawDamageTexts(ctx, now);
+    ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+    drawBattleScreenGrade(ctx, width, height, now);
 
     let caption = '전장을 스캔 중...';
     if (battleAssets.failed && !battleAssets.ready) caption = '전장 에셋 일부 로드 실패 (기본 렌더링으로 전투 진행)';
@@ -480,6 +563,56 @@ function renderBattlefield(forceWhenHidden) {
     else if (enemies.length > 0) caption = `${enemies.length}기와 교전 중`;
     else if ((game.encounterPlan || []).length > 0) caption = '다음 매복 지점을 탐색 중...';
     document.getElementById('ui-battlefield-caption').innerText = caption;
+}
+
+function getBattleCameraShake(now) {
+    if (typeof game !== 'undefined' && game.settings && game.settings.cameraShake === false) return { x: 0, y: 0 };
+    let amplitude = 0;
+    (battleFx || []).forEach(fx => {
+        if (!fx || fx.dot || !['hit', 'playerHit', 'enemyDeath', 'enemySpawn'].includes(fx.type)) return;
+        let duration = fx.crit ? 180 : 120;
+        let age = now - fx.start;
+        if (age < 0 || age > duration) return;
+        let strength = fx.type === 'enemyDeath' ? (fx.boss ? 8.4 : 4.8) : (fx.type === 'enemySpawn' ? (fx.boss ? 3.4 : 0) : (fx.crit ? 4.1 : 1.8));
+        amplitude = Math.max(amplitude, strength * (1 - age / duration));
+    });
+    return {
+        x: Math.sin(now * 0.72) * amplitude,
+        y: Math.cos(now * 0.94) * amplitude * 0.56
+    };
+}
+
+function drawBattleScreenGrade(ctx, width, height, now) {
+    ctx.save();
+    let edgeSizeX = Math.max(72, width * 0.2);
+    let edgeSizeY = Math.max(58, height * 0.18);
+    let leftEdge = ctx.createLinearGradient(0, 0, edgeSizeX, 0);
+    leftEdge.addColorStop(0, 'rgba(1,3,7,0.44)');
+    leftEdge.addColorStop(1, 'rgba(1,3,7,0)');
+    ctx.fillStyle = leftEdge;
+    ctx.fillRect(0, 0, edgeSizeX, height);
+    let rightEdge = ctx.createLinearGradient(width, 0, width - edgeSizeX, 0);
+    rightEdge.addColorStop(0, 'rgba(1,3,7,0.44)');
+    rightEdge.addColorStop(1, 'rgba(1,3,7,0)');
+    ctx.fillStyle = rightEdge;
+    ctx.fillRect(width - edgeSizeX, 0, edgeSizeX, height);
+    let topEdge = ctx.createLinearGradient(0, 0, 0, edgeSizeY);
+    topEdge.addColorStop(0, 'rgba(1,3,7,0.34)');
+    topEdge.addColorStop(1, 'rgba(1,3,7,0)');
+    ctx.fillStyle = topEdge;
+    ctx.fillRect(0, 0, width, edgeSizeY);
+    let bottomEdge = ctx.createLinearGradient(0, height, 0, height - edgeSizeY);
+    bottomEdge.addColorStop(0, 'rgba(1,3,7,0.5)');
+    bottomEdge.addColorStop(1, 'rgba(1,3,7,0)');
+    ctx.fillStyle = bottomEdge;
+    ctx.fillRect(0, height - edgeSizeY, width, edgeSizeY);
+    let critActive = (battleFx || []).some(fx => fx && fx.crit && now - fx.start >= 0 && now - fx.start < 90);
+    if (critActive) {
+        ctx.globalAlpha = 0.1;
+        ctx.fillStyle = '#ffe7a3';
+        ctx.fillRect(0, 0, width, height);
+    }
+    ctx.restore();
 }
 
 function getBattleMarkerLabel(marker) {

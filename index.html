@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Projectidle</title>
+    <meta name="theme-color" content="#05080e">
+    <title>PROJECT IDLE — Rootbound ARPG</title>
     <link rel="stylesheet" href="css/base.css?v=20260611-tab-drag4">
-    <link rel="stylesheet" href="css/layout.css?v=20260713-passive-tooltip-zfix1">
+    <link rel="stylesheet" href="css/layout.css?v=20260715-guided-tutorial1">
     <link rel="stylesheet" href="css/theme.css">
     <link rel="stylesheet" href="css/components.css?v=20260628-craft-fixes1">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260707-belt-flask-slots1">
@@ -14,6 +15,8 @@
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="css/cosmos-atlas.css">
     <link rel="stylesheet" href="css/core-cube.css?v=20260604-core-cube-visual1">
+    <link rel="stylesheet" href="css/ui-luxe.css?v=20260715-luxe1">
+    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260715-overhaul4">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -46,8 +49,11 @@
             <div class="startup-hero-grid">
                 <div class="startup-hero-copy">
                     <div class="startup-brand-wrap">
+                        <div class="startup-game-kicker">THE ROOTBOUND CHRONICLE</div>
                         <div class="startup-wordmark"><span class="startup-wordmark-accent">Projectidle</span></div>
                         <div class="startup-wordmark-bar"></div>
+                        <div class="startup-game-tagline">끝없이 되감기는 성소에서 운명을 벼려내십시오.</div>
+                        <div class="startup-season-mark"><span>SEASON 01</span><strong>ROOT AWAKENING</strong></div>
                     </div>
                     <div class="startup-summary-card">
                         <div class="startup-summary-title">현재 기기 저장 정보</div>
@@ -72,7 +78,9 @@
         <div class="startup-panel auth">
             <div class="startup-auth-head">
                 <div>
+                    <div class="startup-auth-kicker">ENTER THE SANCTUARY</div>
                     <div class="startup-auth-title">로그인</div>
+                    <div class="startup-auth-sub">계승할 기록을 선택하고 원정에 합류하세요.</div>
                 </div>
             </div>
             <div class="startup-form" id="startup-auth-form">
@@ -118,12 +126,14 @@
 <div id="loop-rewrite-overlay" class="loop-rewrite-overlay"></div>
 <div id="tutorial-overlay" class="tutorial-overlay">
     <div class="tutorial-card">
-        <div class="tutorial-kicker">새 콘텐츠 발견!</div>
+        <div class="tutorial-kicker" id="tutorial-kicker">새 콘텐츠 발견!</div>
         <div class="tutorial-title" id="tutorial-title">알림</div>
+        <div class="tutorial-progress"><span id="tutorial-progress-label">1 / 1</span><div><i id="tutorial-progress-fill"></i></div></div>
         <div class="tutorial-body" id="tutorial-body"></div>
         <div class="tutorial-actions">
-            <button class="tutorial-secondary" onclick="dismissTutorial(false)">닫기</button>
-            <button id="tutorial-open-btn" onclick="dismissTutorial(true)">열어보기</button>
+            <button id="tutorial-back-btn" class="tutorial-secondary" onclick="goBackTutorialStep()" style="display:none;">이전</button>
+            <button class="tutorial-secondary" onclick="dismissTutorial(false)">나중에</button>
+            <button id="tutorial-open-btn" onclick="advanceTutorial()">다음</button>
         </div>
     </div>
 </div>
@@ -982,6 +992,7 @@
                 <div class="cfg-group-title">전투 표시</div>
                 <div class="cfg-rows">
                     <label class="cfg-toggle"><input type="checkbox" id="chk-combat-scene" onchange="updateSettings()" checked><span class="cfg-label">전투 화면 표시</span></label>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-camera-shake" onchange="updateSettings()" checked><span class="cfg-label">카메라 흔들림</span></label>
                     <label class="cfg-toggle"><input type="checkbox" id="chk-death-notice" onchange="updateSettings()" checked><span class="cfg-label">사망 시 알림 표시</span></label>
                     <label class="cfg-toggle"><input type="checkbox" id="chk-mobile-battle-pip" onchange="updateSettings()" checked><span class="cfg-label">모바일 전투 PiP 표시</span></label>
                     <label class="cfg-toggle"><input type="checkbox" id="chk-pause-overlay" onchange="updateSettings()"><span class="cfg-label">오버레이가 열리면 게임 진행 일시 정지</span></label>
@@ -1194,27 +1205,28 @@
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260710-grid-feedback3"></script>
 <script defer src="data/maps.js?v=20260708-astra-rename1"></script>
-<script defer src="data/skills.js?v=20260710-grid-combat1"></script>
+<script defer src="data/skills.js?v=20260715-range-tune1"></script>
 <script defer src="data/items.js?v=20260708-astra-rename1"></script>
 <script defer src="data/passives.js?v=20260628-jewelcraft2"></script>
 <script defer src="data/bosses.js?v=20260618-ocean1"></script>
 <script defer src="data/rewards.js?v=20260615-act4-resist"></script>
 <script defer src="data/talent-cards.js?v=20260708-projectile-uncap1"></script>
 <script defer src="js/utils.js?v=20260708-attr-dmg-scaling1"></script>
-<script defer src="js/state.js?v=20260707-belt-flask-slots1"></script>
+<script defer src="js/state.js?v=20260715-visual2"></script>
 <script defer src="js/save.js?v=20260513-gemfix1"></script>
 <script defer src="js/items.js?v=20260708-astra-rename1"></script>
 <script defer src="js/skills.js?v=20260623-shieldfossil2"></script>
-<script defer src="js/passives.js?v=20260710-grid-combat1"></script>
+<script defer src="js/passives.js?v=20260715-lifetree3"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1"></script>
-<script defer src="js/combat-grid.js?v=20260710-grid-feedback3"></script>
-<script defer src="js/combat.js?v=20260710-grid-feedback3"></script>
-<script defer src="js/canvas-battlefield.js?v=20260711-bg-diorama1"></script>
-<script defer src="js/canvas-attack-fx.js?v=20260625-attackfx1"></script>
-<script defer src="js/canvas-passive-tree.js?v=20260618-codex-autoreg1"></script>
-<script defer src="js/ui.js?v=20260712-hud-exp1"></script>
+<script defer src="js/combat-grid.js?v=20260715-range-tune1"></script>
+<script defer src="js/combat.js?v=20260715-drop-fx1"></script>
+<script defer src="js/canvas-battlefield.js?v=20260715-motion-fx1"></script>
+<script defer src="js/canvas-attack-fx.js?v=20260715-tags1"></script>
+<script defer src="js/canvas-passive-tree.js?v=20260715-lifetree3"></script>
+<script defer src="js/ui.js?v=20260715-guided-tutorial1"></script>
 <script defer src="js/social.js?v=20260712-community-dock1"></script>
 <script defer src="js/ui-window-manager.js?v=20260712-hud-exp1"></script>
+<script defer src="js/ui-game-shell.js?v=20260715-overhaul1"></script>
 <script defer src="js/goal-system.js?v=20260712-goal-system1"></script>
 <script defer src="js/talent-cards.js?v=20260708-projectile-uncap1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260705-cosmosloop1"></script>

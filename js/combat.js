@@ -1323,7 +1323,8 @@ function rollFlaskDiscoveryDrop(enemy) {
     let key = candidates[Math.floor(Math.random() * candidates.length)];
     if (!discoverFlask(key)) return;
     let def = FLASK_DB[key];
-    addBattleFx('lootPickup', { enemyId: enemy.id, color: '#9ed6ff', duration: 780 });
+    addBattleFx('lootPickup', { enemyId: enemy.id, color: '#78d9ff', tier: 'rare', duration: 820 });
+    addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#78d9ff', tier: 'rare', duration: 920 });
     if (game.settings.showLootLog) addLog(`🧪 새로운 플라스크 발견: <span class='loot-rare'>[${def.name}]</span>! 장비 탭의 플라스크 슬롯에서 장착할 수 있습니다.`, 'loot-rare');
 }
 // 유틸리티 플라스크가 단계 구분 없이 종류당 1개였던 예전 저장의 고정 키를 그 종류의 1단계로 옮긴다.
@@ -6373,8 +6374,10 @@ function rollLootForEnemy(enemy) {
             return;
         }
         awardCurrency(drop[0], drop[1]);
-        addBattleFx('lootPickup', { enemyId: enemy.id, color: (drop[0] === 'divine' || drop[0] === 'exalted') ? '#ffd166' : '#9ad1ff', duration: 760 });
-        if (drop[0] === 'divine' || drop[0] === 'exalted') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ffcf6b', duration: 980 });
+        const premiumCurrency = ['divine', 'exalted', 'woodsmanTouch', 'annulment', 'abyssCatalyst'].includes(drop[0]);
+        const rareCurrency = premiumCurrency || ['regal', 'chaos', 'chance', 'blessing', 'skyEssence', 'tainted'].includes(drop[0]);
+        addBattleFx('lootPickup', { enemyId: enemy.id, color: premiumCurrency ? '#ffd166' : (rareCurrency ? '#d8a8ff' : '#9ad1ff'), tier: premiumCurrency ? 'unique' : (rareCurrency ? 'rare' : 'normal'), duration: premiumCurrency ? 980 : 760 });
+        if (rareCurrency) addBattleFx('lootCelebration', { enemyId: enemy.id, color: premiumCurrency ? '#ffcf6b' : '#caa2ff', tier: premiumCurrency ? 'unique' : 'rare', duration: premiumCurrency ? 1320 : 960 });
         let currencyName = typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ((ORB_DB[drop[0]] && ORB_DB[drop[0]].name) || drop[0]);
         if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
     });
@@ -6399,10 +6402,12 @@ function rollLootForEnemy(enemy) {
     }
     if (Math.random() < itemChance) {
         let item = generateEquipmentDrop(enemy);
-        if (addItemToInventory(item) && game.settings.showLootLog) {
-            addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#9ed6ff', duration: 780 });
-            if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ff9f43', duration: 1200 });
-            addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
+        if (addItemToInventory(item)) {
+            const highItem = item.rarity === 'unique';
+            const rareItem = item.rarity === 'rare' || item.exceptionalBase || item.encroached;
+            addBattleFx('lootPickup', { enemyId: enemy.id, color: highItem ? '#ffb05a' : (rareItem ? '#ffd36b' : '#9ed6ff'), tier: highItem ? 'unique' : (rareItem ? 'rare' : item.rarity), duration: highItem ? 1040 : 780 });
+            if (highItem || rareItem) addBattleFx('lootCelebration', { enemyId: enemy.id, color: highItem ? '#ff9f43' : '#ffd36b', tier: highItem ? 'unique' : 'rare', duration: highItem ? 1420 : 980 });
+            if (game.settings.showLootLog) addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
         }
     }
     if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056) {
@@ -6416,6 +6421,9 @@ function rollLootForEnemy(enemy) {
             if (game.settings.showLootLog) addLog(`💠 주얼 자동해체: [${jewel.name}]`, 'loot-normal');
         } else {
             game.jewelInventory.push(jewel);
+            const jewelTier = jewel.rarity === 'unique' ? 'unique' : (jewel.rarity === 'rare' ? 'rare' : jewel.rarity);
+            addBattleFx('lootPickup', { enemyId: enemy.id, color: jewelTier === 'unique' ? '#dca6ff' : '#78cfff', tier: jewelTier, duration: jewelTier === 'unique' ? 1040 : 820 });
+            if (jewelTier === 'unique' || jewelTier === 'rare') addBattleFx('lootCelebration', { enemyId: enemy.id, color: jewelTier === 'unique' ? '#dca6ff' : '#78cfff', tier: jewelTier, duration: jewelTier === 'unique' ? 1360 : 940 });
             let lineText = getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
             if (game.settings.showLootLog) addLog(`💠 ${getJewelRarityLabel(jewel.rarity)} 주얼 [${jewel.name}] 획득! (${lineText})`, 'loot-rare');
         }
@@ -6509,7 +6517,13 @@ function handleEnemyDeath(enemy, pStats) {
         game.talentRuntime.colosseumKills = (game.talentRuntime.colosseumKills || 0) + 1;
         if (game.talentRuntime.colosseumKills >= 5) { game.talentRuntime.colosseumKills = 0; game.talentRuntime.colosseumReady = true; }
     }
-    addBattleFx('enemyDeath', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 420 });
+    addBattleFx('enemyDeath', {
+        enemyId: enemy.id,
+        color: getElementColor(enemy.ele),
+        duration: enemy.isBoss ? 920 : (enemy.isElite ? 620 : 480),
+        boss: !!enemy.isBoss,
+        elite: !!enemy.isElite
+    });
     grantEliteTraitBuffFromEnemy(enemy, pStats);
     let gemLeveled = grantExpAndGem(enemy, pStats);
     let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));

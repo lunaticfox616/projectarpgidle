@@ -98,6 +98,14 @@
         .tutorial-kicker { color: #7fc9ff; font-size: 0.78em; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
         .tutorial-title { color: #f6b34f; font-size: 1.35em; font-weight: bold; margin-bottom: 10px; }
         .tutorial-body { color: #d5dde8; line-height: 1.65; white-space: pre-line; }
+        .tutorial-progress { display:flex; align-items:center; gap:10px; margin: 2px 0 14px; color:#8faac6; font-size:.74em; font-weight:800; letter-spacing:.08em; }
+        .tutorial-progress > div { flex:1; height:4px; overflow:hidden; border-radius:999px; background:rgba(80,112,145,.28); }
+        .tutorial-progress i { display:block; width:0; height:100%; border-radius:inherit; background:linear-gradient(90deg,#5ab9f3,#efc56b); box-shadow:0 0 12px rgba(90,185,243,.34); transition:width .22s ease; }
+        .tutorial-summary { margin:0 0 10px; color:#e5edf7; font-weight:700; }
+        .tutorial-checklist { display:grid; gap:7px; margin:10px 0 0; padding:0; list-style:none; }
+        .tutorial-checklist li { position:relative; padding:8px 10px 8px 31px; border:1px solid rgba(91,130,168,.26); border-radius:8px; background:rgba(7,13,21,.56); white-space:normal; }
+        .tutorial-checklist li::before { content:'◇'; position:absolute; left:11px; top:8px; color:#f0c86f; }
+        .tutorial-tip { margin-top:12px; padding:9px 11px; border-left:3px solid #70c3f5; color:#bcd8ef; background:rgba(34,92,132,.16); white-space:normal; }
         .tutorial-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
         .tutorial-actions button { min-width: 104px; }
         .tutorial-secondary { background: #25384a; border-color: #35536b; }
