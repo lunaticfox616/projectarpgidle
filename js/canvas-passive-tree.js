@@ -330,7 +330,7 @@ function drawPassiveTree() {
     }
 
     // 링크
-    if (!lightweightMode) drawPassiveBranchUnderlay(ctx, visibleEdges);
+    drawPassiveBranchUnderlay(ctx, visibleEdges, lightweightMode);
 
     visibleEdges.forEach(edge => {
         const a = edge.a;

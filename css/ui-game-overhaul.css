@@ -478,25 +478,43 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window::after {
   inset: 0;
   z-index: 4;
   pointer-events: none;
-  opacity: .58;
-  background: url('../assets/ui/window-frame-luxe-v1.png') center / 100% 100% no-repeat;
+  box-sizing: border-box;
+  opacity: .7;
+  border: 14px solid transparent;
+  border-image-source: url('../assets/ui/window-frame-luxe-v1.png');
+  border-image-slice: 108;
+  border-image-width: 14px;
+  border-image-outset: 0;
+  border-image-repeat: stretch;
   filter: saturate(.9) contrast(1.03);
 }
 
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > * {
+body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-titlebar,
+body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-body {
   position: relative;
   z-index: 5;
 }
 
 body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar {
-  flex-basis: 46px;
+  flex: 0 0 40px;
+  min-width: 0;
+  overflow: hidden;
   padding-inline: 16px 10px;
   background: linear-gradient(180deg, rgba(39, 61, 85, .99), rgba(14, 25, 39, .99));
 }
 
 body:not(.light-mode).desktop-windowed-ui .ui-window-title::before { content: '◇'; margin-right: 9px; color: var(--game-gold); }
-body:not(.light-mode).desktop-windowed-ui .ui-window-actions button { min-width: 30px; min-height: 28px; border-radius: 2px 8px 2px 8px; }
-body:not(.light-mode).desktop-windowed-ui .ui-window-body { padding: 18px; }
+body:not(.light-mode).desktop-windowed-ui .ui-window-actions { flex: 0 0 auto; flex-wrap: nowrap; }
+body:not(.light-mode).desktop-windowed-ui .ui-window-actions button { min-width: 28px; min-height: 26px; border-radius: 2px 8px 2px 8px; }
+body:not(.light-mode).desktop-windowed-ui .ui-window-body { padding: clamp(12px, 1.2vw, 18px); }
+body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-resize {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  z-index: 7;
+  width: 22px;
+  height: 22px;
+}
 
 body:not(.light-mode) .subtab-row {
   padding: 8px;

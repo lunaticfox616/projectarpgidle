@@ -50,18 +50,41 @@ const layout = vm.runInContext(`(() => {
   }
   const starters = nodes.filter(node => node.depth === 1);
   const uniqueStartingStats = new Set(starters.map(node => node.stat));
-  const rowAverages = [...new Set(nodes.filter(node => Number.isFinite(node.depth)).map(node => node.depth))]
-    .sort((a, b) => a - b)
-    .map(depth => ({ depth, y: nodes.filter(node => node.depth === depth).reduce((sum, node) => sum + node.y, 0) / nodes.filter(node => node.depth === depth).length }));
-  return { count: nodes.length, rootY: root.y, aboveRoot: nodes.filter(node => node.id !== root.id && node.y < root.y).length, overlaps, starterCount: starters.length, uniqueStartingStats: uniqueStartingStats.size, rowAverages };
+  const canopyNodes = nodes.filter(node => node.treeDirection === 'canopy');
+  const rootNodes = nodes.filter(node => node.treeDirection === 'root');
+  function directionalRowAverages(directionNodes) {
+    return [...new Set(directionNodes.filter(node => Number.isFinite(node.depth)).map(node => node.depth))]
+      .sort((a, b) => a - b)
+      .map(depth => ({ depth, y: directionNodes.filter(node => node.depth === depth).reduce((sum, node) => sum + node.y, 0) / directionNodes.filter(node => node.depth === depth).length }));
+  }
+  return {
+    count: nodes.length,
+    rootY: root.y,
+    canopyCount: canopyNodes.length,
+    rootCount: rootNodes.length,
+    canopyWrongSide: canopyNodes.filter(node => node.y >= root.y).length,
+    rootWrongSide: rootNodes.filter(node => node.y <= root.y).length,
+    overlaps,
+    starterCount: starters.length,
+    uniqueStartingStats: uniqueStartingStats.size,
+    canopyRows: directionalRowAverages(canopyNodes),
+    rootRows: directionalRowAverages(rootNodes),
+  };
 })()`, context);
 
 assert.ok(layout.count > 100, 'passive graph should preserve the full node set');
-assert.strictEqual(layout.aboveRoot, layout.count - 1, 'every branch should grow upward from the root');
+assert.strictEqual(layout.canopyCount + layout.rootCount, layout.count - 1, 'every non-root node should belong to a canopy or root branch');
+assert.ok(layout.canopyCount > layout.count * 0.25, 'the upper canopy should retain substantial branches');
+assert.ok(layout.rootCount > layout.count * 0.25, 'the lower root system should carry substantial branches');
+assert.strictEqual(layout.canopyWrongSide, 0, 'canopy branches should remain above the trunk root');
+assert.strictEqual(layout.rootWrongSide, 0, 'root branches should continue below the trunk root');
 assert.strictEqual(layout.overlaps, 0, 'life-tree remapping should not overlap node hit areas');
 assert.strictEqual(layout.uniqueStartingStats, layout.starterCount, 'every root-adjacent starting node should provide a distinct stat');
-for (let index = 1; index < layout.rowAverages.length; index++) {
-  assert.ok(layout.rowAverages[index].y < layout.rowAverages[index - 1].y, 'deeper graph rows should grow upward through the canopy');
+for (let index = 1; index < layout.canopyRows.length; index++) {
+  assert.ok(layout.canopyRows[index].y < layout.canopyRows[index - 1].y, 'deeper canopy rows should grow upward');
+}
+for (let index = 1; index < layout.rootRows.length; index++) {
+  assert.ok(layout.rootRows[index].y > layout.rootRows[index - 1].y, 'deeper root rows should grow downward');
 }
 
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
@@ -74,8 +97,17 @@ for (let index = 0; index < 18; index++) {
 assert.ok(fs.existsSync('assets/background/chaos/loop-final.png'), 'chaos loop-final backdrop should exist');
 assert.ok(fs.readFileSync('index.html', 'utf8').includes('id="chk-camera-shake"'), 'settings should expose the camera shake checkbox');
 assert.ok(fs.existsSync('assets/ui/passive-node-major-v1.png'), 'generated major passive frame should exist');
+assert.ok(fs.existsSync('assets/ui/passive-node-void-v1.png'), 'generated void socket frame should exist');
+assert.ok(fs.existsSync('assets/ui/passive-node-star-wedge-v1.png'), 'generated star-wedge socket frame should exist');
+assert.ok(fs.existsSync('assets/ui/passive-node-path-v1.png'), 'generated path node frame should exist');
 assert.ok(fs.existsSync('assets/ui/window-frame-luxe-v1.png'), 'generated window frame should exist');
+const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
+assert.ok(passiveSource.includes("const frameKey = getPassiveNodeFrameKey(node)"), 'passive nodes should select their dedicated frame assets');
+assert.ok(!passiveSource.includes('if (!lightweightMode && useMajorFrame'), 'drag optimization should not hide passive frame images');
+const windowCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
+assert.ok(windowCss.includes('border-image-source:'), 'window frame should use nine-slice-style border rendering');
+assert.ok(windowCss.includes('> .ui-window-resize'), 'window resize handle should retain an explicit absolute layer');
 assert.ok(fs.readFileSync('index.html', 'utf8').includes('id="tutorial-progress-fill"'), 'tutorial modal should expose multi-step progress');
-assert.ok(fs.readFileSync('js/passives.js', 'utf8').includes('const TUTORIAL_GUIDES ='), 'content tutorials should be backed by structured guides');
+assert.ok(passiveSource.includes('const TUTORIAL_GUIDES ='), 'content tutorials should be backed by structured guides');
 
 console.log('smoke-game-visual-overhaul passed');
