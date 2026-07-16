@@ -3767,7 +3767,8 @@ function addBattleFx(type, data) {
     let payload = data || {};
     let now = performance.now();
     if (type === 'playerSwing') {
-        let delay = payload.impactDelayMs || (payload.projectile ? 260 : 205);
+        let requestedDelay = Number(payload.impactDelayMs);
+        let delay = Number.isFinite(requestedDelay) ? Math.max(0, requestedDelay) : (payload.projectile ? 260 : 205);
         latestPlayerSwingImpactAt = now + delay;
         payload = { ...payload, impactAt: latestPlayerSwingImpactAt };
     }

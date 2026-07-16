@@ -421,7 +421,7 @@ function renderBattlefield(forceWhenHidden) {
     let playerEsPct = (pStatsNow.energyShield || 0) > 0 ? clampNumber((game.playerEnergyShield || 0) / Math.max(1, pStatsNow.energyShield), 0, 1) : 0;
     let pBarWidth = 64;
     let pBarX = Math.round(playerPos.x - pBarWidth / 2);
-    let pBarY = Math.round(playerPos.y - 58);
+    let pBarY = Math.round(playerPos.y - 82);
     ctx.save();
     ctx.globalAlpha = 0.97;
     ctx.fillStyle = 'rgba(7, 10, 16, 0.9)';
@@ -479,7 +479,7 @@ function renderBattlefield(forceWhenHidden) {
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
         let barWidth = enemy.isBoss ? 72 : 46;
         let barX = Math.round(entry.x - barWidth / 2);
-        let barY = Math.round(entry.y - (enemy.isBoss ? 64 : 46));
+        let barY = Math.round(entry.y - (enemy.isBoss ? 78 : 56));
         ctx.save();
         ctx.globalAlpha = 0.96;
         ctx.fillStyle = 'rgba(7, 10, 16, 0.88)';

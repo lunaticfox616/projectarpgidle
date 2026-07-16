@@ -7406,13 +7406,15 @@ function performPlayerAttack(pStats) {
     if (!['phys','fire','cold','light','chaos'].includes(swingElement)) swingElement = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
     game.lastSkillHitElement = swingElement;
     let talentAttackMul = getTalentPlayerAttackDamageMultiplier();
+    let attackMotionMs = (pStats.sSkill.tags || []).includes('projectile') ? 220 : 180;
     addBattleFx('playerSwing', {
         color: getElementColor(swingElement),
         element: swingElement,
         crit: isCrit,
         projectile: (pStats.sSkill.tags || []).includes('projectile'),
         skillName: game.activeSkill,
-        duration: 600
+        duration: attackMotionMs,
+        impactDelayMs: attackMotionMs
     });
 
     let zoneTier = getZone(game.currentZoneId).tier;
