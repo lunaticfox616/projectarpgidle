@@ -11335,7 +11335,14 @@ function refreshSocialAfterCloudStateChange() {
     if (typeof syncSocialBackgroundTasks === 'function') syncSocialBackgroundTasks();
     if (typeof renderSocialTab !== 'function') return;
     let socialTab = document.getElementById('tab-social');
-    if (socialTab && socialTab.classList.contains('active')) renderSocialTab();
+    let socialVisible = socialTab && (
+        socialTab.classList.contains('active')
+        || socialTab.classList.contains('ui-community-dock')
+        || socialTab.classList.contains('ui-community-overlay')
+        || document.body.classList.contains('community-dock-open')
+        || document.body.classList.contains('community-overlay-open')
+    );
+    if (socialVisible) renderSocialTab();
     if (cloudState.user && typeof checkSocialChatNotification === 'function') {
         Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification refresh failed:', error));
     }

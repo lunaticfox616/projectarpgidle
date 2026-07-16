@@ -45,4 +45,18 @@ context.renderProfileData({ updatedAt: 'not-a-date', stats: [], nickname: '테�
 assert.ok(!profileBody.innerHTML.includes('NaN'), 'invalid profile timestamps should not render NaN text');
 assert.match(context.formatChatTime('2026-07-05T03:04:00Z'), /^\d{2}\/\d{2} \d{2}:\d{2}$/);
 
+const socialRoot = { innerHTML: '' };
+const socialHost = { querySelector() { return socialRoot; }, classList: { contains() { return false; } } };
+context.document.getElementById = (id) => (id === 'tab-social' ? socialHost : null);
+context.cloudState = { initialized: false, configured: false, busy: false, user: null };
+context.renderSocialTab();
+assert.ok(socialRoot.innerHTML.includes('클라우드 세션을 연결하는 중입니다.'), 'session restore 전에는 로그인 요구 대신 연결 중 상태를 표시해야 한다');
+
+context.cloudState = { initialized: true, configured: true, busy: false, user: { id: 'user-1' } };
+context.cloudJsonRequest = async () => [{ nickname: '테스터' }];
+context.renderSocialTab();
+assert.ok(socialRoot.innerHTML.includes('class="social-chat-input-shell"'), 'chat input and counter should share a stable input shell');
+assert.ok(socialRoot.innerHTML.includes('class="social-send-btn"'), 'send action should have a dedicated layout class');
+assert.ok(!socialRoot.innerHTML.includes('닉네임 클릭 →'), 'obsolete social hint should be removed');
+
 console.log('smoke-social-format passed');

@@ -1065,7 +1065,7 @@ function renderSocialTab() {
     let nickname = getMyNickname();
     syncSocialBackgroundTasks();
     if (!loggedIn) {
-        let checkingCloud = typeof cloudState !== 'undefined' && cloudState && cloudState.configured
+        let checkingCloud = typeof cloudState !== 'undefined' && cloudState
             && (cloudState.busy || cloudState.initialized === false);
         root.innerHTML = checkingCloud
             ? `<h2>💬 커뮤니티</h2><div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
@@ -1086,12 +1086,13 @@ function renderSocialTab() {
             <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty">불러오는 중…</div></div>
             <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
             <div class="social-chat-inputbar">
-                <button class="social-attach-btn" onclick="openItemPicker()" title="아이템 첨부" ${nickname ? '' : 'disabled'}>🔗</button>
-                <input id="social-chat-input" type="text" maxlength="${SOCIAL_MSG_MAX}" placeholder="${nickname ? '메시지를 입력하세요…' : '먼저 닉네임을 설정하세요'}" onkeydown="onSocialChatKeydown(event)" oninput="updateChatCounter()" ${nickname ? '' : 'disabled'}>
-                <span id="social-chat-counter" class="social-chat-counter">0/${SOCIAL_MSG_MAX}</span>
-                <button onclick="sendChatMessage()" ${nickname ? '' : 'disabled'}>전송</button>
+                <button class="social-attach-btn" onclick="openItemPicker()" title="아이템 첨부" aria-label="아이템 첨부" ${nickname ? '' : 'disabled'}><span aria-hidden="true">＋</span> 첨부</button>
+                <div class="social-chat-input-shell">
+                    <input id="social-chat-input" type="text" maxlength="${SOCIAL_MSG_MAX}" placeholder="${nickname ? '메시지를 입력하세요…' : '먼저 닉네임을 설정하세요'}" onkeydown="onSocialChatKeydown(event)" oninput="updateChatCounter()" ${nickname ? '' : 'disabled'}>
+                    <span id="social-chat-counter" class="social-chat-counter">0/${SOCIAL_MSG_MAX}</span>
+                </div>
+                <button class="social-send-btn" onclick="sendChatMessage()" ${nickname ? '' : 'disabled'}>전송</button>
             </div>
-            <div class="social-hint">닉네임 클릭 → 장비/주얼/부적·스탯, 🔗 링크/아이템에 마우스를 올리면 옵션을 볼 수 있습니다. (닉네임은 하루 1회 변경)</div>
         </div>`;
     socialState.lastChatRenderKey = '';
     socialState.lastOnlineRenderKey = '';
@@ -1110,7 +1111,7 @@ function injectSocialStyles() {
     let style = document.createElement('style');
     style.id = 'social-styles';
     style.textContent = `
-    .social-notice,.social-hint{color:#9fb4d1;font-size:0.86em;line-height:1.5;}
+    .social-notice{color:#9fb4d1;font-size:0.86em;line-height:1.5;}
     .social-notice{background:rgba(20,34,56,0.6);border:1px solid #24344f;border-radius:8px;padding:12px;margin-top:8px;}
     .social-notice-loading{border-color:#386383;background:linear-gradient(110deg,rgba(20,46,67,.72),rgba(17,29,48,.72));box-shadow:inset 3px 0 #64b5e5;}
     .social-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0;}
@@ -1131,10 +1132,14 @@ function injectSocialStyles() {
     .social-chat-nick:hover{text-decoration:underline;}
     .social-chat-time{color:#6b7e98;font-size:0.72em;margin-left:6px;}
     .social-chat-body{color:#e4eefb;margin-top:3px;white-space:pre-wrap;word-break:break-word;}
-    .social-chat-inputbar{display:flex;gap:8px;align-items:center;}
-    .social-chat-inputbar input{flex:1;padding:9px 12px;background:#0e1726;border:1px solid #2a3e5c;border-radius:8px;color:#eaf2ff;}
-    .social-attach-btn{padding:9px 11px;background:#16243a;border:1px solid #2f5180;border-radius:8px;color:#cfe0f5;cursor:pointer;}
-    .social-chat-counter{font-size:0.74em;color:#67809c;min-width:46px;text-align:right;}
+    .social-chat-inputbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:stretch;}
+    .social-chat-input-shell{position:relative;min-width:0;}
+    .social-chat-input-shell input{box-sizing:border-box;width:100%;height:100%;min-height:38px;padding:8px 52px 8px 11px;background:#0e1726;border:1px solid #2a3e5c;border-radius:7px;color:#eaf2ff;}
+    .social-chat-inputbar button{box-sizing:border-box;min-width:0;min-height:38px;margin:0;padding:7px 11px;white-space:nowrap;line-height:1;}
+    .social-attach-btn{background:#16243a;border:1px solid #2f5180;color:#bcd4ec;cursor:pointer;}
+    .social-attach-btn span{font-size:1.12em;line-height:0;}
+    .social-send-btn{min-width:58px!important;background:linear-gradient(180deg,#315b7c,#203d58)!important;border-color:#4d7898!important;color:#edf7ff!important;}
+    .social-chat-counter{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:0.7em;color:#67809c;pointer-events:none;text-align:right;}
     .social-pending-items{display:flex;flex-wrap:wrap;gap:6px;}
     .social-pending-chip{display:inline-flex;align-items:center;gap:4px;font-size:0.78em;background:#0f1a28;border:1px solid;border-radius:14px;padding:2px 6px 2px 9px;}
     .social-pending-chip button{background:none;border:none;color:inherit;cursor:pointer;padding:0 2px;font-size:0.9em;}
@@ -1158,6 +1163,13 @@ function injectSocialStyles() {
     .social-profile-tabs{display:flex;gap:6px;margin-bottom:8px;}
     .social-profile-tabs button{flex:1;padding:6px 4px;background:#13202f;border:1px solid #20324b;border-radius:7px;color:#9fb4d1;cursor:pointer;font-size:0.84em;}
     .social-profile-tabs button.active{background:#1d3350;border-color:#3a6ea5;color:#eaf2ff;font-weight:700;}
+    @media(max-width:420px){
+        .social-chat-inputbar{grid-template-columns:42px minmax(0,1fr) 52px;gap:5px;}
+        .social-chat-inputbar button{padding:7px 8px;font-size:0.78em;}
+        .social-attach-btn{font-size:0!important;}
+        .social-attach-btn span{font-size:16px!important;}
+        .social-send-btn{min-width:52px!important;}
+    }
     .social-stat-grid{display:grid;grid-template-columns:1fr;gap:4px;}
     .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:#13202f;border:1px solid #20324b;border-radius:6px;padding:5px 9px;}
     .social-stat-label{color:#9fb4d1;font-size:0.86em;}
