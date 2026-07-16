@@ -1,5 +1,5 @@
 // 다음 목표 안내 시스템 — 목표 '선정' 계층.
-// 역할 분리: 이 파일은 게임 상태를 읽어 가장 적절한 다음 목표 하나와 보조 안내(최대 2개)를
+// 역할 분리: 이 파일은 게임 상태를 읽어 가장 적절한 다음 목표 하나와 보조 안내(최대 4개)를
 // 계산해 presentGoalDrawer(표시 계층, js/ui-window-manager.js)에 전달만 한다.
 // 규칙(matches/build)은 DOM에 접근하지 않고, 게임 상태를 변경하지 않는다.
 (function () {
@@ -35,6 +35,38 @@
     function clampCount(value) {
         let num = Math.floor(Number(value) || 0);
         return num > 0 ? num : 0;
+    }
+
+    function buildNotice(text, actionTabId, actionSubtabId) {
+        let notice = { text };
+        if (actionTabId && isTabActionAvailable(actionTabId)) notice.actionTabId = actionTabId;
+        if (notice.actionTabId && actionSubtabId) notice.actionSubtabId = actionSubtabId;
+        return notice;
+    }
+
+    function hasEquippableInventoryItem(g) {
+        if (!g || !Array.isArray(g.inventory) || !g.equipment || typeof g.equipment !== 'object') return false;
+        return g.inventory.some(item => {
+            if (!item) return false;
+            let slots = [];
+            if (typeof getEquipCandidateSlots === 'function') slots = getEquipCandidateSlots(item) || [];
+            else if (item.slot) slots = [item.slot];
+            return slots.some(slot => Object.prototype.hasOwnProperty.call(g.equipment, slot) && !g.equipment[slot]);
+        });
+    }
+
+    function hasAffordableGemUpgrade(g) {
+        if (!g || !g.gemEnhanceUnlocked || Math.max(1, Math.floor(Number(g.season) || 1)) < 2) return false;
+        if (typeof SKILL_DB === 'undefined' || !SKILL_DB || !Array.isArray(g.skills)) return false;
+        let currencies = g.currencies || {};
+        return g.skills.some(name => {
+            if (!SKILL_DB[name] || !SKILL_DB[name].isGem) return false;
+            let gem = (g.gemData && g.gemData[name]) || {};
+            let bossLevel = Math.max(0, Math.floor(Number(gem.bossCoreLevel) || 0));
+            let skyLevel = Math.max(0, Math.floor(Number(gem.skyCoreLevel) || 0));
+            return (bossLevel < 5 && clampCount(currencies.bossCore) >= bossLevel + 1)
+                || (skyLevel < 5 && clampCount(currencies.skyEssence) >= skyLevel + 1);
+        });
     }
 
     // ── 규칙 레지스트리 ─────────────────────────────────────────────────
@@ -99,6 +131,9 @@
             priority: 700,
             matches(g) {
                 if (typeof LAST_STORY_ZONE_ID === 'undefined') return false;
+                // 액트 밀기 안내는 첫 플레이에서만 사용한다. 첫 루프 이후에는 영구 진행/루프
+                // 목표를 안내하고, 반복 액트 구간을 새 스토리 목표처럼 다시 띄우지 않는다.
+                if (clampCount(g.loopCount) > 0 || Math.max(1, Math.floor(Number(g.season) || 1)) > 1) return false;
                 return clampCount(g.maxZoneId) <= LAST_STORY_ZONE_ID;
             },
             build(g) {
@@ -198,30 +233,40 @@
         }
     ].sort((a, b) => b.priority - a.priority);
 
-    // ── 보조 안내(최대 2개) ────────────────────────────────────────────
-    // 주 목표를 빼앗지 않는 성장 힌트. 중요도 순서대로 검사해 앞의 2개만 쓴다.
+    // ── 보조 안내(최대 4개) ────────────────────────────────────────────
+    // 주 목표를 빼앗지 않는 성장 힌트. 각 행은 해당 화면으로만 이동하며 자원을 소비하지 않는다.
     const GOAL_NOTICE_RULES = [
         {
             id: 'act-reward-notice',
             matches(g, primary) {
                 return primary !== 'claim-act-reward' && Array.isArray(g.claimableActRewards) && g.claimableActRewards.length > 0;
             },
-            text(g) { return `선택하지 않은 액트 보상 ${g.claimableActRewards.length}개`; }
+            build(g) { return buildNotice(`선택하지 않은 액트 보상 ${g.claimableActRewards.length}개`, 'tab-map'); }
         },
         {
             id: 'passive-points',
             matches(g) { return clampCount(g.passivePoints) > 0 && !!(g.unlocks && g.unlocks.char); },
-            text(g) { return `사용하지 않은 패시브 포인트 ${clampCount(g.passivePoints)}`; }
+            build(g) { return buildNotice(`사용하지 않은 패시브 포인트 ${clampCount(g.passivePoints)}`, 'tab-char'); }
+        },
+        {
+            id: 'equippable-equipment',
+            matches(g) { return !!(g.unlocks && g.unlocks.items) && hasEquippableInventoryItem(g); },
+            build() { return buildNotice('빈 장비칸에 장착 가능한 장비가 있습니다', 'tab-items', 'item-tab-equip'); }
+        },
+        {
+            id: 'gem-upgrade',
+            matches(g) { return !!(g.unlocks && g.unlocks.skills) && hasAffordableGemUpgrade(g); },
+            build() { return buildNotice('강화 가능한 스킬 젬이 있습니다', 'tab-skills', 'skill-tab-enhance'); }
         },
         {
             id: 'ascend-points',
             matches(g) { return clampCount(g.ascendPoints) > 0 && !!(g.unlocks && g.unlocks.traits); },
-            text(g) { return `사용하지 않은 전직 포인트 ${clampCount(g.ascendPoints)}`; }
+            build(g) { return buildNotice(`사용하지 않은 전직 포인트 ${clampCount(g.ascendPoints)}`, 'tab-traits'); }
         },
         {
             id: 'season-points',
             matches(g) { return clampCount(g.seasonPoints) > 0 && !!(g.unlocks && g.unlocks.season); },
-            text(g) { return `사용하지 않은 루프 포인트 ${clampCount(g.seasonPoints)}`; }
+            build(g) { return buildNotice(`사용하지 않은 루프 포인트 ${clampCount(g.seasonPoints)}`, 'tab-season'); }
         },
         {
             id: 'cosmos-alt-path',
@@ -230,7 +275,7 @@
                 if (typeof getAvailableLoopAdvancePaths !== 'function') return false;
                 return getAvailableLoopAdvancePaths(Math.max(1, Math.floor(Number(g.season) || 1))).includes('cosmos');
             },
-            text() { return '우주계 경로로도 루프 진행 가능'; }
+            build() { return buildNotice('우주계 경로로도 루프 진행 가능', 'tab-map'); }
         },
         {
             id: 'inventory-near-full',
@@ -239,7 +284,7 @@
                 let limit = Math.max(1, Math.floor(getInventoryLimit()));
                 return g.inventory.length >= Math.floor(limit * INVENTORY_NOTICE_RATIO);
             },
-            text(g) { return `인벤토리 ${g.inventory.length}/${Math.floor(getInventoryLimit())}`; }
+            build(g) { return buildNotice(`인벤토리 ${g.inventory.length}/${Math.floor(getInventoryLimit())}`, 'tab-items', 'item-tab-equip'); }
         }
     ];
 
@@ -265,9 +310,9 @@
         if (!g) return [];
         let notices = [];
         for (let rule of GOAL_NOTICE_RULES) {
-            if (notices.length >= 2) break;
+            if (notices.length >= 4) break;
             try {
-                if (rule.matches(g, primaryGoalId)) notices.push(rule.text(g));
+                if (rule.matches(g, primaryGoalId)) notices.push(rule.build(g));
             } catch (error) {
                 console.warn(`[goal-system] notice "${rule.id}" failed:`, error);
             }

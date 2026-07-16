@@ -299,32 +299,13 @@ body:not(.light-mode) .hero-choice:hover:not(:disabled) {
 body:not(.light-mode).desktop-windowed-ui #left-pane { padding: 8px 8px 8px 160px; }
 body:not(.light-mode).desktop-windowed-ui .tab-header {
   width: 150px;
-  padding: 78px 8px 12px;
+  padding: 12px 8px;
   border: 0;
   border-right: 1px solid rgba(113, 151, 190, 0.42);
   background:
     linear-gradient(180deg, rgba(10, 19, 30, 0.99), rgba(3, 8, 14, 0.99)),
     repeating-linear-gradient(135deg, transparent 0 8px, rgba(255,255,255,.018) 8px 9px);
   box-shadow: 16px 0 48px rgba(0,0,0,.38), inset -1px 0 rgba(255,255,255,.035);
-}
-
-body:not(.light-mode).desktop-windowed-ui .tab-header::before {
-  content: 'P I';
-  position: absolute;
-  top: 13px;
-  left: 43px;
-  display: grid;
-  place-items: center;
-  width: 62px;
-  height: 48px;
-  border: 1px solid rgba(232, 190, 103, 0.72);
-  clip-path: polygon(16% 0, 84% 0, 100% 28%, 84% 100%, 16% 100%, 0 72%, 0 28%);
-  color: var(--game-gold-hi);
-  background: radial-gradient(circle, rgba(49, 102, 142, 0.38), rgba(6, 12, 20, 0.96));
-  box-shadow: 0 0 24px rgba(76, 174, 232, 0.13);
-  font-family: Georgia, serif;
-  font-weight: 900;
-  letter-spacing: 0.14em;
 }
 
 body:not(.light-mode).desktop-windowed-ui .ui-rail-group + .ui-rail-group { border-top-color: rgba(118, 151, 183, 0.17); }
@@ -376,24 +357,9 @@ body:not(.light-mode).desktop-windowed-ui .combat-panel {
   box-shadow: inset 0 0 80px rgba(0,0,0,.64);
 }
 
-.game-combat-brand {
-  position: absolute;
-  left: 16px;
-  top: 9px;
-  z-index: 12;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  pointer-events: none;
-}
-.game-combat-brand > span:last-child { display: grid; line-height: 1.05; }
-.game-combat-brand strong { color: #d9e8f6; font-family: Georgia, serif; font-size: 11px; letter-spacing: .13em; }
-.game-combat-brand small { margin-top: 3px; color: #64829e; font-size: 7px; letter-spacing: .18em; }
-.game-combat-sigil { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid rgba(232,190,103,.58); color: var(--game-gold); transform: rotate(45deg); }
-
 body:not(.light-mode).desktop-windowed-ui .combat-zone-row {
   z-index: 20;
-  left: 220px;
+  left: 18px;
   right: calc(var(--combat-log-width) + 22px);
   top: 9px;
   height: 48px;
@@ -431,7 +397,7 @@ body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted {
 }
 
 body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .enemy-name { color: #ffe9b6; letter-spacing: .08em; text-shadow: 0 0 16px rgba(232,154,73,.35); }
-body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .hp-bar-bg { height: 25px; border-radius: 2px; }
+body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .hp-bar-bg { height: 25px; border-radius: 7px; }
 body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .hp-bar-fill.enemy { background: linear-gradient(90deg, #7d1728, #d23d4b 65%, #ff7c68); box-shadow: 0 0 18px rgba(214,54,68,.3); }
 
 body:not(.light-mode).desktop-windowed-ui .player-hud {
@@ -447,9 +413,30 @@ body:not(.light-mode).desktop-windowed-ui .player-hud {
   box-shadow: 0 24px 54px rgba(0,0,0,.58), 0 0 32px rgba(55,156,220,.08), inset 0 1px rgba(255,255,255,.07);
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-hp-bar { height: 34px; border-radius: 2px 10px 2px 10px; }
+body:not(.light-mode).desktop-windowed-ui .combat-hp-bar { height: 34px; border-radius: 8px; }
 body:not(.light-mode).desktop-windowed-ui #ui-hp-bar { background: linear-gradient(90deg, #0c7747, #23cb75 62%, #76f2aa); box-shadow: 0 0 18px rgba(38,215,122,.3); }
 body:not(.light-mode).desktop-windowed-ui .combat-hp-bar .hp-text { line-height: 34px; font-size: 16px; text-shadow: 0 2px 5px #000; }
+
+body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .hp-bar-bg,
+body:not(.light-mode).desktop-windowed-ui .combat-hp-bar {
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(144, 174, 198, .72);
+  background: linear-gradient(180deg, #111a24, #03070b);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .88), inset 0 2px 5px rgba(0, 0, 0, .82), 0 4px 12px rgba(0, 0, 0, .28);
+}
+
+body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .hp-bar-bg::after,
+body:not(.light-mode).desktop-windowed-ui .combat-hp-bar::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: 7;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 5px;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .08), inset 0 -1px rgba(0, 0, 0, .5);
+}
 
 body:not(.light-mode).desktop-windowed-ui .combat-feed {
   z-index: 20;
@@ -488,8 +475,14 @@ body:not(.light-mode).desktop-windowed-ui .ui-goal-panel {
 
 /* ---------- windows and menus ---------- */
 body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
-  border-radius: 2px 22px 2px 22px;
-  border-color: rgba(114, 153, 191, .66);
+  box-sizing: border-box;
+  border: 14px solid transparent;
+  border-image-source: url('../assets/ui/window-frame-luxe-v1.png');
+  border-image-slice: 108;
+  border-image-width: 14px;
+  border-image-outset: 0;
+  border-image-repeat: stretch;
+  border-radius: 0;
   background:
     radial-gradient(circle at 80% 0%, rgba(54, 104, 145, .14), transparent 34%),
     repeating-linear-gradient(135deg, transparent 0 10px, rgba(255,255,255,.008) 10px 11px),
@@ -497,50 +490,33 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
   box-shadow: 0 38px 110px rgba(0,0,0,.72), 0 0 0 2px rgba(2,5,9,.78), 0 0 48px rgba(69,151,207,.08), inset 0 1px rgba(255,255,255,.06);
 }
 
-body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 6;
-  pointer-events: none;
-  box-sizing: border-box;
-  opacity: .82;
-  border: 16px solid transparent;
-  border-image-source: url('../assets/ui/window-frame-luxe-v1.png');
-  border-image-slice: 108;
-  border-image-width: 16px;
-  border-image-outset: 0;
-  border-image-repeat: stretch;
-  filter: saturate(.9) contrast(1.03);
-}
-
 body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-titlebar,
 body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-body {
   position: relative;
-  z-index: 5;
+  z-index: 1;
 }
 
 body:not(.light-mode).desktop-windowed-ui .ui-window-titlebar {
   flex: 0 0 42px;
   min-width: 0;
   overflow: hidden;
-  padding-inline: 24px 18px;
+  padding-inline: 14px 10px;
   background: linear-gradient(180deg, rgba(39, 61, 85, .99), rgba(14, 25, 39, .99));
 }
 
 body:not(.light-mode).desktop-windowed-ui .ui-window-title::before { content: '◇'; margin-right: 9px; color: var(--game-gold); }
 body:not(.light-mode).desktop-windowed-ui .ui-window-actions { flex: 0 0 auto; flex-wrap: nowrap; }
 body:not(.light-mode).desktop-windowed-ui .ui-window-actions button { min-width: 28px; min-height: 26px; border-radius: 2px 8px 2px 8px; }
-body:not(.light-mode).desktop-windowed-ui .ui-window-body { padding: clamp(20px, 1.5vw, 24px); }
+body:not(.light-mode).desktop-windowed-ui .ui-window-body { padding: clamp(12px, 1.15vw, 18px); }
 body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-resize {
   position: absolute;
-  right: 2px;
-  bottom: 2px;
-  z-index: 8;
-  width: 22px;
-  height: 22px;
+  right: -12px;
+  bottom: -12px;
+  z-index: 4;
+  width: 26px;
+  height: 26px;
   border-radius: 8px 0 0;
-  background: rgba(7, 12, 18, .76);
+  background: rgba(7, 12, 18, .86);
 }
 
 /* A one-shot guide sits over the live game instead of replacing it with a modal lesson. */
@@ -643,8 +619,7 @@ body:not(.light-mode) #info-tooltip {
 
 @media (min-width: 1081px) and (max-width: 1360px) {
   body.desktop-windowed-ui { --combat-log-width: clamp(230px, 22vw, 290px); }
-  body:not(.light-mode).desktop-windowed-ui .game-combat-brand { transform: scale(.88); transform-origin: left top; }
-  body:not(.light-mode).desktop-windowed-ui .combat-zone-row { left: 188px; right: calc(var(--combat-log-width) + 18px); }
+  body:not(.light-mode).desktop-windowed-ui .combat-zone-row { left: 18px; right: calc(var(--combat-log-width) + 18px); }
   body:not(.light-mode).desktop-windowed-ui #enemy-area { width: clamp(390px, 48vw, 620px); }
   body:not(.light-mode).desktop-windowed-ui .player-hud { width: clamp(430px, 46vw, 590px); min-height: 86px; padding-inline: 18px; }
   body:not(.light-mode).desktop-windowed-ui .combat-hp-bar { height: 30px; }
