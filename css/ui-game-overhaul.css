@@ -386,36 +386,53 @@ body:not(.light-mode).desktop-windowed-ui .battlefield-wrap::after {
   pointer-events: none;
 }
 
-body:not(.light-mode).desktop-windowed-ui #enemy-area { top: 70px; z-index: 18; width: clamp(500px, 54vw, 780px); }
+body:not(.light-mode).desktop-windowed-ui #enemy-area { top: 70px; z-index: 18; width: clamp(440px, 48vw, 680px); }
 body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted {
-  min-height: 74px;
-  padding: 9px 20px;
-  border-radius: 2px 18px 2px 18px;
-  clip-path: polygon(4% 0, 96% 0, 100% 28%, 96% 100%, 4% 100%, 0 72%, 0 28%);
-  background: linear-gradient(180deg, rgba(29, 31, 39, .985), rgba(6, 10, 16, .99));
-  box-shadow: 0 16px 42px rgba(0,0,0,.56), inset 0 1px rgba(255,235,192,.08);
+  min-height: 68px;
+  padding: 7px 16px 8px;
+  border-radius: 12px;
+  clip-path: none;
+  background: linear-gradient(180deg, rgba(24, 28, 36, .84), rgba(6, 10, 16, .8));
+  box-shadow: 0 12px 32px rgba(0,0,0,.42), inset 0 1px rgba(255,235,192,.07);
+  backdrop-filter: blur(5px);
 }
 
 body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .enemy-name { color: #ffe9b6; letter-spacing: .08em; text-shadow: 0 0 16px rgba(232,154,73,.35); }
-body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .hp-bar-bg { height: 25px; border-radius: 7px; }
+body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .hp-bar-bg {
+  flex: 0 0 25px;
+  height: 25px;
+  border-radius: 7px;
+}
+body:not(.light-mode).desktop-windowed-ui .enemy-card.enemy-boss .hp-bar-bg { flex-basis: 30px; height: 30px; }
 body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .hp-bar-fill.enemy { background: linear-gradient(90deg, #7d1728, #d23d4b 65%, #ff7c68); box-shadow: 0 0 18px rgba(214,54,68,.3); }
+body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .hp-text,
+body:not(.light-mode).desktop-windowed-ui .combat-hp-bar .hp-text {
+  inset: 0;
+  width: auto;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
 
 body:not(.light-mode).desktop-windowed-ui .player-hud {
   z-index: 18;
   bottom: 17px;
-  width: clamp(520px, 49vw, 720px);
-  min-height: 98px;
-  padding: 13px 24px 11px;
-  border-radius: 2px 20px 2px 20px;
-  clip-path: polygon(6% 0, 94% 0, 100% 28%, 96% 100%, 4% 100%, 0 72%, 0 28%);
+  width: clamp(470px, 44vw, 640px);
+  min-height: 82px;
+  padding: 9px 18px 8px;
+  border-radius: 14px;
+  clip-path: none;
   border-color: rgba(130, 170, 208, 0.52);
-  background: linear-gradient(180deg, rgba(19, 32, 48, .94), rgba(4, 9, 15, .95));
-  box-shadow: 0 24px 54px rgba(0,0,0,.58), 0 0 32px rgba(55,156,220,.08), inset 0 1px rgba(255,255,255,.07);
+  background: linear-gradient(180deg, rgba(16, 27, 41, .82), rgba(4, 9, 15, .76));
+  box-shadow: 0 18px 42px rgba(0,0,0,.46), 0 0 24px rgba(55,156,220,.06), inset 0 1px rgba(255,255,255,.06);
+  backdrop-filter: blur(5px);
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-hp-bar { height: 34px; border-radius: 8px; }
+body:not(.light-mode).desktop-windowed-ui .combat-hp-bar { height: 30px; border-radius: 8px; }
 body:not(.light-mode).desktop-windowed-ui #ui-hp-bar { background: linear-gradient(90deg, #0c7747, #23cb75 62%, #76f2aa); box-shadow: 0 0 18px rgba(38,215,122,.3); }
-body:not(.light-mode).desktop-windowed-ui .combat-hp-bar .hp-text { line-height: 34px; font-size: 16px; text-shadow: 0 2px 5px #000; }
+body:not(.light-mode).desktop-windowed-ui .combat-hp-bar .hp-text { font-size: 15px; text-shadow: 0 2px 5px #000; }
 
 body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .hp-bar-bg,
 body:not(.light-mode).desktop-windowed-ui .combat-hp-bar {
@@ -476,18 +493,14 @@ body:not(.light-mode).desktop-windowed-ui .ui-goal-panel {
 /* ---------- windows and menus ---------- */
 body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
   box-sizing: border-box;
-  border: 14px solid transparent;
-  border-image-source: url('../assets/ui/window-frame-luxe-v1.png');
-  border-image-slice: 108;
-  border-image-width: 14px;
-  border-image-outset: 0;
-  border-image-repeat: stretch;
-  border-radius: 0;
+  border: 1px solid rgba(111, 151, 188, .58);
+  border-radius: 12px;
   background:
     radial-gradient(circle at 80% 0%, rgba(54, 104, 145, .14), transparent 34%),
     repeating-linear-gradient(135deg, transparent 0 10px, rgba(255,255,255,.008) 10px 11px),
     linear-gradient(150deg, rgba(15, 26, 40, .99), rgba(4, 8, 14, .995));
-  box-shadow: 0 38px 110px rgba(0,0,0,.72), 0 0 0 2px rgba(2,5,9,.78), 0 0 48px rgba(69,151,207,.08), inset 0 1px rgba(255,255,255,.06);
+  box-shadow: 0 32px 92px rgba(0,0,0,.68), 0 0 0 1px rgba(2,5,9,.86), 0 0 38px rgba(69,151,207,.07), inset 0 0 0 1px rgba(255,255,255,.045);
+  overflow: hidden;
 }
 
 body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-titlebar,
@@ -510,11 +523,11 @@ body:not(.light-mode).desktop-windowed-ui .ui-window-actions button { min-width:
 body:not(.light-mode).desktop-windowed-ui .ui-window-body { padding: clamp(12px, 1.15vw, 18px); }
 body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-resize {
   position: absolute;
-  right: -12px;
-  bottom: -12px;
+  right: 1px;
+  bottom: 1px;
   z-index: 4;
-  width: 26px;
-  height: 26px;
+  width: 18px;
+  height: 18px;
   border-radius: 8px 0 0;
   background: rgba(7, 12, 18, .86);
 }
