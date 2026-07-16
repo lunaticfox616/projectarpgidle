@@ -12,7 +12,7 @@ const SOCIAL_LAST_SEEN_CHAT_KEY = 'arpg_social_last_seen_chat_id';
 const SOCIAL_CHAT_LIMIT = 50;
 const SOCIAL_CHAT_POLL_MS = 4000;
 // 커뮤니티 탭이 비활성일 때 새 채팅 여부만 가볍게 확인하는 주기(활성 탭 폴링보다 훨씬 느리게).
-const SOCIAL_BG_NOTI_POLL_MS = 60000;
+const SOCIAL_BG_NOTI_POLL_MS = 15000;
 const SOCIAL_MSG_MAX = 300;
 const SOCIAL_NICK_MIN = 2;
 const SOCIAL_NICK_MAX = 16;
@@ -44,6 +44,8 @@ let socialState = {
     pendingChatItems: [],
     sendTimestamps: [],
     lastSentBody: '',
+    scrollChatToLatestOnNextRender: true,
+    lastNotifiedChatId: null,
     chatTips: {},
     profileTips: {},
     pickTips: {},
@@ -485,7 +487,24 @@ function setLastSeenChatId(id) {
 }
 function isSocialTabActive() {
     let tabEl = document.getElementById('tab-social');
-    return !!(tabEl && tabEl.classList.contains('active'));
+    return !!(tabEl && (
+        tabEl.classList.contains('active')
+        || tabEl.classList.contains('ui-community-dock')
+        || tabEl.classList.contains('ui-community-overlay')
+        || document.body.classList.contains('community-dock-open')
+        || document.body.classList.contains('community-overlay-open')
+    ));
+}
+function isSocialChatNotificationEnabled() {
+    return !(typeof game !== 'undefined' && game && game.settings && game.settings.socialChatNotifications === false);
+}
+function refreshSocialNotificationDots() {
+    if (typeof updateTabNotificationDots === 'function') updateTabNotificationDots();
+}
+function getSocialChatNotificationPreview(row) {
+    let body = String(row && row.body || '').replace(new RegExp(SOCIAL_ITEM_TOKEN_RE.source, 'g'), '[아이템]').replace(/\s+/g, ' ').trim();
+    if (!body) body = row && row.payload ? '아이템을 공유했습니다.' : '새 메시지가 도착했습니다.';
+    return body.length > 54 ? `${body.slice(0, 54)}…` : body;
 }
 async function checkSocialChatNotification() {
     if (!socialCloudReady() || socialState.bgNotiLoading) return;
@@ -494,18 +513,47 @@ async function checkSocialChatNotification() {
     if (typeof game === 'undefined' || !game || !game.noti) return;
     socialState.bgNotiLoading = true;
     try {
-        let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,user_id&order=id.desc&limit=1`, {});
-        let row = Array.isArray(rows) ? rows[0] : null;
-        if (!row || row.id == null) return;
-        let latest = Number(row.id);
-        if (!Number.isFinite(latest)) return;
         let seen = getLastSeenChatId();
+        let query = seen == null
+            ? '/rest/v1/chat_messages?select=id,user_id,nickname,body,payload&order=id.desc&limit=1'
+            : `/rest/v1/chat_messages?select=id,user_id,nickname,body,payload&id=gt.${encodeURIComponent(String(seen))}&order=id.desc&limit=20`;
+        let rows = await cloudJsonRequest(query, {});
+        rows = Array.isArray(rows) ? rows : [];
+        if (!rows.length) return;
+        let latest = rows.reduce((max, row) => Math.max(max, Number(row && row.id) || 0), 0);
+        if (!Number.isFinite(latest) || latest <= 0) return;
         // 첫 확인(이 기기에서 채팅을 한 번도 안 봄)에는 과거 메시지로 알림하지 않고 기준점만 잡는다.
         if (seen == null) { setLastSeenChatId(latest); return; }
-        if (latest > seen && row.user_id !== socialLoggedInUserId()) game.noti.social = true;
+        if (!isSocialChatNotificationEnabled()) {
+            setLastSeenChatId(latest);
+            game.noti.social = false;
+            refreshSocialNotificationDots();
+            return;
+        }
+        let incoming = rows.find(row => row && row.user_id !== socialLoggedInUserId());
+        if (!incoming) {
+            setLastSeenChatId(latest);
+            return;
+        }
+        game.noti.social = true;
+        refreshSocialNotificationDots();
+        let incomingId = Number(incoming.id);
+        if (socialState.lastNotifiedChatId !== incomingId && typeof showGameToast === 'function') {
+            socialState.lastNotifiedChatId = incomingId;
+            let nickname = String(incoming.nickname || '플레이어');
+            showGameToast(`새 채팅 · ${nickname}: ${getSocialChatNotificationPreview(incoming)}`, { tone: 'info', duration: 3600 });
+        }
     } catch (e) { /* 무시: 네트워크 실패 시 다음 주기에 재시도 */ } finally {
         socialState.bgNotiLoading = false;
     }
+}
+
+function syncSocialChatNotificationSetting() {
+    if (typeof game !== 'undefined' && game && game.noti && !isSocialChatNotificationEnabled()) {
+        game.noti.social = false;
+        refreshSocialNotificationDots();
+    }
+    Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification setting sync failed:', error));
 }
 
 function ensureSocialNotificationPolling() {
@@ -710,7 +758,17 @@ function formatChatTime(iso) {
     let hh = String(d.getHours()).padStart(2, '0'), mi = String(d.getMinutes()).padStart(2, '0');
     return `${mm}/${dd} ${hh}:${mi}`;
 }
-function renderChatMessages(messages) {
+function scrollSocialChatToLatest(listEl) {
+    if (!listEl) return;
+    let apply = () => {
+        if (listEl.isConnected === false) return;
+        listEl.scrollTop = listEl.scrollHeight;
+    };
+    apply();
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply);
+    if (typeof setTimeout === 'function') setTimeout(apply, 50);
+}
+function renderChatMessages(messages, forceScroll) {
     let listEl = document.getElementById('social-chat-list');
     if (!listEl) return;
     let myId = socialLoggedInUserId();
@@ -719,11 +777,21 @@ function renderChatMessages(messages) {
     let maxId = messages.reduce((acc, m) => Math.max(acc, Number(m.id) || 0), 0);
     if (maxId > 0) setLastSeenChatId(maxId);
     if (typeof game !== 'undefined' && game && game.noti) game.noti.social = false;
-    let key = messages.map(m => `${m.id}:${m.nickname}`).join(',');
-    if (key === socialState.lastChatRenderKey) return;
-    socialState.lastChatRenderKey = key;
-    if (!messages.length) { listEl.innerHTML = `<div class="social-chat-empty">아직 메시지가 없습니다. 첫 메시지를 남겨보세요!</div>`; return; }
+    refreshSocialNotificationDots();
     let nearBottom = (listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight) < 60;
+    let shouldScroll = !!forceScroll || socialState.scrollChatToLatestOnNextRender || nearBottom;
+    let key = messages.map(m => `${m.id}:${m.nickname}`).join(',');
+    if (key === socialState.lastChatRenderKey) {
+        if (shouldScroll) scrollSocialChatToLatest(listEl);
+        socialState.scrollChatToLatestOnNextRender = false;
+        return;
+    }
+    socialState.lastChatRenderKey = key;
+    if (!messages.length) {
+        listEl.innerHTML = `<div class="social-chat-empty">아직 메시지가 없습니다. 첫 메시지를 남겨보세요!</div>`;
+        socialState.scrollChatToLatestOnNextRender = false;
+        return;
+    }
     socialState.chatTips = {};
     listEl.innerHTML = messages.map(m => {
         let mine = m.user_id === myId;
@@ -732,14 +800,14 @@ function renderChatMessages(messages) {
             + `<span class="social-chat-time">${formatChatTime(m.created_at)}</span>`
             + `<div class="social-chat-body">${renderChatBody(m)}</div></div>`;
     }).join('');
-    if (nearBottom) listEl.scrollTop = listEl.scrollHeight;
+    if (shouldScroll) scrollSocialChatToLatest(listEl);
+    socialState.scrollChatToLatestOnNextRender = false;
 }
 async function refreshChatPanel(forceScroll) {
     if (socialState.chatLoading) return;
     socialState.chatLoading = true;
     try {
-        renderChatMessages(await loadChatMessages());
-        if (forceScroll) { let l = document.getElementById('social-chat-list'); if (l) l.scrollTop = l.scrollHeight; }
+        renderChatMessages(await loadChatMessages(), forceScroll);
     } catch (e) { console.warn('채팅 로드 실패:', e); } finally { socialState.chatLoading = false; }
 }
 function startChatPolling() {
@@ -748,8 +816,7 @@ function startChatPolling() {
     refreshChatPanel(true);
     refreshOnlineUsers();
     socialState.chatPollTimer = setInterval(() => {
-        let tabEl = document.getElementById('tab-social');
-        if (!tabEl || !tabEl.classList.contains('active')) { stopChatPolling(); return; }
+        if (!isSocialTabActive()) { stopChatPolling(); return; }
         refreshChatPanel(false);
         refreshOnlineUsers();
     }, SOCIAL_CHAT_POLL_MS);
@@ -1096,6 +1163,7 @@ function renderSocialTab() {
         </div>`;
     socialState.lastChatRenderKey = '';
     socialState.lastOnlineRenderKey = '';
+    socialState.scrollChatToLatestOnNextRender = true;
     renderPendingChatItems();
     updateChatCounter();
     ensureHeartbeat();
@@ -1220,6 +1288,6 @@ if (typeof safeExposeGlobals === 'function') {
         openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
-        socialTalEnter, socialTalLeave, socialTalHighlight, checkSocialChatNotification, syncSocialBackgroundTasks
+        socialTalEnter, socialTalLeave, socialTalHighlight, checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks
     });
 }

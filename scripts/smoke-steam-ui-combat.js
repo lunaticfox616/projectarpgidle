@@ -44,7 +44,8 @@ assert(battlefield.indexOf('drawDamageTexts(ctx, now)') > battlefield.lastIndexO
 assert(!windowCss.includes('border-image-source:'), 'window frame artwork must remain disabled');
 assert(!html.includes('combat-feed-sub'), 'combat log must not render a LIVE badge container');
 assert(!gameShell.includes("sub.textContent = 'LIVE'"), 'game shell must not restore the LIVE badge');
-assert(passives.includes("text.impactTier === 'annihilate' ? 31"), 'damage number hierarchy should use the reduced font scale');
+assert(passives.includes("text.impactTier === 'annihilate' ? 27"), 'damage number hierarchy should use the compact font scale');
+assert(passives.includes('const DAMAGE_TEXT_LANES'), 'simultaneous damage numbers should use separate display lanes');
 assert(windowCss.includes('.ui-management-mode .combat-feed'), 'management screens must reduce combat HUD density');
 assert(windowCss.includes('(max-height: 760px)'), '720p-class layouts need a dedicated compact mode');
 assert(windowCss.includes('(min-aspect-ratio: 21/9)'), 'ultrawide layouts need a dedicated composition');
