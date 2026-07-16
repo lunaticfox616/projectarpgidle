@@ -18,6 +18,7 @@ function createFakeDom() {
             attrs: {},
             handlers: {},
             textContent: '',
+            _innerHTML: '',
             _classes: new Set(),
             classList: {
                 add: (...names) => names.forEach(name => el._classes.add(name)),
@@ -42,11 +43,12 @@ function createFakeDom() {
         };
         Object.defineProperty(el, 'innerHTML', {
             set(html) {
+                el._innerHTML = String(html);
                 let match;
                 const idPattern = /id="([^"]+)"/g;
                 while ((match = idPattern.exec(html)) !== null) registry[match[1]] = createElement('div');
             },
-            get() { return ''; }
+            get() { return el._innerHTML; }
         });
         Object.defineProperty(el, 'className', {
             set(value) { el._classes = new Set(String(value).split(/\s+/).filter(Boolean)); },
@@ -62,6 +64,8 @@ function bootManager() {
     const exposed = {};
     const timers = [];
     const switchCalls = [];
+    const itemSubtabCalls = [];
+    const skillSubtabCalls = [];
     const body = dom.createElement('body');
     const context = {
         console, JSON, Math, Number, Object, Array, String,
@@ -87,7 +91,9 @@ function bootManager() {
         localStorage: { getItem: () => null, setItem: () => {} },
         matchMedia: () => ({ matches: true }),
         addEventListener: () => {},
-        switchTab: tabId => switchCalls.push(tabId)
+        switchTab: tabId => switchCalls.push(tabId),
+        switchItemSubtab: subtabId => itemSubtabCalls.push(subtabId),
+        switchSkillSubtab: subtabId => skillSubtabCalls.push(subtabId)
     };
     context.document.createElement = tag => {
         const el = dom.createElement(tag);
@@ -101,7 +107,7 @@ function bootManager() {
     };
     vm.createContext(context);
     vm.runInContext(source, context, { filename: 'js/ui-window-manager.js' });
-    return { dom, exposed, timers, switchCalls, context };
+    return { dom, exposed, timers, switchCalls, itemSubtabCalls, skillSubtabCalls, context };
 }
 
 const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description: '심화층 등반', current: 13, target: 14, actionLabel: '혼돈 지도 열기', actionTabId: 'tab-map' });
@@ -168,6 +174,22 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
     m.exposed.presentGoalDrawer(goal('g4'));
     m.dom.registry['ui-goal-action'].handlers.click();
     assert.deepStrictEqual(m.switchCalls, ['tab-map'], '버튼은 화면 열기만 호출');
+}
+
+// 7) 보조 안내도 안전한 화면 이동만 수행하고 필요한 세부 탭까지 연다.
+{
+    const m = bootManager();
+    m.exposed.presentGoalDrawer({
+        ...goal('g5'),
+        notices: [
+            { text: '사용하지 않은 패시브 포인트 2', actionTabId: 'tab-char' },
+            { text: '강화 가능한 스킬 젬', actionTabId: 'tab-skills', actionSubtabId: 'skill-tab-enhance' }
+        ]
+    });
+    assert(m.dom.registry['ui-goal-notices']._innerHTML.includes('바로가기'), '클릭 가능한 보조 안내 렌더링');
+    m.exposed.openGoalNoticeTarget(1);
+    assert.deepStrictEqual(m.switchCalls, ['tab-skills'], '관련 창만 연다');
+    assert.deepStrictEqual(m.skillSubtabCalls, ['skill-tab-enhance'], '강화 세부 탭으로 이동한다');
 }
 
 console.log('smoke-goal-drawer passed');

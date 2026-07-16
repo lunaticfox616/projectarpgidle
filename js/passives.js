@@ -1823,7 +1823,6 @@ function bootstrapPassiveTreeOnceReady() {
     computePassiveDepths();
     rebalancePassiveStartingStats();
     polishPassiveLayout();
-    shapePassiveTreeAsLifeTree();
     return true;
 }
 

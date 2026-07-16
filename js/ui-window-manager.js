@@ -567,11 +567,38 @@
         toggleGoalDrawer(false);
     }
 
+    function openGoalTarget(target) {
+        if (!target || !target.actionTabId) return;
+        // 데스크톱 창 모드에서는 탭 재클릭이 창 닫기로 동작하므로, 목표 바로가기는
+        // 원본 탭 갱신 뒤 항상 창을 열고 포커스하는 단방향 동작으로 처리한다.
+        if (isDesktopWindowed() && originalSwitchTab && WINDOW_DEFS[target.actionTabId]) {
+            originalSwitchTab(target.actionTabId);
+            openWindow(target.actionTabId);
+        } else if (typeof window.switchTab === 'function') {
+            window.switchTab(target.actionTabId);
+        } else {
+            return;
+        }
+        if (!target.actionSubtabId) return;
+        if (target.actionSubtabId.startsWith('item-tab-') && typeof window.switchItemSubtab === 'function') window.switchItemSubtab(target.actionSubtabId);
+        if (target.actionSubtabId.startsWith('skill-tab-') && typeof window.switchSkillSubtab === 'function') window.switchSkillSubtab(target.actionSubtabId);
+        if (target.actionSubtabId.startsWith('map-tab-') && typeof window.switchMapSubtab === 'function') window.switchMapSubtab(target.actionSubtabId);
+    }
+
     function openGoalDrawerTarget() {
-        let goal = goalRuntime.currentGoal;
-        if (!goal || !goal.actionTabId || typeof window.switchTab !== 'function') return;
         // 목표 버튼은 관련 화면을 열기만 한다. 재화 소비/입장/실행은 하지 않는다.
-        window.switchTab(goal.actionTabId);
+        openGoalTarget(goalRuntime.currentGoal);
+    }
+
+    function openGoalNoticeTarget(index) {
+        let goal = goalRuntime.currentGoal;
+        let notices = goal && Array.isArray(goal.notices) ? goal.notices : [];
+        let notice = notices[Math.max(0, Math.floor(Number(index) || 0))];
+        if (notice && typeof notice === 'object') openGoalTarget(notice);
+    }
+
+    function escapeGoalText(value) {
+        return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     }
 
     function setGoalDrawerText(id, text) {
@@ -614,8 +641,16 @@
         }
         let notices = document.getElementById('ui-goal-notices');
         if (notices) {
-            notices.textContent = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 2).join('\n');
-            notices.style.display = notices.textContent ? '' : 'none';
+            let rows = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 4);
+            notices.innerHTML = rows.map((notice, index) => {
+                let normalized = typeof notice === 'string' ? { text: notice } : (notice || {});
+                let label = escapeGoalText(normalized.text || normalized.label || '');
+                if (!label) return '';
+                return normalized.actionTabId
+                    ? `<button type="button" class="ui-goal-notice-action" onclick="openGoalNoticeTarget(${index})"><span>${label}</span><strong>바로가기 ›</strong></button>`
+                    : `<div class="ui-goal-notice-text">${label}</div>`;
+            }).join('');
+            notices.style.display = notices.innerHTML ? '' : 'none';
         }
         // 접힌 상태 손잡이: 아이콘 + 제목 + 현재/목표 한 줄과 하단 미니 진행도 바.
         setGoalDrawerText('ui-goal-handle-icon', goal.icon || '🎯');
@@ -630,7 +665,7 @@
      * 목표 안내 서랍의 단일 진입점. 목표 선정 로직(후속 PR)이 결과를 전달하는 마운트 지점이다.
      * @param {?{id: string, title: string, description?: string, current?: number, target?: number,
      *           actionLabel?: string, actionTabId?: string, mandatory?: boolean, stage?: string,
-     *           notices?: string[]}} goal null/불완전 값이면 서랍 전체를 숨긴다.
+     *           notices?: Array<string|{text: string, actionTabId?: string, actionSubtabId?: string}>}} goal null/불완전 값이면 서랍 전체를 숨긴다.
      */
     function presentGoalDrawer(goal) {
         let drawer = document.getElementById('ui-goal-drawer');
@@ -835,5 +870,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
     else initWindowManager();
 
-    safeExposeGlobals({ openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, syncDesktopRailGroups });
+    safeExposeGlobals({ openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups });
 }());

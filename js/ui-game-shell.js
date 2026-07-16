@@ -17,15 +17,6 @@
         overlay.prepend(field);
     }
 
-    function addCombatBrand() {
-        const panel = document.querySelector('.combat-panel');
-        if (!panel || panel.querySelector('.game-combat-brand')) return;
-        const brand = document.createElement('div');
-        brand.className = 'game-combat-brand';
-        brand.innerHTML = '<span class="game-combat-sigil">◇</span><span><strong>PROJECT IDLE</strong><small>ROOTBOUND EXPEDITION</small></span>';
-        panel.prepend(brand);
-    }
-
     function labelCombatFeed() {
         const sub = document.querySelector('.combat-feed-sub');
         if (sub && !sub.textContent.trim()) sub.textContent = 'LIVE';
@@ -34,7 +25,6 @@
     function initializeGameShell() {
         document.body.classList.add('ui-game-overhaul');
         addStartupMotes();
-        addCombatBrand();
         labelCombatFeed();
     }
 

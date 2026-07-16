@@ -105,26 +105,21 @@
   body.desktop-windowed-ui #enemy-area { position: absolute; left: calc((100% - var(--combat-log-width) - 24px) / 2); top: 58px; z-index: 8; width: clamp(420px, 48vw, 680px); transform: translateX(-50%); pointer-events: none; }
   body.desktop-windowed-ui #ui-enemy-list { display: grid; gap: 3px; min-height: 0; pointer-events: none; }
   body.desktop-windowed-ui #ui-enemy-list:empty, body.desktop-windowed-ui .enemy-empty { display: none; }
-  body.desktop-windowed-ui .enemy-card.targeted { min-height: 58px; max-height: 70px; padding: 7px 12px; border-radius: 8px; background: #101722; border: 1px solid rgba(232, 194, 106, 0.58); box-shadow: none; pointer-events: auto; overflow: hidden; }
+  body.desktop-windowed-ui .enemy-card.targeted { min-height: 76px; max-height: 104px; padding: 7px 12px; border-radius: 8px; background: #101722; border: 1px solid rgba(232, 194, 106, 0.58); box-shadow: none; pointer-events: auto; overflow: hidden; }
   body.desktop-windowed-ui #enemy-area:has(.enemy-boss) { width: clamp(560px, 65vw, 900px); }
-  body.desktop-windowed-ui .enemy-card.enemy-boss { min-height: 76px; max-height: 92px; padding: 8px 12px; }
+  body.desktop-windowed-ui .enemy-card.enemy-boss { min-height: 92px; max-height: 126px; padding: 8px 12px; }
   body.desktop-windowed-ui .enemy-card.targeted .enemy-name { font-size: 15px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   body.desktop-windowed-ui .enemy-card.targeted .hp-bar-bg { height: 26px; margin-top: 5px; }
   body.desktop-windowed-ui .enemy-card.targeted .hp-text { font-size: 14px; line-height: 26px; }
   body.desktop-windowed-ui .enemy-card.enemy-boss .hp-bar-bg { height: 34px; }
   body.desktop-windowed-ui .enemy-card.enemy-boss .hp-text { font-size: 16px; line-height: 34px; }
-  body.desktop-windowed-ui .enemy-card.targeted .enemy-traits { display: none; }
+  body.desktop-windowed-ui .enemy-card.targeted .enemy-traits { display: block; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; font-size: 11px; line-height: 1.2; color: #ffd58e; }
+  body.desktop-windowed-ui .enemy-card.targeted .enemy-traits:empty { display: none; }
   /* 일반 적에게도 상태이상(점화/냉각/감전 등)을 표기한다. 없으면 공간을 차지하지 않는다. */
   body.desktop-windowed-ui .enemy-card.targeted .enemy-ailments { display: block; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; font-size: 11px; line-height: 1.2; }
   body.desktop-windowed-ui .enemy-card.targeted .enemy-ailments:empty { display: none; }
-  body.desktop-windowed-ui .enemy-card.targeted { max-height: 86px; }
-  body.desktop-windowed-ui .enemy-card.enemy-boss { max-height: 108px; }
-  body.desktop-windowed-ui .enemy-card.enemy-boss .enemy-ailments { font-size: 12px; }
-  body.desktop-windowed-ui .enemy-target-strip { display: flex; justify-content: center; pointer-events: auto; }
-  body.desktop-windowed-ui .enemy-target-toggle { min-height: 20px; padding: 1px 8px; font-size: 10px; border-radius: 999px; }
-  body.desktop-windowed-ui .enemy-target-menu { display: none; gap: 4px; justify-content: center; flex-wrap: wrap; padding: 4px; border-radius: 8px; background: #101722; pointer-events: auto; }
-  body.desktop-windowed-ui #ui-enemy-list.enemy-targets-open .enemy-target-menu { display: flex; }
-  body.desktop-windowed-ui .enemy-target-chip { min-height: 22px; padding: 2px 7px; font-size: 10px; border-radius: 999px; }
+  body.desktop-windowed-ui .enemy-card.enemy-boss .enemy-ailments,
+  body.desktop-windowed-ui .enemy-card.enemy-boss .enemy-traits { font-size: 12px; }
 
   body.desktop-windowed-ui .player-hud { position: absolute; left: calc((100% - var(--combat-log-width) - 24px) / 2); bottom: 14px; z-index: 8; width: clamp(460px, 45vw, 640px); min-height: 82px; max-height: 105px; transform: translateX(-50%); padding: 0; border: 0; border-radius: 0; background: transparent; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
   body.desktop-windowed-ui .player-hud .hp-bar-bg, body.desktop-windowed-ui .player-hud [data-info-tooltip-anchor] { pointer-events: auto; }
@@ -186,7 +181,11 @@
   body.desktop-windowed-ui .ui-goal-bar-fill { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #4f8fd0, #7fd0ff); transition: width 0.25s ease; }
   body.desktop-windowed-ui .ui-goal-progress { margin-top: 4px; font-size: 11px; color: #ffd36b; font-weight: 700; }
   body.desktop-windowed-ui .ui-goal-action { margin-top: 8px; width: 100%; }
-  body.desktop-windowed-ui .ui-goal-notices { margin-top: 8px; font-size: 10.5px; line-height: 1.5; color: #8fb7d8; white-space: pre-line; }
+  body.desktop-windowed-ui .ui-goal-notices { display: grid; gap: 5px; margin-top: 8px; font-size: 10.5px; line-height: 1.4; color: #8fb7d8; }
+  body.desktop-windowed-ui .ui-goal-notice-action { width: 100%; min-height: 30px; padding: 5px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; }
+  body.desktop-windowed-ui .ui-goal-notice-action span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body.desktop-windowed-ui .ui-goal-notice-action strong { flex: 0 0 auto; color: #ffd58e; font-size: 10px; }
+  body.desktop-windowed-ui .ui-goal-notice-text { padding: 4px 7px; border-left: 2px solid rgba(96, 128, 168, .55); }
 
   body.desktop-windowed-ui .tab-content { display: none; }
   body.desktop-windowed-ui .tab-content.ui-window { position: fixed; flex-direction: column; padding: 0; background: rgba(15, 20, 30, 0.96); border: 1px solid rgba(118, 148, 190, 0.72); border-radius: 14px; box-shadow: 0 22px 70px rgba(0,0,0,.52); pointer-events: auto; overflow: hidden; min-width: 280px; min-height: 220px; }
@@ -258,7 +257,10 @@
   .ui-goal-bar-fill { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #4f8fd0, #7fd0ff); }
   .ui-goal-progress { margin-top: 5px; font-size: 12px; color: #ffd36b; font-weight: 700; }
   .ui-goal-drawer .ui-goal-action { margin-top: 10px; width: 100%; min-height: 44px; }
-  .ui-goal-notices { margin-top: 10px; font-size: 11.5px; line-height: 1.55; color: #8fb7d8; white-space: pre-line; }
+  .ui-goal-notices { display: grid; gap: 6px; margin-top: 10px; font-size: 11.5px; line-height: 1.45; color: #8fb7d8; }
+  .ui-goal-notice-action { width: 100%; min-height: 42px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left; }
+  .ui-goal-notice-action strong { flex: 0 0 auto; color: #ffd58e; }
+  .ui-goal-notice-text { padding: 6px 8px; border-left: 2px solid rgba(96, 128, 168, .55); }
 
   #enemy-area .enemy-card.targeted { width: calc(100% - 20px); min-width: 320px; margin-inline: auto; }
   #enemy-area .enemy-card.targeted .hp-bar-bg { min-height: 22px; }

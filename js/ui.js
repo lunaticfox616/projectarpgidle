@@ -6740,7 +6740,7 @@ function updateCombatUI(pStats) {
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             enemyListEl.dataset.enemyId = focusedKey;
             enemyListEl.innerHTML = `
-                <div class="enemy-card targeted${focusedEnemy.isBoss || focusedEnemy.bossPhase ? ' enemy-boss' : ''}">
+                <div class="enemy-card targeted${focusedEnemy.isBoss || focusedEnemy.bossPhase ? ' enemy-boss' : (focusedEnemy.isElite ? ' enemy-elite' : '')}">
                     <div class="enemy-name"></div>
                     <div class="hp-bar-bg">
                         <div class="hp-bar-fill enemy-damage-ghost"></div>
@@ -6752,8 +6752,6 @@ function updateCombatUI(pStats) {
                     <div class="enemy-tags muted enemy-ailments"></div>
                     <div class="enemy-tags muted enemy-traits"></div>
                 </div>
-                <div class="enemy-target-strip"><button type="button" class="enemy-target-toggle" onclick="toggleEnemyTargetList()" aria-expanded="false">적 ${enemies.length}</button></div>
-                <div class="enemy-target-menu">${enemies.map((enemy, index) => `<button type="button" class="enemy-target-chip">적 ${index + 1}</button>`).join('')}</div>
             `;
         }
         let nameEl = enemyListEl.querySelector('.enemy-name');
@@ -6781,17 +6779,12 @@ function updateCombatUI(pStats) {
             } else hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')}`;
         }
         if (ailmentEl) ailmentEl.innerHTML = ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음';
-        if (traitEl) traitEl.innerText = `특성: ${tags.join(' · ') || '일반'}`;
+        if (traitEl) {
+            let showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase);
+            traitEl.innerText = showTraits ? `특성: ${tags.join(' · ') || (focusedEnemy.isBoss || focusedEnemy.bossPhase ? '보스' : '정예')}` : '';
+            traitEl.style.display = showTraits ? '' : 'none';
+        }
     }
-}
-
-function toggleEnemyTargetList(force) {
-    let list = document.getElementById('ui-enemy-list');
-    if (!list) return;
-    let open = force === undefined ? !list.classList.contains('enemy-targets-open') : !!force;
-    list.classList.toggle('enemy-targets-open', open);
-    let button = list.querySelector('.enemy-target-toggle');
-    if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 // passive render cache dirty helper: 구조 변경/노드 상태 변경 시 호출

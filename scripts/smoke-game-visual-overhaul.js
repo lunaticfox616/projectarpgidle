@@ -40,19 +40,6 @@ passiveFiles.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), cont
 const layout = vm.runInContext(`(() => {
   const nodes = Object.values(PASSIVE_TREE.nodes);
   const root = PASSIVE_TREE.nodes.n0;
-  const placementFields = new Set(['x', 'y', 'angle', 'treeDepth', 'treeDirection', 'treeBranchRoot', 'treeBranchOrder']);
-  function contentSnapshot() {
-    return JSON.stringify(Object.values(PASSIVE_TREE.nodes)
-      .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))
-      .map(node => Object.fromEntries(Object.keys(node)
-        .filter(key => !placementFields.has(key))
-        .sort()
-        .map(key => [key, node[key]]))));
-  }
-  const contentBefore = contentSnapshot();
-  const edgesBefore = JSON.stringify(PASSIVE_TREE.edges);
-  shapePassiveTreeAsLifeTree();
-  const contentPreserved = contentBefore === contentSnapshot() && edgesBefore === JSON.stringify(PASSIVE_TREE.edges);
   let overlaps = 0;
   let minimumClearance = Infinity;
   for (let i = 0; i < nodes.length; i++) {
@@ -66,55 +53,49 @@ const layout = vm.runInContext(`(() => {
   }
   const starters = nodes.filter(node => node.depth === 1);
   const uniqueStartingStats = new Set(starters.map(node => node.stat));
-  const canopyNodes = nodes.filter(node => node.treeDirection === 'canopy');
-  const rootNodes = nodes.filter(node => node.treeDirection === 'root');
-  function directionalRowAverages(directionNodes) {
-    return [...new Set(directionNodes.filter(node => Number.isFinite(node.depth)).map(node => node.depth))]
-      .sort((a, b) => a - b)
-      .map(depth => ({ depth, y: directionNodes.filter(node => node.depth === depth).reduce((sum, node) => sum + node.y, 0) / directionNodes.filter(node => node.depth === depth).length }));
-  }
+  const webNodes = nodes.filter(node => Number.isFinite(node.webSpoke) && Number.isFinite(node.webRing));
+  const spokeCounts = [...new Set(webNodes.map(node => node.webSpoke))].sort((a, b) => a - b)
+    .map(spoke => webNodes.filter(node => node.webSpoke === spoke).length);
+  const ringMeans = [...new Set(webNodes.map(node => node.webRing))].sort((a, b) => a - b)
+    .map(ring => {
+      const row = webNodes.filter(node => node.webRing === ring);
+      return row.reduce((sum, node) => sum + Math.hypot(node.x - root.x, node.y - root.y), 0) / row.length;
+    });
+  const actualMinX = Math.min(...nodes.map(node => node.x));
+  const actualMaxX = Math.max(...nodes.map(node => node.x));
+  const actualMinY = Math.min(...nodes.map(node => node.y));
+  const actualMaxY = Math.max(...nodes.map(node => node.y));
+  const rootLinks = PASSIVE_TREE.edges.filter(edge => edge.from === root.id || edge.to === root.id).length;
   return {
     count: nodes.length,
     edgeCount: PASSIVE_TREE.edges.length,
-    contentPreserved,
-    rootY: root.y,
-    canopyCount: canopyNodes.length,
-    rootCount: rootNodes.length,
-    canopyWrongSide: canopyNodes.filter(node => node.y >= root.y).length,
-    rootWrongSide: rootNodes.filter(node => node.y <= root.y).length,
     overlaps,
     minimumClearance,
-    canopyBranchCount: new Set(canopyNodes.map(node => node.treeBranchRoot)).size,
-    rootBranchCount: new Set(rootNodes.map(node => node.treeBranchRoot)).size,
-    aspectRatio: (PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX) / (PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY),
-    trunkSplit: (root.y - PASSIVE_BOUNDS.minY) / (PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY),
+    webNodeCount: webNodes.length,
+    spokeCount: new Set(webNodes.map(node => node.webSpoke)).size,
+    spokeCounts,
+    ringMeans,
+    rootLinks,
+    aspectRatio: (actualMaxX - actualMinX) / (actualMaxY - actualMinY),
+    rootOffsetRatio: Math.hypot(root.x - (actualMinX + actualMaxX) / 2, root.y - (actualMinY + actualMaxY) / 2) / Math.max(actualMaxX - actualMinX, actualMaxY - actualMinY),
     starterCount: starters.length,
     uniqueStartingStats: uniqueStartingStats.size,
-    canopyRows: directionalRowAverages(canopyNodes),
-    rootRows: directionalRowAverages(rootNodes),
   };
 })()`, context);
 
-assert.strictEqual(layout.count, 1101, 'life-tree remapping should preserve all passive nodes from main');
-assert.strictEqual(layout.edgeCount, 1353, 'life-tree remapping should preserve every passive connection from main');
-assert.strictEqual(layout.contentPreserved, true, 'life-tree remapping must not alter node effects or graph data');
-assert.strictEqual(layout.canopyCount + layout.rootCount, layout.count - 1, 'every non-root node should belong to a canopy or root branch');
-assert.ok(layout.canopyCount > layout.count * 0.25, 'the upper canopy should retain substantial branches');
-assert.ok(layout.rootCount > layout.count * 0.25, 'the lower root system should carry substantial branches');
-assert.strictEqual(layout.canopyWrongSide, 0, 'canopy branches should remain above the trunk root');
-assert.strictEqual(layout.rootWrongSide, 0, 'root branches should continue below the trunk root');
-assert.strictEqual(layout.overlaps, 0, 'life-tree remapping should not overlap node hit areas');
+assert.strictEqual(layout.count, 1101, 'radial rollback should preserve all passive nodes from main');
+assert.strictEqual(layout.edgeCount, 1353, 'radial rollback should preserve every passive connection from main');
+assert.strictEqual(layout.webNodeCount, 192, 'the central web should retain 16 spokes across 12 rings');
+assert.strictEqual(layout.spokeCount, 16, 'the passive tree should radiate through sixteen readable spokes');
+assert.ok(layout.spokeCounts.every(count => count === 12), 'every web spoke should reach all twelve rings');
+assert.strictEqual(layout.rootLinks, 8, 'the center should expose eight distinct starting routes');
+assert.strictEqual(layout.overlaps, 0, 'radial passive nodes should not overlap hit areas');
 assert.ok(layout.minimumClearance >= 18, 'passive nodes should retain comfortable visual spacing');
-assert.strictEqual(layout.canopyBranchCount, 5, 'the canopy should preserve five readable major branches');
-assert.strictEqual(layout.rootBranchCount, 3, 'the lower tree should preserve three readable root paths');
-assert.ok(layout.aspectRatio >= 0.42 && layout.aspectRatio <= 0.65, 'the full passive tree should keep a tall reference-like silhouette');
-assert.ok(layout.trunkSplit >= 0.38 && layout.trunkSplit <= 0.56, 'the trunk junction should remain near the visual center');
+assert.ok(layout.aspectRatio >= 0.9 && layout.aspectRatio <= 1.2, 'the full passive tree should keep a near-circular spiderweb silhouette');
+assert.ok(layout.rootOffsetRatio <= 0.08, 'the starting root should remain near the visual center');
 assert.strictEqual(layout.uniqueStartingStats, layout.starterCount, 'every root-adjacent starting node should provide a distinct stat');
-for (let index = 1; index < layout.canopyRows.length; index++) {
-  assert.ok(layout.canopyRows[index].y < layout.canopyRows[index - 1].y, 'deeper canopy rows should grow upward');
-}
-for (let index = 1; index < layout.rootRows.length; index++) {
-  assert.ok(layout.rootRows[index].y > layout.rootRows[index - 1].y, 'deeper root rows should grow downward');
+for (let index = 1; index < layout.ringMeans.length; index++) {
+  assert.ok(layout.ringMeans[index] > layout.ringMeans[index - 1], 'each successive web ring should expand away from the center');
 }
 
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
@@ -150,8 +131,9 @@ assert.ok(!passiveSource.includes('if (!lightweightMode && useMajorFrame'), 'dra
 const windowCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 assert.ok(windowCss.includes('border-image-source:'), 'window frame should use nine-slice-style border rendering');
 assert.ok(windowCss.includes('> .ui-window-resize'), 'window resize handle should retain an explicit absolute layer');
-assert.ok(windowCss.includes('z-index: 6;'), 'window frame should render above the window surface');
-assert.ok(windowCss.includes('padding: clamp(20px, 1.5vw, 24px);'), 'window content should reserve a text-safe frame inset');
+assert.ok(windowCss.includes('border: 14px solid transparent;'), 'window frame image should be the actual window border');
+assert.ok(!windowCss.includes('.tab-content.ui-window::after'), 'window frame should not float over text as a pseudo-element');
+assert.ok(windowCss.includes('padding: clamp(12px, 1.15vw, 18px);'), 'window content should retain a compact text-safe inset inside the real border');
 const indexSource = fs.readFileSync('index.html', 'utf8');
 assert.ok(indexSource.includes('id="tutorial-dismiss-btn"'), 'tutorial notice should expose a single acknowledgement action');
 assert.ok(!indexSource.includes('id="tutorial-progress-fill"'), 'tutorial notice should not use multi-step progress');
@@ -167,6 +149,11 @@ assert.ok(combatSource.includes("addBattleFx('levelUp'"), 'player level-ups shou
 const socialSource = fs.readFileSync('js/social.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const windowManagerSource = fs.readFileSync('js/ui-window-manager.js', 'utf8');
+const shellSource = fs.readFileSync('js/ui-game-shell.js', 'utf8');
+assert.ok(!windowCss.includes("content: 'P I'"), 'the in-game PI rail badge should be removed');
+assert.ok(!shellSource.includes('PROJECT IDLE</strong>'), 'the in-game expedition brand should be removed');
+assert.ok(!uiSource.includes('enemy-target-strip'), 'meaningless enemy count/target buttons should be removed');
+assert.ok(uiSource.includes("showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase)"), 'elite and boss traits should remain visible under the health bar');
 assert.ok(uiSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not pause the live battle screen');
 assert.ok(!uiSource.includes('if (isTutorialOpen() || isRewardOpen()'), 'compact tutorial notices should keep the game loop running');
 assert.ok(windowManagerSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not block desktop window interactions');
