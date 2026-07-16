@@ -285,10 +285,14 @@ function pickRandomCoreCubePower() {
     return pickRandomCoreCubePowerFromState(ensureCoreCubeState());
 }
 
-function resetCoreCube() {
+async function resetCoreCube() {
     let st = ensureCoreCubeState();
     if (!st.completed && st.faces.every(v => v === null)) return addLog('재구성할 큐브 각인이 없습니다.', 'attack-monster');
-    if (!confirm('큐브를 재구성하면 각인된 동력원과 발현 옵션이 사라집니다. 진행할까요?')) return;
+    if (!await requestGameConfirmation('큐브를 재구성하면 각인된 동력원과 발현 옵션이 사라집니다.', {
+        title: '코어 큐브 재구성',
+        tone: 'danger',
+        confirmLabel: '재구성'
+    })) return;
     st.faces = Array(CORE_CUBE_FACE_COUNT).fill(null);
     st.completed = false;
     st.isCompleting = false;

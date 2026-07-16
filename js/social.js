@@ -271,14 +271,21 @@ async function updatePastChatNicknames(name) {
 }
 
 async function promptAndSetNickname() {
-    if (!socialCloudReady()) { alert('채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)'); return; }
+    if (!socialCloudReady()) { showGameToast('채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)', 'warning'); return; }
     let current = getMyNickname();
-    let input = prompt(`사용할 닉네임을 입력하세요 (${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자, 한글/영문/숫자/-/_).\n※ 닉네임은 하루에 한 번만 변경할 수 있습니다.`, current || '');
+    let input = await requestGameText({
+        title: '닉네임 설정',
+        message: `사용할 닉네임을 입력하세요. (${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자, 한글/영문/숫자/-/_)\n닉네임은 하루에 한 번만 변경할 수 있습니다.`,
+        value: current || '',
+        maxLength: SOCIAL_NICK_MAX,
+        placeholder: '닉네임',
+        confirmLabel: '닉네임 적용'
+    });
     if (input == null) return;
     let name = String(input).trim();
     if (name === current) return;
-    if (name.length < SOCIAL_NICK_MIN || name.length > SOCIAL_NICK_MAX) { alert(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자여야 합니다.`); return; }
-    if (!SOCIAL_NICK_RE.test(name)) { alert('닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.'); return; }
+    if (name.length < SOCIAL_NICK_MIN || name.length > SOCIAL_NICK_MAX) { showGameToast(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자여야 합니다.`, 'warning'); return; }
+    if (!SOCIAL_NICK_RE.test(name)) { showGameToast('닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.', 'warning'); return; }
 
     let prev = getMyNickname();
     setMyNicknameLocal(name);
@@ -291,7 +298,7 @@ async function promptAndSetNickname() {
         refreshChatPanel(false);
     } catch (e) {
         setMyNicknameLocal(prev);
-        alert(String(e && e.message || e));
+        showGameToast(String(e && e.message || e), 'danger');
         renderSocialTab();
     }
 }
@@ -450,7 +457,7 @@ function translateSpamError(msg) {
     return msg;
 }
 async function sendChatMessage() {
-    if (!socialCloudReady()) { alert('먼저 클라우드 로그인이 필요합니다.'); return; }
+    if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     let nickname = getMyNickname();
     if (!nickname) { await promptAndSetNickname(); if (!getMyNickname()) return; nickname = getMyNickname(); }
     let inputEl = document.getElementById('social-chat-input');
@@ -458,10 +465,10 @@ async function sendChatMessage() {
     let body = String(inputEl.value || '').trim();
     let items = socialState.pendingChatItems.slice(0, SOCIAL_MAX_ITEMS_PER_MSG);
     if (!body && !items.length) return;
-    if (body.length > SOCIAL_MSG_MAX) { alert(`메시지는 최대 ${SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.`); return; }
-    if (body && body === socialState.lastSentBody && !items.length) { alert('같은 메시지를 연속으로 보낼 수 없습니다.'); return; }
+    if (body.length > SOCIAL_MSG_MAX) { showGameToast(`메시지는 최대 ${SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.`, 'warning'); return; }
+    if (body && body === socialState.lastSentBody && !items.length) { showGameToast('같은 메시지를 연속으로 보낼 수 없습니다.', 'warning'); return; }
     let rate = checkSendRateLimit();
-    if (rate !== true) { alert(rate); return; }
+    if (rate !== true) { showGameToast(rate, 'warning'); return; }
 
     let payload = items.length ? { items } : null;
     let prevPending = socialState.pendingChatItems.slice();
@@ -483,7 +490,7 @@ async function sendChatMessage() {
         socialState.pendingChatItems = prevPending;
         renderPendingChatItems();
         updateChatCounter();
-        alert('메시지 전송 실패: ' + translateSpamError(String(e && e.message || e)));
+        showGameToast('메시지 전송 실패: ' + translateSpamError(String(e && e.message || e)), 'danger');
     }
 }
 
@@ -494,7 +501,7 @@ function attachChatItem(source, idx) {
     else { let inv = (typeof game !== 'undefined' && Array.isArray(game.inventory)) ? game.inventory : []; item = inv[idx]; }
     let snap = buildItemSnapshot(item, source === 'equip' ? idx : (item && item.slot));
     if (!snap) return;
-    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { alert(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`); return; }
+    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { showGameToast(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`, 'warning'); return; }
     let tokenIndex = socialState.pendingChatItems.length;
     socialState.pendingChatItems.push(snap);
     let inputEl = document.getElementById('social-chat-input');
@@ -533,7 +540,7 @@ function updateChatCounter() {
     counterEl.style.color = len > SOCIAL_MSG_MAX ? '#e88' : '#67809c';
 }
 function openItemPicker() {
-    if (!socialCloudReady()) { alert('먼저 클라우드 로그인이 필요합니다.'); return; }
+    if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     let modal = document.getElementById('social-item-picker-modal');
     if (!modal) {
         modal = document.createElement('div');
@@ -789,7 +796,7 @@ function closePlayerProfile() { hideSocialTip(); let m = document.getElementById
 // 방금 장착한 주얼/부적/장비가 빠진 옛 데이터가 보인다. 미리보기 전에 현재 상태를
 // 업로드해 남들이 보게 될 것과 동일한 최신 프로필을 보여준다.
 async function openMyProfilePreview() {
-    if (!socialCloudReady()) { alert('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'); return; }
+    if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     if (getMyNickname()) {
         try { await uploadPlayerProfile({ silent: true }); } catch (e) { /* 실패해도 기존 프로필로 열기 */ }
     }
@@ -907,7 +914,7 @@ function renderProfileData(profile) {
 }
 async function openPlayerProfile(userId) {
     if (!userId) return;
-    if (!socialCloudReady()) { alert('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'); return; }
+    if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     let modal = ensureProfileModal();
     modal.style.display = 'flex';
     let body = document.getElementById('social-profile-body');

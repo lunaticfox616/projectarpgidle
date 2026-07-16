@@ -2044,7 +2044,7 @@ function dismantleColonyWardById(id) {
     updateStaticUI();
 }
 
-function bulkDismantleColonyWardsBySearch(salvageUnmatched) {
+async function bulkDismantleColonyWardsBySearch(salvageUnmatched) {
     if (!assertBuildEditable()) return;
     let c = normalizeColonyWardState();
     let wardQuery = getColonyWardSearchQuery();
@@ -2057,7 +2057,11 @@ function bulkDismantleColonyWardsBySearch(salvageUnmatched) {
         targets.push({ ward, idx });
     });
     if (targets.length <= 0) return addLog(`해체 대상 액막이 부적이 없습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
-    if (!confirm(`액막이 부적 ${targets.length}개를 해체할까요? (장착/잠금 액막이는 유지됩니다.)`)) return;
+    if (!await requestGameConfirmation(`액막이 부적 ${targets.length}개를 해체합니다.\n장착 중이거나 잠긴 액막이는 보호됩니다.`, {
+        title: '액막이 일괄 해체',
+        tone: 'danger',
+        confirmLabel: `${targets.length}개 해체`
+    })) return;
     let targetIds = new Set(targets.map(row => row.ward && row.ward.id).filter(Boolean));
     let gained = 0;
     c.wardInventory = (c.wardInventory || []).filter(ward => {
@@ -3084,17 +3088,28 @@ function setExploreSubtabAvailable(subtabId, available) {
 }
 function enterLabyrinthFloor(floor){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); game.labyrinthFloor=Math.max(1,Math.floor(floor||1)); changeZone(LABYRINTH_ZONE_ID); updateStaticUI(); }
 
-function enterSkyTowerPrompt(){
+async function enterSkyTowerPrompt(){
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     let st = ensureSkyTowerState();
     if (!st.unlocked) return addLog('창공의 탑은 루프 15 이후 이번 루프 혼돈 20층 클리어 시 해금됩니다.', 'attack-monster');
     if (!(typeof canEnterSkyTower === 'function' && canEnterSkyTower())) return addLog('창공의 탑은 영구 해금 후 해당 루프에서 혼돈에 입성하면 입장할 수 있습니다.', 'attack-monster');
     if ((game.settings && game.settings.mapCompleteAction) === 'repeatZone') {
-        let ok = confirm("현재 설정이 맵 완료 시 '같은 지역 반복' 입니다. 정말 입장하시겠습니까?");
+        let ok = await requestGameConfirmation("현재 맵 완료 행동이 '같은 지역 반복'으로 설정되어 있습니다.\n창공의 탑에 입장해도 설정은 유지됩니다.", {
+            title: '반복 설정 확인',
+            tone: 'warning',
+            confirmLabel: '그대로 입장'
+        });
         if (!ok) return;
     }
     let max = Math.max(1, Math.floor(st.highestFloor || 1));
-    let v = prompt(`진입할 창공의 탑 층수를 입력하세요. (1 ~ ${max})\n이번 루프 남은 클리어 가능 층수: ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, String(Math.max(1, Math.floor(st.currentFloor || max))));
+    let v = await requestGameNumber({
+        title: '창공의 탑 층 선택',
+        message: `이번 루프 남은 클리어 가능 층수: ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`,
+        min: 1,
+        max,
+        value: Math.max(1, Math.floor(st.currentFloor || max)),
+        confirmLabel: '입장'
+    });
     if (v === null) return;
     let floor = Math.floor(Number(v) || 0);
     if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
@@ -3117,13 +3132,20 @@ function upgradeSkyStone() {
     updateStaticUI();
 }
 
-function enterChaosRealmPrompt(){
+async function enterChaosRealmPrompt(){
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     let st = ensureChaosRealmState();
     if (!st.unlocked) return addLog('혼돈계는 혼돈 밖 나무꾼에게 최대 생명력 10% 이상의 피해를 준 전투 종료 시 해금됩니다.', 'attack-monster');
     if (!canEnterChaosRealm()) return addLog('혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.', 'attack-monster');
     let max = Math.max(1, Math.floor(st.highestFloor || 1));
-    let v = prompt(`진입할 혼돈계 층수를 입력하세요. (1 ~ ${max})`, String(max));
+    let v = await requestGameNumber({
+        title: '혼돈계 층 선택',
+        message: `입장 가능한 최고 층은 ${max}층입니다.`,
+        min: 1,
+        max,
+        value: max,
+        confirmLabel: '입장'
+    });
     if (v === null) return;
     let floor = Math.floor(Number(v) || 0);
     if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
@@ -3131,13 +3153,20 @@ function enterChaosRealmPrompt(){
     changeZone(CHAOS_REALM_ZONE_ID);
     updateStaticUI();
 }
-function enterUnderworldPrompt(){
+async function enterUnderworldPrompt(){
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return addLog('지하계 입장 조건: 야수왕 케르베로스 클리어 + 혼돈 심화 30층 + 고대 미궁 100층 + 이번 루프 혼돈20 클리어', 'attack-monster');
     let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
     game.underworldProgress = uw;
     let max = Math.max(1, Math.floor(uw.highestFloor || 1));
-    let v = prompt(`진입할 지하계 층수를 입력하세요. (1 ~ ${max})`, String(max));
+    let v = await requestGameNumber({
+        title: '지하계 층 선택',
+        message: `입장 가능한 최고 층은 ${max}층입니다.`,
+        min: 1,
+        max,
+        value: max,
+        confirmLabel: '입장'
+    });
     if (v === null) return;
     let floor = Math.floor(Number(v) || 0);
     if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
@@ -3177,7 +3206,23 @@ function enterTalentBloomTrial() {
     changeZone('trial_5');
 }
 
-function enterDeepChaosPrompt(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : []; let max=Math.max(20, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth||20)); let v=prompt(`진입할 심화 혼돈 층수를 입력하세요. (21 ~ ${max})`, String(max)); if(v===null)return; let depth=Math.floor(Number(v)||0); if(depth<21||depth>max) return addLog(`21~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); if (unlocked.length > 0 && !unlocked.includes(depth)) return addLog(`해금된 심화 혼돈 층수만 입장 가능합니다.`, 'attack-monster'); enterUnlockedEndlessDepth(depth); }
+async function enterDeepChaosPrompt(){
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    let unlocked = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : [];
+    let max = Math.max(20, unlocked.length ? Math.max(...unlocked) : Math.floor(game.abyssEndlessDepth || 20));
+    let depth = await requestGameNumber({
+        title: '혼돈 심화층 선택',
+        message: unlocked.length > 0 ? `해금된 심화층 범위: 21 ~ ${max}` : `입장 가능한 심화층 범위: 21 ~ ${max}`,
+        min: 21,
+        max,
+        value: max,
+        confirmLabel: '입장'
+    });
+    if (depth === null) return;
+    depth = Math.floor(Number(depth) || 0);
+    if (unlocked.length > 0 && !unlocked.includes(depth)) return addLog(`해금된 심화 혼돈 층수만 입장 가능합니다.`, 'attack-monster');
+    enterUnlockedEndlessDepth(depth);
+}
 
 function getDeepChaosEntryState() {
     let open = (game.season || 1) >= 10 && (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared));
@@ -3196,7 +3241,20 @@ function getDeepChaosMapEntryHtml() {
         <div class="map-item-actions"><span class="map-zone-status">입장 가능: 21 ~ ${state.highestDepth}</span></div>
     </div>`;
 }
-function enterLabyrinthPrompt(){ if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked(); let max=Math.max(1,Math.floor(game.labyrinthUnlockedMaxFloor||game.labyrinthFloor||1)); let v=prompt(`진입할 고대 미궁 층수를 입력하세요. (1 ~ ${max})`, String(max)); if(v===null)return; let floor=Math.floor(Number(v)||0); if(floor<1||floor>max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster'); enterLabyrinthFloor(floor); }
+async function enterLabyrinthPrompt(){
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    let max = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+    let floor = await requestGameNumber({
+        title: '고대 미궁 층 선택',
+        message: `입장 가능한 최고 층은 ${max}층입니다.`,
+        min: 1,
+        max,
+        value: max,
+        confirmLabel: '입장'
+    });
+    if (floor === null) return;
+    enterLabyrinthFloor(Math.floor(Number(floor) || 1));
+}
 
 
 function getChallengeContractState() {
@@ -3553,7 +3611,7 @@ function discardCurrentTalisman() {
 }
 
 
-function exchangeTalismanShards(kind) {
+async function exchangeTalismanShards(kind) {
     let cfg = kind === 'radiant'
         ? { from: 'strongSealShard', to: 'radiantSealShard', need: 40, fromName: '강력한 기운의 봉인편린', toName: '찬란한 봉인편린' }
         : { from: 'sealShard', to: 'strongSealShard', need: 80, fromName: '봉인편린', toName: '강력한 기운의 봉인편린' };
@@ -3561,7 +3619,14 @@ function exchangeTalismanShards(kind) {
     let have = Math.max(0, Math.floor(game.currencies[cfg.from] || 0));
     let maxCount = Math.floor(have / cfg.need);
     if (maxCount <= 0) return addLog(`${cfg.fromName}이 부족합니다. (${cfg.need}개 필요)`, 'attack-monster');
-    let raw = prompt(`${cfg.fromName} ${cfg.need}개 → ${cfg.toName} 1개\n교환할 횟수를 입력하세요. (최대 ${maxCount})`, String(maxCount));
+    let raw = await requestGameNumber({
+        title: '부적 파편 교환',
+        message: `${cfg.fromName} ${cfg.need}개 → ${cfg.toName} 1개`,
+        min: 1,
+        max: maxCount,
+        value: maxCount,
+        confirmLabel: '교환'
+    });
     if (raw === null) return;
     let count = Math.max(0, Math.min(maxCount, Math.floor(Number(raw))));
     if (!Number.isFinite(count) || count <= 0) return addLog('교환 횟수가 올바르지 않습니다.', 'attack-monster');
@@ -7488,7 +7553,7 @@ function matchSearchQuery(raw, query) {
     return q.split(/\s+/).filter(Boolean).every(tok => text.includes(tok));
 }
 function shouldBulkSalvageBySearch(isMatched, salvageUnmatched) { return salvageUnmatched ? !isMatched : isMatched; }
-function bulkSalvageEquipBySearch(salvageUnmatched) {
+async function bulkSalvageEquipBySearch(salvageUnmatched) {
     if (!assertBuildEditable()) return;
     const sf = getSearchFilterState();
     const survivors = [];
@@ -7502,7 +7567,11 @@ function bulkSalvageEquipBySearch(salvageUnmatched) {
         return count + 1;
     }, 0);
     if (targetCount <= 0) return addLog('해체 대상이 없습니다.', 'attack-monster');
-    if (!confirm(`장비 ${targetCount}개를 해체할까요?`)) return;
+    if (!await requestGameConfirmation(`검색 조건에 해당하는 장비 ${targetCount}개를 해체합니다.\n잠긴 장비는 보호됩니다.`, {
+        title: '검색 장비 일괄 해체',
+        tone: 'danger',
+        confirmLabel: `${targetCount}개 해체`
+    })) return;
     (game.inventory || []).forEach(item => {
         if (!item) return;
         const underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
@@ -7516,7 +7585,7 @@ function bulkSalvageEquipBySearch(salvageUnmatched) {
     addLog(`🧪 장비 ${removed}개 해체 완료${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
-function bulkSalvageJewelsBySearch(salvageUnmatched) {
+async function bulkSalvageJewelsBySearch(salvageUnmatched) {
     if (!assertBuildEditable()) return;
     const sf = getSearchFilterState();
     const targets = [];
@@ -7530,7 +7599,11 @@ function bulkSalvageJewelsBySearch(salvageUnmatched) {
         targets.push(i);
     }
     if (targets.length <= 0) return addLog(`해체 대상 주얼이 없습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
-    if (!confirm(`주얼 ${targets.length}개를 해체할까요? (잠금 주얼은 유지됩니다.)`)) return;
+    if (!await requestGameConfirmation(`검색 조건에 해당하는 주얼 ${targets.length}개를 해체합니다.\n잠긴 주얼은 보호됩니다.`, {
+        title: '검색 주얼 일괄 해체',
+        tone: 'danger',
+        confirmLabel: `${targets.length}개 해체`
+    })) return;
     let removed = 0;
     targets.forEach(i => {
         const jewel = game.jewelInventory[i];
@@ -9387,8 +9460,12 @@ function refundVoidPassiveFromOverlay(nodeId) {
     refundPassiveNode(nodeId);
 }
 
-function askRefundPassiveNode(id) {
-    if (!confirm('해당 패시브 노드를 반환하시겠습니까? (정화의 오브 1개 소모)')) return;
+async function askRefundPassiveNode(id) {
+    if (!await requestGameConfirmation('선택한 패시브 노드를 반환하고 정화의 오브 1개를 소모합니다.', {
+        title: '패시브 노드 반환',
+        tone: 'danger',
+        confirmLabel: '노드 반환'
+    })) return;
     refundPassiveNode(id);
 }
 
@@ -9581,7 +9658,7 @@ function setupCanvasEvents() {
         hideCanvasTooltip();
     }
 
-    function activateHoveredPassive(opts) {
+    async function activateHoveredPassive(opts) {
         let options = opts || {};
         if (Number.isFinite(options.clientX) && Number.isFinite(options.clientY)) {
             hoverNode = getPassiveNodeAtClientPosition(options.clientX, options.clientY);
@@ -9648,7 +9725,10 @@ function setupCanvasEvents() {
             }
         }
         if (canActivate || canPathActivate) {
-            if (canPathActivate && !confirm(`최단 경로로 패시브 포인트 ${pointCost}점을 소모하여 활성화하시겠습니까?`)) return;
+            if (canPathActivate && !await requestGameConfirmation(`최단 경로에 있는 노드를 함께 활성화하며 패시브 포인트 ${pointCost}점을 소모합니다.`, {
+                title: '최단 경로 활성화',
+                confirmLabel: `${pointCost}포인트 사용`
+            })) return;
             pendingTouchPassiveId = null;
             let activationResult = activatePassivePath(hoverNode.id, { forcePulseNodeId: hoverNode.id });
             if (!activationResult.activated) return;
@@ -11332,9 +11412,13 @@ function returnFromStartupGate() {
     updateCloudSaveUI();
 }
 
-function startGuestMode() {
+async function startGuestMode() {
     if (cloudState.busy) return;
-    if (cloudState.user && !confirm('현재 복원된 로그인 세션은 사용하지 않고 이 기기 로컬 저장만으로 시작할까요?')) return;
+    if (cloudState.user && !await requestGameConfirmation('복원된 로그인 세션을 사용하지 않고 이 기기의 로컬 저장으로 시작합니다.', {
+        title: '게스트 모드로 시작',
+        tone: 'warning',
+        confirmLabel: '로컬 저장으로 시작'
+    })) return;
     if (cloudState.user) {
         markSkipOAuthRestoreOnce();
         clearSupabasePersistedSession();
@@ -12248,7 +12332,11 @@ async function cloudPushNow() {
 
 async function cloudCompactAndPushNow() {
     if (!cloudState.user || !cloudState.user.id) return setCloudMessage('먼저 로그인해주세요.');
-    if (!confirm('클라우드 저장을 경량화(임시 전투 데이터 제거)해서 즉시 덮어쓸까요?\n핵심 진행 데이터(장비/인벤/패시브/재화)는 유지됩니다.')) return;
+    if (!await requestGameConfirmation('임시 전투 데이터를 제거한 경량 저장으로 클라우드를 덮어씁니다.\n장비, 인벤토리, 패시브와 재화는 유지됩니다.', {
+        title: '클라우드 저장 경량화',
+        tone: 'danger',
+        confirmLabel: '경량화 후 덮어쓰기'
+    })) return;
     cloudState.busy = true;
     setCloudMessage('클라우드 저장 경량화 업로드 중...');
     updateCloudSaveUI();
@@ -12293,7 +12381,11 @@ async function cloudCompactAndPushNow() {
 
 async function cloudForcePullNow() {
     if (!cloudState.user) return setCloudMessage('먼저 로그인해주세요.');
-    if (!confirm('⚠️ 서버 저장을 현재 기기 세이브에 강제로 덮어씁니다. 계속할까요?')) return;
+    if (!await requestGameConfirmation('서버 저장으로 현재 기기의 진행 데이터를 강제로 교체합니다.\n복구하기 어려운 작업입니다.', {
+        title: '서버 저장 강제 불러오기',
+        tone: 'danger',
+        confirmLabel: '기기 저장 교체'
+    })) return;
     cloudState.busy = true;
     setCloudMessage('서버 저장을 강제로 불러오는 중입니다...');
     updateCloudSaveUI();
@@ -12311,7 +12403,11 @@ async function cloudForcePullNow() {
 
 async function cloudPullNow() {
     if (!cloudState.user) return setCloudMessage('먼저 로그인해주세요.');
-    if (!confirm('현재 기기의 세이브를 클라우드 세이브로 덮어쓸까요?')) return;
+    if (!await requestGameConfirmation('클라우드 저장으로 현재 기기의 진행 데이터를 교체합니다.', {
+        title: '클라우드 저장 불러오기',
+        tone: 'danger',
+        confirmLabel: '불러오기'
+    })) return;
     cloudState.busy = true;
     setCloudMessage('클라우드 저장을 불러오는 중입니다...');
     updateCloudSaveUI();
@@ -12389,10 +12485,19 @@ function runStartupSmokeChecks() {
 }
 
 async function resetGame() {
-    if (!confirm("초기화하시겠습니까?")) return;
+    if (!await requestGameConfirmation('현재 기기의 모든 진행 데이터를 초기화합니다.', {
+        title: '게임 진행 초기화',
+        tone: 'danger',
+        confirmLabel: '진행 초기화'
+    })) return;
     let resetCloudToo = false;
     if (cloudState.user && getCloudConfig().enabled) {
-        resetCloudToo = confirm('클라우드 저장도 새 게임 상태로 덮어쓸까요?\n취소를 누르면 이 기기만 초기화되고 현재 계정은 로그아웃됩니다.');
+        resetCloudToo = !!await requestGameConfirmation('클라우드 저장도 새 게임 상태로 덮어쓸 수 있습니다.\n취소하면 이 기기만 초기화하고 현재 계정에서 로그아웃합니다.', {
+            title: '클라우드 저장도 초기화',
+            tone: 'danger',
+            confirmLabel: '클라우드도 초기화',
+            cancelLabel: '기기만 초기화'
+        });
     }
     try {
         window.__skipUnloadSaveOnce = true;
@@ -12416,7 +12521,7 @@ async function resetGame() {
         }
     } catch (error) {
         console.error('resetGame failed:', error);
-        if (resetCloudToo) alert('클라우드 초기화 중 문제가 발생했습니다: ' + (error.message || error));
+        if (resetCloudToo) showGameToast('클라우드 초기화 중 문제가 발생했습니다: ' + (error.message || error), { tone: 'danger', duration: 5200 });
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
@@ -12743,22 +12848,30 @@ function showExpertNodeTooltip(event, nodeId) {
     if (!node || typeof showInfoTooltipHtml !== 'function') return;
     showInfoTooltipHtml(event.clientX, event.clientY, buildExpertNodeTooltipHtml(node), getExpertBranchTheme(node.branch).color);
 }
-function askUntrainExpertNode(nodeId) {
+async function askUntrainExpertNode(nodeId) {
     let node = EXPERT_TREE_NODES.find(v => v.id === nodeId);
     if (!node) return;
     if ((game.currencies.scour || 0) < 1) return addLog('전문가 노드 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
     if (!canUntrainExpertNode(nodeId)) return addLog('핵심 노드 조건을 유지해야 하므로 이 노드는 반환할 수 없습니다.', 'attack-monster');
-    if (!confirm(`[${node.name}] 노드를 1포인트 반환하시겠습니까? (정화의 오브 1 소모)`)) return;
+    if (!await requestGameConfirmation(`[${node.name}] 노드를 반환하고 정화의 오브 1개를 소모합니다.`, {
+        title: '전문가 노드 반환',
+        tone: 'danger',
+        confirmLabel: '노드 반환'
+    })) return;
     if (!untrainExpertNode(nodeId)) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
     addLog(`♻️ 전문가 노드 반환: ${node.name} (정화의 오브 1개 소모)`, 'season-up');
     updateStaticUI();
 }
-function askResetExpertTree() {
+async function askResetExpertTree() {
     let cost = (typeof getExpertPointSpent === 'function') ? getExpertPointSpent() : 0;
     if (cost <= 0) return;
     if ((game.currencies.scour || 0) < cost) return addLog(`전문가 트리 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
-    if (!confirm(`전문가 트리 전체 초기화? (정화의 오브 ${cost} 소모)`)) return;
+    if (!await requestGameConfirmation(`전문가 트리를 모두 초기화하고 정화의 오브 ${cost}개를 소모합니다.`, {
+        title: '전문가 트리 전체 초기화',
+        tone: 'danger',
+        confirmLabel: '전체 초기화'
+    })) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
     resetExpertTree();
     addLog(`♻️ 전문가 트리 전체 초기화 (정화의 오브 ${cost}개 소모)`, 'season-up');
@@ -12996,8 +13109,12 @@ function refundPassiveNode(id) { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 
-function askRefundSeasonNode(id) { if (!assertBuildEditable()) return;
-    if (!confirm('해당 디버깅 노드를 환불하시겠습니까? (정화의 오브 1 소모)')) return;
+async function askRefundSeasonNode(id) { if (!assertBuildEditable()) return;
+    if (!await requestGameConfirmation('선택한 디버깅 노드를 반환하고 정화의 오브 1개를 소모합니다.', {
+        title: '디버깅 노드 반환',
+        tone: 'danger',
+        confirmLabel: '노드 반환'
+    })) return;
     return refundSeasonNode(id);
 }
 
@@ -13048,7 +13165,7 @@ function refundAscendNode(id) { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 
-function buySeason(id) {
+async function buySeason(id) {
     let node = SEASON_NODES[id];
     game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
     if (!node || !isSeasonNodeRequirementMet(node)) return;
@@ -13056,7 +13173,11 @@ function buySeason(id) {
     let evolved = isSeasonTreeEvolved();
     let cap = evolved ? 5 : 1;
     if (lv >= cap && lv > 0) {
-        if (!confirm('이미 최대 단계입니다. 환불하시겠습니까? (정화의 오브 1 소모)')) return;
+        if (!await requestGameConfirmation('이미 최대 단계인 노드입니다.\n정화의 오브 1개를 사용해 반환하시겠습니까?', {
+            title: '최대 단계 노드 반환',
+            tone: 'danger',
+            confirmLabel: '노드 반환'
+        })) return;
         return refundSeasonNode(id);
     }
     if (game.seasonPoints <= 0) return;
@@ -13147,7 +13268,7 @@ function highlightKeystoneChain(id, on) {
     }
 }
 
-function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
+async function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
     if (!game.ascendKeystones.includes(id)) return;
     let blockers = getClassKeystoneDefs(game.ascendClass).filter(node => {
@@ -13161,7 +13282,11 @@ function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
     });
     if (blockers.length > 0) return addLog(`선행 키스톤입니다: ${blockers.map(v => v.name).join(', ')}`, 'attack-monster');
     if ((game.currencies.scour || 0) < 1) return addLog('키스톤 환불에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
-    if (!confirm('키스톤을 반환하시겠습니까? (정화의 오브 1 소모)')) return;
+    if (!await requestGameConfirmation('선택한 키스톤을 반환하고 정화의 오브 1개를 소모합니다.', {
+        title: '키스톤 반환',
+        tone: 'danger',
+        confirmLabel: '키스톤 반환'
+    })) return;
     if (id === 'w3' && !enforceWarriorDualTrainingEquipment(false)) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
     game.ascendKeystones = game.ascendKeystones.filter(key => key !== id);
@@ -13184,14 +13309,18 @@ function resetAscendKeystones() {
     updateStaticUI();
 }
 
-function resetSeasonNodes() { if (!assertBuildEditable()) return;
+async function resetSeasonNodes() { if (!assertBuildEditable()) return;
     game.seasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
     if (game.seasonNodes.length <= 0) return;
     game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
     let totalLv = game.seasonNodes.reduce((s, id) => s + Math.max(1, Math.floor(game.seasonNodeLevels[id] || 1)), 0);
     let cost = game.seasonNodes.length;
     if ((game.currencies.scour || 0) < cost) return addLog(`디버깅 포인트 트리 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
-    if (!confirm(`디버깅 포인트 트리 전체 초기화? (정화의 오브 ${cost} 소모)`)) return;
+    if (!await requestGameConfirmation(`디버깅 포인트 트리를 모두 초기화하고 정화의 오브 ${cost}개를 소모합니다.`, {
+        title: '디버깅 트리 전체 초기화',
+        tone: 'danger',
+        confirmLabel: '전체 초기화'
+    })) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
     game.seasonPoints = Math.max(0, Math.floor(game.seasonPoints || 0)) + totalLv;
     game.seasonNodes = [];
@@ -13199,12 +13328,16 @@ function resetSeasonNodes() { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 
-function resetAscendNodes() { if (!assertBuildEditable()) return;
+async function resetAscendNodes() { if (!assertBuildEditable()) return;
     game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
     if (game.ascendNodes.length <= 0) return;
     let cost = game.ascendNodes.length;
     if ((game.currencies.scour || 0) < cost) return addLog(`전직 패시브 트리 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
-    if (!confirm(`전직 패시브 트리 전체 초기화? (정화의 오브 ${cost} 소모)`)) return;
+    if (!await requestGameConfirmation(`전직 패시브 트리를 모두 초기화하고 정화의 오브 ${cost}개를 소모합니다.`, {
+        title: '전직 패시브 전체 초기화',
+        tone: 'danger',
+        confirmLabel: '전체 초기화'
+    })) return;
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
     game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + game.ascendNodes.length;
     game.ascendNodes = [];
@@ -13212,8 +13345,11 @@ function resetAscendNodes() { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 
-function selectClass(key) {
-    if (confirm(`[${CLASS_TEMPLATES[key].name}] 직업을 선택하시겠습니까? 이번 루프에는 변경할 수 없습니다.`)) {
+async function selectClass(key) {
+    if (await requestGameConfirmation(`[${CLASS_TEMPLATES[key].name}] 직업을 선택합니다.\n이번 루프에는 다시 변경할 수 없습니다.`, {
+        title: '전직 선택',
+        confirmLabel: '이 직업 선택'
+    })) {
         game.ascendClass = key;
         game.ascendKeystones = [];
         updateStaticUI();
@@ -13251,26 +13387,21 @@ function getLockedTabMessage(tabId) {
 
 
 
-function pickEquippedSlotByPrompt(validSlots){
-    let labels = validSlots.map((slot,i)=>`${i+1}. ${slot}${game.equipment&&game.equipment[slot]?` (${game.equipment[slot].name||'장비'})`:''}`).join('\n');
-    let v = prompt(`대상을 선택하세요:
-${labels}`,'1');
-    if (v===null) return null;
-    let trimmed = String(v).trim();
-    if (!/^\d+$/.test(trimmed)) {
-        addLog('숫자만 입력할 수 있습니다. 작업을 취소했습니다.', 'attack-monster');
-        return null;
-    }
-    let parsed = Math.floor(Number(trimmed));
-    if (!Number.isFinite(parsed) || parsed < 1 || parsed > validSlots.length) {
-        addLog(`1~${validSlots.length} 범위의 번호를 입력하세요. 작업을 취소했습니다.`, 'attack-monster');
-        return null;
-    }
-    return validSlots[parsed - 1];
+async function pickEquippedSlotByPrompt(validSlots){
+    return requestGameChoice({
+        title: '장비 대상 선택',
+        message: '작업을 적용할 장비 부위를 선택하세요.',
+        choices: validSlots.map(slot => ({
+            value: slot,
+            label: slot,
+            detail: game.equipment && game.equipment[slot] ? (game.equipment[slot].name || '장착 장비') : '장비 없음'
+        })),
+        confirmLabel: '대상 선택'
+    });
 }
-function applyUnderworldEnchant(){
+async function applyUnderworldEnchant(){
     if (!assertBuildEditable()) return;
-    let slot = pickEquippedSlotByPrompt(['무기','갑옷','투구']); if(!slot) return;
+    let slot = await pickEquippedSlotByPrompt(['무기','갑옷','투구']); if(!slot) return;
     let item = game.equipment && game.equipment[slot]; if(!item) return addLog('해당 부위 장비가 없습니다.','attack-monster');
     let pools = {
       '무기':[ ['pctDmg',8,24,2], ['spellFlatPct',6,18,2], ['projectileExtraShots',1,1,3], ['resPen',5,14,2], ['physIgnore',5,14,2], ['flatDmg',12,38,1] ],
@@ -13288,9 +13419,9 @@ function applyUnderworldEnchant(){
     addLog(`⛏️ 지하계 인챈트 성공: [${item.name}] ${getStatName(id)} +${formatValue(id,val)} (비용 구리${costC}/은${costS}/금${costG})`,'loot-rare');
     updateStaticUI();
 }
-function attemptUnderworldLimitBreak(){
+async function attemptUnderworldLimitBreak(){
     if (!assertBuildEditable()) return;
-    let slot = pickEquippedSlotByPrompt(['무기','투구','갑옷','장갑1','장갑2','신발','목걸이','반지1','반지2','허리띠']); if(!slot) return;
+    let slot = await pickEquippedSlotByPrompt(['무기','투구','갑옷','장갑1','장갑2','신발','목걸이','반지1','반지2','허리띠']); if(!slot) return;
     let item = game.equipment && game.equipment[slot]; if(!item) return addLog('해당 부위 장비가 없습니다.','attack-monster');
     let q=Math.floor(item.quality||0); if(q!==20) return addLog('한계돌파는 퀄리티 20%에서만 가능합니다.','attack-monster');
     if(item.qualityLockedByLimitBreak) return addLog('이미 한계돌파를 시도한 장비입니다. 퀄리티 재부여 불가 상태입니다.','attack-monster');
@@ -13324,14 +13455,19 @@ function ensureUnderworldRuneBonusMilestones(no){
     st.bonusLinesByNo[no] = Array.isArray(st.bonusLinesByNo[no]) ? st.bonusLinesByNo[no] : [];
     while (st.bonusLinesByNo[no].length < target) st.bonusLinesByNo[no].push(rollUnderworldRuneBonusLine());
 }
-function enhanceUnderworldRune(){
+async function enhanceUnderworldRune(){
     if (!assertBuildEditable()) return;
     let st=ensureUnderworldRuneState();
-    let v=prompt('강화할 룬 번호(1~30)를 입력하세요.','1'); if(v===null) return;
-    let trimmed = String(v).trim();
-    if (!/^\d+$/.test(trimmed)) return addLog('숫자만 입력할 수 있습니다. 작업을 취소했습니다.', 'attack-monster');
-    let no = Math.floor(Number(trimmed));
-    if (!Number.isFinite(no) || no < 1 || no > 30) return addLog('1~30 범위의 룬 번호를 입력하세요. 작업을 취소했습니다.', 'attack-monster');
+    let no = await requestGameNumber({
+        title: '지하세계 룬 강화',
+        message: '강화할 룬 번호를 선택하세요.',
+        min: 1,
+        max: 30,
+        step: 1,
+        value: 1,
+        confirmLabel: '룬 강화'
+    });
+    if(no===null) return;
     let have=(st.obtainedRunes||[]).some(n=>Math.floor(n||0)===no);
     if(!have) return addLog('해당 번호 룬을 보유해야 강화할 수 있습니다.','attack-monster');
     let lv=Math.max(0,Math.floor(st.enhanceLvByNo[no]||0)); if(lv>=15) return addLog('룬 강화는 최대 +15입니다.','attack-monster');
@@ -13344,14 +13480,19 @@ function enhanceUnderworldRune(){
     addLog(`🧿 룬 강화 성공: 룬${no} +${lv+1} (보너스 옵션 ${bonusCnt}줄)`, 'loot-unique');
     updateStaticUI();
 }
-function rerollUnderworldRuneBonus(){
+async function rerollUnderworldRuneBonus(){
     if (!assertBuildEditable()) return;
     let st=ensureUnderworldRuneState();
-    let v=prompt('리롤할 룬 번호(1~30)를 입력하세요.','1'); if(v===null) return;
-    let trimmed = String(v).trim();
-    if (!/^\d+$/.test(trimmed)) return addLog('숫자만 입력할 수 있습니다. 작업을 취소했습니다.', 'attack-monster');
-    let no = Math.floor(Number(trimmed));
-    if (!Number.isFinite(no) || no < 1 || no > 30) return addLog('1~30 범위의 룬 번호를 입력하세요. 작업을 취소했습니다.', 'attack-monster');
+    let no = await requestGameNumber({
+        title: '룬 보너스 리롤',
+        message: '보너스 옵션을 다시 굴릴 룬 번호를 선택하세요.',
+        min: 1,
+        max: 30,
+        step: 1,
+        value: 1,
+        confirmLabel: '옵션 리롤'
+    });
+    if(no===null) return;
     let lv=Math.max(0,Math.floor((st.enhanceLvByNo||{})[no]||0));
     let lineCount = lv >= 15 ? 3 : (lv >= 10 ? 2 : (lv >= 5 ? 1 : 0));
     if(lineCount<=0) return addLog('해당 룬은 +5 이상부터 리롤할 보너스 옵션이 생깁니다.','attack-monster');

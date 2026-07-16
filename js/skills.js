@@ -234,11 +234,18 @@ function awakenActiveGemCandidate() {
     updateStaticUI();
 }
 
-function applyFossilCraft() {
+async function applyFossilCraft() {
     if ((game.season || 1) < 3) return addLog('미궁 제작은 루프3부터 사용할 수 있습니다.', 'attack-monster');
     let have = Math.max(0, Math.floor(game.currencies.fossil || 0));
     if (have <= 0) return addLog('미궁 화석이 부족합니다.', 'attack-monster');
-    let raw = prompt(`한 번에 정제할 기본 화석 개수를 입력하세요. (최대 ${have})`, String(have));
+    let raw = await requestGameNumber({
+        title: '미궁 화석 정제',
+        message: `한 번에 정제할 기본 화석 개수를 선택하세요.\n보유량: ${have}개`,
+        min: 1,
+        max: have,
+        value: have,
+        confirmLabel: '정제'
+    });
     if (raw === null) return;
     let count = Math.max(0, Math.min(have, Math.floor(Number(raw))));
     if (!Number.isFinite(count) || count <= 0) return addLog('정제 개수가 올바르지 않습니다.', 'attack-monster');

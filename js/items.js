@@ -546,12 +546,16 @@ function changeZone(id) {
 safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked });
 
 // Phase-3 extracted market/crafting service handlers.
-function marketResetPassiveTreeByDivine() {
+async function marketResetPassiveTreeByDivine() {
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
     if ((game.currencies.divine || 0) < 1) return addLog('신성한 오브가 부족합니다.', 'attack-monster');
     let spentNodes = Array.isArray(game.passives) ? game.passives.length : 0;
     if (spentNodes <= 0) return addLog('초기화할 패시브 노드가 없습니다.', 'attack-monster');
-    if (!confirm(`신성한 오브 1개를 사용해 패시브 트리를 전체 초기화하고 포인트 ${spentNodes}점을 반환할까요?`)) return;
+    if (!await requestGameConfirmation(`신성한 오브 1개를 사용해 패시브 트리를 초기화하고 포인트 ${spentNodes}점을 반환합니다.`, {
+        title: '패시브 트리 전체 초기화',
+        tone: 'danger',
+        confirmLabel: '초기화'
+    })) return;
     game.currencies.divine -= 1;
     game.passives = [];
     game.passivePoints += spentNodes;
@@ -561,7 +565,7 @@ function marketResetPassiveTreeByDivine() {
     updateStaticUI();
 }
 
-function marketAnnulSelectedStat(statIdx) {
+async function marketAnnulSelectedStat(statIdx) {
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
@@ -570,7 +574,11 @@ function marketAnnulSelectedStat(statIdx) {
     let idx = Math.floor(Number(statIdx));
     if (!Number.isInteger(idx) || idx < 0 || idx >= item.stats.length) return addLog('소멸할 옵션을 선택하세요.', 'attack-monster');
     let target = item.stats[idx];
-    if (!confirm(`신성한 오브 2개로 [${item.name}]의 옵션 "${target.statName}" 1줄을 소멸시킬까요?`)) return;
+    if (!await requestGameConfirmation(`신성한 오브 2개를 소모하여 [${item.name}]의 "${target.statName}" 옵션을 제거합니다.`, {
+        title: '옵션 소멸',
+        tone: 'danger',
+        confirmLabel: '옵션 제거'
+    })) return;
     game.currencies.divine -= 2;
     item.stats.splice(idx, 1);
     updateItemName(item);
@@ -578,23 +586,29 @@ function marketAnnulSelectedStat(statIdx) {
     updateStaticUI();
 }
 
-function marketExpandInventoryByDivine() {
+async function marketExpandInventoryByDivine() {
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
     let cost = getMarketInventoryExpandCost();
     if ((game.currencies.divine || 0) < cost) return addLog(`신성한 오브가 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (!confirm(`신성한 오브 ${cost}개로 인벤토리를 영구히 5칸 확장할까요?`)) return;
+    if (!await requestGameConfirmation(`신성한 오브 ${cost}개를 소모하여 인벤토리를 영구히 5칸 확장합니다.`, {
+        title: '인벤토리 영구 확장',
+        confirmLabel: '확장'
+    })) return;
     game.currencies.divine -= cost;
     game.inventoryExpandLevel = Math.max(0, Math.floor(game.inventoryExpandLevel || 0)) + 1;
     addLog(`🎒 인벤토리 영구 확장 완료! 현재 최대 칸: ${getInventoryLimit()}`, 'loot-unique');
     updateStaticUI();
 }
 
-function marketExpandJewelInventoryByDivine() {
+async function marketExpandJewelInventoryByDivine() {
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
     if ((game.season || 1) < 5) return addLog('주얼 해금 후 이용할 수 있습니다.', 'attack-monster');
     let cost = getJewelMarketExpandCost();
     if ((game.currencies.divine || 0) < cost) return addLog(`신성한 오브가 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (!confirm(`신성한 오브 ${cost}개로 주얼 인벤토리를 영구히 5칸 확장할까요? (루프 종료 후에도 초기화되지 않음)`)) return;
+    if (!await requestGameConfirmation(`신성한 오브 ${cost}개를 소모하여 주얼 인벤토리를 영구히 5칸 확장합니다.\n이 확장은 루프 종료 후에도 유지됩니다.`, {
+        title: '주얼 인벤토리 영구 확장',
+        confirmLabel: '확장'
+    })) return;
     game.currencies.divine -= cost;
     game.jewelInventoryExpandLevel = Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)) + 1;
     addLog(`💠 주얼 인벤토리 영구 확장 완료! 현재 최대 칸: ${getJewelInventoryLimit()}`, 'loot-unique');

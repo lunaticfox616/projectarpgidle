@@ -148,6 +148,20 @@
         }
     }
 
+    function syncWorkspacePresentation() {
+        let activeWindowId = zOrder.slice().reverse().find(id => {
+            let state = layoutState.windows[id];
+            return state && state.open && !state.minimized;
+        }) || '';
+        let managementMode = isDesktopWindowed() && (!!activeWindowId || !!layoutState.community.open);
+        document.body.classList.toggle('ui-management-mode', managementMode);
+        document.body.classList.toggle('ui-combat-mode', isDesktopWindowed() && !managementMode);
+        if (document.body.dataset) {
+            if (activeWindowId) document.body.dataset.activeGameWindow = activeWindowId;
+            else delete document.body.dataset.activeGameWindow;
+        }
+    }
+
     function focusWindow(tabId) {
         zOrder = zOrder.filter(id => id !== tabId).concat(tabId);
         zOrder.forEach((id, index) => {
@@ -160,6 +174,7 @@
             el.classList.add('ui-window-active');
             el.focus && el.focus({ preventScroll: true });
         }
+        syncWorkspacePresentation();
     }
 
     function openWindow(tabId) {
@@ -169,6 +184,7 @@
         applyWindowState(tabId);
         focusWindow(tabId);
         requestCanvasResize();
+        syncWorkspacePresentation();
         return true;
     }
 
@@ -184,6 +200,7 @@
         });
         if (nextTop) focusWindow(nextTop);
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
     function closeAllWindows() {
@@ -197,11 +214,13 @@
         });
         saveLayoutState();
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
     function minimizeWindow(tabId) {
         persistWindowState(tabId, { open: true, minimized: true });
         applyWindowState(tabId);
+        syncWorkspacePresentation();
     }
 
     function toggleMaximizeWindow(tabId) {
@@ -324,6 +343,7 @@
         applyCommunityMode(el);
         if (typeof renderSocialTab === 'function') renderSocialTab();
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
     function installCommunityDockChrome(panel) {
@@ -357,6 +377,7 @@
             if (handle) handle.remove();
         }
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
     // 채팅은 레일의 커뮤니티 탭이 아니라 전용 말풍선 버튼으로 켜고 끈다.
@@ -713,6 +734,7 @@
         closeCommunityDock();
         toggleGoalDrawer(false);
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
     function requestCanvasResize() {
@@ -812,6 +834,7 @@
             if (dockHeader) dockHeader.remove();
         }
         document.body.classList.remove('community-dock-open', 'community-overlay-open');
+        syncWorkspacePresentation();
     }
 
     function applyResponsiveMode() {
@@ -819,6 +842,7 @@
         document.body.classList.toggle('desktop-windowed-ui', desktop);
         if (!desktop) {
             restoreWindowMarkupForMobile();
+            syncWorkspacePresentation();
             // 목표 서랍은 모바일에서도 같은 선정 로직을 공유하고 표시(배너/하단 시트)만 다르다.
             installGoalDrawer();
             return;
@@ -832,6 +856,7 @@
         installCloseAllButton();
         if (layoutState.goals.expanded) toggleGoalDrawer(true);
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
 
@@ -870,5 +895,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
     else initWindowManager();
 
-    safeExposeGlobals({ openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups });
+    safeExposeGlobals({ openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups, syncWorkspacePresentation });
 }());

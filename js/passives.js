@@ -3036,12 +3036,16 @@ function stabilizeStarWedge(wedgeId) { if (game.woodsmanBuildLock) return addLog
     updateStaticUI();
 }
 
-function destroyStarWedge(wedgeId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+async function destroyStarWedge(wedgeId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let st = ensureStarWedgeState();
     let target = getStarWedgeById(wedgeId);
     if (!target) return addLog('파괴할 별쐐기를 찾을 수 없습니다.', 'attack-monster');
     if (target.eternal) return addLog('영원 고정된 별쐐기는 파괴할 수 없습니다.', 'attack-monster');
-    if (!confirm(`별쐐기 #${wedgeId % 10000} 를 파괴할까요?`)) return;
+    if (!await requestGameConfirmation(`별쐐기 #${wedgeId % 10000}을 파괴하면 장착 상태도 함께 해제됩니다.`, {
+        title: '별쐐기 파괴',
+        tone: 'danger',
+        confirmLabel: '파괴'
+    })) return;
     st.wedges = (st.wedges || []).filter(w => w.id !== wedgeId);
     st.sockets = (st.sockets || []).filter(entry => entry.wedgeId !== wedgeId);
     if (st.selectedWedgeId === wedgeId) st.selectedWedgeId = null;
@@ -3529,6 +3533,10 @@ let battleVisualState = {
     playerHurtBlend: 0,
     playerDownBlend: 0,
     lastNow: 0,
+    visualNow: 0,
+    lastWallNow: 0,
+    hitStopRemainingMs: 0,
+    lastHitStopFxId: 0,
     advanceDesired: false,
     advanceChangedAt: 0
 };
@@ -3748,6 +3756,21 @@ function getBattleHitFeedback(data) {
     return { damageRatio, impactTier, targetMaxHp: maxHp };
 }
 
+const BATTLE_FEEDBACK_PROFILES = Object.freeze({
+    normal: Object.freeze({ hitStopMs: 0, shake: 0, duration: 110 }),
+    crit: Object.freeze({ hitStopMs: 24, shake: 2.5, duration: 155 }),
+    heavy: Object.freeze({ hitStopMs: 40, shake: 4.8, duration: 205 }),
+    annihilate: Object.freeze({ hitStopMs: 62, shake: 8.2, duration: 255 })
+});
+
+function getBattleFeedbackProfile(fx) {
+    if (!fx || fx.dot) return BATTLE_FEEDBACK_PROFILES.normal;
+    if (fx.impactTier === 'annihilate') return BATTLE_FEEDBACK_PROFILES.annihilate;
+    if (fx.impactTier === 'heavy') return BATTLE_FEEDBACK_PROFILES.heavy;
+    if (fx.crit) return BATTLE_FEEDBACK_PROFILES.crit;
+    return BATTLE_FEEDBACK_PROFILES.normal;
+}
+
 function getBattleFxStart(type, data, now) {
     if (!data) return now;
     if (type === 'hit' && data.syncToSwing === true && !data.dot && latestPlayerSwingImpactAt >= now && latestPlayerSwingImpactAt - now <= 340) {
@@ -3765,7 +3788,13 @@ function getBattleFxStart(type, data, now) {
 
 function addBattleFx(type, data) {
     let payload = data || {};
-    let now = performance.now();
+    let wallNow = performance.now();
+    let now = battleVisualState
+        && Number.isFinite(battleVisualState.visualNow)
+        && battleVisualState.visualNow > 0
+        && wallNow - (battleVisualState.lastWallNow || 0) < 250
+        ? battleVisualState.visualNow
+        : wallNow;
     if (type === 'playerSwing') {
         let requestedDelay = Number(payload.impactDelayMs);
         let delay = Number.isFinite(requestedDelay) ? Math.max(0, requestedDelay) : (payload.projectile ? 260 : 205);
@@ -8457,14 +8486,18 @@ function getJewelCurrencyUseState(currencyKey, jewel) {
     return { enabled: rarity !== 'normal', reason: rarity !== 'normal' ? '사용 가능' : '일반 주얼에는 사용 불가' };
 }
 
-function useCurrencyOnJewel(currencyKey, idx) {
+async function useCurrencyOnJewel(currencyKey, idx) {
     game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
     let index = idx === undefined ? getSelectedJewelCraftIndex() : getValidJewelInventoryIndex(idx);
     let jewel = index >= 0 ? game.jewelInventory[index] : null;
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
     let state = getJewelCurrencyUseState(currencyKey, jewel);
     if (!state.enabled) return addLog(state.reason, 'attack-monster');
-    if (currencyKey === 'divine' && !confirm('정말 신성한 오브를 사용하시겠습니까?')) return;
+    if (currencyKey === 'divine' && !await requestGameConfirmation('선택한 주얼에 신성한 오브를 사용합니다.', {
+        title: '희귀 재화 사용',
+        tone: 'danger',
+        confirmLabel: '사용'
+    })) return;
     game.currencies[currencyKey]--;
     applyCurrencyToJewel(currencyKey, jewel);
     selectedJewelCraftIndex = index;
@@ -9154,14 +9187,18 @@ function getActiveRarityFilterSet() {
     return ['normal', 'magic', 'rare', 'unique'].filter(rarity => !!f[rarity]);
 }
 
-function bulkSalvageSelected() {
+async function bulkSalvageSelected() {
     let selectedRarities = getActiveRarityFilterSet();
     if (selectedRarities.length === 0) return addLog('해체할 등급을 먼저 선택하세요. (등급 필터에서 선택)', 'attack-monster');
     let rarityLabels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
     let targetCount = (game.inventory || []).filter(item => item && !item.locked && selectedRarities.includes(item.rarity)).length;
     if (targetCount <= 0) return addLog('선택한 등급의 해체 가능한 장비가 없습니다.', 'attack-monster');
     let labelText = selectedRarities.map(r => rarityLabels[r] || r).join('/');
-    if (!confirm(`[${labelText}] 등급 장비 ${targetCount}개를 해체할까요?`)) return;
+    if (!await requestGameConfirmation(`[${labelText}] 등급 장비 ${targetCount}개를 해체합니다.\n잠긴 장비는 보호됩니다.`, {
+        title: '등급 일괄 해체',
+        tone: 'danger',
+        confirmLabel: `${targetCount}개 해체`
+    })) return;
     let kept = [];
     let removed = 0;
     let lockedSkipped = 0;
@@ -9187,12 +9224,16 @@ function bulkSalvageSelected() {
     addLog(`🧪 선택한 등급 장비 ${removed}개 해체${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
-function bulkSalvageAllInventory() {
+async function bulkSalvageAllInventory() {
     if (!Array.isArray(game.inventory) || game.inventory.length <= 0) return addLog('해체할 장비가 없습니다.', 'attack-monster');
     let lockedCount = game.inventory.filter(item => item && item.locked).length;
     let salvageCount = game.inventory.length - lockedCount;
     if (salvageCount <= 0) return addLog('🔒 잠금되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
-    if (!confirm(`인벤토리 장비 ${salvageCount}개를 모두 해체할까요?${lockedCount > 0 ? ` (잠금 ${lockedCount}개는 보호됨)` : ''}`)) return;
+    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${lockedCount > 0 ? `\n잠금 장비 ${lockedCount}개는 보호됩니다.` : ''}`, {
+        title: '인벤토리 전체 해체',
+        tone: 'danger',
+        confirmLabel: `${salvageCount}개 해체`
+    })) return;
     let kept = [];
     game.inventory.forEach(item => {
         if (item && item.locked) kept.push(item);
@@ -9393,7 +9434,7 @@ function getAnnulmentRemovableStats(item) {
         .filter(row => isRemovableExplicitStat(row.stat));
 }
 
-function useCurrency(currencyKey) {
+async function useCurrency(currencyKey) {
     let item = getSelectedCraftItem();
     if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog("오브가 부족합니다.", "attack-monster");
@@ -9426,7 +9467,11 @@ function useCurrency(currencyKey) {
         ok = ok && Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
     }
     if (!ok) return addLog("지금 선택한 아이템에는 사용할 수 없습니다.", "attack-monster");
-    if (currencyKey === 'divine' && !confirm('정말 신성한 오브를 사용하시겠습니까?')) return;
+    if (currencyKey === 'divine' && !await requestGameConfirmation('선택한 장비에 신성한 오브를 사용합니다.', {
+        title: '희귀 재화 사용',
+        tone: 'danger',
+        confirmLabel: '사용'
+    })) return;
 
     game.sporeCraftModes = game.sporeCraftModes || {};
     let sporeMode = game.sporeCraftModes[currencyKey] || 'none';
@@ -9654,7 +9699,7 @@ function getMarketInventoryExpandCost() {
     return 2 + Math.max(0, Math.floor(game.inventoryExpandLevel || 0));
 }
 
-function exchangeAtMarket(exchangeId, exchangeAll) {
+async function exchangeAtMarket(exchangeId, exchangeAll) {
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
     let recipe = MARKET_EXCHANGES.find(row => row.id === exchangeId);
     if (!recipe) return;
@@ -9666,7 +9711,11 @@ function exchangeAtMarket(exchangeId, exchangeAll) {
     let gain = times * recipe.gain;
     if (exchangeAll) {
         let question = `정말 ${ORB_DB[recipe.from].name} ${spend}개를 ${ORB_DB[recipe.to].name} ${gain}개로 모두 교환하시겠습니까?`;
-        if (!confirm(question)) return;
+        if (!await requestGameConfirmation(question, {
+            title: '재화 전체 교환',
+            tone: 'danger',
+            confirmLabel: '전체 교환'
+        })) return;
     }
     game.currencies[recipe.from] = Math.max(0, (game.currencies[recipe.from] || 0) - spend);
     awardCurrency(recipe.to, gain);
