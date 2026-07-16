@@ -8,6 +8,9 @@ const windowCss = fs.readFileSync('css/ui-windows.css', 'utf8');
 const windowManager = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 const passives = fs.readFileSync('js/passives.js', 'utf8');
 const battlefield = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
+const equipmentRenderer = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
+const gameShell = fs.readFileSync('js/ui-game-shell.js', 'utf8');
+const overhaulCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 
 const productionSources = [
   'index.html',
@@ -36,11 +39,19 @@ assert(battlefield.includes('drawEnemyAttackTelegraphs'), 'enemy attacks need pr
 assert(battlefield.lastIndexOf('drawBattlefieldEnemyHealthBars(ctx') > battlefield.lastIndexOf("fx.type === 'lootCelebration'"), 'health bars must render above combat and loot effects');
 assert(battlefield.indexOf('drawDamageTexts(ctx, now)') > battlefield.lastIndexOf('drawBattlefieldEnemyHealthBars(ctx'), 'damage text must remain the top combat information layer');
 
-assert(windowCss.includes("border-image-source: url('../assets/ui/window-frame-luxe-v1.png')"), 'window art must use a real sliced border');
-assert(windowCss.includes('border-image-slice:'), 'window art must use 9-slice scaling');
+assert(!windowCss.includes('border-image-source:'), 'window frame artwork must remain disabled');
+assert(!html.includes('combat-feed-sub'), 'combat log must not render a LIVE badge container');
+assert(!gameShell.includes("sub.textContent = 'LIVE'"), 'game shell must not restore the LIVE badge');
+assert(passives.includes("text.impactTier === 'annihilate' ? 31"), 'damage number hierarchy should use the reduced font scale');
 assert(windowCss.includes('.ui-management-mode .combat-feed'), 'management screens must reduce combat HUD density');
 assert(windowCss.includes('(max-height: 760px)'), '720p-class layouts need a dedicated compact mode');
 assert(windowCss.includes('(min-aspect-ratio: 21/9)'), 'ultrawide layouts need a dedicated composition');
 assert(windowManager.includes('syncWorkspacePresentation'), 'window state must switch between combat and management presentation');
+assert(html.includes('equipment-workspace'), 'equipment tab needs a dedicated loadout and inventory workspace');
+assert(html.includes('ui-equipment-loadout-summary'), 'equipment tab needs an at-a-glance loadout summary');
+assert(equipmentRenderer.includes('equipment-slot-head'), 'equipped items need semantic slot hierarchy');
+assert(equipmentRenderer.includes('equipment-card-actions'), 'inventory cards need consistent game actions');
+assert(overhaulCss.includes('grid-template-columns: minmax(330px, .82fr) minmax(430px, 1.35fr)'), 'desktop equipment layout should prioritize inventory space');
+assert(overhaulCss.includes('@container (max-width: 860px)'), 'equipment layout must switch composition in narrow windows');
 
 console.log('smoke-steam-ui-combat passed');

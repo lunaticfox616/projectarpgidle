@@ -17,15 +17,9 @@
         overlay.prepend(field);
     }
 
-    function labelCombatFeed() {
-        const sub = document.querySelector('.combat-feed-sub');
-        if (sub && !sub.textContent.trim()) sub.textContent = 'LIVE';
-    }
-
     function initializeGameShell() {
         document.body.classList.add('ui-game-overhaul');
         addStartupMotes();
-        labelCombatFeed();
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeGameShell);

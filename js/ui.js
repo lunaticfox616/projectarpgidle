@@ -7084,6 +7084,40 @@ function shouldRedrawPassiveTree(now) {
     return changed || due;
 }
 
+function renderEquipmentLoadoutSummary(pStats) {
+    let host = document.getElementById('ui-equipment-loadout-summary');
+    let countBadge = document.getElementById('ui-equipped-count');
+    let equipment = game.equipment || {};
+    let slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
+    if (equipment['반지3']) slots.push('반지3');
+    let equipped = slots.map(slot => equipment[slot]).filter(Boolean);
+    if (countBadge) countBadge.textContent = `${equipped.length} / ${slots.length}`;
+    if (host) {
+        let qualityItems = equipped.filter(item => Number(item && item.quality) > 0);
+        let averageQuality = qualityItems.length
+            ? Math.round(qualityItems.reduce((sum, item) => sum + Number(item.quality || 0), 0) / qualityItems.length)
+            : 0;
+        let tierItems = equipped.filter(item => Number.isFinite(Number(item && (item.hiddenTier || item.itemTier))));
+        let averageTier = tierItems.length
+            ? Math.round(tierItems.reduce((sum, item) => sum + Number(item.hiddenTier || item.itemTier || 1), 0) / tierItems.length)
+            : 0;
+        let dps = Math.max(0, Math.floor(Number(pStats && (pStats.totalDps || pStats.dps)) || 0));
+        let defense = Math.max(0, Math.floor((Number(pStats && pStats.armor) || 0) + (Number(pStats && pStats.evasion) || 0) + (Number(pStats && pStats.energyShield) || 0)));
+        host.innerHTML = `
+            <div class="equipment-summary-stat"><span>전투력</span><strong>${formatSettingNumber(dps, 'showCharacterComma')}</strong></div>
+            <div class="equipment-summary-stat"><span>방어 합계</span><strong>${formatSettingNumber(defense, 'showCharacterComma')}</strong></div>
+            <div class="equipment-summary-stat"><span>평균 티어</span><strong>${averageTier > 0 ? `T${averageTier}` : '—'}</strong></div>
+            <div class="equipment-summary-stat"><span>평균 품질</span><strong>${averageQuality > 0 ? `${averageQuality}%` : '—'}</strong></div>`;
+    }
+    let capacityFill = document.getElementById('ui-inventory-capacity-fill');
+    if (capacityFill) {
+        let limit = Math.max(1, Number(getInventoryLimit()) || 1);
+        let pct = Math.max(0, Math.min(100, (game.inventory.length / limit) * 100));
+        capacityFill.style.width = `${pct}%`;
+        capacityFill.classList.toggle('near-capacity', pct >= 80);
+    }
+}
+
 function performUpdateStaticUI() {
     // 진단용 단계별 타이밍. 한 번의 갱신이 150ms를 넘으면(또는 window.__perfLog가 켜져
     // 있으면) 어느 단계가 느린지 콘솔에 한 줄 남긴다. 정상 갱신에는 거의 영향이 없다.
@@ -7208,6 +7242,7 @@ function performUpdateStaticUI() {
 
     if (itemsTabActive) {
     syncSalvageControlsFromSettings();
+    renderEquipmentLoadoutSummary(pStats);
     renderPaperdoll('ui-equip-list', false);
     renderPaperdoll('ui-craft-equip-list', true);
     renderPaperdoll('ui-fossil-equip-list', true);
