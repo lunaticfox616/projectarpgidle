@@ -19,6 +19,9 @@ function makeNode(tag) {
     className: '',
     innerHTML: '',
     textContent: '',
+    style: {},
+    attributes: {},
+    setAttribute(name, value) { this.attributes[name] = String(value); },
     removed: false,
     remove() { this.removed = true; if (this.id) delete nodes[this.id]; },
   };
@@ -35,6 +38,7 @@ const context = {
   document: {
     body,
     getElementById(id) { return nodes[id] || null; },
+    querySelector() { return null; },
     createElement(tag) {
       const node = makeNode(tag);
       Object.defineProperty(node, 'id', {
@@ -45,6 +49,7 @@ const context = {
     },
   },
   game: {},
+  getExpReq: () => 10,
   mergeDefaults: state => state,
   updateStaticUI: () => { context.updated = (context.updated || 0) + 1; },
   renderBattlefield: force => { context.rendered.push(force); },
@@ -54,6 +59,7 @@ const context = {
     context.observedNow.push(context.Date.now());
     context.game.exp += 1;
     context.game.killsInZone += 1;
+    context.game.loopKills += 1;
     if (context.killAfter && context.game.exp >= context.killAfter) context.game.playerHp = 0;
   },
   observedNow: [],
@@ -71,7 +77,7 @@ async function flushTimers() {
 }
 (async () => {
 
-  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], exp: 0, killsInZone: 0 };
+  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const shortResult = await vm.runInContext('startBackgroundCombatReturn(1000 + 59999)', context);
   assert.strictEqual(shortResult, false, 'short return should not run background combat');
@@ -80,7 +86,7 @@ async function flushTimers() {
   assert(context.rendered.includes(true), 'short return should still force-render the battlefield');
   context.rendered = [];
 
-  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], exp: 0, killsInZone: 0 };
+  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const promise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
   await flushTimers();
@@ -94,7 +100,7 @@ async function flushTimers() {
   assert.strictEqual(context.game.exp, onceExp, 'duplicate return should not grant rewards');
 
   context.killAfter = 3;
-  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], exp: 0, killsInZone: 0 };
+  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const deathPromise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
   await flushTimers();

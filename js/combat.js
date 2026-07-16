@@ -8230,9 +8230,11 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
     } else {
-        expLost = Math.floor(getExpReq(game.level) * 0.1);
+        let expPenalty = Math.floor(getExpReq(game.level) * 0.1);
         addLog(message || "☠️ 사망! 경험치 페널티 적용", "death", { noToast: !!opts.noToast });
-        game.exp = Math.max(0, game.exp - expLost);
+        let expBeforePenalty = Math.max(0, Math.floor(Number(game.exp) || 0));
+        game.exp = Math.max(0, expBeforePenalty - expPenalty);
+        expLost = expBeforePenalty - game.exp;
     }
     let damageSummary = buildDeathDamageSummary(3000);
     let ailmentDamageSummary = buildDeathDamageSummary(3000, { ailmentOnly: true });
