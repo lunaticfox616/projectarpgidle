@@ -50,9 +50,13 @@ function getCanvasCrowdPauseLimit() {
 // so the rings/glow do not balloon past the target. When the enemy object is
 // unavailable (ghost/fallback position) we fall back to a much smaller scale.
 function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
+    let variant = (skillVisual && skillVisual.variant) || 'melee';
+    if (fx.chain) variant = 'chain';
+    else if (fx.pierce || fx.penetrate) variant = 'pierce';
+    else if (fx.slam || fx.impactTier === 'annihilate') variant = 'slam';
     const opts = {
         crit: !!fx.crit || fx.impactTier === 'heavy' || fx.impactTier === 'annihilate',
-        variant: (skillVisual && skillVisual.variant) || 'melee'
+        variant
     };
     const element = String(fx.element || 'phys').toLowerCase();
     const screenMul = clampNumber(Number(viewportScale) || 1, 0.68, 1.18);
@@ -62,6 +66,140 @@ function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
     if (fx.impactTier === 'heavy') opts.scale *= 1.22;
     else if (fx.impactTier === 'annihilate') opts.scale *= 1.52;
     return opts;
+}
+
+function requestBattleHitStop(fx) {
+    if (!fx || fx.dot || battleVisualState.lastHitStopFxId === fx.id) return;
+    let profile = typeof getBattleFeedbackProfile === 'function' ? getBattleFeedbackProfile(fx) : null;
+    let duration = Math.max(0, Number(profile && profile.hitStopMs) || 0);
+    battleVisualState.lastHitStopFxId = fx.id;
+    if (duration <= 0) return;
+    battleVisualState.hitStopRemainingMs = Math.max(Number(battleVisualState.hitStopRemainingMs) || 0, duration);
+}
+
+function getEnemyTelegraphColor(enemy) {
+    let element = String((enemy && (enemy.attackElement || enemy.element || enemy.damageElement)) || 'phys').toLowerCase();
+    if (element === 'fire') return { edge: '#ff7b4d', fill: 'rgba(255,76,38,0.18)' };
+    if (element === 'cold') return { edge: '#85d8ff', fill: 'rgba(81,188,255,0.17)' };
+    if (element === 'light' || element === 'lightning') return { edge: '#ffe873', fill: 'rgba(255,222,68,0.17)' };
+    if (element === 'chaos') return { edge: '#cb80ff', fill: 'rgba(169,66,255,0.18)' };
+    return { edge: '#ffb26b', fill: 'rgba(255,135,59,0.16)' };
+}
+
+function drawEnemyAttackTelegraphs(ctx, layout, playerPos, now, gridUnitScale) {
+    (layout || []).forEach(entry => {
+        let enemy = entry.enemy;
+        if (!enemy || enemy.noAttack || enemy.hp <= 0 || !Number.isFinite(Number(enemy.attackTimer))) return;
+        let frozen = (enemy.ailments || []).some(ailment => ailment && ailment.type === 'freeze' && (ailment.time || 0) > 0);
+        if (frozen) return;
+        let threshold = enemy.isBoss ? 0.58 : (enemy.isElite ? 0.7 : 0.82);
+        let charge = Number(enemy.attackTimer) || 0;
+        if (charge < threshold) return;
+        let progress = clampNumber((charge - threshold) / Math.max(0.001, 1 - threshold), 0, 1);
+        let pulse = 0.84 + Math.sin(now / (enemy.isBoss ? 54 : 72)) * 0.16;
+        let palette = getEnemyTelegraphColor(enemy);
+        let ranged = enemy.attackKind === 'ranged';
+        let radiusX = (enemy.isBoss ? 38 : (enemy.isElite ? 29 : 22)) * gridUnitScale;
+        let radiusY = radiusX * 0.43;
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = palette.fill;
+        ctx.strokeStyle = palette.edge;
+        ctx.lineWidth = (enemy.isBoss ? 3.2 : 2) * pulse;
+        ctx.globalAlpha = 0.34 + progress * 0.58;
+        ctx.beginPath();
+        ctx.ellipse(entry.x, entry.y + 8, radiusX * (0.84 + progress * 0.16), radiusY, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        if (ranged && playerPos) {
+            let dx = playerPos.x - entry.x;
+            let dy = (playerPos.y - 10) - (entry.y - 8);
+            let length = Math.max(1, Math.hypot(dx, dy));
+            let nx = -dy / length;
+            let ny = dx / length;
+            let halfWidth = (enemy.isBoss ? 7 : 4) * (0.7 + progress * 0.3);
+            ctx.globalAlpha = 0.18 + progress * 0.42;
+            ctx.beginPath();
+            ctx.moveTo(entry.x + nx * halfWidth, entry.y - 8 + ny * halfWidth);
+            ctx.lineTo(playerPos.x + nx * halfWidth, playerPos.y - 10 + ny * halfWidth);
+            ctx.lineTo(playerPos.x - nx * halfWidth, playerPos.y - 10 - ny * halfWidth);
+            ctx.lineTo(entry.x - nx * halfWidth, entry.y - 8 - ny * halfWidth);
+            ctx.closePath();
+            ctx.fill();
+        }
+        if (enemy.isBoss) {
+            ctx.globalAlpha = 0.42 + progress * 0.5;
+            for (let ray = 0; ray < 6; ray++) {
+                let angle = ray * Math.PI / 3 - Math.PI / 2;
+                let inner = radiusX * 0.72;
+                let outer = radiusX * (0.95 + progress * 0.28);
+                ctx.beginPath();
+                ctx.moveTo(entry.x + Math.cos(angle) * inner, entry.y + 8 + Math.sin(angle) * inner * 0.43);
+                ctx.lineTo(entry.x + Math.cos(angle) * outer, entry.y + 8 + Math.sin(angle) * outer * 0.43);
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+    });
+}
+
+function drawBattlefieldPlayerHealthBar(ctx, playerPos, hpPct, ghostPct, esPct) {
+    let width = 64;
+    let x = Math.round(playerPos.x - width / 2);
+    let y = Math.round(playerPos.y - 82);
+    ctx.save();
+    ctx.globalAlpha = 0.97;
+    ctx.fillStyle = 'rgba(7, 10, 16, 0.9)';
+    ctx.fillRect(x - 2, y - 2, width + 4, 12);
+    ctx.fillStyle = 'rgba(36, 48, 62, 0.95)';
+    ctx.fillRect(x, y, width, 8);
+    if (ghostPct > hpPct + 0.003) {
+        ctx.fillStyle = 'rgba(255, 126, 76, 0.58)';
+        ctx.fillRect(x, y, Math.max(1, Math.round(width * ghostPct)), 8);
+    }
+    ctx.fillStyle = '#20bf6b';
+    ctx.fillRect(x, y, Math.max(2, Math.round(width * hpPct)), 8);
+    if (esPct > 0) {
+        ctx.fillStyle = 'rgba(75,123,236,0.85)';
+        ctx.fillRect(x, y, Math.max(1, Math.round(width * esPct)), 8);
+    }
+    ctx.strokeStyle = 'rgba(200, 232, 255, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - 0.5, y - 0.5, width + 1, 9);
+    ctx.restore();
+}
+
+function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
+    (layout || []).forEach(entry => {
+        let enemy = entry.enemy;
+        let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
+        let width = enemy.isBoss ? 72 : 46;
+        let x = Math.round(entry.x - width / 2);
+        let y = Math.round(entry.y - (enemy.isBoss ? 78 : 56));
+        let targeted = targetIds.includes(enemy.id);
+        ctx.save();
+        ctx.globalAlpha = 0.96;
+        ctx.fillStyle = 'rgba(7, 10, 16, 0.88)';
+        ctx.fillRect(x - 2, y - 2, width + 4, 10);
+        ctx.fillStyle = 'rgba(42, 48, 58, 0.95)';
+        ctx.fillRect(x, y, width, 6);
+        let ghostPct = typeof updateEnemyHpDamageGhost === 'function' ? updateEnemyHpDamageGhost(enemy.id, pct * 100) / 100 : pct;
+        if (ghostPct > pct + 0.002) {
+            ctx.fillStyle = 'rgba(255, 138, 80, 0.58)';
+            ctx.fillRect(x, y, Math.max(2, Math.round(width * ghostPct)), 6);
+        }
+        ctx.fillStyle = targeted ? '#f1c40f' : '#e94f64';
+        ctx.fillRect(x, y, Math.max(2, Math.round(width * pct)), 6);
+        let esPct = (enemy.maxEnergyShield || 0) > 0 ? clampNumber((enemy.energyShield || 0) / Math.max(1, enemy.maxEnergyShield), 0, 1) : 0;
+        if (esPct > 0) {
+            ctx.fillStyle = 'rgba(92, 184, 255, 0.92)';
+            ctx.fillRect(x, y - 4, Math.max(2, Math.round(width * esPct)), 3);
+        }
+        ctx.strokeStyle = targeted ? 'rgba(255, 224, 130, 0.95)' : 'rgba(255,255,255,0.14)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - 0.5, y - 0.5, width + 1, 7);
+        ctx.restore();
+    });
 }
 
 function drawDamageImpactAccent(ctx, fx, t, enemyPosMap) {
@@ -152,8 +290,15 @@ function renderBattlefield(forceWhenHidden) {
     const renderScale = clampNumber(Number(canvas.dataset.renderScale) || 1, 1, 2);
     const width = Math.max(1, canvas.clientWidth || Math.round(canvas.width / renderScale) || canvas.width);
     const height = Math.max(1, canvas.clientHeight || Math.round(canvas.height / renderScale) || canvas.height);
-    const now = performance.now();
-    const deltaMs = battleVisualState.lastNow > 0 ? clampNumber(now - battleVisualState.lastNow, 16, 50) : 16;
+    const wallNow = performance.now();
+    const rawDeltaMs = battleVisualState.lastWallNow > 0 ? clampNumber(wallNow - battleVisualState.lastWallNow, 0, 50) : 16;
+    battleVisualState.lastWallNow = wallNow;
+    if (!Number.isFinite(battleVisualState.visualNow) || battleVisualState.visualNow <= 0) battleVisualState.visualNow = wallNow;
+    let frozenMs = Math.min(rawDeltaMs, Math.max(0, Number(battleVisualState.hitStopRemainingMs) || 0));
+    battleVisualState.hitStopRemainingMs = Math.max(0, (Number(battleVisualState.hitStopRemainingMs) || 0) - frozenMs);
+    const deltaMs = Math.max(0, rawDeltaMs - frozenMs);
+    battleVisualState.visualNow += deltaMs;
+    const now = battleVisualState.visualNow;
     const deltaSec = deltaMs / 1000;
     battleVisualState.lastNow = now;
     cleanupBattleFx(now);
@@ -319,6 +464,7 @@ function renderBattlefield(forceWhenHidden) {
         if (now < fx.start) return;
         let handled = false;
         if (fx.type === 'hit') {
+            requestBattleHitStop(fx);
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
             if (typeof fx.damage === 'number') {
                 spawnDamageText({
@@ -375,6 +521,7 @@ function renderBattlefield(forceWhenHidden) {
     });
     cleanupBattleVisualState(now);
     (battleVisualState.projectiles || []).forEach(projectile => drawVisualProjectile(ctx, projectile, now));
+    drawEnemyAttackTelegraphs(ctx, dynamicLayout, playerPos, now, gridUnitScale);
 
     dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;
@@ -419,31 +566,6 @@ function renderBattlefield(forceWhenHidden) {
     battleVisualState.playerHpLastPct = playerHpPct;
     let playerHpGhostPct = clampNumber(battleVisualState.playerHpGhostPct, playerHpPct, 1);
     let playerEsPct = (pStatsNow.energyShield || 0) > 0 ? clampNumber((game.playerEnergyShield || 0) / Math.max(1, pStatsNow.energyShield), 0, 1) : 0;
-    let pBarWidth = 64;
-    let pBarX = Math.round(playerPos.x - pBarWidth / 2);
-    let pBarY = Math.round(playerPos.y - 82);
-    ctx.save();
-    ctx.globalAlpha = 0.97;
-    ctx.fillStyle = 'rgba(7, 10, 16, 0.9)';
-    ctx.fillRect(pBarX - 2, pBarY - 2, pBarWidth + 4, 12);
-    ctx.fillStyle = 'rgba(36, 48, 62, 0.95)';
-    ctx.fillRect(pBarX, pBarY, pBarWidth, 8);
-    if (playerHpGhostPct > playerHpPct + 0.003) {
-        ctx.fillStyle = 'rgba(255, 126, 76, 0.58)';
-        ctx.fillRect(pBarX, pBarY, Math.max(1, Math.round(pBarWidth * playerHpGhostPct)), 8);
-    }
-    ctx.fillStyle = '#20bf6b';
-    ctx.fillRect(pBarX, pBarY, Math.max(2, Math.round(pBarWidth * playerHpPct)), 8);
-    if (playerEsPct > 0) {
-        ctx.fillStyle = 'rgba(75,123,236,0.85)';
-        let esW = Math.max(1, Math.round(pBarWidth * playerEsPct));
-        ctx.fillRect(pBarX, pBarY, esW, 8);
-    }
-    ctx.strokeStyle = 'rgba(200, 232, 255, 0.55)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(pBarX - 0.5, pBarY - 0.5, pBarWidth + 1, 9);
-    ctx.restore();
-
     let condCast = game.lastConditionGemCast;
     if (condCast && (condCast.expiresAt || 0) > Date.now()) {
         let pulse = 0.6 + Math.sin(now / 80) * 0.4;
@@ -474,35 +596,6 @@ function renderBattlefield(forceWhenHidden) {
         ctx.restore();
     }
     currentTargets = currentTargets.map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
-    dynamicLayout.forEach(entry => {
-        let enemy = entry.enemy;
-        let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
-        let barWidth = enemy.isBoss ? 72 : 46;
-        let barX = Math.round(entry.x - barWidth / 2);
-        let barY = Math.round(entry.y - (enemy.isBoss ? 78 : 56));
-        ctx.save();
-        ctx.globalAlpha = 0.96;
-        ctx.fillStyle = 'rgba(7, 10, 16, 0.88)';
-        ctx.fillRect(barX - 2, barY - 2, barWidth + 4, 10);
-        ctx.fillStyle = 'rgba(42, 48, 58, 0.95)';
-        ctx.fillRect(barX, barY, barWidth, 6);
-        let ghostPct = typeof updateEnemyHpDamageGhost === 'function' ? updateEnemyHpDamageGhost(enemy.id, pct * 100) / 100 : pct;
-        if (ghostPct > pct + 0.002) {
-            ctx.fillStyle = 'rgba(255, 138, 80, 0.58)';
-            ctx.fillRect(barX, barY, Math.max(2, Math.round(barWidth * ghostPct)), 6);
-        }
-        ctx.fillStyle = currentTargets.includes(enemy.id) ? '#f1c40f' : '#e94f64';
-        ctx.fillRect(barX, barY, Math.max(2, Math.round(barWidth * pct)), 6);
-        let esPct = (enemy.maxEnergyShield || 0) > 0 ? clampNumber((enemy.energyShield || 0) / Math.max(1, enemy.maxEnergyShield), 0, 1) : 0;
-        if (esPct > 0) {
-            ctx.fillStyle = 'rgba(92, 184, 255, 0.92)';
-            ctx.fillRect(barX, barY - 4, Math.max(2, Math.round(barWidth * esPct)), 3);
-        }
-        ctx.strokeStyle = currentTargets.includes(enemy.id) ? 'rgba(255, 224, 130, 0.95)' : 'rgba(255,255,255,0.14)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(barX - 0.5, barY - 0.5, barWidth + 1, 7);
-        ctx.restore();
-    });
 
     battleFx.forEach(fx => {
         if (now < fx.start) return;
@@ -647,6 +740,8 @@ function renderBattlefield(forceWhenHidden) {
             ctx.restore();
         }
     });
+    drawBattlefieldPlayerHealthBar(ctx, playerPos, playerHpPct, playerHpGhostPct, playerEsPct);
+    drawBattlefieldEnemyHealthBars(ctx, dynamicLayout, currentTargets);
     drawDamageTexts(ctx, now);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     drawBattleScreenGrade(ctx, width, height, now);
@@ -667,11 +762,16 @@ function getBattleCameraShake(now) {
     let amplitude = 0;
     (battleFx || []).forEach(fx => {
         if (!fx || fx.dot || !['hit', 'playerHit', 'enemyDeath', 'enemySpawn'].includes(fx.type)) return;
-        let duration = fx.impactTier === 'annihilate' ? 260 : (fx.impactTier === 'heavy' ? 210 : (fx.crit ? 180 : 120));
+        let profile = typeof getBattleFeedbackProfile === 'function' ? getBattleFeedbackProfile(fx) : null;
+        let duration = Math.max(80, Number(profile && profile.duration) || 110);
         let age = now - fx.start;
         if (age < 0 || age > duration) return;
-        let hitStrength = fx.impactTier === 'annihilate' ? 10.5 : (fx.impactTier === 'heavy' ? 6.6 : (fx.crit ? 4.1 : 1.8));
-        let strength = fx.type === 'enemyDeath' ? (fx.boss ? 8.4 : 4.8) : (fx.type === 'enemySpawn' ? (fx.boss ? 3.4 : 0) : hitStrength);
+        let hitStrength = Math.max(0, Number(profile && profile.shake) || 0);
+        let strength = fx.type === 'enemyDeath'
+            ? (fx.boss ? 7.8 : (fx.elite ? 2.5 : 0))
+            : (fx.type === 'enemySpawn'
+                ? (fx.boss ? 2.8 : (fx.elite ? 0.8 : 0))
+                : (fx.type === 'playerHit' ? Math.max(1.2, hitStrength * 0.55) : hitStrength));
         amplitude = Math.max(amplitude, strength * (1 - age / duration));
     });
     return {
