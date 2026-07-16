@@ -137,7 +137,14 @@ drop policy if exists "chat_messages_insert_own" on public.chat_messages;
 create policy "chat_messages_insert_own"
     on public.chat_messages for insert
     to authenticated
-    with check (auth.uid() = user_id);
+    with check (
+        auth.uid() = user_id
+        and lower(nickname) = (
+            select lower(profile.nickname)
+            from public.player_profiles profile
+            where profile.user_id = auth.uid()
+        )
+    );
 
 -- 자기 메시지는 수정 가능(닉네임 변경 시 과거 채팅 닉네임 일괄 갱신용).
 drop policy if exists "chat_messages_update_own" on public.chat_messages;

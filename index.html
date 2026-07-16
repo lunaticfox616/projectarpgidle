@@ -894,43 +894,84 @@
     </div>
 
     <div id="tab-skills" class="tab-content">
-        <div class="subtab-row">
-            <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip')">스킬 젬 장착</button>
-            <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')">스킬 젬 강화</button>
-            <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')">컨디션 젬</button>
+        <div class="subtab-row skill-subtab-row">
+            <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip')"><strong>장착 · 보조</strong><small>현재 전투 세팅</small></button>
+            <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')"><strong>성장 · 각인</strong><small>젬 강화와 특수 옵션</small></button>
+            <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')"><strong>자동 사용</strong><small>컨디션 젬 규칙</small></button>
         </div>
         <div id="skill-tab-equip" class="subtab-content active">
-            <div style="display:flex; gap:8px; margin-bottom:10px;">
-                <button id="btn-skill-fold-active" onclick="toggleGemFoldMode('all')" style="flex:1;">전체 보기</button>
-                <button id="btn-skill-fold-inactive-attack" onclick="toggleGemFoldMode('attack')" style="flex:1;">공격 스킬 미사용 접기</button>
-                <button id="btn-skill-fold-inactive-support" onclick="toggleGemFoldMode('support')" style="flex:1;">보조 스킬 미사용 접기</button>
+            <div class="skill-loadout-overview">
+                <div>
+                    <span class="skill-panel-kicker">ACTIVE LOADOUT</span>
+                    <h2>전투 젬 세팅</h2>
+                    <p>주 공격 젬과 보조 젬을 선택해 현재 빌드를 구성합니다. 카드를 누르면 즉시 장착 상태가 변경됩니다.</p>
+                </div>
+                <div id="ui-skill-loadout-summary" class="skill-loadout-summary"></div>
             </div>
-            <h2>⚔️ 공격 스킬</h2>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;" id="ui-skills-list"></div>
-            <h2><span>🟢 보조 스킬</span> <span class="h2-right">장착 가능: <span id="ui-supp-count">0</span> / <span id="ui-supp-max">1</span> · 공명력 <span id="ui-resonance">0</span></span></h2>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;" id="ui-support-list"></div>
+            <div class="skill-library-toolbar">
+                <span>목록 표시</span>
+                <button id="btn-skill-fold-active" onclick="toggleGemFoldMode('all')">전체</button>
+                <button id="btn-skill-fold-inactive-attack" onclick="toggleGemFoldMode('attack')">사용 중 공격 젬</button>
+                <button id="btn-skill-fold-inactive-support" onclick="toggleGemFoldMode('support')">장착 보조 젬</button>
+            </div>
+            <div class="skill-loadout-workspace">
+                <section class="skill-library-panel attack-library">
+                    <div class="skill-library-heading">
+                        <div><span class="skill-panel-kicker">ATTACK GEMS</span><h3>공격 스킬 젬</h3></div>
+                        <span class="skill-library-note">주 공격 1개 · 소환 젬은 한도 내 복수 장착</span>
+                    </div>
+                    <div id="ui-skills-list" class="skill-gem-library"></div>
+                </section>
+                <section class="skill-library-panel support-library">
+                    <div class="skill-library-heading">
+                        <div><span class="skill-panel-kicker">SUPPORT GEMS</span><h3>보조 젬</h3></div>
+                        <span class="skill-library-note">장착 <strong id="ui-supp-count">0</strong>/<strong id="ui-supp-max">1</strong> · 남은 공명 <strong id="ui-resonance">0</strong></span>
+                    </div>
+                    <div id="ui-support-list" class="skill-gem-library"></div>
+                </section>
+            </div>
         </div>
         <div id="skill-tab-enhance" class="subtab-content">
-            <h2 id="ui-gem-enhance-header" style="margin-top:0; display:none;">☁️ 스킬 젬 강화</h2>
-            <div id="ui-gem-enhance-panel" style="display:none; background:#11151c; border:1px solid #32506d; border-radius:10px; padding:12px;">
-                <div id="ui-gem-enhance-target" class="gem-enhance-target"></div>
-                <div class="gem-enhance-section gem-upgrade-section">
-                    <div class="gem-enhance-section-title">🛠️ 강화 섹션</div>
-                    <div class="gem-enhance-section-desc">군주의 핵, 창공의 힘, 퀄리티, 각성 젬 등 젬 자체 성장 기능입니다.</div>
-                    <div id="ui-gem-upgrade-actions" class="gem-enhance-actions"></div>
-                </div>
-                <div class="gem-enhance-section gem-inscription-section">
-                    <div class="gem-enhance-section-title">✒️ 각인 섹션</div>
-                    <div class="gem-enhance-section-desc">창공 각인 슬롯 확장과 공격 젬 특수 옵션 각인을 관리합니다.</div>
-                    <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
+            <div id="ui-gem-enhance-header" class="gem-forge-heading" style="display:none;">
+                <div><span class="skill-panel-kicker">GEM FORGE</span><h2>젬 성장 · 각인 공방</h2></div>
+                <p>공격 젬 하나를 선택한 뒤 기본 성장과 각인 슬롯을 순서대로 관리합니다.</p>
+            </div>
+            <div id="ui-gem-enhance-panel" class="gem-forge-workspace" style="display:none;">
+                <aside class="gem-target-rail">
+                    <div class="gem-target-rail-heading"><span>강화 대상</span><small>보유 공격 젬</small></div>
+                    <div id="ui-gem-enhance-target" class="gem-enhance-target"></div>
+                </aside>
+                <div class="gem-forge-detail">
+                    <div id="ui-gem-resource-strip" class="gem-resource-strip"></div>
+                    <div class="gem-enhance-section gem-upgrade-section">
+                        <div class="gem-enhance-section-head">
+                            <div><span class="gem-section-index">01</span><div><div class="gem-enhance-section-title">기본 성장</div><div class="gem-enhance-section-desc">젬 레벨 보정, 퀄리티와 각성 상태를 강화합니다.</div></div></div>
+                        </div>
+                        <div id="ui-gem-upgrade-actions" class="gem-enhance-actions"></div>
+                    </div>
+                    <div class="gem-enhance-section gem-inscription-section">
+                        <div class="gem-enhance-section-head">
+                            <div><span class="gem-section-index">02</span><div><div class="gem-enhance-section-title">창공 각인</div><div class="gem-enhance-section-desc">슬롯을 확장하고 젬의 전투 성격을 바꾸는 특수 옵션을 선택합니다.</div></div></div>
+                            <div id="ui-gem-engrave-slots" class="gem-engrave-slots"></div>
+                        </div>
+                        <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
+                    </div>
+                    <div class="gem-enhance-section gem-support-process-section">
+                        <div class="gem-enhance-section-head">
+                            <div><span class="gem-section-index">03</span><div><div class="gem-enhance-section-title">보조 젬 가공</div><div class="gem-enhance-section-desc">젬 각인사 Lv.5부터 창공의 힘으로 보조 젬의 등급과 레벨을 올립니다.</div></div></div>
+                        </div>
+                        <div id="ui-support-process-list" class="gem-support-process-list"></div>
+                    </div>
                 </div>
             </div>
         </div>
         <div id="skill-tab-condition" class="subtab-content">
-            <h2 style="margin-top:0;">🧠 컨디션 젬 (젬 사용 조건)</h2>
-            <div style="color:#9db7d6; font-size:0.86em; margin-bottom:10px;">전투 중 위에서부터 순서대로 조건을 검사해, 처음 일치하는 규칙의 젬을 사용합니다.</div>
-            <div id="ui-skill-rules-panel" style="display:grid; gap:8px;"></div>
-            <div style="display:flex; gap:8px; margin-top:10px;">
+            <div class="condition-gem-heading">
+                <div><span class="skill-panel-kicker">AUTOMATION</span><h2>컨디션 젬 자동 사용</h2></div>
+                <p>전투 중 위에서부터 조건을 검사해 처음 일치하는 젬을 사용합니다. 중요한 규칙을 위에 배치하세요.</p>
+            </div>
+            <div id="ui-skill-rules-panel" class="condition-gem-rule-list"></div>
+            <div class="condition-gem-actions">
                 <button onclick="addSkillAutoRule()">+ 규칙 추가</button>
                 <button onclick="sortSkillAutoRules()">우선순위 정렬</button>
             </div>

@@ -30,7 +30,7 @@ vm.runInContext(fs.readFileSync('js/social.js', 'utf8'), context, { filename: 'j
 assert.strictEqual(activeTimers.size, 0, 'cloud session 전에는 social background timers를 시작하지 않아야 한다');
 context.cloudState = { user: { id: 'user-1' } };
 context.cloudJsonRequest = async () => [];
-vm.runInContext("socialState.nickname = '테스터'; syncSocialBackgroundTasks();", context);
+vm.runInContext("setMyNicknameLocal('테스터'); syncSocialBackgroundTasks();", context);
 assert.strictEqual(activeTimers.size, 2, 'cloud session 후 heartbeat와 background notification timer만 시작해야 한다');
 vm.runInContext('syncSocialBackgroundTasks();', context);
 assert.strictEqual(activeTimers.size, 2, 'social background task 동기화는 중복 timer를 만들지 않아야 한다');
