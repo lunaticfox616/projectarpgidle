@@ -191,21 +191,11 @@
   body.desktop-windowed-ui .tab-content.ui-window {
     position: fixed; flex-direction: column; padding: 0;
     background: linear-gradient(165deg, rgba(19, 27, 39, 0.985), rgba(8, 12, 19, 0.985));
-    border: 1px solid transparent; border-radius: 14px;
+    border: 1px solid rgba(92, 119, 151, .72); border-radius: 14px;
     box-shadow: 0 24px 76px rgba(0,0,0,.58), inset 0 0 0 1px rgba(92, 116, 148, .24);
     pointer-events: auto; overflow: hidden; min-width: 280px; min-height: 220px;
     color: #d8e2ef; font-family: "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
     isolation: isolate;
-  }
-  body.desktop-windowed-ui .tab-content.ui-window::before {
-    content: ''; position: absolute; inset: 0; z-index: 7; pointer-events: none;
-    border: 30px solid transparent;
-    border-image-source: url('../assets/ui/window-frame-luxe-v1.png');
-    border-image-slice: 112 128;
-    border-image-width: 30px 34px;
-    border-image-repeat: stretch;
-    opacity: .86;
-    filter: saturate(.82) brightness(.9);
   }
   body.desktop-windowed-ui .tab-content.ui-window.ui-window-open { display: flex; }
   body.desktop-windowed-ui .ui-window-titlebar {
@@ -234,8 +224,7 @@
   body.desktop-windowed-ui .ui-window-resize { position: absolute; z-index: 10; right: 5px; bottom: 5px; width: 26px; height: 26px; cursor: nwse-resize; }
   body.desktop-windowed-ui .ui-window-resize::after { content: ''; position: absolute; right: 5px; bottom: 5px; width: 10px; height: 10px; border-right: 2px solid #d5b66f; border-bottom: 2px solid #d5b66f; filter: drop-shadow(0 1px 1px #000); }
   body.desktop-windowed-ui .ui-window-minimized { display: none !important; }
-  body.desktop-windowed-ui .ui-window-active { box-shadow: 0 24px 74px rgba(0,0,0,.62), 0 0 0 1px rgba(232, 194, 106, 0.3); }
-  body.desktop-windowed-ui .ui-window-active::before { opacity: 1; filter: saturate(1) brightness(1); }
+  body.desktop-windowed-ui .ui-window-active { border-color: rgba(207, 174, 99, .82); box-shadow: 0 24px 74px rgba(0,0,0,.62), 0 0 0 1px rgba(232, 194, 106, 0.18); }
   body.desktop-windowed-ui .ui-window-active .ui-window-titlebar { background: linear-gradient(180deg, #28405e, #19283c); }
 
   /* 콘텐츠 관리 화면을 열면 전장은 맥락만 남기고 HUD 밀도를 낮춘다. */
@@ -282,7 +271,6 @@
   body.desktop-windowed-ui .ui-goal-drawer { left: 130px; }
   body.desktop-windowed-ui .ui-window-titlebar { flex-basis: 38px; padding-inline: 24px; }
   body.desktop-windowed-ui .ui-window-body { padding: 16px 22px 22px; }
-  body.desktop-windowed-ui .tab-content.ui-window::before { border-width: 26px; border-image-width: 26px 30px; }
   body.desktop-windowed-ui #move-area { padding-top: 50px; padding-bottom: 100px; }
   body.desktop-windowed-ui .battlefield-wrap { height: min(100%, 600px) !important; }
   body.desktop-windowed-ui .combat-feed { top: 50px; }

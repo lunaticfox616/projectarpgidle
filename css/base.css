@@ -20,7 +20,6 @@
         body.light-mode #tab-settings .settings-stack > div > div { color: #243247 !important; }
         body.light-mode .combat-feed { background: linear-gradient(180deg, #f7fbff 0%, #eef5fc 100%); border-color: #c7d9eb; }
         body.light-mode .combat-feed-title { color: #2f5f91; }
-        body.light-mode .combat-feed-sub { color: #59728f; }
         body.light-mode #log { background: linear-gradient(180deg, #ffffff 0%, #f3f8ff 100%); border-color: #c7d6e8; color: #203148; box-shadow: inset 0 0 14px rgba(83, 116, 150, 0.12); }
         body.light-mode #log:empty::before { color: #6c7f96; }
         body.light-mode .enemy-card { background: linear-gradient(180deg, #ffffff 0%, #f2f7fd 100%); border-color: #c8d6e8; }

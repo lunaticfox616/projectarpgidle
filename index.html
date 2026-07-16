@@ -308,7 +308,6 @@
             <div class="combat-feed">
                 <div class="combat-feed-title">
                     <span>전투 로그</span>
-                    <span class="combat-feed-sub"></span>
                     <button id="btn-combat-log-toggle" class="combat-log-toggle" onclick="toggleCombatLogCollapse()">접기</button>
                 </div>
                 <div id="log"></div>
@@ -610,21 +609,46 @@
         </div>
 
         <div id="item-tab-equip" class="subtab-content active">
-            <h2>🛡️ 장착 중인 장비</h2>
-            <div class="paperdoll" id="ui-equip-list"></div>
+            <div class="equipment-workspace">
+                <section class="equipment-loadout-panel">
+                    <div class="equipment-section-heading">
+                        <div>
+                            <span class="equipment-section-kicker">LOADOUT</span>
+                            <h2>장착 장비</h2>
+                        </div>
+                        <span id="ui-equipped-count" class="equipment-count-badge">0 / 11</span>
+                    </div>
+                    <div id="ui-equipment-loadout-summary" class="equipment-loadout-summary"></div>
+                    <div class="paperdoll equipment-paperdoll" id="ui-equip-list"></div>
+                    <div class="equipment-panel-hint">장비를 두 번 클릭하면 해제됩니다. 장비 위에 마우스를 올리면 전체 옵션을 확인할 수 있습니다.</div>
+                </section>
 
-            <h2 style="margin-top: 20px;">
-                <span>🎒 인벤토리 (<span id="ui-inv-count">0</span> / <span id="ui-inv-limit">30</span>)</span>
-            </h2>
-            <div class="bulk-salvage-bar">
-                <div class="bulk-salvage-filters">
-                    <span class="inventory-view-filter-label" title="켜진 등급만 인벤토리에 표시되며, '선택 등급 해체'의 대상이 됩니다. (자동해체와는 별개)">등급</span>
-                    <div class="inventory-view-filter" id="ui-inventory-rarity-filter"></div>
-                </div>
-                <div style="display:flex; gap:8px;"><button class="bulk-salvage-action" style="background:#5d6d7e; border-color:#465664;" onclick="bulkSalvageAllInventory()" title="잠금되지 않은 모든 장비를 해체합니다.">전체해체</button><button class="bulk-salvage-action" onclick="bulkSalvageSelected()" title="등급 필터에서 켜진(표시 중인) 등급의 장비를 해체합니다.">선택 등급 해체</button><button id="btn-auto-salvage" class="bulk-salvage-action" onclick="openAutoSalvageConfigOverlay()" title="자동해체 설정 (대상 등급은 표시 필터와 별개로 지정합니다.)">자동해체 OFF</button></div>
+                <section class="equipment-inventory-panel">
+                    <div class="equipment-section-heading equipment-inventory-heading">
+                        <div>
+                            <span class="equipment-section-kicker">STASH</span>
+                            <h2>인벤토리</h2>
+                        </div>
+                        <div class="equipment-capacity">
+                            <strong><span id="ui-inv-count">0</span> / <span id="ui-inv-limit">30</span></strong>
+                            <span>보관 슬롯</span>
+                            <div class="equipment-capacity-track"><span id="ui-inventory-capacity-fill"></span></div>
+                        </div>
+                    </div>
+                    <div class="bulk-salvage-bar equipment-inventory-toolbar">
+                        <div class="bulk-salvage-filters">
+                            <span class="inventory-view-filter-label" title="켜진 등급만 인벤토리에 표시되며, '선택 등급 해체'의 대상이 됩니다. (자동해체와는 별개)">표시 등급</span>
+                            <div class="inventory-view-filter" id="ui-inventory-rarity-filter"></div>
+                        </div>
+                        <div class="equipment-salvage-actions">
+                            <button class="bulk-salvage-action equipment-action-muted" onclick="bulkSalvageAllInventory()" title="잠금되지 않은 모든 장비를 해체합니다.">전체 해체</button>
+                            <button class="bulk-salvage-action" onclick="bulkSalvageSelected()" title="등급 필터에서 켜진(표시 중인) 등급의 장비를 해체합니다.">표시 등급 해체</button>
+                            <button id="btn-auto-salvage" class="bulk-salvage-action" onclick="openAutoSalvageConfigOverlay()" title="자동해체 설정 (대상 등급은 표시 필터와 별개로 지정합니다.)">자동해체 OFF</button>
+                        </div>
+                    </div>
+                    <div class="inventory-grid equipment-inventory-grid" id="ui-inventory-list"></div>
+                </section>
             </div>
-            <div class="inventory-grid" id="ui-inventory-list"></div>
-
         </div>
 
         <div id="item-tab-craft" class="subtab-content">

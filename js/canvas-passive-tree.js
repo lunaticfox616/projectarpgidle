@@ -531,6 +531,7 @@ function highlightEquipTextLocal(text, query) {
 function renderPaperdoll(targetId, forCrafting) {
     let html = '';
     let query = getEquipSearchQueryLocal();
+    const slotIcons = { '무기': '⚔', '투구': '♜', '목걸이': '◇', '장갑1': '✦', '장갑2': '✦', '갑옷': '🛡', '방패': '◈', '반지1': '○', '반지2': '○', '반지3': '○', '허리띠': '▬', '신발': '♟' };
     let hi = (text) => {
         try {
             if (typeof highlightSearchText === 'function') return highlightSearchText(text, query);
@@ -571,14 +572,25 @@ function renderPaperdoll(targetId, forCrafting) {
             let canSelectFromEquipTab = !forCrafting && targetId === 'ui-equip-list';
             let click = (forCrafting || canSelectFromEquipTab) ? `selectForCrafting('${slot}', true)` : '';
             let doubleClick = `event.stopPropagation(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
-            let footer = forCrafting ? `<button style="font-size:0.7em; padding:2px;" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">선택</button>` : `<button style="font-size:0.7em; padding:2px;" onclick="event.stopPropagation(); unequipItem('${slot}')">해제</button>`;
+            let footer = forCrafting
+                ? `<button class="equipment-slot-action" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">제작 선택</button>`
+                : `<button class="equipment-slot-action" onclick="event.stopPropagation(); unequipItem('${slot}')">장착 해제</button>`;
             let sourceMeta = getDropOnlyItemSourceMeta(item);
             let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
             let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
             let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-            html += `<div class="slot-box slot-${slot} ${selected ? 'selected' : ''} ${sourceTone}" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"><div class="item-title ${item.rarity}" style="font-size:0.9em; margin-bottom:2px;">[${displaySlot}] ${item.name}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${sourceBadge}</div><div class="item-stats" style="font-size:0.74em; margin-bottom:4px;">${statsHtml}</div>${footer}</div>`;
+            html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-slot="${slot}" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()">
+                <div class="equipment-slot-head"><span class="equipment-slot-icon">${slotIcons[slot] || '◆'}</span><span>${displaySlot}</span></div>
+                <div class="item-title equipment-slot-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${sourceBadge}</div>
+                <div class="item-stats equipment-slot-stats">${statsHtml || '<span>옵션 정보 없음</span>'}</div>
+                ${footer}
+            </div>`;
         } else {
-            html += `<div class="slot-box slot-${slot}" style="color:#3d3d5c; text-align:center; font-size:0.8em;">[${displaySlot}]<br>비어있음</div>`;
+            html += `<div class="slot-box equipment-slot equipment-slot-empty slot-${slot}" data-slot="${slot}">
+                <div class="equipment-slot-head"><span class="equipment-slot-icon">${slotIcons[slot] || '◆'}</span><span>${displaySlot}</span></div>
+                <div class="equipment-empty-mark">＋</div>
+                <div class="equipment-empty-label">비어 있음</div>
+            </div>`;
         }
     });
     document.getElementById(targetId).innerHTML = html;
@@ -608,11 +620,11 @@ function renderInventoryCard(item, idx, mode) {
     if (item.chaosInfusion) metaBits.push('혼돈 주입');
     if (item.encroached && !item.encroached.liberated) metaBits.push('잠식 · 해방 전');
     if (item.fusedRelic) metaBits.push('융합 유물');
-    let metaLine = `<span style="color:#8fa7be;">${metaBits.length ? metaBits.join(' · ') : '추가 옵션 없음'} · <span style="color:#7f96ad;">호버 시 상세</span></span>`;
+    let metaChips = (metaBits.length ? metaBits : ['추가 옵션 없음']).map(bit => `<span class="equipment-meta-chip">${bit}</span>`).join('');
     let actions = '';
-    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button style="background:#35506a; border-color:#3f6486;" onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
-    else if (mode === 'fossil') actions = `<div class="item-actions"><button style="flex:1; background:#35506a;" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
-    else actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button style="background:#35506a;" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
+    if (mode === 'equip') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${item.locked ? 'disabled' : ''}>해체</button></div>`;
+    else if (mode === 'fossil') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
+    else actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${item.locked ? 'disabled' : ''}>해체</button></div>`;
     let doubleClick = mode === 'equip' ? ` ondblclick="event.stopPropagation(); handleInventoryCardDoubleClick(${item.id}, 'equip')"` : '';
     let recordedTag = '';
     if (item.rarity === 'unique') {
@@ -624,7 +636,16 @@ function renderInventoryCard(item, idx, mode) {
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
     let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    return `<div class="item-card ${selected ? 'selected' : ''} ${sourceTone}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${hi(item.slot)}] ${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${lockIcon}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${hi(item.baseName)}</div><div class="item-stats">${metaLine}</div></div>${actions}</div>`;
+    let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || item.rarity || '일반';
+    return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()">
+        <div class="equipment-card-main">
+            <div class="equipment-card-topline"><span class="equipment-card-slot">${hi(item.slot)}</span><span class="equipment-card-rarity">${rarityLabel}</span>${lockIcon}</div>
+            <div class="item-title equipment-card-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>
+            <div class="item-base-line equipment-card-base">${hi(item.baseName)}</div>
+            <div class="item-stats equipment-card-meta">${metaChips}<span class="equipment-meta-detail">상세 보기</span></div>
+        </div>
+        ${actions}
+    </div>`;
 }
 
 function triggerMapUnlockReveal(zoneId) {
