@@ -62,6 +62,7 @@ assert(ui.includes('renderAttackGemCard'), 'attack gems need semantic loadout ca
 assert(ui.includes('renderGemEngraveSlots'), 'engraving capacity needs a visible slot presentation');
 assert(ui.includes('renderSupportGemProcessList'), 'support gem processing needs a dedicated renderer');
 assert(skills.includes('getSupportGemSkyProcessState'), 'support processing cost and max-state rules need a shared calculation');
+assert(skills.includes("getSupportTierCap === 'function' ? getSupportTierCap(name) : 3"), 'support processing must respect tierless gem caps');
 assert(skills.includes("if (processState.maxed) return addLog('해당 보조 젬은 이미 최대 등급·레벨입니다.'"), 'maxed support gems must not consume processing currency');
 assert(overhaulCss.includes('.skill-loadout-summary'), 'skill loadout needs an at-a-glance build summary');
 assert(overhaulCss.includes('.gem-engrave-option.group-awakened'), 'awakened engravings need a distinct visual tier');
