@@ -27,6 +27,9 @@ const SOCIAL_EQUIP_SLOTS = ['무기', '투구', '목걸이', '장갑1', '갑옷'
 
 let socialState = {
     nickname: '',
+    nicknameUserId: null,
+    identityCheckedUserId: null,
+    identityCheckPromise: null,
     chatPollTimer: null,
     heartbeatTimer: null,
     bgNotificationTimer: null,
@@ -34,7 +37,8 @@ let socialState = {
     onlineLoading: false,
     lastChatRenderKey: '',
     lastOnlineRenderKey: '',
-    profileUploadInFlight: false,
+    profileUploadPromise: null,
+    profileUploadUserId: null,
     lastProfileUploadAt: 0,
     onlineSupported: true,
     pendingChatItems: [],
@@ -60,14 +64,47 @@ function socialEscape(text) {
     return String(text == null ? '' : text).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
 function socialComma(n) { return (Math.floor(Number(n) || 0)).toLocaleString('en-US'); }
+function getSocialNicknameStorageKey(userId) {
+    return userId ? `${SOCIAL_NICK_KEY}:${userId}` : '';
+}
+function syncSocialIdentityUser() {
+    let userId = socialLoggedInUserId();
+    if (socialState.nicknameUserId === userId) return userId;
+    socialState.nickname = '';
+    socialState.nicknameUserId = userId || null;
+    socialState.identityCheckedUserId = null;
+    socialState.identityCheckPromise = null;
+    try {
+        if (typeof localStorage !== 'undefined' && typeof localStorage.removeItem === 'function') localStorage.removeItem(SOCIAL_NICK_KEY);
+    } catch (error) {
+        console.warn('이전 소셜 닉네임 캐시 정리 실패:', error);
+    }
+    return userId;
+}
 function getMyNickname() {
+    let userId = syncSocialIdentityUser();
+    if (!userId) return '';
     if (socialState.nickname) return socialState.nickname;
-    try { let s = localStorage.getItem(SOCIAL_NICK_KEY); if (s) socialState.nickname = s; } catch (e) { /* 무시 */ }
+    try {
+        let key = getSocialNicknameStorageKey(userId);
+        let stored = key && localStorage.getItem(key);
+        if (stored) socialState.nickname = stored;
+    } catch (error) {
+        console.warn('소셜 닉네임 캐시 읽기 실패:', error);
+    }
     return socialState.nickname || '';
 }
 function setMyNicknameLocal(name) {
-    socialState.nickname = name || '';
-    try { localStorage.setItem(SOCIAL_NICK_KEY, socialState.nickname); } catch (e) { /* 무시 */ }
+    let userId = syncSocialIdentityUser();
+    socialState.nickname = userId ? (name || '') : '';
+    if (!userId) return;
+    try {
+        let key = getSocialNicknameStorageKey(userId);
+        if (socialState.nickname) localStorage.setItem(key, socialState.nickname);
+        else if (typeof localStorage.removeItem === 'function') localStorage.removeItem(key);
+    } catch (error) {
+        console.warn('소셜 닉네임 캐시 저장 실패:', error);
+    }
 }
 function socialClassLabel(ascendClass) {
     if (ascendClass && typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[ascendClass]) return CLASS_TEMPLATES[ascendClass].name;
@@ -225,38 +262,79 @@ function buildProfileSnapshot() {
     };
 }
 
-async function uploadPlayerProfile(options = {}) {
-    if (!socialCloudReady()) return false;
-    let nickname = getMyNickname();
-    if (!nickname) return false;
-    if (socialState.profileUploadInFlight && !options.fromNicknameChange) return false;
-    socialState.profileUploadInFlight = true;
+function getProfileUploadError(error) {
+    let message = String(error && error.message || error);
+    let translated = error instanceof Error ? error : new Error(message);
+    if (/NICK_COOLDOWN/.test(message)) translated = new Error('닉네임은 하루에 한 번만 변경할 수 있습니다.');
+    if (/duplicate|unique|nickname/i.test(message)) {
+        translated = new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.');
+        translated.socialCode = 'nickname_conflict';
+    }
+    return translated;
+}
+async function performPlayerProfileUpload(options, userId, nickname) {
     try {
         let snapshot = buildProfileSnapshot();
         await cloudJsonRequest('/rest/v1/player_profiles', {
             method: 'POST',
             headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
             // last_seen / nickname_updated_at 은 DB 기본값·트리거·하트비트가 관리한다.
-            body: { user_id: socialLoggedInUserId(), nickname, profile_data: snapshot }
+            body: { user_id: userId, nickname, profile_data: snapshot }
         });
         socialState.lastProfileUploadAt = Date.now();
         return true;
-    } catch (e) {
-        let msg = String(e && e.message || e);
-        if (options.fromNicknameChange) {
-            if (/NICK_COOLDOWN/.test(msg)) throw new Error('닉네임은 하루에 한 번만 변경할 수 있습니다.');
-            if (/duplicate|unique|nickname/i.test(msg)) throw new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.');
-            throw e;
-        }
-        if (!options.silent) console.warn('프로필 업로드 실패:', e);
+    } catch (error) {
+        let translated = getProfileUploadError(error);
+        if (options.fromNicknameChange || options.required) throw translated;
+        if (!options.silent) console.warn('프로필 업로드 실패:', error);
         return false;
+    }
+}
+async function uploadPlayerProfile(options = {}) {
+    if (!socialCloudReady()) {
+        if (options.required) throw new Error('클라우드 로그인 상태를 확인할 수 없습니다.');
+        return false;
+    }
+    let userId = syncSocialIdentityUser();
+    let nickname = getMyNickname();
+    if (!nickname) {
+        if (options.required) throw new Error('먼저 닉네임을 설정해주세요.');
+        return false;
+    }
+    let inFlight = socialState.profileUploadPromise;
+    if (inFlight && socialState.profileUploadUserId === userId) {
+        if (!options.fromNicknameChange) return inFlight;
+        try { await inFlight; } catch (error) { console.warn('이전 프로필 갱신 실패:', error); }
+    }
+    let task = performPlayerProfileUpload(options, userId, nickname);
+    socialState.profileUploadPromise = task;
+    socialState.profileUploadUserId = userId;
+    try {
+        return await task;
     } finally {
-        socialState.profileUploadInFlight = false;
+        if (socialState.profileUploadPromise === task) {
+            socialState.profileUploadPromise = null;
+            socialState.profileUploadUserId = null;
+        }
     }
 }
 function syncPlayerProfileQuiet() {
     if (!socialCloudReady() || !getMyNickname()) return;
     Promise.resolve(uploadPlayerProfile({ silent: true })).catch(() => {});
+}
+async function syncPlayerProfile() {
+    if (!socialCloudReady()) return showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning');
+    await restoreNicknameFromServer();
+    if (!getMyNickname()) await promptAndSetNickname();
+    if (!getMyNickname()) return;
+    try {
+        await uploadPlayerProfile({ required: true });
+        showGameToast('공개 프로필을 최신 상태로 갱신했습니다.', 'success');
+    } catch (error) {
+        if (error && error.socialCode === 'nickname_conflict') setMyNicknameLocal('');
+        showGameToast('프로필 갱신 실패: ' + String(error && error.message || error), 'danger');
+        renderSocialTab();
+    }
 }
 
 // ============================================================================
@@ -303,11 +381,29 @@ async function promptAndSetNickname() {
     }
 }
 async function restoreNicknameFromServer() {
-    if (!socialCloudReady() || getMyNickname()) return;
+    if (!socialCloudReady()) return '';
+    let userId = syncSocialIdentityUser();
+    if (socialState.identityCheckedUserId === userId) return getMyNickname();
+    if (socialState.identityCheckPromise) return socialState.identityCheckPromise;
+    let task = (async () => {
+        try {
+            let rows = await cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(userId)}&select=nickname`, {});
+            let serverNickname = Array.isArray(rows) && rows[0] ? String(rows[0].nickname || '') : '';
+            if (socialLoggedInUserId() !== userId) return '';
+            if (serverNickname) setMyNicknameLocal(serverNickname);
+            socialState.identityCheckedUserId = userId;
+            return getMyNickname();
+        } catch (error) {
+            console.warn('서버 닉네임 복원 실패:', error);
+            return getMyNickname();
+        }
+    })();
+    socialState.identityCheckPromise = task;
     try {
-        let rows = await cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(socialLoggedInUserId())}&select=nickname`, {});
-        if (Array.isArray(rows) && rows[0] && rows[0].nickname) setMyNicknameLocal(rows[0].nickname);
-    } catch (e) { /* 무시 */ }
+        return await task;
+    } finally {
+        if (socialState.identityCheckPromise === task) socialState.identityCheckPromise = null;
+    }
 }
 
 // ============================================================================
@@ -434,6 +530,11 @@ function syncSocialBackgroundTasks() {
     ensureSocialNotificationPolling();
     if (getMyNickname()) ensureHeartbeat();
     else stopHeartbeat();
+    if (socialState.identityCheckedUserId !== socialLoggedInUserId()) {
+        Promise.resolve(restoreNicknameFromServer()).then(nickname => {
+            if (nickname && socialCloudReady()) ensureHeartbeat();
+        }).catch(error => console.warn('소셜 계정 정보 동기화 실패:', error));
+    }
 }
 
 async function loadChatMessages() {
@@ -458,6 +559,7 @@ function translateSpamError(msg) {
 }
 async function sendChatMessage() {
     if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
+    await restoreNicknameFromServer();
     let nickname = getMyNickname();
     if (!nickname) { await promptAndSetNickname(); if (!getMyNickname()) return; nickname = getMyNickname(); }
     let inputEl = document.getElementById('social-chat-input');
@@ -472,12 +574,13 @@ async function sendChatMessage() {
 
     let payload = items.length ? { items } : null;
     let prevPending = socialState.pendingChatItems.slice();
-    inputEl.value = '';
-    socialState.pendingChatItems = [];
-    renderPendingChatItems();
-    updateChatCounter();
     try {
-        syncPlayerProfileQuiet();
+        await uploadPlayerProfile({ required: true });
+        nickname = getMyNickname();
+        inputEl.value = '';
+        socialState.pendingChatItems = [];
+        renderPendingChatItems();
+        updateChatCounter();
         await cloudJsonRequest('/rest/v1/chat_messages', {
             method: 'POST', headers: { Prefer: 'return=minimal' },
             body: { user_id: socialLoggedInUserId(), nickname, body: body || '🔗', payload }
@@ -486,6 +589,7 @@ async function sendChatMessage() {
         socialState.lastSentBody = body;
         await refreshChatPanel(true);
     } catch (e) {
+        if (e && e.socialCode === 'nickname_conflict') setMyNicknameLocal('');
         inputEl.value = body;
         socialState.pendingChatItems = prevPending;
         renderPendingChatItems();
@@ -797,8 +901,15 @@ function closePlayerProfile() { hideSocialTip(); let m = document.getElementById
 // 업로드해 남들이 보게 될 것과 동일한 최신 프로필을 보여준다.
 async function openMyProfilePreview() {
     if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
-    if (getMyNickname()) {
-        try { await uploadPlayerProfile({ silent: true }); } catch (e) { /* 실패해도 기존 프로필로 열기 */ }
+    await restoreNicknameFromServer();
+    if (!getMyNickname()) await promptAndSetNickname();
+    if (!getMyNickname()) return;
+    try {
+        await uploadPlayerProfile({ required: true });
+    } catch (error) {
+        if (error && error.socialCode === 'nickname_conflict') setMyNicknameLocal('');
+        showGameToast('프로필 갱신 실패: ' + String(error && error.message || error), 'danger');
+        return;
     }
     openPlayerProfile(socialLoggedInUserId());
 }
@@ -880,7 +991,7 @@ function switchProfileTab(cat) {
 function renderProfileData(profile) {
     let body = document.getElementById('social-profile-body');
     if (!body) return;
-    if (!profile) { body.innerHTML = `<div class="social-profile-empty">프로필을 찾을 수 없습니다.<br>상대가 아직 게임을 클라우드에 저장하지 않았을 수 있어요.</div>`; return; }
+    if (!profile) { body.innerHTML = `<div class="social-profile-empty">공개 프로필을 찾을 수 없습니다.<br>프로필 생성 또는 동기화가 완료되지 않았을 수 있어요.</div>`; return; }
     socialState.currentProfile = profile;
     socialState.profileTab = 'equipment';
     let p = profile;
@@ -968,7 +1079,7 @@ function renderSocialTab() {
             <span class="social-mynick">내 닉네임: <strong>${nickname ? socialEscape(nickname) : '<span style="color:#e88;">미설정</span>'}</strong></span>
             <button onclick="promptAndSetNickname()">${nickname ? '닉네임 변경' : '닉네임 설정'}</button>
             <button onclick="openMyProfilePreview()">내 프로필 미리보기</button>
-            <button onclick="syncPlayerProfileQuiet()" title="현재 장비/스탯을 공개 프로필에 반영">프로필 갱신</button>
+            <button onclick="syncPlayerProfile()" title="현재 장비/스탯을 공개 프로필에 반영">프로필 갱신</button>
         </div>
         <div id="social-online" class="social-online" style="display:none;"></div>
         <div class="social-chat-wrap">
@@ -988,7 +1099,7 @@ function renderSocialTab() {
     updateChatCounter();
     ensureHeartbeat();
     startChatPolling();
-    if (!nickname) restoreNicknameFromServer().then(() => { if (getMyNickname()) renderSocialTab(); });
+    restoreNicknameFromServer().then(restored => { if (restored !== nickname) renderSocialTab(); });
 }
 
 // ============================================================================
@@ -1092,7 +1203,7 @@ if (typeof document !== 'undefined') {
 
 if (typeof safeExposeGlobals === 'function') {
     safeExposeGlobals({
-        socialState, getMyNickname, promptAndSetNickname, uploadPlayerProfile, syncPlayerProfileQuiet,
+        socialState, getMyNickname, promptAndSetNickname, uploadPlayerProfile, syncPlayerProfileQuiet, syncPlayerProfile,
         sendChatMessage, onSocialChatKeydown, refreshChatPanel, startChatPolling, stopChatPolling,
         openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
