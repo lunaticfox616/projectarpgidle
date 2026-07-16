@@ -3964,6 +3964,143 @@ function toggleGemFoldMode(mode) {
     updateStaticUI();
 }
 
+function getGemCardMeta(def) {
+    let tags = Array.isArray(def && def.tags) ? def.tags : [];
+    let element = String((def && def.ele) || (tags.includes('fire') ? 'fire' : tags.includes('cold') ? 'cold' : tags.includes('lightning') ? 'light' : tags.includes('chaos') ? 'chaos' : 'phys'));
+    let elementMap = {
+        fire: { icon: '◆', label: '화염', className: 'fire' },
+        cold: { icon: '✦', label: '냉기', className: 'cold' },
+        light: { icon: 'ϟ', label: '번개', className: 'lightning' },
+        lightning: { icon: 'ϟ', label: '번개', className: 'lightning' },
+        chaos: { icon: '◈', label: '카오스', className: 'chaos' },
+        phys: { icon: '◇', label: '물리', className: 'physical' },
+        physical: { icon: '◇', label: '물리', className: 'physical' }
+    };
+    let typeLabel = tags.includes('summon_attack') ? '소환' : tags.includes('spell') ? '주문' : tags.includes('projectile') ? '투사체' : tags.includes('slam') ? '강타' : '공격';
+    let presentation = elementMap[element] || elementMap.phys;
+    return { typeLabel: typeLabel, icon: presentation.icon, elementLabel: presentation.label, className: presentation.className };
+}
+
+function renderGemTagChips(def, maxTags) {
+    let tags = typeof getSkillTagList === 'function' ? getSkillTagList(def || {}) : ((def && def.tags) || []);
+    return tags.slice(0, maxTags || 4).map(tag => `<span>${escapeHTML(tag)}</span>`).join('');
+}
+
+function renderAttackGemCard(name, highlightedName) {
+    let def = SKILL_DB[name] || {};
+    let gemInfo = getUiGemPresentation(name, false);
+    let meta = getGemCardMeta(def);
+    let isSummon = Array.isArray(def.tags) && def.tags.includes('summon_attack');
+    let summonEquipped = isSummon && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name);
+    let active = name === game.activeSkill || summonEquipped;
+    let usageLabel = summonEquipped ? `소환 ${getSummonSkillCount(name)}기` : name === game.activeSkill ? '주 공격 사용 중' : '클릭하여 장착';
+    let summonControls = summonEquipped ? `<span class="summon-gem-controls"><button class="summon-gem-count-btn" title="소환 해제" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', -1)">−</button><span class="summon-gem-count">${getSummonSkillCount(name)}기</span><button class="summon-gem-count-btn" title="추가 소환" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', 1)">+</button></span>` : '';
+    let sealButton = active || name === '기본 공격' ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
+    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''}" onclick="changeSkill('${name}')" aria-pressed="${active}" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
+        <div class="gem-card-head"><span class="gem-card-sigil">${meta.icon}</span><div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
+        <p>${escapeHTML(def.desc || '공격 스킬 젬')}</p>
+        <div class="gem-card-tags">${renderGemTagChips(def, 4)}</div>
+        <div class="gem-card-footer"><span class="gem-usage-state">${active ? '● ' : ''}${usageLabel}</span>${summonControls}${sealButton}</div>
+    </article>`;
+}
+
+function renderSupportGemCard(name, highlightedName) {
+    let def = SUPPORT_GEM_DB[name] || {};
+    let gemInfo = getUiGemPresentation(name, true);
+    let active = Array.isArray(game.equippedSupports) && game.equippedSupports.includes(name);
+    let tierCap = typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3;
+    let unlockedTier = Math.max(1, Math.min(tierCap, Math.floor((((game.supportGemData || {})[name]) || {}).unlockedTier || 1)));
+    let activeTier = getSupportActiveTier(name);
+    let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, activeTier) : (activeTier === 3 ? '상급' : activeTier === 2 ? '중급' : '하급');
+    let cost = getSupportTierResonanceCost(name);
+    let tierButtons = tierCap <= 1 ? '' : [1, 2, 3].map(tier => `<button class="${tier === activeTier ? 'active' : ''}" title="${tier <= unlockedTier ? `${tier}등급 사용` : '미해금 등급'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${tier})" ${tier <= unlockedTier ? '' : 'disabled'}>${tier}</button>`).join('');
+    let sealButton = active ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSupportGem('${name}')">봉인</button>`;
+    return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''}" onclick="toggleSupport('${name}')" aria-pressed="${active}" onmouseenter="showGemTooltip(event,'support','${name}')" onmousemove="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()">
+        <div class="gem-card-head"><span class="gem-card-sigil">✚</span><div><small>${tierLabel} 보조 · 공명 ${cost}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
+        <p>${escapeHTML(def.desc || '보조 젬 효과')}</p>
+        <div class="gem-card-tags"><span>${escapeHTML(def.name || getStatName(def.stat || ''))}</span><span>공명 ${cost}</span></div>
+        <div class="gem-card-footer"><span class="gem-usage-state">${active ? '● 장착 중' : '클릭하여 장착'}</span>${tierButtons ? `<span class="support-tier-switch" aria-label="보조 젬 등급">${tierButtons}</span>` : ''}${sealButton}</div>
+    </article>`;
+}
+
+function renderSealedGemCard(name, highlightedName, isSupport) {
+    let releaseCall = isSupport ? `unsealSupportGem('${name}')` : `unsealSkillGem('${name}')`;
+    return `<article class="skill-gem gem-library-card sealed-gem-card"><div class="gem-card-head"><span class="gem-card-sigil">◇</span><div><small>봉인 보관함</small><strong>${highlightedName}</strong></div></div><p>봉인을 해제하면 공명력 1을 사용해 보유 목록으로 되돌립니다.</p><div class="gem-card-footer"><span class="gem-usage-state">공명력으로 복원</span><button class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></div></article>`;
+}
+
+function renderSkillLoadoutSummary(pStats, resonanceCap) {
+    let root = document.getElementById('ui-skill-loadout-summary');
+    if (!root) return;
+    let activeName = game.activeSkill || '기본 공격';
+    let activeInfo = getUiGemPresentation(activeName, false);
+    let usedResonance = (game.equippedSupports || []).reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
+    let summonCount = getEquippedSummonCount();
+    let summonCap = getSummonEquipCapFromStats(pStats);
+    root.innerHTML = `<div><span>주 공격</span><strong>${escapeHTML(activeName)}</strong><small>Lv.${activeInfo.totalLevel || 1}</small></div><div><span>보조 젬</span><strong>${(game.equippedSupports || []).length}/${Math.max(0, Math.floor(pStats.suppCap || 0))}</strong><small>장착 수</small></div><div><span>공명력</span><strong>${Math.max(0, resonanceCap - usedResonance)}</strong><small>${usedResonance}/${resonanceCap} 사용</small></div><div><span>소환 한도</span><strong>${summonCount}/${summonCap}</strong><small>현재 소환</small></div>`;
+}
+
+function renderGemEnhanceTargetCard(name, selected) {
+    let def = SKILL_DB[name] || {};
+    let rec = normalizeGemRecord((game.gemData || {})[name]);
+    let info = getUiGemPresentation(name, false);
+    let meta = getGemCardMeta(def);
+    let enhanceCount = getSkyEnhancementForSkill(name).length;
+    return `<button class="gem-target-card element-${meta.className} ${selected ? 'selected' : ''}" onclick="selectGemEnhanceTargetSkill('${name}')"><span class="gem-target-icon">${meta.icon}</span><span><strong>${escapeHTML(name)}</strong><small>Lv.${info.totalLevel} · 퀄리티 ${rec.quality || 0}% · 각인 ${enhanceCount}/${rec.skyEnhanceCap || 1}</small></span>${selected ? '<b>선택</b>' : ''}</button>`;
+}
+
+function renderGemResourceStrip(activeGem, gemExpertLv, condensedPower) {
+    let root = document.getElementById('ui-gem-resource-strip');
+    if (!root) return;
+    root.innerHTML = `<div><span>젬 각인사</span><strong>Lv.${gemExpertLv}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 힘</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>선택 젬</span><strong>${activeGem && activeGem.awakened ? '각성' : '일반'}</strong></div>`;
+}
+
+function renderGemEngraveSlots(activeEnh, engraveCap) {
+    let root = document.getElementById('ui-gem-engrave-slots');
+    if (!root) return;
+    let slots = [];
+    for (let index = 0; index < 5; index++) {
+        let enhancement = index < activeEnh.length ? GEM_SKY_ENHANCEMENTS[activeEnh[index]] : null;
+        let unlocked = index < engraveCap;
+        slots.push(`<span class="${enhancement ? 'filled' : unlocked ? 'open' : 'locked'}" title="${enhancement ? enhancement.name : unlocked ? '빈 각인 슬롯' : '잠긴 슬롯'}">${enhancement ? '✦' : unlocked ? '◇' : '×'}</span>`);
+    }
+    root.innerHTML = slots.join('');
+}
+
+function getSkyEnhancementGroup(enhancement) {
+    if (String(enhancement.id || '').startsWith('sky_awakened')) return { label: '각성', className: 'awakened' };
+    if (String(enhancement.id || '').startsWith('sky_gemcraft')) return { label: '조율', className: 'crafted' };
+    return { label: '기본', className: 'basic' };
+}
+
+function renderSkyEnhancementOption(enhancement, activeEnh, gemExpertLv, isGem) {
+    let applied = activeEnh.includes(enhancement.id);
+    let unlockLv = typeof getSkyEnhancementUnlockLevel === 'function' ? getSkyEnhancementUnlockLevel(enhancement.id) : 1;
+    let locked = gemExpertLv < unlockLv;
+    let removeCost = typeof getSkyGemEnhancementRemoveCost === 'function' ? getSkyGemEnhancementRemoveCost() : 0;
+    let group = getSkyEnhancementGroup(enhancement);
+    let actionLabel = applied ? (removeCost > 0 ? `해제 · 창공 ${removeCost}` : '무료 해제') : locked ? `각인사 Lv.${unlockLv}` : '창공의 힘 1';
+    return `<button class="gem-engrave-option group-${group.className} ${applied ? 'applied' : ''}" onclick="${applied ? `removeSkyGemEnhancementFromActive('${enhancement.id}')` : `applySkyGemEnhancementToActive('${enhancement.id}')`}" ${!isGem || (locked && !applied) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${applied ? '적용 중' : actionLabel}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
+}
+
+function renderSupportGemProcessList(gemExpertLv) {
+    let root = document.getElementById('ui-support-process-list');
+    if (!root) return;
+    let supports = Array.isArray(game.supports) ? game.supports : [];
+    if (supports.length <= 0) {
+        root.innerHTML = '<div class="gem-process-empty">보유한 보조 젬이 없습니다.</div>';
+        return;
+    }
+    root.innerHTML = supports.map(name => {
+        let state = typeof getSupportGemSkyProcessState === 'function' ? getSupportGemSkyProcessState(name) : null;
+        let rec = state ? state.record : normalizeGemRecord(((game.supportGemData || {})[name]) || {});
+        let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, rec.unlockedTier || 1) : `${rec.unlockedTier || 1}등급`;
+        let nextLabel = state && state.improvingTier ? `${state.nextTier}등급 해금` : '젬 레벨 +1';
+        let disabled = gemExpertLv < 5 || !state || state.maxed || (game.currencies.skyEssence || 0) < state.need;
+        let actionLabel = state && state.maxed ? '최대 성장' : gemExpertLv < 5 ? '각인사 Lv.5 필요' : `${nextLabel} · ${state ? state.need : 0}`;
+        return `<div class="gem-support-process-card"><div><small>${tierLabel} · Lv.${rec.level || 1}</small><strong>${escapeHTML(name)}</strong><span>${escapeHTML((SUPPORT_GEM_DB[name] || {}).desc || '')}</span></div><button onclick="processSupportGemWithSkyEssence('${name}')" ${disabled ? 'disabled' : ''}>${actionLabel}</button></div>`;
+    }).join('');
+}
+
 function getUniqueCodexProgress() {
     let keys = new Set(UNIQUE_DB.filter(entry => !entry.realmCodexOnly).map(entry => `${entry.slots[0]}|${entry.name}`));
     let codex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
@@ -8902,10 +9039,11 @@ function buildCraftActionButtons(item) {
     let foldActiveBtn = document.getElementById('btn-skill-fold-active');
     let foldAttackBtn = document.getElementById('btn-skill-fold-inactive-attack');
     let foldSupportBtn = document.getElementById('btn-skill-fold-inactive-support');
-    if (foldActiveBtn) foldActiveBtn.style.background = (!foldAttackInactive && !foldSupportInactive) ? '#2f6a42' : '#2c3e50';
-    if (foldAttackBtn) foldAttackBtn.style.background = foldAttackInactive ? '#2f6a42' : '#2c3e50';
-    if (foldSupportBtn) foldSupportBtn.style.background = foldSupportInactive ? '#2f6a42' : '#2c3e50';
+    if (foldActiveBtn) foldActiveBtn.classList.toggle('active', !foldAttackInactive && !foldSupportInactive);
+    if (foldAttackBtn) foldAttackBtn.classList.toggle('active', foldAttackInactive);
+    if (foldSupportBtn) foldSupportBtn.classList.toggle('active', foldSupportInactive);
     let effectiveResonanceCap = getEffectiveResonanceCap();
+    renderSkillLoadoutSummary(pStats, effectiveResonanceCap);
     let skyTowerSignatureState = (typeof ensureSkyTowerState === 'function') ? ensureSkyTowerState() : null;
     let skillPanelRenderSignature = JSON.stringify({
         activeSkill: game.activeSkill || '',
@@ -8918,6 +9056,7 @@ function buildCraftActionButtons(item) {
         sealedSupports: game.sealedSupports || [],
         gemData: game.gemData || {},
         supportGemData: game.supportGemData || {},
+        skyGemEnhancements: game.skyGemEnhancements || {},
         gemEnhanceTargetSkill: game.gemEnhanceTargetSkill || '',
         currencies: {
             bossCore: game.currencies.bossCore || 0,
@@ -8934,6 +9073,9 @@ function buildCraftActionButtons(item) {
         suppCap: pStats.suppCap || 0,
         resonanceCap: effectiveResonanceCap,
         gemEnhanceUnlocked: !!game.gemEnhanceUnlocked,
+        gemEngraverLevel: typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('gemEngraver') || 1)) : 1,
+        inscriptionCostReduction: typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('inscriptionCostReducePct') : 0,
+        gemQualityCostReduction: typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('gemQualityCostReducePct') : 0,
         season: game.season || 1
     });
     if (skillPanelRenderSignature !== lastSkillPanelRenderSignature) {
@@ -8956,24 +9098,7 @@ function buildCraftActionButtons(item) {
         if (!matchSearchQuery(searchable, sf.skill)) return false;
         if (!foldAttackInactive) return true;
         return name === game.activeSkill || (isSummonAttackSkillGem(name) && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
-    }).map(name => {
-        let active = name === game.activeSkill ? 'active' : '';
-        let def = SKILL_DB[name] || {};
-        let isSummonAttack = !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack'));
-        let summonEquipped = !!(Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
-        if (isSummonAttack && summonEquipped) active = 'active';
-        let badge = '';
-        let gemInfo = getUiGemPresentation(name, false);
-        if (SKILL_DB[name].isGem || SKILL_DB[name].levelable) badge = `<span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span>`;
-        let summonControls = '';
-        if (isSummonAttack && summonEquipped) {
-            let count = getSummonSkillCount(name);
-            let countText = summonEquipped ? `${count}기` : '0기';
-            summonControls = `<span class="summon-gem-controls"><button class="summon-gem-count-btn" title="소환 해제" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', -1)">−</button><span class="summon-gem-count" title="현재 소환 수">🐾 ${countText}</span><button class="summon-gem-count-btn" title="추가 소환" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', 1)">+</button></span>`;
-        }
-        let sealBtn = (name === game.activeSkill || summonEquipped) ? '' : `<button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="event.stopPropagation(); sealSkillGem('${name}')">🔒 봉인</button>`;
-        return `<div class="skill-gem ${active}" onclick="changeSkill('${name}')" onmouseover="showGemTooltip(event,'active','${name}')" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.skill)}</strong>${badge}${summonControls}${sealBtn}</div>`;
-    }).join('');
+    }).map(name => renderAttackGemCard(name, highlightSearchText(name, sf.skill))).join('');
     let sealedSkillRows = sealedSkills.filter(name => {
         let def = SKILL_DB[name] || {};
         let statText = Array.isArray(def.stats) ? def.stats.map(st => getStatName(st.id || st.stat || '')).join(' ') : '';
@@ -8987,15 +9112,16 @@ function buildCraftActionButtons(item) {
             statText
         ].join(' ');
         return matchSearchQuery(searchable, sf.skill);
-    }).map(name => `<div class="skill-gem" style="opacity:0.78;"><strong>🔒 ${highlightSearchText(name, sf.skill)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSkillGem('${name}')">해제 (공명 -1)</button></div>`).join('');
+    }).map(name => renderSealedGemCard(name, highlightSearchText(name, sf.skill), false)).join('');
     let skillsHtml = skillsRows;
-    if (!foldAttackInactive) skillsHtml += `<div style="margin-top:6px;"><button style="width:100%; font-size:0.75em; padding:4px 8px;" onclick="sealAllInactiveSkillGems()">미사용 젬 일괄 봉인</button></div>`;
     if (!foldAttackInactive && sealedSkillRows) skillsHtml += sealedSkillRows;
     let skillsListEl = document.getElementById('ui-skills-list');
-    if (skillsListEl && skillsListEl.dataset.renderSig !== skillsHtml) {
-        renderSearchSection('ui-skills-list', 'skill', '스킬 젬 검색', skillsHtml, '');
+    let skillActions = foldAttackInactive ? '' : '<button onclick="sealAllInactiveSkillGems()">미사용 공격 젬 일괄 봉인</button>';
+    let skillsRenderSig = `${skillsHtml}::${skillActions}`;
+    if (skillsListEl && skillsListEl.dataset.renderSig !== skillsRenderSig) {
+        renderSearchSection('ui-skills-list', 'skill', '공격 젬 이름·태그 검색', skillsHtml, '', skillActions);
         skillsListEl = document.getElementById('ui-skills-list');
-        skillsListEl.dataset.renderSig = skillsHtml;
+        skillsListEl.dataset.renderSig = skillsRenderSig;
     }
 
     let suppCountEl = document.getElementById('ui-supp-count');
@@ -9022,18 +9148,7 @@ function buildCraftActionButtons(item) {
         if (!matchSearchQuery(searchable, sf.support)) return false;
         if (!foldSupportInactive) return true;
         return game.equippedSupports.includes(name);
-    }).map(name => {
-        let active = game.equippedSupports.includes(name) ? 'active' : '';
-        let gemInfo = getUiGemPresentation(name, true);
-        let tierCap = typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3;
-        let unlockedTier = Math.max(1, Math.min(tierCap, Math.floor((((game.supportGemData || {})[name]) || {}).unlockedTier || 1)));
-        let activeTier = getSupportActiveTier(name);
-        let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, activeTier) : (activeTier === 3 ? '상급' : activeTier === 2 ? '중급' : '하급');
-        let cost = getSupportTierResonanceCost(name);
-        let sealBtn = active ? '' : `<button style="margin-left:4px; font-size:0.66em; padding:1px 4px;" onclick="event.stopPropagation(); sealSupportGem('${name}')">🔒 봉인</button>`;
-        let tierBtns = tierCap <= 1 ? '' : [1,2,3].map(t => `<button style="font-size:0.62em; padding:1px 3px; ${t<=unlockedTier?'':'opacity:.4;'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${t})" ${t<=unlockedTier?'':'disabled'}>${t===1?'하':t===2?'중':'상'}</button>`).join('');
-        return `<div class="skill-gem support-gem ${active}" onclick="toggleSupport('${name}')" onmouseover="showGemTooltip(event,'support','${name}')" onmouseenter="showGemTooltip(event,'support','${name}')" onmousemove="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()"><strong>${highlightSearchText(name, sf.support)}</strong><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">${tierLabel} · Lv.${gemInfo.totalLevel} · 공명 ${cost}</span>${tierBtns ? `<span style="display:inline-flex; gap:2px; margin-left:4px;">${tierBtns}</span>` : ''}${sealBtn}</div>`;
-    }).join('');
+    }).map(name => renderSupportGemCard(name, highlightSearchText(name, sf.support))).join('');
     let sealedSupportRows = sealedSupports.filter(name => {
         let def = SUPPORT_GEM_DB[name] || {};
         let statText = Array.isArray(def.stats) ? def.stats.map(st => getStatName(st.id || st.stat || '')).join(' ') : '';
@@ -9047,27 +9162,25 @@ function buildCraftActionButtons(item) {
             statText
         ].join(' ');
         return matchSearchQuery(searchable, sf.support);
-    }).map(name => `<div class="skill-gem support-gem" style="opacity:0.78;"><strong>🔒 ${highlightSearchText(name, sf.support)}</strong><button style="margin-left:6px; font-size:0.7em; padding:2px 6px;" onclick="unsealSupportGem('${name}')">해제 (공명 -1)</button></div>`).join('');
+    }).map(name => renderSealedGemCard(name, highlightSearchText(name, sf.support), true)).join('');
     let supportHtml = supportRows;
-    if (!foldSupportInactive) supportHtml += `<div style="margin-top:6px;"><button style="width:100%; font-size:0.75em; padding:4px 8px;" onclick="sealAllInactiveSupportGems()">미사용 젬 일괄 봉인</button></div>`;
     if (!foldSupportInactive && sealedSupportRows) supportHtml += sealedSupportRows;
     let supportListEl = document.getElementById('ui-support-list');
-    if (supportListEl && supportListEl.dataset.renderSig !== supportHtml) {
-        renderSearchSection('ui-support-list', 'support', '보조 젬 검색', supportHtml, '');
+    let supportActions = foldSupportInactive ? '' : '<button onclick="sealAllInactiveSupportGems()">미사용 보조 젬 일괄 봉인</button>';
+    let supportRenderSig = `${supportHtml}::${supportActions}`;
+    if (supportListEl && supportListEl.dataset.renderSig !== supportRenderSig) {
+        renderSearchSection('ui-support-list', 'support', '보조 젬 이름·효과 검색', supportHtml, '', supportActions);
         supportListEl = document.getElementById('ui-support-list');
-        supportListEl.dataset.renderSig = supportHtml;
+        supportListEl.dataset.renderSig = supportRenderSig;
     }
-
-    let suppHeader = document.querySelector('#tab-skills #skill-tab-equip h2');
-    if (suppHeader) suppHeader.title = `공명력 ${effectiveResonanceCap}`;
 
     let gemEnhanceOpen = !!game.gemEnhanceUnlocked;
     let gemEnhanceHeader = document.getElementById('ui-gem-enhance-header');
     let gemEnhancePanel = document.getElementById('ui-gem-enhance-panel');
     let skillEnhanceBtn = document.getElementById('btn-skill-tab-enhance');
     if (gemEnhanceHeader && gemEnhancePanel) {
-        gemEnhanceHeader.style.display = gemEnhanceOpen ? 'block' : 'none';
-        gemEnhancePanel.style.display = gemEnhanceOpen ? 'block' : 'none';
+        gemEnhanceHeader.style.display = gemEnhanceOpen ? '' : 'none';
+        gemEnhancePanel.style.display = gemEnhanceOpen ? '' : 'none';
         if (skillEnhanceBtn) {
             skillEnhanceBtn.disabled = !gemEnhanceOpen;
             skillEnhanceBtn.style.opacity = gemEnhanceOpen ? '1' : '0.45';
@@ -9078,12 +9191,7 @@ function buildCraftActionButtons(item) {
             let active = (typeof getGemEnhanceTargetSkill === 'function') ? getGemEnhanceTargetSkill() : game.activeSkill;
             let ownedEnhanceTargets = (Array.isArray(game.skills) ? game.skills : []).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
             if ((!active || !SKILL_DB[active] || !SKILL_DB[active].isGem) && ownedEnhanceTargets.length > 0) active = ownedEnhanceTargets[0];
-            let targetButtons = ownedEnhanceTargets.map(name => {
-                let def = SKILL_DB[name] || {};
-                let summonMark = (Array.isArray(def.tags) && def.tags.includes('summon_attack')) ? ' 🐾' : '';
-                let selected = name === active;
-                return `<button style="min-height:24px; padding:3px 8px; font-size:0.76em; ${selected ? 'background:#2f6a42; border-color:#3f9b5c;' : ''}" onclick="selectGemEnhanceTargetSkill('${name}')">${selected ? '✅ ' : ''}${name}${summonMark}</button>`;
-            }).join(' ');
+            let targetButtons = ownedEnhanceTargets.map(name => renderGemEnhanceTargetCard(name, name === active)).join('');
             let isGem = !!(SKILL_DB[active] && SKILL_DB[active].isGem);
             let activeEnh = getSkyEnhancementForSkill(active);
             let activeGem = isGem ? normalizeGemRecord((game.gemData || {})[active]) : null;
@@ -9101,29 +9209,27 @@ function buildCraftActionButtons(item) {
             let coreDone = !!(activeGem && activeGem.bossCoreLevel >= 5 && activeGem.skyCoreLevel >= 5);
             let slotDone = !!(activeGem && engraveCap >= 5);
             let engraveFilled = !!(activeGem && activeEnh.length >= engraveCap);
-            document.getElementById('ui-gem-enhance-target').innerHTML = `<div style="margin-bottom:6px; display:flex; gap:4px; flex-wrap:wrap;">${targetButtons || '<span style="color:#7f8c8d;">보유 공격 젬 없음</span>'}</div>` + (isGem
-                ? `대상 젬: <strong>${active}</strong> (보유 창공의 힘: ${game.currencies.skyEssence || 0})<br><span style="color:#8aa4bf;">핵 강화: 군주의핵 ${activeGem.bossCoreLevel || 0}/5 · 창공의힘 ${activeGem.skyCoreLevel || 0}/5 · 퀄리티 ${activeGem.quality || 0}%${activeGem.awakened ? ' · 각성 젬' : ''} · 응축창공 ${permanentSkyBoost}/${permanentSkyMax} · 각인 슬롯 ${engraveCap}/5</span><div style="margin-top:4px; color:#b9d7ff; font-size:0.84em;">각성 각인은 각성 젬 전용이 아니며, 모든 공격 젬에 젬당 1개까지 부여할 수 있습니다.</div><div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '각인 슬롯 완료' : '각인 슬롯 확장 가능'}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '각인 장착 완료' : `각인 여유 ${Math.max(0, engraveCap - activeEnh.length)}칸`}</span></div><span style="color:#8aa4bf;">적용 옵션: ${activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '없음'}</span>`
-                : '공격 젬을 선택하면 창공의 힘으로 특수 옵션을 부여할 수 있습니다.');
+            let activeDef = SKILL_DB[active] || {};
+            let activeMeta = getGemCardMeta(activeDef);
+            let activeOptions = activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '적용된 각인 없음';
+            document.getElementById('ui-gem-enhance-target').innerHTML = `<div class="gem-target-list">${targetButtons || '<span class="gem-process-empty">보유 공격 젬 없음</span>'}</div>` + (isGem
+                ? `<div class="gem-target-profile element-${activeMeta.className}"><span class="gem-target-profile-icon">${activeMeta.icon}</span><div><small>현재 선택 · ${activeMeta.elementLabel} ${activeMeta.typeLabel}</small><strong>${escapeHTML(active)}</strong><p>${escapeHTML(activeDef.desc || '')}</p></div></div><div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행 중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '슬롯 최대' : `각인 슬롯 ${engraveCap}/5`}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '슬롯 사용 완료' : `빈 슬롯 ${Math.max(0, engraveCap - activeEnh.length)}`}</span></div><div class="gem-current-inscriptions"><span>현재 각인</span><strong>${escapeHTML(activeOptions)}</strong></div>`
+                : '<div class="gem-process-empty">공격 젬을 선택하면 성장 정보가 표시됩니다.</div>');
+            renderGemResourceStrip(activeGem, gemExpertLv, condensedPower);
+            renderGemEngraveSlots(activeEnh, engraveCap);
+            renderSupportGemProcessList(gemExpertLv);
             let upgradeBtns = [];
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.bossCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('bossCore', 1)" ${!isGem || (activeGem && activeGem.bossCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.bossCoreLevel >= 5 ? '✅ 군주의 핵 강화 완료' : '군주의 핵 강화'}</strong><br><small>보유: ${game.currencies.bossCore || 0} / 필요: ${bossNeed}${activeGem && activeGem.bossCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.skyCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem || (activeGem && activeGem.skyCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.skyCoreLevel >= 5 ? '✅ 창공의 힘 강화 완료' : '창공의 힘 강화'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${skyNeed}${activeGem && activeGem.skyCoreLevel >= 5 ? ' (최대)' : ''}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${permanentSkyBoost >= permanentSkyMax ? 'done' : ''}" onclick="upgradeActiveGemWithCondensedSkyPower()" ${!isGem || permanentSkyBoost >= permanentSkyMax ? 'disabled' : ''}><strong>${permanentSkyBoost >= permanentSkyMax ? '✅ 응축 창공 강화 완료' : '응축 창공 영구 강화'}</strong><br><small>루프 초기화 없음 · 보유: ${Math.floor(condensedPower)} / 필요: ${permanentSkyCost}${permanentSkyBoost >= permanentSkyMax ? ' (최대)' : ''}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && (activeGem.quality || 0) >= 20 ? 'done' : ''}" onclick="upgradeActiveGemQuality()" ${!isGem || gemExpertLv < 8 || (activeGem && (activeGem.quality || 0) >= 20) ? 'disabled' : ''}><strong>${activeGem && (activeGem.quality || 0) >= 20 ? '✅ 퀄리티 완료' : '젬 퀄리티 강화'}</strong><br><small>젬 각인사 Lv.8 · 보유 군주의 핵: ${game.currencies.bossCore || 0} / 필요: ${qualityNeed}</small></button>`);
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.awakened ? 'done' : ''}" onclick="awakenActiveGemCandidate()" ${!isGem || !awakenReady || (game.currencies.awakenedEcho || 0) < 3 ? 'disabled' : ''}><strong>${activeGem && activeGem.awakened ? '✅ 각성 젬' : '각성 젬 변환'}</strong><br><small>젬 각인사 Lv.15 · Lv.20 필요 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3 · 젬 레벨 +2/슬롯 보정</small></button>`);
-            let engraveCapButton = `<button class="gem-upgrade-btn ${activeGem && engraveCap >= 5 ? 'done' : ''}" onclick="upgradeSkyEngraveCap()" ${!isGem || (activeGem && engraveCap >= 5) ? 'disabled' : ''}><strong>${activeGem && engraveCap >= 5 ? '✅ 각인 슬롯 확장 완료' : '창공 각인 슬롯 확장'}</strong><br><small>보유: ${game.currencies.skyEssence || 0} / 필요: ${capNeed}${activeGem && engraveCap >= 5 ? ' (최대)' : ''}</small></button>`;
+            let engraveCapButton = `<button class="gem-engrave-cap-card ${activeGem && engraveCap >= 5 ? 'done' : ''}" onclick="upgradeSkyEngraveCap()" ${!isGem || (activeGem && engraveCap >= 5) ? 'disabled' : ''}><span>각인 슬롯</span><strong>${engraveCap}/5</strong><small>${activeGem && engraveCap >= 5 ? '최대 확장 완료' : `다음 슬롯 · 창공의 힘 ${capNeed}`}</small></button>`;
             document.getElementById('ui-gem-upgrade-actions').innerHTML = upgradeBtns.join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 젬 강화 재료가 없습니다.</div>`;
             if ((game.season || 1) >= 4) {
-                document.getElementById('ui-gem-enhance-options').innerHTML = engraveCapButton + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => {
-                    let applied = activeEnh.includes(enh.id);
-                    let unlockLv = typeof getSkyEnhancementUnlockLevel === 'function' ? getSkyEnhancementUnlockLevel(enh.id) : 1;
-                    let locked = gemExpertLv < unlockLv;
-                    let removeCost = typeof getSkyGemEnhancementRemoveCost === 'function' ? getSkyGemEnhancementRemoveCost() : 0;
-                    let removeLabel = removeCost > 0 ? ` · 클릭 시 해제 (창공의 힘 ${removeCost})` : ' · 클릭 시 무료 해제';
-                    let awakenedNote = typeof isAwakenedSkyEnhancement === 'function' && isAwakenedSkyEnhancement(enh.id) ? ' · 모든 공격 젬 가능' : '';
-                    return `<button class="gem-engrave-option ${applied ? 'applied' : ''}" onclick="${applied ? `removeSkyGemEnhancementFromActive('${enh.id}')` : `applySkyGemEnhancementToActive('${enh.id}')`}" ${!isGem || (locked && !applied) ? 'disabled' : ''}><strong>${applied ? '✅ ' : ''}${enh.name}${applied ? ' (적용중)' : locked ? ` (Lv.${unlockLv})` : ''}</strong><br><small>${enh.desc}${awakenedNote}${applied ? removeLabel : locked ? ` · 젬 각인사 Lv.${unlockLv} 필요` : ''}</small></button>`;
-                }).join('');
+                document.getElementById('ui-gem-enhance-options').innerHTML = engraveCapButton + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeEnh, gemExpertLv, isGem)).join('');
             } else {
-                document.getElementById('ui-gem-enhance-options').innerHTML = engraveCapButton + `<div style="grid-column:1/-1; color:#7f8c8d;">창공의 힘 특수 옵션은 루프 4부터 해금됩니다.</div>`;
+                document.getElementById('ui-gem-enhance-options').innerHTML = engraveCapButton + '<div class="gem-process-empty">창공 각인은 루프 4부터 해금됩니다.</div>';
             }
         }
     }

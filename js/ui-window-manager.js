@@ -13,7 +13,7 @@
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
         'tab-items': { title: '장비 및 인벤토리', x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
-        'tab-skills': { title: '스킬 및 스킬 젬', x: 170, y: 110, width: 680, height: 640, minWidth: 460, minHeight: 380 },
+        'tab-skills': { title: '스킬 및 스킬 젬', x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
         'tab-char': { title: '패시브 트리', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460 },
         'tab-traits': { title: '전직', x: 230, y: 110, width: 620, height: 560, minWidth: 420, minHeight: 340 },
         'tab-expertise': { title: '전문가', x: 260, y: 120, width: 760, height: 660, minWidth: 500, minHeight: 380 },

@@ -11,6 +11,8 @@ const battlefield = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
 const equipmentRenderer = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 const gameShell = fs.readFileSync('js/ui-game-shell.js', 'utf8');
 const overhaulCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
+const skills = fs.readFileSync('js/skills.js', 'utf8');
+const ui = fs.readFileSync('js/ui.js', 'utf8');
 
 const productionSources = [
   'index.html',
@@ -53,5 +55,15 @@ assert(equipmentRenderer.includes('equipment-slot-head'), 'equipped items need s
 assert(equipmentRenderer.includes('equipment-card-actions'), 'inventory cards need consistent game actions');
 assert(overhaulCss.includes('grid-template-columns: minmax(330px, .82fr) minmax(430px, 1.35fr)'), 'desktop equipment layout should prioritize inventory space');
 assert(overhaulCss.includes('@container (max-width: 860px)'), 'equipment layout must switch composition in narrow windows');
+assert(html.includes('skill-loadout-workspace'), 'skill tab needs separate attack and support loadout libraries');
+assert(html.includes('gem-forge-workspace'), 'skill progression needs a target rail and forge detail workspace');
+assert(html.includes('ui-support-process-list'), 'support gem sky processing must be reachable from the gem forge');
+assert(ui.includes('renderAttackGemCard'), 'attack gems need semantic loadout cards');
+assert(ui.includes('renderGemEngraveSlots'), 'engraving capacity needs a visible slot presentation');
+assert(ui.includes('renderSupportGemProcessList'), 'support gem processing needs a dedicated renderer');
+assert(skills.includes('getSupportGemSkyProcessState'), 'support processing cost and max-state rules need a shared calculation');
+assert(skills.includes("if (processState.maxed) return addLog('해당 보조 젬은 이미 최대 등급·레벨입니다.'"), 'maxed support gems must not consume processing currency');
+assert(overhaulCss.includes('.skill-loadout-summary'), 'skill loadout needs an at-a-glance build summary');
+assert(overhaulCss.includes('.gem-engrave-option.group-awakened'), 'awakened engravings need a distinct visual tier');
 
 console.log('smoke-steam-ui-combat passed');
