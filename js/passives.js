@@ -3873,7 +3873,11 @@ function cleanupBattleFx(now) {
 }
 function cleanupBattleVisualState(now) {
     battleVisualState.projectiles = (battleVisualState.projectiles || []).filter(projectile => now - projectile.start <= projectile.duration + 60);
-    battleVisualState.damageTexts = (battleVisualState.damageTexts || []).filter(text => now - text.start <= text.duration);
+    battleVisualState.damageTexts = (battleVisualState.damageTexts || []).filter(text => {
+        let elapsed = now - Number(text && text.start);
+        let duration = Number(text && text.duration);
+        return Number.isFinite(elapsed) && Number.isFinite(duration) && elapsed >= -80 && elapsed <= duration;
+    });
     Object.keys(battleVisualState.enemyGhostPos || {}).forEach(enemyId => {
         if (now - (battleVisualState.enemyGhostPos[enemyId].stamp || 0) > 1200) delete battleVisualState.enemyGhostPos[enemyId];
     });
@@ -3973,12 +3977,38 @@ function formatDamageNumberForDisplay(value, format) {
     return amount.toLocaleString();
 }
 
+const MAX_BATTLE_DAMAGE_TEXTS = 72;
+const DAMAGE_TEXT_LANES = [0, -12, 12, -22, 22, -31, 31];
+
 function spawnDamageText(config) {
-    battleVisualState.damageTexts.push({
-        start: performance.now(),
-        duration: config.duration || (config.impactTier === 'annihilate' ? 1180 : (config.impactTier === 'heavy' ? 980 : (config.enemyHit ? 900 : (config.crit ? 920 : 820)))),
-        x: config.x || 0,
-        y: config.y || 0,
+    config = config || {};
+    let wallNow = performance.now();
+    let requestedStart = Number(config.start);
+    let visualNow = Number(battleVisualState && battleVisualState.visualNow);
+    let start = Number.isFinite(requestedStart)
+        ? requestedStart
+        : (Number.isFinite(visualNow) && visualNow > 0 ? visualNow : wallNow);
+    let x = Number.isFinite(Number(config.x)) ? Number(config.x) : 0;
+    let y = Number.isFinite(Number(config.y)) ? Number(config.y) : 0;
+    let activeTexts = battleVisualState.damageTexts || (battleVisualState.damageTexts = []);
+    let nearbyCount = activeTexts.filter(text => {
+        let age = start - Number(text && text.start);
+        return Number.isFinite(age)
+            && age >= 0
+            && age <= 220
+            && Math.abs(Number(text.x) - x) <= 34
+            && Math.abs(Number(text.y) - y) <= 40;
+    }).length;
+    let lane = DAMAGE_TEXT_LANES[nearbyCount % DAMAGE_TEXT_LANES.length];
+    let row = Math.floor(nearbyCount / DAMAGE_TEXT_LANES.length);
+    activeTexts.push({
+        start: start,
+        duration: config.duration || (config.impactTier === 'annihilate' ? 940 : (config.impactTier === 'heavy' ? 860 : (config.enemyHit ? 820 : (config.crit ? 840 : 760)))),
+        x: x,
+        y: y,
+        offsetX: lane,
+        offsetY: -row * 9,
+        driftX: lane * 0.12,
         value: config.value || 0,
         crit: !!config.crit,
         enemyHit: !!config.enemyHit,
@@ -3990,6 +4020,9 @@ function spawnDamageText(config) {
         impactTier: config.impactTier || 'normal',
         damageRatio: Math.max(0, Number(config.damageRatio) || 0)
     });
+    if (activeTexts.length > MAX_BATTLE_DAMAGE_TEXTS) {
+        activeTexts.splice(0, activeTexts.length - MAX_BATTLE_DAMAGE_TEXTS);
+    }
 }
 function drawVisualProjectile(ctx, projectile, now) {
     let t = clampNumber((now - projectile.start) / projectile.duration, 0, 1);
@@ -4010,31 +4043,28 @@ function drawVisualProjectile(ctx, projectile, now) {
 }
 function drawDamageTexts(ctx, now) {
     (battleVisualState.damageTexts || []).forEach(text => {
-        let t = clampNumber((now - text.start) / text.duration, 0, 1);
-        let rise = (text.dot ? 14 : 20) + (text.crit ? 7 : 0);
-        let x = text.x + Math.sin((text.start % 1000) * 0.01) * 4;
-        let y = text.y - rise * t;
+        let elapsed = now - Number(text.start);
+        if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > text.duration) return;
+        let t = clampNumber(elapsed / text.duration, 0, 1);
+        let easedRise = 1 - Math.pow(1 - t, 2);
+        let rise = (text.dot ? 13 : 19) + (text.crit ? 5 : 0);
+        let x = text.x + (text.offsetX || 0) + (text.driftX || 0) * easedRise;
+        let y = text.y + (text.offsetY || 0) - rise * easedRise;
         ctx.save();
-        ctx.globalAlpha = t < 0.72 ? 1 : Math.max(0, (1 - t) / 0.28);
-        const tierSize = text.impactTier === 'annihilate' ? 31 : (text.impactTier === 'heavy' ? 25 : 0);
-        const fontSize = tierSize || (text.miss ? 15 : (text.dot ? 14 : (text.crit ? 22 : (text.enemyHit ? 19 : 18))));
-        ctx.font = `900 ${fontSize}px "Malgun Gothic", "Noto Sans KR", sans-serif`;
+        ctx.globalAlpha = t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38);
+        const tierSize = text.impactTier === 'annihilate' ? 27 : (text.impactTier === 'heavy' ? 22 : 0);
+        const fontSize = tierSize || (text.miss ? 14 : (text.dot ? 13 : (text.crit ? 19 : (text.enemyHit ? 17 : 16))));
+        ctx.font = `800 ${fontSize}px "Malgun Gothic", "Noto Sans KR", sans-serif`;
         ctx.textAlign = 'center';
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
-        ctx.lineWidth = text.impactTier === 'annihilate' ? 4 : (text.crit || text.impactTier === 'heavy' ? 3.4 : 2.8);
-        ctx.strokeStyle = 'rgba(0,0,0,0.88)';
-        ctx.shadowColor = text.enemyHit ? 'rgba(255,56,70,0.8)' : (text.impactTier === 'annihilate' ? 'rgba(255,92,25,.95)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(255,190,62,0.88)' : 'rgba(255,255,255,0.36)'));
-        ctx.shadowBlur = text.impactTier === 'annihilate' ? 18 : (text.crit || text.enemyHit || text.impactTier === 'heavy' ? 11 : 6);
+        ctx.lineWidth = text.impactTier === 'annihilate' ? 2.8 : (text.crit || text.impactTier === 'heavy' ? 2.4 : 1.8);
+        ctx.strokeStyle = 'rgba(2,5,9,0.92)';
+        ctx.shadowColor = text.enemyHit ? 'rgba(255,76,88,0.42)' : (text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(255,211,102,0.38)' : 'transparent'));
+        ctx.shadowBlur = text.impactTier === 'annihilate' ? 7 : (text.crit || text.enemyHit || text.impactTier === 'heavy' ? 4 : 0);
         ctx.strokeText(textValue, x, y);
         let dotColor = text.dotType === 'fire' ? '#ff9f43' : (text.dotType === 'chaos' ? '#c56cff' : (text.dotType === 'phys' ? '#ff6b6b' : '#b57cff'));
         ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.deflected ? '#8fe3b0' : (text.enemyHit ? '#ff9a9a' : (text.impactTier === 'annihilate' ? '#fff1b0' : (text.crit || text.impactTier === 'heavy' ? '#ffdc75' : '#ffffff')))));
         ctx.fillText(textValue, x, y);
-        if (text.impactTier === 'annihilate' && !text.enemyHit && !text.miss) {
-            ctx.font = '900 10px "Malgun Gothic", sans-serif';
-            ctx.letterSpacing = '2px';
-            ctx.fillStyle = '#ff9c54';
-            ctx.fillText('ANNIHILATION', x, y + 14);
-        }
         ctx.restore();
     });
 }

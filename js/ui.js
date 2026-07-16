@@ -4940,6 +4940,7 @@ window.addEventListener('project-idle:talent-tab-refresh-requested', () => {
 });
 
 function updateSettings() {
+    let previousSocialChatNotifications = game.settings.socialChatNotifications !== false;
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
     let cameraShakeCheckbox = document.getElementById('chk-camera-shake');
     game.settings.cameraShake = !cameraShakeCheckbox || cameraShakeCheckbox.checked;
@@ -4954,6 +4955,11 @@ function updateSettings() {
     game.settings.showMobileBattlePip = document.getElementById('chk-mobile-battle-pip').checked;
     let tabNotiCheckbox = document.getElementById('chk-tab-noti');
     if (tabNotiCheckbox) game.settings.tabNotiEnabled = tabNotiCheckbox.checked;
+    let socialChatNotiCheckbox = document.getElementById('chk-social-chat-noti');
+    if (socialChatNotiCheckbox) game.settings.socialChatNotifications = socialChatNotiCheckbox.checked;
+    if (game.settings.socialChatNotifications === false && game.noti) game.noti.social = false;
+    if (previousSocialChatNotifications !== (game.settings.socialChatNotifications !== false)
+        && typeof syncSocialChatNotificationSetting === 'function') syncSocialChatNotificationSetting();
     let twoRowTabsCheckbox = document.getElementById('chk-two-row-tabs');
     game.settings.twoRowTabs = !!(twoRowTabsCheckbox && twoRowTabsCheckbox.checked);
     lastTabHeaderUiSignature = null;
@@ -11335,7 +11341,14 @@ function refreshSocialAfterCloudStateChange() {
     if (typeof syncSocialBackgroundTasks === 'function') syncSocialBackgroundTasks();
     if (typeof renderSocialTab !== 'function') return;
     let socialTab = document.getElementById('tab-social');
-    if (socialTab && socialTab.classList.contains('active')) renderSocialTab();
+    let socialVisible = socialTab && (
+        socialTab.classList.contains('active')
+        || socialTab.classList.contains('ui-community-dock')
+        || socialTab.classList.contains('ui-community-overlay')
+        || document.body.classList.contains('community-dock-open')
+        || document.body.classList.contains('community-overlay-open')
+    );
+    if (socialVisible) renderSocialTab();
     if (cloudState.user && typeof checkSocialChatNotification === 'function') {
         Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification refresh failed:', error));
     }
@@ -12711,6 +12724,8 @@ function init() {
     document.getElementById('chk-mobile-battle-pip').checked = game.settings.showMobileBattlePip !== false;
     let tabNotiCheckboxInit = document.getElementById('chk-tab-noti');
     if (tabNotiCheckboxInit) tabNotiCheckboxInit.checked = game.settings.tabNotiEnabled !== false;
+    let socialChatNotiCheckboxInit = document.getElementById('chk-social-chat-noti');
+    if (socialChatNotiCheckboxInit) socialChatNotiCheckboxInit.checked = game.settings.socialChatNotifications !== false;
     document.getElementById('chk-pause-overlay').checked = !!game.settings.pauseGameOnOverlay;
     document.getElementById('chk-two-row-tabs').checked = !!game.settings.twoRowTabs;
     document.getElementById('sel-damage-number-format').value = ['comma', 'korean', 'korean_short', 'english'].includes(game.settings.damageNumberFormat) ? game.settings.damageNumberFormat : 'comma';

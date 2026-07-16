@@ -468,6 +468,7 @@ function renderBattlefield(forceWhenHidden) {
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
             if (typeof fx.damage === 'number') {
                 spawnDamageText({
+                    start: now,
                     x: enemyPos.x,
                     y: enemyPos.y - 30,
                     value: fx.damage,
@@ -487,6 +488,7 @@ function renderBattlefield(forceWhenHidden) {
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId];
             if (typeof fx.damage === 'number') {
                 spawnDamageText({
+                    start: now,
                     x: playerPos.x + 14,
                     y: playerPos.y - 36,
                     value: fx.damage,
@@ -498,6 +500,7 @@ function renderBattlefield(forceWhenHidden) {
         } else if (fx.type === 'enemyEvade') {
             let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
             spawnDamageText({
+                start: now,
                 x: enemyPos.x,
                 y: enemyPos.y - 30,
                 value: fx.text || '회피!',
@@ -507,6 +510,7 @@ function renderBattlefield(forceWhenHidden) {
             handled = true;
         } else if (fx.type === 'statusText') {
             spawnDamageText({
+                start: now,
                 x: playerPos.x + 14,
                 y: playerPos.y - 40,
                 value: fx.text || '회피!',

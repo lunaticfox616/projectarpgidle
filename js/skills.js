@@ -186,16 +186,21 @@ function upgradeActiveGemQuality() {
 
 function getSupportGemSkyProcessState(name) {
     let rec = normalizeGemRecord(((game.supportGemData || {})[name]) || { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 });
-    let improvingTier = (rec.unlockedTier || 1) < 3;
+    let tierCap = typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3;
+    let unlockedTier = Math.max(1, Math.min(tierCap, Math.floor(rec.unlockedTier || 1)));
+    rec.unlockedTier = unlockedTier;
+    rec.activeTier = Math.max(1, Math.min(unlockedTier, Math.floor(rec.activeTier || 1)));
+    let improvingTier = unlockedTier < tierCap;
     let discount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('inscriptionCostReducePct') : 0;
-    let baseNeed = improvingTier ? Math.max(1, Math.floor(rec.unlockedTier || 1) + 1) : Math.max(3, Math.ceil((rec.level || 1) / 5));
+    let baseNeed = improvingTier ? unlockedTier + 1 : Math.max(3, Math.ceil((rec.level || 1) / 5));
     let need = Math.max(1, Math.floor(baseNeed * (1 - discount)));
     return {
         record: rec,
+        tierCap: tierCap,
         improvingTier: improvingTier,
         need: need,
         maxed: !improvingTier && (rec.level || 1) >= 30,
-        nextTier: improvingTier ? Math.min(3, Math.floor(rec.unlockedTier || 1) + 1) : Math.floor(rec.unlockedTier || 1)
+        nextTier: improvingTier ? Math.min(tierCap, unlockedTier + 1) : unlockedTier
     };
 }
 
@@ -215,7 +220,7 @@ function processSupportGemWithSkyEssence(name) {
     if ((game.currencies.skyEssence || 0) < need) return addLog(`창공의 힘이 부족합니다. (필요: ${need})`, 'attack-monster');
     game.currencies.skyEssence -= need;
     if (improvingTier) {
-        rec.unlockedTier = Math.min(3, Math.floor(rec.unlockedTier || 1) + 1);
+        rec.unlockedTier = Math.min(processState.tierCap, Math.floor(rec.unlockedTier || 1) + 1);
         rec.activeTier = Math.max(Math.floor(rec.activeTier || 1), rec.unlockedTier);
         addLog(`☁️ 보조 젬 [${name}] 창공 가공 완료: ${rec.unlockedTier === 3 ? '상급' : '중급'} 해금 (소모 ${need})`, 'loot-unique');
     } else {
