@@ -6166,10 +6166,12 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let normalizedHeroSize = (localHeroTuning.baseHeight * heroScaleBoost) - downBlend * localHeroTuning.downShrink;
         normalizedHeroSize = clampNumber(normalizedHeroSize, localHeroTuning.minHeight, localHeroTuning.maxHeight);
         drawPixelShadow(ctx, x, y + 5, localHeroTuning.shadowWidth * heroScaleBoost, localHeroTuning.shadowHeight * heroScaleBoost, localHeroTuning.shadowAlpha);
+        let renderedHeroDef = getHeroSelectionDef(typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId);
+        let importedPixelHero = renderedHeroDef.spriteFormat === 'directional-pack-v1';
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
-            smoothing: 'high',
-            outlineColor: '#ffffff',
+            smoothing: importedPixelHero ? 'pixel' : 'high',
+            outlineColor: importedPixelHero ? null : '#ffffff',
             outlineAlpha: 0.86,
             outlineThickness: 1
         };

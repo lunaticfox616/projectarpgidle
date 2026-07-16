@@ -188,8 +188,29 @@ assert.ok(socialSource.includes('scrollChatToLatestOnNextRender'), 'opening chat
 assert.ok(indexSource.includes('id="chk-social-chat-noti"'), 'settings should expose a new-chat notification toggle');
 assert.ok(!socialSource.includes('setInterval(() => { if (socialCloudReady() && getMyNickname()) ensureHeartbeat(); }, SOCIAL_HEARTBEAT_MS);\n    // 커뮤니티'), 'social module should not run an eager cloud-ready watcher forever');
 assert.ok(passiveSource.includes('data-hero-id="${escapeHTML(id)}"'), 'hero preview cards should expose stable hero ids');
-assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero2\"]::after { background-image: url('../assets/hero2/hero2_walk.png')"), 'warrior preview should match its battle sprite');
-assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero7\"]::after { background-image: url('../assets/hero3/hero3_walk.png')"), 'summoner preview should match its reused battle sprite');
-assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero8\"]::after { background-image: url('../assets/hero2/hero2_walk.png')"), 'guardian preview should match its reused battle sprite');
+assert.ok(passiveSource.includes('style="--hero-preview-image:url('), 'hero preview cards should receive their mapped character artwork');
+assert.ok(windowCss.includes('background-image: var(--hero-preview-image);'), 'hero preview cards should render the mapped preview asset');
+const heroVisualMap = vm.runInContext(`HERO_SELECTION_ORDER.map(id => ({
+  id,
+  preview: HERO_SELECTION_DEFS[id].preview,
+  spriteFormat: HERO_SELECTION_DEFS[id].spriteFormat,
+  idle: HERO_SELECTION_DEFS[id].strips.idle,
+  attack: HERO_SELECTION_DEFS[id].strips.attack
+}))`, context);
+assert.strictEqual(heroVisualMap.length, 10, 'all ten talents should have playable character artwork');
+assert.strictEqual(new Set(heroVisualMap.map(row => row.preview)).size, 10, 'every talent should have a distinct selection preview');
+assert.strictEqual(new Set(heroVisualMap.map(row => row.idle)).size, 10, 'every talent should have a distinct idle sprite');
+assert.strictEqual(new Set(heroVisualMap.map(row => row.attack)).size, 10, 'every talent should have a distinct action sprite');
+heroVisualMap.forEach(row => {
+  assert.strictEqual(row.spriteFormat, 'directional-pack-v1', `${row.id} should use the imported directional sprite format`);
+  assert.ok(fs.existsSync(row.preview), `${row.id} preview should exist`);
+  assert.ok(fs.existsSync(`assets/playable/${row.id}-idle.png`), `${row.id} idle sprite should exist`);
+  assert.ok(fs.existsSync(`assets/playable/${row.id}-attack.png`), `${row.id} attack sprite should exist`);
+});
+assert.ok(passiveSource.includes("hero7Idle: 'assets/playable/hero7-idle.png'"), 'summoner should no longer reuse the druid sprite');
+assert.ok(passiveSource.includes("hero8Idle: 'assets/playable/hero8-idle.png'"), 'guardian should no longer reuse the warrior sprite');
+assert.ok(uiSource.includes("let importedPixelHero = renderedHeroDef.spriteFormat === 'directional-pack-v1'"), 'imported characters should use their pixel rendering path');
+assert.ok(uiSource.includes("smoothing: importedPixelHero ? 'pixel' : 'high'"), 'imported pixel characters should render without smoothing');
+assert.ok(uiSource.includes("outlineColor: importedPixelHero ? null : '#ffffff'"), 'imported artwork should keep its authored outline instead of receiving a synthetic white rim');
 
 console.log('smoke-game-visual-overhaul passed');
