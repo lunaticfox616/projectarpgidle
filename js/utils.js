@@ -354,7 +354,7 @@ function getRarityRank(rarity) {
 function createEmptyStatBucket() {
     return {
         flatDmg: 0, weaponFlatDmgPct: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, suppCap: 0, regenFlat: 0,
-        dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResF: 0, maxResC: 0, maxResL: 0, maxResChaos: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, leechKeepFullLife: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
+        dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResAll: 0, maxResF: 0, maxResC: 0, maxResL: 0, maxResChaos: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, leechKeepFullLife: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0, slamEchoDamagePct: 0, doubleDamageChance: 0, blockChanceMax: 0,
         physFlatTakenReduce: 0, fireFlatTakenReduce: 0, coldFlatTakenReduce: 0, lightFlatTakenReduce: 0, chaosFlatTakenReduce: 0, allFlatTakenReduce: 0,
         physTakenAsFire: 0, physTakenAsCold: 0, physTakenAsLight: 0, physTakenAsChaos: 0,
@@ -441,7 +441,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'maxResC') bucket.maxResC += value;
     else if (statId === 'maxResL') bucket.maxResL += value;
     else if (statId === 'maxResChaos') bucket.maxResChaos += value;
-    else if (statId === 'maxResAll') { bucket.maxResF += value; bucket.maxResC += value; bucket.maxResL += value; }
+    else if (statId === 'maxResAll') bucket.maxResAll += value;
     else if (statId === 'resC') bucket.resC += value;
     else if (statId === 'resL') bucket.resL += value;
     else if (statId === 'resAll') { bucket.resF += value; bucket.resC += value; bucket.resL += value; }
