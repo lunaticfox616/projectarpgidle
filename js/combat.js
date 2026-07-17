@@ -3098,14 +3098,16 @@ function getPlayerStats() {
         let overcapFire = Math.max(0, fireResForOvercap - maxResFForOvercap);
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(0.35, overcapFire * 0.005)));
     }
-    let regenScaledBonus = 1 + Math.max(0, finalRegen * (skill.regenDmgScale || 0) / 100);
+    let regenDmgScale = Math.max(0, Number(skill.regenDmgScale) || 0);
+    let regenScaledBonus = regenDmgScale > 0 ? 1 + Math.max(0, finalRegen * regenDmgScale / 100) : 1;
     let fireResOvercap = Math.max(0, fireResForOvercap - maxResFForOvercap);
     let fireResOvercapCap = Number.isFinite(Number(skill.fireResOvercapCap)) ? Math.max(0, Number(skill.fireResOvercapCap)) : Infinity;
     let effectiveFireResOvercap = Math.min(fireResOvercap, fireResOvercapCap);
     let fireResOvercapAdditiveMultiplier = Math.max(0, skill.fireResOvercapMulPerPct || 0);
+    let fireResDmgScale = Math.max(0, Number(skill.fireResDmgScale) || 0);
     let fireResScaledBonus = fireResOvercapAdditiveMultiplier > 0
         ? 1 + (effectiveFireResOvercap * fireResOvercapAdditiveMultiplier)
-        : 1 + Math.max(0, finalResF * (skill.fireResDmgScale || 0));
+        : (fireResDmgScale > 0 ? 1 + Math.max(0, finalResF * fireResDmgScale) : 1);
     let dotMultiplier = skill.dotMultiplier || 1;
     let dotStatMultiplier = 1 + Math.max(0, dotPctDmg) / 100;
     let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
