@@ -199,8 +199,12 @@ assert.ok(battlefieldSource.includes("drawBossTelegraphDecal(ctx, 'ring'"), 'bos
 assert.ok(battlefieldSource.includes("drawBossTelegraphDecal(ctx, 'fan'"), 'boss fan patterns should use the generated ground decal');
 assert.ok(battlefieldSource.includes("drawBossTelegraphDecal(ctx, 'pulse'"), 'boss pulse patterns should use the generated ground decal');
 assert.ok(battlefieldSource.includes('function queueSkillGemVfx('), 'resolved skill hits should enqueue generated image effects');
-assert.ok(battlefieldSource.includes('drawSkillGemVfxLayer(ctx, now);'), 'skill VFX should render through the battlefield ground layer');
-assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now);') < battlefieldSource.indexOf('drawPlayerSprite(ctx, playerPos.x'), 'skill VFX should stay below the player sprite and combat text');
+assert.ok(battlefieldSource.includes('drawSkillGemVfxLayer(ctx, now);'), 'skill VFX should render through the battlefield effect layer');
+assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now);') > battlefieldSource.indexOf('drawEnemySprite(ctx, enemy, entry.x'), 'translucent skill VFX should remain visible over monster sprites');
+assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now);') < battlefieldSource.lastIndexOf('drawBattlefieldEnemyHealthBars(ctx'), 'health bars and combat text should remain above skill VFX');
+assert.ok(battlefieldSource.includes('function queueSkillGemProjectileLaunch('), 'projectile gems should enqueue a pre-impact travelling projectile');
+assert.ok(battlefieldSource.includes('if (effect.travel)'), 'projectiles should travel as discrete images rather than stretching across the full distance');
+assert.ok(!battlefieldSource.includes('let connector = family === \'projectile\''), 'projectile art should no longer use a full-distance connector');
 assert.ok(battlefieldSource.includes("stageKind === 'chainJump'"), 'secondary chain hits should use their connector image');
 assert.ok(battlefieldSource.includes("stageKind === 'slamAftershock'"), 'delayed slam aftershocks should use their own image');
 assert.ok(battlefieldSource.includes('if (list.length > 96)'), 'skill image effects should retain a hard runtime allocation cap');
@@ -213,6 +217,7 @@ const stagedSkillVfx = vm.runInContext(`(() => {
   queueSkillGemVfx({ id: 2, skillName: '연쇄 폭풍', stageKind: 'chainJump', chainFromEnemyId: 'a', element: 'light' }, target, player, map, 1000, 1);
   queueSkillGemVfx({ id: 3, skillName: '지진 파쇄', stageKind: 'slamAftershock', element: 'phys' }, target, player, map, 1000, 1);
   queueSkillGemVfx({ id: 4, skillName: '서리늑대 소환', stageKind: 'primary', element: 'cold', summon: true }, target, player, map, 1000, 1);
+  queueSkillGemVfx({ id: 5, skillName: '번개 타격', stageKind: 'chainPrimary', element: 'light' }, target, player, map, 1000, 1);
   const imageKeys = battleVisualState.skillEffects.map(effect => effect.imageKey);
   for (let id = 10; id < 140; id++) {
     queueSkillGemVfx({ id, skillName: '기본 공격', stageKind: 'primary', element: 'phys' }, target, player, map, 1000, 1);
@@ -223,7 +228,17 @@ assert.ok(stagedSkillVfx.imageKeys.includes('skillFxWhirlwind'), 'whirlwind stag
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxChainJump'), 'chain jumps should use the connector image asset');
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSlamAftershock'), 'slam aftershocks should use the delayed fracture image asset');
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSummonStrike'), 'summon attacks should use the spectral strike image asset');
+assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSlash'), 'lightning strike primary should use a lightning-tinted melee slash');
 assert.ok(stagedSkillVfx.count <= 96, 'skill image effect queue should stay bounded during rapid attacks');
+const travellingProjectile = vm.runInContext(`(() => {
+  battleVisualState.skillEffects = [];
+  const swing = { id: 200, projectile: true, skillName: '얼음 창', element: 'cold', start: 1000, duration: 400, impactAt: 1400 };
+  queueSkillGemProjectileLaunch(swing, [{ enemy: { id: 'b' } }], { x: 100, y: 220 }, { b: { x: 250, y: 210, enemy: { id: 'b' } } }, 1);
+  return battleVisualState.skillEffects[0];
+})()`, context);
+assert.ok(travellingProjectile && travellingProjectile.travel, 'projectile image should own a real travel phase');
+assert.strictEqual(travellingProjectile.arriveAt, 1400, 'projectile arrival should match the delayed damage frame');
+assert.ok(travellingProjectile.fromX < travellingProjectile.toX, 'projectile should move from the player toward the target');
 const annihilateSpawnOptions = vm.runInContext(`getAttackFxSpawnOpts(
   { element: 'fire', impactTier: 'annihilate', crit: false },
   { isBoss: false, isElite: false },
@@ -241,6 +256,13 @@ assert.ok(passiveSource.includes("text.impactTier === 'annihilate' ? 27"), 'dama
 assert.ok(!passiveSource.includes("ctx.fillText('ANNIHILATION'"), 'damage labels should avoid redundant oversized impact captions');
 assert.ok(passiveSource.includes("annihilate: Object.freeze({ hitStopMs: 34, shake: 3.8, duration: 170 })"), 'one-shot feedback intensity should stay below the previous expensive profile');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
+assert.ok(combatSource.includes("attackTags.includes('slam') ? 460") && combatSource.includes("attackTags.includes('projectile') ? 400 : 360"), 'seven-pose attacks should use a readable motion window');
+assert.ok(combatSource.includes('rawDamage: dmg'), 'one-shot damage labels should retain uncapped calculated damage');
+assert.ok(battlefieldSource.includes('Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage'), 'damage labels should show damage beyond the target remaining life');
+assert.strictEqual(context.SKILL_DB['회오리바람'].targets, 8, 'whirlwind should cover all eight adjacent directions');
+assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['번개 타격'].primaryFamily, 'slash', 'lightning strike should begin with a melee lightning slash before chain arcs');
+assert.ok(battlefieldSource.includes('if (!enemy.isElite && !enemy.isBoss) return;'), 'ordinary monsters should not render ground aura telegraphs');
+assert.ok(battlefieldSource.includes("fx.type === 'playerHit' ? Math.max(0.45, hitStrength * 0.32)"), 'enemy hits should use restrained camera feedback');
 assert.ok(combatSource.includes("addBattleFx('levelUp'"), 'player level-ups should create a battlefield effect');
 assert.ok(combatSource.includes("duration: 560, color: '#ffe59a'"), 'level-up feedback should end quickly');
 const socialSource = fs.readFileSync('js/social.js', 'utf8');
@@ -262,7 +284,8 @@ assert.ok(indexSource.includes('id="ui-gem-engrave-slots" class="gem-engrave-orb
 assert.ok(windowCss.includes('.gem-orbit-center'), 'the engraving overlay should keep the selected gem at its visual center');
 assert.ok(windowCss.includes('grid-template-columns: minmax(0, 1fr); justify-items: center'), 'the engraving device should remain symmetric instead of reserving an uneven side column');
 assert.ok(windowCss.includes('.gem-orbit-center {') && windowCss.includes('border-radius: 50%'), 'the selected gem should use a circular socket instead of a tall card silhouette');
-assert.ok(windowCss.includes('aspect-ratio: 1') && windowCss.includes('.gem-orbit-slot.slot-1 { left: 50%; top: 10%'), 'all engraving slot centers should sit on one circular path around the gem');
+assert.ok(windowCss.includes('aspect-ratio: 1') && uiSource.includes('let orbitAngle = -90 + index * 72') && uiSource.includes('let orbitRadius = 40.5'), 'all engraving slot centers should be calculated on one exact circular path around the gem');
+assert.ok(windowCss.includes('.gem-orbit-spoke {') && uiSource.includes('class="gem-orbit-spoke"'), 'every engraving slot should visibly connect back to the central gem');
 assert.ok(uiSource.includes('class="gem-orbit-legend"') && windowCss.includes(".gem-orbit-slot.filled::after { content: '◆'"), 'empty and filled engraving slots should differ by shape as well as color');
 assert.ok(!uiSource.includes('<small>${index + 1}</small>'), 'engraving slots should not show redundant corner number badges');
 assert.ok(windowCss.includes('@container (max-width: 430px)'), 'the engraving constellation should retain a dedicated mobile layout');

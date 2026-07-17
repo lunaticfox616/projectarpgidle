@@ -4172,6 +4172,7 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
     }
     let selectedSlot = typeof getSelectedGemEngraveSlot === 'function' ? getSelectedGemEngraveSlot() : 0;
     let slots = [];
+    let spokes = [];
     for (let index = 0; index < 5; index++) {
         let enhancement = activeSlots[index] ? GEM_SKY_ENHANCEMENTS[activeSlots[index]] : null;
         let unlocked = index < engraveCap;
@@ -4180,9 +4181,14 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
         let title = enhancement ? `${index + 1}번 슬롯 · ${enhancement.name}` : unlocked ? `${index + 1}번 빈 각인 슬롯` : nextUnlock ? `${index + 1}번 슬롯 해금 · 창공의 힘 ${index + 1}` : '앞 슬롯부터 해금 필요';
         let group = enhancement ? getSkyEnhancementGroup(enhancement) : null;
         let glyph = enhancement ? getSkyEnhancementGlyph(enhancement) : unlocked ? '◇' : nextUnlock ? '+' : '×';
-        slots.push(`<button type="button" class="gem-orbit-slot slot-${index + 1} ${stateClass} ${selectedSlot === index ? 'selected' : ''} ${group ? `group-${group.className}` : ''}" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" data-slot-index="${index}" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation(); openGemEngraveSlotOverlay(${index})"><span>${glyph}</span>${enhancement ? `<em>${escapeHTML(enhancement.name)}</em>` : nextUnlock ? `<em>슬롯 해금</em>` : ''}</button>`);
+        let orbitAngle = -90 + index * 72;
+        let orbitRadius = 40.5;
+        let orbitX = 50 + Math.cos(orbitAngle * Math.PI / 180) * orbitRadius;
+        let orbitY = 50 + Math.sin(orbitAngle * Math.PI / 180) * orbitRadius;
+        spokes.push(`<span class="gem-orbit-spoke" aria-hidden="true" style="--orbit-angle:${orbitAngle}deg"></span>`);
+        slots.push(`<button type="button" class="gem-orbit-slot slot-${index + 1} ${stateClass} ${selectedSlot === index ? 'selected' : ''} ${group ? `group-${group.className}` : ''}" style="left:${orbitX.toFixed(3)}%;top:${orbitY.toFixed(3)}%" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" data-slot-index="${index}" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation(); openGemEngraveSlotOverlay(${index})"><span>${glyph}</span>${enhancement ? `<em>${escapeHTML(enhancement.name)}</em>` : nextUnlock ? `<em>슬롯 해금</em>` : ''}</button>`);
     }
-    root.innerHTML = `<div class="gem-orbit-stage"><div class="gem-orbit-rings" aria-hidden="true"></div><div class="gem-orbit-center element-${getGemCardMeta(SKILL_DB[active] || {}).className}">${renderSkillGemArt(active, 'gem-orbit-art', { eager: true })}<span>각인 대상</span><strong>${escapeHTML(active)}</strong></div>${slots.join('')}</div><div class="gem-orbit-copy"><strong>슬롯을 눌러 각인</strong><span class="gem-orbit-legend"><b class="is-empty">◇ 빈 슬롯</b><b class="is-filled">◆ 각인됨</b><b class="is-unlockable">+ 해금 가능</b></span></div>`;
+    root.innerHTML = `<div class="gem-orbit-stage"><div class="gem-orbit-rings" aria-hidden="true"></div>${spokes.join('')}<div class="gem-orbit-center element-${getGemCardMeta(SKILL_DB[active] || {}).className}">${renderSkillGemArt(active, 'gem-orbit-art', { eager: true })}<span>각인 대상</span><strong>${escapeHTML(active)}</strong></div>${slots.join('')}</div><div class="gem-orbit-copy"><strong>슬롯을 눌러 각인</strong><span class="gem-orbit-legend"><b class="is-empty">◇ 빈 슬롯</b><b class="is-filled">◆ 각인됨</b><b class="is-unlockable">+ 해금 가능</b></span></div>`;
 }
 
 function getSkyEnhancementGlyph(enhancement) {
