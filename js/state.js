@@ -2000,6 +2000,7 @@ const defaultGame = {
         healTier: 'h1', healCharges: 3, healChargeProgress: 0,
         healOverTimeUntil: 0, healOverTimePerSec: 0, healOverTimeTotal: 0,
         healOverTimeApplied: 0, healOverTimeStartedAt: 0,
+        alchemyGlass: 0,
         utils: [], utilityChargeBank: {}, killCounter: 0,
         encounterSerial: 0, wasInCombat: false, foundKeys: ['h1']
     },

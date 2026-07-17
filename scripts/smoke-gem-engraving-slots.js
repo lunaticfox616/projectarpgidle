@@ -68,4 +68,15 @@ slots = context.getSkyEnhancementSlotsForSkill('테스트 젬');
 assert.deepStrictEqual(Array.from(slots), [null, 'sky_b', null, null, null], 'removing one engraving must not shift later slots');
 assert.deepStrictEqual(Array.from(context.getSkyEnhancementForSkill('테스트 젬')), ['sky_b']);
 
+assert.strictEqual(context.toggleSkyGemEnhancement('sky_a'), true, 'the full engraving list should apply into the first empty unlocked slot');
+slots = context.getSkyEnhancementSlotsForSkill('테스트 젬');
+assert.deepStrictEqual(Array.from(slots), ['sky_a', 'sky_b', null, null, null]);
+assert.strictEqual(context.toggleSkyGemEnhancement('sky_a'), true, 'clicking an applied engraving again should remove it');
+slots = context.getSkyEnhancementSlotsForSkill('테스트 젬');
+assert.deepStrictEqual(Array.from(slots), [null, 'sky_b', null, null, null]);
+
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+assert.ok(uiSource.includes('openGemEngraveSlotOverlay'), 'engraving slots should open a dedicated choice overlay');
+assert.ok(uiSource.includes('onpointerdown="event.stopPropagation()"'), 'slot controls should isolate pointer input from surrounding drag handlers');
+
 console.log('smoke-gem-engraving-slots passed');

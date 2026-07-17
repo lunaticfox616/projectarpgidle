@@ -463,14 +463,14 @@ COSMOS_BOSS_UNIQUE_EQUIPMENT.forEach(unique => UNIQUE_DB.push(unique));
 //  - 유틸리티 플라스크는 durationMs 동안 스탯 버프(버킷 반영). 최대 2개 장착.
 //  - 모두 적 처치로 충전되고 전투 중 자동 사용된다.
 const FLASK_HEAL_TIERS = [
-    { key: 'h1', name: '생명력 플라스크 I', reqLevel: 1, healPct: 40, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
-    { key: 'h2', name: '생명력 플라스크 II', reqLevel: 5, healPct: 55, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
-    { key: 'h3', name: '생명력 플라스크 III', reqLevel: 10, healPct: 70, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
-    { key: 'h4', name: '생명력 플라스크 IV', reqLevel: 15, healPct: 85, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 62 },
-    { key: 'h5', name: '생명력 플라스크 V', reqLevel: 20, healPct: 100, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 62 },
-    { key: 'h6', name: '생명력 플라스크 VI', reqLevel: 25, healPct: 120, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 65 },
-    { key: 'h7', name: '생명력 플라스크 VII', reqLevel: 30, healPct: 140, durationMs: 5500, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 65 },
-    { key: 'h8', name: '생명력 플라스크 VIII', reqLevel: 35, healPct: 165, durationMs: 6000, maxCharges: 5, chargesPerKills: 8, autoBelowHpPct: 65 }
+    { key: 'h1', kind: 'heal', tier: 1, name: '생명력 플라스크 I', reqLevel: 1, healPct: 40, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
+    { key: 'h2', kind: 'heal', tier: 2, name: '생명력 플라스크 II', reqLevel: 5, healPct: 55, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
+    { key: 'h3', kind: 'heal', tier: 3, name: '생명력 플라스크 III', reqLevel: 10, healPct: 70, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
+    { key: 'h4', kind: 'heal', tier: 4, name: '생명력 플라스크 IV', reqLevel: 15, healPct: 85, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 62 },
+    { key: 'h5', kind: 'heal', tier: 5, name: '생명력 플라스크 V', reqLevel: 20, healPct: 100, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 62 },
+    { key: 'h6', kind: 'heal', tier: 6, name: '생명력 플라스크 VI', reqLevel: 25, healPct: 120, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 65 },
+    { key: 'h7', kind: 'heal', tier: 7, name: '생명력 플라스크 VII', reqLevel: 30, healPct: 140, durationMs: 5500, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 65 },
+    { key: 'h8', kind: 'heal', tier: 8, name: '생명력 플라스크 VIII', reqLevel: 35, healPct: 165, durationMs: 6000, maxCharges: 5, chargesPerKills: 8, autoBelowHpPct: 65 }
 ];
 
 // 유틸리티 플라스크도 회복 플라스크처럼 종류별 5단계(레벨 1/5/10/15/20)로 나뉘며,
@@ -492,6 +492,7 @@ FLASK_UTILITY_CATEGORIES.forEach(cat => {
         let descParts = [`${cat.statSuffix} +${statValue}%`];
         let def = {
             key,
+            kind: 'utility',
             category: cat.category,
             tier,
             name: `${cat.label} 플라스크 ${['I', 'II', 'III', 'IV', 'V'][idx]}`,

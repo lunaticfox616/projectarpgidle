@@ -13,11 +13,11 @@
     <link rel="stylesheet" href="css/ui-premium.css?v=20260707-community-ui1">
     <link rel="stylesheet" href="css/ui-windows.css?v=20260716-background-summary1">
     <link rel="stylesheet" href="css/ui-feedback.css?v=20260716-steam-ui1">
-    <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1">
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260717-system-integrity1">
     <link rel="stylesheet" href="css/core-cube.css?v=20260604-core-cube-visual1">
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260715-luxe1">
-    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260717-system-integrity1">
+    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260717-gem-art2">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -269,7 +269,7 @@
             <div class="combat-hud-note" id="ui-exp-note"></div>
             </div>
             <div class="combat-hud-row combat-hud-row-hp player-hud-vitals">
-            <div class="combat-hud-label combat-hud-label-hp">생명력</div>
+            <div id="ui-combat-flasks" class="combat-flask-strip" aria-label="장착 플라스크와 남은 충전"></div>
             <div class="hp-bar-bg combat-hp-bar">
                 <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
                 <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span><span id="ui-es-inline"></span></div>
@@ -955,8 +955,8 @@
                     <div class="gem-enhance-section gem-inscription-section">
                         <div class="gem-enhance-section-head">
                             <div><span class="gem-section-index">02</span><div><div class="gem-enhance-section-title">창공 각인</div><div class="gem-enhance-section-desc">슬롯을 확장하고 젬의 전투 성격을 바꾸는 특수 옵션을 선택합니다.</div></div></div>
-                            <div id="ui-gem-engrave-slots" class="gem-engrave-slots"></div>
                         </div>
+                        <div id="ui-gem-engrave-slots" class="gem-engrave-orbit"></div>
                         <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
                     </div>
                     <div class="gem-enhance-section gem-support-process-section">
@@ -1273,32 +1273,32 @@
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260715-runtime-structure2"></script>
 <script defer src="data/maps.js?v=20260717-system-integrity1"></script>
-<script defer src="data/skills.js?v=20260717-system-integrity1"></script>
-<script defer src="data/items.js?v=20260717-system-integrity1"></script>
+<script defer src="data/skills.js?v=20260717-gem-art2"></script>
+<script defer src="data/items.js?v=20260717-gem-flask-mobile1"></script>
 <script defer src="data/passives.js?v=20260715-runtime-structure2"></script>
 <script defer src="data/bosses.js?v=20260715-runtime-structure2"></script>
 <script defer src="data/rewards.js?v=20260715-runtime-structure2"></script>
 <script defer src="data/talent-cards.js?v=20260708-projectile-uncap1"></script>
-<script defer src="js/utils.js?v=20260708-attr-dmg-scaling1"></script>
+<script defer src="js/utils.js?v=20260717-talent-coverage1"></script>
 <script defer src="js/ui-feedback.js?v=20260716-steam-ui1"></script>
-<script defer src="js/state.js?v=20260717-system-integrity1"></script>
+<script defer src="js/state.js?v=20260717-gem-flask-mobile1"></script>
 <script defer src="js/save.js?v=20260717-system-integrity1"></script>
 <script defer src="js/items.js?v=20260717-system-integrity1"></script>
-<script defer src="js/skills.js?v=20260717-system-integrity1"></script>
-<script defer src="js/passives.js?v=20260717-system-integrity1"></script>
+<script defer src="js/skills.js?v=20260717-gem-flask-mobile1"></script>
+<script defer src="js/passives.js?v=20260717-skill-vfx1"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1"></script>
-<script defer src="js/combat-grid.js?v=20260717-system-integrity1"></script>
+<script defer src="js/combat-grid.js?v=20260717-skill-sequence1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1"></script>
-<script defer src="js/combat.js?v=20260717-system-integrity1"></script>
-<script defer src="js/canvas-battlefield.js?v=20260717-system-integrity1"></script>
+<script defer src="js/combat.js?v=20260717-skill-vfx1"></script>
+<script defer src="js/canvas-battlefield.js?v=20260717-skill-vfx1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
-<script defer src="js/canvas-passive-tree.js?v=20260717-system-integrity1"></script>
-<script defer src="js/ui.js?v=20260717-system-integrity1"></script>
+<script defer src="js/canvas-passive-tree.js?v=20260717-equipment-ux1"></script>
+<script defer src="js/ui.js?v=20260717-gem-art2"></script>
 <script defer src="js/social.js?v=20260715-runtime-structure1"></script>
 <script defer src="js/ui-window-manager.js?v=20260717-system-integrity1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
 <script defer src="js/goal-system.js?v=20260717-system-integrity1"></script>
-<script defer src="js/talent-cards.js?v=20260708-projectile-uncap1"></script>
+<script defer src="js/talent-cards.js?v=20260717-talent-coverage1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260717-system-integrity1"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
 <script defer src="js/main.js?v=20260513-gemfix1"></script>

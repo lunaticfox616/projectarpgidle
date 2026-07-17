@@ -594,7 +594,7 @@ function renderPaperdoll(targetId, forCrafting) {
             let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
             let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
             let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-            html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-slot="${slot}" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()">
+            html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmousemove="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip(event)">
                 <div class="equipment-slot-head"><span class="equipment-slot-icon">${slotIcons[slot] || '◆'}</span><span>${displaySlot}</span></div>
                 <div class="item-title equipment-slot-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${sourceBadge}</div>
                 <div class="item-stats equipment-slot-stats">${statsHtml || '<span>옵션 정보 없음</span>'}</div>
@@ -629,14 +629,8 @@ function renderInventoryCard(item, idx, mode) {
     let explicitCount = typeof getItemExplicitOptionCount === 'function'
         ? getItemExplicitOptionCount(item)
         : ((item.stats || []).length + (item.chaosInfusion ? 1 : 0));
-    let metaBits = [];
-    if (explicitCount > 0) metaBits.push(`추가 옵션 ${explicitCount}`);
-    if (item.underEnchant) metaBits.push('인챈트');
-    if (item.chaosInfusion) metaBits.push('혼돈 주입');
-    if (item.encroached && !item.encroached.liberated) metaBits.push('잠식 · 해방 전');
-    if (item.fusedRelic) metaBits.push('융합 유물');
-    if (typeof getItemSalvagePreviewText === 'function') metaBits.push(getItemSalvagePreviewText(item, true));
-    let metaChips = (metaBits.length ? metaBits : ['추가 옵션 없음']).map(bit => `<span class="equipment-meta-chip">${bit}</span>`).join('');
+    let optionSummary = explicitCount > 0 ? `추가 옵션 ${explicitCount}` : '추가 옵션 없음';
+    let metaChips = `<span class="equipment-meta-chip">${optionSummary}</span>`;
     let salvageTitle = typeof getItemSalvagePreviewText === 'function' ? getItemSalvagePreviewText(item, false) : '장비를 해체합니다.';
     let actions = '';
     if (mode === 'equip') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" title="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${item.locked ? 'disabled' : ''}>해체</button></div>`;
@@ -654,12 +648,12 @@ function renderInventoryCard(item, idx, mode) {
     let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || item.rarity || '일반';
-    return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()">
+    return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-item-tooltip-anchor="1" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip(event)">
         <div class="equipment-card-main">
             <div class="equipment-card-topline"><span class="equipment-card-slot">${hi(item.slot)}</span><span class="equipment-card-rarity">${rarityLabel}</span>${lockIcon}</div>
             <div class="item-title equipment-card-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>
             <div class="item-base-line equipment-card-base">${hi(item.baseName)}</div>
-            <div class="item-stats equipment-card-meta">${metaChips}<span class="equipment-meta-detail">상세 보기</span></div>
+            <div class="item-stats equipment-card-meta">${metaChips}</div>
         </div>
         ${actions}
     </div>`;
