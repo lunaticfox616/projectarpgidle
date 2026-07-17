@@ -281,8 +281,48 @@ assert.ok(socialSource.includes('scrollChatToLatestOnNextRender'), 'opening chat
 assert.ok(indexSource.includes('id="chk-social-chat-noti"'), 'settings should expose a new-chat notification toggle');
 assert.ok(!socialSource.includes('setInterval(() => { if (socialCloudReady() && getMyNickname()) ensureHeartbeat(); }, SOCIAL_HEARTBEAT_MS);\n    // 커뮤니티'), 'social module should not run an eager cloud-ready watcher forever');
 assert.ok(passiveSource.includes('data-hero-id="${escapeHTML(id)}"'), 'hero preview cards should expose stable hero ids');
-assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero2\"]::after { background-image: url('../assets/hero2/hero2_walk.png')"), 'warrior preview should match its battle sprite');
-assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero7\"]::after { background-image: url('../assets/hero3/hero3_walk.png')"), 'summoner preview should match its reused battle sprite');
-assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero8\"]::after { background-image: url('../assets/hero2/hero2_walk.png')"), 'guardian preview should match its reused battle sprite');
+assert.ok(passiveSource.includes('class="hero-choice-portrait" src="${escapeHTML(def.portrait)}"'), 'hero selection should render the dedicated portrait configured for each hero');
+assert.ok(windowCss.includes('body:not(.light-mode) .hero-choice-portrait {'), 'hero portraits should have a dedicated selection-card layout');
+assert.ok(!windowCss.includes('.hero-choice[data-hero-id='), 'character selection should not reuse animated combat sheets as CSS previews');
+const heroVisualCoverage = vm.runInContext(`Object.values(HERO_SELECTION_DEFS).map(def => ({
+  id: def.id,
+  portrait: def.portrait,
+  strips: Object.values(def.strips),
+}))`, context);
+assert.strictEqual(heroVisualCoverage.length, 10, 'all ten playable heroes should retain a visual definition');
+assert.strictEqual(new Set(heroVisualCoverage.map(hero => hero.portrait)).size, 10, 'every hero should use a distinct portrait');
+heroVisualCoverage.forEach(hero => {
+  assert.ok(fs.existsSync(hero.portrait), `${hero.id} portrait should exist`);
+  assert.strictEqual(new Set(hero.strips).size, 5, `${hero.id} animation states should use explicit asset keys`);
+  ['idle', 'walk', 'attack'].forEach(state => {
+    assert.ok(fs.existsSync(`assets/playable/${hero.id}/${state}.png`), `${hero.id} ${state} strip should exist`);
+  });
+});
+assert.ok(passiveSource.includes("hero7Walk: 'assets/playable/hero7/walk.png'"), 'summoner combat art should no longer reuse the druid');
+assert.ok(passiveSource.includes("hero8Walk: 'assets/playable/hero8/walk.png'"), 'guardian combat art should no longer reuse the warrior');
+const playableManifest = JSON.parse(fs.readFileSync('assets/playable/manifest.json', 'utf8'));
+const expectedAnimationRoles = {
+  hero1: ['walks_forward', 'shifts_their_weight'],
+  hero2: ['maintains_a_guarded', 'takes_a_brief_focused'],
+  hero3: ['rhythmic_walking', 'gently_raises'],
+  hero4: ['walks_forward', 'lunges_forward'],
+  hero5: ['armored_warrior_walks', 'warrior_shifts_her_weight'],
+  hero6: ['animation', 'lifts_the_crossbow'],
+  hero7: ['walks_forward', 'stands_in_place'],
+  hero8: ['begins_to_walk', 'shifts_its_weight'],
+  hero9: ['holds_the_staff', 'holds_their_staff'],
+  hero10: ['walks_forward', 'Attack'],
+};
+Object.entries(expectedAnimationRoles).forEach(([heroId, roles]) => {
+  assert.ok(playableManifest[heroId].walkAnimation.includes(roles[0]), `${heroId} should use its verified walk export`);
+  assert.ok(playableManifest[heroId].attackAnimation.includes(roles[1]), `${heroId} should use its verified attack export`);
+  assert.strictEqual(playableManifest[heroId].attack.frames, 7, `${heroId} attack should keep seven readable runtime poses`);
+});
+assert.strictEqual(playableManifest.hero6.walk.frames, 10, 'sniper should use a ping-pong movement cycle instead of looping into its aiming pose');
+assert.ok(passiveSource.includes('anchorX: raw.width * anchor.xRatio'), 'playable frames should preserve the source-cell center instead of recentering weapon and spell bounds');
+assert.ok(passiveSource.includes('anchorY: raw.height * anchor.yRatio'), 'playable frames should preserve one foot baseline across idle, walk, and attack');
+assert.ok(passiveSource.includes("manifest[key] += '?v=20260718-motion2'"), 'updated playable sheets should bypass stale browser image caches');
+assert.ok(uiSource.includes('walkCycleDuration = clampNumber(960 / moveRatio'), 'walk animation timing should target a complete cycle instead of treating the cycle duration as one frame');
+assert.ok(!uiSource.includes("if (typeof isLocalRuntimeHost !== 'function' || !isLocalRuntimeHost()) return defaultTuning;"), 'playable character scale should remain consistent between local and deployed builds');
 
 console.log('smoke-game-visual-overhaul passed');
