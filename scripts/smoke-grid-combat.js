@@ -65,6 +65,7 @@ const context = {
   clearInterval() {},
   requestAnimationFrame() {},
   cancelAnimationFrame() {},
+  performance: { now() { return Date.now(); } },
   Image: function Image() {},
   Date,
   Math,
@@ -188,7 +189,75 @@ assert.ok(!radiusOneCells.some(cell => cell.gx === 4 && cell.gy === 4), '반경 
   assert.strictEqual(hits.length, 1, '인접하지 않은 적으로는 전이되지 않아야 한다');
 }
 
-// ── 3-1. 플라스크 수명주기: 조우 사이 유지, 지역 완료/이동 시 종료, 루프 시 획득 리셋 ──
+// ── 3-1. 스킬 공격 단계: 회전 순차 타격 / 최초·연쇄 분리 / 강타 여진 ──
+{
+  const targets = [makeEnemy(31, 2, 6), makeEnemy(32, 2, 5), makeEnemy(33, 1, 5)]
+    .map((enemy, idx) => ({ enemy, mult: idx === 0 ? 1 : 0.8 }));
+  const whirl = context.buildSkillHitSequence('회오리바람', context.SKILL_DB['회오리바람'], targets);
+  assert.strictEqual(whirl.length, 3, '회오리바람은 대상마다 독립 타격 단계가 있어야 한다');
+  assert.strictEqual(whirl.map(stage => stage.delayMs).join(','), '0,100,200', '회오리바람은 0.1초 간격으로 순차 타격해야 한다');
+  assert.ok(whirl.every(stage => stage.targets.length === 1), '회오리바람 단계 하나가 모든 대상에게 동시에 피해를 주면 안 된다');
+
+  const chain = context.buildSkillHitSequence('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍'], targets);
+  assert.strictEqual(chain.map(stage => stage.kind).join(','), 'chainPrimary,chainJump,chainJump', '연쇄는 최초 공격과 후속 점프로 구분돼야 한다');
+  assert.strictEqual(chain.map(stage => stage.delayMs).join(','), '0,110,220', '연쇄 피해는 각 점프 시점에 따로 발생해야 한다');
+  assert.strictEqual(chain[1].chainFromEnemyId, 31, '두 번째 연쇄는 최초 대상에서 출발해야 한다');
+  assert.strictEqual(chain[2].chainFromEnemyId, 32, '세 번째 연쇄는 직전 연쇄 대상에서 출발해야 한다');
+
+  const slam = context.buildSkillHitSequence('묵직한 강타', context.SKILL_DB['묵직한 강타'], targets.slice(0, 1));
+  assert.strictEqual(slam.length, 2, '강타는 본 타격과 여진으로 분리돼야 한다');
+  assert.strictEqual(slam[1].kind, 'slamAftershock');
+  assert.strictEqual(slam[1].delayMs, 420, '묵직한 강타의 개별 여진 지연시간을 사용해야 한다');
+  assert.strictEqual(slam[0].damageMultiplier, 0.62, '강타 본 타격과 여진의 합이 기존 총 피해를 유지해야 한다');
+  assert.strictEqual(slam[1].damageMultiplier, 0.38, '묵직한 강타의 여진 피해 배율을 사용해야 한다');
+  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('묵직한 강타', context.SKILL_DB['묵직한 강타']), 1, '판정 세분화만으로 표시 DPS가 증가하면 안 된다');
+}
+
+// ── 3-2. 실제 피해도 첫 단계와 후속 단계의 시점에 나뉘어 적용돼야 한다 ──
+{
+  resetGame();
+  context.game.activeSkill = '회오리바람';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '회오리바람']));
+  context.game.gemData['회오리바람'] = { level: 1, exp: 0, quality: 0 };
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const enemies = [makeEnemy(41, 2, 6), makeEnemy(42, 1, 7), makeEnemy(43, 1, 5)];
+  enemies.forEach(enemy => { enemy.hp = 1000000; enemy.maxHp = 1000000; });
+  context.game.enemies = enemies;
+  const stats = context.getPlayerStats();
+  stats.baseDmg = 1000;
+  stats.minDmgRoll = 100;
+  stats.maxDmgRoll = 100;
+  stats.accuracy = 1000000;
+  context.performPlayerAttack(stats);
+  assert.ok(enemies.every(enemy => enemy.hp === enemy.maxHp), '공격 모션이 끝나기 전에 회오리바람 피해가 적용되면 안 된다');
+  vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
+  assert.ok(enemies[0].hp < enemies[0].maxHp, '회오리바람 첫 대상은 첫 단계에서 피해를 받아야 한다');
+  assert.strictEqual(enemies[1].hp, enemies[1].maxHp, '회오리바람 두 번째 대상 피해가 첫 단계와 동시에 들어가면 안 된다');
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.ok(enemies[1].hp < enemies[1].maxHp && enemies[2].hp < enemies[2].maxHp, `회오리바람 후속 대상은 예약된 순차 단계에서 피해를 받아야 한다 (${enemies.map(enemy => enemy.hp).join(',')})`);
+
+  resetGame();
+  context.game.activeSkill = '묵직한 강타';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '묵직한 강타']));
+  context.game.gemData['묵직한 강타'] = { level: 1, exp: 0, quality: 0 };
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const slamTarget = makeEnemy(51, 2, 6);
+  slamTarget.hp = 1000000; slamTarget.maxHp = 1000000;
+  context.game.enemies = [slamTarget];
+  const slamStats = context.getPlayerStats();
+  slamStats.baseDmg = 1000;
+  slamStats.minDmgRoll = 100;
+  slamStats.maxDmgRoll = 100;
+  slamStats.accuracy = 1000000;
+  context.performPlayerAttack(slamStats);
+  assert.strictEqual(slamTarget.hp, slamTarget.maxHp, '강타 피해는 공격 모션이 끝난 뒤 적용돼야 한다');
+  vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
+  const hpAfterPrimary = slamTarget.hp;
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.ok(slamTarget.hp < hpAfterPrimary, '강타 여진은 본 타격 이후 별도의 실제 피해를 적용해야 한다');
+}
+
+// ── 3-3. 플라스크 수명주기: 조우 사이 유지, 지역 완료/이동 시 종료, 루프 시 획득 리셋 ──
 {
   resetGame();
   const st = context.ensureFlaskState();

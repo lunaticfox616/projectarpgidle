@@ -139,7 +139,35 @@ assert.ok(fs.existsSync('assets/ui/passive-node-void-v1.png'), 'generated void s
 assert.ok(fs.existsSync('assets/ui/passive-node-star-wedge-v1.png'), 'generated star-wedge socket frame should exist');
 assert.ok(fs.existsSync('assets/ui/passive-node-path-v1.png'), 'generated path node frame should exist');
 assert.ok(fs.existsSync('assets/ui/window-frame-luxe-v1.png'), 'generated window frame should exist');
+assert.ok(fs.existsSync('assets/effects/boss-telegraph-ring-v1.png'), 'generated boss ring telegraph should exist');
+assert.ok(fs.existsSync('assets/effects/boss-telegraph-fan-v1.png'), 'generated boss fan telegraph should exist');
+assert.ok(fs.existsSync('assets/effects/boss-telegraph-pulse-v1.png'), 'generated boss pulse telegraph should exist');
+[
+  'skill-whirlwind-v1.png', 'skill-chain-primary-v1.png', 'skill-chain-jump-v1.png',
+  'skill-slam-primary-v1.png', 'skill-slam-aftershock-v1.png', 'skill-slash-v1.png',
+  'skill-projectile-v1.png', 'skill-burst-v1.png', 'skill-dot-field-v1.png',
+  'skill-summon-strike-v1.png',
+].forEach(file => assert.ok(fs.existsSync(`assets/effects/${file}`), `generated skill VFX ${file} should exist`));
+const skillVfxCoverage = vm.runInContext(`(() => {
+  const gems = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
+  return { count: gems.length, missing: gems.filter(name => !SKILL_GEM_VFX_PROFILES[name]) };
+})()`, context);
+assert.ok(skillVfxCoverage.count >= 41, 'the active skill-gem roster should remain fully represented');
+assert.deepStrictEqual(Array.from(skillVfxCoverage.missing), [], 'every active skill gem should have an explicit image VFX profile');
+const skillGemArtCoverage = vm.runInContext(`(() => {
+  const gems = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
+  return {
+    count: gems.length,
+    missing: gems.filter(name => !SKILL_GEM_ART_PATHS[name]),
+    paths: gems.map(name => SKILL_GEM_ART_PATHS[name]),
+  };
+})()`, context);
+assert.deepStrictEqual(Array.from(skillGemArtCoverage.missing), [], 'every active skill gem should have its own dedicated UI art mapping');
+assert.strictEqual(new Set(skillGemArtCoverage.paths).size, skillGemArtCoverage.count, 'active skill gems should not share the same portrait asset');
+skillGemArtCoverage.paths.forEach(file => assert.ok(fs.existsSync(file), `skill gem portrait ${file} should exist`));
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
+assert.ok(passiveSource.includes("skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png'"), 'battle asset loader should preload skill VFX images');
+assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
 assert.ok(passiveSource.includes("const frameKey = getPassiveNodeFrameKey(node)"), 'passive nodes should select their dedicated frame assets');
 assert.ok(!passiveSource.includes('if (!lightweightMode && useMajorFrame'), 'drag optimization should not hide passive frame images');
 const windowCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
@@ -164,7 +192,38 @@ assert.ok(battlefieldSource.includes('let rings = 1;'), 'annihilating hits shoul
 assert.ok(battlefieldSource.includes('for (let ring = 0; ring < 1; ring++)'), 'level-up feedback should use a single lightweight ring');
 assert.ok(!battlefieldSource.includes('for (let ray = 0; ray < 4; ray++)'), 'level-up feedback should avoid a separate ray burst');
 assert.ok(!battlefieldSource.includes('let glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 92'), 'one-shot feedback should avoid its previous large radial fill');
-assert.ok(battlefieldSource.includes("Math.pow(1 - t, 1.25) * (isBossDeath ? 0.72 : (fx.elite ? 0.62 : 0.54))"), 'enemy death sprites should remain translucent throughout their exit motion');
+assert.ok(battlefieldSource.includes("const dissolveFade = Math.pow(1 - dissolve, 1.62);"), 'enemy death sprites should fade through a restrained dissolve curve');
+assert.ok(battlefieldSource.includes('ctx.translate(enemy.x, enemy.y + dissolve *'), 'enemy deaths should settle in place rather than floating upward');
+assert.ok(!battlefieldSource.includes('ctx.translate(enemy.x, enemy.y - t *'), 'enemy deaths should not use the previous upward exit motion');
+assert.ok(battlefieldSource.includes("drawBossTelegraphDecal(ctx, 'ring'"), 'boss ring patterns should use the generated ground decal');
+assert.ok(battlefieldSource.includes("drawBossTelegraphDecal(ctx, 'fan'"), 'boss fan patterns should use the generated ground decal');
+assert.ok(battlefieldSource.includes("drawBossTelegraphDecal(ctx, 'pulse'"), 'boss pulse patterns should use the generated ground decal');
+assert.ok(battlefieldSource.includes('function queueSkillGemVfx('), 'resolved skill hits should enqueue generated image effects');
+assert.ok(battlefieldSource.includes('drawSkillGemVfxLayer(ctx, now);'), 'skill VFX should render through the battlefield ground layer');
+assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now);') < battlefieldSource.indexOf('drawPlayerSprite(ctx, playerPos.x'), 'skill VFX should stay below the player sprite and combat text');
+assert.ok(battlefieldSource.includes("stageKind === 'chainJump'"), 'secondary chain hits should use their connector image');
+assert.ok(battlefieldSource.includes("stageKind === 'slamAftershock'"), 'delayed slam aftershocks should use their own image');
+assert.ok(battlefieldSource.includes('if (list.length > 96)'), 'skill image effects should retain a hard runtime allocation cap');
+const stagedSkillVfx = vm.runInContext(`(() => {
+  battleVisualState.skillEffects = [];
+  const player = { x: 100, y: 220 };
+  const target = { x: 250, y: 210, enemy: { id: 'b' } };
+  const map = { a: { x: 190, y: 205, enemy: { id: 'a' } }, b: target };
+  queueSkillGemVfx({ id: 1, skillName: '회오리바람', stageKind: 'whirlPrimary', element: 'phys' }, target, player, map, 1000, 1);
+  queueSkillGemVfx({ id: 2, skillName: '연쇄 폭풍', stageKind: 'chainJump', chainFromEnemyId: 'a', element: 'light' }, target, player, map, 1000, 1);
+  queueSkillGemVfx({ id: 3, skillName: '지진 파쇄', stageKind: 'slamAftershock', element: 'phys' }, target, player, map, 1000, 1);
+  queueSkillGemVfx({ id: 4, skillName: '서리늑대 소환', stageKind: 'primary', element: 'cold', summon: true }, target, player, map, 1000, 1);
+  const imageKeys = battleVisualState.skillEffects.map(effect => effect.imageKey);
+  for (let id = 10; id < 140; id++) {
+    queueSkillGemVfx({ id, skillName: '기본 공격', stageKind: 'primary', element: 'phys' }, target, player, map, 1000, 1);
+  }
+  return { imageKeys, count: battleVisualState.skillEffects.length };
+})()`, context);
+assert.ok(stagedSkillVfx.imageKeys.includes('skillFxWhirlwind'), 'whirlwind stages should use the rotating image asset');
+assert.ok(stagedSkillVfx.imageKeys.includes('skillFxChainJump'), 'chain jumps should use the connector image asset');
+assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSlamAftershock'), 'slam aftershocks should use the delayed fracture image asset');
+assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSummonStrike'), 'summon attacks should use the spectral strike image asset');
+assert.ok(stagedSkillVfx.count <= 96, 'skill image effect queue should stay bounded during rapid attacks');
 const annihilateSpawnOptions = vm.runInContext(`getAttackFxSpawnOpts(
   { element: 'fire', impactTier: 'annihilate', crit: false },
   { isBoss: false, isElite: false },
@@ -197,6 +256,11 @@ assert.ok(uiSource.includes("type === 'hunterExpose') detail = '헌터 전직 �
 assert.ok(uiSource.includes("'rivalKey', 'cosmosSovereignKey'"), 'rival and echo marks should stay hidden from the crafting currency list');
 assert.ok(uiSource.includes('gem-tag--${getTone(tag)}'), 'skill-gem tags should render semantic color classes');
 assert.ok(uiSource.includes('gem-tag--support') && uiSource.includes('gem-tag--resonance'), 'support gem tags should use distinct support and resonance colors');
+assert.ok(uiSource.includes("renderSkillGemArt(name, 'gem-card-sigil gem-card-art')"), 'skill cards should use their dedicated gem portraits');
+assert.ok(uiSource.includes('class="gem-orbit-slot slot-${index + 1}'), 'engraving slots should orbit the selected gem instead of forming a detached row');
+assert.ok(indexSource.includes('id="ui-gem-engrave-slots" class="gem-engrave-orbit"'), 'the gem forge should expose the central-gem engraving overlay');
+assert.ok(windowCss.includes('.gem-orbit-center'), 'the engraving overlay should keep the selected gem at its visual center');
+assert.ok(windowCss.includes('@container (max-width: 430px)'), 'the engraving constellation should retain a dedicated mobile layout');
 assert.ok(indexSource.includes('<small>장착 중인 공격 젬</small>'), 'gem forge target rail should describe its equipped-only scope');
 assert.ok(uiSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not pause the live battle screen');
 assert.ok(!uiSource.includes('if (isTutorialOpen() || isRewardOpen()'), 'compact tutorial notices should keep the game loop running');

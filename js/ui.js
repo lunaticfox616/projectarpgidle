@@ -4001,6 +4001,25 @@ function getGemCardMeta(def) {
     return { typeLabel: typeLabel, icon: presentation.icon, elementLabel: presentation.label, className: presentation.className };
 }
 
+function getSkillGemArtPath(name) {
+    return typeof SKILL_GEM_ART_PATHS !== 'undefined' && SKILL_GEM_ART_PATHS[name]
+        ? SKILL_GEM_ART_PATHS[name]
+        : '';
+}
+
+function renderSkillGemArt(name, className, options) {
+    let def = SKILL_DB[name] || {};
+    let meta = getGemCardMeta(def);
+    let artPath = getSkillGemArtPath(name);
+    let opts = options || {};
+    let loading = opts.eager ? 'eager' : 'lazy';
+    let fallbackHidden = artPath ? ' hidden' : '';
+    let image = artPath
+        ? `<img src="${escapeHTML(artPath)}" alt="" loading="${loading}" decoding="async" onerror="this.hidden=true; this.nextElementSibling.hidden=false">`
+        : '';
+    return `<span class="${className || 'gem-art'}" aria-label="${escapeHTML(name)} 젬 이미지">${image}<span class="gem-art-fallback" aria-hidden="true"${fallbackHidden}>${meta.icon}</span></span>`;
+}
+
 function renderGemTagChips(def, maxTags) {
     let rawTags = Array.isArray(def && def.tags) ? def.tags : [];
     let getTone = tag => {
@@ -4026,7 +4045,7 @@ function renderAttackGemCard(name, highlightedName) {
     let summonControls = summonEquipped ? `<span class="summon-gem-controls"><button class="summon-gem-count-btn" title="소환 해제" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', -1)">−</button><span class="summon-gem-count">${getSummonSkillCount(name)}기</span><button class="summon-gem-count-btn" title="추가 소환" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', 1)">+</button></span>` : '';
     let sealButton = active || name === '기본 공격' ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
     return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''}" onclick="${active ? `openEquippedGemManagement('${name}')` : `changeSkill('${name}')`}" aria-pressed="${active}" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
-        <div class="gem-card-head"><span class="gem-card-sigil">${meta.icon}</span><div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
+        <div class="gem-card-head">${renderSkillGemArt(name, 'gem-card-sigil gem-card-art')}<div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${escapeHTML(def.desc || '공격 스킬 젬')}</p>
         <div class="gem-card-tags">${renderGemTagChips(def, 4)}</div>
         <div class="gem-card-footer"><span class="gem-usage-state">${active ? '● ' : ''}${usageLabel}</span>${summonControls}${sealButton}</div>
@@ -4054,7 +4073,8 @@ function renderSupportGemCard(name, highlightedName) {
 
 function renderSealedGemCard(name, highlightedName, isSupport) {
     let releaseCall = isSupport ? `unsealSupportGem('${name}')` : `unsealSkillGem('${name}')`;
-    return `<article class="skill-gem gem-library-card sealed-gem-card"><div class="gem-card-head"><span class="gem-card-sigil">◇</span><div><small>봉인 보관함</small><strong>${highlightedName}</strong></div></div><p>봉인을 해제하면 공명력 1을 사용해 보유 목록으로 되돌립니다.</p><div class="gem-card-footer"><span class="gem-usage-state">공명력으로 복원</span><button class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></div></article>`;
+    let art = isSupport ? '<span class="gem-card-sigil">✚</span>' : renderSkillGemArt(name, 'gem-card-sigil gem-card-art');
+    return `<article class="skill-gem gem-library-card sealed-gem-card"><div class="gem-card-head">${art}<div><small>봉인 보관함</small><strong>${highlightedName}</strong></div></div><p>봉인을 해제하면 공명력 1을 사용해 보유 목록으로 되돌립니다.</p><div class="gem-card-footer"><span class="gem-usage-state">공명력으로 복원</span><button class="gem-card-utility" onclick="${releaseCall}">봉인 해제</button></div></article>`;
 }
 
 function renderSkillLoadoutSummary(pStats, resonanceCap) {
@@ -4078,8 +4098,9 @@ function renderGemResearchCandidate(kind, name, cost, availableFragments) {
     if (!tags && isSupport) {
         tags = `<span class="gem-tag gem-tag--support">${escapeHTML(def.name || getStatName(def.stat || '') || '보조 효과')}</span>`;
     }
+    let art = isSupport ? '<span>✚</span>' : renderSkillGemArt(name, 'gem-research-card-art');
     return `<article class="gem-research-card element-${meta.className}">
-        <div class="gem-research-card-head"><span>${isSupport ? '✚' : meta.icon}</span><div><small>${isSupport ? '보조 젬' : `${meta.elementLabel} · ${meta.typeLabel}`}</small><strong>${escapeHTML(name)}</strong></div></div>
+        <div class="gem-research-card-head">${art}<div><small>${isSupport ? '보조 젬' : `${meta.elementLabel} · ${meta.typeLabel}`}</small><strong>${escapeHTML(name)}</strong></div></div>
         <p>${escapeHTML(def.desc || '연구를 완료하면 보유 젬 목록에 추가됩니다.')}</p>
         <div class="gem-card-tags">${tags}</div>
         <button type="button" onclick="researchMissingGem('${kind}', decodeURIComponent('${encodedName}'))" ${affordable ? '' : 'disabled'}>
@@ -4132,7 +4153,7 @@ function renderGemEnhanceTargetCard(name, selected) {
     let info = getUiGemPresentation(name, false);
     let meta = getGemCardMeta(def);
     let enhanceCount = getSkyEnhancementForSkill(name).length;
-    return `<button class="gem-target-card element-${meta.className} ${selected ? 'selected' : ''}" onclick="selectGemEnhanceTargetSkill('${name}')"><span class="gem-target-icon">${meta.icon}</span><span><strong>${escapeHTML(name)}</strong><small>Lv.${info.totalLevel} · 퀄리티 ${rec.quality || 0}% · 각인 ${enhanceCount}/${rec.skyEnhanceCap || 1}</small></span>${selected ? '<b>선택</b>' : ''}</button>`;
+    return `<button class="gem-target-card element-${meta.className} ${selected ? 'selected' : ''}" onclick="selectGemEnhanceTargetSkill('${name}')">${renderSkillGemArt(name, 'gem-target-icon')}<span><strong>${escapeHTML(name)}</strong><small>Lv.${info.totalLevel} · 퀄리티 ${rec.quality || 0}% · 각인 ${enhanceCount}/${rec.skyEnhanceCap || 1}</small></span>${selected ? '<b>선택</b>' : ''}</button>`;
 }
 
 function renderGemResourceStrip(activeGem, gemExpertLv, condensedPower) {
@@ -4144,6 +4165,12 @@ function renderGemResourceStrip(activeGem, gemExpertLv, condensedPower) {
 function renderGemEngraveSlots(activeSlots, engraveCap) {
     let root = document.getElementById('ui-gem-engrave-slots');
     if (!root) return;
+    let active = getGemEnhanceTargetSkill();
+    if (typeof isEnhanceableAttackGem === 'function' && !isEnhanceableAttackGem(active)) {
+        root.innerHTML = '<div class="gem-process-empty">장착 중인 공격 젬을 선택하면 중앙 각인 장치가 활성화됩니다.</div>';
+        return;
+    }
+    let selectedSlot = typeof getSelectedGemEngraveSlot === 'function' ? getSelectedGemEngraveSlot() : 0;
     let slots = [];
     for (let index = 0; index < 5; index++) {
         let enhancement = activeSlots[index] ? GEM_SKY_ENHANCEMENTS[activeSlots[index]] : null;
@@ -4151,9 +4178,24 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
         let nextUnlock = index === engraveCap && engraveCap < 5;
         let stateClass = enhancement ? 'filled' : unlocked ? 'open' : nextUnlock ? 'unlockable' : 'locked';
         let title = enhancement ? `${index + 1}번 슬롯 · ${enhancement.name}` : unlocked ? `${index + 1}번 빈 각인 슬롯` : nextUnlock ? `${index + 1}번 슬롯 해금 · 창공의 힘 ${index + 1}` : '앞 슬롯부터 해금 필요';
-        slots.push(`<button type="button" class="${stateClass}" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation(); openGemEngraveSlotOverlay(${index})"><small>${index + 1}</small>${enhancement ? '✦' : unlocked ? '◇' : nextUnlock ? '+' : '×'}</button>`);
+        let group = enhancement ? getSkyEnhancementGroup(enhancement) : null;
+        let glyph = enhancement ? getSkyEnhancementGlyph(enhancement) : unlocked ? '◇' : nextUnlock ? '+' : '×';
+        slots.push(`<button type="button" class="gem-orbit-slot slot-${index + 1} ${stateClass} ${selectedSlot === index ? 'selected' : ''} ${group ? `group-${group.className}` : ''}" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" data-slot-index="${index}" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation(); openGemEngraveSlotOverlay(${index})"><span>${glyph}</span><small>${index + 1}</small>${enhancement ? `<em>${escapeHTML(enhancement.name)}</em>` : nextUnlock ? `<em>슬롯 해금</em>` : ''}</button>`);
     }
-    root.innerHTML = slots.join('');
+    root.innerHTML = `<div class="gem-orbit-stage"><div class="gem-orbit-rings" aria-hidden="true"></div><div class="gem-orbit-center element-${getGemCardMeta(SKILL_DB[active] || {}).className}">${renderSkillGemArt(active, 'gem-orbit-art', { eager: true })}<span>각인 대상</span><strong>${escapeHTML(active)}</strong></div>${slots.join('')}</div><div class="gem-orbit-copy"><strong>슬롯을 눌러 각인</strong><span>빈 슬롯은 옵션 선택 · 채워진 슬롯은 교체 또는 해제 · + 슬롯은 창공의 힘으로 확장</span></div>`;
+}
+
+function getSkyEnhancementGlyph(enhancement) {
+    let stat = String((enhancement && enhancement.stat) || '');
+    if (stat.includes('crit')) return '✧';
+    if (stat.includes('aspd')) return '»';
+    if (stat.includes('leech')) return '◉';
+    if (stat.includes('targets')) return '⑂';
+    if (stat.includes('resPen') || stat.includes('physIgnore')) return '⌁';
+    if (stat.includes('dot')) return '∞';
+    if (stat.includes('GemLevel')) return '⬆';
+    if (stat.includes('awakened')) return '✹';
+    return '✦';
 }
 
 function getSkyEnhancementGroup(enhancement) {
@@ -4208,7 +4250,8 @@ function openGemEngraveSlotOverlay(index) {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', `${slotIndex + 1}번 각인 슬롯 선택`);
-    overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div><span>SKY INSCRIPTION</span><h3>${escapeHTML(active)} · ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 ${escapeHTML(current.name)} · 다른 각인을 누르면 교체됩니다.` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex, expertLevel)).join('')}</div></section>`;
+    overlay.tabIndex = -1;
+    overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div class="gem-engrave-dialog-identity">${renderSkillGemArt(active, 'gem-engrave-dialog-art', { eager: true })}<div><span>SKY INSCRIPTION</span><h3>${escapeHTML(active)} · ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 ${escapeHTML(current.name)} · 다른 각인을 누르면 교체됩니다.` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex, expertLevel)).join('')}</div></section>`;
     overlay.addEventListener('click', event => {
         if (event.target === overlay) return closeGemEngraveSlotOverlay();
         let button = event.target.closest('button[data-action]');
@@ -4221,7 +4264,11 @@ function openGemEngraveSlotOverlay(index) {
             : applySkyGemEnhancementToActive(enhancementId, slotIndex);
         if (changed) closeGemEngraveSlotOverlay();
     });
+    overlay.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeGemEngraveSlotOverlay();
+    });
     document.body.appendChild(overlay);
+    overlay.focus({ preventScroll: true });
 }
 window.openGemEngraveSlotOverlay = openGemEngraveSlotOverlay;
 window.closeGemEngraveSlotOverlay = closeGemEngraveSlotOverlay;
@@ -9812,7 +9859,7 @@ function buildCraftActionButtons(item) {
             let growthSummary = isGem ? getGemGrowthSummaryHtml(active, activePresentation) : '';
             let activeOptions = activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '적용된 각인 없음';
             document.getElementById('ui-gem-enhance-target').innerHTML = `<div class="gem-target-list">${targetButtons || '<span class="gem-process-empty">장착 중인 공격 젬 없음</span>'}</div>` + (isGem
-                ? `<div class="gem-target-profile element-${activeMeta.className}"><span class="gem-target-profile-icon">${activeMeta.icon}</span><div><small>현재 선택 · ${activeMeta.elementLabel} ${activeMeta.typeLabel}</small><strong>${escapeHTML(active)}</strong><p>${escapeHTML(activeDef.desc || '')}</p></div></div>${growthSummary}<div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행 중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '슬롯 최대' : `각인 슬롯 ${engraveCap}/5`}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '슬롯 사용 완료' : `빈 슬롯 ${Math.max(0, engraveCap - activeEnh.length)}`}</span></div><div class="gem-current-inscriptions"><span>현재 각인</span><strong>${escapeHTML(activeOptions)}</strong></div>`
+                ? `<div class="gem-target-profile element-${activeMeta.className}">${renderSkillGemArt(active, 'gem-target-profile-icon', { eager: true })}<div><small>현재 선택 · ${activeMeta.elementLabel} ${activeMeta.typeLabel}</small><strong>${escapeHTML(active)}</strong><p>${escapeHTML(activeDef.desc || '')}</p></div></div>${growthSummary}<div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행 중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '슬롯 최대' : `각인 슬롯 ${engraveCap}/5`}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '슬롯 사용 완료' : `빈 슬롯 ${Math.max(0, engraveCap - activeEnh.length)}`}</span></div><div class="gem-current-inscriptions"><span>현재 각인</span><strong>${escapeHTML(activeOptions)}</strong></div>`
                 : '<div class="gem-process-empty">공격 젬을 선택하면 성장 정보가 표시됩니다.</div>');
             renderGemResourceStrip(activeGem, gemExpertLv, condensedPower);
             renderGemEngraveSlots(activeSlots, engraveCap);

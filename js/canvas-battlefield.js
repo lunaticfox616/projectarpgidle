@@ -70,6 +70,11 @@ function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
         opts.scale *= 0.82;
         opts.densityMul = 0.48;
     }
+    if (fx.skillName && getSkillGemVfxProfile(fx.skillName)) {
+        // 생성 이미지가 주 실루엣을 담당하므로 기존 입자는 적중점의 짧은 보조광만 남긴다.
+        opts.scale *= 0.72;
+        opts.densityMul = (Number(opts.densityMul) || 1) * 0.5;
+    }
     return opts;
 }
 
@@ -82,6 +87,191 @@ function requestBattleHitStop(fx) {
     battleVisualState.hitStopRemainingMs = Math.max(Number(battleVisualState.hitStopRemainingMs) || 0, duration);
 }
 
+const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
+    whirlwind: 'skillFxWhirlwind',
+    chainPrimary: 'skillFxChainPrimary',
+    chainJump: 'skillFxChainJump',
+    slamPrimary: 'skillFxSlamPrimary',
+    slamAftershock: 'skillFxSlamAftershock',
+    slash: 'skillFxSlash',
+    projectile: 'skillFxProjectile',
+    burst: 'skillFxBurst',
+    dot: 'skillFxDotField',
+    summon: 'skillFxSummonStrike'
+});
+
+function getSkillGemVfxProfile(skillName) {
+    let profiles = typeof SKILL_GEM_VFX_PROFILES !== 'undefined' ? SKILL_GEM_VFX_PROFILES : null;
+    return profiles && profiles[skillName] ? profiles[skillName] : null;
+}
+
+function getSkillGemVfxImage(imageKey) {
+    let image = battleAssets && battleAssets.images ? battleAssets.images[imageKey] : null;
+    return image && image.complete && image.naturalWidth ? image : null;
+}
+
+function normalizeSkillGemVfxElement(element, accent) {
+    if (accent === 'blood') return 'blood';
+    let key = String(element || 'phys').toLowerCase();
+    if (key === 'lightning') return 'light';
+    if (key === 'physical') return 'phys';
+    return ['phys', 'fire', 'cold', 'light', 'chaos', 'blood'].includes(key) ? key : 'phys';
+}
+
+function getSkillGemVfxFilter(element, imageKey) {
+    let key = normalizeSkillGemVfxElement(element);
+    if (imageKey === 'skillFxChainPrimary' || imageKey === 'skillFxChainJump') {
+        if (key === 'light') return 'none';
+        if (key === 'chaos') return 'hue-rotate(78deg) saturate(1.35) brightness(0.94)';
+    }
+    if (key === 'fire') return 'sepia(1) saturate(5.4) hue-rotate(338deg) brightness(1.05)';
+    if (key === 'cold') return 'sepia(1) saturate(4.4) hue-rotate(155deg) brightness(1.12)';
+    if (key === 'light') return 'sepia(1) saturate(5.2) hue-rotate(172deg) brightness(1.16)';
+    if (key === 'chaos') return 'sepia(1) saturate(5.4) hue-rotate(232deg) brightness(0.98)';
+    if (key === 'blood') return 'sepia(1) saturate(6.2) hue-rotate(315deg) brightness(0.88)';
+    return 'none';
+}
+
+function getSkillGemVfxBaseSize(family, stageKind) {
+    if (stageKind === 'slamAftershock') return 132;
+    if (stageKind === 'slamPrimary') return 104;
+    if (stageKind === 'chainPrimary') return 82;
+    if (family === 'whirlwind') return 118;
+    if (family === 'projectile' || stageKind === 'chainJump') return 44;
+    if (family === 'dot') return 116;
+    if (family === 'burst') return 94;
+    if (family === 'summon') return 78;
+    return 82;
+}
+
+function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportScale) {
+    if (!fx || fx.dot || !fx.skillName) return;
+    let profile = getSkillGemVfxProfile(fx.skillName);
+    if (!profile) return;
+    let family = profile.family || 'slash';
+    let stageKind = String(fx.stageKind || 'primary');
+    let imageKey = SKILL_GEM_VFX_IMAGE_KEYS[family] || SKILL_GEM_VFX_IMAGE_KEYS.slash;
+    let connector = family === 'projectile';
+    if (family === 'chain' && stageKind === 'chainPrimary') imageKey = SKILL_GEM_VFX_IMAGE_KEYS.chainPrimary;
+    if (stageKind === 'chainJump') {
+        imageKey = SKILL_GEM_VFX_IMAGE_KEYS.chainJump;
+        connector = true;
+    } else if (stageKind === 'slamPrimary') {
+        imageKey = SKILL_GEM_VFX_IMAGE_KEYS.slamPrimary;
+        connector = false;
+    } else if (stageKind === 'slamAftershock') {
+        imageKey = SKILL_GEM_VFX_IMAGE_KEYS.slamAftershock;
+        connector = false;
+    }
+    let source = playerPos || { x: enemyPos.x - 70, y: enemyPos.y };
+    if (stageKind === 'chainJump' && fx.chainFromEnemyId != null) {
+        source = (enemyPosMap && enemyPosMap[fx.chainFromEnemyId])
+            || (battleVisualState.enemyGhostPos && battleVisualState.enemyGhostPos[fx.chainFromEnemyId])
+            || source;
+    }
+    let target = enemyPos || { x: source.x + 70, y: source.y };
+    let scale = Math.max(0.45, Number(profile.scale) || 1) * clampNumber(Number(viewportScale) || 1, 0.7, 1.16);
+    if (target.enemy && target.enemy.isBoss) scale *= 1.08;
+    let repeatCount = Math.max(1, Math.min(3, Math.floor(Number(profile.repeats) || 1)));
+    if (stageKind === 'chainJump' || stageKind === 'slamAftershock' || stageKind === 'slamPrimary' || family === 'whirlwind') repeatCount = 1;
+    let seed = Math.max(1, Number(fx.id) || 1);
+    let list = battleVisualState.skillEffects || (battleVisualState.skillEffects = []);
+    for (let repeat = 0; repeat < repeatCount; repeat++) {
+        let repeatOffset = repeat - (repeatCount - 1) / 2;
+        let baseRotation = Math.atan2(target.y - source.y, target.x - source.x);
+        let rotation = connector ? baseRotation : baseRotation + Math.PI * 0.28 + repeatOffset * 0.16;
+        if (family === 'whirlwind') rotation = (Number(fx.stageIndex) || 0) * 0.72 + seed * 0.031;
+        list.push({
+            skillName: fx.skillName,
+            family: family,
+            stageKind: stageKind,
+            imageKey: imageKey,
+            startAt: now + repeat * 44,
+            duration: family === 'dot' ? 720 : (family === 'whirlwind' ? 260 : (connector ? 170 : 300)),
+            x: family === 'whirlwind' ? source.x : target.x + (connector ? 0 : repeatOffset * 5),
+            y: family === 'whirlwind' ? source.y - 3 : target.y - (connector ? 8 : 5) + Math.abs(repeatOffset) * 2,
+            fromX: source.x + (family === 'projectile' ? 15 : 0),
+            fromY: source.y - (family === 'projectile' ? 18 : 7),
+            toX: target.x,
+            toY: target.y - 8,
+            connector: connector,
+            rotation: rotation,
+            size: getSkillGemVfxBaseSize(family, stageKind) * scale * (1 - Math.abs(repeatOffset) * 0.08),
+            alpha: family === 'dot' ? 0.4 : (family === 'whirlwind' ? 0.54 : 0.72),
+            filter: getSkillGemVfxFilter(normalizeSkillGemVfxElement(fx.element, profile.accent), imageKey),
+            seed: seed + repeat * 17
+        });
+    }
+    if (list.length > 96) list.splice(0, list.length - 96);
+}
+
+function drawSkillGemVfxLayer(ctx, now) {
+    let list = battleVisualState.skillEffects || [];
+    list.forEach(effect => {
+        let image = getSkillGemVfxImage(effect.imageKey);
+        if (!image) return;
+        let elapsed = now - effect.startAt;
+        if (elapsed < 0 || elapsed > effect.duration) return;
+        let t = clampNumber(elapsed / Math.max(1, effect.duration), 0, 1);
+        let fade = Math.sin(Math.PI * t);
+        if (effect.family === 'dot') fade = Math.min(1, t / 0.16) * Math.min(1, (1 - t) / 0.28);
+        ctx.save();
+        ctx.globalCompositeOperation = (effect.stageKind === 'slamPrimary' || effect.stageKind === 'slamAftershock') ? 'source-over' : 'screen';
+        ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fade, 0, 0.82);
+        ctx.filter = effect.filter || 'none';
+        if (effect.connector) {
+            let reveal = Math.min(1, t / 0.22);
+            let fromX = effect.toX + (effect.fromX - effect.toX) * reveal;
+            let fromY = effect.toY + (effect.fromY - effect.toY) * reveal;
+            let dx = effect.toX - fromX;
+            let dy = effect.toY - fromY;
+            let length = Math.max(8, Math.hypot(dx, dy));
+            let thickness = Math.max(18, effect.size * (0.82 + Math.sin(t * Math.PI) * 0.18));
+            ctx.translate((fromX + effect.toX) / 2, (fromY + effect.toY) / 2);
+            ctx.rotate(Math.atan2(dy, dx));
+            ctx.drawImage(image, -length / 2, -thickness / 2, length, thickness);
+        } else {
+            let grow = effect.family === 'dot' ? (0.9 + t * 0.1) : (0.72 + (1 - Math.pow(1 - t, 3)) * 0.36);
+            let width = effect.size * grow;
+            let height = width;
+            if (effect.family === 'slash' || effect.family === 'summon') height *= 0.88;
+            ctx.translate(effect.x, effect.y);
+            ctx.rotate(effect.rotation || 0);
+            ctx.drawImage(image, -width / 2, -height / 2, width, height);
+        }
+        ctx.restore();
+    });
+}
+
+function getConditionGemVfxElement(name) {
+    let db = typeof CONDITION_GEM_DB !== 'undefined' ? CONDITION_GEM_DB : null;
+    let entry = db ? Object.values(db).reduce((found, rows) => found || (Array.isArray(rows) ? rows.find(row => row && row.name === name) : null), null) : null;
+    let tags = entry && Array.isArray(entry.tags) ? entry.tags : [];
+    return tags.includes('fire') ? 'fire' : (tags.includes('cold') ? 'cold' : (tags.includes('lightning') ? 'light' : (tags.includes('chaos') ? 'chaos' : 'phys')));
+}
+
+function drawConditionGemImageVfx(ctx, condCast, playerPos, targetPos, now) {
+    if (!condCast) return false;
+    let isCurse = condCast.type === 'curse';
+    let imageKey = isCurse ? SKILL_GEM_VFX_IMAGE_KEYS.dot : SKILL_GEM_VFX_IMAGE_KEYS.burst;
+    let image = getSkillGemVfxImage(imageKey);
+    let pos = isCurse ? targetPos : playerPos;
+    if (!image || !pos) return false;
+    let remaining = clampNumber(((condCast.expiresAt || Date.now()) - Date.now()) / 1100, 0, 1);
+    let progress = 1 - remaining;
+    let pulse = Math.sin(progress * Math.PI);
+    let size = (isCurse ? 72 : (condCast.type === 'guard' ? 68 : 88)) * (0.84 + progress * 0.22);
+    ctx.save();
+    ctx.translate(pos.x, pos.y - (isCurse ? 5 : 16));
+    ctx.rotate((condCast.type === 'warcry' ? -1 : 1) * progress * 0.34);
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.18 + pulse * 0.34;
+    ctx.filter = getSkillGemVfxFilter(getConditionGemVfxElement(condCast.name), imageKey);
+    ctx.drawImage(image, -size / 2, -size / 2, size, size);
+    ctx.restore();
+    return true;
+}
+
 function getEnemyTelegraphColor(enemy) {
     let element = String((enemy && (enemy.attackElement || enemy.element || enemy.damageElement || enemy.ele)) || 'phys').toLowerCase();
     if (element === 'fire') return { edge: '#ff7b4d', fill: 'rgba(255,76,38,0.18)' };
@@ -89,6 +279,37 @@ function getEnemyTelegraphColor(enemy) {
     if (element === 'light' || element === 'lightning') return { edge: '#ffe873', fill: 'rgba(255,222,68,0.17)' };
     if (element === 'chaos') return { edge: '#cb80ff', fill: 'rgba(169,66,255,0.18)' };
     return { edge: '#ffb26b', fill: 'rgba(255,135,59,0.16)' };
+}
+
+function getBossTelegraphDecalImage(kind) {
+    if (!battleAssets || !battleAssets.images) return null;
+    if (kind === 'ring') return battleAssets.images.bossTelegraphRing || null;
+    if (kind === 'fan') return battleAssets.images.bossTelegraphFan || null;
+    if (kind === 'pulse') return battleAssets.images.bossTelegraphPulse || null;
+    return null;
+}
+
+function drawBossTelegraphDecal(ctx, kind, x, y, width, height, rotation, progress, pulse, palette, anchorY) {
+    let image = getBossTelegraphDecalImage(kind);
+    if (!image || !image.complete || !image.naturalWidth) return false;
+    let charge = clampNumber(Number(progress) || 0, 0, 1);
+    let flicker = clampNumber(Number(pulse) || 1, 0.68, 1.2);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Number(rotation) || 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = (0.18 + charge * 0.42) * flicker;
+    ctx.shadowColor = palette.edge;
+    ctx.shadowBlur = 5 + charge * 9;
+    ctx.filter = `saturate(${0.72 + charge * 0.4}) brightness(${0.78 + charge * 0.36})`;
+    let top = -(Number(anchorY) || 0.5) * height;
+    ctx.drawImage(image, -width / 2, top, width, height);
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.06 + charge * 0.15;
+    ctx.shadowBlur = 10 + charge * 12;
+    ctx.drawImage(image, -width / 2, top, width, height);
+    ctx.restore();
+    return true;
 }
 
 function drawEnemyAttackTelegraphs(ctx, layout, playerPos, now, gridUnitScale) {
@@ -148,32 +369,39 @@ function drawEnemyAttackTelegraphs(ctx, layout, playerPos, now, gridUnitScale) {
             }
             if (pattern && pattern.telegraphKind === 'ring' && playerPos) {
                 let ringRadius = (30 + progress * 18) * gridUnitScale;
-                ctx.globalAlpha = 0.25 + progress * 0.58;
-                ctx.lineWidth = 2.2 + progress * 1.4;
-                ctx.beginPath();
-                ctx.arc(playerPos.x, playerPos.y + 5, ringRadius, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.arc(playerPos.x, playerPos.y + 5, Math.max(8, ringRadius * 0.35), 0, Math.PI * 2);
-                ctx.stroke();
+                let drawn = drawBossTelegraphDecal(ctx, 'ring', playerPos.x, playerPos.y + 5, ringRadius * 2.35, ringRadius * 1.68, now / 6200, progress, pulse, palette, 0.5);
+                if (!drawn) {
+                    ctx.globalAlpha = 0.25 + progress * 0.58;
+                    ctx.lineWidth = 2.2 + progress * 1.4;
+                    ctx.beginPath();
+                    ctx.arc(playerPos.x, playerPos.y + 5, ringRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
             } else if (pattern && pattern.telegraphKind === 'fan' && playerPos) {
                 let baseAngle = Math.atan2(playerPos.y - entry.y, playerPos.x - entry.x);
-                ctx.globalAlpha = 0.26 + progress * 0.5;
-                ctx.lineWidth = 2 + progress * 1.4;
-                [-0.16, 0, 0.16].forEach(offset => {
-                    let angle = baseAngle + offset;
-                    let length = (48 + progress * 26) * gridUnitScale;
-                    ctx.beginPath();
-                    ctx.moveTo(entry.x, entry.y - 4);
-                    ctx.lineTo(entry.x + Math.cos(angle) * length, entry.y - 4 + Math.sin(angle) * length);
-                    ctx.stroke();
-                });
+                let length = (48 + progress * 26) * gridUnitScale;
+                let drawn = drawBossTelegraphDecal(ctx, 'fan', entry.x, entry.y - 4, length * 1.55, length * 1.22, baseAngle + Math.PI / 2, progress, pulse, palette, 1);
+                if (!drawn) {
+                    ctx.globalAlpha = 0.26 + progress * 0.5;
+                    ctx.lineWidth = 2 + progress * 1.4;
+                    [-0.16, 0, 0.16].forEach(offset => {
+                        let angle = baseAngle + offset;
+                        ctx.beginPath();
+                        ctx.moveTo(entry.x, entry.y - 4);
+                        ctx.lineTo(entry.x + Math.cos(angle) * length, entry.y - 4 + Math.sin(angle) * length);
+                        ctx.stroke();
+                    });
+                }
             } else if (pattern && pattern.telegraphKind === 'pulse') {
-                ctx.globalAlpha = 0.18 + progress * 0.42;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.ellipse(entry.x, entry.y + 8, radiusX * (1.15 + progress * 0.35), radiusY * (1.35 + progress * 0.25), 0, 0, Math.PI * 2);
-                ctx.stroke();
+                let decalWidth = radiusX * (2.45 + progress * 0.75);
+                let drawn = drawBossTelegraphDecal(ctx, 'pulse', entry.x, entry.y + 8, decalWidth, decalWidth * 0.58, -now / 8500, progress, pulse, palette, 0.5);
+                if (!drawn) {
+                    ctx.globalAlpha = 0.18 + progress * 0.42;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.ellipse(entry.x, entry.y + 8, radiusX * (1.15 + progress * 0.35), radiusY * (1.35 + progress * 0.25), 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
             }
             if (pattern && pattern.isSpecial && pattern.label) {
                 let label = String(pattern.label);
@@ -473,6 +701,9 @@ function renderBattlefield(forceWhenHidden) {
         battleVisualState.lastAutoSkillAt = now + _atkInterval;
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
+    // 이미지 VFX는 캐릭터/몬스터/생명력 바보다 먼저 그려 가독성을 침범하지 않는다.
+    // 새로 발생한 타격은 다음 프레임(통상 16ms 이내)에 이 레이어에 표시된다.
+    drawSkillGemVfxLayer(ctx, now);
     drawActiveSummons(ctx, playerPos, now, gridProj);
     let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.62, 1.3);
     let playerFacingLeft = resolvePlayerFacingLeft(playerPos, targetPlayerPos, currentTargets, enemyPosMap);
@@ -511,6 +742,10 @@ function renderBattlefield(forceWhenHidden) {
                     impactTier: fx.impactTier || 'normal',
                     damageRatio: fx.damageRatio || 0
                 });
+            }
+            if (!fx.dot && fx.skillName) {
+                const viewportSkillFxScale = Math.min(width / 960, height / 540);
+                queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSkillFxScale);
             }
             if (!fx.dot && typeof attackFxSpawn === 'function') {
                 const viewportFxScale = Math.min(width / 960, height / 540);
@@ -606,6 +841,8 @@ function renderBattlefield(forceWhenHidden) {
     let condCast = game.lastConditionGemCast;
     if (condCast && (condCast.expiresAt || 0) > Date.now()) {
         let pulse = 0.6 + Math.sin(now / 80) * 0.4;
+        let conditionTargetPos = condCast.targetId != null ? enemyPosMap[condCast.targetId] : null;
+        drawConditionGemImageVfx(ctx, condCast, playerPos, conditionTargetPos, now);
         ctx.save();
         if (condCast.type === 'warcry') {
             ctx.strokeStyle = `rgba(255, 208, 96, ${0.45 + pulse * 0.35})`;
@@ -684,11 +921,34 @@ function renderBattlefield(forceWhenHidden) {
             if (!enemy) return;
             const deathEnemy = enemy.enemy || {};
             const isBossDeath = !!(fx.boss || deathEnemy.isBoss);
+            const dissolve = clampNumber((t - 0.04) / 0.96, 0, 1);
+            const dissolveFade = Math.pow(1 - dissolve, 1.62);
             ctx.save();
-            ctx.globalAlpha = Math.pow(1 - t, 1.25) * (isBossDeath ? 0.72 : (fx.elite ? 0.62 : 0.54));
-            ctx.translate(enemy.x, enemy.y - t * (isBossDeath ? 24 : 14));
-            ctx.rotate((isBossDeath ? -0.12 : 0.16) * t);
-            drawEnemySprite(ctx, deathEnemy, 0, 0, (isBossDeath ? 2.65 : (fx.elite ? 2.1 : 1.9)) * (1 + t * 0.16), true, now);
+            ctx.globalAlpha = dissolveFade * (isBossDeath ? 0.82 : (fx.elite ? 0.72 : 0.64));
+            ctx.translate(enemy.x, enemy.y + dissolve * (isBossDeath ? 4 : 2));
+            ctx.scale(1 - dissolve * 0.05, 1 - dissolve * 0.11);
+            ctx.filter = `grayscale(${Math.floor(dissolve * 78)}%) saturate(${1 - dissolve * 0.62}) brightness(${1 + dissolve * 0.22})`;
+            drawEnemySprite(ctx, deathEnemy, 0, 0, isBossDeath ? 2.65 : (fx.elite ? 2.1 : 1.9), false, now);
+            ctx.restore();
+            ctx.save();
+            const moteCount = isBossDeath ? 18 : (fx.elite ? 11 : 6);
+            const seed = Math.abs(Number(fx.enemyId) || 1) * 0.731;
+            ctx.fillStyle = fx.color || (isBossDeath ? '#ffd58a' : '#d8d1c7');
+            for (let mote = 0; mote < moteCount; mote++) {
+                let phase = clampNumber((dissolve - mote / moteCount * 0.42) / 0.58, 0, 1);
+                if (phase <= 0 || phase >= 1) continue;
+                let angleSeed = seed + mote * 2.417;
+                let spread = isBossDeath ? 31 : (fx.elite ? 22 : 15);
+                let px = enemy.x + Math.sin(angleSeed) * spread * (0.35 + phase * 0.65) + Math.cos(now / 310 + mote) * 2;
+                let py = enemy.y - (isBossDeath ? 48 : 30) + (mote % 5) * (isBossDeath ? 11 : 8) + phase * (isBossDeath ? 10 : 7);
+                let size = (isBossDeath ? 2.8 : 1.8) * (1 - phase * 0.62);
+                ctx.globalAlpha = Math.sin(phase * Math.PI) * (isBossDeath ? 0.62 : 0.42);
+                ctx.save();
+                ctx.translate(px, py);
+                ctx.rotate(angleSeed + phase);
+                ctx.fillRect(-size, -size * 0.42, size * 2, size * 0.84);
+                ctx.restore();
+            }
             ctx.restore();
             // 일반 적은 반투명 퇴장 자체만 보여 준다. 정예·보스에만 파열을 더해
             // 대량 원킬 때 적 수만큼 무거운 버스트가 중첩되지 않게 한다.

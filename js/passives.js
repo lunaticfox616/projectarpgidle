@@ -4004,6 +4004,11 @@ function cleanupBattleFx(now) {
 }
 function cleanupBattleVisualState(now) {
     battleVisualState.projectiles = (battleVisualState.projectiles || []).filter(projectile => now - projectile.start <= projectile.duration + 60);
+    battleVisualState.skillEffects = (battleVisualState.skillEffects || []).filter(effect => {
+        let elapsed = now - Number(effect && effect.startAt);
+        let duration = Math.max(1, Number(effect && effect.duration) || 1);
+        return Number.isFinite(elapsed) && elapsed >= -160 && elapsed <= duration + 80;
+    });
     battleVisualState.damageTexts = (battleVisualState.damageTexts || []).filter(text => {
         let elapsed = now - Number(text && text.start);
         let duration = Number(text && text.duration);
@@ -4358,14 +4363,8 @@ function updateSkillPlayback(now, playerPos, width, enemyPosMap) {
     }
     let chosenEffectIndex = Number.isFinite(state.overrideEffectIndex) ? state.overrideEffectIndex : skillCfg.effectIndex;
     if (!state.effectSpawned && Number.isFinite(chosenEffectIndex) && state.frameLocalIndex >= hitFrame) {
-        battleVisualState.skillEffects.push({
-            skillId: state.skillId,
-            effectIndex: chosenEffectIndex,
-            startAt: now,
-            duration: 520,
-            x: targetX,
-            y: targetY
-        });
+        // 실제 피해 이벤트가 이미지 VFX를 생성한다. 애니메이션 예상 프레임에서 별도
+        // 효과를 쌓으면 빗나간 공격에도 효과가 나오고 동일 배열이 중복 사용된다.
         battleVisualState.skillPlayback.effectSpawned = true;
     }
 }
@@ -5293,6 +5292,19 @@ function initBattleAssets() {
         enemies3: 'assets/battle-enemies-v3.png',
         effects: 'assets/battle-effects-v1.png',
         effectsV2: 'assets/battle-effects-v2.png',
+        bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
+        bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
+        bossTelegraphPulse: 'assets/effects/boss-telegraph-pulse-v1.png',
+        skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png',
+        skillFxChainPrimary: 'assets/effects/skill-chain-primary-v1.png',
+        skillFxChainJump: 'assets/effects/skill-chain-jump-v1.png',
+        skillFxSlamPrimary: 'assets/effects/skill-slam-primary-v1.png',
+        skillFxSlamAftershock: 'assets/effects/skill-slam-aftershock-v1.png',
+        skillFxSlash: 'assets/effects/skill-slash-v1.png',
+        skillFxProjectile: 'assets/effects/skill-projectile-v1.png',
+        skillFxBurst: 'assets/effects/skill-burst-v1.png',
+        skillFxDotField: 'assets/effects/skill-dot-field-v1.png',
+        skillFxSummonStrike: 'assets/effects/skill-summon-strike-v1.png',
         weapons: 'assets/battle-weapon.png',
         tiles: 'assets/battle-tiles-v1.png',
         backdropAct1: 'assets/battlefield-act1.png',
@@ -5334,7 +5346,7 @@ function initBattleAssets() {
         summon1: 'assets/summon/summon1.png',
         ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct') || key.startsWith('bgChaos')).concat(['effectsV2', 'weapons', 'tiles']));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct') || key.startsWith('bgChaos') || key.startsWith('bossTelegraph') || key.startsWith('skillFx')).concat(['effectsV2', 'weapons', 'tiles']));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1');
@@ -5413,7 +5425,7 @@ function initBattleAssets() {
             if (key.startsWith('backdrop') || key.startsWith('bgAct') || key.startsWith('bgChaos')) {
                 battleAssets.backdrops[key] = image;
             } else {
-                let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
+                let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
                 battleAssets.images[key] = image;
                 if (!keepOriginalSheet) queueBattleSheetSanitization(key, image);
             }
