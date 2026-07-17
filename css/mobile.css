@@ -117,13 +117,21 @@
   .gem-resource-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .gem-resource-strip > div:nth-child(odd) { border-left: 0; }
   .gem-target-list { grid-template-columns: minmax(0, 1fr) !important; max-height: none; }
-  .gem-engrave-slots { width: 100%; justify-content: flex-start; gap: 8px; padding: 3px 2px 5px; overflow-x: auto; }
-  .gem-engrave-slots button { flex: 0 0 42px; width: 42px; height: 42px; min-height: 42px !important; }
   .flask-paperdoll { grid-template-columns: minmax(0, 1fr) !important; }
   #tree-container { width: 100% !important; min-height: 58svh !important; }
 }
 
 @media (max-width: 480px) {
+  .gem-engrave-orbit { padding: 7px 4px 9px; }
+  .gem-orbit-stage { --gem-orbit-slot-size: 50px; width: min(100%, 260px); }
+  .gem-orbit-rings { inset: 30px; }
+  .gem-orbit-rings::before { inset: 15px; }
+  .gem-orbit-rings::after { inset: 50px; }
+  .gem-orbit-center { width: 104px; height: 104px; padding: 6px; }
+  .gem-orbit-art { width: 88px; height: 88px; }
+  .gem-orbit-center > strong { max-width: 94px; padding-inline: 7px; }
+  .gem-orbit-slot-glyph { width: 25px; height: 25px; font-size: 15px; }
+  .gem-orbit-slot.open .gem-orbit-slot-glyph { width: 22px; height: 22px; }
   #ui-inventory-list,
   #ui-craft-inventory-list,
   #ui-fossil-inventory-list,

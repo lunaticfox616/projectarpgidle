@@ -284,9 +284,9 @@ assert.ok(indexSource.includes('id="ui-gem-engrave-slots" class="gem-engrave-orb
 assert.ok(windowCss.includes('.gem-orbit-center'), 'the engraving overlay should keep the selected gem at its visual center');
 assert.ok(windowCss.includes('grid-template-columns: minmax(0, 1fr); justify-items: center'), 'the engraving device should remain symmetric instead of reserving an uneven side column');
 assert.ok(windowCss.includes('.gem-orbit-center {') && windowCss.includes('border-radius: 50%'), 'the selected gem should use a circular socket instead of a tall card silhouette');
-assert.ok(windowCss.includes('aspect-ratio: 1') && uiSource.includes('let orbitAngle = -90 + index * 72') && uiSource.includes('let orbitRadius = 40.5'), 'all engraving slot centers should be calculated on one exact circular path around the gem');
+assert.ok(windowCss.includes('aspect-ratio: 1') && uiSource.includes('let orbitAngle = -90 + index * 72') && uiSource.includes('let orbitRadius = 38.5'), 'all engraving slot centers should be calculated on one exact circular path around the gem');
 assert.ok(windowCss.includes('.gem-orbit-spoke {') && uiSource.includes('class="gem-orbit-spoke"'), 'every engraving slot should visibly connect back to the central gem');
-assert.ok(uiSource.includes('class="gem-orbit-legend"') && windowCss.includes(".gem-orbit-slot.filled::after { content: '◆'"), 'empty and filled engraving slots should differ by shape as well as color');
+assert.ok(uiSource.includes('class="gem-orbit-legend"') && windowCss.includes('.gem-orbit-slot.filled .gem-orbit-slot-glyph') && !windowCss.includes(".gem-orbit-slot.filled::after { content: '◆'"), 'empty and filled engraving slots should differ by their central socket shape without a stray corner glyph');
 assert.ok(!uiSource.includes('<small>${index + 1}</small>'), 'engraving slots should not show redundant corner number badges');
 assert.ok(windowCss.includes('@container (max-width: 430px)'), 'the engraving constellation should retain a dedicated mobile layout');
 assert.ok(indexSource.includes('<small>장착 중인 공격 젬</small>'), 'gem forge target rail should describe its equipped-only scope');

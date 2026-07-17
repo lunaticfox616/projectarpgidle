@@ -76,7 +76,17 @@ slots = context.getSkyEnhancementSlotsForSkill('테스트 젬');
 assert.deepStrictEqual(Array.from(slots), [null, 'sky_b', null, null, null]);
 
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const uiCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
+const mobileCss = fs.readFileSync('css/mobile.css', 'utf8');
+const premiumCss = fs.readFileSync('css/ui-premium.css', 'utf8');
 assert.ok(uiSource.includes('openGemEngraveSlotOverlay'), 'engraving slots should open a dedicated choice overlay');
-assert.ok(uiSource.includes('onpointerdown="event.stopPropagation()"'), 'slot controls should isolate pointer input from surrounding drag handlers');
+assert.ok(uiSource.includes('bindGemEngraveSlotControls(root)'), 'slot controls should use one stable delegated input handler');
+assert.ok(uiSource.includes('root.dataset.renderSig === renderSignature'), 'unchanged combat updates must not replace engraving buttons during a click');
+assert.ok(!uiSource.includes('onpointerdown="event.stopPropagation()"'), 'engraving buttons should not depend on fragile inline pointer handlers');
+assert.ok(uiCss.includes('box-sizing: border-box') && uiCss.includes('left: var(--slot-x); top: var(--slot-y)'), 'all engraving states should keep identical geometry on the shared orbit');
+assert.ok(uiCss.includes('.gem-engrave-slot-dialog .gem-engrave-option'), 'overlay engraving choices should retain the same card styling outside the skill tab');
+assert.ok(!uiCss.includes(".gem-orbit-slot.filled::after { content: '◆'"), 'filled slots should not render an unexplained corner glyph');
+assert.ok(mobileCss.includes('.gem-orbit-stage { --gem-orbit-slot-size: 50px; width: min(100%, 260px); }'), 'the circular slot layout should scale on the real mobile layout without relying on desktop container queries');
+assert.ok(premiumCss.includes(':not(.gem-orbit-slot):not(.gem-engrave-option)'), 'global button hover and active transforms must not displace engraving controls');
 
 console.log('smoke-gem-engraving-slots passed');
