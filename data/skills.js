@@ -64,7 +64,7 @@ safeExposeData({ SKILL_DB });
 //  - line:  플레이어에서 대상 방향 직선을 range칸까지 관통
 //  - chain: range칸 이내 첫 대상 적중 후 jump칸 이내 다른 적으로 연쇄
 //  - blast: range칸 이내 대상 칸 중심 radius칸 폭발(0이면 원거리 단일)
-// range/radius/jump 단위는 모두 체비셰프 거리(대각 1칸 포함)다.
+// range/jump는 체비셰프 거리, radius는 맨해튼 거리(상하좌우 다이아몬드)다.
 const SKILL_GRID_DB = {
     '기본 공격':     { kind: 'melee', range: 1 },
     '연속 베기':     { kind: 'arc',   range: 1 },

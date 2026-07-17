@@ -82,4 +82,9 @@ const activated = context.activatePassivePath(targetId, { forcePulseNodeId: targ
 assert.strictEqual(activated.activated, true, 'activation should spend points and add the shortest path');
 assert.strictEqual(context.game.passivePoints, 0, 'activation should spend one point per inactive path node');
 assert.deepStrictEqual(Array.from(context.game.passives.slice(1)), Array.from(path), 'activation should add exactly the shortest path in order');
+
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const activationHandler = uiSource.slice(uiSource.indexOf('async function activateHoveredPassive'), uiSource.indexOf("canvas.addEventListener('mousedown'", uiSource.indexOf('async function activateHoveredPassive')));
+assert.ok(activationHandler.includes('const targetNodeId = targetNode.id;'), 'passive UI should snapshot the target before awaiting confirmation');
+assert.ok(activationHandler.includes('activatePassivePath(targetNodeId'), 'confirmed activation should use the snapshotted target instead of the mutable hover node');
 console.log('smoke-passive-shortest-path passed');

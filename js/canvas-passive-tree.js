@@ -237,7 +237,9 @@ function getHoveredPassivePathNodeIds(hoveredNodeId) {
         adj.get(edge.from).push(edge.to);
         adj.get(edge.to).push(edge.from);
     });
-    let owned = new Set((game.passives || []).filter(Boolean));
+    let owned = typeof getPassiveConnectionNodeIds === 'function'
+        ? getPassiveConnectionNodeIds()
+        : new Set((game.passives || []).filter(Boolean));
     owned.add('n0');
     let queue = [hoveredNodeId];
     let prev = new Map([[hoveredNodeId, null]]);
@@ -346,8 +348,8 @@ function drawPassiveTree() {
         const visibleB = getPassiveVisibility(b.id);
         if ((visibleA === 'hidden' || visibleB === 'hidden') && !hoverRelatedEdge) return;
         const alpha = Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
-        const activeA = (game.passives || []).includes(a.id);
-        const activeB = (game.passives || []).includes(b.id);
+        const activeA = (game.passives || []).includes(a.id) || (typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(a.id));
+        const activeB = (game.passives || []).includes(b.id) || (typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(b.id));
         const activeLink = activeA && activeB;
         const reachableLink = reachableNodes.has(a.id) || reachableNodes.has(b.id);
         const previewLink = visibleA === 'preview' || visibleB === 'preview';
@@ -413,7 +415,9 @@ function drawPassiveTree() {
         if (visibility === 'hidden' && !hiddenSilhouette) return;
         const searchInfo = (typeof getPassiveNodeSearchMatch === 'function') ? getPassiveNodeSearchMatch(node) : { active: false, matches: true };
         const revealAlpha = hiddenSilhouette ? (searchInfo.active && searchInfo.matches ? 0.18 : 0.12) : getNodeRevealAmount(node);
-        const active = !hiddenSilhouette && (game.passives || []).includes(node.id);
+        const virtualActive = !hiddenSilhouette && typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(node.id);
+        const active = !hiddenSilhouette && ((game.passives || []).includes(node.id) || virtualActive);
+        const effectDisabled = !hiddenSilhouette && typeof isPassiveNodeEffectDisabled === 'function' && isPassiveNodeEffectDisabled(node.id);
         const reachable = !hiddenSilhouette && reachableNodes.has(node.id);
         const radius = getPassiveNodeVisualRadius(node) + ((hoverNode && hoverNode.id === node.id) ? 1.5 : 0);
         const palette = getPassiveNodePalette(node, active, reachable, visibility);
@@ -421,6 +425,17 @@ function drawPassiveTree() {
         const nodeAlpha = revealAlpha * (searchDimmed ? 0.28 : 1);
 
         drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, nodeAlpha, lightweightMode || hiddenSilhouette || searchDimmed);
+        if (!searchDimmed && (virtualActive || effectDisabled)) {
+            ctx.save();
+            ctx.globalAlpha = nodeAlpha;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius + (virtualActive ? 7 : 5), 0, Math.PI * 2);
+            ctx.setLineDash(virtualActive ? [5, 4] : [2, 4]);
+            ctx.strokeStyle = virtualActive ? 'rgba(188,132,255,0.95)' : 'rgba(255,122,122,0.88)';
+            ctx.lineWidth = virtualActive ? 2.2 : 1.7;
+            ctx.stroke();
+            ctx.restore();
+        }
         if (!searchDimmed) drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility, zoomedOutMode);
         if (searchInfo.active && searchInfo.matches) drawPassiveSearchHighlight(ctx, node, radius, palette);
 
@@ -620,11 +635,13 @@ function renderInventoryCard(item, idx, mode) {
     if (item.chaosInfusion) metaBits.push('혼돈 주입');
     if (item.encroached && !item.encroached.liberated) metaBits.push('잠식 · 해방 전');
     if (item.fusedRelic) metaBits.push('융합 유물');
+    if (typeof getItemSalvagePreviewText === 'function') metaBits.push(getItemSalvagePreviewText(item, true));
     let metaChips = (metaBits.length ? metaBits : ['추가 옵션 없음']).map(bit => `<span class="equipment-meta-chip">${bit}</span>`).join('');
+    let salvageTitle = typeof getItemSalvagePreviewText === 'function' ? getItemSalvagePreviewText(item, false) : '장비를 해체합니다.';
     let actions = '';
-    if (mode === 'equip') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${item.locked ? 'disabled' : ''}>해체</button></div>`;
+    if (mode === 'equip') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" title="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${item.locked ? 'disabled' : ''}>해체</button></div>`;
     else if (mode === 'fossil') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
-    else actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${item.locked ? 'disabled' : ''}>해체</button></div>`;
+    else actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" title="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${item.locked ? 'disabled' : ''}>해체</button></div>`;
     let doubleClick = mode === 'equip' ? ` ondblclick="event.stopPropagation(); handleInventoryCardDoubleClick(${item.id}, 'equip')"` : '';
     let recordedTag = '';
     if (item.rarity === 'unique') {

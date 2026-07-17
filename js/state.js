@@ -509,6 +509,55 @@ function getZone(id) {
     return MAP_ZONES[id];
 }
 
+const CHALLENGE_CONTRACT_REWARD_PER_MODIFIER_PCT = 8;
+
+function getChallengeContractState() {
+    if (!game.challengeContract || typeof game.challengeContract !== 'object') game.challengeContract = {};
+    let contract = game.challengeContract;
+    contract.enemyPower = !!contract.enemyPower;
+    contract.fragileArmor = !!contract.fragileArmor;
+    contract.shortHunt = !!contract.shortHunt;
+    contract.greedPact = !!contract.greedPact;
+    contract.enabled = contract.enemyPower || contract.fragileArmor || contract.shortHunt || contract.greedPact;
+    return contract;
+}
+
+function getChallengeContractScore() {
+    let contract = getChallengeContractState();
+    return ['enemyPower', 'fragileArmor', 'shortHunt', 'greedPact'].reduce((sum, key) => sum + (contract[key] ? 1 : 0), 0);
+}
+
+function isChallengeContractEligibleZone(zone) {
+    let target = zone || getZone(game.currentZoneId);
+    return !!(target && target.type === 'act');
+}
+
+function getChallengeContractRewardMultiplier(zone) {
+    if (!isChallengeContractEligibleZone(zone)) return 1;
+    return 1 + (getChallengeContractScore() * CHALLENGE_CONTRACT_REWARD_PER_MODIFIER_PCT) / 100;
+}
+
+function getChallengeContractEnemyDamageMultiplier(zone) {
+    let contract = getChallengeContractState();
+    return isChallengeContractEligibleZone(zone) && contract.enemyPower ? 1.25 : 1;
+}
+
+function getChallengeContractEnemyHealthMultiplier(zone) {
+    let contract = getChallengeContractState();
+    return isChallengeContractEligibleZone(zone) && contract.shortHunt ? 1.30 : 1;
+}
+
+function getChallengeContractPhysicalReductionPenalty(zone) {
+    let contract = getChallengeContractState();
+    return isChallengeContractEligibleZone(zone) && contract.fragileArmor ? 12 : 0;
+}
+
+function getChallengeContractRecoveryMultiplier(zone) {
+    let contract = getChallengeContractState();
+    return isChallengeContractEligibleZone(zone) && contract.greedPact ? 0.65 : 1;
+}
+
+
 
 
 
@@ -523,6 +572,7 @@ function ensureTimeRiftState() {
     st.altarOpen = !!st.altarOpen;
     st.altarUnique = (st.altarUnique && typeof st.altarUnique === 'object') ? st.altarUnique : null;
     st.altarRare = (st.altarRare && typeof st.altarRare === 'object') ? st.altarRare : null;
+    st.fusionCount = Math.max(0, Math.floor(st.fusionCount || 0));
     return st;
 }
 
@@ -1661,7 +1711,7 @@ function getExpertFavorEffectTotals(){ let st=ensureExpertiseState(); st.favors=
 
 const EXPERT_EXP_RULES = {
   mycologist: { loopCap: 250, actions: { spore_craft: { exp: 2, cap: 80 }, fossil_refine: { exp: 3, cap: 80 }, fossil_craft: { exp: 3, cap: 80 }, fossil_restore: { exp: 5, cap: 80 }, labyrinth_new_floor: { exp: 10, cap: 60 }, loop_base: { exp: 60 } } },
-  gemEngraver: { loopCap: 250, actions: { boss_core_upgrade: { exp: 3, cap: 80 }, sky_core_upgrade: { exp: 3, cap: 80 }, engrave_slot_expand: { exp: 5, cap: 60 }, engrave_apply: { exp: 1, cap: 100 }, support_gem_upgrade: { exp: 1, cap: 100 }, loop_base: { exp: 60 } } },
+  gemEngraver: { loopCap: 250, actions: { boss_core_upgrade: { exp: 3, cap: 80 }, sky_core_upgrade: { exp: 3, cap: 80 }, engrave_slot_expand: { exp: 5, cap: 60 }, engrave_apply: { exp: 1, cap: 100 }, support_gem_upgrade: { exp: 1, cap: 100 }, gem_research: { exp: 2, cap: 60 }, loop_base: { exp: 60 } } },
   astronomer: { loopCap: 250, actions: { meteor_clear: { exp: 5, cap: 80 }, starwedge_craft: { exp: 5, cap: 80 }, starwedge_reroll: { exp: 1, cap: 100 }, anomaly_observe: { exp: 5, cap: 80 }, loop_base: { exp: 60 } } },
   beekeeper: { loopCap: 250, actions: { bee_branch_choice: { exp: 1, cap: 100 }, bee_clear: { exp: 10, cap: 80 }, bee_currency_craft: { exp: 3, cap: 80 }, bee_resource_use: { exp: 2, cap: 80 }, loop_base: { exp: 60 } } }
 };
@@ -1880,7 +1930,7 @@ const defaultGame = {
         townReturnAction: 'retry',
         tabNotiEnabled: true,
         socialChatNotifications: true,
-        notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
+        notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
     },
     selectedHeroId: 'hero1',
     appearanceHeroId: null,
@@ -1913,6 +1963,8 @@ const defaultGame = {
     enemies: [],
     playerAilments: [],
     playerLeechInstances: [],
+    realmDeathWard: null,
+    realmInvulnerableBarrierUntil: 0,
     nextEnemyId: 1,
     summons: [],
     summonSeq: 1,
@@ -1941,10 +1993,16 @@ const defaultGame = {
     conditionGemLevels: {},
     pendingConditionGemChoices: null,
     clearedRootBosses: [],
-    timeRift: { pressure: 1, altarOpen: false, altarUnique: null, altarRare: null },
+    timeRift: { pressure: 1, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
     // 유틸리티 슬롯은 이제 허리띠(숨겨진 티어/고유 효과)가 결정하므로 기본은 회복 슬롯 1개뿐이다.
     // getMaxFlaskUtilitySlotCount 참고.
-    flasks: { healTier: 'h1', healCharges: 3, healOverTimeUntil: 0, healOverTimePerSec: 0, utils: [], killCounter: 0, foundKeys: ['h1'] },
+    flasks: {
+        healTier: 'h1', healCharges: 3, healChargeProgress: 0,
+        healOverTimeUntil: 0, healOverTimePerSec: 0, healOverTimeTotal: 0,
+        healOverTimeApplied: 0, healOverTimeStartedAt: 0,
+        utils: [], utilityChargeBank: {}, killCounter: 0,
+        encounterSerial: 0, wasInCombat: false, foundKeys: ['h1']
+    },
     mapSubtab: 'map-tab-zones',
     mapExploreSubtab: 'map-explore-hunting',
     gemFoldInactiveAttack: false,
@@ -1967,7 +2025,7 @@ const defaultGame = {
     abyssPassivePoints: 0,
     abyssClearedDepths: [],
     abyssPassives: { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 },
-    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, chance: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, hiveTrace: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0, condensedSkyPower: 0 },
+    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, chance: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendKeystonePoints: 0,
@@ -1989,13 +2047,13 @@ const defaultGame = {
     jewelSlots: [null, null],
     jewelSlotAmplify: [0, 0],
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
-    colony: { inRun: false, wave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
-    voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 },
+    colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
+    voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, grandBreachCleared: false, activeKills: 0, requiredKills: 0 },
     sporeCraftModes: {},
     shrineState: { active: null, nextRollAt: 0 },
     shrineBuff: null,
     challengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
-    blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [] },
+    blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,
@@ -2030,6 +2088,7 @@ const defaultGame = {
     seasonChaseUniqueDrops: [],
     gemEnhanceUnlocked: false,
     gemEnhanceTargetSkill: null,
+    gemEngraveSelectedSlot: 0,
     uniqueCodex: {},
     codexNewlyRegistered: {},
     codexCollapsedSlots: {},
@@ -2057,7 +2116,7 @@ const defaultGame = {
     },
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, expertise: false, jewel: false },
-    noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
+    noti: { char: false, season: false, items: false, skills: false, flask: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }
