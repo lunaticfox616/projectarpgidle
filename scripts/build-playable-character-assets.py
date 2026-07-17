@@ -47,6 +47,10 @@ CHARACTERS = {
         "portrait": "Sniper Portrait.png",
         "walk": lambda name: name == "animation",
         "attack": lambda name: "lifts_the_crossbow" in name,
+        # The generic export finishes in a full aiming pose rather than a loopable step.
+        # Keep the low-weapon movement portion and mirror it into a stable walk cycle.
+        "walk_slice": (0, 6),
+        "walk_ping_pong": True,
     },
     "hero7": {
         "source": "summoner",
@@ -75,6 +79,7 @@ CHARACTERS = {
 }
 
 COMBAT_DIRECTION = "east"
+ATTACK_RUNTIME_FRAMES = 7
 
 
 def select_animation(animation_root: Path, matcher: Callable[[str], bool]) -> Path:
@@ -87,6 +92,13 @@ def select_animation(animation_root: Path, matcher: Callable[[str], bool]) -> Pa
 def load_rgba(path: Path) -> Image.Image:
     with Image.open(path) as source:
         return source.convert("RGBA")
+
+
+def sample_evenly(frame_paths: list[Path], target_count: int) -> list[Path]:
+    if target_count <= 0 or len(frame_paths) <= target_count:
+        return frame_paths
+    indexes = [round(index * (len(frame_paths) - 1) / (target_count - 1)) for index in range(target_count)]
+    return [frame_paths[index] for index in indexes]
 
 
 def pack_strip(frame_paths: list[Path], output: Path) -> dict[str, int]:
@@ -130,8 +142,15 @@ def main() -> None:
 
         walk_dir = select_animation(animation_root, config["walk"])
         attack_dir = select_animation(animation_root, config["attack"])
-        walk_frames = sorted((walk_dir / COMBAT_DIRECTION).glob("frame_*.png"))
-        attack_frames = sorted((attack_dir / COMBAT_DIRECTION).glob("frame_*.png"))
+        walk_source_frames = sorted((walk_dir / COMBAT_DIRECTION).glob("frame_*.png"))
+        attack_source_frames = sorted((attack_dir / COMBAT_DIRECTION).glob("frame_*.png"))
+        walk_frames = walk_source_frames
+        if "walk_slice" in config:
+            walk_start, walk_end = config["walk_slice"]
+            walk_frames = walk_frames[walk_start:walk_end]
+        if config.get("walk_ping_pong") and len(walk_frames) > 2:
+            walk_frames = walk_frames + walk_frames[-2:0:-1]
+        attack_frames = sample_evenly(attack_source_frames, ATTACK_RUNTIME_FRAMES)
         walk_info = pack_strip(walk_frames, hero_output / "walk.png")
         attack_info = pack_strip(attack_frames, hero_output / "attack.png")
 
@@ -144,6 +163,10 @@ def main() -> None:
             "source": source_name,
             "portraitSource": portrait_source.name,
             "combatDirection": COMBAT_DIRECTION,
+            "walkAnimation": walk_dir.name,
+            "attackAnimation": attack_dir.name,
+            "walkSourceFrames": len(walk_source_frames),
+            "attackSourceFrames": len(attack_source_frames),
             "idle": idle_info,
             "walk": walk_info,
             "attack": attack_info,

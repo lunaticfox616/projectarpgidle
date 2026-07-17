@@ -6341,25 +6341,30 @@ function drawBattleBackdrop(ctx, width, height, theme, now, zone, gridProj) {
 
 function getLocalBattleHeroVisualTuning() {
     const defaultTuning = {
-        baseHeight: 55.2,
-        minHeight: 50,
-        maxHeight: 55.2,
-        downShrink: 6.5,
-        maxScaleBoost: 1,
-        shadowWidth: 10,
-        shadowHeight: 4,
-        shadowAlpha: 0.16,
+        baseHeight: 63,
+        minHeight: 58,
+        maxHeight: 71,
+        downShrink: 7,
+        maxScaleBoost: 1.12,
+        shadowWidth: 11.5,
+        shadowHeight: 4.6,
+        shadowAlpha: 0.18,
         offsetY: 0
     };
-    if (typeof isLocalRuntimeHost !== 'function' || !isLocalRuntimeHost()) return defaultTuning;
-    const localTuningByHero = {
-        hero1: { baseHeight: 68, minHeight: 60, maxHeight: 84, downShrink: 8.2, maxScaleBoost: 1.24, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
-        hero2: { baseHeight: 66, minHeight: 58, maxHeight: 81, downShrink: 8, maxScaleBoost: 1.23, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
-        hero3: { baseHeight: 66, minHeight: 58, maxHeight: 81, downShrink: 8, maxScaleBoost: 1.23, shadowWidth: 12.5, shadowHeight: 5, shadowAlpha: 0.18, offsetY: 2 },
-        hero4: { baseHeight: 67, minHeight: 59, maxHeight: 82, downShrink: 8.1, maxScaleBoost: 1.24, shadowWidth: 13, shadowHeight: 5.2, shadowAlpha: 0.18, offsetY: 2 }
+    const tuningByHero = {
+        hero1: { baseHeight: 63, maxHeight: 71 },
+        hero2: { baseHeight: 64, maxHeight: 72, shadowWidth: 12 },
+        hero3: { baseHeight: 63, maxHeight: 71 },
+        hero4: { baseHeight: 62, maxHeight: 70 },
+        hero5: { baseHeight: 64, maxHeight: 72, shadowWidth: 12 },
+        hero6: { baseHeight: 62, maxHeight: 70 },
+        hero7: { baseHeight: 63, maxHeight: 71 },
+        hero8: { baseHeight: 65, maxHeight: 73, shadowWidth: 12.5 },
+        hero9: { baseHeight: 63, maxHeight: 71 },
+        hero10: { baseHeight: 63, maxHeight: 71 }
     };
     let heroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId;
-    return { ...defaultTuning, ...(localTuningByHero[heroId] || localTuningByHero.hero1) };
+    return { ...defaultTuning, ...(tuningByHero[heroId] || {}) };
 }
 
 function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now, motionState) {
@@ -6516,10 +6521,11 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let idleFrame = pickCycle(idleCycle, 920, 0);
         let moveStat = Math.max(70, Number(getUiPlayerStats().move) || 100);
         let moveRatio = clampNumber(moveStat / 100, 0.85, 2.25);
-        const WALK_ANIM_SPEED_MULT = 2;
-        let moveCycleSpeed = clampNumber((1040 / moveRatio) / WALK_ANIM_SPEED_MULT, 310, 490);
-        let walkFrame = pickCycle(walkCycle, moveCycleSpeed, 0);
-        let movingFrame = pickCycle(runCycle, moveCycleSpeed, 0) || walkFrame;
+        let walkSequenceLength = Math.max(1, walkCycle.length || 1);
+        let walkCycleDuration = clampNumber(960 / moveRatio, 560, 1130);
+        let moveFrameDuration = clampNumber(walkCycleDuration / walkSequenceLength, 45, 105);
+        let walkFrame = pickCycle(walkCycle, moveFrameDuration, 0);
+        let movingFrame = pickCycle(runCycle, moveFrameDuration, 0) || walkFrame;
         let frame = downPhase !== null || downBlend > 0.24
             ? pickProgressFrame(downCycle, downPhase !== null ? downPhase : clampNumber(downBlend * 0.999, 0, 0.999))
             : (advanceBlend > 0.08 ? movingFrame : idleFrame);
@@ -6527,7 +6533,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         if (downPhase === null && isAttacking) {
             frame = pickAttackFrame(pickSkillAttackCycle());
         }
-        const _walkBobPeriod = Math.max(80, moveCycleSpeed / Math.max(1, (walkCycle.length || 4)) / 2);
+        const _walkBobPeriod = Math.max(80, (moveFrameDuration * walkSequenceLength) / (Math.PI * 2));
         let stepOffset = (downPhase === null && advanceBlend > 0.08)
             ? Math.sin(now / _walkBobPeriod) * lerpNumber(0.08, 0.24, advanceBlend)
             : 0;

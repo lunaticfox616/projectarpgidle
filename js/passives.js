@@ -5356,6 +5356,11 @@ function initBattleAssets() {
         summon1: 'assets/summon/summon1.png',
         ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
+    Object.keys(manifest).forEach(key => {
+        if (key.startsWith('hero') && typeof manifest[key] === 'string' && manifest[key].startsWith('assets/playable/')) {
+            manifest[key] += '?v=20260718-motion2';
+        }
+    });
     const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct') || key.startsWith('bgChaos') || key.startsWith('bossTelegraph') || key.startsWith('skillFx')).concat(['effectsV2', 'weapons', 'tiles']));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
@@ -6068,16 +6073,16 @@ function buildBattleAssetAtlas() {
         return Math.max(1, Math.round(width / 80));
     }
     const heroStripFrameCounts = {
-        hero1Idle: 1, hero1Walk: 15, hero1Attack: 15, hero1Hurt: 1, hero1Death: 1,
-        hero2Idle: 1, hero2Walk: 17, hero2Attack: 17, hero2Hurt: 1, hero2Death: 1,
-        hero3Idle: 1, hero3Walk: 17, hero3Attack: 17, hero3Hurt: 1, hero3Death: 1,
-        hero4Idle: 1, hero4Walk: 13, hero4Attack: 17, hero4Hurt: 1, hero4Death: 1,
-        hero5Idle: 1, hero5Walk: 17, hero5Attack: 9, hero5Hurt: 1, hero5Death: 1,
-        hero6Idle: 1, hero6Walk: 13, hero6Attack: 17, hero6Hurt: 1, hero6Death: 1,
-        hero7Idle: 1, hero7Walk: 17, hero7Attack: 17, hero7Hurt: 1, hero7Death: 1,
-        hero8Idle: 1, hero8Walk: 15, hero8Attack: 15, hero8Hurt: 1, hero8Death: 1,
-        hero9Idle: 1, hero9Walk: 13, hero9Attack: 17, hero9Hurt: 1, hero9Death: 1,
-        hero10Idle: 1, hero10Walk: 11, hero10Attack: 15, hero10Hurt: 1, hero10Death: 1
+        hero1Idle: 1, hero1Walk: 15, hero1Attack: 7, hero1Hurt: 1, hero1Death: 1,
+        hero2Idle: 1, hero2Walk: 17, hero2Attack: 7, hero2Hurt: 1, hero2Death: 1,
+        hero3Idle: 1, hero3Walk: 17, hero3Attack: 7, hero3Hurt: 1, hero3Death: 1,
+        hero4Idle: 1, hero4Walk: 13, hero4Attack: 7, hero4Hurt: 1, hero4Death: 1,
+        hero5Idle: 1, hero5Walk: 17, hero5Attack: 7, hero5Hurt: 1, hero5Death: 1,
+        hero6Idle: 1, hero6Walk: 10, hero6Attack: 7, hero6Hurt: 1, hero6Death: 1,
+        hero7Idle: 1, hero7Walk: 17, hero7Attack: 7, hero7Hurt: 1, hero7Death: 1,
+        hero8Idle: 1, hero8Walk: 15, hero8Attack: 7, hero8Hurt: 1, hero8Death: 1,
+        hero9Idle: 1, hero9Walk: 13, hero9Attack: 7, hero9Hurt: 1, hero9Death: 1,
+        hero10Idle: 1, hero10Walk: 11, hero10Attack: 7, hero10Hurt: 1, hero10Death: 1
     };
     function buildFixedStripFramesFromImage(image, frameCount) {
         if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return [];
@@ -6107,21 +6112,43 @@ function buildBattleAssetAtlas() {
         let fallbackCols = inferStripFallbackColumns(image);
         return buildFixedStripFramesFromImage(image, fallbackCols);
     }
-    function normalizeFrameSetBasisHeight(frames) {
-        let list = (frames || []).filter(Boolean);
-        if (list.length <= 0) return [];
-        let heights = list.map(frame => Math.max(1, Math.round(frame.height || 1))).sort((a, b) => a - b);
-        let mid = Math.floor(heights.length / 2);
-        let basisHeight = heights[mid] || heights[0] || 1;
-        return list.map(frame => ({ ...frame, basisHeight: basisHeight }));
+    function getHeroStripAnchor(image, frameCount) {
+        if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return null;
+        let frameWidth = Math.max(1, Math.round(image.width / frameCount));
+        let raw = { x: 0, y: 0, width: frameWidth, height: image.height };
+        let content = trimRectToContent(image, raw, 1) || raw;
+        return {
+            xRatio: 0.5,
+            yRatio: clampNumber((content.y + content.height - raw.y) / raw.height, 0.1, 1),
+            basisHeightRatio: clampNumber(content.height / raw.height, 0.1, 1)
+        };
+    }
+    function buildAnchoredHeroStripFrames(image, frameCount, anchor) {
+        if (!image || !anchor || !Number.isFinite(frameCount) || frameCount <= 0) return [];
+        let frames = [];
+        for (let i = 0; i < frameCount; i++) {
+            let x = Math.round(i * image.width / frameCount);
+            let nextX = i === frameCount - 1 ? image.width : Math.round((i + 1) * image.width / frameCount);
+            let raw = { x: x, y: 0, width: Math.max(1, nextX - x), height: image.height };
+            frames.push(withImageRef(image, {
+                ...raw,
+                anchorX: raw.width * anchor.xRatio,
+                anchorY: raw.height * anchor.yRatio,
+                basisHeight: raw.height * anchor.basisHeightRatio
+            }));
+        }
+        return frames.filter(Boolean);
     }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
-        let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210, heroStripFrameCounts[stripKeys.idle]));
-        let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210, heroStripFrameCounts[stripKeys.walk]));
-        let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220, heroStripFrameCounts[stripKeys.attack]));
-        let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200, heroStripFrameCounts[stripKeys.hurt]));
-        let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200, heroStripFrameCounts[stripKeys.death]));
+        let idleImage = battleAssets.images[stripKeys.idle];
+        let idleCount = heroStripFrameCounts[stripKeys.idle];
+        let anchor = getHeroStripAnchor(idleImage, idleCount);
+        let idleFrames = buildAnchoredHeroStripFrames(idleImage, idleCount, anchor);
+        let walkFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.walk], heroStripFrameCounts[stripKeys.walk], anchor);
+        let attackFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.attack], heroStripFrameCounts[stripKeys.attack], anchor);
+        let hurtFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.hurt], heroStripFrameCounts[stripKeys.hurt], anchor);
+        let downFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.death], heroStripFrameCounts[stripKeys.death], anchor);
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
         let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
         return {
@@ -6858,8 +6885,14 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     let srcH = Math.max(1, rect.height - cropTop - cropBottom);
     let drawWidth = Math.max(1, Math.round(srcW * scale));
     let drawHeight = Math.max(1, Math.round(srcH * scale));
-    let dx = Math.round(x - drawWidth / 2 + (options.offsetX || rect.offsetX || 0));
-    let dy = Math.round(y - drawHeight + (options.offsetY || rect.offsetY || 0));
+    let rawAnchorX = Number.isFinite(options.anchorX) ? options.anchorX : (Number.isFinite(rect.anchorX) ? rect.anchorX : rect.width / 2);
+    let rawAnchorY = Number.isFinite(options.anchorY) ? options.anchorY : (Number.isFinite(rect.anchorY) ? rect.anchorY : rect.height);
+    let sourceAnchorX = clampNumber(rawAnchorX - cropLeft, 0, srcW);
+    let sourceAnchorY = clampNumber(rawAnchorY - cropTop, 0, srcH);
+    let drawOffsetX = Number(options.offsetX !== undefined ? options.offsetX : rect.offsetX) || 0;
+    let drawOffsetY = Number(options.offsetY !== undefined ? options.offsetY : rect.offsetY) || 0;
+    let dx = Math.round(x - sourceAnchorX * scale + drawOffsetX);
+    let dy = Math.round(y - sourceAnchorY * scale + drawOffsetY);
     ctx.save();
     ctx.globalAlpha = options.alpha === undefined ? 1 : options.alpha;
     if (options.smoothing === 'high') {

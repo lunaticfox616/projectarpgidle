@@ -300,5 +300,29 @@ heroVisualCoverage.forEach(hero => {
 });
 assert.ok(passiveSource.includes("hero7Walk: 'assets/playable/hero7/walk.png'"), 'summoner combat art should no longer reuse the druid');
 assert.ok(passiveSource.includes("hero8Walk: 'assets/playable/hero8/walk.png'"), 'guardian combat art should no longer reuse the warrior');
+const playableManifest = JSON.parse(fs.readFileSync('assets/playable/manifest.json', 'utf8'));
+const expectedAnimationRoles = {
+  hero1: ['walks_forward', 'shifts_their_weight'],
+  hero2: ['maintains_a_guarded', 'takes_a_brief_focused'],
+  hero3: ['rhythmic_walking', 'gently_raises'],
+  hero4: ['walks_forward', 'lunges_forward'],
+  hero5: ['armored_warrior_walks', 'warrior_shifts_her_weight'],
+  hero6: ['animation', 'lifts_the_crossbow'],
+  hero7: ['walks_forward', 'stands_in_place'],
+  hero8: ['begins_to_walk', 'shifts_its_weight'],
+  hero9: ['holds_the_staff', 'holds_their_staff'],
+  hero10: ['walks_forward', 'Attack'],
+};
+Object.entries(expectedAnimationRoles).forEach(([heroId, roles]) => {
+  assert.ok(playableManifest[heroId].walkAnimation.includes(roles[0]), `${heroId} should use its verified walk export`);
+  assert.ok(playableManifest[heroId].attackAnimation.includes(roles[1]), `${heroId} should use its verified attack export`);
+  assert.strictEqual(playableManifest[heroId].attack.frames, 7, `${heroId} attack should keep seven readable runtime poses`);
+});
+assert.strictEqual(playableManifest.hero6.walk.frames, 10, 'sniper should use a ping-pong movement cycle instead of looping into its aiming pose');
+assert.ok(passiveSource.includes('anchorX: raw.width * anchor.xRatio'), 'playable frames should preserve the source-cell center instead of recentering weapon and spell bounds');
+assert.ok(passiveSource.includes('anchorY: raw.height * anchor.yRatio'), 'playable frames should preserve one foot baseline across idle, walk, and attack');
+assert.ok(passiveSource.includes("manifest[key] += '?v=20260718-motion2'"), 'updated playable sheets should bypass stale browser image caches');
+assert.ok(uiSource.includes('walkCycleDuration = clampNumber(960 / moveRatio'), 'walk animation timing should target a complete cycle instead of treating the cycle duration as one frame');
+assert.ok(!uiSource.includes("if (typeof isLocalRuntimeHost !== 'function' || !isLocalRuntimeHost()) return defaultTuning;"), 'playable character scale should remain consistent between local and deployed builds');
 
 console.log('smoke-game-visual-overhaul passed');
