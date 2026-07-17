@@ -319,7 +319,7 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies) {
 }
 
 const SKILL_HIT_SEQUENCE_CONFIG = Object.freeze({
-    whirlIntervalMs: 100,
+    whirlIntervalMs: 80,
     chainIntervalMs: 110,
     slamAftershockDelayMs: 360,
     slamAftershockDamagePct: 32

@@ -1719,6 +1719,7 @@ body:not(.light-mode) #info-tooltip {
 .gem-orbit-rings::after { content: ''; position: absolute; border-radius: inherit; }
 .gem-orbit-rings::before { inset: 18px; border: 1px dashed rgba(210, 180, 242, .19); }
 .gem-orbit-rings::after { inset: 63px; border: 1px solid rgba(199, 159, 238, .2); box-shadow: 0 0 18px rgba(128, 85, 174, .12); }
+.gem-orbit-spoke { position: absolute; left: 50%; top: 50%; z-index: 1; width: 40.5%; height: 1px; background: linear-gradient(90deg, rgba(141, 107, 180, .08) 0 37%, rgba(173, 139, 211, .32) 52%, rgba(173, 139, 211, .14) 100%); box-shadow: 0 0 8px rgba(126, 89, 166, .1); transform: rotate(var(--orbit-angle)); transform-origin: 0 50%; pointer-events: none; }
 .gem-orbit-center { --gem-accent: #9b7fc8; position: absolute; left: 50%; top: 50%; z-index: 2; display: grid; place-items: center; width: 124px; height: 124px; min-height: 0; padding: 7px; border: 1px solid color-mix(in srgb, var(--gem-accent) 60%, #3e3155); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--gem-accent) 15%, #161222), rgba(7, 8, 15, .98) 72%); box-shadow: 0 0 34px color-mix(in srgb, var(--gem-accent) 22%, transparent), inset 0 0 0 5px rgba(7, 8, 15, .78), inset 0 1px rgba(255,255,255,.08); transform: translate(-50%, -50%); }
 .gem-orbit-art { display: grid; place-items: center; width: 108px; height: 108px; overflow: hidden; border-radius: 50%; filter: drop-shadow(0 8px 12px rgba(0,0,0,.45)); }
 .gem-orbit-center > span:not(.gem-orbit-art) { display: none; }
@@ -1727,11 +1728,7 @@ body:not(.light-mode) #info-tooltip {
 .gem-orbit-slot::before { content: ''; position: absolute; inset: 5px; border: 1px solid rgba(173, 139, 211, .24); border-radius: inherit; }
 .gem-orbit-slot > span { position: relative; z-index: 1; font-size: 20px; line-height: 1; }
 .gem-orbit-slot em { display: none; }
-.gem-orbit-slot.slot-1 { left: 50%; top: 10%; transform: translate(-50%, -50%); }
-.gem-orbit-slot.slot-2 { left: 88%; top: 38%; transform: translate(-50%, -50%); }
-.gem-orbit-slot.slot-3 { left: 74%; top: 82%; transform: translate(-50%, -50%); }
-.gem-orbit-slot.slot-4 { left: 26%; top: 82%; transform: translate(-50%, -50%); }
-.gem-orbit-slot.slot-5 { left: 12%; top: 38%; transform: translate(-50%, -50%); }
+.gem-orbit-slot { transform: translate(-50%, -50%); }
 .gem-orbit-slot.open { color: #8f80a2; border-color: #6c5a82; border-style: dashed; background: rgba(10, 10, 18, .76); box-shadow: inset 0 0 14px rgba(106, 82, 139, .1), 0 5px 14px rgba(0,0,0,.36); }
 .gem-orbit-slot.open::before { border-style: dashed; border-color: rgba(151, 124, 183, .18); }
 .gem-orbit-slot.filled { color: #f2d477; border: 2px solid #c5a35a; background: radial-gradient(circle, #4a3918 30%, #21170b 70%); box-shadow: 0 0 22px rgba(225, 184, 84, .3), inset 0 0 14px rgba(255, 221, 127, .12), 0 6px 16px rgba(0,0,0,.45); }
@@ -1742,7 +1739,7 @@ body:not(.light-mode) #info-tooltip {
 .gem-orbit-slot.unlockable { color: #a5e6bd; border-color: #57906a; background: radial-gradient(circle, #153323 38%, #09150e 74%); animation: gem-slot-ready 1.9s ease-in-out infinite; }
 .gem-orbit-slot.locked { opacity: .26; filter: grayscale(.8); }
 .gem-orbit-slot.selected { outline: 2px solid rgba(255, 221, 132, .55); outline-offset: 3px; }
-.gem-orbit-slot:not(.locked):hover { transform: translate(-50%, calc(-50% - 2px)); filter: brightness(1.12); }
+.gem-orbit-slot:not(.locked):hover { transform: translate(-50%, -50%) scale(1.045); filter: brightness(1.12); }
 .gem-orbit-copy { width: min(100%, 560px); min-width: 0; padding: 8px 12px 0; border-top: 1px solid rgba(107, 82, 145, .42); text-align: center; }
 .gem-orbit-copy strong,
 .gem-orbit-copy span { display: block; }

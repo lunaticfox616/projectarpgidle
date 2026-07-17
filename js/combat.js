@@ -7802,7 +7802,11 @@ function performPlayerAttack(pStats, attackOptions) {
     let talentAttackMul = Number.isFinite(Number(options.talentAttackMultiplier))
         ? Math.max(0, Number(options.talentAttackMultiplier))
         : getTalentPlayerAttackDamageMultiplier();
-    let attackMotionMs = (pStats.sSkill.tags || []).includes('projectile') ? 220 : 180;
+    let attackTags = pStats.sSkill.tags || [];
+    // Seven-pose playable attacks were unreadable inside the old 180/220ms window.
+    // Keep the impact at the end of the motion, but give anticipation and follow-through
+    // enough time to be visible. Slams deliberately carry the longest wind-up.
+    let attackMotionMs = attackTags.includes('slam') ? 460 : (attackTags.includes('projectile') ? 400 : 360);
     if (!isStageReplay) {
         addBattleFx('playerSwing', {
             color: getElementColor(swingElement),
@@ -8487,6 +8491,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 chainFromEnemyId: options.chainFromEnemyId || null,
                 skillName: skillName,
                 damage: dealtToEnemy,
+                rawDamage: dmg,
                 duration: 320,
                 element: hitElement,
                 syncToSwing: !isStageReplay

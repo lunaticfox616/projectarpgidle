@@ -144,14 +144,29 @@ function getSkillGemVfxBaseSize(family, stageKind) {
     return 82;
 }
 
+function getSkillGemVfxStageFamily(profile, stageKind) {
+    let family = (profile && profile.family) || 'slash';
+    if (stageKind === 'chainPrimary' && profile && profile.primaryFamily) return profile.primaryFamily;
+    if (stageKind === 'chainJump') return 'chain';
+    return family;
+}
+
+function hasMatchingTravelProjectile(skillName, now) {
+    return (battleVisualState.skillEffects || []).some(effect => effect
+        && effect.travel
+        && effect.skillName === skillName
+        && Math.abs((Number(effect.arriveAt) || 0) - now) <= 150);
+}
+
 function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportScale) {
     if (!fx || fx.dot || !fx.skillName) return;
     let profile = getSkillGemVfxProfile(fx.skillName);
     if (!profile) return;
-    let family = profile.family || 'slash';
     let stageKind = String(fx.stageKind || 'primary');
+    let family = getSkillGemVfxStageFamily(profile, stageKind);
+    if (profile.family === 'projectile' && stageKind !== 'chainJump' && hasMatchingTravelProjectile(fx.skillName, now)) return;
     let imageKey = SKILL_GEM_VFX_IMAGE_KEYS[family] || SKILL_GEM_VFX_IMAGE_KEYS.slash;
-    let connector = family === 'projectile';
+    let connector = false;
     if (family === 'chain' && stageKind === 'chainPrimary') imageKey = SKILL_GEM_VFX_IMAGE_KEYS.chainPrimary;
     if (stageKind === 'chainJump') {
         imageKey = SKILL_GEM_VFX_IMAGE_KEYS.chainJump;
@@ -180,7 +195,7 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
         let repeatOffset = repeat - (repeatCount - 1) / 2;
         let baseRotation = Math.atan2(target.y - source.y, target.x - source.x);
         let rotation = connector ? baseRotation : baseRotation + Math.PI * 0.28 + repeatOffset * 0.16;
-        if (family === 'whirlwind') rotation = (Number(fx.stageIndex) || 0) * 0.72 + seed * 0.031;
+        if (family === 'whirlwind') rotation = (Number(fx.stageIndex) || 0) * (Math.PI / 4) + seed * 0.031;
         list.push({
             skillName: fx.skillName,
             family: family,
@@ -205,6 +220,55 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
     if (list.length > 96) list.splice(0, list.length - 96);
 }
 
+function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyPosMap, viewportScale) {
+    if (!swingFx || swingFx.skillProjectileQueued || !swingFx.projectile || !swingFx.skillName) return;
+    swingFx.skillProjectileQueued = true;
+    let profile = getSkillGemVfxProfile(swingFx.skillName);
+    if (!profile || profile.family !== 'projectile') return;
+    let skill = (typeof SKILL_DB !== 'undefined' && SKILL_DB[swingFx.skillName]) || {};
+    let targets = (targetEntries || []).map(entry => {
+        let enemyId = entry && entry.enemy ? entry.enemy.id : null;
+        return enemyId == null ? null : enemyPosMap[enemyId];
+    }).filter(Boolean);
+    if (skill.targetMode === 'chain') targets = targets.slice(0, 1);
+    else targets = targets.slice(0, 4);
+    if (targets.length <= 0) return;
+    let imageKey = SKILL_GEM_VFX_IMAGE_KEYS.projectile;
+    let releaseAt = swingFx.start + Math.max(90, swingFx.duration * 0.42);
+    let arriveAt = Number(swingFx.impactAt) || (swingFx.start + swingFx.duration);
+    let scale = Math.max(0.45, Number(profile.scale) || 1) * clampNumber(Number(viewportScale) || 1, 0.7, 1.16);
+    let repeats = Math.max(1, Math.min(3, Math.floor(Number(profile.repeats) || 1)));
+    let list = battleVisualState.skillEffects || (battleVisualState.skillEffects = []);
+    targets.forEach((target, targetIndex) => {
+        for (let repeat = 0; repeat < repeats; repeat++) {
+            let stagger = repeat * 32;
+            let startAt = Math.min(arriveAt - 70, releaseAt + stagger);
+            let laneOffset = (repeat - (repeats - 1) / 2) * 4;
+            list.push({
+                skillName: swingFx.skillName,
+                family: 'projectile',
+                stageKind: 'projectileTravel',
+                imageKey: imageKey,
+                startAt: startAt,
+                arriveAt: arriveAt,
+                duration: Math.max(70, arriveAt - startAt),
+                fromX: playerPos.x + 13,
+                fromY: playerPos.y - 20 + laneOffset,
+                toX: target.x,
+                toY: target.y - 9 + laneOffset,
+                travel: true,
+                connector: false,
+                rotation: Math.atan2((target.y - 9 + laneOffset) - (playerPos.y - 20 + laneOffset), target.x - (playerPos.x + 13)),
+                size: getSkillGemVfxBaseSize('projectile', 'projectileTravel') * scale * (1 - targetIndex * 0.035),
+                alpha: 0.7,
+                filter: getSkillGemVfxFilter(normalizeSkillGemVfxElement(swingFx.element, profile.accent), imageKey),
+                seed: Math.max(1, Number(swingFx.id) || 1) + targetIndex * 19 + repeat * 7
+            });
+        }
+    });
+    if (list.length > 96) list.splice(0, list.length - 96);
+}
+
 function drawSkillGemVfxLayer(ctx, now) {
     let list = battleVisualState.skillEffects || [];
     list.forEach(effect => {
@@ -215,11 +279,27 @@ function drawSkillGemVfxLayer(ctx, now) {
         let t = clampNumber(elapsed / Math.max(1, effect.duration), 0, 1);
         let fade = Math.sin(Math.PI * t);
         if (effect.family === 'dot') fade = Math.min(1, t / 0.16) * Math.min(1, (1 - t) / 0.28);
+        if (effect.travel) fade = Math.min(1, t / 0.12) * Math.min(1, (1 - t) / 0.1);
         ctx.save();
         ctx.globalCompositeOperation = (effect.stageKind === 'slamPrimary' || effect.stageKind === 'slamAftershock') ? 'source-over' : 'screen';
         ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fade, 0, 0.82);
         ctx.filter = effect.filter || 'none';
-        if (effect.connector) {
+        if (effect.travel) {
+            let eased = t * t * (3 - 2 * t);
+            let arc = Math.sin(t * Math.PI) * Math.min(13, Math.hypot(effect.toX - effect.fromX, effect.toY - effect.fromY) * 0.09);
+            let x = effect.fromX + (effect.toX - effect.fromX) * eased;
+            let y = effect.fromY + (effect.toY - effect.fromY) * eased - arc;
+            let width = effect.size * 1.52;
+            let height = effect.size * 0.52;
+            ctx.translate(x, y);
+            ctx.rotate(effect.rotation || 0);
+            for (let trail = 3; trail >= 1; trail--) {
+                ctx.globalAlpha *= 0.28;
+                ctx.drawImage(image, -width / 2 - trail * 7, -height / 2, width * (1 - trail * 0.07), height * (1 - trail * 0.08));
+                ctx.globalAlpha /= 0.28;
+            }
+            ctx.drawImage(image, -width / 2, -height / 2, width, height);
+        } else if (effect.connector) {
             let reveal = Math.min(1, t / 0.22);
             let fromX = effect.toX + (effect.fromX - effect.toX) * reveal;
             let fromY = effect.toY + (effect.fromY - effect.toY) * reveal;
@@ -318,14 +398,17 @@ function drawEnemyAttackTelegraphs(ctx, layout, playerPos, now, gridUnitScale) {
         if (!enemy || enemy.noAttack || enemy.hp <= 0 || !Number.isFinite(Number(enemy.attackTimer))) return;
         let frozen = (enemy.ailments || []).some(ailment => ailment && ailment.type === 'freeze' && (ailment.time || 0) > 0);
         if (frozen) return;
+        // Ordinary monsters no longer carry a ground aura/charge ring. Their attack
+        // remains readable through motion, player damage feedback, and the health UI.
+        if (!enemy.isElite && !enemy.isBoss) return;
         let pattern = enemy.isBoss
             ? (enemy.nextPatternState || (typeof getBossPatternPreview === 'function' ? getBossPatternPreview(enemy) : null))
             : null;
-        let threshold = pattern && pattern.isSpecial ? 0.5 : (enemy.isBoss ? 0.58 : (enemy.isElite ? 0.7 : 0.82));
+        let threshold = pattern && pattern.isSpecial ? 0.56 : (enemy.isBoss ? 0.68 : 0.84);
         let charge = Number(enemy.attackTimer) || 0;
         if (charge < threshold) return;
         let progress = clampNumber((charge - threshold) / Math.max(0.001, 1 - threshold), 0, 1);
-        let pulse = 0.84 + Math.sin(now / (enemy.isBoss ? 54 : 72)) * 0.16;
+        let pulse = 0.9 + Math.sin(now / (enemy.isBoss ? 105 : 125)) * 0.1;
         let palette = getEnemyTelegraphColor(enemy);
         let ranged = enemy.attackKind === 'ranged';
         let radiusX = (enemy.isBoss ? 38 : (enemy.isElite ? 29 : 22)) * gridUnitScale;
@@ -334,20 +417,28 @@ function drawEnemyAttackTelegraphs(ctx, layout, playerPos, now, gridUnitScale) {
         ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = palette.fill;
         ctx.strokeStyle = palette.edge;
-        ctx.lineWidth = (enemy.isBoss ? 3.2 : 2) * pulse;
-        ctx.globalAlpha = 0.34 + progress * 0.58;
+        ctx.lineWidth = (enemy.isBoss ? 2.4 : 1.35) * pulse;
+        ctx.globalAlpha = enemy.isBoss ? (0.24 + progress * 0.48) : (0.18 + progress * 0.28);
         ctx.beginPath();
         ctx.ellipse(entry.x, entry.y + 8, radiusX * (0.84 + progress * 0.16), radiusY, 0, 0, Math.PI * 2);
-        ctx.fill();
+        if (enemy.isBoss) ctx.fill();
         ctx.stroke();
-        if (ranged && playerPos) {
+        if (enemy.isElite) {
+            ctx.globalAlpha = 0.08 + progress * 0.18;
+            ctx.setLineDash([3, 5]);
+            ctx.beginPath();
+            ctx.ellipse(entry.x, entry.y + 8, radiusX * 0.68, radiusY * 0.68, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        if (enemy.isBoss && ranged && playerPos) {
             let dx = playerPos.x - entry.x;
             let dy = (playerPos.y - 10) - (entry.y - 8);
             let length = Math.max(1, Math.hypot(dx, dy));
             let nx = -dy / length;
             let ny = dx / length;
             let halfWidth = (enemy.isBoss ? 7 : 4) * (0.7 + progress * 0.3);
-            ctx.globalAlpha = 0.18 + progress * 0.42;
+            ctx.globalAlpha = 0.08 + progress * 0.22;
             ctx.beginPath();
             ctx.moveTo(entry.x + nx * halfWidth, entry.y - 8 + ny * halfWidth);
             ctx.lineTo(playerPos.x + nx * halfWidth, playerPos.y - 10 + ny * halfWidth);
@@ -357,9 +448,9 @@ function drawEnemyAttackTelegraphs(ctx, layout, playerPos, now, gridUnitScale) {
             ctx.fill();
         }
         if (enemy.isBoss) {
-            ctx.globalAlpha = 0.42 + progress * 0.5;
-            for (let ray = 0; ray < 6; ray++) {
-                let angle = ray * Math.PI / 3 - Math.PI / 2;
+            ctx.globalAlpha = 0.24 + progress * 0.38;
+            for (let bossRay = 0; bossRay < 4; bossRay++) {
+                let angle = bossRay * Math.PI / 2 - Math.PI / 2;
                 let inner = radiusX * 0.72;
                 let outer = radiusX * (0.95 + progress * 0.28);
                 ctx.beginPath();
@@ -700,10 +791,11 @@ function renderBattlefield(forceWhenHidden) {
         const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, framePlayerStats.aspd)) * 100));
         battleVisualState.lastAutoSkillAt = now + _atkInterval;
     }
+    if (swingFx && swingFx.projectile) {
+        const viewportProjectileFxScale = Math.min(width / 960, height / 540);
+        queueSkillGemProjectileLaunch(swingFx, currentTargets, playerPos, enemyPosMap, viewportProjectileFxScale);
+    }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
-    // 이미지 VFX는 캐릭터/몬스터/생명력 바보다 먼저 그려 가독성을 침범하지 않는다.
-    // 새로 발생한 타격은 다음 프레임(통상 16ms 이내)에 이 레이어에 표시된다.
-    drawSkillGemVfxLayer(ctx, now);
     drawActiveSummons(ctx, playerPos, now, gridProj);
     let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.62, 1.3);
     let playerFacingLeft = resolvePlayerFacingLeft(playerPos, targetPlayerPos, currentTargets, enemyPosMap);
@@ -735,7 +827,7 @@ function renderBattlefield(forceWhenHidden) {
                     start: now,
                     x: enemyPos.x,
                     y: enemyPos.y - 30,
-                    value: fx.damage,
+                    value: Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage,
                     crit: !!fx.crit,
                     dot: !!fx.dot,
                     dotType: fx.element || '',
@@ -819,6 +911,9 @@ function renderBattlefield(forceWhenHidden) {
         drawEnemySprite(ctx, ghost.enemy, ghost.x, ghost.y, (ghost.enemy.isBoss ? 2.55 : (ghost.enemy.isElite ? 2.2 : 1.95)) * gridUnitScale, false, now);
     });
 
+    // 반투명 스킬 이미지는 몬스터 위에 표시해 투사체 이동과 적중점을 읽기 쉽게 한다.
+    // 생명력 바와 피해 숫자는 뒤에서 그려지므로 항상 스킬 이미지보다 위에 남는다.
+    drawSkillGemVfxLayer(ctx, now);
     if (typeof attackFxDraw === 'function') attackFxDraw(ctx);
 
     let pStatsNow = framePlayerStats;
@@ -1070,7 +1165,7 @@ function getBattleCameraShake(now) {
             ? (fx.boss ? 7.8 : (fx.elite ? 2.5 : 0))
             : (fx.type === 'enemySpawn'
                 ? (fx.boss ? 2.8 : (fx.elite ? 0.8 : 0))
-                : (fx.type === 'playerHit' ? Math.max(1.2, hitStrength * 0.55) : hitStrength));
+                : (fx.type === 'playerHit' ? Math.max(0.45, hitStrength * 0.32) : hitStrength));
         amplitude = Math.max(amplitude, strength * (1 - age / duration));
     });
     return {
