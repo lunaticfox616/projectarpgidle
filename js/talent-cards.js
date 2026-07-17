@@ -166,6 +166,23 @@ function getTalentCardEffectLines(heroId, classKey, level) {
     // 표면효과: 설명 표시(기획 텍스트)
     if (def.surface && def.surface.desc) {
         lines.push(`<span style="color:#ffd36b;">⭐ [표면] ${escapeTalentHtml(def.surface.desc)}</span>`);
+        let applied = [];
+        (def.surface.ops || []).forEach(op => {
+            if (!op || !op.stat) return;
+            let value = Math.round(((Number(op.perLevel) || 0) * lv) * 100) / 100;
+            applied.push(`${getTalentStatLabel(op.stat)} ${value >= 0 ? '+' : ''}${value}%`);
+        });
+        (def.surface.uniq || []).forEach(u => {
+            if (!u || !u.key) return;
+            let params = Object.assign({}, u.params || {});
+            if (u.perLevelParams) Object.keys(u.perLevelParams).forEach(key => { params[key] = (Number(u.perLevelParams[key]) || 0) * lv; });
+            applied.push(getTalentUniqLabel(u.key, params));
+        });
+        if (def.surface.dmg) {
+            let more = Math.round(((Number(def.surface.dmg.perLevel) || 0) * lv) * 100) / 100;
+            applied.push(`${getTalentKeystoneConditionText(def.surface.dmg.when, def.surface.dmg.threshold)}피해 ${more >= 0 ? '+' : ''}${more}%`);
+        }
+        if (applied.length) lines.push(`<span style="color:#d6c8a3;">[현재 적용] ${applied.map(escapeTalentHtml).join(' · ')}</span>`);
     } else if (def.surface) {
         // 구버전(uniq/dmg/ops) 호환 표시
         let pos = [];
@@ -474,7 +491,15 @@ function getTalentCardUniqEffects(heroId, classKey, level) {
         if (!u || !u.key) return null;
         let params = Object.assign({}, u.params || {});
         if (u.perLevelParams) Object.keys(u.perLevelParams).forEach(p => { params[p] = (u.perLevelParams[p] || 0) * lv; });
-        return { key: u.key, params: params, itemName: '개화 키스톤: ' + cardName, sourceSlot: 'talentKeystone' };
+        let cardId = makeTalentComboKey(heroId, classKey);
+        return {
+            key: u.key,
+            params: params,
+            itemName: '개화 키스톤: ' + cardName,
+            sourceSlot: 'talentKeystone',
+            cardId: cardId,
+            talentCardId: cardId
+        };
     }).filter(Boolean);
 }
 

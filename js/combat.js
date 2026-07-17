@@ -347,9 +347,8 @@ function getCombatTalentCardLevel(cardId) {
 }
 
 function getActiveTalentUniqueEffects() {
-    if (getCombatTalentCardLevel('hero1__gladiator') > 0) {
-        return [{ key: 'projectileTargetBonus', params: { target: 3 }, talentCardId: 'hero1__gladiator' }];
-    }
+    // 모든 카드 고유 효과는 getActiveTalentKeystoneUniqueEffects() 한 경로에서만 주입한다.
+    // 별도 주입하면 조건부 카드(플레쳐 등)가 일반 고유 효과와 중복 적용될 수 있다.
     return [];
 }
 

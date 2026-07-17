@@ -1433,6 +1433,9 @@ function craftSelectInventoryItemById(itemId) {
     if (typeof hideItemTooltip === 'function') hideItemTooltip();
     if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
     if (typeof switchTab === 'function') switchTab('tab-items');
+    // 데스크톱 창 모드의 switchTab은 이미 포커스된 탭을 다시 누르면 창을 닫는 토글이다.
+    // 카드 안의 바로가기는 단방향 이동이어야 하므로 닫혔더라도 즉시 다시 열고 포커스한다.
+    if (document.body.classList.contains('desktop-windowed-ui') && typeof openWindow === 'function') openWindow('tab-items');
     if (typeof switchItemSubtab === 'function') switchItemSubtab('item-tab-craft');
     if (typeof selectForCrafting === 'function') selectForCrafting(id, false);
     setTimeout(() => {
@@ -5725,12 +5728,23 @@ function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
     return `${statePrefix} · 상시 효과`;
 }
 
+let itemTooltipHideTimer = null;
+
 function showItemTooltip(event, idx, isEquip) {
     let item = isEquip ? game.equipment[idx] : game.inventory[idx];
     let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
     if (!item) return;
-    activeItemTooltipToken = isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`;
+    if (itemTooltipHideTimer) {
+        clearTimeout(itemTooltipHideTimer);
+        itemTooltipHideTimer = null;
+    }
+    let nextTooltipToken = isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`;
     let tt = document.getElementById('item-tooltip-box');
+    if (activeItemTooltipToken === nextTooltipToken && tt.style.display === 'block' && tt.innerHTML) {
+        positionTooltipElement(tt, event.clientX, event.clientY);
+        return;
+    }
+    activeItemTooltipToken = nextTooltipToken;
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${item.name}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
     let baseChainInfo = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
@@ -5914,10 +5928,27 @@ function showItemTooltip(event, idx, isEquip) {
     positionTooltipElement(tt, event.clientX, event.clientY);
     setActiveTooltip('item-tooltip-box');
 }
-function hideItemTooltip() {
+function dismissItemTooltipNow() {
     activeItemTooltipToken = null;
     clearActiveTooltip('item-tooltip-box');
     document.getElementById('item-tooltip-box').style.display = 'none';
+}
+
+function hideItemTooltip(event) {
+    if (itemTooltipHideTimer) clearTimeout(itemTooltipHideTimer);
+    itemTooltipHideTimer = null;
+    if (!event || !Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) {
+        dismissItemTooltipNow();
+        return;
+    }
+    let pointerX = event.clientX;
+    let pointerY = event.clientY;
+    itemTooltipHideTimer = setTimeout(() => {
+        itemTooltipHideTimer = null;
+        let hovered = document.elementFromPoint(pointerX, pointerY);
+        if (hovered && hovered.closest('[data-item-tooltip-anchor="1"]')) return;
+        dismissItemTooltipNow();
+    }, 24);
 }
 
 function validateItemTooltipAnchor() {
