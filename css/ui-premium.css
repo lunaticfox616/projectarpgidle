@@ -4,7 +4,7 @@
    ============================================================ */
 
 /* ── GLOBAL BUTTON ──────────────────────────────────────────── */
-body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close) {
+body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option) {
   background: linear-gradient(180deg, #1e2d3f 0%, #16222f 100%);
   border: 1px solid #2e4459;
   color: #c8ddf0;
@@ -17,17 +17,17 @@ body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-bt
   position: relative;
   overflow: hidden;
 }
-body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):hover:not(:disabled) {
+body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):hover:not(:disabled) {
   background: linear-gradient(180deg, #26394f 0%, #1c2e41 100%);
   border-color: #4a6a8a;
   color: #e2eff9;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
 }
-body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):active:not(:disabled) {
+body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):active:not(:disabled) {
   transform: translateY(1px);
   box-shadow: 0 0 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.25);
 }
-body:not(.light-mode) button:disabled {
+body:not(.light-mode) button:disabled:not(.gem-engrave-option) {
   background: #0e1520 !important;
   border-color: #1c2a38 !important;
   color: #3a4f63 !important;

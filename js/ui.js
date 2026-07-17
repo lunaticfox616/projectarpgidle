@@ -4162,33 +4162,67 @@ function renderGemResourceStrip(activeGem, gemExpertLv, condensedPower) {
     root.innerHTML = `<div><span>젬 각인사</span><strong>Lv.${gemExpertLv}</strong></div><div><span>젬 잔향</span><strong>${game.currencies.gemShard || 0}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 힘</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>선택 젬</span><strong>${activeGem && activeGem.awakened ? '각성' : '일반'}</strong></div>`;
 }
 
+function bindGemEngraveSlotControls(root) {
+    if (!root || root.dataset.engraveSlotControlsBound === 'true') return;
+    root.dataset.engraveSlotControlsBound = 'true';
+    root.addEventListener('pointerdown', event => {
+        let button = event.target && event.target.closest ? event.target.closest('button[data-slot-index]') : null;
+        if (button && root.contains(button)) event.stopPropagation();
+    });
+    root.addEventListener('click', event => {
+        let button = event.target && event.target.closest ? event.target.closest('button[data-slot-index]') : null;
+        if (!button || !root.contains(button) || button.disabled || button.dataset.slotState === 'locked') return;
+        event.stopPropagation();
+        openGemEngraveSlotOverlay(button.dataset.slotIndex);
+    });
+}
+
 function renderGemEngraveSlots(activeSlots, engraveCap) {
     let root = document.getElementById('ui-gem-engrave-slots');
     if (!root) return;
+    bindGemEngraveSlotControls(root);
     let active = getGemEnhanceTargetSkill();
     if (typeof isEnhanceableAttackGem === 'function' && !isEnhanceableAttackGem(active)) {
-        root.innerHTML = '<div class="gem-process-empty">장착 중인 공격 젬을 선택하면 중앙 각인 장치가 활성화됩니다.</div>';
+        let emptySignature = `empty:${active || ''}`;
+        if (root.dataset.renderSig !== emptySignature) {
+            root.innerHTML = '<div class="gem-process-empty">장착 중인 공격 젬을 선택하면 중앙 각인 장치가 활성화됩니다.</div>';
+            root.dataset.renderSig = emptySignature;
+        }
         return;
     }
-    let selectedSlot = typeof getSelectedGemEngraveSlot === 'function' ? getSelectedGemEngraveSlot() : 0;
+    let normalizedCap = Math.max(1, Math.min(5, Math.floor(Number(engraveCap) || 1)));
+    let sourceSlots = Array.isArray(activeSlots) ? activeSlots : [];
+    let normalizedSlots = Array.from({ length: 5 }, (_, index) => sourceSlots[index] || null);
+    let nextUnlockCost = normalizedCap < 5 ? normalizedCap + 1 : 0;
+    let canAffordNextSlot = nextUnlockCost > 0 && (game.currencies.skyEssence || 0) >= nextUnlockCost;
+    let renderSignature = JSON.stringify([active, normalizedCap, normalizedSlots, canAffordNextSlot]);
+    if (root.dataset.renderSig === renderSignature) return;
     let slots = [];
     let spokes = [];
     for (let index = 0; index < 5; index++) {
-        let enhancement = activeSlots[index] ? GEM_SKY_ENHANCEMENTS[activeSlots[index]] : null;
-        let unlocked = index < engraveCap;
-        let nextUnlock = index === engraveCap && engraveCap < 5;
-        let stateClass = enhancement ? 'filled' : unlocked ? 'open' : nextUnlock ? 'unlockable' : 'locked';
-        let title = enhancement ? `${index + 1}번 슬롯 · ${enhancement.name}` : unlocked ? `${index + 1}번 빈 각인 슬롯` : nextUnlock ? `${index + 1}번 슬롯 해금 · 창공의 힘 ${index + 1}` : '앞 슬롯부터 해금 필요';
+        let enhancement = normalizedSlots[index] ? GEM_SKY_ENHANCEMENTS[normalizedSlots[index]] : null;
+        let unlocked = index < normalizedCap;
+        let nextUnlock = index === normalizedCap && normalizedCap < 5;
+        let unlockReady = nextUnlock && canAffordNextSlot;
+        let stateClass = enhancement ? 'filled' : unlocked ? 'open' : unlockReady ? 'unlockable' : nextUnlock ? 'unaffordable' : 'locked';
+        let title = enhancement
+            ? `${index + 1}번 슬롯 · ${enhancement.name} · 눌러서 교체 또는 해제`
+            : unlocked
+                ? `${index + 1}번 빈 각인 슬롯 · 눌러서 각인 선택`
+                : nextUnlock
+                    ? `${index + 1}번 슬롯 해금 · 창공의 힘 ${index + 1}${unlockReady ? '' : ' · 재화 부족'}`
+                    : `${index + 1}번 잠긴 슬롯 · 앞 슬롯부터 해금 필요`;
         let group = enhancement ? getSkyEnhancementGroup(enhancement) : null;
-        let glyph = enhancement ? getSkyEnhancementGlyph(enhancement) : unlocked ? '◇' : nextUnlock ? '+' : '×';
+        let glyph = enhancement ? getSkyEnhancementGlyph(enhancement) : unlocked ? '' : nextUnlock ? '+' : '×';
         let orbitAngle = -90 + index * 72;
-        let orbitRadius = 40.5;
+        let orbitRadius = 38.5;
         let orbitX = 50 + Math.cos(orbitAngle * Math.PI / 180) * orbitRadius;
         let orbitY = 50 + Math.sin(orbitAngle * Math.PI / 180) * orbitRadius;
         spokes.push(`<span class="gem-orbit-spoke" aria-hidden="true" style="--orbit-angle:${orbitAngle}deg"></span>`);
-        slots.push(`<button type="button" class="gem-orbit-slot slot-${index + 1} ${stateClass} ${selectedSlot === index ? 'selected' : ''} ${group ? `group-${group.className}` : ''}" style="left:${orbitX.toFixed(3)}%;top:${orbitY.toFixed(3)}%" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" data-slot-index="${index}" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation(); openGemEngraveSlotOverlay(${index})"><span>${glyph}</span>${enhancement ? `<em>${escapeHTML(enhancement.name)}</em>` : nextUnlock ? `<em>슬롯 해금</em>` : ''}</button>`);
+        slots.push(`<button type="button" class="gem-orbit-slot slot-${index + 1} ${stateClass} ${group ? `group-${group.className}` : ''}" style="--slot-x:${orbitX.toFixed(3)}%;--slot-y:${orbitY.toFixed(3)}%" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" aria-pressed="${enhancement ? 'true' : 'false'}" aria-disabled="${!unlocked && !nextUnlock ? 'true' : 'false'}" data-slot-index="${index}" data-slot-state="${stateClass}" ${!unlocked && !nextUnlock ? 'tabindex="-1"' : ''}><span class="gem-orbit-slot-glyph" aria-hidden="true"><b>${glyph}</b></span>${enhancement ? `<em>${escapeHTML(enhancement.name)}</em>` : nextUnlock ? `<em>${unlockReady ? '슬롯 해금' : '재화 부족'}</em>` : ''}</button>`);
     }
-    root.innerHTML = `<div class="gem-orbit-stage"><div class="gem-orbit-rings" aria-hidden="true"></div>${spokes.join('')}<div class="gem-orbit-center element-${getGemCardMeta(SKILL_DB[active] || {}).className}">${renderSkillGemArt(active, 'gem-orbit-art', { eager: true })}<span>각인 대상</span><strong>${escapeHTML(active)}</strong></div>${slots.join('')}</div><div class="gem-orbit-copy"><strong>슬롯을 눌러 각인</strong><span class="gem-orbit-legend"><b class="is-empty">◇ 빈 슬롯</b><b class="is-filled">◆ 각인됨</b><b class="is-unlockable">+ 해금 가능</b></span></div>`;
+    root.innerHTML = `<div class="gem-orbit-stage"><div class="gem-orbit-rings" aria-hidden="true"></div>${spokes.join('')}<div class="gem-orbit-center element-${getGemCardMeta(SKILL_DB[active] || {}).className}">${renderSkillGemArt(active, 'gem-orbit-art', { eager: true })}<span>각인 대상</span><strong>${escapeHTML(active)}</strong></div>${slots.join('')}</div><div class="gem-orbit-copy"><strong>중앙 젬과 연결된 슬롯을 선택하세요</strong><span class="gem-orbit-legend"><b class="is-empty"><i></i>빈 슬롯</b><b class="is-filled"><i></i>각인됨</b><b class="is-unlockable"><i>+</i>해금 가능</b></span></div>`;
+    root.dataset.renderSig = renderSignature;
 }
 
 function getSkyEnhancementGlyph(enhancement) {
@@ -4222,7 +4256,11 @@ function renderSkyEnhancementOption(enhancement, activeSlots, gemExpertLv, isGem
 
 function closeGemEngraveSlotOverlay() {
     let overlay = document.getElementById('gem-engrave-slot-overlay');
-    if (overlay) overlay.remove();
+    if (!overlay) return;
+    let triggerIndex = overlay.dataset.triggerSlotIndex;
+    overlay.remove();
+    let trigger = document.querySelector(`#ui-gem-engrave-slots button[data-slot-index="${triggerIndex}"]`);
+    if (trigger && !trigger.disabled) trigger.focus({ preventScroll: true });
 }
 
 function renderGemEngraveOverlayOption(enhancement, slots, slotIndex, gemExpertLv) {
@@ -4256,6 +4294,7 @@ function openGemEngraveSlotOverlay(index) {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', `${slotIndex + 1}번 각인 슬롯 선택`);
+    overlay.dataset.triggerSlotIndex = String(slotIndex);
     overlay.tabIndex = -1;
     overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div class="gem-engrave-dialog-identity">${renderSkillGemArt(active, 'gem-engrave-dialog-art', { eager: true })}<div><span>SKY INSCRIPTION</span><h3>${escapeHTML(active)} · ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 ${escapeHTML(current.name)} · 다른 각인을 누르면 교체됩니다.` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex, expertLevel)).join('')}</div></section>`;
     overlay.addEventListener('click', event => {
