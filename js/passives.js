@@ -4627,7 +4627,8 @@ function openLoopHeroSelection(onSelect, options = {}) {
         let experienced = experiencedSet.has(id);
         let summary = String(def.talentsText || '').split(',').slice(0, 2).join(' ·');
         let badge = experienced ? '<span class="hero-choice-badge">경험함</span>' : '';
-        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-hero-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="chooseLoopHero('${id}')">${badge}<strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
+        let previewStyle = def.preview ? ` style="--hero-preview-image:url('${escapeHTML(def.preview)}')"` : '';
+        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-hero-id="${escapeHTML(id)}"${previewStyle} data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="chooseLoopHero('${id}')">${badge}<strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
     }).join('');
     overlay.classList.add('active');
 }
@@ -5247,46 +5248,26 @@ function initBattleAssets() {
     const customHeroSrc = getCustomHeroSheetDataUrl();
     const defaultHeroSrc = customHeroSrc || null;
     const manifest = {
-        hero1Idle: 'assets/hero1/ElfIdle001Sheet-export.png',
-        hero1Walk: 'assets/hero1/ElfWalk001-Sheet-export.png',
-        hero1Attack: 'assets/hero1/ElfBasicAtk001BGR-Sheet-export.png',
-        hero1Hurt: 'assets/hero1/ElfHurt001-Sheet-export.png',
-        hero1Death: 'assets/hero1/ElfDeath001-Sheet-export.png',
-        hero2Idle: 'assets/hero2/hero2_walk.png',
-        hero2Walk: 'assets/hero2/hero2_walk.png',
-        hero2Attack: 'assets/hero2/hero2_attack.png',
-        hero2Hurt: 'assets/hero2/hero2_walk.png',
-        hero2Death: 'assets/hero2/hero2_walk.png',
-        hero3Idle: 'assets/hero3/hero3_walk.png',
-        hero3Walk: 'assets/hero3/hero3_walk.png',
-        hero3Attack: 'assets/hero3/hero3_attack.png',
-        hero3Hurt: 'assets/hero3/hero3_walk.png',
-        hero3Death: 'assets/hero3/hero3_walk.png',
-        hero4Idle: 'assets/hero4/SeveredFangIdle001-Sheet.png',
-        hero4Walk: 'assets/hero4/SeveredFangWalk001-Sheet.png',
-        hero4Attack: 'assets/hero4/SeveredFangBasicAtk001-Sheet.png',
-        hero4Hurt: 'assets/hero4/SeveredFangHurt001-Sheet.png',
-        hero4Death: 'assets/hero4/SeveredFangDeath001-Sheet.png',
-        hero5Idle: 'assets/hero5/hero5_walk.png',
-        hero5Walk: 'assets/hero5/hero5_walk.png',
-        hero5Attack: 'assets/hero5/hero5_attack.png',
-        hero5Hurt: 'assets/hero5/hero5_walk.png',
-        hero5Death: 'assets/hero5/hero5_walk.png',
-        hero6Idle: 'assets/hero6/hero6_walk.png',
-        hero6Walk: 'assets/hero6/hero6_walk.png',
-        hero6Attack: 'assets/hero6/hero6_attack.png',
-        hero6Hurt: 'assets/hero6/hero6_walk.png',
-        hero6Death: 'assets/hero6/hero6_walk.png',
-        hero9Idle: 'assets/hero9/hero9_walk.png',
-        hero9Walk: 'assets/hero9/hero9_walk.png',
-        hero9Attack: 'assets/hero9/hero9_attack.png',
-        hero9Hurt: 'assets/hero9/hero9_walk.png',
-        hero9Death: 'assets/hero9/hero9_walk.png',
-        hero10Idle: 'assets/hero10/hero10_walk.png',
-        hero10Walk: 'assets/hero10/hero10_walk.png',
-        hero10Attack: 'assets/hero10/hero10_attack.png',
-        hero10Hurt: 'assets/hero10/hero10_walk.png',
-        hero10Death: 'assets/hero10/hero10_walk.png',
+        hero1Idle: 'assets/playable/hero1-idle.png',
+        hero1Attack: 'assets/playable/hero1-attack.png',
+        hero2Idle: 'assets/playable/hero2-idle.png',
+        hero2Attack: 'assets/playable/hero2-attack.png',
+        hero3Idle: 'assets/playable/hero3-idle.png',
+        hero3Attack: 'assets/playable/hero3-attack.png',
+        hero4Idle: 'assets/playable/hero4-idle.png',
+        hero4Attack: 'assets/playable/hero4-attack.png',
+        hero5Idle: 'assets/playable/hero5-idle.png',
+        hero5Attack: 'assets/playable/hero5-attack.png',
+        hero6Idle: 'assets/playable/hero6-idle.png',
+        hero6Attack: 'assets/playable/hero6-attack.png',
+        hero7Idle: 'assets/playable/hero7-idle.png',
+        hero7Attack: 'assets/playable/hero7-attack.png',
+        hero8Idle: 'assets/playable/hero8-idle.png',
+        hero8Attack: 'assets/playable/hero8-attack.png',
+        hero9Idle: 'assets/playable/hero9-idle.png',
+        hero9Attack: 'assets/playable/hero9-attack.png',
+        hero10Idle: 'assets/playable/hero10-idle.png',
+        hero10Attack: 'assets/playable/hero10-attack.png',
         ...(defaultHeroSrc ? { heroLegacy: defaultHeroSrc } : {}),
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
@@ -6046,14 +6027,16 @@ function buildBattleAssetAtlas() {
         return Math.max(1, Math.round(width / 80));
     }
     const heroStripFrameCounts = {
-        hero1Idle: 6, hero1Walk: 8, hero1Attack: 7, hero1Hurt: 4, hero1Death: 8,
-        hero2Idle: 13, hero2Walk: 13, hero2Attack: 18, hero2Hurt: 13, hero2Death: 13,
-        hero3Idle: 9, hero3Walk: 9, hero3Attack: 11, hero3Hurt: 9, hero3Death: 9,
-        hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7,
-        hero5Idle: 11, hero5Walk: 11, hero5Attack: 9, hero5Hurt: 11, hero5Death: 11,
-        hero6Idle: 13, hero6Walk: 13, hero6Attack: 13, hero6Hurt: 13, hero6Death: 13,
-        hero9Idle: 9, hero9Walk: 9, hero9Attack: 8, hero9Hurt: 9, hero9Death: 9,
-        hero10Idle: 12, hero10Walk: 12, hero10Attack: 10, hero10Hurt: 12, hero10Death: 12
+        hero1Idle: 1, hero1Attack: 15,
+        hero2Idle: 1, hero2Attack: 17,
+        hero3Idle: 1, hero3Attack: 17,
+        hero4Idle: 1, hero4Attack: 17,
+        hero5Idle: 1, hero5Attack: 9,
+        hero6Idle: 1, hero6Attack: 17,
+        hero7Idle: 1, hero7Attack: 17,
+        hero8Idle: 1, hero8Attack: 15,
+        hero9Idle: 1, hero9Attack: 17,
+        hero10Idle: 1, hero10Attack: 15
     };
     function buildFixedStripFramesFromImage(image, frameCount) {
         if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return [];
@@ -6091,36 +6074,22 @@ function buildBattleAssetAtlas() {
         let basisHeight = heights[mid] || heights[0] || 1;
         return list.map(frame => ({ ...frame, basisHeight: basisHeight }));
     }
-    function sanitizeHero3AttackFrames(frames) {
-        let list = (frames || []).filter(Boolean);
-        return list.map(frame => {
-            let width = Math.max(1, Math.round(frame.width || 1));
-            let sourceRightBiasPx = 4;
-            let maxShift = Math.max(0, Math.min(sourceRightBiasPx, Math.floor(width * 0.1)));
-            if (maxShift <= 0) return frame;
-            let nextX = Math.round((frame.x || 0) + maxShift);
-            return {
-                ...frame,
-                x: nextX,
-                width: Math.max(1, width - maxShift)
-            };
-        });
-    }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
         let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210, heroStripFrameCounts[stripKeys.idle]));
         let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210, heroStripFrameCounts[stripKeys.walk]));
         let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220, heroStripFrameCounts[stripKeys.attack]));
-        if (heroId === 'hero3') attackFrames = normalizeFrameSetBasisHeight(sanitizeHero3AttackFrames(attackFrames));
         let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200, heroStripFrameCounts[stripKeys.hurt]));
         let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200, heroStripFrameCounts[stripKeys.death]));
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
-        const walkFallbackHeroIds = new Set(['hero2', 'hero6', 'hero10']);
-        if (walkFallbackHeroIds.has(heroId)) {
-            let restingFrame = walkFrames[0] || idleFrames[0];
-            idleFrames = [restingFrame].filter(Boolean);
-            hurtFrames = [restingFrame].filter(Boolean);
-            downFrames = [restingFrame].filter(Boolean);
+        let heroDef = HERO_SELECTION_DEFS[heroId] || {};
+        if (heroDef.spriteFormat === 'directional-pack-v1') {
+            let sharedBasisHeight = (idleFrames[0] && idleFrames[0].basisHeight) || (idleFrames[0] && idleFrames[0].height);
+            if (Number.isFinite(sharedBasisHeight) && sharedBasisHeight > 0) {
+                attackFrames = attackFrames.map(frame => ({ ...frame, basisHeight: sharedBasisHeight }));
+                hurtFrames = hurtFrames.map(frame => ({ ...frame, basisHeight: sharedBasisHeight }));
+                downFrames = downFrames.map(frame => ({ ...frame, basisHeight: sharedBasisHeight }));
+            }
         }
         let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
         return {
@@ -6136,7 +6105,7 @@ function buildBattleAssetAtlas() {
             clipLoop: {
                 idle: true,
                 walk_or_run: true,
-                sword_attack_body: heroId === 'hero3' || heroId === 'hero4' || heroId === 'hero5' || heroId === 'hero9',
+                sword_attack_body: false,
                 cast_body: false,
                 hurt: false,
                 down_or_knockdown: false,
@@ -6703,10 +6672,7 @@ function buildBattleAssetAtlas() {
             || battleAssets.images[strips.hurt]
             || battleAssets.images[strips.death]
             || battleAssets.images.hero1Idle
-            || battleAssets.images.hero1Walk
             || battleAssets.images.hero1Attack
-            || battleAssets.images.hero1Hurt
-            || battleAssets.images.hero1Death
             || legacyHeroImage;
     }
     const enemySpriteImage = buildEnemyTransparentImage(battleAssets.images.enemies);

@@ -97,7 +97,9 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '궁수',
         talentsText: '투사체 피해 +18%, 공격 속도 +12%, 최소 대미지 보정 +10%',
         stats: [{ stat: 'projectilePctDmg', value: 18 }, { stat: 'aspd', value: 12 }, { stat: 'minDmgRoll', value: 10 }],
-        strips: { idle: 'hero1Idle', walk: 'hero1Walk', attack: 'hero1Attack', hurt: 'hero1Hurt', death: 'hero1Death' }
+        preview: 'assets/playable/hero1-preview.png',
+        spriteFormat: 'directional-pack-v1',
+        strips: { idle: 'hero1Idle', walk: 'hero1Idle', attack: 'hero1Attack', hurt: 'hero1Idle', death: 'hero1Idle' }
     },
     hero2: {
         id: 'hero2',
@@ -105,7 +107,9 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '전사',
         talentsText: '근접 피해 +20%, 최대 생명력 +10%, 최대 대미지 보정 +10%, 강타 피해 +18%',
         stats: [{ stat: 'meleePctDmg', value: 20 }, { stat: 'pctHp', value: 10 }, { stat: 'maxDmgRoll', value: 10 }, { stat: 'slamPctDmg', value: 18 }],
-        strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
+        preview: 'assets/playable/hero2-preview.png',
+        spriteFormat: 'directional-pack-v1',
+        strips: { idle: 'hero2Idle', walk: 'hero2Idle', attack: 'hero2Attack', hurt: 'hero2Idle', death: 'hero2Idle' }
     },
     hero3: {
         id: 'hero3',
@@ -113,7 +117,9 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '드루이드',
         talentsText: '원소 피해 +22%, 생명력 재생 +1.2%, 모든 저항 +5%',
         stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'regen', value: 1.2 }, { stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }, { stat: 'resChaos', value: 5 }],
-        strips: { idle: 'hero3Idle', walk: 'hero3Walk', attack: 'hero3Attack', hurt: 'hero3Hurt', death: 'hero3Death' }
+        preview: 'assets/playable/hero3-preview.png',
+        spriteFormat: 'directional-pack-v1',
+        strips: { idle: 'hero3Idle', walk: 'hero3Idle', attack: 'hero3Attack', hurt: 'hero3Idle', death: 'hero3Idle' }
     },
     hero4: {
         id: 'hero4',
@@ -121,7 +127,9 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '블레이드',
         talentsText: '카오스 피해 +20%, 흡혈 +0.2%, 이동 속도 +12%, 치명타 피해 +20%, 치명타 확률 +2.5%',
         stats: [{ stat: 'chaosPctDmg', value: 20 }, { stat: 'leech', value: 0.2 }, { stat: 'move', value: 12 }, { stat: 'critDmg', value: 20 }, { stat: 'crit', value: 2.5 }],
-        strips: { idle: 'hero4Idle', walk: 'hero4Walk', attack: 'hero4Attack', hurt: 'hero4Hurt', death: 'hero4Death' }
+        preview: 'assets/playable/hero4-preview.png',
+        spriteFormat: 'directional-pack-v1',
+        strips: { idle: 'hero4Idle', walk: 'hero4Idle', attack: 'hero4Attack', hurt: 'hero4Idle', death: 'hero4Idle' }
     },
     hero5: {
         id: 'hero5',
@@ -129,7 +137,9 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '성기사',
         talentsText: '물리/번개 피해 +20%, 방어도/에너지 보호막 +15%, 연속 타격 +5%, 카오스 저항 +8%, 최대 카오스 저항 +1%',
         stats: [{ stat: 'physPctDmg', value: 20 }, { stat: 'lightPctDmg', value: 20 }, { stat: 'armorPct', value: 15 }, { stat: 'energyShieldPct', value: 15 }, { stat: 'ds', value: 5 }, { stat: 'resChaos', value: 8 }, { stat: 'maxResChaos', value: 1 }],
-        strips: { idle: 'hero5Idle', walk: 'hero5Walk', attack: 'hero5Attack', hurt: 'hero5Hurt', death: 'hero5Death' }
+        preview: 'assets/playable/hero5-preview.png',
+        spriteFormat: 'directional-pack-v1',
+        strips: { idle: 'hero5Idle', walk: 'hero5Idle', attack: 'hero5Attack', hurt: 'hero5Idle', death: 'hero5Idle' }
     },
     hero6: {
         id: 'hero6',
@@ -137,7 +147,9 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '저격수',
         talentsText: '투사체 피해 +20%, 치명타 확률 +5%, 치명타 피해 +25%, 공격 속도 -5%, 최대 대미지 보정 +10%',
         stats: [{ stat: 'projectilePctDmg', value: 20 }, { stat: 'crit', value: 5 }, { stat: 'critDmg', value: 25 }, { stat: 'aspd', value: -5 }, { stat: 'maxDmgRoll', value: 10 }],
-        strips: { idle: 'hero6Idle', walk: 'hero6Walk', attack: 'hero6Attack', hurt: 'hero6Hurt', death: 'hero6Death' }
+        preview: 'assets/playable/hero6-preview.png',
+        spriteFormat: 'directional-pack-v1',
+        strips: { idle: 'hero6Idle', walk: 'hero6Idle', attack: 'hero6Attack', hurt: 'hero6Idle', death: 'hero6Idle' }
     },
     hero7: {
         id: 'hero7',
@@ -145,7 +157,9 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '소환사',
         talentsText: '소환수 피해 +20%, 소환수 한도 +1, 소환수 효율 +20%',
         stats: [{ stat: 'summonPctDmg', value: 20 }, { stat: 'summonCap', value: 1 }, { stat: 'summonEfficiency', value: 20 }],
-        strips: { idle: 'hero3Idle', walk: 'hero3Walk', attack: 'hero3Attack', hurt: 'hero3Hurt', death: 'hero3Death' }
+        preview: 'assets/playable/hero7-preview.png',
+        spriteFormat: 'directional-pack-v1',
+        strips: { idle: 'hero7Idle', walk: 'hero7Idle', attack: 'hero7Attack', hurt: 'hero7Idle', death: 'hero7Idle' }
     },
     hero8: {
         id: 'hero8',
@@ -153,7 +167,9 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '수호자',
         talentsText: '최대 생명력 +15%, 받는 피해 -5%, 생명력 재생 +1%, 방어도 +20%',
         stats: [{ stat: 'pctHp', value: 15 }, { stat: 'genericTakenDamageReducePct', value: 5 }, { stat: 'regen', value: 1 }, { stat: 'armorPct', value: 20 }],
-        strips: { idle: 'hero2Idle', walk: 'hero2Walk', attack: 'hero2Attack', hurt: 'hero2Hurt', death: 'hero2Death' }
+        preview: 'assets/playable/hero8-preview.png',
+        spriteFormat: 'directional-pack-v1',
+        strips: { idle: 'hero8Idle', walk: 'hero8Idle', attack: 'hero8Attack', hurt: 'hero8Idle', death: 'hero8Idle' }
     },
     hero9: {
         id: 'hero9',
@@ -161,7 +177,9 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '원소술사',
         talentsText: '원소 피해 +22%, 원소 저항 관통 +10%, 모든 원소 저항 +5%',
         stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'resPen', value: 10 }, { stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }],
-        strips: { idle: 'hero9Idle', walk: 'hero9Walk', attack: 'hero9Attack', hurt: 'hero9Hurt', death: 'hero9Death' }
+        preview: 'assets/playable/hero9-preview.png',
+        spriteFormat: 'directional-pack-v1',
+        strips: { idle: 'hero9Idle', walk: 'hero9Idle', attack: 'hero9Attack', hurt: 'hero9Idle', death: 'hero9Idle' }
     },
     hero10: {
         id: 'hero10',
@@ -169,7 +187,9 @@ const HERO_SELECTION_DEFS = {
         blindLabel: '연금술사',
         talentsText: '지속 피해 배율 +20%, 이동 속도 +10%, 회피 +15%, 출혈/점화/중독 확률 +15%',
         stats: [{ stat: 'dotPctDmg', value: 20 }, { stat: 'move', value: 10 }, { stat: 'evasionPct', value: 15 }, { stat: 'bleedChance', value: 15 }, { stat: 'igniteChance', value: 15 }, { stat: 'poisonChance', value: 15 }],
-        strips: { idle: 'hero10Idle', walk: 'hero10Walk', attack: 'hero10Attack', hurt: 'hero10Hurt', death: 'hero10Death' }
+        preview: 'assets/playable/hero10-preview.png',
+        spriteFormat: 'directional-pack-v1',
+        strips: { idle: 'hero10Idle', walk: 'hero10Idle', attack: 'hero10Attack', hurt: 'hero10Idle', death: 'hero10Idle' }
     }
 };
 

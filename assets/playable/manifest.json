@@ -1,0 +1,62 @@
+{
+  "hero1": {
+    "source": "Archer",
+    "direction": "east",
+    "attackFrames": 15,
+    "animation": "The_character_shifts_their_weight_slightly_raising"
+  },
+  "hero2": {
+    "source": "warrior",
+    "direction": "east",
+    "attackFrames": 17,
+    "animation": "The_warrior_takes_a_brief_focused_stance_then_shif"
+  },
+  "hero3": {
+    "source": "Druid",
+    "direction": "east",
+    "attackFrames": 17,
+    "animation": "The_character_gently_raises_their_right_hand_causi"
+  },
+  "hero4": {
+    "source": "Blade",
+    "direction": "east",
+    "attackFrames": 17,
+    "animation": "The_ninja_lunges_forward_pulling_both_swords_inwar"
+  },
+  "hero5": {
+    "source": "Paladin",
+    "direction": "east",
+    "attackFrames": 9,
+    "animation": "The_warrior_shifts_her_weight_forward_planting_her"
+  },
+  "hero6": {
+    "source": "Sniper",
+    "direction": "east",
+    "attackFrames": 17,
+    "animation": "The_character_lifts_the_crossbow_to_eye_level_squi"
+  },
+  "hero7": {
+    "source": "summoner",
+    "direction": "east",
+    "attackFrames": 17,
+    "animation": "The_character_stands_in_place_lifting_the_bell_in"
+  },
+  "hero8": {
+    "source": "Guardian",
+    "direction": "east",
+    "attackFrames": 15,
+    "animation": "The_armored_cat-like_warrior_shifts_its_weight_pla"
+  },
+  "hero9": {
+    "source": "Sorcerer",
+    "direction": "east",
+    "attackFrames": 17,
+    "animation": "The_character_holds_their_staff_steady_as_they_beg"
+  },
+  "hero10": {
+    "source": "alchemist",
+    "direction": "east",
+    "attackFrames": 15,
+    "animation": "The_alchemist_takes_a_short_preparatory_step_forwa"
+  }
+}
