@@ -160,12 +160,30 @@ const battlefieldSource = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
 assert.ok(battlefieldSource.includes('playerPos.y - 82'), 'the player overhead health bar should clear tall character sprites and head ornaments');
 assert.ok(battlefieldSource.includes('enemy.isBoss ? 78 : 56'), 'enemy overhead health bars should clear normal and boss sprites');
 assert.ok(!battlefieldSource.includes('let flashFx = (battleFx || []).find'), 'battlefield rendering should not flash the full screen on impact');
+assert.ok(battlefieldSource.includes('let rings = 1;'), 'annihilating hits should keep a single lightweight impact ring');
+assert.ok(battlefieldSource.includes('for (let ring = 0; ring < 1; ring++)'), 'level-up feedback should use a single lightweight ring');
+assert.ok(!battlefieldSource.includes('for (let ray = 0; ray < 4; ray++)'), 'level-up feedback should avoid a separate ray burst');
+assert.ok(!battlefieldSource.includes('let glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 92'), 'one-shot feedback should avoid its previous large radial fill');
+assert.ok(battlefieldSource.includes("Math.pow(1 - t, 1.25) * (isBossDeath ? 0.72 : (fx.elite ? 0.62 : 0.54))"), 'enemy death sprites should remain translucent throughout their exit motion');
+const annihilateSpawnOptions = vm.runInContext(`getAttackFxSpawnOpts(
+  { element: 'fire', impactTier: 'annihilate', crit: false },
+  { isBoss: false, isElite: false },
+  { variant: 'projectile' },
+  1
+)`, context);
+assert.strictEqual(annihilateSpawnOptions.variant, 'projectile', 'one-shot feedback must not turn every skill into an expensive slam effect');
+assert.strictEqual(annihilateSpawnOptions.crit, false, 'one-shot feedback must not force critical particle density');
+assert.ok(annihilateSpawnOptions.scale < 0.5, 'one-shot feedback should keep the elemental impact inside a normal monster footprint');
+assert.ok(annihilateSpawnOptions.densityMul <= 0.5, 'one-shot feedback should use a reduced particle budget');
+assert.ok(battlefieldSource.includes('if (fx.elite || isBossDeath) drawBattleImpactBurst'), 'normal enemy deaths should not stack a full impact burst during mass kills');
 assert.ok(!passiveSource.includes('ctx.roundRect(x - boxW / 2'), 'damage labels should not draw opaque backing boxes');
 assert.ok(passiveSource.includes("impactTier = damageRatio >= 1 ? 'annihilate'"), 'combat feedback should classify heavy and annihilating hits');
 assert.ok(passiveSource.includes("text.impactTier === 'annihilate' ? 27"), 'damage labels should use the compact font hierarchy');
 assert.ok(!passiveSource.includes("ctx.fillText('ANNIHILATION'"), 'damage labels should avoid redundant oversized impact captions');
+assert.ok(passiveSource.includes("annihilate: Object.freeze({ hitStopMs: 34, shake: 3.8, duration: 170 })"), 'one-shot feedback intensity should stay below the previous expensive profile');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert.ok(combatSource.includes("addBattleFx('levelUp'"), 'player level-ups should create a battlefield effect');
+assert.ok(combatSource.includes("duration: 560, color: '#ffe59a'"), 'level-up feedback should end quickly');
 const socialSource = fs.readFileSync('js/social.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const windowManagerSource = fs.readFileSync('js/ui-window-manager.js', 'utf8');
@@ -174,6 +192,12 @@ assert.ok(!windowCss.includes("content: 'P I'"), 'the in-game PI rail badge shou
 assert.ok(!shellSource.includes('PROJECT IDLE</strong>'), 'the in-game expedition brand should be removed');
 assert.ok(!uiSource.includes('enemy-target-strip'), 'meaningless enemy count/target buttons should be removed');
 assert.ok(uiSource.includes("showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase)"), 'elite and boss traits should remain visible under the health bar');
+assert.ok(uiSource.includes("hunterExpose: '약점 노출'"), 'hunter exposure should use its Korean display name');
+assert.ok(uiSource.includes("type === 'hunterExpose') detail = '헌터 전직 키스톤 효과로 받는 모든 피해가 20% 증가합니다.'"), 'hunter exposure should explain its actual effect in the custom tooltip');
+assert.ok(uiSource.includes("'rivalKey', 'cosmosSovereignKey'"), 'rival and echo marks should stay hidden from the crafting currency list');
+assert.ok(uiSource.includes('gem-tag--${getTone(tag)}'), 'skill-gem tags should render semantic color classes');
+assert.ok(uiSource.includes('gem-tag--support') && uiSource.includes('gem-tag--resonance'), 'support gem tags should use distinct support and resonance colors');
+assert.ok(indexSource.includes('<small>장착 중인 공격 젬</small>'), 'gem forge target rail should describe its equipped-only scope');
 assert.ok(uiSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not pause the live battle screen');
 assert.ok(!uiSource.includes('if (isTutorialOpen() || isRewardOpen()'), 'compact tutorial notices should keep the game loop running');
 assert.ok(windowManagerSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not block desktop window interactions');

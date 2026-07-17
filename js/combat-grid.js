@@ -241,7 +241,7 @@ function getGridAttackAreaCells(profile, attacker, target) {
             for (let dy = -radius; dy <= radius; dy++) {
                 let gx = center.gx + dx, gy = center.gy + dy;
                 if (excludeSelf && gx === center.gx && gy === center.gy) continue;
-                if (radius > 1 && Math.abs(dx) + Math.abs(dy) > radius + 1) continue;
+                if (Math.abs(dx) + Math.abs(dy) > radius) continue;
                 if (gx === target.gx && gy === target.gy) continue;
                 if (isGridCellInBounds(gx, gy)) cells.push({ gx, gy });
             }
@@ -312,7 +312,9 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies) {
             if (areaKeys.has(gridCellKey(row.enemy.gx, row.enemy.gy))) hits.push(row.enemy);
         });
     }
-    extendGridTargetsBySpill(hits, targetCount, candidates.map(row => row.enemy));
+    if (profile.kind === 'melee' || profile.kind === 'arc') {
+        extendGridTargetsBySpill(hits, targetCount, candidates.map(row => row.enemy));
+    }
     return hits.map((enemy, idx) => ({ enemy, mult: getGridSkillTargetMult(mode, idx) }));
 }
 

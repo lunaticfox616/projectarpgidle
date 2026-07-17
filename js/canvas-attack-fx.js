@@ -791,7 +791,10 @@
         const scale = Number.isFinite(options.scale) ? options.scale : 0.68;
         const crit = !!options.crit;
         // Lower particle density as the field gets busy; crit nudges it up.
-        const density = clamp01(1 - engine.list.length / engine.maxEffects * 0.55) * (crit ? 1.05 : 0.78);
+        const densityMul = Number.isFinite(Number(options.densityMul))
+            ? Math.max(0.3, Math.min(1, Number(options.densityMul)))
+            : 1;
+        const density = clamp01(1 - engine.list.length / engine.maxEffects * 0.55) * (crit ? 1.05 : 0.78) * densityMul;
         if (engine.list.length >= engine.maxEffects) engine.list.shift();
         const variant = String(options.variant || 'melee');
         const fx = { kind, kindId, variant, x, y, age: 0, dur: kind.dur * (VARIANT_DURATION[variant] || 1), scale: crit ? scale * 1.08 : scale, pBack: [], pFront: [], st: { variantSeed: rand(0, TAU) } };

@@ -368,6 +368,9 @@
         4: 49,
         5: 45
     };
+    const COSMOS_CAPSTONE_BOSS_IDS = Object.freeze(
+        GALAXY_SEQUENCE.map(galaxy => `planet-${GALAXY_BOSS_PLANET_INDEX[galaxy]}`)
+    );
     const COSMOS_BOSS_EQUIPMENT_DROP_CHANCE = 0.012;
     const COSMOS_BOSS_JEWEL_DROP_CHANCE = 0.005;
     const COSMOS_BOSS_TALISMAN_DROP_CHANCE = 0.005;
@@ -399,19 +402,19 @@
     const COSMOS_MASTERY_NODES = [
         { key: 'planetRelief', name: '행성 패널티 완화', max: 30, cost: 1, desc: '행성 진행도/중력 패널티 완화 +1.2% (최대 36%)' },
         { key: 'asteroidRelief', name: '소행성 수확 증폭', max: 24, cost: 1, desc: '소행성 클리어 별가루 +1.6% (최대 38.4%)' },
-        { key: 'combatFocus', name: '전투 파밍 집중', max: 24, cost: 1, desc: '전투 드랍/전리품 기대치 +1.0% (최대 24%)' },
-        { key: 'craftFocus', name: '제작 파밍 집중', max: 24, cost: 1, desc: '제작 재료 드랍 기대치 +1.0% (최대 24%)' },
+        { key: 'combatFocus', name: '전투 파밍 집중', max: 24, cost: 1, desc: '행성 클리어 별가루 +1.0% (최대 24%)' },
+        { key: 'craftFocus', name: '제작 파밍 집중', max: 24, cost: 1, desc: '소행성 클리어 별가루 +1.0% (최대 24%)' },
         { key: 'stardustGain', name: '별가루 증폭', max: 30, cost: 1, desc: '우주계 별가루 획득 +1.0% (최대 30%)' },
         { key: 'challengeEase', name: '행성 난이도 완화', max: 22, cost: 1, desc: '행성 전투 난이도 -1.0% (최대 -22%)' },
         { key: 'highRisk', name: '고위험 난이도', max: 20, cost: 1, desc: '우주계 난이도 +1.5%(최대 +30%), 보상 +2.2%(최대 +44%)' },
         { key: 'bossBounty', name: '보스 보상 강화', max: 18, cost: 1, desc: '은하 보스 별가루 보상 +2.2% (최대 +39.6%)' },
-        { key: 'routeInsight', name: '별길 통찰', max: 28, cost: 1, desc: '잠금 별길 해금 요구치 완화 +0.9% (최대 25.2%)' },
+        { key: 'routeInsight', name: '별길 통찰', max: 28, cost: 1, desc: '우주계 전투 난이도 -0.9% (최대 -25.2%)' },
         { key: 'gravityHarness', name: '중력 제어', max: 22, cost: 1, desc: '중력 페널티 완화 +1.0% (최대 22%)' },
         { key: 'warpEfficiency', name: '항성 추진', max: 20, cost: 1, desc: '모든 우주계 클리어 별가루 +1.0% (최대 20%)' },
         { key: 'eliteHunt', name: '유물 감응', max: 20, cost: 1, desc: '보스 유물 드랍 확률 +0.7%p (최대 +14%p)' },
         { key: 'resonanceDrive', name: '공명 구동', max: 22, cost: 1, desc: '우주계 전투 최종 피해 +0.6% (최대 13.2%)' },
-        { key: 'voidSurvey', name: '공허 측량', max: 20, cost: 1, desc: '소행성 보상 품질 +1.0% (최대 20%)' },
-        { key: 'stellarForge', name: '항성 단조', max: 26, cost: 1, desc: '제작 재화 추가 획득 +0.9% (최대 23.4%)' },
+        { key: 'voidSurvey', name: '공허 측량', max: 20, cost: 1, desc: '소행성 전투 난이도 -0.8% (최대 -16%)' },
+        { key: 'stellarForge', name: '항성 단조', max: 26, cost: 1, desc: '소행성 클리어 별가루 +0.9% (최대 23.4%)' },
         { key: 'echoCache', name: '에코 저장고', max: 20, cost: 1, desc: '탐사 완료 보너스 별가루 +1.0% (최대 20%)' },
         { key: 'riftGuard', name: '균열 방벽', max: 20, cost: 1, desc: '우주계 받는 피해 완화 +0.7% (최대 14%)' },
         { key: 'frontierTax', name: '개척자 세공', max: 18, cost: 1, desc: '깊은 궤도(4~5) 보상 +1.3% (최대 23.4%)' },
@@ -712,12 +715,37 @@
         });
     }
 
+    function getCosmosStarDustBalance() {
+        if (!window.game) window.game = {};
+        if (!window.game.currencies || typeof window.game.currencies !== 'object') window.game.currencies = {};
+        const balance = Math.max(0, Math.floor(Number(window.game.currencies.starDust) || 0));
+        window.game.currencies.starDust = balance;
+        return balance;
+    }
+
+    function migrateLegacyCosmosStarDust(state) {
+        const legacyBalance = Math.max(0, Math.floor(Number(state && state.starDust) || 0));
+        if (!window.game) window.game = {};
+        if (!window.game.currencies || typeof window.game.currencies !== 'object') window.game.currencies = {};
+        const hasWalletBalance = Object.prototype.hasOwnProperty.call(window.game.currencies, 'starDust');
+        const balance = hasWalletBalance ? getCosmosStarDustBalance() : legacyBalance;
+        window.game.currencies.starDust = balance;
+        if (state && Object.prototype.hasOwnProperty.call(state, 'starDust')) delete state.starDust;
+        return balance;
+    }
+
+    function grantCosmosStarDust(amount) {
+        const gain = Math.max(0, Math.floor(Number(amount) || 0));
+        window.game.currencies.starDust = getCosmosStarDustBalance() + gain;
+        return gain;
+    }
+
     function getState() {
         if (!window.game) window.game = {};
         const state = window.game.cosmosAtlas && typeof window.game.cosmosAtlas === 'object'
             ? window.game.cosmosAtlas
             : (window.game.cosmosAtlas = {});
-        state.cleared = Array.isArray(state.cleared) ? state.cleared : [];
+        state.cleared = Array.isArray(state.cleared) ? Array.from(new Set(state.cleared.filter(id => typeof id === 'string'))) : [];
         state.selectedId = state.selectedId || 'planet-0';
         state.camera = state.camera && typeof state.camera === 'object' ? state.camera : null;
         if (state.layoutVersion !== COSMOS_LAYOUT_VERSION) {
@@ -725,15 +753,22 @@
             state.camera = { x: 0, y: 0, scale: DEFAULT_COSMOS_CAMERA_SCALE };
             state.layoutVersion = COSMOS_LAYOUT_VERSION;
         }
-        state.starDust = Math.max(0, Math.floor(state.starDust || 0));
-        state.bossClears = Array.isArray(state.bossClears) ? state.bossClears : [];
+        migrateLegacyCosmosStarDust(state);
+        state.bossClears = Array.isArray(state.bossClears) ? Array.from(new Set(state.bossClears.filter(id => typeof id === 'string'))) : [];
         state.bossKills = state.bossKills && typeof state.bossKills === 'object' ? state.bossKills : {};
-        state.bossRelics = Array.isArray(state.bossRelics) ? state.bossRelics : [];
+        Object.keys(state.bossKills).forEach(id => { state.bossKills[id] = Math.max(0, Math.floor(Number(state.bossKills[id]) || 0)); });
+        state.bossRelics = Array.isArray(state.bossRelics) ? state.bossRelics.filter(relic => relic && relic.rerollStoneOption && Math.floor(Number(relic.galaxy) || 0) >= 1 && Math.floor(Number(relic.galaxy) || 0) <= 5) : [];
+        state.bossExclusiveMisses = state.bossExclusiveMisses && typeof state.bossExclusiveMisses === 'object' ? state.bossExclusiveMisses : {};
+        Object.keys(state.bossExclusiveMisses).forEach(id => { state.bossExclusiveMisses[id] = Math.max(0, Math.min(39, Math.floor(Number(state.bossExclusiveMisses[id]) || 0))); });
         state.bossStones = state.bossStones && typeof state.bossStones === 'object' ? state.bossStones : {};
+        Object.keys(state.bossStones).forEach(g => { if (!/^[1-5]$/.test(g) || !state.bossStones[g]) delete state.bossStones[g]; });
         state.bossStoneOptions = state.bossStoneOptions && typeof state.bossStoneOptions === 'object' ? state.bossStoneOptions : {};
         state.equippedStones = state.equippedStones && typeof state.equippedStones === 'object' ? state.equippedStones : {};
-        if (!hasSixthCosmosStoneUnlock()) delete state.equippedStones['6'];
-        state.equippedStoneGalaxy = Number.isFinite(state.equippedStoneGalaxy) ? Math.max(0, Math.min(6, Math.floor(state.equippedStoneGalaxy))) : 0;
+        Object.keys(state.equippedStones).forEach(g => {
+            const galaxy = Math.floor(Number(g) || 0);
+            if (galaxy < 1 || galaxy > 6 || !state.equippedStones[g] || !isCosmosStoneAcquired(state, galaxy)) delete state.equippedStones[g];
+        });
+        state.equippedStoneGalaxy = getEquippedCosmosStoneCount(state);
         state.masteryPointsSpent = Math.max(0, Math.floor(state.masteryPointsSpent || 0));
         state.mastery = state.mastery && typeof state.mastery === 'object' ? state.mastery : {};
         COSMOS_MASTERY_NODES.forEach(node => {
@@ -741,6 +776,36 @@
         });
         if (!state.camera) state.camera = { x: 0, y: 0, scale: DEFAULT_COSMOS_CAMERA_SCALE };
         return state;
+    }
+
+    function getCosmosCapstoneProgress(stateOverride) {
+        const state = stateOverride && typeof stateOverride === 'object' ? stateOverride : getState();
+        const clearedSet = new Set(Array.isArray(state.bossClears) ? state.bossClears : []);
+        const bosses = COSMOS_CAPSTONE_BOSS_IDS.map((id, index) => {
+            const planetIndex = Math.max(0, Math.floor(Number(String(id).replace('planet-', ''))) || 0);
+            const def = COSMOS_PLANETS[planetIndex] || {};
+            return {
+                id,
+                galaxy: index + 1,
+                name: def.name || id,
+                cleared: clearedSet.has(id)
+            };
+        });
+        const clearedCount = bosses.filter(row => row.cleared).length;
+        const keyCount = Math.max(0, Math.floor(Number(
+            window.game && window.game.currencies && window.game.currencies.cosmosSovereignKey
+        ) || 0));
+        const season = Math.max(1, Math.floor(Number(window.game && window.game.season) || 1));
+        return {
+            bosses,
+            clearedCount,
+            total: bosses.length,
+            missing: bosses.filter(row => !row.cleared),
+            ready: clearedCount === bosses.length,
+            eligibleSeason: season >= 31,
+            keyCount,
+            canChallenge: season >= 31 && clearedCount === bosses.length && keyCount > 0
+        };
     }
     function getCosmosMasteryValue(key) {
         const state = getState();
@@ -1192,8 +1257,8 @@
         const baseCombatTier = (typeof window.getChaosRealmTier === 'function')
             ? window.getChaosRealmTier(equivFloor)
             : (30 + Math.floor((equivFloor - 1) * 0.85) + Math.floor(Math.max(0, equivFloor - 10) * 0.18));
-        const ease = getCosmosMasteryValue('challengeEase') * 0.015 + getCosmosMasteryValue('riftGuard') * 0.007;
-        const risk = getCosmosMasteryValue('highRisk') * 0.02 - getCosmosMasteryValue('gravityHarness') * 0.002;
+        const ease = getCosmosMasteryValue('challengeEase') * 0.01 + getCosmosMasteryValue('routeInsight') * 0.009;
+        const risk = getCosmosMasteryValue('highRisk') * 0.015;
         const relief = node && node.kind === 'planet'
             ? getCosmosMasteryValue('planetRelief') * 0.012
             : getCosmosMasteryValue('voidSurvey') * 0.008;
@@ -1261,36 +1326,43 @@
         };
     }
 
-    function grantCosmosBossEquipment(spec, tier) {
-        if (!spec || !Array.isArray(spec.equipment) || Math.random() >= COSMOS_BOSS_EQUIPMENT_DROP_CHANCE) return false;
-        const limit = typeof window.getInventoryLimit === 'function' ? window.getInventoryLimit() : 30;
-        if (!window.game || !Array.isArray(window.game.inventory) || window.game.inventory.length >= limit) return false;
+    function grantCosmosBossEquipment(spec, tier, force) {
+        if (!spec || !Array.isArray(spec.equipment) || spec.equipment.length <= 0 || (!force && Math.random() >= COSMOS_BOSS_EQUIPMENT_DROP_CHANCE)) return false;
+        if (!window.game || !Array.isArray(window.game.inventory)) return false;
         if (typeof window.generateUniqueItem !== 'function') return false;
         const item = window.generateUniqueItem(Math.max(1, Math.floor(tier || 1)), null, spec.equipment[Math.floor(Math.random() * spec.equipment.length)]);
         if (!item) return false;
-        window.game.inventory.push(item);
+        if (typeof window.addItemToInventory === 'function') window.addItemToInventory(item, { guaranteedKeep: true });
+        else window.game.inventory.push(item);
+        window.game.noti = window.game.noti || {};
+        window.game.noti.items = true;
         if (typeof window.addLog === 'function') window.addLog(`🌌 우주계 보스 전용 고유 장비 획득: ${item.name}`, 'loot-unique');
         return true;
     }
 
-    function grantCosmosBossJewel(spec) {
-        if (!spec || !spec.jewel || Math.random() >= COSMOS_BOSS_JEWEL_DROP_CHANCE) return false;
-        const limit = typeof window.getJewelInventoryLimit === 'function' ? window.getJewelInventoryLimit() : 60;
-        if (!window.game || !Array.isArray(window.game.jewelInventory) || window.game.jewelInventory.length >= limit) return false;
+    function grantCosmosBossJewel(spec, force) {
+        if (!spec || !spec.jewel || (!force && Math.random() >= COSMOS_BOSS_JEWEL_DROP_CHANCE)) return false;
+        if (!window.game || !Array.isArray(window.game.jewelInventory)) return false;
         const jewel = createCosmosBossJewel(spec.jewel);
         if (!jewel) return false;
+        const limit = typeof window.getJewelInventoryLimit === 'function' ? window.getJewelInventoryLimit() : 60;
+        const overflow = window.game.jewelInventory.length >= limit;
         window.game.jewelInventory.push(jewel);
-        if (typeof window.addLog === 'function') window.addLog(`💠 우주계 보스 전용 주얼 획득: ${jewel.name}`, 'loot-unique');
+        window.game.noti = window.game.noti || {};
+        window.game.noti.jewel = true;
+        if (typeof window.addLog === 'function') window.addLog(`💠 우주계 보스 전용 주얼 획득: ${jewel.name}${overflow ? ' (공간 부족 보호)' : ''}`, 'loot-unique');
         return true;
     }
 
-    function grantCosmosBossTalisman(spec) {
-        if (!spec || !spec.talisman || Math.random() >= COSMOS_BOSS_TALISMAN_DROP_CHANCE) return false;
+    function grantCosmosBossTalisman(spec, force) {
+        if (!spec || !spec.talisman || (!force && Math.random() >= COSMOS_BOSS_TALISMAN_DROP_CHANCE)) return false;
         if (!window.game) return false;
         window.game.talismanInventory = Array.isArray(window.game.talismanInventory) ? window.game.talismanInventory : [];
         const talisman = createCosmosBossTalisman(spec.talisman);
         if (!talisman) return false;
         window.game.talismanInventory.push(talisman);
+        window.game.noti = window.game.noti || {};
+        window.game.noti.talisman = true;
         if (typeof window.addLog === 'function') window.addLog(`🧿 우주계 보스 전용 부적 획득: ${talisman.name}`, 'loot-unique');
         return true;
     }
@@ -1299,13 +1371,33 @@
         const spec = getCosmosBossRewardSpec(node);
         if (!spec) return false;
         const tier = getDisplayedNodeTier(node);
-        const granted = [
-            grantCosmosBossEquipment(spec, tier),
-            grantCosmosBossJewel(spec),
-            grantCosmosBossTalisman(spec)
-        ].some(Boolean);
+        const state = getState();
+        const misses = Math.max(0, Math.min(39, Math.floor((state.bossExclusiveMisses || {})[node.id] || 0)));
+        const force = misses >= 39;
+        let granted = false;
+        if (force) {
+            const candidates = [];
+            if (Array.isArray(spec.equipment) && spec.equipment.length > 0) candidates.push(() => grantCosmosBossEquipment(spec, tier, true));
+            if (spec.jewel) candidates.push(() => grantCosmosBossJewel(spec, true));
+            if (spec.talisman) candidates.push(() => grantCosmosBossTalisman(spec, true));
+            if (candidates.length > 0) granted = !!candidates[Math.floor(Math.random() * candidates.length)]();
+        } else {
+            granted = [
+                grantCosmosBossEquipment(spec, tier, false),
+                grantCosmosBossJewel(spec, false),
+                grantCosmosBossTalisman(spec, false)
+            ].some(Boolean);
+        }
+        state.bossExclusiveMisses[node.id] = granted ? 0 : Math.min(39, misses + 1);
+        if (granted && force && typeof window.addLog === 'function') window.addLog('🌠 누적된 성간 공명이 우주계 보스 전용 보상을 확정했습니다.', 'loot-unique');
         if (granted && typeof window.updateStaticUI === 'function') window.updateStaticUI();
         return granted;
+    }
+
+    function getCosmosBossPityProgress(node) {
+        if (!node || node.tag !== 'boss') return null;
+        const misses = Math.max(0, Math.min(39, Math.floor((getState().bossExclusiveMisses || {})[node.id] || 0)));
+        return { misses, guaranteeAt: 40, remaining: Math.max(1, 40 - misses) };
     }
 
     function cloneCosmosBossRelic(spec, node) {
@@ -1925,9 +2017,10 @@
         const cards = cardGalaxies.map(g => {
             const acquired = isCosmosStoneAcquired(state, g);
             const equipped = !!(state.equippedStones && state.equippedStones[String(g)]);
+            const usableRelic = Array.isArray(state.bossRelics) && findCosmosBossRelicIndexForStone(state.bossRelics, g) >= 0;
             const options = acquired ? ensureCosmosStoneOptions(state, g) : [];
             const optionHtml = options.map(option => `<div style="font-size:11px;color:${option.boss ? '#ffd98a' : '#b9c7dd'};">${escapeHtml(getCosmosStoneOptionText(option))}</div>`).join('') || '<div style="font-size:11px;color:#6f8094;">미획득</div>';
-            return `<div class="cosmos-stone-card" data-info-tooltip-anchor="1" onmouseenter="showCosmosStoneTooltip(event,${g})" onmousemove="showCosmosStoneTooltip(event,${g})" onmouseleave="hideInfoTooltip()" style="border:1px solid ${equipped ? '#8fd4ff' : '#31445c'};border-radius:8px;padding:8px;background:${acquired ? 'rgba(23,38,58,.78)' : 'rgba(18,24,34,.62)'};"><div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><b>${escapeHtml(getCosmosStoneNameByGalaxy(g))}</b><span>${equipped ? '장착' : (acquired ? '보유' : '미획득')}</span></div><div style="font-size:11px;color:#9fd6ff;">우주계 최소 티어 보정: ${getCosmosTierFloor()}</div>${optionHtml}<div style="display:flex;gap:4px;margin-top:6px;"><button onclick="equipBossStoneByGalaxy(${g})" ${acquired && !equipped ? '' : 'disabled'}>장착</button><button onclick="unequipBossStoneByGalaxy(${g})" ${equipped ? '' : 'disabled'}>해제</button><button onclick="applyCosmosBossRelicToStone(${g})" ${acquired && relicCount > 0 ? '' : 'disabled'}>보스 유물 사용</button></div></div>`;
+            return `<div class="cosmos-stone-card" data-info-tooltip-anchor="1" onmouseenter="showCosmosStoneTooltip(event,${g})" onmousemove="showCosmosStoneTooltip(event,${g})" onmouseleave="hideInfoTooltip()" style="border:1px solid ${equipped ? '#8fd4ff' : '#31445c'};border-radius:8px;padding:8px;background:${acquired ? 'rgba(23,38,58,.78)' : 'rgba(18,24,34,.62)'};"><div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><b>${escapeHtml(getCosmosStoneNameByGalaxy(g))}</b><span>${equipped ? '장착' : (acquired ? '보유' : '미획득')}</span></div><div style="font-size:11px;color:#9fd6ff;">우주계 최소 티어 보정: ${getCosmosTierFloor()}</div>${optionHtml}<div style="display:flex;gap:4px;margin-top:6px;"><button onclick="equipBossStoneByGalaxy(${g})" ${acquired && !equipped ? '' : 'disabled'}>장착</button><button onclick="unequipBossStoneByGalaxy(${g})" ${equipped ? '' : 'disabled'}>해제</button><button onclick="applyCosmosBossRelicToStone(${g})" ${acquired && usableRelic ? '' : 'disabled'} title="${usableRelic ? '이 우주석 전용 보스 유물 사용' : '이 우주석에 맞는 보스 유물이 없습니다'}">보스 유물 사용</button></div></div>`;
         }).join('');
         return `<div style="grid-column:1/-1;margin-top:8px;"><div style="font-weight:700;color:#d7ebff;margin-bottom:6px;">우주석 장착 UI · 보스 유물 ${relicCount}개</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;">${cards}</div></div>`;
     }
@@ -1940,19 +2033,65 @@
         const planetsCleared = ATLAS.nodes.filter(n => n.kind === 'planet' && state.cleared.includes(n.id)).length;
         const asteroidsCleared = ATLAS.nodes.filter(n => n.kind === 'asteroid' && state.cleared.includes(n.id)).length;
         const unlocked = isCosmosUnlocked();
+        const capstone = getCosmosCapstoneProgress(state);
         const galaxyCounts = GALAXY_SEQUENCE
-            .map(g => `G${g} ${ATLAS.nodes.filter(n => n.orbit === g).length}/${NODES_PER_GALAXY}`)
+            .map(g => `G${g} ${ATLAS.nodes.filter(n => n.orbit === g && state.cleared.includes(n.id)).length}/${ATLAS.nodes.filter(n => n.orbit === g).length}`)
             .join(' · ');
+        const capstoneState = !capstone.eligibleSeason
+            ? 'locked'
+            : (capstone.canChallenge ? 'ready' : (capstone.ready ? 'key-needed' : 'progress'));
+        const capstoneMessage = !capstone.eligibleSeason
+            ? '루프 31부터 다섯 은하 보스를 같은 루프에 격파하면 최종 관문이 열립니다.'
+            : (capstone.canChallenge
+                ? '표식과 격파 조건을 모두 갖췄습니다. 잔향체 아스트라에 도전할 수 있습니다.'
+                : (capstone.ready
+                    ? '격파 조건 완료 · 은하 보스를 반복 처치해 「표식: 잔향」을 확보하세요.'
+                    : `이번 루프 미격파: ${capstone.missing.map(row => row.name).join(', ')}`));
+        const capstoneBosses = capstone.bosses.map(row => `
+            <button type="button" class="cosmos-capstone-boss ${row.cleared ? 'cleared' : 'missing'}"
+                onclick="focusCosmosCapstoneBoss('${row.id}')"
+                title="${row.cleared ? '이번 루프 격파 완료' : '아틀라스에서 위치 확인'}">
+                <span>G${row.galaxy}</span>${escapeHtml(row.name)}<b>${row.cleared ? '✓' : '○'}</b>
+            </button>`).join('');
+        const capstoneAction = capstone.ready
+            ? `<button type="button" class="cosmos-capstone-action" onclick="openCosmosCapstoneBossPanel()">잔향체 아스트라 위치 열기</button>`
+            : '';
         ATLAS.summary.innerHTML = `
             <div><b>${cleared}</b> / ${ATLAS.nodes.length} 탐사 완료</div>
             <div>행성 ${planetsCleared} / 50 · 소행성 ${asteroidsCleared} / 75</div>
             <div>${galaxyCounts}</div>
             <div>탐사 가능 노드: <b>${unlocked ? available : 0}</b></div>
             <div>성도술 포인트: <b>${getCosmosMasteryFreePoints()}</b> / ${getCosmosMasteryTotalPoints()}</div>
-            <div>별가루: <b>${state.starDust}</b></div>
+            <div>별가루: <b>${getCosmosStarDustBalance()}</b></div>
             <div>보스 유물: <b>${(state.bossRelics || []).length}</b></div>
             <div>장착 우주석: <b>${getEquippedCosmosStoneCount(state)}</b> / ${hasSixthCosmosStoneUnlock() ? 6 : 5}</div>
-            <div style="grid-column:1/-1;color:#9fd6ff;font-size:11px;">시리온 아래 오각형 슬롯을 눌러 우주석을 장착하세요.</div>`;
+            <div class="cosmos-capstone-card ${capstoneState}">
+                <div class="cosmos-capstone-head"><span>이번 루프 최종 관문</span><strong>잔향체 아스트라 ${capstone.clearedCount}/${capstone.total}</strong></div>
+                <div class="cosmos-capstone-bosses">${capstoneBosses}</div>
+                <p>${escapeHtml(capstoneMessage)}</p>
+                <div class="cosmos-capstone-footer"><span>표식: 잔향 <b>${capstone.keyCount}</b></span>${capstoneAction}</div>
+            </div>
+            <div class="cosmos-summary-tip">별가루는 우주계 탐사·이상 현상에서 얻고, 별쐐기 영원 고정 등 천문 제작에 사용합니다.</div>
+            <div class="cosmos-summary-tip">시리온 아래 오각형 슬롯을 눌러 우주석을 장착하세요.</div>`;
+    }
+
+    function focusCosmosCapstoneBoss(nodeId) {
+        buildCosmosAtlasData();
+        const state = getState();
+        const node = ATLAS.byId.get(nodeId);
+        if (!node || !COSMOS_CAPSTONE_BOSS_IDS.includes(node.id)) return;
+        ATLAS.selectedId = node.id;
+        state.selectedId = node.id;
+        ATLAS.camera.x = -node.x;
+        ATLAS.camera.y = -node.y;
+        ATLAS.camera.scale = Math.max(0.78, ATLAS.camera.scale);
+        saveCamera();
+        renderCosmosAtlas();
+    }
+
+    function openCosmosCapstoneBossPanel() {
+        if (typeof window.switchMapSubtab === 'function') window.switchMapSubtab('map-tab-zones');
+        if (typeof window.switchMapExploreSubtab === 'function') window.switchMapExploreSubtab('map-explore-root-boss');
     }
 
     function renderDetail() {
@@ -1961,8 +2100,9 @@
         const node = ATLAS.byId.get(ATLAS.selectedId) || ATLAS.byId.get(state.selectedId) || ATLAS.byId.get('planet-0');
         if (!node) return;
         const status = getNodeStatus(node);
+        const pity = getCosmosBossPityProgress(node);
         const rewardLine = node.tag === 'boss'
-            ? `은하 보스 보상: 첫 클리어 시 ${getBossStoneName(node)} 획득 · 우주석 슬롯 장착 시 난이도 바닥 상승 · 현재 단계 ${getBossStage(node)}`
+            ? `은하 보스 보상: 첫 클리어 시 ${getBossStoneName(node)} 획득 · 현재 단계 ${getBossStage(node)} · 전용 보상 확정까지 최대 ${pity.remaining}회`
             : (node.kind === 'planet'
                 ? `행성 보상: ${node.theme} 계열 보정 · 별가루 +${5 + node.orbit * 2}`
                 : `소행성 보상: 별가루 +${2 + node.orbit} · 제작 재료 소량`);
@@ -2017,6 +2157,7 @@
         const repeatBossRun = status === 'cleared' && node.tag === 'boss';
         const completedChallenge = state.activeChallenge && state.activeChallenge.nodeId === node.id;
         const firstClear = !state.cleared.includes(node.id);
+        const defeatedBossStage = node.tag === 'boss' ? getBossStage(node) : 0;
         if ((status === 'available' || repeatBossRun) && !completedChallenge) {
             if (typeof window.addLog === 'function') window.addLog('우주계 전투 완료 후 탐사가 기록됩니다.', 'attack-monster');
             return;
@@ -2040,27 +2181,22 @@
                 ensureCosmosStoneOptions(state, Number(g));
             }
         }
-        const rewardBase = node.tag === 'boss' ? (30 + node.orbit * 10 + getBossStage(node) * 10) : (node.kind === 'planet' ? 5 + node.orbit * 2 : 2 + node.orbit);
+        const rewardBase = node.tag === 'boss' ? (30 + node.orbit * 10 + defeatedBossStage * 10) : (node.kind === 'planet' ? 5 + node.orbit * 2 : 2 + node.orbit);
         const focusMul = node.kind === 'planet'
-            ? (1 + getCosmosMasteryValue('combatFocus') * 0.015)
-            : (1 + getCosmosMasteryValue('craftFocus') * 0.015);
+            ? (1 + getCosmosMasteryValue('combatFocus') * 0.01)
+            : (1 + getCosmosMasteryValue('craftFocus') * 0.01);
         const rewardMul = 1
-            + getCosmosMasteryValue('stardustGain') * 0.015
-            + getCosmosMasteryValue('highRisk') * 0.03
+            + getCosmosMasteryValue('stardustGain') * 0.01
+            + getCosmosMasteryValue('highRisk') * 0.022
             + getCosmosMasteryValue('warpEfficiency') * 0.01
             + (node.kind === 'asteroid' ? getCosmosMasteryValue('asteroidRelief') * 0.016 : 0)
-            + (node.tag === 'boss' ? (getCosmosMasteryValue('bossBounty') * 0.04 + getCosmosMasteryValue('apexProtocol') * 0.018) : 0)
+            + (node.tag === 'boss' ? (getCosmosMasteryValue('bossBounty') * 0.022 + getCosmosMasteryValue('apexProtocol') * 0.018) : 0)
             + getCosmosMasteryValue('echoCache') * 0.01
-            + (node.kind === 'planet' ? getCosmosMasteryValue('resonanceDrive') * 0.006 : 0)
             + (node.kind === 'asteroid' ? getCosmosMasteryValue('stellarForge') * 0.009 : 0)
             + (node.orbit >= 4 ? getCosmosMasteryValue('frontierTax') * 0.013 : 0)
-            + (node.tag === 'boss' ? getCosmosMasteryValue('starbreaker') * 0.018 : 0)
             + (firstClear ? getCosmosMasteryValue('chainMastery') * 0.02 : 0);
         const reward = Math.max(1, Math.floor(rewardBase * rewardMul * focusMul));
-        state.starDust = Math.max(0, Math.floor(state.starDust || 0)) + reward;
-        if (window.game && window.game.currencies) {
-            window.game.currencies.starDust = Math.max(0, Math.floor(window.game.currencies.starDust || 0)) + reward;
-        }
+        grantCosmosStarDust(reward);
         if (typeof window.addLog === 'function') {
             window.addLog(`${node.tag === 'boss' ? '👑 우주계 은하 보스 격파' : '🌠 우주계 탐사 완료'}: ${node.name} · 별가루 +${reward}${node.tag === 'boss' ? ` · 난이도 바닥 Tier ${getCosmosTierFloor()} 적용` : ''}`, node.tag === 'boss' ? 'season-up' : (node.kind === 'planet' ? 'loot-unique' : 'loot-magic'));
             if (node.tag === 'boss') {
@@ -2147,6 +2283,10 @@
 
     window.COSMOS_PLANETS = COSMOS_PLANETS;
     window.COSMOS_ASTEROID_NUMBERS = COSMOS_ASTEROID_NUMBERS;
+    window.COSMOS_CAPSTONE_BOSS_IDS = COSMOS_CAPSTONE_BOSS_IDS;
+    window.getCosmosStarDustBalance = getCosmosStarDustBalance;
+    window.migrateLegacyCosmosStarDust = migrateLegacyCosmosStarDust;
+    window.grantCosmosStarDust = grantCosmosStarDust;
     
     function renderMasteryPanel() {
         const el = document.getElementById('cosmos-inner-mastery'); if (!el) return;
@@ -2164,6 +2304,8 @@
     window.exploreSelectedCosmosNode = exploreSelectedCosmosNode;
     window.challengeSelectedCosmosNode = challengeSelectedCosmosNode;
     window.allocateCosmosMastery = allocateCosmosMastery;
+    window.getCosmosMasteryValue = getCosmosMasteryValue;
+    window.getCosmosBossPityProgress = getCosmosBossPityProgress;
     window.equipBossStoneByGalaxy = equipBossStoneByGalaxy;
     window.unequipBossStoneByGalaxy = unequipBossStoneByGalaxy;
     window.applyCosmosBossRelicToStone = applyCosmosBossRelicToStone;
@@ -2176,6 +2318,9 @@
     window.openCosmosStoneOverlay = openCosmosStoneOverlay;
     window.closeCosmosStoneOverlay = closeCosmosStoneOverlay;
     window.toggleCosmosStoneOverlay = toggleCosmosStoneOverlay;
+    window.getCosmosCapstoneProgress = getCosmosCapstoneProgress;
+    window.focusCosmosCapstoneBoss = focusCosmosCapstoneBoss;
+    window.openCosmosCapstoneBossPanel = openCosmosCapstoneBossPanel;
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();

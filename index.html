@@ -8,16 +8,16 @@
     <link rel="stylesheet" href="css/base.css?v=20260611-tab-drag4">
     <link rel="stylesheet" href="css/layout.css?v=20260715-visibility-fixes1">
     <link rel="stylesheet" href="css/theme.css">
-    <link rel="stylesheet" href="css/components.css?v=20260628-craft-fixes1">
+    <link rel="stylesheet" href="css/components.css?v=20260717-system-integrity1">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260707-belt-flask-slots1">
     <link rel="stylesheet" href="css/ui-premium.css?v=20260707-community-ui1">
     <link rel="stylesheet" href="css/ui-windows.css?v=20260716-background-summary1">
     <link rel="stylesheet" href="css/ui-feedback.css?v=20260716-steam-ui1">
     <link rel="stylesheet" href="css/mobile.css">
-    <link rel="stylesheet" href="css/cosmos-atlas.css">
+    <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260717-system-integrity1">
     <link rel="stylesheet" href="css/core-cube.css?v=20260604-core-cube-visual1">
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260715-luxe1">
-    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260716-hud-timing1">
+    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260717-system-integrity1">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -246,6 +246,7 @@
         </h2>
         <div class="combat-zone-row">
             <div class="combat-zone-row-title" id="ui-combat-zone-inline">Lv.1 재능명</div>
+            <div id="ui-combat-contract-status" class="combat-contract-status" style="display:none;"></div>
             <div class="map-progress-row">
                 <strong id="ui-progress-label" style="color: #3498db; font-size: 1.05em;">🧭 진행도</strong>
                 <div class="hp-bar-bg" style="height: 20px;">
@@ -330,11 +331,11 @@
         <div class="tab-btn" id="btn-tab-traits" onclick="switchTab('tab-traits')">직업전직 <span id="noti-traits" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-talent" onclick="switchTab('tab-talent')" style="display:none;">재능 <span id="noti-talent" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-items" onclick="switchTab('tab-items')">장비/제작 <span id="noti-items" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-jewel" onclick="switchTab('tab-jewel')" style="display:none;">주얼</div>
-        <div class="tab-btn" id="btn-tab-flask" onclick="switchTab('tab-flask')" style="display: flex;">플라스크</div>
+        <div class="tab-btn" id="btn-tab-jewel" onclick="switchTab('tab-jewel')" style="display:none;">주얼 <span id="noti-jewel" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-flask" onclick="switchTab('tab-flask')" style="display: flex;">플라스크 <span id="noti-flask" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-map" onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-skills" onclick="switchTab('tab-skills')">스킬 젬 <span id="noti-skills" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-journal" onclick="switchTab('tab-journal')" style="display: flex;">저널</div>
+        <div class="tab-btn" id="btn-tab-journal" onclick="switchTab('tab-journal')" style="display: flex;">저널 <span id="noti-journal" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-codex" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-talisman" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-cube" onclick="switchTab('tab-cube')" style="display:none;">큐브 <span id="noti-cube" class="noti-dot"></span></div>
@@ -559,7 +560,7 @@
     </div>
 
     <div id="tab-traits" class="tab-content">
-        <h2>👑 전직 패시브 스킬 트리 <span class="h2-right">전직 포인트: <span id="ui-ascend-pts" style="color: #f1c40f; font-weight: bold;">0</span> / 6 <button style="margin-left:8px; font-size:0.75em;" onclick="resetAscendNodes()">전직 트리 전체 초기화</button></span></h2>
+        <h2>👑 전직 패시브 스킬 트리 <span class="h2-right">남은 전직 포인트: <span id="ui-ascend-pts" style="color: #f1c40f; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:0.75em;" onclick="resetAscendNodes()">전직 트리 전체 초기화</button></span></h2>
 
         <div id="ui-class-select" style="display: none;">
             <div style="text-align: center; margin-bottom: 15px; color: #ddd;">1차 전직 시련을 통과했습니다! 운명을 결정할 직업을 선택하세요. <br><span style="color: #e74c3c; font-size: 0.85em;">(한 번 선택하면 이번 루프에는 변경할 수 없습니다)</span></div>
@@ -578,7 +579,7 @@
 
     <div id="tab-season" class="tab-content">
         <div id="trait-season-section" style="display: none; margin-bottom: 30px;">
-            <h2>🔄 디버깅 포인트 트리 <span style="margin-left:10px; color:#ffd36b; font-size:0.88em;">(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:0.75em;" onclick="resetSeasonNodes()">디버깅 트리 전체 초기화</button></span></h2>
+            <h2>🔄 루프 패시브 트리 <span style="margin-left:10px; color:#ffd36b; font-size:0.88em;">(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:0.75em;" onclick="resetSeasonNodes()">루프 패시브 전체 초기화</button></span></h2>
             <div class="trait-tree" id="ui-season-tree"></div>
         </div>
         <div id="ui-loop10-panel" data-loop10-panel="1" style="display:none; margin-bottom:20px; background:#151226; border:1px solid #4d3c7a; border-radius:12px; padding:12px;"></div>
@@ -805,6 +806,7 @@
                 <div class="vertical-tab-panels">
                     <section id="map-explore-hunting" class="vertical-tab-panel active">
                         <h2>사냥터 선택</h2>
+                        <div id="ui-challenge-contract-panel" class="challenge-contract-panel"></div>
                         <div class="map-overview-card">
                             <img class="map-overview-image" src="assets/battlefield-map.png" alt="월드 지도">
                             <div class="map-hotspots" id="ui-map-hotspots"></div>
@@ -908,6 +910,7 @@
                 </div>
                 <div id="ui-skill-loadout-summary" class="skill-loadout-summary"></div>
             </div>
+            <section id="ui-gem-research-panel" class="gem-research-panel"></section>
             <div class="skill-library-toolbar">
                 <span>목록 표시</span>
                 <button id="btn-skill-fold-active" onclick="toggleGemFoldMode('all')">전체</button>
@@ -938,7 +941,7 @@
             </div>
             <div id="ui-gem-enhance-panel" class="gem-forge-workspace" style="display:none;">
                 <aside class="gem-target-rail">
-                    <div class="gem-target-rail-heading"><span>강화 대상</span><small>보유 공격 젬</small></div>
+                    <div class="gem-target-rail-heading"><span>강화 대상</span><small>장착 중인 공격 젬</small></div>
                     <div id="ui-gem-enhance-target" class="gem-enhance-target"></div>
                 </aside>
                 <div class="gem-forge-detail">
@@ -1026,8 +1029,8 @@
 
     <div id="tab-journal" class="tab-content">
         <h2>📓 저널</h2>
-        <div style="color:#8fa7be; margin-bottom:10px;">액트를 클리어할 때마다 대화 기록이 해금됩니다.</div>
-        <div id="ui-journal-list" style="display:grid; gap:8px;"></div>
+        <div style="color:#8fa7be; margin-bottom:10px;">액트와 특수 콘텐츠의 기록을 모아 세계의 단서와 영구 보너스를 해금합니다.</div>
+        <div id="ui-journal-list" class="journal-archive"></div>
     </div>
 
     <div id="tab-settings" class="tab-content active">
@@ -1269,33 +1272,34 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260715-runtime-structure2"></script>
-<script defer src="data/maps.js?v=20260715-runtime-structure2"></script>
-<script defer src="data/skills.js?v=20260715-runtime-structure2"></script>
-<script defer src="data/items.js?v=20260715-runtime-structure2"></script>
+<script defer src="data/maps.js?v=20260717-system-integrity1"></script>
+<script defer src="data/skills.js?v=20260717-system-integrity1"></script>
+<script defer src="data/items.js?v=20260717-system-integrity1"></script>
 <script defer src="data/passives.js?v=20260715-runtime-structure2"></script>
 <script defer src="data/bosses.js?v=20260715-runtime-structure2"></script>
 <script defer src="data/rewards.js?v=20260715-runtime-structure2"></script>
 <script defer src="data/talent-cards.js?v=20260708-projectile-uncap1"></script>
 <script defer src="js/utils.js?v=20260708-attr-dmg-scaling1"></script>
 <script defer src="js/ui-feedback.js?v=20260716-steam-ui1"></script>
-<script defer src="js/state.js?v=20260715-visual2"></script>
-<script defer src="js/save.js?v=20260513-gemfix1"></script>
-<script defer src="js/items.js?v=20260708-astra-rename1"></script>
-<script defer src="js/skills.js?v=20260623-shieldfossil2"></script>
-<script defer src="js/passives.js?v=20260716-hud-timing1"></script>
+<script defer src="js/state.js?v=20260717-system-integrity1"></script>
+<script defer src="js/save.js?v=20260717-system-integrity1"></script>
+<script defer src="js/items.js?v=20260717-system-integrity1"></script>
+<script defer src="js/skills.js?v=20260717-system-integrity1"></script>
+<script defer src="js/passives.js?v=20260717-system-integrity1"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1"></script>
-<script defer src="js/combat-grid.js?v=20260715-range-tune1"></script>
-<script defer src="js/combat.js?v=20260716-background-summary1"></script>
-<script defer src="js/canvas-battlefield.js?v=20260716-hud-timing1"></script>
-<script defer src="js/canvas-attack-fx.js?v=20260715-tags1"></script>
-<script defer src="js/canvas-passive-tree.js?v=20260715-lifetree3"></script>
-<script defer src="js/ui.js?v=20260716-background-summary1"></script>
+<script defer src="js/combat-grid.js?v=20260717-system-integrity1"></script>
+<script defer src="js/combat-patterns.js?v=20260717-system-integrity1"></script>
+<script defer src="js/combat.js?v=20260717-system-integrity1"></script>
+<script defer src="js/canvas-battlefield.js?v=20260717-system-integrity1"></script>
+<script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
+<script defer src="js/canvas-passive-tree.js?v=20260717-system-integrity1"></script>
+<script defer src="js/ui.js?v=20260717-system-integrity1"></script>
 <script defer src="js/social.js?v=20260715-runtime-structure1"></script>
-<script defer src="js/ui-window-manager.js?v=20260715-radial-goals1"></script>
+<script defer src="js/ui-window-manager.js?v=20260717-system-integrity1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
-<script defer src="js/goal-system.js?v=20260715-radial-goals1"></script>
+<script defer src="js/goal-system.js?v=20260717-system-integrity1"></script>
 <script defer src="js/talent-cards.js?v=20260708-projectile-uncap1"></script>
-<script defer src="js/cosmos-atlas.js?v=20260705-cosmosloop1"></script>
+<script defer src="js/cosmos-atlas.js?v=20260717-system-integrity1"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
 <script defer src="js/main.js?v=20260513-gemfix1"></script>
 </body>

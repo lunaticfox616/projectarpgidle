@@ -97,6 +97,8 @@ function createCloudSavePayload(sourceGame) {
     payload.enemyCurseExpirePayloads = {};
     payload.playerAilments = Array.isArray(payload.playerAilments) ? payload.playerAilments.slice(0, 40) : [];
     payload.playerLeechInstances = Array.isArray(payload.playerLeechInstances) ? payload.playerLeechInstances.slice(0, 80) : [];
+    payload.realmDeathWard = null;
+    payload.realmInvulnerableBarrierUntil = 0;
     return payload;
 }
 
@@ -161,6 +163,13 @@ function normalizeLocalRuntimeAfterLoad() {
     if (!Array.isArray(game.encounterPlan)) game.encounterPlan = [];
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
     if (game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
+    if (!game.realmDeathWard || typeof game.realmDeathWard !== 'object') game.realmDeathWard = null;
+    else {
+        game.realmDeathWard.amount = Math.max(0, Math.floor(Number(game.realmDeathWard.amount) || 0));
+        game.realmDeathWard.maxAmount = Math.max(0, Math.floor(Number(game.realmDeathWard.maxAmount) || 0));
+        game.realmDeathWard.readyAt = Math.max(0, Math.floor(Number(game.realmDeathWard.readyAt) || 0));
+    }
+    game.realmInvulnerableBarrierUntil = Math.max(0, Math.floor(Number(game.realmInvulnerableBarrierUntil) || 0));
 }
 
 function loadGame() {

@@ -604,6 +604,10 @@
         if (target.actionSubtabId.startsWith('item-tab-') && typeof window.switchItemSubtab === 'function') window.switchItemSubtab(target.actionSubtabId);
         if (target.actionSubtabId.startsWith('skill-tab-') && typeof window.switchSkillSubtab === 'function') window.switchSkillSubtab(target.actionSubtabId);
         if (target.actionSubtabId.startsWith('map-tab-') && typeof window.switchMapSubtab === 'function') window.switchMapSubtab(target.actionSubtabId);
+        if (target.actionSubtabId.startsWith('map-explore-')) {
+            if (typeof window.switchMapSubtab === 'function') window.switchMapSubtab('map-tab-zones');
+            if (typeof window.switchMapExploreSubtab === 'function') window.switchMapExploreSubtab(target.actionSubtabId);
+        }
     }
 
     function openGoalDrawerTarget() {

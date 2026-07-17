@@ -53,9 +53,9 @@ function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
     let variant = (skillVisual && skillVisual.variant) || 'melee';
     if (fx.chain) variant = 'chain';
     else if (fx.pierce || fx.penetrate) variant = 'pierce';
-    else if (fx.slam || fx.impactTier === 'annihilate') variant = 'slam';
+    else if (fx.slam) variant = 'slam';
     const opts = {
-        crit: !!fx.crit || fx.impactTier === 'heavy' || fx.impactTier === 'annihilate',
+        crit: !!fx.crit,
         variant
     };
     const element = String(fx.element || 'phys').toLowerCase();
@@ -63,8 +63,13 @@ function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
     if (element === 'phys' || element === 'physical') opts.scale = 0.68 * screenMul;
     else if (enemy) opts.scale = (enemy.isBoss ? 0.82 : (enemy.isElite ? 0.6 : 0.44)) * screenMul;
     else opts.scale = 0.4 * screenMul;
-    if (fx.impactTier === 'heavy') opts.scale *= 1.22;
-    else if (fx.impactTier === 'annihilate') opts.scale *= 1.52;
+    if (fx.impactTier === 'heavy') opts.scale *= 1.04;
+    else if (fx.impactTier === 'annihilate') {
+        // 원킬은 이미 피해 숫자·히트스톱·사망 모션으로 충분히 구분된다. 입자 엔진까지
+        // 크게 키우면 다중 처치 순간 할당량이 폭증하므로 크기와 밀도를 오히려 낮춘다.
+        opts.scale *= 0.82;
+        opts.densityMul = 0.48;
+    }
     return opts;
 }
 
@@ -78,7 +83,7 @@ function requestBattleHitStop(fx) {
 }
 
 function getEnemyTelegraphColor(enemy) {
-    let element = String((enemy && (enemy.attackElement || enemy.element || enemy.damageElement)) || 'phys').toLowerCase();
+    let element = String((enemy && (enemy.attackElement || enemy.element || enemy.damageElement || enemy.ele)) || 'phys').toLowerCase();
     if (element === 'fire') return { edge: '#ff7b4d', fill: 'rgba(255,76,38,0.18)' };
     if (element === 'cold') return { edge: '#85d8ff', fill: 'rgba(81,188,255,0.17)' };
     if (element === 'light' || element === 'lightning') return { edge: '#ffe873', fill: 'rgba(255,222,68,0.17)' };
@@ -92,7 +97,10 @@ function drawEnemyAttackTelegraphs(ctx, layout, playerPos, now, gridUnitScale) {
         if (!enemy || enemy.noAttack || enemy.hp <= 0 || !Number.isFinite(Number(enemy.attackTimer))) return;
         let frozen = (enemy.ailments || []).some(ailment => ailment && ailment.type === 'freeze' && (ailment.time || 0) > 0);
         if (frozen) return;
-        let threshold = enemy.isBoss ? 0.58 : (enemy.isElite ? 0.7 : 0.82);
+        let pattern = enemy.isBoss
+            ? (enemy.nextPatternState || (typeof getBossPatternPreview === 'function' ? getBossPatternPreview(enemy) : null))
+            : null;
+        let threshold = pattern && pattern.isSpecial ? 0.5 : (enemy.isBoss ? 0.58 : (enemy.isElite ? 0.7 : 0.82));
         let charge = Number(enemy.attackTimer) || 0;
         if (charge < threshold) return;
         let progress = clampNumber((charge - threshold) / Math.max(0.001, 1 - threshold), 0, 1);
@@ -137,6 +145,50 @@ function drawEnemyAttackTelegraphs(ctx, layout, playerPos, now, gridUnitScale) {
                 ctx.moveTo(entry.x + Math.cos(angle) * inner, entry.y + 8 + Math.sin(angle) * inner * 0.43);
                 ctx.lineTo(entry.x + Math.cos(angle) * outer, entry.y + 8 + Math.sin(angle) * outer * 0.43);
                 ctx.stroke();
+            }
+            if (pattern && pattern.telegraphKind === 'ring' && playerPos) {
+                let ringRadius = (30 + progress * 18) * gridUnitScale;
+                ctx.globalAlpha = 0.25 + progress * 0.58;
+                ctx.lineWidth = 2.2 + progress * 1.4;
+                ctx.beginPath();
+                ctx.arc(playerPos.x, playerPos.y + 5, ringRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(playerPos.x, playerPos.y + 5, Math.max(8, ringRadius * 0.35), 0, Math.PI * 2);
+                ctx.stroke();
+            } else if (pattern && pattern.telegraphKind === 'fan' && playerPos) {
+                let baseAngle = Math.atan2(playerPos.y - entry.y, playerPos.x - entry.x);
+                ctx.globalAlpha = 0.26 + progress * 0.5;
+                ctx.lineWidth = 2 + progress * 1.4;
+                [-0.16, 0, 0.16].forEach(offset => {
+                    let angle = baseAngle + offset;
+                    let length = (48 + progress * 26) * gridUnitScale;
+                    ctx.beginPath();
+                    ctx.moveTo(entry.x, entry.y - 4);
+                    ctx.lineTo(entry.x + Math.cos(angle) * length, entry.y - 4 + Math.sin(angle) * length);
+                    ctx.stroke();
+                });
+            } else if (pattern && pattern.telegraphKind === 'pulse') {
+                ctx.globalAlpha = 0.18 + progress * 0.42;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(entry.x, entry.y + 8, radiusX * (1.15 + progress * 0.35), radiusY * (1.35 + progress * 0.25), 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            if (pattern && pattern.isSpecial && pattern.label) {
+                let label = String(pattern.label);
+                ctx.font = '700 11px "Noto Sans KR", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                let textWidth = Math.ceil(ctx.measureText(label).width);
+                let labelX = entry.x;
+                let labelY = entry.y - 102 * gridUnitScale;
+                ctx.globalAlpha = 0.88;
+                ctx.fillStyle = 'rgba(7, 10, 16, 0.82)';
+                ctx.fillRect(labelX - textWidth / 2 - 6, labelY - 9, textWidth + 12, 18);
+                ctx.globalAlpha = 0.98;
+                ctx.fillStyle = palette.edge;
+                ctx.fillText(label, labelX, labelY);
             }
         }
         ctx.restore();
@@ -211,66 +263,47 @@ function drawDamageImpactAccent(ctx, fx, t, enemyPosMap) {
     let cx = target.x;
     let cy = target.y - 9;
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = annihilate ? '#fff0a8' : (fx.color || '#ffd36b');
-    ctx.lineWidth = annihilate ? 4.5 : 3;
-    ctx.globalAlpha = fade * (annihilate ? 0.92 : 0.7);
-    let rings = annihilate ? 4 : 2;
+    ctx.lineWidth = annihilate ? 2.8 : 2.4;
+    ctx.globalAlpha = fade * (annihilate ? 0.42 : 0.54);
+    let rings = 1;
     for (let index = 0; index < rings; index++) {
         ctx.beginPath();
-        ctx.arc(cx, cy, 12 + index * 7 + t * (annihilate ? 72 : 43), 0, Math.PI * 2);
+        ctx.arc(cx, cy, 12 + t * (annihilate ? 42 : 36), 0, Math.PI * 2);
         ctx.stroke();
     }
-    let rays = annihilate ? 12 : 6;
+    let rays = annihilate ? 3 : 2;
     for (let index = 0; index < rays; index++) {
         let angle = index * Math.PI * 2 / rays + t * 0.35;
-        let inner = 18 + t * 24;
-        let outer = inner + (annihilate ? 42 : 24) * fade;
+        let inner = 17 + t * 20;
+        let outer = inner + (annihilate ? 24 : 18) * fade;
         ctx.beginPath();
         ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
         ctx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
         ctx.stroke();
     }
-    if (annihilate) {
-        let glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 92 * (0.35 + t));
-        glow.addColorStop(0, `rgba(255,244,196,${0.38 * fade})`);
-        glow.addColorStop(0.35, `rgba(255,112,42,${0.2 * fade})`);
-        glow.addColorStop(1, 'rgba(255,62,20,0)');
-        ctx.fillStyle = glow;
-        ctx.fillRect(cx - 110, cy - 110, 220, 220);
-    }
     ctx.restore();
 }
 
 function drawLevelUpFx(ctx, fx, t, playerPos) {
-    let fade = t < 0.68 ? 1 : (1 - t) / 0.32;
-    let radius = 22 + t * 76;
+    let fade = t < 0.48 ? 0.56 : ((1 - t) / 0.52) * 0.56;
+    let radius = 16 + t * 30;
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = Math.max(0, fade);
     ctx.strokeStyle = '#ffe59a';
-    ctx.lineWidth = 4 * (1 - t) + 1.5;
-    for (let ring = 0; ring < 3; ring++) {
+    ctx.lineWidth = 1.8 * (1 - t) + 0.8;
+    for (let ring = 0; ring < 1; ring++) {
         ctx.beginPath();
         ctx.arc(playerPos.x, playerPos.y - 15, radius + ring * 10, 0, Math.PI * 2);
         ctx.stroke();
     }
-    for (let ray = 0; ray < 12; ray++) {
-        let angle = ray * Math.PI / 6 - Math.PI / 2;
-        let inner = 22 + t * 18;
-        let outer = inner + 34 * (1 - t);
-        ctx.beginPath();
-        ctx.moveTo(playerPos.x + Math.cos(angle) * inner, playerPos.y - 15 + Math.sin(angle) * inner);
-        ctx.lineTo(playerPos.x + Math.cos(angle) * outer, playerPos.y - 15 + Math.sin(angle) * outer);
-        ctx.stroke();
-    }
-    ctx.font = '900 17px "Malgun Gothic", sans-serif';
+    ctx.font = '900 12px "Malgun Gothic", sans-serif';
     ctx.textAlign = 'center';
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 3;
     ctx.strokeStyle = 'rgba(25,9,0,.9)';
-    ctx.strokeText(`LEVEL ${fx.level || ''} UP`, playerPos.x, playerPos.y - 70 - t * 18);
+    ctx.strokeText(`LEVEL ${fx.level || ''} UP`, playerPos.x, playerPos.y - 58 - t * 9);
     ctx.fillStyle = '#fff2b4';
-    ctx.fillText(`LEVEL ${fx.level || ''} UP`, playerPos.x, playerPos.y - 70 - t * 18);
+    ctx.fillText(`LEVEL ${fx.level || ''} UP`, playerPos.x, playerPos.y - 58 - t * 9);
     ctx.restore();
 }
 
@@ -652,12 +685,14 @@ function renderBattlefield(forceWhenHidden) {
             const deathEnemy = enemy.enemy || {};
             const isBossDeath = !!(fx.boss || deathEnemy.isBoss);
             ctx.save();
-            ctx.globalAlpha = Math.pow(1 - t, 1.4) * (isBossDeath ? 0.92 : 0.75);
+            ctx.globalAlpha = Math.pow(1 - t, 1.25) * (isBossDeath ? 0.72 : (fx.elite ? 0.62 : 0.54));
             ctx.translate(enemy.x, enemy.y - t * (isBossDeath ? 24 : 14));
             ctx.rotate((isBossDeath ? -0.12 : 0.16) * t);
             drawEnemySprite(ctx, deathEnemy, 0, 0, (isBossDeath ? 2.65 : (fx.elite ? 2.1 : 1.9)) * (1 + t * 0.16), true, now);
             ctx.restore();
-            drawBattleImpactBurst(ctx, enemy.x, enemy.y - 6, fx.color || '#ffb0b0', '#ffffff', t);
+            // 일반 적은 반투명 퇴장 자체만 보여 준다. 정예·보스에만 파열을 더해
+            // 대량 원킬 때 적 수만큼 무거운 버스트가 중첩되지 않게 한다.
+            if (fx.elite || isBossDeath) drawBattleImpactBurst(ctx, enemy.x, enemy.y - 6, fx.color || '#ffb0b0', '#ffffff', t);
             if (isBossDeath) {
                 ctx.save();
                 ctx.globalAlpha = (1 - t) * 0.75;
@@ -837,6 +872,12 @@ function getEnemyTraitSummary(enemy) {
     else if (enemy.isElite) tags.push('정예');
     tags.push(getElementLabel(enemy.ele));
     if (enemy.traitName) tags.push(enemy.traitName);
+    if (enemy.patternMode && typeof getBossPatternModeLabel === 'function') {
+        let patternLabel = getBossPatternModeLabel(enemy.patternMode);
+        if (patternLabel) tags.push(`패턴: ${patternLabel}`);
+        let nextPattern = enemy.nextPatternState || (typeof getBossPatternPreview === 'function' ? getBossPatternPreview(enemy) : null);
+        if (nextPattern && nextPattern.isSpecial && nextPattern.label) tags.push(`다음: ${nextPattern.label}`);
+    }
     if ((enemy.firstHitGuard || 0) > 0 && !enemy.firstHitConsumed) tags.push(`첫타보호 ${Math.floor((enemy.firstHitGuard || 0) * 100)}%`);
     if ((enemy.hitRateGuard || 0) > 0) tags.push(`연타경감 ${Math.floor((enemy.hitRateGuard || 0) * 100)}%`);
     if ((enemy.leechEffMul || 1) <= 0) tags.push('흡혈불가');

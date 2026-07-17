@@ -70,6 +70,114 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   color: #f6c461;
 }
 
+.cosmos-summary-tip {
+  grid-column: 1 / -1;
+  color: #9fd6ff;
+  font-size: 11px;
+}
+
+.cosmos-capstone-card {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+  margin-top: 5px;
+  padding: 9px;
+  border: 1px solid rgba(104, 122, 157, .55);
+  border-radius: 9px;
+  background: rgba(9, 13, 22, .76);
+}
+
+.cosmos-capstone-card.ready {
+  border-color: rgba(246, 196, 97, .72);
+  background: linear-gradient(135deg, rgba(54, 38, 18, .82), rgba(17, 20, 31, .88));
+  box-shadow: 0 0 16px rgba(246, 196, 97, .1);
+}
+
+.cosmos-capstone-card.key-needed {
+  border-color: rgba(174, 126, 220, .65);
+}
+
+.cosmos-capstone-card.locked {
+  opacity: .74;
+}
+
+.cosmos-capstone-head,
+.cosmos-capstone-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cosmos-capstone-head span {
+  color: #8299b2;
+  font-size: .76em;
+}
+
+.cosmos-capstone-head strong {
+  color: #f1d38c;
+}
+
+.cosmos-capstone-bosses {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.cosmos-capstone-boss {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 4px 5px;
+  border: 1px solid #34485e;
+  border-radius: 6px;
+  color: #9eb2c7;
+  background: rgba(15, 23, 34, .86);
+  font-size: 9px;
+  text-align: left;
+}
+
+.cosmos-capstone-boss span {
+  color: #708aa4;
+  font-size: 8px;
+}
+
+.cosmos-capstone-boss b {
+  color: #72869c;
+}
+
+.cosmos-capstone-boss.cleared {
+  border-color: rgba(72, 142, 96, .72);
+  color: #bce9ca;
+  background: rgba(18, 51, 30, .72);
+}
+
+.cosmos-capstone-boss.cleared b {
+  color: #8ce7a8;
+}
+
+.cosmos-capstone-card p {
+  margin: 0;
+  color: #91a8bf;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.cosmos-capstone-footer > span {
+  color: #a9bbcd;
+  font-size: 10px;
+}
+
+.cosmos-capstone-action {
+  padding: 4px 7px;
+  border-color: rgba(218, 172, 77, .65);
+  color: #f5daa0;
+  background: rgba(76, 54, 19, .72);
+  font-size: 9px;
+}
+
 .cosmos-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -333,5 +441,9 @@ body.light-mode .cosmos-help {
 
   .cosmos-header {
     padding: 10px;
+  }
+
+  .cosmos-capstone-bosses {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

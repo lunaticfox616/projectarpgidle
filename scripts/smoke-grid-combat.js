@@ -116,7 +116,11 @@ Object.keys(context.SKILL_DB).forEach(name => {
 assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발 · 사거리 4칸 · 반경 2칸');
 assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄 · 사거리 4칸 · 연쇄 2칸');
 assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= 6, '보수적으로 조정된 스킬 최대 사거리는 6칸을 넘지 않아야 한다');
-assert.ok(context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 2 }, { gx: 0, gy: 0 }, { gx: 4, gy: 4 }).length < 25, '반경 2 폭발은 정사각형 25칸 전체를 덮지 않아야 한다');
+const radiusOneCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 1 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
+const radiusTwoCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 2 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
+assert.strictEqual(radiusOneCells.length, 5, '반경 1은 중심과 상하좌우 4칸만 덮어야 한다');
+assert.strictEqual(radiusTwoCells.length, 13, '반경 2는 맨해튼 거리 2의 다이아몬드 13칸이어야 한다');
+assert.ok(!radiusOneCells.some(cell => cell.gx === 4 && cell.gy === 4), '반경 1은 대각선 칸을 포함하지 않아야 한다');
 
 // ── 2. 직선 칸 계산(브레젠험) ──
 {
@@ -212,6 +216,79 @@ assert.ok(context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 2 },
   context.triggerSeasonReset();
   const afterFound = context.ensureFlaskFoundKeys();
   assert.ok(afterFound.length < beforeFound, '루프 시 발견한 플라스크가 기본 지급분으로 리셋되어야 한다');
+}
+
+// ── 4. 스폰 배치: 보스 고정 칸, 중복 없는 무작위 배치 ──
+// ── 3-2. 플라스크 무결성: 순차 발견, 교체 충전 보존, 독립 충전, 조우별 자동 사용 ──
+{
+  resetGame();
+  context.updateStaticUI = () => {};
+  context.game.level = 100;
+  context.game.equipment['허리띠'] = { baseStats: [{ id: 'flaskUtilSlots', val: 1 }] };
+  context.game.flasks.foundKeys = ['h1', 'granite1', 'quicksilver1'];
+
+  const frontier = context.getFlaskDiscoveryCandidates(100, ['h1', 'granite1']);
+  assert.ok(frontier.includes('h2'), '회복 플라스크는 다음 단계부터 발견되어야 한다');
+  assert.ok(!frontier.includes('h3'), '회복 플라스크의 중간 단계를 건너뛰면 안 된다');
+  assert.ok(frontier.includes('granite2'), '발견한 유틸 종류는 다음 단계가 후보여야 한다');
+  assert.ok(!frontier.includes('granite3'), '유틸 플라스크의 중간 단계를 건너뛰면 안 된다');
+  assert.ok(frontier.includes('quicksilver1'), '미발견 유틸 종류는 1단계부터 시작해야 한다');
+
+  let st = context.ensureFlaskState();
+  context.equipUtilityFlask(0, 'granite1');
+  assert.strictEqual(st.utils[0].charges, 0, '처음 장착한 유틸 플라스크는 빈 충전으로 시작해야 한다');
+  st.utils[0].charges = 1;
+  st.utils[0].chargeProgress = 3;
+  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
+  context.equipUtilityFlask(0, 'quicksilver1');
+  assert.strictEqual(st.utils[0].charges, 0, '교체 장착으로 새 플라스크 충전을 생성하면 안 된다');
+  context.equipUtilityFlask(0, 'granite1');
+  assert.strictEqual(st.utils[0].charges, 1, '다시 장착한 플라스크는 보관된 충전을 복원해야 한다');
+  assert.strictEqual(st.utils[0].chargeProgress, 3, '다시 장착한 플라스크는 보관된 처치 진행도를 복원해야 한다');
+
+  st.healCharges = 0;
+  st.healChargeProgress = 0;
+  st.utils[0].charges = 0;
+  st.utils[0].chargeProgress = 0;
+  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
+  const healNeed = context.getFlaskEffectiveChargesPerKills(context.getFlaskHealDef('h1').chargesPerKills);
+  for (let i = 0; i < healNeed - 1; i++) context.tickFlaskChargesOnKill();
+  assert.strictEqual(st.healCharges, 0, '필요 처치 전에는 회복 플라스크가 충전되면 안 된다');
+  context.tickFlaskChargesOnKill();
+  assert.strictEqual(st.healCharges, 1, '필요 처치를 채우면 회복 플라스크가 1회 충전되어야 한다');
+
+  st.healCharges = context.getFlaskHealDef('h1').maxCharges;
+  st.utils[0].charges = 2;
+  st.utils[0].chargeProgress = 0;
+  st.utils[0].trigger = 'combat';
+  st.utils[0].until = 0;
+  st.utils[0].lastAutoEncounter = 0;
+  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
+  context.game.playerHp = 100;
+  context.game.enemies = [{ hp: 10, isElite: false, isBoss: false }];
+  context.tickFlaskAutoUse({ maxHp: 100 });
+  assert.strictEqual(st.utils[0].charges, 1, '전투 시작 시 유틸 플라스크를 1회 사용해야 한다');
+  st.utils[0].until = 0;
+  context.tickFlaskAutoUse({ maxHp: 100 });
+  assert.strictEqual(st.utils[0].charges, 1, '같은 조우에서 전투 시작 조건이 반복 소비되면 안 된다');
+  context.game.enemies = [];
+  context.tickFlaskAutoUse({ maxHp: 100 });
+  context.game.enemies = [{ hp: 10, isElite: false, isBoss: false }];
+  context.tickFlaskAutoUse({ maxHp: 100 });
+  assert.strictEqual(st.utils[0].charges, 0, '새 조우에서는 전투 시작 조건을 다시 사용할 수 있어야 한다');
+
+  resetGame();
+  st = context.ensureFlaskState();
+  const now = Date.now();
+  context.game.playerHp = 10;
+  context.game.enemies = [];
+  st.healOverTimeStartedAt = now - 2000;
+  st.healOverTimeUntil = now + 2000;
+  st.healOverTimeTotal = 40;
+  st.healOverTimeApplied = 0;
+  st.healOverTimePerSec = 10;
+  context.tickFlaskAutoUse({ maxHp: 100 });
+  assert.ok(context.game.playerHp >= 29 && context.game.playerHp <= 31, '지속 회복은 고정 틱이 아니라 실제 경과 시간 비율로 적용되어야 한다');
 }
 
 // ── 4. 스폰 배치: 보스 고정 칸, 중복 없는 무작위 배치 ──
