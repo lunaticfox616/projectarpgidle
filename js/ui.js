@@ -4138,7 +4138,7 @@ function renderGemResourceStrip(activeGem, gemExpertLv, condensedPower) {
     root.innerHTML = `<div><span>젬 각인사</span><strong>Lv.${gemExpertLv}</strong></div><div><span>젬 잔향</span><strong>${game.currencies.gemShard || 0}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 힘</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>선택 젬</span><strong>${activeGem && activeGem.awakened ? '각성' : '일반'}</strong></div>`;
 }
 
-function renderGemEngraveSlots(activeSlots, engraveCap, selectedSlot) {
+function renderGemEngraveSlots(activeSlots, engraveCap) {
     let root = document.getElementById('ui-gem-engrave-slots');
     if (!root) return;
     let slots = [];
@@ -4148,7 +4148,7 @@ function renderGemEngraveSlots(activeSlots, engraveCap, selectedSlot) {
         let nextUnlock = index === engraveCap && engraveCap < 5;
         let stateClass = enhancement ? 'filled' : unlocked ? 'open' : nextUnlock ? 'unlockable' : 'locked';
         let title = enhancement ? `${index + 1}번 슬롯 · ${enhancement.name}` : unlocked ? `${index + 1}번 빈 각인 슬롯` : nextUnlock ? `${index + 1}번 슬롯 해금 · 창공의 힘 ${index + 1}` : '앞 슬롯부터 해금 필요';
-        slots.push(`<button type="button" class="${stateClass} ${index === selectedSlot ? 'selected' : ''}" title="${escapeHTML(title)}" onclick="selectGemEngraveSlot(${index})"><small>${index + 1}</small>${enhancement ? '✦' : unlocked ? '◇' : nextUnlock ? '+' : '×'}</button>`);
+        slots.push(`<button type="button" class="${stateClass}" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation(); openGemEngraveSlotOverlay(${index})"><small>${index + 1}</small>${enhancement ? '✦' : unlocked ? '◇' : nextUnlock ? '+' : '×'}</button>`);
     }
     root.innerHTML = slots.join('');
 }
@@ -4159,16 +4159,69 @@ function getSkyEnhancementGroup(enhancement) {
     return { label: '기본', className: 'basic' };
 }
 
-function renderSkyEnhancementOption(enhancement, activeSlots, selectedSlot, gemExpertLv, isGem) {
-    let applied = activeSlots[selectedSlot] === enhancement.id;
-    let appliedElsewhere = activeSlots.some((id, index) => index !== selectedSlot && id === enhancement.id);
+function renderSkyEnhancementOption(enhancement, activeSlots, gemExpertLv, isGem) {
+    let applied = activeSlots.includes(enhancement.id);
     let unlockLv = typeof getSkyEnhancementUnlockLevel === 'function' ? getSkyEnhancementUnlockLevel(enhancement.id) : 1;
     let locked = gemExpertLv < unlockLv;
     let removeCost = typeof getSkyGemEnhancementRemoveCost === 'function' ? getSkyGemEnhancementRemoveCost() : 0;
     let group = getSkyEnhancementGroup(enhancement);
-    let actionLabel = applied ? (removeCost > 0 ? `해제 · 창공 ${removeCost}` : '무료 해제') : appliedElsewhere ? '다른 슬롯 적용 중' : locked ? `각인사 Lv.${unlockLv}` : activeSlots[selectedSlot] ? '교체 · 창공 1' : '각인 · 창공 1';
-    return `<button class="gem-engrave-option group-${group.className} ${applied ? 'applied' : ''}" onclick="${applied ? `removeSkyGemEnhancementFromActive('${enhancement.id}', ${selectedSlot})` : `applySkyGemEnhancementToActive('${enhancement.id}')`}" ${!isGem || appliedElsewhere || (locked && !applied) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${applied ? '적용 중' : actionLabel}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
+    let actionLabel = applied ? (removeCost > 0 ? `다시 눌러 해제 · 창공 ${removeCost}` : '다시 눌러 무료 해제') : locked ? `각인사 Lv.${unlockLv}` : '빈 슬롯에 각인 · 창공 1';
+    return `<button class="gem-engrave-option group-${group.className} ${applied ? 'applied' : ''}" onclick="toggleSkyGemEnhancement('${enhancement.id}')" ${!isGem || (locked && !applied) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${applied ? '적용 중' : actionLabel}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
 }
+
+function closeGemEngraveSlotOverlay() {
+    let overlay = document.getElementById('gem-engrave-slot-overlay');
+    if (overlay) overlay.remove();
+}
+
+function renderGemEngraveOverlayOption(enhancement, slots, slotIndex, gemExpertLv) {
+    let current = slots[slotIndex] === enhancement.id;
+    let usedElsewhere = slots.some((id, index) => index !== slotIndex && id === enhancement.id);
+    let unlockLv = getSkyEnhancementUnlockLevel(enhancement.id);
+    let locked = gemExpertLv < unlockLv;
+    let group = getSkyEnhancementGroup(enhancement);
+    let state = current ? '현재 각인 · 누르면 해제' : usedElsewhere ? '다른 슬롯에 적용 중' : locked ? `각인사 Lv.${unlockLv}` : '이 슬롯에 각인';
+    return `<button type="button" class="gem-engrave-option group-${group.className} ${current ? 'applied' : ''}" data-engrave-id="${enhancement.id}" data-action="${current ? 'remove' : 'apply'}" ${usedElsewhere || (locked && !current) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${state}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
+}
+
+function openGemEngraveSlotOverlay(index) {
+    let active = getGemEnhanceTargetSkill();
+    let gem = normalizeGemRecord((game.gemData || {})[active]);
+    if (!isEnhanceableAttackGem(active) || !gem) return;
+    let slotIndex = Math.max(0, Math.min(4, Math.floor(Number(index) || 0)));
+    let cap = Math.max(1, Math.min(5, Math.floor(gem.skyEnhanceCap || 1)));
+    if (slotIndex >= cap && !selectGemEngraveSlot(slotIndex)) return;
+    gem = normalizeGemRecord((game.gemData || {})[active]);
+    cap = Math.max(1, Math.min(5, Math.floor(gem.skyEnhanceCap || 1)));
+    if (slotIndex >= cap) return;
+    game.gemEngraveSelectedSlot = slotIndex;
+    let slots = getSkyEnhancementSlotsForSkill(active);
+    let current = slots[slotIndex] && GEM_SKY_ENHANCEMENTS[slots[slotIndex]];
+    let expertLevel = getGemEngraverLevelForUnlocks();
+    closeGemEngraveSlotOverlay();
+    let overlay = document.createElement('div');
+    overlay.id = 'gem-engrave-slot-overlay';
+    overlay.className = 'game-choice-overlay gem-engrave-slot-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', `${slotIndex + 1}번 각인 슬롯 선택`);
+    overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div><span>SKY INSCRIPTION</span><h3>${escapeHTML(active)} · ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 ${escapeHTML(current.name)} · 다른 각인을 누르면 교체됩니다.` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex, expertLevel)).join('')}</div></section>`;
+    overlay.addEventListener('click', event => {
+        if (event.target === overlay) return closeGemEngraveSlotOverlay();
+        let button = event.target.closest('button[data-action]');
+        if (!button || button.disabled) return;
+        let action = button.dataset.action;
+        if (action === 'close') return closeGemEngraveSlotOverlay();
+        let enhancementId = button.dataset.engraveId;
+        let changed = action === 'remove'
+            ? removeSkyGemEnhancementFromActive(enhancementId, slotIndex)
+            : applySkyGemEnhancementToActive(enhancementId, slotIndex);
+        if (changed) closeGemEngraveSlotOverlay();
+    });
+    document.body.appendChild(overlay);
+}
+window.openGemEngraveSlotOverlay = openGemEngraveSlotOverlay;
+window.closeGemEngraveSlotOverlay = closeGemEngraveSlotOverlay;
 
 function renderSupportGemProcessList(gemExpertLv) {
     let root = document.getElementById('ui-support-process-list');
@@ -6934,6 +6987,27 @@ function formatCappedResistanceValue(appliedValue, uncappedValue) {
     return applied === uncapped ? `${applied}` : `${applied} (${uncapped})`;
 }
 
+function renderCombatFlaskHud() {
+    let host = document.getElementById('ui-combat-flasks');
+    if (!host || typeof ensureFlaskState !== 'function') return;
+    let st = ensureFlaskState();
+    let now = Date.now();
+    let healDef = getFlaskHealDef(st.healTier);
+    let entries = [{ key: healDef.key, name: healDef.name, charges: st.healCharges, maxCharges: healDef.maxCharges, active: st.healOverTimeUntil > now, type: 'heal' }];
+    let maxUtility = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
+    for (let index = 0; index < maxUtility; index++) {
+        let runtime = st.utils[index];
+        let def = runtime && FLASK_UTILITY_POOL[runtime.key];
+        entries.push(def
+            ? { key: def.key, name: def.name, charges: runtime.charges, maxCharges: def.maxCharges, active: runtime.until > now, type: 'utility' }
+            : { key: '', name: `빈 유틸리티 슬롯 ${index + 1}`, charges: 0, maxCharges: 0, active: false, type: 'empty' });
+    }
+    let signature = entries.map(entry => `${entry.key}:${entry.charges}:${entry.active ? 1 : 0}`).join('|');
+    if (host.dataset.signature === signature) return;
+    host.dataset.signature = signature;
+    host.innerHTML = entries.map(entry => `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="switchTab('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`).join('');
+}
+
 function updateCombatUI(pStats) {
     pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
     if (pStats.__uiFallbackStats) pStats.maxHp = Math.max(pStats.maxHp, Math.max(1, Number(game.playerHp) || 1));
@@ -6947,6 +7021,7 @@ function updateCombatUI(pStats) {
     let hpBar = document.getElementById('ui-hp-bar');
     hpBar.style.width = hpPct + '%';
     hpBar.classList.toggle('player-danger', hpPct > 0 && hpPct <= 25);
+    renderCombatFlaskHud();
     let hpWrap = hpBar.parentElement;
     let hpGhostBar = document.getElementById('ui-hp-damage-ghost-bar');
     if (!hpGhostBar && hpWrap) {
@@ -8360,6 +8435,13 @@ function renderFlaskPanel() {
     let totalFlasks = FLASK_HEAL_TIERS.length + Object.keys(FLASK_UTILITY_POOL).length;
     let activeSlots = 1 + st.utils.slice(0, maxUtilSlots).filter(u => u && FLASK_UTILITY_POOL[u.key]).length;
     let chargeRateBonus = typeof getFlaskChargeRateBonusPct === 'function' ? Math.max(0, Math.floor(getFlaskChargeRateBonusPct())) : 0;
+    let craftCandidates = typeof getFlaskDiscoveryCandidates === 'function' ? getFlaskDiscoveryCandidates(game.level, found) : [];
+    let craftCards = craftCandidates.map(key => {
+        let def = FLASK_DB[key];
+        let cost = typeof getFlaskCraftCost === 'function' ? getFlaskCraftCost(key) : 0;
+        let affordable = st.alchemyGlass >= cost;
+        return `<div class="flask-craft-card"><div><span>${def.kind === 'heal' ? '회복' : '유틸리티'} · ${def.tier}단계</span><strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(def.desc || `최대 생명력의 ${def.healPct}% 회복`)}</small></div><button type="button" onclick="craftFlask('${key}')" ${affordable ? '' : 'disabled'}>${affordable ? '제작' : '재료 부족'} · ${cost}</button></div>`;
+    }).join('');
     host.innerHTML = `<div class="flask-overview">
         <div><span>발견</span><strong>${found.length}/${totalFlasks}</strong></div>
         <div><span>장착</span><strong>${activeSlots}/${1 + maxUtilSlots}</strong></div>
@@ -8375,7 +8457,8 @@ function renderFlaskPanel() {
         </div>
         ${utilSlots}${beltHint}
     </div>
-    <div class="flask-help-text"><strong>운용 안내</strong> 장착한 플라스크는 처치로 충전됩니다. 전투 시작·정예·보스 조건은 한 조우에 한 번, 저생명력 조건은 충전과 재사용 대기가 허용하는 동안 반복 발동합니다. 새 플라스크는 각 종류의 낮은 단계부터 순서대로 발견됩니다(미발견 ${undiscoveredCount}종).</div>`;
+    <section class="flask-workbench"><div class="flask-workbench-head"><div><span>ALCHEMY BENCH</span><strong>플라스크 제작</strong><small>처치로 모은 연금 유리로 각 계열의 다음 단계를 확정 제작합니다.</small></div><div class="flask-glass-balance"><span>연금 유리</span><b>${st.alchemyGlass}</b></div></div><div class="flask-craft-grid">${craftCards || '<div class="gem-process-empty">현재 레벨에서 제작 가능한 다음 단계가 없습니다.</div>'}</div></section>
+    <div class="flask-help-text"><strong>운용 안내</strong> 낮은 단계는 전투에서 비교적 쉽게 발견되지만 높은 단계일수록 드랍 확률이 낮아집니다. 제작은 무작위 발견을 보완하며, 같은 계열은 앞 단계부터 순서대로 진행합니다(미발견 ${undiscoveredCount}종).</div>`;
 }
 
 // 플라스크 선택 오버레이: 스크롤 드롭다운 대신 카드 그리드로 고른다. 발견하지 못했거나
@@ -9701,7 +9784,7 @@ function buildCraftActionButtons(item) {
                 ? `<div class="gem-target-profile element-${activeMeta.className}"><span class="gem-target-profile-icon">${activeMeta.icon}</span><div><small>현재 선택 · ${activeMeta.elementLabel} ${activeMeta.typeLabel}</small><strong>${escapeHTML(active)}</strong><p>${escapeHTML(activeDef.desc || '')}</p></div></div>${growthSummary}<div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행 중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '슬롯 최대' : `각인 슬롯 ${engraveCap}/5`}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '슬롯 사용 완료' : `빈 슬롯 ${Math.max(0, engraveCap - activeEnh.length)}`}</span></div><div class="gem-current-inscriptions"><span>현재 각인</span><strong>${escapeHTML(activeOptions)}</strong></div>`
                 : '<div class="gem-process-empty">공격 젬을 선택하면 성장 정보가 표시됩니다.</div>');
             renderGemResourceStrip(activeGem, gemExpertLv, condensedPower);
-            renderGemEngraveSlots(activeSlots, engraveCap, selectedSlot);
+            renderGemEngraveSlots(activeSlots, engraveCap);
             renderSupportGemProcessList(gemExpertLv);
             let upgradeBtns = [];
             let currentTotalGemLevel = Math.max(1, Math.floor((activePresentation && activePresentation.totalLevel) || 1));
@@ -9712,7 +9795,7 @@ function buildCraftActionButtons(item) {
             upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.awakened ? 'done' : ''}" onclick="awakenActiveGemCandidate()" ${!isGem || !awakenReady || (game.currencies.awakenedEcho || 0) < 3 ? 'disabled' : ''}><strong>${activeGem && activeGem.awakened ? '✅ 각성 젬' : '각성 젬 변환'}</strong><br><small>각인사 Lv.15 · 기본 Lv.20 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3 · ${activeGem && activeGem.awakened ? '각성 완료' : `적용 후 최종 Lv.${currentTotalGemLevel + 2}`}</small></button>`);
             document.getElementById('ui-gem-upgrade-actions').innerHTML = upgradeBtns.join('') || `<div style="grid-column:1/-1; color:#7f8c8d;">보유한 젬 강화 재료가 없습니다.</div>`;
             if ((game.season || 1) >= 4) {
-                document.getElementById('ui-gem-enhance-options').innerHTML = `<div class="gem-engrave-slot-guide"><strong>${selectedSlot + 1}번 슬롯</strong><span>${activeSlots[selectedSlot] ? '적용 중인 각인을 해제하거나 다른 각인으로 교체할 수 있습니다.' : '아래에서 이 슬롯에 넣을 각인을 선택하세요.'}</span></div>` + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeSlots, selectedSlot, gemExpertLv, isGem)).join('');
+                document.getElementById('ui-gem-enhance-options').innerHTML = `<div class="gem-engrave-slot-guide"><strong>전체 각인</strong><span>각인을 누르면 빈 슬롯에 적용되고, 적용 중인 각인을 다시 누르면 해제됩니다. 특정 슬롯을 교체하려면 위 슬롯을 누르세요.</span></div>` + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeSlots, gemExpertLv, isGem)).join('');
             } else {
                 document.getElementById('ui-gem-enhance-options').innerHTML = '<div class="gem-process-empty">창공 각인은 루프 4부터 해금됩니다.</div>';
             }

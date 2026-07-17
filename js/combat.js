@@ -1354,6 +1354,8 @@ const FLASK_AUTO_TRIGGER_LABELS = Object.freeze({
     boss: '보스',
     lowHp: '생명력 50% 이하'
 });
+const FLASK_CRAFT_COSTS = Object.freeze([6, 16, 34, 60, 96, 145, 205, 280]);
+const FLASK_DISCOVERY_TIER_MULTIPLIERS = Object.freeze([1.25, 0.86, 0.58, 0.39, 0.25, 0.16, 0.10, 0.06]);
 
 function normalizeUtilityFlaskTrigger(trigger) {
     return FLASK_AUTO_TRIGGER_ORDER.includes(trigger) ? trigger : 'combat';
@@ -1411,6 +1413,35 @@ function getHighestUnlockedHealTier() {
     return best;
 }
 
+function getFlaskProgressionTier(flaskKey) {
+    let def = FLASK_DB[flaskKey];
+    if (!def) return 1;
+    return Math.max(1, Math.min(8, Math.floor(Number(def.tier) || 1)));
+}
+
+function getFlaskCraftCost(flaskKey) {
+    return FLASK_CRAFT_COSTS[getFlaskProgressionTier(flaskKey) - 1];
+}
+
+function getFlaskDiscoveryTierMultiplier(flaskKey) {
+    return FLASK_DISCOVERY_TIER_MULTIPLIERS[getFlaskProgressionTier(flaskKey) - 1];
+}
+
+function pickWeightedFlaskDiscoveryCandidate(candidates) {
+    let entries = (Array.isArray(candidates) ? candidates : []).map(key => ({
+        key,
+        weight: 1 / Math.max(1, getFlaskProgressionTier(key))
+    }));
+    let total = entries.reduce((sum, entry) => sum + entry.weight, 0);
+    if (total <= 0) return null;
+    let roll = Math.random() * total;
+    for (let entry of entries) {
+        roll -= entry.weight;
+        if (roll <= 0) return entry.key;
+    }
+    return entries[entries.length - 1].key;
+}
+
 // 고레벨 캐릭터가 1단계를 건너뛰고 5단계를 먼저 발견하지 않도록, 회복 1종과
 // 유틸리티 종류별 '다음 단계'만 드랍 후보로 삼는다.
 function getFlaskDiscoveryCandidates(level, foundKeys) {
@@ -1449,16 +1480,54 @@ function discoverFlask(flaskKey) {
     game.noti.flask = true;
     return true;
 }
+
+function rollFlaskAlchemyGlassDrop(enemy) {
+    let st = ensureFlaskState();
+    let chance = enemy && enemy.isBoss ? 0.70 : (enemy && enemy.isElite ? 0.18 : 0.025);
+    if (Math.random() >= chance) return 0;
+    let amount = enemy && enemy.isBoss ? 5 + Math.floor(Math.random() * 4) : (enemy && enemy.isElite ? 2 : 1);
+    st.alchemyGlass = Math.max(0, Math.floor(Number(st.alchemyGlass) || 0)) + amount;
+    game.noti = game.noti || {};
+    game.noti.flask = true;
+    return amount;
+}
+
+function craftFlask(flaskKey) {
+    let def = FLASK_DB[flaskKey];
+    if (!def) return false;
+    let st = ensureFlaskState();
+    let found = ensureFlaskFoundKeys();
+    if (found.includes(flaskKey)) return false;
+    let level = Math.max(1, Math.floor(game.level || 1));
+    let candidates = getFlaskDiscoveryCandidates(level, found);
+    if (!candidates.includes(flaskKey)) {
+        addLog('같은 계열의 앞 단계 플라스크부터 발견하거나 제작해야 합니다.', 'attack-monster');
+        return false;
+    }
+    let cost = getFlaskCraftCost(flaskKey);
+    if (st.alchemyGlass < cost) {
+        addLog(`연금 유리가 부족합니다. (필요: ${cost})`, 'attack-monster');
+        return false;
+    }
+    st.alchemyGlass -= cost;
+    if (!discoverFlask(flaskKey)) return false;
+    addLog(`⚗️ 플라스크 제작 완료: [${def.name}] (연금 유리 ${cost} 소모)`, 'loot-rare');
+    if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
+    updateStaticUI();
+    return true;
+}
 // 몬스터 처치 시 아직 발견하지 못한 플라스크(요구 레벨 이하인 것만)를 낮은 확률로 하나
 // 발견시킨다. 발견한 플라스크는 플라스크 탭에서 장착할 수 있다.
 function rollFlaskDiscoveryDrop(enemy) {
+    rollFlaskAlchemyGlassDrop(enemy);
     let lvl = Math.max(1, Math.floor(game.level || 1));
     let found = ensureFlaskFoundKeys();
     let candidates = getFlaskDiscoveryCandidates(lvl, found);
     if (candidates.length === 0) return;
-    let chance = enemy.isBoss ? 0.12 : (enemy.isElite ? 0.035 : 0.006);
+    let key = pickWeightedFlaskDiscoveryCandidate(candidates);
+    let baseChance = enemy.isBoss ? 0.16 : (enemy.isElite ? 0.05 : 0.012);
+    let chance = baseChance * getFlaskDiscoveryTierMultiplier(key);
     if (Math.random() >= chance) return;
-    let key = candidates[Math.floor(Math.random() * candidates.length)];
     if (!discoverFlask(key)) return;
     let def = FLASK_DB[key];
     addBattleFx('lootPickup', { enemyId: enemy.id, color: '#78d9ff', tier: 'rare', duration: 820 });
@@ -1475,6 +1544,7 @@ function ensureFlaskState() {
     if (!game.flasks || typeof game.flasks !== 'object') game.flasks = {};
     let st = game.flasks;
     ensureFlaskFoundKeys();
+    st.alchemyGlass = Math.max(0, Math.floor(Number(st.alchemyGlass) || 0));
     // 회복 슬롯: 선택 티어가 없거나 레벨 미달이면 해금된 최고 티어로 보정.
     if (!getFlaskHealDef(st.healTier) || getFlaskHealDef(st.healTier).reqLevel > Math.max(1, Math.floor(game.level || 1))) {
         st.healTier = getHighestUnlockedHealTier().key;
@@ -9675,4 +9745,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, clearAscendKeystoneRuntimeState });

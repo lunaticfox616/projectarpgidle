@@ -41,3 +41,105 @@
     box-sizing: border-box;
   }
 }
+
+/* Playable phone layout: switch composition instead of shrinking the desktop UI. */
+@media (max-width: 1080px) {
+  html, body { width: 100%; max-width: 100%; overflow-x: hidden !important; }
+  body { box-sizing: border-box; gap: 8px !important; }
+  #left-pane, #right-pane, #battle-column, .panel, .tab-content, .subtab-content {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0 !important;
+  }
+  .tab-content { overflow-x: clip !important; }
+  img, canvas { max-width: 100%; }
+  input, select, textarea { max-width: 100%; box-sizing: border-box; }
+  .responsive-split-grid,
+  .equipment-workspace,
+  .skill-loadout-workspace,
+  .gem-forge-workspace { grid-template-columns: minmax(0, 1fr) !important; }
+  .equipment-loadout-panel,
+  .equipment-inventory-panel,
+  .gem-target-rail,
+  .gem-forge-detail { min-width: 0; }
+  .equipment-inventory-toolbar,
+  .skill-library-heading,
+  .gem-enhance-section-head { align-items: stretch; flex-direction: column; }
+  .equipment-salvage-actions { width: 100%; }
+
+  body.mobile-battle-tab #tab-battle { padding: 4px !important; }
+  body.mobile-battle-tab #tab-battle .combat-panel { padding: 5px !important; }
+  body.mobile-battle-tab #tab-battle .combat-zone-row { gap: 5px; }
+  body.mobile-battle-tab #tab-battle .combat-zone-actions { display: flex; flex: 0 0 auto; gap: 4px; }
+  body.mobile-battle-tab #tab-battle .combat-zone-actions button { min-width: 58px; min-height: 36px; padding: 5px 7px; font-size: 10px; }
+  body.mobile-battle-tab #tab-battle .map-progress-row { min-width: 0; }
+  body.mobile-battle-tab #tab-battle .combat-top-status { display: block !important; }
+  body.mobile-battle-tab #tab-battle .player-hud-vitals { display: grid !important; grid-template-columns: auto minmax(0, 1fr) !important; gap: 5px; }
+  body.mobile-battle-tab #tab-battle .combat-hp-bar { min-width: 0; height: 30px; margin: 0; }
+  body.mobile-battle-tab #tab-battle .combat-hp-bar .hp-text { font-size: 12px; line-height: 30px; }
+  body.mobile-battle-tab #tab-battle .combat-flask-strip { max-width: 42vw; padding: 2px 2px 4px; }
+  body.mobile-battle-tab #tab-battle .combat-flask-mini { flex-basis: 28px; width: 28px; min-width: 28px !important; height: 30px; min-height: 30px !important; }
+  body.mobile-battle-tab #tab-battle .battlefield-wrap { height: clamp(210px, 42svh, 360px) !important; }
+  body.mobile-battle-tab #tab-battle #battlefield-canvas { width: 100% !important; height: 100% !important; }
+  body.mobile-battle-tab #tab-battle #enemy-area,
+  body.mobile-battle-tab #tab-battle .enemy-card.targeted { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box; }
+  body.mobile-battle-tab #tab-battle .enemy-card.targeted { padding: 7px 8px; }
+  body.mobile-battle-tab #tab-battle .enemy-card.targeted .hp-bar-bg { height: 25px; }
+  body.mobile-battle-tab #tab-battle .combat-feed { min-height: 150px !important; height: min(28svh, 230px) !important; max-height: 230px !important; padding: 8px; }
+  body.mobile-battle-tab #tab-battle .combat-feed.collapsed { min-height: 48px !important; height: 48px !important; }
+  body.mobile-battle-tab #tab-battle #log { font-size: 11px; }
+}
+
+@media (max-width: 720px) {
+  body { padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left)) !important; }
+  .panel, .tab-content { padding: 9px !important; }
+  h2 { font-size: 1.05rem; }
+  h3 { font-size: .95rem; }
+  .tab-header-bottom { left: 4px !important; right: 4px !important; }
+  .tab-btn { min-width: 82px !important; padding-inline: 7px !important; }
+  .subtab-btn { min-width: 112px !important; }
+  #ui-map-list.map-grid--split .map-zone-grid--hunting,
+  #ui-map-list.map-grid--split .map-zone-grid--chaos,
+  #ui-chaos-map-list.map-grid--split .map-zone-grid--chaos { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  #ui-map-list.map-grid--split .map-item,
+  #ui-chaos-map-list.map-grid--split .map-item { min-height: 58px; padding: 8px !important; font-size: .78em !important; }
+  #ui-inventory-list,
+  #ui-craft-inventory-list,
+  #ui-fossil-inventory-list,
+  #ui-infuser-inventory-list,
+  body:not(.light-mode) #item-tab-equip .equipment-inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 7px; }
+  .item-card { min-width: 0; padding: 8px; }
+  .item-actions, .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  #tab-skills .skill-gem-library,
+  #tab-skills .gem-enhance-actions,
+  #tab-skills .gem-engrave-grid,
+  .gem-support-process-list { grid-template-columns: minmax(0, 1fr) !important; }
+  .gem-resource-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .gem-resource-strip > div:nth-child(odd) { border-left: 0; }
+  .gem-target-list { grid-template-columns: minmax(0, 1fr) !important; max-height: none; }
+  .gem-engrave-slots { width: 100%; justify-content: flex-start; gap: 8px; padding: 3px 2px 5px; overflow-x: auto; }
+  .gem-engrave-slots button { flex: 0 0 42px; width: 42px; height: 42px; min-height: 42px !important; }
+  .flask-paperdoll { grid-template-columns: minmax(0, 1fr) !important; }
+  #tree-container { width: 100% !important; min-height: 58svh !important; }
+}
+
+@media (max-width: 480px) {
+  #ui-inventory-list,
+  #ui-craft-inventory-list,
+  #ui-fossil-inventory-list,
+  #ui-infuser-inventory-list,
+  body:not(.light-mode) #item-tab-equip .equipment-inventory-grid,
+  #ui-skills-list,
+  #ui-support-list { grid-template-columns: minmax(0, 1fr) !important; }
+  .paperdoll { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .slot-box { min-width: 0; padding: 5px; font-size: .78em; }
+  .flask-overview { grid-template-columns: minmax(0, 1fr) !important; }
+  .flask-workbench-head { flex-direction: column; }
+  .flask-glass-balance { width: 100%; box-sizing: border-box; }
+  body.mobile-battle-tab #tab-battle .battlefield-wrap { height: clamp(190px, 38svh, 300px) !important; }
+}
+
+@media (pointer: coarse) {
+  .item-card, .skill-gem, .slot-box, .map-item { touch-action: manipulation; }
+  button:not(.combat-flask-mini) { min-height: 42px; }
+}
