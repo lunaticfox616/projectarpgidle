@@ -11147,7 +11147,7 @@ function mergeDefaults(save) {
     });
     merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
     if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
-        // Version 17 changes the generated topology and therefore the meaning of
+        // Version 17 introduced generated topology ids whose meaning differs from
         // sequential n### ids. Refund old allocations once instead of silently
         // applying the player's points to unrelated nodes in the radial layout.
         if (Number(merged.passiveLayoutVersion || 0) < 17) {

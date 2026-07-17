@@ -205,6 +205,10 @@ const PASSIVE_RADIAL_SCHEMA = Object.freeze({
     innerRadius: 285,
     ringSpacing: 160,
     worldDepths: Object.freeze([3, 6, 9, 12]),
+    worldRadii: Object.freeze([660, 1050, 1440, 1830]),
+    heikhalRadius: 240,
+    bridgeRadius: 1635,
+    rimRadius: 2130,
     worldNames: Object.freeze(['아시야 · 행동계', '예치라 · 형성계', '브리아 · 창조계', '아칠루트 · 발출계'])
 });
 

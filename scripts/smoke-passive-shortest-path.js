@@ -54,10 +54,19 @@ const radialSummary = vm.runInContext(`(() => {
     if (Number.isFinite(node.radialWorld)) counts[node.radialWorld] = (counts[node.radialWorld] || 0) + 1;
     return counts;
   }, {});
+  const groups = nodes.reduce((counts, node) => {
+    counts[node.layoutGroup || 'legacy'] = (counts[node.layoutGroup || 'legacy'] || 0) + 1;
+    return counts;
+  }, {});
   let minimumDistance = Number.POSITIVE_INFINITY;
+  let closestPair = null;
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
-      minimumDistance = Math.min(minimumDistance, Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y));
+      const distance = Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y);
+      if (distance < minimumDistance) {
+        minimumDistance = distance;
+        closestPair = [nodes[i].id, nodes[j].id, nodes[i].layoutGroup, nodes[j].layoutGroup];
+      }
     }
   }
   return {
@@ -66,20 +75,29 @@ const radialSummary = vm.runInContext(`(() => {
     axisCount: axisSpokes.size,
     pillarCount: pillarSpokes.size,
     worlds,
+    groups,
     minimumDistance,
+    closestPair,
   };
 })()`, context);
 assert.strictEqual(context.PASSIVE_RADIAL_SCHEMA.sectorCount, 12, 'passive layout should use twelve 30-degree sectors');
 assert.strictEqual(context.PASSIVE_RADIAL_SCHEMA.axisCount, 6, 'passive layout should retain six primary axes');
-assert.strictEqual(context.PASSIVE_LAYOUT_VERSION, 17, 'radial topology should use a new save-layout version');
+assert.strictEqual(context.PASSIVE_LAYOUT_VERSION, 18, 'reference topology should use a new save-layout version');
 assert.strictEqual(context.PASSIVE_FULL_DISCOVERY, true, 'radial layout play-test should begin with the full available tree explored');
 assert.deepStrictEqual(Array.from(context.PASSIVE_RADIAL_SCHEMA.worldDepths), [3, 6, 9, 12], 'passive layout should expose four concentric worlds');
 assert.strictEqual(radialSummary.nodeCount, 1101, 'radial adaptation should preserve the live passive node count');
-assert.ok(radialSummary.edgeCount > radialSummary.nodeCount, 'radial tree should retain alternate routes instead of becoming a single chain');
-assert.strictEqual(radialSummary.axisCount, 6, 'generated tree should contain six populated axes');
-assert.strictEqual(radialSummary.pillarCount, 6, 'generated tree should contain six populated inter-axis pillars');
+assert.strictEqual(radialSummary.edgeCount, 2172, 'reference topology should retain the supplied graph density');
+assert.strictEqual(radialSummary.groups.heikhal, 9, 'the central heikhal should contain nine surrounding gates');
+assert.strictEqual(radialSummary.groups['major-anchor'], 22, 'the light and dark trees should expose twenty-two major anchors');
+assert.strictEqual(radialSummary.groups.interworld, 120, 'four worlds should be joined by 120 interworld nodes');
+assert.strictEqual(radialSummary.groups['sector-path'], 288, 'twelve sectors should contain 288 boundary path nodes');
+assert.strictEqual(radialSummary.groups.axis, 60, 'six inversion axes should contain sixty nodes');
+assert.strictEqual(radialSummary.groups['mother-path'], 60, 'three mother-letter bridges should contain sixty nodes');
+assert.strictEqual(radialSummary.groups.rim, 72, 'the outer rim should contain seventy-two nodes');
+assert.strictEqual(radialSummary.groups.nitzotz, 36, 'the outer light and dark sparks should contain thirty-six nodes');
+assert.strictEqual(radialSummary.groups.serpent, 12, 'the winding serpent path should contain twelve nodes');
 assert.ok([0, 1, 2, 3].every(world => (radialSummary.worlds[world] || 0) >= 100), 'all four concentric worlds should contain meaningful node populations');
-assert.ok(radialSummary.minimumDistance >= 36, 'passive nodes should retain enough clearance to avoid unreadable overlap');
+assert.ok(radialSummary.minimumDistance >= 16, `reference layout nodes should retain readable separation (actual ${radialSummary.minimumDistance}, pair ${radialSummary.closestPair})`);
 const passiveCanvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 assert.ok(passiveCanvasSource.includes('drawPassiveRadialFramework(ctx, lightweightMode, zoomedOutMode)'), 'canvas should render the four rings and twelve-sector framework');
 

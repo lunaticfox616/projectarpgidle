@@ -292,16 +292,14 @@ function drawPassiveStarfield(ctx, bounds) {
 }
 
 function getPassiveRadialWorldRadii() {
-    return PASSIVE_RADIAL_SCHEMA.worldDepths.map(depth => (
-        PASSIVE_RADIAL_SCHEMA.innerRadius + (depth - 1) * PASSIVE_RADIAL_SCHEMA.ringSpacing
-    ) * PASSIVE_WORLD_SCALE);
+    return PASSIVE_RADIAL_SCHEMA.worldRadii.slice();
 }
 
 function drawPassiveRadialFramework(ctx, lightweightMode, zoomedOutMode) {
     const root = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };
     const radii = getPassiveRadialWorldRadii();
     if (!radii.length) return;
-    const outerRadius = radii[radii.length - 1] + PASSIVE_RADIAL_SCHEMA.ringSpacing * PASSIVE_WORLD_SCALE * 0.34;
+    const outerRadius = PASSIVE_RADIAL_SCHEMA.rimRadius;
     const sectorAngle = Math.PI * 2 / PASSIVE_RADIAL_SCHEMA.sectorCount;
 
     ctx.save();
@@ -1528,6 +1526,275 @@ function generateOrganicTree() {
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
 }
 
+function getReferenceLayoutAngle(x, y) {
+    let degrees = Math.atan2(-y, x) * 180 / Math.PI;
+    return (degrees + 360) % 360;
+}
+
+function takeReferenceLayoutNodes(pool, count, predicate) {
+    const picked = [];
+    for (let index = pool.length - 1; index >= 0 && picked.length < count; index--) {
+        if (!predicate || predicate(pool[index])) picked.unshift(pool.splice(index, 1)[0]);
+    }
+    while (picked.length < count && pool.length) picked.push(pool.shift());
+    return picked;
+}
+
+function setReferenceLayoutPosition(node, x, y, group, index) {
+    if (!node) return;
+    const angle = getReferenceLayoutAngle(x, y);
+    const sectorIndex = Math.floor(((angle + 15) % 360) / 30) % PASSIVE_RADIAL_SCHEMA.sectorCount;
+    const radius = Math.hypot(x, y);
+    node.x = x;
+    node.y = y;
+    node.layoutGroup = group;
+    node.layoutGroupIndex = index;
+    node.webSpoke = sectorIndex;
+    node.radialRole = group;
+    node.radialWorld = radius < 855 ? 0 : (radius < 1245 ? 1 : (radius < 1635 ? 2 : 3));
+    node.radialHemisphere = y <= 0 ? 'light' : 'dark';
+    node.sector = PASSIVE_RADIAL_SCHEMA.themeOrder[Math.floor(sectorIndex / PASSIVE_RADIAL_SCHEMA.spokesPerTheme)];
+}
+
+function setReferenceLayoutPolar(node, radius, angle, group, index) {
+    const radians = angle * Math.PI / 180;
+    setReferenceLayoutPosition(node, radius * Math.cos(radians), -radius * Math.sin(radians), group, index);
+}
+
+function getReferenceMajorAnchors() {
+    const rings = PASSIVE_RADIAL_SCHEMA.worldRadii;
+    const bridge = PASSIVE_RADIAL_SCHEMA.bridgeRadius;
+    const specs = [];
+    [[90, 30, 150], [270, 330, 210]].forEach((angles, half) => {
+        const innerAngle = half === 0 ? 90 : 270;
+        specs.push({ radius: rings[3], angle: angles[0] });
+        specs.push({ radius: rings[3], angle: angles[1] });
+        specs.push({ radius: rings[3], angle: angles[2] });
+        specs.push({ radius: bridge, angle: innerAngle });
+        specs.push({ radius: rings[2], angle: angles[0] });
+        specs.push({ radius: rings[2], angle: angles[1] });
+        specs.push({ radius: rings[2], angle: angles[2] });
+        specs.push({ radius: rings[1], angle: angles[0] });
+        specs.push({ radius: rings[1], angle: angles[1] });
+        specs.push({ radius: rings[1], angle: angles[2] });
+        specs.push({ radius: rings[0], angle: innerAngle });
+    });
+    return specs;
+}
+
+function applySephirotQliphothReferenceLayout() {
+    const root = PASSIVE_TREE.nodes.n0;
+    if (!root) return;
+    const pool = Object.values(PASSIVE_TREE.nodes)
+        .filter(node => node.id !== root.id)
+        .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+    const heikhal = takeReferenceLayoutNodes(pool, 9, node => node.kind === 'core' || node.kind === 'path');
+    const socketCount = pool.filter(node => node.kind === 'hub').length;
+    const sockets = takeReferenceLayoutNodes(pool, socketCount, node => node.kind === 'hub');
+    const serpent = takeReferenceLayoutNodes(pool, 12, node => node.kind === 'void');
+    const majors = takeReferenceLayoutNodes(pool, 22, node => ['keystone', 'transcendent', 'apex', 'evolved', 'major'].includes(node.kind));
+    const rim = takeReferenceLayoutNodes(pool, 72, node => ['apex', 'evolved', 'transcendent', 'keystone'].includes(node.kind));
+    const axis = takeReferenceLayoutNodes(pool, 60, node => node.kind === 'path');
+    const mother = takeReferenceLayoutNodes(pool, 60, node => node.kind === 'path');
+    const interworld = takeReferenceLayoutNodes(pool, 120, node => node.kind === 'path' || node.kind === 'node');
+    const sectorPaths = takeReferenceLayoutNodes(pool, 288, node => node.kind === 'path' || node.kind === 'node');
+    const sparks = takeReferenceLayoutNodes(pool, 36, node => node.kind === 'node' || node.kind === 'major');
+    const clusters = pool.splice(0);
+    const edgeKeys = new Set();
+    PASSIVE_TREE.edges.length = 0;
+
+    function connect(a, b) {
+        if (!a || !b || a.id === b.id) return;
+        const key = String(a.id) < String(b.id) ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+        if (edgeKeys.has(key)) return;
+        edgeKeys.add(key);
+        PASSIVE_TREE.edges.push({ from: a.id, to: b.id });
+    }
+    function connectChain(nodes, cycle) {
+        for (let index = 1; index < nodes.length; index++) connect(nodes[index - 1], nodes[index]);
+        if (cycle && nodes.length > 2) connect(nodes[nodes.length - 1], nodes[0]);
+    }
+    function closestNode(node, candidates) {
+        let closest = null;
+        let bestDistance = Infinity;
+        candidates.forEach(candidate => {
+            if (!candidate || candidate.id === node.id) return;
+            const distance = Math.hypot(node.x - candidate.x, node.y - candidate.y);
+            if (distance < bestDistance) {
+                closest = candidate;
+                bestDistance = distance;
+            }
+        });
+        return closest;
+    }
+
+    setReferenceLayoutPosition(root, 0, 0, 'heikhal-origin', 0);
+    heikhal.forEach((node, index) => setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.heikhalRadius, index * 40, 'heikhal', index));
+    connectChain(heikhal, true);
+    [0, 1, 3, 4, 6, 7].forEach(index => connect(root, heikhal[index]));
+
+    const interworldRings = [[], [], [], []];
+    interworld.forEach((node, index) => {
+        const world = Math.floor(index / 30);
+        const slot = index % 30;
+        interworldRings[world].push(node);
+        setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.worldRadii[world], slot * 12, 'interworld', index);
+    });
+    interworldRings.forEach(nodes => connectChain(nodes, true));
+    for (let world = 1; world < interworldRings.length; world++) {
+        for (let slot = 0; slot < 30; slot++) connect(interworldRings[world - 1][slot], interworldRings[world][slot]);
+    }
+    for (let slot = 0; slot < 30; slot += 5) connect(heikhal[Math.floor(slot / 5)], interworldRings[0][slot]);
+
+    const sectorGroups = Array.from({ length: 12 }, () => []);
+    sectorPaths.forEach((node, index) => {
+        const sector = Math.floor(index / 24);
+        const slot = index % 24;
+        const radius = 330 + slot * 76;
+        const angle = 15 + sector * 30 + (slot % 2 === 0 ? -2.2 : 2.2);
+        sectorGroups[sector].push(node);
+        setReferenceLayoutPolar(node, radius, angle, 'sector-path', index);
+    });
+    sectorGroups.forEach((nodes, sector) => {
+        connectChain(nodes, false);
+        connect(heikhal[Math.floor(sector * heikhal.length / 12)], nodes[0]);
+        [4, 9, 14, 19].forEach((slot, world) => connect(nodes[slot], closestNode(nodes[slot], interworldRings[world])));
+        connect(nodes[nodes.length - 1], rim[Math.floor(sector * rim.length / 12)]);
+    });
+
+    const axisGroups = Array.from({ length: 6 }, () => []);
+    const axisRadii = [380, 500, 790, 910, 1180, 1300, 1570, 1690, 1960, 2040];
+    axis.forEach((node, index) => {
+        const spoke = Math.floor(index / 10);
+        const slot = index % 10;
+        axisGroups[spoke].push(node);
+        setReferenceLayoutPolar(node, axisRadii[slot], spoke * 60, 'axis', index);
+    });
+    axisGroups.forEach((nodes, spoke) => {
+        connectChain(nodes, false);
+        connect(heikhal[Math.floor(spoke * heikhal.length / 6)], nodes[0]);
+        [1, 3, 6, 8].forEach((slot, world) => connect(nodes[slot], closestNode(nodes[slot], interworldRings[world])));
+    });
+
+    const motherGroups = [[], [], []];
+    mother.forEach((node, index) => {
+        const band = Math.floor(index / 20);
+        const slot = index % 20;
+        const x = -1520 + slot * 160;
+        const yBase = [-1180, 0, 1180][band];
+        const y = yBase + Math.sin(slot / 19 * Math.PI) * (band === 1 ? 85 : 55) * (band === 0 ? 1 : -1);
+        motherGroups[band].push(node);
+        setReferenceLayoutPosition(node, x, y, 'mother-path', index);
+    });
+    motherGroups.forEach(nodes => {
+        connectChain(nodes, false);
+        [0, 9, 19].forEach(slot => connect(nodes[slot], closestNode(nodes[slot], interworld)));
+    });
+
+    const majorSpecs = getReferenceMajorAnchors();
+    majors.forEach((node, index) => setReferenceLayoutPolar(node, majorSpecs[index].radius, majorSpecs[index].angle, 'major-anchor', index));
+    const clustersByMajor = Array.from({ length: majors.length }, () => []);
+    clusters.forEach((node, index) => clustersByMajor[index % majors.length].push(node));
+    clustersByMajor.forEach((nodes, majorIndex) => {
+        const anchor = majors[majorIndex];
+        const spec = majorSpecs[majorIndex];
+        nodes.forEach((node, localIndex) => {
+            const layer = localIndex < 6 ? 0 : (localIndex < 18 ? 1 : 2);
+            const layerStart = layer === 0 ? 0 : (layer === 1 ? 6 : 18);
+            const layerCount = Math.max(1, Math.min(layer === 0 ? 6 : (layer === 1 ? 12 : 18), nodes.length - layerStart));
+            const localAngle = spec.angle + 15 + (localIndex - layerStart) * 360 / layerCount;
+            const localRadius = [105, 190, 275][layer];
+            const radians = localAngle * Math.PI / 180;
+            setReferenceLayoutPosition(node, anchor.x + Math.cos(radians) * localRadius, anchor.y - Math.sin(radians) * localRadius, 'major-cluster', localIndex);
+            node.referenceMajorAnchorId = anchor.id;
+        });
+        connect(anchor, closestNode(anchor, interworld.concat(sectorPaths, axis)));
+        nodes.forEach((node, localIndex) => {
+            if (localIndex < 6) connect(anchor, node);
+            else connect(nodes[(localIndex - 6) % 6], node);
+        });
+        connectChain(nodes.slice(0, Math.min(6, nodes.length)), true);
+        connectChain(nodes.slice(6, Math.min(18, nodes.length)), true);
+    });
+
+    rim.forEach((node, index) => setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.rimRadius, index * 5, 'rim', index));
+    connectChain(rim, true);
+    sectorGroups.forEach((nodes, sector) => connect(nodes[nodes.length - 1], rim[sector * 6]));
+    axisGroups.forEach((nodes, spoke) => connect(nodes[nodes.length - 1], rim[spoke * 12]));
+
+    sparks.forEach((node, index) => {
+        const angle = index < 18 ? 5 + index * 10 : 185 + (index - 18) * 10;
+        const radius = 2290 + (index % 3) * 65;
+        setReferenceLayoutPolar(node, radius, angle, 'nitzotz', index);
+        connect(node, closestNode(node, rim));
+    });
+
+    serpent.forEach((node, index) => setReferenceLayoutPolar(node, 360 + index * 145, 248 + index * 37, 'serpent', index));
+    connect(heikhal[8], serpent[0]);
+    connectChain(serpent, false);
+    connect(serpent[serpent.length - 1], closestNode(serpent[serpent.length - 1], rim));
+
+    sockets.forEach((node, index) => {
+        setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.bridgeRadius, index * 360 / Math.max(1, sockets.length) + 7, 'socket', index);
+        connect(node, closestNode(node, interworld));
+        connect(node, closestNode(node, sectorPaths.concat(axis)));
+    });
+
+    const allNodes = Object.values(PASSIVE_TREE.nodes);
+    for (let iteration = 0; iteration < 10; iteration++) {
+        for (let left = 0; left < allNodes.length; left++) {
+            for (let right = left + 1; right < allNodes.length; right++) {
+                const a = allNodes[left];
+                const b = allNodes[right];
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const distance = Math.hypot(dx, dy) || 0.001;
+                const minimum = getPassiveNodeVisualRadius(a) + getPassiveNodeVisualRadius(b) + 10;
+                if (distance >= minimum) continue;
+                const push = minimum - distance;
+                const nx = dx / distance;
+                const ny = dy / distance;
+                if (a.id === root.id) {
+                    b.x += nx * push;
+                    b.y += ny * push;
+                } else if (b.id === root.id) {
+                    a.x -= nx * push;
+                    a.y -= ny * push;
+                } else {
+                    a.x -= nx * push * 0.5;
+                    a.y -= ny * push * 0.5;
+                    b.x += nx * push * 0.5;
+                    b.y += ny * push * 0.5;
+                }
+            }
+        }
+    }
+    const localCandidates = [];
+    allNodes.forEach(node => {
+        const nearest = [];
+        allNodes.forEach(other => {
+            if (node.id === other.id) return;
+            const distance = Math.hypot(node.x - other.x, node.y - other.y);
+            if (nearest.length < 10 || distance < nearest[nearest.length - 1].distance) {
+                nearest.push({ a: node, b: other, distance });
+                nearest.sort((a, b) => a.distance - b.distance);
+                if (nearest.length > 10) nearest.pop();
+            }
+        });
+        localCandidates.push(...nearest);
+    });
+    localCandidates.sort((a, b) => a.distance - b.distance);
+    for (let index = 0; index < localCandidates.length && PASSIVE_TREE.edges.length < 2172; index++) {
+        connect(localCandidates[index].a, localCandidates[index].b);
+    }
+
+    PASSIVE_BOUNDS.minX = Math.min(...allNodes.map(node => node.x));
+    PASSIVE_BOUNDS.maxX = Math.max(...allNodes.map(node => node.x));
+    PASSIVE_BOUNDS.minY = Math.min(...allNodes.map(node => node.y));
+    PASSIVE_BOUNDS.maxY = Math.max(...allNodes.map(node => node.y));
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('reference-layout');
+}
+
 function computePassiveDepths() {
     Object.values(PASSIVE_TREE.nodes).forEach(node => node.depth = Infinity);
     let root = PASSIVE_TREE.nodes['n0'];
@@ -1956,6 +2223,7 @@ function bootstrapPassiveTreeOnceReady() {
     generateOrganicTree();
     applyPassiveSpecializations();
     assignStarWedgeSockets();
+    applySephirotQliphothReferenceLayout();
     computePassiveDepths();
     rebalancePassiveStartingStats();
     polishPassiveLayout();
