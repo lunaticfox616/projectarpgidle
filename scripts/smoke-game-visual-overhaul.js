@@ -260,6 +260,8 @@ assert.ok(uiSource.includes("renderSkillGemArt(name, 'gem-card-sigil gem-card-ar
 assert.ok(uiSource.includes('class="gem-orbit-slot slot-${index + 1}'), 'engraving slots should orbit the selected gem instead of forming a detached row');
 assert.ok(indexSource.includes('id="ui-gem-engrave-slots" class="gem-engrave-orbit"'), 'the gem forge should expose the central-gem engraving overlay');
 assert.ok(windowCss.includes('.gem-orbit-center'), 'the engraving overlay should keep the selected gem at its visual center');
+assert.ok(windowCss.includes('grid-template-columns: minmax(0, 1fr); justify-items: center'), 'the engraving device should remain symmetric instead of reserving an uneven side column');
+assert.ok(windowCss.includes('.gem-orbit-center {') && windowCss.includes('border-radius: 50%'), 'the selected gem should use a circular socket instead of a tall card silhouette');
 assert.ok(windowCss.includes('@container (max-width: 430px)'), 'the engraving constellation should retain a dedicated mobile layout');
 assert.ok(indexSource.includes('<small>장착 중인 공격 젬</small>'), 'gem forge target rail should describe its equipped-only scope');
 assert.ok(uiSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not pause the live battle screen');

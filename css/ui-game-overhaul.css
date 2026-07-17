@@ -1725,26 +1725,27 @@ body:not(.light-mode) #info-tooltip {
 .gem-section-index { display: grid; place-items: center; width: 26px; height: 26px; color: #718ca5; border: 1px solid #36516a; border-radius: 50%; font-size: 8px; font-weight: 900; }
 #tab-skills .gem-enhance-section-title { margin: 0; color: #dbe8f4; font-size: 11px; }
 #tab-skills .gem-enhance-section-desc { margin: 2px 0 0; color: #6e8499; font-size: 8px; }
-.gem-engrave-orbit { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(150px, .62fr); align-items: center; gap: 12px; margin: 8px 0 12px; padding: 12px; border: 1px solid rgba(107, 82, 145, .6); border-radius: 2px 14px 2px 14px; background: radial-gradient(circle at 38% 50%, rgba(101, 68, 146, .19), transparent 42%), rgba(7, 8, 17, .72); overflow: hidden; }
-.gem-orbit-stage { position: relative; width: min(100%, 350px); height: 306px; margin: 0 auto; }
-.gem-orbit-rings { position: absolute; inset: 23px 45px; border: 1px solid rgba(155, 119, 203, .38); border-radius: 50%; box-shadow: inset 0 0 28px rgba(105, 64, 154, .12), 0 0 24px rgba(85, 55, 126, .1); }
+.gem-engrave-orbit { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 7px; margin: 8px 0 12px; padding: 10px 12px 9px; border: 1px solid rgba(107, 82, 145, .6); border-radius: 10px; background: radial-gradient(circle at 50% 44%, rgba(101, 68, 146, .2), transparent 39%), linear-gradient(180deg, rgba(10, 10, 22, .92), rgba(5, 7, 14, .82)); overflow: hidden; }
+.gem-orbit-stage { position: relative; width: min(100%, 360px); height: 324px; margin: 0 auto; }
+.gem-orbit-rings { position: absolute; inset: 20px 39px; border: 1px solid rgba(155, 119, 203, .38); border-radius: 50%; background: repeating-conic-gradient(from -18deg, rgba(185, 146, 225, .16) 0 .7deg, transparent .7deg 72deg); box-shadow: inset 0 0 34px rgba(105, 64, 154, .13), 0 0 24px rgba(85, 55, 126, .1); }
 .gem-orbit-rings::before,
-.gem-orbit-rings::after { content: ''; position: absolute; inset: 16px; border: 1px dashed rgba(210, 180, 242, .2); border-radius: inherit; transform: rotate(18deg); }
-.gem-orbit-rings::after { inset: 54px; border-style: solid; border-color: rgba(199, 159, 238, .2); }
-.gem-orbit-center { --gem-accent: #9b7fc8; position: absolute; left: 50%; top: 50%; z-index: 2; display: grid; place-items: center; width: 134px; min-height: 166px; padding: 8px 10px 10px; border: 1px solid color-mix(in srgb, var(--gem-accent) 52%, #3e3155); border-radius: 46% 46% 10px 10px; background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--gem-accent) 16%, #161222), rgba(7, 8, 15, .98) 72%); box-shadow: 0 0 34px color-mix(in srgb, var(--gem-accent) 18%, transparent), inset 0 1px rgba(255,255,255,.05); transform: translate(-50%, -50%); }
-.gem-orbit-art { display: grid; place-items: center; width: 104px; height: 104px; overflow: hidden; border-radius: 50%; filter: drop-shadow(0 8px 12px rgba(0,0,0,.45)); }
-.gem-orbit-center > span:not(.gem-orbit-art) { margin-top: 2px; color: #8d7ca7; font-size: 7px; font-weight: 900; letter-spacing: .12em; }
-.gem-orbit-center > strong { max-width: 116px; margin-top: 2px; overflow: hidden; color: #efe8fa; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.gem-orbit-rings::after { content: ''; position: absolute; border-radius: inherit; }
+.gem-orbit-rings::before { inset: 18px; border: 1px dashed rgba(210, 180, 242, .19); transform: rotate(18deg); }
+.gem-orbit-rings::after { inset: 66px; border: 1px solid rgba(199, 159, 238, .2); box-shadow: 0 0 18px rgba(128, 85, 174, .12); }
+.gem-orbit-center { --gem-accent: #9b7fc8; position: absolute; left: 50%; top: 48%; z-index: 2; display: grid; place-items: center; width: 132px; height: 132px; min-height: 0; padding: 7px; border: 1px solid color-mix(in srgb, var(--gem-accent) 60%, #3e3155); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--gem-accent) 15%, #161222), rgba(7, 8, 15, .98) 72%); box-shadow: 0 0 34px color-mix(in srgb, var(--gem-accent) 22%, transparent), inset 0 0 0 5px rgba(7, 8, 15, .78), inset 0 1px rgba(255,255,255,.08); transform: translate(-50%, -50%); }
+.gem-orbit-art { display: grid; place-items: center; width: 108px; height: 108px; overflow: hidden; border-radius: 50%; filter: drop-shadow(0 8px 12px rgba(0,0,0,.45)); }
+.gem-orbit-center > span:not(.gem-orbit-art) { position: absolute; left: 50%; top: calc(100% + 8px); width: max-content; color: #8d7ca7; font-size: 7px; font-weight: 900; letter-spacing: .12em; transform: translateX(-50%); }
+.gem-orbit-center > strong { position: absolute; left: 50%; top: calc(100% + 22px); max-width: 154px; padding: 3px 12px 4px; overflow: hidden; color: #efe8fa; border: 1px solid rgba(107, 82, 145, .5); border-radius: 999px; background: rgba(7, 8, 15, .92); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; transform: translateX(-50%); }
 .gem-orbit-slot { position: absolute; z-index: 4; display: grid; place-items: center; width: 58px; min-width: 58px; height: 58px; min-height: 58px; padding: 0; clip-path: none !important; border: 1px solid #4a3e5f; border-radius: 50% !important; color: #6f6381; background: radial-gradient(circle, #171421 48%, #080a10 72%); box-shadow: 0 5px 16px rgba(0,0,0,.42); touch-action: manipulation; }
 .gem-orbit-slot::before { content: ''; position: absolute; inset: 5px; border: 1px solid rgba(173, 139, 211, .24); border-radius: inherit; }
 .gem-orbit-slot > span { position: relative; z-index: 1; font-size: 20px; line-height: 1; }
 .gem-orbit-slot small { position: absolute; right: -1px; bottom: -2px; z-index: 2; display: grid; place-items: center; width: 17px; height: 17px; color: #9b8bab; border: 1px solid #58496e; border-radius: 50%; background: #0b0a12; font-size: 7px; }
 .gem-orbit-slot em { position: absolute; left: 50%; top: calc(100% + 4px); width: 92px; overflow: hidden; color: #9f91b3; font-size: 7px; font-style: normal; text-align: center; text-overflow: ellipsis; white-space: nowrap; transform: translateX(-50%); }
 .gem-orbit-slot.slot-1 { left: calc(50% - 29px); top: 0; }
-.gem-orbit-slot.slot-2 { right: 16px; top: 69px; }
-.gem-orbit-slot.slot-3 { right: 62px; bottom: 4px; }
-.gem-orbit-slot.slot-4 { left: 62px; bottom: 4px; }
-.gem-orbit-slot.slot-5 { left: 16px; top: 69px; }
+.gem-orbit-slot.slot-2 { right: 10px; top: 76px; }
+.gem-orbit-slot.slot-3 { right: 61px; bottom: 4px; }
+.gem-orbit-slot.slot-4 { left: 61px; bottom: 4px; }
+.gem-orbit-slot.slot-5 { left: 10px; top: 76px; }
 .gem-orbit-slot.open { color: #a698b9; border-color: #75628c; }
 .gem-orbit-slot.filled { color: #f2d477; border-color: #b49349; background: radial-gradient(circle, #3a2d14 38%, #17110a 74%); box-shadow: 0 0 18px rgba(225, 184, 84, .22), 0 6px 16px rgba(0,0,0,.45); }
 .gem-orbit-slot.group-crafted.filled { color: #c9aaf1; border-color: #8d6aba; background: radial-gradient(circle, #34234b 38%, #130d1e 74%); }
@@ -1753,7 +1754,7 @@ body:not(.light-mode) #info-tooltip {
 .gem-orbit-slot.locked { opacity: .34; }
 .gem-orbit-slot.selected { outline: 2px solid rgba(255, 221, 132, .55); outline-offset: 3px; }
 .gem-orbit-slot:not(.locked):hover { transform: translateY(-2px); filter: brightness(1.12); }
-.gem-orbit-copy { min-width: 0; padding: 12px; border-left: 1px solid rgba(107, 82, 145, .42); }
+.gem-orbit-copy { width: min(100%, 560px); min-width: 0; padding: 8px 12px 0; border-top: 1px solid rgba(107, 82, 145, .42); text-align: center; }
 .gem-orbit-copy strong,
 .gem-orbit-copy span { display: block; }
 .gem-orbit-copy strong { color: #eadcf8; font-size: 10px; }
@@ -1826,8 +1827,7 @@ body:not(.light-mode) #info-tooltip {
   .gem-research-columns { grid-template-columns: 1fr; }
   .skill-loadout-summary,
   .gem-resource-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .gem-engrave-orbit { grid-template-columns: 1fr; }
-  .gem-orbit-copy { padding: 9px 4px 2px; border-top: 1px solid rgba(107, 82, 145, .42); border-left: 0; text-align: center; }
+  .gem-orbit-copy { padding: 8px 4px 1px; }
   .skill-loadout-summary > div:nth-child(4),
   .gem-resource-strip > div:nth-child(4),
   .gem-resource-strip > div:nth-child(7) { border-left: 0; }
@@ -1849,17 +1849,20 @@ body:not(.light-mode) #info-tooltip {
   .skill-library-toolbar { align-items: stretch; flex-wrap: wrap; }
   .skill-library-toolbar > span { flex-basis: 100%; }
   .gem-engrave-orbit { padding: 7px 4px 9px; }
-  .gem-orbit-stage { width: 274px; height: 264px; }
-  .gem-orbit-rings { inset: 23px 30px; }
-  .gem-orbit-center { width: 112px; min-height: 142px; padding: 6px 8px 8px; }
-  .gem-orbit-art { width: 86px; height: 86px; }
+  .gem-orbit-stage { width: 276px; height: 268px; }
+  .gem-orbit-rings { inset: 19px 28px; }
+  .gem-orbit-rings::before { inset: 15px; }
+  .gem-orbit-rings::after { inset: 54px; }
+  .gem-orbit-center { top: 47%; width: 108px; height: 108px; padding: 6px; }
+  .gem-orbit-art { width: 88px; height: 88px; }
+  .gem-orbit-center > strong { top: calc(100% + 20px); max-width: 132px; padding-inline: 9px; }
   .gem-orbit-slot { width: 50px; min-width: 50px; height: 50px; min-height: 50px; }
   .gem-orbit-slot > span { font-size: 17px; }
   .gem-orbit-slot.slot-1 { left: calc(50% - 25px); }
-  .gem-orbit-slot.slot-2 { right: 4px; top: 61px; }
-  .gem-orbit-slot.slot-3 { right: 35px; }
-  .gem-orbit-slot.slot-4 { left: 35px; }
-  .gem-orbit-slot.slot-5 { left: 4px; top: 61px; }
+  .gem-orbit-slot.slot-2 { right: 2px; top: 59px; }
+  .gem-orbit-slot.slot-3 { right: 34px; bottom: 0; }
+  .gem-orbit-slot.slot-4 { left: 34px; bottom: 0; }
+  .gem-orbit-slot.slot-5 { left: 2px; top: 59px; }
   .gem-orbit-slot em { display: none; }
 }
 
