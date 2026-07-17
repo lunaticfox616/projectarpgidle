@@ -72,6 +72,7 @@ const radialSummary = vm.runInContext(`(() => {
 assert.strictEqual(context.PASSIVE_RADIAL_SCHEMA.sectorCount, 12, 'passive layout should use twelve 30-degree sectors');
 assert.strictEqual(context.PASSIVE_RADIAL_SCHEMA.axisCount, 6, 'passive layout should retain six primary axes');
 assert.strictEqual(context.PASSIVE_LAYOUT_VERSION, 17, 'radial topology should use a new save-layout version');
+assert.strictEqual(context.PASSIVE_FULL_DISCOVERY, true, 'radial layout play-test should begin with the full available tree explored');
 assert.deepStrictEqual(Array.from(context.PASSIVE_RADIAL_SCHEMA.worldDepths), [3, 6, 9, 12], 'passive layout should expose four concentric worlds');
 assert.strictEqual(radialSummary.nodeCount, 1101, 'radial adaptation should preserve the live passive node count');
 assert.ok(radialSummary.edgeCount > radialSummary.nodeCount, 'radial tree should retain alternate routes instead of becoming a single chain');
@@ -81,6 +82,18 @@ assert.ok([0, 1, 2, 3].every(world => (radialSummary.worlds[world] || 0) >= 100)
 assert.ok(radialSummary.minimumDistance >= 36, 'passive nodes should retain enough clearance to avoid unreadable overlap');
 const passiveCanvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 assert.ok(passiveCanvasSource.includes('drawPassiveRadialFramework(ctx, lightweightMode, zoomedOutMode)'), 'canvas should render the four rings and twelve-sector framework');
+
+context.game.discoveredPassives = [];
+context.refreshPassiveVisibility();
+const discoverySummary = vm.runInContext(`({
+  available: Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node)).length,
+  discovered: discoveredPassiveNodes.size,
+  saved: game.discoveredPassives.length,
+  hiddenAvailable: Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node) && getPassiveVisibility(node.id) === 'hidden').length,
+})`, context);
+assert.strictEqual(discoverySummary.discovered, discoverySummary.available, 'every available passive should be explored on first refresh');
+assert.strictEqual(discoverySummary.saved, discoverySummary.available, 'full exploration should persist in the save state');
+assert.strictEqual(discoverySummary.hiddenAvailable, 0, 'no available passive should remain hidden during layout testing');
 
 const targetId = vm.runInContext(`
 (function findTarget() {

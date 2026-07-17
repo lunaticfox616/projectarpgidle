@@ -3478,6 +3478,15 @@ function isPassiveLocalReveal(origin, node, radius, maxDepthGap) {
 }
 
 function refreshPassiveVisibility() {
+    let allNodes = Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node));
+    if (PASSIVE_FULL_DISCOVERY) {
+        let allNodeIds = allNodes.map(node => node.id);
+        discoveredPassiveNodes = new Set(allNodeIds);
+        previewPassiveNodes = new Set(allNodeIds);
+        if (game) game.discoveredPassives = allNodeIds.slice();
+        if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
+        return;
+    }
     if (!game) {
         discoveredPassiveNodes = new Set(['n0']);
         previewPassiveNodes = new Set(['n0']);
@@ -3489,7 +3498,6 @@ function refreshPassiveVisibility() {
     connectionNodes.forEach(id => {
         if (isPassiveNodeAvailable(id)) discoveredPassiveNodes.add(id);
     });
-    let allNodes = Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node));
     if ((game.passives || []).includes('n0')) {
         getPassiveLinkedNodeIds('n0', PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH).forEach(id => discoveredPassiveNodes.add(id));
     }
