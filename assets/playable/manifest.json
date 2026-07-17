@@ -1,0 +1,202 @@
+{
+  "hero1": {
+    "source": "Archer",
+    "portraitSource": "Archer Portrait.png",
+    "combatDirection": "east",
+    "idle": {
+      "frames": 1,
+      "frameWidth": 184,
+      "frameHeight": 184
+    },
+    "walk": {
+      "frames": 15,
+      "frameWidth": 184,
+      "frameHeight": 184
+    },
+    "attack": {
+      "frames": 15,
+      "frameWidth": 184,
+      "frameHeight": 184
+    }
+  },
+  "hero2": {
+    "source": "warrior",
+    "portraitSource": "worror Portrait.png",
+    "combatDirection": "east",
+    "idle": {
+      "frames": 1,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "walk": {
+      "frames": 17,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "attack": {
+      "frames": 17,
+      "frameWidth": 180,
+      "frameHeight": 180
+    }
+  },
+  "hero3": {
+    "source": "Druid",
+    "portraitSource": "Druid Portrait.png",
+    "combatDirection": "east",
+    "idle": {
+      "frames": 1,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "walk": {
+      "frames": 17,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "attack": {
+      "frames": 17,
+      "frameWidth": 180,
+      "frameHeight": 180
+    }
+  },
+  "hero4": {
+    "source": "Blade",
+    "portraitSource": "Blade Portrait.png",
+    "combatDirection": "east",
+    "idle": {
+      "frames": 1,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "walk": {
+      "frames": 13,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "attack": {
+      "frames": 17,
+      "frameWidth": 180,
+      "frameHeight": 180
+    }
+  },
+  "hero5": {
+    "source": "Paladin",
+    "portraitSource": "Paladin Portrait.png",
+    "combatDirection": "east",
+    "idle": {
+      "frames": 1,
+      "frameWidth": 176,
+      "frameHeight": 176
+    },
+    "walk": {
+      "frames": 17,
+      "frameWidth": 176,
+      "frameHeight": 176
+    },
+    "attack": {
+      "frames": 9,
+      "frameWidth": 176,
+      "frameHeight": 176
+    }
+  },
+  "hero6": {
+    "source": "Sniper",
+    "portraitSource": "Sniper Portrait.png",
+    "combatDirection": "east",
+    "idle": {
+      "frames": 1,
+      "frameWidth": 176,
+      "frameHeight": 176
+    },
+    "walk": {
+      "frames": 13,
+      "frameWidth": 176,
+      "frameHeight": 176
+    },
+    "attack": {
+      "frames": 17,
+      "frameWidth": 176,
+      "frameHeight": 176
+    }
+  },
+  "hero7": {
+    "source": "summoner",
+    "portraitSource": "Summoner Portrait.png",
+    "combatDirection": "east",
+    "idle": {
+      "frames": 1,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "walk": {
+      "frames": 17,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "attack": {
+      "frames": 17,
+      "frameWidth": 180,
+      "frameHeight": 180
+    }
+  },
+  "hero8": {
+    "source": "Guardian",
+    "portraitSource": "Guardian Portrait.png",
+    "combatDirection": "east",
+    "idle": {
+      "frames": 1,
+      "frameWidth": 188,
+      "frameHeight": 188
+    },
+    "walk": {
+      "frames": 15,
+      "frameWidth": 188,
+      "frameHeight": 188
+    },
+    "attack": {
+      "frames": 15,
+      "frameWidth": 188,
+      "frameHeight": 188
+    }
+  },
+  "hero9": {
+    "source": "Sorcerer",
+    "portraitSource": "Corcerer Portrait.png",
+    "combatDirection": "east",
+    "idle": {
+      "frames": 1,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "walk": {
+      "frames": 13,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "attack": {
+      "frames": 17,
+      "frameWidth": 180,
+      "frameHeight": 180
+    }
+  },
+  "hero10": {
+    "source": "alchemist",
+    "portraitSource": "Alchemist Portrait.png",
+    "combatDirection": "east",
+    "idle": {
+      "frames": 1,
+      "frameWidth": 184,
+      "frameHeight": 184
+    },
+    "walk": {
+      "frames": 11,
+      "frameWidth": 184,
+      "frameHeight": 184
+    },
+    "attack": {
+      "frames": 15,
+      "frameWidth": 184,
+      "frameHeight": 184
+    }
+  }
+}

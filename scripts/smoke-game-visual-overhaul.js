@@ -281,8 +281,24 @@ assert.ok(socialSource.includes('scrollChatToLatestOnNextRender'), 'opening chat
 assert.ok(indexSource.includes('id="chk-social-chat-noti"'), 'settings should expose a new-chat notification toggle');
 assert.ok(!socialSource.includes('setInterval(() => { if (socialCloudReady() && getMyNickname()) ensureHeartbeat(); }, SOCIAL_HEARTBEAT_MS);\n    // 커뮤니티'), 'social module should not run an eager cloud-ready watcher forever');
 assert.ok(passiveSource.includes('data-hero-id="${escapeHTML(id)}"'), 'hero preview cards should expose stable hero ids');
-assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero2\"]::after { background-image: url('../assets/hero2/hero2_walk.png')"), 'warrior preview should match its battle sprite');
-assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero7\"]::after { background-image: url('../assets/hero3/hero3_walk.png')"), 'summoner preview should match its reused battle sprite');
-assert.ok(windowCss.includes(".hero-choice[data-hero-id=\"hero8\"]::after { background-image: url('../assets/hero2/hero2_walk.png')"), 'guardian preview should match its reused battle sprite');
+assert.ok(passiveSource.includes('class="hero-choice-portrait" src="${escapeHTML(def.portrait)}"'), 'hero selection should render the dedicated portrait configured for each hero');
+assert.ok(windowCss.includes('body:not(.light-mode) .hero-choice-portrait {'), 'hero portraits should have a dedicated selection-card layout');
+assert.ok(!windowCss.includes('.hero-choice[data-hero-id='), 'character selection should not reuse animated combat sheets as CSS previews');
+const heroVisualCoverage = vm.runInContext(`Object.values(HERO_SELECTION_DEFS).map(def => ({
+  id: def.id,
+  portrait: def.portrait,
+  strips: Object.values(def.strips),
+}))`, context);
+assert.strictEqual(heroVisualCoverage.length, 10, 'all ten playable heroes should retain a visual definition');
+assert.strictEqual(new Set(heroVisualCoverage.map(hero => hero.portrait)).size, 10, 'every hero should use a distinct portrait');
+heroVisualCoverage.forEach(hero => {
+  assert.ok(fs.existsSync(hero.portrait), `${hero.id} portrait should exist`);
+  assert.strictEqual(new Set(hero.strips).size, 5, `${hero.id} animation states should use explicit asset keys`);
+  ['idle', 'walk', 'attack'].forEach(state => {
+    assert.ok(fs.existsSync(`assets/playable/${hero.id}/${state}.png`), `${hero.id} ${state} strip should exist`);
+  });
+});
+assert.ok(passiveSource.includes("hero7Walk: 'assets/playable/hero7/walk.png'"), 'summoner combat art should no longer reuse the druid');
+assert.ok(passiveSource.includes("hero8Walk: 'assets/playable/hero8/walk.png'"), 'guardian combat art should no longer reuse the warrior');
 
 console.log('smoke-game-visual-overhaul passed');
